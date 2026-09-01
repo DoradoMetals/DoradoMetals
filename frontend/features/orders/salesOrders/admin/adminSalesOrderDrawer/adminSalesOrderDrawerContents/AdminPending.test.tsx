@@ -84,6 +84,11 @@ beforeEach(() => {
   vi.mocked(apiRequest).mockReset();
   vi.mocked(apiRequest).mockImplementation(async (_m, url) => {
     if (url === "/stripe/get_sales_order_payment_intent") return wireIntent();
+    // The method rows the instrument label resolves through (D207) - the
+    // component reads them instead of a hardcoded array now.
+    if (String(url).startsWith("/payments/methods")) {
+      return [{ type: "CARD", label: "Card", direction: "sale" }];
+    }
     return {};
   });
 });
@@ -128,6 +133,9 @@ describe("an admin watching a sales order's payment", () => {
     vi.mocked(apiRequest).mockImplementation(async (_m, url) => {
       if (url === "/stripe/get_sales_order_payment_intent")
         return { ...wireIntent(), status: "succeeded" };
+      if (String(url).startsWith("/payments/methods")) {
+        return [{ type: "CARD", label: "Card", direction: "sale" }];
+      }
       return {};
     });
 

@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import { SalesOrderCheckout, salesOrderServiceOptions } from '@/features/orders/salesOrders/types'
+import { SalesOrderCheckout, DEFAULT_SALES_SERVICE } from '@/features/orders/salesOrders/types'
 
 type PartialCheckout = Partial<SalesOrderCheckout>
 
@@ -35,7 +35,7 @@ export const useSalesOrderCheckoutStore = create<SalesOrderCheckoutState>()(
   persist(
     (set) => ({
       data: {
-        service: salesOrderServiceOptions.STANDARD,
+        service: DEFAULT_SALES_SERVICE,
         using_funds: true,
         payment_method: 'CARD',
       },
@@ -50,7 +50,7 @@ export const useSalesOrderCheckoutStore = create<SalesOrderCheckoutState>()(
       clear: () =>
         set({
           data: {
-            service: salesOrderServiceOptions.STANDARD,
+            service: DEFAULT_SALES_SERVICE,
             using_funds: true,
             payment_method: 'CARD',
           },

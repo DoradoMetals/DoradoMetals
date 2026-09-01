@@ -19,7 +19,8 @@ import {
 } from '@/shared/ui/base/table'
 import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
 import formatPhoneNumber from '@/shared/utils/formatPhoneNumber'
-import { payoutOptions } from '@/features/payouts/types'
+import { payoutMethodIcon, PayoutMethodType } from '@/features/payouts/types'
+import { usePaymentMethods } from '@/features/payments/queries'
 import { formatRate } from '@/features/rates/utils/resolveRate'
 import { useOrderItems, nameOf } from '@/features/orders/reads'
 import { useOrderPayouts } from '@/features/payouts/queries'
@@ -81,8 +82,9 @@ export default function PurchaseOrderDrawerFooter({ order }: PurchaseOrderDrawer
     (metal_id) => nameOf(spotPrices, metal_id)
   )
   const bullionItems = items.filter((item) => item.bullion_id !== null)
-  const payoutMethod = payoutOptions.find((p) => p.method === payout?.method)
-  const payoutFee = payoutMethod?.cost ?? 0
+  const { data: payoutMethods = [] } = usePaymentMethods('purchase')
+  const payoutMethod = payoutMethods.find((p) => p.type === payout?.method)
+  const payoutFee = Number(payoutMethod?.flat_fee ?? 0)
 
   // 0 until the first quote lands, which is what the old client math showed
   // before the spot feed loaded; placeholderData keeps later ticks flicker-free.

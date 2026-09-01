@@ -4,7 +4,8 @@ import { Button } from '@dorado/components'
 import StatusChip from '@/shared/ui/StatusChip'
 import { Separator } from '@/shared/ui/base/separator'
 import { DetailRow } from '@/shared/ui/DetailRow'
-import { paymentOptions, SalesOrderDrawerContentProps } from '@/features/orders/salesOrders/types'
+import { paymentMethodIcon, SalesOrderDrawerContentProps } from '@/features/orders/salesOrders/types'
+import { usePaymentMethods } from '@/features/payments/queries'
 
 const titleCase = (s: string) =>
   s
@@ -17,10 +18,11 @@ export default function AdminPendingSalesOrder({ order }: SalesOrderDrawerConten
   const cancelPaymentIntent = useCancelPaymentIntent(order.id)
 
   // details.type speaks the schema's vocabulary (CARD, ACH), not Stripe's -
-  // so the match is on the option's method, where the legacy wire matched its
+  // so the match is on the row's type, where the legacy wire matched its
   // Stripe-spelled value.
-  const paymentType = paymentOptions.find((p) => p.method === paymentIntent?.details?.type)
-  const Icon = paymentType?.icon
+  const { data: methods = [] } = usePaymentMethods('sale')
+  const paymentType = methods.find((m) => m.type === paymentIntent?.details?.type)
+  const Icon = paymentType ? paymentMethodIcon[paymentType.type as keyof typeof paymentMethodIcon] : undefined
   // The provider's reference lives on the attempt, and is what cancel takes.
   const intentRef = paymentIntent?.attempt?.provider_ref ?? null
 
@@ -65,7 +67,7 @@ export default function AdminPendingSalesOrder({ order }: SalesOrderDrawerConten
       )}
 
       {paymentIntent.details?.last_four && (
-        <DetailRow label={paymentType?.method !== 'ACH' ? 'Card Number:' : 'Account Number'}>
+        <DetailRow label={paymentType?.type !== 'ACH' ? 'Card Number:' : 'Account Number'}>
           *******{paymentIntent.details.last_four}
         </DetailRow>
       )}

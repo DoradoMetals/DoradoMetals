@@ -17,9 +17,11 @@ import { cn } from '@/shared/utils/cn'
 
 import {
   adminSalesOrderCheckoutSchema,
-  adminSalesOrderServiceOptions,
-  paymentOptions,
+  tierToServiceOption,
+  SalesOrderServiceUIOption,
 } from '@/features/orders/salesOrders/types'
+import { useShippingTiers } from '@/features/shipping/queries'
+import { usePaymentMethods } from '@/features/payments/queries'
 import type { SalesOrderQuote } from '@dorado/contracts'
 import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
 import { useAdminSalesOrderCheckoutStore } from '@/shared/store/adminSalesOrderCheckoutStore'
@@ -383,8 +385,17 @@ function AddressSelector({ user, addresses, userAddresses, isLoading }: AddressS
 function ServiceSelector() {
   const { data, setData } = useAdminSalesOrderCheckoutStore()
 
+  // Every tier, FREE included - the admin grant is the whole difference the
+  // old admin-only record used to encode (D207).
+  const { data: tiers = [] } = useShippingTiers()
+  const options = useMemo(() => {
+    const out: Record<string, SalesOrderServiceUIOption> = {}
+    for (const tier of tiers) out[tier.code] = tierToServiceOption(tier)
+    return out
+  }, [tiers])
+
   function handleServiceChange(serviceKey: string) {
-    const option = adminSalesOrderServiceOptions[serviceKey]
+    const option = options[serviceKey]
 
     setData({
       service: {
@@ -398,7 +409,7 @@ function ServiceSelector() {
       <RadioGroup
         value={data.service?.value ?? ''}
         onValueChange={handleServiceChange}
-        options={adminSalesOrderServiceOptions}
+        options={options}
         className="flex w-full flex-col gap-3"
       >
         {(option) => (
@@ -419,6 +430,7 @@ function ServiceSelector() {
 
 function OrderSummary({ orderPrices }: { orderPrices?: SalesOrderQuote }) {
   const { data } = useAdminSalesOrderCheckoutStore()
+  const { data: saleMethods = [] } = usePaymentMethods('sale')
   const router = useRouter()
 
   // 0 until the first quote lands; placeholderData keeps later ticks
@@ -450,9 +462,9 @@ function OrderSummary({ orderPrices }: { orderPrices?: SalesOrderQuote }) {
       {surcharge > 0 && (
         <DetailRow
           label={`${
-            paymentOptions.find((option) => option.method === data.payment_method)?.label
+            saleMethods.find((m) => m.type === data.payment_method)?.label
           } Surcharge (${
-            paymentOptions.find((option) => option.method === data.payment_method)?.surcharge_label
+            saleMethods.find((m) => m.type === data.payment_method)?.surcharge_label
           })`}
         >
           <PriceNumberFlow value={surcharge} />

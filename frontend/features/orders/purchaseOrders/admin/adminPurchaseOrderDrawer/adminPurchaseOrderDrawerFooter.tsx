@@ -20,7 +20,8 @@ import {
 import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
 import formatPhoneNumber from '@/shared/utils/formatPhoneNumber'
 import { PurchaseOrderActionButtons } from './adminPurchaseOrderDrawerContents/adminPurchaseOrderActionButtons'
-import { payoutOptions } from '@/features/payouts/types'
+import { payoutMethodIcon, PayoutMethodType } from '@/features/payouts/types'
+import { usePaymentMethods } from '@/features/payments/queries'
 import { useOrderPayouts } from '@/features/payouts/queries'
 import { useOrderItems, useOrderAddress, nameOf } from '@/features/orders/reads'
 import {
@@ -78,7 +79,8 @@ export default function AdminPurchaseOrderDrawerFooter({ order }: PurchaseOrderD
     (metal_id) => nameOf(spotPrices, metal_id)
   )
   const bullionItems = items.filter((item) => item.bullion_id !== null)
-  const payoutMethod = payoutOptions.find((p) => p.method === payout?.method)
+  const { data: payoutMethods = [] } = usePaymentMethods('purchase')
+  const payoutMethod = payoutMethods.find((p) => p.type === payout?.method)
   const payoutFee = payout?.cost ?? 0
 
   // 0 until the first quote lands, which is what the old client math showed

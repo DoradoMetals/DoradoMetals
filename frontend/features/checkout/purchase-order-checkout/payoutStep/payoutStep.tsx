@@ -5,7 +5,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { ChevronDown } from 'lucide-react'
 
 import {
-  payoutOptions,
+  payoutMethodIcon,
   achSchema,
   wireSchema,
   echeckSchema,
@@ -27,9 +27,15 @@ import { User } from '@/features/users/types'
 import PriceNumberFlow from '../../../../shared/ui/PriceNumberFlow'
 import { CircleIcon } from '@phosphor-icons/react'
 import DoradoAccountForm from './doradoAccountForm'
+import { usePaymentMethods } from '@/features/payments/queries'
 
 export default function PayoutStep({ user }: { user?: User }) {
   const setData = usePurchaseOrderCheckoutStore((state) => state.setData)
+
+  // The method rows (D207). The old array lookups here keyed on LABEL
+  // ('ACH' against 'ACH Transfer'), so they never matched and every cost fell
+  // through to its ?? fallback; the rows are keyed by type, which does.
+  const { data: payoutMethods = [] } = usePaymentMethods('purchase')
 
   const selected = usePurchaseOrderCheckoutStore((state) => state.data.payout?.method)
   const storeData = usePurchaseOrderCheckoutStore((state) => state.data.payout)
@@ -45,7 +51,7 @@ export default function PayoutStep({ user }: { user?: User }) {
       account_number: storeData?.method === 'ACH' ? storeData.account_number : '',
       account_type: storeData?.method === 'ACH' ? storeData.account_type : 'Checking',
       confirmation: storeData?.method === 'ACH' ? storeData.confirmation : false,
-      cost: payoutOptions.find((option) => option.label === 'ACH')?.cost ?? 0,
+      cost: Number(payoutMethods.find((option) => option.type === 'ACH')?.flat_fee ?? 0),
     },
   })
 
@@ -59,7 +65,7 @@ export default function PayoutStep({ user }: { user?: User }) {
       routing_number: storeData?.method === 'WIRE' ? storeData.routing_number : '',
       account_number: storeData?.method === 'WIRE' ? storeData.account_number : '',
       confirmation: storeData?.method === 'WIRE' ? storeData.confirmation : false,
-      cost: payoutOptions.find((option) => option.label === 'WIRE')?.cost ?? 20,
+      cost: Number(payoutMethods.find((option) => option.type === 'WIRE')?.flat_fee ?? 20),
     },
   })
 
@@ -71,7 +77,7 @@ export default function PayoutStep({ user }: { user?: User }) {
       account_holder_name:
         storeData?.method === 'ECHECK' ? storeData.account_holder_name : user?.name ?? '',
       payout_email: storeData?.method === 'ECHECK' ? storeData.payout_email : user?.email ?? '',
-      cost: payoutOptions.find((option) => option.label === 'ECHECK')?.cost ?? 0,
+      cost: Number(payoutMethods.find((option) => option.type === 'ECHECK')?.flat_fee ?? 0),
     },
   })
 
@@ -84,7 +90,7 @@ export default function PayoutStep({ user }: { user?: User }) {
         storeData?.method === 'DORADO_ACCOUNT' ? storeData.account_holder_name : user?.name ?? '',
       payout_email:
         storeData?.method === 'DORADO_ACCOUNT' ? storeData.payout_email : user?.email ?? '',
-      cost: payoutOptions.find((option) => option.label === 'DORADO_ACCOUNT')?.cost ?? 0,
+      cost: Number(payoutMethods.find((option) => option.type === 'DORADO_ACCOUNT')?.flat_fee ?? 0),
     },
   })
 
@@ -153,39 +159,40 @@ export default function PayoutStep({ user }: { user?: User }) {
 
   return (
     <div className="rounded-lg border border-border">
-      {payoutOptions.map((option, index) => {
-        const isSelected = selected === option.method
+      {payoutMethods.map((option, index) => {
+        const isSelected = selected === option.type
+        const Icon = payoutMethodIcon[option.type as PayoutMethodType]
 
         return (
-          <div key={option.method} className="overflow-hidden">
+          <div key={option.type} className="overflow-hidden">
             <button
               type="button"
               onClick={() => {
-                const next = selected === option.method ? null : option.method
-                if (next) handleFormSwitch(next)
+                const next = selected === option.type ? null : option.type
+                if (next) handleFormSwitch(next as PayoutMethodType)
               }}
               className={cn(
                 'w-full p-4 text-left flex items-center cursor-pointer',
-                selected === option.method && 'bg-transparent',
-                selected !== option.method && 'opacity-80'
+                isSelected && 'bg-transparent',
+                !isSelected && 'opacity-80'
               )}
             >
               <div className="flex items-center gap-2 w-full justify-between">
                 <div className="flex flex-col w-full">
                   <div className="flex items-center gap-1">
-                    <option.icon size={24} className='text-primary' />
+                    {Icon && <Icon size={24} className='text-primary' />}
                     <strong>{option.label}</strong>
                     <div className="flex items-center gap-2 pt-1 pl-4">
                       <small>{option.time_delay}</small>
                       <CircleIcon size={6} weight="fill" className="text-placeholder" />
                       <small>
-                        {option.cost === 0.0 ? 'Free' : <PriceNumberFlow value={option.cost} />}
+                        {Number(option.flat_fee ?? 0) === 0 ? 'Free' : <PriceNumberFlow value={Number(option.flat_fee)} />}
                       </small>
                     </div>
                   </div>
 
                   <div className="flex items-end w-full justify-between mt-2">
-                    <small>{option.description}</small>
+                    <small>{option.short_description}</small>
                   </div>
                 </div>
                 <ChevronDown
@@ -199,15 +206,15 @@ export default function PayoutStep({ user }: { user?: User }) {
             <div
               className={cn(
                 'transition-all duration-500 bg-background border-b border-border rounded-b-lg',
-                index === payoutOptions.length - 1 && 'border-none'
+                index === payoutMethods.length - 1 && 'border-none'
               )}
             >
-              <ACHForm form={achForm} visible={option.method === 'ACH' && isSelected} />
-              <WireForm form={wireForm} visible={option.method === 'WIRE' && isSelected} />
-              <EcheckForm form={echeckForm} visible={option.method === 'ECHECK' && isSelected} />
+              <ACHForm form={achForm} visible={option.type === 'ACH' && isSelected} />
+              <WireForm form={wireForm} visible={option.type === 'WIRE' && isSelected} />
+              <EcheckForm form={echeckForm} visible={option.type === 'ECHECK' && isSelected} />
               <DoradoAccountForm
                 form={doradoAccountForm}
-                visible={option.method === 'DORADO_ACCOUNT' && isSelected}
+                visible={option.type === 'DORADO_ACCOUNT' && isSelected}
               />
             </div>
           </div>

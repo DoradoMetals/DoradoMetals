@@ -22,7 +22,7 @@ import { apiRequest } from '@/shared/queries/axios'
 import { useGetSession } from '@/features/auth/queries'
 import { useCarrierServices } from '@/features/carriers/queries'
 import { invalidateOrderReads } from '@/features/orders/invalidation'
-import type { Shipment, ShipmentPatch, ShipmentPickup } from '@dorado/contracts'
+import type { Shipment, ShipmentPatch, ShipmentPickup, shipping } from '@dorado/contracts'
 
 // THE ORDER'S PARCELS, BOTH DIRECTIONS IN ONE ARRAY (wave 3):
 // GET /orders/:orderId/shipments, verbatim shipping.shipments rows. This is
@@ -120,6 +120,24 @@ export const useCarrierServiceOptions = () =>
     key: queryKeys.carrierServiceOptions(),
     url: '/carrier_services/offered',
     requireUser: true,
+    staleTime: REFERENCE_STALE_TIME,
+  })
+
+// SALE DELIVERY TIERS (D207): Standard $25 / Overnight $50 / the admin's Free
+// grant, as shipping.tiers rows instead of two hardcoded frontend records.
+// The customer surfaces filter to `display`; the admin drawer offers all.
+// Prices here are DISPLAY - the server's getShippingCharge remains the
+// pricing authority, and api/features/pricing/tests/reference-drift pins the
+// two together.
+export type ShippingTier = shipping.TiersRow
+
+export const useShippingTiers = () =>
+  useApiQuery<ShippingTier[]>({
+    key: queryKeys.shippingTiers(),
+    url: '/shipping/tiers',
+    // Public, like the endpoint: the product page shows tier prices to
+    // signed-out visitors.
+    requireUser: false,
     staleTime: REFERENCE_STALE_TIME,
   })
 

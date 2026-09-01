@@ -1,5 +1,6 @@
 import { useOrderPayouts } from '@/features/payouts/queries'
-import { payoutOptions } from '@/features/payouts/types'
+import { payoutMethodIcon, PayoutMethodType } from '@/features/payouts/types'
+import { usePaymentMethods } from '@/features/payments/queries'
 import { PurchaseOrderDrawerContentProps } from '@/features/orders/purchaseOrders/types'
 
 export default function PaymentProcessingPurchaseOrder({ order }: PurchaseOrderDrawerContentProps) {
@@ -12,8 +13,9 @@ export default function PaymentProcessingPurchaseOrder({ order }: PurchaseOrderD
   const payout = payouts[0] ?? null
   // The client-side option list (icon, label, expected delay) is UI
   // vocabulary, not a column - matched on the row's method.
-  const payoutOption = payoutOptions.find((p) => p.method === payout?.method)
-  const Icon = payoutOption?.icon
+  const { data: payoutMethods = [] } = usePaymentMethods('purchase')
+  const payoutOption = payoutMethods.find((p) => p.type === payout?.method)
+  const Icon = payoutOption ? payoutMethodIcon[payoutOption.type as PayoutMethodType] : undefined
 
   return (
     <div className="flex flex-col items-center gap-4 h-full">

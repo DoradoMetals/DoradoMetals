@@ -10,7 +10,7 @@ import { cn } from '@/shared/utils/cn'
 import { SellCartItem } from '@/features/cart/types'
 import { formatRate } from '@/features/rates/utils/resolveRate'
 import { usePurchaseOrderCheckoutStore } from '@/shared/store/purchaseOrderCheckoutStore'
-import { payoutOptions } from '@/features/payouts/types'
+import { usePaymentMethods } from '@/features/payments/queries'
 import { usePurchaseOrderQuote } from '@/features/quotes/queries'
 import type { PurchaseOrderQuoteLine } from '@dorado/contracts'
 import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
@@ -26,7 +26,8 @@ type QuotedRow<T extends SellCartItem['type']> = {
 export default function ReviewItemTables() {
   const shippingCost = usePurchaseOrderCheckoutStore((state) => state.data.service?.netCharge)
   const payout = usePurchaseOrderCheckoutStore((state) => state.data.payout)
-  const paymentCost = payoutOptions.find((p) => p.method === payout?.method)?.cost ?? 0
+  const { data: payoutMethods = [] } = usePaymentMethods('purchase')
+  const paymentCost = Number(payoutMethods.find((p) => p.type === payout?.method)?.flat_fee ?? 0)
 
   const items = sellCartStore((state) => state.items)
   const { data: quote } = usePurchaseOrderQuote(items, {
@@ -83,10 +84,10 @@ export default function ReviewItemTables() {
   }, [shippingCost])
 
   const payoutRow = useMemo(() => {
-    const method = payoutOptions.find((p) => p.method === payout?.method)
+    const method = payoutMethods.find((p) => p.type === payout?.method)
     if (!method) return []
-    return [{ label: method.label, cost: method.cost }]
-  }, [payout])
+    return [{ label: method.label, cost: Number(method.flat_fee ?? 0) }]
+  }, [payout, payoutMethods])
 
   const [open, setOpen] = useState({
     scrap: false,

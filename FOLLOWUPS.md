@@ -13249,3 +13249,50 @@ authoritative amount is stamped on the intent before the browser confirms,
 and the status label derives from the money fact (nothing left to charge is
 born Preparing, whatever the method was called). Verified: api 1008/1008,
 frontend 184/184, e2e 73/73, full gate green.
+
+## D207 — the reference data moves home: method rows out of the frontend, tiers into the database
+
+Jacob, 2026-09-01, reading the sales types file: "Shouldn't a lot of those be
+coming from the database now? Like payment methods, service options...
+I would go look though." The look found three different situations wearing one
+smell:
+
+- **`payments.methods` existed and was 95% complete** — 047 seeded both
+  directions with every fee, delay, label and most of the payout marketing
+  copy — but NOTHING SERVED IT, so the frontend shipped two hardcoded arrays
+  (`paymentOptions`, `payoutOptions`) duplicating it field for field. Two
+  rows still carried January's vocabulary (`DORADO DEBIT`, `DORADO CREDIT`)
+  against the `CREDIT` / `DORADO_ACCOUNT` the schemas and stored payouts
+  speak; 109 reconciled them, normalised the copy columns (ACH's
+  long_description held the short paragraph while WIRE's held the long
+  intro), and added the `details[]` paragraphs the table never had.
+- **Sale delivery tiers existed NOWHERE.** Standard $25 / Overnight $50 /
+  free-over-$1000 lived in getShippingCharge's constants and two frontend
+  records. The 'Standard'/'Overnight'/'Free' rows in shipping.services are
+  NOT them — carrier-service rows, duplicated per carrier, priceless. 109
+  created `shipping.tiers`; the admin-only FREE grant is a `display=false`
+  row, which is the entire difference the second hardcoded record encoded.
+- **`fulfillments.methods` was already served and needs nothing.**
+
+GET /api/payments/methods (payments/methods/, full stack) and
+GET /api/shipping/tiers (shipping/tiers/) serve the rows verbatim as their
+generated contracts — PUBLIC routes, because the product page and payout
+landing render them to signed-out visitors, as the arrays they replace did.
+Icons stay client-side maps (`paymentMethodIcon`, `payoutMethodIcon`,
+`serviceTierIcon`) per Jacob's standing call. All ~20 consumer files read the
+hooks (usePaymentMethods, useShippingTiers) now; the arrays are deleted.
+
+**Pricing stays pure and the pin holds the homes together**:
+getShippingCharge and calculateCardCharge remain the authorities, and
+features/pricing/tests/reference-drift.test.ts fails if the rows and the
+constants ever disagree (CARD 2.9%, ACH 0.5%, every tier price and
+free_over). CREDIT/WIRE are deliberately NOT pinned — their rows say "No
+Fee" while calculateCardCharge surcharges them 2.9%, which is FOLLOWUPS
+item 1's open question and not a reference-data migration's to answer.
+
+Two latent bugs died in the conversion: payoutStep looked its costs up by
+`label === 'ACH'` against labels like "ACH Transfer" — never matched, always
+fell to the `??` fallbacks — and both drawer headers imported payoutOptions
+without using it. The store seed (`DEFAULT_SALES_SERVICE`) remains static by
+necessity (zustand initialises before any query) and the service selector
+heals it from the live row on mount.

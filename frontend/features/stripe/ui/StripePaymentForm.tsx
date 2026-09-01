@@ -5,10 +5,11 @@ import React, { useRef, useState, FormEvent } from 'react'
 import { PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js'
 import type { StripePaymentElementOptions } from '@stripe/stripe-js'
 import { Address } from '@/features/addresses/types'
-import { paymentOptions } from '@/features/orders/salesOrders/types'
+import { PaymentMethodTypeValues } from '@/features/orders/salesOrders/types'
+import { usePaymentMethods } from '@/features/payments/queries'
 import { orderAwaitingPayment } from '@/features/stripe/orderAwaitingPayment'
 
-type PaymentMethod = (typeof paymentOptions)[number]['method']
+type PaymentMethod = (typeof PaymentMethodTypeValues)[number]
 
 // THE ONE PAYMENT FORM (D206). The customer checkout and the admin drawer used
 // to mount parallel copies of this file, and the copies had diverged where it
@@ -49,6 +50,11 @@ export default function StripePaymentForm({
 }) {
   const stripe = useStripe()
   const elements = useElements()
+
+  // The rows behind the element's own type strings (D207): Stripe reports
+  // `card` / `us_bank_account` and the method row's provider_value maps it
+  // back to the schema vocabulary the stores speak.
+  const { data: saleMethods = [] } = usePaymentMethods('sale')
 
   const [message, setMessage] = useState<string | null>(null)
 
@@ -177,7 +183,9 @@ export default function StripePaymentForm({
         options={paymentElementOptions}
         onChange={(e) => {
           onPaymentMethodChange?.(
-            paymentOptions.find((p) => p.value === e.value.type)?.method
+            saleMethods.find((m) => m.provider_value === e.value.type)?.type as
+              | PaymentMethod
+              | undefined
           )
         }}
       />

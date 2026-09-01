@@ -1,9 +1,10 @@
 'use client'
 
-import { payoutOptions } from '@/features/payouts/types'
+import { usePaymentMethods } from '@/features/payments/queries'
 import { PayoutCard } from '@/features/payouts/ui/PayoutCard'
 
 export default function Page() {
+  const { data: payoutMethods = [] } = usePaymentMethods('purchase')
   return (
     <main className="relative w-full flex flex-col items-center">
       <section className="w-full px-4 sm:px-6 lg:px-8 pt-8 sm:pt-12 pb-4">
@@ -19,8 +20,8 @@ export default function Page() {
 
       <section className="w-full px-4 sm:px-6 lg:px-8 pb-12 sm:pb-16">
         <div className="flex flex-col gap-6 sm:gap-8">
-          {payoutOptions.map((option) => (
-            <PayoutCard key={option.method} method={option} />
+          {payoutMethods.map((option) => (
+            <PayoutCard key={option.type} method={option} />
           ))}
         </div>
       </section>

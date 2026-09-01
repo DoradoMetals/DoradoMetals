@@ -3,7 +3,8 @@
 import { Separator } from '@/shared/ui/base/separator'
 import { useOrderPayouts } from '@/features/payouts/queries'
 
-import { payoutOptions } from '@/features/payouts/types'
+import { payoutMethodIcon, PayoutMethodType } from '@/features/payouts/types'
+import { usePaymentMethods } from '@/features/payments/queries'
 import { usePayoutDetails } from '@/features/payouts/queries'
 import { PurchaseOrderDrawerContentProps, statusConfig } from '@/features/orders/purchaseOrders/types'
 import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
@@ -23,8 +24,9 @@ export default function AdminPaymentProcessingPurchaseOrder({
   const config = statusConfig[order.status ?? '']
   // The client-side option list (icon, label, expected delay) is UI
   // vocabulary, not a column - matched on the row's method.
-  const payoutOption = payoutOptions.find((p) => p.method === payout?.method)
-  const Icon = payoutOption?.icon
+  const { data: payoutMethods = [] } = usePaymentMethods('purchase')
+  const payoutOption = payoutMethods.find((p) => p.type === payout?.method)
+  const Icon = payoutOption ? payoutMethodIcon[payoutOption.type as PayoutMethodType] : undefined
 
   // Bank details are not carried by the order payload. Fetch them only for the
   // two methods that need them, and only while this drawer is open.

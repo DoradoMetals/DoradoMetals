@@ -14,7 +14,8 @@ import type { OrderItem } from '@dorado/contracts'
 import type { NamedScrapItem } from '@/features/orders/purchaseOrders/types'
 
 import { cn } from '@/shared/utils/cn'
-import { payoutOptions } from '@/features/payouts/types'
+import { payoutMethodIcon, PayoutMethodType } from '@/features/payouts/types'
+import { usePaymentMethods } from '@/features/payments/queries'
 import { CaretDownIcon } from '@phosphor-icons/react'
 import {
   assignScrapItemNames,
@@ -56,6 +57,7 @@ export default function AdminReceivedPurchaseOrder({ order }: PurchaseOrderDrawe
   const patchShipment = usePatchShipment()
   const patchPayout = usePatchPayout()
   const [payoutOpen, setPayoutOpen] = useState(false)
+  const { data: payoutMethods = [] } = usePaymentMethods('purchase')
 
   // A CONTAINER (ruling 14). bullion_id is the discriminator - null means
   // scrap - and the parcel and payout are their own reads.
@@ -257,10 +259,10 @@ export default function AdminReceivedPurchaseOrder({ order }: PurchaseOrderDrawe
               open={payoutOpen}
               onOpenChange={setPayoutOpen}
               value={payout?.method}
-              items={payoutOptions.map(({ label, method, icon }) => ({
+              items={payoutMethods.map(({ label, type }) => ({
                 label,
-                value: method,
-                icon,
+                value: type,
+                icon: payoutMethodIcon[type as PayoutMethodType],
               }))}
               onSelect={(method) => {
                 if (!payout?.id) return
@@ -275,7 +277,7 @@ export default function AdminReceivedPurchaseOrder({ order }: PurchaseOrderDrawe
                   variant="secondary"
                   className="flex items-center justify-between gap-1 h-9 w-full"
                 >
-                  {payoutOptions.find((m) => m.method === payout?.method)?.label}
+                  {payoutMethods.find((m) => m.type === payout?.method)?.label}
                   <CaretDownIcon size={20} />
                 </Button>
               }

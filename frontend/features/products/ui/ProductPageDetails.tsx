@@ -23,7 +23,9 @@ import {
 } from '@phosphor-icons/react'
 import { sellCartStore } from '@/shared/store/sellCartStore'
 import { Lens } from '@/shared/ui/base/lens'
-import { paymentOptions, salesOrderServiceOptions } from '@/features/orders/salesOrders/types'
+import { paymentMethodIcon } from '@/features/orders/salesOrders/types'
+import { usePaymentMethods } from '@/features/payments/queries'
+import { useShippingTiers } from '@/features/shipping/queries'
 import { useSpotPrices } from '@/features/spots/queries'
 import { useCatalogQuote } from '@/features/quotes/queries'
 import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
@@ -36,6 +38,12 @@ type ProductPageProps = {
 }
 
 export default function ProductPageDetails({ product, variants }: ProductPageProps) {
+  // Reference rows (D207): the shipping tiers and sale payment methods these
+  // accordions print, public like the page itself.
+  const { data: shippingTiers = [] } = useShippingTiers()
+  const displayTiers = shippingTiers.filter((t) => t.display)
+  const { data: saleMethods = [] } = usePaymentMethods('sale')
+  const displayMethods = saleMethods.filter((m) => m.enabled && m.display)
   const initialVariant =
     variants.length > 0 ? [...variants].sort((a, b) => b.content - a.content)[0] : product
 
@@ -354,13 +362,13 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
               onToggle={() => setOpen((prev) => ({ ...prev, shipping: !prev.shipping }))}
             >
               <div className="flex flex-col w-full gap-3">
-                {Object.entries(salesOrderServiceOptions).map(([serviceType, option]) => (
-                  <div key={serviceType} className="flex items-center justify-between w-full">
+                {displayTiers.map((tier) => (
+                  <div key={tier.code} className="flex items-center justify-between w-full">
                     <p>
-                      {option.label} {`(${option.time})`}
+                      {tier.label} {`(${tier.transit_label})`}
                     </p>
                     <strong>
-                      <PriceNumberFlow value={option.cost} />
+                      <PriceNumberFlow value={Number(tier.price)} />
                     </strong>
                   </div>
                 ))}
@@ -388,11 +396,8 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
               onToggle={() => setOpen((prev) => ({ ...prev, payment: !prev.payment }))}
             >
               <div className="flex flex-col">
-                {paymentOptions
-                  .filter((payment) => !payment.disabled && payment.display)
-                  .map((payment, index) => {
-
-                    const Icon = payment.icon
+                {displayMethods.map((payment, index) => {
+                    const Icon = paymentMethodIcon[payment.type as keyof typeof paymentMethodIcon]
                     return (
                       <div
                         key={index}
@@ -403,7 +408,7 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
                       >
                         <div className="flex w-full gap-2 items-center">
                           <div className="flex items-center gap-1">
-                            <Icon className='text-primary' size={20} />
+                            {Icon && <Icon className='text-primary' size={20} />}
                             <h5>{payment.label}</h5>
                           </div>
                           <small className="flex items-center gap-2 pt-1 pl-4">
@@ -412,7 +417,7 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
                             <span className="text-right">{payment.surcharge_label}</span>
                           </small>
                         </div>
-                        <p>{payment.description}</p>
+                        <p>{payment.short_description}</p>
                       </div>
                     )
                   })}
@@ -705,13 +710,13 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
               onToggle={() => setOpen((prev) => ({ ...prev, shipping: !prev.shipping }))}
             >
               <div className="flex flex-col w-full gap-3">
-                {Object.entries(salesOrderServiceOptions).map(([serviceType, option]) => (
-                  <div key={serviceType} className="flex items-center justify-between w-full">
+                {displayTiers.map((tier) => (
+                  <div key={tier.code} className="flex items-center justify-between w-full">
                     <p>
-                      {option.label} {`(${option.time})`}
+                      {tier.label} {`(${tier.transit_label})`}
                     </p>
                     <strong>
-                      <PriceNumberFlow value={option.cost} />
+                      <PriceNumberFlow value={Number(tier.price)} />
                     </strong>
                   </div>
                 ))}
@@ -739,23 +744,21 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
               onToggle={() => setOpen((prev) => ({ ...prev, payment: !prev.payment }))}
             >
               <div className="flex flex-col">
-                {paymentOptions
-                  .filter((payment) => !payment.disabled && payment.display)
-                  .map((payment, index) => {
-                    const Icon = payment.icon
+                {displayMethods.map((payment, index) => {
+                    const Icon = paymentMethodIcon[payment.type as keyof typeof paymentMethodIcon]
                     return (
                       <div
                         key={index}
                         className={cn(
                           'flex flex-col items-start gap-1 py-2',
-                          index !== paymentOptions.length - 1
+                          index !== displayMethods.length - 1
                             ? 'border-b border-border pt-0'
                             : 'pb-0'
                         )}
                       >
                         <div className="flex w-full gap-2 items-center">
                           <div className="flex items-center gap-1">
-                            <Icon className='text-primary' size={20} />
+                            {Icon && <Icon className='text-primary' size={20} />}
                             <h5>{payment.label}</h5>
                           </div>
                           <small className="flex items-center gap-2 pt-1 pl-4">
@@ -764,7 +767,7 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
                             <span className="text-right">{payment.surcharge_label}</span>
                           </small>
                         </div>
-                        <p>{payment.description}</p>
+                        <p>{payment.short_description}</p>
                       </div>
                     )
                   })}

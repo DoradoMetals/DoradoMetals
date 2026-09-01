@@ -3,7 +3,7 @@ import { persist } from 'zustand/middleware'
 import {
   AdminSalesOrderCheckout,
   SalesOrderCheckout,
-  salesOrderServiceOptions,
+  DEFAULT_SALES_SERVICE,
 } from '@/features/orders/salesOrders/types'
 
 type PartialAdminCheckout = Partial<AdminSalesOrderCheckout>
@@ -42,7 +42,7 @@ export const useAdminSalesOrderCheckoutStore = create<AdminSalesOrderCheckoutSta
   persist(
     (set) => ({
       data: {
-        service: salesOrderServiceOptions.STANDARD,
+        service: DEFAULT_SALES_SERVICE,
         using_funds: true,
         payment_method: 'CARD',
       },
@@ -57,7 +57,7 @@ export const useAdminSalesOrderCheckoutStore = create<AdminSalesOrderCheckoutSta
       clear: () =>
         set({
           data: {
-            service: salesOrderServiceOptions.STANDARD,
+            service: DEFAULT_SALES_SERVICE,
             using_funds: true,
             payment_method: 'CARD',
           },

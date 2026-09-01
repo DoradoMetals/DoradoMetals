@@ -74,19 +74,6 @@ export const statusConfig: StatusConfig = {
   },
 }
 
-interface PaymentMethod {
-  method: PaymentMethodType
-  label: string
-  description?: string
-  icon: any
-  surcharge_label: string
-  surcharge: number
-  time_delay: string
-  disabled: boolean
-  value: string
-  display: boolean
-}
-
 export const PaymentMethodTypeValues = [
   'CARD',
   'ACH',
@@ -100,81 +87,24 @@ type PaymentMethodType = (typeof PaymentMethodTypeValues)[number]
 
 const paymentMethodTypeSchema = z.enum(PaymentMethodTypeValues)
 
-export const paymentOptions: PaymentMethod[] = [
-  {
-    method: 'CARD',
-    label: 'Card',
-    description: 'Secure card transaction through Stripe.',
-    icon: CreditCardIcon,
-    surcharge_label: '2.9%',
-    surcharge: 0.029,
-    time_delay: 'Instant',
-    disabled: false,
-    value: 'card',
-    display: true,
-  },
-  {
-    method: 'ACH',
-    label: 'ACH',
-    description: 'Pay directly from your bank account via secure ACH debit.',
-    icon: BankIcon,
-    surcharge_label: '0.5%',
-    surcharge: 0.005,
-    time_delay: '1-3 business days',
-    disabled: false,
-    value: 'us_bank_account',
-    display: true,
-  },
-  {
-    method: 'CREDIT',
-    label: 'Dorado Credit',
-    description:
-      'Pay in full or partially using Dorado Credit – obtained by selling your metals to us.',
-    icon: CreditCardIcon,
-    surcharge_label: 'No Fee',
-    surcharge: 0,
-    time_delay: 'Instant',
-    disabled: false,
-    value: 'dorado_credit',
-    display: true,
-  },
-  {
-    method: 'WIRE',
-    label: 'Wire Transfer',
-    description: 'Avoid fees by placing a wire using your bank.',
-    icon: BankIcon,
-    surcharge_label: 'No Fee',
-    surcharge: 0,
-    time_delay: '1-2 business days',
-    disabled: true,
-    value: 'us_domestic_wire',
-    display: false,
-  },
-  {
-    method: 'APPLE PAY',
-    label: 'Apple Pay',
-    description: 'Pay instantly using Apple Pay.',
-    icon: CreditCardIcon,
-    surcharge_label: '2.9%',
-    surcharge: 0.029,
-    time_delay: 'Instant',
-    disabled: false,
-    value: 'apple_pay',
-    display: false,
-  },
-  {
-    method: 'GOOGLE PAY',
-    label: 'Google Pay',
-    description: 'Pay instantly using Google Pay.',
-    icon: CreditCardIcon,
-    surcharge_label: '2.9%',
-    surcharge: 0.029,
-    time_delay: 'Instant',
-    disabled: false,
-    value: 'google_pay',
-    display: false,
-  },
-]
+// THE METHOD ROWS COME FROM THE DATABASE NOW (D207). `paymentOptions` - six
+// hardcoded records duplicating payments.methods field for field - is gone;
+// consumers read usePaymentMethods('sale') (features/payments/queries) and
+// look rows up by `type`, which speaks the same vocabulary as this enum
+// (migration 109 reconciled the two rows that did not). The enum stays: it is
+// the checkout schema's validation contract, a vocabulary rather than data.
+//
+// The ICON is the one thing that stays client-side, deliberately (Jacob's
+// standing call from the handoff conversion): a picture is a client concern
+// and has no business on the wire.
+export const paymentMethodIcon: Record<PaymentMethodType, any> = {
+  CARD: CreditCardIcon,
+  ACH: BankIcon,
+  CREDIT: CreditCardIcon,
+  WIRE: BankIcon,
+  'APPLE PAY': CreditCardIcon,
+  'GOOGLE PAY': CreditCardIcon,
+}
 
 const salesOrderServiceSchema = z.object({
   label: z.string().min(1, 'Selected required'),
@@ -184,55 +114,47 @@ const salesOrderServiceSchema = z.object({
 })
 type SalesOrderService = z.infer<typeof salesOrderServiceSchema>
 
-type SalesOrderServiceUIOption = SalesOrderService & {
+export type SalesOrderServiceUIOption = SalesOrderService & {
   icon?: any
   highValue: boolean
 }
 
-export const salesOrderServiceOptions: Record<string, SalesOrderServiceUIOption> = {
-  STANDARD: {
-    label: 'Standard',
-    value: 'STANDARD',
-    cost: 25,
-    time: '3 Days',
-    icon: PhosphorTruckIcon,
-    highValue: false,
-  },
-  OVERNIGHT: {
-    label: 'Overnight',
-    value: 'OVERNIGHT',
-    cost: 50,
-    time: '1 Day',
-    icon: AirplaneInFlightIcon,
-    highValue: false,
-  },
+// THE TIERS COME FROM THE DATABASE NOW (D207). The two hardcoded records
+// (salesOrderServiceOptions / adminSalesOrderServiceOptions) duplicated
+// getShippingCharge's constants a second time; shipping.tiers is the one
+// reference home, read through useShippingTiers (features/shipping/queries).
+// Customer surfaces filter to `display`; the admin drawer takes all rows -
+// which is the whole difference the two records used to encode. The icon is
+// the client's, keyed by the tier's opaque `code`.
+export const serviceTierIcon: Record<string, any> = {
+  STANDARD: PhosphorTruckIcon,
+  OVERNIGHT: AirplaneInFlightIcon,
+  FREE: CurrencyDollarIcon,
 }
 
-export const adminSalesOrderServiceOptions: Record<string, SalesOrderServiceUIOption> = {
-  FREE: {
-    label: 'Free',
-    value: 'FREE',
-    cost: 0,
-    time: '1 Days',
-    icon: CurrencyDollarIcon,
-    highValue: false,
-  },
-  STANDARD: {
-    label: 'Standard',
-    value: 'STANDARD',
-    cost: 25,
-    time: '3 Days',
-    icon: PhosphorTruckIcon,
-    highValue: false,
-  },
-  OVERNIGHT: {
-    label: 'Overnight',
-    value: 'OVERNIGHT',
-    cost: 50,
-    time: '1 Day',
-    icon: AirplaneInFlightIcon,
-    highValue: false,
-  },
+export const tierToServiceOption = (tier: {
+  code: string
+  label: string
+  price: number
+  transit_label: string
+}): SalesOrderServiceUIOption => ({
+  label: tier.label,
+  value: tier.code,
+  cost: Number(tier.price),
+  time: tier.transit_label,
+  icon: serviceTierIcon[tier.code],
+  highValue: false,
+})
+
+// The stores need a service BEFORE any query resolves - the checkout schema
+// requires one and the selector heals it with the live row on mount. Display
+// seed only: the server prices shipping itself, and the reference-drift test
+// on the API side pins the row to the same numbers.
+export const DEFAULT_SALES_SERVICE: SalesOrderService = {
+  label: 'Standard',
+  value: 'STANDARD',
+  cost: 25,
+  time: '3 Days',
 }
 
 export const salesOrderCheckoutSchema = z.object({

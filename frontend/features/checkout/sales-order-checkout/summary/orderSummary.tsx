@@ -1,6 +1,6 @@
 import { Button } from '@dorado/components'
 import { cartStore } from '@/shared/store/cartStore'
-import { paymentOptions } from '@/features/orders/salesOrders/types'
+import { usePaymentMethods } from '@/features/payments/queries'
 import { Minus, Plus, Trash2 } from 'lucide-react'
 import Image from 'next/image'
 import NumberFlow from '@number-flow/react'
@@ -15,6 +15,7 @@ import { DetailRow } from '@/shared/ui/DetailRow'
 // orderPrices is the server's quote, absent until the first one lands - the
 // summary renders zeros in the meantime, never a client-computed price.
 export default function OrderSummary({ orderPrices }: { orderPrices?: SalesOrderQuote }) {
+  const { data: saleMethods = [] } = usePaymentMethods('sale')
   const { items, addItem, removeOne, removeAll } = cartStore()
   const { data } = useSalesOrderCheckoutStore()
   const router = useRouter()
@@ -118,11 +119,10 @@ export default function OrderSummary({ orderPrices }: { orderPrices?: SalesOrder
         <div className="w-full flex items-center justify-between">
           <p>
             {`${
-              paymentOptions.find((option) => option.method === data.payment_method)?.label
+              saleMethods.find((m) => m.type === data.payment_method)?.label
             } Surcharge `}
             {`(${
-              paymentOptions.find((option) => option.method === data.payment_method)
-                ?.surcharge_label
+              saleMethods.find((m) => m.type === data.payment_method)?.surcharge_label
             })`}
           </p>
           <strong>

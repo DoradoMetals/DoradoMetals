@@ -1,12 +1,14 @@
 import { Link } from '@dorado/components'
 import NextLink from 'next/link'
-import { payoutOptions } from '@/features/payouts/types'
+import { payoutMethodIcon, PayoutMethodType } from '@/features/payouts/types'
+import { usePaymentMethods } from '@/features/payments/queries'
 import { Button } from '@dorado/components'
 import { ArrowUpRightIcon } from '@phosphor-icons/react'
 import { useRouter } from 'next/navigation'
 
 export function Payout() {
   const router = useRouter()
+  const { data: payoutMethods = [] } = usePaymentMethods('purchase')
 
   return (
     <section aria-label="Payout Methods" className="w-full p-4 lg:py-10">
@@ -20,11 +22,11 @@ export function Payout() {
         </header>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-10">
-          {payoutOptions.map((opt) => {
-            const Icon = opt.icon
+          {payoutMethods.map((opt) => {
+            const Icon = payoutMethodIcon[opt.type as PayoutMethodType]
             return (
               <div
-                key={opt.method}
+                key={opt.type}
                 /* ⚠ WAS WHITE-ON-WHITE, AND THE COMMENT THAT USED TO SIT HERE
                    SAID IT WAS FIXED. The card was `bg-primary
                    text-primary-foreground` (D95's cross-element fix) — but
@@ -59,7 +61,7 @@ export function Payout() {
                 <div className="flex flex-col items-start gap-1">
                   <h3 className="hidden md:block truncate mb-0 pb-0">{opt.label}</h3>
 
-                  <p>{opt.paragraph}</p>
+                  <p>{opt.long_description}</p>
                 </div>
               </div>
             )
