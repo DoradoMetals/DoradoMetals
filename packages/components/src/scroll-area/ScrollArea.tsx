@@ -6,9 +6,13 @@
 // that nothing in the design accounts for. Radix draws the bar instead and
 // keeps native wheel/touch/keyboard scrolling underneath.
 //
-// The bar is the BORDER token, not a hue: a scrollbar reports position, it
-// does not ask for attention. It fades in on hover/scroll and the thumb is
-// a full-radius rail (the same sanctioned pill as Progress).
+// The bar is a TRACK plus a THUMB, both off the neutral ramp and never a
+// hue: a scrollbar reports position, it does not ask for attention. The
+// track is a `muted` channel, the thumb `border-strong` inset 2px inside
+// it, and both are full-radius rails (the same sanctioned pill as
+// Progress). The channel matters - it is what says "this scrolls" even
+// when the thumb is parked at one end and could otherwise read as a
+// decorative edge.
 //
 // WHERE THIS EARNS ITS KEEP: any height-capped list - the Datepicker's slot
 // column, Upload's attachment stack, the long legal pages. Those cap their
@@ -62,15 +66,15 @@ const ScrollBar = React.forwardRef<
     ref={ref}
     orientation={orientation}
     className={cn(
-      "flex touch-none select-none p-px transition-opacity",
+      "flex touch-none select-none rounded-full bg-muted p-0.5 transition-opacity",
       "data-[state=hidden]:opacity-0 motion-reduce:transition-none",
-      orientation === "vertical" && "h-full w-2 border-l border-l-transparent",
-      orientation === "horizontal" && "h-2 flex-col border-t border-t-transparent",
+      orientation === "vertical" && "my-1 mr-1 h-[calc(100%-0.5rem)] w-2.5",
+      orientation === "horizontal" && "mx-1 mb-1 h-2.5 w-[calc(100%-0.5rem)] flex-col",
       className,
     )}
     {...props}
   >
-    <ScrollAreaPrimitive.ScrollAreaThumb className="relative flex-1 rounded-full bg-border" />
+    <ScrollAreaPrimitive.ScrollAreaThumb className="relative flex-1 rounded-full bg-border-strong" />
   </ScrollAreaPrimitive.ScrollAreaScrollbar>
 ));
 ScrollBar.displayName = "ScrollBar";

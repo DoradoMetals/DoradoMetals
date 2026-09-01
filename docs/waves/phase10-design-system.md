@@ -1011,3 +1011,14 @@ A test note: Radix only mounts a scrollbar once it measures real overflow,
 and jsdom lays nothing out — so the orientation test uses `type="always"`.
 Under the default it would have rendered no bar at all and passed for the
 wrong reason.
+
+**ScrollArea, second pass (Jacob's reference).** Two corrections:
+
+- The demo content is **anonymous bars**, not Radio Chips. Borrowing a real
+  component made the drawing read as a Datepicker; this page is about the
+  scrollbar, so the content should say nothing.
+- The bar is a **TRACK plus a THUMB**, not a floating thumb: a `muted`
+  channel with a `border-strong` thumb inset 2px inside it, both
+  full-radius. The channel is the part that matters - it is what says "this
+  scrolls" when the thumb is parked at one end and would otherwise read as a
+  decorative edge. Applied in both the drawing and the code.

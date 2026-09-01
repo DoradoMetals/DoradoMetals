@@ -142,6 +142,25 @@
   --spacing-2xl: 3rem;     /* 48px  == p-12  page gutter */
   --spacing-3xl: 4rem;     /* 64px  == p-16  */
 
+  /* --- THE NAMED STEPS ABOVE SHADOW THE CONTAINER SCALE -------------------
+     Every spacing name (3xs..3xl) is also a Tailwind container-scale name,
+     and `max-w` resolves `--max-width -> --spacing -> --container` - so the
+     steps above shadowed `--container-*` and `max-w-3xl` silently became
+     64px, collapsing every page shell built on a named max-width. These pin
+     the container meaning back via the namespace that outranks spacing;
+     values are Tailwind's own, verbatim. The spacing meaning stays for
+     p-/m-/gap-. `max-w-4xl` and up never collided - the spacing scale stops
+     at 3xl, and must keep stopping there or its new steps need pinning too. */
+  --max-width-3xs: 16rem;
+  --max-width-2xs: 18rem;
+  --max-width-xs: 20rem;
+  --max-width-sm: 24rem;
+  --max-width-md: 28rem;
+  --max-width-lg: 32rem;
+  --max-width-xl: 36rem;
+  --max-width-2xl: 42rem;
+  --max-width-3xl: 48rem;
+
   /* --- TYPE ----------------------------------------------------------------
      One scale, driving both the semantic tag rules in base.css and the
      `text-h1`-style utilities. 15px body: Linear's, and denser than the 16px
