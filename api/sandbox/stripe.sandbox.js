@@ -145,3 +145,55 @@ test("retrieving an unknown intent throws rather than returning nothing", async 
     }
   );
 });
+
+// ---------------------------------------------------------------------------
+// THE FULL CHARGE (2026-09-01, Jacob: "we need full testing"). Everything
+// above stops where money would move on a live key; on the sandbox the move
+// itself is the thing worth proving. pm_card_visa is Stripe's universal test
+// card - it exists only in test mode, which is a second safety on top of the
+// key assertion in before().
+import stripeClient from "#providers/payment/stripe-client.ts";
+
+test("an intent confirms with the universal test card and succeeds", async () => {
+  const intent = await stripe.createIntent({
+    amount: 1234,
+    metadata: { type: "sandbox-suite", user_id: "sandbox", session_id: "sandbox" },
+  });
+  created.intents.push(intent.id);
+
+  const confirmed = await stripeClient.paymentIntents.confirm(intent.id, {
+    payment_method: "pm_card_visa",
+    // createIntent enables automatic_payment_methods, so a server-side
+    // confirm must name where a redirect method would land - the card never
+    // redirects, but Stripe validates the parameter's presence regardless.
+    return_url: "https://example.invalid/done",
+  });
+
+  assert.equal(confirmed.status, "succeeded", "the test card did not settle");
+  assert.equal(confirmed.amount_received, 1234, "settled amount differs from asked");
+});
+
+// The webhook secret in .env and the verification in the provider, proven
+// against each other: what the secret signs verifies, and one flipped byte
+// does not. generateTestHeaderString is Stripe's own tool for exactly this.
+test("the webhook secret verifies what it signs, and nothing else", async () => {
+  const payload = JSON.stringify({
+    id: "evt_sandbox_suite",
+    object: "event",
+    type: "payment_intent.succeeded",
+    data: { object: { id: "pi_sandbox_suite" } },
+  });
+  const header = stripeClient.webhooks.generateTestHeaderString({
+    payload,
+    secret: process.env.STRIPE_WEBHOOK_SECRET,
+  });
+
+  const event = stripe.verifyWebhook(payload, header);
+  assert.equal(event.type, "payment_intent.succeeded");
+
+  assert.throws(
+    () => stripe.verifyWebhook(payload.replace("succeeded", "canceled!"), header),
+    /signature/i,
+    "a tampered payload verified - the webhook door is open"
+  );
+});

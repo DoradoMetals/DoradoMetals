@@ -86,3 +86,88 @@ test("the provider refuses the live API during a test run", async () => {
     process.env.FEDEX_ENV = saved;
   }
 });
+
+// ---------------------------------------------------------------------------
+// THE BUSINESS OPERATIONS (2026-09-01, Jacob: "we need full testing").
+// Authentication proved the credentials; nothing above ever asked FedEx to DO
+// anything. These drive the same adapter builders the live operations layer
+// uses, so what is exercised is this codebase's request-building - a payload
+// field FedEx rejects fails here, not in a customer's checkout.
+const fedex = await import("#providers/shipments/fedex.ts");
+const adapters = await import("#features/shipping/operations/adapters/fedex.ts");
+
+const CUSTOMER_ADDRESS = {
+  line_1: "6100 Main St", city: "Houston", state: "TX",
+  zip: "77005", country_code: "US", is_residential: true,
+};
+const STORE_ADDRESS = {
+  line_1: "1600 Lamar St", city: "Houston", state: "TX",
+  zip: "77010", country_code: "US", is_residential: false,
+};
+const PKG = {
+  weight: { units: "LB", value: 5 },
+  dimensions: { length: 10, width: 8, height: 6, units: "IN" },
+};
+
+test("an inbound rate quote returns priced services", async () => {
+  const quote = () =>
+    fedex.getRates(
+      adapters.getRatesInput({
+        shipperAddress: CUSTOMER_ADDRESS,
+        recipientAddress: STORE_ADDRESS,
+        pickupType: "DROPOFF_AT_FEDEX_LOCATION",
+        pkg: PKG,
+      })
+    );
+  // One retry with a breath in between: the sandbox 503s under rapid
+  // successive calls (throttling), and the exact same payload rates 200 in
+  // isolation - verified by probing during the 2026-09-01 build-out. A real
+  // payload break fails both attempts and still fails the test.
+  const out = await quote().catch(async () => {
+    await new Promise((r) => setTimeout(r, 4000));
+    return quote();
+  });
+  // parseRates hands back the app shape - an array of
+  // {serviceType, netCharge, ...} - not FedEx's envelope.
+  assert.ok(Array.isArray(out) && out.length > 0, "no rated services came back");
+  assert.ok(out[0].serviceType, "a rate detail names no service");
+  assert.ok(
+    out.some((r) => typeof r.netCharge === "number"),
+    "no rate detail carries a numeric price"
+  );
+});
+
+test("a label is created on the sandbox and then voided", async () => {
+  const out = await fedex.createLabel(
+    adapters.createLabelInput({
+      shipper: { contact: { name: "Sandbox Suite", phone: "7135551234" }, address: CUSTOMER_ADDRESS },
+      recipient: { contact: { name: "Dorado Metals", phone: "7135551234" }, address: STORE_ADDRESS },
+      serviceType: "FEDEX_GROUND",
+      pickupType: "DROPOFF_AT_FEDEX_LOCATION",
+      pkg: PKG,
+    })
+  );
+  // parseCreateShipment hands back {tracking_number, labelFile} - the label
+  // is the PNG the customer would print, already unwrapped.
+  const tracking = out?.tracking_number;
+  assert.ok(tracking, `the label carries no tracking number: ${JSON.stringify(out).slice(0, 120)}`);
+  assert.ok(String(out?.labelFile ?? "").length > 1000, "the label PNG is missing or tiny");
+
+  // Void it - the sandbox honours cancellation, and leaving even fake labels
+  // uncancelled is a habit nobody should carry to the live account.
+  const cancelled = await fedex.cancelLabel(
+    adapters.cancelLabelInput({ tracking_number: tracking })
+  );
+  assert.ok(cancelled, "the void answered nothing");
+});
+
+test("tracking answers for FedEx's own mock number", async () => {
+  // 449044304137821 is one of FedEx's documented virtualised tracking
+  // numbers - it exists only in the sandbox and always answers.
+  const out = await fedex.getTracking(
+    adapters.getTrackingInput({ tracking_number: "449044304137821" })
+  );
+  // parseTracking hands back {latestStatus, scanEvents, ...}.
+  assert.ok(out?.latestStatus, `tracking answered no status: ${JSON.stringify(out).slice(0, 160)}`);
+  assert.ok(Array.isArray(out?.scanEvents), "tracking carries no scan events");
+});
