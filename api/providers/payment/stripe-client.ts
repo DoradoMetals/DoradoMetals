@@ -40,6 +40,11 @@ if (isTestRun() && key.startsWith("sk_live")) {
   );
 }
 
+// API VERSION: pinned BY THE SDK, deliberately not overridden here. Since
+// stripe-node 12, an omitted apiVersion sends the version the SDK's types were
+// generated against - wire and types agree by construction, and an SDK upgrade
+// moves both in one reviewed diff. Overriding it is how the two drift apart,
+// so the absence of an apiVersion below is the best practice, not an omission.
 const stripeClient = new Stripe(key);
 
 export default stripeClient;

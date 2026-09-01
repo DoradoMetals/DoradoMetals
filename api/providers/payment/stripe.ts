@@ -25,18 +25,30 @@ export function createIntent({
   amount,
   currency = "usd",
   customerId,
+  metadata,
+  idempotencyKey,
 }: {
   amount: number;
   currency?: string;
   customerId?: string;
+  /** Lands on the intent in Stripe's dashboard and exports - the reconciliation
+   *  fields a webhook payload otherwise never carries (D25). */
+  metadata?: Record<string, string>;
+  /** Same key + same params = same intent, so a network retry cannot mint a
+   *  second one. Scope it to what makes two calls "the same attempt". */
+  idempotencyKey?: string;
 }) {
-  return stripeClient.paymentIntents.create({
-    amount,
-    currency,
-    customer: customerId,
-    capture_method: "automatic",
-    automatic_payment_methods: { enabled: true },
-  });
+  return stripeClient.paymentIntents.create(
+    {
+      amount,
+      currency,
+      customer: customerId,
+      capture_method: "automatic",
+      automatic_payment_methods: { enabled: true },
+      metadata,
+    },
+    idempotencyKey ? { idempotencyKey } : undefined
+  );
 }
 
 export function updateIntent(paymentIntentId: string, changes: Record<string, unknown>) {

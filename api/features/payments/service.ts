@@ -130,7 +130,24 @@ export async function createPaymentIntent(
 
   // The placeholder amount is the feature's decision, not Stripe's: an intent is
   // opened before the cart is priced and updated when it is.
-  const paymentIntent = await stripe.createIntent({ amount: 1000, customerId });
+  //
+  // The metadata is the reconciliation lifeline: a webhook payload carries no
+  // session, user or type (D25's whole constraint), so they ride on the intent
+  // itself - visible in the dashboard, present in exports, and available to
+  // reconcile:payments when a row goes missing. The idempotency key makes a
+  // network retry return THIS intent instead of minting an orphan: same
+  // (type, user, session) is the same attempt, and audit:payments counts the
+  // orphans the old call could create.
+  const paymentIntent = await stripe.createIntent({
+    amount: 1000,
+    customerId,
+    metadata: {
+      type: String(type),
+      user_id: String(session.user.id),
+      session_id: String(session.session?.id ?? ""),
+    },
+    idempotencyKey: `intent:${type}:${session.user.id}:${session.session?.id ?? "no-session"}`,
+  });
 
   await stripeRepo.createPaymentIntent(paymentIntent, type, user_id, session);
   return paymentIntent;
