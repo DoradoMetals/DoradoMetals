@@ -322,31 +322,34 @@ test("a sales order with two intents resolves to the newer one, both ways", asyn
     const older = stripeIntent({ id: `pi_old_${randomUUID().slice(0, 8)}` });
     const newer = stripeIntent({ id: `pi_new_${randomUUID().slice(0, 8)}` });
 
-    // exchange: two rows against the same sales order, an hour apart.
-    // Declared as a tuple list: inferred, the element type collapses to a
-    // union of the intent shape and the interval string.
+    // exchange: two rows against the same sales order, an hour apart - IN THE
+    // FUTURE. The picked dev order can carry a REAL intent minted minutes ago
+    // (the e2e sales spec creates them), and a past-relative fixture loses the
+    // newest-first race to it. Future timestamps cannot be outranked, and the
+    // rollback discards them. Declared as a tuple list: inferred, the element
+    // type collapses to a union of the intent shape and the interval string.
     const bothIntents: Array<[ReturnType<typeof stripeIntent>, string]> = [
-      [older, "2 hours"],
-      [newer, "1 hour"],
+      [older, "1 hour"],
+      [newer, "2 hours"],
     ];
-    for (const [pi, ago] of bothIntents) {
+    for (const [pi, ahead] of bothIntents) {
       await c.query(
         `INSERT INTO exchange.payment_intents
            (session_id, user_id, type, payment_status, payment_intent_id,
             sales_order_id, created_at)
-         VALUES ($1, $2, 'checkout', $3, $4, $5, now() - $6::interval)`,
-        [sess.id, user.id, pi.status, pi.id, order.id, ago]
+         VALUES ($1, $2, 'checkout', $3, $4, $5, now() + $6::interval)`,
+        [sess.id, user.id, pi.status, pi.id, order.id, ahead]
       );
     }
 
     // next: the same two, through the repo, then pointed at the order.
-    for (const [pi, ago] of bothIntents) {
+    for (const [pi, ahead] of bothIntents) {
       await next.createPaymentIntent(pi, "checkout", user.id, { session: { id: sess.id }, user: { id: user.id } }, c);
       await c.query(
-        `UPDATE payments.intents i SET order_id = $1, created_at = now() - $2::interval
+        `UPDATE payments.intents i SET order_id = $1, created_at = now() + $2::interval
            FROM payments.attempts a
           WHERE a.intent_id = i.id AND a.provider_ref = $3`,
-        [order.id, ago, pi.id]
+        [order.id, ahead, pi.id]
       );
     }
 
