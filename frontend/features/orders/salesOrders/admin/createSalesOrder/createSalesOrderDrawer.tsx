@@ -44,7 +44,7 @@ import { useCatalogQuote, useSalesOrderQuote } from '@/features/quotes/queries'
 import { useProducts } from '@/features/products/queries'
 import { useAdminCreateSalesOrder } from '@/features/orders/salesOrders/admin/queries'
 import { useRetrievePaymentIntent, useUpdatePaymentIntent } from '@/features/stripe/queries'
-import AdminStripeWrapper from '@/features/stripe/ui/AdminStripeWrapper'
+import StripeWrapper from '@/features/stripe/ui/StripeWrapper'
 
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!)
 
@@ -570,7 +570,7 @@ function PaymentSelect({ orderPrices, user }: { orderPrices?: SalesOrderQuote; u
   const { closeDrawer } = useDrawerStore()
   const [isPending, startTransition] = useTransition()
 
-  const { data } = useAdminSalesOrderCheckoutStore()
+  const { data, setData } = useAdminSalesOrderCheckoutStore()
   const createOrder = useAdminCreateSalesOrder()
   const updatePaymentIntent = useUpdatePaymentIntent()
   const { data: clientSecret } = useRetrievePaymentIntent('admin', user.id!)
@@ -625,6 +625,30 @@ function PaymentSelect({ orderPrices, user }: { orderPrices?: SalesOrderQuote; u
     itemsMissing,
   ])
 
+  const finishCreate = () => {
+    startTransition(() => {
+      closeDrawer()
+    })
+    useAdminSalesOrderCheckoutStore.getState().clear()
+  }
+
+  // What the payment form calls BEFORE the charge. This used to run AFTER
+  // confirmPayment - the admin path kept the D179 ordering long after the
+  // customer path was fixed, so a throw here meant a charged card and no
+  // order, with paidButNoOrder as the apology. Under the shared form the
+  // order is created awaiting payment first, and a failed charge just
+  // retries against the saved order.
+  const createOrderForIntent = async (paymentIntentId: string) => {
+    const checkoutPayload = {
+      ...data,
+      address: data.address!,
+      service: data.service!,
+      items: data.items,
+    }
+    const validated = adminSalesOrderCheckoutSchema.parse(checkoutPayload)
+    await createOrder.mutateAsync({ paymentIntentId, sales_order: validated })
+  }
+
   const handleSubmit = () => {
     const checkoutPayload = {
       ...data,
@@ -638,12 +662,7 @@ function PaymentSelect({ orderPrices, user }: { orderPrices?: SalesOrderQuote; u
     createOrder.mutate(
       { sales_order: validated },
       {
-        onSuccess: async () => {
-          startTransition(() => {
-            closeDrawer()
-          })
-          useAdminSalesOrderCheckoutStore.getState().clear()
-        },
+        onSuccess: finishCreate,
       }
     )
   }
@@ -654,13 +673,23 @@ function PaymentSelect({ orderPrices, user }: { orderPrices?: SalesOrderQuote; u
         <div className="flex flex-col items-center w-full gap-3">
           <div className="flex flex-col gap-6 w-full">
             {cardNeeded && (
-              <AdminStripeWrapper
+              <StripeWrapper
                 clientSecret={clientSecret}
                 stripePromise={stripePromise}
                 address={data.address}
+                formId="admin-payment-form"
+                // The TARGET customer's identity on the billing details - the
+                // old admin form stamped the ADMIN's session name and email
+                // onto the customer's payment.
+                billTo={{ name: user.name, email: user.email }}
+                createOrder={createOrderForIntent}
+                onSuccess={finishCreate}
+                onPaymentMethodChange={(method) => {
+                  if (data.payment_method !== 'CREDIT') {
+                    setData({ payment_method: method })
+                  }
+                }}
                 setIsLoading={setIsLoading}
-                isPending={isPending}
-                startTransition={startTransition}
               />
             )}
           </div>

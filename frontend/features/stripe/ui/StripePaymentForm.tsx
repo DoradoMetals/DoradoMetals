@@ -5,67 +5,75 @@ import React, { useRef, useState, FormEvent } from 'react'
 import { PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js'
 import type { StripePaymentElementOptions } from '@stripe/stripe-js'
 import { Address } from '@/features/addresses/types'
-import { useGetSession } from '@/features/auth/queries'
-import { useSalesOrderCheckoutStore } from '@/shared/store/salesOrderCheckoutStore'
-import { paymentOptions, salesOrderCheckoutSchema } from '@/features/orders/salesOrders/types'
-import { useRouter } from 'next/navigation'
-import { cartStore } from '@/shared/store/cartStore'
-import { useSpotPrices } from '@/features/spots/queries'
-import { useCreateSalesOrder } from '@/features/orders/salesOrders/users/queries'
+import { paymentOptions } from '@/features/orders/salesOrders/types'
 import { orderAwaitingPayment } from '@/features/stripe/orderAwaitingPayment'
 
-export default function SalesOrderStripeForm({
+type PaymentMethod = (typeof paymentOptions)[number]['method']
+
+// THE ONE PAYMENT FORM (D206). The customer checkout and the admin drawer used
+// to mount parallel copies of this file, and the copies had diverged where it
+// mattered most: the customer copy was fixed to create-then-charge (D179) while
+// the admin copy still charged first and created after - with paidButNoOrder as
+// the apology when the second half failed - and it stamped the ADMIN's session
+// name and email into the customer's billing details. One form now owns the
+// ordering; the callers own everything that genuinely differs, as props:
+//
+//   billTo        - whose payment this is. The checkout passes the session
+//                   user; the drawer passes the TARGET customer, never the
+//                   admin driving it.
+//   createOrder   - parse-and-POST, against the caller's own schema, store and
+//                   mutation. Throwing here costs nothing: it runs BEFORE the
+//                   charge, which is the entire point of the ordering.
+//   onSuccess     - route away or close the drawer, and clear the caller's
+//                   stores. Runs only when the payment settled.
+//   formId        - the caller's submit button lives OUTSIDE this form and
+//                   targets it by id, so the id is the caller's to name.
+export default function StripePaymentForm({
   address,
   clientSecret,
+  billTo,
+  formId,
+  createOrder,
+  onSuccess,
+  onPaymentMethodChange,
   setIsLoading,
-  isPending,
-  startTransition,
 }: {
   address: Address
   clientSecret: string
+  billTo: { name?: string | null; email?: string | null }
+  formId: string
+  createOrder: (paymentIntentId: string) => Promise<void>
+  onSuccess: () => void
+  onPaymentMethodChange?: (method: PaymentMethod | undefined) => void
   setIsLoading: React.Dispatch<React.SetStateAction<boolean>>
-  isPending: boolean
-  startTransition: (cb: () => void) => void
 }) {
-  const orderData = useSalesOrderCheckoutStore((state) => state.data)
-
-  const { data, setData } = useSalesOrderCheckoutStore()
-
-  const { data: spotPrices = [] } = useSpotPrices()
-  const createOrder = useCreateSalesOrder()
-  const router = useRouter()
-
   const stripe = useStripe()
   const elements = useElements()
-  const { user } = useGetSession()
 
   const [message, setMessage] = useState<string | null>(null)
 
   // *** CREATE-THEN-CHARGE (phase 9). THE ORDER IS CREATED FIRST, THE CHARGE
   // HAPPENS LAST. *** This handler used to confirm the payment and then post
   // the order, and everything between the two was a paid customer with no
-  // order (D179) - the try/catch and paidButNoOrder message were bandages on
-  // that ordering. Now:
+  // order (D179). Now:
   //
-  //   1. parse the payload (nothing has happened yet; a throw costs nothing)
-  //   2. POST create_sales_order - the server verifies THIS intent is ours,
-  //      prices the cart itself, sets the intent's amount to that price, and
-  //      creates the order AWAITING PAYMENT
-  //   3. confirmPayment - the money moves last. Success routes; failure means
-  //      the order is saved, nothing was charged, and submitting again only
-  //      retries the payment, because createdOrderRef remembers step 2.
+  //   1. createOrder - the caller parses its payload (nothing has happened
+  //      yet; a throw costs nothing) and POSTs. The server verifies THIS
+  //      intent belongs to the order's customer, prices the cart itself, sets
+  //      the intent's amount to that price, and creates the order AWAITING
+  //      PAYMENT.
+  //   2. confirmPayment - the money moves last. Success calls onSuccess;
+  //      failure means the order is saved, nothing was charged, and
+  //      submitting again only retries the payment, because createdOrderRef
+  //      remembers step 1.
   //
-  // The cart and the checkout store are cleared ON SUCCESS ONLY - not at
-  // creation - because this very component is mounted by
-  // `clientSecret && data.address && cardNeeded`, and clearing at creation
-  // unmounts the payment element mid-flow. The cost is that an abandoned
-  // checkout leaves its cart behind alongside an awaiting order; the server
-  // supersedes that order on the next attempt, and the abandonment sweep
-  // cancels it (refunding any reserved credit) if the customer never returns.
+  // The caller clears its stores in onSuccess ONLY - not at creation -
+  // because this component is mounted by the caller's own
+  // `clientSecret && address && cardNeeded` condition, and clearing at
+  // creation unmounts the payment element mid-flow.
   //
   // The intent id is derived from the client secret ("pi_..._secret_...") -
-  // the same intent the Elements provider is bound to, known BEFORE confirm,
-  // which the old ordering never needed.
+  // the same intent the Elements provider is bound to, known BEFORE confirm.
   const createdOrderRef = useRef<string | null>(null)
   const paymentIntentId = clientSecret.split('_secret')[0]
 
@@ -78,21 +86,8 @@ export default function SalesOrderStripeForm({
 
     try {
       if (!createdOrderRef.current) {
-        const liveItems = cartStore.getState().items
-        const checkoutPayload = {
-          ...orderData,
-          address: orderData.address!,
-          service: orderData.service!,
-          items: liveItems,
-        }
-        const validated = salesOrderCheckoutSchema.parse(checkoutPayload)
-
-        const created = await createOrder.mutateAsync({
-          paymentIntentId,
-          sales_order: validated,
-          spotPrices: spotPrices,
-        })
-        createdOrderRef.current = (created as { id?: string })?.id ?? 'created'
+        await createOrder(paymentIntentId)
+        createdOrderRef.current = paymentIntentId
       }
 
       const { paymentIntent, error } = await stripe.confirmPayment({
@@ -101,9 +96,9 @@ export default function SalesOrderStripeForm({
           return_url: `${process.env.NEXT_PUBLIC_FRONTEND_URL}/order-placed`,
           payment_method_data: {
             billing_details: {
-              name: user?.name,
+              name: billTo.name ?? undefined,
               phone: address.phone_number,
-              email: user?.email,
+              email: billTo.email ?? undefined,
               address: {
                 line1: address.line_1,
                 line2: address.line_2,
@@ -119,25 +114,19 @@ export default function SalesOrderStripeForm({
       })
 
       if (paymentIntent?.status === 'succeeded' || paymentIntent?.status === 'processing') {
-        startTransition(() => {
-          router.push('/order-placed')
-        })
-        cartStore.getState().clearCart()
-        useSalesOrderCheckoutStore.getState().clear()
-      } else if (error?.type === 'card_error' || error?.type === 'validation_error') {
-        setMessage(orderAwaitingPayment(error.message))
+        onSuccess()
       } else if (error) {
         setMessage(orderAwaitingPayment(error.message))
       }
     } catch (err) {
       // Creation failed, or the parse did - EITHER WAY NOTHING HAS BEEN
       // CHARGED, which is the entire point of the ordering. The cart is
-      // intact; the customer fixes the problem and submits again.
+      // intact; whoever is driving fixes the problem and submits again.
       const detail = err instanceof Error ? err.message : null
       setMessage(
         createdOrderRef.current
           ? orderAwaitingPayment(detail)
-          : detail ?? 'We could not create your order. You have not been charged.'
+          : detail ?? 'We could not create the order. Nothing has been charged.'
       )
     } finally {
       setIsLoading(false)
@@ -181,22 +170,15 @@ export default function SalesOrderStripeForm({
     },
   }
 
-  const handleChangePaymentMethod = (method: string) => {
-    if (data.payment_method !== 'CREDIT') {
-      const paymentMethod = paymentOptions.find((p) => p.value === method)?.method
-      setData({
-        payment_method: paymentMethod,
-      })
-    }
-  }
-
   return (
-    <form id="payment-form" onSubmit={handleSubmit}>
+    <form id={formId} onSubmit={handleSubmit}>
       <PaymentElement
-        id="payment-element"
+        id={`${formId}-element`}
         options={paymentElementOptions}
         onChange={(e) => {
-          handleChangePaymentMethod(e.value.type)
+          onPaymentMethodChange?.(
+            paymentOptions.find((p) => p.value === e.value.type)?.method
+          )
         }}
       />
       <small className="text-destructive mt-1">

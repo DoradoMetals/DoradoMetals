@@ -1,8 +1,8 @@
 import { Appearance } from '@stripe/stripe-js'
 
 // The Elements appearance, themed from the app's own CSS custom properties.
-// ONE copy: this was pasted whole into both StripeWrapper and
-// AdminStripeWrapper (~110 lines each), and the neutral-token retirement
+// ONE copy: this was pasted whole into the two wrappers that existed before
+// D206 unified them (~110 lines each), and the neutral-token retirement
 // already caught one copy drifting from the other. The theme argument
 // survives for the day light mode returns; :root is dark-only today.
 export function createStripeAppearance(theme: 'dark' | 'light'): Appearance {

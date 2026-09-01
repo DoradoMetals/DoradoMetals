@@ -13213,3 +13213,39 @@ retrieve offered back an intent Stripe refuses - the $126.48 thread's
 checkout-fails-at-the-last-step shape, reproduced on dev and fixed by
 recording what Stripe just said instead of waiting for a webhook that dev
 never receives. Eight stale intents were marked canceled in the sweep.
+
+## D206 — one payment form, and the admin path joins create-then-charge
+
+There were two Stripe UIs (Jacob, 2026-09-01: "coalesce the frontend stripe
+implementations so we only have to call one UI"): StripeWrapper +
+SalesOrderStripeForm for the customer checkout, AdminStripeWrapper +
+AdminStripeForm for the admin drawer. The copies had diverged where it
+mattered most. The customer form was fixed to create-then-charge under D179;
+the admin form still CHARGED FIRST and created after, with paidButNoOrder as
+the apology when the second half failed. It also stamped the ADMIN's session
+name and email into the customer's billing details — the frontend twin of the
+backend bug fixed the same day (an admin-opened intent billing the admin's
+Stripe customer).
+
+Now: ONE StripePaymentForm owns the ordering (create the order awaiting
+payment, charge last, createdOrderRef makes resubmit retry only the payment),
+and one StripeWrapper owns the Elements shell. What genuinely differs rides
+props: `billTo` (the checkout passes the session user, the drawer passes the
+TARGET customer), `createOrder` (each caller parses its own schema against
+its own store and mutation — the two schemas and stores stay where they are,
+D173 intact), `onSuccess` (route away vs close the drawer), `formId` (the
+outer submit buttons keep their ids). AdminStripeWrapper, AdminStripeForm,
+SalesOrderStripeForm and paidButNoOrder(+test) are deleted; orderAwaitingPayment
+is the one failure message.
+
+The flip is only safe because adminCreateSalesOrder was hardened to match its
+customer twin: the intent is verified (ownership by the NAMED customer — the
+rows key on them, not the admin), a canceled or already-attached-paid intent
+refuses, an open intent still attached to an earlier unpaid sale is
+SUPERSEDED (cancelPendingSale refunds a still-Pending predecessor; one
+already moved on is merely detached — the rerun-safe difference the e2e
+exercises every run, since the drawer reuses one intent per customer), the
+authoritative amount is stamped on the intent before the browser confirms,
+and the status label derives from the money fact (nothing left to charge is
+born Preparing, whatever the method was called). Verified: api 1008/1008,
+frontend 184/184, e2e 73/73, full gate green.

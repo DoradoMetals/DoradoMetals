@@ -32,7 +32,7 @@ export default function SalesOrderCheckout() {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
 
-  const { data } = useSalesOrderCheckoutStore()
+  const { data, setData } = useSalesOrderCheckoutStore()
   const cartItems = cartStore((state) => state.items)
 
   const { data: spotPrices = [] } = useSpotPrices()
@@ -100,6 +100,33 @@ export default function SalesOrderCheckout() {
     cardNeeded,
   ])
 
+  const finishCheckout = () => {
+    startTransition(() => {
+      router.push('/order-placed')
+    })
+    cartStore.getState().clearCart()
+    useSalesOrderCheckoutStore.getState().clear()
+  }
+
+  // What the payment form calls BEFORE the charge (create-then-charge, D179):
+  // parse against the live cart - not a render's snapshot - and POST. A throw
+  // here reaches the form's message and nothing has been charged.
+  const createOrderForIntent = async (paymentIntentId: string) => {
+    const liveItems = cartStore.getState().items
+    const checkoutPayload = {
+      ...data,
+      address: data.address!,
+      service: data.service!,
+      items: liveItems,
+    }
+    const validated = salesOrderCheckoutSchema.parse(checkoutPayload)
+    await createOrder.mutateAsync({
+      paymentIntentId,
+      sales_order: validated,
+      spotPrices: spotPrices,
+    })
+  }
+
   const handleSubmit = () => {
     const checkoutPayload = {
       ...data,
@@ -113,13 +140,7 @@ export default function SalesOrderCheckout() {
     createOrder.mutate(
       { sales_order: validated, spotPrices: spotPrices },
       {
-        onSuccess: async () => {
-          startTransition(() => {
-            router.push('/order-placed')
-          })
-          cartStore.getState().clearCart()
-          useSalesOrderCheckoutStore.getState().clear()
-        },
+        onSuccess: finishCheckout,
       }
     )
   }
@@ -158,9 +179,16 @@ export default function SalesOrderCheckout() {
                 clientSecret={clientSecret}
                 stripePromise={stripePromise}
                 address={data.address}
+                formId="payment-form"
+                billTo={{ name: user?.name, email: user?.email }}
+                createOrder={createOrderForIntent}
+                onSuccess={finishCheckout}
+                onPaymentMethodChange={(method) => {
+                  if (data.payment_method !== 'CREDIT') {
+                    setData({ payment_method: method })
+                  }
+                }}
                 setIsLoading={setIsLoading}
-                isPending={isPending}
-                startTransition={startTransition}
               />
             )}
           </div>
