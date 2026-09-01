@@ -1,10 +1,11 @@
+import { param } from "#shared/http/caller.ts";
 import { asyncHandler } from "#shared/middleware/asyncHandler.ts";
 import * as shipmentPatch from "#features/shipping/shipments/patch.service.ts";
 import * as orderRead from "#features/shipping/shipments/order-read.ts";
 import * as carrierPickups from "#features/shipping/pickups/repo.ts";
 
 export const patchShipment = asyncHandler(async (req, res) => {
-  const result = await shipmentPatch.patchShipment(req.params.id, req.body ?? {});
+  const result = await shipmentPatch.patchShipment(param(req, "id"), req.body ?? {});
   return res.status(200).json(result);
 });
 
@@ -15,7 +16,7 @@ export const patchShipment = asyncHandler(async (req, res) => {
 // rather than 404 - "nothing has shipped yet" is an answer about a real
 // order.
 export const getShipmentsByOrder = asyncHandler(async (req, res) => {
-  return res.json(await orderRead.getForOrder(req.params.orderId));
+  return res.json(await orderRead.getForOrder(param(req, "orderId")));
 });
 
 // GET /api/shipments/:id/pickups - the CARRIER pickups booked against one
@@ -28,5 +29,5 @@ export const getShipmentsByOrder = asyncHandler(async (req, res) => {
 // with /orders/:orderId/pickups, which is fulfillments.pickups - US
 // collecting from a customer, a different table for a different act.
 export const getPickupsByShipment = asyncHandler(async (req, res) => {
-  return res.json(await carrierPickups.getByShipments([req.params.id]));
+  return res.json(await carrierPickups.getByShipments([param(req, "id")]));
 });

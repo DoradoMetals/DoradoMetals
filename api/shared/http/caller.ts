@@ -30,6 +30,14 @@ export function callerId(req: Request): string {
 // this turns "absent or malformed" into a 400 naming the parameter, rather than
 // letting `undefined` reach a repo and become `WHERE id = NULL` - which matches
 // nothing and answers as though the row simply did not exist.
+// The route-param spelling of requiredParam, compact enough to inline:
+//   param(req, "id")
+// express 5 types req.params values as string | string[] (repeatable params),
+// and this narrows to the single-string case or answers a clean 400.
+export function param(req: { params: Record<string, unknown> }, name: string): string {
+  return requiredParam(req.params[name], name);
+}
+
 export function requiredParam(value: unknown, name: string): string {
   const s = typeof value === "string" ? value : undefined;
   if (!s) {

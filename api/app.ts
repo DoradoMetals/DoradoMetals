@@ -71,9 +71,19 @@ app.post(
   handleStripeWebhook
 );
 
-app.all("/api/auth/*", toNodeHandler(auth));
+// *splat, not *: express 5's path-to-regexp requires named wildcards, and a
+// bare * throws at mount time.
+app.all("/api/auth/*splat", toNodeHandler(auth));
 
 app.use(express.json());
+// express 5 leaves req.body undefined when no parser matched (v4 gave {}).
+// Controllers destructure req.body freely; without this, a POST with a
+// missing or mistyped content-type would 500 on the destructure instead of
+// failing validation like a request with an empty body always has.
+app.use((req, _res, next) => {
+  if (req.body === undefined) req.body = {};
+  next();
+});
 
 // The route stays /api/stripe: the frontend calls it, and renaming a module
 // is not a reason to change the API. The feature is payments; the path is

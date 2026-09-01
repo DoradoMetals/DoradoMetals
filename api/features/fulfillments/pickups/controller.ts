@@ -1,3 +1,4 @@
+import { param } from "#shared/http/caller.ts";
 import { asyncHandler } from "#shared/middleware/asyncHandler.ts";
 import * as pickupService from "#features/fulfillments/pickups/service.ts";
 
@@ -10,5 +11,5 @@ export const schedulePickup = asyncHandler(async (req, res) => {
 // The PATH lives under /api/orders because the order id is the key the caller
 // holds; the HANDLER lives here because this feature owns the table.
 export const getPickupsByOrder = asyncHandler(async (req, res) => {
-  return res.json(await pickupService.forOrder(req.params.orderId));
+  return res.json(await pickupService.forOrder(param(req, "orderId")));
 });

@@ -131,7 +131,10 @@ export function requireOwnOrderParam(req: Request, res: Response, next: NextFunc
   }
   if (req.user.role === "admin") return next();
 
-  const orderId = req.params.id ?? req.params.orderId;
+  // express 5 types a param as string | string[] (repeatable params); these
+  // routes declare :id / :orderId once, so an array here is a malformed URL.
+  const raw = req.params.id ?? req.params.orderId;
+  const orderId = Array.isArray(raw) ? raw[0] : raw;
   if (!orderId) {
     return res.status(400).json({
       error: "Bad Request",

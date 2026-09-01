@@ -1,8 +1,9 @@
+import { param } from "#shared/http/caller.ts";
 import { asyncHandler } from "#shared/middleware/asyncHandler.ts";
 import * as refinerOrdersService from "#features/refiners/orders/service.ts";
 
 export const patchRefinerOrder = asyncHandler(async (req, res) => {
-  const engagement = await refinerOrdersService.patchRefinerOrder(req.params.id, req.body ?? {});
+  const engagement = await refinerOrdersService.patchRefinerOrder(param(req, "id"), req.body ?? {});
   return res.status(200).json(engagement);
 });
 
@@ -11,11 +12,11 @@ export const patchRefinerOrder = asyncHandler(async (req, res) => {
 // The row's own id is how PATCH /refiners/orders/:id gets its key; the order
 // id is the key every component already holds.
 export const getRefinerOrderByOrder = asyncHandler(async (req, res) => {
-  const engagement = await refinerOrdersService.getByOrder(req.params.orderId);
+  const engagement = await refinerOrdersService.getByOrder(param(req, "orderId"));
   if (!engagement) {
     return res.status(404).json({
       error: "Not Found",
-      message: `order ${req.params.orderId} has no refiner engagement`,
+      message: `order ${param(req, "orderId")} has no refiner engagement`,
     });
   }
   return res.json(engagement);

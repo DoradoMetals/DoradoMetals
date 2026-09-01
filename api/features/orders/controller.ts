@@ -1,4 +1,4 @@
-import { callerId } from "#shared/http/caller.ts";
+import { callerId, param } from "#shared/http/caller.ts";
 import { asyncHandler } from "#shared/middleware/asyncHandler.ts";
 import { refuseWith } from "#shared/http/refuse.ts";
 import * as orderPatch from "#features/orders/patch.service.ts";
@@ -52,7 +52,7 @@ export const patchOrder = asyncHandler(async (req, res) => {
   // The one-place acknowledgement that req.user is optional on the type; on
   // this guarded route it never fires.
   callerId(req);
-  const updated = await orderPatch.patchOrder(req.params.id, req.body ?? {}, req.user!);
+  const updated = await orderPatch.patchOrder(param(req, "id"), req.body ?? {}, req.user!);
   return res.status(200).json(updated);
 });
 

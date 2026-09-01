@@ -20,8 +20,31 @@
 import test, { after, before } from "node:test";
 import assert from "node:assert/strict";
 import request from "supertest";
-import app from "#app";
+import express from "express";
 import pool from "#db";
+
+// THE MOUNT STRINGS ARE RECORDED AT CONSTRUCTION, because express 5 makes them
+// unreadable afterwards: each layer keeps only matcher closures compiled from
+// the path, and the string lives in scope no reflection reaches. So the walk
+// stopped parsing regexps (the express-4 approach this file used) and instead
+// remembers what every use() was told, before the app is built - which is why
+// the app import below is dynamic and AFTER the patch.
+const MOUNTS = new WeakMap<object, string>();
+{
+  const proto = (express.Router as unknown as { prototype?: Record<string, unknown> }).prototype
+    ?? Object.getPrototypeOf(express.Router());
+  const target = proto as { use: (...args: unknown[]) => unknown };
+  const origUse = target.use;
+  target.use = function (...args: unknown[]) {
+    if (typeof args[0] === "string") {
+      for (const h of (args.slice(1) as unknown[]).flat(Infinity)) {
+        if (typeof h === "function") MOUNTS.set(h as object, args[0] as string);
+      }
+    }
+    return origUse.apply(this, args);
+  };
+}
+const { default: app } = await import("#app");
 
 // Endpoints that are meant to answer an anonymous request. Anything not on this
 // list must be guarded; add to it deliberately, not to make a test pass.
@@ -56,7 +79,7 @@ const PUBLIC = new Set([
 // better-auth and the Stripe webhook are mounted on the app rather than through
 // a feature router, and both authenticate by their own means - a signature for
 // the webhook, a session for better-auth itself.
-const NOT_OURS = new Set(["POST /api/auth/stripe/webhook", "ACL /api/auth/*"]);
+const NOT_OURS = new Set(["POST /api/auth/stripe/webhook", "ALL /api/auth/*splat"]);
 
 // One named call per verb. SuperTest has no index signature, so `req[method]`
 // cannot be checked - and an unrecognised verb should say so rather than
@@ -82,15 +105,18 @@ type Endpoint = {
   hasMiddleware: boolean;
 };
 
-// Express's router internals are not part of @types/express - `app._router`,
+// Express's router internals are not part of @types/express - `app.router`,
 // `layer.route`, `layer.handle.stack` are all private - so the shape is declared
-// here as the subset this walk reads. Naming it is what keeps `layer.regexp`
-// and `layer.route.methods` checked instead of silently `any`.
+// here as the subset this walk reads. express 5 replaced each layer's `regexp`
+// with an array of matcher closures, and the mount string lives only inside
+// them - unreadable, but askable: a matcher answers a URL with the portion it
+// mounted. The walk below therefore descends by probing, not by parsing.
+type Matcher = (url: string) => false | { path: string };
 type Layer = {
-  route?: { path: string; methods: Record<string, boolean>; stack: unknown[] };
+  route?: { path: string | string[]; methods: Record<string, boolean>; stack: unknown[] };
   name?: string;
   handle?: { stack?: Layer[] };
-  regexp: { source: string };
+  matchers?: Matcher[];
 };
 
 function inventory(): Endpoint[] {
@@ -98,40 +124,48 @@ function inventory(): Endpoint[] {
   const walk = (stack: Layer[], prefix: string): void => {
     for (const layer of stack) {
       if (layer.route) {
-        const method = Object.keys(layer.route.methods)[0].toUpperCase();
-        const key = `${method} ${prefix + layer.route.path}`;
-        found.push({
-          method,
-          path: prefix + layer.route.path,
-          key,
-          // Whether a route is expected to reject an anonymous request is not
-          // something to infer from how many handlers it has. It used to count
-          // them - more than one meant "has middleware, so it must be guarded" -
-          // and that broke the moment a PUBLIC route grew a second middleware
-          // for an unrelated reason: the wire adapter. The route was public,
-          // answered anonymously as it should, and the test called it a hole.
-          //
-          // The real property is the list below. A route is expected to reject
-          // anonymous callers unless it has been deliberately declared public,
-          // and that declaration is the thing worth maintaining.
-          guarded: !PUBLIC.has(key) && !NOT_OURS.has(key),
-          // Kept for the first test, which checks the declaration against
-          // reality: a route with no middleware at all cannot be guarded.
-          hasMiddleware: layer.route.stack.length > 1,
-        });
+        const paths = Array.isArray(layer.route.path) ? layer.route.path : [layer.route.path];
+        // An app.all route is ONE declaration, so it is ONE census entry,
+        // keyed ALL - anything else drowns the lists in verbs. express 4
+        // marked it _all; express 5 enumerates all thirty-five HTTP methods
+        // instead, so "more methods than anyone declares by hand" is the test.
+        const names = Object.keys(layer.route.methods);
+        const methods = layer.route.methods._all || names.length > 10
+          ? ["ALL"]
+          : names.map((m) => m.toUpperCase());
+        for (const routePath of paths) {
+          for (const method of methods) {
+            const key = `${method} ${prefix + routePath}`;
+            found.push({
+              method,
+              path: prefix + routePath,
+              key,
+              // Whether a route is expected to reject an anonymous request is
+              // not something to infer from how many handlers it has. The real
+              // property is the list above: a route is expected to reject
+              // anonymous callers unless deliberately declared public, and
+              // that declaration is the thing worth maintaining.
+              guarded: !PUBLIC.has(key) && !NOT_OURS.has(key),
+              // Kept for the first test, which checks the declaration against
+              // reality: a route with no middleware at all cannot be guarded.
+              hasMiddleware: layer.route.stack.length > 1,
+            });
+          }
+        }
       } else if (layer.name === "router" && layer.handle?.stack) {
-        const mount = layer.regexp.source
-          .replace(/^\^/, "")
-          .replace(/\\\/\?\(\?=\\\/\|\$\)$/, "")
-          .replace(/\\\//g, "/");
-        walk(layer.handle.stack, prefix + mount);
+        const mount = MOUNTS.get(layer.handle);
+        assert.ok(
+          mount !== undefined,
+          "a mounted router was never seen by the recording use() - the walk is broken"
+        );
+        // A child mounted at "/" contributes no path segment - composing it
+        // literally would spell /api/shipping//validate_address.
+        walk(layer.handle.stack, prefix + (mount === "/" ? "" : mount));
       }
     }
   };
-  // `_router` is private and undeclared. Checked rather than reached for: an
-  // express upgrade that renames it would otherwise give an empty inventory,
-  // and an empty inventory is what "every endpoint is guarded" looks like.
-  const router = (app as unknown as { _router?: { stack?: Layer[] } })._router;
+  const holder = app as unknown as { router?: { stack?: Layer[] }; _router?: { stack?: Layer[] } };
+  const router = holder.router ?? holder._router;
   assert.ok(router?.stack, "could not read the express router stack - the walk is broken");
   walk(router.stack, "");
   return found;

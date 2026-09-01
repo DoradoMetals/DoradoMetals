@@ -1,4 +1,4 @@
-import { requiredParam } from "#shared/http/caller.ts";
+import { param, requiredParam } from "#shared/http/caller.ts";
 import { oneString } from "#shared/http/query.ts";
 import { asyncHandler } from "#shared/middleware/asyncHandler.ts";
 import * as fulfillmentService from "#features/fulfillments/service.ts";
@@ -70,11 +70,11 @@ export const setStatus = asyncHandler(async (req, res) => {
 // owns the chain. No fulfillment answers 404, because the resource asked for
 // does not exist.
 export const getFulfillmentByOrder = asyncHandler(async (req, res) => {
-  const fulfillment = await orderRead.getOrderFulfillment(req.params.orderId);
+  const fulfillment = await orderRead.getOrderFulfillment(param(req, "orderId"));
   if (!fulfillment) {
     return res.status(404).json({
       error: "Not Found",
-      message: `order ${req.params.orderId} has no fulfillment`,
+      message: `order ${param(req, "orderId")} has no fulfillment`,
     });
   }
   return res.json(fulfillment);

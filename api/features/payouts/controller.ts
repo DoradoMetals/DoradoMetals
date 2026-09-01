@@ -1,3 +1,4 @@
+import { param } from "#shared/http/caller.ts";
 import { asyncHandler } from "#shared/middleware/asyncHandler.ts";
 import * as payoutsService from "#features/payouts/service.ts";
 import * as payoutsRepo from "#features/payouts/repo.ts";
@@ -16,11 +17,11 @@ import * as payoutsRepo from "#features/payouts/repo.ts";
 // jsonb_build_object; an order with no payout answers [] here, which is a
 // shape rather than a workaround. Admin-only, like the write it feeds.
 export const getPayoutsByOrder = asyncHandler(async (req, res) => {
-  return res.json(await payoutsRepo.getMany([req.params.orderId]));
+  return res.json(await payoutsRepo.getMany([param(req, "orderId")]));
 });
 
 export const patchPayout = asyncHandler(async (req, res) => {
-  const result = await payoutsService.patchPayout(req.params.id, req.body ?? {});
+  const result = await payoutsService.patchPayout(param(req, "id"), req.body ?? {});
   return res.status(200).json(result);
 });
 
@@ -30,9 +31,9 @@ export const patchPayout = asyncHandler(async (req, res) => {
 // response is the PayoutDetails contract shape exactly. Replaces the order-
 // keyed POST /purchase_orders/get_payout_details.
 export const getPayoutDetails = asyncHandler(async (req, res) => {
-  const details = await payoutsService.getDetails(req.params.id);
+  const details = await payoutsService.getDetails(param(req, "id"));
   if (!details) {
-    return res.status(404).json({ error: "Not Found", message: `no payout ${req.params.id}` });
+    return res.status(404).json({ error: "Not Found", message: `no payout ${param(req, "id")}` });
   }
   return res.status(200).json(details);
 });

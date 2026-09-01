@@ -1,3 +1,4 @@
+import { param } from "#shared/http/caller.ts";
 import { asyncHandler } from "#shared/middleware/asyncHandler.ts";
 import * as directService from "#features/fulfillments/directs/service.ts";
 
@@ -8,5 +9,5 @@ export const scheduleDirect = asyncHandler(async (req, res) => {
 
 // GET /api/orders/:orderId/directs - fulfillments.directs rows, VERBATIM.
 export const getDirectsByOrder = asyncHandler(async (req, res) => {
-  return res.json(await directService.forOrder(req.params.orderId));
+  return res.json(await directService.forOrder(param(req, "orderId")));
 });
