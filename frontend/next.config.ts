@@ -12,8 +12,11 @@ export default withSentryConfig(nextConfig, {
   project: 'javascript-nextjs',
   silent: !process.env.CI,
   widenClientFileUpload: true,
-  disableLogger: true,
-  automaticVercelMonitors: true,
+  // Sentry 10 spellings of what disableLogger / automaticVercelMonitors said.
+  webpack: {
+    treeshake: { removeDebugLogging: true },
+    automaticVercelMonitors: true,
+  },
   authToken: process.env.NEXT_PUBLIC_SENTRY_AUTH_TOKEN,
   reactComponentAnnotation: {
     enabled: true,

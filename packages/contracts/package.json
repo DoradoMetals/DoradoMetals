@@ -22,7 +22,7 @@
     "verify:fresh": "node scripts/verify-fresh.mjs"
   },
   "dependencies": {
-    "zod": "3.25.76"
+    "zod": "4.5.4"
   },
   "devDependencies": {
     "dotenv": "^17.4.2",

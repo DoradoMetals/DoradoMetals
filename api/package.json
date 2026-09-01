@@ -106,10 +106,10 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@better-auth/stripe": "^1.7.2",
+    "@better-auth/stripe": "~1.6.9",
     "@dorado/contracts": "workspace:*",
     "axios": "^1.20.0",
-    "better-auth": "^1.7.2",
+    "better-auth": "~1.6.9",
     "chalk": "^6.0.0",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
@@ -124,7 +124,7 @@
     "pino-http": "^11.0.0",
     "puppeteer": "^25.9.0",
     "stripe": "^18.5.0",
-    "zod": "3.25.76"
+    "zod": "4.5.4"
   },
   "devDependencies": {
     "@types/cors": "^2.8.19",

@@ -8,7 +8,8 @@
   },
   "pnpm": {
     "overrides": {
-      "@hookform/resolvers>zod": "3.25.76"
+      "@better-auth/core": "1.6.9",
+      "@better-auth/utils": "0.4.0"
     },
     "packageExtensions": {
       "@hookform/resolvers": {
