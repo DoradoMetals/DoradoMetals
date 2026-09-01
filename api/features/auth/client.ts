@@ -19,7 +19,12 @@ export const auth = betterAuth({
     connectionString: process.env.DATABASE_URL,
   }),
   user: {
-    modelName: 'exchange.users',
+    // THE CUTOVER (2026-09-01, Jacob's call): better-auth writes auth.* now.
+    // exchange.users stays fresh through auth.mirror_identity_to_exchange
+    // (migration 107) - identity flows this way, dorado_funds flows the other,
+    // and neither side can clobber the other's columns. Rolling back is 107's
+    // header: recreate 056's trigger and point these four names back.
+    modelName: 'auth.users',
     additionalFields: {
       role: { type: 'string', required: false, defaultValue: 'user', input: false },
       stripeCustomerId: { type: 'string', required: false, input: false },
@@ -53,14 +58,14 @@ export const auth = betterAuth({
     },
   },
   session: {
-    modelName: 'exchange.session',
+    modelName: 'auth.sessions',
     additionalFields: {
       impersonatedBy: { type: 'string', required: false, defaultValue: null, input: false },
     },
     cookieCache: { enabled: true, maxAge: 5 * 60 },
   },
-  account: { modelName: 'exchange.account' },
-  verification: { modelName: 'exchange.verification' },
+  account: { modelName: 'auth.account' },
+  verification: { modelName: 'auth.verification' },
   advanced: { database: { generateId: false } },
   emailAndPassword: {
     enabled: true,
