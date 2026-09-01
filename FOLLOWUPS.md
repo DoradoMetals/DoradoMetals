@@ -13296,3 +13296,70 @@ fell to the `??` fallbacks — and both drawer headers imported payoutOptions
 without using it. The store seed (`DEFAULT_SALES_SERVICE`) remains static by
 necessity (zustand initialises before any query) and the service selector
 heals it from the live row on mount.
+
+## D208 — the checkout conversion begins: the row model, the draft fulfillment, and the tiers correction
+
+Jacob, reading the sales checkout schema (2026-09-01): "I'm prettyyyyyy
+fucking sure the sales orders checkout schema should be converted to the
+checkout (that has an attached fulfillment etc) flow. NOT the old version.
+Same with purchase orders." Confirmed against the database: January built
+`checkout.checkouts` as one row per (user, direction) holding IDS into every
+reference resource - fulfillment method, payment method, three address
+slots, package, carrier service, appointment location and time - and only
+the cart-items half was ever served. Both frontend flows still compose
+old-shaped bodies the create endpoints swallow whole.
+
+**The design, Jacob's refinement**: the fulfillment is a LIVE DRAFT during
+checkout - "each time an option is changed, the server-side fulfillment gets
+updated, and checkout stores the fulfillment id" - and order creation
+attaches what already exists. Sequencing: PURCHASE first, then sale. Both
+carry his maximum-testing order: "these are core to our app."
+
+**Landed in this pass:**
+
+- **The tiers correction (110).** D207's `shipping.tiers` lasted one day:
+  the 'Standard'/'Overnight'/'Free' rows in shipping.services ARE the sale
+  services - business-created, fixed prices, and the CUSTOMER NEVER PICKS
+  THE CARRIER; the refinery does, recorded on the shipment. 110 makes
+  carrier_id nullable, mints three carrier-agnostic priced rows (code,
+  price, display, transit days), and drops tiers. GET
+  /api/carrier_services/sale_options serves them (public, owned by
+  features/shipping/services - the table's home); useSaleShippingServices
+  replaces the day-old tiers hook; reference-drift re-pins pricing to the
+  services rows.
+- **Drafts exist (111).** fulfillments.fulfillments.order_id is nullable -
+  the unique(order_id) index ignores NULLs, so one-per-order still holds the
+  moment an order attaches. checkout.checkouts gains fulfillment_id (ON
+  DELETE SET NULL). createDraft (offered-method-checked) and attachDraft
+  (one-way: WHERE order_id IS NULL, a repeat refuses 409) join the
+  fulfillments service.
+- **The row surface.** GET /api/checkout?direction= (mints on first read),
+  PATCH /api/checkout (whitelisted id columns - the repo builds SET only
+  from PATCHABLE_COLUMNS, so fulfillment_id/user_id/direction cannot arrive
+  by request), POST /api/checkout/fulfillment (ensure-and-mutate the draft).
+  Native-only whatever CHECKOUT_SOURCE says: exchange's carts have no such
+  columns - the same capability argument that made fulfillments switchless.
+  The three address slots are gated on a NEW ownership predicate,
+  addresses.inBook (places.user_addresses membership) - written because the
+  obvious-looking isActive answers a DIFFERENT question (locked by an
+  unfinished order), which review caught before it shipped as an ownership
+  check.
+- **Thirteen tests over real HTTP** (checkout-row.test.ts): row minting and
+  isolation per direction and per user, every patch surface, foreign-address
+  refusal, whitelist enforcement, FK-miss as 400, draft minted once and
+  mutated in place, hidden and cross-direction methods refused (409, the
+  menu has to mean something), drafts invisible to order-facing reads, and
+  the one-way attach.
+
+**What redundancy this creates, recorded**: checkout.checkouts'
+fulfillment_method_id, pickup_address_id, appointment_location_id and
+appointment_time are January's pre-draft design, all-NULL and unread; they
+leave with their own migration once the conversion is proven.
+
+**Still to build (the wave continues)**: purchase order create-from-checkout
+(the server reads the row + attached draft; the body shrinks to what cannot
+live server-side - the payout bank form, which stays request-scoped because
+payments.details deliberately holds no numbers and exchange.payouts is their
+only home until encryption; confirmations; insurance pending a column
+decision), then the purchase stepper writing ids as the customer steps, with
+e2e; then the sale side on the same pattern.

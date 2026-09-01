@@ -21,7 +21,7 @@ export type DirectsRow = z.infer<typeof DirectsRow>;
 export const FulfillmentsRow = z.object({
   "id": z.string().uuid(),
   "method_id": z.string().uuid(),
-  "order_id": z.string().uuid(),
+  "order_id": z.string().uuid().nullable(),
   "status": z.string(),
   "created_by": z.string().nullable(),
   "updated_by": z.string().nullable(),

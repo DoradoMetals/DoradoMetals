@@ -68,13 +68,13 @@ const PUBLIC = new Set([
   // business would pay. Items and goods declarations in, prices out; nothing
   // about a user crosses it, which the no-public-user-id scan below enforces.
   "POST /api/quotes/purchase_order",
-  // Reference rows the public pages print (D207): the product page shows
-  // tier prices and payment options to signed-out visitors, the payout
-  // landing shows the payout methods - exactly what the hardcoded frontend
-  // arrays they replaced showed. Fees, delays and marketing copy; nothing
-  // about a user crosses either.
+  // Reference rows the public pages print (D207/D208): the product page shows
+  // sale delivery prices and payment options to signed-out visitors, the
+  // payout landing shows the payout methods - exactly what the hardcoded
+  // frontend arrays they replaced showed. Fees, delays and marketing copy;
+  // nothing about a user crosses either.
   "GET /api/payments/methods/",
-  "GET /api/shipping/tiers/",
+  "GET /api/carrier_services/sale_options",
   // The four cart endpoints used to be here, with the reason "a cart belongs to
   // a browser, not an account - a signed-out visitor has one". That is true of
   // the browser-local store and was NOT true of these endpoints: they took a

@@ -41,7 +41,7 @@ export type PickupsRow = z.infer<typeof PickupsRow>;
 
 export const ServicesRow = z.object({
   "id": z.string().uuid(),
-  "carrier_id": z.string().uuid(),
+  "carrier_id": z.string().uuid().nullable(),
   "name": z.string(),
   "description": z.string().nullable(),
   "code": z.string().nullable(),
@@ -68,6 +68,8 @@ export const ServicesRow = z.object({
   "created_by_id": z.string().uuid().nullable(),
   "updated_by_id": z.string().uuid().nullable(),
   "max_insured_value": z.number(),
+  "price": z.number().nullable(),
+  "display": z.boolean(),
 });
 export type ServicesRow = z.infer<typeof ServicesRow>;
 
@@ -93,21 +95,6 @@ export const ShipmentsRow = z.object({
   "created_at": z.string().nullable(),
 });
 export type ShipmentsRow = z.infer<typeof ShipmentsRow>;
-
-export const TiersRow = z.object({
-  "id": z.string().uuid(),
-  "code": z.string(),
-  "label": z.string(),
-  "price": z.number(),
-  "free_over": z.number().nullable(),
-  "transit_label": z.string(),
-  "sort_order": z.number().int(),
-  "display": z.boolean(),
-  "enabled": z.boolean(),
-  "created_at": z.string(),
-  "updated_at": z.string(),
-});
-export type TiersRow = z.infer<typeof TiersRow>;
 
 export const TrackingRow = z.object({
   "id": z.string().uuid(),

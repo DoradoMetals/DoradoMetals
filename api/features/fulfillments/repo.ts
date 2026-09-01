@@ -73,6 +73,28 @@ export async function create(
   return rows[0];
 }
 
+// A DRAFT (D208): a fulfillment with no order yet, mutated by the checkout
+// flow and attached at order creation. See create_draft.sql.
+export async function createDraft(
+  id: string, method_id: string, created_by_id: string | null, executor?: Executor
+): Promise<FulfillmentBaseRow> {
+  const { rows } = await query<FulfillmentBaseRow>(
+    sql("create_draft"), [id, method_id, created_by_id], executor
+  );
+  return rows[0];
+}
+
+// Returns undefined when the draft was already attached - the WHERE guard in
+// attach_to_order.sql makes a repeat a zero-row update, never a repoint.
+export async function attachToOrder(
+  id: string, order_id: string, updated_by_id: string | null, executor?: Executor
+): Promise<FulfillmentBaseRow | undefined> {
+  const { rows } = await query<FulfillmentBaseRow>(
+    sql("attach_to_order"), [id, order_id, updated_by_id], executor
+  );
+  return rows[0];
+}
+
 export async function setStatus(
   id: string, status: string, updated_by_id: string | null, executor?: Executor
 ): Promise<FulfillmentBaseRow | undefined> {

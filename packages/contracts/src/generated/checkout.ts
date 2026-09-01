@@ -18,6 +18,7 @@ export const CheckoutsRow = z.object({
   "carrier_service_id": z.string().uuid().nullable(),
   "package_id": z.string().uuid().nullable(),
   "appointment_time": z.string().nullable(),
+  "fulfillment_id": z.string().uuid().nullable(),
 });
 export type CheckoutsRow = z.infer<typeof CheckoutsRow>;
 

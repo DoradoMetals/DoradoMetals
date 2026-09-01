@@ -106,6 +106,17 @@ export async function isActive(
   return await addresses.isActive(address_id, user_id, executor);
 }
 
+// WHETHER AN ADDRESS IS IN THIS USER'S BOOK - the ownership question, which
+// is a different question from isActive above (that one asks whether an
+// unfinished order LOCKS the address). The checkout row's address slots are
+// gated on this: an id from somebody else's book never lands (D208).
+export async function inBook(
+  address_id: string, user_id: string, executor?: Executor
+): Promise<boolean> {
+  const links = await userAddresses.getByAddress(address_id, executor);
+  return links.some((l) => l.user_id === user_id);
+}
+
 // --------------------------------------------------------------------- writes
 
 export async function create(

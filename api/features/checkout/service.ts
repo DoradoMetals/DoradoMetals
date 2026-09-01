@@ -153,3 +153,125 @@ export async function syncSellCart(
     return "Sell Cart Synced";
   });
 }
+
+// ------------------------------------------------------------- the row (D208)
+//
+// THE CHECKOUT ROW FLOW, Jacob's design for the checkout conversion: the
+// stepper writes IDS into the customer's checkout row as they decide, the
+// fulfillment is a live DRAFT the same steps mutate, and order creation
+// consumes what the server already holds instead of a composed request body.
+//
+// Native-only, deliberately, whatever CHECKOUT_SOURCE says: exchange's carts
+// have no equivalent columns - the same capability argument that made
+// fulfillments switchless. The repo.next import below reaches no switch
+// because there is nothing behind one to reach.
+import * as checkoutRows from "#features/checkout/repo.next.ts";
+import * as fulfillmentService from "#features/fulfillments/service.ts";
+import * as fulfillmentMethods from "#features/fulfillments/methods/service.ts";
+import * as addressService from "#features/places/addresses/service.ts";
+import type { CheckoutRow, CheckoutPatch } from "#features/checkout/repo.next.ts";
+import type { ComposedFulfillment } from "#features/fulfillments/compose.ts";
+
+export type ComposedCheckout = CheckoutRow & {
+  fulfillment: ComposedFulfillment | null;
+};
+
+type RowDirection = "sale" | "purchase";
+
+function assertDirection(direction: unknown): RowDirection {
+  if (direction !== "sale" && direction !== "purchase") {
+    throw badRequest(`direction must be 'sale' or 'purchase'`);
+  }
+  return direction;
+}
+
+export async function getCheckout(
+  user_id: string, direction: unknown
+): Promise<ComposedCheckout> {
+  const dir = assertDirection(direction);
+  const row = await checkoutRows.getRow(user_id, dir);
+  const fulfillment = row.fulfillment_id
+    ? await fulfillmentService.getById(row.fulfillment_id)
+    : null;
+  return { ...row, fulfillment };
+}
+
+// The columns a customer may write, each validated as THEIRS where a row can
+// belong to somebody: the three address slots check the caller's own book
+// (places.user_addresses), exactly the ownership rule the address routes
+// enforce. The reference ids (method, package, service, location) are
+// validated by their foreign keys - a 23503 comes back as a 400 naming the
+// column, not a 500.
+const ADDRESS_COLUMNS = [
+  "recipient_address_id", "shipper_address_id", "pickup_address_id",
+] as const;
+
+export async function patchCheckout(
+  user_id: string, direction: unknown, patch: CheckoutPatch
+): Promise<ComposedCheckout> {
+  const dir = assertDirection(direction);
+
+  for (const col of ADDRESS_COLUMNS) {
+    const id = patch[col];
+    if (id != null) {
+      const owned = await addressService.inBook(id, user_id);
+      if (!owned) {
+        throw badRequest(`${col}: that address is not in your book`);
+      }
+    }
+  }
+  if (patch.appointment_time != null && Number.isNaN(Date.parse(patch.appointment_time))) {
+    throw badRequest(`appointment_time is not a timestamp`);
+  }
+
+  try {
+    const row = await checkoutRows.patchRow(user_id, dir, patch);
+    const fulfillment = row.fulfillment_id
+      ? await fulfillmentService.getById(row.fulfillment_id)
+      : null;
+    return { ...row, fulfillment };
+  } catch (err) {
+    if ((err as { code?: string }).code === "23503") {
+      const detail = (err as { constraint?: string }).constraint ?? "a reference";
+      throw badRequest(`no such row for ${detail}`);
+    }
+    throw err;
+  }
+}
+
+// THE DRAFT FULFILLMENT, ensured and mutated in one call (Jacob: "each time an
+// option is changed, the server-side fulfillment gets updated, and checkout
+// stores the fulfillment id"). First call creates the draft and links it; every
+// later call moves its method in place. The offered-method check runs on BOTH
+// paths - this is the customer's surface, and the menu has to mean something.
+export async function setFulfillmentMethod(
+  user_id: string, direction: unknown, method_id: string
+): Promise<ComposedCheckout> {
+  const dir = assertDirection(direction);
+  if (typeof method_id !== "string" || method_id.length === 0) {
+    throw badRequest("method_id is required");
+  }
+
+  return await withTransaction(async (client) => {
+    const row = await checkoutRows.getRow(user_id, dir, client);
+
+    if (row.fulfillment_id) {
+      await fulfillmentMethods.assertOffered({ method_id, direction: dir }, client);
+      await fulfillmentService.setMethod(
+        { id: row.fulfillment_id, method_id, updated_by_id: user_id }, client
+      );
+    } else {
+      const draft = await fulfillmentService.createDraft(
+        { method_id, direction: dir, created_by_id: user_id }, client
+      );
+      if (!draft) throw badRequest(`no such fulfillment method: ${method_id}`);
+      await checkoutRows.linkFulfillment(user_id, dir, draft.id, client);
+    }
+
+    const fresh = await checkoutRows.getRow(user_id, dir, client);
+    const fulfillment = fresh.fulfillment_id
+      ? await fulfillmentService.getById(fresh.fulfillment_id, client)
+      : null;
+    return { ...fresh, fulfillment };
+  });
+}

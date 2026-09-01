@@ -220,6 +220,39 @@ async function createFulfillment(
   return await composeOne(row, executor);
 }
 
+// A DRAFT FOR A CHECKOUT (D208): the fulfillment exists and mutates while the
+// customer decides, and order creation attaches it. The offered-method check
+// is the same one choose() runs - a customer's draft can only carry a method
+// the menu offered them.
+export async function createDraft(
+  { method_id, direction, created_by_id = null }:
+    { method_id: string; direction: Direction; created_by_id?: string | null },
+  executor?: Executor
+): Promise<ComposedFulfillment | null> {
+  await methodService.assertOffered({ method_id, direction }, executor);
+  const row = await fulfillments.createDraft(randomUUID(), method_id, created_by_id, executor);
+  return await composeOne(row, executor);
+}
+
+// The one-way attach. Refuses rather than repoints: a draft that is already an
+// order's fulfillment never moves, and an order that already has a fulfillment
+// raises 23505 out of the unique index rather than quietly holding two.
+export async function attachDraft(
+  { fulfillment_id, order_id, updated_by_id = null }:
+    { fulfillment_id: string; order_id: string; updated_by_id?: string | null },
+  executor?: Executor
+): Promise<ComposedFulfillment> {
+  const row = await fulfillments.attachToOrder(
+    fulfillment_id, order_id, updated_by_id, executor
+  );
+  if (!row) {
+    throw refuse(409, `fulfillment ${fulfillment_id} is not a draft - it already belongs to an order`);
+  }
+  const composed = await composeOne(row, executor);
+  if (!composed) throw refuse(500, `fulfillment ${fulfillment_id} vanished mid-attach`);
+  return composed;
+}
+
 // Choosing a method, from the customer's side. Admin callers go through
 // chooseById, which is why the offered-method check is here and not shared: an
 // admin putting an order on OWN LABEL is the reason OWN LABEL exists.

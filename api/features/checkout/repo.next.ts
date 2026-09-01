@@ -405,3 +405,95 @@ export async function replaceSellItems(
 
   return checkout_id;
 }
+
+// ------------------------------------------------------------- the row (D208)
+//
+// THE CHECKOUT ROW ITSELF: the id columns January designed and nothing ever
+// served. NATIVE-ONLY on purpose, whatever CHECKOUT_SOURCE says: exchange's
+// carts have no equivalent columns - this is capability exchange never
+// recorded, the same argument that made fulfillments switchless. The cart
+// ITEMS above stay behind the switch; the row's reference columns do not.
+
+export type CheckoutRow = {
+  id: string;
+  user_id: string;
+  direction: string;
+  payment_method_id: string | null;
+  payment_details_id: string | null;
+  fulfillment_id: string | null;
+  fulfillment_method_id: string | null;
+  appointment_location_id: string | null;
+  pickup_address_id: string | null;
+  shipper_address_id: string | null;
+  recipient_address_id: string | null;
+  carrier_service_id: string | null;
+  package_id: string | null;
+  appointment_time: string | null;
+};
+
+const ROW_COLUMNS = `id, user_id, direction, payment_method_id, payment_details_id,
+       fulfillment_id, fulfillment_method_id, appointment_location_id,
+       pickup_address_id, shipper_address_id, recipient_address_id,
+       carrier_service_id, package_id, appointment_time`;
+
+// Created on first read - a checkout row exists the moment anyone asks.
+export async function getRow(
+  user_id: string, direction: Direction, client?: Executor
+): Promise<CheckoutRow> {
+  await ensureCheckout(user_id, direction, client);
+  const { rows } = await query<CheckoutRow>(
+    `SELECT ${ROW_COLUMNS} FROM checkout.checkouts
+      WHERE user_id = $1 AND direction = $2`,
+    [user_id, direction],
+    client
+  );
+  return rows[0];
+}
+
+// THE WHITELIST IS THE CONTRACT. patchRow builds its SET from these names and
+// nothing else, so a request naming any other column - fulfillment_id
+// included, which only linkFulfillment may write - cannot reach the SQL.
+export const PATCHABLE_COLUMNS = [
+  "payment_method_id",
+  "recipient_address_id",
+  "shipper_address_id",
+  "pickup_address_id",
+  "carrier_service_id",
+  "package_id",
+  "appointment_location_id",
+  "appointment_time",
+] as const;
+export type PatchableColumn = (typeof PATCHABLE_COLUMNS)[number];
+export type CheckoutPatch = Partial<Record<PatchableColumn, string | null>>;
+
+export async function patchRow(
+  user_id: string, direction: Direction, patch: CheckoutPatch, client?: Executor
+): Promise<CheckoutRow> {
+  await ensureCheckout(user_id, direction, client);
+  const entries = PATCHABLE_COLUMNS.filter((c) => c in patch);
+  if (entries.length === 0) return await getRow(user_id, direction, client);
+
+  const sets = entries.map((c, i) => `${c} = $${i + 3}`).join(", ");
+  const values = entries.map((c) => patch[c] ?? null);
+  const { rows } = await query<CheckoutRow>(
+    `UPDATE checkout.checkouts SET ${sets}
+      WHERE user_id = $1 AND direction = $2
+      RETURNING ${ROW_COLUMNS}`,
+    [user_id, direction, ...values],
+    client
+  );
+  return rows[0];
+}
+
+// The draft-fulfillment pointer, written only by the service that also creates
+// the draft - never through patchRow.
+export async function linkFulfillment(
+  user_id: string, direction: Direction, fulfillment_id: string, client?: Executor
+): Promise<void> {
+  await query(
+    `UPDATE checkout.checkouts SET fulfillment_id = $3
+      WHERE user_id = $1 AND direction = $2`,
+    [user_id, direction, fulfillment_id],
+    client
+  );
+}

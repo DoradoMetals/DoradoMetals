@@ -16,6 +16,7 @@ import productRoutes from "#features/products/routes.ts";
 import addressRoutes from "#features/places/addresses/routes.ts";
 import { purchaseOrderRoutes, salesOrderRoutes } from "#features/orders/creates.routes.ts";
 import checkoutRoutes from "#features/checkout/routes.ts";
+import checkoutRowRoutes from "#features/checkout/checkout.routes.ts";
 import pdfRoutes from "#features/media/pdfs/routes.ts";
 import reviewRoutes from "#features/reviews/routes.ts";
 import emailRoutes from "#features/media/emails/routes.ts";
@@ -97,7 +98,9 @@ app.use("/api/products", productRoutes);
 app.use("/api/addresses", addressRoutes);
 // The route stays /api/cart: the frontend calls it and renaming the module is
 // not a reason to change the API. The feature is checkout; the path is history.
+// The checkout ROW (D208) is minted today and gets the honest name.
 app.use("/api/cart", checkoutRoutes);
+app.use("/api/checkout", checkoutRowRoutes);
 app.use("/api/shipping", shippingRoutes);
 app.use("/api/spots", spotRoutes);
 app.use("/api/purchase_orders", purchaseOrderRoutes);

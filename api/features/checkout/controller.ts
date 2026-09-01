@@ -50,3 +50,30 @@ export const syncSellCart = asyncHandler(async (req, res) => {
   await cartService.syncSellCart(callerId(req), req.body.cart);
   return res.status(200).json({ message: "Sell cart synced successfully" });
 });
+
+// ----------------------------------------------------------- the row (D208)
+
+// GET /api/checkout?direction=sale|purchase - the customer's checkout row,
+// created on first read, with its draft fulfillment composed on.
+export const getCheckout = asyncHandler(async (req, res) => {
+  const result = await cartService.getCheckout(
+    callerId(req), oneString(req.query.direction)
+  );
+  return res.status(200).json(result);
+});
+
+// PATCH /api/checkout - id columns only, whitelisted in the repo; the three
+// address slots are checked against the caller's own book.
+export const patchCheckout = asyncHandler(async (req, res) => {
+  const { direction, ...patch } = req.body ?? {};
+  const result = await cartService.patchCheckout(callerId(req), direction, patch);
+  return res.status(200).json(result);
+});
+
+// POST /api/checkout/fulfillment {direction, method_id} - ensure the draft
+// fulfillment and set its method; the row keeps the draft's id.
+export const setCheckoutFulfillment = asyncHandler(async (req, res) => {
+  const { direction, method_id } = req.body ?? {};
+  const result = await cartService.setFulfillmentMethod(callerId(req), direction, method_id);
+  return res.status(200).json(result);
+});
