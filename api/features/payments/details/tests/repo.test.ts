@@ -72,9 +72,12 @@ test("an account is created and resolves its method by name", async () => {
   });
 });
 
-// The one rename 073 established. If this stops mapping, payouts silently stop
-// resolving a method and the INSERT writes nothing at all.
-test("DORADO_ACCOUNT maps to the method called DORADO CREDIT", async () => {
+// 073 established a rename here (DORADO_ACCOUNT resolved to a row called
+// DORADO CREDIT) and 109 retired it: the row speaks the payout vocabulary
+// now, and the CASE bridge that translated between the two is gone. If this
+// stops mapping, payouts silently stop resolving a method and the INSERT
+// writes nothing at all.
+test("DORADO_ACCOUNT maps to its own method row", async () => {
   await inRollback(async (c: PoolClient) => {
     const id = await details.create({ user_id: await aUser(c), method: "DORADO_ACCOUNT" }, c);
     assert.ok(id, "DORADO_ACCOUNT did not resolve to a method");
@@ -82,7 +85,7 @@ test("DORADO_ACCOUNT maps to the method called DORADO CREDIT", async () => {
       `SELECT m.type FROM payments.details d JOIN payments.methods m ON m.id = d.method_id
         WHERE d.id = $1`, [id]
     );
-    assert.equal(row.type, "DORADO CREDIT");
+    assert.equal(row.type, "DORADO_ACCOUNT");
   });
 });
 

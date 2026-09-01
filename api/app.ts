@@ -20,6 +20,7 @@ import pdfRoutes from "#features/media/pdfs/routes.ts";
 import reviewRoutes from "#features/reviews/routes.ts";
 import emailRoutes from "#features/media/emails/routes.ts";
 import paymentRoutes from "#features/payments/routes.ts";
+import paymentMethodRoutes from "#features/payments/methods/routes.ts";
 import spotRoutes from "#features/spots/routes.ts";
 import transactionRoutes from "#features/transactions/routes.ts";
 import ordersRoutes from "#features/orders/routes.ts";
@@ -87,8 +88,11 @@ app.use((req, _res, next) => {
 
 // The route stays /api/stripe: the frontend calls it, and renaming a module
 // is not a reason to change the API. The feature is payments; the path is
-// history, and it moves when the frontend does.
+// history, and it moves when the frontend does. The methods resource is
+// minted TODAY, so it gets the honest name - payment methods are the
+// business's reference data, not Stripe's.
 app.use("/api/stripe", paymentRoutes);
+app.use("/api/payments/methods", paymentMethodRoutes);
 app.use("/api/products", productRoutes);
 app.use("/api/addresses", addressRoutes);
 // The route stays /api/cart: the frontend calls it and renaming the module is

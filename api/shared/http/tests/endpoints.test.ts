@@ -68,6 +68,13 @@ const PUBLIC = new Set([
   // business would pay. Items and goods declarations in, prices out; nothing
   // about a user crosses it, which the no-public-user-id scan below enforces.
   "POST /api/quotes/purchase_order",
+  // Reference rows the public pages print (D207): the product page shows
+  // tier prices and payment options to signed-out visitors, the payout
+  // landing shows the payout methods - exactly what the hardcoded frontend
+  // arrays they replaced showed. Fees, delays and marketing copy; nothing
+  // about a user crosses either.
+  "GET /api/payments/methods/",
+  "GET /api/shipping/tiers/",
   // The four cart endpoints used to be here, with the reason "a cart belongs to
   // a browser, not an account - a signed-out visitor has one". That is true of
   // the browser-local store and was NOT true of these endpoints: they took a
@@ -436,6 +443,26 @@ test("no public endpoint reads a user id from the request", () => {
       if (!line) continue;
       const name = line.match(/,\s*([A-Za-z0-9_]+)\s*\)\s*;?\s*$/)?.[1];
       if (name) return { name, dir: path.dirname(file) };
+    }
+    // A sub-resource route declared as "/" carries its path in its MOUNTS
+    // (ruling 13), so the tail above never matches. The URL's own segments
+    // name the feature directory: /api/payments/methods/ is
+    // features/payments/methods/routes.ts. Only the exact directory is read,
+    // so a "/" in some other resource's routes cannot be mistaken for it.
+    const segments = full.replace(/^\/api\//, "").split("/").filter(Boolean);
+    const dir = path.join(FEATURES, ...segments);
+    const file = path.join(dir, "routes.ts");
+    if (fs.existsSync(file)) {
+      const src = fs.readFileSync(file, "utf8");
+      const line = src
+        .split("\n")
+        .find(
+          (l) =>
+            l.includes(`router.${method.toLowerCase()}(`) &&
+            (l.includes(`"/"`) || l.includes(`'/'`))
+        );
+      const name = line?.match(/,\s*([A-Za-z0-9_]+)\s*\)\s*;?\s*$/)?.[1];
+      if (name) return { name, dir };
     }
     return null;
   };

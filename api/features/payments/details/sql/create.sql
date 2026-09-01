@@ -20,8 +20,9 @@
 -- encryption at rest is still outstanding. They stay in exchange.payouts until
 -- that lands. last_four is safe and is what order responses show.
 --
--- method is resolved against payments.methods on (direction, type), with the
--- one rename 073 established: DORADO_ACCOUNT is called DORADO CREDIT there.
+-- method is resolved against payments.methods on (direction, type), directly:
+-- 073's one rename (DORADO_ACCOUNT was called DORADO CREDIT there) ended when
+-- 109 reconciled the row to the vocabulary the stored payouts speak.
 INSERT INTO payments.details (
   user_id, method_id, account_holder, bank_name, account_type, last_four, email_to
 )
@@ -31,5 +32,5 @@ SELECT
   $3, $4, $5, $6, $7
 FROM payments.methods m
 WHERE m.direction = 'purchase'
-  AND m.type = CASE $2::text WHEN 'DORADO_ACCOUNT' THEN 'DORADO CREDIT' ELSE $2::text END
+  AND m.type = $2::text
 RETURNING id

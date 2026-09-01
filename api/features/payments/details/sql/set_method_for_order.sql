@@ -21,5 +21,5 @@ UPDATE payments.details d
  WHERE t.order_id = $1
    AND d.id = t.payout_details_id
    AND m.direction = 'purchase'
-   AND m.type = CASE $2::text WHEN 'DORADO_ACCOUNT' THEN 'DORADO CREDIT' ELSE $2::text END
+   AND m.type = $2::text
 RETURNING d.id
