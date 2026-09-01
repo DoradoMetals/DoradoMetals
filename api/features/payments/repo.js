@@ -38,4 +38,5 @@ export const updatePaymentIntent = impl.updatePaymentIntent;
 export const updateMethod = impl.updateMethod;
 export const attachOrder = impl.attachOrder;
 export const attachCustomerToUser = impl.attachCustomerToUser;
+export const billingIdentityFor = impl.billingIdentityFor;
 export const getPaymentIntentFromSalesOrderId = impl.getPaymentIntentFromSalesOrderId;

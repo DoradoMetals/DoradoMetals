@@ -254,3 +254,15 @@ export async function getPaymentIntentFromSalesOrderId(sales_order_id, executor)
   const result = await query(sql, values, executor);
   return result.rows[0];
 }
+
+// The customer an admin-opened intent bills: name, email, and any existing
+// Stripe customer id. Payments-owned rather than widening the users wire -
+// stripeCustomerId is deliberately not on UserRow.
+export async function billingIdentityFor(user_id, executor) {
+  const { rows } = await query(
+    `SELECT id, name, email, "stripeCustomerId" FROM exchange.users WHERE id = $1`,
+    [user_id],
+    executor
+  );
+  return rows[0];
+}

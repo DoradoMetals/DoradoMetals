@@ -16,6 +16,7 @@ import * as next from "#features/payments/repo.next.ts";
 const both = (executor, fn) => (executor ? fn(executor) : withTransaction(fn));
 
 export const getVerbatimByIntentId = exchange.getVerbatimByIntentId;
+export const billingIdentityFor = exchange.billingIdentityFor;
 export const retrievePaymentIntent = exchange.retrievePaymentIntent;
 export const getPaymentIntentFromSalesOrderId = exchange.getPaymentIntentFromSalesOrderId;
 
@@ -47,11 +48,17 @@ export const attachOrder = (payment_intent_id, purchase_order_id, sales_order_id
     return r;
   });
 
-// exchange.users is better-auth's table and auth.users is the mirror 056 keeps.
-// Writing exchange is enough - the trigger carries it across - but the mirror
-// fires on exchange.users, and this writes that, so both stay true.
+// BOTH TABLES, EXPLICITLY. This used to write exchange.users alone and cite
+// 056's full mirror to carry it to auth.users - but 107 DROPPED that trigger,
+// and its replacement (exchange.mirror_funds_to_auth) carries dorado_funds and
+// nothing else. Left as it was, an attach landed in exchange only, better-auth's
+// session (reading auth.users now) kept answering a null stripeCustomerId, and
+// every later intent minted a duplicate Stripe customer. The auth-side write
+// does fire 107's identity mirror back into exchange, but a dual write states
+// both destinations rather than trusting a trigger to imply one.
 export const attachCustomerToUser = (customerId, userId, executor) =>
   both(executor, async (c) => {
     const r = await exchange.attachCustomerToUser(customerId, userId, c);
+    await next.attachCustomerToUser(customerId, userId, c);
     return r;
   });

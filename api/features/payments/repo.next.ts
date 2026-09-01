@@ -307,7 +307,8 @@ export async function attachOrder(
 }
 
 // The Stripe customer id belongs to the user, and auth.users is where a user
-// lives in the new schema. 056's trigger keeps it honest from the other side.
+// lives post-cutover. 107's identity mirror carries this write back into
+// exchange.users; the dual layer writes both explicitly anyway.
 export async function attachCustomerToUser(
   customerId: string,
   userId: string,
@@ -318,4 +319,17 @@ export async function attachCustomerToUser(
     [customerId, userId],
     executor
   );
+}
+
+/** The customer an admin-opened intent bills: name, email, and any existing
+ *  Stripe customer id. Payments-owned rather than widening the users wire. */
+export async function billingIdentityFor(user_id: string, executor?: PoolClient) {
+  const { rows } = await query<{
+    id: string; name: string | null; email: string | null; stripeCustomerId: string | null;
+  }>(
+    `SELECT id, name, email, "stripeCustomerId" FROM auth.users WHERE id = $1`,
+    [user_id],
+    executor
+  );
+  return rows[0];
 }

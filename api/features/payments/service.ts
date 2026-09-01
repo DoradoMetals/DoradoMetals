@@ -108,15 +108,37 @@ export async function createPaymentIntent(
     throw err;
   }
 
-  let customerId = session.user.stripeCustomerId;
+  // WHOSE INTENT THIS IS. On the admin path (type=admin, user_id names a
+  // customer) everything below bills THE CUSTOMER: their Stripe customer
+  // object, their id in the metadata, their id in the idempotency key. The
+  // first version used session.user throughout, which on the admin path is
+  // the ADMIN - so admin-opened intents hung off the admin's own Stripe
+  // customer, the metadata blamed the admin, and the idempotency key
+  // collided across every customer one admin served in a session: the same
+  // key returned the FIRST customer's intent for the second customer.
+  const target =
+    type === "admin"
+      ? user_id
+        ? await stripeRepo.billingIdentityFor(user_id)
+        : null
+      : { id: session.user.id, name: session.user.name, email: session.user.email,
+          stripeCustomerId: session.user.stripeCustomerId };
+  if (!target?.id) {
+    const err: Error & { statusCode?: number } = new Error(
+      "an admin payment intent must name a customer that exists"
+    );
+    err.statusCode = 400;
+    throw err;
+  }
 
+  let customerId = target.stripeCustomerId;
   if (!customerId) {
     const { id } = await stripe.createCustomer({
-      name: session.user.name,
-      email: session.user.email,
+      name: target.name,
+      email: target.email,
     });
     customerId = id;
-    await stripeRepo.attachCustomerToUser(customerId, session.user.id);
+    await stripeRepo.attachCustomerToUser(customerId, target.id);
   }
 
   const existing = await stripeRepo.retrievePaymentIntent(
@@ -136,17 +158,17 @@ export async function createPaymentIntent(
   // itself - visible in the dashboard, present in exports, and available to
   // reconcile:payments when a row goes missing. The idempotency key makes a
   // network retry return THIS intent instead of minting an orphan: same
-  // (type, user, session) is the same attempt, and audit:payments counts the
-  // orphans the old call could create.
+  // (type, customer, session) is the same attempt, and audit:payments counts
+  // the orphans the old call could create.
   const paymentIntent = await stripe.createIntent({
     amount: 1000,
     customerId,
     metadata: {
       type: String(type),
-      user_id: String(session.user.id),
+      user_id: String(target.id),
       session_id: String(session.session?.id ?? ""),
     },
-    idempotencyKey: `intent:${type}:${session.user.id}:${session.session?.id ?? "no-session"}`,
+    idempotencyKey: `intent:${type}:${target.id}:${session.session?.id ?? "no-session"}`,
   });
 
   await stripeRepo.createPaymentIntent(paymentIntent, type, user_id, session);
@@ -297,14 +319,31 @@ export async function updatePaymentIntent(
       "requires_action",
     ].includes(retrieved_intent?.status)
   ) {
-    const paymentIntent = await stripe.updateIntent(
-      retrieved_intent.attempt.provider_ref,
-      { amount }
-    );
-
-    await stripeRepo.updatePaymentIntent(paymentIntent);
-
-    return paymentIntent;
+    // SELF-HEALING when the stored status lied. The gate above reads the
+    // LOCAL row, and any missed webhook leaves it saying
+    // requires_payment_method while Stripe says canceled - at which point
+    // this update throws and checkout dies at the last step, the $126.48
+    // shape. Instead: persist what Stripe actually says (a canceled row is
+    // exactly what the retrieve filter skips) and mint a fresh intent, so
+    // the customer sees a working payment form instead of a 500.
+    try {
+      const paymentIntent = await stripe.updateIntent(
+        retrieved_intent.attempt.provider_ref,
+        { amount }
+      );
+      await stripeRepo.updatePaymentIntent(paymentIntent);
+      return paymentIntent;
+    } catch (err) {
+      const live = await stripe
+        .retrieveIntent(retrieved_intent.attempt.provider_ref)
+        .catch(() => null);
+      if (!live) throw err;
+      await stripeRepo.updatePaymentIntent(live);
+      if (["canceled", "succeeded", "processing"].includes(live.status ?? "")) {
+        return await createPaymentIntent(type, user?.id, session);
+      }
+      throw err;
+    }
   } else {
     return await createPaymentIntent(type, user?.id, session);
   }
