@@ -25,8 +25,12 @@ import { test, expect } from "@playwright/test";
 // it is not worth faking by mutating production-shaped data in dev.
 test.describe("the admin purchase order drawer", () => {
   test.beforeEach(async ({ page }) => {
+    // The admin bundle is the heaviest route, and a dev-server cold compile
+    // under parallel workers can eat 30s on its own - so the budget is real
+    // and the wait is for rows, not a guessed sleep.
+    test.setTimeout(90_000);
     await page.goto("/admin?tab=purchase-orders");
-    await page.waitForTimeout(3000);
+    await expect(page.locator("tbody tr").first()).toBeVisible({ timeout: 60_000 });
     await page.locator("tbody tr").first().click();
     await expect(page.getByRole("dialog", { name: /Purchase order/i }).first()).toBeVisible({
       timeout: 20_000,
