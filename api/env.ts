@@ -17,7 +17,9 @@
 import path from "node:path";
 import dotenv from "dotenv";
 
-dotenv.config({ path: path.join(import.meta.dirname, ".env") });
+// quiet: dotenv 17 prints an "injected env" tip banner per process by default,
+// which under `node --test` means once per test file.
+dotenv.config({ path: path.join(import.meta.dirname, ".env"), quiet: true });
 
 // COMPOSING THE URLS FROM PARTS, RATHER THAN WRITING FIVE OF THEM OUT.
 //

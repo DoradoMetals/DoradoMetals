@@ -3,6 +3,7 @@ import { oneString } from "#shared/http/query.ts";
 import { asyncHandler } from "#shared/middleware/asyncHandler.ts";
 import * as stripe from "#providers/payment/stripe.ts"
 import * as stripeService from "#features/payments/service.ts"
+import { logger } from "#shared/logging/logger.ts";
 
 export const handleStripeWebhook = asyncHandler(async (req, res) => {
   // A HEADER CAN BE AN ARRAY, AND CAN BE ABSENT.
@@ -23,9 +24,9 @@ export const handleStripeWebhook = asyncHandler(async (req, res) => {
   try {
     event = stripe.verifyWebhook(req.body, sig);
   } catch (err) {
-    console.error(
-      "❌ Stripe webhook signature verification failed:",
-      err instanceof Error ? err.message : String(err)
+    logger.error(
+      { err: err instanceof Error ? err.message : String(err) },
+      "Stripe webhook signature verification failed"
     );
     return res
       .status(400)
@@ -125,8 +126,8 @@ export const handleStripeWebhook = asyncHandler(async (req, res) => {
     case "charge.captured":
     case "charge.pending":
     case "charge.succeeded": {
-      console.log(
-        `ℹ️  ${event.type} carries a charge, which exchange.payment_intents cannot be updated from - ignored`
+      logger.debug(
+        `${event.type} carries a charge, which exchange.payment_intents cannot be updated from - ignored`
       );
       break;
     }
@@ -141,7 +142,7 @@ export const handleStripeWebhook = asyncHandler(async (req, res) => {
     }
 
     default:
-      console.log(`ℹ️  Unhandled Stripe event type: ${event.type}`);
+      logger.debug(`Unhandled Stripe event type: ${event.type}`);
   }
 
   res.json({ received: true });

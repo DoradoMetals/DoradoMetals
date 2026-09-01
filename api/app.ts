@@ -45,8 +45,13 @@ import { toNodeHandler } from "better-auth/node";
 import { auth } from "#features/auth/client.ts";
 import { handleStripeWebhook } from "#features/payments/controller.ts";
 import errorHandler from "#shared/middleware/errorHandler.ts";
+import { httpLogger } from "#shared/logging/http.ts";
 
 const app = express();
+
+// One structured line per request (method, path, status, duration, req id) -
+// and nothing else; bodies never reach a log. See shared/logging/logger.ts.
+app.use(httpLogger);
 
 app.use(
   cors({
