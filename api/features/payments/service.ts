@@ -328,12 +328,17 @@ export async function cancelPaymentIntent({
 }: {
   payment_intent_id: string;
 }): Promise<StripeIntent> {
-  try {
-    const paymentIntent = await stripe.cancelIntent(payment_intent_id);
-    return paymentIntent;
-  } catch (err) {
-    throw err;
-  }
+  const paymentIntent = await stripe.cancelIntent(payment_intent_id);
+  // PERSISTED HERE, NOT LEFT TO THE WEBHOOK. Stripe just told this process
+  // the intent is canceled; recording it only via the webhook meant any
+  // environment where deliveries lag or never land (dev has no listener)
+  // kept a stale requires_payment_method row - so the next retrieve offered
+  // back an intent Stripe will refuse, which is the exact
+  // checkout-fails-at-the-last-step shape the $126.48 thread describes.
+  // The same idempotent update the webhook path runs; a later delivery
+  // rewrites the same values.
+  await stripeRepo.updatePaymentIntent(paymentIntent);
+  return paymentIntent;
 }
 
 export async function updateMethod({
