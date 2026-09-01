@@ -1496,19 +1496,119 @@ export async function adminCreateSalesOrder({
     serverItems,
     spot_prices
   );
-  const orderId = await withTransaction(async (client) => {
-    const orderPrices = calculateSalesOrderTotal(
-      items,
-      sales_order.using_funds,
-      spot_prices,
-      user,
-      sales_order.service.value,
-      sales_order.payment_method
-    );
+  // Pricing is pure, so it lives outside the transaction: the intent
+  // verification below needs the number before anything is written.
+  const orderPrices = calculateSalesOrderTotal(
+    items,
+    sales_order.using_funds,
+    spot_prices,
+    user,
+    sales_order.service.value,
+    sales_order.payment_method
+  );
+  const chargeCents = Math.round(orderPrices.post_charges_amount * 100);
 
+  // *** THE INTENT IS VERIFIED AND STAMPED, WHERE IT USED TO BE TRUSTED ***
+  // (D206 - the admin path joins create-then-charge). The old ordering charged
+  // first and created after, so this function could assume a settled intent;
+  // under the shared form the order is created AWAITING PAYMENT and the
+  // browser confirms afterwards, which makes this the last place the server
+  // can check whose intent this is and set the authoritative amount - exactly
+  // as createSalesOrder does for the customer path.
+  let intentAlreadySucceeded = false;
+  if (chargeCents > 0) {
+    if (chargeCents < 50) {
+      const err: Error & { statusCode?: number } = new Error(
+        "the amount left to charge is below Stripe's $0.50 minimum"
+      );
+      err.statusCode = 422;
+      throw err;
+    }
+    if (typeof payment_intent_id !== "string" || payment_intent_id.length === 0) {
+      const err: Error & { statusCode?: number } = new Error(
+        "this order has a card charge and no payment intent was named"
+      );
+      err.statusCode = 400;
+      throw err;
+    }
+    const intent = await stripeRepo.getVerbatimByIntentId(payment_intent_id);
+    // Ownership is the NAMED CUSTOMER's, not the admin's: admin-flavoured
+    // intents are keyed on the customer they are opened for.
+    if (!intent || intent.user_id !== user.id) {
+      const err: Error & { statusCode?: number } = new Error(
+        "that payment intent does not exist"
+      );
+      err.statusCode = 403;
+      throw err;
+    }
+    if (intent.purchase_order_id) {
+      const err: Error & { statusCode?: number } = new Error(
+        "that payment intent already belongs to an order"
+      );
+      err.statusCode = 409;
+      throw err;
+    }
+    if (intent.payment_status === "canceled") {
+      const err: Error & { statusCode?: number } = new Error(
+        "that payment intent was cancelled - reopen the drawer to mint a fresh one"
+      );
+      err.statusCode = 409;
+      throw err;
+    }
+    if (intent.payment_status === "succeeded" || intent.payment_status === "processing") {
+      // A settled intent stays with the order it paid for; only an UNATTACHED
+      // one is the D179 wreckage arriving to be repaired - the charge landed,
+      // creation failed, and the admin is retrying. Born paid, PROVIDED the
+      // amount still matches what this cart prices at now.
+      if (intent.sales_order_id) {
+        const err: Error & { statusCode?: number } = new Error(
+          "that payment intent already belongs to an order"
+        );
+        err.statusCode = 409;
+        throw err;
+      }
+      if (Number(intent.amount) !== chargeCents) {
+        const err: Error & { statusCode?: number } = new Error(
+          `payment ${payment_intent_id} was taken at a different price than ` +
+          `this order totals now - contact support with that reference`
+        );
+        err.statusCode = 409;
+        throw err;
+      }
+      intentAlreadySucceeded = intent.payment_status === "succeeded";
+    } else {
+      // An OPEN intent attached to an earlier sale is the drawer's own
+      // abandonment arriving back: the intent is opened per customer and
+      // REUSED, so the previous attempt's unpaid order is still holding it.
+      // The intent has not settled, so nothing was paid by it - a still-
+      // Pending predecessor is cancelled (credit refunded); one already moved
+      // on (Cancelled, or advanced by hand) is merely detached.
+      if (intent.sales_order_id) {
+        await withTransaction(async (client) => {
+          await reconcileService.cancelPendingSale(
+            intent.sales_order_id as string, "superseded-by-admin-retry", client
+          );
+          await stripeRepo.attachOrder(payment_intent_id, null, null, client);
+        });
+      }
+      // The authoritative amount, stamped NOW - outside the transaction,
+      // because a Stripe call does not belong inside one - so what gets
+      // confirmed is exactly what the server priced, whatever the drawer's
+      // last update left on the intent.
+      const updated = await stripeProvider.updateIntent(payment_intent_id, {
+        amount: chargeCents,
+      });
+      await stripeRepo.updatePaymentIntent(updated);
+    }
+  }
+
+  const orderId = await withTransaction(async (client) => {
     const orderId = await salesOrderWrites.insertSalesOrder(client, {
       user: user,
-      status: sales_order.payment_method === "CREDIT" ? "Preparing" : "Pending",
+      // The label derives from a money fact, as on the customer path: nothing
+      // left to charge - full credit, whatever the method was called - means
+      // nothing to await, and a repaired already-paid intent means born paid.
+      status: chargeCents > 0 && !intentAlreadySucceeded ? "Pending" : "Preparing",
       sales_order: sales_order,
       orderPrices,
     });
