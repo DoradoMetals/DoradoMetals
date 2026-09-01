@@ -16,15 +16,33 @@ import path from "node:path";
 // would make the check something people skip.
 export default defineConfig({
   test: {
-    environment: "node",
+    setupFiles: ["./vitest.setup.ts"],
     // Component render tests are .test.tsx and get jsdom; everything .test.ts
     // stays pure-function-in-node. The split keeps the fast lane fast: a pure
     // test never pays for a DOM, and a component test never pretends it does
-    // not need one.
-    environmentMatchGlobs: [["**/*.test.tsx", "jsdom"]],
-    setupFiles: ["./vitest.setup.ts"],
-    include: ["**/*.test.ts", "**/*.test.tsx"],
-    exclude: ["node_modules/**", ".next/**", "**/*.e2e.ts"],
+    // not need one. vitest 4 removed environmentMatchGlobs, so the same split
+    // is two projects now; extends:true carries the root setup and aliases
+    // into both.
+    projects: [
+      {
+        extends: true,
+        test: {
+          name: "node",
+          environment: "node",
+          include: ["**/*.test.ts"],
+          exclude: ["node_modules/**", ".next/**", "**/*.e2e.ts"],
+        },
+      },
+      {
+        extends: true,
+        test: {
+          name: "jsdom",
+          environment: "jsdom",
+          include: ["**/*.test.tsx"],
+          exclude: ["node_modules/**", ".next/**", "**/*.e2e.ts"],
+        },
+      },
+    ],
     coverage: {
       // What coverage is measured AGAINST. scripts/ are self-tested through
       // lint:script-guards, the e2e specs run under Playwright, and generated
