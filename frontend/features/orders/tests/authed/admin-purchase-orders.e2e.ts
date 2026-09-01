@@ -31,7 +31,20 @@ test.describe("the admin purchase order drawer", () => {
     test.setTimeout(90_000);
     await page.goto("/admin?tab=purchase-orders");
     await expect(page.locator("tbody tr").first()).toBeVisible({ timeout: 60_000 });
-    await page.locator("tbody tr").first().click();
+    // A WORKED order AT THE WORKBENCH STAGE, pinned by number. "First row"
+    // broke twice (seeded e2e orders sort newest), and the stage matters as
+    // much as the pick: the drawer is stage-gated - In Transit shows the
+    // logistics view, and the controls this spec examines (spot lock, item
+    // edits, payout totals) belong to Received and later. 242 is January-era
+    // dev data sitting at Received with genuine spots and totals.
+    const search = page.getByPlaceholder(/Search orders/i).first();
+    await search.fill("242");
+    const row = page.locator("tbody tr").first();
+    await expect(row, "dev no longer has order 242 - pick a new pinned fixture").toContainText(
+      "242",
+      { timeout: 20_000 }
+    );
+    await row.click();
     await expect(page.getByRole("dialog", { name: /Purchase order/i }).first()).toBeVisible({
       timeout: 20_000,
     });
@@ -86,7 +99,10 @@ test.describe("the admin purchase order drawer", () => {
   test("the totals a payout is built from are shown", async ({ page }) => {
     const drawer = page.getByRole("dialog", { name: /Purchase order/i }).first();
     const text = await drawer.innerText();
-    for (const label of ["Bullion Estimate", "Shipping Charges", "Total Estimate"]) {
+    // The workbench's own vocabulary (Figma rework, 2026-08-31): the charges
+    // are singular lines and the per-kind "Estimate" rows belong to the
+    // In-Transit logistics view, not this stage.
+    for (const label of ["Shipping Charge", "Payout Charge", "Total Estimate"]) {
       expect(text, `the drawer does not show ${label}`).toContain(label);
     }
     expect(text, "a figure rendered as NaN").not.toMatch(/NaN/);

@@ -56,6 +56,24 @@ for (const [role, creds] of Object.entries(ROLES)) {
       "sign-in returned no cookies - there is no session to reuse"
     ).toBeGreaterThan(0);
 
+    // THE SWEEPER. Every spec that creates addresses cleans up after itself -
+    // until a run crashes mid-test and its afterEach never fires, which is how
+    // a leaked e2e-crud- row broke an unrelated assertion a day later. Setup
+    // runs before every project, so the suite starts from a clean slate no
+    // matter how the previous run ended. e2e- prefixed labels only; a real
+    // row can never match.
+    if (role === "customer") {
+      const listed = await api.get(`${API}/addresses/get`);
+      if (listed.ok()) {
+        for (const address of await listed.json()) {
+          const label = address?.name ?? address?.label ?? "";
+          if (typeof label === "string" && label.startsWith("e2e-")) {
+            await api.delete(`${API}/addresses/delete`, { data: { address } }).catch(() => {});
+          }
+        }
+      }
+    }
+
     // Written under the frontend's own origin so the browser sends them: the
     // cookie comes back scoped to the API host, and the app is served from
     // another port.

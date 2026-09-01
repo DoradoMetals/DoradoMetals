@@ -201,9 +201,14 @@ test("a verification mail leaves an auth_verification row with its user", async 
     assert.equal(t.sent.length, 1, "nothing left the recorder");
     assert.equal(t.sent[0].subject, "Welcome to Dorado Metals Exchange");
 
+    // Scoped to THIS send's address, not table-wide: dev accumulated its
+    // first real committed auth_verification row the night live signups were
+    // probed (the auth cutover), and a table-wide count met it as a phantom
+    // second send.
     const { rows } = await c.query(
       `SELECT status, to_address, user_id, order_id, pdf_id, provider_message_id
-         FROM media.emails WHERE kind = 'auth_verification'`
+         FROM media.emails WHERE kind = 'auth_verification' AND to_address = $1`,
+      [email]
     );
     assert.equal(rows.length, 1, "one send, one row");
     assert.equal(rows[0].status, "sent");
@@ -230,8 +235,11 @@ test("a failed verification mail is a row too, and the throw reaches better-auth
       /535 Authentication failed/
     );
 
+    // Scoped by address for the same reason as the test above: the table
+    // holds real committed verification rows since the cutover's live probes.
     const { rows } = await c.query(
-      `SELECT status, error, user_id FROM media.emails WHERE kind = 'auth_verification'`
+      `SELECT status, error, user_id FROM media.emails
+        WHERE kind = 'auth_verification' AND to_address = 'new-signup@example.test'`
     );
     assert.equal(rows.length, 1, "the failure was not recorded");
     assert.equal(rows[0].status, "failed");

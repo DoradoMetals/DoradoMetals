@@ -63,7 +63,18 @@ if (!services.length) {
   process.exit(1);
 }
 
-const address = await addressService.create({
+// Find-or-create: one stable address for every seeded order. Minting one per
+// run grew the e2e customer's address list until an unrelated account-page
+// assertion drowned in them.
+const { rows: existingAddr } = await query(
+  `SELECT id FROM exchange.addresses
+   WHERE user_id = $1 AND name = 'e2e-order-seed' LIMIT 1`,
+  [user_id]
+);
+
+const address = existingAddr.length
+  ? { id: existingAddr[0].id }
+  : await addressService.create({
   userId: user_id,
   address: {
     line_1: "6100 E2E Seed St",
@@ -74,7 +85,7 @@ const address = await addressService.create({
     country_code: "US",
     phone_number: "7135551234",
   },
-  user_address: { label: `e2e-order-${Date.now()}` },
+  user_address: { label: 'e2e-order-seed' },
 });
 
 const order_id = await withTransaction(async (client) => {
