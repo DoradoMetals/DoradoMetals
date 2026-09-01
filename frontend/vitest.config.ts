@@ -25,6 +25,21 @@ export default defineConfig({
     setupFiles: ["./vitest.setup.ts"],
     include: ["**/*.test.ts", "**/*.test.tsx"],
     exclude: ["node_modules/**", ".next/**", "**/*.e2e.ts"],
+    coverage: {
+      // What coverage is measured AGAINST. scripts/ are self-tested through
+      // lint:script-guards, the e2e specs run under Playwright, and generated
+      // config carries no logic - counting any of them deflates the number
+      // without describing untested behaviour.
+      exclude: [
+        "node_modules/**",
+        ".next/**",
+        "scripts/**",
+        "**/*.e2e.ts",
+        "**/tests/**",
+        "*.config.*",
+        "vitest.setup.ts",
+      ],
+    },
   },
   resolve: {
     // Matches the `@/*` path alias in tsconfig.json.
