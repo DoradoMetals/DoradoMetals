@@ -3346,48 +3346,53 @@ AS $function$
   END;
 $function$;
 
-CREATE OR REPLACE FUNCTION auth.mirror_user_from_exchange()
+CREATE OR REPLACE FUNCTION auth.mirror_identity_to_exchange()
  RETURNS trigger
  LANGUAGE plpgsql
  SECURITY DEFINER
 AS $function$
 BEGIN
-  INSERT INTO auth.users (
+  IF pg_trigger_depth() > 1 THEN RETURN NEW; END IF;
+  INSERT INTO exchange.users (
     id, email, name, "createdAt", "updatedAt", "emailVerified",
     image, role, "stripeCustomerId", dorado_funds, banned, "banReason", "banExpires"
   )
   VALUES (
     NEW.id, NEW.email, NEW.name, NEW."createdAt", NEW."updatedAt", NEW."emailVerified",
-    NEW.image, NEW.role, NEW."stripeCustomerId", NEW.dorado_funds, NEW.banned, NEW."banReason", NEW."banExpires"
+    NEW.image, NEW.role, NEW."stripeCustomerId", COALESCE(NEW.dorado_funds, 0),
+    NEW.banned, NEW."banReason", NEW."banExpires"
   )
   ON CONFLICT (id) DO UPDATE SET
-    email             = EXCLUDED.email,
-    name              = EXCLUDED.name,
-    "createdAt"       = EXCLUDED."createdAt",
-    "updatedAt"       = EXCLUDED."updatedAt",
-    "emailVerified"   = EXCLUDED."emailVerified",
-    image             = EXCLUDED.image,
-    role              = EXCLUDED.role,
-    "stripeCustomerId" = EXCLUDED."stripeCustomerId",
-    dorado_funds      = EXCLUDED.dorado_funds,
-    banned            = EXCLUDED.banned,
-    "banReason"       = EXCLUDED."banReason",
-    "banExpires"      = EXCLUDED."banExpires";
-
+    email = EXCLUDED.email, name = EXCLUDED.name,
+    "updatedAt" = EXCLUDED."updatedAt", "emailVerified" = EXCLUDED."emailVerified",
+    image = EXCLUDED.image, role = EXCLUDED.role,
+    "stripeCustomerId" = EXCLUDED."stripeCustomerId", banned = EXCLUDED.banned,
+    "banReason" = EXCLUDED."banReason", "banExpires" = EXCLUDED."banExpires";
+    -- dorado_funds DELIBERATELY absent: exchange owns it. The INSERT above
+    -- seeds a NEW user's balance at 0; an existing row's balance is never
+    -- touched from this side - that is the $1000 bug, direction-proofed.
   RETURN NEW;
+END;
+$function$;
 
--- A failed mirror must never break a signup.
---
--- This trigger runs inside better-auth's transaction. If it raised, the user's
--- registration would fail - and while USERS_SOURCE is `exchange`, which is the
--- default and where it stays until someone promotes it, auth.users is not read
--- by anything at all. A stale mirror costs nothing; a broken signup costs a
--- customer. The warning goes to the Postgres log so the failure is findable.
---
--- Once promoted this trade-off inverts, and re-running the 029 backfill
--- reconciles anything the mirror dropped.
-EXCEPTION WHEN OTHERS THEN
-  RAISE WARNING 'auth.users mirror failed for user %: %', NEW.id, SQLERRM;
+CREATE OR REPLACE FUNCTION auth.mirror_session_to_exchange()
+ RETURNS trigger
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+AS $function$
+BEGIN
+  IF pg_trigger_depth() > 1 THEN RETURN NEW; END IF;
+  INSERT INTO exchange.session (
+    id, "userId", token, "expiresAt", "ipAddress", "userAgent",
+    "createdAt", "updatedAt", "impersonatedBy"
+  )
+  VALUES (
+    NEW.id, NEW."userId", NEW.token, NEW."expiresAt", NEW."ipAddress",
+    NEW."userAgent", NEW."createdAt", NEW."updatedAt", NEW."impersonatedBy"
+  )
+  ON CONFLICT (id) DO UPDATE SET
+    token = EXCLUDED.token, "expiresAt" = EXCLUDED."expiresAt",
+    "updatedAt" = EXCLUDED."updatedAt", "impersonatedBy" = EXCLUDED."impersonatedBy";
   RETURN NEW;
 END;
 $function$;
