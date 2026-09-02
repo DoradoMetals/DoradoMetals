@@ -62,7 +62,7 @@ export async function insertPurchaseOrder(
 ): Promise<string> {
   const id = randomUUID();
 
-  const { number } = await orders.createPurchaseOrder(id, userId, status, by, executor);
+  const { number } = await orders.create({ id, user_id: userId, direction: "purchase", status: status ?? "In Transit", created_by: by }, executor);
   await legacyPurchase.createOrder(id, userId, addressId, status, number, executor);
 
   // ONE ENGAGEMENT PER ORDER, EVERY ORDER (093). The order gets its
@@ -110,7 +110,7 @@ export async function insertSalesOrder(
   const by = user.name ?? null;
   const p = orderPrices;
 
-  const { number } = await orders.createSalesOrder(id, user.id, status, by, executor);
+  const { number } = await orders.create({ id, user_id: user.id, direction: "sale", status: status ?? "Pending", created_by: by }, executor);
 
   // ONE ENGAGEMENT PER ORDER, EVERY ORDER (093). A sales order gets its
   // refiners.orders row at birth, values NULL until a refinery is involved -
@@ -263,9 +263,9 @@ export async function insertSalesOrderMetals(
 export async function updateSalesStatus(
   order: { id: string }, status: string, by: string | null, executor?: Executor
 ): Promise<{ id: string } | undefined> {
-  const id = await orders.setStatus(order.id, status, by, executor);
+  const written = await orders.update(order.id, { status, updated_by: by }, {}, executor);
   await legacySales.setStatus(order.id, status, by, executor);
-  return id ? { id } : undefined;
+  return written;
 }
 
 // The three workflow flags share one path because they are one operation with
@@ -274,9 +274,9 @@ export async function updateSalesStatus(
 export async function setSalesFlag(
   id: string, flag: Flag, executor?: Executor
 ): Promise<{ id: string } | undefined> {
-  const written = await orders.setFlag(id, flag, executor);
+  const written = await orders.update(id, { [flag]: true }, {}, executor);
   await legacySales.setFlag(id, flag, executor);
-  return written ? { id: written } : undefined;
+  return written;
 }
 
 export async function attachSupplierToOrder(

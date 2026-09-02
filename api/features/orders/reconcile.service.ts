@@ -56,7 +56,10 @@ export type AbandonedSweepResult = {
 export async function cancelPendingSale(
   order_id: string, by: string, client: Executor
 ): Promise<AbandonedSweepResult | null> {
-  const native = await orders.markSaleAbandoned(order_id, by, client);
+  const native = await orders.update(
+    order_id, { status: "Cancelled", updated_by: by },
+    { status: "Pending", direction: "sale" }, client
+  );
   const legacy = await legacySales.markAbandoned(order_id, by, client);
   if (Boolean(native) !== Boolean(legacy)) {
     reportError({

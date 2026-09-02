@@ -29,7 +29,12 @@ import type { Executor } from "#shared/db/executor.ts";
 export async function markSalesOrderPaid(
   order_id: string, executor?: Executor
 ): Promise<"advanced" | "already"> {
-  const native = await orders.markSalePaid(order_id, "payment", executor);
+  // The Pending-only guard makes webhook and reconciler retries no-ops - see
+  // the update() note in the repo.
+  const native = await orders.update(
+    order_id, { status: "Preparing", updated_by: "payment" },
+    { status: "Pending", direction: "sale" }, executor
+  );
   const legacy = await legacySales.markPaid(order_id, "payment", executor);
 
   if (Boolean(native) !== Boolean(legacy)) {

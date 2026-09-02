@@ -103,35 +103,46 @@ export async function ownersById(
   return new Map(rows.map((r) => [r.id, r.user_id]));
 }
 
-// THE WRITES, for both directions.
-//
-// orders.orders is one table where exchange had two, so it gets one statement
-// each rather than one per direction. sales-orders currently carries its own
-// identical copies - see D42; they converge here rather than here becoming a
-// third writer.
-export async function setStatus(
-  id: string, status: string | null, by: string | null, executor?: Executor
-): Promise<string | undefined> {
-  const { rows } = await query<{ id: string }>(sql("set_status"), [status, by, id], executor);
-  return rows[0]?.id;
-}
+// THE ONE WRITE, for both directions (Jacob's CRUD ruling, D209): a repo
+// updates a record - it does not grow a function per column. The patch is a
+// whitelisted column map; the optional guard is a row-state precondition
+// evaluated IN THE STATEMENT, which is what makes the Pending-only
+// transitions (payment settled, abandonment cancelled) atomic under webhook
+// and reconciler retries - zero rows means "nothing needed doing", never a
+// stomped later status.
+const PATCHABLE = [
+  "status", "updated_by", "order_sent", "tracking_updated",
+  "review_created", "spots_locked", "notes",
+] as const;
+type Patchable = (typeof PATCHABLE)[number];
+export type OrderPatch = Partial<Record<Patchable, string | boolean | null>>;
 
-// The payment-settled advance - set_status with a guard. Only a 'Pending'
-// sale moves, so webhook retries and reconciler sweeps are no-ops rather than
-// label-stompers. See sql/mark_sale_paid.sql.
-export async function markSalePaid(
-  id: string, by: string | null, executor?: Executor
-): Promise<string | undefined> {
-  const { rows } = await query<{ id: string }>(sql("mark_sale_paid"), [id, by], executor);
-  return rows[0]?.id;
-}
+const GUARDABLE = ["status", "direction"] as const;
+type Guardable = (typeof GUARDABLE)[number];
+export type OrderGuard = Partial<Record<Guardable, string>>;
 
-// The abandonment cancel - mark_sale_paid's mirror image, same Pending guard.
-export async function markSaleAbandoned(
-  id: string, by: string | null, executor?: Executor
-): Promise<string | undefined> {
-  const { rows } = await query<{ id: string }>(sql("mark_sale_abandoned"), [id, by], executor);
-  return rows[0]?.id;
+export async function update(
+  id: string, patch: OrderPatch, guard: OrderGuard = {}, executor?: Executor
+): Promise<{ id: string } | undefined> {
+  const cols = PATCHABLE.filter((c) => c in patch);
+  if (!cols.length) return { id };
+  const sets = cols.map((c, i) => `${c} = $${i + 2}`);
+  const values: unknown[] = [id, ...cols.map((c) => patch[c] ?? null)];
+  const wheres = ["id = $1"];
+  for (const g of GUARDABLE) {
+    if (g in guard) {
+      values.push(guard[g]);
+      wheres.push(`${g} = $${values.length}${g === "direction" ? "::orders.direction" : ""}`);
+    }
+  }
+  const { rows } = await query<{ id: string }>(
+    `UPDATE orders.orders SET ${sets.join(", ")}, updated_at = now()
+      WHERE ${wheres.join(" AND ")}
+      RETURNING id`,
+    values,
+    executor
+  );
+  return rows[0];
 }
 
 // The two reconciliation sweeps' candidate reads. See each statement's header.
@@ -167,55 +178,32 @@ export async function findReservedFunds(
   return rows[0];
 }
 
-// exchange's createReview was this with `review_created` hard-coded.
-export async function setFlag(
-  id: string, flag: Flag, executor?: Executor
-): Promise<string | undefined> {
-  const { rows } = await query<{ id: string }>(
-    sql("set_flag").replaceAll("__COLUMN__", FLAGS[flag]), [id], executor
-  );
-  return rows[0]?.id;
-}
-
-// Whether the order's quoted spots are pinned. NOT setFlag: that writes `true`
-// and only `true`, because its three columns are one-way latches. This one
-// toggles - the pricing path locks, the cancel path unlocks - so it takes the
-// value. See sql/set_spots_locked.sql.
+// --------------------------------------------------------------- THE CREATE
 //
-// exchange's half was toggleSpots(locked, order_id), and the argument order is
-// deliberately the other way round here: every other write in this repo takes
-// the id first.
-export async function setSpotsLocked(
-  id: string, locked: boolean, executor?: Executor
-): Promise<{ id: string; spots_locked: boolean } | undefined> {
-  const { rows } = await query<{ id: string; spots_locked: boolean }>(
-    sql("set_spots_locked"), [locked, id], executor
-  );
-  return rows[0];
-}
+// ONE statement for one table (Jacob's CRUD ruling): direction is a column
+// and the row decides it. `number` is drawn from EXCHANGE's sequence for the
+// direction - the two schemas share one numbering space while both are live,
+// and the new schema has no sequence of its own.
+export type NewOrder = {
+  id?: string | null;
+  user_id: string | null;
+  direction: "purchase" | "sale";
+  status: string;
+  notes?: string | null;
+  created_by?: string | null;
+  created_by_id?: string | null;
+};
 
-// --------------------------------------------------------------- THE CREATES
-//
-// `number` comes from EXCHANGE's sequence in both statements - see
-// sql/create_purchase.sql. The two schemas share one numbering space while
-// both are live, and the new schema has no sequence of its own.
-
-export async function createPurchaseOrder(
-  id: string, user_id: string | null, status: string | null,
-  by: string | null, executor?: Executor
+export async function create(
+  row: NewOrder, executor?: Executor
 ): Promise<{ id: string; number: number }> {
   const { rows } = await query<{ id: string; number: number }>(
-    sql("create_purchase"), [id, user_id, status, by], executor
-  );
-  return rows[0];
-}
-
-export async function createSalesOrder(
-  id: string, user_id: string | null, status: string | null,
-  by: string | null, executor?: Executor
-): Promise<{ id: string; number: number }> {
-  const { rows } = await query<{ id: string; number: number }>(
-    sql("create_sales"), [id, user_id, status, by], executor
+    sql("create"),
+    [
+      row.id ?? null, row.user_id, row.direction, row.status,
+      row.notes ?? null, row.created_by ?? null, row.created_by_id ?? null,
+    ],
+    executor
   );
   return rows[0];
 }
@@ -227,16 +215,6 @@ export async function createSalesOrder(
 // written together", and create.ts writing three of the four independently is
 // what proved it false (Jacob, 2026-09-01: separation of concerns - transport,
 // service, repo - and a spots write does not live in the parent repo).
-
-export async function createFromCheckout(
-  user_id: string, direction: string, status: string,
-  notes: string | null, created_by_id: string | null, executor?: Executor
-): Promise<{ id: string; number: number }> {
-  const { rows } = await query<{ id: string; number: number }>(
-    sql("create_from_checkout"), [user_id, direction, status, notes, created_by_id], executor
-  );
-  return rows[0];
-}
 
 // Writes the ENGAGEMENT (refiners.orders, 093) - orders.orders.refinery_id
 // dropped in 094. See sql/set_refinery.sql for why it is an upsert.

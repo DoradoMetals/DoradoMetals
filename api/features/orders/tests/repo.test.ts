@@ -54,8 +54,8 @@ test("a status change records the status and its author", async () => {
     // A sentinel, so a pass cannot come from the value already being there.
     const status = `probe-${randomUUID().slice(0, 8)}`;
 
-    const returned = await orders.setStatus(id, status, "alice", c);
-    assert.equal(returned, id, "the write did not report the row it changed");
+    const returned = await orders.update(id, { status, updated_by: "alice" }, {}, c);
+    assert.equal(returned?.id, id, "the write did not report the row it changed");
 
     const row = await orderRow(c, id);
     assert.equal(row.status, status);
@@ -72,7 +72,7 @@ test("a status change with no author clears the author", async () => {
     assert.ok(id, "orders.orders is empty");
     await c.query("UPDATE orders.orders SET updated_by = 'alice' WHERE id = $1", [id]);
 
-    await orders.setStatus(id, "Pending", null, c);
+    await orders.update(id, { status: "Pending", updated_by: null }, {}, c);
 
     assert.equal(
       (await orderRow(c, id)).updated_by, null,
@@ -99,8 +99,8 @@ test("each of the three flags sets its own column and no other", async () => {
           WHERE id = $1`, [id]
       );
 
-      const returned = await orders.setFlag(id, flag, c);
-      assert.equal(returned, id, `${flag} did not report the row it changed`);
+      const returned = await orders.update(id, { [flag]: true }, {}, c);
+      assert.equal(returned?.id, id, `${flag} did not report the row it changed`);
 
       const row = await orderRow(c, id);
       assert.equal(row[flag], true, `${flag} was not set`);
