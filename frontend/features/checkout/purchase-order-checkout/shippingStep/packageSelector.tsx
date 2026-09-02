@@ -5,9 +5,17 @@ import { Switch } from '@dorado/components'
 
 import { usePurchaseOrderCheckoutStore } from '@/shared/store/purchaseOrderCheckoutStore'
 import { sellCartStore } from '@/shared/store/sellCartStore'
-import { packageOptions } from '@/features/packaging/types'
 import { convertToPounds } from '@/shared/utils/convertWeights'
 import { useEffect, useMemo } from 'react'
+import { useOfferedPackages, OfferedPackage } from '@/features/checkout/queries'
+import { Inbox, Package2, Package as PackageIcon } from 'lucide-react'
+
+// The one thing that stays client-side (Jacob's standing call): a picture.
+// Sized by the row's own minimum weight, so a fourth box needs no edit here.
+const iconFor = (pkg: OfferedPackage) => {
+  const w = Number(pkg.min_weight_lb ?? 0)
+  return w <= 2 ? Inbox : w <= 8 ? Package2 : PackageIcon
+}
 
 export function PackageSelector() {
   const selectedPackage = usePurchaseOrderCheckoutStore((state) => state.data.package)
@@ -15,9 +23,12 @@ export function PackageSelector() {
   const setData = usePurchaseOrderCheckoutStore((state) => state.setData)
   const { items } = sellCartStore()
 
+  // The boxes are rows now (D208/112) - packageOptions, the hardcoded record
+  // that duplicated shipping.packages while nothing served it, is gone.
+  const { data: offered = [] } = useOfferedPackages()
   const filteredOptions = useMemo(() => {
-    return packageOptions.filter((pkg) => pkg.fedexPackage === fedexPackageToggle)
-  }, [fedexPackageToggle])
+    return offered.filter((pkg) => pkg.is_carrier_packaging === fedexPackageToggle)
+  }, [offered, fedexPackageToggle])
 
   const totalCartWeight = useMemo(() => {
     return items.reduce((sum, item) => {
@@ -31,10 +42,10 @@ export function PackageSelector() {
 
   const packagingWeight = useMemo(() => {
     if (!selectedPackage) return totalCartWeight
-    const opt = packageOptions.find(p => p.label === selectedPackage.label)
-    const minWeight = opt?.weight.value ?? 0
+    const opt = offered.find((p) => p.id === selectedPackage.id || p.label === selectedPackage.label)
+    const minWeight = Number(opt?.min_weight_lb ?? 0)
     return Math.max(totalCartWeight, minWeight)
-  }, [totalCartWeight, selectedPackage])
+  }, [totalCartWeight, selectedPackage, offered])
 
   const handleFedExToggle = (checked: boolean) => {
     setData({
@@ -44,11 +55,19 @@ export function PackageSelector() {
   }
 
   const handleChange = (label: string) => {
-    const selected = packageOptions.find((p) => p.label === label)
+    const selected = offered.find((p) => p.label === label)
     if (!selected) return
     setData({
       package: {
-        ...selected,
+        id: selected.id,
+        label: selected.label,
+        fedexPackage: selected.is_carrier_packaging,
+        dimensions: {
+          length: Number(selected.length ?? 0),
+          width: Number(selected.width ?? 0),
+          height: Number(selected.height ?? 0),
+          units: 'IN',
+        },
         weight: {
           units: 'LB',
           value: packagingWeight,
@@ -88,12 +107,15 @@ export function PackageSelector() {
         className="flex w-full items-stretch justify-between gap-2"
         optionClassName="flex-1"
       >
-        {(pkg) => (
-          <>
-            {pkg.icon && <pkg.icon size={20} />}
-            <strong>{pkg.label}</strong>
-          </>
-        )}
+        {(pkg) => {
+          const Icon = iconFor(pkg)
+          return (
+            <>
+              <Icon size={20} />
+              <strong>{pkg.label}</strong>
+            </>
+          )
+        }}
       </RadioGroup>
     </div>
   )

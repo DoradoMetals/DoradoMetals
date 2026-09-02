@@ -39,6 +39,8 @@ export const ServiceSelector: React.FC<ServiceSelectorProps> = ({ services, rate
 
     setData({
       service: {
+        // The shipping.services ROW id - what the checkout row stores (D208).
+        id: option.id ?? undefined,
         // serviceType and code are the carrier's, received from the server and
         // handed back - the create body still carries them into the label
         // request. The frontend does not interpret either.

@@ -169,6 +169,7 @@ export async function syncSellCart(
 import * as checkoutRows from "#features/checkout/repo.next.ts";
 import * as fulfillmentService from "#features/fulfillments/service.ts";
 import * as fulfillmentMethods from "#features/fulfillments/methods/service.ts";
+import * as handoffsService from "#features/shipping/handoffs/service.ts";
 import * as addressService from "#features/places/addresses/service.ts";
 import type { CheckoutRow, CheckoutPatch } from "#features/checkout/repo.next.ts";
 import type { ComposedFulfillment } from "#features/fulfillments/compose.ts";
@@ -246,11 +247,28 @@ export async function patchCheckout(
 // later call moves its method in place. The offered-method check runs on BOTH
 // paths - this is the customer's surface, and the menu has to mean something.
 export async function setFulfillmentMethod(
-  user_id: string, direction: unknown, method_id: string
+  user_id: string, direction: unknown,
+  method_id?: string, handoff_code?: string
 ): Promise<ComposedCheckout> {
   const dir = assertDirection(direction);
+
+  // The stepper picks a carrier HANDOFF (Store Dropoff / Carrier Pickup) and
+  // never spells a fulfillment method; the SERVER owns that vocabulary. The
+  // schedulable handoff is the carrier pickup - the same capability rule the
+  // create resolves by, in the other direction.
+  if (!method_id && handoff_code) {
+    const handoffs = await handoffsService.getHandoffs();
+    const handoff = handoffs.find((h) => h.code === handoff_code);
+    if (!handoff) throw badRequest(`no such handoff: ${handoff_code}`);
+    const type = handoff.requires_schedule ? "CARRIER PICKUP" : "CARRIER DROPOFF";
+    const offered = await fulfillmentMethods.listAvailable(dir);
+    method_id = offered.find((m) => m.type === type)?.id;
+    if (!method_id) {
+      throw badRequest(`no offered ${type} method for a ${dir}`);
+    }
+  }
   if (typeof method_id !== "string" || method_id.length === 0) {
-    throw badRequest("method_id is required");
+    throw badRequest("method_id or handoff_code is required");
   }
 
   return await withTransaction(async (client) => {

@@ -73,7 +73,9 @@ export const patchCheckout = asyncHandler(async (req, res) => {
 // POST /api/checkout/fulfillment {direction, method_id} - ensure the draft
 // fulfillment and set its method; the row keeps the draft's id.
 export const setCheckoutFulfillment = asyncHandler(async (req, res) => {
-  const { direction, method_id } = req.body ?? {};
-  const result = await cartService.setFulfillmentMethod(callerId(req), direction, method_id);
+  const { direction, method_id, handoff_code } = req.body ?? {};
+  const result = await cartService.setFulfillmentMethod(
+    callerId(req), direction, method_id, handoff_code
+  );
   return res.status(200).json(result);
 });

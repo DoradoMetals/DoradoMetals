@@ -74,7 +74,7 @@ export type { CarrierHandoff, CarrierServiceOption };
 // FedEx's vocabulary, and a carrier adapter that could state it would be the
 // same defect this file exists to fix in the other direction.
 // features/shipping/services/service.ts joins the two.
-type CarrierServiceVocabulary = Omit<CarrierServiceOption, "max_insured_value">;
+type CarrierServiceVocabulary = Omit<CarrierServiceOption, "max_insured_value" | "id">;
 
 type CarrierCatalogue = {
   handoffs: CarrierHandoff[];

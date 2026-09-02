@@ -16,11 +16,13 @@
 import express from "express";
 
 import handoffRoutes from "#features/shipping/handoffs/routes.ts";
+import packageRoutes from "#features/shipping/packages/routes.ts";
 import operationRoutes from "#features/shipping/operations/routes.ts";
 
 const router = express.Router();
 
 router.use("/handoffs", handoffRoutes);
+router.use("/packages", packageRoutes);
 router.use("/", operationRoutes);
 
 export default router;

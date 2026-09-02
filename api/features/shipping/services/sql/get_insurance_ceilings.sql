@@ -10,7 +10,7 @@
 -- in dev and in production (D125), which is the same reason the offered
 -- catalogue is served from the carrier's adapter. When those columns are
 -- populated, this joins on `code` and nothing above it changes.
-SELECT name, max_insured_value
+SELECT id, name, max_insured_value
   FROM shipping.services
  WHERE carrier_id = $1
    AND is_active = true

@@ -13422,3 +13422,28 @@ e2e asserting the row round-trips); the orders repo CRUD collapse and the
 service-satellite folding; then the sale side on the same core - one
 placeOrder, direction a parameter, the sale's steps (intent verification,
 funds) where the purchase has the label chain.
+
+### D209 addendum — the purchase stepper writes the row, and the composed path is gone end to end
+
+The frontend half landed the same day. The stepper performs ONE
+synchronisation when the customer leaves the shipping step - the checkout row
+takes shipper_address_id, package_id and carrier_service_id, and the draft
+fulfillment takes the handoff by CODE (the server resolves the method; the
+browser spells no fulfillment vocabulary). The review step's create is the
+slim body only. Dead and deleted: useCreatePurchaseOrder, the composed
+POST /purchase_orders/create_purchase_order (route, controller, service fn),
+the runtime purchaseOrderCheckoutSchema.parse, and packageOptions - the
+hardcoded box record - replaced by GET /api/shipping/packages over
+shipping.packages rows (112 made carrier_id nullable with three agnostic
+generics, exactly the services cure, and gave the rows the minimum billable
+weights only the hardcode had ever held). The offered-services wire now
+carries each catalogue entry's ROW id, which is what the checkout row stores.
+
+Route census fix worth naming: scripts/route-guards.ts's default-import
+branch only accepted module paths ending /routes, so a dotted router file
+(checkout.routes.ts) left the security census SILENTLY - the fourth recorded
+instance of that silence class. The frontend-vs-routes test caught it as two
+"404s" that were actually mounted routes the census could not see.
+
+Still owed: the orders repo CRUD collapse + service-satellite folding, and
+the SALE side of the conversion on the same core.

@@ -142,7 +142,14 @@ export async function getOfferedServices(
 
   return [...catalogue.services]
     .sort((a, b) => a.display_order - b.display_order)
-    .map((s) => ({ ...s, max_insured_value: ceilingOr(ceilings, s.name) }));
+    // `id` is the shipping.services ROW for this catalogue entry, joined by
+    // name like the ceiling - the checkout row stores it (D208), and the
+    // create resolves the entry back from it.
+    .map((s) => ({
+      ...s,
+      id: ceilings.get(s.name)?.id ?? null,
+      max_insured_value: ceilingOr(ceilings, s.name),
+    }));
 }
 
 // ---------------------------------------------------------- insurance ceiling
@@ -168,21 +175,23 @@ export async function getOfferedServices(
 // most conservative number we do know.
 async function ceilingsByName(
   carrier_id: string, executor?: Executor
-): Promise<Map<string, number>> {
+): Promise<Map<string, { id: string; ceiling: number }>> {
   const rows = await services.getInsuranceCeilings(carrier_id, executor);
-  return new Map(rows.map((r) => [r.name, Number(r.max_insured_value)]));
+  return new Map(
+    rows.map((r) => [r.name, { id: (r as { id?: string }).id as string, ceiling: Number(r.max_insured_value) }])
+  );
 }
 
 // The lowest ceiling we know about, used both as the agnostic answer and as the
 // fallback for a service with no row. Zero rows means the carrier has no active
 // service at all, in which case nothing can be shipped and nothing is insured.
-function lowestCeiling(ceilings: Map<string, number>): number {
-  const values = [...ceilings.values()].filter((v) => Number.isFinite(v));
+function lowestCeiling(ceilings: Map<string, { id: string; ceiling: number }>): number {
+  const values = [...ceilings.values()].map((v) => v.ceiling).filter((v) => Number.isFinite(v));
   return values.length ? Math.min(...values) : 0;
 }
 
-function ceilingOr(ceilings: Map<string, number>, name: string): number {
-  const own = ceilings.get(name);
+function ceilingOr(ceilings: Map<string, { id: string; ceiling: number }>, name: string): number {
+  const own = ceilings.get(name)?.ceiling;
   return own !== undefined && Number.isFinite(own) ? own : lowestCeiling(ceilings);
 }
 

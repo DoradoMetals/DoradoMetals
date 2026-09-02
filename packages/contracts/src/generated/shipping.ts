@@ -15,7 +15,7 @@ export type CarriersRow = z.infer<typeof CarriersRow>;
 
 export const PackagesRow = z.object({
   "id": z.string().uuid(),
-  "carrier_id": z.string().uuid(),
+  "carrier_id": z.string().uuid().nullable(),
   "image_id": z.string().uuid().nullable(),
   "created_by": z.string().uuid().nullable(),
   "updated_by": z.string().uuid().nullable(),
@@ -26,6 +26,7 @@ export const PackagesRow = z.object({
   "updated_at": z.string(),
   "label": z.string(),
   "is_carrier_packaging": z.boolean(),
+  "min_weight_lb": z.number().nullable(),
 });
 export type PackagesRow = z.infer<typeof PackagesRow>;
 

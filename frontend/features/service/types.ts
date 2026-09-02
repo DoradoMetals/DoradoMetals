@@ -30,6 +30,8 @@ import { z } from 'zod/v4'
 // and salesOrderCheckoutSchema before a Stripe confirm. Its shape, its field
 // names and its validation do not move.
 export const serviceSchema = z.object({
+  // The shipping.services ROW the checkout row stores (D208).
+  id: z.string().uuid().optional(),
   serviceType: z.string(),
   serviceDescription: z.string(),
   netCharge: z.coerce.number().nonnegative({ message: 'Price is required' }),

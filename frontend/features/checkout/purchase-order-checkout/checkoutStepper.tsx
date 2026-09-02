@@ -23,6 +23,7 @@ import {
   useShippingRates,
 } from '@/features/shipping/queries'
 import { useGetRatesInput } from '@/features/shipping/utils/getRatesInput'
+import { useSyncPurchaseCheckout } from '@/features/checkout/queries'
 
 const { useStepper, utils } = defineStepper(
   {
@@ -129,6 +130,27 @@ export default function CheckoutStepper() {
 
   const stepper = useStepper()
   const currentIndex = utils.getIndex(stepper.current.id)
+
+  // ONE SYNCHRONISATION when the customer leaves the shipping step (D208):
+  // the checkout ROW takes the ids, the draft fulfillment takes the handoff.
+  // Going back and forward re-writes the same choices - idempotent by
+  // construction, so there is nothing to diff.
+  const syncCheckout = useSyncPurchaseCheckout()
+  const advanceFromShipping = async () => {
+    if (!data.address?.id || !data.package?.id || !data.service?.id || !data.pickup?.label) return
+    try {
+      await syncCheckout.mutateAsync({
+        shipper_address_id: data.address.id,
+        package_id: data.package.id,
+        carrier_service_id: data.service.id,
+        handoff_code: data.pickup.label,
+      })
+      stepper.next()
+    } catch {
+      // The row refused (a stale id, a dead session) - stay on the step; the
+      // selections are intact and the retry is the same click.
+    }
+  }
 
   const cartItems = sellCartStore((state) => state.items)
 
@@ -254,14 +276,17 @@ export default function CheckoutStepper() {
               <Button
                 type="button"
                 className="ml-auto"
-                onClick={stepper.next}
+                onClick={stepper.current.id === 'shipping' ? advanceFromShipping : stepper.next}
                 disabled={
-                  (stepper.current.id === 'shipping' && !isShippingStepComplete) ||
+                  (stepper.current.id === 'shipping' &&
+                    (!isShippingStepComplete || !data.service?.id || syncCheckout.isPending)) ||
                   (stepper.current.id === 'payout' && !data.payoutValid)
                 }
               >
                 {stepper.current.id === 'shipping'
-                  ? 'Go to Payment'
+                  ? syncCheckout.isPending
+                    ? 'Saving…'
+                    : 'Go to Payment'
                   : stepper.current.id === 'payout'
                   ? 'Review Order'
                   : 'Next'}

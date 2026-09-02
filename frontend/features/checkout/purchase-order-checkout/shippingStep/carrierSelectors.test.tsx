@@ -57,8 +57,8 @@ const handoffs = (): CarrierHandoff[] => [
 // started clamping with it would have to pick one and the difference would
 // show. The clamp is the server's - see the note on CarrierServiceOption.
 const services = (): CarrierServiceOption[] => [
-  { code: "SLOW_ONE", name: "Economy", carrier_code: "ZZZE", display_order: 0, max_insured_value: 7500 },
-  { code: "FAST_ONE", name: "Overnight", carrier_code: "ZZZP", display_order: 1, max_insured_value: 10000 },
+  { id: "11111111-1111-4111-8111-111111111111", code: "SLOW_ONE", name: "Economy", carrier_code: "ZZZE", display_order: 0, max_insured_value: 7500 },
+  { id: "22222222-2222-4222-8222-222222222222", code: "FAST_ONE", name: "Overnight", carrier_code: "ZZZP", display_order: 1, max_insured_value: 10000 },
 ];
 
 const rates = (): ShippingRate[] => [

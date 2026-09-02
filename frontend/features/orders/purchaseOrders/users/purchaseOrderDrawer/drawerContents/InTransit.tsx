@@ -1,6 +1,6 @@
 import { Button } from '@dorado/components'
 import { cn } from '@/shared/utils/cn'
-import { packageOptions } from '@/features/packaging/types'
+import { useOfferedPackages } from '@/features/checkout/queries'
 import { useShipmentPickups } from '@/features/shipping/queries'
 import type { Shipment } from '@dorado/contracts'
 import { PurchaseOrderDrawerContentProps } from '@/features/orders/purchaseOrders/types'
@@ -56,15 +56,17 @@ export default function InTransitPurchaseOrder({ order }: PurchaseOrderDrawerCon
 // the order.
 export function DropoffInstructionsSection({ shipment }: { shipment?: Shipment }) {
   const { data: pickups = [] } = useShipmentPickups(shipment?.id)
+  const { data: offeredPackages = [] } = useOfferedPackages()
   const carrierPickup = pickups[0] ?? null
 
   if (shipment?.shipping_status !== 'Label Created') return null
 
-  // The box is named by ID on the row. packageOptions is a client-side list
-  // of the same boxes; matching on its label is what the composed wire's
-  // joined `package` string allowed, and it is the one lookup here that has
-  // no reference read behind it yet - flagged rather than invented.
-  const selectedPackage = packageOptions[0]
+  // The box is named by ID on the row, resolved against the reference read
+  // (D208) - the client-side packageOptions list this used to placeholder
+  // against is gone. An old order may name a retired per-carrier row; the
+  // first offered box stands in for the packing copy either way.
+  const selectedPackage =
+    offeredPackages.find((p) => p.id === shipment?.package_id) ?? offeredPackages[0]
 
   const steps = [
     {
@@ -78,7 +80,7 @@ export function DropoffInstructionsSection({ shipment }: { shipment?: Shipment }
       title: 'Pack Your Items',
       description: `Pack up your items in a ${
         selectedPackage?.label
-      } (${`${selectedPackage?.dimensions.length} × ${selectedPackage?.dimensions.width} × ${selectedPackage?.dimensions.height}`} in). We recommend double
+      } (${`${selectedPackage?.length} × ${selectedPackage?.width} × ${selectedPackage?.height}`} in). We recommend double
       boxing using generic packaging to prevent theft or
       damage while your shipment is in-transit. `,
     },

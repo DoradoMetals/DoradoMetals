@@ -3,7 +3,6 @@ import {
   useDownloadPackingList,
   useDownloadReturnPackingList,
 } from '@/features/pdfs/queries'
-import { packageOptions } from '@/features/packaging/types'
 import { PurchaseOrderDrawerHeaderProps, statusConfig } from '@/features/orders/purchaseOrders/types'
 import { formatFullDate } from '@/shared/utils/formatDates'
 import { useFormatPurchaseOrderNumber } from '@/features/orders/utils/formatOrderNumbers'

@@ -5,18 +5,19 @@ import formatPhoneNumber from '@/shared/utils/formatPhoneNumber'
 import { Button } from '@dorado/components'
 import { formatPickupDateShort, formatPickupTime, formatTimeDiff } from '@/shared/utils/formatDates'
 import ItemTables from './itemTable'
-import { purchaseOrderCheckoutSchema } from '@/features/orders/purchaseOrders/types'
+import { payoutSchema } from '@/features/payouts/types'
 import { sellCartStore } from '@/shared/store/sellCartStore'
 import { useRouter } from 'next/navigation'
-import { useTransition } from 'react'
-import { useCreatePurchaseOrder } from '@/features/orders/purchaseOrders/users/queries'
+import { useState, useTransition } from 'react'
+import { useCreatePurchaseOrderFromCheckout } from '@/features/checkout/queries'
 import { DetailRow } from '@/shared/ui/DetailRow'
 
 export default function ReviewStep() {
   const data = usePurchaseOrderCheckoutStore((state) => state.data)
-  const createPurchaseOrder = useCreatePurchaseOrder()
+  const createPurchaseOrder = useCreatePurchaseOrderFromCheckout()
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
+  const [message, setMessage] = useState<string | null>(null)
 
   return (
     <div className="flex flex-col gap-4 w-full">
@@ -105,30 +106,53 @@ export default function ReviewStep() {
 
       <ItemTables />
 
+      {message && <p className="text-destructive">{message}</p>}
       <Button
         className="w-full mt-2"
         disabled={createPurchaseOrder.isPending}
         onClick={() => {
-          const liveCartItems = sellCartStore.getState().items
-          const checkoutPayload = {
-            ...data,
-            items: liveCartItems,
-          }
-
+          // THE SLIM BODY (D208). The server already holds every choice on
+          // the checkout row and the draft fulfillment; only what cannot live
+          // there travels - the payout bank form, the parcel's weight, the
+          // pickup schedule, the insurance declaration. The bank form is the
+          // one runtime parse left on this path.
+          setMessage(null)
           try {
-            const validated = purchaseOrderCheckoutSchema.parse(checkoutPayload)
-
-            createPurchaseOrder.mutate(validated, {
-              onSuccess: async () => {
-                startTransition(() => {
-                  router.push('/order-placed')
-                })
-                sellCartStore.getState().clearCart()
-                usePurchaseOrderCheckoutStore.getState().clear()
+            const payout = payoutSchema.parse(data.payout)
+            createPurchaseOrder.mutate(
+              {
+                payout,
+                package_weight: {
+                  units: 'LB',
+                  value: Number(data.package?.weight?.value ?? 0),
+                },
+                pickup_schedule:
+                  data.pickup?.date || data.pickup?.time
+                    ? { date: data.pickup?.date, time: data.pickup?.time }
+                    : undefined,
+                declared_value: data.insurance?.insured
+                  ? Number(data.insurance?.declaredValue?.amount ?? 0)
+                  : 0,
               },
-            })
-          } catch (err) {
-            console.error('Invalid purchase order data', err)
+              {
+                onSuccess: async () => {
+                  startTransition(() => {
+                    router.push('/order-placed')
+                  })
+                  sellCartStore.getState().clearCart()
+                  usePurchaseOrderCheckoutStore.getState().clear()
+                },
+                onError: (err) => {
+                  setMessage(
+                    err instanceof Error && err.message
+                      ? err.message
+                      : 'The order could not be placed. Nothing has been charged - please try again.'
+                  )
+                },
+              }
+            )
+          } catch {
+            setMessage('The payout details are incomplete - go back and check them.')
           }
         }}
       >

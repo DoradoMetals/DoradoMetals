@@ -184,7 +184,12 @@ const routerImports = (src: string): Map<string, string> => {
   const def = /import\s+(\w+)\s+from\s+["']#features\/([^"']+?)\.(?:js|ts)["']/g;
   let m;
   while ((m = def.exec(src))) {
-    if (/(^|\/)routes$/.test(m[2])) out.set(m[1], `features/${m[2]}`);
+    // `/routes` AND `.routes` - a file may carry a dotted router name
+    // (checkout.routes.ts) exactly as the walk above already accepts; the
+    // default-import branch anchored on the slash form only, so a dotted
+    // default export left the census silently. Same class of silence as the
+    // creates.routes.ts note on the walk.
+    if (/(^|[\/.])routes$/.test(m[2])) out.set(m[1], `features/${m[2]}`);
   }
   const named = /import\s+\{([^}]+)\}\s+from\s+["']#features\/([^"']+?)\.(?:js|ts)["']/g;
   while ((m = named.exec(src))) {

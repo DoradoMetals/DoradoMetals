@@ -1205,7 +1205,7 @@ ALTER TABLE shipping.carriers ADD COLUMN IF NOT EXISTS logo text;
 
 CREATE TABLE IF NOT EXISTS shipping.packages (
   id uuid DEFAULT gen_random_uuid() NOT NULL,
-  carrier_id uuid NOT NULL,
+  carrier_id uuid,
   image_id uuid,
   created_by uuid,
   updated_by uuid,
@@ -1215,7 +1215,8 @@ CREATE TABLE IF NOT EXISTS shipping.packages (
   created_at timestamp with time zone DEFAULT now() NOT NULL,
   updated_at timestamp with time zone DEFAULT now() NOT NULL,
   label text DEFAULT ''::text NOT NULL,
-  is_carrier_packaging boolean DEFAULT false NOT NULL
+  is_carrier_packaging boolean DEFAULT false NOT NULL,
+  min_weight_lb numeric
 );
 ALTER TABLE shipping.packages ADD COLUMN IF NOT EXISTS id uuid DEFAULT gen_random_uuid();
 ALTER TABLE shipping.packages ADD COLUMN IF NOT EXISTS carrier_id uuid;
@@ -1229,6 +1230,7 @@ ALTER TABLE shipping.packages ADD COLUMN IF NOT EXISTS created_at timestamp with
 ALTER TABLE shipping.packages ADD COLUMN IF NOT EXISTS updated_at timestamp with time zone DEFAULT now();
 ALTER TABLE shipping.packages ADD COLUMN IF NOT EXISTS label text DEFAULT ''::text;
 ALTER TABLE shipping.packages ADD COLUMN IF NOT EXISTS is_carrier_packaging boolean DEFAULT false;
+ALTER TABLE shipping.packages ADD COLUMN IF NOT EXISTS min_weight_lb numeric;
 
 CREATE TABLE IF NOT EXISTS shipping.pickups (
   id uuid DEFAULT gen_random_uuid() NOT NULL,
@@ -3320,6 +3322,7 @@ CREATE INDEX IF NOT EXISTS migration_reviews_order_idx ON reviews.reviews USING 
 CREATE INDEX IF NOT EXISTS migration_reviews_user_idx ON reviews.reviews USING btree (user_id);
 CREATE INDEX IF NOT EXISTS idx_shipping_carriers_organization_id ON shipping.carriers USING btree (organization_id);
 CREATE INDEX IF NOT EXISTS idx_shipping_packages_image_id ON shipping.packages USING btree (image_id);
+CREATE UNIQUE INDEX IF NOT EXISTS packages_agnostic_label_key ON shipping.packages USING btree (label) WHERE (carrier_id IS NULL);
 CREATE INDEX IF NOT EXISTS packages_carrier_idx ON shipping.packages USING btree (carrier_id);
 CREATE INDEX IF NOT EXISTS idx_shipping_pickups_shipment_id ON shipping.pickups USING btree (shipment_id);
 CREATE INDEX IF NOT EXISTS carrier_services_active_idx ON shipping.services USING btree (carrier_id, is_active);

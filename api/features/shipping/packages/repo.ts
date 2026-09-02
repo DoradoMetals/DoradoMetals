@@ -40,3 +40,19 @@ export async function find(
 export async function labelsById(executor?: Executor): Promise<Map<string, string>> {
   return new Map((await getAll(executor)).map((p) => [p.id, p.label]));
 }
+
+// The checkout's box menu (D208). See sql/get_offered.sql for which rows.
+export type OfferedPackage = {
+  id: string;
+  label: string;
+  length: number | null;
+  width: number | null;
+  height: number | null;
+  is_carrier_packaging: boolean;
+  min_weight_lb: number | null;
+};
+
+export async function getOffered(executor?: Executor): Promise<OfferedPackage[]> {
+  const { rows } = await query<OfferedPackage>(sql("get_offered"), [], executor);
+  return rows;
+}

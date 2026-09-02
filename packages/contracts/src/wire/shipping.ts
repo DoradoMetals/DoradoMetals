@@ -132,6 +132,10 @@ export type CarrierHandoff = z.infer<typeof CarrierHandoff>;
 // pickup-availability check wants (FDXE express, FDXG ground), a property of
 // the service and not of the carrier.
 export const CarrierServiceOption = z.object({
+  // The shipping.services ROW this catalogue entry corresponds to (D208):
+  // what the checkout row stores as carrier_service_id, joined by name the
+  // same way the ceiling is. Null only if the table lost the row.
+  id: z.string().uuid().nullable(),
   code: z.string(),
   name: z.string(),
   carrier_code: z.string(),
