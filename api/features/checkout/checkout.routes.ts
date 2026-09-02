@@ -4,6 +4,7 @@ import {
   getCheckout,
   patchCheckout,
   setCheckoutFulfillment,
+  saveCheckoutPayout,
 } from "#features/checkout/controller.ts";
 import { requireUser } from "#shared/middleware/authMiddleware.ts";
 
@@ -16,5 +17,6 @@ const router = express.Router();
 router.get("/", requireUser, getCheckout);
 router.patch("/", requireUser, patchCheckout);
 router.post("/fulfillment", requireUser, setCheckoutFulfillment);
+router.post("/payout", requireUser, saveCheckoutPayout);
 
 export default router;

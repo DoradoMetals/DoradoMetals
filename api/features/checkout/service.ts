@@ -170,6 +170,7 @@ import * as checkoutRows from "#features/checkout/repo.next.ts";
 import * as fulfillmentService from "#features/fulfillments/service.ts";
 import * as fulfillmentMethods from "#features/fulfillments/methods/service.ts";
 import * as handoffsService from "#features/shipping/handoffs/service.ts";
+import * as payoutDetails from "#features/payments/details/service.ts";
 import * as addressService from "#features/places/addresses/service.ts";
 import type { CheckoutRow, CheckoutPatch } from "#features/checkout/repo.next.ts";
 import type { ComposedFulfillment } from "#features/fulfillments/compose.ts";
@@ -216,14 +217,23 @@ export async function patchCheckout(
   for (const col of ADDRESS_COLUMNS) {
     const id = patch[col];
     if (id != null) {
-      const owned = await addressService.inBook(id, user_id);
+      const owned = await addressService.inBook(String(id), user_id);
       if (!owned) {
         throw badRequest(`${col}: that address is not in your book`);
       }
     }
   }
-  if (patch.appointment_time != null && Number.isNaN(Date.parse(patch.appointment_time))) {
+  if (
+    patch.appointment_time != null &&
+    Number.isNaN(Date.parse(String(patch.appointment_time)))
+  ) {
     throw badRequest(`appointment_time is not a timestamp`);
+  }
+  for (const col of ["package_weight", "declared_value"] as const) {
+    const v = patch[col];
+    if (v != null && !(Number(v) >= 0)) {
+      throw badRequest(`${col} must be a non-negative number`);
+    }
   }
 
   try {
@@ -287,6 +297,31 @@ export async function setFulfillmentMethod(
       await checkoutRows.linkFulfillment(user_id, dir, draft.id, client);
     }
 
+    const fresh = await checkoutRows.getRow(user_id, dir, client);
+    const fulfillment = fresh.fulfillment_id
+      ? await fulfillmentService.getById(fresh.fulfillment_id, client)
+      : null;
+    return { ...fresh, fulfillment };
+  });
+}
+
+// THE PAYOUT STEP (D210): the bank form is recorded HERE, at step time -
+// numbers sealed at rest by the payments/details service - and creation later
+// LINKS the row. The details id is stable per checkout, so edits rewrite in
+// place. Purchase-only until the sale side converts.
+export async function saveCheckoutPayout(
+  user_id: string, direction: unknown, form: payoutDetails.PayoutForm
+): Promise<ComposedCheckout> {
+  const dir = assertDirection(direction);
+  if (dir !== "purchase") {
+    throw badRequest("the payout step belongs to the purchase checkout");
+  }
+  return await withTransaction(async (client) => {
+    const row = await checkoutRows.getRow(user_id, dir, client);
+    const saved = await payoutDetails.saveCheckoutPayout(
+      { user_id, existing_id: row.payment_details_id, form }, client
+    );
+    await checkoutRows.linkPaymentDetails(user_id, dir, saved.id, saved.method_id, client);
     const fresh = await checkoutRows.getRow(user_id, dir, client);
     const fulfillment = fresh.fulfillment_id
       ? await fulfillmentService.getById(fresh.fulfillment_id, client)

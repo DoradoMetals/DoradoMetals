@@ -5,7 +5,6 @@ import formatPhoneNumber from '@/shared/utils/formatPhoneNumber'
 import { Button } from '@dorado/components'
 import { formatPickupDateShort, formatPickupTime, formatTimeDiff } from '@/shared/utils/formatDates'
 import ItemTables from './itemTable'
-import { payoutSchema } from '@/features/payouts/types'
 import { sellCartStore } from '@/shared/store/sellCartStore'
 import { useRouter } from 'next/navigation'
 import { useState, useTransition } from 'react'
@@ -111,49 +110,27 @@ export default function ReviewStep() {
         className="w-full mt-2"
         disabled={createPurchaseOrder.isPending}
         onClick={() => {
-          // THE SLIM BODY (D208). The server already holds every choice on
-          // the checkout row and the draft fulfillment; only what cannot live
-          // there travels - the payout bank form, the parcel's weight, the
-          // pickup schedule, the insurance declaration. The bank form is the
-          // one runtime parse left on this path.
+          // ZERO BODY (D210). Every choice is already a server-side
+          // resource - the row's ids and parcel facts, the draft fulfillment,
+          // the payout account sealed at the payout step. Confirm is a
+          // trigger; the server pulls everything by id.
           setMessage(null)
-          try {
-            const payout = payoutSchema.parse(data.payout)
-            createPurchaseOrder.mutate(
-              {
-                payout,
-                package_weight: {
-                  units: 'LB',
-                  value: Number(data.package?.weight?.value ?? 0),
-                },
-                pickup_schedule:
-                  data.pickup?.date || data.pickup?.time
-                    ? { date: data.pickup?.date, time: data.pickup?.time }
-                    : undefined,
-                declared_value: data.insurance?.insured
-                  ? Number(data.insurance?.declaredValue?.amount ?? 0)
-                  : 0,
-              },
-              {
-                onSuccess: async () => {
-                  startTransition(() => {
-                    router.push('/order-placed')
-                  })
-                  sellCartStore.getState().clearCart()
-                  usePurchaseOrderCheckoutStore.getState().clear()
-                },
-                onError: (err) => {
-                  setMessage(
-                    err instanceof Error && err.message
-                      ? err.message
-                      : 'The order could not be placed. Nothing has been charged - please try again.'
-                  )
-                },
-              }
-            )
-          } catch {
-            setMessage('The payout details are incomplete - go back and check them.')
-          }
+          createPurchaseOrder.mutate(undefined, {
+            onSuccess: async () => {
+              startTransition(() => {
+                router.push('/order-placed')
+              })
+              sellCartStore.getState().clearCart()
+              usePurchaseOrderCheckoutStore.getState().clear()
+            },
+            onError: (err) => {
+              setMessage(
+                err instanceof Error && err.message
+                  ? err.message
+                  : 'The order could not be placed. Nothing has been charged - please try again.'
+              )
+            },
+          })
         }}
       >
         {createPurchaseOrder.isPending || isPending ? 'Placing Order…' : 'Confirm and Place Order'}

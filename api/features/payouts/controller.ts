@@ -17,7 +17,12 @@ import * as payoutsRepo from "#features/payouts/repo.ts";
 // jsonb_build_object; an order with no payout answers [] here, which is a
 // shape rather than a workaround. Admin-only, like the write it feeds.
 export const getPayoutsByOrder = asyncHandler(async (req, res) => {
-  return res.json(await payoutsRepo.getMany([param(req, "orderId")]));
+  const order_id = param(req, "orderId");
+  const legacy = await payoutsRepo.getMany([order_id]);
+  // A new-flow order (D210) has no exchange payout; the same wire shape
+  // composes from payments.details + orders.transactions, id = the details
+  // row - which is exactly what the details endpoint opens.
+  return res.json(legacy.length ? legacy : await payoutsRepo.getForNew(order_id));
 });
 
 export const patchPayout = asyncHandler(async (req, res) => {

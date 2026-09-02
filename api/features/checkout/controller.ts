@@ -79,3 +79,12 @@ export const setCheckoutFulfillment = asyncHandler(async (req, res) => {
   );
   return res.status(200).json(result);
 });
+
+// POST /api/checkout/payout {direction, ...bank form} - the payout step's
+// write (D210). The numbers are sealed at rest by payments/details; the
+// response carries the row WITHOUT them, only last_four.
+export const saveCheckoutPayout = asyncHandler(async (req, res) => {
+  const { direction, ...form } = req.body ?? {};
+  const result = await cartService.saveCheckoutPayout(callerId(req), direction, form);
+  return res.status(200).json(result);
+});

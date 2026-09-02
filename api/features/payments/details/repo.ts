@@ -60,3 +60,61 @@ export async function setMethodForOrder(order_id: string, method: string, execut
   const { rows } = await query(SET_METHOD, [order_id, method], executor);
   return rows.map((r) => r.id as string);
 }
+
+// ------------------------------------------------------ the payout step (D210)
+
+export type CheckoutPayoutRow = {
+  id: string;
+  method_id: string | null;
+  account_holder: string | null;
+  bank_name: string | null;
+  account_type: string | null;
+  last_four: string | null;
+  email_to: string | null;
+};
+
+export type CheckoutPayoutWrite = {
+  id: string;
+  user_id: string;
+  method: string;
+  account_holder: string | null;
+  bank_name: string | null;
+  account_type: string | null;
+  last_four: string | null;
+  email_to: string | null;
+  routing_number_encrypted: string | null;
+  account_number_encrypted: string | null;
+  encryption_key_id: string | null;
+};
+
+// Returns undefined when the method resolves to nothing - the caller refuses
+// rather than writing a detail row with no method.
+export async function saveForCheckout(
+  row: CheckoutPayoutWrite, executor?: PoolClient
+): Promise<CheckoutPayoutRow | undefined> {
+  const { rows } = await query<CheckoutPayoutRow>(
+    sql("save_for_checkout"),
+    [
+      row.id, row.user_id, row.method, row.account_holder, row.bank_name,
+      row.account_type, row.last_four, row.email_to,
+      row.routing_number_encrypted, row.account_number_encrypted,
+      row.encryption_key_id,
+    ],
+    executor
+  );
+  return rows[0];
+}
+
+export type EncryptedDetailsRow = CheckoutPayoutRow & {
+  method: string | null;
+  routing_number_encrypted: string | null;
+  account_number_encrypted: string | null;
+  encryption_key_id: string | null;
+};
+
+export async function getEncrypted(
+  id: string, executor?: PoolClient
+): Promise<EncryptedDetailsRow | undefined> {
+  const { rows } = await query<EncryptedDetailsRow>(sql("get_encrypted"), [id], executor);
+  return rows[0];
+}

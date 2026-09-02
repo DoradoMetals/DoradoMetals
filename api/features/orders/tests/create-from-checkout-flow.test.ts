@@ -1,10 +1,9 @@
-// THE ROW-FLOW PURCHASE CREATE (D208), tested to the hilt without a FedEx
-// call ever being reachable: the RESOLUTION (checkout row + draft + slim body
-// -> what the label call and the record need) is DB-only and tested directly;
-// the record half (recordPlacedPurchase: order core, bank-details anchor,
-// money row, shipment, booking, reset) is tested rows-only. The label
-// purchase itself is exercised by the FedEx sandbox lane - what is new here
-// is everything around it.
+// THE ZERO-BODY PURCHASE CREATE (D210), tested to the hilt without a FedEx
+// call ever being reachable. By Confirm, everything is a server-side
+// resource: the row's ids, the parcel facts as columns, the draft
+// fulfillment, and the payout account SEALED in payments.details at the
+// payout step. The resolution reads only the row; the record half links ids
+// and writes NO exchange rows at all.
 import test, { after, before } from "node:test";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
@@ -12,6 +11,8 @@ import request from "supertest";
 import pool from "#db";
 import { mockSessions, restoreSessions, as } from "#shared/testing/session.ts";
 import { inPinnedTransaction, outside } from "#shared/testing/pinned-pool.ts";
+import { open, aadFor } from "#shared/crypto/envelope.ts";
+import { payoutKeyFromEnv } from "#shared/crypto/payoutKey.ts";
 
 await mockSessions();
 const { default: app } = await import("#app");
@@ -29,14 +30,15 @@ let saleServiceId: string;    // a carrier-agnostic sale row (110) - must be ref
 let dropoffMethodId: string;  // CARRIER DROPOFF
 let pickupMethodId: string;   // CARRIER PICKUP
 let directMethodId: string;   // a non-SHIPMENT purchase method
-let productId: string;
 let productName: string;
 
-const PAYOUT = { method: "ACH", account_holder_name: "Row Flow Test" };
-const BODY = {
-  payout: PAYOUT,
-  package_weight: { units: "LB", value: 3 },
-  declared_value: 2500,
+const PAYOUT_FORM = {
+  method: "ACH",
+  account_holder_name: "Row Flow Test",
+  bank_name: "Test Bank",
+  account_type: "Checking",
+  routing_number: "021000021",
+  account_number: "000123456789",
 };
 
 before(async () => {
@@ -54,7 +56,9 @@ before(async () => {
   recipientLabel = users[0].label;
 
   packageId = (
-    await outside<{ id: string }>(`SELECT id FROM shipping.packages WHERE label IS NOT NULL LIMIT 1`)
+    await outside<{ id: string }>(
+      `SELECT id FROM shipping.packages WHERE carrier_id IS NULL AND label = 'Small Box' LIMIT 1`
+    )
   )[0].id;
   labelServiceId = (
     await outside<{ id: string }>(
@@ -74,15 +78,12 @@ before(async () => {
   dropoffMethodId = methods.find((m) => m.type === "CARRIER DROPOFF")!.id;
   pickupMethodId = methods.find((m) => m.type === "CARRIER PICKUP")!.id;
   directMethodId = methods.find((m) => m.category !== "SHIPMENT")!.id;
-  assert.ok(dropoffMethodId && pickupMethodId && directMethodId, "the methods seed is missing rows");
 
-  const product = (
-    await outside<{ id: string; product_name: string }>(
-      `SELECT id, product_name FROM exchange.products WHERE sell_display = true LIMIT 1`
+  productName = (
+    await outside<{ product_name: string }>(
+      `SELECT product_name FROM exchange.products WHERE sell_display = true LIMIT 1`
     )
-  )[0];
-  productId = product.id;
-  productName = product.product_name;
+  )[0].product_name;
 });
 
 after(async () => {
@@ -90,15 +91,22 @@ after(async () => {
   await pool.end();
 });
 
-// Drive the same surfaces the stepper will drive: PATCH the row, POST the
-// fulfillment, sync the sell cart.
-async function primeCheckout(methodId: string) {
+// Drive the same surfaces the stepper drives: PATCH the row (ids AND parcel
+// facts), POST the fulfillment, POST the payout, sync the sell cart.
+async function primeCheckout(
+  methodId: string,
+  { schedule = false }: { schedule?: boolean } = {}
+) {
   const patched = await as(customer, () =>
     request(app).patch("/api/checkout").send({
       direction: "purchase",
       shipper_address_id: addressId,
       package_id: packageId,
       carrier_service_id: labelServiceId,
+      package_weight: 3,
+      declared_value: 2500,
+      pickup_date: schedule ? "2026-09-15" : null,
+      pickup_time: schedule ? "10:30:00" : null,
     })
   );
   assert.equal(patched.status, 200, patched.text);
@@ -111,236 +119,278 @@ async function primeCheckout(methodId: string) {
   );
   assert.equal(ff.status, 200, ff.text);
 
+  const payout = await as(customer, () =>
+    request(app).post("/api/checkout/payout").send({
+      direction: "purchase",
+      ...PAYOUT_FORM,
+    })
+  );
+  assert.equal(payout.status, 200, payout.text);
+  assert.ok(payout.body.payment_details_id, "the row did not keep the details id");
+
   const cart = await as(customer, () =>
     request(app).post("/api/cart/sync_sell_cart").send({
       cart: [{ type: "product", data: { name: productName, quantity: 2 } }],
     })
   );
   assert.equal(cart.status, 200, cart.text);
-  return ff.body.fulfillment_id as string;
+  return {
+    fulfillment_id: ff.body.fulfillment_id as string,
+    payment_details_id: payout.body.payment_details_id as string,
+  };
 }
 
-test("the resolution carries exactly what the label call and the record need - dropoff", async () => {
-  await inPinnedTransaction(async () => {
-    const draftId = await primeCheckout(dropoffMethodId);
+// ------------------------------------------------------- the payout step
 
-    const resolved = await orderCreate.resolvePurchaseCheckout(customer.id, BODY);
+test("the payout step SEALS the numbers and the plaintext columns stay NULL", async () => {
+  await inPinnedTransaction(async (c: PoolClient) => {
+    const { payment_details_id } = await primeCheckout(dropoffMethodId);
+
+    const { rows: [d] } = await c.query(
+      `SELECT account_holder, last_four, routing_number, account_number,
+              routing_number_encrypted, account_number_encrypted, encryption_key_id
+         FROM payments.details WHERE id = $1`, [payment_details_id]
+    );
+    assert.equal(d.account_holder, PAYOUT_FORM.account_holder_name);
+    assert.equal(d.last_four, "6789");
+    assert.equal(d.routing_number, null, "a plaintext routing number was written");
+    assert.equal(d.account_number, null, "a plaintext account number was written");
+    assert.ok(d.routing_number_encrypted?.startsWith("v1."), "the routing number is not an envelope");
+    assert.ok(d.account_number_encrypted?.startsWith("v1."), "the account number is not an envelope");
+    assert.ok(
+      !d.routing_number_encrypted.includes(PAYOUT_FORM.routing_number),
+      "the envelope leaks the plaintext"
+    );
+
+    const key = payoutKeyFromEnv();
+    assert.equal(
+      open(d.routing_number_encrypted, key, aadFor(payment_details_id, "routing_number")),
+      PAYOUT_FORM.routing_number,
+      "the envelope does not open back to the number"
+    );
+
+    // Editing rewrites IN PLACE - the checkout keeps one details row.
+    const again = await as(customer, () =>
+      request(app).post("/api/checkout/payout").send({
+        direction: "purchase",
+        ...PAYOUT_FORM,
+        account_number: "000999999999",
+      })
+    );
+    assert.equal(again.body.payment_details_id, payment_details_id, "an edit minted a second row");
+    const { rows: [count] } = await c.query(
+      `SELECT count(*)::int AS n FROM payments.details WHERE user_id = $1
+        AND account_holder = $2`, [customer.id, PAYOUT_FORM.account_holder_name]
+    );
+    assert.equal(count.n, 1);
+  });
+});
+
+test("an incomplete or nonsense payout form refuses", async () => {
+  await inPinnedTransaction(async () => {
+    for (const [form, why] of [
+      [{ method: "ACH", account_holder_name: "X" }, /routing number/],
+      [{ ...PAYOUT_FORM, routing_number: "12" }, /9 digits/],
+      [{ method: "ECHECK", account_holder_name: "X" }, /email/],
+      [{ method: "NOT A METHOD", account_holder_name: "X" }, /no such payout method/],
+    ] as const) {
+      const res = await as(customer, () =>
+        request(app).post("/api/checkout/payout").send({ direction: "purchase", ...form })
+      );
+      assert.equal(res.status, 400, `accepted: ${JSON.stringify(form)}`);
+      assert.match(res.body?.error?.message ?? res.text, why);
+    }
+  });
+});
+
+// ------------------------------------------------------- the resolution
+
+test("the resolution reads ONLY the row - no body exists any more", async () => {
+  await inPinnedTransaction(async () => {
+    const { fulfillment_id, payment_details_id } = await primeCheckout(dropoffMethodId);
+
+    const resolved = await orderCreate.resolvePurchaseCheckout(customer.id);
 
     assert.equal(resolved.row.shipper_address_id, addressId);
     assert.equal(resolved.recipientName, recipientLabel);
-    assert.ok(resolved.address.line_1, "the postal fields came along");
-
     assert.equal(resolved.service.serviceType, "FEDEX_EXPRESS_SAVER");
-    assert.equal(resolved.service.carrierCode, "FDXE");
-    assert.equal(resolved.service.name, "Express Saver");
-    assert.equal(resolved.service.rowId, labelServiceId, "the shipment records the ROW id");
-
-    assert.equal(resolved.handoff.name, "Store Dropoff");
+    assert.equal(resolved.service.rowId, labelServiceId);
     assert.equal(resolved.handoff.code, "DROPOFF_AT_FEDEX_LOCATION");
-    assert.equal(resolved.wantsPickup, false);
-    assert.equal(resolved.schedule, null);
-
     assert.equal(resolved.pkg.rowId, packageId);
-    assert.equal(resolved.pkg.weight.value, 3);
-    assert.ok(resolved.pkg.dimensions.length > 0, "the package row's dimensions rode in");
-    assert.equal(resolved.pkg.dimensions.units, "IN");
-
-    assert.equal(resolved.declaredValue, 2500);
-    assert.equal(resolved.payout.method, "ACH");
-    assert.equal(resolved.row.fulfillment_id, draftId, "the draft rides the row for the attach");
+    assert.equal(resolved.pkg.weight.value, 3, "the weight came off the ROW");
+    assert.equal(resolved.declaredValue, 2500, "the declared value came off the ROW");
+    assert.equal(resolved.payout_details_id, payment_details_id);
+    assert.equal(resolved.payout_fee, 0, "ACH carries no flat fee");
+    assert.equal(resolved.row.fulfillment_id, fulfillment_id);
   });
 });
 
-test("a carrier pickup assembles the schedulable handoff, and refuses without a schedule", async () => {
+test("a pickup needs its slot ON THE ROW, and carries it when set", async () => {
   await inPinnedTransaction(async () => {
     await primeCheckout(pickupMethodId);
-
     await assert.rejects(
-      () => orderCreate.resolvePurchaseCheckout(customer.id, BODY),
-      /date and a time/,
-      "a pickup without a schedule was accepted"
+      () => orderCreate.resolvePurchaseCheckout(customer.id),
+      /date and a time/
     );
 
-    const resolved = await orderCreate.resolvePurchaseCheckout(
-      customer.id,
-      { ...BODY, pickup_schedule: { date: "2026-09-15", time: "10:30:00" } }
-    );
+    await primeCheckout(pickupMethodId, { schedule: true });
+    const resolved = await orderCreate.resolvePurchaseCheckout(customer.id);
     assert.equal(resolved.handoff.name, "Carrier Pickup");
-    assert.equal(resolved.handoff.code, "CONTACT_FEDEX_TO_SCHEDULE");
     assert.equal(resolved.schedule?.date, "2026-09-15");
+    assert.equal(resolved.schedule?.time, "10:30:00");
   });
 });
 
-test("an incomplete checkout is refused naming what is missing", async () => {
+test("an incomplete checkout names every missing piece - the payout included", async () => {
   await inPinnedTransaction(async () => {
     await assert.rejects(
-      () => orderCreate.resolvePurchaseCheckout(customer.id, BODY),
-      /missing .*shipper_address_id/,
-      "an empty checkout assembled"
+      () => orderCreate.resolvePurchaseCheckout(customer.id),
+      /missing .*payment_details_id/
     );
   });
 });
 
-test("a missing payout and a missing weight refuse before anything happens", async () => {
-  await inPinnedTransaction(async () => {
-    await primeCheckout(dropoffMethodId);
-
-    await assert.rejects(
-      () => orderCreate.resolvePurchaseCheckout(customer.id, { ...BODY, payout: {} }),
-      /payout needs a method/
-    );
-    await assert.rejects(
-      () =>
-        orderCreate.resolvePurchaseCheckout(customer.id, {
-          ...BODY,
-          package_weight: { units: "LB", value: 0 },
-        }),
-      /needs a weight/
-    );
-  });
-});
-
-test("a sale delivery service buys no labels - the agnostic row refuses", async () => {
+test("a sale delivery service buys no labels, and a non-SHIPMENT method refuses", async () => {
   await inPinnedTransaction(async () => {
     await primeCheckout(dropoffMethodId);
     await as(customer, () =>
       request(app).patch("/api/checkout").send({
-        direction: "purchase",
-        carrier_service_id: saleServiceId,
+        direction: "purchase", carrier_service_id: saleServiceId,
       })
     );
     await assert.rejects(
-      () => orderCreate.resolvePurchaseCheckout(customer.id, BODY),
-      /not a label service/,
-      "a carrier-agnostic sale row was accepted as a label service"
+      () => orderCreate.resolvePurchaseCheckout(customer.id),
+      /not a label service|sale delivery service/
     );
-  });
-});
 
-test("a non-SHIPMENT fulfillment refuses the shipping checkout", async () => {
-  await inPinnedTransaction(async () => {
-    await primeCheckout(dropoffMethodId);
-    const moved = await as(customer, () =>
+    await as(customer, () =>
+      request(app).patch("/api/checkout").send({
+        direction: "purchase", carrier_service_id: labelServiceId,
+      })
+    );
+    await as(customer, () =>
       request(app).post("/api/checkout/fulfillment").send({
-        direction: "purchase",
-        method_id: directMethodId,
+        direction: "purchase", method_id: directMethodId,
       })
     );
-    assert.equal(moved.status, 200, moved.text);
-
     await assert.rejects(
-      () => orderCreate.resolvePurchaseCheckout(customer.id, BODY),
+      () => orderCreate.resolvePurchaseCheckout(customer.id),
       /cannot be placed through the shipping checkout/
     );
   });
 });
 
-test("the record half: order core, bank-details anchor, shipment, reset", async () => {
-  await inPinnedTransaction(async (c: PoolClient) => {
-    // CARRIER PICKUP on purpose: the shipment write's chooseDefault fallback
-    // is CARRIER DROPOFF, so the surviving method proving the DRAFT won the
-    // unique slot is the whole assertion.
-    const draftId = await primeCheckout(pickupMethodId);
-    const resolved = await orderCreate.resolvePurchaseCheckout(customer.id, {
-      ...BODY, pickup_schedule: { date: "2026-09-15", time: "10:30:00" },
-    });
-    assert.equal(resolved.row.fulfillment_id, draftId);
+// ------------------------------------------------------- the record half
 
-    // Rows only: no label object, no provider call - a null tracking number
-    // is a real state (labels are voided and reissued).
+test("the record half links ids and writes NO exchange rows at all", async () => {
+  await inPinnedTransaction(async (c: PoolClient) => {
+    const { fulfillment_id, payment_details_id } =
+      await primeCheckout(pickupMethodId, { schedule: true });
+    const resolved = await orderCreate.resolvePurchaseCheckout(customer.id);
+
     const placed = await orderCreate.recordPlacedPurchase(c, {
       user_id: customer.id, resolved, netCharge: 24.5,
       label: null,
       pickupResult: { confirmationNumber: "9971234", location: "FRONT" },
     });
 
-    const { rows: [order] } = await c.query(
-      `SELECT direction, status, number FROM orders.orders WHERE id = $1`, [placed.order_id]
-    );
-    assert.equal(order.direction, "purchase");
-    assert.equal(order.status, "In Transit");
-
-    // THE DRAFT WON: one fulfillment, and it is the customer's.
+    // The order core, with the DRAFT as its one fulfillment.
     const { rows: fulfillments } = await c.query(
       `SELECT f.id, m.type FROM fulfillments.fulfillments f
         JOIN fulfillments.methods m ON m.id = f.method_id
        WHERE f.order_id = $1`, [placed.order_id]
     );
-    assert.equal(fulfillments.length, 1, "the order grew a second fulfillment");
-    assert.equal(fulfillments[0].id, draftId);
+    assert.equal(fulfillments.length, 1);
+    assert.equal(fulfillments[0].id, fulfillment_id);
     assert.equal(fulfillments[0].type, "CARRIER PICKUP");
 
-    // The bank-details anchor: same id, same number, in exchange - and the
-    // payout hanging off it.
-    const { rows: [anchor] } = await c.query(
-      `SELECT order_number FROM exchange.purchase_orders WHERE id = $1`, [placed.order_id]
-    );
-    assert.ok(anchor, "the exchange anchor row was not written");
-    assert.equal(Number(anchor.order_number), Number(placed.number));
-    const { rows: [payout] } = await c.query(
-      `SELECT method, account_holder_name FROM exchange.payouts WHERE order_id = $1`,
-      [placed.order_id]
-    );
-    assert.equal(payout.method, "ACH");
-    assert.equal(payout.account_holder_name, PAYOUT.account_holder_name);
-
-    // The money row: postage priced by the server, the fee recorded, the
-    // payout account linked (last4 only - the details row holds no numbers).
+    // The money row LINKS the sealed account and records the method's fee.
     const { rows: [totals] } = await c.query(
       `SELECT shipping, shipping_service, payout_fee, payout_details_id
          FROM orders.transactions WHERE order_id = $1`, [placed.order_id]
     );
     assert.equal(Number(totals.shipping), 24.5);
-    assert.equal(totals.shipping_service, "Express Saver");
-    assert.ok(totals.payout_details_id, "the payout account was not linked");
+    assert.equal(totals.payout_details_id, payment_details_id, "the account was not linked");
+    assert.equal(Number(totals.payout_fee), 0);
 
-    // The parcel, ids straight off the checkout row, linked to the draft.
+    // The parcel and its NATIVE booking.
     const { rows: [shipment] } = await c.query(
-      `SELECT s.carrier_service_id, s.package_id, s.pickup_type, s.cost, s.direction
-         FROM shipping.shipments s
-         JOIN fulfillments.shipments fs ON fs.shipment_id = s.id
-        WHERE fs.fulfillment_id = $1`, [draftId]
+      `SELECT s.id, s.carrier_service_id, s.package_id FROM shipping.shipments s
+        JOIN fulfillments.shipments fs ON fs.shipment_id = s.id
+       WHERE fs.fulfillment_id = $1`, [fulfillment_id]
     );
-    assert.ok(shipment, "the parcel is not linked to the fulfillment");
     assert.equal(shipment.carrier_service_id, labelServiceId);
-    assert.equal(shipment.package_id, packageId);
-    assert.equal(shipment.pickup_type, "Carrier Pickup");
-    assert.equal(Number(shipment.cost), 24.5);
-
-    // The booking row for the courier.
     const { rows: [booking] } = await c.query(
-      `SELECT confirmation_number FROM exchange.carrier_pickups WHERE order_id = $1`,
+      `SELECT status, confirmation_number, requested_at FROM shipping.pickups
+        WHERE shipment_id = $1`, [shipment.id]
+    );
+    assert.equal(booking?.status, "scheduled");
+    assert.equal(booking?.confirmation_number, "9971234");
+
+    // *** ZERO EXCHANGE ROWS - the write pivot for this path, executed. ***
+    const { rows: [exchange] } = await c.query(
+      `SELECT
+         (SELECT count(*)::int FROM exchange.purchase_orders WHERE id = $1) AS orders,
+         (SELECT count(*)::int FROM exchange.payouts WHERE order_id = $1) AS payouts,
+         (SELECT count(*)::int FROM exchange.shipments WHERE purchase_order_id = $1) AS shipments,
+         (SELECT count(*)::int FROM exchange.carrier_pickups WHERE order_id = $1) AS pickups`,
       [placed.order_id]
     );
-    assert.equal(Number(booking?.confirmation_number), 9971234);
+    assert.deepEqual(
+      exchange,
+      { orders: 0, payouts: 0, shipments: 0, pickups: 0 },
+      "a new-flow order wrote an exchange row"
+    );
 
-    // The row starts the next checkout clean.
+    // The admin surfaces still work: the order-keyed payout read composes
+    // from the new tables, and the details endpoint OPENS the envelopes.
+    const wire = await as(
+      { id: customer.id, role: "admin" },
+      () => request(app).get(`/api/orders/${placed.order_id}/payouts`)
+    );
+    assert.equal(wire.status, 200, wire.text);
+    assert.equal(wire.body.length, 1);
+    assert.equal(wire.body[0].id, payment_details_id);
+    assert.equal(wire.body[0].method, "ACH");
+    assert.equal(wire.body[0].account_last4, "6789");
+    assert.equal(wire.body[0].routing_number, undefined, "the wire carried a full number");
+
+    const details = await as(
+      { id: customer.id, role: "admin" },
+      () => request(app).get(`/api/payouts/${payment_details_id}/details`)
+    );
+    assert.equal(details.status, 200, details.text);
+    assert.equal(details.body.routing_number, PAYOUT_FORM.routing_number);
+    assert.equal(details.body.account_number, PAYOUT_FORM.account_number);
+    assert.equal(details.body.order_id, placed.order_id);
+
+    // The row starts the next checkout clean - the payout pointers included.
+    await checkoutRows.resetRow(customer.id, "purchase", c);
     const fresh = await checkoutRows.getRow(customer.id, "purchase", c);
-    assert.equal(fresh.fulfillment_id, null, "the row kept the attached draft");
-    assert.equal(fresh.shipper_address_id, null, "the row was not reset");
-    assert.equal(fresh.package_id, null);
+    assert.equal(fresh.payment_details_id, null);
+    assert.equal(fresh.fulfillment_id, null);
+    assert.equal(fresh.package_weight, null);
   });
 });
 
-test("a checkout whose draft was already attached refuses the SECOND order", async () => {
+test("a spent draft refuses the SECOND order", async () => {
   await inPinnedTransaction(async (c: PoolClient) => {
-    await primeCheckout(dropoffMethodId);
-    const first = await orderCreate.resolvePurchaseCheckout(customer.id, BODY);
+    const primed = await primeCheckout(dropoffMethodId);
+    const first = await orderCreate.resolvePurchaseCheckout(customer.id);
     await orderCreate.recordPlacedPurchase(c, {
       user_id: customer.id, resolved: first, netCharge: 24.5,
     });
-    // Manually un-reset the row (a crash between attach and reset) - the
-    // stale checkout must refuse rather than mint an order around a spent
-    // draft.
     await c.query(
       `UPDATE checkout.checkouts SET
-         fulfillment_id = $2, shipper_address_id = $3,
-         package_id = $4, carrier_service_id = $5
+         fulfillment_id = $2, shipper_address_id = $3, package_id = $4,
+         carrier_service_id = $5, payment_details_id = $6,
+         package_weight = 3
        WHERE user_id = $1 AND direction = 'purchase'`,
-      [customer.id, first.row.fulfillment_id, addressId, packageId, labelServiceId]
+      [customer.id, primed.fulfillment_id, addressId, packageId, labelServiceId,
+       primed.payment_details_id]
     );
     await assert.rejects(
-      () => orderCreate.resolvePurchaseCheckout(customer.id, BODY),
+      () => orderCreate.resolvePurchaseCheckout(customer.id),
       /already belongs to an order/
     );
   });

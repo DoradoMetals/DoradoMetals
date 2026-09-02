@@ -429,12 +429,17 @@ export type CheckoutRow = {
   carrier_service_id: string | null;
   package_id: string | null;
   appointment_time: string | null;
+  package_weight: number | null;
+  declared_value: number | null;
+  pickup_date: string | null;
+  pickup_time: string | null;
 };
 
 const ROW_COLUMNS = `id, user_id, direction, payment_method_id, payment_details_id,
        fulfillment_id, fulfillment_method_id, appointment_location_id,
        pickup_address_id, shipper_address_id, recipient_address_id,
-       carrier_service_id, package_id, appointment_time`;
+       carrier_service_id, package_id, appointment_time,
+       package_weight, declared_value, pickup_date, pickup_time`;
 
 // Created on first read - a checkout row exists the moment anyone asks.
 export async function getRow(
@@ -462,9 +467,13 @@ export const PATCHABLE_COLUMNS = [
   "package_id",
   "appointment_location_id",
   "appointment_time",
+  "package_weight",
+  "declared_value",
+  "pickup_date",
+  "pickup_time",
 ] as const;
 export type PatchableColumn = (typeof PATCHABLE_COLUMNS)[number];
-export type CheckoutPatch = Partial<Record<PatchableColumn, string | null>>;
+export type CheckoutPatch = Partial<Record<PatchableColumn, string | number | null>>;
 
 export async function patchRow(
   user_id: string, direction: Direction, patch: CheckoutPatch, client?: Executor
@@ -545,6 +554,22 @@ export async function getItemsForOrder(
   return rows;
 }
 
+// The payout-step pointers (D210), written only by the service that also
+// writes the details row - never through patchRow.
+export async function linkPaymentDetails(
+  user_id: string, direction: Direction,
+  payment_details_id: string, payment_method_id: string | null,
+  client?: Executor
+): Promise<void> {
+  await query(
+    `UPDATE checkout.checkouts
+        SET payment_details_id = $3, payment_method_id = $4
+      WHERE user_id = $1 AND direction = $2`,
+    [user_id, direction, payment_details_id, payment_method_id],
+    client
+  );
+}
+
 // After an order consumes the checkout (D208): the choices are the ORDER's
 // now, so the row goes back to empty and the next checkout starts clean. The
 // items are cleared separately through the cart sync, which owns both
@@ -558,7 +583,9 @@ export async function resetRow(
        fulfillment_id = NULL, fulfillment_method_id = NULL,
        appointment_location_id = NULL, pickup_address_id = NULL,
        shipper_address_id = NULL, recipient_address_id = NULL,
-       carrier_service_id = NULL, package_id = NULL, appointment_time = NULL
+       carrier_service_id = NULL, package_id = NULL, appointment_time = NULL,
+       package_weight = NULL, declared_value = NULL,
+       pickup_date = NULL, pickup_time = NULL
      WHERE user_id = $1 AND direction = $2`,
     [user_id, direction],
     client

@@ -23,7 +23,7 @@ import {
   useShippingRates,
 } from '@/features/shipping/queries'
 import { useGetRatesInput } from '@/features/shipping/utils/getRatesInput'
-import { useSyncPurchaseCheckout } from '@/features/checkout/queries'
+import { useSaveCheckoutPayout, useSyncPurchaseCheckout } from '@/features/checkout/queries'
 
 const { useStepper, utils } = defineStepper(
   {
@@ -136,6 +136,20 @@ export default function CheckoutStepper() {
   // Going back and forward re-writes the same choices - idempotent by
   // construction, so there is nothing to diff.
   const syncCheckout = useSyncPurchaseCheckout()
+  const savePayout = useSaveCheckoutPayout()
+
+  // Leaving the PAYOUT step records the bank form server-side (D210) - the
+  // numbers are sealed at rest there, and Confirm later links the row. Going
+  // back and editing simply rewrites the same row.
+  const advanceFromPayout = async () => {
+    try {
+      await savePayout.mutateAsync({ ...data.payout })
+      stepper.next()
+    } catch {
+      // The form was refused - stay on the step; the fields are intact.
+    }
+  }
+
   const advanceFromShipping = async () => {
     if (!data.address?.id || !data.package?.id || !data.service?.id || !data.pickup?.label) return
     try {
@@ -144,6 +158,12 @@ export default function CheckoutStepper() {
         package_id: data.package.id,
         carrier_service_id: data.service.id,
         handoff_code: data.pickup.label,
+        package_weight: Number(data.package.weight?.value ?? 0),
+        declared_value: data.insurance?.insured
+          ? Number(data.insurance?.declaredValue?.amount ?? 0)
+          : 0,
+        pickup_date: data.pickup.date ?? null,
+        pickup_time: data.pickup.time ?? null,
       })
       stepper.next()
     } catch {
@@ -276,11 +296,18 @@ export default function CheckoutStepper() {
               <Button
                 type="button"
                 className="ml-auto"
-                onClick={stepper.current.id === 'shipping' ? advanceFromShipping : stepper.next}
+                onClick={
+                  stepper.current.id === 'shipping'
+                    ? advanceFromShipping
+                    : stepper.current.id === 'payout'
+                    ? advanceFromPayout
+                    : stepper.next
+                }
                 disabled={
                   (stepper.current.id === 'shipping' &&
                     (!isShippingStepComplete || !data.service?.id || syncCheckout.isPending)) ||
-                  (stepper.current.id === 'payout' && !data.payoutValid)
+                  (stepper.current.id === 'payout' &&
+                    (!data.payoutValid || savePayout.isPending))
                 }
               >
                 {stepper.current.id === 'shipping'
@@ -288,7 +315,9 @@ export default function CheckoutStepper() {
                     ? 'Saving…'
                     : 'Go to Payment'
                   : stepper.current.id === 'payout'
-                  ? 'Review Order'
+                  ? savePayout.isPending
+                    ? 'Saving…'
+                    : 'Review Order'
                   : 'Next'}
               </Button>
             )}

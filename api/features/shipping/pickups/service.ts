@@ -213,6 +213,36 @@ export async function create(
   return executor ? await run(executor) : await withTransaction(run);
 }
 
+// THE ROW FLOW'S BOOKING (D210): native-only - a new-flow order writes no
+// exchange rows, so the exchange-first create above is not for it. The date
+// and time are combined IN POSTGRES via the text cast, the same
+// no-JavaScript-date rule the legacy statement documents.
+export async function recordForShipment(
+  {
+    shipment_id, date, time, confirmation_number = null, location = null,
+  }: {
+    shipment_id: string;
+    date: string;
+    time: string;
+    confirmation_number?: string | number | null;
+    location?: string | null;
+  },
+  executor?: Executor
+): Promise<PickupBaseRow> {
+  return await pickups.create(
+    randomUUID(),
+    shipment_id,
+    {
+      requested_at: `${date} ${time || "00:00:00"}`,
+      status: "scheduled",
+      confirmation_number:
+        confirmation_number == null ? null : String(confirmation_number),
+      location,
+    },
+    executor
+  );
+}
+
 export async function update(
   input: PickupInput, executor?: Executor
 ): Promise<ComposedPickup | null> {

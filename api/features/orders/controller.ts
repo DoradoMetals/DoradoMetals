@@ -86,11 +86,11 @@ export const patchOrder = asyncHandler(async (req, res) => {
 // the choices (checkout row + draft fulfillment); the body carries only what
 // cannot live there - the payout bank form, the parcel weight, the pickup
 // schedule, the insurance declaration.
+// ZERO BODY (D210): every choice is a server-side resource by the time this
+// is called - the checkout row's ids, the draft fulfillment, the sealed
+// payout account. The request is a trigger, nothing more.
 export const createPurchaseOrderFromCheckout = asyncHandler(async (req, res) => {
-  const { payout, package_weight, pickup_schedule, declared_value } = req.body ?? {};
-  const order = await orderCreate.placePurchaseOrder(callerId(req), {
-    payout, package_weight, pickup_schedule, declared_value,
-  });
+  const order = await orderCreate.placePurchaseOrder(callerId(req));
   return res.status(200).json(order);
 });
 

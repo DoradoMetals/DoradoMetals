@@ -85,3 +85,23 @@ export async function getDetails(
   const { rows } = await query<PayoutDetailsRow>(sql("get_details"), [id], executor);
   return rows[0];
 }
+
+// ---------------------------------------------------- the new flow (D210)
+// Reads of the new-schema composition - same wire shape as the exchange
+// projections above, so nothing downstream can tell which era an order is.
+
+export async function getForNew(
+  order_id: string, executor?: Executor
+): Promise<PayoutRow[]> {
+  const { rows } = await query<PayoutRow>(sql("get_for_new"), [order_id], executor);
+  return rows;
+}
+
+export async function orderOfDetails(
+  details_id: string, executor?: Executor
+): Promise<string | null> {
+  const { rows } = await query<{ order_id: string }>(
+    sql("order_of_details"), [details_id], executor
+  );
+  return rows[0]?.order_id ?? null;
+}

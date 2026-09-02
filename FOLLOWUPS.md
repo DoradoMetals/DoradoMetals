@@ -13447,3 +13447,56 @@ instance of that silence class. The frontend-vs-routes test caught it as two
 
 Still owed: the orders repo CRUD collapse + service-satellite folding, and
 the SALE side of the conversion on the same core.
+
+## D210 — the zero-body create: everything is a server-side resource, and the bank numbers seal at rest
+
+Jacob: "The whole idea here is that all those payment tables are filled at
+this point. Same with fulfillments. And then purchase order creation can just
+link to them... We don't want a body being sent with details at order
+creation time, just ids that the server will use to pull resources." And on
+encrypting now instead of later: "Is there any reason not to do the second
+one? We've been needing encryption anyway."
+
+**The flow now**: the shipping step writes ids AND the parcel facts
+(package_weight, declared_value, pickup_date, pickup_time - 113's columns)
+onto the checkout row; the payout step POSTs the bank form to
+/api/checkout/payout, where payments/details SEALS the routing and account
+numbers (AES-256-GCM envelopes, AAD-bound to the row id and column name, in
+104's columns that had been waiting empty) and links payment_details_id -
+January's column, finally doing its job. Confirm sends an EMPTY body; the
+server pulls every resource by id. The payout fee is the method row's own
+flat_fee - the last client-supplied money figure on the payout side gone.
+
+**The write pivot for this path is EXECUTED**: with the numbers sealed in
+payments.details, the exchange bank-details anchor lost its reason to exist,
+and a new-flow purchase order writes ZERO exchange rows - no
+purchase_orders, no payouts, no shipments, no carrier_pickups (the booking
+is a native shipping.pickups write now). The flow test asserts the zero by
+counting. The 24 pre-existing plaintext rows are untouched - Jacob's
+encryption run against production remains his, unchanged.
+
+**The admin surfaces survived unmodified**: GET /orders/:id/payouts composes
+the same wire shape from payments.details + orders.transactions when no
+exchange row answers (id = the details row), and GET /payouts/:id/details -
+the single door - opens the envelopes for a details id and falls back to the
+exchange read for old orders. The payout-keyed PATCH resolves its order
+through transactions when exchange has no row.
+
+**The CRUD collapse landed with it** (Jacob: "it should make it easier" -
+it did): orders/repo.ts is one guarded `update(id, patch, guard)` - the
+Pending-only transitions are `update(id, {status:'Preparing'},
+{status:'Pending', direction:'sale'})`, atomic under retries exactly as
+before - and one `create(row)` for both directions (the per-direction
+create statements and five per-column writers plus their eight sql files are
+deleted; setSpotsLocked turned out to have zero callers and died
+unmourned).
+
+**DEPLOY REQUIREMENT, load-bearing**: PAYOUT_ENCRYPTION_KEY (base64,
+32 bytes) and optionally PAYOUT_ENCRYPTION_KEY_ID must exist in the
+production environment BEFORE this branch deploys - the payout step refuses
+without them, which is a checkout outage. The dev key in api/.env was
+replaced this pass: the old value decoded to 48 bytes and had never sealed
+anything (parseKey would always have refused it).
+
+Still owed: the sale-side conversion on the same core, and the orders
+service-satellite folding.

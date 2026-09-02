@@ -50,15 +50,14 @@ import * as shippingRatesService from "#features/shipping/operations/service.ts"
 import * as shippingOps from "#features/shipping/operations/handler.ts";
 import * as orderTransactions from "#features/orders/transactions/repo.ts";
 import * as checkoutService from "#features/checkout/service.ts";
-import * as legacyPurchase from "#legacy/purchase-orders/repo.ts";
-import * as legacyExchange from "#legacy/purchase-orders/repo.exchange.js";
 import * as emailService from "#features/media/emails/service.ts";
 import * as readService from "#features/orders/read.service.ts";
 import withTransaction from "#shared/db/withTransaction.ts";
 import { refuse } from "#shared/http/refuse.ts";
 import {
-  labelBufferOrUndo, undoLabel, undoPickup, recordPayoutInNewSchema,
+  labelBufferOrUndo, undoLabel, undoPickup,
 } from "#features/orders/service.ts";
+import * as paymentMethods from "#features/payments/methods/repo.ts";
 import { FEDEX_STORE_ADDRESS, FEDEX_CARRIER_ID } from "#providers/shipments/constants.ts";
 
 // Passing the executor is how each step below joins the caller's transaction.
@@ -189,8 +188,13 @@ export async function createFromCheckout(
   if (!checkout) throw new Error(`no such checkout: ${checkout_id}`);
 
   const direction = checkout.direction;
-  const { id: order_id, number } = await ordersRepo.createFromCheckout(
-    checkout.user_id, direction, status, notes, created_by_id, executor
+  const { id: order_id, number } = await ordersRepo.create(
+    {
+      user_id: checkout.user_id,
+      direction: direction as "purchase" | "sale",
+      status, notes, created_by_id,
+    },
+    executor
   );
 
   // ONE ENGAGEMENT PER ORDER, EVERY ORDER (093): the refiner-side engagement
@@ -293,13 +297,6 @@ export async function createFromCheckout(
 // still receives is the payout and the minimal order row its foreign key
 // demands - the bank-details anchor, not a mirror.
 
-export type PlacePurchaseBody = {
-  payout?: Record<string, any>;
-  package_weight?: { units?: string; value?: number };
-  pickup_schedule?: { date?: string; time?: string };
-  declared_value?: number | null;
-};
-
 type PostalAddress = {
   line_1: string | null; line_2: string | null; city: string | null;
   state: string | null; country: string | null; country_code: string | null;
@@ -318,15 +315,16 @@ type ResolvedPurchase = {
     weight: { units: string; value: number };
     dimensions: { length: number; width: number; height: number; units: string };
   };
-  payout: Record<string, any>;
+  payout_details_id: string;
+  payout_fee: number;
   declaredValue: number;
   schedule: { date: string; time: string } | null;
 };
 
 // DB-only, provider-free - which is what makes it testable to the hilt.
-export async function resolvePurchaseCheckout(
-  user_id: string, body: PlacePurchaseBody
-): Promise<ResolvedPurchase> {
+// ZERO BODY (D210): every choice is already a server-side resource - the row's
+// ids, the draft fulfillment, the sealed payout account - and this reads them.
+export async function resolvePurchaseCheckout(user_id: string): Promise<ResolvedPurchase> {
   const row = await checkoutService.getRowFor(user_id, "purchase");
 
   const missing = (
@@ -335,6 +333,7 @@ export async function resolvePurchaseCheckout(
       ["package_id", row.package_id],
       ["carrier_service_id", row.carrier_service_id],
       ["fulfillment_id", row.fulfillment_id],
+      ["payment_details_id", row.payment_details_id],
     ] as const
   ).filter(([, v]) => !v);
   if (missing.length) {
@@ -357,14 +356,15 @@ export async function resolvePurchaseCheckout(
     );
   }
   const wantsPickup = draft.method.type === "CARRIER PICKUP";
-  if (wantsPickup && (!body.pickup_schedule?.date || !body.pickup_schedule?.time)) {
+  if (wantsPickup && (!row.pickup_date || !row.pickup_time)) {
     throw refuse(400, "a carrier pickup needs a date and a time");
   }
 
-  const payout = body.payout as Record<string, any> | undefined;
-  if (!payout?.method || !payout?.account_holder_name) {
-    throw refuse(400, "the payout needs a method and an account holder name");
-  }
+  // The payout account was recorded at the payout step; the FEE is the
+  // method row's own flat fee - server money, never a client figure.
+  const purchaseMethods = await paymentMethods.getAll("purchase");
+  const payoutMethod = purchaseMethods.find((m) => m.id === row.payment_method_id);
+  const payout_fee = Number(payoutMethod?.flat_fee ?? 0);
 
   const composed = await addressService.getFromId(row.shipper_address_id as string);
   const mine = composed.find((a) => a.user_address.user_id === user_id);
@@ -372,7 +372,7 @@ export async function resolvePurchaseCheckout(
 
   const pkgRow = await packagesRepo.getOne(row.package_id as string);
   if (!pkgRow) throw refuse(400, "the checkout names a package that does not exist");
-  const weightValue = Number(body.package_weight?.value ?? 0);
+  const weightValue = Number(row.package_weight ?? 0);
   if (!(weightValue > 0)) throw refuse(400, "the parcel needs a weight");
 
   // The label service: a real carrier row, resolved to the carrier's own
@@ -421,10 +421,11 @@ export async function resolvePurchaseCheckout(
         height: Number(pkgRow.height), units: "IN",
       },
     },
-    payout,
-    declaredValue: Number(body.declared_value ?? 0),
+    payout_details_id: row.payment_details_id as string,
+    payout_fee,
+    declaredValue: Number(row.declared_value ?? 0),
     schedule: wantsPickup
-      ? { date: body.pickup_schedule!.date!, time: body.pickup_schedule!.time! }
+      ? { date: row.pickup_date as string, time: row.pickup_time as string }
       : null,
   };
 }
@@ -450,22 +451,11 @@ export async function recordPlacedPurchase(
     client
   );
 
-  // THE BANK-DETAILS ANCHOR - the one write exchange still receives here.
-  // exchange.payouts.order_id is a foreign key onto exchange.purchase_orders,
-  // and routing and account numbers live in exchange.payouts and nowhere else
-  // until encryption lands (Jacob's decision, not this flow's). Same id and
-  // same number as the new order, so the day that decision comes, nothing has
-  // to be reconciled.
-  await legacyPurchase.createOrder(
-    order_id, user_id, resolved.row.shipper_address_id, "In Transit", number, client
-  );
-  await legacyExchange.insertPayout(client, order_id, {
-    userId: user_id,
-    ...resolved.payout,
-  });
-
-  // The order's money row - what exists of it at placement: what postage
-  // cost, by which service. The totals themselves are priced at receipt.
+  // NO EXCHANGE ROWS AT ALL (D210, ruling 36). The bank numbers this flow
+  // used to anchor in exchange.payouts are SEALED in payments.details at the
+  // payout step now, so the anchor - and with it every exchange write on this
+  // path - is gone. The order's money row links the account and records the
+  // fee from the method's own flat fee.
   await orderTransactions.create(
     {
       order_id,
@@ -475,7 +465,22 @@ export async function recordPlacedPurchase(
     },
     client
   );
-  await recordPayoutInNewSchema(client, order_id, { user_id, ...resolved.payout });
+  const linked = await orderTransactions.setPayoutAccount(
+    order_id, resolved.payout_details_id, null, client
+  );
+  if (!linked) {
+    throw new Error(
+      `order ${order_id}: the payout account was not linked - this transaction must not commit`
+    );
+  }
+  const feeSet = await orderTransactions.setAmount(
+    order_id, "payout_fee", resolved.payout_fee, null, client
+  );
+  if (!feeSet) {
+    throw new Error(
+      `order ${order_id}: the payout fee was not recorded - this transaction must not commit`
+    );
+  }
 
   // The parcel, written once with everything known - ids straight off the
   // checkout row, no name resolution, no read-modify-write.
@@ -506,14 +511,11 @@ export async function recordPlacedPurchase(
   await fulfillmentShipments.link({ fulfillment_id, shipment_id }, client);
 
   if (pickupResult && resolved.schedule) {
-    await pickupService.create(
+    await pickupService.recordForShipment(
       {
-        user_id,
-        order_id,
-        carrier: "FedEx",
+        shipment_id,
         date: resolved.schedule.date,
         time: resolved.schedule.time,
-        pickup_status: "scheduled",
         confirmation_number: pickupResult.confirmationNumber ?? null,
         location: pickupResult.location ?? null,
       },
@@ -526,8 +528,8 @@ export async function recordPlacedPurchase(
 }
 
 // The whole flow: resolve, price the postage, buy the label, record, clean up.
-export async function placePurchaseOrder(user_id: string, body: PlacePurchaseBody) {
-  const resolved = await resolvePurchaseCheckout(user_id, body);
+export async function placePurchaseOrder(user_id: string) {
+  const resolved = await resolvePurchaseCheckout(user_id);
 
   // The insured amount is clamped BEFORE anything reads it (D132), and the
   // price of postage is the SERVER's - the composed path took netCharge from

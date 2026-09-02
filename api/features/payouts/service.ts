@@ -10,6 +10,7 @@
 // last-4-only projection every payout read uses, and the response is a bare
 // success - not the row - so nothing here can grow into a leak.
 import * as payoutsRepo from "#features/payouts/repo.ts";
+import * as payoutDetails from "#features/payments/details/service.ts";
 import * as purchaseOrderService from "#features/orders/service.ts";
 import { refusedUnknownField, refusedValue, type Refusal } from "#shared/http/patch-body.ts";
 import { PayoutPatch } from "@dorado/contracts";
@@ -53,11 +54,14 @@ export async function patchPayout(
   if (refusal) refuse(refusal.statusCode, refusal.message);
 
   const payout = await payoutsRepo.getById(payoutId);
-  if (!payout) refuse(404, `no payout ${payoutId}`);
-  if (!payout!.order_id) {
+  // A new-flow id (D210) names a details row; its order resolves through
+  // orders.transactions and the same order-keyed writes apply.
+  const nativeOrder = payout ? null : await payoutsRepo.orderOfDetails(payoutId);
+  if (!payout && !nativeOrder) refuse(404, `no payout ${payoutId}`);
+  if (payout && !payout.order_id) {
     refuse(422, `payout ${payoutId} is attached to no order, so its writes have no subject`);
   }
-  const orderId = payout!.order_id!;
+  const orderId = (payout?.order_id ?? nativeOrder)!;
 
   if (body.cost !== undefined) {
     await purchaseOrderService.editPayoutCharge({
@@ -101,5 +105,27 @@ export async function patchPayout(
 export async function getDetails(
   id: string
 ): Promise<payoutsRepo.PayoutDetailsRow | undefined> {
-  return await payoutsRepo.getDetails(id);
+  const legacy = await payoutsRepo.getDetails(id);
+  if (legacy) return legacy;
+
+  // A new-flow id names a payments.details row whose numbers are SEALED
+  // (D210); this endpoint is their single door, and the decrypt happens in
+  // the details service - the envelopes never open anywhere else.
+  const opened = await payoutDetails.decryptFor(id);
+  if (!opened) return undefined;
+  const order_id = await payoutsRepo.orderOfDetails(id);
+  return {
+    id,
+    user_id: null,
+    order_id,
+    method: opened.method,
+    account_holder_name: opened.account_holder,
+    bank_name: opened.bank_name,
+    account_type: opened.account_type,
+    routing_number: opened.routing_number,
+    account_number: opened.account_number,
+    created_at: null,
+    email_to: opened.email_to,
+    cost: null,
+  } as unknown as payoutsRepo.PayoutDetailsRow;
 }

@@ -39,6 +39,10 @@ export type PurchaseCheckoutSync = {
   package_id: string
   carrier_service_id: string
   handoff_code: string
+  package_weight: number
+  declared_value: number
+  pickup_date: string | null
+  pickup_time: string | null
 }
 
 export const useSyncPurchaseCheckout = () => {
@@ -51,6 +55,10 @@ export const useSyncPurchaseCheckout = () => {
         shipper_address_id: sync.shipper_address_id,
         package_id: sync.package_id,
         carrier_service_id: sync.carrier_service_id,
+        package_weight: sync.package_weight,
+        declared_value: sync.declared_value,
+        pickup_date: sync.pickup_date,
+        pickup_time: sync.pickup_time,
       })
       return await apiRequest('POST', '/checkout/fulfillment', {
         direction: 'purchase',
@@ -60,21 +68,32 @@ export const useSyncPurchaseCheckout = () => {
   })
 }
 
-export type CreateFromCheckoutBody = {
-  payout: Record<string, unknown>
-  package_weight: { units: 'LB'; value: number }
-  pickup_schedule?: { date?: string; time?: string }
-  declared_value?: number
+// The payout STEP's write (D210): the bank form goes server-side when the
+// customer completes the step - numbers sealed at rest - and creation later
+// LINKS the row. The response never carries numbers, only last_four.
+export const useSaveCheckoutPayout = () => {
+  const { user } = useGetSession()
+  return useMutation({
+    mutationFn: async (form: Record<string, unknown>) => {
+      if (!user?.id) throw new Error('User is not authenticated')
+      return await apiRequest('POST', '/checkout/payout', {
+        direction: 'purchase',
+        ...form,
+      })
+    },
+  })
 }
 
+// ZERO BODY (D210): by Confirm, every choice is a server-side resource - the
+// request is a trigger, nothing more.
 export const useCreatePurchaseOrderFromCheckout = () => {
   const { user } = useGetSession()
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: async (body: CreateFromCheckoutBody) => {
+    mutationFn: async () => {
       if (!user?.id) throw new Error('User is not authenticated')
       return await apiRequest<PurchaseOrder>(
-        'POST', '/purchase_orders/create_from_checkout', body
+        'POST', '/purchase_orders/create_from_checkout', {}
       )
     },
     onSettled: () => {
