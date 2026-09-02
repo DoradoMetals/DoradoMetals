@@ -1,7 +1,8 @@
--- Sales orders still awaiting payment whose intent HAS succeeded - the
--- missed-webhook population (production has had three such intents, D191's
--- $126.48 thread). exchange.payment_intents is read because it is the
--- authoritative payment record while PAYMENTS_SOURCE=exchange.
+-- LABEL REPAIR (D211): sales whose intent HAS settled - the payment fact -
+-- but whose flair still says Pending. The status is read here only to find
+-- labels that contradict the fact; nothing decides anything from it.
+-- exchange.payment_intents is read because it is the authoritative payment
+-- record while PAYMENTS_SOURCE is not promoted.
 SELECT o.id AS order_id, pi.payment_intent_id
   FROM orders.orders o
   JOIN exchange.payment_intents pi ON pi.sales_order_id = o.id

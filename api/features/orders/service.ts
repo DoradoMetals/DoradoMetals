@@ -1225,24 +1225,26 @@ export async function createSalesOrder(
       // entry - the reconciler's own helper), the intent detached, and
       // creation proceeds. Anything else attached - a paid order, a purchase,
       // somebody else's - is a real conflict and refuses.
-      const own =
-        intent.sales_order_id && !intent.purchase_order_id
-          ? await withTransaction(async (client) => {
-              const cancelled = await reconcileService.cancelPendingSale(
-                intent.sales_order_id as string, "superseded-by-retry", client
-              );
-              if (!cancelled) return false;
-              await stripeRepo.attachOrder(payment_intent_id, null, null, client);
-              return true;
-            })
-          : false;
-      if (!own) {
+      // Whether the old order may be superseded is the INTENT's own payment
+      // fact (D211), never a label: a settled intent stays with the order it
+      // paid for, an unsettled one paid for nothing and its sale is
+      // superseded - credit refunded by the ledger-guarded helper, intent
+      // detached, creation proceeds.
+      const settled =
+        intent.payment_status === "succeeded" || intent.payment_status === "processing";
+      if (intent.purchase_order_id || settled) {
         const err: Error & { statusCode?: number } = new Error(
           `that payment intent already belongs to an order`
         );
         err.statusCode = 409;
         throw err;
       }
+      await withTransaction(async (client) => {
+        await reconcileService.cancelPendingSale(
+          intent.sales_order_id as string, "superseded-by-retry", client
+        );
+        await stripeRepo.attachOrder(payment_intent_id, null, null, client);
+      });
     }
     if (intent.payment_status === "canceled") {
       const err: Error & { statusCode?: number } = new Error(

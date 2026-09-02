@@ -20,3 +20,8 @@ export async function create(
   const { rows } = await query<LedgerRow>(sql("create"), [id, user_id, type, order_id, amount], executor);
   return rows[0];
 }
+
+export async function hasCreditFor(order_id: string, executor?: Executor): Promise<boolean> {
+  const { rows } = await query<{ refunded: boolean }>(sql("has_credit_for"), [order_id], executor);
+  return rows[0]?.refunded === true;
+}

@@ -1,12 +1,13 @@
--- Sales orders that have awaited payment longer than the TTL with an intent
--- that was never confirmed - or no intent at all. 'succeeded' is excluded
--- because that population belongs to the settled sweep, and 'processing' is
--- excluded because ACH-style settlement legitimately takes days and cancelling
--- mid-flight would abandon money already moving.
+-- Sales orders past the TTL that the PAYMENT FACTS say were abandoned (D211
+-- - no status drives this): money still owed (post_charges above zero, or no
+-- money row at all), an intent that never settled and is not already
+-- cancelled - cancellation IS the durable swept-fact, written by the sweep
+-- itself - and no refund Credit logged. 'processing' is excluded because
+-- ACH-style settlement legitimately takes days.
 --
--- t.funds / t.used_funds is the credit reserved at creation
--- (orders.transactions, 073's mapping: pre_charges_amount -> funds) - what a
--- cancellation must put back.
+-- An order with NO intent and NO reserved funds re-lists until an admin
+-- deals with it - there is no payment fact left to record a sweep on, and
+-- inventing one is worse than a noisy report.
 SELECT o.id AS order_id,
        o.user_id,
        t.used_funds,
@@ -17,8 +18,12 @@ SELECT o.id AS order_id,
   LEFT JOIN orders.transactions t ON t.order_id = o.id
   LEFT JOIN exchange.payment_intents pi ON pi.sales_order_id = o.id
  WHERE o.direction = 'sale'
-   AND o.status = 'Pending'
    AND o.created_at < now() - make_interval(hours => $1)
+   AND (t.post_charges_amount IS NULL OR t.post_charges_amount > 0)
    AND (pi.payment_intent_id IS NULL
-        OR pi.payment_status NOT IN ('succeeded', 'processing'))
+        OR pi.payment_status NOT IN ('succeeded', 'processing', 'canceled'))
+   AND NOT EXISTS (
+         SELECT 1 FROM payments.ledger l
+          WHERE l.order_id = o.id AND l.type = 'Credit'
+       )
  ORDER BY o.created_at

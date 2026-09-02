@@ -17,25 +17,28 @@
 // refunding moves money, so it stays behind a human running --commit.
 import * as orders from "#features/orders/repo.ts";
 import * as legacySales from "#legacy/sales-orders/repo.ts";
-import { markSalesOrderPaid } from "#features/orders/paid.service.ts";
+import { refreshPaidFlair } from "#features/orders/paid.service.ts";
 import * as usersService from "#features/users/service.ts";
 import * as transactionsService from "#features/transactions/service.ts";
 import withTransaction from "#shared/db/withTransaction.ts";
+import * as paymentsService from "#features/payments/service.ts";
 import { reportError } from "#shared/observability/report.ts";
 import type { Executor } from "#shared/db/executor.ts";
 import type { PoolClient } from "pg";
 
-export type SettledSweepResult = { order_id: string; outcome: "advanced" | "already" };
+export type SettledSweepResult = { order_id: string; outcome: "advanced" };
 
-/** Sweep (a): orders awaiting a payment that already settled - the missed
- *  webhook. Advancing is idempotent and moves no money. */
+/** Sweep (a): LABEL REPAIR for the missed webhook (D211). Paidness is the
+ *  intent row - already settled, nothing to decide - and the candidates are
+ *  exactly the orders whose flair still contradicts it. Moves no money. */
 export async function sweepSettledIntents(
   executor?: Executor
 ): Promise<SettledSweepResult[]> {
   const candidates = await orders.findSalesAwaitingSettledIntent(executor);
   const out: SettledSweepResult[] = [];
   for (const c of candidates) {
-    out.push({ order_id: c.order_id, outcome: await markSalesOrderPaid(c.order_id, executor) });
+    await refreshPaidFlair(c.order_id, executor);
+    out.push({ order_id: c.order_id, outcome: "advanced" });
   }
   return out;
 }
@@ -45,36 +48,30 @@ export type AbandonedSweepResult = {
   refunded: number;
 };
 
-/** Cancel ONE Pending sale and put back the credit its creation reserved.
+/** Cancel ONE unpaid sale and put back the credit its creation reserved.
  *  The shared mechanics of two callers: the abandonment sweep below, and
  *  createSalesOrder SUPERSEDING a customer's own unpaid order when they
- *  abandon checkout and come back - their intent is still attached to the old
- *  order, and refusing them for 24 hours until the sweep clears it would
- *  strand exactly the person trying to give the business money.
- *  Returns null when the order was not Pending any more (somebody else moved
- *  it first), which callers treat as "not mine to touch". */
+ *  abandon checkout and come back.
+ *
+ *  EVERY DECISION HERE IS A PAYMENT FACT (D211 - statuses are flair):
+ *  - the CALLER establishes unpaidness from the intent before calling (both
+ *    callers already do - the sweep's candidate query and the supersede's
+ *    own succeeded/processing refusal);
+ *  - the refund guards on the LEDGER - a Credit already logged for this
+ *    order means the money already went back, whatever any label says;
+ *  - the Cancelled labels are then written unconditionally, as flair. */
 export async function cancelPendingSale(
   order_id: string, by: string, client: Executor
-): Promise<AbandonedSweepResult | null> {
-  const native = await orders.update(
-    order_id, { status: "Cancelled", updated_by: by },
-    { status: "Pending", direction: "sale" }, client
-  );
-  const legacy = await legacySales.markAbandoned(order_id, by, client);
-  if (Boolean(native) !== Boolean(legacy)) {
-    reportError({
-      at: "orders.cancelPendingSale",
-      message:
-        `the two schemas disagree cancelling order ${order_id}: native ` +
-        `${native ? "cancelled" : "did not"} and exchange ${legacy ? "cancelled" : "did not"}`,
-      extra: { order_id, by },
-    });
-  }
-  if (!native && !legacy) return null;
+): Promise<AbandonedSweepResult> {
+  await orders.update(order_id, { status: "Cancelled", updated_by: by }, {}, client);
+  await legacySales.setStatus(order_id, "Cancelled", by, client);
 
   const money = await orders.findReservedFunds(order_id, client);
   const reserved = Number(money?.reserved_funds ?? 0);
-  if (money?.used_funds && reserved > 0 && money.user_id) {
+  if (
+    money?.used_funds && reserved > 0 && money.user_id &&
+    !(await transactionsService.hasCreditFor(order_id, client))
+  ) {
     await usersService.addFunds(money.user_id, reserved, client);
     await transactionsService.addTransactionLog(
       money.user_id, "Credit", null, order_id, reserved, client
@@ -96,10 +93,28 @@ export async function sweepAbandoned(
   const out: AbandonedSweepResult[] = [];
 
   for (const c of candidates) {
-    const result = executor
-      ? await cancelPendingSale(c.order_id, "reconciler", executor)
-      : await withTransaction((client: PoolClient) => cancelPendingSale(c.order_id, "reconciler", client));
-    if (result) out.push(result);
+    // Per-candidate isolation: one order's failure must not strand the rest.
+    try {
+      // The intent is CANCELLED FIRST and persisted - that row is the durable
+      // swept-fact the candidate query excludes next run (D211). Outside the
+      // transaction, because a Stripe call cannot be rolled back; if the
+      // database half then fails, the next sweep still skips this order by
+      // the cancelled intent, and the refund guard keeps the money right.
+      if (c.payment_intent_id) {
+        await paymentsService.cancelIntentByRef(c.payment_intent_id);
+      }
+      const result = executor
+        ? await cancelPendingSale(c.order_id, "reconciler", executor)
+        : await withTransaction((client: PoolClient) => cancelPendingSale(c.order_id, "reconciler", client));
+      out.push(result);
+    } catch (err) {
+      reportError({
+        at: "orders.sweepAbandoned",
+        message: `sweeping order ${c.order_id} failed - continuing with the rest`,
+        err,
+        extra: { order_id: c.order_id },
+      });
+    }
   }
   return out;
 }

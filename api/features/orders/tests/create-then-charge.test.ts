@@ -16,9 +16,10 @@ import type { PoolClient } from "pg";
 import query from "#shared/db/query.ts";
 import { inPinnedTransaction } from "#shared/testing/pinned-pool.ts";
 import { mockSessions, restoreSessions, as } from "#shared/testing/session.ts";
-import { markSalesOrderPaid } from "#features/orders/paid.service.ts";
+import { refreshPaidFlair } from "#features/orders/paid.service.ts";
 import * as orderService from "#features/orders/service.ts";
 import * as paymentsService from "#features/payments/service.ts";
+import * as reconcileService from "#features/orders/reconcile.service.ts";
 import { calculateSalesOrderTotal } from "#features/pricing/ask.ts";
 import * as productService from "#features/products/service.ts";
 import * as taxService from "#features/sales-tax/service.ts";
@@ -27,7 +28,7 @@ import * as spotsService from "#features/spots/service.ts";
 test.before(async () => { await mockSessions(); });
 test.after(() => { restoreSessions(); });
 
-// A sales order seeded in BOTH schemas, minimally - markSalesOrderPaid touches
+// A sales order seeded in BOTH schemas, minimally - the flair refresh touches
 // only id/status, and the two tables require only `number` and
 // `sales_order_status` beyond their defaults (checked, not guessed).
 async function seedSale(c: PoolClient, status: string): Promise<string> {
@@ -54,28 +55,48 @@ async function statusOf(c: PoolClient, id: string) {
   return { native: native.rows[0]?.status, legacy: legacy.rows[0]?.s };
 }
 
-test("a settled payment advances a Pending sale in BOTH schemas", async () => {
+test("the flair refresh stamps the label in BOTH schemas, from anywhere (D211: flair)", async () => {
   await inPinnedTransaction(async (c: PoolClient) => {
     const id = await seedSale(c, "Pending");
-    assert.equal(await markSalesOrderPaid(id, c), "advanced");
+    await refreshPaidFlair(id, c);
     assert.deepEqual(await statusOf(c, id), { native: "Preparing", legacy: "Preparing" });
+
+    // Unconditional by design - the label is COSMETIC, and the no-stomp
+    // property lives at the payments layer (the transition gate), not here.
+    const relabelled = await seedSale(c, "Completed");
+    await refreshPaidFlair(relabelled, c);
+    assert.deepEqual(await statusOf(c, relabelled), { native: "Preparing", legacy: "Preparing" });
   });
 });
 
-test("a webhook retry is a no-op, not a second advance", async () => {
+test("a webhook RETRY does not stomp an admin's later label - by payment fact, not status", async () => {
   await inPinnedTransaction(async (c: PoolClient) => {
-    const id = await seedSale(c, "Pending");
-    assert.equal(await markSalesOrderPaid(id, c), "advanced");
-    assert.equal(await markSalesOrderPaid(id, c), "already");
-    assert.deepEqual(await statusOf(c, id), { native: "Preparing", legacy: "Preparing" });
-  });
-});
+    const orderId = await seedSale(c, "Pending");
+    const pi = `pi_p9_retry_${Date.now()}`;
+    await query(
+      `INSERT INTO exchange.payment_intents
+         (type, payment_intent_id, payment_status, amount, sales_order_id)
+       VALUES ('order', $1, 'requires_confirmation', 5178, $2)`,
+      [pi, orderId], c
+    );
 
-test("a payment arriving after an admin cancelled does NOT resurrect the order", async () => {
-  await inPinnedTransaction(async (c: PoolClient) => {
-    const id = await seedSale(c, "Cancelled");
-    assert.equal(await markSalesOrderPaid(id, c), "already");
-    assert.deepEqual(await statusOf(c, id), { native: "Cancelled", legacy: "Cancelled" });
+    // The real settlement: the stored intent was not succeeded -> the label
+    // refreshes.
+    await paymentsService.updateIntentFromWebhook({
+      paymentIntent: { id: pi, status: "succeeded", amount: 5178, amount_received: 5178 },
+    });
+    assert.deepEqual(await statusOf(c, orderId), { native: "Preparing", legacy: "Preparing" });
+
+    // The admin works the order on...
+    await query(`UPDATE orders.orders SET status = 'Completed' WHERE id = $1`, [orderId], c);
+    await query(`UPDATE exchange.sales_orders SET sales_order_status = 'Completed' WHERE id = $1`, [orderId], c);
+
+    // ...and Stripe redelivers. The stored intent is ALREADY succeeded - no
+    // transition, no label write. The admin's label survives by fact.
+    await paymentsService.updateIntentFromWebhook({
+      paymentIntent: { id: pi, status: "succeeded", amount: 5178, amount_received: 5178 },
+    });
+    assert.deepEqual(await statusOf(c, orderId), { native: "Completed", legacy: "Completed" });
   });
 });
 
@@ -200,63 +221,22 @@ test("somebody else's payment intent is refused as if it did not exist", async (
   });
 });
 
-// THE ABANDONED-CHECKOUT RETRY: the customer created an order, never
-// confirmed, and came back - their intent still attached to the old Pending
-// sale. Refusing would strand them for the sweep's whole TTL, so their own
-// unpaid order is superseded: cancelled, credit refunded, intent detached,
-// and the new order created.
-test("a retry supersedes the customer's own unpaid order instead of refusing", async () => {
+// WHETHER AN ATTACHED SALE MAY BE SUPERSEDED IS THE INTENT'S OWN PAYMENT
+// FACT (D211), never a label. A SETTLED intent stays with the order it paid
+// for - refusing here is what protects a paid order from being cancelled by
+// a retry - and the label on that order is irrelevant flair.
+test("a SETTLED intent already attached to an order refuses a second one", async () => {
   await inPinnedTransaction(async (c: PoolClient) => {
     const f = await fixtures(c);
     assert.ok(f, "no fixtures");
-    const cents = await pricedCents(c, f);
-    const old = await seedSale(c, "Pending");
-    const pi = `pi_p9_supersede_${Date.now()}`;
-    await query(
-      `INSERT INTO exchange.payment_intents (type, payment_intent_id, payment_status, amount, user_id, sales_order_id)
-       VALUES ('order', $1, 'requires_payment_method', $2, $3, $4)`,
-      [pi, cents, f.user_id, old], c
-    );
-    // The old order reserved no credit here (no transactions row with funds),
-    // so the supersede is a pure cancel - the refund half is reconcile.test.ts'
-    // subject and shares the same helper.
-    // A succeeded amount match is needed to dodge the PROVIDER call: seed the
-    // intent as succeeded at the right price, so creation takes the repair
-    // branch after superseding.
-    await query(
-      `UPDATE exchange.payment_intents SET payment_status = 'succeeded', amount_received = amount
-        WHERE payment_intent_id = $1`, [pi], c
-    );
-
-    const order = await as({ id: f.user_id }, () =>
-      orderService.createSalesOrder(
-        { sales_order: bodyFor(f) as never, payment_intent_id: pi }, {}
-      )
-    );
-    assert.ok(order, "no order came back");
-    const newId = (order as { id: string }).id;
-    assert.notEqual(newId, old);
-    assert.equal((await statusOf(c, old)).native, "Cancelled", "the old unpaid order survived");
-    assert.equal((await statusOf(c, newId)).native, "Preparing", "the paid retry was not honoured");
-
-    const { rows: link } = await query<{ sales_order_id: string | null }>(
-      `SELECT sales_order_id FROM exchange.payment_intents WHERE payment_intent_id = $1`, [pi], c);
-    assert.equal(link[0]!.sales_order_id, newId, "the intent does not point at the new order");
-  });
-});
-
-test("an intent already attached to an order cannot be attached to a second one", async () => {
-  await inPinnedTransaction(async (c: PoolClient) => {
-    const f = await fixtures(c);
-    assert.ok(f, "no fixtures");
-    // A PAID order: the supersede path only reaches a still-Pending sale, so
-    // this is the conflict that must genuinely refuse.
-    const other = await seedSale(c, "Preparing");
+    // Labelled Pending ON PURPOSE: under the old status-driven rule this
+    // label made the paid order supersedable. The payment fact wins now.
+    const paid = await seedSale(c, "Pending");
     const pi = `pi_p9_attached_${Date.now()}`;
     await query(
-      `INSERT INTO exchange.payment_intents (type, payment_intent_id, payment_status, amount, user_id, sales_order_id)
-       VALUES ('order', $1, 'requires_confirmation', 999999, $2, $3)`,
-      [pi, f.user_id, other], c
+      `INSERT INTO exchange.payment_intents (type, payment_intent_id, payment_status, amount, amount_received, user_id, sales_order_id)
+       VALUES ('order', $1, 'succeeded', 999999, 999999, $2, $3)`,
+      [pi, f.user_id, paid], c
     );
     await as({ id: f.user_id }, () =>
       assert.rejects(
@@ -266,6 +246,24 @@ test("an intent already attached to an order cannot be attached to a second one"
         (e: unknown) => statusCodeOf(e) === 409
       )
     );
+    assert.equal(
+      (await statusOf(c, paid)).native, "Pending",
+      "the paid order was touched by the refused retry"
+    );
+  });
+});
+
+// The other half of the fact: an UNSETTLED attached sale is superseded
+// whatever its label says - an admin's label carries no payment meaning. The
+// full creation retry needs a live provider intent (the sandbox lane's
+// subject); the supersede MECHANICS are the reconciler helper's, driven here
+// directly.
+test("an unsettled sale is superseded by fact, whatever its label says", async () => {
+  await inPinnedTransaction(async (c: PoolClient) => {
+    const id = await seedSale(c, "Preparing");
+    const result = await reconcileService.cancelPendingSale(id, "superseded-by-retry", c);
+    assert.equal(result.order_id, id);
+    assert.deepEqual(await statusOf(c, id), { native: "Cancelled", legacy: "Cancelled" });
   });
 });
 

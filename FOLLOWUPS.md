@@ -13500,3 +13500,37 @@ anything (parseKey would always have refused it).
 
 Still owed: the sale-side conversion on the same core, and the orders
 service-satellite folding.
+
+## D211 — statuses are flair, and every decision is a payment fact
+
+Jacob, reading paid.service.ts (2026-09-02): "I don't think we want statuses
+to drive order logic whatsoever. They're simply flair. the order should find
+whatever table/column that controls payments on sales orders, and if it's
+paid there then it's paid." D77-D88 said it; this pass finishes it:
+
+- **The settlement transition is detected at the PAYMENTS layer**: the
+  webhook reads the stored intent BEFORE overwriting it, and only a real
+  not-succeeded -> succeeded transition refreshes the order's label. A Stripe
+  retry reaches no label, so an admin's later label survives BY FACT - the
+  status guard that used to provide this is gone, and markSalesOrderPaid
+  with it. refreshPaidFlair is an unconditional cosmetic write.
+- **The abandonment sweep is pure payment facts**: candidates are sales past
+  the TTL with money still owed (post_charges above zero), an intent that
+  never settled and is not already cancelled, and no refund Credit in the
+  ledger. The sweep CANCELS the Stripe intent first and persists it - that
+  row is the durable swept-fact its own candidate query excludes next run -
+  and survives per-candidate failures (an intent Stripe never heard of is
+  abandoned either way and is marked cancelled locally). The refund guards
+  on the LEDGER (transactions.hasCreditFor), never on a label.
+- **Supersede is the intent's own fact**: a SETTLED intent stays with the
+  order it paid for - the customer retry and the admin retry both refuse
+  409, whatever label the order wears (the old rule let a Pending label make
+  a PAID order supersedable, and the test that pinned it was dodging the
+  provider with exactly that state). An UNSETTLED attached sale is
+  superseded whatever ITS label says - an admin label carries no payment
+  meaning.
+- The settled-intent sweep is reframed as LABEL REPAIR: it reads status only
+  to find flair that contradicts the fact, which is maintenance, not logic.
+
+The `paid` fact lands on the order wire during the legacy purge (next),
+where the intent read flips native in the same motion.

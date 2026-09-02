@@ -37,6 +37,12 @@ export async function history(user_id: string): Promise<TransactionWire[]> {
   return await toWire(await ledger.byUser(user_id));
 }
 
+// The refund FACT (D211): whether a Credit was ever logged against this
+// order. The abandonment sweep guards its refund on this, never on a status.
+export async function hasCreditFor(order_id: string, executor?: Executor): Promise<boolean> {
+  return await ledger.hasCreditFor(order_id, executor);
+}
+
 export async function addTransactionLog(
   // user_id is nullable at the call site: purchase-orders reads it off an order
   // whose user_id the wire declares nullable. A ledger row with no user is

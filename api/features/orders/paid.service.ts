@@ -1,52 +1,27 @@
-// The one write that says a sales order's payment has settled.
+// The FLAIR refresh when a sales order's payment settles.
 //
-// Phase 9 (create-then-charge) made "Pending" mean AWAITING PAYMENT for sales
-// orders, so something has to advance them when the money arrives. Two callers:
-// the payment_intent.succeeded webhook, and reconcile:payments sweeping the
-// webhooks that never landed (production has had three - audit:payments).
+// *** STATUSES DRIVE NO LOGIC (D211 - Jacob: "they're simply flair"). ***
+// Whether an order is PAID is a payment-table fact - the intent's own status,
+// or nothing left to charge - and every decision reads that fact. This write
+// is cosmetic: it stamps the label a paid order displays, unconditionally.
+// The no-stomp property moved to where it belongs: the PAYMENTS layer calls
+// this only on a real settlement TRANSITION (the stored intent was not
+// succeeded before this webhook), so a Stripe retry never reaches here and an
+// admin's later label survives - by fact, not by a status guard.
 //
 // *** ITS OWN MODULE, NOT service.ts, TO BREAK AN IMPORT CYCLE. *** The caller
 // is features/payments/service.ts, and features/orders/service.ts imports
-// payments (PaymentSession, the repo facade). payments -> orders/service would
-// close a runtime cycle; payments -> THIS file imports only the two repos and
-// cycles with nothing.
-//
-// *** BOTH SCHEMAS, COMPARED, REPORTED (D202). *** The advance is conditional -
-// only from Pending - so a retry is a zero-row no-op on both halves, which is
-// fine. The halves DISAGREEING is not fine: that is one schema recording a paid
-// order the other still shows unpaid, and it is exactly the divergence the
-// dual-write era exists to prevent.
+// payments. payments -> THIS file imports only the two repos and cycles with
+// nothing.
 import * as orders from "#features/orders/repo.ts";
 import * as legacySales from "#legacy/sales-orders/repo.ts";
-import { reportError } from "#shared/observability/report.ts";
 import type { Executor } from "#shared/db/executor.ts";
 
-/**
- * Advance a Pending sales order to Preparing because its payment settled.
- * Idempotent: returns "advanced" the first time, "already" on any retry or
- * when an admin has since moved the label somewhere else.
- */
-export async function markSalesOrderPaid(
+export async function refreshPaidFlair(
   order_id: string, executor?: Executor
-): Promise<"advanced" | "already"> {
-  // The Pending-only guard makes webhook and reconciler retries no-ops - see
-  // the update() note in the repo.
-  const native = await orders.update(
-    order_id, { status: "Preparing", updated_by: "payment" },
-    { status: "Pending", direction: "sale" }, executor
+): Promise<void> {
+  await orders.update(
+    order_id, { status: "Preparing", updated_by: "payment" }, {}, executor
   );
-  const legacy = await legacySales.markPaid(order_id, "payment", executor);
-
-  if (Boolean(native) !== Boolean(legacy)) {
-    reportError({
-      at: "orders.markSalesOrderPaid",
-      message:
-        `the two schemas disagree about order ${order_id}: native ` +
-        `${native ? "advanced" : "did not advance"} and exchange ` +
-        `${legacy ? "advanced" : "did not"} - one of them now shows a paid ` +
-        `order as unpaid`,
-      extra: { order_id, native: Boolean(native), legacy: Boolean(legacy) },
-    });
-  }
-  return native || legacy ? "advanced" : "already";
+  await legacySales.setStatus(order_id, "Preparing", "payment", executor);
 }

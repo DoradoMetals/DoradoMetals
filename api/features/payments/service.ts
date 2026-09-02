@@ -1,4 +1,4 @@
-import { markSalesOrderPaid } from "#features/orders/paid.service.ts";
+import { refreshPaidFlair } from "#features/orders/paid.service.ts";
 import * as stripe from "#providers/payment/stripe.ts";
 import * as stripeRepo from "#features/payments/repo.js";
 import * as productService from "#features/products/service.ts";
@@ -405,11 +405,41 @@ export async function updateMethod({
 // This does NOT create the missing row - see D25. An intent row needs
 // session_id, user_id and type, none of which a webhook payload carries, so
 // upserting would mean inventing a user and a session.
+// The sweep's cancel (D211): ref-keyed, sessionless - reconcile abandons an
+// intent nobody will ever confirm, and PERSISTING the cancellation is what
+// makes the abandonment a durable payment FACT the sweep's own candidate
+// query excludes next run. Cancelling an already-cancelled intent is a
+// Stripe no-op shape; any error surfaces to the sweep, which runs each order
+// in its own transaction.
+export async function cancelIntentByRef(provider_ref: string): Promise<void> {
+  try {
+    const canceled = await stripe.cancelIntent(provider_ref);
+    await stripeRepo.updatePaymentIntent(canceled);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : "";
+    // An intent Stripe never heard of (a seeded or pre-sandbox row) or one
+    // already cancelled is ABANDONED EITHER WAY - persist the canceled fact
+    // locally so the sweep's candidate query excludes it forever. Anything
+    // else propagates.
+    if (/No such payment_intent|already.*cancel/i.test(msg)) {
+      await stripeRepo.updatePaymentIntent({ id: provider_ref, status: "canceled" });
+      return;
+    }
+    throw err;
+  }
+}
+
 export async function updateIntentFromWebhook({
   paymentIntent,
 }: {
   paymentIntent: StripeIntentLike;
 }): Promise<void> {
+  // The SETTLEMENT TRANSITION is detected here, at the payment layer, from
+  // the payment fact itself: what the stored intent said before this webhook.
+  // A retry arrives with the row already succeeded and changes no label -
+  // which is what lets the label write downstream be pure, unguarded flair
+  // (D211: statuses drive no logic).
+  const prior = await stripeRepo.getVerbatimByIntentId(paymentIntent.id);
   const matched = await stripeRepo.updatePaymentIntent(paymentIntent);
   if (matched === false) {
     const err: Error & { statusCode?: number } = new Error(
@@ -419,25 +449,22 @@ export async function updateIntentFromWebhook({
     throw err;
   }
 
-  // *** THE WEBHOOK NOW FINISHES THE ORDER, not just the intent row (phase 9).
-  // *** Under create-then-charge a sales order is born Pending - awaiting
-  // payment - and THIS is the moment the payment arrives, so this is what
-  // advances it to Preparing. Idempotent end to end: Stripe retries webhooks,
-  // and markSalesOrderPaid only moves an order that is still Pending, so a
-  // retry - or an admin having moved the label first - is "already", not a
-  // stomp.
+  // *** THE WEBHOOK FINISHES THE ORDER'S LABEL, and only its label (D211).
+  // *** Paidness itself is the intent row just written - anything that needs
+  // to know reads it there. The flair refresh fires on the real transition
+  // only: prior-not-succeeded -> succeeded. A Stripe retry (prior already
+  // succeeded) reaches no label, so an admin's later label survives by fact.
   //
-  // A succeeded intent with NO order attached is not an error here: under the
-  // new ordering the attach happens at creation, before confirm, so by the
-  // time this fires the link exists. The unattached case is the customer who
-  // paid and never completed creation - reconcile:payments owns that sweep,
-  // and createSalesOrder repairs it on retry (the intent arrives already
-  // succeeded and the order is born Preparing).
-  if (paymentIntent.status === "succeeded") {
-    const row = await stripeRepo.getVerbatimByIntentId(paymentIntent.id);
-    if (row?.sales_order_id) {
-      await markSalesOrderPaid(row.sales_order_id);
-    }
+  // A succeeded intent with NO order attached is not an error here: the
+  // unattached case is the customer who paid and never completed creation -
+  // reconcile:payments owns that sweep, and createSalesOrder repairs it on
+  // retry.
+  if (
+    paymentIntent.status === "succeeded" &&
+    prior?.payment_status !== "succeeded" &&
+    prior?.sales_order_id
+  ) {
+    await refreshPaidFlair(prior.sales_order_id);
   }
 }
 
