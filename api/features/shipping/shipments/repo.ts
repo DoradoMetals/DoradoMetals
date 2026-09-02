@@ -74,6 +74,45 @@ export async function update(
   return rows[0]?.id;
 }
 
+// THE ROW (Jacob, 2026-09-01): the new-flow write takes the resource and maps
+// named fields onto sql/update.sql's parameter order in exactly one place.
+// `update` above keeps the legacy tuple until its callers die with the
+// composed path.
+export type ShipmentRecord = {
+  tracking_number?: string | null;
+  shipping_status?: string | null;
+  est_delivery?: Date | string | null;
+  shipped_at?: Date | string | null;
+  delivered_at?: Date | string | null;
+  label?: string | Buffer | null;
+  label_type?: string | null;
+  pickup_type?: string | null;
+  package_id?: string | null;
+  carrier_service_id?: string | null;
+  cost?: number | null;
+  insured?: boolean;
+  declared_value?: number | null;
+  direction: string;
+};
+
+export async function record(
+  id: string, row: ShipmentRecord, executor?: Executor
+): Promise<string | undefined> {
+  const { rows } = await query<{ id: string }>(
+    sql("update"),
+    [
+      row.tracking_number ?? null, row.shipping_status ?? null,
+      row.est_delivery ?? null, row.shipped_at ?? null, row.delivered_at ?? null,
+      row.label ?? null, row.label_type ?? null, row.pickup_type ?? null,
+      row.package_id ?? null, row.carrier_service_id ?? null,
+      row.cost ?? null, row.insured ?? false, row.declared_value ?? null,
+      row.direction, id,
+    ],
+    executor
+  );
+  return rows[0]?.id;
+}
+
 // The shipping cost of every parcel on one order.
 //
 // Narrow on purpose. `update` above is a whole-row write of the fourteen things

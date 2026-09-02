@@ -26,7 +26,6 @@ import * as ordersRepo from "#features/orders/repo.ts";
 import * as orderItems from "#features/orders/items/repo.ts";
 import * as orderSpots from "#features/orders/spots/repo.ts";
 import * as orderAddresses from "#features/orders/addresses/repo.ts";
-import * as checkoutRows from "#features/checkout/repo.next.ts";
 import * as addressService from "#features/places/addresses/service.ts";
 import * as fulfillmentService from "#features/fulfillments/service.ts";
 // The two bookings are their own resources (ruling 26b): checkout reaches
@@ -39,6 +38,28 @@ import * as refinerItems from "#features/refiners/items/repo.ts";
 import * as refinerSpots from "#features/refiners/spots/repo.ts";
 import * as ratesRepo from "#features/rates/service.ts";
 import { getRatePct, sumContentByMetal } from "#features/rates/utils/resolveRate.ts";
+import * as fulfillmentShipments from "#features/fulfillments/shipments/service.ts";
+import type { CheckoutRow } from "#features/checkout/repo.next.ts";
+import * as newShipments from "#features/shipping/shipments/repo.ts";
+import * as pickupService from "#features/shipping/pickups/service.ts";
+import * as packagesRepo from "#features/shipping/packages/repo.ts";
+import * as servicesRepo from "#features/shipping/services/repo.ts";
+import * as carrierServices from "#features/shipping/services/service.ts";
+import * as handoffsService from "#features/shipping/handoffs/service.ts";
+import * as shippingRatesService from "#features/shipping/operations/service.ts";
+import * as shippingOps from "#features/shipping/operations/handler.ts";
+import * as orderTransactions from "#features/orders/transactions/repo.ts";
+import * as checkoutService from "#features/checkout/service.ts";
+import * as legacyPurchase from "#legacy/purchase-orders/repo.ts";
+import * as legacyExchange from "#legacy/purchase-orders/repo.exchange.js";
+import * as emailService from "#features/media/emails/service.ts";
+import * as readService from "#features/orders/read.service.ts";
+import withTransaction from "#shared/db/withTransaction.ts";
+import { refuse } from "#shared/http/refuse.ts";
+import {
+  labelBufferOrUndo, undoLabel, undoPickup, recordPayoutInNewSchema,
+} from "#features/orders/service.ts";
+import { FEDEX_STORE_ADDRESS, FEDEX_CARRIER_ID } from "#providers/shipments/constants.ts";
 
 // Passing the executor is how each step below joins the caller's transaction.
 // Every one of these is called from inside one, and an order that half-exists
@@ -52,11 +73,11 @@ type Executor = PoolClient | undefined;
 // order silently missing a line is worse than an order that failed to be
 // placed: the customer's metal arrives and nothing recorded that it was coming.
 async function copyItems(order_id: string, checkout_id: string, executor?: Executor) {
-  const items = await checkoutRows.getItemsForOrder(checkout_id, executor);
+  const lines = await checkoutService.getItemsForOrder(checkout_id, executor);
 
-  if (!items.length) throw new Error("a checkout with no items cannot become an order");
+  if (!lines.length) throw new Error("a checkout with no items cannot become an order");
 
-  const orphan = items.find((i) => !i.metal_id);
+  const orphan = lines.find((i) => !i.metal_id);
   if (orphan) {
     throw new Error(
       `checkout item ${orphan.id} has no metal, and neither does the product it ` +
@@ -64,22 +85,23 @@ async function copyItems(order_id: string, checkout_id: string, executor?: Execu
     );
   }
 
-  for (const i of items) {
+  for (const i of lines) {
+    // Not confirmed and untaxed at placement: confirmation is the admin's act,
+    // and a purchase pays no sales tax - the repo's own defaults.
     await orderItems.create(
-      randomUUID(),
-      [
-        order_id, i.bullion_id, i.metal_id as string,
-        i.pre_melt, i.post_melt, i.purity, i.content,
-        i.premium, i.quantity ?? 1,
-        // Not confirmed and untaxed at placement: confirmation is the admin's
-        // act, and a purchase pays no sales tax - the same defaults the
-        // column definitions carry.
-        false, 0, i.unit, null,
-      ],
+      {
+        order_id,
+        bullion_id: i.bullion_id,
+        metal_id: i.metal_id as string,
+        pre_melt: i.pre_melt, post_melt: i.post_melt,
+        purity: i.purity, content: i.content,
+        premium: i.premium, quantity: i.quantity ?? 1,
+        unit: i.unit,
+      },
       executor
     );
   }
-  return items.length;
+  return lines.length;
 }
 
 // THE PREMIUM IS THE BUSINESS'S, NOT THE BROWSER'S.
@@ -116,7 +138,13 @@ async function retierScrapPremiums(order_id: string, executor?: Executor) {
     const total = totals[String(line.metal ?? "").toLowerCase()] ?? 0;
     const pct = getRatePct(rates, line.metal, total, "scrap");
     if (pct == null) continue;
-    await orderItems.setPremium(line.id, pct, executor);
+    const repriced = await orderItems.setPremium(line.id, pct, executor);
+    if (!repriced) {
+      throw new Error(
+        `order ${order_id}: line ${line.id} vanished mid-placement - its premium ` +
+          `was not repriced and this transaction must not commit`
+      );
+    }
   }
 }
 
@@ -132,7 +160,9 @@ async function snapshotAddress(
   if (!source_address_id) return null;
   const snapshot_id = await addressService.snapshot(source_address_id, executor);
   if (!snapshot_id) return null;
-  await orderAddresses.link(randomUUID(), order_id, snapshot_id, source_address_id, executor);
+  await orderAddresses.link(
+    { order_id, address_id: snapshot_id, source_address_id }, executor
+  );
   return snapshot_id;
 }
 
@@ -155,7 +185,7 @@ export async function createFromCheckout(
   },
   executor?: Executor
 ) {
-  const checkout = await checkoutRows.getRowById(checkout_id, executor);
+  const checkout = await checkoutService.getRowById(checkout_id, executor);
   if (!checkout) throw new Error(`no such checkout: ${checkout_id}`);
 
   const direction = checkout.direction;
@@ -247,4 +277,360 @@ export async function createFromCheckout(
   }
 
   return { order_id, number, fulfillment_id: fulfillment.id };
+}
+
+// ---------------------------------------------------------------------------
+// PLACING A PURCHASE ORDER FROM THE ROW (D208) - the live flow.
+//
+// The server already holds every choice: the checkout row carries the ids,
+// the draft fulfillment carries the handoff, checkout.items carries the cart.
+// The body brings only what CANNOT live server-side: the payout bank form
+// (exchange.payouts is its one home until encryption), the parcel's weight,
+// the pickup schedule, the insurance declaration.
+//
+// NOTHING here is shaped like the legacy composed body. The provider gets a
+// label request; each table gets its own repo call; the one write exchange
+// still receives is the payout and the minimal order row its foreign key
+// demands - the bank-details anchor, not a mirror.
+
+export type PlacePurchaseBody = {
+  payout?: Record<string, any>;
+  package_weight?: { units?: string; value?: number };
+  pickup_schedule?: { date?: string; time?: string };
+  declared_value?: number | null;
+};
+
+type PostalAddress = {
+  line_1: string | null; line_2: string | null; city: string | null;
+  state: string | null; country: string | null; country_code: string | null;
+  zip: string | null; phone_number: string | null; is_residential: boolean | null;
+};
+
+type ResolvedPurchase = {
+  row: CheckoutRow;
+  wantsPickup: boolean;
+  address: PostalAddress;
+  recipientName: string | null;
+  handoff: { code: string; name: string };
+  service: { rowId: string; serviceType: string; carrierCode: string; name: string };
+  pkg: {
+    rowId: string;
+    weight: { units: string; value: number };
+    dimensions: { length: number; width: number; height: number; units: string };
+  };
+  payout: Record<string, any>;
+  declaredValue: number;
+  schedule: { date: string; time: string } | null;
+};
+
+// DB-only, provider-free - which is what makes it testable to the hilt.
+export async function resolvePurchaseCheckout(
+  user_id: string, body: PlacePurchaseBody
+): Promise<ResolvedPurchase> {
+  const row = await checkoutService.getRowFor(user_id, "purchase");
+
+  const missing = (
+    [
+      ["shipper_address_id", row.shipper_address_id],
+      ["package_id", row.package_id],
+      ["carrier_service_id", row.carrier_service_id],
+      ["fulfillment_id", row.fulfillment_id],
+    ] as const
+  ).filter(([, v]) => !v);
+  if (missing.length) {
+    throw refuse(
+      400,
+      `the checkout is not complete - missing ${missing.map(([k]) => k).join(", ")}`
+    );
+  }
+
+  const draft = await fulfillmentService.getById(row.fulfillment_id as string);
+  if (!draft) throw refuse(400, "the checkout names a fulfillment that does not exist");
+  if (draft.order_id) {
+    throw refuse(409, "the checkout's fulfillment already belongs to an order - refresh and start again");
+  }
+  if (draft.method.category !== "SHIPMENT") {
+    throw refuse(
+      400,
+      `a ${draft.method.category} fulfillment cannot be placed through the shipping ` +
+        `checkout yet - choose a shipping handoff`
+    );
+  }
+  const wantsPickup = draft.method.type === "CARRIER PICKUP";
+  if (wantsPickup && (!body.pickup_schedule?.date || !body.pickup_schedule?.time)) {
+    throw refuse(400, "a carrier pickup needs a date and a time");
+  }
+
+  const payout = body.payout as Record<string, any> | undefined;
+  if (!payout?.method || !payout?.account_holder_name) {
+    throw refuse(400, "the payout needs a method and an account holder name");
+  }
+
+  const composed = await addressService.getFromId(row.shipper_address_id as string);
+  const mine = composed.find((a) => a.user_address.user_id === user_id);
+  if (!mine) throw refuse(400, "the checkout's shipper address is not in your book");
+
+  const pkgRow = await packagesRepo.getOne(row.package_id as string);
+  if (!pkgRow) throw refuse(400, "the checkout names a package that does not exist");
+  const weightValue = Number(body.package_weight?.value ?? 0);
+  if (!(weightValue > 0)) throw refuse(400, "the parcel needs a weight");
+
+  // The label service: a real carrier row, resolved to the carrier's own
+  // catalogue entry for its enum codes. The carrier-agnostic sale rows (110)
+  // are refused - they price a sale's delivery, they buy no labels.
+  const svcRow = await servicesRepo.getOne(row.carrier_service_id as string);
+  if (!svcRow) throw refuse(400, "the checkout names a carrier service that does not exist");
+  if (!svcRow.carrier_id) {
+    throw refuse(400, `${svcRow.name} is a sale delivery service, not a label service`);
+  }
+  const offered = await carrierServices.getOfferedServices();
+  const catalogue = offered.find(
+    (o) => o.name.toLowerCase() === String(svcRow.name).toLowerCase()
+  );
+  if (!catalogue) {
+    throw refuse(400, `${svcRow.name} is not a label service the carrier offers`);
+  }
+
+  // The fulfillment method decides the carrier handoff, by CAPABILITY - the
+  // schedulable one is the pickup. No carrier enum is ever spelled here.
+  const handoffs = await handoffsService.getHandoffs();
+  const handoff = handoffs.find((h) => h.requires_schedule === wantsPickup);
+  if (!handoff) throw refuse(500, "the carrier's handoff catalogue is missing an option");
+
+  return {
+    row,
+    wantsPickup,
+    address: {
+      line_1: mine.line_1, line_2: mine.line_2, city: mine.city, state: mine.state,
+      country: mine.country, country_code: mine.country_code, zip: mine.zip,
+      phone_number: mine.phone_number, is_residential: mine.is_residential,
+    },
+    recipientName: mine.user_address.label ?? null,
+    handoff: { code: handoff.code, name: handoff.name },
+    service: {
+      rowId: row.carrier_service_id as string,
+      serviceType: catalogue.code,
+      carrierCode: catalogue.carrier_code,
+      name: catalogue.name,
+    },
+    pkg: {
+      rowId: row.package_id as string,
+      weight: { units: "LB", value: weightValue },
+      dimensions: {
+        length: Number(pkgRow.length), width: Number(pkgRow.width),
+        height: Number(pkgRow.height), units: "IN",
+      },
+    },
+    payout,
+    declaredValue: Number(body.declared_value ?? 0),
+    schedule: wantsPickup
+      ? { date: body.pickup_schedule!.date!, time: body.pickup_schedule!.time! }
+      : null,
+  };
+}
+
+// THE TRANSACTION HALF, its own function so the rows can be tested without a
+// provider call being reachable: the order core from the checkout, the
+// bank-details anchor, the money row, the shipment, the booking, the reset.
+export async function recordPlacedPurchase(
+  client: PoolClient,
+  {
+    user_id, resolved, netCharge,
+    label = null, pickupResult = null,
+  }: {
+    user_id: string;
+    resolved: ResolvedPurchase;
+    netCharge: number | null;
+    label?: { tracking_number?: string | null; buffer?: unknown } | null;
+    pickupResult?: { confirmationNumber?: string | null; location?: string | null } | null;
+  }
+) {
+  const { order_id, number, fulfillment_id } = await createFromCheckout(
+    { checkout_id: resolved.row.id, status: "In Transit", created_by_id: user_id },
+    client
+  );
+
+  // THE BANK-DETAILS ANCHOR - the one write exchange still receives here.
+  // exchange.payouts.order_id is a foreign key onto exchange.purchase_orders,
+  // and routing and account numbers live in exchange.payouts and nowhere else
+  // until encryption lands (Jacob's decision, not this flow's). Same id and
+  // same number as the new order, so the day that decision comes, nothing has
+  // to be reconciled.
+  await legacyPurchase.createOrder(
+    order_id, user_id, resolved.row.shipper_address_id, "In Transit", number, client
+  );
+  await legacyExchange.insertPayout(client, order_id, {
+    userId: user_id,
+    ...resolved.payout,
+  });
+
+  // The order's money row - what exists of it at placement: what postage
+  // cost, by which service. The totals themselves are priced at receipt.
+  await orderTransactions.create(
+    {
+      order_id,
+      shipping: netCharge,
+      shipping_service: resolved.service.name,
+      used_funds: false,
+    },
+    client
+  );
+  await recordPayoutInNewSchema(client, order_id, { user_id, ...resolved.payout });
+
+  // The parcel, written once with everything known - ids straight off the
+  // checkout row, no name resolution, no read-modify-write.
+  const shipment_id = await newShipments.create(randomUUID(), "Inbound", client);
+  const recorded = await newShipments.record(
+    shipment_id,
+    {
+      tracking_number: label?.tracking_number ?? null,
+      shipping_status: "Label Created",
+      label: (label?.buffer as Buffer | string | null) ?? null,
+      label_type: "Generated",
+      pickup_type: resolved.handoff.name,
+      package_id: resolved.pkg.rowId,
+      carrier_service_id: resolved.service.rowId,
+      cost: netCharge,
+      insured: resolved.declaredValue > 0,
+      declared_value: resolved.declaredValue > 0 ? resolved.declaredValue : null,
+      direction: "Inbound",
+    },
+    client
+  );
+  if (!recorded) {
+    throw new Error(
+      `order ${order_id}: shipment ${shipment_id} vanished mid-placement - the ` +
+        `label was not recorded and this transaction must not commit`
+    );
+  }
+  await fulfillmentShipments.link({ fulfillment_id, shipment_id }, client);
+
+  if (pickupResult && resolved.schedule) {
+    await pickupService.create(
+      {
+        user_id,
+        order_id,
+        carrier: "FedEx",
+        date: resolved.schedule.date,
+        time: resolved.schedule.time,
+        pickup_status: "scheduled",
+        confirmation_number: pickupResult.confirmationNumber ?? null,
+        location: pickupResult.location ?? null,
+      },
+      client
+    );
+  }
+
+  await checkoutService.resetAfterOrder(user_id, "purchase", client);
+  return { order_id, number, fulfillment_id, shipment_id };
+}
+
+// The whole flow: resolve, price the postage, buy the label, record, clean up.
+export async function placePurchaseOrder(user_id: string, body: PlacePurchaseBody) {
+  const resolved = await resolvePurchaseCheckout(user_id, body);
+
+  // The insured amount is clamped BEFORE anything reads it (D132), and the
+  // price of postage is the SERVER's - the composed path took netCharge from
+  // the body, a client-supplied money figure; this rates the parcel itself,
+  // right before buying the label it prices.
+  resolved.declaredValue = await carrierServices.clampInsuredValue(
+    resolved.declaredValue, resolved.service.serviceType
+  );
+  const rates = await shippingRatesService.getRates({
+    shippingType: "Inbound",
+    address: resolved.address,
+    pkg: { weight: resolved.pkg.weight, dimensions: resolved.pkg.dimensions },
+    pickupType: resolved.handoff.code,
+    declaredValue:
+      resolved.declaredValue > 0
+        ? { amount: resolved.declaredValue, currency: "USD" }
+        : undefined,
+  });
+  const rate = (rates as Array<{ serviceType?: string; netCharge?: number }>).find(
+    (r) => r.serviceType === resolved.service.serviceType
+  );
+  if (!rate || rate.netCharge == null) {
+    throw refuse(
+      422,
+      `the carrier quoted no rate for ${resolved.service.name} - try a different service`
+    );
+  }
+  const netCharge = rate.netCharge;
+
+  // Outside-world work first, each step undone if the next fails - the shape
+  // the composed path proved (a label failure is still "nothing happened").
+  const labelData = await shippingOps.createLabel(FEDEX_CARRIER_ID, undefined, {
+    shipper: {
+      contact: {
+        personName: resolved.recipientName,
+        phoneNumber: resolved.address.phone_number,
+      },
+      address: resolved.address,
+    },
+    recipient: {
+      contact: {
+        personName: process.env.FEDEX_DORADO_NAME,
+        phoneNumber: process.env.FEDEX_DORADO_PHONE_NUMBER,
+      },
+      address: FEDEX_STORE_ADDRESS,
+    },
+    serviceType: resolved.service.serviceType,
+    pickupType: resolved.handoff.code,
+    pkg: { weight: resolved.pkg.weight, dimensions: resolved.pkg.dimensions },
+    insurance: {
+      declaredValue: { amount: resolved.declaredValue, currency: "USD" },
+    },
+  });
+  const buffer = await labelBufferOrUndo(labelData);
+
+  let pickupResult: { confirmationNumber?: string | null; location?: string | null } | null = null;
+  if (resolved.wantsPickup && resolved.schedule) {
+    try {
+      pickupResult = await shippingOps.createPickup(FEDEX_CARRIER_ID, undefined, {
+        pickupContact: {
+          personName: resolved.recipientName,
+          phoneNumber: resolved.address.phone_number,
+        },
+        pickupAddress: resolved.address,
+        pickupDate: resolved.schedule.date,
+        pickupTime: resolved.schedule.time,
+        carrierCode: resolved.service.carrierCode ?? "FDXE",
+        trackingNumber: labelData.tracking_number,
+      });
+    } catch (err) {
+      await undoLabel(labelData.tracking_number);
+      throw err;
+    }
+  }
+
+  let placed: Awaited<ReturnType<typeof recordPlacedPurchase>>;
+  try {
+    placed = await withTransaction((client) =>
+      recordPlacedPurchase(client, {
+        user_id,
+        resolved,
+        netCharge,
+        label: { tracking_number: labelData.tracking_number, buffer },
+        pickupResult,
+      })
+    );
+  } catch (err) {
+    await undoPickup(
+      pickupResult && { ...pickupResult, pickupDate: resolved.schedule?.date }
+    );
+    await undoLabel(labelData.tracking_number);
+    throw err;
+  }
+
+  // The cart became the order; the server clears its copy. Device-sync data -
+  // a failed clear is a stale basket, not lost data.
+  try {
+    await checkoutService.syncSellCart(user_id, []);
+  } catch {
+    /* the next sync heals it */
+  }
+
+  const created = await readService.findPurchaseById(placed.order_id);
+  await emailService.sendOrderPlacedConfirmation(placed.order_id);
+  return created;
 }

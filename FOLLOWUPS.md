@@ -13363,3 +13363,62 @@ payments.details deliberately holds no numbers and exchange.payouts is their
 only home until encryption; confirmations; insurance pending a column
 decision), then the purchase stepper writing ids as the customer steps, with
 e2e; then the sale side on the same pattern.
+
+## D209 — the orders feature learns separation of concerns, and the composed create dies at the root
+
+Jacob, reading the orders feature (2026-09-01), four rulings in one sitting,
+now standing law for every feature:
+
+1. **A feature is controller/service/repo/routes (+ utils, + tests).** More
+   files than that is sprawl to fold, not structure.
+2. **A table's writes live in that table's repo, and a cross-feature write
+   goes THROUGH the owning feature** - orders wanting an order_address calls
+   orders/addresses/repo; orders wanting checkout rows calls the checkout
+   SERVICE. audit:switches' bypass scan enforces the service half.
+3. **A repo is generic CRUD** - create/get/list/update-with-guard - not one
+   function per column. setStatus/markSalePaid/setFlag/setSpotsLocked-style
+   per-column writers are the disease (collapse still owed, recorded below).
+4. **A repo write takes THE ROW** - a typed object in the contract's
+   vocabulary - never a positional scalar list. The repo maps named fields
+   onto the statement's parameter order in exactly one place.
+
+What landed under those rulings, all gates green:
+
+- **The intake family is DELETED** (intake.ts, intake.repo.ts, their tests,
+  and parity.test.ts - the both-ways oracle whose premise dies with the
+  composed path). Its purpose was translating the composed body onto the
+  checkout row; the stepper writes the row directly now, so the translation
+  layer had no future. The handoff-name coupling its test pinned is re-pinned
+  as the capability rule the row flow actually resolves by (exactly one
+  schedulable handoff and one not).
+- **create.ts is the LIVE purchase create** (POST
+  /purchase_orders/create_from_checkout): resolvePurchaseCheckout (DB-only,
+  provider-free, testable to the hilt), the label chain with its undo
+  ordering, recordPlacedPurchase (order core via createFromCheckout - which
+  now ATTACHES the checkout's draft fulfillment before the shipment step, so
+  chooseDefault's ON CONFLICT defers to the customer's choice), and the row
+  reset. Postage is priced by the SERVER (a rates call before the label) -
+  the composed path took netCharge from the body, a client-supplied money
+  figure, and that hole dies with it.
+- **The exchange writes shrink to the bank-details anchor**: a minimal
+  exchange.purchase_orders row (same id, same number) exists because
+  exchange.payouts.order_id foreign-keys onto it and routing/account numbers
+  have no other home until the encryption decision. Items, metals and
+  shipments no longer mirror to exchange on this path (ruling 36's door).
+- **The four misplaced writes moved to their tables' repos** and every
+  converted write takes a row object (items, spots, addresses.link,
+  transactions.create, shipments.record). Two silent-mutation discards the
+  factoring EXPOSED (the old inline SQL was invisible to the audit) are
+  observed with hard failures - a zero-row update inside placement is a
+  transaction that must not commit.
+- **Three audits earned their keep in one pass**: query-paths forced its
+  stale places.locations entry out, switches caught orders reaching around
+  CHECKOUT_SOURCE into checkout's repo (rerouted through the service),
+  constraints demanded the nullable-carrier decision be recorded.
+
+**Still owed, in order**: the purchase STEPPER conversion (PATCH the row as
+the customer steps; slim create body; the composed endpoint + its schema die;
+e2e asserting the row round-trips); the orders repo CRUD collapse and the
+service-satellite folding; then the sale side on the same core - one
+placeOrder, direction a parameter, the sale's steps (intent verification,
+funds) where the purchase has the label chain.

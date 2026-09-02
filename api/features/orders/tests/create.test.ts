@@ -1,19 +1,15 @@
-// Creating an order from a checkout, against real Postgres, each test inside a
-// rolled-back transaction.
+// A checkout ROW becomes an order (D208).
 //
-// The whole chain runs here for the first time: the block the frontend posts,
-// decomposed, resolved, recorded on a checkout, and turned into an order with
-// its items, its address snapshot and its fulfillment. What these are about is
-// the handful of ways that chain could produce a plausible order that is not
-// the one submitted.
-import test, { after, before } from "node:test";
+// The intake chain (block -> describe -> resolve -> record) is DELETED: the
+// stepper writes ids onto checkout.checkouts directly now, so these tests
+// prime the row the same way - straight fixture writes in a rolled-back
+// transaction - and then run the one creation path that exists.
+import test, { before, after } from "node:test";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
 import pool from "#db";
-import { LOCKS, takeLocks } from "#shared/testing/locks.ts";
-import { decompose } from "#features/orders/intake.ts";
-import * as intake from "#features/orders/intake.repo.ts";
 import { createFromCheckout } from "#features/orders/create.ts";
+import { takeLocks, LOCKS } from "#shared/testing/locks.ts";
 
 let client: PoolClient;
 
@@ -28,8 +24,6 @@ after(async () => {
 
 async function inRollback(fn: (c: PoolClient) => Promise<void>) {
   await client.query("BEGIN");
-  // Shares checkout.checkouts with intake.repo.test.js and features/checkout,
-  // and orders.orders with several others. One lock, taken first.
   // Placing an order writes orders.*, checkout.* AND snapshots into
   // places.addresses, so this file takes both groups. takeLocks sorts them, so
   // the ascending-order rule cannot be got wrong here.
@@ -43,29 +37,88 @@ async function inRollback(fn: (c: PoolClient) => Promise<void>) {
 
 const aUser = async (c: PoolClient) => (await c.query(`SELECT id FROM auth.users LIMIT 1`)).rows[0].id;
 const anAddress = async (c: PoolClient) => (await c.query(`SELECT id FROM places.addresses LIMIT 1`)).rows[0].id;
+const aLocation = async (c: PoolClient) => (await c.query(`SELECT id FROM places.locations LIMIT 1`)).rows[0].id;
 
-const block = (over = {}) => ({
-  address: { name: "A Customer", phone_number: "5550000000" },
-  package: { label: "Small Box", weight: { units: "LB", value: 3 } },
-  pickup: { name: "Store Dropoff", date: "2026-09-01", time: "" },
-  service: { serviceType: "FEDEX_EXPRESS_SAVER", serviceDescription: "Express Saver", netCharge: 24.5, code: "FDXE" },
-  payout: { method: "ACH", account_holder_name: "A Customer", cost: 0 },
-  insurance: { declaredValue: { amount: 5000, currency: "USD" }, insured: true },
-  items: [
-    { type: "scrap", data: { id: "s1", metal: "Gold", quantity: 1, pre_melt: 10, post_melt: 9.5, purity: 0.9999, content: 9.4991, gross_unit: "g", bid_premium: 0.8 } },
-  ],
-  ...over,
-});
+type ScrapItem = {
+  metal: string | null; quantity?: number; pre_melt?: number; post_melt?: number;
+  purity?: number; content?: number; unit?: string; premium?: number;
+};
+const GOLD: ScrapItem = {
+  metal: "Gold", quantity: 1, pre_melt: 10, post_melt: 9.5,
+  purity: 0.9999, content: 9.4991, unit: "g", premium: 0.8,
+};
 
-// The whole chain in one call, because every test needs it.
-async function place(c: PoolClient, over = {}, { direction = "purchase", status = "In Transit" } = {}) {
+// Prime the checkout ROW the way the stepper does - ids on the row, items in
+// checkout.items - then create. `method` is a fulfillments.methods TYPE, or
+// null for "nothing chosen".
+async function place(
+  c: PoolClient,
+  {
+    method = "CARRIER DROPOFF" as string | null,
+    items = [GOLD] as ScrapItem[],
+    withPickupAddress = false,
+    withAppointment = false,
+    appointment_time = null as string | null,
+    direction = "purchase",
+    status = "In Transit",
+  } = {}
+) {
   const user = await aUser(c);
   const address = await anAddress(c);
-  const described = decompose(block(over), { direction, userId: user });
-  const ids = await intake.resolve(described, c);
-  const checkout_id = await intake.record({ described, ids, address_id: address }, c);
+
+  const { rows: [co] } = await c.query(
+    `INSERT INTO checkout.checkouts (user_id, direction) VALUES ($1, $2)
+     ON CONFLICT (user_id, direction) DO UPDATE SET user_id = EXCLUDED.user_id
+     RETURNING id`,
+    [user, direction]
+  );
+  const checkout_id = co.id;
+
+  let method_id: string | null = null;
+  if (method) {
+    const { rows } = await c.query(
+      `SELECT id FROM fulfillments.methods WHERE type = $1 AND direction = $2`,
+      [method, direction]
+    );
+    method_id = rows[0]?.id ?? null;
+    assert.ok(method_id, `the seed has no ${method} method for a ${direction}`);
+  }
+
+  await c.query(
+    `UPDATE checkout.checkouts SET
+       fulfillment_method_id = $2, fulfillment_id = NULL,
+       shipper_address_id = $3, pickup_address_id = $4,
+       appointment_location_id = $5, appointment_time = $6
+     WHERE id = $1`,
+    [
+      checkout_id, method_id,
+      direction === "purchase" ? address : null,
+      withPickupAddress ? address : null,
+      withAppointment ? await aLocation(c) : null,
+      appointment_time,
+    ]
+  );
+
+  await c.query(`DELETE FROM checkout.items WHERE checkout_id = $1`, [checkout_id]);
+  for (const item of items) {
+    await c.query(
+      `INSERT INTO checkout.items (
+         checkout_id, bullion_id, metal_id, pre_melt, post_melt, purity,
+         content, unit, premium, quantity
+       ) VALUES (
+         $1, NULL, (SELECT id FROM metals.metals WHERE lower(name) = lower($2)),
+         $3, $4, $5, $6, $7, $8, $9
+       )`,
+      [
+        checkout_id, item.metal, item.pre_melt ?? null, item.post_melt ?? null,
+        item.purity ?? null, item.content ?? null, item.unit ?? null,
+        item.premium ?? null, item.quantity ?? 1,
+      ]
+    );
+  }
+
   const placed = await createFromCheckout({ checkout_id, status }, c);
-  return { ...placed, user, address, checkout_id, described };
+  return { ...placed, user, address, checkout_id };
 }
 
 test("a checkout becomes an order with its items and its fulfillment", async () => {
@@ -89,9 +142,9 @@ test("a checkout becomes an order with its items and its fulfillment", async () 
     assert.equal(items.length, 1);
     assert.equal(Number(items[0].purity), 0.9999, "the rounding 058 fixed must not come back");
     assert.equal(Number(items[0].content), 9.4991);
-    // NOT the 0.8 the block carried. The premium a customer is paid comes from
+    // NOT the 0.8 the row carried. The premium a customer is paid comes from
     // the rates table, not from their browser - retierScrapPremiums overwrites
-    // whatever was submitted, exactly as the legacy path always has.
+    // whatever was submitted.
     assert.notEqual(Number(items[0].premium), 0.8, "the browser's premium survived");
     assert.ok(Number(items[0].premium) > 0, "the line was left with no premium at all");
     assert.ok(items[0].metal_id, "orders.items.metal_id is NOT NULL");
@@ -144,20 +197,13 @@ test("the order number comes from exchange's sequence, so the two cannot collide
       Number(after[0].last_value) > Number(before[0].last_value),
       "the shared sequence did not advance - two orders could take the same number"
     );
-
-    // NOT `number === last_value`. That was the assertion here and it is racy:
-    // a sequence is non-transactional - which is exactly why it is used - so
-    // any other test drawing from it moves last_value even when its transaction
-    // rolls back, and an advisory lock cannot make a sequence exclusive. It
-    // failed as 1824 !== 1825 in a full run.
-    //
-    // What is actually true, and what matters: the number drawn is above where
-    // the sequence stood before, and no exchange order already has it.
+    // The number drawn is above where the sequence stood before, and no
+    // exchange order already has it. (Not `number === last_value`: a sequence
+    // is non-transactional and other tests draw from it concurrently.)
     assert.ok(
       Number(number) > Number(before[0].last_value),
       "the number drawn is not above where the sequence started"
     );
-
     const { rows: clash } = await c.query(
       `SELECT count(*)::int AS n FROM exchange.purchase_orders WHERE order_number = $1`,
       [number]
@@ -179,7 +225,6 @@ test("the order takes a copy of the address, not a pointer to it", async () => {
     assert.equal(rows[0].source_address_id, address, "the book row it came from");
     assert.notEqual(rows[0].address_id, address, "a snapshot must be its own row");
 
-    // Editing the book row leaves the order's copy alone.
     await c.query(`UPDATE places.addresses SET city = 'Moved' WHERE id = $1`, [address]);
     const { rows: snap } = await c.query(
       `SELECT city FROM places.addresses WHERE id = $1`,
@@ -193,8 +238,8 @@ test("spots are frozen per metal the order actually contains", async () => {
   await inRollback(async (c: PoolClient) => {
     const { order_id } = await place(c, {
       items: [
-        { type: "scrap", data: { id: "s1", metal: "Gold", quantity: 1, content: 1 } },
-        { type: "scrap", data: { id: "s2", metal: "Silver", quantity: 1, content: 2 } },
+        { metal: "Gold", quantity: 1, content: 1 },
+        { metal: "Silver", quantity: 1, content: 2 },
       ],
     });
 
@@ -206,8 +251,6 @@ test("spots are frozen per metal the order actually contains", async () => {
     );
     assert.deepEqual(rows.map((r) => r.name), ["Gold", "Silver"]);
     assert.ok(Number(rows[0].ask) > 0, "a frozen spot with no price is not frozen");
-    // No Platinum row: exchange writes one per metal whether or not the order
-    // has any, and a spot for a metal nobody sold means nothing.
     assert.equal(rows.length, 2);
   });
 });
@@ -215,7 +258,9 @@ test("spots are frozen per metal the order actually contains", async () => {
 test("a pickup order books the pickup and a dropoff does not", async () => {
   await inRollback(async (c: PoolClient) => {
     const { fulfillment_id, address } = await place(c, {
-      pickup: { name: "Pickup", date: "2026-09-05T15:00:00Z" },
+      method: "PICKUP",
+      withPickupAddress: true,
+      appointment_time: "2026-09-05T15:00:00Z",
     });
 
     const { rows } = await c.query(
@@ -237,7 +282,9 @@ test("a pickup order books the pickup and a dropoff does not", async () => {
 test("an appointment books the location and the time", async () => {
   await inRollback(async (c: PoolClient) => {
     const { fulfillment_id } = await place(c, {
-      pickup: { name: "Appointment", date: "2026-09-05T15:00:00Z" },
+      method: "APPOINTMENT",
+      withAppointment: true,
+      appointment_time: "2026-09-05T15:00:00Z",
     });
     const { rows } = await c.query(
       `SELECT location_id, is_appointment, start_time FROM fulfillments.directs
@@ -257,17 +304,7 @@ test("an appointment books the location and the time", async () => {
 // seed's job, not a constant here.
 test("a checkout with no method chosen falls back to the direction's default", async () => {
   await inRollback(async (c: PoolClient) => {
-    const user = await aUser(c);
-    const address = await anAddress(c);
-    const described = decompose(block({ pickup: undefined }), { direction: "purchase", userId: user });
-    const ids = await intake.resolve(described, c);
-    assert.equal(ids.fulfillment_method_id, null);
-
-    const checkout_id = await intake.record({ described, ids, address_id: address }, c);
-    const { fulfillment_id } = await createFromCheckout(
-      { checkout_id, status: "In Transit" },
-      c
-    );
+    const { fulfillment_id } = await place(c, { method: null });
 
     const { rows } = await c.query(
       `SELECT m.type, m.is_default FROM fulfillments.fulfillments f
@@ -283,17 +320,8 @@ test("a checkout with no method chosen falls back to the direction's default", a
 // customer's metal arrives and nothing recorded that it was coming.
 test("an item whose metal cannot be resolved fails the order rather than being dropped", async () => {
   await inRollback(async (c: PoolClient) => {
-    const user = await aUser(c);
-    const address = await anAddress(c);
-    const described = decompose(
-      block({ items: [{ type: "scrap", data: { id: "s1", metal: "Unobtainium", quantity: 1 } }] }),
-      { direction: "purchase", userId: user }
-    );
-    const ids = await intake.resolve(described, c);
-    const checkout_id = await intake.record({ described, ids, address_id: address }, c);
-
     await assert.rejects(
-      () => createFromCheckout({ checkout_id, status: "In Transit" }, c),
+      () => place(c, { items: [{ metal: "Unobtainium", quantity: 1 }] }),
       /has no metal/
     );
   });
@@ -318,12 +346,6 @@ test("an empty checkout cannot become an order", async () => {
 
 // Placing an order touches five tables. Any one of them surviving a rollback is
 // a row nothing points at and nobody would ever look for.
-//
-// Checked from a SECOND connection, because a query on the same client would be
-// inside the very transaction it is trying to see past - and after the rollback
-// the same client would answer honestly for the wrong reason. lint:db forbids
-// pool.query; a deliberate second client is the shape the other dual-write
-// tests use for exactly this.
 test("an order and its fulfillment roll back together", async () => {
   const other = await pool.connect();
   let order_id;

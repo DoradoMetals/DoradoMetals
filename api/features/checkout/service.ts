@@ -1,4 +1,5 @@
 import withTransaction from "#shared/db/withTransaction.ts";
+import type { Executor } from "#shared/db/executor.ts";
 import * as cartRepo from "#features/checkout/repo.js";
 // The SERVICE, not a repo: products is composed from three reference tables
 // now, and liveness is the one question checkout asks of it.
@@ -274,4 +275,29 @@ export async function setFulfillmentMethod(
       : null;
     return { ...fresh, fulfillment };
   });
+}
+
+// ------------------------------------------------- what order creation reads
+//
+// features/orders/create.ts consumes a checkout THROUGH this service - never
+// the repo (Jacob's layering rule, and audit:switches' bypass scan enforces
+// it). Row-column reads are native-only by the capability argument above; the
+// switch governs the CART halves, and these do not touch them.
+
+export async function getRowById(checkout_id: string, client?: Executor) {
+  return await checkoutRows.getRowById(checkout_id, client);
+}
+
+export async function getItemsForOrder(checkout_id: string, client?: Executor) {
+  return await checkoutRows.getItemsForOrder(checkout_id, client);
+}
+
+export async function getRowFor(user_id: string, direction: RowDirection, client?: Executor) {
+  return await checkoutRows.getRow(user_id, direction, client);
+}
+
+export async function resetAfterOrder(
+  user_id: string, direction: RowDirection, client?: Executor
+) {
+  await checkoutRows.resetRow(user_id, direction, client);
 }

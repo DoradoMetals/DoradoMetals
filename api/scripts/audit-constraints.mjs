@@ -130,6 +130,19 @@ const ACCEPTED_NOT_NULL = {
     "unique index there (103), which is the table that actually holds one row " +
     "per Stripe intent.",
 
+  // 110 made carrier_id nullable ON PURPOSE (D208): the business's own sale
+  // delivery services are CARRIER-AGNOSTIC - the customer picks the service
+  // at its fixed price and THE REFINERY picks the carrier later, recorded on
+  // the shipment. The carrier-catalogue rows keep their carrier_id; only the
+  // three agnostic rows carry NULL, and get_sale_options selects exactly
+  // those. Exchange's guard described a world where every service belonged
+  // to a carrier, and that world ended with the tiers correction.
+  "exchange.carrier_services.carrier_id -> shipping.services.carrier_id":
+    "nullable on purpose since 110 (D208): the sale delivery services are " +
+    "carrier-agnostic - the customer picks the service, the refinery picks " +
+    "the carrier, and the shipment records that choice on its own row. Only " +
+    "the three business rows are NULL; the carrier catalogue keeps its ids.",
+
   // checkout is device-sync, not a ledger (CLAUDE.md). The merged parents
   // disagree and the request body is unvalidated.
   "exchange.sell_cart_items.quantity -> checkout.items.quantity":

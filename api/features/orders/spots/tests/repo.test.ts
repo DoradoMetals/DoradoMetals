@@ -146,7 +146,7 @@ test("creating the same order and metal twice does not raise", async () => {
     )).rows[0].n;
 
     // The pair already exists, so this must be a no-op rather than a 23505.
-    const again = await spots.create(randomUUID(), s.order_id, s.metal_id, 10, 20, c);
+    const again = await spots.create({ order_id: s.order_id, metal_id: s.metal_id, ask: 10, bid: 20 }, c);
     assert.equal(again, undefined, "a duplicate pair reported a row as written");
 
     const after = (await c.query(

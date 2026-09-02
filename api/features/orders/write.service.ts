@@ -118,22 +118,21 @@ export async function insertSalesOrder(
   await refinerOrders.ensureForOrder(id, executor);
 
   await orderTransactions.create(
-    randomUUID(),
-    id,
-    [
-      p.order_total ?? null,
-      p.shipping_charge ?? null,
-      sales_order.service?.label ?? null,
-      p.pre_charges_amount ?? null,
-      p.post_charges_amount ?? null,
-      p.subject_to_charges_amount ?? null,
-      sales_order.using_funds ?? null,
-      p.item_total ?? null,
-      p.base_total ?? null,
-      p.charges_amount ?? null,
-      p.sales_tax ?? null,
-    ],
-    by,
+    {
+      order_id: id,
+      total: p.order_total ?? null,
+      shipping: p.shipping_charge ?? null,
+      shipping_service: sales_order.service?.label ?? null,
+      funds: p.pre_charges_amount ?? null,
+      post_charges_amount: p.post_charges_amount ?? null,
+      subject_to_charges_amount: p.subject_to_charges_amount ?? null,
+      used_funds: sales_order.using_funds ?? null,
+      items: p.item_total ?? null,
+      base_total: p.base_total ?? null,
+      surcharge: p.charges_amount ?? null,
+      sales_tax: p.sales_tax ?? null,
+      by,
+    },
     executor
   );
 
@@ -142,7 +141,8 @@ export async function insertSalesOrder(
   // this one, and until then exchange records only the book id - so recording
   // it as both is the honest reading of what exchange holds, not an invention.
   await orderAddresses.link(
-    randomUUID(), id, sales_order.address.id, sales_order.address.id, executor
+    { order_id: id, address_id: sales_order.address.id, source_address_id: sales_order.address.id },
+    executor
   );
 
   await legacySales.createOrder(
@@ -209,9 +209,11 @@ export async function insertSalesItems(
     // The canonical items statement (orders/items) - a sales line is bullion
     // with no weights, confirmed at birth, taxed at its quoted rate.
     await orderItems.create(
-      id,
-      [orderId, product_id, metalOf(item), null, null, null, null,
-       premium, quantity, true, tax_rate ?? 0, null, price],
+      {
+        id, order_id: orderId, bullion_id: product_id, metal_id: metalOf(item),
+        premium, quantity, confirmed: true,
+        sales_tax_charged: tax_rate ?? 0, price,
+      },
       executor
     );
     await legacySales.createItem(
@@ -244,7 +246,8 @@ export async function insertSalesOrderMetals(
     // matching no row.
     if (metal_id) {
       await orderSpots.create(
-        randomUUID(), orderId, metal_id, spot.ask ?? null, spot.bid ?? null, executor
+        { order_id: orderId, metal_id, ask: spot.ask ?? null, bid: spot.bid ?? null },
+        executor
       );
     }
     // exchange.order_metals still calls the metal `type`; that spelling is the

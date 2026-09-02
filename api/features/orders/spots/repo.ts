@@ -3,6 +3,7 @@
 // The spot prices an order was quoted at, frozen when its offer locked. Every
 // money figure on the order derives from these, so a wrong one misprices the
 // whole order rather than displaying something odd.
+import { randomUUID } from "node:crypto";
 import query from "#shared/db/query.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
 import type { Executor } from "#shared/db/executor.ts";
@@ -76,12 +77,16 @@ export type SpotRow = {
 // Idempotent: (order_id, metal_id) is UNIQUE, so a second call for the same
 // pair does nothing rather than raising. exchange's insertOrderMetals had no
 // conflict handling and would have.
-export async function create(
-  id: string, order_id: string, metal_id: string,
-  ask: number | null, bid: number | null, executor?: Executor
-): Promise<SpotRow | undefined> {
+export type NewOrderSpot = {
+  id?: string; order_id: string; metal_id: string;
+  ask?: number | null; bid?: number | null;
+};
+
+export async function create(row: NewOrderSpot, executor?: Executor): Promise<SpotRow | undefined> {
   const { rows } = await query<SpotRow>(
-    sql("create"), [id, order_id, metal_id, ask, bid], executor
+    sql("create"),
+    [row.id ?? randomUUID(), row.order_id, row.metal_id, row.ask ?? null, row.bid ?? null],
+    executor
   );
   return rows[0];
 }

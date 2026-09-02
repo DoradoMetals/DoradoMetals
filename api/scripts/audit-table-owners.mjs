@@ -64,9 +64,9 @@ const ACCEPTED = [
   { table: "refiners.items", features: ["orders", "refiners/items"],
     why: "refiners/items owns the refiner premium; features/orders/repo.mirror.ts goes with the pivot" },
   { table: "checkout.checkouts", features: ["checkout", "orders"],
-    why: "orders/intake.repo.ts is the new checkout path; converges when checkout pivots" },
+    why: "the checkout feature owns the row and its items now (D208); orders/create.ts consumes them" },
   { table: "checkout.items", features: ["checkout", "orders"],
-    why: "orders/intake.repo.ts is the new checkout path; converges when checkout pivots" },
+    why: "the checkout feature owns the row and its items now (D208); orders/create.ts consumes them" },
 
   // VERIFIED SAFE, for a reason that is not "it goes away".
   //
@@ -88,7 +88,7 @@ const ACCEPTED = [
   { table: "exchange.order_metals", features: ["purchase-orders", "sales-orders"],
     why: "both order directions write their own rows in exchange's shared child table" },
   { table: "exchange.scrap", features: ["checkout", "scrap"],
-    why: "checkout creates scrap lines at intake; converges when checkout pivots" },
+    why: "the cart sync writes scrap lines; orders/create.ts copies them at placement (D208)" },
 ];
 
 const walk = (dir, out = []) => {

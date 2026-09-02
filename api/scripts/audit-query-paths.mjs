@@ -87,8 +87,6 @@ const ACCEPTED = {
     "four rows. The product save resolves a metal by name inside the statement " +
     "that writes everything else; on a table this size a sequential scan is the " +
     "faster plan and an index would only cost writes.",
-  "places.locations|type":
-    "three rows - the business's own locations, seeded reference data.",
 };
 
 const walk = (d, out = []) => {

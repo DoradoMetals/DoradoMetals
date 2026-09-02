@@ -91,6 +91,8 @@ import {
   FEDEX_STORE_ADDRESS,
   FEDEX_CARRIER_ID,
 } from "#providers/shipments/constants.ts";
+// TO DO - COMES FROM DATABASE
+
 import { auth } from "#features/auth/client.ts";
 import { fromNodeHeaders } from "better-auth/node";
 // READS AND WRITES PIVOTED TOGETHER, and that ordering is the whole point.
@@ -141,7 +143,7 @@ import type { Transport } from "#providers/emails/nodemailer.ts";
 // genuinely an orphaned label, and that is worth a loud line in the log rather
 // than a second exception nobody can act on: the first error is the one that
 // explains what went wrong.
-async function undoLabel(trackingNumber: string | undefined | null): Promise<void> {
+export async function undoLabel(trackingNumber: string | undefined | null): Promise<void> {
   if (!trackingNumber) return;
   try {
     await shippingOps.cancelLabel(FEDEX_CARRIER_ID, undefined, { trackingNumber });
@@ -157,7 +159,7 @@ async function undoLabel(trackingNumber: string | undefined | null): Promise<voi
   }
 }
 
-async function undoPickup(
+export async function undoPickup(
   pickup:
     | { confirmationNumber?: string | null; pickupDate?: unknown; location?: unknown }
     | null
@@ -884,7 +886,7 @@ export async function editShippingCharge({
 // method does not resolve against payments.methods (its SELECT drives the
 // INSERT), and an unrecognised method must not take down an order that exchange
 // has already recorded - so the link is skipped and the fee still lands.
-async function recordPayoutInNewSchema(
+export async function recordPayoutInNewSchema(
   executor: PoolClient,
   order_id: string,
   payout: Record<string, any>

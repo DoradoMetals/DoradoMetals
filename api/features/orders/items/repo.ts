@@ -8,6 +8,7 @@
 // write path.
 //
 // bullion_id is what tells the two kinds apart: null means scrap.
+import { randomUUID } from "node:crypto";
 import query from "#shared/db/query.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
 import type { orders } from "@dorado/contracts";
@@ -40,17 +41,38 @@ export async function getByIds(
   return rows;
 }
 
-// The thirteen values sql/create.sql takes, after the id.
-type ItemValues = [
-  string, string | null, string, number | null, number | null, number | null,
-  number | null, number | null, number | null, boolean, number,
-  string | null, number | null,
-];
+// THE ROW, not a positional tuple (Jacob, 2026-09-01: a repo write takes the
+// resource itself). The repo maps named fields onto the statement's parameter
+// order in exactly one place - here.
+export type NewOrderItem = {
+  id?: string;
+  order_id: string;
+  bullion_id?: string | null;
+  metal_id: string;
+  pre_melt?: number | null;
+  post_melt?: number | null;
+  purity?: number | null;
+  content?: number | null;
+  premium?: number | null;
+  quantity?: number | null;
+  confirmed?: boolean;
+  sales_tax_charged?: number;
+  unit?: string | null;
+  price?: number | null;
+};
 
-export async function create(
-  id: string, values: ItemValues, executor?: Executor
-): Promise<OrderItemRow> {
-  const { rows } = await query<OrderItemRow>(sql("create"), [id, ...values], executor);
+export async function create(row: NewOrderItem, executor?: Executor): Promise<OrderItemRow> {
+  const { rows } = await query<OrderItemRow>(
+    sql("create"),
+    [
+      row.id ?? randomUUID(), row.order_id, row.bullion_id ?? null, row.metal_id,
+      row.pre_melt ?? null, row.post_melt ?? null, row.purity ?? null,
+      row.content ?? null, row.premium ?? null, row.quantity ?? 1,
+      row.confirmed ?? false, row.sales_tax_charged ?? 0,
+      row.unit ?? null, row.price ?? null,
+    ],
+    executor
+  );
   return rows[0];
 }
 

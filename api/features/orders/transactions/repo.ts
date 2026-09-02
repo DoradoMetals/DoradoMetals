@@ -9,6 +9,7 @@
 // bottom are the exception - the amounts an ADMIN adjusts by hand on a purchase
 // order, the total they add up into, and (since 099) the payout account the
 // order is paid out to.
+import { randomUUID } from "node:crypto";
 import query from "#shared/db/query.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
 import type { orders } from "@dorado/contracts";
@@ -130,16 +131,29 @@ export async function setPayoutAccount(
   return rows[0];
 }
 
-// The twelve money values, in sql/create.sql's order. The five renames from
-// exchange's names are stated in that file.
-export type TotalsValues = [
-  number | null, number | null, string | null, number | null,
-  number | null, number | null, boolean | null,
-  number | null, number | null, number | null, number | null,
-];
+// THE ROW (Jacob, 2026-09-01) - named fields in the wire's own vocabulary,
+// mapped onto sql/create.sql's parameter order in exactly one place. The five
+// renames from exchange's names are stated in that file.
+export type NewOrderTotals = {
+  id?: string; order_id: string;
+  total?: number | null; shipping?: number | null; shipping_service?: string | null;
+  funds?: number | null; post_charges_amount?: number | null;
+  subject_to_charges_amount?: number | null; used_funds?: boolean | null;
+  items?: number | null; base_total?: number | null; surcharge?: number | null;
+  sales_tax?: number | null; by?: string | null;
+};
 
-export async function create(
-  id: string, order_id: string, values: TotalsValues, by: string | null, executor?: Executor
-): Promise<void> {
-  await query(sql("create"), [id, order_id, ...values, by], executor);
+export async function create(row: NewOrderTotals, executor?: Executor): Promise<void> {
+  await query(
+    sql("create"),
+    [
+      row.id ?? randomUUID(), row.order_id,
+      row.total ?? null, row.shipping ?? null, row.shipping_service ?? null,
+      row.funds ?? null, row.post_charges_amount ?? null,
+      row.subject_to_charges_amount ?? null, row.used_funds ?? null,
+      row.items ?? null, row.base_total ?? null, row.surcharge ?? null,
+      row.sales_tax ?? null, row.by ?? null,
+    ],
+    executor
+  );
 }

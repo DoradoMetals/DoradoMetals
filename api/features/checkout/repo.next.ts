@@ -544,3 +544,23 @@ export async function getItemsForOrder(
   );
   return rows;
 }
+
+// After an order consumes the checkout (D208): the choices are the ORDER's
+// now, so the row goes back to empty and the next checkout starts clean. The
+// items are cleared separately through the cart sync, which owns both
+// schemas' copies.
+export async function resetRow(
+  user_id: string, direction: Direction, client?: Executor
+): Promise<void> {
+  await query(
+    `UPDATE checkout.checkouts SET
+       payment_method_id = NULL, payment_details_id = NULL,
+       fulfillment_id = NULL, fulfillment_method_id = NULL,
+       appointment_location_id = NULL, pickup_address_id = NULL,
+       shipper_address_id = NULL, recipient_address_id = NULL,
+       carrier_service_id = NULL, package_id = NULL, appointment_time = NULL
+     WHERE user_id = $1 AND direction = $2`,
+    [user_id, direction],
+    client
+  );
+}

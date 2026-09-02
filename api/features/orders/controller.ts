@@ -4,6 +4,7 @@ import { refuseWith } from "#shared/http/refuse.ts";
 import * as orderPatch from "#features/orders/patch.service.ts";
 import * as orderRead from "#features/orders/read.ts";
 import * as orderService from "#features/orders/service.ts";
+import * as orderCreate from "#features/orders/create.ts";
 
 // THE ORDER ROW'S OWN HANDLERS, AND NOTHING ELSE (ruling 26c). The items,
 // spots and address handlers moved to the resources that own those tables -
@@ -97,6 +98,18 @@ export const patchOrder = asyncHandler(async (req, res) => {
 export const createPurchaseOrder = asyncHandler(async (req, res) => {
   const { purchase_order } = req.body;
   const order = await orderService.createPurchaseOrder(purchase_order, callerId(req));
+  return res.status(200).json(order);
+});
+
+// POST /api/purchase_orders/create_from_checkout (D208). The server holds
+// the choices (checkout row + draft fulfillment); the body carries only what
+// cannot live there - the payout bank form, the parcel weight, the pickup
+// schedule, the insurance declaration.
+export const createPurchaseOrderFromCheckout = asyncHandler(async (req, res) => {
+  const { payout, package_weight, pickup_schedule, declared_value } = req.body ?? {};
+  const order = await orderCreate.placePurchaseOrder(callerId(req), {
+    payout, package_weight, pickup_schedule, declared_value,
+  });
   return res.status(200).json(order);
 });
 

@@ -8,7 +8,6 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import { CATALOGUE } from "#features/shipping/operations/adapters/fedex.catalogue.ts";
-import { handoffMethods } from "#features/orders/intake.ts";
 import { CATALOGUES } from "#features/shipping/operations/catalogues.ts";
 import { PROVIDERS } from "#features/shipping/operations/registry.ts";
 import { BUILDERS } from "#features/shipping/operations/builders.ts";
@@ -34,33 +33,20 @@ test("handoff names are the values written to shipments.pickup_type", () => {
   assert.deepEqual(names, ["Store Dropoff", "Carrier Pickup"]);
 });
 
-// *** THE VALUE COUPLING NOTHING ELSE CHECKS. ***
+// *** THE CAPABILITY RULE THE ROW FLOW RESOLVES BY (D208). ***
 //
-// `name` is not a display string. THREE things read it, and none of them is a
-// foreign key or a constraint - they are values in different modules that must
-// agree, which is the shape of D39 and of every other coupling this project has
-// been bitten by:
-//
-//   1. features/orders/intake.ts indexes HANDOFF_METHODS BY THIS STRING to pick
-//      the fulfillment method, and THROWS on a name it does not know. A name
-//      changed here and not there refuses every order placed through it.
-//   2. features/orders/service.ts books a courier when it equals
-//      "Carrier Pickup" - so the string decides whether FedEx is actually
-//      dispatched to a customer's door.
-//   3. It is written to shipments.pickup_type verbatim, and features/media/pdfs
-//      compares against "Store Dropoff" to decide what a packing list says.
-//
-// Nothing connected the two lists before this test. The catalogue is now the
-// only place a customer-facing handoff is declared, so it is the side that must
-// stay inside what intake accepts.
-test("every offered handoff is a name the order intake knows how to file", () => {
-  for (const h of CATALOGUE.handoffs) {
-    assert.ok(
-      h.name in handoffMethods,
-      `intake would throw on "${h.name}" - add it to handoffMethods with the ` +
-        `fulfillment method it means, or the catalogue must not offer it`
-    );
-  }
+// features/orders/create.ts picks the handoff for a label FROM the customer's
+// fulfillment method by ONE flag: the schedulable handoff is the carrier
+// pickup, the other is the dropoff. That resolution only means something while
+// the catalogue offers exactly one of each - two schedulable options would
+// make the pick a coin toss, and zero would refuse every pickup order.
+// (The old pin here indexed intake.ts's name map; intake died with the
+// composed create.)
+test("the catalogue offers exactly one schedulable handoff and one that is not", () => {
+  const schedulable = CATALOGUE.handoffs.filter((h) => h.requires_schedule);
+  const walkUp = CATALOGUE.handoffs.filter((h) => !h.requires_schedule);
+  assert.equal(schedulable.length, 1, "the pickup pick would be a coin toss");
+  assert.equal(walkUp.length, 1, "the dropoff pick would be a coin toss");
 });
 
 test("the handoff that books a courier is the one that requires scheduling", () => {

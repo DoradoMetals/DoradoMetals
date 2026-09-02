@@ -22,6 +22,7 @@ import express from "express";
 
 import {
   createPurchaseOrder,
+  createPurchaseOrderFromCheckout,
   createSalesOrder,
   adminCreateSalesOrder,
   createPurchaseReview,
@@ -39,6 +40,9 @@ import { requireOwnOrder } from "#shared/middleware/ownership.ts";
 export const purchaseOrderRoutes = express.Router();
 
 purchaseOrderRoutes.post("/create_purchase_order", requireUser, createPurchaseOrder);
+// The row-flow create (D208); the composed sibling above dies when the
+// stepper finishes converting.
+purchaseOrderRoutes.post("/create_from_checkout", requireUser, createPurchaseOrderFromCheckout);
 purchaseOrderRoutes.post("/create_review", requireUser, requireOwnOrder, createPurchaseReview);
 
 // admin

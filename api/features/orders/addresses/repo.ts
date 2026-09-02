@@ -11,6 +11,7 @@
 // checkout and the API resolves it against the book. Returning the snapshot's
 // id would break checkout - which is the note the order projection carries at
 // the top of its own file.
+import { randomUUID } from "node:crypto";
 import query from "#shared/db/query.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
 import type { orders } from "@dorado/contracts";
@@ -37,10 +38,15 @@ export async function getMany(
 
 // The order's address link, written at placement: the snapshot it took and the
 // book row it came from. Upsert on order_id - re-recording an address is a
-// correction, not a second link.
-export async function link(
-  id: string, order_id: string, address_id: string, source_address_id: string | null,
-  executor?: Executor
-): Promise<void> {
-  await query(sql("link"), [id, order_id, address_id, source_address_id], executor);
+// correction, not a second link. Takes the ROW (Jacob, 2026-09-01).
+export type NewOrderAddress = {
+  id?: string; order_id: string; address_id: string; source_address_id?: string | null;
+};
+
+export async function link(row: NewOrderAddress, executor?: Executor): Promise<void> {
+  await query(
+    sql("link"),
+    [row.id ?? randomUUID(), row.order_id, row.address_id, row.source_address_id ?? null],
+    executor
+  );
 }
