@@ -106,6 +106,15 @@ export async function isActive(
   return await addresses.isActive(address_id, user_id, executor);
 }
 
+// The order-time freeze (D208): copy the address as it stands and hand back
+// the copy's id. Owned here because places.addresses is this feature's table -
+// an order links to the snapshot through its own orders.addresses repo.
+export async function snapshot(
+  address_id: string, executor?: Executor
+): Promise<string | null> {
+  return await addresses.snapshot(address_id, executor);
+}
+
 // WHETHER AN ADDRESS IS IN THIS USER'S BOOK - the ownership question, which
 // is a different question from isActive above (that one asks whether an
 // unfinished order LOCKS the address). The checkout row's address slots are

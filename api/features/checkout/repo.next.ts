@@ -497,3 +497,50 @@ export async function linkFulfillment(
     client
   );
 }
+
+// The row by its own id - what order creation holds when it consumes a
+// checkout. Same projection as getRow.
+export async function getRowById(
+  checkout_id: string, client?: Executor
+): Promise<CheckoutRow | undefined> {
+  const { rows } = await query<CheckoutRow>(
+    `SELECT ${ROW_COLUMNS} FROM checkout.checkouts WHERE id = $1`,
+    [checkout_id],
+    client
+  );
+  return rows[0];
+}
+
+export type CheckoutItemForOrder = {
+  id: string;
+  bullion_id: string | null;
+  metal_id: string | null;
+  pre_melt: number | null;
+  post_melt: number | null;
+  purity: number | null;
+  content: number | null;
+  unit: string | null;
+  premium: number | null;
+  quantity: number | null;
+};
+
+// The items as an ORDER needs them: metal resolved through the product when
+// the line does not carry one (orders.items.metal_id is NOT NULL; a product
+// knows its own metal, a scrap line already has one).
+export async function getItemsForOrder(
+  checkout_id: string, client?: Executor
+): Promise<CheckoutItemForOrder[]> {
+  const { rows } = await query<CheckoutItemForOrder>(
+    `SELECT i.id, i.bullion_id,
+            coalesce(i.metal_id, b.metal_id) AS metal_id,
+            i.pre_melt, i.post_melt, i.purity, i.content, i.unit,
+            i.premium, i.quantity
+       FROM checkout.items i
+       LEFT JOIN products.bullion b ON b.id = i.bullion_id
+      WHERE i.checkout_id = $1
+      ORDER BY i.created_at, i.id`,
+    [checkout_id],
+    client
+  );
+  return rows;
+}

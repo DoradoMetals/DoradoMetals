@@ -88,3 +88,13 @@ export async function remove(id: string, executor?: Executor): Promise<number> {
   const r = await query(sql("delete"), [id], executor);
   return r.rowCount ?? 0;
 }
+
+// A frozen copy of the address as it is NOW - the row an order records so
+// later edits to the book cannot rewrite where a parcel went. Returns null
+// when the source does not exist; the caller decides whether that refuses.
+export async function snapshot(
+  address_id: string, executor?: Executor
+): Promise<string | null> {
+  const { rows } = await query<{ id: string }>(sql("snapshot"), [address_id], executor);
+  return rows[0]?.id ?? null;
+}

@@ -129,3 +129,17 @@ export async function setPayoutAccount(
   );
   return rows[0];
 }
+
+// The twelve money values, in sql/create.sql's order. The five renames from
+// exchange's names are stated in that file.
+export type TotalsValues = [
+  number | null, number | null, string | null, number | null,
+  number | null, number | null, boolean | null,
+  number | null, number | null, number | null, number | null,
+];
+
+export async function create(
+  id: string, order_id: string, values: TotalsValues, by: string | null, executor?: Executor
+): Promise<void> {
+  await query(sql("create"), [id, order_id, ...values, by], executor);
+}

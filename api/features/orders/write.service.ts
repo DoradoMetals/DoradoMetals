@@ -28,6 +28,10 @@
 // tests/write.service.test.ts.
 import { randomUUID } from "node:crypto";
 import * as orders from "#features/orders/repo.ts";
+import * as orderItems from "#features/orders/items/repo.ts";
+import * as orderSpots from "#features/orders/spots/repo.ts";
+import * as orderAddresses from "#features/orders/addresses/repo.ts";
+import * as orderTransactions from "#features/orders/transactions/repo.ts";
 import * as legacyPurchase from "#legacy/purchase-orders/repo.ts";
 import * as legacySales from "#legacy/sales-orders/repo.ts";
 import * as refinerOrders from "#features/refiners/orders/repo.ts";
@@ -113,7 +117,7 @@ export async function insertSalesOrder(
   // the invariant the backfill established, maintained for new traffic.
   await refinerOrders.ensureForOrder(id, executor);
 
-  await orders.createTotals(
+  await orderTransactions.create(
     randomUUID(),
     id,
     [
@@ -137,7 +141,7 @@ export async function insertSalesOrder(
   // taken at checkout by features/orders/create.ts on the path that replaces
   // this one, and until then exchange records only the book id - so recording
   // it as both is the honest reading of what exchange holds, not an invention.
-  await orders.createAddress(
+  await orderAddresses.link(
     randomUUID(), id, sales_order.address.id, sales_order.address.id, executor
   );
 
@@ -202,8 +206,13 @@ export async function insertSalesItems(
     const premium = asNumber(item.ask_premium);
     const tax_rate = asNumber(item.sales_tax_rate);
 
-    await orders.createItem(
-      id, orderId, product_id, metalOf(item), price, quantity, premium, tax_rate, executor
+    // The canonical items statement (orders/items) - a sales line is bullion
+    // with no weights, confirmed at birth, taxed at its quoted rate.
+    await orderItems.create(
+      id,
+      [orderId, product_id, metalOf(item), null, null, null, null,
+       premium, quantity, true, tax_rate ?? 0, null, price],
+      executor
     );
     await legacySales.createItem(
       id, orderId, product_id, price, quantity, premium, tax_rate, executor
@@ -234,7 +243,7 @@ export async function insertSalesOrderMetals(
     // than invented - the INSERT ... JOIN this replaces did the same by
     // matching no row.
     if (metal_id) {
-      await orders.createSpot(
+      await orderSpots.create(
         randomUUID(), orderId, metal_id, spot.ask ?? null, spot.bid ?? null, executor
       );
     }

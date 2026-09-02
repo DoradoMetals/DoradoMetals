@@ -127,6 +127,15 @@ export async function setBullion(
   return rows[0];
 }
 
+export type ScrapLine = { id: string; metal: string | null; content: number | null };
+
+export async function scrapLinesFor(
+  order_id: string, executor?: Executor
+): Promise<ScrapLine[]> {
+  const { rows } = await query<ScrapLine>(sql("scrap_lines"), [order_id], executor);
+  return rows;
+}
+
 export async function setPremium(
   id: string, premium: number | null, executor?: Executor
 ): Promise<{ id: string; order_id: string } | undefined> {

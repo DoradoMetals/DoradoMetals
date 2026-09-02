@@ -220,54 +220,22 @@ export async function createSalesOrder(
   return rows[0];
 }
 
-// THE FOUR ROWS THAT ARE WRITTEN WITH A SALES ORDER AND ONLY WITH IT.
-//
-// Not split into four write-only repos: a sales order's money, its lines, its
-// address link and its quoted spots are only ever written TOGETHER, in one
-// transaction, from one payload, so four files no caller can use
-// independently would be four files and one service calling all four in a
-// fixed order anyway. The READS of those tables are already split properly -
-// orders/transactions, orders/items, orders/addresses, orders/spots each own
-// their table and are shared with purchase orders.
+// The sub-table writes that used to sit here - createTotals, createItem,
+// createAddress, createSpot - live with their tables now (orders/transactions,
+// orders/items, orders/addresses, orders/spots), which is what this file's own
+// header has always said. The defence for keeping them here was "only ever
+// written together", and create.ts writing three of the four independently is
+// what proved it false (Jacob, 2026-09-01: separation of concerns - transport,
+// service, repo - and a spots write does not live in the parent repo).
 
-// The twelve money values, in sql/create_totals.sql's order. The five renames
-// from exchange's names are stated in that file.
-type TotalsValues = [
-  number | null, number | null, string | null, number | null,
-  number | null, number | null, boolean | null,
-  number | null, number | null, number | null, number | null,
-];
-
-export async function createTotals(
-  id: string, order_id: string, values: TotalsValues, by: string | null, executor?: Executor
-): Promise<void> {
-  await query(sql("create_totals"), [id, order_id, ...values, by], executor);
-}
-
-export async function createItem(
-  id: string, order_id: string, bullion_id: string | null, metal_id: string,
-  price: number | null, quantity: number | null, premium: number | null,
-  sales_tax_charged: number | null, executor?: Executor
-): Promise<void> {
-  await query(
-    sql("create_item"),
-    [id, order_id, bullion_id, metal_id, price, quantity, premium, sales_tax_charged ?? 0],
-    executor
+export async function createFromCheckout(
+  user_id: string, direction: string, status: string,
+  notes: string | null, created_by_id: string | null, executor?: Executor
+): Promise<{ id: string; number: number }> {
+  const { rows } = await query<{ id: string; number: number }>(
+    sql("create_from_checkout"), [user_id, direction, status, notes, created_by_id], executor
   );
-}
-
-export async function createAddress(
-  id: string, order_id: string, address_id: string, source_address_id: string | null,
-  executor?: Executor
-): Promise<void> {
-  await query(sql("create_address"), [id, order_id, address_id, source_address_id], executor);
-}
-
-export async function createSpot(
-  id: string, order_id: string, metal_id: string,
-  ask: number | null, bid: number | null, executor?: Executor
-): Promise<void> {
-  await query(sql("create_spot"), [id, order_id, metal_id, ask, bid], executor);
+  return rows[0];
 }
 
 // Writes the ENGAGEMENT (refiners.orders, 093) - orders.orders.refinery_id

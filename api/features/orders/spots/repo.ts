@@ -86,6 +86,13 @@ export async function create(
   return rows[0];
 }
 
+// Set-based: every metal the order's lines name, in one statement, at the
+// current spots. The per-row create above is the admin add-a-metal path; this
+// is placement's.
+export async function freezeFromItems(order_id: string, executor?: Executor): Promise<void> {
+  await query(sql("freeze_from_items"), [order_id], executor);
+}
+
 // ONE FUNCTION FOR TWO EXCHANGE ONES. updateOrderMetals looped over a list and
 // updateSpot took one, but the statement was identical - so the loop lives in
 // the caller and this is the single write.

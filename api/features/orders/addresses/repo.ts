@@ -34,3 +34,13 @@ export async function getMany(
   const { rows } = await query<OrderAddressRow>(sql("get_many"), [order_ids], executor);
   return rows;
 }
+
+// The order's address link, written at placement: the snapshot it took and the
+// book row it came from. Upsert on order_id - re-recording an address is a
+// correction, not a second link.
+export async function link(
+  id: string, order_id: string, address_id: string, source_address_id: string | null,
+  executor?: Executor
+): Promise<void> {
+  await query(sql("link"), [id, order_id, address_id, source_address_id], executor);
+}
