@@ -42,43 +42,36 @@ test("a customer cannot reach any lead route", async () => {
   });
 });
 
-test("create writes BOTH schemas, in one transaction, with the same id", async () => {
+test("create writes the row the id names", async () => {
   await inPinnedTransaction(async (client: PoolClient) => {
     await as({ ...admin, role: "admin" }, async () => {
       const res = await request(app).post("/api/leads/create").send({ lead: NEW_LEAD });
       assert.equal(res.status, 200, `answered ${res.status}: ${JSON.stringify(res.body)}`);
       assert.ok(res.body.id, "no id came back");
 
-      // THE POINT OF THE PHASE: the row exists in both, under one id.
       const nu = await client.query(`SELECT id, name FROM leads.leads WHERE id = $1`, [res.body.id]);
-      const ex = await client.query(`SELECT id, name FROM exchange.leads WHERE id = $1`, [res.body.id]);
       assert.equal(nu.rows.length, 1, "not written to leads.leads");
-      assert.equal(ex.rows.length, 1, "not written to exchange.leads - the fallback would be incomplete");
       assert.equal(nu.rows[0].name, NEW_LEAD.name);
-      assert.equal(ex.rows[0].name, NEW_LEAD.name);
     });
   });
 });
 
-test("the read comes from the new schema", async () => {
+test("the read serves what the table holds", async () => {
   await inPinnedTransaction(async (client: PoolClient) => {
     await as({ ...admin, role: "admin" }, async () => {
       const res = await request(app).post("/api/leads/create").send({ lead: NEW_LEAD });
       const id = res.body.id;
 
-      // Diverge the two deliberately: only the new schema is read, so only its
-      // value may come back. If this ever reads exchange, the assertion fails.
       await client.query(`UPDATE leads.leads SET name = $1 WHERE id = $2`, ["FROM-NEW-SCHEMA", id]);
-      await client.query(`UPDATE exchange.leads SET name = $1 WHERE id = $2`, ["FROM-EXCHANGE", id]);
 
       const one = await request(app).get("/api/leads/get_one").query({ lead_id: id });
       assert.equal(one.status, 200);
-      assert.equal(one.body.name, "FROM-NEW-SCHEMA", "the read came from exchange");
+      assert.equal(one.body.name, "FROM-NEW-SCHEMA", "the read did not serve the row");
     });
   });
 });
 
-test("update writes both, and delete removes from both", async () => {
+test("update writes the row, and delete removes it", async () => {
   await inPinnedTransaction(async (client: PoolClient) => {
     await as({ ...admin, role: "admin" }, async () => {
       const created = (await request(app).post("/api/leads/create").send({ lead: NEW_LEAD })).body;
@@ -87,17 +80,15 @@ test("update writes both, and delete removes from both", async () => {
         .post("/api/leads/update")
         .send({ lead: { ...created, name: "Renamed" }, user_name: admin.name });
       assert.equal(upd.status, 200);
-      for (const t of ["leads.leads", "exchange.leads"]) {
-        const { rows } = await client.query(`SELECT name FROM ${t} WHERE id = $1`, [created.id]);
-        assert.equal(rows[0]?.name, "Renamed", `${t} was not updated`);
-      }
+      const { rows: renamed } = await client.query(
+        `SELECT name FROM leads.leads WHERE id = $1`, [created.id]);
+      assert.equal(renamed[0]?.name, "Renamed", "leads.leads was not updated");
 
       const del = await request(app).delete("/api/leads/delete").send({ lead_id: created.id });
       assert.equal(del.status, 200);
-      for (const t of ["leads.leads", "exchange.leads"]) {
-        const { rows } = await client.query(`SELECT 1 FROM ${t} WHERE id = $1`, [created.id]);
-        assert.equal(rows.length, 0, `${t} still holds the deleted lead`);
-      }
+      const { rows: gone } = await client.query(
+        `SELECT 1 FROM leads.leads WHERE id = $1`, [created.id]);
+      assert.equal(gone.length, 0, "leads.leads still holds the deleted lead");
     });
   });
 });

@@ -8,20 +8,20 @@
 // very feature, so the order is asserted rather than trusted.
 import test from "node:test";
 import assert from "node:assert/strict";
-import { sqlWithLegacy } from "#shared/testing/sql.ts";
+import path from "node:path";
+import { sqlFrom } from "#shared/db/sql.ts";
 
-// features/reviews/sql AND legacy/reviews/sql - the two halves of the
+// features/reviews/sql - the statements of the
 // dual write, pinned against each other in one file (ruling 29 moved the
 // mirror out of this feature; the pin did not follow it, because the pin IS
 // the comparison between the two).
-const sql = sqlWithLegacy("reviews");
+const sql = sqlFrom(path.join(import.meta.dirname, ".."));
 
 const body = (name: string): string =>
   sql(name).split("\n").filter((l) => !l.trim().startsWith("--")).join("\n");
 
 test("every statement loads and is not empty", () => {
-  for (const n of ["get_one", "get_all", "get_public", "create", "update", "delete",
-                   "legacy/create", "legacy/update", "legacy/delete"]) {
+  for (const n of ["get_one", "get_all", "get_public", "create", "update", "delete"]) {
     assert.ok(sql(n).trim().length > 0, `${n} is empty`);
   }
 });
@@ -69,10 +69,6 @@ test("each statement targets the schema its file name claims", () => {
   for (const n of ["get_one", "get_all", "get_public", "create", "update", "delete"]) {
     assert.match(body(n), /reviews\.reviews/, `${n} does not target reviews.reviews`);
     assert.doesNotMatch(body(n), /exchange\./, `${n} touches exchange`);
-  }
-  for (const n of ["legacy/create", "legacy/update", "legacy/delete"]) {
-    assert.match(body(n), /exchange\.reviews/, `${n} does not target exchange.reviews`);
-    assert.doesNotMatch(body(n), /reviews\.reviews/, `${n} touches reviews.reviews`);
   }
 });
 

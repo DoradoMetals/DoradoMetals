@@ -64,7 +64,7 @@ if (process.argv.includes("--self-test")) {
       {
         name: "the literal floor fires on a tree with no statements in it",
         rootEnv: "AUDIT_QP_ROOT",
-        files: { "features/x/service.ts": "export const noop = () => 1;\n", "shared/keep.ts": "export const k = 1;\n", "legacy/keep.ts": "export const l = 1;\n" },
+        files: { "features/x/service.ts": "export const noop = () => 1;\n", "shared/keep.ts": "export const k = 1;\n", },
         expect: "fail", mustPrint: "the walk is broken, not the schema",
       },
       {
@@ -162,10 +162,7 @@ const scan = (sql, file, line) => {
 };
 
 for (const f of walk(path.join(ROOT, "features"))
-  .concat(walk(path.join(ROOT, "shared")))
-  // legacy/ holds the dual-write mirrors since the 26c factoring; their
-  // statements are as live as any other until promotion.
-  .concat(walk(path.join(ROOT, "legacy")))) {
+  .concat(walk(path.join(ROOT, "shared")))) {
   const src = fs.readFileSync(f, "utf8");
   // A .sql file IS the statement; a .ts file carries them in backticks.
   const blobs = f.endsWith(".sql")

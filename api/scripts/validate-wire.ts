@@ -43,59 +43,9 @@ const cases: Case[] = [];
 const add = (name: string, schema: WireSchema, load: () => unknown, many = true) =>
   cases.push({ name, schema, load, many });
 
-// Registers the same endpoint twice, once per implementation. `read` receives
-// the module, so it can call whichever function the route calls.
-//
-// A missing implementation is skipped, but only after checking the filesystem
-// for one. The first version of this swallowed every import error, and leads
-// quietly disappeared from the run because its repo.next is TypeScript and the
-// hardcoded `.js` threw - a check reporting success for a file it could not
-// see. If a repo.next exists and will not load, that is a failure, not a skip.
-const bothWays = async (
-  name: string,
-  schema: WireSchema,
-  dir: string,
-  read: (mod: Record<string, unknown>) => unknown,
-  many = true
-) => {
-  // A directory with NEITHER implementation is a wrong name, not a feature that
-  // happens to have none - and the per-impl `continue` below would swallow it
-  // silently, taking the endpoint out of the run with nothing to show for it.
-  // Renaming features/suppliers to features/refiners did exactly that: the count
-  // went from 57 shapes to 53 and every remaining line still said ok.
-  const anyImpl = ["exchange", "next"].some((impl) =>
-    [".js", ".ts"].some((e) =>
-      fs.existsSync(path.join(import.meta.dirname, "..", "features", dir, `repo.${impl}${e}`))
-    )
-  );
-  if (!anyImpl) {
-    add(`${name} [${dir}]`, schema, () => {
-      throw new Error(
-        `features/${dir} has no repo.exchange and no repo.next - the directory ` +
-          `name is wrong, so this endpoint was being skipped rather than checked`
-      );
-    });
-    return;
-  }
-
-  for (const impl of ["exchange", "next"]) {
-    const base = path.join(import.meta.dirname, "..", "features", dir, `repo.${impl}`);
-    const ext = [".js", ".ts"].find((e) => fs.existsSync(base + e));
-    if (!ext) continue;
-
-    let mod: Record<string, unknown>;
-    try {
-      mod = await import(`#features/${dir}/repo.${impl}${ext}`);
-    } catch (err) {
-      const why = err instanceof Error ? err.message : String(err);
-      add(`${name} [${impl}]`, schema, () => {
-        throw new Error(`repo.${impl}${ext} exists but will not import: ${why}`);
-      });
-      continue;
-    }
-    add(`${name} [${impl}]`, schema, () => read(mod), many);
-  }
-};
+// `bothWays` IS RETIRED (D212): there is one implementation per feature now,
+// so every endpoint is a direct check. The two-way machinery lived here from
+// the switch era; git has it.
 
 
 // The public list was checked ONE WAY while the admin list right below it was
@@ -279,7 +229,13 @@ const intents = async (m: Record<string, unknown>) => {
   }
   return out;
 };
-await bothWays("GET /stripe/get_sales_order_payment_intent", c.PaymentIntent, "payments", intents);
+// Payments promoted (D212): one implementation, checked directly like every
+// other restructured feature.
+add(
+  "GET /stripe/get_sales_order_payment_intent [payments]",
+  c.PaymentIntent,
+  async () => intents(await import("#features/payments/repo.ts"))
+);
 
 // The catalogue. The other feature that had no contract, and one the frontend
 // leans on hardest - every price on the site is derived from these numbers.

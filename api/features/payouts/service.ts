@@ -11,7 +11,8 @@
 // success - not the row - so nothing here can grow into a leak.
 import * as payoutsRepo from "#features/payouts/repo.ts";
 import * as payoutDetails from "#features/payments/details/service.ts";
-import * as purchaseOrderService from "#features/orders/service.ts";
+import * as payoutAccounts from "#features/payments/details/repo.ts";
+import * as orderTransactions from "#features/orders/transactions/service.ts";
 import { refusedUnknownField, refusedValue, type Refusal } from "#shared/http/patch-body.ts";
 import { PayoutPatch } from "@dorado/contracts";
 
@@ -53,28 +54,29 @@ export async function patchPayout(
   const refusal = refusedField(body);
   if (refusal) refuse(refusal.statusCode, refusal.message);
 
+  // ONE LOOKUP SINCE D213. getById reads payments.details joined to
+  // orders.transactions, so it resolves every payout of either era and brings
+  // the order with it; the second, order-resolving read this used to need for
+  // a D210 id is gone. The two refusals stay distinct because the LEFT join
+  // keeps them distinguishable - see sql/get_by_id.sql.
   const payout = await payoutsRepo.getById(payoutId);
-  // A new-flow id (D210) names a details row; its order resolves through
-  // orders.transactions and the same order-keyed writes apply.
-  const nativeOrder = payout ? null : await payoutsRepo.orderOfDetails(payoutId);
-  if (!payout && !nativeOrder) refuse(404, `no payout ${payoutId}`);
-  if (payout && !payout.order_id) {
+  if (!payout) refuse(404, `no payout ${payoutId}`);
+  if (!payout!.order_id) {
     refuse(422, `payout ${payoutId} is attached to no order, so its writes have no subject`);
   }
-  const orderId = (payout?.order_id ?? nativeOrder)!;
+  const orderId = payout!.order_id!;
 
   if (body.cost !== undefined) {
-    await purchaseOrderService.editPayoutCharge({
-      order_id: orderId,
-      payout_charge: body.cost,
-    });
+    // The fee is orders.transactions.payout_fee (073 split it off the
+    // account), written through that table's one update.
+    await orderTransactions.update(orderId, { payout_fee: body.cost });
   }
 
   if (body.method !== undefined) {
-    await purchaseOrderService.changePayoutMethod({
-      order_id: orderId,
-      method: body.method,
-    });
+    // The method is a FOREIGN KEY on payments.details, resolved against
+    // payments.methods rather than stored as a string. The walk runs through
+    // orders.transactions.payout_details_id, the link 099 added.
+    await payoutAccounts.setMethodForOrder(orderId, body.method);
   }
 
   // THE WAIVER, AND IT DOES NOT TOUCH `cost`. Waiving sets the flag and the
@@ -84,13 +86,14 @@ export async function patchPayout(
   // that sets a fee and waives it in one request leaves both facts recorded,
   // the same ordering rule the order PATCH uses for status.
   if (body.waive_payout_fee !== undefined) {
-    const { written } = await purchaseOrderService.setWaivePayoutFee({
-      order_id: orderId,
-      waived: body.waive_payout_fee,
-    });
-    // The flag is a purchase-order column; every payout in production hangs
-    // off one. A payout whose order is a SALE has nowhere to record this, and
-    // saying so is better than a 200 that wrote nothing.
+    // Guarded to the purchase direction IN THE STATEMENT: a payout fee is a
+    // purchase-order fact, and a payout hanging off a SALE has nowhere to
+    // record the flag - saying so beats a 200 that wrote nothing.
+    const written = await orderTransactions.update(
+      orderId,
+      { waive_payout_fee: body.waive_payout_fee },
+      { direction: "purchase" }
+    );
     if (!written) {
       refuse(422, `payout ${payoutId} is not on a purchase order, so its fee cannot be waived`);
     }
@@ -108,12 +111,22 @@ export async function getDetails(
   const legacy = await payoutsRepo.getDetails(id);
   if (legacy) return legacy;
 
-  // A new-flow id names a payments.details row whose numbers are SEALED
-  // (D210); this endpoint is their single door, and the decrypt happens in
-  // the details service - the envelopes never open anywhere else.
+  // THE ID IS A payments.details ID SINCE D213. On a database built by 073
+  // that is the same value as the old payout id and the read above answered.
+  // Where the dual era minted a details row with a fresh id, the plaintext
+  // still exists on the order's exchange payout - walk to it rather than
+  // reporting nothing for numbers that are sitting right there.
+  const order_id = await payoutsRepo.orderOfDetails(id);
+  if (order_id) {
+    const byOrder = await payoutsRepo.getDetailsByOrder(order_id);
+    if (byOrder) return byOrder;
+  }
+
+  // Otherwise the numbers are SEALED (D210); this endpoint is their single
+  // door, and the decrypt happens in the details service - the envelopes never
+  // open anywhere else.
   const opened = await payoutDetails.decryptFor(id);
   if (!opened) return undefined;
-  const order_id = await payoutsRepo.orderOfDetails(id);
   return {
     id,
     user_id: null,

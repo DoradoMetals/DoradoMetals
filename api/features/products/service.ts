@@ -3,7 +3,6 @@
 import { randomUUID } from "node:crypto";
 import withTransaction from "#shared/db/withTransaction.ts";
 import * as products from "#features/products/repo.ts";
-import * as legacy from "#legacy/products/repo.ts";
 import * as compose from "#features/products/compose.ts";
 import type { StorefrontProduct, AdminProduct } from "#features/products/compose.ts";
 import type { ProductValues, Liveness } from "#features/products/repo.ts";
@@ -239,7 +238,6 @@ export async function saveProduct(
   const run = async (c: Executor): Promise<{ id: string } | undefined> => {
     const written = await products.update(id, values, c);
     if (!written) return undefined;
-    await legacy.update(id, values, c);
     return { id: written };
   };
   return executor ? await run(executor) : await withTransaction(run);
@@ -254,7 +252,6 @@ export async function createProduct(
   const run = async (c: Executor): Promise<AdminProduct | undefined> => {
     const id = randomUUID();
     await products.create(id, name, created_by, EXCHANGE_CREATE_DEFAULTS, c);
-    await legacy.create(id, name, created_by, c);
     return await getAdminProductById(id, c);
   };
   return executor ? await run(executor) : await withTransaction(run);

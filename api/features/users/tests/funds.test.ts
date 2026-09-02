@@ -107,16 +107,17 @@ test("removing more than the balance goes negative rather than refusing", async 
 test("a transaction log records the movement", async () => {
   await inRollback(async (c: PoolClient) => {
     const user = await aUser(c);
-    const { rows: [order] } = await c.query("SELECT id FROM exchange.purchase_orders LIMIT 1");
+    const { rows: [order] } = await c.query(
+      "SELECT id FROM orders.orders WHERE direction = 'purchase' LIMIT 1");
     await transactions.addTransactionLog(user.id, "credit", order.id, null, 42.5, c);
 
     const { rows } = await c.query(
-      `SELECT amount, transaction_type FROM exchange.account_transactions
-       WHERE user_id = $1 AND purchase_order_id = $2 ORDER BY created_at DESC LIMIT 1`,
+      `SELECT amount, type FROM payments.ledger
+       WHERE user_id = $1 AND order_id = $2 ORDER BY created_at DESC LIMIT 1`,
       [user.id, order.id]
     );
     assert.equal(Number(rows[0].amount), 42.5);
-    assert.equal(rows[0].transaction_type, "credit");
+    assert.equal(rows[0].type, "credit");
   });
 });
 
@@ -129,7 +130,7 @@ test("a rolled-back movement leaves neither the balance nor the log changed", as
     const user = await aUser(other);
     const before = await balance(other, user.id);
     const { rows: [{ n: logsBefore }] } = await other.query(
-      "SELECT count(*)::int n FROM exchange.account_transactions WHERE user_id = $1", [user.id]
+      "SELECT count(*)::int n FROM payments.ledger WHERE user_id = $1", [user.id]
     );
 
     await client.query("BEGIN");
@@ -144,7 +145,7 @@ test("a rolled-back movement leaves neither the balance nor the log changed", as
 
     assert.equal(await balance(other, user.id), before);
     const { rows: [{ n: logsAfter }] } = await other.query(
-      "SELECT count(*)::int n FROM exchange.account_transactions WHERE user_id = $1", [user.id]
+      "SELECT count(*)::int n FROM payments.ledger WHERE user_id = $1", [user.id]
     );
     assert.equal(logsAfter, logsBefore, "a log entry survived a rolled-back movement");
   } finally {

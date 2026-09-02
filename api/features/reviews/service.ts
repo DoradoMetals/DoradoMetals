@@ -12,8 +12,10 @@
 import { randomUUID } from "node:crypto";
 import withTransaction from "#shared/db/withTransaction.ts";
 import * as reviews from "#features/reviews/repo.ts";
-import * as legacy from "#legacy/reviews/repo.ts";
-import { toWire, listToWire, type ReviewWire } from "#features/reviews/wire.ts";
+import type { ReviewRow } from "#features/reviews/repo.ts";
+
+// The wire IS the row - the identity adapter died with D212.
+export type ReviewWire = ReviewRow;
 import type { ReviewInput } from "#features/reviews/repo.ts";
 
 interface HttpError extends Error { statusCode?: number }
@@ -27,22 +29,21 @@ const notFound = (id: string): HttpError => {
 export async function getOne(id: string): Promise<ReviewWire> {
   const row = await reviews.getOne(id);
   if (!row) throw notFound(id);
-  return toWire(row);
+  return row;
 }
 
 export async function getAll(): Promise<ReviewWire[]> {
-  return listToWire(await reviews.getAll());
+  return await reviews.getAll();
 }
 
 export async function getPublic(): Promise<ReviewWire[]> {
-  return listToWire(await reviews.getPublic());
+  return await reviews.getPublic();
 }
 
 export async function create(review: ReviewInput): Promise<ReviewWire> {
   const id = randomUUID();
   return withTransaction(async (client) => {
-    await legacy.create(id, review, client);
-    return toWire(await reviews.create(id, review, client));
+    return await reviews.create(id, review, client);
   });
 }
 
@@ -51,16 +52,14 @@ export async function update(
   user_name: string
 ): Promise<ReviewWire> {
   return withTransaction(async (client) => {
-    await legacy.update(review, user_name, client);
     const row = await reviews.update(review, user_name, client);
     if (!row) throw notFound(review.id);
-    return toWire(row);
+    return row;
   });
 }
 
 export async function remove(id: string): Promise<number> {
   return withTransaction(async (client) => {
-    await legacy.remove(id, client);
     return await reviews.remove(id, client);
   });
 }

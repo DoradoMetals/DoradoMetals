@@ -12,11 +12,7 @@
     "lint:imports": "node scripts/lint-imports.mjs",
     "lint:namespace-calls": "node scripts/lint-namespace-calls.mjs",
     "lint:row-vs-list": "node scripts/lint-row-vs-list.ts",
-    "lint:legacy-boundary": "node scripts/lint-legacy-boundary.mjs",
-    "lint:legacy-boundary:self-test": "node scripts/lint-legacy-boundary.mjs --self-test",
     "audit:routes": "node scripts/route-guards.ts --list",
-    "audit:switches": "node scripts/audit-switches.mjs",
-    "audit:wire-readiness": "node scripts/audit-wire-readiness.mjs",
     "audit:frontend-nullability": "node scripts/audit-frontend-nullability.ts",
     "migrate": "node scripts/migrate.mjs",
     "generate:feature": "TZ=UTC node scripts/generate-feature.mjs",
@@ -25,7 +21,6 @@
     "validate:wire": "TZ=UTC node scripts/validate-wire.ts",
     "typecheck": "tsc -p tsconfig.json",
     "typecheck:sweep": "tsc -p tsconfig.json --noEmit --checkJs --noImplicitAny false",
-    "diff": "TZ=UTC node scripts/diff-source.ts",
     "verify:sales-order-decomposition": "TZ=UTC node scripts/verify-sales-order-decomposition.mjs",
     "verify:orders-decomposition": "TZ=UTC node scripts/verify-orders-decomposition.mjs",
     "verify:parity": "TZ=UTC node scripts/verify-parity.mjs",
@@ -86,12 +81,9 @@
     "lint:namespace-calls:self-test": "node scripts/lint-namespace-calls.mjs --self-test",
     "lint:row-vs-list:self-test": "node scripts/lint-row-vs-list.ts --self-test",
     "lint:migrations:self-test": "node scripts/lint-migrations.ts --self-test",
-    "audit:switches:self-test": "node scripts/audit-switches.mjs --self-test",
     "audit:query-paths:self-test": "TZ=UTC node scripts/audit-query-paths.mjs --self-test",
     "audit:routes:self-test": "node scripts/route-guards.ts --self-test",
-    "audit:frontend-nullability:self-test": "node scripts/audit-frontend-nullability.ts --self-test",
-    "diff:list": "TZ=UTC node scripts/diff-source.ts --list",
-    "diff:self-test": "TZ=UTC node scripts/diff-source.ts --self-test"
+    "audit:frontend-nullability:self-test": "node scripts/audit-frontend-nullability.ts --self-test"
   },
   "imports": {
     "#env": "./env.ts",
@@ -99,7 +91,6 @@
     "#app": "./app.ts",
     "#shared/*": "./shared/*",
     "#features/*": "./features/*",
-    "#legacy/*": "./legacy/*",
     "#providers/*": "./providers/*"
   },
   "keywords": [],

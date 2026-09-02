@@ -21,11 +21,10 @@ import { mockSessions, restoreSessions, as } from "#shared/testing/session.ts";
 import { inPinnedTransaction, outside } from "#shared/testing/pinned-pool.ts";
 import { LOCKS } from "#shared/testing/locks.ts";
 
-// Both tests write exchange.scrap/purchase_order_items AND - now that dual is
-// the dev default - orders.items through the mirror. The lock declaration has
-// to cover the tables the test writes TODAY, not the ones it wrote when its
-// author was thinking about exchange alone: without ORDERS this file passed
-// alone and 500'd in the full run, colliding with the order-placing files.
+// Both tests write orders.items (and its refiners.items counterpart) - the
+// scrap IS the line since D212. The lock declaration has to cover the tables
+// the test writes TODAY: without ORDERS this file passed alone and 500'd in
+// the full run, colliding with the order-placing files.
 const ITEM_LOCKS = [LOCKS.SCRAP_SWEEP, LOCKS.ORDERS];
 
 await mockSessions();
@@ -51,8 +50,8 @@ before(async () => {
 
   order = (
     await outside<OrderFixture>(
-      `SELECT id, user_id FROM exchange.purchase_orders
-        WHERE user_id IS NOT NULL ORDER BY id LIMIT 1`
+      `SELECT id, user_id FROM orders.orders
+        WHERE direction = 'purchase' AND user_id IS NOT NULL ORDER BY id LIMIT 1`
     )
   )[0];
   assert.ok(order, "dev needs a purchase order with a user");
@@ -65,8 +64,11 @@ before(async () => {
   // A bullion line - one with a product rather than scrap.
   bullionItem = (
     await outside<ItemFixture>(
-      `SELECT id, purchase_order_id, premium FROM exchange.purchase_order_items
-        WHERE product_id IS NOT NULL ORDER BY id LIMIT 1`
+      `SELECT i.id, i.order_id AS purchase_order_id, i.premium
+         FROM orders.items i
+         JOIN orders.orders o ON o.id = i.order_id
+        WHERE o.direction = 'purchase' AND i.bullion_id IS NOT NULL
+        ORDER BY i.id LIMIT 1`
     )
   )[0];
   assert.ok(bullionItem, "dev needs a bullion line on a purchase order");
@@ -96,7 +98,7 @@ test("the bullion field writes the line's quantity", async () => {
       assert.equal(res.status, 200, `answered ${res.status}: ${JSON.stringify(res.body)}`);
 
       const { rows } = await client.query(
-        `SELECT quantity FROM exchange.purchase_order_items WHERE id = $1`,
+        `SELECT quantity FROM orders.items WHERE id = $1`,
         [bullionItem.id]
       );
       assert.equal(Number(rows[0].quantity), 7, "the quantity did not change");
@@ -104,14 +106,14 @@ test("the bullion field writes the line's quantity", async () => {
   }, { lock: ITEM_LOCKS });
 });
 
-// Creating a scrap line is three writes in one transaction: the scrap row, the
-// order line, and a re-tier of every scrap premium on the order. The count
-// assertion is what distinguishes "created" from "answered 200".
+// Creating a scrap line is the line, its refiner counterpart and a re-tier of
+// every scrap premium on the order, in one transaction. The count assertion is
+// what distinguishes "created" from "answered 200".
 test("POST :id/items adds a scrap line and its scrap row", async () => {
   await inPinnedTransaction(async (client: PoolClient) => {
     await as({ ...admin, role: "admin" }, async () => {
       const before = await client.query(
-        `SELECT count(*)::int n FROM exchange.purchase_order_items WHERE purchase_order_id = $1`,
+        `SELECT count(*)::int n FROM orders.items WHERE order_id = $1`,
         [order.id]
       );
 
@@ -131,7 +133,7 @@ test("POST :id/items adds a scrap line and its scrap row", async () => {
       assert.equal(res.status, 200, `answered ${res.status}: ${JSON.stringify(res.body)}`);
 
       const after = await client.query(
-        `SELECT count(*)::int n FROM exchange.purchase_order_items WHERE purchase_order_id = $1`,
+        `SELECT count(*)::int n FROM orders.items WHERE order_id = $1`,
         [order.id]
       );
       assert.equal(

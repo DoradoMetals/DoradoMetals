@@ -13,11 +13,10 @@
 //
 //   THE STORED FEE IS NOT OVERWRITTEN. D117 - a stored fee is a RECORD and
 //   must never be re-derived. Waiving sets the flag and the EFFECTIVE fee
-//   becomes 0; exchange.payouts.cost keeps what it would have been, so
-//   un-waiving restores that number rather than guessing one out of a defaults
-//   table that four production rows already disagree with - and they disagree
-//   in BOTH directions, two WIRE rows below the default and two ECHECK rows
-//   above it, which is why `cost` stays per-order data beside the flag.
+//   becomes 0; orders.transactions.payout_fee keeps what it would have been,
+//   so un-waiving restores that number rather than guessing one out of a
+//   defaults table that four production rows already disagree with - which is
+//   why the fee stays per-order data beside the flag.
 //
 // EACH TEST ASSERTS THE VALUE LANDS AND THE RECORD SURVIVES, not that the
 // route answered 200: a handler that returns early answers 200 too.
@@ -52,18 +51,23 @@ before(async () => {
   )[0];
   assert.ok(admin, "dev has no admin user");
 
-  // A payout on a real PURCHASE order - the flag's column is
-  // exchange.purchase_orders.waive_payout_fee, so a payout whose order is not
-  // one has nowhere to record it and the endpoint says so.
+  // A payout account on a real PURCHASE order. NATIVE SINCE D213: the id the
+  // endpoint takes is the payments.details id (what the composed order now
+  // serves as order.payout.id), the order is reached through
+  // orders.transactions.payout_details_id, and the flag's column is
+  // orders.transactions.waive_payout_fee - so a payout whose order is not a
+  // purchase has nowhere to record it and the endpoint says so.
   payout = (
     await outside<PayoutFixture>(
-      `SELECT p.id, p.order_id, p.cost
-         FROM exchange.payouts p
-         JOIN exchange.purchase_orders po ON po.id = p.order_id
-        ORDER BY p.id LIMIT 1`
+      `SELECT d.id, t.order_id, t.payout_fee AS cost
+         FROM payments.details d
+         JOIN orders.transactions t ON t.payout_details_id = d.id
+         JOIN orders.orders o ON o.id = t.order_id
+        WHERE o.direction = 'purchase'
+        ORDER BY d.id LIMIT 1`
     )
   )[0];
-  assert.ok(payout, "dev needs a payout attached to a purchase order");
+  assert.ok(payout, "dev needs a payout account attached to a purchase order");
 });
 
 after(async () => {
@@ -72,26 +76,17 @@ after(async () => {
 });
 
 const readState = async (client: PoolClient) => {
-  const { rows: legacy } = await client.query(
-    `SELECT waive_payout_fee FROM exchange.purchase_orders WHERE id = $1`,
-    [payout.order_id]
-  );
   const { rows: next } = await client.query(
-    `SELECT waive_payout_fee FROM orders.transactions WHERE order_id = $1`,
+    `SELECT waive_payout_fee, payout_fee FROM orders.transactions WHERE order_id = $1`,
     [payout.order_id]
-  );
-  const { rows: fee } = await client.query(
-    `SELECT cost FROM exchange.payouts WHERE id = $1`,
-    [payout.id]
   );
   return {
-    exchange: legacy[0]?.waive_payout_fee ?? null,
     next: next[0]?.waive_payout_fee ?? null,
-    cost: fee[0]?.cost ?? null,
+    cost: next[0]?.payout_fee ?? null,
   };
 };
 
-test("waiving sets the flag in BOTH schemas and leaves the stored fee alone", async () => {
+test("waiving sets the flag and leaves the stored fee alone", async () => {
   await inPinnedTransaction(async (client: PoolClient) => {
     await as({ ...admin, role: "admin" }, async () => {
       const before = await readState(client);
@@ -102,11 +97,6 @@ test("waiving sets the flag in BOTH schemas and leaves the stored fee alone", as
       assert.equal(res.status, 200, `answered ${res.status}: ${JSON.stringify(res.body)}`);
 
       const after = await readState(client);
-      assert.equal(after.exchange, true, "exchange.purchase_orders.waive_payout_fee did not move");
-      // The new schema is reached by the MIRROR, not by a second write: the
-      // column is on exchange.purchase_orders, so mirrorPurchaseOrder
-      // re-derives it - which is also why a native-only write here would be
-      // silently reverted by the next order write.
       assert.equal(after.next, true, "orders.transactions.waive_payout_fee did not move");
 
       // THE POINT OF THE WHOLE DESIGN. The record stands.
@@ -131,8 +121,7 @@ test("un-waiving clears the flag and the stored fee is still the same number", a
       assert.equal(off.status, 200, `un-waive answered ${off.status}`);
 
       const after = await readState(client);
-      assert.equal(after.exchange, false, "the flag did not come back off");
-      assert.equal(after.next, false, "the mirror kept the flag on");
+      assert.equal(after.next, false, "the flag did not come back off");
       // Un-waiving does not have to GUESS what the fee was, which is what a
       // waiver implemented as `cost = 0` would have forced.
       assert.equal(after.cost, before.cost, "a round trip through the waiver moved the fee");
@@ -153,16 +142,7 @@ test("a document may set the fee and waive it, and both are recorded", async () 
 
       const after = await readState(client);
       assert.equal(Number(after.cost), 125, "the per-order fee did not land");
-      assert.equal(after.exchange, true, "the waiver did not land");
-
-      // And the fee reached the NEW schema's own column too - payout_fee is
-      // not a column of exchange.purchase_orders, so the mirror cannot carry
-      // it and editPayoutCharge writes it directly.
-      const { rows } = await client.query(
-        `SELECT payout_fee FROM orders.transactions WHERE order_id = $1`,
-        [payout.order_id]
-      );
-      assert.equal(Number(rows[0]?.payout_fee), 125, "orders.transactions.payout_fee did not move");
+      assert.equal(after.next, true, "the waiver did not land");
     });
   }, { lock: ORDER_LOCK });
 });
@@ -224,11 +204,15 @@ test("a non-boolean waiver is refused by name and writes nothing", async () => {
 });
 
 test("nothing this file did survived the transactions", async () => {
+  // READ THE TABLE THE WRITES ACTUALLY LAND ON. This asserted against
+  // exchange.purchase_orders and exchange.payouts, which D212 froze - so it
+  // was reading columns no endpoint here has written since, and would have
+  // passed however badly the transaction leaked. Both facts live on
+  // orders.transactions now, which is where patchPayout sends them.
   const [row] = await outside<{ waive_payout_fee: boolean | null; cost: string | null }>(
-    `SELECT po.waive_payout_fee, p.cost
-       FROM exchange.payouts p
-       JOIN exchange.purchase_orders po ON po.id = p.order_id
-      WHERE p.id = $1`,
+    `SELECT t.waive_payout_fee, t.payout_fee AS cost
+       FROM orders.transactions t
+      WHERE t.payout_details_id = $1`,
     [payout.id]
   );
   assert.equal(row.cost, payout.cost, "a payout's real fee was moved in dev");

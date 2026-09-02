@@ -1,5 +1,6 @@
 // The create-then-charge safety net, exercised for real: seeded orders and
-// intents, both sweeps, inside the pinned transaction so nothing survives.
+// intents (payments.intents/attempts - the native record since D212), both
+// sweeps, inside the pinned transaction so nothing survives.
 import test from "node:test";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
@@ -13,17 +14,27 @@ async function seedSale(
 ): Promise<string> {
   const { rows } = await query<{ id: string }>(
     `INSERT INTO orders.orders (direction, status, number, user_id, created_at)
-     VALUES ('sale', $1, nextval('exchange.sales_orders_order_number_seq'), $2,
+     VALUES ('sale', $1, nextval('orders.sale_number_seq'), $2,
              now() - make_interval(hours => $3))
      RETURNING id`,
     [over.status ?? "Pending", over.user_id ?? null, over.ageHours ?? 0], c
   );
-  const id = rows[0]!.id;
-  await query(
-    `INSERT INTO exchange.sales_orders (id, sales_order_status) VALUES ($1, $2)`,
-    [id, over.status ?? "Pending"], c
+  return rows[0]!.id;
+}
+
+async function seedIntent(
+  c: PoolClient, provider_ref: string, status: string, order_id: string
+): Promise<void> {
+  const { rows } = await query<{ id: string }>(
+    `INSERT INTO payments.intents (type, status, amount_expected, order_id)
+     VALUES ('order', $1, 51.78, $2) RETURNING id`,
+    [status, order_id], c
   );
-  return id;
+  await query(
+    `INSERT INTO payments.attempts (id, intent_id, provider, provider_ref, amount, status)
+     VALUES ($1, $1, 'stripe', $2, 51.78, $3)`,
+    [rows[0]!.id, provider_ref, status], c
+  );
 }
 
 const statusOf = async (c: PoolClient, id: string) =>
@@ -33,11 +44,7 @@ const statusOf = async (c: PoolClient, id: string) =>
 test("the settled sweep advances an order whose webhook went missing", async () => {
   await inPinnedTransaction(async (c: PoolClient) => {
     const id = await seedSale(c);
-    await query(
-      `INSERT INTO exchange.payment_intents (type, payment_intent_id, payment_status, amount, sales_order_id)
-       VALUES ('order', $1, 'succeeded', 5178, $2)`,
-      [`pi_rec_settled_${Date.now()}`, id], c
-    );
+    await seedIntent(c, `pi_rec_settled_${Date.now()}`, "succeeded", id);
 
     const results = await sweepSettledIntents(c);
     assert.ok(
@@ -63,11 +70,7 @@ test("the abandonment sweep cancels a stale unpaid order and refunds its credit"
       [id], c
     );
     // An intent that was never confirmed.
-    await query(
-      `INSERT INTO exchange.payment_intents (type, payment_intent_id, payment_status, amount, sales_order_id)
-       VALUES ('order', $1, 'requires_payment_method', 5178, $2)`,
-      [`pi_rec_stale_${Date.now()}`, id], c
-    );
+    await seedIntent(c, `pi_rec_stale_${Date.now()}`, "requires_payment_method", id);
 
     const results = await sweepAbandoned(24, c);
     const mine = results.find((r) => r.order_id === id);
@@ -80,8 +83,8 @@ test("the abandonment sweep cancels a stale unpaid order and refunds its credit"
     assert.equal(Number(after[0]!.dorado_funds ?? 0), before + 125.5, "the credit did not come back");
 
     const { rows: ledger } = await query<{ n: number }>(
-      `SELECT count(*)::int n FROM exchange.account_transactions
-        WHERE sales_order_id = $1 AND transaction_type = 'Credit'`, [id], c);
+      `SELECT count(*)::int n FROM payments.ledger
+        WHERE order_id = $1 AND type = 'Credit'`, [id], c);
     assert.equal(ledger[0]!.n, 1, "the refund has no ledger entry");
   });
 });
@@ -97,11 +100,7 @@ test("a YOUNG unpaid order is left alone", async () => {
 test("a PROCESSING intent protects its order from the abandonment sweep", async () => {
   await inPinnedTransaction(async (c: PoolClient) => {
     const id = await seedSale(c, { ageHours: 72 });
-    await query(
-      `INSERT INTO exchange.payment_intents (type, payment_intent_id, payment_status, amount, sales_order_id)
-       VALUES ('order', $1, 'processing', 5178, $2)`,
-      [`pi_rec_processing_${Date.now()}`, id], c
-    );
+    await seedIntent(c, `pi_rec_processing_${Date.now()}`, "processing", id);
     await sweepAbandoned(24, c);
     assert.equal(await statusOf(c, id), "Pending", "an order with money in flight was cancelled");
   });

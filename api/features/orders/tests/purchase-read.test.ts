@@ -8,7 +8,7 @@ import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
 import pool from "#db";
 import * as readService from "#features/orders/read.service.ts";
-import * as spotsRepo from "#features/orders/repo.mirror.ts";
+import * as spotsRepo from "#features/orders/spots/repo.ts";
 
 // WHAT THIS FILE ASSERTS ON, named. read.service.ts declares
 // `Promise<Record<string, unknown>[]>` even though compose.ts produces a
@@ -215,9 +215,9 @@ test("a line with no quantity still reads as null", async () => {
 test("spot rows come back per metal with the shape the API returns", async () => {
   // The first order with spots, not merely the first order - and a floor so an
   // empty search cannot pass vacuously.
-  let spots: Awaited<ReturnType<typeof spotsRepo.findPurchaseMetalsByOrderId>> = [];
+  let spots: Awaited<ReturnType<typeof spotsRepo.getFor>> = [];
   for (const order of await purchases()) {
-    spots = await spotsRepo.findPurchaseMetalsByOrderId(order.id);
+    spots = await spotsRepo.getFor(order.id);
     if (spots.length) break;
   }
   assert.ok(spots.length, "no purchase order has spot rows, so this asserts nothing");

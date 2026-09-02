@@ -16,8 +16,6 @@
 // no money and is idempotent, so it is safe on a timer; cancelling and
 // refunding moves money, so it stays behind a human running --commit.
 import * as orders from "#features/orders/repo.ts";
-import * as legacySales from "#legacy/sales-orders/repo.ts";
-import { refreshPaidFlair } from "#features/orders/paid.service.ts";
 import * as usersService from "#features/users/service.ts";
 import * as transactionsService from "#features/transactions/service.ts";
 import withTransaction from "#shared/db/withTransaction.ts";
@@ -37,7 +35,8 @@ export async function sweepSettledIntents(
   const candidates = await orders.findSalesAwaitingSettledIntent(executor);
   const out: SettledSweepResult[] = [];
   for (const c of candidates) {
-    await refreshPaidFlair(c.order_id, executor);
+    // The flair, nothing else: paid is a payments FACT, "Preparing" is the label.
+    await orders.update(c.order_id, { status: "Preparing", updated_by: "payment" }, {}, executor);
     out.push({ order_id: c.order_id, outcome: "advanced" });
   }
   return out;
@@ -64,7 +63,6 @@ export async function cancelPendingSale(
   order_id: string, by: string, client: Executor
 ): Promise<AbandonedSweepResult> {
   await orders.update(order_id, { status: "Cancelled", updated_by: by }, {}, client);
-  await legacySales.setStatus(order_id, "Cancelled", by, client);
 
   const money = await orders.findReservedFunds(order_id, client);
   const reserved = Number(money?.reserved_funds ?? 0);

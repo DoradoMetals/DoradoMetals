@@ -16,7 +16,7 @@ import type { PoolClient } from "pg";
 import query from "#shared/db/query.ts";
 import { inPinnedTransaction } from "#shared/testing/pinned-pool.ts";
 import { mockSessions, restoreSessions, as } from "#shared/testing/session.ts";
-import { refreshPaidFlair } from "#features/orders/paid.service.ts";
+import * as ordersRepo from "#features/orders/repo.ts";
 import * as orderService from "#features/orders/service.ts";
 import * as paymentsService from "#features/payments/service.ts";
 import * as reconcileService from "#features/orders/reconcile.service.ts";
@@ -28,44 +28,70 @@ import * as spotsService from "#features/spots/service.ts";
 test.before(async () => { await mockSessions(); });
 test.after(() => { restoreSessions(); });
 
-// A sales order seeded in BOTH schemas, minimally - the flair refresh touches
-// only id/status, and the two tables require only `number` and
-// `sales_order_status` beyond their defaults (checked, not guessed).
+// A sales order seeded minimally - the flair touches only id/status, and the
+// table requires only `number` beyond its defaults (checked, not guessed).
+// NATIVE ONLY since D212: exchange.sales_orders receives nothing any more.
 async function seedSale(c: PoolClient, status: string): Promise<string> {
   const { rows } = await query<{ id: string }>(
     `INSERT INTO orders.orders (direction, status, number)
-     VALUES ('sale', $1, nextval('exchange.sales_orders_order_number_seq'))
+     VALUES ('sale', $1, nextval('orders.sale_number_seq'))
      RETURNING id`,
     [status], c
   );
-  const id = rows[0]!.id;
-  await query(
-    `INSERT INTO exchange.sales_orders (id, sales_order_status)
-     VALUES ($1, $2)`,
-    [id, status], c
+  return rows[0]!.id;
+}
+
+// A native intent+attempt pair. `cents` is the seed's own unit (the Stripe
+// shape); payments.intents stores dollars.
+async function seedIntent(
+  c: PoolClient,
+  provider_ref: string,
+  over: {
+    status?: string; cents?: number; settledCents?: number;
+    user_id?: string | null; order_id?: string | null;
+  } = {}
+): Promise<void> {
+  const { rows } = await query<{ id: string }>(
+    `INSERT INTO payments.intents (type, status, amount_expected, user_id, order_id)
+     VALUES ('order', $1, $2, $3, $4) RETURNING id`,
+    [
+      over.status ?? "requires_confirmation",
+      (over.cents ?? 5178) / 100,
+      over.user_id ?? null,
+      over.order_id ?? null,
+    ], c
   );
-  return id;
+  await query(
+    `INSERT INTO payments.attempts (id, intent_id, provider, provider_ref, amount, status)
+     VALUES ($1, $1, 'stripe', $2, $3, $4)`,
+    [rows[0]!.id, provider_ref, (over.cents ?? 5178) / 100, over.status ?? "requires_confirmation"], c
+  );
+  if ((over.settledCents ?? 0) > 0) {
+    await query(
+      `INSERT INTO payments.settlements (id, attempt_id, settled_amount, provider, provider_ref)
+       VALUES ($1, $1, $2, 'stripe', $3)`,
+      [rows[0]!.id, (over.settledCents as number) / 100, provider_ref], c
+    );
+  }
 }
 
 async function statusOf(c: PoolClient, id: string) {
   const native = await query<{ status: string }>(
     `SELECT status FROM orders.orders WHERE id = $1`, [id], c);
-  const legacy = await query<{ s: string }>(
-    `SELECT sales_order_status AS s FROM exchange.sales_orders WHERE id = $1`, [id], c);
-  return { native: native.rows[0]?.status, legacy: legacy.rows[0]?.s };
+  return { native: native.rows[0]?.status };
 }
 
-test("the flair refresh stamps the label in BOTH schemas, from anywhere (D211: flair)", async () => {
+test("the flair stamp relabels from anywhere - a label, never a gate (D211: flair)", async () => {
   await inPinnedTransaction(async (c: PoolClient) => {
     const id = await seedSale(c, "Pending");
-    await refreshPaidFlair(id, c);
-    assert.deepEqual(await statusOf(c, id), { native: "Preparing", legacy: "Preparing" });
+    await ordersRepo.update(id, { status: "Preparing", updated_by: "payment" }, {}, c);
+    assert.deepEqual(await statusOf(c, id), { native: "Preparing" });
 
     // Unconditional by design - the label is COSMETIC, and the no-stomp
     // property lives at the payments layer (the transition gate), not here.
     const relabelled = await seedSale(c, "Completed");
-    await refreshPaidFlair(relabelled, c);
-    assert.deepEqual(await statusOf(c, relabelled), { native: "Preparing", legacy: "Preparing" });
+    await ordersRepo.update(relabelled, { status: "Preparing", updated_by: "payment" }, {}, c);
+    assert.deepEqual(await statusOf(c, relabelled), { native: "Preparing" });
   });
 });
 
@@ -73,30 +99,25 @@ test("a webhook RETRY does not stomp an admin's later label - by payment fact, n
   await inPinnedTransaction(async (c: PoolClient) => {
     const orderId = await seedSale(c, "Pending");
     const pi = `pi_p9_retry_${Date.now()}`;
-    await query(
-      `INSERT INTO exchange.payment_intents
-         (type, payment_intent_id, payment_status, amount, sales_order_id)
-       VALUES ('order', $1, 'requires_confirmation', 5178, $2)`,
-      [pi, orderId], c
-    );
+    await seedIntent(c, pi, { order_id: orderId });
 
     // The real settlement: the stored intent was not succeeded -> the label
     // refreshes.
     await paymentsService.updateIntentFromWebhook({
       paymentIntent: { id: pi, status: "succeeded", amount: 5178, amount_received: 5178 },
     });
-    assert.deepEqual(await statusOf(c, orderId), { native: "Preparing", legacy: "Preparing" });
+    assert.deepEqual(await statusOf(c, orderId), { native: "Preparing" });
 
     // The admin works the order on...
     await query(`UPDATE orders.orders SET status = 'Completed' WHERE id = $1`, [orderId], c);
-    await query(`UPDATE exchange.sales_orders SET sales_order_status = 'Completed' WHERE id = $1`, [orderId], c);
+    await query(`UPDATE orders.orders SET status = 'Completed' WHERE id = $1`, [orderId], c);
 
     // ...and Stripe redelivers. The stored intent is ALREADY succeeded - no
     // transition, no label write. The admin's label survives by fact.
     await paymentsService.updateIntentFromWebhook({
       paymentIntent: { id: pi, status: "succeeded", amount: 5178, amount_received: 5178 },
     });
-    assert.deepEqual(await statusOf(c, orderId), { native: "Completed", legacy: "Completed" });
+    assert.deepEqual(await statusOf(c, orderId), { native: "Completed" });
   });
 });
 
@@ -106,18 +127,13 @@ test("payment_intent.succeeded advances the order the intent is attached to", as
   await inPinnedTransaction(async (c: PoolClient) => {
     const orderId = await seedSale(c, "Pending");
     const pi = `pi_p9_webhook_${Date.now()}`;
-    await query(
-      `INSERT INTO exchange.payment_intents
-         (type, payment_intent_id, payment_status, amount, sales_order_id)
-       VALUES ('order', $1, 'requires_confirmation', 5178, $2)`,
-      [pi, orderId], c
-    );
+    await seedIntent(c, pi, { order_id: orderId });
 
     await paymentsService.updateIntentFromWebhook({
       paymentIntent: { id: pi, status: "succeeded", amount: 5178, amount_received: 5178 },
     });
 
-    assert.deepEqual(await statusOf(c, orderId), { native: "Preparing", legacy: "Preparing" });
+    assert.deepEqual(await statusOf(c, orderId), { native: "Preparing" });
   });
 });
 
@@ -125,18 +141,13 @@ test("payment_intent.processing does NOT advance the order", async () => {
   await inPinnedTransaction(async (c: PoolClient) => {
     const orderId = await seedSale(c, "Pending");
     const pi = `pi_p9_processing_${Date.now()}`;
-    await query(
-      `INSERT INTO exchange.payment_intents
-         (type, payment_intent_id, payment_status, amount, sales_order_id)
-       VALUES ('order', $1, 'requires_confirmation', 5178, $2)`,
-      [pi, orderId], c
-    );
+    await seedIntent(c, pi, { order_id: orderId });
 
     await paymentsService.updateIntentFromWebhook({
       paymentIntent: { id: pi, status: "processing", amount: 5178, amount_received: 0 },
     });
 
-    assert.deepEqual(await statusOf(c, orderId), { native: "Pending", legacy: "Pending" });
+    assert.deepEqual(await statusOf(c, orderId), { native: "Pending" });
   });
 });
 
@@ -147,11 +158,10 @@ test("payment_intent.processing does NOT advance the order", async () => {
 // server actually computes rather than a number invented here.
 async function fixtures(c: PoolClient) {
   const { rows: pair } = await query<{ user_id: string; address_id: string }>(
-    `SELECT e.user_id, e.id AS address_id
-       FROM exchange.addresses e
-       JOIN auth.users u ON u.id = e.user_id
-      WHERE e.user_id IS NOT NULL
-      ORDER BY e.id LIMIT 1`, [], c
+    `SELECT ua.user_id, ua.address_id
+       FROM places.user_addresses ua
+       JOIN auth.users u ON u.id = ua.user_id
+      ORDER BY ua.address_id LIMIT 1`, [], c
   );
   if (!pair.length) return null;
   // A product WITH a metal: insertLines refuses one whose metal cannot be
@@ -175,7 +185,7 @@ const bodyFor = (f: { address_id: string; product_id: string }) => ({
 
 async function pricedCents(c: PoolClient, f: { address_id: string; product_id: string; user_id: string }) {
   const { rows: state } = await query<{ state: string }>(
-    `SELECT state FROM exchange.addresses WHERE id = $1`, [f.address_id], c);
+    `SELECT state FROM places.addresses WHERE id = $1`, [f.address_id], c);
   const items = await productService.getItemsFromServer([{ id: f.product_id, quantity: 1 }]);
   const spots = await spotsService.getSpotPrices();
   const taxed = await taxService.attachSalesTaxToItems(state[0]!.state, items, spots);
@@ -205,11 +215,7 @@ test("somebody else's payment intent is refused as if it did not exist", async (
     const f = await fixtures(c);
     assert.ok(f, "no fixtures");
     const pi = `pi_p9_theirs_${Date.now()}`;
-    await query(
-      `INSERT INTO exchange.payment_intents (type, payment_intent_id, payment_status, amount, user_id)
-       VALUES ('order', $1, 'requires_confirmation', 999999, gen_random_uuid())`,
-      [pi], c
-    );
+    await seedIntent(c, pi, { cents: 999999, user_id: null });
     await as({ id: f.user_id }, () =>
       assert.rejects(
         () => orderService.createSalesOrder(
@@ -233,11 +239,10 @@ test("a SETTLED intent already attached to an order refuses a second one", async
     // label made the paid order supersedable. The payment fact wins now.
     const paid = await seedSale(c, "Pending");
     const pi = `pi_p9_attached_${Date.now()}`;
-    await query(
-      `INSERT INTO exchange.payment_intents (type, payment_intent_id, payment_status, amount, amount_received, user_id, sales_order_id)
-       VALUES ('order', $1, 'succeeded', 999999, 999999, $2, $3)`,
-      [pi, f.user_id, paid], c
-    );
+    await seedIntent(c, pi, {
+      status: "succeeded", cents: 999999, settledCents: 999999,
+      user_id: f.user_id, order_id: paid,
+    });
     await as({ id: f.user_id }, () =>
       assert.rejects(
         () => orderService.createSalesOrder(
@@ -263,7 +268,7 @@ test("an unsettled sale is superseded by fact, whatever its label says", async (
     const id = await seedSale(c, "Preparing");
     const result = await reconcileService.cancelPendingSale(id, "superseded-by-retry", c);
     assert.equal(result.order_id, id);
-    assert.deepEqual(await statusOf(c, id), { native: "Cancelled", legacy: "Cancelled" });
+    assert.deepEqual(await statusOf(c, id), { native: "Cancelled" });
   });
 });
 
@@ -278,11 +283,9 @@ test("a paid-but-orderless intent is honoured: the order is created already Prep
     const cents = await pricedCents(c, f);
     assert.ok(cents > 0, "the fixture order priced to zero, which defeats this test");
     const pi = `pi_p9_repair_${Date.now()}`;
-    await query(
-      `INSERT INTO exchange.payment_intents (type, payment_intent_id, payment_status, amount, amount_received, user_id)
-       VALUES ('order', $1, 'succeeded', $2, $2, $3)`,
-      [pi, cents, f.user_id], c
-    );
+    await seedIntent(c, pi, {
+      status: "succeeded", cents, settledCents: cents, user_id: f.user_id,
+    });
 
     const order = await as({ id: f.user_id }, () =>
       orderService.createSalesOrder(
@@ -292,7 +295,6 @@ test("a paid-but-orderless intent is honoured: the order is created already Prep
     assert.ok(order, "no order came back");
     const got = await statusOf(c, (order as { id: string }).id);
     assert.equal(got.native, "Preparing", "a PAID order was born awaiting payment");
-    assert.equal(got.legacy, "Preparing");
   });
 });
 
@@ -302,11 +304,10 @@ test("a paid intent at a DIFFERENT price than the cart is refused, naming suppor
     assert.ok(f, "no fixtures");
     const cents = await pricedCents(c, f);
     const pi = `pi_p9_stale_${Date.now()}`;
-    await query(
-      `INSERT INTO exchange.payment_intents (type, payment_intent_id, payment_status, amount, amount_received, user_id)
-       VALUES ('order', $1, 'succeeded', $2, $2, $3)`,
-      [pi, cents + 12345, f.user_id], c
-    );
+    await seedIntent(c, pi, {
+      status: "succeeded", cents: cents + 12345, settledCents: cents + 12345,
+      user_id: f.user_id,
+    });
     await as({ id: f.user_id }, () =>
       assert.rejects(
         () => orderService.createSalesOrder(

@@ -29,14 +29,6 @@ import path from "node:path";
 
 const ROOT = path.join(import.meta.dirname, "..");
 const FEATURES = path.join(ROOT, "features");
-// legacy/ MIRRORS features/ AND IS SCANNED WITH IT. The dual-write mirrors
-// moved out of features/ in the 26c factoring (ruling 29 - one directory to
-// delete at promotion). Leaving them unscanned would make this audit QUIETER:
-// a table whose only second writer was its legacy mirror would report as
-// single-writer, which is the failure mode this file warns about in its own
-// header. The directory layout mirrors features/ exactly, so the feature name
-// is derived the same way from whichever root the file is under.
-const LEGACY = path.join(ROOT, "legacy");
 
 // A table with more than one writing feature, where that is correct and why.
 // Pinned from BOTH sides like audit:indexes: an entry that stops being true
@@ -82,13 +74,10 @@ const ACCEPTED = [
   { table: "auth.users", features: ["payments", "users"],
     why: "same write, new-schema half; 056's trigger keeps it equal to exchange.users" },
 
-  // Each feature's own legacy half. exchange kept purchase and sales orders in
-  // separate tables, so both order features legitimately write the shared
-  // child tables' exchange copies.
-  { table: "exchange.order_metals", features: ["purchase-orders", "sales-orders"],
-    why: "both order directions write their own rows in exchange's shared child table" },
-  { table: "exchange.scrap", features: ["checkout", "scrap"],
-    why: "the cart sync writes scrap lines; orders/create.ts copies them at placement (D208)" },
+  { table: "payments.details", features: ["payments", "payments/details"],
+    why: "payments/details owns the payout account rows; the parent's updateMethod upserts the STRIPE instrument row (provider_ref-keyed), a different population of the same table" },
+  { table: "refiners.orders", features: ["orders", "refiners/orders"],
+    why: "refiners/orders owns the engagement; orders' set_refinery.sql upserts refiner_id on it because attaching a refiner is the order pipeline's own act (093)" },
 ];
 
 const walk = (dir, out = []) => {
@@ -104,8 +93,7 @@ const walk = (dir, out = []) => {
 // The feature a file belongs to: the path under features/ with any sql/ segment
 // and the filename removed. features/shipping/shipments/sql/x.sql -> shipping/shipments
 const featureOf = (file) => {
-  const root = file.startsWith(LEGACY + path.sep) ? LEGACY : FEATURES;
-  const rel = path.relative(root, file);
+  const rel = path.relative(FEATURES, file);
   const parts = rel.split(path.sep).slice(0, -1).filter((p) => p !== "sql" && p !== "legacy");
   return parts.join("/") || "(root)";
 };
@@ -117,7 +105,7 @@ const strip = (src) =>
 
 const WRITE = /\b(?:INSERT\s+INTO|UPDATE|DELETE\s+FROM)\s+(?:ONLY\s+)?([a-z_]+)\.([a-z_]+)/gi;
 
-const files = [...walk(FEATURES), ...walk(LEGACY)];
+const files = [...walk(FEATURES)];
 const writers = new Map();   // "schema.table" -> Map(feature -> Set(file))
 let statements = 0;
 

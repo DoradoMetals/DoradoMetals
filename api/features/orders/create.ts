@@ -39,7 +39,7 @@ import * as refinerSpots from "#features/refiners/spots/repo.ts";
 import * as ratesRepo from "#features/rates/service.ts";
 import { getRatePct, sumContentByMetal } from "#features/rates/utils/resolveRate.ts";
 import * as fulfillmentShipments from "#features/fulfillments/shipments/service.ts";
-import type { CheckoutRow } from "#features/checkout/repo.next.ts";
+import type { CheckoutRow } from "#features/checkout/repo.ts";
 import * as newShipments from "#features/shipping/shipments/repo.ts";
 import * as pickupService from "#features/shipping/pickups/service.ts";
 import * as packagesRepo from "#features/shipping/packages/repo.ts";
@@ -465,20 +465,16 @@ export async function recordPlacedPurchase(
     },
     client
   );
-  const linked = await orderTransactions.setPayoutAccount(
-    order_id, resolved.payout_details_id, null, client
+  const payoutRecorded = await orderTransactions.update(
+    order_id,
+    { payout_details_id: resolved.payout_details_id, payout_fee: resolved.payout_fee },
+    {},
+    client
   );
-  if (!linked) {
+  if (!payoutRecorded) {
     throw new Error(
-      `order ${order_id}: the payout account was not linked - this transaction must not commit`
-    );
-  }
-  const feeSet = await orderTransactions.setAmount(
-    order_id, "payout_fee", resolved.payout_fee, null, client
-  );
-  if (!feeSet) {
-    throw new Error(
-      `order ${order_id}: the payout fee was not recorded - this transaction must not commit`
+      `order ${order_id}: the payout account and fee were not recorded - ` +
+      `this transaction must not commit`
     );
   }
 

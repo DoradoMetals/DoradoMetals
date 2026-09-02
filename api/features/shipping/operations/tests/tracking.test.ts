@@ -58,11 +58,11 @@ let baseline: { events: number; shipments: number };
 
 before(async () => {
   const rows = await outside<ShipmentFixture>(
-    `SELECT s.id, s.shipping_status, s.delivered_at, s.estimated_delivery,
+    `SELECT s.id, s.shipping_status, s.delivered_at, s.est_delivery AS estimated_delivery,
             count(e.id)::int AS events
-       FROM exchange.shipments s
-       JOIN exchange.tracking_events e ON e.shipment_id = s.id
-      GROUP BY s.id, s.shipping_status, s.delivered_at, s.estimated_delivery
+       FROM shipping.shipments s
+       JOIN shipping.tracking e ON e.shipment_id = s.id
+      GROUP BY s.id, s.shipping_status, s.delivered_at, s.est_delivery
       ORDER BY count(e.id) DESC, s.id ASC
       LIMIT 1`
   );
@@ -74,12 +74,12 @@ before(async () => {
   // file added rather than what the table already held.
   baseline = {
     events: await assertNothingEscaped(
-      "exchange.tracking_events",
+      "shipping.tracking",
       "location = 'Dallas, TX' AND status = 'Dropped Off'"
     ),
     shipments: await assertNothingEscaped(
-      "exchange.shipments",
-      "estimated_delivery = '2026-09-01T12:00:00'"
+      "shipping.shipments",
+      "est_delivery = '2026-09-01T12:00:00'"
     ),
   };
 });
@@ -93,7 +93,7 @@ after(async () => {
 // uncommitted writes - and neither survives the rollback.
 const eventCount = async (id: string): Promise<number> => {
   const { rows } = await query(
-    `SELECT count(*)::int AS n FROM exchange.tracking_events WHERE shipment_id = $1`,
+    `SELECT count(*)::int AS n FROM shipping.tracking WHERE shipment_id = $1`,
     [id]
   );
   return rows[0].n;
@@ -101,8 +101,8 @@ const eventCount = async (id: string): Promise<number> => {
 
 const shipmentRow = async (id: string): Promise<ShipmentRow> => {
   const { rows } = await query<ShipmentRow>(
-    `SELECT shipping_status, delivered_at, estimated_delivery
-       FROM exchange.shipments WHERE id = $1`,
+    `SELECT shipping_status, delivered_at, est_delivery AS estimated_delivery
+       FROM shipping.shipments WHERE id = $1`,
     [id]
   );
   return rows[0];
@@ -170,8 +170,8 @@ test("a refresh that recognises something still replaces what is stored", async 
     // coincidence the fixture can satisfy on its own; "the two events are the
     // ones this test supplied, and the ones it had are gone" is the property.
     const { rows: events } = await query(
-      `SELECT status, location FROM exchange.tracking_events
-        WHERE shipment_id = $1 ORDER BY scan_time ASC`,
+      `SELECT status, location FROM shipping.tracking
+        WHERE shipment_id = $1 ORDER BY time ASC`,
       [fixture.id]
     );
     assert.deepEqual(
@@ -210,7 +210,7 @@ test("a refresh that recognises something still replaces what is stored", async 
 // the run and this fails either way.
 test("nothing this file did survived the transaction", async () => {
   const events = await assertNothingEscaped(
-    "exchange.tracking_events",
+    "shipping.tracking",
     "location = 'Dallas, TX' AND status = 'Dropped Off'"
   );
   assert.equal(
@@ -220,8 +220,8 @@ test("nothing this file did survived the transaction", async () => {
   );
 
   const shipments = await assertNothingEscaped(
-    "exchange.shipments",
-    "estimated_delivery = '2026-09-01T12:00:00'"
+    "shipping.shipments",
+    "est_delivery = '2026-09-01T12:00:00'"
   );
   assert.equal(
     shipments,

@@ -1,6 +1,5 @@
 import axios from "axios";
 import * as spots from "#features/spots/repo.ts";
-import * as legacy from "#legacy/spots/repo.ts";
 import * as metals from "#features/metals/repo.ts";
 import { toWire } from "#features/spots/compose.ts";
 import withTransaction from "#shared/db/withTransaction.ts";
@@ -42,8 +41,8 @@ export type Quote = {
 // FRESH ON EVERY CALL, no caching. The spot tables are updated by
 // updateSpotPrices on a cron, so a read is a read of the latest quote and the
 // customer is priced at what the business holds right now.
-export async function getSpotPrices(): Promise<SpotRow[]> {
-  return await toWire(await spots.getAll());
+export async function getSpotPrices(executor?: Parameters<typeof spots.getAll>[0]): Promise<SpotRow[]> {
+  return await toWire(await spots.getAll(executor));
 }
 
 // Pulls the upstream quote feed and writes it to exchange.metals. Called by the
@@ -90,7 +89,6 @@ export async function updateSpotPrices(): Promise<Record<string, Quote>> {
   const ids = new Map([...(await metals.namesById())].map(([id, name]) => [name, id]));
   await withTransaction(async (c) => {
     for (const [name, quote] of Object.entries(quotes)) {
-      await legacy.upsert(name, quote, c);
       const id = ids.get(name);
       // A metal the feed names but the database does not have is skipped
       // rather than invented - the old INSERT ... JOIN did the same by

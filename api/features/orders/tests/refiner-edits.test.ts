@@ -49,7 +49,7 @@ const MIGRATION = fs.readFileSync(
 // query never asked for.
 type UserFixture = { id: string; name: string | null; email: string | null };
 type RefinerMetalFixture = { purchase_order_id: string; type: string };
-type ScrapItemFixture = { id: string; purchase_order_id: string; scrap_id: string };
+type ScrapItemFixture = { id: string; purchase_order_id: string };
 
 let admin: UserFixture;
 let customer: UserFixture;
@@ -72,30 +72,35 @@ before(async () => {
 
   refinerMetal = (
     await outside<RefinerMetalFixture>(
-      `SELECT purchase_order_id, type FROM exchange.refiner_metals
-        WHERE purchase_order_id IS NOT NULL
-          AND purchase_order_id IN (SELECT id FROM orders.orders)
-        ORDER BY id LIMIT 1`
+      `SELECT sp.order_id AS purchase_order_id, m.name AS type
+         FROM refiners.spots sp
+         JOIN metals.metals m ON m.id = sp.metal_id
+        ORDER BY sp.id LIMIT 1`
     )
   )[0];
-  assert.ok(refinerMetal, "dev needs a refiner_metals row on a mirrored purchase order");
+  assert.ok(refinerMetal, "dev needs a refiners.spots row on a purchase order");
 
+  // A scrap line IS a line with no bullion (the one-table model), and its
+  // refiner counterpart is where the assay report lands.
   scrapItem = (
     await outside<ScrapItemFixture>(
-      `SELECT i.id, i.purchase_order_id, s.id AS scrap_id
-         FROM exchange.purchase_order_items i
-         JOIN exchange.scrap s ON s.id = i.scrap_id
+      `SELECT i.id, i.order_id AS purchase_order_id
+         FROM orders.items i
+         JOIN orders.orders o ON o.id = i.order_id
+        WHERE o.direction = 'purchase' AND i.bullion_id IS NULL
+          AND EXISTS (SELECT 1 FROM refiners.items ri WHERE ri.order_item_id = i.id)
         ORDER BY i.id LIMIT 1`
     )
   )[0];
-  assert.ok(scrapItem, "dev needs a purchase order item with scrap");
+  assert.ok(scrapItem, "dev needs a purchase scrap line with a refiner counterpart");
 
   payoutId = (
     await outside<{ id: string }>(
-      `SELECT id FROM exchange.payouts WHERE order_id IS NOT NULL ORDER BY id LIMIT 1`
+      `SELECT payout_details_id AS id FROM orders.transactions
+        WHERE payout_details_id IS NOT NULL ORDER BY order_id LIMIT 1`
     )
   )[0]?.id;
-  assert.ok(payoutId, "dev needs a payout attached to an order");
+  assert.ok(payoutId, "dev needs a payout account linked to an order");
 });
 
 after(async () => {
@@ -152,17 +157,18 @@ test("the engagement PATCH writes the refiner's spot for that metal on that orde
       assert.equal(res.status, 200, `answered ${res.status}: ${JSON.stringify(res.body)}`);
 
       const { rows } = await client.query(
-        `SELECT bid_spot FROM exchange.refiner_metals
-          WHERE purchase_order_id = $1 AND type = $2`,
+        `SELECT sp.bid FROM refiners.spots sp
+          JOIN metals.metals m ON m.id = sp.metal_id
+         WHERE sp.order_id = $1 AND m.name = $2`,
         [refinerMetal.purchase_order_id, refinerMetal.type]
       );
-      assert.ok(rows.length, "no refiner_metals row matched");
-      assert.equal(Number(rows[0].bid_spot), 1234.56, "bid_spot did not change");
+      assert.ok(rows.length, "no refiners.spots row matched");
+      assert.equal(Number(rows[0].bid), 1234.56, "the refiner bid did not change");
     });
   }, { lock: ORDER_LOCK });
 });
 
-test("the engagement PATCH lands pool and fee on the engagement AND the exchange shadow", async () => {
+test("the engagement PATCH lands pool and fee on the engagement AND the order's money row", async () => {
   await inPinnedTransaction(async (client: PoolClient) => {
     const engagementId = await withEngagement(client, refinerMetal.purchase_order_id);
     await as({ ...admin, role: "admin" }, async () => {
@@ -182,17 +188,18 @@ test("the engagement PATCH lands pool and fee on the engagement AND the exchange
       assert.equal(Number(engagement.pool_remediation), 34.56);
       assert.equal(Number(engagement.fee), 23.45);
 
-      // The shadow stays level: the existing services still write exchange.
-      const shadow = (
+      // The order's money row stays level: the same figures land on
+      // orders.transactions through its one update.
+      const money = (
         await client.query(
           `SELECT pool_oz_deducted, pool_remediation, refiner_fee
-             FROM exchange.purchase_orders WHERE id = $1`,
+             FROM orders.transactions WHERE order_id = $1`,
           [refinerMetal.purchase_order_id]
         )
       ).rows[0];
-      assert.equal(Number(shadow.pool_oz_deducted), 1.2345, "exchange lost the pool ounces");
-      assert.equal(Number(shadow.pool_remediation), 34.56, "exchange lost the remediation");
-      assert.equal(Number(shadow.refiner_fee), 23.45, "exchange lost the fee");
+      assert.equal(Number(money.pool_oz_deducted), 1.2345, "the money row lost the pool ounces");
+      assert.equal(Number(money.pool_remediation), 34.56, "the money row lost the remediation");
+      assert.equal(Number(money.refiner_fee), 23.45, "the money row lost the fee");
     });
   }, { lock: ORDER_LOCK });
 });
@@ -207,10 +214,10 @@ test("the item PATCH writes the refiner premium on that line", async () => {
       assert.equal(res.status, 200, `answered ${res.status}: ${JSON.stringify(res.body)}`);
 
       const { rows } = await client.query(
-        `SELECT refiner_premium FROM exchange.purchase_order_items WHERE id = $1`,
+        `SELECT premium FROM refiners.items WHERE order_item_id = $1`,
         [scrapItem.id]
       );
-      assert.equal(Number(rows[0].refiner_premium), 0.875, "refiner_premium did not change");
+      assert.equal(Number(rows[0].premium), 0.875, "the refiner premium did not change");
     });
   }, { lock: ORDER_LOCK });
 });
@@ -225,14 +232,13 @@ test("the item PATCH writes the assay report to the actual columns", async () =>
       assert.equal(res.status, 200, `answered ${res.status}: ${JSON.stringify(res.body)}`);
 
       const { rows } = await client.query(
-        `SELECT purity_actual, post_melt_actual, content_actual, purity, pre_melt
-           FROM exchange.scrap WHERE id = $1`,
-        [scrapItem.scrap_id]
+        `SELECT purity, post_melt, content FROM refiners.items WHERE order_item_id = $1`,
+        [scrapItem.id]
       );
-      assert.equal(Number(rows[0].purity_actual), 0.9, "purity_actual did not land");
-      assert.equal(Number(rows[0].post_melt_actual), 3.0, "post_melt_actual did not land");
-      // content_actual is DERIVED by the same service the drawer always used.
-      assert.ok(rows[0].content_actual !== null, "content_actual was not derived");
+      assert.equal(Number(rows[0].purity), 0.9, "purity_actual did not land");
+      assert.equal(Number(rows[0].post_melt), 3.0, "post_melt_actual did not land");
+      // content is DERIVED by the same service the drawer always used.
+      assert.ok(rows[0].content !== null, "content_actual was not derived");
     });
   }, { lock: ORDER_LOCK });
 });
@@ -263,10 +269,10 @@ test("poisoned bodies refuse by name on both refiners endpoints", async () => {
       assert.match(engagement.body?.error?.message ?? "", /"total_price"/);
 
       const { rows } = await client.query(
-        `SELECT refiner_premium FROM exchange.purchase_order_items WHERE id = $1`,
+        `SELECT premium FROM refiners.items WHERE order_item_id = $1`,
         [scrapItem.id]
       );
-      assert.notEqual(Number(rows[0].refiner_premium), 0.9, "a refused document still wrote");
+      assert.notEqual(Number(rows[0].premium), 0.9, "a refused document still wrote");
     });
   }, { lock: ORDER_LOCK });
 });

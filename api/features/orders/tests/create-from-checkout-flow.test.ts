@@ -17,7 +17,7 @@ import { payoutKeyFromEnv } from "#shared/crypto/payoutKey.ts";
 await mockSessions();
 const { default: app } = await import("#app");
 const orderCreate = await import("#features/orders/create.ts");
-const checkoutRows = await import("#features/checkout/repo.next.ts");
+const checkoutRows = await import("#features/checkout/repo.ts");
 
 type UserFixture = { id: string };
 

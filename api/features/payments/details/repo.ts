@@ -81,6 +81,10 @@ export type CheckoutPayoutWrite = {
   bank_name: string | null;
   account_type: string | null;
   last_four: string | null;
+  // The routing number's last four. NOT a secret - the same class of value as
+  // last_four, rendered by the same panel; the routing number itself is only
+  // ever stored sealed beside it.
+  routing_last_four: string | null;
   email_to: string | null;
   routing_number_encrypted: string | null;
   account_number_encrypted: string | null;
@@ -98,7 +102,7 @@ export async function saveForCheckout(
       row.id, row.user_id, row.method, row.account_holder, row.bank_name,
       row.account_type, row.last_four, row.email_to,
       row.routing_number_encrypted, row.account_number_encrypted,
-      row.encryption_key_id,
+      row.encryption_key_id, row.routing_last_four,
     ],
     executor
   );

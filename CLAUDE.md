@@ -1,3 +1,5 @@
+@AGENTS.md
+
 # Dorado Exchange
 
 A precious-metals exchange: customers sell scrap and bullion to the business
@@ -57,13 +59,11 @@ eventual sequence is not "migrate and backfill", it is "most of
 schema raises 42P01 rather than returning empty. One such path exists today:
 the quote surface resolves a product by name, and that read is
 `SELECT id FROM products.bullion`. **The BYPASS that used to describe it is
-closed** — `features/quotes/service.ts` no longer imports
-`#features/checkout/repo.next.ts`; D147 moved the read to its owner,
-`features/products/service.ts` `findProductIdByName`, and un-exported the
-handle rather than routing it. `audit:switches` confirms: "no import reaches
-around a switch". **The deploy hazard survived the fix**, because it was never
-about the bypass — the table read is still `products.bullion` and production
-still has no `products` schema. Verified 2026-08-29.
+closed** — D147 moved the read to its owner, `features/products/service.ts`
+`findProductIdByName`, and un-exported the handle rather than routing it.
+**The deploy hazard survived the fix**, because it was never about the bypass
+— the table read is still `products.bullion` and production still has no
+`products` schema. Verified 2026-08-29.
 
 When that day comes: `pg_dump` first, then the migrations, then the backfills,
 then `verify:parity` and `compare:databases`, then merge. Not before, and not
@@ -92,30 +92,32 @@ through in a convenient order. It is the only sequence in which nothing is
 lost.** Every step before the merge exists to make the merge survivable, and
 each one is the user's to run.
 
-### The pivot is IN PROGRESS, not done — read `docs/waves/write-pivot.md`
+### The pivot is DONE — D212 executed ruling 36 (2026-09-02)
 
-The covenant ledger has been taken and it is the important artefact: once
-`exchange` stops being written, `verify:parity` compares two frozen tables and
-its green stops meaning anything, so **the evidence could only ever be captured
-before the switch**. That record — 15 pairs, 10 byte-identical, `only_in_target`
-zero on all fifteen, and every one of the five exceptions measured rather than
-cited — is in the lane file. Do not expect to be able to re-derive it.
+Jacob: *"I want to get rid of ALL the legacy code. Remove fucking all of it."*
+Executed: `api/legacy/` is deleted, every `repo.exchange`/`repo.dual` pair is
+deleted, `CHECKOUT_SOURCE` and `PAYMENTS_SOURCE` are gone (checkout and
+payments run their promoted native repos as plain `repo.ts`), the orders dual
+layer and its mirror are gone, and **`exchange` receives no order, payment,
+cart, product, address, shipping, lead, review or media writes any more.**
+The covenant is unchanged where it matters: every `exchange` TABLE and ROW
+stays, frozen; only code died.
 
-**Three writes to `exchange` are NOT dual writes, and ruling 36 does not reach
-them.** Each has no mirror because it has no destination:
+The covenant ledger was taken BEFORE the switch, because once `exchange`
+stopped being written `verify:parity` compares two frozen tables and its green
+stops meaning anything. That record — 15 pairs, 10 byte-identical,
+`only_in_target` zero on all fifteen, every exception measured — is in
+`docs/waves/write-pivot.md`. Do not expect to re-derive it.
 
-- **`exchange.payouts`** — its successor `payments.details` deliberately stores
-  no routing or account number (encryption at rest is outstanding). **Its order
-  link is now BUILT**: the successor walked `order -> payments.intents ->
-  details`, and an intent is money coming IN while a payout is money going OUT,
-  so that join resolved for **0 of 16** dev payouts and neither statement raised
-  on the empty update. Migrations 099/100 put the link on the order side
-  (`orders.transactions.payout_details_id`), where the fee it is charged for
-  already lives — 16/16 on dev, justified against production's 62 payouts whose
-  `max(count) GROUP BY order_id` is 1. **No bank details moved**; routing and
-  account numbers stay in `exchange.payouts` and nowhere else.
-- **`exchange.users`** — **THE AUTH CUTOVER HAPPENED** (2026-09-01, Jacob's
-  call, migration 107 + `features/auth/client.ts`). better-auth writes
+**What still writes `exchange`, and each on purpose:**
+
+- **`exchange.users.dorado_funds`** — the customer credit balance.
+  `features/users` still owns this write and it is LIVE; migration 107's
+  trigger mirrors it into `auth.users` so the session shows the balance. This
+  is the ONE remaining live exchange write.
+- **`exchange.users` identity columns** — **THE AUTH CUTOVER HAPPENED**
+  (2026-09-01, Jacob's call, migration 107 + `features/auth/client.ts`).
+  better-auth writes
   `auth.users` / `auth.sessions` / `auth.account` / `auth.verification` now.
   The row has two owners split by COLUMN, each mirrored by a depth-guarded
   trigger that cannot loop: identity (email, name, role, ban state, stripe
@@ -135,19 +137,59 @@ them.** Each has no mirror because it has no destination:
   better-auth itself is PINNED EXACT at 1.6.9 (with `@better-auth/core` and
   `utils` held by root overrides): 1.7 cannot resolve the dotted schema
   `modelName` this whole arrangement stands on, and the pin's commit says so.
-- **`purgeCancelled`** — a DELETE, behind a live admin button, that today
-  destroys the `exchange` copy of cancelled orders while leaving the
-  `orders.orders` rows the admin is actually looking at. A native port needs a
-  six-table cascade, a `direction = 'purchase'` predicate that the exchange
-  statement got for free from its table name, and a prior decision about whether
-  the button should exist at all.
+- **`exchange.payouts` HOLDS but no longer RECEIVES.** New-flow payout
+  accounts are SEALED into `payments.details` (AES-256-GCM envelopes, D210);
+  the 24 old plaintext rows stay in `exchange.payouts` untouched, the only
+  copy of those bank numbers until Jacob runs `encrypt:payouts` against
+  production. **The last-four reads left exchange in D213** (migration 114 +
+  `features/payouts/sql/`); what still reads it is the FULL-NUMBER endpoint
+  alone, `GET /payouts/:id/details`, because that plaintext exists nowhere
+  else. That is data, not legacy code.
+- **The order NUMBER was still an exchange write until D213, and it did not
+  look like one.** `features/orders/sql/create.sql` drew it with
+  `nextval('exchange.purchase_orders_order_number_seq')` — and `nextval`
+  MUTATES. Every order created after the Great Purge reached into `exchange`
+  and advanced a counter there. No sweep caught it because it is a function
+  call inside a VALUES list, not an INSERT/UPDATE/DELETE. 079 had built
+  `orders.purchase_number_seq` / `orders.sale_number_seq` for this moment;
+  115 re-seeded them (dev's native counter sat at 2278 while eighteen orders
+  already held higher numbers, so switching without the re-seed would have
+  raised 23505 on the very next order) and `create.sql` now draws natively.
+  **If you add a table that needs a number, look for `nextval` before
+  believing a sweep that only greps for write statements.**
 
-**Consequence for `api/legacy/`**: its README promises that *"promotion deletes
-one directory"*, and two of its residents are sole implementations of live
-writes — which its own entry criteria disqualify (*"a module that is still the
-only implementation of a read or a write is not legacy yet, whatever it is
-named"*). They were filed by feature name rather than by that test. **The
-directory cannot be deleted in one move until they leave it.**
+### THE ONE REMAINING EXCHANGE READ ON A LIVE PATH: `features/places` addresses
+
+**`features/orders/read.service.ts` composes every order's address from
+`exchange.addresses`, and it CANNOT simply be repointed at `places.addresses`
+(verified 2026-09-02).** This is not an oversight left over from the purge and
+it is not a read anyone forgot — it is blocked on data that has no native home
+yet, and repointing it blindly is a live-path regression:
+
+- `compose.ts`'s `snapshotAddress` maps `row.name` → **`recipient_name`**, which
+  is **who receives the parcel** and is what `cancelOrder` hands FedEx as the
+  return label's `personName`.
+- **`places.addresses` has NO `name` column.** Its columns are id, line_1,
+  line_2, city, state, country, zip, country_code, phone_number, created_at,
+  updated_at, is_valid, is_residential.
+- **`places.user_addresses` has `label`, not `name`** — id, address_id, user_id,
+  label, default_shipping, default_billing — and `label` is a book nickname
+  ("Home"), not a recipient.
+- Coverage is NOT the problem and measuring it will mislead you: all 51
+  `orders.addresses.source_address_id` values resolve in **both**
+  `exchange.addresses` and `places.addresses`. The ids match; the COLUMN does
+  not exist. A repoint therefore passes every parity and coverage check and
+  silently blanks `recipient_name` on every order.
+
+**So the fix is a decision about where a recipient name lives, and it belongs to
+`features/places/addresses` as its own pivot — not to a cleanup pass.**
+`compose.ts`'s header already says the book "is still exchange.addresses until
+addresses' own reads pivot".
+
+**`purgeCancelled` is GONE from the UI** (button removed 2026-09-01) and its
+exchange DELETE went with the purge; a native cancelled-orders purge (a
+six-table cascade) is future work, and the disposable e2e orders accumulate as
+fuel for it.
 
 ## Not all data is equally precious
 
@@ -204,15 +246,10 @@ The frontend imports `@dorado/contracts` as its ONLY source of table-derived
 shapes — types and, since the zod/v4 unification, the runtime schema objects
 themselves (Jacob's single-source ruling, executed 2026-08-28). Frontend
 files keep local names for UI concerns and alias contract imports as
-`<Name>Contract` on collision. An earlier version of this paragraph said the
-frontend imported the contracts nowhere and its hand-written types were
-"checked against nothing" — true when written, and the gap
-`audit:wire-readiness` was built to measure; the audit now measures a
-finished thing.
+`<Name>Contract` on collision.
 
 `api` uses subpath imports — `#features/*`, `#shared/*`, `#providers/*`,
-`#legacy/*`, `#db`. Never a relative path that crosses between two of those
-roots.
+`#db`. Never a relative path that crosses between two of those roots.
 
 ## How a feature is laid out
 
@@ -267,57 +304,20 @@ order id is the key the caller holds — but the HANDLER lives in
 `features/<feature>/tests/*.test.*`. A test whose subject moves moves with it,
 in the same pass — factor, move, rename is one diff per file, not three.
 
-## `api/legacy/` — the dual-write mirrors, in one place
+## `api/legacy/` is DELETED (D212, 2026-09-02)
 
-Jacob, refining ruling 29: *"Move all legacy code to a folder called `legacy`
-that is a sibling to `features`."* One directory, mirroring the feature names,
-so that **promotion deletes one directory** rather than hunting thirteen.
+Jacob: *"I want to get rid of ALL the legacy code. Remove fucking all of it."*
+The directory, its README, the `#legacy/*` import root, `lint:legacy-boundary`
+and every dual-write mirror are gone; git has them. What the deletion does NOT
+touch: `exchange` TABLES and ROWS (they never move and never drop — they are
+what the eventual production backfill reads from), and reads against
+`exchange` data that exists nowhere else (`features/payouts` reading the old
+payout rows, `features/users` writing `dorado_funds`).
 
-```
-legacy/<feature>/repo.ts     the exchange half of that feature's dual write
-legacy/<feature>/sql/*.sql   its statements
-legacy/README.md             entry and exit criteria, in full
-```
-
-Imported as `#legacy/<feature>/repo.ts`. `features/` may import `legacy/`;
-`legacy/` should not import `features/`, and the threads that remain are named
-in `legacy/README.md`.
-
-**What is NOT in there**: legacy TABLES (they never move and never drop), and
-anything still load-bearing for a live path. `features/checkout/repo.exchange.js`
-and `features/payments/repo.exchange.js` are still the implementation their
-`*_SOURCE` switch selects, so they are not legacy yet whatever they are named.
-Moving something into `legacy/` is a statement that it is on death row.
-
-### Before deleting a feature's legacy code — the checklist
-
-Jacob: *"delete as we go. If it hasn't been completed it shouldn't be deleted."*
-Completion is about DATA, not about the suite being green.
-
-1. **`pnpm --filter @dorado/api verify:parity`** for every table pair the
-   feature owns — and read the exchange-only row count, which is the number that
-   matters. Zero means the new schema has everything.
-2. **`pnpm --filter @dorado/api audit:coverage`** — every populated column has
-   somewhere to go. Orders had matching row counts and was missing 21 columns of
-   live data; row counts are not evidence.
-3. **The decomposition gate**, where the feature has one
-   (`verify:orders-decomposition`, `verify:sales-order-decomposition`).
-4. **The reads have pivoted** — the feature reads the new schema and there is no
-   fallback left.
-5. **Only then** delete its read paths, its `*_SOURCE` machinery and its oracle
-   tests, and move what still dual-writes into `legacy/<feature>/`.
-6. **The WRITE half was a separate, later decision, and it has now been made.**
-   Deleting a dual-write is a ONE-WAY DOOR: `exchange` stops receiving that
-   feature's writes and flipping back loses everything written in between.
-   **Ruling 36 (2026-08-29) opened that door** — one decision for all of them,
-   because the per-feature switches that would have gated them individually no
-   longer exist (D146). What that does NOT authorise is dropping anything:
-   `exchange` keeps every table and every row it has. See the deploy section
-   above for what the removal costs, and `docs/waves/write-pivot.md` for the
-   ledger and the three writes ruling 36 does not reach.
-
-**"The tests pass" is not evidence that data migrated.** A test reads its own
-writes either way.
+The delete-as-we-go checklist that governed the migration is history now; the
+one live rule it leaves behind: **"the tests pass" is not evidence that data
+migrated** — a test reads its own writes either way, and completion was always
+about DATA.
 
 ## Two things to know before touching the database
 
@@ -338,52 +338,33 @@ customers, $66,999.32, with no destination in any of the eighteen.**
 `audit:coverage` now reports every exchange table no feature claims, so this
 cannot go unnoticed again.
 
-**TWO `*_SOURCE` SWITCHES SURVIVE, NOT TWENTY-ONE.** `audit:switches` reports
-`PAYMENTS_SOURCE` and `CHECKOUT_SOURCE`, both still defaulting to `exchange`.
-This paragraph said twenty-one until 2026-08-29 and had been wrong for several
-waves: as each feature's reads pivoted, its switch was deleted along with the
-`repo.js` that read it, so the count fell without anyone updating the sentence
-that named it. The retired ones are not promoted — they no longer exist, because
-the feature reads its own schema unconditionally now.
+**NO `*_SOURCE` SWITCH SURVIVES (D212, 2026-09-02).** `CHECKOUT_SOURCE` and
+`PAYMENTS_SOURCE` — the last two — were flipped and deleted with the purge:
+each feature's `repo.next.ts` was promoted to plain `repo.ts` and the
+`repo.js`/`repo.dual.js`/`repo.exchange.js` trios died. Every feature reads
+and writes its own schema unconditionally. `audit:switches` and `diff` are
+deleted with their subject.
 
-**That makes the two survivors the whole of the remaining promotion decision,**
-and it is still the user's call and still a one-way door: once `exchange` stops
-receiving writes, flipping back loses everything written in between.
+**What did NOT go away is the 42P01 deploy hazard** — reads like
+`SELECT id FROM products.bullion` sit on the endpoints that price every
+customer-visible number, and production has no `products` schema. The purge
+made the deploy ordering MORE absolute, not less: there is no exchange
+fallback anywhere.
 
-**A switch is not the only thing that can reach a new schema.** The instance
-that taught this — `features/quotes/service.ts` importing
-`#features/checkout/repo.next.ts` directly, around the `repo.js` that
-`CHECKOUT_SOURCE` selects — **is closed** (D147: the read moved to
-`features/products/service.ts` and the handle was un-exported, so there is no
-door to reach through). `audit:switches` now scans for the shape and reports
-"no import reaches around a switch". The habit stays: grep for direct
-`repo.next` imports before trusting a switch to describe what a feature reads.
-**What did NOT go away is the 42P01** — the read is still
-`SELECT id FROM products.bullion`, on the endpoints that price every
-customer-visible number, and production has no `products` schema. Closing a
-bypass changed who calls the query, not which table it names.
+**The auth cutover was TAKEN on 2026-09-01**: better-auth writes `auth.*`
+through its own pool, with the column-partitioned user mirror described in
+the write-pivot section keeping `exchange.users` fresh.
 
-**Two things were never a `*_SOURCE` switch.** `fulfillments` (methods,
-pickups, directs) is capability `exchange` never recorded — there is no source
-to read from, so a switch would have one state. `auth` was the atomic cutover
-with no reversible middle, and it was TAKEN on 2026-09-01: better-auth writes
-`auth.*` through its own pool now, with the column-partitioned user mirror
-described in the write-pivot section keeping `exchange.users` fresh.
+**The wire axis is RETIRED (2026-08-28)** and `shared/wire/` is deleted
+(D212): the frontend reads every response shape from `@dorado/contracts`, and
+wire SHAPES never move during a schema migration — the legacy spellings some
+tables still alias to (`supports_pickup` and friends) are the wire's, kept on
+purpose. The frontend computes NO money: every customer-visible number comes
+from the `/quotes/*` endpoints (D81–D84).
 
-**The wire axis is RETIRED (2026-08-28).** There were seven `*_WIRE` switches
-— products, media, spots, refiners, carriers, addresses, payments — and all
-seven features (plus orders, which never had a switch) are CONVERTED: the
-frontend reads every response shape from `@dorado/contracts`, the adapters
-and `shared/wire/lift.ts` are deleted, and `audit:switches` asserts the
-zero-state. A wire rollback would now break the frontend rather than save
-it. What remains is the `*_SOURCE` axis alone — data readiness, Jacob's
-promotion decisions. The frontend also computes NO money: every
-customer-visible number comes from the `/quotes/*` endpoints (D81–D84).
-
-**Promotion is documented in `PROMOTION.md`** — the order of operations, what
-each `*_SOURCE` switch moves, and how to roll each one back; its wire section
-stands as the record of what each conversion changed. Written against
-production as it actually is rather than against dev.
+**`PROMOTION.md` is now a historical record** — the promotions it describes
+have all been executed; what it still holds that matters is the production
+sequencing context.
 
 **Production can be built from nothing.** `000_genesis_schema.sql` creates every
 schema, table, view, enum and function; the backfills derive the data from
@@ -476,13 +457,9 @@ The ones that have actually caught things:
   compares the rows against dev, then re-runs to prove idempotency, then checks
   the guard refuses once the new schema holds rows `exchange` does not.
 - `verify:parity` — source table against target, type-aware.
-- `diff` — every migrated read, old implementation against new.
-- `validate:wire` — real responses parsed through the wire contracts, **for
-  both implementations**, not just whichever the switch currently selects. The
-  contract only matters if it survives promotion, and until this checked
-  `repo.next` too it had only ever proven `exchange`. Orders were the last
-  feature with no contract at all and the last checked one way; they now go
-  through `bothWays` like everything else. Contracts describe the wire, so
+- `validate:wire` — real responses parsed through the wire contracts. (The
+  `bothWays` two-implementation machinery retired with the switches, D212 -
+  one implementation per feature now.) Contracts describe the wire, so
   timestamps are strings — the comparison runs on
   `JSON.parse(JSON.stringify(row))`. **It also refuses a field no contract
   declares.** zod strips unknown keys rather than rejecting them, so a
@@ -512,8 +489,8 @@ The ones that have actually caught things:
   `--self-test` proves the detector works by updating one row inside a
   transaction it rolls back.
 - `audit:frontend-nullability` — **every field the frontend requires that the
-  database allows to be absent.** The frontend keeps its own zod schemas (see
-  `audit:wire-readiness`), and three of them are `.parse()`d on the checkout
+  database allows to be absent.** The frontend keeps its own zod schemas,
+  and three of them are `.parse()`d on the checkout
   path, so one can reject the API's own data. 77 fields compared against
   production, 31 stricter, **17 in schemas parsed at runtime** — none live, and
   measured: 247 production rows, not one null. A mismatch is not automatically
@@ -523,49 +500,26 @@ The ones that have actually caught things:
   been reporting clean), and dropping `serviceSchema` killed a false alarm
   where a FedEx rate quote shared only the word `code` with
   `carrier_services` — the third shared-name false finding on this project.
-- `audit:wire-readiness` — **the other half of the promotion rule.** `*_WIRE`
-  moves "when the frontend is ready", and nothing measured that. It counts the
-  legacy field names the frontend still reads: media, spots, products,
-  carriers, refiners and addresses are CONVERTED (contracts types, render
-  tests, adapters deleted, 2026-08-27) - all three renames and all three
-  lifts, with shared/wire/lift.ts deleted behind them. The audit reports 0
-  switches that would break the frontend today; the payments adapter - long
-  the one `?` left - was converted on 2026-08-27 and the audit reports 0
-  adapters now (this sentence lagged the code by days; verified 2026-09-01). The count is
-  **split into product code and test fixtures** — SPOTS_WIRE, before its
-  conversion, was 76 real reads and 10 fixtures — because a test spelling the
-  legacy name is a real occurrence but not a component reading the wire, and
-  counting them together made the metric move the wrong way when tests were
-  written: SPOTS_WIRE drifted from 83 to 86 purely on frontend *test*
-  commits, with the product code untouched. The switch this endangered was
-  `MEDIA_WIRE`, the one reporting ready at 0. The frontend now imports
-  `@dorado/contracts` ONLY in converted features, so `tsc` sees those renames
-  from both sides — everywhere else it still cannot. Payments' adapter is structural and one rename (`type`) is too
-  common to count globally — those report `?`, never `yes`, because a scan that
-  cannot see something must not call it clean. `--self-test` proves the file
-  floor fires; the first version walked zero files and called every switch
-  ready.
 - `audit:indexes` — **every access path `exchange` indexes that the new schema
   does not.** `audit:constraints` reads `pg_index` but filters on `indisunique`,
   so the plain indexes had never been looked at at all. Uniqueness is a
   correctness guard and something eventually raises 23505 when it goes; a plain
   index going produces no error at all — same rows, same order, sequential scan.
-  Nothing downstream sees it either: `diff` compares output not plans,
-  `verify:parity` compares rows, `validate:wire` compares shapes, and all three
+  Nothing downstream sees it either: `verify:parity` compares rows,
+  `validate:wire` compares shapes, and both
   pass against a table with no indexes whatsoever. The only symptom is latency,
   and dev holds tens of rows where a seq scan is genuinely the faster plan — so
   the symptom first appears as production row counts arriving at a schema nobody
   measured. Asks the access-path question, not the uniqueness one: does any
   target index **lead** with the column the source index leads with. Found
-  `media.images(user_id, created_at)` — the index behind "list my images", on the
-  one feature `audit:wire-readiness` says is clear to promote — and
+  `media.images(user_id, created_at)` — the index behind "list my images" — and
   `tax.sales_tax(state)`, which both live sales-tax queries key on. Three more
   are named in `ACCEPTED` with the query that makes each a non-issue, pinned from
   both sides so a new gap fails and a fixed one forces the entry out.
 - `audit:query-paths` — **the other direction of the index question.**
   `audit:indexes` is source-driven: it walks `exchange`'s indexes and asks
   whether each survived. It is blind by construction to a lookup `exchange`
-  never had — a `WHERE` written fresh in a `repo.next.ts` has no source index to
+  never had — a `WHERE` written fresh in a native repo has no source index to
   be compared against, so no comparison happens. This one starts from the
   queries: every parameterised equality filter in code touching the eighteen
   schemas, checked for whether any index on that table **leads** with a column
@@ -682,7 +636,7 @@ omission is exactly how the rounding went unseen.
   are 100% NULL but still referenced by live code.
 - `master` auto-deploys. There is no staging.
 
-## Where things stand (2026-09-01, after the overnight majors and the auth cutover)
+## Where things stand (2026-09-02, after the Great Purge)
 
 The 2026-08-28 snapshot this section used to hold (the conversion push, the
 D87 series) is DONE and committed; FOLLOWUPS.md D77-D88 and both "Jacob's
@@ -710,10 +664,37 @@ Since then, in order:
 - **The auth cutover happened** (2026-09-01, Jacob's call): better-auth
   writes `auth.*`; the column-partitioned user mirror keeps `exchange.users`
   fresh both ways. Migration 107 carries the mechanics and the rollback.
-- **Next up: the UAT environment** - a prod-dump database, the full
+- **THE GREAT PURGE LANDED (D212, 2026-09-02)**: all legacy code is gone -
+  `api/legacy/`, every `repo.js`/`repo.dual`/`repo.exchange` trio, the last
+  two `*_SOURCE` switches (checkout and payments promoted to native
+  `repo.ts`), the orders dual layer and mirror, `features/scrap` (the scrap
+  IS the line), `shared/wire/`, `paid.service.ts` and every one-column
+  wrapper (one generic `update(id, patch)` per table now - Jacob's
+  single-CRUD ruling), plus `audit:switches`, `diff`,
+  `audit:wire-readiness`, `lint:legacy-boundary` and the dual-era tests.
+  The sweeps read `payments.intents`; the seed drives the native create
+  flow. 896/896 API tests green. `exchange` keeps every table and row;
+  its one live write is `features/users`' `dorado_funds`.
+- **THE MODEL IS BEING REDESIGNED (D213, 2026-09-02) and `docs/model/` is
+  the design.** Lots with measurement stages instead of three item tables,
+  orders with a counterparty (refiner orders are separate orders; the lot
+  is the only join), lines that link, spots that freeze, content and price
+  DERIVED, a pool ledger of credits and locks. Freeze what changes outside
+  your control, derive the rest. The migration CONTINUES toward that model
+  - it does not restart - and no work extends the January tables.
+- **Next up: the restructure** - `features/` splits into `db/` (repos +
+  sql, five CRUD verbs, no logic), `domain/` (one file per use case, pure
+  rules in `rules.ts`) and `http/`; then feature by feature against the
+  model; then the UAT environment - a prod-dump database, the full
   migration chain rehearsed there, then CI/CD with the tests. The memory
   file `uat-environment-plan` lists the assets and tripwires; the Stripe SDK
   majors and `USE_TEST_DB=1` both unblock there.
+- **THE FRONTEND INFORMS NOTHING** (Jacob, 2026-09-02): *"Don't let the
+  frontend inform our decision making on the api AT ALL."* The frontend
+  updates to match the API, per surface, after the API is written; the API
+  does not care what the frontend has or wants. The "never change a wire
+  shape during a schema migration" rule was for the exchange->January move
+  and does not apply to this redesign.
 
 **Session mechanics that matter**: `pnpm check` must launch as a fresh
 compound from the repo root (`pnpm
@@ -786,7 +767,7 @@ Full detail in FOLLOWUPS.md; these are the ones that block other work.
   of confusion it causes. Tooling must use `api/.env`; deleting the root file
   is Jacob's call.
 - **Production has no record of $126.48 it was paid.** Three Stripe intents were
-  captured and `exchange.payment_intents` records `amount_received` as null or 0
+  captured and the local intent rows record `amount_received` as null or 0
   while still saying `requires_payment_method`; two further charges have no row
   at all. Nothing is lost — Stripe has the money and Stripe is right — but the
   webhook that updates `exchange` is not reliably landing, and the visible

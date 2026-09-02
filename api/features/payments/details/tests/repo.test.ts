@@ -142,7 +142,7 @@ test("linking points the ORDER at the account, and only that order", async () =>
     const mine = orders[0].order_id;
 
     const id = await details.create({ user_id: await aUser(c), method: "ECHECK" }, c);
-    const touched = await transactions.setPayoutAccount(mine, id, null, c);
+    const touched = await transactions.update(mine, { payout_details_id: id }, {}, c);
     assert.ok(touched, "the link matched no orders.transactions row");
     assert.equal(touched.payout_details_id, id);
 
@@ -166,8 +166,8 @@ test("linking points the ORDER at the account, and only that order", async () =>
 test("linking an order with no transactions row reports it rather than passing", async () => {
   await inRollback(async (c: PoolClient) => {
     const id = await details.create({ user_id: await aUser(c), method: "ECHECK" }, c);
-    const touched = await transactions.setPayoutAccount(
-      "00000000-0000-0000-0000-000000000000", id, null, c
+    const touched = await transactions.update(
+      "00000000-0000-0000-0000-000000000000", { payout_details_id: id }, {}, c
     );
     assert.equal(touched, undefined, "a link that reached nobody was reported as done");
   });
@@ -178,7 +178,7 @@ test("changing the method walks order -> transactions -> details", async () => {
     const order_id = (await aPurchaseOrderWithTotals(c))[0].order_id;
 
     const id = await details.create({ user_id: await aUser(c), method: "ECHECK" }, c);
-    await transactions.setPayoutAccount(order_id, id, null, c);
+    await transactions.update(order_id, { payout_details_id: id }, {}, c);
 
     const changed = await details.setMethodForOrder(order_id, "WIRE", c);
     assert.deepEqual(changed, [id], "the method change did not land on the linked account");
@@ -198,7 +198,7 @@ test("changing the method on a purchase order actually reaches an account", asyn
   await inRollback(async (c: PoolClient) => {
     const order_id = (await aPurchaseOrderWithTotals(c))[0].order_id;
     const id = await details.create({ user_id: await aUser(c), method: "ECHECK" }, c);
-    await transactions.setPayoutAccount(order_id, id, null, c);
+    await transactions.update(order_id, { payout_details_id: id }, {}, c);
 
     const intents = await c.query(
       "SELECT count(*)::int n FROM payments.intents WHERE order_id = $1", [order_id]

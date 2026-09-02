@@ -37,15 +37,22 @@ import query from "#shared/db/query.ts";
 
 type Executor = PoolClient | undefined;
 
-// The two reads with no restructured owner yet - see the header of compose.ts.
-// They are here rather than in a repo of their own because neither is a table
-// this feature should own, and giving them a folder would suggest otherwise.
+// The one read with no restructured owner yet - see the header of compose.ts.
+// It is here rather than in a repo of its own because it is not a table this
+// feature should own, and giving it a folder would suggest otherwise.
+//
+// THE USER READ MOVED TO auth.users (D213). The auth cutover made auth.users
+// the authoritative identity row on 2026-09-01; exchange.users is now the
+// MIRROR that migration 107's trigger keeps fresh, so reading it meant the
+// composed order took every customer's name and email from a copy. Verified
+// before the move: 13 of 13 rows present on both sides with zero drift in name
+// or email.
 async function usersById(
   ids: string[], executor?: Executor
 ): Promise<Map<string, { user_id: string; user_name: string | null; user_email: string | null }>> {
   if (ids.length === 0) return new Map();
   const { rows } = await query<{ id: string; name: string | null; email: string | null }>(
-    `SELECT id, name, email FROM exchange.users WHERE id = ANY($1::uuid[])`,
+    `SELECT id, name, email FROM auth.users WHERE id = ANY($1::uuid[])`,
     [ids],
     executor
   );
@@ -54,6 +61,23 @@ async function usersById(
   );
 }
 
+// *** DO NOT REPOINT THIS AT places.addresses. IT WILL PASS EVERY CHECK AND
+// *** SILENTLY BLANK recipient_name ON EVERY ORDER. (Verified 2026-09-02.)
+//
+// This is the last exchange read on a live path, and it is blocked on data
+// rather than left over from the purge. compose.ts's snapshotAddress maps
+// `row.name` -> recipient_name, which is WHO RECEIVES THE PARCEL and what
+// cancelOrder hands FedEx as the return label's personName.
+//
+//   places.addresses      has NO `name` column at all.
+//   places.user_addresses has `label` (a book nickname, "Home") - not a
+//                         recipient, and not the same fact.
+//
+// Coverage will tell you it is safe and coverage is the wrong question: all 51
+// orders.addresses.source_address_id values resolve in BOTH tables, so a
+// repoint satisfies parity and every audit while dropping a column that only
+// exists on one side. Where a recipient name lives is features/places/addresses'
+// own pivot to decide - see compose.ts's header.
 async function addressesById(ids: string[], executor?: Executor): Promise<Map<string, unknown>> {
   if (ids.length === 0) return new Map();
   const { rows } = await query<{ id: string }>(

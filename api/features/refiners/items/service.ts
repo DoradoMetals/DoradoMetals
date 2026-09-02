@@ -19,7 +19,7 @@
 // refiners.items' own row id, so the client has exactly one honest key: the
 // line's id. The route says so in its path (/items/by-order-item/:id).
 import * as purchaseOrderService from "#features/orders/service.ts";
-import * as scrapRepo from "#features/scrap/repo.ts";
+import * as orderItemsRepo from "#features/orders/items/repo.ts";
 import * as refinerItemsRepo from "#features/refiners/items/repo.ts";
 import { refusedUnknownField, refusedValue, type Refusal } from "#shared/http/patch-body.ts";
 import { RefinerItemPatch } from "@dorado/contracts";
@@ -83,45 +83,40 @@ export async function patchRefinerItem(
   // The refinery's premium for the line - refiners.items.premium, with
   // exchange.purchase_order_items.refiner_premium as its shadow.
   if (body.premium !== undefined) {
-    await purchaseOrderService.updateRefinerPremium({
-      item_id: orderItemId,
-      refiner_premium: body.premium,
-    });
+    await refinerItemsRepo.setPremium(orderItemId, body.premium);
   }
 
   // The assay report - what the refinery says came back once the metal was
-  // melted. The SAME service the actual-values drawer always used writes it
-  // (scrap's *_actual columns; the dual mirror re-derives refiners.items).
-  // The current scrap row is read first and the patch merged over it, because
-  // that service writes every column it knows - a bare patch would null what
-  // was not sent.
+  // melted. The declared weights live on orders.items and the actuals on
+  // refiners.items; the current values are read first and the patch merged
+  // over them, because updateScrapItem writes every column it knows - a bare
+  // patch would null what was not sent.
   if (
     body.pre_melt !== undefined || body.post_melt !== undefined ||
     body.purity !== undefined || body.unit !== undefined
   ) {
-    const line = await scrapRepo.findScrapLineByItemId(orderItemId);
-    if (!line) {
+    const [line] = await orderItemsRepo.getByIds([orderItemId]);
+    if (!line || line.bullion_id !== null) {
       refuse(404, `order item ${orderItemId} has no scrap line to report assay values on`);
     }
     const current = line!;
+    const refiner = (await refinerItemsRepo.byOrderItem([orderItemId])).get(orderItemId);
     await purchaseOrderService.updateScrapItem({
       item: {
-        id: current.item_id,
+        id: current.id,
         premium: current.premium,
         scrap: {
-          id: current.scrap.id,
-          pre_melt: body.pre_melt !== undefined ? body.pre_melt : current.scrap.pre_melt,
-          post_melt: current.scrap.post_melt,
-          purity: current.scrap.purity,
-          gross_unit: body.unit !== undefined ? body.unit : current.scrap.gross_unit,
-          bid_premium: current.scrap.bid_premium,
-          // The refinery's report lands on the *_actual columns - the exact
-          // mapping the refiners.items mirror reads back (post_melt <-
-          // post_melt_actual, purity <- purity_actual, content <-
-          // content_actual, which the service derives).
-          purity_actual: body.purity !== undefined ? body.purity : current.scrap.purity_actual,
+          pre_melt: body.pre_melt !== undefined ? body.pre_melt : current.pre_melt,
+          post_melt: current.post_melt,
+          purity: current.purity,
+          gross_unit: body.unit !== undefined ? body.unit : current.unit,
+          // The refinery's report lands as the refiner line's own weights -
+          // the mapping the old *_actual columns spelled out (post_melt <-
+          // post_melt_actual, purity <- purity_actual; content the service
+          // derives).
+          purity_actual: body.purity !== undefined ? body.purity : refiner?.purity ?? null,
           post_melt_actual:
-            body.post_melt !== undefined ? body.post_melt : current.scrap.post_melt_actual,
+            body.post_melt !== undefined ? body.post_melt : refiner?.post_melt ?? null,
         },
       },
     } as never);

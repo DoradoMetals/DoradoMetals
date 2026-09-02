@@ -72,7 +72,7 @@ export const patchOrder = asyncHandler(async (req, res) => {
 // GET /api/orders/:id/spots; the refiner spots
 // GET /api/refiners/orders/:id/spots; the bank details
 // GET /api/payouts/:id/details. Ten read handlers were deleted with their
-// routes. What remains here is creation, the review flag, and the purge.
+// routes. What remains here is creation and the review flag.
 //
 // THERE IS NO cancelOrder FOR A SALES ORDER, AND THERE NEVER WORKED ONE. The
 // old sales controller exported a handler awaiting a service function that

@@ -57,6 +57,7 @@ export async function saveCheckoutPayout(
   const id = existing_id ?? randomUUID();
   const key = payoutKeyFromEnv();
   const account = String(form.account_number ?? "");
+  const routing = String(form.routing_number ?? "");
 
   const row = await details.saveForCheckout(
     {
@@ -67,6 +68,10 @@ export async function saveCheckoutPayout(
       bank_name: form.bank_name ?? null,
       account_type: form.account_type ?? null,
       last_four: account.length >= 4 ? account.slice(-4) : null,
+      // Stored beside the account's, for the same reason: the panel renders
+      // both, and an order created here must look no different from one 114
+      // migrated. The routing number itself goes in sealed, below.
+      routing_last_four: routing.length >= 4 ? routing.slice(-4) : null,
       email_to: form.payout_email ?? null,
       routing_number_encrypted: form.routing_number
         ? seal(String(form.routing_number), key, aadFor(id, "routing_number"))

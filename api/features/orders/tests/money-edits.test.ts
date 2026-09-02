@@ -51,18 +51,28 @@ before(async () => {
 
   shipment = (
     await outside<ShipmentFixture>(
-      `SELECT id, purchase_order_id FROM exchange.shipments
-        WHERE purchase_order_id IS NOT NULL ORDER BY id LIMIT 1`
+      `SELECT s.id, f.order_id AS purchase_order_id
+         FROM shipping.shipments s
+         JOIN fulfillments.shipments fs ON fs.shipment_id = s.id
+         JOIN fulfillments.fulfillments f ON f.id = fs.fulfillment_id
+         JOIN orders.orders o ON o.id = f.order_id
+        WHERE o.direction = 'purchase' ORDER BY s.id LIMIT 1`
     )
   )[0];
   assert.ok(shipment, "dev needs a purchase order with a shipment");
 
+  // A payout is an orders.transactions row with an account link (099); the
+  // PATCH is keyed by the details id under the new flow.
   payout = (
     await outside<PayoutFixture>(
-      `SELECT id, order_id FROM exchange.payouts WHERE order_id IS NOT NULL ORDER BY id LIMIT 1`
+      `SELECT t.payout_details_id AS id, t.order_id
+         FROM orders.transactions t
+         JOIN orders.orders o ON o.id = t.order_id
+        WHERE t.payout_details_id IS NOT NULL AND o.direction = 'purchase'
+        ORDER BY t.order_id LIMIT 1`
     )
   )[0];
-  assert.ok(payout, "dev needs a payout attached to an order");
+  assert.ok(payout, "dev needs a payout account linked to an order");
 });
 
 after(async () => {
@@ -70,10 +80,9 @@ after(async () => {
   await pool.end();
 });
 
-// Writes exchange.shipments.net_charge. The write is ORDER-scoped by design -
-// the legacy statement was `WHERE purchase_order_id = $1`, every parcel on
-// the order - and the shipment id ADDRESSES the resource, as the endpoint's
-// header states.
+// Writes shipping.shipments.cost. The write is ORDER-scoped by design - every
+// parcel on the order - and the shipment id ADDRESSES the resource, as the
+// endpoint's header states.
 test("shipping_charge writes net_charge on the order's shipment", async () => {
   await inPinnedTransaction(async (client: PoolClient) => {
     await as({ ...admin, role: "admin" }, async () => {
@@ -84,16 +93,16 @@ test("shipping_charge writes net_charge on the order's shipment", async () => {
       assert.equal(res.status, 200, `answered ${res.status}: ${JSON.stringify(res.body)}`);
 
       const { rows } = await client.query(
-        `SELECT net_charge FROM exchange.shipments WHERE id = $1`,
+        `SELECT cost FROM shipping.shipments WHERE id = $1`,
         [shipment.id]
       );
-      assert.equal(Number(rows[0].net_charge), 45.67, "net_charge did not change");
+      assert.equal(Number(rows[0].cost), 45.67, "the charge did not change");
     });
   });
 });
 
-// Writes exchange.purchase_orders.shipping_fee_actual - an ORDER column
-// reached through the parcel, which the endpoint's keying note owns up to.
+// Writes orders.transactions.shipping_fee_actual - an ORDER column reached
+// through the parcel, which the endpoint's keying note owns up to.
 test("shipping_actual lands on the shipment's order", async () => {
   await inPinnedTransaction(async (client: PoolClient) => {
     await as({ ...admin, role: "admin" }, async () => {
@@ -104,7 +113,7 @@ test("shipping_actual lands on the shipment's order", async () => {
       assert.equal(res.status, 200, `answered ${res.status}: ${JSON.stringify(res.body)}`);
 
       const { rows } = await client.query(
-        `SELECT shipping_fee_actual FROM exchange.purchase_orders WHERE id = $1`,
+        `SELECT shipping_fee_actual FROM orders.transactions WHERE order_id = $1`,
         [shipment.purchase_order_id]
       );
       assert.equal(Number(rows[0].shipping_fee_actual), 12.34, "the actual cost did not land");
@@ -112,9 +121,8 @@ test("shipping_actual lands on the shipment's order", async () => {
   });
 });
 
-// Writes exchange.payouts.cost. The service parameter is `payout_charge` while
-// the repo's is `shipping_charge` - a rename in the middle, which is the kind
-// of thing that silently writes undefined if either side moves.
+// Writes orders.transactions.payout_fee - exchange kept this on the payout
+// row as `cost`, and 073 split the per-order fee off the bank account.
 test("cost writes the payout's cost", async () => {
   await inPinnedTransaction(async (client: PoolClient) => {
     await as({ ...admin, role: "admin" }, async () => {
@@ -125,11 +133,11 @@ test("cost writes the payout's cost", async () => {
       assert.equal(res.status, 200, `answered ${res.status}: ${JSON.stringify(res.body)}`);
 
       const { rows } = await client.query(
-        `SELECT cost FROM exchange.payouts WHERE order_id = $1`,
+        `SELECT payout_fee FROM orders.transactions WHERE order_id = $1`,
         [payout.order_id]
       );
-      assert.ok(rows.length, "no payout row for that order");
-      assert.equal(Number(rows[0].cost), 56.78, "cost did not change");
+      assert.ok(rows.length, "no money row for that order");
+      assert.equal(Number(rows[0].payout_fee), 56.78, "cost did not change");
     });
   });
 });
@@ -147,10 +155,13 @@ test("method writes the payout's method, and the response is a bare success", as
       assert.deepEqual(res.body, { success: true }, "the payout PATCH answered with data");
 
       const { rows } = await client.query(
-        `SELECT method FROM exchange.payouts WHERE id = $1`,
+        `SELECT m.type
+           FROM payments.details d
+           JOIN payments.methods m ON m.id = d.method_id
+          WHERE d.id = $1`,
         [payout.id]
       );
-      assert.equal(rows[0].method, "ACH", "the method did not change");
+      assert.equal(rows[0].type, "ACH", "the method did not change");
     });
   });
 });

@@ -182,20 +182,25 @@ test("a checkout becomes an order with its items and its fulfillment", async () 
   });
 });
 
-// The two schemas share one numbering space while exchange is authoritative.
-// An independent counter here would hand out numbers exchange hands out again.
-test("the order number comes from exchange's sequence, so the two cannot collide", async () => {
+// THE NUMBER IS NATIVE SINCE D213, and the property this asserts is the one
+// that survived the move. It used to be "both schemas share one counter,
+// because exchange is authoritative"; exchange is not authoritative and no
+// longer issues numbers, so what has to hold now is that the native counter
+// advances and never hands out a number a customer has already seen - on
+// EITHER side, because exchange's numbers are frozen history that appears in
+// old emails and PDFs. 115 seeded past all of them; this proves it stayed past.
+test("the order number comes from the native sequence and collides with nothing", async () => {
   await inRollback(async (c: PoolClient) => {
     const { rows: before } = await c.query(
-      `SELECT last_value FROM exchange.purchase_orders_order_number_seq`
+      `SELECT last_value FROM orders.purchase_number_seq`
     );
-    const { number } = await place(c);
+    const { number, order_id } = await place(c);
     const { rows: after } = await c.query(
-      `SELECT last_value FROM exchange.purchase_orders_order_number_seq`
+      `SELECT last_value FROM orders.purchase_number_seq`
     );
     assert.ok(
       Number(after[0].last_value) > Number(before[0].last_value),
-      "the shared sequence did not advance - two orders could take the same number"
+      "the sequence did not advance - two orders could take the same number"
     );
     // The number drawn is above where the sequence stood before, and no
     // exchange order already has it. (Not `number === last_value`: a sequence
@@ -204,11 +209,16 @@ test("the order number comes from exchange's sequence, so the two cannot collide
       Number(number) > Number(before[0].last_value),
       "the number drawn is not above where the sequence started"
     );
+    // BOTH SIDES. exchange stopped issuing numbers, but it still HOLDS the ones
+    // it issued, and a duplicate would be a customer seeing another customer's
+    // order number on their own paperwork.
     const { rows: clash } = await c.query(
-      `SELECT count(*)::int AS n FROM exchange.purchase_orders WHERE order_number = $1`,
-      [number]
+      `SELECT (SELECT count(*) FROM exchange.purchase_orders WHERE order_number = $1)
+            + (SELECT count(*) FROM orders.orders
+                WHERE direction = 'purchase' AND number = $1 AND id <> $2) AS n`,
+      [number, order_id]
     );
-    assert.equal(clash[0].n, 0, "the number handed out already belongs to an exchange order");
+    assert.equal(Number(clash[0].n), 0, "the number handed out already belongs to an order");
   });
 });
 

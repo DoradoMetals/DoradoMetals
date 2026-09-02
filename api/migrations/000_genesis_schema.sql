@@ -694,7 +694,8 @@ CREATE TABLE IF NOT EXISTS payments.details (
   provider_ref text,
   routing_number_encrypted text,
   account_number_encrypted text,
-  encryption_key_id text
+  encryption_key_id text,
+  routing_last_four text
 );
 ALTER TABLE payments.details ADD COLUMN IF NOT EXISTS id uuid DEFAULT gen_random_uuid();
 ALTER TABLE payments.details ADD COLUMN IF NOT EXISTS user_id uuid;
@@ -718,6 +719,7 @@ ALTER TABLE payments.details ADD COLUMN IF NOT EXISTS provider_ref text;
 ALTER TABLE payments.details ADD COLUMN IF NOT EXISTS routing_number_encrypted text;
 ALTER TABLE payments.details ADD COLUMN IF NOT EXISTS account_number_encrypted text;
 ALTER TABLE payments.details ADD COLUMN IF NOT EXISTS encryption_key_id text;
+ALTER TABLE payments.details ADD COLUMN IF NOT EXISTS routing_last_four text;
 
 CREATE TABLE IF NOT EXISTS payments.intents (
   id uuid DEFAULT gen_random_uuid() NOT NULL,

@@ -50,6 +50,27 @@ export type RefinerSpotRow = {
   ask: number | null; bid: number | null;
 };
 
+// The same rows as getFor, in the CONVERTED spellings (`name`/`ask`/`bid`) -
+// what the order pipelines and the quote read speak. See sql/get_named.sql.
+export type NamedSpotRow = {
+  id: string;
+  purchase_order_id: string | null;
+  name: string;
+  ask: number | null;
+  bid: number | null;
+  percent_change: number | null;
+  dollar_change: number | null;
+  created_at: Date | null;
+  updated_at: Date | null;
+};
+
+export async function getNamed(
+  order_id: string, executor?: Executor
+): Promise<NamedSpotRow[]> {
+  const { rows } = await query<NamedSpotRow>(sql("get_named"), [order_id], executor);
+  return rows;
+}
+
 // NOT idempotent, and see sql/create.sql for why: this table has no unique
 // constraint on (order_id, metal_id) where orders.spots does, so there is no
 // conflict target to name.

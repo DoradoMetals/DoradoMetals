@@ -1,3 +1,9 @@
+> **EXECUTED (D212, 2026-09-02).** Ruling 36 is carried out: the dual
+> writes, the mirrors, the switches and `api/legacy/` are deleted, and
+> `exchange` receives no feature writes except `features/users`'
+> `dorado_funds`. The ledger below is the pre-switch evidence and stays as
+> the record - it cannot be re-derived.
+
 # Write pivot — `exchange` stops receiving writes
 
 Ruling 36 (Jacob, 2026-08-29): *"Yes exchange can stop receiving those

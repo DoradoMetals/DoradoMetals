@@ -13534,3 +13534,157 @@ paid there then it's paid." D77-D88 said it; this pass finishes it:
 
 The `paid` fact lands on the order wire during the legacy purge (next),
 where the intent read flips native in the same motion.
+
+## D212 — the Great Purge: all legacy code removed, ruling 36 executed (2026-09-02)
+
+Jacob: "Additionally, I want to get rid of ALL the legacy code. I think it's
+making this way harder than it should be. Remove fucking all of it." And on
+CRUD: "single places to do CRUD operations WITHOUT prop spreads" — one generic
+`update(id, patch)` per table, the patch object naming the columns.
+
+**Deleted** (git has all of it): `api/legacy/` whole, the `#legacy/*` import
+root, `lint:legacy-boundary`; `features/{checkout,payments}` switch trios
+(`repo.js`/`repo.dual.js`/`repo.exchange.js`) with `CHECKOUT_SOURCE` and
+`PAYMENTS_SOURCE` — each `repo.next.ts` promoted to plain `repo.ts`;
+`features/orders/repo.dual.js` + `repo.mirror.ts`; `features/scrap/` (the
+scrap IS the line: declared weights on `orders.items`, assay actuals on
+`refiners.items` via the new `setAssay`); `shared/wire/`, `shared/testing/
+sql.ts`; identity wire adapters (`leads/wire.ts`, `reviews/wire.ts`;
+`rates/wire.ts` renamed `compose.ts` — it genuinely composes metal names);
+`paid.service.ts` and every one-column wrapper on the orders service
+(`updatePurchaseStatus`/`createPurchaseReview`/`toggleSpots`/the four
+`setAmount` wrappers → `ordersRepo.update` / `orderTransactions.update`
+patches); `recordPurchaseOrder` + `recordPayoutInNewSchema` (the seed drives
+`resolvePurchaseCheckout` + `recordPlacedPurchase` now — the live flow's own
+transaction half, zero exchange rows); scripts `audit-switches`,
+`diff-source`, `audit-wire-readiness`; the dual-era test files, with every
+surviving suite converted to native fixtures and asserts.
+
+**One collapse per table (Jacob's CRUD ruling)**: `orders.transactions` gained
+`update(order_id, patch, guard)` (direction guard IN the statement — the
+payout-fee waiver answers "not written" on a sale) replacing
+`setAmount`/`setTotal`/`setPayoutAccount`; callers pass patches.
+
+**Two real product gaps the conversion caught**: `recordOrderPricing` also
+pinned `spots_locked = TRUE` (restored in the native finalize), and the
+composed payout still read `cost` from frozen `exchange.payouts` while fee
+edits landed on `orders.transactions.payout_fee` — the payout reads now
+`COALESCE(t.payout_fee, p.cost)`.
+
+**Sweeps flipped**: `find_abandoned_sales` and
+`find_sales_awaiting_settled_intent` read `payments.intents`/`attempts`; the
+native `getVerbatimByIntentId` serves creation's intent verification (cents
+via `round(amount_expected * 100)`).
+
+**What still touches exchange, on purpose**: `features/users` writes
+`dorado_funds` (live, mirrored to auth by 107); `features/payouts` reads the
+old payout rows (only copy of those bank numbers until `encrypt:payouts` runs
+in production); every read the eventual production backfill needs. Tables and
+rows: untouched, frozen, covenant intact.
+
+**Ceilings re-based with reasons**: `audit:silent-mutations` 18 → 24 (six
+discards whose exchange half was the observed statement became the only
+statement); `lint:db` call floor 120 → 60 (the deleted exchange repos held
+most of the inline statements); `lint:row-vs-list` now scans EVERY repo file
+(73 list-returning functions vs the old switch-era handful).
+
+896/896 API tests green after the purge.
+
+## D213 — the model redesign: lots, counterparty orders, the pool ledger, and the frontend informs nothing (2026-09-02)
+
+The Great Purge (D212) left an API with no legacy code and a data model that
+was still `exchange` renamed with namespaces — the same three copies of every
+lot, the same stored derivations, and therefore the same 35-function orders
+service. Jacob redesigned the model in one sitting the same evening. The
+design lives in `docs/model/` (one file per concern); this entry carries the
+rulings and the reasons, because the file is the authority.
+
+Jacob, on the shape of the API he wants: *"ensure all db code is simple CRUD.
+Domain layers should call db layers with the crud operations in the service
+(domain) layer"*; *"Remove all prop spreading across the api. FUCK prop
+spreading. It looks terrible and makes shit complicated."*; *"I fucking hate
+seeing the prop spreading and random ass function names everywhere that at
+the end of the day just do fucking updates that 20 other functions do."*
+
+### Ruling 40 — the model (docs/model/)
+
+One row per physical LOT (`items.items`); weights and purity as
+`items.measurements` rows by stage (`declared | received | assayed`),
+append-only, never overwritten. `checkout.items` / `orders.items` /
+`refiners.items` dissolve into the lot plus `lines` link tables carrying only
+the money that belongs to that stage. Bullion lots get a declared row minted
+from the product so historical orders never reprice. Jacob: *"We probably
+don't need 3 item tables, probably only need link tables between them."*
+
+### Ruling 41 — freeze what changes outside your control, derive the rest
+
+`content` and `price` are DROPPED and computed on read (Jacob: *"remove price
+and content from the items since they are derivable"*). Spot, premium and
+sales-tax rate are frozen on the order; `orders.spots` and `orders.addresses`
+stay as the snapshots they are. Which measurement stage prices which order is
+a domain rule in `rules.ts`, not a column.
+
+### Ruling 42 — refiner orders are separate orders; the lot is the only join
+
+`orders.orders` has a counterparty: `user_id` XOR `refiner_id`. Jacob: *"We
+don't necessarily need to attach what the refinery order to the customer
+order. At the end of the day they are separate."* No foreign key between
+them; pooling across customer orders is free; `refiners.orders/items/spots`
+dissolve. A settlement is DATA (assayed rows per lot — what makes the
+customer order payable, by a rule over its lots) plus MONEY (a transaction
+against the refiner order). The pool is a LEDGER per refiner per metal:
+`credit` entries from settlements, `lock` entries at a locked spot (*"we do
+lock spots with refiners when we take it out of pool"*); cash cites the lock.
+A customer is paid on the assayed measurement at the CUSTOMER's frozen spot,
+never at the refiner's lock price. `orders.transactions` dissolves into the
+`transactions` schema (renamed from `payments`) per D211.
+
+### Ruling 43 — the client sends ids for what the server holds
+
+*"I want the client driving/sending as little data as possible."* If the
+server could have looked it up, the id is the whole message (a fulfillment
+method is two ids). Whole shapes cross the wire only for genuinely new
+records — a first-time address, a scrap declaration, a lead.
+
+### Ruling 44 — the frontend informs nothing; it updates to match the API
+
+Verbatim: *"fuck the frontend. It's not as important as the API. It can
+adjust to this new model and shape after we write the code. Don't let the
+frontend inform our decision making on the api AT ALL. We should be fully
+ignoring the legacy frontend."* And: *"the frontend must update to match
+the api, the api shouldn't care what the frontend has/wants."* So no API
+design fork is decided by what the frontend reads today; wire shapes change
+as the model changes; each surface's frontend is adapted AFTER its API
+surface lands. The standing "never change a wire shape during a schema
+migration" rule was written for the exchange→January move and does not
+apply here.
+
+### Ruling 45 — continue the migration, do not restart; the restructure is next
+
+*"we don't need to restart. We can continue with the migration just updated
+with this idea in mind."* Then: *"After that we should do the restructure."*
+Sequence: this design → the mechanical `features/` → `db/` + `domain/` +
+`http/` split with `lint:layers` and the tooling re-pointed → per feature,
+tables + backfill + API rewritten together against the model → frontend
+per surface → UAT. `exchange` is untouched throughout; `auth`, the
+providers, the verification tooling and the e2e harness are kept. Dev's
+post-2026-09-02 rows in the new schemas are test data and may be lost on
+rebuild, confirmed per table when it happens.
+
+### Ruling 46 — the API's shape: five verbs, one file per use case, no spreading
+
+`db/`: one folder per table, `getOne / listFor / create / update / remove`,
+no logic, no `INSERT … SELECT`; the `(user_id, direction)` guard on
+`orders.update` stays. `domain/`: one folder per workflow, one public
+function per file named for the action the UI offers, the use case owns the
+transaction, outside-world calls sit outside it, pure rules in `rules.ts`
+tested without Postgres, reads anywhere and writes through the owning
+workflow, authorization in transport. `http/`: parse the contract, call one
+use case, send; never imports `#db`. Every create and update spells its
+columns. An untracked sketch of all of it is at `api/example/`
+(`.git/info/exclude`) and runs nothing.
+
+**Supersedes** the parts of rulings 26b/26c/31 that put a full
+routes/controller/service/repo stack in every feature folder, and the wire
+carve-out in the standing constraints. Everything else in the rulings
+sections stands.

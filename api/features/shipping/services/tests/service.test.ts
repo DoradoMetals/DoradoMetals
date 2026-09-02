@@ -81,7 +81,7 @@ test("the list is ordered by name, with a stable tiebreak", async () => {
   assert.deepEqual(keys, [...keys].sort());
 });
 
-test("create writes one row to each schema under the same id", async () => {
+test("create writes the row the id names", async () => {
   await inRollback(async (c: PoolClient) => {
     const input = await draft(c);
     const made = await service.createService(input, c);
@@ -92,21 +92,16 @@ test("create writes one row to each schema under the same id", async () => {
     const { rows: nx } = await c.query(
       "SELECT id, name FROM shipping.services WHERE name = $1", [input.name]
     );
-    const { rows: ex } = await c.query(
-      "SELECT id, name FROM exchange.carrier_services WHERE name = $1", [input.name]
-    );
-    assert.equal(nx.length, 1, "not written to the new schema");
-    assert.equal(ex.length, 1, "not written to exchange");
-    assert.equal(nx[0].id, ex[0].id, "the two schemas gave the service different ids");
+    assert.equal(nx.length, 1, "not written to shipping.services");
     assert.equal(nx[0].id, made.id);
   });
 });
 
-// THE DEFAULTS THE TWO TABLES DISAGREE ABOUT. exchange defaults
-// supports_dropoff and is_residential to true; shipping.services defaults both
-// to false. Both statements list every column, so what a caller who supplies
-// neither gets is decided by service.ts - and it must be exchange's answer.
-test("a service created with nothing but a name and carrier gets exchange's defaults", async () => {
+// THE DEFAULTS ARE service.ts's, NOT THE TABLE's. shipping.services defaults
+// supports_dropoffs and is_residential to false, but the business's answer -
+// the one exchange always gave - is true, and the statement lists every
+// column so service.ts decides.
+test("a service created with nothing but a name and carrier gets the business's defaults", async () => {
   await inRollback(async (c: PoolClient) => {
     const input = await draft(c, { code: undefined });
     const made = await service.createService(input, c);
@@ -123,17 +118,17 @@ test("a service created with nothing but a name and carrier gets exchange's defa
     assert.equal(Number(made.display_order), 0);
     assert.equal(made.created_by, "Dorado Metals");
 
-    const { rows: ex } = await c.query(
-      `SELECT supports_dropoff, is_residential, is_active, created_by
-         FROM exchange.carrier_services WHERE id = $1`, [made.id]
+    const { rows: nx } = await c.query(
+      `SELECT supports_dropoffs, is_residential, is_active, created_by
+         FROM shipping.services WHERE id = $1`, [made.id]
     );
     assert.deepEqual(
-      { ...ex[0] },
+      { ...nx[0] },
       {
-        supports_dropoff: true, is_residential: true,
+        supports_dropoffs: true, is_residential: true,
         is_active: true, created_by: "Dorado Metals",
       },
-      "the two schemas disagree about a service nobody gave a value for"
+      "the stored row disagrees about a service nobody gave a value for"
     );
   });
 });
@@ -151,15 +146,15 @@ test("an explicit false is kept, not replaced by the default", async () => {
     assert.equal(made.is_active, false);
 
     const { rows } = await c.query(
-      `SELECT supports_dropoff, is_residential, is_active
-         FROM exchange.carrier_services WHERE id = $1`, [made.id]
+      `SELECT supports_dropoffs, is_residential, is_active
+         FROM shipping.services WHERE id = $1`, [made.id]
     );
     assert.deepEqual({ ...rows[0] },
-      { supports_dropoff: false, is_residential: false, is_active: false });
+      { supports_dropoffs: false, is_residential: false, is_active: false });
   });
 });
 
-test("update changes both schemas, including a rename", async () => {
+test("update changes the row, including a renamed column", async () => {
   await inRollback(async (c: PoolClient) => {
     const made = await service.createService(await draft(c), c);
     assert.ok(made, "the service returned nothing");
@@ -175,20 +170,20 @@ test("update changes both schemas, including a rename", async () => {
     assert.equal(updated.id, made.id, "the update returned a different service");
 
     const { rows } = await c.query(
-      `SELECT name, max_weight_lbs, supports_pickup
-         FROM exchange.carrier_services WHERE id = $1`, [made.id]
+      `SELECT name, max_weight_lb, supports_pickups
+         FROM shipping.services WHERE id = $1`, [made.id]
     );
-    assert.equal(rows[0].name, renamed, "exchange still holds the old name");
-    assert.equal(Number(rows[0].max_weight_lbs), 42,
-      "max_weight_lb did not reach exchange's max_weight_lbs");
-    assert.equal(rows[0].supports_pickup, true,
-      "supports_pickups did not reach exchange's supports_pickup");
+    assert.equal(rows[0].name, renamed, "the row still holds the old name");
+    assert.equal(Number(rows[0].max_weight_lb), 42,
+      "max_weight_lbs did not land in max_weight_lb");
+    assert.equal(rows[0].supports_pickups, true,
+      "supports_pickup did not land in supports_pickups");
   });
 });
 
 // The three renames are the one thing a misaligned parameter array would
 // scramble silently: two are booleans and one a numeric, so a swap type-checks.
-test("the renamed columns land in the right column on both sides", async () => {
+test("the renamed wire fields land in the right columns", async () => {
   await inRollback(async (c: PoolClient) => {
     const made = await service.createService(
       await draft(c, {
@@ -204,14 +199,6 @@ test("the renamed columns land in the right column on both sides", async () => {
     assert.equal(nx[0].supports_pickups, true);
     assert.equal(nx[0].supports_dropoffs, false);
     assert.equal(Number(nx[0].max_weight_lb), 7);
-
-    const { rows: ex } = await c.query(
-      `SELECT supports_pickup, supports_dropoff, max_weight_lbs
-         FROM exchange.carrier_services WHERE id = $1`, [made.id]
-    );
-    assert.equal(ex[0].supports_pickup, true);
-    assert.equal(ex[0].supports_dropoff, false);
-    assert.equal(Number(ex[0].max_weight_lbs), 7);
   });
 });
 

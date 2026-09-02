@@ -71,7 +71,7 @@ const draft = (over: Record<string, unknown> = {}, ua: Record<string, unknown> =
   user_address: { label: `probe-${randomUUID().slice(0, 8)}`, default_shipping: false, ...ua },
 });
 
-test("create writes both new rows and the exchange row under one id", async () => {
+test("create writes the address and its link under one id", async () => {
   await inRollback(async (c: PoolClient) => {
     const input = draft();
     const made = await service.create({ ...input, userId: owner }, c);
@@ -87,21 +87,15 @@ test("create writes both new rows and the exchange row under one id", async () =
     const { rows: link } = await c.query(
       "SELECT user_id, label FROM places.user_addresses WHERE address_id = $1", [made.id]
     );
-    const { rows: ex } = await c.query(
-      "SELECT id, user_id, name, line_1 FROM exchange.addresses WHERE id = $1", [made.id]
-    );
-
     assert.equal(addr.length, 1, "no postal address was written");
     assert.equal(link.length, 1, "no link was written");
     assert.equal(link[0].user_id, owner);
-    assert.equal(ex.length, 1, "the address never reached exchange");
-    assert.equal(ex[0].user_id, owner, "exchange lost whose address it is");
-    assert.equal(ex[0].name, input.user_address.label, "the label did not reach exchange's name");
+    assert.equal(link[0].label, input.user_address.label, "the label did not reach the link");
   });
 });
 
-// exchange's create wrote is_valid TRUE and is_residential FALSE as literals,
-// not from the caller. Address validation sets the real ones afterwards.
+// A new address is born valid and non-residential as literals, not from the
+// caller. Address validation sets the real ones afterwards.
 test("a new address is valid and non-residential until validation says otherwise", async () => {
   await inRollback(async (c: PoolClient) => {
     const made = await service.create({ ...draft(), userId: owner }, c);
@@ -109,7 +103,7 @@ test("a new address is valid and non-residential until validation says otherwise
     assert.equal(made.is_residential, false);
 
     const { rows } = await c.query(
-      "SELECT is_valid, is_residential FROM exchange.addresses WHERE id = $1", [made.id]
+      "SELECT is_valid, is_residential FROM places.addresses WHERE id = $1", [made.id]
     );
     assert.equal(rows[0].is_valid, true);
     assert.equal(rows[0].is_residential, false);
@@ -184,7 +178,7 @@ test("getFromId returns a list and getAddressFromId returns the row", async () =
   });
 });
 
-test("update changes both schemas", async () => {
+test("update changes the address and its link", async () => {
   await inRollback(async (c: PoolClient) => {
     const made = await service.create({ ...draft(), userId: owner }, c);
     const updated = await service.update(
@@ -198,18 +192,20 @@ test("update changes both schemas", async () => {
     assert.equal(updated.user_address.default_shipping, true);
 
     const { rows } = await c.query(
-      "SELECT city, name, is_default FROM exchange.addresses WHERE id = $1", [made.id]
+      `SELECT a.city, ua.label, ua.default_shipping
+         FROM places.addresses a
+         JOIN places.user_addresses ua ON ua.address_id = a.id
+        WHERE a.id = $1`, [made.id]
     );
-    assert.equal(rows[0].city, "Dallas", "exchange still holds the old city");
-    assert.equal(rows[0].name, "renamed", "the label did not reach exchange's name");
-    assert.equal(rows[0].is_default, true, "default_shipping did not reach exchange's is_default");
+    assert.equal(rows[0].city, "Dallas", "the row still holds the old city");
+    assert.equal(rows[0].label, "renamed", "the label did not reach the link");
+    assert.equal(rows[0].default_shipping, true, "default_shipping did not land");
   });
 });
 
 // THE CHECK THAT MOVED OUT OF THE STATEMENT. A stranger must not be able to
-// rewrite an address by id, and - because exchange's statement is still scoped -
-// the failure mode without this check is the two schemas disagreeing rather
-// than a visible error.
+// rewrite an address by id - places.addresses has no user_id to scope on, so
+// the service's ownership check is the only guard.
 test("a stranger cannot update somebody else's address", async () => {
   await inRollback(async (c: PoolClient) => {
     const made = await service.create({ ...draft(), userId: owner }, c);
@@ -224,11 +220,7 @@ test("a stranger cannot update somebody else's address", async () => {
     const { rows: nx } = await c.query(
       "SELECT city FROM places.addresses WHERE id = $1", [made.id]
     );
-    const { rows: ex } = await c.query(
-      "SELECT city FROM exchange.addresses WHERE id = $1", [made.id]
-    );
-    assert.equal(nx[0].city, "Austin", "a stranger rewrote the new schema's copy");
-    assert.equal(ex[0].city, "Austin", "a stranger rewrote exchange's copy");
+    assert.equal(nx[0].city, "Austin", "a stranger rewrote the address");
   });
 });
 
@@ -241,15 +233,11 @@ test("a stranger's delete removes nothing", async () => {
       "SELECT 1 FROM places.user_addresses WHERE address_id = $1 AND user_id = $2",
       [made.id, owner]
     );
-    const { rows: ex } = await c.query(
-      "SELECT 1 FROM exchange.addresses WHERE id = $1", [made.id]
-    );
     assert.equal(link.length, 1, "a stranger deleted somebody else's link");
-    assert.equal(ex.length, 1, "a stranger deleted somebody else's exchange row");
   });
 });
 
-test("deleting removes the link, the address and the exchange row", async () => {
+test("deleting removes the link and the address", async () => {
   await inRollback(async (c: PoolClient) => {
     const made = await service.create({ ...draft(), userId: owner }, c);
     assert.equal(await service.remove({ addressId: made.id, userId: owner }, c),
@@ -261,12 +249,8 @@ test("deleting removes the link, the address and the exchange row", async () => 
     const { rows: addr } = await c.query(
       "SELECT 1 FROM places.addresses WHERE id = $1", [made.id]
     );
-    const { rows: ex } = await c.query(
-      "SELECT 1 FROM exchange.addresses WHERE id = $1", [made.id]
-    );
     assert.equal(link.length, 0);
     assert.equal(addr.length, 0);
-    assert.equal(ex.length, 0);
   });
 });
 
@@ -305,7 +289,7 @@ test("an address an order points at survives being removed from a book", async (
   });
 });
 
-test("setting a default clears the others, in both schemas", async () => {
+test("setting a default clears the others", async () => {
   await inRollback(async (c: PoolClient) => {
     // THE CALL WAS MIS-SHAPED, AND IT MADE THIS TEST VACUOUS.
     //
@@ -340,15 +324,9 @@ test("setting a default clears the others, in both schemas", async () => {
     for (const row of nx) {
       const expected = row.address_id === second.id;
       assert.equal(row.default_shipping, expected, "default_shipping is wrong somewhere");
-      // exchange has one flag, so both follow it.
+      // One gesture sets both flags; the split into two columns is for a
+      // future the UI does not have yet.
       assert.equal(row.default_billing, expected, "default_billing did not follow");
-    }
-
-    const { rows: ex } = await c.query(
-      "SELECT id, is_default FROM exchange.addresses WHERE user_id = $1", [owner]
-    );
-    for (const row of ex) {
-      assert.equal(row.is_default, row.id === second.id, "exchange's default disagrees");
     }
     assert.ok(nx.some((r) => r.address_id === first.id && r.default_shipping === false),
       "the address that used to be the default is still one");

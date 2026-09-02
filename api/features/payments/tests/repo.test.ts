@@ -1,4 +1,5 @@
-// The Stripe repo, against real Postgres.
+// The Stripe repo - payments.intents / attempts / settlements - against real
+// Postgres.
 //
 // This file talks to the database only - there is no Stripe client in it, and
 // these tests never touch the network. What is being checked is the bookkeeping
@@ -13,7 +14,7 @@ import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
 import { randomUUID } from "node:crypto";
 import pool from "#db";
-import * as repo from "#features/payments/repo.js";
+import * as repo from "#features/payments/repo.ts";
 
 let client: PoolClient;
 
@@ -39,21 +40,11 @@ async function inRollback(fn: (c: PoolClient) => Promise<void>) {
   }
 }
 
-// Every fixture gets its own session row, so nothing another test file commits
-// can be mistaken for one of these intents.
-//
-// It has to be a real row: payment_intents.session_id is a uuid with a foreign
-// key to exchange.session, so neither a prefixed string nor a bare uuid will do.
-// Created inside the caller's transaction and rolled back with everything else.
-const aSession = async (c: PoolClient, userId: string) => {
-  const { rows: [row] } = await c.query(
-    `INSERT INTO exchange.session (id, "userId", token, "expiresAt")
-     VALUES (gen_random_uuid(), $1, $2, now() + interval '1 day')
-     RETURNING id`,
-    [userId, `test-${randomUUID()}`]
-  );
-  return row.id;
-};
+// Every fixture gets its own session id, so nothing another test file commits
+// can be mistaken for one of these intents. payments.intents.session_id
+// carries no foreign key - the session is better-auth's fact, not this
+// schema's - so a fresh uuid is enough.
+const aSession = async (_c: PoolClient, _userId: string) => randomUUID();
 
 const aUser = async (c: PoolClient) =>
   (await c.query("SELECT id FROM exchange.users ORDER BY id LIMIT 1")).rows[0].id;
@@ -77,13 +68,15 @@ test("an intent is recorded against the session's user", async () => {
     await repo.createPaymentIntent(pi, "checkout", null, session, c);
 
     const { rows } = await c.query(
-      "SELECT user_id, type, payment_status FROM exchange.payment_intents WHERE payment_intent_id = $1",
+      `SELECT i.user_id, i.type, i.status FROM payments.intents i
+         JOIN payments.attempts a ON a.intent_id = i.id
+        WHERE a.provider_ref = $1`,
       [pi.id]
     );
     assert.equal(rows.length, 1);
     assert.equal(rows[0].user_id, user);
     assert.equal(rows[0].type, "checkout");
-    assert.equal(rows[0].payment_status, pi.status);
+    assert.equal(rows[0].status, pi.status);
   });
 });
 
@@ -101,7 +94,9 @@ test("an admin intent is recorded against the customer, not the admin", async ()
     await repo.createPaymentIntent(pi, "admin", customer, session, c);
 
     const { rows } = await c.query(
-      "SELECT user_id FROM exchange.payment_intents WHERE payment_intent_id = $1", [pi.id]
+      `SELECT i.user_id FROM payments.intents i
+         JOIN payments.attempts a ON a.intent_id = i.id
+        WHERE a.provider_ref = $1`, [pi.id]
     );
     assert.equal(rows[0].user_id, customer);
     assert.notEqual(rows[0].user_id, admin);
@@ -115,14 +110,17 @@ test("an open intent is found again for the same session, user and type", async 
     const pi = intent();
     await repo.createPaymentIntent(pi, "checkout", null, session, c);
 
-    // repo.exchange composes the same nested shape repo.next returns, so the
-    // provider's id for the intent is on the attempt rather than at the top
-    // level - the internal shape does not depend on which switch is selected,
-    // and since the conversion (2026-08-27) it is the wire shape too.
+    // The provider's id for the intent is on the attempt rather than at the
+    // top level, and since the conversion (2026-08-27) that is the wire shape
+    // too.
     const found = await repo.retrievePaymentIntent("checkout", session, null, c);
     assert.equal(found?.attempt?.provider_ref, pi.id);
     assert.equal(found?.status, pi.status);
-    assert.equal(found?.payment_intent_id, undefined, "the legacy names leaked into the repo");
+    assert.equal(
+      (found as unknown as Record<string, unknown>)?.payment_intent_id,
+      undefined,
+      "the legacy names leaked into the repo"
+    );
   });
 });
 
@@ -162,26 +160,33 @@ test("an update lands on the named intent and no other", async () => {
     await repo.createPaymentIntent(other, "checkout", null, session, c);
 
     await repo.updatePaymentIntent(
-      { ...mine, status: "succeeded", amount: 25000, amount_received: 25000, amount_capturable: 0 },
+      { ...mine, status: "succeeded", amount: 25000, amount_received: 25000 },
       c
     );
 
+    // The new schema keeps money in DOLLARS (amount_expected) and what moved
+    // as a settlement row; the Stripe payload arrives in cents.
     const { rows: [updated] } = await c.query(
-      "SELECT payment_status, amount, amount_received FROM exchange.payment_intents WHERE payment_intent_id = $1",
+      `SELECT i.status, i.amount_expected, st.settled_amount
+         FROM payments.intents i
+         JOIN payments.attempts a ON a.intent_id = i.id
+         LEFT JOIN payments.settlements st ON st.attempt_id = a.id
+        WHERE a.provider_ref = $1`,
       [mine.id]
     );
     const { rows: [untouched] } = await c.query(
-      "SELECT payment_status, amount FROM exchange.payment_intents WHERE payment_intent_id = $1",
+      `SELECT i.status, i.amount_expected FROM payments.intents i
+         JOIN payments.attempts a ON a.intent_id = i.id
+        WHERE a.provider_ref = $1`,
       [other.id]
     );
-    assert.equal(updated.payment_status, "succeeded");
-    assert.equal(Number(updated.amount), 25000);
-    assert.equal(Number(updated.amount_received), 25000);
-    assert.equal(untouched.payment_status, "requires_payment_method");
-    // createPaymentIntent does not record an amount - it inserts only the
-    // session, user, type, status and Stripe id. The amount first appears on
-    // update, so an intent that is created and never updated has none.
-    assert.equal(untouched.amount, null);
+    assert.equal(updated.status, "succeeded");
+    assert.equal(Number(updated.amount_expected), 250);
+    assert.equal(Number(updated.settled_amount), 250);
+    assert.equal(untouched.status, "requires_payment_method");
+    // The native create records amount_expected from the Stripe payload
+    // (10000 cents -> $100), unlike exchange which had none until an update.
+    assert.equal(Number(untouched.amount_expected), 100);
   });
 });
 
@@ -213,12 +218,12 @@ test("a payment write on a client is invisible on another connection", async () 
     await repo.createPaymentIntent(pi, "checkout", null, session, client);
 
     const inside = await client.query(
-      "SELECT 1 FROM exchange.payment_intents WHERE payment_intent_id = $1", [pi.id]
+      "SELECT 1 FROM payments.attempts WHERE provider_ref = $1", [pi.id]
     );
     assert.equal(inside.rows.length, 1, "the write did not happen at all");
 
     const seen = await other.query(
-      "SELECT 1 FROM exchange.payment_intents WHERE payment_intent_id = $1", [pi.id]
+      "SELECT 1 FROM payments.attempts WHERE provider_ref = $1", [pi.id]
     );
     assert.equal(seen.rows.length, 0, "an uncommitted payment intent was visible elsewhere");
   } finally {

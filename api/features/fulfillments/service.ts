@@ -206,8 +206,8 @@ async function createFulfillment(
     throw refuse(
       409,
       `cannot fulfill order ${order_id}: it is not in orders.orders. ` +
-        `Orders reach the new schema through the orders dual-write, so this ` +
-        `order exists only in exchange.`
+        `Every order is created there directly now, so an id that misses is ` +
+        `either unknown or a pre-migration order the backfill has not carried.`
     );
   }
 

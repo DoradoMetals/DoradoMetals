@@ -60,7 +60,7 @@ before(async () => {
   const counts = await outside<{ visible: number; hidden: number }>(
     `SELECT count(*) FILTER (WHERE NOT hidden)::int AS visible,
             count(*) FILTER (WHERE hidden)::int AS hidden
-     FROM exchange.reviews`
+     FROM reviews.reviews`
   );
   visibleCount = counts[0].visible;
   hiddenCount = counts[0].hidden;
@@ -251,7 +251,7 @@ test("nothing this file created survived the transaction", async () => {
   assert.ok(created.length > 0, "no review was created, so this proves nothing");
   for (const name of created) {
     assert.equal(
-      await assertNothingEscaped("exchange.reviews", "name = $1", [name]),
+      await assertNothingEscaped("reviews.reviews", "name = $1", [name]),
       0,
       `${name} was committed to dev`
     );

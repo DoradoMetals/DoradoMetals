@@ -14,7 +14,9 @@ import type { SalesOrderForRender, SupplierSpot } from "#features/media/emails/u
 
 import { sendEmail } from "#providers/emails/nodemailer.ts";
 import * as purchaseOrderReads from "#features/orders/read.service.ts";
-import * as spots from "#features/orders/repo.dual.js";
+// The LIVE spot feed - the same read the pricing paths use (spots.spots,
+// converted names). The exchange.metals read died with the dual layer (D212).
+import * as spotsFeed from "#features/spots/service.ts";
 import * as packages from "#features/shipping/packages/repo.ts";
 import * as shipmentOrderRead from "#features/shipping/shipments/order-read.ts";
 import { recordEmail, messageIdOf } from "#features/media/emails/record.ts";
@@ -104,7 +106,7 @@ export async function sendOrderPlacedConfirmation(
     // parcel was actually booked with - shipping.shipments names it by id and
     // shipping.packages holds its label and dimensions, which is where the
     // browser's `packageOptions.find(...)` guess was always trying to land.
-    const spotPrices = await spots.getCurrentSpotPrices(executor);
+    const spotPrices = await spotsFeed.getSpotPrices(executor);
     const [shipment] = await shipmentOrderRead.getForOrder(order_id, executor);
     const pkg = shipment?.package_id
       ? await packages.getOne(shipment.package_id, executor)

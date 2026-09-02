@@ -65,7 +65,7 @@ const anOrderWithoutShipment = async (c: PoolClient) => {
   await c.query(
     `INSERT INTO orders.orders (id, user_id, direction, status, number)
      VALUES ($1, $2, 'purchase', 'Pending',
-             nextval('exchange.purchase_orders_order_number_seq'))`,
+             nextval('orders.purchase_number_seq'))`,
     [id, user.id]
   );
   return id;

@@ -6,23 +6,23 @@ import * as payoutsRepo from "#features/payouts/repo.ts";
 // GET /api/orders/:orderId/payouts - the payouts on one order, as rows.
 //
 // THE ONE DEVIATION FROM "VERBATIM" IS SECURITY, and it is ruling 12's single
-// non-negotiable carve-out: exchange.payouts holds routing and account
-// numbers in PLAINTEXT (fourteen of them in production), so this read is the
-// last-four projection - `right(..., 4)` happens in the statement, and the
-// full value never leaves Postgres. The full numbers have exactly one
-// endpoint, GET /payouts/:id/details, admin-only, one payout at a time.
+// non-negotiable carve-out: the full routing and account numbers are not
+// columns of this read at all. It projects the two last-four values, which is
+// what the panel renders; the full numbers have exactly one endpoint,
+// GET /payouts/:id/details, admin-only, one payout at a time.
+//
+// ONE READ SINCE D213. This used to ask exchange.payouts first and fall back
+// to the native composition for a D210 order, which meant the answer depended
+// on which era the order was created in - and every order created after the
+// purge fell through the first read silently. getMany is native now and
+// answers both, so there is no era to branch on.
 //
 // A LIST, NOT A SLOT. The composed order carried a `payout` member that was
 // an OBJECT OF NULLS whenever the order had none, because a LEFT JOIN fed a
 // jsonb_build_object; an order with no payout answers [] here, which is a
 // shape rather than a workaround. Admin-only, like the write it feeds.
 export const getPayoutsByOrder = asyncHandler(async (req, res) => {
-  const order_id = param(req, "orderId");
-  const legacy = await payoutsRepo.getMany([order_id]);
-  // A new-flow order (D210) has no exchange payout; the same wire shape
-  // composes from payments.details + orders.transactions, id = the details
-  // row - which is exactly what the details endpoint opens.
-  return res.json(legacy.length ? legacy : await payoutsRepo.getForNew(order_id));
+  return res.json(await payoutsRepo.getMany([param(req, "orderId")]));
 });
 
 export const patchPayout = asyncHandler(async (req, res) => {

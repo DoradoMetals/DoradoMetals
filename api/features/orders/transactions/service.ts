@@ -15,13 +15,12 @@
 // domain logic to be in one file rather than smeared across its callers.
 import { reportError } from "#shared/observability/report.ts";
 import * as transactionsRepo from "#features/orders/transactions/repo.ts";
-import type { OrderTotalsRow, Amount } from "#features/orders/transactions/repo.ts";
+import type { OrderTotalsRow, TotalsPatch, TotalsGuard } from "#features/orders/transactions/repo.ts";
 import type { PoolClient } from "pg";
 
 type Executor = PoolClient | undefined;
 
-export { AMOUNTS } from "#features/orders/transactions/repo.ts";
-export type { OrderTotalsRow, Amount } from "#features/orders/transactions/repo.ts";
+export type { OrderTotalsRow, TotalsPatch, TotalsGuard } from "#features/orders/transactions/repo.ts";
 
 export async function forOrder(
   orderId: string, executor?: Executor
@@ -44,18 +43,17 @@ export async function byOrderId(
   return by;
 }
 
-// One of the amounts an admin adjusts. The column is named from the repo's
-// closed set, never interpolated from a request.
-export async function setAmount(
+// ONE UPDATE (Jacob, 2026-09-02): the patch object names the columns, the
+// repo builds the statement, and every admin money edit comes through here.
+export async function update(
   orderId: string,
-  field: Amount,
-  value: number | null,
-  by: string | null = null,
+  patch: TotalsPatch,
+  guard: TotalsGuard = {},
   executor?: Executor
-): Promise<void> {
+): Promise<OrderTotalsRow | undefined> {
   // ZERO ROWS HERE IS A LOST MONEY EDIT, AND IT USED TO BE SILENT.
   //
-  // The statement is `WHERE order_id = $3` against orders.transactions, and
+  // The statement is `WHERE order_id = ...` against orders.transactions, and
   // that row is not guaranteed to exist: measured on dev, 5 of 21 PURCHASE
   // orders have no orders.transactions row at all - and purchase orders are
   // exactly the ones carrying refiner_fee, payout_fee, shipping_actual and the
@@ -65,15 +63,19 @@ export async function setAmount(
   // Reported rather than thrown: the order legitimately has no row yet, and
   // refusing the edit is louder without being better. The real fix is an upsert
   // and it is a schema-shaped decision (D202). This makes the loss visible in
-  // the meantime.
-  const written = await transactionsRepo.setAmount(orderId, field, value, by, executor);
-  if (!written) {
+  // the meantime. A GUARDED miss is not reported: the guard failing to match
+  // is the answer the caller asked for, and the caller reads it off the
+  // undefined return.
+  const written = await transactionsRepo.update(orderId, patch, guard, executor);
+  if (!written && !Object.keys(guard).length) {
     reportError({
-      at: "orders.transactions.setAmount",
+      at: "orders.transactions.update",
       message:
-        `no orders.transactions row for order ${orderId} - the ${field} value ` +
-        `was NOT recorded and the caller was told it succeeded`,
-      extra: { order_id: orderId, field },
+        `no orders.transactions row for order ${orderId} - the ` +
+        `${Object.keys(patch).join(", ")} edit was NOT recorded and the ` +
+        `caller was told it succeeded`,
+      extra: { order_id: orderId, fields: Object.keys(patch).join(",") },
     });
   }
+  return written;
 }

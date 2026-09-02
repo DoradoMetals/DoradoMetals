@@ -7,16 +7,13 @@
 // checks below are about what each statement can and cannot be trusted to do.
 import test from "node:test";
 import assert from "node:assert/strict";
+import path from "node:path";
 import { sqlFrom } from "#shared/db/sql.ts";
-import { sqlWithLegacy } from "#shared/testing/sql.ts";
 import { compose, byDefaultThenId, all } from "#features/places/addresses/compose.ts";
 import type { ComposedAddress } from "#features/places/addresses/compose.ts";
 
-// features/places/addresses/sql AND legacy/places/addresses/sql - the two halves of the
-// dual write, pinned against each other in one file (ruling 29 moved the
-// mirror out of this feature; the pin did not follow it, because the pin IS
-// the comparison between the two).
-const sql = sqlWithLegacy("places/addresses");
+// features/places/addresses/sql - the statements as text.
+const sql = sqlFrom(path.join(import.meta.dirname, ".."));
 
 const body = (name: string): string =>
   sql(name).split("\n").filter((l) => !l.trim().startsWith("--")).join("\n");
@@ -24,8 +21,6 @@ const body = (name: string): string =>
 const STATEMENTS = [
   "get_one", "get_many", "create", "update", "update_validation",
   "delete", "is_active", "is_referenced",
-  "legacy/create", "legacy/update", "legacy/update_validation",
-  "legacy/delete", "legacy/set_default",
 ];
 
 test("every statement loads and is not empty", () => {
@@ -40,30 +35,6 @@ test("create writes its columns in the order repo.ts supplies them", () => {
     /\(id,\s*line_1,\s*line_2,\s*city,\s*state,\s*country,\s*zip,\s*country_code,\s*phone_number,\s*is_valid,\s*is_residential\)/,
     "sql/create.sql column order changed - repo.ts builds its params to match"
   );
-});
-
-// exchange's row carries the owner, the label and one is_default alongside the
-// postal fields, and legacy.repo.ts splices them into the same array. The order
-// is different from the new schema's on purpose, so it is asserted separately.
-test("the exchange write takes its fourteen values in exchange's own order", () => {
-  assert.match(
-    body("legacy/create"),
-    /\(id,\s*user_id,\s*line_1,\s*line_2,\s*city,\s*state,\s*country,\s*zip,\s*name,\s*is_default,\s*phone_number,\s*is_valid,\s*country_code,\s*is_residential\)/,
-    "sql/legacy/create.sql column order changed - legacy.repo.ts builds its params to match"
-  );
-});
-
-// THE ONE THAT MATTERS. exchange's update and delete are still scoped by owner;
-// the new schema's cannot be, and the service does it instead. If either
-// exchange statement ever lost its scope, a stranger's write would land there
-// too rather than being caught by one side.
-test("the exchange update and delete are still scoped to the owner", () => {
-  assert.match(body("legacy/update"), /WHERE\s+id\s*=\s*\$1\s+AND\s+user_id\s*=\s*\$2/i,
-    "sql/legacy/update.sql lost its user_id scope");
-  assert.match(body("legacy/delete"), /WHERE\s+id\s*=\s*\$1\s+AND\s+user_id\s*=\s*\$2/i,
-    "sql/legacy/delete.sql lost its user_id scope");
-  assert.match(body("legacy/set_default"), /WHERE\s+user_id\s*=\s*\$1/i,
-    "sql/legacy/set_default.sql lost its user_id scope");
 });
 
 // And the new schema's update is NOT scoped, which is a fact worth pinning
@@ -97,10 +68,6 @@ test("the writes to places.user_addresses are scoped to the person", () => {
 test("no write statement reaches into a second table", () => {
   for (const n of ["get_one", "get_many", "create", "update", "update_validation", "delete"]) {
     assert.doesNotMatch(body(n), /exchange\.|orders\.|user_addresses/, `${n} reaches beyond its table`);
-  }
-  for (const n of ["legacy/create", "legacy/update", "legacy/update_validation",
-                   "legacy/delete", "legacy/set_default"]) {
-    assert.doesNotMatch(body(n), /places\.|orders\./, `${n} reaches out of exchange`);
   }
 });
 

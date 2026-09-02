@@ -60,19 +60,19 @@ before(async () => {
   // through and the test fails.
   hidden = (
     await outside<ProductFixture>(
-      `SELECT id, product_name FROM exchange.products
+      `SELECT id, name AS product_name FROM products.bullion
         WHERE display IS NOT TRUE AND sell_display IS TRUE ORDER BY id LIMIT 1`
     )
   )[0];
   notSellable = (
     await outside<ProductFixture>(
-      `SELECT id, product_name FROM exchange.products
+      `SELECT id, name AS product_name FROM products.bullion
         WHERE display IS TRUE AND sell_display IS NOT TRUE ORDER BY id LIMIT 1`
     )
   )[0];
 
   product = (
-    await outside<ProductFixture>(`SELECT id, product_name FROM exchange.products ORDER BY id LIMIT 1`)
+    await outside<ProductFixture>(`SELECT id, name AS product_name FROM products.bullion ORDER BY id LIMIT 1`)
   )[0];
   assert.ok(product, "dev has no products");
 });
@@ -92,10 +92,10 @@ test("sync_cart replaces the customer's buy cart", async () => {
       assert.equal(res.status, 200, `answered ${res.status}: ${JSON.stringify(res.body)}`);
 
       const { rows } = await client.query(
-        `SELECT ci.product_id, ci.quantity
-           FROM exchange.cart_items ci
-           JOIN exchange.carts c ON c.id = ci.cart_id
-          WHERE c.user_id = $1`,
+        `SELECT ci.bullion_id AS product_id, ci.quantity
+           FROM checkout.items ci
+           JOIN checkout.checkouts c ON c.id = ci.checkout_id
+          WHERE c.user_id = $1 AND c.direction = 'sale'`,
         [customer.id]
       );
       assert.equal(rows.length, 1, "the cart does not hold exactly the one line sent");
@@ -118,9 +118,10 @@ test("sync_cart replaces rather than appends", async () => {
         .send({ cart: [{ id: product.id, quantity: 1 }] });
 
       const { rows } = await client.query(
-        `SELECT ci.quantity FROM exchange.cart_items ci
-           JOIN exchange.carts c ON c.id = ci.cart_id
-          WHERE c.user_id = $1`,
+        `SELECT ci.quantity
+           FROM checkout.items ci
+           JOIN checkout.checkouts c ON c.id = ci.checkout_id
+          WHERE c.user_id = $1 AND c.direction = 'sale'`,
         [customer.id]
       );
       assert.equal(rows.length, 1, "the second sync added a line instead of replacing");
@@ -156,11 +157,10 @@ test("sync_sell_cart stores a scrap line with its own values", async () => {
       assert.equal(res.status, 200, `answered ${res.status}: ${JSON.stringify(res.body)}`);
 
       const { rows } = await client.query(
-        `SELECT s.purity, s.pre_melt
-           FROM exchange.sell_cart_items sci
-           JOIN exchange.sell_carts sc ON sc.id = sci.cart_id
-           JOIN exchange.scrap s ON s.id = sci.scrap_id
-          WHERE sc.user_id = $1`,
+        `SELECT ci.purity, ci.pre_melt
+           FROM checkout.items ci
+           JOIN checkout.checkouts c ON c.id = ci.checkout_id
+          WHERE c.user_id = $1 AND c.direction = 'purchase' AND ci.bullion_id IS NULL`,
         [customer.id]
       );
       assert.equal(rows.length, 1, "the sell cart does not hold exactly the one scrap line");
@@ -260,11 +260,11 @@ test("get_cart returns the customer's saved buy cart", async () => {
 // leaves the cart exactly as it found it.
 const cartOf = async (client: PoolClient) => {
   const { rows } = await client.query(
-    `SELECT ci.product_id::text, ci.quantity
-       FROM exchange.cart_items ci
-       JOIN exchange.carts c ON c.id = ci.cart_id
-      WHERE c.user_id = $1
-      ORDER BY ci.product_id`,
+    `SELECT ci.bullion_id::text AS product_id, ci.quantity
+       FROM checkout.items ci
+       JOIN checkout.checkouts c ON c.id = ci.checkout_id
+      WHERE c.user_id = $1 AND c.direction = 'sale'
+      ORDER BY ci.bullion_id`,
     [customer.id]
   );
   return JSON.stringify(rows);
@@ -370,8 +370,7 @@ test("a scrap line is unaffected by the product check", async () => {
 // product line in a synced sell cart was skipped by a bare `continue`, while
 // the scrap branch (which always read item.data) worked. A cart of one coin
 // and one ring synced as just the ring, silently. This sends the frontend's
-// real shape, post-conversion spelling, and proves the product line lands in
-// BOTH schemas under dual.
+// real shape, post-conversion spelling, and proves the product line lands.
 test("sync_sell_cart stores a product line sent in the frontend's own shape", async () => {
   await inPinnedTransaction(async (client: PoolClient) => {
     await as({ ...customer, role: "user" }, async () => {
@@ -389,16 +388,6 @@ test("sync_sell_cart stores a product line sent in the frontend's own shape", as
         });
       assert.equal(res.status, 200, `answered ${res.status}: ${JSON.stringify(res.body)}`);
 
-      const legacy = await client.query(
-        `SELECT sci.quantity
-           FROM exchange.sell_cart_items sci
-           JOIN exchange.sell_carts sc ON sc.id = sci.cart_id
-          WHERE sc.user_id = $1 AND sci.product_id IS NOT NULL`,
-        [customer.id]
-      );
-      assert.equal(legacy.rows.length, 1, "the product line was skipped again - D73 is back");
-      assert.equal(Number(legacy.rows[0].quantity), 2, "the data.quantity was not read");
-
       const next = await client.query(
         `SELECT i.quantity
            FROM checkout.items i
@@ -406,8 +395,8 @@ test("sync_sell_cart stores a product line sent in the frontend's own shape", as
           WHERE c.user_id = $1 AND i.bullion_id IS NOT NULL AND c.direction = 'purchase'`,
         [customer.id]
       );
-      assert.equal(next.rows.length, 1, "the new schema did not get the product line");
-      assert.equal(Number(next.rows[0].quantity), 2, "the new schema quantity is wrong");
+      assert.equal(next.rows.length, 1, "the product line was skipped again - D73 is back");
+      assert.equal(Number(next.rows[0].quantity), 2, "the data.quantity was not read");
     });
   });
 });

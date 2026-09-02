@@ -17,7 +17,6 @@
 import { randomUUID } from "node:crypto";
 import withTransaction from "#shared/db/withTransaction.ts";
 import * as pickups from "#features/shipping/pickups/repo.ts";
-import * as legacy from "#legacy/shipping/pickups/repo.ts";
 import * as shipmentService from "#features/shipping/shipments/service.ts";
 import * as carriers from "#features/shipping/carriers/service.ts";
 import * as orders from "#features/orders/repo.ts";
@@ -25,12 +24,25 @@ import * as compose from "#features/shipping/pickups/compose.ts";
 import type { ComposedPickup, Lookups, ShipmentContext } from "#features/shipping/pickups/compose.ts";
 import type { PickupBaseRow } from "#features/shipping/pickups/repo.ts";
 import type { Executor } from "#shared/db/executor.ts";
-import type { LegacyPickup } from "#legacy/shipping/pickups/repo.ts";
+
 
 // What a caller supplies. exchange's shape, because that is what every call
 // site has always sent - an order and a carrier NAME, with the date and time
 // apart.
-export type PickupInput = LegacyPickup & { id?: string };
+// The caller's shape - exchange's historical spelling, kept because every
+// call site sends it: an order and a carrier NAME, the date and time apart.
+export type PickupInput = {
+  id?: string;
+  user_id?: string | null;
+  order_id?: string | null;
+  carrier?: string | null;
+  pickup_requested_at?: Date | string | null;
+  date?: string | null;
+  time?: string | null;
+  pickup_status?: string | null;
+  confirmation_number?: string | number | null;
+  location?: string | null;
+};
 
 // --------------------------------------------------------------- composition
 
@@ -176,19 +188,17 @@ export async function create(
   const run = async (c: Executor): Promise<ComposedPickup | null> => {
     const id = input.id ?? randomUUID();
 
-    // exchange first and unconditionally - see the header. It is the record of
-    // truth and the one the caller's transaction is really about. It hands back
-    // the timestamp it computed, which is how a date and a time cross into the
-    // new schema without JavaScript doing the arithmetic.
-    const written = await legacy.create(id, input, c);
+    // Native-only since the purge (D212). The date and time combine in
+    // Postgres via the text cast - the no-JavaScript-date rule the legacy
+    // statement used to enforce, kept without it.
+    const requested_at =
+      input.pickup_requested_at ??
+      (input.date ? `${input.date} ${input.time || "00:00:00"}` : null);
 
     const shipment_id = await shipmentFor(input.order_id, c);
     if (shipment_id) {
       await pickups.create(id, shipment_id, {
-        requested_at: written?.pickup_requested_at ?? null,
-        // Lowercase to match exchange.carrier_pickups' CHECK allowlist, which
-        // 101 copies onto shipping.pickups.status. The capital S here and in
-        // legacy/shipping/pickups/repo.ts was a value BOTH tables refuse.
+        requested_at,
         status: input.pickup_status ?? "scheduled",
         confirmation_number:
           input.confirmation_number === null || input.confirmation_number === undefined
@@ -198,15 +208,15 @@ export async function create(
       }, c);
     }
 
-    // WHEN THE NEW-SCHEMA ROW WAS SKIPPED, THE PICKUP IS STILL REAL. Reading it
-    // back would find nothing and answer null - to a caller that has just
-    // booked a courier with FedEx. Composed from what was written instead.
+    // WHEN THE ROW WAS SKIPPED (no shipment yet), THE PICKUP IS STILL REAL -
+    // composed from what was asked rather than answering null to a caller
+    // that just booked a courier with FedEx.
     return (
       (await getById(id, c)) ??
       compose.composeFromWrite(
         id,
         { ...input, pickup_status: input.pickup_status ?? "scheduled" },
-        written?.pickup_requested_at ?? null
+        requested_at
       )
     );
   };
@@ -250,12 +260,14 @@ export async function update(
   if (!id) return null;
 
   const run = async (c: Executor): Promise<ComposedPickup | null> => {
-    const written = await legacy.update(id, input, c);
+    const requested_at =
+      input.pickup_requested_at ??
+      (input.date ? `${input.date} ${input.time || "00:00:00"}` : null);
 
     const existing = await pickups.getOne(id, c);
     if (existing) {
       await pickups.update(id, {
-        requested_at: written?.pickup_requested_at ?? existing.requested_at,
+        requested_at: requested_at ?? existing.requested_at,
         status: input.pickup_status ?? existing.status,
         confirmation_number:
           input.confirmation_number === null || input.confirmation_number === undefined
@@ -267,7 +279,7 @@ export async function update(
 
     return (
       (await getById(id, c)) ??
-      compose.composeFromWrite(id, input, written?.pickup_requested_at ?? null)
+      compose.composeFromWrite(id, input, requested_at)
     );
   };
   return executor ? await run(executor) : await withTransaction(run);
@@ -275,7 +287,6 @@ export async function update(
 
 export async function remove(id: string, executor?: Executor): Promise<boolean> {
   const run = async (c: Executor): Promise<boolean> => {
-    await legacy.remove(id, c);
     await pickups.remove(id, c);
     return true;
   };

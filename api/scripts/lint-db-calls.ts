@@ -20,7 +20,7 @@
 // *** WHAT IT CANNOT SEE. Written down because a detector's blind spot reports
 // as CLEAN (D95), and this one guards the executor that keeps a repo call inside
 // its caller's transaction. ***
-//   - IT WALKS features/ AND legacy/ ONLY. shared/ and providers/ are not
+//   - IT WALKS features/ ONLY. shared/ and providers/ are not
 //     scanned. Checked at the time of writing: the only `query(`/`pool.query(`
 //     outside those two are the executor itself (shared/db/query.ts), the
 //     transaction helper's own BEGIN/COMMIT/ROLLBACK, and the test pool - all
@@ -57,12 +57,10 @@ export async function getOne(id, client) {
 }`;
   // Every case carries the SAME clean file plus one planted defect, so a case
   // that fails proves the defect was seen rather than that the fixture was
-  // malformed. `legacy/` is present in all of them because its absence is now
-  // itself a failure.
+  // malformed.
   const LOW = { LINT_DB_FILE_FLOOR: "0", LINT_DB_CALL_FLOOR: "0" };
   const with_ = (extra: string) => ({
     "features/thing/repo.exchange.js": clean + "\n" + extra,
-    "legacy/keep.js": clean,
   });
   await selfTest({
     script: import.meta.filename,
@@ -105,14 +103,6 @@ export async function getOne(id, client) {
         files: with_(""),
         expect: "fail",
         mustPrint: "A smaller number is not a cleaner codebase",
-      },
-      {
-        name: "a missing legacy/ is a broken walk, not a clean one",
-        rootEnv: "LINT_DB_ROOT",
-        env: LOW,
-        files: { "features/thing/repo.exchange.js": clean },
-        expect: "fail",
-        mustPrint: "the walk is broken",
       },
     ],
   });
@@ -189,14 +179,7 @@ const problems: string[] = [];
 let filesScanned = 0;
 let callsChecked = 0;
 
-// legacy/ IS SCANNED TOO. The dual-write mirrors moved out of features/ in
-// the 26c factoring (ruling 29 - one directory to delete at promotion), and
-// they are exactly the code this lint exists for: a mirror that forgets its
-// executor commits while the caller rolls back.
-for (const file of [
-  ...sourceFiles(path.join(ROOT, "features")),
-  ...sourceFiles(path.join(ROOT, "legacy")),
-]) {
+for (const file of sourceFiles(path.join(ROOT, "features"))) {
   const src = fs.readFileSync(file, "utf8");
   filesScanned++;
   const rel = path.relative(ROOT, file);
@@ -251,8 +234,11 @@ for (const file of [
 // self-test case can exercise the detector on a three-file tree - and one case
 // deliberately omits the override to prove THE FLOOR ITSELF still fires. A
 // floor nothing ever trips is a floor nobody has checked.
-const FILE_FLOOR = process.env.LINT_DB_ROOT ? Number(process.env.LINT_DB_FILE_FLOOR ?? 200) : 200;
-const CALL_FLOOR = process.env.LINT_DB_ROOT ? Number(process.env.LINT_DB_CALL_FLOOR ?? 120) : 120;
+// Floors re-based for D212: the purge deleted the legacy/ tree and every
+// repo.exchange/repo.dual file, whose inline statements were most of the old
+// 120-call denominator. Measured after the purge: 315 files, 77 calls.
+const FILE_FLOOR = process.env.LINT_DB_ROOT ? Number(process.env.LINT_DB_FILE_FLOOR ?? 250) : 250;
+const CALL_FLOOR = process.env.LINT_DB_ROOT ? Number(process.env.LINT_DB_CALL_FLOOR ?? 60) : 60;
 if (filesScanned < FILE_FLOOR || callsChecked < CALL_FLOOR) {
   console.error(
     `lint:db walked ${filesScanned} file(s) and checked ${callsChecked} query() call(s), ` +

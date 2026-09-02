@@ -2,21 +2,19 @@
 //
 // The executor problem has a mirror image at this layer: a service that makes
 // several repo calls without a transaction commits each one separately, so a
-// failure partway leaves half the work done. These two were doing exactly that.
+// failure partway leaves half the work done.
 //
-// deleteOrderItems is the one that mattered.
-// exchange.purchase_order_items.scrap_id is ON DELETE SET NULL, so if the scrap
-// delete committed and the item delete then failed, the scrap rows were gone -
-// weights, purity, and the assay figures recording what was actually recovered
-// from a customer's parcel - while the order lines survived pointing at
-// nothing. Those figures exist nowhere else.
+// SINCE D212 the scrap IS the line: orders.items carries the declared weights
+// and refiners.items the assay actuals, so "delete the scrap with its line"
+// became one guarded statement plus a cascade. What still needs the
+// transaction is the RE-TIER that follows a delete - survivors repriced from
+// the changed per-metal totals - and the weights+premium pair on an edit.
 import test, { after, before } from "node:test";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
 import pool from "#db";
-import { LOCKS, takeLocks } from "#shared/testing/locks.ts";
+import { LOCKS } from "#shared/testing/locks.ts";
 import * as service from "#features/orders/service.ts";
-import * as scrapRepo from "#features/scrap/repo.ts";
 
 let client: PoolClient;
 
@@ -28,22 +26,12 @@ before(async () => {
   client = await pool.connect();
 
   // THE ORDERS LOCK, HELD FOR THE WHOLE FILE - and a SESSION lock, not the
-  // transaction-scoped one every other file uses.
-  //
-  // locks.ts records this file as one of the eight that "were given their
-  // locks". It was given the IMPORT and never the CALL; `takeLocks` has been
-  // imported and unused since the file was written, in HEAD as well as here.
-  // It stayed latent exactly as that file predicts - "a missing lock is latent
-  // until timing changes, and timing changes for reasons that have nothing to
-  // do with the file that fails" - and surfaced on 2026-08-29 as a DEADLOCK in
-  // refiner-edits.test.js, which applies a migration (DDL locks) while this
-  // file's cleanup deletes refiners.items / refiners.spots / refiners.orders.
-  //
-  // takeLocks() cannot be used here: it takes pg_advisory_xact_lock, and THIS
-  // FILE HAS NO TRANSACTIONS. Every statement autocommits, so a
-  // transaction-scoped lock would be released before the next statement ran.
-  // A session lock contends in the same lock space, so it serialises correctly
-  // against every file that takes ORDERS the ordinary way.
+  // transaction-scoped one every other file uses. takeLocks() cannot be used
+  // here: it takes pg_advisory_xact_lock, and THIS FILE HAS NO TRANSACTIONS.
+  // Every statement autocommits, so a transaction-scoped lock would be
+  // released before the next statement ran. A session lock contends in the
+  // same lock space, so it serialises correctly against every file that takes
+  // ORDERS the ordinary way.
   await client.query("SELECT pg_advisory_lock($1)", [LOCKS.ORDERS]);
 });
 
@@ -53,45 +41,42 @@ after(async () => {
   await pool.end();
 });
 
-// Builds a purchase order with one scrap line, on the given connection.
+// Builds a NATIVE purchase order with one scrap line and its refiner
+// counterpart, on the given connection. A scrap line is a line whose
+// bullion_id is null (the one-table model).
 const anOrderWithScrap = async (c: PoolClient) => {
-  const { rows: [metal] } = await c.query("SELECT id FROM exchange.metals LIMIT 1");
-  const { rows: [user] } = await c.query("SELECT id FROM exchange.users LIMIT 1");
+  const { rows: [metal] } = await c.query("SELECT id FROM metals.metals LIMIT 1");
   const { rows: [order] } = await c.query(
-    `INSERT INTO exchange.purchase_orders (id, user_id, purchase_order_status)
-     VALUES (gen_random_uuid(), $1, 'Pending') RETURNING id`, [user.id]
-  );
-  const { rows: [scrap] } = await c.query(
-    `INSERT INTO exchange.scrap (id, metal_id, pre_melt, purity, content, gross_unit, bid_premium)
-     VALUES (gen_random_uuid(), $1, 10, 0.9, 9, 't oz', 0.75) RETURNING id`, [metal.id]
+    `INSERT INTO orders.orders (direction, status, number)
+     VALUES ('purchase', 'Pending', nextval('orders.purchase_number_seq'))
+     RETURNING id`
   );
   const { rows: [item] } = await c.query(
-    `INSERT INTO exchange.purchase_order_items (id, purchase_order_id, scrap_id, quantity, confirmed)
-     VALUES (gen_random_uuid(), $1, $2, 1, false) RETURNING id`, [order.id, scrap.id]
+    `INSERT INTO orders.items (id, order_id, metal_id, pre_melt, purity, content, premium, quantity, confirmed, unit)
+     VALUES (gen_random_uuid(), $1, $2, 10, 0.9, 9, 0.75, 1, false, 't oz') RETURNING id`,
+    [order.id, metal.id]
   );
-  return { orderId: order.id, scrapId: scrap.id, itemId: item.id };
+  // The engagement and the refiner counterpart, as creation writes them.
+  const { rows: [engagement] } = await c.query(
+    `INSERT INTO refiners.orders (order_id) VALUES ($1) RETURNING id`, [order.id]
+  );
+  await c.query(
+    `INSERT INTO refiners.items (order_item_id, refiner_order_id, metal_id, quantity)
+     VALUES ($1, $2, $3, 1)`,
+    [item.id, engagement.id, metal.id]
+  );
+  return { orderId: order.id, itemId: item.id };
 };
 
 // The services open their own transactions, so these tests cannot run inside
 // one - a rolled-back outer transaction would not see the service's commit.
-// They clean up after themselves instead, on a second connection.
-// BOTH SCHEMAS. This used to delete the three exchange tables its author was
-// thinking about (lesson ao) - and once dual became the default, the services
-// mirrored every fixture into orders.* and refiners.*, which nothing removed.
-// That is where the stray orders came from: this file leaked one order per run
-// into the new schema, invisibly, because a test reads its own writes either
-// way. Scoped strictly to THIS fixture's ids - it deletes what it created.
-const cleanup = async (c: PoolClient, { orderId, scrapId }: { orderId: string; scrapId: string }) => {
-  await c.query("DELETE FROM exchange.purchase_order_items WHERE purchase_order_id = $1", [orderId]);
-  await c.query("DELETE FROM exchange.scrap WHERE id = $1", [scrapId]);
-  await c.query("DELETE FROM exchange.purchase_orders WHERE id = $1", [orderId]);
+// They clean up after themselves instead, scoped strictly to the fixture's
+// ids.
+const cleanup = async (c: PoolClient, { orderId }: { orderId: string }) => {
   await c.query(
     "DELETE FROM refiners.items WHERE order_item_id IN (SELECT id FROM orders.items WHERE order_id = $1)",
     [orderId]
   );
-  // The ENGAGEMENT (093) and its spot mirrors: every order is born with a
-  // refiners.orders row now, and refiners.orders.order_id has a plain FK -
-  // deleting the order first raises 23503.
   await c.query("DELETE FROM refiners.spots WHERE order_id = $1", [orderId]);
   await c.query("DELETE FROM refiners.orders WHERE order_id = $1", [orderId]);
   for (const t of ["orders.items", "orders.spots", "orders.transactions", "orders.addresses"]) {
@@ -100,105 +85,104 @@ const cleanup = async (c: PoolClient, { orderId, scrapId }: { orderId: string; s
   await c.query("DELETE FROM orders.orders WHERE id = $1", [orderId]);
 };
 
-test("deleting a line removes the scrap and the item together", async () => {
+test("deleting a line removes it and its refiner counterpart together", async () => {
   const fixture = await anOrderWithScrap(client);
   try {
     await service.deleteOrderItems({
-      items: [{ id: fixture.itemId, scrap: { id: fixture.scrapId }, purchase_order_id: fixture.orderId }],
+      items: [{ id: fixture.itemId, purchase_order_id: fixture.orderId }],
     });
 
-    const item = await client.query("SELECT 1 FROM exchange.purchase_order_items WHERE id = $1", [fixture.itemId]);
-    const scrap = await client.query("SELECT 1 FROM exchange.scrap WHERE id = $1", [fixture.scrapId]);
+    const item = await client.query("SELECT 1 FROM orders.items WHERE id = $1", [fixture.itemId]);
+    const refiner = await client.query(
+      "SELECT 1 FROM refiners.items WHERE order_item_id = $1", [fixture.itemId]
+    );
     assert.equal(item.rows.length, 0, "the order line survived");
-    assert.equal(scrap.rows.length, 0, "the scrap row survived");
+    assert.equal(refiner.rows.length, 0, "the refiner counterpart survived the cascade");
   } finally {
     await cleanup(client, fixture);
   }
 });
 
-// The property the transaction buys. If anything after the scrap delete throws,
-// the scrap must come back - otherwise the assay record is gone and the line
-// that referenced it is still there, orphaned by the SET NULL.
-test("a failure after the scrap delete leaves the scrap intact", async () => {
+// The property the transaction buys: if anything in the delete-and-retier
+// throws, every line must survive - a half-applied delete would leave the
+// per-metal totals and the surviving premiums disagreeing.
+test("a failure mid-delete leaves every line intact", async () => {
   const fixture = await anOrderWithScrap(client);
   try {
-    // An id that is not a uuid makes the item delete throw, after the scrap
-    // delete has already run inside the same transaction.
+    // An id that is not a uuid makes the statement throw after the valid id
+    // is already part of the same statement's parameter set - the whole
+    // transaction rolls back.
     await assert.rejects(() =>
       service.deleteOrderItems({
         items: [
-          { id: fixture.itemId, scrap: { id: fixture.scrapId }, purchase_order_id: fixture.orderId },
-          { id: "not-a-uuid", scrap: { id: null }, purchase_order_id: fixture.orderId },
+          { id: fixture.itemId, purchase_order_id: fixture.orderId },
+          { id: "not-a-uuid", purchase_order_id: fixture.orderId },
         ],
       })
     );
 
-    const scrap = await client.query("SELECT 1 FROM exchange.scrap WHERE id = $1", [fixture.scrapId]);
-    const item = await client.query("SELECT 1 FROM exchange.purchase_order_items WHERE id = $1", [fixture.itemId]);
-    assert.equal(scrap.rows.length, 1, "the assay record was lost to a partial failure");
-    assert.equal(item.rows.length, 1, "the order line was deleted without its scrap");
+    const item = await client.query("SELECT 1 FROM orders.items WHERE id = $1", [fixture.itemId]);
+    assert.equal(item.rows.length, 1, "a failed delete still removed the line");
   } finally {
     await cleanup(client, fixture);
   }
 });
 
-// A bullion line has no scrap, and `item.scrap?.id` is undefined rather than
-// null - which the original `!== null` filter let through, asking the database
-// to delete a row with no id.
-test("a bullion line contributes no scrap id to delete", async () => {
+// The delete is GUARDED by the order id now - a line list that names no order
+// is refused rather than deleted on ids alone (the unguarded delete is the
+// exchange behaviour this replaced).
+test("a delete naming no order is refused", async () => {
   const fixture = await anOrderWithScrap(client);
-  const { rows: [product] } = await client.query("SELECT id FROM exchange.products LIMIT 1");
-  const { rows: [bullion] } = await client.query(
-    `INSERT INTO exchange.purchase_order_items (id, purchase_order_id, product_id, quantity, confirmed)
-     VALUES (gen_random_uuid(), $1, $2, 1, false) RETURNING id`, [fixture.orderId, product.id]
-  );
   try {
-    await service.deleteOrderItems({
-      items: [{ id: bullion.id, purchase_order_id: fixture.orderId }],
-    });
-    // The scrap on the other line is untouched.
-    const scrap = await client.query("SELECT 1 FROM exchange.scrap WHERE id = $1", [fixture.scrapId]);
-    assert.equal(scrap.rows.length, 1, "deleting a bullion line removed unrelated scrap");
+    await assert.rejects(
+      () => service.deleteOrderItems({ items: [{ id: fixture.itemId }] }),
+      /refusing an unguarded delete/
+    );
+    const item = await client.query("SELECT 1 FROM orders.items WHERE id = $1", [fixture.itemId]);
+    assert.equal(item.rows.length, 1, "the refused delete still removed the line");
   } finally {
     await cleanup(client, fixture);
   }
 });
 
-// updateScrapItem writes the weights and the premium separately, and both feed
-// content * spot * premium. Applying one without the other quotes a price from
-// a mix of old figures and new.
-test("editing a scrap line applies the weights and the premium together", async () => {
+// updateScrapItem writes the declared weights, the assay actuals and the
+// premium in one transaction; all three feed content * spot * premium, and
+// applying one without the others quotes a price from a mix of old figures
+// and new.
+test("editing a scrap line applies the weights, the actuals and the premium together", async () => {
   const fixture = await anOrderWithScrap(client);
   try {
     await service.updateScrapItem({
-      // DELIBERATELY THE PAYLOAD THE REAL CALLER SENDS, which is not the
-      // payload the signature demands. updateScrapItem declares
-      // `item: OrderScrapItemRow & Record<string, any>` - requiring `metal`
-      // and `content` at the top level - and then reads only `item.id`,
-      // `item.premium` and `item.scrap.*`. The same over-declaration as
-      // `bid.ts`'s ComposedItem (D136's wave-4 find). @ts-expect-error rather
-      // than padding the fixture with fields the service never looks at: this
-      // FAILS the moment the signature is narrowed to what it reads, which
-      // forces the comment out instead of leaving a lie in the fixture.
-      // @ts-expect-error - the declared row is wider than the code reads
       item: {
         id: fixture.itemId,
         premium: 0.82,
         scrap: {
-          id: fixture.scrapId, pre_melt: 10, post_melt: 8, purity: 0.5,
+          pre_melt: 10, post_melt: 8, purity: 0.5,
           gross_unit: "t oz", bid_premium: 0.82,
         },
       },
     });
 
-    const { rows: [scrap] } = await client.query(
-      "SELECT content FROM exchange.scrap WHERE id = $1", [fixture.scrapId]
-    );
     const { rows: [item] } = await client.query(
-      "SELECT premium FROM exchange.purchase_order_items WHERE id = $1", [fixture.itemId]
+      "SELECT content, premium FROM orders.items WHERE id = $1", [fixture.itemId]
     );
-    assert.equal(Number(scrap.content), 4, "8 post-melt at 0.5 purity");
+    assert.equal(Number(item.content), 4, "8 post-melt at 0.5 purity");
     assert.equal(Number(item.premium), 0.82);
+
+    // No actuals were sent, so the declared values stand in for them - the
+    // fallback the old *_actual columns spelled out - and they land on the
+    // refiner line. The content quirk is PRESERVED, verbatim from exchange:
+    // the stored post_melt falls back to the declared post_melt (8), but the
+    // derived content falls back to PRE_melt (10 * 0.5 = 5), because the old
+    // statement computed `post_melt_actual ?? pre_melt` while storing
+    // `post_melt_actual ?? post_melt`. Behaviour is pinned, not endorsed.
+    const { rows: [refiner] } = await client.query(
+      "SELECT post_melt, purity, content FROM refiners.items WHERE order_item_id = $1",
+      [fixture.itemId]
+    );
+    assert.equal(Number(refiner.post_melt), 8);
+    assert.equal(Number(refiner.purity), 0.5);
+    assert.equal(Number(refiner.content), 5);
   } finally {
     await cleanup(client, fixture);
   }

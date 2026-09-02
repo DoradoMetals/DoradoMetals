@@ -32,8 +32,6 @@ import * as orderItems from "#features/orders/items/repo.ts";
 import * as orderSpots from "#features/orders/spots/repo.ts";
 import * as orderAddresses from "#features/orders/addresses/repo.ts";
 import * as orderTransactions from "#features/orders/transactions/repo.ts";
-import * as legacyPurchase from "#legacy/purchase-orders/repo.ts";
-import * as legacySales from "#legacy/sales-orders/repo.ts";
 import * as refinerOrders from "#features/refiners/orders/repo.ts";
 import * as refinerItems from "#features/refiners/items/repo.ts";
 import * as refinerSpots from "#features/refiners/spots/repo.ts";
@@ -63,7 +61,6 @@ export async function insertPurchaseOrder(
   const id = randomUUID();
 
   const { number } = await orders.create({ id, user_id: userId, direction: "purchase", status: status ?? "In Transit", created_by: by }, executor);
-  await legacyPurchase.createOrder(id, userId, addressId, status, number, executor);
 
   // ONE ENGAGEMENT PER ORDER, EVERY ORDER (093). The order gets its
   // refiners.orders row at birth, values NULL until the refinery reports -
@@ -145,27 +142,6 @@ export async function insertSalesOrder(
     executor
   );
 
-  await legacySales.createOrder(
-    id,
-    [
-      user.id,
-      sales_order.address.id,
-      status,
-      p.order_total ?? null,
-      sales_order.service?.label ?? null,
-      p.shipping_charge ?? null,
-      p.pre_charges_amount ?? null,
-      p.post_charges_amount ?? null,
-      p.subject_to_charges_amount ?? null,
-      sales_order.using_funds ?? null,
-      p.item_total ?? null,
-      p.base_total ?? null,
-      p.charges_amount ?? null,
-      p.sales_tax ?? null,
-    ],
-    number,
-    executor
-  );
 
   return id;
 }
@@ -216,9 +192,6 @@ export async function insertSalesItems(
       },
       executor
     );
-    await legacySales.createItem(
-      id, orderId, product_id, price, quantity, premium, tax_rate, executor
-    );
   }
 
   // The refiner counterparts, one per line (093's mirror completion applied
@@ -251,8 +224,7 @@ export async function insertSalesOrderMetals(
       );
     }
     // exchange.order_metals still calls the metal `type`; that spelling is the
-    // COLUMN's, stated in #legacy/sales-orders/repo.ts, not the wire's.
-    await legacySales.createSpot(orderId, spot.name, spot.ask ?? null, executor);
+    // COLUMN's (the exchange row's own spellings, D84), not the wire's.
   }
 
   // The refiner counterparts, unquoted (093's coverage invariant: no customer
@@ -264,7 +236,6 @@ export async function updateSalesStatus(
   order: { id: string }, status: string, by: string | null, executor?: Executor
 ): Promise<{ id: string } | undefined> {
   const written = await orders.update(order.id, { status, updated_by: by }, {}, executor);
-  await legacySales.setStatus(order.id, status, by, executor);
   return written;
 }
 
@@ -275,7 +246,6 @@ export async function setSalesFlag(
   id: string, flag: Flag, executor?: Executor
 ): Promise<{ id: string } | undefined> {
   const written = await orders.update(id, { [flag]: true }, {}, executor);
-  await legacySales.setFlag(id, flag, executor);
   return written;
 }
 
@@ -283,6 +253,5 @@ export async function attachSupplierToOrder(
   id: string, supplier_id: string, executor?: Executor
 ): Promise<{ id: string; supplier_id: string | null } | undefined> {
   const row = await orders.setRefinery(id, supplier_id, executor);
-  await legacySales.setSupplier(id, supplier_id, executor);
   return row;
 }

@@ -24,6 +24,7 @@
 // A field this endpoint does not have is refused with a 400 naming it, never
 // dropped - the same admin-mutation-urls argument the order PATCH makes.
 import * as purchaseOrderService from "#features/orders/service.ts";
+import * as orderTransactions from "#features/orders/transactions/service.ts";
 import * as refinerOrdersRepo from "#features/refiners/orders/repo.ts";
 import * as refinerSpotsRepo from "#features/refiners/spots/repo.ts";
 import { refusedUnknownField, refusedValue, type Refusal } from "#shared/http/patch-body.ts";
@@ -115,30 +116,21 @@ export async function patchRefinerOrder(
   if (body.pool_oz_deducted !== undefined) {
     await op("pool_oz_deducted", async () => {
       await refinerOrdersRepo.setEngagementValue(id, "pool_oz_deducted", body.pool_oz_deducted!);
-      await purchaseOrderService.updatePoolOzDeducted({
-        purchase_order_id: orderId,
-        pool_oz_deducted: body.pool_oz_deducted!,
-      });
+      await orderTransactions.update(orderId, { pool_oz_deducted: body.pool_oz_deducted! });
     });
   }
 
   if (body.pool_remediation !== undefined) {
     await op("pool_remediation", async () => {
       await refinerOrdersRepo.setEngagementValue(id, "pool_remediation", body.pool_remediation!);
-      await purchaseOrderService.updatePoolRemediation({
-        purchase_order_id: orderId,
-        pool_remediation: body.pool_remediation!,
-      });
+      await orderTransactions.update(orderId, { pool_remediation: body.pool_remediation! });
     });
   }
 
   if (body.fee !== undefined) {
     await op("fee", async () => {
       await refinerOrdersRepo.setEngagementValue(id, "fee", body.fee!);
-      await purchaseOrderService.updateRefinerFee({
-        purchase_order_id: orderId,
-        refiner_fee: body.fee!,
-      });
+      await orderTransactions.update(orderId, { refiner_fee: body.fee! });
     });
   }
 

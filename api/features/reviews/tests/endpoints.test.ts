@@ -37,18 +37,17 @@ test("a customer cannot reach the admin routes", async () => {
   });
 });
 
-test("create writes BOTH schemas, in one transaction, with the same id", async () => {
+test("create writes the row the id names", async () => {
   await inPinnedTransaction(async (client: PoolClient) => {
     await as({ ...admin, role: "admin" }, async () => {
       const res = await request(app).post("/api/reviews/create").send({ review: NEW });
       assert.equal(res.status, 200, `answered ${res.status}: ${JSON.stringify(res.body)}`);
       assert.ok(res.body.id);
 
-      for (const t of ["reviews.reviews", "exchange.reviews"]) {
-        const { rows } = await client.query(`SELECT name FROM ${t} WHERE id = $1`, [res.body.id]);
-        assert.equal(rows.length, 1, `not written to ${t}`);
-        assert.equal(rows[0].name, NEW.name, `${t} stored the wrong name`);
-      }
+      const { rows } = await client.query(
+        `SELECT name FROM reviews.reviews WHERE id = $1`, [res.body.id]);
+      assert.equal(rows.length, 1, "not written to reviews.reviews");
+      assert.equal(rows[0].name, NEW.name, "the wrong name was stored");
     });
   });
 });
@@ -68,7 +67,7 @@ test("the read comes from the new schema", async () => {
   });
 });
 
-test("update and delete both reach both schemas", async () => {
+test("update writes the row, and delete removes it", async () => {
   await inPinnedTransaction(async (client: PoolClient) => {
     await as({ ...admin, role: "admin" }, async () => {
       const created = (await request(app).post("/api/reviews/create").send({ review: NEW })).body;
@@ -77,16 +76,14 @@ test("update and delete both reach both schemas", async () => {
         .post("/api/reviews/update")
         .send({ review: { ...created, name: "Renamed" }, user_name: admin.name });
       assert.equal(upd.status, 200);
-      for (const t of ["reviews.reviews", "exchange.reviews"]) {
-        const { rows } = await client.query(`SELECT name FROM ${t} WHERE id = $1`, [created.id]);
-        assert.equal(rows[0]?.name, "Renamed", `${t} was not updated`);
-      }
+      const { rows: renamed } = await client.query(
+        `SELECT name FROM reviews.reviews WHERE id = $1`, [created.id]);
+      assert.equal(renamed[0]?.name, "Renamed", "reviews.reviews was not updated");
 
       assert.equal((await request(app).delete("/api/reviews/delete").send({ review_id: created.id })).status, 200);
-      for (const t of ["reviews.reviews", "exchange.reviews"]) {
-        const { rows } = await client.query(`SELECT 1 FROM ${t} WHERE id = $1`, [created.id]);
-        assert.equal(rows.length, 0, `${t} still holds the deleted review`);
-      }
+      const { rows: gone } = await client.query(
+        `SELECT 1 FROM reviews.reviews WHERE id = $1`, [created.id]);
+      assert.equal(gone.length, 0, "reviews.reviews still holds the deleted review");
     });
   });
 });

@@ -70,18 +70,10 @@ after(async () => {
 async function imageFor(userId: string) {
   const filename = `replay-${randomUUID().slice(0, 8)}.jpg`;
   created.push(filename);
-  // BOTH SCHEMAS, under one id. Reads come from media.images since the
-  // restructure, so a fixture that writes only exchange creates an image the
-  // API cannot see - which is a broken fixture, not a broken endpoint.
   const { rows } = await query(
     `INSERT INTO media.images (user_id, bucket, path, filename, mime_type, size_bytes)
      VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
     [userId, "replay-bucket", "/replay/", filename, "image/jpeg", 1234]
-  );
-  await query(
-    `INSERT INTO exchange.images (id, user_id, bucket, path, filename, mime_type, size_bytes)
-     VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-    [rows[0].id, userId, "replay-bucket", "/replay/", filename, "image/jpeg", 1234]
   );
   return { id: rows[0].id, filename };
 }
@@ -160,7 +152,7 @@ test("a stranger deleting someone else's image is refused and the row survives",
       assert.equal(res.status, 404, `a stranger got ${res.status} deleting another user's image`);
     });
 
-    const { rows } = await query(`SELECT id FROM exchange.images WHERE id = $1`, [image.id]);
+    const { rows } = await query(`SELECT id FROM media.images WHERE id = $1`, [image.id]);
     assert.equal(rows.length, 1, "the stranger's delete removed the row anyway");
   });
 });
@@ -182,7 +174,7 @@ test("the owner can delete their own image", async () => {
       // A 500 here means the row was authorised and removed and MinIO was then
       // unreachable, which is the documented order: database first, outside
       // world after. That is a pass for what this file is testing.
-      const { rows } = await query(`SELECT id FROM exchange.images WHERE id = $1`, [image.id]);
+      const { rows } = await query(`SELECT id FROM media.images WHERE id = $1`, [image.id]);
       assert.equal(rows.length, 0, "the owner's own delete left the row behind");
     });
   });
@@ -192,7 +184,7 @@ test("nothing this file created survived the transaction", async () => {
   assert.ok(created.length > 0, "no image was created, so this proves nothing");
   for (const filename of created) {
     assert.equal(
-      await assertNothingEscaped("exchange.images", "filename = $1", [filename]),
+      await assertNothingEscaped("media.images", "filename = $1", [filename]),
       0,
       `${filename} was committed to dev`
     );

@@ -185,7 +185,6 @@ for (const fn of fns) byFile.set(fn.file, [...(byFile.get(fn.file) ?? []), fn]);
 // "#features/x/repo.ts" or "./repo.ts" -> "features/x/repo.ts"
 function resolveSpecifier(fromFile: string, spec: string): string | null {
   if (spec.startsWith("#features/")) return spec.slice(1);
-  if (spec.startsWith("#legacy/")) return spec.slice(1);
   if (spec.startsWith(".")) {
     return path.normalize(path.join(path.dirname(fromFile), spec));
   }
@@ -264,7 +263,14 @@ if (FAIL_ON_FINDINGS && (discarded || unobservable)) process.exit(1);
 // THE CEILING. Every one of these is triaged in D202; the number is the
 // agreement, not a target. Moving it in either direction is a deliberate edit
 // with a reason, which is the point.
-const CEILING = 18;
+// 18 -> 24 with the D212 purge: six calls whose exchange half used to be the
+// observed statement became the ONLY statement when the dual layer died -
+// orders/service's clearBids, setPrice, updateScrap, setAssay and setPremium
+// (x2), and payouts' setMethodForOrder. Each runs inside the transaction of a
+// pipeline whose earlier reads already establish the row, so a zero-row
+// update is "nothing to do" rather than a lost edit; observing them with
+// throws is a hardening pass of its own, not this purge's.
+const CEILING = 24;
 if (!FAIL_ON_FINDINGS) {
   const total = discarded + unobservable;
   if (total > CEILING) {

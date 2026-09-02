@@ -59,14 +59,15 @@ before(async () => {
   // the newest is a race against every file that creates one.
   order = (
     await outside<OrderFixture>(
-      `SELECT po.id, po.user_id, po.purchase_order_status AS status
-         FROM exchange.purchase_orders po
-        WHERE po.user_id IS NOT NULL
-          AND po.purchase_order_status NOT IN ('Cancelled', 'Completed')
-          AND EXISTS (SELECT 1 FROM exchange.order_metals m WHERE m.purchase_order_id = po.id)
-          AND EXISTS (SELECT 1 FROM exchange.purchase_order_items i WHERE i.purchase_order_id = po.id)
-          AND EXISTS (SELECT 1 FROM exchange.payouts p WHERE p.order_id = po.id)
-        ORDER BY po.created_at ASC, po.id ASC LIMIT 1`
+      `SELECT o.id, o.user_id, o.status
+         FROM orders.orders o
+         JOIN orders.transactions t ON t.order_id = o.id
+        WHERE o.direction = 'purchase' AND o.user_id IS NOT NULL
+          AND o.status NOT IN ('Cancelled', 'Completed')
+          AND t.payout_fee IS NOT NULL
+          AND EXISTS (SELECT 1 FROM orders.spots s WHERE s.order_id = o.id)
+          AND EXISTS (SELECT 1 FROM orders.items i WHERE i.order_id = o.id)
+        ORDER BY o.created_at ASC, o.id ASC LIMIT 1`
     )
   )[0];
   assert.ok(order, "dev has no open purchase order with items, metals and a payout");
@@ -150,7 +151,8 @@ test("a customer is refused outright, their own order included", async () => {
     await as({ ...owner, role: "user" }, async () => {
       const before = (
         await client.query(
-          `SELECT purchase_order_status, total_price FROM exchange.purchase_orders WHERE id = $1`,
+          `SELECT o.status, t.total FROM orders.orders o
+             JOIN orders.transactions t ON t.order_id = o.id WHERE o.id = $1`,
           [order.id]
         )
       ).rows[0];
@@ -171,7 +173,8 @@ test("a customer is refused outright, their own order included", async () => {
 
       const after = (
         await client.query(
-          `SELECT purchase_order_status, total_price FROM exchange.purchase_orders WHERE id = $1`,
+          `SELECT o.status, t.total FROM orders.orders o
+             JOIN orders.transactions t ON t.order_id = o.id WHERE o.id = $1`,
           [order.id]
         )
       ).rows[0];
@@ -187,14 +190,15 @@ test("a status write moves the label and NOTHING else", async () => {
     await as({ ...admin, role: "admin" }, async () => {
       const moneyBefore = (
         await client.query(
-          `SELECT total_price, spots_locked FROM exchange.purchase_orders WHERE id = $1`,
+          `SELECT t.total, o.spots_locked FROM orders.orders o
+             JOIN orders.transactions t ON t.order_id = o.id WHERE o.id = $1`,
           [order.id]
         )
       ).rows[0];
       const pricesBefore = (
         await client.query(
-          `SELECT id, price FROM exchange.purchase_order_items
-            WHERE purchase_order_id = $1 ORDER BY id`,
+          `SELECT id, price FROM orders.items
+            WHERE order_id = $1 ORDER BY id`,
           [order.id]
         )
       ).rows;
@@ -206,24 +210,25 @@ test("a status write moves the label and NOTHING else", async () => {
 
       const row = (
         await client.query(
-          `SELECT purchase_order_status, total_price, spots_locked, updated_by
-             FROM exchange.purchase_orders WHERE id = $1`,
+          `SELECT o.status, t.total, o.spots_locked, o.updated_by
+             FROM orders.orders o
+             JOIN orders.transactions t ON t.order_id = o.id WHERE o.id = $1`,
           [order.id]
         )
       ).rows[0];
-      assert.equal(row.purchase_order_status, "Payment Processing");
+      assert.equal(row.status, "Payment Processing");
       assert.equal(row.updated_by, admin.name, "the audit name did not come from the session");
 
       // The ruling itself: no pricing side effects, whatever the label.
       assert.deepEqual(
-        { total_price: row.total_price, spots_locked: row.spots_locked },
+        { total: row.total, spots_locked: row.spots_locked },
         moneyBefore,
         "a bare status write moved money or the spot pin"
       );
       const pricesAfter = (
         await client.query(
-          `SELECT id, price FROM exchange.purchase_order_items
-            WHERE purchase_order_id = $1 ORDER BY id`,
+          `SELECT id, price FROM orders.items
+            WHERE order_id = $1 ORDER BY id`,
           [order.id]
         )
       ).rows;
@@ -258,10 +263,10 @@ test("the cancel document reaches the label pipeline and a label failure cancels
       );
 
       const { rows } = await client.query(
-        `SELECT purchase_order_status FROM exchange.purchase_orders WHERE id = $1`,
+        `SELECT status FROM orders.orders WHERE id = $1`,
         [order.id]
       );
-      assert.notEqual(rows[0].purchase_order_status, "Cancelled");
+      assert.notEqual(rows[0].status, "Cancelled");
     });
   }, { lock: ORDER_LOCK });
 });
@@ -273,7 +278,7 @@ test("an unknown field is refused over HTTP and executes nothing beside it", asy
     await as({ ...admin, role: "admin" }, async () => {
       const before = (
         await client.query(
-          `SELECT purchase_order_status FROM exchange.purchase_orders WHERE id = $1`,
+          `SELECT status FROM orders.orders WHERE id = $1`,
           [order.id]
         )
       ).rows[0];
@@ -287,7 +292,7 @@ test("an unknown field is refused over HTTP and executes nothing beside it", asy
 
       const after = (
         await client.query(
-          `SELECT purchase_order_status FROM exchange.purchase_orders WHERE id = $1`,
+          `SELECT status FROM orders.orders WHERE id = $1`,
           [order.id]
         )
       ).rows[0];
@@ -320,30 +325,38 @@ test("a nonexistent order answers 404 to an admin", async () => {
 const PINNED_BIDS: Record<string, number> = { Gold: 2000, Silver: 25, Platinum: 900, Palladium: 800 };
 
 const pinMetals = async (client: PoolClient) => {
+  // The live feed is spots.spots (the exchange.metals read died with the dual
+  // layer, D212), keyed by metal id.
   for (const [metal, bid] of Object.entries(PINNED_BIDS)) {
-    await client.query(`UPDATE exchange.metals SET bid_spot = $1 WHERE type = $2`, [bid, metal]);
+    await client.query(
+      `UPDATE spots.spots SET bid = $1
+        WHERE metal_id = (SELECT id FROM metals.metals WHERE name = $2)`,
+      [bid, metal]
+    );
   }
 };
 
 const snapshot = async (client: PoolClient, id: string) => ({
   order: (
     await client.query(
-      `SELECT purchase_order_status, spots_locked, total_price
-         FROM exchange.purchase_orders WHERE id = $1`,
+      `SELECT o.status, o.spots_locked, t.total
+         FROM orders.orders o
+         JOIN orders.transactions t ON t.order_id = o.id WHERE o.id = $1`,
       [id]
     )
   ).rows[0],
   metals: (
     await client.query(
-      `SELECT type, bid_spot FROM exchange.order_metals
-        WHERE purchase_order_id = $1 ORDER BY type`,
+      `SELECT m.name, sp.bid FROM orders.spots sp
+         JOIN metals.metals m ON m.id = sp.metal_id
+        WHERE sp.order_id = $1 ORDER BY m.name`,
       [id]
     )
   ).rows,
   items: (
     await client.query(
-      `SELECT id, price FROM exchange.purchase_order_items
-        WHERE purchase_order_id = $1 ORDER BY id`,
+      `SELECT id, price FROM orders.items
+        WHERE order_id = $1 ORDER BY id`,
       [id]
     )
   ).rows,
@@ -388,14 +401,14 @@ test("finalize + label in one document equals finalize then label in sequence", 
     sequential,
     "one document and two sequential requests left the order in different states"
   );
-  assert.equal(combined.order.purchase_order_status, "Payment Processing");
+  assert.equal(combined.order.status, "Payment Processing");
   assert.equal(combined.order.spots_locked, true, "finalizing did not pin the spots");
-  assert.ok(combined.order.total_price !== null, "finalizing did not price the order");
+  assert.ok(combined.order.total !== null, "finalizing did not price the order");
 });
 
 test("nothing this file did survived the transactions", async () => {
   const [{ status }] = await outside<{ status: string }>(
-    `SELECT purchase_order_status AS status FROM exchange.purchase_orders WHERE id = $1`,
+    `SELECT status FROM orders.orders WHERE id = $1`,
     [order.id]
   );
   assert.equal(status, order.status, "an order's status was really moved in dev");
@@ -406,14 +419,15 @@ test("nothing this file did survived the transactions", async () => {
   // races the live feed whenever the suite runs slowly - it flaked exactly
   // that way on a slow run. What this file could actually leak is its four
   // pinned bids, so their absence is the assertion.
-  const metalsNow = await outside<{ type: string; bid_spot: string }>(
-    `SELECT type, bid_spot FROM exchange.metals ORDER BY type`
+  const metalsNow = await outside<{ name: string; bid: string }>(
+    `SELECT m.name, sp.bid FROM spots.spots sp
+       JOIN metals.metals m ON m.id = sp.metal_id ORDER BY m.name`
   );
   for (const row of metalsNow) {
     assert.notEqual(
-      Number(row.bid_spot),
-      PINNED_BIDS[row.type],
-      `a pinned sentinel bid for ${row.type} escaped into exchange.metals`
+      Number(row.bid),
+      PINNED_BIDS[row.name],
+      `a pinned sentinel bid for ${row.name} escaped into spots.spots`
     );
   }
 });

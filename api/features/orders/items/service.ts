@@ -29,7 +29,6 @@
 // from the body: the toggle services need the order id and the delete needs
 // the scrap id, and a caller-supplied linkage could name somebody else's
 // rows. The request contributes values; the database contributes identity.
-import query from "#shared/db/query.ts";
 import * as ordersRepo from "#features/orders/repo.ts";
 import * as itemsRepo from "#features/orders/items/repo.ts";
 import * as purchaseOrderService from "#features/orders/service.ts";
@@ -98,17 +97,11 @@ export function refusedField(body: Record<string, unknown>): Refusal | null {
   return refusedValue(OrderItemPatch, body ?? {});
 }
 
-// The line's identity: its order and its scrap row, from the database.
-type LineRow = { id: string; purchase_order_id: string | null; scrap_id: string | null };
-
-async function findLine(itemId: string): Promise<LineRow | undefined> {
-  const { rows } = await query<LineRow>(
-    `SELECT id, purchase_order_id, scrap_id
-       FROM exchange.purchase_order_items
-      WHERE id = $1`,
-    [itemId]
-  );
-  return rows[0];
+// The line's identity, from the table that owns it. The scrap IS the line in
+// the new schema, so there is no scrap id to resolve any more.
+async function findLine(itemId: string): Promise<OrderItemRow | undefined> {
+  const [row] = await itemsRepo.getByIds([itemId]);
+  return row;
 }
 
 export async function patchOrderItem(
@@ -136,13 +129,13 @@ export async function patchOrderItem(
   }
 
   if (body.confirmed === true || body.reset === true) {
-    if (!line!.purchase_order_id) {
+    if (!line!.order_id) {
       refuse(422, `order item ${itemId} belongs to no purchase order, so it cannot be confirmed`);
     }
     await purchaseOrderService.toggleOrderItemStatus({
       item_status: body.confirmed === true,
       ids: [itemId],
-      purchase_order_id: line!.purchase_order_id!,
+      purchase_order_id: line!.order_id!,
     });
   }
 
@@ -153,17 +146,10 @@ export async function deleteOrderItem(itemId: string): Promise<{ success: true }
   const line = await findLine(itemId);
   if (!line) refuse(404, `no order item ${itemId}`);
 
-  // The scrap linkage comes from the row, not the request - the service's
-  // one-transaction delete (line + scrap + re-tier) needs it, and the caller
-  // must not get to name a different scrap row.
+  // The order comes from the row, not the request - the guarded delete and
+  // the re-tier that follows both key on it.
   await purchaseOrderService.deleteOrderItems({
-    items: [
-      {
-        id: itemId,
-        scrap: line!.scrap_id ? { id: line!.scrap_id } : null,
-        purchase_order_id: line!.purchase_order_id,
-      },
-    ],
+    items: [{ id: itemId, purchase_order_id: line!.order_id }],
   });
 
   return { success: true };

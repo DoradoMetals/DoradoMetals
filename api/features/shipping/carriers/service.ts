@@ -16,7 +16,6 @@
 import { randomUUID } from "node:crypto";
 import withTransaction from "#shared/db/withTransaction.ts";
 import * as carriers from "#features/shipping/carriers/repo.ts";
-import * as legacy from "#legacy/shipping/carriers/repo.ts";
 import * as organizations from "#features/organizations/repo.ts";
 import * as compose from "#features/shipping/carriers/compose.ts";
 import type { ComposedCarrier } from "#features/shipping/carriers/compose.ts";
@@ -71,7 +70,6 @@ export async function createCarrier(
 
     // exchange.carriers keeps both halves on one row, and is still the record
     // of truth until carriers is promoted. `enabled` is `is_active` there.
-    await legacy.create(id, { ...carrier.organization, logo: carrier.logo }, c);
 
     return await compose.one(row, c);
   };
@@ -96,7 +94,6 @@ export async function updateCarrier(
     if (row.organization_id) {
       await organizations.update(row.organization_id, carrier.organization ?? {}, c);
     }
-    await legacy.update(id, { ...carrier.organization, logo: carrier.logo }, c);
 
     return await compose.one(row, c);
   };
@@ -114,7 +111,6 @@ export async function removeCarrier(id: string, executor?: Executor): Promise<bo
     const row = await carriers.getOne(id, c);
     await carriers.remove(id, c);
     if (row?.organization_id) await organizations.remove(row.organization_id, c);
-    await legacy.remove(id, c);
     return true;
   };
   return executor ? await run(executor) : await withTransaction(run);

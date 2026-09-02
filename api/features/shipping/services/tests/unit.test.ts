@@ -7,7 +7,8 @@
 // boolean and nothing complains.
 import test from "node:test";
 import assert from "node:assert/strict";
-import { sqlWithLegacy } from "#shared/testing/sql.ts";
+import path from "node:path";
+import { sqlFrom } from "#shared/db/sql.ts";
 import { toValues } from "#features/shipping/services/service.ts";
 import { updateParams } from "#features/shipping/services/repo.ts";
 
@@ -15,7 +16,7 @@ import { updateParams } from "#features/shipping/services/repo.ts";
 // dual write, pinned against each other in one file (ruling 29 moved the
 // mirror out of this feature; the pin did not follow it, because the pin IS
 // the comparison between the two).
-const sql = sqlWithLegacy("shipping/services");
+const sql = sqlFrom(path.join(import.meta.dirname, ".."));
 
 const body = (name: string): string =>
   sql(name).split("\n").filter((l) => !l.trim().startsWith("--")).join("\n");
@@ -34,52 +35,33 @@ const updateColumns = (name: string): string[] =>
     .map(([, col]) => col);
 
 test("every statement loads and is not empty", () => {
-  for (const n of ["get_all", "get_one", "get_by_carrier", "create", "update", "delete",
-                   "legacy/create", "legacy/update", "legacy/delete"]) {
+  for (const n of ["get_all", "get_one", "get_by_carrier", "create", "update", "delete"]) {
     assert.ok(sql(n).trim().length > 0, `${n} is empty`);
   }
 });
 
-// THE THREE RENAMES, ASSERTED POSITIONALLY. This is the whole risk of the
-// feature: the two INSERTs must differ in exactly three places and agree
-// everywhere else, position for position.
+// The three renamed columns: the table's own spellings on the left, the
+// WIRE's (exchange-era) spellings on the right. The dual write died with
+// D212; the wire aliases live on, because a wire shape never moves during a
+// schema migration.
 const RENAMES: Record<string, string> = {
   supports_pickups: "supports_pickup",
   supports_dropoffs: "supports_dropoff",
   max_weight_lb: "max_weight_lbs",
 };
+const RENAMED = Object.keys(RENAMES);
 
-test("both INSERTs take the same values in the same order, renames aside", () => {
+test("the INSERT takes the 23 values repo.ts builds, renames included", () => {
   const next = insertColumns("create");
-  const legacy = insertColumns("legacy/create");
-
-  assert.equal(next.length, legacy.length, "the two INSERTs take different numbers of values");
   assert.equal(next.length, 23, "the column count changed - repo.ts builds 22 values plus the id");
-
-  const translated = next.map((c) => RENAMES[c] ?? c);
-  assert.deepEqual(
-    translated, legacy,
-    "the new-schema INSERT and the exchange INSERT no longer line up column for column"
-  );
-
-  // And the renames really are present, so this cannot pass by both sides
-  // having dropped them.
-  for (const [newName, oldName] of Object.entries(RENAMES)) {
-    assert.ok(next.includes(newName), `sql/create.sql no longer writes ${newName}`);
-    assert.ok(legacy.includes(oldName), `sql/legacy/create.sql no longer writes ${oldName}`);
+  for (const name of RENAMED) {
+    assert.ok(next.includes(name), `sql/create.sql no longer writes ${name}`);
   }
 });
 
-test("both UPDATEs assign the same values in the same order, renames aside", () => {
+test("the UPDATE never reassigns created_by", () => {
   const next = updateColumns("update").filter((c) => c !== "updated_at");
-  const legacy = updateColumns("legacy/update").filter((c) => c !== "updated_at");
-
-  assert.deepEqual(
-    next.map((c) => RENAMES[c] ?? c), legacy,
-    "the two UPDATE statements no longer line up parameter for parameter"
-  );
   assert.ok(!next.includes("created_by"), "the update reassigns created_by");
-  assert.ok(!legacy.includes("created_by"), "the exchange update reassigns created_by");
 });
 
 // The bridge between the array and the statements. toValues produces the
@@ -138,8 +120,5 @@ test("every read aliases the renamed columns back to the names the wire uses", (
 test("no statement reaches into a second table", () => {
   for (const n of ["get_all", "get_one", "get_by_carrier", "create", "update", "delete"]) {
     assert.doesNotMatch(body(n), /exchange\./, `${n} reaches into exchange`);
-  }
-  for (const n of ["legacy/create", "legacy/update", "legacy/delete"]) {
-    assert.doesNotMatch(body(n), /shipping\./, `${n} reaches out of exchange`);
   }
 });

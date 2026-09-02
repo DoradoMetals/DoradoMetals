@@ -7,7 +7,6 @@ import { randomUUID } from "node:crypto";
 import minio from "#providers/s3/minio.ts";
 import withTransaction from "#shared/db/withTransaction.ts";
 import * as images from "#features/media/images/repo.ts";
-import * as legacy from "#legacy/media/images/repo.ts";
 import type { ImageRow, NewImage } from "#features/media/images/repo.ts";
 
 const PUT_TTL_SECONDS = 60 * 5;
@@ -61,7 +60,6 @@ export async function uploadImage({
   // dependency this restructure exists to remove.
   const row = await withTransaction(async (client) => {
     const written = await images.create(randomUUID(), image, client);
-    await legacy.create(written.id, image, client);
     return written;
   });
 
@@ -142,7 +140,6 @@ export async function deleteImage({
 
   await withTransaction(async (client) => {
     await images.remove(user_id as string, id, client);
-    await legacy.remove(user_id as string, id, client);
   });
 
   // OUTSIDE the transaction, and last. Removing an object cannot be rolled back.

@@ -17,7 +17,6 @@ import { randomUUID } from "node:crypto";
 import withTransaction from "#shared/db/withTransaction.ts";
 import * as addresses from "#features/places/addresses/repo.ts";
 import * as userAddresses from "#features/places/user-addresses/repo.ts";
-import * as legacy from "#legacy/places/addresses/repo.ts";
 import * as compose from "#features/places/addresses/compose.ts";
 import type { ComposedAddress } from "#features/places/addresses/compose.ts";
 import type { AddressValues } from "#features/places/addresses/repo.ts";
@@ -146,10 +145,8 @@ export async function create(
     // migration 089's one-default-per-user index surfaced the day it landed.
     // Insert off, then flip through the same clear-then-set both writes use.
     const link = await userAddresses.create(randomUUID(), id, userId, label, false, c);
-    await legacy.create(id, userId, values, label, false, c);
     if (isDefault) {
       await userAddresses.setDefault(userId, id, c);
-      await legacy.setDefault(userId, id, c);
       return compose.compose(row, { ...link, default_shipping: true });
     }
     return compose.compose(row, link);
@@ -186,10 +183,8 @@ export async function update(
     // through clear-then-set rather than writing a second default beside the
     // existing one (089's index refuses that, correctly).
     const link = await userAddresses.update(address.id, userId, label, false, c);
-    await legacy.update(address.id, userId, values, label, false, c);
     if (isDefault) {
       await userAddresses.setDefault(userId, address.id, c);
-      await legacy.setDefault(userId, address.id, c);
       return compose.compose(row, { ...(link ?? owned), default_shipping: true });
     }
     return compose.compose(row, link ?? owned);
@@ -204,7 +199,6 @@ export async function updateValidation(
 ): Promise<ComposedAddress | undefined> {
   const run = async (c: Executor): Promise<ComposedAddress | undefined> => {
     const row = await addresses.updateValidation(addressId, is_valid, is_residential, c);
-    await legacy.updateValidation(addressId, is_valid, is_residential, c);
     if (!row) return undefined;
     const links = await userAddresses.getByAddress(addressId, c);
     return links[0] ? compose.compose(row, links[0]) : undefined;
@@ -233,7 +227,6 @@ export async function remove(
     if (!(await addresses.isReferenced(addressId, c))) {
       await addresses.remove(addressId, c);
     }
-    await legacy.remove(addressId, userId, c);
     return "Deleted address.";
   };
   return executor ? await run(executor) : await withTransaction(run);
@@ -245,7 +238,6 @@ export async function setDefault(
 ): Promise<string> {
   const run = async (c: Executor): Promise<string> => {
     await userAddresses.setDefault(userId, addressId, c);
-    await legacy.setDefault(userId, addressId, c);
     return "Set default address.";
   };
   return executor ? await run(executor) : await withTransaction(run);

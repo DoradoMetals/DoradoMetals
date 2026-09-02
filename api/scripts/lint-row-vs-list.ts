@@ -139,9 +139,12 @@ const ARRAY_OK = new Set([
 ]);
 
 // 1. Which exported repo functions return a list?
+//
+// EVERY repo file since D212 - the exchange/next split is gone and each
+// resource has one plain repo.ts, so the subject is all of them.
 const listReturning = new Map(); // feature -> Set(fnName)
 for (const file of walk(join(ROOT, "features"))) {
-  if (!/repo\.(exchange|next)\.(js|ts)$/.test(file)) continue;
+  if (!/(^|[\/])repo(\.\w+)?\.(js|ts)$/.test(file)) continue;
   const feature = relative(join(ROOT, "features"), file).split("/").slice(0, -1).join("/");
   const src = stripComments(readFileSync(file, "utf8"));
   const fnRe = /export\s+(?:async\s+)?function\s+(\w+)\s*\(/g;
@@ -163,7 +166,9 @@ for (const file of walk(join(ROOT, "features"))) {
 const findings = [];
 let callsChecked = 0;
 for (const file of walk(join(ROOT, "features"))) {
-  if (/repo\.(exchange|dual|next)\./.test(file)) continue;
+  // The repo files themselves are the DEFINITIONS scanned above; a repo
+  // reading its own rows is not a caller misreading a list.
+  if (/(^|[\/])repo(\.\w+)?\.(js|ts)$/.test(file)) continue;
   const src = stripComments(readFileSync(file, "utf8"));
   const nsRe = /import\s+\*\s+as\s+(\w+)\s+from\s+["']#features\/([^"']+?)\/repo(?:\.\w+)?\.(?:js|ts)["']/g;
   const nsToFeature = new Map();
@@ -206,8 +211,8 @@ console.log(
 
 // A KNOWN-PRESENT CONTROL, not just a zero-check. audit:query-paths' lesson
 // (D142's neighbour): a bare floor is blind to PARTIAL breakage, and this
-// script's numbers are small enough that "some" and "all" look alike. `checkout`
-// is the feature whose repo.exchange.js has list-returning exports today; if
+// script's numbers are small enough that "some" and "all" look alike.
+// `checkout` is a feature whose repo.ts has list-returning exports today; if
 // the repo parser stops seeing them, this reports zero findings and exits 0
 // while auditing nothing.
 const CONTROL = process.env.LINT_ROW_CONTROL ?? "checkout";

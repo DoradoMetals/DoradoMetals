@@ -266,50 +266,7 @@ test("creating a product supplies what exchange defaults and bullion does not", 
   });
 });
 
-// And the same product lands in exchange, under the same id.
-test("creating a product writes it to exchange too, under the same id", async () => {
-  await inRollback(async (c: PoolClient) => {
-    const name = `probe-${randomUUID().slice(0, 8)}`;
-    const made = await service.createProduct({ created_by: "a test", name }, c);
-    assert.ok(made, "the product service returned nothing");
-
-    const { rows } = await c.query(
-      "SELECT id, product_name, created_by FROM exchange.products WHERE id = $1", [made.id]
-    );
-    assert.equal(rows.length, 1, "the product never reached exchange");
-    assert.equal(rows[0].product_name, name, "the name did not reach exchange's product_name");
-    assert.equal(rows[0].created_by, "a test");
-  });
-});
-
-// A product created either way must be the same product, because a create after
-// promotion and one before it have to be indistinguishable.
-test("a created product matches what exchange's own defaults would have made", async () => {
-  await inRollback(async (c: PoolClient) => {
-    const made = await service.createProduct(
-      { created_by: "a test", name: `probe-${randomUUID().slice(0, 8)}` }, c
-    );
-    assert.ok(made, "createProduct returned nothing");
-    const { rows } = await c.query(
-      `SELECT b.metal_id, b.mint_id, b.supplier_id, b.image_front, b.image_back,
-              e.metal_id AS e_metal, e.mint_id AS e_mint, e.supplier_id AS e_supplier,
-              e.image_front AS e_front, e.image_back AS e_back,
-              b.stock, e.stock AS e_stock, b.quantity, e.quantity AS e_quantity
-         FROM products.bullion b JOIN exchange.products e ON e.id = b.id
-        WHERE b.id = $1`, [made.id]
-    );
-    const r = rows[0];
-    assert.equal(r.metal_id, r.e_metal, "the two schemas disagree about the default metal");
-    assert.equal(r.mint_id, r.e_mint, "the two schemas disagree about the default mint");
-    assert.equal(r.supplier_id, r.e_supplier, "the two schemas disagree about the default supplier");
-    assert.equal(r.image_front, r.e_front);
-    assert.equal(r.image_back, r.e_back);
-    assert.equal(Number(r.stock), Number(r.e_stock));
-    assert.equal(Number(r.quantity), Number(r.e_quantity));
-  });
-});
-
-test("saving a product writes both schemas", async () => {
+test("saving a product writes the row", async () => {
   await inRollback(async (c: PoolClient) => {
     const [existing] = await service.getAllAdminProducts();
     const renamed = `${existing.name}-renamed`;
@@ -323,13 +280,8 @@ test("saving a product writes both schemas", async () => {
     const { rows: nx } = await c.query(
       "SELECT name, updated_by FROM products.bullion WHERE id = $1", [existing.id]
     );
-    const { rows: ex } = await c.query(
-      "SELECT product_name, updated_by FROM exchange.products WHERE id = $1", [existing.id]
-    );
     assert.equal(nx[0].name, renamed);
     assert.equal(nx[0].updated_by, "an editor");
-    assert.equal(ex[0].product_name, renamed, "exchange still holds the old name");
-    assert.equal(ex[0].updated_by, "an editor");
   });
 });
 

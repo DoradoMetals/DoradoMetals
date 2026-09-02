@@ -269,11 +269,10 @@ export async function getPurchaseProductItems(
 }
 
 // INTERNAL. Not exported, and that is the point: this function was the handle
-// features/quotes/service.ts grabbed when it imported this file directly,
-// around the repo.js that CHECKOUT_SOURCE selects (D142). The quote surface
-// asks features/products for a product by name now - the feature that owns the
-// table - and nothing outside this file has ever needed it. Un-exporting is
-// what stops the same reach happening again.
+// features/quotes/service.ts grabbed when it imported this file directly
+// (D142). The quote surface asks features/products for a product by name now
+// - the feature that owns the table - and nothing outside this file has ever
+// needed it. Un-exporting is what stops the same reach happening again.
 async function findProductIdByName(
   product_name: string,
   client?: Executor
@@ -409,10 +408,8 @@ export async function replaceSellItems(
 // ------------------------------------------------------------- the row (D208)
 //
 // THE CHECKOUT ROW ITSELF: the id columns January designed and nothing ever
-// served. NATIVE-ONLY on purpose, whatever CHECKOUT_SOURCE says: exchange's
-// carts have no equivalent columns - this is capability exchange never
-// recorded, the same argument that made fulfillments switchless. The cart
-// ITEMS above stay behind the switch; the row's reference columns do not.
+// served. This is capability exchange never recorded - the same argument that
+// made fulfillments switchless.
 
 export type CheckoutRow = {
   id: string;

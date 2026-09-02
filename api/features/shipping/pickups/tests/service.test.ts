@@ -1,20 +1,17 @@
-// Dual-write tests for carrier pickups, against real Postgres.
+// Carrier pickup writes, against real Postgres - native shipping.pickups
+// since D212.
 //
 // The first test here is a regression test for a bug that reached production:
-// create() named a `shipment_id` column that exchange.carrier_pickups does not
-// have, so every insert died on 42703 and no pickup was ever recorded. It threw
-// inside the purchase-order transaction, after FedEx had already booked a real
-// pickup - so the label write rolled back and the booking survived with nothing
-// pointing at it.
+// create() named a column the table did not have, so every insert died on
+// 42703 and no pickup was ever recorded. It threw inside the purchase-order
+// transaction, after FedEx had already booked a real pickup - so the label
+// write rolled back and the booking survived with nothing pointing at it.
 //
 // Each test runs inside a transaction that is rolled back.
 import test, { after, before } from "node:test";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
 import pool from "#db";
-// REPOINTED AT THE SERVICE. The behaviour is unchanged - exchange written
-// unconditionally, the new schema only when the shipment resolves - it just
-// happens natively now instead of being re-derived by a mirror.
 import * as dual from "#features/shipping/pickups/service.ts";
 
 let client: PoolClient;
@@ -45,12 +42,14 @@ async function inRollback(fn: (c: PoolClient) => Promise<void>) {
 // something to hang off in the new schema.
 const anOrderWithShipment = async (c: PoolClient) => {
   const { rows } = await c.query(
-    `SELECT es.purchase_order_id AS order_id
-     FROM exchange.shipments es
-     JOIN shipping.shipments ss ON ss.id = es.id
-     WHERE es.purchase_order_id IS NOT NULL
-     ORDER BY es.id ASC
-     LIMIT 1`
+    `SELECT f.order_id
+       FROM shipping.shipments ss
+       JOIN fulfillments.shipments fs ON fs.shipment_id = ss.id
+       JOIN fulfillments.fulfillments f ON f.id = fs.fulfillment_id
+       JOIN orders.orders o ON o.id = f.order_id
+      WHERE o.direction = 'purchase'
+      ORDER BY ss.id ASC
+      LIMIT 1`
   );
   return rows[0]?.order_id ?? null;
 };
@@ -80,10 +79,14 @@ test("creating a pickup no longer dies on the missing shipment_id column", async
 // without time zone` column.
 test("the date and time are combined into pickup_requested_at", async () => {
   await inRollback(async (c: PoolClient) => {
-    const created = await dual.create(aPickup({ date: "2026-08-22", time: "10:30:00" }), c);
+    // The row is only written when the order resolves a shipment (D212 -
+    // shipping.pickups hangs off one), so the fixture needs a real order.
+    const order_id = await anOrderWithShipment(c);
+    assert.ok(order_id, "dev has no order with a shipment");
+    const created = await dual.create(aPickup({ order_id, date: "2026-08-22", time: "10:30:00" }), c);
     assert.ok(created, "the pickup was not created");
     const { rows: [row] } = await c.query(
-      "SELECT to_char(pickup_requested_at, 'YYYY-MM-DD HH24:MI:SS') AS at FROM exchange.carrier_pickups WHERE id = $1",
+      "SELECT to_char(requested_at, 'YYYY-MM-DD HH24:MI:SS') AS at FROM shipping.pickups WHERE id = $1",
       [created.id]
     );
     assert.equal(row.at, "2026-08-22 10:30:00");
@@ -92,10 +95,12 @@ test("the date and time are combined into pickup_requested_at", async () => {
 
 test("a pickup with no time still records the date at midnight", async () => {
   await inRollback(async (c: PoolClient) => {
-    const created = await dual.create(aPickup({ time: null }), c);
+    const order_id = await anOrderWithShipment(c);
+    assert.ok(order_id, "dev has no order with a shipment");
+    const created = await dual.create(aPickup({ order_id, time: null }), c);
     assert.ok(created, "the pickup was not created");
     const { rows: [row] } = await c.query(
-      "SELECT to_char(pickup_requested_at, 'YYYY-MM-DD HH24:MI:SS') AS at FROM exchange.carrier_pickups WHERE id = $1",
+      "SELECT to_char(requested_at, 'YYYY-MM-DD HH24:MI:SS') AS at FROM shipping.pickups WHERE id = $1",
       [created.id]
     );
     assert.equal(row.at, "2026-08-22 00:00:00");
@@ -111,14 +116,15 @@ test("a pickup is mirrored onto the order's shipment", async () => {
     assert.ok(created, "the pickup was not created");
 
     const { rows } = await c.query(
-      `SELECT p.shipment_id, es.purchase_order_id
+      `SELECT p.shipment_id, f.order_id
        FROM shipping.pickups p
-       JOIN exchange.shipments es ON es.id = p.shipment_id
+       JOIN fulfillments.shipments fs ON fs.shipment_id = p.shipment_id
+       JOIN fulfillments.fulfillments f ON f.id = fs.fulfillment_id
        WHERE p.id = $1`,
       [created.id]
     );
-    assert.equal(rows.length, 1, "the pickup was not mirrored");
-    assert.equal(rows[0].purchase_order_id, order_id, "it hung off the wrong order's shipment");
+    assert.equal(rows.length, 1, "the pickup did not land on a shipment");
+    assert.equal(rows[0].order_id, order_id, "it hung off the wrong order's shipment");
   });
 });
 
@@ -143,27 +149,21 @@ test("a pickup whose order has no shipment mirrors nothing and does not throw", 
     // the same way features/orders/create.test.js frees an order of its
     // fulfillment. Nothing survives the test.
     const { rows } = await c.query(
-      `SELECT o.id FROM exchange.purchase_orders o ORDER BY o.created_at ASC, o.id ASC LIMIT 1`
+      `SELECT o.id FROM orders.orders o WHERE o.direction = 'purchase'
+        ORDER BY o.created_at ASC, o.id ASC LIMIT 1`
     );
     const order_id = rows[0]?.id ?? null;
     assert.ok(order_id, "dev has no purchase order at all");
 
-    // THE LINK IS WHAT HAS TO GO, NOT THE exchange ROW.
-    //
-    // This deleted from exchange.shipments, which was right while the mirror
-    // resolved the shipment by matching purchase_order_id there. It no longer
-    // does: shipping.pickups.shipment_id is a foreign key into
-    // shipping.shipments, so the question is whether the order has a shipment in
-    // the NEW schema - answered through its fulfillment. Deleting the exchange
-    // row left that link intact and the pickup was mirrored after all, which is
-    // how this surfaced.
+    // THE LINK IS WHAT HAS TO GO: shipping.pickups.shipment_id is a foreign
+    // key into shipping.shipments, so the question is whether the order has a
+    // shipment - answered through its fulfillment.
     await c.query(
       `DELETE FROM fulfillments.shipments fs
         USING fulfillments.fulfillments f
         WHERE f.id = fs.fulfillment_id AND f.order_id = $1`,
       [order_id]
     );
-    await c.query(`DELETE FROM exchange.shipments WHERE purchase_order_id = $1`, [order_id]);
 
     const { rows: left } = await c.query(
       `SELECT count(*)::int AS n
@@ -176,7 +176,7 @@ test("a pickup whose order has no shipment mirrors nothing and does not throw", 
 
     const created = await dual.create(aPickup({ order_id }), c);
     assert.ok(created, "the pickup was not created");
-    assert.ok(created?.id, "the exchange write did not happen");
+    assert.ok(created?.id, "the pickup was not recorded");
 
     const mirrored = await c.query("SELECT 1 FROM shipping.pickups WHERE id = $1", [created.id]);
     assert.equal(mirrored.rows.length, 0, "a pickup was mirrored with no shipment to hang off");
@@ -198,23 +198,26 @@ test("updating a pickup records the new status rather than the old one", async (
 // again without a test saying so.
 test("the status vocabulary is pending / scheduled / completed / canceled", async () => {
   await inRollback(async (c: PoolClient) => {
+    const order_id = await anOrderWithShipment(c);
+    assert.ok(order_id, "dev has no order with a shipment");
     for (const status of ["pending", "scheduled", "completed", "canceled"]) {
-      const row = await dual.create(aPickup({ pickup_status: status }), c);
+      const row = await dual.create(aPickup({ order_id, pickup_status: status }), c);
       assert.ok(row, "the pickup could not be read back");
       assert.equal(row.pickup_status, status);
     }
     await assert.rejects(
-      () => dual.create(aPickup({ pickup_status: "cancelled" }), c),
+      () => dual.create(aPickup({ order_id, pickup_status: "cancelled" }), c),
       (err: unknown) => (err as Record<string, unknown>).code === "23514",
       "the double-l spelling was accepted; the cancel path would silently work"
     );
   });
 });
 
-// THE SHAPE IS COMPARED AGAINST exchange'S OWN ROW, not against a second
-// implementation - there is only one now. The eight columns
-// exchange.carrier_pickups has are what every caller reads, because its reads
-// were `SELECT *`, so that row IS the contract and this reads it directly.
+// THE SHAPE IS COMPARED AGAINST THE LEGACY TABLE's COLUMN LIST - the wire has
+// always been exchange.carrier_pickups' own row (its reads were `SELECT *`),
+// and a wire shape never moves during a schema migration. The table stays
+// (tables never drop), so its catalog entry is still the contract even though
+// nothing writes it any more.
 test("the composed pickup has exactly the columns exchange.carrier_pickups has", async () => {
   await inRollback(async (c: PoolClient) => {
     const order_id = await anOrderWithShipment(c);
@@ -222,19 +225,19 @@ test("the composed pickup has exactly the columns exchange.carrier_pickups has",
     const created = await dual.create(aPickup({ order_id }), c);
     assert.ok(created, "the pickup was not created");
 
-    const { rows: [fromExchange] } = await c.query(
-      "SELECT * FROM exchange.carrier_pickups WHERE id = $1", [created.id]
+    const { rows: contract } = await c.query(
+      `SELECT column_name FROM information_schema.columns
+        WHERE table_schema = 'exchange' AND table_name = 'carrier_pickups'`
     );
     const fromNext = await dual.getById(created.id, c);
-    assert.ok(fromNext, "the pickup did not come back from the new schema");
+    assert.ok(fromNext, "the pickup did not come back");
 
     assert.deepEqual(
       Object.keys(fromNext).sort(),
-      Object.keys(fromExchange).sort(),
-      "the composed shape has drifted from exchange.carrier_pickups"
+      contract.map((r) => r.column_name).sort(),
+      "the composed shape has drifted from the wire contract"
     );
-    assert.equal(Number(fromNext.confirmation_number), Number(fromExchange.confirmation_number));
-    assert.equal(fromNext.order_id, fromExchange.order_id);
+    assert.equal(Number(fromNext.confirmation_number), 998877);
     // The three reconstructed through the shipment.
     assert.equal(fromNext.order_id, order_id, "the order id was not reconstructed");
     assert.equal(fromNext.carrier, "FedEx", "the carrier name was not reconstructed");

@@ -72,6 +72,22 @@ export async function mirrorLinesForOrder(
   );
 }
 
+// The assay report - the refinery's own weights for a line, written when the
+// report arrives. See sql/set_assay.sql; content arrives computed.
+export async function setAssay(
+  order_item_id: string,
+  a: {
+    pre_melt: number | null; post_melt: number | null;
+    purity: number | null; content: number | null;
+  },
+  executor?: Executor
+): Promise<{ id: string; order_item_id: string } | undefined> {
+  const { rows } = await query<{ id: string; order_item_id: string }>(
+    sql("set_assay"), [a.pre_melt, a.post_melt, a.purity, a.content, order_item_id], executor
+  );
+  return rows[0];
+}
+
 export async function setPremium(
   order_item_id: string, premium: number | null, executor?: Executor
 ): Promise<{ id: string; order_item_id: string; premium: number | null } | undefined> {

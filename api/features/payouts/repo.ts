@@ -1,16 +1,25 @@
-// exchange.payouts, and nothing else - READ ONLY, and only the last four
-// digits.
+// A payout is an ACCOUNT plus a FEE, and since D213 both are read natively:
+// the account from payments.details, the fee from orders.transactions. READ
+// ONLY, and only the last four digits.
 //
-// THIS IS THE MOST SENSITIVE TABLE IN THE DATABASE. It holds routing and
-// account numbers in plaintext: fourteen of them in production, ten ACH and
-// eight WIRE. The order response has never carried the full values and must
-// not start, so `right(..., 4)` happens IN THE STATEMENT - the full number
-// never leaves Postgres and cannot be logged by anything in between.
+// *** WHY THIS MOVED. *** These projections read exchange.payouts until
+// 2026-09-02. D210 sealed new accounts into payments.details and D212 stopped
+// exchange receiving payout writes, so every order created after the purge had
+// no exchange row and this feature answered nothing for it - the composed
+// order served an all-null payout and priced the fee as 0. Migration 114
+// carried the two last-four values across so the move loses no value.
 //
-// There is no write path here on purpose. Payouts are still written through
-// the purchase-order service's own path, and `payments.details` - where these
-// land eventually - must not receive them until the encryption question is
-// answered. Adding a writer here would make that easier to do by accident.
+// THE FULL NUMBERS ARE STILL RADIOACTIVE, and the table change does not soften
+// it. Production holds fourteen plaintext payouts (7 ACH, 7 WIRE) in
+// exchange.payouts and ten more in payments.details until
+// scripts/encrypt-payout-details.ts is run there. No projection in this file
+// selects them: the last-four columns are the only bank values here, and the
+// plaintext has exactly one door, getDetails below.
+//
+// There is no write path here on purpose. The account is written by
+// features/payments/details (sealed, D210) and the fee by
+// orders.transactions; a writer here would make it easy to grow one by
+// accident, which is how the numbers got copied around in the first place.
 import query from "#shared/db/query.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
 import type { Executor } from "#shared/db/executor.ts";
@@ -18,7 +27,9 @@ import type { Executor } from "#shared/db/executor.ts";
 const sql = sqlFrom(import.meta.dirname);
 
 // account_last4 and routing_last4, NEVER account_number or routing_number. The
-// type says so as much as the statement does.
+// type says so as much as the statement does. `id` is the payments.details id -
+// equal to the old payout id on any database built by 073, which gave each
+// backfilled row the payout's own id.
 export type PayoutRow = {
   id: string;
   user_id: string | null;
@@ -86,15 +97,13 @@ export async function getDetails(
   return rows[0];
 }
 
-// ---------------------------------------------------- the new flow (D210)
-// Reads of the new-schema composition - same wire shape as the exchange
-// projections above, so nothing downstream can tell which era an order is.
-
-export async function getForNew(
+// The LEGACY plaintext, resolved by order instead of by id - see
+// sql/get_details_by_order.sql for when that distinction matters.
+export async function getDetailsByOrder(
   order_id: string, executor?: Executor
-): Promise<PayoutRow[]> {
-  const { rows } = await query<PayoutRow>(sql("get_for_new"), [order_id], executor);
-  return rows;
+): Promise<PayoutDetailsRow | undefined> {
+  const { rows } = await query<PayoutDetailsRow>(sql("get_details_by_order"), [order_id], executor);
+  return rows[0];
 }
 
 export async function orderOfDetails(

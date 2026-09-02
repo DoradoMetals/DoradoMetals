@@ -9,7 +9,6 @@ import { reportError } from "#shared/observability/report.ts";
 import { randomUUID } from "node:crypto";
 import withTransaction from "#shared/db/withTransaction.ts";
 import * as shipments from "#features/shipping/shipments/repo.ts";
-import * as legacy from "#legacy/shipping/shipments/repo.ts";
 import * as services from "#features/shipping/services/repo.ts";
 import * as packages from "#features/shipping/packages/repo.ts";
 import * as fulfillmentLinks from "#features/fulfillments/shipments/repo.ts";
@@ -266,7 +265,6 @@ export async function create(
   const run = async (c: Executor): Promise<ComposedShipment | null> => {
     const id = randomUUID();
     await shipments.create(id, shipmentDirection, c);
-    await legacy.create(id, input, c);
 
     if (order_id && (await orders.exists(order_id, c))) {
       const fulfillment = await fulfillmentService.chooseDefault(
@@ -379,16 +377,6 @@ export async function update(
       }
     }
 
-    // exchange takes the NAMES where the new schema took the ids, and carries
-    // carrier_id itself. Everything else is the same value in the same place.
-    await legacy.update(id, [
-      ...values.slice(0, 8),
-      input.package ?? null,
-      input.service_type ?? null,
-      ...values.slice(10, 14),
-      input.carrier_id ?? null,
-    ] as legacy.LegacyValues, c);
-
     return await getById(id, c);
   };
   return executor ? await run(executor) : await withTransaction(run);
@@ -425,19 +413,9 @@ export async function setChargeForOrder(
     // Compared against the legacy half rather than asserted on its own: legacy
     // matching nothing too means the order simply has no parcels, which is not
     // an error. The two DISAGREEING is.
-    const native = await shipments.setChargeForOrder(orderId, cost, c);
-    const legacyIds = await legacy.setChargeForOrder(orderId, cost, c);
-    if (legacyIds.length > 0 && native.length === 0) {
-      reportError({
-        at: "shipping.shipments.setChargeForOrder",
-        message:
-          `exchange updated ${legacyIds.length} shipment(s) on order ${orderId} ` +
-          `and the new schema updated none - the shipping charge is recorded in ` +
-          `one schema only`,
-        extra: { order_id: orderId, legacy_rows: legacyIds.length },
-      });
-    }
-    return legacyIds;
+    // Native-only since the purge (D212): a zero-row update here means the
+    // order simply has no parcels, which is not an error.
+    return await shipments.setChargeForOrder(orderId, cost, c);
   };
   return executor ? await run(executor) : await withTransaction(run);
 }
@@ -449,7 +427,6 @@ export async function remove(id: string, executor?: Executor): Promise<boolean> 
   const run = async (c: Executor): Promise<boolean> => {
     await fulfillmentLinks.removeByShipment(id, c);
     await shipments.remove(id, c);
-    await legacy.remove(id, c);
     return true;
   };
   return executor ? await run(executor) : await withTransaction(run);

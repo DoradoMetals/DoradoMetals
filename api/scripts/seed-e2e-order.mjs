@@ -1,19 +1,23 @@
 // Seeds ONE disposable purchase order for the Playwright admin drawer spec.
 //
-// WHY NOT THE REAL ENDPOINT. POST /purchase_orders/create_purchase_order calls
-// shippingOps.createLabel unconditionally - a FedEx label per invocation, which
-// is an outside-world side effect a test suite must never mint. The service's
-// own recordPurchaseOrder exists as "purely rows" (its words) precisely so the
-// row-writing half can run with no provider call; this script is that half,
-// invoked for the E2E customer.
+// WHY NOT THE REAL ENDPOINT. placePurchaseOrder calls shippingOps.createLabel
+// unconditionally - a FedEx label per invocation, which is an outside-world
+// side effect a test suite must never mint. The flow's own recordPlacedPurchase
+// exists as the transaction half precisely so the row-writing can run with no
+// provider call; this script primes the SAME checkout row the stepper primes
+// and runs that half, invoked for the E2E customer.
 //
-// WRITES COMMIT, IN BOTH SCHEMAS - the same dual write the live path does, so
-// the seeded order is real-shaped everywhere the admin drawer looks. The order
-// belongs to e2e-customer@example.invalid, carries an e2e-labelled address,
-// and the spec that consumes it CANCELS it as its final act, so what
-// accumulates in dev is legible, terminal, and owned by the E2E account.
-// (The native purge for cancelled orders is the standing purgeCancelled port -
-// these rows are more fuel for doing it.)
+// WRITES COMMIT, NATIVE SCHEMA ONLY (D210/D212) - the same rows the live path
+// writes, so the seeded order is real-shaped everywhere the admin drawer
+// looks. The order belongs to e2e-customer@example.invalid, carries an
+// e2e-labelled address, and the spec that consumes it CANCELS it as its final
+// act, so what accumulates in dev is legible, terminal, and owned by the E2E
+// account. (The native purge for cancelled orders is the standing
+// purgeCancelled port - these rows are more fuel for doing it.)
+//
+// NO BANK NUMBERS, deliberately: the payout step is primed as ECHECK to the
+// e2e address's own email, so nothing is sealed and nothing plaintext ever
+// enters a seed.
 //
 // Prints one JSON line: {"order_id": "...", "number": N}. Everything else goes
 // to stderr so a consumer can parse stdout whole.
@@ -23,9 +27,9 @@ import "#env";
 import pool from "#db";
 import query from "#shared/db/query.ts";
 import withTransaction from "#shared/db/withTransaction.ts";
-import { recordPurchaseOrder } from "#features/orders/service.ts";
+import * as checkoutService from "#features/checkout/service.ts";
 import * as addressService from "#features/places/addresses/service.ts";
-import * as pickupService from "#features/shipping/pickups/service.ts";
+import { resolvePurchaseCheckout, recordPlacedPurchase } from "#features/orders/create.ts";
 // NOT imported from seed-e2e-users.mjs: that file is a script, not a module -
 // importing it for the constant RUNS it, and it ends the shared pool on its
 // way out, which killed this script's own queries. The values mirror its
@@ -41,26 +45,45 @@ if (!users.length) {
 }
 const user_id = users[0].id;
 
-// Any displayed product will do as the order's one line; the drawer prices it
-// from live spots either way.
+// Any sellable product will do as the order's one line; the drawer prices it
+// from live spots either way. The sell cart is keyed by NAME.
 const { rows: products } = await query(
-  `SELECT id FROM exchange.products WHERE display = true ORDER BY product_name LIMIT 1`
+  `SELECT product_name FROM exchange.products WHERE sell_display = true ORDER BY product_name LIMIT 1`
 );
 if (!products.length) {
-  console.error("no displayed product in dev to put on the order");
+  console.error("no sellable product in dev to put on the order");
   process.exit(1);
 }
 
-// A real FedEx service, so the new-schema shipment resolves carrier_service_id
-// and pickup composition can reconstruct the carrier - the shape test picks
-// "an order with a shipment" and must be able to pick this one.
+// A real LABEL service (a carrier's own row, not a carrier-agnostic sale
+// row), so the shipment resolves carrier_service_id and pickup composition
+// can reconstruct the carrier.
 const { rows: services } = await query(
-  `SELECT cs.name FROM exchange.carrier_services cs
-    JOIN exchange.carriers c ON c.id = cs.carrier_id
-   WHERE c.name = 'FedEx' AND cs.is_active ORDER BY cs.name LIMIT 1`
+  `SELECT id FROM shipping.services WHERE carrier_id IS NOT NULL ORDER BY name LIMIT 1`
 );
 if (!services.length) {
-  console.error("no active FedEx service in dev to put on the shipment");
+  console.error("no carrier label service in dev to put on the shipment");
+  process.exit(1);
+}
+
+// A carrier-agnostic package the checkout offers.
+const { rows: packages } = await query(
+  `SELECT id FROM shipping.packages WHERE carrier_id IS NULL ORDER BY min_weight_lb NULLS FIRST LIMIT 1`
+);
+if (!packages.length) {
+  console.error("no offered package in dev to put on the shipment");
+  process.exit(1);
+}
+
+// The schedulable purchase handoff - a CARRIER PICKUP, so the seeded order
+// carries the pickup fixture validate:wire parses GET /carrier_pickups with.
+const { rows: methods } = await query(
+  `SELECT id FROM fulfillments.methods
+    WHERE direction = 'purchase' AND category = 'SHIPMENT' AND type = 'CARRIER PICKUP'
+      AND enabled LIMIT 1`
+);
+if (!methods.length) {
+  console.error("no CARRIER PICKUP fulfillment method in dev");
   process.exit(1);
 }
 
@@ -89,39 +112,40 @@ const address = existingAddr.length
   user_address: { label: 'e2e-order-seed' },
 });
 
-const order_id = await withTransaction(async (client) => {
-  return recordPurchaseOrder(client, {
+// Prime the checkout row exactly as the stepper does: the ids and parcel
+// facts, the fulfillment draft, the payout account, the cart line.
+await checkoutService.patchCheckout(user_id, "purchase", {
+  shipper_address_id: address.id,
+  package_id: packages[0].id,
+  carrier_service_id: services[0].id,
+  package_weight: 3,
+  declared_value: 2500,
+  pickup_date: "2026-09-15",
+  pickup_time: "10:30:00",
+});
+await checkoutService.setFulfillmentMethod(user_id, "purchase", methods[0].id);
+await checkoutService.saveCheckoutPayout(user_id, "purchase", {
+  method: "ECHECK",
+  payout_email: E2E_CUSTOMER.email,
+  account_holder_name: E2E_CUSTOMER.name,
+});
+await checkoutService.syncSellCart(user_id, [
+  { type: "product", data: { name: products[0].product_name, quantity: 1 } },
+]);
+
+// The transaction half of the live flow - rows only, no FedEx call reachable.
+// A null label is a real state (labels are voided and reissued); the pickup is
+// recorded unconfirmed, which is also real (bookings confirm asynchronously).
+const resolved = await resolvePurchaseCheckout(user_id);
+const placed = await withTransaction((client) =>
+  recordPlacedPurchase(client, {
     user_id,
-    purchase_order: {
-      address: { ...address, id: address.id },
-      items: [{ type: "product", data: { id: products[0].id, quantity: 1 } }],
-      // No routing or account number, deliberately - the columns are nullable
-      // (production has ACH payouts carrying none) and bank details never
-      // belong in a seed.
-      payout: { method: "ACH", account_holder_name: E2E_CUSTOMER.name },
-      service: { serviceDescription: services[0].name, netCharge: 0 },
-    },
-    // No label object and no pickup: the shipment row records a null tracking
-    // number, which is also a real state (labels are voided and reissued).
-  });
-});
+    resolved,
+    netCharge: 0,
+    label: null,
+    pickupResult: { confirmationNumber: null, location: "FRONT" },
+  })
+);
 
-// A scheduled CARRIER pickup rides every seeded order: the fixture that lets
-// validate:wire parse GET /carrier_pickups and GET /shipments/:id/pickups,
-// which sat "skipped for want of a fixture" while dev had no pickup rows.
-// (The three still skipped - /fulfillments/schedule and the per-order
-// pickups/directs - are the FULFILLMENTS handoff-booking resource, a
-// different flow that deserves its own seed when that feature gets e2e.)
-await pickupService.create({
-  order_id,
-  carrier: "FedEx",
-  date: "2026-09-15",
-  time: "10:30:00",
-  pickup_status: "scheduled",
-  confirmation_number: null,
-  location: "FRONT",
-});
-
-const { rows: numbered } = await query(`SELECT number FROM orders.orders WHERE id = $1`, [order_id]);
-console.log(JSON.stringify({ order_id, number: numbered[0]?.number ?? null }));
+console.log(JSON.stringify({ order_id: placed.order_id, number: placed.number ?? null }));
 await pool.end();

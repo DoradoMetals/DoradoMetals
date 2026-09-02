@@ -1,6 +1,5 @@
 import withTransaction from "#shared/db/withTransaction.ts";
 import type { Executor } from "#shared/db/executor.ts";
-import * as cartRepo from "#features/checkout/repo.js";
 // The SERVICE, not a repo: products is composed from three reference tables
 // now, and liveness is the one question checkout asks of it.
 import * as productService from "#features/products/service.ts";
@@ -10,7 +9,7 @@ import type {
   PurchaseItemsInput,
   PurchaseScrapRow,
   PurchaseProductRow,
-} from "#features/checkout/repo.next.ts";
+} from "#features/checkout/repo.ts";
 
 // NOTE THE FIELD IS `status`, NOT `statusCode`. addresses and users both throw
 // a statusCode; this feature has always thrown status. Left as it is rather
@@ -27,7 +26,7 @@ function badRequest(message: string): HttpError {
 }
 
 export async function getCart(user_id: string): Promise<SaleItemRow[]> {
-  return await cartRepo.getCart(user_id);
+  return await checkoutRows.getSaleItems(user_id);
 }
 
 // A CART MAY ONLY HOLD PRODUCTS THAT ARE LIVE IN THAT DIRECTION.
@@ -77,7 +76,7 @@ export async function syncCart(user_id: string, items: SaleItemsInput[]): Promis
       "display",
       client
     );
-    await cartRepo.replaceCart(user_id, items, client);
+    await checkoutRows.replaceItems(user_id, items, client);
     return "Cart Synced";
   });
 }
@@ -93,10 +92,10 @@ export async function getSellCart(user_id?: string): Promise<SellCartLine[]> {
     throw badRequest("Missing user_id");
   }
 
-  const cartId = await cartRepo.getSellCartId(user_id);
+  const cartId = await checkoutRows.getCheckoutId(user_id, "purchase");
   if (!cartId) return [];
 
-  const scrapRows = await cartRepo.getSellCartScrapItems(cartId);
+  const scrapRows = await checkoutRows.getPurchaseScrapItems(cartId);
   const scrapItems: SellCartLine[] = scrapRows.map((row: PurchaseScrapRow) => ({
     type: "scrap",
     data: {
@@ -122,7 +121,7 @@ export async function getSellCart(user_id?: string): Promise<SellCartLine[]> {
     },
   }));
 
-  const productRows = await cartRepo.getSellCartProductItems(cartId);
+  const productRows = await checkoutRows.getPurchaseProductItems(cartId);
   const productItems: SellCartLine[] = productRows.map((row: PurchaseProductRow) => ({
     type: "product",
     data: {
@@ -150,7 +149,7 @@ export async function syncSellCart(
       "sell_display",
       client
     );
-    await cartRepo.replaceSellCart(user_id, cart, client);
+    await checkoutRows.replaceSellItems(user_id, cart, client);
     return "Sell Cart Synced";
   });
 }
@@ -162,17 +161,17 @@ export async function syncSellCart(
 // fulfillment is a live DRAFT the same steps mutate, and order creation
 // consumes what the server already holds instead of a composed request body.
 //
-// Native-only, deliberately, whatever CHECKOUT_SOURCE says: exchange's carts
+// Native-only: exchange's carts
 // have no equivalent columns - the same capability argument that made
 // fulfillments switchless. The repo.next import below reaches no switch
 // because there is nothing behind one to reach.
-import * as checkoutRows from "#features/checkout/repo.next.ts";
+import * as checkoutRows from "#features/checkout/repo.ts";
 import * as fulfillmentService from "#features/fulfillments/service.ts";
 import * as fulfillmentMethods from "#features/fulfillments/methods/service.ts";
 import * as handoffsService from "#features/shipping/handoffs/service.ts";
 import * as payoutDetails from "#features/payments/details/service.ts";
 import * as addressService from "#features/places/addresses/service.ts";
-import type { CheckoutRow, CheckoutPatch } from "#features/checkout/repo.next.ts";
+import type { CheckoutRow, CheckoutPatch } from "#features/checkout/repo.ts";
 import type { ComposedFulfillment } from "#features/fulfillments/compose.ts";
 
 export type ComposedCheckout = CheckoutRow & {

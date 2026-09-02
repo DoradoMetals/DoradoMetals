@@ -6,42 +6,30 @@
 // no bare `getById` any more, deliberately: a merged file where the unprefixed
 // name silently means "purchase" is a trap.
 //
-// THE PIVOT (ruling 8): reads come from read.service.ts - the new schema,
-// decomposed, one implementation - and the purchase writes go through
-// repo.dual.js unconditionally, exchange and the new schema in one
-// transaction. A sales order is dual-written directly by write.service.ts
-// instead of through a mirror. There is no *_SOURCE switch on either: there is
-// no exchange-read mode left to select.
-//
-// READS AND WRITES PIVOTED TOGETHER, and that ordering is the whole point.
-// Pointing the reads at the new schema while the writes still went to exchange
-// alone was tried on purchase orders and broke immediately: a read cannot see a
-// write that just happened, so an admin changed a status and the drawer showed
-// the previous one. Reads move when the dual write lands beside them, in one
-// change. `verify:orders-decomposition` and
-// `verify:sales-order-decomposition` are what made that safe to make rather
-// than hope about.
+// NATIVE ONLY since D212: reads come from read.service.ts and every write
+// goes through the owning sub-resource's repo - orders, items, spots,
+// transactions, refiners - one generic update per table, patch objects in.
+// The dual layer, the mirror and the exchange halves are deleted; git has
+// them.
 
 import withTransaction from "#shared/db/withTransaction.ts";
-// THE PIVOT (ruling 8): reads come from read.service.ts - the new schema,
-// decomposed, one implementation - and writes go through repo.dual.js
-// unconditionally, exchange and the new schema in one transaction. The
-// repo.js switch is gone: there is no exchange-read mode left to select.
-import * as purchaseOrderRepo from "#features/orders/repo.dual.js";
+// THE PURGE (D212): every write goes to the new schema through the owning
+// sub-resource's repo, one generic update per table, patch objects in. The
+// dual layer, the mirror and the exchange halves are gone.
+import * as ordersRepo from "#features/orders/repo.ts";
+import * as orderItems from "#features/orders/items/repo.ts";
+import * as refinerSpots from "#features/refiners/spots/repo.ts";
+import * as refinerItems from "#features/refiners/items/repo.ts";
+import * as productsRepo from "#features/products/repo.ts";
 import * as readService from "#features/orders/read.service.ts";
-import * as mirror from "#features/orders/repo.mirror.ts";
-import * as scrapRepo from "#features/scrap/repo.ts";
-// THE NEW-SCHEMA HALF OF THE THREE PAYOUT WRITES (099). exchange.payouts is one
-// flat row holding an account, an order link and a fee; those are three columns
-// in three places now, and they belong to the features that own those tables -
-// the same reasoning editShippingCharge below is written against.
 import * as payoutAccounts from "#features/payments/details/repo.ts";
 import * as orderTransactions from "#features/orders/transactions/repo.ts";
+import { convertTroyOz } from "#shared/utils/convertWeights.ts";
 import * as emailService from "#features/media/emails/service.ts";
 import * as transactionsService from "#features/transactions/service.ts";
 import * as usersFunds from "#features/users/service.ts";
 import * as ratesRepo from "#features/rates/service.ts";
-import { calculateTotalPrice } from "#features/pricing/service.ts";
+import { calculateTotalPrice, calculateItemPrice } from "#features/pricing/service.ts";
 import { getRatePct, sumContentByMetal } from "#features/rates/utils/resolveRate.ts";
 
 // The SERVICE, not a repo: a shipment is composed from six tables now, and
@@ -53,13 +41,17 @@ import * as pickupRepo from "#features/shipping/pickups/service.ts";
 import * as shippingOps from "#features/shipping/operations/handler.ts";
 import * as carrierServices from "#features/shipping/services/service.ts";
 
-import type {
-  PurchaseOrderRow,
-  PurchaseOrderMetalRow as OrderMetalRow,
-  OrderScrapItemRow,
-} from "#features/orders/repo.mirror.ts";
-import type { ComposedItem as PurchaseOrderItem } from "#features/orders/compose.ts";
+import type { ComposedItem as PurchaseOrderItem, ComposedOrder, ComposedSalesOrder } from "#features/orders/compose.ts";
+import type { OrderSpotRow } from "#features/orders/spots/repo.ts";
 import type { PricingSpot } from "#features/pricing/service.ts";
+
+// The API's own assembled shapes - see compose.ts. These were re-exported by
+// the mirror until D212 deleted it.
+export type PurchaseOrderRow = ComposedOrder;
+export type SalesOrderRow = ComposedSalesOrder;
+// The per-metal spot row an order carries, in the converted spellings.
+type OrderMetalRow = OrderSpotRow;
+export type SalesOrderMetalRow = OrderSpotRow;
 
 // `order` here is whatever the caller had - a row from getById, or the body of
 // a request. The functions below read a handful of fields off it, and those are
@@ -95,23 +87,11 @@ import {
 
 import { auth } from "#features/auth/client.ts";
 import { fromNodeHeaders } from "better-auth/node";
-// READS AND WRITES PIVOTED TOGETHER, and that ordering is the whole point.
-//
-// Pointing the reads at the new schema while the writes still went to exchange
-// alone was tried on purchase orders and broke immediately: a read cannot see a
-// write that just happened, so an admin changed a status and the drawer showed
-// the previous one. Reads move when the dual write lands beside them, in one
-// change, which is what every other restructured feature did.
-//
-// `verify:sales-order-decomposition` is what made it safe to make rather than
-// hope about: it compares the new read against the composed query AND against
-// repo.exchange.js - the implementation that was serving traffic - across every
-// order and every nested object.
 import * as salesOrderWrites from "#features/orders/write.service.ts";
 import * as orderSpots from "#features/orders/spots/repo.ts";
 import * as metalsRepo from "#features/metals/repo.ts";
 import { calculateItemAsk } from "#features/pricing/service.ts";
-import * as stripeRepo from "#features/payments/repo.js";
+import * as stripeRepo from "#features/payments/repo.ts";
 import * as stripeProvider from "#providers/payment/stripe.ts";
 import * as reconcileService from "#features/orders/reconcile.service.ts";
 import * as usersService from "#features/users/service.ts";
@@ -124,8 +104,8 @@ import * as spotsService from "#features/spots/service.ts";
 import * as productService from "#features/products/service.ts";
 import { calculateSalesOrderTotal } from "#features/pricing/service.ts";
 
-import type { SalesOrderRow, SalesOrderMetalRow } from "#features/orders/repo.mirror.ts";
 import type { PoolClient } from "pg";
+import type { Executor } from "#shared/db/executor.ts";
 import { reportError } from "#shared/observability/report.ts";
 import type { PaymentSession } from "#features/payments/service.ts";
 import type { IncomingHttpHeaders } from "node:http";
@@ -226,15 +206,6 @@ export async function labelBufferOrUndo(
   return Buffer.from(labelData.labelFile, "base64");
 }
 
-// THE READS PIVOTED WITH THE WRITES, TOGETHER - the sequencing lesson this
-// comment used to record the failure of. An earlier attempt pointed the reads
-// at read.service.ts alone, while PURCHASE_ORDERS_SOURCE=exchange sent every
-// write to exchange only, and two replay tests caught reads that could not
-// see a write that just happened. The pivot now is whole: reads from the new
-// schema (read.service.ts), writes to BOTH schemas (repo.dual.js),
-// unconditionally - the same shape every other restructured feature landed
-// in, with the covenant (data verified green before the legacy reads died)
-// cleared by the wave-1 parity ledger.
 export async function listPurchasesForUser(userId: string): Promise<PurchaseOrderRow[]> {
   return (await readService.findPurchasesByUser(userId)) as unknown as PurchaseOrderRow[];
 }
@@ -249,7 +220,15 @@ export async function getAllPurchases(): Promise<PurchaseOrderRow[]> {
 }
 
 export async function getPurchaseMetalsForOrder(orderId: string): Promise<OrderMetalRow[]> {
-  return mirror.findPurchaseMetalsByOrderId(orderId);
+  return orderSpots.getFor(orderId);
+}
+
+// ONE UPDATE for the orders row (Jacob, 2026-09-02): callers pass the patch,
+// the repo builds the statement. Status labels, flags, notes - all of it.
+export async function update(
+  order_id: string, patch: Parameters<typeof ordersRepo.update>[1], executor?: Executor
+): Promise<{ id: string } | undefined> {
+  return await ordersRepo.update(order_id, patch, {}, executor);
 }
 
 // Cancelling an order generates a return label, and a return label is a real
@@ -316,8 +295,8 @@ export async function cancelOrder({
       // of that statement is the spot unpin; the 'Cancelled' label is the
       // admin's own explicit status write, which the PATCH runs LAST so a
       // cancel-and-label document still labels after the pipeline succeeds.
-      await purchaseOrderRepo.toggleSpots(false, order.id, client);
-      await purchaseOrderRepo.clearOrderMetals(order.id, client);
+      await ordersRepo.update(order.id, { spots_locked: false }, {}, client);
+      await orderSpots.clearBids(order.id, client);
 
       const shipment = await shipmentRepo.create(
         {
@@ -362,135 +341,15 @@ export async function cancelOrder({
 }
 
 export async function createPurchaseReview({ order }: { order: OrderLike }): Promise<unknown> {
-  return purchaseOrderRepo.createReview({ order });
-}
-
-// The database half of placing a purchase order, on its own.
-//
-// Extracted so that exactly one description of what an order IS exists, and
-// both the live path and the comparison against features/orders can call it.
-// A test that re-listed these calls by hand would be testing a copy of the
-// implementation, and would go on passing after the real one changed.
-//
-// Everything external has already happened by the time this runs - the label
-// and the courier are created before the transaction opens - so this is purely
-// rows, and it can be run inside a rolled-back transaction with no FedEx
-// request being made at all. That is what makes the two paths comparable
-// without stubbing a provider.
-export async function recordPurchaseOrder(
-  client: any,
-  {
-    purchase_order,
-    user_id,
-    label = {},
-    pickupResult = null,
-  }: {
-    purchase_order: Record<string, any>;
-    user_id: string;
-    label?: { tracking_number?: string | null; buffer?: unknown } & Record<string, any>;
-    pickupResult?: { confirmationNumber?: string | null; location?: string | null; pickupDate?: unknown } | null;
-  }
-): Promise<string> {
-  const order_id = await purchaseOrderRepo.insertOrder(client, {
-    userId: user_id,
-    addressId: purchase_order.address.id,
-    status: "In Transit",
-  });
-
-  await purchaseOrderRepo.insertItems(client, order_id, purchase_order.items);
-
-  // Source of truth: (re)price every scrap item's premium from the rates
-  // table, tiered by the total scrap content of each metal on the order.
-  // Products keep their own per-product bid_premium. Same helper the admin
-  // add-item path uses, so both stay consistent.
-  await retierOrderScrapPremiums(order_id, client);
-
-  await purchaseOrderRepo.insertOrderMetals(client, order_id);
-  await purchaseOrderRepo.insertRefinerMetals(client, order_id);
-
-  await purchaseOrderRepo.insertPayout(client, order_id, {
-    userId: user_id,
-    ...purchase_order.payout,
-  });
-
-  // THE SAME PAYOUT, IN THE NEW SCHEMA. Three writes because exchange.payouts
-  // is three things in one row (073): the ACCOUNT becomes payments.details, the
-  // ORDER LINK becomes orders.transactions.payout_details_id (099), and the FEE
-  // becomes orders.transactions.payout_fee. Until this, insertPayout was a raw
-  // pass-through with no mirror at all - not because it had been checked and
-  // exempted, but because its successor's order link did not resolve. D168.
-  //
-  // ROUTING AND ACCOUNT NUMBERS ARE NOT PASSED. Only the last four, derived
-  // here rather than carried. They stay in exchange.payouts and nowhere else
-  // while encryption at rest is outstanding - see payments/details/sql/create.sql
-  // and CLAUDE.md's standing constraint. This is why the pivot cannot finish for
-  // this table without a decision that is Jacob's.
-  //
-  // The order's transactions row is written by the mirror inside insertOrder's
-  // sync, so it exists by now; setPayoutAccount returning undefined would mean
-  // it does not, which is a bug rather than a missing order.
-  await recordPayoutInNewSchema(client, order_id, {
-    user_id,
-    ...purchase_order.payout,
-  });
-
-  const shipment = await shipmentRepo.create(
-    {
-      purchase_order_id: order_id,
-      carrier_id: FEDEX_CARRIER_ID,
-      type: "Inbound",
-    },
-    client
-  );
-
-  if (!shipment) throw new Error("the inbound shipment was not created");
-  await shipmentRepo.update(
-    {
-      ...shipment,
-      id: shipment.id,
-      tracking_number: label.tracking_number ?? null,
-      carrier_id: FEDEX_CARRIER_ID,
-      shipping_status: "Label Created",
-      // `label.buffer` is the carrier provider's own loosely-typed payload.
-      // Narrowed at the boundary rather than widening the shipment's type to
-      // accept anything - the column is text and the value is a base64 buffer.
-      shipping_label: (label.buffer as Buffer | string | null) ?? null,
-      label_type: "Generated",
-      pickup_type: purchase_order.pickup?.name ?? null,
-      package: purchase_order.package?.label ?? null,
-      service_type: purchase_order.service?.serviceDescription ?? null,
-      net_charge: purchase_order.service?.netCharge ?? null,
-      insured: purchase_order.insurance?.insured ?? false,
-      declared_value: purchase_order.insurance?.declaredValue?.amount ?? null,
-      type: "Inbound",
-    },
-    client
-  );
-
-  if (pickupResult) {
-    await pickupRepo.create(
-      {
-        user_id,
-        order_id: order_id,
-        carrier: "FedEx",
-        date: purchase_order.pickup.date,
-        time: purchase_order.pickup.time,
-        pickup_status: "scheduled",
-        confirmation_number: pickupResult.confirmationNumber,
-        location: pickupResult.location,
-      },
-      client
-    );
-  }
-
-  return order_id;
+  return await ordersRepo.update(order.id, { review_created: true });
 }
 
 // createPurchaseOrder - the composed create - died with the stepper
 // conversion (D208/D209): features/orders/create.ts places orders from the
-// checkout row now. recordPurchaseOrder above survives as the seed's
-// rows-only entry, and the label helpers are exported for the live flow and
-// the return-shipment path.
+// checkout row now. recordPurchaseOrder died with the dual layer (D212); the
+// seed primes a checkout row and calls the same create.ts flow the live path
+// runs. The label helpers stay exported for the live flow and the
+// return-shipment path.
 
 
 // Finalizing an order's pricing is a PRICING event, and ONLY that now. The
@@ -518,21 +377,35 @@ export async function finalizePricing({
   spot_prices: PricingSpot[];
 }): Promise<{ purchaseOrder: PurchaseOrderRow | undefined; orderSpots: PricingSpot[] }> {
   const updatedSpots = await withTransaction(async (client) => {
-    const spots = order.spots_locked
-      ? order_spots
-      : await purchaseOrderRepo.updateOrderMetals(order.id, spot_prices, client);
+    const idByName = await metalsRepo.idsByName(client);
+    const metalId = (name: unknown): string | undefined => idByName.get(String(name ?? ""));
 
-    await purchaseOrderRepo.updateRefinerMetals(order.id, spots, client);
+    let spots: PricingSpot[];
+    if (order.spots_locked) {
+      spots = order_spots;
+    } else {
+      for (const sp of spot_prices) {
+        const metal_id = metalId(sp.name);
+        if (metal_id) await orderSpots.setBid(order.id, metal_id, sp.bid ?? null, client);
+      }
+      spots = await orderSpots.getFor(order.id, client);
+    }
 
-    await purchaseOrderRepo.updateOrderItemPrices(
-      order.id,
-      order.order_items,
-      spots,
-      client
-    );
+    // The refiner's copies, keyed the same way.
+    for (const sp of spots) {
+      const metal_id = metalId(sp.name);
+      if (metal_id) await refinerSpots.setBid(order.id, metal_id, sp.bid ?? null, client);
+    }
 
+    for (const item of order.order_items) {
+      await orderItems.setPrice(item.id, order.id, calculateItemPrice(item, spots) ?? null, client);
+    }
+
+    // The total, and the PIN - pricing an order freezes the spots it was
+    // priced at, which is what the exchange statement always did in one row.
     const total = calculateTotalPrice(order, spots);
-    await purchaseOrderRepo.recordOrderPricing(order.id, total, client);
+    await orderTransactions.update(order.id, { total }, {}, client);
+    await ordersRepo.update(order.id, { spots_locked: true }, {}, client);
 
     return spots;
   });
@@ -550,7 +423,7 @@ export async function updatePurchaseStatus({
   order_status: string;
   user_name: string;
 }): Promise<unknown> {
-  return await purchaseOrderRepo.updateStatus(order, order_status, user_name);
+  return await ordersRepo.update(order.id, { status: order_status, updated_by: user_name });
 }
 
 export async function updateSpot({
@@ -560,7 +433,10 @@ export async function updateSpot({
   spot: OrderMetalRow;
   updated_spot: number;
 }): Promise<unknown> {
-  return await purchaseOrderRepo.updateSpot({ spot, updated_spot });
+  const idByName = await metalsRepo.idsByName();
+  const metal_id = idByName.get(String(spot.name ?? ""));
+  if (!metal_id) return undefined;
+  return await orderSpots.setBid(spot.purchase_order_id as string, metal_id, updated_spot);
 }
 
 export async function lockSpots({
@@ -571,19 +447,20 @@ export async function lockSpots({
   purchase_order_id: string;
 }): Promise<unknown> {
   return withTransaction(async (client) => {
-    await purchaseOrderRepo.toggleSpots(true, purchase_order_id, client);
-    return await purchaseOrderRepo.updateOrderMetals(
-      purchase_order_id,
-      spots,
-      client
-    );
+    await ordersRepo.update(purchase_order_id, { spots_locked: true }, {}, client);
+    const idByName = await metalsRepo.idsByName(client);
+    for (const sp of spots) {
+      const metal_id = idByName.get(String(sp.name ?? ""));
+      if (metal_id) await orderSpots.setBid(purchase_order_id, metal_id, sp.bid ?? null, client);
+    }
+    return await orderSpots.getFor(purchase_order_id, client);
   });
 }
 
 export async function unlockSpots({ purchase_order_id }: { purchase_order_id: string }): Promise<unknown> {
   return withTransaction(async (client) => {
-    await purchaseOrderRepo.toggleSpots(false, purchase_order_id, client);
-    return await purchaseOrderRepo.clearOrderMetals(purchase_order_id, client);
+    await ordersRepo.update(purchase_order_id, { spots_locked: false }, {}, client);
+    return await orderSpots.clearBids(purchase_order_id, client);
   });
 }
 
@@ -601,20 +478,54 @@ export async function toggleOrderItemStatus({
   ids: string[];
   purchase_order_id: string;
 }): Promise<unknown> {
-  return await purchaseOrderRepo.toggleOrderItemStatus({
-    item_status: item_status,
-    ids: ids,
-    purchase_order_id: purchase_order_id,
-  });
+  return await orderItems.setConfirmed(purchase_order_id, ids, item_status);
 }
 
-// Both writes feed the same number - a scrap line is priced at
-// content * spot * premium - so applying one without the other quotes a price
+// The declared weights land on orders.items, the assay actuals on
+// refiners.items, and the premium on the line - a scrap line is priced at
+// content * spot * premium, so applying one without the others quotes a price
 // from a mix of the old figures and the new. One transaction.
-export async function updateScrapItem({ item }: { item: OrderScrapItemRow & Record<string, any> }): Promise<unknown> {
+//
+// content is computed HERE, as it always was: convertTroyOz(...) * purity,
+// with NaN stored as NULL ("not measured") rather than reaching the database -
+// see orders/items/sql/update_scrap.sql and D47/D65 for the full account.
+export async function updateScrapItem({ item }: { item: Record<string, any> }): Promise<unknown> {
+  const s = (item.scrap ?? {}) as Record<string, any>;
+  const finiteOrNull = (n: number): number | null => (Number.isFinite(n) ? n : null);
+
+  const content = finiteOrNull(
+    convertTroyOz((s.post_melt ?? s.pre_melt) as number, s.gross_unit as string) *
+      (s.purity as number)
+  );
+  const purity_actual = s.purity_actual ?? s.purity ?? null;
+  const post_melt_actual = s.post_melt_actual ?? s.post_melt ?? null;
+  const content_actual = finiteOrNull(
+    convertTroyOz((s.post_melt_actual ?? s.pre_melt) as number, s.gross_unit as string) *
+      (purity_actual as number)
+  );
+
   return withTransaction(async (client) => {
-    await scrapRepo.updateScrapItem({ item }, client);
-    return await purchaseOrderRepo.updatePremium(item.id, item.premium, client);
+    await orderItems.updateScrap(
+      item.id,
+      {
+        pre_melt: s.pre_melt ?? null,
+        post_melt: s.post_melt ?? null,
+        purity: s.purity ?? null,
+        content,
+      },
+      client
+    );
+    await refinerItems.setAssay(
+      item.id,
+      {
+        pre_melt: s.pre_melt ?? null,
+        post_melt: post_melt_actual,
+        purity: purity_actual,
+        content: content_actual,
+      },
+      client
+    );
+    return await orderItems.setPremium(item.id, item.premium ?? null, client);
   });
 }
 
@@ -641,17 +552,22 @@ export async function deleteOrderItems({
   }[];
 }): Promise<unknown> {
   const ids = items.map((item) => item.id);
-  const scrapIds = items
-    .map((item) => item.scrap?.id)
-    .filter((id) => id != null);
   const orderId = items[0]?.purchase_order_id ?? null;
+  if (!orderId) {
+    const err: Error & { statusCode?: number } = new Error(
+      "the lines to delete name no order - refusing an unguarded delete"
+    );
+    err.statusCode = 400;
+    throw err;
+  }
 
   return withTransaction(async (client) => {
-    if (scrapIds.length) await scrapRepo.deleteItems(scrapIds, client);
-    const result = await purchaseOrderRepo.deleteOrderItems(ids, client);
+    // The scrap IS the line in the new schema, and refiners.items cascades on
+    // the line's delete - one guarded statement where exchange had three.
+    const result = await orderItems.removeFromOrder(orderId, ids, client);
 
     // Removing scrap changes the per-metal totals, so re-tier the survivors.
-    if (orderId) await retierOrderScrapPremiums(orderId, client);
+    await retierOrderScrapPremiums(orderId, client);
 
     return result;
   });
@@ -665,7 +581,7 @@ export async function retierOrderScrapPremiums(orderId: string, executor?: any):
   const rates = await ratesRepo.getAllRates();
   if (!rates?.length) return;
 
-  const scrapItems = await mirror.findOrderScrapItems(orderId, executor);
+  const scrapItems = await orderItems.scrapLinesFor(orderId, executor);
   const totalsByMetal = sumContentByMetal(
     scrapItems,
     (i: { metal?: unknown; content?: unknown }) => i.metal,
@@ -676,7 +592,7 @@ export async function retierOrderScrapPremiums(orderId: string, executor?: any):
     const total = totalsByMetal[String(si.metal ?? "").toLowerCase()] ?? 0;
     const pct = getRatePct(rates, si.metal, total, "scrap");
     if (pct != null) {
-      await purchaseOrderRepo.updatePremium(si.id, pct, executor);
+      await orderItems.setPremium(si.id, pct, executor);
     }
   }
 }
@@ -689,28 +605,76 @@ export async function createOrderItem({
   purchase_order_id: string;
 }): Promise<unknown> {
   return withTransaction(async (client) => {
-    let scrap_id = null;
-    if (!item?.id) {
-      scrap_id = await scrapRepo.createNewItem(item, client);
+    const refuse = (statusCode: number, message: string): never => {
+      const err: Error & { statusCode?: number } = new Error(message);
+      err.statusCode = statusCode;
+      throw err;
+    };
+
+    let created;
+    if (item?.id) {
+      // An existing product: the line derives its weights from the catalogue -
+      // pre_melt from gross, post_melt/content from content - exactly the
+      // derivation the mirror used to make. The premium stays null; a bullion
+      // line prices from its product's own bid_premium.
+      const [product] = await productsRepo.getByIds([String(item.id)], client);
+      if (!product) refuse(400, `no product ${String(item.id)} to put on the order`);
+      if (!product.metal_id) {
+        refuse(422, `product ${product.name} has no metal, so its order line cannot be written`);
+      }
+      created = await orderItems.create(
+        {
+          order_id: purchase_order_id,
+          bullion_id: product.id,
+          metal_id: product.metal_id as string,
+          pre_melt: product.gross ?? null,
+          post_melt: product.content ?? null,
+          purity: product.purity ?? null,
+          content: product.content ?? null,
+          quantity: 1,
+          confirmed: false,
+          unit: "t oz",
+        },
+        client
+      );
+    } else {
+      // New scrap: the scrap IS the line in the new schema. Metal resolved by
+      // name once; the defaults are the ones the exchange scrap insert used.
+      const idByName = await metalsRepo.idsByName(client);
+      const metal_id = idByName.get(String(item?.metal ?? ""));
+      if (!metal_id) refuse(422, `"${String(item?.metal)}" is not a metal this business trades`);
+      const pre_melt = item.pre_melt ?? 1;
+      const purity = item.purity ?? 1;
+      created = await orderItems.create(
+        {
+          order_id: purchase_order_id,
+          metal_id: metal_id as string,
+          pre_melt,
+          purity,
+          content: item.content ?? pre_melt * purity,
+          premium: item.bid_premium ?? 0.75,
+          quantity: 1,
+          confirmed: false,
+          unit: item.gross_unit ?? "t oz",
+        },
+        client
+      );
     }
 
-    const updated = await purchaseOrderRepo.createOrderItem(
-      item,
-      purchase_order_id,
-      scrap_id,
-      client
-    );
+    // The refiner counterpart, one per line, idempotent (093's rule applied to
+    // new lines).
+    await refinerItems.mirrorLinesForOrder(purchase_order_id, client);
 
     // Admin-added scrap must be priced from rates too — re-tier the whole
     // order so it matches customer checkout (per-metal order total).
     await retierOrderScrapPremiums(purchase_order_id, client);
 
-    return updated;
+    return created;
   });
 }
 
 export async function updateBullion({ item }: { item: Record<string, any> }): Promise<unknown> {
-  return await purchaseOrderRepo.updateBullion(item);
+  return await orderItems.setBullion(item.id, item.quantity ?? null, item.premium ?? null);
 }
 
 // autoAcceptOrder IS GONE. It was the auto-accept cron's pipeline, and no
@@ -740,122 +704,10 @@ export async function editShippingCharge({
   return await shipmentRepo.setChargeForOrder(order_id, shipping_charge);
 }
 
-// The new-schema half of a payout, written beside the exchange row rather than
-// derived from it. `sync` cannot do this job: mirrorPurchaseOrder rebuilds
-// orders.transactions from exchange.purchase_orders, and a payout is not on
-// that table - which is why payout_fee and payout_details_id are the two
-// columns its ON CONFLICT deliberately does not touch, and why they are safe to
-// write natively here.
-//
-// Best-effort on the ACCOUNT, exact on the FEE. `create` returns null when the
-// method does not resolve against payments.methods (its SELECT drives the
-// INSERT), and an unrecognised method must not take down an order that exchange
-// has already recorded - so the link is skipped and the fee still lands.
-export async function recordPayoutInNewSchema(
-  executor: PoolClient,
-  order_id: string,
-  payout: Record<string, any>
-): Promise<void> {
-  const account = String(payout.account_number ?? "");
-  const details_id = await payoutAccounts.create(
-    {
-      user_id: payout.user_id,
-      method: payout.method,
-      account_holder: payout.account_holder_name ?? null,
-      bank_name: payout.bank_name ?? null,
-      account_type: payout.account_type ?? null,
-      last_four: account.length >= 4 ? account.slice(-4) : null,
-      email_to: payout.payout_email ?? null,
-    },
-    executor
-  );
-  if (details_id) {
-    const linked = await orderTransactions.setPayoutAccount(order_id, details_id, null, executor);
-    if (!linked) {
-      reportError({
-        at: "orders.recordPayoutInNewSchema.setPayoutAccount",
-        message:
-          `no orders.transactions row for order ${order_id} - the payout ACCOUNT ` +
-          `link was not written, so this order has no record of where it is paid`,
-        extra: { order_id, details_id },
-      });
-    }
-  }
-  // Same hole as the link above, on the fee rather than the account. D202.
-  const feeWritten = await orderTransactions.setAmount(
-    order_id, "payout_fee", payout.cost ?? 0, null, executor
-  );
-  if (!feeWritten) {
-    reportError({
-      at: "orders.recordPayoutInNewSchema.setAmount",
-      message:
-        `no orders.transactions row for order ${order_id} - the payout FEE was ` +
-        `not recorded`,
-      extra: { order_id, field: "payout_fee" },
-    });
-  }
-}
-
-// WAIVING THE PAYOUT FEE (Jacob, 2026-08-29). The flag, and only the flag: the
-// stored fee stays exactly where it is, on exchange.payouts.cost and
-// orders.transactions.payout_fee, so un-waiving does not have to reconstruct a
-// number nobody kept. What changes is what the order PRICES at -
-// pricing/bid.ts's effectivePayoutFee returns 0 while this is true, and the
-// order quote and the profit breakdown read the same helper.
-//
-// ONE WRITE, BOTH SCHEMAS, unlike editPayoutCharge below - see
-// legacy/purchase-orders/repo.exchange.js's setWaivePayoutFee for why the
-// mirror can carry this one and could not carry the fee.
-//
-// An empty result means no exchange.purchase_orders row matched, which for a
-// caller holding a payout means the payout hangs off a SALES order. The caller
-// decides what that is; this says which it was.
-export async function setWaivePayoutFee({
-  order_id,
-  waived,
-}: {
-  order_id: string;
-  waived: boolean;
-}): Promise<{ written: boolean }> {
-  const result = (await purchaseOrderRepo.setWaivePayoutFee(order_id, waived)) as
-    | { rowCount?: number | null }
-    | undefined;
-  return { written: (result?.rowCount ?? 0) > 0 };
-}
-
-export async function editPayoutCharge({
-  order_id,
-  payout_charge,
-}: {
-  order_id: string;
-  payout_charge: number;
-}): Promise<unknown> {
-  // BOTH SCHEMAS, IN ONE TRANSACTION. 073 moved this fee to
-  // orders.transactions.payout_fee and nothing started writing it: the exchange
-  // statement was a pass-through in repo.dual.js, listed under "features that
-  // have not moved" beside insertPayout - which was true of the account and
-  // false of the fee. So the two agreed only until the first admin edit, and
-  // then diverged silently with the order reading the stale copy.
-  return await withTransaction(async (client) => {
-    const r = await purchaseOrderRepo.editPayoutCharge(order_id, payout_charge, client);
-    // The exchange half above succeeded; if the native half matches nothing the
-    // two schemas diverge silently, which is the divergence this comment block
-    // already describes happening once. D202.
-    const written = await orderTransactions.setAmount(
-      order_id, "payout_fee", payout_charge, null, client
-    );
-    if (!written) {
-      reportError({
-        at: "orders.editPayoutCharge",
-        message:
-          `no orders.transactions row for order ${order_id} - exchange.payouts.cost ` +
-          `was updated and orders.transactions.payout_fee was not, so the two now disagree`,
-        extra: { order_id, field: "payout_fee" },
-      });
-    }
-    return r;
-  });
-}
+// The payout fee, its waiver and the payout method left for features/payouts
+// (D212): they were exchange-half wrappers here, and the native columns they
+// write - orders.transactions.payout_fee / waive_payout_fee and
+// payments.details.method - belong to the features that own those tables.
 
 // THE LEDGER NOW RECORDS WHAT WAS ACTUALLY CREDITED.
 //
@@ -894,27 +746,8 @@ export async function addFundsToAccount({ order }: { order: OrderLike }): Promis
   }
 }
 
-export async function changePayoutMethod({
-  order_id,
-  method,
-}: {
-  order_id: string;
-  method: string;
-}): Promise<unknown> {
-  // The method is a column on exchange.payouts and a FOREIGN KEY on
-  // payments.details, so the new-schema half resolves it against
-  // payments.methods rather than storing the string. It walks
-  // orders.transactions.payout_details_id, which is the link 099 added; before
-  // that it walked payments.intents and matched nothing.
-  return await withTransaction(async (client) => {
-    const r = await purchaseOrderRepo.changePayoutMethod(order_id, method, client);
-    await payoutAccounts.setMethodForOrder(order_id, method, client);
-    return r;
-  });
-}
-
 export async function getRefinerMetalsForOrder(orderId: string): Promise<OrderMetalRow[]> {
-  return mirror.findRefinerMetalsByOrderId(orderId);
+  return refinerSpots.getNamed(orderId);
 }
 
 export async function updateRefinerSpot({
@@ -924,76 +757,18 @@ export async function updateRefinerSpot({
   spot: OrderMetalRow;
   updated_spot: number;
 }): Promise<unknown> {
-  return await purchaseOrderRepo.updateRefinerSpot({ spot, updated_spot });
+  const idByName = await metalsRepo.idsByName();
+  const metal_id = idByName.get(String(spot.name ?? ""));
+  if (!metal_id) return undefined;
+  return await refinerSpots.setBid(spot.purchase_order_id as string, metal_id, updated_spot);
 }
 
-// `refiner_premium` IS NULLABLE, and the type said otherwise until A3. The
-// refiners item PATCH declares `premium: number | null` on both sides of the
-// wire and the admin drawer really sends the null - clearing the input is how a
-// premium that was entered by mistake comes back off - while the statement
-// underneath is a plain `SET refiner_premium = $1` that has always written it.
-// The caller was reaching this through `as number`, which is a cast asserting
-// something the data disproves rather than a conversion.
-export async function updateRefinerPremium({
-  item_id,
-  refiner_premium,
-}: {
-  item_id: string;
-  refiner_premium: number | null;
-}): Promise<unknown> {
-  return await purchaseOrderRepo.updateRefinerPremium(item_id, refiner_premium);
-}
-
-export async function updateShippingActual({
-  purchase_order_id,
-  shipping_fee_actual,
-}: {
-  purchase_order_id: string;
-  shipping_fee_actual: number;
-}): Promise<unknown> {
-  return await purchaseOrderRepo.updateShippingActual(
-    purchase_order_id,
-    shipping_fee_actual
-  );
-}
-
-export async function updateRefinerFee({
-  purchase_order_id,
-  refiner_fee,
-}: {
-  purchase_order_id: string;
-  refiner_fee: number;
-}): Promise<unknown> {
-  return await purchaseOrderRepo.updateRefinerFee(
-    purchase_order_id,
-    refiner_fee
-  );
-}
-
-export async function updatePoolOzDeducted({
-  purchase_order_id,
-  pool_oz_deducted,
-}: {
-  purchase_order_id: string;
-  pool_oz_deducted: number;
-}): Promise<unknown> {
-  return await purchaseOrderRepo.updatePoolOzDeducted(
-    purchase_order_id,
-    pool_oz_deducted
-  );
-}
-export async function updatePoolRemediation({
-  purchase_order_id,
-  pool_remediation,
-}: {
-  purchase_order_id: string;
-  pool_remediation: number;
-}): Promise<unknown> {
-  return await purchaseOrderRepo.updatePoolRemediation(
-    purchase_order_id,
-    pool_remediation
-  );
-}
+// updateRefinerPremium and updateShippingActual left with the purge (D212):
+// the callers write refiners.items.premium and
+// orders.transactions.shipping_fee_actual through those tables' own repos.
+// updateRefinerFee and the two pool writes had NO caller at all - exchange
+// columns whose admin surface never survived the drawer rework - and dead
+// code goes first.
 
 // getPayoutDetails left with the read flip: the full bank numbers are
 // GET /payouts/:id/details now, owned by features/payouts, payout-keyed, and

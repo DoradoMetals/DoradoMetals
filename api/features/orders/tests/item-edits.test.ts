@@ -42,7 +42,7 @@ const { default: app } = await import("#app");
 // query never asked for.
 type UserFixture = { id: string; name: string | null; email: string | null };
 type ItemFixture = { id: string; purchase_order_id: string };
-type ScrapItemFixture = ItemFixture & { scrap_id: string };
+type ScrapItemFixture = ItemFixture;
 
 let admin: UserFixture;
 let item: ItemFixture;
@@ -56,21 +56,25 @@ before(async () => {
 
   item = (
     await outside<ItemFixture>(
-      `SELECT id, purchase_order_id FROM exchange.purchase_order_items
-        WHERE purchase_order_id IS NOT NULL ORDER BY id LIMIT 1`
+      `SELECT i.id, i.order_id AS purchase_order_id
+         FROM orders.items i
+         JOIN orders.orders o ON o.id = i.order_id
+        WHERE o.direction = 'purchase' ORDER BY i.id LIMIT 1`
     )
   )[0];
   assert.ok(item, "dev needs a purchase order item");
 
+  // A scrap line IS a line with no bullion (the one-table model).
   scrapItem = (
     await outside<ScrapItemFixture>(
-      `SELECT i.id, i.purchase_order_id, s.id AS scrap_id
-         FROM exchange.purchase_order_items i
-         JOIN exchange.scrap s ON s.id = i.scrap_id
+      `SELECT i.id, i.order_id AS purchase_order_id
+         FROM orders.items i
+         JOIN orders.orders o ON o.id = i.order_id
+        WHERE o.direction = 'purchase' AND i.bullion_id IS NULL
         ORDER BY i.id LIMIT 1`
     )
   )[0];
-  assert.ok(scrapItem, "dev needs a purchase order item with scrap");
+  assert.ok(scrapItem, "dev needs a purchase order scrap line");
 });
 
 after(async () => {
@@ -85,7 +89,7 @@ test("confirmed: true confirms the line", async () => {
   await inPinnedTransaction(async (client: PoolClient) => {
     await as({ ...admin, role: "admin" }, async () => {
       await client.query(
-        `UPDATE exchange.purchase_order_items SET confirmed = false WHERE id = $1`,
+        `UPDATE orders.items SET confirmed = false WHERE id = $1`,
         [item.id]
       );
 
@@ -96,7 +100,7 @@ test("confirmed: true confirms the line", async () => {
       assert.equal(res.status, 200, `answered ${res.status}: ${JSON.stringify(res.body)}`);
 
       const { rows } = await client.query(
-        `SELECT confirmed FROM exchange.purchase_order_items WHERE id = $1`,
+        `SELECT confirmed FROM orders.items WHERE id = $1`,
         [item.id]
       );
       assert.equal(rows[0].confirmed, true, "the line was not confirmed");
@@ -108,7 +112,7 @@ test("reset: true unconfirms the line", async () => {
   await inPinnedTransaction(async (client: PoolClient) => {
     await as({ ...admin, role: "admin" }, async () => {
       await client.query(
-        `UPDATE exchange.purchase_order_items SET confirmed = true WHERE id = $1`,
+        `UPDATE orders.items SET confirmed = true WHERE id = $1`,
         [item.id]
       );
 
@@ -119,7 +123,7 @@ test("reset: true unconfirms the line", async () => {
       assert.equal(res.status, 200, `answered ${res.status}: ${JSON.stringify(res.body)}`);
 
       const { rows } = await client.query(
-        `SELECT confirmed FROM exchange.purchase_order_items WHERE id = $1`,
+        `SELECT confirmed FROM orders.items WHERE id = $1`,
         [item.id]
       );
       assert.equal(rows[0].confirmed, false, "the line was not reset");
@@ -163,7 +167,7 @@ test("the scrap field writes the scrap AND the line's premium together", async (
           scrap: {
             premium: 0.925,
             scrap: {
-              id: scrapItem.scrap_id,
+              id: scrapItem.id,
               pre_melt: 3.5,
               post_melt: 3.25,
               purity: 0.9167,
@@ -176,30 +180,19 @@ test("the scrap field writes the scrap AND the line's premium together", async (
       assert.equal(res.status, 200, `answered ${res.status}: ${JSON.stringify(res.body)}`);
 
       const line = await client.query(
-        `SELECT premium FROM exchange.purchase_order_items WHERE id = $1`,
+        `SELECT premium, pre_melt, purity FROM orders.items WHERE id = $1`,
         [scrapItem.id]
       );
       assert.equal(Number(line.rows[0].premium), 0.925, "the line premium did not change");
+      assert.equal(Number(line.rows[0].pre_melt), 3.5, "the scrap weight did not change");
 
-      const scrap = await client.query(
-        `SELECT pre_melt, purity FROM exchange.scrap WHERE id = $1`,
-        [scrapItem.scrap_id]
-      );
-      assert.equal(Number(scrap.rows[0].pre_melt), 3.5, "the scrap weight did not change");
-
-      // 0.9167 IN, 0.917 OUT, AND THAT IS THE COLUMN NOT THE CODE.
-      // exchange.scrap.purity is numeric(4,3), so the fourth decimal is lost on
-      // write. My first version of this asserted 0.9167 and failed, which read
-      // like the route ignoring purity - it does not, the UPDATE sets it.
-      //
-      // The rounding was a real defect and a known one - 058 widened the
-      // DESTINATION (orders.items) and the SOURCE went on rounding, so this
-      // asserted 0.917 and explained why. 105 widened the source. The sent
-      // value now survives, and asserting it is what keeps it that way.
+      // 0.9167 IN, 0.9167 OUT: orders.items.purity is unconstrained (058), so
+      // the fourth decimal survives - the rounding defect the old
+      // numeric(4,3) scrap column had, pinned here so it stays fixed.
       assert.equal(
-        Number(scrap.rows[0].purity),
+        Number(line.rows[0].purity),
         0.9167,
-        "the scrap purity was rounded - exchange.scrap.purity is narrow again (105)"
+        "the scrap purity was rounded - orders.items.purity has narrowed"
       );
     });
   });
@@ -218,15 +211,15 @@ test("DELETE removes the line and its scrap together", async () => {
       assert.equal(res.status, 200, `answered ${res.status}: ${JSON.stringify(res.body)}`);
 
       const line = await client.query(
-        `SELECT 1 FROM exchange.purchase_order_items WHERE id = $1`,
+        `SELECT 1 FROM orders.items WHERE id = $1`,
         [scrapItem.id]
       );
       assert.equal(line.rows.length, 0, "the order line survived");
 
-      const scrap = await client.query(`SELECT 1 FROM exchange.scrap WHERE id = $1`, [
-        scrapItem.scrap_id,
-      ]);
-      assert.equal(scrap.rows.length, 0, "the scrap row survived the line being deleted");
+      const refiner = await client.query(
+        `SELECT 1 FROM refiners.items WHERE order_item_id = $1`, [scrapItem.id]
+      );
+      assert.equal(refiner.rows.length, 0, "the refiner counterpart survived the cascade");
     });
   });
 });

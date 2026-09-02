@@ -22,7 +22,9 @@ import * as purchaseOrderReads from "#features/orders/read.service.ts";
 import * as salesOrderReads from "#features/orders/read.service.ts";
 import * as purchaseOrderService from "#features/orders/service.ts";
 import * as salesOrderService from "#features/orders/service.ts";
-import * as spots from "#features/orders/repo.dual.js";
+// The LIVE spot feed - the same read the pricing paths use (spots.spots,
+// converted names). The exchange.metals read died with the dual layer (D212).
+import * as spotsFeed from "#features/spots/service.ts";
 import * as packages from "#features/shipping/packages/repo.ts";
 import * as shipmentOrderRead from "#features/shipping/shipments/order-read.ts";
 
@@ -60,7 +62,7 @@ export async function packingListInputs(order_id: string) {
   if (!purchaseOrder) throw notFound(order_id);
   return {
     purchaseOrder,
-    spotPrices: await spots.getCurrentSpotPrices(),
+    spotPrices: await spotsFeed.getSpotPrices(),
     packageDetails: await packageDetailsFor(order_id),
   };
 }
@@ -68,7 +70,7 @@ export async function packingListInputs(order_id: string) {
 export async function returnPackingListInputs(order_id: string) {
   const purchaseOrder = await purchaseOrderReads.findPurchaseById(order_id);
   if (!purchaseOrder) throw notFound(order_id);
-  return { purchaseOrder, spotPrices: await spots.getCurrentSpotPrices() };
+  return { purchaseOrder, spotPrices: await spotsFeed.getSpotPrices() };
 }
 
 // The invoice prints the spots the order was QUOTED at, not today's - which
@@ -80,7 +82,7 @@ export async function invoiceInputs(order_id: string) {
   if (!purchaseOrder) throw notFound(order_id);
   return {
     purchaseOrder,
-    spotPrices: await spots.getCurrentSpotPrices(),
+    spotPrices: await spotsFeed.getSpotPrices(),
     orderSpots: await purchaseOrderService.getPurchaseMetalsForOrder(order_id),
   };
 }

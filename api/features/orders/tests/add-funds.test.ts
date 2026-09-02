@@ -59,10 +59,11 @@ before(async () => {
 
   order = (
     await outside<OrderFixture>(
-      `SELECT po.id, po.user_id, po.total_price
-         FROM exchange.purchase_orders po
-        WHERE po.user_id IS NOT NULL AND po.total_price IS NOT NULL
-        ORDER BY po.id LIMIT 1`
+      `SELECT o.id, o.user_id, t.total AS total_price
+         FROM orders.orders o
+         JOIN orders.transactions t ON t.order_id = o.id
+        WHERE o.direction = 'purchase' AND o.user_id IS NOT NULL AND t.total IS NOT NULL
+        ORDER BY o.id LIMIT 1`
     )
   )[0];
   assert.ok(order, "dev needs a purchase order with a user and a total");
@@ -95,8 +96,8 @@ test("the balance moves by exactly what the ledger records", async () => {
       const moved = Number(after.rows[0].funds) - Number(before.rows[0].funds);
 
       const logged = await client.query(
-        `SELECT amount FROM exchange.account_transactions
-          WHERE user_id = $1 AND purchase_order_id = $2 AND transaction_type = 'Credit'
+        `SELECT amount FROM payments.ledger
+          WHERE user_id = $1 AND order_id = $2 AND type = 'Credit'
           ORDER BY occurred_at DESC, id DESC LIMIT 1`,
         [order.user_id, order.id]
       );
@@ -130,8 +131,8 @@ test("a spot write just before the credit does not reach the ledger", async () =
         Number(
           (
             await client.query(
-              `SELECT count(*)::int AS n FROM exchange.account_transactions
-                WHERE user_id = $1 AND purchase_order_id = $2 AND transaction_type = 'Credit'`,
+              `SELECT count(*)::int AS n FROM payments.ledger
+                WHERE user_id = $1 AND order_id = $2 AND type = 'Credit'`,
               [order.user_id, order.id]
             )
           ).rows[0].n
@@ -151,8 +152,8 @@ test("a spot write just before the credit does not reach the ledger", async () =
       assert.equal(await countOf(), before + 1, "this request wrote no ledger entry");
 
       const logged = await client.query(
-        `SELECT amount FROM exchange.account_transactions
-          WHERE user_id = $1 AND purchase_order_id = $2 AND transaction_type = 'Credit'
+        `SELECT amount FROM payments.ledger
+          WHERE user_id = $1 AND order_id = $2 AND type = 'Credit'
           ORDER BY occurred_at DESC, id DESC LIMIT 1`,
         [order.user_id, order.id]
       );

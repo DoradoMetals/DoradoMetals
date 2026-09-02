@@ -23,6 +23,7 @@
 //                     that is the only tracking write that exists today.
 import * as shipmentsService from "#features/shipping/shipments/service.ts";
 import * as purchaseOrderService from "#features/orders/service.ts";
+import * as orderTransactions from "#features/orders/transactions/service.ts";
 import * as salesOrderService from "#features/orders/service.ts";
 import { refusedUnknownField, refusedValue, type Refusal } from "#shared/http/patch-body.ts";
 import { ShipmentPatch } from "@dorado/contracts";
@@ -92,10 +93,8 @@ export async function patchShipment(
     if (!purchaseOrderId) {
       refuse(422, `shipment ${shipmentId} has no purchase order to record an actual cost on`);
     }
-    await purchaseOrderService.updateShippingActual({
-      purchase_order_id: purchaseOrderId!,
-      shipping_fee_actual: body.shipping_actual,
-    });
+    // orders.transactions.shipping_fee_actual, through that table's one update.
+    await orderTransactions.update(purchaseOrderId!, { shipping_fee_actual: body.shipping_actual });
   }
 
   if (body.tracking_number !== undefined) {

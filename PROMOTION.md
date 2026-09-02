@@ -1,5 +1,11 @@
 # Promotion runbook
 
+> **HISTORICAL since D212 (2026-09-02).** Every promotion this runbook
+> describes has been executed and the switches it names are deleted - there
+> is nothing left to flip and nothing to roll back to. What still matters
+> here is the PRODUCTION sequencing context: `pg_dump` → migrate → backfill →
+> `verify:parity` / `compare:databases` → merge, in that order, run by Jacob.
+
 How to move this migration onto production, and how to undo each step.
 
 Written against production as it actually is — read directly on 2026-08-22, not

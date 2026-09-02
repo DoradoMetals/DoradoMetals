@@ -1,13 +1,12 @@
 // Carriers through the service, against real Postgres.
 //
 // A carrier is two rows in the new schema - an organization and a
-// shipping.carriers row - plus one flat row in exchange, and all three are
+// shipping.carriers row - and both are
 // written together. Most of these are about that trio staying consistent.
 //
 // This replaces repo.next.test.js, which compared the two implementations
 // against each other. There is only one implementation now: reads come from the
-// new schema and exchange is written alongside it, so the comparison that used
-// to be "do both reads agree" is now "did the write reach exchange too".
+// organization and the carrier row, and the reads compose the two back.
 //
 // Each test runs inside a transaction that is rolled back.
 import test, { after, before } from "node:test";
@@ -100,29 +99,6 @@ test("create writes both new rows and reads back as one", async () => {
   });
 });
 
-// THE DUAL WRITE. exchange.carriers is still the record of truth until carriers
-// is promoted, and it keeps both halves on one row - so the organization's
-// fields have to land there too, under exchange's own names.
-test("create writes the same carrier into exchange, under the same id", async () => {
-  await inRollback(async (c: PoolClient) => {
-    const input = draft();
-    const made = await service.createCarrier(input, c);
-    assert.ok(made, "the service returned nothing");
-
-    const { rows } = await c.query(
-      `SELECT id, name, email, phone, logo, is_active FROM exchange.carriers WHERE id = $1`,
-      [made.id]
-    );
-    assert.equal(rows.length, 1, "the carrier never reached exchange");
-    assert.equal(rows[0].name, input.organization.name);
-    assert.equal(rows[0].email, input.organization.email);
-    assert.equal(rows[0].phone, input.organization.phone);
-    assert.equal(rows[0].logo, input.logo);
-    assert.equal(rows[0].is_active, input.organization.enabled,
-      "enabled did not land on exchange's is_active");
-  });
-});
-
 test("update changes both the organization and the carrier row", async () => {
   await inRollback(async (c: PoolClient) => {
     const made = await service.createCarrier(draft(), c);
@@ -140,23 +116,6 @@ test("update changes both the organization and the carrier row", async () => {
     assert.equal(updated.organization.enabled, false);
     assert.equal(updated.logo, "/carriers/new.png");
     assert.equal(updated.id, made.id);
-  });
-});
-
-test("update carries the change into exchange as well", async () => {
-  await inRollback(async (c: PoolClient) => {
-    const made = await service.createCarrier(draft(), c);
-    assert.ok(made, "the service returned nothing");
-    await service.updateCarrier(
-      { ...made, organization: { ...made.organization, name: "renamed", enabled: false } },
-      c
-    );
-
-    const { rows } = await c.query(
-      `SELECT name, is_active FROM exchange.carriers WHERE id = $1`, [made.id]
-    );
-    assert.equal(rows[0].name, "renamed", "exchange still holds the old name");
-    assert.equal(rows[0].is_active, false);
   });
 });
 

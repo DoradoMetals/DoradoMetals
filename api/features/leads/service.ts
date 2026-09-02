@@ -24,9 +24,10 @@
 import { randomUUID } from "node:crypto";
 import withTransaction from "#shared/db/withTransaction.ts";
 import * as leads from "#features/leads/repo.ts";
-import * as legacy from "#legacy/leads/repo.ts";
-import { toWire, listToWire, type LeadWire } from "#features/leads/wire.ts";
 import type { LeadRow, NewLead } from "#features/leads/repo.ts";
+
+// The wire IS the row - the identity adapter died with D212.
+export type LeadWire = LeadRow;
 
 interface HttpError extends Error {
   statusCode?: number;
@@ -44,28 +45,26 @@ export async function getOne(id: string): Promise<LeadWire> {
   // implementation answered `200 undefined`, which reaches the client as an
   // empty body and is indistinguishable from a lead with no fields.
   if (!row) throw notFound(id);
-  return toWire(row);
+  return row;
 }
 
 export async function getAll(): Promise<LeadWire[]> {
-  return listToWire(await leads.getAll());
+  return await leads.getAll();
 }
 
 export async function create(lead: NewLead): Promise<LeadWire> {
   const id = randomUUID();
   return withTransaction(async (client) => {
-    await legacy.create(id, lead, client);
     const row = await leads.create(id, lead, client);
-    return toWire(row);
+    return row;
   });
 }
 
 export async function update(lead: LeadRow, user_name: string): Promise<LeadWire> {
   return withTransaction(async (client) => {
-    await legacy.update(lead, user_name, client);
     const row = await leads.update(lead, user_name, client);
     if (!row) throw notFound(lead.id);
-    return toWire(row);
+    return row;
   });
 }
 
@@ -73,7 +72,6 @@ export async function update(lead: LeadRow, user_name: string): Promise<LeadWire
 // success for an id that was never there.
 export async function remove(id: string): Promise<number> {
   return withTransaction(async (client) => {
-    await legacy.remove(id, client);
     return await leads.remove(id, client);
   });
 }

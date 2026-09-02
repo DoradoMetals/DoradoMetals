@@ -5,15 +5,13 @@
 // are also compared against the exchange field lists that checkout still uses.
 import test from "node:test";
 import assert from "node:assert/strict";
-import { sqlWithLegacy } from "#shared/testing/sql.ts";
+import path from "node:path";
+import { sqlFrom } from "#shared/db/sql.ts";
 import { storefront, admin } from "#features/products/compose.ts";
 import type { Labels } from "#features/products/compose.ts";
 
-// features/products/sql AND legacy/products/sql - the two halves of the
-// dual write, pinned against each other in one file (ruling 29 moved the
-// mirror out of this feature; the pin did not follow it, because the pin IS
-// the comparison between the two).
-const sql = sqlWithLegacy("products");
+// features/products/sql - the statements as text.
+const sql = sqlFrom(path.join(import.meta.dirname, ".."));
 
 const body = (name: string): string =>
   sql(name).split("\n").filter((l) => !l.trim().startsWith("--")).join("\n");
@@ -30,47 +28,31 @@ test("every statement loads and is not empty", () => {
   for (const n of [
     "get_storefront", "get_sell", "get_homepage", "get_by_slug", "get_by_ids",
     "get_filtered", "get_admin_all", "get_admin_one", "get_liveness",
-    "get_types", "create", "update", "legacy/create", "legacy/update",
+    "get_types", "create", "update",
   ]) {
     assert.ok(sql(n).trim().length > 0, `${n} is empty`);
   }
 });
 
-// THE THREE RENAMES. products.bullion calls them name, description and type;
-// exchange calls them product_name, product_description and product_type. One
-// values array feeds both UPDATEs, so the two must line up parameter for
-// parameter with exactly those three substitutions.
+// THE THREE RENAMES exchange used to carry (product_name and friends); the
+// table's own spellings are what the statement must keep writing.
 const RENAMES: Record<string, string> = {
   name: "product_name",
   description: "product_description",
   type: "product_type",
 };
 
-test("both UPDATEs assign the same values in the same order, renames aside", () => {
+test("the UPDATE assigns the 27 values ProductValues carries, in order", () => {
   const next = updateColumns("update").filter((c) => c !== "updated_at");
-  const legacy = updateColumns("legacy/update").filter((c) => c !== "updated_at");
-
   assert.equal(next.length, 27, "the update column count changed - ProductValues has 27 entries");
-  assert.deepEqual(
-    next.map((c) => RENAMES[c] ?? c), legacy,
-    "the two UPDATE statements no longer line up parameter for parameter"
-  );
-
-  // And the renames really are there, so this cannot pass by both sides having
-  // dropped them.
-  for (const [newName, oldName] of Object.entries(RENAMES)) {
+  // The three renamed columns write under the table's own names.
+  for (const newName of Object.keys(RENAMES)) {
     assert.ok(next.includes(newName), `sql/update.sql no longer writes ${newName}`);
-    assert.ok(legacy.includes(oldName), `sql/legacy/update.sql no longer writes ${oldName}`);
   }
 });
 
-// exchange's UPDATE never maintained updated_at, and the new one does. That is
-// a deliberate asymmetry rather than an oversight: adding it to exchange would
-// make every mirrored row's timestamp disagree with the one the backfill
-// copied, and verify:parity compares them.
-test("only the new schema's update maintains updated_at", () => {
+test("the update maintains updated_at", () => {
   assert.match(body("update"), /updated_at\s*=\s*NOW\(\)/i);
-  assert.doesNotMatch(body("legacy/update"), /updated_at\s*=\s*NOW\(\)/i);
 });
 
 // The reference columns are IDS in the statement. The implementation this
@@ -97,22 +79,11 @@ test("create names every column bullion declares NOT NULL without a default", ()
   }
 });
 
-// exchange's create supplies almost nothing, because its columns default. The
-// asymmetry between the two create statements is the whole point.
-test("the exchange create relies on defaults and the new one cannot", () => {
-  assert.doesNotMatch(body("legacy/create"), /metal_id/,
-    "the exchange insert names metal_id - it has a DEFAULT and does not need to");
-  assert.match(body("legacy/create"), /product_name/);
-});
-
-test("no statement reaches into the other schema", () => {
+test("no statement reaches into exchange", () => {
   for (const n of ["get_storefront", "get_sell", "get_homepage", "get_by_slug",
                    "get_by_ids", "get_filtered", "get_admin_all", "get_admin_one",
                    "get_liveness", "get_types", "create", "update"]) {
     assert.doesNotMatch(body(n), /exchange\./, `${n} reaches into exchange`);
-  }
-  for (const n of ["legacy/create", "legacy/update"]) {
-    assert.doesNotMatch(body(n), /products\.bullion/, `${n} reaches out of exchange`);
   }
 });
 

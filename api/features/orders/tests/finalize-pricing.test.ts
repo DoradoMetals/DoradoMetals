@@ -57,15 +57,14 @@ let items: ItemFixture[];
 
 before(async () => {
   const rows = await outside<OrderFixture>(
-    `SELECT po.id, po.user_id, po.total_price
-       FROM exchange.purchase_orders po
-      WHERE po.user_id IS NOT NULL
-        AND (SELECT count(*) FROM exchange.purchase_order_items i
-              WHERE i.purchase_order_id = po.id) > 0
-        AND EXISTS (SELECT 1 FROM exchange.order_metals m
-                     WHERE m.purchase_order_id = po.id)
-        AND EXISTS (SELECT 1 FROM exchange.payouts p WHERE p.order_id = po.id)
-      ORDER BY po.created_at DESC
+    `SELECT o.id, o.user_id, t.total AS total_price
+       FROM orders.orders o
+       JOIN orders.transactions t ON t.order_id = o.id
+      WHERE o.direction = 'purchase' AND o.user_id IS NOT NULL
+        AND t.payout_fee IS NOT NULL
+        AND (SELECT count(*) FROM orders.items i WHERE i.order_id = o.id) > 0
+        AND EXISTS (SELECT 1 FROM orders.spots s WHERE s.order_id = o.id)
+      ORDER BY o.created_at DESC
       LIMIT 1`
   );
   assert.ok(rows[0], "dev has no purchase order with items, spots and a payout");
@@ -77,7 +76,7 @@ before(async () => {
   assert.ok(admin, "dev has no admin user");
 
   items = await outside<ItemFixture>(
-    `SELECT id, quantity FROM exchange.purchase_order_items WHERE purchase_order_id = $1`,
+    `SELECT id, quantity FROM orders.items WHERE order_id = $1`,
     [order.id]
   );
   assert.ok(items.length > 0, "the fixture order has no items");
@@ -129,7 +128,7 @@ test("a document claiming its own prices is refused by name, and the money does 
       // Refused means REFUSED: no op ran, so the stored total is exactly what
       // dev held before either request.
       const { rows } = await client.query(
-        `SELECT total_price FROM exchange.purchase_orders WHERE id = $1`,
+        `SELECT total AS total_price FROM orders.transactions WHERE order_id = $1`,
         [order.id]
       );
       assert.equal(
@@ -146,7 +145,7 @@ test("a clean finalize prices the order from the database's own rows", async () 
     await as({ ...admin, role: "admin" }, async () => {
       const before = (
         await client.query(
-          `SELECT purchase_order_status FROM exchange.purchase_orders WHERE id = $1`,
+          `SELECT status FROM orders.orders WHERE id = $1`,
           [order.id]
         )
       ).rows[0];
@@ -158,16 +157,18 @@ test("a clean finalize prices the order from the database's own rows", async () 
 
       const row = (
         await client.query(
-          `SELECT total_price, purchase_order_status, spots_locked
-             FROM exchange.purchase_orders WHERE id = $1`,
+          `SELECT t.total AS total_price, o.status, o.spots_locked
+             FROM orders.orders o
+             JOIN orders.transactions t ON t.order_id = o.id
+            WHERE o.id = $1`,
           [order.id]
         )
       ).rows[0];
       // THE PURE-LABEL RULING, asserted: pricing moved money and the pin,
       // and did NOT touch the status.
       assert.equal(
-        row.purchase_order_status,
-        before.purchase_order_status,
+        row.status,
+        before.status,
         "finalize_pricing moved the status - pipelines must not write labels"
       );
       assert.equal(row.spots_locked, true, "finalizing pins the spots");
@@ -178,8 +179,9 @@ test("a clean finalize prices the order from the database's own rows", async () 
       // row; the request contributed nothing but the operation's name.
       const spots = (
         await client.query(
-          `SELECT type AS name, ask_spot AS ask, bid_spot AS bid
-             FROM exchange.order_metals WHERE purchase_order_id = $1`,
+          `SELECT m.name, sp.ask, sp.bid
+             FROM orders.spots sp JOIN metals.metals m ON m.id = sp.metal_id
+            WHERE sp.order_id = $1`,
           [order.id]
         )
       ).rows;

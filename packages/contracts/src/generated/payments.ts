@@ -42,6 +42,7 @@ export const DetailsRow = z.object({
   "routing_number_encrypted": z.string().nullable(),
   "account_number_encrypted": z.string().nullable(),
   "encryption_key_id": z.string().nullable(),
+  "routing_last_four": z.string().nullable(),
 });
 export type DetailsRow = z.infer<typeof DetailsRow>;
 

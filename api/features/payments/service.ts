@@ -1,6 +1,6 @@
-import { refreshPaidFlair } from "#features/orders/paid.service.ts";
 import * as stripe from "#providers/payment/stripe.ts";
-import * as stripeRepo from "#features/payments/repo.js";
+import * as stripeRepo from "#features/payments/repo.ts";
+import * as ordersRepo from "#features/orders/repo.ts";
 import * as productService from "#features/products/service.ts";
 import * as addressService from "#features/places/addresses/service.ts";
 import * as taxService from "#features/sales-tax/service.ts";
@@ -13,7 +13,7 @@ import type {
   PaymentIntentRow,
   StripeIntentLike,
   StripePaymentMethodLike,
-} from "#features/payments/repo.next.ts";
+} from "#features/payments/repo.ts";
 import type { IncomingHttpHeaders } from "node:http";
 
 // WIDER THAN THE REPO'S SessionLike, deliberately. The repo needs only
@@ -68,9 +68,20 @@ export async function retrievePaymentIntent(
     headers: fromNodeHeaders(headers),
   })) as MaybeSession;
 
-  // The repos return the new shape on both sides now, so the provider's id for
-  // the intent is on the attempt: an intent is what was asked for and an attempt
-  // is what was tried, and only the attempt has a reference from a provider.
+  // A missing session cannot key an intent lookup - the same 401 the
+  // create path answers, surfaced here by the typed repo (the untyped one
+  // would have thrown a TypeError on session.session.id).
+  if (!session?.session?.id) {
+    const err: Error & { statusCode?: number } = new Error(
+      "no session - a payment intent cannot be retrieved without one"
+    );
+    err.statusCode = 401;
+    throw err;
+  }
+
+  // The repo returns the new shape: the provider's id for the intent is on
+  // the attempt - an intent is what was asked for and an attempt is what was
+  // tried, and only the attempt has a reference from a provider.
   const vals = await stripeRepo.retrievePaymentIntent(type, session, user_id);
   if (vals?.attempt?.provider_ref) {
     return await stripe.retrieveIntent(vals.attempt.provider_ref);
@@ -317,7 +328,7 @@ export async function updatePaymentIntent(
       "requires_payment_method",
       "requires_confirmation",
       "requires_action",
-    ].includes(retrieved_intent?.status)
+    ].includes(retrieved_intent?.status ?? "")
   ) {
     // SELF-HEALING when the stored status lied. The gate above reads the
     // LOCAL row, and any missed webhook leaves it saying
@@ -464,7 +475,9 @@ export async function updateIntentFromWebhook({
     prior?.payment_status !== "succeeded" &&
     prior?.sales_order_id
   ) {
-    await refreshPaidFlair(prior.sales_order_id);
+    // The flair, nothing else (D211): paid is the intent's own settled fact,
+    // read where it lives; the label is decoration for the customer.
+    await ordersRepo.update(prior.sales_order_id, { status: "Preparing", updated_by: "payment" });
   }
 }
 

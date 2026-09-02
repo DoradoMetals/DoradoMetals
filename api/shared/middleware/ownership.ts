@@ -56,9 +56,19 @@ function orderIdFrom(body: OrderBody = {}): string | null {
 // service must ask what the middleware would have asked - one copy of the
 // query, not two drifting ones.
 //
-// Both directions live in one table in the new schema and two in exchange,
-// and this has to answer the same way whichever is serving - so it asks all
-// three rather than depending on ORDERS_SOURCE.
+// ONE TABLE SINCE D213. This used to UNION exchange.purchase_orders and
+// exchange.sales_orders alongside orders.orders, because during `dual` either
+// schema might be serving. Neither is now: the read paths are native, D212
+// stopped exchange receiving order writes, and an exchange row the backfill has
+// not carried over is an order no read path can return - so admitting it here
+// bought a 200 on a document that does not resolve, not access to anything.
+// Measured on dev before removing: 33 of 38 purchase and 28 of 28 sale rows are
+// present natively with an IDENTICAL user_id, and the five that are not are one
+// account's dual-era test traffic from a three-minute burst on 2026-08-27.
+//
+// THE PRODUCTION DEPENDENCY, STATED: this is correct once the orders backfill
+// has run there, which is step three of the sequence in CLAUDE.md and precedes
+// any traffic being served.
 //
 // `executor` is the usual repo seam: a test passes its pinned transaction,
 // production passes nothing and the pool answers.
@@ -68,13 +78,7 @@ export async function orderOwnedBy(
   executor?: PoolClient
 ): Promise<boolean> {
   const { rows } = await query(
-    `SELECT 1 FROM (
-       SELECT user_id FROM exchange.purchase_orders WHERE id = $1
-       UNION ALL
-       SELECT user_id FROM exchange.sales_orders WHERE id = $1
-       UNION ALL
-       SELECT user_id FROM orders.orders WHERE id = $1
-     ) o WHERE o.user_id = $2 LIMIT 1`,
+    `SELECT 1 FROM orders.orders WHERE id = $1 AND user_id = $2 LIMIT 1`,
     [orderId, userId],
     executor
   );
@@ -175,11 +179,12 @@ export function requireOwnOrderParam(req: Request, res: Response, next: NextFunc
 // the admin ones. Checked in the frontend before choosing this over the simpler
 // fix.
 //
-// BOTH SCHEMAS, for the same reason requireOwnOrder asks all three order
-// tables: this must answer identically whichever SHIPMENTS_SOURCE is serving,
-// and it is not this middleware's business to know which. exchange.shipments
-// carries the order id inline; the new schema reaches it through
-// fulfillments.shipments -> fulfillments.fulfillments -> orders.orders.
+// ONE WALK SINCE D213, for the same reason orderOwnedBy has one: the exchange
+// arms answered for a schema nothing reads any more. The native route reaches
+// the owner through fulfillments.shipments -> fulfillments.fulfillments ->
+// orders.orders, and it covers every one of dev's 40 exchange shipments with an
+// identical user_id - nothing resolved through exchange that does not resolve
+// here.
 export function requireOwnShipment(req: Request, res: Response, next: NextFunction) {
   if (!req.user) {
     return res.status(401).json({ error: "Unauthorized" });
@@ -198,23 +203,12 @@ export function requireOwnShipment(req: Request, res: Response, next: NextFuncti
   // "the shipment is not yours" are the same answer to somebody who should not
   // be able to tell them apart.
   query(
-    `SELECT 1 FROM (
-       SELECT po.user_id
-         FROM exchange.shipments s
-         JOIN exchange.purchase_orders po ON po.id = s.purchase_order_id
-        WHERE s.id = $1
-       UNION ALL
-       SELECT so.user_id
-         FROM exchange.shipments s
-         JOIN exchange.sales_orders so ON so.id = s.sales_order_id
-        WHERE s.id = $1
-       UNION ALL
-       SELECT o.user_id
-         FROM fulfillments.shipments fs
-         JOIN fulfillments.fulfillments f ON f.id = fs.fulfillment_id
-         JOIN orders.orders o ON o.id = f.order_id
-        WHERE fs.shipment_id = $1
-     ) owner WHERE owner.user_id = $2 LIMIT 1`,
+    `SELECT 1
+       FROM fulfillments.shipments fs
+       JOIN fulfillments.fulfillments f ON f.id = fs.fulfillment_id
+       JOIN orders.orders o ON o.id = f.order_id
+      WHERE fs.shipment_id = $1 AND o.user_id = $2
+      LIMIT 1`,
     [shipmentId, req.user.id]
   )
     .then(({ rows }) => {

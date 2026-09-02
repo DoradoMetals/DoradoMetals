@@ -26,7 +26,6 @@ import {
   carrierIdOr,
   resolveCarrier,
 } from "#features/shipping/operations/resolver.ts";
-import * as legacy from "#legacy/shipping/services/repo.ts";
 import type { ServiceRow, ServiceValues } from "#features/shipping/services/repo.ts";
 import type { Executor } from "#shared/db/executor.ts";
 // From the contracts, which is where the shape is declared - not via the
@@ -254,7 +253,6 @@ export async function createService(
     // each table's DEFAULT gen_random_uuid() pick its own.
     const id = randomUUID();
     const row = await services.create(id, values, c);
-    await legacy.create(id, values, c);
     return row ?? null;
   };
   return executor ? await run(executor) : await withTransaction(run);
@@ -270,7 +268,6 @@ export async function updateService(
   const run = async (c: Executor): Promise<ServiceRow | null> => {
     const row = await services.update(id, values, c);
     if (!row) return null;
-    await legacy.update(id, values, c);
     return row;
   };
   return executor ? await run(executor) : await withTransaction(run);
@@ -290,7 +287,6 @@ export async function updateService(
 export async function removeService(id: string, executor?: Executor): Promise<boolean> {
   const run = async (c: Executor): Promise<boolean> => {
     await services.remove(id, c);
-    await legacy.remove(id, c);
     return true;
   };
   return executor ? await run(executor) : await withTransaction(run);

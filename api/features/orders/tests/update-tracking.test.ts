@@ -63,10 +63,14 @@ before(async () => {
 
   shipment = (
     await outside<ShipmentFixture>(
-      `SELECT id, sales_order_id, carrier_id, tracking_number
-         FROM exchange.shipments
-        WHERE sales_order_id IS NOT NULL
-        ORDER BY id LIMIT 1`
+      `SELECT s.id, f.order_id AS sales_order_id, cs.carrier_id, s.tracking_number
+         FROM shipping.shipments s
+         JOIN fulfillments.shipments fs ON fs.shipment_id = s.id
+         JOIN fulfillments.fulfillments f ON f.id = fs.fulfillment_id
+         JOIN orders.orders o ON o.id = f.order_id
+         LEFT JOIN shipping.services cs ON cs.id = s.carrier_service_id
+        WHERE o.direction = 'sale'
+        ORDER BY s.id LIMIT 1`
     )
   )[0];
   assert.ok(shipment, "dev needs a shipment attached to a sales order");
@@ -112,7 +116,7 @@ test("the tracking number actually lands on the shipment", async () => {
         });
 
       const { rows } = await client.query(
-        `SELECT tracking_number FROM exchange.shipments WHERE id = $1`,
+        `SELECT tracking_number FROM shipping.shipments WHERE id = $1`,
         [shipment.id]
       );
       assert.equal(

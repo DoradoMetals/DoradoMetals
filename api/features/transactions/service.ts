@@ -9,7 +9,6 @@
 import { randomUUID } from "node:crypto";
 import withTransaction from "#shared/db/withTransaction.ts";
 import * as ledger from "#features/transactions/repo.ts";
-import * as legacy from "#legacy/transactions/repo.ts";
 import { toWire, type TransactionWire } from "#features/transactions/compose.ts";
 import type { Executor } from "#shared/db/executor.ts";
 
@@ -61,10 +60,6 @@ export async function addTransactionLog(
   const order_id = purchase_order_id ?? sales_order_id ?? null;
 
   const write = async (c: Executor) => {
-    await legacy.create(
-      id, user_id, transaction_type,
-      purchase_order_id ?? null, sales_order_id ?? null, amount, c
-    );
     await ledger.create(id, user_id, transaction_type, order_id, amount, c);
   };
   return executor ? write(executor) : withTransaction(write);

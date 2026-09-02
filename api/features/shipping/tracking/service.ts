@@ -11,7 +11,6 @@
 // transaction, so the two cannot drift apart between polls.
 import withTransaction from "#shared/db/withTransaction.ts";
 import * as tracking from "#features/shipping/tracking/repo.ts";
-import * as legacy from "#legacy/shipping/tracking/repo.ts";
 import * as shipmentService from "#features/shipping/shipments/service.ts";
 import type { ScanEvent, TrackingInfo } from "#features/shipping/tracking/repo.ts";
 import type { Executor } from "#shared/db/executor.ts";
@@ -62,7 +61,6 @@ export async function removeEvents(
   shipment_id: string, executor?: Executor
 ): Promise<boolean> {
   const run = async (c: Executor): Promise<boolean> => {
-    await legacy.remove(shipment_id, c);
     await tracking.remove(shipment_id, c);
     return true;
   };
@@ -80,9 +78,7 @@ export async function insertEvents(
   if (!events.length) return 0;
 
   const run = async (c: Executor): Promise<number> => {
-    const n = await legacy.insert(events, shipment_id, c);
-    await tracking.insert(events, shipment_id, c);
-    return n;
+    return await tracking.insert(events, shipment_id, c);
   };
   return executor ? await run(executor) : await withTransaction(run);
 }
