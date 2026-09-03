@@ -1,17 +1,21 @@
-// The payout account resource: recorded at the payout STEP (D210), linked at
-// order creation, opened only by the admin bank-details read.
+// The payout account: recorded at the payout STEP (D210), linked at order
+// creation, opened only by the admin bank-details read.
 //
-// ROUTING AND ACCOUNT NUMBERS ARE SEALED HERE - AES-256-GCM envelopes bound
-// to the row id and the column name (shared/crypto/envelope.ts), so a copied
+// ROUTING AND ACCOUNT NUMBERS ARE SEALED HERE - AES-256-GCM envelopes bound to
+// the row id and the column name (shared/crypto/envelope.ts), so a copied
 // envelope fails authentication anywhere but its own cell. Plaintext exists
-// only inside this module's two functions, and never reaches a log, an error
-// or a return value except from decryptFor, the admin read's single door.
+// only inside this module's two functions and never reaches a log, an error or
+// a return value except from decryptFor, the admin read's single door.
 import { randomUUID } from "node:crypto";
-import type { PoolClient } from "pg";
 import * as details from "#db/payments/details/repo.ts";
+import * as methods from "#db/payments/methods/repo.ts";
 import { seal, open, aadFor } from "#shared/crypto/envelope.ts";
 import { payoutKeyFromEnv } from "#shared/crypto/payoutKey.ts";
 import { refuse } from "#shared/http/refuse.ts";
+import type { DetailRow, DetailValues } from "#db/payments/details/repo.ts";
+import type { Executor } from "#shared/db/executor.ts";
+
+export type { DetailRow } from "#db/payments/details/repo.ts";
 
 export type PayoutForm = {
   method?: string;
@@ -26,14 +30,24 @@ export type PayoutForm = {
 const BANK_METHODS = new Set(["ACH", "WIRE"]);
 const EMAIL_METHODS = new Set(["ECHECK", "DORADO_ACCOUNT"]);
 
-// Save (or rewrite - the id is stable per checkout) the payout account. The
-// caller passes the existing details id when the checkout already holds one.
+// THE PAYOUT FORM IS A COMPLETE DOCUMENT, NOT A PATCH. A field the customer
+// left empty must CLEAR its column, and shared/db/patch.ts reads `undefined` as
+// "not named" - so absence has to arrive as an explicit null or switching from
+// a bank method to an email one would leave the old bank name behind.
+const cleared = <T>(value: T | null | undefined): T | null => value ?? null;
+
+// The last four digits are NOT a secret: they are what every order payload and
+// the admin panel render, and the full numbers only ever go in sealed.
+const lastFour = (value: string): string | null => (value.length >= 4 ? value.slice(-4) : null);
+
+// Save, or rewrite in place - the details id is stable per checkout, so a
+// customer correcting a digit does not litter rows.
 export async function saveCheckoutPayout(
   {
     user_id, existing_id, form,
   }: { user_id: string; existing_id: string | null; form: PayoutForm },
-  executor?: PoolClient
-): Promise<details.CheckoutPayoutRow> {
+  executor?: Executor
+): Promise<DetailRow> {
   const method = String(form.method ?? "");
   if (!method || !form.account_holder_name) {
     throw refuse(400, "the payout needs a method and an account holder name");
@@ -54,58 +68,64 @@ export async function saveCheckoutPayout(
     throw refuse(400, `no such payout method: ${method}`);
   }
 
+  // A method that resolves to nothing writes nothing: an account with no
+  // method is a payout with nowhere to go.
+  const resolved = await methods.findByType("purchase", method, executor);
+  if (!resolved) throw refuse(400, `no such payout method: ${method}`);
+
   const id = existing_id ?? randomUUID();
   const key = payoutKeyFromEnv();
   const account = String(form.account_number ?? "");
   const routing = String(form.routing_number ?? "");
 
-  const row = await details.saveForCheckout(
-    {
-      id,
-      user_id,
-      method,
-      account_holder: form.account_holder_name ?? null,
-      bank_name: form.bank_name ?? null,
-      account_type: form.account_type ?? null,
-      last_four: account.length >= 4 ? account.slice(-4) : null,
-      // Stored beside the account's, for the same reason: the panel renders
-      // both, and an order created here must look no different from one 114
-      // migrated. The routing number itself goes in sealed, below.
-      routing_last_four: routing.length >= 4 ? routing.slice(-4) : null,
-      email_to: form.payout_email ?? null,
-      routing_number_encrypted: form.routing_number
-        ? seal(String(form.routing_number), key, aadFor(id, "routing_number"))
-        : null,
-      account_number_encrypted: form.account_number
-        ? seal(account, key, aadFor(id, "account_number"))
-        : null,
-      encryption_key_id: BANK_METHODS.has(method) ? key.id : null,
-    },
-    executor
-  );
-  if (!row) throw refuse(400, `no such payout method: ${method}`);
-  return row;
+  const values: DetailValues = {
+    method_id: resolved.id,
+    account_holder: cleared(form.account_holder_name),
+    bank_name: cleared(form.bank_name),
+    account_type: cleared(form.account_type),
+    last_four: lastFour(account),
+    routing_last_four: lastFour(routing),
+    email_to: cleared(form.payout_email),
+    routing_number_encrypted: form.routing_number
+      ? seal(String(form.routing_number), key, aadFor(id, "routing_number"))
+      : null,
+    account_number_encrypted: form.account_number
+      ? seal(account, key, aadFor(id, "account_number"))
+      : null,
+    encryption_key_id: BANK_METHODS.has(method) ? key.id : null,
+  };
+
+  if (existing_id) {
+    const rewritten = await details.update(existing_id, values, executor);
+    if (rewritten) {
+      const row = await details.getOne(existing_id, executor);
+      if (row) return row;
+    }
+  }
+  return await details.create(id, user_id, values, executor);
 }
 
-// THE ADMIN READ'S SINGLE DOOR. Opens the envelopes for one details row;
+// THE ADMIN READ'S SINGLE DOOR. Opens the envelopes for one details row, and
 // answers null fields rather than throwing when a row carries none (an email
 // method, or a pre-D210 row).
 export async function decryptFor(
-  details_id: string, executor?: PoolClient
+  details_id: string, executor?: Executor
 ): Promise<{
   method: string | null; account_holder: string | null; bank_name: string | null;
   account_type: string | null; email_to: string | null;
   routing_number: string | null; account_number: string | null;
 } | null> {
-  const row = await details.getEncrypted(details_id, executor);
+  const row = await details.getSealed(details_id, executor);
   if (!row) return null;
+  const method = row.method_id ? await methods.getOne(row.method_id, executor) : undefined;
   const key = payoutKeyFromEnv();
+  const { account_holder, bank_name, account_type, email_to } = row;
   return {
-    method: row.method,
-    account_holder: row.account_holder,
-    bank_name: row.bank_name,
-    account_type: row.account_type,
-    email_to: row.email_to,
+    method: method?.type ?? null,
+    account_holder,
+    bank_name,
+    account_type,
+    email_to,
     routing_number: row.routing_number_encrypted
       ? open(row.routing_number_encrypted, key, aadFor(row.id, "routing_number"))
       : null,
@@ -113,4 +133,16 @@ export async function decryptFor(
       ? open(row.account_number_encrypted, key, aadFor(row.id, "account_number"))
       : null,
   };
+}
+
+// Change the method on one payout account. The account is reached by ITS OWN
+// id: the walk from an order used to run through payments.intents, which is
+// money coming IN, so it matched no rows for every payout it existed to serve
+// (D168).
+export async function setMethod(
+  details_id: string, method: string, executor?: Executor
+): Promise<boolean> {
+  const resolved = await methods.findByType("purchase", method, executor);
+  if (!resolved) throw refuse(400, `no such payout method: ${method}`);
+  return await details.update(details_id, { method_id: resolved.id }, executor);
 }

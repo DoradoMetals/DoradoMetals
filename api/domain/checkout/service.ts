@@ -1,209 +1,105 @@
+// The checkout session: the basket, the row the stepper fills in, and the
+// draft fulfillment those steps mutate (D208).
+//
+// ONE FUNCTION PER OPERATION, WITH `direction` AS DATA. Purchase and sale
+// differ by one column, and every difference that follows from it lives in
+// rules.ts - never in a pair of near-identical functions.
 import withTransaction from "#shared/db/withTransaction.ts";
-import type { Executor } from "#shared/db/executor.ts";
-// The SERVICE, not a repo: products is composed from three reference tables
-// now, and liveness is the one question checkout asks of it.
+import * as checkouts from "#db/checkout/checkouts/repo.ts";
+import * as items from "#db/checkout/items/repo.ts";
+import * as metalsRepo from "#db/metals/repo.ts";
 import * as productService from "#domain/products/service.ts";
-import type {
-  SaleItemRow,
-  SaleItemsInput,
-  PurchaseItemsInput,
-  PurchaseScrapRow,
-  PurchaseProductRow,
-} from "#db/checkout/repo.ts";
-
-// NOTE THE FIELD IS `status`, NOT `statusCode`. addresses and users both throw
-// a statusCode; this feature has always thrown status. Left as it is rather
-// than unified here - errorHandler is what decides which it reads, and changing
-// which errors reach a customer is not a typing change.
-interface HttpError extends Error {
-  status?: number;
-}
-
-function badRequest(message: string): HttpError {
-  const err: HttpError = new Error(message);
-  err.status = 400;
-  return err;
-}
-
-export async function getCart(user_id: string): Promise<SaleItemRow[]> {
-  return await checkoutRows.getSaleItems(user_id);
-}
-
-// A CART MAY ONLY HOLD PRODUCTS THAT ARE LIVE IN THAT DIRECTION.
-//
-// The storefront only ever shows live products, so the frontend never asks for
-// a hidden one - but the cart endpoints take a product id from the request body
-// and nothing checked it. A caller posting straight to the API could put any
-// id in a cart, including the 25 products carrying a zero ask premium, none of
-// which is displayed and every one of which would price at nothing.
-//
-// The two directions are separate flags and are checked separately: `display`
-// governs buying from the business, `sell_display` governs selling to it. A
-// product can legitimately be one and not the other, so neither is a proxy for
-// the other.
-//
-// An unknown id is refused the same way a hidden one is. It reaches this point
-// only from a caller inventing ids, and telling the difference apart in the
-// message would confirm which ids exist.
-async function refuseProductsThatAreNotLive(
-  ids: string[],
-  direction: "display" | "sell_display",
-  executor?: unknown
-): Promise<void> {
-  const unique = [...new Set(ids.filter((id) => typeof id === "string" && id))];
-  if (unique.length === 0) return;
-
-  const rows = await productService.getLiveness(unique, executor as never);
-  const live = new Set(
-    rows.filter((r: Record<string, unknown>) => r[direction] === true).map((r: { id: string }) => r.id)
-  );
-  const refused = unique.filter((id) => !live.has(id));
-
-  if (refused.length > 0) {
-    throw badRequest(
-      refused.length === 1
-        ? "That product is not available"
-        : `${refused.length} of those products are not available`
-    );
-  }
-}
-
-// Returns a MESSAGE, not the cart. The frontend refetches.
-export async function syncCart(user_id: string, items: SaleItemsInput[]): Promise<string> {
-  return withTransaction(async (client) => {
-    await refuseProductsThatAreNotLive(
-      (items ?? []).map((i) => i?.id),
-      "display",
-      client
-    );
-    await checkoutRows.replaceItems(user_id, items, client);
-    return "Cart Synced";
-  });
-}
-
-// A sell cart line is either scrap or a product, told apart by `type`, and the
-// two carry different data. The union is what the frontend already switches on.
-type SellCartLine =
-  | { type: "scrap"; data: PurchaseScrapRow & { id: string } }
-  | { type: "product"; data: PurchaseProductRow };
-
-export async function getSellCart(user_id?: string): Promise<SellCartLine[]> {
-  if (!user_id) {
-    throw badRequest("Missing user_id");
-  }
-
-  const cartId = await checkoutRows.getCheckoutId(user_id, "purchase");
-  if (!cartId) return [];
-
-  const scrapRows = await checkoutRows.getPurchaseScrapItems(cartId);
-  const scrapItems: SellCartLine[] = scrapRows.map((row: PurchaseScrapRow) => ({
-    type: "scrap",
-    data: {
-      ...row,
-      // AFTER the spread, not before it. The original wrote `id: row.scrap_id`
-      // first and `...row` overwrote it immediately - TS2783 - so the line had
-      // no effect. Checked both implementations before moving it: exchange
-      // joins `sci.scrap_id = s.id` and projects `s.*`, and the new schema
-      // projects `ci.id` under both names, so `id` and `scrap_id` are equal by
-      // construction on either side and this changes no value today. It is
-      // moved rather than deleted so the author's intent survives if they ever
-      // stop being equal.
-      id: row.scrap_id,
-      // Numeric columns come back as strings from some drivers and as numbers
-      // from others depending on the parser; coerced here so the frontend never
-      // has to guess. See api/db.js - the NUMERIC parsers live next to the pool
-      // for exactly this reason.
-      pre_melt: Number(row.pre_melt),
-      purity: Number(row.purity),
-      content: Number(row.content),
-      quantity: row.quantity,
-      bid_premium: Number(row.bid_premium),
-    },
-  }));
-
-  const productRows = await checkoutRows.getPurchaseProductItems(cartId);
-  const productItems: SellCartLine[] = productRows.map((row: PurchaseProductRow) => ({
-    type: "product",
-    data: {
-      ...row,
-      quantity: row.quantity,
-    },
-  }));
-
-  return [...scrapItems, ...productItems];
-}
-
-export async function syncSellCart(
-  user_id?: string,
-  cart?: PurchaseItemsInput[]
-): Promise<string> {
-  if (!user_id || !Array.isArray(cart)) {
-    throw badRequest("Invalid payload");
-  }
-
-  return withTransaction(async (client) => {
-    // Only the product lines. A scrap line carries its own values and names no
-    // product, so it has nothing to check.
-    await refuseProductsThatAreNotLive(
-      cart.filter((l) => l?.type === "product").map((l) => l?.data?.id as string),
-      "sell_display",
-      client
-    );
-    await checkoutRows.replaceSellItems(user_id, cart, client);
-    return "Sell Cart Synced";
-  });
-}
-
-// ------------------------------------------------------------- the row (D208)
-//
-// THE CHECKOUT ROW FLOW, Jacob's design for the checkout conversion: the
-// stepper writes IDS into the customer's checkout row as they decide, the
-// fulfillment is a live DRAFT the same steps mutate, and order creation
-// consumes what the server already holds instead of a composed request body.
-//
-// Native-only: exchange's carts
-// have no equivalent columns - the same capability argument that made
-// fulfillments switchless. The repo.next import below reaches no switch
-// because there is nothing behind one to reach.
-import * as checkoutRows from "#db/checkout/repo.ts";
 import * as fulfillmentService from "#domain/fulfillments/service.ts";
 import * as fulfillmentMethods from "#domain/fulfillments/methods/service.ts";
 import * as handoffsService from "#domain/shipping/handoffs/service.ts";
 import * as payoutDetails from "#domain/payments/details/service.ts";
 import * as addressService from "#domain/places/addresses/service.ts";
-import type { CheckoutRow, CheckoutPatch } from "#db/checkout/repo.ts";
+import {
+  assertDirection, livenessFlag, carriesProductPremium, hasPayoutStep,
+} from "#domain/checkout/rules.ts";
+import { refuse } from "#shared/http/refuse.ts";
+import type { Direction } from "#domain/checkout/rules.ts";
+import type { CheckoutRow, CheckoutPatch } from "#db/checkout/checkouts/repo.ts";
+import type {
+  NewItem, SaleBullionLine, PurchaseBullionLine, ScrapLine,
+} from "#db/checkout/items/repo.ts";
 import type { ComposedFulfillment } from "#domain/fulfillments/compose.ts";
+import type { Executor } from "#shared/db/executor.ts";
+
+export type { Direction } from "#domain/checkout/rules.ts";
+export type { CheckoutRow, CheckoutPatch } from "#db/checkout/checkouts/repo.ts";
 
 export type ComposedCheckout = CheckoutRow & {
   fulfillment: ComposedFulfillment | null;
 };
 
-type RowDirection = "sale" | "purchase";
+// A sell-cart line is either scrap or a product, told apart by `type` - the
+// union the frontend already switches on.
+export type SellCartLine =
+  | { type: "scrap"; data: ScrapLine }
+  | { type: "product"; data: PurchaseBullionLine };
 
-function assertDirection(direction: unknown): RowDirection {
-  if (direction !== "sale" && direction !== "purchase") {
-    throw badRequest(`direction must be 'sale' or 'purchase'`);
-  }
-  return direction;
+// What a caller adds to a buy cart.
+export type CartLineInput = { id: string; quantity: number };
+
+// What a caller replaces a sell cart with. A line is either a named product or
+// a piece of scrap carrying its own values; anything else is skipped rather
+// than rejected.
+export type SellCartLineInput = {
+  type?: string;
+  quantity?: number;
+  product_name?: string;
+  data?: {
+    id?: string;
+    // Both name spellings are accepted while deployed frontends straddle the
+    // products rename (D73).
+    name?: string;
+    product_name?: string;
+    quantity?: number;
+    metal?: string;
+    pre_melt?: number | null;
+    post_melt?: number | null;
+    purity?: number | null;
+    content?: number | null;
+    gross_unit?: string | null;
+    bid_premium?: number | null;
+  };
+};
+
+// ------------------------------------------------------------------ the row
+
+// A session exists the moment anyone asks for one. Losing the create race is
+// not an error - the winner's row is the answer.
+async function ensure(
+  user_id: string, direction: Direction, client?: Executor
+): Promise<CheckoutRow> {
+  const found = await checkouts.findFor(user_id, direction, client);
+  if (found) return found;
+  const created = await checkouts.create({ user_id, direction }, client);
+  if (created) return created;
+  const raced = await checkouts.findFor(user_id, direction, client);
+  if (!raced) throw refuse(500, "the checkout session could not be created");
+  return raced;
+}
+
+async function compose(row: CheckoutRow, client?: Executor): Promise<ComposedCheckout> {
+  const fulfillment = row.fulfillment_id
+    ? await fulfillmentService.getById(row.fulfillment_id, client)
+    : null;
+  return Object.assign({ fulfillment }, row);
 }
 
 export async function getCheckout(
   user_id: string, direction: unknown
 ): Promise<ComposedCheckout> {
   const dir = assertDirection(direction);
-  const row = await checkoutRows.getRow(user_id, dir);
-  const fulfillment = row.fulfillment_id
-    ? await fulfillmentService.getById(row.fulfillment_id)
-    : null;
-  return { ...row, fulfillment };
+  return await compose(await ensure(user_id, dir));
 }
 
-// The columns a customer may write, each validated as THEIRS where a row can
-// belong to somebody: the three address slots check the caller's own book
-// (places.user_addresses), exactly the ownership rule the address routes
-// enforce. The reference ids (method, package, service, location) are
-// validated by their foreign keys - a 23503 comes back as a 400 naming the
-// column, not a 500.
+// The three address slots are checked as THEIRS - the same ownership rule the
+// address routes enforce. The reference ids (method, package, service,
+// location) are validated by their foreign keys: a 23503 comes back as a 400
+// naming the column, not a 500.
 const ADDRESS_COLUMNS = [
   "recipient_address_id", "shipper_address_id", "pickup_address_id",
 ] as const;
@@ -215,141 +111,297 @@ export async function patchCheckout(
 
   for (const col of ADDRESS_COLUMNS) {
     const id = patch[col];
-    if (id != null) {
-      const owned = await addressService.inBook(String(id), user_id);
-      if (!owned) {
-        throw badRequest(`${col}: that address is not in your book`);
-      }
+    if (id != null && !(await addressService.inBook(String(id), user_id))) {
+      throw refuse(400, `${col}: that address is not in your book`);
     }
   }
   if (
     patch.appointment_time != null &&
     Number.isNaN(Date.parse(String(patch.appointment_time)))
   ) {
-    throw badRequest(`appointment_time is not a timestamp`);
+    throw refuse(400, `appointment_time is not a timestamp`);
   }
   for (const col of ["package_weight", "declared_value"] as const) {
-    const v = patch[col];
-    if (v != null && !(Number(v) >= 0)) {
-      throw badRequest(`${col} must be a non-negative number`);
+    const value = patch[col];
+    if (value != null && !(Number(value) >= 0)) {
+      throw refuse(400, `${col} must be a non-negative number`);
     }
   }
 
-  try {
-    const row = await checkoutRows.patchRow(user_id, dir, patch);
-    const fulfillment = row.fulfillment_id
-      ? await fulfillmentService.getById(row.fulfillment_id)
-      : null;
-    return { ...row, fulfillment };
-  } catch (err) {
-    if ((err as { code?: string }).code === "23503") {
-      const detail = (err as { constraint?: string }).constraint ?? "a reference";
-      throw badRequest(`no such row for ${detail}`);
+  return await withTransaction(async (client) => {
+    const row = await ensure(user_id, dir, client);
+    try {
+      await checkouts.update(row.id, patch, client);
+    } catch (err) {
+      if ((err as { code?: string }).code === "23503") {
+        const detail = (err as { constraint?: string }).constraint ?? "a reference";
+        throw refuse(400, `no such row for ${detail}`);
+      }
+      throw err;
     }
-    throw err;
-  }
+    const fresh = await checkouts.getOne(row.id, client);
+    if (!fresh) throw refuse(500, "the checkout session vanished mid-write");
+    return await compose(fresh, client);
+  });
 }
 
 // THE DRAFT FULFILLMENT, ensured and mutated in one call (Jacob: "each time an
 // option is changed, the server-side fulfillment gets updated, and checkout
-// stores the fulfillment id"). First call creates the draft and links it; every
-// later call moves its method in place. The offered-method check runs on BOTH
-// paths - this is the customer's surface, and the menu has to mean something.
+// stores the fulfillment id"). The offered-method check runs on BOTH paths -
+// this is the customer's surface and the menu has to mean something.
 export async function setFulfillmentMethod(
   user_id: string, direction: unknown,
   method_id?: string, handoff_code?: string
 ): Promise<ComposedCheckout> {
   const dir = assertDirection(direction);
 
-  // The stepper picks a carrier HANDOFF (Store Dropoff / Carrier Pickup) and
-  // never spells a fulfillment method; the SERVER owns that vocabulary. The
-  // schedulable handoff is the carrier pickup - the same capability rule the
-  // create resolves by, in the other direction.
-  if (!method_id && handoff_code) {
+  // The stepper picks a carrier HANDOFF and never spells a fulfillment method;
+  // the SERVER owns that vocabulary. The schedulable handoff is the carrier
+  // pickup.
+  let chosen = method_id;
+  if (!chosen && handoff_code) {
     const handoffs = await handoffsService.getHandoffs();
     const handoff = handoffs.find((h) => h.code === handoff_code);
-    if (!handoff) throw badRequest(`no such handoff: ${handoff_code}`);
+    if (!handoff) throw refuse(400, `no such handoff: ${handoff_code}`);
     const type = handoff.requires_schedule ? "CARRIER PICKUP" : "CARRIER DROPOFF";
     const offered = await fulfillmentMethods.listAvailable(dir);
-    method_id = offered.find((m) => m.type === type)?.id;
-    if (!method_id) {
-      throw badRequest(`no offered ${type} method for a ${dir}`);
-    }
+    chosen = offered.find((m) => m.type === type)?.id;
+    if (!chosen) throw refuse(400, `no offered ${type} method for a ${dir}`);
   }
-  if (typeof method_id !== "string" || method_id.length === 0) {
-    throw badRequest("method_id or handoff_code is required");
+  if (typeof chosen !== "string" || chosen.length === 0) {
+    throw refuse(400, "method_id or handoff_code is required");
   }
+  const wanted = chosen;
 
   return await withTransaction(async (client) => {
-    const row = await checkoutRows.getRow(user_id, dir, client);
+    const row = await ensure(user_id, dir, client);
 
     if (row.fulfillment_id) {
-      await fulfillmentMethods.assertOffered({ method_id, direction: dir }, client);
-      await fulfillmentService.setMethod(
-        { id: row.fulfillment_id, method_id }, client
-      );
+      await fulfillmentMethods.assertOffered({ method_id: wanted, direction: dir }, client);
+      await fulfillmentService.setMethod({ id: row.fulfillment_id, method_id: wanted }, client);
     } else {
       const draft = await fulfillmentService.createDraft(
-        { method_id, direction: dir }, client
+        { method_id: wanted, direction: dir }, client
       );
-      if (!draft) throw badRequest(`no such fulfillment method: ${method_id}`);
-      await checkoutRows.linkFulfillment(user_id, dir, draft.id, client);
+      if (!draft) throw refuse(400, `no such fulfillment method: ${wanted}`);
+      await checkouts.update(row.id, { fulfillment_id: draft.id }, client);
     }
 
-    const fresh = await checkoutRows.getRow(user_id, dir, client);
-    const fulfillment = fresh.fulfillment_id
-      ? await fulfillmentService.getById(fresh.fulfillment_id, client)
-      : null;
-    return { ...fresh, fulfillment };
+    const fresh = await checkouts.getOne(row.id, client);
+    if (!fresh) throw refuse(500, "the checkout session vanished mid-write");
+    return await compose(fresh, client);
   });
 }
 
-// THE PAYOUT STEP (D210): the bank form is recorded HERE, at step time -
+// THE PAYOUT STEP (D210): the bank form is recorded here, at step time - the
 // numbers sealed at rest by the payments/details service - and creation later
 // LINKS the row. The details id is stable per checkout, so edits rewrite in
-// place. Purchase-only until the sale side converts.
+// place.
 export async function saveCheckoutPayout(
   user_id: string, direction: unknown, form: payoutDetails.PayoutForm
 ): Promise<ComposedCheckout> {
   const dir = assertDirection(direction);
-  if (dir !== "purchase") {
-    throw badRequest("the payout step belongs to the purchase checkout");
+  if (!hasPayoutStep(dir)) {
+    throw refuse(400, "the payout step belongs to the purchase checkout");
   }
   return await withTransaction(async (client) => {
-    const row = await checkoutRows.getRow(user_id, dir, client);
+    const row = await ensure(user_id, dir, client);
     const saved = await payoutDetails.saveCheckoutPayout(
       { user_id, existing_id: row.payment_details_id, form }, client
     );
-    await checkoutRows.linkPaymentDetails(user_id, dir, saved.id, saved.method_id, client);
-    const fresh = await checkoutRows.getRow(user_id, dir, client);
-    const fulfillment = fresh.fulfillment_id
-      ? await fulfillmentService.getById(fresh.fulfillment_id, client)
-      : null;
-    return { ...fresh, fulfillment };
+    await checkouts.update(
+      row.id,
+      { payment_details_id: saved.id, payment_method_id: saved.method_id },
+      client
+    );
+    const fresh = await checkouts.getOne(row.id, client);
+    if (!fresh) throw refuse(500, "the checkout session vanished mid-write");
+    return await compose(fresh, client);
+  });
+}
+
+// ---------------------------------------------------------------- the cart
+
+// A CART MAY ONLY HOLD PRODUCTS THAT ARE LIVE IN THAT DIRECTION. The storefront
+// only ever shows live products, so the frontend never asks for a hidden one -
+// but the cart endpoints take a product id from the request body and nothing
+// checked it, so a caller posting straight to the API could put any id in a
+// cart, including the 25 products carrying a zero ask premium.
+//
+// An unknown id is refused the same way a hidden one is: telling them apart in
+// the message would confirm which ids exist.
+async function refuseProductsThatAreNotLive(
+  ids: (string | undefined)[], direction: Direction, executor?: Executor
+): Promise<void> {
+  const unique = [...new Set(ids.filter((id): id is string => typeof id === "string" && !!id))];
+  if (unique.length === 0) return;
+
+  const flag = livenessFlag(direction);
+  const rows = await productService.getLiveness(unique, executor);
+  const live = new Set(rows.filter((r) => r[flag] === true).map((r) => r.id));
+  const refused = unique.filter((id) => !live.has(id));
+
+  if (refused.length > 0) {
+    throw refuse(
+      400,
+      refused.length === 1
+        ? "That product is not available"
+        : `${refused.length} of those products are not available`
+    );
+  }
+}
+
+export function getCart(user_id: string, direction: "sale"): Promise<SaleBullionLine[]>;
+export function getCart(user_id: string, direction: "purchase"): Promise<SellCartLine[]>;
+export async function getCart(
+  user_id: string, direction: Direction
+): Promise<SaleBullionLine[] | SellCartLine[]> {
+  const session = await checkouts.findFor(user_id, direction);
+  if (!session) return [];
+
+  if (direction === "sale") return await items.listBullionFor(session.id, "sale");
+
+  const scrap = await items.listScrapFor(session.id);
+  const products = await items.listBullionFor(session.id, "purchase");
+  const scrapLines: SellCartLine[] = scrap.map((data) => ({ type: "scrap", data }));
+  const productLines: SellCartLine[] = products.map((data) => ({ type: "product", data }));
+  return scrapLines.concat(productLines);
+}
+
+// The lines a request asks for, resolved into rows this schema can hold. ONE
+// function with `direction` as data: the catalogue read is what supplies a
+// product's metal and its bid premium, because a request never names either.
+async function requestedLines(
+  session_id: string,
+  direction: Direction,
+  lines: CartLineInput[] | SellCartLineInput[],
+  client: Executor
+): Promise<NewItem[]> {
+  // WHICH CATALOGUE PRODUCT EACH LINE NAMES. A buy-cart line carries the id; a
+  // sell-cart line carries the NAME, and reading only a top-level
+  // `product_name` is what silently skipped every product line in a synced
+  // sell cart (D73).
+  const wanted = new Map<object, string>();
+  for (const line of lines) {
+    if (direction === "sale") {
+      const id = (line as CartLineInput)?.id;
+      if (id) wanted.set(line, id);
+      continue;
+    }
+    const sell = line as SellCartLineInput;
+    if (sell?.type !== "product") continue;
+    const name = sell?.product_name ?? sell?.data?.name ?? sell?.data?.product_name;
+    if (!name) continue;
+    const id = await productService.findProductIdByName(name, client);
+    if (id) wanted.set(line, id);
+  }
+
+  const catalogue = await productService.getByIds([...wanted.values()], client);
+  const byId = new Map(catalogue.map((product) => [product.id, product]));
+  const metals = await metalsRepo.idsByName(client);
+
+  const out: NewItem[] = [];
+  for (const line of lines) {
+    const sell = line as SellCartLineInput;
+    // Quantity rides on the line's data in the sell cart's shape; the
+    // top-level one is read first and is the only one a buy-cart line has.
+    const quantity = sell?.quantity ?? sell?.data?.quantity ?? 1;
+
+    const product = byId.get(wanted.get(line) ?? "");
+    if (product) {
+      const { id: bullion_id, metal_id, bid_premium } = product;
+      out.push({
+        checkout_id: session_id,
+        bullion_id,
+        metal_id,
+        quantity,
+        premium: carriesProductPremium(direction) ? bid_premium : null,
+      });
+      continue;
+    }
+
+    // A line that names no live product is SKIPPED rather than refused - the
+    // refusal that matters already ran, on the ids the request named.
+    if (sell?.type !== "scrap" || !sell?.data?.id) continue;
+    const { metal, pre_melt, post_melt, purity, content, gross_unit, bid_premium } =
+      sell.data;
+    out.push({
+      checkout_id: session_id,
+      bullion_id: null,
+      metal_id: metals.get(metal ?? "") ?? null,
+      pre_melt,
+      post_melt,
+      purity,
+      content,
+      unit: gross_unit,
+      premium: bid_premium,
+      quantity,
+    });
+  }
+  return out;
+}
+
+// THE SYNC REPLACES, IT DOES NOT MERGE. The frontend refetches, so nothing is
+// returned.
+export function syncCart(
+  user_id: string, direction: "sale", lines: CartLineInput[]
+): Promise<void>;
+export function syncCart(
+  user_id: string, direction: "purchase", lines: SellCartLineInput[]
+): Promise<void>;
+export async function syncCart(
+  user_id: string, direction: Direction, lines: CartLineInput[] | SellCartLineInput[]
+): Promise<void> {
+  const dir = assertDirection(direction);
+  if (!Array.isArray(lines)) throw refuse(400, "Invalid payload");
+
+  // The ids a request NAMES, which is what the liveness rule judges. A scrap
+  // line names no product and so has nothing to check.
+  const named =
+    dir === "sale"
+      ? (lines as CartLineInput[]).map((line) => line?.id)
+      : (lines as SellCartLineInput[])
+          .filter((line) => line?.type === "product")
+          .map((line) => line?.data?.id);
+
+  await withTransaction(async (client) => {
+    await refuseProductsThatAreNotLive(named, dir, client);
+    const session = await ensure(user_id, dir, client);
+    const rows = await requestedLines(session.id, dir, lines, client);
+
+    await items.removeFor(session.id, client);
+    for (const row of rows) await items.create(row, client);
   });
 }
 
 // ------------------------------------------------- what order creation reads
 //
-// features/orders/create.ts consumes a checkout THROUGH this service - never
-// the repo (Jacob's layering rule, and audit:switches' bypass scan enforces
-// it). Row-column reads are native-only by the capability argument above; the
-// switch governs the CART halves, and these do not touch them.
+// domain/orders/create.ts consumes a checkout THROUGH this service, never the
+// repos.
 
 export async function getRowById(checkout_id: string, client?: Executor) {
-  return await checkoutRows.getRowById(checkout_id, client);
+  return await checkouts.getOne(checkout_id, client);
 }
 
 export async function getItemsForOrder(checkout_id: string, client?: Executor) {
-  return await checkoutRows.getItemsForOrder(checkout_id, client);
+  return await items.listForOrder(checkout_id, client);
 }
 
-export async function getRowFor(user_id: string, direction: RowDirection, client?: Executor) {
-  return await checkoutRows.getRow(user_id, direction, client);
+export async function getRowFor(user_id: string, direction: Direction, client?: Executor) {
+  return await ensure(user_id, direction, client);
 }
+
+// After an order consumes the checkout (D208) the choices are the ORDER's, so
+// the row goes back to empty and the next checkout starts clean. Built from the
+// repo's own whitelist, so a column added there cannot be left behind here.
+const CLEARED: CheckoutPatch = Object.fromEntries(
+  checkouts.PATCHABLE.map((column) => [column, null])
+);
 
 export async function resetAfterOrder(
-  user_id: string, direction: RowDirection, client?: Executor
-) {
-  await checkoutRows.resetRow(user_id, direction, client);
+  user_id: string, direction: Direction, client?: Executor
+): Promise<void> {
+  const row = await checkouts.findFor(user_id, direction, client);
+  if (!row) return;
+  await checkouts.update(row.id, CLEARED, client);
 }

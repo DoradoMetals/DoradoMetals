@@ -218,3 +218,47 @@ test("nothing this file did survived the transactions", async () => {
   assert.equal(row.cost, payout.cost, "a payout's real fee was moved in dev");
   assert.notEqual(row.waive_payout_fee, true, "a real order was left with its fee waived");
 });
+
+// THE METHOD CHANGE, AND THE JOIN THAT DID NOT EXIST. Before 099 this walked
+// order -> payments.intents -> details, and an intent is money coming IN, so
+// it matched no rows for every payout it was meant to serve while every test
+// passed (D168). The write is keyed on the payout's OWN id now, so there is no
+// walk left to break - and this pins that the method really moves.
+test("changing the method lands on the named payout account", async () => {
+  await inPinnedTransaction(async (client: PoolClient) => {
+    await as({ ...admin, role: "admin" }, async () => {
+      const res = await request(app)
+        .patch(`/api/payouts/${payout.id}`)
+        .send({ method: "WIRE" });
+      assert.equal(res.status, 200, `answered ${res.status}: ${JSON.stringify(res.body)}`);
+
+      const { rows } = await client.query(
+        `SELECT m.type FROM payments.details d
+           JOIN payments.methods m ON m.id = d.method_id
+          WHERE d.id = $1`,
+        [payout.id]
+      );
+      assert.equal(rows[0]?.type, "WIRE", "the method change did not reach the account");
+    });
+  }, { lock: ORDER_LOCK });
+});
+
+test("a method that names no payment method is refused, and nothing changes", async () => {
+  await inPinnedTransaction(async (client: PoolClient) => {
+    await as({ ...admin, role: "admin" }, async () => {
+      const before = await client.query(
+        `SELECT method_id FROM payments.details WHERE id = $1`, [payout.id]
+      );
+
+      const res = await request(app)
+        .patch(`/api/payouts/${payout.id}`)
+        .send({ method: "NOT A METHOD" });
+      assert.equal(res.status, 400, `answered ${res.status}: ${JSON.stringify(res.body)}`);
+
+      const after = await client.query(
+        `SELECT method_id FROM payments.details WHERE id = $1`, [payout.id]
+      );
+      assert.equal(after.rows[0].method_id, before.rows[0].method_id, "a refused change wrote");
+    });
+  }, { lock: ORDER_LOCK });
+});

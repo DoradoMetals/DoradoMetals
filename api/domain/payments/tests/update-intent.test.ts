@@ -90,14 +90,15 @@ test("an unknown address id resolves to nothing rather than throwing", async () 
 
 test("update_payment_intent no longer dies before it reaches Stripe", async () => {
   await inPinnedTransaction(async () => {
-    await as({ ...customer, role: "user" }, async () => {
+    const customerId = customer.id;
+    await as(Object.assign({}, customer, { role: "user" }), async () => {
       const res = await request(app)
         .post("/api/stripe/update_payment_intent")
         .send({
           items: [],
           using_funds: false,
           type: "customer",
-          user: { id: customer.id },
+          user: { id: customerId },
           address_id: addressId,
         });
 

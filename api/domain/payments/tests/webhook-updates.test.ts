@@ -16,7 +16,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
-import * as repo from "#db/payments/repo.ts";
 import * as service from "#domain/payments/service.ts";
 import { inPinnedTransaction } from "#shared/testing/pinned-pool.ts";
 import query from "#shared/db/query.ts";
@@ -63,7 +62,7 @@ test("a charge.* webhook updates nothing, because a charge is not an intent", as
       status: "succeeded",
       amount: 5178,
     };
-    const matched = await repo.updatePaymentIntent(charge, c);
+    const matched = await service.updateFromProvider(charge, c);
     assert.equal(matched, false, "a charge id matched an intent");
 
     const { rows } = await query(READ, [id], c);
@@ -81,7 +80,7 @@ test("a webhook for an intent with no row writes nothing, and says so", async ()
   await inPinnedTransaction(async (c: PoolClient) => {
     const before = await query(`SELECT count(*)::int AS n FROM payments.intents`, [], c);
 
-    const matched = await repo.updatePaymentIntent(
+    const matched = await service.updateFromProvider(
       {
         id: `pi_test_absent_${Date.now()}`,
         status: "succeeded",
@@ -94,9 +93,9 @@ test("a webhook for an intent with no row writes nothing, and says so", async ()
     const after = await query(`SELECT count(*)::int AS n FROM payments.intents`, [], c);
     assert.equal(after.rows[0].n, before.rows[0].n, "no row inserted - it is an UPDATE");
 
-    // D24. The repo still does not throw - it REPORTS, and the service turns
-    // that into a refusal so Stripe retries.
-    assert.equal(matched, false, "the repo did not report that nothing matched");
+    // D24. updateFromProvider REPORTS rather than throwing; the webhook entry
+    // turns that into a refusal so Stripe retries.
+    assert.equal(matched, false, "nothing reported that no row matched");
   });
 });
 
@@ -160,7 +159,7 @@ test("a late payment_failed overwrites a settled intent, and Stripe does not gua
     // rows said. The SETTLEMENT survives, because a settlement records money
     // that moved and nothing un-moves it - the improvement over exchange,
     // where amount_received was stomped back to 0.
-    await repo.updatePaymentIntent(
+    await service.updateFromProvider(
       {
         id,
         status: "requires_payment_method",

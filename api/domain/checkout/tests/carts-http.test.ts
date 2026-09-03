@@ -36,6 +36,9 @@ let customer: UserFixture;
 let product: ProductFixture;
 let hidden: ProductFixture;
 let notSellable: ProductFixture;
+let productId: string;
+let hiddenId: string;
+let notSellableId: string;
 // The frontend generates a UUID per local scrap line and the backend stores it
 // AS the scrap row's id, so this cannot be an arbitrary string - a plain
 // "local-1" is rejected by the column type, which is how I learned it.
@@ -75,6 +78,11 @@ before(async () => {
     await outside<ProductFixture>(`SELECT id, name AS product_name FROM products.bullion ORDER BY id LIMIT 1`)
   )[0];
   assert.ok(product, "dev has no products");
+  // The ids on their own: a request body naming a fixture's id is not the same
+  // object as the fixture, and naming them apart keeps that legible.
+  productId = product.id;
+  hiddenId = hidden?.id;
+  notSellableId = notSellable?.id;
 });
 
 after(async () => {
@@ -84,10 +92,10 @@ after(async () => {
 
 test("sync_cart replaces the customer's buy cart", async () => {
   await inPinnedTransaction(async (client: PoolClient) => {
-    await as({ ...customer, role: "user" }, async () => {
+    await as(Object.assign({}, customer, { role: "user" }), async () => {
       const res = await request(app)
         .post("/api/cart/sync_cart")
-        .send({ cart: [{ id: product.id, quantity: 3 }] });
+        .send({ cart: [{ id: productId, quantity: 3 }] });
 
       assert.equal(res.status, 200, `answered ${res.status}: ${JSON.stringify(res.body)}`);
 
@@ -109,13 +117,13 @@ test("sync_cart replaces the customer's buy cart", async () => {
 // relies on when it pushes its local cart up.
 test("sync_cart replaces rather than appends", async () => {
   await inPinnedTransaction(async (client: PoolClient) => {
-    await as({ ...customer, role: "user" }, async () => {
+    await as(Object.assign({}, customer, { role: "user" }), async () => {
       await request(app)
         .post("/api/cart/sync_cart")
-        .send({ cart: [{ id: product.id, quantity: 3 }] });
+        .send({ cart: [{ id: productId, quantity: 3 }] });
       await request(app)
         .post("/api/cart/sync_cart")
-        .send({ cart: [{ id: product.id, quantity: 1 }] });
+        .send({ cart: [{ id: productId, quantity: 1 }] });
 
       const { rows } = await client.query(
         `SELECT ci.quantity
@@ -132,7 +140,7 @@ test("sync_cart replaces rather than appends", async () => {
 
 test("sync_sell_cart stores a scrap line with its own values", async () => {
   await inPinnedTransaction(async (client: PoolClient) => {
-    await as({ ...customer, role: "user" }, async () => {
+    await as(Object.assign({}, customer, { role: "user" }), async () => {
       const res = await request(app)
         .post("/api/cart/sync_sell_cart")
         .send({
@@ -172,7 +180,7 @@ test("sync_sell_cart stores a scrap line with its own values", async () => {
 
 test("get_sell_cart returns what sync_sell_cart stored", async () => {
   await inPinnedTransaction(async () => {
-    await as({ ...customer, role: "user" }, async () => {
+    await as(Object.assign({}, customer, { role: "user" }), async () => {
       await request(app)
         .post("/api/cart/sync_sell_cart")
         .send({
@@ -219,10 +227,10 @@ test("get_sell_cart returns what sync_sell_cart stored", async () => {
 // two lines above it go away.
 test("get_cart returns the customer's saved buy cart", async () => {
   await inPinnedTransaction(async () => {
-    await as({ ...customer, role: "user" }, async () => {
+    await as(Object.assign({}, customer, { role: "user" }), async () => {
       await request(app)
         .post("/api/cart/sync_cart")
-        .send({ cart: [{ id: product.id, quantity: 2 }] });
+        .send({ cart: [{ id: productId, quantity: 2 }] });
 
       const res = await request(app).get("/api/cart/get_cart");
 
@@ -288,12 +296,12 @@ test("the fixtures for these cases really are what they claim", () => {
 
 test("sync_cart refuses a product that is not displayed", async () => {
   await inPinnedTransaction(async (client: PoolClient) => {
-    await as({ ...customer, role: "user" }, async () => {
+    await as(Object.assign({}, customer, { role: "user" }), async () => {
       const before = await cartOf(client);
 
       const res = await request(app)
         .post("/api/cart/sync_cart")
-        .send({ cart: [{ id: hidden.id, quantity: 1 }] });
+        .send({ cart: [{ id: hiddenId, quantity: 1 }] });
 
       assert.equal(res.status, 400, `answered ${res.status}: ${JSON.stringify(res.body)}`);
       assert.equal(await cartOf(client), before, "a refused sync changed the cart");
@@ -306,12 +314,12 @@ test("sync_cart refuses a product that is not displayed", async () => {
 // it would leave the customer with a cart they did not ask for and no error.
 test("one bad line refuses the whole sync, and nothing is written", async () => {
   await inPinnedTransaction(async (client: PoolClient) => {
-    await as({ ...customer, role: "user" }, async () => {
+    await as(Object.assign({}, customer, { role: "user" }), async () => {
       const before = await cartOf(client);
 
       const res = await request(app)
         .post("/api/cart/sync_cart")
-        .send({ cart: [{ id: product.id, quantity: 2 }, { id: hidden.id, quantity: 1 }] });
+        .send({ cart: [{ id: productId, quantity: 2 }, { id: hiddenId, quantity: 1 }] });
 
       assert.equal(res.status, 400, `answered ${res.status}: ${JSON.stringify(res.body)}`);
       assert.equal(
@@ -327,7 +335,7 @@ test("one bad line refuses the whole sync, and nothing is written", async () => 
 // differently would confirm which ids exist to a caller guessing them.
 test("sync_cart refuses an id that names no product", async () => {
   await inPinnedTransaction(async () => {
-    await as({ ...customer, role: "user" }, async () => {
+    await as(Object.assign({}, customer, { role: "user" }), async () => {
       const res = await request(app)
         .post("/api/cart/sync_cart")
         .send({ cart: [{ id: randomUUID(), quantity: 1 }] });
@@ -341,10 +349,10 @@ test("sync_cart refuses an id that names no product", async () => {
 // the other and the sell cart is checked against its own.
 test("sync_sell_cart refuses a product line that is not sell_display", async () => {
   await inPinnedTransaction(async () => {
-    await as({ ...customer, role: "user" }, async () => {
+    await as(Object.assign({}, customer, { role: "user" }), async () => {
       const res = await request(app)
         .post("/api/cart/sync_sell_cart")
-        .send({ cart: [{ type: "product", quantity: 1, data: { id: notSellable.id } }] });
+        .send({ cart: [{ type: "product", quantity: 1, data: { id: notSellableId } }] });
       assert.equal(res.status, 400, `answered ${res.status}: ${JSON.stringify(res.body)}`);
     });
   });
@@ -354,7 +362,7 @@ test("sync_sell_cart refuses a product line that is not sell_display", async () 
 // accepted - the guard must not refuse the sell cart's main case.
 test("a scrap line is unaffected by the product check", async () => {
   await inPinnedTransaction(async () => {
-    await as({ ...customer, role: "user" }, async () => {
+    await as(Object.assign({}, customer, { role: "user" }), async () => {
       const res = await request(app)
         .post("/api/cart/sync_sell_cart")
         .send({
@@ -373,7 +381,7 @@ test("a scrap line is unaffected by the product check", async () => {
 // real shape, post-conversion spelling, and proves the product line lands.
 test("sync_sell_cart stores a product line sent in the frontend's own shape", async () => {
   await inPinnedTransaction(async (client: PoolClient) => {
-    await as({ ...customer, role: "user" }, async () => {
+    await as(Object.assign({}, customer, { role: "user" }), async () => {
       const res = await request(app)
         .post("/api/cart/sync_sell_cart")
         .send({

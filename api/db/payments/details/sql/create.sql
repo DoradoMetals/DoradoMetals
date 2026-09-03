@@ -1,36 +1,20 @@
--- A payout account, created when a customer tells us where to send their money.
+-- A payout account: WHERE A CUSTOMER'S MONEY GOES. The account only - the
+-- order link is orders.transactions.payout_details_id and the per-order fee is
+-- orders.transactions.payout_fee, because those have different lifetimes.
 --
--- The new-schema half of the legacy insertPayout, which wrote one flat row to
--- exchange.payouts. That row splits three ways here, exactly as 073 describes
--- for the backfill:
+-- ROUTING AND ACCOUNT NUMBERS ARRIVE AS ENVELOPES, sealed by the service with
+-- this row's own id in the AAD, so a copied envelope fails authentication
+-- anywhere but its own cell. The legacy plaintext columns beside them are
+-- never written and stay NULL forever. The two LAST-FOUR values are not
+-- secrets and are stored: they are what the payout panel renders.
 --
---   the account          -> payments.details  (this statement)
---   the order link       -> payments.intents.details_id
---   the per-order fee    -> orders.transactions.payout_fee
---
--- A detail row describes an ACCOUNT, not an order, and the same account serves
--- many orders - which is why order_id is not a column here and the link is made
--- separately.
---
--- ROUTING AND ACCOUNT NUMBERS ARE DELIBERATELY NOT WRITTEN.
---
--- They are the only plaintext bank details the business holds. 071 removed
--- January's copy of them from this table and 073 refused to re-create it;
--- writing them here would put the same secret in a second place while
--- encryption at rest is still outstanding. They stay in exchange.payouts until
--- that lands. last_four is safe and is what order responses show.
---
--- method is resolved against payments.methods on (direction, type), directly:
--- 073's one rename (DORADO_ACCOUNT was called DORADO CREDIT there) ended when
--- 109 reconciled the row to the vocabulary the stored payouts speak.
-INSERT INTO payments.details (
-  user_id, method_id, account_holder, bank_name, account_type, last_four, email_to
-)
-SELECT
-  $1,
-  m.id,
-  $3, $4, $5, $6, $7
-FROM payments.methods m
-WHERE m.direction = 'purchase'
-  AND m.type = $2::text
-RETURNING id
+-- No audit columns: public.audit_stamp writes them (migration 116).
+INSERT INTO payments.details
+       (id, user_id, method_id, account_holder, bank_name, account_type,
+        last_four, routing_last_four, email_to,
+        routing_number_encrypted, account_number_encrypted, encryption_key_id,
+        card_brand, provider, provider_ref)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+RETURNING id, user_id, method_id, account_holder, bank_name, account_type,
+       last_four, routing_last_four, card_brand, email_to,
+       provider, provider_ref, created_at, updated_at

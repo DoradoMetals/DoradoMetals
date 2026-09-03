@@ -1,31 +1,12 @@
 // The cart endpoints, over real HTTP.
 //
-// These four were PUBLIC until this file was written, and the reason on the
-// list - "a cart belongs to a browser, not an account - a signed-out visitor
-// has one" - was true of the browser-local store and not of the endpoints. They
-// took a user id out of the request and had no guard at all, so an anonymous
-// caller with somebody's id could read their sell cart and replace it.
+// THESE FOUR WERE PUBLIC, and it was demonstrated rather than deduced: no
+// session, no cookie, GET /api/cart/get_sell_cart?user_id=<somebody> answered
+// 200 with their two items. These tests keep it shut - anonymous is refused,
+// and the id in the request is ignored in favour of the session's.
 //
-// That was demonstrated with a real request before anything changed: no
-// session, no cookie, GET /api/cart/get_sell_cart?user_id=<somebody> returned
-// 200 and their two items. exchange.sell_carts holds 65 rows in production.
-//
-// So these tests exist to keep it shut: anonymous is refused, and the id in the
-// request is ignored in favour of the session's.
-//
-// FIXTURES ARE SELF-SEEDED (2026-09-03). The original version picked its
-// "owner" as the exchange.users row with the most exchange.sell_cart_items -
-// a table checkout.checkouts / checkout.items replaced (D208/D209) and that
-// ruling 36 froze: nothing here writes exchange.sell_carts any more, so a
-// count taken from it proves nothing about what the live endpoints do, and it
-// silently assumed the picked user also existed in auth.users, which
-// checkout.checkouts' FK requires. Two of the six tests failed on exactly that
-// gap. The fix seeds each test's own cart over the same HTTP surface
-// carts-http.test.ts uses, inside the rolled-back transaction, so the
-// assertions stand on data this file put there itself. The comparison against
-// the frozen exchange table (the closing "nothing this file did survived the
-// transaction" test) is deleted outright - it is the dual-era oracle
-// CLAUDE.md's "The pivot is DONE" section says to remove, not repair.
+// Fixtures are SELF-SEEDED over the same HTTP surface, inside the rolled-back
+// transaction, so every assertion stands on data this file put there.
 import test, { after, before } from "node:test";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
@@ -64,8 +45,8 @@ before(async () => {
       ORDER BY u.email LIMIT 2`
   );
   assert.ok(users.length >= 2, "dev needs two non-admin users present in auth.users");
-  owner = { ...users[0], role: "user" };
-  stranger = { ...users[1], role: "user" };
+  owner = Object.assign({}, users[0], { role: "user" });
+  stranger = Object.assign({}, users[1], { role: "user" });
 });
 
 after(async () => {
