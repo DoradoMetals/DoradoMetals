@@ -5,7 +5,6 @@ import { apiRequest } from '@/shared/queries/axios'
 import type { Image, ImageUpload, ImageUploadReturn } from '@/features/media/types'
 import { useApiMutation, useApiQuery } from '@/shared/queries/base'
 import { queryKeys } from '@/shared/queries/keys'
-import { useGetSession } from '@/features/auth/queries'
 
 
 export const useTestImage = () =>
@@ -15,18 +14,18 @@ export const useTestImage = () =>
   })
 
 export const useUploadImage = () => {
-  const { user } = useGetSession()
   const queryClient = useQueryClient()
 
   return useMutation({
     mutationKey: ['image-upload'],
     mutationFn: async (image: ImageUpload) => {
+      // path/user_id are server-controlled now (the object key is chosen
+      // server-side, the owner comes from the session) - naming either is a
+      // 400. mimeType/size are renamed to the column names mime_type/size_bytes.
       const { id, uploadUrl } = await apiRequest<ImageUploadReturn>('POST', '/images/upload', {
-        path: image.path,
         filename: image.file.name,
-        mimeType: image.file.type,
-        size: image.file.size,
-        user_id: user?.id,
+        mime_type: image.file.type,
+        size_bytes: image.file.size,
       })
 
       await fetch(uploadUrl, {
@@ -52,8 +51,8 @@ export const useDeleteImage = () =>
     method: 'DELETE',
     url: '/images/delete',
     listAction: 'delete',
-    body: (id, user) => ({
-      user_id: user!.id,
+    // user_id is the session's now, not the body's - naming it is a 400.
+    body: (id) => ({
       id,
     }),
   })

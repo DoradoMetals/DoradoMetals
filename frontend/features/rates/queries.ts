@@ -41,7 +41,7 @@ export const useCreateRate = () => {
 export const useUpdateRate = () => {
   return useApiMutation<
     AdminRate,
-    { rate_id: string; patch: RatePatch; user_name: string },
+    { rate_id: string; patch: RatePatch },
     AdminRate[]
   >({
     queryKey: queryKeys.adminRates(),
@@ -51,10 +51,9 @@ export const useUpdateRate = () => {
       const current = previous?.find((r) => r.id === vars.rate_id)
       return upsertById(previous, { ...current, ...vars.patch, id: vars.rate_id } as AdminRate)
     },
-    body: ({ rate_id, patch, user_name }) => ({
+    body: ({ rate_id, patch }) => ({
       rate_id,
       patch,
-      user_name,
     }),
   })
 }

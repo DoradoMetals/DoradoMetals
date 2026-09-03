@@ -69,7 +69,6 @@ export default function RatesCard({
           scrap_pct: r.scrap_pct,
           bullion_pct: r.bullion_pct,
         },
-        user_name: 'Dorado Admin',
       })
     }
     setDirtyIds(new Set())

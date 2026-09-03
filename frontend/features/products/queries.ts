@@ -91,24 +91,56 @@ export const useCreateProduct = () =>
     requireAdmin: true,
     listAction: 'create',
     listInsertPosition: 'start',
-    body: ({ name }, user) => ({
+    body: ({ name }) => ({
       name,
-      created_by: user?.name,
     }),
   })
 
-export const useSaveProduct = () =>
-  useApiMutation<void, AdminProduct, AdminProduct[]>({
+// The admin read joins metal/supplier/mint down to NAMES (compose.ts's own
+// comment: "the admin form sends those names straight back" - true of the
+// old wire, not this one). save_product now takes metal_id/supplier_id/
+// mint_id (ruling 43 - ids for what the server holds), so the ids are
+// resolved here from the same cached reference reads the drawer's dropdowns
+// already use, and every field ProductPatch does not declare (the names
+// themselves, the audit columns, the two dead spec fields) is dropped
+// rather than sent for the strict body to 400 on.
+export const useSaveProduct = () => {
+  const { data: metals = [] } = useAdminMetals()
+  const { data: suppliers = [] } = useAdminSuppliers()
+  const { data: mints = [] } = useAdminMints()
+
+  return useApiMutation<void, AdminProduct, AdminProduct[]>({
     queryKey: queryKeys.adminProducts(),
     method: 'POST',
     url: '/products/save_product',
     requireAdmin: true,
     listAction: 'upsert',
-    body: (product, user) => ({
-      product,
-      user,
-    }),
+    body: (product) => {
+      const {
+        metal,
+        supplier,
+        mint,
+        created_at,
+        updated_at,
+        created_by,
+        updated_by,
+        thickness,
+        diameter,
+        metal_type,
+        ...patch
+      } = product
+
+      return {
+        product: {
+          ...patch,
+          metal_id: metals.find((m) => m.name === metal)?.id,
+          supplier_id: suppliers.find((s) => s.organization.name === supplier)?.id,
+          mint_id: mints.find((m) => m.name === mint)?.id,
+        },
+      }
+    },
   })
+}
 
 export const useAdminProducts = () =>
   useApiQuery<AdminProduct[]>({
