@@ -566,14 +566,14 @@ export function buildPackingBullionRows(orderItems: OrderItem[], spotPrices: Spo
     .map((item) => {
       const product: ProductPart = item.product ?? ({} as ProductPart);
       const spot = spotPrices.find((s) => s.name === product.metal_type);
+      // THE LINE'S PREMIUM, NOT THE PRODUCT'S (Jacob, 2026-09-03). A purchase
+      // bullion line is priced at the rate band's bullion_pct, written onto
+      // the line; falling back to the catalogue's bid_premium printed a rate
+      // on a packing list that the rates table never agreed to.
       const unitPrice =
         item.price != null
           ? item.price
-          : getItemPrice(
-              product.content,
-              item.premium ?? product.bid_premium,
-              spot?.bid
-            );
+          : getItemPrice(product.content, item.premium, spot?.bid);
       const totalPrice = unitPrice * (item.quantity ?? 1);
 
       return `

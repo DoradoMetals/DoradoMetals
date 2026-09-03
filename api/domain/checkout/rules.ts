@@ -38,10 +38,17 @@ export function livenessFlag(direction: Direction): "display" | "sell_display" {
   return direction === "sale" ? "display" : "sell_display";
 }
 
-// WHETHER A CART LINE STORES THE PRODUCT'S PREMIUM. A purchase line records the
-// bid premium it was quoted at; a sale line records none, because a sale
-// premium is a rate banded on the metal total across the whole checkout and is
-// resolved when the checkout becomes an order (085).
+// WHETHER A CART LINE STORES THE PRODUCT'S PREMIUM. A purchase line keeps the
+// catalogue's bid premium as a DISPLAY figure while the basket has no quote; a
+// sale line records none.
+//
+// IT IS NOT WHAT THE ORDER PAYS, AND IT NEVER WAS THE QUOTE'S NUMBER EITHER.
+// domain/quotes prices a sell cart from the rate bands, and since 2026-09-03
+// domain/orders re-tiers EVERY purchase line - bullion from bullion_pct - the
+// moment the checkout becomes an order. So this column is overwritten at
+// placement and nothing downstream of the order reads it. Left standing
+// because the sell cart shows it while the customer is signed out and no quote
+// has landed; a null there would show a rate of zero.
 export function carriesProductPremium(direction: Direction): boolean {
   return direction === "purchase";
 }

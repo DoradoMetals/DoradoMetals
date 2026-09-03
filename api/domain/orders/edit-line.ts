@@ -26,13 +26,20 @@ type Executor = PoolClient | undefined;
 export type { OrderItemRow } from "#db/orders/items/repo.ts";
 export type { OrderItemPatch, OrderItemScrapPatch, OrderItemBullionPatch } from "@dorado/contracts";
 
-// THE PREMIUM IS THE BUSINESS'S, NOT THE BROWSER'S: every scrap premium is
+// THE PREMIUM IS THE BUSINESS'S, NOT THE BROWSER'S: EVERY line's premium is
 // re-resolved from the rates table, tiered by the order's TOTAL content of each
-// metal. rules.retierPlan decides; this applies.
-export async function retierScrapPremiums(order_id: string, executor?: Executor) {
+// metal - scrap from the band's scrap_pct, bullion from its bullion_pct (Jacob,
+// 2026-09-03). rules.retierPlan decides; this applies.
+//
+// PURCHASE ONLY, and the direction is read here rather than passed: a sale's
+// premium is the product's ASK and tiering it from the bid-side rates table
+// would pay the customer's price into what they are charged. The one caller
+// that cannot know the direction (removeLine) must not have to.
+export async function retierPremiums(order_id: string, executor?: Executor) {
+  if ((await ordersRepo.directionOf(order_id, executor)) !== "purchase") return;
   const rates = await ratesService.getAllRates();
-  const scrapLines = await itemsRepo.scrapLinesFor(order_id, executor);
-  for (const { id, premium } of rules.retierPlan(rates, scrapLines)) {
+  const lines = await itemsRepo.pricedLinesFor(order_id, executor);
+  for (const { id, premium } of rules.retierPlan(rates, lines)) {
     const repriced = await itemsRepo.update(id, { premium }, {}, executor);
     if (!repriced) {
       throw new Error(
@@ -65,8 +72,9 @@ export async function createLine(
   return withTransaction(async (client) => {
     let created: OrderItemRow;
     if (item?.id) {
-      // The line derives its weights from the catalogue; the premium stays null
-      // because a bullion line prices from its product's own bid_premium.
+      // The line derives its weights from the catalogue. The premium is left
+      // for the re-tier below to write: a purchase bullion line prices from
+      // the rate band's bullion_pct, NOT from the product's bid_premium.
       const [product] = await productsRepo.getByIds([String(item.id)], client);
       if (!product) refuse(400, `no product ${String(item.id)} to put on the order`);
       if (!product.metal_id) {
@@ -111,11 +119,14 @@ export async function createLine(
     }
 
     // The refiner counterpart (093), then the whole order re-tiered so an
-    // admin-added scrap line matches customer checkout.
+    // admin-added line matches customer checkout - and so the new line is
+    // BORN at its tier rather than at null. The re-tier writes the row, so the
+    // line is re-read: returning `created` would answer with the premium the
+    // insert had, which is not the one the order now holds.
     await refinerItems.mirrorLinesForOrder(orderId, client);
-    await retierScrapPremiums(orderId, client);
+    await retierPremiums(orderId, client);
 
-    return created;
+    return (await itemsRepo.getOne(created.id, client)) ?? created;
   });
 }
 
@@ -234,8 +245,8 @@ export async function removeLine(itemId: string): Promise<{ success: true }> {
         `order ${orderId}: line ${itemId} was not removed - this transaction must not commit`
       );
     }
-    // Removing scrap changes the per-metal totals, so re-tier the survivors.
-    await retierScrapPremiums(orderId, client);
+    // Removing a line changes the per-metal totals, so re-tier the survivors.
+    await retierPremiums(orderId, client);
   });
 
   return { success: true };

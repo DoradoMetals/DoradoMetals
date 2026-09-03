@@ -11,6 +11,8 @@
 // nobody has quoted yet correctly has no price. The dangerous version would be
 // a null spot on a priced order, and there are none.
 //
+// WHAT A PURCHASE PAYS FOR BULLION IS THE LINE'S PREMIUM, FULL STOP (Jacob, 2026-09-03). Every product branch here used to fall back to `product.bid_premium` when the line carried none; that made the catalogue's own figure a price the business could pay without the rates table ever agreeing to it. A purchase bullion line now gets the rate band's bullion_pct written onto it at creation and at every re-tier (domain/orders/rules.ts retierPlan), so the fallback described a state that no longer occurs and, where it did, produced the wrong number rather than a missing one.
+// The SCRAP branch keeps its `?? item.scrap.bid_premium` and that is not an inconsistency: 085 collapsed scrap into orders.items, and compose.ts serves `scrap.bid_premium` FROM `item.premium`, so on a composed line the two are the same value. It is a wire alias, not a second source, and removing it would break the hand-assembled PDF/email fixtures for no gain.
 // The composed line (scrap/product nested) is an INTERNAL shape now, not a wire contract — the wire serves orders.items rows verbatim; this assembled shape survives only where pricing and the confirmation email need an order put back together.
 // Declares only the six fields these sums read, not the ten-field ComposedItem — a hand-built fixture or an /orders/:id/items body doesn't carry a full composed line, and the wider type let 11 real mismatches through until the tests converted to TypeScript caught them.
 // The ask side already declared its own subset (PriceableItem) for the same reason; a ComposedItem still satisfies this, and every existing test passed unedited.
@@ -19,10 +21,12 @@ export type PriceableLine = {
   price?: number | null;
   premium?: number | null;
   quantity?: number | null;
+  // NO bid_premium. A purchase bullion line's premium is the rate band's
+  // bullion_pct, written onto the line by the re-tier - the catalogue figure is
+  // not a price fact and must not be reachable from a sum (Jacob, 2026-09-03).
   product?: {
     metal_type?: string | null;
     content?: number | null;
-    bid_premium?: number | null;
   } | null;
   scrap?: {
     metal?: string | null;
@@ -90,7 +94,7 @@ export function calculateTotalPrice(order: PricedOrder, spots: Spots): number {
         item.price ??
         (item?.product?.content ?? 0) *
           ((spot!.bid ?? 0) *
-            (item.premium ?? item?.product?.bid_premium ?? 0));
+            (item.premium ?? 0));
 
       const quantity = item.quantity ?? 1;
       return acc + price * quantity;
@@ -124,7 +128,7 @@ export function calculateReturnDeclaredValue(order: PricedOrder, spots: Spots): 
       const price =
         (item?.product?.content ?? 0) *
         ((spot!.bid ?? 0) *
-          (item.premium ?? item?.product?.bid_premium ?? 0));
+          (item.premium ?? 0));
 
       const quantity = item.quantity ?? 1;
       return acc + price * quantity;
@@ -155,7 +159,7 @@ export function calculateItemPrice(
       item.price ??
       (item?.product?.content ?? 0) *
         ((spot!.bid ?? 0) *
-          (item.premium ?? item?.product?.bid_premium ?? 0))
+          (item.premium ?? 0))
     );
   } else if (item.item_type === "scrap") {
     const spot = spots?.find((s: PricingSpot) => s.name === item.scrap?.metal);
@@ -173,7 +177,7 @@ export function getBullionTotal(items: PurchaseOrderItem[], spots: Spots): numbe
       item.price ??
       (item?.product?.content ?? 0) *
         ((spot!.bid ?? 0) *
-          (item.premium ?? item?.product?.bid_premium ?? 0));
+          (item.premium ?? 0));
     const quantity = item.quantity ?? 1;
     return acc + price * quantity;
   }, 0);

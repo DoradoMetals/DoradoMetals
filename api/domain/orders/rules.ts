@@ -3,7 +3,7 @@
 // rather than a pair of files. Money arithmetic stays in domain/pricing.
 import { convertTroyOz } from "#shared/utils/convertWeights.ts";
 import { getRatePct, sumContentByMetal } from "#domain/rates/utils/resolveRate.ts";
-import type { ScrapLine } from "#db/orders/items/repo.ts";
+import type { PricedLine } from "#db/orders/items/repo.ts";
 
 export type Direction = "purchase" | "sale";
 
@@ -12,15 +12,33 @@ export function spotSideFor(direction: Direction): "bid" | "ask" {
   return direction === "purchase" ? "bid" : "ask";
 }
 
-// Scrap is tiered from the rates table by the order's total content of that
-// metal; purchase bullion keeps its product's bid premium; a sale takes the ask.
-export type PremiumSource = "rate-tier" | "line-premium" | "product-ask-premium";
+// EVERY LINE OF A PURCHASE PRICES FROM rates.rates (Jacob, 2026-09-03), tiered
+// by the order's TOTAL content of that metal: a scrap line takes the band's
+// scrap_pct and a bullion line its bullion_pct. The PRODUCT'S bid_premium plays
+// NO PART in what a purchase pays - it is a catalogue figure, not a price fact.
+// A sale still takes the product's ask premium.
+//
+// This corrects the earlier rule, which let purchase bullion keep the
+// product's bid_premium and so paid a customer a number the rates table never
+// agreed to. The storefront quote already priced bullion from bullion_pct
+// (domain/quotes, pinned by quotes/tests/replay.test.ts), so the order is being
+// aligned to the quote rather than the other way round.
+export type PremiumSource =
+  | "rate-tier-scrap"
+  | "rate-tier-bullion"
+  | "product-ask-premium";
+
+// WHICH PERCENTAGE COLUMN OF THE BAND A LINE READS. bullion_id is the one
+// product reference a line carries and null means scrap (ruling 34c).
+export function rateMaterialFor(line: { bullion_id?: string | null }): "scrap" | "bullion" {
+  return line.bullion_id == null ? "scrap" : "bullion";
+}
 
 export function premiumSourceFor(
   direction: Direction, line: { bullion_id?: string | null }
 ): PremiumSource {
   if (direction === "sale") return "product-ask-premium";
-  return line.bullion_id == null ? "rate-tier" : "line-premium";
+  return rateMaterialFor(line) === "scrap" ? "rate-tier-scrap" : "rate-tier-bullion";
 }
 
 // SALES TAX IS CHARGED, NOT PAID: a payout to a customer never carries it.
@@ -45,22 +63,29 @@ export function scrapContent(
 // No rate bands means NO PLAN: an order placed with rates unconfigured keeps
 // what it was given rather than being repriced to nothing.
 // A type-only import, erased at runtime: this file still needs no database.
-export type { ScrapLine } from "#db/orders/items/repo.ts";
+export type { PricedLine } from "#db/orders/items/repo.ts";
 export type RateBand = NonNullable<Parameters<typeof getRatePct>[0]>[number];
 
+// WHAT A LINE CONTRIBUTES TO THE METAL TOTAL THE TIER IS READ AT. A scrap
+// line's `content` already describes the whole lot, so quantity must NOT
+// multiply it; a bullion line's is PER UNIT, so ten one-ounce coins are ten
+// ounces of gold. That is the same asymmetry every sum in domain/pricing keeps.
+export function lineContent(line: Pick<PricedLine, "content" | "quantity" | "bullion_id">): number {
+  const content = Number(line.content) || 0;
+  if (line.bullion_id == null) return content;
+  const quantity = Number(line.quantity ?? 1);
+  return content * (Number.isFinite(quantity) ? quantity : 1);
+}
+
 export function retierPlan(
-  rates: RateBand[] | null | undefined, lines: ScrapLine[]
+  rates: RateBand[] | null | undefined, lines: PricedLine[]
 ): { id: string; premium: number }[] {
   if (!rates?.length || !lines.length) return [];
-  const totals = sumContentByMetal(
-    lines,
-    (l: ScrapLine) => l.metal,
-    (l: ScrapLine) => Number(l.content) || 0
-  );
+  const totals = sumContentByMetal(lines, (l: PricedLine) => l.metal, lineContent);
   const plan: { id: string; premium: number }[] = [];
   for (const line of lines) {
     const total = totals[String(line.metal ?? "").toLowerCase()] ?? 0;
-    const pct = getRatePct(rates, line.metal, total, "scrap");
+    const pct = getRatePct(rates, line.metal, total, rateMaterialFor(line));
     if (pct != null) plan.push({ id: line.id, premium: pct });
   }
   return plan;
