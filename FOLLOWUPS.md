@@ -14357,7 +14357,6 @@ would have brought. Not ported: `lint-domain-errors.ts`, the `orders`/
 touch a file this lane changed, so `order-id`'s worktree is simply behind
 `api-hardening` on those, not diverged from it.
 
-
 ### Ruling 58 — parcel weight and declared value are the server's (2026-09-03)
 
 Jacob: *"We don't care about packaging weight on the frontend. Why would it
@@ -14404,3 +14403,70 @@ them persisted.
   faked.
 - **The frontend still PATCHes `package_weight`/`declared_value`** — that
   lane's job; the API now ignores/rejects those keys.
+
+### Labels are bought after the commit (2026-09-03)
+
+The four buy-then-void-on-failure sites in `domain/orders/place.ts` (2) and
+`domain/orders/service.ts` (2) are gone. Each bought or booked something
+billable at FedEx and only then opened the transaction that recorded it,
+voiding the purchase in a catch if that transaction failed - and a voided
+label is still a billed one, so the catch bought nothing back. All four now
+run LOAD -> ASSERT -> WRITE (order + shipment SHELL commit with every label
+column NULL) -> AFTER (buy the label / book the pickup, then a second small
+write records it). No try/catch remains in either file.
+
+- **`placePurchase`** (place.ts): the order and its Inbound shipment shell
+  commit first; `world.buyPostage` (quote, label, and the courier if one is
+  scheduled) runs after, and `postage.ts`'s `recordPostage` writes the
+  quoted charge, the label columns and any pickup row in one small
+  transaction. `buyPostage` itself moved to the new `domain/orders/
+  postage.ts` (shared with the retry below) and its own inner try/catch -
+  voiding the label if the pickup booking failed - is gone with it: nothing
+  is recorded until the carrier has answered completely, so a partial
+  failure simply records nothing rather than compensating for something a
+  void never actually refunds.
+- **`cancel`** (service.ts, the return label): the Return shipment now
+  commits as a shell - spots unpinned, no label - whether or not the label
+  is ever bought, and `cancel` takes an injectable `buy: BuyReturnLabel`
+  (default `buyReturnLabel`, the same seam shape as `sendToRefiner`'s
+  `Transport` and `place.ts`'s `World`) so a test can fail the carrier call
+  with no network guard involved. Calling `POST /api/orders/:id/cancel`
+  again reuses the SAME shell (found by its still-null `tracking_number`)
+  instead of minting a second return shipment - cancel is its own retry
+  surface.
+- **The re-buy route for placePurchase's own shipment is new**:
+  `POST /api/orders/:id/label` (`orders.buyLabel`, admin-only, added to
+  `admin-routes.json`). Its body only asks for the pickup date/time, and only
+  because the shipment's handoff might need one - no column remembers a
+  courier's booked slot. It refuses with Conflict if the shipment already has
+  a tracking number, and with Invalid if the shipment never got a service or
+  package chosen. `domain/orders/rules.ts` gained `rebuyParcel` to rebuild the
+  `Parcel` from the committed row, the computed weight and that input.
+- `db/orders/transactions/repo.ts`'s `update` PATCHABLE list gained
+  `"shipping"` - it has to be writable after creation now that the row is
+  created before the postage is quoted.
+- Two tests prove the ordering: `place-purchase.test.ts` (`world.buyPostage`
+  throwing leaves the order, its fulfillment link and its shell shipment
+  committed with tracking_number/label/shipping still null) and the new
+  `domain/orders/tests/cancel.test.ts` (a throwing `buy` leaves exactly one
+  Return shell behind; a second `cancel` call reuses it rather than minting
+  a duplicate; a clean call labels the row it already committed).
+- Verified: `grep -n "try {" api/domain/orders/place.ts
+  api/domain/orders/service.ts` empty; `pnpm check:fast` PASS (204/204 files,
+  1187/1187 tests) against the local `test_label_after_commit` database;
+  `lint:test-locks` and `lint:test-actor` both 0 unaccepted findings.
+- Left alone: `voidLabel`/`voidPickup`/`labelBufferOrVoid` in
+  `domain/shipping/operations/service.ts` are untouched (other lanes own that
+  file) - `labelBufferOrVoid` still voids a label FedEx billed but returned
+  no file for, which is a carrier-response correctness check, not a
+  transaction-compensation one, so it stayed. `voidPickup`/`voidLabel`
+  themselves are now unreferenced by orders (place.ts and service.ts no
+  longer call them) but are left in place since removing them is that other
+  file's call.
+- **Ruling 58 folded in after this section landed**: `POST /api/orders/:id/
+  label`'s body no longer carries `weight` either - `orders.buyLabel` computes
+  it from `order.items` and the shipment's own package via `shipping/
+  rules.ts`'s `parcelWeightLb`, the same rule `cancel()` uses for its return
+  label. `rules.rebuyParcel` takes the computed weight as its own parameter
+  now; `OrderLabel` keeps only the optional pickup date/time, since no column
+  remembers a courier's booked slot.

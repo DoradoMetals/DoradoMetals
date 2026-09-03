@@ -259,6 +259,20 @@ export const OrderCancel = z.object({
 }).strict();
 export type OrderCancel = z.infer<typeof OrderCancel>;
 
+// POST /orders/:id/label - RETRY SURFACE for a purchase order whose own label
+// purchase failed after the order committed (label-after-commit, 2026-09-03:
+// place.ts's WRITE never waits on the carrier, so a failed AFTER leaves a real
+// order with an unlabelled shipment instead of a rolled-back one). THE WEIGHT
+// IS THE ORDER'S OWN NOW (ruling 58, same as OrderCancel): computed from its
+// lines and its shipment's package rather than asked for again. The pickup
+// slot is still asked, only when the shipment's own handoff needs one - no
+// column remembers a courier's date and time.
+export const OrderLabel = z.object({
+  pickup_date: z.string().nullable().optional(),
+  pickup_time: z.string().nullable().optional(),
+}).strict();
+export type OrderLabel = z.infer<typeof OrderLabel>;
+
 // PUT /orders/:id/spots - pin or unpin the order's spots, and adjust one.
 //
 // `lock: true` freezes every metal on the order at today's feed; `lock: false`

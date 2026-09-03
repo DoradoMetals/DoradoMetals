@@ -98,8 +98,6 @@ test("the real cancel endpoint is purchase-only: a sales order is refused, not c
       request(app).post(`/api/orders/${order.id}/cancel`).send({
         carrier_service_id: "00000000-0000-4000-8000-000000000000",
         package_id: "00000000-0000-4000-8000-000000000000",
-        declared_value: 0,
-        weight: 1,
       })
     );
     assert.equal(cancelled.status, 422, cancelled.text);

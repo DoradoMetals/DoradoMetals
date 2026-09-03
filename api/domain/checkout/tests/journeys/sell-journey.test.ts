@@ -94,8 +94,6 @@ test("basket, row, fulfillment, payout and placement agree on one order's money"
         package_id: pkg,
         carrier_service_id: service,
         shipper_address_id: address.id,
-        declared_value: 1500,
-        package_weight: 3,
       })
     );
     assert.equal(patched.status, 200, patched.text);
