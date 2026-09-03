@@ -71,7 +71,7 @@ before(async () => {
 
   const buyers = await outside<BuyerFixture>(
     `SELECT u.id, u.name, u.email, u.dorado_funds, a.id AS address_id, a.state
-       FROM exchange.users u JOIN exchange.addresses a ON a.user_id = u.id
+       FROM auth.users u JOIN exchange.addresses a ON a.user_id = u.id
       ORDER BY u.dorado_funds DESC NULLS LAST, u.id LIMIT 1`
   );
   buyer = buyers[0];
@@ -195,7 +195,7 @@ test("the sales-order breakdown reconciles to the cent and funds come from the u
       assert.ok(Math.abs(b.order_total - b.pre_charges_amount - b.post_charges_amount) < CENTS,
         "order_total != pre + post");
 
-      // Funds come from the SESSION user's exchange.users row - never the
+      // Funds come from the SESSION user's auth.users row - never the
       // body, and not from the mocked session object either (it carries no
       // dorado_funds at all, which is the point).
       assert.ok(Math.abs(b.beginning_funds - Number(buyer.dorado_funds ?? 0)) < EXACT,
@@ -222,7 +222,7 @@ test("an admin's sales-order quote prices the named user's funds; a customer's n
     // A second user whose balance differs from the session user's - a
     // same-balance fixture would make both assertions vacuous.
     const targets = await outside(
-      `SELECT id, dorado_funds FROM exchange.users
+      `SELECT id, dorado_funds FROM auth.users
         WHERE id <> $1 AND dorado_funds IS NOT NULL
           AND dorado_funds IS DISTINCT FROM $2
         ORDER BY dorado_funds DESC, id LIMIT 1`,

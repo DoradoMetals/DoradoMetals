@@ -16,6 +16,7 @@ import { payoutFee, PAYOUT_METHOD_FEES } from "#domain/payouts/constants.ts";
 import * as orderReads from "#domain/orders/read.service.ts";
 import * as orderSpotsService from "#domain/orders/spots/service.ts";
 import * as refinerSpotsService from "#domain/refiners/spots/service.ts";
+import * as usersService from "#domain/users/service.ts";
 import {
   calculateItemAsk,
   calculateSalesOrderTotal,
@@ -23,7 +24,6 @@ import {
   type OrderPrices,
 } from "#domain/pricing/service.ts";
 import { getRatePct, sumContentByMetal } from "#domain/rates/utils/resolveRate.ts";
-import query from "#shared/db/query.ts";
 import { convertTroyOz } from "#shared/utils/convertWeights.ts";
 import type { PricingSpot } from "#domain/pricing/service.ts";
 
@@ -167,13 +167,10 @@ export async function salesOrderQuote(user_id: string, body: Body): Promise<Sale
     return { id, quantity: Number(line?.quantity ?? 0) };
   });
 
-  // Funds come from the SUBJECT's own row, never the body — subject is resolved server-side (session user, or an admin-named customer) before this runs. Reads exchange.users directly (not the session's cached balance) since that's the actual balance an order placed after this quote would apply — a caller declaring their own balance would be declaring their own discount.
-  const { rows: funded } = await query(
-    `SELECT dorado_funds FROM exchange.users WHERE id = $1`,
-    [user_id]
-  );
-  const user = funded[0];
-  if (!user) {
+  // Funds come from the SUBJECT's own row, never the body — subject is resolved server-side (session user, or an admin-named customer) before this runs, and the balance is read fresh rather than taken from the session's cached copy, since that's the balance an order placed after this quote would actually apply. A caller declaring their own balance would be declaring their own discount.
+  // ASKED OF THE FEATURE THAT OWNS THE TABLE. This was an inline `SELECT dorado_funds FROM exchange.users`, which was two defects in one line: a raw statement in a service, against a table this feature does not own, and — once migration 118 moved the balance to auth.users — against the copy that had stopped being written. A stale balance here silently overcharges or over-discounts a real order.
+  const balance = await usersService.getBalance(user_id);
+  if (balance === undefined) {
     const err: HttpError = new Error("no user row for this session");
     err.statusCode = 401;
     throw err;
@@ -196,7 +193,7 @@ export async function salesOrderQuote(user_id: string, body: Body): Promise<Sale
     withTax as never,
     body?.using_funds,
     spots,
-    { dorado_funds: user.dorado_funds == null ? 0 : Number(user.dorado_funds) },
+    { dorado_funds: balance == null ? 0 : Number(balance) },
     body?.shipping_service ?? null,
     body?.payment_method ?? null
   );
@@ -242,7 +239,7 @@ export type PurchaseOrderQuote = {
 };
 
 // Priced the way intake.ts's decompose prices an order: premium comes ONLY from rates, banded on the metal's TOTAL content across the whole quote (two 5oz gold lines price as a 10oz order); quantity does not multiply into the band total.
-// Where decompose leaves a decision to its caller, this quote decides loudly instead: an unrecognized line is refused by index (decompose silently drops it, understating what the customer is owed); a band-less premium falls back to the product's own bid_premium, or is refused for scrap (rather than a hardcoded default or pricing metal at nothing); a metal with no spot is refused by index (calculateTotalPrice's TypeError, as a 400 instead).
+// Where decompose leaves a decision to its caller, this quote decides loudly instead: an unrecognized line is refused by index (decompose silently drops it, understating what the customer is owed); a band-less premium is REFUSED for bullion as well as scrap (it used to fall back to the product's catalogue bid_premium, which a purchase never pays); a metal with no spot is refused by index (calculateTotalPrice's TypeError, as a 400 instead).
 //
 // Returns the PAYOUT, not just the goods total. The old browser math was `quote.total - (shippingCost ?? 0 + paymentCost)` — `+` binds tighter than `??`, so ONE of the two deductions was always silently discarded; with a shipping service selected, the payout fee vanished and the headline read $20 high on a WIRE payout while the rows beneath it said otherwise.
 // The fix isn't the parenthesis — the frontend computes no money, the server returns the figure. Same subtraction orderQuote already does for a SAVED order, so the two surfaces agree by construction rather than by two people writing the same expression twice.
@@ -357,7 +354,6 @@ export async function purchaseOrderQuote(body: Body): Promise<PurchaseOrderQuote
         metal: row.metal_type,
         content: Number(row.content ?? 0),
         quantity: l.quantity,
-        own_premium: row.bid_premium == null ? null : Number(row.bid_premium),
       };
     }
     const spot = spots.find(
@@ -370,11 +366,23 @@ export async function purchaseOrderQuote(body: Body): Promise<PurchaseOrderQuote
       metal: String(spot.name),
       content: l.content,
       quantity: 1,
-      own_premium: null,
     };
   });
 
-  const totals = sumContentByMetal(lines, (l) => l.metal, (l) => l.content);
+  // A BULLION LINE'S CONTENT IS PER UNIT; A SCRAP LINE'S IS THE WHOLE LINE.
+  //
+  // The band is chosen on the total content of a metal across the quote, so six
+  // 1 oz Eagles are six ounces and must quote the 5-10 oz band. Counting
+  // `content` alone counted the line as one ounce however many were in it, so a
+  // cart quoted a lower band than the order it became actually paid - the quote
+  // and the placement disagreeing on price, which is the one thing this surface
+  // exists to prevent. Scrap keeps `content` because a scrap line's content
+  // already describes the whole parcel and its quantity is pinned at 1 above.
+  const totals = sumContentByMetal(
+    lines,
+    (l) => l.metal,
+    (l) => (l.kind === "scrap" ? l.content : l.content * l.quantity)
+  );
 
   const quoted = lines.map((l) => {
     const band = getRatePct(
@@ -383,7 +391,13 @@ export async function purchaseOrderQuote(body: Body): Promise<PurchaseOrderQuote
       totals[String(l.metal ?? "").trim().toLowerCase()] ?? 0,
       l.kind === "scrap" ? "scrap" : "bullion"
     );
-    const premium = band ?? l.own_premium;
+    // REFUSED RATHER THAN FALLING BACK, for bullion as well as scrap. This read
+    // `band ?? l.own_premium`, so a metal with no configured band quoted the
+    // product's catalogue bid_premium - a number the placed order would not
+    // pay, because a purchase prices every line from the rate tier. A quote the
+    // order will not honour is worse than no quote: the customer sees a figure,
+    // agrees to it, and is paid something else.
+    const premium = band;
     if (premium == null) {
       throw badRequest(`no rate is configured for ${l.metal} ${l.kind}`);
     }
@@ -449,8 +463,10 @@ export type OrderQuote = {
 //
 // Per metal: the order's own frozen bid when set, else the live spot — equivalent to how finalizePricing distinguishes locked/unlocked (a non-null frozen bid IS the locked state). A locked order estimates at its locked spots, an unlocked one at live; an admin's per-metal override is honored the same way the drawer honored it.
 //
-// STORED price wins where the accept flow froze one; otherwise the estimate mirrors the drawer's own fallback chains exactly, so no displayed number shifts: product = content * bid * (premium ?? product's own bid_premium), * quantity; scrap = content * bid * (premium ?? scrap's own bid_premium ?? 1), quantity not multiplied (content covers the whole line).
-// scrap_total/bullion_total are sums of THESE lines — the legacy total used `premium ?? 1` with no bid_premium fallback and could disagree with its own displayed lines when premium was null. Zero production lines carry a null premium today, so no live number moves.
+// STORED price wins where the accept flow froze one; otherwise: product = content * bid * premium, * quantity; scrap = content * bid * (premium ?? scrap's own bid_premium ?? 1), quantity not multiplied (content covers the whole line).
+// THE PRODUCT CHAIN NO LONGER FALLS BACK TO THE CATALOGUE. On a PURCHASE every line prices from the rate tier — scrap by scrap_pct, bullion by bullion_pct, banded on the order's total content of that metal — and the product's own bid_premium plays no part in what the business pays. It was in this chain only because the drawer's client-side estimate had it, and mirroring the drawer's arithmetic is what this function was written to do; mirroring an arithmetic the placed order does not use quotes a number the customer will not be paid. The line's own stored premium is the tier that was resolved when it was priced, so `premium ?? 0` is the whole chain.
+// The scrap chain KEEPS its two fallbacks: `scrap.bid_premium` there is a wire alias for the line's own resolved premium, not a catalogue default, so dropping it would blank a real value.
+// scrap_total/bullion_total are sums of THESE lines — the legacy total used `premium ?? 1` with no bid_premium fallback and could disagree with its own displayed lines when premium was null.
 //
 // A metal with no spot anywhere prices at 0, not a throw — this is a drawer estimate for an order that already exists and must render; the accept path keeps calculateTotalPrice's throw.
 export async function orderQuote(body: Body): Promise<OrderQuote> {
@@ -493,7 +509,9 @@ export async function orderQuote(body: Body): Promise<OrderQuote> {
 
   for (const item of rawItems) {
     if (item?.item_type === "product") {
-      const premium = Number(item.premium ?? item.product?.bid_premium ?? 0);
+      // NO CATALOGUE FALLBACK - see this function's header. A purchase pays the
+      // rate tier, and item.premium is the tier this line was priced at.
+      const premium = Number(item.premium ?? 0);
       const stored = item.price != null;
       const unit_price = stored
         ? Number(item.price)

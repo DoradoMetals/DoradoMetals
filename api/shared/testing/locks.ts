@@ -10,24 +10,27 @@ export const LOCKS = {
   // exchange.addresses, places.addresses, places.user_addresses.
   // Separate from ORDERS — most address work doesn't touch an order; a file doing both takes both.
   ADDRESSES: 4214,
-  // exchange.users.dorado_funds and, through migration 107's mirror trigger,
-  // auth.users.
+  // auth.users.dorado_funds, and payments.ledger through the row every
+  // adjustment writes.
   //
   // A TENTH JOINED THE LIST THE WAY THE NINTH DID (2026-09-03, the audit-stamp
   // pass): db/users/tests/repo.test.ts deadlocked in a full run having passed
-  // in isolation and in the run before, with 40P01 raised INSIDE
-  // exchange.mirror_funds_to_auth's `UPDATE auth.users SET dorado_funds`.
-  // Nothing about the balance path changed - a new test file and a handful of
-  // moved statements shifted the interleaving, which is exactly what this
-  // file's own closing paragraph says will happen.
+  // in isolation and in the run before, with 40P01 raised INSIDE the funds
+  // mirror's `UPDATE auth.users SET dorado_funds`. Nothing about the balance
+  // path changed - a new test file and a handful of moved statements shifted
+  // the interleaving, which is exactly what this file's own closing paragraph
+  // says will happen.
   //
-  // ONE BALANCE WRITE IS TWO ROW LOCKS, and that is why it deadlocks rather
-  // than merely queueing: the write lands on exchange.users and the trigger
-  // carries it to auth.users, so a file touching two customers takes four row
-  // locks in whatever order it happens to visit them. Every file that MOVES a
-  // balance takes this - db/users/tests/repo.test.ts, users' funds,
-  // credit-target and replay, and orders' create-then-charge, which sets a
-  // balance by hand before charging.
+  // A BALANCE WRITE IS ONE ROW LOCK AGAIN, and this lock stays anyway. It used
+  // to be two - the write landed on exchange.users and 107's trigger carried it
+  // to auth.users, so a file touching two customers took four row locks in
+  // whatever order it happened to visit them - and migration 118 retired that
+  // mirror. What remains is still a locked read (FOR UPDATE) held across a
+  // ledger insert, which is two tables in one transaction and deadlocks the
+  // moment two files order them differently. Every file that MOVES a balance
+  // takes this - db/users/tests/repo.test.ts, users' funds, credit-target and
+  // replay, and orders' create-then-charge, which sets a balance by hand before
+  // charging.
   USERS: 4215,
 };
 

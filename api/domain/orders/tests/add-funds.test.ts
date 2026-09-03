@@ -78,8 +78,11 @@ after(async () => {
 test("the balance moves by exactly what the ledger records", async () => {
   await inPinnedTransaction(async (client: PoolClient) => {
     await asAdmin(admin, async () => {
+      // auth.users, WHERE THE BALANCE LIVES SINCE MIGRATION 118. Reading the
+      // frozen exchange copy measured a number that no longer moves, so this
+      // assertion would have compared a real ledger entry against zero.
       const before = await client.query(
-        `SELECT coalesce(dorado_funds, 0) AS funds FROM exchange.users WHERE id = $1`,
+        `SELECT coalesce(dorado_funds, 0) AS funds FROM auth.users WHERE id = $1`,
         [order.user_id]
       );
 
@@ -90,7 +93,7 @@ test("the balance moves by exactly what the ledger records", async () => {
       assert.equal(res.status, 200, `answered ${res.status}: ${JSON.stringify(res.body)}`);
 
       const after = await client.query(
-        `SELECT coalesce(dorado_funds, 0) AS funds FROM exchange.users WHERE id = $1`,
+        `SELECT coalesce(dorado_funds, 0) AS funds FROM auth.users WHERE id = $1`,
         [order.user_id]
       );
       const moved = Number(after.rows[0].funds) - Number(before.rows[0].funds);

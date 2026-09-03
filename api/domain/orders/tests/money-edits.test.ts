@@ -142,7 +142,7 @@ test("cost writes the payout's cost", async () => {
   });
 });
 
-test("method writes the payout's method, and the response is a bare success", async () => {
+test("method writes the payout's method, and the response is the payout row", async () => {
   await inPinnedTransaction(async (client: PoolClient) => {
     await asAdmin(admin, async () => {
       const res = await request(app)
@@ -150,9 +150,15 @@ test("method writes the payout's method, and the response is a bare success", as
         .send({ method: "ACH" });
 
       assert.equal(res.status, 200, `answered ${res.status}: ${JSON.stringify(res.body)}`);
-      // THE RADIOACTIVE RULE: the response must never be the row - a payout
-      // row is one projection slip away from a bank number.
-      assert.deepEqual(res.body, { success: true }, "the payout PATCH answered with data");
+      // IT ANSWERS THE ROW NOW, not `{success: true}`: a bare success made the
+      // caller re-fetch to see what it had done. THE RADIOACTIVE RULE still
+      // holds and is asserted rather than assumed - the row is the last-four
+      // projection every payout read serves, and the two full numbers are not
+      // fields of it at all.
+      assert.equal(res.body.id, payout.id);
+      assert.equal(res.body.method, "ACH");
+      assert.ok(!("routing_number" in res.body), "the payout PATCH answered a routing number");
+      assert.ok(!("account_number" in res.body), "the payout PATCH answered an account number");
 
       const { rows } = await client.query(
         `SELECT m.type

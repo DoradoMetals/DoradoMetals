@@ -19,8 +19,8 @@ import type { PoolClient } from "pg";
 import { randomUUID } from "node:crypto";
 import pool from "#db";
 // MOVED FROM features/transactions. addFunds and removeFunds write
-// exchange.users.dorado_funds, and features/users owns that table - two
-// services writing one table is the single thing the structure forbids.
+// auth.users.dorado_funds, and features/users owns that table - two services
+// writing one table is the single thing the structure forbids.
 import * as usersService from "#domain/users/service.ts";
 // The ledger entry that records WHY a balance moved lives in its own feature -
 // the balance is users', the log is transactions'. Two tables, two owners.
@@ -44,7 +44,7 @@ after(async () => {
 
 async function inRollback(fn: (c: PoolClient) => Promise<void>) {
   await client.query("BEGIN");
-  // Two row locks per balance write - see LOCKS.USERS.
+  // A locked read held across a ledger insert - see LOCKS.USERS.
   await takeLocks(client, LOCKS.USERS);
   try {
     await fn(client);
@@ -53,11 +53,14 @@ async function inRollback(fn: (c: PoolClient) => Promise<void>) {
   }
 }
 
+// auth.users, WHICH IS BOTH THE WRITE TARGET AND THE READ SOURCE since
+// migration 118. It used to be exchange.users on both lines, back when the
+// balance was written there and mirrored across by a trigger.
 const aUser = async (c: PoolClient) =>
-  (await c.query("SELECT id, dorado_funds FROM exchange.users ORDER BY id LIMIT 1")).rows[0];
+  (await c.query("SELECT id, dorado_funds FROM auth.users ORDER BY id LIMIT 1")).rows[0];
 
 const balance = async (c: PoolClient, id: string) =>
-  Number((await c.query("SELECT dorado_funds FROM exchange.users WHERE id = $1", [id])).rows[0].dorado_funds ?? 0);
+  Number((await c.query("SELECT dorado_funds FROM auth.users WHERE id = $1", [id])).rows[0].dorado_funds ?? 0);
 
 test("adding funds increases the balance by exactly the amount", async () => {
   await inRollback(async (c: PoolClient) => {
@@ -84,7 +87,7 @@ test("a balance is a number, not a string", async () => {
   await inRollback(async (c: PoolClient) => {
     const user = await aUser(c);
     await usersService.addFunds(user.id, 10, c);
-    const { rows } = await c.query("SELECT dorado_funds FROM exchange.users WHERE id = $1", [user.id]);
+    const { rows } = await c.query("SELECT dorado_funds FROM auth.users WHERE id = $1", [user.id]);
     assert.equal(typeof rows[0].dorado_funds, "number");
   });
 });

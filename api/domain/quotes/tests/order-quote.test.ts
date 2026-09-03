@@ -58,7 +58,9 @@ let shippingCharge: number;
 
 // The premium chains the estimates mirror - getPurchaseOrderBullionPrice's
 // and getPurchaseOrderScrapPrice's, restated for the hand-check.
-const productPremium = (i: ItemFixture) => Number(i.premium ?? i.product_bid_premium ?? 0);
+// PRODUCT: NO CATALOGUE FALLBACK. A purchase pays the rate tier, and the
+// line's own premium IS that tier - the product's bid_premium plays no part.
+const productPremium = (i: ItemFixture) => Number(i.premium ?? 0);
 const scrapPremium = (i: ItemFixture) => Number(i.premium ?? i.scrap_bid_premium ?? 1);
 
 function bidFor(metal: string | null) {
@@ -84,14 +86,14 @@ before(async () => {
   order = orders[0];
   assert.ok(order, "dev has no owned purchase order with items - every check here would be vacuous");
 
-  const owners = await outside<UserFixture>(`SELECT id, name, email FROM exchange.users WHERE id = $1`, [
+  const owners = await outside<UserFixture>(`SELECT id, name, email FROM auth.users WHERE id = $1`, [
     order.user_id,
   ]);
   owner = { ...owners[0], role: "user" };
   assert.ok(owner.id, `no exchange.users row for ${order.user_id}, the owner of order ${order.id}`);
 
   const others = await outside<UserFixture>(
-    `SELECT id, name, email FROM exchange.users
+    `SELECT id, name, email FROM auth.users
       WHERE id <> $1 AND role IS DISTINCT FROM 'admin' LIMIT 1`,
     [order.user_id]
   );

@@ -16,9 +16,18 @@
 // server refuses to drive a balance below zero (a check that lived ONLY in the
 // browser), and that the adjustment reports the balance it produced instead of
 // the caller computing it.
+//
+// THE LEDGER ROW EACH ADJUSTMENT NOW WRITES IS PINNED NEXT DOOR, in
+// credit-ledger.test.ts, and deliberately not here: this file COMMITS and puts
+// the balance back afterwards, and a payments.ledger row cannot be "put back" -
+// it is an append-only record. Those assertions run inside a pinned
+// transaction that rolls back instead.
 import test, { after, before } from "node:test";
 import assert from "node:assert/strict";
+import type { PoolClient } from "pg";
+import pool from "#db";
 import * as usersService from "#domain/users/service.ts";
+import { LOCKS } from "#shared/testing/locks.ts";
 import { outside } from "#shared/testing/pinned-pool.ts";
 
 // THE STRUCTURAL SUBSET THE FIXTURE QUERY ASKS FOR.
@@ -26,28 +35,55 @@ type UserFixture = { id: string };
 
 let customer: UserFixture;
 let startingBalance: number;
+let lockHolder: PoolClient;
 
+// auth.users, WHICH IS WHERE THE WRITE LANDS SINCE MIGRATION 118. It was
+// exchange.users while a trigger mirrored the balance across; reading the
+// written table rather than a copy of it is what makes these assertions mean
+// anything.
 const funds = async (id: string) => {
   const rows = await outside<{ dorado_funds: number | null }>(
-    `SELECT dorado_funds FROM exchange.users WHERE id = $1`, [id]);
+    `SELECT dorado_funds FROM auth.users WHERE id = $1`, [id]);
   return Number(rows[0]?.dorado_funds);
 };
 
-// THIS FILE COMMITS, AND THEN PUTS IT BACK.
+// THIS FILE COMMITS, AND THEN PUTS THE BALANCE BACK.
 //
-// adjustDoradoCredit opens its own transaction on its own connection - it has
-// to, because the row lock is the point - so a pinned test transaction cannot
-// contain it. Rather than pretend otherwise, every test here restores the
-// balance it moved and the last one checks from outside that it did. That is
-// the honest shape for a write whose whole subject is transactional behaviour;
-// audit:test-leaks is what would catch it if the restore stopped working.
+// The concurrency test below needs two genuinely separate connections racing
+// each other, which a pinned single-connection transaction cannot provide -
+// pinning would hand both calls the same client and serialise the thing being
+// measured. So every test here restores the balance it moved and the last one
+// checks from outside that it did.
+//
+// WHAT IT DOES NOT PUT BACK, said plainly: the payments.ledger rows each
+// adjustment now writes. A ledger row is an append-only record of a movement,
+// and "restoring" one would mean deleting rows from a money table to keep a
+// test tidy - which is a worse habit than a few rows on the test database. The
+// balance assertions below are what this file is for; the ledger's own
+// behaviour is pinned in credit-ledger.test.ts, inside a transaction that rolls
+// back.
 before(async () => {
+  // THE BALANCE LOCK, HELD FOR THE WHOLE FILE - and a SESSION lock, not the
+  // transaction-scoped one every other balance file uses. takeLocks() cannot be
+  // used here: it takes pg_advisory_xact_lock, and THIS FILE HAS NO
+  // TRANSACTIONS of its own - every adjustment commits. A session lock contends
+  // in the same lock space, so it serialises correctly against every file that
+  // takes USERS the ordinary way.
+  //
+  // IT BECAME NECESSARY WHEN THE ADJUSTMENT STARTED LEDGERING. This file
+  // commits real payments.ledger rows for its fixture customer, and
+  // credit-ledger.test.ts counts that customer's rows before and after its own
+  // adjustment - so without the lock the two files raced and the count was off
+  // by however many rows this one had committed in between.
+  lockHolder = await pool.connect();
+  await lockHolder.query("SELECT pg_advisory_lock($1)", [LOCKS.USERS]);
+
   // A customer who HAS a balance: against zero, "set to 0" and "left alone"
   // are indistinguishable. Dev's largest is 10.23, so the amounts below are
   // sized to that rather than to a round number - the subtraction tests derive
   // from the balance they read and never assume headroom.
   const rows = await outside<UserFixture>(
-    `SELECT id FROM exchange.users
+    `SELECT id FROM auth.users
       WHERE role IS DISTINCT FROM 'admin' AND dorado_funds > 0
       ORDER BY dorado_funds DESC LIMIT 1`
   );
@@ -63,7 +99,12 @@ const restore = async () => {
   });
 };
 
-after(restore);
+after(async () => {
+  await restore();
+  await lockHolder.query("SELECT pg_advisory_unlock($1)", [LOCKS.USERS]);
+  lockHolder.release();
+  await pool.end();
+});
 
 test("`op` is the spelling, and it adds a DELTA rather than setting a total", async () => {
   const before_ = await funds(customer.id);
@@ -77,20 +118,23 @@ test("`op` is the spelling, and it adds a DELTA rather than setting a total", as
   await restore();
 });
 
-test("`mode` still works, so the frontend can be re-pointed separately", async () => {
+// `mode` WAS THE OTHER SPELLING AND IT IS GONE. It survived D98 only so the
+// frontend could be re-pointed on its own schedule; shapes are no longer being
+// preserved on this branch, so the old spelling is refused like any other
+// unknown operation rather than quietly accepted.
+test("the retired `mode` spelling is refused rather than silently honoured", async () => {
   const before_ = await funds(customer.id);
-  await usersService.adjustDoradoCredit({ user_id: customer.id, mode: "add", amount: 10 });
-  assert.equal(Number(await funds(customer.id)).toFixed(6), (before_ + 10).toFixed(6));
-  await restore();
-});
-
-test("`op` wins when both spellings arrive", async () => {
-  const before_ = await funds(customer.id);
-  await usersService.adjustDoradoCredit({
-    user_id: customer.id, op: "add", mode: "subtract", amount: 5,
-  });
-  assert.equal(Number(await funds(customer.id)).toFixed(6), (before_ + 5).toFixed(6));
-  await restore();
+  await assert.rejects(
+    // @ts-expect-error - `mode` is no longer a field; that is the point
+    () => usersService.adjustDoradoCredit({ user_id: customer.id, mode: "add", amount: 10 }),
+    (err: unknown) => {
+      const e = err as { statusCode?: number; message?: string };
+      assert.equal(e.statusCode, 400);
+      assert.match(String(e.message), /unknown credit mode/);
+      return true;
+    }
+  );
+  assert.equal(Number(await funds(customer.id)).toFixed(6), before_.toFixed(6));
 });
 
 // TWO SEQUENTIAL DELTAS BOTH LAND. This is the property the browser's
@@ -172,6 +216,6 @@ test("nothing this file moved survived it", async () => {
   assert.equal(
     Number(await funds(customer.id)).toFixed(6),
     startingBalance.toFixed(6),
-    "a credit adjustment was left committed to dev"
+    "a credit adjustment was left committed"
   );
 });

@@ -1,6 +1,7 @@
 import * as users from "#db/users/repo.ts";
+import * as transactionsService from "#domain/transactions/service.ts";
 import withTransaction from "#shared/db/withTransaction.ts";
-import type { UserRow } from "#db/users/repo.ts";
+import type { CreditRow, UserRow } from "#db/users/repo.ts";
 import type { PoolClient } from "pg";
 import type { Executor } from "#shared/db/executor.ts";
 
@@ -34,26 +35,15 @@ export async function getAdminUsers(): Promise<UserRow[]> {
 // req.body, so a typo, a renamed frontend constant or a stale client was enough.
 //
 // It never actually lost anyone's money, and it is worth being precise about
-// why: exchange.users.dorado_funds is NOT NULL, so the database refused the
-// write. THE CONSTRAINT WAS DOING THIS JOB, not the code - and auth.users,
-// where this write goes after promotion, had no such constraint. Migration 080
-// adds it, so the guarantee survives. This is the half that does not depend on
-// a constraint existing at all.
+// why: the column is NOT NULL, so the database refused the write. THE
+// CONSTRAINT WAS DOING THIS JOB, not the code - and auth.users, where the write
+// lands since migration 118, had no such constraint until 080 added it in
+// anticipation. This allowlist is the half that does not depend on a constraint
+// existing at all.
 //
 // An allowlist rather than a check for known-bad values: the failure mode being
 // prevented is an UNRECOGNISED mode, so a denylist could not have caught it.
 const CREDIT_MODES = new Set(["add", "subtract", "edit"]);
-
-// THE OPERATION IS NAMED `op`, AND `mode` IS THE OLD SPELLING (D98).
-//
-// Ruling 10 - ids in, data out - says the server takes `{op, amount}` and does
-// the arithmetic. It always could; what it was actually SENT was `mode: 'edit'`
-// with an absolute total the browser had computed from a balance it had
-// fetched. Both spellings are accepted while the frontend is re-pointed,
-// because this lane may not edit frontend/**; `op` wins when both arrive.
-function operationOf(body: { op?: unknown; mode?: unknown }): unknown {
-  return body.op !== undefined ? body.op : body.mode;
-}
 
 // What each operation makes of a balance. The repo's CASE does this in SQL;
 // this is the same three arms in JavaScript, used ONLY to decide whether the
@@ -71,6 +61,21 @@ function operationOf(body: { op?: unknown; mode?: unknown }): unknown {
 function resultOf(op: string, current: number, amount: number): number {
   const raw = op === "add" ? current + amount : op === "subtract" ? current - amount : amount;
   return Number(raw.toFixed(6));
+}
+
+// WHAT THE LEDGER RECORDS, DERIVED FROM THE TWO BALANCES RATHER THAN THE
+// REQUEST. `add` and `subtract` name their own direction, but `edit` does not -
+// an edit to a smaller number is a debit and to a larger one a credit - and
+// payments.ledger.amount carries a CHECK (amount >= 0), so a signed delta could
+// not be stored even if the request had offered one. Reading the movement off
+// (before, after) means the three modes collapse to one rule and the row can
+// never disagree with the balance it explains.
+function movementOf(before: number, after: number): { type: string; amount: number } | null {
+  const delta = Number((after - before).toFixed(6));
+  if (delta === 0) return null;
+  return delta > 0
+    ? { type: "Credit", amount: delta }
+    : { type: "Debit", amount: -delta };
 }
 
 // The same shape features/addresses uses: a plain Error carrying a statusCode.
@@ -97,27 +102,28 @@ function unprocessable(message: string): HttpError {
   return err;
 }
 
-// `mode` and `amount` are typed as UNKNOWN on the way in, not as the narrow
-// types they end up being. They arrive as req.body: claiming `mode: string`
-// here would tell a reader the allowlist below is redundant, and claiming
-// `amount: number` would delete the reason the Number() coercion exists.
-// The checks are what turn them into the narrow types, so the signature
-// admits what actually arrives.
+// `op` and `amount` are typed as UNKNOWN on the way in, not as the narrow types
+// they end up being. They arrive as req.body: claiming `op: string` here would
+// tell a reader the allowlist below is redundant, and claiming `amount: number`
+// would delete the reason the Number() coercion exists. The checks are what
+// turn them into the narrow types, so the signature admits what actually
+// arrives.
+//
+// `mode` IS GONE. It was the pre-D98 spelling, kept alive only so the frontend
+// could be re-pointed in its own time; shapes are no longer being preserved on
+// this branch (Jacob, 2026-09-03), so there is one spelling again.
 export async function adjustDoradoCredit({
   user_id,
   op,
-  mode,
   amount,
 }: {
   user_id?: string;
   op?: unknown;
-  mode?: unknown;
   amount?: unknown;
-}): Promise<{ rowCount: number; dorado_funds: number | null }> {
-  const operation = operationOf({ op, mode });
-  if (typeof operation !== "string" || !CREDIT_MODES.has(operation)) {
+}): Promise<CreditRow> {
+  if (typeof op !== "string" || !CREDIT_MODES.has(op)) {
     throw badRequest(
-      `unknown credit mode ${JSON.stringify(operation)}. Expected one of ${[...CREDIT_MODES].join(", ")}.`
+      `unknown credit mode ${JSON.stringify(op)}. Expected one of ${[...CREDIT_MODES].join(", ")}.`
     );
   }
 
@@ -144,28 +150,15 @@ export async function adjustDoradoCredit({
     throw badRequest("a credit adjustment needs a user_id");
   }
 
-  // ONE WRITE, NOT TWO - AND THAT IS THE OPPOSITE OF EVERY OTHER FEATURE.
+  // ONE WRITE, AND SINCE MIGRATION 118 IT GOES WHERE THE READS COME FROM.
   //
-  // users is the one place a dual write is WRONG, because the database already
-  // does it: exchange.users carries an AFTER INSERT OR UPDATE trigger,
-  // `mirror_users_to_auth`, running auth.mirror_user_from_exchange(). Writing
-  // both by hand applies the adjustment TWICE - a $25 credit moved the balance
-  // $50, which replay.test.ts caught immediately.
+  // This used to be the one place a dual write was WRONG, because the database
+  // did it: exchange.users carried an AFTER UPDATE trigger copying the balance
+  // into auth.users, so writing both applied the adjustment twice and a $25
+  // credit moved a balance $50 (replay.test.ts caught it immediately). 118
+  // retires that mirror; the write and the read are now the same table, so
+  // there is nothing left to double.
   //
-  // AND THE WRITE GOES TO exchange.users, WHICH IS THE SOURCE HERE. That is
-  // measured, not assumed: the trigger's ON CONFLICT DO UPDATE copies
-  // `dorado_funds` FROM exchange, so a balance written only to auth.users is
-  // silently reverted by the next better-auth update of that row. See
-  // features/users/repo.ts's header and docs/waves/seams.md, seam 2.
-  //
-  // Reads still come from auth.users, so the balance a customer sees is the
-  // mirrored one - which is why the mirror being maintained by Postgres rather
-  // than by us is load-bearing rather than incidental.
-  //
-  // THIS IS ALSO THE ANSWER TO THE AUTH CUTOVER QUESTION. Trigger-based
-  // mirroring already exists and works for users; better-auth writing exchange
-  // through its own pool is fine, because the trigger carries it across without
-  // better-auth's cooperation. Noted for the report.
   // AND IT ALL HAPPENS UNDER ONE ROW LOCK (D98).
   //
   // The statement itself was already a delta - `COALESCE(dorado_funds, 0) + $1`
@@ -177,9 +170,11 @@ export async function adjustDoradoCredit({
   //
   // Taking the row FOR UPDATE first closes the remaining window - the floor
   // check below is itself a read-then-write, and an unguarded one would let two
-  // subtractions each pass a check only one of them can honour. Everything in
-  // here is database work, so a transaction is the right tool (CLAUDE.md's rule
-  // is about irreversible side effects, and there are none).
+  // subtractions each pass a check only one of them can honour. The ledger row
+  // is written inside the same transaction, so a movement and its record commit
+  // together or neither does. Everything in here is database work, so a
+  // transaction is the right tool (CLAUDE.md's rule is about irreversible side
+  // effects, and there are none).
   const result = await withTransaction(async (client: PoolClient) => {
     const current = await users.balanceForUpdate(user_id, client);
     if (current === undefined) {
@@ -193,37 +188,54 @@ export async function adjustDoradoCredit({
     // nothing on the server did, so any other caller could drive a customer's
     // balance negative. The column is NOT NULL and has no CHECK, so the
     // database would have taken it.
-    const next = resultOf(operation, Number(current ?? 0), value);
+    const before = Number(current ?? 0);
+    const next = resultOf(op, before, value);
     if (next < 0) {
       throw unprocessable(
         `that would leave a balance of ${next.toFixed(2)}; a credit balance cannot go below zero`
       );
     }
 
-    return await users.adjustCredit(
-      user_id, operation as users.CreditMode, value, client
-    );
+    const row = await users.adjustCredit(user_id, op as users.CreditMode, value, client);
+
+    // A CREDIT NOBODY RECEIVED USED TO ANSWER 200. The UPDATE is `WHERE id =
+    // $3`; a user_id matching no row updated nothing and the controller
+    // answered 200 with it, so an admin adding $500 to an account that does not
+    // exist was told it worked. The locked read above already refuses that, and
+    // this is the backstop for the window between them.
+    if (!row) {
+      throw notFound(
+        `no user ${user_id} - the credit adjustment was not applied to anybody`
+      );
+    }
+
+    // AN ADMIN EDIT IS A MOVEMENT AND MOVEMENTS ARE LEDGERED. Every other way a
+    // balance moves - an order crediting a payout, a sale reserving credit, an
+    // abandonment sweep putting it back - writes a payments.ledger row at its
+    // call site, with the order id that explains it. This path wrote none at
+    // all, so the manual adjustments were the one class of movement the ledger
+    // could not account for. `order_id` is null because there is no order: the
+    // subject is a person, not a purchase.
+    const movement = movementOf(before, Number(row.dorado_funds ?? 0));
+    if (movement) {
+      await transactionsService.addTransactionLog(
+        user_id, movement.type, null, null, movement.amount, client
+      );
+    }
+
+    return row;
   });
 
-  // A CREDIT NOBODY RECEIVED USED TO ANSWER 200.
-  //
-  // The UPDATE is `WHERE id = $3`. A user_id matching no row updates nothing,
-  // returns rowCount 0, and the controller answers 200 with it - so an admin
-  // adding $500 to an account that does not exist is told it worked. Measured:
-  // a random uuid comes back rowCount 0 and 200.
-  //
-  // The frontend cannot reach it today, because it sends an id from a list it
-  // has just fetched. That is not the same as it being unreachable: a user
-  // deleted between the fetch and the adjustment lands here, and so does any
-  // direct call. Reporting success for money that moved nowhere is the wrong
-  // answer in both cases.
-  if (result.rowCount === 0) {
-    throw notFound(
-      `no user ${user_id} - the credit adjustment was not applied to anybody`
-    );
-  }
-
   return result;
+}
+
+// The balance the quote surface prices against. It reads the customer's own
+// row rather than believing a number in a request body - a caller declaring
+// their own balance would be declaring their own discount - and answers
+// `undefined` for a subject with no user row, which the caller reports as 401
+// rather than pricing as zero.
+export async function getBalance(user_id: string): Promise<number | null | undefined> {
+  return await users.balance(user_id);
 }
 
 // The balance movements that accompany an order. Called from inside the
@@ -239,16 +251,23 @@ export async function adjustDoradoCredit({
 // statements - a checkout money movement and an admin's manual edit are the
 // same write, and the CASE-with-no-ELSE backstop covers both this way instead
 // of once.
+//
+// THEY DO NOT LEDGER, AND ADJUSTDORADOCREDIT DOES. Every caller of these
+// already writes its own payments.ledger row, because only the caller knows
+// which order the movement belongs to - dropping that here and ledgering
+// centrally instead would either duplicate every existing row or throw away the
+// order id that makes it legible. The admin edit has no order, which is exactly
+// why it can ledger for itself.
 export async function addFunds(
   user_id: string | null, total: number | null, executor?: Executor
-): Promise<number> {
-  if (!user_id || total === null) return 0;
-  return (await users.adjustCredit(user_id, "add", total, executor)).rowCount;
+): Promise<CreditRow | undefined> {
+  if (!user_id || total === null) return undefined;
+  return await users.adjustCredit(user_id, "add", total, executor);
 }
 
 export async function removeFunds(
   user_id: string | null, total: number | null, executor?: Executor
-): Promise<number> {
-  if (!user_id || total === null) return 0;
-  return (await users.adjustCredit(user_id, "subtract", total, executor)).rowCount;
+): Promise<CreditRow | undefined> {
+  if (!user_id || total === null) return undefined;
+  return await users.adjustCredit(user_id, "subtract", total, executor);
 }

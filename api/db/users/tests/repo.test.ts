@@ -8,12 +8,14 @@
 // (docs/waves/seams.md) `features/users/repo.ts` `adjustCredit` wrote
 // auth.users and was called by nothing but these tests, while the statement
 // the application actually ran sat under `api/legacy/`. Every assertion here
-// passed against an implementation no request ever reached. The two are now
-// one function, writing exchange.users - so what follows pins the live path.
+// passed against an implementation no request ever reached. The two became one
+// function writing exchange.users, and migration 118 has now moved that write
+// to auth.users - so the table these assert against is, once again, the one the
+// live path writes.
 //
-// IT ALSO PINS THE MIRROR, for free and deliberately: the write goes to
-// exchange.users and every balance below is read back from auth.users. If the
-// `mirror_users_to_auth` trigger is ever dropped, these fail.
+// IT NO LONGER PINS A MIRROR, and that is the change 118 makes. The write and
+// the read-back are the same row: there is no trigger between them to be
+// dropped, and no second copy that can disagree.
 import test, { after, before } from "node:test";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
@@ -38,9 +40,8 @@ after(async () => {
 
 async function inRollback(fn: (c: PoolClient) => Promise<void>) {
   await client.query("BEGIN");
-  // A balance write is TWO row locks - exchange.users and, through 107's
-  // trigger, auth.users - so files that move balances agree an order. See
-  // LOCKS.USERS.
+  // Files that move balances agree an order rather than deadlocking on
+  // whichever customer each visited first. See LOCKS.USERS.
   await takeLocks(client, LOCKS.USERS);
   try {
     await fn(client);
@@ -49,16 +50,14 @@ async function inRollback(fn: (c: PoolClient) => Promise<void>) {
   }
 }
 
-// A user that exists in BOTH tables. The write lands in exchange.users and the
-// balance is read back from auth.users, so a subject present in only one of
-// them would make every assertion here meaningless - and dev has three such
-// rows (one exchange-only, two auth-only). Picking blind from auth.users was
-// how this test could have written nothing and still passed.
+// One user of auth.users. This used to join exchange.users to auth.users and
+// take a row present in both, because the write landed in one table and the
+// read came back from the other - dev has three rows that exist in only one of
+// them, and picking blind was how this file could have written nothing and
+// still passed. 118 collapses the two into one table, so the join has nothing
+// left to establish.
 const aUser = async (c: PoolClient) =>
-  (await c.query(
-    `SELECT e.id FROM exchange.users e JOIN auth.users a ON a.id = e.id
-      ORDER BY e.id LIMIT 1`
-  )).rows[0].id;
+  (await c.query(`SELECT id FROM auth.users ORDER BY id LIMIT 1`)).rows[0].id;
 
 const balance = async (c: PoolClient, id: string) =>
   Number((await c.query("SELECT dorado_funds FROM auth.users WHERE id = $1", [id])).rows[0].dorado_funds ?? 0);
@@ -93,9 +92,10 @@ test("edit replaces the balance rather than adjusting it", async () => {
   });
 });
 
-// dorado_funds is NOT NULL DEFAULT 0 on BOTH tables (migration 080 gave the
-// mirror the same constraint), so a user always has a balance to adjust and the
-// COALESCE in the query is belt and braces rather than load-bearing.
+// dorado_funds is NOT NULL DEFAULT 0 (migration 080 put the constraint on
+// auth.users in anticipation of this promotion), so a user always has a balance
+// to adjust and the COALESCE in the query is belt and braces rather than
+// load-bearing.
 test("every user has a balance to adjust, never null", async () => {
   await inRollback(async (c: PoolClient) => {
     const { rows } = await c.query(

@@ -6,8 +6,8 @@
 // object, so handing one out for an unchecked id hands out the file.
 //
 // WHAT THIS SUITE ADDED. A third one, found while writing it: /get_test_image
-// was requireUser and its repo call is `SELECT ... FROM exchange.images` with
-// no user scoping at all, with a presigned URL attached to every row. Any of
+// was requireUser and its repo call reads media.images with no user scoping at
+// all, with a presigned URL attached to every row. Any of
 // the 75 signed-in accounts could enumerate and download every image in the
 // system. The frontend page that calls it already declared roles: ['admin'] -
 // the guard was in the UI, which is not where a guard does anything. The route
@@ -47,13 +47,13 @@ const created: string[] = [];
 
 before(async () => {
   const admins = await outside<UserFixture>(
-    `SELECT id, name, email FROM exchange.users WHERE role = 'admin' LIMIT 1`
+    `SELECT id, name, email FROM auth.users WHERE role = 'admin' LIMIT 1`
   );
   admin = admins[0];
   assert.ok(admin, "dev has no admin user");
 
   const users = await outside<UserFixture>(
-    `SELECT id, name, email FROM exchange.users WHERE role IS DISTINCT FROM 'admin' LIMIT 2`
+    `SELECT id, name, email FROM auth.users WHERE role IS DISTINCT FROM 'admin' LIMIT 2`
   );
   [owner, stranger] = users;
   assert.ok(owner && stranger, "dev needs two non-admin users to test one against the other");

@@ -10,7 +10,11 @@
 -- read-then-decide-then-write is a race whatever the write looks like. Taking
 -- the row here holds it until the adjustment commits, so two concurrent
 -- subtractions cannot both pass a check that only one of them can honour.
+--
+-- auth.users SINCE 118, the same table adjust_credit.sql writes. It read
+-- exchange.users while that was the source; locking one table and writing
+-- another would have been a lock over nothing.
 SELECT dorado_funds
-  FROM exchange.users
+  FROM auth.users
  WHERE id = $1
    FOR UPDATE

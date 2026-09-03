@@ -10,11 +10,11 @@ import * as payoutsService from "#domain/payouts/service.ts";
 // what the panel renders; the full numbers have exactly one endpoint,
 // GET /payouts/:id/details, admin-only, one payout at a time.
 //
-// ONE READ SINCE D213. This used to ask exchange.payouts first and fall back
-// to the native composition for a D210 order, which meant the answer depended
-// on which era the order was created in - and every order created after the
-// purge fell through the first read silently. getMany is native now and
-// answers both, so there is no era to branch on.
+// ONE READ SINCE D213. This used to ask the legacy table first and fall back to
+// the native composition for a D210 order, which meant the answer depended on
+// which era the order was created in - and every order created after the purge
+// fell through the first read silently. getMany is native now and answers both,
+// so there is no era to branch on.
 //
 // A LIST, NOT A SLOT. The composed order carried a `payout` member that was
 // an OBJECT OF NULLS whenever the order had none, because a LEFT JOIN fed a
@@ -24,16 +24,20 @@ export const getPayoutsByOrder = asyncHandler(async (req, res) => {
   return res.json(await payoutsService.getPayoutsByOrder(param(req, "orderId")));
 });
 
+// Answers the payout ROW the write produced, where it used to answer
+// `{success: true}` and leave the caller to re-fetch. Last-four projection, as
+// everywhere else in this feature.
 export const patchPayout = asyncHandler(async (req, res) => {
-  const result = await payoutsService.patchPayout(param(req, "id"), req.body ?? {});
-  return res.status(200).json(result);
+  const row = await payoutsService.patchPayout(param(req, "id"), req.body ?? {});
+  return res.status(200).json(row);
 });
 
 // GET /api/payouts/:id/details - the full bank numbers, admin only, payout-
-// keyed (order.payout.id on the wire). The RADIOACTIVE rule is absolute:
-// details exist only on this endpoint, never in order payloads, and the
-// response is the PayoutDetails contract shape exactly. Replaces the order-
-// keyed POST /purchase_orders/get_payout_details.
+// keyed (the payments.details id the order wire serves as payout.id). The
+// RADIOACTIVE rule is absolute: details exist only on this endpoint and never
+// in an order payload. The numbers come out of the AES-256-GCM envelopes on
+// payments.details; the plaintext read of exchange.payouts that used to answer
+// first is gone.
 export const getPayoutDetails = asyncHandler(async (req, res) => {
   const details = await payoutsService.getDetails(param(req, "id"));
   if (!details) {

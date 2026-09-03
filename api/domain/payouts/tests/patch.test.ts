@@ -47,7 +47,7 @@ let payout: PayoutFixture;
 
 before(async () => {
   admin = (
-    await outside<UserFixture>(`SELECT id, name, email FROM exchange.users WHERE role = 'admin' LIMIT 1`)
+    await outside<UserFixture>(`SELECT id, name, email FROM auth.users WHERE role = 'admin' LIMIT 1`)
   )[0];
   assert.ok(admin, "dev has no admin user");
 

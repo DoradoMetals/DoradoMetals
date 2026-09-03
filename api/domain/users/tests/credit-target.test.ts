@@ -1,9 +1,9 @@
 // A credit adjustment that reaches nobody used to answer 200.
 //
 // The UPDATE is `WHERE id = $3`. A user_id matching no row updates nothing and
-// returns rowCount 0, and the controller answered 200 with it - so an admin
-// adding $500 to an account that does not exist was told it worked. Measured
-// before the fix: a random uuid came back rowCount 0, status 200.
+// returns no row, and the controller answered 200 with it - so an admin adding
+// $500 to an account that does not exist was told it worked. Measured before
+// the fix: a random uuid came back rowCount 0, status 200.
 //
 // WHAT THIS FILE DOES NOT CLAIM. The frontend cannot reach it today: it sends
 // an id from a list it has just fetched. This is the gap between "the UI is
@@ -13,10 +13,11 @@
 // CHECKED AND CLEAN while here, and worth writing down because it looked much
 // worse at first: the repo's UPDATE is a CASE with no ELSE, so an unrecognised
 // mode evaluates to NULL - which on a money column would be a wiped balance.
-// It is not. exchange.users.dorado_funds is NOT NULL DEFAULT 0, so Postgres
-// raises 23502 and nothing is written; and the service refuses an unknown mode
-// with a 400 long before the repo is reached. Two independent guards, one of
-// them the database's.
+// It is not. auth.users.dorado_funds is NOT NULL DEFAULT 0 (migration 080 put
+// it there in anticipation of exactly this promotion), so Postgres raises 23502
+// and nothing is written; and the service refuses an unknown mode with a 400
+// long before the repo is reached. Two independent guards, one of them the
+// database's.
 
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -28,9 +29,9 @@ import * as usersService from "#domain/users/service.ts";
 import * as usersRepo from "#db/users/repo.ts";
 import query from "#shared/db/query.ts";
 
-// EVERY PINNED TRANSACTION IN THIS FILE TAKES THE BALANCE LOCK. A balance write
-// is two row locks - exchange.users, and auth.users through migration 107's
-// mirror trigger - so files that move balances agree an order rather than
+// EVERY PINNED TRANSACTION IN THIS FILE TAKES THE BALANCE LOCK. A balance
+// adjustment is a locked read on auth.users held across an insert into
+// payments.ledger, so files that move balances agree an order rather than
 // deadlocking on whichever customer each visited first. See LOCKS.USERS.
 const inPinned = <T,>(fn: (c: PoolClient) => Promise<T> | T): Promise<T> =>
   inPinnedTransaction(fn, { lock: LOCKS.USERS });
@@ -41,7 +42,7 @@ const NOBODY = "00000000-0000-0000-0000-000000000000";
 test("a credit adjustment that matches no user is refused, not reported as done", async () => {
   await inPinned(async () => {
     await assert.rejects(
-      () => usersService.adjustDoradoCredit({ user_id: NOBODY, mode: "add", amount: 500 }),
+      () => usersService.adjustDoradoCredit({ user_id: NOBODY, op: "add", amount: 500 }),
       (err: unknown) => {
         const e = err as { statusCode?: number; message?: string; code?: string };
         assert.equal(e.statusCode, 404, "a credit that reached nobody is not a success");
@@ -55,10 +56,9 @@ test("a credit adjustment that matches no user is refused, not reported as done"
 test("a real user is still adjusted, and by the right amount", async () => {
   await inPinned(async (client: PoolClient) => {
     const { rows } = await query(
-      // exchange.users, because that is where the write lands; joined to
-      // auth.users because that is where it is read back from.
-      `SELECT e.id, e.dorado_funds FROM exchange.users e
-         JOIN auth.users a ON a.id = e.id
+      // auth.users on both sides since migration 118: it is where the write
+      // lands and where it is read back from.
+      `SELECT e.id, e.dorado_funds FROM auth.users e
         WHERE e.dorado_funds IS NOT NULL LIMIT 1`,
       [],
       client
@@ -96,8 +96,7 @@ test("a real user is still adjusted, and by the right amount", async () => {
 test("the database refuses a NULL balance, which is what makes an unknown mode safe", async () => {
   await inPinned(async (client: PoolClient) => {
     const { rows } = await query(
-      `SELECT e.id FROM exchange.users e JOIN auth.users a ON a.id = e.id
-        WHERE e.dorado_funds IS NOT NULL LIMIT 1`,
+      `SELECT e.id FROM auth.users e WHERE e.dorado_funds IS NOT NULL LIMIT 1`,
       [],
       client
     );
@@ -126,7 +125,7 @@ test("the database refuses a NULL balance, which is what makes an unknown mode s
 test("the service refuses an unknown mode before the repo is reached", async () => {
   await inPinned(async () => {
     await assert.rejects(
-      () => usersService.adjustDoradoCredit({ user_id: NOBODY, mode: "not-a-mode", amount: 5 }),
+      () => usersService.adjustDoradoCredit({ user_id: NOBODY, op: "not-a-mode", amount: 5 }),
       (err: unknown) => {
         const e = err as { statusCode?: number; message?: string; code?: string };
         assert.equal(e.statusCode, 400);

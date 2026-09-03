@@ -6,9 +6,9 @@
 // old routes called - routing moved, logic did not.
 //
 // THE RADIOACTIVE RULE, restated where it applies: this endpoint NEVER reads,
-// writes, or returns routing or account numbers. The lookup uses the
-// last-4-only projection every payout read uses, and the response is a bare
-// success - not the row - so nothing here can grow into a leak.
+// writes, or returns routing or account numbers. Both the lookup and the answer
+// use the last-4-only projection every payout read uses, so nothing here can
+// grow into a leak.
 import * as payoutsRepo from "#db/payouts/repo.ts";
 import * as payoutDetails from "#domain/payments/details/service.ts";
 import * as orderTransactions from "#domain/orders/transactions/service.ts";
@@ -46,10 +46,14 @@ export function refusedField(body: Record<string, unknown>): Refusal | null {
   return refusedValue(PayoutPatch, body ?? {});
 }
 
+// RETURNS THE ROW IT WROTE, not `{success: true}`. A bare success made the
+// caller re-fetch to see what it had done, and a re-fetch is a second read that
+// can disagree with the write it follows. The projection is the last-four one
+// every other payout read uses, so answering with the row adds no exposure.
 export async function patchPayout(
   payoutId: string,
   body: PayoutPatch & Record<string, unknown>
-): Promise<{ success: true }> {
+): Promise<payoutsRepo.PayoutRow> {
   const refusal = refusedField(body);
   if (refusal) refuse(refusal.statusCode, refusal.message);
 
@@ -101,7 +105,13 @@ export async function patchPayout(
     }
   }
 
-  return { success: true };
+  // Re-read rather than patching the row in memory: `cost` and
+  // `waive_payout_fee` land on orders.transactions and `method` on
+  // payments.details, so the composed answer is only correct if it comes back
+  // through the statement that composes them.
+  const written = await payoutsRepo.getById(payoutId);
+  if (!written) refuse(404, `no payout ${payoutId}`);
+  return written!;
 }
 
 // GET /api/orders/:orderId/payouts - the payouts on one order, as rows. A
@@ -112,43 +122,42 @@ export async function getPayoutsByOrder(
   return await payoutsRepo.getMany([order_id]);
 }
 
-// The full bank details for one payout - the repo's rules apply (see
-// sql/get_details.sql): admin only at the route, never logged, never carried
-// by an order payload.
-export async function getDetails(
-  id: string
-): Promise<payoutsRepo.PayoutDetailsRow | undefined> {
-  const legacy = await payoutsRepo.getDetails(id);
-  if (legacy) return legacy;
+// THE FULL BANK DETAILS FOR ONE PAYOUT - GET /payouts/:id/details, admin only,
+// fetched one payout at a time by somebody about to execute a transfer. Every
+// other read in this feature is last-four only, and no order payload carries
+// these.
+//
+// *** IT NO LONGER READS PLAINTEXT. *** Until now this asked exchange.payouts
+// first (`SELECT routing_number, account_number ...`), then walked the order to
+// find a dual-era row, and only fell through to the sealed values. That was the
+// last live read of a plaintext bank number in this codebase, and it made the
+// answer depend on which era an order was created in. The account facts now
+// come from the native projection every other read uses, and the two numbers
+// from the envelopes - one path, both eras, nothing in the clear.
+//
+// THE SHAPE CHANGED WITH THE SOURCE, deliberately (shapes are not being
+// preserved on this branch): what comes back is the payout row this feature
+// already serves, plus the two opened numbers. The old shape was
+// exchange.payouts' columns, which is a table this endpoint no longer touches.
+export type PayoutDetails = payoutsRepo.PayoutRow & {
+  routing_number: string | null;
+  account_number: string | null;
+};
 
-  // THE ID IS A payments.details ID SINCE D213. On a database built by 073
-  // that is the same value as the old payout id and the read above answered.
-  // Where the dual era minted a details row with a fresh id, the plaintext
-  // still exists on the order's exchange payout - walk to it rather than
-  // reporting nothing for numbers that are sitting right there.
-  const order_id = await payoutsRepo.orderOfDetails(id);
-  if (order_id) {
-    const byOrder = await payoutsRepo.getDetailsByOrder(order_id);
-    if (byOrder) return byOrder;
-  }
+export async function getDetails(id: string): Promise<PayoutDetails | undefined> {
+  const payout = await payoutsRepo.getById(id);
+  if (!payout) return undefined;
 
-  // Otherwise the numbers are SEALED (D210); this endpoint is their single
-  // door, and the decrypt happens in the details service - the envelopes never
-  // open anywhere else.
+  // The envelopes open in payments/details and nowhere else. A row with no
+  // sealed values - an ECHECK or DORADO_ACCOUNT payout, or one whose plaintext
+  // has not been sealed yet - answers nulls rather than throwing, because the
+  // holder, the method and the last four are still the answer to the question
+  // asked.
   const opened = await payoutDetails.decryptFor(id);
-  if (!opened) return undefined;
+
   return {
-    id,
-    user_id: null,
-    order_id,
-    method: opened.method,
-    account_holder_name: opened.account_holder,
-    bank_name: opened.bank_name,
-    account_type: opened.account_type,
-    routing_number: opened.routing_number,
-    account_number: opened.account_number,
-    created_at: null,
-    email_to: opened.email_to,
-    cost: null,
-  } as unknown as payoutsRepo.PayoutDetailsRow;
+    ...payout,
+    routing_number: opened?.routing_number ?? null,
+    account_number: opened?.account_number ?? null,
+  };
 }
