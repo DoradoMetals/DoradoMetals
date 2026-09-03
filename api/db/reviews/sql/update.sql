@@ -1,16 +1,11 @@
--- Every caller-supplied field.
---
--- updated_at is maintained here. Forty-two of the fifty-two UPDATE statements
--- against exchange do not maintain theirs, which is why a drifted row cannot be
--- spotted from its timestamp.
+-- The one update (D212's CRUD ruling): every patchable column is
+-- COALESCE($n, col), so a column absent from the patch keeps its value.
 UPDATE reviews.reviews
-   SET name = $1,
-       review_text = $2,
-       rating = $3,
-       hidden = $4,
-       created_by = $5,
-       updated_by = $6,
-       updated_at = NOW()
+   SET name        = COALESCE($1, name),
+       review_text = COALESCE($2, review_text),
+       rating      = COALESCE($3, rating),
+       hidden      = COALESCE($4, hidden),
+       created_by  = COALESCE($5, created_by),
+       updated_by  = COALESCE($6, updated_by),
+       updated_at  = NOW()
  WHERE id = $7
-RETURNING id, name, review_text, rating, hidden, created_at, updated_at,
-          created_by, updated_by

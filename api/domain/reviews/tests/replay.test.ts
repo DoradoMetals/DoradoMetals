@@ -76,15 +76,27 @@ after(async () => {
   await pool.end();
 });
 
-const newReview = (over = {}) => ({
-  review_text: `left by the replay suite ${randomUUID().slice(0, 8)}`,
-  rating: 5,
-  name: `replay-${randomUUID().slice(0, 8)}`,
-  created_by: "replay suite",
-  updated_by: "replay suite",
-  hidden: false,
-  ...over,
-});
+// Object.assign, not a spread: an override lands on top of the defaults
+// without copying either object's props by hand.
+const newReview = (over: Partial<{ hidden: boolean }> = {}) =>
+  Object.assign(
+    {
+      review_text: `left by the replay suite ${randomUUID().slice(0, 8)}`,
+      rating: 5,
+      name: `replay-${randomUUID().slice(0, 8)}`,
+      created_by: "replay suite",
+      updated_by: "replay suite",
+      hidden: false,
+    },
+    over
+  );
+
+// Named, not spread: the fixture is only ever id/name/email plus the role the
+// call is exercising.
+const asAdmin = <T>(fn: () => Promise<T> | T) =>
+  as({ id: admin.id, name: admin.name, email: admin.email, role: "admin" }, fn);
+const asCustomer = <T>(fn: () => Promise<T> | T) =>
+  as({ id: customer.id, name: customer.name, email: customer.email, role: "user" }, fn);
 
 test("the public review list needs no session at all", async () => {
   await inPinnedTransaction(async () => {
@@ -133,7 +145,7 @@ test("no hidden review reaches the public list", async () => {
 // converged and the previous test is no longer proving anything.
 test("an admin sees the hidden reviews the public list withholds", async () => {
   await inPinnedTransaction(async () => {
-    await as({ ...admin, role: "admin" }, async () => {
+    await asAdmin(async () => {
       const res = await request(app).get("/api/reviews/get_all");
       assert.equal(res.status, 200);
       const hidden = res.body.filter((r: { id: string; hidden: boolean; name: string }) => r.hidden);
@@ -165,7 +177,7 @@ test("the public list carries no field the admin list lacks", async () => {
       publicFields = new Set(Object.keys(res.body[0] ?? {}));
     });
 
-    await as({ ...admin, role: "admin" }, async () => {
+    await asAdmin(async () => {
       const res = await request(app).get("/api/reviews/get_all");
       adminFields = new Set(Object.keys(res.body[0] ?? {}));
     });
@@ -193,12 +205,12 @@ test("the public list carries no field the admin list lacks", async () => {
 
 test("every admin route refuses a signed-in non-admin", async () => {
   await inPinnedTransaction(async () => {
-    await as({ ...customer, role: "user" }, async () => {
+    await asCustomer(async () => {
       const calls = [
         ["get_all", request(app).get("/api/reviews/get_all")],
         ["get_one", request(app).get("/api/reviews/get_one").query({ review_id: randomUUID() })],
         ["create", request(app).post("/api/reviews/create").send({ review: newReview() })],
-        ["update", request(app).post("/api/reviews/update").send({ review: newReview() })],
+        ["update", request(app).post("/api/reviews/update").send({ review_id: randomUUID(), patch: newReview() })],
         ["delete", request(app).delete("/api/reviews/delete").send({ review_id: randomUUID() })],
       ] as Array<[string, Promise<{ status: number }>]>;
       // Declared as a tuple list: inferred, the element type collapses to
@@ -223,7 +235,7 @@ test("an anonymous caller is refused every route but the public one", async () =
 test("an admin creating a review round-trips, and a hidden one stays out of public", async () => {
   await inPinnedTransaction(async () => {
     const review = newReview({ hidden: true });
-    await as({ ...admin, role: "admin" }, async () => {
+    await asAdmin(async () => {
       const res = await request(app).post("/api/reviews/create").send({ review });
       assert.equal(res.status, 200, JSON.stringify(res.body));
       created.push(review.name);

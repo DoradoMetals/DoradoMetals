@@ -24,3 +24,6 @@ packages/contracts/.env
 frontend/test-results/
 frontend/playwright-report/
 frontend/blob-report/
+
+# Captured gate/test-run output, per worktree
+.check-logs/

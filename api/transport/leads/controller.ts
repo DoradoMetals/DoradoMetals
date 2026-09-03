@@ -13,15 +13,19 @@ export const getOne = asyncHandler(async (req, res) => {
 });
 
 export const getAll = asyncHandler(async (_req, res) => {
-  return res.status(200).json(await service.getAll());
+  return res.status(200).json(await service.list());
 });
 
 export const create = asyncHandler(async (req, res) => {
   return res.status(200).json(await service.create(req.body.lead));
 });
 
+// TAKES lead_id AND A PATCH - the client sends the id it already holds plus
+// only the fields that changed, not the whole row it read earlier.
 export const update = asyncHandler(async (req, res) => {
-  return res.status(200).json(await service.update(req.body.lead, req.body.user_name));
+  const id = requiredParam(req.body.lead_id, "lead_id");
+  const lead = await service.update(id, req.body.patch ?? {}, req.body.user_name);
+  return res.status(200).json(lead);
 });
 
 // 404 rather than 200 when the id matched nothing. The old implementation
@@ -29,6 +33,6 @@ export const update = asyncHandler(async (req, res) => {
 // with a result object the frontend ignored.
 export const remove = asyncHandler(async (req, res) => {
   const removed = await service.remove(req.body.lead_id);
-  if (removed === 0) return res.status(404).json({ message: "no such lead" });
+  if (!removed) return res.status(404).json({ message: "no such lead" });
   return res.status(200).json({ message: "Lead deleted" });
 });

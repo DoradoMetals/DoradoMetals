@@ -1,22 +1,19 @@
-// Reviews: orchestration, transactions, and the dual write.
+// Reviews: orchestration and the wire shape.
 //
-// Reads come from reviews.reviews; writes go to both schemas in one
-// transaction under an id generated here, so both rows share a primary key by
-// construction. Removing exchange later is a change to this file rather than to
-// every repo under it.
-//
-// getPublic is the one an anonymous visitor sees and getAll is admin-only.
+// getPublic is the one an anonymous visitor sees and list is admin-only.
 // They are separate all the way down - separate service functions, separate
 // repo functions, separate statements - because they were one missing clause
 // apart once, on a route with no guard in front of it.
-import { randomUUID } from "node:crypto";
+//
+// update TAKES AN ID AND A PATCH, never a round-tripped row. The repo answers
+// whether a row changed; this refetches so the response still carries the
+// fresh state the caller expects.
 import withTransaction from "#shared/db/withTransaction.ts";
 import * as reviews from "#db/reviews/repo.ts";
-import type { ReviewRow } from "#db/reviews/repo.ts";
+import type { ReviewRow, NewReview, ReviewPatch } from "#db/reviews/repo.ts";
 
 // The wire IS the row - the identity adapter died with D212.
 export type ReviewWire = ReviewRow;
-import type { ReviewInput } from "#db/reviews/repo.ts";
 
 interface HttpError extends Error { statusCode?: number }
 
@@ -32,33 +29,55 @@ export async function getOne(id: string): Promise<ReviewWire> {
   return row;
 }
 
-export async function getAll(): Promise<ReviewWire[]> {
-  return await reviews.getAll();
+export async function list(): Promise<ReviewWire[]> {
+  return await reviews.list();
 }
 
 export async function getPublic(): Promise<ReviewWire[]> {
   return await reviews.getPublic();
 }
 
-export async function create(review: ReviewInput): Promise<ReviewWire> {
-  const id = randomUUID();
+export async function create(review: NewReview): Promise<ReviewWire> {
   return withTransaction(async (client) => {
-    return await reviews.create(id, review, client);
+    return await reviews.create(
+      {
+        id: review.id ?? null,
+        name: review.name ?? null,
+        review_text: review.review_text ?? null,
+        rating: review.rating ?? null,
+        hidden: review.hidden ?? false,
+        created_by: review.created_by ?? null,
+        updated_by: review.updated_by ?? null,
+      },
+      client
+    );
   });
 }
 
 export async function update(
-  review: ReviewInput & { id: string },
-  user_name: string
+  id: string, patch: ReviewPatch, user_name: string
 ): Promise<ReviewWire> {
   return withTransaction(async (client) => {
-    const row = await reviews.update(review, user_name, client);
-    if (!row) throw notFound(review.id);
+    const changed = await reviews.update(
+      id,
+      {
+        name: patch.name,
+        review_text: patch.review_text,
+        rating: patch.rating,
+        hidden: patch.hidden,
+        created_by: patch.created_by,
+        updated_by: user_name,
+      },
+      client
+    );
+    if (!changed) throw notFound(id);
+    const row = await reviews.getOne(id, client);
+    if (!row) throw notFound(id);
     return row;
   });
 }
 
-export async function remove(id: string): Promise<number> {
+export async function remove(id: string): Promise<boolean> {
   return withTransaction(async (client) => {
     return await reviews.remove(id, client);
   });
