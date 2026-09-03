@@ -9,16 +9,7 @@ import type { ComposedAddress } from "#domain/places/addresses/compose.ts";
 import type { AddressRow } from "#db/places/addresses/repo.ts";
 import type { UserAddressRow } from "#db/places/user-addresses/repo.ts";
 import type { Executor } from "#shared/db/executor.ts";
-
-interface HttpError extends Error {
-  statusCode?: number;
-}
-
-function badRequest(message: string): HttpError {
-  const err: HttpError = new Error(message);
-  err.statusCode = 400;
-  return err;
-}
+import { Conflict, NotFound } from "#shared/errors.ts";
 
 // req.body's two halves. The relationship arrives BESIDE the address, never inside it - one call, one transaction, but two things.
 export type AddressInput = {
@@ -130,7 +121,7 @@ export async function update(
   executor?: Executor
 ): Promise<ComposedAddress> {
   if (await addresses.isActive(address.id, userId, executor)) {
-    throw badRequest(
+    throw new Conflict(
       "Address cannot be edited because it is associated with an active order."
     );
   }
@@ -141,7 +132,7 @@ export async function update(
   const run = async (c: Executor): Promise<ComposedAddress> => {
     // The ownership check (see header). Read inside the transaction, so an address that leaves the caller's book between this and the write can't slip through.
     const owned = await userAddresses.getOne(address.id, userId, c);
-    if (!owned) throw badRequest("Address not found.");
+    if (!owned) throw new NotFound("Address not found.");
 
     // The address, unchanged, plus is_residential reset to false - the one fact this write adds that the caller didn't send.
     const ok = await addresses.update(address.id, {
@@ -155,7 +146,7 @@ export async function update(
       phone_number: address.phone_number,
       is_residential: false,
     }, c);
-    if (!ok) throw badRequest("Address not found.");
+    if (!ok) throw new NotFound("Address not found.");
     const row = await addresses.getOne(address.id, c) as AddressRow;
 
     // Same one-default rule as create: turning the flag ON goes through clear-then-set rather than writing a second default beside the existing one.
@@ -190,7 +181,7 @@ export async function remove(
   executor?: Executor
 ): Promise<string> {
   if (await addresses.isActive(addressId, userId, executor)) {
-    throw badRequest(
+    throw new Conflict(
       "Address cannot be deleted because it is associated with an active order."
     );
   }
