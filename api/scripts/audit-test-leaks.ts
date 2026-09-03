@@ -1,4 +1,4 @@
-// Does the test suite leave anything behind in dev?
+// Does the test suite leave anything behind in the database it runs against?
 //
 // WHY THIS EXISTS. features/shipping/operations/tracking.test.js opened its own
 // withTransaction and asserted through that client - but the service it tests
@@ -24,7 +24,6 @@
 //   node scripts/audit-test-leaks.mjs --self-test  prove the detector can see a change
 //
 // Exits non-zero if any table changed, naming it.
-import "#env";
 import pg from "pg";
 import type { Pool, PoolClient } from "pg";
 import path from "node:path";
@@ -39,8 +38,42 @@ const SUITE_CWD = path.resolve(import.meta.dirname, "..");
 
 const SELF_TEST = process.argv.includes("--self-test");
 
-// The suite runs against DATABASE_URL, so that is what has to be measured - and
-// it must not be production. One Postgres instance holds all of them.
+// *** THIS AUDIT FINGERPRINTED THE WRONG DATABASE (found and fixed 2026-09-03).
+// *** A bare `import "#env"` at the top of this file resolved `DATABASE_URL`
+// to dev, while `pnpm test` writes `test_<branch>` on the local cluster - two
+// different databases, and the second one is the only one the suite this
+// audit exists to police ever touches. A clean diff meant nothing; it could
+// not have caught a leak if one happened.
+//
+// WHY THE BARE IMPORT WAS WRONG: `pnpm test` is a two-segment `&&` chain and
+// BOTH segments set `USE_TEST_DB=1` - `env.ts` only derives the per-branch
+// test database and overrides `DATABASE_URL` with it when that variable is
+// ALREADY set at the moment `#env` runs. `USE_TEST_DB` lives only on the
+// "test" script's own segments, never in api/.env, so a static `import
+// "#env"` here - which runs before any of this file's own code, ESM always
+// executes a module's imports first - saw it unset and left `DATABASE_URL`
+// at dev's value.
+//
+// THE FIX READS suite-invocation's OWN ANSWER rather than re-deriving the
+// per-branch logic a second time - the same "read the definition, do not
+// reproduce it" rule this file already follows for how the suite is RUN
+// (see runSuite() below). `invocation.env` is the LAST `&&` segment's env
+// assignments (NODE_ENV, TZ, USE_TEST_DB) - the exact segment that runs the
+// tests - applied to THIS process before `#env` is imported, so `#env`
+// resolves `DATABASE_URL` exactly as the spawned suite's own `#env` import
+// will, today's name or a future one, without this file ever naming it.
+// A dynamic `import()` is what makes the ordering possible at all: a static
+// `import "#env"` cannot be preceded by this file's own code no matter where
+// it is written in the source.
+const invocation = suiteInvocation();
+for (const [key, value] of Object.entries(invocation.env)) {
+  process.env[key] = value;
+}
+await import("#env");
+
+// The suite runs against DATABASE_URL - which #env has now resolved exactly
+// as the spawned suite will - so that is what has to be measured, and it must
+// not be production. One Postgres instance holds all of them.
 //
 // AN ALLOWLIST, NOT A DENYLIST, and the first version of this was the wrong one.
 // It refused when the name matched production and allowed everything else, so
@@ -50,8 +83,14 @@ const SELF_TEST = process.argv.includes("--self-test");
 // not shrug.
 //
 // So: name the databases it is safe to run against, and refuse anything else,
-// including a name nobody has taught it yet.
-const SAFE = new Set(["dev", "test"]);
+// including a name nobody has taught it yet. `test_<branch>` joined "dev" and
+// "test" once the per-branch database landed (FOLLOWUPS D214 item 9) - matched
+// by the same sanitiser env.ts uses to build the name (lowercase, `[a-z0-9_]`
+// only), not a loose "starts with test" prefix a stray database could satisfy
+// by accident.
+const SAFE_EXACT = new Set(["dev", "test"]);
+const isSafeName = (name: string): boolean =>
+  SAFE_EXACT.has(name) || /^test_[a-z0-9_]+$/.test(name);
 
 const url = process.env.DATABASE_URL;
 if (!url) {
@@ -67,26 +106,41 @@ const dbName = (() => {
   }
 })();
 
-if (!SAFE.has(dbName)) {
+if (!isSafeName(dbName)) {
   console.error(
     `DATABASE_URL points at "${dbName || "a database this script cannot identify"}".\n` +
-      `This script runs the whole test suite, so it only runs against a database\n` +
-      `named one of: ${[...SAFE].join(", ")}.\n` +
-      `If a database was renamed, add the new name to SAFE in this file - do not\n` +
-      `widen the check to "anything that is not production".`
+      `This script runs the whole test suite, so it only runs against "dev",\n` +
+      `"test", or a "test_<branch>" database. If a database was renamed, fix\n` +
+      `isSafeName in this file - do not widen the check to "anything that is\n` +
+      `not production".`
   );
   process.exit(1);
 }
 
 const pool = new pg.Pool({ connectionString: url });
 
-// EVERY schema the app writes, not just `exchange`.
+// EVERY non-system schema in the database being fingerprinted, discovered
+// fresh each run rather than hand-listed.
 //
 // THIS AUDIT WAS EXCHANGE-ONLY UNTIL 2026-08-29, and by then that was the wrong
 // half of the database. Orders pivoted their reads to `orders.*` in a12b76ed,
 // so the authoritative rows for a migrated feature live in the new schemas -
 // and a test leaking a committed row into `orders.orders` was invisible here
 // while the same leak into `exchange.purchase_orders` would have been caught.
+// A HAND-LISTED set of eighteen schema names fixed that but reintroduced the
+// same class of gap one level up: a NINETEENTH schema would leak silently
+// until someone remembered to add its name here. So this now asks the
+// database what schemas exist, same as `pg_dump`/`psql` would, instead of
+// repeating a list that can go stale (2026-09-03).
+//
+// `pg_%` (pg_catalog, pg_toast, pg_temp_N, ...) are Postgres internals, never
+// application data; `information_schema` is the SQL-standard catalog view,
+// same reasoning. `public` is Postgres's OWN default schema, not one this app
+// created - confirmed empty on dev and on every local test database, because
+// every table this app owns lives in a named schema on purpose - and
+// including it would make the "blind schema" guard below refuse FOREVER on a
+// schema that is empty by design, which is indistinguishable at the SQL level
+// from the permissions gap that guard actually exists to catch.
 //
 // Found by the failure it caused rather than by review: purchase-orders'
 // "reads do not write" asserts that a count of `orders.orders` is unchanged
@@ -97,12 +151,7 @@ const pool = new pg.Pool({ connectionString: url });
 //
 // Same lesson as D95 and D99: a detector that only looks at one shape reports
 // clean on every other one.
-const SCHEMAS = [
-  "exchange",
-  "orders", "payments", "fulfillments", "shipping", "refiners", "tax",
-  "places", "auth", "products", "organizations", "metals", "spots",
-  "media", "leads", "rates", "reviews", "checkout", "auctions",
-];
+const RESERVED_SCHEMA = new Set(["information_schema", "public"]);
 
 // Either end of the pool will do - the census runs on the pool itself and the
 // self-check runs on a pinned client - so the parameter is the union rather
@@ -112,34 +161,39 @@ type Queryable = Pool | PoolClient;
 /** name -> row count and content hash. */
 type Fingerprint = Record<string, { n: number; sum: string }>;
 
-async function tables(client: Queryable): Promise<string[]> {
+async function schemas(client: Queryable): Promise<string[]> {
+  const { rows } = await client.query<{ nspname: string }>(
+    `SELECT nspname FROM pg_namespace
+      WHERE nspname !~ '^pg_' AND nspname <> ALL($1)
+      ORDER BY nspname`,
+    [[...RESERVED_SCHEMA]]
+  );
+  return rows.map((r) => r.nspname);
+}
+
+async function tables(client: Queryable, schemaNames: string[]): Promise<string[]> {
   const { rows } = await client.query(
     `SELECT n.nspname AS schema, c.relname AS name
        FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
       WHERE n.nspname = ANY($1) AND c.relkind = 'r'
       ORDER BY n.nspname, c.relname`,
-    [SCHEMAS]
+    [schemaNames]
   );
   // A schema can contribute nothing for two very different reasons, and only
-  // one of them is fine. ABSENT is fine - `auctions` has no tables on dev.
+  // one of them is fine. ABSENT is fine, and no longer representable here at
+  // all - `schemas()` above only ever returns names pg_namespace already has.
   // PRESENT BUT CONTRIBUTING NOTHING is not: that is either a permissions gap
   // or a schema this audit cannot see, and it reports identically to "nothing
   // leaked". audit:non-finite learned this the hard way against production's
   // `core`, where the read-only role had no USAGE and nine tables vanished
   // from the measurement without a word.
-  const { rows: present } = await client.query(
-    `SELECT nspname FROM pg_namespace WHERE nspname = ANY($1)`, [SCHEMAS]
-  );
-  const existing = new Set<string>(present.map((r) => r.nspname));
   const seen = new Set<string>(rows.map((r) => r.schema));
-  const blind = [...existing].filter((s) => !seen.has(s));
+  const blind = schemaNames.filter((s) => !seen.has(s));
   if (blind.length) {
     console.error(`REFUSING TO REPORT: ${blind.join(", ")} exist(s) but yielded no readable tables.`);
     console.error("A schema that contributes nothing looks identical to one that leaked nothing.");
     process.exit(1);
   }
-  const absent = SCHEMAS.filter((s) => !existing.has(s));
-  if (absent.length) console.log(`(not present in this database, skipped: ${absent.join(", ")})`);
   return rows.map((r) => `${r.schema}.${r.name}`);
 }
 
@@ -159,21 +213,38 @@ async function fingerprint(client: Queryable, names: string[]): Promise<Fingerpr
   return out;
 }
 
-function compare(before: Fingerprint, after: Fingerprint): string[] {
-  const changed: string[] = [];
+type Change = { table: string; message: string };
+
+// NO ACCEPTED LIST HERE, ON PURPOSE. `domain/users/tests/credit-delta.test.ts`
+// commits for real to prove adjustDoradoCredit's row lock and restores every
+// balance it moves, but cannot restore the `payments.ledger` row each
+// movement also writes - an append-only table, by that file's own header. It
+// is real, reproducible (measured +7 rows on two separate real runs), and
+// this audit's whole purpose is finding exactly this shape of commit - a
+// test writing outside a transaction that rolls back. Whether growing
+// `payments.ledger` forever in every developer's local database is
+// acceptable is Jacob's call, not this script's; hiding it behind an
+// ACCEPTED entry would make the audit certify the thing it exists to catch.
+// It is reported as a plain violation below like any other.
+function compare(before: Fingerprint, after: Fingerprint): Change[] {
+  const changed: Change[] = [];
   for (const name of Object.keys(before)) {
     const a = before[name];
     const b = after[name];
     if (!b) {
-      changed.push(`${name} disappeared`);
+      changed.push({ table: name, message: `${name} disappeared` });
     } else if (a.n !== b.n) {
-      changed.push(`${name}: ${a.n} rows -> ${b.n} rows (${b.n - a.n >= 0 ? "+" : ""}${b.n - a.n})`);
+      const delta = b.n - a.n;
+      changed.push({
+        table: name,
+        message: `${name}: ${a.n} rows -> ${b.n} rows (${delta >= 0 ? "+" : ""}${delta})`,
+      });
     } else if (a.sum !== b.sum) {
-      changed.push(`${name}: ${a.n} rows, contents changed in place`);
+      changed.push({ table: name, message: `${name}: ${a.n} rows, contents changed in place` });
     }
   }
   for (const name of Object.keys(after)) {
-    if (!before[name]) changed.push(`${name} appeared`);
+    if (!before[name]) changed.push({ table: name, message: `${name} appeared` });
   }
   return changed;
 }
@@ -188,14 +259,15 @@ function compare(before: Fingerprint, after: Fingerprint): string[] {
 async function selfTest() {
   const client = await pool.connect();
   try {
-    const names = await tables(client);
+    const schemaNames = await schemas(client);
+    const names = await tables(client, schemaNames);
     const start = await fingerprint(client, names);
 
     await client.query("BEGIN");
     const { rows } = await client.query(
       `SELECT id, shipping_status FROM exchange.shipments ORDER BY id LIMIT 1`
     );
-    if (!rows.length) throw new Error("dev has no shipment to test against");
+    if (!rows.length) throw new Error(`"${dbName}" has no shipment to test against`);
 
     await client.query(
       `UPDATE exchange.shipments SET shipping_status = shipping_status || '-probe' WHERE id = $1`,
@@ -208,7 +280,7 @@ async function selfTest() {
     const clean = await fingerprint(client, names);
     const after = compare(start, clean);
 
-    if (seen.length !== 1 || !seen[0].includes("contents changed in place")) {
+    if (seen.length !== 1 || !seen[0].message.includes("contents changed in place")) {
       console.error("FAILED: an in-place update was not detected");
       console.error("  saw:", seen);
       process.exitCode = 1;
@@ -247,7 +319,11 @@ async function selfTest() {
 // 915/916 against 916/916 - and the disagreement is now impossible rather than
 // merely noticeable.
 function runSuite() {
-  const invocation = suiteInvocation();
+  // Reuses the module-level `invocation` computed above (the same object
+  // whose env was already applied to this process) rather than re-reading
+  // package.json a second time - so the database this audit fingerprinted
+  // and the suite it runs are guaranteed to agree on which invocation is
+  // "the" invocation, not merely on two separate reads of the same file.
   console.log(
     `running the suite as ${invocation.source} defines it: ${invocation.shellCommand}`
   );
@@ -271,8 +347,12 @@ function runSuite() {
 }
 
 async function audit() {
-  const names = await tables(pool);
-  console.log(`fingerprinting ${names.length} tables across ${SCHEMAS.length} schemas`);
+  const schemaNames = await schemas(pool);
+  const names = await tables(pool, schemaNames);
+  console.log(
+    `fingerprinting ${names.length} tables across ${schemaNames.length} schemas ` +
+      `in "${dbName}": ${schemaNames.join(", ")}`
+  );
   const before = await fingerprint(pool, names);
 
   console.log("running the suite\n");
@@ -283,10 +363,10 @@ async function audit() {
   const changed = compare(before, after);
 
   if (!changed.length) {
-    console.log(`\nno table changed - the suite leaves nothing behind in dev`);
+    console.log(`\nno table changed - the suite leaves nothing behind in "${dbName}"`);
   } else {
     console.error(`\n${changed.length} table(s) changed:\n`);
-    for (const line of changed) console.error(`  ${line}`);
+    for (const c of changed) console.error(`  ${c.message}`);
     console.error(
       `\nA test is writing outside its own transaction. If it calls a service,` +
         `\nthe service opens its OWN transaction on its OWN connection and commits -` +
