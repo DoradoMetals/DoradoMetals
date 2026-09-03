@@ -675,17 +675,17 @@ Since then, in order:
   The sweeps read `payments.intents`; the seed drives the native create
   flow. 896/896 API tests green. `exchange` keeps every table and row;
   its one live write is `features/users`' `dorado_funds`.
-- **THE MODEL IS BEING REDESIGNED (D213, 2026-09-02) and `docs/model/` is
-  the design.** Lots with measurement stages instead of three item tables,
-  orders with a counterparty (refiner orders are separate orders; the lot
-  is the only join), lines that link, spots that freeze, content and price
-  DERIVED, a pool ledger of credits and locks. Freeze what changes outside
-  your control, derive the rest. The migration CONTINUES toward that model
-  - it does not restart - and no work extends the January tables.
+- **THE MODEL REDESIGN WAS PARKED THE SAME EVENING IT WAS DESIGNED**
+  (Jacob, 2026-09-02): *"Lets just keep it how it is. This shit is too
+  complicated. The current system can be migrated again later on if
+  needed. Our business rules aren't changing."* The current tables stay.
+  `docs/model/` was deleted at his request; FOLLOWUPS D213 keeps the
+  rulings as history. Do not resume the redesign unprompted.
 - **Next up: the restructure** - `features/` splits into `db/` (repos +
-  sql, five CRUD verbs, no logic), `domain/` (one file per use case, pure
-  rules in `rules.ts`) and `http/`; then feature by feature against the
-  model; then the UAT environment - a prod-dump database, the full
+  sql), `domain/` (services and their logic) and `transport/` (routes +
+  controllers) - DONE and staged on `model-redesign` 2026-09-02, gate green;
+  then the CRUD refactor (one generic update per table, no prop spreading,
+  ids in from the client) on the CURRENT tables; then the UAT environment - a prod-dump database, the full
   migration chain rehearsed there, then CI/CD with the tests. The memory
   file `uat-environment-plan` lists the assets and tripwires; the Stripe SDK
   majors and `USE_TEST_DB=1` both unblock there.

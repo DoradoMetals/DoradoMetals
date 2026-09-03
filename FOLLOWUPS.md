@@ -13688,3 +13688,17 @@ columns. An untracked sketch of all of it is at `api/example/`
 routes/controller/service/repo stack in every feature folder, and the wire
 carve-out in the standing constraints. Everything else in the rulings
 sections stands.
+
+### D213 addendum — PARKED the same evening (Jacob, 2026-09-02)
+
+*"Lets just keep it how it is. This shit is too complicated. The current
+system can be migrated again later on if needed. Our business rules aren't
+changing."* The current tables stay. `docs/model/` is deleted at his
+request; rulings 40–46 above stand as the record of what was designed and
+why, not as scheduled work. Rulings 44 (the frontend informs nothing), 45's
+restructure and 46 (five-verb CRUD, no spreading, one file per use case)
+continue on the CURRENT schema. The last from-scratch recommendation, for
+the day it resumes: a party supertype, symmetric buy/sell orders with one
+`party_id`, facts on the lot (`declared_*` / `assayed_*`), terms on the
+order-lot row, the pool as the refiner settlement instrument; batching is a
+refiner sell order.
