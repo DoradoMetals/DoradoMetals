@@ -15,6 +15,7 @@ test("update returns false for an id nothing names", async () => {
     const changed = await reviews.update(
       randomUUID(),
       { review_text: "should not land anywhere" },
+      null,
       client
     );
     assert.equal(changed, false, "an update against a missing id reported a change");
@@ -23,9 +24,11 @@ test("update returns false for an id nothing names", async () => {
 
 test("update returns true for a real id, and the row actually changed", async () => {
   await inPinnedTransaction(async (client) => {
-    const created = await reviews.create({ name: "Repo Fixture", hidden: false }, client);
+    const created = await reviews.create({ name: "Repo Fixture", hidden: false }, null, client);
 
-    const changed = await reviews.update(created.id, { review_text: "touched by repo.test.ts" }, client);
+    const changed = await reviews.update(
+      created.id, { review_text: "touched by repo.test.ts" }, null, client
+    );
     assert.equal(changed, true, "an update against a real id reported no change");
 
     const row = await reviews.getOne(created.id, client);

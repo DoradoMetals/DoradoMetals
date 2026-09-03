@@ -42,7 +42,7 @@ test("update assigns its columns in the order repo.ts supplies them", () => {
     .map(([, col]) => col);
   assert.deepEqual(
     assignments,
-    ["name", "review_text", "rating", "hidden", "created_by", "updated_by"],
+    ["name", "review_text", "rating", "hidden", "updated_by"],
     "sql/update.sql assignment order changed - repo.ts builds its params to match"
   );
 });

@@ -10,6 +10,12 @@
 // getPublic is a genuinely separate READ, not list() with a flag - see its own
 // header. update takes an id and a patch and answers whether a row changed
 // (D212's CRUD ruling); no per-column wrapper lives here.
+//
+// created_by/updated_by are NOT in NewReview/ReviewPatch - they are not the
+// client's to set. Both create and update take a separate ACTOR argument, and
+// the SQL writes it into created_by (on insert, fixed thereafter) / updated_by
+// (on every update). update.sql no longer touches created_by at all - once
+// set at creation it does not move.
 import query from "#shared/db/query.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
 import type { reviews } from "@dorado/contracts";
@@ -21,11 +27,11 @@ export type ReviewRow = reviews.ReviewsRow;
 
 // An explicit id wins on create; omitting one lets create.sql generate one.
 export type NewReview = Partial<
-  Pick<ReviewRow, "name" | "review_text" | "rating" | "hidden" | "created_by" | "updated_by">
+  Pick<ReviewRow, "name" | "review_text" | "rating" | "hidden">
 > & { id?: string | null };
 
 export type ReviewPatch = Partial<
-  Pick<ReviewRow, "name" | "review_text" | "rating" | "hidden" | "created_by" | "updated_by">
+  Pick<ReviewRow, "name" | "review_text" | "rating" | "hidden">
 >;
 
 export async function getOne(id: string, executor?: Executor): Promise<ReviewRow | undefined> {
@@ -44,27 +50,23 @@ export async function getPublic(executor?: Executor): Promise<ReviewRow[]> {
   return rows;
 }
 
-export async function create(row: NewReview, executor?: Executor): Promise<ReviewRow> {
+export async function create(
+  row: NewReview, actor?: string | null, executor?: Executor
+): Promise<ReviewRow> {
   const { rows } = await query<ReviewRow>(
     sql("create"),
-    [
-      row.id ?? null, row.name ?? null, row.review_text ?? null, row.rating ?? null,
-      row.hidden ?? false, row.created_by ?? null, row.updated_by ?? null,
-    ],
+    [row.id, row.name, row.review_text, row.rating, row.hidden, actor, actor],
     executor
   );
   return rows[0];
 }
 
 export async function update(
-  id: string, patch: ReviewPatch, executor?: Executor
+  id: string, patch: ReviewPatch, actor?: string | null, executor?: Executor
 ): Promise<boolean> {
   const { rowCount } = await query(
     sql("update"),
-    [
-      patch.name ?? null, patch.review_text ?? null, patch.rating ?? null,
-      patch.hidden ?? null, patch.created_by ?? null, patch.updated_by ?? null, id,
-    ],
+    [patch.name, patch.review_text, patch.rating, patch.hidden, actor, id],
     executor
   );
   return rowCount === 1;

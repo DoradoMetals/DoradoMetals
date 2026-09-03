@@ -36,45 +36,17 @@ export async function list(): Promise<LeadWire[]> {
   return await leads.list();
 }
 
-export async function create(lead: NewLead): Promise<LeadWire> {
+export async function create(lead: NewLead, user_name?: string | null): Promise<LeadWire> {
   return withTransaction(async (client) => {
-    return await leads.create(
-      {
-        id: lead.id ?? null,
-        name: lead.name,
-        phone: lead.phone ?? null,
-        email: lead.email ?? null,
-        created_by: lead.created_by ?? null,
-        updated_by: lead.updated_by ?? null,
-        priority: lead.priority ?? null,
-        notes: lead.notes ?? null,
-      },
-      client
-    );
+    return await leads.create(lead, user_name, client);
   });
 }
 
 export async function update(
-  id: string, patch: LeadPatch, user_name?: string
+  id: string, patch: LeadPatch, user_name?: string | null
 ): Promise<LeadWire> {
   return withTransaction(async (client) => {
-    const changed = await leads.update(
-      id,
-      {
-        name: patch.name,
-        phone: patch.phone,
-        email: patch.email,
-        last_contacted: patch.last_contacted,
-        converted: patch.converted,
-        contacted: patch.contacted,
-        responded: patch.responded,
-        contact: patch.contact,
-        notes: patch.notes,
-        priority: patch.priority,
-        updated_by: user_name ?? patch.updated_by,
-      },
-      client
-    );
+    const changed = await leads.update(id, patch, user_name, client);
     if (!changed) throw notFound(id);
     const row = await leads.getOne(id, client);
     if (!row) throw notFound(id);

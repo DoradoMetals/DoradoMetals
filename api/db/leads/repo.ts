@@ -17,6 +17,14 @@
 // columns a caller may change, and answers whether a row actually changed -
 // not the row itself, so a caller who wants the fresh state asks getOne for
 // it. No setX/markY-style wrapper lives here.
+//
+// created_by/updated_by are NOT in NewLead/LeadPatch (Jacob's correction on
+// this batch, "the point was to get rid of this type of prop spreading" -
+// applied here as the audit columns not being the CLIENT's to set at all).
+// Both create and update take a separate ACTOR argument, and the SQL is what
+// writes it into created_by (on insert) / updated_by (on every update). A
+// service that wants those columns changed passes an actor; it never reads
+// them off the row/patch it was handed.
 import query from "#shared/db/query.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
 import type { leads } from "@dorado/contracts";
@@ -32,7 +40,7 @@ export type LeadRow = leads.LeadsRow;
 // means "unspecified", and create.sql's own COALESCE resolves it to 'Medium'
 // before the column ever sees it.
 export type NewLead = Pick<LeadRow, "name" | "phone" | "email"> &
-  Partial<Pick<LeadRow, "created_by" | "updated_by" | "notes">> &
+  Partial<Pick<LeadRow, "notes">> &
   { priority?: string | null; id?: string | null };
 
 // Every column a caller may change. Booleans included: `?? null` only
@@ -42,7 +50,7 @@ export type LeadPatch = Partial<
   Pick<
     LeadRow,
     | "name" | "phone" | "email" | "last_contacted" | "converted" | "contacted"
-    | "responded" | "contact" | "notes" | "priority" | "updated_by"
+    | "responded" | "contact" | "notes" | "priority"
   >
 >;
 
@@ -56,29 +64,26 @@ export async function list(executor?: Executor): Promise<LeadRow[]> {
   return rows;
 }
 
-export async function create(row: NewLead, executor?: Executor): Promise<LeadRow> {
+export async function create(
+  row: NewLead, actor?: string | null, executor?: Executor
+): Promise<LeadRow> {
   const { rows } = await query<LeadRow>(
     sql("create"),
-    [
-      row.id ?? null, row.name, row.phone ?? null, row.email ?? null,
-      row.created_by ?? null, row.updated_by ?? null, row.priority ?? null,
-      row.notes ?? null,
-    ],
+    [row.id, row.name, row.phone, row.email, actor, actor, row.priority, row.notes],
     executor
   );
   return rows[0];
 }
 
 export async function update(
-  id: string, patch: LeadPatch, executor?: Executor
+  id: string, patch: LeadPatch, actor?: string | null, executor?: Executor
 ): Promise<boolean> {
   const { rowCount } = await query(
     sql("update"),
     [
-      patch.name ?? null, patch.phone ?? null, patch.email ?? null,
-      patch.last_contacted ?? null, patch.converted ?? null, patch.contacted ?? null,
-      patch.responded ?? null, patch.contact ?? null, patch.notes ?? null,
-      patch.priority ?? null, patch.updated_by ?? null, id,
+      patch.name, patch.phone, patch.email, patch.last_contacted, patch.converted,
+      patch.contacted, patch.responded, patch.contact, patch.notes, patch.priority,
+      actor, id,
     ],
     executor
   );
