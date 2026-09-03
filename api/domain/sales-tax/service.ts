@@ -2,7 +2,6 @@
 // COLLECTING_NEXUS_TAXES is false in production — the early return below never fires, so every state's rules are consulted. Preserved rather than simplified: flipping it on is a business decision, and the branch must still exist when it happens.
 import * as tax from "#db/sales-tax/repo.ts";
 import { rateFor, type TaxableFacts } from "#domain/sales-tax/match.ts";
-import withTransaction from "#shared/db/withTransaction.ts";
 import type { TaxRule } from "#db/sales-tax/repo.ts";
 import type { Executor } from "#shared/db/executor.ts";
 import * as spotsService from "#domain/spots/service.ts";
@@ -149,11 +148,8 @@ export async function getSalesTax(
 export async function updateStateSalesTax(
   amount: number,
   state: string | null,
-  executor?: Executor
+  tx: Executor
 ): Promise<void> {
   if (state === null) return;
-  const write = async (c: Executor) => {
-    await tax.accrue(amount, state, c);
-  };
-  return executor ? write(executor) : withTransaction(write);
+  await tax.accrue(amount, state, tx);
 }

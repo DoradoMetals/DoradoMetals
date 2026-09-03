@@ -102,7 +102,7 @@ test("a successful send leaves a sent row pointing at its stored document", asyn
   });
 });
 
-test("a failed send is a row too, carrying the error, and the throw continues", async () => {
+test("a failed send throws and records no row", async () => {
   await inRollback(async (c: PoolClient) => {
     const { order, email, user } = anOrderWithAUser();
     await assert.rejects(
@@ -119,9 +119,7 @@ test("a failed send is a row too, carrying the error, and the throw continues", 
     const { rows } = await c.query(
       `SELECT status, error FROM media.emails WHERE kind = 'purchase_order_created'`
     );
-    assert.equal(rows.length, 1, "the failure was not recorded");
-    assert.equal(rows[0].status, "failed");
-    assert.match(rows[0].error, /535/, "the record lost the reason");
+    assert.equal(rows.length, 0, "a failed send should not leave a row");
   });
 });
 
@@ -196,7 +194,7 @@ test("a verification mail leaves an auth_verification row with its user", async 
   });
 });
 
-test("a failed verification mail is a row too, and the throw reaches better-auth unchanged", async () => {
+test("a failed verification mail throws and reaches better-auth unchanged", async () => {
   await inRollback(async (c: PoolClient) => {
     await assert.rejects(
       () =>
@@ -216,9 +214,6 @@ test("a failed verification mail is a row too, and the throw reaches better-auth
       `SELECT status, error, user_id FROM media.emails
         WHERE kind = 'auth_verification' AND to_address = 'new-signup@example.test'`
     );
-    assert.equal(rows.length, 1, "the failure was not recorded");
-    assert.equal(rows[0].status, "failed");
-    assert.match(rows[0].error, /535/, "the record lost the reason");
-    assert.equal(rows[0].user_id, null, "an id-less user records null, not a refused insert");
+    assert.equal(rows.length, 0, "a failed send should not leave a row");
   });
 });

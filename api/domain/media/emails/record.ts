@@ -1,10 +1,9 @@
-// Written AFTER the send, never inside a transaction that could roll back while the mail stays sent. Both outcomes are rows - a silently failed send is what this log exists to catch.
-// A failed insert must never break a send: everything here catches, reports to stderr, and returns.
-import { reportError } from "#shared/observability/report.ts";
+// Written AFTER the send, never inside a transaction that could roll back while the mail stays sent. Best-effort - a failed record must not break the send.
 import query from "#shared/db/query.ts";
 import { isTestRun } from "#shared/testing/is-test-run.ts";
 import * as emails from "#db/media/emails/repo.ts";
 import type { PoolClient } from "pg";
+import { attempt } from "#shared/attempt.ts";
 
 type Executor = PoolClient | undefined;
 
@@ -32,10 +31,8 @@ type EmailOutcome =
 export async function recordEmail(
   base: EmailBase, outcome: EmailOutcome, executor?: Executor
 ): Promise<void> {
-  // Same as persistPdf: a test exercises this only through its own transaction, never as committed rows in dev.
   if (isTestRun() && !executor) return;
-  try {
-    // A missing orders.orders row would refuse the FK inside the caller's transaction and poison it (25P02) - checked first, dropped if absent.
+  await attempt(`record ${outcome.status} ${base.kind} email to ${base.to}`, async () => {
     const orderId = await linkableOrderId(base.order_id, executor);
     await emails.create({
       kind: base.kind,
@@ -48,28 +45,15 @@ export async function recordEmail(
       provider_message_id: outcome.status === "sent" ? outcome.provider_message_id : null,
       error: outcome.status === "failed" ? outcome.error : null,
     }, executor);
-  } catch (err) {
-    reportError({
-      at: "media.emails.record",
-      message:
-        `the ${outcome.status} ${base.kind} email to ${base.to} was sent but not recorded - ` +
-        `the message went out and this database has no row saying so`,
-      err,
-      extra: { kind: base.kind, status: outcome.status, to: base.to },
-    });
-  }
+  });
 }
 
 export async function linkableOrderId(
   order_id: string | null | undefined, executor?: Executor
 ): Promise<string | null> {
   if (!order_id) return null;
-  try {
-    const { rows } = await query("SELECT 1 FROM orders.orders WHERE id = $1", [order_id], executor);
-    return rows.length ? order_id : null;
-  } catch {
-    return null;
-  }
+  const { rows } = await query("SELECT 1 FROM orders.orders WHERE id = $1", [order_id], executor);
+  return rows.length ? order_id : null;
 }
 
 // nodemailer's result carries messageId; a recorder transport may return anything - read it, never assert it.

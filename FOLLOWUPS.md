@@ -14104,3 +14104,132 @@ map - the six were the whole list and all six are fixed. Verified via
 `pnpm --filter @dorado/api lint:script-guards`: the new script is
 self-tested, not excused, and needs no floor exemption.
 
+### Ruling 52 — one catch (Jacob, 2026-09-03 evening)
+
+Jacob, verbatim: "The error logs spammed through all the code is making this
+shit impossible to read. We need to remove all of those, and have a single
+function for doing try/catch and passing the error along. So if a function
+fails at any point the transaction quits and passes the error along to the
+logger." Then: "That has to be a thing."
+
+**The rule**: no `try`/`catch`, no logger/console call, no catch-and-map in any
+non-test file under `domain/` or `transport/`. A refusal throws
+(`Invalid`/`NotFound`/`Conflict`/`Forbidden`); `withTransaction` is the one
+place a transaction is aborted (it already rolled back and rethrew - kept as
+is); `shared/middleware/errorHandler.ts` logs once and answers. A pg error that
+must become a refusal is translated in `withTransaction`'s catch, never in a
+service.
+
+**The one exception**: `api/shared/attempt.ts` - `attempt<T>(what, fn)`, runs
+`fn`, logs once through the shared logger and returns `undefined` on throw.
+For an after-commit side effect that must not fail the request. Two other
+lanes were told to use this exact name and signature; api-hardening's
+`checkout-items` merge (99916034) shipped its own copy with the identical
+signature and a slightly different log call - this lane's copy was replaced
+with that one so exactly one exists.
+
+**A second exception, discovered while doing this, not a swallow**:
+compensation for an outside-world action (a FedEx label) a failed transaction
+has orphaned. `orders/place.ts`'s `placePurchase`/`buyPostage` and
+`orders/service.ts`'s `cancel` all buy a label before the transaction that
+records it, and if that transaction fails the label must be voided or it is
+billed and orphaned. That is catch-compensate-rethrow, not swallow, so
+`attempt()` (which never rethrows) does not fit it. Both lanes independently
+kept a plain `try`/`catch` for this one shape rather than inventing a
+`.catch()`-chain workaround to dodge the lint's text match - the lint should
+see the real shape of the code, not a rewrite that only looks different to a
+regex. `shipping/operations/service.ts`'s `voidLabel`/`voidPickup` - the
+compensating actions themselves, called from inside these catches - DID
+convert to `attempt()`, since a failure of the compensation itself is a
+swallow (log it, an orphaned label is not something a second exception helps
+anyone act on).
+
+**Per file**:
+
+| File | What was removed | Became |
+|---|---|---|
+| `domain/media/emails/record.ts` | `recordEmail`'s try/catch around the insert | `attempt()` |
+| `domain/media/emails/record.ts` | `linkableOrderId`'s catch-to-null | throw (unused defensively; every caller passes a real order id) |
+| `domain/media/emails/service.ts` | `sendOrderPlacedConfirmation`'s try/catch + `console.error` | `attempt()` |
+| `domain/media/emails/service.ts` | `sendCreatedEmail`/`sendPricedEmail`/`sendSalesOrderToSupplier`/`sendAuthVerificationEmail`: catch-record-failed-then-rethrow (4x) and catch-annotate-pdf-error-then-rethrow (2x) | throw - the failure still propagates (a live endpoint, `POST /purchase_order_priced`, depends on it), the `media.emails` "failed" audit row is no longer written on a send failure, and the annotated `"[EmailService] invoice PDF generation failed: ..."` message is now the raw pricing error. Two tests updated to match (see below). |
+| `domain/media/pdfs/serve.ts` | `serveOrderDocument`'s try/catch around the stored-bytes read, `console.error` | `attempt()` |
+| `domain/media/pdfs/store.ts` | `persistPdf`'s try/catch + `reportError` | `attempt()` |
+| `domain/orders/service.ts` | `cancel`'s try/catch around the return-label transaction | kept - the second exception above |
+| `domain/payments/sweeps.ts` | `sweepAbandoned`'s per-candidate try/catch + `reportError` | `attempt()` (candidate loop is unchanged otherwise) |
+| `domain/shipping/operations/service.ts` | `voidLabel`/`voidPickup`'s try/catch + `reportError` | `attempt()` |
+
+Tests updated to the new contract: `domain/media/emails/tests/paper-trail.test.ts`
+("a failed send is a row too, carrying the error, and the throw continues" and
+the verification-mail equivalent) now assert zero rows on a failed send
+instead of a `status: 'failed'` row; `domain/media/emails/tests/service.test.ts`
+("nothing is sent when the document cannot be built") now matches
+`/no quote for metal/` instead of the removed annotation.
+`domain/media/pdfs/tests/serve.test.ts`'s three tests that stubbed
+`console.error` to catch a stderr note were rewritten to drop the stub and
+assert only the resulting behavior (the logging moved into `attempt()`, which
+is silent in test env like everything else under `shared/logging/`).
+
+**The gate**: `api/scripts/lint-one-catch.ts`, script `lint:one-catch`
+(`--self-test` inline, 13 cases via the shared harness), wired into
+`scripts/check.mjs`'s `api-lint` group. Fails any non-test file under
+`domain/`/`transport/` containing `try {`, a `catch` (statement OR a local
+declaration - `catch (err)` and bare `catch {` both match), or a
+`logger.`/`console.` call. `LINT_ONE_CATCH_FLOOR` (default 140, against
+86 + 77 = 163 files today) guards an empty or short-circuited walk.
+
+**Providers were checked, not blanket-exempted.** `providers/pdfs/puppeteer.ts`'s
+`try`/`finally` around `page.close()` has no `catch` at all - resource
+cleanup, not error handling - left alone. `providers/payment/stripe-client.ts`'s
+one `try`/`catch` converts a `JSON.parse` throw inside a promise executor's
+event callback into a rejection (there is no other way to fail that promise) -
+kept, and it is the SDK-shim exception the task allowed. `providers/captcha/recaptcha.ts`'s
+`console.warn` on a bad `RECAPTCHA_THRESHOLD` was considered and reverted -
+it is not inside a try/catch, is outside `domain`/`transport` (the lint's
+scope), and `providers/captcha/tests/threshold.test.ts` pins its exact
+`console.warn` text as a security assertion (the warning must name the
+variable and never print the bad value).
+
+**Remaining findings, all in files this lane was told not to touch**:
+`domain/checkout/service.ts`, `domain/orders/place.ts`, `domain/payments/service.ts`,
+`domain/transactions/service.ts`, `transport/payments/controller.ts` -
+their own lanes' work. `domain/orders/service.ts:317/356` (the second
+exception above) is this lane's and is deliberate, not a gap.
+
+### Ruling 56 — no conditional `withTransaction` (Jacob, 2026-09-03 evening, via the coordinator)
+
+"the `executor ? write(executor) : withTransaction(write)` idiom is banned - a
+service function that WRITES takes `tx: Executor` as a REQUIRED last argument
+and never opens a transaction; only a use case opens `withTransaction`."
+
+Three sites were named: `transactions/service.ts` and `payments/service.ts`
+(another lane), `sales-tax/service.ts` (this lane). `sales-tax/service.ts`'s
+`updateStateSalesTax` took `executor?: Executor` and did
+`executor ? write(executor) : withTransaction(write)`; its one real caller
+(`orders/place.ts`) already always passed a `tx`, so making it `tx: Executor`
+(required, no `?`) and deleting the `withTransaction` branch was a pure
+tightening - no caller changed.
+
+**`lint:one-catch`'s second check** (same script, same gate): fails on
+`? withTransaction(` / `: withTransaction(` on a line, and, per function
+(brace-depth-matched from each `function` keyword's own parameter list),
+on any `withTransaction(` call in the body of a function whose signature
+declares an optional `executor?`/`tx?` parameter - this catches the
+`: await withTransaction(...)` shape (an `await` between the colon and the
+call) the line-level ternary pattern misses. Both patterns self-tested
+(2 + 2 more cases, a pass case for a genuine use case and a pass case for a
+required-`tx` write function).
+
+**This check found far more than the three named sites**, none of them
+excluded, none of them touched, all left for whoever picks them up:
+`domain/shipping/carriers/service.ts` (`createCarrier`/`updateCarrier`/`removeCarrier`),
+`domain/shipping/pickups/service.ts` (3 functions), `domain/shipping/services/service.ts`
+(3 functions), `domain/shipping/shipments/service.ts` (5 functions - this one
+IS excluded, another lane's), `domain/shipping/tracking/service.ts` (2
+functions), and `domain/payments/sweeps.ts`'s `sweepAbandoned` (the exact
+ternary, left as-is since only `sales-tax/service.ts` was assigned here and
+the instruction said take no new scope). The "three sites" undercounted
+because the pattern search behind it likely matched only the literal
+`? withTransaction(`/`: withTransaction(` shape, which most of these don't use
+(`: await run(client)` reads as prose, not as the banned idiom, until a
+function-body scan is run).
+

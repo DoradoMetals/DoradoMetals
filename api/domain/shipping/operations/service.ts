@@ -11,7 +11,7 @@ import * as packagesRepo from "#db/shipping/packages/repo.ts";
 import * as shippingHandler from "#domain/shipping/operations/handler.ts";
 import { carrierIdOr } from "#domain/shipping/operations/resolver.ts";
 import { FEDEX_STORE_ADDRESS, DORADO_ADDRESS } from "#providers/shipments/constants.ts";
-import { reportError } from "#shared/observability/report.ts";
+import { attempt } from "#shared/attempt.ts";
 import { Conflict, Invalid, NotFound } from "#shared/errors.ts";
 import type { ShipmentBaseRow as ShipmentRow } from "#db/shipping/shipments/repo.ts";
 import type { TrackedShipment as TrackingRow } from "#domain/shipping/tracking/service.ts";
@@ -281,36 +281,14 @@ export async function cancelPickup(
   });
 }
 
-// ===========================================================================
-// COMPENSATION for an outside-world action a failed transaction has orphaned.
-// ===========================================================================
-//
-// Creating a label is not idempotent and cannot be undone by a rollback, so the
-// placement saga buys it first and voids it if the database work fails. These
-// two are that compensating action, and they live HERE rather than in orders
-// because they are carrier operations: orders knows no carrier id (carrierIdOr
-// resolves it) and no confirmation-code vocabulary.
-//
-// NEITHER EVER MASKS THE ORIGINAL ERROR. If the compensation itself fails there
-// is genuinely an orphaned label or an uncancelled courier, and that is worth a
-// loud line in the log rather than a second exception nobody can act on: the
-// first error is the one that explains what went wrong.
+// Compensation for a label/pickup a failed transaction orphaned. Best-effort - never masks the original error.
 export async function voidLabel(
   trackingNumber: string | undefined | null
 ): Promise<void> {
   if (!trackingNumber) return;
-  try {
-    await shippingHandler.cancelLabel(await carrierIdOr(null), undefined, { trackingNumber });
-  } catch (err) {
-    reportError({
-      at: "shipping.voidLabel",
-      message:
-        `ORPHANED SHIPPING LABEL ${trackingNumber}: the order it belonged to was ` +
-        `rolled back and cancelling the label failed too`,
-      err,
-      extra: { trackingNumber },
-    });
-  }
+  await attempt(`ORPHANED SHIPPING LABEL ${trackingNumber}`, async () =>
+    shippingHandler.cancelLabel(await carrierIdOr(null), undefined, { trackingNumber })
+  );
 }
 
 // Takes the booking as the carrier reported it - a confirmation code, the date
@@ -324,22 +302,13 @@ export type OrphanedPickup = {
 
 export async function voidPickup(pickup: OrphanedPickup | null | undefined): Promise<void> {
   if (!pickup?.confirmationNumber) return;
-  try {
-    await shippingHandler.cancelPickup(await carrierIdOr(null), undefined, {
+  await attempt(`ORPHANED CARRIER PICKUP ${pickup.confirmationNumber}`, async () =>
+    shippingHandler.cancelPickup(await carrierIdOr(null), undefined, {
       confirmationCode: pickup.confirmationNumber,
       pickupDate: pickup.pickupDate ?? undefined,
       location: pickup.location ?? undefined,
-    });
-  } catch (err) {
-    reportError({
-      at: "shipping.voidPickup",
-      message:
-        `ORPHANED CARRIER PICKUP ${pickup.confirmationNumber}: the order it ` +
-        `belonged to was rolled back and cancelling the pickup failed too`,
-      err,
-      extra: { confirmationNumber: pickup.confirmationNumber },
-    });
-  }
+    })
+  );
 }
 
 // A LABEL WITH NO FILE IS STILL A LABEL FEDEX HAS BILLED FOR.
