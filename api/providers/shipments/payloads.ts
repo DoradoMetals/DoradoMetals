@@ -6,10 +6,6 @@ import {
 // account, so a payload built for it has to name that one or every request is
 // refused with a permissions error rather than anything that says "wrong env".
 import { accountNumber } from "#providers/shipments/endpoints.ts";
-// schedulePickupPayload calls normalizeTime, formatFedexFullDateTime and
-// addHours. All three live in this module and none of them was imported, so
-// building a pickup payload threw ReferenceError on the first line that used
-// one.
 import {
   formatFedexTime,
   normalizeTime,
@@ -18,13 +14,7 @@ import {
 } from "#providers/shipments/utils/formatting.ts";
 
 
-// THE SHAPES FEDEX IS SENT.
-//
-// Deliberately structural and loose rather than a full model of FedEx's API:
-// these builders pass most of what they are given straight through, and a
-// stricter type here would be a second, drifting copy of somebody else's
-// schema. What is named is what these functions actually read or decide on -
-// enough that a caller cannot omit an address or misspell `packageDetails`.
+// Deliberately structural and loose, not a full model of FedEx's API — these builders pass most of what they're given straight through; a stricter type would be a second, drifting copy of somebody else's schema. Named only enough that a caller can't omit an address or misspell packageDetails.
 type FedexAddress = Record<string, unknown>;
 type PackageDetails = Record<string, unknown>;
 

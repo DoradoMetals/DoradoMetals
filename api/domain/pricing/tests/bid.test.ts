@@ -94,25 +94,9 @@ test("bullion and scrap subtotals split the order", () => {
   assert.equal(getBullionTotal([items[1]], spots), 48);
 });
 
-// ---------------------------------------------------------------------------
-// THE INVOICE IS A NUMBER OR AN EXCEPTION. NEVER NaN.
-//
-// The predecessor of this block asked for exactly what happened here: "tests
-// exist so that making them defensive is a deliberate change with a failing
-// assertion, not a silent one". It pinned `payout: null` -> TypeError and said
-// so was fragility rather than desired behaviour. It also could not see the
-// case that mattered - `payout: {}`, which produced NaN SILENTLY and had no
-// test at all, because the type asserted `cost: number` and nobody writes a
-// test against a shape the compiler says is impossible.
-//
-// The split is by MEANING (see features/pricing/bid.ts): an ABSENT payout is
-// no payout fee, a PRESENT but unusable one throws. Every case below is one
-// arm of that, so reversing the decision fails a named assertion rather than
-// quietly changing an invoice.
-// ---------------------------------------------------------------------------
+// The invoice is a number or an exception, never NaN — split by MEANING (see bid.ts): an ABSENT payout is no fee, a PRESENT-but-unusable one throws. Each case below is one arm, so reversing the decision fails a named assertion instead of quietly changing an invoice.
 
-// THE DEFECT ITSELF. This returned NaN, and the NaN reached the invoice, the
-// packing list and the stored total finalizePricing writes.
+// The defect itself — this returned NaN, silently, all the way to the invoice, packing list and stored total.
 test("a payout object with no cost is the fee-less case, not NaN", () => {
   const o = order({ order_items: [scrapItem()], payout: {} });
   const total = calculateTotalPrice(o, spots);
@@ -128,20 +112,14 @@ test("a null payout cost is no payout fee", () => {
   assert.equal(calculateTotalPrice(o, spots), 7200);
 });
 
-// CHANGED DELIBERATELY. This threw a TypeError until 2026-08-29. A null payout
-// has a well-defined meaning - the customer has not chosen one - and refusing
-// to invoice every order in that state is not a protection. The `spot!` throw
-// below is different in kind: an item with no spot cannot be valued at all.
+// Changed deliberately — threw a TypeError until 2026-08-29; a null payout means 'no method chosen yet', and refusing to invoice every order in that state isn't a protection.
 test("a missing payout is no payout fee, and does not throw", () => {
   const o = order({ order_items: [scrapItem()], payout: null });
   assert.equal(calculateTotalPrice(o, spots), 7200);
   assert.equal(calculateTotalPrice(order({ order_items: [scrapItem()], payout: undefined }), spots), 7200);
 });
 
-// THE OTHER ARM. A value arrived and could not be made into a number, which is
-// not the same as one not arriving. Defaulting this to zero is what would
-// silently invoice as though no payout fee applied when one did (D117: the fee
-// is DATA on the row).
+// The other arm — a value arrived and couldn't become a number, not the same as one not arriving; defaulting to zero would silently invoice as though no fee applied when one did.
 test("a payout cost that is not a number throws rather than defaulting", () => {
   const o = order({ order_items: [scrapItem()], payout: { cost: "not a fee" } });
   assert.throws(() => calculateTotalPrice(o, spots), TypeError);
@@ -162,10 +140,7 @@ test("a numeric string is still a fee", () => {
   assert.equal(calculateTotalPrice(o, spots), 7200 - 50);
 });
 
-// The last gate, and it is not hypothetical: migration 087 cleaned up two rows
-// whose stored content was literally 'NaN' and which reached the wire as the
-// STRING "NaN". A total that cannot be computed must stop rather than be
-// printed on a document a customer is paid against.
+// Not hypothetical — migration 087 cleaned up rows whose stored content literally reached the wire as the STRING "NaN".
 test("a line total that cannot be computed stops the invoice", () => {
   const o = order({ order_items: [scrapItem({ price: Number.NaN })] });
   assert.throws(() => calculateTotalPrice(o, spots), TypeError);
@@ -184,13 +159,7 @@ test("a metal absent from spots throws", () => {
 });
 
 
-// A scrap line whose premium is null.
-//
-// Every product branch has always fallen back to the row's own premium; no
-// scrap branch did, so such a line was worth nothing. It was found by comparing
-// the two PDFs a customer receives for the same order - see the note at the top
-// of calculations.js. The fixture mirrors dev purchase order 239: one troy
-// ounce of gold, no premium on the line, 0.75 on the scrap row.
+// Every product branch fell back to the row's own premium; no scrap branch did, so such a line was worth nothing — found by comparing two PDFs for the same order. Fixture mirrors dev purchase order 239 (one troy oz gold, no line premium, 0.75 on the row).
 const unpricedGold = () => ({
   item_type: "scrap",
   premium: null,
@@ -231,11 +200,7 @@ test("a scrap line with no premium anywhere is worth zero, not NaN", () => {
   assert.equal(calculateItemPrice(item, spots), 0);
 });
 
-// ---------------------------------------------------------------------------
-// THE WAIVER (Jacob, 2026-08-29). A fee that is waived is not deducted, and the
-// stored fee is NOT rewritten - which is the whole reason the flag exists
-// rather than an UPDATE to zero. D117: a stored fee is a record.
-// ---------------------------------------------------------------------------
+// A waived fee is not deducted, and the stored fee is NOT rewritten — the whole reason the flag exists rather than an UPDATE to zero (a stored fee is a record).
 
 test("a waived payout fee is not deducted, and the stored fee still says what it was", () => {
   const o = order({

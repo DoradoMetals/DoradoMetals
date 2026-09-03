@@ -1,33 +1,10 @@
 import { requiredEnv } from "#shared/env/required.ts";
-// The FedEx HTTP layer: which host, which credentials, and nothing else.
-//
-// PRODUCTION OR SANDBOX, chosen by FEDEX_ENV. `.env` has carried a full set of
-// sandbox credentials - FEDEX_SANDBOX_CLIENT_ID, _SECRET, _ACCOUNT_NUMBER and
-// their tracking twins - since before this migration started, and nothing read
-// any of them: every request went to FEDEX_API_URL with the live client id.
-// So "point it at the sandbox" was not a configuration change, it was a code
-// change, and this is it.
-//
-//   FEDEX_ENV=production  (default) the live API, real labels, real money
-//   FEDEX_ENV=sandbox               the sandbox API and sandbox credentials
-//
-// The default is production because that is what every existing deployment is
-// doing today, and a switch that silently redirects live traffic to a sandbox
-// would be far worse than one that has to be turned on.
-//
-// WORTH BEING CLEAR ABOUT WHAT THE SANDBOX IS FOR. It is a smoke test - place a
-// real order end to end against a real carrier API and see it work. It is not a
-// test dependency: FedEx's sandbox is not reliable enough to sit inside a suite
-// that is supposed to fail only when this codebase is wrong. Automated tests
-// stub the provider; a human uses the sandbox.
+// The FedEx HTTP layer: which host, which credentials, nothing else. FEDEX_ENV chooses production (default, real labels/money) or sandbox — sandbox credentials sat unused in .env for a while; this is the code that actually wires them up.
+// The sandbox is a smoke test (a human placing a real order end to end against a real carrier API), not a test dependency — FedEx's sandbox isn't reliable enough to sit inside an automated suite. Automated tests stub the provider.
 import axios from "axios";
 import { isTestRun } from "#shared/testing/is-test-run.ts";
 
-// Read per call rather than captured at import. The first version of this
-// wrote `const SANDBOX = process.env.FEDEX_ENV === "sandbox"` and claimed in a
-// comment that a test could flip it - which it could not, because the value was
-// already fixed by the time any test ran. A switch nothing can exercise is a
-// switch nobody should trust.
+// Read per call, not captured at import — a module-level const would be fixed before any test could flip FEDEX_ENV, making the switch untestable.
 const sandbox = () => process.env.FEDEX_ENV === "sandbox";
 
 const base = () =>
@@ -67,27 +44,9 @@ async function fetchOAuthToken({
   return response.data.access_token;
 }
 
-// A TEST RUN MAY REACH THE SANDBOX. IT MAY NEVER REACH LIVE.
-//
-// FEDEX_ENV defaults to `production`, so an unguarded call from a test buys a
-// real label against the real account - money, and a shipment somebody expects
-// to receive. The hazard is the LIVE API, not FedEx as such, so the guard
-// refuses on that rather than on testing.
-//
-//   FEDEX_ENV=sandbox     tests may call it freely
-//   FEDEX_ENV=production  refused during a test run, always, no override
-//
-// There is deliberately no escape hatch for hitting live from a suite. A flag
-// that permits it is a flag someone sets at 2am to make a red build go green.
-//
-// Every outbound FedEx request goes through fetchAccessToken,
-// fetchTrackingToken, fedexPost or fedexPut, so this is the whole surface.
-//
-// A separate question this does NOT answer: whether the sandbox is dependable
-// enough to sit inside the automated suite. It has not been, historically. That
-// is an argument for stubbing in the fast suite and pointing integration tests
-// at the sandbox, and it is a scheduling decision rather than a safety one -
-// which is exactly why it is not enforced here.
+// A test run may reach the SANDBOX; it may NEVER reach LIVE. FEDEX_ENV defaults to production, so an unguarded call from a test would buy a real label against the real account — the guard refuses on the LIVE API specifically, with no override (a flag to bypass it is a flag someone flips at 2am to make a red build green).
+// Every outbound FedEx request goes through fetchAccessToken/fetchTrackingToken/fedexPost/fedexPut, so this is the whole surface.
+// Separately: whether the sandbox is reliable enough to sit inside the automated suite is not this guard's job — that's a scheduling decision (stub in the fast suite, sandbox in integration), not a safety one.
 
 function refuseInTests(what: string) {
   // Asked at call time; see shared/testing/is-test-run.ts.
@@ -103,10 +62,7 @@ function refuseInTests(what: string) {
 
 export async function fetchAccessToken() {
   refuseInTests("fetchAccessToken");
-  // requiredEnv NAMES THE MISSING VARIABLE AND NEVER ITS VALUE. Without it an
-  // unset credential reached FedEx as `undefined` and came back as a generic
-  // authentication failure, with nothing anywhere saying which of the four it
-  // was - and there are four, because sandbox and production each have a pair.
+  // requiredEnv names the missing variable, never its value — without it, an unset credential reached FedEx as `undefined` and came back as a generic auth failure with no clue which of the four (sandbox x production) it was.
   return fetchOAuthToken({
     clientId: sandbox()
       ? requiredEnv("FEDEX_SANDBOX_CLIENT_ID")

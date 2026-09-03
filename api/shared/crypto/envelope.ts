@@ -1,17 +1,5 @@
-// AES-256-GCM envelope encryption for the two columns that hold bank details.
-//
-// THIS MODULE EXISTS BECAUSE THE DESIGN WAS CITED BEFORE IT WAS BUILT.
-// Migration 073's header and scripts/verify-backfill.mjs both describe
-// `scripts/encrypt-payout-details.mjs` as the thing that writes encrypted
-// routing and account numbers into payments.details. It was never written, so
-// the plaintext stayed plaintext on 18 production payouts. This is the half of
-// it that has no database in it, which is the half that can be tested
-// exhaustively against synthetic values.
-//
-// NOTHING IN HERE LOGS, THROWS WITH, OR EMBEDS A PLAINTEXT VALUE. The error
-// messages below are deliberately shaped to describe the FAILURE and never the
-// INPUT - a stack trace from this file must be safe to paste into a ticket.
-// `shared/crypto/tests/envelope.test.ts` asserts that for every throw.
+// AES-256-GCM envelope encryption for the two columns that hold bank details. Written because migration 073 and verify-backfill.mjs both cited a script to write encrypted numbers into payments.details that was never actually built — production stayed plaintext. This is the half with no database in it, testable exhaustively against synthetic values.
+// NOTHING IN HERE LOGS, THROWS WITH, OR EMBEDS A PLAINTEXT VALUE — every error message describes the FAILURE, never the INPUT, so a stack trace from this file is safe to paste into a ticket. envelope.test.ts asserts that for every throw.
 import {
   createCipheriv,
   createDecipheriv,
@@ -19,18 +7,14 @@ import {
   timingSafeEqual,
 } from "node:crypto";
 
-// v1 is AES-256-GCM with a 12-byte IV and a 16-byte tag. The prefix is here so
-// that a future cipher is a parse rather than a guess: a v2 reader knows on
-// sight which rows it can read and which need rotating first.
+// v1 is AES-256-GCM, 12-byte IV, 16-byte tag — versioned so a future cipher is a parse, not a guess: a v2 reader knows on sight which rows need rotating first.
 const VERSION = "v1";
 const ALGORITHM = "aes-256-gcm";
 const IV_BYTES = 12;
 const TAG_BYTES = 16;
 const KEY_BYTES = 32;
 
-// Base64's alphabet is A-Za-z0-9+/= and contains no '.', so '.' cannot collide
-// with any field of the payload. A key id is constrained to the same safe set
-// for the same reason - see assertKeyId.
+// '.' can't appear in base64 or a constrained key id, so it's a safe field separator — see assertKeyId.
 const SEPARATOR = ".";
 const KEY_ID_PATTERN = /^[A-Za-z0-9_-]{1,64}$/;
 
@@ -52,10 +36,7 @@ function assertKeyId(id: string): void {
   }
 }
 
-// A key arrives as base64 from the environment and never as a literal. 32 bytes
-// exactly: AES-256 silently accepts nothing else, and a short key is the kind of
-// mistake that produces working ciphertext with a fraction of the intended
-// strength.
+// A key arrives as base64 from the environment, never a literal — must decode to exactly 32 bytes; AES-256 silently accepts anything else, and a short key produces working ciphertext at a fraction of the intended strength.
 export function parseKey(id: string, base64: string): Key {
   assertKeyId(id);
   let bytes: Buffer;
@@ -143,10 +124,7 @@ export function open(
   }
   const [, keyId, ivB64, tagB64, ctB64] = parts as [string, string, string, string, string];
 
-  // Compared before use so that a row sealed under a rotated key reports THAT,
-  // rather than surfacing as an indistinguishable authentication failure. The
-  // comparison is timing-safe because a key id is not a secret but is
-  // attacker-influenceable if one is ever taken from input.
+  // Compared before use so a row sealed under a rotated key reports THAT rather than an indistinguishable auth failure — timing-safe since a key id could be attacker-influenceable if ever taken from input.
   const want = Buffer.from(keyId, "utf8");
   const have = Buffer.from(key.id, "utf8");
   if (want.length !== have.length || !timingSafeEqual(want, have)) {

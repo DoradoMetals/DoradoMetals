@@ -1,30 +1,5 @@
-// The one claim sendEmail.ts makes about a library, checked instead of asserted.
-//
-// @types/nodemailer declares an attachment's `content` as
-// `string | Buffer | Readable`. Every PDF this application sends is a
-// Uint8Array, because that is what puppeteer returns - features/pdf's own tests
-// say so, and the controller relies on it too. So the wrapper in sendEmail.ts
-// casts the attachments through, and a cast is a claim about behaviour rather
-// than a fact about it.
-//
-// This is the fact. Both messages are built through nodemailer's own stream
-// transport, which runs the real MailComposer and produces the bytes that would
-// go on the wire. Nothing is sent: streamTransport writes to a buffer.
-//
-// The runtime is wider than the types on purpose. nodemailer writes the content
-// straight to a stream, and Node's stream layer accepts "string or an instance
-// of Buffer, TypedArray, or DataView" - a Uint8Array is a TypedArray. Passing
-// an object that is none of those throws ERR_INVALID_ARG_TYPE from
-// node:internal/streams/writable, so the boundary belongs to Node rather than
-// to nodemailer, and is unlikely to move.
-//
-// If it ever does, this goes red and the cast in sendEmail.ts has to become a
-// Buffer.from - which copies every byte of a multi-megabyte document, and is
-// why it is a cast today.
-//
-// Checked for blindness: composing different bytes produces different MIME, so
-// the comparison below is looking at the attachment and not just at the
-// envelope.
+// Checks nodemailer.ts's one real claim: @types/nodemailer declares an attachment's content as string | Buffer | Readable, but every PDF here is a Uint8Array (what puppeteer returns) — the wrapper casts it through, and this proves the cast is safe rather than assuming it.
+// Both messages are built through nodemailer's own stream transport (real MailComposer, nothing sent — streamTransport writes to a buffer), so a Uint8Array and a Buffer must compose to identical bytes. If this ever goes red, the cast has to become Buffer.from (which copies every byte of a multi-megabyte document — why it's a cast today, not a conversion).
 import test from "node:test";
 import assert from "node:assert/strict";
 import nodemailer from "nodemailer";
@@ -34,17 +9,7 @@ const PDF_BYTES = new Uint8Array([0x25, 0x50, 0x44, 0x46, 0x2d, 0x31, 0x2e, 0x34
 
 const composed = async (content: Uint8Array | string | Buffer) => {
   const transport = nodemailer.createTransport({ streamTransport: true, buffer: true });
-  // TWO GAPS IN @types/nodemailer, BOTH NARROWED RATHER THAN CAST AWAY.
-  //
-  // 1. An attachment's `content` is declared `string | Readable | Buffer`, and
-  //    the app really does attach a Uint8Array - puppeteer's `page.pdf()`
-  //    returns one, which `providers/pdfs/puppeteer.ts` says in as many words.
-  //    `providers/emails/nodemailer.ts:116` already casts at the same boundary
-  //    with a comment explaining why; this is the same claim in the same place.
-  // 2. `SentMessageInfo` resolves to `void & Promise<SentMessageInfo>`, so
-  //    nothing can be read off it. The composed MIME text lands on `.message`
-  //    only under `streamTransport: true, buffer: true`, so it is checked for
-  //    at runtime instead of assumed.
+  // Two @types/nodemailer gaps, both narrowed rather than cast away: (1) content really is a Uint8Array here, matching the same claim nodemailer.ts casts on; (2) SentMessageInfo resolves to `void`, so the composed MIME text (only present under streamTransport+buffer) is checked at runtime instead of assumed.
   const info: unknown = await transport.sendMail({
     from: "from@example.com",
     to: "to@example.com",
@@ -54,18 +19,7 @@ const composed = async (content: Uint8Array | string | Buffer) => {
       { filename: "t.pdf", content, contentType: "application/pdf" },
     ] as nodemailer.SendMailOptions["attachments"],
   });
-  // THREE things differ between any two messages by design, and the third cost
-  // a flaky failure: the Message-ID, the MIME boundary - which appears both in
-  // the Content-Type header and as the part separator, in two different dash
-  // forms - and the DATE, which is the wall clock at compose time.
-  //
-  // The date was missed because it does not look random the way a uuid does.
-  // It is: these two messages are built one after the other, and the pair
-  // straddles a second boundary whenever the tick lands between them. The test
-  // passed on every run until it did not.
-  //
-  // Normalising all three is what leaves the comparison about the attachment,
-  // which is the only thing this test is for.
+  // Three things differ between any two messages by design: the Message-ID, the MIME boundary, and the DATE — the date caused a real flake once (two composes straddling a second boundary). Normalising all three keeps the comparison about the attachment, the only thing this test is for.
   assert.ok(
     info && typeof info === "object" && "message" in info && info.message != null,
     "the stream transport returned no composed message - `buffer: true` is what puts it there"

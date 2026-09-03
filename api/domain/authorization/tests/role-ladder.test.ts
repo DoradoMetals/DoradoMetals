@@ -1,30 +1,12 @@
-// The role ladder, and the rung nobody stands on.
-//
-// requireVerifiedUser is exported beside requireUser and requireAdmin, reads
-// like "this route needs a verified email", and is mounted on NOTHING. That
-// would be unremarkable if it were merely unused. It is not:
-//
-//   - It checks a ROLE - `role >= verified_user` - and no user has that role.
-//     Production carries 73 `user` and 2 `admin`, and dev 9 and 3. Nobody is
-//     `verified_user`.
-//   - It does not look at `emailVerified` at all, which is a separate column,
-//     and 53 of 75 production users are unverified.
-//
-// So mounting it on a route would refuse EVERY customer while every admin
-// sailed through, and the name would make that look like the intent. This
-// pins it unmounted so that using it is a deliberate act taken after reading
-// the above, rather than a reasonable-looking import.
+// The role ladder, and the rung nobody stands on. requireVerifiedUser is exported and mounted on NOTHING — and that's for good reason: it checks a ROLE (`role >= verified_user`) that no user holds (production: 73 user, 2 admin, zero verified_user) and never reads emailVerified, a separate column 53 of 75 production users lack.
+// So mounting it would refuse EVERY customer while every admin sails through, and the name would make that look intentional. This test pins it unmounted so using it becomes a deliberate act, not a reasonable-looking import.
 import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 
 const HERE = import.meta.dirname;
-// "../../.." since the ruling-31 move: this file used to sit in
-// features/authorization/ and now sits in its tests/ folder, one level deeper.
-// The MIDDLEWARE read would have ENOENT'd; the route walk would have found
-// nothing and tripped its own >= 20 floor. Both would have failed loudly,
-// which is the floor doing its job (D135).
+// Reaches one level deeper than before ruling 31 moved this file into tests/ — both a missing middleware file and an empty route walk would fail loudly (the floor's job).
 const API = path.resolve(HERE, "../../..");
 const MIDDLEWARE = path.join(API, "shared/middleware/authMiddleware.ts");
 

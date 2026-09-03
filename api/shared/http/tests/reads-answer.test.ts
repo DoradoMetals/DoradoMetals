@@ -1,30 +1,6 @@
-// Every mounted READ route, driven over HTTP as the role it requires.
-//
-// WHY THIS FILE EXISTS. Two routes had answered 500 on every call since
-// December 2025 - update_payment_intent and update_tracking - and both were
-// found by reading code rather than by any test, because neither had ever been
-// driven over HTTP. An inventory afterwards found 57 of 132 mounted routes in
-// that position.
-//
-// The defect both shared is now caught statically by lint:namespace-calls. This
-// covers the rest of what only running the thing can show: a handler that
-// destructures something absent, a repo call with its arguments in the wrong
-// order, a projection naming a column that has been renamed. None of that is
-// visible to a repo test, and none of it is visible to a typecheck while the
-// files are JavaScript.
-//
-// READS ONLY, AND THAT IS THE WHOLE DESIGN. Among the untested routes are ones
-// that send mail to a refiner, buy a FedEx label and talk to Stripe. A blanket
-// smoke test over all 57 would do those things. Every route here is a GET that
-// writes nothing, so the suite is safe to run in a loop.
-//
-// WHAT IT ASSERTS. Not the body - that is the contract tests' job, and asserting
-// shape here would duplicate validate:wire. It asserts the route ANSWERS: a
-// status under 500, and no structural failure in the response. A 4xx is a pass,
-// because a read refusing a request it does not like is the handler working.
-//
-// NOTHING IS COMMITTED: reads write nothing, and the pinned pool is used anyway
-// so a handler that unexpectedly writes cannot escape.
+// Every mounted READ route, driven over HTTP as the role it requires. Two routes answered 500 on every call since December 2025 (found by reading code, never driven over HTTP) — an inventory found 57 of 132 mounted routes in that position.
+// READS ONLY, and that's the whole design — some untested routes send mail, buy a FedEx label or talk to Stripe, and a blanket smoke test would trigger those; every route here is a GET that writes nothing, safe to run in a loop.
+// Asserts that the route ANSWERS (status under 500, no structural failure), not the body shape (that's validate:wire's job) — a 4xx is a pass, since refusing a bad request is the handler working. NOTHING IS COMMITTED, and the pinned pool is used anyway so an unexpected write can't escape.
 import test, { after, before } from "node:test";
 import assert from "node:assert/strict";
 import request from "supertest";

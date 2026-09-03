@@ -1,9 +1,4 @@
-// tax.sales_tax and tax.sales_tax_rules.
-//
-// TWO TABLES IN ONE FILE, and that is a deliberate exception to one-repo-one-
-// table: sales_tax_rules is read whole and never written, so it has no CRUD of
-// its own and splitting it into a folder would be a folder for a single SELECT.
-// If it ever becomes writable it gets its own.
+// tax.sales_tax and tax.sales_tax_rules — two tables in one file, deliberately: rules is read whole and never written, so it has no CRUD of its own; if it becomes writable, it gets its own file.
 import query from "#shared/db/query.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
 import type { Executor } from "#shared/db/executor.ts";

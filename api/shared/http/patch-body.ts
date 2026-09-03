@@ -1,21 +1,6 @@
-// The two halves of checking a PATCH document, stated once.
-//
-// Every PATCH on the D87 order surface answers the same two questions before
-// it dispatches anything, and it has to answer them IN THIS ORDER:
-//
-//   1. is every field one this endpoint has?   -> refusedUnknownField
-//   2. is every value one the field accepts?   -> refusedValue
-//
-// THE ORDER IS LOAD-BEARING. zod STRIPS unknown keys rather than rejecting
-// them, so a document parsed first would turn a typo'd field into a silent
-// 200 that wrote nothing - which is the admin-mutation-urls bug the whole
-// consolidation was written to end. Refusing by name first means nothing
-// unknown survives to reach the schema, and stripping becomes irrelevant.
-//
-// AND NEITHER OF THESE RETURNS DATA. The caller keeps dispatching off the
-// ORIGINAL body, never `parsed.data`: a patch document distinguishes absent
-// from null from a value, and handing the dispatch a rebuilt object is how
-// that distinction gets lost (D182).
+// The two halves of checking a PATCH document, stated once — every endpoint answers, IN ORDER: (1) is every field one this endpoint has (refusedUnknownField), (2) is every value one the field accepts (refusedValue).
+// Order is load-bearing: zod STRIPS unknown keys rather than rejecting them, so parsing first would turn a typo'd field into a silent 200 that wrote nothing (the admin-mutation-urls bug this whole consolidation exists to end).
+// Neither returns data — the caller dispatches off the ORIGINAL body, never parsed.data, since a patch distinguishes absent from null from a value, and a rebuilt object loses that.
 import type { ZodType } from "zod/v4";
 
 export type Refusal = { statusCode: number; message: string };

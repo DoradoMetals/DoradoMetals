@@ -1,34 +1,11 @@
-// Nothing irreversible inside a transaction.
-//
-// A database transaction can be rolled back. An email cannot, a Stripe charge
-// cannot, and a FedEx label cannot. Putting one inside a withTransaction block
-// means that if a later statement fails, the outside world has already acted on
-// something the database then forgets.
-//
-// sendOrderToSupplier did exactly this: it emailed the refiner their copy of a
-// sales order, with the invoice attached, as the first statement of a
-// transaction that went on to attach the supplier, create the outbound shipment
-// and mark the order sent. A failure in any of those three rolled back the
-// record and left the refiner shipping metal to a customer against an order
-// nothing in the system knew had been sent.
-//
-// This is a source check with no database behind it, in the same spirit as
-// switch-surface.test.js. It is a floor - it knows the names of the external
-// calls this codebase makes today, not every possible one - so a new provider
-// wants adding to EXTERNAL below.
-//
-// Proved before being trusted: run against the commit before the fix it reports
-// what is now features/orders/service.ts, and zero afterwards.
+// Nothing irreversible goes inside a transaction — a rollback can't undo an email, a Stripe charge, or a FedEx label. Real incident: sendOrderToSupplier emailed a refiner before the transaction that recorded the order failed, so metal shipped against nothing.
+// Source-level floor, not exhaustive — a new external call needs adding to EXTERNAL below.
 import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 
-// Phase 0c restructure split features/ into three layer roots; withTransaction
-// callers live mostly in domain/, but this walks all three so a repo or an
-// http handler that opens one directly is still seen. FEATURES stays the
-// relative-path base (api/) so a hit still prints as "domain/orders/service.ts",
-// not an absolute path.
+// Walks all three layer roots (db/domain/transport) so a repo or http handler opening a transaction directly is still seen, not just domain/ where most live.
 const FEATURES = path.join(import.meta.dirname, "..", "..", "..");
 const LAYER_ROOTS = ["db", "domain", "transport"].map((l) => path.join(FEATURES, l));
 const walkAll = (): string[] => LAYER_ROOTS.flatMap((r) => walk(r));
@@ -45,15 +22,8 @@ const walk = (dir: string, out: string[] = []): string[] => {
   for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
     const full = path.join(dir, e.name);
     if (e.isDirectory()) walk(full, out);
-    // `.ts` AS WELL AS `.js`, AND THIS WAS THE BUG IN THE GUARD ITSELF.
-    //
-    // It collected only `.js`, so every service converted to TypeScript fell
-    // silently out of its reach - and by August 2026 that was almost all of
-    // them. Twenty-five files use withTransaction; the walk was finding THREE,
-    // all of them repo.dual.js files that the restructure is deleting.
-    //
-    // Caught by its own floor - `withTx.length > 3` - which is the only reason
-    // anyone found out. One more restructure and it would have found two.
+    // Must match .ts as well as .js — matching only .js let every file converted to TypeScript silently escape this guard (down to 3 of 25 real files at one point).
+    // Caught only by its own floor (`withTx.length > 3`) — narrowing the extension list again would slip past silently.
     else if (/\.(js|ts)$/.test(e.name) && !e.name.includes(".test.")) out.push(full);
   }
   return out;
@@ -101,10 +71,7 @@ test("there are transactions to check", () => {
     /withTransaction\(/.test(fs.readFileSync(f, "utf8"))
   );
   assert.ok(
-    // Raised from 3 to 15 now that the walk sees TypeScript. Twenty-five files
-    // use withTransaction today; the floor is set below that so deleting a
-    // dual repo does not fail the build, and far enough above the old value
-    // that losing TypeScript again would.
+    // Floor is 15: below today's 25 (deleting a dual repo shouldn't fail this), but high enough that losing .ts coverage again would.
     withTx.length > 15,
     `only ${withTx.length} files use withTransaction - the walk is probably wrong`
   );

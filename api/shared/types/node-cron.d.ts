@@ -1,14 +1,5 @@
-// node-cron ships no types, and @types/node-cron is not installed here.
-//
-// Declared locally rather than adding a dependency: this file names only the
-// two functions the scheduler actually calls, checked against node-cron 3.0.3's
-// own `module.exports = { schedule, validate, getTasks }`. getTasks is included
-// for completeness but nothing calls it.
-//
-// The narrow surface is the point. A hand-written declaration for a third-party
-// package is a claim about somebody else's code, so the less it claims the less
-// there is to be wrong about - and if a future caller needs an option this does
-// not name, the compiler says so rather than silently accepting it.
+// node-cron ships no types and @types/node-cron isn't installed — declared locally, naming only the two functions the scheduler calls (checked against node-cron 3.0.3's own exports).
+// Narrow on purpose — the less a hand-written third-party declaration claims, the less there is to be wrong about; an unclaimed option is a compiler error, not silent acceptance.
 declare module "node-cron" {
   /** Options accepted by schedule(). Only what this codebase might pass. */
   export interface ScheduleOptions {

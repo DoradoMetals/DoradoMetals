@@ -1,33 +1,10 @@
-// Whether the caller owns the order they are acting on.
-//
-// requireUser asks whether somebody is signed in. It does not ask who, and
-// every customer-facing order route takes its order out of the request BODY -
-// `const { order } = req.body` - so until this existed a signed-in customer
-// could act on any order whose id they had:
-//
-//   get_purchase_order_metals  200, another customer's frozen spot prices
-//   cancel_order               reached the code that buys a FedEx return label
-//                              and ships another customer's metal back
-//
-// Each was demonstrated with a real request before this was written, and the
-// tests that demonstrated it are features/orders/tests/ownership.test.ts.
-//
-// Order ids are uuids rather than sequential, so nobody stumbles into this. It
-// is still the difference between "you cannot" and "you probably will not
-// guess", and cancel_order costs real money on the way through.
-//
-// WHY MIDDLEWARE. The check belongs in front of the controller rather than
-// inside each service: a service that grew a new caller would need the check
-// adding again, and the routes file is where somebody looks to answer "who can
-// do this". One line per route, next to the guard it completes.
+// Guards against a signed-in customer acting on ANY order whose id they hold — routes read the order id from the request body, not from session ownership. Demonstrated for real: get_purchase_order_metals leaked another customer's spots; cancel_order could ship their metal back.
+// In middleware, not each service, so a new caller can't silently skip the check; UUIDs make guessing hard, not impossible.
 import type { NextFunction, Request, Response } from "express";
 import type { PoolClient } from "pg";
 import query from "#shared/db/query.ts";
 
-// The four spellings a request body uses for an order id, and the two for a
-// shipment. Written as a type so a fifth spelling has to be added here as well
-// as below - the guard refusing when it finds none is only safe if the list of
-// places it looks is deliberate.
+// A 5th id spelling must be added here AND in orderIdFrom below — the guard refusing on none found is only safe if this list is deliberate.
 type OrderBody = {
   order?: { id?: string | null } | null;
   purchase_order_id?: string | null;
@@ -35,10 +12,7 @@ type OrderBody = {
   order_id?: string | null;
 };
 
-// The order id, wherever the frontend happens to put it. These are the four
-// spellings in use across purchase-orders and sales-orders; a route whose body
-// uses none of them is refused rather than waved through, because a guard that
-// cannot find its subject must not decide it is fine.
+// A body using none of these spellings is refused, not waved through — a guard that can't find its subject must not assume it's fine.
 function orderIdFrom(body: OrderBody = {}): string | null {
   return (
     body.order?.id ??
@@ -49,29 +23,8 @@ function orderIdFrom(body: OrderBody = {}): string | null {
   );
 }
 
-// The question itself, callable from a service as well as from the middleware
-// below. features/media/pdfs/serve.ts asks it before handing out a STORED
-// document: the pdf routes carry only requireUser (their bodies spell the
-// order `purchaseOrder`/`salesOrder`, which orderIdFrom does not read), so the
-// service must ask what the middleware would have asked - one copy of the
-// query, not two drifting ones.
-//
-// ONE TABLE SINCE D213. This used to UNION exchange.purchase_orders and
-// exchange.sales_orders alongside orders.orders, because during `dual` either
-// schema might be serving. Neither is now: the read paths are native, D212
-// stopped exchange receiving order writes, and an exchange row the backfill has
-// not carried over is an order no read path can return - so admitting it here
-// bought a 200 on a document that does not resolve, not access to anything.
-// Measured on dev before removing: 33 of 38 purchase and 28 of 28 sale rows are
-// present natively with an IDENTICAL user_id, and the five that are not are one
-// account's dual-era test traffic from a three-minute burst on 2026-08-27.
-//
-// THE PRODUCTION DEPENDENCY, STATED: this is correct once the orders backfill
-// has run there, which is step three of the sequence in CLAUDE.md and precedes
-// any traffic being served.
-//
-// `executor` is the usual repo seam: a test passes its pinned transaction,
-// production passes nothing and the pool answers.
+// Also called directly by features/media/pdfs/serve.ts before serving a stored document — one copy of the ownership query, not two that could drift.
+// Depends on the orders backfill having run in production — this schema is native-only, no exchange fallback (see CLAUDE.md's production sequencing).
 export async function orderOwnedBy(
   orderId: string,
   userId: string,
@@ -118,17 +71,8 @@ export function requireOwnOrder(req: Request, res: Response, next: NextFunction)
     .catch(next);
 }
 
-// The same question for routes that carry the order id in the PATH -
-// GET /api/orders/:id/items, /:id/spots, /:id/address, /:orderId/shipments,
-// /:orderId/payouts - where requireOwnOrder's body-reading cannot see it.
-// Same rules: admins pass, a missing row answers exactly like somebody else's
-// row.
-//
-// BOTH SPELLINGS, because the order-scoped read family uses both: `:id` on the
-// paths whose sibling writes key the order itself, `:orderId` on the ones
-// handled by another feature. A guard that read only one would wave through
-// every route using the other - silently, with a 400 nobody sees because
-// admins short-circuit above it and admins are who tries it first.
+// Same question for routes carrying the order id in the PATH rather than the body (e.g. /:id/items, /:orderId/shipments).
+// Checks BOTH :id and :orderId — reading only one would silently wave through every route using the other (admins short-circuit above it, so nobody would notice).
 export function requireOwnOrderParam(req: Request, res: Response, next: NextFunction) {
   if (!req.user) {
     return res.status(401).json({ error: "Unauthorized" });
@@ -159,32 +103,9 @@ export function requireOwnOrderParam(req: Request, res: Response, next: NextFunc
     .catch(next);
 }
 
-// Whether the caller owns the SHIPMENT they are acting on.
-//
-// requireOwnOrder cannot answer this. It looks for an order id under four
-// spellings and refuses when it finds none - the safe default - and
-// POST /api/shipping/get_tracking names a `shipment_id` instead.
-//
-// WHY THAT ROUTE NEEDED ONE. FOLLOWUPS described the shipping reads as exposing
-// "a tracking status", and get_tracking is not a read: operationsService
-// .getTracking deletes and reinserts the shipment's tracking events and
-// rewrites its status, estimate and delivered_at. The unconditional
-// removeEvents in that path is the one already documented as having emptied
-// seven production shipments' histories. So a signed-in customer holding
-// somebody else's shipment id could not only see their tracking, but overwrite
-// it - and spend a FedEx call doing it.
-//
-// It is a customer-facing route, so requireAdmin is not the answer: useTracking
-// is called from the customer purchase-order and sales-order drawers as well as
-// the admin ones. Checked in the frontend before choosing this over the simpler
-// fix.
-//
-// ONE WALK SINCE D213, for the same reason orderOwnedBy has one: the exchange
-// arms answered for a schema nothing reads any more. The native route reaches
-// the owner through fulfillments.shipments -> fulfillments.fulfillments ->
-// orders.orders, and it covers every one of dev's 40 exchange shipments with an
-// identical user_id - nothing resolved through exchange that does not resolve
-// here.
+// requireOwnOrder can't cover this — POST /api/shipping/get_tracking names a shipment_id, not an order id.
+// get_tracking is a WRITE, not a read: it deletes and reinserts tracking events (the same removeEvents that once emptied seven production shipments' histories) — without this, a customer holding someone else's shipment id could overwrite their tracking and burn a FedEx call. Not requireAdmin, since the calling drawer is customer-facing too.
+// Resolves ownership through fulfillments.shipments → fulfillments.fulfillments → orders.orders.
 export function requireOwnShipment(req: Request, res: Response, next: NextFunction) {
   if (!req.user) {
     return res.status(401).json({ error: "Unauthorized" });
@@ -199,9 +120,7 @@ export function requireOwnShipment(req: Request, res: Response, next: NextFuncti
     });
   }
 
-  // A missing row is a refusal, as above: "the shipment does not exist" and
-  // "the shipment is not yours" are the same answer to somebody who should not
-  // be able to tell them apart.
+  // A missing row is a refusal here too — existence and ownership must answer identically to an unauthorized caller.
   query(
     `SELECT 1
        FROM fulfillments.shipments fs

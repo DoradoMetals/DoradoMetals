@@ -1,10 +1,4 @@
-// FedEx's responses, reduced to what this application uses.
-//
-// THE TYPES HERE DESCRIBE FEDEX, NOT A CONTRACT. Everything in @dorado/contracts
-// is generated from a schema we own; nothing is generated from FedEx's. So each
-// shape below states only the fields these functions read, and states them all
-// as optional, because an external payload is a promise rather than a
-// guarantee. A type that claimed more would be a description of the happy path.
+// FedEx's responses, reduced to what this application uses — types here describe FedEx, not a generated contract, so each shape states only the fields read, all optional (an external payload is a promise, not a guarantee).
 import { FEDEX_TRACKING_STATUS_MAP } from "#providers/shipments/constants.ts";
 
 type FedexScanEvent = {
@@ -39,23 +33,8 @@ export type ParsedTracking = {
   deliveredAt: string | null;
 };
 
-// `trackingOutput!` IS DELIBERATE AND MUST STAY. The line above optionally
-// chains all the way to trackResults[0], and this one does not, so an empty or
-// error response throws a TypeError here rather than returning an empty result.
-//
-// That looks like the obvious thing to fix and it is not, because of what runs
-// after it. features/shipping/operations/service.ts calls this INSIDE a
-// transaction, and the next thing it used to do was delete every tracking event
-// for the shipment and re-insert whatever came back. The throw happened before
-// that delete, so it was the only thing preventing an empty response from
-// wiping a shipment's history - production lost seven that way before the
-// service learned to return early. Adding `?.` here without that guard would
-// have turned a loud, harmless 500 into a silent deletion.
-//
-// The guard exists now, so this could safely be softened. It is not, on
-// purpose: a FedEx outage or a bad tracking number should be loud. Returning
-// "nothing recognised" for "I could not ask" makes an outage look like a quiet
-// parcel.
+// `trackingOutput!` is DELIBERATE and must stay — an empty or error response throws a TypeError here rather than returning an empty result.
+// Load-bearing: the caller runs this inside a transaction that used to delete every tracking event and re-insert whatever came back; the throw, landing before that delete, was the only thing stopping an empty response from wiping a shipment's history (production lost seven that way). The caller now guards this properly, so it COULD be softened safely — deliberately not: a FedEx outage should be loud, not look like a quiet parcel.
 
 export function parseTracking(data: FedexTrackingResponse): ParsedTracking {
   const trackingOutput =
@@ -74,9 +53,7 @@ export function parseTracking(data: FedexTrackingResponse): ParsedTracking {
     ? fromDateTimes
     : "TBD";
 
-  // A lookup table keyed by FedEx's codes, so it is indexed by string rather
-  // than by its own literal keys - which is also why the `|| "Unknown"` below
-  // stays even though the filter above guarantees a hit.
+  // Indexed by FedEx's own string codes, which is also why `|| "Unknown"` stays even though the filter above guarantees a hit.
   const statusMap: Record<string, string> = FEDEX_TRACKING_STATUS_MAP;
   const relevantStatusCodes = Object.keys(statusMap);
 

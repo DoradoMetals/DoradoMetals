@@ -1,36 +1,7 @@
-// The one place an error reporter would attach, and today it is a console line.
-//
-// *** WHY THIS EXISTS. *** The API has NO error reporting - no sentry, bugsnag,
-// rollbar, datadog, otel, pino or winston in api/package.json. Every error ends
-// at Railway's stdout and is seen only by someone already looking. That is fine
-// for a 500 with a stack trace, which the errorHandler prints loudly. It is not
-// fine for the handful of paths that CATCH, log, and deliberately carry on,
-// because those are the ones nobody is looking at:
-//
-//   an orphaned FedEx label the business is paying for
-//   an orphaned carrier pickup with no order behind it
-//   an order PDF that was never persisted
-//   a sent email with no record that it was sent
-//   any cron job failing, including updateSpotPrices, which every
-//     customer-visible price depends on
-//
-// None of those is a bug. Failing an order because its PDF did not save would
-// be worse. The defect is that nobody is told, and the fix is not to make them
-// throw - it is to make them reportable.
-//
-// *** WHAT THIS IS NOT. *** It is not a logger, and adding Sentry to this
-// process is deliberately NOT done here: that is a new dependency and a runtime
-// agent inside the process that handles money, which is Jacob's call and not an
-// agent's. What this is, is the seam - so that decision becomes one file rather
-// than a hunt through five features. See FOLLOWUPS D191.
-//
-// *** IT MUST NEVER THROW. *** A reporter that fails takes down the path it was
-// meant to observe, which is strictly worse than the silence it replaces. Every
-// call is wrapped.
-//
-// *** IT MUST NEVER CARRY A BANK NUMBER. *** CLAUDE.md's oldest standing
-// constraint. `extra` is redacted by key name before it goes anywhere, because
-// the day a reporter IS attached, whatever is in `extra` leaves the building.
+// The one seam an error reporter would attach to — today it's a console line. Exists because the API has NO error reporting at all, so paths that CATCH, log, and deliberately carry on (an orphaned FedEx label, a lost order PDF, an unsent-but-unrecorded email, a failed spot-price cron) are seen by nobody. The fix isn't making them throw — an order shouldn't fail because its PDF didn't save — it's making them reportable.
+// NOT a logger, and adding Sentry here is deliberately NOT done — a new dependency and runtime agent inside the money-handling process is Jacob's call, not an agent's; this file is the seam so that decision is one file, not a hunt through five features (FOLLOWUPS D191).
+// MUST NEVER THROW — a reporter that fails takes down the path it was meant to observe. Every call is wrapped.
+// MUST NEVER CARRY A BANK NUMBER — `extra` is redacted by key name before going anywhere, because the day a reporter is attached, whatever's in `extra` leaves the building.
 
 // Keys whose values never leave this process. Matched case-insensitively on the
 // whole key, and on the common suffixes, so `routing_number`, `routingNumber`

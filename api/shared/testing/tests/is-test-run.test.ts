@@ -1,18 +1,5 @@
-// isTestRun is the guard the mail transport, the FedEx client and the Stripe
-// client all ask before reaching a live third party. Its whole design is in one
-// sentence: EVALUATED WHEN ASKED, NEVER CACHED.
-//
-// That matters because the bug it was written for is invisible. Each guard used
-// to compute the answer once at module scope, and ES module imports are
-// HOISTED - so a script whose first statement is `process.env.NODE_ENV = "test"`
-// sets it AFTER every imported module has evaluated. The guard captured
-// `undefined`, decided this was not a test, and built the real transport.
-// seed-e2e-users.mjs did exactly that and reached Gmail; it failed on
-// credentials rather than on the guard, which is luck.
-//
-// So the test that earns its keep is not "returns true under NODE_ENV=test" -
-// it is that the answer CHANGES between two calls when the environment changes
-// between them. A cached implementation passes every other test here.
+// isTestRun is the guard mail/FedEx/Stripe all ask before reaching a live third party — evaluated when asked, never cached, because a module-scope check once captured NODE_ENV before a script's own hoisted-import assignment took effect (seed-e2e-users.mjs reached Gmail that way).
+// So the test that earns its keep isn't 'returns true under NODE_ENV=test' — it's that the answer CHANGES between two calls when the environment changes between them; a cached implementation passes every other case here.
 import test from "node:test";
 import assert from "node:assert/strict";
 import { isTestRun } from "#shared/testing/is-test-run.ts";
@@ -71,9 +58,7 @@ test("neither signal means this is not a test run", () => {
     assert.equal(isTestRun(), false));
 });
 
-// THE ONE THAT MATTERS. A module-scope constant passes every case above and
-// fails this one, because it answers from the environment as it was at import
-// time rather than as it is now.
+// The one that matters — a module-scope constant passes every case above and fails this one, since it answers from import-time environment rather than now.
 test("the answer is recomputed on every call, never cached at import", () => {
   withEnvironment(NEITHER, () => {
     assert.equal(isTestRun(), false, "precondition: not a test run");

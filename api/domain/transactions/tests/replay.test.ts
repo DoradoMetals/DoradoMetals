@@ -1,25 +1,6 @@
-// The transaction history endpoint, over real HTTP.
-//
-// One route, and it was reading a customer's identity from the request body.
-//
-// `GET /api/transactions/get_transactions` is requireUser, it did
-// `const { user_id } = req.body`, and the repo scopes `WHERE user_id = $1` on
-// whatever it was handed. So a signed-in customer who put a body on the GET
-// received somebody else's account_transactions row. Confirmed against dev
-// before it was fixed - one customer read another's ledger entry, status 200,
-// with their user_id, transaction_type and purchase_order_id in it.
-//
-// WHY IT SURVIVED THIS LONG. A GET normally carries no body, so every ordinary
-// call passed undefined and got an empty response. The endpoint read as broken
-// rather than as dangerous, and the frontend does not call it at all. "Returns
-// nothing" and "returns anyone's ledger" were the same endpoint, distinguished
-// only by whether the caller bothered to send a body.
-//
-// This is the customer credit ledger: production holds 17 rows across 8
-// customers, $66,999.32.
-//
-// NOTHING IS COMMITTED. This file only reads, but it runs inside the pin like
-// the rest so a future write cannot escape.
+// The transaction history endpoint, over real HTTP — was reading a customer's identity from the request BODY on a GET (`const { user_id } = req.body`), so a signed-in customer sending one on GET got somebody else's ledger row. Confirmed against dev before the fix: one customer read another's entry, 200, with their user_id and purchase_order_id in it.
+// Survived this long because a GET normally carries no body — every ordinary call passed undefined and got an empty response, so the endpoint read as broken rather than dangerous (the frontend never calls it). This is the customer credit ledger: production holds 17 rows across 8 customers, $66,999.32.
+// NOTHING IS COMMITTED — read-only, but runs inside the pin like everything else so a future write can't escape.
 import test, { after, before } from "node:test";
 import assert from "node:assert/strict";
 import request from "supertest";
@@ -30,8 +11,7 @@ import { inPinnedTransaction, outside } from "#shared/testing/pinned-pool.ts";
 await mockSessions();
 const { default: app } = await import("#app");
 
-// THE STRUCTURAL SUBSET EACH FIXTURE ACTUALLY HAS. These are SELECT
-// projections, not table rows.
+// SELECT projections, not table rows.
 type UserFixture = { id: string; name: string | null; email: string | null };
 let victim: string;
 let attacker: UserFixture;
@@ -88,11 +68,7 @@ test("a body naming another customer does not return their ledger", async () => 
         !body.includes(victim),
         "the response carried the other customer's user_id - the ledger leaked"
       );
-      // NOT "the response is empty". The attacker has ledger rows of their own,
-      // so the correct behaviour is that they get THEIRS - the body naming
-      // someone else is simply ignored. The first version of this asserted no
-      // ledger row came back at all and failed against the fixed code, which
-      // was the assertion being wrong rather than the fix.
+      // NOT 'the response is empty' — the attacker has their own rows, so the correct behavior is getting THEIRS; the first version asserted no row at all and failed against the fix, which was the assertion being wrong.
       if (res.body && typeof res.body === "object") {
         assert.equal(
           res.body.user_id,
@@ -121,10 +97,7 @@ test("a query parameter naming another customer is ignored too", async () => {
   });
 });
 
-// The counterpart: the victim, asking for nothing in particular, gets their own
-// row. Without this, the two tests above would pass just as well if the
-// endpoint returned nothing to anybody - which is what it did before, and is
-// not the same thing as being fixed.
+// The counterpart: the victim gets their own row without naming anyone — without this, the tests above would pass equally well against an endpoint that returns nothing to anybody, which is what it did before and isn't the same as fixed.
 test("a customer gets their own ledger without naming anyone", async () => {
   await inPinnedTransaction(async () => {
     const users = await outside<UserFixture>(`SELECT id, name, email FROM exchange.users WHERE id = $1`, [
@@ -143,10 +116,7 @@ test("a customer gets their own ledger without naming anyone", async () => {
   });
 });
 
-// RECORDED, NOT FIXED. The repo returns rows[0] despite the endpoint being
-// called "history", so a customer with 11 ledger rows receives one. That is
-// wrong and is written up in FOLLOWUPS; it is a response SHAPE, and shapes do
-// not move during a schema migration. Asserted so the change is deliberate.
+// Recorded, not fixed — the repo returns rows[0] despite the endpoint being called 'history', so a customer with 11 rows gets one. Wrong, written up in FOLLOWUPS, but a response SHAPE, and shapes don't move during a schema migration.
 test("the response is a single row, not a history", async () => {
   await inPinnedTransaction(async () => {
     const users = await outside<UserFixture>(`SELECT id, name, email FROM exchange.users WHERE id = $1`, [

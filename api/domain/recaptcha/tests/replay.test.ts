@@ -1,19 +1,5 @@
-// The recaptcha verification endpoint, over real HTTP.
-//
-// One route, deliberately unguarded - it runs BEFORE anyone has a session, so
-// requiring one would defeat it. That makes the missing-token path the only
-// thing worth asserting here, and it is worth asserting precisely because this
-// endpoint sits in front of the forms that create leads and accounts.
-//
-// WHAT IS NOT TESTED, AND WHY. A real token is verified against Google. This
-// suite does not call Google: it is somebody else's service, it rate-limits,
-// and a test that depends on it fails for reasons that have nothing to do with
-// this codebase. The token path belongs in the sandbox integration suite.
-//
-// The consequence is worth stating plainly rather than leaving implied: NOTHING
-// HERE PROVES A BAD TOKEN IS REJECTED. What is proved is that a request with no
-// token is refused before the provider is reached at all, which is the case
-// that would otherwise let a caller skip the check by simply omitting it.
+// The recaptcha verification endpoint, over real HTTP — deliberately unguarded (it runs before anyone has a session), so the missing-token path is the only thing worth asserting.
+// Doesn't test a real token against Google (rate-limited, fails for reasons unrelated to this codebase — belongs in the sandbox suite). So: nothing here proves a BAD token is rejected, only that a request with NO token is refused before the provider is reached at all.
 import test, { after } from "node:test";
 import assert from "node:assert/strict";
 import request from "supertest";

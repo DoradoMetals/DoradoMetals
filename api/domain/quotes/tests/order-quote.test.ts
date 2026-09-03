@@ -1,24 +1,5 @@
-// POST /quotes/order, over real HTTP.
-//
-// The order quote prices an EXISTING purchase order - the drawers' estimate
-// the frontend's purchaseOrderTotal family used to compute client-side. What
-// this file pins:
-//
-//   - ownership: the owner and an admin get an answer, a stranger gets 403,
-//     an anonymous caller 401 - actors built the way ownership.test.js
-//     builds its (a real owner row, a real stranger row, the stranger
-//     re-badged admin).
-//   - stored-vs-estimate: a line with a frozen item.price is returned
-//     verbatim and flagged "stored"; an unpriced line is estimated from the
-//     same tables the endpoint reads, hand-computed here.
-//   - locked spots: a pinned order_metals.bid_spot prices the estimate, a
-//     cleared one falls back to the live spot - the acceptOrder choice
-//     (spots_locked ? order_spots : spot_prices) as the drawers displayed it.
-//   - the $26.81 pin: a body riding spots, prices or a whole order object in
-//     changes nothing.
-//
-// Everything runs inside the pin; the locked-spots test WRITES (price to
-// NULL, the pin into order_metals) and the rollback discards it.
+// POST /quotes/order, over real HTTP — prices an EXISTING purchase order, the drawer estimate the frontend used to compute client-side. Pins: ownership (owner/admin get an answer, a stranger 403, anonymous 401); stored-vs-estimate (a frozen item.price returns verbatim as 'stored', an unpriced line is estimated from the same tables, hand-computed here); locked spots (a pinned order_metals.bid_spot prices the estimate, a cleared one falls back to the live spot — the same choice finalizePricing makes); and the $26.81 pin (a body riding spots/prices/an order object in changes nothing).
+// Everything runs inside the pin; the locked-spots test WRITES (price to NULL, the pin into order_metals) and the rollback discards it.
 import test, { after, before } from "node:test";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
@@ -47,8 +28,7 @@ type QuoteLine = {
 
 const EXACT = 1e-9; // same floats, same tables, same order of operations
 
-// THE STRUCTURAL SUBSET EACH FIXTURE ACTUALLY HAS. SELECT projections, not
-// table rows.
+// SELECT projections, not table rows.
 type UserFixture = { id: string; name: string | null; email: string | null };
 type Caller = UserFixture & { role: string };
 type OrderFixture = { id: string; user_id: string };
@@ -89,10 +69,7 @@ function bidFor(metal: string | null) {
 }
 
 before(async () => {
-  // The OLDEST order with an owner and at least one typed item, for the same
-  // reason ownership.test.js picks the oldest: nothing creates rows older
-  // than the ones dev already has, so this picks the same order every time,
-  // in isolation and in the full suite.
+  // Oldest order with an owner and a typed item — same reasoning as ownership.test.ts: picks the same order every time, in isolation and in the full suite.
   const orders = await outside<OrderFixture>(
     `SELECT po.id, po.user_id
        FROM exchange.purchase_orders po
@@ -147,10 +124,7 @@ before(async () => {
     `SELECT type, bid_spot FROM exchange.order_metals WHERE purchase_order_id = $1`,
     [order.id]
   );
-  // The live pricing spots. Spots is restructured - one implementation,
-  // reading spots.spots - so this reads the same table getSpotPrices does,
-  // the way the sibling replay tests do. exchange.metals drifts from it in
-  // dev and would hand-compute a different estimate.
+  // Reads spots.spots — the same table getSpotPrices uses; exchange.metals drifts from it in dev and would hand-compute a different estimate.
   liveMetals = await outside<MetalFixture>(
     `SELECT m.name AS type, s.bid AS bid_spot
        FROM spots.spots s JOIN metals.metals m ON m.id = s.metal_id`
@@ -277,27 +251,19 @@ test("a locked order estimates at its locked spots, an unlocked one at live", as
     (target.kind === "product" ? target.product_content : target.scrap_content) ?? 0
   );
   const premium = target.kind === "product" ? productPremium(target) : scrapPremium(target);
-  // GUARDED: this dereferenced find() straight through, so a metal with no
-  // live spot row produced a TypeError inside the fixture setup rather than
-  // naming the metal. On the order-quote path, which prices a purchase order.
+  // Guarded — dereferencing find() straight through made a metal with no live spot row throw inside fixture setup instead of naming it.
   const liveRow = liveMetals.find((m) => m.type === metal);
   assert.ok(liveRow, `no live spot row for ${metal} - the estimate cannot be hand-checked`);
   const liveBid = Number(liveRow.bid_spot);
 
   await inPinnedTransaction(async (client: PoolClient) => {
-    // BOTH SCHEMAS, because the read this endpoint sits on follows
-    // PURCHASE_ORDERS_SOURCE: dev runs dual (reads the orders schema) and the
-    // default is exchange, and a fixture written to only one of them makes
-    // this test assert against whichever the env happens to say. All of it
-    // rolls back with the transaction.
+    // Updates both schemas (exchange and orders.*) so the pin is visible however the endpoint resolves it; all of it rolls back with the transaction.
     await client.query(`UPDATE exchange.purchase_order_items SET price = NULL WHERE id = $1`, [
       target.id,
     ]);
     await client.query(`UPDATE orders.items SET price = NULL WHERE id = $1`, [target.id]);
 
-    // The oldest dev order predates frozen-spot rows entirely, so the pin is
-    // an upsert in each schema: update the frozen row if the order has one,
-    // create it if not - exactly the row lockSpots would have written.
+    // The oldest dev order predates frozen-spot rows entirely, so this upserts: update the frozen row if the order has one, insert if not — exactly what locking spots would have written.
     const updated = await client.query(
       `UPDATE exchange.order_metals SET bid_spot = $1
         WHERE purchase_order_id = $2 AND type = $3 RETURNING id`,

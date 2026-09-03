@@ -1,20 +1,6 @@
 import { requiredEnv } from "#shared/env/required.ts";
-// Everything this codebase asks Stripe to do.
-//
-// The same shape providers/shipments has: the feature says what it wants and the
-// provider knows the API. Before this, features/payments called
-// stripeClient.paymentIntents.create() directly in ten places across a service
-// and a controller, which meant the payments domain and the Stripe SDK were the
-// same code - exactly the confusion that moving the client here was meant to
-// end, and only half-ended.
-//
-// What that buys, beyond tidiness: every call to Stripe is now in one file, so
-// the set of things we depend on Stripe for is readable at a glance, and a
-// second processor or a test double has one surface to satisfy instead of ten
-// call sites to find.
-//
-// Deliberately thin. No mapping, no defaults, no business rules - those belong
-// to features/payments. This is the boundary, not a layer.
+// Everything this codebase asks Stripe to do — the same shape as providers/shipments: the feature says what it wants, the provider knows the API. Before this, features/payments called the Stripe SDK directly in ten places, mixing the payments domain with the SDK itself.
+// Deliberately thin — no mapping, no defaults, no business rules (those belong to features/payments); this is the boundary, not a layer.
 import stripeClient from "#providers/payment/stripe-client.ts";
 
 export function retrieveIntent(paymentIntentId: string) {

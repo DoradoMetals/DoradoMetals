@@ -1,11 +1,5 @@
-// oneString is what stands between `req.query.x` and a repo. Express really
-// does hand over an array for `?id=a&id=b` and an object for `?id[k]=v`, from
-// any caller who feels like sending one, and pg receiving either where a uuid
-// was expected is a 500 on malformed input rather than a clean refusal.
-//
-// The deliberate part is that it does NOT coerce. An array is not joined into
-// "a,b", because that would invent an id nobody sent. That is the behaviour a
-// future "helpful" change would break, so it is pinned from the value side.
+// oneString stands between req.query.x and a repo — Express really does hand over an array for ?id=a&id=b and an object for ?id[k]=v, and pg receiving either where a uuid was expected is a 500 on malformed input rather than a clean refusal.
+// Deliberately does NOT coerce — an array is not joined into "a,b", which would invent an id nobody sent; pinned from the value side so a future 'helpful' change can't quietly break it.
 import test from "node:test";
 import assert from "node:assert/strict";
 import { oneString } from "#shared/http/query.ts";

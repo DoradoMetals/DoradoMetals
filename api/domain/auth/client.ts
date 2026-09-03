@@ -19,11 +19,7 @@ export const auth = betterAuth({
     connectionString: process.env.DATABASE_URL,
   }),
   user: {
-    // THE CUTOVER (2026-09-01, Jacob's call): better-auth writes auth.* now.
-    // exchange.users stays fresh through auth.mirror_identity_to_exchange
-    // (migration 107) - identity flows this way, dorado_funds flows the other,
-    // and neither side can clobber the other's columns. Rolling back is 107's
-    // header: recreate 056's trigger and point these four names back.
+    // better-auth writes auth.users; exchange.users stays fresh via migration 107's trigger — identity flows one way, dorado_funds the other, neither side clobbers the other's columns.
     modelName: 'auth.users',
     additionalFields: {
       role: { type: 'string', required: false, defaultValue: 'user', input: false },
@@ -32,21 +28,8 @@ export const auth = betterAuth({
     },
     changeEmail: {
       enabled: true,
-      // sendChangeEmailConfirmation, NOT sendChangeEmailVerification.
-      //
-      // better-auth has never had an option by the second name, so this object
-      // key was read by nothing and this callback was never called. It does not
-      // fail: update-user.mjs computes
-      //   canSendConfirmation = emailVerified && changeEmail.sendChangeEmailConfirmation
-      // which was falsy, falls past it, and lands on the emailVerification
-      // branch instead - which sends the ordinary "Verify Your Email Address"
-      // mail to `{...user, email: newEmail}`, the NEW address.
-      //
-      // So the approval went to the address being moved TO, and the address
-      // being moved FROM was never told. frontend/app/change-email/page.tsx
-      // exists and is documented as "reached from the email-change
-      // confirmation link" - a page nothing could reach, because the link that
-      // points at it was never sent.
+      // sendChangeEmailConfirmation is NOT a real better-auth option (the real one is spelled differently) — this callback is never called. update-user.mjs's fallback logic instead sends the ordinary verification email to the NEW address, so approval goes to where the email is moving TO, and the address moving FROM is never told.
+      // frontend/app/change-email/page.tsx is consequently unreachable — its link is never sent.
       sendChangeEmailConfirmation: async ({ user, token }) => {
         const emailUrl = `${requiredEnv("FRONTEND_URL")}/change-email?token=${token}`;
         await sendEmail({
@@ -81,11 +64,7 @@ export const auth = betterAuth({
   emailVerification: {
     sendOnSignUp: true,
     autoSignInAfterVerification: true,
-    // The one auth mail on the paper trail (D78, migration 091). better-auth
-    // only calls this callback - the render, the send and now the
-    // media.emails record are all ours, in the shared sender. The reset,
-    // change-email and magic-link mails below still go unrecorded: each is a
-    // deliberate enum label away, not a different mechanism.
+    // The one auth email recorded to media.emails — the reset, change-email and magic-link mails below still go unrecorded, each a deliberate enum label away rather than a different mechanism.
     sendVerificationEmail: async ({ user, token }, request) => {
       await sendAuthVerificationEmail({
         user,
@@ -100,13 +79,7 @@ export const auth = betterAuth({
       clientSecret: process.env.GOOGLE_CLIENT_SECRET as string,
     },
   },
-  // NOT requiredEnv, and the asymmetry is deliberate. The four builders above
-  // run per REQUEST, so requiredEnv fails that one request loudly - which is
-  // the behaviour the nine other credentials already have. This line is
-  // evaluated at MODULE LOAD, so requiredEnv here would refuse to boot the API
-  // on a missing variable. That may well be the right answer, but it is a
-  // change to startup behaviour on a branch whose deploy sequence is delicate,
-  // and it is Jacob's to make deliberately. D194.
+  // NOT requiredEnv, deliberately asymmetric: the builders above run per-request, so requiredEnv fails just that request; this line runs at MODULE LOAD, so requiredEnv here would refuse to boot the API on a missing variable — a startup-behavior change on a delicate deploy sequence, left for Jacob to make on purpose.
   trustedOrigins: [process.env.FRONTEND_URL as string],
   plugins: [
     magicLink({
@@ -119,19 +92,8 @@ export const auth = betterAuth({
         });
       },
     }),
-    // NO canImpersonate HERE, DELIBERATELY. AdminOptions has never had one -
-    // the real names are allowImpersonatingAdmins and
-    // impersonationSessionDuration - so `canImpersonate: async ({ user }) =>
-    // user.role === 'admin'` was read by nothing and enforced nothing.
-    //
-    // Nothing is lost by removing it, and this is the part worth being sure
-    // about rather than assuming: the impersonate route already carries
-    // `use: [adminMiddleware]` and then a hasPermission check on the caller's
-    // role, throwing YOU_ARE_NOT_ALLOWED_TO_IMPERSONATE_USERS if it fails, with
-    // adminRoles defaulting to ["admin"]. That is exactly what the dead option
-    // was trying to say. It is left out rather than corrected because there is
-    // nothing to correct it TO - the default already does it, and a line that
-    // looks like a security control but is inert is worse than no line.
+    // No canImpersonate here, deliberately — AdminOptions never had that option (the real names are allowImpersonatingAdmins/impersonationSessionDuration), so it enforced nothing.
+    // Verified, not assumed safe: the impersonate route already has adminMiddleware plus a role check that throws otherwise, defaulting adminRoles to admin — exactly what the dead option was trying to say. Left out rather than 'corrected', since a line that looks like a security control but is inert is worse than no line.
     admin(),
     stripePlugin({
       stripeClient,

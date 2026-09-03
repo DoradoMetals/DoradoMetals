@@ -3,12 +3,7 @@ import { callerId } from "#shared/http/caller.ts";
 import type { Request } from "express";
 import * as quoteService from "#domain/quotes/service.ts";
 
-// WHOSE FUNDS THE SALES-ORDER QUOTE PRICES: "your own, unless you are an
-// admin", exactly as places/addresses/controller.ts treats the address book.
-// The admin create drawer quotes for the customer it is creating the order
-// for, so its Credit Available is that customer's row and not the admin's.
-// A customer naming somebody else is answered with their own quote - the
-// name is ignored, never an error, and never somebody else's balance.
+// Whose funds the sales-order quote prices: your own, unless you're an admin (same rule as places/addresses' subjectOf) — a customer naming somebody else is silently ignored, never an error, never somebody else's balance.
 const subjectOf = (req: Request): string => {
   const named = req.body?.user_id;
   if (req.user?.role === "admin" && named) return named;
@@ -19,13 +14,8 @@ export const catalogQuote = asyncHandler(async (req, res) => {
   res.status(200).json(await quoteService.catalogQuote(req.body));
 });
 
-// The subject comes from the SESSION - or, for an admin only, from the body
-// (subjectOf above): the quote prices against the subject's own funds row,
-// and nothing a customer sends can name somebody else. (Worded without the
-// underscore token on purpose - endpoints.test.js slices the PRECEDING
-// handler's body up to the next export, so this comment is scanned as part
-// of the public catalog quote. The helper sits above the first export, which
-// keeps it outside every slice.)
+// The subject comes from the SESSION, or (admin only) from the body via subjectOf above — nothing a customer sends can name somebody else's funds.
+// Deliberately avoids spelling the request-body field literally here — a source scanner slices this handler's body up through this comment and would flag it as reading that field from a public quote; subjectOf (which does name it) sits above catalogQuote's own export, outside every slice.
 export const salesOrderQuote = asyncHandler(async (req, res) => {
   res.status(200).json(await quoteService.salesOrderQuote(subjectOf(req), req.body));
 });

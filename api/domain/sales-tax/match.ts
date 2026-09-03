@@ -1,25 +1,5 @@
-// Which sales-tax rule applies, and at what rate.
-//
-// THIS WAS AN ORDER BY. The implementation it replaces filtered and ranked 88
-// rules in SQL, per line item, and picked the first:
-//
-//   ORDER BY (r.metal_category   <> 'All')   DESC,
-//            (r.product_type     <> 'All')   DESC,
-//            (r.is_domestic      IS NOT NULL) DESC,
-//            ...
-//
-// Every line of that is a domain rule - "a rule naming a metal beats one saying
-// All", "a rule that cares about legal tender beats one that does not" - written
-// where nothing could unit-test it and where a reader had to run the query to
-// learn what it meant. Same rules, same order, in a function that takes values
-// and returns a number.
-//
-// PORTED EXACTLY, NOT IMPROVED. Every predicate and every tiebreaker below
-// corresponds one-to-one with a line of that statement, including the sentinel
-// comparisons (1e12, 1) that mean "this rule does not constrain price/purity".
-// The differential test in tests/match.test.ts runs both implementations over
-// every rule and requires identical answers; changing behaviour here is a
-// separate, deliberate act.
+// Which sales-tax rule applies, and at what rate — ported EXACTLY from an ORDER BY that filtered and ranked 88 rules in SQL per line item (same rules, same order, now testable without a database).
+// Every predicate and tiebreaker below corresponds one-to-one with a line of that statement, sentinel comparisons (1e12, 1 meaning 'this rule doesn't constrain price/purity') included. tests/match.test.ts differentially checks both implementations agree on every rule — changing behavior here is a separate, deliberate act.
 import type { TaxRule } from "#db/sales-tax/repo.ts";
 
 export type TaxableFacts = {
@@ -69,11 +49,7 @@ const specificity = (r: TaxRule): boolean[] => [
   r.aggregate_min !== 0 || r.aggregate_max !== 1e12,
 ];
 
-// LIMIT 1 after that ORDER BY. Where two rules tie on all seven, SQL's order is
-// unspecified and so is this - which is a property of the DATA, not of either
-// implementation. tests/match.test.ts asserts no such tie exists in the rules
-// as seeded, so the answer is determinate today and a new rule that creates one
-// fails the build rather than silently picking a side.
+// A tie on all seven axes is unspecified — a property of the DATA, not either implementation. match.test.ts asserts no such tie exists in the seeded rules, so a new rule creating one fails the build rather than silently picking a side.
 export function rateFor(rules: TaxRule[], f: TaxableFacts): number {
   const candidates = applicable(rules, f);
   if (candidates.length === 0) return 0;

@@ -29,10 +29,7 @@ export const requireAuth = async (
   }
 };
 
-// The ladder, and the only names a role may have. `Role` is derived from the
-// object rather than declared beside it, so adding a rung cannot leave the type
-// behind - and requireRole's argument is checked at compile time instead of
-// only by the throw below.
+// The ladder and the only names a role may have — Role is derived from this object, so a new rung can't be added without the type following.
 const roleLevels = {
   user: 1,
   verified_user: 2,
@@ -48,10 +45,7 @@ const requireRole = (minimumRole: Role): RequestHandler => {
 
   return async (req: Request, res: Response, next: NextFunction) => {
     await requireAuth(req, res, () => {
-      // req.user is optional on the Request type - requireAuth has just set it,
-      // but the type describes every handler, guarded or not. An unknown role
-      // is level 0, which fails every comparison below, so an unrecognised
-      // value is refused rather than treated as privileged.
+      // An unknown role resolves to level 0, failing every comparison — an unrecognised value is refused, never treated as privileged.
       const userRole = req.user?.role;
       const userLevel =
         userRole && userRole in roleLevels ? roleLevels[userRole as Role] : 0;

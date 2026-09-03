@@ -1,13 +1,4 @@
-// What an error response tells the caller.
-//
-// The handler's job is two-sided: print everything to the log, return as little
-// as possible to the client. It was only doing the first half. An unexpected
-// error's message went straight back - and a Postgres error carries the column,
-// the type, the constraint name and, on a unique violation, the conflicting
-// value. `where` sat next to it with the absolute path of the source file.
-//
-// Only `where` was gated on NODE_ENV, so production returned the message.
-//
+// What an error response tells the caller — the handler's job is print-everything-to-log, return-as-little-as-possible-to-client; it was only doing the first half (an unexpected error's message, including a Postgres error's column/type/constraint/value, went straight back, and `where` — the absolute source path — was gated on NODE_ENV but the message wasn't).
 // Pure: no database, no HTTP. The handler is a function of (err, req, res).
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -63,14 +54,7 @@ function respond(
   };
 
   try {
-    // THE ONLY CASTS IN THIS FILE, AND THEY ARE AT THE FAKE-OBJECT BOUNDARY.
-    // Express's Request and Response have hundreds of members; errorHandler
-    // reads exactly `req.method`, `req.originalUrl`, `res.status` and
-    // `res.json`, which is what these fakes provide. Declaring a structural
-    // subset is not an option when the parameter type is the framework's own
-    // interface, so the narrowing is done once, here, where a reader can see
-    // what is being claimed - rather than by typing the fakes as `any`, which
-    // would also erase the checks on `status` and `json` above.
+    // The only casts in this file, at the fake-object boundary — Express's Request/Response have hundreds of members, and errorHandler reads only a few; narrowed once here rather than typed `any`, which would also erase the checks on status/json below.
     capture(() =>
       errorHandler(
         err,
@@ -82,10 +66,7 @@ function respond(
   } finally {
     if (nodeEnv !== undefined) process.env.NODE_ENV = previous;
   }
-  // ASSERTED, NOT ASSUMED. Every test below reads `body.error.message`; before
-  // this file was typechecked, a handler that returned without calling
-  // `res.json` would have failed each of them with "cannot read properties of
-  // undefined", naming nothing. This says what actually went wrong, once.
+  // Asserted, not assumed — a handler that returned without calling res.json would otherwise fail every test below with an unhelpful 'cannot read properties of undefined'.
   assert.ok(status !== undefined, "errorHandler did not set a status");
   assert.ok(body, "errorHandler did not send a body");
   return { status, body };

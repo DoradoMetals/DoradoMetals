@@ -1,12 +1,4 @@
-// The Express app, with nothing started.
-//
-// Split out of server.ts so it can be imported by a test. server.ts used to
-// build the app, start the cron scheduler and listen, all at module load, which
-// meant importing it to make one request also started a scheduler and bound a
-// port - so the routes and controllers had no tests at all. That is the layer
-// where servicesRepo.remove(req.body) lived, and where the transactions
-// controller still reads req.body on a GET.
-//
+// The Express app, with nothing started — split out of server.ts so it can be imported by a test; server.ts used to build the app, start the cron scheduler and listen all at module load, so importing it for one request also bound a port and started a scheduler, meaning routes and controllers had no tests at all.
 // server.ts is now the only thing that starts anything.
 import "#env";
 import express from "express";
@@ -58,10 +50,7 @@ app.use(httpLogger);
 app.use(
   cors({
     origin: process.env.FRONTEND_URL,
-    // PATCH is here because the order mutation surface is
-    // PATCH /api/purchase_orders/:id and /api/sales_orders/:id now; a browser
-    // preflights PATCH, and a method missing from this list is refused there -
-    // the server-side route would work while every real client 403s.
+    // PATCH is here because the order mutation surface is PATCH-based — a browser preflights it, and a missing method here 403s every real client while the server-side route still works.
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
     credentials: true,
   })
@@ -78,27 +67,18 @@ app.post(
 app.all("/api/auth/*splat", toNodeHandler(auth));
 
 app.use(express.json());
-// express 5 leaves req.body undefined when no parser matched (v4 gave {}).
-// Controllers destructure req.body freely; without this, a POST with a
-// missing or mistyped content-type would 500 on the destructure instead of
-// failing validation like a request with an empty body always has.
+// express 5 leaves req.body undefined when nothing matched (v4 gave {}) — without this, a POST with a missing/mistyped content-type would 500 on the destructure instead of failing validation normally.
 app.use((req, _res, next) => {
   if (req.body === undefined) req.body = {};
   next();
 });
 
-// The route stays /api/stripe: the frontend calls it, and renaming a module
-// is not a reason to change the API. The feature is payments; the path is
-// history, and it moves when the frontend does. The methods resource is
-// minted TODAY, so it gets the honest name - payment methods are the
-// business's reference data, not Stripe's.
+// Route stays /api/stripe — the frontend calls it, and renaming a module isn't a reason to change the API; the new methods resource gets the honest name instead.
 app.use("/api/stripe", paymentRoutes);
 app.use("/api/payments/methods", paymentMethodRoutes);
 app.use("/api/products", productRoutes);
 app.use("/api/addresses", addressRoutes);
-// The route stays /api/cart: the frontend calls it and renaming the module is
-// not a reason to change the API. The feature is checkout; the path is history.
-// The checkout ROW (D208) is minted today and gets the honest name.
+// Route stays /api/cart for the same reason — the checkout ROW is minted today and gets the honest name.
 app.use("/api/cart", checkoutRoutes);
 app.use("/api/checkout", checkoutRowRoutes);
 app.use("/api/shipping", shippingRoutes);
@@ -115,10 +95,7 @@ app.use("/api/sales_orders", salesOrderRoutes);
 app.use("/api/orders", ordersRoutes);
 app.use("/api/shipments", shipmentRoutes);
 app.use("/api/payouts", payoutRoutes);
-// The route stays /api/suppliers: the frontend calls it
-// (frontend/features/products/queries.ts) and renaming a module is not a
-// reason to change the API. The feature is refiners; the path is history, and
-// it moves when the frontend does.
+// Route stays /api/suppliers for the same reason — the frontend calls it directly.
 app.use("/api/suppliers", refinerRoutes);
 // The refiner-side WRITES are new (28 August) and take the feature's real
 // name - only the historical read path above keeps the suppliers spelling.

@@ -1,14 +1,7 @@
 // Turning our shapes into the ones FedEx's API expects.
 
-// A STRUCTURAL ADDRESS, NOT the Address contract. Three different things reach this: an
-// address-book row, an order's address snapshot (OrderAddressSnapshot, a different
-// type with the same field names) and the constants in
-// providers/shipments/constants.ts, which are hand-written literals. Naming any one
-// of them here would reject the other two.
-//
-// Every field is optional and nullable because both wire shapes declare them
-// nullable, and because FedEx is where a missing one is discovered rather than
-// here.
+// A structural address, not the Address contract — an address-book row, an order's address snapshot, and hand-written constants all reach this with the same field names but different types; naming any one would reject the others.
+// Every field optional/nullable since both wire shapes declare them so, and because FedEx is where a missing one is actually discovered.
 type AddressLike = {
   line_1?: string | null;
   line_2?: string | null;
@@ -34,12 +27,7 @@ function pad2(n: number): string {
   return String(n).padStart(2, "0");
 }
 
-// YYYY-MM-DDTHH:mm:ss
-//
-// Local time, not UTC - getHours and friends, not their UTC counterparts. That
-// is what FedEx wants for a pickup window: the time at the address, with no
-// offset on it. Passing a UTC-formatted string would schedule the pickup at the
-// wrong hour for anyone not on the server's timezone.
+// Local time, not UTC — FedEx wants the time at the address with no offset; a UTC-formatted string would schedule the pickup at the wrong hour for anyone off the server's timezone.
 export function formatFedexFullDateTime(d: Date): string {
   return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(
     d.getDate()

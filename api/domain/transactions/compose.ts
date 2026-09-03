@@ -1,11 +1,5 @@
-// The shape exchange returned, rebuilt from payments.ledger.
-//
-// exchange.account_transactions had transaction_type and BOTH order columns;
-// payments.ledger has `type` and one `order_id`. Which of the two columns an
-// order id belongs in is decided by the ORDER's direction, which is why the old
-// query joined orders.orders to answer it with a CASE.
-//
-// Composed from ONE read of the orders involved rather than a join per query.
+// The shape exchange returned, rebuilt from payments.ledger — exchange had transaction_type and BOTH order columns; payments.ledger has one order_id, so which column it belongs in is decided by the order's own direction.
+// Composed from ONE read of the orders involved, not a join per query.
 import query from "#shared/db/query.ts";
 import type { LedgerRow } from "#db/transactions/repo.ts";
 import type { PoolClient } from "pg";

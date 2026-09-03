@@ -1,12 +1,5 @@
-// Weight conversion exists THREE times: here, in
-// frontend/shared/utils/convertWeights.ts, and as the SQL function
-// metals.convert_to_troy_oz. Every price in the system is per troy ounce, and
-// a scrap line's content times spot times premium is what a customer is paid,
-// so three copies disagreeing is a pricing bug rather than untidiness.
-//
-// The frontend copy has had a test for a while. THIS one - the copy the API
-// actually pays people with - had none, and nothing compared it to the SQL
-// function at all. This does both.
+// Weight conversion exists THREE times (here, the frontend copy, and the SQL function metals.convert_to_troy_oz) — a scrap line's content * spot * premium is what a customer is paid, so three copies disagreeing is a pricing bug, not untidiness.
+// The frontend copy had a test; THIS one — what the API actually pays people with — had none, and nothing compared it to the SQL function. This does both.
 import test, { after, before } from "node:test";
 import assert from "node:assert/strict";
 import pool from "#db";
@@ -69,10 +62,7 @@ test("and agrees case-insensitively too", async () => {
   }
 });
 
-// The one documented difference, pinned so that changing either is deliberate.
-// Zero is the more dangerous answer: a scrap line in a unit nobody anticipated
-// is silently worth nothing, and nothing about the result says it failed. NULL
-// at least propagates. Nothing calls the SQL function today, so this is latent.
+// The one documented difference, pinned so changing either is deliberate — zero is more dangerous (silently worth nothing, nothing says it failed) than NULL (which at least propagates); nothing calls the SQL function today, so this is latent.
 test("they part company on a unit nobody uses - zero here, NULL in the database", async () => {
   for (const unit of ["kg", "oz", "stone", ""]) {
     assert.equal(convertTroyOz(100, unit), 0, `javascript should zero "${unit}"`);

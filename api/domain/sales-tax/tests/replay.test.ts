@@ -1,24 +1,6 @@
-// The sales tax endpoint, over real HTTP.
-//
-// One route, requireUser, and it computes money: getSalesTax takes an address
-// and a set of items and returns what the customer will be charged on top. The
-// rules table has 88 rows and is one of only two table pairs the migration
-// rehearsal managed to populate, so this is a calculation whose inputs are
-// already living in the new schema.
-//
-// WHAT IS WORTH ASSERTING. Not the rates themselves - features/sales-orders
-// has unit tests for the arithmetic, and duplicating them here would only
-// couple this file to numbers that legitimately change. What HTTP adds is the
-// boundary: that the route is guarded, that a malformed body is refused rather
-// than silently taxed at zero, and that a state with no nexus is answered
-// differently from a state with one.
-//
-// A SILENT ZERO IS THE FAILURE MODE THAT MATTERS. Tax that comes back as 0 for
-// a bad request looks exactly like tax that comes back as 0 because the state
-// does not collect - and the first is a bug that undercharges every order.
-//
-// NOTHING IS COMMITTED. shared/testing/pinned-pool.js holds every query in one
-// transaction that is rolled back.
+// The sales tax endpoint, over real HTTP — one route, requireUser, and it computes money from an address and items. The 88-row rules table is one of only two table pairs the migration rehearsal managed to populate, so this calculation's inputs already live in the new schema.
+// What's worth asserting is the HTTP boundary, not the rates arithmetic (unit-tested elsewhere): the route is guarded, a malformed body is refused rather than silently taxed at zero, and a state with no nexus differs from one with a rule.
+// A SILENT ZERO IS THE FAILURE THAT MATTERS — it looks identical whether a bad request undercharges an order or a state genuinely doesn't collect. NOTHING IS COMMITTED (pinned-pool.ts).
 import test, { after, before } from "node:test";
 import assert from "node:assert/strict";
 import request from "supertest";
@@ -29,8 +11,7 @@ import { inPinnedTransaction, outside } from "#shared/testing/pinned-pool.ts";
 await mockSessions();
 const { default: app } = await import("#app");
 
-// THE STRUCTURAL SUBSET EACH FIXTURE ACTUALLY HAS. These are SELECT
-// projections, not table rows.
+// SELECT projections, not table rows.
 type UserFixture = { id: string; name: string | null; email: string | null };
 type MetalFixture = { type: string; ask_spot: number; bid_spot: number };
 
@@ -49,10 +30,7 @@ before(async () => {
     `SELECT type, ask_spot, bid_spot FROM exchange.metals ORDER BY type`);
   assert.ok(spots.length > 0, "dev has no metals - a tax calculation needs a spot to price against");
 
-  // state_code, not state. The first version of this queried `state` - the
-  // column does not exist - and every test failed in under a millisecond
-  // because before() threw. Same class of mistake as querying rates.notes:
-  // asserting against a column without checking the table has it.
+  // state_code, not state — the first version queried a column that doesn't exist, and every test failed in under a millisecond because before() threw.
   const states = await outside(
     `SELECT DISTINCT state_code FROM exchange.sales_tax_rules WHERE state_code IS NOT NULL LIMIT 1`
   );
@@ -113,23 +91,8 @@ test("a signed-in customer gets a number back for a real state", async () => {
   });
 });
 
-// RECORDED, NOT ASSERTED AS CORRECT. A request with a valid address and items
-// but NO spots answers 200 with zero tax.
-//
-// That is not a quirk of this endpoint, it is the visible edge of something
-// larger: THE CLIENT SUPPLIES THE SPOT PRICES EVERY MONEY FIGURE IS COMPUTED
-// FROM. calculateItemAsk is
-//
-//   content * (spot.ask_spot * ask_premium)
-//
-// and `spots` arrives in the request body here, in createSalesOrder, and in
-// updatePaymentIntent - where the result becomes the Stripe charge amount. Send
-// no spots and everything prices at zero; send low ones and it prices low.
-// FOLLOWUPS has the measured numbers.
-//
-// So this pins the CURRENT behaviour rather than the desired one. When the
-// server sources its own spots, this is the assertion to invert - deliberately,
-// with the figure it should return instead.
+// RECORDED, not asserted as correct — a request with a valid address and items but no `spots` currently answers 200 with zero tax. calculateItemAsk prices every money figure as content * (spot.ask * ask_premium), and `spots` arrives in the request body here and in createSalesOrder/updatePaymentIntent too (FOLLOWUPS has the measured numbers of what that allows).
+// Pins CURRENT behavior, not desired — when the server sources its own spots instead, this is the assertion to invert deliberately, with the figure it should return.
 test("RECORDED: a request with no spots is answered with zero tax", async () => {
   await inPinnedTransaction(async () => {
     await as({ ...customer, role: "user" }, async () => {

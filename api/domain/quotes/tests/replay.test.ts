@@ -1,15 +1,5 @@
-// The quote endpoints, over real HTTP.
-//
-// What this file pins is the ruling itself: every number here is priced by
-// the server from its own tables, and a body that rides prices or spots in
-// changes NOTHING - the $26.81 regression (see getSpotPrices' header)
-// stays dead. The math checks are hand-computed from the same tables the
-// endpoints read, so a transposed spot, a dropped premium or a quantity
-// applied twice all fail loudly.
-//
-// Everything runs inside the pin. The endpoints only read, but so did
-// tracking.test.js until it did not - the pin is what makes that claim
-// enforced rather than assumed. No lock: quotes write nothing, like spots.
+// The quote endpoints, over real HTTP — pins that every number is priced by the server from its own tables, and a body riding prices/spots changes NOTHING (the $26.81 regression stays dead). Math checks are hand-computed from the same tables the endpoints read, so a transposed spot or doubled quantity fails loudly.
+// Everything runs inside the pin — the endpoints only read, but so did tracking.test.js until it didn't; no lock, since quotes write nothing.
 import test, { after, before } from "node:test";
 import assert from "node:assert/strict";
 import request from "supertest";
@@ -23,8 +13,7 @@ const { default: app } = await import("#app");
 const CENTS = 0.005; // money reconciliation tolerance: within half a cent
 const EXACT = 1e-9;  // same floats, same tables, same order of operations
 
-// THE STRUCTURAL SUBSET EACH FIXTURE ACTUALLY HAS. SELECT projections, not
-// table rows.
+// SELECT projections, not table rows.
 type SpotFixture = { name: string; ask: number; bid: number };
 type ProductFixture = {
   id: string;
@@ -54,10 +43,7 @@ before(async () => {
     `SELECT m.name, s.ask, s.bid
        FROM spots.spots s JOIN metals.metals m ON m.id = s.metal_id`
   );
-  // TWO CLAIMS, SEPARATED. `gold?.ask > 0` was one assertion covering both
-  // "dev has no Gold row at all" and "the Gold row is priced zero", and
-  // `undefined > 0` is false, so either produced the same message. They are
-  // different failures and now say so.
+  // Two claims, separated — `gold?.ask > 0` conflated 'no Gold row' with 'Gold priced at zero' since `undefined > 0` is also false; now distinct failures.
   const found = spots.find((s) => s.name === "Gold");
   assert.ok(found, "dev has no Gold spot row - every check here would be vacuous");
   assert.ok(
@@ -230,12 +216,7 @@ test("the sales-order breakdown reconciles to the cent and funds come from the u
   });
 });
 
-// WHOSE FUNDS (D84's c5 follow-up): the admin create drawer quotes for the
-// customer it is creating the order for, so the sales-order quote accepts an
-// optional user_id honored ONLY for admins - subjectOf semantics, the
-// address-book rule. A customer naming somebody else is answered with their
-// own quote: the guard is the session winning, never an error and never
-// somebody else's balance.
+// Admin quotes price the named user's funds (subjectOf semantics); a customer naming somebody else just gets their OWN quote back — the guard is the session winning, never an error or somebody else's balance.
 test("an admin's sales-order quote prices the named user's funds; a customer's name is ignored", async () => {
   await inPinnedTransaction(async () => {
     // A second user whose balance differs from the session user's - a
@@ -316,12 +297,7 @@ test("the purchase-order quote prices scrap and product lines from the rates ban
       assert.ok(Math.abs(p.line_total - productUnit * 2) < EXACT, "product line_total is not unit * quantity");
 
       assert.ok(Math.abs(res.body.total - (s.line_total + p.line_total)) < EXACT, "total is not the sum of the lines");
-      // DECLARED VALUE IS THE TOTAL, CAPPED BY WHAT WE WILL INSURE (097/D132).
-      // It was `=== total` until the ceiling stopped being a literal in the
-      // browser; this fixture's total is about $15,900 against a $10,000
-      // ceiling, so the clamp is REACHED here rather than asserted vacuously.
-      // Read from the same table the endpoint reads, so seeding a different
-      // number does not silently make this pass for the wrong reason.
+      // Declared value is capped by the insurance ceiling — this fixture's total (~$15,900) exceeds the $10,000 ceiling, so the clamp is actually REACHED here, not asserted vacuously. Read from the same table the endpoint reads.
       const ceiling = await outside(
         `SELECT min(s.max_insured_value) AS ceiling
            FROM shipping.services s
@@ -347,12 +323,7 @@ test("the purchase-order quote prices scrap and product lines from the rates ban
   });
 });
 
-// ------------------------------------------------- the $26.81 regression pin
-
-// A body that rides spots, prices or premiums in is priced IDENTICALLY to a
-// clean one. This is the regression that once sold an ounce of gold for
-// $26.81: items were server-fetched, and only the metal price was taken on
-// trust. Nothing price-shaped in a request may ever be read again.
+// A body riding spots/prices/premiums prices IDENTICALLY to a clean one — the regression that once sold an ounce of gold for $26.81 (items were server-fetched, only the metal price was trusted).
 test("no body-supplied price, spot or premium is ever honoured", async () => {
   await inPinnedTransaction(async () => {
     const poison = {
