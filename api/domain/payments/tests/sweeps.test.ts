@@ -1,11 +1,27 @@
 // The create-then-charge safety net, exercised for real: seeded orders and
 // intents (payments.intents/attempts - the native record since D212), both
 // sweeps, inside the pinned transaction so nothing survives.
+//
+// THE ABANDONMENT-CANCEL TEST IS SKIPPED (lane 4, docs/waves/
+// test-suite-redesign.md 1.3 and 2.4). sweepAbandoned's cancel path calls
+// `paymentsService.cancelIntentByRef`, which calls `stripe.cancelIntent` for
+// real - the seeded provider_ref is synthetic, so Stripe used to answer
+// "No such payment_intent" quickly and the catch block treated that as
+// already-abandoned. `shared/testing/no-network.ts` (preloaded by the `test`
+// script) now blocks that call with nock before it reaches Stripe at all, and
+// the Stripe SDK's retry logic does not resolve against nock's synthetic
+// NetConnectNotAllowedError the way it resolved against a real 404 - so the
+// call that used to fail fast now hangs, taking every OTHER test queued
+// behind the same [FULFILLMENTS, ORDERS, ADDRESSES, USERS] lock set down
+// with it (confirmed: "a YOUNG unpaid order is left alone" times out too,
+// purely from queueing behind this one). Lane 5 ("replay") replaces this with
+// a cassette for Stripe's "no such payment_intent" response.
 import test from "node:test";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
 import query from "#shared/db/query.ts";
 import { inPinnedTransaction } from "#shared/testing/pinned-pool.ts";
+import { LOCKS } from "#shared/testing/locks.ts";
 import { sweepSettledIntents, sweepAbandoned } from "#domain/payments/sweeps.ts";
 
 async function seedSale(
@@ -52,10 +68,17 @@ test("the settled sweep advances an order whose webhook went missing", async () 
       "the missed-webhook order was not advanced"
     );
     assert.equal(await statusOf(c, id), "Preparing");
-  });
+  }, { lock: [LOCKS.FULFILLMENTS, LOCKS.ORDERS, LOCKS.ADDRESSES, LOCKS.USERS] });
 });
 
-test("the abandonment sweep cancels a stale unpaid order and refunds its credit", async () => {
+test("the abandonment sweep cancels a stale unpaid order and refunds its credit", {
+  skip: "sweepAbandoned's cancel path reaches Stripe for real (cancelIntentByRef, " +
+    "no DI seam) and shared/testing/no-network.ts now blocks that - the Stripe " +
+    "SDK's retry logic does not resolve against nock's refusal, so this hangs " +
+    "past the per-test timeout instead of failing, taking every test queued " +
+    "behind the same lock set with it. Lane 5 replaces it with a cassette; " +
+    "see this file's header.",
+}, async () => {
   await inPinnedTransaction(async (c: PoolClient) => {
     const { rows: users } = await query<{ id: string; dorado_funds: number | null }>(
       `SELECT id, dorado_funds FROM exchange.users LIMIT 1`, [], c);
@@ -86,7 +109,7 @@ test("the abandonment sweep cancels a stale unpaid order and refunds its credit"
       `SELECT count(*)::int n FROM payments.ledger
         WHERE order_id = $1 AND type = 'Credit'`, [id], c);
     assert.equal(ledger[0]!.n, 1, "the refund has no ledger entry");
-  });
+  }, { lock: [LOCKS.FULFILLMENTS, LOCKS.ORDERS, LOCKS.ADDRESSES, LOCKS.USERS] });
 });
 
 test("a YOUNG unpaid order is left alone", async () => {
@@ -94,7 +117,7 @@ test("a YOUNG unpaid order is left alone", async () => {
     const id = await seedSale(c, { ageHours: 1 });
     await sweepAbandoned(24, c);
     assert.equal(await statusOf(c, id), "Pending", "a fresh order was cancelled");
-  });
+  }, { lock: [LOCKS.FULFILLMENTS, LOCKS.ORDERS, LOCKS.ADDRESSES, LOCKS.USERS] });
 });
 
 test("a PROCESSING intent protects its order from the abandonment sweep", async () => {
@@ -103,5 +126,5 @@ test("a PROCESSING intent protects its order from the abandonment sweep", async 
     await seedIntent(c, `pi_rec_processing_${Date.now()}`, "processing", id);
     await sweepAbandoned(24, c);
     assert.equal(await statusOf(c, id), "Pending", "an order with money in flight was cancelled");
-  });
+  }, { lock: [LOCKS.FULFILLMENTS, LOCKS.ORDERS, LOCKS.ADDRESSES, LOCKS.USERS] });
 });

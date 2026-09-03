@@ -323,7 +323,7 @@ test("GET /payouts/:id/details answers with the payout's fields", async () => {
         assert.ok(key in payout, `the payout is missing ${key}`);
       }
     });
-  });
+  }, { lock: ORDER_LOCK });
 });
 
 test("a customer cannot read a payout's bank details", async () => {
@@ -336,7 +336,7 @@ test("a customer cannot read a payout's bank details", async () => {
         `a signed-in customer was answered ${res.status}`
       );
     });
-  });
+  }, { lock: ORDER_LOCK });
 });
 
 test("an anonymous caller cannot read a payout's bank details", async () => {
@@ -349,5 +349,5 @@ test("an anonymous caller cannot read a payout's bank details", async () => {
         `an anonymous caller was answered ${res.status}`
       );
     });
-  });
+  }, { lock: ORDER_LOCK });
 });

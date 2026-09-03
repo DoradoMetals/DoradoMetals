@@ -237,11 +237,6 @@ const REAL_EXCUSED = {
     why:"IS the self-test harness. Every --self-test this file executes is a run of " +
     "it, and it refuses a suite with no `pass` case as well as no `fail` case.",
   },
-  "api/scripts/lib/suite-invocation.ts": {
-    kind: "library",
-    why:"read by audit-test-leaks and audit-slow-tests; its three refusals are " +
-    "attacked directly (no test script, a non-node runner, a missing NODE_ENV).",
-  },
   "api/scripts/lib/baseline.ts": {
     kind: "library",
     why:"has scripts/lib/tests/baseline.test.ts.",

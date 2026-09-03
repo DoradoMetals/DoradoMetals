@@ -34,10 +34,15 @@ import { mockSessions, restoreSessions, as, asAdmin } from "#shared/testing/sess
 import { inPinnedTransaction, outside } from "#shared/testing/pinned-pool.ts";
 import { LOCKS } from "#shared/testing/locks.ts";
 
-// This file did not need a lock while it only wrote funds and the ledger; the
-// second test now also writes an order's frozen spot through the PATCH
-// document, and orders tables are what ORDERS serialises.
-const ORDER_LOCK = LOCKS.ORDERS;
+// BOTH LOCKS, NOT JUST ORDERS. This file's earlier comment said funds and the
+// ledger "did not need a lock" - wrong, and found by lane 0's sweep
+// (docs/waves/test-suite-redesign.md): add_funds moves exchange.users -
+// dorado_funds, and that write is two row locks (exchange.users and, through
+// 107's mirror trigger, auth.users - see LOCKS.USERS) racing against every
+// other file that moves a balance, `db/users/tests/repo.test.ts` included.
+// The second test also writes an order's frozen spot through the PATCH
+// document, which is what ORDERS serialises - so this file needs both.
+const FUNDS_LOCKS = [LOCKS.USERS, LOCKS.ORDERS];
 
 await mockSessions();
 const { default: app } = await import("#app");
@@ -111,7 +116,7 @@ test("the balance moves by exactly what the ledger records", async () => {
         `credited ${moved.toFixed(2)} but the ledger says ${Number(logged.rows[0].amount).toFixed(2)}`
       );
     });
-  }, { lock: ORDER_LOCK });
+  }, { lock: FUNDS_LOCKS });
 });
 
 // The nearest thing an admin can still do with spots must change nothing:
@@ -163,5 +168,5 @@ test("a spot write just before the credit does not reach the ledger", async () =
         "the ledger amount followed the spot write in the same document"
       );
     });
-  }, { lock: ORDER_LOCK });
+  }, { lock: FUNDS_LOCKS });
 });

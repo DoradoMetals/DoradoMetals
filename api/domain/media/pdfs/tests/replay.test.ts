@@ -33,6 +33,7 @@ import * as soRepo from "#domain/orders/read.service.ts";
 import * as spotsService from "#domain/spots/service.ts";
 import { mockSessions, restoreSessions, as, anonymous } from "#shared/testing/session.ts";
 import { inPinnedTransaction, outside } from "#shared/testing/pinned-pool.ts";
+import { LOCKS } from "#shared/testing/locks.ts";
 import query from "#shared/db/query.ts";
 
 await mockSessions();
@@ -153,7 +154,7 @@ for (const [route, filename, body] of RENDERS as Array<
           `${route} rendered only ${res.body.length} bytes - an error page is still a PDF`
         );
       });
-    });
+    }, { lock: [LOCKS.FULFILLMENTS, LOCKS.ORDERS] });
   });
 }
 
@@ -165,7 +166,7 @@ test("every PDF route refuses an anonymous caller", async () => {
         assert.ok([401, 403].includes(res.status), `${route} answered ${res.status}`);
       }
     });
-  });
+  }, { lock: [LOCKS.FULFILLMENTS, LOCKS.ORDERS] });
 });
 
 // A guard that lets an unauthenticated caller through would also be launching a
@@ -184,7 +185,7 @@ test("no PDF route launches a renderer for an anonymous caller", async () => {
         );
       }
     });
-  });
+  }, { lock: [LOCKS.FULFILLMENTS, LOCKS.ORDERS] });
 });
 
 // THE ONE THAT RENDERS. Proves a signed-in caller receives a real file with the
@@ -222,7 +223,7 @@ test("a signed-in caller gets a real PDF with the headers to download it", async
         "Content-Length disagrees with the document - a truncated download"
       );
     });
-  });
+  }, { lock: [LOCKS.FULFILLMENTS, LOCKS.ORDERS] });
 });
 
 // THE STORED BRANCH, OVER HTTP. serve.test.js proves the selection logic with
@@ -267,5 +268,5 @@ test("an owner's download with a stored row still answers with a PDF when the st
       assert.equal(res.headers["content-type"], "application/pdf");
       assert.equal(res.body.subarray(0, 5).toString(), "%PDF-", "the fallback did not render");
     });
-  });
+  }, { lock: [LOCKS.FULFILLMENTS, LOCKS.ORDERS] });
 });

@@ -11,6 +11,7 @@ import request from "supertest";
 import pool from "#db";
 import { mockSessions, restoreSessions, as } from "#shared/testing/session.ts";
 import { inPinnedTransaction, outside } from "#shared/testing/pinned-pool.ts";
+import { LOCKS } from "#shared/testing/locks.ts";
 import { open, aadFor } from "#shared/crypto/envelope.ts";
 import { payoutKeyFromEnv } from "#shared/crypto/payoutKey.ts";
 
@@ -182,7 +183,7 @@ test("the payout step SEALS the numbers and the plaintext columns stay NULL", as
         AND account_holder = $2`, [customer.id, PAYOUT.account_holder_name]
     );
     assert.equal(count.n, 1);
-  });
+  }, { lock: LOCKS.ORDERS });
 });
 
 test("an incomplete or nonsense payout form refuses", async () => {
@@ -200,7 +201,7 @@ test("an incomplete or nonsense payout form refuses", async () => {
       assert.equal(res.status, 400, `accepted: ${JSON.stringify(form)}`);
       assert.match(res.body?.error?.message ?? res.text, why);
     }
-  });
+  }, { lock: LOCKS.ORDERS });
 });
 
 // ------------------------------------------------------- the resolution
@@ -222,7 +223,7 @@ test("the resolution reads ONLY the row - no body exists any more", async () => 
     assert.equal(resolved.payout_details_id, payment_details_id);
     assert.equal(resolved.payout_fee, 0, "ACH carries no flat fee");
     assert.equal(resolved.row.fulfillment_id, fulfillment_id);
-  });
+  }, { lock: LOCKS.ORDERS });
 });
 
 test("a pickup needs its slot ON THE ROW, and carries it when set", async () => {
@@ -238,7 +239,7 @@ test("a pickup needs its slot ON THE ROW, and carries it when set", async () => 
     assert.equal(resolved.handoff.name, "Carrier Pickup");
     assert.equal(resolved.schedule?.date, "2026-09-15");
     assert.equal(resolved.schedule?.time, "10:30:00");
-  });
+  }, { lock: LOCKS.ORDERS });
 });
 
 test("an incomplete checkout names every missing piece - the payout included", async () => {
@@ -247,7 +248,7 @@ test("an incomplete checkout names every missing piece - the payout included", a
       () => orderCreate.resolvePurchaseCheckout(customer.id),
       /missing .*payment_details_id/
     );
-  });
+  }, { lock: LOCKS.ORDERS });
 });
 
 test("a sale delivery service buys no labels, and a non-SHIPMENT method refuses", async () => {
@@ -277,7 +278,7 @@ test("a sale delivery service buys no labels, and a non-SHIPMENT method refuses"
       () => orderCreate.resolvePurchaseCheckout(customer.id),
       /cannot be placed through the shipping checkout/
     );
-  });
+  }, { lock: LOCKS.ORDERS });
 });
 
 // ------------------------------------------------------- the record half
@@ -370,7 +371,7 @@ test("the record half links ids and writes NO exchange rows at all", async () =>
     assert.equal(fresh.payment_details_id, null);
     assert.equal(fresh.fulfillment_id, null);
     assert.equal(fresh.package_weight, null);
-  });
+  }, { lock: LOCKS.ORDERS });
 });
 
 test("a spent draft refuses the SECOND order", async () => {
@@ -393,5 +394,5 @@ test("a spent draft refuses the SECOND order", async () => {
       () => orderCreate.resolvePurchaseCheckout(customer.id),
       /already belongs to an order/
     );
-  });
+  }, { lock: LOCKS.ORDERS });
 });
