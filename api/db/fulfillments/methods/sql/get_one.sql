@@ -1,5 +1,4 @@
--- One method, by id - the WHOLE row (ruling 12): the fulfillment chain read
--- serves this verbatim, so the audit columns ride along like everything else.
+-- One method, by id - the WHOLE row: the fulfillment chain read serves this verbatim, so the audit columns ride along too.
 SELECT
        id, type, label, direction, enabled, created_by, updated_by,
        created_at, updated_at, category, hidden, admin_label, is_default,

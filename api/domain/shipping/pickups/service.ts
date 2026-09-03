@@ -1,18 +1,6 @@
-// Carrier pickups: shipping.pickups, which hangs off a SHIPMENT.
-//
-// THE READ IS THE ROW (ruling 12, D214). compose.ts is deleted - it rebuilt
-// exchange.carrier_pickups' flat shape (order_id and user_id reconstructed
-// through the shipment, carrier resolved to a name), and nothing needs that
-// shape any more. A caller that wants the order or the carrier now reaches
-// them the same way this file does: through shipping/shipments.
-//
-// WHEN A WRITE CANNOT RESOLVE A SHIPMENT, THE ROW IS SKIPPED AND THE CALLER IS
-// STILL TOLD WHAT WAS ASKED. That is deliberate and it is the most important
-// line in this file. purchase-orders/service.ts books a pickup inside the
-// transaction that writes the shipping label, and this path has already
-// thrown once after a FedEx label was generated - the rollback discarded the
-// order while FedEx kept the label. Failing a live purchase order because a
-// migration could not find a shipment is not a trade worth making.
+// Carrier pickups: shipping.pickups, hangs off a SHIPMENT. No order/carrier reconstruction here - reach them through shipping/shipments, like this file does.
+// WHEN A WRITE CAN'T RESOLVE A SHIPMENT, THE ROW IS SKIPPED - the caller is still told what was asked, deliberately.
+// This has already thrown once after a real FedEx label was generated: the rollback discarded the order while FedEx kept the label.
 import { randomUUID } from "node:crypto";
 import withTransaction from "#shared/db/withTransaction.ts";
 import * as pickups from "#db/shipping/pickups/repo.ts";
@@ -20,10 +8,7 @@ import * as shipmentService from "#domain/shipping/shipments/service.ts";
 import type { PickupBaseRow } from "#db/shipping/pickups/repo.ts";
 import type { Executor } from "#shared/db/executor.ts";
 
-// What a caller supplies. exchange's shape, because that is what every call
-// site has always sent - an order and a carrier NAME, with the date and time
-// apart. A WRITE-side concern, unchanged by this wave: the shipment lookup
-// below is what resolves an order to the row this table actually keys on.
+// What a caller supplies: an order and a carrier NAME, date/time apart - the shipment lookup below resolves it to what this table actually keys on.
 export type PickupInput = {
   id?: string;
   user_id?: string | null;
@@ -49,12 +34,7 @@ export async function getById(
   return (await pickups.getOne(id, executor)) ?? null;
 }
 
-// RETURNS A LIST, matching the implementation it replaces - an order can be
-// collected more than once, a first attempt and a rebooking, and the caller
-// filters.
-//
-// Answered by going through the order's shipment rather than by a column,
-// because the column is what this migration removed.
+// Returns a LIST: an order can be collected more than once (a first attempt, then a rebooking) - the caller filters. Resolved through the order's shipment, not a column.
 export async function getByOrder(
   order_id: string, executor?: Executor
 ): Promise<PickupBaseRow[]> {
@@ -63,10 +43,7 @@ export async function getByOrder(
   return await pickups.getByShipments([shipment.id], executor);
 }
 
-// THE SAME READ FOR A LIST OF ORDERS. D101: batched hop for hop with
-// shipmentService.getByOrders, so grouping one statement's rows by shipment
-// yields each order's pickups in the order a per-order query gave them. An
-// order with no shipment gets `[]`, exactly as before.
+// Same read, batched - grouping one statement's rows by shipment reproduces what a per-order query would give. An order with no shipment gets [].
 export async function getByOrders(
   order_ids: string[], executor?: Executor
 ): Promise<Map<string, PickupBaseRow[]>> {
@@ -104,21 +81,14 @@ async function shipmentFor(
   return (await shipmentService.getByOrder(order_id, executor))?.id ?? null;
 }
 
-// What the row would have looked like had a shipment been there to hang it
-// off - used only when the write above was skipped, so a caller that just
-// booked a real courier is not told nothing happened.
+// What the row would have looked like, had a shipment been there to hang it off - used only when the write above was skipped.
 function pickupView(
   id: string,
   input: Pick<PickupInput, "pickup_status" | "confirmation_number" | "location">,
   requested_at: Date | string | null
 ): PickupBaseRow {
-  // NOT A REAL ROW. shipping.pickups.shipment_id is NOT NULL, so nothing was
-  // actually written when this is called - this says what a row WOULD have
-  // held, for the caller that just booked a real courier and needs an answer
-  // regardless (see create()'s and update()'s own comments). Cast rather than
-  // typed honestly because there is no honest PickupBaseRow for a row that
-  // does not exist; `requested_at` is genuinely `Date | string | null` here
-  // too, the same widening the shipment write types document.
+  // NOT A REAL ROW: shipping.pickups.shipment_id is NOT NULL, so nothing was written - this fabricates what the row WOULD have held, for a caller that already booked a real courier.
+  // Cast rather than typed honestly - there is no honest PickupBaseRow for a row that doesn't exist.
   return {
     id,
     shipment_id: null,
@@ -138,9 +108,7 @@ export async function create(
   const run = async (c: Executor): Promise<PickupBaseRow | null> => {
     const id = input.id ?? randomUUID();
 
-    // Native-only since the purge (D212). The date and time combine in
-    // Postgres via the text cast - the no-JavaScript-date rule the legacy
-    // statement used to enforce, kept without it.
+    // Date and time combine via Postgres's text cast, not a JS Date.
     const requested_at =
       input.pickup_requested_at ??
       (input.date ? `${input.date} ${input.time || "00:00:00"}` : null);
@@ -165,10 +133,7 @@ export async function create(
   return executor ? await run(executor) : await withTransaction(run);
 }
 
-// THE ROW FLOW'S BOOKING (D210): native-only - a new-flow order writes no
-// exchange rows, so the exchange-first create above is not for it. The date
-// and time are combined IN POSTGRES via the text cast, the same
-// no-JavaScript-date rule the legacy statement documents.
+// Booking when the shipment is already known - unlike create() above, which must resolve an order to one first.
 export async function recordForShipment(
   {
     shipment_id, date, time, confirmation_number = null, location = null,

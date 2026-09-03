@@ -1,24 +1,5 @@
-// Carrier services: one row in each schema, written together.
-//
-// THE DEFAULTS ARE APPLIED HERE, NOT BY THE COLUMNS, AND THAT IS DELIBERATE.
-//
-// The two tables disagree about what a missing value means:
-//
-//                       exchange.carrier_services   shipping.services
-//   supports_dropoff*   DEFAULT true                DEFAULT false
-//   is_residential      DEFAULT true                DEFAULT false
-//   created_by          DEFAULT 'Dorado Metals'     no default, nullable
-//
-// Both statements list every column explicitly, so neither default is ever
-// reached - which is the only way the two rows can be made to agree. The values
-// below are exchange's, because exchange is the behaviour that must not change.
-//
-// The old exchange create inserted (carrier_id, name) ALONE and let the column
-// defaults fill the rest. Writing the same minimal row into shipping.services
-// would have been refused outright: supports_pickups, supports_dropoffs,
-// supports_returns, supports_insurance, is_international, is_residential and
-// is_active are all NOT NULL there. So a service created through this path now
-// carries the same values it always did, just stated rather than defaulted.
+// Defaults are applied here explicitly, not by the columns: shipping.services' column defaults disagree with what exchange's always meant (supports_dropoff/is_residential defaulted true there, false here), so every write states every value.
+// A minimal (carrier_id, name) insert - what exchange's create did - would be refused here: several columns are NOT NULL with no default.
 import { randomUUID } from "node:crypto";
 import withTransaction from "#shared/db/withTransaction.ts";
 import * as services from "#db/shipping/services/repo.ts";
@@ -28,8 +9,7 @@ import {
 } from "#domain/shipping/operations/resolver.ts";
 import type { ServiceRow, ServiceWrite } from "#db/shipping/services/repo.ts";
 import type { Executor } from "#shared/db/executor.ts";
-// From the contracts, which is where the shape is declared - not via the
-// adapter, which merely re-exports it for a reader of that file.
+// From the contracts, not the adapter (which merely re-exports it) - contracts is where the shape is declared.
 import type { CarrierServiceOption } from "@dorado/contracts";
 
 export type { CarrierServiceOption };
@@ -60,27 +40,14 @@ export type ServiceInput = {
   display_order?: number | null;
 };
 
-// `== null` rather than a falsy check: `false` is a value a caller can send and
-// must be kept, while undefined and null both mean "not supplied". The old
-// update statement made exactly this distinction for supports_dropoff,
-// is_residential and is_active and a plain `??` here would have flattened it.
+// `== null`, not falsy: `false` is a real value a caller can send and must be kept; only undefined/null mean "not supplied" (`??` would flatten that).
 const flag = (v: unknown, whenAbsent: boolean): boolean => (v == null ? whenAbsent : !!v);
 
-// The business's defaults, applied here rather than by the columns (see the
-// file header for why) - and now BY NAME, one object repo.ts spells onto each
-// statement in exactly one place, replacing the positional array both create
-// and update used to share by accident of column order.
-//
-// TWO BUILDERS, NOT ONE SPREAD OVER THE OTHER (Jacob's no-prop-spreading
-// ruling): toNewRow and toPatchRow each spell every field of the object they
-// return by name, so neither ever forwards a field the repo call was not
-// written to expect.
+// Defaults applied here, by name (see file header) - toNewRow/toPatchRow each spell every field explicitly, so neither forwards a field the repo call wasn't written to expect (no prop-spreading).
 function writeFields(s: ServiceInput): ServiceWrite {
   return {
     carrier_id: s.carrier_id ?? null,
-    // shipping.services.name is NOT NULL; a caller omitting it is a pre-
-    // existing gap this layer never validated (the DB constraint has always
-    // been the actual guard) - not something this conversion introduces.
+    // name is NOT NULL; an omitted one is a pre-existing gap this layer never validates - the DB constraint is the actual guard.
     name: (s.name ?? null) as string,
     description: s.description ?? null,
     code: s.code ?? null,
@@ -142,39 +109,15 @@ export async function getAllServices(): Promise<ServiceRow[]> {
   return await services.getAll();
 }
 
-// THE SALE DELIVERY OPTIONS (D208). Business-created services, carrier-
-// agnostic and priced - Jacob: the customer picks the service at its fixed
-// price, and THE REFINERY picks the carrier, recorded on the shipment. Not
-// getOfferedServices: that is the PURCHASE side's carrier catalogue (the
-// FedEx services an inbound label can be bought for).
-//
-// Prices here are DISPLAY - getShippingCharge (features/pricing/ask.ts)
-// remains the pricing authority, and features/pricing/tests/reference-drift
-// pins these rows to its constants.
+// The sale delivery options: business-created, carrier-agnostic, priced - the customer picks the service at its fixed price, the REFINERY picks the carrier. Not getOfferedServices (the purchase side's carrier catalogue).
+// Prices here are DISPLAY - getShippingCharge (domain/pricing/ask.ts) remains the pricing authority, pinned by pricing's own reference-drift test.
 export async function getSaleOptions(): Promise<services.SaleServiceOption[]> {
   return await services.getSaleOptions();
 }
 
-// THE SERVICES WE OFFER AT CHECKOUT, which is not the same list as the rows.
-//
-// shipping.services holds eight rows across two carriers - Free, Overnight,
-// Standard, Express Saver, Priority Overnight - and checkout offers exactly
-// two. The browser used to decide which two, from a literal keyed by FedEx's
-// own service types (FEDEX_EXPRESS_SAVER, PRIORITY_OVERNIGHT) carrying FedEx's
-// FDXE carrier code, so a rate quote was filtered against a carrier's
-// vocabulary compiled into React.
-//
-// IT COMES FROM THE CARRIER'S CATALOGUE AND NOT FROM THIS TABLE, TODAY, AND THE
-// REASON IS DATA: `code` and `provider_code` are NULL on all eight rows in
-// production and all eight in dev, so no row can say which FedEx service it
-// means. Filling them is an UPDATE against production, which is Jacob's to run
-// and not a migration this wave writes. The read lives here - on the resource
-// that owns carrier services - so that when the columns are populated this
-// function changes where it reads and the URL does not move.
-//
-// The `code` on the way out is the carrier's SERVICE type, which is what a rate
-// quote's serviceType matches; `carrier_code` is the service family FedEx wants
-// on a pickup-availability check and differs between express and ground.
+// The services checkout offers, not the same list as shipping.services' rows (eight rows across two carriers; checkout offers two).
+// Read from the carrier's catalogue, not this table: code/provider_code are NULL on every row (an UPDATE against production, Jacob's to run) - the read lives here so the URL doesn't move once they're filled.
+// `code` on the way out is the carrier's SERVICE type (matches a rate quote's serviceType); `carrier_code` is the service family FedEx wants for pickup availability.
 export async function getOfferedServices(
   carrier_id?: string | null, client?: unknown
 ): Promise<CarrierServiceOption[]> {
@@ -184,9 +127,7 @@ export async function getOfferedServices(
 
   return [...catalogue.services]
     .sort((a, b) => a.display_order - b.display_order)
-    // `id` is the shipping.services ROW for this catalogue entry, joined by
-    // name like the ceiling - the checkout row stores it (D208), and the
-    // create resolves the entry back from it.
+    // `id` is the shipping.services row for this catalogue entry, joined by name like the ceiling - checkout stores it, and create resolves the entry back from it.
     .map((s) => ({
       ...s,
       id: ceilings.get(s.name)?.id ?? null,
@@ -196,25 +137,9 @@ export async function getOfferedServices(
 
 // ---------------------------------------------------------- insurance ceiling
 //
-// WHAT A PARCEL MAY BE INSURED FOR IS A ROW NOW, NOT A LITERAL IN THE BROWSER.
-// D132: `checkoutStepper.tsx` held `Math.min(quote.declared_value, 50000)` -
-// FedEx's ceiling, hard-coded in React, deciding what a parcel of metal is
-// covered for. Migration 097 puts the number on shipping.services and Jacob set
-// it to 10,000 for every row, which is Dorado's policy and not FedEx's limit.
-//
-// TWO CALLERS, AND THEY ANSWER DIFFERENT QUESTIONS:
-//   - `insuranceCeiling()` is service-AGNOSTIC and is what /quotes/purchase_order
-//     uses. A quote is priced before a service is chosen, so the honest answer
-//     is the LOWEST ceiling among the services we offer: the quote may not
-//     promise cover that the cheapest option would not carry.
-//   - `insuranceCeilingFor(code)` narrows to one service and is what the label
-//     path uses, where the customer has chosen. It cannot be resolved by `code`
-//     today (NULL on every row, D125) so it resolves through the catalogue's
-//     name, and falls back to the agnostic answer when the code is unknown.
-//
-// NEITHER RETURNS Infinity ON A MISS. A missing ceiling is a misconfiguration,
-// and the only safe reading of "we do not know what this is covered for" is the
-// most conservative number we do know.
+// What a parcel may be insured for is a row now, not a literal in the browser - set to 10,000 for every row today, which is Dorado's policy, not FedEx's limit.
+// Two callers, different questions: insuranceCeiling() is service-agnostic (used before a service is chosen, so answers the LOWEST ceiling among what we offer); insuranceCeilingFor(code) narrows to one, resolved by name since code is NULL on every row today.
+// Neither returns Infinity on a miss - a missing ceiling is a misconfiguration, and the safe reading is the most conservative number we know.
 async function ceilingsByName(
   carrier_id: string, executor?: Executor
 ): Promise<Map<string, { id: string; ceiling: number }>> {
@@ -224,9 +149,7 @@ async function ceilingsByName(
   );
 }
 
-// The lowest ceiling we know about, used both as the agnostic answer and as the
-// fallback for a service with no row. Zero rows means the carrier has no active
-// service at all, in which case nothing can be shipped and nothing is insured.
+// The lowest ceiling we know about - the agnostic answer and the fallback for an unrecognized service. Zero rows means nothing can be shipped or insured.
 function lowestCeiling(ceilings: Map<string, { id: string; ceiling: number }>): number {
   const values = [...ceilings.values()].map((v) => v.ceiling).filter((v) => Number.isFinite(v));
   return values.length ? Math.min(...values) : 0;
@@ -289,10 +212,6 @@ export async function createService(
   input: ServiceInput, executor?: Executor
 ): Promise<ServiceRow | null> {
   const run = async (c: Executor): Promise<ServiceRow | null> => {
-    // ONE ID FOR BOTH SCHEMAS. Production already has all eight services under
-    // matching ids in both tables; a new one has to keep that true, and the
-    // only way to is to choose the id before either INSERT rather than letting
-    // each table's DEFAULT gen_random_uuid() pick its own.
     const id = randomUUID();
     return await services.create(toNewRow(input, id), c);
   };
@@ -313,17 +232,8 @@ export async function updateService(
   return executor ? await run(executor) : await withTransaction(run);
 }
 
-// DELETING IS STRICTER THAN IT WAS, AND THAT IS THE DATABASE'S DOING.
-//
-// shipping.shipments.carrier_service_id and checkout.checkouts.carrier_service_id
-// both reference this table with NO ON DELETE clause, so removing a service
-// something still points at raises 23503 and the whole transaction - exchange's
-// delete included - rolls back. exchange had no such reference and allowed it.
-//
-// That is the right behaviour and it is not a regression in practice: this
-// endpoint had never once succeeded, because the controller passed the whole
-// request body where an id was wanted and every delete died on `invalid input
-// syntax for type uuid`.
+// Deleting is stricter than it was, and that's the database's doing: shipping.shipments.carrier_service_id and checkout.checkouts.carrier_service_id reference this table with no ON DELETE, so removing a service something points at raises 23503 - exchange had no such reference.
+// Not a regression in practice: this endpoint had never once succeeded, since the controller passed the whole body where an id was wanted.
 export async function removeService(id: string, executor?: Executor): Promise<boolean> {
   const run = async (c: Executor): Promise<boolean> => {
     await services.remove(id, c);

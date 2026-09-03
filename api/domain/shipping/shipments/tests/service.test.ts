@@ -1,15 +1,5 @@
-// Shipments through the service, against real Postgres.
-//
-// A shipment is one row in exchange and three here: the shipment, the
-// fulfillment that says which order it belongs to, and the link recording which
-// of our locations handled it. So the property worth testing is not "the row
-// copied" but "all three arrived, and they agree".
-//
-// REPOINTED AT THE SERVICE. The behaviour is unchanged - all three rows, one
-// transaction - it just happens natively now instead of being re-derived from
-// exchange by a mirror. The assertions are the same because what they assert is.
-//
-// Each test runs inside a transaction that is rolled back.
+// Shipments through the service, against real Postgres. Each test runs inside a rolled-back transaction.
+// A shipment write touches three rows - the shipment, the fulfillment linking it to an order, and the link between them - so what's worth testing is that all three arrived and agree.
 import test, { after, before } from "node:test";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
@@ -42,21 +32,11 @@ async function inRollback(fn: (c: PoolClient) => Promise<void>) {
 }
 
 // An order with no shipment yet, so creating one is a clean case.
-//
-// THIS USED TO SEARCH FOR ONE AND RETURN null WHEN IT FOUND NOTHING, AND EVERY
-// TEST IN THIS FILE THEN RETURNED EARLY. Dev has ZERO purchase orders that are
-// both shipment-less and present in orders.orders, so all seven passed while
-// asserting nothing at all - for as long as the file has existed.
-//
-// It builds one instead. Everything happens inside the caller's rolled-back
-// transaction, so nothing survives, and the fixture cannot silently stop
-// finding what it needs.
+// USED TO SEARCH FOR ONE, returning null (and every test returning early) when dev had none shipment-less - all seven passed asserting nothing. Builds one instead, inside the rolled-back transaction, so it can't silently stop finding what it needs.
 const anOrderWithoutShipment = async (c: PoolClient) => {
   const { rows: [user] } = await c.query("SELECT id FROM exchange.users ORDER BY id LIMIT 1");
   const id = randomUUID();
 
-  // exchange first, because orders.orders draws its number from exchange's
-  // sequence and the two share one numbering space.
   await c.query(
     `INSERT INTO exchange.purchase_orders (id, user_id, purchase_order_status)
      VALUES ($1, $2, 'Pending')`,
@@ -98,9 +78,7 @@ test("creating a shipment writes the shipment, its fulfillment and the link", as
   });
 });
 
-// The order link is the one thing the new schema does not store on a shipment,
-// so a read reconstructs it. If the mirror skipped the fulfillment, the
-// shipment would come back with a null order id and getByOrder would miss it.
+// The order link isn't stored on a shipment, so a read reconstructs it - if the fulfillment link is missing, getByOrder would miss the shipment entirely.
 test("a mirrored shipment can still be found by its order", async () => {
   await inRollback(async (c: PoolClient) => {
     const orderId = await anOrderWithoutShipment(c);
@@ -110,16 +88,14 @@ test("a mirrored shipment can still be found by its order", async () => {
     const found = await dual.getByOrder(orderId, c);
     assert.ok(found, "the shipment cannot be found by its order");
 
-    // The row carries no order id (ruling 12) - getOrderLink is the
-    // resolution a caller still needs, not the shipment's shape.
+    // The row carries no order id - getOrderLink is the resolution a caller still needs, not the shipment's shape.
     const link = await dual.getOrderLink(found.id, c);
     assert.equal(link?.order_id, orderId);
     assert.equal(link?.direction, "purchase");
   });
 });
 
-// One fulfillment per order is enforced by a unique index, so a second shipment
-// on the same order has to find the existing one rather than fail.
+// One fulfillment per order is enforced by a unique index, so a second shipment on the same order has to find the existing one rather than fail.
 test("a second shipment on an order reuses its fulfillment", async () => {
   await inRollback(async (c: PoolClient) => {
     const orderId = await anOrderWithoutShipment(c);
@@ -148,9 +124,7 @@ test("an update resolves the service and package to references", async () => {
     const tracking = `probe-${randomUUID().slice(0, 8)}`;
 
     await dual.update(
-      // carrier_id is passed explicitly, exactly as the real call sites do -
-      // a shell shipment has no service yet, so the composed row's carrier_id
-      // is null and there would be nothing to resolve the names against.
+      // carrier_id is passed explicitly, as the real call sites do - a shell shipment has no service yet, so there's nothing to resolve names against.
       { ...created, carrier_id: await carrier(c), tracking_number: tracking,
         shipping_status: "In Transit",
         package: "Small Box", service_type: "Express Saver", type: "Inbound" },
@@ -170,8 +144,7 @@ test("an update resolves the service and package to references", async () => {
   });
 });
 
-// Delivered is what turns a fulfillment COMPLETED, so an update has to carry
-// that across - otherwise an order looks unfulfilled after it arrived.
+// Delivered is what turns a fulfillment COMPLETED, so an update has to carry that across - otherwise an order looks unfulfilled after it arrived.
 test("marking a shipment delivered completes its fulfillment", async () => {
   await inRollback(async (c: PoolClient) => {
     const orderId = await anOrderWithoutShipment(c);
@@ -207,12 +180,8 @@ test("deleting a shipment removes it and its link from both schemas", async () =
   });
 });
 
-// THE FIXTURE MUST BE BUILT INSIDE THE TRANSACTION, and this test is where
-// that is easy to get wrong: it needs a SECOND connection to prove the write is
-// invisible from outside, and building the order on that second connection
-// commits it. This leaked five purchase orders into dev before it was caught -
-// the order is built on `client`, inside the BEGIN, and only the OBSERVATIONS
-// happen on `other`.
+// The fixture must be built INSIDE the transaction - this test needs a SECOND connection to prove the write is invisible, and building the order there would commit it.
+// This leaked five purchase orders into dev before it was caught: the order is built on `client` inside BEGIN; only observations happen on `other`.
 test("rolling back a dual write undoes both sides", async () => {
   const other = await pool.connect();
   try {

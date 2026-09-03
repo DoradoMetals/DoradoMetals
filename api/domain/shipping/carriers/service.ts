@@ -1,18 +1,5 @@
-// Carriers: two rows in the new schema, one row in exchange, written together.
-//
-// A carrier is an organization of type CARRIER plus a shipping.carriers row
-// holding the logo. The organization half is written through the organizations
-// service, which is the only thing that writes that table - the update this
-// replaces was a statement against organizations.organizations that had to JOIN
-// shipping.carriers to find the row it wanted.
-//
-// THE ID IS GENERATED HERE, AND THAT IS THE POINT OF THIS FILE.
-// FEDEX_CARRIER_ID in providers/shipments/constants.ts is a literal uuid and
-// exchange.shipments.carrier_id references it, so a carrier's id must be the
-// same value in both schemas. The dual write this replaces got that by
-// inserting into exchange first and mirroring the row back out server-side;
-// generating it up front is the same guarantee without the round trip, and it
-// is what lets the new schema be written first.
+// A carrier is an organization (type CARRIER) plus a shipping.carriers row holding the logo. Only the organizations service writes that table.
+// The id is generated here (not database-default): FEDEX_CARRIER_ID (providers/shipments/constants.ts) is a literal uuid a carrier row must actually carry.
 import { randomUUID } from "node:crypto";
 import withTransaction from "#shared/db/withTransaction.ts";
 import * as carriers from "#db/shipping/carriers/repo.ts";
@@ -21,12 +8,8 @@ import * as compose from "#domain/shipping/carriers/compose.ts";
 import type { ComposedCarrier } from "#domain/shipping/carriers/compose.ts";
 import type { Executor } from "#shared/db/executor.ts";
 
-// What a caller supplies. This arrives as req.body, so every field is optional
-// and the queries pass undefined through as null - the same latitude the
-// implementation it replaces had.
-// organization's shape matches organizations.OrganizationPatch: name and
-// enabled are NOT NULL columns, so those two stay non-nullable here too -
-// email and phone are the two that are.
+// What a caller supplies, as req.body - every field optional.
+// organization's shape matches organizations.OrganizationPatch: name/enabled are NOT NULL columns, so stay non-nullable here; email/phone are the two that can be null.
 type CarrierInput = {
   id?: string;
   logo?: string | null;
@@ -57,10 +40,7 @@ export async function getCarrierName(id: string, executor?: Executor): Promise<s
   return (await getCarrierById(id, executor))?.organization.name ?? "";
 }
 
-// The organization is inserted before the carrier because shipping.carriers
-// references it. Both, plus the exchange row, are one transaction: a carrier
-// that existed in one table and not the other would be invisible to getAll
-// while still holding its id.
+// Organization is inserted before the carrier (FK). Both in one transaction - existing in one table but not the other would be invisible to getAll while still holding its id.
 export async function createCarrier(
   carrier: CarrierInput, executor?: Executor
 ): Promise<ComposedCarrier | null> {
@@ -70,18 +50,12 @@ export async function createCarrier(
 
     await organizations.create(carrier.organization, organization_id, "CARRIER", c);
     const row = await carriers.create({ id, organization_id, logo: carrier.logo ?? null }, c);
-
-    // exchange.carriers keeps both halves on one row, and is still the record
-    // of truth until carriers is promoted. `enabled` is `is_active` there.
-
     return await compose.one(row, c);
   };
   return executor ? await run(executor) : await withTransaction(run);
 }
 
-// Updates every field, including to null when one is absent - exactly what the
-// statement it replaces did. A partial update would be a behaviour change, and
-// the frontend sends the whole carrier back.
+// Updates every field, including to null when absent - a partial update would be a behavior change, and the frontend always sends the whole carrier back.
 export async function updateCarrier(
   carrier: CarrierInput, executor?: Executor
 ): Promise<ComposedCarrier | null> {
@@ -108,12 +82,8 @@ export async function updateCarrier(
   return executor ? await run(executor) : await withTransaction(run);
 }
 
-// The carrier row goes first because it holds the foreign key; dropping the
-// organization first would be refused.
-//
-// Returns true unconditionally, exactly as the implementation it replaces did -
-// it is not a report of whether anything was deleted, and the route answers
-// `true` either way. Changing that is a wire change.
+// The carrier row goes first because it holds the foreign key; dropping the organization first would be refused.
+// Returns true unconditionally - not a report of whether anything was deleted. Changing that is a wire change.
 export async function removeCarrier(id: string, executor?: Executor): Promise<boolean> {
   const run = async (c: Executor): Promise<boolean> => {
     const row = await carriers.getOne(id, c);

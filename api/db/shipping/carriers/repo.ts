@@ -1,9 +1,4 @@
-// shipping.carriers, and nothing else.
-//
-// A carrier is (id, logo, organization_id). Name, email, phone and enabled
-// belong to the organization, and are written through ITS service - the update
-// this replaces was a statement against organizations.organizations that had to
-// join shipping.carriers to find its row.
+// shipping.carriers: id, logo, organization_id. Name/email/phone/enabled belong to the organization and update through its own service.
 import query from "#shared/db/query.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
 import type { shipping } from "@dorado/contracts";
@@ -32,11 +27,7 @@ export async function create(row: CarrierNew, executor?: Executor): Promise<Carr
   return rows[0];
 }
 
-// `logo` is the only column this table writes past create - name/email/phone/
-// enabled belong to the organization. NOT a COALESCE patch: this table has
-// always replaced logo whole, null included when the caller sends none (the
-// service's own comment on updateCarrier says so), so the patch names it
-// directly rather than leaving it alone when undefined.
+// Replaces `logo` whole, null included - not a COALESCE patch.
 export type CarrierPatch = Pick<CarrierRow, "logo">;
 
 export async function update(

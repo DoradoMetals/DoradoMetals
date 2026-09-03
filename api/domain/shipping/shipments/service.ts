@@ -1,17 +1,6 @@
-// Shipments: shipping.shipments, plus the fulfillment link that says which
-// order (if any) a parcel belongs to.
-//
-// THE READ IS THE ROW (ruling 12, D214). compose.ts is deleted - it rebuilt
-// exchange.shipments' flat shape (purchase_order_id/sales_order_id split,
-// service_type/package resolved to names, carrier_id through the service) on
-// every read, and nothing needs that shape any more: /orders/:orderId/shipments
-// (order-read.ts) already served verbatim rows, and every internal caller here
-// is converted to read shipping.shipments as the repo returns it.
-//
-// getByOrder/getByOrders still WALK fulfillments.shipments -> fulfillments.
-// fulfillments to find which shipment(s) belong to an order - that is
-// resolution, not shape (CLAUDE.md's carve-out for chain-resolving reads), and
-// callers that hold an order id and want its parcel still need it.
+// Shipments: shipping.shipments, plus the fulfillment link that says which order (if any) a parcel belongs to.
+// Reads are the verbatim row - no compose step reconstructing exchange's flat shape; every caller here reads shipping.shipments as the repo returns it.
+// getByOrder/getByOrders still walk fulfillments.shipments -> fulfillments.fulfillments to resolve an order's parcel - that's resolution, not shape.
 import { randomUUID } from "node:crypto";
 import withTransaction from "#shared/db/withTransaction.ts";
 import * as shipments from "#db/shipping/shipments/repo.ts";
@@ -20,8 +9,7 @@ import * as packages from "#db/shipping/packages/repo.ts";
 import * as fulfillmentLinks from "#db/fulfillments/shipments/repo.ts";
 import * as fulfillmentsRepo from "#db/fulfillments/repo.ts";
 import * as fulfillmentService from "#domain/fulfillments/service.ts";
-// The LINK table is its own resource (ruling 26c) - this reaches it directly
-// rather than through the fulfillments parent.
+// The LINK table is its own resource - reached directly, not through the fulfillments parent.
 import * as fulfillmentShipments from "#domain/fulfillments/shipments/service.ts";
 import * as orders from "#db/orders/repo.ts";
 import type { ShipmentBaseRow, ShipmentRecord } from "#db/shipping/shipments/repo.ts";
@@ -37,10 +25,7 @@ function badRequest(message: string): HttpError {
   return err;
 }
 
-// What a caller supplies to create one. Unchanged by this wave - a WRITE, not
-// a read - because it is what every call site already sends: an order to link
-// against (which one of the two depends on which is present) and the carrier
-// picked for it.
+// What a caller supplies to create one: an order to link against (purchase or sale, whichever is present) and the carrier picked for it.
 type ShipmentCreate = {
   purchase_order_id?: string | null;
   sales_order_id?: string | null;
@@ -48,22 +33,8 @@ type ShipmentCreate = {
   type?: string | null;
 };
 
-// What a caller supplies to update one. Also unchanged: `package` and
-// `service_type` are NAMES here because that is what exchange stored and what
-// the carrier integration produces, and this resolves them to references - a
-// WRITE-side concern, independent of what a read now returns.
-//
-// THE TYPES ADMIT WHAT CALLERS ACTUALLY PASS, which is wider than it looks.
-// Every timestamp is `Date | string`: the call sites spread a shipment they
-// just read, and pg has already parsed those columns into Date objects.
-// Narrowing them to `string` would be a claim about the caller that the
-// compiler immediately disproved. They go straight into a timestamptz, which
-// takes either.
-//
-// `shipping_label` is `string | Buffer` for the same reason: FedEx returns the
-// label as a base64 buffer and one call site passes it through unconverted.
-// That is worth a second look one day - it is stored in a text column - but it
-// is what happens today and the type says so rather than pretending.
+// package/service_type are NAMES (what the carrier integration produces) - resolved to ids here. Every timestamp is `Date | string`: call sites spread an already-read shipment, and pg has parsed those into Date objects going into a timestamptz.
+// shipping_label is `string | Buffer` too: FedEx returns a base64 buffer and one call site passes it through unconverted into a text column - worth a second look.
 type ShipmentUpdate = {
   id: string;
   tracking_number?: string | null;
@@ -102,28 +73,21 @@ export async function getManyById(
   return await shipments.getMany([...new Set(ids)], executor);
 }
 
-// Returns ONE shipment, not a list, matching the implementation it replaces -
-// an order can legitimately have more than one and both implementations took
-// the first.
+// Returns ONE shipment, not a list - an order can legitimately have more than one; this takes the first.
 export async function getByOrder(
   order_id: string, executor?: Executor
 ): Promise<ShipmentBaseRow | null> {
   const fulfillment = await fulfillmentsRepo.getByOrder(order_id, executor);
   if (!fulfillment) return null;
 
-  // A fulfillment may have several parcels; the first is the one every caller
-  // has always been given - both implementations took `rows[0]`.
+  // A fulfillment may have several parcels; the first is the one every caller is given.
   const [link] = await fulfillmentLinks.getFor(fulfillment.id, executor);
   if (!link) return null;
 
   return await getById(link.shipment_id, executor);
 }
 
-// THE SAME READ FOR A LIST OF ORDERS, IN A FIXED NUMBER OF ROUND TRIPS.
-//
-// D101. Walks the identical hops with `= ANY($1)` at every one, so the cost is
-// the same whether one order is asked for or fifty. An order with no
-// fulfillment, or a fulfillment with no parcel, is ABSENT from the map.
+// Same read for a list of orders, in a fixed number of round trips - walks the identical hops with `= ANY($1)`. An order or fulfillment with nothing to find is simply absent from the map.
 export async function getByOrders(
   order_ids: string[], executor?: Executor
 ): Promise<Map<string, ShipmentBaseRow>> {
@@ -163,12 +127,7 @@ export async function getByOrders(
   return out;
 }
 
-// Which order this shipment is linked to, and which direction that order is -
-// NOT the shipment's shape (ruling 12 retired the purchase_order_id /
-// sales_order_id split that used to live on every row), but resolution a
-// caller genuinely needs to route a write to the right order-side table
-// (patch.service.ts: a shipping charge is a purchase-order field, tracking is
-// a sales-order one). Chain-resolving, same carve-out as getByOrder above.
+// Which order/direction this shipment belongs to - not the shipment's shape, but resolution patch.service.ts needs to route a write to the right order-side table.
 export type OrderLink = { order_id: string; direction: string };
 
 export async function getOrderLink(
@@ -185,21 +144,15 @@ export async function getOrderLink(
 
 // ------------------------------------------------------------------ writes
 
-// Creating a shipment is creating THREE rows - the shipment, the fulfillment
-// that says which order it belongs to, and the link between them.
-//
-// THE FULFILLMENT IS BEST-EFFORT, DELIBERATELY. It references orders.orders,
-// and PRODUCTION HAS 15 PURCHASE ORDERS THAT ARE NOT THERE - a shipment that
-// cannot be linked yet is still a real parcel with a real label, and refusing
-// to create it would stop an order shipping over a migration detail.
+// Creating a shipment creates THREE rows: the shipment, the fulfillment linking it to an order, and the link between them.
+// The fulfillment link is BEST-EFFORT: production has purchase orders with no fulfillment row yet, and a real parcel with a real label must not be refused over that.
 export async function create(
   input: ShipmentCreate, executor?: Executor
 ): Promise<ShipmentBaseRow | null> {
   const order_id = input.purchase_order_id ?? input.sales_order_id ?? null;
   const direction = input.purchase_order_id ? "purchase" : "sale";
 
-  // exchange's `type` is Inbound/Outbound and the new schema's `direction` is
-  // its own enum. The mirror cast one to the other; the values match.
+  // direction is its own enum but shares exchange's old Inbound/Outbound spelling, so the value passes straight through untranslated.
   const shipmentDirection = input.type ?? null;
   if (!shipmentDirection) {
     throw badRequest("a shipment needs a type - shipping.shipments.direction is NOT NULL");
@@ -225,10 +178,7 @@ export async function create(
   return executor ? await run(executor) : await withTransaction(run);
 }
 
-// The service and package arrive as NAMES, because that is what exchange
-// stores and what the carrier integration produces. Resolved here, and named
-// when they cannot be found - the alternative is writing a null into a column
-// that means "no service" and discovering it on the next read.
+// service_type/package arrive as NAMES (what the carrier integration produces), resolved here - a not-found is thrown, not silently written as null.
 export async function update(
   input: ShipmentUpdate, executor?: Executor
 ): Promise<ShipmentBaseRow | null> {
@@ -236,7 +186,7 @@ export async function update(
   const id = input.id;
 
   const run = async (c: Executor): Promise<ShipmentBaseRow | null> => {
-    // A SERVICE NAME WITH NO CARRIER USED TO BE SILENTLY DROPPED.
+    // A service name with no carrier used to be silently dropped - now refused.
     if (input.service_type && !input.carrier_id) {
       throw badRequest(
         `a service name needs a carrier to resolve against - ` +
@@ -311,16 +261,8 @@ export async function update(
   return executor ? await run(executor) : await withTransaction(run);
 }
 
-// A read-modify-write for internal callers that already hold a shipment's OWN
-// ids (carrier_service_id, package_id) and want to change one or two native
-// columns without resolving anything by name - cancelLabel and getTracking in
-// operations/service.ts, and updateTracking in orders/service.ts, each used to
-// spread the COMPOSED shipment back into update() above, which only
-// round-tripped safely because the composed shape carried service_type/
-// package NAMES the resolver could turn back into the same ids. A bare row
-// does not carry those names, so this reads the row fresh and writes back
-// every column verbatim except what changed - the "ONE UPDATE" ruling's
-// full-replace semantics, satisfied without ever needing a name.
+// A read-modify-write for callers holding a shipment's own ids (carrier_service_id, package_id) that want to change a column or two without resolving anything by name.
+// Reads the row fresh and writes back every column verbatim except what changed - full-replace semantics without ever needing a name.
 export async function patch(
   id: string, changes: Partial<ShipmentRecord>, executor?: Executor
 ): Promise<ShipmentBaseRow | null> {
@@ -355,9 +297,7 @@ export async function patch(
   return executor ? await run(executor) : await withTransaction(run);
 }
 
-// The shipping cost of every parcel on one order. Native-only since the purge
-// (D212): a zero-row update here means the order simply has no parcels, which
-// is not an error.
+// The shipping cost of every parcel on one order - a zero-row update just means the order has no parcels, not an error.
 export async function setChargeForOrder(
   orderId: string, cost: number | null, executor?: Executor
 ): Promise<string[]> {

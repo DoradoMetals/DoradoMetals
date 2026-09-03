@@ -1,7 +1,4 @@
-// The write on fulfillments.pickups, against real Postgres.
-//
-// Self-contained: the fulfillment each pickup hangs off is a DRAFT (no order),
-// so this file never touches a shared row.
+// Writes on fulfillments.pickups, against real Postgres. Self-contained: the fulfillment each pickup hangs off is a draft (no order).
 import test, { after, before } from "node:test";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";

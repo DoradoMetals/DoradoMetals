@@ -1,15 +1,6 @@
 // THE LINK between a fulfillment and a parcel: fulfillments.shipments.
-//
-// NO routes.ts AND NO controller.ts, and that is deliberate rather than
-// unfinished. Ruling 26c gives every resource its own stack so that a consumer
-// can depend on one resource without depending on its parent; this resource has
-// exactly one consumer and it is another SERVICE - features/shipping/shipments
-// calls linkShipment when a label is bought. It has no HTTP surface of its own,
-// so it declares no paths. The day it needs one, the two files go here beside
-// this one and the parent mounts them.
-//
-// The parcel itself belongs to features/shipping. What lives here is the fact
-// that THIS fulfillment is being handed over as THAT shipment.
+// No routes.ts/controller.ts, deliberately: this resource has exactly one consumer, another service (domain/shipping/shipments calls link() when a label is bought) - no HTTP surface needed.
+// The parcel itself belongs to domain/shipping; what lives here is that THIS fulfillment is being handed over as THAT shipment.
 import { randomUUID } from "node:crypto";
 import * as shipmentLinks from "#db/fulfillments/shipments/repo.ts";
 import * as fulfillmentService from "#domain/fulfillments/service.ts";
@@ -21,8 +12,7 @@ type Executor = PoolClient | undefined;
 
 export type { ShipmentLinkRow, ShipmentLinkInput } from "#db/fulfillments/shipments/repo.ts";
 
-// Linking a parcel to a fulfillment. Called by features/shipping when a label
-// is bought.
+// Linking a parcel to a fulfillment. Called by domain/shipping when a label is bought.
 export async function link(
   input: { fulfillment_id: string } & ShipmentLinkInput, executor?: Executor
 ): Promise<ComposedFulfillment | null> {

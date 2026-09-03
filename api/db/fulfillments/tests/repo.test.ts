@@ -1,11 +1,5 @@
-// The writes on fulfillments.fulfillments, against real Postgres.
-//
-// Most of this file is self-contained via createDraft: a draft fulfillment
-// has no order, so those tests never touch a shared row. The attachToOrder
-// test DOES borrow a real order, the same hazard
-// domain/fulfillments/tests/service.test.ts documents (two files racing the
-// same "free" order deadlock rather than fail), so this file takes the same
-// lock.
+// Writes on fulfillments.fulfillments, against real Postgres. Most tests are self-contained via createDraft (no order).
+// attachToOrder's test borrows a real order and takes LOCKS.FULFILLMENTS - two files racing the same "free" order would deadlock otherwise.
 import test, { after, before } from "node:test";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";

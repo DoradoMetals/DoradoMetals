@@ -1,11 +1,5 @@
--- Pickups falling in a window, optionally for one employee.
---
--- A NULL bound means "unbounded" rather than "matches nothing", which is what
--- the `$1::timestamptz IS NULL OR` shape buys.
---
--- Rows with no start_time ARE returned. An unscheduled pickup is work to be
--- booked, and the caller sorts it last - see compose.ts. Filtering it out here
--- would hide the work rather than order it.
+-- Pickups falling in a window, optionally for one employee. A NULL bound means "unbounded", not "matches nothing".
+-- Unscheduled rows (no start_time) ARE returned - that's work to be booked, sorted last by the caller, not hidden here.
 SELECT id, fulfillment_id, pickup_address_id, assigned_employee_id,
        start_time, end_time
   FROM fulfillments.pickups

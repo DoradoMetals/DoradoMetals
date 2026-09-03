@@ -15,12 +15,6 @@ import {
 
 const router = express.Router();
 
-// NO WIRE ADAPTER. Carriers is the fourth CONVERTED feature and the first
-// STRUCTURAL one (2026-08-27): the frontend reads the nested organization
-// from @dorado/contracts and writes it back the same way, so the lift that
-// flattened it is gone. Refiners and addresses still carry theirs - the same
-// makeLiftAdapter declaration - until each converts.
-
 router.get("/get", requireUser, getAll);
 
 router.get("/get_one", requireAdmin, getOne);

@@ -1,15 +1,5 @@
-// DORADO'S OWN PICKUP: we collect the metal from the customer.
-//
-// NOT a carrier pickup. shipping.pickups / exchange.carrier_pickups is FedEx
-// coming for a parcel, and shipping.shipments.pickup_type
-// (DROPOFF_AT_FEDEX_LOCATION / CONTACT_FEDEX_TO_SCHEDULE) is a property of a
-// SHIPMENT. Two different concepts share one word; the database separates them
-// correctly and so does this feature. This file is the fulfillment METHOD -
-// alongside directs and shipments - and it never touches a carrier.
-//
-// THIS RESOURCE ORCHESTRATES FOR ITSELF (ruling 26b): a drawer reading an
-// order's pickup, and an admin booking one, both reach here rather than
-// through features/fulfillments/controller.ts.
+// DORADO'S OWN PICKUP: we collect the metal from the customer - not a carrier pickup (shipping.pickups is FedEx coming for a parcel). Two different concepts share one word; the database and this feature both keep them apart.
+// This resource orchestrates for itself: a drawer reading an order's pickup, and an admin booking one, both reach here rather than through transport/fulfillments/controller.ts.
 import { randomUUID } from "node:crypto";
 import * as pickups from "#db/fulfillments/pickups/repo.ts";
 import * as fulfillments from "#db/fulfillments/repo.ts";
@@ -22,15 +12,8 @@ type Executor = PoolClient | undefined;
 
 export type { PickupRow, PickupInput } from "#db/fulfillments/pickups/repo.ts";
 
-// GET /api/orders/:orderId/pickups - VERBATIM rows, resolved from the order in
-// the WHERE clause (ruling 12).
-//
-// AN ARRAY OF AT MOST ONE, and the plural is the route's rather than the
-// table's: fulfillments.pickups keys on fulfillment_id (its writer is an upsert
-// ON CONFLICT), so one fulfillment has one pickup. A list is still the right
-// answer - an order with no fulfillment, or one handed over by shipment,
-// answers [] instead of 404, which lets a drawer render the same component for
-// every method rather than branching before it asks.
+// GET /api/orders/:orderId/pickups - VERBATIM rows, resolved from the order.
+// An array of at most one - the plural is the route's, not the table's (fulfillments.pickups keys on fulfillment_id, upsert-only). [] instead of 404 lets a drawer render the same component for every method rather than branching before it asks.
 export async function forOrder(
   order_id: string, executor?: Executor
 ): Promise<PickupRow[]> {
@@ -40,10 +23,7 @@ export async function forOrder(
   return row ? [row] : [];
 }
 
-// Booking one. The category is checked against the method rather than trusted -
-// writing a pickup row for a fulfillment whose method is DROPSHIP produces a
-// row every read attaches and no read expects, and the constraint that would
-// have caught it does not exist in the schema.
+// Booking one. Category is checked against the method, not trusted - a pickup row for a DROPSHIP fulfillment is a row every read attaches and none expects, and nothing in the schema would catch it.
 export async function schedule(
   input: { fulfillment_id: string } & PickupInput, executor?: Executor
 ): Promise<ComposedFulfillment | null> {

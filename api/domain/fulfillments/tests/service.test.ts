@@ -1,23 +1,11 @@
-// Fulfillments against real Postgres, each test inside a rolled-back
-// transaction.
-//
-// This is the first feature with no exchange side to compare against, so there
-// is no `diff` to fall back on: these tests are the only thing that says the
-// PICKUP and DIRECT paths work. What they are asserting is mostly that the
-// three categories cannot be mixed up, because the schema does not stop it -
-// nothing prevents a pickups row hanging off a DROPSHIP fulfillment, and every
-// read LEFT JOINs all three detail tables, so a mismatched row comes back as a
-// second answer to a question with one answer.
+// Fulfillments against real Postgres, each test inside a rolled-back transaction.
+// The first feature with no exchange side to compare against, so these tests are the only thing proving PICKUP/DIRECT work - mostly, that the three categories can't be mixed up: nothing in the schema stops a pickups row hanging off a DROPSHIP fulfillment, and every read LEFT JOINs all three detail tables, so a mismatch comes back as a second answer to a one-answer question.
 import test, { after, before } from "node:test";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
 import pool from "#db";
 import { LOCKS, takeLocks } from "#shared/testing/locks.ts";
-// POINTED AT THE SERVICE, not at a repo. Every function this file exercises
-// asks about a table the fulfillments repo does not own - whether the order
-// exists, what category the method is, whether a parcel is attached - so after
-// the per-table split they all live in the service. The assertions are
-// unchanged, because the behaviour is.
+// Pointed at the SERVICE, not a repo: every function here asks about a table the fulfillments repo doesn't own (whether the order exists, the method's category, whether a parcel is attached), so after the per-table split they all live in the service.
 import * as methods from "#db/fulfillments/methods/repo.ts";
 import * as service from "#domain/fulfillments/service.ts";
 import * as pickupService from "#domain/fulfillments/pickups/service.ts";
@@ -37,9 +25,7 @@ after(async () => {
 
 async function inRollback(fn: (c: PoolClient) => Promise<void>) {
   await client.query("BEGIN");
-  // fulfillments_order_uniq means two tests borrowing the same order deadlock
-  // rather than fail, and they pass in isolation while hanging in the full run.
-  // One lock, taken first, in the one file that writes these tables.
+  // fulfillments_order_uniq means two tests borrowing the same order deadlock rather than fail - one lock, taken first, in the one file that writes these tables.
   await takeLocks(client, LOCKS.FULFILLMENTS);
   try {
     await fn(client);
@@ -48,14 +34,8 @@ async function inRollback(fn: (c: PoolClient) => Promise<void>) {
   }
 }
 
-// An order with no fulfillment yet, so create() has something legal to attach
-// to. Borrowed rather than invented: orders.orders is FK'd in six directions
-// and a synthetic one would need all of them.
-//
-// Every purchase order in dev already has a fulfillment, so the one being
-// borrowed has its fulfillment deleted first - inside the transaction that is
-// about to be rolled back, which is the only reason that is not a data-loss
-// bug. fulfillments.shipments cascades from it and comes back with it.
+// An order with no fulfillment yet, so create() has something legal to attach to. Borrowed rather than invented: orders.orders is FK'd in six directions.
+// Every purchase order in dev already has a fulfillment, so the one borrowed has its fulfillment deleted first - inside the rolled-back transaction, which is the only reason that isn't a data-loss bug. fulfillments.shipments cascades from it and comes back with it.
 async function freeOrder(c: PoolClient, direction: "purchase" | "sale") {
   const { rows } = await c.query(
     `SELECT o.id, o.user_id FROM orders.orders o
@@ -100,9 +80,7 @@ test("the seed offers a customer only what is enabled and not hidden", async () 
       offered.every((m) => m.direction === "purchase"),
       "getAvailable returned a method for the other direction"
     );
-    // WALK IN and OWN LABEL are enabled and hidden - an admin can put an order
-    // on one and a customer cannot ask for it. If they ever show up here the
-    // filter has stopped meaning anything.
+    // WALK IN and OWN LABEL are enabled and hidden - an admin can put an order on one, a customer cannot ask for it.
     assert.ok(
       !offered.some((m) => m.type === "OWN LABEL" || m.type === "WALK IN"),
       "a hidden admin-only method reached the customer menu"
@@ -165,8 +143,7 @@ test("a second create returns the same fulfillment rather than a second one", as
 test("creating a fulfillment for an order the new schema does not have says why", async () => {
   await inRollback(async (c: PoolClient) => {
     const method = await methodOf(c, "PICKUP", "purchase");
-    // A real exchange order that orders.orders has no row for is the state
-    // every order is in before ORDERS_SOURCE reaches dual.
+    // A real exchange order with no orders.orders row, if dev still has one; falls back to an all-zero id otherwise.
     const { rows } = await c.query(
       `SELECT e.id FROM exchange.purchase_orders e
         WHERE NOT EXISTS (SELECT 1 FROM orders.orders o WHERE o.id = e.id)
@@ -201,25 +178,9 @@ test("a pickup is scheduled, rescheduled, and cancelled without touching the ful
     assert.equal(booked.pickup.pickup_address_id, addr[0].id);
     assert.equal(booked.direct, null);
 
-    // THE DETAIL IS A REAL ROW NOW, NOT A jsonb_build_object, AND ITS
-    // TIMESTAMPS ARRIVE AS Date OBJECTS.
-    //
-    // The old projection built the detail with jsonb_build_object, so the
-    // driver never saw a timestamptz to parse and these came back as strings in
-    // whatever rendering the session TimeZone produced - which this test's own
-    // comment used to describe as "Postgres's and depends on the session
-    // TimeZone". Reading the column directly means node-postgres parses it.
-    //
-    // OVER HTTP NOTHING CHANGES: res.json() serialises a Date to an ISO string
-    // with a Z, and the contract describes the wire, so validate:wire compares
-    // JSON.parse(JSON.stringify(row)) either way. What changed is the internal
-    // value, and it changed in the direction of being stable rather than
-    // session-dependent.
-    //
-    // The INSTANT is what was worth asserting all along, and it is unchanged.
-    // GUARDED. `start_time` is nullable, and `new Date(null)` is not an error
-    // - it is the epoch. Unguarded, an unscheduled pickup compared 1970 to the
-    // requested time and failed with two dates instead of naming the null.
+    // The detail is a real row now, with timestamps arriving as Date objects (node-postgres parses timestamptz) rather than strings from a jsonb_build_object.
+    // Over HTTP nothing changes: res.json() serializes a Date to an ISO string, and validate:wire compares the JSON either way - what changed is the internal value becoming stable rather than session-dependent.
+    // GUARDED: start_time is nullable, and `new Date(null)` is the epoch, not an error - unguarded, an unscheduled pickup compared 1970 to the requested time and failed with two dates instead of naming the null.
     assert.ok(booked.pickup.start_time, "the scheduled pickup carries no start time");
     assert.equal(
       new Date(booked.pickup.start_time).toISOString(),
@@ -273,9 +234,7 @@ test("an appointment is scheduled at a location", async () => {
   });
 });
 
-// The reason assertCategory exists. Nothing in the schema stops a pickups row
-// hanging off a DROPSHIP fulfillment, and a read that LEFT JOINs all three
-// would then answer with both a pickup and a shipment.
+// The reason assertCategory exists: nothing in the schema stops a pickups row hanging off a DROPSHIP fulfillment, and a read that LEFT JOINs all three would answer with both a pickup and a shipment.
 test("a pickup cannot be booked against a method that is not a pickup", async () => {
   await inRollback(async (c: PoolClient) => {
     const order = await freeOrder(c, "sale");
@@ -399,11 +358,7 @@ test("another customer's fulfillment is not readable by asking for its order", a
       "a signed-in stranger read somebody else's pickup address"
     );
     assert.ok(await service.getForOrder(id, { userId: user_id }));
-    // `userId: null` deliberately: the controller passes `req.user?.id`, which
-    // is `undefined` for an anonymous caller, and the option is declared
-    // `userId?: string`. An admin read must ignore it either way, and both
-    // spellings take the same branch - `isAdmin` short-circuits before userId
-    // is read. Written as the absent value the signature actually admits.
+    // `userId: null` deliberately: an anonymous caller's req.user?.id is undefined, matching the signature's `userId?: string` - isAdmin short-circuits before userId is read either way.
     assert.ok(await service.getForOrder(id, { isAdmin: true }));
   });
 });

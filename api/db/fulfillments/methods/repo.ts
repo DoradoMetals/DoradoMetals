@@ -1,22 +1,5 @@
-// fulfillments.methods, and nothing else.
-//
-// THIS IS THE FIRST TABLE IN THE MIGRATION WITH NO exchange SIDE, and that is
-// not an omission. exchange never recorded how an order was fulfilled beyond
-// shipments.pickup_type, a text column holding two values. The eleven rows here
-// come from 047_seed_reference_data.sql, which supplies what exchange never
-// held - so there is no source to read from, nothing to mirror, and nothing to
-// switch between. A *_SOURCE switch would have exactly one state.
-//
-// Three categories, and they are code rather than data. Each names which table
-// carries the detail:
-//
-//   SHIPMENT  -> fulfillments.shipments  (a parcel, handled by features/shipping)
-//   PICKUP    -> fulfillments.pickups    (we collect from the customer)
-//   DIRECT    -> fulfillments.directs    (the customer comes to a location)
-//
-// label vs admin_label is a real distinction and both are kept: 'Pickup' means
-// two different things to a customer depending on the category, and the admin
-// side needs to tell 'Dorado Pickup' from 'Carrier Pickup'.
+// fulfillments.methods: seeded reference data (047_seed_reference_data.sql) - exchange never recorded this.
+// category is code, not data: SHIPMENT/PICKUP/DIRECT each name their detail table. label vs admin_label are both real - a customer and the admin need different words for the same row.
 import query from "#shared/db/query.ts";
 import { buildUpdate } from "#shared/db/patch.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
@@ -25,13 +8,7 @@ import type { Executor } from "#shared/db/executor.ts";
 
 const sql = sqlFrom(import.meta.dirname);
 
-// created_by / updated_by / created_by_id / updated_by_id are not projected -
-// who last edited a reference row is not part of the menu.
-// The audit id columns joined the pick with ruling 12: get_one.sql serves
-// the WHOLE row now (the fulfillment chain read returns it verbatim), and
-// the list projections that omit them type the same shape with those fields
-// simply absent at runtime for internal composition - the wire shapes are
-// where presence is enforced, by validate:wire.
+// created_by/updated_by(_id) aren't projected here - who edited a reference row isn't part of the menu. get_one.sql serves the whole row instead.
 export type MethodRow = Pick<
   fulfillments.MethodsRow,
   | "id" | "type" | "label" | "admin_label" | "category" | "direction"
@@ -55,8 +32,7 @@ export async function getOne(id: string, executor?: Executor): Promise<MethodRow
   return rows[0];
 }
 
-// By id, for composing a method into a fulfillment without a join per row.
-// Eleven rows, so one read and a Map beats a join on every query.
+// By id, for composing a method into a fulfillment without a join per row - eleven rows, so a Map beats a join.
 export async function byId(executor?: Executor): Promise<Map<string, MethodRow>> {
   return new Map((await getAll(executor)).map((m) => [m.id, m]));
 }
@@ -72,12 +48,7 @@ export async function getDefault(
   return rows[0];
 }
 
-// EVERY FIELD IS OPTIONAL AND AN ABSENT ONE IS NOT WRITTEN AT ALL. The
-// statement is built from the keys the patch carries (shared/db/patch.ts), so
-// a partial update - which is what every admin toggle sends - leaves the rest
-// alone. The COALESCE statement this replaces got the same answer by a route
-// that could not have expressed a deliberate null; none of these columns is
-// nullable, so nothing is lost and the mechanism is now the shared one.
+// Every field is optional; an absent one is not written at all (shared/db/patch.ts) - none of these columns is nullable, so nothing is lost.
 export const PATCHABLE = ["label", "admin_label", "enabled", "hidden"] as const;
 
 export type MethodPatch = {
@@ -87,9 +58,7 @@ export type MethodPatch = {
   hidden?: boolean;
 };
 
-// No create and no remove - see the header of sql/update.sql, which the
-// builder replaced: the three categories are code rather than data, so a
-// method can be reworded and switched off and nothing else.
+// No create, no remove: methods are code, not data - a method can be reworded and switched off, and nothing else.
 export async function update(
   id: string, patch: MethodPatch, executor?: Executor
 ): Promise<boolean> {

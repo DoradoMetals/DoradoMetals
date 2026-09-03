@@ -1,13 +1,5 @@
-// fulfillments.fulfillments, and nothing else.
-//
-// One row per order - `fulfillments_order_uniq` enforces it - naming a method,
-// carrying a status, and having exactly one detail row in whichever table its
-// method's category points at. The method and the detail are attached by
-// compose.ts; the implementation this replaces LEFT JOINed all four tables on
-// every read and built three jsonb objects in the projection.
-//
-// created_by / updated_by (the text columns) are not projected. created_by_id
-// and updated_by_id are, because the response has always carried them.
+// fulfillments.fulfillments: one row per order (fulfillments_order_uniq), naming a method and status; the detail row lives in whichever table the method's category points at. compose.ts attaches both.
+// created_by/updated_by (text) aren't projected; created_by_id/updated_by_id are - the wire has always carried them.
 import query from "#shared/db/query.ts";
 import { buildUpdate } from "#shared/db/patch.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
@@ -45,12 +37,7 @@ export async function getMany(
   return rows;
 }
 
-// The fulfillments of several ORDERS at once - getByOrder, batched.
-//
-// `fulfillments_order_uniq` still makes it one row per order, so the caller can
-// key the result by order_id without losing anything. Added for D101: every
-// hop of "which shipment does this order have" started at getByOrder, and the
-// composed order read called it inside a per-order loop.
+// getByOrder, batched - one row per order (fulfillments_order_uniq), so the caller can key results by order_id.
 export async function getByOrders(
   order_ids: string[], executor?: Executor
 ): Promise<FulfillmentBaseRow[]> {
@@ -61,10 +48,8 @@ export async function getByOrders(
   return rows;
 }
 
-// Returns undefined when the order already had one - ON CONFLICT DO NOTHING
-// returns no row. That is the normal case for a second call rather than an
-// error, and the service reads the existing one back.
-// created_by_id IS NOT A FIELD OF THIS TYPE any more - the trigger writes it.
+// Returns undefined when the order already has one - ON CONFLICT DO NOTHING, the normal case for a retry, not an error.
+// created_by_id is not a field here - the audit trigger writes it.
 export type FulfillmentNew = {
   id: string; order_id: string; method_id: string; status: string;
 };
@@ -78,9 +63,8 @@ export async function create(
   return rows[0];
 }
 
-// A DRAFT (D208): a fulfillment with no order yet, mutated by the checkout
-// flow and attached at order creation. See create_draft.sql.
-// created_by_id IS NOT A FIELD OF THIS TYPE any more - the trigger writes it.
+// A draft: a fulfillment with no order yet, mutated by checkout and attached at order creation.
+// created_by_id is not a field here - the audit trigger writes it.
 export type FulfillmentDraftNew = { id: string; method_id: string };
 
 export async function createDraft(
@@ -92,10 +76,7 @@ export async function createDraft(
   return rows[0];
 }
 
-// THE ONE-WAY ATTACH, kept as its own function rather than folded into
-// `update`: it is a state TRANSITION guarded by `WHERE order_id IS NULL`
-// (attach_to_order.sql), not a general column patch - order_id is never
-// COALESCE-patchable anywhere else, only ever set once, from null.
+// attachToOrder kept: one-way guarded transition - WHERE order_id IS NULL, never a general patch.
 export async function attachToOrder(
   id: string, patch: { order_id: string }, executor?: Executor
 ): Promise<FulfillmentBaseRow | undefined> {
@@ -105,17 +86,10 @@ export async function attachToOrder(
   return rows[0];
 }
 
-// ONE UPDATE (D212's CRUD ruling): replaces setStatus and setMethod, which
-// were the same UPDATE under two names.
 export const PATCHABLE = ["status", "method_id"] as const;
 
 export type FulfillmentPatch = Partial<Pick<FulfillmentBaseRow, (typeof PATCHABLE)[number]>>;
 
-//
-// THE INTERIM ACTOR ARGUMENT IS GONE. `update` took `updated_by_id` as a third
-// parameter, threaded down from the session by every caller; public.audit_stamp
-// writes it from the connection now (migration 116), so the signature is the
-// two-argument one every other repo has.
 export async function update(
   id: string, patch: FulfillmentPatch, executor?: Executor
 ): Promise<boolean> {

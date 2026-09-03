@@ -1,8 +1,4 @@
-// Which function turns this application's shapes into each carrier's request.
-//
-// Parallel to PROVIDERS in registry.ts and keyed the same way: resolveCarrier
-// looks both up with one key, so a carrier present in one and missing from the
-// other is a startup-time error rather than a silent half-configuration.
+// Which function turns this application's shapes into each carrier's request - keyed like PROVIDERS/CATALOGUES, so resolveCarrier catches a missing entry at startup rather than a silent half-configuration.
 import * as fedexAdapters from "#domain/shipping/operations/adapters/fedex.ts";
 
 export const BUILDERS = {

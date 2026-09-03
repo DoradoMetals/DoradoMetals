@@ -1,10 +1,4 @@
-// shipping.packages, and nothing else.
-//
-// Reference data - eleven rows, seeded - and READ ONLY (CRUD-batch-3): no
-// create/update/remove - nothing in the application creates or edits a
-// package. `find` exists because exchange.shipments stores the package as
-// TEXT and this schema stores a reference, so a write arriving in exchange's
-// shape has to resolve it.
+// shipping.packages: reference data, read-only - no create/update/remove. `find` resolves a carrier+label pair to its row.
 import query from "#shared/db/query.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
 import type { shipping } from "@dorado/contracts";
@@ -42,7 +36,7 @@ export async function labelsById(executor?: Executor): Promise<Map<string, strin
   return new Map((await getAll(executor)).map((p) => [p.id, p.label]));
 }
 
-// The checkout's box menu (D208). See sql/get_offered.sql for which rows.
+// The checkout's box menu; see sql/get_offered.sql for which rows.
 export type OfferedPackage = {
   id: string;
   label: string;

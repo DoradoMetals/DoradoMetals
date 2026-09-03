@@ -18,8 +18,7 @@ import {
 
 const router = express.Router();
 
-// Public: the product page prints these prices to signed-out visitors,
-// exactly as the hardcoded record they replaced did (D207/D208).
+// Public: the product page prints these prices to signed-out visitors.
 router.get("/sale_options", getSaleOptions);
 
 router.get("/get", requireUser, getAll);

@@ -1,18 +1,5 @@
-// Carrier services through the service, against real Postgres.
-//
-// One row in each schema, written together under ONE id. That is the change
-// from the implementation this replaces, which mirrored on (carrier_id, name)
-// because it could not use the id: 047 seeded shipping.services with fresh
-// uuids, and in dev one of them - 2fb26257 - is 'Overnight' in exchange and
-// 'Priority Overnight' in the new schema.
-//
-// PRODUCTION DOES NOT HAVE THAT PROBLEM, and it is worth stating because it is
-// the opposite of what the migration notes said: all eight services match on id
-// AND on (carrier_id, name) there. Dev holds two of the eight, which is why its
-// copies drifted. So a service created here chooses one id and writes it to
-// both tables, keeping true what production already is.
-//
-// Each test runs inside a transaction that is rolled back.
+// Carrier services through the service, against real Postgres. Each test runs inside a rolled-back transaction.
+// exchange.carrier_services is checked in a few places only to prove it stays untouched - service.ts writes shipping.services alone now.
 import test, { after, before } from "node:test";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
@@ -58,10 +45,7 @@ const draft = async (c: PoolClient, over = {}) => ({
   ...over,
 });
 
-// The signed-in person, as the database sees one. shipping.services.created_by
-// used to be defaulted to the literal "Dorado Metals" by service.ts when a
-// caller sent nothing; the public.audit_stamp trigger fills it from the actor
-// on the connection now (migration 116), so these tests say who is acting.
+// The signed-in person, as the database sees one - public.audit_stamp fills created_by/updated_by from the actor on the connection, so these tests say who is acting.
 const actingAs = async (c: PoolClient, id: string | null) => {
   await c.query("SELECT set_config('app.actor_id', $1, true)", [id ?? ""]);
 };
@@ -85,9 +69,7 @@ test("the list keeps the three renamed columns under the names the frontend read
   }
 });
 
-// exchange ordered by name alone and both carriers offer a 'Free', an
-// 'Overnight' and a 'Standard', so without the id tiebreak the same rows come
-// back in a different order run to run.
+// Both carriers offer a 'Free', 'Overnight' and 'Standard' - without the id tiebreak, the same rows could come back in a different order run to run.
 test("the list is ordered by name, with a stable tiebreak", async () => {
   const rows = await service.getAllServices();
   const keys = rows.map((r) => `${r.name} ${r.id}`);
@@ -110,10 +92,7 @@ test("create writes the row the id names", async () => {
   });
 });
 
-// THE DEFAULTS ARE service.ts's, NOT THE TABLE's. shipping.services defaults
-// supports_dropoffs and is_residential to false, but the business's answer -
-// the one exchange always gave - is true, and the statement lists every
-// column so service.ts decides.
+// Defaults are service.ts's, not the table's: the column defaults to false, but the business's answer is true, and the statement lists every column so service.ts decides.
 test("a service created with nothing but a name and carrier gets the business's defaults", async () => {
   await inRollback(async (c: PoolClient) => {
     const [maker] = await twoPeople(c);
@@ -133,9 +112,7 @@ test("a service created with nothing but a name and carrier gets the business's 
     assert.equal(made.is_international, false);
     assert.equal(Number(made.min_transit_days), 0);
     assert.equal(Number(made.display_order), 0);
-    // "Dorado Metals" WAS THE ANSWER HERE and it was a placeholder: service.ts
-    // wrote that literal whenever the caller named nobody. The row records the
-    // real person now.
+    // "Dorado Metals" was the old placeholder when nobody was named - the row records the real actor now.
     assert.equal(made.created_by, maker.name);
 
     const { rows: nx } = await c.query(
@@ -222,9 +199,7 @@ test("the renamed wire fields land in the right columns", async () => {
   });
 });
 
-// created_by records who made the row and an edit must not overwrite it. The
-// trigger never touches created_* on an UPDATE, and a caller can no longer
-// claim to be somebody: the two names used to travel in the request body.
+// created_by records who made the row; an edit must not overwrite it - the audit trigger never touches created_* on UPDATE.
 test("an update does not reassign created_by", async () => {
   await inRollback(async (c: PoolClient) => {
     const [maker, editor] = await twoPeople(c);
@@ -256,10 +231,7 @@ test("delete removes the row from both schemas", async () => {
   });
 });
 
-// shipping.shipments.carrier_service_id and checkout.checkouts.carrier_service_id
-// reference this table with no ON DELETE, so a referenced service cannot go -
-// and the exchange delete must roll back with it rather than leaving the two
-// schemas disagreeing about whether the service exists.
+// shipping.shipments.carrier_service_id / checkout.checkouts.carrier_service_id reference this table with no ON DELETE - a referenced service can't be removed.
 test("deleting a referenced service is refused, and exchange keeps its row", async () => {
   await inRollback(async (c: PoolClient) => {
     const { rows: referenced } = await c.query(

@@ -1,12 +1,5 @@
-// fulfillments.shipments, and nothing else.
-//
-// THE LINK, NOT THE PARCEL. This table joins a fulfillment to the
-// shipping.shipments row that satisfies it, and records where it went from and
-// to. Tracking number, label and cost belong to features/shipping.
-//
-// It is also the first hop of putting an order id back onto a shipment:
-// shipping.shipments carries neither purchase_order_id nor sales_order_id,
-// because an order's FULFILLMENT is what knows about the order.
+// fulfillments.shipments: THE LINK, not the parcel - joins a fulfillment to its shipping.shipments row, plus where it went from/to. Tracking, label, cost belong to the shipping feature.
+// Also the first hop back to an order id: shipping.shipments carries no order id; the fulfillment does.
 import query from "#shared/db/query.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
 import type { fulfillments } from "@dorado/contracts";
@@ -16,8 +9,7 @@ const sql = sqlFrom(import.meta.dirname);
 
 export type ShipmentLinkRow = fulfillments.ShipmentsRow;
 
-// RETURNS A LIST - the unique index is on shipment_id, so a fulfillment may
-// have several parcels. See sql/get_for.sql.
+// Returns a LIST - the unique index is on shipment_id, so a fulfillment may have several parcels.
 export async function getFor(
   fulfillment_id: string, executor?: Executor
 ): Promise<ShipmentLinkRow[]> {
@@ -31,8 +23,7 @@ export async function getMany(ids: string[], executor?: Executor): Promise<Shipm
   return rows;
 }
 
-// From the parcel's side. This is the read features/shipping needs to
-// reconstruct an order id.
+// From the parcel's side - the read the shipping feature needs to reconstruct an order id.
 export async function getByShipment(
   shipment_ids: string[], executor?: Executor
 ): Promise<ShipmentLinkRow[]> {
@@ -52,8 +43,7 @@ export async function existsFor(
   return rows[0]?.present === true;
 }
 
-// Unlinking a parcel, for when the shipment itself is deleted. The fulfillment
-// survives - see sql/delete_by_shipment.sql.
+// Unlinking a parcel, for when the shipment itself is deleted - the fulfillment survives.
 export async function removeByShipment(
   shipment_id: string, executor?: Executor
 ): Promise<boolean> {
@@ -61,9 +51,7 @@ export async function removeByShipment(
   return rowCount === 1;
 }
 
-// NO separate create/update (CRUD-batch-3): linking a parcel is an UPSERT (the
-// conflict target is shipment_id - see sql/upsert.sql's own header for why).
-// THE ROW, not positional scalars.
+// upsert-only, no separate create/update: linking a parcel is an upsert, conflict target shipment_id (see sql/upsert.sql).
 export type ShipmentLinkInput = {
   shipment_id: string;
   recipient_location_id?: string | null;

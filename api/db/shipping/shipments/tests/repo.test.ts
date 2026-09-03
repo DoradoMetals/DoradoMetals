@@ -1,7 +1,4 @@
-// The writes on shipping.shipments, against real Postgres.
-//
-// Self-contained: every shipment this file touches is created inside the
-// same rolled-back transaction.
+// Writes on shipping.shipments, against real Postgres. Self-contained: every shipment here is created in the same rolled-back transaction.
 import test, { after, before } from "node:test";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";

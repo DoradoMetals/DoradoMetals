@@ -3,11 +3,7 @@ import * as operationsService from "#domain/shipping/operations/service.ts";
 import * as shippingHandler from "#domain/shipping/operations/handler.ts";
 import { carrierIdOr } from "#domain/shipping/operations/resolver.ts";
 
-// carrier_id IS OPTIONAL ON EVERY OPERATION NOW, and that is what let a
-// production uuid come out of the browser. It was a literal at three checkout
-// call sites; exactly one carrier has a provider registered, so the server can
-// answer "which carrier" itself. A caller that does name one still gets that
-// one - see resolver.carrierIdOr.
+// carrier_id is optional on every operation now - a caller that names one still gets that one; the server resolves a default otherwise (resolver.carrierIdOr).
 export const validateAddress = asyncHandler(async (req, res) => {
   const { carrier_id, address } = req.body;
   const result = await shippingHandler.validateAddress(
@@ -24,16 +20,8 @@ export const getRates = asyncHandler(async (req, res) => {
 export const checkPickup = asyncHandler(async (req, res) => {
   const { carrier_id, pickupAddress, code, readyDate } = req.body;
 
-  // READY DATE IS A Date EVERYWHERE BELOW, AND JSON CANNOT CARRY ONE.
-  //
-  // The provider takes it twice - pickupAvailabilityPayload calls
-  // formatFedexTime(d), which reads d.getHours(), and parsePickupAvailability
-  // calls d.getTime() - and both were handed the raw string from the body. The
-  // frontend sends `new Date().toISOString().split("T")[0]`, so this route
-  // answered 500 with "d.getHours is not a function" on every call.
-  //
-  // Converted here because this is the boundary where a request becomes
-  // objects; the provider's Date is the type it always meant.
+  // readyDate is a Date everywhere below, and JSON can't carry one - the provider calls getHours/getTime on it (pickupAvailabilityPayload, parsePickupAvailability), and the frontend sends a bare string, so this route answered 500 on every call.
+  // Converted here, at the boundary where a request becomes objects - the provider's Date is the type it always meant.
   const readyAt = new Date(readyDate);
   if (Number.isNaN(readyAt.getTime())) {
     const err: Error & { statusCode?: number } = new Error(

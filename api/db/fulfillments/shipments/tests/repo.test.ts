@@ -1,8 +1,4 @@
-// The write on fulfillments.shipments (the LINK, not the parcel), against
-// real Postgres.
-//
-// Self-contained: the fulfillment is a DRAFT (no order) and the shipment is
-// created fresh, so this file never touches a shared row.
+// Writes on fulfillments.shipments (the LINK, not the parcel), against real Postgres. Self-contained: the fulfillment is a draft (no order) and the shipment is created fresh.
 import test, { after, before } from "node:test";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";

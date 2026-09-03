@@ -1,13 +1,5 @@
-// Carrier pickup writes, against real Postgres - native shipping.pickups
-// since D212.
-//
-// The first test here is a regression test for a bug that reached production:
-// create() named a column the table did not have, so every insert died on
-// 42703 and no pickup was ever recorded. It threw inside the purchase-order
-// transaction, after FedEx had already booked a real pickup - so the label
-// write rolled back and the booking survived with nothing pointing at it.
-//
-// Each test runs inside a transaction that is rolled back.
+// Carrier pickup writes, against real Postgres - native shipping.pickups. Each test runs inside a rolled-back transaction.
+// The first test guards a production bug: create() named a column the table lacked (42703) - it threw after FedEx had already booked a real pickup, leaving nothing pointing at it.
 import test, { after, before } from "node:test";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
@@ -38,8 +30,7 @@ async function inRollback(fn: (c: PoolClient) => Promise<void>) {
   }
 }
 
-// A purchase order that already has a shipment on both sides, so a pickup has
-// something to hang off in the new schema.
+// A purchase order with a shipment already on it, so a pickup has somewhere to hang.
 const anOrderWithShipment = async (c: PoolClient) => {
   const { rows } = await c.query(
     `SELECT f.order_id
@@ -74,13 +65,10 @@ test("creating a pickup no longer dies on the missing shipment_id column", async
   });
 });
 
-// The date and time arrive separately, as FedEx wants them, and are combined in
-// Postgres. A JS Date here would carry the process timezone into a `timestamp
-// without time zone` column.
+// Date/time arrive separately (as FedEx wants them) and combine in Postgres - a JS Date here would carry the process timezone into a `timestamp without time zone` column.
 test("the date and time are combined into pickup_requested_at", async () => {
   await inRollback(async (c: PoolClient) => {
-    // The row is only written when the order resolves a shipment (D212 -
-    // shipping.pickups hangs off one), so the fixture needs a real order.
+    // The row is only written when the order resolves a shipment - the fixture needs a real order.
     const order_id = await anOrderWithShipment(c);
     assert.ok(order_id, "dev has no order with a shipment");
     const created = await dual.create(aPickup({ order_id, date: "2026-08-22", time: "10:30:00" }), c);
@@ -132,22 +120,8 @@ test("a pickup is mirrored onto the order's shipment", async () => {
 // shipment to point at - that is the failure mode that broke purchase orders.
 test("a pickup whose order has no shipment mirrors nothing and does not throw", async () => {
   await inRollback(async (c: PoolClient) => {
-    // MAKES its own shipment-less order rather than hunting for one, and both
-    // halves of that matter.
-    //
-    // VACUOUS: dev has zero orders with no shipment, so the search returned
-    // nothing and the test returned early - passing without exercising a line
-    // of the thing it is named for.
-    //
-    // FLAKY: in a full run it found one anyway and then failed the foreign key
-    // on insert, which means the row it selected was not there by the time it
-    // wrote. What made a row appear and vanish between two statements on one
-    // connection is not explained here, and this does not pretend to explain
-    // it - it removes the search, which is the part that could race.
-    //
-    // The shipments are deleted inside the transaction that is rolled back,
-    // the same way features/orders/create.test.js frees an order of its
-    // fulfillment. Nothing survives the test.
+    // Manufactures its own shipment-less order rather than searching for one: searching was VACUOUS (dev has none, so it passed without testing anything) or FLAKY (a race made the selected row vanish before the insert).
+    // Shipments are deleted inside the rolled-back transaction, so nothing survives the test - same approach as domain/orders/tests/create.test.ts.
     const { rows } = await c.query(
       `SELECT o.id FROM orders.orders o WHERE o.direction = 'purchase'
         ORDER BY o.created_at ASC, o.id ASC LIMIT 1`
@@ -155,9 +129,7 @@ test("a pickup whose order has no shipment mirrors nothing and does not throw", 
     const order_id = rows[0]?.id ?? null;
     assert.ok(order_id, "dev has no purchase order at all");
 
-    // THE LINK IS WHAT HAS TO GO: shipping.pickups.shipment_id is a foreign
-    // key into shipping.shipments, so the question is whether the order has a
-    // shipment - answered through its fulfillment.
+    // The link is what has to go: shipping.pickups.shipment_id is a foreign key into shipping.shipments, resolved through the order's fulfillment.
     await c.query(
       `DELETE FROM fulfillments.shipments fs
         USING fulfillments.fulfillments f
@@ -193,9 +165,7 @@ test("updating a pickup records the new status rather than the old one", async (
   });
 });
 
-// The status vocabulary is enforced by a CHECK constraint, and the cancel path
-// used the British spelling. Pinning it here so the two cannot drift apart
-// again without a test saying so.
+// Status vocabulary is enforced by a CHECK constraint; the cancel path once used the British spelling - pinned here so the two can't drift apart silently.
 test("the status vocabulary is pending / scheduled / completed / canceled", async () => {
   await inRollback(async (c: PoolClient) => {
     const order_id = await anOrderWithShipment(c);
@@ -213,10 +183,7 @@ test("the status vocabulary is pending / scheduled / completed / canceled", asyn
   });
 });
 
-// THE SHAPE IS THE ROW (ruling 12, D214): compose.ts, which reconstructed
-// order_id, user_id and carrier through the shipment, is deleted - a caller
-// who needs those reaches them through shipping/shipments now. This is
-// compared against shipping.pickups' own column list, not exchange's.
+// The shape is the row - compared against shipping.pickups' own column list, not exchange's.
 test("the pickup has exactly the columns shipping.pickups has", async () => {
   await inRollback(async (c: PoolClient) => {
     const order_id = await anOrderWithShipment(c);

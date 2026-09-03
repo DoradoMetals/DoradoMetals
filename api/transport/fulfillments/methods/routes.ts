@@ -8,10 +8,7 @@ import {
 
 import { requireAdmin, requireUser } from "#shared/middleware/authMiddleware.ts";
 
-// MOUNTED AT /methods BY features/fulfillments/routes.ts, so the live paths are
-// unchanged: GET /api/fulfillments/methods, GET .../methods/all,
-// POST .../methods/update. Ruling 13 - the URL and the file answer different
-// questions, and factoring the file is not a reason to move the URL.
+// Mounted at /methods by transport/fulfillments/routes.ts, so the live paths are unchanged: GET /api/fulfillments/methods, GET .../methods/all, POST .../methods/update.
 const router = express.Router();
 
 router.get("/", requireUser, getMethods);

@@ -1,9 +1,5 @@
-// The parts of fulfillments that need no database: the statements as text, and
-// the in-memory join that replaced four SQL ones.
-//
-// This feature has no exchange side, so there is no `diff` and no second
-// implementation to compare against. These and the database tests are the only
-// thing that says the composition produces what the four joins produced.
+// The parts of fulfillments that need no database: the statements as text, and the in-memory join that replaced four SQL ones.
+// No exchange side, so no `diff` and no second implementation to compare against - these and the database tests are the only proof the composition produces what the four joins did.
 import test from "node:test";
 import assert from "node:assert/strict";
 import { sqlFrom } from "#shared/db/sql.ts";
@@ -11,11 +7,7 @@ import { buildUpdate } from "#shared/db/patch.ts";
 import { PATCHABLE } from "#db/fulfillments/repo.ts";
 import { PATCHABLE as METHOD_PATCHABLE } from "#db/fulfillments/methods/repo.ts";
 
-// fulfillments/sql/update.sql AND methods/sql/update.sql ARE GONE. Both were
-// COALESCE statements that also wrote updated_at and updated_by_id by hand;
-// shared/db/patch.ts builds them from the column lists the repos export, and
-// public.audit_stamp writes the audit columns (migration 116). What this file
-// asserted about those two files it asserts about the builder's output.
+// fulfillments/sql/update.sql and methods/sql/update.sql are gone - both were COALESCE statements that also wrote updated_at/updated_by_id by hand; shared/db/patch.ts builds them from the column lists the repos export, and audit_stamp writes the audit columns.
 const builtFulfillment = () =>
   buildUpdate({
     table: "fulfillments.fulfillments", allowed: PATCHABLE,
@@ -33,8 +25,7 @@ import {
 } from "#domain/fulfillments/compose.ts";
 import type { Details } from "#domain/fulfillments/compose.ts";
 
-// The statements are db/fulfillments (Phase 0c moved repo + sql there; these
-// tests stayed in domain/ alongside compose.ts).
+// The statements are in db/fulfillments; these tests stay in domain/ alongside compose.ts.
 const here = new URL("../../../db/fulfillments/", import.meta.url).pathname;
 const sql = sqlFrom(here);
 const methodsSql = sqlFrom(`${here}/methods`);
@@ -63,9 +54,7 @@ test("every statement loads and is not empty", () => {
   }
 });
 
-// ONE TABLE PER REPO. This is the property the split exists for, and it is the
-// one a future edit is most likely to undo - adding a join back is easy and
-// looks like an optimisation.
+// One table per repo - the property the split exists for, and the one a future edit is most likely to undo: adding a join back is easy and looks like an optimisation.
 test("no statement joins a second table", () => {
   const all: [string, string][] = [
     ...["get_one", "get_by_order", "get_many", "create"]
@@ -83,18 +72,14 @@ test("no statement joins a second table", () => {
       .map((n) => [`shipments/${n}`, linksSql(n)] as [string, string]),
   ];
 
-  // 25, not 26: CRUD-batch-3 collapsed set_status.sql and set_method.sql (the
-  // same UPDATE under two names) into one update.sql, one fewer statement by
-  // design rather than a broken walk.
+  // 25, not 26: set_status.sql and set_method.sql (the same UPDATE under two names) collapsed into one update.sql, one fewer statement by design.
   assert.ok(all.length >= 25, `only ${all.length} statements found - the walk broke`);
   for (const [name, text] of all) {
     assert.doesNotMatch(strip(text), /\bJOIN\b/i, `${name} joins a second table`);
   }
 });
 
-// The method's enum lives in `orders`, not in `fulfillments`, because a
-// direction is a property of the order rather than of how it is handed over.
-// An unqualified cast raises 42704 at runtime and nothing else would catch it.
+// The direction enum lives in `orders`, not `fulfillments` - an unqualified cast raises 42704 at runtime and nothing else would catch it.
 test("the direction cast is schema-qualified", () => {
   for (const n of ["get_available", "get_default"]) {
     assert.match(strip(methodsSql(n)), /\$1::orders\.direction/,
@@ -113,11 +98,7 @@ test("methods offers no way to invent a category", () => {
     "methods/update creates or deletes a method");
 });
 
-// PARTIAL, AND NOW BY A ROUTE THAT CANNOT BE WRONG ABOUT IT. The COALESCE
-// statement this replaces got "a partial update leaves the rest alone" from
-// every column being `coalesce($n, col)`; shared/db/patch.ts gets it from the
-// column never entering the SET list. That is the stronger version: the admin
-// toggle that sends only `hidden` produces a one-column UPDATE.
+// Partial, by a route that can't be wrong about it: shared/db/patch.ts gets "leaves the rest alone" from the column never entering the SET list - the admin toggle that sends only `hidden` produces a one-column UPDATE.
 test("the method update is partial, not a full overwrite", () => {
   const one = buildUpdate({
     table: "fulfillments.methods", allowed: METHOD_PATCHABLE,
@@ -129,10 +110,7 @@ test("the method update is partial, not a full overwrite", () => {
       `methods/update touches ${col} on a patch that never named it`);
   }
 
-  // type, category and direction are what the code dispatches on. Changing a
-  // method's category would move existing fulfillments to a detail table their
-  // rows are not in - so they are not in METHOD_PATCHABLE, and the builder
-  // throws rather than writing a column outside the whitelist.
+  // type/category/direction are what the code dispatches on - not in METHOD_PATCHABLE, so the builder throws rather than writing a column outside the whitelist.
   for (const col of ["type", "category", "direction"]) {
     assert.doesNotMatch(builtMethod(), new RegExp(`\\b${col}\\s*=`, "i"),
       `methods/update writes ${col}, which the code dispatches on`);
@@ -185,8 +163,7 @@ test("a fulfillment carries its method nested INTERNALLY, and toWire strips to t
   assert.equal(out.method.category, "PICKUP");
   assert.equal(out.method_id, "m1", "method_id is part of the verbatim row now");
 
-  // The WIRE is the bare fulfillments.fulfillments row and nothing else
-  // (wave-2 final form): no method object, no child rows.
+  // The wire is the bare fulfillments.fulfillments row and nothing else: no method object, no child rows.
   const wire = toWire(out);
   assert.ok(!("method" in wire), "the method object reached the wire");
   assert.ok(!("pickup" in wire), "a child row reached the wire");
@@ -204,8 +181,7 @@ test("a fulfillment with no method is dropped", () => {
   assert.ok(compose(base(), details()));
 });
 
-// THE THREE DETAIL JOINS WERE OUTER. A PICKUP nobody has scheduled yet is the
-// normal state of a new order, not a reason to drop it.
+// The three detail joins were OUTER - a PICKUP nobody has scheduled yet is the normal state of a new order, not a reason to drop it.
 test("a fulfillment with no detail keeps three nulls", () => {
   const out = compose(base(), details());
   assert.ok(out);
@@ -224,8 +200,7 @@ test("a booked pickup is nested under its own key and the others stay null", () 
   assert.equal(out.pickup?.pickup_address_id, "a1");
   assert.equal(out.direct, null);
   assert.equal(out.shipment, null);
-  // The child is the VERBATIM repo row now (wave-2 final form) - and it is
-  // INTERNAL: toWire strips it before anything reaches a response.
+  // The child is the VERBATIM repo row, and it's INTERNAL - toWire strips it before anything reaches a response.
   assert.equal(out.pickup?.fulfillment_id, "f1");
 });
 
@@ -234,10 +209,7 @@ test("composeAll drops what compose drops and keeps the rest", () => {
   assert.deepEqual(composeAll(rows, details()).map((f) => f.id), ["f1"]);
 });
 
-// ORDER BY coalesce(p.start_time, d.start_time) ASC NULLS LAST, f.id ASC.
-//
-// NULLS LAST is the part worth keeping deliberately: an unscheduled pickup is
-// work to be BOOKED, not work happening now, and a plain sort puts it first.
+// NULLS LAST kept deliberately: an unscheduled pickup is work to be BOOKED, not happening now, and a plain sort would put it first.
 test("the schedule sorts by start time with unscheduled work last", () => {
   const at = (id: string, start: string | null) => {
     const d = details({

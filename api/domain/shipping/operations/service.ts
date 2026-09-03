@@ -16,22 +16,9 @@ import type { RatesInput } from "#domain/shipping/operations/handler.ts";
 import type { PickupBaseRow as PickupRow } from "#db/shipping/pickups/repo.ts";
 import type { PoolClient } from "pg";
 
-// The three repos here go through their own repo.js switches, which are
-// JavaScript indexing SOURCES dynamically - so TypeScript hands back `any` and
-// the row types have to be named. Taken from repo.next, which `diff` proves
-// agrees with repo.exchange row for row.
 type Executor = PoolClient | undefined;
 
-// `fetchTracking` is the seam a test uses instead of calling FedEx.
-//
-// IT RETURNS ParsedTracking, NOT TrackingInfo, AND THE DIFFERENCE MATTERS.
-// TrackingInfo - in tracking/repo.next.ts - declares only `scanEvents`, because
-// that is all insertEvents reads. This function reads four fields: scanEvents,
-// latestStatus, estimatedDeliveryTime and deliveredAt. Typing the seam as the
-// narrower one compiled until the body was checked, and then said those three
-// do not exist - which is true of TrackingInfo and false of what actually
-// arrives. ParsedTracking is the parser's own exported return, and it is
-// assignable to TrackingInfo where insertEvents wants it.
+// fetchTracking is the seam a test uses instead of calling FedEx. Returns ParsedTracking, not TrackingInfo: this reads four fields (scanEvents, latestStatus, estimatedDeliveryTime, deliveredAt), and TrackingInfo declares only the one insertEvents needs - the narrower type would compile then fail at the body.
 import type { shipping } from "@dorado/contracts";
 
 export type FetchTracking = (
@@ -39,28 +26,11 @@ export type FetchTracking = (
   client?: Executor
 ) => Promise<ParsedTracking>;
 
-// THE THREE DIRECTIONS A PARCEL MOVES, READ FROM THE COLUMN THAT HOLDS THEM
-// (D103). This was `"Inbound" | "Outbound" | "Return"` written out here - an
-// exact duplicate of the `shipping.direction` enum, which is what
-// shipping.shipments.direction is declared as and what every one of these
-// values is eventually stored in. Not to be confused with orders.direction
-// (purchase / sale); the two are different enums and both are called
-// "direction", which is precisely why neither should be spelled by hand.
+// The three directions a parcel moves, read from shipping.direction itself rather than duplicated by hand - not to be confused with orders.direction (purchase/sale), a different enum with the same name.
 type ShippingType = shipping.ShipmentsRow["direction"];
 
-// Cancelling a label held a transaction open across the FedEx call, so a
-// failure in the update that follows rolled the row back with the label already
-// dead at FedEx - the customer prints a label the system says is active and it
-// is refused at the counter.
-//
-// A cancel is idempotent, which is what makes this the easy half of the rule:
-// the external call can happen first, outside any transaction, and a retry
-// simply cancels an already-cancelled label. Nothing needs to be undone, and
-// the failure mode left is "FedEx cancelled, we did not record it", which the
-// same request fixes when it is run again.
-//
-// Creating a label is not idempotent and does not get this treatment; see
-// features/orders/service.ts.
+// Runs OUTSIDE any transaction: cancelling a label first, inside one, risked a later failure rolling back our record while FedEx had already killed the label - a customer holding a label the system still calls active.
+// Safe because cancel is idempotent - a retry just cancels an already-cancelled label. Creating a label is NOT idempotent and doesn't get this treatment; see domain/orders/service.ts.
 export async function cancelLabel({
   shipment_id,
   carrier_id,
@@ -68,14 +38,7 @@ export async function cancelLabel({
   shipment_id: string;
   carrier_id?: string | null;
 }): Promise<ShipmentRow | null> {
-  // A SHIPMENT ID THAT NAMES NOTHING USED TO REACH THE CARRIER.
-  //
-  // This read `shipment.tracking_number` off whatever getById returned, and
-  // getById returns null for an unknown id - so cancelling a label for a
-  // shipment that does not exist threw a TypeError AFTER deciding to call
-  // FedEx, with the id having come from a request. Invisible until the
-  // shipments repo was typed, because repo.js resolved through a dynamic index
-  // and every field on it was `any`.
+  // An unknown shipment id used to reach the carrier before this guard existed - getById returning null meant a TypeError AFTER deciding to call FedEx, not before.
   const shipment = await shipmentRepo.getById(shipment_id);
   if (!shipment) {
     const err: Error & { statusCode?: number } = new Error(
@@ -89,23 +52,12 @@ export async function cancelLabel({
     trackingNumber: shipment.tracking_number,
   });
 
-  // patch(), not update(): the row carries no service/package NAME to
-  // round-trip through the resolver any more (ruling 12) - this preserves
-  // shipment.carrier_service_id/package_id verbatim and only changes the
-  // status.
+  // patch(), not update(): preserves carrier_service_id/package_id verbatim and only changes the status.
   return await shipmentRepo.patch(shipment.id, { shipping_status: "Cancelled" });
 }
 
-// `fetchTracking` is a separate parameter, not a field on an input object, for
-// the reason sendEmail's transport is: the controller destructures shipment_id
-// out of req.body and passes that alone, so a field would be reachable from the
-// request. Nothing in production passes one. A test passes a function returning
-// the parsed shape, which is what lets the guard below be checked without
-// calling FedEx - and FEDEX_ENV=sandbox is for a human smoke test, never a test
-// dependency.
-// Returns the shipment's tracking EVENTS, not the shipment - including on the
-// early return below, which is what makes "nothing recognised" indistinguishable
-// from "nothing changed" to a caller, deliberately.
+// fetchTracking is a separate parameter, not a request field - the controller only ever passes shipment_id, so nothing in production could reach it. Tests inject a function instead of calling FedEx; FEDEX_ENV=sandbox is for a human smoke test, never a test dependency.
+// Returns the shipment's tracking EVENTS, not the shipment - even on the early return, so "nothing recognised" looks the same as "nothing changed".
 function requireCarrier(carrier_id: string | null, shipment_id: string): string {
   if (!carrier_id) {
     const err: Error & { statusCode?: number } = new Error(
@@ -124,8 +76,7 @@ export async function getTracking(
 ): Promise<TrackingRow | null> {
   return withTransaction(async (client) => {
     const shipment = await shipmentRepo.getById(shipment_id, client);
-    // Same guard as cancelLabel: an unknown id read `shipment.carrier_id` off
-    // null, AFTER opening a transaction and before reaching the carrier.
+    // Same guard as cancelLabel: an unknown id used to read off null after opening a transaction, before reaching the carrier.
     if (!shipment) {
       const err: Error & { statusCode?: number } = new Error(
         `no shipment ${shipment_id} to track`
@@ -134,10 +85,7 @@ export async function getTracking(
       throw err;
     }
 
-    // carrier_id comes through the shipment's SERVICE now, so a shipment with
-    // no service yet has none - a shell created before the label was bought.
-    // The row carries carrier_service_id, not carrier_id (ruling 12), so this
-    // resolves the one hop the composed shape used to do for free.
+    // carrier_id comes through the shipment's service - a shipment with no service yet (a shell, before its label) has none.
     const service = shipment.carrier_service_id
       ? await servicesRepo.getOne(shipment.carrier_service_id, client)
       : undefined;
@@ -152,28 +100,9 @@ export async function getTracking(
           { tracking_number: shipment.tracking_number }
         );
 
-    // A REFRESH THAT RECOGNISED NOTHING IS NOT NEWS, AND USED TO BE TREATED AS
-    // NEWS THAT EVERYTHING IS GONE.
-    //
-    // removeEvents is an unconditional DELETE and insertEvents returns 0
-    // without inserting when there is nothing to insert, so a response whose
-    // scan events are all of types FEDEX_TRACKING_STATUS_MAP does not name -
-    // or which carries none at all - deleted the shipment's whole tracking
-    // history and put nothing back. The update below then overwrote the status
-    // with parseTracking's own "Status Unknown" placeholder (a string, so the
-    // `??` never caught it), nulled the estimate via its "TBD" placeholder, and
-    // nulled delivered_at.
-    //
-    // IT HAS ALREADY HAPPENED. Production has four shipments sitting at
-    // "Status Unknown" with zero tracking events, and three at "Delivered" with
-    // zero. "Delivered" and "Status Unknown" can only ever come from this
-    // function - everything else writes "Label Created" or "Cancelled" - so
-    // those three had scan events at the moment they were marked delivered and
-    // have none now.
-    //
-    // Nothing here is authoritative: FedEx is, and a later refresh that does
-    // recognise something replaces the lot. Keeping what is known beats
-    // replacing it with a placeholder.
+    // A refresh that recognizes nothing is not news - it used to be treated as news that everything is gone: removeEvents is an unconditional DELETE, so an unrecognized response (parseTracking's placeholder strings, which `??` never catches) deleted a shipment's whole tracking history and wrote back "Status Unknown" or a nulled estimate/delivered_at.
+    // It already happened: production has four shipments at "Status Unknown" with zero events and three at "Delivered" with zero - only this function ever writes those two statuses, so they had events when marked and don't now.
+    // Nothing here is authoritative - FedEx is, and a later good refresh replaces the lot. Keeping what's known beats replacing it with a placeholder, so an unrecognized response now returns the existing row unchanged.
     if (!trackingInfo.scanEvents?.length) {
       return await trackingRepo.getEvents(shipment_id, client);
     }
@@ -251,10 +180,7 @@ export async function getRates({
   });
 }
 
-// Same shape as cancelLabel, and the same reasoning: cancelling a pickup is
-// idempotent, so it happens outside any transaction and a retry is harmless.
-// Rolling back after it would have left a courier who is not coming and a row
-// that says one is.
+// Same shape and reasoning as cancelLabel: cancelling a pickup is idempotent and runs outside any transaction - a rollback after it would leave a courier not coming and a row that says one is.
 export async function cancelPickup({
   pickup_id,
   carrier_id,
@@ -262,9 +188,7 @@ export async function cancelPickup({
   pickup_id: string;
   carrier_id?: string | null;
 }): Promise<PickupRow | null> {
-  // Same guard as cancelLabel and getTracking: an unknown id read three fields
-  // off null, AFTER deciding to call the carrier. Invisible while the pickups
-  // repo resolved through a dynamic index and every field on it was `any`.
+  // Same guard as cancelLabel and getTracking: an unknown id used to read three fields off null after deciding to call the carrier.
   const pickup = await pickupRepo.getById(pickup_id);
   if (!pickup) {
     const err: Error & { statusCode?: number } = new Error(
@@ -274,19 +198,8 @@ export async function cancelPickup({
     throw err;
   }
 
-  // CONVERTED AT THE BOUNDARY, NOT ASSUMED. The carrier wants strings;
-  // confirmation_number is text on the row now (ruling 12 - exchange's was
-  // NUMERIC, which the composed shape coerced to), and requested_at arrives as
-  // a Date because pg parses the column. Both were passed through unconverted
-  // while the pickups repo resolved through a dynamic index and every field on
-  // it was `any` - so what actually reached FedEx was a number and a Date
-  // object, and whether that worked depended on the provider's own coercion.
-  //
-  // The date is sent as YYYY-MM-DD, which is the form the FedEx pickup API
-  // takes and what a caller passing `date` would already have supplied.
-  // The generated row type says `requested_at` is a string; pg hands back a
-  // Date for a timestamp column regardless of what the wire-shaped type
-  // claims - same widening ShipmentUpdate's timestamps document.
+  // Converted at the boundary, not assumed: confirmation_number is text; requested_at is a Date (pg parses timestamp columns) even though the generated type says string.
+  // The date is sent as YYYY-MM-DD, the form the FedEx pickup API takes.
   const requestedAt = pickup.requested_at as unknown as Date | string | null;
   const pickupDate =
     requestedAt instanceof Date
@@ -300,10 +213,7 @@ export async function cancelPickup({
     location: pickup.location,
   });
 
-  // Two things were wrong here. The repo reads pickup_status, so `status`
-  // wrote the row's existing status straight back; and exchange.carrier_pickups
-  // has a CHECK constraint allowing only pending / scheduled / completed /
-  // canceled - one l - so "cancelled" is refused outright.
+  // Two bugs at once: the repo reads pickup_status, so `status` wrote the existing status back unchanged; and the CHECK constraint allows only pending/scheduled/completed/canceled (one L) - "cancelled" was refused outright.
   return await pickupRepo.update({
     id: pickup.id,
     confirmation_number: pickup.confirmation_number,

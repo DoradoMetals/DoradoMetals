@@ -1,8 +1,4 @@
-// fulfillments.pickups, and nothing else.
-//
-// WE collect from the customer. NOT shipping.pickups, which is a carrier
-// collecting a parcel - two different things that share a word, and the
-// backfill keeps them apart deliberately.
+// fulfillments.pickups: WE collect from the customer - not shipping.pickups (a carrier collecting a parcel).
 import query from "#shared/db/query.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
 import type { fulfillments } from "@dorado/contracts";
@@ -36,10 +32,7 @@ export async function getScheduled(
   return rows;
 }
 
-// NO separate create/update (CRUD-batch-3): booking is an UPSERT, because
-// rescheduling is the common case and a fulfillment may hold only one
-// (fulfillment_pickups_one_per_fulfillment) - see sql/upsert.sql. THE ROW,
-// not positional scalars: id and fulfillment_id travel with the rest.
+// upsert-only, no separate create/update: rescheduling is common, and a fulfillment holds only one (fulfillment_pickups_one_per_fulfillment).
 export type PickupInput = {
   pickup_address_id: string;
   assigned_employee_id?: string | null;

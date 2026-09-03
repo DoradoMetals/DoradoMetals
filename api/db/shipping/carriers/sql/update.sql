@@ -1,6 +1,4 @@
--- A carrier's own column. Everything a caller thinks of as the carrier's
--- identity - name, email, phone, enabled - belongs to the organization and is
--- updated through its own service.
+-- Only logo; identity fields belong to the organization.
 UPDATE shipping.carriers
    SET logo = $1
  WHERE id = $2

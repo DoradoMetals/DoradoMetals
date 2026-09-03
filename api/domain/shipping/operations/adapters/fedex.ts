@@ -1,19 +1,5 @@
-// Our shapes in, FedEx's request shapes out.
-//
-// EVERY INPUT TYPE HERE IS OPTIONAL-EVERYTHING, and that is a description
-// rather than laziness. Each function opens with `input ?? {}` and destructures
-// with optional chaining, because callers pass objects assembled from a request
-// body, a database row, or a constant - and the point of an adapter is to
-// tolerate all three and produce one shape. A type demanding the full object
-// would reject the callers this file exists to serve.
-//
-// TWO FUNCTIONS ACCEPT BOTH SPELLINGS ON PURPOSE. cancelLabelInput takes
-// trackingNumber or tracking_number, and cancelPickupInput takes
-// confirmationCode or confirmation_number and pickupDate or
-// pickup_requested_at - the provider's names and the database's. That is not
-// indecision: cancelPickupInput read only the database's while its one caller
-// passed the provider's, so FedEx was asked to cancel a pickup without being
-// told which one. Accepting both is the convention this file already had.
+// Our shapes in, FedEx's request shapes out. Every input type is optional-everything: callers pass objects assembled from a request body, a database row, or a constant, and an adapter's job is to tolerate all three.
+// Two functions accept both the provider's and the database's spellings on purpose - see cancelPickupInput's own note; that's not indecision, it fixed a real bug where FedEx never learned which pickup to cancel.
 import { formatAddressForFedEx } from "#providers/shipments/utils/formatting.ts";
 
 // Either an address as this application stores it, or one already converted -
@@ -49,9 +35,7 @@ function toFedexContact(contact: ContactLike | null | undefined) {
   return { personName, phoneNumber };
 }
 
-// Returns its argument untouched when it is falsy or already converted, so the
-// return type is deliberately wide. Narrowing it would mean inventing a
-// distinction the runtime does not make.
+// Returns its argument untouched when falsy or already converted - the wide return type doesn't invent a distinction the runtime doesn't make.
 function toFedexAddress(address: AddressLike | null | undefined) {
   if (!address) return address;
   if (Array.isArray(address.streetLines)) return address;
@@ -204,17 +188,8 @@ export function createPickupInput(input?: CreatePickupInput | null) {
   };
 }
 
-// Accepts either the provider's names or the database's.
-//
-// It only read the database's, and its one caller - operationsService.cancelPickup -
-// passes the provider's, having already mapped them off the pickup row. So
-// confirmationCode and pickupDate both arrived undefined and FedEx was asked to
-// cancel a pickup without being told which one. `location` was the only field
-// that survived, because it happens to be spelled the same either way.
-//
-// Both spellings are accepted rather than one corrected, because that is
-// already the convention in this file - see cancelLabelInput, which takes
-// trackingNumber or tracking_number.
+// Accepts either the provider's names or the database's - operationsService.cancelPickup passes the provider's (already mapped off the pickup row), but this used to read only the database's, so confirmationCode/pickupDate arrived undefined and FedEx was asked to cancel a pickup without being told which one. `location` survived only because it's spelled the same either way.
+// Both spellings are accepted rather than one corrected - same convention as cancelLabelInput's trackingNumber/tracking_number.
 export function cancelPickupInput(
   input?: {
     confirmationCode?: string | null;

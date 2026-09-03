@@ -1,8 +1,4 @@
-// The write on fulfillments.methods, against real Postgres.
-//
-// No create/no remove (see repo.ts's own header) - the eleven rows are
-// reference data and the three categories are code, not data. update is the
-// only write, keyed on id, COALESCE-partial.
+// Writes on fulfillments.methods, against real Postgres. No create/remove - update is the only write, keyed on id.
 import test, { after, before } from "node:test";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";

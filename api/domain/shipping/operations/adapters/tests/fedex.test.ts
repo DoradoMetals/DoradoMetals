@@ -1,13 +1,5 @@
-// The FedEx input builders.
-//
-// These are the last thing that runs before a real request reaches FedEx, and
-// nothing was checking them. Everything they get wrong turns into a label, a
-// booking or a cancellation that FedEx accepts and interprets differently from
-// what the caller meant - and the pickup path has now produced four bugs, three
-// of which threw and one of which did not.
-//
-// Pure functions and no network. What is asserted is the mapping: what the
-// handler is given, and what the provider receives.
+// The FedEx input builders - the last thing that runs before a real request reaches FedEx. Everything they get wrong becomes a label/booking/cancellation FedEx interprets differently than intended; the pickup path alone has produced four bugs.
+// Pure functions, no network - what's asserted is the mapping: what the handler is given, and what the provider receives.
 import test, { describe } from "node:test";
 import assert from "node:assert/strict";
 import * as fedex from "#domain/shipping/operations/adapters/fedex.ts";
@@ -17,10 +9,7 @@ import * as fedex from "#domain/shipping/operations/adapters/fedex.ts";
 const formatted = { streetLines: ["1255 Stanhope Ct."], city: "Southlake", stateOrProvinceCode: "TX" };
 
 describe("cancelPickupInput", () => {
-  // The regression. operationsService.cancelPickup maps the pickup row onto the
-  // provider's names before calling the handler, and this builder read the
-  // database's - so FedEx was asked to cancel a pickup without being told which
-  // one, and without a date.
+  // The regression: this builder read the database's names while its caller passes the provider's, so FedEx was asked to cancel a pickup without being told which one, and without a date.
   test("reads the names its caller actually sends", () => {
     const fromService = {
       confirmationCode: "APK1234567",
@@ -49,9 +38,7 @@ describe("cancelPickupInput", () => {
     });
   });
 
-  // What the bug looked like: everything undefined except location, which
-  // happens to be spelled the same on both sides. A cancellation that names no
-  // pickup is the kind of request that fails quietly at the far end.
+  // What the bug looked like: everything undefined except location (spelled the same either way) - a cancellation naming no pickup fails quietly at the far end.
   test("does not silently drop the confirmation code", () => {
     const built = fedex.cancelPickupInput({ confirmationCode: "APK1", pickupDate: "2026-08-22" });
     assert.notEqual(built.confirmationCode, undefined, "the pickup being cancelled was not identified");
@@ -119,10 +106,7 @@ describe("checkPickupInput", () => {
     assert.equal(built.readyDate.toISOString(), "2026-08-22T15:00:00.000Z");
   });
 
-  // Pinning what currently happens rather than asserting it is right. A missing
-  // readyDate becomes an Invalid Date, which serialises to null and is sent to
-  // FedEx as a pickup with no ready time. Worth an explicit rejection at the
-  // controller, which is a behaviour change rather than a test.
+  // Pinning what currently happens, not asserting it's right: a missing readyDate becomes an Invalid Date, serialised to null and sent to FedEx as a pickup with no ready time.
   test("a missing readyDate becomes an Invalid Date rather than being refused", () => {
     const built = fedex.checkPickupInput({});
     assert.ok(built.readyDate instanceof Date);
