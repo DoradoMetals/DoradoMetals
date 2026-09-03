@@ -67,11 +67,14 @@ after(async () => {
   await pool.end();
 });
 
+// `contact` is deliberately absent: it is a real leads.leads column, but not
+// one create.sql accepts (its own comment says why), and CreateLeadBody
+// mirrors that - so a create body naming it would now be a 400 under strict
+// parsing rather than a value silently dropped.
 const newLead = () => ({
   name: `replay-${randomUUID().slice(0, 8)}`,
   phone: "5550000000",
   email: `replay-${randomUUID().slice(0, 8)}@example.com`,
-  contact: "phone",
   priority: "low",
   notes: "created by the leads replay suite",
 });

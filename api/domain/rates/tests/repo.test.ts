@@ -12,7 +12,7 @@ import * as metals from "#db/metals/repo.ts";
 
 test("update returns false for an id nothing names", async () => {
   await inPinnedTransaction(async (client) => {
-    const changed = await rates.update(randomUUID(), { unit: "oz" }, client);
+    const changed = await rates.update(randomUUID(), { unit: "oz" }, null, client);
     assert.equal(changed, false, "an update against a missing id reported a change");
   });
 });
@@ -25,12 +25,13 @@ test("update returns true for a real id, and the row actually changed", async ()
     const created = await rates.create(
       {
         metal_id: metal.id, unit: "oz", min_qty: 0, max_qty: null,
-        scrap_pct: 0.9, bullion_pct: 0.95, created_by: "repo.test.ts", updated_by: "repo.test.ts",
+        scrap_pct: 0.9, bullion_pct: 0.95,
       },
+      "repo.test.ts",
       client
     );
 
-    const changed = await rates.update(created.id, { scrap_pct: 0.5 }, client);
+    const changed = await rates.update(created.id, { scrap_pct: 0.5 }, null, client);
     assert.equal(changed, true, "an update against a real id reported no change");
 
     const row = await rates.getOne(created.id, client);

@@ -12,6 +12,11 @@
 // from "clear it to open-ended" - both arrive as null. Every other patchable
 // column here is non-null, so this is the one place it matters; clearing
 // max_qty today means recreating the band.
+//
+// created_by/updated_by are NOT in NewRate/RatePatch - not the client's to
+// set. Both create and update take a separate ACTOR argument; the SQL writes
+// it into created_by (on insert, fixed thereafter) / updated_by (on every
+// update). update.sql no longer touches created_by at all.
 import query from "#shared/db/query.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
 import type { rates } from "@dorado/contracts";
@@ -25,14 +30,10 @@ export type RateRow = rates.RatesRow;
 export type NewRate = Pick<
   RateRow, "metal_id" | "unit" | "min_qty" | "max_qty" | "scrap_pct" | "bullion_pct"
 > &
-  Partial<Pick<RateRow, "created_by" | "updated_by">> &
   { id?: string | null };
 
 export type RatePatch = Partial<
-  Pick<
-    RateRow,
-    "metal_id" | "unit" | "min_qty" | "max_qty" | "scrap_pct" | "bullion_pct" | "created_by" | "updated_by"
-  >
+  Pick<RateRow, "metal_id" | "unit" | "min_qty" | "max_qty" | "scrap_pct" | "bullion_pct">
 >;
 
 export async function getOne(id: string, executor?: Executor): Promise<RateRow | undefined> {
@@ -45,27 +46,25 @@ export async function list(executor?: Executor): Promise<RateRow[]> {
   return rows;
 }
 
-export async function create(row: NewRate, executor?: Executor): Promise<RateRow> {
+export async function create(
+  row: NewRate, actor?: string | null, executor?: Executor
+): Promise<RateRow> {
   const { rows } = await query<RateRow>(
     sql("create"),
-    [
-      row.id ?? null, row.metal_id, row.unit, row.min_qty, row.max_qty,
-      row.scrap_pct, row.bullion_pct, row.created_by ?? null, row.updated_by ?? null,
-    ],
+    [row.id, row.metal_id, row.unit, row.min_qty, row.max_qty, row.scrap_pct, row.bullion_pct, actor, actor],
     executor
   );
   return rows[0];
 }
 
 export async function update(
-  id: string, patch: RatePatch, executor?: Executor
+  id: string, patch: RatePatch, actor?: string | null, executor?: Executor
 ): Promise<boolean> {
   const { rowCount } = await query(
     sql("update"),
     [
-      patch.metal_id ?? null, patch.unit ?? null, patch.min_qty ?? null, patch.max_qty ?? null,
-      patch.scrap_pct ?? null, patch.bullion_pct ?? null, patch.created_by ?? null,
-      patch.updated_by ?? null, id,
+      patch.metal_id, patch.unit, patch.min_qty, patch.max_qty,
+      patch.scrap_pct, patch.bullion_pct, actor, id,
     ],
     executor
   );

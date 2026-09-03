@@ -34,42 +34,16 @@ export async function getAdminRates() {
   return await compose.toAdminList(await rates.list());
 }
 
-export async function createRate(rate: NewRate, user_name?: string) {
+export async function createRate(rate: NewRate, user_name?: string | null) {
   const row = await withTransaction(async (c) => {
-    return await rates.create(
-      {
-        id: rate.id ?? null,
-        metal_id: rate.metal_id,
-        unit: rate.unit,
-        min_qty: rate.min_qty,
-        max_qty: rate.max_qty,
-        scrap_pct: rate.scrap_pct,
-        bullion_pct: rate.bullion_pct,
-        created_by: user_name ?? rate.created_by,
-        updated_by: user_name ?? rate.updated_by,
-      },
-      c
-    );
+    return await rates.create(rate, user_name, c);
   });
   return await compose.toAdminOne(row);
 }
 
-export async function updateRate(id: string, patch: RatePatch, user_name: string) {
+export async function updateRate(id: string, patch: RatePatch, user_name?: string | null) {
   const changed = await withTransaction(async (c) => {
-    return await rates.update(
-      id,
-      {
-        metal_id: patch.metal_id,
-        unit: patch.unit,
-        min_qty: patch.min_qty,
-        max_qty: patch.max_qty,
-        scrap_pct: patch.scrap_pct,
-        bullion_pct: patch.bullion_pct,
-        created_by: patch.created_by,
-        updated_by: user_name,
-      },
-      c
-    );
+    return await rates.update(id, patch, user_name, c);
   });
   if (!changed) throw notFound(id);
   const row = await rates.getOne(id);
