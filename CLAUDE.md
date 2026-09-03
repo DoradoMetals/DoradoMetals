@@ -109,12 +109,24 @@ stops meaning anything. That record — 15 pairs, 10 byte-identical,
 `only_in_target` zero on all fifteen, every exception measured — is in
 `docs/waves/write-pivot.md`. Do not expect to re-derive it.
 
-**What still writes `exchange`, and each on purpose:**
+**NO APPLICATION CODE WRITES `exchange` ANY MORE (D214, 2026-09-03).** The list
+below was three live writes; the last of them is gone. What still reaches
+`exchange` is two mirror TRIGGERS, both feeding it from `auth.*` on purpose so
+that features joining `exchange.users` keep seeing fresh identity — and no
+statement in `api/` names an exchange table in an INSERT, UPDATE or DELETE.
 
-- **`exchange.users.dorado_funds`** — the customer credit balance.
-  `features/users` still owns this write and it is LIVE; migration 107's
-  trigger mirrors it into `auth.users` so the session shows the balance. This
-  is the ONE remaining live exchange write.
+- **`exchange.users.dorado_funds` IS FROZEN.** The customer credit balance
+  moved to `auth.users.dorado_funds` — the column 107 was already mirroring —
+  and migration **118** retired the `exchange -> auth` funds mirror so the two
+  directions cannot fight. `features/users` writes `auth.users` now, with a
+  `payments.ledger` row per movement (the admin edit was the one way a balance
+  could move with nothing recording why), under the same `FOR UPDATE` read and
+  in one transaction. 118 also SPLIT the identity mirror's trigger into an
+  INSERT half and an `AFTER UPDATE OF <identity columns>` half, because a
+  balance write is now an update of `auth.users` and the old trigger would have
+  written `exchange.users` through the back door on every one. The exchange
+  column keeps the value it held and is readable forever; it simply stops
+  changing, which is ruling 36.
 - **`exchange.users` identity columns** — **THE AUTH CUTOVER HAPPENED**
   (2026-09-01, Jacob's call, migration 107 + `features/auth/client.ts`).
   better-auth writes
@@ -122,29 +134,40 @@ stops meaning anything. That record — 15 pairs, 10 byte-identical,
   The row has two owners split by COLUMN, each mirrored by a depth-guarded
   trigger that cannot loop: identity (email, name, role, ban state, stripe
   customer) flows `auth -> exchange`, so every feature joining
-  `exchange.users` stays fresh; `dorado_funds` flows `exchange -> auth`
-  (features/users still owns the credit write), so the session object the
-  frontend reads shows live balance. 056's one-way mirror — the one that
+  `exchange.users` stays fresh. `dorado_funds` used to flow the other way,
+  `exchange -> auth`; migration 118 retired that half and the balance is
+  written auth-side directly, so the session object the frontend reads shows
+  it without a mirror. 056's one-way mirror — the one that
   silently reverted a $1000 credit written auth-side — is gone, and the same
   experiment now passes in both directions: funds set exchange-side propagate,
   and an auth-side row touch no longer reverts them. Two January ghost
   accounts on the auth side (one sharing Jacob's email under a different id,
   with a January-era password that would have become loginable) were removed
   in 107; sessions/credentials were reconciled from exchange the same day.
-  Sessions and credentials now land only in `auth.*` — the exchange copies
-  are frozen (ruling 36; a stale session is a re-login, not lost data).
-  The `features/users/` funds write is UNCHANGED and still the live one.
+  Sessions and credentials now land only in `auth.*`. **`auth.sessions` still
+  carries `mirror_sessions_to_exchange` (108), so a login does write
+  `exchange.session`** — trigger, not code, and out of D214's scope; retiring
+  it is a one-line migration whenever someone wants it (ruling 36 already
+  allows it; a stale session is a re-login, not lost data).
   better-auth itself is PINNED EXACT at 1.6.9 (with `@better-auth/core` and
   `utils` held by root overrides): 1.7 cannot resolve the dotted schema
   `modelName` this whole arrangement stands on, and the pin's commit says so.
-- **`exchange.payouts` HOLDS but no longer RECEIVES.** New-flow payout
-  accounts are SEALED into `payments.details` (AES-256-GCM envelopes, D210);
-  the 24 old plaintext rows stay in `exchange.payouts` untouched, the only
-  copy of those bank numbers until Jacob runs `encrypt:payouts` against
-  production. **The last-four reads left exchange in D213** (migration 114 +
-  `features/payouts/sql/`); what still reads it is the FULL-NUMBER endpoint
-  alone, `GET /payouts/:id/details`, because that plaintext exists nowhere
-  else. That is data, not legacy code.
+- **`exchange.payouts` HOLDS, and is no longer READ EITHER (D214).** New-flow
+  payout accounts are SEALED into `payments.details` (AES-256-GCM envelopes,
+  D210); the last-four reads left exchange in D213 (migration 114), and the
+  FULL-NUMBER endpoint `GET /payouts/:id/details` followed them — it composes
+  the native payout row and opens the envelopes through
+  `payments/details`' `decryptFor`, which is the only place envelopes open.
+  The 24 old plaintext rows stay in `exchange.payouts` untouched, the only copy
+  of those bank numbers, and **that endpoint answers null for them until
+  production runs 071 + 073 + `encrypt:payouts`, in that order.** The order
+  matters and was measured read-only on 2026-09-03: `encrypt:payouts` joins
+  `payments.details` to `exchange.payouts` ON id, 073 is what gives a
+  backfilled details row its payout's id, and TODAY that join resolves **zero**
+  of production's 62 payouts because all 56 of its `payments.details` rows are
+  January residue sharing no id with a payout. Running the script before the
+  backfill would seal nothing and report it. That is Jacob's, on the day of the
+  `pg_dump` → migrate → backfill → verify sequence.
 - **The order NUMBER was still an exchange write until D213, and it did not
   look like one.** `features/orders/sql/create.sql` drew it with
   `nextval('exchange.purchase_orders_order_number_seq')` — and `nextval`
@@ -713,7 +736,9 @@ Since then, in order:
   `audit:wire-readiness`, `lint:legacy-boundary` and the dual-era tests.
   The sweeps read `payments.intents`; the seed drives the native create
   flow. 896/896 API tests green. `exchange` keeps every table and row;
-  its one live write is `features/users`' `dorado_funds`.
+  its one live write was `features/users`' `dorado_funds`, and **D214
+  (2026-09-03) moved that to `auth.users` too** — see the write-pivot
+  section. No application statement writes `exchange` now.
 - **THE MODEL REDESIGN WAS PARKED THE SAME EVENING IT WAS DESIGNED**
   (Jacob, 2026-09-02): *"Lets just keep it how it is. This shit is too
   complicated. The current system can be migrated again later on if
@@ -787,6 +812,19 @@ Full detail in FOLLOWUPS.md; these are the ones that block other work.
   rows in the clear, and the migration that CLEARS the plaintext is deliberately
   not written, because it is destructive to `exchange` and needs the
   `allow-destructive:` marker, a stated backup, and Jacob.
+  **D214 RAISED THE STAKES AND NARROWED THE STEP.** No code reads that
+  plaintext any more — `GET /payouts/:id/details` opens the sealed envelopes on
+  `payments.details` instead — so on production those fourteen payouts will
+  show a holder, a method and a last-four with **null bank numbers** until the
+  script runs. And the script alone is not enough: it joins the two tables ON
+  id, which **071 + 073 establish**, and neither has run there. Measured
+  read-only 2026-09-03: the join matches **0 of 62** payouts today, so
+  `encrypt:payouts` run first would seal nothing and say so (it refuses to call
+  an empty run a success, which is exactly the guard that makes this safe to
+  get wrong). The order is 071, 073, then `encrypt:payouts --commit`, then
+  `--verify`. Dev was run through all three on 2026-09-03 and holds no bank
+  numbers at all, so it sealed zero and `audit:plaintext-secrets` stays at 0
+  there.
 - **Auth is no longer blocked — it is CUT OVER** (2026-09-01, migration 107).
   See the `exchange.users` entry in the write-pivot section for the full
   mechanics. What remains auth-flavoured: better-auth is pinned exact at

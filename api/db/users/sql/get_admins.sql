@@ -1,10 +1,12 @@
 -- The admin users.
 --
--- ORDER BY name DESC, id DESC, exactly as before. Descending looks like a
--- mistake and is not mine to change - it is what the admin list shows today.
+-- ORDER BY name DESC, id DESC, which looks like a mistake and is what the admin
+-- list has always shown. Left alone: the ordering is a UI decision, not a
+-- consequence of the table this now reads.
 SELECT u.id,
        u.email,
        u.name,
+       u.phone_number,
        u."createdAt"     AS created_at,
        u."updatedAt"     AS updated_at,
        u."emailVerified" AS email_verified,

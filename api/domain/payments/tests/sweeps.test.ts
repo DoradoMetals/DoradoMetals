@@ -58,7 +58,7 @@ test("the settled sweep advances an order whose webhook went missing", async () 
 test("the abandonment sweep cancels a stale unpaid order and refunds its credit", async () => {
   await inPinnedTransaction(async (c: PoolClient) => {
     const { rows: users } = await query<{ id: string; dorado_funds: number | null }>(
-      `SELECT id, dorado_funds FROM exchange.users LIMIT 1`, [], c);
+      `SELECT id, dorado_funds FROM auth.users LIMIT 1`, [], c);
     assert.ok(users.length, "no users to test with");
     const user = users[0]!;
     const before = Number(user.dorado_funds ?? 0);
@@ -79,7 +79,7 @@ test("the abandonment sweep cancels a stale unpaid order and refunds its credit"
     assert.equal(await statusOf(c, id), "Cancelled");
 
     const { rows: after } = await query<{ dorado_funds: number | null }>(
-      `SELECT dorado_funds FROM exchange.users WHERE id = $1`, [user.id], c);
+      `SELECT dorado_funds FROM auth.users WHERE id = $1`, [user.id], c);
     assert.equal(Number(after[0]!.dorado_funds ?? 0), before + 125.5, "the credit did not come back");
 
     const { rows: ledger } = await query<{ n: number }>(

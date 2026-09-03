@@ -18,7 +18,14 @@ export const getAdmins = asyncHandler(async (req, res) => {
   return res.status(200).json(result);
 });
 
+// THE THREE FIELDS, NAMED. `req.body` used to be forwarded whole, so a caller
+// could send anything and a misspelt field was accepted in silence; the service
+// then had to accept `mode` as well as `op` because the browser still spoke the
+// old spelling. Neither is true any more (shapes are not being preserved on
+// this branch), so the handler names what it takes and the answer is the user
+// row the adjustment produced - id and balance - rather than a count.
 export const updateCredit = asyncHandler(async (req, res) => {
-  const result = await usersService.adjustDoradoCredit(req.body);
-  return res.status(200).json(result);
+  const { user_id, op, amount } = req.body ?? {};
+  const row = await usersService.adjustDoradoCredit({ user_id, op, amount });
+  return res.status(200).json(row);
 });

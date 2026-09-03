@@ -50,7 +50,7 @@ const ROUTING = "021000021";
 const ACCOUNT = "000123456789";
 
 const aDetailRow = async (c: PoolClient): Promise<string> => {
-  const { rows: users } = await c.query("SELECT id FROM exchange.users LIMIT 1");
+  const { rows: users } = await c.query("SELECT id FROM auth.users LIMIT 1");
   assert.ok(users.length, "dev has no users, so this test would assert nothing");
   const { rows } = await c.query(
     `INSERT INTO payments.details (user_id, account_holder, bank_name, account_type)

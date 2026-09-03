@@ -2,22 +2,23 @@
 //
 // Every route here is requireAdmin, and one of them moves money: /update_credit
 // adjusts dorado_funds, a customer's store credit. Eight customers hold a
-// balance and exchange.account_transactions is a $66,999.32 ledger, so this is
+// balance and the credit ledger it came from holds $66,999.32, so this is
 // the smallest endpoint in the API with the largest consequence.
 //
 // WHAT THIS SUITE FOUND. adjustUserCredit builds the new balance with a CASE
-// that has no ELSE, and `mode` came from req.body unvalidated. A CASE matching
-// nothing yields NULL, so an unrecognised mode assigned NULL to the balance.
+// that has no ELSE, and the operation came from req.body unvalidated. A CASE
+// matching nothing yields NULL, so an unrecognised one assigned NULL to the
+// balance.
 //
-// It never lost anyone's money, and the reason is the point: exchange.users.
-// dorado_funds is NOT NULL, so the DATABASE refused the write and the caller
-// got a 500. The code was not doing this job. auth.users.dorado_funds - where
-// the write goes after promotion - was nullable with no default, so the
-// protection was a property of the schema being left behind.
+// It never lost anyone's money, and the reason is the point: the column is NOT
+// NULL, so the DATABASE refused the write and the caller got a 500. The code
+// was not doing this job. auth.users.dorado_funds - where the write lands since
+// migration 118 - was nullable with no default until 080, so the protection was
+// a property of the schema being left behind.
 //
-// Both halves are fixed: the service takes an allowlist of modes (080's
-// companion), and migration 080 gives auth.users the same NOT NULL DEFAULT 0
-// exchange has always had. This suite is what keeps them true.
+// Both halves are fixed: the service takes an allowlist of operations (080's
+// companion), and 080 gives auth.users the same NOT NULL DEFAULT 0 the legacy
+// column always had. This suite is what keeps them true.
 //
 // NOTHING IS COMMITTED. shared/testing/pinned-pool.js holds every query in one
 // transaction that is rolled back. The last test checks the balance from
@@ -31,10 +32,10 @@ import { mockSessions, restoreSessions, as, anonymous } from "#shared/testing/se
 import { LOCKS } from "#shared/testing/locks.ts";
 import { inPinnedTransaction, outside } from "#shared/testing/pinned-pool.ts";
 
-// EVERY PINNED TRANSACTION IN THIS FILE TAKES THE BALANCE LOCK. A balance write
-// is two row locks - exchange.users, and auth.users through migration 107's
-// mirror trigger - so files that move balances agree an order rather than
-// deadlocking on whichever customer each visited first. See LOCKS.USERS.
+// EVERY PINNED TRANSACTION IN THIS FILE TAKES THE BALANCE LOCK. An adjustment
+// is a locked read on auth.users held across an insert into payments.ledger, so
+// files that move balances agree an order rather than deadlocking on whichever
+// customer each visited first. See LOCKS.USERS.
 const inPinned = <T,>(fn: (c: import("pg").PoolClient) => Promise<T> | T): Promise<T> =>
   inPinnedTransaction(fn, { lock: LOCKS.USERS });
 
@@ -71,13 +72,13 @@ const sameMoney = (actual: unknown, expected: unknown, message: string) =>
 
 const funds = async (id: string): Promise<number | null> => {
   const rows = await outside<{ dorado_funds: number | null }>(
-    `SELECT dorado_funds FROM exchange.users WHERE id = $1`, [id]);
+    `SELECT dorado_funds FROM auth.users WHERE id = $1`, [id]);
   return rows[0]?.dorado_funds ?? null;
 };
 
 before(async () => {
   const admins = await outside<UserFixture>(
-    `SELECT id, name, email FROM exchange.users WHERE role = 'admin' LIMIT 1`
+    `SELECT id, name, email FROM auth.users WHERE role = 'admin' LIMIT 1`
   );
   admin = admins[0];
   assert.ok(admin, "dev has no admin user");
@@ -85,7 +86,7 @@ before(async () => {
   // Deliberately a customer who HAS a balance: an adjustment against a zero
   // balance cannot tell "set to 0" apart from "left alone".
   const users = await outside<CustomerFixture>(
-    `SELECT id, name, email, dorado_funds FROM exchange.users
+    `SELECT id, name, email, dorado_funds FROM auth.users
      WHERE role IS DISTINCT FROM 'admin' AND dorado_funds > 0 LIMIT 1`
   );
   customer = users[0];
@@ -110,7 +111,7 @@ test("every route refuses an anonymous caller", async () => {
           "update_credit",
           request(app)
             .post("/api/users/update_credit")
-            .send({ user_id: customer.id, mode: "add", amount: 1 }),
+            .send({ user_id: customer.id, op: "add", amount: 1 }),
         ],
       ];
       // Declared as a tuple list: inferred, the element type collapses to
@@ -132,7 +133,7 @@ test("a signed-in customer cannot top up their own balance", async () => {
     await as({ ...customer, role: "user" }, async () => {
       const res = await request(app)
         .post("/api/users/update_credit")
-        .send({ user_id: customer.id, mode: "add", amount: 1000 });
+        .send({ user_id: customer.id, op: "add", amount: 1000 });
       assert.ok([401, 403].includes(res.status), `a customer got ${res.status} adjusting credit`);
     });
   });
@@ -149,15 +150,25 @@ test("an admin reads the user list with balances", async () => {
   });
 });
 
-// get_user is the single-row read, and it deliberately does NOT carry
-// dorado_funds. Recorded so a future change to the shared field list is visible.
-test("the single-user read carries no balance, unlike the list", async () => {
+// get_user CARRIES THE BALANCE NOW, where it used to omit it while the list
+// read carried it. That asymmetry was inherited rather than decided, and the
+// single-user read is the one an admin opens in order to adjust a balance - so
+// it is the read most in need of one. Shapes are no longer being preserved on
+// this branch, which is what let the three reads be harmonised.
+test("the single-user read carries the balance, like the list", async () => {
   await inPinned(async () => {
     await as({ ...admin, role: "admin" }, async () => {
       const res = await request(app).get("/api/users/get_user").query({ user_id: customer.id });
       assert.equal(res.status, 200);
       assert.equal(res.body.id, customer.id);
-      assert.ok(!("dorado_funds" in res.body), "get_user started returning the balance");
+      assert.ok("dorado_funds" in res.body, "get_user stopped returning the balance");
+
+      const list = await request(app).get("/api/users/get_all_users");
+      const fromList = list.body.find((u: { id: string }) => u.id === customer.id);
+      assert.equal(
+        Number(res.body.dorado_funds), Number(fromList.dorado_funds),
+        "the two reads disagree about one customer's balance"
+      );
     });
   });
 });
@@ -183,7 +194,7 @@ test("the admin list is only admins, and the full list is more than that", async
   });
 });
 
-test("the three modes each move the balance the way they say", async () => {
+test("the three operations each move the balance the way they say", async () => {
   await inPinned(async () => {
     await as({ ...admin, role: "admin" }, async () => {
       const read = async () => {
@@ -200,19 +211,19 @@ test("the three modes each move the balance the way they say", async () => {
 
       let res = await request(app)
         .post("/api/users/update_credit")
-        .send({ user_id: customer.id, mode: "add", amount: 25 });
+        .send({ user_id: customer.id, op: "add", amount: 25 });
       assert.equal(res.status, 200, JSON.stringify(res.body));
       sameMoney(await read(), start + 25, "add did not add");
 
       res = await request(app)
         .post("/api/users/update_credit")
-        .send({ user_id: customer.id, mode: "subtract", amount: 10 });
+        .send({ user_id: customer.id, op: "subtract", amount: 10 });
       assert.equal(res.status, 200, JSON.stringify(res.body));
       sameMoney(await read(), start + 15, "subtract did not subtract");
 
       res = await request(app)
         .post("/api/users/update_credit")
-        .send({ user_id: customer.id, mode: "edit", amount: 7.5 });
+        .send({ user_id: customer.id, op: "edit", amount: 7.5 });
       assert.equal(res.status, 200, JSON.stringify(res.body));
       sameMoney(await read(), 7.5, "edit did not set the balance outright");
     });
@@ -221,11 +232,16 @@ test("the three modes each move the balance the way they say", async () => {
 
 // THE ASSERTION THIS FILE EXISTS FOR.
 //
-// An unrecognised mode must be refused as a 400 BEFORE any UPDATE runs, and the
-// balance must be exactly what it was. Asserting the status alone would not
-// distinguish "refused" from "wrote NULL and then failed", which is what used
-// to happen - the 500 came from the constraint, after the attempt.
-test("an unrecognised mode is refused and the balance is untouched", async () => {
+// An unrecognised operation must be refused as a 400 BEFORE any UPDATE runs,
+// and the balance must be exactly what it was. Asserting the status alone would
+// not distinguish "refused" from "wrote NULL and then failed", which is what
+// used to happen - the 500 came from the constraint, after the attempt.
+//
+// "mode" IS IN THE LIST NOW. It was the field's old spelling and the service
+// accepted it as an alias; shapes are not being preserved on this branch, so a
+// body still sending it names no operation at all and must be refused like any
+// other unrecognised one - loudly, rather than by silently adjusting nothing.
+test("an unrecognised operation is refused and the balance is untouched", async () => {
   await inPinned(async () => {
     await as({ ...admin, role: "admin" }, async () => {
       const read = async () => {
@@ -239,21 +255,28 @@ test("an unrecognised mode is refused and the balance is untouched", async () =>
       };
       const start = await read();
 
-      for (const mode of ["ADD", "Add", "increment", "", null, undefined, "delete"]) {
+      for (const op of ["ADD", "Add", "increment", "", null, undefined, "delete"]) {
         const res = await request(app)
           .post("/api/users/update_credit")
-          .send({ user_id: customer.id, mode, amount: 50 });
+          .send({ user_id: customer.id, op, amount: 50 });
         assert.equal(
           res.status,
           400,
-          `mode ${JSON.stringify(mode)} answered ${res.status}, not 400`
+          `op ${JSON.stringify(op)} answered ${res.status}, not 400`
         );
         sameMoney(
           await read(),
           start,
-          `mode ${JSON.stringify(mode)} changed the balance before being refused`
+          `op ${JSON.stringify(op)} changed the balance before being refused`
         );
       }
+
+      // The retired spelling, sent the way the browser used to send it.
+      const retired = await request(app)
+        .post("/api/users/update_credit")
+        .send({ user_id: customer.id, mode: "add", amount: 50 });
+      assert.equal(retired.status, 400, "the retired `mode` spelling was honoured");
+      sameMoney(await read(), start, "`mode` moved the balance");
     });
   });
 });
@@ -268,7 +291,7 @@ test("an amount that is not a number is refused rather than treated as zero", as
       for (const amount of ["", null, undefined, "abc", {}, [], NaN, "  "]) {
         const res = await request(app)
           .post("/api/users/update_credit")
-          .send({ user_id: customer.id, mode: "edit", amount });
+          .send({ user_id: customer.id, op: "edit", amount });
         assert.equal(
           res.status,
           400,

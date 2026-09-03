@@ -20,10 +20,10 @@ const router = express.Router();
 
 router.post("/upload", requireUser, uploadImage);
 // requireAdmin, NOT requireUser. This lists EVERY image in the system - the
-// repo call is `SELECT ... FROM exchange.images` with no user scoping - and
-// attaches a presigned GET URL to each one, which is a working download link
-// for the file. Behind requireUser that made every customer's uploaded photo
-// readable by any of the 75 signed-in accounts.
+// repo call reads media.images with no user scoping - and attaches a presigned
+// GET URL to each one, which is a working download link for the file. Behind
+// requireUser that made every customer's uploaded photo readable by any of the
+// 75 signed-in accounts.
 //
 // The frontend already treated it as admin-only: /images declares
 // roles: ['admin'] and is titled "Image Test". The guard was in the UI, which
