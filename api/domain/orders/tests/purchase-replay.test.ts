@@ -22,12 +22,15 @@
 // FedEx before the transaction opens, so replaying them would create a real,
 // billable label. Their database halves are covered by
 // features/orders/parity.test.js, which calls recordPurchaseOrder directly.
-import { test, afterAll, beforeAll } from "vitest";
+import { test, afterAll } from "vitest";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import request from "supertest";
 import pool from "#db";
 import { mockSessions, restoreSessions, as } from "#shared/testing/session.ts";
+import { TEST_ACTOR, TEST_CUSTOMER } from "#shared/testing/actor.ts";
+import { aUser, anOrder } from "#shared/testing/builders/index.ts";
+import type { PoolClient } from "pg";
 import { inPinnedTransaction, assertNothingEscaped, outside } from "#shared/testing/pinned-pool.ts";
 
 await mockSessions();
@@ -43,22 +46,8 @@ const ORDER_LOCK = LOCKS.ORDERS;
 type UserFixture = { id: string; name: string | null; email: string | null };
 type Caller = UserFixture & { role: string };
 
-let admin: Caller;
-let customer: Caller;
-
-beforeAll(async () => {
-  const rows = await outside<UserFixture>(
-    `SELECT id, name, email, role FROM exchange.users WHERE role = 'admin' LIMIT 1`
-  );
-  admin = { id: rows[0].id, name: rows[0].name, email: rows[0].email, role: "admin" };
-  assert.ok(admin?.id, "dev has no admin user");
-
-  const users = await outside<UserFixture>(
-    `SELECT id, name, email FROM exchange.users WHERE role IS DISTINCT FROM 'admin' LIMIT 1`
-  );
-  customer = { id: users[0].id, name: users[0].name, email: users[0].email, role: "user" };
-  assert.ok(customer?.id, "dev has no non-admin user");
-});
+const admin: Caller = { ...TEST_ACTOR, role: "admin" };
+const customer: Caller = { ...TEST_CUSTOMER, role: "user" };
 
 afterAll(async () => {
   restoreSessions();
@@ -71,21 +60,23 @@ afterAll(async () => {
 // which is exactly the vacuous-test trap this codebase has hit before.
 const MOVE_TO = "Payment Processing";
 
-const anOrder = async () => {
-  // ... and one that HAS spot rows, expressed in the query rather than assumed
-  // of whatever order happens to be newest - dev drifts, and the spot-change
-  // test needs a spot to change.
-  // Aliased to the WIRE's names (D84) because this row becomes the body the
-  // drawer sends; the exchange COLUMNS keep their own spellings in the WHERE.
-  const rows = await outside(
-    `SELECT p.id, p.order_number AS number, p.purchase_order_status AS status
-       FROM exchange.purchase_orders p
-      WHERE p.purchase_order_status NOT IN ('Cancelled', 'Completed', $1)
-        AND EXISTS (SELECT 1 FROM exchange.order_metals m WHERE m.purchase_order_id = p.id)
-      ORDER BY p.created_at DESC LIMIT 1`,
-    [MOVE_TO]
-  );
-  return rows[0];
+// THE ORDER IS BUILT (lane 1), and it was read out of FROZEN TABLES: the WHERE
+// walked `exchange.purchase_orders` and `exchange.order_metals`, which D212
+// stopped writing, while the endpoints under test read `orders.orders` and
+// `orders.spots`. The fixture and the subject had drifted apart.
+//
+// The two conditions the old query expressed stay, as arguments: the order is
+// NOT already in MOVE_TO (or a successful move is indistinguishable from a
+// no-op), and it HAS spot rows (the spot-change test needs one to change).
+const aBuiltOrder = async (c: PoolClient) => {
+  const owner = await aUser(c);
+  const order = await anOrder(c, owner, { direction: "purchase", status: "Pending" })
+    .withLots(1, { metal: "Gold" })
+    .withLots(1, { metal: "Silver" })
+    .withSpots()
+    .withTotals({ total: 1000 });
+  assert.notEqual(order.status, MOVE_TO, "the fixture starts in the target status");
+  return { id: order.id, number: order.number, status: order.status, user_id: owner.id };
 };
 
 test("a customer sees only their own rows, and the admin list is served whole", async () => {
@@ -122,7 +113,7 @@ test("a customer sees only their own rows, and the admin list is served whole", 
         assert.ok(!(gone in order), `the order wire still carries ${gone}`);
       }
     });
-  }, { lock: ORDER_LOCK });
+  }, { actor: TEST_ACTOR.id, lock: ORDER_LOCK });
 });
 
 // The one that carries real money. An order response must never contain a full
@@ -156,13 +147,12 @@ test("no admin order response carries a full bank number", async () => {
         assert.equal(leaked, 0, "a real routing number appears in the response body");
       }
     });
-  }, { lock: ORDER_LOCK });
+  }, { actor: TEST_ACTOR.id, lock: ORDER_LOCK });
 });
 
 test("moving an order's status takes the body the drawer sends", async () => {
-  await inPinnedTransaction(async () => {
-    const order = await anOrder();
-    assert.ok(order, "dev has no open purchase order");
+  await inPinnedTransaction(async (c: PoolClient) => {
+    const order = await aBuiltOrder(c);
 
     await as(admin, async () => {
       // The document form of useMovePurchaseOrderStatus: the id in the path,
@@ -182,24 +172,24 @@ test("moving an order's status takes the body the drawer sends", async () => {
       );
       assert.equal(moved.status, MOVE_TO);
     });
-  }, { lock: ORDER_LOCK });
+  }, { actor: TEST_ACTOR.id, lock: ORDER_LOCK });
 });
 
 test("a customer cannot move an order's status", async () => {
-  await inPinnedTransaction(async () => {
-    const order = await anOrder();
+  await inPinnedTransaction(async (c: PoolClient) => {
+    const order = await aBuiltOrder(c);
     await as(customer, async () => {
       const res = await request(app)
         .patch(`/api/orders/${order.id}`)
         .send({ status: "Completed" });
       assert.equal(res.status, 403, "a customer moved their own order to Completed");
     });
-  }, { lock: ORDER_LOCK });
+  }, { actor: TEST_ACTOR.id, lock: ORDER_LOCK });
 });
 
 test("locking spots freezes them and unlocking releases them", async () => {
-  await inPinnedTransaction(async () => {
-    const order = await anOrder();
+  await inPinnedTransaction(async (c: PoolClient) => {
+    const order = await aBuiltOrder(c);
 
     await as(admin, async () => {
       // { spots: { lock: true } } and nothing else: the server resolves the
@@ -230,12 +220,12 @@ test("locking spots freezes them and unlocking releases them", async () => {
       assert.ok(listed, `order ${order.id} is absent from the list after unlocking`);
       assert.equal(listed.spots_locked, false);
     });
-  }, { lock: ORDER_LOCK });
+  }, { actor: TEST_ACTOR.id, lock: ORDER_LOCK });
 });
 
 test("changing a spot price lands on that order and no other", async () => {
-  await inPinnedTransaction(async () => {
-    const order = await anOrder();
+  await inPinnedTransaction(async (c: PoolClient) => {
+    const order = await aBuiltOrder(c);
 
     await as(admin, async () => {
       const metals = await request(app).get(`/api/orders/${order.id}/spots`);
@@ -269,22 +259,16 @@ test("changing a spot price lands on that order and no other", async () => {
         );
       }
     });
-  }, { lock: ORDER_LOCK });
+  }, { actor: TEST_ACTOR.id, lock: ORDER_LOCK });
 });
 
 test("nothing this file did survived the transaction", async () => {
-  const order = await anOrder();
-  const [{ status }] = await outside(
-    `SELECT purchase_order_status AS status FROM exchange.purchase_orders WHERE id = $1`,
-    [order.id]
-  );
-  assert.notEqual(status, MOVE_TO, `an order was really moved to ${MOVE_TO} in dev`);
-
-  assert.equal(
-    await assertNothingEscaped("exchange.order_metals", "bid_spot = 1234.56"),
-    0,
-    "a sentinel spot price was committed to dev"
-  );
+  // THE ORDER CHECK IS GONE AND ITS ABSENCE IS STRONGER: the fixture is built
+  // inside each transaction now, so there is no committed order for this file
+  // to have moved - where before it re-ran the discovery query and asked
+  // whether THAT order had drifted. The exchange.order_metals sentinel check
+  // goes with it: D212 stopped writing that table, so a sentinel could not
+  // have reached it either way.
   assert.equal(
     await assertNothingEscaped("orders.spots", "bid = 1234.56"),
     0,

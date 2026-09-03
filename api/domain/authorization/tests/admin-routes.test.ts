@@ -8,6 +8,7 @@ import assert from "node:assert/strict";
 import request from "supertest";
 import pool from "#db";
 import { mockSessions, restoreSessions, as, anonymous } from "#shared/testing/session.ts";
+import { TEST_ACTOR, TEST_CUSTOMER } from "#shared/testing/actor.ts";
 import { inPinnedTransaction, outside } from "#shared/testing/pinned-pool.ts";
 import { adminRoutes, allRoutes } from "../../../scripts/route-guards.ts";
 import type { Route } from "../../../scripts/route-guards.ts";
@@ -33,12 +34,7 @@ type UserRow = { id: string; name: string | null; email: string | null };
 let customer: UserRow;
 
 beforeAll(async () => {
-  customer = (
-    await outside<UserRow>(
-      `SELECT id, name, email FROM exchange.users WHERE role IS DISTINCT FROM 'admin' LIMIT 1`
-    )
-  )[0];
-  assert.ok(customer, "dev has no non-admin user - every assertion below would prove nothing");
+  customer = TEST_CUSTOMER;
 
   // Floor guards against the scanner silently resolving nothing (a still-green false negative). Was 70; the order-mutation consolidation folded 24 admin POSTs into 2 PATCH endpoints, so 55 remain — floor sits just under that.
   assert.ok(
@@ -106,7 +102,7 @@ test("every admin route refuses a signed-in customer", async () => {
         if (![401, 403].includes(res.status)) reached.push(`${r.verb} ${r.url} -> ${res.status}`);
       }
     });
-  });
+  }, { actor: TEST_ACTOR.id });
   assert.deepEqual(reached, [], `a customer was not refused by ${reached.length} route(s)`);
 });
 
@@ -119,7 +115,7 @@ test("every admin route refuses an anonymous caller", async () => {
         if (![401, 403].includes(res.status)) reached.push(`${r.verb} ${r.url} -> ${res.status}`);
       }
     });
-  });
+  }, { actor: TEST_ACTOR.id });
   assert.deepEqual(reached, [], `an anonymous caller was not refused by ${reached.length} route(s)`);
 });
 

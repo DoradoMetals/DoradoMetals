@@ -7,6 +7,7 @@ import type { PoolClient } from "pg";
 import request from "supertest";
 import pool from "#db";
 import { mockSessions, restoreSessions, as } from "#shared/testing/session.ts";
+import { TEST_ACTOR } from "#shared/testing/actor.ts";
 import { inPinnedTransaction, outside } from "#shared/testing/pinned-pool.ts";
 import { LOCKS } from "#shared/testing/locks.ts";
 
@@ -73,7 +74,7 @@ test("waiving sets the flag and leaves the stored fee alone", async () => {
 
       assert.equal(after.cost, before.cost, "waiving overwrote the stored payout fee");
     });
-  }, { lock: ORDER_LOCK });
+  }, { actor: TEST_ACTOR.id, lock: ORDER_LOCK });
 });
 
 test("un-waiving clears the flag and the stored fee is still the same number", async () => {
@@ -95,7 +96,7 @@ test("un-waiving clears the flag and the stored fee is still the same number", a
       assert.equal(after.next, false, "the flag did not come back off");
       assert.equal(after.cost, before.cost, "a round trip through the waiver moved the fee");
     });
-  }, { lock: ORDER_LOCK });
+  }, { actor: TEST_ACTOR.id, lock: ORDER_LOCK });
 });
 
 // The fee and the flag are different facts a document may carry both: production ECHECK rows are stored above the method default, a charge that a boolean cannot express.
@@ -111,7 +112,7 @@ test("a document may set the fee and waive it, and both are recorded", async () 
       assert.equal(Number(after.cost), 125, "the per-order fee did not land");
       assert.equal(after.next, true, "the waiver did not land");
     });
-  }, { lock: ORDER_LOCK });
+  }, { actor: TEST_ACTOR.id, lock: ORDER_LOCK });
 });
 
 // The flag has to reach the money, not just sit in two columns nothing reads: /quotes/order and the stored total both go through pricing/bid.ts's effectivePayoutFee.
@@ -145,7 +146,7 @@ test("waiving raises the order quote by exactly the stored fee", async () => {
         "waiving the fee did not change what the order is worth"
       );
     });
-  }, { lock: ORDER_LOCK });
+  }, { actor: TEST_ACTOR.id, lock: ORDER_LOCK });
 });
 
 test("a non-boolean waiver is refused by name and writes nothing", async () => {
@@ -163,7 +164,7 @@ test("a non-boolean waiver is refused by name and writes nothing", async () => {
 
       assert.deepEqual(await readState(client), before, "a refused document still wrote");
     });
-  }, { lock: ORDER_LOCK });
+  }, { actor: TEST_ACTOR.id, lock: ORDER_LOCK });
 });
 
 test("nothing this file did survived the transactions", async () => {
@@ -199,7 +200,7 @@ test("changing the method lands on the named payout account", async () => {
       );
       assert.equal(rows[0]?.type, "WIRE", "the method change did not reach the account");
     });
-  }, { lock: ORDER_LOCK });
+  }, { actor: TEST_ACTOR.id, lock: ORDER_LOCK });
 });
 
 test("a method that names no payment method is refused, and nothing changes", async () => {
@@ -221,5 +222,5 @@ test("a method that names no payment method is refused, and nothing changes", as
       );
       assert.equal(after.rows[0].method_id, before.rows[0].method_id, "a refused change wrote");
     });
-  }, { lock: ORDER_LOCK });
+  }, { actor: TEST_ACTOR.id, lock: ORDER_LOCK });
 });

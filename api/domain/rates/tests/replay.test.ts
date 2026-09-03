@@ -8,6 +8,7 @@ import { randomUUID } from "node:crypto";
 import request from "supertest";
 import pool from "#db";
 import { mockSessions, restoreSessions, as, anonymous } from "#shared/testing/session.ts";
+import { TEST_ACTOR, TEST_CUSTOMER } from "#shared/testing/actor.ts";
 import { inPinnedTransaction, outside } from "#shared/testing/pinned-pool.ts";
 
 await mockSessions();
@@ -21,19 +22,14 @@ let customer: UserFixture;
 let rateCountBefore: number;
 
 beforeAll(async () => {
-  const admins = await outside<UserFixture>(
-    `SELECT id, name, email FROM exchange.users WHERE role = 'admin' LIMIT 1`
-  );
-  admin = admins[0];
-  assert.ok(admin, "dev has no admin user");
+  admin = TEST_ACTOR;
 
-  const users = await outside<UserFixture>(
-    `SELECT id, name, email FROM exchange.users WHERE role IS DISTINCT FROM 'admin' LIMIT 1`
-  );
-  customer = users[0];
-  assert.ok(customer, "dev has no non-admin user - the refusal case is untested");
+  customer = TEST_CUSTOMER;
 
-  const rates = await outside(`SELECT count(*)::int AS n FROM exchange.rates`);
+  // rates.rates - the table this feature actually reads and writes now.
+  // exchange.rates is frozen and stopped moving at the pivot, so counting it
+  // here would never catch a write that landed on the live table.
+  const rates = await outside(`SELECT count(*)::int AS n FROM rates.rates`);
   assert.ok(rates[0].n > 0, "dev has no rates to read");
   rateCountBefore = rates[0].n;
 });
@@ -57,7 +53,7 @@ test("the public rate list needs no session at all", async () => {
       assert.ok(Array.isArray(res.body), "the pricing page expects an array");
       assert.ok(res.body.length > 0, "dev has rates and none came back");
     });
-  });
+  }, { actor: TEST_ACTOR.id });
 });
 
 // The admin read may carry more than the public one; the public one must not carry what only an admin should see. Compared field by field.
@@ -97,7 +93,7 @@ test("the public list does not carry anything only the admin list has", async ()
       `      public rate fields: ${publicSet.size}; admin-only: ` +
         (onlyAdmin.length ? onlyAdmin.join(", ") : "(none - the two reads are the same shape)")
     );
-  });
+  }, { actor: TEST_ACTOR.id });
 });
 
 test("every writing route refuses a signed-in non-admin", async () => {
@@ -115,7 +111,7 @@ test("every writing route refuses a signed-in non-admin", async () => {
         assert.ok([401, 403].includes(res.status), `${name} answered ${res.status} to a non-admin`);
       }
     });
-  });
+  }, { actor: TEST_ACTOR.id });
 });
 
 test("an anonymous caller is refused the admin read", async () => {
@@ -124,12 +120,12 @@ test("an anonymous caller is refused the admin read", async () => {
       const res = await request(app).get("/api/rates/get_admin");
       assert.ok([401, 403].includes(res.status), `answered ${res.status}`);
     });
-  });
+  }, { actor: TEST_ACTOR.id });
 });
 
 // A 403 says the response was refused, not that nothing was written - a guard placed after the write would answer the same. Counting the table from outside the transaction is what distinguishes them.
 test("the refused writes wrote nothing", async () => {
-  const after = await outside(`SELECT count(*)::int AS n FROM exchange.rates`);
+  const after = await outside(`SELECT count(*)::int AS n FROM rates.rates`);
   assert.equal(
     after[0].n,
     rateCountBefore,

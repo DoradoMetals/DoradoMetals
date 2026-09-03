@@ -5,6 +5,7 @@ import assert from "node:assert/strict";
 import request from "supertest";
 import pool from "#db";
 import { mockSessions, restoreSessions, anonymous } from "#shared/testing/session.ts";
+import { TEST_ACTOR } from "#shared/testing/actor.ts";
 import { inPinnedTransaction, outside } from "#shared/testing/pinned-pool.ts";
 
 await mockSessions();
@@ -42,7 +43,7 @@ test("the spot feed needs no session at all", async () => {
         "the feed returned a different number of metals than dev holds"
       );
     });
-  });
+  }, { actor: TEST_ACTOR.id });
 });
 
 // The fields the frontend reads, named individually so ADDING a field is not a failure and LOSING one is.
@@ -66,7 +67,7 @@ test("every metal carries the fields a quote is built from", async () => {
         );
       }
     });
-  });
+  }, { actor: TEST_ACTOR.id });
 });
 
 // The asks must be the asks - a feed with the right shape but stale or transposed numbers passes every structural assertion.
@@ -89,7 +90,7 @@ test("the asks and bids are the ones in the table, not a transposition of them",
         );
       }
     });
-  });
+  }, { actor: TEST_ACTOR.id });
 });
 
 // A public endpoint is the wrong place for anything internal - asserted as an allowlist, so a field appearing here that nobody vetted is the failure.
@@ -112,5 +113,5 @@ test("the public feed carries nothing beyond the quote fields", async () => {
         `the public spot feed grew fields nobody vetted: ${unexpected.join(", ")}`
       );
     });
-  });
+  }, { actor: TEST_ACTOR.id });
 });

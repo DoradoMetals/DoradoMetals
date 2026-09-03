@@ -26,13 +26,17 @@
 //
 // NOTHING IS COMMITTED. shared/testing/pinned-pool.js holds every query in one
 // transaction that is rolled back.
-import { test, afterAll, beforeAll } from "vitest";
+import { test, afterAll } from "vitest";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
 import request from "supertest";
 import pool from "#db";
 import { mockSessions, restoreSessions, as, asAdmin } from "#shared/testing/session.ts";
-import { inPinnedTransaction, outside } from "#shared/testing/pinned-pool.ts";
+import { TEST_ACTOR } from "#shared/testing/actor.ts";
+import { inPinnedTransaction } from "#shared/testing/pinned-pool.ts";
+import {
+  aUser, aProduct, anOrder, aRefinerEngagement,
+} from "#shared/testing/builders/index.ts";
 
 await mockSessions();
 const { default: app } = await import("#app");
@@ -44,38 +48,29 @@ type UserFixture = { id: string; name: string | null; email: string | null };
 type ItemFixture = { id: string; purchase_order_id: string };
 type ScrapItemFixture = ItemFixture;
 
-let admin: UserFixture;
-let item: ItemFixture;
-let scrapItem: ScrapItemFixture;
+const admin: UserFixture = TEST_ACTOR;
 
-beforeAll(async () => {
-  admin = (
-    await outside<UserFixture>(`SELECT id, name, email FROM exchange.users WHERE role = 'admin' LIMIT 1`)
-  )[0];
-  assert.ok(admin, "dev has no admin user");
-
-  item = (
-    await outside<ItemFixture>(
-      `SELECT i.id, i.order_id AS purchase_order_id
-         FROM orders.items i
-         JOIN orders.orders o ON o.id = i.order_id
-        WHERE o.direction = 'purchase' ORDER BY i.id LIMIT 1`
-    )
-  )[0];
-  assert.ok(item, "dev needs a purchase order item");
-
-  // A scrap line IS a line with no bullion (the one-table model).
-  scrapItem = (
-    await outside<ScrapItemFixture>(
-      `SELECT i.id, i.order_id AS purchase_order_id
-         FROM orders.items i
-         JOIN orders.orders o ON o.id = i.order_id
-        WHERE o.direction = 'purchase' AND i.bullion_id IS NULL
-        ORDER BY i.id LIMIT 1`
-    )
-  )[0];
-  assert.ok(scrapItem, "dev needs a purchase order scrap line");
-});
+// THE TWO LINES ARE BUILT (lane 1). Both were the first row dev held - any
+// purchase line, and any purchase line with no bullion - and every test below
+// rewrites its weights, purity or premium: the numbers a customer is paid on.
+// One order carries both kinds, which is also the realistic shape.
+const lines = async (c: PoolClient) => {
+  const customer = await aUser(c);
+  const product = await aProduct(c);
+  const order = await anOrder(c, customer, { direction: "purchase", status: "Pending" })
+    .withBullion(product, 1)
+    .withLots(1, { metal: "Gold", pre_melt: 10, purity: 0.585 })
+    .withSpots();
+  // THE ENGAGEMENT AND ITS MIRROR, because the refiner reads under test resolve
+  // it server-side from the customer order's id: an order without one answers
+  // 404, which is what "dev needs a purchase order item" was silently relying
+  // on the borrowed fixture already having.
+  await aRefinerEngagement(c, order);
+  return {
+    item: { id: order.items[0]!.id, purchase_order_id: order.id },
+    scrapItem: { id: order.items[1]!.id, purchase_order_id: order.id },
+  };
+};
 
 afterAll(async () => {
   restoreSessions();
@@ -89,6 +84,7 @@ afterAll(async () => {
 // matched no branch and answered 200 having done nothing.
 test("confirmed: true confirms the line", async () => {
   await inPinnedTransaction(async (client: PoolClient) => {
+    const { item } = await lines(client);
     await asAdmin(admin, async () => {
       await client.query(
         `UPDATE orders.items SET confirmed = false WHERE id = $1`,
@@ -107,11 +103,12 @@ test("confirmed: true confirms the line", async () => {
       );
       assert.equal(rows[0].confirmed, true, "the line was not confirmed");
     });
-  });
+  }, { actor: TEST_ACTOR.id });
 });
 
 test("confirmed: false unconfirms the line", async () => {
   await inPinnedTransaction(async (client: PoolClient) => {
+    const { item } = await lines(client);
     await asAdmin(admin, async () => {
       await client.query(
         `UPDATE orders.items SET confirmed = true WHERE id = $1`,
@@ -130,11 +127,12 @@ test("confirmed: false unconfirms the line", async () => {
       );
       assert.equal(rows[0].confirmed, false, "the line was not reset");
     });
-  });
+  }, { actor: TEST_ACTOR.id });
 });
 
 test("the refiner spots read answers by customer-order id", async () => {
-  await inPinnedTransaction(async () => {
+  await inPinnedTransaction(async (client: PoolClient) => {
+    const { item } = await lines(client);
     await asAdmin(admin, async () => {
       // GET /orders/:orderId/refiners/spots replaced the legacy route in the
       // read-flip wave - same key the components hold, the engagement
@@ -153,7 +151,7 @@ test("the refiner spots read answers by customer-order id", async () => {
       assert.ok(eng.body.id, "the engagement row carries no id to PATCH by");
       assert.equal(eng.body.order_id, item.purchase_order_id);
     });
-  });
+  }, { actor: TEST_ACTOR.id });
 });
 
 // ONE ROW, ONE FLAT PATCH (D214 item 11). The body was
@@ -163,6 +161,7 @@ test("the refiner spots read answers by customer-order id", async () => {
 // what content means is the defect that costs money.
 test("the line's own columns are the body, and content is derived from them", async () => {
   await inPinnedTransaction(async (client: PoolClient) => {
+    const { scrapItem } = await lines(client);
     await asAdmin(admin, async () => {
       const res = await request(app)
         .patch(`/api/orders/items/${scrapItem.id}`)
@@ -199,7 +198,7 @@ test("the line's own columns are the body, and content is derived from them", as
         `content is ${line.rows[0].content}, not the derived 3.25 x 0.9167`
       );
     });
-  });
+  }, { actor: TEST_ACTOR.id });
 });
 
 // THE REFINER'S ASSAY NUMBERS ARE NOT IN THIS BODY ANY MORE. They are
@@ -207,7 +206,8 @@ test("the line's own columns are the body, and content is derived from them", as
 // carried them let a customer's DECLARED weight and a refinery's REPORT be
 // written by one document.
 test("the assay columns are refused on the line's own patch", async () => {
-  await inPinnedTransaction(async () => {
+  await inPinnedTransaction(async (client: PoolClient) => {
+    const { scrapItem } = await lines(client);
     await asAdmin(admin, async () => {
       const res = await request(app)
         .patch(`/api/orders/items/${scrapItem.id}`)
@@ -215,7 +215,7 @@ test("the assay columns are refused on the line's own patch", async () => {
       assert.equal(res.status, 400, `answered ${res.status}`);
       assert.match(res.body?.error?.message ?? "", /purity_actual/);
     });
-  });
+  }, { actor: TEST_ACTOR.id });
 });
 
 // The delete path the service comments describe: the scrap row and the line go
@@ -223,6 +223,7 @@ test("the assay columns are refused on the line's own patch", async () => {
 // exist nowhere.
 test("DELETE removes the line and its scrap together", async () => {
   await inPinnedTransaction(async (client: PoolClient) => {
+    const { scrapItem } = await lines(client);
     await asAdmin(admin, async () => {
       // No body at all: the scrap linkage is the ROW's, resolved server-side,
       // so the request cannot name a different scrap row to delete.
@@ -241,5 +242,5 @@ test("DELETE removes the line and its scrap together", async () => {
       );
       assert.equal(refiner.rows.length, 0, "the refiner counterpart survived the cascade");
     });
-  });
+  }, { actor: TEST_ACTOR.id });
 });

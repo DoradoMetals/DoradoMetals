@@ -3,31 +3,20 @@ import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
 import pool from "#db";
+import { inRollback } from "#shared/testing/rollback.ts";
 import * as repo from "#db/media/emails/repo.ts";
 
-let client: PoolClient;
 
 beforeAll(async () => {
   assert.equal(
     new Date().getTimezoneOffset(), 0,
     "these tests require TZ=UTC - run them with `pnpm --filter @dorado/api test`"
   );
-  client = await pool.connect();
 });
 
 afterAll(async () => {
-  client.release();
   await pool.end();
 });
-
-async function inRollback(fn: (c: PoolClient) => Promise<void>) {
-  await client.query("BEGIN");
-  try {
-    await fn(client);
-  } finally {
-    await client.query("ROLLBACK");
-  }
-}
 
 test("create writes a row and returns its id", async () => {
   await inRollback(async (c) => {

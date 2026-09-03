@@ -8,6 +8,7 @@ import pool from "#db";
 import { serveOrderDocument } from "#domain/media/pdfs/serve.ts";
 import * as orderRead from "#domain/orders/read.ts";
 import { LOCKS } from "#shared/testing/locks.ts";
+import { inRollback } from "#shared/testing/rollback.ts";
 
 let client: PoolClient;
 // getAllPurchases declares Record<string, unknown>[], so the subset this file reads is named here.
@@ -53,15 +54,6 @@ afterAll(async () => {
   client.release();
   await pool.end();
 });
-
-async function inRollback(fn: (c: PoolClient) => Promise<void>) {
-  await client.query("BEGIN");
-  try {
-    await fn(client);
-  } finally {
-    await client.query("ROLLBACK");
-  }
-}
 
 const sha256 = (bytes: Buffer | Uint8Array | string) => createHash("sha256").update(bytes).digest("hex");
 

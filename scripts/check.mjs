@@ -75,6 +75,7 @@ const GROUPS = [
       { name: "api:lint:script-guards", cmd: pnpm("@dorado/api", "lint:script-guards") },
       { name: "api:lint:type-homes", cmd: pnpm("@dorado/api", "lint:type-homes") },
       { name: "api:lint:test-locks", cmd: pnpm("@dorado/api", "lint:test-locks") },
+      { name: "api:lint:test-actor", cmd: pnpm("@dorado/api", "lint:test-actor") },
       { name: "api:audit:silent-mutations", cmd: pnpm("@dorado/api", "audit:silent-mutations") },
     ],
   },

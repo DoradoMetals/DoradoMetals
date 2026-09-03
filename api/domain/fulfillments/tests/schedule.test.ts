@@ -2,13 +2,18 @@
 // All pure database work - checked each service/repo function before driving it: no email, FedEx or Stripe. fulfillments has no exchange side and never will, so there's no second implementation these could disagree with.
 // The pickup test builds its own fixture, and that's the point: dev holds no PICKUP fulfillment at all, so it sets the method first through set_method and then books, proving the category guard is reached rather than skipped.
 // NOTHING IS COMMITTED - shared/testing/pinned-pool.ts holds every query in one rolled-back transaction.
-import { test, afterAll, beforeAll } from "vitest";
+import { test, afterAll } from "vitest";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
 import request from "supertest";
 import pool from "#db";
 import { mockSessions, restoreSessions, as } from "#shared/testing/session.ts";
-import { inPinnedTransaction, outside } from "#shared/testing/pinned-pool.ts";
+import { TEST_ACTOR } from "#shared/testing/actor.ts";
+import { inPinnedTransaction } from "#shared/testing/pinned-pool.ts";
+import { LOCKS } from "#shared/testing/locks.ts";
+import {
+  aUser, anOrder, aShipment, anAddress, fulfillmentMethodId,
+} from "#shared/testing/builders/index.ts";
 
 await mockSessions();
 const { default: app } = await import("#app");
@@ -17,50 +22,44 @@ const { default: app } = await import("#app");
 type UserFixture = { id: string; name: string | null; email: string | null };
 type IdRow = { id: string };
 
-let admin: UserFixture;
-let shipmentFulfilment: IdRow;
-let directFulfilment: IdRow;
-let pickupMethodId: string;
-let locationId: string;
+const admin: UserFixture = TEST_ACTOR;
 
-beforeAll(async () => {
-  admin = (
-    await outside<UserFixture>(`SELECT id, name, email FROM exchange.users WHERE role = 'admin' LIMIT 1`)
-  )[0];
-  assert.ok(admin, "dev has no admin user");
+// THE FULFILLMENTS ARE BUILT PER TEST (lane 1), and this file's own `beforeAll`
+// comment was the argument for it: "every SHIPMENT fulfillment in dev has a
+// shipment (one exists because the other does)", so the test that needed one
+// WITHOUT a shipment could not be written, and an earlier version failed in
+// `before` when its query came back empty. Both shapes are now stated rather
+// than searched for.
+//
+// They are built inside the pin, which is where the request runs.
+const aShipmentFulfilment = async (c: PoolClient) => {
+  const order = await anOrder(c, await aUser(c), { direction: "purchase" });
+  const shipment = await aShipment(c, order, { method: "CARRIER DROPOFF" });
+  return { id: shipment.fulfillment_id, order_id: order.id, user_id: order.user_id! };
+};
 
-  // Every SHIPMENT fulfillment in dev has a shipment (one exists because the other does), so setMethod's "move off SHIPMENT" path is unreachable from a SHIPMENT fixture - tested on the DIRECT fulfillment instead, with the SHIPMENT one used for the guard.
-  // An earlier version asked for a SHIPMENT fulfillment with no shipment, found none, and every test in the file failed in `before` - which at least failed honestly rather than skipping.
-  shipmentFulfilment = (
-    await outside<IdRow>(
-      `SELECT f.id FROM fulfillments.fulfillments f
-         JOIN fulfillments.methods m ON m.id = f.method_id
-         JOIN fulfillments.shipments s ON s.fulfillment_id = f.id
-        WHERE m.category = 'SHIPMENT' ORDER BY f.id LIMIT 1`
-    )
-  )[0];
-  assert.ok(shipmentFulfilment, "dev needs a SHIPMENT fulfillment that has a shipment");
+const aDirectFulfilment = async (c: PoolClient) => {
+  const user = await aUser(c);
+  const order = await anOrder(c, user, { direction: "purchase" });
+  const method_id = await fulfillmentMethodId(c, "APPOINTMENT", "purchase");
+  const { rows } = await c.query<IdRow>(
+    `INSERT INTO fulfillments.fulfillments (id, order_id, method_id, status)
+     VALUES (gen_random_uuid(), $1, $2, 'Pending') RETURNING id`,
+    [order.id, method_id]
+  );
+  return { id: rows[0]!.id, order_id: order.id, user_id: user.id };
+};
 
-  directFulfilment = (
-    await outside<IdRow>(
-      `SELECT f.id FROM fulfillments.fulfillments f
-         JOIN fulfillments.methods m ON m.id = f.method_id
-        WHERE m.category = 'DIRECT' ORDER BY f.id LIMIT 1`
-    )
-  )[0];
-  assert.ok(directFulfilment, "dev needs a DIRECT fulfillment");
+const aPickupMethodId = (c: PoolClient) => fulfillmentMethodId(c, "PICKUP", "purchase");
 
-  pickupMethodId = (
-    await outside<IdRow>(
-      `SELECT id FROM fulfillments.methods
-        WHERE category = 'PICKUP' AND direction = 'purchase' LIMIT 1`
-    )
-  )[0]?.id;
-  assert.ok(pickupMethodId, "dev needs a PICKUP method");
-
-  locationId = (await outside<IdRow>(`SELECT id FROM places.locations ORDER BY id LIMIT 1`))[0]?.id;
-  assert.ok(locationId, "dev needs a location");
-});
+// The business's own address, by name - seeded reference data.
+const aLocationId = async (c: PoolClient) => {
+  const { rows } = await c.query<IdRow>(
+    `SELECT id FROM places.locations WHERE name = $1`, ["Dorado Return Address"]
+  );
+  assert.ok(rows[0], "the places.locations seed is missing - run provision:test");
+  return rows[0]!.id;
+};
 
 afterAll(async () => {
   restoreSessions();
@@ -69,6 +68,7 @@ afterAll(async () => {
 
 test("methods/update writes the method's flags", async () => {
   await inPinnedTransaction(async (client: PoolClient) => {
+    const pickupMethodId = await aPickupMethodId(client);
     await as({ ...admin, role: "admin" }, async () => {
       const before = await client.query(
         `SELECT id, hidden FROM fulfillments.methods WHERE id = $1`,
@@ -88,11 +88,12 @@ test("methods/update writes the method's flags", async () => {
       );
       assert.equal(after.rows[0].hidden, flipped, "the method's hidden flag did not change");
     });
-  });
+  }, { actor: TEST_ACTOR.id, lock: [LOCKS.ORDERS, LOCKS.FULFILLMENTS] });
 });
 
 test("set_status writes the fulfillment's status", async () => {
   await inPinnedTransaction(async (client: PoolClient) => {
+    const shipmentFulfilment = await aShipmentFulfilment(client);
     await as({ ...admin, role: "admin" }, async () => {
       const res = await request(app)
         .post("/api/fulfillments/set_status")
@@ -106,11 +107,13 @@ test("set_status writes the fulfillment's status", async () => {
       );
       assert.equal(rows[0].status, "COMPLETED", "the status did not change");
     });
-  });
+  }, { actor: TEST_ACTOR.id, lock: [LOCKS.ORDERS, LOCKS.FULFILLMENTS] });
 });
 
 test("set_method moves the fulfillment onto another method", async () => {
   await inPinnedTransaction(async (client: PoolClient) => {
+    const directFulfilment = await aDirectFulfilment(client);
+    const pickupMethodId = await aPickupMethodId(client);
     await as({ ...admin, role: "admin" }, async () => {
       const res = await request(app)
         .post("/api/fulfillments/set_method")
@@ -124,11 +127,13 @@ test("set_method moves the fulfillment onto another method", async () => {
       );
       assert.equal(rows[0].method_id, pickupMethodId, "the method did not change");
     });
-  });
+  }, { actor: TEST_ACTOR.id, lock: [LOCKS.ORDERS, LOCKS.FULFILLMENTS] });
 });
 
 test("schedule_direct books the appointment", async () => {
   await inPinnedTransaction(async (client: PoolClient) => {
+    const directFulfilment = await aDirectFulfilment(client);
+    const locationId = await aLocationId(client);
     await as({ ...admin, role: "admin" }, async () => {
       const res = await request(app)
         .post("/api/fulfillments/schedule_direct")
@@ -152,11 +157,13 @@ test("schedule_direct books the appointment", async () => {
       assert.equal(rows[0].location_id, locationId, "the booking is at the wrong location");
       assert.equal(rows[0].is_appointment, true, "the booking is not an appointment");
     });
-  });
+  }, { actor: TEST_ACTOR.id, lock: [LOCKS.ORDERS, LOCKS.FULFILLMENTS] });
 });
 
 test("cancel_schedule removes the booking", async () => {
   await inPinnedTransaction(async (client: PoolClient) => {
+    const directFulfilment = await aDirectFulfilment(client);
+    const locationId = await aLocationId(client);
     await as({ ...admin, role: "admin" }, async () => {
       await request(app)
         .post("/api/fulfillments/schedule_direct")
@@ -186,13 +193,15 @@ test("cancel_schedule removes the booking", async () => {
       );
       assert.equal(rows.length, 0, "the booking survived the cancel");
     });
-  });
+  }, { actor: TEST_ACTOR.id, lock: [LOCKS.ORDERS, LOCKS.FULFILLMENTS] });
 });
 
 // Two routes in one, because the category guard makes them inseparable: dev has
 // no PICKUP fulfillment, so the method has to move first.
 test("schedule_pickup books once the fulfillment is moved onto a PICKUP method", async () => {
   await inPinnedTransaction(async (client: PoolClient) => {
+    const directFulfilment = await aDirectFulfilment(client);
+    const pickupMethodId = await aPickupMethodId(client);
     await as({ ...admin, role: "admin" }, async () => {
       const address = (
         await client.query(`SELECT id FROM places.addresses ORDER BY id LIMIT 1`)
@@ -223,13 +232,15 @@ test("schedule_pickup books once the fulfillment is moved onto a PICKUP method",
       assert.ok(rows.length, "no pickup booking was written");
       assert.equal(rows[0].pickup_address_id, address.id, "booked at the wrong address");
     });
-  });
+  }, { actor: TEST_ACTOR.id, lock: [LOCKS.ORDERS, LOCKS.FULFILLMENTS] });
 });
 
 // The guard, which is the more important half: moving an order off SHIPMENT while a shipment exists would leave a live FedEx label attached to a fulfillment that no longer claims to be one.
 // Until this fix it refused with a bare Error (a generic 500, explanation lost to the log) - it now carries 409, which is what makes errorHandler pass the message through. Asserted here because a repo test can't see what the caller gets.
 test("set_method refuses to move a fulfillment that already has a shipment, and says why", async () => {
-  await inPinnedTransaction(async () => {
+  await inPinnedTransaction(async (client: PoolClient) => {
+    const shipmentFulfilment = await aShipmentFulfilment(client);
+    const pickupMethodId = await aPickupMethodId(client);
     await as({ ...admin, role: "admin" }, async () => {
       const res = await request(app)
         .post("/api/fulfillments/set_method")
@@ -242,5 +253,5 @@ test("set_method refuses to move a fulfillment that already has a shipment, and 
         "the refusal reached the caller without its reason"
       );
     });
-  });
+  }, { actor: TEST_ACTOR.id, lock: [LOCKS.ORDERS, LOCKS.FULFILLMENTS] });
 });

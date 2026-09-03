@@ -7,6 +7,8 @@ import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
 import { randomUUID } from "node:crypto";
 import pool from "#db";
+import { inRollback } from "#shared/testing/rollback.ts";
+import { aUser, aPaymentIntent } from "#shared/testing/builders/index.ts";
 import * as intents from "#db/payments/intents/repo.ts";
 import * as attempts from "#db/payments/attempts/repo.ts";
 import * as settlements from "#db/payments/settlements/repo.ts";
@@ -22,20 +24,11 @@ beforeAll(async () => {
 });
 afterAll(async () => { client.release(); await pool.end(); });
 
-async function inRollback(fn: (c: PoolClient) => Promise<void>) {
-  await client.query("BEGIN");
-  try { await fn(client); } finally { await client.query("ROLLBACK"); }
-}
-
 const anAttempt = async (c: PoolClient) => {
-  const { rows } = await c.query("SELECT id FROM exchange.users ORDER BY id LIMIT 1");
-  const intent = await intents.create(
-    {
-      session_id: randomUUID(), user_id: rows[0].id, type: "checkout",
-      status: "succeeded", amount_expected: 100,
-    },
-    c
-  );
+  // Built, not discovered - see shared/testing/builders/index.ts.
+  const intent = await aPaymentIntent(c, await aUser(c), {
+    type: "checkout", status: "succeeded", amount_expected: 100,
+  });
   return await attempts.create(
     {
       id: intent.id, intent_id: intent.id, provider: "stripe",

@@ -30,12 +30,17 @@
 // ordering.
 //
 // NOTHING IS COMMITTED - the pool is pinned to a rolled-back transaction.
-import { test, afterAll, beforeAll } from "vitest";
+import { test, afterAll } from "vitest";
 import assert from "node:assert/strict";
 import request from "supertest";
 import pool from "#db";
 import { mockSessions, restoreSessions, as, asAdmin, asUser } from "#shared/testing/session.ts";
+import { TEST_ACTOR } from "#shared/testing/actor.ts";
 import { inPinnedTransaction, outside } from "#shared/testing/pinned-pool.ts";
+import {
+  aUser, anAddress, aProduct, anOrder, aRefinerEngagement, aPayout,
+  carrierServiceId, packageId,
+} from "#shared/testing/builders/index.ts";
 import { LOCKS } from "#shared/testing/locks.ts";
 import type { PoolClient } from "pg";
 
@@ -50,38 +55,49 @@ const { default: app } = await import("#app");
 type UserFixture = { id: string; name: string | null; email: string | null };
 type OrderFixture = { id: string; user_id: string; status: string };
 
-let admin: UserFixture;
-let order: OrderFixture; // an open purchase order with items, metals and a payout
-let owner: UserFixture; // its customer
+const admin: UserFixture = TEST_ACTOR;
 
-beforeAll(async () => {
-  admin = (
-    await outside<UserFixture>(`SELECT id, name, email FROM exchange.users WHERE role = 'admin' LIMIT 1`)
-  )[0];
-  assert.ok(admin, "dev has no admin user");
+// THE ORDER AND ITS OWNER ARE BUILT (lane 1). This took "the OLDEST qualifying
+// order, for the reason ownership.test.js records: the newest is a race against
+// every file that creates one" - a five-clause WHERE hunting a purchase order
+// that had items AND spots AND a payout fee AND was still open, then looked its
+// owner up in the frozen exchange.users table with a guard for the row not
+// being there. Every one of those clauses is now a builder call, so the order
+// has what the tests need because they asked for it.
+const anOpenPurchaseOrder = async (c: PoolClient) => {
+  const owner = await aUser(c, { name: "The Customer" });
+  const address = await anAddress(c, owner);
+  const product = await aProduct(c);
+  const built = await anOrder(c, owner, { direction: "purchase", status: "Pending" })
+    .withBullion(product, 1)
+    .withLots(1, { metal: "Gold" })
+    .withSpots()
+    .withAddress(address)
+    .withTotals({ total: 1000, payout_fee: 0 });
+  await aRefinerEngagement(c, built);
+  await aPayout(c, owner, { order: built });
+  return {
+    order: { id: built.id, user_id: owner.id, status: "Pending" },
+    owner,
+  };
+};
 
-  // The OLDEST qualifying order, for the reason ownership.test.js records:
-  // the newest is a race against every file that creates one.
-  order = (
-    await outside<OrderFixture>(
-      `SELECT o.id, o.user_id, o.status
-         FROM orders.orders o
-         JOIN orders.transactions t ON t.order_id = o.id
-        WHERE o.direction = 'purchase' AND o.user_id IS NOT NULL
-          AND o.status NOT IN ('Cancelled', 'Completed')
-          AND t.payout_fee IS NOT NULL
-          AND EXISTS (SELECT 1 FROM orders.spots s WHERE s.order_id = o.id)
-          AND EXISTS (SELECT 1 FROM orders.items i WHERE i.order_id = o.id)
-        ORDER BY o.created_at ASC, o.id ASC LIMIT 1`
-    )
-  )[0];
-  assert.ok(order, "dev has no open purchase order with items, metals and a payout");
+// The same order WITHOUT its address snapshot - the cancel refuses before the
+// carrier is called, which used to need an "address-less purchase order" found
+// on dev with a NOT EXISTS.
+const anAddresslessPurchaseOrder = async (c: PoolClient) => {
+  const owner = await aUser(c);
+  const built = await anOrder(c, owner, { direction: "purchase", status: "Pending" })
+    .withLots(1)
+    .withSpots()
+    .withTotals({ total: 1000 });
+  return { id: built.id };
+};
 
-  owner = (
-    await outside<UserFixture>(`SELECT id, name, email FROM exchange.users WHERE id = $1`, [order.user_id])
-  )[0];
-  assert.ok(owner?.id, `no exchange.users row for ${order.user_id}`);
-
+// The two seeded reference rows the cancel document names.
+const label = async (c: PoolClient) => ({
+  service: { id: await carrierServiceId(c, "Express Saver") },
+  box: { id: await packageId(c, "Small Box") },
 });
 
 afterAll(async () => {
@@ -97,7 +113,8 @@ afterAll(async () => {
 // `OrdersRow.pick({status, notes}).partial().strict()`, so a field the
 // endpoint does not have is a 400 naming it - never a silent drop.
 test("the PATCH takes the order row's own fields, and refuses everything else", async () => {
-  await inPinnedTransaction(async () => {
+  await inPinnedTransaction(async (c: PoolClient) => {
+    const { order } = await anOpenPurchaseOrder(c);
     await asAdmin(admin, async () => {
       // THE FOUR RETIRED ACTIONS refuse by name. Each is a POST of its own now.
       for (const named of ["add_funds", "finalize_pricing", "cancel", "supplier"]) {
@@ -127,18 +144,16 @@ test("the PATCH takes the order row's own fields, and refuses everything else", 
       const empty = await request(app).patch(`/api/orders/${order.id}`).send({});
       assert.equal(empty.status, 422, `answered ${empty.status}`);
     });
-  }, { lock: ORDER_LOCK });
+  }, { actor: TEST_ACTOR.id, lock: ORDER_LOCK });
 });
 
 // DIRECTION IS DATA, AND THE USE CASE ASKS IT. The matrix that lived in the
 // PATCH body's field table is one `rules.assertDirection` call per action now,
 // so a purchase-only action on a sale order refuses naming both.
 test("an action of the wrong direction is refused, naming the direction", async () => {
-  await inPinnedTransaction(async () => {
-    const [sale] = await outside<{ id: string }>(
-      `SELECT id FROM orders.orders WHERE direction = 'sale' ORDER BY created_at ASC LIMIT 1`
-    );
-    assert.ok(sale, "dev has no sales order");
+  await inPinnedTransaction(async (c: PoolClient) => {
+    const { order } = await anOpenPurchaseOrder(c);
+    const sale = await anOrder(c, await aUser(c), { direction: "sale" }).withLots(1);
     await asAdmin(admin, async () => {
       const res = await request(app).post(`/api/orders/${sale.id}/finalize_pricing`).send({});
       assert.equal(res.status, 422, `answered ${res.status}`);
@@ -156,13 +171,14 @@ test("an action of the wrong direction is refused, naming the direction", async 
         /sale-direction operation and this is a purchase order/
       );
     });
-  }, { lock: ORDER_LOCK });
+  }, { actor: TEST_ACTOR.id, lock: ORDER_LOCK });
 });
 
 // --------------------------------------------------------------- the guard
 
 test("a customer is refused outright, their own order included", async () => {
   await inPinnedTransaction(async (client: PoolClient) => {
+    const { order, owner } = await anOpenPurchaseOrder(client);
     await asUser(owner, async () => {
       const before = (
         await client.query(
@@ -197,13 +213,14 @@ test("a customer is refused outright, their own order included", async () => {
       ).rows[0];
       assert.deepEqual(after, before, "a refused caller still wrote");
     });
-  }, { lock: ORDER_LOCK });
+  }, { actor: TEST_ACTOR.id, lock: ORDER_LOCK });
 });
 
 // ------------------------------------------------- status is a label, only
 
 test("a status write moves the label and NOTHING else", async () => {
   await inPinnedTransaction(async (client: PoolClient) => {
+    const { order } = await anOpenPurchaseOrder(client);
     await asAdmin(admin, async () => {
       const moneyBefore = (
         await client.query(
@@ -251,7 +268,7 @@ test("a status write moves the label and NOTHING else", async () => {
       ).rows;
       assert.deepEqual(pricesAfter, pricesBefore, "a bare status write re-priced the lines");
     });
-  }, { lock: ORDER_LOCK });
+  }, { actor: TEST_ACTOR.id, lock: ORDER_LOCK });
 });
 
 // ------------------------------------------------------- the cancel action
@@ -263,22 +280,11 @@ test("a status write moves the label and NOTHING else", async () => {
 // business is the provider's configured contact.
 test("the cancel action reaches the label pipeline and a label failure cancels nothing", async () => {
   await inPinnedTransaction(async (client: PoolClient) => {
-    const [service] = await outside<{ id: string }>(
-      `SELECT id FROM shipping.services WHERE name = 'Express Saver' AND carrier_id IS NOT NULL LIMIT 1`
-    );
-    const [box] = await outside<{ id: string }>(
-      `SELECT id FROM shipping.packages WHERE label = 'Small Box' LIMIT 1`
-    );
+    const { service, box } = await label(client);
     // AN ORDER WITH AN ADDRESS SNAPSHOT: where the metal goes back TO is the
     // order's own, so an order without one refuses before the carrier is
     // called - the case the next test owns.
-    const [returnable] = await outside<{ id: string; status: string }>(
-      `SELECT o.id, o.status FROM orders.orders o
-         JOIN orders.addresses a ON a.order_id = o.id
-        WHERE o.direction = 'purchase' AND o.status NOT IN ('Cancelled', 'Completed')
-        ORDER BY o.created_at ASC, o.id ASC LIMIT 1`
-    );
-    assert.ok(returnable, "dev has no purchase order with an address snapshot");
+    const { order: returnable } = await anOpenPurchaseOrder(client);
     await asAdmin(admin, async () => {
       const res = await request(app)
         .post(`/api/orders/${returnable.id}/cancel`)
@@ -304,27 +310,16 @@ test("the cancel action reaches the label pipeline and a label failure cancels n
       );
       assert.notEqual(rows[0].status, "Cancelled");
     });
-  }, { lock: ORDER_LOCK });
+  }, { actor: TEST_ACTOR.id, lock: ORDER_LOCK });
 });
 
 // WHERE THE METAL GOES BACK TO IS THE ORDER'S OWN SNAPSHOT, and an order that
 // never took one cannot be cancelled at all. The drawer used to supply the
 // address in the body, so this order would have shipped to whatever it said.
 test("an order with no address snapshot refuses the cancel before the carrier", async () => {
-  await inPinnedTransaction(async () => {
-    const [service] = await outside<{ id: string }>(
-      `SELECT id FROM shipping.services WHERE name = 'Express Saver' AND carrier_id IS NOT NULL LIMIT 1`
-    );
-    const [box] = await outside<{ id: string }>(
-      `SELECT id FROM shipping.packages WHERE label = 'Small Box' LIMIT 1`
-    );
-    const [orphan] = await outside<{ id: string }>(
-      `SELECT o.id FROM orders.orders o
-        WHERE o.direction = 'purchase'
-          AND NOT EXISTS (SELECT 1 FROM orders.addresses a WHERE a.order_id = o.id)
-        ORDER BY o.created_at ASC, o.id ASC LIMIT 1`
-    );
-    assert.ok(orphan, "dev has no address-less purchase order");
+  await inPinnedTransaction(async (c: PoolClient) => {
+    const { service, box } = await label(c);
+    const orphan = await anAddresslessPurchaseOrder(c);
     await asAdmin(admin, async () => {
       const res = await request(app)
         .post(`/api/orders/${orphan.id}/cancel`)
@@ -337,13 +332,14 @@ test("an order with no address snapshot refuses the cancel before the carrier", 
       assert.equal(res.status, 422, `answered ${res.status}`);
       assert.match(res.body?.error?.message ?? "", /no address snapshot/);
     });
-  }, { lock: ORDER_LOCK });
+  }, { actor: TEST_ACTOR.id, lock: ORDER_LOCK });
 });
 
 // ------------------------------------------------------------ the refusals
 
 test("an unknown field is refused over HTTP and executes nothing beside it", async () => {
   await inPinnedTransaction(async (client: PoolClient) => {
+    const { order } = await anOpenPurchaseOrder(client);
     await asAdmin(admin, async () => {
       const before = (
         await client.query(
@@ -367,7 +363,7 @@ test("an unknown field is refused over HTTP and executes nothing beside it", asy
       ).rows[0];
       assert.deepEqual(after, before, "the valid half of a refused document was executed");
     });
-  }, { lock: ORDER_LOCK });
+  }, { actor: TEST_ACTOR.id, lock: ORDER_LOCK });
 });
 
 test("a nonexistent order answers 404 to an admin", async () => {
@@ -378,7 +374,7 @@ test("a nonexistent order answers 404 to an admin", async () => {
         .send({ status: "Received" });
       assert.equal(res.status, 404, `answered ${res.status}`);
     });
-  }, { lock: ORDER_LOCK });
+  }, { actor: TEST_ACTOR.id, lock: ORDER_LOCK });
 });
 
 // -------------------------------------------------------------- the op order
@@ -439,6 +435,7 @@ type Snapshot = Awaited<ReturnType<typeof snapshot>>;
 // What still has to hold is that each does its own job and nothing else.
 test("finalizing prices the order and pins its spots; the label that follows moves nothing", async () => {
   await inPinnedTransaction(async (client: PoolClient) => {
+    const { order } = await anOpenPurchaseOrder(client);
     await pinMetals(client);
     await asAdmin(admin, async () => {
       const finalize = await request(app)
@@ -465,13 +462,14 @@ test("finalizing prices the order and pins its spots; the label that follows mov
         "the label moved money or the spot pin"
       );
     });
-  }, { lock: ORDER_LOCK });
+  }, { actor: TEST_ACTOR.id, lock: ORDER_LOCK });
 });
 
 // `notes` is the other column this PATCH owns, and null CLEARS it - which is
 // what `.partial()` over a nullable column means (shared/db/patch.ts).
 test("notes is written and an explicit null clears it", async () => {
   await inPinnedTransaction(async (client: PoolClient) => {
+    const { order } = await anOpenPurchaseOrder(client);
     await asAdmin(admin, async () => {
       const written = await request(app)
         .patch(`/api/orders/${order.id}`)
@@ -493,16 +491,16 @@ test("notes is written and an explicit null clears it", async () => {
         null
       );
     });
-  }, { lock: ORDER_LOCK });
+  }, { actor: TEST_ACTOR.id, lock: ORDER_LOCK });
 });
 
 test("nothing this file did survived the transactions", async () => {
-  const [{ status }] = await outside<{ status: string }>(
-    `SELECT status FROM orders.orders WHERE id = $1`,
-    [order.id]
-  );
-  assert.equal(status, order.status, "an order's status was really moved in dev");
-
+  // THE ORDER'S OWN STATUS CHECK IS GONE, and its absence is stronger than it
+  // was: the fixture is built inside each transaction now, so there is no
+  // committed order for this file to have moved. What remains checkable from
+  // outside is the pinned spot feed, below - and that no built order survived,
+  // which shared/testing/builders/tests/builders.test.ts asserts directly with
+  // assertNothingEscaped.
   // No PINNED sentinel escaped the rolled-back transactions. NOT an exact
   // snapshot comparison any more: the dev deployment's spot cron writes
   // exchange.metals continuously on this shared database, so exact equality

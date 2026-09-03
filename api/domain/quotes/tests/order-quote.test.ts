@@ -6,6 +6,7 @@ import type { PoolClient } from "pg";
 import request from "supertest";
 import pool from "#db";
 import { mockSessions, restoreSessions, as, anonymous } from "#shared/testing/session.ts";
+import { TEST_ACTOR } from "#shared/testing/actor.ts";
 import { inPinnedTransaction, outside } from "#shared/testing/pinned-pool.ts";
 import { LOCKS } from "#shared/testing/locks.ts";
 
@@ -176,7 +177,7 @@ test("the order quote is the owner's and the admins', and nobody else's", async 
       const res = await request(app).post("/api/quotes/order").send({ order_id: order.id });
       assert.equal(res.status, 200, `an admin was answered ${res.status}: ${JSON.stringify(res.body)}`);
     });
-  }, { lock: ORDER_LOCK });
+  }, { actor: TEST_ACTOR.id, lock: ORDER_LOCK });
 });
 
 // ---------------------------------------------------- stored versus estimate
@@ -235,7 +236,7 @@ test("stored prices come back verbatim and estimates come from the tables", asyn
         `total ${res.body.total} != items ${scrapTotal + bullionTotal} - shipping ${shippingCharge} - payout ${payoutCost}`
       );
     });
-  }, { lock: ORDER_LOCK });
+  }, { actor: TEST_ACTOR.id, lock: ORDER_LOCK });
 });
 
 // ------------------------------------------------------------- locked spots
@@ -327,7 +328,7 @@ test("a locked order estimates at its locked spots, an unlocked one at live", as
       assert.ok(Math.abs(unlockedLine.unit_price - atLive) < EXACT,
         `unlocked estimate ${unlockedLine.unit_price} != ${atLive} at the live spot`);
     });
-  }, { lock: ORDER_LOCK });
+  }, { actor: TEST_ACTOR.id, lock: ORDER_LOCK });
 });
 
 // ------------------------------------------------- the $26.81 regression pin
@@ -360,5 +361,5 @@ test("no body-supplied price, spot or order object is accepted at all", async ()
       assert.equal(poisoned.status, 400, "the order quote accepted something price-shaped");
       assert.ok(clean.body.total !== 0.01, "the clean quote itself came back at the poison value");
     });
-  }, { lock: ORDER_LOCK });
+  }, { actor: TEST_ACTOR.id, lock: ORDER_LOCK });
 });

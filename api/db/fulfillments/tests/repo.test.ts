@@ -6,37 +6,26 @@ import type { PoolClient } from "pg";
 import { randomUUID } from "node:crypto";
 import pool from "#db";
 import { LOCKS, takeLocks } from "#shared/testing/locks.ts";
+import { inRollback } from "#shared/testing/rollback.ts";
+import { aUser, anOrder, fulfillmentMethodId } from "#shared/testing/builders/index.ts";
 import * as fulfillments from "#db/fulfillments/repo.ts";
 
-let client: PoolClient;
 
 beforeAll(async () => {
   assert.equal(
     new Date().getTimezoneOffset(), 0,
     "these tests require TZ=UTC - run them with `pnpm --filter @dorado/api test`"
   );
-  client = await pool.connect();
 });
 
 afterAll(async () => {
-  client.release();
   await pool.end();
 });
 
-async function inRollback(fn: (c: PoolClient) => Promise<void>) {
-  await client.query("BEGIN");
-  try {
-    await fn(client);
-  } finally {
-    await client.query("ROLLBACK");
-  }
-}
-
-async function aMethodId(c: PoolClient): Promise<string> {
-  const { rows: [m] } = await c.query(`SELECT id FROM fulfillments.methods LIMIT 1`);
-  assert.ok(m, "dev has no fulfillments.methods row - seeded reference data is missing");
-  return m.id;
-}
+// The fulfillment method, by the two columns that identify one - see
+// shared/testing/builders/reference.ts on why a seeded reference row is named
+// rather than discovered.
+const aMethodId = (c: PoolClient) => fulfillmentMethodId(c, "CARRIER DROPOFF", "purchase");
 
 test("update writes status and method_id, leaving a column the patch never named alone", async () => {
   await inRollback(async (c: PoolClient) => {
@@ -68,12 +57,12 @@ test("update(order_id) is one-way: a second attach changes nothing", async () =>
     const draft = await fulfillments.createDraft(
       { id: randomUUID(), method_id }, c
     );
-    const { rows: [order] } = await c.query(
-      `SELECT id FROM orders.orders WHERE NOT EXISTS (
-         SELECT 1 FROM fulfillments.fulfillments f WHERE f.order_id = orders.orders.id
-       ) LIMIT 1`
-    );
-    assert.ok(order, "dev has no order free of a fulfillment to attach a draft to");
+    // A BUILT ORDER IS FREE OF A FULFILLMENT BY CONSTRUCTION (lane 1). This
+    // hunted dev for an order nothing had attached yet, which is why the file
+    // needed LOCKS.FULFILLMENTS in the first place: two files racing for the
+    // same "free" order deadlocked. The lock stays because the table is still
+    // shared, but the race for a scarce fixture is gone.
+    const order = await anOrder(c, await aUser(c), { direction: "purchase" });
 
     const attached = await fulfillments.update(draft.id, { order_id: order.id }, c);
     assert.equal(attached, true, "the first attach wrote no row");

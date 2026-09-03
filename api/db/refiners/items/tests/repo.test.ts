@@ -6,39 +6,40 @@ import type { PoolClient } from "pg";
 import { randomUUID } from "node:crypto";
 import pool from "#db";
 import { LOCKS, takeLocks } from "#shared/testing/locks.ts";
+import { rollbackIn } from "#shared/testing/rollback.ts";
+import { aUser, anOrder, aRefinerEngagement } from "#shared/testing/builders/index.ts";
 import * as refinerItems from "#db/refiners/items/repo.ts";
 
-let client: PoolClient;
 
 beforeAll(async () => {
   assert.equal(
     new Date().getTimezoneOffset(), 0,
     "these tests require TZ=UTC - run them with `pnpm --filter @dorado/api test`"
   );
-  client = await pool.connect();
 });
 
 afterAll(async () => {
-  client.release();
   await pool.end();
 });
 
-async function inRollback(fn: (c: PoolClient) => Promise<void>) {
-  await client.query("BEGIN");
-  try {
-    await takeLocks(client, LOCKS.ORDERS);
-    await fn(client);
-  } finally {
-    await client.query("ROLLBACK");
-  }
-}
+// THE FILE'S LOCK, BOUND ONCE. A lock is a property of what this file
+// WRITES, not of one call, so it is named here and every inRollback below
+// inherits it - which is also what stops a new test being added without one.
+const inRollback = rollbackIn({ lock: LOCKS.ORDERS });
+
+// A REAL LINE, BUILT: an order with one lot, mirrored into refiners.items by
+// the engagement builder - which is the only way that row is ever created.
+// This used to overwrite the assay numbers of whatever refined line dev held
+// first, and those are the weights a customer is paid on.
+const aMirroredLine = async (c: PoolClient) => {
+  const order = await anOrder(c, await aUser(c), { direction: "purchase" }).withLots(1);
+  await aRefinerEngagement(c, order);
+  return { order_item_id: order.items[0]!.id };
+};
 
 test("update writes the assay quad and the premium on a real line", async () => {
   await inRollback(async (c: PoolClient) => {
-    const { rows: [line] } = await c.query(
-      `SELECT order_item_id FROM refiners.items ORDER BY order_item_id LIMIT 1`
-    );
-    assert.ok(line, "dev has no refiners.items row to test against");
+    const line = await aMirroredLine(c);
 
     const changed = await refinerItems.update(
       line.order_item_id,
@@ -62,10 +63,7 @@ test("update writes the assay quad and the premium on a real line", async () => 
 
 test("a column absent from the patch is left alone", async () => {
   await inRollback(async (c: PoolClient) => {
-    const { rows: [line] } = await c.query(
-      `SELECT order_item_id FROM refiners.items ORDER BY order_item_id LIMIT 1`
-    );
-    assert.ok(line, "dev has no refiners.items row to test against");
+    const line = await aMirroredLine(c);
     await c.query(
       `UPDATE refiners.items SET premium = 3, purity = 0.5 WHERE order_item_id = $1`,
       [line.order_item_id]

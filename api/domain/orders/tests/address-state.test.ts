@@ -41,7 +41,9 @@ import pool from "#db";
 import * as addressService from "#domain/places/addresses/service.ts";
 import * as taxRepo from "#domain/sales-tax/service.ts";
 import { inPinnedTransaction, outside } from "#shared/testing/pinned-pool.ts";
+import { TEST_ACTOR } from "#shared/testing/actor.ts";
 import { LOCKS } from "#shared/testing/locks.ts";
+import { aUser, anAddress } from "#shared/testing/builders/index.ts";
 
 // THE STRUCTURAL SUBSET THE FIXTURE QUERY ASKS FOR. A SELECT projection, not
 // a table row.
@@ -61,8 +63,6 @@ type RuleFixture = {
   weight_max: string | null;
 };
 
-let addressId: string;
-let addressState: string;
 let ruleState: string;
 let rule: RuleFixture;
 let item: Record<string, unknown>;
@@ -70,33 +70,31 @@ let price: number;
 let aggregate: number;
 
 beforeAll(async () => {
-  // An address whose state actually has a charging rule, and the rule itself.
-  // Everything below is derived from this one row, so the fixture cannot drift
-  // from the data.
+  // The rule alone - a real, taxing sales-tax rule from tax.sales_tax_rules
+  // (business config, not something any test writes). Everything below is
+  // derived from this one row, so the fixture cannot drift from the data.
   //
-  // The first version of this test UPDATEd an address into the rule's state
-  // inside the pinned transaction and then read it back through
-  // addressService.getAddressFromId. That function takes no executor, so it
-  // reads through the pool and could not see the update - it returned dev's
-  // real state and the assertion passed for the wrong reason. Nothing is
-  // written now, which removes the question.
+  // NO ADDRESS IS DISCOVERED HERE ANY MORE. An earlier version joined
+  // places.addresses to find one already in the rule's state, and that was
+  // flaky: places.addresses is NOT frozen the way exchange.addresses was -
+  // other tests in the suite build and (a few, deliberately) commit real rows
+  // there, so a tied LIMIT 1 could pick a row another test deletes moments
+  // later. Each test below builds its OWN address, in this state, inside its
+  // own pinned transaction instead - see anAddress calls below.
   const rows = await outside<RuleFixture>(
-    `SELECT a.id, a.state, r.tax_rate, r.metal_category, r.product_type,
-            r.min_price, r.max_price, r.purity_min, r.purity_max,
-            r.aggregate_min, r.aggregate_max, r.weight_min, r.weight_max
-     FROM exchange.addresses a
-     JOIN exchange.sales_tax_rules r ON r.state_code = a.state
-     WHERE r.tax_rate > 0
-     ORDER BY r.tax_rate DESC
-     LIMIT 1`
+    `SELECT id, state_code AS state, tax_rate, metal_category, product_type,
+            min_price, max_price, purity_min, purity_max,
+            aggregate_min, aggregate_max, weight_min, weight_max
+       FROM tax.sales_tax_rules
+      WHERE tax_rate > 0
+      ORDER BY tax_rate DESC, id ASC
+      LIMIT 1`
   );
   rule = rows[0];
   assert.ok(
     rule,
-    "dev has no address in a state that charges tax - the suite would prove nothing"
+    "dev has no sales-tax rule that charges tax - the suite would prove nothing"
   );
-  addressId = rule.id;
-  addressState = rule.state;
   ruleState = rule.state;
 
   const between = (lo: string | null, hi: string | null, want: number) => Math.min(Math.max(want, Number(lo)), Number(hi));
@@ -118,8 +116,10 @@ afterAll(async () => {
 });
 
 test("getFromId returns a list, so reading .state off it is undefined", async () => {
-  await inPinnedTransaction(async () => {
-    const address = await addressService.getFromId(addressId);
+  await inPinnedTransaction(async (c: PoolClient) => {
+    const owner = await aUser(c);
+    const built = await anAddress(c, owner, { state: ruleState });
+    const address = await addressService.getFromId(built.id);
 
     assert.ok(Array.isArray(address), "getFromId returns rows, not a row");
     // `address.state` is what the defective call sites wrote, and TypeScript
@@ -133,8 +133,8 @@ test("getFromId returns a list, so reading .state off it is undefined", async ()
       undefined,
       "this is the value both sales-order paths pass as the taxing state"
     );
-    assert.equal(address[0].state, addressState, "the state is one level down");
-  }, { lock: LOCKS.ADDRESSES });
+    assert.equal(address[0].state, ruleState, "the state is one level down");
+  }, { actor: TEST_ACTOR.id, lock: LOCKS.ADDRESSES });
 });
 
 test("a real state and an undefined one are answered differently", async () => {
@@ -164,35 +164,39 @@ test("a real state and an undefined one are answered differently", async () => {
       "an undefined state matches no rule and COALESCEs to zero, silently"
     );
     assert.notEqual(withState, withUndefined);
-  }, { lock: LOCKS.ADDRESSES });
+  }, { actor: TEST_ACTOR.id, lock: LOCKS.ADDRESSES });
 });
 
 // The other half: what the two sales-order paths read now. Without this the
 // suite would only record the defect and would not notice it coming back the
 // other way - a change to getAddressFromId that made IT return a list too.
 test("getAddressFromId returns the row, so .state is the state", async () => {
-  await inPinnedTransaction(async () => {
-    const address = await addressService.getAddressFromId(addressId);
+  await inPinnedTransaction(async (c: PoolClient) => {
+    const owner = await aUser(c);
+    const built = await anAddress(c, owner, { state: ruleState });
+    const address = await addressService.getAddressFromId(built.id);
 
     // GUARDED: getAddressFromId returns `| undefined`, and both tests below
     // read `.state` off it directly. A fixture address that stopped resolving
     // TypeError'd instead of saying which id failed. Surfaced by the
     // conversion.
-    assert.ok(address, `getAddressFromId could not read address ${addressId}`);
+    assert.ok(address, `getAddressFromId could not read address ${built.id}`);
     assert.ok(!Array.isArray(address), "this one is a row");
-    assert.equal(address.state, addressState);
+    assert.equal(address.state, ruleState);
     assert.equal(typeof address.state, "string");
-  }, { lock: LOCKS.ADDRESSES });
+  }, { actor: TEST_ACTOR.id, lock: LOCKS.ADDRESSES });
 });
 
 test("the taxing state now yields the rate the rule says, not zero", async () => {
   await inPinnedTransaction(async (c: PoolClient) => {
-    const address = await addressService.getAddressFromId(addressId);
-    assert.ok(address, `getAddressFromId could not read address ${addressId}`);
+    const owner = await aUser(c);
+    const built = await anAddress(c, owner, { state: ruleState });
+    const address = await addressService.getAddressFromId(built.id);
+    assert.ok(address, `getAddressFromId could not read address ${built.id}`);
     assert.equal(address.state, ruleState, "the fixture address is in the charging state");
 
     const rate = await taxRepo.rateForItem(address.state, item, price, aggregate, c);
     assert.ok(rate > 0, "a real state reached the rules");
     assert.equal(Number(rate), Number(rule.tax_rate));
-  }, { lock: LOCKS.ADDRESSES });
+  }, { actor: TEST_ACTOR.id, lock: LOCKS.ADDRESSES });
 });

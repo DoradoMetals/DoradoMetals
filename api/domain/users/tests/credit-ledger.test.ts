@@ -18,26 +18,24 @@ import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
 
 import { LOCKS } from "#shared/testing/locks.ts";
+import { TEST_ACTOR } from "#shared/testing/actor.ts";
 import { inPinnedTransaction } from "#shared/testing/pinned-pool.ts";
 import * as usersService from "#domain/users/service.ts";
+import { aUser } from "#shared/testing/builders/index.ts";
 import query from "#shared/db/query.ts";
 
 // The balance lock, like every other file that moves one - see LOCKS.USERS.
 const inPinned = <T,>(fn: (c: PoolClient) => Promise<T> | T): Promise<T> =>
-  inPinnedTransaction(fn, { lock: LOCKS.USERS });
+  inPinnedTransaction(fn, { actor: TEST_ACTOR.id, lock: LOCKS.USERS });
 
 // A customer with a balance: against zero, "subtract" has nothing to work with
 // and the floor check refuses before the ledger is ever reached.
-async function aFundedCustomer(client: PoolClient) {
-  const { rows } = await query<{ id: string; dorado_funds: number }>(
-    `SELECT id, dorado_funds FROM auth.users
-      WHERE role IS DISTINCT FROM 'admin' AND dorado_funds > 0
-      ORDER BY dorado_funds DESC LIMIT 1`,
-    [], client
-  );
-  assert.ok(rows.length, "dev has no customer with credit - these tests would be vacuous");
-  return rows[0];
-}
+//
+// BUILT, WITH THE BALANCE AS AN ARGUMENT (lane 1). This took the richest
+// customer on the database and moved their credit; the balance being positive
+// was something the test had to hope for and assert, and "these tests would be
+// vacuous" was the honest note about what happened when it was not.
+const aFundedCustomer = (client: PoolClient) => aUser(client, { funds: 5000 });
 
 // THE ROWS THAT WERE NOT THERE BEFORE, FOUND BY ID RATHER THAN BY TIME.
 //

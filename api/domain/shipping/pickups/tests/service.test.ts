@@ -5,20 +5,18 @@ import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
 import pool from "#db";
 import { LOCKS, takeLocks } from "#shared/testing/locks.ts";
+import { rollbackIn } from "#shared/testing/rollback.ts";
 import * as dual from "#domain/shipping/pickups/service.ts";
 
-let client: PoolClient;
 
 beforeAll(async () => {
   assert.equal(
     new Date().getTimezoneOffset(), 0,
     "these tests require TZ=UTC - run them with `pnpm --filter @dorado/api test`"
   );
-  client = await pool.connect();
 });
 
 afterAll(async () => {
-  client.release();
   await pool.end();
 });
 
@@ -28,15 +26,10 @@ afterAll(async () => {
 // domain/orders/tests/edit-line.test.ts writes real, autocommitting rows to
 // orders.orders under LOCKS.ORDERS - see purchase-read.test.ts's own comment
 // for the full mechanism.
-async function inRollback(fn: (c: PoolClient) => Promise<void>) {
-  await client.query("BEGIN");
-  await takeLocks(client, [LOCKS.ORDERS, LOCKS.FULFILLMENTS]);
-  try {
-    await fn(client);
-  } finally {
-    await client.query("ROLLBACK");
-  }
-}
+// THE FILE'S LOCK, BOUND ONCE. A lock is a property of what this file
+// WRITES, not of one call, so it is named here and every inRollback below
+// inherits it - which is also what stops a new test being added without one.
+const inRollback = rollbackIn({ lock: [LOCKS.ORDERS, LOCKS.FULFILLMENTS] });
 
 // A purchase order with a shipment already on it, so a pickup has somewhere to hang.
 const anOrderWithShipment = async (c: PoolClient) => {

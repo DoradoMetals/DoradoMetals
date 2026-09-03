@@ -4,6 +4,7 @@
 // withTransaction still works while pinned: its BEGIN/COMMIT are rewritten to SAVEPOINTs (a nested COMMIT would otherwise end the outer transaction early and defeat the whole thing).
 import pool from "#db";
 import { takeLocks } from "#shared/testing/locks.ts";
+import { TEST_ACTOR, actingAs } from "#shared/testing/actor.ts";
 import type { PoolClient, QueryResult } from "pg";
 
 // The pool is patched in place, which pg's types don't describe — one named cast here rather than scattered anys.
@@ -61,16 +62,24 @@ function nestable(client: PoolClient): PoolClient {
 // Takes a number or array — see locks.ts for what each covers; acquired in ascending order automatically.
 // `actor` sets app.actor_id for the audit trigger, because a repo test calls the repo with the pinned client directly and never opens its own transaction (which is normally what sets it) — so without this every row would read as system-authored.
 // It's set transaction-local (set_config's 3rd arg) so a pooled connection can't leak it to the next test.
+//
+// *** IT DEFAULTS TO A REAL PERSON NOW (lane 2). *** It used to default to '',
+// so 275 of the suite's 276 pinned calls wrote rows the trigger stamped with
+// nobody - twenty-six tables' audit columns exercised as NULL and asserted
+// nowhere. shared/testing/actor.ts's TEST_ACTOR is a row the preflight commits
+// to the test database once, which is what makes the stamp resolve; pass
+// `actor: null` DELIBERATELY for the "a cron sweep is writing" case, and a
+// builder-made user's id when the test is about WHO wrote the row.
 export async function inPinnedTransaction<T>(
   fn: (client: PoolClient) => Promise<T> | T,
-  { lock, actor }: { lock?: number | number[]; actor?: string | null } = {}
+  { lock, actor = TEST_ACTOR.id }: { lock?: number | number[]; actor?: string | null } = {}
 ): Promise<T> {
   const client = await REAL.connect();
   const pinned = nestable(client);
   depth = 0;
 
   await client.query("BEGIN");
-  await client.query("SELECT set_config('app.actor_id', $1, true)", [actor ?? ""]);
+  await actingAs(client, actor);
   if (lock) await takeLocks(client, lock);
   patchable.connect = async () => pinned;
   patchable.query = (sql, params) => pinned.query(sql as never, params as never);

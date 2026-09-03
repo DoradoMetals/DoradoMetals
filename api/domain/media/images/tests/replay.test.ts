@@ -19,6 +19,7 @@ import request from "supertest";
 import pool from "#db";
 import query from "#shared/db/query.ts";
 import { mockSessions, restoreSessions, as, anonymous } from "#shared/testing/session.ts";
+import { TEST_ACTOR } from "#shared/testing/actor.ts";
 import {
   inPinnedTransaction,
   assertNothingEscaped,
@@ -82,7 +83,7 @@ test("every route refuses an anonymous caller", async () => {
         assert.ok([401, 403].includes(res.status), `${name} answered ${res.status} anonymously`);
       }
     });
-  });
+  }, { actor: TEST_ACTOR.id });
 });
 
 // The fix this suite found: a signed-in customer must not list every image in the system - before, this answered 200 with a presigned URL for each row.
@@ -100,7 +101,7 @@ test("a signed-in customer cannot list every image in the system", async () => {
         "a refused caller still received image rows"
       );
     });
-  });
+  }, { actor: TEST_ACTOR.id });
 });
 
 // The ownership check on the presigned GET - "does not exist" and "is not yours" are deliberately the same answer (404) for both.
@@ -117,7 +118,7 @@ test("a stranger cannot get a download URL for someone else's image", async () =
       const res = await request(app).get("/api/images/get_url").query({ image_id: randomUUID() });
       assert.equal(res.status, 404, "a missing image answers differently from a forbidden one");
     });
-  });
+  }, { actor: TEST_ACTOR.id });
 });
 
 // The one that matters most: the old bug removed the object first, then ran a scoped DELETE - a stranger's request destroyed the file, matched no row, and returned success.
@@ -133,7 +134,7 @@ test("a stranger deleting someone else's image is refused and the row survives",
 
     const { rows } = await query(`SELECT id FROM media.images WHERE id = $1`, [image.id]);
     assert.equal(rows.length, 1, "the stranger's delete removed the row anyway");
-  });
+  }, { actor: TEST_ACTOR.id });
 });
 
 // The counterpart, so the test above is a refusal rather than the endpoint being broken for everyone - asserts only that the row is gone; object removal is MinIO's and isn't exercised here.
@@ -152,7 +153,7 @@ test("the owner can delete their own image", async () => {
       const { rows } = await query(`SELECT id FROM media.images WHERE id = $1`, [image.id]);
       assert.equal(rows.length, 0, "the owner's own delete left the row behind");
     });
-  });
+  }, { actor: TEST_ACTOR.id });
 });
 
 test("nothing this file created survived the transaction", async () => {

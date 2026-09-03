@@ -9,6 +9,8 @@ import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
 import { randomUUID } from "node:crypto";
 import pool from "#db";
+import { inRollback } from "#shared/testing/rollback.ts";
+import { aUser } from "#shared/testing/builders/index.ts";
 import * as intents from "#db/payments/intents/repo.ts";
 import * as attempts from "#db/payments/attempts/repo.ts";
 
@@ -27,18 +29,6 @@ afterAll(async () => {
   await pool.end();
 });
 
-async function inRollback(fn: (c: PoolClient) => Promise<void>) {
-  await client.query("BEGIN");
-  try {
-    await fn(client);
-  } finally {
-    await client.query("ROLLBACK");
-  }
-}
-
-const aUser = async (c: PoolClient) =>
-  (await c.query("SELECT id FROM exchange.users ORDER BY id LIMIT 1")).rows[0].id;
-
 // Every fixture gets its own session id. payments.intents.session_id carries no
 // foreign key - the session is better-auth's fact, not this schema's - so a
 // fresh uuid is enough to keep one file's rows out of another's.
@@ -50,7 +40,7 @@ const anIntent = async (
   const intent = await intents.create(
     {
       session_id: over.session_id ?? randomUUID(),
-      user_id: over.user_id ?? (await aUser(c)),
+      user_id: over.user_id ?? (await aUser(c)).id,
       type: over.type ?? "checkout",
       status: over.status ?? "requires_payment_method",
       amount_expected: over.amount_expected ?? 100,
@@ -73,7 +63,7 @@ const anIntent = async (
 
 test("create returns the row it wrote, and getOne reads it back", async () => {
   await inRollback(async (c: PoolClient) => {
-    const user = await aUser(c);
+    const user = (await aUser(c)).id;
     const { intent } = await anIntent(c, { user_id: user, type: "checkout" });
 
     assert.equal(intent.user_id, user);
@@ -132,7 +122,7 @@ test("remove answers true once and false the second time", async () => {
 
 test("an open intent is found again for the same session, user and type", async () => {
   await inRollback(async (c: PoolClient) => {
-    const user = await aUser(c);
+    const user = (await aUser(c)).id;
     const session_id = randomUUID();
     const { provider_ref } = await anIntent(c, { user_id: user, session_id });
 
@@ -154,7 +144,7 @@ test("an open intent is found again for the same session, user and type", async 
 for (const status of ["succeeded", "processing", "canceled"]) {
   test(`an intent that is ${status} is not offered for reuse`, async () => {
     await inRollback(async (c: PoolClient) => {
-      const user = await aUser(c);
+      const user = (await aUser(c)).id;
       const session_id = randomUUID();
       await anIntent(c, { user_id: user, session_id, status });
 
@@ -168,7 +158,7 @@ for (const status of ["succeeded", "processing", "canceled"]) {
 
 test("an intent for a different type is not reused", async () => {
   await inRollback(async (c: PoolClient) => {
-    const user = await aUser(c);
+    const user = (await aUser(c)).id;
     const session_id = randomUUID();
     await anIntent(c, { user_id: user, session_id, type: "checkout" });
 
@@ -183,7 +173,7 @@ test("an intent for a different type is not reused", async () => {
 // compares it against Math.round(dollars * 100).
 test("the payment facts resolve by the provider's reference, in cents", async () => {
   await inRollback(async (c: PoolClient) => {
-    const user = await aUser(c);
+    const user = (await aUser(c)).id;
     const { intent, provider_ref } = await anIntent(c, { user_id: user });
 
     const facts = await intents.findFactsByRef(provider_ref, c);

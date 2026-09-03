@@ -19,6 +19,8 @@
     "lint:row-vs-list": "node scripts/lint-row-vs-list.ts",
     "lint:test-locks": "node scripts/lint-test-locks.ts",
     "lint:test-locks:self-test": "node scripts/lint-test-locks.ts --self-test",
+    "lint:test-actor": "node scripts/lint-test-actor.ts",
+    "lint:test-actor:self-test": "node scripts/lint-test-actor.ts --self-test",
     "audit:routes": "node scripts/route-guards.ts --list",
     "audit:frontend-nullability": "node scripts/audit-frontend-nullability.ts",
     "migrate": "node scripts/migrate.mjs",

@@ -22,7 +22,9 @@ import request from "supertest";
 import { randomUUID } from "node:crypto";
 import pool from "#db";
 import { mockSessions, restoreSessions, as } from "#shared/testing/session.ts";
+import { TEST_ACTOR, TEST_CUSTOMER } from "#shared/testing/actor.ts";
 import { inPinnedTransaction, outside } from "#shared/testing/pinned-pool.ts";
+import { aProduct } from "#shared/testing/builders/index.ts";
 
 await mockSessions();
 const { default: app } = await import("#app");
@@ -32,58 +34,37 @@ const { default: app } = await import("#app");
 type UserFixture = { id: string; name: string | null; email: string | null };
 type ProductFixture = { id: string; product_name: string | null };
 
-let customer: UserFixture;
-let product: ProductFixture;
-let hidden: ProductFixture;
-let notSellable: ProductFixture;
-let productId: string;
-let hiddenId: string;
-let notSellableId: string;
 // The frontend generates a UUID per local scrap line and the backend stores it
 // AS the scrap row's id, so this cannot be an arbitrary string - a plain
 // "local-1" is rejected by the column type, which is how I learned it.
 const scrapId = randomUUID();
 
-beforeAll(async () => {
-  customer = (
-    await outside<UserFixture>(
-      `SELECT id, name, email FROM exchange.users WHERE role IS DISTINCT FROM 'admin' LIMIT 1`
-    )
-  )[0];
-  assert.ok(customer, "dev has no non-admin user");
+const customer = TEST_CUSTOMER;
 
-  // EACH FIXTURE IS CHOSEN TO DISCRIMINATE THE TWO FLAGS, not merely to be
-  // hidden. The first version took "any product with display = false" and "any
-  // with sell_display = false", and both happened to be false in BOTH
-  // directions - so swapping the flags in the guard passed every test. A test
-  // that cannot tell the two apart is not testing which one is checked.
-  //
-  // So: the buy-cart fixture is hidden for buying but LIVE for selling, and the
-  // sell-cart fixture is the reverse. Now checking the wrong flag lets it
-  // through and the test fails.
-  hidden = (
-    await outside<ProductFixture>(
-      `SELECT id, name AS product_name FROM products.bullion
-        WHERE display IS NOT TRUE AND sell_display IS TRUE ORDER BY id LIMIT 1`
-    )
-  )[0];
-  notSellable = (
-    await outside<ProductFixture>(
-      `SELECT id, name AS product_name FROM products.bullion
-        WHERE display IS TRUE AND sell_display IS NOT TRUE ORDER BY id LIMIT 1`
-    )
-  )[0];
-
-  product = (
-    await outside<ProductFixture>(`SELECT id, name AS product_name FROM products.bullion ORDER BY id LIMIT 1`)
-  )[0];
-  assert.ok(product, "dev has no products");
-  // The ids on their own: a request body naming a fixture's id is not the same
-  // object as the fixture, and naming them apart keeps that legible.
-  productId = product.id;
-  hiddenId = hidden?.id;
-  notSellableId = notSellable?.id;
-});
+// EACH FIXTURE IS BUILT TO DISCRIMINATE THE TWO FLAGS (lane 1), which is what
+// this file's own beforeAll comment was already arguing for: the first version
+// took "any product with display = false" and "any with sell_display = false",
+// both happened to be false in BOTH directions, and swapping the flags in the
+// guard passed every test. Finding a discriminating pair on dev then became a
+// search that could come back empty, which is why three `assert.ok`s below
+// said "dev has no product that ...".
+//
+// Stated instead: one product hidden for buying and live for selling, one the
+// reverse, one live for both. Now checking the wrong flag lets a line through
+// and the test fails, on any database.
+const products = async (c: PoolClient) => {
+  const live = await aProduct(c, { display: true, sell_display: true });
+  const hidden = await aProduct(c, { display: false, sell_display: true });
+  const notSellable = await aProduct(c, { display: true, sell_display: false });
+  return {
+    product: { id: live.id, product_name: live.name },
+    hidden: { id: hidden.id, product_name: hidden.name },
+    notSellable: { id: notSellable.id, product_name: notSellable.name },
+    productId: live.id,
+    hiddenId: hidden.id,
+    notSellableId: notSellable.id,
+  };
+};
 
 afterAll(async () => {
   restoreSessions();
@@ -92,6 +73,7 @@ afterAll(async () => {
 
 test("sync_cart replaces the customer's buy cart", async () => {
   await inPinnedTransaction(async (client: PoolClient) => {
+    const { product, productId, hiddenId, notSellableId } = await products(client);
     await as(Object.assign({}, customer, { role: "user" }), async () => {
       const res = await request(app)
         .post("/api/cart/sync_cart")
@@ -110,13 +92,14 @@ test("sync_cart replaces the customer's buy cart", async () => {
       assert.equal(rows[0].product_id, product.id, "a different product was stored");
       assert.equal(Number(rows[0].quantity), 3, "the quantity was not stored");
     });
-  });
+  }, { actor: TEST_ACTOR.id });
 });
 
 // REPLACES, not appends - the name says so and it is the behaviour the frontend
 // relies on when it pushes its local cart up.
 test("sync_cart replaces rather than appends", async () => {
   await inPinnedTransaction(async (client: PoolClient) => {
+    const { product, productId, hiddenId, notSellableId } = await products(client);
     await as(Object.assign({}, customer, { role: "user" }), async () => {
       await request(app)
         .post("/api/cart/sync_cart")
@@ -135,7 +118,7 @@ test("sync_cart replaces rather than appends", async () => {
       assert.equal(rows.length, 1, "the second sync added a line instead of replacing");
       assert.equal(Number(rows[0].quantity), 1, "the cart kept the first quantity");
     });
-  });
+  }, { actor: TEST_ACTOR.id });
 });
 
 test("sync_sell_cart stores a scrap line with its own values", async () => {
@@ -175,7 +158,7 @@ test("sync_sell_cart stores a scrap line with its own values", async () => {
       assert.equal(Number(rows[0].purity), 0.75, "the purity was not stored");
       assert.equal(Number(rows[0].pre_melt), 2.5, "the weight was not stored");
     });
-  });
+  }, { actor: TEST_ACTOR.id });
 });
 
 test("get_sell_cart returns what sync_sell_cart stored", async () => {
@@ -207,7 +190,7 @@ test("get_sell_cart returns what sync_sell_cart stored", async () => {
       assert.equal(res.body.length, 1, "the stored scrap line did not come back");
       assert.equal(res.body[0].type, "scrap", "the line lost its type");
     });
-  });
+  }, { actor: TEST_ACTOR.id });
 });
 
 // ASSERTS WHAT THE ROUTE DOES, WHICH IS NOT WHAT IT LOOKS LIKE IT SHOULD.
@@ -226,7 +209,8 @@ test("get_sell_cart returns what sync_sell_cart stored", async () => {
 // If that is decided, this assertion becomes `Array.isArray(res.body)` and the
 // two lines above it go away.
 test("get_cart returns the customer's saved buy cart", async () => {
-  await inPinnedTransaction(async () => {
+  await inPinnedTransaction(async (client: PoolClient) => {
+    const { product, productId } = await products(client);
     await as(Object.assign({}, customer, { role: "user" }), async () => {
       await request(app)
         .post("/api/cart/sync_cart")
@@ -248,7 +232,7 @@ test("get_cart returns the customer's saved buy cart", async () => {
         "the product just synced is not in the returned cart"
       );
     });
-  });
+  }, { actor: TEST_ACTOR.id });
 });
 
 // A CART MAY ONLY HOLD PRODUCTS THAT ARE LIVE IN THAT DIRECTION.
@@ -278,24 +262,37 @@ const cartOf = async (client: PoolClient) => {
   return JSON.stringify(rows);
 };
 
-test("the fixtures for these cases really are what they claim", () => {
-  assert.ok(
-    hidden,
-    "dev has no product that is hidden for buying but live for selling - " +
-      "without one, this suite cannot tell which flag the buy guard reads"
-  );
-  assert.ok(
-    notSellable,
-    "dev has no product that is live for buying but hidden for selling - " +
-      "without one, this suite cannot tell which flag the sell guard reads"
-  );
-  assert.ok(product, "dev has no product at all");
-  assert.notEqual(hidden.id, product.id, "the hidden fixture is the live one");
-  assert.notEqual(notSellable.id, hidden.id, "the two fixtures are the same row");
+// The fixtures are BUILT to these flags now rather than found with them, so
+// what is left to check is that the builder really writes what it was asked -
+// the one thing a fixture library can get silently wrong.
+test("the fixtures for these cases really are what they claim", async () => {
+  await inPinnedTransaction(async (client: PoolClient) => {
+    const { product, hidden, notSellable } = await products(client);
+    const { rows } = await client.query(
+      `SELECT id, display, sell_display FROM products.bullion WHERE id = ANY($1)`,
+      [[product.id, hidden.id, notSellable.id]]
+    );
+    const by = new Map(rows.map((r) => [r.id, r]));
+    assert.deepEqual(
+      { display: by.get(hidden.id)!.display, sell: by.get(hidden.id)!.sell_display },
+      { display: false, sell: true },
+      "the hidden fixture is not hidden for buying and live for selling"
+    );
+    assert.deepEqual(
+      { display: by.get(notSellable.id)!.display, sell: by.get(notSellable.id)!.sell_display },
+      { display: true, sell: false },
+      "the unsellable fixture is not live for buying and hidden for selling"
+    );
+    assert.deepEqual(
+      { display: by.get(product.id)!.display, sell: by.get(product.id)!.sell_display },
+      { display: true, sell: true }
+    );
+  }, { actor: TEST_ACTOR.id });
 });
 
 test("sync_cart refuses a product that is not displayed", async () => {
   await inPinnedTransaction(async (client: PoolClient) => {
+    const { product, productId, hiddenId, notSellableId } = await products(client);
     await as(Object.assign({}, customer, { role: "user" }), async () => {
       const before = await cartOf(client);
 
@@ -307,15 +304,16 @@ test("sync_cart refuses a product that is not displayed", async () => {
       // the domain refuses, and a domain refusal is Invalid.
       assert.equal(res.status, 422, `answered ${res.status}: ${JSON.stringify(res.body)}`);
       assert.equal(await cartOf(client), before, "a refused sync changed the cart");
-      assert.ok(!before.includes(hidden.id), "the hidden product reached the cart");
+      assert.ok(!before.includes(hiddenId), "the hidden product reached the cart");
     });
-  });
+  }, { actor: TEST_ACTOR.id });
 });
 
 // The whole sync is refused, not the offending line quietly dropped. Dropping
 // it would leave the customer with a cart they did not ask for and no error.
 test("one bad line refuses the whole sync, and nothing is written", async () => {
   await inPinnedTransaction(async (client: PoolClient) => {
+    const { product, productId, hiddenId, notSellableId } = await products(client);
     await as(Object.assign({}, customer, { role: "user" }), async () => {
       const before = await cartOf(client);
 
@@ -332,7 +330,7 @@ test("one bad line refuses the whole sync, and nothing is written", async () => 
         "the good line was written even though the sync was refused"
       );
     });
-  });
+  }, { actor: TEST_ACTOR.id });
 });
 
 // An id that names nothing is refused the same way a hidden one is. Answering
@@ -347,14 +345,15 @@ test("sync_cart refuses an id that names no product", async () => {
       // the domain refuses, and a domain refusal is Invalid.
       assert.equal(res.status, 422, `answered ${res.status}: ${JSON.stringify(res.body)}`);
     });
-  });
+  }, { actor: TEST_ACTOR.id });
 });
 
 // The two directions are separate flags. A product can be sellable to the
 // business without being displayed for sale by it, so neither is a proxy for
 // the other and the sell cart is checked against its own.
 test("sync_sell_cart refuses a product line that is not sell_display", async () => {
-  await inPinnedTransaction(async () => {
+  await inPinnedTransaction(async (client: PoolClient) => {
+    const { notSellableId } = await products(client);
     await as(Object.assign({}, customer, { role: "user" }), async () => {
       const res = await request(app)
         .post("/api/cart/sync_sell_cart")
@@ -363,7 +362,7 @@ test("sync_sell_cart refuses a product line that is not sell_display", async () 
       // the domain refuses, and a domain refusal is Invalid.
       assert.equal(res.status, 422, `answered ${res.status}: ${JSON.stringify(res.body)}`);
     });
-  });
+  }, { actor: TEST_ACTOR.id });
 });
 
 // A scrap line names no product, so it has nothing to check and must still be
@@ -378,7 +377,7 @@ test("a scrap line is unaffected by the product check", async () => {
         });
       assert.equal(res.status, 200, `answered ${res.status}: ${JSON.stringify(res.body)}`);
     });
-  });
+  }, { actor: TEST_ACTOR.id });
 });
 
 // D73. The frontend's sell-cart line is { type: "product", data: {...} }, and
@@ -389,6 +388,7 @@ test("a scrap line is unaffected by the product check", async () => {
 // real shape, post-conversion spelling, and proves the product line lands.
 test("sync_sell_cart stores a product line sent in the frontend's own shape", async () => {
   await inPinnedTransaction(async (client: PoolClient) => {
+    const { product, productId, hiddenId, notSellableId } = await products(client);
     await as(Object.assign({}, customer, { role: "user" }), async () => {
       const res = await request(app)
         .post("/api/cart/sync_sell_cart")
@@ -414,5 +414,5 @@ test("sync_sell_cart stores a product line sent in the frontend's own shape", as
       assert.equal(next.rows.length, 1, "the product line was skipped again - D73 is back");
       assert.equal(Number(next.rows[0].quantity), 2, "the data.quantity was not read");
     });
-  });
+  }, { actor: TEST_ACTOR.id });
 });

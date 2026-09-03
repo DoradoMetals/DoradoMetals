@@ -32,7 +32,7 @@
 // pool.query are replaced for the duration, so the service's transaction
 // becomes a savepoint inside one that is discarded. The last test checks from
 // outside that nothing survived.
-import { test, afterAll, beforeAll } from "vitest";
+import { test, afterAll } from "vitest";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
 import pool from "#db";
@@ -47,11 +47,14 @@ import * as shipmentRepo from "#domain/shipping/shipments/service.ts";
 import { closeBrowser } from "#providers/pdfs/puppeteer.ts";
 import type { Transport } from "#providers/emails/nodemailer.ts";
 import { LOCKS } from "#shared/testing/locks.ts";
+import { TEST_ACTOR } from "#shared/testing/actor.ts";
 import {
   inPinnedTransaction,
   assertNothingEscaped,
-  outside,
 } from "#shared/testing/pinned-pool.ts";
+import {
+  aUser, aProduct, anOrder, anAddress, refinerNamed, refinersByEmail,
+} from "#shared/testing/builders/index.ts";
 
 // THE STRUCTURAL SUBSET EACH FIXTURE ACTUALLY HAS. SELECT projections, not
 // table rows.
@@ -59,61 +62,49 @@ type SalesOrderFixture = { id: string; order_number: number };
 type SupplierFixture = { id: string };
 type Baseline = { order_sent: boolean | null; supplier_id: string | null; outbound: number };
 
-let addressless: SalesOrderFixture;
-let withAddress: SalesOrderFixture;
-let supplier: SupplierFixture;
-let baseline: Baseline;
+// EVERY SALES ORDER IS BUILT (lane 1). Five separate discoveries lived here,
+// each an EXISTS clause hunting a sales order in a particular state - with an
+// address, without one, sent, unsent, with a refiner attached - plus a
+// `baseline` snapshot taken before anything ran so the escape check could
+// measure what this file ADDED rather than what dev already held. That last
+// one is the tell: the file had to measure the world because it did not own
+// its fixtures. Against built orders the baseline is zero by construction.
+//
+// The refineries stay NAMED: two seeded rows, one with an email and one
+// without, which is the distinction the send path turns on (and is true in
+// production - Dillion Gage has no email, which is why the refusal exists).
+type Built = { id: string; order_number: number };
 
-beforeAll(async () => {
-  // Through the shared executor with no client, never pool.query: lint:db
-  // enforces that everywhere, and it is the rule that makes the pinned pool
-  // work at all - one place to intercept.
-  const rows = await outside<SalesOrderFixture>(
-    `SELECT id, number AS order_number FROM orders.orders o
-      WHERE direction = 'sale'
-        AND NOT EXISTS (SELECT 1 FROM orders.addresses a WHERE a.order_id = o.id)
-      ORDER BY number LIMIT 1`
+const aSalesOrder = async (
+  c: PoolClient,
+  { address = true, sent = false, refiner = null as string | null } = {}
+): Promise<Built> => {
+  const owner = await aUser(c);
+  const product = await aProduct(c);
+  const plan = anOrder(c, owner, {
+    direction: "sale",
+    status: sent ? "In Transit" : "Pending",
+  })
+    .withBullion(product, 1, { price: 2600 })
+    .withTotals({ total: 2600, items: 2600 });
+  const order = address
+    ? await plan.withAddress(await anAddress(c, owner))
+    : await plan;
+  // order_sent IS SET EXPLICITLY EITHER WAY. The column is nullable with no
+  // default, so a built order starts NULL - and `assert.equal(order_sent,
+  // false)` is a real assertion about the refusal path, not a nullability
+  // accident.
+  await c.query(
+    `UPDATE orders.orders SET order_sent = $2 WHERE id = $1`, [order.id, sent]
   );
-  addressless = rows[0];
-  assert.ok(
-    addressless,
-    "dev has no sales order without an address - the case production has is untested"
-  );
-
-  const withAddr = await outside<SalesOrderFixture>(
-    `SELECT id, number AS order_number FROM orders.orders o
-      WHERE direction = 'sale'
-        AND EXISTS (SELECT 1 FROM orders.addresses a WHERE a.order_id = o.id)
-      ORDER BY number LIMIT 1`
-  );
-  withAddress = withAddr[0];
-  assert.ok(withAddress, "dev has no sales order with an address");
-
-  const suppliers = await outside<SupplierFixture>(`SELECT id FROM refiners.refiners LIMIT 1`);
-  supplier = suppliers[0];
-  assert.ok(supplier, "dev has no supplier to send an order to");
-
-  // Taken before anything runs, so the escape check measures what THIS file
-  // added rather than what dev already held.
-  const [row] = await outside<{ order_sent: boolean | null; supplier_id: string | null }>(
-    `SELECT o.order_sent,
-            (SELECT ro.refiner_id FROM refiners.orders ro WHERE ro.order_id = o.id) AS supplier_id
-       FROM orders.orders o WHERE o.id = $1`,
-    [withAddress.id]
-  );
-  const [ship] = await outside<{ n: number }>(
-    `SELECT count(*)::int AS n FROM shipping.shipments s
-       JOIN fulfillments.shipments fs ON fs.shipment_id = s.id
-       JOIN fulfillments.fulfillments f ON f.id = fs.fulfillment_id
-      WHERE f.order_id = $1 AND s.direction = 'Outbound'`,
-    [withAddress.id]
-  );
-  baseline = {
-    order_sent: row.order_sent,
-    supplier_id: row.supplier_id,
-    outbound: ship.n,
-  };
-});
+  if (refiner) {
+    await c.query(
+      `INSERT INTO refiners.orders (order_id, refiner_id) VALUES ($1, $2)`,
+      [order.id, refiner]
+    );
+  }
+  return { id: order.id, order_number: order.number };
+};
 
 afterAll(async () => {
   // Chromium, even though nothing here should ever launch it.
@@ -170,7 +161,9 @@ const state = async (id: string) => {
 };
 
 test("an order with no address is refused, and nothing is written", async () => {
-  await inPinnedTransaction(async () => {
+  await inPinnedTransaction(async (c: PoolClient) => {
+    const addressless = await aSalesOrder(c, { address: false });
+    const supplier = { id: await refinerNamed(c, "Elemetal") };
     const before = await state(addressless.id);
 
     const mail = recorder();
@@ -189,7 +182,7 @@ test("an order with no address is refused, and nothing is written", async () => 
       before,
       "the refusal still attached a supplier, created a shipment or set order_sent"
     );
-  }, { lock: LOCKS.ORDERS });
+  }, { actor: TEST_ACTOR.id, lock: LOCKS.ORDERS });
 });
 
 // THE ASSERTIONS ABOVE MUST BE ABLE TO SEE A WRITE. Comparing a row to itself
@@ -198,6 +191,8 @@ test("an order with no address is refused, and nothing is written", async () => 
 // that `state` reports every one of them. It never goes near the email.
 test("those three writes are visible to the assertion that says they did not happen", async () => {
   await inPinnedTransaction(async (client: PoolClient) => {
+    const withAddress = await aSalesOrder(client);
+    const supplier = { id: await refinerNamed(client, "Elemetal") };
     const before = await state(withAddress.id);
 
     const engagementId = await refinerService.engagementIdFor(withAddress.id, client);
@@ -216,35 +211,46 @@ test("those three writes are visible to the assertion that says they did not hap
       before.outbound + 1,
       "the outbound shipment was not observed"
     );
-  }, { lock: LOCKS.ORDERS });
+  }, { actor: TEST_ACTOR.id, lock: LOCKS.ORDERS });
 });
 
 // The property the pin exists for, and the one the first version of this file
 // could not have made. Every assertion above reads its own writes and passes
 // whether or not they are contained; this is the only one that notices.
 //
-// Measured against a baseline rather than zero, because the second test writes
-// against a real dev order and dev already carries whatever it carries.
+// AGAINST ZERO, NOT A BASELINE (lane 1). It used to measure the fixture order's
+// outbound shipments before the file ran and compare back to that number,
+// because "the second test writes against a real dev order and dev already
+// carries whatever it carries". The order is built inside the transaction now,
+// so nothing about it can survive at all - which is a sharper claim than
+// "it carries as much as it did".
 test("nothing this file did survived the transaction", async () => {
+  let built = "";
+  await inPinnedTransaction(async (c: PoolClient) => {
+    const order = await aSalesOrder(c);
+    built = order.id;
+    const supplier = { id: await refinerNamed(c, "Elemetal") };
+    const engagementId = await refinerService.engagementIdFor(order.id, c);
+    await refinerOrders.update(engagementId, { refiner_id: supplier.id }, c);
+    await shipmentRepo.create({ sales_order_id: order.id, type: "Outbound" }, c);
+    await ordersRepo.update(order.id, { order_sent: true }, {}, c);
+  }, { actor: TEST_ACTOR.id, lock: LOCKS.ORDERS });
+
   assert.equal(
     await assertNothingEscaped(
       "shipping.shipments s JOIN fulfillments.shipments fs ON fs.shipment_id = s.id " +
         "JOIN fulfillments.fulfillments f ON f.id = fs.fulfillment_id",
       "f.order_id = $1 AND s.direction = 'Outbound'",
-      [withAddress.id]
+      [built]
     ),
-    baseline.outbound,
-    "an outbound shipment was committed to dev"
+    0,
+    "an outbound shipment was committed to the database"
   );
-
-  const [row] = await outside<{ order_sent: boolean | null; supplier_id: string | null }>(
-    `SELECT o.order_sent,
-            (SELECT ro.refiner_id FROM refiners.orders ro WHERE ro.order_id = o.id) AS supplier_id
-       FROM orders.orders o WHERE o.id = $1`,
-    [withAddress.id]
+  assert.equal(
+    await assertNothingEscaped("orders.orders", "id = $1", [built]),
+    0,
+    "the built sales order itself was committed"
   );
-  assert.equal(row.order_sent, baseline.order_sent, "order_sent was committed to dev");
-  assert.equal(row.supplier_id, baseline.supplier_id, "a supplier was committed to dev");
 });
 
 // A SENT ORDER MAY BE RE-SENT TO THE SAME REFINER, AND MAY NOT BE MOVED.
@@ -259,27 +265,15 @@ test("nothing this file did survived the transaction", async () => {
 // still emails, and it must NOT write again.
 test("a sent order cannot be moved to a different refiner", async () => {
   await inPinnedTransaction(async (client: PoolClient) => {
-    const order = (
-      await client.query(
-        `SELECT o.id, o.number AS order_number, ro.refiner_id AS supplier_id
-           FROM orders.orders o
-           JOIN refiners.orders ro ON ro.order_id = o.id
-          WHERE o.direction = 'sale' AND o.order_sent = true AND ro.refiner_id IS NOT NULL
-            AND EXISTS (SELECT 1 FROM orders.addresses a WHERE a.order_id = o.id) LIMIT 1`
-      )
-    ).rows[0];
-    // ASSERTED, NOT SKIPPED. A silent `return` here would make this test pass
-    // for ever if the dev data stopped matching, which is the failure mode
-    // where a green suite proves nothing. Dev has six of these.
-    assert.ok(order, "dev has no sent order with a supplier and an address to test against");
-
-    const other = (
-      await client.query(
-        `SELECT id FROM refiners.refiners WHERE id <> $1 LIMIT 1`,
-        [order.supplier_id]
-      )
-    ).rows[0];
-    assert.ok(other, "dev has only one supplier, so this cannot be tested");
+    // A SENT ORDER ALREADY ATTACHED TO A REFINERY, BUILT (lane 1). The old
+    // fixture found one on dev - "dev has six of these" - and the file's own
+    // comment about asserting rather than skipping was the right instinct
+    // applied to the wrong problem: the state is stated now, so the fixture
+    // cannot stop matching.
+    const { withEmail, withoutEmail } = await refinersByEmail(client);
+    const built = await aSalesOrder(client, { sent: true, refiner: withEmail });
+    const order = { ...built, supplier_id: withEmail };
+    const other = { id: withoutEmail };
 
     await assert.rejects(
       () => orders.sendToRefiner(order.id, other.id),
@@ -303,21 +297,14 @@ test("a sent order cannot be moved to a different refiner", async () => {
         `SELECT refiner_id AS supplier_id FROM refiners.orders WHERE order_id = $1`, [order.id])
     ).rows[0];
     assert.equal(after.supplier_id, order.supplier_id, "the refiner was changed anyway");
-  }, { lock: LOCKS.ORDERS });
+  }, { actor: TEST_ACTOR.id, lock: LOCKS.ORDERS });
 });
 
 test("re-sending to the same refiner writes nothing new", async () => {
   await inPinnedTransaction(async (client: PoolClient) => {
-    const order = (
-      await client.query(
-        `SELECT o.id, ro.refiner_id AS supplier_id
-           FROM orders.orders o
-           JOIN refiners.orders ro ON ro.order_id = o.id
-          WHERE o.direction = 'sale' AND o.order_sent = true AND ro.refiner_id IS NOT NULL
-            AND EXISTS (SELECT 1 FROM orders.addresses a WHERE a.order_id = o.id) LIMIT 1`
-      )
-    ).rows[0];
-    assert.ok(order, "dev has no sent order with a supplier and an address to test against");
+    const { withEmail } = await refinersByEmail(client);
+    const built = await aSalesOrder(client, { sent: true, refiner: withEmail });
+    const order = { ...built, supplier_id: withEmail };
 
     const before = Number(
       (
@@ -351,7 +338,7 @@ test("re-sending to the same refiner writes nothing new", async () => {
     );
     assert.equal(after, before, "a resend created another outbound shipment");
     assert.equal(sent.length, 1, "the resend did not send the refiner their copy");
-  }, { lock: LOCKS.ORDERS });
+  }, { actor: TEST_ACTOR.id, lock: LOCKS.ORDERS });
 });
 
 // THE REFINER'S COPY HAS NEVER ARRIVED, AND THIS IS WHY.
@@ -367,26 +354,11 @@ test("re-sending to the same refiner writes nothing new", async () => {
 // every export to `any`, so `email: string` accepted undefined.
 test("the refiner's copy goes to the organization's address, not a field that does not exist", async () => {
   await inPinnedTransaction(async (client: PoolClient) => {
-    const order = (
-      await client.query(
-        `SELECT s.id, s.number AS order_number,
-                (SELECT ro.refiner_id FROM refiners.orders ro WHERE ro.order_id = s.id) AS supplier_id
-           FROM orders.orders s
-          WHERE s.direction = 'sale' AND s.order_sent = false
-            AND EXISTS (SELECT 1 FROM orders.addresses a WHERE a.order_id = s.id) LIMIT 1`
-      )
-    ).rows[0];
-    assert.ok(order, "dev has no unsent sales order with an address");
-
-    // A refiner that DOES have an address, so the send is reached.
-    const withEmail = (
-      await client.query(
-        `SELECT r.id FROM refiners.refiners r
-           JOIN organizations.organizations o ON o.id = r.organization_id
-          WHERE o.email IS NOT NULL AND o.email <> '' LIMIT 1`
-      )
-    ).rows[0];
-    assert.ok(withEmail, "dev has no refiner with an email - this would prove nothing");
+    const order = await aSalesOrder(client);
+    // A refinery that DOES have an email, so the send is reached.
+    // refinersByEmail refuses if the seed ever stops having one of each, which
+    // is what the two "this would prove nothing" guards were watching for.
+    const withEmail = { id: (await refinersByEmail(client)).withEmail };
 
     const sent: Message[] = [];
     await orders.sendToRefiner(
@@ -398,7 +370,7 @@ test("the refiner's copy goes to the organization's address, not a field that do
     assert.equal(sent.length, 1, "the refiner was not sent their copy");
     assert.ok(sent[0].to, `the recipient was ${JSON.stringify(sent[0].to)}`);
     assert.match(String(sent[0].to), /@/, "the recipient is not an address");
-  }, { lock: LOCKS.ORDERS });
+  }, { actor: TEST_ACTOR.id, lock: LOCKS.ORDERS });
 });
 
 // A refiner with no email is refused BEFORE the transaction, not after it.
@@ -407,25 +379,8 @@ test("the refiner's copy goes to the organization's address, not a field that do
 // record-first-email-second ordering exists to prevent.
 test("a refiner with no email is refused before anything is written", async () => {
   await inPinnedTransaction(async (client: PoolClient) => {
-    const order = (
-      await client.query(
-        `SELECT s.id,
-                (SELECT ro.refiner_id FROM refiners.orders ro WHERE ro.order_id = s.id) AS supplier_id
-           FROM orders.orders s
-          WHERE s.direction = 'sale' AND s.order_sent = false
-            AND EXISTS (SELECT 1 FROM orders.addresses a WHERE a.order_id = s.id) LIMIT 1`
-      )
-    ).rows[0];
-    assert.ok(order, "dev has no unsent sales order with an address");
-
-    const noEmail = (
-      await client.query(
-        `SELECT r.id FROM refiners.refiners r
-           JOIN organizations.organizations o ON o.id = r.organization_id
-          WHERE o.email IS NULL OR o.email = '' LIMIT 1`
-      )
-    ).rows[0];
-    assert.ok(noEmail, "dev has no refiner without an email - this would prove nothing");
+    const order = await aSalesOrder(client);
+    const noEmail = { id: (await refinersByEmail(client)).withoutEmail };
 
     await assert.rejects(
       () => orders.sendToRefiner(
@@ -448,6 +403,6 @@ test("a refiner with no email is refused before anything is written", async () =
            FROM orders.orders o WHERE o.id = $1`, [order.id])
     ).rows[0];
     assert.equal(after.order_sent, false, "the order was marked sent anyway");
-    assert.equal(after.supplier_id, order.supplier_id, "the refiner was attached anyway");
-  }, { lock: LOCKS.ORDERS });
+    assert.equal(after.supplier_id, null, "the refiner was attached anyway");
+  }, { actor: TEST_ACTOR.id, lock: LOCKS.ORDERS });
 });

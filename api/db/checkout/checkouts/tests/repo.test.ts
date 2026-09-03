@@ -8,43 +8,35 @@ import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
 import { randomUUID } from "node:crypto";
 import pool from "#db";
+import { inRollback } from "#shared/testing/rollback.ts";
+import { aUser } from "#shared/testing/builders/index.ts";
 import * as checkouts from "#db/checkout/checkouts/repo.ts";
 
-let client: PoolClient;
 
 beforeAll(async () => {
   assert.equal(
     new Date().getTimezoneOffset(), 0,
     "these tests require TZ=UTC - run them with `pnpm --filter @dorado/api test`"
   );
-  client = await pool.connect();
 });
-afterAll(async () => { client.release(); await pool.end(); });
+afterAll(async () => { await pool.end(); });
 
-async function inRollback(fn: (c: PoolClient) => Promise<void>) {
-  await client.query("BEGIN");
-  try { await fn(client); } finally { await client.query("ROLLBACK"); }
-}
-
-const aUser = async (c: PoolClient) => {
-  const { rows } = await c.query("SELECT id FROM exchange.users ORDER BY id LIMIT 1");
-  assert.ok(rows.length, "the test database has no users");
-  return rows[0].id;
-};
-
-// The session for a direction, made if it is not there. Dev already holds
-// sessions for its users, so a test must not assume it is creating one.
+// THE CUSTOMER IS BUILT, SO THE SESSION IS ALWAYS NEW (lane 1). This used to
+// read a real person out of the frozen exchange.users table and then say "dev
+// already holds sessions for its users, so a test must not assume it is
+// creating one" - true, and the reason `session` had a found-or-create branch
+// that no assertion here ever wanted. A built customer has no sessions at all,
+// so `create` is the only path and the two directions are genuinely two new
+// rows.
 const session = async (c: PoolClient, user_id: string, direction: string) => {
-  const found = await checkouts.findFor(user_id, direction, c);
-  if (found) return found;
   const created = await checkouts.create({ user_id, direction }, c);
-  assert.ok(created, "the session was neither found nor created");
+  assert.ok(created, "the session was not created");
   return created!;
 };
 
 test("there is one session per user per direction", async () => {
   await inRollback(async (c: PoolClient) => {
-    const user = await aUser(c);
+    const user = (await aUser(c)).id;
     const purchase = await session(c, user, "purchase");
     const sale = await session(c, user, "sale");
     assert.notEqual(purchase.id, sale.id, "the two directions shared a row");
@@ -58,7 +50,7 @@ test("there is one session per user per direction", async () => {
 
 test("update writes the named columns, leaves the rest, and answers true", async () => {
   await inRollback(async (c: PoolClient) => {
-    const row = await session(c, await aUser(c), "purchase");
+    const row = await session(c, (await aUser(c)).id, "purchase");
     await checkouts.update(row.id, { package_weight: 3, declared_value: 500 }, c);
 
     const changed = await checkouts.update(row.id, { package_weight: 7 }, c);
@@ -72,7 +64,7 @@ test("update writes the named columns, leaves the rest, and answers true", async
 
 test("an explicit null clears a column - the reset a placed order performs", async () => {
   await inRollback(async (c: PoolClient) => {
-    const row = await session(c, await aUser(c), "purchase");
+    const row = await session(c, (await aUser(c)).id, "purchase");
     await checkouts.update(row.id, { package_weight: 3 }, c);
 
     const cleared = Object.fromEntries(checkouts.PATCHABLE.map((col) => [col, null]));
@@ -93,8 +85,7 @@ test("update answers false for an id with no session", async () => {
 
 test("remove answers true once and false the second time", async () => {
   await inRollback(async (c: PoolClient) => {
-    const { rows } = await c.query("SELECT id FROM exchange.users ORDER BY id DESC LIMIT 1");
-    const row = await session(c, rows[0].id, "sale");
+    const row = await session(c, (await aUser(c)).id, "sale");
     assert.equal(await checkouts.remove(row.id, c), true);
     assert.equal(await checkouts.remove(row.id, c), false);
   });

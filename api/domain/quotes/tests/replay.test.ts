@@ -5,7 +5,9 @@ import assert from "node:assert/strict";
 import request from "supertest";
 import pool from "#db";
 import { mockSessions, restoreSessions, as, anonymous } from "#shared/testing/session.ts";
+import { TEST_ACTOR } from "#shared/testing/actor.ts";
 import { inPinnedTransaction, outside } from "#shared/testing/pinned-pool.ts";
+import { aUser, anOrder, anAddress } from "#shared/testing/builders/index.ts";
 
 await mockSessions();
 const { default: app } = await import("#app");
@@ -28,15 +30,13 @@ type BuyerFixture = {
   name: string | null;
   email: string | null;
   dorado_funds: number | null;
-  address_id: string;
-  state: string | null;
 };
 
 let spots: SpotFixture[];      // per metal, from the tables the API reads
 let gold: SpotFixture; // the Gold spot row
 let product: ProductFixture;   // a Gold product live in BOTH directions
 let hiddenAsk: { id: string }; // display = false but sell_display = true
-let buyer: BuyerFixture;       // a real user row with an address
+let buyer: BuyerFixture;       // a real user - the address it needs is built per-test
 let goldId: string;            // the Gold metal's id - a scrap line names it
 let standardId: string;        // shipping.services, code STANDARD
 let cardId: string;            // payments.methods, sale, type CARD
@@ -78,13 +78,20 @@ beforeAll(async () => {
   hiddenAsk = hiddens[0];
   assert.ok(hiddenAsk, "dev has no display=false, sell_display=true product");
 
+  // Identity only - auth.users, the live table. The address a sales-order
+  // quote needs is built fresh inside each test that needs one (see
+  // anAddress below): discovering an EXISTING places.addresses row here and
+  // using it later, across the gap to the test body, was flaky - other
+  // files in the suite build and (a few, deliberately) commit real rows
+  // there, so a row found in beforeAll could be gone by the time a test
+  // read it a moment later. Unlike exchange.addresses, places.addresses is
+  // not frozen.
   const buyers = await outside<BuyerFixture>(
-    `SELECT u.id, u.name, u.email, u.dorado_funds, a.id AS address_id, a.state
-       FROM auth.users u JOIN exchange.addresses a ON a.user_id = u.id
-      ORDER BY u.dorado_funds DESC NULLS LAST, u.id LIMIT 1`
+    `SELECT id, name, email, dorado_funds FROM auth.users
+      ORDER BY dorado_funds DESC NULLS LAST, id LIMIT 1`
   );
   buyer = buyers[0];
-  assert.ok(buyer, "dev has no user with an address");
+  assert.ok(buyer, "dev has no user to buy as");
 
   // The delivery service and payment method are IDS in the body now (D214
   // item 11); their rows' `code` and `type` are what price the order.
@@ -135,7 +142,7 @@ test("the catalogue quote is public and prices both sides at the server's spot",
       // No quantity asks what one costs.
       assert.equal(bid.body.items[0].quantity, 1);
     });
-  });
+  }, { actor: TEST_ACTOR.id });
 });
 
 test("a display=false product is refused on the ask side and quoted on the bid side", async () => {
@@ -156,7 +163,7 @@ test("a display=false product is refused on the ask side and quoted on the bid s
         .send({ items: [{ id: hiddenAsk.id }], side: "bid" });
       assert.equal(quoted.status, 200, `a sell-live product was refused on the bid side (${quoted.status}): ${JSON.stringify(quoted.body)}`);
     });
-  });
+  }, { actor: TEST_ACTOR.id });
 });
 
 // ------------------------------------------------------------- sales order
@@ -178,15 +185,19 @@ test("the sales-order quote needs a session; the two goods quotes do not", async
       assert.equal(pub.status, 200, `purchase_order answered ${pub.status} anonymously`);
       assert.ok(pub.body.total > 0, "the anonymous estimate priced at nothing");
     });
-  });
+  }, { actor: TEST_ACTOR.id });
 });
 
 test("the sales-order breakdown reconciles to the cent and funds come from the user's row", async () => {
-  await inPinnedTransaction(async () => {
+  await inPinnedTransaction(async (c) => {
+    // buyer is a REAL, pre-existing user, who may already own a
+    // default-shipping address in dev - default_shipping: false avoids
+    // the one-default-per-user constraint against that real row.
+    const address = await anAddress(c, buyer, { default_shipping: false });
     await as({ id: buyer.id, name: buyer.name, email: buyer.email }, async () => {
       const res = await request(app).post("/api/quotes/sales_order").send({
         items: [{ id: product.id, quantity: 2 }],
-        address_id: buyer.address_id,
+        address_id: address.id,
         carrier_service_id: standardId,
         payment_method_id: cardId,
       });
@@ -238,7 +249,7 @@ test("the sales-order breakdown reconciles to the cent and funds come from the u
       // getShippingCharge: free over $1000, else STANDARD is $25.
       assert.equal(b.shipping_charge, b.item_total > 1000 ? 0 : 25);
     });
-  });
+  }, { actor: TEST_ACTOR.id });
 });
 
 // Admin quotes price the named user's funds (subjectOf semantics); a customer naming somebody else just gets their OWN quote back — the guard is the session winning, never an error or somebody else's balance.
@@ -271,7 +282,7 @@ test("an admin's sales-order quote prices the named user's funds; a customer's n
       assert.ok(Math.abs(res.body.beginning_funds - Number(buyer.dorado_funds ?? 0)) < EXACT,
         `a customer naming somebody else got beginning_funds ${res.body.beginning_funds}, not their own ${buyer.dorado_funds}`);
     });
-  });
+  }, { actor: TEST_ACTOR.id });
 });
 
 // ---------------------------------------------------------- purchase order
@@ -347,7 +358,7 @@ test("the purchase-order quote prices scrap and product lines from the rates ban
       });
       assert.equal(byName.status, 400, "a product named by name was accepted");
     });
-  });
+  }, { actor: TEST_ACTOR.id });
 });
 
 // THE $26.81 REGRESSION, SHUT ONE STEP EARLIER. A body riding spots, prices or
@@ -356,7 +367,11 @@ test("the purchase-order quote prices scrap and product lines from the rates ban
 // rather than silently discarded, which is the stronger property: a field the
 // schema has no place for cannot be read by accident later.
 test("no body-supplied price, spot or premium is accepted at all", async () => {
-  await inPinnedTransaction(async () => {
+  await inPinnedTransaction(async (c) => {
+    // buyer is a REAL, pre-existing user, who may already own a
+    // default-shipping address in dev - default_shipping: false avoids
+    // the one-default-per-user constraint against that real row.
+    const address = await anAddress(c, buyer, { default_shipping: false });
     const poison = {
       spots: [{ type: "Gold", name: "Gold", ask_spot: 1, bid_spot: 1, ask: 1, bid: 1 }],
       spot_prices: [{ type: "Gold", ask_spot: 1, bid_spot: 1 }],
@@ -393,7 +408,7 @@ test("no body-supplied price, spot or premium is accepted at all", async () => {
     await as({ id: buyer.id, name: buyer.name, email: buyer.email }, async () => {
       const base = {
         items: [{ id: product.id, quantity: 2 }],
-        address_id: buyer.address_id,
+        address_id: address.id,
         carrier_service_id: standardId,
         payment_method_id: cardId,
       };
@@ -443,7 +458,7 @@ test("no body-supplied price, spot or premium is accepted at all", async () => {
         );
       }
     });
-  });
+  }, { actor: TEST_ACTOR.id });
 });
 
 
@@ -451,15 +466,16 @@ test("no body-supplied price, spot or premium is accepted at all", async () => {
 
 // ADMIN ONLY, and asserted from both sides: the response is the business's
 // margins on a customer's order, so the customer being refused is as much the
-// contract as the admin being answered. Priced against the oldest purchase
-// order, the same stable fixture the ownership tests pick.
+// contract as the admin being answered. Priced against a purchase order built
+// here - orderRead.view (what profitBreakdown reads) resolves from
+// orders.orders, so discovering the fixture from exchange.purchase_orders was
+// answering the question for a table the endpoint no longer queries.
 test("the profit breakdown answers an admin and refuses everyone else", async () => {
-  await inPinnedTransaction(async () => {
-    const orders = await outside(
-      `SELECT id FROM exchange.purchase_orders ORDER BY created_at ASC, id ASC LIMIT 1`
-    );
-    assert.ok(orders[0], "dev has no purchase order to price");
-    const order_id = orders[0].id;
+  await inPinnedTransaction(async (c) => {
+    const seller = await aUser(c);
+    const order = await anOrder(c, seller, { direction: "purchase" })
+      .withLots(1).withSpots().withTotals({ shipping: 24.5 });
+    const order_id = order.id;
 
     await anonymous(async () => {
       const res = await request(app).post("/api/quotes/profit_breakdown").send({ order_id });
@@ -493,17 +509,17 @@ test("the profit breakdown answers an admin and refuses everyone else", async ()
         }
       }
     });
-  });
+  }, { actor: TEST_ACTOR.id });
 });
 
 // The margins are server-sourced like every other quote: a body riding spots,
 // premiums or an order object in is priced identically to a clean one.
 test("a poisoned profit-breakdown body changes nothing", async () => {
-  await inPinnedTransaction(async () => {
-    const orders = await outside(
-      `SELECT id FROM exchange.purchase_orders ORDER BY created_at ASC, id ASC LIMIT 1`
-    );
-    const order_id = orders[0].id;
+  await inPinnedTransaction(async (c) => {
+    const seller = await aUser(c);
+    const order = await anOrder(c, seller, { direction: "purchase" })
+      .withLots(1).withSpots().withTotals({ shipping: 24.5 });
+    const order_id = order.id;
 
     await as({ id: buyer.id, name: buyer.name, email: buyer.email, role: "admin" }, async () => {
       const clean = await request(app).post("/api/quotes/profit_breakdown").send({ order_id });
@@ -527,5 +543,5 @@ test("a poisoned profit-breakdown body changes nothing", async () => {
         poisoned.status, 400, "the profit breakdown accepted a field besides the order id"
       );
     });
-  });
+  }, { actor: TEST_ACTOR.id });
 });

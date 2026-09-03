@@ -12,6 +12,9 @@ import * as usersService from "#domain/users/service.ts";
 // The ledger entry that records WHY a balance moved lives in its own feature: the balance is users', the log is transactions'.
 import * as transactions from "#domain/transactions/service.ts";
 import { takeLocks, LOCKS } from "#shared/testing/locks.ts";
+import { rollbackIn } from "#shared/testing/rollback.ts";
+import { TEST_ACTOR } from "#shared/testing/actor.ts";
+import { aUser as buildUser, anOrder } from "#shared/testing/builders/index.ts";
 
 let client: PoolClient;
 
@@ -28,22 +31,22 @@ afterAll(async () => {
   await pool.end();
 });
 
-async function inRollback(fn: (c: PoolClient) => Promise<void>) {
-  await client.query("BEGIN");
+// THE FILE'S LOCK, BOUND ONCE. A lock is a property of what this file
+// WRITES, not of one call, so it is named here and every inRollback below
+// inherits it - which is also what stops a new test being added without one.
   // A locked read held across a ledger insert - see LOCKS.USERS.
-  await takeLocks(client, LOCKS.USERS);
-  try {
-    await fn(client);
-  } finally {
-    await client.query("ROLLBACK");
-  }
-}
+const inRollback = rollbackIn({ lock: LOCKS.USERS });
 
 // auth.users, WHICH IS BOTH THE WRITE TARGET AND THE READ SOURCE since
 // migration 118. It used to be exchange.users on both lines, back when the
 // balance was written there and mirrored across by a trigger.
-const aUser = async (c: PoolClient) =>
-  (await c.query("SELECT id, dorado_funds FROM auth.users ORDER BY id LIMIT 1")).rows[0];
+//
+// THE CUSTOMER IS BUILT (lane 1) AND STARTS AT ZERO. This read whichever
+// auth.users row sorted first, so every test below moved a real customer's
+// credit and then compared against "before" - correct arithmetic about the
+// wrong person's money, saved only by the rollback. A known starting balance
+// also lets the assertions state absolute figures.
+const aUser = async (c: PoolClient) => buildUser(c, { funds: 0 });
 
 const balance = async (c: PoolClient, id: string) =>
   Number((await c.query("SELECT dorado_funds FROM auth.users WHERE id = $1", [id])).rows[0].dorado_funds ?? 0);
@@ -51,18 +54,18 @@ const balance = async (c: PoolClient, id: string) =>
 test("adding funds increases the balance by exactly the amount", async () => {
   await inRollback(async (c: PoolClient) => {
     const user = await aUser(c);
-    const before = await balance(c, user.id);
+    assert.equal(await balance(c, user.id), 0, "a built customer does not start at zero");
     await usersService.addFunds(user.id, 250.75, c);
-    assert.equal(await balance(c, user.id), before + 250.75);
+    assert.equal(await balance(c, user.id), 250.75);
   });
 });
 
 test("removing funds decreases it by exactly the amount", async () => {
   await inRollback(async (c: PoolClient) => {
     const user = await aUser(c);
-    const before = await balance(c, user.id);
+    await usersService.addFunds(user.id, 500, c);
     await usersService.removeFunds(user.id, 100.25, c);
-    assert.equal(await balance(c, user.id), before - 100.25);
+    assert.equal(await balance(c, user.id), 399.75);
   });
 });
 
@@ -100,8 +103,7 @@ test("removing more than the balance goes negative rather than refusing", async 
 test("a transaction log records the movement", async () => {
   await inRollback(async (c: PoolClient) => {
     const user = await aUser(c);
-    const { rows: [order] } = await c.query(
-      "SELECT id FROM orders.orders WHERE direction = 'purchase' LIMIT 1");
+    const order = await anOrder(c, user, { direction: "purchase" });
     await transactions.addTransactionLog(user.id, "credit", order.id, null, 42.5, c);
 
     const { rows } = await c.query(
@@ -115,10 +117,15 @@ test("a transaction log records the movement", async () => {
 });
 
 // The property that matters most: the balance change and its log entry are one transaction.
+// THE SEEDED TEST ACTOR, NOT A BUILT CUSTOMER, and that is forced: the claim
+// is that one connection cannot see the other's uncommitted movement, so the
+// row has to exist on BOTH connections before either writes - which means
+// committed, and a builder's customer deliberately is not. See
+// shared/testing/actor.ts.
 test("a rolled-back movement leaves neither the balance nor the log changed", async () => {
   const other = await pool.connect();
   try {
-    const user = await aUser(other);
+    const user = TEST_ACTOR;
     const before = await balance(other, user.id);
     const { rows: [{ n: logsBefore }] } = await other.query(
       "SELECT count(*)::int n FROM payments.ledger WHERE user_id = $1", [user.id]

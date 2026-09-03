@@ -21,13 +21,16 @@
 //
 // NOTHING IS COMMITTED. shared/testing/pinned-pool.js holds every query in one
 // transaction that is rolled back.
-import { test, afterAll, beforeAll } from "vitest";
+import { test, afterAll } from "vitest";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
 import request from "supertest";
 import pool from "#db";
 import { mockSessions, restoreSessions, as, asAdmin } from "#shared/testing/session.ts";
-import { inPinnedTransaction, outside } from "#shared/testing/pinned-pool.ts";
+import { TEST_ACTOR } from "#shared/testing/actor.ts";
+import { inPinnedTransaction } from "#shared/testing/pinned-pool.ts";
+import { LOCKS } from "#shared/testing/locks.ts";
+import { aUser, anOrder, aShipment, aPayout } from "#shared/testing/builders/index.ts";
 
 await mockSessions();
 const { default: app } = await import("#app");
@@ -39,41 +42,30 @@ type UserFixture = { id: string; name: string | null; email: string | null };
 type ShipmentFixture = { id: string; purchase_order_id: string };
 type PayoutFixture = { id: string; order_id: string };
 
-let admin: UserFixture;
-let shipment: ShipmentFixture; // a purchase-order shipment: id + its order
-let payout: PayoutFixture; // a payout row: id + its order
+const admin: UserFixture = TEST_ACTOR;
 
-beforeAll(async () => {
-  admin = (
-    await outside<UserFixture>(`SELECT id, name, email FROM exchange.users WHERE role = 'admin' LIMIT 1`)
-  )[0];
-  assert.ok(admin, "dev has no admin user");
-
-  shipment = (
-    await outside<ShipmentFixture>(
-      `SELECT s.id, f.order_id AS purchase_order_id
-         FROM shipping.shipments s
-         JOIN fulfillments.shipments fs ON fs.shipment_id = s.id
-         JOIN fulfillments.fulfillments f ON f.id = fs.fulfillment_id
-         JOIN orders.orders o ON o.id = f.order_id
-        WHERE o.direction = 'purchase' ORDER BY s.id LIMIT 1`
-    )
-  )[0];
-  assert.ok(shipment, "dev needs a purchase order with a shipment");
-
-  // A payout is an orders.transactions row with an account link (099); the
-  // PATCH is keyed by the details id under the new flow.
-  payout = (
-    await outside<PayoutFixture>(
-      `SELECT t.payout_details_id AS id, t.order_id
-         FROM orders.transactions t
-         JOIN orders.orders o ON o.id = t.order_id
-        WHERE t.payout_details_id IS NOT NULL AND o.direction = 'purchase'
-        ORDER BY t.order_id LIMIT 1`
-    )
-  )[0];
-  assert.ok(payout, "dev needs a payout account linked to an order");
-});
+// THE SHIPMENT AND THE PAYOUT ARE BUILT (lane 1). Both were the first row dev
+// held of their kind - a real parcel on a real purchase order, and a real
+// customer's bank account linked to a real order - and every test below writes
+// a MONEY column onto them: a shipping charge, an actual cost, a payout fee, a
+// payout method. The rollback is what made that survivable rather than the
+// fixture being ours.
+//
+// One order carries both, because that is what the endpoints assume: a parcel
+// addresses its order's money row, and a payout account is linked from the same
+// row.
+const money = async (c: PoolClient) => {
+  const customer = await aUser(c);
+  const order = await anOrder(c, customer, { direction: "purchase", status: "Pending" })
+    .withLots(1)
+    .withTotals({ total: 1000 });
+  const parcel = await aShipment(c, order);
+  const payout = await aPayout(c, customer, { order });
+  return {
+    shipment: { id: parcel.id, purchase_order_id: order.id },
+    payout: { id: payout.id, order_id: order.id },
+  };
+};
 
 afterAll(async () => {
   restoreSessions();
@@ -85,6 +77,7 @@ afterAll(async () => {
 // endpoint's header states.
 test("shipping_charge writes net_charge on the order's shipment", async () => {
   await inPinnedTransaction(async (client: PoolClient) => {
+    const { shipment } = await money(client);
     await asAdmin(admin, async () => {
       const res = await request(app)
         .patch(`/api/shipments/${shipment.id}`)
@@ -98,13 +91,14 @@ test("shipping_charge writes net_charge on the order's shipment", async () => {
       );
       assert.equal(Number(rows[0].cost), 45.67, "the charge did not change");
     });
-  });
+  }, { actor: TEST_ACTOR.id, lock: [LOCKS.ORDERS, LOCKS.FULFILLMENTS] });
 });
 
 // Writes orders.transactions.shipping_fee_actual - an ORDER column reached
 // through the parcel, which the endpoint's keying note owns up to.
 test("shipping_actual lands on the shipment's order", async () => {
   await inPinnedTransaction(async (client: PoolClient) => {
+    const { shipment } = await money(client);
     await asAdmin(admin, async () => {
       const res = await request(app)
         .patch(`/api/shipments/${shipment.id}`)
@@ -118,13 +112,14 @@ test("shipping_actual lands on the shipment's order", async () => {
       );
       assert.equal(Number(rows[0].shipping_fee_actual), 12.34, "the actual cost did not land");
     });
-  });
+  }, { actor: TEST_ACTOR.id, lock: [LOCKS.ORDERS, LOCKS.FULFILLMENTS] });
 });
 
 // Writes orders.transactions.payout_fee - exchange kept this on the payout
 // row as `cost`, and 073 split the per-order fee off the bank account.
 test("cost writes the payout's cost", async () => {
   await inPinnedTransaction(async (client: PoolClient) => {
+    const { payout } = await money(client);
     await asAdmin(admin, async () => {
       const res = await request(app)
         .patch(`/api/payouts/${payout.id}`)
@@ -139,11 +134,12 @@ test("cost writes the payout's cost", async () => {
       assert.ok(rows.length, "no money row for that order");
       assert.equal(Number(rows[0].payout_fee), 56.78, "cost did not change");
     });
-  });
+  }, { actor: TEST_ACTOR.id, lock: [LOCKS.ORDERS, LOCKS.FULFILLMENTS] });
 });
 
 test("method writes the payout's method, and the response is the payout row", async () => {
   await inPinnedTransaction(async (client: PoolClient) => {
+    const { payout } = await money(client);
     await asAdmin(admin, async () => {
       const res = await request(app)
         .patch(`/api/payouts/${payout.id}`)
@@ -169,13 +165,14 @@ test("method writes the payout's method, and the response is the payout row", as
       );
       assert.equal(rows[0].type, "ACH", "the method did not change");
     });
-  });
+  }, { actor: TEST_ACTOR.id, lock: [LOCKS.ORDERS, LOCKS.FULFILLMENTS] });
 });
 
 // The unknown-field refusal, on both endpoints - never a silent drop, and
 // nothing beside a refused field executes.
 test("an unknown field refuses by name on both endpoints", async () => {
   await inPinnedTransaction(async (client: PoolClient) => {
+    const { shipment, payout } = await money(client);
     await asAdmin(admin, async () => {
       const ship = await request(app)
         .patch(`/api/shipments/${shipment.id}`)
@@ -183,12 +180,15 @@ test("an unknown field refuses by name on both endpoints", async () => {
       assert.equal(ship.status, 400, `answered ${ship.status}`);
       assert.match(ship.body?.error?.message ?? "", /"pool_oz_deducted"/);
 
+      // shipping.shipments, not the frozen exchange copy: D212 stopped the
+      // dual write, so `exchange.shipments` never sees this at all and the
+      // assertion was true of a table nothing had written either way.
       const charge = await client.query(
-        `SELECT net_charge FROM exchange.shipments WHERE id = $1`,
+        `SELECT cost FROM shipping.shipments WHERE id = $1`,
         [shipment.id]
       );
       assert.notEqual(
-        Number(charge.rows[0].net_charge),
+        Number(charge.rows[0].cost),
         11.11,
         "the valid half of a refused document was executed"
       );
@@ -202,5 +202,5 @@ test("an unknown field refuses by name on both endpoints", async () => {
       assert.equal(pay.status, 400, `answered ${pay.status}`);
       assert.match(pay.body?.error?.message ?? "", /"account_number"/);
     });
-  });
+  }, { actor: TEST_ACTOR.id, lock: [LOCKS.ORDERS, LOCKS.FULFILLMENTS] });
 });

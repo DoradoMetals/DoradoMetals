@@ -16,6 +16,7 @@ import * as quotes from "#domain/quotes/service.ts";
 import { PurchaseOrderQuoteBody } from "@dorado/contracts";
 import query from "#shared/db/query.ts";
 import { inPinnedTransaction, outside } from "#shared/testing/pinned-pool.ts";
+import { TEST_ACTOR } from "#shared/testing/actor.ts";
 import { LOCKS } from "#shared/testing/locks.ts";
 
 const ORDER_LOCKS = [LOCKS.FULFILLMENTS, LOCKS.ORDERS, LOCKS.ADDRESSES];
@@ -80,7 +81,7 @@ test("both deductions apply, and neither cancels the other", async () => {
       both.estimated_payout < bare.total - 12.5,
       "the payout fee did not come off"
     );
-  }, { lock: ORDER_LOCKS });
+  }, { actor: TEST_ACTOR.id, lock: ORDER_LOCKS });
 });
 
 test("a quote with no choices made yet deducts nothing", async () => {
@@ -89,7 +90,7 @@ test("a quote with no choices made yet deducts nothing", async () => {
     assert.equal(q.shipping_charge, 0);
     assert.equal(q.payout_charge, 0);
     assert.equal(q.estimated_payout, q.total);
-  }, { lock: ORDER_LOCKS });
+  }, { actor: TEST_ACTOR.id, lock: ORDER_LOCKS });
 });
 
 test("a free payout method deducts nothing, and says so rather than omitting it", async () => {
@@ -101,7 +102,7 @@ test("a free payout method deducts nothing, and says so rather than omitting it"
       assert.equal(q.payout_charge, 0, `${type} is free`);
       assert.equal(q.estimated_payout, q.total);
     }
-  }, { lock: ORDER_LOCKS });
+  }, { actor: TEST_ACTOR.id, lock: ORDER_LOCKS });
 });
 
 // Ruling 43 - ids in, data out. The fee is resolved from the METHOD's own row;
@@ -141,7 +142,7 @@ test("a payout method the business does not pay by is refused, not priced as fre
         return true;
       }
     );
-  }, { lock: ORDER_LOCKS });
+  }, { actor: TEST_ACTOR.id, lock: ORDER_LOCKS });
 });
 
 // The shipping charge is the one number this body carries, so what it will not
@@ -179,5 +180,5 @@ test("the payout never goes below zero", async () => {
     });
     assert.ok(q.total < 70, "the fixture is meant to be smaller than its fees");
     assert.equal(q.estimated_payout, 0);
-  }, { lock: ORDER_LOCKS });
+  }, { actor: TEST_ACTOR.id, lock: ORDER_LOCKS });
 });

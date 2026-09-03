@@ -5,6 +5,7 @@ import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
 import { randomUUID } from "node:crypto";
 import pool from "#db";
+import { inRollback } from "#shared/testing/rollback.ts";
 import * as service from "#domain/shipping/carriers/service.ts";
 
 let client: PoolClient;
@@ -17,15 +18,6 @@ afterAll(async () => {
   client.release();
   await pool.end();
 });
-
-async function inRollback(fn: (c: PoolClient) => Promise<void>) {
-  await client.query("BEGIN");
-  try {
-    await fn(client);
-  } finally {
-    await client.query("ROLLBACK");
-  }
-}
 
 // The shape the controller passes through untouched - createCarrier takes it nested.
 const draft = (over = {}) => ({

@@ -6,6 +6,7 @@ import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
 import request from "supertest";
 import { mockSessions, as, anonymous } from "#shared/testing/session.ts";
+import { TEST_ACTOR, TEST_CUSTOMER } from "#shared/testing/actor.ts";
 import { inPinnedTransaction, outside } from "#shared/testing/pinned-pool.ts";
 
 await mockSessions();
@@ -16,8 +17,8 @@ let admin: User;
 let customer: User;
 
 beforeAll(async () => {
-  admin = (await outside<User>(`SELECT id, name, email FROM exchange.users WHERE role = 'admin' LIMIT 1`))[0];
-  customer = (await outside<User>(`SELECT id, name, email FROM exchange.users WHERE role IS DISTINCT FROM 'admin' LIMIT 1`))[0];
+  admin = TEST_ACTOR;
+  customer = TEST_CUSTOMER;
   assert.ok(admin && customer, "dev needs an admin and a non-admin user");
 });
 
@@ -35,7 +36,7 @@ test("a customer cannot reach the admin routes", async () => {
       assert.equal((await request(app).get("/api/reviews/get_all")).status, 403);
       assert.equal((await request(app).post("/api/reviews/create").send({ review: NEW })).status, 403);
     });
-  });
+  }, { actor: TEST_ACTOR.id });
 });
 
 test("create writes the row the id names", async () => {
@@ -50,7 +51,7 @@ test("create writes the row the id names", async () => {
       assert.equal(rows.length, 1, "not written to reviews.reviews");
       assert.equal(rows[0].name, NEW.name, "the wrong name was stored");
     });
-  });
+  }, { actor: TEST_ACTOR.id });
 });
 
 // Proves the read direction rather than assuming it.
@@ -65,7 +66,7 @@ test("the read comes from the new schema", async () => {
       assert.equal(one.status, 200);
       assert.equal(one.body.name, "FROM-NEW-SCHEMA", "the read came from exchange");
     });
-  });
+  }, { actor: TEST_ACTOR.id });
 });
 
 test("update writes the row, and delete removes it", async () => {
@@ -86,7 +87,7 @@ test("update writes the row, and delete removes it", async () => {
         `SELECT 1 FROM reviews.reviews WHERE id = $1`, [created.id]);
       assert.equal(gone.length, 0, "reviews.reviews still holds the deleted review");
     });
-  });
+  }, { actor: TEST_ACTOR.id });
 });
 
 // get_public has no guard in front of it, so the statement is the only thing standing between an anonymous visitor and a hidden review.
@@ -114,7 +115,7 @@ test("an anonymous visitor sees public reviews and never a hidden one", async ()
         "a hidden review reached an anonymous visitor"
       );
     });
-  });
+  }, { actor: TEST_ACTOR.id });
 });
 
 test("an id that names no review is 404, not an empty 200", async () => {
@@ -124,5 +125,5 @@ test("an id that names no review is 404, not an empty 200", async () => {
         .query({ review_id: "11111111-1111-1111-1111-111111111111" });
       assert.equal(res.status, 404, `answered ${res.status}`);
     });
-  });
+  }, { actor: TEST_ACTOR.id });
 });

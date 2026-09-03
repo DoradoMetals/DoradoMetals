@@ -3,6 +3,7 @@ import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
 import pool from "#db";
+import { inRollback } from "#shared/testing/rollback.ts";
 import * as shipmentService from "#domain/shipping/shipments/service.ts";
 
 let client: PoolClient;
@@ -19,15 +20,6 @@ afterAll(async () => {
   client.release();
   await pool.end();
 });
-
-async function inRollback(fn: (c: PoolClient) => Promise<void>) {
-  await client.query("BEGIN");
-  try {
-    await fn(client);
-  } finally {
-    await client.query("ROLLBACK");
-  }
-}
 
 // An order that has a shipment linked through its fulfillment.
 const anOrderWithShipment = async (c: PoolClient) => {

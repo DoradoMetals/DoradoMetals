@@ -21,13 +21,15 @@
 //
 // NOTHING IS COMMITTED: shared/testing/pinned-pool.js holds every query in one
 // transaction that is rolled back.
-import { test, afterAll, beforeAll } from "vitest";
+import { test, afterAll } from "vitest";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
 import request from "supertest";
 import pool from "#db";
 import { mockSessions, restoreSessions, as, asAdmin } from "#shared/testing/session.ts";
-import { inPinnedTransaction, outside } from "#shared/testing/pinned-pool.ts";
+import { TEST_ACTOR } from "#shared/testing/actor.ts";
+import { inPinnedTransaction } from "#shared/testing/pinned-pool.ts";
+import { aUser, aProduct, anOrder, aShipment } from "#shared/testing/builders/index.ts";
 import { LOCKS } from "#shared/testing/locks.ts";
 
 // The tracking write sets the order's tracking_updated flag as well as the
@@ -50,31 +52,31 @@ type ShipmentFixture = {
   tracking_number: string | null;
 };
 
-let admin: AdminFixture;
-let shipment: ShipmentFixture;
+const admin: AdminFixture = TEST_ACTOR;
 
-beforeAll(async () => {
-  admin = (
-    await outside<AdminFixture>(
-      `SELECT id, name, email FROM exchange.users WHERE role = 'admin' LIMIT 1`
-    )
-  )[0];
-  assert.ok(admin, "dev has no admin user");
-
-  shipment = (
-    await outside<ShipmentFixture>(
-      `SELECT s.id, f.order_id AS sales_order_id, cs.carrier_id, s.tracking_number
-         FROM shipping.shipments s
-         JOIN fulfillments.shipments fs ON fs.shipment_id = s.id
-         JOIN fulfillments.fulfillments f ON f.id = fs.fulfillment_id
-         JOIN orders.orders o ON o.id = f.order_id
-         LEFT JOIN shipping.services cs ON cs.id = s.carrier_service_id
-        WHERE o.direction = 'sale'
-        ORDER BY s.id LIMIT 1`
-    )
-  )[0];
-  assert.ok(shipment, "dev needs a shipment attached to a sales order");
-});
+// THE SALES SHIPMENT IS BUILT (lane 1). This took the first parcel dev held on
+// a sales order and then rewrote its tracking number - a live FedEx reference
+// on a real order, which is the exact class of write `audit:test-leaks` exists
+// for (tracking.test.js once deleted the real history of five dev shipments).
+const aSalesShipment = async (c: PoolClient) => {
+  const customer = await aUser(c);
+  const product = await aProduct(c);
+  const order = await anOrder(c, customer, { direction: "sale", status: "Pending" })
+    .withBullion(product, 1)
+    .withTotals({ total: 500 });
+  const parcel = await aShipment(c, order, { method: "DROPSHIP" });
+  const { rows } = await c.query<{ carrier_id: string }>(
+    `SELECT carrier_id FROM shipping.services WHERE id = $1`, [parcel.carrier_service_id]
+  );
+  return {
+    shipment: {
+      id: parcel.id,
+      sales_order_id: order.id,
+      carrier_id: rows[0]!.carrier_id,
+      tracking_number: parcel.tracking_number,
+    },
+  };
+};
 
 afterAll(async () => {
   restoreSessions();
@@ -82,7 +84,8 @@ afterAll(async () => {
 });
 
 test("an admin can record a tracking number against a sales order", async () => {
-  await inPinnedTransaction(async () => {
+  await inPinnedTransaction(async (client: PoolClient) => {
+    const { shipment } = await aSalesShipment(client);
     await asAdmin(admin, async () => {
       const res = await request(app)
         .patch(`/api/shipments/${shipment.id}`)
@@ -97,7 +100,7 @@ test("an admin can record a tracking number against a sales order", async () => 
         "the handler called something that does not exist"
       );
     });
-  }, { lock: ORDER_LOCK });
+  }, { actor: TEST_ACTOR.id, lock: ORDER_LOCK });
 });
 
 // A 200 alone would pass against a handler that returned early and wrote
@@ -107,6 +110,7 @@ test("the tracking number actually lands on the shipment", async () => {
   // inPinnedTransaction hands the pinned client to its callback, which is how
   // the read below sees the route's uncommitted write.
   await inPinnedTransaction(async (client: PoolClient) => {
+    const { shipment } = await aSalesShipment(client);
     await asAdmin(admin, async () => {
       await request(app)
         .patch(`/api/shipments/${shipment.id}`)
@@ -125,5 +129,5 @@ test("the tracking number actually lands on the shipment", async () => {
         "the route answered but the shipment was not updated"
       );
     });
-  }, { lock: ORDER_LOCK });
+  }, { actor: TEST_ACTOR.id, lock: ORDER_LOCK });
 });

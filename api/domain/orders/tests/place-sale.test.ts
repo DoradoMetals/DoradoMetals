@@ -15,13 +15,14 @@ import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
 import query from "#shared/db/query.ts";
 import { LOCKS } from "#shared/testing/locks.ts";
+import { TEST_ACTOR } from "#shared/testing/actor.ts";
 
 // EVERY PINNED TRANSACTION IN THIS FILE TAKES THE BALANCE LOCK. A balance write
 // is two row locks - exchange.users, and auth.users through migration 107's
 // mirror trigger - so files that move balances agree an order rather than
 // deadlocking on whichever customer each visited first. See LOCKS.USERS.
 const inPinned = <T,>(fn: (c: import("pg").PoolClient) => Promise<T> | T): Promise<T> =>
-  inPinnedTransaction(fn, { lock: [LOCKS.USERS, LOCKS.ORDERS] });
+  inPinnedTransaction(fn, { actor: TEST_ACTOR.id, lock: [LOCKS.USERS, LOCKS.ORDERS] });
 
 import { inPinnedTransaction } from "#shared/testing/pinned-pool.ts";
 import { mockSessions, restoreSessions, as } from "#shared/testing/session.ts";

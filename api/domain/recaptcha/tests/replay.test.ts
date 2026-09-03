@@ -5,6 +5,7 @@ import assert from "node:assert/strict";
 import request from "supertest";
 import pool from "#db";
 import { mockSessions, restoreSessions, anonymous } from "#shared/testing/session.ts";
+import { TEST_ACTOR } from "#shared/testing/actor.ts";
 import { inPinnedTransaction } from "#shared/testing/pinned-pool.ts";
 
 await mockSessions();
@@ -34,7 +35,7 @@ test("a request with no token is refused, not waved through", async () => {
         );
       }
     });
-  });
+  }, { actor: TEST_ACTOR.id });
 });
 
 // It must stay reachable without a session. This runs in front of the signup
@@ -46,5 +47,5 @@ test("the endpoint is reachable without a session", async () => {
       assert.notEqual(res.status, 401, "verify-recaptcha now requires a session it runs ahead of");
       assert.notEqual(res.status, 403, "verify-recaptcha now requires a role it runs ahead of");
     });
-  });
+  }, { actor: TEST_ACTOR.id });
 });

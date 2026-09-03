@@ -6,10 +6,14 @@ import assert from "node:assert/strict";
 import request from "supertest";
 import pool from "#db";
 import { closeBrowser } from "#providers/pdfs/puppeteer.ts";
-import * as orderRead from "#domain/orders/read.ts";
 import * as spotsService from "#domain/spots/service.ts";
 import { mockSessions, restoreSessions, as, anonymous } from "#shared/testing/session.ts";
-import { inPinnedTransaction, outside } from "#shared/testing/pinned-pool.ts";
+import { TEST_ACTOR, TEST_CUSTOMER } from "#shared/testing/actor.ts";
+import { inPinnedTransaction } from "#shared/testing/pinned-pool.ts";
+import {
+  aUser, anOrder, aProduct, aShipment, anAddress,
+} from "#shared/testing/builders/index.ts";
+import type { PoolClient } from "pg";
 import { LOCKS } from "#shared/testing/locks.ts";
 import query from "#shared/db/query.ts";
 
@@ -23,26 +27,39 @@ const ROUTES = [
   "generate_sales_order_invoice",
 ];
 
-// getAllPurchases/getAllSales declare Record<string, unknown>[]; what this file reads is named rather than assumed.
 type UserFixture = { id: string; name: string | null; email: string | null };
-type OrderFixture = { id: string; items?: unknown[] };
-
-// The API's own read of one order, per direction, with lines where there are
-// any. `getAllPurchases`/`getAllSales` died with the composer (D214 item 12).
-const withLines = async (direction: "purchase" | "sale"): Promise<OrderFixture[]> => {
-  const out: OrderFixture[] = [];
-  for (const row of await orderRead.list({ direction })) {
-    const view = await orderRead.view(row.id);
-    if (view) out.push({ id: view.order.id, items: view.items });
-  }
-  return out;
-};
 type Spot = Awaited<ReturnType<typeof spotsService.getSpotPrices>>[number];
 
-let customer: UserFixture;
-let order: OrderFixture;
+const customer: UserFixture = TEST_CUSTOMER;
+
+// THE ORDERS ARE BUILT INSIDE THE PIN (lane 1), AND THAT FIXED A REAL FLAKE.
+// They used to be read through the API in `beforeAll`, on the pool, as
+// "whichever order of this direction has lines" - so this file rendered
+// documents for real customers' real orders, AND raced
+// domain/orders/tests/edit-line.test.ts, which commits an order, runs, and
+// deletes it again: a list taken between those two points named an order that
+// no longer existed by the time the renderer looked it up, and the run failed
+// four tests with `NotFound: no order <uuid>`. Nothing in the file could see
+// the cause, because the fixture was correct when it was read.
+//
+// A built order cannot be deleted by another file, and both documents get an
+// order that genuinely carries a line, an address and a parcel - which is what
+// a packing list and an invoice actually render from.
+const anOrderToRender = async (c: PoolClient, direction: "purchase" | "sale") => {
+  const user = await aUser(c, { name: "Document Owner" });
+  const address = await anAddress(c, user);
+  const product = await aProduct(c);
+  const built = await anOrder(c, user, { direction })
+    .withBullion(product, 2, { price: 2500 })
+    .withLots(1, { metal: "Gold", pre_melt: 5 })
+    .withSpots()
+    .withAddress(address)
+    .withTotals({ total: 5200, shipping: 24.5, items: 5000 });
+  await aShipment(c, built, { method: direction === "purchase" ? "CARRIER DROPOFF" : "DROPSHIP" });
+  return { order: { id: built.id }, owner: user };
+};
+
 let spots: Spot[];
-let salesOrder: OrderFixture;
 
 beforeAll(async () => {
   assert.equal(
@@ -50,23 +67,10 @@ beforeAll(async () => {
     0,
     "these tests require TZ=UTC - run them with `pnpm --filter @dorado/api test`"
   );
-  const users = await outside<UserFixture>(
-    `SELECT id, name, email FROM exchange.users WHERE role IS DISTINCT FROM 'admin' LIMIT 1`
-  );
-  customer = users[0];
-  assert.ok(customer, "dev has no non-admin user");
-
-  const orders = await withLines("purchase");
-  order = orders.find((o) => (o.items?.length ?? 0) > 0) ?? orders[0];
-  assert.ok(order, "dev has no purchase order to render");
-
-  // The composed shape (name/ask/bid), the way the frontend sends them and the calculations read them.
+  // The composed shape (name/ask/bid), the way the frontend sends them and the
+  // calculations read them. spots.spots is reference data - a live feed, not a
+  // fixture - so it stays a read.
   spots = await spotsService.getSpotPrices();
-
-  // The sales-order invoice is a different document from a different table (the refiner's copy) - `order` above is a purchase order and won't stand in for it.
-  const salesOrders = await withLines("sale");
-  salesOrder = salesOrders.find((o) => (o.items?.length ?? 0) > 0) ?? salesOrders[0];
-  assert.ok(salesOrder, "dev has no sales order to render");
   assert.ok(spots.length > 0, "dev has no spot prices");
 });
 
@@ -81,21 +85,22 @@ afterAll(async () => {
 // Each renders LIVE here from the server's own read: `customer` is generally not the order's owner, so serve.ts keeps the store shut and falls back to a render. Nothing else would notice the renderer breaking, which is what makes rendering them worth asserting rather than assuming.
 // A PDF is checked by its magic bytes and a floor on its length - an empty or error page is still a 200 with content-type application/pdf, so the status alone proves nothing.
 const RENDERS = [
-  ["generate_return_packing_list", "return-packing-list.pdf", () => ({ order_id: order.id })],
-  ["generate_invoice", "invoice.pdf", () => ({ order_id: order.id })],
-  ["generate_sales_order_invoice", "invoice.pdf", () => ({ order_id: salesOrder.id })],
+  ["generate_return_packing_list", "return-packing-list.pdf", "purchase"],
+  ["generate_invoice", "invoice.pdf", "purchase"],
+  ["generate_sales_order_invoice", "invoice.pdf", "sale"],
 ];
 
-// Declared as a tuple list - inferred, the element type collapses to `string | (() => …)` and neither half is usable.
-for (const [route, filename, body] of RENDERS as Array<
-  [string, string, () => Record<string, unknown>]
+// Declared as a tuple list - inferred, the element type collapses to `string` and the direction is not usable as one.
+for (const [route, filename, direction] of RENDERS as Array<
+  [string, string, "purchase" | "sale"]
 >) {
   test(`${route} renders a real PDF`, async () => {
-    await inPinnedTransaction(async () => {
+    await inPinnedTransaction(async (c: PoolClient) => {
+      const { order } = await anOrderToRender(c, direction);
       await as({ ...customer, role: "user" }, async () => {
         const res = await request(app)
           .post(`/api/pdf/${route}`)
-          .send(body())
+          .send({ order_id: order.id })
           .buffer(true)
           .parse((r, cb) => {
             const chunks: Buffer[] = [];
@@ -120,7 +125,7 @@ for (const [route, filename, body] of RENDERS as Array<
           `${route} rendered only ${res.body.length} bytes - an error page is still a PDF`
         );
       });
-    }, { lock: [LOCKS.FULFILLMENTS, LOCKS.ORDERS] });
+    }, { actor: TEST_ACTOR.id, lock: [LOCKS.FULFILLMENTS, LOCKS.ORDERS] });
   });
 }
 
@@ -132,7 +137,7 @@ test("every PDF route refuses an anonymous caller", async () => {
         assert.ok([401, 403].includes(res.status), `${route} answered ${res.status}`);
       }
     });
-  }, { lock: [LOCKS.FULFILLMENTS, LOCKS.ORDERS] });
+  }, { actor: TEST_ACTOR.id, lock: [LOCKS.FULFILLMENTS, LOCKS.ORDERS] });
 });
 
 // A guard that let an unauthenticated caller through would launch a browser per request - a denial-of-service surface as well as a leak, which is why the refusal above is asserted for all four.
@@ -148,12 +153,13 @@ test("no PDF route launches a renderer for an anonymous caller", async () => {
         );
       }
     });
-  }, { lock: [LOCKS.FULFILLMENTS, LOCKS.ORDERS] });
+  }, { actor: TEST_ACTOR.id, lock: [LOCKS.FULFILLMENTS, LOCKS.ORDERS] });
 });
 
 // The one that renders: proves a signed-in caller receives a real file with the headers a browser needs to save it.
 test("a signed-in caller gets a real PDF with the headers to download it", async () => {
-  await inPinnedTransaction(async () => {
+  await inPinnedTransaction(async (c: PoolClient) => {
+    const { order } = await anOrderToRender(c, "purchase");
     await as({ ...customer, role: "user" }, async () => {
       const res = await request(app)
         .post("/api/pdf/generate_packing_list")
@@ -185,20 +191,19 @@ test("a signed-in caller gets a real PDF with the headers to download it", async
         "Content-Length disagrees with the document - a truncated download"
       );
     });
-  }, { lock: [LOCKS.FULFILLMENTS, LOCKS.ORDERS] });
+  }, { actor: TEST_ACTOR.id, lock: [LOCKS.FULFILLMENTS, LOCKS.ORDERS] });
 });
 
 // The stored branch, over HTTP: serve.test.ts proves the selection logic with a stubbed reader; what it can't prove is the wiring (that the controller hands serve.ts the right order id and caller, and that a stored row can never turn a customer's download into a 500).
 // In a test run the stored read always fails (like a deleted object would), so this drives the OWNER through a route whose order HAS a stored row and asserts the fallback still delivers a real PDF - "download must not break over bookkeeping", end to end.
 test("an owner's download with a stored row still answers with a PDF when the store cannot", async () => {
-  await inPinnedTransaction(async () => {
-    // The row references orders.orders; an order the schema doesn't know can't carry one, and this test would prove nothing - so say so.
-    const known = await outside(`SELECT user_id FROM orders.orders WHERE id = $1`, [order.id]);
-    assert.ok(known.length, "the fixture order is not in orders.orders - pick another");
-    const ownerRow = await outside(`SELECT id, name, email FROM exchange.users WHERE id = $1`, [
-      known[0].user_id,
-    ]);
-    assert.ok(ownerRow.length, "the order's owner is not in exchange.users");
+  await inPinnedTransaction(async (c: PoolClient) => {
+    // THE OWNER COMES BACK FROM THE BUILDER. This used to read the order's
+    // user_id out of orders.orders and then look that person up in
+    // exchange.users, with two guards saying what to do if either read came
+    // back empty - both of which the builder makes unnecessary: the order has
+    // an owner because the fixture gave it one.
+    const { order, owner } = await anOrderToRender(c, "purchase");
 
     // Through the shared executor: while pinned, this joins the transaction that gets rolled back, so the row never outlives the test.
     await query(
@@ -207,7 +212,7 @@ test("an owner's download with a stored row still answers with a PDF when the st
       [order.id]
     );
 
-    await as({ ...(ownerRow[0] as UserFixture), role: "user" }, async () => {
+    await as({ ...owner, role: "user" }, async () => {
       const res = await request(app)
         .post("/api/pdf/generate_return_packing_list")
         .send({ order_id: order.id })
@@ -222,5 +227,5 @@ test("an owner's download with a stored row still answers with a PDF when the st
       assert.equal(res.headers["content-type"], "application/pdf");
       assert.equal(res.body.subarray(0, 5).toString(), "%PDF-", "the fallback did not render");
     });
-  }, { lock: [LOCKS.FULFILLMENTS, LOCKS.ORDERS] });
+  }, { actor: TEST_ACTOR.id, lock: [LOCKS.FULFILLMENTS, LOCKS.ORDERS] });
 });

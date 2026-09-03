@@ -18,13 +18,17 @@
 //
 // NOTHING IS COMMITTED. shared/testing/pinned-pool.js holds every query in
 // one transaction that is rolled back.
-import { test, afterAll, beforeAll } from "vitest";
+import { test, afterAll } from "vitest";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import request from "supertest";
 import pool from "#db";
 import { mockSessions, restoreSessions, as, anonymous, asAdmin, asUser } from "#shared/testing/session.ts";
-import { inPinnedTransaction, outside } from "#shared/testing/pinned-pool.ts";
+import { TEST_ACTOR, TEST_CUSTOMER } from "#shared/testing/actor.ts";
+import { inPinnedTransaction } from "#shared/testing/pinned-pool.ts";
+import {
+  aUser, anOrder, aRefinerEngagement, aPayout,
+} from "#shared/testing/builders/index.ts";
 import { LOCKS } from "#shared/testing/locks.ts";
 import type { PoolClient } from "pg";
 
@@ -51,57 +55,36 @@ type UserFixture = { id: string; name: string | null; email: string | null };
 type RefinerMetalFixture = { purchase_order_id: string; metal_id: string; type: string };
 type ScrapItemFixture = { id: string; purchase_order_id: string };
 
-let admin: UserFixture;
-let customer: UserFixture;
 let refinerMetal: RefinerMetalFixture; // an order with refiner spots
 let scrapItem: ScrapItemFixture; // a scrap-backed purchase line
-let payoutId: string;
 
-beforeAll(async () => {
-  admin = (
-    await outside<UserFixture>(`SELECT id, name, email FROM exchange.users WHERE role = 'admin' LIMIT 1`)
-  )[0];
-  assert.ok(admin, "dev has no admin user");
+// EVERY FIXTURE IS BUILT (lane 1), and one order carries all three. The
+// refiner spot, the scrap line with a refiner counterpart, and the payout
+// account were three separate discoveries against three tables - the last two
+// with EXISTS clauses hunting for a row that had a mirror - and the tests below
+// write assay weights and payout figures onto them.
+const admin = TEST_ACTOR;
+const customer = TEST_CUSTOMER;
 
-  customer = (
-    await outside<UserFixture>(
-      `SELECT id, name, email FROM exchange.users WHERE role IS DISTINCT FROM 'admin' LIMIT 1`
-    )
-  )[0];
-  assert.ok(customer, "dev has no non-admin user - the refusal tests would prove nothing");
-
-  refinerMetal = (
-    await outside<RefinerMetalFixture>(
-      `SELECT sp.order_id AS purchase_order_id, sp.metal_id, m.name AS type
-         FROM refiners.spots sp
-         JOIN metals.metals m ON m.id = sp.metal_id
-        ORDER BY sp.id LIMIT 1`
-    )
-  )[0];
-  assert.ok(refinerMetal, "dev needs a refiners.spots row on a purchase order");
-
-  // A scrap line IS a line with no bullion (the one-table model), and its
-  // refiner counterpart is where the assay report lands.
-  scrapItem = (
-    await outside<ScrapItemFixture>(
-      `SELECT i.id, i.order_id AS purchase_order_id
-         FROM orders.items i
-         JOIN orders.orders o ON o.id = i.order_id
-        WHERE o.direction = 'purchase' AND i.bullion_id IS NULL
-          AND EXISTS (SELECT 1 FROM refiners.items ri WHERE ri.order_item_id = i.id)
-        ORDER BY i.id LIMIT 1`
-    )
-  )[0];
-  assert.ok(scrapItem, "dev needs a purchase scrap line with a refiner counterpart");
-
-  payoutId = (
-    await outside<{ id: string }>(
-      `SELECT payout_details_id AS id FROM orders.transactions
-        WHERE payout_details_id IS NOT NULL ORDER BY order_id LIMIT 1`
-    )
-  )[0]?.id;
-  assert.ok(payoutId, "dev needs a payout account linked to an order");
-});
+const world = async (c: PoolClient) => {
+  const owner = await aUser(c, { name: "The Customer" });
+  const order = await anOrder(c, owner, { direction: "purchase", status: "Pending" })
+    .withLots(1, { metal: "Gold", pre_melt: 10, purity: 0.585 })
+    .withSpots()
+    .withTotals({ total: 1000 });
+  await aRefinerEngagement(c, order);
+  const payout = await aPayout(c, owner, { order });
+  return {
+    refinerMetal: {
+      purchase_order_id: order.id,
+      metal_id: order.items[0]!.metal_id,
+      type: "Gold",
+    },
+    scrapItem: { id: order.items[0]!.id, purchase_order_id: order.id },
+    payoutId: payout.id,
+    owner,
+  };
+};
 
 afterAll(async () => {
   restoreSessions();
@@ -143,11 +126,12 @@ test("the mirror invariant: one engagement per order, items matched, spots cover
     assert.equal(c.spots_uncovered, 0, "a customer spot has no refiner counterpart");
     assert.equal(c.items_unlinked, 0, "a refiner line is not linked to an engagement");
     assert.equal(c.spots_unlinked, 0, "a refiner spot is not linked to an engagement");
-  }, { lock: ORDER_LOCK });
+  }, { actor: TEST_ACTOR.id, lock: ORDER_LOCK });
 });
 
 test("the engagement PATCH writes the refiner's spot for that metal on that order", async () => {
   await inPinnedTransaction(async (client: PoolClient) => {
+    const { refinerMetal } = await world(client);
     const engagementId = await withEngagement(client, refinerMetal.purchase_order_id);
     await asAdmin(admin, async () => {
       const res = await request(app)
@@ -165,11 +149,12 @@ test("the engagement PATCH writes the refiner's spot for that metal on that orde
       assert.ok(rows.length, "no refiners.spots row matched");
       assert.equal(Number(rows[0].bid), 1234.56, "the refiner bid did not change");
     });
-  }, { lock: ORDER_LOCK });
+  }, { actor: TEST_ACTOR.id, lock: ORDER_LOCK });
 });
 
 test("the engagement PATCH lands pool and fee on the engagement AND the order's money row", async () => {
   await inPinnedTransaction(async (client: PoolClient) => {
+    const { refinerMetal } = await world(client);
     const engagementId = await withEngagement(client, refinerMetal.purchase_order_id);
     await asAdmin(admin, async () => {
       const res = await request(app)
@@ -201,11 +186,12 @@ test("the engagement PATCH lands pool and fee on the engagement AND the order's 
       assert.equal(Number(money.pool_remediation), 34.56, "the money row lost the remediation");
       assert.equal(Number(money.refiner_fee), 23.45, "the money row lost the fee");
     });
-  }, { lock: ORDER_LOCK });
+  }, { actor: TEST_ACTOR.id, lock: ORDER_LOCK });
 });
 
 test("the item PATCH writes the refiner premium on that line", async () => {
   await inPinnedTransaction(async (client: PoolClient) => {
+    const { scrapItem } = await world(client);
     await asAdmin(admin, async () => {
       const res = await request(app)
         .patch(`/api/refiners/items/by-order-item/${scrapItem.id}`)
@@ -219,11 +205,12 @@ test("the item PATCH writes the refiner premium on that line", async () => {
       );
       assert.equal(Number(rows[0].premium), 0.875, "the refiner premium did not change");
     });
-  }, { lock: ORDER_LOCK });
+  }, { actor: TEST_ACTOR.id, lock: ORDER_LOCK });
 });
 
 test("the item PATCH writes the assay report to the actual columns", async () => {
   await inPinnedTransaction(async (client: PoolClient) => {
+    const { scrapItem } = await world(client);
     await asAdmin(admin, async () => {
       const res = await request(app)
         .patch(`/api/refiners/items/by-order-item/${scrapItem.id}`)
@@ -240,7 +227,7 @@ test("the item PATCH writes the assay report to the actual columns", async () =>
       // content is DERIVED by the same service the drawer always used.
       assert.ok(rows[0].content !== null, "content_actual was not derived");
     });
-  }, { lock: ORDER_LOCK });
+  }, { actor: TEST_ACTOR.id, lock: ORDER_LOCK });
 });
 
 // The poisoned-body rule on both endpoints: refused by name, nothing written.
@@ -248,6 +235,7 @@ test("the item PATCH writes the assay report to the actual columns", async () =>
 // over a sent value is the admin-mutation-urls bug.
 test("poisoned bodies refuse by name on both refiners endpoints", async () => {
   await inPinnedTransaction(async (client: PoolClient) => {
+    const { refinerMetal, scrapItem } = await world(client);
     const engagementId = await withEngagement(client, refinerMetal.purchase_order_id);
     await asAdmin(admin, async () => {
       const item = await request(app)
@@ -276,11 +264,12 @@ test("poisoned bodies refuse by name on both refiners endpoints", async () => {
       );
       assert.notEqual(Number(rows[0].premium), 0.9, "a refused document still wrote");
     });
-  }, { lock: ORDER_LOCK });
+  }, { actor: TEST_ACTOR.id, lock: ORDER_LOCK });
 });
 
 test("both refiners endpoints refuse a customer and an anonymous caller", async () => {
   await inPinnedTransaction(async (client: PoolClient) => {
+    const { refinerMetal, scrapItem } = await world(client);
     const engagementId = await withEngagement(client, refinerMetal.purchase_order_id);
     // Declared as a tuple list: inferred, the array's element type collapses
     // to `string | ((fn) => ...)` and neither half is usable.
@@ -301,7 +290,7 @@ test("both refiners endpoints refuse a customer and an anonymous caller", async 
         assert.ok([401, 403].includes(engagement.status), `${who} was answered ${engagement.status}`);
       });
     }
-  }, { lock: ORDER_LOCK });
+  }, { actor: TEST_ACTOR.id, lock: ORDER_LOCK });
 });
 
 // THE ONE ENDPOINT ALLOWED TO RETURN FULL BANK DETAILS - payout-keyed now:
@@ -311,7 +300,8 @@ test("both refiners endpoints refuse a customer and an anonymous caller", async 
 // NOTHING FROM THE BODY IS PRINTED OR INTERPOLATED INTO AN ASSERTION MESSAGE,
 // including on failure. The assertions are on KEYS and on status.
 test("GET /payouts/:id/details answers with the payout's fields", async () => {
-  await inPinnedTransaction(async () => {
+  await inPinnedTransaction(async (c: PoolClient) => {
+    const { payoutId } = await world(c);
     await asAdmin(admin, async () => {
       const res = await request(app).get(`/api/payouts/${payoutId}/details`);
 
@@ -325,11 +315,12 @@ test("GET /payouts/:id/details answers with the payout's fields", async () => {
         assert.ok(key in payout, `the payout is missing ${key}`);
       }
     });
-  }, { lock: ORDER_LOCK });
+  }, { actor: TEST_ACTOR.id, lock: ORDER_LOCK });
 });
 
 test("a customer cannot read a payout's bank details", async () => {
-  await inPinnedTransaction(async () => {
+  await inPinnedTransaction(async (c: PoolClient) => {
+    const { payoutId } = await world(c);
     await asUser(customer, async () => {
       const res = await request(app).get(`/api/payouts/${payoutId}/details`);
 
@@ -338,11 +329,12 @@ test("a customer cannot read a payout's bank details", async () => {
         `a signed-in customer was answered ${res.status}`
       );
     });
-  }, { lock: ORDER_LOCK });
+  }, { actor: TEST_ACTOR.id, lock: ORDER_LOCK });
 });
 
 test("an anonymous caller cannot read a payout's bank details", async () => {
-  await inPinnedTransaction(async () => {
+  await inPinnedTransaction(async (c: PoolClient) => {
+    const { payoutId } = await world(c);
     await anonymous(async () => {
       const res = await request(app).get(`/api/payouts/${payoutId}/details`);
 
@@ -351,5 +343,5 @@ test("an anonymous caller cannot read a payout's bank details", async () => {
         `an anonymous caller was answered ${res.status}`
       );
     });
-  }, { lock: ORDER_LOCK });
+  }, { actor: TEST_ACTOR.id, lock: ORDER_LOCK });
 });

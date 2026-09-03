@@ -13,11 +13,14 @@
 //
 // NOTHING IS COMMITTED - the pool is pinned to a rolled-back transaction, and
 // the last test proves it from outside.
-import { test, afterAll, beforeAll } from "vitest";
+import { test, afterAll } from "vitest";
 import assert from "node:assert/strict";
 import request from "supertest";
 import pool from "#db";
 import { mockSessions, restoreSessions, as, anonymous } from "#shared/testing/session.ts";
+import { TEST_ACTOR, TEST_CUSTOMER } from "#shared/testing/actor.ts";
+import { aUser, aProduct, anOrder } from "#shared/testing/builders/index.ts";
+import type { PoolClient } from "pg";
 import {
   inPinnedTransaction,
   assertNothingEscaped,
@@ -42,44 +45,25 @@ type SalesOrderFixture = {
   number: number | null;
 };
 
-let admin: Caller;
-let owner: Caller;
-let stranger: Caller;
-let order: SalesOrderFixture;
+const admin: Caller = { ...TEST_ACTOR, role: "admin" };
+const stranger: Caller = { ...TEST_CUSTOMER, role: "user" };
 
-beforeAll(async () => {
-  // The OLDEST sales order with an owner. Never the newest: that is a race
-  // against every file that creates one, and it made the purchase-order
-  // ownership tests intermittent.
-  const orders = await outside<SalesOrderFixture>(
-    `SELECT id, user_id, sales_order_status AS status, order_number AS number
-       FROM exchange.sales_orders
-      WHERE user_id IS NOT NULL
-      ORDER BY created_at ASC, id ASC LIMIT 1`
-  );
-  order = orders[0];
-  assert.ok(order, "dev has no sales order with an owner");
-
-  const owners = await outside<UserFixture>(`SELECT id, name, email FROM exchange.users WHERE id = $1`, [
-    order.user_id,
-  ]);
-  owner = { id: owners[0].id, name: owners[0].name, email: owners[0].email, role: "user" };
-  assert.ok(owner.id, `no exchange.users row for ${order.user_id}`);
-
-  const admins = await outside<UserFixture>(
-    `SELECT id, name, email FROM exchange.users WHERE role = 'admin' LIMIT 1`
-  );
-  admin = { id: admins[0].id, name: admins[0].name, email: admins[0].email, role: "admin" };
-  assert.ok(admin.id, "dev has no admin user");
-
-  const others = await outside<UserFixture>(
-    `SELECT id, name, email FROM exchange.users
-      WHERE id <> $1 AND role IS DISTINCT FROM 'admin' LIMIT 1`,
-    [order.user_id]
-  );
-  stranger = { id: others[0].id, name: others[0].name, email: others[0].email, role: "user" };
-  assert.ok(stranger.id, "dev has only one non-admin user");
-});
+// THE SALES ORDER AND ITS OWNER ARE BUILT (lane 1). The fixture used to be
+// "the OLDEST sales order with an owner. Never the newest: that is a race
+// against every file that creates one" - chosen for immovability rather than
+// ownership - and it read `exchange.sales_orders`, which D212 froze, while
+// every endpoint under test reads `orders.orders`.
+const aSalesOrder = async (c: PoolClient) => {
+  const owner = await aUser(c, { name: "The Buyer" });
+  const product = await aProduct(c);
+  const built = await anOrder(c, owner, { direction: "sale", status: "Pending" })
+    .withBullion(product, 2, { price: 2600 })
+    .withTotals({ total: 5200, items: 5200 });
+  return {
+    order: { id: built.id, user_id: owner.id, status: built.status, number: built.number },
+    owner: { ...owner, role: "user" } as Caller,
+  };
+};
 
 afterAll(async () => {
   restoreSessions();
@@ -103,7 +87,7 @@ test("the list is refused to anonymous, and a customer sees only their own rows"
         "a customer's list carried somebody else's sales order"
       );
     });
-  }, { lock: ORDER_LOCK });
+  }, { actor: TEST_ACTOR.id, lock: ORDER_LOCK });
 });
 
 test("the admin list has the fields the drawer destructures", async () => {
@@ -126,7 +110,7 @@ test("the admin list has the fields the drawer destructures", async () => {
         assert.ok(!(gone in o), `the order wire still carries ${gone}`);
       }
     });
-  }, { lock: ORDER_LOCK });
+  }, { actor: TEST_ACTOR.id, lock: ORDER_LOCK });
 });
 
 // The unified list takes a customer's scope from the SESSION rather than the
@@ -134,7 +118,8 @@ test("the admin list has the fields the drawer destructures", async () => {
 // subjectOf precedent. Worth an assertion rather than a reading of the
 // controller.
 test("a customer's own list is scoped to them, whatever they ask for", async () => {
-  await inPinnedTransaction(async () => {
+  await inPinnedTransaction(async (c: PoolClient) => {
+    const { owner } = await aSalesOrder(c);
     await as(owner, async () => {
       const res = await request(app)
         .get("/api/orders")
@@ -146,11 +131,12 @@ test("a customer's own list is scoped to them, whatever they ask for", async () 
         "asking for somebody else's id returned somebody else's orders"
       );
     });
-  }, { lock: ORDER_LOCK });
+  }, { actor: TEST_ACTOR.id, lock: ORDER_LOCK });
 });
 
 test("a stranger cannot read the spots frozen on somebody else's sales order", async () => {
-  await inPinnedTransaction(async () => {
+  await inPinnedTransaction(async (c: PoolClient) => {
+    const { order, owner } = await aSalesOrder(c);
     await as(stranger, async () => {
       // GET /orders/:id/spots replaced the body-keyed legacy route in the
       // read-flip wave; one spots read serves both directions.
@@ -163,11 +149,12 @@ test("a stranger cannot read the spots frozen on somebody else's sales order", a
       assert.equal(res.status, 200, "the owner was refused their own order");
       assert.ok(Array.isArray(res.body));
     });
-  }, { lock: ORDER_LOCK });
+  }, { actor: TEST_ACTOR.id, lock: ORDER_LOCK });
 });
 
 test("a customer cannot move a sales order's status or send it to a refiner", async () => {
-  await inPinnedTransaction(async () => {
+  await inPinnedTransaction(async (c: PoolClient) => {
+    const { order } = await aSalesOrder(c);
     await as(stranger, async () => {
       const moved = await request(app)
         .patch(`/api/orders/${order.id}`)
@@ -179,11 +166,12 @@ test("a customer cannot move a sales order's status or send it to a refiner", as
         .send({ supplier: { supplier_id: null, send: true } });
       assert.equal(sent.status, 403, "a customer reached the code that emails a refiner");
     });
-  }, { lock: ORDER_LOCK });
+  }, { actor: TEST_ACTOR.id, lock: ORDER_LOCK });
 });
 
 test("moving a sales order's status takes the document the drawer sends", async () => {
-  await inPinnedTransaction(async () => {
+  await inPinnedTransaction(async (c: PoolClient) => {
+    const { order } = await aSalesOrder(c);
     const MOVE_TO = "Preparing";
     assert.notEqual(order.status, MOVE_TO, "the order is already there");
 
@@ -197,7 +185,7 @@ test("moving a sales order's status takes the document the drawer sends", async 
       const moved = list.body.find((o: { id: string; status: string }) => o.id === order.id);
       assert.equal(moved.status, MOVE_TO);
     });
-  }, { lock: ORDER_LOCK });
+  }, { actor: TEST_ACTOR.id, lock: ORDER_LOCK });
 });
 
 test("no sales order response carries a full bank number", async () => {
@@ -220,17 +208,20 @@ test("no sales order response carries a full bank number", async () => {
         assert.equal(leaked, 0, "a real routing number appears in a sales order response");
       }
     });
-  }, { lock: ORDER_LOCK });
+  }, { actor: TEST_ACTOR.id, lock: ORDER_LOCK });
 });
 
-test("nothing this file did survived the transaction", async () => {
-  const [{ status }] = await outside(
-    `SELECT sales_order_status AS status FROM exchange.sales_orders WHERE id = $1`,
-    [order.id]
-  );
-  assert.equal(
-    status,
-    order.status,
-    "a sales order was really moved in dev"
-  );
+// THE FIXTURE IS BUILT INSIDE EACH TRANSACTION NOW, so there is no committed
+// order for this file to have moved - which is a stronger statement than the
+// one this test used to make (re-reading the discovered order and asking
+// whether its status had drifted). What the pin holds is asserted directly, on
+// a built order, in shared/testing/builders/tests/builders.test.ts.
+test("no built sales order survived the transaction", async () => {
+  let built = "";
+  await inPinnedTransaction(async (c: PoolClient) => {
+    built = (await aSalesOrder(c)).order.id;
+  }, { actor: TEST_ACTOR.id, lock: ORDER_LOCK });
+
+  const rows = await outside(`SELECT id FROM orders.orders WHERE id = $1`, [built]);
+  assert.equal(rows.length, 0, "a built sales order was committed to the database");
 });

@@ -4,31 +4,20 @@ import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
 import { randomUUID } from "node:crypto";
 import pool from "#db";
+import { inRollback } from "#shared/testing/rollback.ts";
 import * as carriers from "#db/shipping/carriers/repo.ts";
 
-let client: PoolClient;
 
 beforeAll(async () => {
   assert.equal(
     new Date().getTimezoneOffset(), 0,
     "these tests require TZ=UTC - run them with `pnpm --filter @dorado/api test`"
   );
-  client = await pool.connect();
 });
 
 afterAll(async () => {
-  client.release();
   await pool.end();
 });
-
-async function inRollback(fn: (c: PoolClient) => Promise<void>) {
-  await client.query("BEGIN");
-  try {
-    await fn(client);
-  } finally {
-    await client.query("ROLLBACK");
-  }
-}
 
 async function anOrganization(c: PoolClient): Promise<string> {
   const id = randomUUID();

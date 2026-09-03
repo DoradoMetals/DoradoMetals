@@ -5,37 +5,39 @@ import type { PoolClient } from "pg";
 import { randomUUID } from "node:crypto";
 import pool from "#db";
 import { LOCKS, takeLocks } from "#shared/testing/locks.ts";
+import { rollbackIn } from "#shared/testing/rollback.ts";
+import { aUser, anOrder, aRefinerEngagement, refinerId } from "#shared/testing/builders/index.ts";
 import * as refinerOrders from "#db/refiners/orders/repo.ts";
 
-let client: PoolClient;
 
 beforeAll(async () => {
   assert.equal(
     new Date().getTimezoneOffset(), 0,
     "these tests require TZ=UTC - run them with `pnpm --filter @dorado/api test`"
   );
-  client = await pool.connect();
 });
 
 afterAll(async () => {
-  client.release();
   await pool.end();
 });
 
-async function inRollback(fn: (c: PoolClient) => Promise<void>) {
-  await client.query("BEGIN");
-  try {
-    await takeLocks(client, LOCKS.ORDERS);
-    await fn(client);
-  } finally {
-    await client.query("ROLLBACK");
-  }
-}
+// THE FILE'S LOCK, BOUND ONCE. A lock is a property of what this file
+// WRITES, not of one call, so it is named here and every inRollback below
+// inherits it - which is also what stops a new test being added without one.
+const inRollback = rollbackIn({ lock: LOCKS.ORDERS });
+
+const anEngagement = async (c: PoolClient) => {
+  const order = await anOrder(c, await aUser(c), { direction: "purchase" }).withLots(1);
+  return aRefinerEngagement(c, order);
+};
 
 test("update writes the pool/fee columns and leaves refiner_id alone", async () => {
   await inRollback(async (c: PoolClient) => {
-    const { rows: [row] } = await c.query(`SELECT id, refiner_id FROM refiners.orders ORDER BY id LIMIT 1`);
-    assert.ok(row, "dev has no refiners.orders row to test against");
+    // THE ENGAGEMENT IS BUILT (lane 1) - this picked whichever row
+    // refiners.orders happened to hold and then overwrote its pool and fee
+    // columns, which are real numbers on a real refinery settlement.
+    const engagement = await anEngagement(c);
+    const row = { id: engagement.id, refiner_id: null };
 
     const changed = await refinerOrders.update(
       row.id, { pool_oz_deducted: 1.5, pool_remediation: 0.2, fee: 25 }, c
@@ -58,11 +60,13 @@ test("update writes the pool/fee columns and leaves refiner_id alone", async () 
 // attached is not this test's business.
 test("refiner_id can be explicitly cleared to null", async () => {
   await inRollback(async (c: PoolClient) => {
-    const { rows: [row] } = await c.query(`SELECT id FROM refiners.orders ORDER BY id LIMIT 1`);
-    assert.ok(row, "dev has no refiners.orders row to test against");
-    const { rows: [refiner] } = await c.query(`SELECT id FROM refiners.refiners LIMIT 1`);
-    assert.ok(refiner, "dev has no refiners.refiners row to test against");
-    await c.query(`UPDATE refiners.orders SET refiner_id = $1 WHERE id = $2`, [refiner.id, row.id]);
+    const row = await anEngagement(c);
+    // The refinery itself is reference data - two rows, seeded - so it is
+    // named rather than built.
+    await c.query(
+      `UPDATE refiners.orders SET refiner_id = $1 WHERE id = $2`,
+      [await refinerId(c), row.id]
+    );
 
     const changed = await refinerOrders.update(row.id, { refiner_id: null }, c);
     assert.equal(changed, true, "update reported no row changed");

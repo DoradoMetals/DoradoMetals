@@ -25,6 +25,8 @@ import { test } from "vitest";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
 import { inPinnedTransaction } from "#shared/testing/pinned-pool.ts";
+import { TEST_ACTOR } from "#shared/testing/actor.ts";
+import { aUser } from "#shared/testing/builders/index.ts";
 import { runWithActor, currentActor } from "#shared/http/actor.ts";
 import withTransaction from "#shared/db/withTransaction.ts";
 import * as reviews from "#domain/reviews/service.ts";
@@ -32,12 +34,14 @@ import * as reviewsRepo from "#db/reviews/repo.ts";
 
 type Person = { id: string; name: string };
 
+// TWO NAMED PEOPLE, BUILT (lane 1). This read the first two named rows of
+// auth.users and asserted it had found two - "this test proves nothing" was
+// the honest note about a database with fewer. Building them makes "alice" and
+// "bob" mean alice and bob, and a failure message names them.
 const twoPeople = async (c: PoolClient): Promise<[Person, Person]> => {
-  const { rows } = await c.query<Person>(
-    `SELECT id, name FROM auth.users WHERE name IS NOT NULL ORDER BY id LIMIT 2`
-  );
-  assert.equal(rows.length, 2, "auth.users has fewer than two named users - this test proves nothing");
-  return [rows[0], rows[1]];
+  const alice = await aUser(c, { name: "Alice Author" });
+  const bob = await aUser(c, { name: "Bob Editor" });
+  return [alice, bob];
 };
 
 const auditOf = async (c: PoolClient, id: string) =>
@@ -79,7 +83,7 @@ test("the actor who creates and the actor who edits are both recorded, by the da
       (onUpdate.updated_at as Date) > (onCreate.created_at as Date),
       `updated_at (${onUpdate.updated_at}) did not move past created_at (${onCreate.created_at})`
     );
-  });
+  }, { actor: TEST_ACTOR.id });
 });
 
 // THE CLOCK, NOT THE TRANSACTION. now() is the transaction's START time and is
@@ -100,7 +104,7 @@ test("a row created and edited in one transaction still records two different ti
       (row.updated_at as Date) > (row.created_at as Date),
       "created and edited inside one transaction produced one timestamp - now() is back"
     );
-  });
+  }, { actor: TEST_ACTOR.id });
 });
 
 // NOBODY IS A REAL ANSWER. A cron sweep and a Stripe webhook run with no
@@ -120,7 +124,12 @@ test("a write with no actor leaves the author alone rather than inventing one", 
     const row = await auditOf(c, created.id);
     assert.equal(row.updated_by_id, alice.id, "an unattributed write erased the author");
     assert.equal(row.updated_by, alice.name);
-  });
+    // `actor: null` DELIBERATELY, and the whole test turns on it: the pinned
+    // harness defaults to TEST_ACTOR so no test stamps nobody by accident
+    // (lane 2), which would make "with no actor" quietly false here. The
+    // service still opens its own transaction and writes '' from
+    // currentActor(), so this pins the behaviour rather than the default.
+  }, { actor: null });
 });
 
 // The explicit override, for scripts and seeds - anything with no request

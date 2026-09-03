@@ -14,6 +14,7 @@ import pool from "#db";
 import * as productsRepo from "#db/products/repo.ts";
 import type { AdminProductRow } from "#db/products/repo.ts";
 import { mockSessions, restoreSessions, as } from "#shared/testing/session.ts";
+import { TEST_ACTOR } from "#shared/testing/actor.ts";
 import { inPinnedTransaction, outside } from "#shared/testing/pinned-pool.ts";
 
 await mockSessions();
@@ -25,10 +26,7 @@ let admin: UserFixture;
 let product: AdminProductRow;
 
 beforeAll(async () => {
-  admin = (
-    await outside<UserFixture>(`SELECT id, name, email FROM exchange.users WHERE role = 'admin' LIMIT 1`)
-  )[0];
-  assert.ok(admin, "dev has no admin user");
+  admin = TEST_ACTOR;
 
   const [row] = await productsRepo.getAdminAll();
   assert.ok(row, "dev has no product in products.bullion");
@@ -93,7 +91,7 @@ test("a metal id that does not exist is refused, and nothing is written", async 
       const res = await saveFull(NOBODY);
       assert.ok(res.status >= 400, `an unmatched metal id was answered ${res.status}`);
     });
-  });
+  }, { actor: TEST_ACTOR.id });
 
   const [afterRow] = await outside(
     `SELECT metal_id FROM products.bullion WHERE id = $1`,
@@ -117,5 +115,5 @@ test("a save naming the product's own metal id succeeds and keeps the link", asy
       assert.equal(rows[0].metal_id, product.metal_id, "an honest save lost the metal");
       assert.equal(rows[0].name, product.name);
     });
-  });
+  }, { actor: TEST_ACTOR.id });
 });

@@ -18,6 +18,7 @@ import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
 import pool from "#db";
 import { LOCKS, takeLocks } from "#shared/testing/locks.ts";
+import { inRollback } from "#shared/testing/rollback.ts";
 import * as orderRead from "#domain/orders/read.ts";
 
 let client: PoolClient;
@@ -34,15 +35,6 @@ afterAll(async () => {
   client.release();
   await pool.end();
 });
-
-async function inRollback(fn: (c: PoolClient) => Promise<void>) {
-  await client.query("BEGIN");
-  try {
-    await fn(client);
-  } finally {
-    await client.query("ROLLBACK");
-  }
-}
 
 const saleIds = async (c?: PoolClient): Promise<string[]> =>
   (await orderRead.list({ direction: "sale" }, c)).map((o) => o.id);

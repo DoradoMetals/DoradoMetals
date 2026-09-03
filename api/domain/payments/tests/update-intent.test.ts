@@ -43,44 +43,22 @@
 //
 // NOTHING IS COMMITTED: shared/testing/pinned-pool.js holds every query in one
 // transaction that is rolled back.
-import { test, afterAll, beforeAll } from "vitest";
+import { test, afterAll } from "vitest";
 import assert from "node:assert/strict";
 import request from "supertest";
 import type { PoolClient } from "pg";
 import pool from "#db";
 import query from "#shared/db/query.ts";
 import { mockSessions, restoreSessions, as } from "#shared/testing/session.ts";
-import { inPinnedTransaction, outside } from "#shared/testing/pinned-pool.ts";
+import { TEST_ACTOR } from "#shared/testing/actor.ts";
+import { inPinnedTransaction } from "#shared/testing/pinned-pool.ts";
 import { LOCKS } from "#shared/testing/locks.ts";
 import { withCassette } from "#shared/testing/cassettes.ts";
+import { aUser, anAddress } from "#shared/testing/builders/index.ts";
 import * as addressService from "#domain/places/addresses/service.ts";
 
 await mockSessions();
 const { default: app } = await import("#app");
-
-// THE STRUCTURAL SUBSET THE FIXTURE QUERIES ASK FOR.
-type UserFixture = { id: string; name: string | null; email: string | null };
-
-let customer: UserFixture;
-let addressId: string;
-
-beforeAll(async () => {
-  const users = await outside<UserFixture>(
-    `SELECT u.id, u.name, u.email FROM exchange.users u
-      WHERE u.role IS DISTINCT FROM 'admin'
-        AND EXISTS (SELECT 1 FROM exchange.addresses a WHERE a.user_id = u.id)
-      LIMIT 1`
-  );
-  customer = users[0];
-  assert.ok(customer, "dev needs a non-admin user with an address");
-
-  const rows = await outside(
-    `SELECT id FROM exchange.addresses WHERE user_id = $1 ORDER BY id LIMIT 1`,
-    [customer.id]
-  );
-  addressId = rows[0]?.id;
-  assert.ok(addressId, "dev needs an address for that user");
-});
 
 afterAll(async () => {
   restoreSessions();
@@ -88,7 +66,10 @@ afterAll(async () => {
 });
 
 // The unit the route died on, asserted directly so a failure says which half
-// broke rather than only that the route is down.
+// broke rather than only that the route is down. Built rather than discovered:
+// getAddressFromId reads places.addresses (its own feature's table), so a
+// fixture drawn from the frozen exchange.addresses was testing an id that only
+// coincidentally lined up across the two schemas.
 test("the addresses service can resolve one address by id", async () => {
   assert.equal(
     typeof addressService.getAddressFromId,
@@ -96,13 +77,18 @@ test("the addresses service can resolve one address by id", async () => {
     "getAddressFromId is missing - domain/payments/service.ts awaits it"
   );
 
-  const address = await addressService.getAddressFromId(addressId);
-  assert.ok(address, "a real address id resolved to nothing");
-  assert.equal(address.id, addressId, "it returned a different address");
-  assert.ok(
-    typeof address.state === "string" || address.state === null,
-    "the caller reads `address?.state` to decide the tax state"
-  );
+  await inPinnedTransaction(async (c) => {
+    const customer = await aUser(c);
+    const built = await anAddress(c, customer);
+
+    const address = await addressService.getAddressFromId(built.id);
+    assert.ok(address, "a real address id resolved to nothing");
+    assert.equal(address.id, built.id, "it returned a different address");
+    assert.ok(
+      typeof address.state === "string" || address.state === null,
+      "the caller reads `address?.state` to decide the tax state"
+    );
+  }, { actor: TEST_ACTOR.id, lock: LOCKS.ADDRESSES });
 });
 
 // An id that matches nothing must come back empty rather than throw: the call
@@ -119,7 +105,9 @@ test("an unknown address id resolves to nothing rather than throwing", async () 
 // did not fall over.
 test("update_payment_intent succeeds against a recorded Stripe response", async () => {
   await inPinnedTransaction(async (c: PoolClient) => {
-    const customerId = customer.id;
+    const customer = await aUser(c);
+    const built = await anAddress(c, customer);
+
     // Closes createPaymentIntent's "open a Stripe customer" branch before the
     // request, so the ONLY Stripe call this request makes is the createIntent
     // the cassette answers. The value itself is arbitrary - the cassette
@@ -128,7 +116,7 @@ test("update_payment_intent succeeds against a recorded Stripe response", async 
     // here needs to match anything Stripe actually issued.
     await query(
       `UPDATE auth.users SET "stripeCustomerId" = $1 WHERE id = $2`,
-      ["cus_cassette_update_intent", customerId],
+      ["cus_cassette_update_intent", customer.id],
       c
     );
 
@@ -139,7 +127,7 @@ test("update_payment_intent succeeds against a recorded Stripe response", async 
           .send({
             items: [],
             type: "customer",
-            address_id: addressId,
+            address_id: built.id,
           });
 
         assert.equal(
@@ -155,5 +143,5 @@ test("update_payment_intent succeeds against a recorded Stripe response", async 
         );
       })
     );
-  }, { lock: LOCKS.ADDRESSES });
+  }, { actor: TEST_ACTOR.id, lock: LOCKS.ADDRESSES });
 });

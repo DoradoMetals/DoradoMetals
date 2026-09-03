@@ -17,41 +17,38 @@ import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
 import pool from "#db";
+import { LOCKS } from "#shared/testing/locks.ts";
+import { rollbackIn } from "#shared/testing/rollback.ts";
+import { aUser, anOrder, metalId } from "#shared/testing/builders/index.ts";
 import * as spots from "#db/orders/spots/repo.ts";
 
-let client: PoolClient;
+// LOCKS.ORDERS: the order and its quote are built here rather than borrowed.
+const inRollback = rollbackIn({ lock: LOCKS.ORDERS });
+
 
 beforeAll(async () => {
   assert.equal(
     new Date().getTimezoneOffset(), 0,
     "these tests require TZ=UTC - run them with `pnpm --filter @dorado/api test`"
   );
-  client = await pool.connect();
 });
 
 afterAll(async () => {
-  client.release();
   await pool.end();
 });
 
-async function inRollback(fn: (c: PoolClient) => Promise<void>) {
-  await client.query("BEGIN");
-  try {
-    await fn(client);
-  } finally {
-    await client.query("ROLLBACK");
-  }
-}
-
-const anOrderWithSpots = async (c: PoolClient) =>
-  (await c.query(
-    `SELECT order_id, metal_id FROM orders.spots ORDER BY order_id, metal_id LIMIT 1`
-  )).rows[0] ?? null;
+// AN ORDER QUOTED FOR EVERY METAL, BUILT. `.withSpots()` writes all four,
+// which is what placement does - so "another metal on the same order" is a
+// guarantee here rather than something the previous version had to look for
+// and assert it had found.
+const anOrderWithSpots = async (c: PoolClient) => {
+  const order = await anOrder(c, await aUser(c), { direction: "purchase" }).withSpots();
+  return { order_id: order.id, metal_id: await metalId(c, "Gold") };
+};
 
 test("clearing a bid leaves the ask alone", async () => {
   await inRollback(async (c: PoolClient) => {
     const s = await anOrderWithSpots(c);
-    assert.ok(s, "orders.spots is empty - this test proves nothing");
     // Both set, so the assertion can tell them apart.
     await c.query(
       "UPDATE orders.spots SET bid = 100, ask = 200 WHERE order_id = $1", [s.order_id]
@@ -78,7 +75,6 @@ test("clearing a bid leaves the ask alone", async () => {
 test("a bid lands on one metal of one order", async () => {
   await inRollback(async (c: PoolClient) => {
     const s = await anOrderWithSpots(c);
-    assert.ok(s, "orders.spots is empty");
     // Another metal on the same order, so we can prove the update is narrow.
     const { rows: others } = await c.query(
       `SELECT metal_id FROM orders.spots WHERE order_id = $1 AND metal_id <> $2`,
@@ -119,7 +115,6 @@ test("a bid lands on one metal of one order", async () => {
 test("a bid for a metal the order does not carry changes nothing", async () => {
   await inRollback(async (c: PoolClient) => {
     const s = await anOrderWithSpots(c);
-    assert.ok(s, "orders.spots is empty");
 
     // Remove one metal's quote, so the order genuinely does not carry it.
     await c.query(
@@ -142,7 +137,6 @@ test("a bid for a metal the order does not carry changes nothing", async () => {
 test("creating the same order and metal twice does not raise", async () => {
   await inRollback(async (c: PoolClient) => {
     const s = await anOrderWithSpots(c);
-    assert.ok(s, "orders.spots is empty");
     const before = (await c.query(
       "SELECT count(*)::int n FROM orders.spots WHERE order_id = $1", [s.order_id]
     )).rows[0].n;
