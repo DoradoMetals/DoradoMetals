@@ -17,6 +17,9 @@
 //
 // Exits 0 if the suite can run, non-zero with instructions otherwise.
 import "#env";
+import fs from "node:fs";
+import path from "node:path";
+import { spawnSync } from "node:child_process";
 import pg from "pg";
 
 const url = process.env.DATABASE_URL ?? "";
@@ -54,6 +57,10 @@ if (process.env.USE_TEST_DB === "1" && !isLoopback) {
 if (!isLoopback) process.exit(0);
 
 const port = (() => { try { return new URL(url).port || "5432"; } catch { return "5432"; } })();
+const database = (() => {
+  try { return decodeURIComponent(new URL(url).pathname.replace(/^\//, "")); } catch { return ""; }
+})();
+const redacted = url.replace(/:[^:@/]*@/, ":****@");
 
 const START = `~/pgroot/usr/lib/postgresql/16/bin/pg_ctl -D ~/pgdata16 \\
   -o "-p ${port} -c max_connections=200 -c unix_socket_directories=$HOME/pgsock" \\
@@ -102,6 +109,61 @@ try {
 
   const { rows: db } = await client.query<{ db: string }>("SELECT current_database() db");
   console.log(`test database ready: ${db[0]!.db} on ${port}, ${users[0]!.n} user(s)`);
+
+  // KEEPING IT MIGRATED, AUTOMATICALLY - BUT ONLY HERE. `test` is disposable
+  // and provisioned from dev, so re-running the migrator against it costs
+  // nothing and nobody has to remember to. Nowhere else gets this: a "test"
+  // that is not on loopback is either the Railway database refused above, or
+  // some other database this script cannot vouch for - so that branch only
+  // ever reports and refuses, exactly like a stale local cluster does.
+  const MIGRATIONS_DIR = path.join(import.meta.dirname, "..", "migrations");
+  const files = fs.existsSync(MIGRATIONS_DIR)
+    ? fs.readdirSync(MIGRATIONS_DIR).filter((f) => f.endsWith(".sql")).sort()
+    : [];
+
+  let appliedNames = new Set<string>();
+  try {
+    const { rows: applied } = await client.query<{ name: string }>(
+      `SELECT name FROM exchange.schema_migrations`
+    );
+    appliedNames = new Set(applied.map((r) => r.name));
+  } catch {
+    // No schema_migrations table yet - every migration is pending, which is
+    // exactly what an empty appliedNames set produces below.
+  }
+
+  const pending = files.filter((f) => !appliedNames.has(f));
+
+  if (pending.length === 0) {
+    console.log("no pending migrations");
+  } else {
+    const canAutoMigrate = isLoopback && database === (process.env.TEST_DATABASE ?? "test");
+    console.log(`${pending.length} pending migration(s): ${pending.join(", ")}`);
+
+    if (!canAutoMigrate) {
+      console.error(
+        `refusing to auto-migrate ${redacted} - it is not the local test ` +
+        `database. Apply by hand if that is genuinely intended:\n\n` +
+        `  MIGRATE_ALLOW_DB=${database} DATABASE_URL=${redacted} node scripts/migrate.mjs\n`
+      );
+      process.exit(1);
+    }
+
+    console.log("applying pending migrations to the local test database...");
+    const result = spawnSync(
+      process.execPath,
+      ["scripts/migrate.mjs"],
+      {
+        cwd: path.join(import.meta.dirname, ".."),
+        env: { ...process.env, DATABASE_URL: url, MIGRATE_ALLOW_DB: "test" },
+        stdio: "inherit",
+      }
+    );
+    if (result.status !== 0) {
+      console.error("auto-migrating the local test database failed - see above");
+      process.exit(result.status ?? 1);
+    }
+  }
 } finally {
   await client.end();
 }

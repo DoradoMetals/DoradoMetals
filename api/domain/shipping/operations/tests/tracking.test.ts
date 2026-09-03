@@ -29,60 +29,37 @@
 // become savepoints inside one outer transaction that is discarded. The last
 // test in this file checks from outside that nothing survived.
 //
+// THE FIXTURE IS SELF-SEEDED NOW (2026-09-03). The earlier version picked
+// "the shipment with the most tracking events" out of dev, which coupled this
+// file to whatever dev happened to hold - and its second test compared the
+// written estimate against a hardcoded UTC literal, which silently assumed the
+// database session's TimeZone is UTC. It is not, on every cluster this suite
+// now runs against: the local Postgres `pnpm --filter @dorado/api test` uses reports
+// `America/Chicago`, five hours off, because `estimatedDeliveryTime` arrives as
+// a bare string with no offset and Postgres resolves it against the session's
+// own TimeZone. Seeding a fresh shipment fixes the coupling; computing the
+// expected instant with the same `::timestamptz` cast the write goes through
+// fixes the timezone assumption, and the fix does not depend on which zone the
+// cluster happens to be in.
+//
 // Nothing calls FedEx either: getTracking takes an optional fetchTracking the
 // way sendEmail takes a transport, and these pass one.
-import test, { after, before } from "node:test";
+import test, { after } from "node:test";
 import assert from "node:assert/strict";
+import type { PoolClient } from "pg";
 import pool from "#db";
 import query from "#shared/db/query.ts";
 import * as service from "#domain/shipping/operations/service.ts";
 import { LOCKS } from "#shared/testing/locks.ts";
-import {
-  inPinnedTransaction,
-  assertNothingEscaped,
-  outside,
-} from "#shared/testing/pinned-pool.ts";
+import { inPinnedTransaction, assertNothingEscaped } from "#shared/testing/pinned-pool.ts";
 
-// THE STRUCTURAL SUBSET THE FIXTURE QUERY ASKS FOR.
-type ShipmentFixture = {
-  id: string;
-  shipping_status: string | null;
-  delivered_at: Date | null;
-  estimated_delivery: Date | null;
-  events: number;
-};
 type ShipmentRow = { shipping_status: string | null; delivered_at: Date | null; estimated_delivery: Date | null };
 
-let fixture: ShipmentFixture;
-let baseline: { events: number; shipments: number };
-
-before(async () => {
-  const rows = await outside<ShipmentFixture>(
-    `SELECT s.id, s.shipping_status, s.delivered_at, s.est_delivery AS estimated_delivery,
-            count(e.id)::int AS events
-       FROM shipping.shipments s
-       JOIN shipping.tracking e ON e.shipment_id = s.id
-      GROUP BY s.id, s.shipping_status, s.delivered_at, s.est_delivery
-      ORDER BY count(e.id) DESC, s.id ASC
-      LIMIT 1`
-  );
-  fixture = rows[0];
-  assert.ok(fixture, "dev has no shipment with tracking events to protect");
-  assert.ok(fixture.events > 0, "the fixture has no events, so this proves nothing");
-
-  // Counted before anything runs, so the escape check below measures what THIS
-  // file added rather than what the table already held.
-  baseline = {
-    events: await assertNothingEscaped(
-      "shipping.tracking",
-      "location = 'Dallas, TX' AND status = 'Dropped Off'"
-    ),
-    shipments: await assertNothingEscaped(
-      "shipping.shipments",
-      "est_delivery = '2026-09-01T12:00:00'"
-    ),
-  };
-});
+// The two shipments this file creates, so the closing test can prove neither
+// survived the rollback - by id, rather than by a location string that used
+// to be tied to a specific dev row.
+let firstShipmentId: string | undefined;
+let secondShipmentId: string | undefined;
 
 after(async () => {
   await pool.end();
@@ -108,6 +85,27 @@ const shipmentRow = async (id: string): Promise<ShipmentRow> => {
   return rows[0];
 };
 
+// A bare shipment with two tracking events, inserted on the pinned client so
+// it lives and dies with the transaction the caller holds. Every column left
+// out is nullable or has a default (direction, insured) - nothing here needs a
+// carrier, a package or an order, because getTracking's read path composes a
+// shipment with none of those through left joins.
+async function seedShipment(client: PoolClient): Promise<{ id: string }> {
+  const { rows: [shipment] } = await client.query(
+    `INSERT INTO shipping.shipments (shipping_status, est_delivery)
+     VALUES ('In Transit', '2026-08-25T00:00:00Z')
+     RETURNING id`
+  );
+  await client.query(
+    `INSERT INTO shipping.tracking (shipment_id, status, location, time)
+     VALUES
+       ($1, 'Label Created', 'Reno, NV', '2026-08-19T09:00:00Z'),
+       ($1, 'In Transit',    'Reno, NV', '2026-08-20T09:00:00Z')`,
+    [shipment.id]
+  );
+  return shipment;
+}
+
 // Exactly what parseTracking returns when it recognised nothing: an empty
 // scanEvents array and its two placeholder strings.
 const recognisedNothing = () => ({
@@ -118,25 +116,28 @@ const recognisedNothing = () => ({
 });
 
 test("a refresh that recognises nothing leaves the events and the status alone", async () => {
-  await inPinnedTransaction(async () => {
+  await inPinnedTransaction(async (client) => {
+    const shipment = await seedShipment(client);
+    firstShipmentId = shipment.id;
+
     const before = {
-      events: await eventCount(fixture.id),
-      row: await shipmentRow(fixture.id),
+      events: await eventCount(shipment.id),
+      row: await shipmentRow(shipment.id),
     };
-    assert.ok(before.events > 0, "the fixture lost its events before the test ran");
+    assert.equal(before.events, 2, "the seeded shipment did not keep its events");
 
     // `async` because FetchTracking is declared `=> Promise<ParsedTracking>`
     // and this stub returned the object bare. Awaiting a value and awaiting a
     // promise of it are the same thing at runtime, so the test is unchanged.
-    await service.getTracking(fixture.id, async () => recognisedNothing());
+    await service.getTracking(shipment.id, async () => recognisedNothing());
 
     assert.equal(
-      await eventCount(fixture.id),
+      await eventCount(shipment.id),
       before.events,
       "an empty tracking response deleted the shipment's history"
     );
     assert.deepEqual(
-      await shipmentRow(fixture.id),
+      await shipmentRow(shipment.id),
       before.row,
       "an empty tracking response overwrote the status, the estimate or the delivery date"
     );
@@ -148,13 +149,19 @@ test("a refresh that recognises nothing leaves the events and the status alone",
 // replaces the events and the status - which is also what proves the
 // assertions above can see a change at all.
 test("a refresh that recognises something still replaces what is stored", async () => {
-  await inPinnedTransaction(async () => {
-    const before = {
-      events: await eventCount(fixture.id),
-      row: await shipmentRow(fixture.id),
-    };
+  await inPinnedTransaction(async (client) => {
+    const shipment = await seedShipment(client);
+    secondShipmentId = shipment.id;
 
-    await service.getTracking(fixture.id, async () => ({
+    // The expected instant, resolved by the SAME cast the write below goes
+    // through - not a hardcoded UTC literal. A literal comparison only holds
+    // while the database session's TimeZone happens to be UTC, and it is not
+    // on every cluster this suite runs against.
+    const { rows: [{ expected }] } = await client.query<{ expected: Date }>(
+      `SELECT '2026-09-01T12:00:00'::timestamptz AS expected`
+    );
+
+    await service.getTracking(shipment.id, async () => ({
       estimatedDeliveryTime: "2026-09-01T12:00:00",
       // Two different locations on purpose: identical rows would let the
       // assertion below pass on ordering it never checked.
@@ -169,10 +176,10 @@ test("a refresh that recognises something still replaces what is stored", async 
     // Asserted by identity rather than by count. "There are two events" is a
     // coincidence the fixture can satisfy on its own; "the two events are the
     // ones this test supplied, and the ones it had are gone" is the property.
-    const { rows: events } = await query(
+    const { rows: events } = await client.query(
       `SELECT status, location FROM shipping.tracking
         WHERE shipment_id = $1 ORDER BY time ASC`,
-      [fixture.id]
+      [shipment.id]
     );
     assert.deepEqual(
       events,
@@ -183,16 +190,11 @@ test("a refresh that recognises something still replaces what is stored", async 
       "the recognised events did not replace what was stored"
     );
 
-    const after = await shipmentRow(fixture.id);
+    const after = await shipmentRow(shipment.id);
     assert.equal(after.shipping_status, "Dropped Off", "the status was not updated");
-    // Field by field rather than `notDeepEqual(after, before.row)`. That
-    // comparison passes only when the fixture did not already happen to hold
-    // these values, which is a coincidence rather than a property - and it is
-    // exactly what failed once the first version of this file had committed
-    // these very values onto the fixture.
     assert.equal(
-      after.estimated_delivery?.toISOString?.() ?? after.estimated_delivery,
-      new Date("2026-09-01T12:00:00").toISOString(),
+      after.estimated_delivery?.toISOString?.(),
+      expected.toISOString(),
       "the estimate was not updated"
     );
   }, { lock: LOCKS.ORDERS });
@@ -201,31 +203,18 @@ test("a refresh that recognises something still replaces what is stored", async 
 // The property the pin exists for. Every assertion above reads its own writes
 // and passes either way if the pin stops working; this is the one that notices.
 //
-// Measured against a baseline taken before the tests ran, rather than against
-// zero. Not a weakening: "this file added nothing" is the actual property, and
-// the absolute form only worked while the table happened to be clean. It is not
-// clean - the first version of this file committed these very rows onto five
-// dev shipments, and until dev is repaired from production the baseline is
-// where those rows are counted. If the pin ever breaks, the count grows during
-// the run and this fails either way.
+// Checked by id rather than against a baseline count. The earlier version
+// measured a location/status literal against a count taken before the suite
+// ran, because dev already held rows a prior bug had committed and a bare
+// zero would have failed on data this file did not write. Seeded shipments get
+// a fresh id every run, so "this file's shipment does not exist" is airtight
+// regardless of what else the table holds.
 test("nothing this file did survived the transaction", async () => {
-  const events = await assertNothingEscaped(
-    "shipping.tracking",
-    "location = 'Dallas, TX' AND status = 'Dropped Off'"
-  );
-  assert.equal(
-    events,
-    baseline.events,
-    `a fabricated tracking event was committed to dev (${baseline.events} before, ${events} after)`
-  );
-
-  const shipments = await assertNothingEscaped(
-    "shipping.shipments",
-    "est_delivery = '2026-09-01T12:00:00'"
-  );
-  assert.equal(
-    shipments,
-    baseline.shipments,
-    `a shipment kept the estimate this file wrote (${baseline.shipments} before, ${shipments} after)`
-  );
+  for (const id of [firstShipmentId, secondShipmentId]) {
+    assert.ok(id, "a prior test did not record the shipment id it created");
+    const shipments = await assertNothingEscaped("shipping.shipments", "id = $1", [id]);
+    assert.equal(shipments, 0, `a shipment this file created (${id}) was committed`);
+    const events = await assertNothingEscaped("shipping.tracking", "shipment_id = $1", [id]);
+    assert.equal(events, 0, `tracking events for a shipment this file created (${id}) were committed`);
+  }
 });

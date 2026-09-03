@@ -7,7 +7,7 @@
   "scripts": {
     "dev": "node --watch server.ts",
     "start": "node server.ts",
-    "test": "TZ=UTC NODE_ENV=test node --test",
+    "test": "TZ=UTC NODE_ENV=test USE_TEST_DB=1 node scripts/preflight-test-db.ts && TZ=UTC NODE_ENV=test USE_TEST_DB=1 node --test",
     "lint:db": "node scripts/lint-db-calls.ts",
     "lint:imports": "node scripts/lint-imports.mjs",
     "lint:namespace-calls": "node scripts/lint-namespace-calls.mjs",
@@ -62,7 +62,6 @@
     "refresh:test": "node scripts/refresh-from-backup.mjs --target test",
     "provision:test": "TZ=UTC node scripts/provision-test-db.ts",
     "refresh:dev": "node scripts/refresh-from-backup.mjs --target dev",
-    "test:on-test-db": "TZ=UTC NODE_ENV=test USE_TEST_DB=1 node scripts/preflight-test-db.ts && TZ=UTC NODE_ENV=test USE_TEST_DB=1 node --test",
     "test:on-dev": "TZ=UTC NODE_ENV=test node --test",
     "preflight:test-db": "TZ=UTC USE_TEST_DB=1 node scripts/preflight-test-db.ts",
     "audit:test-leaks:self-test": "TZ=UTC node scripts/audit-test-leaks.ts --self-test",

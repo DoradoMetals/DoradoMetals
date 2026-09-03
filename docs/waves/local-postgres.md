@@ -210,3 +210,12 @@ point `test` at what `test:on-test-db` runs, and keep `test:on-dev` as the
 escape hatch. It is deliberately NOT done here: until that `.env` line exists,
 flipping it would break `pnpm check` for everyone including Jacob, and a pivot
 that breaks the gate on the first run is a pivot that gets reverted.
+
+---
+
+**FLIPPED, 2026-09-03.** The `.env` line above was already in place. `test` in
+`api/package.json` is now the preflight + `USE_TEST_DB=1` run; `test:on-test-db`
+is gone (there is nothing left for it to alias) and `test:on-dev` stays as the
+escape hatch. The preflight also now keeps the local database migrated on its
+own — see `docs/waves/phase5-fast-gate.md` task 1 — so provisioning once and
+letting the preflight carry it forward is the whole workflow.

@@ -180,4 +180,4 @@ if (after[0]!.n < srcCount[0]!.n) {
     `Something did not restore. Run compare:databases before trusting this.`
   );
 }
-console.log("\nprovisioned. Run: pnpm --filter @dorado/api test:on-test-db");
+console.log("\nprovisioned. Run: pnpm --filter @dorado/api test");

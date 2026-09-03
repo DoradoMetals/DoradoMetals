@@ -384,9 +384,15 @@ the user.
 ## Tests
 
 The API's tests run against real Postgres, each inside a transaction that is
-rolled back, and need `TZ=UTC` — `pnpm --filter @dorado/api test`. They live
-with their feature, grouped under `features/<feature>/tests/` (ruling 31), and
-a test whose subject moves moves with it in the same pass.
+rolled back, and need `TZ=UTC` — `pnpm --filter @dorado/api test`. **A LOCAL
+Postgres is the default now (2026-09-03)**: `test` runs a preflight that checks
+a local cluster on 127.0.0.1 is up, provisioned, and fully migrated —
+auto-applying any pending migration there and only there — before running the
+suite against it, ~20s for 896 tests. `pnpm --filter @dorado/api test:on-dev`
+runs the old way, against the remote dev database, for the rare case that
+matters. See `docs/waves/local-postgres.md`. They live with their feature,
+grouped under `features/<feature>/tests/` (ruling 31), and a test whose subject
+moves moves with it in the same pass.
 
 The frontend uses vitest, `pnpm --filter @dorado/frontend test`, in two lanes:
 pure functions and contract shapes run in plain node, and component render
@@ -445,6 +451,15 @@ server otherwise gets strings, and `price + fee` concatenates.
 `pnpm check` before committing — it takes over two minutes now, so background it
 rather than letting a timeout kill it. Several validators need a database and
 are not in CI. See the `verify-changes` skill for what each catches.
+
+**`pnpm check:fast` is a faster gate for iteration**: contracts build +
+verify:fresh + validate, the API's static lints, its typecheck, and its test
+suite (against the local database above). It omits everything that needs the
+DEV database (`verify:genesis`, `audit:coverage`, `audit:indexes`,
+`audit:query-paths`, `audit:constraints`, `audit:non-finite`,
+`audit:nullability`, `validate:wire`) and everything frontend/components,
+typecheck and build included. `pnpm check` is still the full chain and is what
+actually gates a commit.
 
 The ones that have actually caught things:
 

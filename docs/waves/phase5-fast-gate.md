@@ -3,10 +3,24 @@
 Approved by Jacob 2026-08-29. Owner: unassigned.
 
 ```
-1. A local PostgreSQL 16 for the test suite   ░░░░░░░░░░░░░░░░░░    0%
-2. Shorten the serialized chain               ░░░░░░░░░░░░░░░░░░    0%
+1. A local PostgreSQL 16 for the test suite   ████████████████████  100%  (2026-09-03)
+2. Shorten the serialized chain               ████████████████████  100%  (2026-09-03)
 3. Parallelise the independent gate members   ░░░░░░░░░░░░░░░░░░    0%
 ```
+
+**Task 1, DONE 2026-09-03**: `pnpm --filter @dorado/api test` runs the local
+Postgres by default now — no more `test:on-test-db` alias, no more opting in.
+`scripts/preflight-test-db.ts` also keeps it migrated automatically: it
+compares `exchange.schema_migrations` against `api/migrations/*.sql` and
+applies anything pending, but ONLY when the target is loopback and named
+`test` — anywhere else it reports what's pending and refuses, exactly like a
+stopped local cluster does. `test:on-dev` is the escape hatch to the old
+behaviour. 896/896 pass in ~20-40s.
+
+**Task 2, DONE 2026-09-03**: root `pnpm check:fast` is the shortened chain —
+contracts + the API's static lints/typecheck/test, nothing that touches the
+DEV database and nothing frontend. `pnpm check` is unchanged and is still what
+gates a commit.
 
 ## The measurement, corrected
 

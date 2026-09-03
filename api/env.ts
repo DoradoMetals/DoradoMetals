@@ -96,16 +96,17 @@ for (const [name, build] of Object.entries(COMPOSED)) {
 // has always been possible - this just makes it one flag instead of remembering
 // to export the right variable, and puts the reason in one place.
 //
-// NOT USABLE YET, and the reason is worth knowing before you try it. `test` is
-// rebuilt from a production backup, and production has no leads, rates,
-// reviews, products, metals or media schema at all. The migrations create them
-// and, today, leave them empty - so every repo.next test would read zero rows
-// and fail. This becomes usable the moment the migration chain populates the
-// new schemas on a production-shaped database, which is the same blocker as
-// promotion.
+// THIS IS THE DEFAULT NOW (2026-09-03). `pnpm --filter @dorado/api test` sets
+// USE_TEST_DB=1 itself, against a LOCAL Postgres provisioned from dev (see
+// docs/waves/local-postgres.md) - not the remote Railway `test`, which is what
+// the paragraph this replaced warned about: that one is rebuilt from a
+// PRODUCTION backup, and production has no leads, rates, reviews, products,
+// metals or media schema at all, so every test reading one of those would see
+// zero rows. `scripts/preflight-test-db.ts` still refuses outright if
+// TEST_DATABASE_URL ever resolves to that remote database instead of loopback.
 //
-//   USE_TEST_DB=1 pnpm --filter @dorado/api test
-//   pnpm --filter @dorado/api test:on-test-db
+//   pnpm --filter @dorado/api test          local Postgres (default)
+//   pnpm --filter @dorado/api test:on-dev   the old behaviour, against dev
 //
 // It refuses to point at anything but the test database, so it cannot become a
 // way to run a suite that writes against dev or prod by accident.

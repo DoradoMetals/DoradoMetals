@@ -105,10 +105,14 @@ const REAL_EXCUSED = {
   },
   "api/scripts/preflight-test-db.ts": {
     kind: "assertion",
-    why:"asserts a precondition and does nothing else - that the test database " +
-    "is reachable, is the LOCAL one rather than the production-shaped remote " +
-    "`test`, has an exchange schema, and has users. There is no detector to " +
-    "attack: every branch is a refusal, and the thing it inspects is a live " +
+    why:"asserts a precondition, and its one non-refusal branch delegates to " +
+    "migrate.mjs (already excused as an action) rather than writing anything " +
+    "itself - that the test database is reachable, is the LOCAL one rather " +
+    "than the production-shaped remote `test`, has an exchange schema, has " +
+    "users, and is migrated (auto-applying pending migrations ONLY when the " +
+    "target is loopback and named `test`; anywhere else it reports and refuses, " +
+    "same as a stale local cluster does). There is no detector to attack: every " +
+    "refusal branch fires on its own, and the thing it inspects is a live " +
     "database rather than a tree that could be synthesised.",
   },
   "api/scripts/provision-test-db.ts": {

@@ -12,18 +12,34 @@
 //
 // So these tests exist to keep it shut: anonymous is refused, and the id in the
 // request is ignored in favour of the session's.
+//
+// FIXTURES ARE SELF-SEEDED (2026-09-03). The original version picked its
+// "owner" as the exchange.users row with the most exchange.sell_cart_items -
+// a table checkout.checkouts / checkout.items replaced (D208/D209) and that
+// ruling 36 froze: nothing here writes exchange.sell_carts any more, so a
+// count taken from it proves nothing about what the live endpoints do, and it
+// silently assumed the picked user also existed in auth.users, which
+// checkout.checkouts' FK requires. Two of the six tests failed on exactly that
+// gap. The fix seeds each test's own cart over the same HTTP surface
+// carts-http.test.ts uses, inside the rolled-back transaction, so the
+// assertions stand on data this file put there itself. The comparison against
+// the frozen exchange table (the closing "nothing this file did survived the
+// transaction" test) is deleted outright - it is the dual-era oracle
+// CLAUDE.md's "The pivot is DONE" section says to remove, not repair.
 import test, { after, before } from "node:test";
 import assert from "node:assert/strict";
+import type { PoolClient } from "pg";
 import request from "supertest";
+import { randomUUID } from "node:crypto";
 import pool from "#db";
 import { mockSessions, restoreSessions, as, anonymous } from "#shared/testing/session.ts";
-import { inPinnedTransaction, assertNothingEscaped, outside } from "#shared/testing/pinned-pool.ts";
+import { inPinnedTransaction, outside } from "#shared/testing/pinned-pool.ts";
 import { LOCKS } from "#shared/testing/locks.ts";
 
 await mockSessions();
 const { default: app } = await import("#app");
 
-// checkout.checkouts and exchange.sell_carts are written by the checkout repo
+// checkout.checkouts and checkout.items are written by the checkout repo
 // tests too, so this shares their group.
 const CART_LOCK = LOCKS.ORDERS;
 
@@ -35,38 +51,67 @@ type Caller = UserFixture & { role: string };
 
 let owner: Caller;
 let stranger: Caller;
+
 before(async () => {
-  // The user with the most sell-cart items, so a leak would actually show
-  // something rather than an empty array that proves nothing either way.
-  const carts = await outside(
-    `SELECT sc.user_id, count(*)::int AS n
-       FROM exchange.sell_carts sc
-       JOIN exchange.sell_cart_items i ON i.cart_id = sc.id
-      GROUP BY sc.user_id
-      ORDER BY n DESC, sc.user_id ASC
-      LIMIT 1`
+  // Two non-admin users that exist in BOTH exchange.users and auth.users -
+  // checkout.checkouts.user_id has an FK to auth.users, so a fixture missing
+  // there makes every seed insert fail with a 500 rather than the 200 these
+  // tests expect.
+  const users = await outside<UserFixture>(
+    `SELECT u.id, u.name, u.email FROM exchange.users u
+      WHERE u.role IS DISTINCT FROM 'admin'
+        AND EXISTS (SELECT 1 FROM auth.users a WHERE a.id = u.id)
+      ORDER BY u.email LIMIT 2`
   );
-  assert.ok(carts.length, "dev has no sell cart with items - this proves nothing");
-  assert.ok(carts[0].n > 0);
-
-  const owners = await outside<UserFixture>(`SELECT id, name, email FROM exchange.users WHERE id = $1`, [
-    carts[0].user_id,
-  ]);
-  owner = { ...owners[0], role: "user" };
-  assert.ok(owner.id, `no exchange.users row for ${carts[0].user_id}`);
-
-  const others = await outside<UserFixture>(
-    `SELECT id, name, email FROM exchange.users WHERE id <> $1 LIMIT 1`,
-    [owner.id]
-  );
-  stranger = { ...others[0], role: "user" };
-  assert.ok(stranger.id, "dev has only one user");
+  assert.ok(users.length >= 2, "dev needs two non-admin users present in auth.users");
+  owner = { ...users[0], role: "user" };
+  stranger = { ...users[1], role: "user" };
 });
 
 after(async () => {
   restoreSessions();
   await pool.end();
 });
+
+// Seeds the owner's own sell cart with one scrap line, over the real route -
+// the same shape carts-http.test.ts sends. Returns the count so callers can
+// assert against it rather than a hardcoded 1.
+async function seedOwnerCart(): Promise<number> {
+  const res = await as(owner, () =>
+    request(app)
+      .post("/api/cart/sync_sell_cart")
+      .send({
+        cart: [
+          {
+            type: "scrap",
+            quantity: 1,
+            data: {
+              id: randomUUID(),
+              metal: "Gold",
+              pre_melt: 2.5,
+              post_melt: 2.4,
+              purity: 0.75,
+              content: 1.8,
+              gross_unit: "t oz",
+              bid_premium: 0.9,
+            },
+          },
+        ],
+      })
+  );
+  assert.equal(res.status, 200, `seeding the owner's cart failed: ${JSON.stringify(res.body)}`);
+  return 1;
+}
+
+async function ownerCartCount(client: PoolClient): Promise<number> {
+  const { rows } = await client.query(
+    `SELECT count(*)::int AS n FROM checkout.items ci
+       JOIN checkout.checkouts c ON c.id = ci.checkout_id
+      WHERE c.user_id = $1 AND c.direction = 'purchase'`,
+    [owner.id]
+  );
+  return rows[0].n;
+}
 
 // The exposure as it actually was: no session at all.
 test("an anonymous caller cannot read a cart, whoever they name", async () => {
@@ -100,14 +145,9 @@ test("an anonymous caller cannot replace a cart", async () => {
 // The other half: signed in, but naming somebody else. The id in the request
 // must be ignored rather than obeyed.
 test("a signed-in caller naming somebody else gets their own cart, not theirs", async () => {
-  await inPinnedTransaction(async () => {
-    const owned = await outside(
-      `SELECT count(*)::int AS n FROM exchange.sell_carts sc
-         JOIN exchange.sell_cart_items i ON i.cart_id = sc.id
-        WHERE sc.user_id = $1`,
-      [owner.id]
-    );
-    assert.ok(owned[0].n > 0, "the owner has no items, so a leak would look like a pass");
+  await inPinnedTransaction(async (client: PoolClient) => {
+    const seeded = await seedOwnerCart();
+    assert.equal(await ownerCartCount(client), seeded, "the seed did not land");
 
     await as(stranger, async () => {
       const res = await request(app)
@@ -128,7 +168,7 @@ test("a signed-in caller naming somebody else gets their own cart, not theirs", 
       assert.equal(res.status, 200);
       assert.equal(
         res.body.length,
-        owned[0].n,
+        seeded,
         "the owner got somebody else's cart by naming them"
       );
     });
@@ -136,7 +176,9 @@ test("a signed-in caller naming somebody else gets their own cart, not theirs", 
 });
 
 test("a stranger cannot replace somebody else's cart by naming them", async () => {
-  await inPinnedTransaction(async () => {
+  await inPinnedTransaction(async (client: PoolClient) => {
+    const seeded = await seedOwnerCart();
+
     await as(stranger, async () => {
       const res = await request(app)
         .post("/api/cart/sync_sell_cart")
@@ -145,22 +187,22 @@ test("a stranger cannot replace somebody else's cart by naming them", async () =
     });
 
     // The owner's cart is untouched: the emptying landed on the stranger's own.
-    const after = await outside(
-      `SELECT count(*)::int AS n FROM exchange.sell_carts sc
-         JOIN exchange.sell_cart_items i ON i.cart_id = sc.id
-        WHERE sc.user_id = $1`,
-      [owner.id]
+    assert.equal(
+      await ownerCartCount(client),
+      seeded,
+      "a stranger emptied somebody else's cart"
     );
-    assert.ok(after[0].n > 0, "a stranger emptied somebody else's cart");
   }, { lock: CART_LOCK });
 });
 
 test("the owner can still read and sync their own cart", async () => {
   await inPinnedTransaction(async () => {
+    const seeded = await seedOwnerCart();
+
     await as(owner, async () => {
       const read = await request(app).get("/api/cart/get_sell_cart");
       assert.equal(read.status, 200, "the owner was refused their own cart");
-      assert.ok(Array.isArray(read.body) && read.body.length > 0);
+      assert.ok(Array.isArray(read.body) && read.body.length === seeded);
 
       const synced = await request(app)
         .post("/api/cart/sync_sell_cart")
@@ -168,14 +210,4 @@ test("the owner can still read and sync their own cart", async () => {
       assert.equal(synced.status, 200, JSON.stringify(synced.body));
     });
   }, { lock: CART_LOCK });
-});
-
-test("nothing this file did survived the transaction", async () => {
-  const [{ n }] = await outside(
-    `SELECT count(*)::int AS n FROM exchange.sell_carts sc
-       JOIN exchange.sell_cart_items i ON i.cart_id = sc.id
-      WHERE sc.user_id = $1`,
-    [owner.id]
-  );
-  assert.ok(n > 0, "the owner's cart was really emptied in dev");
 });
