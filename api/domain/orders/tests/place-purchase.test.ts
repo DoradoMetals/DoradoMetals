@@ -1,7 +1,8 @@
 // THE ZERO-BODY PURCHASE CREATE (D210), tested to the hilt without a FedEx
 // call ever being reachable. By Confirm, everything is a server-side resource:
-// the row's ids, the parcel facts as columns, the draft fulfillment, and the
-// payout account SEALED in payments.details at the payout step.
+// the row's ids, the parcel's weight and declared value COMPUTED (ruling 58,
+// not columns any more), the draft fulfillment, and the payout account
+// SEALED in payments.details at the payout step.
 //
 // THE SEAMS ARE GONE (D214 item 11). `resolvePurchase` and `recordPurchase`
 // were exported halves of one use case, so the row flow could be asserted with
@@ -138,8 +139,6 @@ async function primeCheckout(
       shipper_address_id: addressId,
       package_id: packageId,
       carrier_service_id: labelServiceId,
-      package_weight: 3,
-      declared_value: 2500,
       pickup_date: schedule ? "2026-09-15" : null,
       pickup_time: schedule ? "10:30:00" : null,
     })
@@ -260,8 +259,10 @@ test("the carrier is asked ONLY what the row holds - no body exists any more", a
     assert.equal(personName, customerName);
     assert.equal(parcel.serviceType, "FEDEX_EXPRESS_SAVER");
     assert.equal(parcel.handoff.code, "DROPOFF_AT_FEDEX_LOCATION");
-    assert.equal(parcel.weight.value, 3, "the weight came off the ROW");
-    assert.equal(parcel.declaredValue, 2500, "the declared value came off the ROW");
+    // Two troy ounces of coin weighs far less than a pound - the box's own
+    // minimum (Small Box, 2 lb) is what actually governs (ruling 58).
+    assert.equal(parcel.weight.value, 2, "the weight is computed, not read off the row");
+    assert.ok(parcel.declaredValue > 0, "the declared value is computed, not read off the row");
     assert.equal(parcel.schedule, null, "a dropoff booked a courier");
   }, { actor: TEST_ACTOR.id, lock: LOCKS.ORDERS });
 });
@@ -425,7 +426,6 @@ test("the placement links ids and writes NO exchange rows at all", async () => {
     const fresh = await checkoutService.getRowFor(customer.id, "purchase", c);
     assert.equal(fresh.payment_details_id, null);
     assert.equal(fresh.fulfillment_id, null);
-    assert.equal(fresh.package_weight, null);
   }, { actor: TEST_ACTOR.id, lock: LOCKS.ORDERS });
 });
 

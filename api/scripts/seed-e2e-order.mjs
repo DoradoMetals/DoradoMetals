@@ -132,14 +132,14 @@ const address = existingAddr.length
   user_address: { label: 'e2e-order-seed' },
 });
 
-// Prime the checkout row exactly as the stepper does: the ids and parcel
-// facts, the fulfillment draft, the payout account, the basket line.
+// Prime the checkout row exactly as the stepper does: the ids, the
+// fulfillment draft, the payout account, the basket line. The parcel's
+// weight and declared value are the server's now (ruling 58) - `place`
+// computes both from the basket and the package chosen above.
 await checkoutService.patchCheckout(user_id, "purchase", {
   shipper_address_id: address.id,
   package_id: packages[0].id,
   carrier_service_id: services[0].id,
-  package_weight: 3,
-  declared_value: 2500,
   pickup_date: "2026-09-15",
   pickup_time: "10:30:00",
 });

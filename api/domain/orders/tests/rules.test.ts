@@ -268,7 +268,7 @@ test("a scrap line derives its content from the weight, the unit and the purity"
 // rather than as `string | null` it would have to assert away.
 const completeCheckout = {
   shipper_address_id: "a", package_id: "b", carrier_service_id: "c",
-  fulfillment_id: "d", payment_details_id: "e", package_weight: 2,
+  fulfillment_id: "d", payment_details_id: "e",
   recipient_address_id: "f",
   pickup_date: "2026-09-04", pickup_time: "14:00",
 } as unknown as Parameters<typeof rules.assertPlaceableAsPurchase>[0];
@@ -278,7 +278,7 @@ const aCart = [{ id: "line", metal_id: "m" }] as unknown as rules.CheckoutLine[]
 test("a complete shipping checkout passes, and a short one names what is missing", () => {
   assert.deepEqual(rules.assertPlaceableAsPurchase(completeCheckout, aCart), {
     shipper_address_id: "a", package_id: "b", carrier_service_id: "c",
-    fulfillment_id: "d", payment_details_id: "e", package_weight: 2,
+    fulfillment_id: "d", payment_details_id: "e",
   });
 
   assert.throws(
@@ -287,14 +287,6 @@ test("a complete shipping checkout passes, and a short one names what is missing
         Object.assign({}, completeCheckout, { package_id: null }), aCart
       ),
     (err: unknown) => err instanceof Invalid && /missing package_id/.test((err as Error).message)
-  );
-
-  assert.throws(
-    () =>
-      rules.assertPlaceableAsPurchase(
-        Object.assign({}, completeCheckout, { package_weight: 0 }), aCart
-      ),
-    (err: unknown) => err instanceof Invalid && /needs a weight/.test((err as Error).message)
   );
 });
 
@@ -340,14 +332,14 @@ const A_BOX = { length: 10, width: 8, height: 6 } as unknown as Parameters<typeo
 test("a carrier pickup needs a date and a time, and a dropoff carries no slot", () => {
   const placeable = rules.assertPlaceableAsPurchase(completeCheckout, aCart);
   const collected = rules.parcelFor(
-    completeCheckout, placeable, A_SERVICE, A_BOX, COLLECTION, 2500
+    completeCheckout, placeable, A_SERVICE, A_BOX, COLLECTION, 2500, 2
   );
   assert.deepEqual(collected.schedule, { date: "2026-09-04", time: "14:00" });
   assert.equal(collected.weight.value, 2);
   assert.equal(collected.declaredValue, 2500);
 
   assert.equal(
-    rules.parcelFor(completeCheckout, placeable, A_SERVICE, A_BOX, DROPOFF, 0).schedule,
+    rules.parcelFor(completeCheckout, placeable, A_SERVICE, A_BOX, DROPOFF, 0, 2).schedule,
     null
   );
 
@@ -355,7 +347,7 @@ test("a carrier pickup needs a date and a time, and a dropoff carries no slot", 
     () =>
       rules.parcelFor(
         Object.assign({}, completeCheckout, { pickup_time: null }),
-        placeable, A_SERVICE, A_BOX, COLLECTION, 0
+        placeable, A_SERVICE, A_BOX, COLLECTION, 0, 2
       ),
     Invalid
   );

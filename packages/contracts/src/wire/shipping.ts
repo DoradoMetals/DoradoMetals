@@ -7,9 +7,7 @@ import {
   CarriersRow,
   ServicesRow,
   ShipmentsRow,
-  PackagesRow,
   PickupsRow as ShipmentPickupsRow,
-  Direction as ShippingDirection,
 } from "../generated/shipping.js";
 import { OrganizationsRow } from "../generated/organizations.js";
 import { AddressesRow } from "../generated/places.js";
@@ -275,21 +273,26 @@ export const ShippingValidateAddressBody = z.object({
 }).strict();
 export type ShippingValidateAddressBody = z.infer<typeof ShippingValidateAddressBody>;
 
-// POST /shipping/get_rates - shippingType picks which side of the quote
-// address_id names: the shipper's for an Inbound parcel (the customer sends
-// to us), otherwise ignored server-side (Outbound/Return ship FROM our own
-// address, see domain/shipping/operations/service.ts). package_id is the box;
-// weight is the one genuine measurement nothing else stores.
-export const ShippingGetRatesBody = z.object({
-  carrier_id: CarriersRow.shape.id.optional(),
-  shippingType: ShippingDirection,
-  address_id: AddressesRow.shape.id,
-  package_id: PackagesRow.shape.id,
-  weight: z.number(),
-  pickupType: z.string().optional(),
-  declaredValue: z.number().optional(),
-}).strict();
-export type ShippingGetRatesBody = z.infer<typeof ShippingGetRatesBody>;
+// GET /checkout/rates?direction= replaced POST /shipping/get_rates (Jacob,
+// 2026-09-03: "all the stuff that feeds into it can live directly on the
+// server"). The client sends only its direction; the address, the package,
+// the weight and the declared value are all read off the caller's own
+// checkout row and items server-side (domain/shipping/operations/service.ts
+// getCheckoutRates), so there is no body left to declare.
+
+// One priced service, flat because the provider's own answer already is -
+// providers/shipments/utils/parsing.ts's parseRates. Not every carrier fills
+// every field; a value the provider omitted is null, not absent.
+export const CarrierRateQuote = z.object({
+  serviceType: z.string().nullable(),
+  packagingType: z.string().nullable(),
+  netCharge: z.number().nullable(),
+  currency: z.string(),
+  deliveryDay: z.string().nullable(),
+  transitTime: z.string().nullable(),
+  serviceDescription: z.string().nullable(),
+});
+export type CarrierRateQuote = z.infer<typeof CarrierRateQuote>;
 
 // POST /shipping/check_pickup - readyDate is a date-time string; the
 // controller converts it to the Date the provider call needs.

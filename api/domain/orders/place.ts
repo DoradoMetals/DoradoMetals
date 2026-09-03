@@ -36,6 +36,7 @@ import * as sweeps from "#domain/payments/sweeps.ts";
 import * as stripeProvider from "#providers/payment/stripe.ts";
 import * as orderRead from "#domain/orders/read.ts";
 import * as rules from "#domain/orders/rules.ts";
+import * as shippingRules from "#domain/shipping/rules.ts";
 import { calculateSalesOrderTotal } from "#domain/pricing/ask.ts";
 import { retierPremiums } from "#domain/orders/service.ts";
 
@@ -138,11 +139,17 @@ async function placePurchase(
     await fulfillmentService.getById(placeable.fulfillment_id)
   );
   const service = await carrierServices.labelServiceFor(placeable.carrier_service_id);
+  const box = await packagesRepo.getOne(placeable.package_id);
+  const weight = shippingRules.parcelWeightLb(cart, box);
+  if (!(weight > 0)) throw new Invalid("the parcel needs a weight");
+  const declaredValue = await carrierServices.clampInsuredValue(
+    shippingRules.declaredValue(await checkoutService.purchaseTotal(checkout.id)),
+    service.serviceType
+  );
   const parcel = rules.parcelFor(
-    checkout, placeable, service,
-    await packagesRepo.getOne(placeable.package_id),
+    checkout, placeable, service, box,
     rules.handoffFor(await handoffsService.getHandoffs(), draft.method.type),
-    await carrierServices.clampInsuredValue(checkout.declared_value, service.serviceType)
+    declaredValue, weight
   );
   const shipper = rules.requireAddress(
     await placeAddresses.getOne(placeable.shipper_address_id), "shipper"

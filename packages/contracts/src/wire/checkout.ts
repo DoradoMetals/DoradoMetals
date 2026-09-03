@@ -33,6 +33,8 @@ export type CheckoutItemsBody = z.infer<typeof CheckoutItemsBody>;
 // controller parses the body strictly, then parses the columns out of it. A
 // plain object schema strips what it does not declare, which is what removes
 // `direction` without a rest element.
+// package_weight and declared_value are GONE (ruling 58, migration 121): the
+// server computes both from the checkout's own items and package.
 export const CheckoutPatchColumns = CheckoutsRow.pick({
   payment_method_id: true,
   recipient_address_id: true,
@@ -42,8 +44,6 @@ export const CheckoutPatchColumns = CheckoutsRow.pick({
   package_id: true,
   appointment_location_id: true,
   appointment_time: true,
-  package_weight: true,
-  declared_value: true,
   pickup_date: true,
   pickup_time: true,
 }).partial();

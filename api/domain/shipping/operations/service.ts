@@ -8,6 +8,9 @@ import * as pickupRepo from "#domain/shipping/pickups/service.ts";
 import * as servicesRepo from "#db/shipping/services/repo.ts";
 import * as addressesRepo from "#db/places/addresses/repo.ts";
 import * as packagesRepo from "#db/shipping/packages/repo.ts";
+import * as checkoutService from "#domain/checkout/service.ts";
+import * as carrierServices from "#domain/shipping/services/service.ts";
+import * as shippingRules from "#domain/shipping/rules.ts";
 import * as shippingHandler from "#domain/shipping/operations/handler.ts";
 import { carrierIdOr } from "#domain/shipping/operations/resolver.ts";
 import { FEDEX_STORE_ADDRESS, DORADO_ADDRESS } from "#providers/shipments/constants.ts";
@@ -20,8 +23,9 @@ import type { RatesInput } from "#domain/shipping/operations/handler.ts";
 import type { PickupBaseRow as PickupRow } from "#db/shipping/pickups/repo.ts";
 import type { PoolClient } from "pg";
 import type {
+  Direction,
   ShippingCancelLabelBody, ShippingCancelPickupBody, ShippingCheckPickupBody,
-  ShippingGetLocationsBody, ShippingGetRatesBody, ShippingValidateAddressBody,
+  ShippingGetLocationsBody, ShippingValidateAddressBody,
 } from "@dorado/contracts";
 
 type Executor = PoolClient | undefined;
@@ -179,34 +183,48 @@ export async function quoteRate({
   });
 }
 
-// A RATE QUOTE, priced from ids the server holds: address_id names the
-// customer's own address, package_id the box, weight the one genuine
-// measurement nothing else stores. Inbound quotes FROM that address TO the
-// store; Outbound/Return quote FROM the store (the business always ships its
-// own side of those two).
-export async function getRates(
-  body: ShippingGetRatesBody
+// GET /checkout/rates?direction= replaced the old body-fed rate endpoint
+// (Jacob, 2026-09-03: "all the stuff that feeds into it can live directly on
+// the server"). The client sends only its direction; everything else -
+// address, package, weight, declared value - is read off the caller's own
+// checkout row and items. Nobody has picked a service yet, which is the whole
+// point of the call, so this asks the carrier about every one it offers.
+export async function getCheckoutRates(
+  user_id: string, direction: Direction
 ): Promise<ReturnType<typeof shippingHandler.getRates>> {
-  if (!(body.weight > 0)) throw new Invalid("the parcel needs a weight");
+  const checkout = await checkoutService.getRowFor(user_id, direction);
+  const cart = await checkoutService.getItemsForOrder(checkout.id);
+  if (!cart.length) throw new Invalid("the checkout has no items to rate");
 
-  const address = await requireAddress(body.address_id);
-  const box = await packagesRepo.getOne(body.package_id);
-  if (!box) throw new Invalid(`no package ${body.package_id}`);
+  if (!checkout.package_id) throw new Invalid("choose a package before requesting rates");
+  const box = await packagesRepo.getOne(checkout.package_id);
+  if (!box) throw new Invalid(`no package ${checkout.package_id}`);
+  const weight = shippingRules.parcelWeightLb(cart, box);
+
+  const shippingType = direction === "purchase" ? "Inbound" : "Outbound";
+  const address_id =
+    direction === "purchase" ? checkout.shipper_address_id : checkout.recipient_address_id;
+  if (!address_id) throw new Invalid("choose an address before requesting rates");
+  const address = await requireAddress(address_id);
+
+  // Service-agnostic clamp - the same lowest-ceiling answer
+  // quotes/service.ts's purchaseOrderQuote applies before a service exists.
+  const total = direction === "purchase" ? await checkoutService.purchaseTotal(checkout.id) : 0;
+  const declaredValue = await carrierServices.clampInsuredValue(
+    shippingRules.declaredValue(total)
+  );
 
   return quoteRate({
-    carrier_id: body.carrier_id,
-    shippingType: body.shippingType,
+    shippingType,
     address,
     pkg: {
-      weight: { units: "LB", value: body.weight },
+      weight: { units: "LB", value: weight },
       dimensions: {
         length: Number(box.length), width: Number(box.width),
         height: Number(box.height), units: "IN",
       },
     },
-    pickupType: body.pickupType,
-    declaredValue:
-      body.declaredValue != null ? { amount: body.declaredValue, currency: "USD" } : undefined,
+    declaredValue: declaredValue > 0 ? { amount: declaredValue, currency: "USD" } : undefined,
   });
 }
 
