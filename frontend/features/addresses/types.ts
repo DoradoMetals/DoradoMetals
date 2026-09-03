@@ -64,8 +64,6 @@ export const addressSchema = z.object({
   created_at: z.string().datetime().optional(),
   updated_at: z.string().datetime().optional(),
   phone_number: z.string(),
-  is_valid: z.boolean(),
-  is_residential: z.boolean(),
   label: z.string().min(1, 'Name is required').trim(),
   default_shipping: z.boolean().optional(),
 })
@@ -82,8 +80,6 @@ export function makeEmptyAddress(): AddressFormValues {
     zip: '',
     phone_number: '',
     country_code: 'US',
-    is_valid: false,
-    is_residential: false,
     label: '',
     default_shipping: false,
   } as AddressFormValues
@@ -110,14 +106,28 @@ export function makeEmptyWireAddress(): Address {
   }
 }
 
+// The postal fields alone - matches @dorado/contracts' AddressWrite exactly
+// (id/created_at/updated_at are read-only, the form carries them for
+// display/editing but they are never part of a write).
+type AddressWriteFields = Pick<
+  AddressFormValues,
+  'line_1' | 'line_2' | 'city' | 'state' | 'country' | 'zip' | 'country_code' | 'phone_number'
+>
+
 // Split the one form into the two body halves the API writes in one
-// transaction.
+// transaction. Picks the write fields by NAME rather than spreading
+// whatever the form happens to carry - id, created_at, updated_at all ride
+// on AddressFormValues for display, and a strict AddressWrite 400s on any
+// of the three.
 export function splitFormValues(v: AddressFormValues): {
-  address: Omit<AddressFormValues, 'label' | 'default_shipping'>
+  address: AddressWriteFields
   user_address: { label: string; default_shipping: boolean }
 } {
-  const { label, default_shipping, ...address } = v
-  return { address, user_address: { label, default_shipping: default_shipping ?? false } }
+  const { line_1, line_2, city, state, country, zip, country_code, phone_number, label, default_shipping } = v
+  return {
+    address: { line_1, line_2, city, state, country, zip, country_code, phone_number },
+    user_address: { label, default_shipping: default_shipping ?? false },
+  }
 }
 
 export type PlacesAddressComponent = {

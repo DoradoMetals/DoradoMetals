@@ -4,31 +4,16 @@
 // required strings against four NULLABLE columns, and typed the timestamps as
 // `Date` against a wire that sends strings. `NewLead` was a second, different
 // guess at the create body.
-import type { Lead as LeadContract, CreateLeadBody } from '@dorado/contracts'
+import type { Lead as LeadContract, CreateLeadBody, LeadPatch as LeadPatchContract } from '@dorado/contracts'
 
 export type Lead = LeadContract
 
 // The create body, as the API's own statement takes it.
 export type NewLead = CreateLeadBody
 
-// The update body's `patch`: only the columns leads.update() writes
-// (api/db/leads/repo.ts PATCHABLE). Not a contract export yet - the API
-// takes it unvalidated as a record; kept here as the local, honest shape.
-export type LeadPatch = Partial<
-  Pick<
-    Lead,
-    | 'name'
-    | 'phone'
-    | 'email'
-    | 'last_contacted'
-    | 'converted'
-    | 'contacted'
-    | 'responded'
-    | 'contact'
-    | 'notes'
-    | 'priority'
-  >
->
+// The update body's `patch`: the ten columns leads.update() writes
+// (api/db/leads/repo.ts PATCHABLE), now the contract's own export.
+export type LeadPatch = LeadPatchContract
 
 // *** NOT A CONTRACT, AND DELIBERATELY SO - D103's second arm. ***
 //

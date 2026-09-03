@@ -23,7 +23,7 @@ export const useCreateLead = () =>
   })
 
 export const useUpdateLead = () =>
-  useApiMutation<Lead, { lead_id: string; patch: LeadPatch; user_name: string }, Lead[]>({
+  useApiMutation<Lead, { lead_id: string; patch: LeadPatch }, Lead[]>({
     queryKey: queryKeys.adminLeads(),
     url: '/leads/update',
     requireAdmin: true,
@@ -31,10 +31,9 @@ export const useUpdateLead = () =>
       const current = previous?.find((l) => l.id === vars.lead_id)
       return upsertById(previous, { ...current, ...vars.patch, id: vars.lead_id } as Lead)
     },
-    body: ({ lead_id, patch, user_name }) => ({
+    body: ({ lead_id, patch }) => ({
       lead_id,
       patch,
-      user_name,
     }),
   })
 

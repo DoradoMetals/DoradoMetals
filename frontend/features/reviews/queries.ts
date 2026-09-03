@@ -43,7 +43,6 @@ export const useUpdateReview = () => {
     body: (vars) => ({
       review_id: vars.review_id,
       patch: vars.patch,
-      user_name: vars.user_name,
     }),
   })
 }

@@ -11,7 +11,6 @@ import StatusChip from '@/shared/ui/StatusChip'
 import { Rating, RatingButton } from '@/shared/ui/base/rating'
 import { EyeIcon, EyeSlashIcon } from '@phosphor-icons/react'
 
-import { useGetSession } from '@/features/auth/queries'
 import type { Review } from '@/features/reviews/types'
 import { formatFullDate } from '@/shared/utils/formatDates'
 import { Calendar } from '@dorado/components'
@@ -75,11 +74,10 @@ function Header({ review }: { review: Review }) {
 }
 
 function EditFields({ review }: { review: Review }) {
-  const { user } = useGetSession()
   const updateReview = useUpdateReview()
 
   const handleUpdate = (patch: Partial<Pick<Review, 'name' | 'review_text' | 'rating'>>) => {
-    updateReview.mutate({ review_id: review.id, patch, user_name: user?.name ?? '' })
+    updateReview.mutate({ review_id: review.id, patch })
   }
 
   return (
@@ -124,10 +122,9 @@ function EditFields({ review }: { review: Review }) {
 }
 
 function Visibility({ review }: { review: Review }) {
-  const { user } = useGetSession()
   const updateReview = useUpdateReview()
   const handleUpdate = (hidden: boolean) =>
-    updateReview.mutate({ review_id: review.id, patch: { hidden }, user_name: user?.name ?? '' })
+    updateReview.mutate({ review_id: review.id, patch: { hidden } })
 
   return (
     <div className="flex flex-col gap-4">

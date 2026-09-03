@@ -12,7 +12,7 @@ import { Lead, LeadPatch, LeadPriority } from '@/features/leads/types'
 import { PrioritySelect } from '@/features/leads/ui/PrioritySelect'
 import { Input } from '@/shared/ui/base/input'
 import { Textarea } from '@/shared/ui/base/textarea'
-import { useCreateUser, useGetSession } from '@/features/auth/queries'
+import { useCreateUser } from '@/features/auth/queries'
 import { SegmentedField } from '@/shared/ui/SegmentedField'
 import formatPhoneNumber, { normalizePhone } from '@/shared/utils/formatPhoneNumber'
 import SchedulePicker from '@/shared/ui/SchedulePicker'
@@ -75,13 +75,12 @@ function Header({ lead }: { lead: Lead }) {
 }
 
 function Details({ lead }: { lead: Lead }) {
-  const { user } = useGetSession()
   const updateLead = useUpdateLead()
 
   const inputRef = useRef<HTMLInputElement | null>(null)
 
   const handleUpdate = (patch: LeadPatch) => {
-    updateLead.mutate({ lead_id: lead.id, patch, user_name: user?.name ?? '' })
+    updateLead.mutate({ lead_id: lead.id, patch })
   }
 
   return (
@@ -150,11 +149,10 @@ function Details({ lead }: { lead: Lead }) {
 }
 
 function Booleans({ lead }: { lead: Lead }) {
-  const { user } = useGetSession()
   const updateLead = useUpdateLead()
 
   const handleUpdate = (patch: LeadPatch) => {
-    updateLead.mutate({ lead_id: lead.id, patch, user_name: user?.name ?? '' })
+    updateLead.mutate({ lead_id: lead.id, patch })
   }
 
   return (
@@ -186,12 +184,11 @@ function Booleans({ lead }: { lead: Lead }) {
 }
 
 function Contacted({ lead }: { lead: Lead }) {
-  const { user } = useGetSession()
   const updateLead = useUpdateLead()
   const { data: admins = [] } = useAdminRoleUsers()
 
   const handleUpdate = (patch: LeadPatch) => {
-    updateLead.mutate({ lead_id: lead.id, patch, user_name: user?.name ?? '' })
+    updateLead.mutate({ lead_id: lead.id, patch })
   }
 
   // last_contacted is historical, so allow past dates (back to launch) and
