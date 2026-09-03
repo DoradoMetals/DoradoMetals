@@ -89,33 +89,41 @@ export async function retrievePaymentIntent(
 // idempotency key. Billing the session's user throughout collided the key
 // across every customer one admin served in a session.
 async function billingIdentity(
-  caller: Caller, type: string | undefined, user_id: string | undefined
+  caller: Caller, type: string | undefined, user_id: string | undefined,
+  executor?: Executor
 ) {
   if (type !== "admin") {
-    const identity = await customers.getOne(caller.user_id);
+    const identity = await customers.getOne(caller.user_id, executor);
     if (!identity?.id) throw new Forbidden("no user row for this session");
     return identity;
   }
-  const identity = user_id ? await customers.getOne(user_id) : undefined;
+  const identity = user_id ? await customers.getOne(user_id, executor) : undefined;
   if (!identity?.id) {
     throw new Invalid("an admin payment intent must name a customer that exists");
   }
   return identity;
 }
 
+// The optional executor is for a caller that already holds a transaction -
+// it is never opened here. Passed straight down to recordIntent so the
+// intent row and its attempt still commit as one write; leaving it un-threaded
+// was the bug: recordIntent's own together() had no executor to join, so it
+// opened a SECOND transaction on a fresh connection instead of the caller's.
+// The two Stripe calls above stay bare awaits either way - never inside one.
 export async function createPaymentIntent(
-  caller: Caller, type: string | undefined, user_id: string | undefined
+  caller: Caller, type: string | undefined, user_id: string | undefined,
+  executor?: Executor
 ): Promise<StripeIntent> {
-  const target = await billingIdentity(caller, type, user_id);
+  const target = await billingIdentity(caller, type, user_id, executor);
 
   let customerId = target.stripeCustomerId;
   if (!customerId) {
     const created = await stripe.createCustomer({ name: target.name, email: target.email });
     customerId = created.id;
-    await customers.update(target.id, { [customers.STRIPE_CUSTOMER]: customerId });
+    await customers.update(target.id, { [customers.STRIPE_CUSTOMER]: customerId }, executor);
   }
 
-  const existing = await findReusableIntent(caller, type, user_id);
+  const existing = await findReusableIntent(caller, type, user_id, executor);
   if (existing?.attempt?.provider_ref) {
     return await stripe.retrieveIntent(existing.attempt.provider_ref);
   }
@@ -138,7 +146,7 @@ export async function createPaymentIntent(
     idempotencyKey: `intent:${type}:${target.id}:${caller.session_id}`,
   });
 
-  await recordIntent(paymentIntent, caller, type, user_id);
+  await recordIntent(paymentIntent, caller, type, user_id, executor);
   return paymentIntent;
 }
 

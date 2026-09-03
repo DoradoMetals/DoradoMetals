@@ -157,3 +157,55 @@ test("attaching an order lands on the intent behind that reference alone", async
     assert.equal(await service.attachOrder(`pi_${randomUUID()}`, null, c), false);
   });
 });
+
+// THE BUG THIS GUARDS AGAINST: createPaymentIntent used to call recordIntent
+// with no executor, so recordIntent's own together() had nothing to join and
+// opened a FRESH transaction on a SEPARATE pool connection - committing the
+// intent and attempt rows on their own, independent of whatever transaction
+// the caller was holding. A test calling the service could not see this: it
+// reads its own writes either way, which is the exact shape
+// audit:test-leaks exists to catch (CLAUDE.md). The only way to tell a joined
+// write apart from an independently-committed one is from a THIRD connection:
+// a write inside the caller's still-open transaction is invisible everywhere
+// else until the caller commits or rolls back; a write on its own connection
+// is visible immediately, everywhere, and survives the caller's rollback.
+test("recordIntent joins the caller's transaction rather than opening its own", async () => {
+  const paymentIntent = anIntent();
+  const findBoth = (c: PoolClient) =>
+    c.query(
+      `SELECT i.id AS intent_id, a.id AS attempt_id
+         FROM payments.intents i
+         JOIN payments.attempts a ON a.intent_id = i.id
+        WHERE a.provider_ref = $1`,
+      [paymentIntent.id]
+    );
+
+  await inRollback(async (c: PoolClient) => {
+    const [user] = await users(c);
+    await service.recordIntent(paymentIntent, aCaller(user), "checkout", undefined, c);
+
+    // Visible on the connection actually holding the transaction.
+    const { rows: seen } = await findBoth(c);
+    assert.equal(seen.length, 1, "recordIntent did not write on the caller's own connection");
+
+    // A wholly independent connection must see NOTHING while `c`'s
+    // transaction is still open - a joined write is not there to find yet.
+    const spectator = await pool.connect();
+    try {
+      const { rows: hidden } = await findBoth(spectator);
+      assert.equal(
+        hidden.length, 0,
+        "the intent/attempt pair is visible from another connection before the " +
+          "caller committed - recordIntent opened its own transaction instead of " +
+          "joining the caller's"
+      );
+    } finally {
+      spectator.release();
+    }
+  });
+
+  // And once the caller rolls back, nothing survives at all: the intent row
+  // and its attempt commit together or not at all.
+  const { rows: after } = await findBoth(client);
+  assert.equal(after.length, 0, "the intent/attempt pair survived the caller's rollback");
+});
