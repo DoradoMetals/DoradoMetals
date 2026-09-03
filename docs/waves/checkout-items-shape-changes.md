@@ -90,9 +90,9 @@ product, and the table says so rather than leaving it implied.
 | `orders/rules.ts` `linesBought` | the cart line's own columns | unchanged — it was already right |
 | `orders/service.ts` `retierPremiums` | rates band at the order's metal totals | unchanged — this IS the purchase premium rule |
 | `orders/rules.ts` `lineFromProduct` | product `gross`/`content`/`purity`/`metal_id` | unchanged — **no item exists yet**; this is the snapshot-on-create ruling 51 asks for |
-| `pricing/bid.ts` `unitContent` | scrap: `line.content`; bullion: `line.product.content` | `line.content`, falling back to the product (see the note below) |
+| `pricing/bid.ts` `unitContent` | scrap: `line.content`; bullion: `line.product.content` | `line.content` — **no fallback (migration 120)**: a bullion line with none now refuses (`Invalid`) instead of pricing at zero; a scrap line with none still prices at zero, which is a real "not weighed yet" state |
 | `pricing/bid.ts` `unitPrice` / `linePrice` / `itemsTotal` / `calculateTotalPrice` | via `unitContent` | via `unitContent`, so item-driven |
-| `quotes` `orderQuote` (bullion estimate) | `item.product.content` | `item.content`, same fallback |
+| `quotes` `orderQuote` (bullion estimate) | `item.product.content` | `item.content` — fallback dropped (migration 120); still prices at 0 rather than throwing, matching this function's own "must render" design |
 | `quotes` `profit.ts` `getItemContent` | `item.product.content × quantity` | `recordedContent(item) × quantity` |
 | PDF invoice / packing list bullion rows | `line.product.content` | `recordedContent(line)` |
 | `checkout/rules.ts` `basketRows` | *(did not exist)* | product `gross`/`content`/`purity`/`metal_id` — **this is the snapshot**, the one place a product's numbers are read |
@@ -101,14 +101,15 @@ product, and the table says so rather than leaving it implied.
 | `POST /quotes/sales_order` | `getItemsFromServer(body.items)` | **unchanged** — see §6 |
 | `payments` intent pricing | `getItemsFromServer(body.items)` | **unchanged** — see §6 |
 
-**The catalogue fallback in `recordedContent`, and why it stays.** Measured
-read-only 2026-09-03: **24 of dev's 68 bullion `orders.items` rows hold NULL
-content** (production's 19 hold none), because the old sell-cart sync wrote a
-bullion line as `bullion_id, metal_id, quantity, premium` and nothing else,
-and placement copied that null onto the order. Dropping the fallback prices
-every one of those at zero on a document a customer is paid against. It goes
-when those rows are backfilled — which is a data change, not a code change,
-and is not this lane's to make.
+**The catalogue fallback in `recordedContent` is GONE (migration 120,
+2026-09-03).** It existed because **24 of dev's 68 bullion `orders.items`
+rows held NULL content** (production's 19 held none), written by the old
+sell-cart sync (`bullion_id, metal_id, quantity, premium` and nothing else).
+120 backfilled all 24 (and checkout's 1 stale row was deleted instead — a
+basket re-syncs) from `products.bullion` using this same FLOWS mapping, so
+every count is 0 on dev now. A bullion line with no content is corrupt data,
+not a case: `unitContent` (`pricing/bid.ts`) refuses it with `Invalid` naming
+the line instead of pricing it at zero.
 
 **The one measurement that decided the snapshot.** `gross * purity` equals
 `content` for exactly **1 of dev's 62 products**; the other 61 differ, some
@@ -202,9 +203,9 @@ already agree on the number that matters.
 - **A sale line with no `content` refuses placement.** See ruling 51's entry
   in FOLLOWUPS.md — a stale basket costs the customer a re-sync; the
   alternative sells metal for zero.
-- **No migration was needed.** `checkout.items` already carries `content` and
-  `unit` (069). A backfill of `orders.items`' 24 null-content bullion rows is
-  the outstanding data work, and it is the user's.
+- **No migration was needed for this lane.** `checkout.items` already carries
+  `content` and `unit` (069). The backfill of `orders.items`' 24 null-content
+  bullion rows landed later, as migration 120 — see §3.
 
 ## 8. Error handling (Jacob, 2026-09-03)
 

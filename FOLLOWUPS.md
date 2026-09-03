@@ -14231,3 +14231,52 @@ What moved:
   public and prices lines a signed-out visitor sends), and
   `rules.lineFromProduct` (an admin adding a catalogue line to an order — that
   IS the snapshot-on-create this ruling asks for).
+
+### 120 — bullion order lines carry their content; the fallback is gone (2026-09-03)
+
+Ruling 51 left one deliberate gap: `recordedContent`'s catalogue fallback, kept
+because 24 of dev's 68 bullion `orders.items` rows (and 1 of checkout's 1) held
+NULL `content`/`pre_melt`/`post_melt`/`purity` — written before the basket
+snapshotted a product on create. Migration `120_bullion_lines_carry_their_content.sql`
+backfills them and the fallback is deleted.
+
+- **Measured before writing it**: all 24 `orders.items` rows and the 1
+  `checkout.items` row resolved a `products.bullion` row by id; `metal_id` was
+  never null on either table. After the migration every one of those five
+  counts is 0 on dev.
+- **The mapping is `domain/checkout/rules.ts` `snapshot()`'s own FLOWS**:
+  `gross → pre_melt`, `content → post_melt` AND `content`, `purity → purity`,
+  `metal_id → metal_id`. The `UPDATE` uses `coalesce(column, product column)`
+  so it only fills a NULL — nothing already snapshotted is touched.
+  `checkout.items` is device-sync (CLAUDE.md "not all data is equally
+  precious"), so its one stale row was DELETED rather than repaired; a basket
+  re-syncs.
+- **Cross-checked against the exchange-side rebuild**: for every one of the 51
+  affected `orders.items` rows that also exist in `exchange` (the other 17 are
+  e2e-seeded orders with no exchange counterpart), the value migration 120
+  wrote from `products.bullion` is byte-identical to what `031_backfill_orders.sql`
+  would compute from `exchange.products` for the same row — zero mismatches.
+  So `031` already lands the same mapping on a fresh production rebuild and
+  needed no change.
+- **The fallback is gone from both readers**: `pricing/bid.ts` `recordedContent`
+  now returns only `line.content`, and `quotes/service.ts`'s `orderQuote` lost
+  its `item.product?.content` read. `unitContent` (`pricing/bid.ts`) now
+  REFUSES a bullion line with no content (`Invalid`, naming the line) instead
+  of pricing it at zero — it is corrupt data now, not a case a rebuild could
+  still produce. A scrap line with no content still prices at 0: an unweighed
+  parcel is a real state. `orderQuote`'s own estimate keeps pricing an
+  unreadable line at 0 rather than throwing, unchanged from its own
+  documented "must render" design for an admin drawer view.
+- **No other product-side read of an existing item's content/gross/purity
+  survived**: `orders/rules.ts` `lineFromProduct` (no item exists yet — the
+  snapshot-on-create ruling 51 already names) and `checkout/rules.ts`
+  `basketRows`/`snapshot` (the snapshot itself) are the only remaining reads,
+  both correct by ruling 51's own table.
+- **Verification**: `lint:migrations` passes (no exchange writes — the
+  `UPDATE`/`DELETE` are on `orders.items`/`checkout.items`). `check:fast`
+  green. `verify:genesis` passes (no DDL). `verify:backfill` still reports the
+  112 pre-existing dev-drift differences (D214 open list) — `products.bullion`
+  compares clean (`ok`, 62 rows) and `orders.items`' diff is the known
+  `confirmed`/`unit` field drift plus the e2e-seeded row-count gap, not
+  content/pre_melt/purity/metal_id. `audit:non-finite` and `audit:nullability`
+  both pass.
