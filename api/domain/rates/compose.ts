@@ -33,7 +33,8 @@ const publicShape = (r: RateRow, name: string): RateWire => ({
 });
 
 const adminShape = (r: RateRow, name: string): AdminRateWire => ({
-  ...publicShape(r, name),
+  id: r.id, metal: name, unit: r.unit, min_qty: r.min_qty,
+  max_qty: r.max_qty, scrap_pct: r.scrap_pct, bullion_pct: r.bullion_pct,
   metal_id: r.metal_id, created_at: r.created_at, updated_at: r.updated_at,
   created_by: r.created_by, updated_by: r.updated_by,
 });

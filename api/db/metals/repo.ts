@@ -4,6 +4,14 @@
 // the four metals are seeded reference data and nothing in the application
 // writes them. A create/update/delete here would be API surface for something
 // that only ever changes by migration.
+//
+// getAll/namesById/idsByName KEEP THEIR NAMES rather than becoming list()
+// (D212's CRUD ruling spells the plain read list()): domain/orders/service.ts
+// and domain/products/compose.ts call these directly, and neither orders nor
+// products is in this pass's scope - renaming here would mean editing files
+// outside it. No wrapper or spread lives in this repo either way, which is
+// the part the ruling actually polices; namesById/idsByName are read
+// projections of the same four rows, not per-column writers.
 import query from "#shared/db/query.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
 import type { metals } from "@dorado/contracts";

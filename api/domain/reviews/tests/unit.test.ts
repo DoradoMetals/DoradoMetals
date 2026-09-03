@@ -11,10 +11,7 @@ import assert from "node:assert/strict";
 import path from "node:path";
 import { sqlFrom } from "#shared/db/sql.ts";
 
-// features/reviews/sql - the statements of the
-// dual write, pinned against each other in one file (ruling 29 moved the
-// mirror out of this feature; the pin did not follow it, because the pin IS
-// the comparison between the two).
+// db/reviews/sql - the statements as text.
 const sql = sqlFrom(path.join(import.meta.dirname, "..", "..", "..", "db", "reviews"));
 
 const body = (name: string): string =>
@@ -37,9 +34,10 @@ test("create writes its columns in the order repo.ts supplies them", () => {
   );
 });
 
+// COALESCE($n, col) per patchable column (D212's CRUD ruling) - matched by
+// backreference so a column whose two sides disagree fails loudly too.
 test("update assigns its columns in the order repo.ts supplies them", () => {
-  const assignments = [...body("update").matchAll(/(\w+)\s*=\s*\$(\d+)/g)]
-    .filter(([, , n]) => Number(n) <= 6)
+  const assignments = [...body("update").matchAll(/(\w+)\s*=\s*COALESCE\(\$(\d+),\s*\1\)/g)]
     .sort((a, b) => Number(a[2]) - Number(b[2]))
     .map(([, col]) => col);
   assert.deepEqual(

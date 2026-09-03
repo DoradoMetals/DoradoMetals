@@ -54,6 +54,13 @@ after(async () => {
   await pool.end();
 });
 
+// Named, not spread: the fixture is only ever id/name/email plus the role the
+// call is exercising.
+const asAdmin = <T>(fn: () => Promise<T> | T) =>
+  as({ id: admin.id, name: admin.name, email: admin.email, role: "admin" }, fn);
+const asCustomer = <T>(fn: () => Promise<T> | T) =>
+  as({ id: customer.id, name: customer.name, email: customer.email, role: "user" }, fn);
+
 test("the public rate list needs no session at all", async () => {
   await inPinnedTransaction(async () => {
     await anonymous(async () => {
@@ -79,7 +86,7 @@ test("the public list does not carry anything only the admin list has", async ()
       publicFields = new Set(Object.keys(res.body[0] ?? {}));
     });
 
-    await as({ ...admin, role: "admin" }, async () => {
+    await asAdmin(async () => {
       const res = await request(app).get("/api/rates/get_admin");
       assert.equal(res.status, 200);
       assert.ok(res.body.length > 0, "the admin rates read returned nothing");
@@ -115,11 +122,11 @@ test("the public list does not carry anything only the admin list has", async ()
 
 test("every writing route refuses a signed-in non-admin", async () => {
   await inPinnedTransaction(async () => {
-    await as({ ...customer, role: "user" }, async () => {
+    await asCustomer(async () => {
       const calls = [
         ["get_admin", request(app).get("/api/rates/get_admin")],
         ["create", request(app).post("/api/rates/create").send({ rate: {} })],
-        ["update", request(app).post("/api/rates/update").send({ rate: {} })],
+        ["update", request(app).post("/api/rates/update").send({ rate_id: randomUUID(), patch: {} })],
         ["delete", request(app).delete("/api/rates/delete").send({ rate_id: randomUUID() })],
       ] as Array<[string, Promise<{ status: number }>]>;
       // Declared as a tuple list: inferred, the element type collapses to

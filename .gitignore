@@ -26,4 +26,5 @@ frontend/playwright-report/
 frontend/blob-report/
 
 # scripts/check.mjs per-step logs
+# Captured gate/test-run output, per worktree
 .check-logs/

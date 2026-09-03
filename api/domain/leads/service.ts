@@ -1,30 +1,14 @@
-// Leads: orchestration, transactions, and the dual write.
+// Leads: orchestration and the wire shape.
 //
-// A service may call any repo; a repo may touch only its own table. This is
-// where a write that spans tables becomes atomic, and where the decision to
-// keep writing exchange lives - so that removing exchange later is a change to
-// this file rather than to every repo under it.
+// A service may call any repo; a repo may touch only its own table.
 //
-// WHY WRITES GO TO BOTH AND READS COME FROM ONE. Reads come from leads.leads,
-// so the new schema is exercised by real traffic. Writes also go to
-// exchange.leads, so exchange stays a complete, current replica and falling
-// back to it loses nothing. Reading from the new schema alone would be
-// reversible; writing to it alone would not.
-//
-// THE ID IS GENERATED HERE, not by either database. Both rows must carry the
-// same primary key, and the only way to guarantee that is for one side to
-// choose it and both to use it. The previous implementation let exchange
-// generate it and then copied the row across server-side, which also worked -
-// but it made exchange the source of the id, which is the dependency this
-// restructure is removing.
-//
-// NOTHING IRREVERSIBLE INSIDE THE TRANSACTION. A transaction can be rolled
-// back; an email cannot. shared/db/transaction-side-effects.test.js fails the
-// build if one appears here.
-import { randomUUID } from "node:crypto";
+// update TAKES AN ID AND A PATCH, never a round-tripped row - the client holds
+// the id from a prior read and sends only what changed. The repo answers
+// whether a row changed; this refetches the row so the response still carries
+// the fresh state the caller expects.
 import withTransaction from "#shared/db/withTransaction.ts";
 import * as leads from "#db/leads/repo.ts";
-import type { LeadRow, NewLead } from "#db/leads/repo.ts";
+import type { LeadRow, NewLead, LeadPatch } from "#db/leads/repo.ts";
 
 // The wire IS the row - the identity adapter died with D212.
 export type LeadWire = LeadRow;
@@ -48,29 +32,59 @@ export async function getOne(id: string): Promise<LeadWire> {
   return row;
 }
 
-export async function getAll(): Promise<LeadWire[]> {
-  return await leads.getAll();
+export async function list(): Promise<LeadWire[]> {
+  return await leads.list();
 }
 
 export async function create(lead: NewLead): Promise<LeadWire> {
-  const id = randomUUID();
   return withTransaction(async (client) => {
-    const row = await leads.create(id, lead, client);
+    return await leads.create(
+      {
+        id: lead.id ?? null,
+        name: lead.name,
+        phone: lead.phone ?? null,
+        email: lead.email ?? null,
+        created_by: lead.created_by ?? null,
+        updated_by: lead.updated_by ?? null,
+        priority: lead.priority ?? null,
+        notes: lead.notes ?? null,
+      },
+      client
+    );
+  });
+}
+
+export async function update(
+  id: string, patch: LeadPatch, user_name?: string
+): Promise<LeadWire> {
+  return withTransaction(async (client) => {
+    const changed = await leads.update(
+      id,
+      {
+        name: patch.name,
+        phone: patch.phone,
+        email: patch.email,
+        last_contacted: patch.last_contacted,
+        converted: patch.converted,
+        contacted: patch.contacted,
+        responded: patch.responded,
+        contact: patch.contact,
+        notes: patch.notes,
+        priority: patch.priority,
+        updated_by: user_name ?? patch.updated_by,
+      },
+      client
+    );
+    if (!changed) throw notFound(id);
+    const row = await leads.getOne(id, client);
+    if (!row) throw notFound(id);
     return row;
   });
 }
 
-export async function update(lead: LeadRow, user_name: string): Promise<LeadWire> {
-  return withTransaction(async (client) => {
-    const row = await leads.update(lead, user_name, client);
-    if (!row) throw notFound(lead.id);
-    return row;
-  });
-}
-
-// Answers how many rows went, so the controller can 404 rather than report
+// Answers whether a row went, so the controller can 404 rather than report
 // success for an id that was never there.
-export async function remove(id: string): Promise<number> {
+export async function remove(id: string): Promise<boolean> {
   return withTransaction(async (client) => {
     return await leads.remove(id, client);
   });

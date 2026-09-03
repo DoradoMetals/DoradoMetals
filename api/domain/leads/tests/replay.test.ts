@@ -67,15 +67,21 @@ after(async () => {
   await pool.end();
 });
 
-const newLead = (over = {}) => ({
+const newLead = () => ({
   name: `replay-${randomUUID().slice(0, 8)}`,
   phone: "5550000000",
   email: `replay-${randomUUID().slice(0, 8)}@example.com`,
   contact: "phone",
   priority: "low",
   notes: "created by the leads replay suite",
-  ...over,
 });
+
+// Named, not spread: the fixture is only ever id/name/email plus the role the
+// call is exercising.
+const asAdmin = <T>(fn: () => Promise<T> | T) =>
+  as({ id: admin.id, name: admin.name, email: admin.email, role: "admin" }, fn);
+const asCustomer = <T>(fn: () => Promise<T> | T) =>
+  as({ id: customer.id, name: customer.name, email: customer.email, role: "user" }, fn);
 
 test("an anonymous request is refused before it reaches a controller", async () => {
   await inPinnedTransaction(async () => {
@@ -90,12 +96,12 @@ test("an anonymous request is refused before it reaches a controller", async () 
 // the caller it exists to stop, and "signed in" is not "allowed".
 test("a signed-in customer is refused every route", async () => {
   await inPinnedTransaction(async () => {
-    await as({ ...customer, role: "user" }, async () => {
+    await asCustomer(async () => {
       const calls = [
         request(app).get("/api/leads/get_all"),
         request(app).get("/api/leads/get_one").query({ lead_id: existingLead.id }),
         request(app).post("/api/leads/create").send({ lead: newLead() }),
-        request(app).post("/api/leads/update").send({ lead: { id: existingLead.id } }),
+        request(app).post("/api/leads/update").send({ lead_id: existingLead.id, patch: {} }),
         request(app).delete("/api/leads/delete").send({ lead_id: existingLead.id }),
       ];
       for (const call of calls) {
@@ -111,7 +117,7 @@ test("a signed-in customer is refused every route", async () => {
 
 test("an admin gets the list in the shape the table reads", async () => {
   await inPinnedTransaction(async () => {
-    await as({ ...admin, role: "admin" }, async () => {
+    await asAdmin(async () => {
       const res = await request(app).get("/api/leads/get_all");
       assert.equal(res.status, 200);
       assert.ok(Array.isArray(res.body), "the leads table expects an array");
@@ -127,7 +133,7 @@ test("an admin gets the list in the shape the table reads", async () => {
 
 test("creating a lead round-trips and appears in the list", async () => {
   await inPinnedTransaction(async () => {
-    await as({ ...admin, role: "admin" }, async () => {
+    await asAdmin(async () => {
       const lead = newLead();
       const res = await request(app).post("/api/leads/create").send({ lead });
       assert.equal(res.status, 200, JSON.stringify(res.body));
@@ -148,14 +154,14 @@ test("creating a lead round-trips and appears in the list", async () => {
 
 test("updating a lead changes it and leaves the others alone", async () => {
   await inPinnedTransaction(async () => {
-    await as({ ...admin, role: "admin" }, async () => {
+    await asAdmin(async () => {
       const before = await request(app).get("/api/leads/get_all");
       const target = before.body[0];
       const others = before.body.length;
 
       const res = await request(app)
         .post("/api/leads/update")
-        .send({ lead: { ...target, notes: "touched by the replay suite" }, user_name: admin.name });
+        .send({ lead_id: target.id, patch: { notes: "touched by the replay suite" }, user_name: admin.name });
       assert.equal(res.status, 200, JSON.stringify(res.body));
 
       const after = await request(app).get("/api/leads/get_all");
@@ -174,18 +180,18 @@ test("deleting removes exactly one lead, and only for an admin", async () => {
     const lead = newLead();
     let id: string | undefined;
 
-    await as({ ...admin, role: "admin" }, async () => {
+    await asAdmin(async () => {
       const made = await request(app).post("/api/leads/create").send({ lead });
       created.push(lead.name);
       id = (Array.isArray(made.body) ? made.body[0] : made.body).id;
     });
 
-    await as({ ...customer, role: "user" }, async () => {
+    await asCustomer(async () => {
       const res = await request(app).delete("/api/leads/delete").send({ lead_id: id });
       assert.ok([401, 403].includes(res.status), `a non-admin got ${res.status} deleting a lead`);
     });
 
-    await as({ ...admin, role: "admin" }, async () => {
+    await asAdmin(async () => {
       const before = await request(app).get("/api/leads/get_all");
       assert.ok(before.body.some((l: { id: string; name: string }) => l.id === id), "the non-admin delete went through");
 

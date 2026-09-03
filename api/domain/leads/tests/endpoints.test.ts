@@ -31,11 +31,18 @@ before(async () => {
   assert.ok(customer, "dev has no non-admin user");
 });
 
+// Named, not spread: the fixture is only ever id/name/email plus the role the
+// call is exercising.
+const asAdmin = <T>(fn: () => Promise<T> | T) =>
+  as({ id: admin.id, name: admin.name, email: admin.email, role: "admin" }, fn);
+const asCustomer = <T>(fn: () => Promise<T> | T) =>
+  as({ id: customer.id, name: customer.name, email: customer.email, role: "user" }, fn);
+
 const NEW_LEAD = { name: "Restructure Fixture", phone: "5550001111", email: "fixture@example.invalid" };
 
 test("a customer cannot reach any lead route", async () => {
   await inPinnedTransaction(async () => {
-    await as({ ...customer, role: "user" }, async () => {
+    await asCustomer(async () => {
       assert.equal((await request(app).get("/api/leads/get_all")).status, 403);
       assert.equal((await request(app).post("/api/leads/create").send({ lead: NEW_LEAD })).status, 403);
     });
@@ -44,7 +51,7 @@ test("a customer cannot reach any lead route", async () => {
 
 test("create writes the row the id names", async () => {
   await inPinnedTransaction(async (client: PoolClient) => {
-    await as({ ...admin, role: "admin" }, async () => {
+    await asAdmin(async () => {
       const res = await request(app).post("/api/leads/create").send({ lead: NEW_LEAD });
       assert.equal(res.status, 200, `answered ${res.status}: ${JSON.stringify(res.body)}`);
       assert.ok(res.body.id, "no id came back");
@@ -58,7 +65,7 @@ test("create writes the row the id names", async () => {
 
 test("the read serves what the table holds", async () => {
   await inPinnedTransaction(async (client: PoolClient) => {
-    await as({ ...admin, role: "admin" }, async () => {
+    await asAdmin(async () => {
       const res = await request(app).post("/api/leads/create").send({ lead: NEW_LEAD });
       const id = res.body.id;
 
@@ -73,12 +80,12 @@ test("the read serves what the table holds", async () => {
 
 test("update writes the row, and delete removes it", async () => {
   await inPinnedTransaction(async (client: PoolClient) => {
-    await as({ ...admin, role: "admin" }, async () => {
+    await asAdmin(async () => {
       const created = (await request(app).post("/api/leads/create").send({ lead: NEW_LEAD })).body;
 
       const upd = await request(app)
         .post("/api/leads/update")
-        .send({ lead: { ...created, name: "Renamed" }, user_name: admin.name });
+        .send({ lead_id: created.id, patch: { name: "Renamed" }, user_name: admin.name });
       assert.equal(upd.status, 200);
       const { rows: renamed } = await client.query(
         `SELECT name FROM leads.leads WHERE id = $1`, [created.id]);
@@ -98,7 +105,7 @@ test("update writes the row, and delete removes it", async () => {
 // a lead with no fields.
 test("an id that names no lead is 404, not an empty 200", async () => {
   await inPinnedTransaction(async () => {
-    await as({ ...admin, role: "admin" }, async () => {
+    await asAdmin(async () => {
       const res = await request(app)
         .get("/api/leads/get_one")
         .query({ lead_id: "11111111-1111-1111-1111-111111111111" });
@@ -109,7 +116,7 @@ test("an id that names no lead is 404, not an empty 200", async () => {
 
 test("deleting an id that names nothing is 404, not a success", async () => {
   await inPinnedTransaction(async () => {
-    await as({ ...admin, role: "admin" }, async () => {
+    await asAdmin(async () => {
       const res = await request(app)
         .delete("/api/leads/delete")
         .send({ lead_id: "11111111-1111-1111-1111-111111111111" });

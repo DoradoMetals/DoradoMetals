@@ -26,11 +26,18 @@ before(async () => {
   assert.ok(admin && customer, "dev needs an admin and a non-admin user");
 });
 
+// Named, not spread: the fixture is only ever id/name/email plus the role the
+// call is exercising.
+const asAdmin = <T>(fn: () => Promise<T> | T) =>
+  as({ id: admin.id, name: admin.name, email: admin.email, role: "admin" }, fn);
+const asCustomer = <T>(fn: () => Promise<T> | T) =>
+  as({ id: customer.id, name: customer.name, email: customer.email, role: "user" }, fn);
+
 const NEW = { name: "Restructure Fixture", review_text: "text", rating: 5, hidden: false };
 
 test("a customer cannot reach the admin routes", async () => {
   await inPinnedTransaction(async () => {
-    await as({ ...customer, role: "user" }, async () => {
+    await asCustomer(async () => {
       assert.equal((await request(app).get("/api/reviews/get_all")).status, 403);
       assert.equal((await request(app).post("/api/reviews/create").send({ review: NEW })).status, 403);
     });
@@ -39,7 +46,7 @@ test("a customer cannot reach the admin routes", async () => {
 
 test("create writes the row the id names", async () => {
   await inPinnedTransaction(async (client: PoolClient) => {
-    await as({ ...admin, role: "admin" }, async () => {
+    await asAdmin(async () => {
       const res = await request(app).post("/api/reviews/create").send({ review: NEW });
       assert.equal(res.status, 200, `answered ${res.status}: ${JSON.stringify(res.body)}`);
       assert.ok(res.body.id);
@@ -55,7 +62,7 @@ test("create writes the row the id names", async () => {
 // Proves the read direction rather than assuming it.
 test("the read comes from the new schema", async () => {
   await inPinnedTransaction(async (client: PoolClient) => {
-    await as({ ...admin, role: "admin" }, async () => {
+    await asAdmin(async () => {
       const id = (await request(app).post("/api/reviews/create").send({ review: NEW })).body.id;
       await client.query(`UPDATE reviews.reviews SET name = $1 WHERE id = $2`, ["FROM-NEW-SCHEMA", id]);
       await client.query(`UPDATE exchange.reviews SET name = $1 WHERE id = $2`, ["FROM-EXCHANGE", id]);
@@ -69,12 +76,12 @@ test("the read comes from the new schema", async () => {
 
 test("update writes the row, and delete removes it", async () => {
   await inPinnedTransaction(async (client: PoolClient) => {
-    await as({ ...admin, role: "admin" }, async () => {
+    await asAdmin(async () => {
       const created = (await request(app).post("/api/reviews/create").send({ review: NEW })).body;
 
       const upd = await request(app)
         .post("/api/reviews/update")
-        .send({ review: { ...created, name: "Renamed" }, user_name: admin.name });
+        .send({ review_id: created.id, patch: { name: "Renamed" }, user_name: admin.name });
       assert.equal(upd.status, 200);
       const { rows: renamed } = await client.query(
         `SELECT name FROM reviews.reviews WHERE id = $1`, [created.id]);
@@ -94,9 +101,13 @@ test("update writes the row, and delete removes it", async () => {
 test("an anonymous visitor sees public reviews and never a hidden one", async () => {
   await inPinnedTransaction(async (client: PoolClient) => {
     let hiddenId: string;
-    await as({ ...admin, role: "admin" }, async () => {
+    await asAdmin(async () => {
       hiddenId = (await request(app).post("/api/reviews/create")
-        .send({ review: { ...NEW, name: "HIDDEN FIXTURE", hidden: true } })).body.id;
+        .send({
+          review: {
+            name: "HIDDEN FIXTURE", review_text: NEW.review_text, rating: NEW.rating, hidden: true,
+          },
+        })).body.id;
     });
     // it really is hidden in the table the public read uses
     const { rows } = await client.query(`SELECT hidden FROM reviews.reviews WHERE id = $1`, [hiddenId!]);
@@ -116,7 +127,7 @@ test("an anonymous visitor sees public reviews and never a hidden one", async ()
 
 test("an id that names no review is 404, not an empty 200", async () => {
   await inPinnedTransaction(async () => {
-    await as({ ...admin, role: "admin" }, async () => {
+    await asAdmin(async () => {
       const res = await request(app).get("/api/reviews/get_one")
         .query({ review_id: "11111111-1111-1111-1111-111111111111" });
       assert.equal(res.status, 404, `answered ${res.status}`);

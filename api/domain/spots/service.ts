@@ -41,11 +41,11 @@ export type Quote = {
 // FRESH ON EVERY CALL, no caching. The spot tables are updated by
 // updateSpotPrices on a cron, so a read is a read of the latest quote and the
 // customer is priced at what the business holds right now.
-export async function getSpotPrices(executor?: Parameters<typeof spots.getAll>[0]): Promise<SpotRow[]> {
-  return await toWire(await spots.getAll(executor));
+export async function getSpotPrices(executor?: Parameters<typeof spots.list>[0]): Promise<SpotRow[]> {
+  return await toWire(await spots.list(executor));
 }
 
-// Pulls the upstream quote feed and writes it to exchange.metals. Called by the
+// Pulls the upstream quote feed and writes it to spots.spots. Called by the
 // scheduler on startup and on the SPOT_UPDATE_SCHEDULE cron.
 //
 // A quote missing its symbol or either side of the market is SKIPPED, not
@@ -75,24 +75,15 @@ export async function updateSpotPrices(): Promise<Record<string, Quote>> {
     };
   }
 
-    // ONE UPSERT PER METAL, BOTH SCHEMAS, ONE TRANSACTION.
-  //
-  // The old write joined metals.metals inside the INSERT to turn the feed's
-  // metal NAME into an id. The name is resolved here instead, so neither
-  // statement touches a second table - and the legacy statement still keys on
-  // the name, because exchange.metals identifies a metal by `type`.
-  //
-  // THIS IS WHAT CLOSES THE ONE `NOT SAFE` IN verify:parity. The cron wrote
-  // exchange.metals only, so spots.spots drifted - four metals differing on
-  // ask, bid and percent_change. Writing both keeps them together from the
-  // next tick.
-  const ids = new Map([...(await metals.namesById())].map(([id, name]) => [name, id]));
+  // ONE UPSERT PER METAL, ONE TRANSACTION. The feed names a metal; the
+  // statement keys on metal_id, so the name is resolved to an id here rather
+  // than inside the INSERT, and the write never touches a second table.
+  const ids = new Map(Array.from(await metals.namesById(), ([id, name]) => [name, id]));
   await withTransaction(async (c) => {
     for (const [name, quote] of Object.entries(quotes)) {
       const id = ids.get(name);
       // A metal the feed names but the database does not have is skipped
-      // rather than invented - the old INSERT ... JOIN did the same by
-      // matching no row.
+      // rather than invented.
       if (id) await spots.upsert(id, quote, c);
     }
   });
@@ -102,4 +93,4 @@ export async function updateSpotPrices(): Promise<Record<string, Quote>> {
 // The admin product editor's metal list. exchange.metals carried the quote on
 // the metal's own row, so the returned shape is the same composed one - identity
 // plus quote - even though it now comes from two tables.
-export const getAllMetals = async () => await toWire(await spots.getAll());
+export const getAllMetals = async () => await toWire(await spots.list());

@@ -1,4 +1,13 @@
 // spots.spots, and nothing else.
+//
+// NO getOne/create/update/remove: a spot has no lifecycle of its own. There is
+// exactly one row per metal, seeded by migration, and the only write the
+// application ever makes is `upsert` - a quote arriving for a metal that
+// already has a row. Nothing creates a spot, nothing deletes one, and no
+// caller ever asks for a single metal's quote in isolation from the rest
+// (list() below is the only read). D212's CRUD ruling collapses a table to
+// one repo with those five verbs where the table has that many distinct
+// operations; this one genuinely has one.
 import query from "#shared/db/query.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
 import type { Executor } from "#shared/db/executor.ts";
@@ -25,7 +34,7 @@ export type Quote = {
   dollarChange?: number | null; percentChange?: number | null;
 };
 
-export async function getAll(executor?: Executor): Promise<SpotRow[]> {
+export async function list(executor?: Executor): Promise<SpotRow[]> {
   const { rows } = await query<SpotRow>(sql("get_all"), [], executor);
   return rows;
 }
