@@ -2,24 +2,29 @@
 
 import { useMemo } from 'react'
 import type { Address } from '@/features/addresses/types'
-import type { Package } from '@/features/packaging/types'
 import type { Insurance } from '@/features/insurance/types'
+import type { ShippingRatesInput } from '@/features/shipping/types'
+
+// The one shape the store's checkout package actually carries: an id (from
+// the offered-packages reference read, D208) plus the weight the customer's
+// items add up to. Declared locally rather than importing
+// features/packaging/types' `Package` interface, which has no `id` - the
+// zod-inferred `packageSchema` type the store actually uses does, and this is
+// the slice of it this hook needs.
+type CheckoutPackage = {
+  id?: string
+  weight?: { value: number }
+}
 
 // THE CARRIER IS THE SERVER'S TO NAME. carrier_id used to be required here and
 // checkout supplied a production uuid literal; the API resolves the carrier it
 // ships with when none is given. A caller that has one still sends it.
-type GetRatesInput = {
-  carrier_id?: string
-  shippingType: 'Inbound' | 'Outbound' | 'Return'
-  address: Address
-  pkg: {
-    weight: { units: 'LB' | 'KG'; value: number }
-    dimensions: { length: number; width: number; height: number; units: 'IN' | 'CM' }
-  }
-  pickupType: string
-  declaredValue?: { amount: number; currency: string }
-}
-
+//
+// STREAMLINE B (D214 item 11): ids in, never a composed address/package
+// object - `address_id` and `package_id`, plus the one genuine measurement
+// nothing else stores (`weight`). `declaredValue` is a plain number on the
+// wire; the form keeps `{amount, currency}` (features/insurance/types.ts),
+// so `.amount` is what travels.
 export function useGetRatesInput({
   carrier_id,
   address,
@@ -30,11 +35,11 @@ export function useGetRatesInput({
 }: {
   carrier_id?: string
   address?: Address
-  package?: Package
+  package?: CheckoutPackage
   shippingType?: 'Inbound' | 'Outbound' | 'Return'
   pickupLabel?: string
   insurance?: Insurance
-}): GetRatesInput | null {
+}): ShippingRatesInput | null {
   return useMemo(() => {
     // NO QUOTE UNTIL THE HANDOFF IS KNOWN, and this guard replaces one that
     // used to read `if (!carrier_id) return null`.
@@ -47,22 +52,20 @@ export function useGetRatesInput({
     // tick is the correct trade against quoting the wrong thing.
     if (!pickupLabel) return null
     if (!address?.is_valid) return null
-    if (!pkg?.dimensions) return null
+    if (!pkg?.id) return null
     if (pkg.weight?.value == null) return null
 
     return {
       ...(carrier_id ? { carrier_id } : {}),
       shippingType,
-      address,
+      address_id: address.id,
+      package_id: pkg.id,
+      weight: pkg.weight.value,
       // The carrier handoff's own code, received from GET /shipping/handoffs
       // and handed straight back. This tree does not interpret it.
       pickupType: pickupLabel ?? '',
-      pkg: {
-        weight: pkg.weight,
-        dimensions: pkg.dimensions,
-      },
       ...(insurance?.insured && insurance.declaredValue
-        ? { declaredValue: insurance.declaredValue }
+        ? { declaredValue: insurance.declaredValue.amount }
         : {}),
     }
   }, [
@@ -70,7 +73,7 @@ export function useGetRatesInput({
     shippingType,
     address,
     address?.is_valid,
-    pkg?.dimensions,
+    pkg?.id,
     pkg?.weight?.value,
     pickupLabel,
     insurance?.insured,

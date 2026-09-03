@@ -143,6 +143,12 @@ export const useSaleShippingServices = () =>
     staleTime: REFERENCE_STALE_TIME,
   })
 
+// ShipmentTrackingInput still carries tracking_number/carrier_id - not for
+// the wire (ShippingGetTrackingBody is `{ shipment_id }`.strict() now, the
+// server reads both off the shipment row it looks up by id) but as the
+// client-side gate: no point asking the carrier to track a shipment that has
+// no label yet. Sending them anyway used to just get ignored by an
+// unvalidated `req.body` destructure; strict parsing 400s on them now.
 export const useTracking = (input: ShipmentTrackingInput) => {
   return useApiQuery<ShipmentTracking | null>({
     key: queryKeys.shipmentTracking(input),
@@ -152,9 +158,7 @@ export const useTracking = (input: ShipmentTrackingInput) => {
     enabled: (user) =>
       !!user?.id && !!input.shipment_id && !!input.tracking_number && !!input.carrier_id,
     body: () => ({
-      tracking_number: input.tracking_number,
       shipment_id: input.shipment_id,
-      carrier_id: input.carrier_id,
     }),
   })
 }
@@ -219,7 +223,12 @@ export const useShippingCancelPickup = () => {
     url: '/shipping/cancel_pickup',
     method: 'POST',
     requireAdmin: true,
-    body: (input) => ({input}),
+    // Was `({ input })` - nesting the whole body under an `input` key that
+    // ShippingCancelPickupBody has no field for. Unvalidated parsing let it
+    // through as a no-op-looking body (the destructure just found nothing);
+    // strict parsing 400s: no top-level key, and the required `pickup_id`
+    // missing too.
+    body: (input) => input,
   })
 }
 

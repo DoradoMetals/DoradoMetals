@@ -77,12 +77,6 @@ export function PreTransit({
               cancelPickup.mutate({
                 carrier_id: carrierId ?? '',
                 pickup_id: carrierPickup?.id ?? '',
-                // TEXT on shipping.pickups where exchange had a numeric
-                // column - the composed wire cast it back. The cancel input
-                // still wants a number.
-                confirmation_code: carrierPickup?.confirmation_number
-                  ? Number(carrierPickup.confirmation_number)
-                  : undefined,
               })
             }}
           >
@@ -109,7 +103,6 @@ export function PreTransit({
             cancelLabel.mutate({
               carrier_id: carrierId ?? '',
               shipment_id: shipment?.id ?? '',
-              tracking_number: shipment?.tracking_number ?? '',
             })
           }
         >
