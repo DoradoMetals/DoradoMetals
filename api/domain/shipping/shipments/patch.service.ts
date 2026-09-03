@@ -57,8 +57,11 @@ export async function patchShipment(
   const shipment = await shipmentsService.getById(shipmentId);
   if (!shipment) refuse(404, `no shipment ${shipmentId}`);
 
-  const purchaseOrderId = shipment!.purchase_order_id;
-  const salesOrderId = shipment!.sales_order_id;
+  // The row carries no order id (ruling 12) - which order this shipment
+  // belongs to, and which direction it is, is resolution rather than shape.
+  const link = await shipmentsService.getOrderLink(shipmentId);
+  const purchaseOrderId = link?.direction === "purchase" ? link.order_id : null;
+  const salesOrderId = link?.direction === "sale" ? link.order_id : null;
 
   if (body.shipping_charge !== undefined) {
     const orderId = purchaseOrderId ?? salesOrderId;

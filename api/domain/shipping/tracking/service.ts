@@ -14,15 +14,16 @@ import * as tracking from "#db/shipping/tracking/repo.ts";
 import * as shipmentService from "#domain/shipping/shipments/service.ts";
 import type { ScanEvent, TrackingInfo } from "#db/shipping/tracking/repo.ts";
 import type { Executor } from "#shared/db/executor.ts";
-import type { ComposedShipment } from "#domain/shipping/shipments/compose.ts";
+import type { ShipmentBaseRow } from "#db/shipping/shipments/repo.ts";
 
 export type { ScanEvent, TrackingInfo } from "#db/shipping/tracking/repo.ts";
 
 // The shipment, plus its scan events under the name the response has always
 // used. `scan_events` is an ARRAY and is `[]` rather than null when there are
 // none - the old projection's COALESCE(..., '[]'::json) said so, and a caller
-// mapping over null is the failure that guarded against.
-export type TrackedShipment = ComposedShipment & {
+// mapping over null is the failure that guarded against. THE SHIPMENT IS THE
+// ROW (ruling 12) - no composed exchange shape any more.
+export type TrackedShipment = ShipmentBaseRow & {
   scan_events: {
     status: string | null;
     location: string | null;

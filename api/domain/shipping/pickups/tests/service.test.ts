@@ -70,7 +70,7 @@ test("creating a pickup no longer dies on the missing shipment_id column", async
     assert.ok(created, "the pickup was not created");
     assert.ok(created?.id, "create returned nothing");
     assert.equal(created.location, "FRONT");
-    assert.equal(created.pickup_status, "scheduled");
+    assert.equal(created.status, "scheduled");
   });
 });
 
@@ -187,9 +187,9 @@ test("updating a pickup records the new status rather than the old one", async (
   await inRollback(async (c: PoolClient) => {
     const created = await dual.create(aPickup(), c);
     assert.ok(created, "the pickup was not created");
-    const updated = await dual.update({ ...created, pickup_status: "canceled" }, c);
+    const updated = await dual.update({ id: created.id, pickup_status: "canceled" }, c);
     assert.ok(updated, "the update returned no pickup");
-    assert.equal(updated.pickup_status, "canceled");
+    assert.equal(updated.status, "canceled");
   });
 });
 
@@ -203,7 +203,7 @@ test("the status vocabulary is pending / scheduled / completed / canceled", asyn
     for (const status of ["pending", "scheduled", "completed", "canceled"]) {
       const row = await dual.create(aPickup({ order_id, pickup_status: status }), c);
       assert.ok(row, "the pickup could not be read back");
-      assert.equal(row.pickup_status, status);
+      assert.equal(row.status, status);
     }
     await assert.rejects(
       () => dual.create(aPickup({ order_id, pickup_status: "cancelled" }), c),
@@ -213,12 +213,11 @@ test("the status vocabulary is pending / scheduled / completed / canceled", asyn
   });
 });
 
-// THE SHAPE IS COMPARED AGAINST THE LEGACY TABLE's COLUMN LIST - the wire has
-// always been exchange.carrier_pickups' own row (its reads were `SELECT *`),
-// and a wire shape never moves during a schema migration. The table stays
-// (tables never drop), so its catalog entry is still the contract even though
-// nothing writes it any more.
-test("the composed pickup has exactly the columns exchange.carrier_pickups has", async () => {
+// THE SHAPE IS THE ROW (ruling 12, D214): compose.ts, which reconstructed
+// order_id, user_id and carrier through the shipment, is deleted - a caller
+// who needs those reaches them through shipping/shipments now. This is
+// compared against shipping.pickups' own column list, not exchange's.
+test("the pickup has exactly the columns shipping.pickups has", async () => {
   await inRollback(async (c: PoolClient) => {
     const order_id = await anOrderWithShipment(c);
     assert.ok(order_id, "dev has no order with a shipment");
@@ -227,7 +226,7 @@ test("the composed pickup has exactly the columns exchange.carrier_pickups has",
 
     const { rows: contract } = await c.query(
       `SELECT column_name FROM information_schema.columns
-        WHERE table_schema = 'exchange' AND table_name = 'carrier_pickups'`
+        WHERE table_schema = 'shipping' AND table_name = 'pickups'`
     );
     const fromNext = await dual.getById(created.id, c);
     assert.ok(fromNext, "the pickup did not come back");
@@ -235,12 +234,9 @@ test("the composed pickup has exactly the columns exchange.carrier_pickups has",
     assert.deepEqual(
       Object.keys(fromNext).sort(),
       contract.map((r) => r.column_name).sort(),
-      "the composed shape has drifted from the wire contract"
+      "the row has drifted from shipping.pickups' own columns"
     );
     assert.equal(Number(fromNext.confirmation_number), 998877);
-    // The three reconstructed through the shipment.
-    assert.equal(fromNext.order_id, order_id, "the order id was not reconstructed");
-    assert.equal(fromNext.carrier, "FedEx", "the carrier name was not reconstructed");
-    assert.ok(fromNext.user_id, "the user id was not reconstructed");
+    assert.ok(fromNext.shipment_id, "the pickup did not link to a shipment");
   });
 });

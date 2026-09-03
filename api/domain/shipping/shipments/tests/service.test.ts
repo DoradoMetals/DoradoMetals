@@ -108,10 +108,13 @@ test("a mirrored shipment can still be found by its order", async () => {
     await inbound(c, orderId);
 
     const found = await dual.getByOrder(orderId, c);
-    assert.ok(found, "the read-back returned nothing");
     assert.ok(found, "the shipment cannot be found by its order");
-    assert.equal(found.purchase_order_id, orderId);
-    assert.equal(found.sales_order_id, null, "a purchase shipment filled the sales order column");
+
+    // The row carries no order id (ruling 12) - getOrderLink is the
+    // resolution a caller still needs, not the shipment's shape.
+    const link = await dual.getOrderLink(found.id, c);
+    assert.equal(link?.order_id, orderId);
+    assert.equal(link?.direction, "purchase");
   });
 });
 

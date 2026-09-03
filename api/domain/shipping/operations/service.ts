@@ -1,19 +1,19 @@
 import withTransaction from "#shared/db/withTransaction.ts";
-// The SERVICE, not a repo: a shipment is composed from six tables now, and
-// the order link it carries is reconstructed rather than stored.
+// The SERVICE, not a repo: shipments carries the order-link and read-modify-
+// write helpers (getOrderLink, patch) alongside the bare CRUD.
 import * as shipmentRepo from "#domain/shipping/shipments/service.ts";
 import * as trackingRepo from "#domain/shipping/tracking/service.ts";
-// The SERVICE, not a repo: a pickup hangs off a SHIPMENT now, and the order,
-// the user and the carrier it reports are reconstructed through one.
+// The SERVICE, not a repo: a pickup hangs off a SHIPMENT.
 import * as pickupRepo from "#domain/shipping/pickups/service.ts";
+import * as servicesRepo from "#db/shipping/services/repo.ts";
 import * as shippingHandler from "#domain/shipping/operations/handler.ts";
 import { carrierIdOr } from "#domain/shipping/operations/resolver.ts";
 import { FEDEX_STORE_ADDRESS, DORADO_ADDRESS } from "#providers/shipments/constants.ts";
-import type { ComposedShipment as ShipmentRow } from "#domain/shipping/shipments/compose.ts";
+import type { ShipmentBaseRow as ShipmentRow } from "#db/shipping/shipments/repo.ts";
 import type { TrackedShipment as TrackingRow } from "#domain/shipping/tracking/service.ts";
 import type { ParsedTracking } from "#providers/shipments/utils/parsing.ts";
 import type { RatesInput } from "#domain/shipping/operations/handler.ts";
-import type { ComposedPickup as PickupRow } from "#domain/shipping/pickups/compose.ts";
+import type { PickupBaseRow as PickupRow } from "#db/shipping/pickups/repo.ts";
 import type { PoolClient } from "pg";
 
 // The three repos here go through their own repo.js switches, which are
@@ -89,11 +89,11 @@ export async function cancelLabel({
     trackingNumber: shipment.tracking_number,
   });
 
-  return await shipmentRepo.update({
-    ...shipment,
-    id: shipment.id,
-    shipping_status: "Cancelled",
-  });
+  // patch(), not update(): the row carries no service/package NAME to
+  // round-trip through the resolver any more (ruling 12) - this preserves
+  // shipment.carrier_service_id/package_id verbatim and only changes the
+  // status.
+  return await shipmentRepo.patch(shipment.id, { shipping_status: "Cancelled" });
 }
 
 // `fetchTracking` is a separate parameter, not a field on an input object, for
@@ -134,14 +134,20 @@ export async function getTracking(
       throw err;
     }
 
+    // carrier_id comes through the shipment's SERVICE now, so a shipment with
+    // no service yet has none - a shell created before the label was bought.
+    // The row carries carrier_service_id, not carrier_id (ruling 12), so this
+    // resolves the one hop the composed shape used to do for free.
+    const service = shipment.carrier_service_id
+      ? await servicesRepo.getOne(shipment.carrier_service_id, client)
+      : undefined;
+
     const trackingInfo = fetchTracking
       ? await fetchTracking(shipment, client)
       : await shippingHandler.getTracking(
-          // carrier_id comes through the shipment's SERVICE now, so a shipment
-          // with no service yet has none - a shell created before the label was
-          // bought. There is no carrier to ask, and asking `undefined` would
-          // have reached the provider registry as "Unsupported carrier: ".
-          requireCarrier(shipment.carrier_id, shipment_id),
+          // There is no carrier to ask, and asking `undefined` would have
+          // reached the provider registry as "Unsupported carrier: ".
+          requireCarrier(service?.carrier_id ?? null, shipment_id),
           client,
           { tracking_number: shipment.tracking_number }
         );
@@ -175,11 +181,13 @@ export async function getTracking(
     await trackingRepo.removeEvents(shipment_id, client);
     await trackingRepo.insertEvents(trackingInfo, shipment_id, client);
 
-    await shipmentRepo.update(
+    // patch(), not update(): see cancelLabel's note above - this changes
+    // three columns and preserves every other one verbatim, ids included.
+    await shipmentRepo.patch(
+      shipment_id,
       {
-        ...shipment,
         shipping_status: trackingInfo.latestStatus ?? shipment.shipping_status,
-        estimated_delivery:
+        est_delivery:
           trackingInfo.estimatedDeliveryTime === "TBD"
             ? null
             : trackingInfo.estimatedDeliveryTime,
@@ -267,19 +275,23 @@ export async function cancelPickup({
   }
 
   // CONVERTED AT THE BOUNDARY, NOT ASSUMED. The carrier wants strings;
-  // confirmation_number is NUMERIC on the wire because exchange's column is,
-  // and pickup_requested_at arrives as a Date because pg parses the column.
-  // Both were passed through unconverted while the pickups repo resolved
-  // through a dynamic index and every field on it was `any` - so what actually
-  // reached FedEx was a number and a Date object, and whether that worked
-  // depended on the provider's own coercion.
+  // confirmation_number is text on the row now (ruling 12 - exchange's was
+  // NUMERIC, which the composed shape coerced to), and requested_at arrives as
+  // a Date because pg parses the column. Both were passed through unconverted
+  // while the pickups repo resolved through a dynamic index and every field on
+  // it was `any` - so what actually reached FedEx was a number and a Date
+  // object, and whether that worked depended on the provider's own coercion.
   //
   // The date is sent as YYYY-MM-DD, which is the form the FedEx pickup API
   // takes and what a caller passing `date` would already have supplied.
+  // The generated row type says `requested_at` is a string; pg hands back a
+  // Date for a timestamp column regardless of what the wire-shaped type
+  // claims - same widening ShipmentUpdate's timestamps document.
+  const requestedAt = pickup.requested_at as unknown as Date | string | null;
   const pickupDate =
-    pickup.pickup_requested_at instanceof Date
-      ? pickup.pickup_requested_at.toISOString().slice(0, 10)
-      : (pickup.pickup_requested_at ?? null);
+    requestedAt instanceof Date
+      ? requestedAt.toISOString().slice(0, 10)
+      : (requestedAt ?? null);
 
   await shippingHandler.cancelPickup(await carrierIdOr(carrier_id), undefined, {
     confirmationCode:
@@ -293,7 +305,6 @@ export async function cancelPickup({
   // has a CHECK constraint allowing only pending / scheduled / completed /
   // canceled - one l - so "cancelled" is refused outright.
   return await pickupRepo.update({
-    ...pickup,
     id: pickup.id,
     confirmation_number: pickup.confirmation_number,
     pickup_status: "canceled",

@@ -47,7 +47,7 @@ import { AddressesRow } from "../generated/places.js";
 //   GET /orders/:orderId/directs      FulfillmentDirect[]
 //   GET /orders/:orderId/refiners     RefinerOrder   (wire/refiners.ts)
 //   GET /orders/:orderId/refiners/spots RefinerSpot[]
-//   GET /shipments/:shipmentId/pickups  CarrierPickup[]
+//   GET /shipments/:shipmentId/pickups  ShipmentPickup[]     (wire/shipping.ts)
 //
 // Display names are the CLIENT's job, mapped by id against reference reads it
 // already caches: metal_id against /spots, bullion_id against /products,
