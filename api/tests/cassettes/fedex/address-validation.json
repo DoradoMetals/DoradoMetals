@@ -1,0 +1,100 @@
+[
+    {
+        "scope": "https://apis-sandbox.fedex.com:443",
+        "method": "POST",
+        "path": "/oauth/token",
+        "body": "grant_type=client_credentials&client_id=SCRUBBED_CLIENT_ID&client_secret=SCRUBBED_CLIENT_SECRET",
+        "status": 200,
+        "response": {
+            "access_token": "SCRUBBED_ACCESS_TOKEN",
+            "token_type": "bearer",
+            "expires_in": 3599,
+            "scope": "CXS-TP"
+        },
+        "rawHeaders": {
+            "content-type": "application/json;charset=UTF-8"
+        }
+    },
+    {
+        "scope": "https://apis-sandbox.fedex.com:443",
+        "method": "POST",
+        "path": "/address/v1/addresses/resolve",
+        "body": {
+            "addressesToValidate": [
+                {
+                    "address": {
+                        "streetLines": [
+                            "6100 Main St"
+                        ],
+                        "city": "Houston",
+                        "stateOrProvinceCode": "TX",
+                        "postalCode": "77005",
+                        "countryCode": "US"
+                    },
+                    "addressVerificationOptions": {
+                        "checkResidentialStatus": true
+                    }
+                }
+            ]
+        },
+        "status": 200,
+        "response": {
+            "transactionId": "22112d49-a16c-4319-b45d-84356071192b",
+            "output": {
+                "resolvedAddresses": [
+                    {
+                        "streetLinesToken": [
+                            "6100 MAIN ST"
+                        ],
+                        "city": "HOUSTON",
+                        "stateOrProvinceCode": "TX",
+                        "postalCode": "77005-1827",
+                        "parsedPostalCode": {
+                            "base": "77005",
+                            "addOn": "1827",
+                            "deliveryPoint": "00"
+                        },
+                        "countryCode": "US",
+                        "classification": "BUSINESS",
+                        "ruralRouteHighwayContract": false,
+                        "generalDelivery": false,
+                        "customerMessages": [],
+                        "normalizedStatusNameDPV": true,
+                        "standardizedStatusNameMatchSource": "Postal",
+                        "resolutionMethodName": "USPS_VALIDATE",
+                        "attributes": {
+                            "POBox": "false",
+                            "POBoxOnlyZIP": "false",
+                            "SplitZIP": "false",
+                            "SuiteRequiredButMissing": "false",
+                            "InvalidSuiteNumber": "false",
+                            "ResolutionInput": "RAW_ADDRESS",
+                            "DPV": "true",
+                            "ResolutionMethod": "USPS_VALIDATE",
+                            "DataVintage": "February 2023",
+                            "MatchSource": "Postal",
+                            "CountrySupported": "true",
+                            "ValidlyFormed": "true",
+                            "Matched": "true",
+                            "Resolved": "true",
+                            "Inserted": "false",
+                            "MultiUnitBase": "false",
+                            "ZIP11Match": "true",
+                            "ZIP4Match": "true",
+                            "UniqueZIP": "false",
+                            "StreetAddress": "true",
+                            "RRConversion": "false",
+                            "ValidMultiUnit": "false",
+                            "AddressType": "STANDARDIZED",
+                            "AddressPrecision": "STREET_ADDRESS",
+                            "MultipleMatches": "false"
+                        }
+                    }
+                ]
+            }
+        },
+        "rawHeaders": {
+            "content-type": "application/json"
+        }
+    }
+]

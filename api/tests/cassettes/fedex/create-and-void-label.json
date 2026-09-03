@@ -1,0 +1,451 @@
+[
+    {
+        "scope": "https://apis-sandbox.fedex.com:443",
+        "method": "POST",
+        "path": "/oauth/token",
+        "body": "grant_type=client_credentials&client_id=SCRUBBED_CLIENT_ID&client_secret=SCRUBBED_CLIENT_SECRET",
+        "status": 200,
+        "response": {
+            "access_token": "SCRUBBED_ACCESS_TOKEN",
+            "token_type": "bearer",
+            "expires_in": 3599,
+            "scope": "CXS-TP"
+        },
+        "rawHeaders": {
+            "content-type": "application/json;charset=UTF-8"
+        }
+    },
+    {
+        "scope": "https://apis-sandbox.fedex.com:443",
+        "method": "POST",
+        "path": "/ship/v1/shipments",
+        "body": {
+            "accountNumber": {
+                "value": "SCRUBBED_ACCOUNT_NUMBER"
+            },
+            "labelResponseOptions": "LABEL",
+            "requestedShipment": {
+                "shipper": {
+                    "contact": {
+                        "personName": "Cassette Suite",
+                        "phoneNumber": "7135551234"
+                    },
+                    "address": {
+                        "streetLines": [
+                            "6100 Main St"
+                        ],
+                        "city": "Houston",
+                        "stateOrProvinceCode": "TX",
+                        "postalCode": "77005",
+                        "countryCode": "US",
+                        "residential": true
+                    }
+                },
+                "recipients": [
+                    {
+                        "contact": {
+                            "personName": "Dorado Metals",
+                            "phoneNumber": "7135551234"
+                        },
+                        "address": {
+                            "streetLines": [
+                                "1600 Lamar St"
+                            ],
+                            "city": "Houston",
+                            "stateOrProvinceCode": "TX",
+                            "postalCode": "77010",
+                            "countryCode": "US",
+                            "residential": false
+                        }
+                    }
+                ],
+                "packagingType": "YOUR_PACKAGING",
+                "serviceType": "FEDEX_GROUND",
+                "pickupType": "DROPOFF_AT_FEDEX_LOCATION",
+                "groupPackageCount": 1,
+                "requestedPackageLineItems": [
+                    {
+                        "weight": {
+                            "units": "LB",
+                            "value": 5
+                        },
+                        "dimensions": {
+                            "length": 10,
+                            "width": 8,
+                            "height": 6,
+                            "units": "IN"
+                        }
+                    }
+                ],
+                "labelSpecification": {
+                    "imageType": "PNG",
+                    "labelStockType": "PAPER_4X6"
+                },
+                "shippingChargesPayment": {
+                    "paymentType": "SENDER",
+                    "payor": {
+                        "responsibleParty": {
+                            "accountNumber": {
+                                "value": "SCRUBBED_ACCOUNT_NUMBER"
+                            }
+                        }
+                    }
+                },
+                "shipmentSpecialServices": {
+                    "specialServiceTypes": [
+                        "HOLD_AT_LOCATION"
+                    ],
+                    "holdAtLocationDetail": {
+                        "locationId": "ADSK",
+                        "locationContactAndAddress": {
+                            "address": {
+                                "streetLines": [
+                                    "13605 Midway Rd"
+                                ],
+                                "city": "Farmers Branch",
+                                "stateOrProvinceCode": "TX",
+                                "postalCode": "75244",
+                                "countryCode": "US"
+                            },
+                            "contact": {
+                                "phoneNumber": "9727880816",
+                                "companyName": "FedEx Office Print & Ship Center"
+                            }
+                        },
+                        "locationType": "FEDEX_OFFICE"
+                    }
+                },
+                "emailNotificationDetail": {
+                    "aggregationType": "PER_SHIPMENT",
+                    "emailNotificationRecipients": [
+                        {
+                            "name": "Dorado Shipping",
+                            "emailNotificationRecipientType": "RECIPIENT",
+                            "emailAddress": "shipping@doradometals.com",
+                            "notificationFormatType": "HTML",
+                            "notificationType": "EMAIL",
+                            "locale": "en_US",
+                            "notificationEventType": [
+                                "ON_SHIPMENT",
+                                "ON_EXCEPTION",
+                                "ON_ESTIMATED_DELIVERY",
+                                "ON_DELIVERY"
+                            ]
+                        }
+                    ]
+                }
+            }
+        },
+        "status": 200,
+        "response": {
+            "transactionId": "c7d90d1d-f287-4112-b010-6e9f84ee7969",
+            "output": {
+                "transactionShipments": [
+                    {
+                        "masterTrackingNumber": "794859746626",
+                        "serviceType": "FEDEX_GROUND",
+                        "shipDatestamp": "2026-09-03",
+                        "serviceName": "FedEx Ground®",
+                        "pieceResponses": [
+                            {
+                                "masterTrackingNumber": "794859746626",
+                                "deliveryDatestamp": "2026-09-04",
+                                "trackingNumber": "794859746626",
+                                "additionalChargesDiscount": 0,
+                                "netRateAmount": 0,
+                                "netChargeAmount": 0,
+                                "netDiscountAmount": 0,
+                                "packageDocuments": [
+                                    {
+                                        "contentType": "LABEL",
+                                        "copiesToPrint": 1,
+                                        "encodedLabel": "U0NSVUJCRURfTEFCRUw=",
+                                        "docType": "PNG"
+                                    }
+                                ],
+                                "currency": "USD",
+                                "customerReferences": [],
+                                "codcollectionAmount": 0,
+                                "baseRateAmount": 16.48
+                            }
+                        ],
+                        "shipmentAdvisoryDetails": {},
+                        "completedShipmentDetail": {
+                            "usDomestic": true,
+                            "carrierCode": "FDXG",
+                            "masterTrackingId": {
+                                "trackingIdType": "FEDEX",
+                                "trackingNumber": "794859746626"
+                            },
+                            "serviceDescription": {
+                                "serviceId": "EP1000000134",
+                                "serviceType": "FEDEX_GROUND",
+                                "code": "92",
+                                "names": [
+                                    {
+                                        "type": "long",
+                                        "encoding": "utf-8",
+                                        "value": "FedEx Ground®"
+                                    },
+                                    {
+                                        "type": "long",
+                                        "encoding": "ascii",
+                                        "value": "FedEx Ground"
+                                    },
+                                    {
+                                        "type": "medium",
+                                        "encoding": "utf-8",
+                                        "value": "Ground®"
+                                    },
+                                    {
+                                        "type": "medium",
+                                        "encoding": "ascii",
+                                        "value": "Ground"
+                                    },
+                                    {
+                                        "type": "short",
+                                        "encoding": "utf-8",
+                                        "value": "FG"
+                                    },
+                                    {
+                                        "type": "short",
+                                        "encoding": "ascii",
+                                        "value": "FG"
+                                    },
+                                    {
+                                        "type": "abbrv",
+                                        "encoding": "ascii",
+                                        "value": "SG"
+                                    }
+                                ],
+                                "operatingOrgCodes": [
+                                    "FXG"
+                                ],
+                                "description": "FedEx Ground",
+                                "astraDescription": "FXG"
+                            },
+                            "packagingDescription": "Customer Packaging",
+                            "operationalDetail": {
+                                "originLocationNumber": 775,
+                                "destinationLocationNumber": 0,
+                                "deliveryDate": "2026-09-04",
+                                "deliveryDay": "FRI",
+                                "ineligibleForMoneyBackGuarantee": false,
+                                "serviceCode": "92",
+                                "packagingCode": "01",
+                                "transitTime": "ONE_DAY",
+                                "publishedDeliveryTime": "",
+                                "scac": ""
+                            },
+                            "shipmentRating": {
+                                "actualRateType": "PAYOR_ACCOUNT_PACKAGE",
+                                "shipmentRateDetails": [
+                                    {
+                                        "rateType": "PAYOR_ACCOUNT_PACKAGE",
+                                        "rateScale": "",
+                                        "rateZone": "3",
+                                        "ratedWeightMethod": "ACTUAL",
+                                        "currencyExchangeRate": {
+                                            "rate": 1
+                                        },
+                                        "dimDivisor": 139,
+                                        "fuelSurchargePercent": 5.5,
+                                        "totalBillingWeight": {
+                                            "units": "LB",
+                                            "value": 5
+                                        },
+                                        "totalBaseCharge": 15.62,
+                                        "totalFreightDiscounts": 0,
+                                        "totalNetFreight": 15.62,
+                                        "totalSurcharges": 0.86,
+                                        "totalNetFedExCharge": 16.48,
+                                        "totalTaxes": 0,
+                                        "totalNetCharge": 16.48,
+                                        "totalRebates": 0,
+                                        "totalDutiesAndTaxes": 0,
+                                        "totalAncillaryFeesAndTaxes": 0,
+                                        "totalDutiesTaxesAndFees": 0,
+                                        "totalNetChargeWithDutiesAndTaxes": 0,
+                                        "surcharges": [
+                                            {
+                                                "surchargeType": "FUEL",
+                                                "level": "PACKAGE",
+                                                "description": "FedEx Ground Fuel",
+                                                "amount": 0.86
+                                            }
+                                        ],
+                                        "freightDiscounts": [],
+                                        "taxes": [],
+                                        "currency": "USD"
+                                    }
+                                ]
+                            },
+                            "completedPackageDetails": [
+                                {
+                                    "sequenceNumber": 1,
+                                    "trackingIds": [
+                                        {
+                                            "trackingIdType": "FEDEX",
+                                            "trackingNumber": "794859746626"
+                                        }
+                                    ],
+                                    "groupNumber": 0,
+                                    "packageRating": {
+                                        "actualRateType": "PAYOR_ACCOUNT_PACKAGE",
+                                        "effectiveNetDiscount": 0,
+                                        "packageRateDetails": [
+                                            {
+                                                "rateType": "PAYOR_ACCOUNT_PACKAGE",
+                                                "ratedWeightMethod": "ACTUAL",
+                                                "minimumChargeType": "",
+                                                "billingWeight": {
+                                                    "units": "LB",
+                                                    "value": 5
+                                                },
+                                                "baseCharge": 15.62,
+                                                "totalFreightDiscounts": 0,
+                                                "netFreight": 15.62,
+                                                "totalSurcharges": 0.86,
+                                                "netFedExCharge": 16.48,
+                                                "totalTaxes": 0,
+                                                "netCharge": 16.48,
+                                                "totalRebates": 0,
+                                                "surcharges": [
+                                                    {
+                                                        "surchargeType": "FUEL",
+                                                        "level": "PACKAGE",
+                                                        "description": "FedEx Ground Fuel",
+                                                        "amount": 0.86
+                                                    }
+                                                ],
+                                                "currency": "USD"
+                                            }
+                                        ]
+                                    },
+                                    "signatureOption": "SERVICE_DEFAULT",
+                                    "operationalDetail": {
+                                        "barcodes": {
+                                            "binaryBarcodes": [
+                                                {
+                                                    "type": "COMMON_2D",
+                                                    "value": "Wyk+HjAxHTAyNzUyNDQdODQwHTM1OB03OTQ4NTk3NDY2MjYdRkRFRx00OTEwMjIxHTI0Nh0dMS8xHTUuMDBMQh1OHTEzNjA1IE1pZHdheSBSZB1GYXJtZXJzIEJyYW5jaB1UWB1Eb3JhZG8gTWV0YWxzHjA2HTEwWkdEMDEwHTExWkZlZEV4IE9mZmljZSBQcmludB0xMlo3MTM1NTUxMjM0HTE0WlNURSAxMDAdMjBaHB0zMVo5NjIyMDM1ODkwMDA0OTEwMjIxMzAwNzk0ODU5NzQ2NjI2HTMyWjAxHTM0WjAxHR4E"
+                                                }
+                                            ],
+                                            "stringBarcodes": [
+                                                {
+                                                    "type": "FEDEX_1D",
+                                                    "value": "9622035890004910221300794859746626"
+                                                }
+                                            ]
+                                        },
+                                        "astraHandlingText": "HAL",
+                                        "operationalInstructions": [
+                                            {
+                                                "number": 2,
+                                                "content": "TRK#"
+                                            },
+                                            {
+                                                "number": 7,
+                                                "content": "9622035890004910221300794859746626"
+                                            },
+                                            {
+                                                "number": 8,
+                                                "content": "58KJ3/A3F9/484B"
+                                            },
+                                            {
+                                                "number": 10,
+                                                "content": "7948 5974 6626"
+                                            },
+                                            {
+                                                "number": 14,
+                                                "content": "HAL"
+                                            },
+                                            {
+                                                "number": 15,
+                                                "content": "75244"
+                                            },
+                                            {
+                                                "number": 18,
+                                                "content": "9622 0358 9 (000 000 0000) 0 00 7948 5974 6626"
+                                            }
+                                        ]
+                                    }
+                                }
+                            ],
+                            "completedHoldAtLocationDetail": {
+                                "holdingLocation": {
+                                    "contact": {
+                                        "companyName": "FedEx Office Print & Ship Center",
+                                        "phoneNumber": "0000000000"
+                                    },
+                                    "address": {
+                                        "streetLines": [
+                                            "13605 Midway Rd",
+                                            "STE 100"
+                                        ],
+                                        "city": "Farmers Branch",
+                                        "stateOrProvinceCode": "TX",
+                                        "postalCode": "75244",
+                                        "countryCode": "US",
+                                        "residential": false,
+                                        "geographicCoordinates": "+32.933996-96.839874/"
+                                    }
+                                },
+                                "holdingLocationType": "FEDEX_OFFICE"
+                            }
+                        },
+                        "serviceCategory": "GROUND"
+                    }
+                ]
+            }
+        },
+        "rawHeaders": {
+            "content-type": "application/json"
+        }
+    },
+    {
+        "scope": "https://apis-sandbox.fedex.com:443",
+        "method": "POST",
+        "path": "/oauth/token",
+        "body": "grant_type=client_credentials&client_id=SCRUBBED_CLIENT_ID&client_secret=SCRUBBED_CLIENT_SECRET",
+        "status": 200,
+        "response": {
+            "access_token": "SCRUBBED_ACCESS_TOKEN",
+            "token_type": "bearer",
+            "expires_in": 3599,
+            "scope": "CXS-TP"
+        },
+        "rawHeaders": {
+            "content-type": "application/json;charset=UTF-8"
+        }
+    },
+    {
+        "scope": "https://apis-sandbox.fedex.com:443",
+        "method": "PUT",
+        "path": "/ship/v1/shipments/cancel",
+        "body": {
+            "accountNumber": {
+                "value": "SCRUBBED_ACCOUNT_NUMBER"
+            },
+            "trackingNumber": "794859746626"
+        },
+        "status": 200,
+        "response": {
+            "transactionId": "APIF_SV_SHPC_TxID3928f796-f4fe-427f-82b3-a46a3f2305b5",
+            "output": {
+                "alerts": [
+                    {
+                        "code": "VIRTUAL.RESPONSE",
+                        "message": "This is a Virtual Response.",
+                        "alertType": "NOTE"
+                    }
+                ],
+                "cancelledShipment": true,
+                "cancelledHistory": true
+            }
+        },
+        "rawHeaders": {
+            "content-type": "application/json"
+        }
+    }
+]

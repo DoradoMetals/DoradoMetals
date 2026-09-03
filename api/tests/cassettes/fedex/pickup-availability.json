@@ -1,0 +1,234 @@
+[
+    {
+        "scope": "https://apis-sandbox.fedex.com:443",
+        "method": "POST",
+        "path": "/oauth/token",
+        "body": "grant_type=client_credentials&client_id=SCRUBBED_CLIENT_ID&client_secret=SCRUBBED_CLIENT_SECRET",
+        "status": 200,
+        "response": {
+            "access_token": "SCRUBBED_ACCESS_TOKEN",
+            "token_type": "bearer",
+            "expires_in": 3599,
+            "scope": "CXS-TP"
+        },
+        "rawHeaders": {
+            "content-type": "application/json;charset=UTF-8"
+        }
+    },
+    {
+        "scope": "https://apis-sandbox.fedex.com:443",
+        "method": "POST",
+        "path": "/pickup/v1/pickups/availabilities",
+        "body": {
+            "pickupAddress": {
+                "streetLines": [
+                    "6100 Main St"
+                ],
+                "city": "Houston",
+                "stateOrProvinceCode": "TX",
+                "postalCode": "77005",
+                "countryCode": "US",
+                "residential": true
+            },
+            "pickupRequestType": [
+                "FUTURE_DAY"
+            ],
+            "carriers": [
+                "FDXE"
+            ],
+            "countryRelationship": "DOMESTIC",
+            "numberOfBusinessDays": 3,
+            "associatedAccountNumber": "SCRUBBED_ACCOUNT_NUMBER",
+            "packageReadyTime": "SCRUBBED_DATE"
+        },
+        "status": 200,
+        "response": {
+            "transactionId": "e8f68532-07cf-4bc6-83b9-387edaca4008",
+            "output": {
+                "requestTimestamp": "2026-09-03T09:52:13",
+                "options": [
+                    {
+                        "carrier": "FDXE",
+                        "available": true,
+                        "pickupDate": "2026-09-03",
+                        "cutOffTime": "19:00:00",
+                        "accessTime": {
+                            "hours": 2,
+                            "minutes": 0
+                        },
+                        "residentialAvailable": false,
+                        "readyTimeOptions": [
+                            "10:00:00",
+                            "10:30:00",
+                            "11:00:00",
+                            "11:30:00",
+                            "12:00:00",
+                            "12:30:00",
+                            "13:00:00",
+                            "13:30:00",
+                            "14:00:00",
+                            "14:30:00",
+                            "15:00:00",
+                            "15:30:00",
+                            "16:00:00",
+                            "16:30:00",
+                            "17:00:00",
+                            "17:30:00",
+                            "18:00:00",
+                            "18:30:00",
+                            "19:00:00"
+                        ],
+                        "defaultReadyTime": "10:00:00",
+                        "latestTimeOptions": [
+                            "12:00:00",
+                            "12:30:00",
+                            "13:00:00",
+                            "13:30:00",
+                            "14:00:00",
+                            "14:30:00",
+                            "15:00:00",
+                            "15:30:00",
+                            "16:00:00",
+                            "16:30:00",
+                            "17:00:00",
+                            "17:30:00",
+                            "18:00:00",
+                            "18:30:00",
+                            "19:00:00",
+                            "19:30:00",
+                            "20:00:00",
+                            "20:30:00",
+                            "21:00:00",
+                            "21:30:00",
+                            "22:00:00",
+                            "22:30:00",
+                            "23:00:00",
+                            "23:30:00",
+                            "23:59:00"
+                        ],
+                        "defaultLatestTimeOptions": "18:00:00",
+                        "countryRelationship": "DOMESTIC",
+                        "scheduleDay": "SAME_DAY"
+                    },
+                    {
+                        "carrier": "FDXE",
+                        "available": true,
+                        "pickupDate": "2026-09-04",
+                        "cutOffTime": "19:00:00",
+                        "accessTime": {
+                            "hours": 2,
+                            "minutes": 0
+                        },
+                        "residentialAvailable": false,
+                        "readyTimeOptions": [
+                            "08:00:00",
+                            "08:30:00",
+                            "09:00:00",
+                            "09:30:00",
+                            "10:00:00",
+                            "10:30:00",
+                            "11:00:00",
+                            "11:30:00",
+                            "12:00:00",
+                            "12:30:00",
+                            "13:00:00",
+                            "13:30:00",
+                            "14:00:00",
+                            "14:30:00",
+                            "15:00:00",
+                            "15:30:00",
+                            "16:00:00",
+                            "16:30:00",
+                            "17:00:00",
+                            "17:30:00",
+                            "18:00:00",
+                            "18:30:00",
+                            "19:00:00"
+                        ],
+                        "defaultReadyTime": "12:00:00",
+                        "latestTimeOptions": [
+                            "14:00:00",
+                            "14:30:00",
+                            "15:00:00",
+                            "15:30:00",
+                            "16:00:00",
+                            "16:30:00",
+                            "17:00:00",
+                            "17:30:00",
+                            "18:00:00",
+                            "18:30:00",
+                            "19:00:00",
+                            "19:30:00",
+                            "20:00:00",
+                            "20:30:00",
+                            "21:00:00",
+                            "21:30:00",
+                            "22:00:00",
+                            "22:30:00",
+                            "23:00:00",
+                            "23:30:00",
+                            "23:59:00"
+                        ],
+                        "defaultLatestTimeOptions": "18:00:00",
+                        "countryRelationship": "DOMESTIC",
+                        "scheduleDay": "FUTURE_DAY"
+                    },
+                    {
+                        "carrier": "FDXE",
+                        "available": true,
+                        "pickupDate": "2026-09-05",
+                        "cutOffTime": "13:00:00",
+                        "accessTime": {
+                            "hours": 2,
+                            "minutes": 0
+                        },
+                        "residentialAvailable": false,
+                        "readyTimeOptions": [
+                            "08:00:00",
+                            "08:30:00",
+                            "09:00:00",
+                            "09:30:00",
+                            "10:00:00",
+                            "10:30:00",
+                            "11:00:00",
+                            "11:30:00",
+                            "12:00:00",
+                            "12:30:00",
+                            "13:00:00"
+                        ],
+                        "defaultReadyTime": "12:00:00",
+                        "latestTimeOptions": [
+                            "14:00:00",
+                            "14:30:00",
+                            "15:00:00",
+                            "15:30:00",
+                            "16:00:00",
+                            "16:30:00",
+                            "17:00:00",
+                            "17:30:00",
+                            "18:00:00",
+                            "18:30:00",
+                            "19:00:00",
+                            "19:30:00",
+                            "20:00:00",
+                            "20:30:00",
+                            "21:00:00",
+                            "21:30:00",
+                            "22:00:00",
+                            "22:30:00",
+                            "23:00:00",
+                            "23:30:00",
+                            "23:59:00"
+                        ],
+                        "defaultLatestTimeOptions": "18:00:00",
+                        "countryRelationship": "DOMESTIC",
+                        "scheduleDay": "FUTURE_DAY"
+                    }
+                ]
+            }
+        },
+        "rawHeaders": {
+            "content-type": "application/json"
+        }
+    }
+]
