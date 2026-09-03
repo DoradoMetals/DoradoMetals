@@ -2,8 +2,16 @@
 //
 // THESE FOUR WERE PUBLIC, and it was demonstrated rather than deduced: no
 // session, no cookie, GET /api/cart/get_sell_cart?user_id=<somebody> answered
-// 200 with their two items. These tests keep it shut - anonymous is refused,
-// and the id in the request is ignored in favour of the session's.
+// 200 with their two items. These tests keep it shut - anonymous is refused.
+//
+// THE READS (get_cart, get_sell_cart) still ignore a foreign `user_id` in
+// favour of the session's own, unchanged. THE SYNCS (sync_cart,
+// sync_sell_cart) are admin-scoped now (D214 item 2, cartService.resolveSubject)
+// - the admin sales-order create flow needs to write a NAMED customer's cart
+// ahead of order creation, so a non-admin's own id is still a no-op (an
+// older client that always sends its own, as the auto-sync does, is never
+// refused) but naming somebody ELSE without being an admin is a 403, not a
+// silent no-op on your own cart any more.
 //
 // Fixtures are SELF-SEEDED over the same HTTP surface, inside the rolled-back
 // transaction, so every assertion stands on data this file put there.
@@ -164,10 +172,10 @@ test("a stranger cannot replace somebody else's cart by naming them", async () =
       const res = await request(app)
         .post("/api/cart/sync_sell_cart")
         .send({ user_id: owner.id, cart: [] });
-      assert.equal(res.status, 200, "the sync itself should succeed - for the stranger");
+      assert.equal(res.status, 403, "a non-admin naming somebody else's cart was not refused");
     });
 
-    // The owner's cart is untouched: the emptying landed on the stranger's own.
+    // The owner's cart is untouched: the sync never ran, admin-only refused it.
     assert.equal(
       await ownerCartCount(client),
       seeded,

@@ -14,10 +14,11 @@ import * as fulfillmentMethods from "#domain/fulfillments/methods/service.ts";
 import * as handoffsService from "#domain/shipping/handoffs/service.ts";
 import * as payoutDetails from "#domain/payments/details/service.ts";
 import * as addressService from "#domain/places/addresses/service.ts";
+import * as usersService from "#domain/users/service.ts";
 import {
   assertDirection, livenessFlag, carriesProductPremium, hasPayoutStep,
 } from "#domain/checkout/rules.ts";
-import { Invalid } from "#shared/errors.ts";
+import { Forbidden, Invalid, NotFound } from "#shared/errors.ts";
 import type { Direction } from "#domain/checkout/rules.ts";
 import type { CheckoutRow, CheckoutPatch } from "#db/checkout/checkouts/repo.ts";
 import type {
@@ -87,6 +88,25 @@ async function compose(row: CheckoutRow, client?: Executor): Promise<ComposedChe
     ? await fulfillmentService.getById(row.fulfillment_id, client)
     : null;
   return Object.assign({ fulfillment }, row);
+}
+
+// ADMIN SCOPING (D214 item 11's "narrow thing"): a customer only ever reaches
+// their OWN checkout row; an admin may name a customer and reach theirs - the
+// same shape createOrderFromCheckout already grants for the order create
+// itself. `named` is whatever a request's own `user_id` said, and self-naming
+// is a no-op so a deployed client that always sends its own id (the cart
+// auto-sync does) never trips the admin check. Naming somebody ELSE without
+// being an admin is refused; naming somebody who does not exist is refused
+// distinctly, so the accessor answers 404 rather than minting a checkout row
+// for an id nothing owns.
+export async function resolveSubject(
+  caller_id: string, is_admin: boolean, named_user_id?: string
+): Promise<string> {
+  if (!named_user_id || named_user_id === caller_id) return caller_id;
+  if (!is_admin) throw new Forbidden("user_id is admin-only");
+  const target = await usersService.getUser(named_user_id);
+  if (!target) throw new NotFound(`no user ${named_user_id}`);
+  return target.id;
 }
 
 export async function getCheckout(

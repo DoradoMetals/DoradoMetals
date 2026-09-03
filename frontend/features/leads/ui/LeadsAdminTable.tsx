@@ -5,7 +5,6 @@ import type { ColumnDef, Row } from '@tanstack/react-table'
 
 import { Lead, LeadPriority } from '@/features/leads/types'
 import { PrioritySelect } from '@/features/leads/ui/PrioritySelect'
-import { useGetSession } from '@/features/auth/queries'
 import { normalizePhone } from '@/shared/utils/formatPhoneNumber'
 import { useDrawerStore } from '@/shared/store/drawerStore'
 import {
@@ -22,7 +21,6 @@ import { useCreateLead, useLeads } from '@/features/leads/queries'
 import { CreateConfig } from '@/shared/ui/table/CreateDialog'
 
 export default function LeadsPage() {
-  const { user } = useGetSession()
   const { data: leads = [] } = useLeads()
   const createLead = useCreateLead()
   const { openDrawer } = useDrawerStore()
@@ -181,8 +179,6 @@ export default function LeadsPage() {
         name,
         phone: phoneDigits,
         email: email || 'null',
-        created_by: user?.name ?? '',
-        updated_by: user?.name ?? '',
         priority: (values.priority as LeadPriority) || 'Medium',
         notes: values.notes ?? '',
       })
