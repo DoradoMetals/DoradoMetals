@@ -50,13 +50,13 @@ before(async () => {
   const rows = await outside<UserFixture>(
     `SELECT id, name, email, role FROM exchange.users WHERE role = 'admin' LIMIT 1`
   );
-  admin = { ...rows[0], role: "admin" };
+  admin = { id: rows[0].id, name: rows[0].name, email: rows[0].email, role: "admin" };
   assert.ok(admin?.id, "dev has no admin user");
 
   const users = await outside<UserFixture>(
     `SELECT id, name, email FROM exchange.users WHERE role IS DISTINCT FROM 'admin' LIMIT 1`
   );
-  customer = { ...users[0], role: "user" };
+  customer = { id: users[0].id, name: users[0].name, email: users[0].email, role: "user" };
   assert.ok(customer?.id, "dev has no non-admin user");
 });
 

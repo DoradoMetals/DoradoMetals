@@ -1,16 +1,11 @@
-// orders.addresses, and nothing else.
+// orders.addresses - CRUD only. The order's link to the address SNAPSHOT.
 //
-// TWO IDS, AND THE DIFFERENCE IS THE POINT.
+// TWO IDS: `address_id` is the frozen places.addresses row, `source_address_id`
+// the BOOK entry it was copied from. The wire returns the SOURCE id, because
+// checkout posts it back and the API resolves it against the book.
 //
-//   address_id        the SNAPSHOT - a places.addresses row recording where the
-//                     parcel actually went, frozen so that editing an address
-//                     book entry later cannot rewrite history.
-//   source_address_id the address BOOK row it was taken from.
-//
-// The wire returns the SOURCE id, because the frontend posts it back at
-// checkout and the API resolves it against the book. Returning the snapshot's
-// id would break checkout - which is the note the order projection carries at
-// the top of its own file.
+// NO update AND NO remove, deliberately: the snapshot is immutable (Jacob, D84)
+// and re-recording is a CORRECTION, so `create` upserts on order_id.
 import { randomUUID } from "node:crypto";
 import query from "#shared/db/query.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
@@ -36,17 +31,15 @@ export async function getMany(
   return rows;
 }
 
-// The order's address link, written at placement: the snapshot it took and the
-// book row it came from. Upsert on order_id - re-recording an address is a
-// correction, not a second link. Takes the ROW (Jacob, 2026-09-01).
 export type NewOrderAddress = {
   id?: string; order_id: string; address_id: string; source_address_id?: string | null;
 };
 
-export async function link(row: NewOrderAddress, executor?: Executor): Promise<void> {
-  await query(
-    sql("link"),
+export async function create(row: NewOrderAddress, executor?: Executor): Promise<boolean> {
+  const { rowCount } = await query(
+    sql("create"),
     [row.id ?? randomUUID(), row.order_id, row.address_id, row.source_address_id ?? null],
     executor
   );
+  return rowCount === 1;
 }

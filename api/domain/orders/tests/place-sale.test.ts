@@ -26,9 +26,9 @@ const inPinned = <T,>(fn: (c: import("pg").PoolClient) => Promise<T> | T): Promi
 import { inPinnedTransaction } from "#shared/testing/pinned-pool.ts";
 import { mockSessions, restoreSessions, as } from "#shared/testing/session.ts";
 import * as ordersRepo from "#db/orders/repo.ts";
-import * as orderService from "#domain/orders/service.ts";
+import * as place from "#domain/orders/place.ts";
 import * as paymentsService from "#domain/payments/service.ts";
-import * as reconcileService from "#domain/orders/reconcile.service.ts";
+import * as sweeps from "#domain/payments/sweeps.ts";
 import { calculateSalesOrderTotal } from "#domain/pricing/ask.ts";
 import * as productService from "#domain/products/service.ts";
 import * as taxService from "#domain/sales-tax/service.ts";
@@ -184,10 +184,10 @@ async function fixtures(c: PoolClient) {
   return { user_id: pair[0]!.user_id, address_id: pair[0]!.address_id, product_id: product[0]!.id };
 }
 
-const bodyFor = (f: { address_id: string; product_id: string }) => ({
+const bodyFor = (f: { address_id: string; product_id: string }, using_funds = false) => ({
   address: { id: f.address_id },
   items: [{ id: f.product_id, quantity: 1 }],
-  using_funds: false,
+  using_funds,
   service: { value: "STANDARD", label: "Standard" },
   payment_method: "CARD",
 });
@@ -210,9 +210,11 @@ test("an order with a charge refuses to exist without a payment intent", async (
     assert.ok(f, "the test db has no user+address+product to price against");
     await as({ id: f.user_id }, () =>
       assert.rejects(
-        () => orderService.createSalesOrder(
-          { sales_order: bodyFor(f) as never, payment_intent_id: "" }, {}
-        ),
+        () => place.placeSale({
+            sales_order: bodyFor(f) as never,
+            payment_intent_id: "",
+            user: { id: f.user_id },
+          }),
         (e: unknown) => statusCodeOf(e) === 400
       )
     );
@@ -227,9 +229,11 @@ test("somebody else's payment intent is refused as if it did not exist", async (
     await seedIntent(c, pi, { cents: 999999, user_id: null });
     await as({ id: f.user_id }, () =>
       assert.rejects(
-        () => orderService.createSalesOrder(
-          { sales_order: bodyFor(f) as never, payment_intent_id: pi }, {}
-        ),
+        () => place.placeSale({
+            sales_order: bodyFor(f) as never,
+            payment_intent_id: pi,
+            user: { id: f.user_id },
+          }),
         (e: unknown) => statusCodeOf(e) === 403
       )
     );
@@ -254,9 +258,11 @@ test("a SETTLED intent already attached to an order refuses a second one", async
     });
     await as({ id: f.user_id }, () =>
       assert.rejects(
-        () => orderService.createSalesOrder(
-          { sales_order: bodyFor(f) as never, payment_intent_id: pi }, {}
-        ),
+        () => place.placeSale({
+            sales_order: bodyFor(f) as never,
+            payment_intent_id: pi,
+            user: { id: f.user_id },
+          }),
         (e: unknown) => statusCodeOf(e) === 409
       )
     );
@@ -275,7 +281,7 @@ test("a SETTLED intent already attached to an order refuses a second one", async
 test("an unsettled sale is superseded by fact, whatever its label says", async () => {
   await inPinned(async (c: PoolClient) => {
     const id = await seedSale(c, "Preparing");
-    const result = await reconcileService.cancelPendingSale(id, c);
+    const result = await sweeps.cancelPendingSale(id, c);
     assert.equal(result.order_id, id);
     assert.deepEqual(await statusOf(c, id), { native: "Cancelled" });
   });
@@ -297,9 +303,11 @@ test("a paid-but-orderless intent is honoured: the order is created already Prep
     });
 
     const order = await as({ id: f.user_id }, () =>
-      orderService.createSalesOrder(
-        { sales_order: bodyFor(f) as never, payment_intent_id: pi }, {}
-      )
+      place.placeSale({
+            sales_order: bodyFor(f) as never,
+            payment_intent_id: pi,
+            user: { id: f.user_id },
+          })
     );
     assert.ok(order, "no order came back");
     const got = await statusOf(c, (order as { id: string }).id);
@@ -319,9 +327,11 @@ test("a paid intent at a DIFFERENT price than the cart is refused, naming suppor
     });
     await as({ id: f.user_id }, () =>
       assert.rejects(
-        () => orderService.createSalesOrder(
-          { sales_order: bodyFor(f) as never, payment_intent_id: pi }, {}
-        ),
+        () => place.placeSale({
+            sales_order: bodyFor(f) as never,
+            payment_intent_id: pi,
+            user: { id: f.user_id },
+          }),
         (e: unknown) => statusCodeOf(e) === 409 && /support/.test(String((e as Error).message))
       )
     );
@@ -344,12 +354,11 @@ test("an order fully covered by credit is born Preparing, with no intent attache
       [f.user_id], c
     );
     const order = await as({ id: f.user_id, dorado_funds: 10000000 }, () =>
-      orderService.createSalesOrder(
-        {
-          sales_order: { ...bodyFor(f), using_funds: true } as never,
-          payment_intent_id: "",
-        }, {}
-      )
+      place.placeSale({
+        sales_order: bodyFor(f, true) as never,
+        payment_intent_id: "",
+        user: { id: f.user_id, dorado_funds: 10000000 },
+      })
     );
     assert.ok(order, "no order came back");
     const got = await statusOf(c, (order as { id: string }).id);

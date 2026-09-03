@@ -291,7 +291,15 @@ if (FAIL_ON_FINDINGS && (discarded || unobservable)) process.exit(1);
 // writes the batch-1 and batch-2 statements carried. None was observed and
 // none needed to be - a stamp that fails to land is not a lost edit - but they
 // are gone rather than accepted, which is the better kind of reduction.
-const CEILING = 20;
+// 20 -> 16 with CRUD-batch-5's ORDERS collapse. Four of the six D212 raised
+// the ceiling for were orders' own: clearBids, setPrice, updateScrap and
+// setPremium. They are gone rather than observed - clearBids and setPremium
+// became `update(...) -> boolean` calls whose result the caller now checks
+// (retierScrapPremiums throws on a false, because a line vanishing
+// mid-placement must not commit), setPrice became a guarded item update inside
+// finalizePricing, and updateScrap folded into the same one-patch write. What
+// remains under orders is the flair writes, which are cosmetic by D211.
+const CEILING = 16;
 if (!FAIL_ON_FINDINGS) {
   const total = discarded + unobservable;
   if (total > CEILING) {

@@ -16,7 +16,7 @@ import { payoutKeyFromEnv } from "#shared/crypto/payoutKey.ts";
 
 await mockSessions();
 const { default: app } = await import("#app");
-const orderCreate = await import("#domain/orders/create.ts");
+const orderCreate = await import("#domain/orders/place.ts");
 const checkoutService = await import("#domain/checkout/service.ts");
 
 type UserFixture = { id: string };
@@ -32,14 +32,18 @@ let pickupMethodId: string;   // CARRIER PICKUP
 let directMethodId: string;   // a non-SHIPMENT purchase method
 let productName: string;
 
-const PAYOUT_FORM = {
+// A BUILDER, not a base object to spread over: the two fields a variant changes
+// are arguments, so no call site copies the other five.
+const payoutForm = (routing_number = "021000021", account_number = "000123456789") => ({
+  direction: "purchase",
   method: "ACH",
   account_holder_name: "Row Flow Test",
   bank_name: "Test Bank",
   account_type: "Checking",
-  routing_number: "021000021",
-  account_number: "000123456789",
-};
+  routing_number,
+  account_number,
+});
+const PAYOUT = payoutForm();
 
 before(async () => {
   const users = await outside<{ id: string; address_id: string; label: string | null }>(
@@ -120,10 +124,7 @@ async function primeCheckout(
   assert.equal(ff.status, 200, ff.text);
 
   const payout = await as(customer, () =>
-    request(app).post("/api/checkout/payout").send({
-      direction: "purchase",
-      ...PAYOUT_FORM,
-    })
+    request(app).post("/api/checkout/payout").send(payoutForm())
   );
   assert.equal(payout.status, 200, payout.text);
   assert.ok(payout.body.payment_details_id, "the row did not keep the details id");
@@ -151,36 +152,34 @@ test("the payout step SEALS the numbers and the plaintext columns stay NULL", as
               routing_number_encrypted, account_number_encrypted, encryption_key_id
          FROM payments.details WHERE id = $1`, [payment_details_id]
     );
-    assert.equal(d.account_holder, PAYOUT_FORM.account_holder_name);
+    assert.equal(d.account_holder, PAYOUT.account_holder_name);
     assert.equal(d.last_four, "6789");
     assert.equal(d.routing_number, null, "a plaintext routing number was written");
     assert.equal(d.account_number, null, "a plaintext account number was written");
     assert.ok(d.routing_number_encrypted?.startsWith("v1."), "the routing number is not an envelope");
     assert.ok(d.account_number_encrypted?.startsWith("v1."), "the account number is not an envelope");
     assert.ok(
-      !d.routing_number_encrypted.includes(PAYOUT_FORM.routing_number),
+      !d.routing_number_encrypted.includes(PAYOUT.routing_number),
       "the envelope leaks the plaintext"
     );
 
     const key = payoutKeyFromEnv();
     assert.equal(
       open(d.routing_number_encrypted, key, aadFor(payment_details_id, "routing_number")),
-      PAYOUT_FORM.routing_number,
+      PAYOUT.routing_number,
       "the envelope does not open back to the number"
     );
 
     // Editing rewrites IN PLACE - the checkout keeps one details row.
     const again = await as(customer, () =>
-      request(app).post("/api/checkout/payout").send({
-        direction: "purchase",
-        ...PAYOUT_FORM,
-        account_number: "000999999999",
-      })
+      request(app).post("/api/checkout/payout").send(
+        payoutForm(PAYOUT.routing_number, "000999999999")
+      )
     );
     assert.equal(again.body.payment_details_id, payment_details_id, "an edit minted a second row");
     const { rows: [count] } = await c.query(
       `SELECT count(*)::int AS n FROM payments.details WHERE user_id = $1
-        AND account_holder = $2`, [customer.id, PAYOUT_FORM.account_holder_name]
+        AND account_holder = $2`, [customer.id, PAYOUT.account_holder_name]
     );
     assert.equal(count.n, 1);
   });
@@ -189,13 +188,14 @@ test("the payout step SEALS the numbers and the plaintext columns stay NULL", as
 test("an incomplete or nonsense payout form refuses", async () => {
   await inPinnedTransaction(async () => {
     for (const [form, why] of [
-      [{ method: "ACH", account_holder_name: "X" }, /routing number/],
-      [{ ...PAYOUT_FORM, routing_number: "12" }, /9 digits/],
-      [{ method: "ECHECK", account_holder_name: "X" }, /email/],
-      [{ method: "NOT A METHOD", account_holder_name: "X" }, /no such payout method/],
+      [{ direction: "purchase", method: "ACH", account_holder_name: "X" }, /routing number/],
+      [payoutForm("12"), /9 digits/],
+      [{ direction: "purchase", method: "ECHECK", account_holder_name: "X" }, /email/],
+      [{ direction: "purchase", method: "NOT A METHOD", account_holder_name: "X" },
+        /no such payout method/],
     ] as const) {
       const res = await as(customer, () =>
-        request(app).post("/api/checkout/payout").send({ direction: "purchase", ...form })
+        request(app).post("/api/checkout/payout").send(form)
       );
       assert.equal(res.status, 400, `accepted: ${JSON.stringify(form)}`);
       assert.match(res.body?.error?.message ?? res.text, why);
@@ -360,8 +360,8 @@ test("the record half links ids and writes NO exchange rows at all", async () =>
       () => request(app).get(`/api/payouts/${payment_details_id}/details`)
     );
     assert.equal(details.status, 200, details.text);
-    assert.equal(details.body.routing_number, PAYOUT_FORM.routing_number);
-    assert.equal(details.body.account_number, PAYOUT_FORM.account_number);
+    assert.equal(details.body.routing_number, PAYOUT.routing_number);
+    assert.equal(details.body.account_number, PAYOUT.account_number);
     assert.equal(details.body.order_id, placed.order_id);
 
     // The row starts the next checkout clean - the payout pointers included.

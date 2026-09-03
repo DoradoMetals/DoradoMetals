@@ -20,8 +20,7 @@
 // tables, rather than the browser from a response it was handed.
 import * as purchaseOrderReads from "#domain/orders/read.service.ts";
 import * as salesOrderReads from "#domain/orders/read.service.ts";
-import * as purchaseOrderService from "#domain/orders/service.ts";
-import * as salesOrderService from "#domain/orders/service.ts";
+import * as orderSpots from "#domain/orders/spots/service.ts";
 // The LIVE spot feed - the same read the pricing paths use (spots.spots,
 // converted names). The exchange.metals read died with the dual layer (D212).
 import * as spotsFeed from "#domain/spots/service.ts";
@@ -83,12 +82,12 @@ export async function invoiceInputs(order_id: string) {
   return {
     purchaseOrder,
     spotPrices: await spotsFeed.getSpotPrices(),
-    orderSpots: await purchaseOrderService.getPurchaseMetalsForOrder(order_id),
+    orderSpots: await orderSpots.namedFor(order_id),
   };
 }
 
 export async function salesOrderInvoiceInputs(order_id: string) {
   const salesOrder = await salesOrderReads.findSaleById(order_id);
   if (!salesOrder) throw notFound(order_id);
-  return { salesOrder, spots: await salesOrderService.getSalesMetalsForOrder(order_id) };
+  return { salesOrder, spots: await orderSpots.namedFor(order_id) };
 }

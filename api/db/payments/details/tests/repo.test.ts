@@ -152,7 +152,10 @@ test("linking points the ORDER at the account, and only that order", async () =>
     const row = await anAccount(c);
     const touched = await transactions.update(mine, { payout_details_id: row.id }, {}, c);
     assert.ok(touched, "the link matched no orders.transactions row");
-    assert.equal(touched.payout_details_id, row.id);
+    const { rows: [linked] } = await c.query(
+      "SELECT payout_details_id FROM orders.transactions WHERE order_id = $1", [mine]
+    );
+    assert.equal(linked.payout_details_id, row.id);
 
     if (orders[1]) {
       const { rows: [other] } = await c.query(
@@ -174,6 +177,6 @@ test("linking an order with no transactions row reports it rather than passing",
     const touched = await transactions.update(
       "00000000-0000-0000-0000-000000000000", { payout_details_id: row.id }, {}, c
     );
-    assert.equal(touched, undefined, "a link that reached nobody was reported as done");
+    assert.equal(touched, false, "a link that reached nobody was reported as done");
   });
 });

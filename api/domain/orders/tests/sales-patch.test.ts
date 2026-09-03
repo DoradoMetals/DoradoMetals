@@ -26,7 +26,7 @@ import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
 import request from "supertest";
 import pool from "#db";
-import { mockSessions, restoreSessions, as } from "#shared/testing/session.ts";
+import { mockSessions, restoreSessions, as, asAdmin } from "#shared/testing/session.ts";
 import { inPinnedTransaction, outside } from "#shared/testing/pinned-pool.ts";
 import { LOCKS } from "#shared/testing/locks.ts";
 
@@ -75,7 +75,7 @@ after(async () => {
 
 test("an order that does not exist is refused before anything runs", async () => {
   await inPinnedTransaction(async () => {
-    await as({ ...admin, role: "admin" }, async () => {
+    await asAdmin(admin, async () => {
       const res = await request(app)
         .patch("/api/orders/00000000-0000-4000-8000-000000000000")
         .send({ supplier: { supplier_id: refiners[0].id, send: true } });
@@ -86,7 +86,7 @@ test("an order that does not exist is refused before anything runs", async () =>
 
 test("a refiner with no email is refused, and nothing is written", async () => {
   await inPinnedTransaction(async (client: PoolClient) => {
-    await as({ ...admin, role: "admin" }, async () => {
+    await asAdmin(admin, async () => {
       // The Dillion Gage shape, made deterministic: inside the rolled-back
       // transaction this refiner has no email, whatever dev holds today. The
       // order is unsent, so the 409 guard cannot answer first - in BOTH
@@ -162,7 +162,7 @@ test("a sent order cannot be moved to a different refiner", async (t) => {
     return;
   }
   await inPinnedTransaction(async (client: PoolClient) => {
-    await as({ ...admin, role: "admin" }, async () => {
+    await asAdmin(admin, async () => {
       // Already sent to refiner A, inside the rolled-back transaction - in
       // both schemas, since the read side serves orders.orders.
       await client.query(
@@ -194,7 +194,7 @@ test("a sent order cannot be moved to a different refiner", async (t) => {
 
 test("a supplier document without send: true is refused by name", async () => {
   await inPinnedTransaction(async () => {
-    await as({ ...admin, role: "admin" }, async () => {
+    await asAdmin(admin, async () => {
       const res = await request(app)
         .patch(`/api/orders/${order.id}`)
         .send({ supplier: { supplier_id: refiners[0].id, send: false } });
@@ -206,7 +206,7 @@ test("a supplier document without send: true is refused by name", async () => {
 
 test("a field the PATCH does not have - and a wrong-direction field - refuse by name", async () => {
   await inPinnedTransaction(async () => {
-    await as({ ...admin, role: "admin" }, async () => {
+    await asAdmin(admin, async () => {
       // tracking left for the shipments endpoint; it is not a field at all.
       const tracked = await request(app)
         .patch(`/api/orders/${order.id}`)

@@ -18,7 +18,7 @@
 // item - refiner_premium and the scrap *_actual fields - and never expose
 // refiners.items' own row id, so the client has exactly one honest key: the
 // line's id. The route says so in its path (/items/by-order-item/:id).
-import * as purchaseOrderService from "#domain/orders/service.ts";
+import { editLine } from "#domain/orders/edit-line.ts";
 import * as orderItemsRepo from "#db/orders/items/repo.ts";
 import * as refinerItemsRepo from "#db/refiners/items/repo.ts";
 import { refuseWith } from "#shared/http/refuse.ts";
@@ -88,9 +88,8 @@ export async function patchRefinerItem(
     }
     const current = line!;
     const refiner = (await refinerItemsRepo.byOrderItem([orderItemId])).get(orderItemId);
-    await purchaseOrderService.updateScrapItem({
-      item: {
-        id: current.id,
+    await editLine(current.id, {
+      scrap: {
         premium: current.premium,
         scrap: {
           pre_melt: body.pre_melt !== undefined ? body.pre_melt : current.pre_melt,

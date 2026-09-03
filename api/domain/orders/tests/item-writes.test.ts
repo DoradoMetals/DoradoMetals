@@ -17,7 +17,7 @@ import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
 import request from "supertest";
 import pool from "#db";
-import { mockSessions, restoreSessions, as } from "#shared/testing/session.ts";
+import { mockSessions, restoreSessions, as, asAdmin } from "#shared/testing/session.ts";
 import { inPinnedTransaction, outside } from "#shared/testing/pinned-pool.ts";
 import { LOCKS } from "#shared/testing/locks.ts";
 
@@ -90,7 +90,7 @@ after(async () => {
 // nothing but write a NULL. The refusal itself is pinned in patch-bodies.test.ts.
 test("the bullion field writes the line's quantity", async () => {
   await inPinnedTransaction(async (client: PoolClient) => {
-    await as({ ...admin, role: "admin" }, async () => {
+    await asAdmin(admin, async () => {
       const res = await request(app)
         .patch(`/api/orders/items/${bullionItem.id}`)
         .send({ bullion: { quantity: 7, premium: Number(bullionItem.premium ?? 1) } });
@@ -111,7 +111,7 @@ test("the bullion field writes the line's quantity", async () => {
 // what distinguishes "created" from "answered 200".
 test("POST :id/items adds a scrap line and its scrap row", async () => {
   await inPinnedTransaction(async (client: PoolClient) => {
-    await as({ ...admin, role: "admin" }, async () => {
+    await asAdmin(admin, async () => {
       const before = await client.query(
         `SELECT count(*)::int n FROM orders.items WHERE order_id = $1`,
         [order.id]

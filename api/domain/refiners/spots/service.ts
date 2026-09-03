@@ -29,3 +29,11 @@ export async function forOrder(
   if (!engagement) return null;
   return await refinerSpotsRepo.getForEngagement(engagement.id, executor);
 }
+
+// The same rows with the metal's NAME resolved - what the profit split and the
+// admin drawer read. Not a wire shape; keyed by the CUSTOMER order id.
+export async function namedFor(
+  order_id: string, executor?: Executor
+): Promise<Awaited<ReturnType<typeof refinerSpotsRepo.getNamed>>> {
+  return await refinerSpotsRepo.getNamed(order_id, executor);
+}

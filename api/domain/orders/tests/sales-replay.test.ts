@@ -63,13 +63,13 @@ before(async () => {
   const owners = await outside<UserFixture>(`SELECT id, name, email FROM exchange.users WHERE id = $1`, [
     order.user_id,
   ]);
-  owner = { ...owners[0], role: "user" };
+  owner = { id: owners[0].id, name: owners[0].name, email: owners[0].email, role: "user" };
   assert.ok(owner.id, `no exchange.users row for ${order.user_id}`);
 
   const admins = await outside<UserFixture>(
     `SELECT id, name, email FROM exchange.users WHERE role = 'admin' LIMIT 1`
   );
-  admin = { ...admins[0], role: "admin" };
+  admin = { id: admins[0].id, name: admins[0].name, email: admins[0].email, role: "admin" };
   assert.ok(admin.id, "dev has no admin user");
 
   const others = await outside<UserFixture>(
@@ -77,7 +77,7 @@ before(async () => {
       WHERE id <> $1 AND role IS DISTINCT FROM 'admin' LIMIT 1`,
     [order.user_id]
   );
-  stranger = { ...others[0], role: "user" };
+  stranger = { id: others[0].id, name: others[0].name, email: others[0].email, role: "user" };
   assert.ok(stranger.id, "dev has only one non-admin user");
 });
 

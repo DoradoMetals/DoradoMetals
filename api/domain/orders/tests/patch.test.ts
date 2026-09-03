@@ -28,9 +28,9 @@ import test, { after, before } from "node:test";
 import assert from "node:assert/strict";
 import request from "supertest";
 import pool from "#db";
-import { mockSessions, restoreSessions, as } from "#shared/testing/session.ts";
+import { mockSessions, restoreSessions, as, asAdmin, asUser } from "#shared/testing/session.ts";
 import { inPinnedTransaction, outside } from "#shared/testing/pinned-pool.ts";
-import { refusedField } from "#domain/orders/patch.service.ts";
+import { refusedField } from "#domain/orders/patch.ts";
 import { LOCKS } from "#shared/testing/locks.ts";
 import type { PoolClient } from "pg";
 
@@ -148,7 +148,7 @@ test("the document check, refusal by refusal, direction included", () => {
 
 test("a customer is refused outright, their own order included", async () => {
   await inPinnedTransaction(async (client: PoolClient) => {
-    await as({ ...owner, role: "user" }, async () => {
+    await asUser(owner, async () => {
       const before = (
         await client.query(
           `SELECT o.status, t.total FROM orders.orders o
@@ -187,7 +187,7 @@ test("a customer is refused outright, their own order included", async () => {
 
 test("a status write moves the label and NOTHING else", async () => {
   await inPinnedTransaction(async (client: PoolClient) => {
-    await as({ ...admin, role: "admin" }, async () => {
+    await asAdmin(admin, async () => {
       const moneyBefore = (
         await client.query(
           `SELECT t.total, o.spots_locked FROM orders.orders o
@@ -241,7 +241,7 @@ test("a status write moves the label and NOTHING else", async () => {
 
 test("the cancel document reaches the label pipeline and a label failure cancels nothing", async () => {
   await inPinnedTransaction(async (client: PoolClient) => {
-    await as({ ...admin, role: "admin" }, async () => {
+    await asAdmin(admin, async () => {
       const res = await request(app)
         .patch(`/api/orders/${order.id}`)
         .send({
@@ -275,7 +275,7 @@ test("the cancel document reaches the label pipeline and a label failure cancels
 
 test("an unknown field is refused over HTTP and executes nothing beside it", async () => {
   await inPinnedTransaction(async (client: PoolClient) => {
-    await as({ ...admin, role: "admin" }, async () => {
+    await asAdmin(admin, async () => {
       const before = (
         await client.query(
           `SELECT status FROM orders.orders WHERE id = $1`,
@@ -303,7 +303,7 @@ test("an unknown field is refused over HTTP and executes nothing beside it", asy
 
 test("a nonexistent order answers 404 to an admin", async () => {
   await inPinnedTransaction(async () => {
-    await as({ ...admin, role: "admin" }, async () => {
+    await asAdmin(admin, async () => {
       const res = await request(app)
         .patch("/api/orders/00000000-0000-4000-8000-000000000000")
         .send({ status: "Received" });
@@ -368,7 +368,7 @@ test("finalize + label in one document equals finalize then label in sequence", 
   let combined: Snapshot | undefined;
   await inPinnedTransaction(async (client: PoolClient) => {
     await pinMetals(client);
-    await as({ ...admin, role: "admin" }, async () => {
+    await asAdmin(admin, async () => {
       const res = await request(app)
         .patch(`/api/orders/${order.id}`)
         .send({ finalize_pricing: true, status: "Payment Processing" });
@@ -380,7 +380,7 @@ test("finalize + label in one document equals finalize then label in sequence", 
   let sequential: Snapshot | undefined;
   await inPinnedTransaction(async (client: PoolClient) => {
     await pinMetals(client);
-    await as({ ...admin, role: "admin" }, async () => {
+    await asAdmin(admin, async () => {
       const finalize = await request(app)
         .patch(`/api/orders/${order.id}`)
         .send({ finalize_pricing: true });

@@ -23,7 +23,8 @@
 //
 // A field this endpoint does not have is refused with a 400 naming it, never
 // dropped - the same admin-mutation-urls argument the order PATCH makes.
-import * as purchaseOrderService from "#domain/orders/service.ts";
+import * as metalsRepo from "#db/metals/repo.ts";
+import * as refinerSpotsRepo from "#db/refiners/spots/repo.ts";
 import * as orderTransactions from "#domain/orders/transactions/service.ts";
 import * as refinerOrdersRepo from "#db/refiners/orders/repo.ts";
 import { refuseWith } from "#shared/http/refuse.ts";
@@ -77,17 +78,18 @@ export async function patchRefinerOrder(
   if (!engagement) refuseWith(404, `no refiner order ${id}`);
   const orderId = engagement!.order_id;
 
-  for (const spot of body.spots ?? []) {
-    await op("spots", () =>
-      purchaseOrderService.updateRefinerSpot({
-        // The repos key the UPDATE on (purchase_order_id, name) and read
-        // nothing else off the row; refiners.orders resolves the engagement
-        // to its customer order and the existing dual-writing path does the
-        // rest.
-        spot: { purchase_order_id: orderId, name: spot.name } as never,
-        updated_spot: spot.bid,
-      })
-    );
+  // The refinery's bid per metal. refiners.spots is keyed on (order_id,
+  // metal_id), so the NAME the drawer sends is resolved once here - this is a
+  // refiners rule and no longer travels through the orders service.
+  if (body.spots?.length) {
+    const idByName = await metalsRepo.idsByName();
+    for (const spot of body.spots) {
+      const metal_id = idByName.get(spot.name);
+      if (!metal_id) continue;
+      await op("spots", () =>
+        refinerSpotsRepo.update(orderId, metal_id, { bid: spot.bid })
+      );
+    }
   }
 
   if (body.pool_oz_deducted !== undefined) {

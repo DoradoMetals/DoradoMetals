@@ -12,7 +12,6 @@ import { randomUUID } from "node:crypto";
 import pool from "#db";
 import * as orders from "#db/orders/repo.ts";
 import type { PoolClient } from "pg";
-import type { Flag } from "#db/orders/repo.ts";
 
 let client: PoolClient;
 
@@ -76,7 +75,7 @@ test("a status change records the status and its author", async () => {
 
     await actingAs(c, admin.id);
     const returned = await orders.update(id, { status }, {}, c);
-    assert.equal(returned?.id, id, "the write did not report the row it changed");
+    assert.equal(returned, true, "the write did not report the row it changed");
 
     const row = await orderRow(c, id);
     assert.equal(row.status, status);
@@ -121,11 +120,9 @@ test("each of the three flags sets its own column and no other", async () => {
     const id = await anOrder(c);
     assert.ok(id, "orders.orders is empty");
 
-    // THE CLOSED SET, TYPED AS ITSELF. setFlag takes a `Flag`, and a bare
-    // string array would not satisfy it - which is the conversion doing its
-    // job: the whole reason the column name can be interpolated safely is
-    // that this set is closed.
-    const FLAGS: Flag[] = ["order_sent", "tracking_updated", "review_created"];
+    // The three workflow flags are ordinary patchable columns now: there is no
+    // per-flag writer and no interpolated column name left to keep safe.
+    const FLAGS = ["order_sent", "tracking_updated", "review_created"] as const;
     for (const flag of FLAGS) {
       // Start from all-false, so each assertion is about this call alone.
       await c.query(
@@ -135,7 +132,7 @@ test("each of the three flags sets its own column and no other", async () => {
       );
 
       const returned = await orders.update(id, { [flag]: true }, {}, c);
-      assert.equal(returned?.id, id, `${flag} did not report the row it changed`);
+      assert.equal(returned, true, `${flag} did not report the row it changed`);
 
       const row = await orderRow(c, id);
       assert.equal(row[flag], true, `${flag} was not set`);
@@ -147,15 +144,42 @@ test("each of the three flags sets its own column and no other", async () => {
   });
 });
 
-// The column name is interpolated into the statement. Nothing derived from a
-// request can reach it, but that is a property of the closed set - so the set
-// is asserted rather than assumed.
-test("the flag set is closed to exactly three names", async () => {
-  assert.deepEqual(Object.keys(orders.FLAGS).sort(), [
-    "order_sent", "review_created", "tracking_updated",
-  ]);
-  for (const [key, column] of Object.entries(orders.FLAGS)) {
-    assert.equal(key, column, "a flag key and its column name must match");
-    assert.match(column, /^[a-z_]+$/, "a flag column must be a bare identifier");
-  }
+// UPDATE ANSWERS FALSE WHEN IT CHANGED NOTHING, which is the whole reason it
+// returns a boolean: Postgres does not raise on a zero-row UPDATE, so a WHERE
+// that has quietly stopped resolving succeeds forever.
+test("update answers false for an id that names nothing and true for a real one", async () => {
+  await inRollback(async (c: PoolClient) => {
+    const missing = await orders.update(randomUUID(), { status: "Pending" }, {}, c);
+    assert.equal(missing, false, "an update against no row reported success");
+
+    const id = await anOrder(c);
+    assert.ok(id, "orders.orders is empty - this test proves nothing");
+    assert.equal(await orders.update(id, { status: "Pending" }, {}, c), true);
+  });
+});
+
+// The guard is a row-state precondition evaluated IN THE STATEMENT, which is
+// what makes the Pending-only transitions atomic under webhook retries.
+test("a guard that does not match writes nothing and says so", async () => {
+  await inRollback(async (c: PoolClient) => {
+    const id = await anOrder(c);
+    assert.ok(id, "orders.orders is empty");
+    await orders.update(id, { status: "Preparing" }, {}, c);
+
+    const wrong = await orders.update(id, { status: "Cancelled" }, { status: "Pending" }, c);
+    assert.equal(wrong, false, "the guard let a mismatched row through");
+    assert.equal((await orderRow(c, id)).status, "Preparing", "the guarded write landed anyway");
+
+    const right = await orders.update(id, { status: "Cancelled" }, { status: "Preparing" }, c);
+    assert.equal(right, true);
+  });
+});
+
+// A patch naming no column is not an error and not an empty UPDATE.
+test("an empty patch changes nothing and is not a failure", async () => {
+  await inRollback(async (c: PoolClient) => {
+    const id = await anOrder(c);
+    assert.ok(id, "orders.orders is empty");
+    assert.equal(await orders.update(id, {}, {}, c), true);
+  });
 });

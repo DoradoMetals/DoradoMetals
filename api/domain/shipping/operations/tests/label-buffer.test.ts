@@ -14,13 +14,13 @@
 // 456da9f2 fixed it. This is the assertion that holds it, and it is the last of
 // the money paths that had none.
 //
-// NO DATABASE AND NO CARRIER. labelBufferOrUndo takes `cancel` as a separate
+// NO DATABASE AND NO CARRIER. labelBufferOrVoid takes `cancel` as a separate
 // parameter - not a field on labelData, because labelData is what the carrier
 // said - so the test passes a recorder. That is the whole reason the seam
 // exists: the request that demonstrates this bug is the one that buys a label.
 import test from "node:test";
 import assert from "node:assert/strict";
-import { labelBufferOrUndo, type CancelLabel } from "#domain/orders/service.ts";
+import { labelBufferOrVoid, type CancelLabel } from "#domain/shipping/operations/service.ts";
 
 // The recorder IS a CancelLabel with a `calls` array bolted on, and saying so
 // is what lets the assertions below read `cancel.calls` without a cast.
@@ -39,7 +39,7 @@ test("a label with no file is cancelled, and the failure is raised rather than s
   const cancel = recorder();
 
   await assert.rejects(
-    () => labelBufferOrUndo({ labelFile: null, tracking_number: "794123456789" }, cancel),
+    () => labelBufferOrVoid({ labelFile: null, tracking_number: "794123456789" }, cancel),
     /no label file/,
     "a missing label file must not be treated as a working label"
   );
@@ -55,7 +55,7 @@ test("a real label is decoded and nothing is cancelled", async () => {
   const cancel = recorder();
   const bytes = Buffer.from("%PDF-1.4 pretend label", "utf8");
 
-  const buffer = await labelBufferOrUndo(
+  const buffer = await labelBufferOrVoid(
     { labelFile: bytes.toString("base64"), tracking_number: "794123456789" },
     cancel
   );
@@ -73,7 +73,7 @@ test("a response with neither a file nor a tracking number still refuses", async
   const cancel = recorder();
 
   await assert.rejects(
-    () => labelBufferOrUndo({ labelFile: null, tracking_number: null }, cancel),
+    () => labelBufferOrVoid({ labelFile: null, tracking_number: null }, cancel),
     /no label file/
   );
   assert.deepEqual(cancel.calls, [null]);

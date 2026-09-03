@@ -39,11 +39,13 @@ export function restoreSessions() {
 
 // Everything inside fn runs as this user. Restored afterwards even on a throw,
 // so one test cannot leak its identity into the next.
-export async function as<T>(user: TestUser | null, fn: () => Promise<T> | T): Promise<T> {
+export async function as<T>(
+  user: TestUser | null, fn: () => Promise<T> | T, role?: string
+): Promise<T> {
   const previous = current;
   current = user
     ? {
-        user: { ...user, id: user.id, role: user.role ?? "user", email: user.email ?? null, name: user.name ?? null },
+        user: { ...user, id: user.id, role: role ?? user.role ?? "user", email: user.email ?? null, name: user.name ?? null },
         session: { id: user.session_id ?? "00000000-0000-0000-0000-000000000000", userId: user.id },
       }
     : null;
@@ -55,3 +57,12 @@ export async function as<T>(user: TestUser | null, fn: () => Promise<T> | T): Pr
 }
 
 export const anonymous = <T>(fn: () => Promise<T> | T): Promise<T> => as(null, fn);
+
+// THE ROLE IS AN ARGUMENT, NOT A COPY OF THE USER. Every caller used to write
+// `as({ ...admin, role: "admin" }, fn)` - a fresh object per call site whose
+// only purpose was one field - which is the prop-spreading the CRUD rulings are
+// about, in a test. `as` takes the role directly now and these two name it.
+export const asAdmin = <T>(user: TestUser, fn: () => Promise<T> | T): Promise<T> =>
+  as(user, fn, "admin");
+export const asUser = <T>(user: TestUser, fn: () => Promise<T> | T): Promise<T> =>
+  as(user, fn, "user");

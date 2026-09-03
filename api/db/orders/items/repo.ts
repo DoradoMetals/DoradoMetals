@@ -1,15 +1,9 @@
-// orders.items, and nothing else.
-//
-// A LINE ON AN ORDER, AND FOR SCRAP THE LINE IS THE WHOLE THING.
-// exchange.scrap does not exist in this schema: pre_melt, post_melt, purity and
-// content are columns here, because a scrap row was never an entity anyone
-// referred to. That is why features/scrap has no table to migrate - its repo is
-// deleted rather than converted, and its three functions become part of this
-// write path.
-//
-// bullion_id is what tells the two kinds apart: null means scrap.
+// orders.items - CRUD only. A line on an order, and for scrap the line IS the
+// whole thing: pre_melt, post_melt, purity and content are columns here.
+// bullion_id tells the two kinds apart - null means scrap.
 import { randomUUID } from "node:crypto";
 import query from "#shared/db/query.ts";
+import { buildUpdate } from "#shared/db/patch.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
 import type { orders } from "@dorado/contracts";
 import type { Executor } from "#shared/db/executor.ts";
@@ -17,6 +11,13 @@ import type { Executor } from "#shared/db/executor.ts";
 const sql = sqlFrom(import.meta.dirname);
 
 export type OrderItemRow = orders.ItemsRow;
+
+export async function getOne(
+  id: string, executor?: Executor
+): Promise<OrderItemRow | undefined> {
+  const { rows } = await query<OrderItemRow>(sql("get_one"), [id], executor);
+  return rows[0];
+}
 
 export async function getFor(
   order_id: string, executor?: Executor
@@ -41,9 +42,16 @@ export async function getByIds(
   return rows;
 }
 
-// THE ROW, not a positional tuple (Jacob, 2026-09-01: a repo write takes the
-// resource itself). The repo maps named fields onto the statement's parameter
-// order in exactly one place - here.
+// The scrap lines with their metal NAMES - what premium re-tiering prices from.
+export type ScrapLine = { id: string; metal: string | null; content: number | null };
+
+export async function scrapLinesFor(
+  order_id: string, executor?: Executor
+): Promise<ScrapLine[]> {
+  const { rows } = await query<ScrapLine>(sql("scrap_lines"), [order_id], executor);
+  return rows;
+}
+
 export type NewOrderItem = {
   id?: string;
   order_id: string;
@@ -76,93 +84,33 @@ export async function create(row: NewOrderItem, executor?: Executor): Promise<Or
   return rows[0];
 }
 
-// The weights of a scrap line. `content` is computed by the caller - see
-// sql/update_scrap.sql for why it is not computed here.
-export async function updateScrap(
-  id: string,
-  s: {
-    pre_melt: number | null; post_melt: number | null;
-    purity: number | null; content: number | null;
-  },
-  executor?: Executor
-): Promise<OrderItemRow | undefined> {
-  const { rows } = await query<OrderItemRow>(
-    sql("update_scrap"),
-    [s.pre_melt, s.post_melt, s.purity, s.content, id],
-    executor
-  );
-  return rows[0];
+// ONE UPDATE. `content` and `price` ARRIVE COMPUTED: the pricing and weight
+// rules belong to domain/orders/rules.ts, not to a statement.
+export const PATCHABLE = [
+  "pre_melt", "post_melt", "purity", "content",
+  "premium", "quantity", "confirmed", "price", "unit",
+] as const;
+type ItemColumn = (typeof PATCHABLE)[number];
+export type ItemPatch = Partial<Record<ItemColumn, string | number | boolean | null>>;
+export type ItemGuard = { order_id?: string };
+
+export async function update(
+  id: string, patch: ItemPatch, guard: ItemGuard = {}, executor?: Executor
+): Promise<boolean> {
+  const where: Record<string, unknown> = { id };
+  if (guard.order_id) where.order_id = guard.order_id;
+  const built = buildUpdate({
+    table: "orders.items", allowed: PATCHABLE, patch, where, returning: "id",
+  });
+  if (!built) return true;
+  const { rowCount } = await query(built.text, built.values, executor);
+  return rowCount === 1;
 }
 
-// THE SCRAP GOES WITH THE LINE, because the scrap IS the line. In exchange this
-// was two deletes that could come apart.
-// THE ORDER ID IS REQUIRED, not optional.
-//
-// exchange deleted order lines on ids alone, and so did this until now - see
-// sql/delete.sql for what that costs. Making it a parameter rather than an
-// option is the point: a caller cannot forget the guard, because there is no
-// signature that omits it. `remove` had no callers at all, so nothing had to
-// bend to accommodate the change.
-export async function removeFromOrder(
-  order_id: string, ids: string[], executor?: Executor
-): Promise<string[]> {
-  if (ids.length === 0) return [];
-  const { rows } = await query<{ id: string }>(sql("delete"), [order_id, ids], executor);
-  return rows.map((r) => r.id);
-}
-
-// THE PRICE ARRIVES COMPUTED - see sql/set_price.sql. exchange worked it out
-// inside the repo from the spot rows, which put the pricing rules a layer below
-// the service that owns them.
-export async function setPrice(
-  id: string, order_id: string, price: number | null, executor?: Executor
-): Promise<{ id: string; order_id: string; price: number | null } | undefined> {
-  const { rows } = await query<{ id: string; order_id: string; price: number | null }>(
-    sql("set_price"), [price, id, order_id], executor
-  );
-  return rows[0];
-}
-
-export async function clearPrices(
-  order_id: string, executor?: Executor
-): Promise<string[]> {
-  const { rows } = await query<{ id: string }>(sql("clear_prices"), [order_id], executor);
-  return rows.map((r) => r.id);
-}
-
-export async function setConfirmed(
-  order_id: string, ids: string[], confirmed: boolean, executor?: Executor
-): Promise<string[]> {
-  if (ids.length === 0) return [];
-  const { rows } = await query<{ id: string }>(
-    sql("set_confirmed"), [confirmed, order_id, ids], executor
-  );
-  return rows.map((r) => r.id);
-}
-
-export async function setBullion(
-  id: string, quantity: number | null, premium: number | null, executor?: Executor
-): Promise<{ id: string; order_id: string } | undefined> {
-  const { rows } = await query<{ id: string; order_id: string }>(
-    sql("set_bullion"), [quantity, premium, id], executor
-  );
-  return rows[0];
-}
-
-export type ScrapLine = { id: string; metal: string | null; content: number | null };
-
-export async function scrapLinesFor(
-  order_id: string, executor?: Executor
-): Promise<ScrapLine[]> {
-  const { rows } = await query<ScrapLine>(sql("scrap_lines"), [order_id], executor);
-  return rows;
-}
-
-export async function setPremium(
-  id: string, premium: number | null, executor?: Executor
-): Promise<{ id: string; order_id: string } | undefined> {
-  const { rows } = await query<{ id: string; order_id: string }>(
-    sql("set_premium"), [premium, id], executor
-  );
-  return rows[0];
+// THE ORDER ID IS REQUIRED, not optional - see sql/delete.sql.
+export async function remove(
+  id: string, order_id: string, executor?: Executor
+): Promise<boolean> {
+  const { rowCount } = await query(sql("delete"), [order_id, id], executor);
+  return rowCount === 1;
 }

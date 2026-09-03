@@ -22,9 +22,8 @@
 //                     refused on a shipment with no sales order, because
 //                     that is the only tracking write that exists today.
 import * as shipmentsService from "#domain/shipping/shipments/service.ts";
-import * as purchaseOrderService from "#domain/orders/service.ts";
 import * as orderTransactions from "#domain/orders/transactions/service.ts";
-import * as salesOrderService from "#domain/orders/service.ts";
+import { updateTracking } from "#domain/orders/update-tracking.ts";
 import { refuseWith } from "#shared/http/refuse.ts";
 import type { ShipmentPatch } from "@dorado/contracts";
 
@@ -68,10 +67,9 @@ export async function patchShipment(
     if (!orderId) {
       refuse(422, `shipment ${shipmentId} belongs to no order, so it has no charge to edit`);
     }
-    await purchaseOrderService.editShippingCharge({
-      order_id: orderId!,
-      shipping_charge: body.shipping_charge,
-    });
+    // shipping.shipments belongs to this feature, so the charge is written
+    // through its own service rather than through orders.
+    await shipmentsService.setChargeForOrder(orderId!, body.shipping_charge);
   }
 
   if (body.shipping_actual !== undefined) {
@@ -86,11 +84,13 @@ export async function patchShipment(
     if (!salesOrderId) {
       refuse(422, `shipment ${shipmentId} has no sales order - tracking is recorded on sales-order shipments`);
     }
-    await salesOrderService.updateTracking({
+    // `carrier_id` names nothing this table stores directly - it always
+    // resolved to carrier_service_id through a service NAME, which this write
+    // does not change - so it is not passed on.
+    await updateTracking({
       order_id: salesOrderId!,
       shipment_id: shipmentId,
       tracking_number: body.tracking_number,
-      carrier_id: body.carrier_id as string,
     });
   }
 
