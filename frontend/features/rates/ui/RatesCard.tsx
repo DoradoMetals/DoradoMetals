@@ -59,7 +59,18 @@ export default function RatesCard({
   const onSaveAll = () => {
     const dirty = items.filter((r) => dirtyIds.has(r.id))
     for (const r of dirty) {
-      update.mutate({ rate: r, user_name: 'Dorado Admin' })
+      update.mutate({
+        rate_id: r.id,
+        patch: {
+          metal_id: r.metal_id,
+          unit: r.unit,
+          min_qty: r.min_qty,
+          max_qty: r.max_qty,
+          scrap_pct: r.scrap_pct,
+          bullion_pct: r.bullion_pct,
+        },
+        user_name: 'Dorado Admin',
+      })
     }
     setDirtyIds(new Set())
     setEditing(false)

@@ -11,6 +11,25 @@ export type Lead = LeadContract
 // The create body, as the API's own statement takes it.
 export type NewLead = CreateLeadBody
 
+// The update body's `patch`: only the columns leads.update() writes
+// (api/db/leads/repo.ts PATCHABLE). Not a contract export yet - the API
+// takes it unvalidated as a record; kept here as the local, honest shape.
+export type LeadPatch = Partial<
+  Pick<
+    Lead,
+    | 'name'
+    | 'phone'
+    | 'email'
+    | 'last_contacted'
+    | 'converted'
+    | 'contacted'
+    | 'responded'
+    | 'contact'
+    | 'notes'
+    | 'priority'
+  >
+>
+
 // *** NOT A CONTRACT, AND DELIBERATELY SO - D103's second arm. ***
 //
 // `leads.leads.priority` is plain `text DEFAULT 'Medium'` with no check

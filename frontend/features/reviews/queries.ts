@@ -1,4 +1,4 @@
-import { useApiMutation, useApiQuery } from '@/shared/queries/base'
+import { upsertById, useApiMutation, useApiQuery } from '@/shared/queries/base'
 import { queryKeys } from '@/shared/queries/keys'
 import { NewReview, Review, UpdateReviewVars } from '@/features/reviews/types'
 
@@ -36,11 +36,14 @@ export const useUpdateReview = () => {
     queryKey: queryKeys.reviews(),
     url: '/reviews/update',
     requireAdmin: true,
-    listAction: 'upsert',
-    optimisticItemKey: 'review',
+    optimisticUpdater: (previous, vars) => {
+      const current = previous?.find((r) => r.id === vars.review_id)
+      return upsertById(previous, { ...current, ...vars.patch, id: vars.review_id } as Review)
+    },
     body: (vars) => ({
+      review_id: vars.review_id,
+      patch: vars.patch,
       user_name: vars.user_name,
-      review: vars.review,
     }),
   })
 }
