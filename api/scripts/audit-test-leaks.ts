@@ -249,15 +249,22 @@ async function selfTest() {
 function runSuite() {
   const invocation = suiteInvocation();
   console.log(
-    `running the suite as ${invocation.source} defines it: ` +
-      `${Object.entries(invocation.env).map(([k, v]) => `${k}=${v}`).join(" ")} ` +
-      `node ${invocation.args.join(" ")}`
+    `running the suite as ${invocation.source} defines it: ${invocation.shellCommand}`
   );
+  // SHELL, NOT argv - the script body is a \`&&\` CHAIN (preflight, then the
+  // real suite) since the network guard's preload landed, and spawning
+  // invocation.command/args directly runs only the first token's literal
+  // argv with \`&&\` and everything after it as inert extra arguments to
+  // node - which is exactly how this audit went vacuous (see suite-
+  // invocation.ts's header). A shell is what actually understands \`&&\`,
+  // and it propagates the LAST command's exit code, which is what \`code\`
+  // below must reflect for the "suite exited N" line to mean anything.
   return new Promise((resolve) => {
-    const child = spawn(invocation.command, invocation.args, {
+    const child = spawn(invocation.shellCommand, {
       cwd: SUITE_CWD,
-      env: { ...process.env, ...invocation.env },
+      env: { ...process.env },
       stdio: ["ignore", "inherit", "inherit"],
+      shell: true,
     });
     child.on("close", (code) => resolve(code));
   });

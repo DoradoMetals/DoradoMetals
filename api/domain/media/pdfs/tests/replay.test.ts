@@ -10,6 +10,7 @@ import * as orderRead from "#domain/orders/read.ts";
 import * as spotsService from "#domain/spots/service.ts";
 import { mockSessions, restoreSessions, as, anonymous } from "#shared/testing/session.ts";
 import { inPinnedTransaction, outside } from "#shared/testing/pinned-pool.ts";
+import { LOCKS } from "#shared/testing/locks.ts";
 import query from "#shared/db/query.ts";
 
 await mockSessions();
@@ -119,7 +120,7 @@ for (const [route, filename, body] of RENDERS as Array<
           `${route} rendered only ${res.body.length} bytes - an error page is still a PDF`
         );
       });
-    });
+    }, { lock: [LOCKS.FULFILLMENTS, LOCKS.ORDERS] });
   });
 }
 
@@ -131,7 +132,7 @@ test("every PDF route refuses an anonymous caller", async () => {
         assert.ok([401, 403].includes(res.status), `${route} answered ${res.status}`);
       }
     });
-  });
+  }, { lock: [LOCKS.FULFILLMENTS, LOCKS.ORDERS] });
 });
 
 // A guard that let an unauthenticated caller through would launch a browser per request - a denial-of-service surface as well as a leak, which is why the refusal above is asserted for all four.
@@ -147,7 +148,7 @@ test("no PDF route launches a renderer for an anonymous caller", async () => {
         );
       }
     });
-  });
+  }, { lock: [LOCKS.FULFILLMENTS, LOCKS.ORDERS] });
 });
 
 // The one that renders: proves a signed-in caller receives a real file with the headers a browser needs to save it.
@@ -184,7 +185,7 @@ test("a signed-in caller gets a real PDF with the headers to download it", async
         "Content-Length disagrees with the document - a truncated download"
       );
     });
-  });
+  }, { lock: [LOCKS.FULFILLMENTS, LOCKS.ORDERS] });
 });
 
 // The stored branch, over HTTP: serve.test.ts proves the selection logic with a stubbed reader; what it can't prove is the wiring (that the controller hands serve.ts the right order id and caller, and that a stored row can never turn a customer's download into a 500).
@@ -221,5 +222,5 @@ test("an owner's download with a stored row still answers with a PDF when the st
       assert.equal(res.headers["content-type"], "application/pdf");
       assert.equal(res.body.subarray(0, 5).toString(), "%PDF-", "the fallback did not render");
     });
-  });
+  }, { lock: [LOCKS.FULFILLMENTS, LOCKS.ORDERS] });
 });

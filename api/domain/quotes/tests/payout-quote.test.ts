@@ -5,6 +5,7 @@ import assert from "node:assert/strict";
 import * as quotes from "#domain/quotes/service.ts";
 import query from "#shared/db/query.ts";
 import { inPinnedTransaction } from "#shared/testing/pinned-pool.ts";
+import { LOCKS } from "#shared/testing/locks.ts";
 
 // A scrap line prices from the body's own declared content, so this needs no
 // product row and no fixture - which is what makes it safe to assert exact
@@ -45,7 +46,7 @@ test("both deductions apply, and neither cancels the other", async () => {
       both.estimated_payout < bare.total - 12.5,
       "the payout fee did not come off"
     );
-  });
+  }, { lock: [LOCKS.FULFILLMENTS, LOCKS.ORDERS, LOCKS.ADDRESSES] });
 });
 
 test("a quote with no choices made yet deducts nothing", async () => {
@@ -54,7 +55,7 @@ test("a quote with no choices made yet deducts nothing", async () => {
     assert.equal(q.shipping_charge, 0);
     assert.equal(q.payout_charge, 0);
     assert.equal(q.estimated_payout, q.total);
-  });
+  }, { lock: [LOCKS.FULFILLMENTS, LOCKS.ORDERS, LOCKS.ADDRESSES] });
 });
 
 test("a free payout method deducts nothing, and says so rather than omitting it", async () => {
@@ -64,7 +65,7 @@ test("a free payout method deducts nothing, and says so rather than omitting it"
       assert.equal(q.payout_charge, 0, `${method} is free`);
       assert.equal(q.estimated_payout, q.total);
     }
-  });
+  }, { lock: [LOCKS.FULFILLMENTS, LOCKS.ORDERS, LOCKS.ADDRESSES] });
 });
 
 // Ruling 10 - ids in, data out. The fee is resolved from the METHOD NAME; a
@@ -78,7 +79,7 @@ test("the payout fee is not taken from the body", async () => {
       cost: 0,
     });
     assert.equal(q.payout_charge, 20, "a fee sent in the body was believed");
-  });
+  }, { lock: [LOCKS.FULFILLMENTS, LOCKS.ORDERS, LOCKS.ADDRESSES] });
 });
 
 test("a payout method the business does not pay by is refused, not priced as free", async () => {
@@ -91,7 +92,7 @@ test("a payout method the business does not pay by is refused, not priced as fre
         return true;
       }
     );
-  });
+  }, { lock: [LOCKS.FULFILLMENTS, LOCKS.ORDERS, LOCKS.ADDRESSES] });
 });
 
 test("a shipping charge that is not a charge is refused rather than coerced to zero", async () => {
@@ -105,7 +106,7 @@ test("a shipping charge that is not a charge is refused rather than coerced to z
         }
       );
     }
-  });
+  }, { lock: [LOCKS.FULFILLMENTS, LOCKS.ORDERS, LOCKS.ADDRESSES] });
 });
 
 // A small order whose fees exceed it does not owe the business money, and a
@@ -121,5 +122,5 @@ test("the payout never goes below zero", async () => {
     });
     assert.ok(q.total < 70, "the fixture is meant to be smaller than its fees");
     assert.equal(q.estimated_payout, 0);
-  });
+  }, { lock: [LOCKS.FULFILLMENTS, LOCKS.ORDERS, LOCKS.ADDRESSES] });
 });

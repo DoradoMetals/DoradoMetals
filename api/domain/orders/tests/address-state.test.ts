@@ -41,6 +41,7 @@ import pool from "#db";
 import * as addressService from "#domain/places/addresses/service.ts";
 import * as taxRepo from "#domain/sales-tax/service.ts";
 import { inPinnedTransaction, outside } from "#shared/testing/pinned-pool.ts";
+import { LOCKS } from "#shared/testing/locks.ts";
 
 // THE STRUCTURAL SUBSET THE FIXTURE QUERY ASKS FOR. A SELECT projection, not
 // a table row.
@@ -133,7 +134,7 @@ test("getFromId returns a list, so reading .state off it is undefined", async ()
       "this is the value both sales-order paths pass as the taxing state"
     );
     assert.equal(address[0].state, addressState, "the state is one level down");
-  });
+  }, { lock: LOCKS.ADDRESSES });
 });
 
 test("a real state and an undefined one are answered differently", async () => {
@@ -163,7 +164,7 @@ test("a real state and an undefined one are answered differently", async () => {
       "an undefined state matches no rule and COALESCEs to zero, silently"
     );
     assert.notEqual(withState, withUndefined);
-  });
+  }, { lock: LOCKS.ADDRESSES });
 });
 
 // The other half: what the two sales-order paths read now. Without this the
@@ -181,7 +182,7 @@ test("getAddressFromId returns the row, so .state is the state", async () => {
     assert.ok(!Array.isArray(address), "this one is a row");
     assert.equal(address.state, addressState);
     assert.equal(typeof address.state, "string");
-  });
+  }, { lock: LOCKS.ADDRESSES });
 });
 
 test("the taxing state now yields the rate the rule says, not zero", async () => {
@@ -193,5 +194,5 @@ test("the taxing state now yields the rate the rule says, not zero", async () =>
     const rate = await taxRepo.rateForItem(address.state, item, price, aggregate, c);
     assert.ok(rate > 0, "a real state reached the rules");
     assert.equal(Number(rate), Number(rule.tax_rate));
-  });
+  }, { lock: LOCKS.ADDRESSES });
 });

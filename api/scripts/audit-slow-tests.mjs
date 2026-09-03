@@ -145,12 +145,18 @@ if (from) {
     `running the suite as ${invocation.source} defines it (no --from given); ` +
       `this costs what the suite costs...`
   );
-  const r = spawnSync(invocation.command, invocation.args, {
+  // SHELL, NOT argv - see suite-invocation.ts's header (lane 4, 2026-09-03):
+  // the script body is a `&&` chain (preflight, then the real suite) and only
+  // a shell runs that the way `pnpm` does. Spawning argv directly here is
+  // exactly the parse that made this fall through to the empty-output floor
+  // below instead of measuring anything.
+  const r = spawnSync(invocation.shellCommand, {
     cwd: new URL("..", import.meta.url).pathname,
-    env: { ...process.env, ...invocation.env },
+    env: { ...process.env },
     encoding: "utf8",
     maxBuffer: 256 * 1024 * 1024,
     stdio: ["ignore", "pipe", "pipe"],
+    shell: true,
   });
   // A failing suite still produced timings; measure what we got and say so.
   text = `${r.stdout ?? ""}${r.stderr ?? ""}`;

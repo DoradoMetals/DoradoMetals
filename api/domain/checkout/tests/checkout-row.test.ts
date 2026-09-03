@@ -14,6 +14,7 @@ import request from "supertest";
 import pool from "#db";
 import { mockSessions, restoreSessions, as } from "#shared/testing/session.ts";
 import { inPinnedTransaction, outside } from "#shared/testing/pinned-pool.ts";
+import { LOCKS } from "#shared/testing/locks.ts";
 
 await mockSessions();
 const { default: app } = await import("#app");
@@ -71,7 +72,7 @@ test("GET /api/checkout mints the row on first read, one per direction", async (
       request(app).get("/api/checkout?direction=sale")
     );
     assert.notEqual(sale.body.id, first.body.id, "the two directions shared a row");
-  });
+  }, { lock: [LOCKS.FULFILLMENTS, LOCKS.ORDERS] });
 });
 
 // 422, NOT 400 (D214 item 11): a direction the business does not have is a
@@ -86,7 +87,7 @@ test("an anonymous caller gets nothing, and a bad direction is refused", async (
       request(app).get("/api/checkout?direction=sideways")
     );
     assert.equal(bogus.status, 422);
-  });
+  }, { lock: [LOCKS.FULFILLMENTS, LOCKS.ORDERS] });
 });
 
 // ------------------------------------------------------------------- patch
@@ -127,7 +128,7 @@ test("PATCH writes the whitelisted id columns and answers the fresh row", async 
       cleared.body.carrier_service_id, svc.id,
       "clearing one column disturbed another"
     );
-  });
+  }, { lock: [LOCKS.FULFILLMENTS, LOCKS.ORDERS] });
 });
 
 test("an address lands only if it is in the CALLER'S book", async () => {
@@ -166,7 +167,7 @@ test("an address lands only if it is in the CALLER'S book", async () => {
       })
     );
     assert.equal(theft.status, 422, "somebody else's address id was accepted");
-  });
+  }, { lock: [LOCKS.FULFILLMENTS, LOCKS.ORDERS] });
 });
 
 // THE WHITELIST HOLDS, AND IT NOW REFUSES OUT LOUD. The contract schema is
@@ -197,7 +198,7 @@ test("the whitelist holds: fulfillment_id, user_id and id cannot be patched in",
     assert.equal(after.body.fulfillment_id, before.body.fulfillment_id);
     assert.equal(after.body.user_id, customer.id);
     assert.equal(after.body.id, before.body.id);
-  });
+  }, { lock: [LOCKS.FULFILLMENTS, LOCKS.ORDERS] });
 });
 
 test("a reference id that matches no row is refused, not a 500", async () => {
@@ -209,7 +210,7 @@ test("a reference id that matches no row is refused, not a 500", async () => {
       })
     );
     assert.equal(res.status, 422, res.text);
-  });
+  }, { lock: [LOCKS.FULFILLMENTS, LOCKS.ORDERS] });
 });
 
 test("a malformed appointment_time is refused before it reaches the database", async () => {
@@ -221,7 +222,7 @@ test("a malformed appointment_time is refused before it reaches the database", a
       })
     );
     assert.equal(res.status, 422);
-  });
+  }, { lock: [LOCKS.FULFILLMENTS, LOCKS.ORDERS] });
 });
 
 // ------------------------------------------------------- the draft fulfillment
@@ -263,7 +264,7 @@ test("the draft is minted ONCE, linked, and later calls move its method in place
       [customer.id]
     );
     assert.equal(drafts[0].n, 1, "draft rows accumulated");
-  });
+  }, { lock: [LOCKS.FULFILLMENTS, LOCKS.ORDERS] });
 });
 
 test("a hidden method never gets a draft - the menu has to mean something", async () => {
@@ -275,7 +276,7 @@ test("a hidden method never gets a draft - the menu has to mean something", asyn
       })
     );
     assert.equal(res.status, 409, `a hidden method was accepted: ${res.text}`);
-  });
+  }, { lock: [LOCKS.FULFILLMENTS, LOCKS.ORDERS] });
 });
 
 test("a sale method cannot land on a purchase checkout", async () => {
@@ -287,7 +288,7 @@ test("a sale method cannot land on a purchase checkout", async () => {
       })
     );
     assert.equal(res.status, 409, `a cross-direction method was accepted: ${res.text}`);
-  });
+  }, { lock: [LOCKS.FULFILLMENTS, LOCKS.ORDERS] });
 });
 
 test("a draft is INVISIBLE to order-facing reads", async () => {
@@ -308,7 +309,7 @@ test("a draft is INVISIBLE to order-facing reads", async () => {
       [customer.id]
     );
     assert.equal(rows.length, 0, "a draft joined to an order");
-  });
+  }, { lock: [LOCKS.FULFILLMENTS, LOCKS.ORDERS] });
 });
 
 test("the attach is one-way: once an order holds the draft, a second attach refuses", async () => {
@@ -346,7 +347,7 @@ test("the attach is one-way: once an order holds the draft, a second attach refu
       /not a draft/,
       "a second attach did not refuse"
     );
-  });
+  }, { lock: [LOCKS.FULFILLMENTS, LOCKS.ORDERS] });
 });
 
 test("two customers' rows never touch: the stranger sees their own empty checkout", async () => {
@@ -363,5 +364,5 @@ test("two customers' rows never touch: the stranger sees their own empty checkou
     assert.equal(theirs.status, 200);
     assert.equal(theirs.body.user_id, stranger.id);
     assert.equal(theirs.body.fulfillment_id, null, "the stranger saw the customer's draft");
-  });
+  }, { lock: [LOCKS.FULFILLMENTS, LOCKS.ORDERS] });
 });

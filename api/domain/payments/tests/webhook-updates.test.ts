@@ -18,6 +18,7 @@ import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
 import * as service from "#domain/payments/service.ts";
 import { inPinnedTransaction } from "#shared/testing/pinned-pool.ts";
+import { LOCKS } from "#shared/testing/locks.ts";
 import query from "#shared/db/query.ts";
 
 const READ = `SELECT i.status, i.amount_expected, st.settled_amount
@@ -73,7 +74,7 @@ test("a charge.* webhook updates nothing, because a charge is not an intent", as
     // And the charge's own id did not become a row either.
     const { rows: byChargeId } = await query(READ, [charge.id], c);
     assert.equal(byChargeId.length, 0, "no row is created for a charge id");
-  });
+  }, { lock: [LOCKS.FULFILLMENTS, LOCKS.ORDERS, LOCKS.ADDRESSES, LOCKS.USERS] });
 });
 
 test("a webhook for an intent with no row writes nothing, and says so", async () => {
@@ -96,7 +97,7 @@ test("a webhook for an intent with no row writes nothing, and says so", async ()
     // D24. updateFromProvider REPORTS rather than throwing; the webhook entry
     // turns that into a refusal so Stripe retries.
     assert.equal(matched, false, "nothing reported that no row matched");
-  });
+  }, { lock: [LOCKS.FULFILLMENTS, LOCKS.ORDERS, LOCKS.ADDRESSES, LOCKS.USERS] });
 });
 
 // D24, the half that changes what Stripe sees. Before this, an intent with no
@@ -128,7 +129,7 @@ test("the service refuses a webhook that matches no intent, so Stripe retries", 
         return true;
       }
     );
-  });
+  }, { lock: [LOCKS.FULFILLMENTS, LOCKS.ORDERS, LOCKS.ADDRESSES, LOCKS.USERS] });
 });
 
 // The other side of it: a webhook that DOES match must still be accepted, or
@@ -149,7 +150,7 @@ test("the service accepts a webhook that matches an intent", async () => {
 
     const { rows } = await query(READ, [id], c);
     assert.equal(Number(rows[0].amount_expected), 114.8, "the update did not land");
-  });
+  }, { lock: [LOCKS.FULFILLMENTS, LOCKS.ORDERS, LOCKS.ADDRESSES, LOCKS.USERS] });
 });
 
 test("a late payment_failed overwrites a settled intent, and Stripe does not guarantee order", async () => {
@@ -178,5 +179,5 @@ test("a late payment_failed overwrites a settled intent, and Stripe does not gua
     const { rows } = await query(READ, [id], c);
     assert.equal(rows[0].status, "requires_payment_method");
     assert.equal(Number(rows[0].settled_amount), 51.78, "the settlement is a durable fact");
-  });
+  }, { lock: [LOCKS.FULFILLMENTS, LOCKS.ORDERS, LOCKS.ADDRESSES, LOCKS.USERS] });
 });
