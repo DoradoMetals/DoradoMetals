@@ -35,6 +35,7 @@
 // Migration 087 had to clean up rows where content reached the wire as the
 // string "NaN"; a total that cannot be computed must stop here, not print on a
 // document a customer is paid against.
+import { Invalid } from "#shared/errors.ts";
 import type { OrderView, OrderViewItem } from "@dorado/contracts";
 
 export type { OrderView, OrderViewItem } from "@dorado/contracts";
@@ -95,19 +96,30 @@ export function effectivePayoutFee(order: {
   return fee(order.payout?.cost, "the payout fee");
 }
 
-// The line's own content. The catalogue is a fallback for rows written before
-// the basket snapshotted one - 24 of dev's 68 bullion order lines hold null.
+// The line's own content, and only the line's. Migration 120 backfilled the
+// rows that used to need a catalogue fallback; a bullion line with none left
+// is corrupt data, not a case this function papers over.
 export function recordedContent(line: OrderViewItem): number | null {
-  return line.content ?? (line.bullion_id === null ? null : line.product?.content ?? null);
+  return line.content ?? null;
 }
 
 export function unitContent(line: OrderViewItem): number {
   const content = recordedContent(line);
-  // ABSENT IS ZERO, UNREADABLE IS NaN - and the NaN is deliberate. Migration
-  // 087 had to clean up rows whose content reached the wire as the STRING
-  // "NaN"; `|| 0` here would turn that into a free line on an invoice instead
-  // of stopping the total, which is what `finite` below exists to do.
-  return content == null ? 0 : Number(content);
+  if (content == null) {
+    // A bullion line with no content is corrupt data (migration 120 backfilled
+    // every row that legitimately lacked one) - REFUSE rather than price at
+    // zero. A scrap line's content is absent only when nobody has weighed the
+    // parcel yet, which is a real state and prices at 0.
+    if (line.bullion_id !== null) {
+      throw new Invalid(`line ${line.id} has no recorded content`);
+    }
+    return 0;
+  }
+  // UNREADABLE IS NaN, deliberately. Migration 087 had to clean up rows whose
+  // content reached the wire as the STRING "NaN"; `|| 0` here would turn that
+  // into a free line on an invoice instead of stopping the total, which is
+  // what `finite` below exists to do.
+  return Number(content);
 }
 
 // How many of the line there are. A scrap lot is one lot however many pieces
