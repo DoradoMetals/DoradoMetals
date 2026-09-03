@@ -2,14 +2,72 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { apiRequest } from '@/shared/queries/axios'
 import { useApiQuery } from '@/shared/queries/base'
 import { useGetSession } from '@/features/auth/queries'
-import type { OrderView } from '@dorado/contracts'
+import type { CarrierRateQuote, OrderView, checkout } from '@dorado/contracts'
 
-// THE CHECKOUT ROW FLOW (D208): the stepper writes IDS onto the server's
-// checkout row as the customer decides, the fulfillment is a live draft the
-// same call mutates, and order creation consumes what the server holds. The
-// body of the create carries ONLY what cannot live server-side - the payout
-// bank form, the pickup schedule, the insurance declaration. RULING 58: the
-// parcel's weight is not one of those any more - the server owns it.
+// THE CHECKOUT ROW FLOW (D208, Jacob: "each time an option is changed, the
+// server-side row gets updated"): the stepper PATCHes the row THE MOMENT a
+// choice is made - address on address selection, package_id on package
+// selection, carrier_service_id on service selection, the handoff and the
+// pickup schedule as they're picked - not batched at "Go to Payment". Order
+// creation consumes what the server already holds; the body of the create
+// carries ONLY what cannot live server-side - the payout bank form and the
+// insurance declaration. RULING 58: the parcel's weight is not one of those
+// any more - the server owns it.
+const CHECKOUT_ROW_KEY = ['checkout', 'purchase'] as const
+
+// The row itself, read back so a step can tell the server has caught up -
+// this is what gates GET /checkout/rates (address + package must already be
+// on the row before the carrier can be asked to quote it).
+export const usePurchaseCheckoutRow = () =>
+  useApiQuery<checkout.CheckoutsRow>({
+    key: CHECKOUT_ROW_KEY,
+    url: '/checkout',
+    params: () => ({ direction: 'purchase' }),
+    requireUser: true,
+  })
+
+// ONE PATCH PER CHOICE. Every call answers the composed row (same shape GET
+// answers), so the cache entry `usePurchaseCheckoutRow` reads is updated in
+// place rather than refetched - the rates query keys off it, so a change
+// here is what makes rates re-run.
+export const usePatchPurchaseCheckout = () => {
+  const { user } = useGetSession()
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (
+      patch: Partial<
+        Pick<
+          checkout.CheckoutsRow,
+          'shipper_address_id' | 'package_id' | 'carrier_service_id' | 'pickup_date' | 'pickup_time'
+        >
+      >
+    ) => {
+      if (!user?.id) throw new Error('User is not authenticated')
+      return await apiRequest<checkout.CheckoutsRow>('PATCH', '/checkout', {
+        direction: 'purchase',
+        ...patch,
+      })
+    },
+    onSuccess: (row) => queryClient.setQueryData(CHECKOUT_ROW_KEY, row),
+  })
+}
+
+// The draft fulfillment's own write (D208) - a separate endpoint, same
+// immediate-on-choice rule. It answers the same composed row a PATCH does.
+export const useSetPurchaseHandoff = () => {
+  const { user } = useGetSession()
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (handoff_code: string) => {
+      if (!user?.id) throw new Error('User is not authenticated')
+      return await apiRequest<checkout.CheckoutsRow>('POST', '/checkout/fulfillment', {
+        direction: 'purchase',
+        handoff_code,
+      })
+    },
+    onSuccess: (row) => queryClient.setQueryData(CHECKOUT_ROW_KEY, row),
+  })
+}
 
 // The boxes a checkout offers - shipping.packages rows (112), replacing the
 // hardcoded packageOptions record. Icons stay client-side beside the selector.
@@ -31,68 +89,33 @@ export const useOfferedPackages = () =>
     staleTime: 60 * 60 * 1000,
   })
 
-// One synchronisation when the customer leaves the shipping step: the row
-// takes the ids, the draft fulfillment takes the handoff. Idempotent - going
-// back and forward simply re-writes the same choices.
+// GET /api/checkout/rates?direction= replaced POST /shipping/get_rates - the
+// address, the package and the weight are read off the caller's own checkout
+// row and items server-side now, so the browser sends only its direction.
+// The answer is the carrier's raw quote per service, `CarrierRateQuote`
+// (packages/contracts/src/wire/shipping.ts) - not every field is joined to
+// a shipping.services row (no id, no display order), which is why the
+// service catalogue (useCarrierServiceOptions) is still read alongside it and
+// joined by `serviceType`/`code`, same as the deleted client-side assembly did.
 //
-// RULING 58 (Jacob): no package_weight, no declared_value - the browser
-// neither computes nor sends either. The server owns the parcel's weight and
-// its insured value.
-export type PurchaseCheckoutSync = {
-  shipper_address_id: string
-  package_id: string
-  carrier_service_id: string
-  handoff_code: string
-  pickup_date: string | null
-  pickup_time: string | null
-}
+// GATED ON THE ROW, NOT THE LOCAL STORE: the server 400s "choose a package
+// before requesting rates" until `checkout.shipper_address_id` and
+// `checkout.package_id` are actually set, which only a landed PATCH does -
+// so this takes the caller's OWN row (usePurchaseCheckoutRow) and keys /
+// enables off it. Sending a stale local pick the row hasn't caught up to
+// would fetch rates for the wrong parcel or 400.
+export type { CarrierRateQuote } from '@dorado/contracts'
 
-export const useSyncPurchaseCheckout = () => {
-  const { user } = useGetSession()
-  return useMutation({
-    mutationFn: async (sync: PurchaseCheckoutSync) => {
-      if (!user?.id) throw new Error('User is not authenticated')
-      await apiRequest('PATCH', '/checkout', {
-        direction: 'purchase',
-        shipper_address_id: sync.shipper_address_id,
-        package_id: sync.package_id,
-        carrier_service_id: sync.carrier_service_id,
-        pickup_date: sync.pickup_date,
-        pickup_time: sync.pickup_time,
-      })
-      return await apiRequest('POST', '/checkout/fulfillment', {
-        direction: 'purchase',
-        handoff_code: sync.handoff_code,
-      })
-    },
-  })
-}
-
-// GET /api/checkout/rates?direction= - the carrier's own priced catalogue for
-// THIS checkout, one flat row per offered service (API lane, landing
-// separately). The browser assembles no rate request any more: no address,
-// no package, no weight composed client-side - it renders what the server
-// quotes. Field names are provisional; retype against the real response when
-// that lane lands.
-export type CheckoutRate = {
-  id: string | null
-  code: string
-  carrier_code: string
-  name: string
-  display_order: number
-  net_charge: number
-  currency: string
-  delivery_day: string | null
-  transit_time: string | null
-}
-
-export const useCheckoutRates = (direction: 'purchase' | 'sale', enabled = true) =>
-  useApiQuery<CheckoutRate[]>({
-    key: ['checkout', 'rates', direction] as const,
+export const useCheckoutRates = (
+  direction: 'purchase' | 'sale',
+  ready: { address_id?: string | null; package_id?: string | null }
+) =>
+  useApiQuery<CarrierRateQuote[]>({
+    key: ['checkout', 'rates', direction, ready.address_id, ready.package_id] as const,
     url: '/checkout/rates',
     params: () => ({ direction }),
     requireUser: true,
-    enabled,
+    enabled: !!ready.address_id && !!ready.package_id,
     staleTime: 5 * 60 * 1000,
     retry: false,
   })

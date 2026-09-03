@@ -29,8 +29,8 @@ vi.mock("@/shared/ui/PriceNumberFlow", () => ({
 import { PickupSelector } from "@/features/checkout/purchase-order-checkout/shippingStep/pickupSelector";
 import { ServiceSelector } from "@/features/checkout/purchase-order-checkout/shippingStep/serviceSelector";
 import { usePurchaseOrderCheckoutStore } from "@/shared/store/purchaseOrderCheckoutStore";
-import type { CarrierHandoff } from "@/features/shipping/types";
-import type { CheckoutRate } from "@/features/checkout/queries";
+import type { CarrierHandoff, CarrierServiceOption } from "@/features/shipping/types";
+import type { CarrierRateQuote } from "@dorado/contracts";
 
 // DELIBERATELY NOT FEDEX'S SPELLINGS. If a component still carried
 // 'CONTACT_FEDEX_TO_SCHEDULE' or 'FEDEX_EXPRESS_SAVER' anywhere, none of these
@@ -52,31 +52,35 @@ const handoffs = (): CarrierHandoff[] => [
   },
 ];
 
-// GET /checkout/rates answers one already-priced row per offered service now
-// (the rates ruling) - there is no separate services catalogue to join by
-// code any more, so a selection test fixture is the flat row itself.
-const rates = (): CheckoutRate[] => [
+// max_insured_value arrived with migration 097 (the insurance ceiling stopped
+// being `Math.min(..., 50000)` in checkoutStepper). Nothing in these
+// components may read the field - the clamp is the server's.
+const services = (): CarrierServiceOption[] => [
+  { id: "11111111-1111-4111-8111-111111111111", code: "SLOW_ONE", name: "Economy", carrier_code: "ZZZE", display_order: 0, max_insured_value: 7500 },
+  { id: "22222222-2222-4222-8222-222222222222", code: "FAST_ONE", name: "Overnight", carrier_code: "ZZZP", display_order: 1, max_insured_value: 10000 },
+];
+
+// GET /checkout/rates answers the carrier's own raw quote (CarrierRateQuote)
+// - `serviceType` is what joins it to a CarrierServiceOption's `code`.
+// Every field but `currency` is nullable: not every carrier fills every one.
+const rates = (): CarrierRateQuote[] => [
   {
-    id: "11111111-1111-4111-8111-111111111111",
-    code: "SLOW_ONE",
-    carrier_code: "ZZZE",
-    name: "Economy",
-    display_order: 0,
-    net_charge: 12.5,
+    serviceType: "SLOW_ONE",
+    packagingType: "OUR_BOX",
+    netCharge: 12.5,
     currency: "USD",
-    delivery_day: null,
-    transit_time: null,
+    deliveryDay: null,
+    transitTime: null,
+    serviceDescription: "Economy",
   },
   {
-    id: "22222222-2222-4222-8222-222222222222",
-    code: "FAST_ONE",
-    carrier_code: "ZZZP",
-    name: "Overnight",
-    display_order: 1,
-    net_charge: 48.75,
+    serviceType: "FAST_ONE",
+    packagingType: "OUR_BOX",
+    netCharge: 48.75,
     currency: "USD",
-    delivery_day: null,
-    transit_time: null,
+    deliveryDay: null,
+    transitTime: null,
+    serviceDescription: "Overnight",
   },
 ];
 
@@ -124,8 +128,8 @@ describe("the carrier handoff selector", () => {
 });
 
 describe("the service selector", () => {
-  test("renders each offered service and its own price", () => {
-    renderWithClient(<ServiceSelector rates={rates()} isLoading={false} />);
+  test("renders the offered services and each one's live rate", () => {
+    renderWithClient(<ServiceSelector services={services()} rates={rates()} isLoading={false} />);
 
     expect(screen.getByText("Economy")).toBeDefined();
     expect(screen.getByText("Overnight")).toBeDefined();
@@ -134,7 +138,7 @@ describe("the service selector", () => {
   });
 
   test("choosing one stores the carrier's own codes and the carrier's own price", async () => {
-    renderWithClient(<ServiceSelector rates={rates()} isLoading={false} />);
+    renderWithClient(<ServiceSelector services={services()} rates={rates()} isLoading={false} />);
 
     await userEvent.click(screen.getByText("Overnight"));
 
@@ -157,7 +161,7 @@ describe("the service selector", () => {
     renderWithClient(<PickupSelector handoffs={handoffs()} />);
     await userEvent.click(screen.getByText("Courier Collection"));
 
-    renderWithClient(<ServiceSelector rates={rates()} isLoading={false} />);
+    renderWithClient(<ServiceSelector services={services()} rates={rates()} isLoading={false} />);
     await userEvent.click(screen.getByText("Economy"));
 
     const { pickup } = usePurchaseOrderCheckoutStore.getState().data;
@@ -166,10 +170,14 @@ describe("the service selector", () => {
     expect(pickup?.time).toBeUndefined();
   });
 
-  test("renders nothing at all when the reference read has not landed", () => {
-    // A row IS a priced service now (the rates ruling) - there is no
-    // "offered but unpriced" state left to render as disabled.
-    renderWithClient(<ServiceSelector rates={[]} isLoading={false} />);
-    expect(screen.queryAllByRole("radio").length).toBe(0);
+  test("a service with no rate yet is offered but not selectable", () => {
+    renderWithClient(<ServiceSelector services={services()} rates={[]} isLoading={false} />);
+
+    const radios = screen.getAllByRole("radio");
+    expect(radios.length).toBe(2);
+    // Offered, so the customer sees what exists, and refused until the carrier
+    // has quoted it - a service selected with no netCharge would store 0 and
+    // the order would be shipped for nothing.
+    expect(radios.every((r) => (r as HTMLButtonElement).disabled)).toBe(true);
   });
 });

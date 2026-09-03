@@ -17,11 +17,13 @@ import { ShoppingCartIcon } from '@phosphor-icons/react'
 import { useAddress, useUserAddresses } from '@/features/addresses/queries'
 import { usePurchaseOrderQuote } from '@/features/quotes/queries'
 
-import { useCarrierHandoffs } from '@/features/shipping/queries'
+import { useCarrierHandoffs, useCarrierServiceOptions } from '@/features/shipping/queries'
 import {
   useCheckoutRates,
+  usePatchPurchaseCheckout,
+  usePurchaseCheckoutRow,
   useSaveCheckoutPayout,
-  useSyncPurchaseCheckout,
+  useSetPurchaseHandoff,
 } from '@/features/checkout/queries'
 
 const { useStepper, utils } = defineStepper(
@@ -40,19 +42,30 @@ export default function CheckoutStepper() {
 
   const { user } = useGetSession()
 
-  // THE CARRIER'S OWN CATALOGUE, READ ONCE HERE AND INJECTED (ruling 14: the
+  // THE CARRIER'S OWN CATALOGUES, READ ONCE HERE AND INJECTED (ruling 14: the
   // parent holds the reads, the children take props).
   //
   // This is what wave 5B moved. The handoff options were a record in
   // features/handoff keyed by DROPOFF_AT_FEDEX_LOCATION and
   // CONTACT_FEDEX_TO_SCHEDULE, hand-written in the browser, and this
   // component branched on it. Neither list is spelled anywhere in frontend/
-  // now, and the rates ruling took the services catalogue with it: GET
-  // /checkout/rates answers one already-priced row per offered service, so
-  // there is no separate services list to join by code any more, and no
-  // rate request the browser assembles.
+  // now. GET /checkout/rates replaced the client-assembled POST
+  // /shipping/get_rates (no address/package/weight composed here any more),
+  // but it answers the carrier's raw per-service quote, not a joined row -
+  // the offered services list is still read and joined to it by code, same
+  // as before.
   const { data: handoffs = [] } = useCarrierHandoffs()
-  const { data: rates = [], isLoading: ratesLoading } = useCheckoutRates('purchase')
+  const { data: serviceOptions = [] } = useCarrierServiceOptions()
+
+  // THE ROW ITSELF (D208): rates are the carrier answering "what does IT cost
+  // to ship the parcel this row already describes", so the server 400s until
+  // shipper_address_id and package_id are actually on it - which only a
+  // landed PATCH puts there. Gate and key off the ROW, not the local pick.
+  const { data: row } = usePurchaseCheckoutRow()
+  const { data: rates = [], isLoading: ratesLoading } = useCheckoutRates('purchase', {
+    address_id: row?.shipper_address_id,
+    package_id: row?.package_id,
+  })
 
   const { data: addresses = [] } = useAddress()
   const { data, setData } = usePurchaseOrderCheckoutStore()
@@ -106,12 +119,43 @@ export default function CheckoutStepper() {
   const stepper = useStepper()
   const currentIndex = utils.getIndex(stepper.current.id)
 
-  // ONE SYNCHRONISATION when the customer leaves the shipping step (D208):
-  // the checkout ROW takes the ids, the draft fulfillment takes the handoff.
-  // Going back and forward re-writes the same choices - idempotent by
-  // construction, so there is nothing to diff.
-  const syncCheckout = useSyncPurchaseCheckout()
+  const patchCheckout = usePatchPurchaseCheckout()
+  const setHandoff = useSetPurchaseHandoff()
   const savePayout = useSaveCheckoutPayout()
+
+  // THE ROW PATCHES THE MOMENT A CHOICE IS MADE (D208, Jacob: "each time an
+  // option is changed, the server-side row gets updated") - not batched at
+  // "Go to Payment". Each effect owns exactly one field, so picking a fresh
+  // address never re-sends the package, and going back and forward simply
+  // re-fires the same idempotent write.
+  useEffect(() => {
+    if (!data.address?.id || !data.address.is_valid) return
+    patchCheckout.mutate({ shipper_address_id: data.address.id })
+  }, [data.address?.id, data.address?.is_valid])
+
+  useEffect(() => {
+    if (!data.package?.id) return
+    patchCheckout.mutate({ package_id: data.package.id })
+  }, [data.package?.id])
+
+  useEffect(() => {
+    if (!data.service?.id) return
+    patchCheckout.mutate({ carrier_service_id: data.service.id })
+  }, [data.service?.id])
+
+  // The draft fulfillment's own write - a separate endpoint (D208).
+  useEffect(() => {
+    if (!data.pickup?.label) return
+    setHandoff.mutate(data.pickup.label)
+  }, [data.pickup?.label])
+
+  useEffect(() => {
+    if (!data.pickup?.date && !data.pickup?.time) return
+    patchCheckout.mutate({
+      pickup_date: data.pickup?.date ?? null,
+      pickup_time: data.pickup?.time ?? null,
+    })
+  }, [data.pickup?.date, data.pickup?.time])
 
   // Leaving the PAYOUT step records the bank form server-side (D210) - the
   // numbers are sealed at rest there, and Confirm later links the row. Going
@@ -125,24 +169,11 @@ export default function CheckoutStepper() {
     }
   }
 
-  const advanceFromShipping = async () => {
-    if (!data.address?.id || !data.package?.id || !data.service?.id || !data.pickup?.label) return
-    try {
-      // RULING 58: no package_weight, no declared_value - the browser sends
-      // neither. The server owns the parcel's weight and its insured value.
-      await syncCheckout.mutateAsync({
-        shipper_address_id: data.address.id,
-        package_id: data.package.id,
-        carrier_service_id: data.service.id,
-        handoff_code: data.pickup.label,
-        pickup_date: data.pickup.date ?? null,
-        pickup_time: data.pickup.time ?? null,
-      })
-      stepper.next()
-    } catch {
-      // The row refused (a stale id, a dead session) - stay on the step; the
-      // selections are intact and the retry is the same click.
-    }
+  // NO NETWORK CALL HERE ANY MORE: every choice already landed on the row as
+  // it was made, above. Advancing is a pure local check.
+  const advanceFromShipping = () => {
+    if (!isShippingStepComplete || !data.service?.id) return
+    stepper.next()
   }
 
   // The rate ticks on the same 5-minute cadence as the reference read - if
@@ -151,19 +182,17 @@ export default function CheckoutStepper() {
     const currentServiceType = data.service?.serviceType
     if (!currentServiceType) return
 
-    const freshRate = rates.find((r) => r.code === currentServiceType)
-    if (!freshRate) return
+    const freshRate = rates.find((r) => r.serviceType === currentServiceType)
+    if (!freshRate || freshRate.netCharge == null) return
 
-    if (freshRate.net_charge !== data.service?.netCharge) {
+    if (freshRate.netCharge !== data.service?.netCharge) {
       setData({
         service: {
           ...data.service,
-          serviceType: freshRate.code,
-          serviceDescription: freshRate.name,
-          netCharge: freshRate.net_charge,
+          netCharge: freshRate.netCharge,
           currency: freshRate.currency,
-          deliveryDay: freshRate.delivery_day ?? '',
-          transitTime: freshRate.transit_time ? new Date(freshRate.transit_time) : new Date(),
+          deliveryDay: freshRate.deliveryDay ?? '',
+          transitTime: freshRate.transitTime ? new Date(freshRate.transitTime) : new Date(),
         } as any,
       })
     }
@@ -224,6 +253,7 @@ export default function CheckoutStepper() {
                 emptyAddress={makeEmptyAddress()}
                 rates={rates}
                 handoffs={handoffs}
+                services={serviceOptions}
                 isLoading={ratesLoading}
               />
             ),
@@ -260,15 +290,13 @@ export default function CheckoutStepper() {
                 }
                 disabled={
                   (stepper.current.id === 'shipping' &&
-                    (!isShippingStepComplete || !data.service?.id || syncCheckout.isPending)) ||
+                    (!isShippingStepComplete || !data.service?.id)) ||
                   (stepper.current.id === 'payout' &&
                     (!data.payoutValid || savePayout.isPending))
                 }
               >
                 {stepper.current.id === 'shipping'
-                  ? syncCheckout.isPending
-                    ? 'Saving…'
-                    : 'Go to Payment'
+                  ? 'Go to Payment'
                   : stepper.current.id === 'payout'
                   ? savePayout.isPending
                     ? 'Saving…'
