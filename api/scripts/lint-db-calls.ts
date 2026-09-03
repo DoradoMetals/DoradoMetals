@@ -20,7 +20,7 @@
 // *** WHAT IT CANNOT SEE. Written down because a detector's blind spot reports
 // as CLEAN (D95), and this one guards the executor that keeps a repo call inside
 // its caller's transaction. ***
-//   - IT WALKS features/ ONLY. shared/ and providers/ are not
+//   - IT WALKS db/, domain/ and transport/ ONLY. shared/ and providers/ are not
 //     scanned. Checked at the time of writing: the only `query(`/`pool.query(`
 //     outside those two are the executor itself (shared/db/query.ts), the
 //     transaction helper's own BEGIN/COMMIT/ROLLBACK, and the test pool - all
@@ -60,7 +60,7 @@ export async function getOne(id, client) {
   // malformed.
   const LOW = { LINT_DB_FILE_FLOOR: "0", LINT_DB_CALL_FLOOR: "0" };
   const with_ = (extra: string) => ({
-    "features/thing/repo.exchange.js": clean + "\n" + extra,
+    "db/thing/repo.exchange.js": clean + "\n" + extra,
   });
   await selfTest({
     script: import.meta.filename,
@@ -110,13 +110,6 @@ export async function getOne(id, client) {
 
 function sourceFiles(dir: string): string[] {
   const out: string[] = [];
-  // A directory that has stopped existing is a BROKEN WALK, not an empty one.
-  // `features/` or `legacy/` vanishing is exactly the shape of D120's rot:
-  // walk nothing, find nothing, exit 0.
-  if (!fs.existsSync(dir)) {
-    console.error(`lint:db cannot read ${dir} - the walk is broken, not the codebase clean`);
-    process.exit(1);
-  }
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
     if (entry.name === "node_modules") continue;
     const full = path.join(dir, entry.name);
@@ -179,7 +172,22 @@ const problems: string[] = [];
 let filesScanned = 0;
 let callsChecked = 0;
 
-for (const file of sourceFiles(path.join(ROOT, "features"))) {
+// Three layer roots instead of one `features/` tree (Phase 0c restructure).
+// A directory that has stopped existing is a BROKEN WALK, not an empty one -
+// `features/` or `legacy/` vanishing is exactly the shape of D120's rot: walk
+// nothing, find nothing, exit 0. So this fails hard only if NONE of the three
+// resolve; a synthetic self-test tree legitimately supplies just one of them.
+const LAYER_ROOTS = ["db", "domain", "transport"];
+const existingRoots = LAYER_ROOTS.filter((l) => fs.existsSync(path.join(ROOT, l)));
+if (!existingRoots.length) {
+  console.error(
+    `lint:db cannot read any of ${LAYER_ROOTS.map((l) => path.join(ROOT, l)).join(", ")} - ` +
+      `the walk is broken, not the codebase clean`
+  );
+  process.exit(1);
+}
+
+for (const file of existingRoots.flatMap((l) => sourceFiles(path.join(ROOT, l)))) {
   const src = fs.readFileSync(file, "utf8");
   filesScanned++;
   const rel = path.relative(ROOT, file);

@@ -28,7 +28,11 @@ import fs from "node:fs";
 import path from "node:path";
 
 const ROOT = path.join(import.meta.dirname, "..");
-const FEATURES = path.join(ROOT, "features");
+// Three layer roots instead of one `features/` tree (Phase 0c restructure): a
+// feature's repo, service and routes now live in different roots, so the
+// "feature" a file belongs to is computed relative to whichever of the three
+// contains it, with the layer name itself stripped same as sql/ and legacy/.
+const LAYER_ROOTS = ["db", "domain", "transport"].map((l) => path.join(ROOT, l));
 
 // A table with more than one writing feature, where that is correct and why.
 // Pinned from BOTH sides like audit:indexes: an entry that stops being true
@@ -90,10 +94,12 @@ const walk = (dir, out = []) => {
   return out;
 };
 
-// The feature a file belongs to: the path under features/ with any sql/ segment
-// and the filename removed. features/shipping/shipments/sql/x.sql -> shipping/shipments
+// The feature a file belongs to: the path under its layer root with the layer
+// name, any sql/ segment, and the filename removed.
+// db/shipping/shipments/sql/x.sql -> shipping/shipments
 const featureOf = (file) => {
-  const rel = path.relative(FEATURES, file);
+  const root = LAYER_ROOTS.find((r) => file.startsWith(r + path.sep));
+  const rel = path.relative(root, file);
   const parts = rel.split(path.sep).slice(0, -1).filter((p) => p !== "sql" && p !== "legacy");
   return parts.join("/") || "(root)";
 };
@@ -105,7 +111,7 @@ const strip = (src) =>
 
 const WRITE = /\b(?:INSERT\s+INTO|UPDATE|DELETE\s+FROM)\s+(?:ONLY\s+)?([a-z_]+)\.([a-z_]+)/gi;
 
-const files = [...walk(FEATURES)];
+const files = LAYER_ROOTS.flatMap((r) => walk(r));
 const writers = new Map();   // "schema.table" -> Map(feature -> Set(file))
 let statements = 0;
 

@@ -45,7 +45,7 @@ The abandoned attempt is on the `api_overhaul` branch. **Do not resume that bran
 
 ## The process
 
-Two features are already done and are the reference: `leads` and `rates`. Read `api/features/leads/` before starting a new one.
+Two features are already done and are the reference: `leads` and `rates`. Read `api/db/leads/`, `api/domain/leads/` and `api/transport/leads/` before starting a new one (Phase 0c split `features/<name>/` into these three layer roots; the feature's files did not change, only which root each lives under).
 
 ### 1. Assess the gap
 

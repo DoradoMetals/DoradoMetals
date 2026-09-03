@@ -58,9 +58,9 @@ if (process.argv.includes("--self-test")) {
         name: "a discarded UPDATE result is seen",
         rootEnv: "AUDIT_SILENT_ROOT",
         files: {
-          "features/x/sql/bump.sql": "UPDATE t SET a = 1 WHERE id = $1 RETURNING id",
-          "features/x/repo.ts": repo,
-          "features/x/service.ts": "import * as xRepo from \"./repo.ts\";\nawait xRepo.bump(id, c);\n",
+          "db/x/sql/bump.sql": "UPDATE t SET a = 1 WHERE id = $1 RETURNING id",
+          "db/x/repo.ts": repo,
+          "domain/x/service.ts": "import * as xRepo from \"#db/x/repo.ts\";\nawait xRepo.bump(id, c);\n",
         },
         expect: "fail",
         mustPrint: "bump",
@@ -69,9 +69,9 @@ if (process.argv.includes("--self-test")) {
         name: "an observed UPDATE result is not reported",
         rootEnv: "AUDIT_SILENT_ROOT",
         files: {
-          "features/x/sql/bump.sql": "UPDATE t SET a = 1 WHERE id = $1 RETURNING id",
-          "features/x/repo.ts": repo,
-          "features/x/service.ts": "import * as xRepo from \"./repo.ts\";\nconst changed = await xRepo.bump(id, c);\n",
+          "db/x/sql/bump.sql": "UPDATE t SET a = 1 WHERE id = $1 RETURNING id",
+          "db/x/repo.ts": repo,
+          "domain/x/service.ts": "import * as xRepo from \"#db/x/repo.ts\";\nconst changed = await xRepo.bump(id, c);\n",
         },
         expect: "pass",
         mustPrint: "0 discarded",
@@ -80,9 +80,9 @@ if (process.argv.includes("--self-test")) {
         name: "an INSERT is not a finding",
         rootEnv: "AUDIT_SILENT_ROOT",
         files: {
-          "features/x/sql/bump.sql": "INSERT INTO t (id) VALUES ($1) RETURNING id",
-          "features/x/repo.ts": repo,
-          "features/x/service.ts": "import * as xRepo from \"./repo.ts\";\nawait xRepo.bump(id, c);\n",
+          "db/x/sql/bump.sql": "INSERT INTO t (id) VALUES ($1) RETURNING id",
+          "db/x/repo.ts": repo,
+          "domain/x/service.ts": "import * as xRepo from \"#db/x/repo.ts\";\nawait xRepo.bump(id, c);\n",
         },
         expect: "pass",
         mustPrint: "0 discarded",
@@ -102,7 +102,7 @@ const FAIL_ON_FINDINGS = process.env.AUDIT_SILENT_ROOT != null;
 // deleted - forces its acceptance out of this map rather than sitting here
 // describing something that no longer exists.
 const ACCEPTED: Record<string, string> = {
-  "features/sales-tax/service.ts::tax.accrue":
+  "domain/sales-tax/service.ts::tax.accrue":
     "scoped to `reached_nexus = true`, and sql/accrue.sql says so in its own " +
     "header: a state below its threshold accrues nothing, so an UPDATE matching " +
     "no row is the correct outcome and not a failure. The legacy implementation " +
@@ -124,12 +124,15 @@ function walk(dir: string, out: string[] = []): string[] {
   return out;
 }
 
-const files = walk(path.join(ROOT, "features"));
+// Three layer roots instead of one `features/` tree (Phase 0c restructure):
+// db/ holds the repo + sql, domain/ holds the service that calls it. A scan
+// of only one root would miss the caller half entirely.
+const files = ["db", "domain", "transport"].flatMap((layer) => walk(path.join(ROOT, layer)));
 const rel = (f: string) => path.relative(ROOT, f);
 
 // 1. every .sql that is an UPDATE or a DELETE, and whether it RETURNs.
 type Stmt = { verb: string; returning: boolean };
-const statements = new Map<string, Stmt>();   // "features/x/sql/bump" -> stmt
+const statements = new Map<string, Stmt>();   // "db/x/sql/bump" -> stmt
 for (const f of files.filter((f) => f.endsWith(".sql"))) {
   const body = readFileSync(f, "utf8")
     .split("\n").filter((l) => !l.trim().startsWith("--")).join("\n").trim();
@@ -182,9 +185,11 @@ for (const f of files.filter((f) => /repo(\.\w+)?\.(ts|js)$/.test(f))) {
 const byFile = new Map<string, Fn[]>();
 for (const fn of fns) byFile.set(fn.file, [...(byFile.get(fn.file) ?? []), fn]);
 
-// "#features/x/repo.ts" or "./repo.ts" -> "features/x/repo.ts"
+// "#db/x/repo.ts", "#domain/x/service.ts" or "./repo.ts" -> "db/x/repo.ts" etc.
 function resolveSpecifier(fromFile: string, spec: string): string | null {
-  if (spec.startsWith("#features/")) return spec.slice(1);
+  if (spec.startsWith("#db/") || spec.startsWith("#domain/") || spec.startsWith("#transport/")) {
+    return spec.slice(1);
+  }
   if (spec.startsWith(".")) {
     return path.normalize(path.join(path.dirname(fromFile), spec));
   }

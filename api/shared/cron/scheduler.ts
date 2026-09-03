@@ -1,9 +1,9 @@
-import { sweepSettledIntents } from "#features/orders/reconcile.service.ts";
+import { sweepSettledIntents } from "#domain/orders/reconcile.service.ts";
 import { reportError } from "#shared/observability/report.ts";
 import cron from "node-cron";
 import { logger } from "#shared/logging/logger.ts";
 
-import { updateSpotPrices } from "#features/spots/service.ts";
+import { updateSpotPrices } from "#domain/spots/service.ts";
 
 type Job = {
   name: string;

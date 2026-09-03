@@ -1,6 +1,6 @@
 // Tests that can pass while asserting nothing.
 //
-// WHY THIS EXISTS. features/shipping/shipments/tests/service.test.js opened
+// WHY THIS EXISTS. domain/shipping/shipments/tests/service.test.js opened
 // every one of its seven tests with
 //
 //     const orderId = await anOrderWithoutShipment(c);
@@ -82,7 +82,8 @@ const stripComments = (s) =>
 
 const findings = [];
 
-const files = walk(path.join(ROOT, "features")).concat(walk(path.join(ROOT, "shared")));
+// Three layer roots instead of one `features/` tree (Phase 0c restructure).
+const files = ["db", "domain", "transport", "shared"].flatMap((l) => walk(path.join(ROOT, l)));
 
 // THE FLOOR. A walker that stops finding files reports a clean sweep, which is
 // the failure mode this whole script exists to prevent.
@@ -98,7 +99,7 @@ for (const file of files) {
   const rel = path.relative(ROOT, file);
   const whole = stripComments(source);
 
-  // Literal arrays declared at MODULE scope count too. features/media/pdfs
+  // Literal arrays declared at MODULE scope count too. domain/media/pdfs
   // declares `const ROUTES = [...]` above its tests and loops over it inside
   // them - a fixed list of four, and reporting it was noise.
   const fileLiterals = new Set(
@@ -106,7 +107,7 @@ for (const file of files) {
   );
 
   // A floor asserted in a DEDICATED test counts as well.
-  // features/authorization/admin-routes.test.js has a whole test that says
+  // domain/authorization/admin-routes.test.js has a whole test that says
   // `assert.ok(routes.length >= 70, "the scanner is not working")` and then
   // three others that loop over the same list. That is the right shape - the
   // claim is made once, loudly - and flagging the loops would punish it.

@@ -281,7 +281,10 @@ test("public reads return JSON", async () => {
 import fs from "node:fs";
 import path from "node:path";
 
-const FEATURES = path.join(import.meta.dirname, "..", "..", "..", "features");
+// Phase 0c restructure: routes.ts and controller.ts both live under transport/ now
+// (db/ and domain/ hold no route or controller files), so this walk moved
+// from features/ to transport/ without changing shape.
+const FEATURES = path.join(import.meta.dirname, "..", "..", "..", "transport");
 
 // Exported from a controller and deliberately not routed.
 //
@@ -447,7 +450,7 @@ test("no public endpoint reads a user id from the request", () => {
     // A sub-resource route declared as "/" carries its path in its MOUNTS
     // (ruling 13), so the tail above never matches. The URL's own segments
     // name the feature directory: /api/payments/methods/ is
-    // features/payments/methods/routes.ts. Only the exact directory is read,
+    // transport/payments/methods/routes.ts. Only the exact directory is read,
     // so a "/" in some other resource's routes cannot be mistaken for it.
     const segments = full.replace(/^\/api\//, "").split("/").filter(Boolean);
     const dir = path.join(FEATURES, ...segments);

@@ -40,7 +40,7 @@
 //   - A ROUTE WHOSE PATH IS NOT A LITERAL. The regex requires a quoted path.
 //   - WHAT A GUARD ACTUALLY DOES. This is a census of NAMES. That `requireAdmin`
 //     is in front of an endpoint is not proof that it checks admin - that is
-//     features/authorization/admin-routes.test.js's job, and it consumes this
+//     domain/authorization/admin-routes.test.js's job, and it consumes this
 //     table, which is why a route missing from here is missing from that too.
 //
 //   pnpm --filter @dorado/api audit:routes
@@ -60,8 +60,8 @@ if (process.argv.includes("--self-test")) {
   // four assumptions this file has held at one time or another is exercised by
   // it, and each case below breaks exactly one.
   const app = (mounts: string) =>
-    `import ordersRoutes from ${Q}#features/orders/routes.ts${Q};\n` +
-    `import { purchaseOrderRoutes, api } from ${Q}#features/orders/creates.routes.ts${Q};\n` +
+    `import ordersRoutes from ${Q}#transport/orders/routes.ts${Q};\n` +
+    `import { purchaseOrderRoutes, api } from ${Q}#transport/orders/creates.routes.ts${Q};\n` +
     mounts;
   const MOUNTS =
     'app.use("/api/orders", ordersRoutes);\n' +
@@ -75,9 +75,9 @@ api.post("/create_review", requireUser, requireOwnOrder, createReview);
 `;
   const base = (over: Record<string, string> = {}): Record<string, string> => ({
     "app.ts": app(MOUNTS),
-    "features/orders/routes.ts":
+    "transport/orders/routes.ts":
       "const router = express.Router();\nrouter.get(\"/\", requireUser, list);\nexport default router;\n",
-    "features/orders/creates.routes.ts": creates,
+    "transport/orders/creates.routes.ts": creates,
     ...over,
   });
   const CONTROLS = JSON.stringify({
@@ -102,7 +102,7 @@ api.post("/create_review", requireUser, requireOwnOrder, createReview);
         // failure a floor alone cannot see.
         rootEnv: "ROUTE_GUARDS_ROOT",
         env: { ROUTE_GUARDS_FLOOR: "1", ROUTE_GUARDS_CONTROLS: CONTROLS },
-        files: (() => { const f = base(); f["features/orders/creates.ts"] = f["features/orders/creates.routes.ts"]; delete f["features/orders/creates.routes.ts"]; return f; })(),
+        files: (() => { const f = base(); f["transport/orders/creates.ts"] = f["transport/orders/creates.routes.ts"]; delete f["transport/orders/creates.routes.ts"]; return f; })(),
         expect: "fail", mustPrint: "not in the census at all",
       },
       {
@@ -132,7 +132,7 @@ api.post("/create_review", requireUser, requireOwnOrder, createReview);
       {
         name: "a missing app.ts is a broken scan, not an empty API",
         rootEnv: "ROUTE_GUARDS_ROOT", env,
-        files: { "features/orders/routes.ts": "const router = express.Router();\n" },
+        files: { "transport/orders/routes.ts": "const router = express.Router();\n" },
         expect: "fail", mustPrint: "the scan is broken",
       },
     ],
@@ -147,7 +147,7 @@ function walk(dir: string, out: string[] = []): string[] {
     // `routes.ts` AND `<something>.routes.ts`. Wave 5A dissolved
     // features/purchase-orders and features/sales-orders into features/orders,
     // and the two legacy create namespaces they mounted became
-    // features/orders/creates.routes.ts - one file declaring TWO routers,
+    // transport/orders/creates.routes.ts - one file declaring TWO routers,
     // because /api/purchase_orders and /api/sales_orders are two mounts and
     // ruling 13 says a URL does not move when a file does. This walk matched
     // the exact filename `routes.ts` only, so that file was not scanned at
@@ -159,11 +159,11 @@ function walk(dir: string, out: string[] = []): string[] {
 }
 
 // Where each routes module is mounted, read from app.ts rather than assumed -
-// the prefix is not derivable from the folder name (features/refiners mounts at
-// /api/suppliers, features/media at /api/images, features/checkout at /api/cart).
-if (!existsSync(join(ROOT, "app.ts")) || !existsSync(join(ROOT, "features"))) {
+// the prefix is not derivable from the folder name (transport/refiners mounts at
+// /api/suppliers, transport/media at /api/images, transport/checkout at /api/cart).
+if (!existsSync(join(ROOT, "app.ts")) || !existsSync(join(ROOT, "transport"))) {
   console.error(
-    `route-guards cannot read ${join(ROOT, "app.ts")} or ${join(ROOT, "features")} - ` +
+    `route-guards cannot read ${join(ROOT, "app.ts")} or ${join(ROOT, "transport")} - ` +
       `the scan is broken, and a census that cannot open the app must not report one`
   );
   process.exit(2);
@@ -181,7 +181,7 @@ const appSrc = readFileSync(join(ROOT, "app.ts"), "utf8");
 const importedAs = new Map<string, string>();
 const routerImports = (src: string): Map<string, string> => {
   const out = new Map<string, string>();
-  const def = /import\s+(\w+)\s+from\s+["']#features\/([^"']+?)\.(?:js|ts)["']/g;
+  const def = /import\s+(\w+)\s+from\s+["']#transport\/([^"']+?)\.(?:js|ts)["']/g;
   let m;
   while ((m = def.exec(src))) {
     // `/routes` AND `.routes` - a file may carry a dotted router name
@@ -189,16 +189,16 @@ const routerImports = (src: string): Map<string, string> => {
     // default-import branch anchored on the slash form only, so a dotted
     // default export left the census silently. Same class of silence as the
     // creates.routes.ts note on the walk.
-    if (/(^|[\/.])routes$/.test(m[2])) out.set(m[1], `features/${m[2]}`);
+    if (/(^|[\/.])routes$/.test(m[2])) out.set(m[1], `transport/${m[2]}`);
   }
-  const named = /import\s+\{([^}]+)\}\s+from\s+["']#features\/([^"']+?)\.(?:js|ts)["']/g;
+  const named = /import\s+\{([^}]+)\}\s+from\s+["']#transport\/([^"']+?)\.(?:js|ts)["']/g;
   while ((m = named.exec(src))) {
     if (!/routes$/.test(m[2])) continue;
     for (const raw of m[1].split(",")) {
       const parts = raw.trim().split(/\s+as\s+/);
       const exported = parts[0].trim();
       const local = (parts[1] ?? parts[0]).trim();
-      if (exported) out.set(local, `features/${m[2]}::${exported}`);
+      if (exported) out.set(local, `transport/${m[2]}::${exported}`);
     }
   }
   return out;
@@ -250,8 +250,8 @@ const unresolvedMounts: string[] = [];
 
 // NESTED MOUNTS, resolved transitively (ruling 26c). A parent's routes.ts now
 // MOUNTS its children rather than declaring their paths -
-// features/orders/routes.ts does `router.use("/", itemRoutes)` and
-// features/fulfillments/routes.ts does `router.use("/methods", methodRoutes)` -
+// transport/orders/routes.ts does `router.use("/", itemRoutes)` and
+// transport/fulfillments/routes.ts does `router.use("/methods", methodRoutes)` -
 // so a child's prefix is the parent's mount plus the segment the parent mounted
 // it at, and it is not in app.ts at all.
 //
@@ -260,7 +260,7 @@ const unresolvedMounts: string[] = [];
 // rename). The guards were still reported, so the count stayed right and the
 // URLs quietly went missing - which is the failure mode worth naming twice.
 {
-  const routeFiles = walk(join(ROOT, "features"));
+  const routeFiles = walk(join(ROOT, "transport"));
   // file key -> [{ at, childKey }]
   const nested = new Map<string, { at: string; childKey: string }[]>();
   for (const file of routeFiles) {
@@ -298,7 +298,7 @@ const unresolvedMounts: string[] = [];
 }
 
 // THE CENSUS ROW. Declared, because `routes` is exported and consumed by
-// features/authorization/tests/admin-routes.test.ts - and because every
+// domain/authorization/tests/admin-routes.test.ts - and because every
 // downstream filter and every `[["ADMIN", admin], ...]` grouping below was
 // inferring its element type from this literal, which is how `group[1]`
 // widened to `string | Route[]` and `r.verb` became an error the moment
@@ -314,7 +314,7 @@ export type Route = {
 };
 
 const routes: Route[] = [];
-for (const file of walk(join(ROOT, "features"))) {
+for (const file of walk(join(ROOT, "transport"))) {
   const src = readFileSync(file, "utf8");
   // <router>.<verb>( "<path>" , <middleware list> , <handler> )
   //
@@ -359,7 +359,7 @@ const open = routes.filter((r) => !r.guards.length);
 export const allRoutes = routes;
 export const adminRoutes = admin;
 
-// Quiet when imported - features/authorization/admin-routes.test.js consumes
+// Quiet when imported - domain/authorization/admin-routes.test.js consumes
 // the table, and a test suite should not have a scanner's output in it.
 const isMain =
   process.argv[1] !== undefined &&

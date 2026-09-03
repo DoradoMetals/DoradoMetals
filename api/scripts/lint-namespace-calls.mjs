@@ -1,7 +1,7 @@
 // Every `ns.member` reached through an `import * as ns` must actually exist on
 // that module.
 //
-// WHY THIS EXISTS. features/payments/service.ts awaited
+// WHY THIS EXISTS. domain/payments/service.ts awaited
 // addressService.getAddressFromId for EIGHT MONTHS. Nothing defined it - it was
 // lost in be03eed3, the December 2025 feature slicing - and
 // POST /api/stripe/update_payment_intent answered 500 on every call as a
@@ -44,7 +44,7 @@
 //      pnpm --filter @dorado/api lint:namespace-calls:self-test
 //
 // THIS IS THE D110 GUARD, and it is worth naming: the factoring pass that moved
-// `getSpotsByOrder` to `features/refiners/spots/service.ts` left the caller in
+// `getSpotsByOrder` to `domain/refiners/spots/service.ts` left the caller in
 // scripts/ pointing at a namespace that no longer had it, and validate:wire
 // died at runtime with "is not a function". lint:imports could not see it - the
 // specifier still RESOLVED. This walks api/ ENTIRELY, scripts/ included, which
@@ -62,11 +62,11 @@ if (process.argv.includes("--self-test")) {
   // inside the walk, and a literal one here becomes a finding in the real run.
   const Q = String.fromCharCode(34);
   const base = {
-    "package.json": JSON.stringify({ imports: { "#shared/*": "./shared/*", "#features/*": "./features/*" } }),
-    "features/spots/service.js": "export function forOrder() {}\nexport const other = 1;\n",
+    "package.json": JSON.stringify({ imports: { "#shared/*": "./shared/*", "#example/*": "./example/*" } }),
+    "example/spots/service.js": "export function forOrder() {}\nexport const other = 1;\n",
   };
   const caller = (call) =>
-    `import * as spots from ${Q}#features/spots/service.js${Q};\n${call}\n`;
+    `import * as spots from ${Q}#example/spots/service.js${Q};\n${call}\n`;
   const LOW = { LINT_NS_FLOOR: "1" };
   await selfTest({
     script: import.meta.filename,
@@ -86,13 +86,13 @@ if (process.argv.includes("--self-test")) {
       {
         name: "a member that does exist passes",
         rootEnv: "LINT_NS_ROOT", env: LOW,
-        files: { ...base, "features/x/caller.js": caller("export const r = spots.forOrder();") },
+        files: { ...base, "example/x/caller.js": caller("export const r = spots.forOrder();") },
         expect: "pass", mustPrint: "0 unresolved",
       },
       {
         name: "the floor itself fires on a tree far below it",
         rootEnv: "LINT_NS_ROOT",
-        files: { ...base, "features/x/caller.js": caller("export const r = spots.forOrder();") },
+        files: { ...base, "example/x/caller.js": caller("export const r = spots.forOrder();") },
         expect: "fail", mustPrint: "the walk is broken",
       },
     ],
@@ -118,7 +118,7 @@ function sourceFiles(dir) {
 // TWO passes over the source, because the two questions need different views.
 //
 // stripComments keeps string CONTENTS, and is what finds `import * as ns from
-// "#features/x"` - the specifier is inside a string, so blanking it leaves
+// "#example/x"` - the specifier is inside a string, so blanking it leaves
 // nothing to resolve. That was the first version of this and it reported "no
 // namespace calls at all", which the guard at the bottom caught rather than
 // letting it pass clean.

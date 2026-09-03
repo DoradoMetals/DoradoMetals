@@ -23,7 +23,7 @@ const ROOT = path.resolve(import.meta.dirname, "../../..");
 const PAIRS = [
   {
     what: "the rate resolution",
-    api: "api/features/rates/utils/resolveRate.ts",
+    api: "api/domain/rates/utils/resolveRate.ts",
     web: "frontend/features/rates/utils/resolveRate.ts",
     // formatRate is frontend-only and is display, not arithmetic.
     shared: ["getRateBand", "getRatePct", "sumContentByMetal"],

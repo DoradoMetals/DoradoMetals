@@ -24,7 +24,14 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 
-const FEATURES = path.join(import.meta.dirname, "..", "..", "..", "features");
+// Phase 0c restructure split features/ into three layer roots; withTransaction
+// callers live mostly in domain/, but this walks all three so a repo or an
+// http handler that opens one directly is still seen. FEATURES stays the
+// relative-path base (api/) so a hit still prints as "domain/orders/service.ts",
+// not an absolute path.
+const FEATURES = path.join(import.meta.dirname, "..", "..", "..");
+const LAYER_ROOTS = ["db", "domain", "transport"].map((l) => path.join(FEATURES, l));
+const walkAll = (): string[] => LAYER_ROOTS.flatMap((r) => walk(r));
 
 // The irreversible things this codebase actually does.
 const EXTERNAL = [
@@ -90,7 +97,7 @@ function sideEffectsInTransactions(file: string): string[] {
 }
 
 test("there are transactions to check", () => {
-  const withTx = walk(FEATURES).filter((f) =>
+  const withTx = walkAll().filter((f) =>
     /withTransaction\(/.test(fs.readFileSync(f, "utf8"))
   );
   assert.ok(
@@ -104,7 +111,7 @@ test("there are transactions to check", () => {
 });
 
 test("no irreversible side effect happens inside a transaction", () => {
-  const hits = walk(FEATURES).flatMap(sideEffectsInTransactions);
+  const hits = walkAll().flatMap(sideEffectsInTransactions);
   assert.deepEqual(
     hits,
     [],

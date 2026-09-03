@@ -148,7 +148,7 @@ const REAL_EXCUSED = {
     "money - so its guards are the same conditional-from-Pending statements the " +
     "webhook uses (a retry or a race is a polite no-op), and there is no " +
     "detector to attack: every write path is exercised by " +
-    "features/orders/tests/reconcile.test.ts against real Postgres instead.",
+    "domain/orders/tests/reconcile.test.ts against real Postgres instead.",
   },
   "api/scripts/clean-dual-run-orphans.mjs": {
     kind: "action",

@@ -18,7 +18,7 @@
 // which is reserved by RFC 2606 and can never receive mail.
 //
 // NO MAIL LEAVES. better-auth is configured with sendOnSignUp, so this runs
-// with NODE_ENV=test, under which features/emails/utils/sendEmail refuses to
+// with NODE_ENV=test, under which providers/emails/nodemailer.ts's sendEmail refuses to
 // construct the real transport at all. A send is not merely suppressed, it is
 // impossible.
 process.env.NODE_ENV = "test";
@@ -26,7 +26,7 @@ process.env.NODE_ENV = "test";
 import "#env";
 import pool from "#db";
 import query from "#shared/db/query.ts";
-import { auth } from "#features/auth/client.ts";
+import { auth } from "#domain/auth/client.ts";
 
 export const E2E_USERS = {
   admin: {

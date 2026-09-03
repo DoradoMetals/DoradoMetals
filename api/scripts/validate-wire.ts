@@ -58,17 +58,17 @@ const add = (name: string, schema: WireSchema, load: () => unknown, many = true)
 // assembled in JS from two repos instead of by a JOIN, which is a new way for a
 // field to go missing, and BOTH shapes are still checked - the internal one and
 // what the adapter flattens it to.
-const carriersService = await import("#features/shipping/carriers/service.ts");
+const carriersService = await import("#domain/shipping/carriers/service.ts");
 add("GET /carriers", c.Carrier, () => carriersService.getAllCarriers());
 // Carrier services is restructured - one implementation. Kept as a DIRECT
 // check: it is the feature whose projection renames three columns back, so a
 // contract that stopped being exercised would stop noticing a rename escaping.
-const servicesService = await import("#features/shipping/services/service.ts");
+const servicesService = await import("#domain/shipping/services/service.ts");
 add("GET /carrier_services", c.CarrierService, () => servicesService.getAllServices());
 // Spots: one implementation after the restructure.
 // Rates: one implementation after the restructure.
 // Reviews: one implementation after the restructure, so no both-ways to run.
-// Leads is checked by features/leads/tests/endpoints.test.ts instead:
+// Leads is checked by domain/leads/tests/endpoints.test.ts instead:
 // after the restructure it has one implementation, so there is no "both ways"
 // to run. Its wire shape is the table's own row type.
 // Both shapes. The repos return the nested one; the adapter flattens it to what
@@ -79,7 +79,7 @@ add("GET /carrier_services", c.CarrierService, () => servicesService.getAllServi
 // three of the eight fields on this shape - order_id, user_id and carrier - do
 // not exist as columns any more and are reconstructed through the shipment, so
 // the contract is checking a composition rather than a projection.
-const pickupsService = await import("#features/shipping/pickups/service.ts");
+const pickupsService = await import("#domain/shipping/pickups/service.ts");
 add("GET /carrier_pickups", c.CarrierPickup, () => pickupsService.getAll());
 
 // Addresses were not checked here at all, and they are one of the two features
@@ -99,7 +99,7 @@ const addressUser = withAddresses[0]?.user_id;
 // where dropping it would cost the most: `label` and `default_shipping` become
 // `name` and `is_default` on the wire, and those two aliases are the whole
 // reason the address book renders a name at all.
-const addressesService = await import("#features/places/addresses/service.ts");
+const addressesService = await import("#domain/places/addresses/service.ts");
 const listAddresses = async () => (addressUser ? await addressesService.list(addressUser) : []);
 // The split wire (2026-08-27): the address rows and the caller's
 // relationships are separate endpoints, joined client-side by address_id.
@@ -115,7 +115,7 @@ add("GET /addresses/user_addresses", c.UserAddress, async () =>
 // Both shapes, as with products: the repos return media.images' own name and
 // the adapter converts down to what the frontend reads.
 // Media: one implementation after the restructure, so no both-ways to run.
-// Its wire rename is covered by features/media/tests/unit.test.ts.
+// Its wire rename is covered by domain/media/tests/unit.test.ts.
 // Users was the last one-way check with a next implementation to compare
 // against. auth.users is where exchange.users lands, repo.next.ts projects the
 // same columns back, and nothing was proving that until now.
@@ -154,8 +154,8 @@ if (!ledgerUser) {
   // ONE IMPLEMENTATION AFTER THE RESTRUCTURE, so there is no both-ways to run -
   // but the shape is still worth checking, and this is the ledger, so it is
   // checked directly rather than dropped. Still many=false: the endpoint hands
-  // back one row on purpose (see features/transactions/service.ts).
-  const transactionsService = await import("#features/transactions/service.ts");
+  // back one row on purpose (see domain/transactions/service.ts).
+  const transactionsService = await import("#domain/transactions/service.ts");
   add(
     "GET /get_transactions",
     c.AccountTransaction,
@@ -172,8 +172,8 @@ if (!ledgerUser) {
 // same toWire the controllers use, because since the wave-2 final form the
 // wire is the BARE fulfillments row: the composed shape (method + children)
 // is internal to the service and must never reach a response.
-const fulfillments = await import("#features/fulfillments/service.ts");
-const fulfillmentMethods = await import("#features/fulfillments/methods/repo.ts");
+const fulfillments = await import("#domain/fulfillments/service.ts");
+const fulfillmentMethods = await import("#db/fulfillments/methods/repo.ts");
 
 add("GET /fulfillments/methods (purchase)", c.FulfillmentMethod, () =>
   fulfillmentMethods.getAvailable("purchase")
@@ -189,7 +189,7 @@ add("GET /fulfillments/methods/all", c.FulfillmentMethod, () =>
 // toWire, which strips the internal composition (the method object the
 // service's own logic branches on, and the child rows) down to the BARE
 // fulfillments.fulfillments row the contract declares (wave-2 final form).
-const fulfillmentCompose = await import("#features/fulfillments/compose.ts");
+const fulfillmentCompose = await import("#domain/fulfillments/compose.ts");
 add("GET /fulfillments/get_for_order", c.Fulfillment, async () => {
   const { rows } = await pool.query(`SELECT order_id FROM fulfillments.fulfillments`);
   const out = [];
@@ -234,7 +234,7 @@ const intents = async (m: Record<string, unknown>) => {
 add(
   "GET /stripe/get_sales_order_payment_intent [payments]",
   c.PaymentIntent,
-  async () => intents(await import("#features/payments/repo.ts"))
+  async () => intents(await import("#db/payments/repo.ts"))
 );
 
 // The catalogue. The other feature that had no contract, and one the frontend
@@ -251,7 +251,7 @@ add(
 // run. Kept as a DIRECT check, and this is the one to keep hardest: the
 // storefront row is no longer a projection, it is a projection plus two labels
 // attached in JS, so a field can now go missing in a place SQL never could.
-const productsService = await import("#features/products/service.ts");
+const productsService = await import("#domain/products/service.ts");
 add("GET /products", c.Bullion, () => productsService.getAllProducts());
 add("GET /products (sell)", c.Bullion, () => productsService.getSellProducts());
 
@@ -259,10 +259,10 @@ add("GET /products (sell)", c.Bullion, () => productsService.getSellProducts());
 // order on the wire is its orders.orders row plus `totals`, and every other
 // piece of it is a parent-path read checked on its own below. The composed
 // PurchaseOrder / SalesOrder contracts died with the slot family they
-// described; features/*/read.service.ts still assembles an order for the
+// described; domain/orders/read.service.ts still assembles an order for the
 // API's own pricing and email work, and `diff` plus the decomposition
 // verifiers are what check THAT.
-const orderRead = await import("#features/orders/read.ts");
+const orderRead = await import("#domain/orders/read.ts");
 const orders = await orderRead.list({ direction: "purchase" });
 add("GET /orders", c.Order, () => orderRead.list({}));
 
@@ -271,20 +271,20 @@ add("GET /orders", c.Order, () => orderRead.list({}));
 // deliberately NOT parsed here: a zod failure prints the offending value,
 // and that shape's values are full bank numbers - the one thing this project
 // never logs. Its shape is pinned by refiner-edits.test.js on keys.
-const orderSpotsRepo = await import("#features/orders/spots/repo.ts");
+const orderSpotsRepo = await import("#db/orders/spots/repo.ts");
 add("GET /orders/:id/spots", c.OrderSpot, async () => {
   const lists = await Promise.all(orders.map((o) => orderSpotsRepo.getRowsFor(o.id)));
   return lists.flat();
 });
-const refinerOrdersService = await import("#features/refiners/orders/service.ts");
+const refinerOrdersService = await import("#domain/refiners/orders/service.ts");
 // The engagement's SPOTS moved to their own resource when refiners/spots was
 // given its own stack (ruling 26c) - the URL is unchanged, the owner is not.
-const refinerSpotsService = await import("#features/refiners/spots/service.ts");
+const refinerSpotsService = await import("#domain/refiners/spots/service.ts");
 add("GET /orders/:orderId/refiners", c.RefinerOrder, async () => {
   const reads = await Promise.all(orders.map((o) => refinerOrdersService.getByOrder(o.id)));
   return reads.filter(Boolean);
 });
-const refinerItemsRepo = await import("#features/refiners/items/repo.ts");
+const refinerItemsRepo = await import("#db/refiners/items/repo.ts");
 add("GET /orders/:orderId/refiners/items", c.RefinerItem, async () => {
   const lists = await Promise.all(orders.map((o) => refinerItemsRepo.getForOrder(o.id)));
   return lists.flat();
@@ -295,11 +295,11 @@ add("GET /orders/:orderId/refiners/spots", c.RefinerSpot, async () => {
   );
   return lists.filter(Boolean).flat();
 });
-const orderFulfillmentRead = await import("#features/fulfillments/order-read.ts");
+const orderFulfillmentRead = await import("#domain/fulfillments/order-read.ts");
 // The two bookings are their own resources (ruling 26c) - each read lives with
 // the table it returns.
-const fulfillmentPickups = await import("#features/fulfillments/pickups/service.ts");
-const fulfillmentDirects = await import("#features/fulfillments/directs/service.ts");
+const fulfillmentPickups = await import("#domain/fulfillments/pickups/service.ts");
+const fulfillmentDirects = await import("#domain/fulfillments/directs/service.ts");
 add("GET /orders/:orderId/fulfillments", c.OrderFulfillment, async () => {
   const reads = await Promise.all(
     orders.map((o) => orderFulfillmentRead.getOrderFulfillment(o.id))
@@ -311,12 +311,12 @@ add("GET /orders/:orderId/fulfillments", c.OrderFulfillment, async () => {
 // They were "nested shapes, taken off a real order" until wave 3; the reads
 // are the shapes now, and checking them here is checking what the drawers
 // actually receive.
-const orderItemsRepo = await import("#features/orders/items/repo.ts");
+const orderItemsRepo = await import("#db/orders/items/repo.ts");
 add("GET /orders/:id/items", c.OrderItem, async () => {
   const lists = await Promise.all(orders.map((o) => orderItemsRepo.getFor(o.id)));
   return lists.flat();
 });
-const shipmentOrderRead = await import("#features/shipping/shipments/order-read.ts");
+const shipmentOrderRead = await import("#domain/shipping/shipments/order-read.ts");
 add("GET /orders/:orderId/shipments", c.Shipment, async () => {
   const lists = await Promise.all(orders.map((o) => shipmentOrderRead.getForOrder(o.id)));
   return lists.flat();
@@ -332,8 +332,8 @@ add("GET /orders/:orderId/directs", c.FulfillmentDirect, async () => {
 // PAYOUTS ARE NOT PARSED HERE, and the reason is the same one that keeps
 // PayoutDetails out: a zod failure prints the offending value, and these rows
 // are bank data. The shape is pinned on keys by refiner-edits.test.js.
-const orderAddressesRepo = await import("#features/orders/addresses/repo.ts");
-const placeAddressesRepo = await import("#features/places/addresses/repo.ts");
+const orderAddressesRepo = await import("#db/orders/addresses/repo.ts");
+const placeAddressesRepo = await import("#db/places/addresses/repo.ts");
 add("GET /orders/:id/address", c.OrderAddress, async () => {
   const links = await Promise.all(orders.map((o) => orderAddressesRepo.getFor(o.id)));
   const rows = await Promise.all(
@@ -344,7 +344,7 @@ add("GET /orders/:id/address", c.OrderAddress, async () => {
   return rows.filter(Boolean);
 });
 // The CARRIER pickups, whose parent is the shipment rather than the order.
-const carrierPickupsRepo = await import("#features/shipping/pickups/repo.ts");
+const carrierPickupsRepo = await import("#db/shipping/pickups/repo.ts");
 add("GET /shipments/:id/pickups", c.ShipmentPickup, async () => {
   const lists = await Promise.all(orders.map((o) => shipmentOrderRead.getForOrder(o.id)));
   return await carrierPickupsRepo.getByShipments(lists.flat().map((s) => s.id));
@@ -359,7 +359,7 @@ add("GET /shipments/:id/pickups", c.ShipmentPickup, async () => {
 // products, the addresses user resolved above, and a gram-denominated scrap
 // line, so the parse exercises the tax, funds and weight-derivation paths and
 // not just the happy shape.
-const quotesService = await import("#features/quotes/service.ts");
+const quotesService = await import("#domain/quotes/service.ts");
 const { rows: quotable } = await pool.query(
   `SELECT id, name FROM products.bullion
     WHERE display AND sell_display AND content IS NOT NULL
@@ -423,7 +423,7 @@ add("POST /quotes/profit_breakdown", c.ProfitBreakdown, () =>
 // THE REGISTRATION FLOOR, checked BEFORE anything is parsed.
 //
 // D110: this file called `refinerOrdersService.getSpotsByOrder`, which a
-// factoring pass had moved to `features/refiners/spots/service.ts` as
+// factoring pass had moved to `domain/refiners/spots/service.ts` as
 // `forOrder()`. `lint:imports` could not see it - the specifier still RESOLVES,
 // the named export does not exist, and that is a runtime failure by
 // construction. It failed loudly THAT time because the call is on the critical
@@ -512,7 +512,7 @@ if (failures.length) {
 console.log();
 // A field nobody declared is the failure this check could not previously see.
 // zod strips unknown keys rather than rejecting them, so a response carrying an
-// extra column parsed clean - and features/products named exactly that hazard in
+// extra column parsed clean - and domain/products named exactly that hazard in
 // its own comment: "a projection that silently grew is how columns start leaking
 // onto the wire". Zero endpoints have one today, so refusing is free.
 // If this fires after a deliberate addition, regenerate the contracts.

@@ -319,7 +319,7 @@ const NOT_REBUILT = {
   // exchange never recorded a customer collecting in person or us driving out
   // to them - shipments.pickup_type held two values, both of them parcels - so
   // a rebuild from exchange cannot produce one of these and should not try.
-  // They are new capability, tested by features/fulfillments/repo.test.js
+  // They are new capability, tested by db/fulfillments/tests/repo.test.js
   // rather than by a rebuild.
   "fulfillments.pickups": "no exchange source: exchange never recorded an in-person pickup",
   "fulfillments.directs": "no exchange source: exchange never recorded a walk-in or appointment",

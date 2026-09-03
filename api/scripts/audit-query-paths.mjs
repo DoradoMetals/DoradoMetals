@@ -64,7 +64,7 @@ if (process.argv.includes("--self-test")) {
       {
         name: "the literal floor fires on a tree with no statements in it",
         rootEnv: "AUDIT_QP_ROOT",
-        files: { "features/x/service.ts": "export const noop = () => 1;\n", "shared/keep.ts": "export const k = 1;\n", },
+        files: { "domain/x/service.ts": "export const noop = () => 1;\n", "shared/keep.ts": "export const k = 1;\n", },
         expect: "fail", mustPrint: "the walk is broken, not the schema",
       },
       {
@@ -161,8 +161,11 @@ const scan = (sql, file, line) => {
   for (const g of groups) if (/\b(FROM|UPDATE|JOIN|WHERE)\b/i.test(g)) scan(g, file, line);
 };
 
-for (const f of walk(path.join(ROOT, "features"))
-  .concat(walk(path.join(ROOT, "shared")))) {
+// Three layer roots instead of one `features/` tree (Phase 0c restructure);
+// a self-test's synthetic tree legitimately supplies only some of them.
+for (const f of ["db", "domain", "transport", "shared"]
+  .filter((l) => fs.existsSync(path.join(ROOT, l)))
+  .flatMap((l) => walk(path.join(ROOT, l)))) {
   const src = fs.readFileSync(f, "utf8");
   // A .sql file IS the statement; a .ts file carries them in backticks.
   const blobs = f.endsWith(".sql")
@@ -230,7 +233,7 @@ for (const f of found) {
 const CONTROL = process.env.AUDIT_QP_CONTROL ?? "media.images|user_id";
 if (![...seen.keys()].includes(CONTROL)) {
   console.error(
-    `the known-present control ${CONTROL} was not found - features/media/sql/by_user.sql ` +
+    `the known-present control ${CONTROL} was not found - db/media/images/sql/by_user.sql ` +
     `filters on it, so the scan is broken rather than the schema clean`
   );
   process.exit(1);

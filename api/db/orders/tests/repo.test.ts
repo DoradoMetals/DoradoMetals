@@ -1,0 +1,126 @@
+// The writes on orders.orders, against real Postgres.
+//
+// One table for both directions, where exchange had two - so these replace a
+// statement that existed twice, once in purchase_orders and once in
+// sales_orders. sales-orders still carries its own identical copies (D42);
+// these are the canonical ones and the convergence point.
+//
+// Each test runs inside a transaction that is rolled back.
+import test, { after, before } from "node:test";
+import assert from "node:assert/strict";
+import { randomUUID } from "node:crypto";
+import pool from "#db";
+import * as orders from "#db/orders/repo.ts";
+import type { PoolClient } from "pg";
+import type { Flag } from "#db/orders/repo.ts";
+
+let client: PoolClient;
+
+before(async () => {
+  assert.equal(
+    new Date().getTimezoneOffset(), 0,
+    "these tests require TZ=UTC - run them with `pnpm --filter @dorado/api test`"
+  );
+  client = await pool.connect();
+});
+
+after(async () => {
+  client.release();
+  await pool.end();
+});
+
+async function inRollback(fn: (c: PoolClient) => Promise<void>) {
+  await client.query("BEGIN");
+  try {
+    await fn(client);
+  } finally {
+    await client.query("ROLLBACK");
+  }
+}
+
+const anOrder = async (c: PoolClient): Promise<string | null> =>
+  (await c.query("SELECT id FROM orders.orders ORDER BY id LIMIT 1")).rows[0]?.id ?? null;
+
+const orderRow = async (c: PoolClient, id: string) =>
+  (await c.query(
+    `SELECT status, updated_by, order_sent, tracking_updated, review_created
+       FROM orders.orders WHERE id = $1`, [id]
+  )).rows[0] as Record<string, unknown>;
+
+test("a status change records the status and its author", async () => {
+  await inRollback(async (c: PoolClient) => {
+    const id = await anOrder(c);
+    assert.ok(id, "orders.orders is empty - this test proves nothing");
+    // A sentinel, so a pass cannot come from the value already being there.
+    const status = `probe-${randomUUID().slice(0, 8)}`;
+
+    const returned = await orders.update(id, { status, updated_by: "alice" }, {}, c);
+    assert.equal(returned?.id, id, "the write did not report the row it changed");
+
+    const row = await orderRow(c, id);
+    assert.equal(row.status, status);
+    assert.equal(row.updated_by, "alice");
+  });
+});
+
+// updated_by is ASSIGNED here, not coalesced - both exchange statements
+// overwrote it unconditionally. This pins that, so a later "improvement" to
+// coalesce it has to be a deliberate decision rather than a silent one.
+test("a status change with no author clears the author", async () => {
+  await inRollback(async (c: PoolClient) => {
+    const id = await anOrder(c);
+    assert.ok(id, "orders.orders is empty");
+    await c.query("UPDATE orders.orders SET updated_by = 'alice' WHERE id = $1", [id]);
+
+    await orders.update(id, { status: "Pending", updated_by: null }, {}, c);
+
+    assert.equal(
+      (await orderRow(c, id)).updated_by, null,
+      "updated_by is assigned, not coalesced - exchange overwrote it unconditionally"
+    );
+  });
+});
+
+test("each of the three flags sets its own column and no other", async () => {
+  await inRollback(async (c: PoolClient) => {
+    const id = await anOrder(c);
+    assert.ok(id, "orders.orders is empty");
+
+    // THE CLOSED SET, TYPED AS ITSELF. setFlag takes a `Flag`, and a bare
+    // string array would not satisfy it - which is the conversion doing its
+    // job: the whole reason the column name can be interpolated safely is
+    // that this set is closed.
+    const FLAGS: Flag[] = ["order_sent", "tracking_updated", "review_created"];
+    for (const flag of FLAGS) {
+      // Start from all-false, so each assertion is about this call alone.
+      await c.query(
+        `UPDATE orders.orders
+            SET order_sent = false, tracking_updated = false, review_created = false
+          WHERE id = $1`, [id]
+      );
+
+      const returned = await orders.update(id, { [flag]: true }, {}, c);
+      assert.equal(returned?.id, id, `${flag} did not report the row it changed`);
+
+      const row = await orderRow(c, id);
+      assert.equal(row[flag], true, `${flag} was not set`);
+      for (const other of FLAGS) {
+        if (other === flag) continue;
+        assert.equal(row[other], false, `setting ${flag} also set ${other}`);
+      }
+    }
+  });
+});
+
+// The column name is interpolated into the statement. Nothing derived from a
+// request can reach it, but that is a property of the closed set - so the set
+// is asserted rather than assumed.
+test("the flag set is closed to exactly three names", async () => {
+  assert.deepEqual(Object.keys(orders.FLAGS).sort(), [
+    "order_sent", "review_created", "tracking_updated",
+  ]);
+  for (const [key, column] of Object.entries(orders.FLAGS)) {
+    assert.equal(key, column, "a flag key and its column name must match");
+    assert.match(column, /^[a-z_]+$/, "a flag column must be a bare identifier");
+  }
+});

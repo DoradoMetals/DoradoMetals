@@ -26,7 +26,7 @@
 // work in principle and does not exist in this Node build - and it would have
 // needed to run before #app was imported, which is a sharper edge than this
 // needs.
-import { auth } from "#features/auth/client.ts";
+import { auth } from "#domain/auth/client.ts";
 
 // The session shape the middleware reads. Deliberately minimal: this is what
 // the tests SAY a caller is, not better-auth's full session.

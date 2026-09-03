@@ -90,8 +90,10 @@
     "#db": "./db.ts",
     "#app": "./app.ts",
     "#shared/*": "./shared/*",
-    "#features/*": "./features/*",
-    "#providers/*": "./providers/*"
+    "#providers/*": "./providers/*",
+    "#db/*": "./db/*",
+    "#domain/*": "./domain/*",
+    "#transport/*": "./transport/*"
   },
   "keywords": [],
   "author": "",

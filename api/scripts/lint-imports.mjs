@@ -53,9 +53,9 @@ if (process.argv.includes("--self-test")) {
   const Q = String.fromCharCode(34);
   const imp = (what, spec) => `import ${what} from ${Q}${spec}${Q};\n`;
   const base = {
-    "package.json": JSON.stringify({ imports: { "#shared/*": "./shared/*", "#features/*": "./features/*" } }),
+    "package.json": JSON.stringify({ imports: { "#shared/*": "./shared/*", "#example/*": "./example/*" } }),
     "shared/db/query.ts": "export default function query() {}\n",
-    "features/a/service.js": imp("query", "#shared/db/query.ts") + "export const a = () => query();\n",
+    "example/a/service.js": imp("query", "#shared/db/query.ts") + "export const a = () => query();\n",
   };
   const LOW = { LINT_IMPORTS_FLOOR: "1" };
   await selfTest({
@@ -64,13 +64,13 @@ if (process.argv.includes("--self-test")) {
       {
         name: "a relative specifier pointing at nothing is seen",
         rootEnv: "LINT_IMPORTS_ROOT", env: LOW,
-        files: { ...base, "features/b/service.js": imp("x", "./gone.js") + "export default x;\n" },
+        files: { ...base, "example/b/service.js": imp("x", "./gone.js") + "export default x;\n" },
         expect: "fail", mustPrint: "file does not exist",
       },
       {
         name: "a #subpath with no package.json entry is seen",
         rootEnv: "LINT_IMPORTS_ROOT", env: LOW,
-        files: { ...base, "features/b/service.js": imp("x", "#nope/thing.js") + "export default x;\n" },
+        files: { ...base, "example/b/service.js": imp("x", "#nope/thing.js") + "export default x;\n" },
         expect: "fail", mustPrint: "no matching entry in package.json imports",
       },
       {
@@ -78,15 +78,15 @@ if (process.argv.includes("--self-test")) {
         rootEnv: "LINT_IMPORTS_ROOT", env: LOW,
         files: {
           ...base,
-          "features/b/service.ts": "export const b = 1;\n",
-          "features/c/controller.js": imp("{ b }", "../b/service.js") + "export default b;\n",
+          "example/b/service.ts": "export const b = 1;\n",
+          "example/c/controller.js": imp("{ b }", "../b/service.js") + "export default b;\n",
         },
         expect: "fail", mustPrint: "file does not exist",
       },
       {
         name: "a commented-out import is not evidence",
         rootEnv: "LINT_IMPORTS_ROOT", env: LOW,
-        files: { ...base, "features/b/service.js": "// " + imp("x", "./gone.js") + "export const b = 1;\n" },
+        files: { ...base, "example/b/service.js": "// " + imp("x", "./gone.js") + "export const b = 1;\n" },
         expect: "pass", mustPrint: "0 unresolved",
       },
       {

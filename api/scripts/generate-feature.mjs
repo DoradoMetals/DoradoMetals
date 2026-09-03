@@ -1,6 +1,6 @@
 // Generates the boilerplate for a per-table CRUD feature, from the database.
 //
-//   node scripts/generate-feature.mjs media.images --legacy exchange.images --dir features/media
+//   node scripts/generate-feature.mjs media.images --legacy exchange.images --dir db/media/images
 //
 // WHAT MAKES THIS SAFE TO RUN. Three things, in order of how much they matter:
 //
@@ -41,7 +41,7 @@ const outDir = args[args.indexOf("--dir") + 1];
 
 if (!target || !target.includes(".") || !outDir || args.indexOf("--dir") === -1) {
   console.error(
-    "usage: generate-feature.mjs <schema>.<table> --dir <features/name> [--legacy <schema>.<table>]"
+    "usage: generate-feature.mjs <schema>.<table> --dir <db/name> [--legacy <schema>.<table>]"
   );
   process.exit(1);
 }

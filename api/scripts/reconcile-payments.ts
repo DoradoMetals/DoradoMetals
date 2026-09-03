@@ -18,8 +18,8 @@
 // customer's name (the standing constraint; ids are what an operator needs).
 import "#env";
 import pool from "#db";
-import * as orders from "#features/orders/repo.ts";
-import { sweepSettledIntents, sweepAbandoned } from "#features/orders/reconcile.service.ts";
+import * as orders from "#db/orders/repo.ts";
+import { sweepSettledIntents, sweepAbandoned } from "#domain/orders/reconcile.service.ts";
 
 const COMMIT = process.argv.includes("--commit");
 const ttlFlag = process.argv.indexOf("--ttl-hours");

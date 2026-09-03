@@ -27,9 +27,9 @@ import "#env";
 import pool from "#db";
 import query from "#shared/db/query.ts";
 import withTransaction from "#shared/db/withTransaction.ts";
-import * as checkoutService from "#features/checkout/service.ts";
-import * as addressService from "#features/places/addresses/service.ts";
-import { resolvePurchaseCheckout, recordPlacedPurchase } from "#features/orders/create.ts";
+import * as checkoutService from "#domain/checkout/service.ts";
+import * as addressService from "#domain/places/addresses/service.ts";
+import { resolvePurchaseCheckout, recordPlacedPurchase } from "#domain/orders/create.ts";
 // NOT imported from seed-e2e-users.mjs: that file is a script, not a module -
 // importing it for the constant RUNS it, and it ends the shared pool on its
 // way out, which killed this script's own queries. The values mirror its

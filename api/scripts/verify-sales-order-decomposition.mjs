@@ -16,10 +16,10 @@
 //   pnpm --filter @dorado/api verify:sales-order-decomposition
 import "#env";
 import pool from "#db";
-import * as totals from "#features/orders/transactions/repo.ts";
-import * as items from "#features/orders/items/repo.ts";
-import * as addrs from "#features/orders/addresses/repo.ts";
-import * as readService from "#features/orders/read.service.ts";
+import * as totals from "#db/orders/transactions/repo.ts";
+import * as items from "#db/orders/items/repo.ts";
+import * as addrs from "#db/orders/addresses/repo.ts";
+import * as readService from "#domain/orders/read.service.ts";
 
 const composed = await readService.getAllSales();
 console.log(`${composed.length} sales order(s) from the read service\n`);
@@ -44,7 +44,7 @@ const orderBy = new Map(orderRows.map((r) => [r.id, r]));
 
 // The values that MOVED between tables. totals.refiner_fee is deliberately
 // absent: the wire serves NULL for a sales order whatever the column holds -
-// see features/orders/compose.ts.
+// see domain/orders/compose.ts.
 const FIELDS = [
   ["totals.total", totalBy, "total"],
   ["totals.items", totalBy, "items"],

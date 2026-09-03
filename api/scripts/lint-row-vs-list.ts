@@ -1,6 +1,6 @@
 // Finds a repo function that returns a LIST being read as if it were a ROW.
 //
-// WHY THIS EXISTS. what is now features/orders/service.ts did
+// WHY THIS EXISTS. what is now domain/orders/service.ts did
 //
 //     const address = await addressRepo.getFromId(id);
 //     ... address.state ...
@@ -53,24 +53,24 @@ export async function getOne(id) {
 }
 `;
   const caller = (body: string) =>
-    `import * as addressRepo from ${Q}#features/addresses/repo.exchange.js${Q};\n` +
+    `import * as addressRepo from ${Q}#db/addresses/repo.exchange.js${Q};\n` +
     `export async function run(id) {\n${body}\n}\n`;
   const LOW = { LINT_ROW_CONTROL: "addresses" };
-  const base = { "features/addresses/repo.exchange.js": repo };
+  const base = { "db/addresses/repo.exchange.js": repo };
   await selfTest({
     script: import.meta.filename,
     cases: [
       {
         name: "a list read as a row is seen - the sales-tax bug itself",
         rootEnv: "LINT_ROW_ROOT", env: LOW,
-        files: { ...base, "features/orders/service.ts": caller(
+        files: { ...base, "domain/orders/service.ts": caller(
           "  const address = await addressRepo.getAll(id);\n  return address.state;") },
         expect: "fail", mustPrint: "returns a list, but",
       },
       {
         name: "the array surface on a list is legitimate and not reported",
         rootEnv: "LINT_ROW_ROOT", env: LOW,
-        files: { ...base, "features/orders/service.ts": caller(
+        files: { ...base, "domain/orders/service.ts": caller(
           "  const rowsOut = await addressRepo.getAll(id);\n  return rowsOut.map((r) => r.state);") },
         expect: "pass", mustPrint: "0 read as a row",
       },
@@ -79,7 +79,7 @@ export async function getOne(id) {
         rootEnv: "LINT_ROW_ROOT", env: LOW,
         // The list call is present too, and used correctly - without it the
         // zero-call floor fires and the case would pass for the wrong reason.
-        files: { ...base, "features/orders/service.ts": caller(
+        files: { ...base, "domain/orders/service.ts": caller(
           "  const all = await addressRepo.getAll(id);\n" +
           "  const address = await addressRepo.getOne(id);\n" +
           "  return all.length + address.state;") },
@@ -88,7 +88,7 @@ export async function getOne(id) {
       {
         name: "the known-present control fires when the repo parser stops seeing lists",
         rootEnv: "LINT_ROW_ROOT",
-        files: { ...base, "features/orders/service.ts": caller(
+        files: { ...base, "domain/orders/service.ts": caller(
           "  const address = await addressRepo.getOne(id);\n  return address.state;") },
         expect: "fail", mustPrint: "known-present control",
       },
@@ -96,8 +96,8 @@ export async function getOne(id) {
   });
 }
 
-if (!existsSync(join(ROOT, "features"))) {
-  console.error(`lint:row-vs-list cannot read ${join(ROOT, "features")} - the walk is broken`);
+if (!existsSync(join(ROOT, "db")) || !existsSync(join(ROOT, "domain"))) {
+  console.error(`lint:row-vs-list cannot read ${join(ROOT, "db")} or ${join(ROOT, "domain")} - the walk is broken`);
   process.exit(2);
 }
 
@@ -143,9 +143,9 @@ const ARRAY_OK = new Set([
 // EVERY repo file since D212 - the exchange/next split is gone and each
 // resource has one plain repo.ts, so the subject is all of them.
 const listReturning = new Map(); // feature -> Set(fnName)
-for (const file of walk(join(ROOT, "features"))) {
+for (const file of walk(join(ROOT, "db"))) {
   if (!/(^|[\/])repo(\.\w+)?\.(js|ts)$/.test(file)) continue;
-  const feature = relative(join(ROOT, "features"), file).split("/").slice(0, -1).join("/");
+  const feature = relative(join(ROOT, "db"), file).split("/").slice(0, -1).join("/");
   const src = stripComments(readFileSync(file, "utf8"));
   const fnRe = /export\s+(?:async\s+)?function\s+(\w+)\s*\(/g;
   let m;
@@ -165,12 +165,14 @@ for (const file of walk(join(ROOT, "features"))) {
 // 2. Which namespaces point at which feature's repo?
 const findings = [];
 let callsChecked = 0;
-for (const file of walk(join(ROOT, "features"))) {
+for (const file of ["domain", "transport"].flatMap((layer) =>
+  existsSync(join(ROOT, layer)) ? walk(join(ROOT, layer)) : []
+)) {
   // The repo files themselves are the DEFINITIONS scanned above; a repo
   // reading its own rows is not a caller misreading a list.
   if (/(^|[\/])repo(\.\w+)?\.(js|ts)$/.test(file)) continue;
   const src = stripComments(readFileSync(file, "utf8"));
-  const nsRe = /import\s+\*\s+as\s+(\w+)\s+from\s+["']#features\/([^"']+?)\/repo(?:\.\w+)?\.(?:js|ts)["']/g;
+  const nsRe = /import\s+\*\s+as\s+(\w+)\s+from\s+["']#db\/([^"']+?)\/repo(?:\.\w+)?\.(?:js|ts)["']/g;
   const nsToFeature = new Map();
   let m;
   while ((m = nsRe.exec(src))) nsToFeature.set(m[1], m[2]);
