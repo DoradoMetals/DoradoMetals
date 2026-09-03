@@ -4,7 +4,7 @@
 // stepper writes ids onto checkout.checkouts directly now, so these tests
 // prime the row the same way - straight fixture writes in a rolled-back
 // transaction - and then run the one creation path that exists.
-import test, { before, after } from "node:test";
+import { test, beforeAll, afterAll } from "vitest";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
 import pool from "#db";
@@ -14,11 +14,11 @@ import { takeLocks, LOCKS } from "#shared/testing/locks.ts";
 
 let client: PoolClient;
 
-before(async () => {
+beforeAll(async () => {
   client = await pool.connect();
 });
 
-after(async () => {
+afterAll(async () => {
   client.release();
   await pool.end();
 });

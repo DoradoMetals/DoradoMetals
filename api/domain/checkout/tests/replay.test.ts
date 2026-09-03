@@ -7,7 +7,7 @@
 //
 // Fixtures are SELF-SEEDED over the same HTTP surface, inside the rolled-back
 // transaction, so every assertion stands on data this file put there.
-import test, { after, before } from "node:test";
+import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
 import request from "supertest";
@@ -33,7 +33,7 @@ type Caller = UserFixture & { role: string };
 let owner: Caller;
 let stranger: Caller;
 
-before(async () => {
+beforeAll(async () => {
   // Two non-admin users that exist in BOTH exchange.users and auth.users -
   // checkout.checkouts.user_id has an FK to auth.users, so a fixture missing
   // there makes every seed insert fail with a 500 rather than the 200 these
@@ -49,7 +49,7 @@ before(async () => {
   stranger = Object.assign({}, users[1], { role: "user" });
 });
 
-after(async () => {
+afterAll(async () => {
   restoreSessions();
   await pool.end();
 });

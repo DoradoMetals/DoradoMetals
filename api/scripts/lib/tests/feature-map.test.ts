@@ -13,7 +13,7 @@
 //
 // A misspelling fails the same way as an omission, and is harder to see. This
 // checks every name in the map against the database.
-import test, { after, before } from "node:test";
+import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import pool from "#db";
 import type { PoolClient } from "pg";
@@ -24,7 +24,7 @@ import type { FeatureMap } from "../feature-map.ts";
 let columns: Map<string, Set<string>>;
 let client: PoolClient;
 
-before(async () => {
+beforeAll(async () => {
   client = await pool.connect();
   const { rows } = await client.query(
     `select table_schema, table_name, column_name
@@ -38,7 +38,7 @@ before(async () => {
     columns.get(key)!.add(r.column_name);
   }
 });
-after(async () => { client?.release(); });
+afterAll(async () => { client?.release(); });
 
 const tablesIn = (features: FeatureMap): Set<string> => {
   const out = new Set<string>();

@@ -30,7 +30,7 @@
 // Consistent with, not proof of: one data point either side.
 //
 // NOTHING IS COMMITTED - every statement takes the pinned client.
-import test, { after, before } from "node:test";
+import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
 import pool from "#db";
@@ -69,7 +69,7 @@ let item: Record<string, unknown>;
 let price: number;
 let aggregate: number;
 
-before(async () => {
+beforeAll(async () => {
   // An address whose state actually has a charging rule, and the rule itself.
   // Everything below is derived from this one row, so the fixture cannot drift
   // from the data.
@@ -113,7 +113,7 @@ before(async () => {
   aggregate = between(rule.aggregate_min, rule.aggregate_max, 100);
 });
 
-after(async () => {
+afterAll(async () => {
   await pool.end();
 });
 

@@ -4,7 +4,7 @@
 // fulfillment, and the payout account SEALED in payments.details at the
 // payout step. The resolution reads only the row; the record half links ids
 // and writes NO exchange rows at all.
-import test, { after, before } from "node:test";
+import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
 import request from "supertest";
@@ -46,7 +46,7 @@ const payoutForm = (routing_number = "021000021", account_number = "000123456789
 });
 const PAYOUT = payoutForm();
 
-before(async () => {
+beforeAll(async () => {
   // WHO SIGNS FOR THE PARCEL IS THE CUSTOMER'S NAME (D214 item 12). It used to
   // be the address BOOK's label ("Home"), read from exchange.addresses' `name`
   // through the composer; places.addresses has no such column, and the person
@@ -95,7 +95,7 @@ before(async () => {
   )[0].product_name;
 });
 
-after(async () => {
+afterAll(async () => {
   await restoreSessions();
   await pool.end();
 });

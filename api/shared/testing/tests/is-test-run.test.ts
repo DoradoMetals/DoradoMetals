@@ -1,6 +1,6 @@
 // isTestRun is the guard mail/FedEx/Stripe all ask before reaching a live third party — evaluated when asked, never cached, because a module-scope check once captured NODE_ENV before a script's own hoisted-import assignment took effect (seed-e2e-users.mjs reached Gmail that way).
 // So the test that earns its keep isn't 'returns true under NODE_ENV=test' — it's that the answer CHANGES between two calls when the environment changes between them; a cached implementation passes every other case here.
-import test from "node:test";
+import { test } from "vitest";
 import assert from "node:assert/strict";
 import { isTestRun } from "#shared/testing/is-test-run.ts";
 

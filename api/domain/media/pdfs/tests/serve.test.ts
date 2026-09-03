@@ -1,12 +1,13 @@
 // The download service: which truth answers (stored file vs live render) and for whom. No Chromium here - the render is a stub; these tests are about SELECTION (which row, when the fallback fires, that a broken store never breaks the download).
 // The storage read is the StoredReader parameter - putObject is skipped under isTestRun, so the stub is what lets the stored path be exercised at all. Rows are written inside this file's transaction and rolled back, like paper-trail.test.ts.
-import test, { after, before } from "node:test";
+import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
 import { createHash, randomUUID } from "node:crypto";
 import pool from "#db";
 import { serveOrderDocument } from "#domain/media/pdfs/serve.ts";
 import * as orderRead from "#domain/orders/read.ts";
+import { LOCKS } from "#shared/testing/locks.ts";
 
 let client: PoolClient;
 // getAllPurchases declares Record<string, unknown>[], so the subset this file reads is named here.
@@ -15,18 +16,29 @@ type OrderFixture = { id: string };
 let order: OrderFixture; // a real dev purchase order that orders.orders knows
 let owner: { id: string; role: string }; // the order's real owner
 
-before(async () => {
+// SESSION-scoped LOCKS.ORDERS, held for the whole file (lane 3, the runner
+// conversion): `order` is picked once here and referenced by every test's
+// own INSERTs after, and domain/orders/tests/edit-line.test.ts writes real,
+// autocommitting rows to orders.orders under the SAME lock - see
+// domain/media/pdfs/tests/documents-agree.test.ts's own comment for the full
+// mechanism.
+beforeAll(async () => {
   client = await pool.connect();
+  await client.query("SELECT pg_advisory_lock($1)", [LOCKS.ORDERS]);
   const orders = (await orderRead.list({ direction: "purchase" })) as unknown as OrderFixture[];
   assert.ok(orders.length > 0, "dev has no purchase orders");
 
   // media.pdfs.order_id references orders.orders, so the fixtures need an order the schema knows - asserted rather than assumed, so a dev database whose orders were never backfilled fails here, loudly, not in an INSERT three tests down.
+  // Needs an OWNER too, not merely a row: a guest/anonymous purchase order is
+  // a valid `orders.orders` state (user_id IS NULL) and a `LIMIT`-less first
+  // match can land on one when other files run concurrently, so this keeps
+  // searching rather than taking the first row that merely exists.
   for (const o of orders) {
     const { rows } = await client.query(
       "SELECT user_id FROM orders.orders WHERE id = $1",
       [o.id]
     );
-    if (rows.length) {
+    if (rows.length && rows[0].user_id) {
       order = o;
       owner = { id: rows[0].user_id, role: "user" };
       break;
@@ -36,7 +48,8 @@ before(async () => {
   assert.ok(owner.id, "the linkable order has no user_id to own it");
 });
 
-after(async () => {
+afterAll(async () => {
+  await client.query("SELECT pg_advisory_unlock($1)", [LOCKS.ORDERS]);
   client.release();
   await pool.end();
 });

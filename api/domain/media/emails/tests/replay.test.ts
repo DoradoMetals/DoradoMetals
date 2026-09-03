@@ -1,7 +1,7 @@
 // The two email routes, over real HTTP. FOUND: both routes (requireUser) took the RECIPIENT from the request body - any signed-in account could mail FROM the business's domain TO any address it named, with a PDF it also supplied (open relay, phishing template, unrecoverable reputation damage).
 // FIX: the recipient is resolved by the controller from the STORED order, gated by entitlement (owner or admin only) - naming someone else's order id no longer mails them.
 // NO MAIL LEAVES THIS SUITE: sendEmail refuses to build the real transport when NODE_ENV=test; the last test proves that refusal is what stops it, rather than assuming it.
-import test, { after, before } from "node:test";
+import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import request from "supertest";
@@ -20,7 +20,7 @@ let owner: UserFixture;
 let stranger: UserFixture;
 let order: OrderFixture;
 
-before(async () => {
+beforeAll(async () => {
   const orders = await outside<OrderFixture>(
     `SELECT po.id, po.user_id, u.email
      FROM exchange.purchase_orders po
@@ -44,7 +44,7 @@ before(async () => {
   assert.ok(stranger, "dev has no second non-admin user - the relay test is untestable");
 });
 
-after(async () => {
+afterAll(async () => {
   restoreSessions();
   await pool.end();
 });

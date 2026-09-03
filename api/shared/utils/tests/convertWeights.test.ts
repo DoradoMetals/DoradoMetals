@@ -1,6 +1,6 @@
 // Weight conversion exists THREE times (here, the frontend copy, and the SQL function metals.convert_to_troy_oz) — a scrap line's content * spot * premium is what a customer is paid, so three copies disagreeing is a pricing bug, not untidiness.
 // The frontend copy had a test; THIS one — what the API actually pays people with — had none, and nothing compared it to the SQL function. This does both.
-import test, { after, before } from "node:test";
+import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import pool from "#db";
 import type { PoolClient } from "pg";
@@ -8,8 +8,8 @@ import { convertTroyOz } from "#shared/utils/convertWeights.ts";
 
 // Only reads, and only calls a pure function, so there is nothing to roll back.
 let client: PoolClient;
-before(async () => { client = await pool.connect(); });
-after(async () => { client?.release(); });
+beforeAll(async () => { client = await pool.connect(); });
+afterAll(async () => { client?.release(); });
 
 // `val` really is nullable: the last test asserts the SQL function returns
 // NULL for a null weight where the JavaScript one returns 0. That difference is

@@ -30,7 +30,7 @@
 // ordering.
 //
 // NOTHING IS COMMITTED - the pool is pinned to a rolled-back transaction.
-import test, { after, before } from "node:test";
+import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import request from "supertest";
 import pool from "#db";
@@ -54,7 +54,7 @@ let admin: UserFixture;
 let order: OrderFixture; // an open purchase order with items, metals and a payout
 let owner: UserFixture; // its customer
 
-before(async () => {
+beforeAll(async () => {
   admin = (
     await outside<UserFixture>(`SELECT id, name, email FROM exchange.users WHERE role = 'admin' LIMIT 1`)
   )[0];
@@ -84,7 +84,7 @@ before(async () => {
 
 });
 
-after(async () => {
+afterAll(async () => {
   restoreSessions();
   await pool.end();
 });

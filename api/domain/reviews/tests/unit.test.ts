@@ -1,6 +1,6 @@
 // The parts of reviews that need no database: the wire conversion, and the statements as text.
 // The parameter ORDER in repo.ts is hand-written against generated SQL - the one transcription error the generator cannot prevent, and it caught a real bug once - so the order is asserted rather than trusted.
-import test from "node:test";
+import { test } from "vitest";
 import assert from "node:assert/strict";
 import path from "node:path";
 import { sqlFrom } from "#shared/db/sql.ts";

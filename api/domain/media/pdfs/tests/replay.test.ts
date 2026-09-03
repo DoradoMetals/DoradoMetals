@@ -1,7 +1,7 @@
 // The four PDF routes, over real HTTP - service.test.ts already renders every document and checks the bytes; what it can't check is the HTTP boundary (guards, and the headers a browser needs to receive a file).
-// One test renders for real (Content-Length can only be asserted against a real document) - closeBrowser() runs in after(), or Chromium outlives the run and node never exits (has happened, cost an hour and eleven orphaned processes). Every other test stops at a guard.
+// One test renders for real (Content-Length can only be asserted against a real document) - closeBrowser() runs in afterAll(), or Chromium outlives the run and node never exits (has happened, cost an hour and eleven orphaned processes). Every other test stops at a guard.
 // What these routes serve: for the order's OWNER (or an admin), they look up the latest media.pdfs row and serve the stored file, falling back to a live render (persisted for a linkable order) when none exists; everyone else gets a render of the body they posted, same as always - selection logic and ownership gate are pinned in serve.test.ts. In a test run the stored branch always falls back, so every render assertion below exercises the same path it always did.
-import test, { after, before } from "node:test";
+import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import request from "supertest";
 import pool from "#db";
@@ -44,7 +44,7 @@ let order: OrderFixture;
 let spots: Spot[];
 let salesOrder: OrderFixture;
 
-before(async () => {
+beforeAll(async () => {
   assert.equal(
     new Date().getTimezoneOffset(),
     0,
@@ -70,7 +70,7 @@ before(async () => {
   assert.ok(spots.length > 0, "dev has no spot prices");
 });
 
-after(async () => {
+afterAll(async () => {
   // Otherwise Chromium outlives the test run and node never exits.
   await closeBrowser();
   restoreSessions();

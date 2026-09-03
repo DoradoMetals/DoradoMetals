@@ -28,7 +28,7 @@
 // the request's. The fixture can drift and the property holds.
 //
 // NOTHING IS COMMITTED - the pool is pinned to a rolled-back transaction.
-import test, { after, before } from "node:test";
+import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
 import request from "supertest";
@@ -55,7 +55,7 @@ let order: OrderFixture;
 let admin: UserFixture;
 let items: ItemFixture[];
 
-before(async () => {
+beforeAll(async () => {
   const rows = await outside<OrderFixture>(
     `SELECT o.id, o.user_id, t.total AS total_price
        FROM orders.orders o
@@ -82,7 +82,7 @@ before(async () => {
   assert.ok(items.length > 0, "the fixture order has no items");
 });
 
-after(async () => {
+afterAll(async () => {
   restoreSessions();
   await pool.end();
 });

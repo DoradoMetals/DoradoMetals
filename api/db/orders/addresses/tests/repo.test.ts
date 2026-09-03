@@ -6,15 +6,16 @@
 // surface - which is what these tests pin.
 //
 // Each test runs inside a transaction that is rolled back.
-import test, { after, before } from "node:test";
+import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
 import pool from "#db";
+import { LOCKS, takeLocks } from "#shared/testing/locks.ts";
 import * as addresses from "#db/orders/addresses/repo.ts";
 
 let client: PoolClient;
 
-before(async () => {
+beforeAll(async () => {
   assert.equal(
     new Date().getTimezoneOffset(), 0,
     "these tests require TZ=UTC - run them with `pnpm --filter @dorado/api test`"
@@ -22,13 +23,19 @@ before(async () => {
   client = await pool.connect();
 });
 
-after(async () => {
+afterAll(async () => {
   client.release();
   await pool.end();
 });
 
+// LOCKS.ORDERS, transaction-scoped (lane 3, the runner conversion): this
+// file picks an order off orders.orders as its FK anchor, and
+// domain/orders/tests/edit-line.test.ts writes real, autocommitting rows to
+// the same table under LOCKS.ORDERS - see domain/orders/tests/
+// purchase-read.test.ts's own comment for the full mechanism.
 async function inRollback(fn: (c: PoolClient) => Promise<void>) {
   await client.query("BEGIN");
+  await takeLocks(client, LOCKS.ORDERS);
   try {
     await fn(client);
   } finally {

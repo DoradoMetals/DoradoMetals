@@ -1,6 +1,6 @@
 // The quote endpoints, over real HTTP — pins that every number is priced by the server from its own tables, and a body riding prices/spots changes NOTHING (the $26.81 regression stays dead). Math checks are hand-computed from the same tables the endpoints read, so a transposed spot or doubled quantity fails loudly.
 // Everything runs inside the pin — the endpoints only read, but so did tracking.test.js until it didn't; no lock, since quotes write nothing.
-import test, { after, before } from "node:test";
+import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import request from "supertest";
 import pool from "#db";
@@ -38,7 +38,7 @@ let product: ProductFixture;   // a Gold product live in BOTH directions
 let hiddenAsk: { id: string }; // display = false but sell_display = true
 let buyer: BuyerFixture;       // a real user row with an address
 
-before(async () => {
+beforeAll(async () => {
   spots = await outside<SpotFixture>(
     `SELECT m.name, s.ask, s.bid
        FROM spots.spots s JOIN metals.metals m ON m.id = s.metal_id`
@@ -78,7 +78,7 @@ before(async () => {
   assert.ok(buyer, "dev has no user with an address");
 });
 
-after(async () => {
+afterAll(async () => {
   restoreSessions();
   await pool.end();
 });

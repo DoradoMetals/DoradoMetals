@@ -13,7 +13,7 @@
 //
 // and one is a boundary: the SET list is interpolated, so a key that is not in
 // `allowed` must never reach the text.
-import test from "node:test";
+import { test } from "vitest";
 import assert from "node:assert/strict";
 import { buildUpdate } from "#shared/db/patch.ts";
 

@@ -11,7 +11,7 @@
 // cannot be read from here. Everywhere else, an unset URL means composition
 // failed and connecting anyway is never what was wanted.
 
-import test from "node:test";
+import { test } from "vitest";
 import assert from "node:assert/strict";
 
 import { refusesUnsetDatabaseUrl } from "#db";

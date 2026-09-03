@@ -1,6 +1,6 @@
 // The parts of addresses that need no database: the statements as text, and the in-memory join that replaced a SQL one.
 // The statements matter more here than elsewhere: places.addresses has no user_id to scope on, so the checks below are about what each statement can and cannot be trusted to do.
-import test from "node:test";
+import { test } from "vitest";
 import assert from "node:assert/strict";
 import path from "node:path";
 import { sqlFrom } from "#shared/db/sql.ts";

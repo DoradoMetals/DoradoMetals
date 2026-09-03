@@ -21,7 +21,7 @@
 // NOTHING IS COMMITTED - the pool is pinned to a rolled-back transaction, and
 // the fixture edits (a nulled refiner email, a cleared order_sent) live inside
 // it too.
-import test, { after, before } from "node:test";
+import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
 import request from "supertest";
@@ -46,7 +46,7 @@ let admin: UserFixture;
 let order: SalesOrderFixture; // a sales order WITH an address - the pipeline refuses one without
 let refiners: RefinerFixture[]; // dev holds two
 
-before(async () => {
+beforeAll(async () => {
   admin = (
     await outside<UserFixture>(`SELECT id, name, email FROM exchange.users WHERE role = 'admin' LIMIT 1`)
   )[0];
@@ -68,7 +68,7 @@ before(async () => {
   assert.ok(refiners.length >= 1, "dev has no refiner to send to");
 });
 
-after(async () => {
+afterAll(async () => {
   restoreSessions();
   await pool.end();
 });

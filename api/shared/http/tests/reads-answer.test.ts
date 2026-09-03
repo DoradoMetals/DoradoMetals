@@ -1,7 +1,7 @@
 // Every mounted READ route, driven over HTTP as the role it requires. Two routes answered 500 on every call since December 2025 (found by reading code, never driven over HTTP) — an inventory found 57 of 132 mounted routes in that position.
 // READS ONLY, and that's the whole design — some untested routes send mail, buy a FedEx label or talk to Stripe, and a blanket smoke test would trigger those; every route here is a GET that writes nothing, safe to run in a loop.
 // Asserts that the route ANSWERS (status under 500, no structural failure), not the body shape (that's validate:wire's job) — a 4xx is a pass, since refusing a bad request is the handler working. NOTHING IS COMMITTED, and the pinned pool is used anyway so an unexpected write can't escape.
-import test, { after, before } from "node:test";
+import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import request from "supertest";
 import pool from "#db";
@@ -16,7 +16,7 @@ type UserRow = { id: string; name: string | null; email: string | null };
 let admin: UserRow;
 let customer: UserRow;
 
-before(async () => {
+beforeAll(async () => {
   // `outside` is generic and defaults to Record<string, any>; naming the row
   // shape here is what makes the three columns below checked rather than
   // whatever the query happened to select.
@@ -31,7 +31,7 @@ before(async () => {
   assert.ok(admin && customer, "dev needs an admin and a non-admin user");
 });
 
-after(async () => {
+afterAll(async () => {
   restoreSessions();
   await pool.end();
 });

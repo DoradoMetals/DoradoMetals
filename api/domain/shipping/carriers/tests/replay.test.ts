@@ -1,6 +1,6 @@
 // The carrier admin endpoints, over real HTTP - checks the wire shape end to end (nested organization) and that delete takes an id, not the whole body.
 // NOTHING IS COMMITTED - the pool is pinned to a rolled-back transaction; the last test proves it from outside.
-import test, { after, before } from "node:test";
+import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import request from "supertest";
@@ -24,7 +24,7 @@ let admin: Caller;
 let customer: Caller;
 const created: string[] = [];
 
-before(async () => {
+beforeAll(async () => {
   const admins = await outside<UserFixture>(
     `SELECT id, name, email FROM exchange.users WHERE role = 'admin' LIMIT 1`
   );
@@ -38,7 +38,7 @@ before(async () => {
   assert.ok(customer.id, "dev has no non-admin user");
 });
 
-after(async () => {
+afterAll(async () => {
   restoreSessions();
   await pool.end();
 });

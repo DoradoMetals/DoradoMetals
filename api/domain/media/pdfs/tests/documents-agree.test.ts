@@ -14,8 +14,9 @@
 // (pricing/bid.ts's `unitPrice`), and no nested `scrap` object to fall back
 // into - so this file compares the two documents on every real order and pins
 // that a line with no premium renders as unpriced on BOTH.
-import test, { after, before } from "node:test";
+import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
+import type { PoolClient } from "pg";
 import pool from "#db";
 import * as orderRead from "#domain/orders/read.ts";
 import * as inputs from "#domain/media/pdfs/order-inputs.ts";
@@ -24,11 +25,24 @@ import {
   buildPackingScrapRows,
   buildInvoiceScrapRows,
 } from "#domain/media/pdfs/render/sections.ts";
+import { LOCKS } from "#shared/testing/locks.ts";
 import type { OrderView, OrderViewItem } from "@dorado/contracts";
 
 let orders: OrderView[];
+let lockClient: PoolClient;
 
-before(async () => {
+// SESSION-scoped LOCKS.ORDERS, held for the whole file (lane 3, the runner
+// conversion): every read here is a real, autocommitting read on the shared
+// pool - no transaction of its own to take a transaction-scoped lock in,
+// same shape as domain/orders/tests/edit-line.test.ts, which writes real
+// orders.orders rows under the SAME lock. Without it, `orders` (captured
+// once in beforeAll) can hold an id edit-line has since deleted by the time
+// a later test's `invoiceInputs()` call re-reads it - `locks.ts`'s own
+// warning that a missing lock is latent until timing changes elsewhere.
+beforeAll(async () => {
+  lockClient = await pool.connect();
+  await lockClient.query("SELECT pg_advisory_lock($1)", [LOCKS.ORDERS]);
+
   const ids = (await orderRead.list({ direction: "purchase" })).map((o) => o.id);
   orders = [];
   for (const id of ids) {
@@ -38,7 +52,9 @@ before(async () => {
   assert.ok(orders.length > 0, "dev has no purchase orders");
 });
 
-after(async () => {
+afterAll(async () => {
+  await lockClient.query("SELECT pg_advisory_unlock($1)", [LOCKS.ORDERS]);
+  lockClient.release();
   await pool.end();
 });
 

@@ -3,7 +3,7 @@
 // `test:external`'s own header). Two directions, same as every guard in this
 // codebase: the block must actually block, and it must not take Postgres
 // with it.
-import test from "node:test";
+import { test } from "vitest";
 import assert from "node:assert/strict";
 import https from "node:https";
 import { outside } from "#shared/testing/pinned-pool.ts";

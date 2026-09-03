@@ -2,7 +2,7 @@
 // Getting the range wrong either replays a migration that fails, or skips one a
 // production database genuinely needs - 001 indexes exchange's foreign keys and
 // is deliberately outside the range.
-import test from "node:test";
+import { test } from "vitest";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";

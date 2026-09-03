@@ -26,7 +26,7 @@
 // NOTHING IS COMMITTED. shared/testing/pinned-pool.js holds every query in one
 // transaction that is rolled back, and this suite writes to a customer's credit
 // balance, so that matters more here than usual.
-import test, { after, before } from "node:test";
+import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
 import request from "supertest";
@@ -57,7 +57,7 @@ type OrderFixture = { id: string; user_id: string; total_price: string | null };
 let admin: UserFixture;
 let order: OrderFixture;
 
-before(async () => {
+beforeAll(async () => {
   admin = (
     await outside<UserFixture>(`SELECT id, name, email FROM exchange.users WHERE role = 'admin' LIMIT 1`)
   )[0];
@@ -76,7 +76,7 @@ before(async () => {
   assert.ok(Number(order.total_price) > 0, "the fixture order must be worth something");
 });
 
-after(async () => {
+afterAll(async () => {
   restoreSessions();
   await pool.end();
 });

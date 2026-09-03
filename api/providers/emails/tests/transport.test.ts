@@ -1,6 +1,6 @@
 // Checks nodemailer.ts's one real claim: @types/nodemailer declares an attachment's content as string | Buffer | Readable, but every PDF here is a Uint8Array (what puppeteer returns) — the wrapper casts it through, and this proves the cast is safe rather than assuming it.
 // Both messages are built through nodemailer's own stream transport (real MailComposer, nothing sent — streamTransport writes to a buffer), so a Uint8Array and a Buffer must compose to identical bytes. If this ever goes red, the cast has to become Buffer.from (which copies every byte of a multi-megabyte document — why it's a cast today, not a conversion).
-import test from "node:test";
+import { test } from "vitest";
 import assert from "node:assert/strict";
 import nodemailer from "nodemailer";
 import { sendEmail } from "#providers/emails/nodemailer.ts";

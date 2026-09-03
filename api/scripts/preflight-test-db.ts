@@ -13,6 +13,18 @@
 // database that is reachable but EMPTY (provisioned never, or dropped), and one
 // that is reachable but is not the database you meant.
 //
+// *** ONE DATABASE PER WORKTREE/BRANCH (FOLLOWUPS D214 item 9, lesson added
+// 2026-09-03). *** `env.ts` derives the database name from the current git
+// branch: the main checkout (and the `api-hardening` branch specifically)
+// gets plain `test`; any other worktree gets `test_<branch, sanitised>`. The
+// point is that a migration written in one lane's worktree used to auto-apply
+// against the SAME shared `test` database every other lane's suite was
+// reading, so one lane's schema change broke every other lane's gate at
+// once. If a branch's database does not exist yet, THIS script creates it
+// with `CREATE DATABASE ... TEMPLATE test` (local cluster only, name must
+// start with "test") so it starts already migrated, then applies whatever
+// ran on `test` since.
+//
 //   node scripts/preflight-test-db.ts
 //
 // Exits 0 if the suite can run, non-zero with instructions otherwise.
@@ -66,19 +78,74 @@ const START = `~/pgroot/usr/lib/postgresql/16/bin/pg_ctl -D ~/pgdata16 \\
   -o "-p ${port} -c max_connections=200 -c unix_socket_directories=$HOME/pgsock" \\
   -l ~/pgdata16/server.log start`;
 
-const client = new pg.Client({ connectionString: url });
+// Guard kept from the allowlist provision-test-db.ts enforces on its own
+// target: this script can CREATE a database, so it only ever does so for one
+// whose name says it is disposable.
+if (database && !database.startsWith("test")) {
+  console.error(
+    `refusing: the local test database name "${database}" does not start ` +
+    `with "test". This script only creates or migrates databases named for ` +
+    `disposal.`
+  );
+  process.exit(1);
+}
+
+let client = new pg.Client({ connectionString: url });
 
 try {
   await client.connect();
 } catch (e) {
-  console.error(
-    `the local test database is not reachable on port ${port}.\n\n` +
-    `  ${(e as Error).message}\n\n` +
-    `The cluster is not started at boot. Start it with:\n\n${START}\n\n` +
-    `Or run against dev instead:  pnpm --filter @dorado/api test:on-dev\n` +
-    `See docs/waves/local-postgres.md.`
-  );
-  process.exit(1);
+  const code = (e as NodeJS.ErrnoException & { code?: string }).code;
+  const isMissingDatabase = code === "3D000"; // invalid_catalog_name
+
+  // Per-branch database, first use (FOLLOWUPS D214 item 9): create it from
+  // `test` as a TEMPLATE rather than empty, so the copy IS the auto-migrate
+  // for everything up to this point - only the migrations that landed since
+  // still need applying below.
+  if (isMissingDatabase && database !== "test") {
+    console.log(`"${database}" does not exist yet - creating it from "test"...`);
+    const adminUrl = new URL(url);
+    adminUrl.pathname = "/postgres";
+    const admin = new pg.Client({ connectionString: adminUrl.toString() });
+    try {
+      await admin.connect();
+      await admin.query(`CREATE DATABASE "${database}" TEMPLATE "test"`);
+      console.log(`created "${database}" from the "test" template`);
+    } catch (createErr) {
+      console.error(
+        `could not create "${database}" from the "test" template.\n\n` +
+        `  ${(createErr as Error).message}\n\n` +
+        `If "test" itself does not exist yet, provision it first:\n\n` +
+        `  pnpm --filter @dorado/api provision:test -- --commit\n\n` +
+        `A "being accessed by other users" error means another connection is ` +
+        `open against "test" right now (another lane's suite, most likely) - ` +
+        `retry once it is idle.`
+      );
+      process.exit(1);
+    } finally {
+      await admin.end();
+    }
+
+    client = new pg.Client({ connectionString: url });
+    try {
+      await client.connect();
+    } catch (retryErr) {
+      console.error(
+        `created "${database}" but could not connect to it: ` +
+        `${(retryErr as Error).message}`
+      );
+      process.exit(1);
+    }
+  } else {
+    console.error(
+      `the local test database is not reachable on port ${port}.\n\n` +
+      `  ${(e as Error).message}\n\n` +
+      `The cluster is not started at boot. Start it with:\n\n${START}\n\n` +
+      `Or run against dev instead:  pnpm --filter @dorado/api test:on-dev\n` +
+      `See docs/waves/local-postgres.md.`
+    );
+    process.exit(1);
+  }
 }
 
 try {
@@ -155,7 +222,7 @@ try {
       ["scripts/migrate.mjs"],
       {
         cwd: path.join(import.meta.dirname, ".."),
-        env: { ...process.env, DATABASE_URL: url, MIGRATE_ALLOW_DB: "test" },
+        env: { ...process.env, DATABASE_URL: url, MIGRATE_ALLOW_DB: database },
         stdio: "inherit",
       }
     );

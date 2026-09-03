@@ -1,6 +1,6 @@
 // The paper trail: every send becomes a row (both outcomes), and the document it carried is a row the record points at.
 // Runs the REAL senders with only the transport replaced; writes join this file's transaction via the executor seam and roll back - without one, a test-run send writes nothing (the isTestRun guard, pinned here).
-import test, { after, before } from "node:test";
+import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
 import { randomUUID } from "node:crypto";
@@ -10,6 +10,7 @@ import { recordEmail } from "#domain/media/emails/record.ts";
 import { closeBrowser } from "#providers/pdfs/puppeteer.ts";
 import * as orderRead from "#domain/orders/read.ts";
 import * as inputs from "#domain/media/pdfs/order-inputs.ts";
+import { LOCKS } from "#shared/testing/locks.ts";
 import type { Transport } from "#providers/emails/nodemailer.ts";
 import type { OrderView } from "@dorado/contracts";
 
@@ -20,8 +21,15 @@ type Message = Parameters<Transport["sendMail"]>[0];
 // order's id - the composed order they used to take is gone.
 let orders: OrderView[];
 
-before(async () => {
+// SESSION-scoped LOCKS.ORDERS, held for the whole file (lane 3, the runner
+// conversion): `orders` is captured here, before any per-test transaction
+// exists, and domain/orders/tests/edit-line.test.ts writes real,
+// autocommitting rows to orders.orders under the SAME lock - see
+// domain/media/pdfs/tests/documents-agree.test.ts's own comment for the full
+// mechanism.
+beforeAll(async () => {
   client = await pool.connect();
+  await client.query("SELECT pg_advisory_lock($1)", [LOCKS.ORDERS]);
   orders = [];
   for (const row of await orderRead.list({ direction: "purchase" })) {
     const view = await orderRead.view(row.id);
@@ -30,7 +38,8 @@ before(async () => {
   assert.ok(orders.length > 0, "dev has no purchase orders to render");
 });
 
-after(async () => {
+afterAll(async () => {
+  await client.query("SELECT pg_advisory_unlock($1)", [LOCKS.ORDERS]);
   client.release();
   await closeBrowser();
   await pool.end();

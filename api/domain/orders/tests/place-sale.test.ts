@@ -10,7 +10,7 @@
 // succeeded-intent repair path exit before that call, so they are all
 // exercised here; the provider branch itself is six lines whose failure mode
 // is a thrown error and no order.
-import test from "node:test";
+import { test, beforeAll, afterAll } from "vitest";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
 import query from "#shared/db/query.ts";
@@ -34,8 +34,8 @@ import * as productService from "#domain/products/service.ts";
 import * as taxService from "#domain/sales-tax/service.ts";
 import * as spotsService from "#domain/spots/service.ts";
 
-test.before(async () => { await mockSessions(); });
-test.after(() => { restoreSessions(); });
+beforeAll(async () => { await mockSessions(); });
+afterAll(() => { restoreSessions(); });
 
 // A sales order seeded minimally - the flair touches only id/status, and the
 // table requires only `number` beyond its defaults (checked, not guessed).

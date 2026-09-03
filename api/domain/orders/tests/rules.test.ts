@@ -2,7 +2,7 @@
 // is the point of the file existing: what a direction means, what a placement
 // freezes and what a payment fact implies are decisions, and a decision that
 // needs a database to assert is a decision hidden inside a query.
-import test from "node:test";
+import { test } from "vitest";
 import assert from "node:assert/strict";
 import * as rules from "#domain/orders/rules.ts";
 import { Conflict, Invalid } from "#shared/errors.ts";

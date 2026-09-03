@@ -1,6 +1,6 @@
 // Renders the phone numbers that print on shipping documents (the business's own number, the from/to on a label) — what it does with bad input ends up on paper a courier reads.
 // Partial input is supported, not an edge case — it runs on every keystroke, so three digits gives "(555" rather than nothing.
-import test from "node:test";
+import { test } from "vitest";
 import assert from "node:assert/strict";
 import { formatPhoneNumber } from "#shared/utils/formatPhoneNumber.ts";
 

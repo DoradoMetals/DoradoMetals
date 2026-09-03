@@ -1,6 +1,6 @@
 // The parts of products that need no database: the write statements as text, and the in-memory join that replaced three SQL ones.
 // Projections have their own file (tests/constants.test.ts) since they're also compared against the exchange field lists checkout still uses.
-import test from "node:test";
+import { test } from "vitest";
 import assert from "node:assert/strict";
 import path from "node:path";
 import { sqlFrom } from "#shared/db/sql.ts";

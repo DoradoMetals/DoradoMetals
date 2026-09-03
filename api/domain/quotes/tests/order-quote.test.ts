@@ -1,6 +1,6 @@
 // POST /quotes/order, over real HTTP — prices an EXISTING purchase order, the drawer estimate the frontend used to compute client-side. Pins: ownership (owner/admin get an answer, a stranger 403, anonymous 401); stored-vs-estimate (a frozen item.price returns verbatim as 'stored', an unpriced line is estimated from the same tables, hand-computed here); locked spots (a pinned order_metals.bid_spot prices the estimate, a cleared one falls back to the live spot — the same choice finalizePricing makes); and the $26.81 pin (a body riding spots/prices/an order object in changes nothing).
 // Everything runs inside the pin; the locked-spots test WRITES (price to NULL, the pin into order_metals) and the rollback discards it.
-import test, { after, before } from "node:test";
+import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
 import request from "supertest";
@@ -70,7 +70,7 @@ function bidFor(metal: string | null) {
   return live == null ? 0 : Number(live);
 }
 
-before(async () => {
+beforeAll(async () => {
   // Oldest order with an owner and a typed item — same reasoning as ownership.test.ts: picks the same order every time, in isolation and in the full suite.
   const orders = await outside<OrderFixture>(
     `SELECT po.id, po.user_id
@@ -142,7 +142,7 @@ before(async () => {
   shippingCharge = Number(shipments[0]?.net_charge ?? 0);
 });
 
-after(async () => {
+afterAll(async () => {
   restoreSessions();
   await pool.end();
 });

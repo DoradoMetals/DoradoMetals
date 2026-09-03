@@ -1,7 +1,7 @@
 // Whether an image's owner is the only person who can fetch or destroy it. These do NOT go through HTTP or touch object storage - deleteImage removes a real MinIO file, so what's asserted is that the guard refuses BEFORE anything irreversible, given a stranger's id.
 // WHAT WAS WRONG: the service removed the object from storage unconditionally, then ran a DELETE correctly scoped to the user - so a stranger's request destroyed the real file, left the row pointing at nothing, and returned { success: true }.
 // The repo's own test passed throughout (its DELETE was always correctly scoped) - the bug was one layer up. A test can prove the right property about the wrong layer and read as coverage.
-import test, { after, before } from "node:test";
+import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
 import { randomUUID } from "node:crypto";
@@ -16,7 +16,7 @@ type ImageFixture = { id: string; user_id: string | null };
 let image: ImageFixture;
 let owner: string;
 
-before(async () => {
+beforeAll(async () => {
   client = await pool.connect();
   const { rows } = await client.query(
     `SELECT id, user_id FROM media.images ORDER BY created_at ASC, id ASC LIMIT 1`
@@ -28,7 +28,7 @@ before(async () => {
   owner = image.user_id;
 });
 
-after(async () => {
+afterAll(async () => {
   client.release();
   await pool.end();
 });

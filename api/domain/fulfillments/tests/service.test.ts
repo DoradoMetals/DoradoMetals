@@ -1,6 +1,6 @@
 // Fulfillments against real Postgres, each test inside a rolled-back transaction.
 // The first feature with no exchange side to compare against, so these tests are the only thing proving PICKUP/DIRECT work - mostly, that the three categories can't be mixed up: nothing in the schema stops a pickups row hanging off a DROPSHIP fulfillment, and every read LEFT JOINs all three detail tables, so a mismatch comes back as a second answer to a one-answer question.
-import test, { after, before } from "node:test";
+import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
 import pool from "#db";
@@ -14,11 +14,11 @@ const repo = service;
 
 let client: PoolClient;
 
-before(async () => {
+beforeAll(async () => {
   client = await pool.connect();
 });
 
-after(async () => {
+afterAll(async () => {
   client.release();
   await pool.end();
 });

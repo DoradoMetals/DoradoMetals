@@ -1,7 +1,7 @@
 // readyDate arrives as a string, and the FedEx provider wants a Date - JSON can't carry a Date, and two provider functions (pickupAvailabilityPayload's formatFedexTime, parsePickupAvailability) both call Date methods on it. The controller converts at the boundary, where a request stops being JSON.
 // The happy path can't be asserted over HTTP at all: fetchAccessToken refuses during a test run unless FEDEX_ENV=sandbox, and checkPickup fetches the token before building the payload - so with the fix reverted, the route stops at the carrier refusal before ever reaching getHours. A first version asserted exactly that and passed identically before and after the fix. The test on the pure function below is where the requirement actually lives.
 // The two refusal tests DO discriminate: with the guard removed they answer 500 instead of 400 - verified by reverting the whole fix, not half of it, since removing only the assignment and leaving the guard left a control that passed and told nothing.
-import test, { after, before } from "node:test";
+import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import request from "supertest";
 import pool from "#db";
@@ -18,7 +18,7 @@ type CarrierFixture = { id: string };
 let customer: UserFixture;
 let carrier: CarrierFixture;
 
-before(async () => {
+beforeAll(async () => {
   customer = (
     await outside<UserFixture>(
       `SELECT id, name, email FROM exchange.users WHERE role IS DISTINCT FROM 'admin' LIMIT 1`
@@ -30,7 +30,7 @@ before(async () => {
   assert.ok(carrier, "dev has no carrier - the route would refuse before the date mattered");
 });
 
-after(async () => {
+afterAll(async () => {
   restoreSessions();
   await pool.end();
 });

@@ -9,15 +9,16 @@
 //
 // The composition around it - the refiner engagement, the mirrors, the address
 // snapshot - is domain/orders/place.ts's and is pinned by place.test.ts.
-import test, { after, before } from "node:test";
+import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
 import pool from "#db";
+import { LOCKS, takeLocks } from "#shared/testing/locks.ts";
 import * as orders from "#db/orders/repo.ts";
 
 let client: PoolClient;
 
-before(async () => {
+beforeAll(async () => {
   assert.equal(
     new Date().getTimezoneOffset(), 0,
     "these tests require TZ=UTC - run them with `pnpm --filter @dorado/api test`"
@@ -25,13 +26,22 @@ before(async () => {
   client = await pool.connect();
 });
 
-after(async () => {
+afterAll(async () => {
   client.release();
   await pool.end();
 });
 
+// LOCKS.ORDERS, transaction-scoped (lane 3, the runner conversion): this
+// file's own INSERTs on orders.orders roll back, but a concurrent reader
+// that also reads orders.orders inside a query started before this test's
+// own rows exist and finished after ROLLBACK would just see nothing - what
+// this lock guards against is domain/orders/tests/edit-line.test.ts, which
+// writes real, autocommitting rows to the same table under LOCKS.ORDERS; see
+// domain/orders/tests/purchase-read.test.ts's own comment for the full
+// mechanism.
 async function inRollback(fn: (c: PoolClient) => Promise<void>) {
   await client.query("BEGIN");
+  await takeLocks(client, LOCKS.ORDERS);
   try {
     await fn(client);
   } finally {

@@ -1,6 +1,6 @@
 // A product save cannot quietly lose a product: NOT NULL constraints on exchange.products (metal_id, supplier_id, mint_id, content, gross, purity, and more) make an unmatched-name subquery's NULL abort the whole UPDATE. This pins that refusal against a future migration relaxing one of those columns to nullable.
 // Answers 500 where 400 would be right (same shape as 9a82a7ed's fulfillment refusals) — recorded, not changed.
-import test, { after, before } from "node:test";
+import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import type { ProductsRow } from "@dorado/contracts";
 import type { PoolClient } from "pg";
@@ -24,7 +24,7 @@ type ProductFixture = ProductsRow & {
 let admin: UserFixture;
 let product: ProductFixture;
 
-before(async () => {
+beforeAll(async () => {
   admin = (
     await outside<UserFixture>(`SELECT id, name, email FROM exchange.users WHERE role = 'admin' LIMIT 1`)
   )[0];
@@ -44,7 +44,7 @@ before(async () => {
   assert.ok(product, "dev has no product joined to a metal");
 });
 
-after(async () => {
+afterAll(async () => {
   restoreSessions();
   await pool.end();
 });

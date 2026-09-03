@@ -1,6 +1,6 @@
 // What an error response tells the caller — the handler's job is print-everything-to-log, return-as-little-as-possible-to-client; it was only doing the first half (an unexpected error's message, including a Postgres error's column/type/constraint/value, went straight back, and `where` — the absolute source path — was gated on NODE_ENV but the message wasn't).
 // Pure: no database, no HTTP. The handler is a function of (err, req, res).
-import test from "node:test";
+import { test } from "vitest";
 import assert from "node:assert/strict";
 import errorHandler from "#shared/middleware/errorHandler.ts";
 import type { NextFunction, Request, Response } from "express";

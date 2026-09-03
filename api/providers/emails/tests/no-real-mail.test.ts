@@ -1,6 +1,6 @@
 // The guard that makes it impossible for a test to email a real customer. .env carries live SMTP credentials, and "every test remembers to pass a transport" is a convention that holds until someone forgets — the one that forgets would post a fabricated order to Elemetal.
 // So sendEmail refuses to build the real transport at all during a test run. This proves that refusal, the only reason to trust the rest of the email tests.
-import test from "node:test";
+import { test } from "vitest";
 import assert from "node:assert/strict";
 import { sendEmail } from "#providers/emails/nodemailer.ts";
 import path from "node:path";

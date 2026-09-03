@@ -15,7 +15,7 @@
 //
 // NOTHING IS COMMITTED. shared/testing/pinned-pool.js holds every query in one
 // transaction that is rolled back.
-import test, { after, before } from "node:test";
+import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
 import request from "supertest";
@@ -44,7 +44,7 @@ let notSellableId: string;
 // "local-1" is rejected by the column type, which is how I learned it.
 const scrapId = randomUUID();
 
-before(async () => {
+beforeAll(async () => {
   customer = (
     await outside<UserFixture>(
       `SELECT id, name, email FROM exchange.users WHERE role IS DISTINCT FROM 'admin' LIMIT 1`
@@ -85,7 +85,7 @@ before(async () => {
   notSellableId = notSellable?.id;
 });
 
-after(async () => {
+afterAll(async () => {
   restoreSessions();
   await pool.end();
 });
@@ -396,7 +396,7 @@ test("sync_sell_cart stores a product line sent in the frontend's own shape", as
           cart: [
             {
               type: "product",
-              // `product` is the fixture asserted present in before(); the sell
+              // `product` is the fixture asserted present in beforeAll(); the sell
               // direction has no liveness refusal to dodge.
               data: { name: product.product_name, quantity: 2 },
             },

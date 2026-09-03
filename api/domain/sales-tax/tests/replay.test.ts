@@ -1,7 +1,7 @@
 // The sales tax endpoint, over real HTTP — one route, requireUser, and it computes money from an address and items. The 88-row rules table is one of only two table pairs the migration rehearsal managed to populate, so this calculation's inputs already live in the new schema.
 // What's worth asserting is the HTTP boundary, not the rates arithmetic (unit-tested elsewhere): the route is guarded, a malformed body is refused rather than silently taxed at zero, and a state with no nexus differs from one with a rule.
 // A SILENT ZERO IS THE FAILURE THAT MATTERS — it looks identical whether a bad request undercharges an order or a state genuinely doesn't collect. NOTHING IS COMMITTED (pinned-pool.ts).
-import test, { after, before } from "node:test";
+import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import request from "supertest";
 import pool from "#db";
@@ -19,7 +19,7 @@ let customer: UserFixture;
 let spots: MetalFixture[];
 let nexusState: string | null;
 
-before(async () => {
+beforeAll(async () => {
   const users = await outside<UserFixture>(
     `SELECT id, name, email FROM exchange.users WHERE role IS DISTINCT FROM 'admin' LIMIT 1`
   );
@@ -30,7 +30,7 @@ before(async () => {
     `SELECT type, ask_spot, bid_spot FROM exchange.metals ORDER BY type`);
   assert.ok(spots.length > 0, "dev has no metals - a tax calculation needs a spot to price against");
 
-  // state_code, not state — the first version queried a column that doesn't exist, and every test failed in under a millisecond because before() threw.
+  // state_code, not state — the first version queried a column that doesn't exist, and every test failed in under a millisecond because beforeAll() threw.
   const states = await outside(
     `SELECT DISTINCT state_code FROM exchange.sales_tax_rules WHERE state_code IS NOT NULL LIMIT 1`
   );
@@ -38,7 +38,7 @@ before(async () => {
   assert.ok(nexusState, "dev has no sales tax rule with a state - the suite would prove nothing");
 });
 
-after(async () => {
+afterAll(async () => {
   restoreSessions();
   await pool.end();
 });

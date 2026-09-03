@@ -1,10 +1,11 @@
 // Addresses through the service, against real Postgres. An address is two rows: places.addresses (somewhere on earth) and places.user_addresses (one person's relationship to it).
 // Ownership is the one to get right: places.addresses has no user_id, so the check moved into service.ts. Several tests below exist only to prove it's still there.
-import test, { after, before } from "node:test";
+import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
 import { randomUUID } from "node:crypto";
 import pool from "#db";
+import { LOCKS, takeLocks } from "#shared/testing/locks.ts";
 import * as service from "#domain/places/addresses/service.ts";
 
 let client: PoolClient;
@@ -12,7 +13,7 @@ let client: PoolClient;
 let owner: string;
 let stranger: string;
 
-before(async () => {
+beforeAll(async () => {
   assert.equal(
     new Date().getTimezoneOffset(), 0,
     "these tests require TZ=UTC - run them with `pnpm --filter @dorado/api test`"
@@ -27,13 +28,19 @@ before(async () => {
   assert.ok(owner && stranger, "dev needs two users for the ownership tests");
 });
 
-after(async () => {
+afterAll(async () => {
   client.release();
   await pool.end();
 });
 
+// LOCKS.ORDERS, transaction-scoped (lane 3, the runner conversion): one test
+// here reads orders.orders/orders.addresses to find an "unfinished order",
+// and domain/orders/tests/edit-line.test.ts writes real, autocommitting rows
+// to the same tables under LOCKS.ORDERS - see purchase-read.test.ts's own
+// comment for the full mechanism.
 async function inRollback(fn: (c: PoolClient) => Promise<void>) {
   await client.query("BEGIN");
+  await takeLocks(client, LOCKS.ORDERS);
   try {
     await fn(client);
   } finally {

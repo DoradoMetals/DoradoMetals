@@ -32,7 +32,7 @@
 // pool.query are replaced for the duration, so the service's transaction
 // becomes a savepoint inside one that is discarded. The last test checks from
 // outside that nothing survived.
-import test, { after, before } from "node:test";
+import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
 import pool from "#db";
@@ -63,7 +63,7 @@ let withAddress: SalesOrderFixture;
 let supplier: SupplierFixture;
 let baseline: Baseline;
 
-before(async () => {
+beforeAll(async () => {
   // Through the shared executor with no client, never pool.query: lint:db
   // enforces that everywhere, and it is the rule that makes the pinned pool
   // work at all - one place to intercept.
@@ -114,7 +114,7 @@ before(async () => {
   };
 });
 
-after(async () => {
+afterAll(async () => {
   // Chromium, even though nothing here should ever launch it.
   //
   // With the guard in place this file never reaches the PDF, so this is a

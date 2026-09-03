@@ -14,16 +14,17 @@
 // digits of a bank account travel with an order.
 //
 // Each test runs inside a transaction that is rolled back.
-import test, { after, before } from "node:test";
+import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
 import pool from "#db";
 import * as orderRead from "#domain/orders/read.ts";
 import * as spotsRepo from "#db/orders/spots/repo.ts";
+import { LOCKS, takeLocks } from "#shared/testing/locks.ts";
 
 let client: PoolClient;
 
-before(async () => {
+beforeAll(async () => {
   assert.equal(
     new Date().getTimezoneOffset(), 0,
     "these tests require TZ=UTC - run them with `pnpm --filter @dorado/api test`"
@@ -31,13 +32,25 @@ before(async () => {
   client = await pool.connect();
 });
 
-after(async () => {
+afterAll(async () => {
   client.release();
   await pool.end();
 });
 
+// LOCKS.ORDERS, transaction-scoped (lane 3, the runner conversion): this file
+// reads `orders.orders`/`orders.spots` without ever writing them, which is why
+// it never needed a lock under `node --test`'s scheduling - but
+// `domain/orders/tests/edit-line.test.ts` writes real, autocommitting rows to
+// the same table under a SESSION-scoped ORDERS lock (it has no transaction of
+// its own to take a transaction-scoped one in), and vitest's own scheduling
+// overlapped the two, so a row `edit-line` created and then deleted could be
+// caught mid-life by a "before" snapshot here and gone by "after" -
+// `locks.ts`'s own warning that a missing lock is latent until timing changes
+// elsewhere. Postgres advisory locks contend across the xact/session split, so
+// taking the same id here, transaction-scoped, serializes against both kinds.
 async function inRollback(fn: (c: PoolClient) => Promise<void>) {
   await client.query("BEGIN");
+  await takeLocks(client, LOCKS.ORDERS);
   try {
     await fn(client);
   } finally {

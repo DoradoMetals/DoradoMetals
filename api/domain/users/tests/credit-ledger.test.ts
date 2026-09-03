@@ -13,7 +13,7 @@
 // rows from a money table on dev to make a test tidy. Pinning the pool lets
 // adjustDoradoCredit open its own transaction as a savepoint and lose it on
 // rollback, so nothing survives the file.
-import test from "node:test";
+import { test } from "vitest";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
 

@@ -1,5 +1,5 @@
 // The statements, as text - hand-written parameter arrays against generated SQL are the one transcription error the generator cannot prevent (see reviews/tests/unit.test.ts).
-import test from "node:test";
+import { test } from "vitest";
 import assert from "node:assert/strict";
 import path from "node:path";
 import { sqlFrom } from "#shared/db/sql.ts";

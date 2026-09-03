@@ -1,6 +1,6 @@
 // D97: the estimated payout comes from the server. The checkout's headline figure used to be `(quote?.total ?? 0) - (shippingCost ?? 0 + paymentCost)` — `+` binds tighter than `??`, so ONE deduction was always silently discarded (with a service selected, the payout fee vanished and the number read high while the rows beneath it said otherwise).
 // These pin the server's answer, not the component's — the frontend computes no money, so getting the arithmetic right here is the whole fix.
-import test from "node:test";
+import { test } from "vitest";
 import assert from "node:assert/strict";
 import * as quotes from "#domain/quotes/service.ts";
 import query from "#shared/db/query.ts";

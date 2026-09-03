@@ -2,7 +2,7 @@
 // No network — asserts which host and account a call WOULD use.
 // #env first, or none of the FEDEX_* variables exist and the first version passed by comparing undefined to undefined.
 import "#env";
-import test, { afterEach, before } from "node:test";
+import { test, afterEach, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import {
   accountNumber,
@@ -15,7 +15,7 @@ const saved = { ...process.env };
 
 // And the values have to actually be there, or every assertion below is
 // undefined === undefined again.
-before(() => {
+beforeAll(() => {
   for (const name of [
     "FEDEX_API_URL",
     "FEDEX_SANDBOX_API_URL",

@@ -1,6 +1,6 @@
 // Which provider a carrier id resolves to: resolveCarrier reads the carrier's *name*, lower-cased, into a PROVIDERS key ('FedEx' -> 'fedex'). Every label, rate and pickup goes through it, which makes the name load-bearing - a compose step that dropped it would fail every label with "Unsupported carrier".
 // exchange.carriers no longer receives writes, but its rows are the frozen historical record - the comparison below checks the new schema still agrees with it, not that a dual write kept them in sync.
-import test, { after, before, describe } from "node:test";
+import { test, afterAll, beforeAll, describe } from "vitest";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
 import fs from "node:fs";
@@ -14,11 +14,11 @@ import * as carriers from "#domain/shipping/carriers/service.ts";
 
 let client: PoolClient;
 
-before(async () => {
+beforeAll(async () => {
   client = await pool.connect();
 });
 
-after(async () => {
+afterAll(async () => {
   client.release();
   await pool.end();
 });

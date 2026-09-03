@@ -1,6 +1,6 @@
 // The recaptcha verification endpoint, over real HTTP — deliberately unguarded (it runs before anyone has a session), so the missing-token path is the only thing worth asserting.
 // Doesn't test a real token against Google (rate-limited, fails for reasons unrelated to this codebase — belongs in the sandbox suite). So: nothing here proves a BAD token is rejected, only that a request with NO token is refused before the provider is reached at all.
-import test, { after } from "node:test";
+import { test, afterAll } from "vitest";
 import assert from "node:assert/strict";
 import request from "supertest";
 import pool from "#db";
@@ -10,7 +10,7 @@ import { inPinnedTransaction } from "#shared/testing/pinned-pool.ts";
 await mockSessions();
 const { default: app } = await import("#app");
 
-after(async () => {
+afterAll(async () => {
   restoreSessions();
   await pool.end();
 });

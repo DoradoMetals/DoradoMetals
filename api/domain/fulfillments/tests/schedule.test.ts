@@ -2,7 +2,7 @@
 // All pure database work - checked each service/repo function before driving it: no email, FedEx or Stripe. fulfillments has no exchange side and never will, so there's no second implementation these could disagree with.
 // The pickup test builds its own fixture, and that's the point: dev holds no PICKUP fulfillment at all, so it sets the method first through set_method and then books, proving the category guard is reached rather than skipped.
 // NOTHING IS COMMITTED - shared/testing/pinned-pool.ts holds every query in one rolled-back transaction.
-import test, { after, before } from "node:test";
+import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
 import request from "supertest";
@@ -23,7 +23,7 @@ let directFulfilment: IdRow;
 let pickupMethodId: string;
 let locationId: string;
 
-before(async () => {
+beforeAll(async () => {
   admin = (
     await outside<UserFixture>(`SELECT id, name, email FROM exchange.users WHERE role = 'admin' LIMIT 1`)
   )[0];
@@ -62,7 +62,7 @@ before(async () => {
   assert.ok(locationId, "dev needs a location");
 });
 
-after(async () => {
+afterAll(async () => {
   restoreSessions();
   await pool.end();
 });

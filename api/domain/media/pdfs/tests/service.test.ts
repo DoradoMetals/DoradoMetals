@@ -12,7 +12,7 @@
 // would notice.
 //
 // Read-only: generating a PDF writes nothing.
-import test, { after, before } from "node:test";
+import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import pool from "#db";
 import * as pdf from "#domain/media/pdfs/service.ts";
@@ -22,12 +22,15 @@ import * as inputs from "#domain/media/pdfs/order-inputs.ts";
 import { calculateTotalPrice, type Bids } from "#domain/pricing/service.ts";
 import { formatCurrency } from "#domain/media/pdfs/render/format.ts";
 import type { DocumentLabels } from "#domain/media/pdfs/render/sections.ts";
+import { LOCKS } from "#shared/testing/locks.ts";
+import type { PoolClient } from "pg";
 import type { OrderView } from "@dorado/contracts";
 
 let orders: OrderView[];
 let salesOrders: OrderView[];
 let bids: Bids;
 let labels: DocumentLabels;
+let lockClient: PoolClient;
 
 const viewsOf = async (direction: "purchase" | "sale") => {
   const out: OrderView[] = [];
@@ -42,11 +45,19 @@ const viewsOf = async (direction: "purchase" | "sale") => {
 // and the labels behind the ids its rows carry.
 const inputsFor = async (order: OrderView) => await inputs.invoiceInputs(order.order.id);
 
-before(async () => {
+// SESSION-scoped LOCKS.ORDERS, held for the whole file (lane 3, the runner
+// conversion): `orders`/`salesOrders` are captured here and re-read later by
+// individual tests via `inputsFor`, and domain/orders/tests/edit-line.test.ts
+// writes real, autocommitting rows to orders.orders under the SAME lock -
+// see domain/media/pdfs/tests/documents-agree.test.ts's own comment for the
+// full mechanism.
+beforeAll(async () => {
   assert.equal(
     new Date().getTimezoneOffset(), 0,
     "these tests require TZ=UTC - run them with `pnpm --filter @dorado/api test`"
   );
+  lockClient = await pool.connect();
+  await lockClient.query("SELECT pg_advisory_lock($1)", [LOCKS.ORDERS]);
   orders = await viewsOf("purchase");
   salesOrders = await viewsOf("sale");
   assert.ok(orders.length > 0, "dev has no purchase orders to render");
@@ -54,7 +65,9 @@ before(async () => {
   assert.ok(labels.metals.size > 0, "dev has no metals to label a document with");
 });
 
-after(async () => {
+afterAll(async () => {
+  await lockClient.query("SELECT pg_advisory_unlock($1)", [LOCKS.ORDERS]);
+  lockClient.release();
   // Otherwise Chromium outlives the test run.
   await closeBrowser();
   await pool.end();

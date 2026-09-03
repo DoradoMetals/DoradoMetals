@@ -13,7 +13,7 @@
 //
 // NOTHING IS COMMITTED - the pool is pinned to a rolled-back transaction, and
 // the last test proves it from outside.
-import test, { after, before } from "node:test";
+import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import request from "supertest";
 import pool from "#db";
@@ -47,7 +47,7 @@ let owner: Caller;
 let stranger: Caller;
 let order: SalesOrderFixture;
 
-before(async () => {
+beforeAll(async () => {
   // The OLDEST sales order with an owner. Never the newest: that is a race
   // against every file that creates one, and it made the purchase-order
   // ownership tests intermittent.
@@ -81,7 +81,7 @@ before(async () => {
   assert.ok(stranger.id, "dev has only one non-admin user");
 });
 
-after(async () => {
+afterAll(async () => {
   restoreSessions();
   await pool.end();
 });

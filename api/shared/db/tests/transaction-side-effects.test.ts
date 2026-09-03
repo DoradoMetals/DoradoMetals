@@ -1,6 +1,6 @@
 // Nothing irreversible goes inside a transaction — a rollback can't undo an email, a Stripe charge, or a FedEx label. Real incident: sendOrderToSupplier emailed a refiner before the transaction that recorded the order failed, so metal shipped against nothing.
 // Source-level floor, not exhaustive — a new external call needs adding to EXTERNAL below.
-import test from "node:test";
+import { test } from "vitest";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";

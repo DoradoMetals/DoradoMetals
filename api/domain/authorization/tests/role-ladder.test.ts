@@ -1,6 +1,6 @@
 // The role ladder, and the rung nobody stands on. requireVerifiedUser is exported and mounted on NOTHING — and that's for good reason: it checks a ROLE (`role >= verified_user`) that no user holds (production: 73 user, 2 admin, zero verified_user) and never reads emailVerified, a separate column 53 of 75 production users lack.
 // So mounting it would refuse EVERY customer while every admin sails through, and the name would make that look intentional. This test pins it unmounted so using it becomes a deliberate act, not a reasonable-looking import.
-import test from "node:test";
+import { test } from "vitest";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";

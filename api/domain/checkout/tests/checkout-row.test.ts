@@ -7,7 +7,7 @@
 // amount of testing btw - these are core to our app"): every surface, every
 // refusal, and the invariants that make the draft safe - a draft is invisible
 // to order reads, the attach is one-way, and the whitelist holds.
-import test, { after, before } from "node:test";
+import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
 import request from "supertest";
@@ -27,7 +27,7 @@ let purchaseMethodId: string; // an offered purchase-direction fulfillment metho
 let saleMethodId: string;     // an offered sale-direction one
 let hiddenMethodId: string;   // a hidden method the menu never offered
 
-before(async () => {
+beforeAll(async () => {
   const users = await outside<UserFixture>(
     `SELECT u.id, u.name, u.email FROM exchange.users u
       WHERE u.role IS DISTINCT FROM 'admin'
@@ -46,7 +46,7 @@ before(async () => {
   assert.ok(purchaseMethodId && saleMethodId && hiddenMethodId, "the methods seed is missing rows");
 });
 
-after(async () => {
+afterAll(async () => {
   await restoreSessions();
   await pool.end();
 });
@@ -101,7 +101,7 @@ test("PATCH writes the whitelisted id columns and answers the fresh row", async 
     const { rows: [pm] } = await c.query(
       `SELECT id FROM payments.methods WHERE direction = 'purchase' LIMIT 1`
     );
-    t.diagnostic(`package ${pkg?.id}, service ${svc?.id}, method ${pm?.id}`);
+    console.log(`package ${pkg?.id}, service ${svc?.id}, method ${pm?.id}`);
 
     const res = await as(customer, () =>
       request(app).patch("/api/checkout").send({

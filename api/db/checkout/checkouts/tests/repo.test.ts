@@ -3,7 +3,7 @@
 // Device-sync, not a ledger: what is checked is that the session WORKS - one
 // row per (user_id, direction), a partial write that leaves the rest alone,
 // and a clear that really clears.
-import test, { after, before } from "node:test";
+import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
 import { randomUUID } from "node:crypto";
@@ -12,14 +12,14 @@ import * as checkouts from "#db/checkout/checkouts/repo.ts";
 
 let client: PoolClient;
 
-before(async () => {
+beforeAll(async () => {
   assert.equal(
     new Date().getTimezoneOffset(), 0,
     "these tests require TZ=UTC - run them with `pnpm --filter @dorado/api test`"
   );
   client = await pool.connect();
 });
-after(async () => { client.release(); await pool.end(); });
+afterAll(async () => { client.release(); await pool.end(); });
 
 async function inRollback(fn: (c: PoolClient) => Promise<void>) {
   await client.query("BEGIN");

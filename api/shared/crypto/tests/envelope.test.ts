@@ -1,6 +1,6 @@
 // The cipher half of phase 7, tested against synthetic values only — dev holds no bank details, so every value here is invented; no database is touched, which is what makes this exhaustively testable.
 // The suite that matters most is the last: no error this module throws may ever carry the plaintext it was handed — a stack trace in a log aggregator is a worse exposure than the at-rest plaintext this phase exists to remove.
-import { describe, it } from "node:test";
+import { describe, it } from "vitest";
 import assert from "node:assert/strict";
 import { randomBytes } from "node:crypto";
 import {
