@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { apiRequest } from '@/shared/queries/axios'
 import { useApiQuery } from '@/shared/queries/base'
 import { useGetSession } from '@/features/auth/queries'
-import type { PurchaseOrder } from '@/features/orders/purchaseOrders/types'
+import type { OrderView } from '@dorado/contracts'
 
 // THE CHECKOUT ROW FLOW (D208): the stepper writes IDS onto the server's
 // checkout row as the customer decides, the fulfillment is a live draft the
@@ -96,16 +96,23 @@ export const useSaveCheckoutPayout = () => {
   })
 }
 
-// ZERO BODY (D210): by Confirm, every choice is a server-side resource - the
-// request is a trigger, nothing more.
+// ONE ID, RESOLVED HERE (D214 item 11): by Confirm, every choice is already a
+// server-side resource, so the only thing Confirm still needs to find is the
+// checkout row's OWN id - GET /checkout?direction=purchase answers with the
+// caller's row (created on first read if none existed), and the create body
+// is that id and nothing else. It replaces the zero-body trigger; the click
+// itself carries no new information either way.
 export const useCreatePurchaseOrderFromCheckout = () => {
   const { user } = useGetSession()
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: async () => {
       if (!user?.id) throw new Error('User is not authenticated')
-      return await apiRequest<PurchaseOrder>(
-        'POST', '/purchase_orders/create_from_checkout', {}
+      const { id: checkout_id } = await apiRequest<{ id: string }>(
+        'GET', '/checkout', undefined, { direction: 'purchase' }
+      )
+      return await apiRequest<OrderView>(
+        'POST', '/purchase_orders/create_from_checkout', { checkout_id }
       )
     },
     onSettled: () => {

@@ -3,10 +3,10 @@
 // This is the screen where metal leaves the building: an admin picks the
 // refiner and the click emails them the order. Same rules as the other
 // converted features - jsdom, real component tree, network mocked by URL.
-// The send is the unified PATCH now (D87): /orders/:id for both directions,
-// the supplier op as a partial document - and the order's spots resolved
-// SERVER-side, so the body carries no pricing arrays. The URL and the exact
-// document are the pin.
+// The send is its own action route now (D214 item 11):
+// POST /orders/:id/send_to_refiner { refiner_id } - no longer a flag inside
+// the order's PATCH - and the order's spots resolved SERVER-side, so the
+// body carries no pricing arrays. The URL and the exact document are the pin.
 import { describe, expect, test, vi, beforeEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -68,7 +68,7 @@ describe("sending a sales order to a supplier", () => {
     await waitFor(() => expect(screen.getAllByText("Elemetal").length).toBeGreaterThan(0));
   });
 
-  test("the send PATCHes the order with the supplier document", async () => {
+  test("the send POSTs the refiner id to send_to_refiner", async () => {
     renderWithClient(<AdminPreparingSalesOrder order={order()} />);
     await waitFor(() => expect(screen.getAllByText("Elemetal").length).toBeGreaterThan(0));
 
@@ -80,12 +80,14 @@ describe("sending a sales order to a supplier", () => {
     await waitFor(() => {
       const call = vi
         .mocked(apiRequest)
-        .mock.calls.find(([method, url]) => method === "PATCH" && url === "/orders/so-1");
+        .mock.calls.find(
+          ([method, url]) => method === "POST" && url === "/orders/so-1/send_to_refiner"
+        );
       expect(call).toBeTruthy();
-      // The WHOLE document: the supplier op and nothing else - no spots, no
+      // The WHOLE document: the refiner id and nothing else - no spots, no
       // order copy. toEqual is exact in both directions, so a stray field
       // fails here before the API refuses it by name.
-      expect(call![2]).toEqual({ supplier: { supplier_id: "s-1", send: true } });
+      expect(call![2]).toEqual({ refiner_id: "s-1" });
     });
   });
 });

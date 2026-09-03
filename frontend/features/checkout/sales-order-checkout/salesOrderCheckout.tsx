@@ -111,7 +111,11 @@ export default function SalesOrderCheckout() {
   // What the payment form calls BEFORE the charge (create-then-charge, D179):
   // parse against the live cart - not a render's snapshot - and POST. A throw
   // here reaches the form's message and nothing has been charged.
-  const createOrderForIntent = async (paymentIntentId: string) => {
+  //
+  // paymentIntentId is no longer forwarded: the create body is a checkout id
+  // now, and the server links the caller's own OPEN intent by user_id - see
+  // features/orders/salesOrders/users/queries.ts.
+  const createOrderForIntent = async (_paymentIntentId: string) => {
     const liveItems = cartStore.getState().items
     const checkoutPayload = {
       ...data,
@@ -120,11 +124,7 @@ export default function SalesOrderCheckout() {
       items: liveItems,
     }
     const validated = salesOrderCheckoutSchema.parse(checkoutPayload)
-    await createOrder.mutateAsync({
-      paymentIntentId,
-      sales_order: validated,
-      spotPrices: spotPrices,
-    })
+    await createOrder.mutateAsync({ sales_order: validated })
   }
 
   const handleSubmit = () => {
@@ -138,7 +138,7 @@ export default function SalesOrderCheckout() {
     const validated = salesOrderCheckoutSchema.parse(checkoutPayload)
 
     createOrder.mutate(
-      { sales_order: validated, spotPrices: spotPrices },
+      { sales_order: validated },
       {
         onSuccess: finishCheckout,
       }
