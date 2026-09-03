@@ -44,9 +44,21 @@ const sameMoney = (actual: unknown, expected: unknown, message: string) =>
     `${message} (got ${actual}, wanted ${expected})`
   );
 
+// LOCKED, even though this is a plain read. beforeAll/afterAll call this
+// OUTSIDE any pinned transaction (the fixture and the closing check both have
+// to see committed state, which is what `outside()` is for) - but that used
+// to mean it raced credit-delta.test.ts, which committed real balance changes
+// to this SAME customer for the whole life of its file. `pg_advisory_xact_lock`
+// inside the same statement waits its turn behind LOCKS.USERS the way every
+// other file that touches this row does, without holding a session-level lock
+// past the single round trip `outside()` makes (the CTE's implicit
+// transaction ends, and the lock releases, the moment this one statement
+// finishes) - so nothing here can be caught mid-flight by another file's
+// pinned transaction, or vice versa.
 const funds = async (id: string): Promise<number | null> => {
   const rows = await outside<{ dorado_funds: number | null }>(
-    `SELECT dorado_funds FROM auth.users WHERE id = $1`, [id]);
+    `WITH lock AS (SELECT pg_advisory_xact_lock($2))
+     SELECT dorado_funds FROM auth.users WHERE id = $1`, [id, LOCKS.USERS]);
   return rows[0]?.dorado_funds ?? null;
 };
 
