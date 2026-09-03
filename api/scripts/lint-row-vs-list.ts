@@ -214,10 +214,12 @@ console.log(
 // A KNOWN-PRESENT CONTROL, not just a zero-check. audit:query-paths' lesson
 // (D142's neighbour): a bare floor is blind to PARTIAL breakage, and this
 // script's numbers are small enough that "some" and "all" look alike.
-// `checkout` is a feature whose repo.ts has list-returning exports today; if
-// the repo parser stops seeing them, this reports zero findings and exits 0
-// while auditing nothing.
-const CONTROL = process.env.LINT_ROW_CONTROL ?? "checkout";
+// `checkout/items` is a repo with list-returning exports today; if the repo
+// parser stops seeing them, this reports zero findings and exits 0 while
+// auditing nothing. It was plain `checkout` until the CRUD split gave each
+// checkout TABLE its own repo - the feature key is the repo's directory, so
+// the control moved with the file rather than the check being loosened.
+const CONTROL = process.env.LINT_ROW_CONTROL ?? "checkout/items";
 if (!listReturning.has(CONTROL)) {
   console.error(
     `the known-present control "${CONTROL}" contributed no list-returning repo ` +

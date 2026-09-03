@@ -22,7 +22,6 @@ import * as refinerSpots from "#db/refiners/spots/repo.ts";
 import * as refinerItems from "#db/refiners/items/repo.ts";
 import * as productsRepo from "#db/products/repo.ts";
 import * as readService from "#domain/orders/read.service.ts";
-import * as payoutAccounts from "#db/payments/details/repo.ts";
 import * as orderTransactions from "#db/orders/transactions/repo.ts";
 import { convertTroyOz } from "#shared/utils/convertWeights.ts";
 import * as emailService from "#domain/media/emails/service.ts";
@@ -91,7 +90,7 @@ import * as salesOrderWrites from "#domain/orders/write.service.ts";
 import * as orderSpots from "#db/orders/spots/repo.ts";
 import * as metalsRepo from "#db/metals/repo.ts";
 import { calculateItemAsk } from "#domain/pricing/service.ts";
-import * as stripeRepo from "#db/payments/repo.ts";
+import * as paymentsService from "#domain/payments/service.ts";
 import * as stripeProvider from "#providers/payment/stripe.ts";
 import * as reconcileService from "#domain/orders/reconcile.service.ts";
 import * as usersService from "#domain/users/service.ts";
@@ -983,7 +982,7 @@ export async function createSalesOrder(
       err.statusCode = 400;
       throw err;
     }
-    const intent = await stripeRepo.getVerbatimByIntentId(payment_intent_id);
+    const intent = await paymentsService.findIntentByRef(payment_intent_id);
     if (!intent || intent.user_id !== session.user.id) {
       // "does not exist" and "is not yours" are deliberately the same answer,
       // exactly as the ownership middleware phrases it.
@@ -1020,7 +1019,7 @@ export async function createSalesOrder(
       }
       await withTransaction(async (client) => {
         await reconcileService.cancelPendingSale(intent.sales_order_id as string, client);
-        await stripeRepo.attachOrder(payment_intent_id, null, null, client);
+        await paymentsService.attachOrder(payment_intent_id, null, client);
       });
     }
     if (intent.payment_status === "canceled") {
@@ -1057,7 +1056,7 @@ export async function createSalesOrder(
       const updated = await stripeProvider.updateIntent(payment_intent_id, {
         amount: chargeCents,
       });
-      await stripeRepo.updatePaymentIntent(updated);
+      await paymentsService.updateFromProvider(updated);
     }
   }
 
@@ -1104,7 +1103,7 @@ export async function createSalesOrder(
     );
 
     if (chargeCents > 0) {
-      await stripeRepo.attachOrder(payment_intent_id, null, orderId, client);
+      await paymentsService.attachOrder(payment_intent_id, orderId, client);
     }
 
     return orderId;
@@ -1177,7 +1176,7 @@ export async function adminCreateSalesOrder({
       err.statusCode = 400;
       throw err;
     }
-    const intent = await stripeRepo.getVerbatimByIntentId(payment_intent_id);
+    const intent = await paymentsService.findIntentByRef(payment_intent_id);
     // Ownership is the NAMED CUSTOMER's, not the admin's: admin-flavoured
     // intents are keyed on the customer they are opened for.
     if (!intent || intent.user_id !== user.id) {
@@ -1232,7 +1231,7 @@ export async function adminCreateSalesOrder({
       if (intent.sales_order_id) {
         await withTransaction(async (client) => {
           await reconcileService.cancelPendingSale(intent.sales_order_id as string, client);
-          await stripeRepo.attachOrder(payment_intent_id, null, null, client);
+          await paymentsService.attachOrder(payment_intent_id, null, client);
         });
       }
       // The authoritative amount, stamped NOW - outside the transaction,
@@ -1242,7 +1241,7 @@ export async function adminCreateSalesOrder({
       const updated = await stripeProvider.updateIntent(payment_intent_id, {
         amount: chargeCents,
       });
-      await stripeRepo.updatePaymentIntent(updated);
+      await paymentsService.updateFromProvider(updated);
     }
   }
 
@@ -1282,7 +1281,7 @@ export async function adminCreateSalesOrder({
     );
 
     if (orderPrices.post_charges_amount > 0) {
-      await stripeRepo.attachOrder(payment_intent_id, null, orderId, client);
+      await paymentsService.attachOrder(payment_intent_id, orderId, client);
     }
 
     return orderId;

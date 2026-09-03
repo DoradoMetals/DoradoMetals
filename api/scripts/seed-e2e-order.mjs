@@ -129,7 +129,7 @@ await checkoutService.saveCheckoutPayout(user_id, "purchase", {
   payout_email: E2E_CUSTOMER.email,
   account_holder_name: E2E_CUSTOMER.name,
 });
-await checkoutService.syncSellCart(user_id, [
+await checkoutService.syncCart(user_id, "purchase", [
   { type: "product", data: { name: products[0].product_name, quantity: 1 } },
 ]);
 

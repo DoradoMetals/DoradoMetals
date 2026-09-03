@@ -166,24 +166,34 @@ test("an address lands only if it is in the CALLER'S book", async () => {
   });
 });
 
-test("the whitelist holds: fulfillment_id, user_id and direction cannot be patched in", async () => {
+// THE WHITELIST HOLDS, AND IT NOW REFUSES OUT LOUD. The contract schema is
+// the whitelist and it is parsed in STRICT mode, so a column the customer may
+// not write is a 400 naming it rather than a silently ignored key. Ignoring
+// them was the older behaviour; a request that thinks it set fulfillment_id
+// and got a 200 is worse than one that is told no.
+test("the whitelist holds: fulfillment_id, user_id and id cannot be patched in", async () => {
   await inPinnedTransaction(async () => {
     const before = await as(customer, () =>
       request(app).get("/api/checkout?direction=purchase")
     );
 
-    const res = await as(customer, () =>
-      request(app).patch("/api/checkout").send({
-        direction: "purchase",
-        fulfillment_id: "11111111-1111-4111-8111-111111111111",
-        user_id: stranger.id,
-        id: "22222222-2222-4222-8222-222222222222",
-      })
+    for (const body of [
+      { fulfillment_id: "11111111-1111-4111-8111-111111111111" },
+      { user_id: stranger.id },
+      { id: "22222222-2222-4222-8222-222222222222" },
+    ]) {
+      const res = await as(customer, () =>
+        request(app).patch("/api/checkout").send(Object.assign({ direction: "purchase" }, body))
+      );
+      assert.equal(res.status, 400, `${JSON.stringify(body)} was accepted: ${res.text}`);
+    }
+
+    const after = await as(customer, () =>
+      request(app).get("/api/checkout?direction=purchase")
     );
-    assert.equal(res.status, 200, "unknown columns should be ignored, not 500");
-    assert.equal(res.body.fulfillment_id, before.body.fulfillment_id);
-    assert.equal(res.body.user_id, customer.id);
-    assert.equal(res.body.id, before.body.id);
+    assert.equal(after.body.fulfillment_id, before.body.fulfillment_id);
+    assert.equal(after.body.user_id, customer.id);
+    assert.equal(after.body.id, before.body.id);
   });
 });
 

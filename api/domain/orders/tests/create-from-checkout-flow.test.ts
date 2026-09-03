@@ -17,7 +17,7 @@ import { payoutKeyFromEnv } from "#shared/crypto/payoutKey.ts";
 await mockSessions();
 const { default: app } = await import("#app");
 const orderCreate = await import("#domain/orders/create.ts");
-const checkoutRows = await import("#db/checkout/repo.ts");
+const checkoutService = await import("#domain/checkout/service.ts");
 
 type UserFixture = { id: string };
 
@@ -365,8 +365,8 @@ test("the record half links ids and writes NO exchange rows at all", async () =>
     assert.equal(details.body.order_id, placed.order_id);
 
     // The row starts the next checkout clean - the payout pointers included.
-    await checkoutRows.resetRow(customer.id, "purchase", c);
-    const fresh = await checkoutRows.getRow(customer.id, "purchase", c);
+    await checkoutService.resetAfterOrder(customer.id, "purchase", c);
+    const fresh = await checkoutService.getRowFor(customer.id, "purchase", c);
     assert.equal(fresh.payment_details_id, null);
     assert.equal(fresh.fulfillment_id, null);
     assert.equal(fresh.package_weight, null);

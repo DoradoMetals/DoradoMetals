@@ -39,7 +39,7 @@ import * as refinerSpots from "#db/refiners/spots/repo.ts";
 import * as ratesRepo from "#domain/rates/service.ts";
 import { getRatePct, sumContentByMetal } from "#domain/rates/utils/resolveRate.ts";
 import * as fulfillmentShipments from "#domain/fulfillments/shipments/service.ts";
-import type { CheckoutRow } from "#db/checkout/repo.ts";
+import type { CheckoutRow } from "#db/checkout/checkouts/repo.ts";
 import * as newShipments from "#db/shipping/shipments/repo.ts";
 import * as pickupService from "#domain/shipping/pickups/service.ts";
 import * as packagesRepo from "#db/shipping/packages/repo.ts";
@@ -360,7 +360,7 @@ export async function resolvePurchaseCheckout(user_id: string): Promise<Resolved
 
   // The payout account was recorded at the payout step; the FEE is the
   // method row's own flat fee - server money, never a client figure.
-  const purchaseMethods = await paymentMethods.getAll("purchase");
+  const purchaseMethods = await paymentMethods.listFor("purchase");
   const payoutMethod = purchaseMethods.find((m) => m.id === row.payment_method_id);
   const payout_fee = Number(payoutMethod?.flat_fee ?? 0);
 
@@ -621,7 +621,7 @@ export async function placePurchaseOrder(user_id: string) {
   // The cart became the order; the server clears its copy. Device-sync data -
   // a failed clear is a stale basket, not lost data.
   try {
-    await checkoutService.syncSellCart(user_id, []);
+    await checkoutService.syncCart(user_id, "purchase", []);
   } catch {
     /* the next sync heals it */
   }

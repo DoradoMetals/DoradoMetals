@@ -5,7 +5,7 @@ import withTransaction from "#shared/db/withTransaction.ts";
 import * as products from "#db/products/repo.ts";
 import * as compose from "#domain/products/compose.ts";
 import type { StorefrontProduct, AdminProduct } from "#domain/products/compose.ts";
-import type { ProductPatch, Liveness } from "#db/products/repo.ts";
+import type { ProductPatch, Liveness, PublicProductRow } from "#db/products/repo.ts";
 import type { Executor } from "#shared/db/executor.ts";
 
 interface HttpError extends Error {
@@ -162,6 +162,15 @@ export async function findProductIdByName(
 
 export async function getLiveness(ids: string[], executor?: Executor): Promise<Liveness[]> {
   return await products.getLiveness(ids, executor);
+}
+
+// The catalogue rows behind a set of ids. Checkout reads a product's metal and
+// its bid premium through here rather than joining products.bullion into its
+// own write - the feature that owns the table answers for it.
+export async function getByIds(
+  ids: string[], executor?: Executor
+): Promise<PublicProductRow[]> {
+  return await products.getByIds(ids, executor);
 }
 
 // THE PRICE OF A PRODUCT COMES FROM THE SERVER, NOT THE CART.

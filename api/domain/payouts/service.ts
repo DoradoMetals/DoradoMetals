@@ -11,7 +11,6 @@
 // success - not the row - so nothing here can grow into a leak.
 import * as payoutsRepo from "#db/payouts/repo.ts";
 import * as payoutDetails from "#domain/payments/details/service.ts";
-import * as payoutAccounts from "#db/payments/details/repo.ts";
 import * as orderTransactions from "#domain/orders/transactions/service.ts";
 import { refusedUnknownField, refusedValue, type Refusal } from "#shared/http/patch-body.ts";
 import { PayoutPatch } from "@dorado/contracts";
@@ -74,9 +73,12 @@ export async function patchPayout(
 
   if (body.method !== undefined) {
     // The method is a FOREIGN KEY on payments.details, resolved against
-    // payments.methods rather than stored as a string. The walk runs through
-    // orders.transactions.payout_details_id, the link 099 added.
-    await payoutAccounts.setMethodForOrder(orderId, body.method);
+    // payments.methods rather than stored as a string. Keyed by the payout's
+    // OWN id: the walk this replaced ran order -> payments.intents -> details,
+    // and an intent is money coming IN, so it matched nothing for every payout
+    // it existed to serve (D168).
+    const changed = await payoutDetails.setMethod(payoutId, body.method);
+    if (!changed) refuse(404, `no payout ${payoutId}`);
   }
 
   // THE WAIVER, AND IT DOES NOT TOUCH `cost`. Waiving sets the flag and the

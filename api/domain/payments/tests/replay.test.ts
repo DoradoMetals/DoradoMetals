@@ -1,50 +1,23 @@
 // The payments endpoints, over real HTTP.
 //
-// This is the feature where a wrong answer is a wrong amount of money, and it
-// holds the sharpest of the authorization bugs: TYPE WAS A PRIVILEGE CLAIMED BY
-// ASKING.
+// TYPE=ADMIN IS A PRIVILEGE, NOT A PARAMETER, and this is where that is kept
+// shut: `type` decides WHOSE intent is fetched, and the response body is the
+// client_secret a browser confirms a payment with. An admin placing an order
+// for a customer is real; claiming it by asking is not.
 //
-// retrieve_payment_intent is requireUser, and the repos read
+// MOST OF THESE ARE REFUSALS BECAUSE THREE OF THE FOUR SUCCESS PATHS END AT
+// STRIPE, and this suite takes no network dependency. Each refusal returns
+// from the controller before the service runs, so it covers exactly the
+// boundary that was broken. get_sales_order_payment_intent is the exception -
+// a pure database read - so it is the one whose response SHAPE is pinned here.
 //
-//   type === "admin" ? user_id : session.user.id
+// THE ROUTES ARE MOUNTED AT /api/stripe, NOT /api/payments (ruling 13: the URL
+// and the file answer different questions). A request to /api/payments answers
+// 404, which is not in [401, 403] and reads as a failed guard rather than a
+// wrong URL.
 //
-// so `type` decided WHOSE intent was fetched. A signed-in customer could send
-// type=admin with somebody else's user_id and receive their payment intent -
-// and the response body is the Stripe object's client_secret, which is the
-// credential a browser uses to confirm a payment. The type still selects the
-// flow, because an admin placing an order on a customer's behalf is real; it
-// just cannot be claimed.
-//
-// WHY THE REFUSALS ARE MOST OF THE TESTS. THREE of the four success paths end
-// at Stripe - retrieve, update and cancel. The suite does not call Stripe: the
-// provider refuses a live key under test, and the sandbox is a network
-// dependency this file deliberately does not take. Every refusal below returns
-// from the controller BEFORE the service runs, so those assertions cover exactly
-// the boundary that was broken, deterministically.
-//
-// THE FOURTH IS NOT LIKE THE OTHERS, AND THIS HEADER USED TO SAY IT WAS.
-// get_sales_order_payment_intent is a pure database read -
-// stripeService.getPaymentIntentFromSalesOrderId goes straight to the repo and
-// touches no provider. It had zero success coverage on the strength of a
-// sentence that was true of its three neighbours and not of it.
-//
-// That matters more than one missing assertion, because it is also the only
-// route in this feature whose response shape can be pinned over real HTTP.
-// While the wire adapter existed (deleted 2026-08-27 with the frontend
-// conversion) this was its only HTTP coverage; what the success test pins now
-// is the nested contract itself - the shape, the dollars, and the absence of
-// the legacy names - at the layer where the addresses bug lived: the repo was
-// correct, the response was not, and no repo test could see it.
-//
-// THE ROUTES ARE MOUNTED AT /api/stripe, NOT /api/payments. The feature was
-// renamed; the path deliberately was not, because the frontend calls it and
-// renaming a module is not a reason to change the API (app.ts says so). The
-// first version of this file inferred the path from the feature name, sent
-// every request to /api/payments, got 404 for all of them - and 404 is not in
-// [401, 403], so it read as four failures rather than as a wrong URL.
-//
-// NOTHING IS COMMITTED. shared/testing/pinned-pool.js holds every query in one
-// transaction that is rolled back.
+// NOTHING IS COMMITTED - pinned-pool holds every query in one rolled-back
+// transaction.
 import test, { after, before } from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
@@ -129,7 +102,7 @@ test("every route refuses an anonymous caller", async () => {
 // client_secret. Sent as the real attack: the victim's id, not the caller's.
 test("a customer cannot claim type=admin to read another user's payment intent", async () => {
   await inPinnedTransaction(async () => {
-    await as({ ...customer, role: "user" }, async () => {
+    await as(Object.assign({}, customer, { role: "user" }), async () => {
       const res = await request(app)
         .get("/api/stripe/retrieve_payment_intent")
         .query({ type: "admin", user_id: victim.id });
@@ -155,7 +128,7 @@ test("a customer cannot claim type=admin to read another user's payment intent",
 // written the other way would have passed this and still been broken.
 test("a customer cannot claim type=admin even against their own id", async () => {
   await inPinnedTransaction(async () => {
-    await as({ ...customer, role: "user" }, async () => {
+    await as(Object.assign({}, customer, { role: "user" }), async () => {
       const res = await request(app)
         .get("/api/stripe/retrieve_payment_intent")
         .query({ type: "admin", user_id: customer.id });
@@ -166,7 +139,7 @@ test("a customer cannot claim type=admin even against their own id", async () =>
 
 test("the two admin-only routes refuse a signed-in customer", async () => {
   await inPinnedTransaction(async () => {
-    await as({ ...customer, role: "user" }, async () => {
+    await as(Object.assign({}, customer, { role: "user" }), async () => {
       const calls = [
         [
           "get_sales_order_payment_intent",
@@ -220,12 +193,13 @@ test("an admin reading a sales order's payment intent gets it, in the nested wir
       LIMIT 1`
   );
   assert.ok(seed, "dev has no sales order with a payment intent - this test would be vacuous");
+  const seededOrderId = seed.sales_order_id;
 
   await inPinnedTransaction(async () => {
-    await as({ ...admin, role: "admin" }, async () => {
+    await as(Object.assign({}, admin, { role: "admin" }), async () => {
       const res = await request(app)
         .get("/api/stripe/get_sales_order_payment_intent")
-        .query({ sales_order_id: seed.sales_order_id });
+        .query({ sales_order_id: seededOrderId });
 
       assert.equal(res.status, 200, `answered ${res.status} to an admin`);
       assert.ok(res.body && typeof res.body === "object", "the body was not an object");

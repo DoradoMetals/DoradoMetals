@@ -217,11 +217,11 @@ const salesOrderIds = async () => {
 const intents = async (m: Record<string, unknown>) => {
   const out = [];
   for (const id of await salesOrderIds()) {
-    const fn = m.getPaymentIntentFromSalesOrderId;
+    const fn = m.findForOrder;
     if (typeof fn !== "function") {
       throw new Error(
-        "payments repo has no getPaymentIntentFromSalesOrderId - the read this " +
-          "check names has moved, which is D110's shape"
+        "the intents repo has no findForOrder - the read this check names has " +
+          "moved, which is D110's shape"
       );
     }
     const row = await fn(id);
@@ -234,7 +234,7 @@ const intents = async (m: Record<string, unknown>) => {
 add(
   "GET /stripe/get_sales_order_payment_intent [payments]",
   c.PaymentIntent,
-  async () => intents(await import("#db/payments/repo.ts"))
+  async () => intents(await import("#db/payments/intents/repo.ts"))
 );
 
 // The catalogue. The other feature that had no contract, and one the frontend

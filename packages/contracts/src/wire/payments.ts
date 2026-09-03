@@ -70,3 +70,43 @@ export type PaymentIntent = z.infer<typeof PaymentIntent>;
 // features/stripe/types.ts derives from this shape, AdminPending reads the
 // nested one in dollars, and the adapter and its mount are gone. The
 // -WireNext suffix retired 2026-08-28: one shape, one name.
+
+// ===========================================================================
+// THE REQUEST BODIES
+// ===========================================================================
+//
+// Everything above describes what the API RETURNS; these two describe what it
+// ACCEPTS, so the transport boundary can parse a body once, in strict mode,
+// before the money path runs.
+
+// THE PRICING UPDATE. `items` and `user` are LOOSE because the browser sends
+// whole objects - a catalogue product, a session user - and the server reads a
+// named handful off each: an item's id and quantity, a user's id and credit
+// balance. Every price is re-derived server-side (D81-D84).
+//
+// `spots` IS DECLARED AND DELIBERATELY NOT READ. The frontend still sends it;
+// feeding it to the pricing call is what let a request name its own metal
+// price - ask_spot 3400 priced an order at $3,673.53 and ask_spot 1 priced the
+// same order at $26.81. Declaring it keeps a deployed client from being
+// answered 400; the service fetches the server's own spots instead.
+export const UpdatePaymentIntentBody = z.object({
+  items: z.array(z.looseObject({ id: z.string(), quantity: z.number() })).default([]),
+  using_funds: z.boolean().nullable().optional(),
+  spots: z.array(z.looseObject({})).optional(),
+  user: z.looseObject({
+    id: z.string().optional(),
+    // COERCED: a credit balance arrives as a numeric string from some
+    // clients and pricing needs a number.
+    dorado_funds: z.coerce.number().nullable().optional(),
+  }).nullable().optional(),
+  shipping_service: z.string().nullable().optional(),
+  payment_method: z.string().nullable().optional(),
+  type: z.string().optional(),
+  address_id: z.string().optional(),
+}).strict();
+export type UpdatePaymentIntentBody = z.infer<typeof UpdatePaymentIntentBody>;
+
+export const CancelPaymentIntentBody = z.object({
+  payment_intent_id: z.string(),
+}).strict();
+export type CancelPaymentIntentBody = z.infer<typeof CancelPaymentIntentBody>;

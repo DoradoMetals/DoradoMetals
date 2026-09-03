@@ -4,6 +4,7 @@ export * from "./leads.js";
 export * from "./media.js";
 export * from "./orders.js";
 export * from "./patches.js";
+export * from "./checkout.js";
 export * from "./payments.js";
 export * from "./payouts.js";
 export * from "./products.js";

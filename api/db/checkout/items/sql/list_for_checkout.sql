@@ -1,0 +1,4 @@
+-- Every line of one session, oldest first.
+SELECT id, checkout_id, bullion_id, metal_id, pre_melt, post_melt, purity,
+       content, unit, premium, quantity, created_at, updated_at,
+       created_by, updated_by FROM checkout.items WHERE checkout_id = $1 ORDER BY created_at, id
