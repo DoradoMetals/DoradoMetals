@@ -154,6 +154,67 @@ export async function attachDraft(
   return composed;
 }
 
+// THE HAND-OVER A CHECKOUT ASKED FOR, given to the order it became: the draft
+// the stepper mutated, else the method it named, else the direction's default -
+// and the booking the chosen category needs.
+// The two upserts go straight to the child repos rather than through their
+// services: assertCategory is what those add, and the category is right here.
+export async function attachForCheckout(
+  { order_id, direction, fulfillment_id, method_id, pickup_address_id, location_id, start_time }: {
+    order_id: string;
+    direction: Direction;
+    fulfillment_id: string | null;
+    method_id: string | null;
+    pickup_address_id: string | null;
+    location_id: string | null;
+    start_time: string | null;
+  },
+  executor?: Executor
+): Promise<ComposedFulfillment> {
+  const chosen = fulfillment_id
+    ? await attachDraft({ fulfillment_id, order_id }, executor)
+    : method_id
+      ? await chooseById({ order_id, method_id }, executor)
+      : await chooseDefault({ order_id, direction, category: "SHIPMENT" }, executor);
+
+  // Not reachable today; a TypeError here would roll the order back with a
+  // message that says nothing about an order.
+  if (!chosen) {
+    throw new Error(
+      `order ${order_id} was created from a checkout and no fulfillment came ` +
+        `back for it - this transaction must not commit`
+    );
+  }
+
+  // Re-composed after a booking, never returned stale: `chosen` was put
+  // together before the detail row existed, so it would say the order is going
+  // to be collected by nobody.
+  if (chosen.method.category === "PICKUP" && pickup_address_id) {
+    await pickups.upsert(
+      { id: randomUUID(), fulfillment_id: chosen.id, pickup_address_id, start_time },
+      executor
+    );
+    return await recompose(chosen.id, executor);
+  }
+  if (chosen.method.category === "DIRECT" && location_id) {
+    await directs.upsert(
+      {
+        id: randomUUID(), fulfillment_id: chosen.id, location_id,
+        is_appointment: chosen.method.type === "APPOINTMENT", start_time,
+      },
+      executor
+    );
+    return await recompose(chosen.id, executor);
+  }
+  return chosen;
+}
+
+async function recompose(id: string, executor?: Executor): Promise<ComposedFulfillment> {
+  const row = await getById(id, executor);
+  if (!row) throw new Error(`fulfillment ${id} vanished mid-attach`);
+  return row;
+}
+
 // Choosing a method, from the customer's side. Admin callers go through chooseById instead - an admin putting an order on OWN LABEL is the reason OWN LABEL exists.
 export async function choose(
   { order_id, method_id, direction }:

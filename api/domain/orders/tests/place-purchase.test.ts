@@ -1,9 +1,14 @@
 // THE ZERO-BODY PURCHASE CREATE (D210), tested to the hilt without a FedEx
-// call ever being reachable. By Confirm, everything is a server-side
-// resource: the row's ids, the parcel facts as columns, the draft
-// fulfillment, and the payout account SEALED in payments.details at the
-// payout step. The resolution reads only the row; the record half links ids
-// and writes NO exchange rows at all.
+// call ever being reachable. By Confirm, everything is a server-side resource:
+// the row's ids, the parcel facts as columns, the draft fulfillment, and the
+// payout account SEALED in payments.details at the payout step.
+//
+// THE SEAMS ARE GONE (D214 item 11). `resolvePurchase` and `recordPurchase`
+// were exported halves of one use case, so the row flow could be asserted with
+// no provider reachable. `place(checkout_id, world)` takes the outside world as
+// an argument instead - the seam sendToRefiner already had for email - and the
+// stub RECORDS what the carrier was asked for, which is what the resolution
+// used to be asserted on.
 import test, { after, before } from "node:test";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
@@ -14,10 +19,11 @@ import { inPinnedTransaction, outside } from "#shared/testing/pinned-pool.ts";
 import { LOCKS } from "#shared/testing/locks.ts";
 import { open, aadFor } from "#shared/crypto/envelope.ts";
 import { payoutKeyFromEnv } from "#shared/crypto/payoutKey.ts";
+import type * as placeModule from "#domain/orders/place.ts";
 
 await mockSessions();
 const { default: app } = await import("#app");
-const orderCreate = await import("#domain/orders/place.ts");
+const place = await import("#domain/orders/place.ts");
 const checkoutService = await import("#domain/checkout/service.ts");
 
 type UserFixture = { id: string };
@@ -45,6 +51,30 @@ const payoutForm = (routing_number = "021000021", account_number = "000123456789
   account_number,
 });
 const PAYOUT = payoutForm();
+
+// THE PROVIDER BOUNDARY, STUBBED AND RECORDED. no-network.ts refuses a real
+// carrier call loudly, so this says what FedEx answered - and keeps what it was
+// asked, which is the resolution these tests used to read off a plan object.
+type Asked = {
+  shipper: Parameters<placeModule.World["buyPostage"]>[0];
+  personName: string;
+  parcel: Parameters<placeModule.World["buyPostage"]>[2];
+};
+
+function carrier(
+  { pickup = null as { confirmationNumber: string | null; location: string | null } | null } = {}
+) {
+  const asked: Asked[] = [];
+  const world: placeModule.World = {
+    buyPostage: async (shipper, personName, parcel) => {
+      asked.push({ shipper, personName, parcel });
+      return { netCharge: 24.5, tracking_number: "794123456789", label: null, pickup };
+    },
+    authorize: async () => {},
+    confirm: async () => {},
+  };
+  return { world, asked };
+}
 
 before(async () => {
   // WHO SIGNS FOR THE PARCEL IS THE CUSTOMER'S NAME (D214 item 12). It used to
@@ -140,7 +170,10 @@ async function primeCheckout(
     })
   );
   assert.equal(cart.status, 200, cart.text);
+
+  const row = await checkoutService.getRowFor(customer.id, "purchase");
   return {
+    checkout_id: row.id,
     fulfillment_id: ff.body.fulfillment_id as string,
     payment_details_id: payout.body.payment_details_id as string,
   };
@@ -210,65 +243,68 @@ test("an incomplete or nonsense payout form refuses", async () => {
   }, { lock: LOCKS.ORDERS });
 });
 
-// ------------------------------------------------------- the resolution
+// ------------------------------------------------------- what the carrier is asked
 
-// THE PLAN IS THE CHECKOUT ROW, RESOLVED. `resolvePurchase` takes the row
-// itself now rather than a user id - `place(checkout_id)` is the whole input,
-// and the customer is the row's own user_id.
-const planFor = async () =>
-  await orderCreate.resolvePurchase(
-    await checkoutService.getRowFor(customer.id, "purchase")
-  );
-
-test("the resolution reads ONLY the row - no body exists any more", async () => {
+test("the carrier is asked ONLY what the row holds - no body exists any more", async () => {
   await inPinnedTransaction(async () => {
-    const { fulfillment_id, payment_details_id } = await primeCheckout(dropoffMethodId);
+    const { world, asked } = carrier();
+    const { checkout_id } = await primeCheckout(dropoffMethodId);
+    await place.place(checkout_id, world);
 
-    const planned = await planFor();
-
-    assert.equal(planned.checkout.shipper_address_id, addressId);
-    assert.equal(planned.shipper.id, addressId, "the address row itself is carried");
-    assert.equal(planned.customerName, customerName);
-    assert.equal(planned.parcel.serviceType, "FEDEX_EXPRESS_SAVER");
-    assert.equal(planned.checkout.carrier_service_id, labelServiceId);
-    assert.equal(planned.parcel.handoff.code, "DROPOFF_AT_FEDEX_LOCATION");
-    assert.equal(planned.checkout.package_id, packageId);
-    assert.equal(planned.parcel.weight.value, 3, "the weight came off the ROW");
-    assert.equal(planned.parcel.declaredValue, 2500, "the declared value came off the ROW");
-    assert.equal(planned.checkout.payment_details_id, payment_details_id);
-    assert.equal(planned.payoutFee, 0, "ACH carries no flat fee");
-    assert.equal(planned.checkout.fulfillment_id, fulfillment_id);
+    assert.equal(asked.length, 1, "the carrier was asked once, for one parcel");
+    const { shipper, personName, parcel } = asked[0];
+    assert.equal(shipper.id, addressId, "the address row itself is carried");
+    assert.equal(personName, customerName);
+    assert.equal(parcel.serviceType, "FEDEX_EXPRESS_SAVER");
+    assert.equal(parcel.handoff.code, "DROPOFF_AT_FEDEX_LOCATION");
+    assert.equal(parcel.weight.value, 3, "the weight came off the ROW");
+    assert.equal(parcel.declaredValue, 2500, "the declared value came off the ROW");
+    assert.equal(parcel.schedule, null, "a dropoff booked a courier");
   }, { lock: LOCKS.ORDERS });
 });
 
 test("a pickup needs its slot ON THE ROW, and carries it when set", async () => {
   await inPinnedTransaction(async () => {
-    await primeCheckout(pickupMethodId);
-    await assert.rejects(() => planFor(), /date and a time/);
+    const unscheduled = await primeCheckout(pickupMethodId);
+    await assert.rejects(
+      () => place.place(unscheduled.checkout_id, carrier().world), /date and a time/
+    );
 
-    await primeCheckout(pickupMethodId, { schedule: true });
-    const planned = await planFor();
-    assert.equal(planned.parcel.handoff.name, "Carrier Pickup");
-    assert.equal(planned.parcel.schedule?.date, "2026-09-15");
-    assert.equal(planned.parcel.schedule?.time, "10:30:00");
+    const { checkout_id } = await primeCheckout(pickupMethodId, { schedule: true });
+    const { world, asked } = carrier({
+      pickup: { confirmationNumber: "9971234", location: "FRONT" },
+    });
+    await place.place(checkout_id, world);
+    assert.equal(asked[0].parcel.handoff.name, "Carrier Pickup");
+    assert.equal(asked[0].parcel.schedule?.date, "2026-09-15");
+    assert.equal(asked[0].parcel.schedule?.time, "10:30:00");
   }, { lock: LOCKS.ORDERS });
 });
 
-test("an incomplete checkout names every missing piece - the payout included", async () => {
-  await inPinnedTransaction(async () => {
-    await assert.rejects(() => planFor(), /missing .*payment_details_id/);
+test("an incomplete checkout names the piece that is missing - the payout included", async () => {
+  await inPinnedTransaction(async (c: PoolClient) => {
+    const { checkout_id } = await primeCheckout(dropoffMethodId);
+    await c.query(
+      `UPDATE checkout.checkouts SET payment_details_id = NULL WHERE id = $1`, [checkout_id]
+    );
+    await assert.rejects(
+      () => place.place(checkout_id, carrier().world), /missing payment_details_id/
+    );
   }, { lock: LOCKS.ORDERS });
 });
 
 test("a sale delivery service buys no labels, and a non-SHIPMENT method refuses", async () => {
   await inPinnedTransaction(async () => {
-    await primeCheckout(dropoffMethodId);
+    const { checkout_id } = await primeCheckout(dropoffMethodId);
     await as(customer, () =>
       request(app).patch("/api/checkout").send({
         direction: "purchase", carrier_service_id: saleServiceId,
       })
     );
-    await assert.rejects(() => planFor(), /not a label service|sale delivery service/);
+    await assert.rejects(
+      () => place.place(checkout_id, carrier().world),
+      /not a label service|sale delivery service/
+    );
 
     await as(customer, () =>
       request(app).patch("/api/checkout").send({
@@ -280,30 +316,31 @@ test("a sale delivery service buys no labels, and a non-SHIPMENT method refuses"
         direction: "purchase", method_id: directMethodId,
       })
     );
-    await assert.rejects(() => planFor(), /cannot be placed through the shipping checkout/);
+    await assert.rejects(
+      () => place.place(checkout_id, carrier().world),
+      /cannot be placed through the shipping checkout/
+    );
   }, { lock: LOCKS.ORDERS });
 });
 
-// ------------------------------------------------------- the record half
+// ------------------------------------------------------- the rows it writes
 
-test("the record half links ids and writes NO exchange rows at all", async () => {
+test("the placement links ids and writes NO exchange rows at all", async () => {
   await inPinnedTransaction(async (c: PoolClient) => {
-    const { fulfillment_id, payment_details_id } =
+    const { checkout_id, fulfillment_id, payment_details_id } =
       await primeCheckout(pickupMethodId, { schedule: true });
-    const planned = await orderCreate.resolvePurchase(
-      await checkoutService.getRowFor(customer.id, "purchase", c)
-    );
 
-    const placed = await orderCreate.recordPurchase(c, {
-      planned, netCharge: 24.5,
-      pickup: { confirmationNumber: "9971234", location: "FRONT" },
-    });
+    const placed = await place.place(
+      checkout_id,
+      carrier({ pickup: { confirmationNumber: "9971234", location: "FRONT" } }).world
+    );
+    const order_id = placed.order.id;
 
     // The order core, with the DRAFT as its one fulfillment.
     const { rows: fulfillments } = await c.query(
       `SELECT f.id, m.type FROM fulfillments.fulfillments f
         JOIN fulfillments.methods m ON m.id = f.method_id
-       WHERE f.order_id = $1`, [placed.order_id]
+       WHERE f.order_id = $1`, [order_id]
     );
     assert.equal(fulfillments.length, 1);
     assert.equal(fulfillments[0].id, fulfillment_id);
@@ -312,11 +349,11 @@ test("the record half links ids and writes NO exchange rows at all", async () =>
     // The money row LINKS the sealed account and records the method's fee.
     const { rows: [totals] } = await c.query(
       `SELECT shipping, shipping_service, payout_fee, payout_details_id
-         FROM orders.transactions WHERE order_id = $1`, [placed.order_id]
+         FROM orders.transactions WHERE order_id = $1`, [order_id]
     );
     assert.equal(Number(totals.shipping), 24.5);
     assert.equal(totals.payout_details_id, payment_details_id, "the account was not linked");
-    assert.equal(Number(totals.payout_fee), 0);
+    assert.equal(Number(totals.payout_fee), 0, "ACH carries no flat fee");
 
     // The parcel and its NATIVE booking.
     const { rows: [shipment] } = await c.query(
@@ -339,7 +376,7 @@ test("the record half links ids and writes NO exchange rows at all", async () =>
          (SELECT count(*)::int FROM exchange.payouts WHERE order_id = $1) AS payouts,
          (SELECT count(*)::int FROM exchange.shipments WHERE purchase_order_id = $1) AS shipments,
          (SELECT count(*)::int FROM exchange.carrier_pickups WHERE order_id = $1) AS pickups`,
-      [placed.order_id]
+      [order_id]
     );
     assert.deepEqual(
       exchange,
@@ -347,11 +384,11 @@ test("the record half links ids and writes NO exchange rows at all", async () =>
       "a new-flow order wrote an exchange row"
     );
 
-    // The admin surfaces still work: the order-keyed payout read composes
-    // from the new tables, and the details endpoint OPENS the envelopes.
+    // The admin surfaces still work: the order-keyed payout read composes from
+    // the new tables, and the details endpoint OPENS the envelopes.
     const wire = await as(
       { id: customer.id, role: "admin" },
-      () => request(app).get(`/api/orders/${placed.order_id}/payouts`)
+      () => request(app).get(`/api/orders/${order_id}/payouts`)
     );
     assert.equal(wire.status, 200, wire.text);
     assert.equal(wire.body.length, 1);
@@ -367,10 +404,9 @@ test("the record half links ids and writes NO exchange rows at all", async () =>
     assert.equal(details.status, 200, details.text);
     assert.equal(details.body.routing_number, PAYOUT.routing_number);
     assert.equal(details.body.account_number, PAYOUT.account_number);
-    assert.equal(details.body.order_id, placed.order_id);
+    assert.equal(details.body.order_id, order_id);
 
-    // The row starts the next checkout clean - the payout pointers included.
-    await checkoutService.resetAfterOrder(customer.id, "purchase", c);
+    // THE CHECKOUT IS CONSUMED: its ids belong to the order now.
     const fresh = await checkoutService.getRowFor(customer.id, "purchase", c);
     assert.equal(fresh.payment_details_id, null);
     assert.equal(fresh.fulfillment_id, null);
@@ -380,25 +416,16 @@ test("the record half links ids and writes NO exchange rows at all", async () =>
 
 test("a spent draft refuses the SECOND order", async () => {
   await inPinnedTransaction(async (c: PoolClient) => {
-    const primed = await primeCheckout(dropoffMethodId);
-    const first = await orderCreate.resolvePurchase(
-      await checkoutService.getRowFor(customer.id, "purchase", c)
-    );
-    await orderCreate.recordPurchase(c, { planned: first, netCharge: 24.5 });
+    const first = await primeCheckout(dropoffMethodId);
+    await place.place(first.checkout_id, carrier().world);
+
+    const second = await primeCheckout(dropoffMethodId);
     await c.query(
-      `UPDATE checkout.checkouts SET
-         fulfillment_id = $2, shipper_address_id = $3, package_id = $4,
-         carrier_service_id = $5, payment_details_id = $6,
-         package_weight = 3
-       WHERE user_id = $1 AND direction = 'purchase'`,
-      [customer.id, primed.fulfillment_id, addressId, packageId, labelServiceId,
-       primed.payment_details_id]
+      `UPDATE checkout.checkouts SET fulfillment_id = $2 WHERE id = $1`,
+      [second.checkout_id, first.fulfillment_id]
     );
     await assert.rejects(
-      async () =>
-        orderCreate.resolvePurchase(
-          await checkoutService.getRowFor(customer.id, "purchase", c)
-        ),
+      () => place.place(second.checkout_id, carrier().world),
       /already belongs to an order/
     );
   }, { lock: LOCKS.ORDERS });

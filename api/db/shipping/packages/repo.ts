@@ -6,7 +6,7 @@ import type { Executor } from "#shared/db/executor.ts";
 
 const sql = sqlFrom(import.meta.dirname);
 
-type PackageRow = Pick<
+export type PackageRow = Pick<
   shipping.PackagesRow,
   | "id" | "carrier_id" | "label" | "length" | "width" | "height"
   | "is_carrier_packaging" | "image_id" | "created_at" | "updated_at"

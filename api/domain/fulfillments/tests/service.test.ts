@@ -362,3 +362,109 @@ test("another customer's fulfillment is not readable by asking for its order", a
     assert.ok(await service.getForOrder(id, { isAdmin: true }));
   });
 });
+
+// ============================================================ the hand-over
+//
+// attachForCheckout is the whole of what placing an order asks of this feature
+// (D214 item 11). It moved out of orders/place.ts, so its tests moved with it -
+// including the two bookings, which a shipping checkout cannot reach at all
+// (place() refuses a non-SHIPMENT draft) and an admin door will.
+
+const anAddress = async (c: PoolClient) =>
+  (await c.query(`SELECT id FROM places.addresses LIMIT 1`)).rows[0].id;
+const aLocation = async (c: PoolClient) =>
+  (await c.query(`SELECT id FROM places.locations LIMIT 1`)).rows[0].id;
+
+const handover = (
+  order_id: string,
+  over: {
+    fulfillment_id?: string | null; method_id?: string | null;
+    pickup_address_id?: string | null; location_id?: string | null;
+    start_time?: string | null;
+  } = {}
+) => ({
+  order_id,
+  direction: "purchase" as const,
+  fulfillment_id: over.fulfillment_id ?? null,
+  method_id: over.method_id ?? null,
+  pickup_address_id: over.pickup_address_id ?? null,
+  location_id: over.location_id ?? null,
+  start_time: over.start_time ?? null,
+});
+
+test("the draft the stepper mutated becomes the order's own fulfillment", async () => {
+  await inRollback(async (c: PoolClient) => {
+    const order = await freeOrder(c, "purchase");
+    const method = await methodOf(c, "CARRIER DROPOFF", "purchase");
+    const draft = await service.createDraft(
+      { method_id: method.id, direction: "purchase" }, c
+    );
+    assert.ok(draft, "no draft was created");
+
+    const attached = await service.attachForCheckout(
+      handover(order.id, { fulfillment_id: draft.id }), c
+    );
+    assert.equal(attached.id, draft.id, "a second fulfillment was minted");
+    assert.equal(attached.order_id, order.id);
+  });
+});
+
+test("a checkout with no draft falls back to the method it named", async () => {
+  await inRollback(async (c: PoolClient) => {
+    const order = await freeOrder(c, "purchase");
+    const method = await methodOf(c, "CARRIER PICKUP", "purchase");
+    const attached = await service.attachForCheckout(
+      handover(order.id, { method_id: method.id }), c
+    );
+    assert.equal(attached.method.type, "CARRIER PICKUP");
+  });
+});
+
+// Defaulting is the seed's job, not a constant in the code - and a parcel in
+// the post is not somewhere to be, whatever address the checkout carries.
+test("a checkout that named nothing falls back to the direction's default", async () => {
+  await inRollback(async (c: PoolClient) => {
+    const order = await freeOrder(c, "purchase");
+    const attached = await service.attachForCheckout(
+      handover(order.id, { pickup_address_id: await anAddress(c) }), c
+    );
+    assert.equal(attached.method.type, "CARRIER DROPOFF");
+    assert.equal(attached.method.category, "SHIPMENT");
+    assert.equal(attached.pickup, null, "a posted parcel was booked as a collection");
+  });
+});
+
+test("a PICKUP method books the pickup", async () => {
+  await inRollback(async (c: PoolClient) => {
+    const address = await anAddress(c);
+    const collected = await service.attachForCheckout(
+      handover((await freeOrder(c, "purchase")).id, {
+        method_id: (await methodOf(c, "PICKUP", "purchase")).id,
+        pickup_address_id: address,
+        start_time: "2026-09-05T15:00:00Z",
+      }),
+      c
+    );
+    assert.ok(collected.pickup, "a PICKUP order was not scheduled");
+    assert.equal(collected.pickup.pickup_address_id, address);
+  });
+});
+
+test("an APPOINTMENT books the location and the time", async () => {
+  await inRollback(async (c: PoolClient) => {
+    const attached = await service.attachForCheckout(
+      handover((await freeOrder(c, "purchase")).id, {
+        method_id: (await methodOf(c, "APPOINTMENT", "purchase")).id,
+        location_id: await aLocation(c),
+        start_time: "2026-09-05T15:00:00Z",
+      }),
+      c
+    );
+    assert.ok(attached.direct, "an APPOINTMENT was not booked");
+    assert.equal(attached.direct.is_appointment, true);
+    assert.equal(
+      new Date(attached.direct.start_time as unknown as string).toISOString(),
+      new Date("2026-09-05T15:00:00Z").toISOString()
+    );
+  });
+});

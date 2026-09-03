@@ -40,11 +40,29 @@ export async function getMany(
   return rows;
 }
 
-// A shell - everything else arrives from the carrier later, through update(). A shipment exists before its label is bought.
-export type ShipmentNew = { id: string; direction: string };
+// A shipment exists before its label is bought, so only id and direction are
+// required; a caller that already holds the carrier's answer writes the parcel
+// in one statement instead of creating a shell and updating it (D214 item 11).
+export type ShipmentNew = {
+  id: string; direction: string;
+  tracking_number?: string | null; shipping_status?: string | null;
+  label?: string | Buffer | null; label_type?: string | null;
+  pickup_type?: string | null; package_id?: string | null;
+  carrier_service_id?: string | null; cost?: number | null;
+  insured?: boolean | null; declared_value?: number | null;
+};
 
 export async function create(row: ShipmentNew, executor?: Executor): Promise<string> {
-  const { rows } = await query<{ id: string }>(sql("create"), [row.id, row.direction], executor);
+  const { rows } = await query<{ id: string }>(
+    sql("create"),
+    [
+      row.id, row.direction, row.tracking_number ?? null, row.shipping_status ?? null,
+      row.label ?? null, row.label_type ?? null, row.pickup_type ?? null,
+      row.package_id ?? null, row.carrier_service_id ?? null, row.cost ?? null,
+      row.insured ?? null, row.declared_value ?? null,
+    ],
+    executor
+  );
   return rows[0].id;
 }
 
