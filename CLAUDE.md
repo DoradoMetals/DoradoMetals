@@ -432,6 +432,17 @@ lint:db` now catches it.
 return withTransaction(async (client) => { ... });
 ```
 
+**The database stamps audit columns; code never writes them** (migration 116,
+2026-09-02). `authMiddleware` puts the session user in an AsyncLocalStorage,
+`withTransaction` issues `set_config('app.actor_id', $1, true)` after BEGIN,
+and the `audit_stamp` trigger fills created/updated at/by on every audited
+table. So: every write goes through `withTransaction` (a write outside it
+stamps nothing), repos are `create(row, tx?)` / `update(id, patch, tx?)`
+with no actor argument, and `shared/db/patch.ts` `buildUpdate` is the one
+patch builder (keys present are set, explicit null clears, unknown or audit
+keys throw). Genesis carries no triggers on purpose: 116 runs after the
+backfills.
+
 **Nothing irreversible goes inside one.** A transaction can be rolled back; an
 email, a Stripe charge and a FedEx label cannot. Do the database work, commit,
 then act on the outside world. `sendOrderToSupplier` emailed a refiner their
