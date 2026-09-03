@@ -84,7 +84,17 @@ const GROUPS = [
     parallel: false,
     steps: [
       { name: "api:typecheck", cmd: pnpm("@dorado/api", "typecheck") },
-      { name: "api:test", cmd: pnpm("@dorado/api", "test") },
+      // `check` (full, not --fast) runs test:coverage instead of plain test -
+      // one run of the suite instead of two (test-suite-redesign.md 2.6/lane
+      // 7). Measured 2026-09-03: typecheck ~1s + test:coverage ~24s keeps
+      // this group at ~25s, under the ~40s budget that decision was
+      // conditioned on, so the swap costs nothing check:fast would have paid
+      // for anyway. check:fast stays on plain `test` (no coverage
+      // instrumentation) on purpose - it exists for fast iteration, and
+      // coverage's own thresholds already gate the one thing check:fast does
+      // not: db/domain/transport/shared each staying at or above their
+      // measured floor (vitest.config.ts's own comment has the ratchet rule).
+      { name: "api:test", cmd: pnpm("@dorado/api", FAST ? "test" : "test:coverage") },
     ],
   },
 ];
