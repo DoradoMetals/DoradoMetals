@@ -16,10 +16,14 @@ const scrap = (over: PriceableLine = {}): PriceableLine => ({
   ...over,
 });
 
+// The premium is the LINE's, as it is for scrap - a purchase bullion line
+// carries the rate band's bullion_pct and reads no catalogue figure
+// (Jacob, 2026-09-03). Same 0.8, same prices.
 const bullion = (over: PriceableLine = {}): PriceableLine => ({
   item_type: "product",
   quantity: 1,
-  product: { metal_type: "Silver", content: 1, bid_premium: 0.8 },
+  premium: 0.8,
+  product: { metal_type: "Silver", content: 1 },
   ...over,
 });
 

@@ -48,7 +48,7 @@ import * as stripeProvider from "#providers/payment/stripe.ts";
 import * as readService from "#domain/orders/read.service.ts";
 import { calculateItemAsk, calculateSalesOrderTotal } from "#domain/pricing/service.ts";
 import * as rules from "#domain/orders/rules.ts";
-import { retierScrapPremiums } from "#domain/orders/edit-line.ts";
+import { retierPremiums } from "#domain/orders/edit-line.ts";
 
 import withTransaction from "#shared/db/withTransaction.ts";
 import { refuse } from "#shared/http/refuse.ts";
@@ -158,7 +158,10 @@ export async function createFromCheckout(
   await refinerOrders.ensureForOrder(order_id, executor);
 
   await copyItems(order_id, checkout_id, executor);
-  await retierScrapPremiums(order_id, executor);
+  // EVERY purchase line is repriced from the rates table here, bullion
+  // included: the premium the cart carried is a display figure and the tier is
+  // the price fact. A sale is left alone - retierPremiums checks the direction.
+  await retierPremiums(order_id, executor);
   await freezeSpots(order_id, executor);
 
   // The refiner counterparts: one per customer line, one per frozen spot.

@@ -42,13 +42,22 @@ export async function getByIds(
   return rows;
 }
 
-// The scrap lines with their metal NAMES - what premium re-tiering prices from.
-export type ScrapLine = { id: string; metal: string | null; content: number | null };
+// EVERY line with its metal NAME - what premium re-tiering prices from. A
+// purchase tiers bullion as well as scrap (Jacob, 2026-09-03), so bullion_id
+// and quantity come back too: the first picks the band's percentage column,
+// the second turns a bullion line's per-unit content into the metal it holds.
+export type PricedLine = {
+  id: string;
+  metal: string | null;
+  content: number | null;
+  quantity: number | null;
+  bullion_id: string | null;
+};
 
-export async function scrapLinesFor(
+export async function pricedLinesFor(
   order_id: string, executor?: Executor
-): Promise<ScrapLine[]> {
-  const { rows } = await query<ScrapLine>(sql("scrap_lines"), [order_id], executor);
+): Promise<PricedLine[]> {
+  const { rows } = await query<PricedLine>(sql("priced_lines"), [order_id], executor);
   return rows;
 }
 

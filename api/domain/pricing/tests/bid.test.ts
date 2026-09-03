@@ -21,10 +21,15 @@ const scrapItem = (over = {}) => ({
   ...over,
 });
 
+// THE PREMIUM IS ON THE LINE, not on the product (Jacob, 2026-09-03). It used
+// to sit on `product.bid_premium` with the line carrying none, and every
+// product branch fell back to it; a purchase bullion line now holds the rate
+// band's bullion_pct instead. Same 0.8, same prices - a different source.
 const productItem = (over = {}) => ({
   item_type: "product",
   quantity: 1,
-  product: { metal_type: "Silver", content: 1, bid_premium: 0.8 },
+  premium: 0.8,
+  product: { metal_type: "Silver", content: 1 },
   ...over,
 });
 
@@ -181,6 +186,23 @@ test("an order total counts a scrap line with no premium", () => {
 test("a return's declared value counts a scrap line with no premium", () => {
   const o = order({ order_items: [unpricedGold()] });
   assert.equal(calculateReturnDeclaredValue(o, spots), 3000, "the return would be uninsured");
+});
+
+// JACOB, 2026-09-03: the catalogue's bid_premium is not a price a purchase may
+// pay. A bullion line whose premium the re-tier has not written is worth zero
+// here - loudly wrong on a document rather than quietly paid at a rate the
+// rates table never agreed to.
+test("a bullion line does NOT fall back to its product's own bid_premium", () => {
+  const item = {
+    item_type: "product",
+    quantity: 1,
+    premium: null,
+    product: { metal_type: "Silver", content: 1, bid_premium: 0.8 },
+  };
+  assert.equal(calculateItemPrice(item, spots), 0);
+  assert.equal(getBullionTotal([item], spots), 0);
+  assert.equal(calculateTotalPrice(order({ order_items: [item] }), spots), 0);
+  assert.equal(calculateReturnDeclaredValue(order({ order_items: [item] }), spots), 0);
 });
 
 test("getScrapTotal counts a scrap line with no premium", () => {

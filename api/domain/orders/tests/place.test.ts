@@ -56,6 +56,9 @@ async function place(
   {
     method = "CARRIER DROPOFF" as string | null,
     items = [GOLD] as ScrapItem[],
+    // Bullion lines, by catalogue id - a purchase cart carries the product's
+    // own bid premium and the placement must NOT honour it.
+    products = [] as { id: string; quantity?: number; premium?: number | null }[],
     withPickupAddress = false,
     withAppointment = false,
     appointment_time = null as string | null,
@@ -117,6 +120,14 @@ async function place(
     );
   }
 
+  for (const product of products) {
+    await c.query(
+      `INSERT INTO checkout.items (checkout_id, bullion_id, metal_id, quantity, premium)
+       VALUES ($1, $2, (SELECT metal_id FROM products.bullion WHERE id = $2), $3, $4)`,
+      [checkout_id, product.id, product.quantity ?? 1, product.premium ?? null]
+    );
+  }
+
   const placed = await createFromCheckout({ checkout_id, status }, c);
   return {
     order_id: placed.order_id,
@@ -148,7 +159,7 @@ test("a checkout becomes an order with its items and its fulfillment", async () 
     assert.equal(Number(items[0].purity), 0.9999, "the rounding 058 fixed must not come back");
     assert.equal(Number(items[0].content), 9.4991);
     // NOT the 0.8 the row carried. The premium a customer is paid comes from
-    // the rates table, not from their browser - retierScrapPremiums overwrites
+    // the rates table, not from their browser - retierPremiums overwrites
     // whatever was submitted.
     assert.notEqual(Number(items[0].premium), 0.8, "the browser's premium survived");
     assert.ok(Number(items[0].premium) > 0, "the line was left with no premium at all");
@@ -338,6 +349,51 @@ test("an item whose metal cannot be resolved fails the order rather than being d
     await assert.rejects(
       () => place(c, { items: [{ metal: "Unobtainium", quantity: 1 }] }),
       /has no metal/
+    );
+  });
+});
+
+// JACOB, 2026-09-03: "PURCHASE BULLION DOES NOT take its product bid premium.
+// It comes from rates as well." The cart line carries the catalogue figure -
+// checkout.rules.carriesProductPremium still stores it for the signed-out
+// basket to display - and placement must overwrite it with the band, exactly
+// as it always has for scrap.
+test("a placed bullion line takes the rate band, not the premium the cart carried", async () => {
+  await inRollback(async (c: PoolClient) => {
+    const { rows: [product] } = await c.query(
+      `SELECT b.id, b.content, b.bid_premium, band.bullion_pct
+         FROM products.bullion b
+         JOIN metals.metals m ON m.id = b.metal_id
+         CROSS JOIN LATERAL (
+           SELECT r.bullion_pct FROM rates.rates r
+            WHERE r.metal_id = b.metal_id
+              AND b.content >= r.min_qty
+              AND (r.max_qty IS NULL OR b.content <= r.max_qty)
+            ORDER BY r.min_qty LIMIT 1
+         ) band
+        WHERE m.name = 'Gold' AND b.content IS NOT NULL
+          AND b.bid_premium IS DISTINCT FROM band.bullion_pct
+        ORDER BY b.content LIMIT 1`
+    );
+    assert.ok(product, "no gold product is off its band - this check would be vacuous");
+
+    const { order_id } = await place(c, {
+      items: [],
+      products: [{ id: product.id, quantity: 1, premium: Number(product.bid_premium) }],
+    });
+
+    const { rows: items } = await c.query(
+      `SELECT bullion_id, premium FROM orders.items WHERE order_id = $1`, [order_id]
+    );
+    assert.equal(items.length, 1);
+    assert.equal(items[0].bullion_id, product.id);
+    assert.equal(
+      Number(items[0].premium), Number(product.bullion_pct),
+      "the placed bullion line is not at the band the order earned"
+    );
+    assert.notEqual(
+      Number(items[0].premium), Number(product.bid_premium),
+      "the cart's product bid_premium survived placement"
     );
   });
 });

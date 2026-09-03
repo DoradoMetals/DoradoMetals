@@ -85,6 +85,139 @@ const cleanup = async (c: PoolClient, { orderId }: { orderId: string }) => {
   await c.query("DELETE FROM orders.orders WHERE id = $1", [orderId]);
 };
 
+// ===========================================================================
+// A PURCHASE BULLION LINE PRICES FROM THE RATES TABLE (Jacob, 2026-09-03)
+// ===========================================================================
+//
+// "PURCHASE BULLION DOES NOT take its product bid premium. It comes from rates
+// as well." createLine used to write NULL and leave the sums to fall back to
+// the catalogue's own figure; it now writes the band's bullion_pct, and the
+// order's SCRAP is re-tiered by the same combined total in the same breath.
+
+// A purchase order with nothing on it, and the engagement row createLine needs
+// to mirror a new line to the refiner.
+const anEmptyGoldOrder = async (c: PoolClient) => {
+  const { rows: [order] } = await c.query(
+    `INSERT INTO orders.orders (direction, status, number)
+     VALUES ('purchase', 'Pending', nextval('orders.purchase_number_seq'))
+     RETURNING id`
+  );
+  await c.query(`INSERT INTO refiners.orders (order_id) VALUES ($1)`, [order.id]);
+  return { orderId: order.id };
+};
+
+// A gold product whose OWN bid_premium differs from the band its content
+// earns, so neither assertion below can pass by coincidence.
+const aGoldProductOffItsBand = async (c: PoolClient) => {
+  const { rows } = await c.query(
+    `SELECT b.id, b.content, b.bid_premium, band.bullion_pct
+       FROM products.bullion b
+       JOIN metals.metals m ON m.id = b.metal_id
+       CROSS JOIN LATERAL (
+         SELECT r.bullion_pct FROM rates.rates r
+          WHERE r.metal_id = b.metal_id
+            AND b.content >= r.min_qty
+            AND (r.max_qty IS NULL OR b.content <= r.max_qty)
+          ORDER BY r.min_qty LIMIT 1
+       ) band
+      WHERE m.name = 'Gold' AND b.content IS NOT NULL
+        AND b.bid_premium IS DISTINCT FROM band.bullion_pct
+      ORDER BY b.content
+      LIMIT 1`
+  );
+  assert.ok(
+    rows[0],
+    "no gold product's bid_premium differs from its band - this check would be vacuous"
+  );
+  return rows[0];
+};
+
+// The band a given TOTAL of a metal earns, resolved the way getRateBand does.
+const bandFor = async (c: PoolClient, metal: string, total: number) => {
+  const { rows } = await c.query(
+    `SELECT r.scrap_pct, r.bullion_pct FROM rates.rates r
+       JOIN metals.metals m ON m.id = r.metal_id
+      WHERE m.name = $1 AND $2::numeric >= r.min_qty
+        AND (r.max_qty IS NULL OR $2::numeric <= r.max_qty)
+      ORDER BY r.min_qty LIMIT 1`,
+    [metal, total]
+  );
+  assert.ok(rows[0], `no ${metal} band covers ${total} - the check would be vacuous`);
+  return rows[0];
+};
+
+test("a new bullion line is born at its rate band, not at the product's bid premium", async () => {
+  const fixture = await anEmptyGoldOrder(client);
+  try {
+    const product = await aGoldProductOffItsBand(client);
+
+    const created = await editLine.createLine(fixture.orderId, { id: product.id });
+
+    // The line CREATED carries it - createLine used to answer with the null it
+    // inserted, before the re-tier that follows had written the real premium.
+    assert.equal(
+      Number(created.premium), Number(product.bullion_pct),
+      "the new bullion line did not come back at its band"
+    );
+    assert.notEqual(
+      Number(created.premium), Number(product.bid_premium),
+      "the product's own bid_premium reached the order"
+    );
+
+    const { rows: [stored] } = await client.query(
+      "SELECT premium FROM orders.items WHERE id = $1", [created.id]
+    );
+    assert.equal(Number(stored.premium), Number(product.bullion_pct));
+  } finally {
+    await cleanup(client, fixture);
+  }
+});
+
+// ONE PARCEL OF METAL, ONE TIER. The scrap already on the order and the
+// bullion being added are the same metal, so the band is read at their
+// COMBINED content - and each line then takes its own column of it.
+test("adding bullion re-tiers the order's scrap by their combined content", async () => {
+  const { rows: [gold] } = await client.query(
+    "SELECT id FROM metals.metals WHERE name = 'Gold'"
+  );
+  const { rows: [order] } = await client.query(
+    `INSERT INTO orders.orders (direction, status, number)
+     VALUES ('purchase', 'Pending', nextval('orders.purchase_number_seq'))
+     RETURNING id`
+  );
+  const fixture = { orderId: order.id };
+  try {
+    await client.query(`INSERT INTO refiners.orders (order_id) VALUES ($1)`, [order.id]);
+    const { rows: [scrap] } = await client.query(
+      `INSERT INTO orders.items
+         (id, order_id, metal_id, pre_melt, purity, content, premium, quantity, confirmed, unit)
+       VALUES (gen_random_uuid(), $1, $2, 5, 0.9, 4.5, 0.75, 1, false, 't oz')
+       RETURNING id`,
+      [order.id, gold.id]
+    );
+
+    const product = await aGoldProductOffItsBand(client);
+    const created = await editLine.createLine(order.id, { id: product.id });
+
+    const total = 4.5 + Number(product.content);
+    const band = await bandFor(client, "Gold", total);
+
+    const { rows: [scrapNow] } = await client.query(
+      "SELECT premium FROM orders.items WHERE id = $1", [scrap.id]
+    );
+    assert.equal(
+      Number(scrapNow.premium), Number(band.scrap_pct),
+      "the scrap was not re-tiered by the total the bullion added to"
+    );
+    assert.equal(
+      Number(created.premium), Number(band.bullion_pct),
+      "the bullion line did not take the same band's bullion column"
+    );
+  } finally {
+    await cleanup(client, fixture);
+  }
+});
+
 test("deleting a line removes it and its refiner counterpart together", async () => {
   const fixture = await anOrderWithScrap(client);
   try {
