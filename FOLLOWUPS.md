@@ -13866,3 +13866,11 @@ the frontend follow-up (item 8), which happens once, at the end, against a
 stable API. The earlier lanes' caution (keeping the drawer documents, the
 `{scrap, bullion}` bodies, the client-sent totals) is the reason the domain
 layer only moved around; it stops here.
+    **Lesson, 2026-09-03 04:xx (item 9, add to lane 3):** every worktree's
+    preflight auto-migrates the ONE shared local test database, so a lane
+    writing a migration (117) changed the schema under every other lane's
+    gate at once (12 failures in exchange-exit's suite, none its own). The
+    fix belongs in the runner lane: one test database per worktree/branch
+    (`test_<branch>` derived by the preflight from `git branch
+    --show-current`, created from a template on first use), so a
+    migration-writing lane only ever moves its own database.
