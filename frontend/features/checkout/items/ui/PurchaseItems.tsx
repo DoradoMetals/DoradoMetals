@@ -7,6 +7,7 @@ import NumberFlow from '@number-flow/react'
 import { useRouter } from 'next/navigation'
 import { ShoppingCartSimpleIcon } from '@phosphor-icons/react'
 import { useCheckoutItems } from '@/shared/store/checkoutItemsStore'
+import { useCheckoutItemActions } from '@/features/checkout/items/queries'
 import { useDecoratedLines, type DecoratedLine } from '@/features/checkout/items/flair'
 import { formatRate } from '@/features/rates/utils/resolveRate'
 import { getGrossLabel, getPurityLabel } from '@/features/scrap/types'
@@ -24,9 +25,7 @@ export default function PurchaseItems() {
   const { closeDrawer } = useDrawerStore()
 
   const items = useCheckoutItems((state) => state.purchase)
-  const addItem = useCheckoutItems((state) => state.addItem)
-  const removeOne = useCheckoutItems((state) => state.removeOne)
-  const removeAll = useCheckoutItems((state) => state.removeAll)
+  const { addItem, removeOne, removeAll } = useCheckoutItemActions()
   const rows = useDecoratedLines(items)
 
   // Quote lines come back index-aligned with the store array.

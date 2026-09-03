@@ -2,7 +2,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { apiRequest } from '@/shared/queries/axios'
 import { useGetSession } from '@/features/auth/queries'
 import { useCheckoutItems } from '@/shared/store/checkoutItemsStore'
-import { replaceCheckoutItems } from '@/features/checkout/items/queries'
+import { useReplaceCheckoutItems } from '@/features/checkout/items/queries'
 import { usePaymentMethods } from '@/features/payments/queries'
 import { useSaleShippingServices } from '@/features/shipping/queries'
 import { SalesOrder, SaleCheckoutForm } from '@/features/orders/salesOrders/types'
@@ -36,9 +36,9 @@ export const useSalesOrders = () => {
 // so this hook's job changed from "send the document" to "write the row,
 // then name it":
 //
-//   1. freeze the live buy basket onto checkout.items (the periodic auto-sync
-//      in features/checkout/items/queries.ts can be up to 15s stale by
-//      Confirm);
+//   1. freeze the live buy basket onto checkout.items (every add/remove
+//      already PUT its own change - features/checkout/items/queries.ts - so
+//      this is a re-send of what the row should already hold, not a catch-up);
 //   2. resolve the two ids the checkout row wants from what the stepper
 //      already picked - the service's CODE against the cached shipping.services
 //      rows, the payment method's TYPE against the cached payments.methods
@@ -54,12 +54,13 @@ export const useCreateSalesOrder = () => {
   const queryClient = useQueryClient()
   const { data: saleMethods = [] } = usePaymentMethods('sale')
   const { data: saleServices = [] } = useSaleShippingServices()
+  const syncItems = useReplaceCheckoutItems('sale')
 
   return useMutation({
     mutationFn: async ({ sales_order }: { sales_order: SaleCheckoutForm }) => {
       if (!user?.id) throw new Error('User is not authenticated')
 
-      await replaceCheckoutItems('sale', useCheckoutItems.getState().sale)
+      await syncItems.mutateAsync({ lines: useCheckoutItems.getState().sale })
 
       const carrier_service_id =
         saleServices.find((s) => s.code === sales_order.service.value)?.id ?? null

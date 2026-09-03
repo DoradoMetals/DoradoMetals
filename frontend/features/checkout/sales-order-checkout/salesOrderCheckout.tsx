@@ -4,6 +4,7 @@ import { Button } from '@dorado/components'
 import { useEffect, useMemo, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { useCheckoutItems } from '@/shared/store/checkoutItemsStore'
+import { useClearCheckoutItems } from '@/features/checkout/items/queries'
 import { useSalesOrderCheckoutStore } from '@/shared/store/salesOrderCheckoutStore'
 import ShippingSelect from './shipping/shippingSelect'
 
@@ -32,6 +33,7 @@ export default function SalesOrderCheckout() {
 
   const { data, setData } = useSalesOrderCheckoutStore()
   const items = useCheckoutItems((state) => state.sale)
+  const clearItems = useClearCheckoutItems('sale')
 
   const { data: addresses = [], isPending: isAddressesPending } = useAddress()
 
@@ -102,6 +104,7 @@ export default function SalesOrderCheckout() {
       router.push('/order-placed')
     })
     useCheckoutItems.getState().clear('sale')
+    clearItems.mutate()
     useSalesOrderCheckoutStore.getState().clear()
   }
 

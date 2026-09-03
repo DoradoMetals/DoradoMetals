@@ -8,7 +8,7 @@ import { Separator } from '@/shared/ui/base/separator'
 import { Form } from '@/shared/ui/base/form'
 import { useEffect, useState } from 'react'
 import { defineStepper } from '@stepperize/react'
-import { useCheckoutItems } from '@/shared/store/checkoutItemsStore'
+import { useCheckoutItemActions } from '@/features/checkout/items/queries'
 import { useRouter } from 'next/navigation'
 import { useSpotPrices } from '@/features/spots/queries'
 import ReviewStep from '@/features/scrap/ui/ReviewStep'
@@ -39,7 +39,7 @@ export default function ScrapForm() {
   const stepper = useStepper()
   const currentIndex = utils.getIndex(stepper.current.id)
 
-  const addItem = useCheckoutItems.getState().addItem
+  const { addItem } = useCheckoutItemActions()
   const { data: metals = [] } = useSpotPrices()
 
   const [submitted, setSubmitted] = useState(false)

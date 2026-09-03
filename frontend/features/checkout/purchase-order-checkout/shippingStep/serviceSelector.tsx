@@ -2,6 +2,7 @@
 
 import { RadioGroup } from '@/shared/ui/RadioGroup'
 import { usePurchaseOrderCheckoutStore } from '@/shared/store/purchaseOrderCheckoutStore'
+import { usePatchPurchaseCheckout } from '@/features/checkout/queries'
 import { formatTimeDiff } from '@/shared/utils/formatDates'
 import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
 import { serviceIcon } from '@/features/service/types'
@@ -32,6 +33,7 @@ export const ServiceSelector: React.FC<ServiceSelectorProps> = ({ services, rate
   const selected = usePurchaseOrderCheckoutStore((state) => state.data.service)
   const setData = usePurchaseOrderCheckoutStore((state) => state.setData)
   const pickup = usePurchaseOrderCheckoutStore((state) => state.data.pickup)
+  const patchCheckout = usePatchPurchaseCheckout()
 
   const rateMap = new Map(
     rates.filter((r) => r.serviceType != null).map((r) => [r.serviceType as string, r])
@@ -66,6 +68,8 @@ export const ServiceSelector: React.FC<ServiceSelectorProps> = ({ services, rate
         date: undefined,
       },
     })
+    // D208: the row takes the service the moment it's picked.
+    if (option.id) patchCheckout.mutate({ carrier_service_id: option.id })
   }
 
   return (

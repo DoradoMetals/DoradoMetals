@@ -5,7 +5,11 @@ import { Switch } from '@dorado/components'
 
 import { usePurchaseOrderCheckoutStore } from '@/shared/store/purchaseOrderCheckoutStore'
 import { useMemo } from 'react'
-import { useOfferedPackages, OfferedPackage } from '@/features/checkout/queries'
+import {
+  useOfferedPackages,
+  usePatchPurchaseCheckout,
+  OfferedPackage,
+} from '@/features/checkout/queries'
 import { Inbox, Package2, Package as PackageIcon } from 'lucide-react'
 
 // The one thing that stays client-side (Jacob's standing call): a picture.
@@ -24,6 +28,7 @@ export function PackageSelector() {
   const selectedPackage = usePurchaseOrderCheckoutStore((state) => state.data.package)
   const fedexPackageToggle = usePurchaseOrderCheckoutStore((state) => state.data.fedexPackageToggle)
   const setData = usePurchaseOrderCheckoutStore((state) => state.setData)
+  const patchCheckout = usePatchPurchaseCheckout()
 
   // The boxes are rows now (D208/112) - packageOptions, the hardcoded record
   // that duplicated shipping.packages while nothing served it, is gone.
@@ -45,6 +50,8 @@ export function PackageSelector() {
     setData({
       package: { id: selected.id, label: selected.label },
     })
+    // D208: the row takes the id the moment it's picked, not at "Go to Payment".
+    patchCheckout.mutate({ package_id: selected.id })
   }
 
   return (

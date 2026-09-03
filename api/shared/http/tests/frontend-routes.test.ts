@@ -22,8 +22,9 @@ const walk = (dir: string, out: string[] = []): string[] => {
 };
 
 // The three shapes this codebase uses to name an endpoint — most PATCH calls carry the order id as a template literal and land in the skip count, but a static one must not be invisible.
+// `apiRequest<SomeRow>(...)` is as static as `apiRequest(...)` - the optional generic (same allowance browser-triggered-effects.test.ts's own apiRequest pattern already makes) must not make a call invisible to both the found and the skipped counts.
 const PATTERNS = [
-  /apiRequest\(\s*'(GET|POST|PUT|PATCH|DELETE)',\s*'([^']+)'/g,
+  /apiRequest(?:<[^>]*>)?\(\s*'(GET|POST|PUT|PATCH|DELETE)',\s*'([^']+)'/g,
   /url:\s*'([^']+)',\s*\n?\s*method:\s*'(GET|POST|PUT|PATCH|DELETE)'/g,
   /method:\s*'(GET|POST|PUT|PATCH|DELETE)',\s*\n?\s*url:\s*'([^']+)'/g,
 ];
@@ -41,7 +42,7 @@ const collect = () => {
       }
     }
     // A template-literal endpoint is a skip, not a pass.
-    for (const m of src.matchAll(/apiRequest\(\s*'(?:GET|POST|PUT|PATCH|DELETE)',\s*`/g)) skipped += 1;
+    for (const m of src.matchAll(/apiRequest(?:<[^>]*>)?\(\s*'(?:GET|POST|PUT|PATCH|DELETE)',\s*`/g)) skipped += 1;
   }
   return { calls, skipped };
 };
@@ -61,9 +62,10 @@ test("every frontend API call names a route the API actually has", () => {
   assert.ok(known.size > 100, `only ${known.size} routes known - the route walk is wrong`);
 
   const { calls, skipped } = collect();
-  // Floor was 40 before the order-mutation consolidation turned ~20 single-field POSTs into PATCH documents whose paths carry the order id (and land in the skip count instead).
+  // Floor was 40 before the order-mutation consolidation turned ~20 single-field POSTs into PATCH documents whose paths carry the order id (and land in the skip count instead), then 30 once that left 29 visible.
+  // Raised to 50 (measured 54) once PATTERNS learned `apiRequest<SomeRow>(...)` - the checkout rewrite typed several calls with a generic (features/checkout/queries.ts, features/checkout/items/queries.ts) and the untyped-only pattern had been silently skipping them, not counting them: a floor of 30 would not have noticed dropping back to 29 that way.
   assert.ok(
-    calls.length >= 30,
+    calls.length >= 50,
     `only ${calls.length} frontend call(s) found - the patterns have stopped ` +
       "matching, and a check that reads nothing accepts everything"
   );

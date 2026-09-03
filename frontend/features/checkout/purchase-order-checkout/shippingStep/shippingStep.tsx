@@ -14,6 +14,7 @@ import type { CarrierRateQuote } from '@dorado/contracts'
 import { useShippingPickupTimes } from '@/features/shipping/queries'
 
 import { usePurchaseOrderCheckoutStore } from '@/shared/store/purchaseOrderCheckoutStore'
+import { usePatchPurchaseCheckout } from '@/features/checkout/queries'
 import { useDrawerStore } from '@/shared/store/drawerStore'
 import { useUserAddresses } from '@/features/addresses/queries'
 
@@ -61,6 +62,7 @@ export default function ShippingStep({
   const service = usePurchaseOrderCheckoutStore((state) => state.data.service)
   const pickup = usePurchaseOrderCheckoutStore((state) => state.data.pickup)
   const setData = usePurchaseOrderCheckoutStore((state) => state.setData)
+  const patchCheckout = usePatchPurchaseCheckout()
 
   const { data: links = [] } = useUserAddresses()
   const linkOf = useMemo(() => new Map(links.map((l) => [l.address_id, l])), [links])
@@ -103,6 +105,9 @@ export default function ShippingStep({
       <AddressDrawer
         onSuccess={(savedAddress: Address, savedLink?: UserAddress) => {
           setData({ address: savedAddress, user_address: savedLink })
+          if (savedAddress.is_valid) {
+            patchCheckout.mutate({ shipper_address_id: savedAddress.id })
+          }
         }}
       />
 
@@ -131,7 +136,10 @@ export default function ShippingStep({
               addresses={sortedAddresses}
               userAddresses={links}
               value={address?.id ?? null}
-              onChange={(addr) => setData({ address: addr, user_address: linkOf.get(addr.id) })}
+              onChange={(addr) => {
+                setData({ address: addr, user_address: linkOf.get(addr.id) })
+                if (addr.is_valid) patchCheckout.mutate({ shipper_address_id: addr.id })
+              }}
               onAddNew={() => openDrawer('address')}
             />
 

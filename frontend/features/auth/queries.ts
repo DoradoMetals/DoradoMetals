@@ -21,7 +21,7 @@ import {
   updateUser,
   verifyEmail,
 } from './authClient'
-import { hydrateCheckoutItems, pushCheckoutItems } from '@/features/checkout/items/queries'
+import { hydrateCheckoutItems, useReplaceCheckoutItems } from '@/features/checkout/items/queries'
 
 const clearClientState = () => {
   useCheckoutItems.getState().clearAll()
@@ -145,14 +145,20 @@ export const useSignIn = () => {
 export const useSignOut = () => {
   const queryClient = useQueryClient()
   const router = useRouter()
+  const syncSale = useReplaceCheckoutItems('sale')
+  const syncPurchase = useReplaceCheckoutItems('purchase')
+
   return useMutation({
     mutationFn: async () => {
-      for (const direction of ['sale', 'purchase'] as const) {
-        try {
-          await pushCheckoutItems(direction)
-        } catch (err) {
-          console.warn('checkout items did not sync, continuing logout:', err)
-        }
+      try {
+        await syncSale.mutateAsync({ lines: useCheckoutItems.getState().sale })
+      } catch (err) {
+        console.warn('checkout items did not sync, continuing logout:', err)
+      }
+      try {
+        await syncPurchase.mutateAsync({ lines: useCheckoutItems.getState().purchase })
+      } catch (err) {
+        console.warn('checkout items did not sync, continuing logout:', err)
       }
 
       await signOut()

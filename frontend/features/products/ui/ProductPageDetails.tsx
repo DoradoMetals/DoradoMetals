@@ -21,6 +21,7 @@ import {
   TagIcon,
 } from '@phosphor-icons/react'
 import { useCheckoutItems } from '@/shared/store/checkoutItemsStore'
+import { useCheckoutItemActions } from '@/features/checkout/items/queries'
 import { lineFromProduct } from '@/features/checkout/items/types'
 import { Lens } from '@/shared/ui/base/lens'
 import { paymentMethodIcon, transitLabel } from '@/features/orders/salesOrders/types'
@@ -62,8 +63,7 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
 
   const buyItems = useCheckoutItems((state) => state.sale)
   const sellItems = useCheckoutItems((state) => state.purchase)
-  const addItem = useCheckoutItems((state) => state.addItem)
-  const removeOne = useCheckoutItems((state) => state.removeOne)
+  const { addItem, removeOne } = useCheckoutItemActions()
 
   const quantity = buyItems.find((i) => i.bullion_id === selectedProduct.id)?.quantity ?? 0
   const sellQuantity = sellItems.find((i) => i.bullion_id === selectedProduct.id)?.quantity ?? 0
