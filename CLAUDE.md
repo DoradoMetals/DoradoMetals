@@ -1,5 +1,9 @@
 @AGENTS.md
 
+- **Output Verbosity**: Minimize bash command output. Do not print boilerplate installation logs, standard build outputs, or multi-line terminal outputs unless they contain a failing error.
+- **Command execution**: Run commands silently using flags like `-q` or redirection (`> /dev/null`) where appropriate. 
+- **Explanations**: Give 1-2 sentence summaries of actions instead of lengthy step-by-step guides.
+
 # Dorado Exchange
 
 A precious-metals exchange: customers sell scrap and bullion to the business
