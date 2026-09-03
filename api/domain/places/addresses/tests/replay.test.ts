@@ -45,6 +45,9 @@ after(async () => {
 });
 
 // The exact body frontend/features/addresses/queries.ts sends on create: the postal address and the caller's relationship travel as siblings, one call, never nested.
+// is_valid/is_residential are NOT fields of the write body any more (they
+// are server-controlled - create.sql hard-codes them, validation sets the
+// real values through a different write entirely): naming either is now a 400.
 const newAddress = (over = {}) => ({
   address: {
     line_1: "1 Replay Street",
@@ -55,8 +58,6 @@ const newAddress = (over = {}) => ({
     country: "United States",
     country_code: "US",
     phone_number: "5550000000",
-    is_valid: true,
-    is_residential: true,
     ...over,
   },
   user_address: {

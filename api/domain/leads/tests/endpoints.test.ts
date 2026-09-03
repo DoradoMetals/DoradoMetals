@@ -76,7 +76,7 @@ test("update writes the row, and delete removes it", async () => {
 
       const upd = await request(app)
         .post("/api/leads/update")
-        .send({ lead_id: created.id, patch: { name: "Renamed" }, user_name: admin.name });
+        .send({ lead_id: created.id, patch: { name: "Renamed" } });
       assert.equal(upd.status, 200);
       const { rows: renamed } = await client.query(
         `SELECT name FROM leads.leads WHERE id = $1`, [created.id]);

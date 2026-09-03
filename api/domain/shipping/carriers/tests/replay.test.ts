@@ -125,9 +125,24 @@ test("updating a carrier returns the updated row, still nested", async () => {
 
       const saved = Array.isArray(made.body) ? made.body[0] : made.body;
       const renamed = `${carrier.organization.name}-renamed`;
+      // A clean patch, not the whole response spread back: the organization's
+      // own id is not a field of this body (the service resolves it from the
+      // carrier's own organization_id, read server-side) - the frontend
+      // adapts (ruling 44).
       const res = await request(app)
         .post("/api/carriers/update")
-        .send({ carrier: { ...saved, organization: { ...saved.organization, name: renamed } } });
+        .send({
+          carrier: {
+            id: saved.id,
+            logo: saved.logo,
+            organization: {
+              name: renamed,
+              email: saved.organization.email,
+              phone: saved.organization.phone,
+              enabled: saved.organization.enabled,
+            },
+          },
+        });
       assert.equal(res.status, 200, JSON.stringify(res.body));
       created.push(renamed);
 

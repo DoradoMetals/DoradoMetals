@@ -141,7 +141,7 @@ test("updating a lead changes it and leaves the others alone", async () => {
 
       const res = await request(app)
         .post("/api/leads/update")
-        .send({ lead_id: target.id, patch: { notes: "touched by the replay suite" }, user_name: admin.name });
+        .send({ lead_id: target.id, patch: { notes: "touched by the replay suite" } });
       assert.equal(res.status, 200, JSON.stringify(res.body));
 
       const after = await request(app).get("/api/leads/get_all");

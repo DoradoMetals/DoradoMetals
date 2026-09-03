@@ -1,34 +1,21 @@
 // HTTP in, HTTP out. No database, no composition, no business rules.
 // Every body is parsed against the contract in strict mode: unknown keys and wrong types are a 400 before the service runs.
-// created_by/updated_by/user_name are accepted but ignored, not forwarded: those columns are written by public.audit_stamp, not the client.
-// hidden is re-extended non-nullable: CreateReviewBody derives from the legacy nullable shape, but reviews.reviews is NOT NULL and create.sql's own COALESCE supplies the default.
+// created_by/updated_by/user_name are not fields of either body: public.audit_stamp writes the audit columns from the connection's actor, so a request naming any of the three is a 400.
 import { z } from "zod/v4";
-import { CreateReviewBody } from "@dorado/contracts";
+import { CreateReviewBody, ReviewPatch } from "@dorado/contracts";
 import { parseStrict, uuidLike } from "#shared/http/validate.ts";
 import { asyncHandler } from "#shared/middleware/asyncHandler.ts";
 import * as service from "#domain/reviews/service.ts";
 
 const reviewId = uuidLike;
-const nonNullHidden = { hidden: z.boolean().optional() };
 
 const CreateBody = z.object({
-  review: CreateReviewBody
-    .partial({ created_by: true, updated_by: true })
-    .extend(nonNullHidden)
-    .strict(),
-  user_name: z.string().optional(),
+  review: CreateReviewBody.strict(),
 }).strict();
-
-const PatchBody = CreateReviewBody
-  .omit({ created_by: true, updated_by: true })
-  .partial()
-  .extend(nonNullHidden)
-  .strict();
 
 const UpdateBody = z.object({
   review_id: reviewId,
-  patch: PatchBody.optional(),
-  user_name: z.string().optional(),
+  patch: ReviewPatch.strict().optional(),
 }).strict();
 
 const DeleteBody = z.object({ review_id: reviewId }).strict();

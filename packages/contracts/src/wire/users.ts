@@ -24,3 +24,16 @@ export type User = z.infer<typeof User>;
 // (wave 3). An order carries `user_id`; a name is the client's to map from
 // the admin users list it already caches, which is the same rule that killed
 // mint_name. Nothing about a customer needs to ride along on their order.
+
+import { UsersRow as AuthUsersRow } from "../generated/auth.js";
+
+// POST /users/update_credit - the admin balance edit. `op` mirrors
+// db/users/repo.ts's own CreditMode; `mode` is gone (D214: no shape is
+// preserved on this branch). `amount` matches auth.users.dorado_funds's own
+// type - a magnitude, never a signed delta (the sign is `op`).
+export const UpdateCreditBody = z.object({
+  user_id: AuthUsersRow.shape.id,
+  op: z.enum(["add", "subtract", "edit"]),
+  amount: AuthUsersRow.shape.dorado_funds,
+}).strict();
+export type UpdateCreditBody = z.infer<typeof UpdateCreditBody>;

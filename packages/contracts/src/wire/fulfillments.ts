@@ -60,3 +60,64 @@ export type FulfillmentPickup = z.infer<typeof FulfillmentPickup>;
 
 export const FulfillmentDirect = DirectsRow;
 export type FulfillmentDirect = z.infer<typeof FulfillmentDirect>;
+
+// ============================================================================
+// WRITE BODIES
+// ============================================================================
+
+// POST /fulfillments/methods/update - db/fulfillments/methods/repo.ts's own
+// PATCHABLE. type/category/direction are not writable: changing a method's
+// category would move existing fulfillments to a detail table their rows
+// aren't in. `admin_label` is re-typed non-nullable: the row allows null, but
+// update.sql's COALESCE cannot tell an explicit null apart from an absent
+// field (both leave the column untouched), so there is no real clear to
+// offer here.
+export const FulfillmentMethodPatch = MethodsRow.pick({
+  label: true,
+  admin_label: true,
+  enabled: true,
+  hidden: true,
+}).extend({
+  admin_label: z.string(),
+}).partial();
+export type FulfillmentMethodPatch = z.infer<typeof FulfillmentMethodPatch>;
+
+// POST /fulfillments/set_method - both ids (ruling 43); nothing else.
+export const FulfillmentSetMethodBody = z.object({
+  fulfillment_id: FulfillmentsRow.shape.id,
+  method_id: MethodsRow.shape.id,
+}).strict();
+export type FulfillmentSetMethodBody = z.infer<typeof FulfillmentSetMethodBody>;
+
+// POST /fulfillments/set_status - the id and the new label. `status` stays
+// `z.string()`: fulfillments.fulfillments.status is plain text with no
+// constraint (same reasoning as leads.priority).
+export const FulfillmentSetStatusBody = z.object({
+  fulfillment_id: FulfillmentsRow.shape.id,
+  status: FulfillmentsRow.shape.status,
+}).strict();
+export type FulfillmentSetStatusBody = z.infer<typeof FulfillmentSetStatusBody>;
+
+// POST /fulfillments/cancel_schedule - the id alone.
+export const FulfillmentCancelScheduleBody = z.object({
+  fulfillment_id: FulfillmentsRow.shape.id,
+}).strict();
+export type FulfillmentCancelScheduleBody = z.infer<typeof FulfillmentCancelScheduleBody>;
+
+// POST /fulfillments/schedule_pickup - fulfillments.pickups is upsert-only
+// (one row per fulfillment), so this is the row minus its own generated id.
+export const ScheduleFulfillmentPickupBody = PickupsRow.omit({ id: true }).partial({
+  assigned_employee_id: true,
+  start_time: true,
+  end_time: true,
+});
+export type ScheduleFulfillmentPickupBody = z.infer<typeof ScheduleFulfillmentPickupBody>;
+
+// POST /fulfillments/schedule_direct - same shape, fulfillments.directs.
+export const ScheduleFulfillmentDirectBody = DirectsRow.omit({ id: true }).partial({
+  assigned_employee_id: true,
+  is_appointment: true,
+  start_time: true,
+  end_time: true,
+});
+export type ScheduleFulfillmentDirectBody = z.infer<typeof ScheduleFulfillmentDirectBody>;

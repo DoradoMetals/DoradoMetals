@@ -75,7 +75,7 @@ test("update writes the row, and delete removes it", async () => {
 
       const upd = await request(app)
         .post("/api/reviews/update")
-        .send({ review_id: created.id, patch: { name: "Renamed" }, user_name: admin.name });
+        .send({ review_id: created.id, patch: { name: "Renamed" } });
       assert.equal(upd.status, 200);
       const { rows: renamed } = await client.query(
         `SELECT name FROM reviews.reviews WHERE id = $1`, [created.id]);

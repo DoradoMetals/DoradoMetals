@@ -1,6 +1,8 @@
+import { AddressCreateBody, AddressUpdateBody, AddressIdBody } from "@dorado/contracts";
 import { callerId, requiredParam } from "#shared/http/caller.ts";
 import type { Request } from "express";
 import { oneString } from "#shared/http/query.ts";
+import { parseStrict } from "#shared/http/validate.ts";
 import { asyncHandler } from "#shared/middleware/asyncHandler.ts";
 import * as addressService from "#domain/places/addresses/service.ts"
 import type { ComposedAddress } from "#domain/places/addresses/compose.ts";
@@ -51,25 +53,29 @@ export const getUserAddresses = asyncHandler(async (req, res) => {
 });
 
 export const create = asyncHandler(async (req, res) => {
-  const { address, user_address } = req.body;
-  const saved = await addressService.create({ address, user_address, userId: subjectOf(req) });
+  const body = parseStrict(AddressCreateBody, req.body, "places/addresses/create body");
+  const saved = await addressService.create({
+    address: body.address, user_address: body.user_address, userId: subjectOf(req),
+  });
   return res.status(200).json(split(saved));
 });
 
 export const update = asyncHandler(async (req, res) => {
-  const { address, user_address } = req.body;
-  const saved = await addressService.update({ address, user_address, userId: subjectOf(req) });
+  const body = parseStrict(AddressUpdateBody, req.body, "places/addresses/update body");
+  const saved = await addressService.update({
+    address: body.address, user_address: body.user_address, userId: subjectOf(req),
+  });
   return res.status(200).json(split(saved));
 });
 
 export const remove = asyncHandler(async (req, res) => {
-  const { address, address_id } = req.body;
-  const msg = await addressService.remove({ userId: subjectOf(req), addressId: address_id ?? address?.id });
+  const body = parseStrict(AddressIdBody, req.body, "places/addresses/delete body");
+  const msg = await addressService.remove({ userId: subjectOf(req), addressId: body.address_id });
   return res.status(200).json(msg);
 });
 
 export const setDefault = asyncHandler(async (req, res) => {
-  const { address, address_id } = req.body;
-  const msg = await addressService.setDefault({ userId: subjectOf(req), addressId: address_id ?? address?.id });
+  const body = parseStrict(AddressIdBody, req.body, "places/addresses/set_default body");
+  const msg = await addressService.setDefault({ userId: subjectOf(req), addressId: body.address_id });
   return res.status(200).json(msg);
 });

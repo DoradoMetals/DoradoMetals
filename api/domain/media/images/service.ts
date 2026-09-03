@@ -10,12 +10,14 @@ const GET_TTL_SECONDS = 60 * 10;
 
 // Returns the new id and a presigned PUT url - not the row. The client uploads
 // straight to storage with that url; the API never sees the bytes.
+// `path` is not an argument any more (was accepted and silently ignored): the
+// key is entirely server-chosen (see the comment below), so a caller's path
+// never did anything.
 export async function uploadImage({
-  mimeType, size, path, filename, user_id,
+  mime_type, size_bytes, filename, user_id,
 }: {
-  mimeType?: string | null;
-  size?: number | null;
-  path: string;
+  mime_type?: string | null;
+  size_bytes?: number | null;
   filename: string;
   user_id: string;
 }): Promise<{ id: string; uploadUrl: string }> {
@@ -32,8 +34,8 @@ export async function uploadImage({
     bucket,
     path: `${user_id}/`,
     filename: `${randomUUID()}-${originalName}`,
-    mime_type: mimeType,
-    size_bytes: size,
+    mime_type,
+    size_bytes,
   };
 
   // create is an upsert on (path, filename, user_id) - a retried upload returns the id of the row that ALREADY existed rather than the one generated here; callers must use the returned id.

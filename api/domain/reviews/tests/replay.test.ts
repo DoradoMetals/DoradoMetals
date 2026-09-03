@@ -57,14 +57,15 @@ after(async () => {
 });
 
 // Object.assign, not a spread: an override lands on top of the defaults without copying either object's props by hand.
+// created_by/updated_by are NOT fields of the create body any more (item 4):
+// public.audit_stamp writes both from the connection's actor, and naming
+// either here would now be a 400.
 const newReview = (over: Partial<{ hidden: boolean }> = {}) =>
   Object.assign(
     {
       review_text: `left by the replay suite ${randomUUID().slice(0, 8)}`,
       rating: 5,
       name: `replay-${randomUUID().slice(0, 8)}`,
-      created_by: "replay suite",
-      updated_by: "replay suite",
       hidden: false,
     },
     over

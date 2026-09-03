@@ -1,5 +1,8 @@
+import {
+  FulfillmentCancelScheduleBody, FulfillmentSetMethodBody, FulfillmentSetStatusBody,
+} from "@dorado/contracts";
 import { requiredParam } from "#shared/http/caller.ts";
-import { uuidParam, uuidField } from "#shared/http/validate.ts";
+import { parseStrict, uuidParam } from "#shared/http/validate.ts";
 import { oneString } from "#shared/http/query.ts";
 import { asyncHandler } from "#shared/middleware/asyncHandler.ts";
 import * as fulfillmentService from "#domain/fulfillments/service.ts";
@@ -32,25 +35,22 @@ export const getSchedule = asyncHandler(async (req, res) => {
   return res.status(200).json(rows.map(compose.toWire));
 });
 
-// No contract schema exists yet for these three bodies, so the id is checked by hand (uuidField) rather than by a strict parse.
 export const cancelSchedule = asyncHandler(async (req, res) => {
-  const fulfillment_id = uuidField(req.body, "fulfillment_id");
-  const saved = await fulfillmentService.cancelSchedule(fulfillment_id);
+  const body = parseStrict(FulfillmentCancelScheduleBody, req.body, "fulfillments/cancel_schedule body");
+  const saved = await fulfillmentService.cancelSchedule(body.fulfillment_id);
   return res.status(200).json(saved);
 });
 
 export const setMethod = asyncHandler(async (req, res) => {
-  const fulfillment_id = uuidField(req.body, "fulfillment_id");
-  const method_id = uuidField(req.body, "method_id");
+  const body = parseStrict(FulfillmentSetMethodBody, req.body, "fulfillments/set_method body");
   // WHO isn't sent down any more - the audit_stamp trigger reads the session off the connection.
-  const saved = await fulfillmentService.setMethod({ id: fulfillment_id, method_id });
+  const saved = await fulfillmentService.setMethod({ id: body.fulfillment_id, method_id: body.method_id });
   return res.status(200).json(saved);
 });
 
 export const setStatus = asyncHandler(async (req, res) => {
-  const fulfillment_id = uuidField(req.body, "fulfillment_id");
-  const { status } = req.body;
-  const saved = await fulfillmentService.setStatus({ id: fulfillment_id, status });
+  const body = parseStrict(FulfillmentSetStatusBody, req.body, "fulfillments/set_status body");
+  const saved = await fulfillmentService.setStatus({ id: body.fulfillment_id, status: body.status });
   return res.status(200).json(saved);
 });
 
