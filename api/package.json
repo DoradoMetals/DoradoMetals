@@ -21,8 +21,6 @@
     "validate:wire": "TZ=UTC node scripts/validate-wire.ts",
     "typecheck": "tsc -p tsconfig.json",
     "typecheck:sweep": "tsc -p tsconfig.json --noEmit --checkJs --noImplicitAny false",
-    "verify:sales-order-decomposition": "TZ=UTC node scripts/verify-sales-order-decomposition.mjs",
-    "verify:orders-decomposition": "TZ=UTC node scripts/verify-orders-decomposition.mjs",
     "verify:parity": "TZ=UTC node scripts/verify-parity.mjs",
     "lint:migrations": "node scripts/lint-migrations.ts",
     "plan": "node scripts/plan-migration.mjs",

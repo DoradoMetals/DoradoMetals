@@ -247,16 +247,13 @@ test("changing a spot price lands on that order and no other", async () => {
       assert.ok("bid" in spot, "the metals response no longer carries bid");
       assert.ok(!("bid_spot" in spot), "the metals response still carries the legacy bid_spot");
       // VERBATIM rows (ruling 12): the read serves metal_id, never a joined
-      // name - the client maps names from the reference read, and so does
-      // this test, because the PUT's set op still speaks names.
+      // name - and the PUT speaks the same id (D214 item 11), where it used to
+      // take the metal's display NAME and resolve it against metals.metals.
       assert.ok(!("name" in spot), "the spots read is smearing a joined name onto the row");
-      const [metal] = await outside(
-        `SELECT name FROM metals.metals WHERE id = $1`, [spot.metal_id]
-      );
 
       const res = await request(app)
         .put(`/api/orders/${order.id}/spots`)
-        .send({ set: [{ name: metal.name, bid: sentinel }] });
+        .send({ set: [{ metal_id: spot.metal_id, bid: sentinel }] });
       assert.equal(res.status, 200, JSON.stringify(res.body));
 
       const after = await request(app).get(`/api/orders/${order.id}/spots`);

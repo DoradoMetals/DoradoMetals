@@ -14,10 +14,15 @@ export async function exists(id: string, executor?: Executor): Promise<boolean> 
   return rows[0]?.present === true;
 }
 
+// THE COLUMN'S OWN TYPE, not `string`: orders.direction is an enum and the
+// generated row says so, which is what lets a caller pass the answer straight
+// into a rule without a cast.
+export type Direction = NonNullable<OrderRow["direction"]>;
+
 export async function directionOf(
   id: string, executor?: Executor
-): Promise<string | null> {
-  const { rows } = await query<{ direction: string }>(
+): Promise<Direction | null> {
+  const { rows } = await query<{ direction: Direction }>(
     sql("direction_of"), [id], executor
   );
   return rows[0]?.direction ?? null;

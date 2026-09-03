@@ -1,173 +1,135 @@
-import { formatPhoneNumber } from "#shared/utils/formatPhoneNumber.ts";
-import { assignScrapItemNames } from "#domain/orders/utils/assignScrapNames.ts";
-import { calculateItemPrice } from "#domain/pricing/service.ts";
-import {
-  formatCurrency,
-  getItemPrice,
-  getPayoutDelay,
-} from "#domain/media/pdfs/render/format.ts";
-
 // The HTML sections a rendered document is assembled from.
 //
-// WHY THESE TYPES ARE LOCAL RATHER THAN FROM @dorado/contracts.
+// THE TYPES ARE THE CONTRACT'S NOW (D214 item 12). This file used to declare
+// its own `RenderableOrder`, `OrderItem`, `ScrapPart`, `ProductPart`,
+// `AddressPart` and `ShipmentPart` - six hand-written shapes describing what
+// the COMPOSED order looked like, because no generated row described that tree.
+// The composer is gone and `OrderView` is a generated-row shape, so the
+// templates read the tables directly:
 //
-// The contracts package has PurchaseOrdersRow, ScrapRow, MetalsRow and the
-// rest, and they are the right types for a repo. They are the wrong types
-// HERE, for two reasons worth stating so nobody "fixes" this later:
+//   item.scrap.pre_melt      ->  item.pre_melt        (the scrap IS the line)
+//   item.scrap.gross_unit    ->  item.unit
+//   item.scrap.metal         ->  labels.metals.get(item.metal_id)
+//   item.product.metal_type  ->  labels.metals.get(item.metal_id)
+//   item.item_type           ->  item.bullion_id === null
+//   order.shipment           ->  inboundShipment(order)
+//   shipment.shipping_charge ->  shipment.cost
+//   shipment.shipping_service ->  labels.services.get(s.carrier_service_id)
+//   shipment.package         ->  labels.packages.get(s.package_id)
+//   order.user.user_name     ->  order.user.name
+//   order.carrier_pickup     ->  order.pickup
 //
-//   The shape that arrives is COMPOSED, not a row. A purchase order reaches
-//   this file with order_items attached, each item carrying either a nested
-//   `scrap` or a nested `product`, plus a shipment and an address. No generated
-//   row describes that tree.
+// TWO THINGS THE CALLER SUPPLIES BESIDES THE ORDER, and both are reference
+// data rather than order data:
 //
-//   The spots arrive in the CONVERTED wire shape - `name` / `ask` / `bid` -
-//   which is what /spots/spot_prices serves and what the order-metals
-//   endpoints serve since the orders conversion (D84). The PDF and email
-//   paths take them from a request body in that shape.
+//   bids     metal_id -> the price the order is being valued at. The FROZEN
+//            spots for a locked order, the live feed otherwise; the caller
+//            decides which, because that decision belongs to the document.
+//   labels   the names behind the three ids an order's rows carry - the
+//            metal, the carrier service and the box.
+import { formatPhoneNumber } from "#shared/utils/formatPhoneNumber.ts";
+import { inboundShipment, unitPrice, type Bids } from "#domain/pricing/service.ts";
+import {
+  formatCurrency,
+  getPayoutDelay,
+} from "#domain/media/pdfs/render/format.ts";
+import type { OrderView, OrderViewItem } from "@dorado/contracts";
+
+// THE LABELS A DOCUMENT PRINTS FOR THE IDS AN ORDER CARRIES. Three lookups,
+// one per reference table, resolved once by the caller: a row names its metal,
+// its carrier service and its box by id, and a name is a label rather than a
+// column of the order.
+export type DocumentLabels = {
+  /** metal_id -> the metal's name. */
+  metals: ReadonlyMap<string, string>;
+  /** carrier_service_id -> the service's name. */
+  services: ReadonlyMap<string, string>;
+  /** package_id -> the box's label. */
+  packages: ReadonlyMap<string, string>;
+};
+
+// The box a parcel ships in, as the packing list prints it.
+export type PackageDetails = {
+  label: string | null;
+  length: number | null;
+  width: number | null;
+  height: number | null;
+};
+
+const serviceOf = (
+  shipment: OrderView["shipments"][number] | null, labels: DocumentLabels
+): string =>
+  (shipment?.carrier_service_id ? labels.services.get(shipment.carrier_service_id) : null) || "-";
+
+const packageOf = (
+  shipment: OrderView["shipments"][number] | null, labels: DocumentLabels
+): string =>
+  (shipment?.package_id ? labels.packages.get(shipment.package_id) : null) || "-";
+
+// THE DISPLAY ORDER OF THE METALS, which is not alphabetical. Same list
+// domain/spots/compose.ts sorts by, for the same reason: a customer reads gold
+// first.
+const METAL_ORDER = ["Gold", "Silver", "Platinum", "Palladium"];
+
+const rank = (name: string): number => {
+  const at = METAL_ORDER.indexOf(name);
+  return at === -1 ? METAL_ORDER.length : at;
+};
+
+// "Gold Item 1", "Gold Item 2", "Silver Item 1" - the labels a customer reads
+// on their packing list and invoice.
 //
-// So these interfaces name exactly the fields the templates read, and nothing
-// else. They are deliberately narrow: every property here is one this file
-// actually touches, so the type doubles as a list of what a caller must supply.
-// Optional and unknown wherever the template already guards - a template that
-// prints "-" for a missing value is telling you the field is optional, and a
-// type that said otherwise would be a lie that happens to compile.
+// A PURE LOOKUP NOW, NOT A MUTATION. It used to walk the composed lines and
+// write `item.scrap.name` onto each one, which needed a `name` field on a
+// database-derived object that no column supplies. There is no such field on
+// an `orders.items` row and there should not be: the label is a document's
+// idea, so it is a map the document reads.
+export function scrapItemNames(
+  lines: OrderViewItem[], metals: ReadonlyMap<string, string>
+): Map<string, string> {
+  const ordered = lines
+    .filter((line) => metals.has(line.metal_id))
+    .sort((a, b) => rank(metals.get(a.metal_id)!) - rank(metals.get(b.metal_id)!));
 
-// The spot part is local like the order shapes: bodies hand this file live
-// spot rows and frozen order-spot rows, which share exactly these three
-// fields, and calculations.ts reads the same three.
-export interface SpotPart {
-  name?: string | null;
-  ask?: number | null;
-  bid?: number | null;
-}
-/** The scrap half of a line, when item_type is "scrap".
- *
- * `content` WAS DECLARED `number`, REQUIRED, and it was the only field here
- * that claimed to be present. It is not: every source of it admits null
- * (ComposedScrap.content, orders.items.content, exchange.scrap.content), and
- * the line builder below reaches this interface through
- * `item.scrap ?? ({} as ScrapPart)` - a cast over an empty object, which is
- * how a missing `content` typed as `number` got past the compiler. Both
- * templates already guard `scrap.content != null` before calling `.toFixed`,
- * and getItemPrice takes `number | null | undefined`, so the guards were
- * right and the type was wrong. Declaring it as it is stops the next reader
- * deleting a guard the compiler was calling redundant. */
-interface ScrapPart {
-  name?: unknown;
-  metal?: unknown;
-  content?: number | null;
-  purity?: number | null;
-  pre_melt?: unknown;
-  post_melt?: unknown;
-  gross_unit?: unknown;
-  bid_premium?: number | null;
+  const seen = new Map<string, number>();
+  const names = new Map<string, string>();
+  for (const line of ordered) {
+    const metal = metals.get(line.metal_id)!;
+    const nth = (seen.get(metal) ?? 0) + 1;
+    seen.set(metal, nth);
+    names.set(line.id, `${metal} Item ${nth}`);
+  }
+  return names;
 }
 
-/** The bullion half of a line, when item_type is "product". */
-interface ProductPart {
-  name?: unknown;
-  metal_type?: unknown;
-  content?: number | null;
-  /** Products carry their own premiums; a line falls back to these when it has none. */
-  bid_premium?: number | null;
-  ask_premium?: number | null;
+// The parcel going BACK, when there is one - the leg a cancelled order adds.
+export function returnShipment(order: OrderView): OrderView["shipments"][number] | null {
+  return order.shipments.find((s) => s.direction === "Return") ?? null;
 }
 
-/** One line on an order, which is either scrap or bullion, never both.
- * `product` is nullable on the Next wire; the repos still emit an object of
- * nulls, and every template read already chains. */
-export interface OrderItem {
-  item_type?: string;
-  quantity?: number | null;
-  price?: number | null;
-  premium?: number | null;
-  scrap?: ScrapPart | null;
-  product?: ProductPart | null;
-}
+const pct = (value: number | null | undefined): string =>
+  value == null ? "&mdash;" : `${(value * 100).toFixed(1)}%`;
 
-/** The address snapshot fields printed on a label block (D84):
- * recipient_name is who receives the shipment. */
-interface AddressPart {
-  recipient_name?: string | null;
-  line_1?: string | null;
-  line_2?: string | null;
-  city?: string | null;
-  state?: string | null;
-  zip?: string | null;
-  country?: string | null;
-  phone_number?: string | null;
-  [key: string]: unknown;
-}
-
-/** The shipment fields the shipping table prints. */
-interface ShipmentPart {
-  insured?: boolean | null;
-  package?: string | null;
-  shipping_charge?: number | null;
-  [key: string]: unknown;
-}
-
-/** A purchase order as this file receives it - composed, not a row. */
-export interface RenderableOrder {
-  /**
-   * NOT NULL in both schemas, but the Next contract admits null for the six
-   * stray new-schema-only orders, so the templates guard the padStart rather
-   * than crash a document for the type's sake. Formatted with padStart, so a
-   * string or a number.
-   */
-  number?: string | number | null;
-  /**
-   * Nullable in the schema and zero orders have a null one today, so this is
-   * typed as it is stored rather than as it happens to be. The template guards
-   * it - `new Date(undefined)` renders "Invalid Date" on an invoice, which is
-   * the kind of thing that reaches a customer looking deliberate.
-   */
-  created_at?: string | number | Date | null;
-  /** One field for both directions since D84 - direction is the endpoint's. */
-  status?: string | null;
-  spots_locked?: boolean | null;
-  address?: AddressPart | null;
-  shipment?: ShipmentPart | null;
-  return_shipment?: ShipmentPart | null;
-  payout?: { method?: string | null; cost?: number | null } | null;
-  carrier_pickup?: { pickup_requested_at?: string | number | Date | null } | null;
-  user?: Record<string, unknown> | null;
-  order_items?: OrderItem[];
-  /** The money, nested under orders.transactions' names (D84). The sales
-   * order invoice prints items/shipping/surcharge/funds/total off it. */
-  totals?: {
-    total?: number | null;
-    items?: number | null;
-    shipping?: number | null;
-    surcharge?: number | null;
-    sales_tax?: number | null;
-    funds?: number | null;
-    refiner_fee?: number | null;
-    base_total?: number | null;
-    subject_to_charges_amount?: number | null;
-    post_charges_amount?: number | null;
-  } | null;
-  [key: string]: unknown;
-}
+const oz = (value: number | null | undefined): string =>
+  value == null ? "&mdash;" : value.toFixed(3);
 
 export function renderInvoiceHeader(
-  purchaseOrder: RenderableOrder,
+  order: OrderView,
   total: number,
-  spots: SpotPart[] = []
+  bids: Bids,
+  labels: DocumentLabels
 ): string {
-  const orderPlaced = purchaseOrder.created_at
-    ? new Date(purchaseOrder.created_at).toLocaleDateString("en-US", {
+  const orderPlaced = order.order.created_at
+    ? new Date(order.order.created_at).toLocaleDateString("en-US", {
         month: "long",
         day: "numeric",
         year: "numeric",
       })
     : "&mdash;";
 
-  const orderNumber = `PO-${(purchaseOrder.number ?? "")
-    .toString()
-    .padStart(6, "0")}`;
-  const status = purchaseOrder.status ?? "";
-  const userName = purchaseOrder.user?.user_name ?? "";
+  const orderNumber = `PO-${String(order.order.number ?? "").padStart(6, "0")}`;
+  const status = order.order.status ?? "";
+  const userName = order.user?.name ?? "";
 
   // 'Accepted' left the status lifecycle (migration 092); the offer wording
   // died with the offers themselves.
@@ -175,25 +137,23 @@ export function renderInvoiceHeader(
   const isDone = doneStatus.includes(status);
   const totalLabel = isDone ? "Total Payout" : "Total Estimate";
 
-
-  const metals = ["Gold", "Silver", "Platinum", "Palladium"];
   const spotRows =
-    metals
-      .map((m) => {
-        const spot = spots.find((s) => s.name === m);
-        if (!spot?.bid) return null;
-        return `
+    [...labels.metals]
+      .sort(([, a], [, b]) => rank(a) - rank(b))
+      .flatMap(([metal_id, name]) => {
+        const bid = bids.get(metal_id);
+        if (bid == null) return [];
+        return [`
           <div class="invoice-card-row">
-            <span>${m}:</span>
-            <span>${formatCurrency(spot.bid)}</span>
+            <span>${name}:</span>
+            <span>${formatCurrency(bid)}</span>
           </div>
-        `;
+        `];
       })
-      .filter(Boolean)
       .join("") ||
     `<div class="invoice-card-row"><span>Spots unavailable</span></div>`;
 
-  const spotsStatus = purchaseOrder.spots_locked ? "Locked" : "Unlocked";
+  const spotsStatus = order.order.spots_locked ? "Locked" : "Unlocked";
 
   return `
     <div class="invoice-header">
@@ -218,7 +178,7 @@ export function renderInvoiceHeader(
           </div>
           <div class="invoice-card-row">
             <span>Items:</span>
-            <span>${purchaseOrder.order_items?.length ?? 0}</span>
+            <span>${order.items.length}</span>
           </div>
         </div>
       </div>
@@ -248,39 +208,28 @@ export function renderInvoiceHeader(
 }
 
 export function renderInvoiceShippingAndPayout(
-  purchaseOrder: RenderableOrder,
-  { payoutCost }: { payoutCost?: number | null }
+  order: OrderView,
+  { payoutCost, labels }: { payoutCost: number; labels: DocumentLabels }
 ): string {
-  const inbound = purchaseOrder.shipment;
-  const outbound = purchaseOrder.return_shipment;
-  const isCancelled = purchaseOrder.status === "Cancelled";
+  const inbound = inboundShipment(order);
+  const outbound = returnShipment(order);
+  const isCancelled = order.order.status === "Cancelled";
 
-  const inboundRow = inbound
-    ? `
+  const leg = (
+    label: string, shipment: OrderView["shipments"][number]
+  ): string => `
       <tr>
-        <td class="text-left">Inbound</td>
-        <td>${inbound.shipping_service || "-"}</td>
-        <td>${inbound.insured ? "Yes" : "No"}</td>
-        <td>${inbound.package || "-"}</td>
-        <td class="text-right">${formatCurrency(inbound.shipping_charge)}</td>
-      </tr>`
-    : "";
+        <td class="text-left">${label}</td>
+        <td>${serviceOf(shipment, labels)}</td>
+        <td>${shipment.insured ? "Yes" : "No"}</td>
+        <td>${packageOf(shipment, labels)}</td>
+        <td class="text-right">${formatCurrency(shipment.cost ?? 0)}</td>
+      </tr>`;
 
-  const outboundRow =
-    isCancelled && outbound
-      ? `
-      <tr>
-        <td class="text-left">Return</td>
-        <td>${outbound.shipping_service || "-"}</td>
-        <td>${outbound.insured ? "Yes" : "No"}</td>
-        <td>${outbound.package || "-"}</td>
-        <td class="text-right">${formatCurrency(
-          outbound.shipping_charge ?? 0
-        )}</td>
-      </tr>`
-      : "";
+  const inboundRow = inbound ? leg("Inbound", inbound) : "";
+  const outboundRow = isCancelled && outbound ? leg("Return", outbound) : "";
 
-  const payoutMethod = purchaseOrder.payout?.method;
+  const payoutMethod = order.payout?.method ?? "-";
   const payoutDelay = getPayoutDelay(payoutMethod);
 
   return `
@@ -315,7 +264,7 @@ export function renderInvoiceShippingAndPayout(
           <tr>
             <td class="text-left">${payoutMethod}</td>
             <td>${payoutDelay}</td>
-            <td class="text-right">${formatCurrency(payoutCost ?? 0)}</td>
+            <td class="text-right">${formatCurrency(payoutCost)}</td>
           </tr>
         </tbody>
       </table>
@@ -332,76 +281,52 @@ export function renderInvoiceShippingAndPayout(
 //
 // A blank line on a document is recoverable; a 500 when an admin asks for a
 // packing list is not, and it gives no hint of what is wrong.
+//
+// WHO THE PARCEL IS FOR IS THE CUSTOMER'S NAME. It used to be
+// `address.recipient_name`, which the composer read from `exchange.addresses`'
+// own `name` column - the last exchange read on a live path. places.addresses,
+// which is where the snapshot actually lives, has no such column, so the
+// recipient is the order's customer: auth.users' name, which is the same
+// person and a row this API owns.
 export function renderPackingShippingSection(
-  purchaseOrder: RenderableOrder,
+  order: OrderView,
   {
     isReturn = false,
     includePayoutFee = false,
     payoutFee = 0,
-  }: { isReturn?: boolean; includePayoutFee?: boolean; payoutFee?: number } = {}
+    labels,
+  }: {
+    isReturn?: boolean;
+    includePayoutFee?: boolean;
+    payoutFee?: number;
+    labels: DocumentLabels;
+  }
 ): string {
-  const fromIsCustomer = !isReturn;
+  const customer = {
+    name: order.user?.name ?? "",
+    line_1: order.address?.line_1 ?? "",
+    line_2: order.address?.line_2 ?? "",
+    city: order.address?.city ?? "",
+    state: order.address?.state ?? "",
+    zip: order.address?.zip ?? "",
+    phone: order.address?.phone_number ?? "",
+  };
 
-  const fromName = fromIsCustomer
-    ? (purchaseOrder.address?.recipient_name ?? "")
-    : process.env.FEDEX_DORADO_NAME;
+  const dorado = {
+    name: process.env.FEDEX_DORADO_NAME ?? "",
+    line_1: process.env.FEDEX_RETURN_ADDRESS_LINE_1 ?? "",
+    line_2: process.env.FEDEX_RETURN_ADDRESS_LINE_2 ?? "",
+    city: process.env.FEDEX_RETURN_CITY ?? "",
+    state: process.env.FEDEX_RETURN_STATE ?? "",
+    zip: process.env.FEDEX_RETURN_ZIP ?? "",
+    phone: process.env.FEDEX_DORADO_PHONE_NUMBER ?? "",
+  };
 
-  const fromLine1 = fromIsCustomer
-    ? (purchaseOrder.address?.line_1 ?? "")
-    : process.env.FEDEX_RETURN_ADDRESS_LINE_1;
+  // The inbound leg goes customer -> Dorado; the return leg goes back.
+  const from = isReturn ? dorado : customer;
+  const to = isReturn ? customer : dorado;
 
-  const fromLine2 = fromIsCustomer
-    ? purchaseOrder.address?.line_2 || ""
-    : process.env.FEDEX_RETURN_ADDRESS_LINE_2 || "";
-
-  const fromCity = fromIsCustomer
-    ? (purchaseOrder.address?.city ?? "")
-    : process.env.FEDEX_RETURN_CITY;
-
-  const fromState = fromIsCustomer
-    ? (purchaseOrder.address?.state ?? "")
-    : process.env.FEDEX_RETURN_STATE;
-
-  const fromZip = fromIsCustomer
-    ? (purchaseOrder.address?.zip ?? "")
-    : process.env.FEDEX_RETURN_ZIP;
-
-  const fromPhone = fromIsCustomer
-    ? (purchaseOrder.address?.phone_number ?? "")
-    : process.env.FEDEX_DORADO_PHONE_NUMBER;
-
-  const toName = fromIsCustomer
-    ? process.env.FEDEX_DORADO_NAME
-    : (purchaseOrder.address?.recipient_name ?? "");
-
-  const toLine1 = fromIsCustomer
-    ? process.env.FEDEX_RETURN_ADDRESS_LINE_1
-    : (purchaseOrder.address?.line_1 ?? "");
-
-  const toLine2 = fromIsCustomer
-    ? process.env.FEDEX_RETURN_ADDRESS_LINE_2 || ""
-    : purchaseOrder.address?.line_2 || "";
-
-  const toCity = fromIsCustomer
-    ? process.env.FEDEX_RETURN_CITY
-    : (purchaseOrder.address?.city ?? "");
-
-  const toState = fromIsCustomer
-    ? process.env.FEDEX_RETURN_STATE
-    : (purchaseOrder.address?.state ?? "");
-
-  const toZip = fromIsCustomer
-    ? process.env.FEDEX_RETURN_ZIP
-    : (purchaseOrder.address?.zip ?? "");
-
-  const toPhone = fromIsCustomer
-    ? process.env.FEDEX_DORADO_PHONE_NUMBER
-    : (purchaseOrder.address?.phone_number ?? "");
-
-  const shipment = isReturn
-    ? purchaseOrder.return_shipment
-    : purchaseOrder.shipment;
-
+  const shipment = isReturn ? returnShipment(order) : inboundShipment(order);
   const pickupType = shipment?.pickup_type || "-";
 
   return `
@@ -409,24 +334,24 @@ export function renderPackingShippingSection(
       <div class="shipping-box">
         <h3>Shipping From:</h3>
         <div>
-          <h4>${fromName}</h4>
+          <h4>${from.name}</h4>
           <p>
-            ${fromLine1} ${fromLine2}<br/>
-            ${fromCity}, ${fromState} ${fromZip}
+            ${from.line_1} ${from.line_2}<br/>
+            ${from.city}, ${from.state} ${from.zip}
           </p>
-          <p>${formatPhoneNumber(fromPhone)}</p>
+          <p>${formatPhoneNumber(from.phone)}</p>
         </div>
       </div>
 
       <div class="shipping-box">
         <h3>Shipping To:</h3>
         <div>
-          <h4>${toName}</h4>
+          <h4>${to.name}</h4>
           <p>
-            ${toLine1} ${toLine2}<br/>
-            ${toCity}, ${toState} ${toZip}
+            ${to.line_1} ${to.line_2}<br/>
+            ${to.city}, ${to.state} ${to.zip}
           </p>
-          <p>${formatPhoneNumber(toPhone)}</p>
+          <p>${formatPhoneNumber(to.phone)}</p>
         </div>
       </div>
 
@@ -435,19 +360,15 @@ export function renderPackingShippingSection(
         <div class="detail-content">
           <div class="detail-row">
             <span class="detail-label">Tracking Number:</span>
-            <span class="detail-value">${
-              shipment?.tracking_number || "-"
-            }</span>
+            <span class="detail-value">${shipment?.tracking_number || "-"}</span>
           </div>
           <div class="detail-row">
             <span class="detail-label">Service:</span>
-            <span class="detail-value">${
-              shipment?.shipping_service || "-"
-            }</span>
+            <span class="detail-value">${serviceOf(shipment, labels)}</span>
           </div>
           <div class="detail-row">
             <span class="detail-label">Package Size:</span>
-            <span class="detail-value">${shipment?.package || "-"}</span>
+            <span class="detail-value">${packageOf(shipment, labels)}</span>
           </div>
           <div class="detail-row">
             <span class="detail-label">Pickup Type:</span>
@@ -470,9 +391,7 @@ export function renderPackingShippingSection(
           }
           <div class="detail-row">
             <span class="detail-label">Shipping Cost:</span>
-            <span class="detail-value">${formatCurrency(
-              shipment?.shipping_charge
-            )}</span>
+            <span class="detail-value">${formatCurrency(shipment?.cost)}</span>
           </div>
           ${
             includePayoutFee && payoutFee > 0
@@ -489,9 +408,8 @@ export function renderPackingShippingSection(
   `;
 }
 
-
 export function renderOrderSummaryTable(
-  purchaseOrder: RenderableOrder,
+  order: OrderView,
   totalDisplay: string
 ): string {
   return `
@@ -507,13 +425,11 @@ export function renderOrderSummaryTable(
         <tbody>
           <tr>
             <td>${
-              purchaseOrder.created_at
-                ? new Date(purchaseOrder.created_at).toLocaleDateString()
+              order.order.created_at
+                ? new Date(order.order.created_at).toLocaleDateString()
                 : "&mdash;"
             }</td>
-            <td>PO-${(purchaseOrder.number ?? "")
-              .toString()
-              .padStart(6, "0")}</td>
+            <td>PO-${String(order.order.number ?? "").padStart(6, "0")}</td>
             <td>${totalDisplay}</td>
           </tr>
         </tbody>
@@ -522,174 +438,87 @@ export function renderOrderSummaryTable(
   `;
 }
 
-export function buildPackingScrapRows(orderItems: OrderItem[], spotPrices: SpotPart[]): string {
-  const rawScrapItems = orderItems.filter(
-    (item) => item.item_type === "scrap" && item.scrap
-  );
-  // assignScrapItemNames takes the full contract item. This file only ever
-  // holds the composed subset the templates read, and the fields that function
-  // uses are all on it - so the narrowing is deliberate rather than a gap.
-  // Widening OrderItem to claim id, purchase_order_id and confirmed would be
-  // asserting fields these templates never touch.
-  const scrapItemsWithNames = assignScrapItemNames(
-    rawScrapItems as Parameters<typeof assignScrapItemNames>[0]
-  ) as OrderItem[];
+export function buildPackingScrapRows(
+  lines: OrderViewItem[], bids: Bids, labels: DocumentLabels
+): string {
+  const names = scrapItemNames(lines, labels.metals);
 
-  return scrapItemsWithNames
-    .map((item) => {
-      const scrap: ScrapPart = item.scrap ?? {};
-      const spot = spotPrices.find((s) => s.name === scrap.metal);
-      const premium = item.premium ?? item.scrap?.bid_premium;
-      const price =
-        item.price != null
-          ? item.price
-          : getItemPrice(scrap.content, premium, spot?.bid);
-
+  return lines
+    .map((line) => {
+      const price = unitPrice(line, bids);
       return `
         <tr>
-          <td>${scrap.name || "Scrap Item"}</td>
-          <td>${scrap.pre_melt || "-"} ${scrap.gross_unit || ""}</td>
-          <td>${
-            scrap.purity != null ? (scrap.purity * 100).toFixed(1) + "%" : "-"
-          }</td>
-          <td>${scrap.content != null ? scrap.content.toFixed(3) : "&mdash;"}</td>
-          <td>${premium != null ? (premium * 100).toFixed(1) + "%" : "-"}</td>
+          <td>${names.get(line.id) ?? "Scrap Item"}</td>
+          <td>${line.pre_melt ?? "-"} ${line.unit ?? ""}</td>
+          <td>${pct(line.purity)}</td>
+          <td>${oz(line.content)}</td>
+          <td>${pct(line.premium)}</td>
           <td>${price ? formatCurrency(price) : "-"}</td>
         </tr>`;
     })
     .join("");
 }
 
-export function buildPackingBullionRows(orderItems: OrderItem[], spotPrices: SpotPart[]): string {
-  return orderItems
-    .filter((item) => item.item_type === "product" && item.product)
-    .map((item) => {
-      const product: ProductPart = item.product ?? ({} as ProductPart);
-      const spot = spotPrices.find((s) => s.name === product.metal_type);
+export function buildPackingBullionRows(
+  lines: OrderViewItem[], bids: Bids, labels: DocumentLabels
+): string {
+  return lines
+    .map((line) => {
       // THE LINE'S PREMIUM, NOT THE PRODUCT'S (Jacob, 2026-09-03). A purchase
       // bullion line is priced at the rate band's bullion_pct, written onto
       // the line; falling back to the catalogue's bid_premium printed a rate
       // on a packing list that the rates table never agreed to.
-      const unitPrice =
-        item.price != null
-          ? item.price
-          : getItemPrice(product.content, item.premium, spot?.bid);
-      const totalPrice = unitPrice * (item.quantity ?? 1);
-
+      const total = unitPrice(line, bids) * (line.quantity ?? 1);
       return `
         <tr>
-          <td>${product.name || "Bullion Product"}</td>
-          <td>${product.metal_type || "-"}</td>
-          <td>${item.quantity}</td>
-          <td>${product.content || "-"}</td>
-          <td>${totalPrice ? formatCurrency(totalPrice) : "-"}</td>
+          <td>${line.product?.name || "Bullion Product"}</td>
+          <td>${labels.metals.get(line.metal_id) ?? "-"}</td>
+          <td>${line.quantity}</td>
+          <td>${line.product?.content ?? "-"}</td>
+          <td>${total ? formatCurrency(total) : "-"}</td>
         </tr>`;
     })
     .join("");
 }
 
 export function buildInvoiceScrapRows(
-  orderItems: OrderItem[],
-  spots: SpotPart[]
-): { rowsHtml: string; rawScrapItems: OrderItem[] } {
-  const rawScrapItems = orderItems.filter(
-    (item) => item.item_type === "scrap" && item.scrap
-  );
-  // assignScrapItemNames takes the full contract item. This file only ever
-  // holds the composed subset the templates read, and the fields that function
-  // uses are all on it - so the narrowing is deliberate rather than a gap.
-  // Widening OrderItem to claim id, purchase_order_id and confirmed would be
-  // asserting fields these templates never touch.
-  const scrapItemsWithNames = assignScrapItemNames(
-    rawScrapItems as Parameters<typeof assignScrapItemNames>[0]
-  ) as OrderItem[];
+  lines: OrderViewItem[], bids: Bids, labels: DocumentLabels
+): string {
+  const names = scrapItemNames(lines, labels.metals);
 
-  const rowsHtml = scrapItemsWithNames
-    .map((item) => {
-      const scrap: ScrapPart = item.scrap ?? {};
-
-      // THE SAME FALLBACK THE PACKING LIST USES. This row had none, and the two
-      // documents disagreed: on order 239 the packing list showed 75.0% and the
-      // invoice showed 0.0% for the SAME scrap line, because `item.premium` is
-      // null there and `null * 100` is 0 rather than an error.
-      // buildPackingScrapRows resolves `item.premium ?? scrap.bid_premium`;
-      // this did not.
-      //
-      // Reproduced by rendering both documents for that order before changing
-      // anything, not inferred from reading. CLAUDE.md already records this
-      // exact class - an invoice and a packing list disagreeing - and the
-      // invoice is the document that tells a customer what they are paid.
-      const premium = item.premium ?? scrap.bid_premium;
-
-      const price =
-        item.price != null
-          ? item.price
-          : // calculateItemPrice takes the full contract item; this file only
-            // ever holds the composed subset it actually reads, and the fields
-            // that function uses are all present on it. Narrowed deliberately
-            // rather than widening OrderItem to claim fields the templates
-            // never touch.
-            (calculateItemPrice(item as Parameters<typeof calculateItemPrice>[0], spots) ?? 0);
-
+  return lines
+    .map((line) => {
+      const price = unitPrice(line, bids);
       return `
         <tr>
-          <td class="text-left">${scrap.name || "Scrap Item"}</td>
-          <td>${scrap.pre_melt} ${scrap.gross_unit || ""}</td>
-          <td>${scrap.post_melt ?? scrap.pre_melt} ${
-        scrap.gross_unit || ""
-      }</td>
-          <td>${
-            scrap.purity != null ? (scrap.purity * 100).toFixed(1) + "%" : "-"
-          }</td>
-          <td>${scrap.content != null ? `${scrap.content.toFixed(3)} t oz` : "&mdash;"}</td>
-          <td>${premium != null ? `${(premium * 100).toFixed(1)}%` : "&mdash;"}</td>
+          <td class="text-left">${names.get(line.id) ?? "Scrap Item"}</td>
+          <td>${line.pre_melt} ${line.unit ?? ""}</td>
+          <td>${line.post_melt ?? line.pre_melt} ${line.unit ?? ""}</td>
+          <td>${pct(line.purity)}</td>
+          <td>${line.content != null ? `${line.content.toFixed(3)} t oz` : "&mdash;"}</td>
+          <td>${pct(line.premium)}</td>
           <td class="text-right">${price ? formatCurrency(price) : "-"}</td>
         </tr>`;
     })
     .join("");
-
-  return { rowsHtml, rawScrapItems };
 }
 
-export function buildInvoiceBullionRows(
-  orderItems: OrderItem[],
-  spots: SpotPart[]
-): { rowsHtml: string; bullionOrderItems: OrderItem[] } {
-  const bullionOrderItems = orderItems.filter(
-    (item) => item.item_type === "product" && item.product
-  );
-
-  const rowsHtml = bullionOrderItems
-    .map((item) => {
-      const product: ProductPart = item.product ?? ({} as ProductPart);
-      const unitPrice =
-        item.price != null
-          ? item.price
-          : // calculateItemPrice takes the full contract item; this file only
-            // ever holds the composed subset it actually reads, and the fields
-            // that function uses are all present on it. Narrowed deliberately
-            // rather than widening OrderItem to claim fields the templates
-            // never touch.
-            (calculateItemPrice(item as Parameters<typeof calculateItemPrice>[0], spots) ?? 0);
-      const totalPrice = unitPrice * (item.quantity ?? 1);
-
+export function buildInvoiceBullionRows(lines: OrderViewItem[], bids: Bids): string {
+  return lines
+    .map((line) => {
+      const total = unitPrice(line, bids) * (line.quantity ?? 1);
       return `
         <tr>
-          <td class="text-left">${
-            product.name || "Bullion Product"
-          }</td>
-          <td>${item.quantity}</td>
-          <td>${product.content != null ? `${product.content.toFixed(3)} t oz` : "&mdash;"}</td>
+          <td class="text-left">${line.product?.name || "Bullion Product"}</td>
+          <td>${line.quantity}</td>
           <td>${
-            item.premium != null ? `${(item.premium * 100).toFixed(1)}% of spot` : "&mdash;"
+            line.product?.content != null
+              ? `${line.product.content.toFixed(3)} t oz`
+              : "&mdash;"
           }</td>
-          <td class="text-right">${
-            totalPrice ? formatCurrency(totalPrice) : "-"
-          }</td>
+          <td>${line.premium != null ? `${(line.premium * 100).toFixed(1)}% of spot` : "&mdash;"}</td>
+          <td class="text-right">${total ? formatCurrency(total) : "-"}</td>
         </tr>`;
     })
     .join("");
-
-  return { rowsHtml, bullionOrderItems };
 }
-

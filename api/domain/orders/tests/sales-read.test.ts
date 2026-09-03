@@ -1,44 +1,24 @@
-// Sales order reads against real Postgres.
+// THE ORDER VIEW, sale direction, against real Postgres.
 //
 // A sales order shares orders.orders with purchase orders and is told apart by
 // direction alone, so the tests that matter most are the ones about the two not
-// bleeding into each other. Each runs inside a transaction that is rolled back.
+// bleeding into each other.
+//
+// `read.service.ts` is gone (D214 item 12): `view()` reads ONE order by id and
+// `list()` reads the slim wire, so the assertions that used to run over
+// `getAllSales()` run over the list plus a view per order. Two members moved
+// with the composer and are asserted where they now live:
+//
+//   order.used_funds        ->  totals.used_funds (the column it always was)
+//   order.address_id        ->  address, the places.addresses snapshot itself
+//
+// Each test runs inside a transaction that is rolled back.
 import test, { after, before } from "node:test";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
 import pool from "#db";
 import { LOCKS, takeLocks } from "#shared/testing/locks.ts";
-import * as readService from "#domain/orders/read.service.ts";
-
-// WHAT THIS FILE ASSERTS ON, named. read.service.ts declares
-// `Promise<Record<string, unknown>[]>` even though compose.ts produces a
-// precise composed order - the type is discarded at the service boundary, so
-// every field arrives as `unknown`. These declare the structural subset the
-// assertions below touch rather than claiming the whole shape.
-type ReadTotals = {
-  total: string | number | null;
-  items: string | number | null;
-  shipping: string | number | null;
-  surcharge: string | number | null;
-  funds: string | number | null;
-};
-type ReadItem = {
-  id: string;
-  product: { id: string; name: string; metal_type: string } | null;
-};
-type ReadSalesOrder = {
-  id: string;
-  address_id: string | null;
-  used_funds: boolean;
-  number: number | null;
-  created_at: string;
-  totals: ReadTotals;
-  order_items: ReadItem[];
-};
-
-const salesOrders = async (): Promise<ReadSalesOrder[]> =>
-  (await readService.getAllSales()) as ReadSalesOrder[];
-import * as purchase from "#domain/orders/read.service.ts";
+import * as orderRead from "#domain/orders/read.ts";
 
 let client: PoolClient;
 
@@ -64,31 +44,25 @@ async function inRollback(fn: (c: PoolClient) => Promise<void>) {
   }
 }
 
-// The composed query this was compared against died with the read pivot; the
-// CONTRACT is the independent statement of the shape now, and validate:wire
-// parses real rows through it - this pin is the cheap in-suite version.
-// See the note in features/orders/tests/purchase-read.test.ts: the contract
-// stopped describing this shape when the order wire slimmed (wave 3). This is
-// the API's OWN composed order - what the PDFs and the supplier email need -
-// pinned against the explicit list compose.ts builds.
-const COMPOSED_FIELDS = [
-  "id", "user_id", "address_id", "supplier_id", "status", "notes",
-  "created_at", "updated_at", "created_by", "updated_by", "number",
-  "review_created", "order_sent", "tracking_updated", "shipping_service",
-  "used_funds", "totals", "order_items", "address", "shipment", "user",
-];
+const saleIds = async (c?: PoolClient): Promise<string[]> =>
+  (await orderRead.list({ direction: "sale" }, c)).map((o) => o.id);
 
-test("the composed order carries exactly the fields compose.ts builds", async () => {
-  const [b] = await readService.getAllSales();
-  assert.ok(b, "no orders came back - this proves nothing");
-  assert.deepEqual(Object.keys(b).sort(), [...COMPOSED_FIELDS].sort());
-});
+const viewsOf = async (ids: string[]) => {
+  const out = [];
+  for (const id of ids) {
+    const view = await orderRead.view(id);
+    assert.ok(view, `order ${id} exists and the view could not read it`);
+    out.push(view!);
+  }
+  return out;
+};
 
 // The two kinds of order share a table now. A purchase order surfacing in a
 // customer's sales order list would show them someone else's business.
 test("purchase orders and sales orders do not bleed into each other", async () => {
-  const sales = (await readService.getAllSales()).map((o) => o.id);
-  const purchases = (await purchase.getAllPurchases()).map((o) => o.id);
+  const sales = await saleIds();
+  const purchases = (await orderRead.list({ direction: "purchase" })).map((o) => o.id);
+  assert.ok(sales.length, "no sales orders, so this proves nothing");
   assert.equal(sales.some((id) => purchases.includes(id)), false);
 
   await inRollback(async (c: PoolClient) => {
@@ -102,59 +76,72 @@ test("purchase orders and sales orders do not bleed into each other", async () =
 
 test("the money comes back off the transaction, not the order", async () => {
   await inRollback(async (c: PoolClient) => {
-    const all = await salesOrders();
-    assert.ok(all.length, "getAll returned nothing, so this test asserts nothing");
+    const all = await viewsOf(await saleIds(c));
+    assert.ok(all.length, "no sales orders, so this test asserts nothing");
     for (const o of all) {
       const { rows: [t] } = await c.query(
         "SELECT total, items, shipping, surcharge, funds FROM orders.transactions WHERE order_id = $1",
-        [o.id]
+        [o.order.id]
       );
-      assert.ok(t, `sales order ${o.number} has no transaction row`);
-      // The Next wire nests the money as `totals`, under the transaction
-      // table's own names (D84).
-      assert.equal(Number(o.totals.total), Number(t.total));
-      assert.equal(Number(o.totals.items), Number(t.items));
-      assert.equal(Number(o.totals.shipping), Number(t.shipping));
-      assert.equal(Number(o.totals.surcharge), Number(t.surcharge));
-      assert.equal(Number(o.totals.funds), Number(t.funds));
+      assert.ok(t, `sales order ${o.order.number} has no transaction row`);
+      // The money is orders.transactions VERBATIM, under that table's own
+      // names - no renames survived the composer.
+      assert.equal(Number(o.totals!.total), Number(t.total));
+      assert.equal(Number(o.totals!.items), Number(t.items));
+      assert.equal(Number(o.totals!.shipping), Number(t.shipping));
+      assert.equal(Number(o.totals!.surcharge), Number(t.surcharge));
+      assert.equal(Number(o.totals!.funds), Number(t.funds));
     }
   });
 });
 
 // used_funds is a boolean and funds is an amount. They were nearly conflated
 // during the backfill - a zero balance applied and no balance applied are
-// different things.
+// different things. Both are columns of orders.transactions, and the view
+// serves that row rather than lifting one of them onto the order.
 test("used_funds stays a boolean beside the funds amount", async () => {
-  const all = await salesOrders();
-  assert.ok(all.length, "getAll returned nothing, so this test asserts nothing");
+  const all = await viewsOf(await saleIds());
+  assert.ok(all.length, "no sales orders, so this test asserts nothing");
   for (const o of all) {
-    assert.equal(typeof o.used_funds, "boolean");
-    assert.equal(typeof o.totals.funds, "number");
+    assert.equal(typeof o.totals!.used_funds, "boolean");
+    assert.equal(typeof o.totals!.funds, "number");
   }
 });
 
-test("the address id still resolves in exchange.addresses", async () => {
+// THE ADDRESS IS A ROW, NOT AN ID (D214 item 12). The composed order served
+// `address_id` - the BOOK entry, read from exchange.addresses - beside a
+// projection of it; the view answers the places.addresses snapshot the parcel
+// went to, and the link is resolved in the WHERE clause.
+test("the address is the snapshot the order links to", async () => {
   await inRollback(async (c: PoolClient) => {
-    const withAddress = (await salesOrders()).filter((o) => o.address_id);
-    assert.ok(withAddress.length);
-    for (const o of withAddress) {
-      const { rows } = await c.query("SELECT 1 FROM exchange.addresses WHERE id = $1", [o.address_id]);
-      assert.equal(rows.length, 1, `address_id ${o.address_id} does not resolve`);
+    const { rows: links } = await c.query<{ order_id: string; address_id: string }>(
+      `SELECT a.order_id, a.address_id FROM orders.addresses a
+         JOIN orders.orders o ON o.id = a.order_id
+        WHERE o.direction = 'sale' LIMIT 5`
+    );
+    assert.ok(links.length, "no sales order has an address, so this proves nothing");
+    for (const link of links) {
+      const view = await orderRead.view(link.order_id);
+      assert.ok(view?.address, `order ${link.order_id} has an address link and no address`);
+      assert.equal(view!.address!.id, link.address_id);
     }
   });
 });
 
-
 test("every line resolves to a product", async () => {
-  const all = await salesOrders();
-  assert.ok(all.length, "getAll returned nothing, so this test asserts nothing");
+  const all = await viewsOf(await saleIds());
+  assert.ok(all.length, "no sales orders, so this test asserts nothing");
   let lines = 0;
   for (const o of all) {
-    for (const item of o.order_items) {
+    for (const item of o.items) {
       lines += 1;
+      assert.ok(item.bullion_id, `line ${item.id} of a sale is not a bullion line`);
       assert.ok(item.product?.id, `line ${item.id} has no product`);
-      assert.equal(typeof item.product.name, "string");
-      assert.equal(typeof item.product.metal_type, "string");
+      assert.equal(typeof item.product!.name, "string");
+      // THE METAL IS AN ID ON BOTH SIDES. `product.metal_type` was a joined
+      // display name the composer added; the client maps it from /spots.
+      assert.ok(item.product!.metal_id, "the product names no metal");
+      assert.equal(item.metal_id, item.product!.metal_id, "the line and its product disagree");
     }
   }
   // An individual order may legitimately have no lines - that is the itemless
@@ -163,23 +150,21 @@ test("every line resolves to a product", async () => {
 });
 
 test("orders come back newest first", async () => {
-  const dates = (await salesOrders()).map((o) => new Date(o.created_at).getTime());
+  const dates = (await orderRead.list({ direction: "sale" })).map((o) =>
+    new Date(o.created_at as unknown as string).getTime()
+  );
   assert.deepEqual(dates, [...dates].sort((a, b) => b - a));
 });
 
 // COUNTED UNDER THE ORDERS LOCK, and that is not caution - it is the fix for a
 // real flake. This file declared no lock, so it counted orders.transactions
 // across a read while the order-PLACING files were committing rows on their own
-// connections: the gate reported 55 !== 56 and the same test passed alone. A
-// row appearing during a read of an unrelated feature is not this read writing,
-// and an assertion that cannot tell the two apart is not measuring what it
-// claims to. See shared/testing/locks.ts - the ORDERS lock is exactly the
-// serialisation that makes a count meaningful.
+// connections: the gate reported 55 !== 56 and the same test passed alone.
 test("reads do not write", async () => {
   await inRollback(async (c: PoolClient) => {
     await takeLocks(c, [LOCKS.ORDERS]);
     const before = await c.query("SELECT count(*)::int n FROM orders.transactions");
-    await readService.getAllSales();
+    await viewsOf(await saleIds(c));
     const after = await c.query("SELECT count(*)::int n FROM orders.transactions");
     assert.equal(after.rows[0].n, before.rows[0].n);
   });

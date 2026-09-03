@@ -6,6 +6,10 @@ import {
   TransactionsRow,
 } from "../generated/orders.js";
 import { AddressesRow } from "../generated/places.js";
+import { BullionRow } from "../generated/products.js";
+import { PickupsRow, ShipmentsRow } from "../generated/shipping.js";
+import { UsersRow } from "../generated/auth.js";
+import { Payout } from "./payouts.js";
 
 // THE ORDER ON THE WIRE IS THE ROW (Jacob, wave 3, on reading the composed
 // contract this replaces): "We only need the bullion_id for production
@@ -104,61 +108,110 @@ export const OrderAddress = AddressesRow;
 export type OrderAddress = z.infer<typeof OrderAddress>;
 
 // ===========================================================================
-// THE REQUEST BODIES OF THE CREATE SURFACE
+// THE ORDER VIEW - one order, assembled from its tables (D214 item 12)
 // ===========================================================================
-// Everything above describes what the API RETURNS. These describe what the two
-// create routes and the review flag ACCEPT, so the controller can parse before
-// the use case runs.
-
-// A cart line is an id and how many (ruling 43: the client sends ids for what
-// the server holds). Price, premium and content all come from the catalogue.
-export const SalesOrderLine = z.object({
-  id: z.string(),
-  quantity: z.number(),
+// Jacob, on `domain/orders/compose.ts`: *"we still have this compose file
+// which sucks to see"*. The composer built two 600-line hand-written
+// projections - a purchase shape and a sale shape - that renamed columns
+// (`net_charge` -> `shipping_charge`), invented all-null objects for absent
+// rows, base64-wrapped a label into the response and read `exchange.addresses`
+// and `exchange.users` to do it. This replaces all of it.
+//
+// THE RULES THIS SHAPE OBEYS, each of which the composer broke:
+//   ROWS, NOT PROJECTIONS. Every member is a generated row schema, so a column
+//   added to a table appears here for free and one removed fails the build.
+//   NESTED BY TABLE, NOT BY SLOT. `shipments` is the shipping.shipments rows
+//   with their own `direction` column - not a `shipment` / `return_shipment`
+//   pair of named slots for one table.
+//   ABSENT IS null. Never an object whose every key is null; a reader that
+//   wants a fee reads `view.payout?.cost`.
+//   NO RENAMES and NO DERIVED SCALARS. `item_type` is `bullion_id === null`,
+//   which is a rule, and rules live in domain/orders/rules.ts.
+//   NOT A LIST WIRE. `Order` above is still what GET /orders serves. This is
+//   what ONE order's document, email and pricing read.
+// THE CATALOGUE ROW BEHIND A BULLION LINE - the PUBLIC columns of
+// products.bullion, which is exactly what db/products/sql/get_by_ids.sql
+// projects. Stock, display flags, the supplier and the audit columns are not
+// facts about an order line and do not travel with one.
+export const OrderViewProduct = BullionRow.pick({
+  id: true, name: true, description: true, content: true, purity: true,
+  gross: true, bid_premium: true, ask_premium: true, type: true,
+  image_front: true, image_back: true, variant_group: true,
+  shadow_offset: true, slug: true, legal_tender: true, domestic_tender: true,
+  sell_display: true, is_generic: true, variant_label: true, metal_id: true,
+  mint_id: true,
 });
-export type SalesOrderLine = z.infer<typeof SalesOrderLine>;
+export type OrderViewProduct = z.infer<typeof OrderViewProduct>;
 
-// LOOSE ON PURPOSE: the checkout object the browser holds carries UI state -
-// the address book row it was built from, display copies of the spots - and the
-// server reads a named handful off it. Pinning the keys would refuse a body that
-// works today for no gain, since the use case reads only what is declared here.
-export const SalesOrderBody = z.looseObject({
-  address: z.looseObject({ id: z.string() }),
-  items: z.array(SalesOrderLine).default([]),
-  using_funds: z.boolean().nullable().optional(),
-  // `value` prices the delivery; `label` is stored as the order's
-  // shipping_service.
-  service: z.looseObject({
-    value: z.string().nullable().optional(),
-    label: z.string().nullable().optional(),
-  }),
-  payment_method: z.string().nullable().optional(),
+export const OrderViewItem = ItemsRow.extend({
+  // Null on a scrap line, where the weights and the purity are columns of the
+  // line itself.
+  product: OrderViewProduct.nullable(),
 });
-export type SalesOrderBody = z.infer<typeof SalesOrderBody>;
+export type OrderViewItem = z.infer<typeof OrderViewItem>;
 
-// WHOSE ORDER IT IS. On the admin route this is the named CUSTOMER, which is
-// also whose payment intent the ownership check keys on; on the customer route
-// the server takes it from the session and this field is ignored.
-export const SalesOrderActor = z.looseObject({
-  id: z.string(),
-  name: z.string().nullable().optional(),
-  dorado_funds: z.number().nullable().optional(),
+// The order's parcels. `direction` widens to text because the read casts it -
+// `shipping.direction` is an enum in the table and a string on every wire it
+// has ever reached.
+export const OrderViewShipment = ShipmentsRow.extend({ direction: z.string() });
+export type OrderViewShipment = z.infer<typeof OrderViewShipment>;
+
+// LAST FOUR ONLY - wire/payouts.ts's own security carve-out, reused rather
+// than restated, so a third sensitive column added to that table cannot arrive
+// here by accident. `created_at` is dropped: when a customer saved their bank
+// account is not a fact about this order.
+// `method` and `account_holder_name` widen to nullable here and nowhere else:
+// the order-scoped read reaches the method through a LEFT JOIN on
+// payments.methods, so a payout account saved before a method existed carries
+// neither.
+export const OrderViewPayout = Payout.omit({ created_at: true }).extend({
+  method: z.string().nullable(),
+  account_holder_name: z.string().nullable(),
 });
-export type SalesOrderActor = z.infer<typeof SalesOrderActor>;
+export type OrderViewPayout = z.infer<typeof OrderViewPayout>;
 
-// `spot_prices` IS DECLARED SO IT CAN BE REFUSED QUIETLY RATHER THAN OBEYED.
-// It used to arrive in the body and decide what the order was worth: an order
-// priced with ask 1 recorded $26.81 for an ounce of gold, and the payment intent
-// agreed with it. The server prices from its own feed now. The field is named
-// here only because the current client still sends it - nothing reads it, and it
-// goes the day that client stops.
-export const SalesOrderCreate = z.object({
-  sales_order: SalesOrderBody,
-  payment_intent_id: z.string().optional(),
-  user: SalesOrderActor.optional(),
-  spot_prices: z.unknown().optional(),
-}).strict();
-export type SalesOrderCreate = z.infer<typeof SalesOrderCreate>;
+// WHO THE ORDER IS FOR: three columns of auth.users, which has been the
+// authoritative identity row since the 2026-09-01 cutover.
+export const OrderViewUser = UsersRow.pick({ id: true, name: true, email: true });
+export type OrderViewUser = z.infer<typeof OrderViewUser>;
+
+export const OrderView = z.object({
+  order: OrdersRow,
+  totals: TransactionsRow.nullable(),
+  items: z.array(OrderViewItem),
+  // The places.addresses snapshot the parcel actually went to, reached through
+  // the orders.addresses link - the same row GET /orders/:id/address serves.
+  address: AddressesRow.nullable(),
+  // BOTH LEGS IN ONE ARRAY. An inbound label and a return label are two rows
+  // of one table that differ by `direction`.
+  shipments: z.array(OrderViewShipment),
+  // The CARRIER pickup booked against the order's shipment, when there is one.
+  pickup: PickupsRow.nullable(),
+  payout: OrderViewPayout.nullable(),
+  user: OrderViewUser.nullable(),
+});
+export type OrderView = z.infer<typeof OrderView>;
+
+// ===========================================================================
+// THE REQUEST BODIES
+// ===========================================================================
+// Everything above describes what the API RETURNS. These describe what the
+// write surface ACCEPTS, and every one of them is IDS PLUS GENUINELY NEW DATA
+// (ruling 43): if the server could have looked it up, the id is the whole
+// message. Each is `.strict()`, so a field the endpoint does not have is a
+// refusal naming it rather than a key zod silently strips.
+
+// POST /{purchase,sales}_orders/create_* - THE WHOLE BODY IS ONE ID.
+//
+// It replaces `SalesOrderCreate`, which carried the browser's checkout
+// document: the address book row, the cart lines, the delivery service, the
+// payment method, the credit checkbox and a `spot_prices` field that was
+// declared only so it could be ignored. Every one of those is a column of
+// checkout.checkouts or checkout.items, which the server already holds; the
+// customer is the checkout row's own `user_id`, so the admin door and the
+// customer door take the same body.
+export const OrderCreate = z.object({ checkout_id: z.string() }).strict();
+export type OrderCreate = z.infer<typeof OrderCreate>;
 
 // POST /{purchase,sales}_orders/create_review - the review flag. The order is
 // sent whole because requireOwnOrder reads its id out of the body; only the id
@@ -169,10 +222,65 @@ export const OrderReviewCreate = z.object({
 }).strict();
 export type OrderReviewCreate = z.infer<typeof OrderReviewCreate>;
 
-// POST /orders/:id/items - a new line. `item` is LOOSE for the same reason the
-// sell cart's is: an existing product arrives as `{ id }` and new scrap as a
-// declaration the admin drawer built, and the use case reads a named handful.
-export const OrderItemCreate = z.object({
-  item: z.looseObject({ id: z.string().optional() }),
+// POST /orders/:id/items - ONE NEW LINE, AND THE TWO KINDS ARE A UNION.
+//
+// A line is a catalogue product OR a declared lot of scrap, and the two need
+// different facts. The old body was `{ item: looseObject }` read through
+// `Record<string, unknown>` with a metal NAME on it, so the server resolved a
+// customer-supplied string against metals.metals; both members here name ids
+// the client already holds, and two pure rules turn either into a row.
+export const OrderItemFromBullion = z.object({ bullion_id: z.string() }).strict();
+export type OrderItemFromBullion = z.infer<typeof OrderItemFromBullion>;
+
+export const OrderItemFromScrap = z.object({
+  metal_id: z.string(),
+  pre_melt: z.number(),
+  purity: z.number(),
+  unit: z.string(),
 }).strict();
+export type OrderItemFromScrap = z.infer<typeof OrderItemFromScrap>;
+
+export const OrderItemCreate = z.union([OrderItemFromBullion, OrderItemFromScrap]);
 export type OrderItemCreate = z.infer<typeof OrderItemCreate>;
+
+// POST /orders/:id/cancel - the customer's metal goes back.
+//
+// It replaces `{ cancel: { return_shipment } }`, which was the admin drawer's
+// whole form typed `Record<string, any>` and hand-mapped into the carrier
+// call. Where the parcel goes is the ORDER's own address snapshot; who signs
+// for it is the provider's configured contact; what it is worth is priced
+// from the order's own lines. What is genuinely new is the box, the service
+// and the amount to insure.
+// `weight` is the one MEASUREMENT here: nothing stores what the parcel going
+// back weighs, and a label cannot be bought without it. The other three are
+// ids and an amount.
+export const OrderCancel = z.object({
+  carrier_service_id: z.string(),
+  package_id: z.string(),
+  declared_value: z.number(),
+  weight: z.number(),
+}).strict();
+export type OrderCancel = z.infer<typeof OrderCancel>;
+
+// PUT /orders/:id/spots - pin or unpin the order's spots, and adjust one.
+//
+// `lock: true` freezes every metal on the order at today's feed; `lock: false`
+// clears the bids it pinned. `set` names a metal by ID and not by name: a
+// display string used to decide which money row an edit landed on.
+export const OrderSpotWrite = z.object({
+  metal_id: z.string(),
+  bid: z.number(),
+}).strict();
+export type OrderSpotWrite = z.infer<typeof OrderSpotWrite>;
+
+export const OrderSpotsPut = z.object({
+  lock: z.boolean().optional(),
+  set: z.array(OrderSpotWrite).optional(),
+}).strict();
+export type OrderSpotsPut = z.infer<typeof OrderSpotsPut>;
+
+// POST /orders/:id/send_to_refiner - which refinery gets the metal. The spots
+// the message quotes are the ORDER's frozen ones, read server-side: they used
+// to arrive in the body, which is the $26.81-an-ounce hazard.
+export const OrderSendToRefiner = z.object({ refiner_id: z.string() }).strict();
+export type OrderSendToRefiner = z.infer<typeof OrderSendToRefiner>;

@@ -87,7 +87,7 @@ export async function mirrorLinesForOrder(
 // statement is built from the keys the patch carries now (shared/db/patch.ts):
 // omit a column and it is untouched, send it as null and it clears.
 export const PATCHABLE = [
-  "pre_melt", "post_melt", "purity", "content", "premium",
+  "pre_melt", "post_melt", "purity", "content", "premium", "unit",
 ] as const;
 
 export type ItemPatch = Partial<Pick<RefinerItemRow, (typeof PATCHABLE)[number]>>;

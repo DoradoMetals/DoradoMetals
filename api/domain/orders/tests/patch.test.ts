@@ -1,5 +1,11 @@
-// PATCH /api/orders/:id - the unified document, the direction rule, the
-// label/pipeline split, and one-document-equals-sequential-clicks.
+// PATCH /api/orders/:id AND THE FOUR ACTION ROUTES (D214 item 11).
+//
+// THE MULTIPLEXED DOCUMENT IS GONE. This endpoint carried four ACTIONS as body
+// flags - add_funds, finalize_pricing, cancel, supplier - which is why it
+// needed a dispatcher, a direction matrix, four bespoke refusal messages and a
+// documented rule about which field ran last. Each is its own POST now
+// (docs/waves/rest-routes.md), and what is left here is a PATCH of the order
+// row's own columns: `status` and `notes`.
 //
 // The dispatch of each family is covered where it always was: replay.test.js
 // (labels, the spots sub-resource), item-edits and offer-and-items (lines),
@@ -30,7 +36,6 @@ import request from "supertest";
 import pool from "#db";
 import { mockSessions, restoreSessions, as, asAdmin, asUser } from "#shared/testing/session.ts";
 import { inPinnedTransaction, outside } from "#shared/testing/pinned-pool.ts";
-import { refusedField } from "#domain/orders/patch.ts";
 import { LOCKS } from "#shared/testing/locks.ts";
 import type { PoolClient } from "pg";
 
@@ -86,62 +91,72 @@ after(async () => {
 
 // ------------------------------------------------------------- the document
 
-// Names the refusal rather than dereferencing a possible null.
-const shapeRefusal = (direction: "purchase" | "sale", body: Record<string, unknown>): string => {
-  const refusal = refusedField(direction, body);
-  assert.ok(refusal, `${Object.keys(body)[0]} was accepted when its shape is wrong`);
-  return refusal.message;
-};
+// THE BODY IS PARSED STRICTLY AT TRANSPORT (D214 item 11), so the service's
+// own `refusedField` is gone with the dispatcher it fed. What used to be a
+// unit test of that function is an HTTP test of the contract: the schema is
+// `OrdersRow.pick({status, notes}).partial().strict()`, so a field the
+// endpoint does not have is a 400 naming it - never a silent drop.
+test("the PATCH takes the order row's own fields, and refuses everything else", async () => {
+  await inPinnedTransaction(async () => {
+    await asAdmin(admin, async () => {
+      // THE FOUR RETIRED ACTIONS refuse by name. Each is a POST of its own now.
+      for (const named of ["add_funds", "finalize_pricing", "cancel", "supplier"]) {
+        const res = await request(app)
+          .patch(`/api/orders/${order.id}`)
+          .send({ [named]: true });
+        assert.equal(res.status, 400, `${named} was not refused`);
+        assert.match(
+          res.body?.error?.message ?? "",
+          new RegExp(named),
+          `the refusal does not name ${named}`
+        );
+      }
 
-test("the document check, refusal by refusal, direction included", () => {
-  // A sound purchase document and a sound sale document.
-  assert.equal(
-    refusedField("purchase", {
-      add_funds: true,
-      finalize_pricing: true,
-      status: "Payment Processing",
-    }),
-    null
-  );
-  assert.equal(
-    refusedField("sale", { supplier: { supplier_id: "x", send: true }, status: "Preparing" }),
-    null
-  );
+      // And so does every grab-bag field that moved to its own resource.
+      for (const named of ["order_spots", "purchase_order", "spots", "items", "charges",
+        "pool_oz_deducted", "tracking", "refiner"]) {
+        const res = await request(app)
+          .patch(`/api/orders/${order.id}`)
+          .send({ [named]: 1 });
+        assert.equal(res.status, 400, `${named} was not refused`);
+        assert.match(res.body?.error?.message ?? "", new RegExp(named));
+      }
 
-  // A field the endpoint does not have is a 400, named - not dropped, which
-  // was the admin-mutation-urls bug. The retired grab-bag fields are the best
-  // examples: every one now lives on its own resource's endpoint.
-  for (const named of ["order_spots", "purchase_order", "spots", "items", "charges",
-    "pool_oz_deducted", "tracking", "refiner"]) {
-    const refusal = refusedField("purchase", { [named]: 1 });
-    assert.ok(refusal, `${named} was not refused at all`);
-    assert.equal(refusal.statusCode, 400, `${named} was not refused`);
-    assert.match(refusal.message, new RegExp(`"${named}"`), `the refusal does not name ${named}`);
-  }
+      // A document naming nothing is a refusal too - a no-op that reports
+      // success is worse than a refusal.
+      const empty = await request(app).patch(`/api/orders/${order.id}`).send({});
+      assert.equal(empty.status, 422, `answered ${empty.status}`);
+    });
+  }, { lock: ORDER_LOCK });
+});
 
-  // DIRECTION IS DATA: a wrong-direction field refuses naming both the field
-  // and the direction it belongs to.
-  const saleFinalize = refusedField("sale", { finalize_pricing: true });
-  assert.ok(saleFinalize, "a purchase-only field was accepted on a sale order");
-  assert.equal(saleFinalize.statusCode, 400);
-  assert.match(saleFinalize.message, /"finalize_pricing".*purchase-direction/);
-  const purchaseSupplier = refusedField("purchase", { supplier: { supplier_id: "x", send: true } });
-  assert.ok(purchaseSupplier, "a sale-only field was accepted on a purchase order");
-  assert.equal(purchaseSupplier.statusCode, 400);
-  assert.match(purchaseSupplier.message, /"supplier".*sale-direction/);
+// DIRECTION IS DATA, AND THE USE CASE ASKS IT. The matrix that lived in the
+// PATCH body's field table is one `rules.assertDirection` call per action now,
+// so a purchase-only action on a sale order refuses naming both.
+test("an action of the wrong direction is refused, naming the direction", async () => {
+  await inPinnedTransaction(async () => {
+    const [sale] = await outside<{ id: string }>(
+      `SELECT id FROM orders.orders WHERE direction = 'sale' ORDER BY created_at ASC LIMIT 1`
+    );
+    assert.ok(sale, "dev has no sales order");
+    await asAdmin(admin, async () => {
+      const res = await request(app).post(`/api/orders/${sale.id}/finalize_pricing`).send({});
+      assert.equal(res.status, 422, `answered ${res.status}`);
+      assert.match(
+        res.body?.error?.message ?? "",
+        /purchase-direction operation and this is a sale order/
+      );
 
-  // The pipeline operations state their own shape.
-  //
-  // GUARDED, because refusedField returns `| null` and this file dereferenced
-  // it five times without checking. A null here meant a TypeError naming
-  // nothing rather than "the shape check did not fire", i.e. the test failed
-  // confusingly instead of usefully. Surfaced by the TypeScript conversion.
-  assert.match(shapeRefusal("purchase", { finalize_pricing: "yes" }), /"finalize_pricing"/);
-  assert.match(shapeRefusal("purchase", { cancel: {} }), /"cancel"/);
-  assert.match(
-    shapeRefusal("sale", { supplier: { supplier_id: "x", send: false } }),
-    /"supplier"/
-  );
+      const refiner = await request(app)
+        .post(`/api/orders/${order.id}/send_to_refiner`)
+        .send({ refiner_id: "00000000-0000-4000-8000-000000000000" });
+      assert.equal(refiner.status, 422, `answered ${refiner.status}`);
+      assert.match(
+        refiner.body?.error?.message ?? "",
+        /sale-direction operation and this is a purchase order/
+      );
+    });
+  }, { lock: ORDER_LOCK });
 });
 
 // --------------------------------------------------------------- the guard
@@ -157,18 +172,20 @@ test("a customer is refused outright, their own order included", async () => {
         )
       ).rows[0];
 
-      for (const document of [
-        { status: "Completed" },
-        { finalize_pricing: true },
-        { cancel: { return_shipment: {} } },
-        { add_funds: true },
-      ]) {
-        const res = await request(app).patch(`/api/orders/${order.id}`).send(document);
-        assert.equal(res.status, 403, `the owner reached ${Object.keys(document)[0]}`);
+      const label = await request(app)
+        .patch(`/api/orders/${order.id}`)
+        .send({ status: "Completed" });
+      assert.equal(label.status, 403, "the owner reached the status label");
+
+      for (const action of ["add_funds", "finalize_pricing", "cancel", "send_to_refiner"]) {
+        const res = await request(app).post(`/api/orders/${order.id}/${action}`).send({});
+        assert.equal(res.status, 403, `the owner reached ${action}`);
       }
       const spots = await request(app).put(`/api/orders/${order.id}/spots`).send({ lock: true });
       assert.equal(spots.status, 403, "the owner reached the spots PUT");
-      const item = await request(app).post(`/api/orders/${order.id}/items`).send({ item: {} });
+      const item = await request(app)
+        .post(`/api/orders/${order.id}/items`)
+        .send({ bullion_id: "00000000-0000-4000-8000-000000000000" });
       assert.equal(item.status, 403, "the owner reached line creation");
 
       const after = (
@@ -237,24 +254,43 @@ test("a status write moves the label and NOTHING else", async () => {
   }, { lock: ORDER_LOCK });
 });
 
-// ------------------------------------------------------- the cancel dispatch
+// ------------------------------------------------------- the cancel action
 
-test("the cancel document reaches the label pipeline and a label failure cancels nothing", async () => {
+// POST /api/orders/:id/cancel, four fields: the box, the service, what to
+// insure and what it weighs. It took the admin drawer's WHOLE form as
+// `Record<string, any>` and hand-mapped fifteen values out of it; where the
+// parcel goes is the order's own address snapshot and who signs for the
+// business is the provider's configured contact.
+test("the cancel action reaches the label pipeline and a label failure cancels nothing", async () => {
   await inPinnedTransaction(async (client: PoolClient) => {
+    const [service] = await outside<{ id: string }>(
+      `SELECT id FROM shipping.services WHERE name = 'Express Saver' AND carrier_id IS NOT NULL LIMIT 1`
+    );
+    const [box] = await outside<{ id: string }>(
+      `SELECT id FROM shipping.packages WHERE label = 'Small Box' LIMIT 1`
+    );
+    // AN ORDER WITH AN ADDRESS SNAPSHOT: where the metal goes back TO is the
+    // order's own, so an order without one refuses before the carrier is
+    // called - the case the next test owns.
+    const [returnable] = await outside<{ id: string; status: string }>(
+      `SELECT o.id, o.status FROM orders.orders o
+         JOIN orders.addresses a ON a.order_id = o.id
+        WHERE o.direction = 'purchase' AND o.status NOT IN ('Cancelled', 'Completed')
+        ORDER BY o.created_at ASC, o.id ASC LIMIT 1`
+    );
+    assert.ok(returnable, "dev has no purchase order with an address snapshot");
     await asAdmin(admin, async () => {
       const res = await request(app)
-        .patch(`/api/orders/${order.id}`)
+        .post(`/api/orders/${returnable.id}/cancel`)
         .send({
-          cancel: {
-            return_shipment: {
-              address: { recipient_name: owner.name, phone_number: "5555550100" },
-              service: { serviceType: "FEDEX_GROUND" },
-            },
-          },
+          carrier_service_id: service.id,
+          package_id: box.id,
+          declared_value: 1000,
+          weight: 3,
         });
 
-      // NOT a refusal: the document is sound and dispatch began. What answers
-      // is the FedEx live-API guard - the first act of the cancel pipeline is
+      // NOT a refusal: the document is sound and the pipeline began. What
+      // answers is the FedEx live-API guard - the first act of the cancel is
       // the label, refused during a test run - which is a 500, never a 4xx.
       assert.equal(
         res.status,
@@ -264,9 +300,42 @@ test("the cancel document reaches the label pipeline and a label failure cancels
 
       const { rows } = await client.query(
         `SELECT status FROM orders.orders WHERE id = $1`,
-        [order.id]
+        [returnable.id]
       );
       assert.notEqual(rows[0].status, "Cancelled");
+    });
+  }, { lock: ORDER_LOCK });
+});
+
+// WHERE THE METAL GOES BACK TO IS THE ORDER'S OWN SNAPSHOT, and an order that
+// never took one cannot be cancelled at all. The drawer used to supply the
+// address in the body, so this order would have shipped to whatever it said.
+test("an order with no address snapshot refuses the cancel before the carrier", async () => {
+  await inPinnedTransaction(async () => {
+    const [service] = await outside<{ id: string }>(
+      `SELECT id FROM shipping.services WHERE name = 'Express Saver' AND carrier_id IS NOT NULL LIMIT 1`
+    );
+    const [box] = await outside<{ id: string }>(
+      `SELECT id FROM shipping.packages WHERE label = 'Small Box' LIMIT 1`
+    );
+    const [orphan] = await outside<{ id: string }>(
+      `SELECT o.id FROM orders.orders o
+        WHERE o.direction = 'purchase'
+          AND NOT EXISTS (SELECT 1 FROM orders.addresses a WHERE a.order_id = o.id)
+        ORDER BY o.created_at ASC, o.id ASC LIMIT 1`
+    );
+    assert.ok(orphan, "dev has no address-less purchase order");
+    await asAdmin(admin, async () => {
+      const res = await request(app)
+        .post(`/api/orders/${orphan.id}/cancel`)
+        .send({
+          carrier_service_id: service.id,
+          package_id: box.id,
+          declared_value: 1000,
+          weight: 3,
+        });
+      assert.equal(res.status, 422, `answered ${res.status}`);
+      assert.match(res.body?.error?.message ?? "", /no address snapshot/);
     });
   }, { lock: ORDER_LOCK });
 });
@@ -364,46 +433,67 @@ const snapshot = async (client: PoolClient, id: string) => ({
 
 type Snapshot = Awaited<ReturnType<typeof snapshot>>;
 
-test("finalize + label in one document equals finalize then label in sequence", async () => {
-  let combined: Snapshot | undefined;
-  await inPinnedTransaction(async (client: PoolClient) => {
-    await pinMetals(client);
-    await asAdmin(admin, async () => {
-      const res = await request(app)
-        .patch(`/api/orders/${order.id}`)
-        .send({ finalize_pricing: true, status: "Payment Processing" });
-      assert.equal(res.status, 200, `combined answered ${res.status}: ${JSON.stringify(res.body)}`);
-      combined = await snapshot(client, order.id);
-    });
-  }, { lock: ORDER_LOCK });
-
-  let sequential: Snapshot | undefined;
+// FINALIZING AND LABELLING ARE TWO REQUESTS NOW, and that is the whole change:
+// the property this used to assert - that one combined document behaved like
+// two sequential clicks - existed only because the body multiplexed them.
+// What still has to hold is that each does its own job and nothing else.
+test("finalizing prices the order and pins its spots; the label that follows moves nothing", async () => {
   await inPinnedTransaction(async (client: PoolClient) => {
     await pinMetals(client);
     await asAdmin(admin, async () => {
       const finalize = await request(app)
-        .patch(`/api/orders/${order.id}`)
-        .send({ finalize_pricing: true });
-      assert.equal(finalize.status, 200, `finalize answered ${finalize.status}`);
+        .post(`/api/orders/${order.id}/finalize_pricing`)
+        .send({});
+      assert.equal(
+        finalize.status, 200,
+        `finalize answered ${finalize.status}: ${JSON.stringify(finalize.body)}`
+      );
+      const priced = await snapshot(client, order.id);
+      assert.equal(priced.order.spots_locked, true, "finalizing did not pin the spots");
+      assert.ok(priced.order.total !== null, "finalizing did not price the order");
 
       const label = await request(app)
         .patch(`/api/orders/${order.id}`)
         .send({ status: "Payment Processing" });
       assert.equal(label.status, 200, `label answered ${label.status}`);
-      sequential = await snapshot(client, order.id);
+
+      const after = await snapshot(client, order.id);
+      assert.equal(after.order.status, "Payment Processing");
+      assert.deepEqual(
+        { total: after.order.total, spots_locked: after.order.spots_locked, items: after.items },
+        { total: priced.order.total, spots_locked: priced.order.spots_locked, items: priced.items },
+        "the label moved money or the spot pin"
+      );
     });
   }, { lock: ORDER_LOCK });
+});
 
-  assert.ok(combined, "the combined document never produced a snapshot");
-  assert.ok(sequential, "the sequential requests never produced a snapshot");
-  assert.deepEqual(
-    combined,
-    sequential,
-    "one document and two sequential requests left the order in different states"
-  );
-  assert.equal(combined.order.status, "Payment Processing");
-  assert.equal(combined.order.spots_locked, true, "finalizing did not pin the spots");
-  assert.ok(combined.order.total !== null, "finalizing did not price the order");
+// `notes` is the other column this PATCH owns, and null CLEARS it - which is
+// what `.partial()` over a nullable column means (shared/db/patch.ts).
+test("notes is written and an explicit null clears it", async () => {
+  await inPinnedTransaction(async (client: PoolClient) => {
+    await asAdmin(admin, async () => {
+      const written = await request(app)
+        .patch(`/api/orders/${order.id}`)
+        .send({ notes: "left on the porch" });
+      assert.equal(written.status, 200, written.text);
+      assert.equal(
+        (await client.query(`SELECT notes FROM orders.orders WHERE id = $1`, [order.id]))
+          .rows[0].notes,
+        "left on the porch"
+      );
+
+      const cleared = await request(app)
+        .patch(`/api/orders/${order.id}`)
+        .send({ notes: null });
+      assert.equal(cleared.status, 200, cleared.text);
+      assert.equal(
+        (await client.query(`SELECT notes FROM orders.orders WHERE id = $1`, [order.id]))
+          .rows[0].notes,
+        null
+      );
+    });
+  }, { lock: ORDER_LOCK });
 });
 
 test("nothing this file did survived the transactions", async () => {

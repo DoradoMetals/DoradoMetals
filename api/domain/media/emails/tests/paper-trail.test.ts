@@ -14,30 +14,25 @@ import pool from "#db";
 import * as emails from "#domain/media/emails/service.ts";
 import { recordEmail } from "#domain/media/emails/record.ts";
 import { closeBrowser } from "#providers/pdfs/puppeteer.ts";
-import * as poRepo from "#domain/orders/read.service.ts";
-import * as spotsService from "#domain/spots/service.ts";
-import type { RenderableOrder } from "#domain/media/pdfs/render/sections.ts";
+import * as orderRead from "#domain/orders/read.ts";
+import * as inputs from "#domain/media/pdfs/order-inputs.ts";
 import type { Transport } from "#providers/emails/nodemailer.ts";
+import type { OrderView } from "@dorado/contracts";
 
 let client: PoolClient;
-// The renderer's own type: getAllPurchases declares
-// `Record<string, unknown>[]` because read.service.ts discards the composed
-// type at the service boundary.
-type MailOrder = RenderableOrder & {
-  id: string;
-  user?: { user_id?: string; user_email?: string | null; user_name?: string | null } | null;
-};
-type Spot = Awaited<ReturnType<typeof spotsService.getSpotPrices>>[number];
 type Message = Parameters<Transport["sendMail"]>[0];
 
-let orders: MailOrder[];
-let spots: Spot[];
+// EVERY SENDER TAKES THE DOCUMENT'S INPUTS (D214 item 12), resolved from the
+// order's id - the composed order they used to take is gone.
+let orders: OrderView[];
 
 before(async () => {
   client = await pool.connect();
-  orders = (await poRepo.getAllPurchases()) as unknown as MailOrder[];
-  // The composed shape - what the renderers read since D84.
-  spots = await spotsService.getSpotPrices();
+  orders = [];
+  for (const row of await orderRead.list({ direction: "purchase" })) {
+    const view = await orderRead.view(row.id);
+    if (view) orders.push(view);
+  }
   assert.ok(orders.length > 0, "dev has no purchase orders to render");
 });
 
@@ -80,17 +75,17 @@ const failing = () => ({
 // `user` is optional - so an order without one TypeError'd at the send.
 const anOrderWithAUser = () => {
   const order =
-    orders.find((o) => o.user?.user_email && (o.order_items?.length ?? 0) > 0) ?? orders[0];
+    orders.find((o) => o.user?.email && o.items.length > 0) ?? orders[0];
   assert.ok(order, "dev has no purchase order to email");
-  assert.ok(order.user?.user_email, `order ${order.id} has no email address to send to`);
-  return { order, email: order.user.user_email, user: order.user };
+  assert.ok(order.user?.email, `order ${order.order.id} has no email address to send to`);
+  return { order, email: order.user!.email, user: order.user! };
 };
 
 test("a successful send leaves a sent row pointing at its stored document", async () => {
   await inRollback(async (c: PoolClient) => {
     const { order, email, user } = anOrderWithAUser();
     await emails.sendCreatedEmail(
-      { purchaseOrder: order, spotPrices: spots, packageDetails: { label: "Medium Box" } },
+      await inputs.packingListInputs(order.order.id, c),
       email,
       recorder(),
       c
@@ -119,9 +114,9 @@ test("a failed send is a row too, carrying the error, and the throw continues", 
   await inRollback(async (c: PoolClient) => {
     const { order, email, user } = anOrderWithAUser();
     await assert.rejects(
-      () =>
+      async () =>
         emails.sendCreatedEmail(
-          { purchaseOrder: order, spotPrices: spots, packageDetails: { label: "Medium Box" } },
+          await inputs.packingListInputs(order.order.id, c),
           email,
           failing(),
           c
@@ -165,9 +160,8 @@ test("a record for an order the new schema does not know keeps everything but th
 // anywhere, ever - the alternative is a leak into dev on every suite run.
 test("without a transaction, a test-run send records nothing", async () => {
   const { order, email, user } = anOrderWithAUser();
-  const probe = `no-exec-${randomUUID().slice(0, 8)}`;
   await emails.sendCreatedEmail(
-    { purchaseOrder: { ...order, number: order.number }, spotPrices: spots, packageDetails: { label: probe } },
+    await inputs.packingListInputs(order.order.id),
     email,
     recorder()
     // no executor, deliberately
@@ -190,7 +184,7 @@ test("a verification mail leaves an auth_verification row with its user", async 
     const t = recorder();
     await emails.sendAuthVerificationEmail(
       {
-        user: { id: user.user_id, email: email, name: user.user_name },
+        user: { id: user.id, email: email, name: user.name },
         url: "https://example.test/verify-email?token=t",
         isSignUp: true,
       },
@@ -213,7 +207,7 @@ test("a verification mail leaves an auth_verification row with its user", async 
     assert.equal(rows.length, 1, "one send, one row");
     assert.equal(rows[0].status, "sent");
     assert.equal(rows[0].to_address, email);
-    assert.equal(rows[0].user_id, user.user_id);
+    assert.equal(rows[0].user_id, user.id);
     assert.equal(rows[0].order_id, null, "a verification mail has no order");
     assert.equal(rows[0].pdf_id, null, "and no document");
     assert.equal(rows[0].provider_message_id, "<recorded@test>");

@@ -17,7 +17,7 @@ import type { PoolClient } from "pg";
 import { createHash, randomUUID } from "node:crypto";
 import pool from "#db";
 import { serveOrderDocument } from "#domain/media/pdfs/serve.ts";
-import * as poRepo from "#domain/orders/read.service.ts";
+import * as orderRead from "#domain/orders/read.ts";
 
 let client: PoolClient;
 // The composed order the fixtures reference. getAllPurchases declares
@@ -29,7 +29,7 @@ let owner: { id: string; role: string }; // the order's real owner
 
 before(async () => {
   client = await pool.connect();
-  const orders = (await poRepo.getAllPurchases()) as unknown as OrderFixture[];
+  const orders = (await orderRead.list({ direction: "purchase" })) as unknown as OrderFixture[];
   assert.ok(orders.length > 0, "dev has no purchase orders");
 
   // media.pdfs.order_id references orders.orders, so the fixtures need an

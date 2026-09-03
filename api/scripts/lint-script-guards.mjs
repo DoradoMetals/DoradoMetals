@@ -221,15 +221,6 @@ const REAL_EXCUSED = {
     why:"builds genesis against a read-only production connection. Cannot be run " +
     "speculatively.",
   },
-  "api/scripts/verify-orders-decomposition.mjs": {
-    kind: "assertion",
-    why:"compares the composed order against its parts, in the database. Its subject " +
-    "is rows, and it fails on any mismatch.",
-  },
-  "api/scripts/verify-sales-order-decomposition.mjs": {
-    kind: "assertion",
-    why:"the sales-order half of the same comparison.",
-  },
 
   // --- the libraries, exercised through every script that imports them ---
   "api/scripts/lib/self-test-harness.ts": {

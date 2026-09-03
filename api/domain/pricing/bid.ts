@@ -1,62 +1,65 @@
-// What the business PAYS for metal (bid side) — mirrors ask.ts (what it charges).
-// THE BUG THIS FILE'S STORY IS: scrap read `item.premium` alone while product fell back to the row's own bid_premium — an oversight that valued a null-premium scrap line at zero. Found by comparing two PDFs for the same order: the invoice (no fallback) said $4,744.11, the packing list (had one) said $7,980.22 — $3,236.11 of gold the invoice didn't count. Worse on calculateReturnDeclaredValue: that gap would have shipped metal back uninsured.
-// No production order changes: of 81 scrap lines, zero have a null premium — this could only ever have understated, never overstated.
-// TWO CHOICES BELOW LOOK WRONG AND ARE DELIBERATE. `spot` is `PricingSpot | undefined` (Array.find), and every use dereferences it with `!` rather than `?.` — pinned by a test asserting the TypeError. `spot?.bid` would turn a loud failure into `undefined * content` = NaN traveling all the way to a payout; a metal with no spot must stop pricing, not silently price at zero.
-// `bid` IS NULLABLE and `?? 0` on it is behavior-preserving, not a fix (JS already reads `null * x` as 0) — it just makes the intent explicit. Confirmed safe: the 5 production scrap lines currently priced against a null bid all belong to un-quoted (In Transit/Cancelled) orders, never a priced one.
+// WHAT THE BUSINESS PAYS FOR METAL (bid side) - the mirror of ask.ts, which is
+// what it charges. The two share no code: a metal missing from the quote feed
+// THROWS here and prices at zero there, and that asymmetry is deliberate and
+// pinned by tests.
 //
-// That sounds like the premium bug in the header and is not. Checked against
-// production: 5 scrap lines are currently priced against a metal whose frozen
-// bid is null, and every one of them belongs to an order that is In
-// Transit or Cancelled - a spot is frozen when the offer is made, so an order
-// nobody has quoted yet correctly has no price. The dangerous version would be
-// a null spot on a priced order, and there are none.
+// ONE EXPRESSION, NOT FOUR. This file used to carry the same reduce four times
+// - calculateTotalPrice, calculateReturnDeclaredValue, getBullionTotal and
+// getScrapTotal - each with a `product` branch and a `scrap` branch, each
+// finding its spot by a METAL NAME that lived on a different nested object in
+// each branch (`item.product.metal_type` for bullion, `item.scrap.metal` for
+// scrap). That is where the $3,236.11 divergence between an invoice and a
+// packing list came from: two copies of one sum, drifting.
 //
-// WHAT A PURCHASE PAYS FOR BULLION IS THE LINE'S PREMIUM, FULL STOP (Jacob, 2026-09-03). Every product branch here used to fall back to `product.bid_premium` when the line carried none; that made the catalogue's own figure a price the business could pay without the rates table ever agreeing to it. A purchase bullion line now gets the rate band's bullion_pct written onto it at creation and at every re-tier (domain/orders/rules.ts retierPlan), so the fallback described a state that no longer occurs and, where it did, produced the wrong number rather than a missing one.
-// The SCRAP branch keeps its `?? item.scrap.bid_premium` and that is not an inconsistency: 085 collapsed scrap into orders.items, and compose.ts serves `scrap.bid_premium` FROM `item.premium`, so on a composed line the two are the same value. It is a wire alias, not a second source, and removing it would break the hand-assembled PDF/email fixtures for no gain.
-// The composed line (scrap/product nested) is an INTERNAL shape now, not a wire contract — the wire serves orders.items rows verbatim; this assembled shape survives only where pricing and the confirmation email need an order put back together.
-// Declares only the six fields these sums read, not the ten-field ComposedItem — a hand-built fixture or an /orders/:id/items body doesn't carry a full composed line, and the wider type let 11 real mismatches through until the tests converted to TypeScript caught them.
-// The ask side already declared its own subset (PriceableItem) for the same reason; a ComposedItem still satisfies this, and every existing test passed unedited.
-export type PriceableLine = {
-  item_type?: string | null;
-  price?: number | null;
-  premium?: number | null;
-  quantity?: number | null;
-  // NO bid_premium. A purchase bullion line's premium is the rate band's
-  // bullion_pct, written onto the line by the re-tier - the catalogue figure is
-  // not a price fact and must not be reachable from a sum (Jacob, 2026-09-03).
-  product?: {
-    metal_type?: string | null;
-    content?: number | null;
-  } | null;
-  scrap?: {
-    metal?: string | null;
-    content?: number | null;
-    bid_premium?: number | null;
-  } | null;
-};
+// The composed order died with D214 item 12, and the split went with it. A line
+// is an `orders.items` row: `metal_id` is on it for BOTH kinds, `bullion_id`
+// says which kind it is (ruling 34c), and the CONTENT is the only thing that
+// differs - a scrap line carries its own, a bullion line takes its product's
+// and multiplies by how many. So there is one price expression, asked once.
+//
+// TWO BEHAVIOURS THAT LOOK WRONG AND ARE LOAD-BEARING:
+//
+//   A METAL WITH NO QUOTE THROWS. `bids.get(metal_id)` answering undefined
+//   used to be `spot!.bid`, a deliberate TypeError. `?? 0` would turn a loud
+//   failure into an ounce of gold valued at nothing, travelling all the way to
+//   a payout. A quote that EXISTS and is null is different and prices at 0:
+//   an order nobody has quoted yet correctly has no price, and five production
+//   scrap lines are in exactly that state, every one on an In Transit or
+//   Cancelled order.
+//
+//   A STORED PRICE WINS. `item.price` is what the business committed to when
+//   the order was finalised; recomputing it from today's spot would reprice a
+//   settled order. Only a line with no stored price is computed.
+//
+// EVERY FIGURE THIS MODULE RETURNS IS A NUMBER OR AN EXCEPTION, NEVER NaN.
+// Migration 087 had to clean up rows where content reached the wire as the
+// string "NaN"; a total that cannot be computed must stop here, not print on a
+// document a customer is paid against.
+import type { OrderView, OrderViewItem } from "@dorado/contracts";
 
-// The name the sums below were written against, kept so the expressions read
-// unchanged from the file they moved out of.
-type PurchaseOrderItem = PriceableLine;
-import type { PricingSpot, Spots } from "#domain/pricing/spot.ts";
+export type { OrderView, OrderViewItem } from "@dorado/contracts";
 
-// Declared once in spot.ts; re-exported here so existing importers keep working.
-export type { PricingSpot, Spots } from "#domain/pricing/spot.ts";
+// THE QUOTE FEED, KEYED BY THE METAL IT PRICES. A map rather than an array of
+// `{name, ask, bid}` because a line names a metal by ID and always has: the
+// name lookup was a join the composed order carried, and matching on a display
+// string is how "Gold" and "gold" become two metals.
+//
+// The caller builds it from whichever quote is right for the question - the
+// order's FROZEN spots for a placed order, the live feed for an estimate.
+export type Bids = ReadonlyMap<string, number | null>;
 
-// What these functions need of an order, not the whole wire shape — the PDF/email code passes assembled objects missing columns, and requiring the full shape would force casts there.
-type PricedOrder = {
-  order_items: PurchaseOrderItem[];
-  shipment?: { shipping_charge?: number | null } | null;
-  // Was `{ cost: number }` until 2026-08-29 — a lie the type system repeated from OrderLike's own `req.body`-shaped header; nothing actually checked it.
-  // Widened to what the data can be: compose.ts's EMPTY_PAYOUT makes `cost` genuinely null for an order with no payout row (32 of dev's 48) and lets a fixture omit the key entirely — `order.payout.cost` no longer compiles unchecked.
-  payout?: { cost?: number | null } | null;
-  // Optional because most callers here (PDF/email renderers) hand-assemble the order; omitting it means not-waived, the default every production row is in today.
-  waive_payout_fee?: boolean | null;
-};
+// THE PARCEL THE CUSTOMER SENT, not the one going back. A return leg's cost is
+// the business's to bear and must never be deducted from what a customer is
+// paid.
+export function inboundShipment(view: OrderView): OrderView["shipments"][number] | null {
+  return view.shipments.find((s) => s.direction !== "Return") ?? null;
+}
 
-// EVERY FIGURE THIS MODULE RETURNS IS A NUMBER OR AN EXCEPTION. NEVER NaN. Replaces a real defect: `baseTotal - shipping - order.payout.cost` defended one subtrahend (`shipping ?? 0`) but not the other, so payout `{}` (no `cost` key, unlike `{cost: null}`) silently produced NaN all the way to the invoice.
-// Split by MEANING, not nullishness: ABSENT payout -> 0 (no payout row means no fee — that's data, not a waiver, so a payout with a real cost still subtracts it); a value that arrived but can't become a number -> throw (a loud TypeError beats a silently wrong total on a money path).
-// This deliberately changes `payout: null` from throw to 0 — a null payout has a well-defined meaning (no payout method assigned yet) and throwing would refuse to invoice roughly two-thirds of dev's purchase orders. `spot!` stays a throw: an unpriced item makes the WHOLE total meaningless, not just missing one subtrahend.
+// Split by MEANING, not by nullishness: an ABSENT fee is 0 (no payout row means
+// no fee - that is data, not a waiver), and a value that arrived and cannot
+// become a number THROWS. `baseTotal - shipping - order.payout.cost` once
+// defended one subtrahend and not the other, so a payout object with no `cost`
+// key produced NaN all the way to the invoice.
 function fee(value: unknown, what: string): number {
   if (value == null) return 0;
   const n = Number(value);
@@ -66,17 +69,6 @@ function fee(value: unknown, what: string): number {
   return n;
 }
 
-// The waiver flag exists because `payout.cost` alone couldn't express Jacob waiving a fee on a real order (two production WIRE payouts show cost=0 against a $20 method fee, previously done by overwriting the record) — waive_payout_fee already existed as a column with no writer or UI.
-// Exported because three surfaces price a payout (calculateTotalPrice, the drawer estimate, the customer's profit breakdown) — one shared condition instead of three copies that could disagree.
-export function effectivePayoutFee(order: {
-  payout?: { cost?: number | null } | null;
-  waive_payout_fee?: boolean | null;
-}): number {
-  if (order.waive_payout_fee === true) return 0;
-  return fee(order.payout?.cost, "the payout fee");
-}
-
-// Earns its place independently — migration 087 had to clean up rows where content literally reached the wire as the string "NaN"; a total that can't be computed must stop here, not print on a document a customer is paid against.
 function finite(total: number, what: string): number {
   if (!Number.isFinite(total)) {
     throw new TypeError(`${what} did not come out as a number (${String(total)})`);
@@ -84,111 +76,87 @@ function finite(total: number, what: string): number {
   return total;
 }
 
-
-export function calculateTotalPrice(order: PricedOrder, spots: Spots): number {
-  const baseTotal = order.order_items.reduce((acc: number, item: PurchaseOrderItem) => {
-    if (item.item_type === "product") {
-      const spot = spots?.find((s: PricingSpot) => s.name === item.product?.metal_type);
-
-      const price =
-        item.price ??
-        (item?.product?.content ?? 0) *
-          ((spot!.bid ?? 0) *
-            (item.premium ?? 0));
-
-      const quantity = item.quantity ?? 1;
-      return acc + price * quantity;
-    }
-
-    if (item.item_type === "scrap") {
-      const spot = spots?.find((s: PricingSpot) => s.name === item.scrap?.metal);
-
-      const price =
-        item.price ??
-        (item?.scrap?.content ?? 0) * ((spot!.bid ?? 0) * (item.premium ?? item?.scrap?.bid_premium ?? 0));
-      return acc + price;
-    }
-
-    return acc;
-  }, 0);
-
-  // Both subtrahends through the same function, which is the point: the
-  // asymmetry between these two lines is how the NaN got in.
-  const shipping = fee(order.shipment?.shipping_charge, "the shipping charge");
-  const payout = effectivePayoutFee(order);
-
-  return finite(baseTotal - shipping - payout, "the order total");
+// THE WAIVER IS A FLAG AND THE FEE IS A RECORD (D117): waiving does not
+// overwrite `cost`, so un-waiving does not have to guess what it was.
+//
+// The parameter names what the rule reads and nothing else, because three
+// surfaces price a payout - the stored total, the drawer estimate and the
+// customer's profit breakdown - and they hold an order in two shapes: an
+// OrderView carries the flag on `totals`, the quote surface's own assembled
+// order carries it at the top level. One condition, both spellings, rather
+// than three copies that can disagree.
+export function effectivePayoutFee(order: {
+  payout?: { cost?: number | null } | null;
+  waive_payout_fee?: boolean | null;
+  totals?: { waive_payout_fee?: boolean | null } | null;
+}): number {
+  if (order.waive_payout_fee === true) return 0;
+  if (order.totals?.waive_payout_fee === true) return 0;
+  return fee(order.payout?.cost, "the payout fee");
 }
 
-export function calculateReturnDeclaredValue(order: PricedOrder, spots: Spots): number {
-  const total = order.order_items.reduce((acc: number, item: PurchaseOrderItem) => {
-    if (item.item_type === "product") {
-      const spot = spots?.find((s: PricingSpot) => s.name === item.product?.metal_type);
-
-      const price =
-        (item?.product?.content ?? 0) *
-        ((spot!.bid ?? 0) *
-          (item.premium ?? 0));
-
-      const quantity = item.quantity ?? 1;
-      return acc + price * quantity;
-    }
-
-    if (item.item_type === "scrap") {
-      const spot = spots?.find((s: PricingSpot) => s.name === item.scrap?.metal);
-
-      const price =
-        (item?.scrap?.content ?? 0) * ((spot!.bid ?? 0) * (item.premium ?? item?.scrap?.bid_premium ?? 0));
-      return acc + price;
-    }
-
-    return acc;
-  }, 0);
-
-  // Deducts neither fee — a return is insured for what the metal is worth; a NaN here posts a customer's metal back uninsured, the failure this file's header opens with.
-  return finite(total, "the return declared value");
+// The fine metal ONE unit of this line holds. A scrap line's `content`
+// describes the whole lot it was declared as; a bullion line's comes from the
+// catalogue and is per coin.
+export function unitContent(line: OrderViewItem): number {
+  const content = line.bullion_id === null ? line.content : (line.product?.content ?? null);
+  // ABSENT IS ZERO, UNREADABLE IS NaN - and the NaN is deliberate. Migration
+  // 087 had to clean up rows whose content reached the wire as the STRING
+  // "NaN"; `|| 0` here would turn that into a free line on an invoice instead
+  // of stopping the total, which is what `finite` below exists to do.
+  return content == null ? 0 : Number(content);
 }
 
-export function calculateItemPrice(
-  item: PurchaseOrderItem,
-  spots: Spots
-): number | undefined {
-  if (item.item_type === "product") {
-    const spot = spots?.find((s: PricingSpot) => s.name === item.product?.metal_type);
-    return (
-      item.price ??
-      (item?.product?.content ?? 0) *
-        ((spot!.bid ?? 0) *
-          (item.premium ?? 0))
-    );
-  } else if (item.item_type === "scrap") {
-    const spot = spots?.find((s: PricingSpot) => s.name === item.scrap?.metal);
-    return (
-      item.price ??
-      (item?.scrap?.content ?? 0) * ((spot!.bid ?? 0) * (item.premium ?? item?.scrap?.bid_premium ?? 0))
+// How many of the line there are. A scrap lot is one lot however many pieces
+// were in the bag - multiplying its content by a quantity double-counts.
+export function unitsOf(line: OrderViewItem): number {
+  if (line.bullion_id === null) return 1;
+  const quantity = Number(line.quantity ?? 1);
+  return Number.isFinite(quantity) ? quantity : 1;
+}
+
+// WHAT ONE OF THIS LINE IS WORTH. The stored price wins; otherwise it is fine
+// metal times the quote times the premium the line carries.
+export function unitPrice(line: OrderViewItem, bids: Bids): number {
+  if (line.price != null) return line.price;
+  if (!bids.has(line.metal_id)) {
+    throw new TypeError(
+      `no quote for metal ${line.metal_id}, so line ${line.id} cannot be priced`
     );
   }
+  return unitContent(line) * ((bids.get(line.metal_id) ?? 0) * (line.premium ?? 0));
 }
 
-export function getBullionTotal(items: PurchaseOrderItem[], spots: Spots): number {
-  return items.reduce((acc: number, item: PurchaseOrderItem) => {
-    const spot = spots?.find((s: PricingSpot) => s.name === item.product?.metal_type);
-    const price =
-      item.price ??
-      (item?.product?.content ?? 0) *
-        ((spot!.bid ?? 0) *
-          (item.premium ?? 0));
-    const quantity = item.quantity ?? 1;
-    return acc + price * quantity;
-  }, 0);
+// WHAT THE LINE IS WORTH: one unit times how many.
+export function linePrice(line: OrderViewItem, bids: Bids): number {
+  return unitPrice(line, bids) * unitsOf(line);
 }
 
-export function getScrapTotal(items: PurchaseOrderItem[], spots: Spots): number {
-  return items.reduce((acc: number, item: PurchaseOrderItem) => {
-    const spot = spots?.find((s: PricingSpot) => s.name === item.scrap?.metal);
-    const price =
-      item.price ??
-      (item?.scrap?.content ?? 0) * ((spot!.bid ?? 0) * (item.premium ?? item?.scrap?.bid_premium ?? 0));
-    return acc + price;
-  }, 0);
+export function itemsTotal(lines: OrderViewItem[], bids: Bids): number {
+  return lines.reduce((sum, line) => sum + linePrice(line, bids), 0);
+}
+
+// The scrap lines and the bullion lines, when a document prints them apart.
+export function scrapLines(lines: OrderViewItem[]): OrderViewItem[] {
+  return lines.filter((line) => line.bullion_id === null);
+}
+
+export function bullionLines(lines: OrderViewItem[]): OrderViewItem[] {
+  return lines.filter((line) => line.bullion_id !== null);
+}
+
+// WHAT THE CUSTOMER IS PAID: the metal, less the postage they were charged and
+// the fee for moving the money. Both subtrahends go through `fee`, which is the
+// point - the asymmetry between them is how the NaN got in.
+export function calculateTotalPrice(view: OrderView, bids: Bids): number {
+  const metal = itemsTotal(view.items, bids);
+  const shipping = fee(inboundShipment(view)?.cost, "the shipping charge");
+  return finite(metal - shipping - effectivePayoutFee(view), "the order total");
+}
+
+// WHAT THE RETURN PARCEL IS INSURED FOR: the metal, and neither fee. A return
+// is insured for what the metal is worth, and a NaN here posts a customer's
+// metal back uninsured.
+export function calculateReturnDeclaredValue(view: OrderView, bids: Bids): number {
+  return finite(itemsTotal(view.items, bids), "the return declared value");
 }

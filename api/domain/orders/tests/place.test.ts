@@ -9,6 +9,7 @@ import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
 import pool from "#db";
 import { createFromCheckout } from "#domain/orders/place.ts";
+import * as checkoutService from "#domain/checkout/service.ts";
 import { takeLocks, LOCKS } from "#shared/testing/locks.ts";
 
 let client: PoolClient;
@@ -128,7 +129,9 @@ async function place(
     );
   }
 
-  const placed = await createFromCheckout({ checkout_id, status }, c);
+  const row = await checkoutService.getRowById(checkout_id, c);
+  assert.ok(row, "the fixture checkout row vanished");
+  const placed = await createFromCheckout(row!, status, c);
   return {
     order_id: placed.order_id,
     number: placed.number,
@@ -408,8 +411,9 @@ test("an empty checkout cannot become an order", async () => {
       [user]
     );
     await c.query(`DELETE FROM checkout.items WHERE checkout_id = $1`, [rows[0].id]);
+    const empty = await checkoutService.getRowById(rows[0].id, c);
     await assert.rejects(
-      () => createFromCheckout({ checkout_id: rows[0].id, status: "Pending" }, c),
+      () => createFromCheckout(empty!, "Pending", c),
       /no items/
     );
   });

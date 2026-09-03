@@ -37,7 +37,7 @@ import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
 import pool from "#db";
 import query from "#shared/db/query.ts";
-import * as sendToRefiner from "#domain/orders/send-to-refiner.ts";
+import * as orders from "#domain/orders/service.ts";
 import * as ordersRepo from "#db/orders/repo.ts";
 import * as refinerOrders from "#db/refiners/orders/repo.ts";
 // The SERVICE, not a repo: a shipment is composed from six tables now, and
@@ -175,10 +175,7 @@ test("an order with no address is refused, and nothing is written", async () => 
     const mail = recorder();
     await assert.rejects(
       () =>
-        sendToRefiner.sendOrderToRefiner(
-          { order: { id: addressless.id }, spots: [], supplier_id: supplier.id },
-          mail
-        ),
+        orders.sendToRefiner(addressless.id, supplier.id, mail),
       /has no address/,
       "an order with no address was accepted"
     );
@@ -284,14 +281,17 @@ test("a sent order cannot be moved to a different refiner", async () => {
     assert.ok(other, "dev has only one supplier, so this cannot be tested");
 
     await assert.rejects(
-      () => sendToRefiner.sendOrderToRefiner({ order: { id: order.id }, spots: [], supplier_id: other.id }),
+      () => orders.sendToRefiner(order.id, other.id),
       // The thrown value is `unknown` to TypeScript, so the predicate says
       // what it expects of it. The message and status are what the assertion
       // is about, and naming them here is the same claim in a place the
       // compiler can check.
+      // The thrown value is `unknown` to TypeScript, so the predicate says
+      // what it expects of it. A DOMAIN ERROR CARRIES A KIND, NOT A STATUS
+      // (D214 item 11) - the middleware maps `conflict` to 409.
       (err: unknown) => {
-        const e = err as { statusCode?: number; message?: string };
-        assert.equal(e.statusCode, 409, `expected 409, got ${e.statusCode}`);
+        const e = err as { kind?: string; message?: string };
+        assert.equal(e.kind, "conflict", `expected a conflict, got ${e.kind}`);
         assert.match(String(e.message), /already been sent/);
         return true;
       }
@@ -331,8 +331,9 @@ test("re-sending to the same refiner writes nothing new", async () => {
     );
 
     const sent: unknown[] = [];
-    await sendToRefiner.sendOrderToRefiner(
-      { order: { id: order.id }, spots: [], supplier_id: order.supplier_id },
+    await orders.sendToRefiner(
+      order.id,
+      order.supplier_id,
       { sendMail: async (m) => { sent.push(m); return { messageId: "test" }; } }
     );
 
@@ -387,8 +388,9 @@ test("the refiner's copy goes to the organization's address, not a field that do
     assert.ok(withEmail, "dev has no refiner with an email - this would prove nothing");
 
     const sent: Message[] = [];
-    await sendToRefiner.sendOrderToRefiner(
-      { order: { id: order.id }, spots: [], supplier_id: withEmail.id },
+    await orders.sendToRefiner(
+      order.id,
+      withEmail.id,
       { sendMail: async (m: Message) => { sent.push(m); return { messageId: "test" }; } }
     );
 
@@ -425,13 +427,14 @@ test("a refiner with no email is refused before anything is written", async () =
     assert.ok(noEmail, "dev has no refiner without an email - this would prove nothing");
 
     await assert.rejects(
-      () => sendToRefiner.sendOrderToRefiner(
-        { order: { id: order.id }, spots: [], supplier_id: noEmail.id },
+      () => orders.sendToRefiner(
+        order.id,
+        noEmail.id,
         { sendMail: async () => { throw new Error("must not be reached"); } }
       ),
       (err: unknown) => {
-        const e = err as { statusCode?: number; message?: string };
-        assert.equal(e.statusCode, 422, `expected 422, got ${e.statusCode}`);
+        const e = err as { kind?: string; message?: string };
+        assert.equal(e.kind, "invalid", `expected an invalid refusal, got ${e.kind}`);
         assert.match(String(e.message), /no email address/);
         return true;
       }

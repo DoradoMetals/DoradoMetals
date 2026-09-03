@@ -6,41 +6,35 @@
 // metal - and CLAUDE.md already records one instance of exactly that, an
 // invoice and a packing list out by $3,236.11.
 //
-// THIS CAUGHT A LIVE ONE. buildPackingScrapRows resolved the premium as
-// `item.premium ?? scrap.bid_premium`; buildInvoiceScrapRows read `item.premium`
-// directly. On order 239 that field is null and `null * 100` is 0 rather than
-// an error, so the packing list showed 75.0% and the invoice showed 0.0% for
-// the same scrap line. Silent, because neither threw.
-//
-// Found by converting sections.js to TypeScript - `item.premium is possibly
-// null` was the compiler pointing at it - and confirmed by rendering both
-// documents for that order before changing anything.
+// THE DIVERGENCE THIS CAUGHT IS NOW UNREPRESENTABLE, which is the better fix.
+// buildPackingScrapRows resolved the premium as `item.premium ?? scrap
+// .bid_premium` and buildInvoiceScrapRows read `item.premium` directly, so on
+// an order with a null premium the two rendered 75.0% and 0.0%. There is one
+// premium on the line now, one price expression under both builders
+// (pricing/bid.ts's `unitPrice`), and no nested `scrap` object to fall back
+// into - so this file compares the two documents on every real order and pins
+// that a line with no premium renders as unpriced on BOTH.
 import test, { after, before } from "node:test";
 import assert from "node:assert/strict";
 import pool from "#db";
-import * as poRepo from "#domain/orders/read.service.ts";
-import * as spotsService from "#domain/spots/service.ts";
+import * as orderRead from "#domain/orders/read.ts";
+import * as inputs from "#domain/media/pdfs/order-inputs.ts";
+import { scrapLines } from "#domain/pricing/service.ts";
 import {
   buildPackingScrapRows,
   buildInvoiceScrapRows,
 } from "#domain/media/pdfs/render/sections.ts";
-import type { RenderableOrder } from "#domain/media/pdfs/render/sections.ts";
+import type { OrderView, OrderViewItem } from "@dorado/contracts";
 
-// The renderer's own type, not a restatement: getAllPurchases declares
-// `Record<string, unknown>[]` because read.service.ts discards the composed
-// type at the service boundary.
-type RenderOrder = RenderableOrder & { id: string };
-type RenderItem = NonNullable<RenderableOrder["order_items"]>[number];
-type Spot = Awaited<ReturnType<typeof spotsService.getSpotPrices>>[number];
-
-let orders: RenderOrder[];
-let spots: Spot[];
+let orders: OrderView[];
 
 before(async () => {
-  orders = (await poRepo.getAllPurchases()) as unknown as RenderOrder[];
-  // The composed shape (`name` / `ask` / `bid`) - what the renderers read
-  // since the orders wire conversion (D84) retired the legacy spellings.
-  spots = await spotsService.getSpotPrices();
+  const ids = (await orderRead.list({ direction: "purchase" })).map((o) => o.id);
+  orders = [];
+  for (const id of ids) {
+    const view = await orderRead.view(id);
+    if (view) orders.push(view);
+  }
   assert.ok(orders.length > 0, "dev has no purchase orders");
 });
 
@@ -55,18 +49,20 @@ test("every order's packing list and invoice quote the same premiums", async () 
   let compared = 0;
 
   for (const order of orders) {
-    const scrapItems = (order.order_items ?? []).filter(
-      (i: RenderItem) => i.item_type === "scrap" && i.scrap
-    );
-    if (!scrapItems.length) continue;
+    const scrap = scrapLines(order.items);
+    if (!scrap.length) continue;
     compared++;
 
-    const packing = percentages(buildPackingScrapRows(scrapItems, spots));
-    const invoice = percentages(buildInvoiceScrapRows(scrapItems, spots).rowsHtml);
+    // The SAME inputs both documents are built from - the quote the order
+    // prices at and the labels behind its ids.
+    const { bids, labels } = await inputs.invoiceInputs(order.order.id);
+
+    const packing = percentages(buildPackingScrapRows(scrap, bids, labels));
+    const invoice = percentages(buildInvoiceScrapRows(scrap, bids, labels));
 
     if (JSON.stringify(packing) !== JSON.stringify(invoice)) {
       disagreements.push(
-        `  PO ${order.number}: packing ${JSON.stringify(packing)} vs invoice ${JSON.stringify(invoice)}`
+        `  PO ${order.order.number}: packing ${JSON.stringify(packing)} vs invoice ${JSON.stringify(invoice)}`
       );
     }
   }
@@ -85,44 +81,48 @@ test("every order's packing list and invoice quote the same premiums", async () 
   );
 });
 
-// THE FALLBACK ITSELF, on a constructed item rather than whatever dev happens
-// to hold.
+// A LINE WITH NO PREMIUM RENDERS AS UNPRICED ON BOTH DOCUMENTS.
 //
-// The first version of this test looked for a real order item with a null
-// premium and asserted the invoice did not render 0.0%. It PASSED with the
-// fallback removed - so it was not testing the fallback at all, and would have
-// sat there looking like protection. Whatever it was matching, it was not the
-// thing that broke.
-//
-// Built by hand instead: no database, no dependence on a fixture surviving, and
-// it fails the moment the fallback goes.
-test("an item with no premium of its own renders the scrap's bid premium", () => {
-  const item = {
-    item_type: "scrap",
+// The old fallback into `scrap.bid_premium` is gone with the composed line -
+// the composer served that field FROM `item.premium`, so on real data it could
+// only ever resolve to the same value, and a hand-built fixture was the only
+// way to reach it. What has to hold is that neither document invents a rate:
+// an em dash on both, never 0.0% on one and 75.0% on the other.
+test("a line with no premium renders unpriced on both documents, not differently", () => {
+  const GOLD = "11111111-1111-4111-8111-111111111111";
+  const line = {
+    id: "line-1",
+    order_id: "order-1",
+    bullion_id: null,
+    metal_id: GOLD,
     price: null,
     premium: null,
     quantity: 1,
-    scrap: {
-      name: "Test Scrap",
-      metal: "Gold",
-      content: 1,
-      purity: 0.999,
-      pre_melt: 1,
-      post_melt: 1,
-      gross_unit: "t oz",
-      bid_premium: 0.75,
-    },
+    content: 1,
+    purity: 0.999,
+    pre_melt: 1,
+    post_melt: 1,
+    unit: "t oz",
+    product: null,
+  } as unknown as OrderViewItem;
+
+  const bids = new Map([[GOLD, 4000]]);
+  const labels = {
+    metals: new Map([[GOLD, "Gold"]]),
+    services: new Map<string, string>(),
+    packages: new Map<string, string>(),
   };
 
-  const { rowsHtml } = buildInvoiceScrapRows([item], spots);
-  const shown = percentages(rowsHtml);
+  const packing = buildPackingScrapRows([line], bids, labels);
+  const invoice = buildInvoiceScrapRows([line], bids, labels);
 
-  assert.ok(
-    shown.includes("75.0"),
-    `the invoice should fall back to the scrap's 75% bid premium. Rendered: ${JSON.stringify(shown)}`
+  // The purity renders as a percentage on both; the PREMIUM is the cell under
+  // test, and an absent one is an em dash rather than an invented rate.
+  assert.deepEqual(
+    percentages(packing), percentages(invoice),
+    "the two documents rendered different percentages"
   );
-  assert.ok(
-    !shown.includes("0.0"),
-    `the invoice rendered a 0.0% premium instead of falling back. Rendered: ${JSON.stringify(shown)}`
-  );
+  assert.deepEqual(percentages(packing), ["99.9"], "a document invented a rate");
+  assert.ok(packing.includes("&mdash;"), "the packing list did not mark the premium unknown");
+  assert.ok(invoice.includes("&mdash;"), "the invoice did not mark the premium unknown");
 });

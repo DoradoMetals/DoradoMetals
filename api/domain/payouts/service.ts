@@ -13,13 +13,8 @@ import * as payoutsRepo from "#db/payouts/repo.ts";
 import * as payoutDetails from "#domain/payments/details/service.ts";
 import * as orderTransactions from "#domain/orders/transactions/service.ts";
 import { refusedUnknownField, refusedValue, type Refusal } from "#shared/http/patch-body.ts";
+import { Invalid, NotFound } from "#shared/errors.ts";
 import { PayoutPatch } from "@dorado/contracts";
-
-const refuse = (statusCode: number, message: string): never => {
-  const err: Error & { statusCode?: number } = new Error(message);
-  err.statusCode = statusCode;
-  throw err;
-};
 
 // THE BODY IS THE CONTRACT'S (A3). This one had not drifted - it was declared
 // twice and the two agreed - so the move is what the move is for: there is now
@@ -51,7 +46,7 @@ export async function patchPayout(
   body: PayoutPatch & Record<string, unknown>
 ): Promise<{ success: true }> {
   const refusal = refusedField(body);
-  if (refusal) refuse(refusal.statusCode, refusal.message);
+  if (refusal) throw new Invalid(refusal.message);
 
   // ONE LOOKUP SINCE D213. getById reads payments.details joined to
   // orders.transactions, so it resolves every payout of either era and brings
@@ -59,9 +54,9 @@ export async function patchPayout(
   // a D210 id is gone. The two refusals stay distinct because the LEFT join
   // keeps them distinguishable - see sql/get_by_id.sql.
   const payout = await payoutsRepo.getById(payoutId);
-  if (!payout) refuse(404, `no payout ${payoutId}`);
+  if (!payout) throw new NotFound(`no payout ${payoutId}`);
   if (!payout!.order_id) {
-    refuse(422, `payout ${payoutId} is attached to no order, so its writes have no subject`);
+    throw new Invalid(`payout ${payoutId} is attached to no order, so its writes have no subject`);
   }
   const orderId = payout!.order_id!;
 
@@ -78,7 +73,7 @@ export async function patchPayout(
     // and an intent is money coming IN, so it matched nothing for every payout
     // it existed to serve (D168).
     const changed = await payoutDetails.setMethod(payoutId, body.method);
-    if (!changed) refuse(404, `no payout ${payoutId}`);
+    if (!changed) throw new NotFound(`no payout ${payoutId}`);
   }
 
   // THE WAIVER, AND IT DOES NOT TOUCH `cost`. Waiving sets the flag and the
@@ -97,7 +92,7 @@ export async function patchPayout(
       { direction: "purchase" }
     );
     if (!written) {
-      refuse(422, `payout ${payoutId} is not on a purchase order, so its fee cannot be waived`);
+      throw new Invalid(`payout ${payoutId} is not on a purchase order, so its fee cannot be waived`);
     }
   }
 

@@ -1,4 +1,4 @@
-// The sale-direction fields of PATCH /api/orders/:id - the supplier-send
+// POST /api/orders/:id/send_to_refiner (D214 item 11) - the supplier-send
 // guard stack, over real HTTP.
 //
 // The dispatches themselves are covered where they always were: replay.test.js
@@ -77,8 +77,8 @@ test("an order that does not exist is refused before anything runs", async () =>
   await inPinnedTransaction(async () => {
     await asAdmin(admin, async () => {
       const res = await request(app)
-        .patch("/api/orders/00000000-0000-4000-8000-000000000000")
-        .send({ supplier: { supplier_id: refiners[0].id, send: true } });
+        .post("/api/orders/00000000-0000-4000-8000-000000000000/send_to_refiner")
+        .send({ refiner_id: refiners[0].id });
       assert.equal(res.status, 404, `answered ${res.status} against a nonexistent order`);
     });
   }, { lock: ORDER_LOCK });
@@ -117,8 +117,8 @@ test("a refiner with no email is refused, and nothing is written", async () => {
       ).rows[0].n;
 
       const res = await request(app)
-        .patch(`/api/orders/${order.id}`)
-        .send({ supplier: { supplier_id: refiners[0].id, send: true } });
+        .post(`/api/orders/${order.id}/send_to_refiner`)
+        .send({ refiner_id: refiners[0].id });
 
       assert.equal(res.status, 422, `answered ${res.status}: ${JSON.stringify(res.body)}`);
 
@@ -179,8 +179,8 @@ test("a sent order cannot be moved to a different refiner", async (t) => {
       );
 
       const res = await request(app)
-        .patch(`/api/orders/${order.id}`)
-        .send({ supplier: { supplier_id: refiners[1].id, send: true } });
+        .post(`/api/orders/${order.id}/send_to_refiner`)
+        .send({ refiner_id: refiners[1].id });
 
       assert.equal(res.status, 409, `answered ${res.status}: ${JSON.stringify(res.body)}`);
 
@@ -192,14 +192,24 @@ test("a sent order cannot be moved to a different refiner", async (t) => {
   }, { lock: ORDER_LOCK });
 });
 
-test("a supplier document without send: true is refused by name", async () => {
+// `send: true` USED TO BE REQUIRED because the field was a flag in a PATCH
+// body and attaching-without-sending was not an operation this endpoint had.
+// The endpoint IS the operation now, so the body is the refiner's id and
+// nothing else: a document that names anything more is refused.
+test("the send body is one id, and nothing else is a field of it", async () => {
   await inPinnedTransaction(async () => {
     await asAdmin(admin, async () => {
       const res = await request(app)
-        .patch(`/api/orders/${order.id}`)
-        .send({ supplier: { supplier_id: refiners[0].id, send: false } });
+        .post(`/api/orders/${order.id}/send_to_refiner`)
+        .send({ refiner_id: refiners[0].id, send: false });
       assert.equal(res.status, 400, `answered ${res.status}`);
-      assert.match(res.body?.error?.message ?? "", /"supplier"/);
+      assert.match(res.body?.error?.message ?? "", /send/);
+
+      const missing = await request(app)
+        .post(`/api/orders/${order.id}/send_to_refiner`)
+        .send({});
+      assert.equal(missing.status, 400, `answered ${missing.status}`);
+      assert.match(missing.body?.error?.message ?? "", /refiner_id/);
     });
   }, { lock: ORDER_LOCK });
 });
@@ -215,12 +225,17 @@ test("a field the PATCH does not have - and a wrong-direction field - refuse by 
       assert.match(tracked.body?.error?.message ?? "", /"tracking"/);
 
       // finalize_pricing is a purchase-direction operation; direction is
-      // data, and the refusal says which direction this order is.
+      // data, and the refusal says which direction this order is. It is an
+      // ACTION now, so the refusal comes from the use case (422) rather than
+      // from a field table in the PATCH body (400).
       const finalized = await request(app)
-        .patch(`/api/orders/${order.id}`)
-        .send({ finalize_pricing: true });
-      assert.equal(finalized.status, 400, `answered ${finalized.status}`);
-      assert.match(finalized.body?.error?.message ?? "", /"finalize_pricing".*sale/);
+        .post(`/api/orders/${order.id}/finalize_pricing`)
+        .send({});
+      assert.equal(finalized.status, 422, `answered ${finalized.status}`);
+      assert.match(
+        finalized.body?.error?.message ?? "",
+        /purchase-direction operation and this is a sale order/
+      );
     });
   }, { lock: ORDER_LOCK });
 });

@@ -1,11 +1,21 @@
-// Placing an order, both directions. Read what the server holds, decide the
-// money, do the outside-world work that cannot be rolled back, then write every
-// row in ONE transaction and compensate if it fails.
+// PLACING AN ORDER. One use case, one input: the id of the checkout the
+// customer filled in.
 //
-// TWO DOORS, AND THE SECOND IS TEMPORARY. `placeOrder` is the zero-body create
-// (D210) - every choice is already a server-side resource. `placeSale` still
-// takes a body because the sales checkout is not converted to the row yet; it
-// collapses createSalesOrder and adminCreateSalesOrder, the actor passed in.
+//   place(checkout_id) -> the order, as OrderView
+//
+// THE CLIENT SENDS ONE ID (ruling 43). The purchase door has been a zero-body
+// create since D210; the sale door used to take the browser's whole checkout
+// document - the address book row, the cart lines, the delivery service, the
+// payment method, a credit checkbox and a `spot_prices` field declared only so
+// it could be ignored. Every one of those is a column of checkout.checkouts or
+// a row of checkout.items, and the CUSTOMER is the checkout row's own user_id,
+// so the admin door and the customer door take the same body.
+//
+// LOAD -> ASSERT -> OUTSIDE WORLD -> WRITE (D214 item 11). The outside-world
+// step is the one thing that cannot be rolled back, so it happens between the
+// reads and the transaction, and each of its steps is undone if the next
+// fails: a purchase buys a label and books a pickup, a sale authorises a card.
+// Everything else is one transaction.
 import type { PoolClient } from "pg";
 import { randomUUID } from "node:crypto";
 
@@ -21,9 +31,11 @@ import * as newShipments from "#db/shipping/shipments/repo.ts";
 import * as packagesRepo from "#db/shipping/packages/repo.ts";
 import * as servicesRepo from "#db/shipping/services/repo.ts";
 import * as paymentMethods from "#db/payments/methods/repo.ts";
-import * as metalsRepo from "#db/metals/repo.ts";
+import * as intentsRepo from "#db/payments/intents/repo.ts";
+import * as usersRepo from "#db/users/repo.ts";
 
 import * as addressService from "#domain/places/addresses/service.ts";
+import * as placeAddresses from "#db/places/addresses/repo.ts";
 import * as fulfillmentService from "#domain/fulfillments/service.ts";
 // The two bookings are their own resources (ruling 26b): checkout reaches
 // fulfillments/pickups and fulfillments/directs directly.
@@ -45,23 +57,17 @@ import * as usersService from "#domain/users/service.ts";
 import * as transactionsService from "#domain/transactions/service.ts";
 import * as sweeps from "#domain/payments/sweeps.ts";
 import * as stripeProvider from "#providers/payment/stripe.ts";
-import * as readService from "#domain/orders/read.service.ts";
+import * as orderRead from "#domain/orders/read.ts";
 import { calculateItemAsk, calculateSalesOrderTotal } from "#domain/pricing/service.ts";
 import * as rules from "#domain/orders/rules.ts";
-import { retierPremiums } from "#domain/orders/edit-line.ts";
+import { retierPremiums } from "#domain/orders/service.ts";
 
 import withTransaction from "#shared/db/withTransaction.ts";
-import { refuse } from "#shared/http/refuse.ts";
-import { auth } from "#domain/auth/client.ts";
-import { fromNodeHeaders } from "better-auth/node";
-import { FEDEX_STORE_ADDRESS, FEDEX_CARRIER_ID } from "#providers/shipments/constants.ts";
+import { Conflict, Invalid, NotFound } from "#shared/errors.ts";
+import { DORADO_CONTACT, FEDEX_STORE_ADDRESS } from "#providers/shipments/constants.ts";
 import type { CheckoutRow } from "#db/checkout/checkouts/repo.ts";
-import type { PaymentSession } from "#domain/payments/service.ts";
-import type { IncomingHttpHeaders } from "node:http";
-
-// The executor is how each step joins the caller's transaction: an order that
-// half-exists is the failure that guards.
-type Executor = PoolClient | undefined;
+import type { OrderView } from "@dorado/contracts";
+import type { Executor } from "#shared/db/executor.ts";
 
 // ===========================================================================
 // THE SHARED CORE: a checkout becomes an order
@@ -69,114 +75,85 @@ type Executor = PoolClient | undefined;
 
 // A line whose metal cannot be resolved is REFUSED, never skipped: an order
 // silently missing a line means the customer's metal arrives unrecorded.
-async function copyItems(order_id: string, checkout_id: string, executor?: Executor) {
-  const lines = await checkoutService.getItemsForOrder(checkout_id, executor);
+async function copyLines(order_id: string, checkout_id: string, tx: PoolClient) {
+  const lines = await checkoutService.getItemsForOrder(checkout_id, tx);
+  if (!lines.length) throw new Invalid("a checkout with no items cannot become an order");
 
-  if (!lines.length) throw new Error("a checkout with no items cannot become an order");
-
-  const orphan = lines.find((i) => !i.metal_id);
-  if (orphan) {
-    throw new Error(
-      `checkout item ${orphan.id} has no metal, and neither does the product it ` +
-        `names - orders.items.metal_id is NOT NULL, so this order cannot be placed`
-    );
-  }
-
-  for (const i of lines) {
-    // Not confirmed and untaxed: confirmation is the admin's act, and a
-    // purchase pays no sales tax (rules.chargesSalesTax).
-    await orderItems.create(
-      {
-        order_id,
-        bullion_id: i.bullion_id,
-        metal_id: i.metal_id as string,
-        pre_melt: i.pre_melt, post_melt: i.post_melt,
-        purity: i.purity, content: i.content,
-        premium: i.premium, quantity: i.quantity ?? 1,
-        unit: i.unit,
-      },
-      executor
-    );
-  }
-  return lines.length;
-}
-
-// ONE QUOTE PER METAL THE ORDER CONTAINS, at the live spot. Read, decide in
-// rules, then plain creates - the rule does not belong inside a statement.
-async function freezeSpots(order_id: string, executor?: Executor) {
-  const lines = await orderItems.getFor(order_id, executor);
-  const live = await spotsService.getSpotPrices(executor);
-  for (const spot of rules.spotsToFreeze(lines, live)) {
-    await orderSpots.create(
-      { order_id, metal_id: spot.metal_id, ask: spot.ask, bid: spot.bid },
-      executor
-    );
-  }
+  const rows = lines.map((line) => {
+    if (!line.metal_id) {
+      throw new Invalid(
+        `checkout item ${line.id} has no metal, and neither does the product it ` +
+          `names - orders.items.metal_id is NOT NULL, so this order cannot be placed`
+      );
+    }
+    return {
+      order_id,
+      bullion_id: line.bullion_id,
+      metal_id: line.metal_id,
+      pre_melt: line.pre_melt,
+      post_melt: line.post_melt,
+      purity: line.purity,
+      content: line.content,
+      premium: line.premium,
+      quantity: line.quantity ?? 1,
+      unit: line.unit,
+    };
+  });
+  await orderItems.createMany(rows, tx);
 }
 
 // COPYING IS THE WHOLE POINT: editing a book entry afterwards must not rewrite
 // where a parcel was sent, and deleting one must not take the record away.
 async function snapshotAddress(
-  order_id: string,
-  source_address_id: string | null | undefined,
-  executor?: Executor
-) {
+  order_id: string, source_address_id: string | null, tx: PoolClient
+): Promise<string | null> {
   if (!source_address_id) return null;
-  const snapshot_id = await addressService.snapshot(source_address_id, executor);
+  const snapshot_id = await addressService.snapshot(source_address_id, tx);
   if (!snapshot_id) return null;
-  await orderAddresses.create(
-    { order_id, address_id: snapshot_id, source_address_id }, executor
-  );
+  await orderAddresses.create({ order_id, address_id: snapshot_id, source_address_id }, tx);
   return snapshot_id;
 }
 
 // `status` is the caller's: what an order starts as differs by direction and by
 // how it was placed.
+//
+// EXPORTED AS A SEAM, not as a second door: it is the half of a placement that
+// writes rows, so the row flow can be asserted without a carrier or a card
+// being reachable. Nothing outside this file and its tests calls it.
 export async function createFromCheckout(
-  {
-    checkout_id,
-    status,
-    notes = null,
-  }: {
-    checkout_id: string;
-    status: string;
-    notes?: string | null;
-  },
-  executor?: Executor
-) {
-  const checkout = await checkoutService.getRowById(checkout_id, executor);
-  if (!checkout) throw new Error(`no such checkout: ${checkout_id}`);
-
-  const direction = checkout.direction as rules.Direction;
+  checkout: CheckoutRow, status: string, tx: PoolClient
+): Promise<{ order_id: string; number: number; fulfillment_id: string }> {
+  const direction = checkout.direction === "sale" ? "sale" : "purchase";
   const { id: order_id, number } = await ordersRepo.create(
-    { user_id: checkout.user_id, direction, status, notes },
-    executor
+    { user_id: checkout.user_id, direction, status }, tx
   );
 
   // ONE ENGAGEMENT PER ORDER, EVERY ORDER (093), values NULL until a refinery
   // is involved.
-  await refinerOrders.ensureForOrder(order_id, executor);
+  await refinerOrders.ensureForOrder(order_id, tx);
 
-  await copyItems(order_id, checkout_id, executor);
+  await copyLines(order_id, checkout.id, tx);
   // EVERY purchase line is repriced from the rates table here, bullion
   // included: the premium the cart carried is a display figure and the tier is
   // the price fact. A sale is left alone - retierPremiums checks the direction.
-  await retierPremiums(order_id, executor);
-  await freezeSpots(order_id, executor);
+  await retierPremiums(order_id, tx);
+  await orderSpots.createMany(
+    rules.spotsToFreeze(
+      order_id, await orderItems.getFor(order_id, tx), await spotsService.getSpotPrices(tx)
+    ),
+    tx
+  );
 
   // The refiner counterparts: one per customer line, one per frozen spot.
-  await refinerItems.mirrorLinesForOrder(order_id, executor);
-  await refinerSpots.coverFromOrderSpots(order_id, executor);
+  await refinerItems.mirrorLinesForOrder(order_id, tx);
+  await refinerSpots.coverFromOrderSpots(order_id, tx);
 
   // A purchase records a shipper, a sale a recipient, a pickup a pickup
   // address; only one is ever set.
   await snapshotAddress(
     order_id,
-    checkout.shipper_address_id ??
-      checkout.recipient_address_id ??
-      checkout.pickup_address_id ??
-      null,
-    executor
+    checkout.shipper_address_id ?? checkout.recipient_address_id ?? checkout.pickup_address_id,
+    tx
   );
 
   // The draft the checkout mutated is ATTACHED (D208), falling back to the
@@ -184,24 +161,21 @@ export async function createFromCheckout(
   // checks apply.
   const fulfillment = checkout.fulfillment_id
     ? await fulfillmentService.attachDraft(
-        { fulfillment_id: checkout.fulfillment_id, order_id },
-        executor
+        { fulfillment_id: checkout.fulfillment_id, order_id }, tx
       )
     : checkout.fulfillment_method_id
       ? await fulfillmentService.chooseById(
-          { order_id, method_id: checkout.fulfillment_method_id },
-          executor
+          { order_id, method_id: checkout.fulfillment_method_id }, tx
         )
       : await fulfillmentService.chooseDefault(
-          { order_id, direction, category: "SHIPMENT" },
-          executor
+          { order_id, direction, category: "SHIPMENT" }, tx
         );
 
   // Not reachable today; kept because a TypeError here would roll the order
   // back with a message that says nothing about an order.
   if (!fulfillment) {
     throw new Error(
-      `order ${order_id} was created from checkout ${checkout_id} but no ` +
+      `order ${order_id} was created from checkout ${checkout.id} but no ` +
         `fulfillment came back for it - the order cannot be handed over and ` +
         `this transaction must not commit`
     );
@@ -214,7 +188,7 @@ export async function createFromCheckout(
         pickup_address_id: checkout.pickup_address_id,
         start_time: checkout.appointment_time,
       },
-      executor
+      tx
     );
   }
 
@@ -226,7 +200,7 @@ export async function createFromCheckout(
         is_appointment: fulfillment.method.type === "APPOINTMENT",
         start_time: checkout.appointment_time,
       },
-      executor
+      tx
     );
   }
 
@@ -234,295 +208,259 @@ export async function createFromCheckout(
 }
 
 // ===========================================================================
-// THE PURCHASE DOOR: the zero-body create (D210)
+// THE ONE DOOR
 // ===========================================================================
 
-type PostalAddress = {
-  line_1: string | null; line_2: string | null; city: string | null;
-  state: string | null; country: string | null; country_code: string | null;
-  zip: string | null; phone_number: string | null; is_residential: boolean | null;
-};
+export async function place(checkout_id: string): Promise<OrderView> {
+  const checkout = await checkoutService.getRowById(checkout_id);
+  if (!checkout) throw new NotFound(`no checkout ${checkout_id}`);
 
-type ResolvedPurchase = {
-  row: CheckoutRow;
-  wantsPickup: boolean;
-  address: PostalAddress;
-  recipientName: string | null;
+  const order_id =
+    checkout.direction === "purchase"
+      ? await placePurchase(checkout)
+      : await placeSale(checkout);
+
+  const order = await orderRead.view(order_id);
+  if (!order) throw new Error(`order ${order_id} was placed and cannot be read back`);
+  return order;
+}
+
+// ===========================================================================
+// THE PURCHASE SIDE: the business buys metal, so it buys the postage
+// ===========================================================================
+
+// Everything the label step needs, resolved from ids the checkout already
+// holds. An internal computation shape: it exists so the outside-world calls
+// and the transaction read the same resolved values, once.
+type Parcel = {
+  carrier_id: string;
+  serviceType: string;
+  carrierCode: string;
   handoff: { code: string; name: string };
-  service: { rowId: string; serviceType: string; carrierCode: string; name: string };
-  pkg: {
-    rowId: string;
-    weight: { units: string; value: number };
-    dimensions: { length: number; width: number; height: number; units: string };
-  };
-  payout_details_id: string;
-  payout_fee: number;
+  weight: { units: string; value: number };
+  dimensions: { length: number; width: number; height: number; units: string };
   declaredValue: number;
   schedule: { date: string; time: string } | null;
 };
 
-// DB-only and provider-free, which is what makes it testable. Every choice is
-// already a server-side resource: ids, draft fulfillment, sealed payout.
-export async function resolvePurchaseCheckout(user_id: string): Promise<ResolvedPurchase> {
-  const row = await checkoutService.getRowFor(user_id, "purchase");
+export type PlannedPurchase = {
+  checkout: CheckoutRow;
+  /** The customer's own address row - where the parcel is collected from. */
+  shipper: NonNullable<Awaited<ReturnType<typeof placeAddresses.getOne>>>;
+  /** Who signs for it. auth.users' name; the address book has no recipient. */
+  customerName: string;
+  parcel: Parcel;
+  /** The payment method's own flat fee - server money, never a client's. */
+  payoutFee: number;
+};
 
-  const missing = (
-    [
-      ["shipper_address_id", row.shipper_address_id],
-      ["package_id", row.package_id],
-      ["carrier_service_id", row.carrier_service_id],
-      ["fulfillment_id", row.fulfillment_id],
-      ["payment_details_id", row.payment_details_id],
-    ] as const
-  ).filter(([, v]) => !v);
-  if (missing.length) {
-    throw refuse(
-      400,
-      `the checkout is not complete - missing ${missing.map(([k]) => k).join(", ")}`
+// LOAD AND ASSERT, and nothing else: no provider call is reachable from here,
+// which is what makes the whole resolution testable. Every value comes from a
+// row the checkout already names by id.
+export async function resolvePurchase(checkout: CheckoutRow): Promise<PlannedPurchase> {
+  rules.assertShippingCheckoutComplete(checkout);
+
+  const draft = await fulfillmentService.getById(checkout.fulfillment_id!);
+  if (!draft) throw new Invalid("the checkout names a fulfillment that does not exist");
+  if (draft.order_id) {
+    throw new Conflict(
+      "the checkout's fulfillment already belongs to an order - refresh and start again"
     );
   }
-
-  const draft = await fulfillmentService.getById(row.fulfillment_id as string);
-  if (!draft) throw refuse(400, "the checkout names a fulfillment that does not exist");
-  if (draft.order_id) {
-    throw refuse(409, "the checkout's fulfillment already belongs to an order - refresh and start again");
-  }
   if (draft.method.category !== "SHIPMENT") {
-    throw refuse(
-      400,
+    throw new Invalid(
       `a ${draft.method.category} fulfillment cannot be placed through the shipping ` +
         `checkout yet - choose a shipping handoff`
     );
   }
+
   const wantsPickup = draft.method.type === "CARRIER PICKUP";
-  if (wantsPickup && (!row.pickup_date || !row.pickup_time)) {
-    throw refuse(400, "a carrier pickup needs a date and a time");
-  }
+  if (wantsPickup) rules.assertPickupScheduled(checkout);
 
-  // The FEE is the method row's own flat fee - server money, never a client's.
-  const purchaseMethods = await paymentMethods.listFor("purchase");
-  const payoutMethod = purchaseMethods.find((m) => m.id === row.payment_method_id);
-  const payout_fee = Number(payoutMethod?.flat_fee ?? 0);
+  const shipper = await placeAddresses.getOne(checkout.shipper_address_id!);
+  if (!shipper) throw new Invalid("the checkout's shipper address does not exist");
 
-  const composed = await addressService.getFromId(row.shipper_address_id as string);
-  const mine = composed.find((a) => a.user_address.user_id === user_id);
-  if (!mine) throw refuse(400, "the checkout's shipper address is not in your book");
+  const box = await packagesRepo.getOne(checkout.package_id!);
+  if (!box) throw new Invalid("the checkout names a package that does not exist");
 
-  const pkgRow = await packagesRepo.getOne(row.package_id as string);
-  if (!pkgRow) throw refuse(400, "the checkout names a package that does not exist");
-  const weightValue = Number(row.package_weight ?? 0);
-  if (!(weightValue > 0)) throw refuse(400, "the parcel needs a weight");
-
-  // A real carrier row, resolved to the carrier's catalogue entry for its enum
-  // codes. Carrier-agnostic sale rows (110) price delivery and buy no labels.
-  const svcRow = await servicesRepo.getOne(row.carrier_service_id as string);
-  if (!svcRow) throw refuse(400, "the checkout names a carrier service that does not exist");
-  if (!svcRow.carrier_id) {
-    throw refuse(400, `${svcRow.name} is a sale delivery service, not a label service`);
-  }
-  const offered = await carrierServices.getOfferedServices();
-  const catalogue = offered.find(
-    (o) => o.name.toLowerCase() === String(svcRow.name).toLowerCase()
-  );
-  if (!catalogue) {
-    throw refuse(400, `${svcRow.name} is not a label service the carrier offers`);
-  }
+  // WHICH CARRIER, WHICH SERVICE TYPE - shipping's question, asked of shipping.
+  const service = await carrierServices.labelServiceFor(checkout.carrier_service_id!);
 
   // The handoff is chosen by CAPABILITY - the schedulable one is the pickup.
   // No carrier enum is ever spelled here.
   const handoffs = await handoffsService.getHandoffs();
   const handoff = handoffs.find((h) => h.requires_schedule === wantsPickup);
-  if (!handoff) throw refuse(500, "the carrier's handoff catalogue is missing an option");
+  if (!handoff) throw new Error("the carrier's handoff catalogue is missing an option");
+
+  const methods = await paymentMethods.listFor("purchase");
+  const customer = await usersRepo.getOne(checkout.user_id);
 
   return {
-    row,
-    wantsPickup,
-    address: {
-      line_1: mine.line_1, line_2: mine.line_2, city: mine.city, state: mine.state,
-      country: mine.country, country_code: mine.country_code, zip: mine.zip,
-      phone_number: mine.phone_number, is_residential: mine.is_residential,
-    },
-    recipientName: mine.user_address.label ?? null,
-    handoff: { code: handoff.code, name: handoff.name },
-    service: {
-      rowId: row.carrier_service_id as string,
-      serviceType: catalogue.code,
-      carrierCode: catalogue.carrier_code,
-      name: catalogue.name,
-    },
-    pkg: {
-      rowId: row.package_id as string,
-      weight: { units: "LB", value: weightValue },
+    checkout,
+    shipper,
+    customerName: customer?.name ?? "",
+    payoutFee: Number(
+      methods.find((m) => m.id === checkout.payment_method_id)?.flat_fee ?? 0
+    ),
+    parcel: {
+      carrier_id: service.carrier_id,
+      serviceType: service.serviceType,
+      carrierCode: service.carrierCode,
+      handoff: { code: handoff.code, name: handoff.name },
+      weight: { units: "LB", value: Number(checkout.package_weight) },
       dimensions: {
-        length: Number(pkgRow.length), width: Number(pkgRow.width),
-        height: Number(pkgRow.height), units: "IN",
+        length: Number(box.length), width: Number(box.width),
+        height: Number(box.height), units: "IN",
       },
+      // The insured amount is clamped BEFORE anything reads it (D132).
+      declaredValue: await carrierServices.clampInsuredValue(
+        Number(checkout.declared_value ?? 0), service.serviceType
+      ),
+      schedule: wantsPickup
+        ? { date: checkout.pickup_date!, time: checkout.pickup_time! }
+        : null,
     },
-    payout_details_id: row.payment_details_id as string,
-    payout_fee,
-    declaredValue: Number(row.declared_value ?? 0),
-    schedule: wantsPickup
-      ? { date: row.pickup_date as string, time: row.pickup_time as string }
-      : null,
   };
 }
 
-// THE TRANSACTION HALF, its own function so the rows can be tested with no
-// provider call reachable.
-export async function recordPlacedPurchase(
-  client: PoolClient,
-  {
-    user_id, resolved, netCharge,
-    label = null, pickupResult = null,
-  }: {
-    user_id: string;
-    resolved: ResolvedPurchase;
+// THE WRITE HALF, its own function so the rows can be asserted with no provider
+// call reachable. Every id comes off the checkout row the plan carries.
+export async function recordPurchase(
+  tx: PoolClient,
+  { planned, netCharge, label = null, pickup = null }: {
+    planned: PlannedPurchase;
     netCharge: number | null;
-    label?: { tracking_number?: string | null; buffer?: unknown } | null;
-    pickupResult?: { confirmationNumber?: string | null; location?: string | null } | null;
+    label?: { tracking_number?: string | null; bytes?: string | Buffer | null } | null;
+    pickup?: { confirmationNumber?: string | null; location?: string | null } | null;
   }
-) {
-  const { order_id, number, fulfillment_id } = await createFromCheckout(
-    { checkout_id: resolved.row.id, status: "In Transit" },
-    client
-  );
+): Promise<{ order_id: string; shipment_id: string }> {
+  const { checkout, parcel } = planned;
+  const placed = await createFromCheckout(checkout, "In Transit", tx);
 
-  // NO EXCHANGE ROWS AT ALL (D210, ruling 36): the bank numbers are sealed in
-  // payments.details at the payout step, so the anchor is gone.
   await orderTransactions.create(
     {
-      order_id,
+      order_id: placed.order_id,
       shipping: netCharge,
-      shipping_service: resolved.service.name,
+      shipping_service: parcel.serviceType,
       used_funds: false,
     },
-    client
+    tx
   );
   const payoutRecorded = await orderTransactions.update(
-    order_id,
-    { payout_details_id: resolved.payout_details_id, payout_fee: resolved.payout_fee },
+    placed.order_id,
+    { payout_details_id: checkout.payment_details_id, payout_fee: planned.payoutFee },
     {},
-    client
+    tx
   );
   if (!payoutRecorded) {
     throw new Error(
-      `order ${order_id}: the payout account and fee were not recorded - ` +
-      `this transaction must not commit`
+      `order ${placed.order_id}: the payout account and fee were not recorded - ` +
+        `this transaction must not commit`
     );
   }
 
   // Written once with everything known - ids straight off the checkout row.
-  const shipment_id = await newShipments.create({ id: randomUUID(), direction: "Inbound" }, client);
+  const shipment_id = await newShipments.create(
+    { id: randomUUID(), direction: "Inbound" }, tx
+  );
   const recorded = await newShipments.update(
     shipment_id,
     {
       tracking_number: label?.tracking_number ?? null,
       shipping_status: "Label Created",
-      label: (label?.buffer as Buffer | string | null) ?? null,
+      label: label?.bytes ?? null,
       label_type: "Generated",
-      pickup_type: resolved.handoff.name,
-      package_id: resolved.pkg.rowId,
-      carrier_service_id: resolved.service.rowId,
+      pickup_type: parcel.handoff.name,
+      package_id: checkout.package_id,
+      carrier_service_id: checkout.carrier_service_id,
       cost: netCharge,
-      insured: resolved.declaredValue > 0,
-      declared_value: resolved.declaredValue > 0 ? resolved.declaredValue : null,
+      insured: parcel.declaredValue > 0,
+      declared_value: parcel.declaredValue > 0 ? parcel.declaredValue : null,
       direction: "Inbound",
     },
-    client
+    tx
   );
   if (!recorded) {
     throw new Error(
-      `order ${order_id}: shipment ${shipment_id} vanished mid-placement - the ` +
-        `label was not recorded and this transaction must not commit`
+      `order ${placed.order_id}: shipment ${shipment_id} vanished mid-placement - ` +
+        `the label was not recorded and this transaction must not commit`
     );
   }
-  await fulfillmentShipments.link({ fulfillment_id, shipment_id }, client);
+  await fulfillmentShipments.link(
+    { fulfillment_id: placed.fulfillment_id, shipment_id }, tx
+  );
 
-  if (pickupResult && resolved.schedule) {
+  if (pickup && parcel.schedule) {
     await pickupService.recordForShipment(
       {
         shipment_id,
-        date: resolved.schedule.date,
-        time: resolved.schedule.time,
-        confirmation_number: pickupResult.confirmationNumber,
-        location: pickupResult.location,
+        date: parcel.schedule.date,
+        time: parcel.schedule.time,
+        confirmation_number: pickup.confirmationNumber,
+        location: pickup.location,
       },
-      client
+      tx
     );
   }
 
-  await checkoutService.resetAfterOrder(user_id, "purchase", client);
-  return { order_id, number, fulfillment_id, shipment_id };
+  await checkoutService.resetAfterOrder(checkout.user_id, "purchase", tx);
+  return { order_id: placed.order_id, shipment_id };
 }
 
-// The whole flow: resolve, price the postage, buy the label, record, clean up.
-export async function placeOrder(user_id: string) {
-  const resolved = await resolvePurchaseCheckout(user_id);
+async function placePurchase(checkout: CheckoutRow): Promise<string> {
+  const planned = await resolvePurchase(checkout);
+  const { parcel, shipper } = planned;
 
-  // The insured amount is clamped BEFORE anything reads it (D132), and postage
-  // is the SERVER's price - rated right before the label it pays for.
-  resolved.declaredValue = await carrierServices.clampInsuredValue(
-    resolved.declaredValue, resolved.service.serviceType
-  );
+  // POSTAGE IS THE SERVER'S PRICE, rated right before the label it pays for.
   const rates = await shippingOperations.getRates({
     shippingType: "Inbound",
-    address: resolved.address,
-    pkg: { weight: resolved.pkg.weight, dimensions: resolved.pkg.dimensions },
-    pickupType: resolved.handoff.code,
+    address: shipper,
+    pkg: { weight: parcel.weight, dimensions: parcel.dimensions },
+    pickupType: parcel.handoff.code,
     declaredValue:
-      resolved.declaredValue > 0
-        ? { amount: resolved.declaredValue, currency: "USD" }
+      parcel.declaredValue > 0
+        ? { amount: parcel.declaredValue, currency: "USD" }
         : undefined,
   });
-  const rate = (rates as Array<{ serviceType?: string; netCharge?: number }>).find(
-    (r) => r.serviceType === resolved.service.serviceType
+  const rate = (rates as { serviceType?: string; netCharge?: number }[]).find(
+    (r) => r.serviceType === parcel.serviceType
   );
   if (!rate || rate.netCharge == null) {
-    throw refuse(
-      422,
-      `the carrier quoted no rate for ${resolved.service.name} - try a different service`
+    throw new Invalid(
+      `the carrier quoted no rate for ${parcel.serviceType} - try a different service`
     );
   }
-  const netCharge = rate.netCharge;
 
   // Outside-world work first, each step undone if the next fails: a label must
   // exist before the row can record it, so the compensation is voiding it.
-  const labelData = await shippingOps.createLabel(FEDEX_CARRIER_ID, undefined, {
+  const labelData = await shippingOps.createLabel(parcel.carrier_id, undefined, {
     shipper: {
       contact: {
-        personName: resolved.recipientName,
-        phoneNumber: resolved.address.phone_number,
+        personName: planned.customerName,
+        phoneNumber: shipper.phone_number ?? "",
       },
-      address: resolved.address,
+      address: shipper,
     },
-    recipient: {
-      contact: {
-        personName: process.env.FEDEX_DORADO_NAME,
-        phoneNumber: process.env.FEDEX_DORADO_PHONE_NUMBER,
-      },
-      address: FEDEX_STORE_ADDRESS,
-    },
-    serviceType: resolved.service.serviceType,
-    pickupType: resolved.handoff.code,
-    pkg: { weight: resolved.pkg.weight, dimensions: resolved.pkg.dimensions },
-    insurance: {
-      declaredValue: { amount: resolved.declaredValue, currency: "USD" },
-    },
+    recipient: { contact: DORADO_CONTACT, address: FEDEX_STORE_ADDRESS },
+    serviceType: parcel.serviceType,
+    pickupType: parcel.handoff.code,
+    pkg: { weight: parcel.weight, dimensions: parcel.dimensions },
+    insurance: { declaredValue: { amount: parcel.declaredValue, currency: "USD" } },
   });
-  const buffer = await shippingOperations.labelBufferOrVoid(labelData);
+  const bytes = await shippingOperations.labelBufferOrVoid(labelData);
 
-  let pickupResult: { confirmationNumber?: string | null; location?: string | null } | null = null;
-  if (resolved.wantsPickup && resolved.schedule) {
+  let pickup: { confirmationNumber?: string | null; location?: string | null } | null = null;
+  if (parcel.schedule) {
     try {
-      pickupResult = await shippingOps.createPickup(FEDEX_CARRIER_ID, undefined, {
+      pickup = await shippingOps.createPickup(parcel.carrier_id, undefined, {
         pickupContact: {
-          personName: resolved.recipientName,
-          phoneNumber: resolved.address.phone_number,
+          personName: planned.customerName,
+          phoneNumber: shipper.phone_number ?? "",
         },
-        pickupAddress: resolved.address,
-        pickupDate: resolved.schedule.date,
-        pickupTime: resolved.schedule.time,
-        carrierCode: resolved.service.carrierCode ?? "FDXE",
+        pickupAddress: shipper,
+        pickupDate: parcel.schedule.date,
+        pickupTime: parcel.schedule.time,
+        carrierCode: parcel.carrierCode,
         trackingNumber: labelData.tracking_number,
       });
     } catch (err) {
@@ -531,23 +469,26 @@ export async function placeOrder(user_id: string) {
     }
   }
 
-  let placed: Awaited<ReturnType<typeof recordPlacedPurchase>>;
+  // THE TRANSACTION, AND NOTHING ELSE INSIDE ITS COMPENSATION. If the rows do
+  // not commit, the label and the booking are undone; if they do, the outside
+  // world is told - after the commit, never inside it, which is the rule
+  // shared/db/tests/transaction-side-effects.test.ts fails the build over.
+  let order_id: string;
   try {
-    placed = await withTransaction((client) =>
-      recordPlacedPurchase(client, {
-        user_id,
-        resolved,
-        netCharge,
-        label: { tracking_number: labelData.tracking_number, buffer },
-        pickupResult,
+    ({ order_id } = await withTransaction((tx) =>
+      recordPurchase(tx, {
+        planned,
+        netCharge: rate.netCharge!,
+        label: { tracking_number: labelData.tracking_number, bytes },
+        pickup,
       })
-    );
+    ));
   } catch (err) {
     await shippingOperations.voidPickup(
-      pickupResult && {
-        confirmationNumber: pickupResult.confirmationNumber,
-        location: pickupResult.location,
-        pickupDate: resolved.schedule?.date ?? null,
+      pickup && {
+        confirmationNumber: pickup.confirmationNumber,
+        location: pickup.location,
+        pickupDate: parcel.schedule?.date ?? null,
       }
     );
     await shippingOperations.voidLabel(labelData.tracking_number);
@@ -555,222 +496,84 @@ export async function placeOrder(user_id: string) {
   }
 
   // Device-sync data: a failed clear is a stale basket, not lost data.
-  try {
-    await checkoutService.syncCart(user_id, "purchase", []);
-  } catch {
-    /* the next sync heals it */
-  }
-
-  const created = await readService.findPurchaseById(placed.order_id);
-  await emailService.sendOrderPlacedConfirmation(placed.order_id);
-  return created;
+  await checkoutService.syncCart(checkout.user_id, "purchase", []).catch(() => {});
+  await emailService.sendOrderPlacedConfirmation(order_id);
+  return order_id;
 }
 
 // ===========================================================================
-// THE SALE DOOR
+// THE SALE SIDE: the customer buys metal, so the customer is charged
 // ===========================================================================
-
-// req.body, so every field is whatever arrived - which is why the items and the
-// address are re-fetched by id and the price comes from the server's spots.
-export type SalesOrderInput = {
-  address: { id: string };
-  items: { id: string; quantity: number }[];
-  using_funds?: boolean | null;
-  // `value` prices the delivery; `label` is stored as shipping_service.
-  service: { value?: string | null; label?: string | null };
-  payment_method?: string | null;
-};
-
-type SaleActor = { id: string; name?: string | null; dorado_funds?: number | null };
-
-const asNumber = (v: unknown): number | null =>
-  v === null || v === undefined || v === "" ? null : Number(v);
-
-// Loose on purpose: a priced line has been through pricing and tax and picked
-// up fields along the way, and this file does not own that shape.
-type PricedItem = Record<string, unknown> & {
-  id?: unknown; quantity?: unknown; ask_premium?: unknown;
-  sales_tax_rate?: unknown; metal_id?: unknown; metal_type?: unknown;
-};
-
-// Four rows: the order, its engagement, its money and its address link.
-async function insertSale(
-  client: PoolClient,
-  { user, status, sales_order, orderPrices }: {
-    user: SaleActor;
-    status: string;
-    sales_order: SalesOrderInput;
-    orderPrices: ReturnType<typeof calculateSalesOrderTotal>;
-  }
-): Promise<string> {
-  const id = randomUUID();
-  await ordersRepo.create({ id, user_id: user.id, direction: "sale", status }, client);
-  await refinerOrders.ensureForOrder(id, client);
-
-  // A MAPPING, NOT A COPY: five of these change name between pricing's output
-  // and the column. The repo defaults an absent field to NULL.
-  await orderTransactions.create(
-    {
-      order_id: id,
-      total: orderPrices.order_total,
-      shipping: orderPrices.shipping_charge,
-      shipping_service: sales_order.service?.label,
-      funds: orderPrices.pre_charges_amount,
-      post_charges_amount: orderPrices.post_charges_amount,
-      subject_to_charges_amount: orderPrices.subject_to_charges_amount,
-      used_funds: sales_order.using_funds,
-      items: orderPrices.item_total,
-      base_total: orderPrices.base_total,
-      surcharge: orderPrices.charges_amount,
-      sales_tax: orderPrices.sales_tax,
-    },
-    client
-  );
-
-  // Both ids are the book row: a sale takes no snapshot until its checkout is
-  // converted to the row flow.
-  await orderAddresses.create(
-    { order_id: id, address_id: sales_order.address.id, source_address_id: sales_order.address.id },
-    client
-  );
-
-  return id;
-}
-
-// A sale is always bullion, so a line's metal comes from its PRODUCT; one that
-// cannot be resolved would write null into a NOT NULL column and is refused.
 //
-// STOREFRONT ITEMS CARRY THE NAME, NOT THE ID, so the name lookup is not a
-// fallback - it is the path every customer order takes.
-async function insertSaleLines(
-  client: PoolClient,
-  orderId: string,
-  items: PricedItem[],
-  spot_prices: { name: string; ask?: number | null; bid?: number | null }[]
-): Promise<void> {
-  const idByName = await metalsRepo.idsByName(client);
-
-  for (const item of items) {
-    const metal_id =
-      (item.metal_id as string | null) ??
-      (item.metal_type ? idByName.get(item.metal_type as string) : undefined);
-    if (!metal_id) {
-      throw refuse(
-        422,
-        `product ${String(item.id)} has no metal, so its order line cannot be written`
-      );
-    }
-    await orderItems.create(
-      {
-        order_id: orderId,
-        bullion_id: typeof item.id === "string" ? item.id : null,
-        metal_id,
-        premium: asNumber(item.ask_premium),
-        quantity: asNumber(item.quantity),
-        confirmed: true,
-        sales_tax_charged: asNumber(item.sales_tax_rate) ?? 0,
-        price: calculateItemAsk(item as never, spot_prices as never),
-      },
-      client
-    );
-  }
-
-  for (const spot of spot_prices) {
-    // A metal the quote names but the database lacks is skipped, not invented.
-    const metal_id = idByName.get(spot.name);
-    if (metal_id) {
-      await orderSpots.create(
-        { order_id: orderId, metal_id, ask: spot.ask, bid: spot.bid },
-        client
-      );
-    }
-  }
-
-  // 093's coverage invariant: no customer line or spot without its refiner row.
-  await refinerItems.mirrorLinesForOrder(orderId, client);
-  await refinerSpots.coverFromOrderSpots(orderId, client);
-}
-
-// A SECOND, independent lookup from the one requireUser did, so it can answer
-// null even on a guarded route. A missing session is a 401, not a 500.
-export async function callerFrom(headers: IncomingHttpHeaders): Promise<SaleActor> {
-  const session = (await auth.api.getSession({
-    headers: fromNodeHeaders(headers),
-  })) as PaymentSession | null;
-  if (!session?.user?.id) {
-    throw refuse(401, "no session - an order cannot be placed without one");
-  }
-  return session.user;
-}
-
-// Placing a sale. One function for what were createSalesOrder and
-// adminCreateSalesOrder: they differed only in where the actor came from.
-//
-// CREATE-THEN-CHARGE: the order exists before any money moves. The old ordering
-// left a paid customer with no order when the second half failed (D179).
+// CREATE-THEN-CHARGE: the order exists before any money moves. The old
+// ordering left a paid customer with no order when the second half failed
+// (D179).
 //
 // SPOT PRICES COME FROM THE SERVER, NOT THE BODY. A body-supplied ask of 1 once
 // recorded $26.81 for an ounce of gold and the payment intent agreed with it.
-// A held quote needs a table and is written up in FOLLOWUPS.
-export async function placeSale({
-  sales_order,
-  payment_intent_id,
-  user,
-}: {
-  sales_order: SalesOrderInput;
-  payment_intent_id: string;
-  user: SaleActor;
-}) {
-  const address = await addressService.getAddressFromId(sales_order.address.id);
-  if (!address) throw refuse(400, `no address ${sales_order.address.id}`);
+async function placeSale(checkout: CheckoutRow): Promise<string> {
+  if (!checkout.recipient_address_id) {
+    throw new Invalid("the checkout names no delivery address");
+  }
+  const address = await placeAddresses.getOne(checkout.recipient_address_id);
+  if (!address) throw new Invalid("the checkout's delivery address does not exist");
 
-  const serverItems = await productService.getItemsFromServer(sales_order.items);
+  const lines = await checkoutService.getItemsForOrder(checkout.id);
+  if (!lines.length) throw new Invalid("a checkout with no items cannot become an order");
+
+  const catalogue = await productService.getItemsFromServer(
+    lines.flatMap((line) =>
+      line.bullion_id === null ? [] : [{ id: line.bullion_id, quantity: line.quantity ?? 0 }]
+    )
+  );
   const spot_prices = await spotsService.getSpotPrices();
-  const items = await taxService.attachSalesTaxToItems(
-    address.state, serverItems, spot_prices
-  );
+  const items = await taxService.attachSalesTaxToItems(address.state, catalogue, spot_prices);
 
-  // Pricing is pure and lives outside the transaction: the verification below
-  // needs the number before anything is written.
-  const orderPrices = calculateSalesOrderTotal(
-    items,
-    sales_order.using_funds,
-    spot_prices,
-    user,
-    sales_order.service.value,
-    sales_order.payment_method
-  );
-  const cents = rules.chargeCents(orderPrices.post_charges_amount);
+  // THE DELIVERY SERVICE AND THE PAYMENT METHOD ARE ROWS the checkout names by
+  // id. `code` prices the delivery; `type` decides the card surcharge.
+  const service = checkout.carrier_service_id
+    ? await servicesRepo.getOne(checkout.carrier_service_id)
+    : undefined;
+  const methods = await paymentMethods.listFor("sale");
+  const method = methods.find((m) => m.id === checkout.payment_method_id);
 
-  // THE INTENT IS VERIFIED, WHERE IT USED TO BE TRUSTED: the old code attached
-  // whatever id the body named, whosever it was.
+  // CREDIT IS THE SERVER'S FACT, NOT A CHECKBOX. `using_funds` used to arrive
+  // in the body; a customer's balance is a row this API owns, and the pricing
+  // already caps what is applied at the order's own total.
+  const balance = (await usersRepo.balanceForUpdate(checkout.user_id)) ?? 0;
+  const prices = calculateSalesOrderTotal(
+    items, balance > 0, spot_prices, { dorado_funds: balance }, service?.code, method?.type
+  );
+  const cents = rules.chargeCents(prices.post_charges_amount);
+
+  // THE INTENT IS RESOLVED SERVER-SIDE, where it used to be named by the body:
+  // the old code attached whatever id arrived, whosever it was.
   let alreadySucceeded = false;
+  let payment_intent_id: string | null = null;
   if (cents > 0) {
     if (rules.belowStripeMinimum(cents)) {
-      throw refuse(422, "the amount left to charge is below Stripe's $0.50 minimum");
+      throw new Invalid("the amount left to charge is below Stripe's $0.50 minimum");
     }
-    if (typeof payment_intent_id !== "string" || payment_intent_id.length === 0) {
-      throw refuse(400, "this order has a card charge and no payment intent was named");
-    }
-    const intent = await paymentsService.findIntentByRef(payment_intent_id);
-    // "does not exist" and "is not yours" are deliberately one answer, and
-    // ownership is the NAMED CUSTOMER's rather than the admin's.
-    if (!intent || intent.user_id !== user.id) {
-      throw refuse(403, "that payment intent does not exist");
+    const intent = await intentsRepo.findOpenForUser(checkout.user_id);
+    if (!intent) {
+      throw new Invalid(
+        "this order has a card charge and the customer has no open payment intent"
+      );
     }
     if (intent.payment_status === "canceled") {
-      throw refuse(409, "that payment intent was cancelled - start checkout again");
+      throw new Conflict("that payment intent was cancelled - start checkout again");
     }
+    payment_intent_id = intent.payment_intent_id;
 
     switch (rules.attachmentVerdict(intent)) {
       case "conflict":
-        throw refuse(409, "that payment intent already belongs to an order");
+        throw new Conflict("that payment intent already belongs to an order");
       case "supersede":
-        // An abandoned checkout is SUPERSEDED, not refused: the intent is reused
-        // until it settles, and refusing strands the customer trying to pay.
-        await withTransaction(async (client) => {
-          await sweeps.cancelPendingSale(intent.sales_order_id as string, client);
-          await paymentsService.attachOrder(payment_intent_id, null, client);
+        // An abandoned checkout is SUPERSEDED, not refused: the intent is
+        // reused until it settles, and refusing strands the customer paying.
+        await withTransaction(async (tx) => {
+          await sweeps.cancelPendingSale(intent.sales_order_id as string, tx);
+          await paymentsService.attachOrder(payment_intent_id!, null, tx);
         });
         break;
       default:
@@ -781,10 +584,9 @@ export async function placeSale({
       // A settled, unattached intent is D179 wreckage arriving to be repaired:
       // the money is real, so the order is born paid IF the amount still matches.
       if (!rules.repairAmountMatches(intent.amount, cents)) {
-        throw refuse(
-          409,
-          `payment ${payment_intent_id} was taken at a different price than ` +
-          `this order totals now - contact support with that reference`
+        throw new Conflict(
+          `payment ${payment_intent_id} was taken at a different price than this ` +
+            `order totals now - contact support with that reference`
         );
       }
       alreadySucceeded = intent.payment_status === "succeeded";
@@ -792,37 +594,68 @@ export async function placeSale({
       // The server sets the authoritative amount NOW - outside the transaction,
       // because a Stripe call cannot be rolled back - so the customer confirms
       // exactly what the server priced.
-      const updated = await stripeProvider.updateIntent(payment_intent_id, { amount: cents });
-      await paymentsService.updateFromProvider(updated);
+      await paymentsService.updateFromProvider(
+        await stripeProvider.updateIntent(payment_intent_id, { amount: cents })
+      );
     }
   }
 
-  const orderId = await withTransaction(async (client) => {
-    const orderId = await insertSale(client, {
-      user,
-      status: rules.statusAtPlacement(cents, alreadySucceeded),
-      sales_order,
-      orderPrices,
-    });
+  return await withTransaction(async (tx) => {
+    const placed = await createFromCheckout(
+      checkout, rules.statusAtPlacement(cents, alreadySucceeded), tx
+    );
 
-    if (sales_order.using_funds === true) {
+    await orderTransactions.create(
+      {
+        order_id: placed.order_id,
+        total: prices.order_total,
+        shipping: prices.shipping_charge,
+        shipping_service: service?.name,
+        funds: prices.pre_charges_amount,
+        post_charges_amount: prices.post_charges_amount,
+        subject_to_charges_amount: prices.subject_to_charges_amount,
+        used_funds: prices.pre_charges_amount > 0,
+        items: prices.item_total,
+        base_total: prices.base_total,
+        surcharge: prices.charges_amount,
+        sales_tax: prices.sales_tax,
+      },
+      tx
+    );
+
+    if (prices.pre_charges_amount > 0) {
       // Credit is RESERVED at creation so the same dollars cannot be spent
-      // twice; the abandonment sweep puts it back if the payment never arrives.
-      await usersService.removeFunds(user.id, orderPrices.pre_charges_amount, client);
+      // twice; the abandonment sweep puts it back if payment never arrives.
+      await usersService.removeFunds(checkout.user_id, prices.pre_charges_amount, tx);
       await transactionsService.addTransactionLog(
-        user.id, "Debit", null, orderId, orderPrices.pre_charges_amount, client
+        checkout.user_id, "Debit", null, placed.order_id, prices.pre_charges_amount, tx
       );
     }
 
-    await insertSaleLines(client, orderId, items, spot_prices);
-    await taxService.updateStateSalesTax(orderPrices.sales_tax, address.state, client);
-
-    if (cents > 0) {
-      await paymentsService.attachOrder(payment_intent_id, orderId, client);
+    // THE PRICE OF EACH LINE, from the server's own spots and the catalogue's
+    // ask premium - written onto the rows createFromCheckout already made.
+    for (const line of await orderItems.getFor(placed.order_id, tx)) {
+      const priced = items.find((i) => i.id === line.bullion_id);
+      if (!priced) continue;
+      await orderItems.update(
+        line.id,
+        {
+          confirmed: true,
+          premium: Number(priced.ask_premium ?? 0),
+          sales_tax_charged: rules.chargesSalesTax("sale") ? priced.sales_tax_rate : 0,
+          price: calculateItemAsk(priced, spot_prices),
+        },
+        { order_id: placed.order_id },
+        tx
+      );
     }
 
-    return orderId;
-  });
+    await taxService.updateStateSalesTax(prices.sales_tax, address.state, tx);
+    if (payment_intent_id) {
+      await paymentsService.attachOrder(payment_intent_id, placed.order_id, tx);
+    }
+    await checkoutService.resetAfterOrder(checkout.user_id, "sale", tx);
 
-  return await readService.findSaleById(orderId);
+    return placed.order_id;
+  });
 }

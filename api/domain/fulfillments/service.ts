@@ -11,7 +11,7 @@ import * as shipmentLinks from "#db/fulfillments/shipments/repo.ts";
 import * as orders from "#db/orders/repo.ts";
 import * as compose from "#domain/fulfillments/compose.ts";
 import type { ComposedFulfillment, Details } from "#domain/fulfillments/compose.ts";
-import { refuse } from "#shared/http/refuse.ts";
+import { Conflict, NotFound } from "#shared/errors.ts";
 import type { PoolClient } from "pg";
 import type { fulfillments as fulfillmentTables } from "@dorado/contracts";
 
@@ -28,7 +28,7 @@ type Direction = NonNullable<fulfillmentTables.MethodsRow["direction"]>;
 type Category = fulfillmentTables.MethodsRow["category"];
 
 // Every refusal carries a status, which is why the messages are worth writing: errorHandler shows a message to the caller only for a deliberate 4xx - these used to be bare `new Error`, so every one arrived as a generic 500 "Server error", and an admin trying to move an order off SHIPMENT was told that instead of "cancel the shipment first".
-// 404 for "that doesn't exist", 409 for "the current state forbids this". refuse() is shared/http/refuse.ts - the same three lines used to live in several services; sharing it avoided yet another copy.
+// NotFound for "that doesn't exist", Conflict for "the current state forbids this" - shared/errors.ts. A use case names the KIND of refusal; shared/middleware/errorHandler.ts maps it to a status, so no domain file spells an HTTP code (D214 item 11).
 
 // ------------------------------------------------------------- composition
 
@@ -112,12 +112,9 @@ async function createFulfillment(
   executor?: Executor
 ): Promise<ComposedFulfillment | null> {
   if (!(await orders.exists(order_id, executor))) {
-    throw refuse(
-      409,
-      `cannot fulfill order ${order_id}: it is not in orders.orders. ` +
+    throw new Conflict(`cannot fulfill order ${order_id}: it is not in orders.orders. ` +
         `Every order is created there directly now, so an id that misses is ` +
-        `either unknown or a pre-migration order the backfill has not carried.`
-    );
+        `either unknown or a pre-migration order the backfill has not carried.`);
   }
 
   const made = await fulfillments.create(
@@ -150,10 +147,10 @@ export async function attachDraft(
     fulfillment_id, { order_id }, executor
   );
   if (!row) {
-    throw refuse(409, `fulfillment ${fulfillment_id} is not a draft - it already belongs to an order`);
+    throw new Conflict(`fulfillment ${fulfillment_id} is not a draft - it already belongs to an order`);
   }
   const composed = await composeOne(row, executor);
-  if (!composed) throw refuse(500, `fulfillment ${fulfillment_id} vanished mid-attach`);
+  if (!composed) throw new Error(`fulfillment ${fulfillment_id} vanished mid-attach`);
   return composed;
 }
 
@@ -202,10 +199,10 @@ export async function setMethod(
   executor?: Executor
 ): Promise<ComposedFulfillment | null> {
   const target = await methodService.getOne(method_id, executor);
-  if (!target) throw refuse(404, `no such fulfillment method: ${method_id}`);
+  if (!target) throw new NotFound(`no such fulfillment method: ${method_id}`);
 
   const current = await fulfillments.getOne(id, executor);
-  if (!current) throw refuse(404, `no such fulfillment: ${id}`);
+  if (!current) throw new NotFound(`no such fulfillment: ${id}`);
 
   const currentMethod = await methodService.getOne(current.method_id, executor);
   if (
@@ -213,20 +210,14 @@ export async function setMethod(
     target.category !== "SHIPMENT" &&
     (await shipmentLinks.existsFor(id, executor))
   ) {
-    throw refuse(
-      409,
-      `fulfillment ${id} already has a shipment - cancel it through features/shipping ` +
-        `before moving the order off SHIPMENT`
-    );
+    throw new Conflict(`fulfillment ${id} already has a shipment - cancel it through features/shipping ` +
+        `before moving the order off SHIPMENT`);
   }
 
   const changed = await fulfillments.update(id, { method_id }, executor);
   if (!changed) {
-    throw refuse(
-      500,
-      `fulfillment ${id} vanished between its existence check and the method update - ` +
-        `this transaction must not commit`
-    );
+    throw new Error(`fulfillment ${id} vanished between its existence check and the method update - ` +
+        `this transaction must not commit`);
   }
 
   if (target.category !== "PICKUP") await pickups.remove(id, executor);
@@ -240,16 +231,13 @@ export async function assertCategory(
   fulfillment_id: string, category: Category, executor?: Executor
 ): Promise<void> {
   const row = await fulfillments.getOne(fulfillment_id, executor);
-  if (!row) throw refuse(404, `no such fulfillment: ${fulfillment_id}`);
+  if (!row) throw new NotFound(`no such fulfillment: ${fulfillment_id}`);
   const method = await methodService.getOne(row.method_id, executor);
   const found = method?.category;
-  if (!found) throw refuse(404, `no such fulfillment: ${fulfillment_id}`);
+  if (!found) throw new NotFound(`no such fulfillment: ${fulfillment_id}`);
   if (found !== category) {
-    throw refuse(
-      409,
-      `fulfillment ${fulfillment_id} is a ${found}, not a ${category} - ` +
-        `change the method before scheduling`
-    );
+    throw new Conflict(`fulfillment ${fulfillment_id} is a ${found}, not a ${category} - ` +
+        `change the method before scheduling`);
   }
 }
 

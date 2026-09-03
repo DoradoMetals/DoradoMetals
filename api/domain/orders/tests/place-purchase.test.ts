@@ -23,7 +23,7 @@ type UserFixture = { id: string };
 
 let customer: UserFixture;
 let addressId: string;
-let recipientLabel: string | null;
+let customerName: string | null;
 let packageId: string;
 let labelServiceId: string;   // 'Express Saver' - a real carrier row the catalogue offers
 let saleServiceId: string;    // a carrier-agnostic sale row (110) - must be refused
@@ -46,18 +46,22 @@ const payoutForm = (routing_number = "021000021", account_number = "000123456789
 const PAYOUT = payoutForm();
 
 before(async () => {
-  const users = await outside<{ id: string; address_id: string; label: string | null }>(
-    `SELECT u.id, ua.address_id, ua.label
+  // WHO SIGNS FOR THE PARCEL IS THE CUSTOMER'S NAME (D214 item 12). It used to
+  // be the address BOOK's label ("Home"), read from exchange.addresses' `name`
+  // through the composer; places.addresses has no such column, and the person
+  // is the same person either way.
+  const users = await outside<{ id: string; address_id: string; name: string | null }>(
+    `SELECT u.id, ua.address_id, a.name
        FROM exchange.users u
        JOIN places.user_addresses ua ON ua.user_id = u.id
+       JOIN auth.users a ON a.id = u.id
       WHERE u.role IS DISTINCT FROM 'admin'
-        AND EXISTS (SELECT 1 FROM auth.users a WHERE a.id = u.id)
       ORDER BY u.email LIMIT 1`
   );
   assert.ok(users.length, "dev needs a non-admin user with an address");
   customer = { id: users[0].id };
   addressId = users[0].address_id;
-  recipientLabel = users[0].label;
+  customerName = users[0].name;
 
   packageId = (
     await outside<{ id: string }>(
@@ -197,7 +201,9 @@ test("an incomplete or nonsense payout form refuses", async () => {
       const res = await as(customer, () =>
         request(app).post("/api/checkout/payout").send(form)
       );
-      assert.equal(res.status, 400, `accepted: ${JSON.stringify(form)}`);
+      // 422, NOT 400 (D214 item 11): the payout form's rules are the domain's,
+      // and a domain refusal is Invalid.
+      assert.equal(res.status, 422, `accepted: ${JSON.stringify(form)}`);
       assert.match(res.body?.error?.message ?? res.text, why);
     }
   });
@@ -205,48 +211,51 @@ test("an incomplete or nonsense payout form refuses", async () => {
 
 // ------------------------------------------------------- the resolution
 
+// THE PLAN IS THE CHECKOUT ROW, RESOLVED. `resolvePurchase` takes the row
+// itself now rather than a user id - `place(checkout_id)` is the whole input,
+// and the customer is the row's own user_id.
+const planFor = async () =>
+  await orderCreate.resolvePurchase(
+    await checkoutService.getRowFor(customer.id, "purchase")
+  );
+
 test("the resolution reads ONLY the row - no body exists any more", async () => {
   await inPinnedTransaction(async () => {
     const { fulfillment_id, payment_details_id } = await primeCheckout(dropoffMethodId);
 
-    const resolved = await orderCreate.resolvePurchaseCheckout(customer.id);
+    const planned = await planFor();
 
-    assert.equal(resolved.row.shipper_address_id, addressId);
-    assert.equal(resolved.recipientName, recipientLabel);
-    assert.equal(resolved.service.serviceType, "FEDEX_EXPRESS_SAVER");
-    assert.equal(resolved.service.rowId, labelServiceId);
-    assert.equal(resolved.handoff.code, "DROPOFF_AT_FEDEX_LOCATION");
-    assert.equal(resolved.pkg.rowId, packageId);
-    assert.equal(resolved.pkg.weight.value, 3, "the weight came off the ROW");
-    assert.equal(resolved.declaredValue, 2500, "the declared value came off the ROW");
-    assert.equal(resolved.payout_details_id, payment_details_id);
-    assert.equal(resolved.payout_fee, 0, "ACH carries no flat fee");
-    assert.equal(resolved.row.fulfillment_id, fulfillment_id);
+    assert.equal(planned.checkout.shipper_address_id, addressId);
+    assert.equal(planned.shipper.id, addressId, "the address row itself is carried");
+    assert.equal(planned.customerName, customerName);
+    assert.equal(planned.parcel.serviceType, "FEDEX_EXPRESS_SAVER");
+    assert.equal(planned.checkout.carrier_service_id, labelServiceId);
+    assert.equal(planned.parcel.handoff.code, "DROPOFF_AT_FEDEX_LOCATION");
+    assert.equal(planned.checkout.package_id, packageId);
+    assert.equal(planned.parcel.weight.value, 3, "the weight came off the ROW");
+    assert.equal(planned.parcel.declaredValue, 2500, "the declared value came off the ROW");
+    assert.equal(planned.checkout.payment_details_id, payment_details_id);
+    assert.equal(planned.payoutFee, 0, "ACH carries no flat fee");
+    assert.equal(planned.checkout.fulfillment_id, fulfillment_id);
   });
 });
 
 test("a pickup needs its slot ON THE ROW, and carries it when set", async () => {
   await inPinnedTransaction(async () => {
     await primeCheckout(pickupMethodId);
-    await assert.rejects(
-      () => orderCreate.resolvePurchaseCheckout(customer.id),
-      /date and a time/
-    );
+    await assert.rejects(() => planFor(), /date and a time/);
 
     await primeCheckout(pickupMethodId, { schedule: true });
-    const resolved = await orderCreate.resolvePurchaseCheckout(customer.id);
-    assert.equal(resolved.handoff.name, "Carrier Pickup");
-    assert.equal(resolved.schedule?.date, "2026-09-15");
-    assert.equal(resolved.schedule?.time, "10:30:00");
+    const planned = await planFor();
+    assert.equal(planned.parcel.handoff.name, "Carrier Pickup");
+    assert.equal(planned.parcel.schedule?.date, "2026-09-15");
+    assert.equal(planned.parcel.schedule?.time, "10:30:00");
   });
 });
 
 test("an incomplete checkout names every missing piece - the payout included", async () => {
   await inPinnedTransaction(async () => {
-    await assert.rejects(
-      () => orderCreate.resolvePurchaseCheckout(customer.id),
-      /missing .*payment_details_id/
-    );
+    await assert.rejects(() => planFor(), /missing .*payment_details_id/);
   });
 });
 
@@ -258,10 +267,7 @@ test("a sale delivery service buys no labels, and a non-SHIPMENT method refuses"
         direction: "purchase", carrier_service_id: saleServiceId,
       })
     );
-    await assert.rejects(
-      () => orderCreate.resolvePurchaseCheckout(customer.id),
-      /not a label service|sale delivery service/
-    );
+    await assert.rejects(() => planFor(), /not a label service|sale delivery service/);
 
     await as(customer, () =>
       request(app).patch("/api/checkout").send({
@@ -273,10 +279,7 @@ test("a sale delivery service buys no labels, and a non-SHIPMENT method refuses"
         direction: "purchase", method_id: directMethodId,
       })
     );
-    await assert.rejects(
-      () => orderCreate.resolvePurchaseCheckout(customer.id),
-      /cannot be placed through the shipping checkout/
-    );
+    await assert.rejects(() => planFor(), /cannot be placed through the shipping checkout/);
   });
 });
 
@@ -286,12 +289,13 @@ test("the record half links ids and writes NO exchange rows at all", async () =>
   await inPinnedTransaction(async (c: PoolClient) => {
     const { fulfillment_id, payment_details_id } =
       await primeCheckout(pickupMethodId, { schedule: true });
-    const resolved = await orderCreate.resolvePurchaseCheckout(customer.id);
+    const planned = await orderCreate.resolvePurchase(
+      await checkoutService.getRowFor(customer.id, "purchase", c)
+    );
 
-    const placed = await orderCreate.recordPlacedPurchase(c, {
-      user_id: customer.id, resolved, netCharge: 24.5,
-      label: null,
-      pickupResult: { confirmationNumber: "9971234", location: "FRONT" },
+    const placed = await orderCreate.recordPurchase(c, {
+      planned, netCharge: 24.5,
+      pickup: { confirmationNumber: "9971234", location: "FRONT" },
     });
 
     // The order core, with the DRAFT as its one fulfillment.
@@ -376,10 +380,10 @@ test("the record half links ids and writes NO exchange rows at all", async () =>
 test("a spent draft refuses the SECOND order", async () => {
   await inPinnedTransaction(async (c: PoolClient) => {
     const primed = await primeCheckout(dropoffMethodId);
-    const first = await orderCreate.resolvePurchaseCheckout(customer.id);
-    await orderCreate.recordPlacedPurchase(c, {
-      user_id: customer.id, resolved: first, netCharge: 24.5,
-    });
+    const first = await orderCreate.resolvePurchase(
+      await checkoutService.getRowFor(customer.id, "purchase", c)
+    );
+    await orderCreate.recordPurchase(c, { planned: first, netCharge: 24.5 });
     await c.query(
       `UPDATE checkout.checkouts SET
          fulfillment_id = $2, shipper_address_id = $3, package_id = $4,
@@ -390,7 +394,10 @@ test("a spent draft refuses the SECOND order", async () => {
        primed.payment_details_id]
     );
     await assert.rejects(
-      () => orderCreate.resolvePurchaseCheckout(customer.id),
+      async () =>
+        orderCreate.resolvePurchase(
+          await checkoutService.getRowFor(customer.id, "purchase", c)
+        ),
       /already belongs to an order/
     );
   });

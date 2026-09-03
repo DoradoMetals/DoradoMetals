@@ -303,7 +303,9 @@ test("sync_cart refuses a product that is not displayed", async () => {
         .post("/api/cart/sync_cart")
         .send({ cart: [{ id: hiddenId, quantity: 1 }] });
 
-      assert.equal(res.status, 400, `answered ${res.status}: ${JSON.stringify(res.body)}`);
+      // 422, NOT 400 (D214 item 11): "that product is not available" is a rule
+      // the domain refuses, and a domain refusal is Invalid.
+      assert.equal(res.status, 422, `answered ${res.status}: ${JSON.stringify(res.body)}`);
       assert.equal(await cartOf(client), before, "a refused sync changed the cart");
       assert.ok(!before.includes(hidden.id), "the hidden product reached the cart");
     });
@@ -321,7 +323,9 @@ test("one bad line refuses the whole sync, and nothing is written", async () => 
         .post("/api/cart/sync_cart")
         .send({ cart: [{ id: productId, quantity: 2 }, { id: hiddenId, quantity: 1 }] });
 
-      assert.equal(res.status, 400, `answered ${res.status}: ${JSON.stringify(res.body)}`);
+      // 422, NOT 400 (D214 item 11): "that product is not available" is a rule
+      // the domain refuses, and a domain refusal is Invalid.
+      assert.equal(res.status, 422, `answered ${res.status}: ${JSON.stringify(res.body)}`);
       assert.equal(
         await cartOf(client),
         before,
@@ -339,7 +343,9 @@ test("sync_cart refuses an id that names no product", async () => {
       const res = await request(app)
         .post("/api/cart/sync_cart")
         .send({ cart: [{ id: randomUUID(), quantity: 1 }] });
-      assert.equal(res.status, 400, `answered ${res.status}: ${JSON.stringify(res.body)}`);
+      // 422, NOT 400 (D214 item 11): "that product is not available" is a rule
+      // the domain refuses, and a domain refusal is Invalid.
+      assert.equal(res.status, 422, `answered ${res.status}: ${JSON.stringify(res.body)}`);
     });
   });
 });
@@ -353,7 +359,9 @@ test("sync_sell_cart refuses a product line that is not sell_display", async () 
       const res = await request(app)
         .post("/api/cart/sync_sell_cart")
         .send({ cart: [{ type: "product", quantity: 1, data: { id: notSellableId } }] });
-      assert.equal(res.status, 400, `answered ${res.status}: ${JSON.stringify(res.body)}`);
+      // 422, NOT 400 (D214 item 11): "that product is not available" is a rule
+      // the domain refuses, and a domain refusal is Invalid.
+      assert.equal(res.status, 422, `answered ${res.status}: ${JSON.stringify(res.body)}`);
     });
   });
 });

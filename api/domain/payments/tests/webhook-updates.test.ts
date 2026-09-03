@@ -116,8 +116,14 @@ test("the service refuses a webhook that matches no intent, so Stripe retries", 
           },
         }),
       (err: unknown) => {
-        const e = err as { statusCode?: number; message?: string; code?: string };
-        assert.equal(e.statusCode, 500, `expected 500 so Stripe retries, got ${e.statusCode}`);
+        // A PLAIN Error, WHICH IS WHAT MAKES IT A 500 (D214 item 11). The
+        // domain's own refusals carry a `kind` and map to 4xx; a webhook that
+        // matches no row is a FAULT, not a refusal, so it carries no kind and
+        // no status - and shared/middleware/errorHandler.ts answers 500 for
+        // exactly that, which is what makes Stripe retry.
+        const e = err as { statusCode?: number; kind?: string; message?: string; code?: string };
+        assert.equal(e.statusCode, undefined, "a fault must not carry a deliberate status");
+        assert.equal(e.kind, undefined, "a fault is not a domain refusal");
         assert.match(String(e.message), /no payment intent row/);
         return true;
       }

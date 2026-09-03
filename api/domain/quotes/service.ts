@@ -13,19 +13,31 @@ import * as addressService from "#domain/places/addresses/service.ts";
 import * as ratesService from "#domain/rates/service.ts";
 import * as servicesService from "#domain/shipping/services/service.ts";
 import { payoutFee, PAYOUT_METHOD_FEES } from "#domain/payouts/constants.ts";
-import * as orderReads from "#domain/orders/read.service.ts";
+import * as orderRead from "#domain/orders/read.ts";
+import * as refinerItemsRepo from "#db/refiners/items/repo.ts";
+import * as metalsRepo from "#db/metals/repo.ts";
 import * as orderSpotsService from "#domain/orders/spots/service.ts";
 import * as refinerSpotsService from "#domain/refiners/spots/service.ts";
 import {
   calculateItemAsk,
   calculateSalesOrderTotal,
   effectivePayoutFee,
+  inboundShipment,
   type OrderPrices,
 } from "#domain/pricing/service.ts";
 import { getRatePct, sumContentByMetal } from "#domain/rates/utils/resolveRate.ts";
 import query from "#shared/db/query.ts";
 import { convertTroyOz } from "#shared/utils/convertWeights.ts";
 import type { PricingSpot } from "#domain/pricing/service.ts";
+import type { OrderView, OrderViewItem } from "@dorado/contracts";
+import type { RefinerItemRow } from "#db/refiners/items/repo.ts";
+
+// metal_id -> the metal's name, and order_item_id -> what the refinery
+// reported. Two lookups the COMPOSED order used to smear onto every line
+// (`scrap.metal`, `scrap.content_actual`, `item.refiner_premium`); the
+// composer died with D214 item 12 and they are reads of their own tables now.
+type MetalNames = ReadonlyMap<string, string>;
+type AssayRows = ReadonlyMap<string, RefinerItemRow>;
 
 // req.body, typed the way intake.ts types its block: whatever arrived,
 // guarded at every read rather than trusted by declaration.
@@ -459,10 +471,7 @@ export async function orderQuote(body: Body): Promise<OrderQuote> {
     throw badRequest("no order was named");
   }
 
-  const order = (await orderReads.findPurchaseById(order_id)) as
-    | Record<string, any>
-    | null
-    | undefined;
+  const order = await orderRead.view(order_id);
   if (!order) {
     // requireOwnOrder answers 403 for a customer naming an order that is not
     // theirs or does not exist; only an admin (or a sales-order id, which the
@@ -472,32 +481,35 @@ export async function orderQuote(body: Body): Promise<OrderQuote> {
     throw err;
   }
 
-  const [liveSpots, orderSpots] = await Promise.all([
+  const [liveSpots, frozenSpots] = await Promise.all([
     spotsService.getSpotPrices(),
-    orderSpotsService.namedFor(order_id),
+    orderSpotsService.rowsFor(order_id),
   ]);
   const spots_at = new Date().toISOString();
 
-  // Exact-match on the metal name, the way the family and calculateTotalPrice
-  // both find their spot rows.
-  const bidFor = (metal: unknown): number => {
-    const pinned = orderSpots.find((s) => s.name === metal)?.bid;
-    if (pinned != null) return Number(pinned);
-    return Number(liveSpots.find((s) => s.name === metal)?.bid ?? 0);
+  // KEYED BY METAL ID, where this used to match on the metal's display NAME.
+  // A line names its metal by id and always has; the name was a join the
+  // composed order carried.
+  const pinned = new Map(frozenSpots.map((s) => [s.metal_id, s.bid]));
+  const live = new Map(liveSpots.map((s) => [s.id, s.bid]));
+  const bidFor = (metal_id: string): number => {
+    const frozen = pinned.get(metal_id);
+    if (frozen != null) return Number(frozen);
+    return Number(live.get(metal_id) ?? 0);
   };
 
-  const rawItems: Body[] = Array.isArray(order.order_items) ? order.order_items : [];
   const items: OrderQuoteLine[] = [];
   let scrap_total = 0;
   let bullion_total = 0;
 
-  for (const item of rawItems) {
-    if (item?.item_type === "product") {
+  for (const item of order.items) {
+    const stored = item.price != null;
+
+    if (item.bullion_id !== null) {
       const premium = Number(item.premium ?? item.product?.bid_premium ?? 0);
-      const stored = item.price != null;
       const unit_price = stored
         ? Number(item.price)
-        : Number(item.product?.content ?? 0) * (bidFor(item.product?.metal_type) * premium);
+        : Number(item.product?.content ?? 0) * (bidFor(item.metal_id) * premium);
       // A stored price is PER UNIT: every consumer of it - the footers,
       // purchaseOrderTotal, calculateTotalPrice - multiplies by quantity.
       const line_total = unit_price * Number(item.quantity ?? 1);
@@ -513,32 +525,26 @@ export async function orderQuote(body: Body): Promise<OrderQuote> {
       continue;
     }
 
-    if (item?.item_type === "scrap") {
-      const premium = Number(item.premium ?? item.scrap?.bid_premium ?? 1);
-      const stored = item.price != null;
-      const unit_price = stored
-        ? Number(item.price)
-        : Number(item.scrap?.content ?? 0) * (bidFor(item.scrap?.metal) * premium);
-      const line_total = unit_price;
-      scrap_total += line_total;
-      items.push({
-        id: item.id,
-        kind: "scrap",
-        source: stored ? "stored" : "estimate",
-        premium,
-        unit_price,
-        line_total,
-      });
-      continue;
-    }
-
-    // item_type 'unknown' - a line with neither foreign key. Skipped, which
-    // is purchaseOrderTotal's fall-through: it never displayed and never
-    // priced.
+    // A scrap line's content covers the whole lot, so quantity does not
+    // multiply it. `?? 1` is the fallback the composed wire's
+    // `scrap.bid_premium` collapsed to: it was served FROM item.premium.
+    const premium = Number(item.premium ?? 1);
+    const unit_price = stored
+      ? Number(item.price)
+      : Number(item.content ?? 0) * (bidFor(item.metal_id) * premium);
+    scrap_total += unit_price;
+    items.push({
+      id: item.id,
+      kind: "scrap",
+      source: stored ? "stored" : "estimate",
+      premium,
+      unit_price,
+      line_total: unit_price,
+    });
   }
 
   // The drawers' own bottom line: items minus shipping and payout cost, both read off the order — `?? 0` where the frontend read `payout.cost` bare (an orphaned order carries nulls, not a missing object).
-  const shipping = Number(order.shipment?.shipping_charge ?? 0);
+  const shipping = Number(inboundShipment(order)?.cost ?? 0);
   // The EFFECTIVE fee, not the stored one — a waived payout fee doesn't change payout.cost itself (the record stands); calculateTotalPrice uses the same helper when the order is finalized, so the two never disagree by construction.
   const payoutCost = effectivePayoutFee(order);
   const total = scrap_total + bullion_total - shipping - payoutCost;
@@ -577,9 +583,8 @@ export type ProfitBreakdown = {
 
 type MetalName = "Gold" | "Silver" | "Platinum" | "Palladium";
 type MetalKey = "gold" | "silver" | "platinum" | "palladium";
-type ProfitSpot = { name?: string | null; bid?: number | null };
-type ProfitItem = Record<string, any>;
-type ProfitOrder = Record<string, any>;
+// The spot as this math reads it - the metal it prices and the bid.
+type ProfitSpot = { metal_id: string; bid: number | null };
 
 const PROFIT_METALS: MetalName[] = ["Gold", "Silver", "Platinum", "Palladium"];
 const toKey = (m: MetalName): MetalKey => m.toLowerCase() as MetalKey;
@@ -591,37 +596,32 @@ const emptyMetalsDict = (): ProfitMetalsDict => ({
   palladium: { content: 0, percentage: 0, profit: 0 },
 });
 
-const getItemMetal = (item: ProfitItem): MetalName | null => {
-  if (item.item_type === "scrap") return (item.scrap?.metal ?? null) as MetalName | null;
-  if (item.item_type === "product") return (item.product?.metal_type ?? null) as MetalName | null;
-  return null;
+const getItemMetal = (item: OrderViewItem, metals: MetalNames): MetalName | null =>
+  (metals.get(item.metal_id) ?? null) as MetalName | null;
+
+// A scrap line's content covers the whole lot; a bullion line's is per coin,
+// so it multiplies by how many.
+const getItemContent = (item: OrderViewItem): number => {
+  if (item.bullion_id === null) return item.content ?? 0;
+  return Number(item.product?.content ?? 0) * Number(item.quantity ?? 1);
 };
 
-// `item.product?.quantity` predates the wire: a product on an order item has
-// never carried one, so the chain always lands on item.quantity. Ported as
-// written rather than simplified, because this file's rule is byte-faithful.
-const getItemContent = (item: ProfitItem): number => {
-  if (item.item_type === "scrap") return item.scrap?.content ?? 0;
-  if (item.item_type === "product") {
-    const c = item.product?.content ?? 0;
-    const q = item.product?.quantity ?? item.quantity ?? 1;
-    return c * q;
-  }
-  return 0;
-};
-
-const getScrapActualContent = (item: ProfitItem): number | null => {
-  if (item.item_type !== "scrap" || !item.scrap) return null;
-  const s = item.scrap;
-  if (typeof s.content_actual === "number") return s.content_actual;
-  if (typeof s.post_melt_actual === "number" && typeof s.purity_actual === "number") {
-    return s.post_melt_actual * s.purity_actual;
+// WHAT THE REFINERY ACTUALLY REPORTED for a scrap line - refiners.items, its
+// own table, keyed by the order line. The composed wire served these three as
+// scrap.content_actual / post_melt_actual / purity_actual.
+const getScrapActualContent = (item: OrderViewItem, assay: AssayRows): number | null => {
+  if (item.bullion_id !== null) return null;
+  const reported = assay.get(item.id);
+  if (!reported) return null;
+  if (typeof reported.content === "number") return reported.content;
+  if (typeof reported.post_melt === "number" && typeof reported.purity === "number") {
+    return reported.post_melt * reported.purity;
   }
   return null;
 };
 
-const getProfitSpot = (spots: ProfitSpot[], metal: MetalName): ProfitSpot | null =>
-  spots.find((s) => String(s.name ?? "").toLowerCase() === metal.toLowerCase()) ?? null;
+const getProfitSpot = (spots: ProfitSpot[], metal_id: string): ProfitSpot | null =>
+  spots.find((s) => s.metal_id === metal_id) ?? null;
 
 type Shares = { customerShare: number; doradoShare: number; refinerShare: number };
 const clamp01 = (n: number): number => Math.max(0, Math.min(1, n));
@@ -672,53 +672,62 @@ function premiumsToShares(
 }
 
 function getSharesForItem(
-  item: ProfitItem,
+  item: OrderViewItem,
   metal: MetalName,
   orderSpots: ProfitSpot[],
   refinerSpots: ProfitSpot[],
   category: "scrap" | "bullion" | "total",
   rates: Parameters<typeof getRatePct>[0],
-  scrapTotalsByMetal: Record<string, number>
+  scrapTotalsByMetal: Record<string, number>,
+  assay: AssayRows
 ) {
-  const orderSpot = getProfitSpot(orderSpots, metal);
-  const refSpot = getProfitSpot(refinerSpots, metal);
+  const orderSpot = getProfitSpot(orderSpots, item.metal_id);
+  const refSpot = getProfitSpot(refinerSpots, item.metal_id);
 
   // For scrap, the default dorado premium comes from the rates table, tiered by
   // total scrap of this metal in the order. An explicit item.premium (admin
   // override) always wins.
   const ratePremium =
-    item.item_type === "scrap"
+    item.bullion_id === null
       ? getRatePct(rates, metal, scrapTotalsByMetal[metal.toLowerCase()] ?? 0, "scrap")
       : undefined;
 
   const doradoPremium =
     item.premium != null ? Number(item.premium) : ratePremium ?? undefined;
 
-  const refinerPremium =
-    item.refiner_premium != null ? Number(item.refiner_premium) : undefined;
+  const reported = assay.get(item.id)?.premium;
+  const refinerPremium = reported != null ? Number(reported) : undefined;
 
   const shares = premiumsToShares(category, doradoPremium, refinerPremium);
-  return { ...shares, orderSpot, refSpot };
+  return {
+    customerShare: shares.customerShare,
+    doradoShare: shares.doradoShare,
+    refinerShare: shares.refinerShare,
+    orderSpot,
+    refSpot,
+  };
 }
 
 function computeMetalsForAllParties(
-  order: ProfitOrder,
+  order: OrderView,
   category: "scrap" | "bullion" | "total",
   orderSpots: ProfitSpot[],
   refinerSpots: ProfitSpot[],
   rates: Parameters<typeof getRatePct>[0],
-  scrapTotalsByMetal: Record<string, number>
+  scrapTotalsByMetal: Record<string, number>,
+  metals: MetalNames,
+  assay: AssayRows
 ) {
   const customer = emptyMetalsDict();
   const refiner = emptyMetalsDict();
   const dorado = emptyMetalsDict();
 
-  for (const item of (order.order_items ?? []) as ProfitItem[]) {
-    const metal = getItemMetal(item);
+  for (const item of order.items) {
+    const metal = getItemMetal(item, metals);
     if (!metal) continue;
 
-    const isScrap = item.item_type === "scrap";
-    const isBullion = item.item_type === "product";
+    const isScrap = item.bullion_id === null;
+    const isBullion = !isScrap;
     if ((category === "scrap" && !isScrap) || (category === "bullion" && !isBullion)) continue;
 
     const baseContent = getItemContent(item);
@@ -732,13 +741,14 @@ function computeMetalsForAllParties(
       refinerSpots,
       category,
       rates,
-      scrapTotalsByMetal
+      scrapTotalsByMetal,
+      assay
     );
     // doradoShare is derived and never read below - the dorado slice is what
     // remains after the other two, exactly as the frontend computed it.
     void doradoShare;
 
-    const actualScrap = isScrap ? getScrapActualContent(item) : null;
+    const actualScrap = isScrap ? getScrapActualContent(item, assay) : null;
 
     const dorRefContentBasis = isScrap ? actualScrap ?? baseContent : baseContent;
 
@@ -774,28 +784,32 @@ function computeMetalsForAllParties(
   return { customer, refiner, dorado };
 }
 
-function getShippingFees(order: ProfitOrder) {
+function getShippingFees(order: OrderView) {
   return {
     refiner: 0,
-    dorado: order.shipping_fee_actual ?? 0,
-    customer: order.shipment?.shipping_charge ?? 0,
+    dorado: Number(order.totals?.shipping_fee_actual ?? 0),
+    customer: Number(inboundShipment(order)?.cost ?? 0),
   };
 }
 
 function getSpotNet(
   customerTotals: ProfitMetalsDict,
   orderSpots: ProfitSpot[],
-  refinerSpots: ProfitSpot[]
+  refinerSpots: ProfitSpot[],
+  metals: MetalNames
 ) {
   let sum = 0;
+  const idOf = new Map([...metals].map(([id, name]) => [name.toLowerCase(), id]));
 
   for (const metal of PROFIT_METALS) {
     const key = toKey(metal);
     const qty = customerTotals[key]?.content ?? 0;
     if (!qty) continue;
 
-    const orderBid = getProfitSpot(orderSpots, metal)?.bid;
-    const refBid = getProfitSpot(refinerSpots, metal)?.bid;
+    const metal_id = idOf.get(metal.toLowerCase());
+    if (!metal_id) continue;
+    const orderBid = getProfitSpot(orderSpots, metal_id)?.bid;
+    const refBid = getProfitSpot(refinerSpots, metal_id)?.bid;
     if (orderBid == null || refBid == null) continue;
 
     sum += qty * (refBid - orderBid);
@@ -829,35 +843,53 @@ export async function profitBreakdown(body: Body): Promise<ProfitBreakdown> {
     throw badRequest("no order was named");
   }
 
-  // The ADMIN read, deliberately — assay actuals (content/post_melt/purity _actual) ride only on getAll's withActuals projection; getById (the customer read) omits them, which would silently price the split off declared weights instead.
-  const order = (await orderReads.getAllPurchases()).find(
-    (o) => (o as Record<string, unknown>).id === order_id
-  ) as ProfitOrder | undefined;
+  // ONE ORDER, READ BY ID. It used to read EVERY purchase order and find this
+  // one in the array - because the assay actuals rode only on the admin list's
+  // projection. They are refiners.items rows now, read below by the same id,
+  // so the whole-table read is gone.
+  const order = await orderRead.view(order_id);
   if (!order) {
     const err: HttpError = new Error("no such purchase order");
     err.statusCode = 404;
     throw err;
   }
 
-  const [orderSpots, refinerSpots, rates] = await Promise.all([
-    orderSpotsService.namedFor(order_id),
+  const [frozenSpots, refinerNamed, rates, metals, assayRows] = await Promise.all([
+    orderSpotsService.rowsFor(order_id),
     refinerSpotsService.namedFor(order_id),
     ratesService.getAllRates(),
+    metalsRepo.namesById(),
+    refinerItemsRepo.getForOrder(order_id),
   ]);
   const spots_at = new Date().toISOString();
 
+  // Both spot sets keyed by the metal they price. The refiner's are named
+  // rather than keyed, so the name is resolved back to its id once.
+  const idOfMetal = new Map([...metals].map(([id, name]) => [name.toLowerCase(), id]));
+  const orderSpots: ProfitSpot[] = frozenSpots.map((s) => ({ metal_id: s.metal_id, bid: s.bid }));
+  const refinerSpots: ProfitSpot[] = refinerNamed.flatMap((s) => {
+    const metal_id = idOfMetal.get(String(s.name ?? "").toLowerCase());
+    return metal_id ? [{ metal_id, bid: s.bid }] : [];
+  });
+  const assay: AssayRows = new Map(assayRows.map((r) => [r.order_item_id, r]));
+
   // Total scrap content per metal for rate tiering (per-metal, order total).
   const scrapTotalsByMetal = sumContentByMetal(
-    ((order.order_items ?? []) as ProfitItem[]).filter((i) => i.item_type === "scrap"),
-    (i) => getItemMetal(i),
+    order.items.filter((i) => i.bullion_id === null),
+    (i) => getItemMetal(i, metals),
     (i) => getItemContent(i)
   );
 
-  const scrap = computeMetalsForAllParties(order, "scrap", orderSpots, refinerSpots, rates, scrapTotalsByMetal);
-  const bullion = computeMetalsForAllParties(order, "bullion", orderSpots, refinerSpots, rates, scrapTotalsByMetal);
-  const total = computeMetalsForAllParties(order, "total", orderSpots, refinerSpots, rates, scrapTotalsByMetal);
+  const parties = (category: "scrap" | "bullion" | "total") =>
+    computeMetalsForAllParties(
+      order, category, orderSpots, refinerSpots, rates, scrapTotalsByMetal, metals, assay
+    );
+
+  const scrap = parties("scrap");
+  const bullion = parties("bullion");
+  const total = parties("total");
   const shipping = getShippingFees(order);
-  const spotNet = getSpotNet(total.customer, orderSpots, refinerSpots);
+  const spotNet = getSpotNet(total.customer, orderSpots, refinerSpots, metals);
 
   // The money nested as totals since D84; the refiner fee lives there.
   const refinerFee = order.totals?.refiner_fee ?? 0;

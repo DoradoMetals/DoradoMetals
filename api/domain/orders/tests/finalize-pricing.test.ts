@@ -36,7 +36,7 @@ import pool from "#db";
 import { mockSessions, restoreSessions, as, asAdmin } from "#shared/testing/session.ts";
 import { inPinnedTransaction, outside } from "#shared/testing/pinned-pool.ts";
 import { calculateTotalPrice } from "#domain/pricing/service.ts";
-import * as readService from "#domain/orders/read.service.ts";
+import * as orderRead from "#domain/orders/read.ts";
 import { LOCKS } from "#shared/testing/locks.ts";
 
 const ORDER_LOCK = LOCKS.ORDERS;
@@ -109,6 +109,9 @@ const poisonedClaiming = (pricePerItem: number) => ({
   spot_prices: [],
 });
 
+// THE ACTION TAKES NO BODY AT ALL NOW (D214 item 11): POST
+// /api/orders/:id/finalize_pricing. A poisoned document cannot reach it -
+// there is no field to poison - and the route refuses anything sent.
 test("a document claiming its own prices is refused by name, and the money does not move", async () => {
   await inPinnedTransaction(async (client: PoolClient) => {
     await asAdmin(admin, async () => {
@@ -120,7 +123,7 @@ test("a document claiming its own prices is refused by name, and the money does 
         assert.equal(res.status, 400, `the poisoned document was answered ${res.status}`);
         assert.match(
           res.body?.error?.message ?? "",
-          /"purchase_order"/,
+          /purchase_order/,
           "the refusal does not name the field it refused"
         );
       }
@@ -151,8 +154,8 @@ test("a clean finalize prices the order from the database's own rows", async () 
       ).rows[0];
 
       const res = await request(app)
-        .patch(`/api/orders/${order.id}`)
-        .send({ finalize_pricing: true });
+        .post(`/api/orders/${order.id}/finalize_pricing`)
+        .send({});
       assert.equal(res.status, 200, `answered ${res.status}: ${JSON.stringify(res.body)}`);
 
       const row = (
@@ -173,55 +176,31 @@ test("a clean finalize prices the order from the database's own rows", async () 
       );
       assert.equal(row.spots_locked, true, "finalizing pins the spots");
 
-      // The property: the stored total is calculateTotalPrice over what the
-      // API now SERVES (the PATCH answers with the re-read order, lines
-      // priced) and the spot rows the database now HOLDS. Every input is a
-      // row; the request contributed nothing but the operation's name.
-      const spots = (
+      // The property: the stored total is calculateTotalPrice over the ORDER
+      // VIEW the API now serves and the spot rows the database now HOLDS.
+      // Every input is a row; the request contributed nothing at all - the
+      // action has no body.
+      const priced = await orderRead.view(order.id);
+      assert.ok(priced, `the API could not read order ${order.id} back after pricing it`);
+
+      const frozen = (
         await client.query(
-          `SELECT m.name, sp.ask, sp.bid
-             FROM orders.spots sp JOIN metals.metals m ON m.id = sp.metal_id
-            WHERE sp.order_id = $1`,
+          `SELECT metal_id, bid FROM orders.spots WHERE order_id = $1`,
           [order.id]
         )
       ).rows;
-      // THE PATCH ANSWERS WITH THE SLIM ORDER NOW (wave 3), so the priced
-      // lines it used to carry come from the API's own composed read - which
-      // is what calculateTotalPrice takes, and what finalizePricing itself
-      // priced from. The property is unchanged: every input is a row, and the
-      // request contributed nothing but the operation's name.
-      const priced = (await readService.findPurchaseById(order.id)) as Record<string, any> | null;
-      // GUARDED. The composed read can answer null, and this line handed it
-      // straight to calculateTotalPrice: an unreadable order produced a
-      // TypeError inside the pricing module instead of naming the missing
-      // read, i.e. the test failed in the wrong place.
-      assert.ok(priced, `the API could not read order ${order.id} back after pricing it`);
+      const bids = new Map(frozen.map((r) => [r.metal_id, r.bid === null ? null : Number(r.bid)]));
 
-      // AND THE PAYOUT IS ESTABLISHED RATHER THAN ASSUMED. calculateTotalPrice
-      // subtracts `order.payout.cost`; the composed read declares
-      // `payout: Record<string, any>`, so nothing guarantees the key is there,
-      // and an absent one makes the whole total NaN rather than throwing. The
-      // production caller only ASSERTS the shape - service.ts's `OrderLike`
-      // intersects `payout: { cost: number }` onto a row that does not
-      // promise it. Here it is checked. Surfaced by the TypeScript conversion.
-      const payout = priced!.payout as { cost?: unknown } | null;
+      // AND THE PAYOUT IS ESTABLISHED RATHER THAN ASSUMED. The total is
+      // metal - shipping - payout fee, and an absent fee used to make the
+      // whole total NaN rather than throwing.
       assert.equal(
-        typeof payout?.cost,
+        typeof priced!.payout?.cost,
         "number",
-        "the composed order carries no numeric payout.cost - the total would be NaN"
+        "the order view carries no numeric payout.cost - the total would be NaN"
       );
-      // The four things calculateTotalPrice reads, named rather than spread -
-      // the shipping charge among them, because the total is
-      // baseTotal - shipping - payout.
-      const expected = calculateTotalPrice(
-        {
-          order_items: priced!.order_items,
-          shipment: priced!.shipment,
-          payout: { cost: payout!.cost as number },
-          waive_payout_fee: priced!.waive_payout_fee,
-        } as never,
-        spots
-      );
+
+      const expected = calculateTotalPrice(priced!, bids);
 
       assert.equal(
         Number(row.total_price).toFixed(2),

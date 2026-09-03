@@ -27,7 +27,7 @@ import * as metalsRepo from "#db/metals/repo.ts";
 import * as refinerSpotsRepo from "#db/refiners/spots/repo.ts";
 import * as orderTransactions from "#domain/orders/transactions/service.ts";
 import * as refinerOrdersRepo from "#db/refiners/orders/repo.ts";
-import { refuseWith } from "#shared/http/refuse.ts";
+import { Invalid, NotFound } from "#shared/errors.ts";
 import type { RefinerOrderPatch } from "@dorado/contracts";
 
 // THE BODY IS THE CONTRACT'S (A3), AND THE NULL QUESTION SPLIT FOUR-TO-ONE.
@@ -71,11 +71,11 @@ export async function patchRefinerOrder(
   body: RefinerOrderPatch
 ): Promise<unknown> {
   if (Object.keys(body).length === 0) {
-    refuseWith(400, "the document names no field to write");
+    throw new Invalid("the document names no field to write");
   }
 
   const engagement = await refinerOrdersRepo.findById(id);
-  if (!engagement) refuseWith(404, `no refiner order ${id}`);
+  if (!engagement) throw new NotFound(`no refiner order ${id}`);
   const orderId = engagement!.order_id;
 
   // The refinery's bid per metal. refiners.spots is keyed on (order_id,

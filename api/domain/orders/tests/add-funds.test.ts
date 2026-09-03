@@ -10,8 +10,9 @@
 // with `spots` arriving in the request body. In production all NINE Credit
 // entries differ from the total_price of the order they name, three materially.
 //
-// The operation is `add_funds: true` on the unified PATCH /api/orders/:id
-// now, and the document carries NOTHING else the credit could read: the
+// The operation is POST /api/orders/:id/add_funds now (D214 item 11) - a real
+// action rather than a flag in a PATCH body - and it carries NO body at all:
+// the
 // service re-fetches the order and credits totals.total, the order's own
 // stored figure. The old poison vector - spots in the body deciding the
 // ledger amount - is structurally gone; spots have their OWN endpoint, and
@@ -84,8 +85,8 @@ test("the balance moves by exactly what the ledger records", async () => {
       );
 
       const res = await request(app)
-        .patch(`/api/orders/${order.id}`)
-        .send({ add_funds: true });
+        .post(`/api/orders/${order.id}/add_funds`)
+        .send({});
 
       assert.equal(res.status, 200, `answered ${res.status}: ${JSON.stringify(res.body)}`);
 
@@ -140,14 +141,19 @@ test("a spot write just before the credit does not reach the ledger", async () =
 
       const before = await countOf();
 
+      // THE METAL IS AN ID (D214 item 11): `set` used to name it by its
+      // display string, which is what decided which money row an edit landed on.
+      const { rows: [gold] } = await client.query(
+        `SELECT id FROM metals.metals WHERE name = 'Gold'`
+      );
       const zeroed = await request(app)
         .put(`/api/orders/${order.id}/spots`)
-        .send({ set: [{ name: "Gold", bid: 0 }] });
+        .send({ set: [{ metal_id: gold.id, bid: 0 }] });
       assert.equal(zeroed.status, 200, `the spot write answered ${zeroed.status}`);
 
       const res = await request(app)
-        .patch(`/api/orders/${order.id}`)
-        .send({ add_funds: true });
+        .post(`/api/orders/${order.id}/add_funds`)
+        .send({});
       assert.equal(res.status, 200, `answered ${res.status}: ${JSON.stringify(res.body)}`);
       assert.equal(await countOf(), before + 1, "this request wrote no ledger entry");
 
@@ -160,7 +166,7 @@ test("a spot write just before the credit does not reach the ledger", async () =
       assert.equal(
         Number(logged.rows[0].amount).toFixed(2),
         Number(order.total_price).toFixed(2),
-        "the ledger amount followed the spot write in the same document"
+        "the ledger amount followed the spot write that ran before it"
       );
     });
   }, { lock: ORDER_LOCK });

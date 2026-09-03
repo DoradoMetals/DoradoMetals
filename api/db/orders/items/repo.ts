@@ -93,11 +93,24 @@ export async function create(row: NewOrderItem, executor?: Executor): Promise<Or
   return rows[0];
 }
 
+// THE SIXTH VERB (D214 item 11): a derivation that yields N rows writes them in
+// one call, so a use case carries no loop of its own.
+export async function createMany(
+  rows: NewOrderItem[], executor?: Executor
+): Promise<OrderItemRow[]> {
+  const written: OrderItemRow[] = [];
+  for (const row of rows) written.push(await create(row, executor));
+  return written;
+}
+
 // ONE UPDATE. `content` and `price` ARRIVE COMPUTED: the pricing and weight
 // rules belong to domain/orders/rules.ts, not to a statement.
 export const PATCHABLE = [
   "pre_melt", "post_melt", "purity", "content",
   "premium", "quantity", "confirmed", "price", "unit",
+  // The rate the line was taxed at. A purchase pays no sales tax, so it is 0
+  // there; a sale writes the rate its address earned when the order is priced.
+  "sales_tax_charged",
 ] as const;
 type ItemColumn = (typeof PATCHABLE)[number];
 export type ItemPatch = Partial<Record<ItemColumn, string | number | boolean | null>>;

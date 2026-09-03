@@ -79,29 +79,35 @@ after(async () => {
   await pool.end();
 });
 
-// SENDS BOTH FIELDS, and that is the point rather than an accident. The
-// statement is `SET quantity = $1, premium = $2` unconditionally, so a document
-// naming only one NULLS the other - on a bullion line, how many of the coin the
-// customer sent. A3 made both required and refuses a partial edit by name.
-//
-// Nothing loses a capability here: the only client, AdminReceived.tsx, has
-// always sent both, filling the unchanged one from the row it is editing. The
-// partial path this test used to exercise was reachable from no UI and did
-// nothing but write a NULL. The refusal itself is pinned in patch-bodies.test.ts.
-test("the bullion field writes the line's quantity", async () => {
+// A PARTIAL EDIT IS SAFE NOW, and that is the change (D214 item 11). The
+// statement was `SET quantity = $1, premium = $2` unconditionally, so a
+// document naming only one NULLED the other - on a bullion line, how many of
+// the coin the customer sent - and the old contract defended it by REQUIRING
+// both. buildUpdate names only the keys the document carries, so `quantity`
+// alone writes the quantity and leaves the premium exactly where it was.
+test("the quantity is written alone, and the premium beside it is untouched", async () => {
   await inPinnedTransaction(async (client: PoolClient) => {
     await asAdmin(admin, async () => {
+      const before = await client.query(
+        `SELECT premium FROM orders.items WHERE id = $1`, [bullionItem.id]
+      );
+
       const res = await request(app)
         .patch(`/api/orders/items/${bullionItem.id}`)
-        .send({ bullion: { quantity: 7, premium: Number(bullionItem.premium ?? 1) } });
+        .send({ quantity: 7 });
 
       assert.equal(res.status, 200, `answered ${res.status}: ${JSON.stringify(res.body)}`);
 
       const { rows } = await client.query(
-        `SELECT quantity FROM orders.items WHERE id = $1`,
+        `SELECT quantity, premium FROM orders.items WHERE id = $1`,
         [bullionItem.id]
       );
       assert.equal(Number(rows[0].quantity), 7, "the quantity did not change");
+      assert.equal(
+        rows[0].premium === null ? null : Number(rows[0].premium),
+        before.rows[0].premium === null ? null : Number(before.rows[0].premium),
+        "the premium beside the quantity was nulled"
+      );
     });
   }, { lock: ITEM_LOCKS });
 });
@@ -117,17 +123,20 @@ test("POST :id/items adds a scrap line and its scrap row", async () => {
         [order.id]
       );
 
+      // THE METAL IS AN ID, NOT A NAME (D214 item 11): the body used to send
+      // "Gold" and the server resolved it against metals.metals. `content` is
+      // not a field either - the rule derives it from the weight, the unit and
+      // the purity.
+      const { rows: [gold] } = await client.query(
+        `SELECT id FROM metals.metals WHERE name = 'Gold'`
+      );
       const res = await request(app)
         .post(`/api/orders/${order.id}/items`)
         .send({
-          item: {
-            metal: "Gold",
-            pre_melt: 1.5,
-            purity: 0.585,
-            gross_unit: "t oz",
-            content: 0.8775,
-            quantity: 1,
-          },
+          metal_id: gold.id,
+          pre_melt: 1.5,
+          purity: 0.585,
+          unit: "t oz",
         });
 
       assert.equal(res.status, 200, `answered ${res.status}: ${JSON.stringify(res.body)}`);
