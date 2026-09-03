@@ -394,7 +394,7 @@ export async function finalizePricing({
     // The refiner's copies, keyed the same way.
     for (const sp of spots) {
       const metal_id = metalId(sp.name);
-      if (metal_id) await refinerSpots.setBid(order.id, metal_id, sp.bid ?? null, client);
+      if (metal_id) await refinerSpots.update(order.id, metal_id, { bid: sp.bid ?? null }, client);
     }
 
     for (const item of order.order_items) {
@@ -515,7 +515,7 @@ export async function updateScrapItem({ item }: { item: Record<string, any> }): 
       },
       client
     );
-    await refinerItems.setAssay(
+    await refinerItems.update(
       item.id,
       {
         pre_melt: s.pre_melt ?? null,
@@ -760,7 +760,7 @@ export async function updateRefinerSpot({
   const idByName = await metalsRepo.idsByName();
   const metal_id = idByName.get(String(spot.name ?? ""));
   if (!metal_id) return undefined;
-  return await refinerSpots.setBid(spot.purchase_order_id as string, metal_id, updated_spot);
+  return await refinerSpots.update(spot.purchase_order_id as string, metal_id, { bid: updated_spot });
 }
 
 // updateRefinerPremium and updateShippingActual left with the purge (D212):

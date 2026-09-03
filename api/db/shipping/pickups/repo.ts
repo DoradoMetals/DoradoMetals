@@ -41,36 +41,43 @@ export async function getByShipments(
   return rows;
 }
 
-type PickupWrite = {
-  requested_at: Date | string | null;
-  status: string | null;
-  confirmation_number: string | null;
-  location: string | null;
-};
+// FULL REPLACE, not a COALESCE patch: the service reads the existing row and
+// merges the document over it before calling this (see
+// domain/shipping/pickups/service.ts's update), so what arrives here is
+// already the whole intended row.
+//
+// requested_at widens the contract's `string | null` to admit a Date too:
+// callers pass a JS Date straight into a timestamptz column, which pg accepts
+// either way, and the type says so rather than pretending every caller
+// stringifies first.
+export type PickupWrite = Omit<
+  Pick<shipping.PickupsRow, "requested_at" | "status" | "confirmation_number" | "location">,
+  "requested_at"
+> & { requested_at: Date | string | null };
 
-export async function create(
-  id: string, shipment_id: string, p: PickupWrite, executor?: Executor
-): Promise<PickupBaseRow> {
+export type PickupNew = PickupWrite & Pick<shipping.PickupsRow, "id" | "shipment_id">;
+
+export async function create(row: PickupNew, executor?: Executor): Promise<PickupBaseRow> {
   const { rows } = await query<PickupBaseRow>(
     sql("create"),
-    [id, shipment_id, p.requested_at, p.status, p.confirmation_number, p.location],
+    [row.id, row.shipment_id, row.requested_at, row.status, row.confirmation_number, row.location],
     executor
   );
   return rows[0];
 }
 
 export async function update(
-  id: string, p: PickupWrite, executor?: Executor
-): Promise<PickupBaseRow | undefined> {
-  const { rows } = await query<PickupBaseRow>(
+  id: string, patch: PickupWrite, executor?: Executor
+): Promise<boolean> {
+  const { rowCount } = await query(
     sql("update"),
-    [p.requested_at, p.status, p.confirmation_number, p.location, id],
+    [patch.requested_at, patch.status, patch.confirmation_number, patch.location, id],
     executor
   );
-  return rows[0];
+  return rowCount === 1;
 }
 
-export async function remove(id: string, executor?: Executor): Promise<number> {
-  const r = await query(sql("delete"), [id], executor);
-  return r.rowCount ?? 0;
+export async function remove(id: string, executor?: Executor): Promise<boolean> {
+  const { rowCount } = await query(sql("delete"), [id], executor);
+  return rowCount === 1;
 }

@@ -36,6 +36,10 @@ export async function getScheduled(
   return rows;
 }
 
+// NO separate create/update (CRUD-batch-3): booking is an UPSERT, because
+// rescheduling is the common case and a fulfillment may hold only one
+// (fulfillment_pickups_one_per_fulfillment) - see sql/upsert.sql. THE ROW,
+// not positional scalars: id and fulfillment_id travel with the rest.
 export type PickupInput = {
   pickup_address_id: string;
   assigned_employee_id?: string | null;
@@ -43,19 +47,21 @@ export type PickupInput = {
   end_time?: string | null;
 };
 
-export async function upsert(
-  id: string, fulfillment_id: string, p: PickupInput, executor?: Executor
-): Promise<PickupRow> {
+export type PickupNew = PickupInput & { id: string; fulfillment_id: string };
+
+export async function upsert(row: PickupNew, executor?: Executor): Promise<PickupRow> {
   const { rows } = await query<PickupRow>(
     sql("upsert"),
-    [id, fulfillment_id, p.pickup_address_id, p.assigned_employee_id ?? null,
-     p.start_time ?? null, p.end_time ?? null],
+    [
+      row.id, row.fulfillment_id, row.pickup_address_id,
+      row.assigned_employee_id, row.start_time, row.end_time,
+    ],
     executor
   );
   return rows[0];
 }
 
-export async function remove(fulfillment_id: string, executor?: Executor): Promise<number> {
-  const r = await query(sql("delete"), [fulfillment_id], executor);
-  return r.rowCount ?? 0;
+export async function remove(fulfillment_id: string, executor?: Executor): Promise<boolean> {
+  const { rowCount } = await query(sql("delete"), [fulfillment_id], executor);
+  return rowCount === 1;
 }

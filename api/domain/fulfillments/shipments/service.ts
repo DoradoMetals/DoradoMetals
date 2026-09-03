@@ -27,6 +27,15 @@ export async function link(
   input: { fulfillment_id: string } & ShipmentLinkInput, executor?: Executor
 ): Promise<ComposedFulfillment | null> {
   await fulfillmentService.assertCategory(input.fulfillment_id, "SHIPMENT", executor);
-  await shipmentLinks.upsert(randomUUID(), input.fulfillment_id, input, executor);
+  await shipmentLinks.upsert(
+    {
+      id: randomUUID(),
+      fulfillment_id: input.fulfillment_id,
+      shipment_id: input.shipment_id,
+      recipient_location_id: input.recipient_location_id,
+      shipper_location_id: input.shipper_location_id,
+    },
+    executor
+  );
   return await fulfillmentService.getById(input.fulfillment_id, executor);
 }

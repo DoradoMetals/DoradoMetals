@@ -275,7 +275,17 @@ if (FAIL_ON_FINDINGS && (discarded || unobservable)) process.exit(1);
 // pipeline whose earlier reads already establish the row, so a zero-row
 // update is "nothing to do" rather than a lost edit; observing them with
 // throws is a hardening pass of its own, not this purge's.
-const CEILING = 24;
+// 24 -> 23 with CRUD-batch-3's refiners/shipping/fulfillments collapse:
+// fulfillments/service.ts's setMethod and setStatus used to capture the row
+// setMethod/setStatus RETURNED (never discarding it); the collapse to one
+// `update(id, patch, ...) -> boolean` per D212's CRUD ruling meant a caller
+// had to start checking that boolean instead of just re-reading the row, and
+// both now do - setStatus returns null on a false the same as the row-based
+// version's `composeOne(undefined)` did, and setMethod throws a 500 (the id
+// was already read moments earlier in the same function, so a false there is
+// a genuine contradiction, not a normal miss). Net: two calls that were never
+// discards under the old shape stayed non-discards under the new one.
+const CEILING = 23;
 if (!FAIL_ON_FINDINGS) {
   const total = discarded + unobservable;
   if (total > CEILING) {

@@ -11,13 +11,13 @@
 // side and never will be (see repo.ts), so nothing here is a migration shim.
 import * as methods from "#db/fulfillments/methods/repo.ts";
 import { refuse } from "#shared/http/refuse.ts";
-import type { MethodRow, MethodInput } from "#db/fulfillments/methods/repo.ts";
+import type { MethodRow, MethodPatch } from "#db/fulfillments/methods/repo.ts";
 import type { PoolClient } from "pg";
 import type { fulfillments } from "@dorado/contracts";
 
 type Executor = PoolClient | undefined;
 
-export type { MethodRow, MethodInput } from "#db/fulfillments/methods/repo.ts";
+export type { MethodRow, MethodPatch } from "#db/fulfillments/methods/repo.ts";
 
 // DIRECTION AND CATEGORY COME FROM THE DATABASE, NOT FROM THIS FILE (D103).
 //
@@ -101,8 +101,10 @@ export async function assertOffered(
 }
 
 // Requires the id, because the UPDATE keys on it. Without it the statement
-// matches nothing and returns null, which reads as "not found" rather than
-// "you forgot to say which one".
-export async function update(method: MethodInput): Promise<MethodRow | null> {
-  return (await methods.update(method)) ?? null;
+// matches nothing, which reads as "not found" rather than "you forgot to say
+// which one".
+export async function update(id: string, patch: MethodPatch): Promise<MethodRow | null> {
+  const changed = await methods.update(id, patch);
+  if (!changed) return null;
+  return (await methods.getOne(id)) ?? null;
 }

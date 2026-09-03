@@ -3,6 +3,16 @@
 // The history a customer sees. `time` is this schema's name for exchange's
 // `scan_time`, and the read aliases it back because the response has always
 // carried scan_time.
+//
+// NO getOne/update (CRUD-batch-3): a scan event is an immutable fact from the
+// carrier, addressed by nothing a caller ever holds on its own - there is no
+// per-event edit surface, only "the current set of events for this shipment",
+// replaced wholesale on every poll (remove, then insert - see
+// domain/shipping/tracking/service.ts's own header for why REPLACING rather
+// than editing is the whole design). `insert` is a genuine bulk write, one
+// statement via UNNEST for however many events a poll returns, not a
+// disguised per-row loop - so it stays its own verb rather than N calls to a
+// single-row `create`.
 import query from "#shared/db/query.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
 import type { Executor } from "#shared/db/executor.ts";

@@ -50,34 +50,23 @@ export async function getMany(
 // A shell. Everything else arrives from the carrier afterwards, through
 // update() - a shipment exists from the moment an order needs one, and the
 // label is bought later.
-export async function create(
-  id: string, direction: string, executor?: Executor
-): Promise<string> {
-  const { rows } = await query<{ id: string }>(sql("create"), [id, direction], executor);
+export type ShipmentNew = { id: string; direction: string };
+
+export async function create(row: ShipmentNew, executor?: Executor): Promise<string> {
+  const { rows } = await query<{ id: string }>(sql("create"), [row.id, row.direction], executor);
   return rows[0].id;
 }
 
-// The values sql/update.sql takes, in its order. The service resolves the
-// service and package NAMES exchange stores into the ids this table wants.
-export type ShipmentValues = [
-  string | null, string | null,
-  Date | string | null, Date | string | null, Date | string | null,
-  string | Buffer | null, string | null, string | null,
-  string | null, string | null,
-  number | null, boolean, number | null, string | null,
-];
-
-export async function update(
-  id: string, values: ShipmentValues, executor?: Executor
-): Promise<string | undefined> {
-  const { rows } = await query<{ id: string }>(sql("update"), [...values, id], executor);
-  return rows[0]?.id;
-}
-
-// THE ROW (Jacob, 2026-09-01): the new-flow write takes the resource and maps
-// named fields onto sql/update.sql's parameter order in exactly one place.
-// `update` above keeps the legacy tuple until its callers die with the
-// composed path.
+// ONE UPDATE (D212's CRUD ruling): replaces the legacy positional-tuple
+// `update` and `record`, which wrote the same statement under two calling
+// conventions. THE ROW (Jacob, 2026-09-01): the caller maps named fields onto
+// sql/update.sql's parameter order in exactly one place, here.
+//
+// NOT A COALESCE PATCH, deliberately: this is "everything the carrier told
+// us", a full replace of all fourteen columns whenever it runs (see
+// sql/update.sql's own header) - a field a caller omits writes NULL, exactly
+// as it always has. The service resolves the service/package NAMES exchange
+// stores into the ids this table wants before calling this.
 export type ShipmentRecord = {
   tracking_number?: string | null;
   shipping_status?: string | null;
@@ -92,25 +81,25 @@ export type ShipmentRecord = {
   cost?: number | null;
   insured?: boolean;
   declared_value?: number | null;
-  direction: string;
+  direction?: string | null;
 };
 
-export async function record(
+export async function update(
   id: string, row: ShipmentRecord, executor?: Executor
-): Promise<string | undefined> {
-  const { rows } = await query<{ id: string }>(
+): Promise<boolean> {
+  const { rowCount } = await query(
     sql("update"),
     [
-      row.tracking_number ?? null, row.shipping_status ?? null,
-      row.est_delivery ?? null, row.shipped_at ?? null, row.delivered_at ?? null,
-      row.label ?? null, row.label_type ?? null, row.pickup_type ?? null,
-      row.package_id ?? null, row.carrier_service_id ?? null,
-      row.cost ?? null, row.insured ?? false, row.declared_value ?? null,
+      row.tracking_number, row.shipping_status,
+      row.est_delivery, row.shipped_at, row.delivered_at,
+      row.label, row.label_type, row.pickup_type,
+      row.package_id, row.carrier_service_id,
+      row.cost, row.insured, row.declared_value,
       row.direction, id,
     ],
     executor
   );
-  return rows[0]?.id;
+  return rowCount === 1;
 }
 
 // The shipping cost of every parcel on one order.
@@ -133,7 +122,7 @@ export async function setChargeForOrder(
   return rows.map((r) => r.id);
 }
 
-export async function remove(id: string, executor?: Executor): Promise<number> {
-  const r = await query(sql("delete"), [id], executor);
-  return r.rowCount ?? 0;
+export async function remove(id: string, executor?: Executor): Promise<boolean> {
+  const { rowCount } = await query(sql("delete"), [id], executor);
+  return rowCount === 1;
 }

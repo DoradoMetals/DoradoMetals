@@ -26,7 +26,7 @@ import {
   carrierIdOr,
   resolveCarrier,
 } from "#domain/shipping/operations/resolver.ts";
-import type { ServiceRow, ServiceValues } from "#db/shipping/services/repo.ts";
+import type { ServiceRow, ServiceWrite } from "#db/shipping/services/repo.ts";
 import type { Executor } from "#shared/db/executor.ts";
 // From the contracts, which is where the shape is declared - not via the
 // adapter, which merely re-exports it for a reader of that file.
@@ -68,31 +68,79 @@ export type ServiceInput = {
 // is_residential and is_active and a plain `??` here would have flattened it.
 const flag = (v: unknown, whenAbsent: boolean): boolean => (v == null ? whenAbsent : !!v);
 
-export function toValues(s: ServiceInput): ServiceValues {
-  return [
-    s.carrier_id ?? null,
-    s.name ?? null,
-    s.description ?? null,
-    s.code ?? null,
-    s.provider_code ?? null,
-    flag(s.supports_pickup, false),
-    flag(s.supports_dropoff, true),
-    flag(s.supports_returns, false),
-    flag(s.supports_insurance, false),
-    flag(s.is_international, false),
-    flag(s.is_residential, true),
-    flag(s.is_active, true),
-    s.max_weight_lbs ?? null,
-    s.max_length_in ?? null,
-    s.max_width_in ?? null,
-    s.max_height_in ?? null,
-    s.max_declared_value ?? null,
-    s.min_transit_days ?? 0,
-    s.max_transit_days ?? 0,
-    s.display_order ?? 0,
-    s.created_by ?? "Dorado Metals",
-    s.updated_by ?? "Dorado Metals",
-  ];
+// The business's defaults, applied here rather than by the columns (see the
+// file header for why) - and now BY NAME, one object repo.ts spells onto each
+// statement in exactly one place, replacing the positional array both create
+// and update used to share by accident of column order.
+//
+// TWO BUILDERS, NOT ONE SPREAD OVER THE OTHER (Jacob's no-prop-spreading
+// ruling): toNewRow and toPatchRow each spell every field of the object they
+// return by name, so neither ever forwards a field the repo call was not
+// written to expect.
+function writeFields(s: ServiceInput): ServiceWrite {
+  return {
+    carrier_id: s.carrier_id ?? null,
+    // shipping.services.name is NOT NULL; a caller omitting it is a pre-
+    // existing gap this layer never validated (the DB constraint has always
+    // been the actual guard) - not something this conversion introduces.
+    name: (s.name ?? null) as string,
+    description: s.description ?? null,
+    code: s.code ?? null,
+    provider_code: s.provider_code ?? null,
+    supports_pickups: flag(s.supports_pickup, false),
+    supports_dropoffs: flag(s.supports_dropoff, true),
+    supports_returns: flag(s.supports_returns, false),
+    supports_insurance: flag(s.supports_insurance, false),
+    is_international: flag(s.is_international, false),
+    is_residential: flag(s.is_residential, true),
+    is_active: flag(s.is_active, true),
+    max_weight_lb: s.max_weight_lbs ?? null,
+    max_length_in: s.max_length_in ?? null,
+    max_width_in: s.max_width_in ?? null,
+    max_height_in: s.max_height_in ?? null,
+    max_declared_value: s.max_declared_value ?? null,
+    min_transit_days: s.min_transit_days ?? 0,
+    max_transit_days: s.max_transit_days ?? 0,
+    display_order: s.display_order ?? 0,
+  };
+}
+
+function toNewRow(s: ServiceInput, id: string): services.ServiceNew {
+  const w = writeFields(s);
+  return {
+    id,
+    carrier_id: w.carrier_id, name: w.name, description: w.description,
+    code: w.code, provider_code: w.provider_code,
+    supports_pickups: w.supports_pickups, supports_dropoffs: w.supports_dropoffs,
+    supports_returns: w.supports_returns, supports_insurance: w.supports_insurance,
+    is_international: w.is_international, is_residential: w.is_residential,
+    is_active: w.is_active,
+    max_weight_lb: w.max_weight_lb, max_length_in: w.max_length_in,
+    max_width_in: w.max_width_in, max_height_in: w.max_height_in,
+    max_declared_value: w.max_declared_value,
+    min_transit_days: w.min_transit_days, max_transit_days: w.max_transit_days,
+    display_order: w.display_order,
+    created_by: s.created_by ?? "Dorado Metals",
+    updated_by: s.updated_by ?? "Dorado Metals",
+  };
+}
+
+function toPatchRow(s: ServiceInput): services.ServicePatch {
+  const w = writeFields(s);
+  return {
+    carrier_id: w.carrier_id, name: w.name, description: w.description,
+    code: w.code, provider_code: w.provider_code,
+    supports_pickups: w.supports_pickups, supports_dropoffs: w.supports_dropoffs,
+    supports_returns: w.supports_returns, supports_insurance: w.supports_insurance,
+    is_international: w.is_international, is_residential: w.is_residential,
+    is_active: w.is_active,
+    max_weight_lb: w.max_weight_lb, max_length_in: w.max_length_in,
+    max_width_in: w.max_width_in, max_height_in: w.max_height_in,
+    max_declared_value: w.max_declared_value,
+    min_transit_days: w.min_transit_days, max_transit_days: w.max_transit_days,
+    display_order: w.display_order,
+    updated_by: s.updated_by ?? "Dorado Metals",
+  };
 }
 
 export async function getAllServices(): Promise<ServiceRow[]> {
@@ -245,15 +293,13 @@ export async function getServicesByCarrierId(
 export async function createService(
   input: ServiceInput, executor?: Executor
 ): Promise<ServiceRow | null> {
-  const values = toValues(input);
   const run = async (c: Executor): Promise<ServiceRow | null> => {
     // ONE ID FOR BOTH SCHEMAS. Production already has all eight services under
     // matching ids in both tables; a new one has to keep that true, and the
     // only way to is to choose the id before either INSERT rather than letting
     // each table's DEFAULT gen_random_uuid() pick its own.
     const id = randomUUID();
-    const row = await services.create(id, values, c);
-    return row ?? null;
+    return await services.create(toNewRow(input, id), c);
   };
   return executor ? await run(executor) : await withTransaction(run);
 }
@@ -263,12 +309,11 @@ export async function updateService(
 ): Promise<ServiceRow | null> {
   const id = input.id;
   if (!id) return null;
-  const values = toValues(input);
 
   const run = async (c: Executor): Promise<ServiceRow | null> => {
-    const row = await services.update(id, values, c);
-    if (!row) return null;
-    return row;
+    const changed = await services.update(id, toPatchRow(input), c);
+    if (!changed) return null;
+    return (await services.getOne(id, c)) ?? null;
   };
   return executor ? await run(executor) : await withTransaction(run);
 }

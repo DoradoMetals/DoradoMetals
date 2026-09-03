@@ -26,15 +26,8 @@
 import * as purchaseOrderService from "#domain/orders/service.ts";
 import * as orderTransactions from "#domain/orders/transactions/service.ts";
 import * as refinerOrdersRepo from "#db/refiners/orders/repo.ts";
-import * as refinerSpotsRepo from "#db/refiners/spots/repo.ts";
-import { refusedUnknownField, refusedValue, type Refusal } from "#shared/http/patch-body.ts";
-import { RefinerOrderPatch } from "@dorado/contracts";
-
-const refuse = (statusCode: number, message: string): never => {
-  const err: Error & { statusCode?: number } = new Error(message);
-  err.statusCode = statusCode;
-  throw err;
-};
+import { refuseWith } from "#shared/http/refuse.ts";
+import type { RefinerOrderPatch } from "@dorado/contracts";
 
 // THE BODY IS THE CONTRACT'S (A3), AND THE NULL QUESTION SPLIT FOUR-TO-ONE.
 // This file typed all four writable values `| null` while
@@ -54,29 +47,12 @@ const refuse = (statusCode: number, message: string): never => {
 // and there is no exchange shadow to disagree with.
 export type { RefinerOrderPatch, RefinerSpotWrite } from "@dorado/contracts";
 
-const FIELDS = Object.keys(RefinerOrderPatch.shape);
-
-export function refusedField(body: Record<string, unknown>): Refusal | null {
-  const unknown = refusedUnknownField(body, FIELDS, "a refiner order PATCH");
-  if (unknown) return unknown;
-  const present = Object.keys(body ?? {});
-  if (present.length === 0) {
-    return { statusCode: 400, message: "the document names no field to write" };
-  }
-  if (body.spots !== undefined) {
-    if (!Array.isArray(body.spots) || body.spots.length === 0) {
-      return { statusCode: 400, message: `"spots" must be a non-empty list of { name, bid }` };
-    }
-    for (const spot of body.spots as unknown[]) {
-      const s = spot as { name?: unknown; bid?: unknown } | null;
-      if (!s || typeof s.name !== "string" || typeof s.bid !== "number") {
-        return { statusCode: 400, message: `"spots" entries are { name, bid }` };
-      }
-    }
-  }
-  return refusedValue(RefinerOrderPatch, body ?? {});
-}
-
+// SHAPE VALIDATION HAPPENS ONCE, AT THE TRANSPORT BOUNDARY
+// (transport/refiners/orders/controller.ts strict-parses the body against
+// this same RefinerOrderPatch - the unknown-field refusal, the "spots is a
+// non-empty { name, bid } list" check and the value types all come from the
+// schema now). What is left here is a RULE, not a shape: a patch document
+// must name at least one field.
 async function op<T>(name: string, run: () => Promise<T>): Promise<T> {
   try {
     return await run();
@@ -91,13 +67,14 @@ async function op<T>(name: string, run: () => Promise<T>): Promise<T> {
 
 export async function patchRefinerOrder(
   id: string,
-  body: RefinerOrderPatch & Record<string, unknown>
+  body: RefinerOrderPatch
 ): Promise<unknown> {
-  const refusal = refusedField(body);
-  if (refusal) refuse(refusal.statusCode, refusal.message);
+  if (Object.keys(body).length === 0) {
+    refuseWith(400, "the document names no field to write");
+  }
 
   const engagement = await refinerOrdersRepo.findById(id);
-  if (!engagement) refuse(404, `no refiner order ${id}`);
+  if (!engagement) refuseWith(404, `no refiner order ${id}`);
   const orderId = engagement!.order_id;
 
   for (const spot of body.spots ?? []) {
@@ -115,31 +92,31 @@ export async function patchRefinerOrder(
 
   if (body.pool_oz_deducted !== undefined) {
     await op("pool_oz_deducted", async () => {
-      await refinerOrdersRepo.setEngagementValue(id, "pool_oz_deducted", body.pool_oz_deducted!);
+      await refinerOrdersRepo.update(id, { pool_oz_deducted: body.pool_oz_deducted });
       await orderTransactions.update(orderId, { pool_oz_deducted: body.pool_oz_deducted! });
     });
   }
 
   if (body.pool_remediation !== undefined) {
     await op("pool_remediation", async () => {
-      await refinerOrdersRepo.setEngagementValue(id, "pool_remediation", body.pool_remediation!);
+      await refinerOrdersRepo.update(id, { pool_remediation: body.pool_remediation });
       await orderTransactions.update(orderId, { pool_remediation: body.pool_remediation! });
     });
   }
 
   if (body.fee !== undefined) {
     await op("fee", async () => {
-      await refinerOrdersRepo.setEngagementValue(id, "fee", body.fee!);
+      await refinerOrdersRepo.update(id, { fee: body.fee });
       await orderTransactions.update(orderId, { refiner_fee: body.fee! });
     });
   }
 
   if (body.refiner_id !== undefined) {
     // New-schema only, deliberately: exchange never recorded which refinery
-    // had the metal, so there is no shadow to keep level.
-    await op("refiner_id", () =>
-      refinerOrdersRepo.setEngagementValue(id, "refiner_id", body.refiner_id ?? null)
-    );
+    // had the metal, so there is no shadow to keep level. `refiner_id` in the
+    // patch (even when the value is null) is what tells the repo to write it
+    // - see db/refiners/orders/repo.ts's update() header.
+    await op("refiner_id", () => refinerOrdersRepo.update(id, { refiner_id: body.refiner_id }));
   }
 
   return await refinerOrdersRepo.findById(id);

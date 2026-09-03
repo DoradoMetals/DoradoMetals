@@ -212,7 +212,7 @@ async function createFulfillment(
   }
 
   const made = await fulfillments.create(
-    randomUUID(), order_id, method_id, status, created_by_id, executor
+    { id: randomUUID(), order_id, method_id, status, created_by_id }, executor
   );
   // No row means the order already had one - ON CONFLICT DO NOTHING - which is
   // the normal case for a second call rather than an error.
@@ -230,7 +230,9 @@ export async function createDraft(
   executor?: Executor
 ): Promise<ComposedFulfillment | null> {
   await methodService.assertOffered({ method_id, direction }, executor);
-  const row = await fulfillments.createDraft(randomUUID(), method_id, created_by_id, executor);
+  const row = await fulfillments.createDraft(
+    { id: randomUUID(), method_id, created_by_id }, executor
+  );
   return await composeOne(row, executor);
 }
 
@@ -243,7 +245,7 @@ export async function attachDraft(
   executor?: Executor
 ): Promise<ComposedFulfillment> {
   const row = await fulfillments.attachToOrder(
-    fulfillment_id, order_id, updated_by_id, executor
+    fulfillment_id, { order_id, updated_by_id }, executor
   );
   if (!row) {
     throw refuse(409, `fulfillment ${fulfillment_id} is not a draft - it already belongs to an order`);
@@ -304,8 +306,9 @@ export async function setStatus(
     { id: string; status: string; updated_by_id?: string | null },
   executor?: Executor
 ): Promise<ComposedFulfillment | null> {
-  const row = await fulfillments.setStatus(id, status, updated_by_id, executor);
-  return await composeOne(row, executor);
+  const changed = await fulfillments.update(id, { status }, updated_by_id, executor);
+  if (!changed) return null;
+  return await getById(id, executor);
 }
 
 // Changing how an order will be handed over.
@@ -346,7 +349,14 @@ export async function setMethod(
     );
   }
 
-  await fulfillments.setMethod(id, method_id, updated_by_id, executor);
+  const changed = await fulfillments.update(id, { method_id }, updated_by_id, executor);
+  if (!changed) {
+    throw refuse(
+      500,
+      `fulfillment ${id} vanished between its existence check and the method update - ` +
+        `this transaction must not commit`
+    );
+  }
 
   if (target.category !== "PICKUP") await pickups.remove(id, executor);
   if (target.category !== "DIRECT") await directs.remove(id, executor);

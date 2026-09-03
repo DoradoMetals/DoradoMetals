@@ -25,14 +25,10 @@ import * as shipmentsService from "#domain/shipping/shipments/service.ts";
 import * as purchaseOrderService from "#domain/orders/service.ts";
 import * as orderTransactions from "#domain/orders/transactions/service.ts";
 import * as salesOrderService from "#domain/orders/service.ts";
-import { refusedUnknownField, refusedValue, type Refusal } from "#shared/http/patch-body.ts";
-import { ShipmentPatch } from "@dorado/contracts";
+import { refuseWith } from "#shared/http/refuse.ts";
+import type { ShipmentPatch } from "@dorado/contracts";
 
-const refuse = (statusCode: number, message: string): never => {
-  const err: Error & { statusCode?: number } = new Error(message);
-  err.statusCode = statusCode;
-  throw err;
-};
+const refuse = (statusCode: number, message: string): never => refuseWith(statusCode, message);
 
 // THE BODY IS THE CONTRACT'S (A3), AND ONE FIELD CHANGED MEANING IN THE MOVE.
 // `shipping_charge` was `number | null` here and `number` in
@@ -45,32 +41,18 @@ const refuse = (statusCode: number, message: string): never => {
 // of 0, on a stored fee that D117 says is a record.
 export type { ShipmentPatch } from "@dorado/contracts";
 
-const FIELDS = Object.keys(ShipmentPatch.shape);
-
-export function refusedField(body: Record<string, unknown>): Refusal | null {
-  const unknown = refusedUnknownField(body, FIELDS, "a shipment PATCH");
-  if (unknown) return unknown;
-  const present = Object.keys(body ?? {});
-  if (present.length === 0) {
-    return { statusCode: 400, message: "the document names no field to write" };
-  }
-  // The tracking pair travels together: a number with no carrier (or the
-  // reverse) is half a write the old route never made.
-  if ((body.tracking_number === undefined) !== (body.carrier_id === undefined)) {
-    return {
-      statusCode: 400,
-      message: `"tracking_number" and "carrier_id" travel together`,
-    };
-  }
-  return refusedValue(ShipmentPatch, body ?? {});
-}
-
+// SHAPE VALIDATION HAPPENS ONCE, AT THE TRANSPORT BOUNDARY
+// (transport/shipping/shipments/controller.ts - the unknown-field refusal,
+// the tracking/carrier pairing and the value types all come from there now).
+// What is left here is a RULE, not a shape: a patch document must name at
+// least one field.
 export async function patchShipment(
   shipmentId: string,
-  body: ShipmentPatch & Record<string, unknown>
+  body: ShipmentPatch
 ): Promise<{ success: true }> {
-  const refusal = refusedField(body);
-  if (refusal) refuse(refusal.statusCode, refusal.message);
+  if (Object.keys(body).length === 0) {
+    refuseWith(400, "the document names no field to write");
+  }
 
   const shipment = await shipmentsService.getById(shipmentId);
   if (!shipment) refuse(404, `no shipment ${shipmentId}`);

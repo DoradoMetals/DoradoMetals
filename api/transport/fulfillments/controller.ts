@@ -1,4 +1,5 @@
-import { param, requiredParam } from "#shared/http/caller.ts";
+import { requiredParam } from "#shared/http/caller.ts";
+import { uuidParam, uuidField } from "#shared/http/validate.ts";
 import { oneString } from "#shared/http/query.ts";
 import { asyncHandler } from "#shared/middleware/asyncHandler.ts";
 import * as fulfillmentService from "#domain/fulfillments/service.ts";
@@ -38,14 +39,19 @@ export const getSchedule = asyncHandler(async (req, res) => {
   return res.status(200).json(rows.map(compose.toWire));
 });
 
+// NO CONTRACT SCHEMA EXISTS YET for these three bodies - @dorado/contracts has
+// no fulfillment-cancel/set-method/set-status shape, so the id is checked by
+// hand (uuidField) rather than by a strict parse (listed as a gap in the batch
+// report, not hand-written as a schema).
 export const cancelSchedule = asyncHandler(async (req, res) => {
-  const { fulfillment_id } = req.body;
+  const fulfillment_id = uuidField(req.body, "fulfillment_id");
   const saved = await fulfillmentService.cancelSchedule(fulfillment_id);
   return res.status(200).json(saved);
 });
 
 export const setMethod = asyncHandler(async (req, res) => {
-  const { fulfillment_id, method_id } = req.body;
+  const fulfillment_id = uuidField(req.body, "fulfillment_id");
+  const method_id = uuidField(req.body, "method_id");
   const saved = await fulfillmentService.setMethod({
     id: fulfillment_id,
     method_id,
@@ -55,7 +61,8 @@ export const setMethod = asyncHandler(async (req, res) => {
 });
 
 export const setStatus = asyncHandler(async (req, res) => {
-  const { fulfillment_id, status } = req.body;
+  const fulfillment_id = uuidField(req.body, "fulfillment_id");
+  const { status } = req.body;
   const saved = await fulfillmentService.setStatus({
     id: fulfillment_id,
     status,
@@ -70,11 +77,11 @@ export const setStatus = asyncHandler(async (req, res) => {
 // owns the chain. No fulfillment answers 404, because the resource asked for
 // does not exist.
 export const getFulfillmentByOrder = asyncHandler(async (req, res) => {
-  const fulfillment = await orderRead.getOrderFulfillment(param(req, "orderId"));
+  const fulfillment = await orderRead.getOrderFulfillment(uuidParam(req, "orderId"));
   if (!fulfillment) {
     return res.status(404).json({
       error: "Not Found",
-      message: `order ${param(req, "orderId")} has no fulfillment`,
+      message: `order ${uuidParam(req, "orderId")} has no fulfillment`,
     });
   }
   return res.json(fulfillment);

@@ -42,9 +42,9 @@ import assert from "node:assert/strict";
 import pool from "#db";
 import { refusedField as orderField } from "#domain/orders/patch.service.ts";
 import { refusedField as itemField } from "#domain/orders/items/service.ts";
-import { refusedField as shipmentField } from "#domain/shipping/shipments/patch.service.ts";
-import { refusedField as refinerOrderField } from "#domain/refiners/orders/service.ts";
-import { refusedField as refinerItemField } from "#domain/refiners/items/service.ts";
+import { refusedField as shipmentField } from "#transport/shipping/shipments/controller.ts";
+import { refusedField as refinerOrderField } from "#transport/refiners/orders/controller.ts";
+import { refusedField as refinerItemField } from "#transport/refiners/items/controller.ts";
 import { refusedField as payoutField } from "#domain/payouts/service.ts";
 
 after(async () => {

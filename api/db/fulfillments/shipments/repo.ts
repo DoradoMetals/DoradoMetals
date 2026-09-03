@@ -56,24 +56,26 @@ export async function existsFor(
 // survives - see sql/delete_by_shipment.sql.
 export async function removeByShipment(
   shipment_id: string, executor?: Executor
-): Promise<number> {
-  const r = await query(sql("delete_by_shipment"), [shipment_id], executor);
-  return r.rowCount ?? 0;
+): Promise<boolean> {
+  const { rowCount } = await query(sql("delete_by_shipment"), [shipment_id], executor);
+  return rowCount === 1;
 }
 
+// NO separate create/update (CRUD-batch-3): linking a parcel is an UPSERT (the
+// conflict target is shipment_id - see sql/upsert.sql's own header for why).
+// THE ROW, not positional scalars.
 export type ShipmentLinkInput = {
   shipment_id: string;
   recipient_location_id?: string | null;
   shipper_location_id?: string | null;
 };
 
-export async function upsert(
-  id: string, fulfillment_id: string, s: ShipmentLinkInput, executor?: Executor
-): Promise<ShipmentLinkRow> {
+export type ShipmentLinkNew = ShipmentLinkInput & { id: string; fulfillment_id: string };
+
+export async function upsert(row: ShipmentLinkNew, executor?: Executor): Promise<ShipmentLinkRow> {
   const { rows } = await query<ShipmentLinkRow>(
     sql("upsert"),
-    [id, fulfillment_id, s.shipment_id,
-     s.recipient_location_id ?? null, s.shipper_location_id ?? null],
+    [row.id, row.fulfillment_id, row.shipment_id, row.recipient_location_id, row.shipper_location_id],
     executor
   );
   return rows[0];

@@ -69,7 +69,7 @@ export async function createCarrier(
     const organization_id = randomUUID();
 
     await organizations.create(carrier.organization, organization_id, "CARRIER", c);
-    const row = await carriers.create(id, organization_id, carrier.logo ?? null, c);
+    const row = await carriers.create({ id, organization_id, logo: carrier.logo ?? null }, c);
 
     // exchange.carriers keeps both halves on one row, and is still the record
     // of truth until carriers is promoted. `enabled` is `is_active` there.
@@ -89,15 +89,20 @@ export async function updateCarrier(
   if (!id) return null;
 
   const run = async (c: Executor): Promise<ComposedCarrier | null> => {
-    const row = await carriers.update(id, carrier.logo ?? null, c);
-    if (!row) return null;
+    const current = await carriers.getOne(id, c);
+    if (!current) return null;
 
-    // Keyed by the carrier's OWN organization_id, read back from the row above,
+    const changed = await carriers.update(id, { logo: carrier.logo ?? null }, c);
+    if (!changed) return null;
+
+    // Keyed by the carrier's OWN organization_id, read before the update,
     // rather than by joining organizations to carriers inside the statement.
-    if (row.organization_id) {
-      await organizations.update(row.organization_id, carrier.organization, c);
+    if (current.organization_id) {
+      await organizations.update(current.organization_id, carrier.organization, c);
     }
 
+    const row = await carriers.getOne(id, c);
+    if (!row) return null;
     return await compose.one(row, c);
   };
   return executor ? await run(executor) : await withTransaction(run);

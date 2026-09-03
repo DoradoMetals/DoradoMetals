@@ -63,52 +63,55 @@ export async function getByOrders(
 // Returns undefined when the order already had one - ON CONFLICT DO NOTHING
 // returns no row. That is the normal case for a second call rather than an
 // error, and the service reads the existing one back.
+export type FulfillmentNew = {
+  id: string; order_id: string; method_id: string; status: string;
+  created_by_id: string | null;
+};
+
 export async function create(
-  id: string, order_id: string, method_id: string,
-  status: string, created_by_id: string | null, executor?: Executor
+  row: FulfillmentNew, executor?: Executor
 ): Promise<FulfillmentBaseRow | undefined> {
   const { rows } = await query<FulfillmentBaseRow>(
-    sql("create"), [id, order_id, method_id, status, created_by_id], executor
+    sql("create"), [row.id, row.order_id, row.method_id, row.status, row.created_by_id], executor
   );
   return rows[0];
 }
 
 // A DRAFT (D208): a fulfillment with no order yet, mutated by the checkout
 // flow and attached at order creation. See create_draft.sql.
+export type FulfillmentDraftNew = { id: string; method_id: string; created_by_id: string | null };
+
 export async function createDraft(
-  id: string, method_id: string, created_by_id: string | null, executor?: Executor
+  row: FulfillmentDraftNew, executor?: Executor
 ): Promise<FulfillmentBaseRow> {
   const { rows } = await query<FulfillmentBaseRow>(
-    sql("create_draft"), [id, method_id, created_by_id], executor
+    sql("create_draft"), [row.id, row.method_id, row.created_by_id], executor
   );
   return rows[0];
 }
 
-// Returns undefined when the draft was already attached - the WHERE guard in
-// attach_to_order.sql makes a repeat a zero-row update, never a repoint.
+// THE ONE-WAY ATTACH, kept as its own function rather than folded into
+// `update`: it is a state TRANSITION guarded by `WHERE order_id IS NULL`
+// (attach_to_order.sql), not a general column patch - order_id is never
+// COALESCE-patchable anywhere else, only ever set once, from null.
 export async function attachToOrder(
-  id: string, order_id: string, updated_by_id: string | null, executor?: Executor
+  id: string, patch: { order_id: string; updated_by_id: string | null }, executor?: Executor
 ): Promise<FulfillmentBaseRow | undefined> {
   const { rows } = await query<FulfillmentBaseRow>(
-    sql("attach_to_order"), [id, order_id, updated_by_id], executor
+    sql("attach_to_order"), [id, patch.order_id, patch.updated_by_id], executor
   );
   return rows[0];
 }
 
-export async function setStatus(
-  id: string, status: string, updated_by_id: string | null, executor?: Executor
-): Promise<FulfillmentBaseRow | undefined> {
-  const { rows } = await query<FulfillmentBaseRow>(
-    sql("set_status"), [status, updated_by_id, id], executor
-  );
-  return rows[0];
-}
+// ONE UPDATE (D212's CRUD ruling): replaces setStatus and setMethod, which
+// were the same UPDATE under two names.
+export type FulfillmentPatch = Partial<Pick<FulfillmentBaseRow, "status" | "method_id">>;
 
-export async function setMethod(
-  id: string, method_id: string, updated_by_id: string | null, executor?: Executor
-): Promise<FulfillmentBaseRow | undefined> {
-  const { rows } = await query<FulfillmentBaseRow>(
-    sql("set_method"), [method_id, updated_by_id, id], executor
+export async function update(
+  id: string, patch: FulfillmentPatch, updated_by_id: string | null, executor?: Executor
+): Promise<boolean> {
+  const { rowCount } = await query(
+    sql("update"), [patch.status, patch.method_id, updated_by_id, id], executor
   );
-  return rows[0];
+  return rowCount === 1;
 }

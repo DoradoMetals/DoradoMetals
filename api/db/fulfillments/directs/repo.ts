@@ -35,6 +35,9 @@ export async function getScheduled(
   return rows;
 }
 
+// NO separate create/update (CRUD-batch-3): booking is an UPSERT, because
+// rescheduling is the common case and a fulfillment may hold only one - see
+// sql/upsert.sql. THE ROW, not positional scalars.
 export type DirectInput = {
   location_id: string;
   assigned_employee_id?: string | null;
@@ -43,19 +46,21 @@ export type DirectInput = {
   end_time?: string | null;
 };
 
-export async function upsert(
-  id: string, fulfillment_id: string, d: DirectInput, executor?: Executor
-): Promise<DirectRow> {
+export type DirectNew = DirectInput & { id: string; fulfillment_id: string };
+
+export async function upsert(row: DirectNew, executor?: Executor): Promise<DirectRow> {
   const { rows } = await query<DirectRow>(
     sql("upsert"),
-    [id, fulfillment_id, d.location_id, d.assigned_employee_id ?? null,
-     d.is_appointment ?? true, d.start_time ?? null, d.end_time ?? null],
+    [
+      row.id, row.fulfillment_id, row.location_id, row.assigned_employee_id,
+      row.is_appointment, row.start_time, row.end_time,
+    ],
     executor
   );
   return rows[0];
 }
 
-export async function remove(fulfillment_id: string, executor?: Executor): Promise<number> {
-  const r = await query(sql("delete"), [fulfillment_id], executor);
-  return r.rowCount ?? 0;
+export async function remove(fulfillment_id: string, executor?: Executor): Promise<boolean> {
+  const { rowCount } = await query(sql("delete"), [fulfillment_id], executor);
+  return rowCount === 1;
 }

@@ -1,9 +1,10 @@
 // shipping.packages, and nothing else.
 //
-// Reference data - eleven rows, seeded - and read-only: nothing in the
-// application creates or edits a package. `find` exists because
-// exchange.shipments stores the package as TEXT and this schema stores a
-// reference, so a write arriving in exchange's shape has to resolve it.
+// Reference data - eleven rows, seeded - and READ ONLY (CRUD-batch-3): no
+// create/update/remove - nothing in the application creates or edits a
+// package. `find` exists because exchange.shipments stores the package as
+// TEXT and this schema stores a reference, so a write arriving in exchange's
+// shape has to resolve it.
 import query from "#shared/db/query.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
 import type { shipping } from "@dorado/contracts";

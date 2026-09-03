@@ -23,21 +23,30 @@ export async function getOne(id: string, executor?: Executor): Promise<CarrierRo
   return rows[0];
 }
 
-export async function create(
-  id: string, organization_id: string, logo: string | null, executor?: Executor
-): Promise<CarrierRow> {
-  const { rows } = await query<CarrierRow>(sql("create"), [id, organization_id, logo], executor);
+export type CarrierNew = Pick<CarrierRow, "id" | "organization_id" | "logo">;
+
+export async function create(row: CarrierNew, executor?: Executor): Promise<CarrierRow> {
+  const { rows } = await query<CarrierRow>(
+    sql("create"), [row.id, row.organization_id, row.logo], executor
+  );
   return rows[0];
 }
+
+// `logo` is the only column this table writes past create - name/email/phone/
+// enabled belong to the organization. NOT a COALESCE patch: this table has
+// always replaced logo whole, null included when the caller sends none (the
+// service's own comment on updateCarrier says so), so the patch names it
+// directly rather than leaving it alone when undefined.
+export type CarrierPatch = Pick<CarrierRow, "logo">;
 
 export async function update(
-  id: string, logo: string | null, executor?: Executor
-): Promise<CarrierRow | undefined> {
-  const { rows } = await query<CarrierRow>(sql("update"), [logo, id], executor);
-  return rows[0];
+  id: string, patch: CarrierPatch, executor?: Executor
+): Promise<boolean> {
+  const { rowCount } = await query(sql("update"), [patch.logo, id], executor);
+  return rowCount === 1;
 }
 
-export async function remove(id: string, executor?: Executor): Promise<number> {
-  const r = await query(sql("delete"), [id], executor);
-  return r.rowCount ?? 0;
+export async function remove(id: string, executor?: Executor): Promise<boolean> {
+  const { rowCount } = await query(sql("delete"), [id], executor);
+  return rowCount === 1;
 }

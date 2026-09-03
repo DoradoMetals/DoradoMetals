@@ -480,8 +480,8 @@ export async function recordPlacedPurchase(
 
   // The parcel, written once with everything known - ids straight off the
   // checkout row, no name resolution, no read-modify-write.
-  const shipment_id = await newShipments.create(randomUUID(), "Inbound", client);
-  const recorded = await newShipments.record(
+  const shipment_id = await newShipments.create({ id: randomUUID(), direction: "Inbound" }, client);
+  const recorded = await newShipments.update(
     shipment_id,
     {
       tracking_number: label?.tracking_number ?? null,
