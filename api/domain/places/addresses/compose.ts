@@ -20,7 +20,19 @@ export type ComposedAddress = AddressRow & {
 };
 
 export const compose = (a: AddressRow, ua: UserAddressRow): ComposedAddress => ({
-  ...a,
+  id: a.id,
+  line_1: a.line_1,
+  line_2: a.line_2,
+  city: a.city,
+  state: a.state,
+  country: a.country,
+  zip: a.zip,
+  country_code: a.country_code,
+  phone_number: a.phone_number,
+  created_at: a.created_at,
+  updated_at: a.updated_at,
+  is_valid: a.is_valid,
+  is_residential: a.is_residential,
   user_address: {
     user_id: ua.user_id,
     label: ua.label,

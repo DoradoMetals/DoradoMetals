@@ -145,11 +145,11 @@ test("a record for an order the new schema does not know keeps everything but th
     await recordEmail(
       {
         kind: "sales_order_to_supplier",
-        status: "sent",
         to: "refiner@example.test",
         subject: "paper-trail probe",
         order_id: randomUUID(),
       },
+      { status: "sent" },
       c
     );
     const { rows } = await c.query(

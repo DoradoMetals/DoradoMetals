@@ -19,7 +19,8 @@ import * as addresses from "#db/places/addresses/repo.ts";
 import * as userAddresses from "#db/places/user-addresses/repo.ts";
 import * as compose from "#domain/places/addresses/compose.ts";
 import type { ComposedAddress } from "#domain/places/addresses/compose.ts";
-import type { AddressValues } from "#db/places/addresses/repo.ts";
+import type { AddressRow } from "#db/places/addresses/repo.ts";
+import type { UserAddressRow } from "#db/places/user-addresses/repo.ts";
 import type { Executor } from "#shared/db/executor.ts";
 
 interface HttpError extends Error {
@@ -51,16 +52,20 @@ type UserAddressInput = {
   default_shipping?: boolean | null;
 };
 
-const toValues = (a: AddressInput): AddressValues => [
-  a.line_1 ?? null,
-  a.line_2 ?? null,
-  a.city ?? null,
-  a.state ?? null,
-  a.country ?? null,
-  a.zip ?? null,
-  a.country_code ?? null,
-  a.phone_number ?? null,
-];
+// The link row as compose() wants it, with default_shipping forced true - the
+// same link/owned row named field by field rather than spread, since a
+// create-as-default or update-to-default has already written the flag through
+// setDefault and this only needs the RESPONSE to say so without a second read.
+function asDefault(link: UserAddressRow): UserAddressRow {
+  return {
+    id: link.id,
+    address_id: link.address_id,
+    user_id: link.user_id,
+    label: link.label,
+    default_shipping: true,
+    default_billing: link.default_billing,
+  };
+}
 
 const labelOf = (ua?: UserAddressInput): string | null => ua?.label ?? null;
 const defaultOf = (ua?: UserAddressInput): boolean => ua?.default_shipping === true;
@@ -68,7 +73,7 @@ const defaultOf = (ua?: UserAddressInput): boolean => ua?.default_shipping === t
 // ---------------------------------------------------------------------- reads
 
 export async function list(userId: string, executor?: Executor): Promise<ComposedAddress[]> {
-  const links = await userAddresses.getForUser(userId, executor);
+  const links = await userAddresses.listFor(userId, executor);
   const rows = await addresses.getMany(links.map((l) => l.address_id), executor);
   return compose.all(links, rows);
 }
@@ -132,22 +137,21 @@ export async function create(
     { address: AddressInput; user_address?: UserAddressInput; userId: string },
   executor?: Executor
 ): Promise<ComposedAddress> {
-  const values = toValues(address);
   const label = labelOf(user_address);
   const isDefault = defaultOf(user_address);
 
   const run = async (c: Executor): Promise<ComposedAddress> => {
     const id = randomUUID();
-    const row = await addresses.create(id, values, c);
+    const row = await addresses.create(id, address, c);
     // Creating AS the default must also un-default the others. Only
     // setDefault ever cleared them, so a second create with the flag left a
     // user with two defaults and the UI showing a coin toss - a live bug
     // migration 089's one-default-per-user index surfaced the day it landed.
     // Insert off, then flip through the same clear-then-set both writes use.
-    const link = await userAddresses.create(randomUUID(), id, userId, label, false, c);
+    const link = await userAddresses.create(randomUUID(), id, userId, { label, default_shipping: false }, c);
     if (isDefault) {
       await userAddresses.setDefault(userId, id, c);
-      return compose.compose(row, { ...link, default_shipping: true });
+      return compose.compose(row, asDefault(link));
     }
     return compose.compose(row, link);
   };
@@ -165,7 +169,6 @@ export async function update(
     );
   }
 
-  const values = toValues(address);
   const label = labelOf(user_address);
   const isDefault = defaultOf(user_address);
 
@@ -176,16 +179,31 @@ export async function update(
     const owned = await userAddresses.getOne(address.id, userId, c);
     if (!owned) throw badRequest("Address not found.");
 
-    const row = await addresses.update(address.id, values, c);
-    if (!row) throw badRequest("Address not found.");
+    // The address, unchanged, plus is_residential reset to false - the one
+    // fact this write adds that the caller did not send (matching the
+    // statement this replaces; see repo.ts's header on why that survives the
+    // collapse into one update()).
+    const ok = await addresses.update(address.id, {
+      line_1: address.line_1,
+      line_2: address.line_2,
+      city: address.city,
+      state: address.state,
+      country: address.country,
+      zip: address.zip,
+      country_code: address.country_code,
+      phone_number: address.phone_number,
+      is_residential: false,
+    }, c);
+    if (!ok) throw badRequest("Address not found.");
+    const row = await addresses.getOne(address.id, c) as AddressRow;
 
     // Same one-default rule as create: an update that turns the flag ON goes
     // through clear-then-set rather than writing a second default beside the
     // existing one (089's index refuses that, correctly).
-    const link = await userAddresses.update(address.id, userId, label, false, c);
+    const link = await userAddresses.update(address.id, userId, { label, default_shipping: false }, c);
     if (isDefault) {
       await userAddresses.setDefault(userId, address.id, c);
-      return compose.compose(row, { ...(link ?? owned), default_shipping: true });
+      return compose.compose(row, asDefault(link ?? owned));
     }
     return compose.compose(row, link ?? owned);
   };
@@ -198,8 +216,9 @@ export async function updateValidation(
   executor?: Executor
 ): Promise<ComposedAddress | undefined> {
   const run = async (c: Executor): Promise<ComposedAddress | undefined> => {
-    const row = await addresses.updateValidation(addressId, is_valid, is_residential, c);
-    if (!row) return undefined;
+    const ok = await addresses.update(addressId, { is_valid, is_residential }, c);
+    if (!ok) return undefined;
+    const row = await addresses.getOne(addressId, c) as AddressRow;
     const links = await userAddresses.getByAddress(addressId, c);
     return links[0] ? compose.compose(row, links[0]) : undefined;
   };

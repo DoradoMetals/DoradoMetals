@@ -5,7 +5,7 @@ import withTransaction from "#shared/db/withTransaction.ts";
 import * as products from "#db/products/repo.ts";
 import * as compose from "#domain/products/compose.ts";
 import type { StorefrontProduct, AdminProduct } from "#domain/products/compose.ts";
-import type { ProductValues, Liveness } from "#db/products/repo.ts";
+import type { ProductPatch, Liveness } from "#db/products/repo.ts";
 import type { Executor } from "#shared/db/executor.ts";
 
 interface HttpError extends Error {
@@ -168,8 +168,7 @@ export async function getLiveness(ids: string[], executor?: Executor): Promise<L
 //
 // The client sends ids and quantities; everything else - premium, content,
 // purity - is read back from the database. Only the quantity survives from the
-// request, which is why this spreads the server row first and applies the
-// quantity over it rather than the other way round.
+// request; every other field is named explicitly rather than copied wholesale.
 export async function getItemsFromServer(
   items: { id: string; quantity: number }[]
 ): Promise<(StorefrontProduct & { quantity: number })[]> {
@@ -178,7 +177,30 @@ export async function getItemsFromServer(
     compose.labels(),
   ]);
   const wanted = new Map(items.map((i) => [i.id, i.quantity]));
-  return compose.storefront(rows, l).map((p) => ({ ...p, quantity: wanted.get(p.id) ?? 0 }));
+  return compose.storefront(rows, l).map((p) => ({
+    id: p.id,
+    name: p.name,
+    description: p.description,
+    content: p.content,
+    purity: p.purity,
+    gross: p.gross,
+    bid_premium: p.bid_premium,
+    ask_premium: p.ask_premium,
+    type: p.type,
+    image_front: p.image_front,
+    image_back: p.image_back,
+    variant_group: p.variant_group,
+    shadow_offset: p.shadow_offset,
+    slug: p.slug,
+    legal_tender: p.legal_tender,
+    domestic_tender: p.domestic_tender,
+    sell_display: p.sell_display,
+    is_generic: p.is_generic,
+    variant_label: p.variant_label,
+    metal_type: p.metal_type,
+    mint_name: p.mint_name,
+    quantity: wanted.get(p.id) ?? 0,
+  }));
 }
 
 // ------------------------------------------------------------------ writes
@@ -205,40 +227,45 @@ export async function saveProduct(
   if (!id) throw badRequest("a product update needs an id");
 
   const l = await compose.labels();
-  const values: ProductValues = [
-    resolve(l.metalNames, product.metal, "metal"),
-    resolve(l.refinerNames, product.supplier, "supplier"),
-    product.name ?? null,
-    product.description ?? null,
-    product.bid_premium ?? null,
-    product.ask_premium ?? null,
-    product.type ?? null,
-    flag(product.display),
-    product.content ?? null,
-    product.gross ?? null,
-    product.purity ?? null,
-    resolve(l.mintNames, product.mint, "mint"),
-    product.variant_group ?? null,
-    product.shadow_offset ?? null,
-    product.stock ?? null,
-    user?.name ?? "",
-    product.slug ?? null,
-    flag(product.homepage_display),
-    flag(product.legal_tender),
-    flag(product.domestic_tender),
-    flag(product.sell_display),
-    flag(product.is_generic),
-    product.variant_label ?? null,
-    product.quantity ?? null,
-    product.image_front ?? null,
-    product.image_back ?? null,
-    product.filter_category ?? null,
-  ];
+  // The three genuine transformations - names to ids the table can store, and
+  // the admin form's stringy booleans coerced to real ones. Everything else on
+  // ProductPatch is the request body's own field, passed through as received
+  // rather than re-copied with a default: an absent field binds as NULL
+  // through the driver, which is what `?? null` was doing by hand.
+  const patch: ProductPatch = {
+    metal_id: resolve(l.metalNames, product.metal, "metal"),
+    supplier_id: resolve(l.refinerNames, product.supplier, "supplier"),
+    mint_id: resolve(l.mintNames, product.mint, "mint"),
+    name: product.name,
+    description: product.description,
+    bid_premium: product.bid_premium,
+    ask_premium: product.ask_premium,
+    type: product.type,
+    display: flag(product.display),
+    content: product.content,
+    gross: product.gross,
+    purity: product.purity,
+    variant_group: product.variant_group,
+    shadow_offset: product.shadow_offset,
+    stock: product.stock,
+    slug: product.slug,
+    homepage_display: flag(product.homepage_display),
+    legal_tender: flag(product.legal_tender),
+    domestic_tender: flag(product.domestic_tender),
+    sell_display: flag(product.sell_display),
+    is_generic: flag(product.is_generic),
+    variant_label: product.variant_label,
+    quantity: product.quantity,
+    image_front: product.image_front,
+    image_back: product.image_back,
+    filter_category: product.filter_category,
+  };
+  const actor = user?.name ?? "";
 
   const run = async (c: Executor): Promise<{ id: string } | undefined> => {
-    const written = await products.update(id, values, c);
+    const written = await products.update(id, patch, actor, c);
     if (!written) return undefined;
-    return { id: written };
+    return { id };
   };
   return executor ? await run(executor) : await withTransaction(run);
 }
@@ -251,7 +278,18 @@ export async function createProduct(
 ): Promise<AdminProduct | undefined> {
   const run = async (c: Executor): Promise<AdminProduct | undefined> => {
     const id = randomUUID();
-    await products.create(id, name, created_by, EXCHANGE_CREATE_DEFAULTS, c);
+    await products.create({
+      id,
+      name,
+      created_by,
+      metal_id: EXCHANGE_CREATE_DEFAULTS.metal_id,
+      mint_id: EXCHANGE_CREATE_DEFAULTS.mint_id,
+      supplier_id: EXCHANGE_CREATE_DEFAULTS.supplier_id,
+      image_front: EXCHANGE_CREATE_DEFAULTS.image_front,
+      image_back: EXCHANGE_CREATE_DEFAULTS.image_back,
+      stock: EXCHANGE_CREATE_DEFAULTS.stock,
+      quantity: EXCHANGE_CREATE_DEFAULTS.quantity,
+    }, c);
     return await getAdminProductById(id, c);
   };
   return executor ? await run(executor) : await withTransaction(run);

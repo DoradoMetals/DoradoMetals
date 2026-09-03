@@ -102,6 +102,14 @@ export async function patchPayout(
   return { success: true };
 }
 
+// GET /api/orders/:orderId/payouts - the payouts on one order, as rows. A
+// thin pass to the repo so the controller never imports #db/* directly.
+export async function getPayoutsByOrder(
+  order_id: string
+): Promise<payoutsRepo.PayoutRow[]> {
+  return await payoutsRepo.getMany([order_id]);
+}
+
 // The full bank details for one payout - the repo's rules apply (see
 // sql/get_details.sql): admin only at the route, never logged, never carried
 // by an order payload.

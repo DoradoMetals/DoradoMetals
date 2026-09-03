@@ -18,8 +18,9 @@ import { reportError } from "#shared/observability/report.ts";
 import { createHash, randomUUID } from "node:crypto";
 import minio from "#providers/s3/minio.ts";
 import { isTestRun } from "#shared/testing/is-test-run.ts";
-import query from "#shared/db/query.ts";
 import { linkableOrderId } from "#domain/media/emails/record.ts";
+import * as pdfs from "#db/media/pdfs/repo.ts";
+import type { PdfRow } from "#db/media/pdfs/repo.ts";
 import type { PoolClient } from "pg";
 
 type Executor = PoolClient | undefined;
@@ -30,31 +31,6 @@ export type PdfKind =
   | "invoice"
   | "sales_order_invoice";
 
-const INSERT = `
-  INSERT INTO media.pdfs (id, kind, order_id, path, size_bytes, checksum)
-  VALUES ($1, $2, $3, $4, $5, $6)
-  RETURNING id
-`;
-
-// "The order's documents, latest of a kind first" - the read
-// pdfs_order_kind_idx exists to serve (090's own comment). Regeneration
-// INSERTS rather than updating, so the newest row IS the current document.
-const LATEST = `
-  SELECT id, path, size_bytes, checksum, created_at
-    FROM media.pdfs
-   WHERE order_id = $1 AND kind = $2
-   ORDER BY created_at DESC
-   LIMIT 1
-`;
-
-type PdfRow = {
-  id: string;
-  path: string;
-  size_bytes: number | null;
-  checksum: string | null;
-  created_at: Date;
-};
-
 /** The latest stored document of a kind for an order, or null if the order
  *  predates the paper trail (or predates dual - media.pdfs.order_id references
  *  orders.orders, so a pre-dual order can never have a row). */
@@ -62,8 +38,7 @@ export async function latestPdf(
   { kind, order_id }: { kind: PdfKind; order_id: string },
   executor?: Executor
 ): Promise<PdfRow | null> {
-  const { rows } = await query<PdfRow>(LATEST, [order_id, kind], executor);
-  return rows[0] ?? null;
+  return await pdfs.latestOfKind({ kind, order_id }, executor);
 }
 
 export async function persistPdf(
@@ -89,10 +64,10 @@ export async function persistPdf(
     // Same pre-check as recordEmail: a refused FK inside a caller's
     // transaction would poison it, so the link is verified, never discovered.
     const linkable = await linkableOrderId(order_id, executor);
-    const { rows } = await query(
-      INSERT, [id, kind, linkable, path, buffer.length, checksum], executor
-    );
-    return rows[0].id;
+    const written = await pdfs.create({
+      id, kind, order_id: linkable, path, size_bytes: buffer.length, checksum,
+    }, executor);
+    return written.id;
   } catch (err) {
     reportError({
       at: "media.pdfs.store",

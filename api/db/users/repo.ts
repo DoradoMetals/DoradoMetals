@@ -28,8 +28,15 @@
 // trigger carries it to the copy the reads below serve. Reversing the direction
 // is the auth cutover - re-pointing better-auth - and that is Jacob's.
 //
-// NO CREATE, UPDATE OR DELETE FOR A USER. Everything about a user except the
-// credit balance is better-auth's.
+// NO CREATE, REMOVE, OR GENERIC UPDATE FOR A USER. Everything about a user
+// except the credit balance is better-auth's, and the balance is not a bare
+// patch either - CRUD-ifying it (Jacob's ruling) carries a named EXCEPTION for
+// exactly this table: the write is a ledger operation with FOR UPDATE
+// semantics, so `adjustCredit` is the one write this feature keeps, built on
+// `balanceForUpdate`'s locked read. `addFunds`/`removeFunds` used to be two
+// more statements doing exactly what adjustCredit's own "add"/"subtract" arms
+// do; they are gone, and domain/users/service.ts's addFunds/removeFunds now
+// call adjustCredit instead of carrying their own SQL.
 import query from "#shared/db/query.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
 import type { Executor } from "#shared/db/executor.ts";
@@ -52,7 +59,13 @@ export async function getOne(id: string, executor?: Executor): Promise<UserRow |
   return rows[0];
 }
 
-export async function getAll(executor?: Executor): Promise<UserRow[]> {
+// list(): every user, admin-role rows included, ordered by role then id - the
+// full admin roster. getAdmins() is a genuinely different shape, not a filter
+// on this one: it sorts name DESC, id DESC (the historical admin-list order -
+// see sql/get_admins.sql's own header), so folding it into list({role}) would
+// push an ORDER BY choice into a parameter for exactly one caller. Kept
+// separate.
+export async function list(executor?: Executor): Promise<UserRow[]> {
   const { rows } = await query<UserRow>(sql("get_all"), [], executor);
   return rows;
 }
@@ -64,26 +77,12 @@ export async function getAdmins(executor?: Executor): Promise<UserRow[]> {
 
 // ---- writes: exchange.users.dorado_funds -----------------------------------
 //
-// ADD AND REMOVE LIVE HERE, NOT IN transactions. They used to sit in
-// features/transactions, which meant two services wrote the same table - the one
-// thing the structure's guardrail forbids, because it is what makes "where does
-// this get written?" unanswerable and closes the door on ever putting the
-// invariant in one place.
-
-export async function addFunds(
-  user_id: string, total: number, executor?: Executor
-): Promise<number> {
-  const r = await query(sql("add_funds"), [total, user_id], executor);
-  return r.rowCount ?? 0;
-}
-
-export async function removeFunds(
-  user_id: string, total: number, executor?: Executor
-): Promise<number> {
-  const r = await query(sql("remove_funds"), [total, user_id], executor);
-  return r.rowCount ?? 0;
-}
-
+// THE ONE WRITE, NOT IN transactions. It used to sit in features/transactions,
+// which meant two services wrote the same table - the one thing the
+// structure's guardrail forbids, because it is what makes "where does this get
+// written?" unanswerable and closes the door on ever putting the invariant in
+// one place.
+//
 // Returns the row count AND the balance the adjustment produced. The count is
 // what tells "no such user" apart from "applied"; the balance is what the
 // caller displays instead of computing it (D98).

@@ -2,6 +2,7 @@ import * as users from "#db/users/repo.ts";
 import withTransaction from "#shared/db/withTransaction.ts";
 import type { UserRow } from "#db/users/repo.ts";
 import type { PoolClient } from "pg";
+import type { Executor } from "#shared/db/executor.ts";
 
 // The controller's error handler reads statusCode off the thrown error, so it
 // is declared rather than assigned onto a bare Error.
@@ -14,7 +15,7 @@ export async function getUser(id: string): Promise<UserRow | undefined> {
 }
 
 export async function getAllUsers(): Promise<UserRow[]> {
-  return await users.getAll();
+  return await users.list();
 }
 
 export async function getAdminUsers(): Promise<UserRow[]> {
@@ -233,16 +234,21 @@ export async function adjustDoradoCredit({
 // no-op rather than a crash or a NULL arithmetic result - `dorado_funds + NULL`
 // is NULL, and the column is NOT NULL, so the statement would have raised 23502
 // after the caller had already committed other work.
+// Built on the same repo primitive adjustDoradoCredit uses above
+// (adjustCredit's "add"/"subtract" arms) rather than two more one-column
+// statements - a checkout money movement and an admin's manual edit are the
+// same write, and the CASE-with-no-ELSE backstop covers both this way instead
+// of once.
 export async function addFunds(
-  user_id: string | null, total: number | null, executor?: unknown
+  user_id: string | null, total: number | null, executor?: Executor
 ): Promise<number> {
   if (!user_id || total === null) return 0;
-  return await users.addFunds(user_id, total, executor as never);
+  return (await users.adjustCredit(user_id, "add", total, executor)).rowCount;
 }
 
 export async function removeFunds(
-  user_id: string | null, total: number | null, executor?: unknown
+  user_id: string | null, total: number | null, executor?: Executor
 ): Promise<number> {
   if (!user_id || total === null) return 0;
-  return await users.removeFunds(user_id, total, executor as never);
+  return (await users.adjustCredit(user_id, "subtract", total, executor)).rowCount;
 }

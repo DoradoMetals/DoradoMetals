@@ -7,6 +7,12 @@
 // staying together.
 //
 // Each runs inside a transaction that is rolled back, so no real balance moves.
+//
+// EXERCISED THROUGH THE SERVICE, NOT THE REPO. addFunds/removeFunds used to be
+// their own one-column repo statements; the CRUD collapse folded them into
+// `users.adjustCredit`'s "add"/"subtract" arms (the ledger exception - see
+// db/users/repo.ts's header), so the service functions are the whole write
+// path now and this file follows them there.
 import test, { after, before } from "node:test";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
@@ -15,7 +21,7 @@ import pool from "#db";
 // MOVED FROM features/transactions. addFunds and removeFunds write
 // exchange.users.dorado_funds, and features/users owns that table - two
 // services writing one table is the single thing the structure forbids.
-import * as repo from "#db/users/repo.ts";
+import * as usersService from "#domain/users/service.ts";
 // The ledger entry that records WHY a balance moved lives in its own feature -
 // the balance is users', the log is transactions'. Two tables, two owners.
 import * as transactions from "#domain/transactions/service.ts";
@@ -54,7 +60,7 @@ test("adding funds increases the balance by exactly the amount", async () => {
   await inRollback(async (c: PoolClient) => {
     const user = await aUser(c);
     const before = await balance(c, user.id);
-    await repo.addFunds(user.id, 250.75, c);
+    await usersService.addFunds(user.id, 250.75, c);
     assert.equal(await balance(c, user.id), before + 250.75);
   });
 });
@@ -63,7 +69,7 @@ test("removing funds decreases it by exactly the amount", async () => {
   await inRollback(async (c: PoolClient) => {
     const user = await aUser(c);
     const before = await balance(c, user.id);
-    await repo.removeFunds(user.id, 100.25, c);
+    await usersService.removeFunds(user.id, 100.25, c);
     assert.equal(await balance(c, user.id), before - 100.25);
   });
 });
@@ -74,7 +80,7 @@ test("removing funds decreases it by exactly the amount", async () => {
 test("a balance is a number, not a string", async () => {
   await inRollback(async (c: PoolClient) => {
     const user = await aUser(c);
-    await repo.addFunds(user.id, 10, c);
+    await usersService.addFunds(user.id, 10, c);
     const { rows } = await c.query("SELECT dorado_funds FROM exchange.users WHERE id = $1", [user.id]);
     assert.equal(typeof rows[0].dorado_funds, "number");
   });
@@ -86,8 +92,8 @@ test("adding then removing the same amount is a round trip", async () => {
   await inRollback(async (c: PoolClient) => {
     const user = await aUser(c);
     const before = await balance(c, user.id);
-    await repo.addFunds(user.id, 33.33, c);
-    await repo.removeFunds(user.id, 33.33, c);
+    await usersService.addFunds(user.id, 33.33, c);
+    await usersService.removeFunds(user.id, 33.33, c);
     assert.equal(await balance(c, user.id), before);
   });
 });
@@ -99,7 +105,7 @@ test("removing more than the balance goes negative rather than refusing", async 
   await inRollback(async (c: PoolClient) => {
     const user = await aUser(c);
     const before = await balance(c, user.id);
-    await repo.removeFunds(user.id, before + 1000, c);
+    await usersService.removeFunds(user.id, before + 1000, c);
     assert.ok(await balance(c, user.id) < 0);
   });
 });
@@ -134,7 +140,7 @@ test("a rolled-back movement leaves neither the balance nor the log changed", as
     );
 
     await client.query("BEGIN");
-    await repo.addFunds(user.id, 999.99, client);
+    await usersService.addFunds(user.id, 999.99, client);
     await transactions.addTransactionLog(user.id, `sentinel-${randomUUID().slice(0, 8)}`, null, null, 999.99, client);
 
     // Visible inside, invisible outside.
