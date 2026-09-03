@@ -1,7 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { apiRequest } from '@/shared/queries/axios'
-import { PurchaseOrder, PurchaseOrderCheckout } from '@/features/orders/purchaseOrders/types'
-import { toAddressSnapshot } from '@/features/orders/addressSnapshot'
+import { PurchaseOrder } from '@/features/orders/purchaseOrders/types'
 import { useGetSession } from '@/features/auth/queries'
 
 export const usePurchaseOrders = () => {

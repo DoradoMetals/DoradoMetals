@@ -7,7 +7,6 @@ import cors from "cors";
 import productRoutes from "#transport/products/routes.ts";
 import addressRoutes from "#transport/places/addresses/routes.ts";
 import { purchaseOrderRoutes, salesOrderRoutes } from "#transport/orders/creates.routes.ts";
-import checkoutRoutes from "#transport/checkout/routes.ts";
 import checkoutRowRoutes from "#transport/checkout/checkout.routes.ts";
 import pdfRoutes from "#transport/media/pdfs/routes.ts";
 import reviewRoutes from "#transport/reviews/routes.ts";
@@ -78,8 +77,7 @@ app.use("/api/stripe", paymentRoutes);
 app.use("/api/payments/methods", paymentMethodRoutes);
 app.use("/api/products", productRoutes);
 app.use("/api/addresses", addressRoutes);
-// Route stays /api/cart for the same reason — the checkout ROW is minted today and gets the honest name.
-app.use("/api/cart", checkoutRoutes);
+// /api/cart is GONE (ruling 50): the basket is /api/checkout/items.
 app.use("/api/checkout", checkoutRowRoutes);
 app.use("/api/shipping", shippingRoutes);
 app.use("/api/spots", spotRoutes);

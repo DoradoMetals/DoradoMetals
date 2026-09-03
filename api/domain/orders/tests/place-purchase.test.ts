@@ -1,7 +1,8 @@
 // THE ZERO-BODY PURCHASE CREATE (D210), tested to the hilt without a FedEx
 // call ever being reachable. By Confirm, everything is a server-side resource:
-// the row's ids, the parcel facts as columns, the draft fulfillment, and the
-// payout account SEALED in payments.details at the payout step.
+// the row's ids, the parcel's weight and declared value COMPUTED (ruling 58,
+// not columns any more), the draft fulfillment, and the payout account
+// SEALED in payments.details at the payout step.
 //
 // THE SEAMS ARE GONE (D214 item 11). `resolvePurchase` and `recordPurchase`
 // were exported halves of one use case, so the row flow could be asserted with
@@ -39,8 +40,8 @@ type UserFixture = { id: string };
 // What it replaces: a non-admin customer WITH AN ADDRESS, found by joining the
 // FROZEN `exchange.users` to `places.user_addresses` and back to `auth.users`
 // for the name (three tables to answer "a person and where they live"), plus a
-// product name out of `exchange.products` - a table D212 stopped writing,
-// while the cart sync it feeds resolves against `products.bullion`.
+// product name out of `exchange.products` - a table D212 stopped writing.
+// The basket names the product by id now.
 //
 // The seeded reference rows stay named: "Small Box", "Express Saver", a
 // carrier-agnostic sale service, and the three purchase fulfillment methods.
@@ -56,7 +57,7 @@ type Fixtures = {
   dropoffMethodId: string;
   pickupMethodId: string;
   directMethodId: string;
-  productName: string;
+  productId: string;
 };
 
 const aWorld = async (c: PoolClient): Promise<Fixtures> => {
@@ -74,7 +75,7 @@ const aWorld = async (c: PoolClient): Promise<Fixtures> => {
     pickupMethodId: await fulfillmentMethodId(c, "CARRIER PICKUP", "purchase"),
     // A non-SHIPMENT purchase method - the shipping checkout must refuse it.
     directMethodId: await fulfillmentMethodId(c, "PICKUP", "purchase"),
-    productName: product.name,
+    productId: product.id,
   };
 };
 
@@ -125,21 +126,19 @@ afterAll(async () => {
 });
 
 // Drive the same surfaces the stepper drives: PATCH the row (ids AND parcel
-// facts), POST the fulfillment, POST the payout, sync the sell cart.
+// facts), POST the fulfillment, POST the payout, PUT the basket.
 async function primeCheckout(
   fixtures: Fixtures,
   methodId: string,
   { schedule = false }: { schedule?: boolean } = {}
 ) {
-  const { customer, addressId, packageId, labelServiceId, productName } = fixtures;
+  const { customer, addressId, packageId, labelServiceId, productId } = fixtures;
   const patched = await as(customer, () =>
     request(app).patch("/api/checkout").send({
       direction: "purchase",
       shipper_address_id: addressId,
       package_id: packageId,
       carrier_service_id: labelServiceId,
-      package_weight: 3,
-      declared_value: 2500,
       pickup_date: schedule ? "2026-09-15" : null,
       pickup_time: schedule ? "10:30:00" : null,
     })
@@ -161,9 +160,10 @@ async function primeCheckout(
   assert.ok(payout.body.payment_details_id, "the row did not keep the details id");
 
   const cart = await as(customer, () =>
-    request(app).post("/api/cart/sync_sell_cart").send({
-      cart: [{ type: "product", data: { name: productName, quantity: 2 } }],
-    })
+    request(app)
+      .put("/api/checkout/items")
+      .query({ direction: "purchase" })
+      .send({ items: [{ bullion_id: productId, quantity: 2 }] })
   );
   assert.equal(cart.status, 200, cart.text);
 
@@ -259,8 +259,10 @@ test("the carrier is asked ONLY what the row holds - no body exists any more", a
     assert.equal(personName, customerName);
     assert.equal(parcel.serviceType, "FEDEX_EXPRESS_SAVER");
     assert.equal(parcel.handoff.code, "DROPOFF_AT_FEDEX_LOCATION");
-    assert.equal(parcel.weight.value, 3, "the weight came off the ROW");
-    assert.equal(parcel.declaredValue, 2500, "the declared value came off the ROW");
+    // Two troy ounces of coin weighs far less than a pound - the box's own
+    // minimum (Small Box, 2 lb) is what actually governs (ruling 58).
+    assert.equal(parcel.weight.value, 2, "the weight is computed, not read off the row");
+    assert.ok(parcel.declaredValue > 0, "the declared value is computed, not read off the row");
     assert.equal(parcel.schedule, null, "a dropoff booked a courier");
   }, { actor: TEST_ACTOR.id, lock: LOCKS.ORDERS });
 });
@@ -380,6 +382,10 @@ test("the placement links ids and writes NO exchange rows at all", async () => {
     assert.equal(booking?.confirmation_number, "9971234");
 
     // *** ZERO EXCHANGE ROWS - the write pivot for this path, executed. ***
+    // KEPT (exchange-fixtures lane, D214 item 10): this reads exchange to
+    // prove its ABSENCE for the order this test itself just placed, not as a
+    // fixture source - a builder-made row could not prove a negative about
+    // the write path the way asserting on the live app's own output does.
     const { rows: [exchange] } = await c.query(
       `SELECT
          (SELECT count(*)::int FROM exchange.purchase_orders WHERE id = $1) AS orders,
@@ -420,7 +426,6 @@ test("the placement links ids and writes NO exchange rows at all", async () => {
     const fresh = await checkoutService.getRowFor(customer.id, "purchase", c);
     assert.equal(fresh.payment_details_id, null);
     assert.equal(fresh.fulfillment_id, null);
-    assert.equal(fresh.package_weight, null);
   }, { actor: TEST_ACTOR.id, lock: LOCKS.ORDERS });
 });
 
@@ -440,5 +445,57 @@ test("a spent draft refuses the SECOND order", async () => {
       () => place.place(second.checkout_id, carrier().world),
       /already belongs to an order/
     );
+  }, { actor: TEST_ACTOR.id, lock: LOCKS.ORDERS });
+});
+
+// ------------------------------------------------- label-after-commit (2026-09-03)
+
+// THE ORACLE FOR THE FINDING THIS FILE'S SIBLING WAVE FIXED: a carrier failure
+// used to leave a voided-but-billed label and a rolled-back order. Now the
+// order and its shell shipment commit BEFORE the carrier is ever asked, so a
+// failure here must leave them standing rather than undoing them.
+test("a carrier failure buying the label leaves the order and its shell shipment behind", async () => {
+  await inPinnedTransaction(async (c: PoolClient) => {
+    const fixtures = await aWorld(c);
+    const { dropoffMethodId } = fixtures;
+    const { checkout_id, fulfillment_id } = await primeCheckout(fixtures, dropoffMethodId);
+
+    const failing: placeModule.World = {
+      buyPostage: async () => {
+        throw new Error("FEDEX IS DOWN");
+      },
+      authorize: async () => {},
+      confirm: async () => {},
+    };
+
+    await assert.rejects(() => place.place(checkout_id, failing), /FEDEX IS DOWN/);
+
+    // The rejected promise never handed back an order id, so it is found the
+    // way the DATABASE links it - through the fulfillment id the checkout
+    // already named.
+    const { rows: [fulfillment] } = await c.query(
+      `SELECT order_id FROM fulfillments.fulfillments WHERE id = $1`, [fulfillment_id]
+    );
+    assert.ok(fulfillment?.order_id, "the order did not commit before the carrier was asked");
+
+    const { rows: [order] } = await c.query(
+      `SELECT status FROM orders.orders WHERE id = $1`, [fulfillment.order_id]
+    );
+    assert.equal(order.status, "In Transit", "the order row itself did not survive");
+
+    const { rows: [shipment] } = await c.query(
+      `SELECT s.tracking_number, s.label, s.shipping_status FROM shipping.shipments s
+        JOIN fulfillments.shipments fs ON fs.shipment_id = s.id
+       WHERE fs.fulfillment_id = $1`,
+      [fulfillment_id]
+    );
+    assert.ok(shipment, "the shell shipment was never committed");
+    assert.equal(shipment.tracking_number, null, "a failed carrier call still recorded a tracking number");
+    assert.equal(shipment.label, null, "a failed carrier call still recorded a label");
+
+    const { rows: [totals] } = await c.query(
+      `SELECT shipping FROM orders.transactions WHERE order_id = $1`, [fulfillment.order_id]
+    );
+    assert.equal(totals.shipping, null, "a failed carrier call still recorded a shipping charge");
   }, { actor: TEST_ACTOR.id, lock: LOCKS.ORDERS });
 });

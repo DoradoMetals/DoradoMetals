@@ -7,69 +7,12 @@
 import query from "#shared/db/query.ts";
 import { buildUpdate } from "#shared/db/patch.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
-import type { checkout, products } from "@dorado/contracts";
+import type { checkout } from "@dorado/contracts";
 import type { Executor } from "#shared/db/executor.ts";
 
 const sql = sqlFrom(import.meta.dirname);
 
 export type ItemRow = checkout.ItemsRow;
-
-// A product column reached through a LEFT JOIN is null when the product was
-// deleted, so the mapped type says that once instead of twenty times.
-type Nullable<T> = { [K in keyof T]: T[K] | null };
-
-type LineKey = {
-  cart_item_id: ItemRow["id"];
-  product_id: ItemRow["bullion_id"];
-  quantity: ItemRow["quantity"];
-};
-
-// The two frozen wire shapes for a bullion line. They differ by projection, not
-// by rule: the sell cart has never carried the tender flags or the mint, and a
-// schema migration never changes a wire shape.
-export type SaleBullionLine = Nullable<
-  Pick<
-    products.BullionRow,
-    | "id" | "gross" | "purity" | "content" | "slug" | "bid_premium"
-    | "ask_premium" | "image_front" | "image_back" | "shadow_offset"
-    | "variant_group" | "variant_label" | "is_generic" | "legal_tender"
-    | "domestic_tender"
-  >
-> &
-  LineKey & {
-    product_name: string | null;
-    product_description: string | null;
-    product_type: string | null;
-    metal_type: string | null;
-    mint_name: string | null;
-  };
-
-export type PurchaseBullionLine = Nullable<
-  Pick<
-    products.BullionRow,
-    | "id" | "gross" | "purity" | "content" | "slug" | "bid_premium"
-    | "ask_premium" | "image_front" | "image_back" | "shadow_offset"
-    | "variant_group" | "variant_label"
-  >
-> &
-  LineKey & {
-    product_name: string | null;
-    product_description: string | null;
-    product_type: string | null;
-    metal_type: string | null;
-  };
-
-// A scrap line. `scrap_id` and `id` are both the line's own id - see
-// sql/list_scrap.sql.
-export type ScrapLine = Pick<
-  ItemRow, "id" | "quantity" | "pre_melt" | "post_melt" | "purity" | "content"
-> & {
-  cart_item_id: ItemRow["id"];
-  scrap_id: ItemRow["id"];
-  gross_unit: ItemRow["unit"];
-  bid_premium: ItemRow["premium"];
-  metal: string | null;
-};
 
 // The lines as order creation needs them - see sql/list_for_order.sql.
 export type OrderLine = Pick<
@@ -78,8 +21,6 @@ export type OrderLine = Pick<
   | "content" | "unit" | "premium" | "quantity"
 >;
 
-// metal_id and premium ARRIVE RESOLVED: the service reads the product (or the
-// metal by name) and passes ids, so this write touches one table.
 export type NewItem = {
   checkout_id: string;
   bullion_id: string | null;
@@ -110,29 +51,6 @@ export async function listFor(checkout_id: string, executor?: Executor): Promise
   return rows;
 }
 
-// ONE FUNCTION, DIRECTION AS DATA. The overloads exist because the two
-// statements answer two frozen wire shapes, not because there are two rules.
-export function listBullionFor(
-  checkout_id: string, direction: "sale", executor?: Executor
-): Promise<SaleBullionLine[]>;
-export function listBullionFor(
-  checkout_id: string, direction: "purchase", executor?: Executor
-): Promise<PurchaseBullionLine[]>;
-export async function listBullionFor(
-  checkout_id: string, direction: string, executor?: Executor
-): Promise<SaleBullionLine[] | PurchaseBullionLine[]> {
-  const statement = direction === "sale" ? "list_bullion_sale" : "list_bullion_purchase";
-  const { rows } = await query<SaleBullionLine>(sql(statement), [checkout_id], executor);
-  return rows;
-}
-
-export async function listScrapFor(
-  checkout_id: string, executor?: Executor
-): Promise<ScrapLine[]> {
-  const { rows } = await query<ScrapLine>(sql("list_scrap"), [checkout_id], executor);
-  return rows;
-}
-
 export async function listForOrder(
   checkout_id: string, executor?: Executor
 ): Promise<OrderLine[]> {
@@ -150,6 +68,14 @@ export async function create(row: NewItem, executor?: Executor): Promise<ItemRow
     executor
   );
   return rows[0];
+}
+
+export async function createMany(
+  rows: NewItem[], executor?: Executor
+): Promise<ItemRow[]> {
+  const written: ItemRow[] = [];
+  for (const row of rows) written.push(await create(row, executor));
+  return written;
 }
 
 export async function update(

@@ -20,6 +20,7 @@ import { Forbidden, NotFound } from "#shared/errors.ts";
 import {
   OrderCancel,
   OrderCreate,
+  OrderLabel,
   OrderPatch,
   OrderReviewCreate,
   OrderSendToRefiner,
@@ -95,6 +96,13 @@ export const finalizeOrderPricing = asyncHandler(async (req, res) => {
 export const cancelOrder = asyncHandler(async (req, res) => {
   const input = strictBody(OrderCancel, req.body);
   return res.status(200).json(await orders.cancel(uuidParam(req, "id"), input));
+});
+
+// RETRY SURFACE for a purchase order whose own label purchase failed after
+// the order committed (label-after-commit, 2026-09-03) - see orders.buyLabel.
+export const buyOrderLabel = asyncHandler(async (req, res) => {
+  const input = strictBody(OrderLabel, req.body);
+  return res.status(200).json(await orders.buyLabel(uuidParam(req, "id"), input));
 });
 
 export const sendOrderToRefiner = asyncHandler(async (req, res) => {

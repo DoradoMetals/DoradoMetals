@@ -39,7 +39,7 @@ const { default: app } = await import("#app");
 // projections, not table rows - naming a row type would claim columns the
 // query never asked for.
 type UserFixture = { id: string; name: string | null; email: string | null };
-type ShipmentFixture = { id: string; purchase_order_id: string };
+type ShipmentFixture = { id: string; order_id: string };
 type PayoutFixture = { id: string; order_id: string };
 
 const admin: UserFixture = TEST_ACTOR;
@@ -62,7 +62,7 @@ const money = async (c: PoolClient) => {
   const parcel = await aShipment(c, order);
   const payout = await aPayout(c, customer, { order });
   return {
-    shipment: { id: parcel.id, purchase_order_id: order.id },
+    shipment: { id: parcel.id, order_id: order.id },
     payout: { id: payout.id, order_id: order.id },
   };
 };
@@ -108,7 +108,7 @@ test("shipping_actual lands on the shipment's order", async () => {
 
       const { rows } = await client.query(
         `SELECT shipping_fee_actual FROM orders.transactions WHERE order_id = $1`,
-        [shipment.purchase_order_id]
+        [shipment.order_id]
       );
       assert.equal(Number(rows[0].shipping_fee_actual), 12.34, "the actual cost did not land");
     });

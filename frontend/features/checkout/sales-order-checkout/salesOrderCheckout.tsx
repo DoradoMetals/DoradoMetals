@@ -3,12 +3,11 @@
 import { Button } from '@dorado/components'
 import { useEffect, useMemo, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { cartStore } from '@/shared/store/cartStore'
+import { useCheckoutItems } from '@/shared/store/checkoutItemsStore'
 import { useSalesOrderCheckoutStore } from '@/shared/store/salesOrderCheckoutStore'
 import ShippingSelect from './shipping/shippingSelect'
 
 import { loadStripe } from '@stripe/stripe-js'
-import { salesOrderCheckoutSchema } from '@/features/orders/salesOrders/types'
 import { ShoppingCartIcon } from '@phosphor-icons/react'
 import { useGetSession } from '@/features/auth/queries'
 import { useMutationState } from '@tanstack/react-query'
@@ -32,7 +31,7 @@ export default function SalesOrderCheckout() {
   const [isPending, startTransition] = useTransition()
 
   const { data, setData } = useSalesOrderCheckoutStore()
-  const cartItems = cartStore((state) => state.items)
+  const items = useCheckoutItems((state) => state.sale)
 
   const { data: addresses = [], isPending: isAddressesPending } = useAddress()
 
@@ -56,12 +55,14 @@ export default function SalesOrderCheckout() {
   // applies whenever the customer has a balance, same as placement.
   const quoteBody = useMemo(
     () => ({
-      items: cartItems.map((item) => ({ id: item.id, quantity: item.quantity ?? 1 })),
+      items: items.flatMap((item) =>
+        item.bullion_id ? [{ id: item.bullion_id, quantity: item.quantity ?? 1 }] : []
+      ),
       shipping_service: data.service?.value ?? null,
       payment_method: data.payment_method ?? 'CARD',
       address_id: data.address?.id ?? null,
     }),
-    [cartItems, data.service?.value, data.payment_method, data.address?.id]
+    [items, data.service?.value, data.payment_method, data.address?.id]
   )
 
   const { data: orderPrices } = useSalesOrderQuote(quoteBody)
@@ -80,7 +81,7 @@ export default function SalesOrderCheckout() {
   useEffect(() => {
     if (clientSecret && (orderPrices?.base_total ?? 0) > 0 && cardNeeded) {
       updatePaymentIntent.mutate({
-        items: cartItems,
+        items,
         shipping_service: data.service?.value ?? 'STANDARD',
         payment_method: data.payment_method ?? 'CARD',
         type: 'sales_order_checkout',
@@ -88,7 +89,7 @@ export default function SalesOrderCheckout() {
       })
     }
   }, [
-    cartItems,
+    items,
     clientSecret,
     orderPrices?.base_total,
     data.payment_method,
@@ -100,54 +101,37 @@ export default function SalesOrderCheckout() {
     startTransition(() => {
       router.push('/order-placed')
     })
-    cartStore.getState().clearCart()
+    useCheckoutItems.getState().clear('sale')
     useSalesOrderCheckoutStore.getState().clear()
   }
 
   // What the payment form calls BEFORE the charge (create-then-charge, D179):
-  // parse against the live cart - not a render's snapshot - and POST. A throw
-  // here reaches the form's message and nothing has been charged.
+  // freeze the LIVE basket, not a render's snapshot, then create. A throw here
+  // reaches the form's message and nothing has been charged.
   //
   // paymentIntentId is no longer forwarded: the create body is a checkout id
   // now, and the server links the caller's own OPEN intent by user_id - see
   // features/orders/salesOrders/users/queries.ts.
+  const form = () => {
+    if (!data.address || !data.service) throw new Error('The checkout is not complete')
+    return { ...data, address: data.address, service: data.service }
+  }
+
   const createOrderForIntent = async (_paymentIntentId: string) => {
-    const liveItems = cartStore.getState().items
-    const checkoutPayload = {
-      ...data,
-      address: data.address!,
-      service: data.service!,
-      items: liveItems,
-    }
-    const validated = salesOrderCheckoutSchema.parse(checkoutPayload)
-    await createOrder.mutateAsync({ sales_order: validated })
+    await createOrder.mutateAsync({ sales_order: form() })
   }
 
   const handleSubmit = () => {
-    const checkoutPayload = {
-      ...data,
-      address: data.address!,
-      service: data.service!,
-      items: cartItems,
-    }
-
-    const validated = salesOrderCheckoutSchema.parse(checkoutPayload)
-
-    createOrder.mutate(
-      { sales_order: validated },
-      {
-        onSuccess: finishCheckout,
-      }
-    )
+    createOrder.mutate({ sales_order: form() }, { onSuccess: finishCheckout })
   }
 
-  if (cartItems.length === 0) {
+  if (items.length === 0) {
     return (
       <EmptyState
         icon={ShoppingCartIcon}
         iconSize={80}
         badge={0}
-        title="Your cart is empty!"
+        title="You have nothing to buy yet!"
         description="Please add items before checking out."
         className="h-full justify-center pb-10 mt-10 lg:mt-30"
       >

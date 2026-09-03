@@ -53,7 +53,7 @@ export async function adjustDoradoCredit(
     const movement = movementBetween(before, Number(row.dorado_funds ?? 0));
     if (movement) {
       await transactionsService.addTransactionLog(
-        user_id, movement.type, null, null, movement.amount, tx
+        { user_id, type: movement.type, order_id: null, amount: movement.amount }, tx
       );
     }
     return row;

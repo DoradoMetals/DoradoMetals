@@ -10,16 +10,13 @@ import {
   ShieldCheck,
 } from 'lucide-react'
 
-import {
+import type {
   Address as AddressContract,
   UserAddress as UserAddressContract,
-  type Order as OrderContract,
 } from '@dorado/contracts'
 import { pickupSchema } from '@/features/handoff/types'
 import { payoutSchema } from '@/features/payouts/types'
-import { packageSchema } from '@/features/packaging/types'
 import { serviceSchema } from '@/features/service/types'
-import { sellCartItemSchema } from '@/features/cart/types'
 import { insuranceSchema } from '@/features/insurance/types'
 import { User } from '@/features/users/types'
 
@@ -47,24 +44,25 @@ export type {
 
 import type { StatusConfig } from '@/features/orders/types'
 
-// THE CHECKOUT FORM, which stays here because it is purchase-direction FORM
-// POLICY rather than a table-derived shape - deliberately stricter than the
-// columns (CLAUDE.md: the frontend keeps only UI-policy schemas of its own).
-export const purchaseOrderCheckoutSchema = z.object({
-  address: AddressContract,
-  user_address: UserAddressContract.optional(),
-  package: packageSchema,
-  fedexPackageToggle: z.boolean(),
-  pickup: pickupSchema,
-  service: serviceSchema,
-  payoutValid: z.boolean(),
-  payout: payoutSchema,
-  confirmation: z.boolean(),
-  items: z.array(sellCartItemSchema).min(1, 'At least one item is required'),
-  insurance: insuranceSchema,
-})
-
-export type PurchaseOrderCheckout = z.infer<typeof purchaseOrderCheckoutSchema>
+// THE STEPPER'S OWN FORM STATE, and nothing else. Every field here is a
+// choice the browser is still making; none of it is a table row. The basket
+// is not a field of it - the lines live in the checkout items store and on
+// checkout.items (ruling 50) - and the schema that used to parse this whole
+// object died with them.
+export type PurchaseCheckoutForm = {
+  address: AddressContract
+  user_address?: UserAddressContract
+  // RULING 58: the box's weight and dimensions are the server's - the shipping.packages
+  // ROW id is the only thing the browser holds onto, plus its label for display.
+  package: { id: string; label: string }
+  fedexPackageToggle: boolean
+  pickup: z.infer<typeof pickupSchema>
+  service: z.infer<typeof serviceSchema>
+  payoutValid: boolean
+  payout: z.infer<typeof payoutSchema>
+  confirmation: boolean
+  insurance: z.infer<typeof insuranceSchema>
+}
 
 export const PurchaseOrderStatuses = [
   'In Transit',

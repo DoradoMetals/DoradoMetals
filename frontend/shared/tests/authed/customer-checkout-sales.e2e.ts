@@ -1,23 +1,22 @@
 import { test, expect } from "@playwright/test";
 
-// The sales-order checkout journey - the buy side: catalogue, buy cart,
-// /sales-order-checkout.
+// The sales-order checkout journey - the buy side: catalogue, the checkout
+// basket, /sales-order-checkout.
 //
 // STOPS BEFORE PAYMENT, DELIBERATELY. A sales order is born against a Stripe
 // intent; even in test mode a submitted one creates rows that need the
-// reconcile machinery to unwind. So this walks add-to-cart, the drawer, and
-// the checkout hand-off, and asserts the checkout surface came up priced -
-// without confirming anything.
+// reconcile machinery to unwind. So this walks add-to-checkout, the drawer,
+// and the checkout hand-off, and asserts the checkout surface came up priced
+// - without confirming anything.
 //
-// The buy cart is cleared through the API afterwards - sync replaces
-// wholesale, so an empty sync is a clear.
+// The sale basket is cleared through the API afterwards.
 const API = (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5000/api").replace(/\/$/, "");
 
 test.afterEach(async ({ request }) => {
   try {
-    await request.post(`${API}/cart/sync_cart`, { data: { cart: [] } });
+    await request.delete(`${API}/checkout/items?direction=sale`);
   } catch {
-    // Best effort - a leftover cart line is visible in the drawer and harmless.
+    // Best effort - a leftover line is visible in the drawer and harmless.
   }
 });
 
@@ -25,23 +24,23 @@ test("a product added on /buy reaches the sales-order checkout", async ({ page }
   test.setTimeout(120_000);
 
   await page.goto("/buy");
-  const addButton = page.getByRole("button", { name: /^Add to Cart$/i }).first();
+  const addButton = page.getByRole("button", { name: /^Add to Checkout$/i }).first();
   await expect(addButton, "no buyable product card rendered on /buy").toBeVisible({
     timeout: 30_000,
   });
   await addButton.click();
 
-  // The drawer opens on the buy side; the tab click makes the intent explicit
-  // rather than relying on the default.
-  await page.getByRole("button", { name: /open cart/i }).click();
-  await page.getByRole("tab", { name: /Buy Cart/i }).click();
+  // The drawer opens on the buy (sale) side; the tab click makes the intent
+  // explicit rather than relying on the default.
+  await page.getByRole("button", { name: /open checkout/i }).click();
+  await page.getByRole("tab", { name: /Buying/i }).click();
 
   // A real rendered price on the line. NumberFlow digits are invisible to
   // innerText, so presence of the price element is the honest assertion here
   // (same lesson as the purchase spec).
   await expect(
     page.locator("number-flow-react").first(),
-    "the buy cart rendered no price element"
+    "the sale basket rendered no price element"
   ).toBeVisible({ timeout: 20_000 });
 
   await page.getByRole("button", { name: /^Checkout$/i }).click();

@@ -2,6 +2,7 @@ import express from "express";
 
 import {
   addFundsToOrder,
+  buyOrderLabel,
   cancelOrder,
   finalizeOrderPricing,
   listOrders,
@@ -72,18 +73,22 @@ router.get("/:orderId/refiners", requireAdmin, getRefinerOrderByOrder);
 router.get("/:orderId/refiners/spots", requireAdmin, getRefinerSpotsByOrder);
 router.get("/:orderId/refiners/items", requireAdmin, getRefinerItemsByOrder);
 
-// THE FOUR ACTIONS. Each was a flag in the PATCH body until D214 item 11, and
-// each is a real operation rather than a field change: two move money, one
-// buys a carrier label, one sends a refiner their copy of an order. Direction
-// is DATA - the use case checks the order's direction, not the URL.
+// THE FIVE ACTIONS. Each was a flag in the PATCH body until D214 item 11 (or,
+// for /label, is the retry surface label-after-commit needed once buying one
+// stopped happening inside the placement transaction) - each is a real
+// operation rather than a field change: two move money, two buy a carrier
+// label, one sends a refiner their copy of an order. Direction is DATA - the
+// use case checks the order's direction, not the URL.
 //
 //   POST /:id/add_funds         credit the order's total to the customer
 //   POST /:id/finalize_pricing  price every line at the order's spots
 //   POST /:id/cancel            buy the return label, unpin the spots
+//   POST /:id/label             buy (or retry buying) the inbound label
 //   POST /:id/send_to_refiner   attach a refiner and send them the order
 router.post("/:id/add_funds", requireAdmin, addFundsToOrder);
 router.post("/:id/finalize_pricing", requireAdmin, finalizeOrderPricing);
 router.post("/:id/cancel", requireAdmin, cancelOrder);
+router.post("/:id/label", requireAdmin, buyOrderLabel);
 router.post("/:id/send_to_refiner", requireAdmin, sendOrderToRefiner);
 
 // THE ORDER ROW ITSELF, and only it (Jacob, 28 August): the status label and

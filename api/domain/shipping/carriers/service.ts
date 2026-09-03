@@ -41,55 +41,51 @@ export async function getCarrierName(id: string, executor?: Executor): Promise<s
 }
 
 // Organization is inserted before the carrier (FK). Both in one transaction - existing in one table but not the other would be invisible to getAll while still holding its id.
-export async function createCarrier(
-  carrier: CarrierInput, executor?: Executor
-): Promise<ComposedCarrier | null> {
-  const run = async (c: Executor): Promise<ComposedCarrier | null> => {
+// A USE CASE (ruling 56): only the controller calls this, so it owns the transaction outright rather than taking one.
+export async function createCarrier(carrier: CarrierInput): Promise<ComposedCarrier | null> {
+  return await withTransaction(async (tx) => {
     const id = randomUUID();
     const organization_id = randomUUID();
 
-    await organizations.create(carrier.organization, organization_id, "CARRIER", c);
-    const row = await carriers.create({ id, organization_id, logo: carrier.logo ?? null }, c);
-    return await compose.one(row, c);
-  };
-  return executor ? await run(executor) : await withTransaction(run);
+    await organizations.create(carrier.organization, organization_id, "CARRIER", tx);
+    const row = await carriers.create({ id, organization_id, logo: carrier.logo ?? null }, tx);
+    return await compose.one(row, tx);
+  });
 }
 
 // Updates every field, including to null when absent - a partial update would be a behavior change, and the frontend always sends the whole carrier back.
-export async function updateCarrier(
-  carrier: CarrierInput, executor?: Executor
-): Promise<ComposedCarrier | null> {
+// A USE CASE, same reasoning as createCarrier.
+export async function updateCarrier(carrier: CarrierInput): Promise<ComposedCarrier | null> {
   const id = carrier.id;
   if (!id) return null;
 
-  const run = async (c: Executor): Promise<ComposedCarrier | null> => {
-    const current = await carriers.getOne(id, c);
+  return await withTransaction(async (tx) => {
+    const current = await carriers.getOne(id, tx);
     if (!current) return null;
 
-    const changed = await carriers.update(id, { logo: carrier.logo ?? null }, c);
+    const changed = await carriers.update(id, { logo: carrier.logo ?? null }, tx);
     if (!changed) return null;
 
     // Keyed by the carrier's OWN organization_id, read before the update,
     // rather than by joining organizations to carriers inside the statement.
     if (current.organization_id) {
-      await organizations.update(current.organization_id, carrier.organization, c);
+      await organizations.update(current.organization_id, carrier.organization, tx);
     }
 
-    const row = await carriers.getOne(id, c);
+    const row = await carriers.getOne(id, tx);
     if (!row) return null;
-    return await compose.one(row, c);
-  };
-  return executor ? await run(executor) : await withTransaction(run);
+    return await compose.one(row, tx);
+  });
 }
 
 // The carrier row goes first because it holds the foreign key; dropping the organization first would be refused.
 // Returns true unconditionally - not a report of whether anything was deleted. Changing that is a wire change.
-export async function removeCarrier(id: string, executor?: Executor): Promise<boolean> {
-  const run = async (c: Executor): Promise<boolean> => {
-    const row = await carriers.getOne(id, c);
-    await carriers.remove(id, c);
-    if (row?.organization_id) await organizations.remove(row.organization_id, c);
+// A USE CASE, same reasoning as createCarrier.
+export async function removeCarrier(id: string): Promise<boolean> {
+  return await withTransaction(async (tx) => {
+    const row = await carriers.getOne(id, tx);
+    await carriers.remove(id, tx);
+    if (row?.organization_id) await organizations.remove(row.organization_id, tx);
     return true;
-  };
-  return executor ? await run(executor) : await withTransaction(run);
+  });
 }

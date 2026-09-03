@@ -11,7 +11,7 @@
 import query from "#shared/db/query.ts";
 import { buildUpdate } from "#shared/db/patch.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
-import type { payments, PaymentIntent } from "@dorado/contracts";
+import type { payments, PaymentIntent, Direction } from "@dorado/contracts";
 import type { Executor } from "#shared/db/executor.ts";
 
 const sql = sqlFrom(import.meta.dirname);
@@ -38,8 +38,8 @@ export type IntentFacts = {
   type: string | null;
   payment_status: string | null;
   amount: number | null;
-  sales_order_id: string | null;
-  purchase_order_id: string | null;
+  order_id: string | null;
+  direction: Direction | null;
 };
 
 // An explicit id wins; omitting one lets create.sql generate it.

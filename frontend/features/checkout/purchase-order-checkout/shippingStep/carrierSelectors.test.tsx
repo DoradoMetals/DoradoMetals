@@ -29,7 +29,8 @@ vi.mock("@/shared/ui/PriceNumberFlow", () => ({
 import { PickupSelector } from "@/features/checkout/purchase-order-checkout/shippingStep/pickupSelector";
 import { ServiceSelector } from "@/features/checkout/purchase-order-checkout/shippingStep/serviceSelector";
 import { usePurchaseOrderCheckoutStore } from "@/shared/store/purchaseOrderCheckoutStore";
-import type { CarrierHandoff, CarrierServiceOption, ShippingRate } from "@/features/shipping/types";
+import type { CarrierHandoff, CarrierServiceOption } from "@/features/shipping/types";
+import type { CarrierRateQuote } from "@dorado/contracts";
 
 // DELIBERATELY NOT FEDEX'S SPELLINGS. If a component still carried
 // 'CONTACT_FEDEX_TO_SCHEDULE' or 'FEDEX_EXPRESS_SAVER' anywhere, none of these
@@ -52,21 +53,24 @@ const handoffs = (): CarrierHandoff[] => [
 ];
 
 // max_insured_value arrived with migration 097 (the insurance ceiling stopped
-// being `Math.min(..., 50000)` in checkoutStepper). Two DIFFERENT values on
-// purpose: nothing in these components may read the field, so a component that
-// started clamping with it would have to pick one and the difference would
-// show. The clamp is the server's - see the note on CarrierServiceOption.
+// being `Math.min(..., 50000)` in checkoutStepper). Nothing in these
+// components may read the field - the clamp is the server's.
 const services = (): CarrierServiceOption[] => [
   { id: "11111111-1111-4111-8111-111111111111", code: "SLOW_ONE", name: "Economy", carrier_code: "ZZZE", display_order: 0, max_insured_value: 7500 },
   { id: "22222222-2222-4222-8222-222222222222", code: "FAST_ONE", name: "Overnight", carrier_code: "ZZZP", display_order: 1, max_insured_value: 10000 },
 ];
 
-const rates = (): ShippingRate[] => [
+// GET /checkout/rates answers the carrier's own raw quote (CarrierRateQuote)
+// - `serviceType` is what joins it to a CarrierServiceOption's `code`.
+// Every field but `currency` is nullable: not every carrier fills every one.
+const rates = (): CarrierRateQuote[] => [
   {
     serviceType: "SLOW_ONE",
     packagingType: "OUR_BOX",
     netCharge: 12.5,
     currency: "USD",
+    deliveryDay: null,
+    transitTime: null,
     serviceDescription: "Economy",
   },
   {
@@ -74,6 +78,8 @@ const rates = (): ShippingRate[] => [
     packagingType: "OUR_BOX",
     netCharge: 48.75,
     currency: "USD",
+    deliveryDay: null,
+    transitTime: null,
     serviceDescription: "Overnight",
   },
 ];

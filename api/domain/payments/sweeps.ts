@@ -72,7 +72,7 @@ export async function cancelPendingSale(
   ) {
     await usersService.addFunds(money.user_id, reserved, client);
     await transactionsService.addTransactionLog(
-      money.user_id, "Credit", null, order_id, reserved, client
+      { user_id: money.user_id, type: "Credit", order_id, amount: reserved }, client
     );
     return { order_id, refunded: reserved };
   }
@@ -85,9 +85,9 @@ export async function cancelPendingSale(
  *
  *  MOVES MONEY. The caller decides when this runs; nothing schedules it. */
 export async function sweepAbandoned(
-  ttl_hours: number, executor?: Executor
+  ttl_hours: number
 ): Promise<AbandonedSweepResult[]> {
-  const candidates = await orders.findAbandonedSales(ttl_hours, executor);
+  const candidates = await orders.findAbandonedSales(ttl_hours);
   const out: AbandonedSweepResult[] = [];
 
   for (const c of candidates) {
@@ -101,9 +101,7 @@ export async function sweepAbandoned(
       if (c.payment_intent_id) {
         await paymentsService.cancelIntentByRef(c.payment_intent_id);
       }
-      return executor
-        ? await cancelPendingSale(c.order_id, executor)
-        : await withTransaction((client: PoolClient) => cancelPendingSale(c.order_id, client));
+      return await withTransaction((client: PoolClient) => cancelPendingSale(c.order_id, client));
     });
     if (result) out.push(result);
   }

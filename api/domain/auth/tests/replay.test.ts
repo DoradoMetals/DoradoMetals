@@ -12,8 +12,9 @@ const { default: app } = await import("#app");
 let passwordRowsBefore: number;
 
 // Read in a beforeAll() hook — a trailing top-level statement assumed module evaluation completes before any test runs; that held alone but failed under the full suite (the count hadn't been taken yet), which is worse than always failing since it looked like a working test.
+// auth.account, not exchange.account (exchange-fixtures lane, D214 item 10): migration 107 moved credential writes to better-auth's own table, and exchange.account has received nothing since — counting it would have made this assertion pass no matter what the suite wrote.
 beforeAll(async () => {
-  passwordRowsBefore = (await outside(`SELECT count(*)::int AS n FROM exchange.account`))[0].n;
+  passwordRowsBefore = (await outside(`SELECT count(*)::int AS n FROM auth.account`))[0].n;
   assert.equal(typeof passwordRowsBefore, "number", "the baseline count was not taken");
 });
 
@@ -54,11 +55,11 @@ test("a missing or malformed password is refused with 400", async () => {
 
 // The safety property of this file itself — since the pin can't contain better-auth, prove directly that nothing here wrote a credential, counted from outside before and after.
 test("this suite created no account credential", async () => {
-  const rows = await outside(`SELECT count(*)::int AS n FROM exchange.account`);
+  const rows = await outside(`SELECT count(*)::int AS n FROM auth.account`);
   assert.equal(
     rows[0].n,
     passwordRowsBefore,
-    "the auth suite changed exchange.account - the pin does not contain better-auth, " +
+    "the auth suite changed auth.account - the pin does not contain better-auth, " +
       "so anything this file writes is COMMITTED to dev"
   );
 });

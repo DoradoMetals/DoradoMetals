@@ -9,8 +9,8 @@ import type {
   CarrierHandoff,
   CarrierServiceOption,
   ShippingPickupTimesInput,
-  ShippingRate,
 } from '@/features/shipping/types'
+import type { CarrierRateQuote } from '@dorado/contracts'
 import { useShippingPickupTimes } from '@/features/shipping/queries'
 
 import { usePurchaseOrderCheckoutStore } from '@/shared/store/purchaseOrderCheckoutStore'
@@ -31,10 +31,13 @@ import { Separator } from '@/shared/ui/base/separator'
 interface ShippingStepProps {
   addresses: Address[]
   emptyAddress: AddressFormValues
-  rates: ShippingRate[]
-  // The carrier's own catalogue, read once by the stepper and injected
-  // (ruling 14: the parent holds the read, the children take props). Neither
-  // list is spelled anywhere in this tree any more.
+  // GET /checkout/rates?direction= - the carrier's raw per-service quote,
+  // joined to `services` by code (ServiceSelector does the join - neither
+  // list alone answers "what does this service cost"). Read once by the
+  // stepper and injected (ruling 14).
+  rates: CarrierRateQuote[]
+  // The carrier's own catalogues, read once by the stepper and injected.
+  // Neither list is spelled anywhere in this tree any more.
   handoffs: CarrierHandoff[]
   services: CarrierServiceOption[]
   isLoading: boolean
@@ -154,7 +157,7 @@ export default function ShippingStep({
       )}
 
       {/* Pickup FIRST (only needs address + pkg) */}
-      {address?.is_valid && pkg?.dimensions && pkg?.weight?.value !== undefined && (
+      {address?.is_valid && pkg?.id && (
         <>
           <PickupSelector handoffs={handoffs} />
           <Separator />
@@ -162,7 +165,7 @@ export default function ShippingStep({
       )}
 
       {/* Service AFTER pickup (needs address + pkg; service gets set here) */}
-      {address?.is_valid && pkg?.dimensions && pkg?.weight?.value !== undefined && (
+      {address?.is_valid && pkg?.id && (
         <>
           <ServiceSelector services={services} rates={rates} isLoading={isLoading} />
           <Separator />

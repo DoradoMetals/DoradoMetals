@@ -8,9 +8,9 @@ import { Separator } from '@/shared/ui/base/separator'
 import { Form } from '@/shared/ui/base/form'
 import { useEffect, useState } from 'react'
 import { defineStepper } from '@stepperize/react'
-import { sellCartStore } from '@/shared/store/sellCartStore'
+import { useCheckoutItems } from '@/shared/store/checkoutItemsStore'
 import { useRouter } from 'next/navigation'
-import { convertTroyOz } from '@/shared/utils/convertWeights'
+import { useSpotPrices } from '@/features/spots/queries'
 import ReviewStep from '@/features/scrap/ui/ReviewStep'
 import MetalStep from '@/features/scrap/ui/MetalStep'
 import WeightStep from '@/features/scrap/ui/WeightStep'
@@ -39,7 +39,8 @@ export default function ScrapForm() {
   const stepper = useStepper()
   const currentIndex = utils.getIndex(stepper.current.id)
 
-  const addItem = sellCartStore.getState().addItem
+  const addItem = useCheckoutItems.getState().addItem
+  const { data: metals = [] } = useSpotPrices()
 
   const [submitted, setSubmitted] = useState(false)
   const [showBanner, setShowBanner] = useState(false)
@@ -57,23 +58,16 @@ export default function ScrapForm() {
   const router = useRouter()
 
   const handleSubmit = (values: Scrap) => {
-    // Only the goods declaration goes into the cart - weight, purity and the
-    // troy-ounce content they resolve to. NO price and NO resolved premium:
-    // every number the customer sees comes from POST /quotes/purchase_order
-    // (ReviewStep, SellCart), the store re-tiers bid_premium from the rates
-    // table on add, and the backend re-resolves both on submit.
-    const content =
-      convertTroyOz(values.pre_melt ?? 0, values.gross_unit ?? 'g') * (values.purity ?? 0)
-
-    const item = {
-      type: 'scrap' as const,
-      data: {
-        ...values,
-        content,
-      },
-    }
-
-    addItem(item)
+    // Only the declaration: content and premium are the server's.
+    addItem('purchase', {
+      id: values.id,
+      metal_id: metals.find((m) => m.name === values.metal)?.id,
+      pre_melt: values.pre_melt,
+      post_melt: values.post_melt,
+      purity: values.purity,
+      unit: values.gross_unit,
+      quantity: 1,
+    })
     setSubmitted(true)
     setShowBanner(true)
 

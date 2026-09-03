@@ -2,12 +2,9 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useRouter } from 'next/navigation'
-import { cartStore } from '@/shared/store/cartStore'
-import { sellCartStore } from '@/shared/store/sellCartStore'
+import { useCheckoutItems } from '@/shared/store/checkoutItemsStore'
 
 import { apiRequest } from '@/shared/queries/axios'
-import { Product } from '@/features/products/types'
-import { SellCartItem } from '@/features/cart/types'
 import {
   admin,
   changeEmail,
@@ -24,39 +21,13 @@ import {
   updateUser,
   verifyEmail,
 } from './authClient'
-import { useSyncCartToBackend, useSyncSellCartToBackend } from '@/features/cart/queries'
+import { hydrateCheckoutItems, pushCheckoutItems } from '@/features/checkout/items/queries'
 
 const clearClientState = () => {
-  cartStore.getState().clearCart()
-  sellCartStore.getState().clearCart()
-  localStorage.removeItem('dorado_cart')
-  localStorage.removeItem('dorado_sell_cart')
-  localStorage.removeItem('cartSynced')
+  useCheckoutItems.getState().clearAll()
+  localStorage.removeItem('dorado_checkout_items')
   localStorage.removeItem('purchase-order-checkout')
   localStorage.removeItem('sales-order-checkout')
-}
-
-const hydrateCarts = async (userId: string) => {
-  try {
-    const backendCart = await apiRequest<Product[]>('GET', '/cart/get_cart', undefined, {
-      user_id: userId,
-    })
-    cartStore.getState().mergeCartItems(backendCart)
-  } catch (err) {
-    console.error('Cart hydration failed:', err)
-  }
-
-  try {
-    const backendSellCart = await apiRequest<SellCartItem[]>(
-      'GET',
-      '/cart/get_sell_cart',
-      undefined,
-      { user_id: userId }
-    )
-    sellCartStore.getState().mergeSellCart(backendSellCart)
-  } catch (err) {
-    console.error('Sell cart hydration failed:', err)
-  }
 }
 
 export const useGetSession = () => {
@@ -161,7 +132,7 @@ export const useSignIn = () => {
       queryClient.clear()
       const session = (await getSession()).data
       if (session?.user?.id) {
-        await hydrateCarts(session.user.id)
+        await hydrateCheckoutItems()
       }
       queryClient.invalidateQueries({ queryKey: ['session'], refetchType: 'active' })
     },
@@ -174,21 +145,14 @@ export const useSignIn = () => {
 export const useSignOut = () => {
   const queryClient = useQueryClient()
   const router = useRouter()
-  const syncCart = useSyncCartToBackend()
-  const syncSellCart = useSyncSellCartToBackend()
-
   return useMutation({
     mutationFn: async () => {
-      try {
-        await syncCart.mutateAsync()
-      } catch (err) {
-        console.warn('Cart sync failed, continuing logout:', err)
-      }
-
-      try {
-        await syncSellCart.mutateAsync()
-      } catch (err) {
-        console.warn('Sell cart sync failed, continuing logout:', err)
+      for (const direction of ['sale', 'purchase'] as const) {
+        try {
+          await pushCheckoutItems(direction)
+        } catch (err) {
+          console.warn('checkout items did not sync, continuing logout:', err)
+        }
       }
 
       await signOut()
@@ -215,7 +179,7 @@ export const useGoogleSignIn = () => {
       queryClient.clear()
       const session = (await getSession()).data
       if (session?.user?.id) {
-        await hydrateCarts(session.user.id)
+        await hydrateCheckoutItems()
       }
       queryClient.invalidateQueries({ queryKey: ['session'], refetchType: 'active' })
     },
@@ -338,7 +302,7 @@ export const useImpersonateUser = () => {
     onSettled: async () => {
       const session = (await getSession()).data
       if (session?.user?.id) {
-        await hydrateCarts(session.user.id)
+        await hydrateCheckoutItems()
       }
     },
     onSuccess: async () => {
@@ -361,7 +325,7 @@ export const useStopImpersonation = () => {
     onSettled: async () => {
       const session = (await getSession()).data
       if (session?.user?.id) {
-        await hydrateCarts(session.user.id)
+        await hydrateCheckoutItems()
       }
     },
     onSuccess: async () => {

@@ -5,9 +5,9 @@ import { ChevronDown } from 'lucide-react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { useMemo, useState } from 'react'
 import { useReactTable, getCoreRowModel, flexRender, ColumnDef } from '@tanstack/react-table'
-import { sellCartStore } from '@/shared/store/sellCartStore'
+import { useCheckoutItems } from '@/shared/store/checkoutItemsStore'
 import { cn } from '@/shared/utils/cn'
-import { SellCartItem } from '@/features/cart/types'
+import { useDecoratedLines, type DecoratedLine } from '@/features/checkout/items/flair'
 import { formatRate } from '@/features/rates/utils/resolveRate'
 import { usePurchaseOrderCheckoutStore } from '@/shared/store/purchaseOrderCheckoutStore'
 import { usePaymentMethods } from '@/features/payments/queries'
@@ -15,13 +15,10 @@ import { usePurchaseOrderQuote } from '@/features/quotes/queries'
 import type { PurchaseOrderQuoteLine } from '@dorado/contracts'
 import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
 
-// A cart line paired with its quote line. Absent until the first quote lands
+// A basket line paired with its quote line. Absent until the first quote lands
 // (or if the server refused the quote) - those rows price at zero, never
 // client-side.
-type QuotedRow<T extends SellCartItem['type']> = {
-  item: Extract<SellCartItem, { type: T }>
-  line: PurchaseOrderQuoteLine | undefined
-}
+type QuotedRow = DecoratedLine & { quoted: PurchaseOrderQuoteLine | undefined }
 
 export default function ReviewItemTables() {
   const shippingCost = usePurchaseOrderCheckoutStore((state) => state.data.service?.netCharge)
@@ -29,7 +26,8 @@ export default function ReviewItemTables() {
   const { data: payoutMethods = [] } = usePaymentMethods('purchase')
   const paymentCost = Number(payoutMethods.find((p) => p.type === payout?.method)?.flat_fee ?? 0)
 
-  const items = sellCartStore((state) => state.items)
+  const items = useCheckoutItems((state) => state.purchase)
+  const decorated = useDecoratedLines(items)
   const { data: quote } = usePurchaseOrderQuote(items, {
     shipping_charge: shippingCost ?? undefined,
     payout_method: payout?.method,
@@ -38,26 +36,20 @@ export default function ReviewItemTables() {
   // Quote lines carry the request array position, and the store's items array
   // IS the request array - so the pairing happens by index, BEFORE any
   // filtering into scrap and bullion.
-  const rows = useMemo(() => {
+  const rows: QuotedRow[] = useMemo(() => {
     const byIndex = new Map((quote?.items ?? []).map((line) => [line.index, line]))
-    return items.map((item, index) => ({ item, line: byIndex.get(index) }))
-  }, [items, quote])
+    return decorated.map((row) => ({ ...row, quoted: byIndex.get(row.index) }))
+  }, [decorated, quote])
 
-  const scrapRows = useMemo(
-    () => rows.filter((row): row is QuotedRow<'scrap'> => row.item.type === 'scrap'),
-    [rows]
-  )
-  const bullionRows = useMemo(
-    () => rows.filter((row): row is QuotedRow<'product'> => row.item.type === 'product'),
-    [rows]
-  )
+  const scrapRows = useMemo(() => rows.filter((row) => !row.line.bullion_id), [rows])
+  const bullionRows = useMemo(() => rows.filter((row) => !!row.line.bullion_id), [rows])
 
   const scrapTotal = useMemo(
-    () => scrapRows.reduce((acc, row) => acc + (row.line?.line_total ?? 0), 0),
+    () => scrapRows.reduce((acc, row) => acc + (row.quoted?.line_total ?? 0), 0),
     [scrapRows]
   )
   const bullionTotal = useMemo(
-    () => bullionRows.reduce((acc, row) => acc + (row.line?.line_total ?? 0), 0),
+    () => bullionRows.reduce((acc, row) => acc + (row.quoted?.line_total ?? 0), 0),
     [bullionRows]
   )
 
@@ -231,55 +223,51 @@ function ItemAccordion<T>({
   )
 }
 
-const scrapColumns: ColumnDef<QuotedRow<'scrap'>>[] = [
+const scrapColumns: ColumnDef<QuotedRow>[] = [
   {
     header: 'Name',
-    cell: ({ row }) => row.original.item.data.name || 'Unnamed',
+    cell: ({ row }) => row.original.name,
   },
   {
     header: 'Weight',
     cell: ({ row }) => (
       <div>
-        {row.original.item.data.pre_melt} {row.original.item.data.gross_unit}
+        {row.original.line.pre_melt} {row.original.line.unit}
       </div>
     ),
   },
   {
     header: 'Purity',
-    cell: ({ row }) => <span>{(row.original.item.data.purity * 100).toFixed(2)}%</span>,
+    cell: ({ row }) => <span>{((row.original.line.purity ?? 0) * 100).toFixed(2)}%</span>,
   },
   {
     header: 'Rate',
-    // The quote's premium is the rates-band resolution; the cart's own
-    // bid_premium only shows while no quote has landed.
-    cell: ({ row }) => (
-      <span>{formatRate(row.original.line?.premium ?? row.original.item.data.bid_premium)}</span>
-    ),
+    cell: ({ row }) => <span>{formatRate(row.original.quoted?.premium)}</span>,
   },
   {
     header: 'Est. Value',
     cell: ({ row }) => (
       <span className="text-right block w-full">
-        <PriceNumberFlow value={row.original.line?.line_total ?? 0} />
+        <PriceNumberFlow value={row.original.quoted?.line_total ?? 0} />
       </span>
     ),
   },
 ]
 
-const bullionColumns: ColumnDef<QuotedRow<'product'>>[] = [
+const bullionColumns: ColumnDef<QuotedRow>[] = [
   {
     header: 'Qty',
-    cell: ({ row }) => row.original.item.data.quantity ?? 1,
+    cell: ({ row }) => row.original.line.quantity ?? 1,
   },
   {
     header: 'Name',
-    cell: ({ row }) => row.original.item.data.name,
+    cell: ({ row }) => row.original.name,
   },
   {
     header: 'Est. Value',
     cell: ({ row }) => (
       <span className="text-right block w-full">
-        <PriceNumberFlow value={row.original.line?.line_total ?? 0} />
+        <PriceNumberFlow value={row.original.quoted?.line_total ?? 0} />
       </span>
     ),
   },

@@ -9,7 +9,7 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 import { UpdatePaymentIntentBody } from "@dorado/contracts";
-import type { Product } from "@/features/products/types";
+import type { CheckoutLine } from "@/features/checkout/items/types";
 
 vi.mock("@/shared/queries/axios", () => ({ apiRequest: vi.fn() }));
 vi.mock("@/features/auth/queries", () => ({
@@ -45,7 +45,11 @@ function useHarness() {
   };
 }
 
-const anItem = (): Product => ({ id: "9f1c2b3a-0000-4000-8000-000000000025", quantity: 1 } as unknown as Product);
+const anItem = (): CheckoutLine => ({
+  id: "9f1c2b3a-0000-4000-8000-000000000025",
+  bullion_id: "9f1c2b3a-0000-4000-8000-000000000025",
+  quantity: 1,
+});
 
 beforeEach(() => {
   vi.mocked(apiRequest).mockReset();

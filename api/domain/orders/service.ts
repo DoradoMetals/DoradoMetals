@@ -24,13 +24,13 @@ import * as refinerSpots from "#db/refiners/spots/repo.ts";
 import * as refinerOrders from "#db/refiners/orders/repo.ts";
 import * as productsRepo from "#db/products/repo.ts";
 import * as packagesRepo from "#db/shipping/packages/repo.ts";
-import * as newShipments from "#db/shipping/shipments/repo.ts";
 
 import * as ratesService from "#domain/rates/service.ts";
 import * as spotsFeed from "#domain/spots/service.ts";
 import * as refinerService from "#domain/refiners/service.ts";
 import * as shipmentService from "#domain/shipping/shipments/service.ts";
 import * as carrierServices from "#domain/shipping/services/service.ts";
+import * as handoffsService from "#domain/shipping/handoffs/service.ts";
 import * as shippingOperations from "#domain/shipping/operations/service.ts";
 import * as shippingOps from "#domain/shipping/operations/handler.ts";
 import * as emailService from "#domain/media/emails/service.ts";
@@ -39,10 +39,12 @@ import * as usersService from "#domain/users/service.ts";
 import * as ledger from "#domain/transactions/service.ts";
 import * as orderRead from "#domain/orders/read.ts";
 import * as rules from "#domain/orders/rules.ts";
+import { buyPostage as buyPostageLive, recordPostage } from "#domain/orders/postage.ts";
+import * as shippingRules from "#domain/shipping/rules.ts";
 import { calculateTotalPrice, fineContent, unitPrice } from "#domain/pricing/service.ts";
 
 import withTransaction from "#shared/db/withTransaction.ts";
-import { Invalid, NotFound } from "#shared/errors.ts";
+import { Conflict, Invalid, NotFound } from "#shared/errors.ts";
 import type { Transport } from "#providers/emails/nodemailer.ts";
 import type { Executor } from "#shared/db/executor.ts";
 import type { OrderItemRow } from "#db/orders/items/repo.ts";
@@ -50,6 +52,7 @@ import type {
   OrderCancel,
   OrderItemCreate,
   OrderItemPatch,
+  OrderLabel,
   OrderPatch,
   OrderView,
 } from "@dorado/contracts";
@@ -264,7 +267,9 @@ export async function addFunds(order_id: string): Promise<OrderView> {
 
   await withTransaction(async (tx) => {
     await usersService.addFunds(order.order.user_id, amount, tx);
-    await ledger.addTransactionLog(order.order.user_id, "Credit", order_id, null, amount, tx);
+    await ledger.addTransactionLog(
+      { user_id: order.order.user_id, type: "Credit", order_id, amount }, tx
+    );
   });
 
   return await viewOf(order_id);
@@ -274,10 +279,33 @@ export async function addFunds(order_id: string): Promise<OrderView> {
 // THE OUTSIDE WORLD
 // ===========================================================================
 
+// A RETURN LABEL, asked for. Its own function so a test can inject a stub
+// that fails without a network call - the seam sendToRefiner already has for
+// email (Transport) and place.ts has for postage (World).
+export type BuyReturnLabel = (
+  carrier_id: string, request: ReturnType<typeof rules.returnLabelRequest>
+) => Promise<{ tracking_number: string | null; label: Buffer }>;
+
+async function buyReturnLabel(
+  carrier_id: string, request: ReturnType<typeof rules.returnLabelRequest>
+): Promise<{ tracking_number: string | null; label: Buffer }> {
+  const labelData = await shippingOps.createLabel(carrier_id, undefined, request);
+  return {
+    tracking_number: labelData.tracking_number,
+    label: await shippingOperations.labelBufferOrVoid(labelData),
+  };
+}
+
 // POST /api/orders/:id/cancel - the customer's metal goes back.
 //
-// A LABEL IS BILLABLE AND CANNOT BE ROLLED BACK, so it is bought BEFORE the
-// transaction and voided if the database work fails. Voiding is idempotent.
+// LOAD -> ASSERT -> WRITE -> AFTER (label-after-commit, 2026-09-03): the
+// return shipment commits as a SHELL - unpinned spots, no label - whether or
+// not the label is ever bought, and the label is bought only after that
+// commit. A carrier failure propagates with the shell standing rather than
+// voiding a label FedEx has already billed for either way; calling this
+// route again finds the SAME shell (by its still-null tracking_number)
+// instead of minting a second return shipment, which makes cancel its own
+// retry surface.
 //
 // NO STATUS WRITE: statuses are labels, never side effects (Jacob). The
 // 'Cancelled' label is a PATCH of its own.
@@ -285,9 +313,13 @@ export async function addFunds(order_id: string): Promise<OrderView> {
 // THE ADDRESS IS THE ORDER'S SNAPSHOT and the contact is the provider's
 // configured one. This took the admin drawer's whole form as
 // `Record<string, any>` and hand-mapped fifteen fields out of it.
+//
+// THE WEIGHT AND THE VALUE ARE THE ORDER'S OWN NOW (ruling 58): computed from
+// its lines and its total rather than taken from the admin's form.
 export async function cancel(
   order_id: string,
-  { carrier_service_id, package_id, declared_value, weight }: OrderCancel
+  { carrier_service_id, package_id }: OrderCancel,
+  buy: BuyReturnLabel = buyReturnLabel
 ): Promise<OrderView> {
   const order = await viewOf(order_id);
   rules.assertDirection(order.order.direction, "purchase", "cancelling");
@@ -295,70 +327,91 @@ export async function cancel(
   const box = await packagesRepo.getOne(package_id);
   if (!box) throw new Invalid("that package does not exist");
   const service = await carrierServices.labelServiceFor(carrier_service_id);
+  const weight = shippingRules.parcelWeightLb(order.items, box);
   const declaredValue = await carrierServices.clampInsuredValue(
-    declared_value, service.serviceType
+    shippingRules.declaredValue(order.totals?.total ?? 0), service.serviceType
   );
+  const insured = declaredValue > 0;
 
-  const labelData = await shippingOps.createLabel(
-    service.carrier_id,
-    undefined,
-    rules.returnLabelRequest(order, {
-      serviceType: service.serviceType,
-      weight: { units: "LB", value: weight },
-      dimensions: {
-        length: Number(box.length), width: Number(box.width),
-        height: Number(box.height), units: "IN",
-      },
-      declaredValue,
-    })
-  );
-  const label = await shippingOperations.labelBufferOrVoid(labelData);
+  const request = rules.returnLabelRequest(order, {
+    serviceType: service.serviceType,
+    weight: { units: "LB", value: weight },
+    dimensions: {
+      length: Number(box.length), width: Number(box.width),
+      height: Number(box.height), units: "IN",
+    },
+    declaredValue,
+  });
 
-  try {
-    await withTransaction(async (tx) => {
-      await ordersRepo.update(order_id, { spots_locked: false }, {}, tx);
+  // A prior call's shell, if one is sitting there unlabelled - reused rather
+  // than duplicated.
+  const existing = order.shipments.find((s) => s.direction === "Return" && !s.tracking_number);
 
-      // THE BID ONLY: the ask is what the same metal sells for, and clearing it
-      // would lose a number this unpin never owned.
-      for (const spot of await orderSpots.getRowsFor(order_id, tx)) {
-        await orderSpots.update(order_id, spot.metal_id, { bid: null }, tx);
-      }
+  const shipment_id = await withTransaction(async (tx) => {
+    await ordersRepo.update(order_id, { spots_locked: false }, {}, tx);
 
-      // ONE RETURN SHIPMENT, written with everything known: the service that
-      // created it links it to the order, the record that follows is the row.
-      const shipment = await shipmentService.create(
-        { purchase_order_id: order_id, type: "Return" }, tx
-      );
+    // THE BID ONLY: the ask is what the same metal sells for, and clearing it
+    // would lose a number this unpin never owned.
+    for (const spot of await orderSpots.getRowsFor(order_id, tx)) {
+      await orderSpots.update(order_id, spot.metal_id, { bid: null }, tx);
+    }
+
+    let id = existing?.id;
+    if (!id) {
+      const shipment = await shipmentService.create({ order_id, type: "Return" }, tx);
       if (!shipment) throw new Error("the return shipment was not created");
+      id = shipment.id;
+    }
+    await shipmentService.patch(
+      id, { package_id, carrier_service_id, insured, declared_value: insured ? declaredValue : null }, tx
+    );
+    return id;
+  });
 
-      const recorded = await newShipments.update(
-        shipment.id,
-        {
-          tracking_number: labelData.tracking_number,
-          shipping_status: "Label Created",
-          label,
-          label_type: "Generated",
-          package_id,
-          carrier_service_id,
-          insured: declaredValue > 0,
-          declared_value: declaredValue > 0 ? declaredValue : null,
-          direction: "Return",
-        },
-        tx
-      );
-      if (!recorded) {
-        throw new Error(
-          `order ${order_id}: the return label was not recorded and this ` +
-            `transaction must not commit`
-        );
-      }
-    });
-  } catch (err) {
-    // Compensation for an outside-world action a failed transaction orphaned - kept as the one other exception to ruling 52, same as orders/place.ts's label-void blocks.
-    await shippingOperations.voidLabel(labelData.tracking_number);
-    throw err;
+  // OUTSIDE WORLD, AFTER: the shell already exists, so a failed carrier call
+  // leaves it standing - never voided, because voiding a billed label does
+  // not un-bill it.
+  const { tracking_number, label } = await buy(service.carrier_id, request);
+  await withTransaction((tx) => shipmentService.patch(shipment_id, {
+    tracking_number, label, label_type: "Generated", shipping_status: "Label Created",
+  }, tx));
+
+  return await viewOf(order_id);
+}
+
+// POST /api/orders/:id/label - RETRY SURFACE for a purchase order whose own
+// label purchase failed after the order committed (place.ts's own AFTER
+// step). THE WEIGHT IS THE ORDER'S OWN NOW (ruling 58), computed from its
+// lines and the shipment's own package rather than asked for again - only the
+// pickup slot is still asked, and only when the shipment's handoff needs one.
+export async function buyLabel(
+  order_id: string, input: OrderLabel, buy: typeof buyPostageLive = buyPostageLive
+): Promise<OrderView> {
+  const order = await viewOf(order_id);
+  rules.assertDirection(order.order.direction, "purchase", "buying a label");
+
+  const shipment = order.shipments.find((s) => s.direction === "Inbound");
+  if (!shipment) throw new NotFound(`order ${order_id} has no shipment to label`);
+  if (shipment.tracking_number) {
+    throw new Conflict(`order ${order_id} already has a label`);
+  }
+  const { carrier_service_id, package_id, pickup_type } = shipment;
+  if (!carrier_service_id || !package_id) {
+    throw new Invalid(`order ${order_id}'s shipment has no service or package chosen yet`);
   }
 
+  const box = await packagesRepo.getOne(package_id);
+  const service = await carrierServices.labelServiceFor(carrier_service_id);
+  const handoff = (await handoffsService.getHandoffs()).find((h) => h.name === pickup_type);
+  if (!handoff) {
+    throw new Invalid(`shipment ${shipment.id} names a handoff the carrier no longer offers`);
+  }
+  const shipper = rules.requireAddress(order.address ?? undefined, "shipper");
+  const weight = shippingRules.parcelWeightLb(order.items, box);
+  const parcel = rules.rebuyParcel(shipment, service, box, handoff, weight, input);
+
+  const postage = await buy(shipper, order.user?.name ?? "", parcel);
+  await recordPostage(order_id, shipment.id, postage, parcel.schedule);
   return await viewOf(order_id);
 }
 
@@ -396,7 +449,7 @@ export async function sendToRefiner(
             `transaction must not commit`
         );
       }
-      await shipmentService.create({ sales_order_id: order_id, type: "Outbound" }, tx);
+      await shipmentService.create({ order_id, type: "Outbound" }, tx);
       await ordersRepo.update(order_id, { order_sent: true }, {}, tx);
     });
   }
@@ -419,9 +472,9 @@ export async function updateTracking(
   const shipment = await shipmentService.getByOrder(order_id);
   if (!shipment) throw new NotFound(`order ${order_id} has no shipment to track`);
 
-  await shipmentService.patch(shipment.id, { tracking_number });
-  // The flag write needs a transaction even alone: the audit actor reaches the
-  // connection through withTransaction's set_config and nowhere else (116).
-  await withTransaction((tx) => ordersRepo.update(order_id, { tracking_updated: true }, {}, tx));
+  await withTransaction(async (tx) => {
+    await shipmentService.patch(shipment.id, { tracking_number }, tx);
+    await ordersRepo.update(order_id, { tracking_updated: true }, {}, tx);
+  });
   return { success: true };
 }

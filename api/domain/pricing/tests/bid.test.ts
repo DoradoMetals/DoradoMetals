@@ -5,7 +5,7 @@
 //
 //   item_type: "scrap"                 ->  bullion_id: null
 //   scrap: { metal, content }          ->  metal_id, content on the line
-//   product: { metal_type, content }   ->  metal_id on the line, product.content
+//   product: { metal_type, content }   ->  metal_id, content on the line (no fallback, migration 120)
 //   spots: [{ name, bid }]             ->  bids: Map(metal_id -> bid)
 //   order.shipment.shipping_charge     ->  shipments[].cost, direction Inbound
 //   order.waive_payout_fee             ->  totals.waive_payout_fee
@@ -23,6 +23,7 @@ import {
   unitPrice,
   type Bids,
 } from "#domain/pricing/service.ts";
+import { Invalid } from "#shared/errors.ts";
 import type { OrderView, OrderViewItem } from "@dorado/contracts";
 
 const GOLD = "11111111-1111-4111-8111-111111111111";
@@ -60,8 +61,8 @@ const productItem = (over: Partial<OrderViewItem> = {}): OrderViewItem =>
       metal_id: SILVER,
       quantity: 1,
       premium: 0.8,
-      content: null,
-      product: { content: 1 },
+      content: 1,
+      product: null,
     } as unknown as OrderViewItem,
     over
   );
@@ -92,6 +93,16 @@ test("product is content x spot x premium, then multiplied by quantity", () => {
   assert.equal(unitPrice(item, bids), 24);
   // ... while the order total applies quantity.
   assert.equal(calculateTotalPrice(order({ items: [item] }), bids), 72);
+});
+
+// Migration 120 backfilled every bullion line that used to need the catalogue
+// fallback; a null content left after that is corrupt data, not a case.
+test("a bullion line with no content refuses rather than pricing at zero", () => {
+  assert.throws(() => unitPrice(productItem({ content: null }), bids), Invalid);
+});
+
+test("a scrap line with no content still prices at zero, not a refusal", () => {
+  assert.equal(unitPrice(scrapItem({ content: null }), bids), 0);
 });
 
 test("a stored price wins over recomputing from spot", () => {

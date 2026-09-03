@@ -337,13 +337,14 @@ export async function orderQuote({ order_id }: OrderQuoteBody): Promise<OrderQuo
     const stored = item.price != null;
 
     if (item.bullion_id !== null) {
-      // NO CATALOGUE FALLBACK. A purchase pays the rate tier, and item.premium
-      // is the tier this line was priced at; the product's own bid_premium is
-      // a number the placed order does not pay.
+      // NO CATALOGUE FALLBACK, for the premium or the content (migration 120
+      // backfilled the rows that used to need one). item.premium is the rate
+      // tier this line was priced at; the product's own bid_premium is a
+      // number the placed order does not pay.
       const premium = Number(item.premium ?? 0);
       const unit_price = stored
         ? Number(item.price)
-        : Number(item.product?.content ?? 0) * (bidFor(item.metal_id) * premium);
+        : Number(item.content ?? 0) * (bidFor(item.metal_id) * premium);
       // A stored price is PER UNIT: every consumer multiplies by quantity.
       const line_total = unit_price * Number(item.quantity ?? 1);
       bullion_total += line_total;

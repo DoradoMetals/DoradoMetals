@@ -1,14 +1,21 @@
 // Carrier services through the service, against real Postgres. Each test runs inside a rolled-back transaction.
 // exchange.carrier_services is checked in a few places only to prove it stays untouched - service.ts writes shipping.services alone now.
+// createService/updateService/removeService are USE CASES (ruling 56): no
+// executor parameter, each opens its own transaction. inPinnedTransaction
+// patches the pool so that transaction lands on this test's own connection
+// and rolls back with it; runWithActor puts the actor where withTransaction
+// reads it from (shared/http/actor.ts), since these calls no longer take a
+// client actingAs can set app.actor_id on directly.
 import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
 import { randomUUID } from "node:crypto";
 import pool from "#db";
-import { inRollback } from "#shared/testing/rollback.ts";
+import { inPinnedTransaction } from "#shared/testing/pinned-pool.ts";
 import { carrierId } from "#shared/testing/builders/index.ts";
 import { aUser } from "#shared/testing/builders/index.ts";
-import { actingAs } from "#shared/testing/actor.ts";
+import { TEST_ACTOR } from "#shared/testing/actor.ts";
+import { runWithActor } from "#shared/http/actor.ts";
 import * as service from "#domain/shipping/services/service.ts";
 
 let client: PoolClient;
@@ -75,9 +82,9 @@ test("the list is ordered by name, with a stable tiebreak", async () => {
 });
 
 test("create writes the row the id names", async () => {
-  await inRollback(async (c: PoolClient) => {
+  await inPinnedTransaction(async (c: PoolClient) => {
     const input = await draft(c);
-    const made = await service.createService(input, c);
+    const made = await service.createService(input);
     assert.ok(made, "the service returned nothing");
     assert.ok(made.id);
     assert.equal(made.name, input.name);
@@ -87,18 +94,17 @@ test("create writes the row the id names", async () => {
     );
     assert.equal(nx.length, 1, "not written to shipping.services");
     assert.equal(nx[0].id, made.id);
-  });
+  }, { actor: TEST_ACTOR.id });
 });
 
 // Defaults are service.ts's, not the table's: the column defaults to false, but the business's answer is true, and the statement lists every column so service.ts decides.
 test("a service created with nothing but a name and carrier gets the business's defaults", async () => {
-  await inRollback(async (c: PoolClient) => {
+  await inPinnedTransaction(async (c: PoolClient) => {
     const [maker] = await twoPeople(c);
     assert.ok(maker, "auth.users has no named user - this test proves nothing");
-    await actingAs(c, maker.id);
 
     const input = await draft(c, { code: undefined });
-    const made = await service.createService(input, c);
+    const made = await runWithActor(maker.id, () => service.createService(input));
     assert.ok(made, "the service returned nothing");
 
     assert.equal(made.supports_dropoff, true, "supports_dropoff took the new schema's default");
@@ -125,15 +131,15 @@ test("a service created with nothing but a name and carrier gets the business's 
       },
       "the stored row disagrees about a service nobody gave a value for"
     );
-  });
+  }, { actor: TEST_ACTOR.id });
 });
 
 // `false` is a value, not an absence. A `??` here would have turned every
 // explicit false back into the default.
 test("an explicit false is kept, not replaced by the default", async () => {
-  await inRollback(async (c: PoolClient) => {
+  await inPinnedTransaction(async (c: PoolClient) => {
     const made = await service.createService(
-      await draft(c, { supports_dropoff: false, is_residential: false, is_active: false }), c
+      await draft(c, { supports_dropoff: false, is_residential: false, is_active: false })
     );
     assert.ok(made, "the service returned nothing");
     assert.equal(made.supports_dropoff, false);
@@ -146,17 +152,17 @@ test("an explicit false is kept, not replaced by the default", async () => {
     );
     assert.deepEqual({ ...rows[0] },
       { supports_dropoffs: false, is_residential: false, is_active: false });
-  });
+  }, { actor: TEST_ACTOR.id });
 });
 
 test("update changes the row, including a renamed column", async () => {
-  await inRollback(async (c: PoolClient) => {
-    const made = await service.createService(await draft(c), c);
+  await inPinnedTransaction(async (c: PoolClient) => {
+    const made = await service.createService(await draft(c));
     assert.ok(made, "the service returned nothing");
     const renamed = `${made.name}-renamed`;
 
     const updated = await service.updateService(
-      { ...made, name: renamed, max_weight_lbs: 42, supports_pickup: true }, c
+      { ...made, name: renamed, max_weight_lbs: 42, supports_pickup: true }
     );
     assert.ok(updated, "the service returned nothing");
     assert.equal(updated.name, renamed);
@@ -173,17 +179,17 @@ test("update changes the row, including a renamed column", async () => {
       "max_weight_lbs did not land in max_weight_lb");
     assert.equal(rows[0].supports_pickups, true,
       "supports_pickup did not land in supports_pickups");
-  });
+  }, { actor: TEST_ACTOR.id });
 });
 
 // The three renames are the one thing a misaligned parameter array would
 // scramble silently: two are booleans and one a numeric, so a swap type-checks.
 test("the renamed wire fields land in the right columns", async () => {
-  await inRollback(async (c: PoolClient) => {
+  await inPinnedTransaction(async (c: PoolClient) => {
     const made = await service.createService(
       await draft(c, {
         supports_pickup: true, supports_dropoff: false, max_weight_lbs: 7,
-      }), c
+      })
     );
     assert.ok(made, "the service returned nothing");
 
@@ -194,44 +200,44 @@ test("the renamed wire fields land in the right columns", async () => {
     assert.equal(nx[0].supports_pickups, true);
     assert.equal(nx[0].supports_dropoffs, false);
     assert.equal(Number(nx[0].max_weight_lb), 7);
-  });
+  }, { actor: TEST_ACTOR.id });
 });
 
 // created_by records who made the row; an edit must not overwrite it - the audit trigger never touches created_* on UPDATE.
 test("an update does not reassign created_by", async () => {
-  await inRollback(async (c: PoolClient) => {
+  await inPinnedTransaction(async (c: PoolClient) => {
     const [maker, editor] = await twoPeople(c);
     assert.ok(editor, "auth.users has fewer than two named users - this proves nothing");
 
-    await actingAs(c, maker.id);
-    const made = await service.createService(await draft(c), c);
+    const input = await draft(c);
+    const made = await runWithActor(maker.id, () => service.createService(input));
     assert.ok(made, "the service returned nothing");
 
-    await actingAs(c, editor.id);
-    const updated = await service.updateService({ ...made }, c);
+    const updated = await runWithActor(editor.id, () => service.updateService({ ...made }));
     assert.ok(updated, "the service returned nothing");
     assert.equal(updated.created_by, maker.name, "an edit rewrote who created the service");
     assert.equal(updated.updated_by, editor.name);
-  });
+  }, { actor: TEST_ACTOR.id });
 });
 
-test("delete removes the row from both schemas", async () => {
-  await inRollback(async (c: PoolClient) => {
-    const made = await service.createService(await draft(c), c);
+test("delete removes the row", async () => {
+  await inPinnedTransaction(async (c: PoolClient) => {
+    const made = await service.createService(await draft(c));
     assert.ok(made, "the service returned nothing");
-    await service.removeService(made.id, c);
+    await service.removeService(made.id);
 
-    assert.equal(await service.getServiceById(made.id, c), null);
-    const { rows } = await c.query(
-      "SELECT 1 FROM exchange.carrier_services WHERE id = $1", [made.id]
-    );
-    assert.equal(rows.length, 0, "the service is still in exchange after a delete");
-  });
+    // The exchange.carrier_services check that used to sit here
+    // (exchange-fixtures lane, D214 item 10, removed) was vacuous: made.id
+    // is a freshly minted shipping.services id nothing ever writes to
+    // exchange, so it could never have found a row there - and this already
+    // proves the live table lost it.
+    assert.equal(await service.getServiceById(made.id), null);
+  }, { actor: TEST_ACTOR.id });
 });
 
 // shipping.shipments.carrier_service_id / checkout.checkouts.carrier_service_id reference this table with no ON DELETE - a referenced service can't be removed.
 test("deleting a referenced service is refused, and exchange keeps its row", async () => {
-  await inRollback(async (c: PoolClient) => {
+  await inPinnedTransaction(async (c: PoolClient) => {
     const { rows: referenced } = await c.query(
       `SELECT carrier_service_id AS id FROM shipping.shipments
         WHERE carrier_service_id IS NOT NULL LIMIT 1`
@@ -239,8 +245,8 @@ test("deleting a referenced service is refused, and exchange keeps its row", asy
     if (!referenced[0]) return; // dev has no shipment naming a service
 
     const id = referenced[0].id;
-    await assert.rejects(() => service.removeService(id, c), /violates foreign key/i);
-  });
+    await assert.rejects(() => service.removeService(id), /violates foreign key/i);
+  }, { actor: TEST_ACTOR.id });
 });
 
 test("getServicesByCarrierId returns that carrier's services and no others", async () => {
@@ -250,25 +256,16 @@ test("getServicesByCarrierId returns that carrier's services and no others", asy
   for (const row of rows) assert.equal(row.carrier_id, id);
 });
 
-test("a write made with a client is invisible on the pool", async () => {
-  await client.query("BEGIN");
-  const made = await service.createService(await draft(client), client);
-  assert.ok(made, "the service returned nothing");
-  const outsideRow = await service.getServiceById(made.id);
-  await client.query("ROLLBACK");
-
-  assert.ok(made.id);
-  assert.equal(outsideRow, null);
-});
-
 // `id` is required on CarrierServicePatch now (the contract, parsed strictly
 // at transport) - a request naming none is a 400 before this ever runs. What
 // this proves is the reachable case: an id nothing names changes nothing.
 test("an update naming an id nothing has changes nothing", async () => {
-  await inRollback(async (c: PoolClient) => {
-    const { rows: before } = await c.query("SELECT count(*)::int n FROM exchange.carrier_services");
-    assert.equal(await service.updateService({ id: randomUUID(), name: "nobody" }, c), null);
-    const { rows: after } = await c.query("SELECT count(*)::int n FROM exchange.carrier_services");
+  await inPinnedTransaction(async (c: PoolClient) => {
+    // shipping.services, not exchange.carrier_services (exchange-fixtures
+    // lane, D214 item 10) - the table this service actually writes.
+    const { rows: before } = await c.query("SELECT count(*)::int n FROM shipping.services");
+    assert.equal(await service.updateService({ id: randomUUID(), name: "nobody" }), null);
+    const { rows: after } = await c.query("SELECT count(*)::int n FROM shipping.services");
     assert.equal(after[0].n, before[0].n);
-  });
+  }, { actor: TEST_ACTOR.id });
 });

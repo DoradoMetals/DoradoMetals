@@ -19,7 +19,7 @@ vi.mock("@/features/auth/queries", () => ({
 
 import { apiRequest } from "@/shared/queries/axios";
 import { useSalesOrderQuote, usePurchaseOrderQuote } from "@/features/quotes/queries";
-import type { SellCartItem } from "@/features/cart/types";
+import type { CheckoutLine } from "@/features/checkout/items/types";
 
 const SALE_SERVICE_ID = "9f1c2b3a-0000-4000-8000-000000000031";
 const SALE_METHOD_ID = "9f1c2b3a-0000-4000-8000-000000000032";
@@ -35,14 +35,17 @@ function wrapper({ children }: { children: ReactNode }) {
   return <QueryClientProvider client={client}>{children}</QueryClientProvider>;
 }
 
-const aProductItem = (): SellCartItem =>
-  ({ type: "product", data: { id: PRODUCT_ID, quantity: 2 } } as unknown as SellCartItem);
+const aLine = (over: Partial<CheckoutLine>): CheckoutLine => ({
+  id: "line",
+  quantity: 1,
+  ...over,
+});
 
-const aScrapItem = (): SellCartItem =>
-  ({
-    type: "scrap",
-    data: { metal: "Gold", pre_melt: 10, purity: 0.585, gross_unit: "g", content: 5.85 },
-  } as unknown as SellCartItem);
+const aProductItem = (): CheckoutLine =>
+  aLine({ id: PRODUCT_ID, bullion_id: PRODUCT_ID, quantity: 2 });
+
+const aScrapItem = (): CheckoutLine =>
+  aLine({ id: "lot", metal_id: GOLD_ID, pre_melt: 10, purity: 0.585, unit: "g" });
 
 beforeEach(() => {
   vi.mocked(apiRequest).mockReset();
@@ -137,7 +140,7 @@ describe("usePurchaseOrderQuote sends exactly what /quotes/purchase_order accept
       purity: 0.585,
       unit: "g",
     });
-    for (const retired of ["content", "gross_unit", "metal"]) {
+    for (const retired of ["content", "gross_unit", "metal", "id"]) {
       expect(body.items[1]).not.toHaveProperty(retired);
     }
     expect(body.payout_method_id).toBe(PURCHASE_METHOD_ID);

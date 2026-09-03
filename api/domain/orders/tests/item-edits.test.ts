@@ -45,7 +45,7 @@ const { default: app } = await import("#app");
 // projections, not table rows - naming a row type would claim columns the
 // query never asked for.
 type UserFixture = { id: string; name: string | null; email: string | null };
-type ItemFixture = { id: string; purchase_order_id: string };
+type ItemFixture = { id: string; order_id: string };
 type ScrapItemFixture = ItemFixture;
 
 const admin: UserFixture = TEST_ACTOR;
@@ -67,8 +67,8 @@ const lines = async (c: PoolClient) => {
   // on the borrowed fixture already having.
   await aRefinerEngagement(c, order);
   return {
-    item: { id: order.items[0]!.id, purchase_order_id: order.id },
-    scrapItem: { id: order.items[1]!.id, purchase_order_id: order.id },
+    item: { id: order.items[0]!.id, order_id: order.id },
+    scrapItem: { id: order.items[1]!.id, order_id: order.id },
   };
 };
 
@@ -139,17 +139,17 @@ test("the refiner spots read answers by customer-order id", async () => {
       // resolved server-side, the path under the parent per the route
       // convention.
       const res = await request(app)
-        .get(`/api/orders/${item.purchase_order_id}/refiners/spots`);
+        .get(`/api/orders/${item.order_id}/refiners/spots`);
 
       assert.equal(res.status, 200, `answered ${res.status}`);
       assert.ok(Array.isArray(res.body), "expected a list of metals");
 
       // And the bare engagement row is where a PATCH gets its key.
       const eng = await request(app)
-        .get(`/api/orders/${item.purchase_order_id}/refiners`);
+        .get(`/api/orders/${item.order_id}/refiners`);
       assert.equal(eng.status, 200, `the engagement read answered ${eng.status}`);
       assert.ok(eng.body.id, "the engagement row carries no id to PATCH by");
-      assert.equal(eng.body.order_id, item.purchase_order_id);
+      assert.equal(eng.body.order_id, item.order_id);
     });
   }, { actor: TEST_ACTOR.id });
 });

@@ -7,7 +7,7 @@
 // exactly one honest key.
 import * as orderItemsRepo from "#db/orders/items/repo.ts";
 import * as refinerItemsRepo from "#db/refiners/items/repo.ts";
-import { scrapContent } from "#domain/orders/rules.ts";
+import { fineContent } from "#domain/pricing/content.ts";
 import { assayedRow } from "#domain/refiners/items/rules.ts";
 import { Invalid, NotFound } from "#shared/errors.ts";
 import type { RefinerItemPatch } from "@dorado/contracts";
@@ -50,7 +50,7 @@ export async function patchRefinerItem(
     }
     const reported = (await refinerItemsRepo.byOrderItem([order_item_id])).get(order_item_id);
     await refinerItemsRepo.update(
-      order_item_id, assayedRow(patch, reported, line.unit, scrapContent)
+      order_item_id, assayedRow(patch, reported, line.unit, fineContent)
     );
   }
 

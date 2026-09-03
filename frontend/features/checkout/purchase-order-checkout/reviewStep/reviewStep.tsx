@@ -5,7 +5,7 @@ import formatPhoneNumber from '@/shared/utils/formatPhoneNumber'
 import { Button } from '@dorado/components'
 import { formatPickupDateShort, formatPickupTime, formatTimeDiff } from '@/shared/utils/formatDates'
 import ItemTables from './itemTable'
-import { sellCartStore } from '@/shared/store/sellCartStore'
+import { useCheckoutItems } from '@/shared/store/checkoutItemsStore'
 import { useRouter } from 'next/navigation'
 import { useState, useTransition } from 'react'
 import { useCreatePurchaseOrderFromCheckout } from '@/features/checkout/queries'
@@ -38,14 +38,10 @@ export default function ReviewStep() {
           <p>{formatTimeDiff(data.service?.transitTime ?? new Date())}</p>
         </div>
 
+        {/* RULING 58: the box's dimensions are the server's now - the
+            browser holds only the id and the label. */}
         <div className="mt-4 flex justify-between">
           <strong>{data.package?.label}</strong>
-          <small>
-            {data.package?.dimensions &&
-              `${Math.round(data.package.dimensions.height)} × ${Math.round(
-                data.package.dimensions.width
-              )} × ${Math.round(data.package.dimensions.length)} in`}
-          </small>
         </div>
 
         <div className="mt-1 flex justify-between items-center">
@@ -120,7 +116,7 @@ export default function ReviewStep() {
               startTransition(() => {
                 router.push('/order-placed')
               })
-              sellCartStore.getState().clearCart()
+              useCheckoutItems.getState().clear('purchase')
               usePurchaseOrderCheckoutStore.getState().clear()
             },
             onError: (err) => {

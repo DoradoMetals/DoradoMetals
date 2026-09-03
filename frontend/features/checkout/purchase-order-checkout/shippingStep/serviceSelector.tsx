@@ -5,15 +5,18 @@ import { usePurchaseOrderCheckoutStore } from '@/shared/store/purchaseOrderCheck
 import { formatTimeDiff } from '@/shared/utils/formatDates'
 import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
 import { serviceIcon } from '@/features/service/types'
-import type { CarrierServiceOption, ShippingRate } from '@/features/shipping/types'
+import type { CarrierServiceOption } from '@/features/shipping/types'
+import type { CarrierRateQuote } from '@dorado/contracts'
 
-// THE SERVICES WE OFFER, JOINED TO THE LIVE RATES BY CODE.
+// THE SERVICES WE OFFER, JOINED TO THE CARRIER'S OWN QUOTE BY `code`.
 //
-// This component used to import `serviceOptions` - a record keyed by
-// FEDEX_EXPRESS_SAVER and PRIORITY_OVERNIGHT, carrying FedEx's FDXE carrier
-// code - so the browser decided which of a carrier's services are on offer and
-// in what order. Both come from GET /carrier_services/offered now; the rates
-// come from the carrier, and `code` is the join.
+// GET /checkout/rates answers the carrier's raw per-service quote
+// (CarrierRateQuote) - not every field ties to a shipping.services row (no
+// id, no display order), so the offered catalogue (GET
+// /carrier_services/offered) is still read separately and joined here, same
+// as the deleted client-side rate assembly did. The browser composes no rate
+// REQUEST any more; it still joins the ANSWER to the catalogue it already
+// caches.
 //
 // Presentational: options and rates in, selection out (ruling 14).
 //
@@ -21,7 +24,7 @@ import type { CarrierServiceOption, ShippingRate } from '@/features/shipping/typ
 // carrier's own quote, rendered and stored as given (D82).
 interface ServiceSelectorProps {
   services: CarrierServiceOption[]
-  rates: ShippingRate[]
+  rates: CarrierRateQuote[]
   isLoading: boolean
 }
 
@@ -30,7 +33,9 @@ export const ServiceSelector: React.FC<ServiceSelectorProps> = ({ services, rate
   const setData = usePurchaseOrderCheckoutStore((state) => state.setData)
   const pickup = usePurchaseOrderCheckoutStore((state) => state.data.pickup)
 
-  const rateMap = new Map(rates.map((r) => [r.serviceType, r]))
+  const rateMap = new Map(
+    rates.filter((r) => r.serviceType != null).map((r) => [r.serviceType as string, r])
+  )
 
   const handleSelect = (code: string) => {
     const option = services.find((s) => s.code === code)
@@ -47,9 +52,9 @@ export const ServiceSelector: React.FC<ServiceSelectorProps> = ({ services, rate
         serviceType: option.code,
         serviceDescription: option.name,
         code: option.carrier_code,
-        netCharge: rate?.netCharge || 0,
-        currency: rate?.currency || 'USD',
-        transitTime: rate?.transitTime ?? new Date(),
+        netCharge: rate?.netCharge ?? 0,
+        currency: rate?.currency ?? 'USD',
+        transitTime: rate?.transitTime ? new Date(rate.transitTime) : new Date(),
         deliveryDay: rate?.deliveryDay ?? '',
       },
       pickup: {
@@ -84,7 +89,7 @@ export const ServiceSelector: React.FC<ServiceSelectorProps> = ({ services, rate
             <div className="flex w-full items-center justify-between">
               <small>
                 {rate?.transitTime
-                  ? formatTimeDiff(rate.transitTime)
+                  ? formatTimeDiff(new Date(rate.transitTime))
                   : rate?.deliveryDay
                   ? `Arrives ${rate.deliveryDay}`
                   : 'Getting estimated delivery...'}

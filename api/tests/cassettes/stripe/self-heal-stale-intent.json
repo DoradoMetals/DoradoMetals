@@ -1,0 +1,68 @@
+[
+    {
+        "scope": "https://api.stripe.com:443",
+        "method": "GET",
+        "path": "/v1/payment_intents/pi_cassette_stale_intent",
+        "body": "",
+        "status": 200,
+        "response": {
+            "id": "pi_cassette_stale_intent",
+            "object": "payment_intent",
+            "amount": 4200,
+            "amount_capturable": 0,
+            "amount_received": 0,
+            "canceled_at": 1788447124,
+            "cancellation_reason": null,
+            "capture_method": "automatic",
+            "client_secret": "pi_cassette_stale_intent_secret_SCRUBBED_SECRET",
+            "confirmation_method": "automatic",
+            "created": 1788447124,
+            "currency": "usd",
+            "customer": "cus_SCRUBBED",
+            "livemode": false,
+            "metadata": {
+                "session_id": "cassette-session",
+                "type": "customer",
+                "user_id": "cassette-user"
+            },
+            "payment_method": null,
+            "status": "canceled"
+        },
+        "rawHeaders": {
+            "content-type": "application/json"
+        }
+    },
+    {
+        "scope": "https://api.stripe.com:443",
+        "method": "POST",
+        "path": "/v1/payment_intents",
+        "body": "amount=1000&currency=usd&customer=cus_SCRUBBED&capture_method=automatic&automatic_payment_methods%5Benabled%5D=true&metadata%5Btype%5D=customer&metadata%5Buser_id%5D=SCRUBBED_USER_ID&metadata%5Bsession_id%5D=SCRUBBED_SESSION_ID",
+        "status": 200,
+        "response": {
+            "id": "pi_3UBbzjCaZvyVaDJO0R38Jp7F",
+            "object": "payment_intent",
+            "amount": 1000,
+            "amount_capturable": 0,
+            "amount_received": 0,
+            "canceled_at": null,
+            "cancellation_reason": null,
+            "capture_method": "automatic",
+            "client_secret": "pi_3UBbzjCaZvyVaDJO0R38Jp7F_secret_SCRUBBED_SECRET",
+            "confirmation_method": "automatic",
+            "created": 1788447123,
+            "currency": "usd",
+            "customer": "cus_SCRUBBED",
+            "livemode": false,
+            "metadata": {
+                "session_id": "cassette-session",
+                "type": "customer",
+                "user_id": "cassette-user"
+            },
+            "payment_method": null,
+            "status": "requires_payment_method"
+        },
+        "rawHeaders": {
+            "content-type": "application/json"
+        }
+    }
+]

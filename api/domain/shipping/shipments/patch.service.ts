@@ -3,6 +3,7 @@
 import * as shipmentsService from "#domain/shipping/shipments/service.ts";
 import * as orderTransactions from "#domain/orders/transactions/service.ts";
 import { updateTracking } from "#domain/orders/service.ts";
+import withTransaction from "#shared/db/withTransaction.ts";
 import { Invalid, NotFound } from "#shared/errors.ts";
 import type { ShipmentPatch } from "@dorado/contracts";
 
@@ -36,9 +37,10 @@ export async function patchShipment(
     if (!orderId) {
       throw new Invalid(`shipment ${shipmentId} belongs to no order, so it has no charge to edit`);
     }
+    const charge = body.shipping_charge;
     // shipping.shipments belongs to this feature, so the charge is written
     // through its own service rather than through orders.
-    await shipmentsService.setChargeForOrder(orderId!, body.shipping_charge);
+    await withTransaction((tx) => shipmentsService.setChargeForOrder(orderId, charge, tx));
   }
 
   if (body.shipping_actual !== undefined) {

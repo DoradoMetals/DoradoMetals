@@ -1,4 +1,4 @@
-// PLACING AN ORDER: one checkout id in (ruling 43), the order out. LOAD -> ASSERT -> OUTSIDE WORLD -> WRITE -> OUTSIDE WORLD (D214 item 11).
+// PLACING AN ORDER: one checkout id in (ruling 43), the order out. LOAD -> ASSERT -> WRITE -> OUTSIDE WORLD (D214 item 11; the purchase side moved its postage purchase from BEFORE the write to AFTER on 2026-09-03 - label-after-commit).
 import { randomUUID } from "node:crypto";
 import type { PoolClient } from "pg";
 
@@ -18,11 +18,8 @@ import * as usersRepo from "#db/users/repo.ts";
 import * as addressService from "#domain/places/addresses/service.ts";
 import * as fulfillmentService from "#domain/fulfillments/service.ts";
 import * as fulfillmentShipments from "#domain/fulfillments/shipments/service.ts";
-import * as pickupService from "#domain/shipping/pickups/service.ts";
 import * as carrierServices from "#domain/shipping/services/service.ts";
 import * as handoffsService from "#domain/shipping/handoffs/service.ts";
-import * as shippingOperations from "#domain/shipping/operations/service.ts";
-import * as shippingOps from "#domain/shipping/operations/handler.ts";
 import * as checkoutService from "#domain/checkout/service.ts";
 import * as emailService from "#domain/media/emails/service.ts";
 import * as spotsService from "#domain/spots/service.ts";
@@ -36,10 +33,13 @@ import * as sweeps from "#domain/payments/sweeps.ts";
 import * as stripeProvider from "#providers/payment/stripe.ts";
 import * as orderRead from "#domain/orders/read.ts";
 import * as rules from "#domain/orders/rules.ts";
+import { buyPostage, recordPostage } from "#domain/orders/postage.ts";
+import * as shippingRules from "#domain/shipping/rules.ts";
 import { calculateSalesOrderTotal } from "#domain/pricing/ask.ts";
 import { retierPremiums } from "#domain/orders/service.ts";
 
 import withTransaction from "#shared/db/withTransaction.ts";
+import { attempt } from "#shared/attempt.ts";
 import { Conflict, Invalid, NotFound } from "#shared/errors.ts";
 import type { NewOrderItem } from "#db/orders/items/repo.ts";
 import type { NewOrderTotals } from "#db/orders/transactions/repo.ts";
@@ -47,17 +47,11 @@ import type { CheckoutRow } from "#db/checkout/checkouts/repo.ts";
 import type { AddressRow } from "#db/places/addresses/repo.ts";
 import type { SpotWire } from "#domain/spots/compose.ts";
 import type { OrderView } from "@dorado/contracts";
+import type { Postage } from "#domain/orders/postage.ts";
+
+export type { Postage } from "#domain/orders/postage.ts";
 
 // -------------------- the outside world
-
-// What the carrier said, once. A stub answers the same shape with no tracking
-// number, and voiding nothing is what voidLabel already does.
-export type Postage = {
-  netCharge: number;
-  tracking_number: string | null;
-  label: Buffer | null;
-  pickup: { confirmationNumber: string | null; location: string | null } | null;
-};
 
 // THE THREE CALLS A PLACEMENT CANNOT ROLL BACK, injected as sendToRefiner's
 // transport is: a test drives the real row flow with no provider reachable.
@@ -129,6 +123,13 @@ async function snapshotAddress(
 
 // -------------------- the purchase side: the business buys metal, so it buys the postage
 
+// LOAD -> ASSERT -> WRITE -> AFTER (label-after-commit, 2026-09-03). The order
+// and its shipment SHELL commit with every label column NULL; the label is
+// bought only once that commit has happened, so a carrier failure leaves a
+// real order behind - not a rolled-back one with a label FedEx has already
+// billed for. Nothing here catches: a failure in the AFTER step propagates as
+// this request's error, and orders.buyLabel (POST /api/orders/:id/label) is
+// the retry surface for the shipment it left behind.
 async function placePurchase(
   checkout: CheckoutRow, cart: rules.CheckoutLine[], world: World
 ): Promise<string> {
@@ -137,11 +138,17 @@ async function placePurchase(
     await fulfillmentService.getById(placeable.fulfillment_id)
   );
   const service = await carrierServices.labelServiceFor(placeable.carrier_service_id);
+  const box = await packagesRepo.getOne(placeable.package_id);
+  const weight = shippingRules.parcelWeightLb(cart, box);
+  if (!(weight > 0)) throw new Invalid("the parcel needs a weight");
+  const declaredValue = await carrierServices.clampInsuredValue(
+    shippingRules.declaredValue(await checkoutService.purchaseTotal(checkout.id)),
+    service.serviceType
+  );
   const parcel = rules.parcelFor(
-    checkout, placeable, service,
-    await packagesRepo.getOne(placeable.package_id),
+    checkout, placeable, service, box,
     rules.handoffFor(await handoffsService.getHandoffs(), draft.method.type),
-    await carrierServices.clampInsuredValue(checkout.declared_value, service.serviceType)
+    declaredValue, weight
   );
   const shipper = rules.requireAddress(
     await placeAddresses.getOne(placeable.shipper_address_id), "shipper"
@@ -152,79 +159,30 @@ async function placePurchase(
   );
   const spots = await spotsService.getSpotPrices();
 
-  // OUTSIDE WORLD, BEFORE: a label must exist before a row can record it.
-  const postage = await world.buyPostage(shipper, customer?.name ?? "", parcel);
-
   const order_id = randomUUID();
-  try {
-    await withTransaction(async (tx) => {
-      await writeOrder(
-        {
-          order_id, checkout, spots, status: "In Transit",
-          lines: rules.linesBought(order_id, cart),
-          totals: rules.totalsBought(order_id, checkout, parcel, postage.netCharge, payout_fee),
-        },
-        tx
-      );
-      const shipment_id = await newShipments.create(
-        rules.shipmentFrom(checkout, parcel, postage), tx
-      );
-      await fulfillmentShipments.link({ fulfillment_id: draft.id, shipment_id }, tx);
-      if (postage.pickup && parcel.schedule) {
-        await pickupService.recordForShipment(
-          {
-            shipment_id, date: parcel.schedule.date, time: parcel.schedule.time,
-            confirmation_number: postage.pickup.confirmationNumber,
-            location: postage.pickup.location,
-          },
-          tx
-        );
-      }
-    });
-  } catch (err) {
-    // The rows did not commit, so the label and the booking are undone. Neither
-    // ever masks the original error - see shipping/operations/service.ts.
-    await shippingOperations.voidPickup(
-      postage.pickup && {
-        confirmationNumber: postage.pickup.confirmationNumber,
-        location: postage.pickup.location, pickupDate: parcel.schedule?.date,
-      }
+  const shipment_id = await withTransaction(async (tx) => {
+    await writeOrder(
+      {
+        order_id, checkout, spots, status: "In Transit",
+        lines: rules.linesBought(order_id, cart),
+        totals: rules.totalsBought(order_id, checkout, parcel, payout_fee),
+      },
+      tx
     );
-    await shippingOperations.voidLabel(postage.tracking_number);
-    throw err;
-  }
+    const id = await newShipments.create(rules.shipmentFrom(checkout, parcel), tx);
+    await fulfillmentShipments.link({ fulfillment_id: draft.id, shipment_id: id }, tx);
+    return id;
+  });
 
-  // Device-sync data: a failed clear is a stale basket, not lost data.
-  await checkoutService.syncCart(checkout.user_id, "purchase", []).catch(() => {});
+  // OUTSIDE WORLD, AFTER: the order and its shell shipment already exist.
+  const postage = await world.buyPostage(shipper, customer?.name ?? "", parcel);
+  await recordPostage(order_id, shipment_id, postage, parcel.schedule);
+
+  await attempt("clear the purchase basket", () =>
+    checkoutService.clearItems(checkout.user_id, "purchase")
+  );
   await world.confirm(order_id);
   return order_id;
-}
-
-// THE CARRIER, ASKED IN ORDER: the postage price, the label that costs it, the
-// courier if one is coming. A failed booking voids the label - it is billed.
-async function buyPostage(
-  shipper: AddressRow, personName: string, parcel: rules.Parcel
-): Promise<Postage> {
-  const netCharge = rules.quotedCharge(
-    await shippingOperations.quoteRate(rules.rateRequest(shipper, parcel)), parcel.serviceType
-  );
-  const labelData = await shippingOps.createLabel(
-    parcel.carrier_id, undefined, rules.labelRequest(shipper, personName, parcel)
-  );
-  const label = await shippingOperations.labelBufferOrVoid(labelData);
-  const tracking_number = labelData.tracking_number;
-  if (!parcel.schedule) return { netCharge, tracking_number, label, pickup: null };
-
-  try {
-    const pickup = await shippingOps.createPickup(
-      parcel.carrier_id, undefined,
-      rules.pickupRequest(shipper, personName, parcel, parcel.schedule, tracking_number)
-    );
-    return { netCharge, tracking_number, label, pickup };
-  } catch (err) {
-    await shippingOperations.voidLabel(tracking_number);
-    throw err;
-  }
 }
 
 // -------------------- the sale side: the customer buys metal, so is charged
@@ -239,8 +197,14 @@ async function placeSale(
     await placeAddresses.getOne(placeable.recipient_address_id), "delivery"
   );
   const spots = await spotsService.getSpotPrices();
-  const catalogue = await taxService.attachSalesTaxToItems(
-    address.state, await productService.getItemsFromServer(rules.catalogueWanted(cart)), spots
+  const priced = await taxService.attachSalesTaxToItems(
+    address.state,
+    rules.saleLines(
+      cart,
+      await productService.getItemsFromServer(rules.catalogueWanted(cart)),
+      new Map(spots.map((spot) => [spot.id, spot.name]))
+    ),
+    spots
   );
   const service = checkout.carrier_service_id
     ? await servicesRepo.getOne(checkout.carrier_service_id)
@@ -252,7 +216,7 @@ async function placeSale(
   // owns, and pricing caps what is applied at the order's own total.
   const balance = (await usersRepo.balanceForUpdate(checkout.user_id)) ?? 0;
   const prices = calculateSalesOrderTotal(
-    catalogue, spots, { dorado_funds: balance }, service?.code, method?.type
+    priced, spots, { dorado_funds: balance }, service?.code, method?.type
   );
   const cents = rules.chargeCents(prices.post_charges_amount);
   const intent = cents > 0 ? await openIntentFor(checkout.user_id, cents) : null;
@@ -263,7 +227,7 @@ async function placeSale(
       {
         order_id, checkout, spots,
         status: rules.statusAtPlacement(cents, intent?.settled === true),
-        lines: rules.linesSold(order_id, cart, catalogue, spots),
+        lines: rules.linesSold(order_id, cart, priced, spots),
         totals: rules.totalsSold(order_id, prices, service?.name),
       },
       tx
@@ -273,7 +237,7 @@ async function placeSale(
       // twice; the abandonment sweep puts it back if payment never arrives.
       await usersService.removeFunds(checkout.user_id, prices.pre_charges_amount, tx);
       await transactionsService.addTransactionLog(
-        checkout.user_id, "Debit", null, order_id, prices.pre_charges_amount, tx
+        { user_id: checkout.user_id, type: "Debit", order_id, amount: prices.pre_charges_amount }, tx
       );
     }
     await taxService.updateStateSalesTax(prices.sales_tax, address.state, tx);
@@ -308,7 +272,7 @@ async function openIntentFor(
   if (verdict === "conflict") {
     throw new Conflict("that payment intent already belongs to an order");
   }
-  const superseded = verdict === "supersede" ? intent.sales_order_id : null;
+  const superseded = verdict === "supersede" ? intent.order_id : null;
   if (superseded) {
     // An abandoned checkout is SUPERSEDED, not refused: the intent is reused
     // until it settles, and refusing strands the customer paying.
@@ -335,7 +299,6 @@ async function openIntentFor(
 
 // The server sets the authoritative amount, and records what Stripe answered.
 async function authorize(payment_intent_id: string, cents: number): Promise<void> {
-  await paymentsService.updateFromProvider(
-    await stripeProvider.updateIntent(payment_intent_id, { amount: cents })
-  );
+  const updated = await stripeProvider.updateIntent(payment_intent_id, { amount: cents });
+  await withTransaction((tx) => paymentsService.updateFromProvider(updated, tx));
 }

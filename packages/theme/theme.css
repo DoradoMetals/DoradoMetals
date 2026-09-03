@@ -165,11 +165,22 @@
      One scale, driving both the semantic tag rules in base.css and the
      `text-h1`-style utilities. 15px body: Linear's, and denser than the 16px
      browser default without going small. */
-  --text-display: 4rem; /* 64px — hero only. Was 3rem; the reference hero sits
-     at 64-72px. Zero call sites today, so this is free to set correctly. */
-  --text-display--line-height: 1.05;
-  --text-display--letter-spacing: -0.032em;
+  --text-display: 2.75rem; /* 44px — hero only, and the Hero drawing (163:35)
+     is the one thing that sets it: 44/50 with -1.2px tracking, SemiBold. Was
+     64px, chosen from a reference hero back when this had zero call sites; the
+     drawing now has a call site and outranks the reference. */
+  --text-display--line-height: 1.14; /* 50/44 */
+  --text-display--letter-spacing: -0.027em; /* -1.2px at 44 */
   --text-display--font-weight: 600;
+
+  /* The drawing's mobile step, stated in its own description: "Mobile: 32/38
+     headline". A pair for the same reason --text-stat has one — the small size
+     is a real design decision, not the big one scaled, and must be free to
+     move without dragging the desktop size with it. */
+  --text-display-sm: 2rem; /* 32px */
+  --text-display-sm--line-height: 1.19; /* 38/32 */
+  --text-display-sm--letter-spacing: -0.024em;
+  --text-display-sm--font-weight: 600;
 
   /* --- DISPLAY NUMERALS ----------------------------------------------------
      A HEADING SIZE IS NOT A NUMBER SIZE, which is the gap this fills. `/rates`

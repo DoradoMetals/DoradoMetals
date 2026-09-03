@@ -1,6 +1,5 @@
 // Tracking: the scan events of one shipment, and the shipment they belong to. getEvents returns the whole shipment with its events attached - it asks the shipments service rather than duplicating its composition.
 // Events are REPLACED WHOLESALE, not edited: a carrier poll removes what's there and inserts the current set, in one transaction.
-import withTransaction from "#shared/db/withTransaction.ts";
 import * as tracking from "#db/shipping/tracking/repo.ts";
 import * as shipmentService from "#domain/shipping/shipments/service.ts";
 import type { ScanEvent, TrackingInfo } from "#db/shipping/tracking/repo.ts";
@@ -40,28 +39,21 @@ export async function getEvents(
 // There is no replaceEvents wrapper: the live carrier poll (operations/service.ts) does both writes itself, behind the guard that stops an unrecognised response from emptying a real parcel's history.
 // An unguarded second implementation of a write that once deleted five dev shipments' FedEx history is not caution - it's a loaded gun in a drawer.
 
-export async function removeEvents(
-  shipment_id: string, executor?: Executor
-): Promise<boolean> {
-  const run = async (c: Executor): Promise<boolean> => {
-    await tracking.remove(shipment_id, c);
-    return true;
-  };
-  if (executor) await run(executor);
-  else await withTransaction(run);
+// A HELPER (ruling 56): getTracking (shipping/operations/service.ts) is the
+// only caller, and it opens the transaction both this and insertEvents share.
+export async function removeEvents(shipment_id: string, tx: Executor): Promise<boolean> {
+  await tracking.remove(shipment_id, tx);
   return true;
 }
 
+// A HELPER, same reasoning as removeEvents.
 export async function insertEvents(
   trackingInfo: TrackingInfo | null | undefined,
   shipment_id: string,
-  executor?: Executor
+  tx: Executor
 ): Promise<number> {
   const events: ScanEvent[] = trackingInfo?.scanEvents ?? [];
   if (!events.length) return 0;
 
-  const run = async (c: Executor): Promise<number> => {
-    return await tracking.insert(events, shipment_id, c);
-  };
-  return executor ? await run(executor) : await withTransaction(run);
+  return await tracking.insert(events, shipment_id, tx);
 }

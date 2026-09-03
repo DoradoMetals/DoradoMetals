@@ -111,7 +111,7 @@ test("the abandonment sweep cancels a stale unpaid order and refunds its credit"
     await seedIntent(c, NO_SUCH_INTENT, "requires_payment_method", id);
 
     const results = await withCassette("stripe/cancel-unknown-intent.json", () =>
-      sweepAbandoned(24, c)
+      sweepAbandoned(24)
     );
     const mine = results.find((r) => r.order_id === id);
     assert.ok(mine, "the stale order was not swept");
@@ -132,7 +132,7 @@ test("the abandonment sweep cancels a stale unpaid order and refunds its credit"
 test("a YOUNG unpaid order is left alone", async () => {
   await inPinnedTransaction(async (c: PoolClient) => {
     const id = await seedSale(c, { ageHours: 1 });
-    await sweepAbandoned(24, c);
+    await sweepAbandoned(24);
     assert.equal(await statusOf(c, id), "Pending", "a fresh order was cancelled");
   }, { actor: TEST_ACTOR.id, lock: [LOCKS.FULFILLMENTS, LOCKS.ORDERS, LOCKS.ADDRESSES, LOCKS.USERS] });
 });
@@ -141,7 +141,7 @@ test("a PROCESSING intent protects its order from the abandonment sweep", async 
   await inPinnedTransaction(async (c: PoolClient) => {
     const id = await seedSale(c, { ageHours: 72 });
     await seedIntent(c, `pi_rec_processing_${Date.now()}`, "processing", id);
-    await sweepAbandoned(24, c);
+    await sweepAbandoned(24);
     assert.equal(await statusOf(c, id), "Pending", "an order with money in flight was cancelled");
   }, { actor: TEST_ACTOR.id, lock: [LOCKS.FULFILLMENTS, LOCKS.ORDERS, LOCKS.ADDRESSES, LOCKS.USERS] });
 });
