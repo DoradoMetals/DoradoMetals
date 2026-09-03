@@ -19,7 +19,7 @@ export const StoreLocationsMap = () => {
   // ships with, which is where that decision belonged all along.
   const input: ShippingLocationsInput | null = address
     ? {
-        address,
+        address_id: address.id,
         radius_miles: 50,
         max_results: 50,
       }

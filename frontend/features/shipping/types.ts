@@ -1,5 +1,3 @@
-import { Address } from '@/features/addresses/types'
-
 // PHASE 3 (ruling 39). What is left in this file is the CARRIER ADAPTER'S
 // surface - the shapes FedEx's own API answers in, passed through by
 // api/features/shipping/operations/adapters/. Read the notes on each below:
@@ -15,9 +13,12 @@ import { Address } from '@/features/addresses/types'
 //   columns carrier_service_id / label / cost. Two shapes for one table with
 //   only one of them connected: ruling 32, the dead one goes.
 //
-//   `ScanEventItem`, `ShippingCarrierId` and `ShippingPackage` stopped being
-//   exported. Each is used in exactly one file - this one - which makes it an
-//   implementation detail rather than a contract (ruling 38's second arm).
+//   `ScanEventItem` and `ShippingCarrierId` stopped being exported. Each is
+//   used in exactly one file - this one - which makes it an implementation
+//   detail rather than a contract (ruling 38's second arm). `ShippingPackage`
+//   - a composed weight+dimensions object - went with streamline B (D214 item
+//   11): every rate/pickup/location/validate input takes an id now, never a
+//   composed address or package.
 
 // One scan on a tracking record. Used by ShipmentTracking below and nowhere
 // else, so it is not exported.
@@ -45,12 +46,6 @@ export type ShipmentTrackingInput = {
 // The carrier's id as the inputs below carry it. One file, not exported.
 type ShippingCarrierId = string
 
-// The parcel as a rate request describes it. One file, not exported.
-type ShippingPackage = {
-  weight: { units: 'LB' | 'KG'; value: number }
-  dimensions: { length: number; width: number; height: number; units: 'IN' | 'CM' }
-}
-
 // THE CARRIER IS THE SERVER'S TO NAME, NOT THE BROWSER'S.
 //
 // Every one of these inputs used to carry a required carrier_id, and checkout
@@ -65,15 +60,24 @@ type ShippingPackage = {
 // so the API answers "which carrier" itself; admin surfaces that DO hold a
 // carrier id (the tracking read, the two cancel mutations) keep sending it and
 // keep getting that carrier.
+//
+// STREAMLINE B (D214 item 11): ids in, never a composed address/package
+// object. `address_id` resolves through places.addresses, `package_id`
+// through shipping.packages; dimensions come off the package row server-side
+// - `pkg: ShippingPackage` (a whole weight+dimensions object) is gone, and
+// `weight` is the one genuine measurement nothing else stores. `declaredValue`
+// is a plain number now too - the wire never carried a currency, that was a
+// client-only wrapper (features/insurance/types.ts keeps it for the form).
 export type ShippingRatesInput = {
   carrier_id?: ShippingCarrierId
   shippingType: 'Inbound' | 'Outbound' | 'Return'
-  address: Address
-  pkg: ShippingPackage
+  address_id: string
+  package_id: string
+  weight: number
   // The carrier handoff's `code`, received from GET /shipping/handoffs and
   // handed straight back. The frontend does not interpret it.
   pickupType?: string
-  declaredValue?: { amount: number; currency: string }
+  declaredValue?: number
 }
 
 // THE CARRIER'S CATALOGUE COMES FROM @dorado/contracts, not from here.
@@ -108,7 +112,7 @@ export type ShippingRate = {
 
 export type ShippingPickupTimesInput = {
   carrier_id?: ShippingCarrierId
-  pickupAddress: Address
+  address_id: string
   code: string
   readyDate: string
 }
@@ -120,7 +124,7 @@ export type ShippingPickupTimes = {
 
 export type ShippingLocationsInput = {
   carrier_id?: ShippingCarrierId
-  address: Address
+  address_id: string
   radius_miles?: number
   max_results?: number
 }
@@ -152,13 +156,15 @@ export type ShippingLocationsReturn = {
 
 export type ShippingValidateAddressInput = {
   carrier_id?: ShippingCarrierId
-  address: Address
+  address_id: string
 }
 
+// `tracking_number` is gone (streamline B): ShippingCancelLabelBody is
+// `{ shipment_id, carrier_id? }`.strict() - the wire never carried a tracking
+// number here, the server reads it off the shipment row it looks up by id.
 export type ShippingCancelLabelInput = {
   carrier_id?: ShippingCarrierId
   shipment_id: string
-  tracking_number: string
 }
 
 // POST /shipping/cancel_label answers the bare shipping.shipments row after
@@ -166,10 +172,13 @@ export type ShippingCancelLabelInput = {
 // not resolve), not the old { success, shipping_status } message.
 // See Shipment in features/shipping/queries.ts.
 
+// `pickup_id` is required and `confirmation_code` is gone (streamline B):
+// ShippingCancelPickupBody is `{ pickup_id, carrier_id? }`.strict() - the
+// wire never carried a confirmation code, the server reads it off the pickup
+// row it looks up by id.
 export type ShippingCancelPickupInput = {
   carrier_id?: ShippingCarrierId
-  pickup_id?: string
-  confirmation_code?: number
+  pickup_id: string
 }
 
 // POST /shipping/cancel_pickup answers the bare shipping.pickups row (or

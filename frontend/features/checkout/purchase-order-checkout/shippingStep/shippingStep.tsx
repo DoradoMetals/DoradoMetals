@@ -87,7 +87,7 @@ export default function ShippingStep({
   let pickupTimesInput: ShippingPickupTimesInput | null = null
   if (address?.is_valid && service?.code) {
     pickupTimesInput = {
-      pickupAddress: address,
+      address_id: address.id,
       code: service.code,
       readyDate: new Date().toISOString().split('T')[0],
     }
