@@ -4,24 +4,15 @@
 import withTransaction from "#shared/db/withTransaction.ts";
 import * as leads from "#db/leads/repo.ts";
 import type { LeadRow, NewLead, LeadPatch } from "#db/leads/repo.ts";
+import { NotFound } from "#shared/errors.ts";
 
 // The wire IS the row - no identity adapter.
 export type LeadWire = LeadRow;
 
-interface HttpError extends Error {
-  statusCode?: number;
-}
-
-const notFound = (id: string): HttpError => {
-  const err: HttpError = new Error(`no lead ${id}`);
-  err.statusCode = 404;
-  return err;
-};
-
 export async function getOne(id: string): Promise<LeadWire> {
   const row = await leads.getOne(id);
   // A missing lead is a 404, not a 200 carrying undefined - the latter reaches the client as an empty body, indistinguishable from a lead with no fields.
-  if (!row) throw notFound(id);
+  if (!row) throw new NotFound(`no lead ${id}`);
   return row;
 }
 
@@ -38,9 +29,9 @@ export async function create(lead: NewLead): Promise<LeadWire> {
 export async function update(id: string, patch: LeadPatch): Promise<LeadWire> {
   return withTransaction(async (client) => {
     const changed = await leads.update(id, patch, client);
-    if (!changed) throw notFound(id);
+    if (!changed) throw new NotFound(`no lead ${id}`);
     const row = await leads.getOne(id, client);
-    if (!row) throw notFound(id);
+    if (!row) throw new NotFound(`no lead ${id}`);
     return row;
   });
 }

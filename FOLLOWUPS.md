@@ -14042,3 +14042,65 @@ What moved:
   now always requested (no gate to check), `app/sitemap.ts` filters buy URLs
   on `slug` alone, and the affected test fixtures.
 
+### Domain errors: the six stragglers and the lint (2026-09-03)
+
+D214 item 11 and `shared/errors.ts`'s own header already said domain code
+names a KIND of refusal, never a status - but the rule had no gate, so six
+files still built their own HTTP error and nine call sites spelled a number.
+Found on Jacob's read of `shipping/shipments/service.ts`'s local
+`interface HttpError` + `badRequest()`: *"Why are things like this sitting in
+this file? That should at minimum be a shared type lmfao."*
+
+Fixed in `domain/reviews/service.ts`, `domain/leads/service.ts`,
+`domain/rates/service.ts`, `domain/places/addresses/service.ts`,
+`domain/shipping/operations/service.ts`, `domain/shipping/shipments/service.ts`:
+every local `HttpError` interface/helper deleted, every throw now a
+`NotFound`/`Conflict`/`Invalid` from `#shared/errors.ts`, same messages.
+`shipping/shipments/service.ts` got the narrowest possible diff - only the
+helper and its call sites' error construction - because another lane is
+rewriting that file's `create()` and merges `api-hardening` before finishing.
+
+**Statuses that moved, because no code or test pinned the old number**:
+
+| file | message | old -> new |
+|---|---|---|
+| `places/addresses/service.ts` | "Address cannot be edited because it is associated with an active order." | 400 -> 409 (Conflict) |
+| `places/addresses/service.ts` | "Address cannot be deleted because it is associated with an active order." | 400 -> 409 (Conflict) |
+| `places/addresses/service.ts` | "Address not found." (both sites in `update`) | 400 -> 404 (NotFound) |
+| `shipping/shipments/service.ts` | "a shipment needs a type - ..." | 400 -> 422 (Invalid) |
+| `shipping/shipments/service.ts` | "a shipment update needs an id" | 400 -> 422 (Invalid) |
+| `shipping/shipments/service.ts` | "a service name needs a carrier to resolve against - ..." | 400 -> 422 (Invalid) |
+| `shipping/shipments/service.ts` | "a package label needs a carrier to resolve against - ..." | 400 -> 422 (Invalid) |
+| `shipping/shipments/service.ts` | "carrier ... offers no service called ..." | 400 -> 422 (Invalid) |
+| `shipping/shipments/service.ts` | "carrier ... has no package called ..." | 400 -> 422 (Invalid) |
+
+`shipping/operations/service.ts`'s four sites (two shipment-not-found, one
+pickup-not-found, one no-carrier-yet) kept their existing 404/409 - they were
+already the right status, just spelled with an inline `Error & { statusCode }`
+instead of `NotFound`/`Conflict`. `reviews`, `leads`, `rates` all stayed 404.
+Every "carrier/service/package doesn't resolve" site went `Invalid` rather than
+`NotFound`, matching the precedent already in `shipping/operations/service.ts`
+(`no package ${id}` is `Invalid` there too) - the id names something wrong
+about THIS request, not a resource the caller addressed directly by id.
+`places/addresses` "Address not found." went `NotFound` even though it also
+guards ownership (the header's "any signed-in customer could rewrite any
+address by id" case): the message already says not-found rather than
+forbidden, on purpose, so it doesn't confirm to a stranger that an id exists.
+Searched every test file and the frontend for these exact messages and the
+old status numbers before changing anything - none pinned them.
+
+**The gate**: `api/scripts/lint-domain-errors.ts`, script
+`lint:domain-errors` (+ `:self-test`), wired into `scripts/check.mjs`'s
+`api-lint` group (which is shared by `check` and `check:fast`, so no separate
+`check:fast` wiring was needed beyond that one line). Fails any non-test file
+under `domain/` containing a `statusCode` assignment, `refuse(`, `refuseWith(`,
+an import of `#shared/http/refuse`, or a locally-declared `HttpError` type.
+Modeled on `lint-type-homes.ts`/`lint-migrations.ts`: an 8-case `--self-test`
+(one per pattern, a test-file exclusion, a clean-tree pass, and the floor
+firing on a too-small tree) via the shared self-test harness, and a
+`LINT_DOMAIN_ERRORS_FLOOR` (default 70, against 86 domain files today) so an
+empty or short-circuited walk cannot pass by scanning nothing. No ACCEPTED
+map - the six were the whole list and all six are fixed. Verified via
+`pnpm --filter @dorado/api lint:script-guards`: the new script is
+self-tested, not excused, and needs no floor exemption.
+

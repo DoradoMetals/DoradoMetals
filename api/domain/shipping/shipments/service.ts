@@ -14,16 +14,7 @@ import * as fulfillmentShipments from "#domain/fulfillments/shipments/service.ts
 import * as orders from "#db/orders/repo.ts";
 import type { ShipmentBaseRow, ShipmentRecord } from "#db/shipping/shipments/repo.ts";
 import type { Executor } from "#shared/db/executor.ts";
-
-interface HttpError extends Error {
-  statusCode?: number;
-}
-
-function badRequest(message: string): HttpError {
-  const err: HttpError = new Error(message);
-  err.statusCode = 400;
-  return err;
-}
+import { Invalid } from "#shared/errors.ts";
 
 // What a caller supplies to create one: an order to link against (purchase or sale, whichever is present) and the carrier picked for it.
 type ShipmentCreate = {
@@ -155,7 +146,7 @@ export async function create(
   // direction is its own enum but shares exchange's old Inbound/Outbound spelling, so the value passes straight through untranslated.
   const shipmentDirection = input.type ?? null;
   if (!shipmentDirection) {
-    throw badRequest("a shipment needs a type - shipping.shipments.direction is NOT NULL");
+    throw new Invalid("a shipment needs a type - shipping.shipments.direction is NOT NULL");
   }
 
   const run = async (c: Executor): Promise<ShipmentBaseRow | null> => {
@@ -182,19 +173,19 @@ export async function create(
 export async function update(
   input: ShipmentUpdate, executor?: Executor
 ): Promise<ShipmentBaseRow | null> {
-  if (!input.id) throw badRequest("a shipment update needs an id");
+  if (!input.id) throw new Invalid("a shipment update needs an id");
   const id = input.id;
 
   const run = async (c: Executor): Promise<ShipmentBaseRow | null> => {
     // A service name with no carrier used to be silently dropped - now refused.
     if (input.service_type && !input.carrier_id) {
-      throw badRequest(
+      throw new Invalid(
         `a service name needs a carrier to resolve against - ` +
           `${JSON.stringify(input.service_type)} was sent without one`
       );
     }
     if (input.package && !input.carrier_id) {
-      throw badRequest(
+      throw new Invalid(
         `a package label needs a carrier to resolve against - ` +
           `${JSON.stringify(input.package)} was sent without one`
       );
@@ -205,7 +196,7 @@ export async function update(
       const all = await services.getByCarrier(input.carrier_id, c);
       carrier_service_id = all.find((s) => s.name === input.service_type)?.id ?? null;
       if (!carrier_service_id) {
-        throw badRequest(
+        throw new Invalid(
           `carrier ${input.carrier_id} offers no service called ${JSON.stringify(input.service_type)}`
         );
       }
@@ -216,7 +207,7 @@ export async function update(
       const found = await packages.find(input.carrier_id, input.package, c);
       package_id = found?.id ?? null;
       if (!package_id) {
-        throw badRequest(
+        throw new Invalid(
           `carrier ${input.carrier_id} has no package called ${JSON.stringify(input.package)}`
         );
       }

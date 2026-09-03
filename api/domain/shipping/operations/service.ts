@@ -12,7 +12,7 @@ import * as shippingHandler from "#domain/shipping/operations/handler.ts";
 import { carrierIdOr } from "#domain/shipping/operations/resolver.ts";
 import { FEDEX_STORE_ADDRESS, DORADO_ADDRESS } from "#providers/shipments/constants.ts";
 import { reportError } from "#shared/observability/report.ts";
-import { Invalid, NotFound } from "#shared/errors.ts";
+import { Conflict, Invalid, NotFound } from "#shared/errors.ts";
 import type { ShipmentBaseRow as ShipmentRow } from "#db/shipping/shipments/repo.ts";
 import type { TrackedShipment as TrackingRow } from "#domain/shipping/tracking/service.ts";
 import type { ParsedTracking } from "#providers/shipments/utils/parsing.ts";
@@ -54,11 +54,7 @@ export async function cancelLabel(
   // An unknown shipment id used to reach the carrier before this guard existed - getById returning null meant a TypeError AFTER deciding to call FedEx, not before.
   const shipment = await shipmentRepo.getById(shipment_id);
   if (!shipment) {
-    const err: Error & { statusCode?: number } = new Error(
-      `no shipment ${shipment_id} to cancel`
-    );
-    err.statusCode = 404;
-    throw err;
+    throw new NotFound(`no shipment ${shipment_id} to cancel`);
   }
 
   await shippingHandler.cancelLabel(await carrierIdOr(carrier_id), undefined, {
@@ -73,12 +69,10 @@ export async function cancelLabel(
 // Returns the shipment's tracking EVENTS, not the shipment - even on the early return, so "nothing recognised" looks the same as "nothing changed".
 function requireCarrier(carrier_id: string | null, shipment_id: string): string {
   if (!carrier_id) {
-    const err: Error & { statusCode?: number } = new Error(
+    throw new Conflict(
       `shipment ${shipment_id} has no carrier - it has no service, so no label ` +
         `has been bought for it yet`
     );
-    err.statusCode = 409;
-    throw err;
   }
   return carrier_id;
 }
@@ -91,11 +85,7 @@ export async function getTracking(
     const shipment = await shipmentRepo.getById(shipment_id, client);
     // Same guard as cancelLabel: an unknown id used to read off null after opening a transaction, before reaching the carrier.
     if (!shipment) {
-      const err: Error & { statusCode?: number } = new Error(
-        `no shipment ${shipment_id} to track`
-      );
-      err.statusCode = 404;
-      throw err;
+      throw new NotFound(`no shipment ${shipment_id} to track`);
     }
 
     // carrier_id comes through the shipment's service - a shipment with no service yet (a shell, before its label) has none.
@@ -262,11 +252,7 @@ export async function cancelPickup(
   // Same guard as cancelLabel and getTracking: an unknown id used to read three fields off null after deciding to call the carrier.
   const pickup = await pickupRepo.getById(pickup_id);
   if (!pickup) {
-    const err: Error & { statusCode?: number } = new Error(
-      `no pickup ${pickup_id} to cancel`
-    );
-    err.statusCode = 404;
-    throw err;
+    throw new NotFound(`no pickup ${pickup_id} to cancel`);
   }
 
   // Widened rather than assumed: PickupBaseRow.requested_at is declared
