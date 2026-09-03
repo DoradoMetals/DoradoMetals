@@ -26,7 +26,9 @@ export default function RefinerValues({ order }: { order: PurchaseOrder }) {
   const { data: refinerSpotRows = [] } = useRefinerMetals(order.id)
   const { data: refinerOrder } = useRefinerOrder(order.id)
   // Display composition, client-side: the verbatim rows carry metal_id; the
-  // reference read supplies the names this screen shows and mutates by.
+  // reference read supplies the names this screen shows. The write keys by
+  // metal_id now (D214 item 11) - RefinerSpotWrite takes the id, not a name
+  // the server had to resolve back against metals.metals.
   const { data: spotPrices = [] } = useSpotPrices()
   const orderSpotPrices = nameSpots(orderSpotRows, spotPrices)
   const refinerSpotPrices = nameSpots(refinerSpotRows, spotPrices)
@@ -83,15 +85,15 @@ export default function RefinerValues({ order }: { order: PurchaseOrder }) {
                     )}
                     defaultValue={
                       spot?.bid ??
-                      orderSpotPrices?.find((s) => s.name === spot.name)?.bid ??
+                      orderSpotPrices?.find((s) => s.metal_id === spot.metal_id)?.bid ??
                       ''
                     }
                     onBlur={(e) => {
-                      if (!spot.name || !refinerOrder?.id) return
+                      if (!spot.metal_id || !refinerOrder?.id) return
                       updateSpot.mutate({
                         refiner_order_id: refinerOrder.id,
                         order_id: order.id,
-                        patch: { spots: [{ name: spot.name, bid: Number(e.target.value) }] },
+                        patch: { spots: [{ metal_id: spot.metal_id, bid: Number(e.target.value) }] },
                       })
                     }}
                   />

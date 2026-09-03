@@ -1,29 +1,37 @@
-import { SpotPrice } from '@/features/spots/types'
-import { AdminUser, User } from '@/features/users/types'
 import { Product } from '@/features/products/types'
 import { PaymentIntent } from '@/features/stripe/types'
 import { useApiMutation, useApiQuery } from '@/shared/queries/base'
 import { queryKeys } from '@/shared/queries/keys'
+import { usePaymentMethods } from '@/features/payments/queries'
+import { useSaleShippingServices } from '@/features/shipping/queries'
 
+// THE PRICING UPDATE IS IDS NOW (D214 item 11, ruling 43; the contracts'
+// UpdatePaymentIntentBody). Every field the browser used to compose is a row
+// the server already holds:
+//
+//   items[]            still the cart, reduced to {id, quantity} here - a
+//                      strict object, not a whole catalogue product.
+//   using_funds/spots  GONE. `spots` was declared-and-ignored; `using_funds`
+//                      is a BEHAVIOUR CHANGE - credit applies whenever the
+//                      customer has a balance, same as placement (flagged in
+//                      docs/waves/streamline-a-shape-changes.md §1).
+//   user               GONE. It carried `dorado_funds`, so the request
+//                      declared the balance it priced against. `user_id` is
+//                      ADMIN ONLY now - a customer's own intent is keyed by
+//                      their session and this field stays undefined.
+//   shipping_service   -> carrier_service_id, resolved here against the same
+//                      cached shipping.services rows useCreateSalesOrder
+//                      resolves a checkout row's id against.
+//   payment_method     -> payment_method_id, resolved against payments.methods
+//                      the same way.
 interface IntentParams {
   items: Product[]
-  using_funds: boolean
-  spots: SpotPrice[]
-  // BOTH THINGS THIS TREE CALLS A USER REALLY ARE PASSED HERE, and the union
-  // says so rather than one of them standing in for the other. The customer
-  // checkout sends better-auth's session user; the admin create-sales-order
-  // drawer sends an `AdminUser` off GET /users/get_all, because on that path
-  // this is THE CUSTOMER and not the caller.
-  //
-  // Safe because the server reads exactly two fields off it -
-  // api/features/payments/service.ts types its own parameter
-  // `{ id?: string; dorado_funds?: number | null }` and prices the order
-  // against `dorado_funds` - and both shapes carry both.
-  user: User | AdminUser
   shipping_service: string
   payment_method: string
   type: string
   address_id: string
+  // ADMIN ONLY: which customer this intent prices for.
+  user_id?: string
 }
 
 export const useRetrievePaymentIntent = (type: string, userId?: string) => {
@@ -40,12 +48,22 @@ export const useRetrievePaymentIntent = (type: string, userId?: string) => {
 }
 
 export const useUpdatePaymentIntent = () => {
+  const { data: saleMethods = [] } = usePaymentMethods('sale')
+  const { data: saleServices = [] } = useSaleShippingServices()
+
   return useApiMutation<string, IntentParams, unknown>({
     queryKey: queryKeys.paymentIntent(),
     url: '/stripe/update_payment_intent',
     requireUser: true,
     optimistic: false,
-    body: (params) => params,
+    body: (params) => ({
+      items: params.items.map((i) => ({ id: i.id, quantity: i.quantity ?? 1 })),
+      address_id: params.address_id || undefined,
+      carrier_service_id: saleServices.find((s) => s.code === params.shipping_service)?.id,
+      payment_method_id: saleMethods.find((m) => m.type === params.payment_method)?.id,
+      ...(params.user_id ? { user_id: params.user_id } : {}),
+      type: params.type,
+    }),
   })
 }
 
