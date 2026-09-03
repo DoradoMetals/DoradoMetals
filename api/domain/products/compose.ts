@@ -72,21 +72,73 @@ export async function labels(): Promise<Labels> {
 
 export function storefront(rows: PublicProductRow[], l: Labels): StorefrontProduct[] {
   return rows.flatMap((row) => {
-    const { metal_id, mint_id, ...rest } = row;
-    const metal_type = metal_id === null ? undefined : l.metalNames.get(metal_id);
-    const mint_name = mint_id === null ? undefined : l.mintNames.get(mint_id);
+    const metal_type = row.metal_id === null ? undefined : l.metalNames.get(row.metal_id);
+    const mint_name = row.mint_id === null ? undefined : l.mintNames.get(row.mint_id);
     if (metal_type === undefined || mint_name === undefined) return [];
-    return [{ ...rest, metal_type, mint_name }];
+    return [{
+      id: row.id,
+      name: row.name,
+      description: row.description,
+      content: row.content,
+      purity: row.purity,
+      gross: row.gross,
+      bid_premium: row.bid_premium,
+      ask_premium: row.ask_premium,
+      type: row.type,
+      image_front: row.image_front,
+      image_back: row.image_back,
+      variant_group: row.variant_group,
+      shadow_offset: row.shadow_offset,
+      slug: row.slug,
+      legal_tender: row.legal_tender,
+      domestic_tender: row.domestic_tender,
+      sell_display: row.sell_display,
+      is_generic: row.is_generic,
+      variant_label: row.variant_label,
+      metal_type,
+      mint_name,
+    }];
   });
 }
 
 export function admin(rows: AdminProductRow[], l: Labels): AdminProduct[] {
   return rows.flatMap((row) => {
-    const { metal_id, mint_id, supplier_id, ...rest } = row;
-    const metal = metal_id === null ? undefined : l.metalNames.get(metal_id);
-    const mint = mint_id === null ? undefined : l.mintNames.get(mint_id);
-    const supplier = supplier_id === null ? undefined : l.refinerNames.get(supplier_id);
+    const metal = row.metal_id === null ? undefined : l.metalNames.get(row.metal_id);
+    const mint = row.mint_id === null ? undefined : l.mintNames.get(row.mint_id);
+    const supplier = row.supplier_id === null ? undefined : l.refinerNames.get(row.supplier_id);
     if (metal === undefined || mint === undefined || supplier === undefined) return [];
-    return [{ ...rest, metal, supplier, mint }];
+    return [{
+      id: row.id,
+      name: row.name,
+      description: row.description,
+      bid_premium: row.bid_premium,
+      ask_premium: row.ask_premium,
+      type: row.type,
+      created_at: row.created_at,
+      updated_at: row.updated_at,
+      image_front: row.image_front,
+      image_back: row.image_back,
+      display: row.display,
+      content: row.content,
+      gross: row.gross,
+      purity: row.purity,
+      variant_group: row.variant_group,
+      shadow_offset: row.shadow_offset,
+      stock: row.stock,
+      created_by: row.created_by,
+      updated_by: row.updated_by,
+      homepage_display: row.homepage_display,
+      filter_category: row.filter_category,
+      quantity: row.quantity,
+      slug: row.slug,
+      legal_tender: row.legal_tender,
+      domestic_tender: row.domestic_tender,
+      sell_display: row.sell_display,
+      is_generic: row.is_generic,
+      variant_label: row.variant_label,
+      metal,
+      supplier,
+      mint,
+    }];
   });
 }

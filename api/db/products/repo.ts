@@ -5,6 +5,15 @@
 // label strings; compose.ts does that from one read of each reference table
 // instead. Four metals, ten mints and two refiners - a join per query bought
 // nothing.
+//
+// NO PLAIN getOne()/list(). Every consumer of this table needs a distinct
+// projection or filter - the public storefront row is not the admin row, and
+// storefront/sell/homepage/slug/filtered/ids are five different WHERE clauses
+// over the public shape. Collapsing them into one getOne/list would move that
+// filtering into the service as JS predicates over the whole table, which is
+// worse than five small statements. What DID collapse is the write side:
+// create() and update() each take one named object instead of positional
+// scalars or per-column wrappers, and update() is the one UPDATE statement.
 import query from "#shared/db/query.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
 import type { products } from "@dorado/contracts";
@@ -38,16 +47,48 @@ export type AdminProductRow = Pick<
 
 export type Liveness = Pick<products.BullionRow, "id" | "display" | "sell_display">;
 
-// The values sql/update.sql takes, in its order. The three reference columns
-// are IDS: the service resolves the names the admin form sends.
-export type ProductValues = [
-  string, string, string | null, string | null,
-  number | null, number | null, string | null, boolean,
-  number | null, number | null, number | null, string,
-  string | null, number | null, number | null, string,
-  string | null, boolean, boolean, boolean, boolean, boolean,
-  string | null, number | null, string | null, string | null, string | null,
-];
+// The columns sql/update.sql writes, named rather than positional - the admin
+// form sends the whole product back (see saveProduct in the service), so this
+// is a full replace and not a sparse patch: an absent field binds as NULL
+// through the driver exactly as it did when this was a positional tuple.
+// metal_id, mint_id and supplier_id are IDS - the service resolves the names
+// the admin form sends before this is called; that resolution is the one
+// genuine transformation, everything else here is the request body's own
+// field, unchanged. updated_by is NOT a field of this type - see update()'s
+// separate `actor` parameter below.
+// undefined is admitted alongside null on every optional column: the admin
+// body types each as `?: T | null` (whatever the form did not send is
+// undefined, whatever it explicitly cleared is null), and the driver binds
+// both the same way, so the type says what is really passed rather than
+// forcing a conversion that has no runtime effect.
+export type ProductPatch = {
+  metal_id: string;
+  supplier_id: string;
+  mint_id: string;
+  name?: string | null;
+  description?: string | null;
+  bid_premium?: number | null;
+  ask_premium?: number | null;
+  type?: string | null;
+  display: boolean;
+  content?: number | null;
+  gross?: number | null;
+  variant_group?: string | null;
+  shadow_offset?: number | null;
+  purity?: number | null;
+  stock?: number | null;
+  slug?: string | null;
+  homepage_display: boolean;
+  legal_tender: boolean;
+  domestic_tender: boolean;
+  sell_display: boolean;
+  is_generic: boolean;
+  variant_label?: string | null;
+  quantity?: number | null;
+  image_front?: string | null;
+  image_back?: string | null;
+  filter_category?: string | null;
+};
 
 export async function getStorefront(executor?: Executor): Promise<PublicProductRow[]> {
   const { rows } = await query<PublicProductRow>(sql("get_storefront"), [], executor);
@@ -159,28 +200,44 @@ export async function getTypes(executor?: Executor): Promise<{ name: string }[]>
   return rows;
 }
 
-// The six values exchange defaults and products.bullion does not - see the
-// header of sql/create.sql.
-type ProductDefaults = {
+// What create.sql needs beyond a name and who made it - the six columns
+// exchange defaults and products.bullion does not (see the SQL's header).
+export type NewProduct = {
+  id: string;
+  name: string;
+  created_by: string;
   metal_id: string; mint_id: string; supplier_id: string;
   image_front: string; image_back: string; stock: number; quantity: number;
 };
 
-export async function create(
-  id: string, name: string, created_by: string, d: ProductDefaults, executor?: Executor
-): Promise<string> {
+export async function create(row: NewProduct, executor?: Executor): Promise<string> {
   const { rows } = await query<{ id: string }>(
     sql("create"),
-    [id, name, created_by, d.metal_id, d.mint_id, d.supplier_id,
-     d.image_front, d.image_back, d.stock, d.quantity],
+    [row.id, row.name, row.created_by, row.metal_id, row.mint_id, row.supplier_id,
+     row.image_front, row.image_back, row.stock, row.quantity],
     executor
   );
   return rows[0].id;
 }
 
+// `actor` is WHO MADE THE EDIT, not a column of the patch - separated so the
+// service passes the request body through as the patch unchanged rather than
+// merging an audit field into it.
 export async function update(
-  id: string, values: ProductValues, executor?: Executor
-): Promise<string | undefined> {
-  const { rows } = await query<{ id: string }>(sql("update"), [...values, id], executor);
-  return rows[0]?.id;
+  id: string, patch: ProductPatch, actor: string, executor?: Executor
+): Promise<boolean> {
+  const r = await query(
+    sql("update"),
+    [
+      patch.metal_id, patch.supplier_id, patch.name, patch.description,
+      patch.bid_premium, patch.ask_premium, patch.type, patch.display,
+      patch.content, patch.gross, patch.purity, patch.mint_id,
+      patch.variant_group, patch.shadow_offset, patch.stock, actor,
+      patch.slug, patch.homepage_display, patch.legal_tender, patch.domestic_tender,
+      patch.sell_display, patch.is_generic, patch.variant_label, patch.quantity,
+      patch.image_front, patch.image_back, patch.filter_category, id,
+    ],
+    executor
+  );
+  return r.rowCount === 1;
 }

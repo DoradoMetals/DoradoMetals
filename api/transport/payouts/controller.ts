@@ -1,7 +1,6 @@
 import { param } from "#shared/http/caller.ts";
 import { asyncHandler } from "#shared/middleware/asyncHandler.ts";
 import * as payoutsService from "#domain/payouts/service.ts";
-import * as payoutsRepo from "#db/payouts/repo.ts";
 
 // GET /api/orders/:orderId/payouts - the payouts on one order, as rows.
 //
@@ -22,7 +21,7 @@ import * as payoutsRepo from "#db/payouts/repo.ts";
 // jsonb_build_object; an order with no payout answers [] here, which is a
 // shape rather than a workaround. Admin-only, like the write it feeds.
 export const getPayoutsByOrder = asyncHandler(async (req, res) => {
-  return res.json(await payoutsRepo.getMany([param(req, "orderId")]));
+  return res.json(await payoutsService.getPayoutsByOrder(param(req, "orderId")));
 });
 
 export const patchPayout = asyncHandler(async (req, res) => {

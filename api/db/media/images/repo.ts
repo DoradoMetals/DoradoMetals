@@ -1,4 +1,8 @@
 // media.images, and nothing else.
+//
+// NO update(). An upload record is written once by create() and never edited -
+// there is no admin form or user action that changes a stored image's
+// metadata, only ones that upload a new one or delete it.
 import query from "#shared/db/query.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
 import type { media } from "@dorado/contracts";
@@ -26,12 +30,12 @@ export async function getOne(id: string, executor?: Executor): Promise<ImageRow 
   return rows[0];
 }
 
-export async function getAll(executor?: Executor): Promise<ImageRow[]> {
+export async function list(executor?: Executor): Promise<ImageRow[]> {
   const { rows } = await query<ImageRow>(sql("get_all"), [], executor);
   return rows;
 }
 
-export async function byUser(userId: string, executor?: Executor): Promise<ImageRow[]> {
+export async function listFor(userId: string, executor?: Executor): Promise<ImageRow[]> {
   const { rows } = await query<ImageRow>(sql("by_user"), [userId], executor);
   return rows;
 }
@@ -44,7 +48,12 @@ export async function create(id: string, image: NewImage, executor?: Executor): 
   return rows[0];
 }
 
-export async function remove(user_id: string, id: string, executor?: Executor): Promise<number> {
+// GUARDED BY user_id, THE OWNERSHIP CHECK BELONGS IN THE STATEMENT. See
+// sql/delete.sql's header: the clause is the backstop that makes the service's
+// own ownership check unbypassable from any future caller.
+export async function remove(
+  id: string, user_id: string, executor?: Executor
+): Promise<boolean> {
   const result = await query(sql("delete"), [id, user_id], executor);
-  return result.rowCount ?? 0;
+  return result.rowCount === 1;
 }

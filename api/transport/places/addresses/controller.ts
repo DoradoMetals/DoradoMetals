@@ -3,6 +3,7 @@ import type { Request } from "express";
 import { oneString } from "#shared/http/query.ts";
 import { asyncHandler } from "#shared/middleware/asyncHandler.ts";
 import * as addressService from "#domain/places/addresses/service.ts"
+import type { ComposedAddress } from "#domain/places/addresses/compose.ts";
 
 // WHOSE ADDRESS BOOK. Every one of these took user_id out of the request -
 // oneString(req.query.user_id) on the read, req.body.user_id on the writes - behind
@@ -28,10 +29,29 @@ const subjectOf = (req: Request): string => {
 // still composes an address with its link where that is convenient; at this
 // edge the composition is taken back apart, because a user_address inside an
 // address entity is exactly the smearing the new schema exists to end.
-const split = (c: { user_address: { user_id: string | null; label: string | null; default_shipping: boolean | null } } & { id: string }) => {
-  const { user_address, ...address } = c;
-  return { address, user_address: { address_id: address.id, ...user_address } };
-};
+const split = (c: ComposedAddress) => ({
+  address: {
+    id: c.id,
+    line_1: c.line_1,
+    line_2: c.line_2,
+    city: c.city,
+    state: c.state,
+    country: c.country,
+    zip: c.zip,
+    country_code: c.country_code,
+    phone_number: c.phone_number,
+    created_at: c.created_at,
+    updated_at: c.updated_at,
+    is_valid: c.is_valid,
+    is_residential: c.is_residential,
+  },
+  user_address: {
+    address_id: c.id,
+    user_id: c.user_address.user_id,
+    label: c.user_address.label,
+    default_shipping: c.user_address.default_shipping,
+  },
+});
 
 export const getAll = asyncHandler(async (req, res) => {
   const rows = await addressService.list(subjectOf(req));

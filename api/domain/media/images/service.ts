@@ -106,16 +106,31 @@ export async function getUrlFor({
 }
 
 export async function attachUrlToImage(image: ImageRow): Promise<ImageRow & { url: string }> {
-  return { ...image, url: await presign(image) };
+  const url = await presign(image);
+  return {
+    id: image.id,
+    bucket: image.bucket,
+    mime_type: image.mime_type,
+    size_bytes: image.size_bytes,
+    width: image.width,
+    height: image.height,
+    checksum: image.checksum,
+    metadata: image.metadata,
+    path: image.path,
+    filename: image.filename,
+    user_id: image.user_id,
+    created_at: image.created_at,
+    url,
+  };
 }
 
 export async function getTestImages(): Promise<(ImageRow & { url: string })[]> {
-  const rows = await images.getAll();
+  const rows = await images.list();
   return Promise.all(rows.map(attachUrlToImage));
 }
 
 export async function listForUser(user_id: string): Promise<ImageRow[]> {
-  return await images.byUser(user_id);
+  return await images.listFor(user_id);
 }
 
 // DELETING AN IMAGE, IN THE ORDER THAT MATTERS.
@@ -139,7 +154,7 @@ export async function deleteImage({
   if (!img) return null;
 
   await withTransaction(async (client) => {
-    await images.remove(user_id as string, id, client);
+    await images.remove(id, user_id as string, client);
   });
 
   // OUTSIDE the transaction, and last. Removing an object cannot be rolled back.

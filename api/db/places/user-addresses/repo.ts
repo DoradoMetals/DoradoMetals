@@ -14,7 +14,12 @@ const sql = sqlFrom(import.meta.dirname);
 
 export type UserAddressRow = places.UserAddressesRow;
 
-export async function getForUser(
+// exchange has ONE is_default, so both new-schema defaults follow it -
+// splitting them apart needs a product decision and a UI, not a repo.
+export type NewUserAddress = { label?: string | null; default_shipping: boolean };
+export type UserAddressPatch = { label?: string | null; default_shipping: boolean };
+
+export async function listFor(
   user_id: string, executor?: Executor
 ): Promise<UserAddressRow[]> {
   const { rows } = await query<UserAddressRow>(sql("get_for_user"), [user_id], executor);
@@ -37,41 +42,41 @@ export async function getOne(
   return rows[0];
 }
 
-// exchange has ONE is_default, so both defaults follow it. Splitting them apart
-// needs a product decision and a UI, not a repo.
 export async function create(
-  id: string, address_id: string, user_id: string,
-  label: string | null, isDefault: boolean, executor?: Executor
+  id: string, address_id: string, user_id: string, row: NewUserAddress, executor?: Executor
 ): Promise<UserAddressRow> {
   const { rows } = await query<UserAddressRow>(
-    sql("create"), [id, address_id, user_id, label, isDefault, isDefault], executor
+    sql("create"),
+    [id, address_id, user_id, row.label, row.default_shipping, row.default_shipping],
+    executor
   );
   return rows[0];
 }
 
 export async function update(
-  address_id: string, user_id: string,
-  label: string | null, isDefault: boolean, executor?: Executor
+  address_id: string, user_id: string, row: UserAddressPatch, executor?: Executor
 ): Promise<UserAddressRow | undefined> {
   const { rows } = await query<UserAddressRow>(
-    sql("update"), [label, isDefault, isDefault, address_id, user_id], executor
+    sql("update"),
+    [row.label, row.default_shipping, row.default_shipping, address_id, user_id],
+    executor
   );
   return rows[0];
 }
 
 export async function setDefault(
   user_id: string, address_id: string, executor?: Executor
-): Promise<number> {
+): Promise<boolean> {
   // Two statements on the caller's executor, clear before mark - the
   // one-statement swap tripped 089's unique index on row-visit order.
   await query(sql("set_default_clear"), [user_id, address_id], executor);
   const r = await query(sql("set_default_mark"), [user_id, address_id], executor);
-  return r.rowCount ?? 0;
+  return r.rowCount === 1;
 }
 
 export async function remove(
   address_id: string, user_id: string, executor?: Executor
-): Promise<number> {
+): Promise<boolean> {
   const r = await query(sql("delete"), [address_id, user_id], executor);
-  return r.rowCount ?? 0;
+  return r.rowCount === 1;
 }

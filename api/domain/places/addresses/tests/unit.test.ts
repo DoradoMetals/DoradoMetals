@@ -8,6 +8,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import path from "node:path";
+import { readFileSync } from "node:fs";
 import { sqlFrom } from "#shared/db/sql.ts";
 import { compose, byDefaultThenId, all } from "#domain/places/addresses/compose.ts";
 import type { ComposedAddress } from "#domain/places/addresses/compose.ts";
@@ -18,10 +19,15 @@ const sql = sqlFrom(path.join(import.meta.dirname, "..", "..", "..", "..", "db",
 const body = (name: string): string =>
   sql(name).split("\n").filter((l) => !l.trim().startsWith("--")).join("\n");
 
-const STATEMENTS = [
-  "get_one", "get_many", "create", "update", "update_validation",
-  "delete", "is_active", "is_referenced",
-];
+// update() collapsed into one dynamic statement inside repo.ts (the CRUD
+// ruling), so it is no longer its own .sql file - it is read as source text
+// instead, the same way the other statements are read as file text.
+const repoSource = readFileSync(
+  path.join(import.meta.dirname, "..", "..", "..", "..", "db", "places", "addresses", "repo.ts"),
+  "utf8"
+);
+
+const STATEMENTS = ["get_one", "get_many", "create", "delete", "is_active", "is_referenced"];
 
 test("every statement loads and is not empty", () => {
   for (const n of STATEMENTS) {
@@ -42,7 +48,12 @@ test("create writes its columns in the order repo.ts supplies them", () => {
 // "fixes" this statement by adding a user_id it will not compile against the
 // table, and if they add a join it stops being one table.
 test("the new-schema update is keyed on the address alone", () => {
-  assert.doesNotMatch(body("update"), /user_id/,
+  const updateFn = repoSource.slice(
+    repoSource.indexOf("export async function update("),
+    repoSource.indexOf("\n}", repoSource.indexOf("export async function update("))
+  );
+  assert.match(updateFn, /WHERE id = \$1/, "the dynamic UPDATE must key on id alone");
+  assert.doesNotMatch(updateFn, /user_id/,
     "places.addresses has no user_id - the ownership check lives in service.ts");
 });
 
@@ -68,9 +79,14 @@ test("the writes to places.user_addresses are scoped to the person", () => {
 // One table per repo, except the two questions that are inherently about
 // several - is_active and is_referenced, which are reads and write nothing.
 test("no write statement reaches into a second table", () => {
-  for (const n of ["get_one", "get_many", "create", "update", "update_validation", "delete"]) {
+  for (const n of ["get_one", "get_many", "create", "delete"]) {
     assert.doesNotMatch(body(n), /exchange\.|orders\.|user_addresses/, `${n} reaches beyond its table`);
   }
+  const updateFn = repoSource.slice(
+    repoSource.indexOf("export async function update("),
+    repoSource.indexOf("\n}", repoSource.indexOf("export async function update("))
+  );
+  assert.doesNotMatch(updateFn, /exchange\.|orders\.|user_addresses/, "update reaches beyond its table");
 });
 
 // is_referenced has to ask about BOTH columns of orders.addresses. An order

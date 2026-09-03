@@ -24,12 +24,15 @@ import type { Executor } from "#shared/db/executor.ts";
 // What a caller supplies. This arrives as req.body, so every field is optional
 // and the queries pass undefined through as null - the same latitude the
 // implementation it replaces had.
+// organization's shape matches organizations.OrganizationPatch: name and
+// enabled are NOT NULL columns, so those two stay non-nullable here too -
+// email and phone are the two that are.
 type CarrierInput = {
   id?: string;
   logo?: string | null;
   organization?: {
-    name?: string | null; email?: string | null;
-    phone?: string | null; enabled?: boolean | null;
+    name?: string; email?: string | null;
+    phone?: string | null; enabled?: boolean;
   };
 };
 
@@ -65,7 +68,7 @@ export async function createCarrier(
     const id = randomUUID();
     const organization_id = randomUUID();
 
-    await organizations.create(organization_id, "CARRIER", carrier.organization ?? {}, c);
+    await organizations.create(carrier.organization, organization_id, "CARRIER", c);
     const row = await carriers.create(id, organization_id, carrier.logo ?? null, c);
 
     // exchange.carriers keeps both halves on one row, and is still the record
@@ -92,7 +95,7 @@ export async function updateCarrier(
     // Keyed by the carrier's OWN organization_id, read back from the row above,
     // rather than by joining organizations to carriers inside the statement.
     if (row.organization_id) {
-      await organizations.update(row.organization_id, carrier.organization ?? {}, c);
+      await organizations.update(row.organization_id, carrier.organization, c);
     }
 
     return await compose.one(row, c);

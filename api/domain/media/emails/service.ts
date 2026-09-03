@@ -182,10 +182,12 @@ export async function sendCreatedEmail(
       ],
     }, transport);
   } catch (err) {
-    await recordEmail({ ...record, status: "failed", error: err instanceof Error ? err.message : String(err) }, executor);
+    await recordEmail(
+      record, { status: "failed", error: err instanceof Error ? err.message : String(err) }, executor
+    );
     throw err;
   }
-  await recordEmail({ ...record, status: "sent", provider_message_id: messageIdOf(result) }, executor);
+  await recordEmail(record, { status: "sent", provider_message_id: messageIdOf(result) }, executor);
 }
 
 // Same change, and this one was more direct: `email` came off the body and went
@@ -254,10 +256,12 @@ export async function sendPricedEmail(
       ],
     }, transport);
   } catch (err) {
-    await recordEmail({ ...record, status: "failed", error: err instanceof Error ? err.message : String(err) }, executor);
+    await recordEmail(
+      record, { status: "failed", error: err instanceof Error ? err.message : String(err) }, executor
+    );
     throw err;
   }
-  await recordEmail({ ...record, status: "sent", provider_message_id: messageIdOf(result) }, executor);
+  await recordEmail(record, { status: "sent", provider_message_id: messageIdOf(result) }, executor);
 }
 
 // `order` IS NEARLY THE CONTRACT, AND THE GAP IS THE TIMESTAMPS.
@@ -332,10 +336,12 @@ export async function sendSalesOrderToSupplier(
       ],
     }, transport);
   } catch (err) {
-    await recordEmail({ ...record, status: "failed", error: err instanceof Error ? err.message : String(err) }, executor);
+    await recordEmail(
+      record, { status: "failed", error: err instanceof Error ? err.message : String(err) }, executor
+    );
     throw err;
   }
-  await recordEmail({ ...record, status: "sent", provider_message_id: messageIdOf(result) }, executor);
+  await recordEmail(record, { status: "sent", provider_message_id: messageIdOf(result) }, executor);
 }
 
 // THE VERIFICATION MAIL, RECORDED (D78's open question, answered "yes, there
@@ -391,8 +397,10 @@ export async function sendAuthVerificationEmail(
         : renderVerifyEmail({ firstName: String(user.name ?? ""), url }),
     }, transport);
   } catch (err) {
-    await recordEmail({ ...record, status: "failed", error: err instanceof Error ? err.message : String(err) }, executor);
+    await recordEmail(
+      record, { status: "failed", error: err instanceof Error ? err.message : String(err) }, executor
+    );
     throw err;
   }
-  await recordEmail({ ...record, status: "sent", provider_message_id: messageIdOf(result) }, executor);
+  await recordEmail(record, { status: "sent", provider_message_id: messageIdOf(result) }, executor);
 }
