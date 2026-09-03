@@ -174,8 +174,8 @@ test("recordIntent joins the caller's transaction rather than opening its own", 
     );
 
   await inRollback(async (c: PoolClient) => {
-    const [user] = await users(c);
-    await service.recordIntent(paymentIntent, aCaller(user), "checkout", undefined, c);
+    const user = await aUser(c);
+    await service.recordIntent(paymentIntent, aCaller(user.id), "checkout", undefined, c);
 
     // Visible on the connection actually holding the transaction.
     const { rows: seen } = await findBoth(c);
