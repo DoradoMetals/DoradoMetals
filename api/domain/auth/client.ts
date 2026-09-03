@@ -28,8 +28,6 @@ export const auth = betterAuth({
     },
     changeEmail: {
       enabled: true,
-      // sendChangeEmailConfirmation is NOT a real better-auth option (the real one is spelled differently) — this callback is never called. update-user.mjs's fallback logic instead sends the ordinary verification email to the NEW address, so approval goes to where the email is moving TO, and the address moving FROM is never told.
-      // frontend/app/change-email/page.tsx is consequently unreachable — its link is never sent.
       sendChangeEmailConfirmation: async ({ user, token }) => {
         const emailUrl = `${requiredEnv("FRONTEND_URL")}/change-email?token=${token}`;
         await sendEmail({
@@ -64,7 +62,6 @@ export const auth = betterAuth({
   emailVerification: {
     sendOnSignUp: true,
     autoSignInAfterVerification: true,
-    // The one auth email recorded to media.emails — the reset, change-email and magic-link mails below still go unrecorded, each a deliberate enum label away rather than a different mechanism.
     sendVerificationEmail: async ({ user, token }, request) => {
       await sendAuthVerificationEmail({
         user,
@@ -79,7 +76,7 @@ export const auth = betterAuth({
       clientSecret: process.env.GOOGLE_CLIENT_SECRET as string,
     },
   },
-  // NOT requiredEnv, deliberately asymmetric: the builders above run per-request, so requiredEnv fails just that request; this line runs at MODULE LOAD, so requiredEnv here would refuse to boot the API on a missing variable — a startup-behavior change on a delicate deploy sequence, left for Jacob to make on purpose.
+
   trustedOrigins: [process.env.FRONTEND_URL as string],
   plugins: [
     magicLink({
@@ -92,8 +89,7 @@ export const auth = betterAuth({
         });
       },
     }),
-    // No canImpersonate here, deliberately — AdminOptions never had that option (the real names are allowImpersonatingAdmins/impersonationSessionDuration), so it enforced nothing.
-    // Verified, not assumed safe: the impersonate route already has adminMiddleware plus a role check that throws otherwise, defaulting adminRoles to admin — exactly what the dead option was trying to say. Left out rather than 'corrected', since a line that looks like a security control but is inert is worse than no line.
+
     admin(),
     stripePlugin({
       stripeClient,

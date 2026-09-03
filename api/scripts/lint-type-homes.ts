@@ -47,13 +47,6 @@ const ACCEPTED: Record<string, string> = {
     "adding a source of truth. phase3-api.md reached the same verdict after " +
     "diffing all eleven duplicate names.",
 
-  Direction: "same as Category - NonNullable<fulfillments.MethodsRow" +
-    "['direction']> in two files, both indexed access into the contract that " +
-    "already owns it. NOTE the two OTHER `Direction` declarations are different " +
-    "types and correctly not reported: orders/patch.service.ts indexes " +
-    "orders.OrdersRow, and checkout/repo.next.ts's is `typeof SALE | typeof " +
-    "PURCHASE`. That the scan separates them is the check working.",
-
   Window: "THE ONE REAL STRUCTURAL DUPLICATE, and it is accepted deliberately " +
     "rather than because it is harmless. `{ from?, to?, employee_id? }` is " +
     "byte-identical in fulfillments/directs/repo.ts and fulfillments/pickups/" +

@@ -12,7 +12,7 @@
 // needs it, to sync and price a named customer's checkout ahead of order
 // creation (see features/orders/salesOrders/admin/queries.ts).
 import {
-  SyncCartBody, SyncSellCartBody, CheckoutPatchBody, CheckoutPatchColumns,
+  Direction, SyncCartBody, SyncSellCartBody, CheckoutPatchBody, CheckoutPatchColumns,
   CheckoutFulfillmentBody, CheckoutPayoutBody, CheckoutPayoutForm,
 } from "@dorado/contracts";
 import type { Request } from "express";
@@ -67,9 +67,9 @@ export const syncSellCart = asyncHandler(async (req, res) => {
 // customer's checkout row, created on first read, with its draft fulfillment
 // composed on.
 export const getCheckout = asyncHandler(async (req, res) => {
+  const direction = parseStrict(Direction, oneString(req.query.direction), "direction");
   const subject = await subjectOf(req);
-  const result = await cartService.getCheckout(subject, oneString(req.query.direction));
-  return res.status(200).json(result);
+  return res.status(200).json(await cartService.getCheckout(subject, direction));
 });
 
 // PATCH /api/checkout(?user_id= admin-only) - the id columns a customer may

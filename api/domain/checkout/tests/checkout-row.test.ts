@@ -87,9 +87,10 @@ test("GET /api/checkout mints the row on first read, one per direction", async (
   }, { actor: TEST_ACTOR.id, lock: [LOCKS.FULFILLMENTS, LOCKS.ORDERS] });
 });
 
-// 422, NOT 400 (D214 item 11): a direction the business does not have is a
-// RULE the domain refuses, and a domain refusal is Invalid. 400 is what the
-// transport answers for a body it could not parse at all.
+// 400, NOT 422 (ruling 48, 2026-09-03): a direction is parsed against the
+// contract's `Direction` at the transport, like every other field, so a
+// value that is not one of the two labels never reaches the domain. The
+// earlier 422 came from a domain function that only re-typed its input.
 test("an anonymous caller gets nothing, and a bad direction is refused", async () => {
   await inPinnedTransaction(async () => {
     const anon = await request(app).get("/api/checkout?direction=purchase");
@@ -98,7 +99,7 @@ test("an anonymous caller gets nothing, and a bad direction is refused", async (
     const bogus = await as(customer, () =>
       request(app).get("/api/checkout?direction=sideways")
     );
-    assert.equal(bogus.status, 422);
+    assert.equal(bogus.status, 400);
   }, { actor: TEST_ACTOR.id, lock: [LOCKS.FULFILLMENTS, LOCKS.ORDERS] });
 });
 

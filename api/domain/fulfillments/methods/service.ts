@@ -2,28 +2,23 @@
 // This resource orchestrates for itself: checkout, intake and the admin screen all reach THIS service - never transport/fulfillments/service.ts - so a caller needing the menu doesn't drag in pickups, directs, shipments and the schedule.
 // The eleven rows come from 047_seed_reference_data.sql - there's no exchange side and never will be, so nothing here is a migration shim.
 import * as methods from "#db/fulfillments/methods/repo.ts";
-import { Conflict, Invalid, NotFound } from "#shared/errors.ts";
+import { Conflict, NotFound } from "#shared/errors.ts";
 import type { MethodRow, MethodPatch } from "#db/fulfillments/methods/repo.ts";
 import type { PoolClient } from "pg";
-import type { fulfillments } from "@dorado/contracts";
+import type { Direction, fulfillments } from "@dorado/contracts";
 
 type Executor = PoolClient | undefined;
 
 export type { MethodRow, MethodPatch } from "#db/fulfillments/methods/repo.ts";
 
-// direction/category come from the database, not hand-written here: a hand-written union either duplicates an enum by hand (direction, spelled three times) or asserts a constraint the column didn't have (category was `text DEFAULT 'OTHER'` until it became a real enum).
-// These are derived from the generated row now, so widening the enum is a compile error, not a runtime surprise.
-type Direction = NonNullable<fulfillments.MethodsRow["direction"]>;
+// Direction is the contract's; category is the generated row's own enum. Neither is hand-written here, so widening either is a compile error, not a runtime surprise.
 type Category = fulfillments.MethodsRow["category"];
 
-// `direction` is CHECKED rather than declared, because it arrives as a query
-// string. The narrow type is what the guard produces, not what it receives.
+// The transport parses `direction` against the contract; this takes the
+// parsed value.
 export async function listAvailable(
-  direction: unknown, executor?: Executor
+  direction: Direction, executor?: Executor
 ): Promise<MethodRow[]> {
-  if (direction !== "purchase" && direction !== "sale") {
-    throw new Invalid(`direction must be "purchase" or "sale", got ${direction}`);
-  }
   return await methods.getAvailable(direction, executor);
 }
 

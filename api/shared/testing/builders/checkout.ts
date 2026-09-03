@@ -19,7 +19,8 @@ import { metalId, type MetalName } from "#shared/testing/builders/reference.ts";
 import type { BuiltUser } from "#shared/testing/builders/users.ts";
 import type { BuiltProduct } from "#shared/testing/builders/products.ts";
 
-export type Direction = "purchase" | "sale";
+import type { Direction } from "@dorado/contracts";
+export type { Direction } from "@dorado/contracts";
 
 export type BuiltCart = {
   id: string;

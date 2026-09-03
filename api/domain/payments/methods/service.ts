@@ -2,17 +2,14 @@
 // (direction=purchase) - fees, delays, labels and the payout marketing copy,
 // as rows (D207). The frontend used to hardcode all of it in two arrays.
 import * as repo from "#db/payments/methods/repo.ts";
-import { Invalid } from "#shared/errors.ts";
 import type { MethodRow } from "#db/payments/methods/repo.ts";
+import type { Direction } from "@dorado/contracts";
 
 export type { MethodRow } from "#db/payments/methods/repo.ts";
 
-const DIRECTIONS = new Set(["sale", "purchase"]);
-
-export async function getMethods(direction?: string | null): Promise<MethodRow[]> {
+// No direction means both. The transport parses the direction against the
+// contract, so a value that reaches here is one of the two.
+export async function getMethods(direction?: Direction | null): Promise<MethodRow[]> {
   if (direction == null) return await repo.list();
-  if (!DIRECTIONS.has(direction)) {
-    throw new Invalid(`direction must be 'sale' or 'purchase'`);
-  }
   return await repo.listFor(direction);
 }

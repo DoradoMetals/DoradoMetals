@@ -2,8 +2,10 @@
 // draft fulfillment those steps mutate (D208).
 //
 // ONE FUNCTION PER OPERATION, WITH `direction` AS DATA. Purchase and sale
-// differ by one column, and every difference that follows from it lives in
-// rules.ts - never in a pair of near-identical functions.
+// differ by one column, and every difference that follows from it is a
+// comparison at the point of use - never a pair of near-identical functions.
+// The direction arrives already parsed (the transport checks it against the
+// contract's `Direction`), so nothing here re-checks it.
 import withTransaction from "#shared/db/withTransaction.ts";
 import * as checkouts from "#db/checkout/checkouts/repo.ts";
 import * as items from "#db/checkout/items/repo.ts";
@@ -15,11 +17,8 @@ import * as handoffsService from "#domain/shipping/handoffs/service.ts";
 import * as payoutDetails from "#domain/payments/details/service.ts";
 import * as addressService from "#domain/places/addresses/service.ts";
 import * as usersService from "#domain/users/service.ts";
-import {
-  assertDirection, livenessFlag, carriesProductPremium, hasPayoutStep,
-} from "#domain/checkout/rules.ts";
 import { Forbidden, Invalid, NotFound } from "#shared/errors.ts";
-import type { Direction } from "#domain/checkout/rules.ts";
+import type { Direction } from "@dorado/contracts";
 import type { CheckoutRow, CheckoutPatch } from "#db/checkout/checkouts/repo.ts";
 import type {
   NewItem, SaleBullionLine, PurchaseBullionLine, ScrapLine,
@@ -27,7 +26,6 @@ import type {
 import type { ComposedFulfillment } from "#domain/fulfillments/compose.ts";
 import type { Executor } from "#shared/db/executor.ts";
 
-export type { Direction } from "#domain/checkout/rules.ts";
 export type { CheckoutRow, CheckoutPatch } from "#db/checkout/checkouts/repo.ts";
 
 export type ComposedCheckout = CheckoutRow & {
@@ -110,10 +108,9 @@ export async function resolveSubject(
 }
 
 export async function getCheckout(
-  user_id: string, direction: unknown
+  user_id: string, direction: Direction
 ): Promise<ComposedCheckout> {
-  const dir = assertDirection(direction);
-  return await compose(await ensure(user_id, dir));
+  return await compose(await ensure(user_id, direction));
 }
 
 // The three address slots are checked as THEIRS - the same ownership rule the
@@ -125,9 +122,8 @@ const ADDRESS_COLUMNS = [
 ] as const;
 
 export async function patchCheckout(
-  user_id: string, direction: unknown, patch: CheckoutPatch
+  user_id: string, direction: Direction, patch: CheckoutPatch
 ): Promise<ComposedCheckout> {
-  const dir = assertDirection(direction);
 
   for (const col of ADDRESS_COLUMNS) {
     const id = patch[col];
@@ -149,7 +145,7 @@ export async function patchCheckout(
   }
 
   return await withTransaction(async (client) => {
-    const row = await ensure(user_id, dir, client);
+    const row = await ensure(user_id, direction, client);
     try {
       await checkouts.update(row.id, patch, client);
     } catch (err) {
@@ -170,10 +166,9 @@ export async function patchCheckout(
 // stores the fulfillment id"). The offered-method check runs on BOTH paths -
 // this is the customer's surface and the menu has to mean something.
 export async function setFulfillmentMethod(
-  user_id: string, direction: unknown,
+  user_id: string, direction: Direction,
   method_id?: string, handoff_code?: string
 ): Promise<ComposedCheckout> {
-  const dir = assertDirection(direction);
 
   // The stepper picks a carrier HANDOFF and never spells a fulfillment method;
   // the SERVER owns that vocabulary. The schedulable handoff is the carrier
@@ -184,9 +179,9 @@ export async function setFulfillmentMethod(
     const handoff = handoffs.find((h) => h.code === handoff_code);
     if (!handoff) throw new Invalid(`no such handoff: ${handoff_code}`);
     const type = handoff.requires_schedule ? "CARRIER PICKUP" : "CARRIER DROPOFF";
-    const offered = await fulfillmentMethods.listAvailable(dir);
+    const offered = await fulfillmentMethods.listAvailable(direction);
     chosen = offered.find((m) => m.type === type)?.id;
-    if (!chosen) throw new Invalid(`no offered ${type} method for a ${dir}`);
+    if (!chosen) throw new Invalid(`no offered ${type} method for a ${direction}`);
   }
   if (typeof chosen !== "string" || chosen.length === 0) {
     throw new Invalid("method_id or handoff_code is required");
@@ -194,14 +189,14 @@ export async function setFulfillmentMethod(
   const wanted = chosen;
 
   return await withTransaction(async (client) => {
-    const row = await ensure(user_id, dir, client);
+    const row = await ensure(user_id, direction, client);
 
     if (row.fulfillment_id) {
-      await fulfillmentMethods.assertOffered({ method_id: wanted, direction: dir }, client);
+      await fulfillmentMethods.assertOffered({ method_id: wanted, direction: direction }, client);
       await fulfillmentService.setMethod({ id: row.fulfillment_id, method_id: wanted }, client);
     } else {
       const draft = await fulfillmentService.createDraft(
-        { method_id: wanted, direction: dir }, client
+        { method_id: wanted, direction: direction }, client
       );
       if (!draft) throw new Invalid(`no such fulfillment method: ${wanted}`);
       await checkouts.update(row.id, { fulfillment_id: draft.id }, client);
@@ -218,14 +213,13 @@ export async function setFulfillmentMethod(
 // LINKS the row. The details id is stable per checkout, so edits rewrite in
 // place.
 export async function saveCheckoutPayout(
-  user_id: string, direction: unknown, form: payoutDetails.PayoutForm
+  user_id: string, direction: Direction, form: payoutDetails.PayoutForm
 ): Promise<ComposedCheckout> {
-  const dir = assertDirection(direction);
-  if (!hasPayoutStep(dir)) {
+  if (direction !== "purchase") {
     throw new Invalid("the payout step belongs to the purchase checkout");
   }
   return await withTransaction(async (client) => {
-    const row = await ensure(user_id, dir, client);
+    const row = await ensure(user_id, direction, client);
     const saved = await payoutDetails.saveCheckoutPayout(
       { user_id, existing_id: row.payment_details_id, form }, client
     );
@@ -256,7 +250,7 @@ async function refuseProductsThatAreNotLive(
   const unique = [...new Set(ids.filter((id): id is string => typeof id === "string" && !!id))];
   if (unique.length === 0) return;
 
-  const flag = livenessFlag(direction);
+  const flag = direction === "sale" ? "display" : "sell_display";
   const rows = await productService.getLiveness(unique, executor);
   const live = new Set(rows.filter((r) => r[flag] === true).map((r) => r.id));
   const refused = unique.filter((id) => !live.has(id));
@@ -332,7 +326,7 @@ async function requestedLines(
         bullion_id,
         metal_id,
         quantity,
-        premium: carriesProductPremium(direction) ? bid_premium : null,
+        premium: direction === "purchase" ? bid_premium : null,
       });
       continue;
     }
@@ -369,22 +363,21 @@ export function syncCart(
 export async function syncCart(
   user_id: string, direction: Direction, lines: CartLineInput[] | SellCartLineInput[]
 ): Promise<void> {
-  const dir = assertDirection(direction);
   if (!Array.isArray(lines)) throw new Invalid("Invalid payload");
 
   // The ids a request NAMES, which is what the liveness rule judges. A scrap
   // line names no product and so has nothing to check.
   const named =
-    dir === "sale"
+    direction === "sale"
       ? (lines as CartLineInput[]).map((line) => line?.id)
       : (lines as SellCartLineInput[])
           .filter((line) => line?.type === "product")
           .map((line) => line?.data?.id);
 
   await withTransaction(async (client) => {
-    await refuseProductsThatAreNotLive(named, dir, client);
-    const session = await ensure(user_id, dir, client);
-    const rows = await requestedLines(session.id, dir, lines, client);
+    await refuseProductsThatAreNotLive(named, direction, client);
+    const session = await ensure(user_id, direction, client);
+    const rows = await requestedLines(session.id, direction, lines, client);
 
     await items.removeFor(session.id, client);
     for (const row of rows) await items.create(row, client);

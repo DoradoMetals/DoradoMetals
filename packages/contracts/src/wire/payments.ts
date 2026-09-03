@@ -1,4 +1,5 @@
 import { z } from "zod/v4";
+import { Direction } from "./direction.js";
 
 // exchange keeps one row per Stripe intent with everything inline; the new
 // schema separates what was asked for from what was tried from the instrument.
@@ -50,7 +51,7 @@ export const PaymentIntent = z.object({
   // where exchange had two columns. The direction is what lets the adapter put
   // it back in the one it came out of.
   order_id: z.string().uuid().nullable(),
-  direction: z.enum(["purchase", "sale"]).nullable(),
+  direction: Direction.nullable(),
   // DOLLARS. exchange stores cents because it was written from Stripe's objects;
   // the new schema stores dollars like everything else in it, and the adapter
   // multiplies by 100 on the way down.

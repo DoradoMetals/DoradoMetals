@@ -13925,3 +13925,70 @@ field. No checkout column is added — nothing survives because there is no
 choice to record. The CARD/CREDIT method still follows the quote (balance
 covers the base total → CREDIT, no Stripe element), which is display logic,
 not money.
+
+### Ruling 48 — a direction is parsed once, at the transport, against the contract (Jacob, 2026-09-03 afternoon)
+
+Jacob, on `domain/checkout/rules.ts` — five functions keyed on the
+direction: *"Do we really need all of these functions..? They're all doing
+kinda the same thing."* Then, on the one that survived the collapse,
+`assertDirection(direction: unknown): Direction`: *"why does this exist at
+all? It's just returning itself lmao. We can have strict type checking in
+zod to ensure the direction, no?"* And: *"Direction should probably live in
+our contracts as well."*
+
+Yes on all three. The file is deleted. What replaced it:
+
+- **`Direction` lives ONCE, in `@dorado/contracts`** (`wire/direction.ts`),
+  as the generated `orders.direction` enum re-exported under the one name
+  every body, query and service reaches for. `CheckoutDirection` and the
+  inline `z.enum(["purchase", "sale"])` in `wire/payments.ts` are gone; the
+  three checkout bodies, the intent shape, `db/orders/repo.ts`,
+  `domain/orders/rules.ts`, both fulfillments services, both test builders
+  and the frontend's `usePaymentMethods` import it. `lint:type-homes` loses
+  its `Direction` ACCEPTED entry — the duplicates it excused no longer exist.
+- **A transport parses the direction with `parseStrict(Direction, …)`** —
+  GET /checkout, GET /payments/methods (optional: absent means both) and
+  GET /fulfillments/methods. Anything but the two labels is a 400 naming
+  the param, like every other malformed field. `checkout-row.test.ts` used to
+  pin 422 there under a comment calling a bad direction "a RULE the domain
+  refuses"; it is a shape, and that comment is retired.
+- **Services take `direction: Direction` and never re-check it.**
+  `checkout/service.ts`'s five `const dir = assertDirection(direction)`
+  lines, `payments/methods/service.ts`'s `DIRECTIONS` set and
+  `fulfillments/methods/service.ts`'s inline guard are gone. The three
+  helpers that only wrapped a comparison (`hasPayoutStep`, `livenessFlag`,
+  `carriesProductPremium`) are comparisons at the point of use;
+  `draftsPaymentIntent` had no caller.
+- **What stays, because it is a rule and not a re-typing:**
+  `domain/orders/rules.ts` `assertDirection(direction, wanted, operation)`
+  compares an ORDER's stored direction with what an operation needs
+  ("cancelling is a purchase-direction operation and this is a sale
+  order"). Its input is already typed; it decides something.
+
+Left for later, noted so it is not rediscovered: `checkout.checkouts.direction`
+is `text`, not `orders.direction`, so the generated `checkout.CheckoutsRow`
+still says `z.string()` there. One `ALTER COLUMN … TYPE orders.direction
+USING direction::orders.direction` makes the row type the enum too.
+
+### `products.bullion.sell_display` is NOT redundant — measured before dropping it (2026-09-03)
+
+Jacob asked, in the same breath, whether `sell_display` could go entirely
+("kinda asking, not really telling"). Measured read-only before answering:
+
+| | display / sell_display | count |
+|---|---|---|
+| prod `exchange.products` | f / f | 73 |
+| | f / **t** (sell-only) | **20** — every one `is_generic = true` |
+| | t / f | 1 (1oz Silver Buffalo Round) |
+| | t / t | 1 (1oz Gold Krugerrand) |
+| dev `products.bullion` | f / t | 27 (20 generic + 7) |
+| | t / t | 32 |
+
+So on production the sell side IS the `sell_display` column: the twenty
+generic products ("Gold Bar (1 oz)", "Silver Coin (1 oz)", …) that a
+customer sells back without naming a mint are `display = false`, and four
+purchase-order lines already reference them. Collapsing to `display` would
+either empty the sell catalogue (20 → 2) or put twenty stock-0 generic
+products on the buy storefront. The column stays. The FUNCTIONS keyed on it
+were the redundant part, and they are gone.
+

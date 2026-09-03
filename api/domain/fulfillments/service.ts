@@ -13,7 +13,7 @@ import * as compose from "#domain/fulfillments/compose.ts";
 import type { ComposedFulfillment, Details } from "#domain/fulfillments/compose.ts";
 import { Conflict, NotFound } from "#shared/errors.ts";
 import type { PoolClient } from "pg";
-import type { fulfillments as fulfillmentTables } from "@dorado/contracts";
+import type { Direction, fulfillments as fulfillmentTables } from "@dorado/contracts";
 
 type Executor = PoolClient | undefined;
 
@@ -22,9 +22,7 @@ export type { MethodRow } from "#domain/fulfillments/methods/service.ts";
 // the name the old row type had.
 type FulfillmentRow = ComposedFulfillment;
 
-// direction/category come from the database, not hand-written here: a hand-written union either duplicates an enum by hand (direction, spelled three times) or asserts a constraint the column didn't have (category was `text DEFAULT 'OTHER'` until it became a real enum).
-// These are derived from the generated row now, so widening the enum is a compile error, not a runtime surprise.
-type Direction = NonNullable<fulfillmentTables.MethodsRow["direction"]>;
+// Direction is the contract's; category is the generated row's own enum. Neither is hand-written here, so widening either is a compile error, not a runtime surprise.
 type Category = fulfillmentTables.MethodsRow["category"];
 
 // Every refusal carries a status, which is why the messages are worth writing: errorHandler shows a message to the caller only for a deliberate 4xx - these used to be bare `new Error`, so every one arrived as a generic 500 "Server error", and an admin trying to move an order off SHIPMENT was told that instead of "cancel the shipment first".

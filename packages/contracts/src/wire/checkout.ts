@@ -1,4 +1,5 @@
 import { z } from "zod/v4";
+import { Direction } from "./direction.js";
 import { CheckoutsRow } from "../generated/checkout.js";
 
 // THE REQUEST BODIES OF THE CHECKOUT SURFACE.
@@ -14,8 +15,6 @@ import { CheckoutsRow } from "../generated/checkout.js";
 // Declaring it is what keeps an older client from being answered 400 for
 // sending something harmless.
 
-export const CheckoutDirection = z.enum(["sale", "purchase"]);
-export type CheckoutDirection = z.infer<typeof CheckoutDirection>;
 
 // A buy-cart line: an id and how many. Nothing else is read - the price,
 // premium and content all come back from the catalogue.
@@ -74,14 +73,14 @@ export const CheckoutPatchColumns = CheckoutsRow.pick({
 export type CheckoutPatchColumns = z.infer<typeof CheckoutPatchColumns>;
 
 export const CheckoutPatchBody = CheckoutPatchColumns
-  .extend({ direction: CheckoutDirection })
+  .extend({ direction: Direction })
   .strict();
 export type CheckoutPatchBody = z.infer<typeof CheckoutPatchBody>;
 
 // The stepper picks a carrier HANDOFF and never spells a fulfillment method;
 // the server owns that vocabulary. Either names the step.
 export const CheckoutFulfillmentBody = z.object({
-  direction: CheckoutDirection,
+  direction: Direction,
   method_id: z.string().optional(),
   handoff_code: z.string().optional(),
 }).strict();
@@ -101,6 +100,6 @@ export const CheckoutPayoutForm = z.object({
 export type CheckoutPayoutForm = z.infer<typeof CheckoutPayoutForm>;
 
 export const CheckoutPayoutBody = CheckoutPayoutForm
-  .extend({ direction: CheckoutDirection })
+  .extend({ direction: Direction })
   .strict();
 export type CheckoutPayoutBody = z.infer<typeof CheckoutPayoutBody>;

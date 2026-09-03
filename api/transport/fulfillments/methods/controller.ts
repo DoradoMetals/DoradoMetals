@@ -1,5 +1,5 @@
 import { z } from "zod/v4";
-import { FulfillmentMethodPatch } from "@dorado/contracts";
+import { Direction, FulfillmentMethodPatch } from "@dorado/contracts";
 import { asyncHandler } from "#shared/middleware/asyncHandler.ts";
 import { parseStrict, uuidLike } from "#shared/http/validate.ts";
 import * as methodService from "#domain/fulfillments/methods/service.ts";
@@ -12,7 +12,8 @@ const UpdateBody = z.object({
 // which methods exist and which are hidden is operational information, and a
 // signed-out visitor has no order to fulfil.
 export const getMethods = asyncHandler(async (req, res) => {
-  return res.status(200).json(await methodService.listAvailable(req.query.direction));
+  const direction = parseStrict(Direction, req.query.direction, "direction");
+  return res.status(200).json(await methodService.listAvailable(direction));
 });
 
 export const getAllMethods = asyncHandler(async (_req, res) => {

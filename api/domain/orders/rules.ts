@@ -25,11 +25,8 @@ import type { CarrierHandoff } from "#domain/shipping/handoffs/service.ts";
 import type { StorefrontProduct } from "#domain/products/compose.ts";
 import type { OrderPrices, Spots } from "#domain/pricing/ask.ts";
 import type {
-  OrderItemFromScrap, OrderItemPatch, OrderView, OrderViewProduct,
+  Direction, OrderItemFromScrap, OrderItemPatch, OrderView, OrderViewProduct,
 } from "@dorado/contracts";
-import type { orders } from "@dorado/contracts";
-
-export type Direction = NonNullable<orders.OrdersRow["direction"]>;
 
 // Type-only re-exports, erased at runtime: this file still needs no database.
 export type { PricedLine } from "#db/orders/items/repo.ts";

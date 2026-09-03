@@ -31,7 +31,8 @@ import { metalId, metalIds, type MetalName } from "#shared/testing/builders/refe
 import type { BuiltUser } from "#shared/testing/builders/users.ts";
 import type { BuiltProduct } from "#shared/testing/builders/products.ts";
 
-export type Direction = "purchase" | "sale";
+import type { Direction } from "@dorado/contracts";
+export type { Direction } from "@dorado/contracts";
 
 export type BuiltOrder = {
   id: string;
