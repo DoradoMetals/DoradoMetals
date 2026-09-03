@@ -1,8 +1,16 @@
 import { z } from "zod/v4";
 import { RatesRow } from "../generated/exchange.js";
+import { RatesRow as LiveRatesRow } from "../generated/rates.js";
 
 // GET /rates/get_all. The query joins metals and returns the metal's name in
 // place of its id, and drops the audit columns.
+//
+// Rate/AdminRate stay sourced from exchange's RatesRow: resolveRate.ts's
+// TaxableFacts-adjacent callers (domain/orders/edit-line.ts, domain/quotes/
+// service.ts) are typed against this exact shape and are out of this pass's
+// scope. RateInput/RatePatch below switch to the live `rates` schema, which
+// is what api/db/rates/repo.ts actually writes - a write body has no such
+// downstream coupling to widen.
 export const Rate = RatesRow.omit({
   metal_id: true,
   created_at: true,
@@ -34,20 +42,21 @@ export const AdminRate = Rate.extend({
 export type AdminRate = z.infer<typeof AdminRate>;
 
 // POST /rates/create and /rates/update - the columns a caller may write.
-// Mirrors api/features/rates/repo.ts's `RateInput`: the six writable columns,
-// with the two audit names optional because the service overwrites them from
-// `user_name` when one is sent. The METAL travels as `metal_id` here and as
-// `metal` (the name) on the way back, which is the one asymmetry in this
+// Mirrors api/db/rates/repo.ts's `NewRate`/`RatePatch`: the six writable
+// columns and nothing else. `created_by`/`updated_by` are NOT fields here
+// (item 4): public.audit_stamp writes both from the connection's actor
+// (migration 116), and rates.rates' create/update statements never took them
+// as parameters in the first place. The METAL travels as `metal_id` here and
+// as `metal` (the name) on the way back, which is the one asymmetry in this
 // feature and is now stated in the shapes rather than inferred from a form.
-export const RateInput = RatesRow.pick({
+export const RateInput = LiveRatesRow.pick({
   metal_id: true,
   unit: true,
   min_qty: true,
   max_qty: true,
   scrap_pct: true,
   bullion_pct: true,
-}).extend({
-  created_by: RatesRow.shape.created_by.optional(),
-  updated_by: RatesRow.shape.updated_by.optional(),
 });
 export type RateInput = z.infer<typeof RateInput>;
+export const RatePatch = RateInput.partial();
+export type RatePatch = z.infer<typeof RatePatch>;

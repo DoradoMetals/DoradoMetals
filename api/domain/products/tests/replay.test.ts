@@ -95,9 +95,11 @@ test("creating a product round-trips in the schema's own names", async () => {
   await inPinnedTransaction(async () => {
     await as(admin, async () => {
       const name = `replay-product-${Date.now()}`;
+      // created_by is not a field of this body: public.audit_stamp writes it
+      // from the connection's actor.
       const res = await request(app)
         .post("/api/products/create_product")
-        .send({ name, created_by: admin.name });
+        .send({ name });
 
       // 201, not 200 — checked against the route rather than assumed, after asserting the wrong one here first.
       assert.equal(res.status, 201, JSON.stringify(res.body));

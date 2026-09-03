@@ -4,9 +4,12 @@ import {
   TrackingEventsRow,
 } from "../generated/exchange.js";
 import {
+  CarriersRow,
+  ServicesRow,
   ShipmentsRow,
   PickupsRow as ShipmentPickupsRow,
 } from "../generated/shipping.js";
+import { OrganizationsRow } from "../generated/organizations.js";
 
 // The repos return a carrier and the organization it is, kept apart - the same
 // shape as Refiner, because a carrier and a refiner are the same kind of thing
@@ -157,3 +160,98 @@ export const CarrierServiceOption = z.object({
   max_insured_value: z.number(),
 });
 export type CarrierServiceOption = z.infer<typeof CarrierServiceOption>;
+
+// ============================================================================
+// WRITE BODIES - a carrier is an organization (type CARRIER) plus a
+// shipping.carriers row (domain/shipping/carriers/service.ts). `organization`
+// is genuinely new data (ruling 43: a first-time name/email/phone), never an
+// id - carriers.repo.ts's `create()`/`update()` write the organization
+// columns directly from what the body sends, there is no lookup to replace.
+// ============================================================================
+
+const CarrierOrganizationWrite = OrganizationsRow.pick({
+  name: true,
+  email: true,
+  phone: true,
+  enabled: true,
+}).partial();
+
+// POST /carriers/create.
+export const CarrierCreate = z.object({
+  logo: CarriersRow.shape.logo.optional(),
+  organization: CarrierOrganizationWrite.strict().optional(),
+}).strict();
+export type CarrierCreate = z.infer<typeof CarrierCreate>;
+
+// POST /carriers/update - the same, keyed by the existing carrier's id.
+export const CarrierPatch = CarrierCreate.extend({
+  id: CarriersRow.shape.id,
+});
+export type CarrierPatch = z.infer<typeof CarrierPatch>;
+
+// DELETE /carriers/delete - the id alone.
+export const CarrierDeleteBody = z.object({
+  carrier_id: CarriersRow.shape.id,
+}).strict();
+export type CarrierDeleteBody = z.infer<typeof CarrierDeleteBody>;
+
+// POST /carrier_services/create and /update - shipping.services' writable
+// columns (db/shipping/services/repo.ts's ServiceWrite), with the three
+// fields the wire has always aliased kept under those names
+// (supports_pickup/supports_dropoff/max_weight_lbs - "the legacy spellings
+// some tables still alias to are the wire's, kept on purpose", CLAUDE.md).
+// created_by/updated_by/timestamps/max_insured_value/price/display are not
+// here: none of them is a column create()/update() ever wrote.
+const ServiceFields = ServicesRow.omit({
+  id: true,
+  created_at: true,
+  updated_at: true,
+  created_by: true,
+  updated_by: true,
+  created_by_id: true,
+  updated_by_id: true,
+  supports_pickups: true,
+  supports_dropoffs: true,
+  max_weight_lb: true,
+  max_insured_value: true,
+  price: true,
+  display: true,
+}).extend({
+  supports_pickup: ServicesRow.shape.supports_pickups,
+  supports_dropoff: ServicesRow.shape.supports_dropoffs,
+  max_weight_lbs: ServicesRow.shape.max_weight_lb,
+}).partial({
+  carrier_id: true,
+  description: true,
+  code: true,
+  provider_code: true,
+  supports_pickup: true,
+  supports_dropoff: true,
+  supports_returns: true,
+  supports_insurance: true,
+  is_international: true,
+  is_residential: true,
+  is_active: true,
+  max_weight_lbs: true,
+  max_length_in: true,
+  max_width_in: true,
+  max_height_in: true,
+  max_declared_value: true,
+  min_transit_days: true,
+  max_transit_days: true,
+  display_order: true,
+});
+
+export const CarrierServiceCreate = ServiceFields.strict();
+export type CarrierServiceCreate = z.infer<typeof CarrierServiceCreate>;
+
+export const CarrierServicePatch = ServiceFields.extend({
+  id: ServicesRow.shape.id,
+}).strict();
+export type CarrierServicePatch = z.infer<typeof CarrierServicePatch>;
+
+// DELETE /carrier_services/delete - the id alone.
+export const CarrierServiceDeleteBody = z.object({
+  id: ServicesRow.shape.id,
+}).strict();
+export type CarrierServiceDeleteBody = z.infer<typeof CarrierServiceDeleteBody>;

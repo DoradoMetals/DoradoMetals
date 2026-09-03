@@ -1,7 +1,13 @@
-import { callerId, requiredParam } from "#shared/http/caller.ts";
+import { z } from "zod/v4";
+import { ProductCreate, ProductPatch } from "@dorado/contracts";
+import { requiredParam } from "#shared/http/caller.ts";
 import { oneString } from "#shared/http/query.ts";
+import { parseStrict } from "#shared/http/validate.ts";
 import { asyncHandler } from "#shared/middleware/asyncHandler.ts";
 import * as productService from "#domain/products/service.ts";
+
+const SaveBody = z.object({ product: ProductPatch.strict() }).strict();
+const CreateBody = ProductCreate.strict();
 
 export const getAllProducts = asyncHandler(async (req, res) => {
   res.status(200).json(await productService.getAllProducts());
@@ -44,13 +50,18 @@ export const getAllTypes = asyncHandler(async (req, res) => {
   res.status(200).json(await productService.getAllTypes());
 });
 
-// `user`/`created_by` may still arrive in the body and are ignored: who made the edit is the session's, read off the connection by the audit_stamp trigger (migration 116) — a body field naming an author was a caller claiming to be somebody else.
+// created_by/updated_by are not fields of ProductPatch: who made the edit is
+// the session's, read off the connection by the audit_stamp trigger
+// (migration 116) - naming an author in the body is now a 400, not an
+// accepted-and-ignored field.
 export const saveProduct = asyncHandler(async (req, res) => {
-  await productService.saveProduct({ product: req.body.product });
+  const body = parseStrict(SaveBody, req.body, "products/save_product body");
+  await productService.saveProduct({ product: body.product });
   res.status(200).json("Product updated.");
 });
 
 export const createProduct = asyncHandler(async (req, res) => {
-  const created = await productService.createProduct({ name: req.body?.name });
+  const body = parseStrict(CreateBody, req.body, "products/create_product body");
+  const created = await productService.createProduct({ name: body.name });
   res.status(201).json(created);
 });

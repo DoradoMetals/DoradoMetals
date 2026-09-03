@@ -1,28 +1,28 @@
-// A product save cannot quietly lose a product: NOT NULL constraints on exchange.products (metal_id, supplier_id, mint_id, content, gross, purity, and more) make an unmatched-name subquery's NULL abort the whole UPDATE. This pins that refusal against a future migration relaxing one of those columns to nullable.
-// Answers 500 where 400 would be right (same shape as 9a82a7ed's fulfillment refusals) — recorded, not changed.
+// A product save cannot quietly lose a product: products.bullion declares metal_id/supplier_id/mint_id (and more) NOT NULL with a foreign key, so an id that names no row is refused by the database rather than silently nulled.
+//
+// metal_id/supplier_id/mint_id travel as IDS now, not names (ruling 43): the
+// old version of this file read exchange.products/exchange.metals/
+// exchange.suppliers by name and sent a name in the body, which the service
+// resolved with an in-memory lookup. That lookup is gone; the contract is the
+// server's own row shape, and an unmatched id is the database's own foreign
+// key refusal, not a name this service used to check first.
 import test, { after, before } from "node:test";
 import assert from "node:assert/strict";
-import type { ProductsRow } from "@dorado/contracts";
 import type { PoolClient } from "pg";
 import request from "supertest";
 import pool from "#db";
+import * as productsRepo from "#db/products/repo.ts";
+import type { AdminProductRow } from "#db/products/repo.ts";
 import { mockSessions, restoreSessions, as } from "#shared/testing/session.ts";
 import { inPinnedTransaction, outside } from "#shared/testing/pinned-pool.ts";
 
 await mockSessions();
 const { default: app } = await import("#app");
 
-// SELECT projections, not table rows.
 type UserFixture = { id: string; name: string | null; email: string | null };
-// `SELECT p.*` plus three joined display names — the row half comes from the generated contract rather than being restated, since `fullBody` below already maps its columns.
-type ProductFixture = ProductsRow & {
-  metal: string;
-  supplier: string | null;
-  mint: string | null;
-};
 
 let admin: UserFixture;
-let product: ProductFixture;
+let product: AdminProductRow;
 
 before(async () => {
   admin = (
@@ -30,18 +30,9 @@ before(async () => {
   )[0];
   assert.ok(admin, "dev has no admin user");
 
-  // Derived from the row under test, metal name included, so the "honest save" half can't pass by naming a metal that happens to exist. The whole row plus three names, so it sends what the admin screen sends rather than a fragment.
-  product = (
-    await outside<ProductFixture>(
-      `SELECT p.*, m.type AS metal, s.name AS supplier, mi.name AS mint
-         FROM exchange.products p
-         JOIN exchange.metals m ON m.id = p.metal_id
-         JOIN exchange.suppliers s ON s.id = p.supplier_id
-         JOIN exchange.mints mi ON mi.id = p.mint_id
-        LIMIT 1`
-    )
-  )[0];
-  assert.ok(product, "dev has no product joined to a metal");
+  const [row] = await productsRepo.getAdminAll();
+  assert.ok(row, "dev has no product in products.bullion");
+  product = row;
 });
 
 after(async () => {
@@ -49,17 +40,20 @@ after(async () => {
   await pool.end();
 });
 
-// Everything updateProduct writes, mapped from the row it was read from.
-const fullBody = (metalName: string) => ({
+const NOBODY = "00000000-0000-0000-0000-000000000000";
+
+// Everything saveProduct writes, mapped from the row it was read from - the
+// full-replace body the admin form sends.
+const fullBody = (metal_id: string) => ({
   id: product.id,
-  metal: metalName,
-  supplier: product.supplier,
-  mint: product.mint,
-  name: product.product_name,
-  description: product.product_description,
+  metal_id,
+  supplier_id: product.supplier_id,
+  mint_id: product.mint_id,
+  name: product.name,
+  description: product.description,
   bid_premium: product.bid_premium,
   ask_premium: product.ask_premium,
-  type: product.product_type,
+  type: product.type,
   display: product.display,
   content: product.content,
   gross: product.gross,
@@ -80,61 +74,48 @@ const fullBody = (metalName: string) => ({
   filter_category: product.filter_category,
 });
 
-const saveFull = (metalName: string) =>
-  request(app)
-    .post("/api/products/save_product")
-    .send({ product: fullBody(metalName), user: { name: "test-admin" } });
+const saveFull = (metal_id: string) =>
+  request(app).post("/api/products/save_product").send({ product: fullBody(metal_id) });
 
-const save = (metalName: string) =>
-  request(app)
-    .post("/api/products/save_product")
-    .send({
-      product: {
-        id: product.id,
-        name: product.product_name,
-        metal: metalName,
-      },
-      user: { name: "test-admin" },
-    });
-
-test("a metal name that does not exist is refused, and nothing is written", async () => {
-  // Read through a separate connection, not the pinned one: the constraint violation aborts that transaction (Postgres 25P02), so a read-back on the pinned client after the failed save cannot run at all — outside() sees committed data instead.
+test("a metal id that does not exist is refused, and nothing is written", async () => {
+  // Read through a separate connection, not the pinned one: a foreign-key
+  // violation aborts that transaction (Postgres 25P02), so a read-back on the
+  // pinned client after the failed save cannot run at all - outside() sees
+  // committed data instead.
   const [before] = await outside(
-    `SELECT metal_id FROM exchange.products WHERE id = $1`,
+    `SELECT metal_id FROM products.bullion WHERE id = $1`,
     [product.id]
   );
 
   await inPinnedTransaction(async () => {
     await as({ ...admin, role: "admin" }, async () => {
-      // A full body, so the metal name is the only thing wrong with it.
-      const res = await saveFull("Unobtainium");
-
-      // 500 today — asserted as "not a success" rather than an exact code, so improving it to 400 later won't fail this test.
-      assert.ok(res.status >= 400, `an unmatched metal name was answered ${res.status}`);
+      // A full body, so the metal id is the only thing wrong with it.
+      const res = await saveFull(NOBODY);
+      assert.ok(res.status >= 400, `an unmatched metal id was answered ${res.status}`);
     });
   });
 
-  const [after] = await outside(
-    `SELECT metal_id FROM exchange.products WHERE id = $1`,
+  const [afterRow] = await outside(
+    `SELECT metal_id FROM products.bullion WHERE id = $1`,
     [product.id]
   );
-  assert.equal(after.metal_id, before.metal_id, "the failed save changed the product");
-  assert.ok(after.metal_id, "the product lost its metal");
+  assert.equal(afterRow.metal_id, before.metal_id, "the failed save changed the product");
+  assert.ok(afterRow.metal_id, "the product lost its metal");
 });
 
-// The other half — without it, this suite would pass against a save_product that refuses EVERYTHING: secure, broken, and unusable for admins.
-test("a save naming the product's own metal succeeds and keeps the link", async () => {
+// The other half - without it, this suite would pass against a save_product that refuses EVERYTHING: secure, broken, and unusable for admins.
+test("a save naming the product's own metal id succeeds and keeps the link", async () => {
   await inPinnedTransaction(async (client: PoolClient) => {
     await as({ ...admin, role: "admin" }, async () => {
-      const res = await saveFull(product.metal);
-      assert.equal(res.status, 200, `an honest save answered ${res.status}`);
+      const res = await saveFull(product.metal_id);
+      assert.equal(res.status, 200, `an honest save answered ${res.status}: ${JSON.stringify(res.body)}`);
 
       const { rows } = await client.query(
-        `SELECT metal_id, product_name FROM exchange.products WHERE id = $1`,
+        `SELECT metal_id, name FROM products.bullion WHERE id = $1`,
         [product.id]
       );
       assert.equal(rows[0].metal_id, product.metal_id, "an honest save lost the metal");
-      assert.equal(rows[0].product_name, product.product_name);
+      assert.equal(rows[0].name, product.name);
     });
   });
 });

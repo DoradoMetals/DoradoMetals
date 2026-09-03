@@ -5,6 +5,7 @@ import type { PoolClient } from "pg";
 import { randomUUID } from "node:crypto";
 import pool from "#db";
 import * as service from "#domain/products/service.ts";
+import * as productsRepo from "#db/products/repo.ts";
 
 let client: PoolClient;
 
@@ -245,7 +246,8 @@ test("creating a product supplies what exchange defaults and bullion does not", 
 // The editor is not an argument any more: migration 116 moved the write to the public.audit_stamp trigger, which reads app.actor_id off the connection. The claim is unchanged — a save records who edited — asked of the mechanism that answers it now.
 test("saving a product writes the row, and records who saved it", async () => {
   await inRollback(async (c: PoolClient) => {
-    const [existing] = await service.getAllAdminProducts();
+    const [existing] = await productsRepo.getAdminAll(c);
+    assert.ok(existing, "dev has no product to read reference ids from");
     const renamed = `${existing.name}-renamed`;
 
     const { rows: admins } = await c.query(
@@ -254,6 +256,8 @@ test("saving a product writes the row, and records who saved it", async () => {
     assert.ok(admins[0], "auth.users has no admin - this test proves nothing");
     await c.query("SELECT set_config('app.actor_id', $1, true)", [admins[0].id]);
 
+    // metal_id/mint_id/supplier_id travel as ids now (ruling 43), read off
+    // the raw admin row rather than resolved from the composed shape's names.
     const saved = await service.saveProduct({ product: { ...existing, name: renamed } }, c);
     assert.ok(saved, "saveProduct returned nothing");
     assert.equal(saved.id, existing.id);
@@ -268,25 +272,24 @@ test("saving a product writes the row, and records who saved it", async () => {
   });
 });
 
-// The three names the form sends are resolved to ids here — a name matching nothing used to become NULL inside the UPDATE and fail on a NOT NULL column without saying which of the three was wrong.
-test("an unknown metal, mint or supplier name is refused by name", async () => {
-  const [existing] = await service.getAllAdminProducts();
-  for (const [field, what] of [["metal", "metal"], ["mint", "mint"], ["supplier", "supplier"]]) {
-    await assert.rejects(
-      () => service.saveProduct({ product: { ...existing, [field]: "Unobtainium" } }),
-      new RegExp(`no ${what} called "Unobtainium"`),
-      `a bad ${field} was not refused by name`
-    );
-  }
-});
-
-test("a save with no id is refused rather than writing to nothing", async () => {
-  const [existing] = await service.getAllAdminProducts();
-  await assert.rejects(
-    () => service.saveProduct({ product: { ...existing, id: undefined } }),
-    /needs an id/
-  );
-});
+// metal_id/mint_id/supplier_id are ids now, not names (ruling 43): an unknown
+// id is refused by the database's own foreign key, not a name lookup this
+// service used to run first. One transaction per field - a failed statement
+// aborts the rest of its own transaction, so each gets its own BEGIN/ROLLBACK.
+const NOBODY = "00000000-0000-0000-0000-000000000000";
+for (const field of ["metal_id", "mint_id", "supplier_id"] as const) {
+  test(`an unknown ${field} is refused by the database`, async () => {
+    await inRollback(async (c: PoolClient) => {
+      const [existing] = await productsRepo.getAdminAll(c);
+      assert.ok(existing, "dev has no product to read reference ids from");
+      await assert.rejects(
+        () => service.saveProduct({ product: { ...existing, [field]: NOBODY } }, c),
+        /foreign key|violates/i,
+        `a bad ${field} was not refused`
+      );
+    });
+  });
+}
 
 test("a write made with a client is invisible on the pool", async () => {
   await client.query("BEGIN");

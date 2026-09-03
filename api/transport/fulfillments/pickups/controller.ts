@@ -1,11 +1,14 @@
-import { uuidParam } from "#shared/http/validate.ts";
+import { ScheduleFulfillmentPickupBody } from "@dorado/contracts";
+import { parseStrict, uuidParam } from "#shared/http/validate.ts";
 import { asyncHandler } from "#shared/middleware/asyncHandler.ts";
 import * as pickupService from "#domain/fulfillments/pickups/service.ts";
+import { z } from "zod/v4";
 
-// No contract schema exists yet for a pickup-schedule body.
+const ScheduleBody = z.object({ pickup: ScheduleFulfillmentPickupBody.strict() }).strict();
+
 export const schedulePickup = asyncHandler(async (req, res) => {
-  const { pickup } = req.body;
-  return res.status(200).json(await pickupService.schedule(pickup));
+  const body = parseStrict(ScheduleBody, req.body, "fulfillments/schedule_pickup body");
+  return res.status(200).json(await pickupService.schedule(body.pickup));
 });
 
 // GET /api/orders/:orderId/pickups - fulfillments.pickups rows, VERBATIM.

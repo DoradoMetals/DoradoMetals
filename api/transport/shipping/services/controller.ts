@@ -1,6 +1,12 @@
+import { z } from "zod/v4";
+import { CarrierServiceCreate, CarrierServicePatch, CarrierServiceDeleteBody } from "@dorado/contracts";
 import { asyncHandler } from "#shared/middleware/asyncHandler.ts";
 import * as servicesService from "#domain/shipping/services/service.ts";
 import { oneString } from "#shared/http/query.ts";
+import { parseStrict } from "#shared/http/validate.ts";
+
+const CreateBody = z.object({ service: CarrierServiceCreate }).strict();
+const UpdateBody = z.object({ service: CarrierServicePatch }).strict();
 
 export const getAll = asyncHandler(async (req, res) => {
   const result = await servicesService.getAllServices();
@@ -41,14 +47,14 @@ export const getByCarrier = asyncHandler(async (req, res) => {
 });
 
 export const create = asyncHandler(async (req, res) => {
-  const { service } = req.body;
-  const result = await servicesService.createService(service);
+  const body = parseStrict(CreateBody, req.body, "carrier_services/create body");
+  const result = await servicesService.createService(body.service);
   return res.status(201).json(result);
 });
 
 export const update = asyncHandler(async (req, res) => {
-  const { service } = req.body;
-  const result = await servicesService.updateService(service);
+  const body = parseStrict(UpdateBody, req.body, "carrier_services/update body");
+  const result = await servicesService.updateService(body.service);
   return res.status(200).json(result);
 });
 
@@ -56,6 +62,7 @@ export const update = asyncHandler(async (req, res) => {
 // made every delete die on `invalid input syntax for type uuid`, so this
 // endpoint has never once succeeded.
 export const remove = asyncHandler(async (req, res) => {
-  await servicesService.removeService(req.body.id);
+  const body = parseStrict(CarrierServiceDeleteBody, req.body, "carrier_services/delete body");
+  await servicesService.removeService(body.id);
   return res.status(200).json(true);
 });

@@ -6,16 +6,9 @@ import * as compose from "#domain/products/compose.ts";
 import type { StorefrontProduct, AdminProduct } from "#domain/products/compose.ts";
 import type { ProductPatch, Liveness, PublicProductRow } from "#db/products/repo.ts";
 import type { Executor } from "#shared/db/executor.ts";
-
-interface HttpError extends Error {
-  statusCode?: number;
-}
-
-function badRequest(message: string): HttpError {
-  const err: HttpError = new Error(message);
-  err.statusCode = 400;
-  return err;
-}
+// The transport layer's parsed body - the contract IS the input type now
+// (no hand-written ProductInput mirroring it).
+import type { ProductPatch as ProductPatchInput } from "@dorado/contracts";
 
 // What exchange.products defaults and products.bullion does not: products.bullion declares seven columns NOT NULL with no default, so a create must state them, and stated as exchange's own defaults so a product doesn't differ across promotion.
 // Literals, not a runtime lookup: resolving by name (e.g. "Silver") would make product creation depend on that metal still existing under that name.
@@ -28,38 +21,6 @@ const EXCHANGE_CREATE_DEFAULTS = {
   stock: 0,
   quantity: 0,
 } as const;
-
-// What the admin form sends. Three of its fields are NAMES that the update
-// resolves back to ids.
-type ProductInput = {
-  id?: string;
-  metal?: string;
-  supplier?: string;
-  mint?: string;
-  name?: string | null;
-  description?: string | null;
-  bid_premium?: number | null;
-  ask_premium?: number | null;
-  type?: string | null;
-  display?: unknown;
-  content?: number | null;
-  gross?: number | null;
-  purity?: number | null;
-  variant_group?: string | null;
-  shadow_offset?: number | null;
-  stock?: number | null;
-  slug?: string | null;
-  homepage_display?: unknown;
-  legal_tender?: unknown;
-  domestic_tender?: unknown;
-  sell_display?: unknown;
-  is_generic?: unknown;
-  variant_label?: string | null;
-  quantity?: number | null;
-  image_front?: string | null;
-  image_back?: string | null;
-  filter_category?: string | null;
-};
 
 export type ProductFilters = {
   metal_type?: string;
@@ -187,57 +148,21 @@ export async function getItemsFromServer(
 
 // ------------------------------------------------------------------ writes
 
-// The admin form sends `metal`/`supplier`/`mint` as NAMES, resolved here (not a scalar subquery in the UPDATE) so an unmatched name fails clearly instead of silently becoming NULL on write.
-const resolve = (
-  by: Map<string, string>, wanted: string | undefined, what: string
-): string => {
-  if (!wanted) throw badRequest(`a product needs a ${what}`);
-  for (const [id, name] of by) if (name === wanted) return id;
-  throw badRequest(`no ${what} called ${JSON.stringify(wanted)}`);
-};
-
-const flag = (v: unknown): boolean => v === true || v === "true";
-
-// The database takes the author off the connection (public.audit_stamp, migration 116); this input says only what changed, nothing about who.
+// The body carries `metal_id`/`supplier_id`/`mint_id` now, not names (ruling
+// 43): the contract (ProductPatch) is the server's own row shape, so a
+// caller that names an id the database doesn't have gets the database's own
+// foreign-key refusal rather than this service resolving a name first. The
+// old `resolve()`/`flag()` helpers - a name-to-id lookup and a stringy-
+// boolean coercion - are gone with the body shape that needed them; a
+// caller sends real booleans, which strict parsing at the transport layer
+// already enforces.
 export async function saveProduct(
-  { product }: { product: ProductInput },
+  { product }: { product: ProductPatchInput },
   executor?: Executor
 ): Promise<{ id: string } | undefined> {
-  const id = product.id;
-  if (!id) throw badRequest("a product update needs an id");
-
-  const l = await compose.labels();
-  // Three genuine transformations: names resolved to ids, stringy booleans coerced to real ones. Everything else is the request body's own field, passed through as-is — an absent field binds NULL through the driver.
-  const patch: ProductPatch = {
-    metal_id: resolve(l.metalNames, product.metal, "metal"),
-    supplier_id: resolve(l.refinerNames, product.supplier, "supplier"),
-    mint_id: resolve(l.mintNames, product.mint, "mint"),
-    name: product.name,
-    description: product.description,
-    bid_premium: product.bid_premium,
-    ask_premium: product.ask_premium,
-    type: product.type,
-    display: flag(product.display),
-    content: product.content,
-    gross: product.gross,
-    purity: product.purity,
-    variant_group: product.variant_group,
-    shadow_offset: product.shadow_offset,
-    stock: product.stock,
-    slug: product.slug,
-    homepage_display: flag(product.homepage_display),
-    legal_tender: flag(product.legal_tender),
-    domestic_tender: flag(product.domestic_tender),
-    sell_display: flag(product.sell_display),
-    is_generic: flag(product.is_generic),
-    variant_label: product.variant_label,
-    quantity: product.quantity,
-    image_front: product.image_front,
-    image_back: product.image_back,
-    filter_category: product.filter_category,
-  };
+  const { id, ...patch } = product;
   const run = async (c: Executor): Promise<{ id: string } | undefined> => {
-    const written = await products.update(id, patch, c);
+    const written = await products.update(id, patch as ProductPatch, c);
     if (!written) return undefined;
     return { id };
   };

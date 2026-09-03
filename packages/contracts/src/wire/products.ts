@@ -60,3 +60,33 @@ export type Bullion = z.infer<typeof Bullion>;
 // lived here until 2026-08-27, derived from Bullion by the three renames.
 // Products converted - the frontend reads Bullion's names via
 // @dorado/contracts - so the legacy shape retired with its adapter.
+
+import { BullionRow } from "../generated/products.js";
+
+// POST /products/save_product - the id of an EXISTING product plus every
+// writable column, full-replace (an absent field is not "unchanged", the
+// admin form always sends the whole product back - db/products/repo.ts's own
+// comment). audit columns are omitted: public.audit_stamp writes them.
+//
+// metal_id/supplier_id/mint_id travel as IDS now, not names (ruling 43 - "the
+// client sends ids for what the server holds"). The body used to carry
+// "Silver"/"APMEX"/"U.S. Mint" and the service resolved each to an id with an
+// in-memory name lookup (products/service.ts's `resolve()`), which is exactly
+// the composed-form-with-nested-lookup shape the redesign replaces; the
+// service now takes the id directly and the lookup is gone.
+// Booleans are real booleans - zod refuses the string "true" the old
+// service's bespoke flag() coercion used to accept.
+export const ProductPatch = BullionRow.omit({
+  created_by: true,
+  updated_by: true,
+  created_at: true,
+  updated_at: true,
+  created_by_id: true,
+  updated_by_id: true,
+});
+export type ProductPatch = z.infer<typeof ProductPatch>;
+
+// POST /products/create_product - a bare name; every other column is filled
+// server-side from EXCHANGE_CREATE_DEFAULTS (products/service.ts), unchanged.
+export const ProductCreate = BullionRow.pick({ name: true });
+export type ProductCreate = z.infer<typeof ProductCreate>;
