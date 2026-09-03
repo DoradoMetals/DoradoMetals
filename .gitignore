@@ -24,3 +24,6 @@ packages/contracts/.env
 frontend/test-results/
 frontend/playwright-report/
 frontend/blob-report/
+
+# scripts/check.mjs per-step logs
+.check-logs/

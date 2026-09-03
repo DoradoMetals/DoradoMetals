@@ -5,7 +5,7 @@ Approved by Jacob 2026-08-29. Owner: unassigned.
 ```
 1. A local PostgreSQL 16 for the test suite   ████████████████████  100%  (2026-09-03)
 2. Shorten the serialized chain               ████████████████████  100%  (2026-09-03)
-3. Parallelise the independent gate members   ░░░░░░░░░░░░░░░░░░    0%
+3. Parallelise the independent gate members   ████████████░░░░░░   60%  (2026-09-02)
 ```
 
 **Task 1, DONE 2026-09-03**: `pnpm --filter @dorado/api test` runs the local

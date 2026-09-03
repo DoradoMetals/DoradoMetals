@@ -448,9 +448,15 @@ server otherwise gets strings, and `price + fee` concatenates.
 
 ## Verification
 
-`pnpm check` before committing — it takes over two minutes now, so background it
-rather than letting a timeout kill it. Several validators need a database and
-are not in CI. See the `verify-changes` skill for what each catches.
+`pnpm check` before committing — the serial 27-step chain, ~6.5 minutes,
+proven. `pnpm check:parallel` runs the same members through
+`scripts/check.mjs` in concurrent groups (phase5-fast-gate.md task 3) and is
+EXPERIMENTAL: its first full run was SLOWER (464 s) because the frontend and
+components groups oversubscribed the cores against the API suite's 24
+processes; the runner was made serial inside those groups and the rerun was
+never finished. Promote it to `check` only after one clean full run that
+beats the serial time. Background either one rather than letting a timeout
+kill it.
 
 **`pnpm check:fast` is a faster gate for iteration**: contracts build +
 verify:fresh + validate, the API's static lints, its typecheck, and its test

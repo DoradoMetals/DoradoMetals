@@ -7,7 +7,7 @@
   "scripts": {
     "dev": "node --watch server.ts",
     "start": "node server.ts",
-    "test": "TZ=UTC NODE_ENV=test USE_TEST_DB=1 node scripts/preflight-test-db.ts && TZ=UTC NODE_ENV=test USE_TEST_DB=1 node --test",
+    "test": "TZ=UTC NODE_ENV=test USE_TEST_DB=1 node scripts/preflight-test-db.ts && TZ=UTC NODE_ENV=test USE_TEST_DB=1 node --test --test-concurrency=24",
     "lint:db": "node scripts/lint-db-calls.ts",
     "lint:imports": "node scripts/lint-imports.mjs",
     "lint:namespace-calls": "node scripts/lint-namespace-calls.mjs",
