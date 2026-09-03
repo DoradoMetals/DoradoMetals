@@ -1,10 +1,5 @@
--- The products a cart names, read back from the server.
---
--- THIS IS WHY THE CART CANNOT SET A PRICE. The client sends ids and quantities;
--- premium, content and purity come from here. No `display` filter, deliberately:
--- checkout asks about liveness separately through get_liveness.sql, which
--- answers per id and per direction, and folding the two together would turn "you
--- may not buy that" into "that does not exist".
+-- The products a cart names, read back from the server — the client sends ids and quantities; premium, content and purity come from here, so the cart cannot set a price.
+-- No `display` filter, deliberately: liveness is checked separately (get_liveness.sql) so "you may not buy that" stays distinct from "that does not exist".
 SELECT
        id, name, description, content, purity, gross,
        bid_premium, ask_premium, type,

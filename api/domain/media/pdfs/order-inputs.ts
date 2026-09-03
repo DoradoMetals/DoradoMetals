@@ -1,47 +1,22 @@
-// EVERY DOCUMENT'S INPUTS, LOADED BY ORDER ID (ruling 10, wave 3).
-//
-// "The frontend sends IDs - plus genuine user input - and gets data back."
-// The four PDF routes were the last standing violation named in ruling 10:
-// each POSTed the WHOLE composed order, plus the live spot feed, plus the
-// package and the payout method, as its render body. So a customer's invoice
-// was rendered from numbers the customer's browser supplied - and the wire
-// slim removed the composed order those bodies were built from, which made
-// fixing it the critical path rather than a tidy-up.
-//
-// The body is `{ order_id }` now and this is what fills the gap: one place
-// that resolves an order's render inputs from the database, shared by the
-// four documents and by the confirmation email's twin in
-// features/media/emails/service.ts.
-//
-// THE COMPOSED READ IS STILL THE RIGHT READ HERE. The templates want an order
-// put back together - lines with their scrap weights and their bullion names,
-// the shipment, the address - and that is what read.service.ts assembles.
-// What changed is who assembles it and from what: the server, from its own
-// tables, rather than the browser from a response it was handed.
+// Every document's inputs, loaded by order id - the server resolves render inputs from its own tables (not the browser), shared by the four PDF routes and the confirmation email's twin (media/emails/service.ts).
+// The composed read is still the right read here: templates want an order put back together (lines, shipment, address), which is what read.service.ts assembles.
 import * as purchaseOrderReads from "#domain/orders/read.service.ts";
 import * as salesOrderReads from "#domain/orders/read.service.ts";
 import * as purchaseOrderService from "#domain/orders/service.ts";
 import * as salesOrderService from "#domain/orders/service.ts";
-// The LIVE spot feed - the same read the pricing paths use (spots.spots,
-// converted names). The exchange.metals read died with the dual layer (D212).
+// The live spot feed - the same read the pricing paths use (spots.spots, converted names).
 import * as spotsFeed from "#domain/spots/service.ts";
 import * as packages from "#db/shipping/packages/repo.ts";
 import * as shipmentOrderRead from "#domain/shipping/shipments/order-read.ts";
 
-// Thrown rather than never-returning: TypeScript only narrows past a
-// never-returning call when the VARIABLE carries the annotation, and an
-// `if (!x) notFound(id)` that does not narrow leaves every caller below
-// holding a possibly-null order.
+// Thrown rather than never-returning: TS only narrows past a never-returning call when the variable itself carries that annotation, so `if (!x) notFound(id)` alone wouldn't narrow.
 const notFound = (order_id: string): Error => {
   const err: Error & { statusCode?: number } = new Error(`no order ${order_id}`);
   err.statusCode = 404;
   return err;
 };
 
-// The box the parcel was actually booked with. The browser used to guess it
-// by matching a hard-coded option list against the shipment's package LABEL;
-// shipping.shipments names the row by id and shipping.packages holds the
-// label and the dimensions the packing list prints.
+// The box the parcel was actually booked with: shipping.shipments names the row by id, shipping.packages holds the label and dimensions the packing list prints.
 export async function packageDetailsFor(order_id: string) {
   const [shipment] = await shipmentOrderRead.getForOrder(order_id);
   if (!shipment?.package_id) return undefined;
@@ -73,10 +48,7 @@ export async function returnPackingListInputs(order_id: string) {
   return { purchaseOrder, spotPrices: await spotsFeed.getSpotPrices() };
 }
 
-// The invoice prints the spots the order was QUOTED at, not today's - which
-// is the whole reason orders.spots exists - alongside the live feed the
-// preview compares against. getMetalsForOrder speaks the converted names
-// (`name` / `ask` / `bid`) the templates read.
+// The invoice prints the spots the order was QUOTED at, not today's (why orders.spots exists), alongside the live feed the preview compares against. getMetalsForOrder speaks the converted names (name/ask/bid) the templates read.
 export async function invoiceInputs(order_id: string) {
   const purchaseOrder = await purchaseOrderReads.findPurchaseById(order_id);
   if (!purchaseOrder) throw notFound(order_id);

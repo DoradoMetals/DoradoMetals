@@ -1,6 +1,4 @@
--- The homepage selection. BOTH flags: a product pulled from the storefront must
--- leave the homepage with it, so `display` is checked as well as
--- `homepage_display`.
+-- The homepage selection — both flags checked: a product pulled from the storefront leaves the homepage with it.
 SELECT
        id, name, description, content, purity, gross,
        bid_premium, ask_premium, type,

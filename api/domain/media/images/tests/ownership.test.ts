@@ -1,21 +1,6 @@
-// Whether an image's owner is the only person who can fetch or destroy it.
-//
-// These do NOT go through HTTP and do NOT touch object storage. deleteImage
-// removes a real file from MinIO, and a test that exercised it would either
-// delete somebody's image or need a live bucket - so what is asserted is that
-// the guard refuses BEFORE anything irreversible happens, by giving the service
-// a stranger's id and checking it returns null having touched nothing.
-//
-// WHAT WAS WRONG. The service read the image by id with no ownership check,
-// removed the object from storage unconditionally, and only then ran a DELETE
-// that IS scoped to the user. A signed-in caller posting somebody else's image
-// id destroyed the real file, left the row pointing at nothing, and got
-// { success: true }.
-//
-// repo.next.test.js has "deleteImage will not delete another user's image" and
-// it passes: it tests the repo, whose DELETE is correctly scoped. The bug was
-// one layer up. That is the thing worth remembering - a test can prove the
-// right property about the wrong layer and read as coverage.
+// Whether an image's owner is the only person who can fetch or destroy it. These do NOT go through HTTP or touch object storage - deleteImage removes a real MinIO file, so what's asserted is that the guard refuses BEFORE anything irreversible, given a stranger's id.
+// WHAT WAS WRONG: the service removed the object from storage unconditionally, then ran a DELETE correctly scoped to the user - so a stranger's request destroyed the real file, left the row pointing at nothing, and returned { success: true }.
+// The repo's own test passed throughout (its DELETE was always correctly scoped) - the bug was one layer up. A test can prove the right property about the wrong layer and read as coverage.
 import test, { after, before } from "node:test";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
@@ -38,8 +23,7 @@ before(async () => {
   );
   image = rows[0];
   assert.ok(image, "dev has no image to check ownership against");
-  // Asserted BEFORE the assignment rather than after, so `owner` is a string
-  // from here on and the two service calls below cannot be handed a null.
+  // Asserted BEFORE the assignment so `owner` is a string from here on - the two service calls below cannot be handed a null.
   assert.ok(image.user_id, "the image has no owner, so this proves nothing");
   owner = image.user_id;
 });
@@ -49,8 +33,7 @@ after(async () => {
   await pool.end();
 });
 
-// The destructive one. A stranger must be refused before minio.removeObject is
-// reached; if the guard were absent this call would delete a real file.
+// The destructive one: a stranger must be refused before minio.removeObject is reached - without the guard, this call would delete a real file.
 test("a stranger cannot delete somebody else's image", async () => {
   const result = await mediaService.deleteImage({
     id: image.id,
@@ -58,9 +41,7 @@ test("a stranger cannot delete somebody else's image", async () => {
   });
   assert.equal(result, null, "the service accepted a stranger's delete");
 
-  // And the row is still there, which is what the old code would ALSO have
-  // shown - the row survived while the file did not. Asserted anyway, because
-  // a fix that deleted the row instead would be a different bug.
+  // The row survived too - the old bug would have shown this same result while the file did not; asserted anyway since deleting the row instead would be a different bug.
   const still = await mediaRepo.getOne(image.id);
   assert.ok(still, "the image row was deleted by a stranger");
 });

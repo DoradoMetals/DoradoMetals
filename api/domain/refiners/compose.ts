@@ -1,26 +1,8 @@
-// A refiner and the organization it is, joined in memory.
-//
-// The implementation this replaces did it in SQL - `JOIN
-// organizations.organizations o ON o.id = r.organization_id` - and built the
-// nested object with jsonb_build_object. Here each repo reads its own table and
-// the two are put together here, from ONE read of organizations rather than a
-// join per query.
-//
-// The nested shape is what wire.ts then flattens for REFINERS_WIRE=legacy, so
-// this must produce exactly what the old jsonb_build_object did.
-//
-// AN INNER JOIN DROPPED A REFINER WITH NO ORGANIZATION, and so does this. That
-// is preserved deliberately: the wire shape declares an organization, and a
-// refiner without one would put nulls where a caller reads a name.
+// A refiner and the organization it is, joined in memory — one read of organizations rather than a join per query.
+// Inner-join semantics preserved deliberately: a refiner with no organization is dropped, since the wire shape declares one and nulls would leak where a caller reads a name.
 import * as organizations from "#db/organizations/repo.ts";
 import type { RefinerRow } from "#db/refiners/repo.ts";
-// THE ROW TYPE COMES FROM THE CONTRACT, NOT FROM THE OTHER FEATURE'S REPO.
-// It used to be imported as `OrganizationRow` from
-// #db/organizations/repo.ts, where it is declared as a one-line alias
-// of exactly this. Naming the contract directly is the same type with one
-// less hop, and it removes a type edge between two features that have no
-// other reason to depend on each other - this file already reads the
-// organizations repo for its VALUES, which is the dependency that is real.
+// The row type comes from the contract, not the other feature's repo — same type, one less hop, and no type edge between two features that otherwise don't depend on each other (the VALUES dependency below is the real one).
 import type { organizations as organizationTables } from "@dorado/contracts";
 
 export type ComposedRefiner = {
@@ -34,8 +16,7 @@ export type ComposedRefiner = {
 const compose = (r: RefinerRow, o: organizationTables.OrganizationsRow): ComposedRefiner => ({
   id: r.id,
   logo: r.logo,
-  // created_at and updated_at come from the ORGANIZATION, not the refiner -
-  // that is what the old projection selected (o.created_at, o.updated_at).
+  // created_at/updated_at come from the ORGANIZATION, not the refiner.
   created_at: o.created_at,
   updated_at: o.updated_at,
   organization: {
@@ -43,8 +24,7 @@ const compose = (r: RefinerRow, o: organizationTables.OrganizationsRow): Compose
   },
 });
 
-// ORDER BY o.name ASC, r.id ASC - it sorted on the joined column, so the
-// ordering moves here where the name exists.
+// Sorts on the joined name column, moved here where the name now exists.
 const byName = (a: ComposedRefiner, b: ComposedRefiner) =>
   (a.organization.name ?? "").localeCompare(b.organization.name ?? "") ||
   a.id.localeCompare(b.id);

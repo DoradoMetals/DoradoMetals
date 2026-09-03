@@ -1,25 +1,7 @@
 // HTTP in, HTTP out. No database, no composition, no business rules.
-//
-// EVERY BODY IS PARSED AGAINST THE CONTRACT, IN STRICT MODE. Unknown keys and
-// wrong types are a 400 here, before the service ever runs - the service
-// checks RULES (does this id exist, is the caller allowed), never shapes.
-//
-// created_by/updated_by/user_name ride along as OPTIONAL on both schemas below
-// (a caller may still send them) and are IGNORED - accepted rather than
-// rejected so an older client is not 400ed, forwarded nowhere. Those columns
-// are written by the public.audit_stamp trigger from the session on the
-// connection (migration 116, shared/http/actor.ts); audit fields are not the
-// client's to set. CreateReviewBody and the patch schema both derive from
-// the one contract export, `.partial`/`.omit` rather than hand-written, so
-// this feature has no coverage gap the way leads' patch does.
-//
-// `hidden` IS RE-EXTENDED NON-NULLABLE. CreateReviewBody still derives from
-// the legacy exchange.reviews shape, where hidden was nullable; reviews.reviews
-// (the native table this repo now writes) declares it `boolean NOT NULL`, and
-// the old service coerced the gap away with `hidden ?? false` - exactly the
-// prop-spreading this batch removes. The default now lives in create.sql's
-// own `COALESCE($n, false)` (rule 4), so the wire only needs to refuse a
-// literal null rather than silently launder it.
+// Every body is parsed against the contract in strict mode: unknown keys and wrong types are a 400 before the service runs.
+// created_by/updated_by/user_name are accepted but ignored, not forwarded: those columns are written by public.audit_stamp, not the client.
+// hidden is re-extended non-nullable: CreateReviewBody derives from the legacy nullable shape, but reviews.reviews is NOT NULL and create.sql's own COALESCE supplies the default.
 import { z } from "zod/v4";
 import { CreateReviewBody } from "@dorado/contracts";
 import { parseStrict, uuidLike } from "#shared/http/validate.ts";
@@ -60,9 +42,7 @@ export const getAll = asyncHandler(async (_req, res) => {
   return res.status(200).json(await service.list());
 });
 
-// The only unguarded route in this feature. It answers a DIFFERENT statement
-// from list rather than the same one filtered, so an anonymous visitor cannot
-// reach a hidden review by any argument they can send.
+// The only unguarded route in this feature: a different statement from list, not the same one filtered, so no argument can reach a hidden review.
 export const getPublic = asyncHandler(async (_req, res) => {
   return res.status(200).json(await service.getPublic());
 });
@@ -72,8 +52,7 @@ export const create = asyncHandler(async (req, res) => {
   return res.status(200).json(await service.create(body.review));
 });
 
-// TAKES review_id AND A PATCH - the client sends the id it already holds plus
-// only the fields that changed, not the whole row it read earlier.
+// Takes review_id and a patch - only the changed fields, not the whole row.
 export const update = asyncHandler(async (req, res) => {
   const body = parseStrict(UpdateBody, req.body, "reviews/update body");
   const review = await service.update(body.review_id, body.patch ?? {});

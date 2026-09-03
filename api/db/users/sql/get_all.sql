@@ -1,8 +1,4 @@
--- Every user, with their credit balance.
---
--- dorado_funds is projected here and NOT by get_one, which is the shape the
--- previous implementation had. Preserved rather than harmonised: changing which
--- reads carry a balance changes what an admin screen shows.
+-- Every user, with their credit balance. dorado_funds is projected here and NOT by get_one, preserved deliberately - changing which reads carry a balance changes what an admin screen shows.
 SELECT u.id,
        u.email,
        u.name,

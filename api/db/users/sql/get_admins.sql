@@ -1,7 +1,4 @@
--- The admin users.
---
--- ORDER BY name DESC, id DESC, exactly as before. Descending looks like a
--- mistake and is not mine to change - it is what the admin list shows today.
+-- The admin users. ORDER BY name DESC, id DESC - descending looks like a mistake but is what the admin list shows today.
 SELECT u.id,
        u.email,
        u.name,

@@ -1,18 +1,12 @@
 // Reviews: orchestration and the wire shape.
 //
-// getPublic is the one an anonymous visitor sees and list is admin-only.
-// They are separate all the way down - separate service functions, separate
-// repo functions, separate statements - because they were one missing clause
-// apart once, on a route with no guard in front of it.
-//
-// update TAKES AN ID AND A PATCH, never a round-tripped row. The repo answers
-// whether a row changed; this refetches so the response still carries the
-// fresh state the caller expects.
+// getPublic (anonymous) and list (admin-only) are separate all the way down - separate service functions, repo functions, statements: security-critical, not a flag.
+// update takes an id and a patch, never a round-tripped row; it refetches after so the response still carries fresh state.
 import withTransaction from "#shared/db/withTransaction.ts";
 import * as reviews from "#db/reviews/repo.ts";
 import type { ReviewRow, NewReview, ReviewPatch } from "#db/reviews/repo.ts";
 
-// The wire IS the row - the identity adapter died with D212.
+// The wire IS the row - no identity adapter.
 export type ReviewWire = ReviewRow;
 
 interface HttpError extends Error { statusCode?: number }

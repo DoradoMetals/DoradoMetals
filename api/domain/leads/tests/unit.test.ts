@@ -1,11 +1,4 @@
-// The parts of leads that need no database.
-//
-// Small on purpose: in this structure almost nothing is unit-testable, because
-// almost nothing is logic. The repo is SQL, the controller is status codes, and
-// the service is orchestration. What IS here is the wire conversion and the
-// statements themselves - and the statements are worth checking as text,
-// because moving SQL into .sql files means a typo is no longer a syntax error
-// in TypeScript.
+// The parts of leads that need no database: the wire conversion and the statements as text - moving SQL into .sql files means a typo is no longer a TypeScript syntax error.
 import test from "node:test";
 import assert from "node:assert/strict";
 import path from "node:path";
@@ -13,28 +6,20 @@ import { sqlFrom } from "#shared/db/sql.ts";
 import { buildUpdate } from "#shared/db/patch.ts";
 import { PATCHABLE } from "#db/leads/repo.ts";
 
-// sql/update.sql IS GONE - the one UPDATE is built by shared/db/patch.ts from
-// the column list repo.ts exports. Every claim this file made about that
-// statement's text is made about the builder's output instead.
+// sql/update.sql is gone: the one UPDATE is built by shared/db/patch.ts from the column list repo.ts exports, so claims about it are made about the builder's output instead.
 const builtUpdate = (patch: Record<string, unknown> = { notes: "n" }) =>
   buildUpdate({ table: "leads.leads", allowed: PATCHABLE, patch, where: { id: "x" } })!;
 
-// features/leads/sql - the statements as text.
 const sql = sqlFrom(path.join(import.meta.dirname, "..", "..", "..", "db", "leads"));
 
-// COMMENTS STRIPPED BEFORE ANY ASSERTION ABOUT THE STATEMENT. The first version
-// of the projection test below failed on get_one.sql - not because the query
-// selects created_by_id, but because the COMMENT above it explains why it does
-// not. A check that reads a comment as code reports the opposite of the truth.
+// Comments stripped before any assertion: a check that reads a comment as code (e.g. matching created_by_id in a comment explaining its absence) reports the opposite of the truth.
 const body = (name: string): string =>
   sql(name)
     .split("\n")
     .filter((line) => !line.trim().startsWith("--"))
     .join("\n");
 
-// EVERY STATEMENT IS LOADED. A .sql file that does not exist, or that is empty,
-// throws only when the query runs - which for a rarely-used path could be in
-// production. This walks all of them at build time instead.
+// A missing or empty .sql file throws only when the query runs, which for a rarely-used path could be in production. This walks all of them at build time instead.
 test("every statement this feature uses loads and is not empty", () => {
   for (const name of ["get_one", "get_all", "create", "delete"]) {
     const text = sql(name);
@@ -43,10 +28,7 @@ test("every statement this feature uses loads and is not empty", () => {
   assert.ok(builtUpdate().text.trim().length > 0, "the built UPDATE is empty");
 });
 
-// NO STATEMENT WRITES AN AUDIT COLUMN. created_by and updated_by were two of
-// create.sql's parameters and one of update.sql's; public.audit_stamp writes
-// all six from the actor on the connection now (migration 116), and a second
-// writer would be a silent fight over the same column.
+// No statement writes an audit column: public.audit_stamp writes them all from the actor on the connection now, and a second writer would be a silent fight over the same column.
 test("no statement writes an audit column", () => {
   const insert = body("create").split("RETURNING")[0];
   const sets = builtUpdate(Object.fromEntries(PATCHABLE.map((c) => [c, null])))
@@ -57,9 +39,7 @@ test("no statement writes an audit column", () => {
   }
 });
 
-// The projection is the thing that keeps two schemas' shapes identical, so it
-// is asserted rather than trusted. created_by_id and updated_by_id exist only
-// on leads.leads and must never reach the wire while exchange is still serving.
+// created_by_id and updated_by_id exist only on leads.leads and must never reach the wire.
 test("no read projects the columns exchange has no equivalent for", () => {
   for (const name of ["get_one", "get_all", "create"]) {
     const text = body(name);
@@ -68,14 +48,12 @@ test("no read projects the columns exchange has no equivalent for", () => {
   }
 });
 
-// A read with a non-unique ORDER BY returns physical order, which changes as
-// rows are updated. get_all breaks the tie on id.
+// A read with a non-unique ORDER BY returns physical order, which changes as rows are updated. get_all breaks the tie on id.
 test("the list read is deterministically ordered", () => {
   assert.match(body("get_all"), /ORDER BY\s+created_at DESC,\s*id DESC/i);
 });
 
-// The repo owns ONE table. A join here would put a second table's shape into a
-// row type that claims to be leads.leads.
+// The repo owns one table; a join here would put a second table's shape into a row type that claims to be leads.leads.
 test("no statement in this feature joins another table", () => {
   for (const name of ["get_one", "get_all", "create", "delete"]) {
     assert.doesNotMatch(body(name), /\bJOIN\b/i, `${name} joins another table`);
@@ -83,8 +61,7 @@ test("no statement in this feature joins another table", () => {
   assert.doesNotMatch(builtUpdate().text, /\bJOIN\b/i, "the built UPDATE joins another table");
 });
 
-// Every statement targets leads.leads and nothing else - the legacy exchange
-// half died with D212.
+// Every statement targets leads.leads and nothing else.
 test("each statement targets the schema its file name claims", () => {
   for (const name of ["get_one", "get_all", "create", "delete"]) {
     assert.match(body(name), /leads\.leads/, `${name} does not target leads.leads`);

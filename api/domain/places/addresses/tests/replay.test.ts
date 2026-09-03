@@ -1,22 +1,5 @@
-// The addresses endpoints, over real HTTP, with the payloads the frontend
-// actually sends.
-//
-// Everything else in this suite tests a repo or a pure function. This tests the
-// thing a browser talks to: the route, its guard, the wire adapter mounted on
-// the router, the controller's destructuring and the service beneath it, all at
-// once. That whole stack is where the bugs of this migration have actually
-// lived - a controller passing a whole request body where an id was wanted, an
-// adapter nulling every field it was meant to lift.
-//
-// The payloads are lifted from frontend/features/addresses/queries.ts rather
-// than invented, because the point is to replay what the frontend does. Where
-// they diverge, the frontend is right and this file is wrong.
-//
-// NOTHING IS COMMITTED. shared/testing/pinned-pool.js holds every query in one
-// transaction that is rolled back, and shared/testing/session.js answers the
-// guard without a session row existing. Both are asserted, not assumed: the
-// last test in this file checks from outside the transaction that no address
-// survived it.
+// The addresses endpoints, over real HTTP, with payloads lifted from frontend/features/addresses/queries.ts - exercises route, guard, controller and service together, since that's where this migration's bugs actually lived.
+// NOTHING IS COMMITTED: pinned-pool.ts rolls back every query; the last test asserts that from outside the transaction.
 import test, { after, before } from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
@@ -25,35 +8,26 @@ import pool from "#db";
 import { mockSessions, restoreSessions, as, anonymous } from "#shared/testing/session.ts";
 import { inPinnedTransaction, assertNothingEscaped, outside } from "#shared/testing/pinned-pool.ts";
 
-// The patch replaces a property the middleware looks up per request, so the
-// order relative to importing #app does not matter - but doing it first keeps
-// the reason legible.
+// The patch replaces a property the middleware looks up per request, so order relative to importing #app doesn't matter - done first for legibility.
 await mockSessions();
 const { default: app } = await import("#app");
 
-// THE STRUCTURAL SUBSET EACH FIXTURE ACTUALLY HAS. SELECT projections, not
-// table rows.
+// The structural subset each fixture actually has - SELECT projections, not table rows.
 type UserFixture = { id: string; name: string | null; email: string | null };
 
-// The two wire shapes this file reads. The address split (D77) is exactly what
-// they record: a postal row on /addresses/get, the relationship on
-// /addresses/get_user_addresses.
+// The two wire shapes this file reads: a postal row on /addresses/get, the relationship on /addresses/get_user_addresses.
 type WireAddress = { id: string };
 type WireLink = { address_id: string; label: string | null; default_shipping: boolean };
 
 let customer: UserFixture;
 const created: string[] = [];
 
-// Addresses have their own lock group. This file writes exchange.addresses and
-// places.addresses and touches no order, so sharing a number with the orders
-// tests made it wait behind whole order placements for nothing - 656ms alone
-// became 12.7 seconds in the suite.
+// Addresses have their own lock group - sharing one with the orders tests made this wait behind whole order placements for nothing.
 import { LOCKS } from "#shared/testing/locks.ts";
 const ADDRESS_LOCK = LOCKS.ADDRESSES;
 
 before(async () => {
-  // Read outside the pin: this is a fixture that has to already exist, not
-  // something the test wrote.
+  // Read outside the pin: a fixture that has to already exist, not something the test wrote.
   const rows = await outside<UserFixture>(
     `SELECT u.id, u.email, u.name FROM exchange.users u
       JOIN exchange.addresses a ON a."user_id" = u.id
@@ -70,9 +44,7 @@ after(async () => {
   await pool.end();
 });
 
-// The exact body frontend/features/addresses/queries.ts sends on create -
-// SPLIT since the conversion (2026-08-27): the postal address and the
-// caller's relationship to it travel as siblings, one call, never nested.
+// The exact body frontend/features/addresses/queries.ts sends on create: the postal address and the caller's relationship travel as siblings, one call, never nested.
 const newAddress = (over = {}) => ({
   address: {
     line_1: "1 Replay Street",
@@ -110,8 +82,7 @@ test("a signed-in customer gets their addresses in the shape the hook destructur
       assert.ok(Array.isArray(res.body), "useAddress expects an array");
       assert.ok(res.body.length > 0, "the borrowed user has addresses and none came back");
 
-      // Addresses is CONVERTED (2026-08-27): /get serves the postal address
-      // ALONE - the caller's relationship travels on its own endpoint below.
+      // /get serves the postal address alone - the caller's relationship travels on its own endpoint below.
       const a = res.body[0];
       for (const field of ["id", "line_1", "city", "state", "zip", "country_code"]) {
         assert.ok(field in a, `the response is missing ${field}`);
@@ -157,8 +128,7 @@ test("creating an address round-trips in the split shape", async () => {
       assert.equal(saved.user_address.address_id, saved.address.id, "the halves do not join");
       assert.ok(saved.address.id, "no id came back, so the frontend cannot select it");
 
-      // And it is really there, inside the transaction - via the links list,
-      // which is where a label lives now.
+      // And it is really there, inside the transaction - via the links list, where a label lives now.
       const back = await request(app)
         .get("/api/addresses/get_user_addresses")
         .query({ user_id: customer.id });
@@ -193,11 +163,7 @@ test("setting a default clears the others, as one request", async () => {
   }, { lock: ADDRESS_LOCK });
 });
 
-// THE GAP IN THIS FILE'S OWN COVERAGE, added after a sweep found the hole it
-// missed. Every test above passed `user_id: customer.id` - the same id as the
-// session - so none of them could tell whether the endpoint used the session or
-// obeyed the request. It obeyed the request: a signed-in customer naming
-// somebody else could read their address book and write to it.
+// Every test above passed the same user_id as the session, so none could tell whether the endpoint used the session or obeyed the request. It obeyed the request: a customer naming somebody else could read their address book.
 test("a signed-in customer naming somebody else gets their own addresses", async () => {
   await inPinnedTransaction(async () => {
     const others = await outside(
@@ -221,8 +187,7 @@ test("a signed-in customer naming somebody else gets their own addresses", async
         res.body.every((a: WireAddress) => !("user_address" in a)),
         "sanity - the split holds on this path too"
       );
-      // Their own, not the victim's. Compared by count against the victim's,
-      // because an empty array would pass either way if the caller had none.
+      // Their own, not the victim's - compared by count, since an empty array would pass either way if the caller had none.
       const mine = await outside(
         `SELECT count(*)::int AS n FROM exchange.addresses WHERE "user_id" = $1`,
         [customer.id]
@@ -236,9 +201,7 @@ test("a signed-in customer naming somebody else gets their own addresses", async
   }, { lock: ADDRESS_LOCK });
 });
 
-// An admin naming a user is legitimate - the customer drawer does it - so the
-// rule is "your own unless you are an admin", and the admin half has to keep
-// working or this is secured by being broken.
+// An admin naming a user is legitimate (the customer drawer does it) - the rule is "your own unless you are an admin", and this half has to keep working too.
 test("an admin may still read another user's addresses", async () => {
   await inPinnedTransaction(async () => {
     const admins = await outside<UserFixture>(
@@ -258,9 +221,7 @@ test("an admin may still read another user's addresses", async () => {
   }, { lock: ADDRESS_LOCK });
 });
 
-// The property the whole harness exists for. If the pin ever stops working,
-// every test above still passes - they read their own writes either way - and
-// dev quietly fills up with addresses nobody made.
+// The property the whole harness exists for: if the pin ever stops working, every test above still passes - they read their own writes either way.
 test("nothing this file created survived the transaction", async () => {
   assert.ok(created.length > 0, "no address was created, so this proves nothing");
   for (const name of created) {

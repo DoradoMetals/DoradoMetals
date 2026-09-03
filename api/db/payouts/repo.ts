@@ -1,35 +1,12 @@
-// A payout is an ACCOUNT plus a FEE, and since D213 both are read natively:
-// the account from payments.details, the fee from orders.transactions. READ
-// ONLY, and only the last four digits.
-//
-// *** WHY THIS MOVED. *** These projections read exchange.payouts until
-// 2026-09-02. D210 sealed new accounts into payments.details and D212 stopped
-// exchange receiving payout writes, so every order created after the purge had
-// no exchange row and this feature answered nothing for it - the composed
-// order served an all-null payout and priced the fee as 0. Migration 114
-// carried the two last-four values across so the move loses no value.
-//
-// THE FULL NUMBERS ARE STILL RADIOACTIVE, and the table change does not soften
-// it. Production holds fourteen plaintext payouts (7 ACH, 7 WIRE) in
-// exchange.payouts and ten more in payments.details until
-// scripts/encrypt-payout-details.ts is run there. No projection in this file
-// selects them: the last-four columns are the only bank values here, and the
-// plaintext has exactly one door, getDetails below.
-//
-// There is no write path here on purpose. The account is written by
-// features/payments/details (sealed, D210) and the fee by
-// orders.transactions; a writer here would make it easy to grow one by
-// accident, which is how the numbers got copied around in the first place.
+// A payout is an ACCOUNT (payments.details) plus a FEE (orders.transactions). Read only by design - no write path here, to keep the one door onto full bank numbers narrow.
+// Full account/routing numbers are still radioactive (plaintext survives in exchange.payouts and payments.details): no projection here selects them except getDetails below.
 import query from "#shared/db/query.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
 import type { Executor } from "#shared/db/executor.ts";
 
 const sql = sqlFrom(import.meta.dirname);
 
-// account_last4 and routing_last4, NEVER account_number or routing_number. The
-// type says so as much as the statement does. `id` is the payments.details id -
-// equal to the old payout id on any database built by 073, which gave each
-// backfilled row the payout's own id.
+// account_last4 and routing_last4 only, never account_number or routing_number. `id` is the payments.details id, equal to the old payout id on any database built by migration 073.
 export type PayoutRow = {
   id: string;
   user_id: string | null;
@@ -60,9 +37,7 @@ export async function getMany(
   return rows;
 }
 
-// One payout by its OWN id - what PATCH /api/payouts/:id resolves before
-// dispatching its order-keyed writes. Same projection discipline as getFor:
-// last-4 only, the full numbers never leave Postgres on this path.
+// One payout by its own id - what PATCH /api/payouts/:id resolves before dispatching its order-keyed writes.
 export async function getById(
   id: string, executor?: Executor
 ): Promise<PayoutRow | undefined> {
@@ -70,11 +45,7 @@ export async function getById(
   return rows[0];
 }
 
-// THE FULL BANK DETAILS, for GET /payouts/:id/details ONLY - see
-// sql/get_details.sql for the rules. The VERBATIM exchange.payouts row
-// (ruling 12). Deliberately a separate type from PayoutRow so a projection
-// cannot pick these fields up by accident, and NEVER logged or embedded in
-// an order payload.
+// Full bank details, for GET /payouts/:id/details ONLY. Deliberately a separate type from PayoutRow so a projection can't pick these up by accident - never logged or embedded in an order payload.
 export type PayoutDetailsRow = {
   id: string;
   user_id: string | null;
@@ -97,8 +68,7 @@ export async function getDetails(
   return rows[0];
 }
 
-// The LEGACY plaintext, resolved by order instead of by id - see
-// sql/get_details_by_order.sql for when that distinction matters.
+// Legacy plaintext, resolved by order instead of by id - see get_details_by_order.sql for when that distinction matters.
 export async function getDetailsByOrder(
   order_id: string, executor?: Executor
 ): Promise<PayoutDetailsRow | undefined> {

@@ -1,6 +1,4 @@
--- A frozen copy of an address as it is NOW - what an order records so that
--- editing or deleting the book row later cannot rewrite where a parcel went.
--- The same shape 031_backfill_orders.sql produced for the historical orders.
+-- A frozen copy of an address as it is now, so editing or deleting the book row later can't rewrite where a parcel went.
 INSERT INTO places.addresses (
   line_1, line_2, city, state, country, zip,
   country_code, phone_number, created_at, updated_at, is_valid, is_residential

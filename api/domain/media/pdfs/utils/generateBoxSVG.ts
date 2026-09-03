@@ -1,11 +1,5 @@
-// The cardboard box drawn on a packing list, as an inline SVG.
-//
-// Dimensions are inches and must be numbers: every coordinate below is
-// `dimension * scale`, so a non-numeric one propagates NaN through the whole
-// document - width, height, viewBox and every polygon. features/pdf/service.ts
-// used to hand it the string "-" whenever a request arrived without
-// packageDetails, and got back 68 NaNs. Typing them is what found that; the
-// caller now decides not to draw a box rather than drawing a broken one.
+// The cardboard box drawn on a packing list, as an inline SVG. Dimensions are inches and must be numbers - every coordinate is `dimension * scale`, so a non-numeric one propagates NaN through the whole document (width, height, viewBox, every polygon).
+// The caller used to hand it the string "-" whenever packageDetails was missing, producing 68 NaNs; typing this function is what found that, and the caller now decides not to draw a box at all instead.
 export function generateBoxSVG(
   length: number,
   width: number,

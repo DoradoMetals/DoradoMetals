@@ -1,22 +1,5 @@
-// A credit adjustment that reaches nobody used to answer 200.
-//
-// The UPDATE is `WHERE id = $3`. A user_id matching no row updates nothing and
-// returns rowCount 0, and the controller answered 200 with it - so an admin
-// adding $500 to an account that does not exist was told it worked. Measured
-// before the fix: a random uuid came back rowCount 0, status 200.
-//
-// WHAT THIS FILE DOES NOT CLAIM. The frontend cannot reach it today: it sends
-// an id from a list it has just fetched. This is the gap between "the UI is
-// careful" and "the API is safe", which is the same gap the rest of this
-// night's authorization work has been about.
-//
-// CHECKED AND CLEAN while here, and worth writing down because it looked much
-// worse at first: the repo's UPDATE is a CASE with no ELSE, so an unrecognised
-// mode evaluates to NULL - which on a money column would be a wiped balance.
-// It is not. exchange.users.dorado_funds is NOT NULL DEFAULT 0, so Postgres
-// raises 23502 and nothing is written; and the service refuses an unknown mode
-// with a 400 long before the repo is reached. Two independent guards, one of
-// them the database's.
+// A credit adjustment that reaches nobody used to answer 200 - a user_id matching no row updated nothing but reported success.
+// Two independent guards catch an unrecognised mode: exchange.users.dorado_funds is NOT NULL (Postgres refuses the write), and the service refuses with a 400 before the repo is reached.
 
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -28,10 +11,7 @@ import * as usersService from "#domain/users/service.ts";
 import * as usersRepo from "#db/users/repo.ts";
 import query from "#shared/db/query.ts";
 
-// EVERY PINNED TRANSACTION IN THIS FILE TAKES THE BALANCE LOCK. A balance write
-// is two row locks - exchange.users, and auth.users through migration 107's
-// mirror trigger - so files that move balances agree an order rather than
-// deadlocking on whichever customer each visited first. See LOCKS.USERS.
+// Every pinned transaction here takes the balance lock: a balance write is two row locks (exchange.users, and auth.users via the mirror trigger), so files that move balances must agree an order.
 const inPinned = <T,>(fn: (c: PoolClient) => Promise<T> | T): Promise<T> =>
   inPinnedTransaction(fn, { lock: LOCKS.USERS });
 
@@ -55,8 +35,7 @@ test("a credit adjustment that matches no user is refused, not reported as done"
 test("a real user is still adjusted, and by the right amount", async () => {
   await inPinned(async (client: PoolClient) => {
     const { rows } = await query(
-      // exchange.users, because that is where the write lands; joined to
-      // auth.users because that is where it is read back from.
+      // exchange.users is where the write lands; joined to auth.users, where it's read back from.
       `SELECT e.id, e.dorado_funds FROM exchange.users e
          JOIN auth.users a ON a.id = e.id
         WHERE e.dorado_funds IS NOT NULL LIMIT 1`,
@@ -73,18 +52,8 @@ test("a real user is still adjusted, and by the right amount", async () => {
       [rows[0].id],
       client
     );
-    // Read the ROW, not the status - and read it from auth.users, which the
-    // write never touches. It arrives there through the mirror trigger, so this
-    // assertion covers the write AND the mirror in one. Derived from the
-    // balance it started at rather than a fixture, so it cannot pass against a
-    // stale expectation.
-    //
-    // THE DELTA, ROUNDED TO SIX PLACES - not the total rounded to two. Two
-    // places assumes the subject started on a whole cent, and dev balances do
-    // not: this asserted 8.08 against a real 8.0846720000001 the moment the
-    // subject stopped being cherry-picked. Six places is far finer than money
-    // and far coarser than float error, the same reasoning as `sameMoney` in
-    // replay.test.ts and `resultOf` in the service.
+    // Reads from auth.users, which the write never touches - it arrives there via the mirror trigger, so this covers the write AND the mirror in one.
+    // The delta rounded to six places, not the total to two: two places assumes a whole starting cent, and this once asserted 8.08 against a real 8.0846720000001.
     assert.equal(
       Number((Number(after[0].dorado_funds) - before).toFixed(6)),
       7.5,
@@ -103,12 +72,9 @@ test("the database refuses a NULL balance, which is what makes an unknown mode s
     );
     assert.ok(rows.length);
 
-    // The repo's CASE has no ELSE, so this evaluates to NULL. On a money
-    // column that would be a wiped balance if the column allowed it.
+    // The repo's CASE has no ELSE, so this evaluates to NULL - a wiped balance if the column allowed it.
     await assert.rejects(
-      // DELIBERATELY OUTSIDE CreditMode. service.ts casts the request body's
-      // `operation` with `as users.CreditMode`, so an unrecognised mode really
-      // reaches the repo - this pins the refusal.
+      // Deliberately outside CreditMode - service.ts casts the body's `operation`, so an unrecognised mode really reaches the repo.
       // @ts-expect-error - an unrecognised mode is the point of this test
       () => usersRepo.adjustCredit(rows[0].id, "not-a-mode", 5, client),
       (err: unknown) => {

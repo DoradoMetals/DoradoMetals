@@ -1,7 +1,4 @@
-// media.pdfs, append-only, against real Postgres.
-//
-// No update()/remove() to pin (see repo.ts's header) - this proves create()
-// writes the row it is given and latestOfKind() reads the newest one back.
+// media.pdfs, append-only, against real Postgres - proves create() writes the row given and latestOfKind() reads the newest one back.
 import test, { after, before } from "node:test";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";

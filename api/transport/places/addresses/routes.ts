@@ -12,13 +12,7 @@ import {
 import { requireUser } from "#shared/middleware/authMiddleware.ts";
 const router = express.Router();
 
-// NO WIRE ADAPTER. Addresses converted 2026-08-27 - the LAST lift: the
-// frontend reads and writes the nested user_address from @dorado/contracts,
-// so the flatten is gone, and with it the last consumer of
-// shared/wire/lift.ts. What stays flat is the ORDERS wire's embedded
-// address and the purchase-order create/cancel bodies, which the frontend
-// down-converts at its edge (features/orders/orderAddresses.ts) until
-// orders converts.
+// No wire adapter - the frontend reads and writes the nested user_address shape directly from @dorado/contracts.
 
 router.get("/get", requireUser, getAll);
 router.get("/get_user_addresses", requireUser, getUserAddresses);

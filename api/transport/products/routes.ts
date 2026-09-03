@@ -23,13 +23,7 @@ import { requireAdmin } from "#shared/middleware/authMiddleware.ts";
 
 const router = express.Router();
 
-// NO WIRE ADAPTER. Products is the third CONVERTED feature (2026-08-27): the
-// frontend types derive from @dorado/contracts and read products.bullion's
-// own names - `name` / `description` / `type` - and the admin writes send
-// them natively, so there is nothing left to rename in either direction.
-// The exchange REPOS still translate at the SQL edge (product_name AS name,
-// and the dual-write UPDATEs in sql/legacy/) because exchange's columns keep
-// their names forever - that is schema, not wire.
+// No wire adapter: the frontend types derive from @dorado/contracts and read products.bullion's own names (name/description/type) directly; exchange's own columns keep their legacy names forever, which is schema, not wire.
 
 router.get("/get_all_products", getAllProducts);
 router.get("/get_sell_products", getSellProducts);

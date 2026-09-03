@@ -1,5 +1,4 @@
-// Products: one row in each schema, written together, composed from three
-// reference tables on the way out.
+// Products: one row in each schema, written together, composed from three reference tables on the way out.
 import { randomUUID } from "node:crypto";
 import withTransaction from "#shared/db/withTransaction.ts";
 import * as products from "#db/products/repo.ts";
@@ -18,22 +17,8 @@ function badRequest(message: string): HttpError {
   return err;
 }
 
-// WHAT exchange.products DEFAULTS AND products.bullion DOES NOT.
-//
-// The create path sends a name and who made it, and exchange fills the other
-// twenty-six columns from its own defaults. products.bullion declares seven of
-// them NOT NULL with no default, so those seven have to be stated - and stated
-// as exchange's values, or a product created after promotion would differ from
-// one created before it.
-//
-// Read off the column defaults of exchange.products, not invented:
-//   metal_id    Silver     mint_id  Generic     supplier_id  Elemetal
-//   image_front / image_back  the placeholder silver artwork
-//   stock / quantity          0
-//
-// They are literals here rather than a lookup because that is what a DEFAULT
-// is - a constant on the column. Resolving them by name at runtime would make
-// creating a product depend on a metal still being called "Silver".
+// What exchange.products defaults and products.bullion does not: products.bullion declares seven columns NOT NULL with no default, so a create must state them, and stated as exchange's own defaults so a product doesn't differ across promotion.
+// Literals, not a runtime lookup: resolving by name (e.g. "Silver") would make product creation depend on that metal still existing under that name.
 const EXCHANGE_CREATE_DEFAULTS = {
   metal_id: "4e194eef-836f-4e9b-97f3-dda36a232dfb",
   mint_id: "61e1af1e-6cb3-44c7-bf45-683a58317ddf",
@@ -105,12 +90,7 @@ export async function getProductFromSlug(slug: string): Promise<StorefrontProduc
   return compose.storefront(rows, l);
 }
 
-// THE METAL FILTER ARRIVES AS A NAME AND THE COLUMN IS AN ID.
-//
-// Resolved here, once, instead of by a join on every storefront query. A name
-// that matches no metal yields no id, and the filter then matches nothing -
-// which is exactly what the inner join did with an unknown name, so an unknown
-// metal still returns an empty list rather than the whole shop.
+// The metal filter arrives as a NAME; the column is an id — resolved here once rather than by a join per query. An unknown name yields no id and the filter matches nothing, same as the inner join it replaces.
 export async function getFilteredProducts(
   filters: ProductFilters
 ): Promise<StorefrontProduct[]> {
@@ -147,13 +127,7 @@ export async function getAllTypes(): Promise<{ name: string }[]> {
   return await products.getTypes();
 }
 
-// The id of the product with this exact name, or null.
-//
-// Lives here rather than in features/checkout because the id it returns is a
-// products.bullion id and this feature owns that table. The quote surface read
-// it through `features/checkout/repo.next.ts` until 2026-08-29, which was a
-// direct import around a `*_SOURCE` switch (D142); moving the read to its owner
-// is what closes that, since there is now only one implementation to reach.
+// The id of the product with this exact name, or null — lives here (not checkout) because the id is a products.bullion id and this feature owns that table.
 export async function findProductIdByName(
   name: string, executor?: Executor
 ): Promise<string | null> {
@@ -164,11 +138,7 @@ export async function getLiveness(ids: string[], executor?: Executor): Promise<L
   return await products.getLiveness(ids, executor);
 }
 
-// THE PRICE OF A PRODUCT COMES FROM THE SERVER, NOT THE CART.
-//
-// The client sends ids and quantities; everything else - premium, content,
-// purity - is read back from the database. Only the quantity survives from the
-// request; every other field is named explicitly rather than copied wholesale.
+// The price of a product comes from the server, not the cart: client sends ids/quantities, everything else (premium, content, purity) is read back. Only quantity survives from the request; every other field is named explicitly.
 export async function getItemsFromServer(
   items: { id: string; quantity: number }[]
 ): Promise<(StorefrontProduct & { quantity: number })[]> {
@@ -205,10 +175,7 @@ export async function getItemsFromServer(
 
 // ------------------------------------------------------------------ writes
 
-// The admin form sends `metal`, `supplier` and `mint` as NAMES. The statement
-// this replaces resolved each with a scalar subquery inside the UPDATE, so a
-// name matching nothing became NULL and the write failed on a NOT NULL column
-// without saying which of the three was wrong. Resolved here, and named.
+// The admin form sends `metal`/`supplier`/`mint` as NAMES, resolved here (not a scalar subquery in the UPDATE) so an unmatched name fails clearly instead of silently becoming NULL on write.
 const resolve = (
   by: Map<string, string>, wanted: string | undefined, what: string
 ): string => {
@@ -219,10 +186,7 @@ const resolve = (
 
 const flag = (v: unknown): boolean => v === true || v === "true";
 
-// `user` USED TO BE THE SECOND FIELD OF THIS INPUT, read only to take a name
-// off it for updated_by. The database takes the author off the connection now
-// (public.audit_stamp, migration 116), so the edit says what changed and
-// nothing about who.
+// The database takes the author off the connection (public.audit_stamp, migration 116); this input says only what changed, nothing about who.
 export async function saveProduct(
   { product }: { product: ProductInput },
   executor?: Executor
@@ -231,11 +195,7 @@ export async function saveProduct(
   if (!id) throw badRequest("a product update needs an id");
 
   const l = await compose.labels();
-  // The three genuine transformations - names to ids the table can store, and
-  // the admin form's stringy booleans coerced to real ones. Everything else on
-  // ProductPatch is the request body's own field, passed through as received
-  // rather than re-copied with a default: an absent field binds as NULL
-  // through the driver, which is what `?? null` was doing by hand.
+  // Three genuine transformations: names resolved to ids, stringy booleans coerced to real ones. Everything else is the request body's own field, passed through as-is — an absent field binds NULL through the driver.
   const patch: ProductPatch = {
     metal_id: resolve(l.metalNames, product.metal, "metal"),
     supplier_id: resolve(l.refinerNames, product.supplier, "supplier"),
@@ -272,11 +232,8 @@ export async function saveProduct(
   return executor ? await run(executor) : await withTransaction(run);
 }
 
-// Insert then read back the composed admin shape, in one transaction - a
-// failure on the read cannot leave a half-created product behind.
-// `created_by` used to be a field of this input, sent by the CLIENT. It is
-// gone: the trigger writes the author from the session (migration 116), so a
-// caller can no longer claim to be somebody else.
+// Insert then read back the composed admin shape in one transaction — a failure on the read cannot leave a half-created product behind.
+// created_by is not a field of this input: the trigger writes the author from the session (migration 116), so a caller can't claim to be somebody else.
 export async function createProduct(
   { name }: { name: string },
   executor?: Executor

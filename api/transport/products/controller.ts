@@ -24,9 +24,7 @@ export const getHomepageProducts = asyncHandler(async (req, res) => {
 });
 
 export const getFilteredProducts = asyncHandler(async (req, res) => {
-  // Optional filters, narrowed one at a time: Express delivers arrays and
-  // objects for these too, and a filter nobody sent must read as absent
-  // rather than as an object the repo would compare against.
+  // Optional filters, narrowed one at a time: Express delivers arrays and objects for these too, and a filter nobody sent must read as absent rather than as an object the repo would compare against.
   const metal_type = oneString(req.query.metal_type);
   const filter_category = oneString(req.query.filter_category);
   const product_type = oneString(req.query.product_type);
@@ -46,10 +44,7 @@ export const getAllTypes = asyncHandler(async (req, res) => {
   res.status(200).json(await productService.getAllTypes());
 });
 
-// `user` AND `created_by` MAY STILL ARRIVE IN THE BODY AND ARE IGNORED. Who
-// made the edit is the session's, read off the connection by the audit_stamp
-// trigger (migration 116); a body field naming an author was a caller claiming
-// to be somebody. Neither is forwarded.
+// `user`/`created_by` may still arrive in the body and are ignored: who made the edit is the session's, read off the connection by the audit_stamp trigger (migration 116) — a body field naming an author was a caller claiming to be somebody else.
 export const saveProduct = asyncHandler(async (req, res) => {
   await productService.saveProduct({ product: req.body.product });
   res.status(200).json("Product updated.");

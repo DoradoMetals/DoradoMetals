@@ -1,9 +1,5 @@
 // The reviews repo itself, against real Postgres.
-//
-// The one thing worth proving directly rather than through HTTP: `update`
-// answers a BOOLEAN (D209/D212's CRUD ruling) - false for an id nobody has,
-// true for one that changed. Everything else is exercised end to end in
-// endpoints.test.ts and replay.test.ts.
+// The one thing worth proving directly rather than through HTTP: `update` answers a boolean - false for an id nobody has, true for one that changed.
 import test from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";

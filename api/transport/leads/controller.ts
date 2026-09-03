@@ -1,19 +1,6 @@
 // HTTP in, HTTP out. No database, no composition, no business rules.
-//
-// The controller's whole job is turning a request into service arguments and a
-// service result into a status code. Everything it does here it does because
-// HTTP requires it - reading a query parameter, choosing 404 over 200.
-//
-// EVERY BODY IS PARSED AGAINST THE CONTRACT, IN STRICT MODE. Unknown keys and
-// wrong types are a 400 here, before the service ever runs - the service
-// checks RULES (does this id exist, is the caller allowed), never shapes.
-//
-// patch IS NOT DEEPLY VALIDATED. leads has ten patchable columns
-// (name/phone/email/last_contacted/converted/contacted/responded/contact/
-// notes/priority) and @dorado/contracts has no LeadPatch schema - only
-// CreateLeadBody, which names five of the ten and would silently reject a
-// legitimate patch to the other five. Reported rather than papered over with
-// a hand-written schema: this is the one gap in this feature's strict pass.
+// Every body is parsed against the contract in strict mode: unknown keys and wrong types are a 400 before the service runs.
+// patch is NOT deeply validated: @dorado/contracts has no LeadPatch schema, only CreateLeadBody (names five of leads' ten patchable columns) - a known gap, not papered over.
 import { z } from "zod/v4";
 import { CreateLeadBody } from "@dorado/contracts";
 import { parseStrict, uuidLike } from "#shared/http/validate.ts";
@@ -23,12 +10,7 @@ import type { LeadPatch } from "#db/leads/repo.ts";
 
 const leadId = uuidLike;
 
-// created_by/updated_by/user_name ride along as optional (a caller MAY still
-// send them) and are IGNORED. They are accepted rather than rejected so an
-// older client is not 400ed by a strict schema; nothing forwards them. The
-// author is the session's, put on the connection by shared/http/actor.ts and
-// written by the public.audit_stamp trigger (migration 116) - audit fields are
-// not the client's to set.
+// created_by/updated_by/user_name are accepted but ignored, not forwarded: audit fields are written by public.audit_stamp, not the client.
 const CreateBody = z.object({
   lead: CreateLeadBody.strict(),
   user_name: z.string().optional(),
@@ -57,20 +39,16 @@ export const create = asyncHandler(async (req, res) => {
   return res.status(200).json(await service.create(body.lead));
 });
 
-// TAKES lead_id AND A PATCH - the client sends the id it already holds plus
-// only the fields that changed, not the whole row it read earlier.
+// Takes lead_id and a patch - only the changed fields, not the whole row.
 export const update = asyncHandler(async (req, res) => {
   const body = parseStrict(UpdateBody, req.body, "leads/update body");
-  // patch is not schema-checked (see header) - passed through as the caller
-  // sent it, same as before this endpoint parsed anything strictly.
+  // patch is not schema-checked (see header) - passed through as the caller sent it.
   const patch = (body.patch ?? {}) as LeadPatch;
   const lead = await service.update(body.lead_id, patch);
   return res.status(200).json(lead);
 });
 
-// 404 rather than 200 when the id matched nothing. The old implementation
-// returned the pg QueryResult, so a delete of a non-existent id answered 200
-// with a result object the frontend ignored.
+// 404 rather than 200 when the id matched nothing.
 export const remove = asyncHandler(async (req, res) => {
   const body = parseStrict(DeleteBody, req.body, "leads/delete body");
   const removed = await service.remove(body.lead_id);

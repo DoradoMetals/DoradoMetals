@@ -1,21 +1,11 @@
 /**
  * Rate resolution for quantity-tiered pricing (server-side source of truth).
- *
- * Mirror of the frontend helper at
- * `frontend/features/rates/utils/resolveRate.ts`.
- * Keep the two in sync.
+ * Mirror of the frontend helper at `frontend/features/rates/utils/resolveRate.ts` - keep the two in sync.
  *
  * Rates are banded per metal by [min_qty, max_qty] (max_qty null = open-ended)
  * and priced on the TOTAL quantity of a metal across the whole order.
  * `scrap_pct` / `bullion_pct` are fractions (0–1) that plug into
  * `bid_spot * premium`.
- *
- * TYPESCRIPT. The band type is Rate from the contracts package rather than
- * a hand-written interface, because that is what the endpoint actually returns
- * and CLAUDE.md says types come from the generated contracts. A local interface
- * would be a second description of the same rows, free to drift.
- *
- * Node strips types at run time; checking is `tsc --noEmit`, in pnpm check.
  */
 import type { Rate } from "@dorado/contracts";
 

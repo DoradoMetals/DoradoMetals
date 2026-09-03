@@ -1,39 +1,5 @@
-// A product save cannot quietly lose a product, and the reason is the schema.
-//
-// updateProduct resolves three foreign keys by NAME inside the statement that
-// writes everything else:
-//
-//   metal_id    = (SELECT id FROM exchange.metals    WHERE type = $1)
-//   supplier_id = (SELECT id FROM exchange.suppliers WHERE name = $2)
-//   mint_id     = (SELECT id FROM exchange.mints     WHERE name = $12)
-//
-// A subquery that matches nothing yields NULL, and every other column is
-// written from the request body too - so the obvious worry is that a save
-// carrying a typo'd metal name, or a partial body, silently disconnects a
-// product from the metal that prices it, or blanks half its columns.
-//
-// THAT WAS MY HYPOTHESIS AND IT IS WRONG. exchange.products declares metal_id,
-// supplier_id, mint_id, content, gross, purity, ask_premium, bid_premium and
-// fifteen more as NOT NULL. The subquery's NULL violates the constraint, the
-// whole UPDATE rolls back, and the product is untouched. The database is doing
-// exactly the job the constraints exist for.
-//
-// It also explains a production reading rather than leaving it to luck: 95
-// products, zero with a null metal_id, supplier_id, mint_id, content or
-// ask_premium. That is the constraints holding, not a near miss.
-//
-// SO WHY KEEP A TEST. Because the protection lives in the schema rather than in
-// the code, and this migration rewrites schemas. A future `orders`-style rebuild
-// that relaxes one of those columns to nullable would turn a refusal into a
-// silent disconnection, and nothing else would notice. This pins it.
-//
-// The one real blemish is the status code: it answers 500 where 400 would be
-// right, the same shape as the fulfillment refusals in 9a82a7ed. Nothing is
-// lost, so it is recorded rather than changed.
-//
-// Safe to drive: save_product is pure database work - no MinIO, no carrier -
-// and inPinnedTransaction rolls it back. It was on the "needs a seam" list and
-// did not need one, which is the third time that list has been wrong.
+// A product save cannot quietly lose a product: NOT NULL constraints on exchange.products (metal_id, supplier_id, mint_id, content, gross, purity, and more) make an unmatched-name subquery's NULL abort the whole UPDATE. This pins that refusal against a future migration relaxing one of those columns to nullable.
+// Answers 500 where 400 would be right (same shape as 9a82a7ed's fulfillment refusals) — recorded, not changed.
 import test, { after, before } from "node:test";
 import assert from "node:assert/strict";
 import type { ProductsRow } from "@dorado/contracts";
@@ -46,13 +12,9 @@ import { inPinnedTransaction, outside } from "#shared/testing/pinned-pool.ts";
 await mockSessions();
 const { default: app } = await import("#app");
 
-// THE STRUCTURAL SUBSET EACH FIXTURE ACTUALLY HAS. SELECT projections, not
-// table rows.
+// SELECT projections, not table rows.
 type UserFixture = { id: string; name: string | null; email: string | null };
-// `SELECT p.*` plus three joined display names. The row half comes from the
-// generated contract rather than being restated - `fullBody` below maps
-// twenty-five of its columns, and hand-listing them here would be a second
-// copy of the table that drifts.
+// `SELECT p.*` plus three joined display names — the row half comes from the generated contract rather than being restated, since `fullBody` below already maps its columns.
 type ProductFixture = ProductsRow & {
   metal: string;
   supplier: string | null;
@@ -68,11 +30,7 @@ before(async () => {
   )[0];
   assert.ok(admin, "dev has no admin user");
 
-  // Derived from the row it is tested against, metal name included, so the
-  // "honest save" half cannot pass by naming a metal that happens to exist.
-  // The whole row plus the three names, so the honest-save half sends what the
-  // admin screen sends rather than a fragment - a partial body is refused by
-  // the NOT NULL columns, which is the very thing being asserted above.
+  // Derived from the row under test, metal name included, so the "honest save" half can't pass by naming a metal that happens to exist. The whole row plus three names, so it sends what the admin screen sends rather than a fragment.
   product = (
     await outside<ProductFixture>(
       `SELECT p.*, m.type AS metal, s.name AS supplier, mi.name AS mint
@@ -140,17 +98,7 @@ const save = (metalName: string) =>
     });
 
 test("a metal name that does not exist is refused, and nothing is written", async () => {
-  // READ THROUGH A SEPARATE CONNECTION, NOT THE PINNED ONE.
-  //
-  // The constraint violation aborts the transaction it happens in - Postgres
-  // 25P02, "current transaction is aborted, commands ignored until end of
-  // transaction block" - so a read-back on the pinned client after the failed
-  // save cannot run at all. The first version of this test did exactly that and
-  // failed for that reason rather than for anything about the product.
-  //
-  // outside() is a connection the pin never touches, so it answers with
-  // committed data. That is the right question anyway: did the failed save
-  // leave anything behind.
+  // Read through a separate connection, not the pinned one: the constraint violation aborts that transaction (Postgres 25P02), so a read-back on the pinned client after the failed save cannot run at all — outside() sees committed data instead.
   const [before] = await outside(
     `SELECT metal_id FROM exchange.products WHERE id = $1`,
     [product.id]
@@ -161,9 +109,7 @@ test("a metal name that does not exist is refused, and nothing is written", asyn
       // A full body, so the metal name is the only thing wrong with it.
       const res = await saveFull("Unobtainium");
 
-      // 500 today. The assertion is deliberately "not a success" rather than an
-      // exact code, because 400 would be the better answer and improving it
-      // should not fail this test - what matters is that it did not succeed.
+      // 500 today — asserted as "not a success" rather than an exact code, so improving it to 400 later won't fail this test.
       assert.ok(res.status >= 400, `an unmatched metal name was answered ${res.status}`);
     });
   });
@@ -176,9 +122,7 @@ test("a metal name that does not exist is refused, and nothing is written", asyn
   assert.ok(after.metal_id, "the product lost its metal");
 });
 
-// The other half. Without it this suite would pass against a save_product that
-// refuses EVERYTHING, which is secure, broken, and would stop admins editing
-// the catalogue at all.
+// The other half — without it, this suite would pass against a save_product that refuses EVERYTHING: secure, broken, and unusable for admins.
 test("a save naming the product's own metal succeeds and keeps the link", async () => {
   await inPinnedTransaction(async (client: PoolClient) => {
     await as({ ...admin, role: "admin" }, async () => {

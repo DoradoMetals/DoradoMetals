@@ -1,19 +1,6 @@
-// Persisting a generated document: bytes to object storage, one immutable row
-// to media.pdfs.
-//
-// THE PAPER TRAIL MUST NEVER BREAK THE THING IT RECORDS. Every caller is on a
-// path that ends in an email or a download; a storage hiccup or a refused
-// insert loses one record, not one order. So this catches everything, says so
-// on stderr, and returns null - the caller carries on with pdf_id null.
-//
-// Regeneration INSERTS, never updates - the row is what a customer or refiner
-// was actually sent, and that does not change after the fact (migration 090's
-// design, decided with Jacob 2026-08-28). The read is "latest of a kind for
-// an order", served by pdfs_order_kind_idx.
-//
-// order_id references orders.orders. An order that predates dual has no row
-// there, and losing the whole record over the link would be backwards - the
-// insert retries once with order_id null, keeping the document and its path.
+// Persisting a generated document: bytes to object storage, one immutable row to media.pdfs. The paper trail must never break the thing it records - a storage hiccup or refused insert loses one record, not one order, so this catches everything, logs to stderr, and returns null (caller carries on with pdf_id null).
+// Regeneration INSERTS, never updates - the row is what was actually sent and doesn't change after the fact. Read is "latest of a kind for an order", served by pdfs_order_kind_idx.
+// order_id references orders.orders - an order with no row there would lose the whole record over the link, so the insert retries once with order_id null, keeping the document and its path.
 import { reportError } from "#shared/observability/report.ts";
 import { createHash, randomUUID } from "node:crypto";
 import minio from "#providers/s3/minio.ts";
@@ -31,9 +18,7 @@ export type PdfKind =
   | "invoice"
   | "sales_order_invoice";
 
-/** The latest stored document of a kind for an order, or null if the order
- *  predates the paper trail (or predates dual - media.pdfs.order_id references
- *  orders.orders, so a pre-dual order can never have a row). */
+/** The latest stored document of a kind for an order, or null if the order predates the paper trail (media.pdfs.order_id references orders.orders, so an order with no row there can never have one). */
 export async function latestPdf(
   { kind, order_id }: { kind: PdfKind; order_id: string },
   executor?: Executor
@@ -45,11 +30,7 @@ export async function persistPdf(
   { kind, order_id, bytes }: { kind: PdfKind; order_id?: string | null; bytes: Uint8Array },
   executor?: Executor
 ): Promise<string | null> {
-  // The same stance the mail transport takes about mail: A TEST RUN MUST NOT
-  // WRITE REAL STORAGE OR COMMIT REAL ROWS. A test that wants the trail
-  // passes its transaction and gets the row (rolled back with the rest);
-  // the object put is skipped outright, and a test that passes nothing gets
-  // nothing rather than a leak into dev on every suite run.
+  // Same stance as the mail transport: a test run must not write real storage or commit real rows - a test wanting the trail passes its transaction (rolled back with the rest); the object put is skipped outright, and passing nothing means nothing happens, not a leak into dev.
   if (isTestRun() && !executor) return null;
   try {
     const id = randomUUID();
@@ -61,8 +42,7 @@ export async function persistPdf(
       await minio.putObject(process.env.MINIO_BUCKET as string, path, buffer);
     }
 
-    // Same pre-check as recordEmail: a refused FK inside a caller's
-    // transaction would poison it, so the link is verified, never discovered.
+    // Same pre-check as recordEmail: a refused FK inside a caller's transaction would poison it, so the link is verified, never discovered.
     const linkable = await linkableOrderId(order_id, executor);
     const written = await pdfs.create({
       id, kind, order_id: linkable, path, size_bytes: buffer.length, checksum,

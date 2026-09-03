@@ -7,51 +7,17 @@ import {
   getPayoutDelay,
 } from "#domain/media/pdfs/render/format.ts";
 
-// The HTML sections a rendered document is assembled from.
-//
-// WHY THESE TYPES ARE LOCAL RATHER THAN FROM @dorado/contracts.
-//
-// The contracts package has PurchaseOrdersRow, ScrapRow, MetalsRow and the
-// rest, and they are the right types for a repo. They are the wrong types
-// HERE, for two reasons worth stating so nobody "fixes" this later:
-//
-//   The shape that arrives is COMPOSED, not a row. A purchase order reaches
-//   this file with order_items attached, each item carrying either a nested
-//   `scrap` or a nested `product`, plus a shipment and an address. No generated
-//   row describes that tree.
-//
-//   The spots arrive in the CONVERTED wire shape - `name` / `ask` / `bid` -
-//   which is what /spots/spot_prices serves and what the order-metals
-//   endpoints serve since the orders conversion (D84). The PDF and email
-//   paths take them from a request body in that shape.
-//
-// So these interfaces name exactly the fields the templates read, and nothing
-// else. They are deliberately narrow: every property here is one this file
-// actually touches, so the type doubles as a list of what a caller must supply.
-// Optional and unknown wherever the template already guards - a template that
-// prints "-" for a missing value is telling you the field is optional, and a
-// type that said otherwise would be a lie that happens to compile.
+// The HTML sections a rendered document is assembled from. Types here are LOCAL, not from @dorado/contracts, on purpose: the shape that arrives is COMPOSED (order_items nested with scrap/product, shipment, address), not a row, and spots arrive in the CONVERTED wire shape (name/ask/bid) - no generated row describes either.
+// These interfaces name exactly the fields the templates read - deliberately narrow, so the type doubles as a list of what a caller must supply. Optional/unknown wherever the template already guards a missing value.
 
-// The spot part is local like the order shapes: bodies hand this file live
-// spot rows and frozen order-spot rows, which share exactly these three
-// fields, and calculations.ts reads the same three.
+// Local like the order shapes: live spot rows and frozen order-spot rows share exactly these three fields (calculations.ts reads the same three).
 export interface SpotPart {
   name?: string | null;
   ask?: number | null;
   bid?: number | null;
 }
-/** The scrap half of a line, when item_type is "scrap".
- *
- * `content` WAS DECLARED `number`, REQUIRED, and it was the only field here
- * that claimed to be present. It is not: every source of it admits null
- * (ComposedScrap.content, orders.items.content, exchange.scrap.content), and
- * the line builder below reaches this interface through
- * `item.scrap ?? ({} as ScrapPart)` - a cast over an empty object, which is
- * how a missing `content` typed as `number` got past the compiler. Both
- * templates already guard `scrap.content != null` before calling `.toFixed`,
- * and getItemPrice takes `number | null | undefined`, so the guards were
- * right and the type was wrong. Declaring it as it is stops the next reader
- * deleting a guard the compiler was calling redundant. */
+/** The scrap half of a line, when item_type is "scrap". `content` is nullable, not `number` required - every source of it admits null, and the templates already guard `scrap.content != null` before use.
+ * Declared this way so a future reader doesn't delete that guard as "redundant". */
 interface ScrapPart {
   name?: unknown;
   metal?: unknown;
@@ -73,9 +39,7 @@ interface ProductPart {
   ask_premium?: number | null;
 }
 
-/** One line on an order, which is either scrap or bullion, never both.
- * `product` is nullable on the Next wire; the repos still emit an object of
- * nulls, and every template read already chains. */
+/** One line on an order, either scrap or bullion, never both. `product` is nullable; repos may emit an object of nulls, and every template read already chains. */
 export interface OrderItem {
   item_type?: string;
   quantity?: number | null;
@@ -85,8 +49,7 @@ export interface OrderItem {
   product?: ProductPart | null;
 }
 
-/** The address snapshot fields printed on a label block (D84):
- * recipient_name is who receives the shipment. */
+/** The address snapshot fields printed on a label block: recipient_name is who receives the shipment. */
 interface AddressPart {
   recipient_name?: string | null;
   line_1?: string | null;
@@ -110,20 +73,16 @@ interface ShipmentPart {
 /** A purchase order as this file receives it - composed, not a row. */
 export interface RenderableOrder {
   /**
-   * NOT NULL in both schemas, but the Next contract admits null for the six
-   * stray new-schema-only orders, so the templates guard the padStart rather
-   * than crash a document for the type's sake. Formatted with padStart, so a
-   * string or a number.
+   * NOT NULL in both schemas, but the contract admits null for six stray new-schema-only orders -
+   * the templates guard the padStart rather than crash a document for the type's sake.
    */
   number?: string | number | null;
   /**
-   * Nullable in the schema and zero orders have a null one today, so this is
-   * typed as it is stored rather than as it happens to be. The template guards
-   * it - `new Date(undefined)` renders "Invalid Date" on an invoice, which is
-   * the kind of thing that reaches a customer looking deliberate.
+   * Nullable in the schema (though zero orders are null today) - typed as stored, not as it happens to be.
+   * The template guards it: `new Date(undefined)` renders "Invalid Date", which would reach a customer looking deliberate.
    */
   created_at?: string | number | Date | null;
-  /** One field for both directions since D84 - direction is the endpoint's. */
+  /** One field for both directions - direction is the endpoint's. */
   status?: string | null;
   spots_locked?: boolean | null;
   address?: AddressPart | null;
@@ -133,8 +92,7 @@ export interface RenderableOrder {
   carrier_pickup?: { pickup_requested_at?: string | number | Date | null } | null;
   user?: Record<string, unknown> | null;
   order_items?: OrderItem[];
-  /** The money, nested under orders.transactions' names (D84). The sales
-   * order invoice prints items/shipping/surcharge/funds/total off it. */
+  /** The money, nested under orders.transactions' names. The sales order invoice prints items/shipping/surcharge/funds/total off it. */
   totals?: {
     total?: number | null;
     items?: number | null;
@@ -169,8 +127,6 @@ export function renderInvoiceHeader(
   const status = purchaseOrder.status ?? "";
   const userName = purchaseOrder.user?.user_name ?? "";
 
-  // 'Accepted' left the status lifecycle (migration 092); the offer wording
-  // died with the offers themselves.
   const doneStatus = ["Payment Processing", "Completed"];
   const isDone = doneStatus.includes(status);
   const totalLabel = isDone ? "Total Payout" : "Total Estimate";
@@ -323,15 +279,8 @@ export function renderInvoiceShippingAndPayout(
   `;
 }
 
-// An order with no address still has to render.
-//
-// Every one of these was `purchaseOrder.address.name` and threw on a null
-// address, so the packing list was a 500 rather than a document. Five of dev's
-// sixteen purchase orders have no address_id - Completed, Accepted and Payment
-// Processing, not junk - and production has one.
-//
-// A blank line on a document is recoverable; a 500 when an admin asks for a
-// packing list is not, and it gives no hint of what is wrong.
+// An order with no address still has to render. Every one of these was `purchaseOrder.address.name`, throwing on a null address - the packing list was a 500 rather than a document (5 of dev's 16 purchase orders have no address_id, and it's not junk data).
+// A blank line on a document is recoverable; a 500 when an admin asks for a packing list is not, and it gives no hint of what's wrong.
 export function renderPackingShippingSection(
   purchaseOrder: RenderableOrder,
   {
@@ -526,11 +475,7 @@ export function buildPackingScrapRows(orderItems: OrderItem[], spotPrices: SpotP
   const rawScrapItems = orderItems.filter(
     (item) => item.item_type === "scrap" && item.scrap
   );
-  // assignScrapItemNames takes the full contract item. This file only ever
-  // holds the composed subset the templates read, and the fields that function
-  // uses are all on it - so the narrowing is deliberate rather than a gap.
-  // Widening OrderItem to claim id, purchase_order_id and confirmed would be
-  // asserting fields these templates never touch.
+  // assignScrapItemNames takes the full contract item; this file only holds the composed subset templates read (deliberately narrowed, not a gap) - widening OrderItem to claim id/purchase_order_id/confirmed would assert fields these templates never touch.
   const scrapItemsWithNames = assignScrapItemNames(
     rawScrapItems as Parameters<typeof assignScrapItemNames>[0]
   ) as OrderItem[];
@@ -595,11 +540,7 @@ export function buildInvoiceScrapRows(
   const rawScrapItems = orderItems.filter(
     (item) => item.item_type === "scrap" && item.scrap
   );
-  // assignScrapItemNames takes the full contract item. This file only ever
-  // holds the composed subset the templates read, and the fields that function
-  // uses are all on it - so the narrowing is deliberate rather than a gap.
-  // Widening OrderItem to claim id, purchase_order_id and confirmed would be
-  // asserting fields these templates never touch.
+  // assignScrapItemNames takes the full contract item; this file only holds the composed subset templates read (deliberately narrowed, not a gap) - widening OrderItem to claim id/purchase_order_id/confirmed would assert fields these templates never touch.
   const scrapItemsWithNames = assignScrapItemNames(
     rawScrapItems as Parameters<typeof assignScrapItemNames>[0]
   ) as OrderItem[];
@@ -608,27 +549,15 @@ export function buildInvoiceScrapRows(
     .map((item) => {
       const scrap: ScrapPart = item.scrap ?? {};
 
-      // THE SAME FALLBACK THE PACKING LIST USES. This row had none, and the two
-      // documents disagreed: on order 239 the packing list showed 75.0% and the
-      // invoice showed 0.0% for the SAME scrap line, because `item.premium` is
-      // null there and `null * 100` is 0 rather than an error.
-      // buildPackingScrapRows resolves `item.premium ?? scrap.bid_premium`;
-      // this did not.
-      //
-      // Reproduced by rendering both documents for that order before changing
-      // anything, not inferred from reading. CLAUDE.md already records this
-      // exact class - an invoice and a packing list disagreeing - and the
-      // invoice is the document that tells a customer what they are paid.
+      // The same fallback the packing list uses: without it, order 239's packing list showed 75.0% premium and the invoice showed 0.0% for the SAME line (`item.premium` null, `null * 100` is 0, not an error).
+      // The invoice is the document that tells a customer what they're paid, so this must resolve `item.premium ?? scrap.bid_premium` the same way buildPackingScrapRows does.
       const premium = item.premium ?? scrap.bid_premium;
 
       const price =
         item.price != null
           ? item.price
           : // calculateItemPrice takes the full contract item; this file only
-            // ever holds the composed subset it actually reads, and the fields
-            // that function uses are all present on it. Narrowed deliberately
-            // rather than widening OrderItem to claim fields the templates
-            // never touch.
+            // holds the composed subset it reads (narrowed deliberately, not widening OrderItem to claim fields templates never touch).
             (calculateItemPrice(item as Parameters<typeof calculateItemPrice>[0], spots) ?? 0);
 
       return `
@@ -666,10 +595,7 @@ export function buildInvoiceBullionRows(
         item.price != null
           ? item.price
           : // calculateItemPrice takes the full contract item; this file only
-            // ever holds the composed subset it actually reads, and the fields
-            // that function uses are all present on it. Narrowed deliberately
-            // rather than widening OrderItem to claim fields the templates
-            // never touch.
+            // holds the composed subset it reads (narrowed deliberately, not widening OrderItem to claim fields templates never touch).
             (calculateItemPrice(item as Parameters<typeof calculateItemPrice>[0], spots) ?? 0);
       const totalPrice = unitPrice * (item.quantity ?? 1);
 

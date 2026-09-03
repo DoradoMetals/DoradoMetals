@@ -1,12 +1,4 @@
-// Products through the service, against real Postgres.
-//
-// Products carry bid_premium and ask_premium, which feed every price quoted -
-// calculateItemPrice is content * (bid_spot * premium) - so a divergence here
-// misprices orders rather than merely displaying something odd. Most of these
-// are about the three-table composition producing exactly what the three joins
-// produced.
-//
-// Each test runs inside a transaction that is rolled back.
+// Products through the service, against real Postgres — bid_premium/ask_premium feed every price quote (calculateItemPrice = content * bid_spot * premium), so a divergence here misprices orders, not just displays oddly.
 import test, { after, before } from "node:test";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
@@ -38,8 +30,7 @@ async function inRollback(fn: (c: PoolClient) => Promise<void>) {
   }
 }
 
-// The three labels the joins used to attach. A product missing any of them was
-// dropped by the inner joins and is dropped by compose.ts.
+// A product missing any of the three labels was dropped by the inner joins, and is dropped by compose.ts too.
 test("the storefront carries the metal and mint names, and no ids", async () => {
   const rows = await service.getAllProducts();
   assert.ok(rows.length > 0, "dev has no displayed products");
@@ -99,9 +90,7 @@ test("every label matches what a join would have produced", async () => {
   }
 });
 
-// The lists differ only in their WHERE clause and each one is a different
-// promise to a customer: `display` is what they may buy, `sell_display` what
-// they may sell. Swapping them is invisible in a shape check.
+// The lists differ only in their WHERE clause, and each is a different promise: `display` is what a customer may buy, `sell_display` what they may sell — swapping them is invisible in a shape check.
 test("each list filters on the flag it claims to", async () => {
   const [storefront, sell, homepage] = await Promise.all([
     service.getAllProducts(), service.getSellProducts(), service.getHomepageProducts(),
@@ -114,10 +103,7 @@ test("each list filters on the flag it claims to", async () => {
     );
     return got;
   };
-  // Each list is checked non-empty first. All three of these loops passed
-  // vacuously if a WHERE clause returned nothing - and "returns nothing" is the
-  // exact failure a read pivot produces when it points at a table nothing has
-  // written yet, which is the failure these tests exist to catch.
+  // Checked non-empty first: these loops pass vacuously on an empty result, and "returns nothing" is exactly the failure a read pivot produces pointing at an unwritten table.
   const [sf, sl, hp] = [await flags(storefront), await flags(sell), await flags(homepage)];
   assert.ok(sf.length, "the storefront list is empty, so this test asserts nothing");
   assert.ok(sl.length, "the sell list is empty, so this test asserts nothing");
@@ -132,13 +118,8 @@ test("each list filters on the flag it claims to", async () => {
   }
 });
 
-// A slug is a public URL and `display` is what makes a product public. Without
-// the flag in the statement, an unpublished product is readable by anyone who
-// knows its slug.
-//
-// The count is not asserted to be one. A SLUG NAMES A VARIANT SET, not a
-// product: `gold-american-eagle` is four rows. An earlier version of this test
-// asserted 1 and failed against real data, which is how that got written down.
+// A slug is a public URL; without `display` in the statement, an unpublished product would be readable by anyone who knows its slug.
+// The count is not asserted to be one — a slug names a variant SET (gold-american-eagle is four rows); an earlier version asserted 1 and failed against real data.
 test("an undisplayed product is not reachable by its slug", async () => {
   await inRollback(async (c: PoolClient) => {
     const { rows: [live] } = await c.query(
@@ -229,10 +210,7 @@ test("liveness answers for both directions independently", async () => {
   assert.equal(live.length, rows.length);
   const byId = new Map(live.map((r) => [r.id, r]));
   for (const row of rows) {
-    // GUARDED. `Map.get` is `| undefined`, and a product missing from the
-    // liveness read produced a TypeError rather than naming the id. The
-    // length check above does not cover it: two lists of the same length can
-    // hold different ids.
+    // Guarded: `Map.get` is `| undefined`, and a product missing from the liveness read produced a TypeError rather than naming the id — the length check above doesn't cover it, since two same-length lists can hold different ids.
     const seen = byId.get(row.id);
     assert.ok(seen, `getLiveness did not return product ${row.id}`);
     assert.equal(seen.display, row.display);
@@ -240,9 +218,7 @@ test("liveness answers for both directions independently", async () => {
   }
 });
 
-// THE CREATE THAT COULD NOT HAVE WORKED. products.bullion declares seven
-// columns NOT NULL that exchange.products defaults, and the insert this
-// replaces named only three of them.
+// products.bullion declares seven columns NOT NULL that exchange.products defaults; the insert this replaces named only three of them.
 test("creating a product supplies what exchange defaults and bullion does not", async () => {
   await inRollback(async (c: PoolClient) => {
     const name = `probe-${randomUUID().slice(0, 8)}`;
@@ -266,11 +242,7 @@ test("creating a product supplies what exchange defaults and bullion does not", 
   });
 });
 
-// THE EDITOR IS NOT AN ARGUMENT ANY MORE. saveProduct took `user: { name }`
-// and the repo took an `actor`; migration 116 moved the write to the
-// public.audit_stamp trigger, which reads app.actor_id off the connection. The
-// claim is unchanged - a save records WHO edited - asked of the mechanism that
-// answers it now, and of updated_by_id as well as the legacy name column.
+// The editor is not an argument any more: migration 116 moved the write to the public.audit_stamp trigger, which reads app.actor_id off the connection. The claim is unchanged — a save records who edited — asked of the mechanism that answers it now.
 test("saving a product writes the row, and records who saved it", async () => {
   await inRollback(async (c: PoolClient) => {
     const [existing] = await service.getAllAdminProducts();
@@ -296,9 +268,7 @@ test("saving a product writes the row, and records who saved it", async () => {
   });
 });
 
-// The three names the form sends are resolved to ids here, and a name matching
-// nothing used to become NULL inside the UPDATE and fail on a NOT NULL column
-// without saying which of the three was wrong.
+// The three names the form sends are resolved to ids here — a name matching nothing used to become NULL inside the UPDATE and fail on a NOT NULL column without saying which of the three was wrong.
 test("an unknown metal, mint or supplier name is refused by name", async () => {
   const [existing] = await service.getAllAdminProducts();
   for (const [field, what] of [["metal", "metal"], ["mint", "mint"], ["supplier", "supplier"]]) {

@@ -1,19 +1,5 @@
-// The spot price endpoint, over real HTTP.
-//
-// One route, no guard, and that is correct: the pricing page quotes metal
-// prices to anyone who visits. It is also the most-called endpoint in the API
-// and the one every calculation downstream depends on - an ask that arrives
-// wrong makes every quote wrong, so what matters here is the SHAPE and that no
-// admin-only field rides along.
-//
-// Spots is CONVERTED (2026-08-27): the frontend types derive from
-// @dorado/contracts and read the schema's own names, so the response must be
-// the NEW shape - `name` / `ask` / `bid`. That is asserted directly rather
-// than left to the wire contract, because a contract that is never exercised
-// over HTTP proves nothing about what a browser receives.
-//
-// NOTHING IS COMMITTED - this file only reads, but it runs inside the pin like
-// the rest so a future write cannot escape.
+// The spot price endpoint, over real HTTP. No guard, correctly - the pricing page quotes metal to anyone - so what matters here is the SHAPE and that no admin-only field rides along.
+// NOTHING IS COMMITTED - this file only reads, but runs inside the pin like the rest so a future write cannot escape.
 import test, { after, before } from "node:test";
 import assert from "node:assert/strict";
 import request from "supertest";
@@ -29,25 +15,7 @@ type MetalFixture = { name: string; ask: number; bid: number };
 
 let metals: MetalFixture[];
 
-// THE FIXTURE READS THE TABLE THE ENDPOINT READS, WHICH IS NO LONGER exchange.
-//
-// This selected `FROM exchange.metals` and started failing the moment spots was
-// restructured, because the endpoint now serves spots.spots joined to
-// metals.metals. The failure was real and worth reading before repointing it:
-// the two tables genuinely disagreed, by $3.93 on gold.
-//
-// The cause was a long-running dev server started before the restructure. Its
-// cron writes exchange.metals ONLY - that was the behaviour with
-// SPOTS_SOURCE=exchange - so exchange kept moving while spots.spots stayed at
-// whatever the last run of the current code left. It is a dev artefact, not a
-// defect, and it disappears when that process is restarted onto current code,
-// which writes both.
-//
-// What this file asks is "does the endpoint serve what is stored", so the
-// fixture follows the endpoint. Whether the two SCHEMAS agree is a different
-// question with its own tool - `verify:parity` - which is what noticed this.
-// Asserting it here as well would make an unrelated stale process fail the
-// whole suite, and would be asking parity's question in the wrong place.
+// The fixture reads spots.spots (what the endpoint serves), not exchange.metals - whether the two SCHEMAS agree is `verify:parity`'s question, not this file's.
 before(async () => {
   metals = await outside(
     `SELECT m.name, s.ask, s.bid
@@ -77,15 +45,12 @@ test("the spot feed needs no session at all", async () => {
   });
 });
 
-// The fields the frontend reads. Named individually rather than deep-equalled
-// so that ADDING a field is not a failure and LOSING one is.
+// The fields the frontend reads, named individually so ADDING a field is not a failure and LOSING one is.
 test("every metal carries the fields a quote is built from", async () => {
   await inPinnedTransaction(async () => {
     await anonymous(async () => {
       const res = await request(app).get("/api/spots/spot_prices");
-      // An empty feed would run none of the assertions below and report
-      // success - and an empty spot feed is exactly the failure that prices
-      // every order at nothing. Found by audit:vacuous-tests.
+      // An empty feed would run none of the assertions below and report success - and an empty spot feed is exactly the failure that prices every order at nothing.
       assert.ok(res.body.length > 0, "the spot feed came back empty");
       for (const spot of res.body) {
         for (const field of ["name", "ask", "bid"]) {
@@ -104,8 +69,7 @@ test("every metal carries the fields a quote is built from", async () => {
   });
 });
 
-// The asks must be the asks. A feed that returns the right shape with stale or
-// transposed numbers passes every structural assertion.
+// The asks must be the asks - a feed with the right shape but stale or transposed numbers passes every structural assertion.
 test("the asks and bids are the ones in the table, not a transposition of them", async () => {
   await inPinnedTransaction(async () => {
     await anonymous(async () => {
@@ -128,8 +92,7 @@ test("the asks and bids are the ones in the table, not a transposition of them",
   });
 });
 
-// A public endpoint is the wrong place for anything internal. Asserted as an
-// allowlist: a field appearing here that nobody vetted is the failure.
+// A public endpoint is the wrong place for anything internal - asserted as an allowlist, so a field appearing here that nobody vetted is the failure.
 test("the public feed carries nothing beyond the quote fields", async () => {
   await inPinnedTransaction(async () => {
     await anonymous(async () => {

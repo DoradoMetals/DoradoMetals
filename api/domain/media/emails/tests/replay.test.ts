@@ -1,23 +1,6 @@
-// The two email routes, over real HTTP.
-//
-// WHAT THIS FOUND. Both routes are requireUser and both took the RECIPIENT from
-// the request body - `purchaseOrder.user.user_email` on one, a bare `email`
-// field on the other. So any signed-in account could send mail FROM the
-// business's own domain TO any address it named, with the subject "Your Order
-// Has Been Placed!" and a PDF attachment whose contents it also supplied.
-//
-// That is an open relay and a ready-made phishing template. It also spends the
-// sending domain's reputation, which is not recoverable by deploying a fix.
-//
-// The recipient is now resolved by the controller from the STORED order, and
-// the caller has to be entitled to it - an admin may send on a customer's
-// behalf, anyone else only about their own order. Otherwise naming somebody
-// else's order id would be a way to mail that customer at will.
-//
-// NO MAIL LEAVES THIS SUITE, STRUCTURALLY. sendEmail refuses to build the real
-// transport when NODE_ENV=test, so a route that got as far as sending would
-// throw rather than deliver. That is asserted here rather than assumed: the
-// last test proves the refusal is what stops it.
+// The two email routes, over real HTTP. FOUND: both routes (requireUser) took the RECIPIENT from the request body - any signed-in account could mail FROM the business's domain TO any address it named, with a PDF it also supplied (open relay, phishing template, unrecoverable reputation damage).
+// FIX: the recipient is resolved by the controller from the STORED order, gated by entitlement (owner or admin only) - naming someone else's order id no longer mails them.
+// NO MAIL LEAVES THIS SUITE: sendEmail refuses to build the real transport when NODE_ENV=test; the last test proves that refusal is what stops it, rather than assuming it.
 import test, { after, before } from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
@@ -29,8 +12,7 @@ import { inPinnedTransaction, outside } from "#shared/testing/pinned-pool.ts";
 await mockSessions();
 const { default: app } = await import("#app");
 
-// THE STRUCTURAL SUBSET EACH FIXTURE ACTUALLY HAS. SELECT projections, not
-// table rows.
+// SELECT projections, not table rows.
 type UserFixture = { id: string; name: string | null; email: string | null };
 type OrderFixture = { id: string; user_id: string; email: string | null };
 
@@ -72,12 +54,7 @@ const ATTACKER_ADDRESS = "attacker@example.invalid";
 test("both routes refuse an anonymous caller", async () => {
   await inPinnedTransaction(async () => {
     await anonymous(async () => {
-      // ONE ROUTE, NOT TWO, SINCE D91. /purchase_order_created is deleted:
-      // the confirmation is sent by the server at order creation, after the
-      // commit, from its own read. The redirect attack this file was written
-      // about is UNREACHABLE on that path now - there is no body to put an
-      // address in - so what these tests guard is the one send a browser can
-      // still trigger, which shares recipientFor with the one that left.
+      // /purchase_order_created is deleted - the confirmation is now sent server-side after the commit, so the redirect attack this file guards is unreachable there. What remains guards the one route a browser can still trigger.
       for (const path of ["purchase_order_priced"]) {
         const res = await request(app).post(`/api/emails/${path}`).send({});
         assert.ok([401, 403].includes(res.status), `${path} answered ${res.status}`);
@@ -86,29 +63,12 @@ test("both routes refuse an anonymous caller", async () => {
   });
 });
 
-// Sent as the attack was: a real order id, an attacker's address in every field
-// that used to be read.
-//
-// THIS TEST DOES NOT DISCRIMINATE ON ITS OWN, and saying so is the point.
-// Reverting the fix and re-running showed it still passing - because with the
-// fix the controller resolves the real address and proceeds to send, and
-// without it the body's address is used and it also proceeds to send, and BOTH
-// then hit the transport guard and fail. Same status either way.
-//
-// What actually proves the fix is the pair below: an unknown order id answering
-// 404 and a stranger answering 403 are only possible if the controller looked
-// the order up. Those two failed against the reverted code, checked.
-//
-// It is kept because it pins the response never NAMING the supplied address,
-// which is worth keeping true, and because a future change that makes the send
-// observable will make this assertion real.
+// Sent as the attack was: a real order id, attacker's address in every field that used to be read. This test does NOT discriminate the fix on its own - reverting it and rerunning still passes (both paths hit the transport guard and fail the same way).
+// What actually proves the fix is the pair below (unknown order id -> 404, stranger -> 403), checked against reverted code. Kept because it pins the response never NAMING the supplied address.
 test("an address in the body cannot redirect the order confirmation", async () => {
   await inPinnedTransaction(async () => {
     await as({ ...owner, role: "user" }, async () => {
-      // The confirmation route is GONE (D91) - asserted here rather than
-      // deleted, because "the attack surface no longer exists" is the
-      // strongest form this test can take, and a route that came back would
-      // come back with the body-supplied recipient.
+      // The confirmation route is GONE - asserted here rather than deleted, because "the attack surface no longer exists" is the strongest form this test can take.
       const gone = await request(app)
         .post("/api/emails/purchase_order_created")
         .send({ purchaseOrder: { id: order.id } });
@@ -126,26 +86,18 @@ test("an address in the body cannot redirect the order confirmation", async () =
           spot_prices: [],
         });
 
-      // Whatever happens next, it must not be a delivery to the attacker. The
-      // send itself is refused by the transport guard, so anything but a 2xx
-      // that claims success is acceptable here; what is asserted is that the
-      // response never reports having mailed the supplied address.
+      // Whatever happens, it must not be delivery to the attacker - the transport guard refuses the send, so what's asserted is that the response never reports having mailed the supplied address.
       assert.ok(
         !JSON.stringify(res.body ?? "").includes(ATTACKER_ADDRESS),
         "the response named the attacker's address"
       );
-      // Not evidence of the fix - see the header. A 200 here would mean the
-      // route reported success while the real transport is refused under test,
-      // which would be its own problem.
+      // Not evidence of the fix (see header) - a 200 here would mean the route reported success while the transport is refused under test, its own problem.
       assert.notEqual(res.status, 200, "the route reported a successful send");
     });
   });
 });
 
-// The same claim on the other route, where the field was simply `email`. Same
-// limitation as above; the discriminating tests follow. (The route was
-// /purchase_order_offer_accepted until the offers went - same send, priced
-// name.)
+// Same claim, other route (field was simply `email`) - same limitation as above; the discriminating tests follow.
 test("an email field in the body cannot redirect the pricing notice", async () => {
   await inPinnedTransaction(async () => {
     await as({ ...owner, role: "user" }, async () => {
@@ -166,13 +118,8 @@ test("an email field in the body cannot redirect the pricing notice", async () =
   });
 });
 
-// ONE OF THE TWO TESTS THAT ACTUALLY PROVE THE FIX. A 403 is only reachable if
-// the controller resolved the order from the database and compared its owner to
-// the caller. Fails against the reverted code.
-//
-// A customer must not be able to trigger mail about an order that is not
-// theirs. The recipient would be the rightful owner, so this is not a leak -
-// it is a way to send someone unwanted mail from a domain they trust.
+// One of the two tests that actually prove the fix: a 403 is only reachable if the controller resolved the order and compared its owner to the caller. Fails against reverted code.
+// A customer must not trigger mail about someone else's order. The recipient is the rightful owner, so this isn't a leak - it's a way to send unwanted mail from a domain they trust.
 test("a stranger cannot trigger mail about someone else's order", async () => {
   await inPinnedTransaction(async () => {
     await as({ ...stranger, role: "user" }, async () => {
@@ -184,8 +131,7 @@ test("a stranger cannot trigger mail about someone else's order", async () => {
   });
 });
 
-// THE OTHER ONE. 400 and 404 are only reachable through the lookup; without it
-// the request proceeds to build a PDF and send. Fails against the reverted code.
+// The other one: 400/404 are only reachable through the lookup; without it the request proceeds to build a PDF and send. Fails against reverted code.
 test("an unknown or missing order id is refused before anything is built", async () => {
   await inPinnedTransaction(async () => {
     await as({ ...owner, role: "user" }, async () => {
@@ -202,8 +148,7 @@ test("an unknown or missing order id is refused before anything is built", async
   });
 });
 
-// THE SAFETY NET ITSELF. Everything above depends on no real mail leaving, so
-// prove the guard is what prevents it rather than trusting that it does.
+// The safety net itself: everything above depends on no real mail leaving, so prove the guard is what prevents it rather than trusting it.
 test("the real mail transport refuses to exist during this run", async () => {
   const { sendEmail } = await import("#providers/emails/nodemailer.ts");
   await assert.rejects(

@@ -1,13 +1,5 @@
--- Record an image.
---
--- AN UPSERT, because a client that retries an upload of the same object must
--- not create a second row: (path, filename, user_id) is unique and identifies
--- the object in storage.
---
--- The id is supplied by the service, and RETURNING id is what the caller must
--- use afterwards - on conflict it is the id of the row that ALREADY existed,
--- not the one just generated. That is what lets the legacy write agree on a
--- primary key without reading exchange back.
+-- Record an image. Upsert: (path, filename, user_id) is unique, so a retried upload doesn't create a second row.
+-- RETURNING id is the caller's id to use afterward - on conflict it's the ALREADY-existing row's, not the one just generated.
 INSERT INTO media.images
        (id, user_id, bucket, path, filename, mime_type, size_bytes)
 VALUES ($1, $2, $3, $4, $5, $6, $7)

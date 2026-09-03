@@ -1,7 +1,4 @@
-// A quote and the metal it is for.
-//
-// spots.spots has metal_id; every caller reads `name`. Composed from one read
-// of metals.metals - four rows - rather than the join the old query did.
+// A quote and the metal it is for - composed from one read of metals.metals (four rows) rather than a join.
 import * as metals from "#db/metals/repo.ts";
 import type { SpotRow } from "#db/spots/repo.ts";
 
@@ -11,20 +8,17 @@ export type SpotWire = {
   percent_change: number | null; dollar_change: number | null;
 };
 
-// THE DISPLAY ORDER IS GOLD, SILVER, PLATINUM, PALLADIUM - not alphabetical.
-// It was a CASE inside the old ORDER BY, on the joined name, so it moves here.
+// Display order is Gold, Silver, Platinum, Palladium - not alphabetical.
 const RANK: Record<string, number> = { Gold: 1, Silver: 2, Platinum: 3, Palladium: 4 };
 const rank = (n: string) => RANK[n] ?? 5;
 
-// `id` is the METAL's id, not the quote's - that is what the old projection
-// selected (m.id) and what every caller keys on.
+// `id` is the METAL's id, not the quote's - what every caller keys on.
 export async function toWire(rows: SpotRow[]): Promise<SpotWire[]> {
   const names = await metals.namesById();
   return rows
     .flatMap((s) => {
       const name = names.get(s.metal_id);
-      // The old query INNER JOINed metals, so a quote for an unknown metal
-      // never reached a caller. Preserved.
+      // A quote for an unknown metal never reaches a caller.
       return name === undefined ? [] : [{
         id: s.metal_id, name,
         ask: s.ask, bid: s.bid,

@@ -1,20 +1,9 @@
 // reviews.reviews, and nothing else.
 //
-// A repo owns exactly one table: it does not join, and it does not shape
-// anything for a client. The row type comes from the generated contract, so it
-// is whatever the database says rather than a hand-written guess.
-//
-// The projection excludes user_id, order_id, created_by_id and updated_by_id -
-// columns reviews.reviews has that have never been on this wire.
-//
-// getPublic is a genuinely separate READ, not list() with a flag - see its own
-// header. update takes an id and a patch and answers whether a row changed
-// (D212's CRUD ruling); no per-column wrapper lives here.
-//
-// NOBODY PASSES AN AUTHOR ANY MORE. created_by, updated_by, created_at and
-// updated_at come from the public.audit_stamp trigger, which reads the actor
-// off the connection (migration 116, shared/http/actor.ts). The `actor`
-// argument is gone: create(row, tx?) and update(id, patch, tx?).
+// The projection excludes user_id, order_id, created_by_id and updated_by_id - never on this wire.
+// getPublic is a genuinely separate read, not list() with a flag: security-critical, see get_public.sql.
+// update takes an id and a patch and answers whether a row changed; no per-column wrapper lives here.
+// created_by, updated_by, created_at and updated_at come from the public.audit_stamp trigger, not passed as arguments.
 import query from "#shared/db/query.ts";
 import { buildUpdate } from "#shared/db/patch.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
@@ -44,7 +33,7 @@ export async function list(executor?: Executor): Promise<ReviewRow[]> {
   return rows;
 }
 
-// Separate statement, not list() with a filter. See sql/get_public.sql.
+// Kept as its own statement, not list() with a filter: security-critical, see sql/get_public.sql.
 export async function getPublic(executor?: Executor): Promise<ReviewRow[]> {
   const { rows } = await query<ReviewRow>(sql("get_public"), [], executor);
   return rows;

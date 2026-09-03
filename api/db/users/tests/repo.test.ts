@@ -1,19 +1,5 @@
-// The admin balance edit, against real Postgres.
-//
-// adjustUserCredit is the other half of the money path: transactions.addFunds
-// and removeFunds move a balance during checkout, this is an admin setting one
-// by hand. It has three modes and no guard rails, which is worth stating.
-//
-// *** THIS FILE USED TO EXERCISE THE WRONG STATEMENT. *** Until seam 2
-// (docs/waves/seams.md) `features/users/repo.ts` `adjustCredit` wrote
-// auth.users and was called by nothing but these tests, while the statement
-// the application actually ran sat under `api/legacy/`. Every assertion here
-// passed against an implementation no request ever reached. The two are now
-// one function, writing exchange.users - so what follows pins the live path.
-//
-// IT ALSO PINS THE MIRROR, for free and deliberately: the write goes to
-// exchange.users and every balance below is read back from auth.users. If the
-// `mirror_users_to_auth` trigger is ever dropped, these fail.
+// The admin balance edit, against real Postgres. adjustCredit has three modes and no guard rails, which is worth stating.
+// Pins the mirror deliberately: the write goes to exchange.users, every balance below is read from auth.users - if the mirror trigger is ever dropped, these fail.
 import test, { after, before } from "node:test";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
@@ -38,9 +24,7 @@ after(async () => {
 
 async function inRollback(fn: (c: PoolClient) => Promise<void>) {
   await client.query("BEGIN");
-  // A balance write is TWO row locks - exchange.users and, through 107's
-  // trigger, auth.users - so files that move balances agree an order. See
-  // LOCKS.USERS.
+  // A balance write is TWO row locks (exchange.users and, via the trigger, auth.users) - files that move balances must agree an order. See LOCKS.USERS.
   await takeLocks(client, LOCKS.USERS);
   try {
     await fn(client);
@@ -49,11 +33,7 @@ async function inRollback(fn: (c: PoolClient) => Promise<void>) {
   }
 }
 
-// A user that exists in BOTH tables. The write lands in exchange.users and the
-// balance is read back from auth.users, so a subject present in only one of
-// them would make every assertion here meaningless - and dev has three such
-// rows (one exchange-only, two auth-only). Picking blind from auth.users was
-// how this test could have written nothing and still passed.
+// A user that exists in BOTH tables - dev has rows in only one, and picking blind from auth.users could let this test write nothing and still pass.
 const aUser = async (c: PoolClient) =>
   (await c.query(
     `SELECT e.id FROM exchange.users e JOIN auth.users a ON a.id = e.id
@@ -81,9 +61,7 @@ test("subtract decreases it", async () => {
   });
 });
 
-// `edit` sets rather than adjusts, which is the mode most likely to be picked
-// by mistake: passing the amount someone meant to add replaces their balance
-// with it instead.
+// `edit` sets rather than adjusts - the mode most likely picked by mistake, replacing a balance instead of adding to it.
 test("edit replaces the balance rather than adjusting it", async () => {
   await inRollback(async (c: PoolClient) => {
     const user = await aUser(c);
@@ -93,9 +71,7 @@ test("edit replaces the balance rather than adjusting it", async () => {
   });
 });
 
-// dorado_funds is NOT NULL DEFAULT 0 on BOTH tables (migration 080 gave the
-// mirror the same constraint), so a user always has a balance to adjust and the
-// COALESCE in the query is belt and braces rather than load-bearing.
+// dorado_funds is NOT NULL DEFAULT 0 on both tables, so the COALESCE in the query is belt and braces rather than load-bearing.
 test("every user has a balance to adjust, never null", async () => {
   await inRollback(async (c: PoolClient) => {
     const { rows } = await c.query(
@@ -105,11 +81,7 @@ test("every user has a balance to adjust, never null", async () => {
   });
 });
 
-// The CASE in the query has no ELSE, so an unrecognised mode evaluates to NULL.
-// I expected that to blank the balance silently; it does not, because the
-// column is NOT NULL and the database refuses the update. The constraint is
-// what makes a typo in the mode an error rather than a wiped balance - worth
-// knowing before anyone relaxes it, or adds a fourth mode.
+// The CASE has no ELSE, so an unrecognised mode evaluates to NULL - the NOT NULL constraint is what turns a typo in the mode into an error rather than a wiped balance.
 test("an unrecognised mode is refused rather than blanking the balance", async () => {
   await inRollback(async (c: PoolClient) => {
     const user = await aUser(c);
@@ -117,11 +89,7 @@ test("an unrecognised mode is refused rather than blanking the balance", async (
     const before = await balance(c, user);
 
     await assert.rejects(
-      // DELIBERATELY OUTSIDE CreditMode ("add" | "subtract" | "edit"). The
-      // mode arrives from a request body - service.ts casts it with
-      // `operation as users.CreditMode` - so an unrecognised one really can
-      // reach here, and this pins that it is refused. @ts-expect-error rather
-      // than a cast: it fails if the parameter is ever widened.
+      // Deliberately outside CreditMode - the mode arrives from a request body cast by service.ts, so an unrecognised one really can reach here.
       // @ts-expect-error - an unrecognised mode is the point of this test
       () => repo.adjustCredit(user, "increment", 10, c),
       /not-null|null value/i,

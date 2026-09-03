@@ -1,28 +1,6 @@
 // PATCH /api/payouts/:id - the fee waiver, over real HTTP.
-//
-// WHY THIS EXISTS. Jacob, 2026-08-29, on the four production payouts whose
-// stored cost disagrees with features/payouts/constants.ts: "Yes those are
-// cases we have waived it. Would actually be somewhat nice to have a checkbox
-// for waiving fee or something."
-//
-// `orders.transactions.waive_payout_fee` ALREADY EXISTED - read, composed and
-// mirrored - with no writer and no UI, so this is a PATCH field and a checkbox
-// rather than new plumbing. What the field has to be worth asserting is the
-// design constraint, and it is the whole reason a flag was the answer rather
-// than an UPDATE to zero:
-//
-//   THE STORED FEE IS NOT OVERWRITTEN. D117 - a stored fee is a RECORD and
-//   must never be re-derived. Waiving sets the flag and the EFFECTIVE fee
-//   becomes 0; orders.transactions.payout_fee keeps what it would have been,
-//   so un-waiving restores that number rather than guessing one out of a
-//   defaults table that four production rows already disagree with - which is
-//   why the fee stays per-order data beside the flag.
-//
-// EACH TEST ASSERTS THE VALUE LANDS AND THE RECORD SURVIVES, not that the
-// route answered 200: a handler that returns early answers 200 too.
-//
-// NOTHING IS COMMITTED - shared/testing/pinned-pool.ts holds every query in one
-// transaction that is rolled back, and the last test proves it.
+// The stored fee is never overwritten (D117): waiving sets a flag and the EFFECTIVE fee becomes 0; un-waiving restores the stored number rather than guessing.
+// Each test asserts the value lands AND the record survives, not just a 200; nothing here is committed (pinned-pool.ts rolls back every query).
 import test, { after, before } from "node:test";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
@@ -37,8 +15,7 @@ const ORDER_LOCK = LOCKS.ORDERS;
 await mockSessions();
 const { default: app } = await import("#app");
 
-// THE STRUCTURAL SUBSET EACH FIXTURE ACTUALLY HAS - SELECT projections, not
-// table rows.
+// SELECT projections, not table rows.
 type UserFixture = { id: string; name: string | null; email: string | null };
 type PayoutFixture = { id: string; order_id: string; cost: string | null };
 
@@ -51,12 +28,7 @@ before(async () => {
   )[0];
   assert.ok(admin, "dev has no admin user");
 
-  // A payout account on a real PURCHASE order. NATIVE SINCE D213: the id the
-  // endpoint takes is the payments.details id (what the composed order now
-  // serves as order.payout.id), the order is reached through
-  // orders.transactions.payout_details_id, and the flag's column is
-  // orders.transactions.waive_payout_fee - so a payout whose order is not a
-  // purchase has nowhere to record it and the endpoint says so.
+  // A payout account on a real PURCHASE order: the flag's column, orders.transactions.waive_payout_fee, has nowhere to record it on a sale.
   payout = (
     await outside<PayoutFixture>(
       `SELECT d.id, t.order_id, t.payout_fee AS cost
@@ -99,7 +71,6 @@ test("waiving sets the flag and leaves the stored fee alone", async () => {
       const after = await readState(client);
       assert.equal(after.next, true, "orders.transactions.waive_payout_fee did not move");
 
-      // THE POINT OF THE WHOLE DESIGN. The record stands.
       assert.equal(after.cost, before.cost, "waiving overwrote the stored payout fee");
     });
   }, { lock: ORDER_LOCK });
@@ -122,16 +93,12 @@ test("un-waiving clears the flag and the stored fee is still the same number", a
 
       const after = await readState(client);
       assert.equal(after.next, false, "the flag did not come back off");
-      // Un-waiving does not have to GUESS what the fee was, which is what a
-      // waiver implemented as `cost = 0` would have forced.
       assert.equal(after.cost, before.cost, "a round trip through the waiver moved the fee");
     });
   }, { lock: ORDER_LOCK });
 });
 
-// The fee and the flag are different facts and a document may carry both: the
-// ECHECK rows in production are stored ABOVE the method default, which is a
-// charge, and a boolean cannot express one.
+// The fee and the flag are different facts a document may carry both: production ECHECK rows are stored above the method default, a charge that a boolean cannot express.
 test("a document may set the fee and waive it, and both are recorded", async () => {
   await inPinnedTransaction(async (client: PoolClient) => {
     await as({ ...admin, role: "admin" }, async () => {
@@ -147,17 +114,11 @@ test("a document may set the fee and waive it, and both are recorded", async () 
   }, { lock: ORDER_LOCK });
 });
 
-// THE FLAG HAS TO REACH THE MONEY, and a write that lands in two columns
-// nothing reads would be the exact failure this field started as: it was read,
-// composed and mirrored, with no writer and no UI. /quotes/order is the drawer
-// estimate; calculateTotalPrice is the stored total; both go through
-// pricing/bid.ts's effectivePayoutFee, so proving one over HTTP proves the
-// expression they share is really wired.
+// The flag has to reach the money, not just sit in two columns nothing reads: /quotes/order and the stored total both go through pricing/bid.ts's effectivePayoutFee.
 test("waiving raises the order quote by exactly the stored fee", async () => {
   await inPinnedTransaction(async () => {
     await as({ ...admin, role: "admin" }, async () => {
-      // A known fee, so the difference is a number rather than whatever dev
-      // happens to hold.
+      // A known fee, so the difference is a number rather than whatever dev happens to hold.
       const set = await request(app)
         .patch(`/api/payouts/${payout.id}`)
         .send({ cost: 20, waive_payout_fee: false });
@@ -204,11 +165,7 @@ test("a non-boolean waiver is refused by name and writes nothing", async () => {
 });
 
 test("nothing this file did survived the transactions", async () => {
-  // READ THE TABLE THE WRITES ACTUALLY LAND ON. This asserted against
-  // exchange.purchase_orders and exchange.payouts, which D212 froze - so it
-  // was reading columns no endpoint here has written since, and would have
-  // passed however badly the transaction leaked. Both facts live on
-  // orders.transactions now, which is where patchPayout sends them.
+  // Reads orders.transactions, where patchPayout actually sends its writes - the old exchange.* columns are frozen and would pass however badly a transaction leaked.
   const [row] = await outside<{ waive_payout_fee: boolean | null; cost: string | null }>(
     `SELECT t.waive_payout_fee, t.payout_fee AS cost
        FROM orders.transactions t

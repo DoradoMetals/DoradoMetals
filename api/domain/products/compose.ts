@@ -1,20 +1,5 @@
-// A product and the three names that describe it, joined in memory.
-//
-// The implementation this replaces did it in SQL, on every read:
-//
-//     JOIN metals.metals   metal    ON metal.id    = product.metal_id
-//     JOIN products.mints  mint     ON mint.id     = product.mint_id
-//     JOIN refiners.exchange_compat supplier ON supplier.id = p.supplier_id
-//
-// Three joins to fetch three strings out of tables holding four, ten and two
-// rows. Here each reference table is read once and the labels attached.
-//
-// THE JOINS WERE INNER, SO A PRODUCT WITH AN UNKNOWN METAL OR MINT WAS DROPPED,
-// and it is dropped here too. That is preserved rather than improved on: the
-// storefront row declares `metal_type` and `mint_name`, and a product composed
-// with nulls in them would render a nameless entry in the shop instead of not
-// rendering at all. All three columns are NOT NULL with foreign keys, so this
-// only fires if a reference row is deleted underneath a product.
+// A product and the three names that describe it, joined in memory — one read of each reference table (four metals, ten mints, two refiners) instead of a join per query.
+// Inner-join semantics preserved deliberately: a product with an unknown metal/mint/supplier is dropped rather than rendered with a blank name. All three are NOT NULL FKs, so this only fires if a reference row is deleted underneath a product.
 import * as metals from "#db/metals/repo.ts";
 import * as mints from "#db/mints/repo.ts";
 import * as refiners from "#domain/refiners/service.ts";
@@ -41,11 +26,7 @@ export type AdminProduct = Omit<
 
 // One read of each reference table, shared by every composition in a request.
 //
-// The fields are `metalNames` and not `metals` on purpose. `l.metals.get(id)`
-// is a Map lookup, but it reads exactly like a call on the `metals` namespace
-// imported above - and lint:namespace-calls said so, reporting
-// `metals.get() not exported by #db/metals/repo.ts`. The linter was
-// right that the two are indistinguishable; a reader has the same problem.
+// Named `metalNames`, not `metals`: `l.metals.get(id)` would read exactly like a call on the `metals` namespace imported above, and lint:namespace-calls flagged it as such — the two really are indistinguishable.
 export type Labels = {
   metalNames: Map<string, string>;
   mintNames: Map<string, string>;
@@ -56,9 +37,7 @@ export async function labels(): Promise<Labels> {
   const [metalRows, mintRows, refinerRows] = await Promise.all([
     metals.getAll(),
     mints.getAll(),
-    // A refiner's name lives on its ORGANIZATION, not on refiners.refiners, so
-    // this goes through the service that composes the two rather than reading a
-    // table that does not have the column.
+    // A refiner's name lives on its ORGANIZATION, not refiners.refiners, so this goes through the composing service rather than a table without the column.
     refiners.getAllRefiners(),
   ]);
   return {

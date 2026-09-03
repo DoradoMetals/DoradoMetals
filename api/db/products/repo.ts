@@ -1,19 +1,4 @@
-// products.bullion, and nothing else.
-//
-// No joins. The implementation this replaces joined metals.metals,
-// products.mints and refiners.exchange_compat on every read to attach three
-// label strings; compose.ts does that from one read of each reference table
-// instead. Four metals, ten mints and two refiners - a join per query bought
-// nothing.
-//
-// NO PLAIN getOne()/list(). Every consumer of this table needs a distinct
-// projection or filter - the public storefront row is not the admin row, and
-// storefront/sell/homepage/slug/filtered/ids are five different WHERE clauses
-// over the public shape. Collapsing them into one getOne/list would move that
-// filtering into the service as JS predicates over the whole table, which is
-// worse than five small statements. What DID collapse is the write side:
-// create() and update() each take one named object instead of positional
-// scalars or per-column wrappers, and update() is the one UPDATE statement.
+// products.bullion, and nothing else — no joins (compose.ts attaches metal/mint/refiner labels from one read of each instead); five distinct WHERE clauses (storefront/sell/homepage/slug/filtered/ids) rather than one getOne/list, because each consumer's shape genuinely differs.
 import query from "#shared/db/query.ts";
 import { buildUpdate } from "#shared/db/patch.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
@@ -48,21 +33,8 @@ export type AdminProductRow = Pick<
 
 export type Liveness = Pick<products.BullionRow, "id" | "display" | "sell_display">;
 
-// The columns sql/update.sql writes, named rather than positional - the admin
-// form sends the whole product back (see saveProduct in the service), so this
-// is a full replace and not a sparse patch: an absent field binds as NULL
-// through the driver exactly as it did when this was a positional tuple.
-// metal_id, mint_id and supplier_id are IDS - the service resolves the names
-// the admin form sends before this is called; that resolution is the one
-// genuine transformation, everything else here is the request body's own
-// field, unchanged. updated_by is NOT a field of this type and no longer has
-// an `actor` parameter either: public.audit_stamp writes it, and updated_at,
-// from the actor on the connection (migration 116).
-// undefined is admitted alongside null on every optional column: the admin
-// body types each as `?: T | null` (whatever the form did not send is
-// undefined, whatever it explicitly cleared is null), and the driver binds
-// both the same way, so the type says what is really passed rather than
-// forcing a conversion that has no runtime effect.
+// Full replace, not a sparse patch: an absent field binds NULL, exactly as when this was a positional tuple.
+// metal_id/mint_id/supplier_id are ids already resolved by the service; updated_by/updated_at are the trigger's (migration 116), not this type's.
 export type ProductPatch = {
   metal_id: string;
   supplier_id: string;
@@ -107,20 +79,13 @@ export async function getHomepage(executor?: Executor): Promise<PublicProductRow
   return rows;
 }
 
-// A LIST, AND THE LIST IS THE POINT. A slug does not identify one product: a
-// product with sizes shares one slug across its variants - `gold-american-eagle`
-// is four rows, 1/10 oz through 1 oz, differing by variant_label - and the
-// product page renders the set. There is no unique index on slug in either
-// schema, and that is correct rather than an omission.
-//
-// The controller returns the whole list and answers 404 only on an empty one.
+// Returns a LIST, not one row — a slug is shared across a product's variants (gold-american-eagle is four rows by variant_label), so there is deliberately no unique index on slug. The controller 404s only on an empty list.
 export async function getBySlug(slug: string, executor?: Executor): Promise<PublicProductRow[]> {
   const { rows } = await query<PublicProductRow>(sql("get_by_slug"), [slug], executor);
   return rows;
 }
 
-// A product by NAME. See sql/find_id_by_name.sql - the caller is the quote
-// surface, which takes a name off a request body when no id was sent.
+// A product by NAME — the quote surface calls this when a request body has a name but no id.
 export async function findIdByName(
   name: string, executor?: Executor
 ): Promise<products.BullionRow["id"] | null> {
@@ -136,11 +101,8 @@ export async function getByIds(ids: string[], executor?: Executor): Promise<Publ
   return rows;
 }
 
-// The optional filters, combined. Absent means "do not filter", which is why
-// each is optional rather than nullable - a null metal_id would be a filter for
-// products with no metal, and every product has one.
-//
-// metal_id rather than the metal's NAME: see the header of sql/get_filtered.sql.
+// Optional filters, combined — absent means "do not filter" (a null metal_id would filter for productless-metal rows, and every product has one).
+// Takes metal_id, not the metal's name; see sql/get_filtered.sql.
 type ProductFilterIds = {
   metal_id?: string;
   filter_category?: string;
@@ -167,10 +129,8 @@ export async function getFiltered(
     conditions.push(`type = $${values.length}`);
   }
 
-  // replaceAll, not replace. The token appears once in the statement, but a
-  // comment that mentioned it by name would be the FIRST occurrence and would
-  // have been substituted instead - which is exactly what happened.
-  // Only the placeholder NUMBERS reach the statement; every value is bound.
+  // replaceAll, not replace — the token appears once, but a comment naming it verbatim would itself be the first match and get substituted (this happened).
+  // Only placeholder numbers reach the statement; every value is bound.
   const { rows } = await query<PublicProductRow>(
     sql("get_filtered").replaceAll("__PREDICATE__", conditions.join(" AND ")),
     values,
@@ -202,9 +162,7 @@ export async function getTypes(executor?: Executor): Promise<{ name: string }[]>
   return rows;
 }
 
-// What create.sql needs beyond a name - the six columns exchange defaults and
-// products.bullion does not (see the SQL's header). `created_by` used to be
-// here and is not: the trigger writes it.
+// What create.sql needs beyond a name — the six columns exchange defaulted and products.bullion does not (see the SQL's header). created_by is the trigger's, not this type's.
 export type NewProduct = {
   id: string;
   name: string;
@@ -222,9 +180,7 @@ export async function create(row: NewProduct, executor?: Executor): Promise<stri
   return rows[0].id;
 }
 
-// The columns update() may write. Every key of ProductPatch and nothing else -
-// updated_by and updated_at are absent because they are the trigger's, and
-// shared/db/patch.ts refuses either if one is ever added back.
+// Every key of ProductPatch and nothing else — updated_by/updated_at stay absent because they're the trigger's; shared/db/patch.ts refuses either if one is added back.
 export const PATCHABLE = [
   "metal_id", "supplier_id", "mint_id", "name", "description",
   "bid_premium", "ask_premium", "type", "display", "content", "gross",
@@ -234,13 +190,7 @@ export const PATCHABLE = [
   "filter_category",
 ] as const;
 
-// STILL A FULL REPLACE, which is why every column is named here rather than
-// handed to the builder as the caller's object. shared/db/patch.ts treats an
-// `undefined` value as a column the caller did not mention - the right default
-// for a PATCH, and the opposite of what this statement has always done: the
-// admin form sends the whole product back and a field it omits is CLEARED,
-// exactly as `undefined` bound as NULL through the driver when this was a
-// positional tuple. Spelling the 26 columns with `?? null` keeps that.
+// Still a full replace: buildUpdate treats undefined as "not mentioned" (right for a sparse PATCH), so every column is spelled with `?? null` here to keep the admin form's actual behavior — an omitted field is CLEARED, not left alone.
 export async function update(
   id: string, patch: ProductPatch, executor?: Executor
 ): Promise<boolean> {

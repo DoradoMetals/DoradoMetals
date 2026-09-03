@@ -1,13 +1,5 @@
-// media.pdfs, and nothing else.
-//
-// APPEND-ONLY, like media.emails. Regeneration INSERTS a new row rather than
-// updating - the row is what a customer or refiner was actually SENT, and that
-// does not change after the fact (migration 090's design). NO update(), NO
-// remove().
-//
-// NO PLAIN getOne()/list() either. The only read this feature ever makes is
-// "the latest document of a kind for an order" (the index pdfs_order_kind_idx
-// exists to serve), so that is the one read this repo has.
+// media.pdfs, append-only - regeneration INSERTS a new row since the row is what was actually sent. NO update(), NO remove().
+// No plain getOne()/list() either: the only read this feature makes is the latest document of a kind for an order.
 import query from "#shared/db/query.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
 import type { media } from "@dorado/contracts";

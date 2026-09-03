@@ -1,20 +1,6 @@
-// The packing list and the invoice must say the same thing about the same line.
-//
-// They are two views of one order and a customer sees both: the packing list
-// goes in the parcel, the invoice states what they are paid. When they
-// disagree, the business has told somebody two different numbers for the same
-// metal - and CLAUDE.md already records one instance of exactly that, an
-// invoice and a packing list out by $3,236.11.
-//
-// THIS CAUGHT A LIVE ONE. buildPackingScrapRows resolved the premium as
-// `item.premium ?? scrap.bid_premium`; buildInvoiceScrapRows read `item.premium`
-// directly. On order 239 that field is null and `null * 100` is 0 rather than
-// an error, so the packing list showed 75.0% and the invoice showed 0.0% for
-// the same scrap line. Silent, because neither threw.
-//
-// Found by converting sections.js to TypeScript - `item.premium is possibly
-// null` was the compiler pointing at it - and confirmed by rendering both
-// documents for that order before changing anything.
+// The packing list and the invoice must say the same thing about the same line - two views of one order a customer sees both. When they disagree, the business told somebody two different numbers for the same metal ($3,236.11, per CLAUDE.md).
+// This caught a live one: buildPackingScrapRows resolved `item.premium ?? scrap.bid_premium`, buildInvoiceScrapRows read `item.premium` directly - on order 239 that field is null (`null * 100` is 0, not an error), so the packing list showed 75.0% and the invoice showed 0.0% for the same line, silently.
+// Found by converting sections.ts to TypeScript (`item.premium is possibly null`), confirmed by rendering both documents for that order before changing anything.
 import test, { after, before } from "node:test";
 import assert from "node:assert/strict";
 import pool from "#db";
@@ -26,9 +12,7 @@ import {
 } from "#domain/media/pdfs/render/sections.ts";
 import type { RenderableOrder } from "#domain/media/pdfs/render/sections.ts";
 
-// The renderer's own type, not a restatement: getAllPurchases declares
-// `Record<string, unknown>[]` because read.service.ts discards the composed
-// type at the service boundary.
+// getAllPurchases declares Record<string, unknown>[] because read.service.ts discards the composed type at the boundary.
 type RenderOrder = RenderableOrder & { id: string };
 type RenderItem = NonNullable<RenderableOrder["order_items"]>[number];
 type Spot = Awaited<ReturnType<typeof spotsService.getSpotPrices>>[number];
@@ -38,8 +22,7 @@ let spots: Spot[];
 
 before(async () => {
   orders = (await poRepo.getAllPurchases()) as unknown as RenderOrder[];
-  // The composed shape (`name` / `ask` / `bid`) - what the renderers read
-  // since the orders wire conversion (D84) retired the legacy spellings.
+  // The composed shape (name/ask/bid) - what the renderers read.
   spots = await spotsService.getSpotPrices();
   assert.ok(orders.length > 0, "dev has no purchase orders");
 });
@@ -71,8 +54,7 @@ test("every order's packing list and invoice quote the same premiums", async () 
     }
   }
 
-  // NOT VACUOUS. If no order had scrap lines this would pass having compared
-  // nothing, which is how the bug survived in the first place.
+  // Not vacuous: if no order had scrap lines, this would pass having compared nothing - how the bug survived in the first place.
   assert.ok(
     compared > 0,
     "no order in dev has scrap lines - this test compared nothing"
@@ -85,17 +67,8 @@ test("every order's packing list and invoice quote the same premiums", async () 
   );
 });
 
-// THE FALLBACK ITSELF, on a constructed item rather than whatever dev happens
-// to hold.
-//
-// The first version of this test looked for a real order item with a null
-// premium and asserted the invoice did not render 0.0%. It PASSED with the
-// fallback removed - so it was not testing the fallback at all, and would have
-// sat there looking like protection. Whatever it was matching, it was not the
-// thing that broke.
-//
-// Built by hand instead: no database, no dependence on a fixture surviving, and
-// it fails the moment the fallback goes.
+// The fallback itself, on a constructed item rather than whatever dev happens to hold - the first version looked for a real order item with a null premium and PASSED even with the fallback removed, so it wasn't testing the fallback at all.
+// Built by hand instead: no database dependency, and it fails the moment the fallback goes.
 test("an item with no premium of its own renders the scrap's bid premium", () => {
   const item = {
     item_type: "scrap",

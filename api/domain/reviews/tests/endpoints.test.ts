@@ -1,11 +1,6 @@
 // Reviews over real HTTP, through the router the app mounts.
-//
-// Drives the whole stack - route, guard, controller, service, both repos -
-// because the thing worth checking is that the dual write happens inside one
-// transaction, and nothing below the service can tell you that.
-//
-// NOTHING IS COMMITTED. pinned-pool holds every query in one transaction that
-// is rolled back, including the service's own, which becomes a savepoint.
+// Drives the whole stack - route, guard, controller, service, repo - because nothing below the service can tell you the write happens inside one transaction.
+// Nothing is committed: pinned-pool holds every query in one transaction that is rolled back, including the service's own, as a savepoint.
 import test, { before } from "node:test";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
@@ -26,8 +21,7 @@ before(async () => {
   assert.ok(admin && customer, "dev needs an admin and a non-admin user");
 });
 
-// Named, not spread: the fixture is only ever id/name/email plus the role the
-// call is exercising.
+// Named, not spread: the fixture is only ever id/name/email plus the role the call is exercising.
 const asAdmin = <T>(fn: () => Promise<T> | T) =>
   as({ id: admin.id, name: admin.name, email: admin.email, role: "admin" }, fn);
 const asCustomer = <T>(fn: () => Promise<T> | T) =>
@@ -95,9 +89,7 @@ test("update writes the row, and delete removes it", async () => {
   });
 });
 
-// THE ONE THAT MATTERS FOR THIS FEATURE. get_public has no guard in front of
-// it, so the statement is the only thing standing between an anonymous visitor
-// and a hidden review.
+// get_public has no guard in front of it, so the statement is the only thing standing between an anonymous visitor and a hidden review.
 test("an anonymous visitor sees public reviews and never a hidden one", async () => {
   await inPinnedTransaction(async (client: PoolClient) => {
     let hiddenId: string;

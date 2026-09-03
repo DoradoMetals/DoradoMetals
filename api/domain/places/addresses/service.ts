@@ -1,18 +1,5 @@
-// Addresses: two rows in the new schema, one row in exchange, written together.
-//
-// THE OWNERSHIP CHECK MOVED HERE, AND THAT IS THE ONE THING TO GET RIGHT.
-//
-// exchange scoped its writes in the statement - `WHERE id = $1 AND user_id =
-// $2` - because the address carried its owner. places.addresses does not have a
-// user_id; whose book an address is in is places.user_addresses. So the
-// statement cannot refuse a stranger's address and this file has to, by reading
-// the caller's link first, inside the same transaction as the write.
-//
-// Without that check any signed-in customer could rewrite any address by id.
-// The exchange statement is still scoped, so the damage would have been
-// one-sided - the new schema changed and exchange not - which is worse than
-// either, because the two schemas would then disagree about someone's address
-// and nothing reads the new one yet to notice.
+// Addresses: the address row and one person's link to it, written together.
+// THE OWNERSHIP CHECK MOVED HERE: places.addresses has no user_id, so the write can't refuse a stranger's address by itself - this file must, by reading the caller's link first inside the same transaction as the write. Without it any signed-in customer could rewrite any address by id.
 import { randomUUID } from "node:crypto";
 import withTransaction from "#shared/db/withTransaction.ts";
 import * as addresses from "#db/places/addresses/repo.ts";
@@ -33,8 +20,7 @@ function badRequest(message: string): HttpError {
   return err;
 }
 
-// req.body's two halves. The relationship arrives BESIDE the address, never
-// inside it - one call, one transaction, but two things (2026-08-27).
+// req.body's two halves. The relationship arrives BESIDE the address, never inside it - one call, one transaction, but two things.
 export type AddressInput = {
   id?: string;
   line_1?: string | null;
@@ -52,10 +38,7 @@ type UserAddressInput = {
   default_shipping?: boolean | null;
 };
 
-// The link row as compose() wants it, with default_shipping forced true - the
-// same link/owned row named field by field rather than spread, since a
-// create-as-default or update-to-default has already written the flag through
-// setDefault and this only needs the RESPONSE to say so without a second read.
+// The link row as compose() wants it, with default_shipping forced true for the response - setDefault already wrote the flag, this just avoids a second read.
 function asDefault(link: UserAddressRow): UserAddressRow {
   return {
     id: link.id,
@@ -78,9 +61,7 @@ export async function list(userId: string, executor?: Executor): Promise<Compose
   return compose.all(links, rows);
 }
 
-// RETURNS A LIST, and that is not an oversight - exchange's getFromId did too,
-// and callers take [0]. An address can be in more than one person's book now,
-// so a list is also the honest answer rather than a leftover.
+// Returns a list, not an oversight - an address can be in more than one person's book, so a list is the honest answer.
 export async function getFromId(
   address_id: string, executor?: Executor
 ): Promise<ComposedAddress[]> {
@@ -90,14 +71,8 @@ export async function getFromId(
   return compose.all(links, [row]);
 }
 
-// ONE ADDRESS BY ID, WHICH THIS SERVICE HAD NOT EXPOSED SINCE 26 DECEMBER 2025.
-//
-// features/payments/service.ts calls getAddressFromId to find the state a sales
-// order is taxed in. The function did not exist - it was lost in be03eed3 and
-// nothing defined it since, and `import * as` makes a missing name `undefined`
-// rather than an import error, so it failed at the call. The effect was that
-// POST /api/stripe/update_payment_intent threw on its first await and answered
-// 500 every time, leaving the intent at the $10.00 placeholder.
+// payments/service.ts calls this to find the state a sales order is taxed in.
+// `import * as` makes a missing name undefined rather than an import error - a deleted function here fails at the call, not at build time.
 export async function getAddressFromId(
   address_id: string, executor?: Executor
 ): Promise<ComposedAddress | undefined> {
@@ -110,19 +85,14 @@ export async function isActive(
   return await addresses.isActive(address_id, user_id, executor);
 }
 
-// The order-time freeze (D208): copy the address as it stands and hand back
-// the copy's id. Owned here because places.addresses is this feature's table -
-// an order links to the snapshot through its own orders.addresses repo.
+// The order-time freeze: copy the address as it stands and hand back the copy's id. Owned here because places.addresses is this feature's table.
 export async function snapshot(
   address_id: string, executor?: Executor
 ): Promise<string | null> {
   return await addresses.snapshot(address_id, executor);
 }
 
-// WHETHER AN ADDRESS IS IN THIS USER'S BOOK - the ownership question, which
-// is a different question from isActive above (that one asks whether an
-// unfinished order LOCKS the address). The checkout row's address slots are
-// gated on this: an id from somebody else's book never lands (D208).
+// The ownership question - different from isActive above (whether an unfinished order LOCKS the address). Checkout's address slots are gated on this.
 export async function inBook(
   address_id: string, user_id: string, executor?: Executor
 ): Promise<boolean> {
@@ -143,11 +113,7 @@ export async function create(
   const run = async (c: Executor): Promise<ComposedAddress> => {
     const id = randomUUID();
     const row = await addresses.create(id, address, c);
-    // Creating AS the default must also un-default the others. Only
-    // setDefault ever cleared them, so a second create with the flag left a
-    // user with two defaults and the UI showing a coin toss - a live bug
-    // migration 089's one-default-per-user index surfaced the day it landed.
-    // Insert off, then flip through the same clear-then-set both writes use.
+    // Creating AS the default must also un-default the others: insert off, then flip through the same clear-then-set both writes use.
     const link = await userAddresses.create(randomUUID(), id, userId, { label, default_shipping: false }, c);
     if (isDefault) {
       await userAddresses.setDefault(userId, id, c);
@@ -173,16 +139,11 @@ export async function update(
   const isDefault = defaultOf(user_address);
 
   const run = async (c: Executor): Promise<ComposedAddress> => {
-    // THE OWNERSHIP CHECK. See the header. Read inside the transaction, so an
-    // address that leaves the caller's book between this and the write cannot
-    // slip through.
+    // The ownership check (see header). Read inside the transaction, so an address that leaves the caller's book between this and the write can't slip through.
     const owned = await userAddresses.getOne(address.id, userId, c);
     if (!owned) throw badRequest("Address not found.");
 
-    // The address, unchanged, plus is_residential reset to false - the one
-    // fact this write adds that the caller did not send (matching the
-    // statement this replaces; see repo.ts's header on why that survives the
-    // collapse into one update()).
+    // The address, unchanged, plus is_residential reset to false - the one fact this write adds that the caller didn't send.
     const ok = await addresses.update(address.id, {
       line_1: address.line_1,
       line_2: address.line_2,
@@ -197,9 +158,7 @@ export async function update(
     if (!ok) throw badRequest("Address not found.");
     const row = await addresses.getOne(address.id, c) as AddressRow;
 
-    // Same one-default rule as create: an update that turns the flag ON goes
-    // through clear-then-set rather than writing a second default beside the
-    // existing one (089's index refuses that, correctly).
+    // Same one-default rule as create: turning the flag ON goes through clear-then-set rather than writing a second default beside the existing one.
     const link = await userAddresses.update(address.id, userId, { label, default_shipping: false }, c);
     if (isDefault) {
       await userAddresses.setDefault(userId, address.id, c);
@@ -225,8 +184,7 @@ export async function updateValidation(
   return executor ? await run(executor) : await withTransaction(run);
 }
 
-// Returns a MESSAGE STRING, not the row and not a boolean - that is what the
-// controller sends back, so it is what this returns.
+// Returns a message string, not the row or a boolean - that's what the controller sends back.
 export async function remove(
   { addressId, userId }: { addressId: string; userId: string },
   executor?: Executor
@@ -238,10 +196,7 @@ export async function remove(
   }
 
   const run = async (c: Executor): Promise<string> => {
-    // The LINK goes first. places.addresses may still be referenced by an order
-    // snapshot, and an address that is gone from someone's book has not stopped
-    // being the place a parcel was sent - so the address itself only goes when
-    // nothing at all points at it.
+    // The LINK goes first - the address itself only goes when nothing at all points at it (an order snapshot may still reference it).
     await userAddresses.remove(addressId, userId, c);
     if (!(await addresses.isReferenced(addressId, c))) {
       await addresses.remove(addressId, c);

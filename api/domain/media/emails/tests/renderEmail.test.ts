@@ -1,19 +1,5 @@
-// The refiner's copy of a sales order, rendered.
-//
-// Pure: it reads template files and substitutes. No database, no transport, no
-// Chromium.
-//
-// It is tested because typing it found two live TypeErrors, both on values the
-// wire contract already declares nullable, and both thrown at the worst
-// possible moment. features/sales-orders/service.js sends this message AFTER
-// the transaction that attaches the supplier, creates the outbound shipment and
-// sets order_sent - deliberately, so that a failure leaves an order marked sent
-// rather than metal shipped against a rolled-back record. Anything that throws
-// in here is therefore silent: the order says it went, and nobody was told.
-//
-// Both were confirmed against the pre-conversion file before being fixed:
-//   `addr.line_1`         -> TypeError: Cannot read properties of null
-//   `s.ask_spot.toFixed`  -> TypeError: Cannot read properties of null
+// The refiner's copy of a sales order, rendered - pure (reads templates, substitutes; no database/transport/Chromium).
+// Sent AFTER the transaction that attaches the supplier and marks order_sent - a throw here is silent: the order says it went and nobody is told. Values the wire contract declares nullable (address, ask_spot) must render, not throw.
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
@@ -21,10 +7,7 @@ import {
   renderOrderPricedEmail,
 } from "#domain/media/emails/utils/renderEmail.ts";
 
-// The wire shape, not a convenience object: SalesOrder says address
-// and totals are nullable, and an item's price and quantity are. The fixture
-// speaks the converted names (D84) because that is what the service hands the
-// renderer now.
+// The wire shape, not a convenience object: SalesOrder's address, totals, and an item's price/quantity are nullable - the fixture uses the same converted names the service hands the renderer.
 const order = (over = {}) => ({
   id: "00000000-0000-0000-0000-000000000001",
   number: 55,
@@ -68,9 +51,7 @@ test("the supplier email renders the order it was given", () => {
   assert.ok(html.includes("SO - 000055"), "the order number is not formatted");
 });
 
-// PRODUCTION SALES ORDER 55: address_id NULL, a supplier attached, order_sent
-// true. Rendering its supplier email threw, which is why the service now
-// refuses it outright - but the renderer must not be the thing that decides.
+// Production sales order 55: address_id NULL, supplier attached, order_sent true - rendering its email threw. The service now refuses that case outright, but the renderer must not be the thing that decides.
 test("an order with no address renders rather than throwing", () => {
   const html = renderSalesOrderToSupplierEmail({
     firstName: "Refiner",
@@ -82,8 +63,7 @@ test("an order with no address renders rather than throwing", () => {
   assert.ok(html.length > 500, "no document was produced");
   assert.ok(!html.includes("null"), "a null reached the page as the word 'null'");
   assert.ok(html.includes("&mdash;"), "a missing address field rendered as nothing at all");
-  // The rest of the message still has to be there - a document that renders by
-  // dropping the order would pass the assertions above.
+  // The rest of the message still has to be there - dropping the order would still pass the assertions above.
   assert.ok(html.includes("1 oz Gold Eagle"), "the line item was lost");
   assert.ok(html.includes("1234.50"), "the order total was lost");
 });
@@ -102,11 +82,7 @@ test("a spot with no ask renders rather than throwing", () => {
   assert.ok(html.includes("&mdash;"), "a missing ask rendered as nothing at all");
 });
 
-// The other renderers take a name and a URL and nothing else. This one checks
-// the substitution actually happens, because a template whose marker was
-// renamed would otherwise ship the marker to a customer. It rendered the
-// offer-sent template until the offers went (Jacob, 28 August); the priced
-// mail is the substitution path that remains.
+// Checks the substitution actually happens - a renamed template marker would otherwise ship literally to a customer.
 test("a template with no url falls back rather than emitting an empty href", () => {
   const html = renderOrderPricedEmail({ firstName: "Jacob" });
   assert.ok(html.includes("Jacob"), "the name was not substituted");

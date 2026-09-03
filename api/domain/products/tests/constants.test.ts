@@ -1,27 +1,12 @@
-// The projections, which decide what leaves the API for a product.
-//
-// There were eight field lists across two files and none had a test. Half of
-// them are gone: products.bullion's projections live in sql/*.sql now, so this
-// reads the STATEMENTS for that half rather than the strings that used to feed
-// them - which is a stronger check, because a statement can drift from its
-// constant and a constant cannot drift from itself.
-//
-// features/products/constants.ts survives because features/checkout still
-// imports it; it goes when checkout is restructured.
-//
-// The hazard is unchanged: "a projection that silently grew is how columns
-// start leaking onto the wire". validate:wire refuses a field no contract
-// declares, which catches a leak that reaches one of its endpoint shapes. This
-// catches the ones that do not - a drift between a list and its alias twin, or
-// an admin-only column appearing in a public list.
+// The projections that decide what leaves the API for a product. domain/products/constants.ts survives because checkout still imports it; goes when checkout is restructured.
+// The hazard: a projection that silently grows a column is how columns leak onto the wire. validate:wire only catches drift that reaches a contract shape; this catches list/alias drift and an admin-only column appearing in a public list.
 import test from "node:test";
 import assert from "node:assert/strict";
 import path from "node:path";
 import * as exchange from "#domain/products/constants.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
 
-// The statements are db/products/sql (Phase 0c moved repo + sql there; this
-// test stayed in domain/ alongside constants.ts).
+// The statements are db/products/sql; this test stayed in domain/ alongside constants.ts.
 const sql = sqlFrom(path.join(import.meta.dirname, "..", "..", "..", "db", "products"));
 
 // The name a field arrives under: the alias if there is one, else the column.
@@ -32,15 +17,12 @@ const projected = (text: string): string[] =>
     .filter(Boolean)
     .map((part: string) => {
       const alias = part.match(/\bAS\s+(\w+)/i);
-      // `?? part` because String.pop() on a split is typed `| undefined` - it
-      // cannot actually be, a non-empty split always yields one, but saying so
-      // beats a non-null assertion.
+      // `?? part`: String.pop() on a split is typed `| undefined` but can't actually be, for a non-empty split — this beats a non-null assertion.
       const name = alias ? alias[1] : (part.split(/\s+/).pop() ?? part);
       return name.split(".").pop() ?? name;
     });
 
-// The SELECT list of a statement, comment-stripped - the headers of these files
-// name columns in prose, and matching those would be matching a comment.
+// The SELECT list of a statement, comment-stripped — these files' headers name columns in prose, and matching those would be matching a comment.
 const selected = (name: string): string[] => {
   const body = sql(name)
     .split("\n")
@@ -83,10 +65,7 @@ for (const [name, plain, alias] of PAIRS) {
   });
 }
 
-// EVERY public statement returns the SAME shape. Six statements differ only in
-// their WHERE clause, and one of them growing a column is exactly how a field
-// reaches some responses and not others - which no contract check would catch,
-// because it would still parse.
+// Every public statement returns the SAME shape. Six statements differ only in their WHERE clause; one growing a column is exactly how a field reaches some responses and not others, which no contract check would catch (it would still parse).
 test("every public statement projects the same fields, in the same order", () => {
   const first = selected(PUBLIC_STATEMENTS[0]);
   for (const n of PUBLIC_STATEMENTS.slice(1)) {
@@ -117,10 +96,7 @@ for (const [label, pub, adm] of [
   });
 }
 
-// exchange and products.bullion select from differently named columns -
-// product_name against name - but must deliver the same shape, because one
-// contract describes both and validate:wire parses each through it. If one
-// grows a column the other lacks, the shapes part company.
+// exchange and products.bullion select from differently named columns (product_name vs name) but must deliver the same shape — one contract describes both, and validate:wire parses each through it.
 test("the exchange list and the bullion statements deliver the same shape", () => {
   assert.deepEqual(
     withoutComposeIds(selected("get_storefront")),

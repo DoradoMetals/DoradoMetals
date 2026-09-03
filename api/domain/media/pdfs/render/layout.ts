@@ -51,8 +51,7 @@ function renderHeader(): string {
 
 interface ShellInput {
   title: string;
-  /** Optional - the caller passes a falsy value when there is no subtitle, and
-   *  the template omits the element rather than rendering an empty one. */
+  /** Optional - a falsy value omits the subtitle element rather than rendering an empty one. */
   subtitle?: string | null;
   /** Already-rendered HTML for the body. Interpolated as-is. */
   bodyHtml: string;

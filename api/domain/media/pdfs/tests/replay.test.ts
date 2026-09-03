@@ -1,28 +1,6 @@
-// The four PDF routes, over real HTTP.
-//
-// features/pdf/service.test.js already renders every document and checks the
-// bytes. What it cannot check is the HTTP boundary: the guards, and the headers
-// a browser needs to actually receive a file. A packing list that renders
-// perfectly and arrives with the wrong Content-Type is a broken download.
-//
-// CHROMIUM. One test here renders for real, because Content-Length can only be
-// asserted against a real document. closeBrowser() runs in after() - without it
-// Chromium outlives the run and node never exits, which has happened and cost
-// an hour and eleven orphaned processes. Every other test stops at a guard, so
-// nothing else launches a browser.
-//
-// WHAT THESE ROUTES SERVE. An earlier version of this header said they "do
-// not look anything up... nothing is emailed and nothing is stored", and that
-// stopped being the whole truth when serve.ts landed: for the order's OWNER
-// (or an admin) they now look up the latest media.pdfs row and serve the
-// stored file, falling back to a live render of the body when no stored
-// document exists - persisting that render for a linkable order, so the
-// second download reads the store. For everyone else nothing changed: a
-// render of the body they posted, which is data they already possessed - the
-// selection logic and the ownership gate are pinned in serve.test.js. Over
-// HTTP in a test run the stored branch always falls back (putObject is
-// skipped under isTestRun and the default reader refuses), so every render
-// assertion below still exercises the same path it always did.
+// The four PDF routes, over real HTTP - service.test.ts already renders every document and checks the bytes; what it can't check is the HTTP boundary (guards, and the headers a browser needs to receive a file).
+// One test renders for real (Content-Length can only be asserted against a real document) - closeBrowser() runs in after(), or Chromium outlives the run and node never exits (has happened, cost an hour and eleven orphaned processes). Every other test stops at a guard.
+// What these routes serve: for the order's OWNER (or an admin), they look up the latest media.pdfs row and serve the stored file, falling back to a live render (persisted for a linkable order) when none exists; everyone else gets a render of the body they posted, same as always - selection logic and ownership gate are pinned in serve.test.ts. In a test run the stored branch always falls back, so every render assertion below exercises the same path it always did.
 import test, { after, before } from "node:test";
 import assert from "node:assert/strict";
 import request from "supertest";
@@ -45,9 +23,7 @@ const ROUTES = [
   "generate_sales_order_invoice",
 ];
 
-// THE STRUCTURAL SUBSET EACH FIXTURE ACTUALLY HAS. getAllPurchases and
-// getAllSales declare `Record<string, unknown>[]`, so what this file reads is
-// named rather than assumed.
+// getAllPurchases/getAllSales declare Record<string, unknown>[]; what this file reads is named rather than assumed.
 type UserFixture = { id: string; name: string | null; email: string | null };
 type OrderFixture = { id: string; order_items?: unknown[] | null };
 type Spot = Awaited<ReturnType<typeof spotsService.getSpotPrices>>[number];
@@ -73,13 +49,10 @@ before(async () => {
   order = orders.find((o) => (o.order_items?.length ?? 0) > 0) ?? orders[0];
   assert.ok(order, "dev has no purchase order to render");
 
-  // The composed shape (`name` / `ask` / `bid`), the way the frontend sends
-  // them and the calculations read them since D84.
+  // The composed shape (name/ask/bid), the way the frontend sends them and the calculations read them.
   spots = await spotsService.getSpotPrices();
 
-  // The sales-order invoice is a different document from a different table -
-  // it is the copy a REFINER is sent. `order` above is a purchase order and
-  // will not stand in for it.
+  // The sales-order invoice is a different document from a different table (the refiner's copy) - `order` above is a purchase order and won't stand in for it.
   const salesOrders = (await soRepo.getAllSales()) as unknown as OrderFixture[];
   salesOrder = salesOrders.find((o) => (o.order_items?.length ?? 0) > 0) ?? salesOrders[0];
   assert.ok(salesOrder, "dev has no sales order to render");
@@ -93,33 +66,16 @@ after(async () => {
   await pool.end();
 });
 
-// THE OTHER THREE, WHICH ONLY HAD THE REFUSAL UNTIL NOW.
-//
-// The loop above drives all four routes anonymously and asserts each refuses.
-// Only generate_packing_list was ever RENDERED. These are the three that were
-// not: a return packing list, a purchase-order invoice and a sales-order
-// invoice - the documents a customer and a refiner are sent.
-//
-// Each renders LIVE here, FROM THE SERVER'S OWN READ (ruling 10, wave 3):
-// `customer` is an arbitrary non-admin, generally not the order's owner, so
-// serve.ts keeps the store shut and falls back to a render. The BODY is now
-// `{ order_id }` - it used to carry the whole composed order plus the spot
-// feed and the package, which meant the document was rendered from numbers
-// the browser supplied.
-// Nothing that would notice the renderer breaking exists elsewhere, which is
-// what makes rendering them worth asserting rather than assuming.
-//
-// A PDF is checked by its magic bytes and a floor on its length. An empty or
-// error page is still a 200 with content-type application/pdf, so the status
-// alone proves nothing.
+// The other three, which only had the refusal until now: a return packing list, a purchase-order invoice and a sales-order invoice - the documents a customer and a refiner are sent.
+// Each renders LIVE here from the server's own read: `customer` is generally not the order's owner, so serve.ts keeps the store shut and falls back to a render. Nothing else would notice the renderer breaking, which is what makes rendering them worth asserting rather than assuming.
+// A PDF is checked by its magic bytes and a floor on its length - an empty or error page is still a 200 with content-type application/pdf, so the status alone proves nothing.
 const RENDERS = [
   ["generate_return_packing_list", "return-packing-list.pdf", () => ({ order_id: order.id })],
   ["generate_invoice", "invoice.pdf", () => ({ order_id: order.id })],
   ["generate_sales_order_invoice", "invoice.pdf", () => ({ order_id: salesOrder.id })],
 ];
 
-// Declared as a tuple list: inferred, the element type collapses to
-// `string | (() => …)` and neither half is usable.
+// Declared as a tuple list - inferred, the element type collapses to `string | (() => …)` and neither half is usable.
 for (const [route, filename, body] of RENDERS as Array<
   [string, string, () => Record<string, unknown>]
 >) {
@@ -168,10 +124,7 @@ test("every PDF route refuses an anonymous caller", async () => {
   });
 });
 
-// A guard that lets an unauthenticated caller through would also be launching a
-// browser per request, which is a denial-of-service surface as well as a leak.
-// This is what makes the refusals above worth asserting for all four rather
-// than for one.
+// A guard that let an unauthenticated caller through would launch a browser per request - a denial-of-service surface as well as a leak, which is why the refusal above is asserted for all four.
 test("no PDF route launches a renderer for an anonymous caller", async () => {
   await inPinnedTransaction(async () => {
     await anonymous(async () => {
@@ -187,8 +140,7 @@ test("no PDF route launches a renderer for an anonymous caller", async () => {
   });
 });
 
-// THE ONE THAT RENDERS. Proves a signed-in caller receives a real file with the
-// headers a browser needs to save it.
+// The one that renders: proves a signed-in caller receives a real file with the headers a browser needs to save it.
 test("a signed-in caller gets a real PDF with the headers to download it", async () => {
   await inPinnedTransaction(async () => {
     await as({ ...customer, role: "user" }, async () => {
@@ -225,18 +177,11 @@ test("a signed-in caller gets a real PDF with the headers to download it", async
   });
 });
 
-// THE STORED BRANCH, OVER HTTP. serve.test.js proves the selection logic with
-// a stubbed reader; what it cannot prove is the wiring - that the controller
-// hands serve.ts the right order id and caller, and that a stored row can
-// never turn a customer's download into a 500. In a test run the stored read
-// always fails (the default reader refuses, exactly as a deleted object
-// would), so this drives the OWNER through a route whose order HAS a stored
-// row and asserts the fallback still delivers a real PDF. That is the
-// "customer's download must not break over bookkeeping" property, end to end.
+// The stored branch, over HTTP: serve.test.ts proves the selection logic with a stubbed reader; what it can't prove is the wiring (that the controller hands serve.ts the right order id and caller, and that a stored row can never turn a customer's download into a 500).
+// In a test run the stored read always fails (like a deleted object would), so this drives the OWNER through a route whose order HAS a stored row and asserts the fallback still delivers a real PDF - "download must not break over bookkeeping", end to end.
 test("an owner's download with a stored row still answers with a PDF when the store cannot", async () => {
   await inPinnedTransaction(async () => {
-    // The row references orders.orders; an order the new schema does not know
-    // cannot carry one, and then this test would prove nothing - so say so.
+    // The row references orders.orders; an order the schema doesn't know can't carry one, and this test would prove nothing - so say so.
     const known = await outside(`SELECT user_id FROM orders.orders WHERE id = $1`, [order.id]);
     assert.ok(known.length, "the fixture order is not in orders.orders - pick another");
     const ownerRow = await outside(`SELECT id, name, email FROM exchange.users WHERE id = $1`, [
@@ -244,8 +189,7 @@ test("an owner's download with a stored row still answers with a PDF when the st
     ]);
     assert.ok(ownerRow.length, "the order's owner is not in exchange.users");
 
-    // Through the shared executor: while pinned, this joins the transaction
-    // that gets rolled back, so the row never outlives the test.
+    // Through the shared executor: while pinned, this joins the transaction that gets rolled back, so the row never outlives the test.
     await query(
       `INSERT INTO media.pdfs (kind, order_id, path, size_bytes, checksum)
        VALUES ('return_packing_list', $1, 'pdfs/replay/never-uploaded.pdf', 5, 'feed')`,

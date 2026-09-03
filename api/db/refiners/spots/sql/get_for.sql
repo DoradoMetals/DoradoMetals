@@ -1,20 +1,5 @@
--- THE METAL IS A FOREIGN KEY HERE AND WAS TEXT IN exchange, so the name is
--- joined in. This is the one place a join stays in the SQL rather than moving
--- to a compose step: metals.metals is four seeded rows and the alternative is
--- threading a metal-name map through a read that has no other reason to know
--- about one.
---
--- percent_change and dollar_change HAVE NO COLUMN in the new schema and are
--- projected as NULL to keep the shape. They are null on every row in exchange
--- too and nothing writes them - CLAUDE.md lists percent_change among the
--- columns that are 100% NULL and still referenced by live code, which is
--- exactly why they are projected rather than dropped.
---
--- What the REFINER quoted, as against what the customer was quoted. Same shape
--- as orders.spots so the two can be read the same way.
---
--- refiners.spots keeps its SOURCE id, unlike orders.spots which generates its
--- own - exchange.refiner_metals rows have nothing else to key on.
+-- Metal is a foreign key here (text in exchange), so the name is joined in — the one place a join stays in SQL rather than a compose step, since metals.metals is four rows.
+-- percent_change/dollar_change have no column in the new schema; projected as NULL to keep the shape (100% NULL in exchange too, still referenced by live code — see CLAUDE.md).
 SELECT
        sp.id,
        sp.order_id AS purchase_order_id,

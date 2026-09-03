@@ -36,9 +36,7 @@ async function inRollback(fn: (c: PoolClient) => Promise<void>) {
 
 const NOBODY = "00000000-0000-0000-0000-000000000000";
 
-// Same shape saveProduct in the service builds, sized for a fresh row rather
-// than an edit - metal_id/mint_id/supplier_id are read from a real product so
-// the foreign keys resolve.
+// Same shape saveProduct builds; metal_id/mint_id/supplier_id are read from a real product so the foreign keys resolve.
 function patchFor(existing: { metal_id: string; supplier_id: string; mint_id: string }, name: string): ProductPatch {
   return {
     metal_id: existing.metal_id,

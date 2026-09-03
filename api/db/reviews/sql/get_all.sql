@@ -1,7 +1,4 @@
--- Every row, newest first.
---
--- created_at is not unique, so id breaks the tie. Without a unique ORDER BY the
--- rows come back in physical order, which changes as rows are updated.
+-- Every row, newest first. id breaks ties on created_at for a stable order.
 SELECT id, name, review_text, rating, hidden, created_at, updated_at,
        created_by, updated_by
   FROM reviews.reviews

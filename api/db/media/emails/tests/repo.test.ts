@@ -1,7 +1,4 @@
-// media.emails, append-only, against real Postgres.
-//
-// No update()/remove() to pin (see repo.ts's header) - this proves create()
-// writes the row it is given and reads back what it wrote.
+// media.emails, append-only, against real Postgres - proves create() writes the row given and reads back what it wrote (no update()/remove() to pin).
 import test, { after, before } from "node:test";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";

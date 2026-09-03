@@ -1,29 +1,13 @@
-// The customer balance path, against real Postgres.
-//
-// addFunds and removeFunds move a customer's Dorado balance, and
-// addTransactionLog is the record of why. This is the closest thing in the
-// codebase to a ledger, and it is the one place where a write escaping its
-// transaction would take money with it - so the tests are mostly about the two
-// staying together.
-//
+// The customer balance path, against real Postgres. addFunds/removeFunds move the balance, addTransactionLog records why - a write escaping its transaction would take money with it, so the tests are mostly about the two staying together.
 // Each runs inside a transaction that is rolled back, so no real balance moves.
-//
-// EXERCISED THROUGH THE SERVICE, NOT THE REPO. addFunds/removeFunds used to be
-// their own one-column repo statements; the CRUD collapse folded them into
-// `users.adjustCredit`'s "add"/"subtract" arms (the ledger exception - see
-// db/users/repo.ts's header), so the service functions are the whole write
-// path now and this file follows them there.
 import test, { after, before } from "node:test";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
 import { randomUUID } from "node:crypto";
 import pool from "#db";
-// MOVED FROM features/transactions. addFunds and removeFunds write
-// exchange.users.dorado_funds, and features/users owns that table - two
-// services writing one table is the single thing the structure forbids.
+// addFunds/removeFunds write exchange.users.dorado_funds, and users owns that table - two services writing one table is the thing the structure forbids.
 import * as usersService from "#domain/users/service.ts";
-// The ledger entry that records WHY a balance moved lives in its own feature -
-// the balance is users', the log is transactions'. Two tables, two owners.
+// The ledger entry that records WHY a balance moved lives in its own feature: the balance is users', the log is transactions'.
 import * as transactions from "#domain/transactions/service.ts";
 import { takeLocks, LOCKS } from "#shared/testing/locks.ts";
 
@@ -77,9 +61,7 @@ test("removing funds decreases it by exactly the amount", async () => {
   });
 });
 
-// Money is NUMERIC. Without the type parsers registered in db.js it arrives as
-// a string, and `balance + amount` concatenates rather than adds - which is the
-// bug those parsers exist to prevent.
+// Money is NUMERIC - without the type parsers registered in db.js it arrives as a string and `balance + amount` concatenates rather than adds.
 test("a balance is a number, not a string", async () => {
   await inRollback(async (c: PoolClient) => {
     const user = await aUser(c);
@@ -89,8 +71,7 @@ test("a balance is a number, not a string", async () => {
   });
 });
 
-// Adding and removing the same amount must leave the balance where it started.
-// Floating point makes that worth asserting rather than assuming.
+// Adding and removing the same amount must leave the balance where it started - floating point makes that worth asserting.
 test("adding then removing the same amount is a round trip", async () => {
   await inRollback(async (c: PoolClient) => {
     const user = await aUser(c);
@@ -101,9 +82,7 @@ test("adding then removing the same amount is a round trip", async () => {
   });
 });
 
-// removeFunds does not check the balance first. Nothing stops it going
-// negative, which is a real possibility if two checkouts race - and the guard,
-// wherever it belongs, is not here. Pinned as behaviour rather than fixed.
+// removeFunds does not check the balance first - nothing stops it going negative if two checkouts race. Pinned as behaviour, not fixed.
 test("removing more than the balance goes negative rather than refusing", async () => {
   await inRollback(async (c: PoolClient) => {
     const user = await aUser(c);
@@ -130,9 +109,7 @@ test("a transaction log records the movement", async () => {
   });
 });
 
-// The property that matters most: the balance change and its log entry are one
-// transaction. A balance that moved with no record of why is unauditable, and a
-// record of a movement that did not happen is worse.
+// The property that matters most: the balance change and its log entry are one transaction.
 test("a rolled-back movement leaves neither the balance nor the log changed", async () => {
   const other = await pool.connect();
   try {

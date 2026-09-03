@@ -1,24 +1,7 @@
-// The reviews endpoints, over real HTTP.
-//
-// Reviews has the same shape as rates - a public route sitting beside five
-// admin ones - but a much more consequential public read. `/get_public` is
-// unauthenticated and feeds the marketing site, and it is the only route in
-// this feature whose output a stranger can see.
-//
-// WHAT MAKES THIS WORTH A SUITE. The public read differs from the admin read by
-// exactly one clause: `WHERE hidden = false`. `hidden` is how the business
-// suppresses a review it does not want shown. So that single clause is the only
-// thing standing between "the reviews we chose to publish" and "every review
-// anyone ever left", and nothing else in the codebase asserts it.
-//
-// Dev makes that a strong assertion rather than a decorative one: 14 reviews,
-// THIRTEEN OF THEM HIDDEN. A regression that dropped the clause would return 14
-// instead of 1, so the test fails loudly rather than passing on a fixture where
-// the distinction does not arise. Both repo.exchange and repo.next carry the
-// clause today; this is what keeps it true through promotion.
-//
-// NOTHING IS COMMITTED. shared/testing/pinned-pool.js holds every query in one
-// transaction that is rolled back. The last test checks from outside.
+// The reviews endpoints, over real HTTP. `/get_public` is unauthenticated and feeds the marketing site.
+// The public read differs from admin by exactly one clause, `WHERE hidden = false` - the only thing standing between what's published and every review ever left.
+// Dev holds 14 reviews, 13 hidden, so a regression that dropped the clause returns 14 instead of 1 rather than passing vacuously.
+// Nothing is committed: pinned-pool.ts rolls back every query; the last test checks from outside.
 import test, { after, before } from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
@@ -34,9 +17,7 @@ import {
 await mockSessions();
 const { default: app } = await import("#app");
 
-// THE STRUCTURAL SUBSET EACH FIXTURE ACTUALLY HAS. These are SELECT
-// projections, not table rows - naming a row type would claim columns the
-// query never asked for.
+// SELECT projections, not table rows.
 type UserFixture = { id: string; name: string | null; email: string | null };
 let admin: UserFixture;
 let customer: UserFixture;
@@ -65,8 +46,7 @@ before(async () => {
   visibleCount = counts[0].visible;
   hiddenCount = counts[0].hidden;
 
-  // Both halves must be non-empty or the central assertion proves nothing: with
-  // no hidden rows, a read that ignored `hidden` would return the same list.
+  // Both halves must be non-empty: with no hidden rows, a read that ignored `hidden` would return the same list.
   assert.ok(visibleCount > 0, "dev has no visible review - the public read is untestable");
   assert.ok(hiddenCount > 0, "dev has no hidden review - the filter test would be vacuous");
 });
@@ -76,8 +56,7 @@ after(async () => {
   await pool.end();
 });
 
-// Object.assign, not a spread: an override lands on top of the defaults
-// without copying either object's props by hand.
+// Object.assign, not a spread: an override lands on top of the defaults without copying either object's props by hand.
 const newReview = (over: Partial<{ hidden: boolean }> = {}) =>
   Object.assign(
     {
@@ -91,8 +70,7 @@ const newReview = (over: Partial<{ hidden: boolean }> = {}) =>
     over
   );
 
-// Named, not spread: the fixture is only ever id/name/email plus the role the
-// call is exercising.
+// Named, not spread: the fixture is only ever id/name/email plus the role the call is exercising.
 const asAdmin = <T>(fn: () => Promise<T> | T) =>
   as({ id: admin.id, name: admin.name, email: admin.email, role: "admin" }, fn);
 const asCustomer = <T>(fn: () => Promise<T> | T) =>
@@ -109,10 +87,7 @@ test("the public review list needs no session at all", async () => {
   });
 });
 
-// THE ASSERTION THIS FILE EXISTS FOR.
-//
-// Not "the counts differ" - that would pass if the public read returned a
-// hidden review and dropped a visible one. Every row is checked individually.
+// Not "the counts differ" - that would pass if the public read returned a hidden review and dropped a visible one. Every row is checked individually.
 test("no hidden review reaches the public list", async () => {
   await inPinnedTransaction(async () => {
     await anonymous(async () => {
@@ -124,8 +99,7 @@ test("no hidden review reaches the public list", async () => {
         `the public read returned ${leaked.length} review(s) the business hid`
       );
 
-      // The public read also carries LIMIT 10, so this is <=, not ==. Dev has
-      // one visible review, well under the limit.
+      // The public read also carries LIMIT 10, so this is <=, not ==.
       assert.ok(
         res.body.length <= visibleCount,
         `the public read returned ${res.body.length} of ${visibleCount} visible reviews`
@@ -139,10 +113,7 @@ test("no hidden review reaches the public list", async () => {
   });
 });
 
-// The counterpart: an admin DOES see the hidden ones, which is what makes the
-// filter above a filter rather than the table simply having nothing hidden in
-// it. If this ever returns the same rows as the public read, the two have
-// converged and the previous test is no longer proving anything.
+// The counterpart: an admin DOES see the hidden ones. If this ever returns the same rows as the public read, the two have converged and the previous test proves nothing.
 test("an admin sees the hidden reviews the public list withholds", async () => {
   await inPinnedTransaction(async () => {
     await asAdmin(async () => {
@@ -159,14 +130,7 @@ test("an admin sees the hidden reviews the public list withholds", async () => {
   });
 });
 
-// RECORDED, NOT FIXED. The public read returns `created_by` and `updated_by`,
-// which hold an admin's NAME - "Jacob Johnson" in dev - to anyone on the
-// internet. It is a small leak and a real one.
-//
-// It is deliberately not fixed here. Removing a field from a response is a wire
-// change, and CLAUDE.md is explicit that wire shapes do not move during a schema
-// migration. This asserts the CURRENT shape so that the change, when it is made
-// deliberately, is visible as a failing test rather than a silent difference.
+// Recorded, not fixed: the public read returns created_by/updated_by (an admin's real name) to anyone on the internet - a real leak, left alone because removing a field is a wire change and wire shapes don't move during a schema migration.
 test("the public list carries no field the admin list lacks", async () => {
   await inPinnedTransaction(async () => {
     let publicFields: Set<string> | undefined;
@@ -182,13 +146,9 @@ test("the public list carries no field the admin list lacks", async () => {
       adminFields = new Set(Object.keys(res.body[0] ?? {}));
     });
 
-    // GUARDED: both sets are assigned inside callbacks, so a request that
-    // never ran left them undefined and the spread TypeError'd instead of
-    // saying which read produced nothing.
+    // Guarded: both sets are assigned inside callbacks, so a request that never ran left them undefined and the spread TypeError'd instead of saying which read produced nothing.
     assert.ok(publicFields, "the public read produced no fields");
     assert.ok(adminFields, "the admin read produced no fields");
-    // Bound to consts: a `let` narrowed by an assertion widens again inside a
-    // closure, because anything could reassign it in between.
     const adminSet = adminFields;
     const publicExtras = [...publicFields].filter((f) => !adminSet.has(f));
     assert.deepEqual(publicExtras, [], "the public read returns fields the admin read does not");
@@ -213,8 +173,7 @@ test("every admin route refuses a signed-in non-admin", async () => {
         ["update", request(app).post("/api/reviews/update").send({ review_id: randomUUID(), patch: newReview() })],
         ["delete", request(app).delete("/api/reviews/delete").send({ review_id: randomUUID() })],
       ] as Array<[string, Promise<{ status: number }>]>;
-      // Declared as a tuple list: inferred, the element type collapses to
-      // `string | Test` and neither half is usable.
+      // Declared as a tuple list: inferred, the element type collapses to `string | Test` and neither half is usable.
       for (const [name, call] of calls) {
         const res = await call;
         assert.ok([401, 403].includes(res.status), `${name} answered ${res.status} to a non-admin`);
@@ -245,9 +204,7 @@ test("an admin creating a review round-trips, and a hidden one stays out of publ
       assert.equal(saved.hidden, true, "hidden was not stored as sent");
     });
 
-    // The write is inside the pin, so the public read sees it too - which is
-    // what makes this an end-to-end check of the filter rather than a re-read
-    // of the same fixture.
+    // The write is inside the pin, so the public read sees it too - an end-to-end check rather than a re-read of the same fixture.
     await anonymous(async () => {
       const res = await request(app).get("/api/reviews/get_public");
       assert.ok(

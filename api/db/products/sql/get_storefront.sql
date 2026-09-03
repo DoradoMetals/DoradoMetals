@@ -1,14 +1,5 @@
--- THE PUBLIC PROJECTION. Anyone on the internet can read this, so what it does
--- NOT contain matters as much as what it does: no display, no stock, no
--- created_by, no timestamps, no filter_category, no quantity. Those are the
--- admin list's, and tests/unit.test.ts fails if one appears here.
---
--- metal_id and mint_id ARE projected and are NOT on the wire. compose.ts needs
--- them to attach `metal_type` and `mint_name`, and drops them again. The
--- implementation this replaces joined metals.metals and products.mints to get
--- the two labels; one read of each reference table beats a join per query.
---
--- The storefront list. `display` is what makes a product public at all.
+-- Public projection — anyone on the internet reads this, so no display, stock, created_by, timestamps, filter_category or quantity; tests/unit.test.ts fails if one appears.
+-- metal_id/mint_id ARE projected but never reach the wire: compose.ts uses them to attach metal_type/mint_name, then drops them.
 SELECT
        id, name, description, content, purity, gross,
        bid_premium, ask_premium, type,
