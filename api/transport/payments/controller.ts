@@ -8,7 +8,6 @@ import { parseStrict, uuidLike } from "#shared/http/validate.ts";
 import { refuseWith } from "#shared/http/refuse.ts";
 import * as stripe from "#providers/payment/stripe.ts";
 import * as stripeService from "#domain/payments/service.ts";
-import { logger } from "#shared/logging/logger.ts";
 import type { Request } from "express";
 import type { Caller } from "#domain/payments/service.ts";
 
@@ -39,25 +38,12 @@ async function applyIntentEvent(
 }
 
 export const handleStripeWebhook = asyncHandler(async (req, res) => {
-  // A HEADER CAN BE AN ARRAY AND CAN BE ABSENT, and this signature check is the
-  // one thing standing between this endpoint and anybody who can guess its URL.
   const sig = req.headers["stripe-signature"];
   if (typeof sig !== "string") {
-    return res.status(400).send("Webhook Error: missing stripe-signature");
+    return refuseWith(400, "missing stripe-signature header");
   }
 
-  let event;
-  try {
-    event = stripe.verifyWebhook(req.body, sig);
-  } catch (err) {
-    logger.error(
-      { err: err instanceof Error ? err.message : String(err) },
-      "Stripe webhook signature verification failed"
-    );
-    return res
-      .status(400)
-      .send(`Webhook Error: ${err instanceof Error ? err.message : String(err)}`);
-  }
+  const event = stripe.verifyWebhook(req.body, sig);
 
   switch (event.type) {
     case "payment_intent.succeeded":
@@ -72,19 +58,12 @@ export const handleStripeWebhook = asyncHandler(async (req, res) => {
       await stripeService.updateIntentFromWebhook(event.data.object);
       break;
 
-    // THE FIVE charge.* EVENTS CARRY A CHARGE, NOT AN INTENT. A charge's id is
-    // `ch_...` and the update keys on the attempt's provider_ref, so each of
-    // these matched no row. Keying on `charge.payment_intent` is the obvious
-    // repair and the wrong one: a charge has no settled amount, so it would
-    // write NULL over one.
+    // charge.* carries a charge id, not an intent - ignored.
     case "charge.failed":
     case "charge.updated":
     case "charge.captured":
     case "charge.pending":
     case "charge.succeeded":
-      logger.debug(`${event.type} carries a charge, not an intent - ignored`);
-      break;
-
     case "customer.created":
       break;
 
@@ -93,7 +72,7 @@ export const handleStripeWebhook = asyncHandler(async (req, res) => {
       break;
 
     default:
-      logger.debug(`Unhandled Stripe event type: ${event.type}`);
+      break;
   }
 
   res.json({ received: true });
@@ -125,10 +104,8 @@ export const updatePaymentIntent = asyncHandler(async (req, res) => {
 });
 
 export const getPaymentIntentFromSalesOrderId = asyncHandler(async (req, res) => {
-  // Express types every query value as string | string[] | ParsedQs, so an id
-  // can arrive as an array and reach a uuid comparison as one.
-  const sales_order_id = parseStrict(uuidLike, req.query.sales_order_id, "sales_order_id");
-  res.json(await stripeService.getPaymentIntentFromSalesOrderId(sales_order_id));
+  const order_id = parseStrict(uuidLike, req.query.order_id, "order_id");
+  res.json(await stripeService.getPaymentIntentFromSalesOrderId(order_id));
 });
 
 export const cancelPaymentIntent = asyncHandler(async (req, res) => {

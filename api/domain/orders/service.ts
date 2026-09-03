@@ -264,7 +264,9 @@ export async function addFunds(order_id: string): Promise<OrderView> {
 
   await withTransaction(async (tx) => {
     await usersService.addFunds(order.order.user_id, amount, tx);
-    await ledger.addTransactionLog(order.order.user_id, "Credit", order_id, null, amount, tx);
+    await ledger.addTransactionLog(
+      { user_id: order.order.user_id, type: "Credit", order_id, amount }, tx
+    );
   });
 
   return await viewOf(order_id);
@@ -327,7 +329,7 @@ export async function cancel(
       // ONE RETURN SHIPMENT, written with everything known: the service that
       // created it links it to the order, the record that follows is the row.
       const shipment = await shipmentService.create(
-        { purchase_order_id: order_id, type: "Return" }, tx
+        { order_id, type: "Return" }, tx
       );
       if (!shipment) throw new Error("the return shipment was not created");
 
@@ -395,7 +397,7 @@ export async function sendToRefiner(
             `transaction must not commit`
         );
       }
-      await shipmentService.create({ sales_order_id: order_id, type: "Outbound" }, tx);
+      await shipmentService.create({ order_id, type: "Outbound" }, tx);
       await ordersRepo.update(order_id, { order_sent: true }, {}, tx);
     });
   }

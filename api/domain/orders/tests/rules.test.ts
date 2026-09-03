@@ -184,22 +184,26 @@ test("an order with nothing left to charge is born Preparing", () => {
 // order wears - the rule that protects a paid order from a retry.
 test("an attached intent is a conflict when it settled and superseded when it did not", () => {
   assert.equal(
-    rules.attachmentVerdict({ sales_order_id: "s1", payment_status: "succeeded" }),
+    rules.attachmentVerdict({ order_id: "s1", direction: "sale", payment_status: "succeeded" }),
     "conflict"
   );
   assert.equal(
-    rules.attachmentVerdict({ sales_order_id: "s1", payment_status: "processing" }),
+    rules.attachmentVerdict({ order_id: "s1", direction: "sale", payment_status: "processing" }),
     "conflict"
   );
   // An unsettled sale paid for nothing: cancel it, detach, proceed. Refusing
   // would strand exactly the customer trying to give the business money.
   assert.equal(
-    rules.attachmentVerdict({ sales_order_id: "s1", payment_status: "requires_payment_method" }),
+    rules.attachmentVerdict(
+      { order_id: "s1", direction: "sale", payment_status: "requires_payment_method" }
+    ),
     "supersede"
   );
   // A purchase never yields its intent, settled or not.
   assert.equal(
-    rules.attachmentVerdict({ purchase_order_id: "p1", payment_status: "requires_payment_method" }),
+    rules.attachmentVerdict(
+      { order_id: "p1", direction: "purchase", payment_status: "requires_payment_method" }
+    ),
     "conflict"
   );
   assert.equal(rules.attachmentVerdict({}), "proceed");

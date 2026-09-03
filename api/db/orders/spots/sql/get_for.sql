@@ -13,7 +13,7 @@
 -- The spot prices an order was quoted at, frozen when the offer locked.
 SELECT
        sp.id,
-       sp.order_id AS purchase_order_id,
+       sp.order_id,
        m.name,
        sp.ask,
        sp.bid,

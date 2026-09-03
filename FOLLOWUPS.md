@@ -14280,3 +14280,80 @@ backfills them and the fallback is deleted.
   `confirmed`/`unit` field drift plus the e2e-seeded row-count gap, not
   content/pre_melt/purity/metal_id. `audit:non-finite` and `audit:nullability`
   both pass.
+### The two-table vocabulary is gone from code (2026-09-03)
+
+No native table has `purchase_order_id`/`sales_order_id` - `orders.orders` is
+one table with `direction`. 47 code lines + ~50 test lines still spelled the
+pair anyway. Fixed: SQL aliases now project `order_id` plain; `payments.
+intents`' `IntentFacts`/`ComposedIntentRow` carry `order_id` + `direction`
+(joined off `orders.orders`, never a CASE split); `domain/transactions/
+compose.ts` no longer splits a ledger row's `order_id` back into two wire
+fields (`wire/transactions.ts`'s `AccountTransaction` carries `order_id` +
+`direction` now); `ownership.ts`, `rules.ts`'s intent verdict, `payments/
+service.ts`, and the `?sales_order_id=` query param (now `?order_id=`) all
+follow. `feature-map.ts`'s LHS keys and the `exchange.*` SQL in quotes/
+order-metals-invariant tests are real legacy column names and correctly
+unchanged.
+
+**Not a rename pass.** `domain/shipping/shipments/service.ts` `create()` was
+rewritten from its inputs inward (D214 item 11): input is `order_id` (+
+`type`), direction is read off `orders.orders` via `directionOf`, never
+inferred from which of two ids was set. The "best-effort" fulfillment link
+(silently skipped when the order or its fulfillment couldn't be resolved) is
+gone - it now refuses (`NotFound`) rather than shipping a parcel nothing
+points at. `carrier_id` was accepted and never read; dropped, not excused.
+`create()` also now takes `tx: Executor` as a required last argument and
+never opens its own transaction (both its two real call sites already held
+one). `domain/transactions/service.ts` `addTransactionLog` similarly
+collapsed from five positional scalars into `(row: NewLedgerEntry, tx:
+Executor)` - `NewLedgerEntry` lives in `@dorado/contracts` (`wire/
+transactions.ts`), and `api/shared/testing/builders/transactions.ts`
+(`aLedgerEntry`) takes `Partial<NewLedgerEntry>`, no local Options type.
+
+**Every `try`/`catch` is gone from `transport/payments/controller.ts` and
+`domain/payments/service.ts`** (ruling 52: bans the catch, not the
+behavior). `updatePaymentIntent`'s self-heal STAYS, rewritten load->assert
+->write: `stripe.retrieveIntent(provider_ref)` first, `updateFromProvider`
+persists whatever Stripe says, and only if `isResolved(live.status)` does it
+mint a fresh intent via `createPaymentIntent` - otherwise it proceeds to
+`updateIntent`. No catch; a missed webhook still heals instead of 500ing at
+the last checkout step. `cancelIntentByRef` has no catch either - the
+translation moved to the PROVIDER: `providers/payment/stripe.ts`'s
+`cancelIntent` catches the SDK error and returns `{id, status: "canceled"}`
+for "no such payment_intent"/"already canceled" (states Stripe reports as
+errors), rethrowing anything else; the domain is one line,
+`updateFromProvider(await stripe.cancelIntent(provider_ref))`. A transient
+Stripe failure now propagates and the sweep retries next run, rather than
+being written off. Pinned in `providers/payment/tests/stripe-cassettes.
+test.ts`: unknown-intent resolves canceled (was: threw, adjusted), a new
+`cancel-intent-transient-error.json` cassette proves a real error still
+propagates. `domain/payments/tests/sweeps.test.ts`'s hard-won cassette test
+still passes unmodified. NOT added: a dedicated cassette test for the
+self-heal path itself (retrieve-then-mint-fresh) - the fixture engineering
+(a chargeable priced cart, a pre-seeded stale local intent, a two-interaction
+cassette) didn't fit the time box. The cassette is ready at `api/tests/
+cassettes/stripe/self-heal-stale-intent.json`; the test that consumes it is
+the remaining diff.
+
+**`lint-input-shapes.ts` is new** (`lint:input-shapes`, wired into
+`check.mjs`'s api-lint group): every write-facing `*Create/*New/*Patch/
+*Input/*Body` type in `api/domain/**` must name only columns its repo call
+can reach, and every builder in `api/shared/testing/builders/*.ts` must take
+a contract type (or `Partial<>` of one) rather than a local `*Options` type.
+Self-test plants both violation shapes. Real run: 0 unaccepted findings, 26
+accepted - 13 are genuine (renames, resolved ids, nested form objects; two,
+`PickupInput.carrier`/`.user_id`, are dead fields this lint found but this
+lane did not fix), 13 are every OTHER builder's pre-existing local Options
+type (not touched - out of this lane's mandate).
+
+**api-hardening moved twice during this lane** (8be6da5a, then 99916034) and
+a literal `git merge` could not be completed: this lane's ~40 touched files
+collide with the fast-forward's dirty-tree check regardless of content, and
+stash/commit are both off-limits. Hand-ported instead: `api/shared/
+attempt.ts` (byte-identical to the canonical version once it landed) and the
+`aLedgerEntry`/`NewLedgerEntry` shape 8be6da5a's `builders/transactions.ts`
+would have brought. Not ported: `lint-domain-errors.ts`, the `orders`/
+`quotes`/`shipping` test rewrites, and 99916034's checkout-items work - none
+touch a file this lane changed, so `order-id`'s worktree is simply behind
+`api-hardening` on those, not diverged from it.
+

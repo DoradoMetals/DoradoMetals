@@ -10,7 +10,7 @@ import type { PoolClient } from "pg";
 import { randomUUID } from "node:crypto";
 import pool from "#db";
 import { inRollback } from "#shared/testing/rollback.ts";
-import { aUser } from "#shared/testing/builders/index.ts";
+import { aUser, anOrder } from "#shared/testing/builders/index.ts";
 import * as intents from "#db/payments/intents/repo.ts";
 import * as attempts from "#db/payments/attempts/repo.ts";
 
@@ -181,10 +181,25 @@ test("the payment facts resolve by the provider's reference, in cents", async ()
     assert.equal(facts?.attempt_id, intent.id);
     assert.equal(facts?.user_id, user);
     assert.equal(Number(facts?.amount), 10000, "the facts are not in cents");
-    assert.equal(facts?.sales_order_id, null);
-    assert.equal(facts?.purchase_order_id, null);
+    assert.equal(facts?.order_id, null);
+    assert.equal(facts?.direction, null);
 
     assert.equal(await intents.findFactsByRef(`pi_${randomUUID()}`, c), undefined);
+  });
+});
+
+// One order_id, and its direction read off orders.orders - never two
+// nullable ids the caller has to infer a side from.
+test("the payment facts carry the attached order's own direction", async () => {
+  await inRollback(async (c: PoolClient) => {
+    const user = await aUser(c);
+    const order = await anOrder(c, user, { direction: "sale" });
+    const { provider_ref } = await anIntent(c, { user_id: user.id });
+    await intents.update((await intents.findFactsByRef(provider_ref, c))!.intent_id, { order_id: order.id }, c);
+
+    const facts = await intents.findFactsByRef(provider_ref, c);
+    assert.equal(facts?.order_id, order.id);
+    assert.equal(facts?.direction, "sale");
   });
 });
 

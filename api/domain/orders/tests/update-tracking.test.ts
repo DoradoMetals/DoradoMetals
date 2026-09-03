@@ -47,7 +47,7 @@ const { default: app } = await import("#app");
 type AdminFixture = { id: string; name: string | null; email: string | null };
 type ShipmentFixture = {
   id: string;
-  sales_order_id: string | null;
+  order_id: string | null;
   carrier_id: string | null;
   tracking_number: string | null;
 };
@@ -71,7 +71,7 @@ const aSalesShipment = async (c: PoolClient) => {
   return {
     shipment: {
       id: parcel.id,
-      sales_order_id: order.id,
+      order_id: order.id,
       carrier_id: rows[0]!.carrier_id,
       tracking_number: parcel.tracking_number,
     },

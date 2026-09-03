@@ -125,21 +125,26 @@ test("cancelling an intent is final and readable", async () => {
   assert.equal(fetched.status, "canceled", "the cancellation did not stick");
 });
 
-// THE BRANCH THE ABANDONMENT SWEEP RUNS ON. cancelIntentByRef treats "no such
-// payment_intent" as already-abandoned and persists the fact; anything else
-// propagates. Nothing had ever exercised the message it matches on.
-test("cancelling an intent Stripe never issued raises the message the sweep matches", async () => {
+// THE BRANCH THE ABANDONMENT SWEEP RUNS ON. "No such payment_intent" and
+// "already canceled" are STATES Stripe reports as SDK errors, translated
+// here rather than in the domain (domain/payments/service.ts's
+// cancelIntentByRef has no catch of its own): stripe.cancelIntent resolves to
+// a synthetic `{id, status: "canceled"}` instead of throwing.
+test("cancelling an intent Stripe never issued resolves as already canceled", async () => {
   await withCassette("stripe/cancel-unknown-intent.json", async () => {
+    const result = await stripe.cancelIntent(NO_SUCH_INTENT);
+    assert.equal(result.id, NO_SUCH_INTENT);
+    assert.equal(result.status, "canceled");
+  });
+});
+
+// EVERYTHING ELSE PROPAGATES. A transient Stripe failure must not be written
+// off as canceled - the sweep needs to retry it, not exclude it forever.
+test("a Stripe error that is not 'unknown' or 'already canceled' propagates", async () => {
+  await withCassette("stripe/cancel-intent-transient-error.json", async () => {
     await assert.rejects(
-      () => stripe.cancelIntent(NO_SUCH_INTENT),
-      (err: Error) => {
-        assert.match(
-          String(err.message),
-          /No such payment_intent|resource_missing/i,
-          "the message domain/payments/service.ts regex-matches on has changed"
-        );
-        return true;
-      }
+      () => stripe.cancelIntent("pi_cassette_transient_error"),
+      /status of processing/i
     );
   });
 });

@@ -29,13 +29,12 @@ export async function directionOf(
   return rows[0]?.direction ?? null;
 }
 
-// The direction of several orders at once - a shipment resolves its order link
-// through this rather than one query per row.
+// The direction of several orders at once (domain/transactions/compose.ts).
 export async function directionsById(
   ids: string[], executor?: Executor
-): Promise<Map<string, string>> {
+): Promise<Map<string, Direction>> {
   if (ids.length === 0) return new Map();
-  const { rows } = await query<{ id: string; direction: string }>(
+  const { rows } = await query<{ id: string; direction: Direction }>(
     sql("directions"), [ids], executor
   );
   return new Map(rows.map((r) => [r.id, r.direction]));

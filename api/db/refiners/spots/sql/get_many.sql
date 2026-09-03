@@ -1,7 +1,7 @@
 -- The refiner spots of several orders at once.
 SELECT
        sp.id,
-       sp.order_id AS purchase_order_id,
+       sp.order_id,
        m.name AS type,
        sp.ask AS ask_spot,
        sp.bid AS bid_spot,

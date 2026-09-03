@@ -281,7 +281,7 @@ async function placeSale(
       // twice; the abandonment sweep puts it back if payment never arrives.
       await usersService.removeFunds(checkout.user_id, prices.pre_charges_amount, tx);
       await transactionsService.addTransactionLog(
-        checkout.user_id, "Debit", null, order_id, prices.pre_charges_amount, tx
+        { user_id: checkout.user_id, type: "Debit", order_id, amount: prices.pre_charges_amount }, tx
       );
     }
     await taxService.updateStateSalesTax(prices.sales_tax, address.state, tx);
@@ -316,7 +316,7 @@ async function openIntentFor(
   if (verdict === "conflict") {
     throw new Conflict("that payment intent already belongs to an order");
   }
-  const superseded = verdict === "supersede" ? intent.sales_order_id : null;
+  const superseded = verdict === "supersede" ? intent.order_id : null;
   if (superseded) {
     // An abandoned checkout is SUPERSEDED, not refused: the intent is reused
     // until it settles, and refusing strands the customer paying.
