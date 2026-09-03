@@ -1,7 +1,6 @@
 import { z } from "zod/v4";
 import {
   CarrierServicesRow,
-  CarrierPickupsRow,
   TrackingEventsRow,
 } from "../generated/exchange.js";
 import {
@@ -35,8 +34,10 @@ export type Carrier = z.infer<typeof Carrier>;
 export const CarrierService = CarrierServicesRow;
 export type CarrierService = z.infer<typeof CarrierService>;
 
-export const CarrierPickup = CarrierPickupsRow;
-export type CarrierPickup = z.infer<typeof CarrierPickup>;
+// CarrierPickup (exchange.carrier_pickups' own hand-curated shape, order_id/
+// user_id/carrier reconstructed through the shipment) is RETIRED, D214:
+// shipping.pickups' reads are bare rows now - see ShipmentPickup below, which
+// GET /carrier_pickups is validated against too.
 
 export const TrackingEvent = TrackingEventsRow;
 export type TrackingEvent = z.infer<typeof TrackingEvent>;

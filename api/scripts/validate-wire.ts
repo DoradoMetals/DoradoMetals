@@ -75,12 +75,13 @@ add("GET /carrier_services", c.CarrierService, () => servicesService.getAllServi
 // the frontend reads, and checking the adapter's OUTPUT is what proves the
 // frontend still gets exactly what it got before.
 // Refiners: one implementation after the restructure.
-// Carrier pickups is restructured - one implementation. Kept as a DIRECT check:
-// three of the eight fields on this shape - order_id, user_id and carrier - do
-// not exist as columns any more and are reconstructed through the shipment, so
-// the contract is checking a composition rather than a projection.
+// Carrier pickups is restructured - one implementation. THE ROW IS THE SHAPE
+// now (ruling 12, D214): compose.ts, which reconstructed order_id, user_id and
+// carrier through the shipment, is deleted - a caller who needs those reaches
+// them through shipping/shipments instead, same as GET /shipments/:id/pickups
+// below. Checked against ShipmentPickup, the same contract that route uses.
 const pickupsService = await import("#domain/shipping/pickups/service.ts");
-add("GET /carrier_pickups", c.CarrierPickup, () => pickupsService.getAll());
+add("GET /carrier_pickups", c.ShipmentPickup, () => pickupsService.getAll());
 
 // Addresses were not checked here at all, and they are one of the two features
 // whose migrated read renames columns: places.user_addresses calls them

@@ -30,8 +30,13 @@ import * as refinerItems from "#db/refiners/items/repo.ts";
 import * as payouts from "#db/payouts/repo.ts";
 import * as shipmentService from "#domain/shipping/shipments/service.ts";
 import * as pickupService from "#domain/shipping/pickups/service.ts";
+import * as servicesRepo from "#db/shipping/services/repo.ts";
+import * as packagesRepo from "#db/shipping/packages/repo.ts";
+import * as carriersService from "#domain/shipping/carriers/service.ts";
 import * as compose from "#domain/orders/compose.ts";
 import type { ItemContext, ComposedProduct } from "#domain/orders/compose.ts";
+import type { ShipmentBaseRow } from "#db/shipping/shipments/repo.ts";
+import type { PickupBaseRow } from "#db/shipping/pickups/repo.ts";
 import type { PoolClient } from "pg";
 import query from "#shared/db/query.ts";
 
@@ -117,6 +122,105 @@ async function metalNames(executor?: Executor): Promise<Map<string, string>> {
   return new Map(rows.map((m) => [m.id, m.name]));
 }
 
+// THIS FILE'S OWN RECONSTRUCTION OF A SHIPMENT/PICKUP, NOT shipping/shipments'.
+//
+// shipping.shipments and shipping.pickups return their own bare rows now
+// (ruling 12, D214) - no purchase_order_id/sales_order_id split, no service
+// NAME, no package label, no carrier resolved through the service, no order id
+// or carrier name on a pickup. compose.ts's nestShipment (below, in this
+// feature's own compose.ts) still expects those historical field names,
+// because this is the API's INTERNAL composed order - what pricing, the
+// confirmation emails and the PDFs read (render/sections.ts reads
+// shipment.shipping_service and shipment.package directly) - and that surface
+// is its own, deliberately-kept-around legacy shape, independent of what
+// GET /orders/:orderId/shipments now serves.
+//
+// THIS IS NOT shipping/shipments/compose.ts REVIVED. That file walked a
+// shipment back to its order through three hops; this file already KNOWS the
+// order and the direction for every shipment it looks up (it is composing
+// THAT order), so there is no hop to walk - only the service and package
+// NAMES need resolving, and the carrier's NAME for a pickup.
+type ShipmentViewLookups = {
+  services: Map<string, { name: string; carrier_id: string | null }>;
+  packageLabels: Map<string, string>;
+  carrierNames: Map<string, string | null>;
+};
+
+async function shipmentViewLookups(executor?: Executor): Promise<ShipmentViewLookups> {
+  const [serviceRows, packageLabels, carrierRows] = await Promise.all([
+    servicesRepo.getAll(executor),
+    packagesRepo.labelsById(executor),
+    carriersService.getAllCarriers(),
+  ]);
+  return {
+    services: new Map(serviceRows.map((s) => [s.id, { name: s.name, carrier_id: s.carrier_id }])),
+    packageLabels,
+    carrierNames: new Map(carrierRows.map((c) => [c.id, c.organization.name])),
+  };
+}
+
+function toLegacyShipment(
+  row: ShipmentBaseRow,
+  order_id: string,
+  direction: "purchase" | "sale",
+  lk: ShipmentViewLookups
+): Record<string, unknown> {
+  const service = row.carrier_service_id ? lk.services.get(row.carrier_service_id) : undefined;
+  const pkg = row.package_id ? lk.packageLabels.get(row.package_id) : undefined;
+  return {
+    id: row.id,
+    purchase_order_id: direction === "purchase" ? order_id : null,
+    sales_order_id: direction === "sale" ? order_id : null,
+    tracking_number: row.tracking_number,
+    shipping_status: row.shipping_status,
+    estimated_delivery: row.est_delivery,
+    shipped_at: row.shipped_at,
+    delivered_at: row.delivered_at,
+    created_at: row.created_at,
+    shipping_label: row.label,
+    label_type: row.label_type,
+    pickup_type: row.pickup_type,
+    package: pkg ?? null,
+    service_type: service?.name ?? null,
+    net_charge: row.cost,
+    insured: row.insured,
+    declared_value: row.declared_value,
+    type: row.direction,
+    carrier_id: service?.carrier_id ?? null,
+  };
+}
+
+// exchange's carrier_pickups.confirmation_number is NUMERIC; shipping.pickups'
+// is text. A value that is not a number becomes null rather than NaN.
+const asNumber = (v: string | null): number | null => {
+  if (v === null || v === undefined || v === "") return null;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : null;
+};
+
+function toLegacyPickup(
+  row: PickupBaseRow,
+  order_id: string,
+  user_id: string | null,
+  shipment: ShipmentBaseRow | null,
+  lk: ShipmentViewLookups
+): Record<string, unknown> {
+  const service = shipment?.carrier_service_id
+    ? lk.services.get(shipment.carrier_service_id)
+    : undefined;
+  const carrier = service?.carrier_id ? (lk.carrierNames.get(service.carrier_id) ?? null) : null;
+  return {
+    id: row.id,
+    user_id,
+    order_id,
+    carrier,
+    pickup_requested_at: row.requested_at,
+    pickup_status: row.status,
+    confirmation_number: asNumber(row.confirmation_number),
+    location: row.location,
+  };
+}
+
 // Everything a set of orders needs, gathered once.
 async function assemblePurchases(
   orderRows: { id: string; user_id: string | null; status: string | null; notes: string | null;
@@ -173,15 +277,20 @@ async function assemblePurchases(
   // versus 351 ms for the slim list - one hundred and eight times. The batched
   // forms walk the identical hops with `= ANY($1)` at each, so the composed
   // order is unchanged and the cost no longer scales with the answer.
-  const [shipmentByOrder, pickupsByOrder] = await Promise.all([
+  const [shipmentByOrder, pickupsByOrder, shipmentLk] = await Promise.all([
     shipmentService.getByOrders(ids, executor),
     pickupService.getByOrders(ids, executor),
+    shipmentViewLookups(executor),
   ]);
 
   const out: Record<string, unknown>[] = [];
   for (const order of orderRows) {
-    const shipment = shipmentByOrder.get(order.id) ?? null;
-    const pickups = pickupsByOrder.get(order.id) ?? [];
+    const shipmentRow = shipmentByOrder.get(order.id) ?? null;
+    const shipment = shipmentRow ? toLegacyShipment(shipmentRow, order.id, "purchase", shipmentLk) : null;
+    const pickupRows = pickupsByOrder.get(order.id) ?? [];
+    const pickup = pickupRows[0]
+      ? toLegacyPickup(pickupRows[0], order.id, order.user_id, shipmentRow, shipmentLk)
+      : null;
     const link = linkBy.get(order.id);
 
     out.push(
@@ -196,7 +305,7 @@ async function assemblePurchases(
         // direction decides which slot it lands in.
         shipment: shipment && shipment.type !== "Return" ? shipment : null,
         return_shipment: shipment && shipment.type === "Return" ? shipment : null,
-        carrier_pickup: pickups[0] ?? null,
+        carrier_pickup: pickup,
         payout: payoutBy.get(order.id) ?? null,
         user: users.get(order.user_id ?? "") ?? {
           user_id: order.user_id, user_name: null, user_email: null,
@@ -290,11 +399,15 @@ async function assembleSales(
   // ONE READ FOR EVERY ORDER'S SHIPMENT, not one per order. D101 - see the
   // longer note in the purchase half above. Sales orders have
   // no pickup, so this is the only loop-borne read there was.
-  const shipmentByOrder = await shipmentService.getByOrders(ids, executor);
+  const [shipmentByOrder, shipmentLk] = await Promise.all([
+    shipmentService.getByOrders(ids, executor),
+    shipmentViewLookups(executor),
+  ]);
 
   const out: Record<string, unknown>[] = [];
   for (const order of orderRows) {
-    const shipment = shipmentByOrder.get(order.id) ?? null;
+    const shipmentRow = shipmentByOrder.get(order.id) ?? null;
+    const shipment = shipmentRow ? toLegacyShipment(shipmentRow, order.id, "sale", shipmentLk) : null;
     const link = linkBy.get(order.id);
     out.push(
       compose.composeSalesOrder({
@@ -303,7 +416,7 @@ async function assembleSales(
         addressLink: link,
         items: (itemsBy.get(order.id) ?? []).map((i) => compose.composeSalesItem(i, products)),
         address: link?.source_address_id ? (addressRows.get(link.source_address_id) ?? null) : null,
-        shipment: shipment as Record<string, unknown> | null,
+        shipment,
         user: users.get(order.user_id ?? "") ?? {
           user_id: order.user_id, user_name: null, user_email: null,
         },

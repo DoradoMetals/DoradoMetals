@@ -1470,23 +1470,24 @@ export async function updateTracking({
   // POST /api/sales_orders/update_tracking answered 500 on every call: an admin
   // could not record a tracking number against a sales order at all.
   //
-  // Read-then-update is the pattern this codebase already uses for the same
-  // shape of change - see cancelLabel in features/shipping/operations/service.ts,
-  // which spreads the shipment and overrides one field. Going through
-  // shipmentRepo.update also means the write follows the SHIPMENTS_SOURCE switch
-  // and its dual-write, which a bespoke UPDATE here would have bypassed.
+  // Read-then-write is the pattern this codebase already uses for the same
+  // shape of change - see cancelLabel in features/shipping/operations/service.ts.
+  // patch(), not update(): the row carries no service NAME to resolve
+  // carrier_id against any more (ruling 12), so this preserves the shipment's
+  // own carrier_service_id/package_id verbatim and only changes the tracking
+  // number - `carrier_id` is accepted for the caller's signature but names
+  // nothing this table stores directly (it always resolved to
+  // carrier_service_id through a service NAME, which this write is not
+  // changing).
   const shipment = await shipmentRepo.getById(shipment_id);
   if (!shipment) {
     const err: Error & { statusCode?: number } = new Error(`no shipment ${shipment_id}`);
     err.statusCode = 404;
     throw err;
   }
+  void carrier_id;
 
-  await shipmentRepo.update({
-    ...shipment,
-    tracking_number,
-    carrier_id,
-  });
+  await shipmentRepo.patch(shipment_id, { tracking_number });
   return await salesOrderWrites.setSalesFlag(order_id, "tracking_updated");
 }
 

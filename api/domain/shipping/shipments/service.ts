@@ -1,11 +1,17 @@
-// Shipments: one row in each schema, written together, and an order link that
-// only one of the two schemas keeps on the shipment itself.
+// Shipments: shipping.shipments, plus the fulfillment link that says which
+// order (if any) a parcel belongs to.
 //
-// THE THREE HOPS. shipping.shipments carries no order id, so composing the
-// exchange shape means walking fulfillments.shipments -> fulfillments.
-// fulfillments -> orders.orders. Each hop is one read of one table, batched
-// across every shipment in the answer rather than per row.
-import { reportError } from "#shared/observability/report.ts";
+// THE READ IS THE ROW (ruling 12, D214). compose.ts is deleted - it rebuilt
+// exchange.shipments' flat shape (purchase_order_id/sales_order_id split,
+// service_type/package resolved to names, carrier_id through the service) on
+// every read, and nothing needs that shape any more: /orders/:orderId/shipments
+// (order-read.ts) already served verbatim rows, and every internal caller here
+// is converted to read shipping.shipments as the repo returns it.
+//
+// getByOrder/getByOrders still WALK fulfillments.shipments -> fulfillments.
+// fulfillments to find which shipment(s) belong to an order - that is
+// resolution, not shape (CLAUDE.md's carve-out for chain-resolving reads), and
+// callers that hold an order id and want its parcel still need it.
 import { randomUUID } from "node:crypto";
 import withTransaction from "#shared/db/withTransaction.ts";
 import * as shipments from "#db/shipping/shipments/repo.ts";
@@ -18,8 +24,6 @@ import * as fulfillmentService from "#domain/fulfillments/service.ts";
 // rather than through the fulfillments parent.
 import * as fulfillmentShipments from "#domain/fulfillments/shipments/service.ts";
 import * as orders from "#db/orders/repo.ts";
-import * as compose from "#domain/shipping/shipments/compose.ts";
-import type { ComposedShipment, Lookups, OrderLink } from "#domain/shipping/shipments/compose.ts";
 import type { ShipmentBaseRow, ShipmentRecord } from "#db/shipping/shipments/repo.ts";
 import type { Executor } from "#shared/db/executor.ts";
 
@@ -33,8 +37,10 @@ function badRequest(message: string): HttpError {
   return err;
 }
 
-// What a caller supplies to create one. This is exchange's shape, because that
-// is what every call site has always sent.
+// What a caller supplies to create one. Unchanged by this wave - a WRITE, not
+// a read - because it is what every call site already sends: an order to link
+// against (which one of the two depends on which is present) and the carrier
+// picked for it.
 type ShipmentCreate = {
   purchase_order_id?: string | null;
   sales_order_id?: string | null;
@@ -42,8 +48,10 @@ type ShipmentCreate = {
   type?: string | null;
 };
 
-// What a caller supplies to update one, again in exchange's shape - `package`
-// and `service_type` are NAMES here and the service resolves them.
+// What a caller supplies to update one. Also unchanged: `package` and
+// `service_type` are NAMES here because that is what exchange stored and what
+// the carrier integration produces, and this resolves them to references - a
+// WRITE-side concern, independent of what a read now returns.
 //
 // THE TYPES ADMIT WHAT CALLERS ACTUALLY PASS, which is wider than it looks.
 // Every timestamp is `Date | string`: the call sites spread a shipment they
@@ -75,99 +83,31 @@ type ShipmentUpdate = {
   type?: string | null;
 };
 
-// --------------------------------------------------------------- composition
-
-// THE THREE HOPS, batched. One read per table for the whole answer, which is
-// what the four LEFT JOINs bought and what a query per shipment would lose.
-async function orderLinks(
-  shipment_ids: string[], executor?: Executor
-): Promise<Map<string, OrderLink>> {
-  const out = new Map<string, OrderLink>();
-  if (shipment_ids.length === 0) return out;
-
-  // Hop 1: which fulfillment satisfies each shipment.
-  const links = await fulfillmentLinks.getByShipment(shipment_ids, executor);
-  if (links.length === 0) return out;
-
-  // Hop 2: which order each fulfillment is for.
-  const fulfillments = await fulfillmentsRepo.getMany(
-    [...new Set(links.map((l) => l.fulfillment_id))], executor
-  );
-  const orderOf = new Map(fulfillments.map((f) => [f.id, f.order_id]));
-
-  // Hop 3: which direction that order is, because it decides which column the
-  // id lands in.
-  const directions = await orders.directionsById(
-    [...new Set([...orderOf.values()].filter((id): id is string => id !== null))],
-    executor
-  );
-
-  for (const link of links) {
-    const order_id = orderOf.get(link.fulfillment_id) ?? null;
-    out.set(link.shipment_id, {
-      order_id,
-      direction: order_id === null ? null : (directions.get(order_id) ?? null),
-    });
-  }
-  return out;
-}
-
-async function lookupsFor(
-  rows: ShipmentBaseRow[], executor?: Executor
-): Promise<Lookups> {
-  const [serviceRows, packageLabels, links] = await Promise.all([
-    services.getAll(executor),
-    packages.labelsById(executor),
-    orderLinks(rows.map((s) => s.id), executor),
-  ]);
-  return {
-    services: new Map(
-      serviceRows.map((s) => [s.id, { name: s.name, carrier_id: s.carrier_id }])
-    ),
-    packageLabels,
-    orderLinks: links,
-  };
-}
-
 // ------------------------------------------------------------------- reads
 
-export async function getAll(executor?: Executor): Promise<ComposedShipment[]> {
-  const rows = await shipments.getAll(executor);
-  return compose.composeAll(rows, await lookupsFor(rows, executor));
+export async function getAll(executor?: Executor): Promise<ShipmentBaseRow[]> {
+  return await shipments.getAll(executor);
 }
 
 export async function getById(
   id: string, executor?: Executor
-): Promise<ComposedShipment | null> {
-  const row = await shipments.getOne(id, executor);
-  if (!row) return null;
-  return compose.compose(row, await lookupsFor([row], executor));
+): Promise<ShipmentBaseRow | null> {
+  return (await shipments.getOne(id, executor)) ?? null;
 }
 
-// Several shipments by id - getById, batched, and missing ids simply absent.
-//
-// `lookupsFor` was always keyed by shipment id, so composing n rows together
-// resolves each one exactly as composing it alone did. Its caller is
-// features/shipping/pickups, which reconstructs a pickup's order and carrier
-// through its shipment and did so one shipment at a time until D101.
 export async function getManyById(
   ids: string[], executor?: Executor
-): Promise<ComposedShipment[]> {
+): Promise<ShipmentBaseRow[]> {
   if (ids.length === 0) return [];
-  const rows = await shipments.getMany([...new Set(ids)], executor);
-  if (rows.length === 0) return [];
-  return compose.composeAll(rows, await lookupsFor(rows, executor));
+  return await shipments.getMany([...new Set(ids)], executor);
 }
 
 // Returns ONE shipment, not a list, matching the implementation it replaces -
 // an order can legitimately have more than one and both implementations took
 // the first.
-//
-// Read by walking the link the other way: the order's fulfillment names the
-// shipment. That is the same three hops in reverse and needs no scan.
 export async function getByOrder(
   order_id: string, executor?: Executor
-): Promise<ComposedShipment | null> {
+): Promise<ShipmentBaseRow | null> {
   const fulfillment = await fulfillmentsRepo.getByOrder(order_id, executor);
   if (!fulfillment) return null;
 
@@ -181,23 +121,13 @@ export async function getByOrder(
 
 // THE SAME READ FOR A LIST OF ORDERS, IN A FIXED NUMBER OF ROUND TRIPS.
 //
-// D101. `getByOrder` is four statements plus the five `getById` costs, and the
-// composed order read called it once per order - on a database 178 ms away
-// that made a 48-order list 38 seconds. This walks the identical three hops
-// with `= ANY($1)` at every one, so the cost is the same whether one order is
-// asked for or fifty.
-//
-// EQUIVALENT TO CALLING getByOrder PER ORDER, deliberately and in every
-// detail. `fulfillments_order_uniq` gives at most one fulfillment per order;
-// get_many.sql now orders by id ASC like get_for.sql, so "the first parcel" is
-// the same parcel; and `lookupsFor` was already batched, keyed by shipment id,
-// so composing many rows at once resolves each exactly as composing one did.
-// An order with no fulfillment, or a fulfillment with no parcel, is ABSENT
-// from the map rather than present with null - which is what `null` meant.
+// D101. Walks the identical hops with `= ANY($1)` at every one, so the cost is
+// the same whether one order is asked for or fifty. An order with no
+// fulfillment, or a fulfillment with no parcel, is ABSENT from the map.
 export async function getByOrders(
   order_ids: string[], executor?: Executor
-): Promise<Map<string, ComposedShipment>> {
-  const out = new Map<string, ComposedShipment>();
+): Promise<Map<string, ShipmentBaseRow>> {
+  const out = new Map<string, ShipmentBaseRow>();
   const ids = [...new Set(order_ids)];
   if (ids.length === 0) return out;
 
@@ -214,7 +144,7 @@ export async function getByOrders(
     }
   }
 
-  // Hop 3: the parcels themselves, composed together.
+  // Hop 3: the parcels themselves.
   const shipmentOf = new Map<string, string>();
   for (const f of fulfillments) {
     const shipment_id = firstLinkOf.get(f.id);
@@ -224,34 +154,47 @@ export async function getByOrders(
   if (wanted.length === 0) return out;
 
   const rows = await shipments.getMany(wanted, executor);
-  const composed = new Map(
-    compose.composeAll(rows, await lookupsFor(rows, executor)).map((c) => [c.id, c])
-  );
+  const byId = new Map(rows.map((r) => [r.id, r]));
 
   for (const [order_id, shipment_id] of shipmentOf) {
-    const c = composed.get(shipment_id);
-    if (c) out.set(order_id, c);
+    const row = byId.get(shipment_id);
+    if (row) out.set(order_id, row);
   }
   return out;
 }
 
+// Which order this shipment is linked to, and which direction that order is -
+// NOT the shipment's shape (ruling 12 retired the purchase_order_id /
+// sales_order_id split that used to live on every row), but resolution a
+// caller genuinely needs to route a write to the right order-side table
+// (patch.service.ts: a shipping charge is a purchase-order field, tracking is
+// a sales-order one). Chain-resolving, same carve-out as getByOrder above.
+export type OrderLink = { order_id: string; direction: string };
+
+export async function getOrderLink(
+  shipment_id: string, executor?: Executor
+): Promise<OrderLink | null> {
+  const [link] = await fulfillmentLinks.getByShipment([shipment_id], executor);
+  if (!link) return null;
+  const fulfillment = await fulfillmentsRepo.getOne(link.fulfillment_id, executor);
+  if (!fulfillment?.order_id) return null;
+  const direction = await orders.directionOf(fulfillment.order_id, executor);
+  if (!direction) return null;
+  return { order_id: fulfillment.order_id, direction };
+}
+
 // ------------------------------------------------------------------ writes
 
-// Creating a shipment is creating THREE things in the new schema - the shipment,
-// the fulfillment that says which order it belongs to, and the link between
-// them - and one row in exchange.
+// Creating a shipment is creating THREE rows - the shipment, the fulfillment
+// that says which order it belongs to, and the link between them.
 //
 // THE FULFILLMENT IS BEST-EFFORT, DELIBERATELY. It references orders.orders,
-// which only holds orders the dual-write or the backfill has reached, and
-// PRODUCTION HAS 15 PURCHASE ORDERS THAT ARE NOT THERE. The mirror this
-// replaces skipped the fulfillment for those with an `AND EXISTS` guard rather
-// than failing, and so does this: a shipment that cannot be linked yet is still
-// a real parcel with a real label, and refusing to create it would stop an
-// order shipping over a migration detail. It composes with null order ids,
-// which is exactly what exchange shows for a shipment with no order.
+// and PRODUCTION HAS 15 PURCHASE ORDERS THAT ARE NOT THERE - a shipment that
+// cannot be linked yet is still a real parcel with a real label, and refusing
+// to create it would stop an order shipping over a migration detail.
 export async function create(
   input: ShipmentCreate, executor?: Executor
-): Promise<ComposedShipment | null> {
+): Promise<ShipmentBaseRow | null> {
   const order_id = input.purchase_order_id ?? input.sales_order_id ?? null;
   const direction = input.purchase_order_id ? "purchase" : "sale";
 
@@ -262,7 +205,7 @@ export async function create(
     throw badRequest("a shipment needs a type - shipping.shipments.direction is NOT NULL");
   }
 
-  const run = async (c: Executor): Promise<ComposedShipment | null> => {
+  const run = async (c: Executor): Promise<ShipmentBaseRow | null> => {
     const id = randomUUID();
     await shipments.create({ id, direction: shipmentDirection }, c);
 
@@ -288,18 +231,12 @@ export async function create(
 // that means "no service" and discovering it on the next read.
 export async function update(
   input: ShipmentUpdate, executor?: Executor
-): Promise<ComposedShipment | null> {
+): Promise<ShipmentBaseRow | null> {
   if (!input.id) throw badRequest("a shipment update needs an id");
   const id = input.id;
 
-  const run = async (c: Executor): Promise<ComposedShipment | null> => {
+  const run = async (c: Executor): Promise<ShipmentBaseRow | null> => {
     // A SERVICE NAME WITH NO CARRIER USED TO BE SILENTLY DROPPED.
-    //
-    // exchange stores service_type as TEXT and takes it regardless; the new
-    // schema needs a reference, and a service is identified by (carrier, name).
-    // Resolving only when both are present meant a caller who sent a service
-    // and no carrier got a shipment with no service at all - and would find out
-    // on the next read, not on the write. Refused instead.
     if (input.service_type && !input.carrier_id) {
       throw badRequest(
         `a service name needs a carrier to resolve against - ` +
@@ -355,15 +292,7 @@ export async function update(
     const written = await shipments.update(id, row, c);
     if (!written) return null;
 
-    // DELIVERED IS WHAT COMPLETES A FULFILLMENT, and losing that would leave an
-    // order looking unfulfilled after it arrived. The mirror this replaces did
-    // it in the fulfillment upsert:
-    //
-    //   CASE WHEN e.shipping_status = 'Delivered' THEN 'COMPLETED' ELSE 'PENDING' END
-    //
-    // Both arms are kept, including the ELSE: a shipment moved back off
-    // Delivered - a mis-scan, a return - reopens its fulfillment, which is what
-    // the mirror did on the next write.
+    // DELIVERED IS WHAT COMPLETES A FULFILLMENT.
     if (input.shipping_status) {
       const [link] = await fulfillmentLinks.getByShipment([id], c);
       if (link) {
@@ -382,39 +311,57 @@ export async function update(
   return executor ? await run(executor) : await withTransaction(run);
 }
 
-// The shipping cost of an order's parcels, written to both schemas.
-//
-// This exists because purchase-orders used to do
-// `UPDATE exchange.shipments SET net_charge` itself (D41). It owns neither the
-// table nor the three hops that find it from an order, and after its pivot it
-// would have been the one writer that did not dual-write - so a charge edited
-// on the purchase-order screen would land in exchange alone while every other
-// field of that shipment landed in both.
-//
-// THE TWO HALVES MAY UPDATE DIFFERENT NUMBERS OF ROWS, AND THAT IS NOT AN
-// ERROR TODAY. While a switch is on `exchange` the new schema holds only what
-// the backfill last put there, so an order shipped since then exists in
-// exchange and not yet in shipping.shipments. Throwing on a mismatch would
-// break a working screen to report a condition the migration creates by
-// design. The exchange ids are returned because exchange is still
-// authoritative; the dual-write test is where the two are held to agree, for
-// orders that exist in both.
+// A read-modify-write for internal callers that already hold a shipment's OWN
+// ids (carrier_service_id, package_id) and want to change one or two native
+// columns without resolving anything by name - cancelLabel and getTracking in
+// operations/service.ts, and updateTracking in orders/service.ts, each used to
+// spread the COMPOSED shipment back into update() above, which only
+// round-tripped safely because the composed shape carried service_type/
+// package NAMES the resolver could turn back into the same ids. A bare row
+// does not carry those names, so this reads the row fresh and writes back
+// every column verbatim except what changed - the "ONE UPDATE" ruling's
+// full-replace semantics, satisfied without ever needing a name.
+export async function patch(
+  id: string, changes: Partial<ShipmentRecord>, executor?: Executor
+): Promise<ShipmentBaseRow | null> {
+  const run = async (c: Executor): Promise<ShipmentBaseRow | null> => {
+    const existing = await shipments.getOne(id, c);
+    if (!existing) return null;
+
+    const written = await shipments.update(
+      id,
+      {
+        tracking_number: existing.tracking_number,
+        shipping_status: existing.shipping_status,
+        est_delivery: existing.est_delivery,
+        shipped_at: existing.shipped_at,
+        delivered_at: existing.delivered_at,
+        label: existing.label,
+        label_type: existing.label_type,
+        pickup_type: existing.pickup_type,
+        package_id: existing.package_id,
+        carrier_service_id: existing.carrier_service_id,
+        cost: existing.cost,
+        insured: existing.insured ?? undefined,
+        declared_value: existing.declared_value,
+        direction: existing.direction,
+        ...changes,
+      },
+      c
+    );
+    if (!written) return null;
+    return await getById(id, c);
+  };
+  return executor ? await run(executor) : await withTransaction(run);
+}
+
+// The shipping cost of every parcel on one order. Native-only since the purge
+// (D212): a zero-row update here means the order simply has no parcels, which
+// is not an error.
 export async function setChargeForOrder(
   orderId: string, cost: number | null, executor?: Executor
 ): Promise<string[]> {
   const run = async (c: Executor): Promise<string[]> => {
-    // THE NATIVE HALF'S RESULT IS NO LONGER DROPPED. The comment above says the
-    // exchange ids are returned "because exchange is still authoritative" - and
-    // ruling 36 retires that: when the legacy half goes, this silent half is the
-    // only half. The native statement joins three tables (shipping.shipments ->
-    // fulfillments.shipments -> fulfillments.fulfillments -> the order), so any
-    // hop failing to resolve updates nothing and says nothing. D190, D202.
-    //
-    // Compared against the legacy half rather than asserted on its own: legacy
-    // matching nothing too means the order simply has no parcels, which is not
-    // an error. The two DISAGREEING is.
-    // Native-only since the purge (D212): a zero-row update here means the
-    // order simply has no parcels, which is not an error.
     return await shipments.setChargeForOrder(orderId, cost, c);
   };
   return executor ? await run(executor) : await withTransaction(run);
