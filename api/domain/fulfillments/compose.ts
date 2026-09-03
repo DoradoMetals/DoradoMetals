@@ -24,10 +24,13 @@ export type ComposedFulfillment = FulfillmentBaseRow & {
 // The wire shape: the bare fulfillments.fulfillments row, verbatim, nothing else. Method and the child rows are internal; their wire homes are the parent-path reads (/orders/:orderId/shipments etc.).
 type FulfillmentWire = Omit<ComposedFulfillment, "method" | "pickup" | "direct" | "shipment">;
 
-export function toWire(
-  { method: _m, pickup: _p, direct: _d, shipment: _s, ...row }: ComposedFulfillment
-): FulfillmentWire {
-  return row;
+export function toWire(f: ComposedFulfillment): FulfillmentWire {
+  return {
+    id: f.id, order_id: f.order_id, method_id: f.method_id, status: f.status,
+    created_at: f.created_at, updated_at: f.updated_at,
+    created_by: f.created_by, updated_by: f.updated_by,
+    created_by_id: f.created_by_id, updated_by_id: f.updated_by_id,
+  };
 }
 
 // The five columns the old projection built into its method object - not the
@@ -60,13 +63,14 @@ export function compose(
   // rather than returned with a null where every caller reads a category.
   if (!method) return null;
 
-  return {
-    ...f,
+  // Assigned onto the row rather than spread into a copy - the row is this
+  // read's own and a copy is a second object to keep in step.
+  return Object.assign(f, {
     method: nestMethod(method),
     pickup: d.pickups.get(f.id) ?? null,
     direct: d.directs.get(f.id) ?? null,
     shipment: d.shipmentLinks.get(f.id) ?? null,
-  };
+  });
 }
 
 export function composeAll(

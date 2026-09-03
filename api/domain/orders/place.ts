@@ -206,7 +206,7 @@ async function buyPostage(
   shipper: AddressRow, personName: string, parcel: rules.Parcel
 ): Promise<Postage> {
   const netCharge = rules.quotedCharge(
-    await shippingOperations.getRates(rules.rateRequest(shipper, parcel)), parcel.serviceType
+    await shippingOperations.quoteRate(rules.rateRequest(shipper, parcel)), parcel.serviceType
   );
   const labelData = await shippingOps.createLabel(
     parcel.carrier_id, undefined, rules.labelRequest(shipper, personName, parcel)

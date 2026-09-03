@@ -43,14 +43,6 @@ function toFedexAddress(address: AddressLike | null | undefined) {
   return formatAddressForFedEx(address);
 }
 
-function toFedexPkg(pkg: PackageLike) {
-  if (!pkg) return {};
-  return {
-    weight: pkg.weight,
-    dimensions: pkg.dimensions,
-  };
-}
-
 export function validateAddressInput({ address }: { address?: AddressLike | null }) {
   return address;
 }
@@ -79,7 +71,8 @@ export function getRatesInput(input?: RatesInput | null) {
     recipientAddress: toFedexAddress(recipientAddress),
     pickupType,
     packageDetails: {
-      ...toFedexPkg(pkg),
+      weight: pkg?.weight,
+      dimensions: pkg?.dimensions,
       groupPackageCount: "1",
     },
     declaredValue,
@@ -123,7 +116,8 @@ export function createLabelInput(input?: LabelInput | null) {
     serviceType,
     pickupType,
     packageDetails: {
-      ...toFedexPkg(pkg),
+      weight: pkg?.weight,
+      dimensions: pkg?.dimensions,
       declaredValue: totalDeclaredValue ?? undefined,
     },
     totalDeclaredValue,

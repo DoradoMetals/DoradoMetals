@@ -39,21 +39,24 @@ async function aDraftFulfillment(c: PoolClient): Promise<string> {
   return draft.id;
 }
 
-test("upsert links a parcel, and a second call on the same shipment moves the link", async () => {
+test("create links a parcel, and update on the same shipment moves the link", async () => {
   await inRollback(async (c: PoolClient) => {
     const fulfillment_id = await aDraftFulfillment(c);
     const shipment_id = await shippingShipments.create({ id: randomUUID(), direction: "Inbound" }, c);
 
-    const row = await shipmentLinks.upsert({ id: randomUUID(), fulfillment_id, shipment_id }, c);
+    const row = await shipmentLinks.create({ id: randomUUID(), fulfillment_id, shipment_id }, c);
     assert.equal(row.shipment_id, shipment_id);
     assert.equal(row.fulfillment_id, fulfillment_id);
 
     const other_fulfillment_id = await aDraftFulfillment(c);
-    const moved = await shipmentLinks.upsert(
-      { id: randomUUID(), fulfillment_id: other_fulfillment_id, shipment_id }, c
+    const changed = await shipmentLinks.update(
+      shipment_id, { fulfillment_id: other_fulfillment_id }, c
     );
-    assert.equal(moved.id, row.id, "the conflict target is shipment_id - a second call should update, not insert");
-    assert.equal(moved.fulfillment_id, other_fulfillment_id);
+    assert.equal(changed, true, "update reported no row changed");
+
+    const [moved] = await shipmentLinks.getByShipment([shipment_id], c);
+    assert.equal(moved?.id, row.id, "the unique key is shipment_id - update should move the same row, not insert");
+    assert.equal(moved?.fulfillment_id, other_fulfillment_id);
   });
 });
 
@@ -61,7 +64,7 @@ test("removeByShipment unlinks the parcel and answers false the second time", as
   await inRollback(async (c: PoolClient) => {
     const fulfillment_id = await aDraftFulfillment(c);
     const shipment_id = await shippingShipments.create({ id: randomUUID(), direction: "Inbound" }, c);
-    await shipmentLinks.upsert({ id: randomUUID(), fulfillment_id, shipment_id }, c);
+    await shipmentLinks.create({ id: randomUUID(), fulfillment_id, shipment_id }, c);
 
     const removed = await shipmentLinks.removeByShipment(shipment_id, c);
     assert.equal(removed, true, "removeByShipment reported no row changed");

@@ -190,21 +190,17 @@ export const PATCHABLE = [
   "filter_category",
 ] as const;
 
-// Still a full replace: buildUpdate treats undefined as "not mentioned" (right for a sparse PATCH), so every column is spelled with `?? null` here to keep the admin form's actual behavior — an omitted field is CLEARED, not left alone.
+// A full replace in practice: the contract (@dorado/contracts' ProductPatch)
+// requires every column, so the caller never omits one - but the write
+// itself is the same present-sets/absent-leaves-alone contract as every
+// other update() (shared/db/patch.ts).
 export async function update(
   id: string, patch: ProductPatch, executor?: Executor
 ): Promise<boolean> {
-  const full = Object.fromEntries(
-    PATCHABLE.map((c) => [c, (patch as Record<string, unknown>)[c] ?? null])
-  );
   const built = buildUpdate({
-    table: "products.bullion",
-    allowed: PATCHABLE,
-    patch: full,
-    where: { id },
-    returning: "id",
+    table: "products.bullion", allowed: PATCHABLE, patch, where: { id }, returning: "id",
   });
-  if (!built) return false;
+  if (!built) return true;
   const r = await query(built.text, built.values, executor);
   return r.rowCount === 1;
 }

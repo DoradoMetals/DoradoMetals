@@ -16,7 +16,7 @@ test("update returns false for an id nothing names", async () => {
 
 test("update returns true for a real id, and the row actually changed", async () => {
   await inPinnedTransaction(async (client) => {
-    const [metal] = await metals.getAll(client);
+    const [metal] = await metals.list(client);
     assert.ok(metal, "dev has no metal to band a rate against");
 
     const created = await rates.create(

@@ -1,5 +1,5 @@
 // Writes on fulfillments.fulfillments, against real Postgres. Most tests are self-contained via createDraft (no order).
-// attachToOrder's test borrows a real order and takes LOCKS.FULFILLMENTS - two files racing the same "free" order would deadlock otherwise.
+// The attach test borrows a real order and takes LOCKS.FULFILLMENTS - two files racing the same "free" order would deadlock otherwise.
 import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
@@ -61,7 +61,7 @@ test("update answers false for an id with no fulfillment row", async () => {
   });
 });
 
-test("attachToOrder is one-way: a second attach changes nothing", async () => {
+test("update(order_id) is one-way: a second attach changes nothing", async () => {
   await inRollback(async (c: PoolClient) => {
     await takeLocks(c, LOCKS.FULFILLMENTS);
     const method_id = await aMethodId(c);
@@ -75,15 +75,12 @@ test("attachToOrder is one-way: a second attach changes nothing", async () => {
     );
     assert.ok(order, "dev has no order free of a fulfillment to attach a draft to");
 
-    const attached = await fulfillments.attachToOrder(
-      draft.id, { order_id: order.id }, c
-    );
-    assert.ok(attached, "the first attach wrote no row");
-    assert.equal(attached.order_id, order.id);
+    const attached = await fulfillments.update(draft.id, { order_id: order.id }, c);
+    assert.equal(attached, true, "the first attach wrote no row");
+    const after = await fulfillments.getOne(draft.id, c);
+    assert.equal(after?.order_id, order.id);
 
-    const second = await fulfillments.attachToOrder(
-      draft.id, { order_id: order.id }, c
-    );
-    assert.equal(second, undefined, "a second attach on an already-attached draft wrote a row");
+    const second = await fulfillments.update(draft.id, { order_id: order.id }, c);
+    assert.equal(second, false, "a second attach on an already-attached draft wrote a row");
   });
 });

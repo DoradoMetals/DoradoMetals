@@ -7,9 +7,12 @@ import {
   CarriersRow,
   ServicesRow,
   ShipmentsRow,
+  PackagesRow,
   PickupsRow as ShipmentPickupsRow,
+  Direction as ShippingDirection,
 } from "../generated/shipping.js";
 import { OrganizationsRow } from "../generated/organizations.js";
+import { AddressesRow } from "../generated/places.js";
 
 // The repos return a carrier and the organization it is, kept apart - the same
 // shape as Refiner, because a carrier and a refiner are the same kind of thing
@@ -255,3 +258,74 @@ export const CarrierServiceDeleteBody = z.object({
   id: ServicesRow.shape.id,
 }).strict();
 export type CarrierServiceDeleteBody = z.infer<typeof CarrierServiceDeleteBody>;
+
+// ============================================================================
+// OPERATIONS - the seven carrier-facing bodies (D214 item 11: "the contracts
+// lane deferred shipping/operations' seven bodies... do them now"). Every one
+// takes ids for what the server holds - an address, a package, a shipment, a
+// pickup - plus genuinely new numbers (a weight, a radius); never a composed
+// address or package object from the client. domain/shipping/operations
+// resolves each id to the row the carrier adapter needs.
+// ============================================================================
+
+// POST /shipping/validate_address
+export const ShippingValidateAddressBody = z.object({
+  carrier_id: CarriersRow.shape.id.optional(),
+  address_id: AddressesRow.shape.id,
+}).strict();
+export type ShippingValidateAddressBody = z.infer<typeof ShippingValidateAddressBody>;
+
+// POST /shipping/get_rates - shippingType picks which side of the quote
+// address_id names: the shipper's for an Inbound parcel (the customer sends
+// to us), otherwise ignored server-side (Outbound/Return ship FROM our own
+// address, see domain/shipping/operations/service.ts). package_id is the box;
+// weight is the one genuine measurement nothing else stores.
+export const ShippingGetRatesBody = z.object({
+  carrier_id: CarriersRow.shape.id.optional(),
+  shippingType: ShippingDirection,
+  address_id: AddressesRow.shape.id,
+  package_id: PackagesRow.shape.id,
+  weight: z.number(),
+  pickupType: z.string().optional(),
+  declaredValue: z.number().optional(),
+}).strict();
+export type ShippingGetRatesBody = z.infer<typeof ShippingGetRatesBody>;
+
+// POST /shipping/check_pickup - readyDate is a date-time string; the
+// controller converts it to the Date the provider call needs.
+export const ShippingCheckPickupBody = z.object({
+  carrier_id: CarriersRow.shape.id.optional(),
+  address_id: AddressesRow.shape.id,
+  code: z.string(),
+  readyDate: z.string(),
+}).strict();
+export type ShippingCheckPickupBody = z.infer<typeof ShippingCheckPickupBody>;
+
+// POST /shipping/get_locations
+export const ShippingGetLocationsBody = z.object({
+  carrier_id: CarriersRow.shape.id.optional(),
+  address_id: AddressesRow.shape.id,
+  radius_miles: z.number().optional(),
+  max_results: z.number().optional(),
+}).strict();
+export type ShippingGetLocationsBody = z.infer<typeof ShippingGetLocationsBody>;
+
+// POST /shipping/get_tracking
+export const ShippingGetTrackingBody = z.object({
+  shipment_id: ShipmentsRow.shape.id,
+}).strict();
+export type ShippingGetTrackingBody = z.infer<typeof ShippingGetTrackingBody>;
+
+// POST /shipping/cancel_label
+export const ShippingCancelLabelBody = z.object({
+  shipment_id: ShipmentsRow.shape.id,
+  carrier_id: CarriersRow.shape.id.optional(),
+}).strict();
+export type ShippingCancelLabelBody = z.infer<typeof ShippingCancelLabelBody>;
+
+// POST /shipping/cancel_pickup
+export const ShippingCancelPickupBody = z.object({
+  pickup_id: ShipmentPickupsRow.shape.id,
+  carrier_id: CarriersRow.shape.id.optional(),
+}).strict();
+export type ShippingCancelPickupBody = z.infer<typeof ShippingCancelPickupBody>;

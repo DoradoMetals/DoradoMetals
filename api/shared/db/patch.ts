@@ -59,6 +59,14 @@ export type UpdateSpec = {
    * belongs here, not in the patch.
    */
   where: Record<string, unknown>;
+  /**
+   * Columns whose CURRENT value must be NULL for the write to apply - a
+   * one-way state transition (fulfillments.attachToOrder: an id already
+   * attached to an order never repoints). `where`'s equality binding cannot
+   * express this: a bound NULL parameter never equals anything, itself
+   * included.
+   */
+  whereNull?: readonly string[];
   /** Postgres type to cast a parameter to, by column - `{ direction: "orders.direction" }`. */
   casts?: Record<string, string>;
   /** The RETURNING list, if the caller wants one. */
@@ -75,7 +83,7 @@ export type UpdateSpec = {
  *   const { rowCount } = await query(built.text, built.values, executor);
  */
 export function buildUpdate(spec: UpdateSpec): { text: string; values: unknown[] } | null {
-  const { table, allowed, patch, where, casts = {}, returning } = spec;
+  const { table, allowed, patch, where, whereNull = [], casts = {}, returning } = spec;
 
   for (const key of Object.keys(patch)) {
     if (STAMPED.has(key)) {
@@ -99,7 +107,10 @@ export function buildUpdate(spec: UpdateSpec): { text: string; values: unknown[]
   };
 
   const sets = cols.map((c) => `${c} = ${bind(c, patch[c])}`);
-  const wheres = Object.entries(where).map(([c, v]) => `${c} = ${bind(c, v)}`);
+  const wheres = [
+    ...Object.entries(where).map(([c, v]) => `${c} = ${bind(c, v)}`),
+    ...whereNull.map((c) => `${c} IS NULL`),
+  ];
   if (wheres.length === 0) {
     throw new Error(`${table}: an UPDATE with no WHERE would rewrite every row`);
   }

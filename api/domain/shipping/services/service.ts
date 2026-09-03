@@ -1,5 +1,6 @@
 // Defaults are applied here explicitly, not by the columns: shipping.services' column defaults disagree with what exchange's always meant (supports_dropoff/is_residential defaulted true there, false here), so every write states every value.
 // A minimal (carrier_id, name) insert - what exchange's create did - would be refused here: several columns are NOT NULL with no default.
+// Inputs are the CONTRACT'S types now, parsed strictly at transport - CarrierServiceCreate/CarrierServicePatch, not a hand-typed "arrives as req.body" shape.
 import { randomUUID } from "node:crypto";
 import withTransaction from "#shared/db/withTransaction.ts";
 import * as services from "#db/shipping/services/repo.ts";
@@ -7,102 +8,58 @@ import {
   carrierIdOr,
   resolveCarrier,
 } from "#domain/shipping/operations/resolver.ts";
-import type { ServiceRow, ServiceWrite } from "#db/shipping/services/repo.ts";
+import type { ServiceRow } from "#db/shipping/services/repo.ts";
 import type { Executor } from "#shared/db/executor.ts";
 // From the contracts, not the adapter (which merely re-exports it) - contracts is where the shape is declared.
-import type { CarrierServiceOption } from "@dorado/contracts";
+import type { CarrierServiceOption, CarrierServiceCreate, CarrierServicePatch } from "@dorado/contracts";
 import { Invalid } from "#shared/errors.ts";
 
 export type { CarrierServiceOption };
 
-// Arrives as req.body, so everything is optional and nothing can be trusted to
-// be the type it looks like.
-export type ServiceInput = {
-  id?: string;
-  carrier_id?: string | null;
-  name?: string | null;
-  description?: string | null;
-  code?: string | null;
-  provider_code?: string | null;
-  supports_pickup?: unknown;
-  supports_dropoff?: unknown;
-  supports_returns?: unknown;
-  supports_insurance?: unknown;
-  is_international?: unknown;
-  is_residential?: unknown;
-  is_active?: unknown;
-  max_weight_lbs?: number | null;
-  max_length_in?: number | null;
-  max_width_in?: number | null;
-  max_height_in?: number | null;
-  max_declared_value?: number | null;
-  min_transit_days?: number | null;
-  max_transit_days?: number | null;
-  display_order?: number | null;
-};
-
-// `== null`, not falsy: `false` is a real value a caller can send and must be kept; only undefined/null mean "not supplied" (`??` would flatten that).
-const flag = (v: unknown, whenAbsent: boolean): boolean => (v == null ? whenAbsent : !!v);
-
-// Defaults applied here, by name (see file header) - toNewRow/toPatchRow each spell every field explicitly, so neither forwards a field the repo call wasn't written to expect (no prop-spreading).
-function writeFields(s: ServiceInput): ServiceWrite {
-  return {
-    carrier_id: s.carrier_id ?? null,
-    // name is NOT NULL; an omitted one is a pre-existing gap this layer never validates - the DB constraint is the actual guard.
-    name: (s.name ?? null) as string,
-    description: s.description ?? null,
-    code: s.code ?? null,
-    provider_code: s.provider_code ?? null,
-    supports_pickups: flag(s.supports_pickup, false),
-    supports_dropoffs: flag(s.supports_dropoff, true),
-    supports_returns: flag(s.supports_returns, false),
-    supports_insurance: flag(s.supports_insurance, false),
-    is_international: flag(s.is_international, false),
-    is_residential: flag(s.is_residential, true),
-    is_active: flag(s.is_active, true),
-    max_weight_lb: s.max_weight_lbs ?? null,
-    max_length_in: s.max_length_in ?? null,
-    max_width_in: s.max_width_in ?? null,
-    max_height_in: s.max_height_in ?? null,
-    max_declared_value: s.max_declared_value ?? null,
-    min_transit_days: s.min_transit_days ?? 0,
-    max_transit_days: s.max_transit_days ?? 0,
-    display_order: s.display_order ?? 0,
-  };
-}
-
-function toNewRow(s: ServiceInput, id: string): services.ServiceNew {
-  const w = writeFields(s);
+// Every field spelled explicitly, by name - no prop-spreading, so the repo
+// call never receives a field it wasn't written to expect.
+function toNewRow(body: CarrierServiceCreate, id: string): services.ServiceNew {
   return {
     id,
-    carrier_id: w.carrier_id, name: w.name, description: w.description,
-    code: w.code, provider_code: w.provider_code,
-    supports_pickups: w.supports_pickups, supports_dropoffs: w.supports_dropoffs,
-    supports_returns: w.supports_returns, supports_insurance: w.supports_insurance,
-    is_international: w.is_international, is_residential: w.is_residential,
-    is_active: w.is_active,
-    max_weight_lb: w.max_weight_lb, max_length_in: w.max_length_in,
-    max_width_in: w.max_width_in, max_height_in: w.max_height_in,
-    max_declared_value: w.max_declared_value,
-    min_transit_days: w.min_transit_days, max_transit_days: w.max_transit_days,
-    display_order: w.display_order,
+    carrier_id: body.carrier_id ?? null,
+    name: body.name,
+    description: body.description ?? null,
+    code: body.code ?? null,
+    provider_code: body.provider_code ?? null,
+    supports_pickups: body.supports_pickup ?? false,
+    supports_dropoffs: body.supports_dropoff ?? true,
+    supports_returns: body.supports_returns ?? false,
+    supports_insurance: body.supports_insurance ?? false,
+    is_international: body.is_international ?? false,
+    is_residential: body.is_residential ?? true,
+    is_active: body.is_active ?? true,
+    max_weight_lb: body.max_weight_lbs ?? null,
+    max_length_in: body.max_length_in ?? null,
+    max_width_in: body.max_width_in ?? null,
+    max_height_in: body.max_height_in ?? null,
+    max_declared_value: body.max_declared_value ?? null,
+    min_transit_days: body.min_transit_days ?? 0,
+    max_transit_days: body.max_transit_days ?? 0,
+    display_order: body.display_order ?? 0,
   };
 }
 
-function toPatchRow(s: ServiceInput): services.ServicePatch {
-  const w = writeFields(s);
+// A key PRESENT is written, a key ABSENT is left alone (shared/db/patch.ts) -
+// the admin form sends every field today, but the patch itself no longer
+// forces that.
+function toPatchRow(body: CarrierServicePatch): services.ServicePatch {
   return {
-    carrier_id: w.carrier_id, name: w.name, description: w.description,
-    code: w.code, provider_code: w.provider_code,
-    supports_pickups: w.supports_pickups, supports_dropoffs: w.supports_dropoffs,
-    supports_returns: w.supports_returns, supports_insurance: w.supports_insurance,
-    is_international: w.is_international, is_residential: w.is_residential,
-    is_active: w.is_active,
-    max_weight_lb: w.max_weight_lb, max_length_in: w.max_length_in,
-    max_width_in: w.max_width_in, max_height_in: w.max_height_in,
-    max_declared_value: w.max_declared_value,
-    min_transit_days: w.min_transit_days, max_transit_days: w.max_transit_days,
-    display_order: w.display_order,
+    carrier_id: body.carrier_id, name: body.name, description: body.description,
+    code: body.code, provider_code: body.provider_code,
+    supports_pickups: body.supports_pickup, supports_dropoffs: body.supports_dropoff,
+    supports_returns: body.supports_returns, supports_insurance: body.supports_insurance,
+    is_international: body.is_international, is_residential: body.is_residential,
+    is_active: body.is_active,
+    max_weight_lb: body.max_weight_lbs, max_length_in: body.max_length_in,
+    max_width_in: body.max_width_in, max_height_in: body.max_height_in,
+    max_declared_value: body.max_declared_value,
+    min_transit_days: body.min_transit_days, max_transit_days: body.max_transit_days,
+    display_order: body.display_order,
   };
 }
 
@@ -120,17 +77,17 @@ export async function getSaleOptions(): Promise<services.SaleServiceOption[]> {
 // Read from the carrier's catalogue, not this table: code/provider_code are NULL on every row (an UPDATE against production, Jacob's to run) - the read lives here so the URL doesn't move once they're filled.
 // `code` on the way out is the carrier's SERVICE type (matches a rate quote's serviceType); `carrier_code` is the service family FedEx wants for pickup availability.
 export async function getOfferedServices(
-  carrier_id?: string | null, client?: unknown
+  carrier_id?: string | null, client?: Executor
 ): Promise<CarrierServiceOption[]> {
   const id = await carrierIdOr(carrier_id, client);
   const { catalogue } = await resolveCarrier(id, client);
-  const ceilings = await ceilingsByName(id, client as Executor);
+  const ceilings = await ceilingsByName(id, client);
 
   return [...catalogue.services]
     .sort((a, b) => a.display_order - b.display_order)
     // `id` is the shipping.services row for this catalogue entry, joined by name like the ceiling - checkout stores it, and create resolves the entry back from it.
     .map((s) => ({
-      ...s,
+      code: s.code, name: s.name, carrier_code: s.carrier_code, display_order: s.display_order,
       id: ceilings.get(s.name)?.id ?? null,
       max_insured_value: ceilingOr(ceilings, s.name),
     }));
@@ -145,9 +102,7 @@ async function ceilingsByName(
   carrier_id: string, executor?: Executor
 ): Promise<Map<string, { id: string; ceiling: number }>> {
   const rows = await services.getInsuranceCeilings(carrier_id, executor);
-  return new Map(
-    rows.map((r) => [r.name, { id: (r as { id?: string }).id as string, ceiling: Number(r.max_insured_value) }])
-  );
+  return new Map(rows.map((r) => [r.name, { id: r.id, ceiling: Number(r.max_insured_value) }]));
 }
 
 // The lowest ceiling we know about - the agnostic answer and the fallback for an unrecognized service. Zero rows means nothing can be shipped or insured.
@@ -162,19 +117,19 @@ function ceilingOr(ceilings: Map<string, { id: string; ceiling: number }>, name:
 }
 
 export async function insuranceCeiling(
-  carrier_id?: string | null, client?: unknown
+  carrier_id?: string | null, client?: Executor
 ): Promise<number> {
   const id = await carrierIdOr(carrier_id, client);
-  return lowestCeiling(await ceilingsByName(id, client as Executor));
+  return lowestCeiling(await ceilingsByName(id, client));
 }
 
 // `code` is the carrier's service type - CarrierServiceOption.code, which is
 // what the browser round-trips back as `service.serviceType`.
 export async function insuranceCeilingFor(
-  code: string | null | undefined, carrier_id?: string | null, client?: unknown
+  code: string | null | undefined, carrier_id?: string | null, client?: Executor
 ): Promise<number> {
   const id = await carrierIdOr(carrier_id, client);
-  const ceilings = await ceilingsByName(id, client as Executor);
+  const ceilings = await ceilingsByName(id, client);
   if (!code) return lowestCeiling(ceilings);
 
   const { catalogue } = await resolveCarrier(id, client);
@@ -189,7 +144,7 @@ export async function insuranceCeilingFor(
 // The clamp itself, in one place so the two call sites cannot disagree. A
 // non-finite or absent amount insures nothing rather than everything.
 export async function clampInsuredValue(
-  amount: unknown, code?: string | null, carrier_id?: string | null, client?: unknown
+  amount: unknown, code?: string | null, carrier_id?: string | null, client?: Executor
 ): Promise<number> {
   const ceiling = await insuranceCeilingFor(code, carrier_id, client);
   const n = Number(amount);
@@ -249,25 +204,22 @@ export async function getServicesByCarrierId(
 }
 
 export async function createService(
-  input: ServiceInput, executor?: Executor
+  body: CarrierServiceCreate, executor?: Executor
 ): Promise<ServiceRow | null> {
   const run = async (c: Executor): Promise<ServiceRow | null> => {
     const id = randomUUID();
-    return await services.create(toNewRow(input, id), c);
+    return await services.create(toNewRow(body, id), c);
   };
   return executor ? await run(executor) : await withTransaction(run);
 }
 
 export async function updateService(
-  input: ServiceInput, executor?: Executor
+  body: CarrierServicePatch, executor?: Executor
 ): Promise<ServiceRow | null> {
-  const id = input.id;
-  if (!id) return null;
-
   const run = async (c: Executor): Promise<ServiceRow | null> => {
-    const changed = await services.update(id, toPatchRow(input), c);
+    const changed = await services.update(body.id, toPatchRow(body), c);
     if (!changed) return null;
-    return (await services.getOne(id, c)) ?? null;
+    return (await services.getOne(body.id, c)) ?? null;
   };
   return executor ? await run(executor) : await withTransaction(run);
 }

@@ -43,7 +43,7 @@ export async function getOne(id: string, executor?: Executor): Promise<ServiceRo
 }
 
 // The insurance ceiling per service, for one carrier - read on its own, not folded into the row reads.
-type InsuranceCeiling = { name: string; max_insured_value: number };
+export type InsuranceCeiling = { id: string; name: string; max_insured_value: number };
 
 export async function getInsuranceCeilings(
   carrier_id: string, executor?: Executor
@@ -80,7 +80,8 @@ export async function create(row: ServiceNew, executor?: Executor): Promise<Serv
 }
 
 // created_by/updated_by are NOT part of the patch - audit_stamp writes both from the connection's actor.
-export type ServicePatch = ServiceWrite;
+// A key PRESENT is written, a key ABSENT is left alone - the same contract every other update() in this codebase keeps.
+export type ServicePatch = Partial<ServiceWrite>;
 
 // The columns a create or edit supplies; RETURNING below preserves the wire's aliased names.
 export const PATCHABLE = [
@@ -101,22 +102,13 @@ export const RETURNING = `id, carrier_id, name, description, code, provider_code
           min_transit_days, max_transit_days, display_order,
           created_by, updated_by, created_at, updated_at`;
 
-// STILL A FULL REPLACE: the admin form always sends every field, and an omitted field is CLEARED - not merged.
-// buildUpdate treats undefined as "not mentioned", so fields are named here with `?? null` to force that.
 export async function update(
   id: string, patch: ServicePatch, executor?: Executor
 ): Promise<boolean> {
-  const full = Object.fromEntries(
-    PATCHABLE.map((c) => [c, (patch as Record<string, unknown>)[c] ?? null])
-  );
   const built = buildUpdate({
-    table: "shipping.services",
-    allowed: PATCHABLE,
-    patch: full,
-    where: { id },
-    returning: RETURNING,
+    table: "shipping.services", allowed: PATCHABLE, patch, where: { id }, returning: RETURNING,
   });
-  if (!built) return false;
+  if (!built) return true;
   const { rowCount } = await query(built.text, built.values, executor);
   return rowCount === 1;
 }

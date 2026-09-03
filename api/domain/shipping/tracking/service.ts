@@ -25,15 +25,16 @@ export async function getEvents(
   if (!shipment) return null;
 
   const events = await tracking.getFor(shipment_id, executor);
-  return {
-    ...shipment,
+  // Assigned onto the row rather than spread into a copy - the row is this
+  // read's own and a copy is a second object to keep in step.
+  return Object.assign(shipment, {
     // The three fields the response has always carried - the event's own id and shipment_id are not part of it.
     scan_events: events.map((e) => ({
       status: e.status,
       location: e.location,
       scan_time: e.scan_time,
     })),
-  };
+  });
 }
 
 // There is no replaceEvents wrapper: the live carrier poll (operations/service.ts) does both writes itself, behind the guard that stops an unrecognised response from emptying a real parcel's history.

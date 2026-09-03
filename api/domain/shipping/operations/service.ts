@@ -6,18 +6,34 @@ import * as trackingRepo from "#domain/shipping/tracking/service.ts";
 // The SERVICE, not a repo: a pickup hangs off a SHIPMENT.
 import * as pickupRepo from "#domain/shipping/pickups/service.ts";
 import * as servicesRepo from "#db/shipping/services/repo.ts";
+import * as addressesRepo from "#db/places/addresses/repo.ts";
+import * as packagesRepo from "#db/shipping/packages/repo.ts";
 import * as shippingHandler from "#domain/shipping/operations/handler.ts";
 import { carrierIdOr } from "#domain/shipping/operations/resolver.ts";
 import { FEDEX_STORE_ADDRESS, DORADO_ADDRESS } from "#providers/shipments/constants.ts";
 import { reportError } from "#shared/observability/report.ts";
+import { Invalid, NotFound } from "#shared/errors.ts";
 import type { ShipmentBaseRow as ShipmentRow } from "#db/shipping/shipments/repo.ts";
 import type { TrackedShipment as TrackingRow } from "#domain/shipping/tracking/service.ts";
 import type { ParsedTracking } from "#providers/shipments/utils/parsing.ts";
 import type { RatesInput } from "#domain/shipping/operations/handler.ts";
 import type { PickupBaseRow as PickupRow } from "#db/shipping/pickups/repo.ts";
 import type { PoolClient } from "pg";
+import type {
+  ShippingCancelLabelBody, ShippingCancelPickupBody, ShippingCheckPickupBody,
+  ShippingGetLocationsBody, ShippingGetRatesBody, ShippingValidateAddressBody,
+} from "@dorado/contracts";
 
 type Executor = PoolClient | undefined;
+
+// EVERY OPERATION RESOLVES THE ADDRESS FROM ITS OWN ID (D214 item 11): the
+// client sends address_id, never a composed address object, so a rate quote
+// cannot be asked about somewhere the caller does not actually hold on file.
+async function requireAddress(address_id: string) {
+  const address = await addressesRepo.getOne(address_id);
+  if (!address) throw new NotFound(`no address ${address_id}`);
+  return address;
+}
 
 // fetchTracking is the seam a test uses instead of calling FedEx. Returns ParsedTracking, not TrackingInfo: this reads four fields (scanEvents, latestStatus, estimatedDeliveryTime, deliveredAt), and TrackingInfo declares only the one insertEvents needs - the narrower type would compile then fail at the body.
 import type { shipping } from "@dorado/contracts";
@@ -32,13 +48,9 @@ type ShippingType = shipping.ShipmentsRow["direction"];
 
 // Runs OUTSIDE any transaction: cancelling a label first, inside one, risked a later failure rolling back our record while FedEx had already killed the label - a customer holding a label the system still calls active.
 // Safe because cancel is idempotent - a retry just cancels an already-cancelled label. Creating a label is NOT idempotent and doesn't get this treatment; see domain/orders/service.ts.
-export async function cancelLabel({
-  shipment_id,
-  carrier_id,
-}: {
-  shipment_id: string;
-  carrier_id?: string | null;
-}): Promise<ShipmentRow | null> {
+export async function cancelLabel(
+  { shipment_id, carrier_id }: ShippingCancelLabelBody
+): Promise<ShipmentRow | null> {
   // An unknown shipment id used to reach the carrier before this guard existed - getById returning null meant a TypeError AFTER deciding to call FedEx, not before.
   const shipment = await shipmentRepo.getById(shipment_id);
   if (!shipment) {
@@ -130,7 +142,11 @@ export async function getTracking(
   });
 }
 
-export async function getRates({
+// THE LOW-LEVEL QUOTE, from a resolved address and parcel - what a caller
+// that already holds both (domain/orders/place.ts, mid-checkout) calls
+// directly rather than round-tripping through an id it just read. getRates
+// below is the id-resolving wrapper transport calls.
+export async function quoteRate({
   carrier_id,
   shippingType,
   address,
@@ -138,20 +154,16 @@ export async function getRates({
   pickupType,
   declaredValue,
 }: {
-  // OPTIONAL: the server resolves the carrier it ships with when the caller
-  // does not name one, which is what took a production uuid out of the browser.
   carrier_id?: string | null;
-  // Checked by the switch below rather than trusted: it arrives in req.body,
-  // and the default case is what turns an unrecognised value into an error
-  // instead of a quote from the wrong end of the country.
+  // Checked by the switch below rather than trusted: the default case is
+  // what turns an unrecognised value into an error instead of a quote from
+  // the wrong end of the country.
   shippingType: unknown;
-  // Derived from the builder's own input rather than restated, so a change to
-  // what a rate quote needs lands here without an edit.
   address: RatesInput["shipperAddress"];
   pkg?: RatesInput["pkg"];
   pickupType?: RatesInput["pickupType"];
   declaredValue?: RatesInput["declaredValue"];
-}) {
+}): Promise<ReturnType<typeof shippingHandler.getRates>> {
   let shipperAddress: RatesInput["shipperAddress"];
   let recipientAddress: RatesInput["recipientAddress"];
 
@@ -161,18 +173,14 @@ export async function getRates({
       recipientAddress = FEDEX_STORE_ADDRESS;
       break;
     case "Outbound":
-      shipperAddress = DORADO_ADDRESS;
-      recipientAddress = address;
-      break;
     case "Return":
       shipperAddress = DORADO_ADDRESS;
       recipientAddress = address;
       break;
-
     default:
-      throw new Error(`Invalid shippingType: ${shippingType}`);
+      throw new Invalid(`invalid shippingType: ${shippingType}`);
   }
-  return shippingHandler.getRates(await carrierIdOr(carrier_id), null, {
+  return shippingHandler.getRates(await carrierIdOr(carrier_id), undefined, {
     shipperAddress,
     recipientAddress,
     pkg,
@@ -181,14 +189,76 @@ export async function getRates({
   });
 }
 
+// A RATE QUOTE, priced from ids the server holds: address_id names the
+// customer's own address, package_id the box, weight the one genuine
+// measurement nothing else stores. Inbound quotes FROM that address TO the
+// store; Outbound/Return quote FROM the store (the business always ships its
+// own side of those two).
+export async function getRates(
+  body: ShippingGetRatesBody
+): Promise<ReturnType<typeof shippingHandler.getRates>> {
+  if (!(body.weight > 0)) throw new Invalid("the parcel needs a weight");
+
+  const address = await requireAddress(body.address_id);
+  const box = await packagesRepo.getOne(body.package_id);
+  if (!box) throw new Invalid(`no package ${body.package_id}`);
+
+  return quoteRate({
+    carrier_id: body.carrier_id,
+    shippingType: body.shippingType,
+    address,
+    pkg: {
+      weight: { units: "LB", value: body.weight },
+      dimensions: {
+        length: Number(box.length), width: Number(box.width),
+        height: Number(box.height), units: "IN",
+      },
+    },
+    pickupType: body.pickupType,
+    declaredValue:
+      body.declaredValue != null ? { amount: body.declaredValue, currency: "USD" } : undefined,
+  });
+}
+
+// An address as the customer entered it, checked against the carrier before
+// the checkout that owns it commits to it.
+export async function validateAddress(
+  body: ShippingValidateAddressBody
+): Promise<ReturnType<typeof shippingHandler.validateAddress>> {
+  const address = await requireAddress(body.address_id);
+  return shippingHandler.validateAddress(await carrierIdOr(body.carrier_id), undefined, { address });
+}
+
+// The pickup windows a carrier will collect from address_id on readyDate.
+export async function checkPickup(
+  body: ShippingCheckPickupBody
+): Promise<ReturnType<typeof shippingHandler.checkPickup>> {
+  const address = await requireAddress(body.address_id);
+  // readyDate is a Date everywhere below - JSON cannot carry one, so it is
+  // converted at this boundary, where a request becomes objects.
+  const readyAt = new Date(body.readyDate);
+  if (Number.isNaN(readyAt.getTime())) {
+    throw new Invalid("readyDate is required and must be a date");
+  }
+  return shippingHandler.checkPickup(await carrierIdOr(body.carrier_id), undefined, {
+    pickupAddress: address, code: body.code, readyDate: readyAt,
+  });
+}
+
+// The carrier's own drop-off points near address_id.
+export async function getLocations(
+  body: ShippingGetLocationsBody
+): Promise<ReturnType<typeof shippingHandler.getLocations>> {
+  const address = await requireAddress(body.address_id);
+  return shippingHandler.getLocations(await carrierIdOr(body.carrier_id), undefined, {
+    address, radiusMiles: body.radius_miles, maxResults: body.max_results,
+  });
+}
+
 // Same shape and reasoning as cancelLabel: cancelling a pickup is idempotent and runs outside any transaction - a rollback after it would leave a courier not coming and a row that says one is.
-export async function cancelPickup({
-  pickup_id,
-  carrier_id,
-}: {
-  pickup_id: string;
-  carrier_id?: string | null;
-}): Promise<PickupRow | null> {
+export async function cancelPickup(
+  { pickup_id, carrier_id }: ShippingCancelPickupBody
+): Promise<PickupRow | null> {
   // Same guard as cancelLabel and getTracking: an unknown id used to read three fields off null after deciding to call the carrier.
   const pickup = await pickupRepo.getById(pickup_id);
   if (!pickup) {
@@ -199,9 +269,12 @@ export async function cancelPickup({
     throw err;
   }
 
-  // Converted at the boundary, not assumed: confirmation_number is text; requested_at is a Date (pg parses timestamp columns) even though the generated type says string.
-  // The date is sent as YYYY-MM-DD, the form the FedEx pickup API takes.
-  const requestedAt = pickup.requested_at as unknown as Date | string | null;
+  // Widened rather than assumed: PickupBaseRow.requested_at is declared
+  // `string` (the wire's shape, also what orders' OrderView needs it to stay
+  // - widening the repo type ripples into that composed read), but pg parses
+  // a timestamp column into a Date at runtime. The date is sent as
+  // YYYY-MM-DD, the form the FedEx pickup API takes.
+  const requestedAt = pickup.requested_at as Date | string | null;
   const pickupDate =
     requestedAt instanceof Date
       ? requestedAt.toISOString().slice(0, 10)

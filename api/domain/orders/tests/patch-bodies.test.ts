@@ -40,8 +40,7 @@
 import { test, afterAll } from "vitest";
 import assert from "node:assert/strict";
 import pool from "#db";
-import { OrderItemPatch, OrderPatch } from "@dorado/contracts";
-import { refusedField as shipmentField } from "#transport/shipping/shipments/controller.ts";
+import { OrderItemPatch, OrderPatch, ShipmentPatch } from "@dorado/contracts";
 import { refusedField as refinerOrderField } from "#transport/refiners/orders/controller.ts";
 import { refusedField as refinerItemField } from "#transport/refiners/items/controller.ts";
 import { refusedField as payoutField } from "#domain/payouts/service.ts";
@@ -63,15 +62,15 @@ const refusalOf = (
 
 // --------------------------------------------------- the four nulls refused
 
+// ShipmentPatch is parsed strictly at transport now (D214 item 11), so this
+// asserts the contract directly - shipping_charge is z.number(), not
+// nullable, which IS the refusal.
 test("a shipment PATCH refuses a null shipping charge, by name", () => {
-  assert.match(
-    refusalOf(shipmentField({ shipping_charge: null }), "shipping_charge: null"),
-    /shipping_charge/
-  );
+  refusesField(ShipmentPatch, { shipping_charge: null }, "shipping_charge");
   // The value it replaced is still accepted, zero included - the decision was
   // "there is no third state", not "no clearing-shaped number".
-  assert.equal(shipmentField({ shipping_charge: 0 }), null);
-  assert.equal(shipmentField({ shipping_charge: 45.67 }), null);
+  assert.equal(ShipmentPatch.safeParse({ shipping_charge: 0 }).success, true);
+  assert.equal(ShipmentPatch.safeParse({ shipping_charge: 45.67 }).success, true);
 });
 
 test("a refiner order PATCH refuses a null on each of the three money fields", () => {
@@ -110,9 +109,9 @@ test("a refiner item PATCH keeps every one of its nulls", () => {
 
 // ------------------------------------------- what the contract now also says
 
-// THE ORDER'S AND THE LINE'S BODIES ARE PARSED STRICTLY AT TRANSPORT (D214
-// item 11), so neither has a `refusedField` any more - the contract IS the
-// check, and these assert it directly.
+// THE ORDER'S, THE LINE'S AND THE SHIPMENT'S BODIES ARE PARSED STRICTLY AT
+// TRANSPORT (D214 item 11), so none of the three has a `refusedField` any
+// more - the contract IS the check, and these assert it directly.
 const refusesField = (
   schema: { safeParse: (v: unknown) => { success: boolean; error?: { issues: { message: string; path: PropertyKey[] }[] } } },
   body: unknown,
@@ -205,7 +204,7 @@ test("a payout PATCH takes the waive flag both ways, and refuses a non-boolean",
 test("an unknown field is refused by name on every one of the six", () => {
   refusesField(OrderPatch, { nope: 1 }, "nope");
   refusesField(OrderItemPatch, { nope: 1 }, "nope");
-  assert.match(refusalOf(shipmentField({ nope: 1 }), "shipment"), /"nope"/);
+  refusesField(ShipmentPatch, { nope: 1 }, "nope");
   assert.match(refusalOf(refinerOrderField({ nope: 1 }), "refiner order"), /"nope"/);
   assert.match(refusalOf(refinerItemField({ nope: 1 }), "refiner item"), /"nope"/);
   assert.match(refusalOf(payoutField({ nope: 1 }), "payout"), /"nope"/);

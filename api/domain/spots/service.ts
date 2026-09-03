@@ -46,14 +46,30 @@ export async function updateSpotPrices(): Promise<Record<string, Quote>> {
     };
   }
 
-  // One upsert per metal, one transaction - the name is resolved to an id here rather than inside the INSERT, so the write never touches a second table.
+  // One write per metal, one transaction - the name is resolved to an id here rather than inside the INSERT, so the write never touches a second table.
   const ids = new Map(Array.from(await metals.namesById(), ([id, name]) => [name, id]));
+  const known = new Set((await spots.list()).map((row) => row.metal_id));
   await withTransaction(async (c) => {
     for (const [name, quote] of Object.entries(quotes)) {
-      const id = ids.get(name);
+      const metal_id = ids.get(name);
       // A metal the feed names but the database does not have is skipped
       // rather than invented.
-      if (id) await spots.upsert(id, quote, c);
+      if (!metal_id) continue;
+      const patch = {
+        ask: quote.ask, bid: quote.bid,
+        dollar_change: quote.dollarChange, percent_change: quote.percentChange,
+      };
+      if (known.has(metal_id)) {
+        await spots.update(metal_id, patch, c);
+      } else {
+        await spots.create(
+          {
+            metal_id, ask: patch.ask, bid: patch.bid,
+            dollar_change: patch.dollar_change, percent_change: patch.percent_change,
+          },
+          c
+        );
+      }
     }
   });
   return quotes;

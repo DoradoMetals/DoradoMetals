@@ -76,25 +76,22 @@ export async function createDraft(
   return rows[0];
 }
 
-// attachToOrder kept: one-way guarded transition - WHERE order_id IS NULL, never a general patch.
-export async function attachToOrder(
-  id: string, patch: { order_id: string }, executor?: Executor
-): Promise<FulfillmentBaseRow | undefined> {
-  const { rows } = await query<FulfillmentBaseRow>(
-    sql("attach_to_order"), [id, patch.order_id], executor
-  );
-  return rows[0];
-}
-
-export const PATCHABLE = ["status", "method_id"] as const;
+export const PATCHABLE = ["status", "method_id", "order_id"] as const;
 
 export type FulfillmentPatch = Partial<Pick<FulfillmentBaseRow, (typeof PATCHABLE)[number]>>;
 
+// order_id is ONE-WAY: a draft attaches to an order once, and a patch naming
+// it is only ever that first attach, so it guards itself with WHERE order_id
+// IS NULL - a second attach on an already-attached row changes nothing.
 export async function update(
   id: string, patch: FulfillmentPatch, executor?: Executor
 ): Promise<boolean> {
   const built = buildUpdate({
-    table: "fulfillments.fulfillments", allowed: PATCHABLE, patch, where: { id },
+    table: "fulfillments.fulfillments",
+    allowed: PATCHABLE,
+    patch,
+    where: { id },
+    whereNull: "order_id" in patch ? ["order_id"] : undefined,
   });
   if (!built) return true;
   const { rowCount } = await query(built.text, built.values, executor);
