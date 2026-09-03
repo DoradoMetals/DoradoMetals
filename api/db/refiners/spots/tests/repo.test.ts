@@ -35,7 +35,7 @@ async function inRollback(fn: (c: PoolClient) => Promise<void>) {
 
 const aRefinerSpot = async (c: PoolClient, direction: string) =>
   (await c.query(
-    `SELECT s.order_id, s.metal_id, s.refiner_id
+    `SELECT s.order_id, s.metal_id, s.refiner_id, s.refiner_order_id
        FROM refiners.spots s
        JOIN orders.orders o ON o.id = s.order_id
       WHERE o.direction = $1
@@ -139,7 +139,10 @@ test("a new refiner spot can be created for an order", async () => {
     );
 
     const row = await refinerSpots.create(
-      { id: randomUUID(), order_id: s.order_id, metal_id: s.metal_id, refiner_id: s.refiner_id, ask: 100, bid: 90 },
+      {
+        id: randomUUID(), order_id: s.order_id, refiner_order_id: s.refiner_order_id,
+        metal_id: s.metal_id, refiner_id: s.refiner_id, ask: 100, bid: 90,
+      },
       c
     );
     assert.ok(row, "creating a refiner spot for a freed pair returned nothing");

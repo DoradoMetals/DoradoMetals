@@ -376,13 +376,24 @@ const { rows: quoteAddresses } = await pool.query(
   `SELECT id FROM exchange.addresses WHERE user_id = $1 LIMIT 1`,
   [addressUser]
 );
+// The quote bodies name a delivery service and a payment method by ID now
+// (D214 item 11), so the fixture resolves one of each rather than spelling
+// "STANDARD"/"CARD".
+const { rows: quoteServices } = await pool.query(
+  `SELECT id FROM shipping.services ORDER BY id LIMIT 1`
+);
+const { rows: quoteMethods } = await pool.query(
+  `SELECT id FROM payments.methods WHERE direction = 'sale' ORDER BY id LIMIT 1`
+);
+const { rows: quoteMetals } = await pool.query(
+  `SELECT id FROM metals.metals WHERE name = 'Gold' LIMIT 1`
+);
 add("POST /quotes/sales_order", c.SalesOrderQuote, () =>
   addressUser && quoteItems.length
     ? quotesService.salesOrderQuote(addressUser, {
         items: quoteItems,
-        using_funds: true,
-        shipping_service: "STANDARD",
-        payment_method: "CARD",
+        carrier_service_id: quoteServices[0]?.id ?? null,
+        payment_method_id: quoteMethods[0]?.id ?? null,
         address_id: quoteAddresses[0]?.id,
       })
     : [],
@@ -390,11 +401,14 @@ add("POST /quotes/sales_order", c.SalesOrderQuote, () =>
 );
 
 add("POST /quotes/purchase_order", c.PurchaseOrderQuote, () =>
-  quotable.length
+  quotable.length && quoteMetals.length
     ? quotesService.purchaseOrderQuote({
         items: [
-          { type: "scrap", data: { metal: "Gold", pre_melt: 31.1035, purity: 0.9, gross_unit: "g" } },
-          { type: "product", data: { name: quotable[0].name, quantity: 2 } },
+          {
+            type: "scrap", metal_id: quoteMetals[0].id,
+            pre_melt: 31.1035, purity: 0.9, unit: "g",
+          },
+          { type: "product", bullion_id: quotable[0].id, quantity: 2 },
         ],
       })
     : [],
@@ -416,8 +430,9 @@ add("POST /quotes/order", c.OrderQuote, () =>
 // The profit breakdown (D83): ADMIN-ONLY on the route, checked here the same
 // way the other computed shapes are - the service is the only implementation.
 // Priced against the same stable fixture the order quote uses.
+const profitService = await import("#domain/quotes/profit.ts");
 add("POST /quotes/profit_breakdown", c.ProfitBreakdown, () =>
-  quotableOrders.length ? quotesService.profitBreakdown({ order_id: quotableOrders[0].id }) : [],
+  quotableOrders.length ? profitService.profitBreakdown({ order_id: quotableOrders[0].id }) : [],
   false
 );
 

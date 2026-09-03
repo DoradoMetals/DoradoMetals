@@ -117,18 +117,21 @@ test("no two rules for a state tie on every specificity axis", () => {
   assert.deepEqual(ambiguous, [], "rules rank identically but carry different rates - LIMIT 1 picks arbitrarily");
 });
 
-// factsFrom is the seam between two item shapes — reading only the legacy product_type spelling made every server-fetched item NULL here, so a rule keyed on a product type silently fell through to its 'All' fallback (the rate was still a number, just the wrong rule's).
-test("factsFrom reads the product type in both spellings, legacy first", async () => {
+// THE PRODUCT TYPE HAS ONE SPELLING NOW: products.bullion's own `type`, which
+// is what getItemsFromServer composes. It used to also accept a request-body
+// `product_type` beside it, because /tax/get_sales_tax priced the raw body -
+// that endpoint takes ids now, so every line reaching here is a catalogue row.
+// Reading the wrong spelling made every server-fetched item NULL here and a
+// rule keyed on a product type fell through to its 'All' fallback: the rate
+// was still a number, just the wrong rule's (D71).
+test("factsFrom reads the product type off the catalogue row's own column", async () => {
   const { factsFrom } = await import("#domain/sales-tax/service.ts");
-  const legacy = factsFrom("TX", { metal_type: "Gold", product_type: "Coin" }, 100, 100);
-  assert.equal(legacy.product_type, "Coin", "the legacy spelling stopped being read");
+  const row = factsFrom("TX", { metal_type: "Gold", type: "Coin" }, 100, 100);
+  assert.equal(row.product_type, "Coin", "a server-fetched item's type was dropped - D71 is back");
+  assert.equal(row.metal_category, "Gold");
 
-  const next = factsFrom("TX", { metal_type: "Gold", type: "Coin" }, 100, 100);
-  assert.equal(next.product_type, "Coin", "a server-fetched item's type was dropped - D71 is back");
-
-  // A checkout cart item's own `type` is its KIND, not a product type. When
-  // both spellings are present the legacy one must win, so a legacy cart line
-  // carrying type:"product" alongside product_type:"Coin" stays a Coin.
-  const both = factsFrom("TX", { type: "product", product_type: "Coin" }, 100, 100);
-  assert.equal(both.product_type, "Coin", "the kind discriminator outranked the real product type");
+  // A line with no type at all matches only the 'All' rules, rather than
+  // throwing or matching a rule it should not.
+  const untyped = factsFrom("TX", { metal_type: "Gold" }, 100, 100);
+  assert.equal(untyped.product_type, null);
 });

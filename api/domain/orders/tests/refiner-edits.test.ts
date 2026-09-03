@@ -48,7 +48,7 @@ const MIGRATION = fs.readFileSync(
 // projections, not table rows - naming a row type would claim columns the
 // query never asked for.
 type UserFixture = { id: string; name: string | null; email: string | null };
-type RefinerMetalFixture = { purchase_order_id: string; type: string };
+type RefinerMetalFixture = { purchase_order_id: string; metal_id: string; type: string };
 type ScrapItemFixture = { id: string; purchase_order_id: string };
 
 let admin: UserFixture;
@@ -72,7 +72,7 @@ beforeAll(async () => {
 
   refinerMetal = (
     await outside<RefinerMetalFixture>(
-      `SELECT sp.order_id AS purchase_order_id, m.name AS type
+      `SELECT sp.order_id AS purchase_order_id, sp.metal_id, m.name AS type
          FROM refiners.spots sp
          JOIN metals.metals m ON m.id = sp.metal_id
         ORDER BY sp.id LIMIT 1`
@@ -152,7 +152,7 @@ test("the engagement PATCH writes the refiner's spot for that metal on that orde
     await asAdmin(admin, async () => {
       const res = await request(app)
         .patch(`/api/refiners/orders/${engagementId}`)
-        .send({ spots: [{ name: refinerMetal.type, bid: 1234.56 }] });
+        .send({ spots: [{ metal_id: refinerMetal.metal_id, bid: 1234.56 }] });
 
       assert.equal(res.status, 200, `answered ${res.status}: ${JSON.stringify(res.body)}`);
 
@@ -260,7 +260,9 @@ test("poisoned bodies refuse by name on both refiners endpoints", async () => {
         .patch(`/api/refiners/items/by-order-item/${scrapItem.id}`)
         .send({ content: 1.5 });
       assert.equal(derived.status, 400, `answered ${derived.status}`);
-      assert.match(derived.body?.error?.message ?? "", /"content" is derived/);
+      // `content` is not a field of RefinerItemPatch (it is derived from
+      // post_melt and purity), so the strict parse refuses it by name.
+      assert.match(derived.body?.error?.message ?? "", /content/);
 
       const engagement = await request(app)
         .patch(`/api/refiners/orders/${engagementId}`)

@@ -14,18 +14,14 @@ import { payoutKeyFromEnv } from "#shared/crypto/payoutKey.ts";
 import { Invalid } from "#shared/errors.ts";
 import type { DetailRow, DetailValues } from "#db/payments/details/repo.ts";
 import type { Executor } from "#shared/db/executor.ts";
+import type { CheckoutPayoutForm } from "@dorado/contracts";
 
 export type { DetailRow } from "#db/payments/details/repo.ts";
 
-export type PayoutForm = {
-  method?: string;
-  account_holder_name?: string;
-  bank_name?: string | null;
-  account_type?: string | null;
-  routing_number?: string | null;
-  account_number?: string | null;
-  payout_email?: string | null;
-};
+// THE FORM IS THE CONTRACT'S, not a second declaration of it: the checkout
+// controller parses a body against CheckoutPayoutForm and hands the result
+// straight here, so a field added there and not here cannot happen.
+export type PayoutForm = CheckoutPayoutForm;
 
 const BANK_METHODS = new Set(["ACH", "WIRE"]);
 const EMAIL_METHODS = new Set(["ECHECK", "DORADO_ACCOUNT"]);
@@ -48,7 +44,7 @@ export async function saveCheckoutPayout(
   }: { user_id: string; existing_id: string | null; form: PayoutForm },
   executor?: Executor
 ): Promise<DetailRow> {
-  const method = String(form.method ?? "");
+  const { method } = form;
   if (!method || !form.account_holder_name) {
     throw new Invalid("the payout needs a method and an account holder name");
   }
@@ -56,10 +52,10 @@ export async function saveCheckoutPayout(
     if (!form.routing_number || !form.account_number || !form.bank_name) {
       throw new Invalid(`${method} needs a bank name, a routing number and an account number`);
     }
-    if (!/^\d{9}$/.test(String(form.routing_number))) {
+    if (!/^\d{9}$/.test(form.routing_number)) {
       throw new Invalid("the routing number must be 9 digits");
     }
-    if (!/^\d+$/.test(String(form.account_number))) {
+    if (!/^\d+$/.test(form.account_number)) {
       throw new Invalid("the account number must be digits");
     }
   } else if (EMAIL_METHODS.has(method)) {
@@ -75,8 +71,8 @@ export async function saveCheckoutPayout(
 
   const id = existing_id ?? randomUUID();
   const key = payoutKeyFromEnv();
-  const account = String(form.account_number ?? "");
-  const routing = String(form.routing_number ?? "");
+  const account = form.account_number ?? "";
+  const routing = form.routing_number ?? "";
 
   const values: DetailValues = {
     method_id: resolved.id,
@@ -86,10 +82,10 @@ export async function saveCheckoutPayout(
     last_four: lastFour(account),
     routing_last_four: lastFour(routing),
     email_to: cleared(form.payout_email),
-    routing_number_encrypted: form.routing_number
-      ? seal(String(form.routing_number), key, aadFor(id, "routing_number"))
+    routing_number_encrypted: routing
+      ? seal(routing, key, aadFor(id, "routing_number"))
       : null,
-    account_number_encrypted: form.account_number
+    account_number_encrypted: account
       ? seal(account, key, aadFor(id, "account_number"))
       : null,
     encryption_key_id: BANK_METHODS.has(method) ? key.id : null,

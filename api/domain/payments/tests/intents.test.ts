@@ -41,10 +41,9 @@ const users = async (c: PoolClient, n = 1) => {
   return rows.map((r) => r.id as string);
 };
 
-const aSession = (user_id: string) => ({
-  session: { id: randomUUID() },
-  user: { id: user_id },
-});
+// WHO IS ASKING, as the two ids an intent is keyed on. The service takes these
+// rather than a session object read out of request headers (D214 item 11).
+const aCaller = (user_id: string) => ({ session_id: randomUUID(), user_id });
 
 const anIntent = () => ({
   id: `pi_${randomUUID().slice(0, 12)}`,
@@ -56,10 +55,10 @@ const anIntent = () => ({
 test("an intent is recorded against the session's user, in dollars", async () => {
   await inRollback(async (c: PoolClient) => {
     const [user] = await users(c);
-    const session = aSession(user);
+    const caller = aCaller(user);
     const paymentIntent = anIntent();
 
-    await service.recordIntent(paymentIntent, "checkout", undefined, session, c);
+    await service.recordIntent(paymentIntent, caller, "checkout", undefined, c);
 
     const { rows } = await c.query(
       `SELECT i.user_id, i.type, i.status, i.amount_expected
@@ -85,7 +84,7 @@ test("an admin intent is recorded against the customer, not the admin", async ()
     const [admin, customer] = await users(c, 2);
     const paymentIntent = anIntent();
 
-    await service.recordIntent(paymentIntent, "admin", customer, aSession(admin), c);
+    await service.recordIntent(paymentIntent, aCaller(admin), "admin", customer, c);
 
     const { rows } = await c.query(
       `SELECT i.user_id FROM payments.intents i
@@ -104,8 +103,8 @@ test("what the provider says lands on the intent, the attempt and the settlement
     const mine = anIntent();
     const mineRef = mine.id;
     const other = anIntent();
-    await service.recordIntent(mine, "checkout", undefined, aSession(user), c);
-    await service.recordIntent(other, "checkout", undefined, aSession(user), c);
+    await service.recordIntent(mine, aCaller(user), "checkout", undefined, c);
+    await service.recordIntent(other, aCaller(user), "checkout", undefined, c);
 
     const matched = await service.updateFromProvider(
       { id: mineRef, status: "succeeded", amount: 25000, amount_received: 25000 }, c
@@ -140,7 +139,7 @@ test("attaching an order lands on the intent behind that reference alone", async
   await inRollback(async (c: PoolClient) => {
     const [user] = await users(c);
     const paymentIntent = anIntent();
-    await service.recordIntent(paymentIntent, "checkout", undefined, aSession(user), c);
+    await service.recordIntent(paymentIntent, aCaller(user), "checkout", undefined, c);
 
     const { rows: orders } = await c.query(
       "SELECT id FROM orders.orders WHERE direction = 'sale' ORDER BY id LIMIT 1"

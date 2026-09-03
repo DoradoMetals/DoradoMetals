@@ -121,11 +121,14 @@ export type ShipmentPatch = z.infer<typeof ShipmentPatch>;
 // PATCH /api/refiners/orders/:id   - the ENGAGEMENT (refiners.orders)
 // ===========================================================================
 
-// A refiner spot write: which metal, at what bid.
+// A refiner spot write: which metal, at what bid. THE METAL IS AN ID, not a
+// display name (D214 item 11): refiners.spots is keyed on (order_id, metal_id),
+// the client already holds the id, and a name the server had to resolve turned
+// an unrecognised spelling into a silently skipped bid.
 export const RefinerSpotWrite = z.object({
-  name: z.string(),
+  metal_id: z.string().uuid(),
   bid: z.number(),
-});
+}).strict();
 export type RefinerSpotWrite = z.infer<typeof RefinerSpotWrite>;
 
 // The engagement's writable facts, and the file where the null question
@@ -152,7 +155,7 @@ export const RefinerOrderPatch = z.object({
   pool_remediation: z.number().optional(),
   fee: z.number().optional(),
   refiner_id: z.string().uuid().nullable().optional(),
-});
+}).strict();
 export type RefinerOrderPatch = z.infer<typeof RefinerOrderPatch>;
 
 // ===========================================================================
@@ -175,7 +178,7 @@ export const RefinerItemPatch = z.object({
   post_melt: z.number().nullable().optional(),
   purity: z.number().nullable().optional(),
   unit: z.string().nullable().optional(),
-});
+}).strict();
 export type RefinerItemPatch = z.infer<typeof RefinerItemPatch>;
 
 // ===========================================================================
@@ -202,5 +205,5 @@ export const PayoutPatch = z.object({
   cost: z.number().optional(),
   method: z.string().optional(),
   waive_payout_fee: z.boolean().optional(),
-});
+}).strict();
 export type PayoutPatch = z.infer<typeof PayoutPatch>;

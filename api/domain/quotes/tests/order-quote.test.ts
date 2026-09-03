@@ -332,7 +332,7 @@ test("a locked order estimates at its locked spots, an unlocked one at live", as
 
 // ------------------------------------------------- the $26.81 regression pin
 
-test("no body-supplied price, spot or order object is ever honoured", async () => {
+test("no body-supplied price, spot or order object is accepted at all", async () => {
   await inPinnedTransaction(async () => {
     await as(owner, async () => {
       const clean = await request(app).post("/api/quotes/order").send({ order_id: order.id });
@@ -352,11 +352,13 @@ test("no body-supplied price, spot or order object is ever honoured", async () =
         // resolves the same order either way - and every field of it ignored.
         order: { id: order.id, total_price: 0.01, order_items: [] },
       });
-      assert.equal(poisoned.status, 200);
-
-      const stripTimestamp = ({ spots_at, ...rest }: Record<string, unknown>) => rest;
-      assert.deepEqual(stripTimestamp(poisoned.body), stripTimestamp(clean.body),
-        "the order quote read something price-shaped off the body");
+      // 400: the body is ONE id, strictly (D214 item 11). These fields used
+      // to be IGNORED - the quote read only the order id and answered the same
+      // number either way - and are REFUSED now, which is the stronger
+      // property: a field the schema has no place for cannot be read by
+      // accident later.
+      assert.equal(poisoned.status, 400, "the order quote accepted something price-shaped");
+      assert.ok(clean.body.total !== 0.01, "the clean quote itself came back at the poison value");
     });
   }, { lock: ORDER_LOCK });
 });

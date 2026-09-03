@@ -3,6 +3,10 @@
 //
 // AN INTENT IS WHAT WAS ASKED FOR, an attempt is what was tried, a settlement
 // is what moved. Each has its own repo; composing them is this file's job.
+//
+// NOTHING HERE READS A PRICE FROM A CALLER. Every use case takes ids, and the
+// amount Stripe is told is derived from the server's own spots, catalogue,
+// rates and the customer's own credit row.
 import withTransaction from "#shared/db/withTransaction.ts";
 import * as stripe from "#providers/payment/stripe.ts";
 import * as intents from "#db/payments/intents/repo.ts";
@@ -11,45 +15,33 @@ import * as settlements from "#db/payments/settlements/repo.ts";
 import * as details from "#db/payments/details/repo.ts";
 import * as methods from "#db/payments/methods/repo.ts";
 import * as customers from "#db/payments/customers/repo.ts";
+import * as servicesRepo from "#db/shipping/services/repo.ts";
 import * as ordersRepo from "#db/orders/repo.ts";
 import * as productService from "#domain/products/service.ts";
 import * as addressService from "#domain/places/addresses/service.ts";
 import * as taxService from "#domain/sales-tax/service.ts";
 import * as spotsService from "#domain/spots/service.ts";
+import * as usersService from "#domain/users/service.ts";
 import { calculateSalesOrderTotal } from "#domain/pricing/service.ts";
 import {
   toDollars, intentOwner, isOpen, isResolved, methodTypeFor, instrumentValues,
+  chargeCents, isChargeable,
 } from "#domain/payments/rules.ts";
-import { Forbidden, Invalid } from "#shared/errors.ts";
+import { Forbidden, Invalid, NotFound } from "#shared/errors.ts";
 
-import { auth } from "#domain/auth/client.ts";
-import { fromNodeHeaders } from "better-auth/node";
 import type { StripeIntentLike, StripePaymentMethodLike } from "#domain/payments/rules.ts";
 import type { ComposedIntentRow, IntentFacts } from "#db/payments/intents/repo.ts";
 import type { Executor } from "#shared/db/executor.ts";
-import type { IncomingHttpHeaders } from "node:http";
+import type { UpdatePaymentIntentBody } from "@dorado/contracts";
 
 export type { ComposedIntentRow, IntentFacts } from "#db/payments/intents/repo.ts";
 export type { StripeIntentLike, StripePaymentMethodLike } from "#domain/payments/rules.ts";
 
-// WIDER THAN WHAT KEYS AN INTENT, deliberately: this layer also reads the
-// user's Stripe customer id, name and email to open one.
-export type PaymentSession = {
-  session: { id: string };
-  user: {
-    id: string;
-    name?: string | null;
-    email?: string | null;
-    stripeCustomerId?: string | null;
-    // A better-auth additionalField, read by calculateSalesOrderTotal to apply
-    // a customer's store credit.
-    dorado_funds?: number | null;
-  };
-};
-
-// auth.api.getSession is a SECOND lookup, not the one requireUser did, so it
-// can answer null even on a guarded route.
-type MaybeSession = PaymentSession | null;
+// WHO IS ASKING, resolved by the guard and handed down as ids. An intent is
+// keyed on (session_id, user_id, type), so the session's own id is part of the
+// question and travels with the caller rather than as request headers the
+// domain would have to open a second auth lookup on.
+export type Caller = { session_id: string; user_id: string };
 
 // The Stripe objects these functions hand back - only the fields anything here
 // reads, not a claim about a shape we do not own.
@@ -68,78 +60,62 @@ function together<T>(
   return executor ? fn(executor) : withTransaction((client) => fn(client));
 }
 
-async function sessionFrom(headers: IncomingHttpHeaders): Promise<MaybeSession> {
-  // ANNOTATED BECAUSE BETTER-AUTH'S INFERRED USER TYPE IS INCOMPLETE: the
-  // additionalFields (dorado_funds among them) are declared in the auth client
-  // and carried at runtime, but not inferred.
-  return (await auth.api.getSession({ headers: fromNodeHeaders(headers) })) as MaybeSession;
-}
-
-export async function retrievePaymentIntent(
-  type: string | undefined,
-  user_id: string | undefined,
-  headers: IncomingHttpHeaders
-): Promise<StripeIntent> {
-  const session = await sessionFrom(headers);
-  if (!session?.session?.id) {
-    throw new Forbidden("no session - a payment intent cannot be retrieved without one");
-  }
-
-  const open = await findReusableIntent(type, user_id, session);
-  if (open?.attempt?.provider_ref) return await stripe.retrieveIntent(open.attempt.provider_ref);
-  return await createPaymentIntent(type, user_id, session);
-}
-
 // The reusable intent for this session, keyed on the trio 075 added: without
 // session_id, user_id and type the question cannot be asked at all.
 async function findReusableIntent(
-  type: string | undefined,
-  user_id: string | undefined,
-  session: PaymentSession,
+  caller: Caller, type: string | undefined, named_user_id: string | undefined,
   executor?: Executor
 ): Promise<ComposedIntentRow | undefined> {
   return await intents.findReusable(
     {
-      session_id: session.session.id,
-      user_id: intentOwner(type, session.user.id, user_id),
+      session_id: caller.session_id,
+      user_id: intentOwner(type, caller.user_id, named_user_id),
       type: type ?? null,
     },
     executor
   );
 }
 
-export async function createPaymentIntent(
-  type: string | undefined,
-  user_id: string | undefined,
-  session: MaybeSession
+export async function retrievePaymentIntent(
+  caller: Caller, type: string | undefined, user_id: string | undefined
 ): Promise<StripeIntent> {
-  // 401 rather than a TypeError's 500: a missing session is an authentication
-  // fact, not a server fault. requireUser has already run, so this fires only
-  // when the second, independent lookup disagrees with it.
-  if (!session?.user?.id) {
-    throw new Forbidden("no session - a payment intent cannot be opened without one");
-  }
+  const open = await findReusableIntent(caller, type, user_id);
+  if (open?.attempt?.provider_ref) return await stripe.retrieveIntent(open.attempt.provider_ref);
+  return await createPaymentIntent(caller, type, user_id);
+}
 
-  const { id, name, email, stripeCustomerId } = session.user;
-  const target =
-    type === "admin"
-      ? user_id
-        ? await customers.getOne(user_id)
-        : undefined
-      : { id, name, email, stripeCustomerId };
-  if (!target?.id) {
+// WHOSE STRIPE CUSTOMER THIS BILLS. On the admin path the intent bills the
+// CUSTOMER - their customer object, their id in the metadata and in the
+// idempotency key. Billing the session's user throughout collided the key
+// across every customer one admin served in a session.
+async function billingIdentity(
+  caller: Caller, type: string | undefined, user_id: string | undefined
+) {
+  if (type !== "admin") {
+    const identity = await customers.getOne(caller.user_id);
+    if (!identity?.id) throw new Forbidden("no user row for this session");
+    return identity;
+  }
+  const identity = user_id ? await customers.getOne(user_id) : undefined;
+  if (!identity?.id) {
     throw new Invalid("an admin payment intent must name a customer that exists");
   }
+  return identity;
+}
+
+export async function createPaymentIntent(
+  caller: Caller, type: string | undefined, user_id: string | undefined
+): Promise<StripeIntent> {
+  const target = await billingIdentity(caller, type, user_id);
 
   let customerId = target.stripeCustomerId;
   if (!customerId) {
-    const { name: customerName, email: customerEmail } = target;
-    const created = await stripe.createCustomer({ name: customerName, email: customerEmail });
+    const created = await stripe.createCustomer({ name: target.name, email: target.email });
     customerId = created.id;
     await customers.update(target.id, { [customers.STRIPE_CUSTOMER]: customerId });
   }
 
-  const existing = await findReusableIntent(type, user_id, session);
+  const existing = await findReusableIntent(caller, type, user_id);
   if (existing?.attempt?.provider_ref) {
     return await stripe.retrieveIntent(existing.attempt.provider_ref);
   }
@@ -148,8 +124,7 @@ export async function createPaymentIntent(
   // is opened before the cart is priced and updated when it is.
   //
   // THE METADATA IS THE RECONCILIATION LIFELINE. A webhook payload carries no
-  // session, user or type (D25), so they ride on the intent itself - visible
-  // in the dashboard, present in exports, available to reconcile:payments. The
+  // session, user or type (D25), so they ride on the intent itself. The
   // idempotency key makes a network retry return THIS intent rather than mint
   // an orphan.
   const paymentIntent = await stripe.createIntent({
@@ -158,12 +133,12 @@ export async function createPaymentIntent(
     metadata: {
       type: String(type),
       user_id: String(target.id),
-      session_id: String(session.session?.id ?? ""),
+      session_id: caller.session_id,
     },
-    idempotencyKey: `intent:${type}:${target.id}:${session.session?.id ?? "no-session"}`,
+    idempotencyKey: `intent:${type}:${target.id}:${caller.session_id}`,
   });
 
-  await recordIntent(paymentIntent, type, user_id, session);
+  await recordIntent(paymentIntent, caller, type, user_id);
   return paymentIntent;
 }
 
@@ -172,21 +147,20 @@ export async function createPaymentIntent(
 // id, which is what lets a settlement key off the same value.
 export async function recordIntent(
   paymentIntent: StripeIntentLike,
+  caller: Caller,
   type: string | undefined,
   user_id: string | undefined,
-  session: PaymentSession,
   executor?: Executor
 ): Promise<void> {
-  const { status, amount } = paymentIntent;
-  const amount_expected = toDollars(amount);
+  const amount_expected = toDollars(paymentIntent.amount);
 
   await together(executor, async (client) => {
     const { id: intent_id } = await intents.create(
       {
-        session_id: session.session.id,
-        user_id: intentOwner(type, session.user.id, user_id),
+        session_id: caller.session_id,
+        user_id: intentOwner(type, caller.user_id, user_id),
         type: type ?? null,
-        status: status ?? null,
+        status: paymentIntent.status ?? null,
         amount_expected,
       },
       client
@@ -198,7 +172,7 @@ export async function recordIntent(
         provider: "stripe",
         provider_ref: paymentIntent.id,
         amount: amount_expected,
-        status: status ?? null,
+        status: paymentIntent.status ?? null,
       },
       client
     );
@@ -216,8 +190,8 @@ export async function updateFromProvider(
   if (!attempt) return false;
   const { id: attempt_id, intent_id } = attempt;
 
-  const { status, amount, amount_received } = paymentIntent;
-  const amount_expected = toDollars(amount);
+  const { status, amount_received } = paymentIntent;
+  const amount_expected = toDollars(paymentIntent.amount);
 
   return await together(executor, async (client) => {
     const matched = await intents.update(
@@ -265,91 +239,71 @@ export async function attachOrder(
   return await intents.update(attempt.intent_id, { order_id }, executor);
 }
 
+// THE CART, PRICED, AND STRIPE TOLD WHAT TO CHARGE.
+//
+// LOAD the rows the ids name, PRICE them from the server's own feed, then
+// update or mint the intent. The delivery service and the payment method are
+// ids resolved to their own rows here, exactly as placement resolves them from
+// the checkout, so the intent and the order it pays for price identically.
+//
+// *** THE CHARGE AMOUNT IS PRICED FROM THE SERVER'S SPOTS, NOT THE CALLER'S. ***
+// `spots` used to arrive in the body and feed the pricing call: ask_spot 3400
+// priced $3,673.53 and ask_spot 1 priced $26.81 on the same order. They are
+// fetched fresh on every update, so a revised intent carries the current price.
 export async function updatePaymentIntent(
-  {
-    items,
-    using_funds,
-    // `spots` is deliberately NOT accepted. The frontend still sends it; it is
-    // ignored rather than overwritten, so nothing here can read it by accident.
-    shipping_service,
-    payment_method,
-    user,
-    type,
-    address_id,
-  }: {
-    items: { id: string; quantity: number }[];
-    using_funds?: boolean | null;
-    shipping_service?: string | null;
-    payment_method?: string | null;
-    // On the admin path this is the CUSTOMER, and it carries their credit
-    // balance - calculateSalesOrderTotal prices against `dorado_funds`.
-    user?: { id?: string; dorado_funds?: number | null } | null;
-    type?: string;
-    address_id?: string;
-  },
-  headers: IncomingHttpHeaders
+  caller: Caller,
+  { items, address_id, carrier_service_id, payment_method_id, user_id, type }: UpdatePaymentIntentBody
 ): Promise<StripeIntent> {
-  const session = await sessionFrom(headers);
-  if (!session?.user?.id) {
-    throw new Forbidden("no session - a payment intent cannot be priced without one");
-  }
+  // WHOSE ORDER THIS PRICES. Falling back to the session user on the admin path
+  // would price a customer's order against the ADMIN's credit balance and
+  // charge a number nobody can explain, so it refuses instead.
+  const subject = type === "admin" ? user_id : caller.user_id;
+  if (!subject) throw new Invalid("an admin payment intent must name the customer it is for");
 
-  const retrieved_intent = await findReusableIntent(type, user?.id, session);
+  // THE BALANCE IS THE SERVER'S FACT, read from the customer's own row. It used
+  // to arrive in the body as `user.dorado_funds`, which let a request declare
+  // the credit it was discounted by.
+  const balance = await usersService.getBalance(subject);
+  if (balance === undefined) throw new NotFound(`no user ${subject} to price this intent for`);
+  const dorado_funds = Number(balance ?? 0);
+
+  const retrieved_intent = await findReusableIntent(caller, type, user_id);
 
   // Guarded rather than widening the addresses service: the tax lookup below
   // already falls back to "TX" when there is no address.
   const address = address_id ? await addressService.getAddressFromId(address_id) : undefined;
-  const server_items = await productService.getItemsFromServer(items);
+  const service = carrier_service_id ? await servicesRepo.getOne(carrier_service_id) : undefined;
+  const method = payment_method_id ? await methods.getOne(payment_method_id) : undefined;
 
-  // *** THE CHARGE AMOUNT IS PRICED FROM THE SERVER'S SPOTS, NOT THE
-  // CALLER'S. *** `spots` arrived in the request body, fed
-  // calculateSalesOrderTotal, and the result became the Stripe amount:
-  // ask_spot 3400 priced $3,673.53 and ask_spot 1 priced $26.81 on the same
-  // order. Fetched fresh on every update, so a revised intent carries the
-  // current price rather than the one from whenever the session started.
   const spots = await spotsService.getSpotPrices();
-
   const items_with_tax = await taxService.attachSalesTaxToItems(
     address?.state ?? "TX",
-    server_items,
+    await productService.getItemsFromServer(items),
     spots
   );
 
-  // WHOSE FUNDS THE ORDER IS PRICED AGAINST. Falling back to session.user on
-  // the admin path would price a customer's order against the ADMIN's credit
-  // balance and charge a number nobody can explain, so it refuses instead.
-  const sessionUser = session.user;
-  const priced_for = type === "admin" ? user : sessionUser;
-  if (!priced_for) {
-    throw new Invalid("an admin payment intent must name the customer it is for");
-  }
-
-  const orderPrices = calculateSalesOrderTotal(
-    items_with_tax,
-    using_funds,
-    spots,
-    priced_for,
-    shipping_service,
-    payment_method
+  // Credit is applied whenever the customer has a balance - the same rule
+  // placement uses, so the intent's amount is the order's amount. The pricing
+  // caps what is applied at the order's own total and holds back a sliver
+  // below Stripe's minimum.
+  const prices = calculateSalesOrderTotal(
+    items_with_tax, dorado_funds > 0, spots, { dorado_funds }, service?.code, method?.type
   );
-
-  const amount = Math.round(orderPrices.post_charges_amount * 100);
+  const amount = chargeCents(prices.post_charges_amount);
 
   // *** NO $10 FLOOR (D199). *** Math.max(rawAmount, 1000) re-imposed the
   // placeholder on every priced update, so a $3 balance told Stripe $10 - and
   // Stripe charges what the intent says. Below Stripe's minimum there is
-  // nothing legal to update the intent TO, so it is left as it stands:
-  // checkout gates the card step on post_charges_amount > 0, and creation
-  // attaches nothing when the charge is zero.
-  if (amount < 50) {
+  // nothing legal to update the intent TO, so it is left as it stands.
+  if (!isChargeable(amount)) {
     return retrieved_intent?.attempt?.provider_ref
       ? await stripe.retrieveIntent(retrieved_intent.attempt.provider_ref)
-      : await createPaymentIntent(type, user?.id, session);
+      : await createPaymentIntent(caller, type, user_id);
   }
 
   const provider_ref = retrieved_intent?.attempt?.provider_ref;
   if (!provider_ref || !isOpen(retrieved_intent?.status)) {
-    return await createPaymentIntent(type, user?.id, session);
+    return await createPaymentIntent(caller, type, user_id);
   }
 
   try {
@@ -364,7 +318,7 @@ export async function updatePaymentIntent(
     const live = await stripe.retrieveIntent(provider_ref).catch(() => null);
     if (!live) throw err;
     await updateFromProvider(live);
-    if (isResolved(live.status)) return await createPaymentIntent(type, user?.id, session);
+    if (isResolved(live.status)) return await createPaymentIntent(caller, type, user_id);
     throw err;
   }
 }
@@ -373,11 +327,7 @@ export async function capturePaymentIntent(payment_intent_id: string): Promise<S
   return await stripe.captureIntent(payment_intent_id);
 }
 
-export async function cancelPaymentIntent({
-  payment_intent_id,
-}: {
-  payment_intent_id: string;
-}): Promise<StripeIntent> {
+export async function cancelPaymentIntent(payment_intent_id: string): Promise<StripeIntent> {
   const paymentIntent = await stripe.cancelIntent(payment_intent_id);
   // PERSISTED HERE, NOT LEFT TO THE WEBHOOK. Recording it only on delivery
   // meant any environment where deliveries lag kept a stale
@@ -390,11 +340,9 @@ export async function cancelPaymentIntent({
 // The instrument Stripe says was used, recorded against the method row that
 // names it. Found by the provider's id for it - 077 gave payments.details the
 // (provider, provider_ref) key.
-export async function updateMethod({
-  paymentMethod,
-}: {
-  paymentMethod?: StripePaymentMethodLike | null;
-}): Promise<void> {
+export async function updateMethod(
+  paymentMethod: StripePaymentMethodLike | null | undefined
+): Promise<void> {
   const type = methodTypeFor(paymentMethod?.type);
   const method = type ? await methods.findByType("sale", type) : undefined;
   const values = instrumentValues(paymentMethod, method?.id ?? null);
@@ -437,11 +385,9 @@ export async function cancelIntentByRef(provider_ref: string): Promise<void> {
   }
 }
 
-export async function updateIntentFromWebhook({
-  paymentIntent,
-}: {
-  paymentIntent: StripeIntentLike;
-}): Promise<void> {
+export async function updateIntentFromWebhook(
+  paymentIntent: StripeIntentLike
+): Promise<void> {
   // The SETTLEMENT TRANSITION is detected from the payment fact itself: what
   // the stored intent said before this webhook. A retry arrives with the row
   // already succeeded and changes no label, which is what lets the label write
@@ -465,10 +411,8 @@ export async function updateIntentFromWebhook({
   }
 }
 
-export async function getPaymentIntentFromSalesOrderId({
-  sales_order_id,
-}: {
-  sales_order_id: string;
-}): Promise<ComposedIntentRow | undefined> {
+export async function getPaymentIntentFromSalesOrderId(
+  sales_order_id: string
+): Promise<ComposedIntentRow | undefined> {
   return await intents.findForOrder(sales_order_id);
 }

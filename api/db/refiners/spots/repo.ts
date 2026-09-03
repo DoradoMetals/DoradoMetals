@@ -1,5 +1,8 @@
-// refiners.spots, and nothing else — what the REFINER quoted, mirroring orders.spots' shape (same read/compose path, different whose price it is).
-// update is keyed on (order_id, metal_id), not this table's own id — every caller holds that pair. `bid` is the only writable column; ask is set only at create.
+// refiners.spots, and nothing else - what the REFINER quoted, mirroring
+// orders.spots' shape.
+// update is keyed on (order_id, metal_id), not this table's own id: every
+// caller holds that pair. `bid` is the only writable column; ask is set at create.
+import { randomUUID } from "node:crypto";
 import query from "#shared/db/query.ts";
 import { buildUpdate } from "#shared/db/patch.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
@@ -63,14 +66,20 @@ export async function getNamed(
   return rows;
 }
 
-// NOT idempotent — this table has no unique constraint on (order_id, metal_id) where orders.spots does, so there is no conflict target to name (see sql/create.sql).
-export type SpotNew = Pick<
-  refiners.SpotsRow, "id" | "order_id" | "metal_id" | "refiner_id" | "ask" | "bid"
->;
+// NOT idempotent: this table has no unique constraint on (order_id, metal_id)
+// where orders.spots does, so there is no conflict target to name. The rule
+// that builds these rows filters out the metals already covered.
+export type SpotNew = Pick<refiners.SpotsRow, "order_id" | "metal_id" | "refiner_order_id"> &
+  Partial<Pick<refiners.SpotsRow, "id" | "refiner_id" | "ask" | "bid">>;
 
 export async function create(row: SpotNew, executor?: Executor): Promise<RefinerSpotRow | undefined> {
   const { rows } = await query<RefinerSpotRow>(
-    sql("create"), [row.id, row.order_id, row.metal_id, row.refiner_id, row.ask, row.bid], executor
+    sql("create"),
+    [
+      row.id ?? randomUUID(), row.order_id, row.refiner_order_id, row.metal_id,
+      row.refiner_id ?? null, row.ask ?? null, row.bid ?? null,
+    ],
+    executor
   );
   return rows[0];
 }
@@ -101,24 +110,13 @@ export async function getForEngagement(
   return rows;
 }
 
-// Every customer spot gets its refiner counterpart: unquoted (ask/bid NULL) until the refiner speaks; refiner_order_id links it to the order's engagement.
-// Idempotent on (order, metal) by the NOT EXISTS guard — the table itself has no unique constraint to name (see sql/create.sql).
-export async function coverFromOrderSpots(
-  order_id: string, executor?: Executor
-): Promise<void> {
-  await query(
-    `INSERT INTO refiners.spots (order_id, refiner_order_id, metal_id)
-     SELECT os.order_id, ro.id, os.metal_id
-       FROM orders.spots os
-       JOIN refiners.orders ro ON ro.order_id = os.order_id
-      WHERE os.order_id = $1
-        AND NOT EXISTS (
-          SELECT 1 FROM refiners.spots rs
-           WHERE rs.order_id = os.order_id AND rs.metal_id = os.metal_id
-        )`,
-    [order_id],
-    executor
-  );
+// THE SIXTH VERB (D214 item 11): a derivation that yields N rows writes them in
+// one call, so the use case carries no loop of its own.
+export async function createMany(
+  rows: SpotNew[], executor?: Executor
+): Promise<number> {
+  for (const row of rows) await create(row, executor);
+  return rows.length;
 }
 
 // Keyed on (order_id, metal_id): every caller holds that pair, never this table's own id — which is why buildUpdate takes a `where` map, a spot being one metal on one order.

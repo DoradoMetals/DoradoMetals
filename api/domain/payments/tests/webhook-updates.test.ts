@@ -109,12 +109,10 @@ test("the service refuses a webhook that matches no intent, so Stripe retries", 
     await assert.rejects(
       () =>
         service.updateIntentFromWebhook({
-          paymentIntent: {
-            id: `pi_test_absent_${Date.now()}`,
-            status: "succeeded",
-            amount: 11480,
-            amount_received: 11480,
-          },
+          id: `pi_test_absent_${Date.now()}`,
+          status: "succeeded",
+          amount: 11480,
+          amount_received: 11480,
         }),
       (err: unknown) => {
         // A PLAIN Error, WHICH IS WHAT MAKES IT A 500 (D214 item 11). The
@@ -140,12 +138,10 @@ test("the service accepts a webhook that matches an intent", async () => {
     await seedSettledIntent(c, id);
 
     await service.updateIntentFromWebhook({
-      paymentIntent: {
-        id,
-        status: "succeeded",
-        amount: 11480,
-        amount_received: 11480,
-      },
+      id,
+      status: "succeeded",
+      amount: 11480,
+      amount_received: 11480,
     });
 
     const { rows } = await query(READ, [id], c);

@@ -5,9 +5,38 @@ import { UpdatePaymentIntentBody, CancelPaymentIntentBody } from "@dorado/contra
 import { asyncHandler } from "#shared/middleware/asyncHandler.ts";
 import { oneString } from "#shared/http/query.ts";
 import { parseStrict, uuidLike } from "#shared/http/validate.ts";
+import { refuseWith } from "#shared/http/refuse.ts";
 import * as stripe from "#providers/payment/stripe.ts";
 import * as stripeService from "#domain/payments/service.ts";
 import { logger } from "#shared/logging/logger.ts";
+import type { Request } from "express";
+import type { Caller } from "#domain/payments/service.ts";
+
+// WHO IS ASKING, as the two ids an intent is keyed on. requireUser has already
+// run and set both; this is the one place that says so instead of a `!` in
+// every handler.
+function callerOf(req: Request): Caller {
+  const user_id = req.user?.id;
+  const session_id = req.sessionId;
+  if (!user_id || !session_id) {
+    return refuseWith(401, "no session - this endpoint needs a signed-in caller");
+  }
+  return { session_id, user_id };
+}
+
+// The webhook's own handling of an intent event: the update, and the
+// instrument when Stripe named one. NULL IS THE CASE THAT MATTERS - an intent
+// can succeed without a payment method, and looking up null would throw after
+// the intent update had already run, a 500 on an update Stripe would retry.
+async function applyIntentEvent(
+  paymentIntent: Parameters<typeof stripeService.updateIntentFromWebhook>[0],
+  methodId: unknown
+): Promise<void> {
+  await stripeService.updateIntentFromWebhook(paymentIntent);
+  if (typeof methodId === "string") {
+    await stripeService.updateMethod(await stripe.retrievePaymentMethod(methodId));
+  }
+}
 
 export const handleStripeWebhook = asyncHandler(async (req, res) => {
   // A HEADER CAN BE AN ARRAY AND CAN BE ABSENT, and this signature check is the
@@ -18,7 +47,6 @@ export const handleStripeWebhook = asyncHandler(async (req, res) => {
   }
 
   let event;
-
   try {
     event = stripe.verifyWebhook(req.body, sig);
   } catch (err) {
@@ -32,88 +60,37 @@ export const handleStripeWebhook = asyncHandler(async (req, res) => {
   }
 
   switch (event.type) {
-    case "payment_intent.succeeded": {
-      await stripeService.updateIntentFromWebhook({
-        paymentIntent: event.data.object,
-      });
-      // NULL IS THE CASE THAT MATTERS: an intent can succeed without a payment
-      // method, and looking up null would throw after the intent update had
-      // already run - a 500 on an update Stripe would then retry.
-      const methodId = event.data.object.payment_method;
-      if (typeof methodId === "string") {
-        const paymentMethod = await stripe.retrievePaymentMethod(methodId);
-        await stripeService.updateMethod({ paymentMethod });
-      }
+    case "payment_intent.succeeded":
+    case "payment_intent.processing":
+      await applyIntentEvent(event.data.object, event.data.object.payment_method);
       break;
-    }
 
-    case "payment_intent.processing": {
-      await stripeService.updateIntentFromWebhook({
-        paymentIntent: event.data.object,
-      });
-      // NULL IS THE CASE THAT MATTERS: an intent can succeed without a payment
-      // method, and looking up null would throw after the intent update had
-      // already run - a 500 on an update Stripe would then retry.
-      const methodId = event.data.object.payment_method;
-      if (typeof methodId === "string") {
-        const paymentMethod = await stripe.retrievePaymentMethod(methodId);
-        await stripeService.updateMethod({ paymentMethod });
-      }
+    case "payment_intent.payment_failed":
+    case "payment_intent.created":
+    case "payment_intent.canceled":
+    case "payment_intent.amount_capturable_updated":
+      await stripeService.updateIntentFromWebhook(event.data.object);
       break;
-    }
-
-    case "payment_intent.payment_failed": {
-      await stripeService.updateIntentFromWebhook({
-        paymentIntent: event.data.object,
-      });
-
-      break;
-    }
-
-    case "payment_intent.created": {
-      await stripeService.updateIntentFromWebhook({
-        paymentIntent: event.data.object,
-      });
-      break;
-    }
-
-    case "payment_intent.canceled": {
-      await stripeService.updateIntentFromWebhook({
-        paymentIntent: event.data.object,
-      });
-      break;
-    }
-
-    case "payment_intent.amount_capturable_updated": {
-      await stripeService.updateIntentFromWebhook({
-        paymentIntent: event.data.object,
-      });
-      break;
-    }
 
     // THE FIVE charge.* EVENTS CARRY A CHARGE, NOT AN INTENT. A charge's id is
     // `ch_...` and the update keys on the attempt's provider_ref, so each of
     // these matched no row. Keying on `charge.payment_intent` is the obvious
     // repair and the wrong one: a charge has no settled amount, so it would
-    // write NULL over one. Explicit until a statement that reads a charge
-    // exists.
+    // write NULL over one.
     case "charge.failed":
     case "charge.updated":
     case "charge.captured":
     case "charge.pending":
-    case "charge.succeeded": {
+    case "charge.succeeded":
       logger.debug(`${event.type} carries a charge, not an intent - ignored`);
       break;
-    }
 
-    case "customer.created": {
+    case "customer.created":
       break;
-    }
 
-    case "payment_method.updated": {
-      await stripeService.updateMethod({ paymentMethod: event.data.object });
+    case "payment_method.updated":
+      await stripeService.updateMethod(event.data.object);
       break;
-    }
 
     default:
       logger.debug(`Unhandled Stripe event type: ${event.type}`);
@@ -131,18 +108,19 @@ export const retrievePaymentIntent = asyncHandler(async (req, res) => {
     return res.status(403).json({ error: "Forbidden" });
   }
   const paymentIntent = await stripeService.retrievePaymentIntent(
-    oneString(req.query.type),
-    oneString(req.query.user_id),
-    req.headers
+    callerOf(req), oneString(req.query.type), oneString(req.query.user_id)
   );
   res.json(paymentIntent.client_secret);
 });
 
 export const updatePaymentIntent = asyncHandler(async (req, res) => {
+  if (req.body?.type === "admin" && req.user?.role !== "admin") {
+    return res.status(403).json({ error: "Forbidden" });
+  }
   const body = parseStrict(
     UpdatePaymentIntentBody, req.body, "stripe/update_payment_intent body"
   );
-  const paymentIntent = await stripeService.updatePaymentIntent(body, req.headers);
+  const paymentIntent = await stripeService.updatePaymentIntent(callerOf(req), body);
   res.json(paymentIntent.client_secret);
 });
 
@@ -150,14 +128,12 @@ export const getPaymentIntentFromSalesOrderId = asyncHandler(async (req, res) =>
   // Express types every query value as string | string[] | ParsedQs, so an id
   // can arrive as an array and reach a uuid comparison as one.
   const sales_order_id = parseStrict(uuidLike, req.query.sales_order_id, "sales_order_id");
-  const paymentIntent = await stripeService.getPaymentIntentFromSalesOrderId({ sales_order_id });
-  res.json(paymentIntent);
+  res.json(await stripeService.getPaymentIntentFromSalesOrderId(sales_order_id));
 });
 
 export const cancelPaymentIntent = asyncHandler(async (req, res) => {
-  const body = parseStrict(
+  const { payment_intent_id } = parseStrict(
     CancelPaymentIntentBody, req.body, "stripe/cancel_payment_intent body"
   );
-  const paymentIntent = await stripeService.cancelPaymentIntent(body);
-  res.json(paymentIntent);
+  res.json(await stripeService.cancelPaymentIntent(payment_intent_id));
 });

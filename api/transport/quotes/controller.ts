@@ -1,39 +1,45 @@
+import {
+  CatalogQuoteBody, OrderQuoteBody, PurchaseOrderQuoteBody, SalesOrderQuoteBody,
+} from "@dorado/contracts";
 import { asyncHandler } from "#shared/middleware/asyncHandler.ts";
 import { callerId } from "#shared/http/caller.ts";
-import type { Request } from "express";
+import { parseStrict } from "#shared/http/validate.ts";
 import * as quoteService from "#domain/quotes/service.ts";
+import * as profitService from "#domain/quotes/profit.ts";
+import type { Request } from "express";
+import type { SalesOrderQuoteBody as SalesOrderQuoteBodyType } from "@dorado/contracts";
 
-// Whose funds the sales-order quote prices: your own, unless you're an admin (same rule as places/addresses' subjectOf) — a customer naming somebody else is silently ignored, never an error, never somebody else's balance.
-const subjectOf = (req: Request): string => {
-  const named = req.body?.user_id;
-  if (req.user?.role === "admin" && named) return named;
-  return callerId(req);
-};
+// Whose funds the sales-order quote prices: your own, unless you are an admin
+// (the same rule as places/addresses' subjectOf) - a customer naming somebody
+// else is silently ignored, never an error, never somebody else's balance.
+const subjectOf = (req: Request, body: SalesOrderQuoteBodyType): string =>
+  req.user?.role === "admin" && body.user_id ? body.user_id : callerId(req);
 
 export const catalogQuote = asyncHandler(async (req, res) => {
-  res.status(200).json(await quoteService.catalogQuote(req.body));
+  const body = parseStrict(CatalogQuoteBody, req.body, "quotes/catalog body");
+  res.status(200).json(await quoteService.catalogQuote(body));
 });
 
-// The subject comes from the SESSION, or (admin only) from the body via subjectOf above — nothing a customer sends can name somebody else's funds.
-// Deliberately avoids spelling the request-body field literally here — a source scanner slices this handler's body up through this comment and would flag it as reading that field from a public quote; subjectOf (which does name it) sits above catalogQuote's own export, outside every slice.
 export const salesOrderQuote = asyncHandler(async (req, res) => {
-  res.status(200).json(await quoteService.salesOrderQuote(subjectOf(req), req.body));
+  const body = parseStrict(SalesOrderQuoteBody, req.body, "quotes/sales_order body");
+  res.status(200).json(await quoteService.salesOrderQuote(subjectOf(req, body), body));
 });
 
 export const purchaseOrderQuote = asyncHandler(async (req, res) => {
-  res.status(200).json(await quoteService.purchaseOrderQuote(req.body));
+  const body = parseStrict(PurchaseOrderQuoteBody, req.body, "quotes/purchase_order body");
+  res.status(200).json(await quoteService.purchaseOrderQuote(body));
 });
 
 // An existing order's estimate. The ownership middleware in front of this has
-// already decided the caller may see the order named in the body; the service
-// reads the order id and nothing else off the request.
+// already decided the caller may see the order named in the body.
 export const orderQuote = asyncHandler(async (req, res) => {
-  res.status(200).json(await quoteService.orderQuote(req.body));
+  const body = parseStrict(OrderQuoteBody, req.body, "quotes/order body");
+  res.status(200).json(await quoteService.orderQuote(body));
 });
 
 // The profit split on an order - the business's margins. requireAdmin is the
-// only thing in front of this and must stay the only way in; the service reads
-// the order id and nothing else off the request.
+// only thing in front of this and must stay the only way in.
 export const profitBreakdown = asyncHandler(async (req, res) => {
-  res.status(200).json(await quoteService.profitBreakdown(req.body));
+  const body = parseStrict(OrderQuoteBody, req.body, "quotes/profit_breakdown body");
+  res.status(200).json(await profitService.profitBreakdown(body));
 });
