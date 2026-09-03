@@ -4,7 +4,7 @@ import { Button } from '@dorado/components'
 import { PurchaseOrderActionButtonsProps, statusConfig } from '@/features/orders/purchaseOrders/types'
 import { cn } from '@/shared/utils/cn'
 import { useMemo } from 'react'
-import { usePatchOrder } from '@/features/orders/patch'
+import { usePatchOrder, useAddFundsToOrder, useFinalizeOrderPricing } from '@/features/orders/patch'
 
 export function PurchaseOrderActionButtons({ order }: PurchaseOrderActionButtonsProps) {
   // A CONTAINER for the order's payout (ruling 14). The composed wire carried
@@ -16,28 +16,33 @@ export function PurchaseOrderActionButtons({ order }: PurchaseOrderActionButtons
   const { data: payouts = [] } = useOrderPayouts(order.id)
   const payout = payouts[0] ?? null
   const patchOrder = usePatchOrder()
+  const finalizePricing = useFinalizeOrderPricing()
+  const addFundsToOrder = useAddFundsToOrder()
 
-  const handleAction = (action: string, status: string) => {
-    // STATUS IS A PURE LABEL - the pipelines are explicit ops in the same
-    // document, applied before the label lands:
+  const handleAction = async (action: string, status: string) => {
+    // STATUS IS A PURE LABEL, and it is a SEPARATE call now (D214 item 11):
+    // finalize_pricing and add_funds are their own POSTs, neither writes
+    // status, so the label change follows once the action has settled.
     //
     // - finalize_pricing runs the pricing pipeline SERVER-side (the server
     //   resolves the frozen and live spots itself - the browser's pricing
-    //   arrays no longer exist to send), and the label it advances to is
-    //   sent alongside: offers left the product entirely, so finalizing a
-    //   Received order lands it straight in 'Payment Processing'.
-    // - completing a DORADO_ACCOUNT payout credits the customer's funds;
-    //   add_funds rides the same document, applied before status - the same
-    //   order the two legacy requests raced to keep.
-    const addFunds = status === 'Completed' && payout.method === 'DORADO_ACCOUNT'
-    patchOrder.mutate({
-      id: order.id,
-      patch: {
-        ...(action === 'finalize_pricing' ? { finalize_pricing: true as const } : null),
-        ...(addFunds ? { add_funds: true } : null),
-        status,
-      },
-    })
+    //   arrays no longer exist to send); offers left the product entirely, so
+    //   finalizing a Received order lands it straight in 'Payment Processing'.
+    // - completing a DORADO_ACCOUNT payout credits the customer's funds
+    //   before the status moves to 'Completed'.
+    const addFunds = status === 'Completed' && payout?.method === 'DORADO_ACCOUNT'
+    try {
+      if (action === 'finalize_pricing') {
+        await finalizePricing.mutateAsync({ id: order.id })
+      }
+      if (addFunds) {
+        await addFundsToOrder.mutateAsync({ id: order.id })
+      }
+      patchOrder.mutate({ id: order.id, patch: { status } })
+    } catch {
+      // The action was refused (e.g. no total to credit) - stay on the
+      // current status rather than move the label past a failed step.
+    }
   }
 
   const allItemsConfirmed = useMemo(() => items.every((item) => item.confirmed), [items])

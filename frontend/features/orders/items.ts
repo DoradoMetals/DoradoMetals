@@ -6,52 +6,26 @@ import {
   optimisticallyUpdateOrderItems,
   rollbackOrderLists,
 } from '@/features/orders/invalidation'
-import type { OrderItem, OrderItemPatch } from '@dorado/contracts'
-import type { Product } from '@/features/products/types'
+import type { OrderItem, OrderItemCreate, OrderItemPatch } from '@dorado/contracts'
 
 // Order lines as their own resource (D87, unified form): everything under
 // /orders - a line's id is already unique, and creation is order-scoped.
 // Only the purchase drawer adds lines today; the server refuses a create
 // against a sale. Admin-only, like every order mutation.
 
-// THE REQUEST BODIES ARE THE CONTRACT'S NOW (phase 3, A3). The remainder this
-// file declared has been taken. These three were written here AND in
-// api/features/orders/items/service.ts, and THIS side was the accurate one:
-// the API typed `scrap` as a bare `Record<string, unknown>` when it is
-// `{ premium, scrap }` with both members required, because updateScrapItem
-// writes every column it knows and updateBullion's statement is
-// `SET quantity = $1, premium = $2` unconditionally - a partial document does
-// not leave the rest alone, it NULLS it. The contract requires what the
-// statements write, and the API now refuses a partial by name instead of
-// nulling a bullion line's quantity.
+// THE REQUEST BODIES ARE THE CONTRACT'S (D214 item 11). `OrderItemPatch` is
+// now ONE FLAT patch of orders.items' own columns - the old body nested a
+// `{ scrap: {...} }` or `{ bullion: {...} }` document that SET every column
+// it knew unconditionally, so a partial edit nulled its neighbour. A key
+// present is written, an explicit null clears, an absent key is left alone
+// (shared/db/patch.ts on the API side) - so a single-field edit here sends
+// only that field.
 //
-// `confirmed` and `reset` are both `true`-only there as well, which is what
-// the dispatch always did: `confirmed: false` matched no branch and answered
-// 200 having written nothing.
-//
-// The assay actuals are NOT here - they are refiner data,
-// features/refiners/queries.ts.
-//
-// The mutation VARIABLE bundles beside them (`Patch*Vars`) are a different
-// thing and are not exported: an id plus a patch plus whatever the cache
-// needs is react-query plumbing, used in one file, and never crosses the wire
-// as a unit.
-export type {
-  OrderItemPatch,
-  OrderItemScrapPatch,
-  OrderItemBullionPatch,
-} from '@dorado/contracts'
-
-// A scrap line seed - no id, so the server creates the scrap row. A bullion
-// line is created from the catalogue Product itself, whose id it carries.
-export type NewScrapItem = {
-  metal: string
-  pre_melt?: number
-  purity?: number
-  content?: number
-  gross_unit?: string
-  bid_premium?: number
-}
+// `OrderItemCreate` is a union of two members, and no metal NAME crosses the
+// wire any more: a catalogue line names `bullion_id`, a scrap line names
+// `metal_id` plus its own weight/purity/unit - both ids the client already
+// holds off its cached reference reads (the catalogue, the spots list).
+export type { OrderItemPatch } from '@dorado/contracts'
 
 type PatchOrderItemVars = {
   order_item_id: string
@@ -67,14 +41,16 @@ export const usePatchOrderItem = () => {
   return useMutation({
     mutationFn: async ({ order_item_id, patch }: PatchOrderItemVars) => {
       if (!user?.id) throw new Error('User is not authenticated')
-      return await apiRequest<unknown>('PATCH', `/orders/items/${order_item_id}`, patch)
+      return await apiRequest<OrderItem>('PATCH', `/orders/items/${order_item_id}`, patch)
     },
 
     // The confirmed flag is the one NON-price field here (D83); every scrap
     // and bullion figure prices the line and comes back from the refetch.
+    // `reset` is gone - clearing confirmation is `confirmed: false`, sent
+    // like any other value rather than a second flag meaning the same thing.
     onMutate: async ({ order_item_id, order_id, patch }) => {
-      const confirmed = patch.reset ? false : patch.confirmed
-      if (confirmed === undefined) return { previous: undefined }
+      if (patch.confirmed === undefined) return { previous: undefined }
+      const { confirmed } = patch
       return {
         previous: await optimisticallyUpdateOrderItems(queryClient, order_id, (items) =>
           (items as OrderItem[]).map((item) =>
@@ -96,7 +72,7 @@ export const usePatchOrderItem = () => {
 
 type CreateOrderItemVars = {
   order_id: string
-  item: NewScrapItem | Product
+  item: OrderItemCreate
 }
 
 export const useCreateOrderItem = () => {
@@ -106,7 +82,7 @@ export const useCreateOrderItem = () => {
   return useMutation({
     mutationFn: async ({ order_id, item }: CreateOrderItemVars) => {
       if (!user?.id) throw new Error('User is not authenticated')
-      return await apiRequest<unknown>('POST', `/orders/${order_id}/items`, { item })
+      return await apiRequest<OrderItem>('POST', `/orders/${order_id}/items`, item)
     },
 
     onSettled: (_data, _err, { order_id }) => {

@@ -1,8 +1,14 @@
+import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { apiRequest } from '@/shared/queries/axios'
+import { useGetSession } from '@/features/auth/queries'
+import { cartStore } from '@/shared/store/cartStore'
+import { usePaymentMethods } from '@/features/payments/queries'
+import { useSaleShippingServices } from '@/features/shipping/queries'
 import { SalesOrder, SalesOrderCheckout } from '@/features/orders/salesOrders/types'
-import { SpotPrice } from '@/features/spots/types'
 import { toAddressSnapshot } from '@/features/orders/addressSnapshot'
 import { useApiMutation, useApiQuery } from '@/shared/queries/base'
 import { queryKeys } from '@/shared/queries/keys'
+import type { OrderView } from '@dorado/contracts'
 
 // toAddressSnapshot moved to features/orders/addressSnapshot.ts - one copy
 // for both directions and the cancel op, which had three.
@@ -23,31 +29,55 @@ export const useSalesOrders = () => {
   })
 }
 
+// THE CREATE IS ONE ID NOW (D214 item 11): the composed body - address,
+// items, service, payment method, spot prices, the intent id - is gone. Every
+// one of those is a column of the customer's OWN checkout row or its items,
+// so this hook's job changed from "send the document" to "write the row,
+// then name it":
+//
+//   1. freeze the live buy cart onto checkout.items (the periodic auto-sync
+//      in features/cart/queries.ts can be up to 15s stale by Confirm);
+//   2. resolve the two ids the checkout row wants from what the stepper
+//      already picked - the service's CODE against the cached shipping.services
+//      rows, the payment method's TYPE against the cached payments.methods
+//      rows - and PATCH the row, which answers with its own id;
+//   3. POST the checkout_id.
+//
+// using_funds and the spot feed are not sent at all: credit applies whenever
+// the customer has a balance now (a behaviour change, flagged in
+// docs/waves/orders-shape-changes.md §1), and the server prices from its own
+// feed regardless of what the browser last saw.
 export const useCreateSalesOrder = () => {
-  return useApiMutation<
-    SalesOrder,
-    {
-      paymentIntentId?: string
-      sales_order: SalesOrderCheckout
-      spotPrices: SpotPrice[]
+  const { user } = useGetSession()
+  const queryClient = useQueryClient()
+  const { data: saleMethods = [] } = usePaymentMethods('sale')
+  const { data: saleServices = [] } = useSaleShippingServices()
+
+  return useMutation({
+    mutationFn: async ({ sales_order }: { sales_order: SalesOrderCheckout }) => {
+      if (!user?.id) throw new Error('User is not authenticated')
+
+      await apiRequest('POST', '/cart/sync_cart', { cart: cartStore.getState().items })
+
+      const carrier_service_id =
+        saleServices.find((s) => s.code === sales_order.service.value)?.id ?? null
+      const payment_method_id =
+        saleMethods.find((m) => m.type === sales_order.payment_method)?.id ?? null
+
+      const { id: checkout_id } = await apiRequest<{ id: string }>('PATCH', '/checkout', {
+        direction: 'sale',
+        recipient_address_id: sales_order.address.id,
+        carrier_service_id,
+        payment_method_id,
+      })
+
+      return await apiRequest<OrderView>('POST', '/sales_orders/create_sales_order', {
+        checkout_id,
+      })
     },
-    SalesOrder[]
-  >({
-    queryKey: queryKeys.salesOrders(),
-    url: '/sales_orders/create_sales_order',
-    method: 'POST',
-    requireUser: true,
-    optimistic: false,
-    // The body's address goes down as the snapshot, built at this edge.
-    body: (vars, user) => ({
-      sales_order: {
-        ...vars.sales_order,
-        address: toAddressSnapshot(vars.sales_order.address, vars.sales_order.user_address),
-      },
-      payment_intent_id: vars.paymentIntentId,
-      spot_prices: vars.spotPrices,
-      user,
-    }),
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.salesOrders(), refetchType: 'active' })
+    },
   })
 }
 

@@ -10,7 +10,7 @@ import {
 import { usePatchShipment, useOrderShipments, outboundOf } from '@/features/shipping/queries'
 import { usePatchPayout, useOrderPayouts } from '@/features/payouts/queries'
 import { useOrderItems, nameOf, byId } from '@/features/orders/reads'
-import type { OrderItem } from '@dorado/contracts'
+import type { OrderItem, OrderItemPatch } from '@dorado/contracts'
 import type { NamedScrapItem } from '@/features/orders/purchaseOrders/types'
 
 import { cn } from '@/shared/utils/cn'
@@ -38,6 +38,7 @@ import SelectMenu from '@/shared/ui/SelectMenu'
 import { Field } from '@/shared/ui/Field'
 import { Product } from '@/features/products/types'
 import { useSpotPrices } from '@/features/spots/queries'
+import type { SpotPrice } from '@/features/spots/types'
 import { useProducts } from '@/features/products/queries'
 import { useOrderSpots, nameSpots, type NamedOrderSpot } from '@/features/orders/spots'
 
@@ -75,8 +76,7 @@ export default function AdminReceivedPurchaseOrder({ order }: PurchaseOrderDrawe
   const bullionItems = items.filter((item) => item.bullion_id !== null)
 
   const handleUpdateSpot = (spot: NamedOrderSpot, updated_spot: number) => {
-    if (!spot.name) return
-    setSpots.mutate({ order_id: order.id, set: [{ name: spot.name, bid: updated_spot }] })
+    setSpots.mutate({ order_id: order.id, set: [{ metal_id: spot.metal_id, bid: updated_spot }] })
   }
 
   // Locking writes the metal rows - at the live prices the SERVER resolves.
@@ -155,7 +155,12 @@ export default function AdminReceivedPurchaseOrder({ order }: PurchaseOrderDrawe
                 <small className="tracking-widest">Scrap</small>
               </div>
 
-              <ScrapTable scrapItems={scrapItems} config={config} order_id={order.id} />
+              <ScrapTable
+                scrapItems={scrapItems}
+                config={config}
+                order_id={order.id}
+                spotPrices={spotPrices}
+              />
             </div>
           )}
           <Separator />
@@ -294,10 +299,15 @@ function ScrapTable({
   scrapItems,
   config,
   order_id,
+  spotPrices,
 }: {
   scrapItems: NamedScrapItem[]
   config: StatusConfigEntry
   order_id: string
+  // The metal NAME -> id lookup for a new line (D214 item 11): the create
+  // body names a metal by id, and this screen only has the display name off
+  // METAL_ITEMS, so the id is resolved against the cached spots reference.
+  spotPrices: SpotPrice[]
 }) {
   const [open, setOpen] = useState(false)
   const [editMode, setEditMode] = useState(false)
@@ -307,33 +317,12 @@ function ScrapTable({
   const deleteItem = useDeleteOrderItem()
   const createItem = useCreateOrderItem()
 
-  // The write carries the FULL scrap object and the line's premium - the
-  // API's scrap op sets every column it knows (see OrderItemScrapPatch).
-  const handleUpdateItem = (
-    item: NamedScrapItem,
-    changes: { premium?: number | null; scrap?: Record<string, unknown> }
-  ) => {
-    patchItem.mutate({
-      order_item_id: item.id,
-      order_id,
-      patch: {
-        scrap: {
-          premium: changes.premium !== undefined ? changes.premium : item.premium,
-          // THE FULL SCRAP OBJECT, and the row IS it now: 085 folded
-          // exchange.scrap into orders.items, so the line's own weights and
-          // purity are what the API's full-write op expects.
-          scrap: {
-            metal: item.metal,
-            pre_melt: item.pre_melt,
-            post_melt: item.post_melt,
-            purity: item.purity,
-            content: item.content,
-            gross_unit: item.unit,
-            ...(changes.scrap ?? {}),
-          },
-        },
-      },
-    })
+  // ONE FLAT PATCH (D214 item 11): the row's own columns, at the top level -
+  // a key present is written, an absent one is left alone. The old body sent
+  // the full scrap object on every edit because the API's op SET every
+  // column it knew; this sends only the field that changed.
+  const handleUpdateItem = (item: NamedScrapItem, changes: OrderItemPatch) => {
+    patchItem.mutate({ order_item_id: item.id, order_id, patch: changes })
   }
 
   // Per-resource means one DELETE per line; the selection is small by
@@ -349,13 +338,15 @@ function ScrapTable({
   }
 
   const handleResetItem = (item: { id: string }) => {
-    patchItem.mutate({ order_item_id: item.id, order_id, patch: { reset: true } })
+    patchItem.mutate({ order_item_id: item.id, order_id, patch: { confirmed: false } })
   }
 
   const handleAddNew = (metal: string) => {
+    const metal_id = spotPrices.find((s) => s.name === metal)?.id
+    if (!metal_id) return
     createItem.mutate({
       order_id,
-      item: { metal, pre_melt: 1, purity: 1, content: 1, gross_unit: 't oz' },
+      item: { metal_id, pre_melt: 1, purity: 1, unit: 't oz' },
     })
   }
 
@@ -420,7 +411,7 @@ function ScrapTable({
                           onBlur={(e) => {
                             const pre_melt = parseFloat(e.target.value)
                             if (!isNaN(pre_melt)) {
-                              handleUpdateItem(item, { scrap: { pre_melt } })
+                              handleUpdateItem(item, { pre_melt })
                             }
                           }}
                         />
@@ -449,7 +440,7 @@ function ScrapTable({
                           onBlur={(e) => {
                             const post_melt = parseFloat(e.target.value)
                             if (!isNaN(post_melt)) {
-                              handleUpdateItem(item, { scrap: { post_melt } })
+                              handleUpdateItem(item, { post_melt })
                             }
                           }}
                         />
@@ -478,7 +469,7 @@ function ScrapTable({
                           onBlur={(e) => {
                             const purity = parseFloat(e.target.value)
                             if (!isNaN(purity)) {
-                              handleUpdateItem(item, { scrap: { purity } })
+                              handleUpdateItem(item, { purity })
                             }
                           }}
                         />
@@ -613,22 +604,11 @@ function BullionTable({
   const deleteItem = useDeleteOrderItem()
   const createItem = useCreateOrderItem()
 
-  // Both bullion columns ride every write - the API SETs quantity and
-  // premium in one statement (see OrderItemBullionPatch).
-  const handleUpdateItem = (
-    item: OrderItem,
-    changes: { quantity?: number | null; premium?: number | null }
-  ) => {
-    patchItem.mutate({
-      order_item_id: item.id,
-      order_id,
-      patch: {
-        bullion: {
-          quantity: changes.quantity !== undefined ? changes.quantity : item.quantity,
-          premium: changes.premium !== undefined ? changes.premium : item.premium,
-        },
-      },
-    })
+  // ONE FLAT PATCH (D214 item 11): only the field that changed rides the
+  // wire now - an absent key is left alone, so a quantity edit no longer has
+  // to resend the current premium and vice versa.
+  const handleUpdateItem = (item: OrderItem, changes: OrderItemPatch) => {
+    patchItem.mutate({ order_item_id: item.id, order_id, patch: changes })
   }
 
   const handleDeleteItems = (ids: string[]) => {
@@ -642,7 +622,7 @@ function BullionTable({
   }
 
   const handleResetItem = (item: { id: string }) => {
-    patchItem.mutate({ order_item_id: item.id, order_id, patch: { reset: true } })
+    patchItem.mutate({ order_item_id: item.id, order_id, patch: { confirmed: false } })
   }
 
   // A bullion line is created from the catalogue row itself - its id is what
@@ -656,7 +636,7 @@ function BullionTable({
 
   const handleAddNewById = (id: string) => {
     const item = products.find((product) => product.id === id)
-    if (item) createItem.mutate({ order_id, item })
+    if (item) createItem.mutate({ order_id, item: { bullion_id: item.id } })
   }
 
   return (

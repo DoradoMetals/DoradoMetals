@@ -64,9 +64,11 @@ export const nameSpots = <T extends { metal_id: string }>(
 // The order's metals as their own resource: PUT /orders/:id/spots (D87,
 // unified form - /purchase_orders is legacy route vocabulary). lock: true pins at the LIVE prices the SERVER
 // resolves - the browser's copy of the feed never goes down; lock: false
-// unpins and clears the rows; set writes named bids onto the frozen rows.
+// unpins and clears the rows; set writes bids onto the frozen rows BY ID
+// (D214 item 11) - `name` was a display string the server had to resolve
+// back against metals.metals, and the read already carries metal_id.
 export type OrderSpotWrite = {
-  name: string
+  metal_id: string
   bid: number
 }
 

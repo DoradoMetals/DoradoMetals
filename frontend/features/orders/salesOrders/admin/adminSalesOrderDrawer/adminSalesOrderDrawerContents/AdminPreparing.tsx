@@ -7,7 +7,7 @@ import { FloatingLabelInput } from '@/shared/ui/inputs/FloatingLabelInput'
 import { RadioGroup } from '@/shared/ui/RadioGroup'
 import Image from 'next/image'
 import { useAdminSuppliers } from '@/features/products/queries'
-import { usePatchOrder } from '@/features/orders/patch'
+import { useSendOrderToRefiner } from '@/features/orders/patch'
 import {
   usePatchShipment,
   useOrderShipments,
@@ -30,10 +30,10 @@ export default function AdminPreparingSalesOrder({ order }: SalesOrderDrawerCont
   const { carrier_id: shipmentCarrierId } = useShipmentDisplay(shipment)
   const { data: carriers = [] } = useCarriers()
 
-  // Tracking writes to the SHIPMENT resource; the supplier send is the order
-  // document's own pipeline op.
+  // Tracking writes to the SHIPMENT resource; sending to the refiner is its
+  // own action route now (D214 item 11), not a flag in the order's PATCH.
   const updateTracking = usePatchShipment()
-  const sendOrder = usePatchOrder()
+  const sendOrder = useSendOrderToRefiner()
 
   const [selectedSupplier, setSelectedSupplier] = useState<Supplier | null>(null)
   const [selectedCarrier, setSelectedCarrier] = useState<Carrier | null>(null)
@@ -110,10 +110,7 @@ export default function AdminPreparingSalesOrder({ order }: SalesOrderDrawerCont
         onClick={() => {
           // The refiner's copy prints the order's own frozen spots, resolved
           // SERVER-side - the browser no longer reads them back and posts them.
-          sendOrder.mutate({
-            id: order.id,
-            patch: { supplier: { supplier_id: selectedSupplier?.id ?? '', send: true } },
-          })
+          sendOrder.mutate({ id: order.id, refiner_id: selectedSupplier?.id ?? '' })
         }}
         disabled={!selectedSupplier || sendOrder.isPending || !!order.order_sent}
       >
