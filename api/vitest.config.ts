@@ -122,8 +122,13 @@ export default defineConfig({
     ],
     coverage: {
       provider: "v8",
-      // Per-layer thresholds (docs/waves/test-suite-redesign.md 2.5) are
-      // lane 7 - this only wires the provider so `--coverage` runs today.
+      // text for a human at the terminal, json-summary for whoever
+      // re-measures these thresholds next - coverage/coverage-summary.json
+      // carries the exact per-file covered/total counts, so the per-layer
+      // numbers below can be recomputed by summing it rather than reading
+      // percentages back off the text table by eye.
+      reporter: ["text", "json-summary"],
+      reportsDirectory: "./coverage",
       exclude: [
         "node_modules/**",
         "**/tests/**",
@@ -133,6 +138,33 @@ export default defineConfig({
         "sandbox/**",
         "migrations/**",
       ],
+      // PER-LAYER THRESHOLDS (docs/waves/test-suite-redesign.md 2.5, lane 7),
+      // not one global number - a global percentage lets a well-tested layer
+      // carry a weak one, which is exactly what 1.1's imbalance measured
+      // (db/ far ahead of transport/'s branch coverage, for instance).
+      //
+      // *** THE RATCHET RULE. *** Each number below is THE FULL SUITE'S
+      // measured coverage for that layer (`pnpm --filter @dorado/api
+      // test:coverage`, all three projects together - the same run `check`
+      // runs), ROUNDED DOWN to the nearest whole percent. That is a floor,
+      // not a target: a change that drops a layer's coverage below its own
+      // number fails the gate, and the fix is either better tests or - if the
+      // change genuinely raised coverage - RAISING the number to the new
+      // measured floor. Never lower a number to make a red run green; that
+      // defeats the reason this exists. Re-measure with `test:coverage` and
+      // round down again whenever a lane meaningfully improves a layer.
+      //
+      // Measured 2026-09-03 (lane 7, api/vitest.config.ts's own history):
+      //   db/**        statements 88.93  branches 74.48  functions 94.27  lines 94.57
+      //   domain/**    statements 80.46  branches 67.80  functions 86.25  lines 83.92
+      //   transport/** statements 82.22  branches 48.74  functions 75.84  lines 82.47
+      //   shared/**    statements 80.37  branches 74.47  functions 86.76  lines 83.11
+      thresholds: {
+        "db/**": { statements: 88, branches: 74, functions: 94, lines: 94 },
+        "domain/**": { statements: 80, branches: 67, functions: 86, lines: 83 },
+        "transport/**": { statements: 82, branches: 48, functions: 75, lines: 82 },
+        "shared/**": { statements: 80, branches: 74, functions: 86, lines: 83 },
+      },
     },
   },
   resolve: { alias },

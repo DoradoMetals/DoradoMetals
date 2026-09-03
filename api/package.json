@@ -8,6 +8,7 @@
     "dev": "node --watch server.ts",
     "start": "node server.ts",
     "test": "TZ=UTC NODE_ENV=test USE_TEST_DB=1 node scripts/preflight-test-db.ts && TZ=UTC NODE_ENV=test USE_TEST_DB=1 node node_modules/vitest/vitest.mjs run",
+    "test:coverage": "TZ=UTC NODE_ENV=test USE_TEST_DB=1 node scripts/preflight-test-db.ts && TZ=UTC NODE_ENV=test USE_TEST_DB=1 node node_modules/vitest/vitest.mjs run --coverage",
     "test:unit": "TZ=UTC NODE_ENV=test node node_modules/vitest/vitest.mjs run --project unit",
     "test:db": "TZ=UTC NODE_ENV=test USE_TEST_DB=1 node scripts/preflight-test-db.ts && TZ=UTC NODE_ENV=test USE_TEST_DB=1 node node_modules/vitest/vitest.mjs run --project db",
     "test:http": "TZ=UTC NODE_ENV=test USE_TEST_DB=1 node scripts/preflight-test-db.ts && TZ=UTC NODE_ENV=test USE_TEST_DB=1 node node_modules/vitest/vitest.mjs run --project http",
