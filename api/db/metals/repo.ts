@@ -8,7 +8,7 @@ import type { Executor } from "#shared/db/executor.ts";
 
 const sql = sqlFrom(import.meta.dirname);
 
-type MetalRow = metals.MetalsRow;
+type MetalRow = metals.metals.Row;
 
 export async function list(executor?: Executor): Promise<MetalRow[]> {
   const { rows } = await query<MetalRow>(sql("get_all"), [], executor);

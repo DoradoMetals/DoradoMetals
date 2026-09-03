@@ -8,7 +8,7 @@ import * as payoutsRepo from "#db/payouts/repo.ts";
 import * as payoutDetails from "#domain/payments/details/service.ts";
 import * as orderTransactions from "#domain/orders/transactions/service.ts";
 import { Invalid, NotFound } from "#shared/errors.ts";
-import type { PayoutPatch } from "@dorado/contracts";
+import type { exchange } from "@dorado/contracts";
 import type { PayoutRow } from "#db/payouts/repo.ts";
 
 // A payout the caller may write to: it exists, and it is attached to the order
@@ -24,7 +24,7 @@ function orderOf(payout_id: string, payout: PayoutRow | undefined): string {
 // RETURNS THE ROW IT WROTE. A bare success made the caller re-fetch, and a
 // re-fetch is a second read that can disagree with the write it follows.
 export async function patchPayout(
-  payout_id: string, patch: PayoutPatch
+  payout_id: string, patch: exchange.payouts.Patch
 ): Promise<PayoutRow> {
   if (Object.keys(patch).length === 0) {
     throw new Invalid("the document names no field to write");

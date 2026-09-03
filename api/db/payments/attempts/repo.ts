@@ -11,7 +11,7 @@ import type { Executor } from "#shared/db/executor.ts";
 
 const sql = sqlFrom(import.meta.dirname);
 
-export type AttemptRow = payments.AttemptsRow;
+export type AttemptRow = payments.attempts.Row;
 
 // An explicit id wins; every caller passes the intent's own id, so an intent
 // and its first attempt share one.

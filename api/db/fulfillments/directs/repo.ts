@@ -7,7 +7,7 @@ import type { Executor } from "#shared/db/executor.ts";
 
 const sql = sqlFrom(import.meta.dirname);
 
-export type DirectRow = fulfillments.DirectsRow;
+export type DirectRow = fulfillments.directs.Row;
 
 type Window = { from?: string | null; to?: string | null; employee_id?: string | null };
 

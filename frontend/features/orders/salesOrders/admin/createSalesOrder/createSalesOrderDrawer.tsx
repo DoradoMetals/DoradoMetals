@@ -22,7 +22,7 @@ import {
 } from '@/features/orders/salesOrders/types'
 import { useSaleShippingServices } from '@/features/shipping/queries'
 import { usePaymentMethods } from '@/features/payments/queries'
-import type { SalesOrderQuote } from '@dorado/contracts'
+import type { quotes } from "@dorado/contracts";
 import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
 import { useAdminSalesOrderCheckoutStore } from '@/shared/store/adminSalesOrderCheckoutStore'
 import { SearchableDropdown } from '@/shared/ui/inputs/InputDropdownSearch'
@@ -430,7 +430,7 @@ function ServiceSelector() {
   )
 }
 
-function OrderSummary({ orderPrices }: { orderPrices?: SalesOrderQuote }) {
+function OrderSummary({ orderPrices }: { orderPrices?: quotes.SalesOrderQuote }) {
   const { data } = useAdminSalesOrderCheckoutStore()
   const { data: saleMethods = [] } = usePaymentMethods('sale')
   const router = useRouter()
@@ -516,7 +516,7 @@ function CreditSelect({
   orderPrices,
   funds,
 }: {
-  orderPrices?: SalesOrderQuote
+  orderPrices?: quotes.SalesOrderQuote
   funds: number
 }) {
   const { data, setData } = useAdminSalesOrderCheckoutStore()
@@ -568,7 +568,7 @@ function CreditSelect({
   )
 }
 
-function PaymentSelect({ orderPrices, user }: { orderPrices?: SalesOrderQuote; user: AdminUser }) {
+function PaymentSelect({ orderPrices, user }: { orderPrices?: quotes.SalesOrderQuote; user: AdminUser }) {
   const [isLoading, setIsLoading] = useState<boolean>(false)
   const { closeDrawer } = useDrawerStore()
   const [isPending, startTransition] = useTransition()

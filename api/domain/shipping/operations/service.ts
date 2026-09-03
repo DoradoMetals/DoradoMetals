@@ -19,10 +19,7 @@ import type { ParsedTracking } from "#providers/shipments/utils/parsing.ts";
 import type { RatesInput } from "#domain/shipping/operations/handler.ts";
 import type { PickupBaseRow as PickupRow } from "#db/shipping/pickups/repo.ts";
 import type { PoolClient } from "pg";
-import type {
-  ShippingCancelLabelBody, ShippingCancelPickupBody, ShippingCheckPickupBody,
-  ShippingGetLocationsBody, ShippingGetRatesBody, ShippingValidateAddressBody,
-} from "@dorado/contracts";
+import type { shipping as shippingContract } from "@dorado/contracts";
 
 type Executor = PoolClient | undefined;
 
@@ -44,12 +41,12 @@ export type FetchTracking = (
 ) => Promise<ParsedTracking>;
 
 // The three directions a parcel moves, read from shipping.direction itself rather than duplicated by hand - not to be confused with orders.direction (purchase/sale), a different enum with the same name.
-type ShippingType = shipping.ShipmentsRow["direction"];
+type ShippingType = shippingContract.shipments.Row["direction"];
 
 // Runs OUTSIDE any transaction: cancelling a label first, inside one, risked a later failure rolling back our record while FedEx had already killed the label - a customer holding a label the system still calls active.
 // Safe because cancel is idempotent - a retry just cancels an already-cancelled label. Creating a label is NOT idempotent and doesn't get this treatment; see domain/orders/service.ts.
 export async function cancelLabel(
-  { shipment_id, carrier_id }: ShippingCancelLabelBody
+  { shipment_id, carrier_id }: shippingContract.shipments.CancelBody
 ): Promise<ShipmentRow | null> {
   // An unknown shipment id used to reach the carrier before this guard existed - getById returning null meant a TypeError AFTER deciding to call FedEx, not before.
   const shipment = await shipmentRepo.getById(shipment_id);
@@ -185,7 +182,7 @@ export async function quoteRate({
 // store; Outbound/Return quote FROM the store (the business always ships its
 // own side of those two).
 export async function getRates(
-  body: ShippingGetRatesBody
+  body: shippingContract.shipments.RatesBody
 ): Promise<ReturnType<typeof shippingHandler.getRates>> {
   if (!(body.weight > 0)) throw new Invalid("the parcel needs a weight");
 
@@ -213,7 +210,7 @@ export async function getRates(
 // An address as the customer entered it, checked against the carrier before
 // the checkout that owns it commits to it.
 export async function validateAddress(
-  body: ShippingValidateAddressBody
+  body: shippingContract.shipments.ValidateAddressBody
 ): Promise<ReturnType<typeof shippingHandler.validateAddress>> {
   const address = await requireAddress(body.address_id);
   return shippingHandler.validateAddress(await carrierIdOr(body.carrier_id), undefined, { address });
@@ -221,7 +218,7 @@ export async function validateAddress(
 
 // The pickup windows a carrier will collect from address_id on readyDate.
 export async function checkPickup(
-  body: ShippingCheckPickupBody
+  body: shippingContract.pickups.CheckBody
 ): Promise<ReturnType<typeof shippingHandler.checkPickup>> {
   const address = await requireAddress(body.address_id);
   // readyDate is a Date everywhere below - JSON cannot carry one, so it is
@@ -237,7 +234,7 @@ export async function checkPickup(
 
 // The carrier's own drop-off points near address_id.
 export async function getLocations(
-  body: ShippingGetLocationsBody
+  body: shippingContract.shipments.LocationsBody
 ): Promise<ReturnType<typeof shippingHandler.getLocations>> {
   const address = await requireAddress(body.address_id);
   return shippingHandler.getLocations(await carrierIdOr(body.carrier_id), undefined, {
@@ -247,7 +244,7 @@ export async function getLocations(
 
 // Same shape and reasoning as cancelLabel: cancelling a pickup is idempotent and runs outside any transaction - a rollback after it would leave a courier not coming and a row that says one is.
 export async function cancelPickup(
-  { pickup_id, carrier_id }: ShippingCancelPickupBody
+  { pickup_id, carrier_id }: shippingContract.pickups.CancelBody
 ): Promise<PickupRow | null> {
   // Same guard as cancelLabel and getTracking: an unknown id used to read three fields off null after deciding to call the carrier.
   const pickup = await pickupRepo.getById(pickup_id);

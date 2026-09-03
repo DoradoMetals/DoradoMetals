@@ -17,15 +17,15 @@ import type { organizations as organizationTables } from "@dorado/contracts";
 export type ComposedRefiner = {
   id: string;
   logo: string | null;
-  created_at: organizationTables.OrganizationsRow["created_at"];
-  updated_at: organizationTables.OrganizationsRow["updated_at"];
+  created_at: organizationTables.organizations.Row["created_at"];
+  updated_at: organizationTables.organizations.Row["updated_at"];
   organization: Pick<
-    organizationTables.OrganizationsRow, "id" | "name" | "email" | "phone" | "enabled"
+    organizationTables.organizations.Row, "id" | "name" | "email" | "phone" | "enabled"
   >;
 };
 
 const composed = (
-  refiner: RefinerRow, organization: organizationTables.OrganizationsRow
+  refiner: RefinerRow, organization: organizationTables.organizations.Row
 ): ComposedRefiner => ({
   id: refiner.id,
   logo: refiner.logo,

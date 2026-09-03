@@ -10,7 +10,7 @@ import type { Executor } from "#shared/db/executor.ts";
 
 const sql = sqlFrom(import.meta.dirname);
 
-export type SettlementRow = payments.SettlementsRow;
+export type SettlementRow = payments.settlements.Row;
 
 export type NewSettlement = {
   id: string;

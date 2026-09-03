@@ -1,7 +1,7 @@
 // HTTP in, HTTP out. Every body is parsed against the contract's own schema in
 // STRICT mode - except the webhook, whose body is raw bytes Stripe signs and
 // this file verifies before reading a field off it.
-import { UpdatePaymentIntentBody, CancelPaymentIntentBody } from "@dorado/contracts";
+import { payments } from "@dorado/contracts";
 import { asyncHandler } from "#shared/middleware/asyncHandler.ts";
 import { oneString } from "#shared/http/query.ts";
 import { parseStrict, uuidLike } from "#shared/http/validate.ts";
@@ -118,7 +118,7 @@ export const updatePaymentIntent = asyncHandler(async (req, res) => {
     return res.status(403).json({ error: "Forbidden" });
   }
   const body = parseStrict(
-    UpdatePaymentIntentBody, req.body, "stripe/update_payment_intent body"
+    payments.intents.UpdateBody, req.body, "stripe/update_payment_intent body"
   );
   const paymentIntent = await stripeService.updatePaymentIntent(callerOf(req), body);
   res.json(paymentIntent.client_secret);
@@ -133,7 +133,7 @@ export const getPaymentIntentFromSalesOrderId = asyncHandler(async (req, res) =>
 
 export const cancelPaymentIntent = asyncHandler(async (req, res) => {
   const { payment_intent_id } = parseStrict(
-    CancelPaymentIntentBody, req.body, "stripe/cancel_payment_intent body"
+    payments.intents.CancelBody, req.body, "stripe/cancel_payment_intent body"
   );
   res.json(await stripeService.cancelPaymentIntent(payment_intent_id));
 });

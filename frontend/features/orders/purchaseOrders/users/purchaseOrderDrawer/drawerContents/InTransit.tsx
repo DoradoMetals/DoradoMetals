@@ -2,7 +2,7 @@ import { Button } from '@dorado/components'
 import { cn } from '@/shared/utils/cn'
 import { useOfferedPackages } from '@/features/checkout/queries'
 import { useShipmentPickups } from '@/features/shipping/queries'
-import type { Shipment } from '@dorado/contracts'
+import type { shipping } from "@dorado/contracts";
 import { PurchaseOrderDrawerContentProps } from '@/features/orders/purchaseOrders/types'
 import { formatPickupDateTime } from '@/shared/utils/formatDates'
 import { Car, CheckCheck, PackageOpen, Printer } from 'lucide-react'
@@ -54,7 +54,7 @@ export default function InTransitPurchaseOrder({ order }: PurchaseOrderDrawerCon
 // parcel as a prop and fetches only the parcel's OWN child - the carrier
 // pickup, whose parent is the shipment (shipping.pickups.shipment_id), not
 // the order.
-export function DropoffInstructionsSection({ shipment }: { shipment?: Shipment }) {
+export function DropoffInstructionsSection({ shipment }: { shipment?: shipping.shipments.Row }) {
   const { data: pickups = [] } = useShipmentPickups(shipment?.id)
   const { data: offeredPackages = [] } = useOfferedPackages()
   const carrierPickup = pickups[0] ?? null

@@ -1,3 +1,4 @@
+import type { providers } from "@dorado/contracts";
 // PHASE 3 (ruling 39). What is left in this file is the CARRIER ADAPTER'S
 // surface - the shapes FedEx's own API answers in, passed through by
 // api/features/shipping/operations/adapters/. Read the notes on each below:
@@ -92,7 +93,8 @@ export type ShippingRatesInput = {
 //
 // NOT a fulfillment pickup - see features/handoff/types.ts for the two things
 // that share the word. A CarrierHandoff is how a parcel reaches the CARRIER.
-export type { CarrierHandoff, CarrierServiceOption } from '@dorado/contracts'
+export type CarrierHandoff = providers.CarrierHandoff;
+export type CarrierServiceOption = providers.CarrierServiceOption;
 
 // A RATE QUOTE, as the carrier answers it. `serviceType` is what joins it to a
 // CarrierServiceOption's `code`.

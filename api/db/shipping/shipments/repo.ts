@@ -10,7 +10,7 @@ const sql = sqlFrom(import.meta.dirname);
 // `direction` is projected as text - the wire has always carried a string.
 export type ShipmentBaseRow = Omit<
   Pick<
-    shipping.ShipmentsRow,
+    shipping.shipments.Row,
     | "id" | "carrier_service_id" | "package_id" | "recipient_address_id"
     | "shipper_address_id" | "tracking_number" | "shipping_status"
     | "est_delivery" | "shipped_at" | "delivered_at" | "created_at" | "label"

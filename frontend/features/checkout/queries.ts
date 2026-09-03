@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { apiRequest } from '@/shared/queries/axios'
 import { useApiQuery } from '@/shared/queries/base'
 import { useGetSession } from '@/features/auth/queries'
-import type { OrderView } from '@dorado/contracts'
+import type { orders } from "@dorado/contracts";
 
 // THE CHECKOUT ROW FLOW (D208): the stepper writes IDS onto the server's
 // checkout row as the customer decides, the fulfillment is a live draft the
@@ -111,7 +111,7 @@ export const useCreatePurchaseOrderFromCheckout = () => {
       const { id: checkout_id } = await apiRequest<{ id: string }>(
         'GET', '/checkout', undefined, { direction: 'purchase' }
       )
-      return await apiRequest<OrderView>(
+      return await apiRequest<orders.orders.View>(
         'POST', '/purchase_orders/create_from_checkout', { checkout_id }
       )
     },

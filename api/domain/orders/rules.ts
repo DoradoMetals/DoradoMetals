@@ -22,12 +22,10 @@ import type { PackageRow } from "#db/shipping/packages/repo.ts";
 import type { MethodRow as PaymentMethodRow } from "#db/payments/methods/repo.ts";
 import type { ComposedFulfillment } from "#domain/fulfillments/compose.ts";
 import type { LabelService } from "#domain/shipping/services/service.ts";
-import type { CarrierHandoff } from "#domain/shipping/handoffs/service.ts";
+import type { providers } from "@dorado/contracts";
 import type { StorefrontProduct } from "#domain/products/compose.ts";
 import type { OrderPrices, Spots } from "#domain/pricing/ask.ts";
-import type {
-  Direction, OrderItemFromScrap, OrderItemPatch, OrderView, OrderViewProduct,
-} from "@dorado/contracts";
+import type { orders, products } from "@dorado/contracts";
 
 // Type-only re-exports, erased at runtime: this file still needs no database.
 export type { PricedLine } from "#db/orders/items/repo.ts";
@@ -58,7 +56,7 @@ export type CarrierRate = { serviceType: string | null; netCharge: number | null
 // by id - so the label, the booking and the parcel row read the same values.
 export type Parcel = {
   carrier_id: string; serviceType: string; carrierCode: string;
-  handoff: CarrierHandoff; declaredValue: number;
+  handoff: providers.CarrierHandoff; declaredValue: number;
   weight: { units: string; value: number };
   dimensions: { length: number; width: number; height: number; units: string };
   schedule: { date: string; time: string } | null;
@@ -74,12 +72,12 @@ export type PurchaseCheckout = {
 export type SaleCheckout = { recipient_address_id: string };
 
 // SALES TAX IS CHARGED, NOT PAID: a payout to a customer never carries it.
-export function chargesSalesTax(direction: Direction): boolean {
+export function chargesSalesTax(direction: orders.enums.Direction): boolean {
   return direction === "sale";
 }
 
 // The order's direction, from the checkout it came from.
-export function directionOf(checkout: CheckoutRow): Direction {
+export function directionOf(checkout: CheckoutRow): orders.enums.Direction {
   return checkout.direction === "sale" ? "sale" : "purchase";
 }
 
@@ -289,7 +287,7 @@ export function shipmentFrom(
 // A CATALOGUE LINE. The weights are the product's, and the premium is left for
 // the re-tier to write.
 export function lineFromProduct(
-  order_id: string, product: OrderViewProduct
+  order_id: string, product: products.bullion.Public
 ): NewOrderItem {
   return {
     order_id, bullion_id: product.id, metal_id: product.metal_id,
@@ -301,7 +299,7 @@ export function lineFromProduct(
 // A SCRAP LINE: the scrap IS the line. Content is derived here and nowhere
 // else - two definitions of what content means is the defect that costs money.
 export function lineFromScrap(
-  order_id: string, declared: OrderItemFromScrap
+  order_id: string, declared: orders.items.NewScrap
 ): NewOrderItem {
   return {
     order_id, metal_id: declared.metal_id, pre_melt: declared.pre_melt,
@@ -312,7 +310,7 @@ export function lineFromScrap(
 
 // WHETHER A LINE EDIT RE-TIERS THE ORDER: a weight, purity, unit or quantity
 // moves the metal total the band is read at. A PREMIUM IS THE ADMIN'S OWN.
-export function retiersAfterEdit(changes: OrderItemPatch): boolean {
+export function retiersAfterEdit(changes: orders.items.Patch): boolean {
   if (changes.premium !== undefined) return false;
   return (
     changes.pre_melt !== undefined ||
@@ -391,15 +389,15 @@ export function requireFreeShipmentDraft(draft: ComposedFulfillment | null): Com
 // WHICH HANDOFF THE CHOSEN METHOD MEANS, by CAPABILITY: the schedulable one is
 // the carrier pickup. No carrier enum is spelled here.
 export function handoffFor(
-  handoffs: CarrierHandoff[], method_type: string | null
-): CarrierHandoff {
+  handoffs: providers.CarrierHandoff[], method_type: string | null
+): providers.CarrierHandoff {
   const handoff = handoffs.find((h) => h.requires_schedule === (method_type === "CARRIER PICKUP"));
   if (!handoff) throw new Error("the carrier's handoff catalogue is missing an option");
   return handoff;
 }
 
 export function assertDirection(
-  direction: Direction | null, wanted: Direction, operation: string
+  direction: orders.enums.Direction | null, wanted: orders.enums.Direction, operation: string
 ): void {
   if (direction === null) throw new Invalid(`${operation} needs an order with a direction`);
   if (direction !== wanted) {
@@ -412,7 +410,7 @@ export function assertDirection(
 // AN ORDER MAY BE RE-SENT TO THE SAME REFINER and never MOVED to another. It
 // needs an address to be sent and a refiner needs an email to be told.
 export function assertSendable(
-  order: OrderView,
+  order: orders.orders.View,
   { refiner_id, attachedRefinerId, refinerEmail }: {
     refiner_id: string;
     attachedRefinerId: string | null;
@@ -447,7 +445,7 @@ export function parcelFor(
   placeable: PurchaseCheckout,
   service: LabelService,
   box: PackageRow | undefined,
-  handoff: CarrierHandoff,
+  handoff: providers.CarrierHandoff,
   declaredValue: number
 ): Parcel {
   if (!box) throw new Invalid("the checkout names a package that does not exist");
@@ -520,7 +518,7 @@ export function pickupRequest(
 // SENDING A CUSTOMER'S METAL BACK. Every value is the server's: the parcel goes
 // to the address the ORDER snapshotted, from the business's configured one.
 export function returnLabelRequest(
-  order: OrderView,
+  order: orders.orders.View,
   { serviceType, weight, dimensions, declaredValue }: {
     serviceType: string;
     weight: { units: string; value: number };

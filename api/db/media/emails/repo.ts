@@ -6,7 +6,7 @@ import type { Executor } from "#shared/db/executor.ts";
 
 const sql = sqlFrom(import.meta.dirname);
 
-export type EmailRow = media.EmailsRow;
+export type EmailRow = media.emails.Row;
 
 export type NewEmail = {
   kind: EmailRow["kind"];

@@ -79,6 +79,8 @@
     "seed:e2e:order": "NODE_ENV=test node scripts/seed-e2e-order.mjs",
     "audit:table-owners": "node scripts/audit-table-owners.mjs",
     "audit:non-finite": "node scripts/audit-non-finite.mjs",
+    "lint:contracts-derived": "node scripts/lint-contracts-derived.ts",
+    "lint:contracts-derived:self-test": "node scripts/lint-contracts-derived.ts --self-test",
     "lint:type-homes": "TZ=UTC node scripts/lint-type-homes.ts",
     "lint:type-homes:self-test": "TZ=UTC node scripts/lint-type-homes.ts --self-test",
     "lint:domain-errors": "TZ=UTC node scripts/lint-domain-errors.ts",

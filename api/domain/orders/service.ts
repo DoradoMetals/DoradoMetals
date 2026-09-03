@@ -46,13 +46,7 @@ import { Invalid, NotFound } from "#shared/errors.ts";
 import type { Transport } from "#providers/emails/nodemailer.ts";
 import type { Executor } from "#shared/db/executor.ts";
 import type { OrderItemRow } from "#db/orders/items/repo.ts";
-import type {
-  OrderCancel,
-  OrderItemCreate,
-  OrderItemPatch,
-  OrderPatch,
-  OrderView,
-} from "@dorado/contracts";
+import type { orders } from "@dorado/contracts";
 
 // ===========================================================================
 // THE ORDER ROW
@@ -62,7 +56,7 @@ import type {
 // The four ACTIONS that used to ride in this body (add_funds, finalize_pricing,
 // cancel, supplier) are their own endpoints now, so there is no dispatcher, no
 // direction matrix and no per-field refusal message left here.
-export async function patch(order_id: string, changes: OrderPatch): Promise<OrderView> {
+export async function patch(order_id: string, changes: orders.orders.Patch): Promise<orders.orders.View> {
   if (Object.keys(changes).length === 0) {
     throw new Invalid("the document names no field to write");
   }
@@ -71,7 +65,7 @@ export async function patch(order_id: string, changes: OrderPatch): Promise<Orde
   return await viewOf(order_id);
 }
 
-async function viewOf(order_id: string): Promise<OrderView> {
+async function viewOf(order_id: string): Promise<orders.orders.View> {
   const order = await orderRead.view(order_id);
   if (!order) throw new NotFound(`no order ${order_id}`);
   return order;
@@ -114,7 +108,7 @@ export async function linesFor(order_id: string): Promise<OrderItemRow[]> {
 // declared lot of scrap. No metal NAMES cross the wire - the old body sent one
 // and the server resolved it against metals.metals.
 export async function createLine(
-  order_id: string, input: OrderItemCreate
+  order_id: string, input: orders.items.New
 ): Promise<OrderItemRow> {
   rules.assertDirection(
     await ordersRepo.directionOf(order_id), "purchase", "adding a line"
@@ -151,7 +145,7 @@ async function requireProduct(bullion_id: string) {
 // one of them - it is DERIVED here from the weight, the unit and the purity,
 // because two definitions of what content means is the defect that costs money.
 export async function editLine(
-  line_id: string, changes: OrderItemPatch
+  line_id: string, changes: orders.items.Patch
 ): Promise<OrderItemRow> {
   if (Object.keys(changes).length === 0) {
     throw new Invalid("the document names no field to write");
@@ -211,7 +205,7 @@ export async function removeLine(line_id: string): Promise<{ success: true }> {
 // EVERY NUMBER IS THE SERVER'S. It used to take the order, its spots and the
 // live feed as arguments assembled by the PATCH dispatcher; all three are read
 // here, from the order's own id.
-export async function finalizePricing(order_id: string): Promise<OrderView> {
+export async function finalizePricing(order_id: string): Promise<orders.orders.View> {
   const order = await viewOf(order_id);
   rules.assertDirection(order.order.direction, "purchase", "finalizing pricing");
 
@@ -251,7 +245,7 @@ export async function finalizePricing(order_id: string): Promise<OrderView> {
 // THE LEDGER MUST RECORD WHAT WAS ACTUALLY CREDITED. One figure, read once:
 // logging a separately computed number is how nine production Credit entries
 // came to disagree with the orders they explain.
-export async function addFunds(order_id: string): Promise<OrderView> {
+export async function addFunds(order_id: string): Promise<orders.orders.View> {
   const order = await viewOf(order_id);
   rules.assertDirection(order.order.direction, "purchase", "adding funds");
 
@@ -287,8 +281,8 @@ export async function addFunds(order_id: string): Promise<OrderView> {
 // `Record<string, any>` and hand-mapped fifteen fields out of it.
 export async function cancel(
   order_id: string,
-  { carrier_service_id, package_id, declared_value, weight }: OrderCancel
-): Promise<OrderView> {
+  { carrier_service_id, package_id, declared_value, weight }: orders.orders.CancelBody
+): Promise<orders.orders.View> {
   const order = await viewOf(order_id);
   rules.assertDirection(order.order.direction, "purchase", "cancelling");
 
@@ -371,7 +365,7 @@ export async function cancel(
 // arrive in the request body - the $26.81-an-ounce hazard.
 export async function sendToRefiner(
   order_id: string, refiner_id: string, transport?: Transport
-): Promise<OrderView> {
+): Promise<orders.orders.View> {
   const order = await viewOf(order_id);
   rules.assertDirection(order.order.direction, "sale", "sending to a refiner");
 

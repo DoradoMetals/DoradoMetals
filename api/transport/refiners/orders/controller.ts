@@ -1,13 +1,13 @@
-import { RefinerOrderPatch } from "@dorado/contracts";
+import { refiners } from "@dorado/contracts";
 import { asyncHandler } from "#shared/middleware/asyncHandler.ts";
 import { parseStrict, uuidParam } from "#shared/http/validate.ts";
 import * as refinerOrdersService from "#domain/refiners/orders/service.ts";
 
 // PATCH /api/refiners/orders/:id - the id is a uuid and the body is a
-// RefinerOrderPatch, parsed strictly before the service runs.
+// refiners.orders.Patch, parsed strictly before the service runs.
 export const patchRefinerOrder = asyncHandler(async (req, res) => {
   const id = uuidParam(req, "id");
-  const patch = parseStrict(RefinerOrderPatch, req.body ?? {}, "refiner order PATCH body");
+  const patch = parseStrict(refiners.orders.Patch, req.body ?? {}, "refiner order PATCH body");
   return res.status(200).json(await refinerOrdersService.patchRefinerOrder(id, patch));
 });
 

@@ -1,10 +1,10 @@
-import { ScheduleFulfillmentPickupBody } from "@dorado/contracts";
+import { fulfillments } from "@dorado/contracts";
 import { parseStrict, uuidParam } from "#shared/http/validate.ts";
 import { asyncHandler } from "#shared/middleware/asyncHandler.ts";
 import * as pickupService from "#domain/fulfillments/pickups/service.ts";
 import { z } from "zod/v4";
 
-const ScheduleBody = z.object({ pickup: ScheduleFulfillmentPickupBody.strict() }).strict();
+const ScheduleBody = z.object({ pickup: fulfillments.pickups.New.strict() }).strict();
 
 export const schedulePickup = asyncHandler(async (req, res) => {
   const body = parseStrict(ScheduleBody, req.body, "fulfillments/schedule_pickup body");

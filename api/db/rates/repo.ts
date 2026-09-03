@@ -12,7 +12,7 @@ import type { Executor } from "#shared/db/executor.ts";
 
 const sql = sqlFrom(import.meta.dirname);
 
-export type RateRow = rates.RatesRow;
+export type RateRow = rates.rates.Row;
 
 // An explicit id wins on create; omitting one lets create.sql generate one.
 export type NewRate = Pick<

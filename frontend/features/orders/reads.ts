@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { apiRequest } from '@/shared/queries/axios'
 import { useGetSession } from '@/features/auth/queries'
-import type { OrderAddress, OrderItem } from '@dorado/contracts'
+import type { orders, places } from "@dorado/contracts";
 
 // THE ORDER-SCOPED READS THAT ORDERS OWNS (wave 3). One read per table, each
 // keyed by the order id a component already holds, each returning the table's
@@ -15,7 +15,8 @@ import type { OrderAddress, OrderItem } from '@dorado/contracts'
 // payouts in features/payouts, the engagement in features/refiners, the
 // fulfillment chain in features/fulfillments.
 
-export type { OrderItem, OrderAddress } from '@dorado/contracts'
+export type OrderItem = orders.items.Row;
+export type OrderAddress = places.addresses.Row;
 
 // The order's LINES - orders.items rows, scrap and bullion in one table.
 // bullion_id is the only product reference (null means scrap) and metal_id
@@ -25,9 +26,9 @@ export type { OrderItem, OrderAddress } from '@dorado/contracts'
 export const useOrderItems = (order_id: string) => {
   const { user } = useGetSession()
 
-  return useQuery<OrderItem[]>({
+  return useQuery<orders.items.Row[]>({
     queryKey: ['order_items', order_id],
-    queryFn: async () => await apiRequest<OrderItem[]>('GET', `/orders/${order_id}/items`),
+    queryFn: async () => await apiRequest<orders.items.Row[]>('GET', `/orders/${order_id}/items`),
     enabled: !!user && !!order_id,
   })
 }
@@ -39,9 +40,9 @@ export const useOrderItems = (order_id: string) => {
 export const useOrderAddress = (order_id: string) => {
   const { user } = useGetSession()
 
-  return useQuery<OrderAddress>({
+  return useQuery<places.addresses.Row>({
     queryKey: ['order_address', order_id],
-    queryFn: async () => await apiRequest<OrderAddress>('GET', `/orders/${order_id}/address`),
+    queryFn: async () => await apiRequest<places.addresses.Row>('GET', `/orders/${order_id}/address`),
     enabled: !!user && !!order_id,
     retry: false,
   })

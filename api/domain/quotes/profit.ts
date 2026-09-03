@@ -23,12 +23,10 @@ import * as metalsRepo from "#db/metals/repo.ts";
 import { effectivePayoutFee, inboundShipment, recordedContent } from "#domain/pricing/service.ts";
 import { getRatePct, sumContentByMetal } from "#domain/rates/utils/resolveRate.ts";
 import { NotFound } from "#shared/errors.ts";
-import type {
-  OrderQuoteBody, OrderView, OrderViewItem, ProfitBreakdown, ProfitMetalsDict,
-} from "@dorado/contracts";
+import type { orders, quotes } from "@dorado/contracts";
 import type { RefinerItemRow } from "#db/refiners/items/repo.ts";
 
-export type { ProfitBreakdown } from "@dorado/contracts";
+export type ProfitBreakdown = quotes.ProfitBreakdown;
 
 // metal_id -> the metal's name, and order_item_id -> what the refinery
 // reported. Two lookups the COMPOSED order used to smear onto every line
@@ -54,20 +52,20 @@ const toKey = (m: ProfitMetalName): MetalKey => KEY_OF[m];
 const isProfitMetal = (name: string | undefined): name is ProfitMetalName =>
   name !== undefined && name in KEY_OF;
 
-const emptyMetalsDict = (): ProfitMetalsDict => ({
+const emptyMetalsDict = (): quotes.ProfitMetalsDict => ({
   gold: { content: 0, percentage: 0, profit: 0 },
   silver: { content: 0, percentage: 0, profit: 0 },
   platinum: { content: 0, percentage: 0, profit: 0 },
   palladium: { content: 0, percentage: 0, profit: 0 },
 });
 
-const getItemMetal = (item: OrderViewItem, metals: MetalNames): ProfitMetalName | null => {
+const getItemMetal = (item: orders.items.ViewItem, metals: MetalNames): ProfitMetalName | null => {
   const name = metals.get(item.metal_id);
   return isProfitMetal(name) ? name : null;
 };
 
 // A scrap line's content covers the whole lot; a bullion line's is per coin.
-const getItemContent = (item: OrderViewItem): number => {
+const getItemContent = (item: orders.items.ViewItem): number => {
   if (item.bullion_id === null) return item.content ?? 0;
   return Number(recordedContent(item) ?? 0) * Number(item.quantity ?? 1);
 };
@@ -75,7 +73,7 @@ const getItemContent = (item: OrderViewItem): number => {
 // WHAT THE REFINERY ACTUALLY REPORTED for a scrap line - refiners.items, its
 // own table, keyed by the order line. The composed wire served these three as
 // scrap.content_actual / post_melt_actual / purity_actual.
-const getScrapActualContent = (item: OrderViewItem, assay: AssayRows): number | null => {
+const getScrapActualContent = (item: orders.items.ViewItem, assay: AssayRows): number | null => {
   if (item.bullion_id !== null) return null;
   const reported = assay.get(item.id);
   if (!reported) return null;
@@ -138,7 +136,7 @@ function premiumsToShares(
 }
 
 function getSharesForItem(
-  item: OrderViewItem,
+  item: orders.items.ViewItem,
   metal: ProfitMetalName,
   orderSpots: ProfitSpot[],
   refinerSpots: ProfitSpot[],
@@ -175,7 +173,7 @@ function getSharesForItem(
 }
 
 function computeMetalsForAllParties(
-  order: OrderView,
+  order: orders.orders.View,
   category: "scrap" | "bullion" | "total",
   orderSpots: ProfitSpot[],
   refinerSpots: ProfitSpot[],
@@ -250,7 +248,7 @@ function computeMetalsForAllParties(
   return { customer, refiner, dorado };
 }
 
-function getShippingFees(order: OrderView) {
+function getShippingFees(order: orders.orders.View) {
   return {
     refiner: 0,
     dorado: Number(order.totals?.shipping_fee_actual ?? 0),
@@ -259,7 +257,7 @@ function getShippingFees(order: OrderView) {
 }
 
 function getSpotNet(
-  customerTotals: ProfitMetalsDict,
+  customerTotals: quotes.ProfitMetalsDict,
   orderSpots: ProfitSpot[],
   refinerSpots: ProfitSpot[],
   metals: MetalNames
@@ -289,7 +287,7 @@ function getSpotNet(
 }
 
 function getTotalProfit(
-  totalMetals: ProfitMetalsDict,
+  totalMetals: quotes.ProfitMetalsDict,
   shippingFee: number,
   spotNet: number = 0,
   refiner_fee: number = 0
@@ -303,7 +301,7 @@ function getTotalProfit(
   return metalsProfit + spotNet - shippingFee - refiner_fee;
 }
 
-export async function profitBreakdown({ order_id }: OrderQuoteBody): Promise<ProfitBreakdown> {
+export async function profitBreakdown({ order_id }: quotes.OrderQuoteBody): Promise<quotes.ProfitBreakdown> {
   // ONE ORDER, READ BY ID. It used to read EVERY purchase order and find this
   // one in the array, because the assay actuals rode only on the admin list's
   // projection. They are refiners.items rows now, read below by the same id.

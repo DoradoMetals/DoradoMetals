@@ -8,10 +8,10 @@
 // carried the union of both with `metal_id` and `unit` marked optional so it
 // could pass for either. RatesCard reads `metal_id` off it. It also typed
 // `created_at` / `updated_at` as `Date` against a wire that sends strings.
-import type { Rate as RateContract, AdminRate as AdminRateContract } from '@dorado/contracts'
+import type { rates } from "@dorado/contracts";
 
-export type Rate = RateContract
-export type AdminRate = AdminRateContract
+export type Rate = rates.rates.Read
+export type AdminRate = rates.rates.AdminRead
 
 // The update body's `patch`: the six writable columns (api/db/rates/repo.ts
 // PATCHABLE), same set RateInput carries minus the two audit names.

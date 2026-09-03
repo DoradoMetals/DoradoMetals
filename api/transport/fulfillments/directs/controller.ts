@@ -1,10 +1,10 @@
-import { ScheduleFulfillmentDirectBody } from "@dorado/contracts";
+import { fulfillments } from "@dorado/contracts";
 import { parseStrict, uuidParam } from "#shared/http/validate.ts";
 import { asyncHandler } from "#shared/middleware/asyncHandler.ts";
 import * as directService from "#domain/fulfillments/directs/service.ts";
 import { z } from "zod/v4";
 
-const ScheduleBody = z.object({ direct: ScheduleFulfillmentDirectBody.strict() }).strict();
+const ScheduleBody = z.object({ direct: fulfillments.directs.New.strict() }).strict();
 
 export const scheduleDirect = asyncHandler(async (req, res) => {
   const body = parseStrict(ScheduleBody, req.body, "fulfillments/schedule_direct body");

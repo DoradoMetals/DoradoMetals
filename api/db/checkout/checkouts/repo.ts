@@ -16,7 +16,7 @@ import type { Executor } from "#shared/db/executor.ts";
 
 const sql = sqlFrom(import.meta.dirname);
 
-export type CheckoutRow = checkout.CheckoutsRow;
+export type CheckoutRow = checkout.checkouts.Row;
 
 export type NewCheckout = { user_id: string; direction: string };
 

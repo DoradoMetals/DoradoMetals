@@ -8,7 +8,7 @@ import type { Executor } from "#shared/db/executor.ts";
 
 const sql = sqlFrom(import.meta.dirname);
 
-export type AddressRow = places.AddressesRow;
+export type AddressRow = places.addresses.Row;
 
 // Optional, not just nullable: an omitted field binds as undefined, same as omitting it; an extra `id` is harmless, only these fields are read.
 export type NewAddress = {

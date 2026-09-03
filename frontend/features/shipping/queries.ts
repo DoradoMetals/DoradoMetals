@@ -20,7 +20,7 @@ import { apiRequest } from '@/shared/queries/axios'
 import { useGetSession } from '@/features/auth/queries'
 import { useCarrierServices } from '@/features/carriers/queries'
 import { invalidateOrderReads } from '@/features/orders/invalidation'
-import type { Shipment, ShipmentPatch, ShipmentPickup, shipping } from '@dorado/contracts'
+import type { shipping } from "@dorado/contracts";
 
 // THE ORDER'S PARCELS, BOTH DIRECTIONS IN ONE ARRAY (wave 3):
 // GET /orders/:orderId/shipments, verbatim shipping.shipments rows. This is
@@ -33,14 +33,15 @@ import type { Shipment, ShipmentPatch, ShipmentPickup, shipping } from '@dorado/
 // type; the package and the service are ids the client maps against the
 // cached /shipping package and /carrier_services lists. Owner-or-admin
 // server-side - a customer tracks their own parcel.
-export type { Shipment, ShipmentPickup } from '@dorado/contracts'
+export type Shipment = shipping.shipments.Row;
+export type ShipmentPickup = shipping.pickups.Row;
 
 export const useOrderShipments = (order_id: string) => {
   const { user } = useGetSession()
 
-  return useQuery<Shipment[]>({
+  return useQuery<shipping.shipments.Row[]>({
     queryKey: ['order_shipments', order_id],
-    queryFn: async () => await apiRequest<Shipment[]>('GET', `/orders/${order_id}/shipments`),
+    queryFn: async () => await apiRequest<shipping.shipments.Row[]>('GET', `/orders/${order_id}/shipments`),
     enabled: !!user && !!order_id,
   })
 }
@@ -55,7 +56,7 @@ export const useOrderShipments = (order_id: string) => {
 // carrier_id is the same kind of thing: it is not a column of the shipment
 // at all in the new schema - the SERVICE knows its carrier - and useTracking
 // and the two cancel mutations need it, so it is resolved here too.
-export const useShipmentDisplay = (shipment: Shipment | null | undefined) => {
+export const useShipmentDisplay = (shipment: shipping.shipments.Row | null | undefined) => {
   const { data: services = [] } = useCarrierServices()
   const service = services.find((s) => s.id === shipment?.carrier_service_id) ?? null
 
@@ -67,9 +68,9 @@ export const useShipmentDisplay = (shipment: Shipment | null | undefined) => {
 
 // The parcel a customer sent us (or that we sent out) as against the one
 // coming BACK - the two halves the old slot names encoded, now a filter.
-export const outboundOf = (shipments: Shipment[] = []) =>
+export const outboundOf = (shipments: shipping.shipments.Row[] = []) =>
   shipments.find((s) => s.direction !== 'Return')
-export const returnOf = (shipments: Shipment[] = []) =>
+export const returnOf = (shipments: shipping.shipments.Row[] = []) =>
   shipments.find((s) => s.direction === 'Return')
 
 // The CARRIER pickups booked against one parcel - GET /shipments/:id/pickups.
@@ -79,10 +80,10 @@ export const returnOf = (shipments: Shipment[] = []) =>
 export const useShipmentPickups = (shipment_id: string | null | undefined) => {
   const { user } = useGetSession()
 
-  return useQuery<ShipmentPickup[]>({
+  return useQuery<shipping.pickups.Row[]>({
     queryKey: ['shipment_pickups', shipment_id],
     queryFn: async () =>
-      await apiRequest<ShipmentPickup[]>('GET', `/shipments/${shipment_id}/pickups`),
+      await apiRequest<shipping.pickups.Row[]>('GET', `/shipments/${shipment_id}/pickups`),
     enabled: !!user && !!shipment_id,
   })
 }
@@ -129,7 +130,7 @@ export const useCarrierServiceOptions = () =>
 // the server's getShippingCharge remains the pricing authority, and
 // api/features/pricing/tests/reference-drift pins the two together.
 export type SaleShippingService = Pick<
-  shipping.ServicesRow,
+  shipping.services.Row,
   'id' | 'name' | 'code' | 'price' | 'display' | 'is_active' | 'min_transit_days' | 'max_transit_days'
 >
 
@@ -208,7 +209,7 @@ export const useShippingValidateAddress = (input: ShippingValidateAddressInput) 
   })
 
 export const useShippingCancelLabel = () => {
-  return useApiMutation<Shipment | null, ShippingCancelLabelInput>({
+  return useApiMutation<shipping.shipments.Row | null, ShippingCancelLabelInput>({
     queryKey: queryKeys.shippingCancelLabel(),
     url: '/shipping/cancel_label',
     method: 'POST',
@@ -218,7 +219,7 @@ export const useShippingCancelLabel = () => {
 }
 
 export const useShippingCancelPickup = () => {
-  return useApiMutation<ShipmentPickup | null, ShippingCancelPickupInput>({
+  return useApiMutation<shipping.pickups.Row | null, ShippingCancelPickupInput>({
     queryKey: queryKeys.shippingCancelPickup(),
     url: '/shipping/cancel_pickup',
     method: 'POST',
@@ -245,13 +246,13 @@ export const useShippingCancelPickup = () => {
 // The null is gone rather than this widened - nothing under the API ever
 // honoured it (editShippingCharge takes `number`), and null and 0 price
 // identically because every reader is `?? 0`. "Free" is 0.
-export type { ShipmentPatch } from '@dorado/contracts'
+export type ShipmentPatch = shipping.shipments.Patch;
 
 type PatchShipmentVars = {
   shipment_id: string
   // For the caches; the URL does not carry it.
   order_id: string
-  patch: ShipmentPatch
+  patch: shipping.shipments.Patch
 }
 
 export const usePatchShipment = () => {

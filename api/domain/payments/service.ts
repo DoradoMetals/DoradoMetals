@@ -32,7 +32,7 @@ import { Forbidden, Invalid, NotFound } from "#shared/errors.ts";
 import type { StripeIntentLike, StripePaymentMethodLike } from "#domain/payments/rules.ts";
 import type { ComposedIntentRow, IntentFacts } from "#db/payments/intents/repo.ts";
 import type { Executor } from "#shared/db/executor.ts";
-import type { UpdatePaymentIntentBody } from "@dorado/contracts";
+import type { payments } from "@dorado/contracts";
 
 export type { ComposedIntentRow, IntentFacts } from "#db/payments/intents/repo.ts";
 export type { StripeIntentLike, StripePaymentMethodLike } from "#domain/payments/rules.ts";
@@ -260,7 +260,7 @@ export async function attachOrder(
 // fetched fresh on every update, so a revised intent carries the current price.
 export async function updatePaymentIntent(
   caller: Caller,
-  { items, address_id, carrier_service_id, payment_method_id, user_id, type }: UpdatePaymentIntentBody
+  { items, address_id, carrier_service_id, payment_method_id, user_id, type }: payments.intents.UpdateBody
 ): Promise<StripeIntent> {
   // WHOSE ORDER THIS PRICES. Falling back to the session user on the admin path
   // would price a customer's order against the ADMIN's credit balance and

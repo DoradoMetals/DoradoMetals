@@ -28,26 +28,19 @@ import { usePaymentMethods } from '@/features/payments/queries'
 import { useSaleShippingServices } from '@/features/shipping/queries'
 import type { SellCartItem } from '@/features/cart/types'
 import type { SpotPrice } from '@/features/spots/types'
-import type {
-  CatalogQuote,
-  SalesOrderQuote,
-  PurchaseOrderQuote,
-  PurchaseQuoteItem,
-  OrderQuote,
-  ProfitBreakdown,
-} from '@dorado/contracts'
+import type { quotes } from "@dorado/contracts";
 
 export type CatalogQuoteItem = { id: string; quantity?: number }
 
 export const useCatalogQuote = (items: CatalogQuoteItem[], side: 'ask' | 'bid') =>
-  useApiQuery<CatalogQuote>({
+  useApiQuery<quotes.CatalogQuote>({
     key: queryKeys.catalogQuote(items, side),
     requireUser: false,
     enabled: items.length > 0,
     refetchInterval: 10_000,
     placeholderData: (prev) => prev,
     request: async () =>
-      apiRequest<CatalogQuote>('POST', '/quotes/catalog', { items, side }),
+      apiRequest<quotes.CatalogQuote>('POST', '/quotes/catalog', { items, side }),
   })
 
 // `shipping_service` is the shipping.services row's CODE and `payment_method`
@@ -93,14 +86,14 @@ export const useSalesOrderQuote = (body: SalesOrderQuoteBody, enabled = true) =>
   const carrierPending = !!body.shipping_service && saleServices.length === 0
   const paymentPending = !!body.payment_method && saleMethods.length === 0
 
-  return useApiQuery<SalesOrderQuote>({
+  return useApiQuery<quotes.SalesOrderQuote>({
     key: queryKeys.salesOrderQuote(wireBody),
     requireUser: true,
     enabled: enabled && body.items.length > 0 && !carrierPending && !paymentPending,
     refetchInterval: 10_000,
     placeholderData: (prev) => prev,
     request: async () =>
-      apiRequest<SalesOrderQuote>('POST', '/quotes/sales_order', wireBody),
+      apiRequest<quotes.SalesOrderQuote>('POST', '/quotes/sales_order', wireBody),
   })
 }
 
@@ -109,8 +102,8 @@ export const useSalesOrderQuote = (body: SalesOrderQuoteBody, enabled = true) =>
 function toPurchaseQuoteItems(
   items: SellCartItem[],
   metals: Pick<SpotPrice, 'id' | 'name'>[]
-): PurchaseQuoteItem[] | null {
-  const out: PurchaseQuoteItem[] = []
+): quotes.PurchaseQuoteItem[] | null {
+  const out: quotes.PurchaseQuoteItem[] = []
   for (const item of items) {
     if (item.bullion_id !== null) {
       out.push({ type: 'product', bullion_id: item.bullion_id, quantity: item.quantity })
@@ -150,7 +143,7 @@ export const usePurchaseOrderQuote = (
   // note on useSalesOrderQuote.
   const payoutPending = !!deductions.payout_method && payoutMethods.length === 0
 
-  return useApiQuery<PurchaseOrderQuote>({
+  return useApiQuery<quotes.PurchaseOrderQuote>({
     key: queryKeys.purchaseOrderQuote(quoteItems, {
       shipping_charge: deductions.shipping_charge,
       payout_method_id,
@@ -162,7 +155,7 @@ export const usePurchaseOrderQuote = (
     refetchInterval: 10_000,
     placeholderData: (prev) => prev,
     request: async () =>
-      apiRequest<PurchaseOrderQuote>('POST', '/quotes/purchase_order', {
+      apiRequest<quotes.PurchaseOrderQuote>('POST', '/quotes/purchase_order', {
         items: quoteItems ?? [],
         ...(deductions.shipping_charge != null && { shipping_charge: deductions.shipping_charge }),
         ...(payout_method_id != null && { payout_method_id }),
@@ -176,13 +169,13 @@ export const usePurchaseOrderQuote = (
 // Stored (accepted) prices come back flagged "stored"; everything else is an
 // estimate at the order's locked spots when it has them, live spots when not.
 export const useOrderQuote = (order_id: string, enabled = true) =>
-  useApiQuery<OrderQuote>({
+  useApiQuery<quotes.OrderQuote>({
     key: queryKeys.orderQuote(order_id),
     requireUser: true,
     enabled: enabled && !!order_id,
     refetchInterval: 10_000,
     placeholderData: (prev) => prev,
-    request: async () => apiRequest<OrderQuote>('POST', '/quotes/order', { order_id }),
+    request: async () => apiRequest<quotes.OrderQuote>('POST', '/quotes/order', { order_id }),
   })
 
 // POST /quotes/profit_breakdown. The three-party profit view of a purchase
@@ -190,7 +183,7 @@ export const useOrderQuote = (order_id: string, enabled = true) =>
 // 2026-08-28): the server prices it from the order's own spots, refiner
 // spots and rates. Admin-only, like the numbers it exposes.
 export const useProfitBreakdown = (order_id: string, enabled = true) =>
-  useApiQuery<ProfitBreakdown>({
+  useApiQuery<quotes.ProfitBreakdown>({
     key: queryKeys.profitBreakdown(order_id),
     requireUser: true,
     requireAdmin: true,
@@ -198,5 +191,5 @@ export const useProfitBreakdown = (order_id: string, enabled = true) =>
     refetchInterval: 10_000,
     placeholderData: (prev) => prev,
     request: async () =>
-      apiRequest<ProfitBreakdown>('POST', '/quotes/profit_breakdown', { order_id }),
+      apiRequest<quotes.ProfitBreakdown>('POST', '/quotes/profit_breakdown', { order_id }),
   })

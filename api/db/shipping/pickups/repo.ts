@@ -7,7 +7,7 @@ import type { Executor } from "#shared/db/executor.ts";
 const sql = sqlFrom(import.meta.dirname);
 
 export type PickupBaseRow = Pick<
-  shipping.PickupsRow,
+  shipping.pickups.Row,
   "id" | "shipment_id" | "requested_at" | "status" | "confirmation_number" | "location"
 >;
 
@@ -36,11 +36,11 @@ export async function getByShipments(
 // FULL REPLACE, not a COALESCE patch - the service merges the whole row before calling this.
 // requested_at widens to admit a JS Date too; pg accepts either.
 export type PickupWrite = Omit<
-  Pick<shipping.PickupsRow, "requested_at" | "status" | "confirmation_number" | "location">,
+  Pick<shipping.pickups.Row, "requested_at" | "status" | "confirmation_number" | "location">,
   "requested_at"
 > & { requested_at: Date | string | null };
 
-export type PickupNew = PickupWrite & Pick<shipping.PickupsRow, "id" | "shipment_id">;
+export type PickupNew = PickupWrite & Pick<shipping.pickups.Row, "id" | "shipment_id">;
 
 export async function create(row: PickupNew, executor?: Executor): Promise<PickupBaseRow> {
   const { rows } = await query<PickupBaseRow>(

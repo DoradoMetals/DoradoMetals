@@ -8,7 +8,7 @@ import type { Executor } from "#shared/db/executor.ts";
 const sql = sqlFrom(import.meta.dirname);
 
 export type ServiceRow = Omit<
-  shipping.ServicesRow,
+  shipping.services.Row,
   | "supports_pickups"
   | "supports_dropoffs"
   | "max_weight_lb"
@@ -17,14 +17,14 @@ export type ServiceRow = Omit<
   // max_insured_value is not on this wire - getInsuranceCeilings reads it instead.
   | "max_insured_value"
 > & {
-  supports_pickup: shipping.ServicesRow["supports_pickups"];
-  supports_dropoff: shipping.ServicesRow["supports_dropoffs"];
-  max_weight_lbs: shipping.ServicesRow["max_weight_lb"];
+  supports_pickup: shipping.services.Row["supports_pickups"];
+  supports_dropoff: shipping.services.Row["supports_dropoffs"];
+  max_weight_lbs: shipping.services.Row["max_weight_lb"];
 };
 
 // Every column a create or update supplies, by name - spelled onto each statement's parameter list in one place, not a shared positional array.
 export type ServiceWrite = Pick<
-  shipping.ServicesRow,
+  shipping.services.Row,
   | "carrier_id" | "name" | "description" | "code" | "provider_code"
   | "supports_pickups" | "supports_dropoffs" | "supports_returns" | "supports_insurance"
   | "is_international" | "is_residential" | "is_active"
@@ -62,7 +62,7 @@ export async function getByCarrier(
 }
 
 // created_by/updated_by are NOT fields here - public.audit_stamp writes both from the connection's actor.
-export type ServiceNew = ServiceWrite & Pick<shipping.ServicesRow, "id">;
+export type ServiceNew = ServiceWrite & Pick<shipping.services.Row, "id">;
 
 export async function create(row: ServiceNew, executor?: Executor): Promise<ServiceRow> {
   const { rows } = await query<ServiceRow>(

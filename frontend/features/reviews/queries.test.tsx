@@ -7,7 +7,7 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 import { z } from "zod/v4";
-import { ReviewPatch } from "@dorado/contracts";
+import { reviews } from "@dorado/contracts";
 
 vi.mock("@/shared/queries/axios", () => ({ apiRequest: vi.fn() }));
 vi.mock("@/features/auth/queries", () => ({
@@ -20,7 +20,7 @@ import { useUpdateReview } from "@/features/reviews/queries";
 // Mirrors api/transport/reviews/controller.ts's own UpdateBody exactly.
 const UpdateReviewBody = z.object({
   review_id: z.string().uuid(),
-  patch: ReviewPatch.strict().optional(),
+  patch: reviews.reviews.Patch.strict().optional(),
 }).strict();
 
 function wrapper({ children }: { children: ReactNode }) {

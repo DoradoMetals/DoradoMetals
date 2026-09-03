@@ -4,11 +4,11 @@
 // document is merged over the current row rather than patched into it - null
 // means "not measured", not "leave alone". `content` is DERIVED and never
 // accepted from a caller.
-import type { RefinerItemPatch } from "@dorado/contracts";
+import type { refiners } from "@dorado/contracts";
 import type { ItemPatch, RefinerItemRow } from "#db/refiners/items/repo.ts";
 
 export function assayedRow(
-  reportedNow: RefinerItemPatch,
+  reportedNow: refiners.items.Patch,
   reportedBefore: RefinerItemRow | undefined,
   declaredUnit: string | null,
   contentOf: (weight: number | null, unit: string | null, purity: number | null) => number | null

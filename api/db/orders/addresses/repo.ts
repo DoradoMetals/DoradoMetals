@@ -14,7 +14,7 @@ import type { Executor } from "#shared/db/executor.ts";
 
 const sql = sqlFrom(import.meta.dirname);
 
-export type OrderAddressRow = orders.AddressesRow;
+export type OrderAddressRow = orders.addresses.Row;
 
 export async function getFor(
   order_id: string, executor?: Executor

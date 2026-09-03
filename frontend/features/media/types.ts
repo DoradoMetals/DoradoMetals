@@ -12,10 +12,10 @@
 // here, metadata is jsonb (unknown) not string, and mime_type/size_bytes had
 // drifted looser than the wire. Nothing read the wrong fields - which is luck,
 // not safety.
-import type { Image as ImageContract } from "@dorado/contracts";
+import type { media } from "@dorado/contracts";
 
 // What the API adds on top of the row: reads attach a presigned GET url.
-export type Image = ImageContract & { url: string };
+export type Image = media.images.Row & { url: string };
 
 // The upload flow's own shapes - these are request/response bodies of
 // /images/upload, not rows, so they stay local.

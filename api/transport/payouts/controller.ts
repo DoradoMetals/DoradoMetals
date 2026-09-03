@@ -1,4 +1,4 @@
-import { PayoutPatch } from "@dorado/contracts";
+import { exchange } from "@dorado/contracts";
 import { asyncHandler } from "#shared/middleware/asyncHandler.ts";
 import { parseStrict, uuidParam } from "#shared/http/validate.ts";
 import * as payoutsService from "#domain/payouts/service.ts";
@@ -14,7 +14,7 @@ export const getPayoutsByOrder = asyncHandler(async (req, res) => {
 // before the service runs, and the answer is the payout row the write produced.
 export const patchPayout = asyncHandler(async (req, res) => {
   const id = uuidParam(req, "id");
-  const patch = parseStrict(PayoutPatch, req.body ?? {}, "payouts PATCH body");
+  const patch = parseStrict(exchange.payouts.Patch, req.body ?? {}, "payouts PATCH body");
   return res.status(200).json(await payoutsService.patchPayout(id, patch));
 });
 

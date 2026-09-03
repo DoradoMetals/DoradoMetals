@@ -5,19 +5,18 @@ import * as methods from "#db/fulfillments/methods/repo.ts";
 import { Conflict, NotFound } from "#shared/errors.ts";
 import type { MethodRow, MethodPatch } from "#db/fulfillments/methods/repo.ts";
 import type { PoolClient } from "pg";
-import type { Direction, fulfillments } from "@dorado/contracts";
+import type { fulfillments, orders } from "@dorado/contracts";
 
 type Executor = PoolClient | undefined;
 
 export type { MethodRow, MethodPatch } from "#db/fulfillments/methods/repo.ts";
 
-// Direction is the contract's; category is the generated row's own enum. Neither is hand-written here, so widening either is a compile error, not a runtime surprise.
-type Category = fulfillments.MethodsRow["category"];
+// orders.enums.Direction is the contract's; category is the generated row's own enum. Neither is hand-written here, so widening either is a compile error, not a runtime surprise.
 
 // The transport parses `direction` against the contract; this takes the
 // parsed value.
 export async function listAvailable(
-  direction: Direction, executor?: Executor
+  direction: orders.enums.Direction, executor?: Executor
 ): Promise<MethodRow[]> {
   return await methods.getAvailable(direction, executor);
 }
@@ -40,7 +39,7 @@ export async function byId(executor?: Executor): Promise<Map<string, MethodRow>>
 // The default for a direction and category. Both come from the seed, not a constant here, so changing the business's default is an UPDATE, not a deploy.
 // REFUSES rather than returning undefined: a silent null becomes a null method_id and a foreign key violation three calls later.
 export async function getDefault(
-  { direction, category }: { direction: Direction; category: Category },
+  { direction, category }: { direction: orders.enums.Direction; category: fulfillments.methods.Row["category"] },
   executor?: Executor
 ): Promise<MethodRow> {
   const method = await methods.getDefault({ direction, category }, executor);
@@ -50,7 +49,7 @@ export async function getDefault(
 
 // Whether a method was offered - the one rule here about the business, not the schema, and unenforceable by a constraint: a client posting a method_id it was never shown (OWN LABEL, hidden on purpose) would otherwise get it.
 export async function assertOffered(
-  { method_id, direction }: { method_id: string; direction: Direction },
+  { method_id, direction }: { method_id: string; direction: orders.enums.Direction },
   executor?: Executor
 ): Promise<void> {
   const offered = await methods.getAvailable(direction, executor);

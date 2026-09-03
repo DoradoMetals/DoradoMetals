@@ -7,11 +7,11 @@ import type { Executor } from "#shared/db/executor.ts";
 
 const sql = sqlFrom(import.meta.dirname);
 
-export type PdfRow = Pick<media.PdfsRow, "id" | "path" | "size_bytes" | "checksum" | "created_at">;
+export type PdfRow = Pick<media.pdfs.Row, "id" | "path" | "size_bytes" | "checksum" | "created_at">;
 
 export type NewPdf = {
   id: string;
-  kind: media.PdfsRow["kind"];
+  kind: media.pdfs.Row["kind"];
   order_id: string | null;
   path: string;
   size_bytes: number;
@@ -19,7 +19,7 @@ export type NewPdf = {
 };
 
 export async function latestOfKind(
-  { kind, order_id }: { kind: media.PdfsRow["kind"]; order_id: string },
+  { kind, order_id }: { kind: media.pdfs.Row["kind"]; order_id: string },
   executor?: Executor
 ): Promise<PdfRow | null> {
   const { rows } = await query<PdfRow>(sql("latest"), [order_id, kind], executor);

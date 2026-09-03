@@ -9,12 +9,12 @@ import type { Executor } from "#shared/db/executor.ts";
 export type ComposedCarrier = {
   id: string;
   logo: string | null;
-  created_at: organizationTables.OrganizationsRow["created_at"];
-  updated_at: organizationTables.OrganizationsRow["updated_at"];
-  organization: Pick<organizationTables.OrganizationsRow, "id" | "name" | "email" | "phone" | "enabled">;
+  created_at: organizationTables.organizations.Row["created_at"];
+  updated_at: organizationTables.organizations.Row["updated_at"];
+  organization: Pick<organizationTables.organizations.Row, "id" | "name" | "email" | "phone" | "enabled">;
 };
 
-const compose = (c: CarrierRow, o: organizationTables.OrganizationsRow): ComposedCarrier => ({
+const compose = (c: CarrierRow, o: organizationTables.organizations.Row): ComposedCarrier => ({
   id: c.id,
   logo: c.logo,
   // From the ORGANIZATION - shipping.carriers has no timestamps of its own.

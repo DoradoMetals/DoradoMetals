@@ -12,7 +12,7 @@ import { formatRate } from '@/features/rates/utils/resolveRate'
 import { usePurchaseOrderCheckoutStore } from '@/shared/store/purchaseOrderCheckoutStore'
 import { usePaymentMethods } from '@/features/payments/queries'
 import { usePurchaseOrderQuote } from '@/features/quotes/queries'
-import type { PurchaseOrderQuoteLine } from '@dorado/contracts'
+import type { quotes } from "@dorado/contracts";
 import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
 
 // A cart line paired with its quote line. Absent until the first quote lands
@@ -20,7 +20,7 @@ import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
 // client-side.
 type QuotedRow = {
   item: SellCartItem
-  line: PurchaseOrderQuoteLine | undefined
+  line: quotes.PurchaseOrderQuoteLine | undefined
   premium: number | undefined
 }
 

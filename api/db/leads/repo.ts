@@ -10,7 +10,7 @@ import type { Executor } from "#shared/db/executor.ts";
 
 const sql = sqlFrom(import.meta.dirname);
 
-export type LeadRow = leads.LeadsRow;
+export type LeadRow = leads.leads.Row;
 
 // priority accepts null even though the column is NOT NULL: null means "unspecified", resolved to 'Medium' by create.sql's own COALESCE.
 export type NewLead = Pick<LeadRow, "name" | "phone" | "email"> &

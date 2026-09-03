@@ -1,8 +1,5 @@
 // HTTP in, HTTP out. Bodies are parsed strictly against the contract.
-import {
-  Direction, CheckoutItemsBody, CheckoutPatchBody, CheckoutPatchColumns,
-  CheckoutFulfillmentBody, CheckoutPayoutBody, CheckoutPayoutForm,
-} from "@dorado/contracts";
+import { checkout, orders } from "@dorado/contracts";
 import type { Request } from "express";
 import { callerId } from "#shared/http/caller.ts";
 import { oneString } from "#shared/http/query.ts";
@@ -21,7 +18,7 @@ function subjectOf(req: Request): Promise<string> {
 // ---------------------------------------------------------------- the basket
 
 export const getCheckoutItems = asyncHandler(async (req, res) => {
-  const direction = parseStrict(Direction, oneString(req.query.direction), "direction");
+  const direction = parseStrict(orders.enums.Direction, oneString(req.query.direction), "direction");
   return res.status(200).json(
     await cartService.listItems(await subjectOf(req), direction)
   );
@@ -29,15 +26,15 @@ export const getCheckoutItems = asyncHandler(async (req, res) => {
 
 // The sync: replaces the basket, answers what is now in it.
 export const putCheckoutItems = asyncHandler(async (req, res) => {
-  const direction = parseStrict(Direction, oneString(req.query.direction), "direction");
-  const body = parseStrict(CheckoutItemsBody, req.body, "checkout/items body");
+  const direction = parseStrict(orders.enums.Direction, oneString(req.query.direction), "direction");
+  const body = parseStrict(checkout.items.SyncBody, req.body, "checkout/items body");
   return res.status(200).json(
     await cartService.replaceItems(await subjectOf(req), direction, body.items)
   );
 });
 
 export const deleteCheckoutItems = asyncHandler(async (req, res) => {
-  const direction = parseStrict(Direction, oneString(req.query.direction), "direction");
+  const direction = parseStrict(orders.enums.Direction, oneString(req.query.direction), "direction");
   const removed = await cartService.clearItems(await subjectOf(req), direction);
   return res.status(200).json({ removed });
 });
@@ -48,7 +45,7 @@ export const deleteCheckoutItems = asyncHandler(async (req, res) => {
 // customer's checkout row, created on first read, with its draft fulfillment
 // composed on.
 export const getCheckout = asyncHandler(async (req, res) => {
-  const direction = parseStrict(Direction, oneString(req.query.direction), "direction");
+  const direction = parseStrict(orders.enums.Direction, oneString(req.query.direction), "direction");
   const subject = await subjectOf(req);
   return res.status(200).json(await cartService.getCheckout(subject, direction));
 });
@@ -58,10 +55,10 @@ export const getCheckout = asyncHandler(async (req, res) => {
 // pointers are not in it, so a BODY cannot name them - naming a different
 // customer is a query param, checked the same way the GET is.
 export const patchCheckout = asyncHandler(async (req, res) => {
-  const body = parseStrict(CheckoutPatchBody, req.body, "checkout PATCH body");
+  const body = parseStrict(checkout.checkouts.PatchBody, req.body, "checkout PATCH body");
   // The columns, parsed out of the body: a plain object schema strips
   // `direction`, which names the session rather than a column of it.
-  const patch = CheckoutPatchColumns.parse(body);
+  const patch = checkout.checkouts.Patch.parse(body);
   const subject = await subjectOf(req);
   return res.status(200).json(
     await cartService.patchCheckout(subject, body.direction, patch)
@@ -72,7 +69,7 @@ export const patchCheckout = asyncHandler(async (req, res) => {
 // method; the row keeps the draft's id.
 export const setCheckoutFulfillment = asyncHandler(async (req, res) => {
   const body = parseStrict(
-    CheckoutFulfillmentBody, req.body, "checkout/fulfillment body"
+    checkout.checkouts.FulfillmentBody, req.body, "checkout/fulfillment body"
   );
   const result = await cartService.setFulfillmentMethod(
     callerId(req), body.direction, body.method_id, body.handoff_code
@@ -83,8 +80,8 @@ export const setCheckoutFulfillment = asyncHandler(async (req, res) => {
 // POST /api/checkout/payout - the payout step's write (D210). The numbers are
 // sealed at rest by payments/details; the response carries only last_four.
 export const saveCheckoutPayout = asyncHandler(async (req, res) => {
-  const body = parseStrict(CheckoutPayoutBody, req.body, "checkout/payout body");
-  const form = CheckoutPayoutForm.parse(body);
+  const body = parseStrict(checkout.checkouts.PayoutBody, req.body, "checkout/payout body");
+  const form = checkout.checkouts.PayoutForm.parse(body);
   return res.status(200).json(
     await cartService.saveCheckoutPayout(callerId(req), body.direction, form)
   );

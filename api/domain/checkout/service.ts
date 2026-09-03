@@ -23,7 +23,7 @@ import * as addressService from "#domain/places/addresses/service.ts";
 import * as usersService from "#domain/users/service.ts";
 import { Forbidden, Invalid, NotFound } from "#shared/errors.ts";
 import * as rules from "#domain/checkout/rules.ts";
-import type { Direction, NewCheckoutItem } from "@dorado/contracts";
+import type { checkout, orders } from "@dorado/contracts";
 import type { CheckoutRow, CheckoutPatch } from "#db/checkout/checkouts/repo.ts";
 import type { ItemRow } from "#db/checkout/items/repo.ts";
 import type { ComposedFulfillment } from "#domain/fulfillments/compose.ts";
@@ -40,7 +40,7 @@ export type ComposedCheckout = CheckoutRow & {
 // A session exists the moment anyone asks for one. Losing the create race is
 // not an error - the winner's row is the answer.
 async function ensure(
-  user_id: string, direction: Direction, client?: Executor
+  user_id: string, direction: orders.enums.Direction, client?: Executor
 ): Promise<CheckoutRow> {
   const found = await checkouts.findFor(user_id, direction, client);
   if (found) return found;
@@ -78,7 +78,7 @@ export async function resolveSubject(
 }
 
 export async function getCheckout(
-  user_id: string, direction: Direction
+  user_id: string, direction: orders.enums.Direction
 ): Promise<ComposedCheckout> {
   return await compose(await ensure(user_id, direction));
 }
@@ -89,7 +89,7 @@ const ADDRESS_COLUMNS = [
 ] as const;
 
 export async function patchCheckout(
-  user_id: string, direction: Direction, patch: CheckoutPatch
+  user_id: string, direction: orders.enums.Direction, patch: CheckoutPatch
 ): Promise<ComposedCheckout> {
 
   for (const col of ADDRESS_COLUMNS) {
@@ -139,7 +139,7 @@ export async function patchCheckout(
 // stores the fulfillment id"). The offered-method check runs on BOTH paths -
 // this is the customer's surface and the menu has to mean something.
 export async function setFulfillmentMethod(
-  user_id: string, direction: Direction,
+  user_id: string, direction: orders.enums.Direction,
   method_id?: string, handoff_code?: string
 ): Promise<ComposedCheckout> {
 
@@ -186,7 +186,7 @@ export async function setFulfillmentMethod(
 // LINKS the row. The details id is stable per checkout, so edits rewrite in
 // place.
 export async function saveCheckoutPayout(
-  user_id: string, direction: Direction, form: payoutDetails.PayoutForm
+  user_id: string, direction: orders.enums.Direction, form: payoutDetails.PayoutForm
 ): Promise<ComposedCheckout> {
   if (direction !== "purchase") {
     throw new Invalid("the payout step belongs to the purchase checkout");
@@ -211,7 +211,7 @@ export async function saveCheckoutPayout(
 
 // No session is an empty basket, not an error.
 export async function listItems(
-  user_id: string, direction: Direction, client?: Executor
+  user_id: string, direction: orders.enums.Direction, client?: Executor
 ): Promise<ItemRow[]> {
   const session = await checkouts.findFor(user_id, direction, client);
   if (!session) return [];
@@ -220,7 +220,7 @@ export async function listItems(
 
 // Replaces, never merges; one refused line refuses the whole write.
 export async function replaceItems(
-  user_id: string, direction: Direction, lines: NewCheckoutItem[]
+  user_id: string, direction: orders.enums.Direction, lines: checkout.items.New[]
 ): Promise<ItemRow[]> {
   return await withTransaction(async (client) => {
     const session = await ensure(user_id, direction, client);
@@ -246,7 +246,7 @@ export async function replaceItems(
 
 // Answers how many lines went: a DELETE that matched nothing does not raise.
 export async function clearItems(
-  user_id: string, direction: Direction, client?: Executor
+  user_id: string, direction: orders.enums.Direction, client?: Executor
 ): Promise<number> {
   const write = async (c: Executor) => {
     const session = await checkouts.findFor(user_id, direction, c);
@@ -269,7 +269,7 @@ export async function getItemsForOrder(checkout_id: string, client?: Executor) {
   return await items.listForOrder(checkout_id, client);
 }
 
-export async function getRowFor(user_id: string, direction: Direction, client?: Executor) {
+export async function getRowFor(user_id: string, direction: orders.enums.Direction, client?: Executor) {
   return await ensure(user_id, direction, client);
 }
 
@@ -281,7 +281,7 @@ const CLEARED: CheckoutPatch = Object.fromEntries(
 );
 
 export async function resetAfterOrder(
-  user_id: string, direction: Direction, client?: Executor
+  user_id: string, direction: orders.enums.Direction, client?: Executor
 ): Promise<void> {
   const row = await checkouts.findFor(user_id, direction, client);
   if (!row) return;

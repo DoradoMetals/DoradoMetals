@@ -8,7 +8,7 @@ import type { spots } from "@dorado/contracts";
 const sql = sqlFrom(import.meta.dirname);
 
 // Derived from the table, not restated. Two deliberate differences: `id` is not projected (a spot is identified by its metal), and `updated_at` is a Date, not the wire's string - this is what node-postgres hands back before serialisation.
-export type SpotRow = Omit<spots.SpotsRow, "id" | "updated_at"> & {
+export type SpotRow = Omit<spots.spots.Row, "id" | "updated_at"> & {
   updated_at: Date;
 };
 

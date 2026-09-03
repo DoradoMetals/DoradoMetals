@@ -5,7 +5,7 @@ import { useSaleShippingServices } from '@/features/shipping/queries'
 import { AdminSalesOrderCheckout, SalesOrder } from '@/features/orders/salesOrders/types'
 import { useApiQuery } from '@/shared/queries/base'
 import { queryKeys } from '@/shared/queries/keys'
-import type { OrderView } from '@dorado/contracts'
+import type { orders } from "@dorado/contracts";
 
 // The admin mutation surface is per-resource under /orders now (D87 final
 // form) - the order row via features/orders/patch.ts, the shipment via
@@ -83,7 +83,7 @@ export const useAdminCreateSalesOrder = () => {
         { user_id }
       )
 
-      return await apiRequest<OrderView>('POST', '/sales_orders/admin_create_sales_order', {
+      return await apiRequest<orders.orders.View>('POST', '/sales_orders/admin_create_sales_order', {
         checkout_id,
       })
     },

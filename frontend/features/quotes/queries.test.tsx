@@ -1,5 +1,5 @@
 // What useSalesOrderQuote and usePurchaseOrderQuote actually POST, checked
-// against @dorado/contracts' SalesOrderQuoteBody/PurchaseOrderQuoteBody in
+// against @dorado/contracts' quotes.SalesOrderQuoteBody/quotes.PurchaseOrderQuoteBody in
 // strict mode. The contracts lane replaced `shipping_service`/
 // `payment_method` (codes/types) with `carrier_service_id`/
 // `payment_method_id`, replaced a scrap line's metal NAME with `metal_id`,
@@ -10,7 +10,7 @@ import { describe, expect, test, vi, beforeEach } from "vitest";
 import { renderHook, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
-import { SalesOrderQuoteBody, PurchaseOrderQuoteBody } from "@dorado/contracts";
+import { quotes } from "@dorado/contracts";
 
 vi.mock("@/shared/queries/axios", () => ({ apiRequest: vi.fn() }));
 vi.mock("@/features/auth/queries", () => ({
@@ -100,7 +100,7 @@ describe("useSalesOrderQuote sends exactly what /quotes/sales_order accepts", ()
       .mock.calls.find(([, url]) => url === "/quotes/sales_order")!;
     const body = call[2] as Record<string, unknown>;
 
-    expect(SalesOrderQuoteBody.strict().safeParse(body).success).toBe(true);
+    expect(quotes.SalesOrderQuoteBody.strict().safeParse(body).success).toBe(true);
     expect(body.carrier_service_id).toBe(SALE_SERVICE_ID);
     expect(body.payment_method_id).toBe(SALE_METHOD_ID);
 
@@ -110,7 +110,7 @@ describe("useSalesOrderQuote sends exactly what /quotes/sales_order accepts", ()
 
     // Proven: using_funds returning would fail the same parse.
     expect(
-      SalesOrderQuoteBody.strict().safeParse({ ...body, using_funds: true }).success
+      quotes.SalesOrderQuoteBody.strict().safeParse({ ...body, using_funds: true }).success
     ).toBe(false);
   });
 });
@@ -142,7 +142,7 @@ describe("usePurchaseOrderQuote sends exactly what /quotes/purchase_order accept
       shipping_charge?: number;
     };
 
-    expect(PurchaseOrderQuoteBody.strict().safeParse(body).success).toBe(true);
+    expect(quotes.PurchaseOrderQuoteBody.strict().safeParse(body).success).toBe(true);
     expect(body.items[0]).toMatchObject({ type: "product", bullion_id: PRODUCT_ID, quantity: 2 });
     expect(body.items[1]).toMatchObject({
       type: "scrap",
@@ -159,6 +159,6 @@ describe("usePurchaseOrderQuote sends exactly what /quotes/purchase_order accept
 
     // Proven: a scrap line naming content would fail the same parse.
     const poisoned = { ...body, items: [body.items[0], { ...body.items[1], content: 5.85 }] };
-    expect(PurchaseOrderQuoteBody.strict().safeParse(poisoned).success).toBe(false);
+    expect(quotes.PurchaseOrderQuoteBody.strict().safeParse(poisoned).success).toBe(false);
   });
 });

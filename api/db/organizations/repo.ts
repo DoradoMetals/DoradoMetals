@@ -9,7 +9,7 @@ import type { Executor } from "#shared/db/executor.ts";
 
 const sql = sqlFrom(import.meta.dirname);
 
-export type OrganizationRow = organizations.OrganizationsRow;
+export type OrganizationRow = organizations.organizations.Row;
 
 // id and type are supplied separately, not part of this Pick: id is caller-generated, type (CARRIER/REFINER/the business) is a fact this table does not decide.
 export type OrganizationPatch = Pick<OrganizationRow, "name" | "email" | "phone" | "enabled">;

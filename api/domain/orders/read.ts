@@ -32,7 +32,7 @@ import * as pickupService from "#domain/shipping/pickups/service.ts";
 import type { OrderRow } from "#db/orders/repo.ts";
 import type { OrderItemRow } from "#db/orders/items/repo.ts";
 import type { OrderTotalsRow } from "#domain/orders/transactions/service.ts";
-import type { OrderView, OrderViewItem, OrderViewProduct } from "@dorado/contracts";
+import type { orders, products } from "@dorado/contracts";
 import type { PoolClient } from "pg";
 
 type Executor = PoolClient | undefined;
@@ -41,7 +41,6 @@ type Executor = PoolClient | undefined;
 // the contract declares it nullable for exactly those.
 export type Order = OrderRow & { totals: OrderTotalsRow | null };
 
-export type { OrderView } from "@dorado/contracts";
 
 // Assigned onto the row rather than spread into a copy: the rows are this
 // read's own and a copy is a second object to keep in step.
@@ -73,8 +72,8 @@ export async function getOne(
 // A bullion line names its catalogue row; a scrap line's weights ARE its
 // columns, so it names none.
 function withProduct(
-  item: OrderItemRow, catalogue: Map<string, OrderViewProduct>
-): OrderViewItem {
+  item: OrderItemRow, catalogue: Map<string, products.bullion.Public>
+): orders.items.ViewItem {
   return Object.assign(item, {
     product: item.bullion_id === null ? null : (catalogue.get(item.bullion_id) ?? null),
   });
@@ -84,7 +83,7 @@ function withProduct(
 // whether that is a 404 or a skipped email.
 export async function view(
   order_id: string, executor?: Executor
-): Promise<OrderView | null> {
+): Promise<orders.orders.View | null> {
   const order = await ordersRepo.getOne(order_id, executor);
   if (!order) return null;
 

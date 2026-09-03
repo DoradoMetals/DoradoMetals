@@ -13,7 +13,7 @@ import { useDrawerStore } from '@/shared/store/drawerStore'
 import { useUser } from '@/features/auth/authClient'
 import { ShoppingCartSimpleIcon } from '@phosphor-icons/react'
 import { usePurchaseOrderQuote } from '@/features/quotes/queries'
-import type { PurchaseOrderQuoteLine } from '@dorado/contracts'
+import type { quotes } from "@dorado/contracts";
 import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
 import { EmptyState } from '@/shared/ui/EmptyState'
 
@@ -29,7 +29,7 @@ export default function SellCart() {
 
   // Quote lines come back index-aligned with the store array.
   const { data: quote } = usePurchaseOrderQuote(items)
-  const lineAt = (storeIndex: number): PurchaseOrderQuoteLine | undefined =>
+  const lineAt = (storeIndex: number): quotes.PurchaseOrderQuoteLine | undefined =>
     quote?.items.find((line) => line.index === storeIndex)
 
   const total = quote?.total ?? 0

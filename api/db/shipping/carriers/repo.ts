@@ -6,7 +6,7 @@ import type { Executor } from "#shared/db/executor.ts";
 
 const sql = sqlFrom(import.meta.dirname);
 
-export type CarrierRow = shipping.CarriersRow;
+export type CarrierRow = shipping.carriers.Row;
 
 export async function getAll(executor?: Executor): Promise<CarrierRow[]> {
   const { rows } = await query<CarrierRow>(sql("get_all"), [], executor);

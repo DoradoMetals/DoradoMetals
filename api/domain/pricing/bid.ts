@@ -36,9 +36,8 @@
 // string "NaN"; a total that cannot be computed must stop here, not print on a
 // document a customer is paid against.
 import { Invalid } from "#shared/errors.ts";
-import type { OrderView, OrderViewItem } from "@dorado/contracts";
+import type { orders } from "@dorado/contracts";
 
-export type { OrderView, OrderViewItem } from "@dorado/contracts";
 
 // THE QUOTE FEED, KEYED BY THE METAL IT PRICES. A map rather than an array of
 // `{name, ask, bid}` because a line names a metal by ID and always has: the
@@ -52,7 +51,7 @@ export type Bids = ReadonlyMap<string, number | null>;
 // THE PARCEL THE CUSTOMER SENT, not the one going back. A return leg's cost is
 // the business's to bear and must never be deducted from what a customer is
 // paid.
-export function inboundShipment(view: OrderView): OrderView["shipments"][number] | null {
+export function inboundShipment(view: orders.orders.View): orders.orders.View["shipments"][number] | null {
   return view.shipments.find((s) => s.direction !== "Return") ?? null;
 }
 
@@ -83,7 +82,7 @@ function finite(total: number, what: string): number {
 // The parameter names what the rule reads and nothing else, because three
 // surfaces price a payout - the stored total, the drawer estimate and the
 // customer's profit breakdown - and they hold an order in two shapes: an
-// OrderView carries the flag on `totals`, the quote surface's own assembled
+// orders.orders.View carries the flag on `totals`, the quote surface's own assembled
 // order carries it at the top level. One condition, both spellings, rather
 // than three copies that can disagree.
 export function effectivePayoutFee(order: {
@@ -99,11 +98,11 @@ export function effectivePayoutFee(order: {
 // The line's own content, and only the line's. Migration 120 backfilled the
 // rows that used to need a catalogue fallback; a bullion line with none left
 // is corrupt data, not a case this function papers over.
-export function recordedContent(line: OrderViewItem): number | null {
+export function recordedContent(line: orders.items.ViewItem): number | null {
   return line.content ?? null;
 }
 
-export function unitContent(line: OrderViewItem): number {
+export function unitContent(line: orders.items.ViewItem): number {
   const content = recordedContent(line);
   if (content == null) {
     // A bullion line with no content is corrupt data (migration 120 backfilled
@@ -124,7 +123,7 @@ export function unitContent(line: OrderViewItem): number {
 
 // How many of the line there are. A scrap lot is one lot however many pieces
 // were in the bag - multiplying its content by a quantity double-counts.
-export function unitsOf(line: OrderViewItem): number {
+export function unitsOf(line: orders.items.ViewItem): number {
   if (line.bullion_id === null) return 1;
   const quantity = Number(line.quantity ?? 1);
   return Number.isFinite(quantity) ? quantity : 1;
@@ -132,7 +131,7 @@ export function unitsOf(line: OrderViewItem): number {
 
 // WHAT ONE OF THIS LINE IS WORTH. The stored price wins; otherwise it is fine
 // metal times the quote times the premium the line carries.
-export function unitPrice(line: OrderViewItem, bids: Bids): number {
+export function unitPrice(line: orders.items.ViewItem, bids: Bids): number {
   if (line.price != null) return line.price;
   if (!bids.has(line.metal_id)) {
     throw new TypeError(
@@ -143,27 +142,27 @@ export function unitPrice(line: OrderViewItem, bids: Bids): number {
 }
 
 // WHAT THE LINE IS WORTH: one unit times how many.
-export function linePrice(line: OrderViewItem, bids: Bids): number {
+export function linePrice(line: orders.items.ViewItem, bids: Bids): number {
   return unitPrice(line, bids) * unitsOf(line);
 }
 
-export function itemsTotal(lines: OrderViewItem[], bids: Bids): number {
+export function itemsTotal(lines: orders.items.ViewItem[], bids: Bids): number {
   return lines.reduce((sum, line) => sum + linePrice(line, bids), 0);
 }
 
 // The scrap lines and the bullion lines, when a document prints them apart.
-export function scrapLines(lines: OrderViewItem[]): OrderViewItem[] {
+export function scrapLines(lines: orders.items.ViewItem[]): orders.items.ViewItem[] {
   return lines.filter((line) => line.bullion_id === null);
 }
 
-export function bullionLines(lines: OrderViewItem[]): OrderViewItem[] {
+export function bullionLines(lines: orders.items.ViewItem[]): orders.items.ViewItem[] {
   return lines.filter((line) => line.bullion_id !== null);
 }
 
 // WHAT THE CUSTOMER IS PAID: the metal, less the postage they were charged and
 // the fee for moving the money. Both subtrahends go through `fee`, which is the
 // point - the asymmetry between them is how the NaN got in.
-export function calculateTotalPrice(view: OrderView, bids: Bids): number {
+export function calculateTotalPrice(view: orders.orders.View, bids: Bids): number {
   const metal = itemsTotal(view.items, bids);
   const shipping = fee(inboundShipment(view)?.cost, "the shipping charge");
   return finite(metal - shipping - effectivePayoutFee(view), "the order total");
@@ -172,6 +171,6 @@ export function calculateTotalPrice(view: OrderView, bids: Bids): number {
 // WHAT THE RETURN PARCEL IS INSURED FOR: the metal, and neither fee. A return
 // is insured for what the metal is worth, and a NaN here posts a customer's
 // metal back uninsured.
-export function calculateReturnDeclaredValue(view: OrderView, bids: Bids): number {
+export function calculateReturnDeclaredValue(view: orders.orders.View, bids: Bids): number {
   return finite(itemsTotal(view.items, bids), "the return declared value");
 }

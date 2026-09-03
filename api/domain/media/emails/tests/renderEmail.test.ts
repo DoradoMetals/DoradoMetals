@@ -6,7 +6,7 @@ import {
   renderSalesOrderToSupplierEmail,
   renderOrderPricedEmail,
 } from "#domain/media/emails/utils/renderEmail.ts";
-import type { OrderView } from "@dorado/contracts";
+import type { orders } from "@dorado/contracts";
 
 // THE ORDER VIEW (D214 item 12), not a convenience object: the address and the
 // money are nullable rows, an item's price and quantity are nullable columns,
@@ -15,7 +15,7 @@ import type { OrderView } from "@dorado/contracts";
 // the failure this file exists to catch, so it is typed as one.
 const GOLD = "11111111-1111-4111-8111-111111111111";
 
-const order = (over: Record<string, unknown> = {}): OrderView =>
+const order = (over: Record<string, unknown> = {}): orders.orders.View =>
   Object.assign(
     {
       order: { id: "00000000-0000-0000-0000-000000000001", number: 55 },
@@ -42,7 +42,7 @@ const order = (over: Record<string, unknown> = {}): OrderView =>
       shipments: [],
       pickup: null,
       payout: null,
-    } as unknown as OrderView,
+    } as unknown as orders.orders.View,
     over
   );
 

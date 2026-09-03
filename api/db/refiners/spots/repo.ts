@@ -69,8 +69,8 @@ export async function getNamed(
 // NOT idempotent: this table has no unique constraint on (order_id, metal_id)
 // where orders.spots does, so there is no conflict target to name. The rule
 // that builds these rows filters out the metals already covered.
-export type SpotNew = Pick<refiners.SpotsRow, "order_id" | "metal_id" | "refiner_order_id"> &
-  Partial<Pick<refiners.SpotsRow, "id" | "refiner_id" | "ask" | "bid">>;
+export type SpotNew = Pick<refiners.spots.Row, "order_id" | "metal_id" | "refiner_order_id"> &
+  Partial<Pick<refiners.spots.Row, "id" | "refiner_id" | "ask" | "bid">>;
 
 export async function create(row: SpotNew, executor?: Executor): Promise<RefinerSpotRow | undefined> {
   const { rows } = await query<RefinerSpotRow>(
@@ -122,7 +122,7 @@ export async function createMany(
 // Keyed on (order_id, metal_id): every caller holds that pair, never this table's own id — which is why buildUpdate takes a `where` map, a spot being one metal on one order.
 export const PATCHABLE = ["bid"] as const;
 
-export type SpotPatch = Partial<Pick<refiners.SpotsRow, (typeof PATCHABLE)[number]>>;
+export type SpotPatch = Partial<Pick<refiners.spots.Row, (typeof PATCHABLE)[number]>>;
 
 export async function update(
   order_id: string, metal_id: string, patch: SpotPatch, executor?: Executor

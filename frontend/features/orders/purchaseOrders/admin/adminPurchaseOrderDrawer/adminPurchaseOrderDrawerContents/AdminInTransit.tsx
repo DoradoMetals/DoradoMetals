@@ -14,7 +14,7 @@ import {
   useShipmentDisplay,
   outboundOf,
 } from '@/features/shipping/queries'
-import type { Shipment } from '@dorado/contracts'
+import type { shipping } from "@dorado/contracts";
 
 export default function AdminInTransitPurchaseOrder({ order }: PurchaseOrderDrawerContentProps) {
   // A CONTAINER for its own parcel (ruling 14) - see the same note in the
@@ -56,7 +56,7 @@ export function PreTransit({
   carrierId,
   color,
 }: {
-  shipment?: Shipment
+  shipment?: shipping.shipments.Row
   carrierId: string | null
   color?: string
 }) {

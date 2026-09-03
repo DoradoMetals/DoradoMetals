@@ -7,7 +7,7 @@ import type { Executor } from "#shared/db/executor.ts";
 
 const sql = sqlFrom(import.meta.dirname);
 
-export type UserAddressRow = places.UserAddressesRow;
+export type UserAddressRow = places.user_addresses.Row;
 
 // Both default flags follow the one legacy is_default; splitting them apart needs a product decision and a UI, not a repo.
 export type NewUserAddress = { label?: string | null; default_shipping: boolean };

@@ -8,23 +8,19 @@
 // components already null-guard most of them (`review.review_text ?? ''`,
 // `Number(r.rating) || 0`), which is what a hand-written type being wrong
 // looks like from the inside: the code knows, the declaration does not.
-import type {
-  Review as ReviewContract,
-  CreateReviewBody,
-  ReviewPatch as ReviewPatchContract,
-} from '@dorado/contracts'
+import type { reviews } from "@dorado/contracts";
 
-export type Review = ReviewContract
+export type Review = reviews.reviews.Row
 
 // The create body is the SIX columns the API's statement writes - see the
 // contract for why `hidden` is load-bearing and must not be trimmed off.
-export type NewReview = CreateReviewBody
+export type NewReview = reviews.reviews.New
 
 // The update body's `patch`: the same four columns reviews.update() writes
 // (api/db/reviews/repo.ts PATCHABLE), now the contract's own export.
 // created_at/updated_at are stamped by the audit trigger now and are no
 // longer patchable at all.
-export type ReviewPatch = ReviewPatchContract
+export type ReviewPatch = reviews.reviews.Patch
 
 // The update mutation's variable bundle: the id and the patch. react-query
 // plumbing, not a wire shape - the body it builds is { review_id, patch }.

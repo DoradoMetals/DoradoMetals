@@ -3,7 +3,7 @@
 // ONE POST /quotes/catalog for the whole grid, never a quote per card: the
 // page collects every id a card can select - the group default and each
 // variant - quotes the batch, and hands each card the answers as a map.
-import type { CatalogQuote } from '@dorado/contracts'
+import type { quotes } from "@dorado/contracts";
 import type { ProductGroup } from '@/features/products/types'
 import type { CatalogQuoteItem } from '@/features/quotes/queries'
 
@@ -25,6 +25,6 @@ export function catalogQuoteItems(groups: ProductGroup[]): CatalogQuoteItem[] {
 // The quote's per-unit answers keyed by product id - the shape the cards take
 // as a prop. Empty until the quote lands, so a card prices at zero rather
 // than NaN.
-export function unitPricesById(quote?: CatalogQuote): Record<string, number> {
+export function unitPricesById(quote?: quotes.CatalogQuote): Record<string, number> {
   return Object.fromEntries((quote?.items ?? []).map((l) => [l.id, l.unit_price]))
 }

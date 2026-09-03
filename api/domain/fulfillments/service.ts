@@ -13,7 +13,7 @@ import * as compose from "#domain/fulfillments/compose.ts";
 import type { ComposedFulfillment, Details } from "#domain/fulfillments/compose.ts";
 import { Conflict, NotFound } from "#shared/errors.ts";
 import type { PoolClient } from "pg";
-import type { Direction, fulfillments as fulfillmentTables } from "@dorado/contracts";
+import type { fulfillments as fulfillmentTables, orders as ordersContract } from "@dorado/contracts";
 
 type Executor = PoolClient | undefined;
 
@@ -22,8 +22,7 @@ export type { MethodRow } from "#domain/fulfillments/methods/service.ts";
 // the name the old row type had.
 type FulfillmentRow = ComposedFulfillment;
 
-// Direction is the contract's; category is the generated row's own enum. Neither is hand-written here, so widening either is a compile error, not a runtime surprise.
-type Category = fulfillmentTables.MethodsRow["category"];
+// `orders.enums.Direction` is the contract's; category is the generated row's own enum. Neither is hand-written here, so widening either is a compile error, not a runtime surprise.
 
 // Every refusal carries a status, which is why the messages are worth writing: errorHandler shows a message to the caller only for a deliberate 4xx - these used to be bare `new Error`, so every one arrived as a generic 500 "Server error", and an admin trying to move an order off SHIPMENT was told that instead of "cancel the shipment first".
 // NotFound for "that doesn't exist", Conflict for "the current state forbids this" - shared/errors.ts. A use case names the KIND of refusal; shared/middleware/errorHandler.ts maps it to a status, so no domain file spells an HTTP code (D214 item 11).
@@ -129,7 +128,7 @@ async function createFulfillment(
 
 // A draft for checkout: the fulfillment exists and mutates while the customer decides, and order creation attaches it. The offered-method check is the same one choose() runs.
 export async function createDraft(
-  { method_id, direction }: { method_id: string; direction: Direction },
+  { method_id, direction }: { method_id: string; direction: ordersContract.enums.Direction },
   executor?: Executor
 ): Promise<ComposedFulfillment | null> {
   await methodService.assertOffered({ method_id, direction }, executor);
@@ -162,7 +161,7 @@ export async function attachDraft(
 export async function attachForCheckout(
   { order_id, direction, fulfillment_id, method_id, pickup_address_id, location_id, start_time }: {
     order_id: string;
-    direction: Direction;
+    direction: ordersContract.enums.Direction;
     fulfillment_id: string | null;
     method_id: string | null;
     pickup_address_id: string | null;
@@ -224,7 +223,7 @@ async function recompose(id: string, executor?: Executor): Promise<ComposedFulfi
 // Choosing a method, from the customer's side. Admin callers go through chooseById instead - an admin putting an order on OWN LABEL is the reason OWN LABEL exists.
 export async function choose(
   { order_id, method_id, direction }:
-    { order_id: string; method_id: string; direction: Direction },
+    { order_id: string; method_id: string; direction: ordersContract.enums.Direction },
   executor?: Executor
 ): Promise<ComposedFulfillment | null> {
   await methodService.assertOffered({ method_id, direction }, executor);
@@ -242,7 +241,7 @@ export async function chooseById(
 // The default for a direction/category, for flows that don't ask. Both come from the seed, not a constant here, so changing the default is an UPDATE, not a deploy.
 export async function chooseDefault(
   { order_id, direction, category = "SHIPMENT" }:
-    { order_id: string; direction: Direction; category?: Category },
+    { order_id: string; direction: ordersContract.enums.Direction; category?: fulfillmentTables.methods.Row["category"] },
   executor?: Executor
 ): Promise<ComposedFulfillment | null> {
   const method = await methodService.getDefault({ direction, category }, executor);
@@ -295,7 +294,7 @@ export async function setMethod(
 
 // Category is checked against the method, not trusted. A pickup row for a DROPSHIP fulfillment is a row every read attaches and none expects, and nothing in the schema would catch it.
 export async function assertCategory(
-  fulfillment_id: string, category: Category, executor?: Executor
+  fulfillment_id: string, category: fulfillmentTables.methods.Row["category"], executor?: Executor
 ): Promise<void> {
   const row = await fulfillments.getOne(fulfillment_id, executor);
   if (!row) throw new NotFound(`no such fulfillment: ${fulfillment_id}`);

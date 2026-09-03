@@ -1,13 +1,13 @@
 import { z } from "zod/v4";
-import { ProductCreate, ProductPatch } from "@dorado/contracts";
+import { products } from "@dorado/contracts";
 import { requiredParam } from "#shared/http/caller.ts";
 import { oneString } from "#shared/http/query.ts";
 import { parseStrict } from "#shared/http/validate.ts";
 import { asyncHandler } from "#shared/middleware/asyncHandler.ts";
 import * as productService from "#domain/products/service.ts";
 
-const SaveBody = z.object({ product: ProductPatch.strict() }).strict();
-const CreateBody = ProductCreate.strict();
+const SaveBody = z.object({ product: products.bullion.Patch.strict() }).strict();
+const CreateBody = products.bullion.New.strict();
 
 export const getAllProducts = asyncHandler(async (req, res) => {
   res.status(200).json(await productService.getAllProducts());

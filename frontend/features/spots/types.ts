@@ -12,8 +12,8 @@
 //     (2026-08-28) - same names as the live feed, no edge mapping left;
 //   - AdminMetal is features/products/types.ts - it is served by
 //     /products/get_metals and converts with products.
-import type { SpotPrice as SpotPriceContract } from "@dorado/contracts";
+import type { spots } from "@dorado/contracts";
 
 export type Metal = "Gold" | "Silver" | "Platinum" | "Palladium";
 
-export type SpotPrice = SpotPriceContract;
+export type SpotPrice = spots.spots.Read;

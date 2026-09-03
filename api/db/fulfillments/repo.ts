@@ -9,7 +9,7 @@ import type { Executor } from "#shared/db/executor.ts";
 const sql = sqlFrom(import.meta.dirname);
 
 export type FulfillmentBaseRow = Pick<
-  fulfillments.FulfillmentsRow,
+  fulfillments.fulfillments.Row,
   | "id" | "order_id" | "method_id" | "status" | "created_at" | "updated_at"
   | "created_by" | "updated_by"
   | "created_by_id" | "updated_by_id"

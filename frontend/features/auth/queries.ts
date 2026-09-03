@@ -9,7 +9,7 @@ import { apiRequest } from '@/shared/queries/axios'
 import { Product } from '@/features/products/types'
 import { SellCartItem } from '@/features/cart/types'
 import type { SpotPrice } from '@/features/spots/types'
-import type { checkout } from '@dorado/contracts'
+import type { checkout } from "@dorado/contracts";
 import {
   admin,
   changeEmail,
@@ -28,7 +28,7 @@ import {
 } from './authClient'
 import { useSyncCartToBackend, useSyncSellCartToBackend } from '@/features/cart/queries'
 
-type CheckoutItemRow = checkout.ItemsRow
+type CheckoutItemRow = checkout.items.Row
 
 const clearClientState = () => {
   cartStore.getState().clearCart()

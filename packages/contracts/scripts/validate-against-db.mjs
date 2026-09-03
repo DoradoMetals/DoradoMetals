@@ -28,14 +28,13 @@ dotenv.config({
 // the application actually sees rather than pg defaults.
 pg.types.setTypeParser(pg.types.builtins.NUMERIC, (v) => (v === null ? null : parseFloat(v)));
 pg.types.setTypeParser(pg.types.builtins.INT8, (v) => (v === null ? null : Number(v)));
-// exchange.js, NOT tables.js. The generator split its output per schema and
-// tables.js stopped being emitted - but tsc does not delete stale outputs, so
-// the old file sat in dist/ and this validator kept validating against a
-// FOSSIL of the schema. It reported columns 086 dropped as missing from every
-// row, while verify:fresh - which reads src/ - said everything matched. If the
-// import target ever goes stale again, the build now removes it: see the clean
-// step in package.json.
-import * as tables from "../dist/generated/exchange.js";
+// THE ENTITY NAMESPACE, not a per-schema barrel. The generator used to emit
+// one file per SCHEMA and this imported `dist/generated/exchange.js`; when the
+// output split per TABLE that path stopped existing. tsc does not delete stale
+// outputs, so a fossil in dist/ once let this validate against a schema the
+// database no longer had - the build's clean step and this import both point
+// at what the package actually exports now.
+import { exchange } from "../dist/index.js";
 
 const LIMIT = Number(process.env.VALIDATE_LIMIT ?? 200);
 
@@ -54,15 +53,12 @@ const { rows: tableRows } = await client.query(`
   ORDER BY table_name
 `);
 
-const pascal = (s) =>
-  s.split(/[_\s]+/).map((w) => w[0].toUpperCase() + w.slice(1)).join("");
-
 let checked = 0;
 let clean = 0;
 const failures = [];
 
 for (const { table_name } of tableRows) {
-  const schema = tables[`${pascal(table_name)}Row`];
+  const schema = exchange[table_name]?.Row;
   if (!schema) continue;
 
   // bytea reaches the wire as encode(col, 'base64'), so a raw SELECT * hands

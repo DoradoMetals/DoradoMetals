@@ -2,28 +2,27 @@
 import query from "#shared/db/query.ts";
 import { buildUpdate } from "#shared/db/patch.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
-import type { orders } from "@dorado/contracts";
+import type { orders as ordersContract } from "@dorado/contracts";
 import type { Executor } from "#shared/db/executor.ts";
 
 const sql = sqlFrom(import.meta.dirname);
 
-export type OrderRow = orders.OrdersRow;
+export type OrderRow = ordersContract.orders.Row;
 
 export async function exists(id: string, executor?: Executor): Promise<boolean> {
   const { rows } = await query<{ present: boolean }>(sql("exists"), [id], executor);
   return rows[0]?.present === true;
 }
 
-// THE COLUMN'S OWN TYPE, not `string`: the contract's Direction IS the
+// THE COLUMN'S OWN TYPE, not `string`: the contract's `orders.enums.Direction` IS the
 // orders.direction enum, which is what lets a caller pass the answer straight
 // into a rule without a cast.
-export type { Direction } from "@dorado/contracts";
-import type { Direction } from "@dorado/contracts";
+import type { orders } from "@dorado/contracts";
 
 export async function directionOf(
   id: string, executor?: Executor
-): Promise<Direction | null> {
-  const { rows } = await query<{ direction: Direction }>(
+): Promise<ordersContract.enums.Direction | null> {
+  const { rows } = await query<{ direction: ordersContract.enums.Direction }>(
     sql("direction_of"), [id], executor
   );
   return rows[0]?.direction ?? null;

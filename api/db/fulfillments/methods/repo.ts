@@ -10,7 +10,7 @@ const sql = sqlFrom(import.meta.dirname);
 
 // created_by/updated_by(_id) aren't projected here - who edited a reference row isn't part of the menu. get_one.sql serves the whole row instead.
 export type MethodRow = Pick<
-  fulfillments.MethodsRow,
+  fulfillments.methods.Row,
   | "id" | "type" | "label" | "admin_label" | "category" | "direction"
   | "enabled" | "hidden" | "is_default" | "created_at" | "updated_at"
 >;

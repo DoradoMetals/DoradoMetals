@@ -10,7 +10,7 @@ const sql = sqlFrom(import.meta.dirname);
 // The public row: what any visitor may see, plus the two ids compose.ts turns
 // into labels and then drops.
 export type PublicProductRow = Pick<
-  products.BullionRow,
+  products.bullion.Row,
   | "id" | "name" | "description" | "content" | "purity" | "gross"
   | "bid_premium" | "ask_premium" | "type" | "image_front" | "image_back"
   | "variant_group" | "shadow_offset" | "slug" | "legal_tender"
@@ -21,7 +21,7 @@ export type PublicProductRow = Pick<
 // The admin row: everything above plus what only an admin sees, and the third
 // id - a supplier is not a public fact about a product.
 export type AdminProductRow = Pick<
-  products.BullionRow,
+  products.bullion.Row,
   | "id" | "name" | "description" | "bid_premium" | "ask_premium" | "type"
   | "created_at" | "updated_at" | "image_front" | "image_back" | "display"
   | "content" | "gross" | "purity" | "variant_group" | "shadow_offset"
@@ -31,7 +31,7 @@ export type AdminProductRow = Pick<
   | "metal_id" | "mint_id" | "supplier_id"
 >;
 
-export type Liveness = Pick<products.BullionRow, "id" | "display">;
+export type Liveness = Pick<products.bullion.Row, "id" | "display">;
 
 // Full replace, not a sparse patch: an absent field binds NULL, exactly as when this was a positional tuple.
 // metal_id/mint_id/supplier_id are ids already resolved by the service; updated_by/updated_at are the trigger's (migration 116), not this type's.

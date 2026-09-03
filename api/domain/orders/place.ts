@@ -47,7 +47,7 @@ import type { NewOrderTotals } from "#db/orders/transactions/repo.ts";
 import type { CheckoutRow } from "#db/checkout/checkouts/repo.ts";
 import type { AddressRow } from "#db/places/addresses/repo.ts";
 import type { SpotWire } from "#domain/spots/compose.ts";
-import type { OrderView } from "@dorado/contracts";
+import type { orders } from "@dorado/contracts";
 
 // -------------------- the outside world
 
@@ -76,7 +76,7 @@ export const LIVE: World = {
 
 // -------------------- the one door
 
-export async function place(checkout_id: string, world: World = LIVE): Promise<OrderView> {
+export async function place(checkout_id: string, world: World = LIVE): Promise<orders.orders.View> {
   const checkout = await checkoutService.getRowById(checkout_id);
   if (!checkout) throw new NotFound(`no checkout ${checkout_id}`);
   const cart = await checkoutService.getItemsForOrder(checkout_id);

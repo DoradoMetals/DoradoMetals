@@ -1,6 +1,6 @@
 // Defaults are applied here explicitly, not by the columns: shipping.services' column defaults disagree with what exchange's always meant (supports_dropoff/is_residential defaulted true there, false here), so every write states every value.
 // A minimal (carrier_id, name) insert - what exchange's create did - would be refused here: several columns are NOT NULL with no default.
-// Inputs are the CONTRACT'S types now, parsed strictly at transport - CarrierServiceCreate/CarrierServicePatch, not a hand-typed "arrives as req.body" shape.
+// Inputs are the CONTRACT'S types now, parsed strictly at transport - shipping.services.New/shipping.services.Patch, not a hand-typed "arrives as req.body" shape.
 import { randomUUID } from "node:crypto";
 import withTransaction from "#shared/db/withTransaction.ts";
 import * as services from "#db/shipping/services/repo.ts";
@@ -11,14 +11,13 @@ import {
 import type { ServiceRow } from "#db/shipping/services/repo.ts";
 import type { Executor } from "#shared/db/executor.ts";
 // From the contracts, not the adapter (which merely re-exports it) - contracts is where the shape is declared.
-import type { CarrierServiceOption, CarrierServiceCreate, CarrierServicePatch } from "@dorado/contracts";
+import type { providers, shipping } from "@dorado/contracts";
 import { Invalid } from "#shared/errors.ts";
 
-export type { CarrierServiceOption };
 
 // Every field spelled explicitly, by name - no prop-spreading, so the repo
 // call never receives a field it wasn't written to expect.
-function toNewRow(body: CarrierServiceCreate, id: string): services.ServiceNew {
+function toNewRow(body: shipping.services.New, id: string): services.ServiceNew {
   return {
     id,
     carrier_id: body.carrier_id ?? null,
@@ -47,7 +46,7 @@ function toNewRow(body: CarrierServiceCreate, id: string): services.ServiceNew {
 // A key PRESENT is written, a key ABSENT is left alone (shared/db/patch.ts) -
 // the admin form sends every field today, but the patch itself no longer
 // forces that.
-function toPatchRow(body: CarrierServicePatch): services.ServicePatch {
+function toPatchRow(body: shipping.services.Patch): services.ServicePatch {
   return {
     carrier_id: body.carrier_id, name: body.name, description: body.description,
     code: body.code, provider_code: body.provider_code,
@@ -78,7 +77,7 @@ export async function getSaleOptions(): Promise<services.SaleServiceOption[]> {
 // `code` on the way out is the carrier's SERVICE type (matches a rate quote's serviceType); `carrier_code` is the service family FedEx wants for pickup availability.
 export async function getOfferedServices(
   carrier_id?: string | null, client?: Executor
-): Promise<CarrierServiceOption[]> {
+): Promise<providers.CarrierServiceOption[]> {
   const id = await carrierIdOr(carrier_id, client);
   const { catalogue } = await resolveCarrier(id, client);
   const ceilings = await ceilingsByName(id, client);
@@ -123,7 +122,7 @@ export async function insuranceCeiling(
   return lowestCeiling(await ceilingsByName(id, client));
 }
 
-// `code` is the carrier's service type - CarrierServiceOption.code, which is
+// `code` is the carrier's service type - providers.CarrierServiceOption.code, which is
 // what the browser round-trips back as `service.serviceType`.
 export async function insuranceCeilingFor(
   code: string | null | undefined, carrier_id?: string | null, client?: Executor
@@ -204,7 +203,7 @@ export async function getServicesByCarrierId(
 }
 
 export async function createService(
-  body: CarrierServiceCreate, executor?: Executor
+  body: shipping.services.New, executor?: Executor
 ): Promise<ServiceRow | null> {
   const run = async (c: Executor): Promise<ServiceRow | null> => {
     const id = randomUUID();
@@ -214,7 +213,7 @@ export async function createService(
 }
 
 export async function updateService(
-  body: CarrierServicePatch, executor?: Executor
+  body: shipping.services.Patch, executor?: Executor
 ): Promise<ServiceRow | null> {
   const run = async (c: Executor): Promise<ServiceRow | null> => {
     const changed = await services.update(body.id, toPatchRow(body), c);

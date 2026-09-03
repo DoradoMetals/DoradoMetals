@@ -25,7 +25,7 @@ import {
   buildInvoiceBullionRows,
 } from "#domain/media/pdfs/render/sections.ts";
 import type { DocumentLabels, PackageDetails } from "#domain/media/pdfs/render/sections.ts";
-import type { OrderView } from "@dorado/contracts";
+import type { orders } from "@dorado/contracts";
 
 export type { DocumentLabels, PackageDetails } from "#domain/media/pdfs/render/sections.ts";
 
@@ -35,10 +35,10 @@ export type { DocumentLabels, PackageDetails } from "#domain/media/pdfs/render/s
 // A purchase document prices the metal, so it needs the BIDS the order is
 // valued at; a sales-order invoice quotes the ASKS the customer was charged.
 // Both need the labels behind the ids the rows carry. Nothing here is a
-// composed order any more - `order` is the OrderView, straight from
+// composed order any more - `order` is the orders.orders.View, straight from
 // domain/orders/read.ts.
 export type PurchaseDocument = {
-  order: OrderView;
+  order: orders.orders.View;
   bids: Bids;
   labels: DocumentLabels;
   /** The box the parcel was booked with - only the packing list draws it. */
@@ -46,7 +46,7 @@ export type PurchaseDocument = {
 };
 
 export type SalesDocument = {
-  order: OrderView;
+  order: orders.orders.View;
   /** metal_id -> the ask the order was priced at. */
   asks: ReadonlyMap<string, number | null>;
   labels: DocumentLabels;

@@ -6,7 +6,7 @@ import type { Executor } from "#shared/db/executor.ts";
 
 const sql = sqlFrom(import.meta.dirname);
 
-export type LedgerRow = payments.LedgerRow;
+export type LedgerRow = payments.ledger.Row;
 
 export async function byUser(user_id: string, executor?: Executor): Promise<LedgerRow[]> {
   const { rows } = await query<LedgerRow>(sql("by_user"), [user_id], executor);

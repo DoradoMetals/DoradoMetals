@@ -1,4 +1,4 @@
-// WHAT THE BUSINESS PAYS, priced from an OrderView (D214 item 12).
+// WHAT THE BUSINESS PAYS, priced from an orders.orders.View (D214 item 12).
 //
 // The fixtures changed and the MONEY DID NOT. Every assertion below is the one
 // it was; what moved is where each figure lives:
@@ -24,7 +24,7 @@ import {
   type Bids,
 } from "#domain/pricing/service.ts";
 import { Invalid } from "#shared/errors.ts";
-import type { OrderView, OrderViewItem } from "@dorado/contracts";
+import type { orders } from "@dorado/contracts";
 
 const GOLD = "11111111-1111-4111-8111-111111111111";
 const SILVER = "22222222-2222-4222-8222-222222222222";
@@ -35,7 +35,7 @@ const bids: Bids = new Map([
   [SILVER, 30],
 ]);
 
-const scrapItem = (over: Partial<OrderViewItem> = {}): OrderViewItem =>
+const scrapItem = (over: Partial<orders.items.ViewItem> = {}): orders.items.ViewItem =>
   Object.assign(
     {
       id: "line-scrap",
@@ -46,13 +46,13 @@ const scrapItem = (over: Partial<OrderViewItem> = {}): OrderViewItem =>
       content: 2,
       quantity: 1,
       product: null,
-    } as unknown as OrderViewItem,
+    } as unknown as orders.items.ViewItem,
     over
   );
 
 // THE PREMIUM IS ON THE LINE, not on the product (Jacob, 2026-09-03). A
 // purchase bullion line holds the rate band's bullion_pct.
-const productItem = (over: Partial<OrderViewItem> = {}): OrderViewItem =>
+const productItem = (over: Partial<orders.items.ViewItem> = {}): orders.items.ViewItem =>
   Object.assign(
     {
       id: "line-bullion",
@@ -63,11 +63,11 @@ const productItem = (over: Partial<OrderViewItem> = {}): OrderViewItem =>
       premium: 0.8,
       content: 1,
       product: null,
-    } as unknown as OrderViewItem,
+    } as unknown as orders.items.ViewItem,
     over
   );
 
-const order = (over: Record<string, unknown> = {}): OrderView =>
+const order = (over: Record<string, unknown> = {}): orders.orders.View =>
   Object.assign(
     {
       order: { id: "order-1", number: 1 },
@@ -78,7 +78,7 @@ const order = (over: Record<string, unknown> = {}): OrderView =>
       pickup: null,
       payout: { cost: 0 },
       user: null,
-    } as unknown as OrderView,
+    } as unknown as orders.orders.View,
     over
   );
 
@@ -308,7 +308,7 @@ test("an unwaived fee is deducted, whatever the flag's other spellings", () => {
 
 // The three surfaces that price a payout fee go through ONE expression, so a
 // waived order cannot show a deduction on the drawer estimate and none on the
-// invoice. BOTH SPELLINGS ARE ACCEPTED: an OrderView carries the flag on
+// invoice. BOTH SPELLINGS ARE ACCEPTED: an orders.orders.View carries the flag on
 // `totals`, and domain/quotes' own assembled order carries it at the top level.
 test("effectivePayoutFee is the stored fee unless the order waives it", () => {
   assert.equal(effectivePayoutFee({ payout: { cost: 125 } }), 125);

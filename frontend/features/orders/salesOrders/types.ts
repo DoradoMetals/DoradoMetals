@@ -18,13 +18,7 @@ import { pickupSchema } from '@/features/handoff/types'
 import { serviceSchema } from '@/features/service/types'
 import { insuranceSchema } from '@/features/insurance/types'
 import { User } from '@/features/users/types'
-import {
-  Address as AddressContract,
-  SpotPrice as SpotPriceContract,
-  User as UserContract,
-  UserAddress as UserAddressContract,
-  type Order as OrderContract,
-} from '@dorado/contracts'
+import { exchange, orders, places, spots } from "@dorado/contracts";
 
 // THE SHARED HALF LIVES IN ../types.ts - the order type, the return-shipment
 // schema, the status-config types and the drawer prop interfaces, declared once
@@ -165,8 +159,8 @@ export const DEFAULT_SALES_SERVICE: SalesOrderService = {
 }
 
 export const salesOrderCheckoutSchema = z.object({
-  address: AddressContract,
-  user_address: UserAddressContract.optional(),
+  address: places.addresses.Row,
+  user_address: places.user_addresses.Read.optional(),
   service: salesOrderServiceSchema,
   payment_method: paymentMethodTypeSchema,
   items: z.array(productSchema).min(1, 'At least one item is required'),
@@ -174,15 +168,15 @@ export const salesOrderCheckoutSchema = z.object({
 export type SalesOrderCheckout = z.infer<typeof salesOrderCheckoutSchema>
 
 export const adminSalesOrderCheckoutSchema = z.object({
-  address: AddressContract,
-  user_address: UserAddressContract.optional(),
+  address: places.addresses.Row,
+  user_address: places.user_addresses.Read.optional(),
   service: salesOrderServiceSchema,
   payment_method: paymentMethodTypeSchema,
   items: z.array(productSchema).min(1, 'At least one item is required'),
   // Client-side form state: the admin picks the spots the order is
   // quoted at. Both create endpoints price server-side and ignore what
   // is sent, so this embeds the contract's live-spot schema directly.
-  order_metals: z.array(SpotPriceContract),
+  order_metals: z.array(spots.spots.Read),
   // THE CUSTOMER THE ORDER IS FOR, AND IT IS THE CONTRACT NOW (phase 3).
   //
   // This was the ACCOUNT FORM's schema in features/users/types.ts -
@@ -207,7 +201,7 @@ export const adminSalesOrderCheckoutSchema = z.object({
   // this object - api/features/orders/service.ts adminCreateSalesOrder types
   // its own parameter `{ id: string; dorado_funds?: number | null }` - and
   // both shapes carry both.
-  user: UserContract,
+  user: exchange.users.Read,
 })
 export type AdminSalesOrderCheckout = z.infer<typeof adminSalesOrderCheckoutSchema>
 

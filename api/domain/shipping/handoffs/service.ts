@@ -31,10 +31,9 @@ import {
 } from "#domain/shipping/operations/resolver.ts";
 // From the contracts, which is where the shape is declared - not via the
 // adapter, which merely re-exports it for a reader of that file.
-import type { CarrierHandoff } from "@dorado/contracts";
+import type { providers } from "@dorado/contracts";
 import type { Executor } from "#shared/db/executor.ts";
 
-export type { CarrierHandoff };
 
 // carrier_id is optional: exactly one carrier has a provider registered, so the
 // server can answer "which carrier" without the browser holding a uuid. See
@@ -42,7 +41,7 @@ export type { CarrierHandoff };
 // business preference.
 export async function getHandoffs(
   carrier_id?: string | null, client?: Executor
-): Promise<CarrierHandoff[]> {
+): Promise<providers.CarrierHandoff[]> {
   const id = await carrierIdOr(carrier_id, client);
   const { catalogue } = await resolveCarrier(id, client);
 

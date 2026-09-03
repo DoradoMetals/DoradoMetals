@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { apiRequest } from '@/shared/queries/axios'
 import { useGetSession } from '@/features/auth/queries'
 import { invalidateOrderReads } from '@/features/orders/invalidation'
-import type { Payout, PayoutDetails, PayoutPatch } from '@dorado/contracts'
+import type { exchange } from "@dorado/contracts";
 
 // THE ORDER'S PAYOUTS AS THEIR OWN READ (wave 3):
 // GET /orders/:orderId/payouts, LAST FOUR ONLY - ruling 12's single deviation
@@ -14,14 +14,14 @@ import type { Payout, PayoutDetails, PayoutPatch } from '@dorado/contracts'
 // which is exactly what the old slot showed them, and never more than the
 // last four digits. The full numbers still have one endpoint,
 // usePayoutDetails, admin-only, one payout at a time.
-export type { Payout } from '@dorado/contracts'
+export type Payout = exchange.payouts.Read;
 
 export const useOrderPayouts = (order_id: string) => {
   const { user } = useGetSession()
 
-  return useQuery<Payout[]>({
+  return useQuery<exchange.payouts.Read[]>({
     queryKey: ['order_payouts', order_id],
-    queryFn: async () => await apiRequest<Payout[]>('GET', `/orders/${order_id}/payouts`),
+    queryFn: async () => await apiRequest<exchange.payouts.Read[]>('GET', `/orders/${order_id}/payouts`),
     enabled: !!user && !!order_id,
   })
 }
@@ -38,13 +38,13 @@ export const useOrderPayouts = (order_id: string) => {
 // what the fee would have been (D117) - it sets a flag the server prices
 // against, so the effective fee is 0 and un-waiving restores the stored number
 // exactly. Read back off the order wire as `order.totals.waive_payout_fee`.
-export type { PayoutPatch } from '@dorado/contracts'
+export type PayoutPatch = exchange.payouts.Patch;
 
 type PatchPayoutVars = {
   payout_id: string
   // For the caches; the URL does not carry it.
   order_id: string
-  patch: PayoutPatch
+  patch: exchange.payouts.Patch
 }
 
 export const usePatchPayout = () => {
@@ -75,15 +75,15 @@ export const usePatchPayout = () => {
 // sealed values opened onto it (payments.details' AES-256-GCM envelopes),
 // not the verbatim exchange.payouts row this used to hand-type. A hand type
 // that only named nine of the row's fields kept compiling against either
-// shape - it is the contract's PayoutDetails now, so a field this reads that
+// shape - it is the contract's exchange.payouts.Details now, so a field this reads that
 // the server stops sending is a type error, not a silent undefined.
-export type { PayoutDetails } from '@dorado/contracts'
+export type PayoutDetails = exchange.payouts.Details;
 
 export const usePayoutDetails = (payout_id: string | null | undefined, enabled: boolean) => {
-  return useQuery<PayoutDetails>({
+  return useQuery<exchange.payouts.Details>({
     queryKey: ['payout_details', payout_id],
     queryFn: async () =>
-      await apiRequest<PayoutDetails>('GET', `/payouts/${payout_id}/details`),
+      await apiRequest<exchange.payouts.Details>('GET', `/payouts/${payout_id}/details`),
     enabled: !!payout_id && enabled,
     staleTime: 0,
     gcTime: 0,

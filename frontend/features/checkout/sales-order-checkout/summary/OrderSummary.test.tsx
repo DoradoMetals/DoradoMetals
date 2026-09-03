@@ -35,7 +35,7 @@ vi.mock("@/shared/ui/PriceNumberFlow", () => ({
 import { apiRequest } from "@/shared/queries/axios";
 import { cartStore } from "@/shared/store/cartStore";
 import OrderSummary from "@/features/checkout/sales-order-checkout/summary/orderSummary";
-import type { SalesOrderQuote } from "@dorado/contracts";
+import type { quotes } from "@dorado/contracts";
 import type { Product } from "@/features/products/types";
 
 const eagle = (): Product =>
@@ -57,7 +57,7 @@ const eagle = (): Product =>
     shadow_offset: 0,
     slug: "gold-american-eagle",
     is_generic: false,
-    variant_label: null,
+    variant_label: "",
     legal_tender: true,
     domestic_tender: true,
     quantity: 1,
@@ -65,7 +65,7 @@ const eagle = (): Product =>
 
 // Distinct values so an assertion can only match the field it means. The
 // quote's line id matches eagle()'s so the item row shows its line_total.
-const prices = (): SalesOrderQuote => ({
+const prices = (): quotes.SalesOrderQuote => ({
   spots_at: "2026-08-27T00:00:00.000Z",
   item_total: 4500,
   base_total: 4577.25,

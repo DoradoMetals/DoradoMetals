@@ -1,5 +1,5 @@
 // What useCreateAddress and useUpdateAddress actually POST, checked against
-// @dorado/contracts' AddressCreateBody/AddressUpdateBody in strict mode. The
+// @dorado/contracts' places.addresses.CreateBody/places.addresses.UpdateBody in strict mode. The
 // contracts lane dropped is_valid/is_residential from the address body (both
 // are server-controlled); splitFormValues used to spread whatever the form
 // carried, which also leaked created_at/updated_at into an UPDATE (the form's
@@ -9,7 +9,7 @@ import { describe, expect, test, vi, beforeEach } from "vitest";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
-import { AddressCreateBody, AddressUpdateBody } from "@dorado/contracts";
+import { places } from "@dorado/contracts";
 
 vi.mock("@/shared/queries/axios", () => ({ apiRequest: vi.fn() }));
 vi.mock("@/features/auth/queries", () => ({
@@ -69,7 +69,7 @@ describe("useCreateAddress sends exactly what /addresses/create accepts", () => 
     const [, url, body] = vi.mocked(apiRequest).mock.calls[0];
     expect(url).toBe("/addresses/create");
 
-    expect(AddressCreateBody.safeParse(body).success).toBe(true);
+    expect(places.addresses.CreateBody.safeParse(body).success).toBe(true);
 
     const b = body as { address: Record<string, unknown> };
     expect(b.address).not.toHaveProperty("is_valid");
@@ -79,7 +79,7 @@ describe("useCreateAddress sends exactly what /addresses/create accepts", () => 
 
     // Proven: naming either retired field would fail the same parse.
     const withRetired = { ...b, address: { ...b.address, is_valid: true, is_residential: false } };
-    expect(AddressCreateBody.safeParse(withRetired).success).toBe(false);
+    expect(places.addresses.CreateBody.safeParse(withRetired).success).toBe(false);
   });
 });
 
@@ -96,7 +96,7 @@ describe("useUpdateAddress sends exactly what /addresses/update accepts", () => 
     const [, url, body] = vi.mocked(apiRequest).mock.calls[0];
     expect(url).toBe("/addresses/update");
 
-    const parsed = AddressUpdateBody.safeParse(body);
+    const parsed = places.addresses.UpdateBody.safeParse(body);
     expect(parsed.success).toBe(true);
 
     const b = body as { address: Record<string, unknown> };

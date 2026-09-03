@@ -1,5 +1,5 @@
 // What useSaveProduct and useCreateProduct actually POST, checked against
-// @dorado/contracts' ProductPatch/ProductCreate in strict mode. The
+// @dorado/contracts' products.bullion.Patch/products.bullion.New in strict mode. The
 // contracts lane replaced metal/supplier/mint NAMES with metal_id/
 // supplier_id/mint_id, dropped the stray top-level `user`, and dropped
 // `created_by` from create - these tests fail if any of those reappears, or
@@ -8,7 +8,7 @@ import { describe, expect, test, vi, beforeEach } from "vitest";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
-import { ProductPatch, ProductCreate } from "@dorado/contracts";
+import { products } from "@dorado/contracts";
 import type { AdminProduct } from "@/features/products/types";
 
 vi.mock("@/shared/queries/axios", () => ({ apiRequest: vi.fn() }));
@@ -113,7 +113,7 @@ describe("useSaveProduct sends exactly what /products/save_product accepts", () 
     expect(call).toBeTruthy();
     const body = call![2] as { product: unknown };
 
-    expect(ProductPatch.strict().safeParse(body.product).success).toBe(true);
+    expect(products.bullion.Patch.strict().safeParse(body.product).success).toBe(true);
 
     const product = body.product as Record<string, unknown>;
     expect(product.metal_id).toBe(METAL_ID);
@@ -146,7 +146,7 @@ describe("useSaveProduct sends exactly what /products/save_product accepts", () 
     }
 
     // Proven: naming any of them would fail the same parse.
-    expect(ProductPatch.strict().safeParse({ ...product, metal: "Silver" }).success).toBe(false);
+    expect(products.bullion.Patch.strict().safeParse({ ...product, metal: "Silver" }).success).toBe(false);
   });
 });
 
@@ -164,7 +164,7 @@ describe("useCreateProduct sends exactly what /products/create_product accepts",
     expect(call).toBeTruthy();
     const body = call![2];
 
-    expect(ProductCreate.strict().safeParse(body).success).toBe(true);
+    expect(products.bullion.New.strict().safeParse(body).success).toBe(true);
     expect(body as object).not.toHaveProperty("created_by");
   });
 });

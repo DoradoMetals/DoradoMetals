@@ -29,7 +29,7 @@ import { inPinnedTransaction, outside } from "#shared/testing/pinned-pool.ts";
 import { anId, aUser, anOrder } from "#shared/testing/builders/index.ts";
 import * as paymentsService from "#domain/payments/service.ts";
 import { LOCKS } from "#shared/testing/locks.ts";
-import { PaymentIntent } from "@dorado/contracts";
+import { payments } from "@dorado/contracts";
 
 await mockSessions();
 const { default: app } = await import("#app");
@@ -220,7 +220,7 @@ test("an admin reading a sales order's payment intent gets it, in the nested wir
       assert.equal(res.status, 200, `answered ${res.status} to an admin`);
       assert.ok(res.body && typeof res.body === "object", "the body was not an object");
 
-      const parsed = PaymentIntent.safeParse(res.body);
+      const parsed = payments.intents.Read.safeParse(res.body);
       assert.ok(
         parsed.success,
         "the response does not satisfy the nested contract: " +

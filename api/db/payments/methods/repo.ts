@@ -13,7 +13,7 @@ import type { Executor } from "#shared/db/executor.ts";
 
 const sql = sqlFrom(import.meta.dirname);
 
-export type MethodRow = payments.MethodsRow;
+export type MethodRow = payments.methods.Row;
 
 export const PATCHABLE = [
   "enabled", "display", "label", "surcharge_label", "flat_fee",

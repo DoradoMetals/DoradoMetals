@@ -1,5 +1,5 @@
 // What useUploadImage and useDeleteImage actually PUT/DELETE on the wire,
-// checked against @dorado/contracts' MediaUploadBody/MediaDeleteBody in
+// checked against @dorado/contracts' media.images.UploadBody/media.images.DeleteBody in
 // strict mode. The contracts lane dropped `path` and `user_id` from the
 // upload body (both were already ignored server-side, now refused) and
 // renamed mimeType/size to mime_type/size_bytes; delete lost `user_id`
@@ -9,7 +9,7 @@ import { describe, expect, test, vi, beforeEach } from "vitest";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
-import { MediaUploadBody, MediaDeleteBody } from "@dorado/contracts";
+import { media } from "@dorado/contracts";
 
 vi.mock("@/shared/queries/axios", () => ({ apiRequest: vi.fn() }));
 vi.mock("@/features/auth/queries", () => ({
@@ -44,7 +44,7 @@ describe("useUploadImage sends exactly what /images/upload accepts", () => {
     await waitFor(() => expect(apiRequest).toHaveBeenCalled());
     const [, url, body] = vi.mocked(apiRequest).mock.calls[0];
     expect(url).toBe("/images/upload");
-    expect(MediaUploadBody.strict().safeParse(body).success).toBe(true);
+    expect(media.images.UploadBody.strict().safeParse(body).success).toBe(true);
   });
 
   test("never carries path, user_id or the old camelCase names", async () => {
@@ -64,7 +64,7 @@ describe("useUploadImage sends exactly what /images/upload accepts", () => {
     expect(b).not.toHaveProperty("size");
 
     const withRetired = { ...b, path: "/test/", user_id: "u-1" };
-    expect(MediaUploadBody.strict().safeParse(withRetired).success).toBe(false);
+    expect(media.images.UploadBody.strict().safeParse(withRetired).success).toBe(false);
   });
 });
 
@@ -79,11 +79,11 @@ describe("useDeleteImage sends exactly what /images/delete accepts", () => {
     await waitFor(() => expect(apiRequest).toHaveBeenCalled());
     const [, url, body] = vi.mocked(apiRequest).mock.calls[0];
     expect(url).toBe("/images/delete");
-    expect(MediaDeleteBody.strict().safeParse(body).success).toBe(true);
+    expect(media.images.DeleteBody.strict().safeParse(body).success).toBe(true);
 
     const b = body as Record<string, unknown>;
     expect(b).not.toHaveProperty("user_id");
     const withUserId = { ...b, user_id: "u-1" };
-    expect(MediaDeleteBody.strict().safeParse(withUserId).success).toBe(false);
+    expect(media.images.DeleteBody.strict().safeParse(withUserId).success).toBe(false);
   });
 });

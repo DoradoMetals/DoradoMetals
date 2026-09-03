@@ -12,7 +12,7 @@ import type { Executor } from "#shared/db/executor.ts";
 
 const sql = sqlFrom(import.meta.dirname);
 
-export type ItemRow = checkout.ItemsRow;
+export type ItemRow = checkout.items.Row;
 
 // The lines as order creation needs them - see sql/list_for_order.sql.
 export type OrderLine = Pick<

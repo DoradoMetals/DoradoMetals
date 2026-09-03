@@ -35,7 +35,7 @@ import {
   formatCurrency,
   getPayoutDelay,
 } from "#domain/media/pdfs/render/format.ts";
-import type { OrderView, OrderViewItem } from "@dorado/contracts";
+import type { orders } from "@dorado/contracts";
 
 // THE LABELS A DOCUMENT PRINTS FOR THE IDS AN ORDER CARRIES. Three lookups,
 // one per reference table, resolved once by the caller: a row names its metal,
@@ -59,12 +59,12 @@ export type PackageDetails = {
 };
 
 const serviceOf = (
-  shipment: OrderView["shipments"][number] | null, labels: DocumentLabels
+  shipment: orders.orders.View["shipments"][number] | null, labels: DocumentLabels
 ): string =>
   (shipment?.carrier_service_id ? labels.services.get(shipment.carrier_service_id) : null) || "-";
 
 const packageOf = (
-  shipment: OrderView["shipments"][number] | null, labels: DocumentLabels
+  shipment: orders.orders.View["shipments"][number] | null, labels: DocumentLabels
 ): string =>
   (shipment?.package_id ? labels.packages.get(shipment.package_id) : null) || "-";
 
@@ -87,7 +87,7 @@ const rank = (name: string): number => {
 // an `orders.items` row and there should not be: the label is a document's
 // idea, so it is a map the document reads.
 export function scrapItemNames(
-  lines: OrderViewItem[], metals: ReadonlyMap<string, string>
+  lines: orders.items.ViewItem[], metals: ReadonlyMap<string, string>
 ): Map<string, string> {
   const ordered = lines
     .filter((line) => metals.has(line.metal_id))
@@ -105,7 +105,7 @@ export function scrapItemNames(
 }
 
 // The parcel going BACK, when there is one - the leg a cancelled order adds.
-export function returnShipment(order: OrderView): OrderView["shipments"][number] | null {
+export function returnShipment(order: orders.orders.View): orders.orders.View["shipments"][number] | null {
   return order.shipments.find((s) => s.direction === "Return") ?? null;
 }
 
@@ -116,7 +116,7 @@ const oz = (value: number | null | undefined): string =>
   value == null ? "&mdash;" : value.toFixed(3);
 
 export function renderInvoiceHeader(
-  order: OrderView,
+  order: orders.orders.View,
   total: number,
   bids: Bids,
   labels: DocumentLabels
@@ -208,7 +208,7 @@ export function renderInvoiceHeader(
 }
 
 export function renderInvoiceShippingAndPayout(
-  order: OrderView,
+  order: orders.orders.View,
   { payoutCost, labels }: { payoutCost: number; labels: DocumentLabels }
 ): string {
   const inbound = inboundShipment(order);
@@ -216,7 +216,7 @@ export function renderInvoiceShippingAndPayout(
   const isCancelled = order.order.status === "Cancelled";
 
   const leg = (
-    label: string, shipment: OrderView["shipments"][number]
+    label: string, shipment: orders.orders.View["shipments"][number]
   ): string => `
       <tr>
         <td class="text-left">${label}</td>
@@ -282,7 +282,7 @@ export function renderInvoiceShippingAndPayout(
 // recipient is the order's customer: auth.users' name, which is the same
 // person and a row this API owns.
 export function renderPackingShippingSection(
-  order: OrderView,
+  order: orders.orders.View,
   {
     isReturn = false,
     includePayoutFee = false,
@@ -402,7 +402,7 @@ export function renderPackingShippingSection(
 }
 
 export function renderOrderSummaryTable(
-  order: OrderView,
+  order: orders.orders.View,
   totalDisplay: string
 ): string {
   return `
@@ -432,7 +432,7 @@ export function renderOrderSummaryTable(
 }
 
 export function buildPackingScrapRows(
-  lines: OrderViewItem[], bids: Bids, labels: DocumentLabels
+  lines: orders.items.ViewItem[], bids: Bids, labels: DocumentLabels
 ): string {
   const names = scrapItemNames(lines, labels.metals);
 
@@ -453,7 +453,7 @@ export function buildPackingScrapRows(
 }
 
 export function buildPackingBullionRows(
-  lines: OrderViewItem[], bids: Bids, labels: DocumentLabels
+  lines: orders.items.ViewItem[], bids: Bids, labels: DocumentLabels
 ): string {
   return lines
     .map((line) => {
@@ -475,7 +475,7 @@ export function buildPackingBullionRows(
 }
 
 export function buildInvoiceScrapRows(
-  lines: OrderViewItem[], bids: Bids, labels: DocumentLabels
+  lines: orders.items.ViewItem[], bids: Bids, labels: DocumentLabels
 ): string {
   const names = scrapItemNames(lines, labels.metals);
 
@@ -496,7 +496,7 @@ export function buildInvoiceScrapRows(
     .join("");
 }
 
-export function buildInvoiceBullionRows(lines: OrderViewItem[], bids: Bids): string {
+export function buildInvoiceBullionRows(lines: orders.items.ViewItem[], bids: Bids): string {
   return lines
     .map((line) => {
       const total = unitPrice(line, bids) * (line.quantity ?? 1);

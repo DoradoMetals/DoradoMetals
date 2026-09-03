@@ -9,7 +9,7 @@ import type { Executor } from "#shared/db/executor.ts";
 
 const sql = sqlFrom(import.meta.dirname);
 
-export type OrderTotalsRow = orders.TransactionsRow;
+export type OrderTotalsRow = orders.transactions.Row;
 
 export async function getFor(
   order_id: string, executor?: Executor

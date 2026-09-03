@@ -1,3 +1,4 @@
+import type { checkout } from "@dorado/contracts";
 import { z } from 'zod/v4'
 import type { Product } from '@/features/products/types'
 
@@ -24,7 +25,7 @@ export const sellCartItemSchema = z.object({
 
 export type SellCartItem = z.infer<typeof sellCartItemSchema>
 
-export type { NewCheckoutItem } from '@dorado/contracts'
+export type NewCheckoutItem = checkout.items.New;
 
 // The product id doubles as the line id: two lines of one product are one line.
 export function sellLineFromProduct(product: Product, quantity = 1): SellCartItem {

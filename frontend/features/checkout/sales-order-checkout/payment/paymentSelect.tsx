@@ -1,5 +1,5 @@
 import { useSalesOrderCheckoutStore } from '@/shared/store/salesOrderCheckoutStore'
-import type { SalesOrderQuote } from '@dorado/contracts'
+import type { quotes } from "@dorado/contracts";
 import { useEffect } from 'react'
 import PriceNumberFlow from '../../../../shared/ui/PriceNumberFlow'
 
@@ -7,7 +7,7 @@ import PriceNumberFlow from '../../../../shared/ui/PriceNumberFlow'
 // choice"). The server applies a balance whenever one exists; this surface
 // shows what the quote applied and drives the CARD/CREDIT method from the
 // quote's own numbers. The "Use Bullion Credit?" switch is gone.
-export default function PaymentSelect({ orderPrices }: { orderPrices?: SalesOrderQuote }) {
+export default function PaymentSelect({ orderPrices }: { orderPrices?: quotes.SalesOrderQuote }) {
   const { data, setData } = useSalesOrderCheckoutStore()
 
   useEffect(() => {

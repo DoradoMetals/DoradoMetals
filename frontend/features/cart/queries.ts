@@ -6,12 +6,12 @@ import { useGetSession } from '../auth/queries'
 import { sellCartStore } from '@/shared/store/sellCartStore'
 import { useSpotPrices } from '@/features/spots/queries'
 import type { SellCartItem } from '@/features/cart/types'
-import type { NewCheckoutItem } from '@dorado/contracts'
+import type { checkout } from "@dorado/contracts";
 import type { Product } from '@/features/products/types'
 
 // Both baskets are PUT /checkout/items?direction=, which replaces the session's
 // lines. Only columns cross: content and premium are the server's.
-export const buyLine = (product: Product): NewCheckoutItem => ({
+export const buyLine = (product: Product): checkout.items.New => ({
   bullion_id: product.id,
   quantity: product.quantity ?? 1,
 })
@@ -21,8 +21,8 @@ export const buyLine = (product: Product): NewCheckoutItem => ({
 export function toSellLines(
   items: SellCartItem[],
   metals: { id: string; name: string }[]
-): NewCheckoutItem[] | null {
-  const out: NewCheckoutItem[] = []
+): checkout.items.New[] | null {
+  const out: checkout.items.New[] = []
   for (const item of items) {
     if (item.bullion_id !== null) {
       out.push({ bullion_id: item.bullion_id, quantity: item.quantity ?? 1 })

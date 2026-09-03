@@ -10,13 +10,13 @@ import * as spotsFeed from "#domain/spots/service.ts";
 import * as rules from "#domain/orders/rules.ts";
 import withTransaction from "#shared/db/withTransaction.ts";
 import { Invalid } from "#shared/errors.ts";
-import type { OrderSpotsPut } from "@dorado/contracts";
+import type { orders } from "@dorado/contracts";
 import type { OrderSpotRow, OrderSpotRawRow } from "#db/orders/spots/repo.ts";
 import type { PoolClient } from "pg";
 
 type Executor = PoolClient | undefined;
 
-export type { OrderSpotsPut } from "@dorado/contracts";
+export type OrderSpotsPut = orders.spots.PutBody;
 export type { OrderSpotRow, OrderSpotRawRow } from "#db/orders/spots/repo.ts";
 
 // VERBATIM rows (rulings 9 + 12). The metal is its id; a display name is the
@@ -42,7 +42,7 @@ export async function namedFor(
 // resolved against metals.metals, which meant a display string decided which
 // row a money edit landed on.
 export async function setSpots(
-  orderId: string, body: OrderSpotsPut
+  orderId: string, body: orders.spots.PutBody
 ): Promise<OrderSpotRow[]> {
   rules.assertDirection(await ordersRepo.directionOf(orderId), "purchase", "the spots PUT");
   if (body.lock === undefined && !body.set) {

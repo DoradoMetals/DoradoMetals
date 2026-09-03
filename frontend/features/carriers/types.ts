@@ -1,4 +1,4 @@
-import type { Carrier as CarrierContract } from '@dorado/contracts'
+import type { exchange, shipping } from "@dorado/contracts";
 
 // FOURTH CONVERTED FEATURE (2026-08-27), the first STRUCTURAL one. A carrier
 // is an organization with a role, and the converted shape keeps them apart:
@@ -6,7 +6,7 @@ import type { Carrier as CarrierContract } from '@dorado/contracts'
 // flat shape said `is_active`), the carrier's own row keeps id / logo /
 // timestamps. The old flat Carrier was the lift adapter's output; the adapter
 // is gone.
-export type Carrier = CarrierContract
+export type Carrier = shipping.carriers.Read
 
 // A CARRIER'S SERVICE, FROM THE CONTRACTS (phase 3, ruling 39). This was
 // twenty-four fields transcribed by hand, ALL of them required, against a
@@ -16,7 +16,7 @@ export type Carrier = CarrierContract
 // shipping.services aliased back to exactly those names on purpose
 // (get_all.sql's header says why), so the two now agree by construction
 // rather than by inspection.
-export type { CarrierService } from '@dorado/contracts'
+export type CarrierService = exchange.carrier_services.Row;
 
 // THE CREATE BODY, AND IT STAYS HERE. The API's own input type
 // (api/features/shipping/services/service.ts `ServiceInput`) is

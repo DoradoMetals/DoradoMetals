@@ -8,7 +8,7 @@ import type { Executor } from "#shared/db/executor.ts";
 
 const sql = sqlFrom(import.meta.dirname);
 
-export type MintRow = products.MintsRow;
+export type MintRow = products.mints.Row;
 
 export async function list(executor?: Executor): Promise<MintRow[]> {
   const { rows } = await query<MintRow>(sql("get_all"), [], executor);

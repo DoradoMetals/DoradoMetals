@@ -14,12 +14,12 @@
 // whose metal does not resolve is silently removed from the table.
 import { describe, expect, test } from "vitest";
 import { assignScrapItemNames } from "@/features/orders/purchaseOrders/types";
-import type { OrderItem } from "@dorado/contracts";
+import type { orders } from "@dorado/contracts";
 
 // A line, and the metal its metal_id resolves to. The id doubles as the
 // metal_id so the lookup below is a single map.
 const item = (metal: string | null, id = metal ?? "none") =>
-  ({ id, metal_id: metal ?? "unresolvable" }) as unknown as OrderItem;
+  ({ id, metal_id: metal ?? "unresolvable" }) as unknown as orders.items.Row;
 
 // The reference lookup a component does against the cached spots list.
 const metalNameOf = (metal_id: string) =>

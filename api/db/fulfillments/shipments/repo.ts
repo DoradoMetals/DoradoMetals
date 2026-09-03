@@ -9,7 +9,7 @@ import type { Executor } from "#shared/db/executor.ts";
 
 const sql = sqlFrom(import.meta.dirname);
 
-export type ShipmentLinkRow = fulfillments.ShipmentsRow;
+export type ShipmentLinkRow = fulfillments.shipments.Row;
 
 // Returns a LIST - the unique index is on shipment_id, so a fulfillment may have several parcels.
 export async function getFor(

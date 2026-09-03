@@ -14,14 +14,14 @@ import { payoutKeyFromEnv } from "#shared/crypto/payoutKey.ts";
 import { Invalid } from "#shared/errors.ts";
 import type { DetailRow, DetailValues } from "#db/payments/details/repo.ts";
 import type { Executor } from "#shared/db/executor.ts";
-import type { CheckoutPayoutForm } from "@dorado/contracts";
+import type { checkout } from "@dorado/contracts";
 
 export type { DetailRow } from "#db/payments/details/repo.ts";
 
 // THE FORM IS THE CONTRACT'S, not a second declaration of it: the checkout
-// controller parses a body against CheckoutPayoutForm and hands the result
+// controller parses a body against checkout.checkouts.PayoutForm and hands the result
 // straight here, so a field added there and not here cannot happen.
-export type PayoutForm = CheckoutPayoutForm;
+export type PayoutForm = checkout.checkouts.PayoutForm;
 
 const BANK_METHODS = new Set(["ACH", "WIRE"]);
 const EMAIL_METHODS = new Set(["ECHECK", "DORADO_ACCOUNT"]);

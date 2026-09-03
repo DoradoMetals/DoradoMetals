@@ -9,7 +9,7 @@ import { SalesOrder, SalesOrderCheckout } from '@/features/orders/salesOrders/ty
 import { toAddressSnapshot } from '@/features/orders/addressSnapshot'
 import { useApiMutation, useApiQuery } from '@/shared/queries/base'
 import { queryKeys } from '@/shared/queries/keys'
-import type { OrderView } from '@dorado/contracts'
+import type { orders } from "@dorado/contracts";
 
 // toAddressSnapshot moved to features/orders/addressSnapshot.ts - one copy
 // for both directions and the cancel op, which had three.
@@ -77,7 +77,7 @@ export const useCreateSalesOrder = () => {
         payment_method_id,
       })
 
-      return await apiRequest<OrderView>('POST', '/sales_orders/create_sales_order', {
+      return await apiRequest<orders.orders.View>('POST', '/sales_orders/create_sales_order', {
         checkout_id,
       })
     },
