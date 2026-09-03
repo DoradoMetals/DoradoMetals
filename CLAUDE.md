@@ -448,24 +448,31 @@ server otherwise gets strings, and `price + fee` concatenates.
 
 ## Verification
 
-`pnpm check` before committing — the serial 27-step chain, ~6.5 minutes,
-proven. `pnpm check:parallel` runs the same members through
-`scripts/check.mjs` in concurrent groups (phase5-fast-gate.md task 3) and is
-EXPERIMENTAL: its first full run was SLOWER (464 s) because the frontend and
-components groups oversubscribed the cores against the API suite's 24
-processes; the runner was made serial inside those groups and the rerun was
-never finished. Promote it to `check` only after one clean full run that
-beats the serial time. Background either one rather than letting a timeout
-kill it.
+`pnpm check` before committing — now `scripts/check.mjs` (phase5-fast-gate.md
+task 3), which runs the same 27 members grouped by dependency instead of one
+27-step serial chain: contracts build first (everything else imports its
+built dist), then five groups concurrently - API lints, API typecheck+test,
+components, frontend, and the dev-database audits (serial inside that one
+group only, by design - D196 recorded a livelock from concurrent dev
+queries). A first attempt let components' and frontend's own steps (each
+already internally multi-process - vitest, next build) race each other on
+TOP of the groups racing, oversubscribing the 24 cores badly enough to fail a
+component test on a resource-contention timeout (not a real bug) and run
+SLOWER than serial (464s). Fixed by making those two groups serial inside
+themselves; a clean rerun then measured 231s, PASS - down from the ~382s
+serial chain, now kept as `check:serial` for one release as a cross-check.
+Background it rather than letting a timeout kill it.
 
-**`pnpm check:fast` is a faster gate for iteration**: contracts build +
-verify:fresh + validate, the API's static lints, its typecheck, and its test
-suite (against the local database above). It omits everything that needs the
-DEV database (`verify:genesis`, `audit:coverage`, `audit:indexes`,
-`audit:query-paths`, `audit:constraints`, `audit:non-finite`,
-`audit:nullability`, `validate:wire`) and everything frontend/components,
-typecheck and build included. `pnpm check` is still the full chain and is what
-actually gates a commit.
+**`pnpm check:fast` is a faster gate for iteration**: `scripts/check.mjs
+--fast` - contracts build, then the API's static lints and its
+typecheck+test, concurrently. Measured 21.31s wall clock. It omits
+everything that needs the DEV database (`verify:fresh`, `validate`,
+`verify:genesis`, `audit:coverage`, `audit:indexes`, `audit:query-paths`,
+`audit:constraints`, `audit:non-finite`, `audit:nullability`, `validate:wire`)
+and everything frontend/components, typecheck and build included. `pnpm
+check` runs every member and is what actually gates a commit;
+`pnpm check:serial` is the same 27 members as one literal chain, kept as a
+cross-check for one release.
 
 The ones that have actually caught things:
 

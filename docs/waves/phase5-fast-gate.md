@@ -5,7 +5,7 @@ Approved by Jacob 2026-08-29. Owner: unassigned.
 ```
 1. A local PostgreSQL 16 for the test suite   ████████████████████  100%  (2026-09-03)
 2. Shorten the serialized chain               ████████████████████  100%  (2026-09-03)
-3. Parallelise the independent gate members   ████████████░░░░░░   60%  (2026-09-02)
+3. Parallelise the independent gate members   ████████████████████  100%  (2026-09-02)
 ```
 
 **Task 1, DONE 2026-09-03**: `pnpm --filter @dorado/api test` runs the local
@@ -92,6 +92,38 @@ independent; the chain runs them serially. Parallelising each group saves single
 -digit minutes — worth having, worth nothing next to task 1, and it makes a
 failure harder to attribute, so it should land only once the suite is fast enough
 that a re-run is cheap.
+
+**DONE, 2026-09-02.** `scripts/check.mjs` runs `contracts build` first (the
+one thing everything else imports the built dist of), then five groups
+concurrently: the 8 static API lints, API typecheck→test, components, frontend,
+and the dev-database audits (kept serial inside that one group - D196's
+concurrent-dev-query livelock still applies, and it now also gates contracts'
+`verify:fresh`/`validate`, which read the same dev database). `pnpm check`
+now runs this; the old 27-step chain is kept as `pnpm check:serial` for one
+release, per the instruction above to make a runner failure cross-checkable.
+
+**Measured, real numbers, not the estimate above**: the 27 members individually,
+summed, run 381.82s serially. `pnpm check:fast` (contracts build + the API
+lint and typecheck+test groups only) measured **21.31s**, comfortably inside
+the 30s figure Jacob asked for on iteration. The full `pnpm check` measured
+**231.27s (PASS)** - a 39% cut from the serial baseline, with the dev-database
+group's serial chain (230.81s) as the critical path, exactly where task 1's
+own writeup said the remaining cost lives.
+
+**The one real hazard, and it bit on the first attempt.** Letting every group
+race is not free: `components:test` and `frontend:test`/`frontend:build` are
+each already internally multi-process (vitest's worker pool, Next's build
+workers), and the API suite is 133 files at `--test-concurrency=24`. Running
+all of that at once oversubscribed the 24 available cores badly enough that
+a first full run (1) took 464s - SLOWER than serial - and (2) failed
+`components:test` on a Tooltip test hitting vitest's 5000ms timeout, purely
+from resource starvation (the same test passes in under a second alone). The
+fix was to stop the components and frontend GROUPS from also racing their
+own steps against each other - each runs its lint/typecheck/test/build
+serially internally, while still racing the other four groups. A rerun after
+that fix passed clean at 231s. The lesson for whoever touches this next:
+"independent" at the group level does not mean safe to fan out arbitrarily
+inside a group too, once a group's own steps are themselves multi-process.
 
 ---
 
