@@ -6,40 +6,62 @@ import {
   renderSalesOrderToSupplierEmail,
   renderOrderPricedEmail,
 } from "#domain/media/emails/utils/renderEmail.ts";
+import type { OrderView } from "@dorado/contracts";
 
-// The wire shape, not a convenience object: SalesOrder's address, totals, and an item's price/quantity are nullable - the fixture uses the same converted names the service hands the renderer.
-const order = (over = {}) => ({
-  id: "00000000-0000-0000-0000-000000000001",
-  number: 55,
-  totals: { items: 1234.5 },
-  address: {
-    address_id: "00000000-0000-0000-0000-000000000002",
-    recipient_name: "Jacob",
-    line_1: "1 Refinery Row",
-    line_2: null,
-    city: "Dallas",
-    state: "TX",
-    zip: "75201",
-  },
-  user: { user_name: "Jacob" },
-  order_items: [
+// THE ORDER VIEW (D214 item 12), not a convenience object: the address and the
+// money are nullable rows, an item's price and quantity are nullable columns,
+// and the customer's name comes from auth.users rather than from a joined
+// `user_name`. A hand-written fixture that drifted from the view is exactly
+// the failure this file exists to catch, so it is typed as one.
+const GOLD = "11111111-1111-4111-8111-111111111111";
+
+const order = (over: Record<string, unknown> = {}): OrderView =>
+  Object.assign(
     {
-      quantity: 2,
-      price: 100,
-      product: { name: "1 oz Gold Eagle" },
-    },
-  ],
-  ...over,
-});
+      order: { id: "00000000-0000-0000-0000-000000000001", number: 55 },
+      totals: { items: 1234.5 },
+      address: {
+        id: "00000000-0000-0000-0000-000000000002",
+        line_1: "1 Refinery Row",
+        line_2: null,
+        city: "Dallas",
+        state: "TX",
+        zip: "75201",
+      },
+      user: { id: "u1", name: "Jacob", email: "jacob@example.com" },
+      items: [
+        {
+          id: "line-1",
+          bullion_id: "prod-1",
+          metal_id: GOLD,
+          quantity: 2,
+          price: 100,
+          product: { name: "1 oz Gold Eagle" },
+        },
+      ],
+      shipments: [],
+      pickup: null,
+      payout: null,
+    } as unknown as OrderView,
+    over
+  );
 
-const spots = [{ name: "Gold", ask: 4000 }];
+// The metal names a document prints, and the asks it quotes - both keyed by
+// the metal's id, because a line names its metal by id and always has.
+const labels = {
+  metals: new Map([[GOLD, "Gold"]]),
+  services: new Map<string, string>(),
+  packages: new Map<string, string>(),
+};
+const asks = new Map<string, number | null>([[GOLD, 4000]]);
 
 test("the supplier email renders the order it was given", () => {
   const html = renderSalesOrderToSupplierEmail({
     firstName: "Refiner",
     url: "https://example.com/orders",
     order: order(),
-    spots,
+    asks,
+    labels,
   });
 
   assert.ok(html.includes("1 Refinery Row"), "the street is missing");
@@ -57,7 +79,8 @@ test("an order with no address renders rather than throwing", () => {
     firstName: "Refiner",
     url: "https://example.com/orders",
     order: order({ address: null }),
-    spots,
+    asks,
+    labels,
   });
 
   assert.ok(html.length > 500, "no document was produced");
@@ -73,7 +96,8 @@ test("a spot with no ask renders rather than throwing", () => {
     firstName: "Refiner",
     url: "https://example.com/orders",
     order: order(),
-    spots: [{ name: "Gold", ask: null }],
+    asks: new Map([[GOLD, null]]),
+    labels,
   });
 
   assert.ok(html.includes("Gold"), "the metal row is missing");

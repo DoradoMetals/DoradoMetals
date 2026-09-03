@@ -1,66 +1,116 @@
-// Every document's inputs, loaded by order id - the server resolves render inputs from its own tables (not the browser), shared by the four PDF routes and the confirmation email's twin (media/emails/service.ts).
-// The composed read is still the right read here: templates want an order put back together (lines, shipment, address), which is what read.service.ts assembles.
-import * as purchaseOrderReads from "#domain/orders/read.service.ts";
-import * as salesOrderReads from "#domain/orders/read.service.ts";
-import * as orderSpots from "#domain/orders/spots/service.ts";
-// The live spot feed - the same read the pricing paths use (spots.spots,
-// converted names).
+// EVERY DOCUMENT'S INPUTS, LOADED BY ORDER ID (ruling 10, wave 3).
+//
+// "The frontend sends IDs - plus genuine user input - and gets data back."
+// The four PDF routes were the last standing violation named in ruling 10:
+// each POSTed the WHOLE composed order, plus the live spot feed, plus the
+// package and the payout method, as its render body. So a customer's invoice
+// was rendered from numbers the customer's browser supplied.
+//
+// The body is `{ order_id }` now and this is what fills the gap: one place
+// that resolves an order's render inputs from the database, shared by the four
+// documents and by the confirmation email's twin in domain/media/emails.
+//
+// THE READ IS `orders/read.ts` view() (D214 item 12). It used to be
+// read.service.ts's composed order - a hand-built tree with renamed columns
+// and all-null slots. Everything a template reads is now a row of the table
+// that owns it, plus three label lookups and the quote the order prices at.
+import * as orderRead from "#domain/orders/read.ts";
+import * as orderSpots from "#db/orders/spots/repo.ts";
+import * as metalsRepo from "#db/metals/repo.ts";
+import * as servicesRepo from "#db/shipping/services/repo.ts";
+import * as packagesRepo from "#db/shipping/packages/repo.ts";
+// The LIVE spot feed - the same read the pricing paths use (spots.spots).
 import * as spotsFeed from "#domain/spots/service.ts";
-import * as packages from "#db/shipping/packages/repo.ts";
-import * as shipmentOrderRead from "#domain/shipping/shipments/order-read.ts";
+import { inboundShipment, type Bids } from "#domain/pricing/service.ts";
+import { NotFound } from "#shared/errors.ts";
+import type { DocumentLabels, PackageDetails } from "#domain/media/pdfs/service.ts";
+import type { OrderView } from "@dorado/contracts";
+import type { Executor } from "#shared/db/executor.ts";
 
-// Thrown rather than never-returning: TS only narrows past a never-returning call when the variable itself carries that annotation, so `if (!x) notFound(id)` alone wouldn't narrow.
-const notFound = (order_id: string): Error => {
-  const err: Error & { statusCode?: number } = new Error(`no order ${order_id}`);
-  err.statusCode = 404;
-  return err;
-};
-
-// The box the parcel was actually booked with: shipping.shipments names the row by id, shipping.packages holds the label and dimensions the packing list prints.
-export async function packageDetailsFor(order_id: string) {
-  const [shipment] = await shipmentOrderRead.getForOrder(order_id);
-  if (!shipment?.package_id) return undefined;
-  const pkg = await packages.getOne(shipment.package_id);
-  if (!pkg) return undefined;
+// The three name lookups every document shares, read once.
+async function documentLabels(executor?: Executor): Promise<DocumentLabels> {
+  const services = await servicesRepo.getAll(executor);
   return {
-    label: pkg.label,
-    dimensions: {
-      length: Number(pkg.length),
-      width: Number(pkg.width),
-      height: Number(pkg.height),
-    },
+    metals: await metalsRepo.namesById(executor),
+    services: new Map(services.map((s) => [s.id, s.name])),
+    packages: await packagesRepo.labelsById(executor),
   };
 }
 
-export async function packingListInputs(order_id: string) {
-  const purchaseOrder = await purchaseOrderReads.findPurchaseById(order_id);
-  if (!purchaseOrder) throw notFound(order_id);
+// WHICH QUOTE THE DOCUMENT PRICES AT. A locked order is valued at the spots
+// FROZEN onto it - that is what orders.spots exists for - and an unlocked one
+// at today's feed, because its price is still an estimate. Keyed by metal_id
+// both ways: the live feed's `id` IS the metal's id (domain/spots/compose.ts).
+async function bidsFor(order: OrderView, executor?: Executor): Promise<Bids> {
+  if (order.order.spots_locked) {
+    const frozen = await orderSpots.getRowsFor(order.order.id, executor);
+    return new Map(frozen.map((s) => [s.metal_id, s.bid]));
+  }
+  const live = await spotsFeed.getSpotPrices(executor);
+  return new Map(live.map((s) => [s.id, s.bid]));
+}
+
+async function loadOrder(order_id: string, executor?: Executor): Promise<OrderView> {
+  const order = await orderRead.view(order_id, executor);
+  if (!order) throw new NotFound(`no order ${order_id}`);
+  return order;
+}
+
+// The box the parcel was actually booked with. The browser used to guess it by
+// matching a hard-coded option list against the shipment's package LABEL;
+// shipping.shipments names the row by id and shipping.packages holds the label
+// and the dimensions the packing list prints.
+export async function packageDetailsFor(
+  order: OrderView, executor?: Executor
+): Promise<PackageDetails | null> {
+  const package_id = inboundShipment(order)?.package_id ?? null;
+  if (!package_id) return null;
+  const box = await packagesRepo.getOne(package_id, executor);
+  if (!box) return null;
   return {
-    purchaseOrder,
-    spotPrices: await spotsFeed.getSpotPrices(),
-    packageDetails: await packageDetailsFor(order_id),
+    label: box.label,
+    length: Number(box.length),
+    width: Number(box.width),
+    height: Number(box.height),
   };
 }
 
-export async function returnPackingListInputs(order_id: string) {
-  const purchaseOrder = await purchaseOrderReads.findPurchaseById(order_id);
-  if (!purchaseOrder) throw notFound(order_id);
-  return { purchaseOrder, spotPrices: await spotsFeed.getSpotPrices() };
-}
-
-// The invoice prints the spots the order was QUOTED at, not today's (why orders.spots exists), alongside the live feed the preview compares against. getMetalsForOrder speaks the converted names (name/ask/bid) the templates read.
-export async function invoiceInputs(order_id: string) {
-  const purchaseOrder = await purchaseOrderReads.findPurchaseById(order_id);
-  if (!purchaseOrder) throw notFound(order_id);
+export async function packingListInputs(order_id: string, executor?: Executor) {
+  const order = await loadOrder(order_id, executor);
   return {
-    purchaseOrder,
-    spotPrices: await spotsFeed.getSpotPrices(),
-    orderSpots: await orderSpots.namedFor(order_id),
+    order,
+    bids: await bidsFor(order, executor),
+    labels: await documentLabels(executor),
+    package: await packageDetailsFor(order, executor),
   };
 }
 
-export async function salesOrderInvoiceInputs(order_id: string) {
-  const salesOrder = await salesOrderReads.findSaleById(order_id);
-  if (!salesOrder) throw notFound(order_id);
-  return { salesOrder, spots: await orderSpots.namedFor(order_id) };
+export async function returnPackingListInputs(order_id: string, executor?: Executor) {
+  const order = await loadOrder(order_id, executor);
+  return {
+    order,
+    bids: await bidsFor(order, executor),
+    labels: await documentLabels(executor),
+  };
+}
+
+export async function invoiceInputs(order_id: string, executor?: Executor) {
+  const order = await loadOrder(order_id, executor);
+  return {
+    order,
+    bids: await bidsFor(order, executor),
+    labels: await documentLabels(executor),
+  };
+}
+
+// A SALE QUOTES ASKS, NOT BIDS: it is what the customer was charged. The order
+// froze them at checkout, so they come off orders.spots.
+export async function salesOrderInvoiceInputs(order_id: string, executor?: Executor) {
+  const order = await loadOrder(order_id, executor);
+  const frozen = await orderSpots.getRowsFor(order_id, executor);
+  return {
+    order,
+    asks: new Map(frozen.map((s) => [s.metal_id, s.ask])),
+    labels: await documentLabels(executor),
+  };
 }

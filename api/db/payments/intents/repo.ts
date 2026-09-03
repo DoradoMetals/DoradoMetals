@@ -122,6 +122,17 @@ export async function findForOrder(
   return rows[0];
 }
 
+// THE INTENT A CUSTOMER IS CHECKING OUT WITH, keyed on the customer rather
+// than on an id from a request body - see sql/find_open_for_user.sql.
+export async function findOpenForUser(
+  user_id: string, executor?: Executor
+): Promise<IntentFacts | undefined> {
+  const { rows } = await query<IntentFacts>(
+    sql("find_open_for_user"), [user_id], executor
+  );
+  return rows[0];
+}
+
 // By the PROVIDER's reference, which is a column of payments.attempts - hence
 // the join. The intent's own id is returned with it, so a caller that goes on
 // to write keys by that.

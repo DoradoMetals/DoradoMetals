@@ -1,6 +1,7 @@
 import axios from "axios";
 import type { NextFunction, Request, Response } from "express";
 import chalk from "chalk";
+import { statusOfDomainError } from "#shared/errors.ts";
 
 function termWidth() {
   return Number(process.stdout?.columns) || 120;
@@ -310,7 +311,13 @@ export default function errorHandler(
 
   prettyPrint(safe);
 
+  // A DOMAIN ERROR CARRIES A KIND, NOT A STATUS (shared/errors.ts). It is asked
+  // first, and it is the only branch that can answer without the thrower ever
+  // having named an HTTP code.
+  const domainStatus = statusOfDomainError(err);
+
   const status =
+    domainStatus ||
     (safe.kind === "axios" && safe.status) ||
     raised.statusCode ||
     raised.status ||
@@ -318,8 +325,11 @@ export default function errorHandler(
 
   // What goes back to the client is not what goes to the log — safe.message is the underlying error verbatim (a Postgres error carries the column, type, constraint name and, on a unique violation, the conflicting value), and `where` used to add the absolute server path next to it, both returned to callers with only `where` gated on NODE_ENV.
   // A deliberately-raised error is different — it was written to be read (its status says so) and keeps its message; everything else gets a generic one. The real message is still printed in full above.
-  const deliberate = Number.isInteger(raised.statusCode ?? raised.status)
-    && status >= 400 && status < 500;
+  const deliberate =
+    domainStatus !== null ||
+    (Number.isInteger(raised.statusCode ?? raised.status) &&
+      status >= 400 &&
+      status < 500);
 
   res.status(status).json({
     success: false,

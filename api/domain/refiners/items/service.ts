@@ -8,10 +8,10 @@
 // the item and never expose refiners.items' own row id, so the client has
 // exactly one honest key - the route says so in its path
 // (/items/by-order-item/:id).
-import { editLine } from "#domain/orders/edit-line.ts";
 import * as orderItemsRepo from "#db/orders/items/repo.ts";
 import * as refinerItemsRepo from "#db/refiners/items/repo.ts";
-import { refuseWith } from "#shared/http/refuse.ts";
+import { scrapContent } from "#domain/orders/rules.ts";
+import { Invalid, NotFound } from "#shared/errors.ts";
 import type { RefinerItemPatch } from "@dorado/contracts";
 
 // GET /api/orders/:orderId/refiners/items — the refinery's numbers per line, verbatim refiners.items rows, keyed by the customer order.
@@ -32,7 +32,7 @@ export async function patchRefinerItem(
   body: RefinerItemPatch
 ): Promise<{ success: true }> {
   if (Object.keys(body).length === 0) {
-    refuseWith(400, "the document names no field to write");
+    throw new Invalid("the document names no field to write");
   }
 
   // The refinery's premium for the line — refiners.items.premium.
@@ -40,32 +40,37 @@ export async function patchRefinerItem(
     await refinerItemsRepo.update(orderItemId, { premium: body.premium });
   }
 
-  // The assay report: declared weights live on orders.items, actuals on refiners.items; current values are read first and the patch merged over them, because updateScrapItem writes every column it knows — a bare patch would null what wasn't sent.
+  // THE ASSAY REPORT - what the refinery says came back once the metal was
+  // melted, and it lands on THIS feature's own row (D214 item 11). It used to
+  // be written through the ORDER's line edit, which meant a refinery's report
+  // could move the customer's DECLARED weight: `orders.items.pre_melt` is what
+  // the customer said they sent, and only the customer's declaration writes it.
+  //
+  // The current row is read first and the document merged over it, because
+  // `content` is DERIVED from the weight, the unit and the purity - the same
+  // rule the order's own line uses, so the two cannot compute it differently.
   if (
     body.pre_melt !== undefined || body.post_melt !== undefined ||
     body.purity !== undefined || body.unit !== undefined
   ) {
     const [line] = await orderItemsRepo.getByIds([orderItemId]);
     if (!line || line.bullion_id !== null) {
-      refuseWith(404, `order item ${orderItemId} has no scrap line to report assay values on`);
+      throw new NotFound(`order item ${orderItemId} has no scrap line to report assay values on`);
     }
-    const current = line!;
-    const refiner = (await refinerItemsRepo.byOrderItem([orderItemId])).get(orderItemId);
-    await editLine(current.id, {
-      scrap: {
-        premium: current.premium,
-        scrap: {
-          pre_melt: body.pre_melt !== undefined ? body.pre_melt : current.pre_melt,
-          post_melt: current.post_melt,
-          purity: current.purity,
-          gross_unit: body.unit !== undefined ? body.unit : current.unit,
-          // post_melt -> post_melt_actual, purity -> purity_actual; content is derived by the service.
-          purity_actual: body.purity !== undefined ? body.purity : refiner?.purity ?? null,
-          post_melt_actual:
-            body.post_melt !== undefined ? body.post_melt : refiner?.post_melt ?? null,
-        },
-      },
-    } as never);
+    const assayed = (await refinerItemsRepo.byOrderItem([orderItemId])).get(orderItemId);
+
+    const pre_melt = body.pre_melt !== undefined ? body.pre_melt : (assayed?.pre_melt ?? null);
+    const post_melt = body.post_melt !== undefined ? body.post_melt : (assayed?.post_melt ?? null);
+    const purity = body.purity !== undefined ? body.purity : (assayed?.purity ?? null);
+    const unit = body.unit !== undefined ? body.unit : (assayed?.unit ?? line.unit);
+
+    await refinerItemsRepo.update(orderItemId, {
+      pre_melt,
+      post_melt,
+      purity,
+      unit,
+      content: scrapContent(post_melt ?? pre_melt, unit, purity),
+    });
   }
 
   return { success: true };

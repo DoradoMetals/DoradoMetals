@@ -17,7 +17,7 @@ import * as addressService from "#domain/places/addresses/service.ts";
 import {
   assertDirection, livenessFlag, carriesProductPremium, hasPayoutStep,
 } from "#domain/checkout/rules.ts";
-import { refuse } from "#shared/http/refuse.ts";
+import { Invalid } from "#shared/errors.ts";
 import type { Direction } from "#domain/checkout/rules.ts";
 import type { CheckoutRow, CheckoutPatch } from "#db/checkout/checkouts/repo.ts";
 import type {
@@ -78,7 +78,7 @@ async function ensure(
   const created = await checkouts.create({ user_id, direction }, client);
   if (created) return created;
   const raced = await checkouts.findFor(user_id, direction, client);
-  if (!raced) throw refuse(500, "the checkout session could not be created");
+  if (!raced) throw new Error("the checkout session could not be created");
   return raced;
 }
 
@@ -112,19 +112,19 @@ export async function patchCheckout(
   for (const col of ADDRESS_COLUMNS) {
     const id = patch[col];
     if (id != null && !(await addressService.inBook(String(id), user_id))) {
-      throw refuse(400, `${col}: that address is not in your book`);
+      throw new Invalid(`${col}: that address is not in your book`);
     }
   }
   if (
     patch.appointment_time != null &&
     Number.isNaN(Date.parse(String(patch.appointment_time)))
   ) {
-    throw refuse(400, `appointment_time is not a timestamp`);
+    throw new Invalid(`appointment_time is not a timestamp`);
   }
   for (const col of ["package_weight", "declared_value"] as const) {
     const value = patch[col];
     if (value != null && !(Number(value) >= 0)) {
-      throw refuse(400, `${col} must be a non-negative number`);
+      throw new Invalid(`${col} must be a non-negative number`);
     }
   }
 
@@ -135,12 +135,12 @@ export async function patchCheckout(
     } catch (err) {
       if ((err as { code?: string }).code === "23503") {
         const detail = (err as { constraint?: string }).constraint ?? "a reference";
-        throw refuse(400, `no such row for ${detail}`);
+        throw new Invalid(`no such row for ${detail}`);
       }
       throw err;
     }
     const fresh = await checkouts.getOne(row.id, client);
-    if (!fresh) throw refuse(500, "the checkout session vanished mid-write");
+    if (!fresh) throw new Error("the checkout session vanished mid-write");
     return await compose(fresh, client);
   });
 }
@@ -162,14 +162,14 @@ export async function setFulfillmentMethod(
   if (!chosen && handoff_code) {
     const handoffs = await handoffsService.getHandoffs();
     const handoff = handoffs.find((h) => h.code === handoff_code);
-    if (!handoff) throw refuse(400, `no such handoff: ${handoff_code}`);
+    if (!handoff) throw new Invalid(`no such handoff: ${handoff_code}`);
     const type = handoff.requires_schedule ? "CARRIER PICKUP" : "CARRIER DROPOFF";
     const offered = await fulfillmentMethods.listAvailable(dir);
     chosen = offered.find((m) => m.type === type)?.id;
-    if (!chosen) throw refuse(400, `no offered ${type} method for a ${dir}`);
+    if (!chosen) throw new Invalid(`no offered ${type} method for a ${dir}`);
   }
   if (typeof chosen !== "string" || chosen.length === 0) {
-    throw refuse(400, "method_id or handoff_code is required");
+    throw new Invalid("method_id or handoff_code is required");
   }
   const wanted = chosen;
 
@@ -183,12 +183,12 @@ export async function setFulfillmentMethod(
       const draft = await fulfillmentService.createDraft(
         { method_id: wanted, direction: dir }, client
       );
-      if (!draft) throw refuse(400, `no such fulfillment method: ${wanted}`);
+      if (!draft) throw new Invalid(`no such fulfillment method: ${wanted}`);
       await checkouts.update(row.id, { fulfillment_id: draft.id }, client);
     }
 
     const fresh = await checkouts.getOne(row.id, client);
-    if (!fresh) throw refuse(500, "the checkout session vanished mid-write");
+    if (!fresh) throw new Error("the checkout session vanished mid-write");
     return await compose(fresh, client);
   });
 }
@@ -202,7 +202,7 @@ export async function saveCheckoutPayout(
 ): Promise<ComposedCheckout> {
   const dir = assertDirection(direction);
   if (!hasPayoutStep(dir)) {
-    throw refuse(400, "the payout step belongs to the purchase checkout");
+    throw new Invalid("the payout step belongs to the purchase checkout");
   }
   return await withTransaction(async (client) => {
     const row = await ensure(user_id, dir, client);
@@ -215,7 +215,7 @@ export async function saveCheckoutPayout(
       client
     );
     const fresh = await checkouts.getOne(row.id, client);
-    if (!fresh) throw refuse(500, "the checkout session vanished mid-write");
+    if (!fresh) throw new Error("the checkout session vanished mid-write");
     return await compose(fresh, client);
   });
 }
@@ -242,12 +242,9 @@ async function refuseProductsThatAreNotLive(
   const refused = unique.filter((id) => !live.has(id));
 
   if (refused.length > 0) {
-    throw refuse(
-      400,
-      refused.length === 1
+    throw new Invalid(refused.length === 1
         ? "That product is not available"
-        : `${refused.length} of those products are not available`
-    );
+        : `${refused.length} of those products are not available`);
   }
 }
 
@@ -353,7 +350,7 @@ export async function syncCart(
   user_id: string, direction: Direction, lines: CartLineInput[] | SellCartLineInput[]
 ): Promise<void> {
   const dir = assertDirection(direction);
-  if (!Array.isArray(lines)) throw refuse(400, "Invalid payload");
+  if (!Array.isArray(lines)) throw new Invalid("Invalid payload");
 
   // The ids a request NAMES, which is what the liveness rule judges. A scrap
   // line names no product and so has nothing to check.

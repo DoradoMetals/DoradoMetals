@@ -11,6 +11,7 @@ import type { ServiceRow, ServiceWrite } from "#db/shipping/services/repo.ts";
 import type { Executor } from "#shared/db/executor.ts";
 // From the contracts, not the adapter (which merely re-exports it) - contracts is where the shape is declared.
 import type { CarrierServiceOption } from "@dorado/contracts";
+import { Invalid } from "#shared/errors.ts";
 
 export type { CarrierServiceOption };
 
@@ -194,6 +195,45 @@ export async function clampInsuredValue(
   const n = Number(amount);
   if (!Number.isFinite(n) || n <= 0) return 0;
   return Math.min(n, ceiling);
+}
+
+// THE CARRIER FACTS BEHIND ONE shipping.services ROW, resolved from its id.
+//
+// A label needs three things this table does not hold: which carrier buys it,
+// the carrier's own service TYPE (what a rate quote's serviceType is) and the
+// service FAMILY it belongs to. All three live in the carrier's catalogue,
+// joined to the row by name - see getOfferedServices' header for why the
+// catalogue is the source rather than the columns.
+//
+// It lives here because carriers belong to shipping: orders used to spell a
+// FedEx carrier id as a constant and re-resolve the catalogue itself, once in
+// placement and once in cancellation.
+export type LabelService = {
+  carrier_id: string;
+  name: string;
+  serviceType: string;
+  carrierCode: string;
+};
+
+export async function labelServiceFor(
+  carrier_service_id: string, executor?: Executor
+): Promise<LabelService> {
+  const row = await services.getOne(carrier_service_id, executor);
+  if (!row) throw new Invalid("that carrier service does not exist");
+  if (!row.carrier_id) {
+    throw new Invalid(`${row.name} is a sale delivery service, not a label service`);
+  }
+  const offered = await getOfferedServices(row.carrier_id, executor);
+  const entry = offered.find((o) => o.name.toLowerCase() === row.name.toLowerCase());
+  if (!entry) {
+    throw new Invalid(`${row.name} is not a label service the carrier offers`);
+  }
+  return {
+    carrier_id: row.carrier_id,
+    name: row.name,
+    serviceType: entry.code,
+    carrierCode: entry.carrier_code,
+  };
 }
 
 export async function getServiceById(

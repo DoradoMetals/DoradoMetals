@@ -62,11 +62,14 @@ export function factsFrom(
 }
 
 // Rules fetched ONCE and matched in memory — replaces an implementation that ran the whole filter-and-rank query per item (twelve lines, twelve queries over the same 88 rules).
-export async function attachSalesTaxToItems(
+// GENERIC IN THE LINE, so a caller gets its own line type back with the rate
+// added. It used to answer `Record<string, unknown>`, which meant every caller
+// cast the result before it could price it.
+export async function attachSalesTaxToItems<T extends Record<string, unknown>>(
   state_code: string | null,
-  items: Record<string, unknown>[],
+  items: T[],
   spots: PricingSpot[]
-): Promise<(Record<string, unknown> & { sales_tax_rate: number })[]> {
+): Promise<(T & { sales_tax_rate: number })[]> {
   const item_total = calculateItemTotals(items as never, spots as never);
 
   const collectingNexus = process.env.COLLECTING_NEXUS_TAXES === "true";

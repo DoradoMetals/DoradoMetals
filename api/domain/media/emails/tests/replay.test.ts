@@ -71,19 +71,16 @@ test("an address in the body cannot redirect the order confirmation", async () =
       // The confirmation route is GONE - asserted here rather than deleted, because "the attack surface no longer exists" is the strongest form this test can take.
       const gone = await request(app)
         .post("/api/emails/purchase_order_created")
-        .send({ purchaseOrder: { id: order.id } });
+        .send({ order_id: order.id });
       assert.equal(gone.status, 404, "the browser-triggered confirmation route is back");
 
+      // THE BODY IS ONE ID NOW (D214 item 12), so there is no recipient-shaped
+      // field left to supply: a document naming one is refused outright.
       const res = await request(app)
         .post("/api/emails/purchase_order_priced")
         .send({
-          order: {
-            id: order.id,
-            number: 1,
-            user: { user_email: ATTACKER_ADDRESS, user_name: "whoever" },
-          },
-          order_spots: [],
-          spot_prices: [],
+          order_id: order.id,
+          user: { user_email: ATTACKER_ADDRESS, user_name: "whoever" },
         });
 
       // Whatever happens, it must not be delivery to the attacker - the transport guard refuses the send, so what's asserted is that the response never reports having mailed the supplied address.
@@ -103,12 +100,7 @@ test("an email field in the body cannot redirect the pricing notice", async () =
     await as({ ...owner, role: "user" }, async () => {
       const res = await request(app)
         .post("/api/emails/purchase_order_priced")
-        .send({
-          order: { id: order.id, number: 1, user: {} },
-          order_spots: [],
-          spot_prices: [],
-          email: ATTACKER_ADDRESS,
-        });
+        .send({ order_id: order.id, email: ATTACKER_ADDRESS });
       assert.ok(
         !JSON.stringify(res.body ?? "").includes(ATTACKER_ADDRESS),
         "the response named the attacker's address"
@@ -125,7 +117,7 @@ test("a stranger cannot trigger mail about someone else's order", async () => {
     await as({ ...stranger, role: "user" }, async () => {
       const res = await request(app)
         .post("/api/emails/purchase_order_priced")
-        .send({ order: { id: order.id, number: 1, user: {} }, order_spots: [], spot_prices: [] });
+        .send({ order_id: order.id });
       assert.equal(res.status, 403, `a stranger got ${res.status} for another user's order`);
     });
   });
@@ -137,12 +129,12 @@ test("an unknown or missing order id is refused before anything is built", async
     await as({ ...owner, role: "user" }, async () => {
       const missing = await request(app)
         .post("/api/emails/purchase_order_priced")
-        .send({ order: { number: 1 }, order_spots: [], spot_prices: [] });
+        .send({});
       assert.equal(missing.status, 400, `a body with no order id answered ${missing.status}`);
 
       const unknown = await request(app)
         .post("/api/emails/purchase_order_priced")
-        .send({ order: { id: randomUUID(), number: 1 }, order_spots: [], spot_prices: [] });
+        .send({ order_id: randomUUID() });
       assert.equal(unknown.status, 404, `an unknown order answered ${unknown.status}`);
     });
   });

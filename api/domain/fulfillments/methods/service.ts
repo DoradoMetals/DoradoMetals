@@ -2,7 +2,7 @@
 // This resource orchestrates for itself: checkout, intake and the admin screen all reach THIS service - never transport/fulfillments/service.ts - so a caller needing the menu doesn't drag in pickups, directs, shipments and the schedule.
 // The eleven rows come from 047_seed_reference_data.sql - there's no exchange side and never will be, so nothing here is a migration shim.
 import * as methods from "#db/fulfillments/methods/repo.ts";
-import { refuse } from "#shared/http/refuse.ts";
+import { Conflict, Invalid, NotFound } from "#shared/errors.ts";
 import type { MethodRow, MethodPatch } from "#db/fulfillments/methods/repo.ts";
 import type { PoolClient } from "pg";
 import type { fulfillments } from "@dorado/contracts";
@@ -22,7 +22,7 @@ export async function listAvailable(
   direction: unknown, executor?: Executor
 ): Promise<MethodRow[]> {
   if (direction !== "purchase" && direction !== "sale") {
-    throw refuse(400, `direction must be "purchase" or "sale", got ${direction}`);
+    throw new Invalid(`direction must be "purchase" or "sale", got ${direction}`);
   }
   return await methods.getAvailable(direction, executor);
 }
@@ -49,7 +49,7 @@ export async function getDefault(
   executor?: Executor
 ): Promise<MethodRow> {
   const method = await methods.getDefault({ direction, category }, executor);
-  if (!method) throw refuse(404, `no default ${category} method for a ${direction}`);
+  if (!method) throw new NotFound(`no default ${category} method for a ${direction}`);
   return method;
 }
 
@@ -60,11 +60,8 @@ export async function assertOffered(
 ): Promise<void> {
   const offered = await methods.getAvailable(direction, executor);
   if (!offered.some((m) => m.id === method_id)) {
-    throw refuse(
-      409,
-      `fulfillment method ${method_id} is not available for a ${direction} - ` +
-        `it is disabled, hidden, or belongs to the other direction`
-    );
+    throw new Conflict(`fulfillment method ${method_id} is not available for a ${direction} - ` +
+        `it is disabled, hidden, or belongs to the other direction`);
   }
 }
 

@@ -40,8 +40,7 @@
 import test, { after } from "node:test";
 import assert from "node:assert/strict";
 import pool from "#db";
-import { refusedField as orderField } from "#domain/orders/patch.ts";
-import { refusedField as itemField } from "#domain/orders/edit-line.ts";
+import { OrderItemPatch, OrderPatch } from "@dorado/contracts";
 import { refusedField as shipmentField } from "#transport/shipping/shipments/controller.ts";
 import { refusedField as refinerOrderField } from "#transport/refiners/orders/controller.ts";
 import { refusedField as refinerItemField } from "#transport/refiners/items/controller.ts";
@@ -111,47 +110,73 @@ test("a refiner item PATCH keeps every one of its nulls", () => {
 
 // ------------------------------------------- what the contract now also says
 
-// The API typed these `boolean` while its own runtime had always refused
-// anything but `true`. The contract says `true`; the refusal still names the
-// field rather than talking about literals.
-test("the operation names are true-or-omitted, not booleans", () => {
-  assert.match(refusalOf(orderField("purchase", { finalize_pricing: false }), "finalize_pricing: false"), /finalize_pricing/);
-  assert.match(refusalOf(orderField("purchase", { add_funds: false }), "add_funds: false"), /add_funds/);
-  assert.equal(orderField("purchase", { finalize_pricing: true, add_funds: true }), null);
+// THE ORDER'S AND THE LINE'S BODIES ARE PARSED STRICTLY AT TRANSPORT (D214
+// item 11), so neither has a `refusedField` any more - the contract IS the
+// check, and these assert it directly.
+const refusesField = (
+  schema: { safeParse: (v: unknown) => { success: boolean; error?: { issues: { message: string; path: PropertyKey[] }[] } } },
+  body: unknown,
+  named: string
+) => {
+  const parsed = schema.safeParse(body);
+  assert.equal(parsed.success, false, `${named} was accepted`);
+  const said = (parsed.error?.issues ?? [])
+    .map((i) => `${i.path.join(".")} ${i.message}`)
+    .join(" | ");
+  assert.match(said, new RegExp(named), `the refusal does not name ${named}`);
+};
+
+// THE FOUR ACTIONS LEFT THIS BODY. add_funds, finalize_pricing, cancel and
+// supplier were operations multiplexed through a PATCH; each is a POST of its
+// own now, so naming one here is naming a field the endpoint does not have.
+test("the order PATCH is the row's own columns, and the four actions are not among them", () => {
+  assert.equal(OrderPatch.safeParse({ status: "Received" }).success, true);
+  assert.equal(OrderPatch.safeParse({ notes: "left on the porch" }).success, true);
+  // Both columns are nullable, so an explicit null CLEARS.
+  assert.equal(OrderPatch.safeParse({ notes: null }).success, true);
+  for (const action of ["add_funds", "finalize_pricing", "cancel", "supplier"]) {
+    refusesField(OrderPatch, { [action]: true }, action);
+  }
 });
 
-// `confirmed: false` matched no branch in the dispatch and answered 200 having
-// written nothing. A no-op that reports success is worse than a refusal, and
-// `reset: true` is how a line is unconfirmed.
-test("an order item PATCH refuses confirmed: false rather than doing nothing", () => {
-  assert.match(refusalOf(itemField({ confirmed: false }), "confirmed: false"), /confirmed/);
-  assert.equal(itemField({ confirmed: true }), null);
-  assert.equal(itemField({ reset: true }), null);
+// `confirmed` IS A COLUMN, NOT AN OPERATION. It was a `true`-only literal with
+// a second name (`reset: true`) for the other direction, because the dispatch
+// was `body.confirmed === true || body.reset === true` and `confirmed: false`
+// matched no branch. One flat patch of the row makes both directions the same
+// write, so `false` is legal and `reset` is not a field at all.
+test("an order item PATCH takes confirmed both ways, and has no `reset`", () => {
+  assert.equal(OrderItemPatch.safeParse({ confirmed: true }).success, true);
+  assert.equal(OrderItemPatch.safeParse({ confirmed: false }).success, true);
+  refusesField(OrderItemPatch, { reset: true }, "reset");
 });
 
-// THE PARTIAL THAT NULLS. updateBullion's statement is
-// `SET quantity = $1, premium = $2` unconditionally, so a document naming only
-// `premium` sent `undefined` for quantity and pg wrote NULL - a bullion line
-// silently losing how many coins the customer sent. Both members are required
-// now and the refusal names the missing one.
-test("an order item PATCH refuses a partial bullion edit, which used to null the other column", () => {
-  assert.match(refusalOf(itemField({ bullion: { premium: 1.02 } }), "a partial bullion edit"), /quantity/);
-  assert.match(refusalOf(itemField({ bullion: { quantity: 2 } }), "a partial bullion edit"), /premium/);
-  assert.equal(itemField({ bullion: { quantity: 2, premium: 1.02 } }), null);
+// THE PARTIAL THAT NULLED. `SET quantity = $1, premium = $2` unconditionally
+// meant a document naming only `premium` wrote NULL over the quantity - a
+// bullion line silently losing how many coins the customer sent. The old
+// contract defended it by REQUIRING both members; buildUpdate names only the
+// keys the document carries, so a partial is safe and the requirement is gone.
+test("an order item PATCH writes only what it names, so a partial is legal", () => {
+  assert.equal(OrderItemPatch.safeParse({ premium: 1.02 }).success, true);
+  assert.equal(OrderItemPatch.safeParse({ quantity: 2 }).success, true);
+  assert.equal(OrderItemPatch.safeParse({ quantity: 2, premium: 1.02 }).success, true);
   // Nullable, both of them - the columns are, and clearing a premium is real.
-  assert.equal(itemField({ bullion: { quantity: null, premium: null } }), null);
+  assert.equal(OrderItemPatch.safeParse({ quantity: null, premium: null }).success, true);
 });
 
-// The same argument on the scrap side: updateScrapItem writes every column it
-// knows, so the document must carry the whole scrap object and the line's
-// premium, which is what the frontend has always sent.
-test("an order item PATCH refuses a scrap edit that omits the premium it rewrites", () => {
-  assert.match(
-    refusalOf(itemField({ scrap: { scrap: { pre_melt: 3 } } }), "a scrap edit with no premium"),
-    /premium/
+// ONE ROW, ONE PATCH. `{scrap: {premium, scrap: {...}}}` was the admin
+// drawer's document for ONE table, read through casts; the line's own columns
+// are the body now, and the nested spellings are not fields.
+test("an order item PATCH is flat - the scrap and bullion documents are gone", () => {
+  assert.equal(
+    OrderItemPatch.safeParse({ pre_melt: 3, post_melt: 2.8, purity: 0.585, unit: "g" }).success,
+    true
   );
-  assert.equal(itemField({ scrap: { premium: 0.9, scrap: { pre_melt: 3 } } }), null);
-  assert.equal(itemField({ scrap: { premium: null, scrap: {} } }), null);
+  refusesField(OrderItemPatch, { scrap: { premium: 0.9, scrap: { pre_melt: 3 } } }, "scrap");
+  refusesField(OrderItemPatch, { bullion: { quantity: 2, premium: 1.02 } }, "bullion");
+  // `content` is DERIVED from the weight, the unit and the purity, and the
+  // refiner's assay numbers are refiners.items - neither is a field here.
+  refusesField(OrderItemPatch, { content: 4 }, "content");
+  refusesField(OrderItemPatch, { purity_actual: 0.5 }, "purity_actual");
 });
 
 // ------------------------------------------------------------- the new field
@@ -178,8 +203,8 @@ test("a payout PATCH takes the waive flag both ways, and refuses a non-boolean",
 // into a silent 200 that wrote nothing - the admin-mutation-urls bug. Every
 // one of the six refuses by name BEFORE the contract sees the body.
 test("an unknown field is refused by name on every one of the six", () => {
-  assert.match(refusalOf(orderField("purchase", { nope: 1 }), "order"), /"nope"/);
-  assert.match(refusalOf(itemField({ nope: 1 }), "order item"), /"nope"/);
+  refusesField(OrderPatch, { nope: 1 }, "nope");
+  refusesField(OrderItemPatch, { nope: 1 }, "nope");
   assert.match(refusalOf(shipmentField({ nope: 1 }), "shipment"), /"nope"/);
   assert.match(refusalOf(refinerOrderField({ nope: 1 }), "refiner order"), /"nope"/);
   assert.match(refusalOf(refinerItemField({ nope: 1 }), "refiner item"), /"nope"/);

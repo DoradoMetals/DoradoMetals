@@ -11,7 +11,7 @@ import * as details from "#db/payments/details/repo.ts";
 import * as methods from "#db/payments/methods/repo.ts";
 import { seal, open, aadFor } from "#shared/crypto/envelope.ts";
 import { payoutKeyFromEnv } from "#shared/crypto/payoutKey.ts";
-import { refuse } from "#shared/http/refuse.ts";
+import { Invalid } from "#shared/errors.ts";
 import type { DetailRow, DetailValues } from "#db/payments/details/repo.ts";
 import type { Executor } from "#shared/db/executor.ts";
 
@@ -50,28 +50,28 @@ export async function saveCheckoutPayout(
 ): Promise<DetailRow> {
   const method = String(form.method ?? "");
   if (!method || !form.account_holder_name) {
-    throw refuse(400, "the payout needs a method and an account holder name");
+    throw new Invalid("the payout needs a method and an account holder name");
   }
   if (BANK_METHODS.has(method)) {
     if (!form.routing_number || !form.account_number || !form.bank_name) {
-      throw refuse(400, `${method} needs a bank name, a routing number and an account number`);
+      throw new Invalid(`${method} needs a bank name, a routing number and an account number`);
     }
     if (!/^\d{9}$/.test(String(form.routing_number))) {
-      throw refuse(400, "the routing number must be 9 digits");
+      throw new Invalid("the routing number must be 9 digits");
     }
     if (!/^\d+$/.test(String(form.account_number))) {
-      throw refuse(400, "the account number must be digits");
+      throw new Invalid("the account number must be digits");
     }
   } else if (EMAIL_METHODS.has(method)) {
-    if (!form.payout_email) throw refuse(400, `${method} needs an email address`);
+    if (!form.payout_email) throw new Invalid(`${method} needs an email address`);
   } else {
-    throw refuse(400, `no such payout method: ${method}`);
+    throw new Invalid(`no such payout method: ${method}`);
   }
 
   // A method that resolves to nothing writes nothing: an account with no
   // method is a payout with nowhere to go.
   const resolved = await methods.findByType("purchase", method, executor);
-  if (!resolved) throw refuse(400, `no such payout method: ${method}`);
+  if (!resolved) throw new Invalid(`no such payout method: ${method}`);
 
   const id = existing_id ?? randomUUID();
   const key = payoutKeyFromEnv();
@@ -143,6 +143,6 @@ export async function setMethod(
   details_id: string, method: string, executor?: Executor
 ): Promise<boolean> {
   const resolved = await methods.findByType("purchase", method, executor);
-  if (!resolved) throw refuse(400, `no such payout method: ${method}`);
+  if (!resolved) throw new Invalid(`no such payout method: ${method}`);
   return await details.update(details_id, { method_id: resolved.id }, executor);
 }

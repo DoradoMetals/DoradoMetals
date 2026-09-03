@@ -1,6 +1,7 @@
 import { requiredEnv } from "#shared/env/required.ts";
 import * as pdfService from "#domain/media/pdfs/service.ts";
-import type { PackingListInput, InvoiceInput } from "#domain/media/pdfs/service.ts";
+import * as inputs from "#domain/media/pdfs/order-inputs.ts";
+import type { PurchaseDocument, SalesDocument } from "#domain/media/pdfs/service.ts";
 import type { Transport } from "#providers/emails/nodemailer.ts";
 
 import {
@@ -10,14 +11,7 @@ import {
   renderAccountCreatedEmail,
   renderVerifyEmail,
 } from "#domain/media/emails/utils/renderEmail.ts";
-import type { SalesOrderForRender, SupplierSpot } from "#domain/media/emails/utils/renderEmail.ts";
-
 import { sendEmail } from "#providers/emails/nodemailer.ts";
-import * as purchaseOrderReads from "#domain/orders/read.service.ts";
-// The live spot feed - the same read the pricing paths use (spots.spots, converted names).
-import * as spotsFeed from "#domain/spots/service.ts";
-import * as packages from "#db/shipping/packages/repo.ts";
-import * as shipmentOrderRead from "#domain/shipping/shipments/order-read.ts";
 import { recordEmail, messageIdOf } from "#domain/media/emails/record.ts";
 import { persistPdf } from "#domain/media/pdfs/store.ts";
 import type { PoolClient } from "pg";
@@ -26,46 +20,42 @@ import {
   formatSalesOrderNumber,
 } from "#shared/utils/formatOrderNumbers.ts";
 
-// `transport` and `to` are separate params, not fields of the input object (req.body) - the recipient is resolved and authorised by the controller from the stored order, so no caller can redirect the send or supply its own recipient (an open-relay/phishing hazard otherwise).
-// `user_name` comes off RenderableOrder.user (`Record<string, unknown>`, not contract-pinned) and is coerced rather than asserted, since an unexpected shape would render "[object Object]" into a customer's greeting.
-// Runs AFTER the commit, never inside it - an email can't be rolled back (shared/db/transaction-side-effects.test.js enforces this). Never throws: recordEmail writes the outcome, including a failed send, rather than failing the response over mail.
+// `transport` is a separate parameter, not a field on the input object: the
+// controller passes an id as the input, so a field would be reachable from the
+// request. In production nothing passes one and the shared transport is used.
+//
+// EVERY SENDER TAKES AN ORDER ID (ruling 10). They used to take a whole
+// composed order out of `req.body` - which meant a customer's confirmation was
+// rendered from numbers the customer's browser supplied, and `to:` was an
+// address out of that same body: an open relay on the business's own domain,
+// subject "Your Order Has Been Placed!", with an attachment the caller also
+// chose. The recipient is resolved from the stored order now, and the render
+// inputs come from domain/media/pdfs/order-inputs.ts.
+//
+// AFTER THE COMMIT, NEVER INSIDE IT. An email cannot be rolled back, which is
+// the rule shared/db/tests/transaction-side-effects.test.ts fails the build
+// over.
+//
+// `transport` and `executor` are the usual test seams.
+
+// D91: THE CONFIRMATION EMAIL IS THE SERVER'S TO SEND, keyed by order id.
+//
+// IT DOES NOT THROW. The order exists and is paid for by the time this runs -
+// failing the response over an email would be a worse outcome than a missing
+// one, and the send is not silent either way: recordEmail writes a
+// media.emails row with status 'failed' and the error, which is the paper
+// trail the browser version never had.
 export async function sendOrderPlacedConfirmation(
   order_id: string,
   transport?: Transport,
   executor?: PoolClient
 ): Promise<void> {
   try {
-    const purchaseOrder = (await purchaseOrderReads.findPurchaseById(order_id, executor)) as
-      | (Record<string, any> & { user?: { user_email?: string | null } | null })
-      | null;
-    if (!purchaseOrder) return;
-
-    const to = purchaseOrder.user?.user_email;
+    const input = await inputs.packingListInputs(order_id, executor);
+    const to = input.order.user?.email;
     if (typeof to !== "string" || to.length === 0) return;
 
-    // Packing list inputs resolved server-side: the live spot feed, and the package actually booked with the parcel (shipping.shipments/packages).
-    const spotPrices = await spotsFeed.getSpotPrices(executor);
-    const [shipment] = await shipmentOrderRead.getForOrder(order_id, executor);
-    const pkg = shipment?.package_id
-      ? await packages.getOne(shipment.package_id, executor)
-      : undefined;
-    const packageDetails = pkg
-      ? {
-          label: pkg.label,
-          dimensions: {
-            length: Number(pkg.length),
-            width: Number(pkg.width),
-            height: Number(pkg.height),
-          },
-        }
-      : undefined;
-
-    await sendCreatedEmail(
-      { purchaseOrder, spotPrices, packageDetails } as PackingListInput,
-      to,
-      transport,
-      executor
-    );
+    await sendCreatedEmail(input, to, transport, executor);
   } catch (err) {
     // sendCreatedEmail already recorded a failed send if it got that far; anything else (a failed read, an unresolved package) is logged and dropped - the order is placed either way.
     console.error(`confirmation email for order ${order_id} was not sent:`, err);
@@ -73,27 +63,25 @@ export async function sendOrderPlacedConfirmation(
 }
 
 export async function sendCreatedEmail(
-  { purchaseOrder, spotPrices, packageDetails }: PackingListInput,
+  input: PurchaseDocument,
   to: string,
   transport?: Transport,
   // Paper-trail writes join a test's transaction through this; production omits it and the records go to the pool, after the send.
   executor?: PoolClient
 ): Promise<void> {
-  const pdfBuffer = await pdfService.generatePackingList({
-    purchaseOrder,
-    spotPrices,
-    packageDetails,
-  });
+  const pdfBuffer = await pdfService.generatePackingList(input);
 
   // The order being placed IS the status event: the document persists once here, and the send record points at it - neither may break the send.
-  const orderId = typeof purchaseOrder.id === "string" ? purchaseOrder.id : null;
-  const pdfId = await persistPdf({ kind: "packing_list", order_id: orderId, bytes: pdfBuffer }, executor);
+  const order_id = input.order.order.id;
+  const pdfId = await persistPdf(
+    { kind: "packing_list", order_id, bytes: pdfBuffer }, executor
+  );
 
   const subject = "Your Order Has Been Placed!";
   const record = {
     kind: "purchase_order_created" as const,
-    to, subject, order_id: orderId, pdf_id: pdfId,
-    user_id: typeof purchaseOrder.user?.user_id === "string" ? purchaseOrder.user.user_id : null,
+    to, subject, order_id, pdf_id: pdfId,
+    user_id: input.order.user?.id ?? null,
   };
   let result: unknown;
   try {
@@ -101,13 +89,13 @@ export async function sendCreatedEmail(
       to,
       subject,
       html: renderPurchaseOrderPlacedEmail({
-        firstName: String(purchaseOrder.user?.user_name ?? ""),
+        firstName: input.order.user?.name ?? "",
         url: `${requiredEnv("FRONTEND_URL")}/account?tab=sold`,
       }),
       attachments: [
         {
           filename: `${formatPurchaseOrderNumber(
-            purchaseOrder.number
+            input.order.order.number
           )}_packing_list.pdf`,
           content: pdfBuffer,
           contentType: "application/pdf",
@@ -123,44 +111,34 @@ export async function sendCreatedEmail(
   await recordEmail(record, { status: "sent", provider_message_id: messageIdOf(result) }, executor);
 }
 
-// Field names differ from InvoiceInput's on purpose: snake_case here matches what the controller destructures from req.body; renaming either side would be a wire change.
+// The customer's copy of a finalised price, with the invoice attached.
 export async function sendPricedEmail(
-  {
-    order,
-    order_spots,
-    spot_prices,
-  }: {
-    order: InvoiceInput["purchaseOrder"];
-    order_spots?: InvoiceInput["orderSpots"];
-    spot_prices?: InvoiceInput["spotPrices"];
-  },
+  input: PurchaseDocument,
   to: string,
   transport?: Transport,
   executor?: PoolClient
 ): Promise<void> {
   let pdfBuffer: Uint8Array;
   try {
-    pdfBuffer = await pdfService.generateInvoice({
-      purchaseOrder: order,
-      orderSpots: order_spots,
-      spotPrices: spot_prices,
-    });
+    pdfBuffer = await pdfService.generateInvoice(input);
   } catch (err) {
-    // err is unknown in a strict file; rethrow non-Error unchanged rather than crash annotating it.
+    // `err` is unknown in a strict file, and rethrowing a non-Error unchanged
+    // is better than crashing while trying to annotate it.
     if (err instanceof Error) {
       err.message = `[EmailService] invoice PDF generation failed: ${err.message}`;
     }
     throw err;
   }
 
-  const orderId = typeof order.id === "string" ? order.id : null;
-  const pdfId = await persistPdf({ kind: "invoice", order_id: orderId, bytes: pdfBuffer }, executor);
+  const order_id = input.order.order.id;
+  const pdfId = await persistPdf({ kind: "invoice", order_id, bytes: pdfBuffer }, executor);
 
-  const subject = `Your Order Has Been Priced - Order ${formatPurchaseOrderNumber(order.number)}`;
+  const subject =
+    `Your Order Has Been Priced - Order ${formatPurchaseOrderNumber(input.order.order.number)}`;
   const record = {
     kind: "purchase_order_priced" as const,
-    to, subject, order_id: orderId, pdf_id: pdfId,
-    user_id: typeof order.user?.user_id === "string" ? order.user.user_id : null,
+    to, subject, order_id, pdf_id: pdfId,
+    user_id: input.order.user?.id ?? null,
   };
   let result: unknown;
   try {
@@ -168,13 +146,13 @@ export async function sendPricedEmail(
       to,
       subject,
       html: renderOrderPricedEmail({
-        firstName: String(order.user?.user_name ?? ""),
+        firstName: input.order.user?.name ?? "",
         url: `${requiredEnv("FRONTEND_URL")}/orders`,
       }),
       attachments: [
         {
           filename: `${formatPurchaseOrderNumber(
-            order.number
+            input.order.order.number
           )}_invoice.pdf`,
           content: pdfBuffer,
           contentType: "application/pdf",
@@ -190,53 +168,53 @@ export async function sendPricedEmail(
   await recordEmail(record, { status: "sent", provider_message_id: messageIdOf(result) }, executor);
 }
 
-// SalesOrderForRender's created_at/updated_at can be Date, not just string - the caller passes a database row (pg already parses these), not the wire contract.
-// generateSalesOrderInvoice takes RenderableOrder, deliberately loose (what a template needs, not what a sales order is) - one object handed to both consumers.
-
+// The refiner's copy of a sales order, with the invoice attached.
+//
+// `email` is not from a request body - this is not a route. It is called with
+// the refiner's own address, resolved from the refiner the order was sent to.
 export async function sendSalesOrderToSupplier(
-  order: SalesOrderForRender,
-  spots: SupplierSpot[],
+  input: SalesDocument,
   email: string,
   transport?: Transport,
   executor?: PoolClient
 ): Promise<void> {
+  const { order, asks, labels } = input;
   let pdfBuffer: Uint8Array;
   try {
-    pdfBuffer = await pdfService.generateSalesOrderInvoice({
-      salesOrder: order,
-      spots,
-    });
+    pdfBuffer = await pdfService.generateSalesOrderInvoice(input);
   } catch (err) {
-    // err is unknown in a strict file; rethrow non-Error unchanged rather than crash annotating it.
     if (err instanceof Error) {
       err.message = `[EmailService] invoice PDF generation failed: ${err.message}`;
     }
     throw err;
   }
 
-  const orderId = typeof order.id === "string" ? order.id : null;
-  const pdfId = await persistPdf({ kind: "sales_order_invoice", order_id: orderId, bytes: pdfBuffer }, executor);
+  const order_id = order.order.id;
+  const pdfId = await persistPdf(
+    { kind: "sales_order_invoice", order_id, bytes: pdfBuffer }, executor
+  );
 
-  const subject = `Dorado Metals Exchange - New Order ${formatSalesOrderNumber(order.number)}`;
+  const subject =
+    `Dorado Metals Exchange - New Order ${formatSalesOrderNumber(order.order.number)}`;
   const record = {
     kind: "sales_order_to_supplier" as const,
-    to: email, subject, order_id: orderId, pdf_id: pdfId,
+    to: email, subject, order_id, pdf_id: pdfId,
   };
   let result: unknown;
   try {
     result = await sendEmail({
-      // email is not from a request body - sendSalesOrderToSupplier isn't a route; it's called with the refiner's address the order was placed against.
       to: email,
       subject,
       html: renderSalesOrderToSupplierEmail({
-        firstName: String(order.user?.user_name ?? ""),
+        firstName: order.user?.name ?? "",
         url: `${requiredEnv("FRONTEND_URL")}/orders`,
         order,
-        spots,
+        asks,
+        labels,
       }),
       attachments: [
         {
-          filename: `${formatSalesOrderNumber(order.number)}_invoice.pdf`,
+          filename: `${formatSalesOrderNumber(order.order.number)}_invoice.pdf`,
           content: pdfBuffer,
           contentType: "application/pdf",
         },

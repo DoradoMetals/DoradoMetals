@@ -1,4 +1,5 @@
 import { z } from "zod/v4";
+import { ItemsRow, OrdersRow } from "../generated/orders.js";
 
 // THE REQUEST BODIES OF THE ADMIN ORDER PATCH SURFACE (D87's consolidation).
 //
@@ -30,77 +31,66 @@ import { z } from "zod/v4";
 // service's `refusedField` remains the gate.
 
 // ===========================================================================
-// PATCH /api/orders/:id
+// PATCH /api/orders/:id   - THE ORDER ROW'S OWN FIELDS, AND ONLY THOSE
 // ===========================================================================
 
-// The order document. Its fields are OPERATIONS, not columns - except
-// `status`, which is a pure customer-facing label driving no logic (ruling 2).
-// The service validates each against the order's DIRECTION: add_funds,
-// finalize_pricing and cancel are purchase-side, supplier is sale-side.
+// FOUR OPERATIONS LEFT THIS DOCUMENT ON 2026-09-03 (D214 item 11). It used to
+// carry `add_funds: true`, `finalize_pricing: true`, `cancel: {...}` and
+// `supplier: {...}` - none of which is a field of an order. Each was an ACTION
+// multiplexed through a PATCH body, which is why the service needed a
+// direction matrix, four bespoke refusal messages and a dispatcher; each is
+// now `POST /api/orders/:id/<action>` with its own contract in wire/orders.ts.
 //
-// `cancel.return_shipment` is an opaque object here because it is opaque to
-// the API too: patchOrder hands it straight to the cancel pipeline, which
-// buys the FedEx return label from it. Narrowing it in this package would
-// mean importing the frontend's package/pickup/service/insurance form schemas,
-// which are UI policy and deliberately not table-derived. The client's record
-// of the shape stays in frontend/features/orders/patch.ts.
-export const OrderPatch = z.object({
-  // Both of these are the operation's NAME, not a boolean the caller sets
-  // either way: the service has always refused anything but `true` and its
-  // message says so ("send true or omit it"). The API's own type said
-  // `boolean` while its runtime said `true`; the runtime was right.
-  finalize_pricing: z.literal(true).optional(),
-  add_funds: z.literal(true).optional(),
-  cancel: z.object({ return_shipment: z.record(z.string(), z.unknown()) }).optional(),
-  // `send: true` is required rather than implied: attaching a refiner WITHOUT
-  // sending them the order is not an operation this endpoint has.
-  supplier: z.object({ supplier_id: z.string(), send: z.literal(true) }).optional(),
-  status: z.string().optional(),
-}).strict();
+// What remains is what a PATCH is for: columns of orders.orders, taken from
+// the generated row so the type cannot drift from the table. `status` is a
+// pure customer-facing label driving no logic (ruling 2); `notes` is free
+// text. Both are nullable in the table, so an explicit null CLEARS and an
+// absent key leaves the column alone - exactly what buildUpdate does with it.
+export const OrderPatch = OrdersRow.pick({
+  status: true,
+  notes: true,
+}).partial().strict();
 export type OrderPatch = z.infer<typeof OrderPatch>;
 
 // ===========================================================================
 // PATCH /api/orders/items/:id
 // ===========================================================================
 
-// The scrap-and-premium edit. BOTH MEMBERS ARE REQUIRED, and that is a
-// property of the write rather than a style choice: updateScrapItem sets every
-// column it knows in one statement and re-writes the line's premium in the
-// same transaction, so a document holding only the changed fields nulls the
-// rest. A caller must read the line first and send it back whole.
+// ONE ROW, ONE PATCH (Jacob, 2026-09-03, reading edit-line.ts: the scrap /
+// bullion split "is the old drawer document"). The body used to be
+// `{ scrap: { premium, scrap: Record<string, unknown> }, bullion: { quantity,
+// premium }, confirmed, reset }` - two nested documents for ONE table, read
+// through casts, with every field re-spelled with `?? null` on the way to the
+// column it came from.
 //
-// `scrap` stays an open record. The statement reads pre_melt, post_melt,
-// purity, gross_unit, bid_premium and the two *_actual columns off it, and the
-// client sends `metal` and `content` besides; pinning the keys here would
-// refuse a body that works today for no gain, since nothing reads `parsed.data`.
-export const OrderItemScrapPatch = z.object({
-  premium: z.number().nullable(),
-  scrap: z.record(z.string(), z.unknown()),
-});
-export type OrderItemScrapPatch = z.infer<typeof OrderItemScrapPatch>;
-
-// Both required for the same reason, and this one is measurable: the exchange
-// statement is `SET quantity = $1, premium = $2`, unconditionally. A document
-// naming only `premium` sends `undefined` for quantity and pg writes NULL - a
-// bullion line silently loses how many of the coin the customer sent.
-export const OrderItemBullionPatch = z.object({
-  quantity: z.number().nullable(),
-  premium: z.number().nullable(),
-});
-export type OrderItemBullionPatch = z.infer<typeof OrderItemBullionPatch>;
-
-// A line's document. `confirmed` and `reset` are ONE operation under two
-// names - confirmed: true saves the line, reset: true unconfirms it - and both
-// are literals for the reason finalize_pricing is: the dispatch is
-// `body.confirmed === true || body.reset === true`, so `confirmed: false`
-// passed the field check, matched no branch, and answered 200 having done
-// nothing. A no-op that reports success is worse than a refusal.
-export const OrderItemPatch = z.object({
-  scrap: OrderItemScrapPatch.optional(),
-  bullion: OrderItemBullionPatch.optional(),
-  confirmed: z.literal(true).optional(),
-  reset: z.literal(true).optional(),
-}).strict();
+// It is the LINE's own columns now, picked from the generated row:
+//
+//   ABSENT   leave the column alone
+//   null     clear it
+//   a value  write it
+//
+// which is buildUpdate's contract, so the `?? null` full-replace defence is
+// not needed - a caller that means "clear the post-melt weight" sends
+// `post_melt: null` and says so.
+//
+// THREE COLUMNS ARE DELIBERATELY NOT HERE. `content` is DERIVED from the
+// weight, the unit and the purity by rules.lineContent - two definitions of
+// what content means is the defect that costs money. `price` is written by
+// finalize-pricing from the frozen spots. `bullion_id` / `metal_id` /
+// `order_id` are the line's identity, not its facts.
+//
+// The refiner's assay numbers (`purity_actual`, `post_melt_actual`) are NOT
+// here either: they are refiners.items, and they have their own patch on the
+// refiner route - RefinerItemPatch below.
+export const OrderItemPatch = ItemsRow.pick({
+  pre_melt: true,
+  post_melt: true,
+  purity: true,
+  premium: true,
+  quantity: true,
+  confirmed: true,
+  unit: true,
+}).partial().strict();
 export type OrderItemPatch = z.infer<typeof OrderItemPatch>;
 
 // ===========================================================================

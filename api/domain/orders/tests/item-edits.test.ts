@@ -82,9 +82,11 @@ after(async () => {
   await pool.end();
 });
 
-// confirmed and reset are the SAME service call with item_status hardcoded
-// true and false. That asymmetry is the thing worth covering: it lives in the
-// dispatch, where no repo test reaches.
+// `confirmed` IS A COLUMN, and both directions are the same write (D214 item
+// 11). It was a `true`-only literal with a second name, `reset: true`, for the
+// other direction - because the dispatch was
+// `body.confirmed === true || body.reset === true`, so `confirmed: false`
+// matched no branch and answered 200 having done nothing.
 test("confirmed: true confirms the line", async () => {
   await inPinnedTransaction(async (client: PoolClient) => {
     await asAdmin(admin, async () => {
@@ -108,7 +110,7 @@ test("confirmed: true confirms the line", async () => {
   });
 });
 
-test("reset: true unconfirms the line", async () => {
+test("confirmed: false unconfirms the line", async () => {
   await inPinnedTransaction(async (client: PoolClient) => {
     await asAdmin(admin, async () => {
       await client.query(
@@ -118,7 +120,7 @@ test("reset: true unconfirms the line", async () => {
 
       const res = await request(app)
         .patch(`/api/orders/items/${item.id}`)
-        .send({ reset: true });
+        .send({ confirmed: false });
 
       assert.equal(res.status, 200, `answered ${res.status}: ${JSON.stringify(res.body)}`);
 
@@ -154,33 +156,28 @@ test("the refiner spots read answers by customer-order id", async () => {
   });
 });
 
-// BOTH HALVES OF THE SCRAP EDIT, because they feed the same number. A scrap
-// line is priced content * spot * premium, so a route that wrote the weight and
-// not the premium would quote from a mix of old and new - which is why the
-// service puts them in one transaction.
-test("the scrap field writes the scrap AND the line's premium together", async () => {
+// ONE ROW, ONE FLAT PATCH (D214 item 11). The body was
+// `{scrap: {premium, scrap: {...}}}` - the drawer's document for ONE table -
+// and it is the line's own columns now. `content` is NOT among them: it is
+// derived from the weight, the unit and the purity, because two definitions of
+// what content means is the defect that costs money.
+test("the line's own columns are the body, and content is derived from them", async () => {
   await inPinnedTransaction(async (client: PoolClient) => {
     await asAdmin(admin, async () => {
       const res = await request(app)
         .patch(`/api/orders/items/${scrapItem.id}`)
         .send({
-          scrap: {
-            premium: 0.925,
-            scrap: {
-              id: scrapItem.id,
-              pre_melt: 3.5,
-              post_melt: 3.25,
-              purity: 0.9167,
-              gross_unit: "t oz",
-              content: 2.979,
-            },
-          },
+          premium: 0.925,
+          pre_melt: 3.5,
+          post_melt: 3.25,
+          purity: 0.9167,
+          unit: "t oz",
         });
 
       assert.equal(res.status, 200, `answered ${res.status}: ${JSON.stringify(res.body)}`);
 
       const line = await client.query(
-        `SELECT premium, pre_melt, purity FROM orders.items WHERE id = $1`,
+        `SELECT premium, pre_melt, purity, content FROM orders.items WHERE id = $1`,
         [scrapItem.id]
       );
       assert.equal(Number(line.rows[0].premium), 0.925, "the line premium did not change");
@@ -194,6 +191,29 @@ test("the scrap field writes the scrap AND the line's premium together", async (
         0.9167,
         "the scrap purity was rounded - orders.items.purity has narrowed"
       );
+
+      // The post-melt weight at that purity, computed by the rule and by
+      // nothing the request said.
+      assert.ok(
+        Math.abs(Number(line.rows[0].content) - 3.25 * 0.9167) < 1e-6,
+        `content is ${line.rows[0].content}, not the derived 3.25 x 0.9167`
+      );
+    });
+  });
+});
+
+// THE REFINER'S ASSAY NUMBERS ARE NOT IN THIS BODY ANY MORE. They are
+// refiners.items - their own table, their own route - and a line edit that
+// carried them let a customer's DECLARED weight and a refinery's REPORT be
+// written by one document.
+test("the assay columns are refused on the line's own patch", async () => {
+  await inPinnedTransaction(async () => {
+    await asAdmin(admin, async () => {
+      const res = await request(app)
+        .patch(`/api/orders/items/${scrapItem.id}`)
+        .send({ purity_actual: 0.5, post_melt_actual: 3 });
+      assert.equal(res.status, 400, `answered ${res.status}`);
+      assert.match(res.body?.error?.message ?? "", /purity_actual/);
     });
   });
 });

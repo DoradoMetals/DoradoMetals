@@ -156,7 +156,9 @@ test("a non-boolean waiver is refused by name and writes nothing", async () => {
       const res = await request(app)
         .patch(`/api/payouts/${payout.id}`)
         .send({ waive_payout_fee: "yes" });
-      assert.equal(res.status, 400, `answered ${res.status}: ${JSON.stringify(res.body)}`);
+      // 422, NOT 400 (D214 item 11): the payout service refuses this itself,
+      // and a domain refusal is Invalid.
+      assert.equal(res.status, 422, `answered ${res.status}: ${JSON.stringify(res.body)}`);
       assert.match(res.body?.error?.message ?? "", /waive_payout_fee/);
 
       assert.deepEqual(await readState(client), before, "a refused document still wrote");
@@ -210,7 +212,9 @@ test("a method that names no payment method is refused, and nothing changes", as
       const res = await request(app)
         .patch(`/api/payouts/${payout.id}`)
         .send({ method: "NOT A METHOD" });
-      assert.equal(res.status, 400, `answered ${res.status}: ${JSON.stringify(res.body)}`);
+      // 422, NOT 400 (D214 item 11): the payout service refuses this itself,
+      // and a domain refusal is Invalid.
+      assert.equal(res.status, 422, `answered ${res.status}: ${JSON.stringify(res.body)}`);
 
       const after = await client.query(
         `SELECT method_id FROM payments.details WHERE id = $1`, [payout.id]

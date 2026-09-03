@@ -74,7 +74,10 @@ test("GET /api/checkout mints the row on first read, one per direction", async (
   });
 });
 
-test("an anonymous caller gets nothing, and a bad direction is a 400", async () => {
+// 422, NOT 400 (D214 item 11): a direction the business does not have is a
+// RULE the domain refuses, and a domain refusal is Invalid. 400 is what the
+// transport answers for a body it could not parse at all.
+test("an anonymous caller gets nothing, and a bad direction is refused", async () => {
   await inPinnedTransaction(async () => {
     const anon = await request(app).get("/api/checkout?direction=purchase");
     assert.equal(anon.status, 401);
@@ -82,7 +85,7 @@ test("an anonymous caller gets nothing, and a bad direction is a 400", async () 
     const bogus = await as(customer, () =>
       request(app).get("/api/checkout?direction=sideways")
     );
-    assert.equal(bogus.status, 400);
+    assert.equal(bogus.status, 422);
   });
 });
 
@@ -162,7 +165,7 @@ test("an address lands only if it is in the CALLER'S book", async () => {
         shipper_address_id: foreign.address_id,
       })
     );
-    assert.equal(theft.status, 400, "somebody else's address id was accepted");
+    assert.equal(theft.status, 422, "somebody else's address id was accepted");
   });
 });
 
@@ -197,7 +200,7 @@ test("the whitelist holds: fulfillment_id, user_id and id cannot be patched in",
   });
 });
 
-test("a reference id that matches no row is a 400, not a 500", async () => {
+test("a reference id that matches no row is refused, not a 500", async () => {
   await inPinnedTransaction(async () => {
     const res = await as(customer, () =>
       request(app).patch("/api/checkout").send({
@@ -205,7 +208,7 @@ test("a reference id that matches no row is a 400, not a 500", async () => {
         package_id: "33333333-3333-4333-8333-333333333333",
       })
     );
-    assert.equal(res.status, 400, res.text);
+    assert.equal(res.status, 422, res.text);
   });
 });
 
@@ -217,7 +220,7 @@ test("a malformed appointment_time is refused before it reaches the database", a
         appointment_time: "half past never",
       })
     );
-    assert.equal(res.status, 400);
+    assert.equal(res.status, 422);
   });
 });
 

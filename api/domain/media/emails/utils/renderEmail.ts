@@ -1,16 +1,26 @@
-// The HTML of every message the app sends - reads [PLACEHOLDER] template files on disk and substitutes; no transport here (see utils/sendEmail.ts).
+// The HTML of every message the app sends.
+//
+// The templates are files on disk with [PLACEHOLDER] markers; these functions
+// read them and substitute. Nothing here talks to a transport - see
+// utils/sendEmail.ts for that seam.
 import fs from "fs";
 import path from "path";
 import { formatSalesOrderNumber } from "#shared/utils/formatOrderNumbers.ts";
 import { fileURLToPath } from "url";
-// The COMPOSED sales order - an email needs it put back together, rendered server-side from the server's own read.
-import type { ComposedSalesItem as SalesOrderItem } from "#domain/orders/compose.ts";
-type SalesOrder = Record<string, any>;
+// THE ORDER VIEW, which is the API's own read of one order put back together
+// from its tables (D214 item 12). It replaces the composed sales order this
+// file used to take as `Record<string, any>`.
+import { bullionLines } from "#domain/pricing/service.ts";
+import type { OrderView } from "@dorado/contracts";
+import type { DocumentLabels } from "#domain/media/pdfs/render/sections.ts";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// firstName defaults, url is optional - what every caller relies on (most send only a name and a URL).
+// firstName has a default and url is optional, which is what every caller
+// relies on: most send only a name and a URL. offerExpiration left with the
+// offers themselves - nothing rendered it but the offer-sent template, and
+// both are gone.
 type TemplateVars = {
   firstName?: string | null;
   url?: string | null;
@@ -64,45 +74,63 @@ export function renderSalesOrderPlacedEmail({ firstName, url }: TemplateVars): s
   return renderTemplate("salesOrderPlaced.raw.html", { firstName, url });
 }
 
+// renderOfferSentEmail IS GONE with the offers (Jacob, 28 August: "we're
+// removing ANYTHING related to offers"). Nothing but its own test called it -
+// the offer flow left with 086 - and its template went with it.
+
 export function renderOrderPricedEmail({ firstName, url }: TemplateVars): string {
   return renderTemplate("orderPriced.raw.html", { firstName, url });
 }
 
-// created_at/updated_at are Date here, not the wire's string - this renderer gets a database row pg already parsed (same reason sections.ts declares string | number | Date | null).
-export type SalesOrderForRender = Omit<SalesOrder, "created_at" | "updated_at"> & {
-  created_at?: string | Date | null;
-  updated_at?: string | Date | null;
-};
-
-// Converted spot spellings - only the metal's name and its ask are printed on the refiner's copy.
-export type SupplierSpot = { name?: string | null; ask?: number | null };
-
-type SupplierEmailInput = {
+// The refiner's copy of a sales order: where it goes, what the metal was worth
+// when the order was priced, and what to ship.
+//
+// TWO LIVE TypeErrors WERE FOUND HERE BY TYPING IT, both after the point of no
+// return. sendOrderToRefiner attaches the refiner, creates the outbound
+// shipment and sets order_sent in one transaction, and only then sends this -
+// deliberately, so that the failure mode is an order marked sent rather than
+// metal leaving the building against a rolled-back record. That makes anything
+// that throws in here silent: the order says it was sent, and the refiner was
+// never told.
+//
+//   `addr.line_1` on an order with no address. Production sales order 55 has
+//   address_id NULL, a refiner attached and order_sent true.
+//   `s.ask.toFixed(2)` on a spot with no ask. The ask is nullable.
+//
+// Neither is fixed by rendering something wrong instead. An order with no
+// address must not reach a refiner at all, and domain/orders refuses it before
+// the transaction rather than after. What is here is the second line of
+// defence: a value the row calls nullable renders as a dash, and the message
+// goes out.
+type RefinerEmailInput = {
   firstName?: string | null;
   url?: string | null;
-  order: SalesOrderForRender;
-  spots: SupplierSpot[];
+  order: OrderView;
+  /** metal_id -> the ask the order was priced at. */
+  asks: ReadonlyMap<string, number | null>;
+  labels: DocumentLabels;
 };
 
-// Renders a value the wire says can be missing as an em dash - never "null", and never a number that isn't the number (a supplier reading $0.00 against gold would believe it).
+// Renders a value that the row says can be missing. An em dash, never "null"
+// and never a number that is not the number - a refiner reading $0.00 against
+// a line of gold would believe it.
 const orDash = (value: string | null | undefined): string =>
   value == null || value === "" ? "&mdash;" : value;
 
 const money = (value: number | null | undefined): string =>
   value == null ? "&mdash;" : `$${value.toFixed(2)}`;
 
-// The refiner's copy: where it goes, what the metal was worth when priced, what to ship.
-// Runs AFTER order_sent is already committed, so anything that throws here is silent - the order says sent, the refiner is never told. Two live TypeErrors were found this way (a null address, a null spot ask); features/sales-orders/service.ts now refuses those cases first - what's here is the second line of defence: a nullable value renders as a dash, never a crash.
 export function renderSalesOrderToSupplierEmail({
   firstName,
   url,
   order,
-  spots,
-}: SupplierEmailInput): string {
+  asks,
+  labels,
+}: RefinerEmailInput): string {
   const templatesDir = path.join(__dirname, "..", "templates");
   const layoutPath = path.join(templatesDir, "baseLayout.raw.html");
   const contentPath = path.join(templatesDir, "salesOrderToSupplier.raw.html");
-  let layout = fs.readFileSync(layoutPath, "utf8");
+  const layout = fs.readFileSync(layoutPath, "utf8");
   let content = fs.readFileSync(contentPath, "utf8");
 
   content = content
@@ -121,34 +149,39 @@ export function renderSalesOrderToSupplierEmail({
     .filter(Boolean)
     .join("");
 
-  const spotsHtml = spots
+  const spotsHtml = [...labels.metals]
     .map(
-      (s: SupplierSpot) => `
+      ([metal_id, name]) => `
     <tr>
-      <td style="padding:4px 8px;">${s.name}</td>
+      <td style="padding:4px 8px;">${name}</td>
       <td style="padding:4px 8px;text-align:right;">
-        ${money(s.ask)}
+        ${money(asks.get(metal_id))}
       </td>
     </tr>
   `
     )
     .join("");
 
-  // quantity * price keeps its arithmetic rather than gaining a guard - both nullable on the wire, multiplying to 0 (wrong but not a crash); production has no null on either across all 14 sales order items today.
-  const orderRows = order.order_items
-    .map((item: SalesOrderItem) => {
-      const subtotal = (item.quantity! * item.price!).toFixed(2);
+  // `quantity * price` keeps its arithmetic rather than gaining a guard. Both
+  // are nullable on the row and both multiply to 0 today, which shows the
+  // refiner $0.00 for the line - wrong, but not a crash, and production has no
+  // null price or quantity on any of its 14 sales order items.
+  const orderRows = bullionLines(order.items)
+    .map((line) => {
+      const subtotal = ((line.quantity ?? 0) * (line.price ?? 0)).toFixed(2);
       return `
       <tr>
-        <td style="padding:8px 0">${item.product?.name}</td>
-        <td style="padding:8px 0;text-align:center">${item.quantity}</td>
+        <td style="padding:8px 0">${line.product?.name ?? ""}</td>
+        <td style="padding:8px 0;text-align:center">${line.quantity}</td>
         <td style="padding:8px 0;text-align:right">$${subtotal}</td>
       </tr>
     `;
     })
     .join("");
 
-  // totals.items is nullable on the wire; `?? 0` keeps a missing value from crashing a send that happens after the order is already marked sent.
+  // totals.items is the sum of the lines. `?? 0` keeps a missing value from
+  // crashing a send that happens after the order is already marked sent, per
+  // this file's own second-line-of-defence rule.
   const total = (order.totals?.items ?? 0).toFixed(2);
 
   content = content
@@ -156,8 +189,8 @@ export function renderSalesOrderToSupplierEmail({
     .replace("[SPOTS_ROWS]", spotsHtml)
     .replace("[ORDER_ROWS]", orderRows)
     .replace("[ORDER_TOTAL]", total)
-    .replace("[ORDER_NUMBER]", formatSalesOrderNumber(order.number))
-    .replace("[CUSTOMER_NAME]", order.user.user_name ?? "");
+    .replace("[ORDER_NUMBER]", formatSalesOrderNumber(order.order.number))
+    .replace("[CUSTOMER_NAME]", order.user?.name ?? "");
 
   return layout.replace("[BODY]", content);
 }

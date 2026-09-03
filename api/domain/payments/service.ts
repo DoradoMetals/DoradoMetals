@@ -20,7 +20,7 @@ import { calculateSalesOrderTotal } from "#domain/pricing/service.ts";
 import {
   toDollars, intentOwner, isOpen, isResolved, methodTypeFor, instrumentValues,
 } from "#domain/payments/rules.ts";
-import { refuse } from "#shared/http/refuse.ts";
+import { Forbidden, Invalid } from "#shared/errors.ts";
 
 import { auth } from "#domain/auth/client.ts";
 import { fromNodeHeaders } from "better-auth/node";
@@ -82,7 +82,7 @@ export async function retrievePaymentIntent(
 ): Promise<StripeIntent> {
   const session = await sessionFrom(headers);
   if (!session?.session?.id) {
-    throw refuse(401, "no session - a payment intent cannot be retrieved without one");
+    throw new Forbidden("no session - a payment intent cannot be retrieved without one");
   }
 
   const open = await findReusableIntent(type, user_id, session);
@@ -117,7 +117,7 @@ export async function createPaymentIntent(
   // fact, not a server fault. requireUser has already run, so this fires only
   // when the second, independent lookup disagrees with it.
   if (!session?.user?.id) {
-    throw refuse(401, "no session - a payment intent cannot be opened without one");
+    throw new Forbidden("no session - a payment intent cannot be opened without one");
   }
 
   const { id, name, email, stripeCustomerId } = session.user;
@@ -128,7 +128,7 @@ export async function createPaymentIntent(
         : undefined
       : { id, name, email, stripeCustomerId };
   if (!target?.id) {
-    throw refuse(400, "an admin payment intent must name a customer that exists");
+    throw new Invalid("an admin payment intent must name a customer that exists");
   }
 
   let customerId = target.stripeCustomerId;
@@ -291,7 +291,7 @@ export async function updatePaymentIntent(
 ): Promise<StripeIntent> {
   const session = await sessionFrom(headers);
   if (!session?.user?.id) {
-    throw refuse(401, "no session - a payment intent cannot be priced without one");
+    throw new Forbidden("no session - a payment intent cannot be priced without one");
   }
 
   const retrieved_intent = await findReusableIntent(type, user?.id, session);
@@ -321,7 +321,7 @@ export async function updatePaymentIntent(
   const sessionUser = session.user;
   const priced_for = type === "admin" ? user : sessionUser;
   if (!priced_for) {
-    throw refuse(400, "an admin payment intent must name the customer it is for");
+    throw new Invalid("an admin payment intent must name the customer it is for");
   }
 
   const orderPrices = calculateSalesOrderTotal(
@@ -410,11 +410,8 @@ export async function updateMethod({
   // rather than a regression: payments.details.user_id is NOT NULL and a
   // webhook payload names no customer, so a first sighting of an instrument
   // raises 23502. Attributing it needs Jacob's decision (WAVES.md). ***
-  throw refuse(
-    422,
-    "a payment instrument arrived for a customer this webhook cannot name - " +
-      "payments.details.user_id has no value to take"
-  );
+  throw new Invalid("a payment instrument arrived for a customer this webhook cannot name - " +
+      "payments.details.user_id has no value to take");
 }
 
 // D24, decided by Jacob 26 August. A WEBHOOK THAT MATCHES NO ROW IS REFUSED,
@@ -452,10 +449,7 @@ export async function updateIntentFromWebhook({
   const prior = await findIntentByRef(paymentIntent.id);
   const matched = await updateFromProvider(paymentIntent);
   if (!matched) {
-    throw refuse(
-      500,
-      `stripe webhook: no payment intent row for ${paymentIntent.id} - refusing so Stripe retries`
-    );
+    throw new Error(`stripe webhook: no payment intent row for ${paymentIntent.id} - refusing so Stripe retries`);
   }
 
   // THE WEBHOOK FINISHES THE ORDER'S LABEL, AND ONLY ITS LABEL (D211).

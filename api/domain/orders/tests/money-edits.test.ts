@@ -196,7 +196,10 @@ test("an unknown field refuses by name on both endpoints", async () => {
       const pay = await request(app)
         .patch(`/api/payouts/${payout.id}`)
         .send({ account_number: "12345678" });
-      assert.equal(pay.status, 400, `answered ${pay.status}`);
+      // 422, NOT 400 (D214 item 11): the payout PATCH's field check is a
+      // domain rule, and a domain refusal is Invalid. The shipment PATCH above
+      // stays 400 because its body is strict-parsed at transport.
+      assert.equal(pay.status, 422, `answered ${pay.status}`);
       assert.match(pay.body?.error?.message ?? "", /"account_number"/);
     });
   });

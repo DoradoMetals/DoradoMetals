@@ -5,23 +5,13 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import * as rules from "#domain/orders/rules.ts";
+import { Conflict, Invalid } from "#shared/errors.ts";
 
-test("a purchase is priced from the bid and a sale from the ask", () => {
-  // We BID to buy metal from a customer and ASK to sell it to them.
-  assert.equal(rules.spotSideFor("purchase"), "bid");
-  assert.equal(rules.spotSideFor("sale"), "ask");
-});
-
-// EVERY LINE OF A PURCHASE COMES FROM THE RATES TABLE (Jacob, 2026-09-03) -
-// bullion no longer keeps the product's bid_premium. The two kinds differ only
-// in which percentage column of the band they read.
-test("every purchase premium comes from the rates table, and a sale takes the ask", () => {
-  assert.equal(rules.premiumSourceFor("purchase", { bullion_id: null }), "rate-tier-scrap");
-  assert.equal(rules.premiumSourceFor("purchase", { bullion_id: "abc" }), "rate-tier-bullion");
-  // A sale is always bullion, quoted at the product's ask premium.
-  assert.equal(rules.premiumSourceFor("sale", { bullion_id: "abc" }), "product-ask-premium");
-  assert.equal(rules.premiumSourceFor("sale", { bullion_id: null }), "product-ask-premium");
-  // The column the band is read from, asked directly.
+// `spotSideFor` and `premiumSourceFor` LEFT WITH THIS FILE'S SUBJECT (D214
+// item 11): both were pure commentary - nothing but this test ever called
+// either - and the decisions they named are now enforced where they are made.
+// `rateMaterialFor` stays because retierPlan reads it.
+test("which percentage column of the band a line reads", () => {
   assert.equal(rules.rateMaterialFor({ bullion_id: null }), "scrap");
   assert.equal(rules.rateMaterialFor({ bullion_id: "abc" }), "bullion");
   assert.equal(rules.rateMaterialFor({}), "scrap");
@@ -144,6 +134,10 @@ test("no rate bands means no plan - an order keeps what it was given", () => {
 
 // ONE QUOTE PER METAL THE ORDER ACTUALLY CONTAINS. exchange wrote a row per
 // metal whether or not the order held any of it.
+//
+// THE ROWS ARE COMPLETE (D214 item 11): the rule answers `NewOrderSpot[]` with
+// the order_id on every row, so the use case is one line -
+// `orderSpots.createMany(rules.spotsToFreeze(order_id, lines, live), tx)`.
 test("freezing quotes each distinct metal on the order once, at the live spot", () => {
   const live = [
     { id: "gold", ask: 3400, bid: 3300 },
@@ -151,24 +145,28 @@ test("freezing quotes each distinct metal on the order once, at the live spot", 
   ];
   assert.deepEqual(
     rules.spotsToFreeze(
+      "order-1",
       [{ metal_id: "gold" }, { metal_id: "gold" }, { metal_id: "silver" }],
       live
     ),
     [
-      { metal_id: "gold", ask: 3400, bid: 3300 },
-      { metal_id: "silver", ask: 40, bid: 39 },
+      { order_id: "order-1", metal_id: "gold", ask: 3400, bid: 3300 },
+      { order_id: "order-1", metal_id: "silver", ask: 40, bid: 39 },
     ]
   );
   // A metal nobody sold gets no row.
-  assert.deepEqual(rules.spotsToFreeze([], live), []);
-  // A metal with no live quote is frozen unquoted rather than skipped - the
-  // LEFT JOIN the statement this replaces always did.
-  assert.deepEqual(
-    rules.spotsToFreeze([{ metal_id: "platinum" }], live),
-    [{ metal_id: "platinum", ask: null, bid: null }]
+  assert.deepEqual(rules.spotsToFreeze("order-1", [], live), []);
+});
+
+// A METAL WITH NO LIVE QUOTE IS REFUSED, WHERE IT USED TO BE FROZEN AT NULL.
+// Every money figure on the order is content * (spot * premium), so a null spot
+// prices that metal at nothing - silently, on an order the business pays out.
+test("a metal the feed has not quoted refuses the placement", () => {
+  const live = [{ id: "gold", ask: 3400, bid: 3300 }];
+  assert.throws(
+    () => rules.spotsToFreeze("order-1", [{ metal_id: "platinum" }], live),
+    (err: unknown) => err instanceof Invalid && /no live quote for metal platinum/.test((err as Error).message)
   );
-  // A line with no metal cannot be quoted.
-  assert.deepEqual(rules.spotsToFreeze([{ metal_id: null }], live), []);
 });
 
 // ===========================================================================
@@ -231,4 +229,183 @@ test("a repair is honoured only at the price that was actually taken", () => {
   assert.equal(rules.repairAmountMatches("12649", 12649), true);
   assert.equal(rules.repairAmountMatches(12649, 12650), false);
   assert.equal(rules.repairAmountMatches(null, 12649), false);
+});
+
+// ===========================================================================
+// THE ROWS A LINE BECOMES, AND WHAT AN OPERATION REQUIRES (D214 item 11)
+// ===========================================================================
+//
+// Every function below is new with the streamlining pass, and every one is the
+// ASSERT or the derivation step of a use case that used to do the same work
+// inline, through a cast, over a document the browser sent.
+
+test("a catalogue line takes its weights from the product and no premium", () => {
+  const product = {
+    id: "prod-1", metal_id: "gold", gross: 1.1, content: 1, purity: 0.9999,
+  } as unknown as Parameters<typeof rules.lineFromProduct>[1];
+
+  assert.deepEqual(rules.lineFromProduct("order-1", product), {
+    order_id: "order-1",
+    bullion_id: "prod-1",
+    metal_id: "gold",
+    pre_melt: 1.1,
+    post_melt: 1,
+    purity: 0.9999,
+    content: 1,
+    quantity: 1,
+    confirmed: false,
+    unit: "t oz",
+  });
+});
+
+test("a scrap line derives its content from the weight, the unit and the purity", () => {
+  assert.deepEqual(
+    rules.lineFromScrap("order-1", {
+      metal_id: "gold", pre_melt: 160, purity: 0.5, unit: "dwt",
+    }),
+    {
+      order_id: "order-1",
+      metal_id: "gold",
+      pre_melt: 160,
+      purity: 0.5,
+      unit: "dwt",
+      // 160 pennyweight is 8 troy ounces; half of that is fine metal.
+      content: 4,
+      quantity: 1,
+      confirmed: false,
+    }
+  );
+});
+
+// The five ids a shipping checkout must hold, NAMED in the refusal - a caller
+// that is one field short is told which one.
+const completeCheckout = {
+  shipper_address_id: "a", package_id: "b", carrier_service_id: "c",
+  fulfillment_id: "d", payment_details_id: "e", package_weight: 2,
+  pickup_date: "2026-09-04", pickup_time: "14:00",
+} as unknown as Parameters<typeof rules.assertShippingCheckoutComplete>[0];
+
+test("a complete shipping checkout passes, and a short one names what is missing", () => {
+  assert.doesNotThrow(() => rules.assertShippingCheckoutComplete(completeCheckout));
+
+  assert.throws(
+    () =>
+      rules.assertShippingCheckoutComplete(
+        Object.assign({}, completeCheckout, { package_id: null })
+      ),
+    (err: unknown) => err instanceof Invalid && /missing package_id/.test((err as Error).message)
+  );
+
+  assert.throws(
+    () =>
+      rules.assertShippingCheckoutComplete(
+        Object.assign({}, completeCheckout, { package_weight: 0 })
+      ),
+    (err: unknown) => err instanceof Invalid && /needs a weight/.test((err as Error).message)
+  );
+});
+
+test("a carrier pickup needs a date and a time", () => {
+  assert.doesNotThrow(() => rules.assertPickupScheduled(completeCheckout));
+  assert.throws(
+    () =>
+      rules.assertPickupScheduled(
+        Object.assign({}, completeCheckout, { pickup_time: null })
+      ),
+    Invalid
+  );
+});
+
+test("an operation of the wrong direction is refused, naming both", () => {
+  assert.doesNotThrow(() => rules.assertDirection("purchase", "purchase", "cancelling"));
+  assert.throws(
+    () => rules.assertDirection("sale", "purchase", "cancelling"),
+    (err: unknown) =>
+      err instanceof Invalid &&
+      /cancelling is a purchase-direction operation and this is a sale order/.test(
+        (err as Error).message
+      )
+  );
+  assert.throws(() => rules.assertDirection(null, "purchase", "cancelling"), Invalid);
+});
+
+// A sale on its way to a refiner. The address is the ORDER's snapshot, so an
+// order without one cannot say where the metal goes.
+const sendable = {
+  order: { number: 42, order_sent: false },
+  address: { line_1: "1 Main St", phone_number: "555" },
+  user: { name: "Ada" },
+} as unknown as Parameters<typeof rules.assertSendable>[0];
+
+test("an order reaches a refiner only with an address, an email and no other refiner", () => {
+  assert.doesNotThrow(() =>
+    rules.assertSendable(sendable, {
+      refiner_id: "r1", attachedRefinerId: null, refinerEmail: "r@example.com",
+    })
+  );
+
+  assert.throws(
+    () =>
+      rules.assertSendable(Object.assign({}, sendable, { address: null }), {
+        refiner_id: "r1", attachedRefinerId: null, refinerEmail: "r@example.com",
+      }),
+    (err: unknown) => err instanceof Invalid && /has no address/.test((err as Error).message)
+  );
+
+  assert.throws(
+    () =>
+      rules.assertSendable(sendable, {
+        refiner_id: "r1", attachedRefinerId: null, refinerEmail: null,
+      }),
+    (err: unknown) => err instanceof Invalid && /has no email address/.test((err as Error).message)
+  );
+
+  // A SENT ORDER MAY BE RE-SENT TO THE SAME REFINER and never moved.
+  const sent = {
+    order: { number: 42, order_sent: true },
+    address: sendable.address,
+    user: sendable.user,
+  } as unknown as Parameters<typeof rules.assertSendable>[0];
+
+  assert.doesNotThrow(() =>
+    rules.assertSendable(sent, {
+      refiner_id: "r1", attachedRefinerId: "r1", refinerEmail: "r@example.com",
+    })
+  );
+  assert.throws(
+    () =>
+      rules.assertSendable(sent, {
+        refiner_id: "r2", attachedRefinerId: "r1", refinerEmail: "r@example.com",
+      }),
+    Conflict
+  );
+});
+
+// THE RETURN LABEL'S REQUEST. Where the parcel goes is the order's own
+// snapshot and who signs for the business is the provider's configured
+// contact - neither is ever a field of the request body.
+test("the return label goes from the business to the order's own address", () => {
+  const request = rules.returnLabelRequest(sendable, {
+    serviceType: "FEDEX_2_DAY",
+    weight: { units: "LB", value: 3 },
+    dimensions: { length: 10, width: 8, height: 6, units: "IN" },
+    declaredValue: 5000,
+  });
+
+  assert.equal(request.recipient.address, sendable.address);
+  assert.equal(request.recipient.contact.personName, "Ada");
+  assert.equal(request.serviceType, "FEDEX_2_DAY");
+  assert.deepEqual(request.insurance.declaredValue, { amount: 5000, currency: "USD" });
+  assert.ok(request.shipper.address, "the business's own address is the shipper");
+
+  assert.throws(
+    () =>
+      rules.returnLabelRequest(Object.assign({}, sendable, { address: null }), {
+        serviceType: "FEDEX_2_DAY",
+        weight: { units: "LB", value: 3 },
+        dimensions: { length: 10, width: 8, height: 6, units: "IN" },
+        declaredValue: 0,
+      }),
+    (err: unknown) => err instanceof Invalid && /no address snapshot/.test((err as Error).message)
+  );
 });

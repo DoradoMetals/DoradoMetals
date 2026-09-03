@@ -1,64 +1,43 @@
 // THE TWO LEGACY CREATE NAMESPACES: /api/purchase_orders and /api/sales_orders.
 //
-// Was features/purchase-orders/routes.ts and features/sales-orders/routes.ts.
-// Those features are gone - direction is a COLUMN - but THE PATHS DO NOT
-// CHANGE (ruling 13: the URL and the file answer different questions), so this
-// file declares both routers and app.ts mounts each where it always did.
+// Those features are gone - direction is a COLUMN - but THE PATHS DO NOT CHANGE
+// in this pass (the REST rewrite is its own, docs/waves/rest-routes.md), so
+// this file declares both routers and app.ts mounts each where it always did.
 //
-// WHAT IS LEFT HERE IS CREATION and the review flag. (The purge button and
-// its route were REMOVED 2026-09-01, Jacob: "yeah remove this button" - the
-// exchange-only DELETE behind it was the half-delete D-threads kept flagging.)
-// The reads
-// left with the read-flip wave and the mutations left with D87: the lists are
-// GET /api/orders, the spots GET /api/orders/:id/spots, the refiner spots
-// GET /api/refiners/orders/:id/spots, the bank details
-// GET /api/payouts/:id/details, and every order mutation is
-// PATCH /api/orders/:id.
-//
-// D102 NAMES THESE AS THE NEXT THING TO GO: the creates are what checkout
-// calls, and unifying them is checkout's own work rather than this file's.
-// Until then the two namespaces survive as the create surface.
+// ALL THREE CREATE PATHS NOW REACH ONE HANDLER WITH ONE BODY, `{ checkout_id }`
+// (D214 item 11). They used to be three: a zero-body purchase create that read
+// the caller's own checkout, a customer sale create that took the browser's
+// whole checkout document, and an admin sale create that took the same document
+// plus the customer. The checkout row names its own customer, so the admin door
+// and the customer door differ only in whose checkout may be named - which is
+// an authorization question, asked in the controller.
 import express from "express";
 
 import {
-  createPurchaseOrderFromCheckout,
-  createSalesOrder,
-  adminCreateSalesOrder,
+  createOrderFromCheckout,
   createOrderReview,
 } from "#transport/orders/controller.ts";
 
 import { requireUser, requireAdmin } from "#shared/middleware/authMiddleware.ts";
 // requireUser asks whether somebody is signed in; this asks whether the order
-// is theirs. It reads the order id out of the request BODY, which is where
-// every POST below carries it. Until it existed a customer could act on any
-// order whose id they had.
+// is theirs. It reads the order id out of the request BODY, which is where the
+// review flag carries it.
 import { requireOwnOrder } from "#shared/middleware/ownership.ts";
 
 // ------------------------------------------------- /api/purchase_orders
 export const purchaseOrderRoutes = express.Router();
 
-// The row-flow create (D208). The composed /create_purchase_order died with
-// the stepper conversion - the server holds the choices now.
-purchaseOrderRoutes.post("/create_from_checkout", requireUser, createPurchaseOrderFromCheckout);
+purchaseOrderRoutes.post("/create_from_checkout", requireUser, createOrderFromCheckout);
 purchaseOrderRoutes.post("/create_review", requireUser, requireOwnOrder, createOrderReview);
-
-// admin
 
 // ---------------------------------------------------- /api/sales_orders
 export const salesOrderRoutes = express.Router();
 
 // ADMIN-ONLY WHILE SALES-ORDER CHECKOUT IS OFF. Jacob's call, 26 August: the
 // buy flow is not open to customers until the refactor lands, so the route that
-// creates a sales order takes requireAdmin rather than requireUser. It is the
-// route the customer checkout posts to, so a customer now gets 403 there - that
-// is the intent, not a regression.
-//
-// Deliberately NOT deleted and NOT merged into admin_create_sales_order: those
-// take different bodies and different controllers, and reopening the flow should
-// be a one-word change here rather than a re-implementation.
-salesOrderRoutes.post("/create_sales_order", requireAdmin, createSalesOrder);
+// creates a sales order takes requireAdmin rather than requireUser. Reopening
+// the flow is a one-word change here.
+salesOrderRoutes.post("/create_sales_order", requireAdmin, createOrderFromCheckout);
+salesOrderRoutes.post("/admin_create_sales_order", requireAdmin, createOrderFromCheckout);
 
 salesOrderRoutes.post("/create_review", requireUser, requireOwnOrder, createOrderReview);
-
-// admin
-salesOrderRoutes.post("/admin_create_sales_order", requireAdmin, adminCreateSalesOrder);

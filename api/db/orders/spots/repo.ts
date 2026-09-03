@@ -77,6 +77,17 @@ export async function create(row: NewOrderSpot, executor?: Executor): Promise<Sp
   return rows[0];
 }
 
+// THE SIXTH VERB (D214 item 11): a derivation that yields N rows writes them in
+// one call, so the use case reads
+// `await orderSpots.createMany(rules.spotsToFreeze(...), tx)` and carries no
+// loop of its own.
+export async function createMany(
+  rows: NewOrderSpot[], executor?: Executor
+): Promise<number> {
+  for (const row of rows) await create(row, executor);
+  return rows.length;
+}
+
 // ONE UPDATE, keyed on (order_id, metal_id). `bid` ONLY: the ask is what the
 // same metal sells for, and writing it here would lose a number this never owned.
 export const PATCHABLE = ["bid"] as const;

@@ -1,6 +1,13 @@
 import express from "express";
 
-import { listOrders, patchOrder } from "#transport/orders/controller.ts";
+import {
+  addFundsToOrder,
+  cancelOrder,
+  finalizeOrderPricing,
+  listOrders,
+  patchOrder,
+  sendOrderToRefiner,
+} from "#transport/orders/controller.ts";
 
 // EVERY SUB-RESOURCE DECLARES ITS OWN PATHS; THIS FILE MOUNTS THEM (ruling
 // 26c). The URLs do not change - ruling 13, the URL and the file answer
@@ -65,12 +72,23 @@ router.get("/:orderId/refiners", requireAdmin, getRefinerOrderByOrder);
 router.get("/:orderId/refiners/spots", requireAdmin, getRefinerSpotsByOrder);
 router.get("/:orderId/refiners/items", requireAdmin, getRefinerItemsByOrder);
 
+// THE FOUR ACTIONS. Each was a flag in the PATCH body until D214 item 11, and
+// each is a real operation rather than a field change: two move money, one
+// buys a carrier label, one sends a refiner their copy of an order. Direction
+// is DATA - the use case checks the order's direction, not the URL.
+//
+//   POST /:id/add_funds         credit the order's total to the customer
+//   POST /:id/finalize_pricing  price every line at the order's spots
+//   POST /:id/cancel            buy the return label, unpin the spots
+//   POST /:id/send_to_refiner   attach a refiner and send them the order
+router.post("/:id/add_funds", requireAdmin, addFundsToOrder);
+router.post("/:id/finalize_pricing", requireAdmin, finalizeOrderPricing);
+router.post("/:id/cancel", requireAdmin, cancelOrder);
+router.post("/:id/send_to_refiner", requireAdmin, sendOrderToRefiner);
+
 // THE ORDER ROW ITSELF, and only it (Jacob, 28 August): the status label and
-// the order-level operations. /purchase_orders and /sales_orders were legacy
-// route vocabulary, the same way the schema unified into orders.orders with a
-// direction column. Direction is DATA - the patch service validates each
-// operation against the order's direction rather than the URL. Admin-only:
-// customers have no order-management surface today.
+// the notes. Admin-only, like every order mutation: customers have no
+// order-management surface today.
 router.patch("/:id", requireAdmin, patchOrder);
 
 export default router;

@@ -8,13 +8,8 @@ import * as payoutsRepo from "#db/payouts/repo.ts";
 import * as payoutDetails from "#domain/payments/details/service.ts";
 import * as orderTransactions from "#domain/orders/transactions/service.ts";
 import { refusedUnknownField, refusedValue, type Refusal } from "#shared/http/patch-body.ts";
+import { Invalid, NotFound } from "#shared/errors.ts";
 import { PayoutPatch } from "@dorado/contracts";
-
-const refuse = (statusCode: number, message: string): never => {
-  const err: Error & { statusCode?: number } = new Error(message);
-  err.statusCode = statusCode;
-  throw err;
-};
 
 // The fee is per-order data and the waiver is a flag, both needed: production payouts diverge from constants.ts defaults in both directions (some are waivers, some are added charges), so a boolean cannot replace the stored cost.
 export type { PayoutPatch } from "@dorado/contracts";
@@ -39,13 +34,13 @@ export async function patchPayout(
   body: PayoutPatch & Record<string, unknown>
 ): Promise<payoutsRepo.PayoutRow> {
   const refusal = refusedField(body);
-  if (refusal) refuse(refusal.statusCode, refusal.message);
+  if (refusal) throw new Invalid(refusal.message);
 
   // getById resolves every payout via the LEFT join to orders.transactions, bringing the order with it - see sql/get_by_id.sql.
   const payout = await payoutsRepo.getById(payoutId);
-  if (!payout) refuse(404, `no payout ${payoutId}`);
+  if (!payout) throw new NotFound(`no payout ${payoutId}`);
   if (!payout!.order_id) {
-    refuse(422, `payout ${payoutId} is attached to no order, so its writes have no subject`);
+    throw new Invalid(`payout ${payoutId} is attached to no order, so its writes have no subject`);
   }
   const orderId = payout!.order_id!;
 
@@ -59,7 +54,7 @@ export async function patchPayout(
     // payments.methods. Keyed by the payout's OWN id - the walk this replaced
     // matched nothing for every payout it existed to serve (D168).
     const changed = await payoutDetails.setMethod(payoutId, body.method);
-    if (!changed) refuse(404, `no payout ${payoutId}`);
+    if (!changed) throw new NotFound(`no payout ${payoutId}`);
   }
 
   // Waiving sets the flag; it does NOT touch cost - the stored fee stays a record, the EFFECTIVE fee (pricing/bid.ts) becomes 0. Runs after cost so both facts land from one request.
@@ -71,7 +66,7 @@ export async function patchPayout(
       { direction: "purchase" }
     );
     if (!written) {
-      refuse(422, `payout ${payoutId} is not on a purchase order, so its fee cannot be waived`);
+      throw new Invalid(`payout ${payoutId} is not on a purchase order, so its fee cannot be waived`);
     }
   }
 
@@ -80,8 +75,8 @@ export async function patchPayout(
   // payments.details, so the composed answer is only correct if it comes back
   // through the statement that composes them.
   const written = await payoutsRepo.getById(payoutId);
-  if (!written) refuse(404, `no payout ${payoutId}`);
-  return written!;
+  if (!written) throw new NotFound(`no payout ${payoutId}`);
+  return written;
 }
 
 // GET /api/orders/:orderId/payouts - a thin pass to the repo so the controller never imports #db/* directly.

@@ -59,7 +59,7 @@ export async function mirrorLinesForOrder(
 // Keyed on order_item_id — the line's own id and the only key every caller holds; this table's own `id` never leaves it.
 // content is computed by the caller (domain/orders/service.ts), never derived here; omit a column to leave it untouched, send null to clear it (shared/db/patch.ts).
 export const PATCHABLE = [
-  "pre_melt", "post_melt", "purity", "content", "premium",
+  "pre_melt", "post_melt", "purity", "content", "premium", "unit",
 ] as const;
 
 export type ItemPatch = Partial<Pick<RefinerItemRow, (typeof PATCHABLE)[number]>>;

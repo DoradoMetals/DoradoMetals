@@ -6,15 +6,17 @@
 // lock runs before set, so one document can pin and then adjust.
 import * as ordersRepo from "#db/orders/repo.ts";
 import * as spotsRepo from "#db/orders/spots/repo.ts";
-import * as metalsRepo from "#db/metals/repo.ts";
 import * as spotsFeed from "#domain/spots/service.ts";
+import * as rules from "#domain/orders/rules.ts";
 import withTransaction from "#shared/db/withTransaction.ts";
-import { refuse } from "#shared/http/refuse.ts";
+import { Invalid } from "#shared/errors.ts";
+import type { OrderSpotsPut } from "@dorado/contracts";
 import type { OrderSpotRow, OrderSpotRawRow } from "#db/orders/spots/repo.ts";
 import type { PoolClient } from "pg";
 
 type Executor = PoolClient | undefined;
 
+export type { OrderSpotsPut } from "@dorado/contracts";
 export type { OrderSpotRow, OrderSpotRawRow } from "#db/orders/spots/repo.ts";
 
 // VERBATIM rows (rulings 9 + 12). The metal is its id; a display name is the
@@ -32,79 +34,41 @@ export async function namedFor(
   return await spotsRepo.getFor(orderId, executor);
 }
 
-export type OrderSpotsPut = {
-  lock?: boolean;
-  set?: { name: string; bid: number }[];
-};
-
-const SPOT_FIELDS = ["lock", "set"] as const;
-
-// The refusal this document earns, or null. Exported so the matrix can be
-// asserted directly as well as over the wire.
-export function refusedField(
-  body: Record<string, unknown>
-): { statusCode: number; message: string } | null {
-  const present = Object.keys(body ?? {});
-  for (const field of present) {
-    if (!(SPOT_FIELDS as readonly string[]).includes(field)) {
-      return { statusCode: 400, message: `"${field}" is not a field of the order spots PUT` };
-    }
-  }
-  if (present.length === 0) {
-    return { statusCode: 400, message: "the document names no field to write" };
-  }
-  if (body.set !== undefined) {
-    if (!Array.isArray(body.set)) {
-      return { statusCode: 400, message: `"set" must be a list of { name, bid }` };
-    }
-    for (const spot of body.set as unknown[]) {
-      const s = spot as { name?: unknown; bid?: unknown } | null;
-      if (!s || typeof s.name !== "string" || typeof s.bid !== "number") {
-        return { statusCode: 400, message: `"set" entries are { name, bid }` };
-      }
-    }
-  }
-  return null;
-}
-
+// THE WRITE. `lock` pins the order at today's feed (or unpins it), and `set`
+// adjusts a named metal's bid afterwards - one document can do both, in that
+// order.
+//
+// THE METAL IS AN ID (ruling 43). `set` used to carry a metal NAME the server
+// resolved against metals.metals, which meant a display string decided which
+// row a money edit landed on.
 export async function setSpots(
   orderId: string, body: OrderSpotsPut
 ): Promise<OrderSpotRow[]> {
-  const direction = await ordersRepo.directionOf(orderId);
-  if (!direction) throw refuse(404, `no order ${orderId}`);
-  if (direction !== "purchase") {
-    throw refuse(
-      400,
-      `the spots PUT is a purchase-direction operation and this is a ${direction} order`
-    );
+  rules.assertDirection(await ordersRepo.directionOf(orderId), "purchase", "the spots PUT");
+  if (body.lock === undefined && !body.set) {
+    throw new Invalid("the document names no field to write");
   }
-
-  const refusal = refusedField(body as Record<string, unknown>);
-  if (refusal) throw refuse(refusal.statusCode, refusal.message);
 
   // SERVER-RESOLVED, never the body: the route this replaced took the browser's
   // copy of the feed, which decides what the business pays.
   const live = body.lock === true ? await spotsFeed.getSpotPrices() : [];
+  const bidByMetal = new Map(live.map((quote) => [quote.id, quote.bid]));
 
-  await withTransaction(async (client) => {
-    const idByName = await metalsRepo.idsByName(client);
-
-    if (body.lock === true) {
-      await ordersRepo.update(orderId, { spots_locked: true }, {}, client);
-      for (const sp of live) {
-        const metal_id = idByName.get(sp.name);
-        if (metal_id) await spotsRepo.update(orderId, metal_id, { bid: sp.bid ?? null }, client);
-      }
-    } else if (body.lock === false) {
-      await ordersRepo.update(orderId, { spots_locked: false }, {}, client);
-      for (const row of await spotsRepo.getRowsFor(orderId, client)) {
-        await spotsRepo.update(orderId, row.metal_id, { bid: null }, client);
+  await withTransaction(async (tx) => {
+    if (body.lock !== undefined) {
+      await ordersRepo.update(orderId, { spots_locked: body.lock }, {}, tx);
+      for (const row of await spotsRepo.getRowsFor(orderId, tx)) {
+        await spotsRepo.update(
+          orderId,
+          row.metal_id,
+          { bid: body.lock === true ? (bidByMetal.get(row.metal_id) ?? null) : null },
+          tx
+        );
       }
     }
 
     for (const edit of body.set ?? []) {
-      const metal_id = idByName.get(edit.name);
-      if (metal_id) await spotsRepo.update(orderId, metal_id, { bid: edit.bid }, client);
+      await spotsRepo.update(orderId, edit.metal_id, { bid: edit.bid }, tx);
     }
   });
 

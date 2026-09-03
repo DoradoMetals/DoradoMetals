@@ -1,29 +1,29 @@
-// The order's LINES. Bodies parse strictly against the contract; a malformed
-// path id is a 400 naming it rather than a query that matches nothing.
+// The order's LINES. Every body parses strictly against the contract; a
+// malformed path id is a 400 naming it rather than a query that matches
+// nothing. A refusal below this line is a domain error the middleware maps.
 import { asyncHandler } from "#shared/middleware/asyncHandler.ts";
 import { strictBody, uuidParam } from "#shared/http/validate.ts";
-import { refuseWith } from "#shared/http/refuse.ts";
-import * as editLine from "#domain/orders/edit-line.ts";
-import { OrderItemCreate } from "@dorado/contracts";
+import * as orders from "#domain/orders/service.ts";
+import { OrderItemCreate, OrderItemPatch } from "@dorado/contracts";
 
 export const getOrderItems = asyncHandler(async (req, res) => {
-  return res.json(await editLine.linesFor(uuidParam(req, "id")));
+  return res.json(await orders.linesFor(uuidParam(req, "id")));
 });
 
+// The body is a union: `{ bullion_id }` for a catalogue line, or a declared lot
+// of scrap. Two pure rules turn either into a row.
 export const createOrderItem = asyncHandler(async (req, res) => {
-  const body = strictBody(OrderItemCreate, req.body);
-  if (!body.item) refuseWith(400, `"item" is required`);
-  const updated = await editLine.createLine(uuidParam(req, "id"), body.item!);
-  return res.status(200).json({ updated });
+  const input = strictBody(OrderItemCreate, req.body);
+  return res.status(200).json(await orders.createLine(uuidParam(req, "id"), input));
 });
 
-// The PATCH's strict parse is the service's refusedField, which names the field.
-// The ORIGINAL body goes down: absent, null and a value are three instructions.
+// ONE FLAT PATCH of the line's own columns. A key present is written, an
+// explicit null clears, an absent key is left alone.
 export const patchOrderItem = asyncHandler(async (req, res) => {
-  const result = await editLine.editLine(uuidParam(req, "id"), req.body ?? {});
-  return res.status(200).json(result);
+  const changes = strictBody(OrderItemPatch, req.body);
+  return res.status(200).json(await orders.editLine(uuidParam(req, "id"), changes));
 });
 
 export const deleteOrderItem = asyncHandler(async (req, res) => {
-  return res.status(200).json(await editLine.removeLine(uuidParam(req, "id")));
+  return res.status(200).json(await orders.removeLine(uuidParam(req, "id")));
 });

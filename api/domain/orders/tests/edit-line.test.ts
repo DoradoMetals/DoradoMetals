@@ -14,7 +14,7 @@ import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
 import pool from "#db";
 import { LOCKS } from "#shared/testing/locks.ts";
-import * as editLine from "#domain/orders/edit-line.ts";
+import * as orders from "#domain/orders/service.ts";
 
 let client: PoolClient;
 
@@ -151,7 +151,7 @@ test("a new bullion line is born at its rate band, not at the product's bid prem
   try {
     const product = await aGoldProductOffItsBand(client);
 
-    const created = await editLine.createLine(fixture.orderId, { id: product.id });
+    const created = await orders.createLine(fixture.orderId, { bullion_id: product.id });
 
     // The line CREATED carries it - createLine used to answer with the null it
     // inserted, before the re-tier that follows had written the real premium.
@@ -197,7 +197,7 @@ test("adding bullion re-tiers the order's scrap by their combined content", asyn
     );
 
     const product = await aGoldProductOffItsBand(client);
-    const created = await editLine.createLine(order.id, { id: product.id });
+    const created = await orders.createLine(order.id, { bullion_id: product.id });
 
     const total = 4.5 + Number(product.content);
     const band = await bandFor(client, "Gold", total);
@@ -221,7 +221,7 @@ test("adding bullion re-tiers the order's scrap by their combined content", asyn
 test("deleting a line removes it and its refiner counterpart together", async () => {
   const fixture = await anOrderWithScrap(client);
   try {
-    await editLine.removeLine(fixture.itemId);
+    await orders.removeLine(fixture.itemId);
 
     const item = await client.query("SELECT 1 FROM orders.items WHERE id = $1", [fixture.itemId]);
     const refiner = await client.query(
@@ -242,7 +242,7 @@ test("a line that does not exist is refused and nothing is deleted", async () =>
   const fixture = await anOrderWithScrap(client);
   try {
     await assert.rejects(
-      () => editLine.removeLine("00000000-0000-4000-8000-000000000000"),
+      () => orders.removeLine("00000000-0000-4000-8000-000000000000"),
       /no order item/
     );
     const item = await client.query("SELECT 1 FROM orders.items WHERE id = $1", [fixture.itemId]);
@@ -252,42 +252,106 @@ test("a line that does not exist is refused and nothing is deleted", async () =>
   }
 });
 
-// ONE PATCH, ONE TRANSACTION: the declared weights, the assay actuals and the
-// premium all feed content * spot * premium, and applying one without the
-// others quotes a price from a mix of old figures and new.
-test("editing a scrap line applies the weights, the actuals and the premium together", async () => {
+// ONE ROW, ONE PATCH (D214 item 11). The body was `{scrap: {premium, scrap:
+// {...}}}` - the admin drawer's document for ONE table, read through casts,
+// with the REFINER's assay columns smuggled inside it. It is the line's own
+// columns now, and `content` is still derived here rather than sent: two
+// definitions of what content means is the defect that costs money.
+test("editing a scrap line writes the weights it names and derives the content", async () => {
   const fixture = await anOrderWithScrap(client);
   try {
-    await editLine.editLine(fixture.itemId, {
-      scrap: {
-        premium: 0.82,
-        scrap: {
-          pre_melt: 10, post_melt: 8, purity: 0.5,
-          gross_unit: "t oz", bid_premium: 0.82,
-        },
-      },
+    const edited = await orders.editLine(fixture.itemId, {
+      pre_melt: 10, post_melt: 8, purity: 0.5, unit: "t oz", premium: 0.82,
     });
+    // THE PREMIUM IN THE DOCUMENT IS THE ADMIN'S OWN and survives: a re-tier
+    // after an override would answer 200 having thrown the override away.
+
+    assert.equal(Number(edited.content), 4, "8 post-melt at 0.5 purity");
+    assert.equal(Number(edited.pre_melt), 10);
+    assert.equal(Number(edited.premium), 0.82);
 
     const { rows: [item] } = await client.query(
       "SELECT content, premium FROM orders.items WHERE id = $1", [fixture.itemId]
     );
-    assert.equal(Number(item.content), 4, "8 post-melt at 0.5 purity");
+    assert.equal(Number(item.content), 4);
     assert.equal(Number(item.premium), 0.82);
+  } finally {
+    await cleanup(client, fixture);
+  }
+});
 
-    // No actuals were sent, so the declared values stand in for them - the
-    // fallback the old *_actual columns spelled out - and they land on the
-    // refiner line. The content quirk is PRESERVED, verbatim from exchange:
-    // the stored post_melt falls back to the declared post_melt (8), but the
-    // derived content falls back to PRE_melt (10 * 0.5 = 5), because the old
-    // statement computed `post_melt_actual ?? pre_melt` while storing
-    // `post_melt_actual ?? post_melt`. Behaviour is pinned, not endorsed.
-    const { rows: [refiner] } = await client.query(
-      "SELECT post_melt, purity, content FROM refiners.items WHERE order_item_id = $1",
+// A WEIGHTS-ONLY EDIT RE-TIERS THE ORDER, because the band is read at the
+// order's TOTAL content of the metal and the weight just moved it.
+test("a weights-only edit re-tiers the order's lines", async () => {
+  const fixture = await anOrderWithScrap(client);
+  try {
+    const { rows: [before] } = await client.query(
+      "SELECT premium FROM orders.items WHERE id = $1", [fixture.itemId]
+    );
+    const edited = await orders.editLine(fixture.itemId, { post_melt: 8, purity: 0.5 });
+    const band = await bandFor(client, "Gold", Number(edited.content));
+    assert.equal(
+      Number((await client.query(
+        "SELECT premium FROM orders.items WHERE id = $1", [fixture.itemId]
+      )).rows[0].premium),
+      Number(band.scrap_pct),
+      `the line was left at ${before.premium} rather than its band`
+    );
+  } finally {
+    await cleanup(client, fixture);
+  }
+});
+
+// A KEY THE DOCUMENT DOES NOT CARRY IS LEFT ALONE. The old write was a full
+// replace defended by `?? null` on every field, so a partial edit CLEARED
+// whatever it omitted; buildUpdate names only the keys present.
+test("a partial edit leaves the columns it does not name alone", async () => {
+  const fixture = await anOrderWithScrap(client);
+  try {
+    const { rows: [before] } = await client.query(
+      "SELECT pre_melt, purity, unit FROM orders.items WHERE id = $1", [fixture.itemId]
+    );
+
+    await orders.editLine(fixture.itemId, { post_melt: 8 });
+
+    const { rows: [after] } = await client.query(
+      "SELECT pre_melt, post_melt, purity, unit FROM orders.items WHERE id = $1",
       [fixture.itemId]
     );
-    assert.equal(Number(refiner.post_melt), 8);
-    assert.equal(Number(refiner.purity), 0.5);
-    assert.equal(Number(refiner.content), 5);
+    assert.equal(Number(after.post_melt), 8);
+    assert.equal(Number(after.pre_melt), Number(before.pre_melt), "pre_melt was cleared");
+    assert.equal(Number(after.purity), Number(before.purity), "purity was cleared");
+    assert.equal(after.unit, before.unit, "the unit was cleared");
+  } finally {
+    await cleanup(client, fixture);
+  }
+});
+
+// AN EXPLICIT NULL CLEARS, which is the other half of the same contract - and
+// the derived content follows the weight it was derived from.
+test("an explicit null clears the column it names", async () => {
+  const fixture = await anOrderWithScrap(client);
+  try {
+    await orders.editLine(fixture.itemId, { post_melt: null });
+    const { rows: [after] } = await client.query(
+      "SELECT post_melt FROM orders.items WHERE id = $1", [fixture.itemId]
+    );
+    assert.equal(after.post_melt, null);
+  } finally {
+    await cleanup(client, fixture);
+  }
+});
+
+// A DOCUMENT THAT NAMES NOTHING is a refusal: a no-op that reports success is
+// worse than a refusal.
+test("an empty patch is refused, and a line that does not exist is a 404", async () => {
+  const fixture = await anOrderWithScrap(client);
+  try {
+    await assert.rejects(() => orders.editLine(fixture.itemId, {}), /names no field/);
+    await assert.rejects(
+      () => orders.editLine("00000000-0000-4000-8000-000000000000", { premium: 1 }),
+      /no order item/
+    );
   } finally {
     await cleanup(client, fixture);
   }

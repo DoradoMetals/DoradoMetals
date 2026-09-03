@@ -9,13 +9,13 @@
 //
 // The payment methods a step offers are the rows of the SAME direction, which
 // is why nothing here translates one into the other.
-import { refuse } from "#shared/http/refuse.ts";
+import { Invalid } from "#shared/errors.ts";
 
 export type Direction = "sale" | "purchase";
 
 export function assertDirection(direction: unknown): Direction {
   if (direction !== "sale" && direction !== "purchase") {
-    throw refuse(400, `direction must be 'sale' or 'purchase'`);
+    throw new Invalid(`direction must be 'sale' or 'purchase'`);
   }
   return direction;
 }

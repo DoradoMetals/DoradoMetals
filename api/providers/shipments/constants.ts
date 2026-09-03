@@ -13,6 +13,14 @@ export const DORADO_ADDRESS = {
   countryCode: process.env.FEDEX_RETURN_COUNTRY,
 };
 
+// WHO SIGNS FOR THE BUSINESS'S OWN PARCELS. Declared here, next to the address
+// it goes with, so a use case never reads `process.env` to fill in a carrier
+// request (D214 item 11).
+export const DORADO_CONTACT = {
+  personName: process.env.FEDEX_DORADO_NAME,
+  phoneNumber: process.env.FEDEX_DORADO_PHONE_NUMBER,
+};
+
 export const FEDEX_STORE_ADDRESS = {
   streetLines: ["13605 Midway Rd"],
   city: "Farmers Branch",
