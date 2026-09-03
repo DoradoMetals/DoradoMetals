@@ -1,6 +1,3 @@
-// The both-orders probe for the taught merge - the package-side pin of the
-// bug this cn exists to prevent (see cn.ts). The frontend has the same pin;
-// this one guards the copy the components actually compose through.
 import { describe, expect, it } from "vitest";
 
 import { cn } from "./cn";

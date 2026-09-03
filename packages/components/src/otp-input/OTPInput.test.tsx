@@ -1,5 +1,3 @@
-// Pins the OTPInput contract: ONE hidden input carries the whole code
-// (autocomplete=one-time-code so the platform can fill it), cells render it.
 import { describe, expect, it, vi } from "vitest";
 import { fireEvent, render } from "@testing-library/react";
 import * as React from "react";

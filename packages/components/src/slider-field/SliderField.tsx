@@ -1,11 +1,5 @@
 'use client'
 
-// Slider Field - the drawing at 99:210: "Slider paired with a typed numeric
-// field, so a precise value can be entered as well as dragged. The two must
-// agree." Agreement is this component's whole job: one value, two editors,
-// typing clamps to [min, max] on commit (blur/Enter) rather than mid-keystroke
-// - clamping while someone types "7" on the way to "75" is how these fields
-// fight their users.
 import * as React from "react";
 import { Slider } from "../slider/Slider";
 import { cn } from "../cn";
@@ -56,7 +50,7 @@ export function SliderField({
       />
       <span
         className={cn(
-          "flex h-10 w-21 shrink-0 items-center gap-2 rounded-lg border border-input bg-card px-3",
+          "flex h-10 w-21 shrink-0 items-center gap-2 rounded-lg border border-border bg-card px-3",
           "focus-within:border-border-strong",
           disabled && "pointer-events-none opacity-50"
         )}

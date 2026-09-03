@@ -1,6 +1,3 @@
-// Pins the ScrollArea contract: the content is really in the DOM (a styled
-// bar must not cost you the content), the viewport is focusable for keyboard
-// scrolling, and the bar is the border token rather than a hue.
 import { describe, expect, it } from "vitest";
 import { render } from "@testing-library/react";
 import * as React from "react";
@@ -30,9 +27,6 @@ describe("ScrollArea", () => {
     expect(vp.className).toContain("focus-visible:ring-2");
   });
 
-  /* type="always" because Radix only mounts a bar once it measures real
-     overflow, and jsdom lays nothing out - under the "hover" default no bar
-     renders at all and the assertion would pass for the wrong reason. */
   it("horizontal orientation is opt-in", () => {
     const v = render(
       <ScrollArea type="always" className="h-24"><div>x</div></ScrollArea>,
@@ -44,5 +38,14 @@ describe("ScrollArea", () => {
       <ScrollArea type="always" orientation="both" className="h-24"><div>x</div></ScrollArea>,
     );
     expect(h.container.querySelector('[data-orientation="horizontal"]')).toBeTruthy();
+  });
+
+  it("the channel is 8px wide, matching the drawn Scrollbar", () => {
+    const { container } = render(
+      <ScrollArea type="always" className="h-24"><div>x</div></ScrollArea>,
+    );
+    const bar = container.querySelector('[data-orientation="vertical"]');
+    expect(bar?.className).toContain("w-2");
+    expect(bar?.className).not.toContain("w-2.5");
   });
 });

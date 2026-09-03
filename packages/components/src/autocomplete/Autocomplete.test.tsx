@@ -1,7 +1,3 @@
-// Pins the Autocomplete contract: the full combobox pattern, keyboard
-// navigation, and the handler-composition rule (inputProps must COMPOSE with
-// the component's own focus/blur/key handlers, never replace them - the
-// spread-clobber bug the frontend adapter test first caught).
 import { describe, expect, it, vi } from "vitest";
 import { fireEvent, render } from "@testing-library/react";
 import * as React from "react";
@@ -55,7 +51,7 @@ describe("Autocomplete", () => {
     const { getByRole } = renderAC({ inputProps: { onFocus } });
     const input = getByRole("combobox");
     fireEvent.focus(input);
-    expect(onFocus).toHaveBeenCalled();       // theirs ran
-    expect(input.getAttribute("aria-expanded")).toBe("true"); // ours did too
+    expect(onFocus).toHaveBeenCalled();
+    expect(input.getAttribute("aria-expanded")).toBe("true");
   });
 });

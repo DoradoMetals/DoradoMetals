@@ -1,10 +1,5 @@
 'use client'
 
-// Quantity Stepper — the Figma set (132:1016): the cart's busiest control,
-// promoted from hand-rolled +/− buttons. One bordered group in the Field
-// chassis language at 36px. The value is a REAL input — click to type,
-// arrows step, blur clamps — and at the floor the decrement DISABLES rather
-// than removes: reaching zero is the Remove action's job, not this control's.
 import * as React from 'react'
 import { Minus, Plus } from 'lucide-react'
 
@@ -17,7 +12,6 @@ interface QuantityStepperProps {
   max?: number
   disabled?: boolean
   className?: string
-  /** Accessible name for the group, e.g. the line item it counts. */
   label?: string
 }
 
@@ -27,13 +21,12 @@ function clamp(n: number, min: number, max: number) {
 
 const QuantityStepper = React.forwardRef<HTMLDivElement, QuantityStepperProps>(
   ({ value, onChange, min = 1, max = 99, disabled, className, label }, ref) => {
-    // Free text while typing; committed (clamped) on blur or Enter.
     const [draft, setDraft] = React.useState<string | null>(null)
 
     const commit = (raw: string) => {
       setDraft(null)
       const parsed = Number.parseInt(raw, 10)
-      if (Number.isNaN(parsed)) return // revert to the last real value
+      if (Number.isNaN(parsed)) return
       const next = clamp(parsed, min, max)
       if (next !== value) onChange(next)
     }
@@ -48,10 +41,7 @@ const QuantityStepper = React.forwardRef<HTMLDivElement, QuantityStepperProps>(
         role="group"
         aria-label={label ?? 'Quantity'}
         className={cn(
-          // focus-within: the whole group's border goes PRIMARY - the field focus
-          // language - which is how "the middle is an input" announces itself
-          // (Jacob, 2026-08-30). cursor-text on the value does the rest.
-          'inline-flex h-9 items-center overflow-hidden rounded-lg border border-input bg-card transition-colors focus-within:border-primary',
+          'inline-flex h-9 items-center overflow-hidden rounded-lg border border-border bg-card transition-colors focus-within:border-primary',
           disabled && 'pointer-events-none opacity-50',
           className,
         )}
@@ -79,7 +69,7 @@ const QuantityStepper = React.forwardRef<HTMLDivElement, QuantityStepperProps>(
             if (e.key === 'ArrowUp') { e.preventDefault(); step(1) }
             if (e.key === 'ArrowDown') { e.preventDefault(); step(-1) }
           }}
-          className="h-full w-8 cursor-text bg-transparent text-center text-sm font-medium tabular-nums text-foreground outline-none"
+          className="h-full w-8 cursor-text bg-transparent text-center text-small font-medium tabular-nums text-foreground outline-none"
         />
         <button
           type="button"

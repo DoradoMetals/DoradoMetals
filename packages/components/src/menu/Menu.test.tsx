@@ -1,17 +1,11 @@
-// Pins the Figma Menu contract (132:19): a menu of ACTIONS - menu roles,
-// danger intent, group labels - rendered through the Radix portal.
 import { describe, expect, it } from "vitest";
 import { render } from "@testing-library/react";
 import * as React from "react";
 
-import { Menu, MenuContent, MenuItem, MenuLabel, MenuSeparator, MenuTrigger } from "./Menu";
+import { Menu, MenuContent, MenuItem, MenuLabel, MenuSeparator, MenuShortcut, MenuTrigger } from "./Menu";
 import { axeViolations } from "../test/axe";
 
 function openMenu() {
-  // modal={false} keeps the trigger visible to the accessibility tree while
-  // open - the modal default aria-hides everything outside the portal, which
-  // is correct at runtime but makes both the trigger assertions and the axe
-  // scan blind to it.
   return render(
     <Menu open modal={false}>
       <MenuTrigger asChild>
@@ -19,7 +13,10 @@ function openMenu() {
       </MenuTrigger>
       <MenuContent>
         <MenuLabel>Order PO-2189</MenuLabel>
-        <MenuItem>Edit details</MenuItem>
+        <MenuItem>
+          Edit details
+          <MenuShortcut>⌘E</MenuShortcut>
+        </MenuItem>
         <MenuSeparator />
         <MenuItem intent="danger">Delete address</MenuItem>
       </MenuContent>
@@ -54,5 +51,25 @@ describe("Menu", () => {
   it("separators are separators, not styling", () => {
     openMenu();
     expect(document.body.querySelector('[role="separator"]')).toBeTruthy();
+  });
+
+  it("rows carry the drawn 3xs gap and text-small label size", () => {
+    openMenu();
+    const content = document.body.querySelector('[role="menu"]') as HTMLElement;
+    expect(content.className).toContain("flex-col");
+    expect(content.className).toContain("gap-3xs");
+    const item = document.body.querySelector('[role="menuitem"]') as HTMLElement;
+    expect(item.className).toContain("text-small");
+    expect(item.className).not.toContain("text-sm ");
+  });
+
+  it("group label is eyebrow-styled; shortcut carries no extra tracking", () => {
+    const { getByText } = openMenu();
+    const label = getByText("Order PO-2189");
+    expect(label.className).toContain("font-mono");
+    expect(label.className).toContain("tracking-widest");
+    const shortcut = getByText("⌘E");
+    expect(shortcut.className).toContain("text-micro");
+    expect(shortcut.className).not.toContain("tracking-widest");
   });
 });

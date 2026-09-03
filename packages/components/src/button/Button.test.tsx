@@ -6,12 +6,6 @@ import { Button, buttonVariants } from './Button'
 import { cn } from '../cn'
 import { axeViolations } from '../test/axe'
 
-/** What the DOM actually gets: cva composes, cn()/twMerge resolves. Asserting
- *  on `buttonVariants()` alone proves nothing - the whole class of bug here is
- *  a class that survives composition and then loses the merge. (The tests for
- *  variant="link" died with the variant: Link is a separate component now,
- *  which the TYPE enforces - a spelling the compiler refuses needs no runtime
- *  test.) */
 const rendered = (props: Parameters<typeof buttonVariants>[0]) =>
   cn(buttonVariants(props)).split(' ')
 
@@ -30,9 +24,6 @@ describe('the Button is the drawing at 25:510', () => {
     expect(c).toContain('text-muted-foreground')
   })
 
-  /* THE HOVER LAW IS OPACITY (Jacob, 2026-08-31): every variant at 85% of
-     itself. No underline anywhere on Button - that is Link's. No accent
-     fill, no ramp dim, no hue fills: one rule, three emphases. */
   it('hover is opacity for every variant, and NOTHING else', () => {
     for (const variant of ['primary', 'secondary', 'tertiary'] as const) {
       const c = rendered({ variant })
@@ -49,9 +40,6 @@ describe('the Button is the drawing at 25:510', () => {
     expect(c).toContain('hover:opacity-85')
   })
 
-  /* The cn() half of the old story: twMerge once classified `text-small` as a
-     COLOUR, so a compound variant's text colour deleted the font size. Pinned
-     against the new variants too. */
   it('every size keeps BOTH its font size and its variant colour', () => {
     const bare = rendered({})
     expect(bare).toContain('text-small')
@@ -80,5 +68,33 @@ describe('rendered Button', () => {
   it('disabled is the attribute, not a class costume', () => {
     const { getByRole } = render(<Button disabled>Nope</Button>)
     expect((getByRole('button') as HTMLButtonElement).disabled).toBe(true)
+  })
+
+  it('type, icon and gap all tier with the size', () => {
+    const tier = {
+      sm: { text: 'text-micro', icon: '[&_svg]:size-3.5', gap: 'gap-1' },
+      default: { text: 'text-small', icon: '[&_svg]:size-4', gap: 'gap-1.5' },
+      lg: { text: 'sm:text-body', icon: '[&_svg]:size-5', gap: 'gap-2' },
+    } as const
+    for (const [size, want] of Object.entries(tier)) {
+      const c = rendered({ size: size as keyof typeof tier })
+      expect(c).toContain(want.text)
+      expect(c).toContain(want.icon)
+      expect(c).toContain(want.gap)
+    }
+  })
+
+  it('no flat gap or icon size survives in the base', () => {
+    const sm = rendered({ size: 'sm' })
+    expect(sm).not.toContain('gap-2')
+    expect(sm).not.toContain('[&_svg]:size-4')
+  })
+
+  it('tertiary tightens the gap to 4/5/6 against the boxed 4/6/8', () => {
+    expect(rendered({ variant: 'tertiary', size: 'sm' })).toContain('gap-1')
+    expect(rendered({ variant: 'tertiary', size: 'default' })).toContain('gap-[5px]')
+    expect(rendered({ variant: 'tertiary', size: 'lg' })).toContain('gap-1.5')
+    expect(rendered({ variant: 'secondary', size: 'default' })).toContain('gap-1.5')
+    expect(rendered({ variant: 'secondary', size: 'lg' })).toContain('gap-2')
   })
 })

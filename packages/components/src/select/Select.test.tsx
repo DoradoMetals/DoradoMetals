@@ -1,5 +1,3 @@
-// Pins the Select contract: a labelled combobox on the Field chassis, options
-// through the Radix portal, check carries selection.
 import { describe, expect, it } from "vitest";
 import { fireEvent, render } from "@testing-library/react";
 import * as React from "react";
@@ -31,5 +29,10 @@ describe("Select", () => {
       <Select label="Method" items={items} value="wire" />,
     );
     expect(getByRole("combobox").textContent).toContain("Wire");
+  });
+
+  it("invalid turns the label destructive too, matching the Error state", () => {
+    const { getByText } = render(<Select label="Method" items={items} invalid />);
+    expect(getByText("Method").className).toContain("text-destructive");
   });
 });

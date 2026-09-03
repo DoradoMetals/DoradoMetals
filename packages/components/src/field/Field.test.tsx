@@ -1,5 +1,3 @@
-// Pins the Field chassis: the shared trigger/panel/option class recipes and
-// the label component every field-shaped control composes.
 import { describe, expect, it } from "vitest";
 import { render } from "@testing-library/react";
 import * as React from "react";
@@ -10,8 +8,7 @@ import { axeViolations } from "../test/axe";
 describe("Field chassis", () => {
   it("trigger wears the card border language and the invalid hook", () => {
     const c = fieldTrigger();
-    expect(c).toContain("border-input");
-    // Focus is the PRIMARY border (Jacob, 2026-08-30).
+    expect(c).toContain("border-border");
     expect(c).toContain("focus-within:border-primary");
     expect(c).toContain("aria-[invalid=true]:border-destructive");
   });

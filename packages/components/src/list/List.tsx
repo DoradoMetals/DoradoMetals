@@ -1,13 +1,5 @@
 'use client'
 
-// List - the drawings at 97:35/97:17: rows at a consistent rhythm, marker
-// switching between bullet, check and number, and "the text fills and wraps,
-// so long items stay aligned to the marker rather than under it."
-//
-// The semantics stay REAL lists: number markers render an <ol>, bullet and
-// check render a <ul>, native markers suppressed and drawn instead - so a
-// screen reader still announces "list, four items" and the numbering is the
-// browser's own counting, not a hand-typed string that survives a reorder.
 import * as React from "react";
 import { Check } from "lucide-react";
 import { cn } from "../cn";

@@ -1,10 +1,3 @@
-// Skeleton - the drawing at 32:155: "Loading placeholder. Fills with secondary
-// (a raised neutral surface) - STATIC, because the shimmer animation is
-// retired. Resize freely; the shape variants are starting points, not fixed
-// sizes."
-//
-// Static is the accessibility win too: nothing to motion-reduce. The shapes
-// carry default geometry the caller resizes with layout classes.
 import * as React from "react";
 import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "../cn";

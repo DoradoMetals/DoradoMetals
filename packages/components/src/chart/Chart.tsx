@@ -1,10 +1,5 @@
 'use client'
 
-// Chart - the Figma page (57:2, extended 2026-08-30 with Area/Donut/
-// Sparkline). Chart.js underneath (Jacob's default, agreed): one registration,
-// theme-token colours passed in as resolved values by the caller or defaulted
-// here, and every chart carries an accessible name. The Sparkline is the
-// chartless chart: no axes, no grid, no border - for Stat cells and rows.
 import * as React from "react";
 import {
   ArcElement,
@@ -32,10 +27,6 @@ ChartJS.register(
   ChartTooltip,
 );
 
-// A canvas needs RESOLVED colours, so the tokens are read from the theme at
-// runtime (getComputedStyle on the root) - the hex literals are only the
-// SSR/test fallback, and they mirror @dorado/theme's dark values (the
-// no-random-hex rule with the one honest exception a canvas forces).
 function tokenColor(name: string, fallback: string): string {
   if (typeof window === "undefined") return fallback;
   const v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
@@ -43,17 +34,20 @@ function tokenColor(name: string, fallback: string): string {
 }
 const C = {
   get fg() { return tokenColor("--color-foreground", "#f6f7f9"); },
-  get muted() { return tokenColor("--color-muted-foreground", "#9499a4"); },
+  get mutedForeground() { return tokenColor("--color-muted-foreground", "#9499a4"); },
   get faint() { return tokenColor("--color-placeholder", "#787c87"); },
-  get grid() { return "rgba(44,47,53,0.6)"; },
+  get border() { return tokenColor("--color-border", "#2c2f35"); },
+  get borderStrong() { return tokenColor("--color-border-strong", "#3f434b"); },
+  get muted() { return tokenColor("--color-muted", "#1e2024"); },
   get primary() { return tokenColor("--color-primary", "#fafafa"); },
+  get info() { return tokenColor("--color-info", "#3eaef4"); },
   get success() { return tokenColor("--color-success", "#3ecc89"); },
   get destructive() { return tokenColor("--color-destructive", "#ec5165"); },
 };
 
 const baseScales = {
-  x: { grid: { color: C.grid }, ticks: { color: C.faint, font: { size: 11 } }, border: { color: C.grid } },
-  y: { grid: { color: C.grid }, ticks: { color: C.faint, font: { size: 11 } }, border: { display: false } },
+  x: { grid: { color: C.border }, ticks: { color: C.mutedForeground, font: { size: 12 } }, border: { color: C.border } },
+  y: { grid: { color: C.border }, ticks: { color: C.mutedForeground, font: { size: 12 } }, border: { display: false } },
 };
 const baseOptions = {
   responsive: true,
@@ -66,32 +60,49 @@ export type Series = { label: string; data: number[] };
 type ChartBaseProps = {
   labels: string[];
   series: Series[];
-  /** The accessible name - required; a canvas is a black hole to AT. */
   label: string;
+  title?: string;
   className?: string;
 };
 
-export function LineChart({ labels, series, label, className, area = false }: ChartBaseProps & { area?: boolean }) {
+function ChartCard({ title, className, children }: { title?: string; className?: string; children: React.ReactNode }) {
+  if (!title) {
+    return <div className={cn("relative w-full", className)}>{children}</div>;
+  }
   return (
-    <div className={cn("relative h-48 w-full", className)}>
-      <Line
-        aria-label={label}
-        role="img"
-        options={{ ...baseOptions, scales: baseScales }}
-        data={{
-          labels,
-          datasets: series.map((s, i) => ({
-            ...s,
-            borderColor: i === 0 ? C.primary : C.muted,
-            backgroundColor: area ? "rgba(250,250,250,0.08)" : "transparent",
-            fill: area,
-            borderWidth: 1.5,
-            pointRadius: 0,
-            tension: 0.25,
-          })),
-        }}
-      />
+    <div className={cn("flex w-full flex-col gap-md rounded-lg border border-border bg-card p-md", className)}>
+      <h3 className="text-h5 text-foreground">{title}</h3>
+      {children}
     </div>
+  );
+}
+
+export function LineChart({ labels, series, label, title, className, area = false }: ChartBaseProps & { area?: boolean }) {
+  const last = (series[0]?.data.length ?? 1) - 1;
+  return (
+    <ChartCard title={title} className={className}>
+      <div className="relative h-[200px] w-full">
+        <Line
+          aria-label={label}
+          role="img"
+          options={{ ...baseOptions, scales: baseScales }}
+          data={{
+            labels,
+            datasets: series.map((s, i) => ({
+              ...s,
+              borderColor: i === 0 ? C.info : C.mutedForeground,
+              backgroundColor: area ? "rgba(250,250,250,0.08)" : "transparent",
+              fill: area,
+              borderWidth: 1.5,
+              pointRadius: i === 0 ? s.data.map((_, idx) => (idx === last ? 4 : 0)) : 0,
+              pointBackgroundColor: i === 0 ? C.info : C.mutedForeground,
+              pointBorderWidth: 0,
+              tension: 0.25,
+            })),
+          }}
+        />
+      </div>
+    </ChartCard>
   );
 }
 
@@ -99,23 +110,28 @@ export function AreaChart(props: ChartBaseProps) {
   return <LineChart {...props} area />;
 }
 
-export function BarChart({ labels, series, label, className }: ChartBaseProps) {
+export function BarChart({ labels, series, label, title, className }: ChartBaseProps) {
   return (
-    <div className={cn("relative h-48 w-full", className)}>
-      <Bar
-        aria-label={label}
-        role="img"
-        options={{ ...baseOptions, scales: baseScales }}
-        data={{
-          labels,
-          datasets: series.map((s, i) => ({
-            ...s,
-            backgroundColor: i === 0 ? C.primary : C.muted,
-            borderRadius: 3,
-          })),
-        }}
-      />
-    </div>
+    <ChartCard title={title} className={className}>
+      <div className="relative h-[200px] w-full">
+        <Bar
+          aria-label={label}
+          role="img"
+          options={{ ...baseOptions, scales: baseScales }}
+          data={{
+            labels,
+            datasets: series.map((s, i) => ({
+              ...s,
+              backgroundColor:
+                i === 0
+                  ? s.data.map((_, idx) => (idx === s.data.length - 1 ? C.primary : C.borderStrong))
+                  : C.mutedForeground,
+              borderRadius: 4,
+            })),
+          }}
+        />
+      </div>
+    </ChartCard>
   );
 }
 
@@ -125,8 +141,7 @@ export function DonutChart({
   label,
   className,
 }: { labels: string[]; data: number[]; label: string; className?: string }) {
-  // 2-3 segments max - more than three becomes a Table (the drawing's rule).
-  const palette = [C.primary, C.muted, "#1e2024"];
+  const palette = [C.primary, C.mutedForeground, C.muted];
   return (
     <div className={cn("relative h-48 w-full", className)}>
       <Doughnut

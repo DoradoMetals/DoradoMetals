@@ -1,9 +1,5 @@
 'use client'
 
-// Switch - the drawing at 17:14: "36x20 binary toggle. Pill radius is fixed
-// geometry, not a token." Radix underneath: keyboard, form participation and
-// the checked state machine are its; the drawing's geometry and the theme's
-// colours are this file's.
 import * as React from "react";
 import * as SwitchPrimitive from "@radix-ui/react-switch";
 import { cn } from "../cn";

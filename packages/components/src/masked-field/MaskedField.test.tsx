@@ -1,5 +1,3 @@
-// Pins the Masked Field contract (170:89): formats presentation, EMITS raw,
-// never blocks paste.
 import { describe, expect, it, vi } from "vitest";
 import { fireEvent, render } from "@testing-library/react";
 import * as React from "react";
@@ -17,7 +15,7 @@ describe("MaskedField", () => {
     expect(input.value).toBe("(555) 123-4567");
     expect(input.getAttribute("inputmode")).toBe("tel");
     fireEvent.change(input, { target: { value: "(555) 123-45678" } });
-    expect(onValueChange).toHaveBeenCalledWith("5551234567"); // capped at 10
+    expect(onValueChange).toHaveBeenCalledWith("5551234567");
     expect(await axeViolations(container)).toEqual([]);
   });
 

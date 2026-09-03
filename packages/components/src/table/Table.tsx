@@ -1,16 +1,5 @@
-// Table - the drawings at 56:82/56:33: card container, muted header strip with
-// Micro/Medium labels and a sort affordance, 48px rows carrying their own
-// bottom hairline ("the table needs no internal dividers"), hover filling
-// with accent and selection with muted, numeric columns right-aligned
-// independently of their text.
-//
-// The drawing names its own maintenance cost - "column widths live on the row
-// component; change them there and the header must be changed to match" -
-// and a REAL <table> dissolves it: columns are columns, so widths live once.
-// Sortable headers are real buttons carrying aria-sort on their <th>, and the
-// wrapper scrolls horizontally so a wide table never scrolls the page.
 import * as React from "react";
-import { ArrowDown, ArrowUp, ArrowUpDown, Funnel } from "lucide-react";
+import { ArrowDownWideNarrow, ArrowUpDown, ArrowUpNarrowWide, Funnel } from "lucide-react";
 import { cn } from "../cn";
 
 export function Table({ className, ...props }: React.TableHTMLAttributes<HTMLTableElement> & { className?: string }) {
@@ -38,17 +27,13 @@ export function TableHead({
   ...props
 }: React.ThHTMLAttributes<HTMLTableCellElement> & {
   numeric?: boolean;
-  /** Current direction when this column sorts; null = sortable, unsorted. */
   sort?: SortDirection;
   onSort?: () => void;
-  /** Renders the funnel; true when this column's filter is active. */
   filtered?: boolean;
   onFilter?: () => void;
 }) {
   const sortable = onSort != null;
-  // Icon/arrow-up-down when unsorted, a single arrow once a direction holds
-  // (Jacob, 2026-08-31: "better icons" - chevrons read as expanders).
-  const Icon = sort === "asc" ? ArrowUp : sort === "desc" ? ArrowDown : ArrowUpDown;
+  const Icon = sort === "asc" ? ArrowUpNarrowWide : sort === "desc" ? ArrowDownWideNarrow : ArrowUpDown;
   return (
     <th
       aria-sort={sort === "asc" ? "ascending" : sort === "desc" ? "descending" : undefined}
@@ -122,9 +107,7 @@ export function TableCell({
   primary,
   ...props
 }: React.TdHTMLAttributes<HTMLTableCellElement> & {
-  /** Right-aligned, tabular figures - the drawing's numeric columns. */
   numeric?: boolean;
-  /** Small/Medium at foreground - the drawing's leading and value columns. */
   primary?: boolean;
 }) {
   return (

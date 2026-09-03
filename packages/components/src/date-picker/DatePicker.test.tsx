@@ -1,5 +1,3 @@
-// Pins the DatePicker contract (104:438 renamed): one card, the time addon
-// OPTIONAL, both halves inside a single border.
 import { describe, expect, it, vi } from "vitest";
 import { fireEvent, render } from "@testing-library/react";
 import * as React from "react";
@@ -33,7 +31,7 @@ describe("DatePicker", () => {
         timeHeading="Thursday, 18 June"
       />,
     );
-    // one bordered card wraps BOTH halves
+
     const card = container.firstElementChild as HTMLElement;
     expect(card.className).toContain("border");
     expect(card.querySelector('[role="grid"]')).toBeTruthy();

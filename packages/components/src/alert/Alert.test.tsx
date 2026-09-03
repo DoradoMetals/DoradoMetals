@@ -1,4 +1,3 @@
-// Pins the Alert contract: inline and persistent, intent via icon + hue.
 import { describe, expect, it } from "vitest";
 import { render } from "@testing-library/react";
 import * as React from "react";
@@ -22,5 +21,10 @@ describe("Alert", () => {
   it("icon={false} suppresses the intent icon", () => {
     const { container } = render(<Alert title="Quiet" icon={false} />);
     expect(container.querySelector("svg")).toBe(null);
+  });
+
+  it("the dismiss control centers vertically in the row, not to its top", () => {
+    const { getByRole } = render(<Alert title="Heads up" onDismiss={() => {}} />);
+    expect(getByRole("button", { name: "Dismiss" }).className).toMatch(/self-center/);
   });
 });

@@ -1,11 +1,5 @@
 'use client'
 
-// Masked Field - the Figma set (170:89, drawn 2026-08-30): Input with a
-// FORMAT CONTRACT. The mask formats on input but never blocks paste; the
-// EMITTED value is always the raw digits (formatting is presentation);
-// inputmode and autocomplete tokens ride each mask. Card numbers are
-// display-format only - this app never stores one (Stripe holds them), and
-// nothing masked here may ever be logged.
 import * as React from "react";
 
 import { Input, type InputProps } from "../input/Input";
@@ -34,7 +28,7 @@ const FORMAT: Record<MaskKind, (raw: string) => string> = {
     const grouped = int.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
     return frac != null ? `${grouped}.${frac.slice(0, 2)}` : grouped;
   },
-  email: (raw) => raw, // masking an email is hostile; inputmode+validation only
+  email: (raw) => raw,
 };
 
 const STRIP: Record<MaskKind, (formatted: string) => string> = {
@@ -55,9 +49,7 @@ const ATTRS: Record<MaskKind, Partial<InputProps>> = {
 
 export type MaskedFieldProps = Omit<InputProps, "value" | "onChange" | "type"> & {
   mask: MaskKind;
-  /** The RAW value (digits / plain string) - never the formatted one. */
   value: string;
-  /** Receives the RAW value. */
   onValueChange: (raw: string) => void;
 };
 

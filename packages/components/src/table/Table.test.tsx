@@ -1,5 +1,3 @@
-// Pins the Table contract: a real table element, sortable headers as real
-// buttons carrying aria-sort on the th.
 import { describe, expect, it, vi } from "vitest";
 import { fireEvent, render } from "@testing-library/react";
 import * as React from "react";
@@ -41,5 +39,21 @@ describe("Table", () => {
     expect(th).toBeTruthy();
     fireEvent.click(getByRole("button", { name: /Date/ }));
     expect(onSort).toHaveBeenCalled();
+  });
+
+  it("uses the drawing's named sort glyphs, not a generic arrow (56:82, node 510:26)", () => {
+    const { container, rerender } = renderTable();
+    expect(container.querySelector("svg.lucide-arrow-up-narrow-wide")).toBeTruthy();
+    rerender(
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead sort="desc" onSort={() => {}}>Date</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody />
+      </Table>,
+    );
+    expect(container.querySelector("svg.lucide-arrow-down-wide-narrow")).toBeTruthy();
   });
 });

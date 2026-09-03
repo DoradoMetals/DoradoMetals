@@ -1,16 +1,5 @@
 'use client'
 
-// Calendar - the drawings at 49:100 and 47:21: card panel, H5 month, 40x40 day
-// cells on radius/sm. "Today reads as a border/strong outline; Selected fills
-// with primary. Outside covers days from the adjacent month; Disabled is
-// Outside plus 40% opacity. No brand hue - the gold is retired."
-//
-// react-day-picker underneath, exactly as the app already had: the grid math,
-// the keyboard navigation and the aria grid semantics are a solved problem,
-// and hand-rolling week arithmetic is how calendars get February wrong. This
-// file is the drawing expressed as its classNames map; the header chevrons are
-// our Button. (The drawing's chevron-down-rotated-90 was a Figma icon-set
-// workaround its own description apologises for - code has real ChevronLeft.)
 import * as React from "react";
 import { DayPicker } from "react-day-picker";
 import { ChevronLeft, ChevronRight } from "lucide-react";

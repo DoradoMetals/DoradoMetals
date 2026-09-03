@@ -1,15 +1,5 @@
 'use client'
 
-// Textarea - the drawing at 37:2's description: "Multi-line field. Same state
-// language as Input (Default / Focus / Success / Error / Disabled) and the
-// same 2px label gap. Box is a fixed 96px tall; resize on an instance for
-// longer entries. Optional character counter sits below, right-aligned."
-//
-// Input's anatomy, taller: the chassis border language on a min-h-24 box, the
-// message line and the counter sharing the row below - message left, counter
-// right, exactly as drawn. The counter turns destructive past the limit,
-// which is also when aria-invalid fires if the caller passes maxLength
-// enforcement upstream.
 import * as React from "react";
 import { FieldLabel } from "../field/Field";
 import { cn } from "../cn";
@@ -19,7 +9,6 @@ export type TextareaProps = React.TextareaHTMLAttributes<HTMLTextAreaElement> & 
   message?: React.ReactNode;
   invalid?: boolean;
   success?: boolean;
-  /** Renders "n / max" below-right. Needs `maxLength` to mean anything. */
   showCount?: boolean;
   className?: string;
 };
@@ -65,7 +54,7 @@ export const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
           aria-invalid={invalid || undefined}
           aria-describedby={message != null ? messageId : undefined}
           className={cn(
-            "min-h-24 w-full resize-y rounded-lg border border-input bg-card px-3 py-2 text-body text-foreground outline-none transition-colors",
+            "min-h-24 w-full resize-y rounded-lg border border-border bg-card px-3 py-2 text-body text-foreground outline-none transition-colors",
             "placeholder:text-placeholder focus-visible:border-primary",
             invalid && "border-destructive",
             success && "border-success",
@@ -75,8 +64,6 @@ export const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
         />
         {(message != null || showCount) && (
           <span className="flex items-baseline justify-between gap-2">
-            {/* Count sits bottom-LEFT (Jacob, 2026-08-30); the message keeps
-                the right so an error and the count can coexist. */}
             {showCount ? (
               <span className={cn("text-micro", over ? "text-destructive" : "text-muted-foreground")}>
                 {count}

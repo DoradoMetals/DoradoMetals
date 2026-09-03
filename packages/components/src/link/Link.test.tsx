@@ -1,5 +1,3 @@
-// Pins the Link contract: navigation is an anchor, never a costume button,
-// with the quiet-state hover language.
 import { describe, expect, it } from "vitest";
 import { render } from "@testing-library/react";
 import * as React from "react";
@@ -23,5 +21,24 @@ describe("Link", () => {
       </Link>,
     );
     expect((getByRole("link") as HTMLAnchorElement).getAttribute("href")).toBe("/account");
+  });
+
+  it("uses the theme's text-small token", () => {
+    const { getByRole } = render(<Link href="/rates">Live rates</Link>);
+    expect(getByRole("link").className).toContain("text-small");
+  });
+
+  it("aria-disabled dims and blocks the pointer", () => {
+    const { getByRole } = render(<Link href="/rates" aria-disabled="true">Live rates</Link>);
+    expect(getByRole("link").className).toContain("aria-disabled:opacity-50");
+    expect(getByRole("link").className).toContain("aria-disabled:pointer-events-none");
+  });
+
+  it("external renders a leading 12px icon with a 5px gap", () => {
+    const { getByRole, container } = render(
+      <Link href="https://example.com" external>Docs</Link>,
+    );
+    expect(getByRole("link").className).toContain("gap-[5px]");
+    expect(container.querySelector("svg")?.getAttribute("class")).toContain("size-3");
   });
 });

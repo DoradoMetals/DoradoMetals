@@ -1,5 +1,3 @@
-// Pins the Badge contract: micro text, the leading icon slot inheriting the
-// intent colour (Jacob, 2026-08-30).
 import { describe, expect, it } from "vitest";
 import { render } from "@testing-library/react";
 import * as React from "react";

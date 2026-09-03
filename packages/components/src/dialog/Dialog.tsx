@@ -1,16 +1,5 @@
 'use client'
 
-// Dialog - the drawing at 41:55: "Modal panel on surface/highest - the top of
-// the elevation stack - separated by a border, not a shadow. A drop shadow
-// would darken a #09090c ground and render as nothing (ruling 27). Footer
-// holds real Button instances: Tertiary/Neutral to dismiss, Primary/Danger to
-// confirm; swap the confirm intent to Neutral for non-destructive dialogs."
-//
-// Radix owns what matters most and cannot be drawn: focus is trapped and
-// restored, Escape closes, the page behind is aria-hidden, and Title/
-// Description label the dialog to assistive tech. The overlay keeps the app's
-// existing language - a blur, not a black wash - and the panel animates in
-// with motion-reduce collapsing it.
 import * as React from "react";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { X } from "lucide-react";
@@ -62,7 +51,7 @@ export function DialogContent({
               aria-label="Close"
               className="absolute right-4 top-4"
             >
-              <X aria-hidden className="size-4" />
+              <X aria-hidden />
             </Button>
           </DialogPrimitive.Close>
         )}
@@ -97,7 +86,5 @@ export const DialogOverlay = DialogPrimitive.Overlay;
 export const DialogPortal = DialogPrimitive.Portal;
 
 export function DialogFooter({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
-  // Cancel FAR LEFT, confirm far right (Jacob, 2026-08-31) - the escape
-  // hatch and the commitment live at opposite ends.
   return <div className={cn("flex items-center justify-between gap-2", className)} {...props} />;
 }

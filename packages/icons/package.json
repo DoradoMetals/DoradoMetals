@@ -1,0 +1,27 @@
+{
+  "name": "@dorado/icons",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "The icon set - the code half of the Figma library's Lucide icons. Ships SOURCE, not a build: the frontend transpiles it, so there is no dist to drift. One lucide-react version for the whole tree lives here.",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "peerDependencies": {
+    "react": "*"
+  },
+  "dependencies": {
+    "lucide-react": "^0.510.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.18",
+    "react": "^19.2.8",
+    "typescript": "^7.0.2"
+  }
+}

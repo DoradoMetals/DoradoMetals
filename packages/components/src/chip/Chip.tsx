@@ -1,15 +1,5 @@
 'use client'
 
-// Chip - the drawing at 32:121: "Interactive pill for filters and selected
-// values. Pill radius is deliberate - the theme reserves rounded-full for
-// chips (Button squared off). Selected fills with primary; there is no accent
-// hue since the gold is retired."
-//
-// INTERACTIVE is what separates it from Badge, so it is a real <button> with
-// aria-pressed carrying the selection - a filter chip is a toggle, and a
-// screen reader should hear "pressed". The optional dismiss is its own small
-// button (stopPropagation, named by its label), because dismissing and
-// toggling are different acts on one pill.
 import * as React from "react";
 import { X } from "lucide-react";
 import { cn } from "../cn";
@@ -19,11 +9,8 @@ export type ChipProps = Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, "chi
   label: React.ReactNode;
   selected?: boolean;
   onDismiss?: () => void;
-  /** Leading 12px icon; inherits the text colour. */
   icon?: React.ReactNode;
-  /** Leading 16px avatar (people/entity chips); wins over icon. */
   avatar?: React.ReactNode;
-  /** Trailing count for filter chips - "Gold 12". Micro, tabular. */
   count?: number;
 };
 
@@ -39,7 +26,7 @@ export function Chip({ label, selected = false, onDismiss, icon, avatar, count, 
         "disabled:pointer-events-none disabled:opacity-50",
         selected
           ? "bg-primary text-primary-foreground hover:opacity-85"
-          : "border border-border bg-card text-muted-foreground hover:bg-accent hover:text-foreground",
+          : "border border-border bg-card text-muted-foreground hover:border-border-strong hover:bg-accent hover:text-foreground",
         className
       )}
       {...props}
@@ -54,9 +41,6 @@ export function Chip({ label, selected = false, onDismiss, icon, avatar, count, 
       {label}
       {count != null && <span className="text-micro tabular-nums opacity-70">{count}</span>}
       {onDismiss && (
-        // A real Button, like Alert's and Attachment's dismiss - it gets the
-        // focus ring and the disabled handling for free. asChild because a
-        // <button> cannot nest inside the chip's own <button>.
         <Button
           asChild
           variant="tertiary"
@@ -79,7 +63,7 @@ export function Chip({ label, selected = false, onDismiss, icon, avatar, count, 
               }
             }}
           >
-            <X aria-hidden className="size-3" />
+            <X aria-hidden className="size-3.5" />
           </span>
         </Button>
       )}

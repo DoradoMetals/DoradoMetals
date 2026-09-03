@@ -1,5 +1,3 @@
-// Pins the Attachment contract: the three states, and remove as a real
-// labelled button.
 import { describe, expect, it, vi } from "vitest";
 import { fireEvent, render } from "@testing-library/react";
 import * as React from "react";
@@ -32,5 +30,14 @@ describe("Attachment", () => {
     );
     expect(getByText("Upload failed")).toBeTruthy();
     expect(container.querySelector('[data-state="error"]')).toBeTruthy();
+  });
+
+  it("bare drops the card's own border and radius for nesting inside Upload", () => {
+    const { container } = render(
+      <Attachment filename="c.png" state="complete" bare />,
+    );
+    const row = container.firstElementChild as HTMLElement;
+    expect(row.className).not.toContain("border");
+    expect(row.className).not.toContain("rounded-lg");
   });
 });

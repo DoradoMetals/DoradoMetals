@@ -1,4 +1,3 @@
-// Pins the Switch contract: Radix switch semantics, click toggles.
 import { describe, expect, it, vi } from "vitest";
 import { fireEvent, render } from "@testing-library/react";
 import * as React from "react";

@@ -1,5 +1,3 @@
-// Pins the TimePicker contract: a radiogroup of real buttons, the chosen slot
-// checked, unavailable ones disabled-not-hidden.
 import { describe, expect, it, vi } from "vitest";
 import { fireEvent, render } from "@testing-library/react";
 import * as React from "react";

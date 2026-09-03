@@ -1,14 +1,5 @@
 'use client'
 
-// OTP Input - the drawings at 96:32 and 96:18: cells fill the row evenly,
-// "Focus reads as a 1.5px border/strong ring rather than a glow, matching
-// Input. Empty hides the digit rather than showing a placeholder character."
-//
-// ONE HIDDEN INPUT, drawn as cells. To assistive tech and to the platform this
-// is a single text field - autocomplete="one-time-code" so iOS/Android offer
-// the SMS code, inputMode numeric for the right keyboard, paste Just Works,
-// backspace walks left - and the cells are a rendering of its value. Splitting
-// into six real inputs breaks every one of those.
 import * as React from "react";
 import { cn } from "../cn";
 import { Link } from "../link/Link";
@@ -17,17 +8,12 @@ export type OTPInputProps = {
   length?: number;
   value: string;
   onValueChange: (value: string) => void;
-  /** Fired once when every cell is filled. */
   onComplete?: (value: string) => void;
   invalid?: boolean;
   disabled?: boolean;
   label?: string;
-  /** H5 heading above the cells (Jacob, 2026-08-30). */
   title?: React.ReactNode;
-  /** The line under the title - normally where the code was sent. */
   description?: React.ReactNode;
-  /** Seconds until resend is allowed; counts down, then renders the Resend
-   *  link. Omit to hide the whole line. */
   resendIn?: number;
   onResend?: () => void;
   className?: string;
@@ -47,7 +33,6 @@ export function OTPInput({
   onResend,
   className,
 }: OTPInputProps) {
-  // The countdown restarts whenever the caller resets resendIn (a new send).
   const [secondsLeft, setSecondsLeft] = React.useState(resendIn ?? 0);
   React.useEffect(() => {
     setSecondsLeft(resendIn ?? 0);
@@ -72,10 +57,10 @@ export function OTPInput({
   };
 
   return (
-    <div className={cn("flex flex-col gap-3", className)}>
+    <div className={cn("flex flex-col gap-4", className)}>
       {(title != null || description != null) && (
         <span className="flex flex-col gap-1">
-          {title != null && <span className="text-h5 font-medium text-foreground">{title}</span>}
+          {title != null && <span className="text-h5 font-semibold text-foreground">{title}</span>}
           {description != null && (
             <span className="text-small text-muted-foreground">{description}</span>
           )}
@@ -97,7 +82,7 @@ export function OTPInput({
         maxLength={length}
         className="absolute inset-0 z-10 h-full w-full cursor-default opacity-0"
       />
-      <div aria-hidden className={cn("flex items-center gap-2", disabled && "opacity-50")}>
+      <div aria-hidden className={cn("flex items-center gap-[13px]", disabled && "opacity-50")}>
         {Array.from({ length }, (_, i) => {
           const isActive = focused && i === activeIndex && !disabled;
           return (
@@ -108,7 +93,7 @@ export function OTPInput({
                 invalid
                   ? "border-[1.5px] border-destructive"
                   : isActive
-                  ? "border-[1.5px] border-primary"
+                  ? "border-[1.5px] border-border-strong"
                   : "border border-border"
               )}
             >
@@ -119,11 +104,10 @@ export function OTPInput({
       </div>
       </div>
       {resendIn != null && (
-        // aria-live stays OFF while ticking - a timer read aloud every second
-        // is torture; only the state change to the link announces.
-        <span className="text-small text-placeholder">
+        <span className="flex items-center gap-1 text-small text-placeholder">
+          <span>Didn&apos;t get it?</span>
           {secondsLeft > 0 ? (
-            `Resend in ${secondsLeft}s`
+            <span className="font-medium text-foreground">{`Resend in ${secondsLeft}s`}</span>
           ) : (
             <Link
               role="button"

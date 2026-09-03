@@ -1,22 +1,10 @@
 'use client'
 
-// Swiper - the drawing at 59:63: a horizontal snap carousel where "the next
-// card peeks at the right edge - the affordance that tells a user it scrolls"
-// and "pagination widens the active dot rather than only recolouring it, so
-// position is readable without relying on colour."
-//
-// The drawing's own IMPORTANT note hands the behaviour to code: drag, momentum
-// and snap are CSS scroll-snap here - native momentum, native touch, zero
-// dependency - with the peek coming from the track's padding and each slide's
-// snap-start. The dots are real buttons that jump their page, the track is a
-// listbox-free region (a carousel is content, not a widget), and
-// scroll-behavior collapses under motion-reduce.
 import * as React from "react";
 import { cn } from "../cn";
 
 export type SwiperProps = {
   children: React.ReactNode;
-  /** Accessible name for the region - "Metal types", "Product photos". */
   label: string;
   className?: string;
 };
@@ -45,7 +33,10 @@ export function Swiper({ children, label, className }: SwiperProps) {
     const track = trackRef.current;
     const kid = track?.children[i] as HTMLElement | undefined;
     if (track && kid) {
-      track.scrollTo({ left: kid.offsetLeft - track.offsetLeft, behavior: "smooth" });
+      const reduced =
+        typeof window !== "undefined" &&
+        window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+      track.scrollTo({ left: kid.offsetLeft - track.offsetLeft, behavior: reduced ? "auto" : "smooth" });
     }
   };
 
@@ -56,8 +47,6 @@ export function Swiper({ children, label, className }: SwiperProps) {
         onScroll={onScroll}
         className={cn(
           "flex snap-x snap-mandatory gap-3 overflow-x-auto scroll-smooth motion-reduce:scroll-auto",
-          // The peek: padding keeps the next card's edge visible, and hides the
-          // scrollbar the snap replaces.
           "px-4 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         )}
       >
@@ -76,8 +65,6 @@ export function Swiper({ children, label, className }: SwiperProps) {
             aria-current={i === page || undefined}
             onClick={() => goTo(i)}
             className={cn(
-              // The active dot stays a CIRCLE (Jacob, 2026-08-30) - bigger and
-              // primary, never a widened oval.
               "cursor-pointer rounded-full transition-all motion-reduce:transition-none",
               i === page
                 ? "size-2 bg-primary"

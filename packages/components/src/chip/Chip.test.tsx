@@ -1,5 +1,3 @@
-// Pins the Chip contract: a pressable filter pill with pressed state, and a
-// dismiss affordance that is its own labelled button.
 import { describe, expect, it, vi } from "vitest";
 import { fireEvent, render } from "@testing-library/react";
 import * as React from "react";
@@ -21,5 +19,18 @@ describe("Chip", () => {
     fireEvent.click(getByRole("button", { name: /remove|dismiss/i }));
     expect(onDismiss).toHaveBeenCalled();
     expect(onClick).not.toHaveBeenCalled();
+  });
+
+  it("unselected hover escalates both the fill and the border", () => {
+    const { getByRole } = render(<Chip label="Gold" />);
+    const chip = getByRole("button", { name: /Gold/ });
+    expect(chip.className).toMatch(/hover:border-border-strong/);
+    expect(chip.className).toMatch(/hover:bg-accent/);
+  });
+
+  it("the dismiss glyph matches the library's 14px dismiss size", () => {
+    const { container } = render(<Chip label="Gold" onDismiss={() => {}} />);
+    const svg = container.querySelector("svg");
+    expect(svg?.getAttribute("class")).toMatch(/size-3\.5/);
   });
 });

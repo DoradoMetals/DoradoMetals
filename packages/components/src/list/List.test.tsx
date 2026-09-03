@@ -1,4 +1,3 @@
-// Pins the List contract: a real ul/li with the marker as decoration.
 import { describe, expect, it } from "vitest";
 import { render } from "@testing-library/react";
 import * as React from "react";

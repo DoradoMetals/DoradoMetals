@@ -1,17 +1,8 @@
-// Badge - the drawing at 32:83: "Small non-interactive status label. Variant
-// is the treatment (Solid / Soft / Outline), Intent is the meaning - same
-// two-axis language as Button. Soft uses the hue at 16% over the page ground.
-// Radius is radius/sm, not a pill: pills are reserved for chips."
-//
-// Non-interactive is the point: no hover, no focus, no cursor. A badge that
-// wants a click is a Chip or a Button wearing the wrong name.
 import * as React from "react";
 import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "../cn";
 
 const badgeVariants = cva(
-  // DISTINCT FROM BUTTON by construction (Jacob, 2026-08-30): micro text,
-  // 20px tall, 6px radius against the button's 8 - nothing affords pressing.
   "inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-micro font-medium whitespace-nowrap [&_svg]:size-3 [&_svg]:shrink-0",
   {
     variants: {
@@ -45,9 +36,6 @@ const badgeVariants = cva(
 
 export type BadgeProps = React.HTMLAttributes<HTMLSpanElement> &
   VariantProps<typeof badgeVariants> & {
-    /** Leading icon slot (Jacob, 2026-08-30). Sized to the micro text - 12px -
-     *  and it inherits the variant's text colour, so a soft danger badge gets
-     *  a destructive icon for free. */
     icon?: React.ReactNode;
   };
 

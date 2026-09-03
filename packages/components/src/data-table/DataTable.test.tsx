@@ -1,6 +1,3 @@
-// Pins the DataTable contract (56:82 revised): TanStack v9 under this
-// package's Table shell - sortable columns cycle aria-sort, filters render
-// as dismissible chips.
 import { describe, expect, it } from "vitest";
 import { fireEvent, render } from "@testing-library/react";
 import * as React from "react";
@@ -30,7 +27,7 @@ describe("DataTable", () => {
     const { container, getByRole } = render(
       <DataTable columns={columns} data={data} label="Orders" />,
     );
-    // Numeric columns sort DESC first (TanStack's sortDescFirst default).
+
     fireEvent.click(getByRole("button", { name: /total/i }));
     expect(container.querySelector('th[aria-sort="descending"]')).toBeTruthy();
     expect(container.querySelector("tbody tr td")!.textContent).toBe("PO-2189");

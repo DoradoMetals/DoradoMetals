@@ -1,4 +1,3 @@
-// Pins the Spinner contract: a status with a real name, the wheel hidden.
 import { describe, expect, it } from "vitest";
 import { render } from "@testing-library/react";
 import * as React from "react";

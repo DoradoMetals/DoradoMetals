@@ -1,6 +1,3 @@
-// Pins the Figma Quantity Stepper contract (132:1016): a real input that
-// clamps on blur, arrows that step, and a decrement that DISABLES at the
-// floor rather than removes - reaching zero is the Remove action's job.
 import { describe, expect, it, vi } from "vitest";
 import { fireEvent, render } from "@testing-library/react";
 import * as React from "react";
@@ -54,5 +51,18 @@ describe("QuantityStepper", () => {
     const { getByRole } = render(<QuantityStepper value={2} onChange={onChange} max={9} />);
     fireEvent.keyDown(getByRole("textbox"), { key: "ArrowUp" });
     expect(onChange).toHaveBeenCalledWith(3);
+  });
+
+  it("the default border is border/border (132:1016), not the field input token", () => {
+    const { getByRole } = render(<QuantityStepper value={2} onChange={() => {}} />);
+    const group = getByRole("group");
+    expect(group.className).toContain("border-border");
+    expect(group.className).not.toContain("border-input");
+  });
+
+  it("the value text uses the theme's small size token, not Tailwind's default text-sm", () => {
+    const { getByRole } = render(<QuantityStepper value={2} onChange={() => {}} />);
+    const input = getByRole("textbox") as HTMLInputElement;
+    expect(input.className).toContain("text-small");
   });
 });

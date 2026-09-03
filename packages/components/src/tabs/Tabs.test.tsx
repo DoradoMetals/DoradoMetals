@@ -1,4 +1,3 @@
-// Pins the Tabs contract: Radix tablist semantics, selection switches panels.
 import { describe, expect, it } from "vitest";
 import { fireEvent, render } from "@testing-library/react";
 import * as React from "react";
@@ -31,7 +30,7 @@ describe("Tabs", () => {
 
   it("clicking switches the panel", () => {
     const { getByRole } = renderTabs();
-    // Radix activates tabs on mousedown, not click.
+
     fireEvent.mouseDown(getByRole("tab", { name: "Sell" }), { button: 0 });
     expect(getByRole("tabpanel").textContent).toBe("Sell panel");
   });

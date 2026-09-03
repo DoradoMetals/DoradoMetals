@@ -1,11 +1,5 @@
 'use client'
 
-// Menu — the Figma "Menu" panel (132:19) and "Menu Item" set (132:18): the
-// action menu that SelectMenu, PopoverSelect and ProfileMenu each hand-roll.
-// A Menu performs ACTIONS where a Field picks a VALUE, so the check-carries-
-// selection rule does not apply here and no item renders a check. Popover
-// surface, p-2, hairline border; highlight is the accent fill — the same
-// quiet-hover language as the Field option and the tertiary Button.
 import * as React from 'react'
 import * as MenuPrimitive from '@radix-ui/react-dropdown-menu'
 
@@ -24,7 +18,7 @@ const MenuContent = React.forwardRef<
       ref={ref}
       sideOffset={sideOffset}
       className={cn(
-        'z-50 min-w-[14rem] rounded-[10px] border border-border bg-popover p-2 text-popover-foreground',
+        'z-50 flex min-w-[14rem] flex-col gap-3xs rounded-surface border border-border bg-popover p-2 text-popover-foreground',
         'data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95',
         'data-[state=closed]:animate-out data-[state=closed]:fade-out-0',
         'motion-reduce:animate-none',
@@ -39,16 +33,15 @@ MenuContent.displayName = 'MenuContent'
 const MenuItem = React.forwardRef<
   React.ComponentRef<typeof MenuPrimitive.Item>,
   React.ComponentPropsWithoutRef<typeof MenuPrimitive.Item> & {
-    /** Destructive actions carry the hue on icon and label both. */
     intent?: 'neutral' | 'danger'
   }
 >(({ className, intent = 'neutral', ...props }, ref) => (
   <MenuPrimitive.Item
     ref={ref}
     className={cn(
-      'flex min-h-9 cursor-default select-none items-center gap-2 rounded-md px-2 text-sm outline-none',
+      'flex min-h-9 cursor-default select-none items-center gap-2 rounded-md px-2 text-small outline-none',
       'data-[highlighted]:bg-accent data-[disabled]:pointer-events-none data-[disabled]:opacity-50',
-      "[&_svg]:size-4 [&_svg]:shrink-0 [&_svg]:text-muted-foreground",
+      "[&_svg]:size-3.5 [&_svg]:shrink-0 [&_svg]:text-muted-foreground",
       intent === 'danger' && 'text-destructive [&_svg]:text-destructive',
       className,
     )}
@@ -57,14 +50,16 @@ const MenuItem = React.forwardRef<
 ))
 MenuItem.displayName = 'MenuItem'
 
-// Micro caps at placeholder — the drawn group label.
 const MenuLabel = React.forwardRef<
   React.ComponentRef<typeof MenuPrimitive.Label>,
   React.ComponentPropsWithoutRef<typeof MenuPrimitive.Label>
 >(({ className, ...props }, ref) => (
   <MenuPrimitive.Label
     ref={ref}
-    className={cn('px-2 pb-1 pt-1.5 text-xs uppercase tracking-wider text-placeholder', className)}
+    className={cn(
+      'px-2 pb-1 pt-1.5 font-mono text-micro font-medium uppercase tracking-widest text-placeholder',
+      className
+    )}
     {...props}
   />
 ))
@@ -82,12 +77,11 @@ const MenuSeparator = React.forwardRef<
 ))
 MenuSeparator.displayName = 'MenuSeparator'
 
-// Trailing shortcut at placeholder colour; decoration, so aria-hidden.
 function MenuShortcut({ className, ...props }: React.HTMLAttributes<HTMLSpanElement>) {
   return (
     <span
       aria-hidden
-      className={cn('ml-auto text-xs tracking-widest text-placeholder', className)}
+      className={cn('ml-auto text-micro text-placeholder', className)}
       {...props}
     />
   )

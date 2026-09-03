@@ -1,62 +1,10 @@
-/* ============================================================================
-   THEME — dark only.
-   ----------------------------------------------------------------------------
-   Light mode is gone. There is one palette and it lives on :root. The former
-   `.dark` block has been folded into :root; the `.dark` class no longer gates
-   anything.
-
-   ---------------------------------------------------------------------------
-   THE NEUTRAL RAMP IS RETIRED (Jacob, 2026-08-31).
-   ---------------------------------------------------------------------------
-   `--neutral-100..900` and their `--color-neutral-*` aliases are GONE, in the
-   theme and in the Figma library both. They were primitives leaking into call
-   sites: a component asking for `text-neutral-700` was naming a POSITION on a
-   ramp, not a ROLE, so nothing about the class said what it meant and the
-   inversion story below had to exist at all.
-
-   Every use now names a role instead. The mapping applied to 141 call sites
-   (113 utilities + 28 raw `var(--neutral-*)` reads for canvas, maps and the
-   Stripe elements theme):
-
-       neutral-900, -800  ->  foreground
-       neutral-700        ->  subtle            (added here for this; Figma
-                                                 already had text/subtle)
-       neutral-600        ->  muted-foreground
-       neutral-500, -400  ->  placeholder
-       neutral-300        ->  border-strong
-       neutral-200, -100  ->  border / muted
-
-   The one behavioural change: the selected Chip's `hover:bg-neutral-800` was
-   a hand-picked dim of primary, and the hover law is opacity now, so it is
-   `hover:opacity-85` like every other control.
-
-   ---------------------------------------------------------------------------
-   THE `dark:` VARIANT IS NOW ALWAYS ON.
-   ---------------------------------------------------------------------------
-   app/layout.tsx sets `<ThemeProvider attribute="class" defaultTheme="light">`,
-   so the `.dark` class is NOT on the document, and the old
-   `&:is(.dark *)` variant matched nothing. 38 `dark:` utilities across 7 .tsx
-   files plus every inset shadow in components.css would have been dead — and
-   dead in the direction that leaves white 1px highlights on a black page.
-
-   `&:is(:root, :root *)` always matches, and `:is(:root, ...)` carries the
-   specificity of `:root` (0,1,0), so a `dark:` utility scores (0,2,0) and beats
-   its own unprefixed base (0,1,0) regardless of emit order. Every `dark:` pair
-   in the tree now resolves to its dark half with no .tsx edits.
-   ============================================================================ */
-
 @custom-variant dark (&:is(:root, :root *));
 
 @theme inline {
   --font-sans: var(--font-sans);
-  /* One family since the Geist refresh: headings and body are both Geist,
-     weight doing the separating (600 headings, 500 chrome, 400 body). The
-     --font-header hook survives for typography.css but resolves to the same
-     face. */
+
   --font-heading: var(--font-header, var(--font-sans));
-  /* Eyebrow labels are monospace (ruling 19). No webfont is loaded for this —
-     the system mono stack is deliberate: it costs nothing and the eyebrow is
-     always uppercase and letter-spaced, where stack differences barely read. */
+
   --font-mono: var(--font-mono-loaded), ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas,
     'Liberation Mono', monospace;
 
@@ -77,11 +25,16 @@
   --color-warning-foreground: var(--warning-foreground);
   --color-info: var(--info);
   --color-info-foreground: var(--info-foreground);
+  --color-success-muted: var(--success-muted);
+  --color-destructive-muted: var(--destructive-muted);
+  --color-warning-muted: var(--warning-muted);
+  --color-info-muted: var(--info-muted);
   --color-accent-foreground: var(--accent-foreground);
   --color-accent: var(--accent);
   --color-muted-foreground: var(--muted-foreground);
   --color-subtle: var(--subtle);
   --color-placeholder: var(--placeholder);
+  --color-foreground-disabled: var(--foreground-disabled);
   --color-muted: var(--muted);
   --color-secondary-foreground: var(--secondary-foreground);
   --color-secondary: var(--secondary);
@@ -92,15 +45,11 @@
   --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
 
-  /* Surface aliases — see SURFACES below. Additive; nothing used these before. */
   --color-surface: var(--card);
   --color-surface-raised: var(--popover);
   --color-surface-overlay: var(--highest);
   --color-border-strong: var(--border-strong);
 
-  /* The Dorado gold. `--primary` is no longer gold (it is white, per Jacob),
-     so the brand colour needs a home of its own. 28 raw hex spellings of this
-     gold live in .tsx today — see RETIREMENT.md. */
   --color-brand: var(--brand);
 
   --radius-sm: calc(var(--radius) - 4px);
@@ -108,49 +57,22 @@
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
 
+  --radius-surface: calc(var(--radius) + 2px);
+
   --animate-shine: shine var(--duration) infinite linear;
 }
 
-/* ============================================================================
-   SCALES — spacing, radius, type.
-   Declared in a NON-inline @theme so they are emitted as real custom properties
-   on :root and can be read with var() from base.css and from call sites.
-
-   Tailwind v4 generates the whole utility family from these namespaces
-   automatically (verified by compiling them):
-     --spacing-*  ->  p-md px-md py-lg pt-md m-md mt-lg gap-md space-y-md w-md ...
-     --text-*     ->  text-h1 (size + line-height + letter-spacing + weight)
-     --radius-*   ->  rounded-md ...
-   The numeric scale (p-4, gap-2) is untouched and still works — it comes from
-   the separate `--spacing` multiplier.
-   ============================================================================ */
-
 @theme {
-  /* --- SPACING -------------------------------------------------------------
-     A 7-step named scale. Named rather than numbered because the numbered
-     scale already exists and still works: `p-4` and `p-md` must be visually
-     distinguishable in a diff, or a half-finished sweep is invisible.
-     765 ad-hoc p-*, 315 m-*, 674 gap-* call sites converge here.
-     Steps are the values the codebase already clusters on (4/8/12/16/24/32). */
-  --spacing-3xs: 0.125rem; /*  2px  hairline nudge */
-  --spacing-2xs: 0.25rem;  /*  4px  == p-1   */
-  --spacing-xs: 0.5rem;    /*  8px  == p-2   */
-  --spacing-sm: 0.75rem;   /* 12px  == p-3   */
-  --spacing-md: 1rem;      /* 16px  == p-4   the default box padding */
-  --spacing-lg: 1.5rem;    /* 24px  == p-6   */
-  --spacing-xl: 2rem;      /* 32px  == p-8   section padding */
-  --spacing-2xl: 3rem;     /* 48px  == p-12  page gutter */
-  --spacing-3xl: 4rem;     /* 64px  == p-16  */
+  --spacing-3xs: 0.125rem;
+  --spacing-2xs: 0.25rem;
+  --spacing-xs: 0.5rem;
+  --spacing-sm: 0.75rem;
+  --spacing-md: 1rem;
+  --spacing-lg: 1.5rem;
+  --spacing-xl: 2rem;
+  --spacing-2xl: 3rem;
+  --spacing-3xl: 4rem;
 
-  /* --- THE NAMED STEPS ABOVE SHADOW THE CONTAINER SCALE -------------------
-     Every spacing name (3xs..3xl) is also a Tailwind container-scale name,
-     and `max-w` resolves `--max-width -> --spacing -> --container` - so the
-     steps above shadowed `--container-*` and `max-w-3xl` silently became
-     64px, collapsing every page shell built on a named max-width. These pin
-     the container meaning back via the namespace that outranks spacing;
-     values are Tailwind's own, verbatim. The spacing meaning stays for
-     p-/m-/gap-. `max-w-4xl` and up never collided - the spacing scale stops
-     at 3xl, and must keep stopping there or its new steps need pinning too. */
   --max-width-3xs: 16rem;
   --max-width-2xs: 18rem;
   --max-width-xs: 20rem;
@@ -161,49 +83,17 @@
   --max-width-2xl: 42rem;
   --max-width-3xl: 48rem;
 
-  /* --- TYPE ----------------------------------------------------------------
-     One scale, driving both the semantic tag rules in base.css and the
-     `text-h1`-style utilities. 15px body: Linear's, and denser than the 16px
-     browser default without going small. */
-  --text-display: 2.75rem; /* 44px — hero only, and the Hero drawing (163:35)
-     is the one thing that sets it: 44/50 with -1.2px tracking, SemiBold. Was
-     64px, chosen from a reference hero back when this had zero call sites; the
-     drawing now has a call site and outranks the reference. */
-  --text-display--line-height: 1.14; /* 50/44 */
-  --text-display--letter-spacing: -0.027em; /* -1.2px at 44 */
+  --text-display: 4rem;
+  --text-display--line-height: 1.05;
+  --text-display--letter-spacing: -0.032em;
   --text-display--font-weight: 600;
 
-  /* The drawing's mobile step, stated in its own description: "Mobile: 32/38
-     headline". A pair for the same reason --text-stat has one — the small size
-     is a real design decision, not the big one scaled, and must be free to
-     move without dragging the desktop size with it. */
-  --text-display-sm: 2rem; /* 32px */
-  --text-display-sm--line-height: 1.19; /* 38/32 */
-  --text-display-sm--letter-spacing: -0.024em;
-  --text-display-sm--font-weight: 600;
-
-  /* --- DISPLAY NUMERALS ----------------------------------------------------
-     A HEADING SIZE IS NOT A NUMBER SIZE, which is the gap this fills. `/rates`
-     shows percentages at 36px and 30px, and the only tags that reach those
-     sizes are `<h1>` and `<h2>` — so the sweep had to hang `text-h1` off a
-     `<strong>` purely for the size, and that was the last remaining piece of
-     type scatter in P3's whole partition.
-
-     Two sizes because the page needs two: the desktop grid cell and the mobile
-     pair row. They are DELIBERATELY not `--text-h1`/`--text-h2` values reused
-     under another name — a stat is a different thing from a heading and should
-     be free to move without dragging every `<h1>` in the app with it.
-
-     Use the `.stat` / `.stat-sm` utilities in typography.css rather than
-     `text-stat` directly: a figure that animates (`NumberFlow`, 12 sites) also
-     needs `tabular-nums` or it jitters mid-transition, and the utility carries
-     both halves so they cannot be spelled apart. */
-  --text-stat: 2.25rem; /* 36px */
+  --text-stat: 2.25rem;
   --text-stat--line-height: 1.1;
   --text-stat--letter-spacing: -0.024em;
   --text-stat--font-weight: 600;
 
-  --text-stat-sm: 1.875rem; /* 30px */
+  --text-stat-sm: 1.875rem;
   --text-stat-sm--line-height: 1.15;
   --text-stat-sm--letter-spacing: -0.02em;
   --text-stat-sm--font-weight: 600;
@@ -238,202 +128,70 @@
   --text-h6--letter-spacing: 0em;
   --text-h6--font-weight: 600;
 
-  --text-body: 0.9375rem; /* 15px */
+  --text-body: 0.9375rem;
   --text-body--line-height: 1.6;
   --text-body--letter-spacing: -0.003em;
   --text-body--font-weight: 400;
 
-  --text-small: 0.8125rem; /* 13px */
+  --text-small: 0.8125rem;
   --text-small--line-height: 1.5;
   --text-small--letter-spacing: 0em;
   --text-small--font-weight: 400;
 
-  --text-micro: 0.75rem; /* 12px */
+  --text-micro: 0.75rem;
   --text-micro--line-height: 1.45;
   --text-micro--letter-spacing: 0.004em;
   --text-micro--font-weight: 400;
 }
 
-/* ============================================================================
-   PALETTE
-   ============================================================================ */
-
 :root {
-  /* --- NEUTRAL RAMP --------------------------------------------------------
-     Inverted (see header). 100 sits on the ground, 900 is the brightest text.
-     Slight cool cast (hue ~216-225) rather than pure grey — the Linear look.
-     Contrast against --background:
-       500 4.76:1 | 600 7.41:1 | 700 10.66:1 | 800 14.60:1 | 900 18.08:1
-     The four shades carrying 896 of the 992 text call sites (600/700/800/900)
-     all clear WCAG AA for normal text; 500 clears it at 4.76:1. */
+  --background: hsl(228, 13%, 4%);
+  --card: hsl(225, 11%, 7%);
+  --popover: hsl(224, 10%, 9%);
+  --highest: hsl(223, 10%, 11%);
+  --muted: hsl(225, 9%, 13%);
 
-  /* --- SURFACES ------------------------------------------------------------
-     Four steps, and elevation makes a surface LIGHTER — which is what the old
-     light palette did (background 92% -> card 97% -> highest 100%) and what
-     Linear does. The old `.dark` block had inverted this so that an elevated
-     card was DARKER than the page; that reading is dropped, because the light
-     palette is the one the 121 bg-card / 42 bg-highest call sites were
-     actually authored against.
+  --border: hsl(222, 9%, 19%);
+  --border-strong: hsl(220, 9%, 27%);
+  --input: hsl(221, 9%, 24%);
 
-       background  the page ground, the darkest thing on screen
-       card        the default panel/row surface
-       popover     menus, dropdowns, tooltips — one step off the card
-       highest     modals, drawers, the top of the stack
-
-     None is pure #000: true black is reserved for the page ground's own
-     backdrop and for nothing else, so surfaces always have somewhere to sit. */
-  --background: hsl(228, 13%, 4%); /* #09090c */
-  --card: hsl(225, 11%, 7%); /* #101114   1.05:1 vs ground */
-  --popover: hsl(224, 10%, 9%); /* #151619   1.10:1 */
-  --highest: hsl(223, 10%, 11%); /* #191b1f   1.15:1 */
-  --muted: hsl(225, 9%, 13%); /* #1e2024  a filled, inactive surface */
-
-  /* --- BORDERS -------------------------------------------------------------
-     Hairlines. 1.48:1 against the ground — visible as separation, not as a
-     glowing line. --border-strong is for the rare case that needs to read as
-     a deliberate edge (active field, selected row). */
-  --border: hsl(222, 9%, 19%); /* #2c2f35 */
-  --border-strong: hsl(220, 9%, 27%); /* #3f434b - synced to the Figma
-     variables 2026-08-30; the drawing resolves border/strong to this, one
-     step off the #3d414a its own description still says (stale description,
-     noted in phase10-design-system.md). */
-  --input: hsl(221, 9%, 24%); /* #383b43 */
-
-  /* --- TEXT ---------------------------------------------------------------- */
-  --foreground: hsl(216, 20%, 97%); /* #f6f7f9  18.55:1 */
+  --foreground: hsl(216, 20%, 97%);
   --card-foreground: hsl(216, 20%, 97%);
   --popover-foreground: hsl(216, 20%, 97%);
-  --muted-foreground: hsl(220, 8%, 61%); /* #9499a4  6.96:1 */
-  /* The fourth text level, added 2026-08-31 when the neutral primitives were
-     retired: Figma has text/subtle and the code had no equivalent, so
-     text-neutral-700 had nowhere semantic to land. */
-  --subtle: hsl(219, 9%, 75%); /* #babec5 */
-  --placeholder: hsl(229, 6%, 50%); /* #787c87  4.76:1 - the Figma
-     text/placeholder variable ("input placeholders and empty-state prompts;
-     clears AA for normal text, unlike text/disabled"), synced 2026-08-30. */
+  --muted-foreground: hsl(220, 8%, 61%);
 
-  /* --- PRIMARY -------------------------------------------------------------
-     WHITE, per Jacob: "we just need to change bg-primary to be white".
-     `bg-primary` is now a white button and `--primary-foreground` is the
-     near-black that sits on it (18.49:1).
+  --subtle: hsl(219, 9%, 75%);
+  --foreground-disabled: #5b5e67;
+  --placeholder: hsl(229, 6%, 50%);
 
-     THIS IS THE ONE CHANGE THAT BREAKS CALL SITES: 52 of the 105 `bg-primary`
-     lines also say `text-white`, which would be white-on-white. base.css
-     carries a temporary bridge rule that repaints 51 of those 52 (the 52nd,
-     ProductPageDetails.tsx:637, is a PRE-EXISTING typo — `bg-primarytext-white`
-     with a missing space, never a valid class, never rendered; the sweep did
-     not introduce it).
+  --primary: hsl(0, 0%, 98%);
+  --primary-foreground: hsl(228, 13%, 6%);
 
-     THE SWEEP RULE, mechanical, no per-site design judgement:
+  --secondary: hsl(225, 9%, 15%);
+  --secondary-foreground: hsl(216, 20%, 97%);
+  --accent: hsl(225, 9%, 15%);
+  --accent-foreground: hsl(216, 20%, 97%);
+  --ring: hsl(216, 15%, 70%);
 
-         bg-primary + text-white   ->   bg-primary + text-primary-foreground
+  --success: hsl(152, 58%, 52%);
+  --success-foreground: hsl(228, 13%, 6%);
+  --destructive: hsl(352, 80%, 62%);
+  --destructive-foreground: hsl(0, 0%, 98%);
 
-     `text-primary-foreground`, NOT `text-background`. Both are dark and the
-     two are visually indistinguishable here (18.49:1 vs 19.05:1 on --primary),
-     so the choice is about meaning, not appearance:
+  --warning: hsl(38, 92%, 58%);
+  --warning-foreground: hsl(228, 13%, 6%);
+  --info: hsl(203, 89%, 60%);
+  --success-muted: #172c22;
+  --destructive-muted: #32161c;
+  --warning-muted: #342713;
+  --info-muted: #132736;
+  --info-foreground: hsl(228, 13%, 6%);
 
-       - `--primary-foreground` is DEFINED as "the text that sits on primary".
-         It is the token that tracks --primary if --primary ever moves.
-       - `--background` means "the page ground". Coupling button text to the
-         page ground is a coincidence that holds today and breaks the moment
-         the ground and the primary surface diverge.
-       - shadcn's own primitives ALREADY pair them this way —
-         shared/ui/base/button.tsx:11 (`bg-primary text-primary-foreground`),
-         checkbox.tsx:17, input.tsx:11. Sweeping to `text-primary-foreground`
-         makes the 51 hand-written call sites agree with the primitives instead
-         of diverging from them; sweeping to `text-background` would make them
-         the only places in the app using `text-background`.
+  --brand: hsl(43, 63%, 60%);
 
-     Yes, Linear's primary button is a light ground with dark text, and that is
-     exactly what `bg-primary` + `--primary-foreground` now produces. Reserve
-     `bg-brand` / `text-brand` (the gold) for genuine brand moments.
-
-     Full checklist of every residual low-contrast pairing is in
-     RETIREMENT.md section 0.4. */
-  --primary: hsl(0, 0%, 98%); /* #fafafa */
-  --primary-foreground: hsl(228, 13%, 6%); /* #0d0e11 */
-
-  /* --- ACCENT / SECONDARY — DE-HUED (ruling 19) -----------------------------
-     The foundation pass lifted both to a saturated blue (hsl(203,89%,56%))
-     because the old hsl(200,95%,30%) was invisible on a dark ground. That
-     reasoning was right about the LIGHTNESS and wrong about the HUE, and I am
-     overriding it deliberately — see the note at the top of this section.
-
-     Measured: every one of the 7 `accent` call sites is CHROME, not status —
-     button.tsx ghost hover, calendar.tsx day hover, NavIcon.tsx hover. A
-     saturated blue there is precisely the "structural element carrying a hue"
-     the reference forbids. Both are now neutral raised surfaces, which is also
-     what shadcn's own semantics mean by them: `bg-secondary` /
-     `bg-accent` are SURFACES, and `--*-foreground` is the text that sits on
-     them. Hue survives only in --success / --destructive (status) and --brand
-     (the one sanctioned hue, gold, used sparingly). */
-  --secondary: hsl(225, 9%, 15%); /* #23252a  neutral raised surface */
-  --secondary-foreground: hsl(216, 20%, 97%); /* near-white, sits ON secondary */
-  --accent: hsl(225, 9%, 15%); /* #23252a  the hover fill for quiet chrome */
-  --accent-foreground: hsl(216, 20%, 97%); /* legible on both accent and ground */
-  --ring: hsl(216, 15%, 70%); /* #a7b0be  9.09:1  focus ring — light, not blue */
-
-  /* --- STATUS --------------------------------------------------------------
-     Semantics unchanged, both lifted for a dark ground. */
-  --success: hsl(152, 58%, 52%); /* #3ecc89  9.66:1 vs ground */
-  --success-foreground: hsl(228, 13%, 6%); /* sits ON success. RETIREMENT.md
-     section 0.4 listed `bg-destructive`+`text-white` (3.54:1) but MISSED
-     `bg-success`+`text-white`, which is 2.07:1 — worse than the one it caught.
-     Both were defaults in shared/ui/DisplayToggle.tsx. There was no
-     --success-foreground to convert to, so this token is new. */
-  --destructive: hsl(352, 80%, 62%); /* #ec5165  5.62:1 */
-  --destructive-foreground: hsl(0, 0%, 98%); /* #fafafa - sits ON destructive.
-     Was near-black; the drawing puts LIGHT text on the red fill (Button
-     Primary/Danger, 25:229 resolves destructive-foreground to #fafafa), and
-     #fafafa on #ec5165 is what every danger button in the library shows. */
-
-  /* WARNING and INFO are new, added for the Button `intent` axis (ruling 25).
-     Both are STATUS semantics, which is the one place ruling 19 permits hue —
-     they must never become chrome. `--info` deliberately reuses the blue that
-     `--secondary`/`--accent` carried before they were de-hued: that hue was
-     always saying "informational", it was just being used as button chrome. */
-  --warning: hsl(38, 92%, 58%); /* #f5a831  10.86:1 vs ground */
-  --warning-foreground: hsl(228, 13%, 6%); /* sits ON warning */
-  --info: hsl(203, 89%, 60%); /* #3eaef4   8.32:1 vs ground */
-  --info-foreground: hsl(228, 13%, 6%); /* sits ON info */
-
-  /* --- BRAND ---------------------------------------------------------------
-     The Dorado gold that `--primary` used to hold. Nothing references
-     `--color-brand` yet; it exists so the 28 raw gold hex literals in .tsx and
-     the gradients have a token to converge on. */
-  --brand: hsl(43, 63%, 60%); /* #d9b559  10.14:1 */
-  /* --- ELEVATION: THERE IS NONE. ------------------------------------------
-     `--shadow-raised`, `--shadow-recessed` and `--shadow-overlay` are DELETED,
-     and this note is here so nobody re-adds them thinking the omission was an
-     oversight.
-
-     Jacob, ruling 27: "We no longer want those crazy ass shadows.
-     (recessed/raised) so those need to go away everywhere." An earlier pass
-     had collapsed each `X dark:X` pair onto these three tokens, which
-     PRESERVED the shadows in tidier form - the opposite of the instruction,
-     and the reason the ruling had to be written twice.
-
-     THE REPLACEMENT IS NOT A SOFTER SHADOW. Ruling 19: panels read as
-     separated by BORDER, not by fill and not by elevation, so a shadow that
-     was doing separation work became `border border-border` and a shadow that
-     was decoration became nothing at all.
-
-     `--shadow-overlay` was the one judgement call the ruling left open, for
-     "something genuinely floating". Its only user was the drawer, and a drop
-     shadow works by darkening the ground beneath it - this ground is #09090c.
-     Black on black is not an elevation cue; it is an unrendered declaration.
-     See the note in drawer.css. */
-
-  /* Containers and thumbnails sit at 8px — small and restrained (ruling 19).
-     Pills (`rounded-full`) are for buttons and chips ONLY, and are carried by
-     the Button/StatusChip variants rather than spelled at call sites.
-     Was 0.35rem (5.6px). */
   --radius: 0.5rem;
 }
 
-/* The shine animation is retired. The keyframes are kept so `animate-shine`
-   (2 call sites) and `--animate-shine` stay valid, but they now do nothing.
-   See RETIREMENT.md. */
 @keyframes shine {
   0% {
     background-position: 0% 0%;
@@ -443,12 +201,6 @@
   }
 }
 
-/* ============================================================================
-   MOTION - the accordion's open/close, driven by Radix's measured height.
-   Registered here as Tailwind v4 theme values so `animate-accordion-down`
-   exists as a utility wherever @dorado/components is used. motion-reduce is
-   the component's job (it adds motion-reduce:animate-none).
-   ============================================================================ */
 @theme {
   --animate-accordion-down: accordion-down 0.2s ease-out;
   --animate-accordion-up: accordion-up 0.2s ease-out;

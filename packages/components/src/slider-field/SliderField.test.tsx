@@ -1,5 +1,3 @@
-// Pins the SliderField contract: slider + numeric input, one label, two
-// synchronized surfaces.
 import { describe, expect, it, vi } from "vitest";
 import { fireEvent, render } from "@testing-library/react";
 import * as React from "react";

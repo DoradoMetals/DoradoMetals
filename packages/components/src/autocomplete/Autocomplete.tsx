@@ -1,37 +1,12 @@
 'use client'
 
-// Autocomplete - the drawing at 100:29: "Text field with a suggestion popover -
-// for address lookup and any typeahead. Open drops a Suggestions panel on
-// surface/popover, separated by border rather than shadow, with Select Option
-// rows inside. The first row is shown hovered to indicate the keyboard-
-// highlighted result."
-//
-// The anatomy is the drawing's: Small/Medium label at muted-foreground, an
-// h-11 card box with a leading-icon slot and Body value, the panel on
-// --popover with p-2 and h-9 rounded-sm rows - highlight fills with accent
-// exactly as Select Option says ("the de-hued raised surface").
-//
-// The semantics are the COMBOBOX PATTERN, which no drawing can express:
-// role=combobox with aria-expanded/aria-controls/aria-activedescendant,
-// a listbox of role=option rows, ArrowUp/Down moving the highlight, Enter
-// selecting it, Escape closing, and mousedown-preventDefault on options so a
-// click lands before blur closes the panel. The highlight is aria-
-// activedescendant rather than roving focus - focus never leaves the input,
-// which is what lets the user keep typing.
-//
-// CONTROLLED where it matters, internal where it does not: the caller owns
-// `value` and `items` (fetching, debouncing and parsing are the caller's
-// business - Google Places, a metals list, anything); open state and the
-// highlight are this component's.
 import * as React from "react";
 import { cn } from "../cn";
 import { fieldOption, fieldPanel, fieldTrigger, FieldLabel } from "../field/Field";
 
 export type AutocompleteItem = {
   id: string;
-  /** What selection means to the machine (fills the input, read to a11y). */
   textValue: string;
-  /** What the row shows - defaults to textValue; any node for two-line rows. */
   label?: React.ReactNode;
 };
 
@@ -43,10 +18,8 @@ export type AutocompleteProps = {
   label?: React.ReactNode;
   placeholder?: string;
   leading?: React.ReactNode;
-  /** Right edge of the box - a clear button, a spinner. */
   trailing?: React.ReactNode;
   disabled?: boolean;
-  /** Shown in the panel when open with zero items and a non-empty value. */
   empty?: React.ReactNode;
   className?: string;
   inputProps?: Omit<
@@ -74,8 +47,6 @@ export function Autocomplete({
   const [open, setOpen] = React.useState(false);
   const [active, setActive] = React.useState(0);
 
-  // New results restart the highlight at the top - the drawing's "first row is
-  // shown hovered".
   React.useEffect(() => setActive(0), [items]);
 
   const showPanel = open && !disabled && (items.length > 0 || (empty != null && value.length > 0));
@@ -108,8 +79,6 @@ export function Autocomplete({
   return (
     <div className={cn("relative flex w-full flex-col gap-0.5", className)}>
       {label != null && <FieldLabel htmlFor={id}>{label}</FieldLabel>}
-      {/* The FIELD CHASSIS (Popover Field, 106:213): one set of clothes shared
-          with Select and the pickers - see field.tsx. */}
       <div className={cn(fieldTrigger(), disabled && "pointer-events-none opacity-50")}>
         {leading != null && <span className="shrink-0 text-muted-foreground">{leading}</span>}
         <input
@@ -127,9 +96,6 @@ export function Autocomplete({
             onValueChange(e.target.value);
             setOpen(true);
           }}
-          // The caller's handlers COMPOSE with the internal ones - a spread
-          // after ours would let inputProps.onFocus silently replace the
-          // open/close machinery, which is exactly how this bug ships.
           onFocus={(e) => {
             setOpen(true);
             inputProps?.onFocus?.(e);
@@ -162,8 +128,6 @@ export function Autocomplete({
                 id={`${id}-opt-${item.id}`}
                 role="option"
                 aria-selected={idx === active}
-                // Mousedown fires before the input's blur; preventing it is
-                // what lets the click land while the panel is still open.
                 onMouseDown={(e) => e.preventDefault()}
                 onClick={() => select(item)}
                 onMouseEnter={() => setActive(idx)}

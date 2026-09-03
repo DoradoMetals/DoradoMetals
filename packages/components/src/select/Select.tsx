@@ -1,11 +1,5 @@
 'use client'
 
-// Select - the field chassis (Popover Field) filled with Select Menu. The
-// drawn trigger set on the Select page is DEPRECATED in favour of the chassis
-// (Jacob, 2026-08-30: "I don't think we need a Select if we have popover
-// field"); what this file adds is the half a drawing cannot hold - Radix
-// Select underneath, which is listbox semantics, type-ahead, form submission
-// via a hidden native select, and the keyboard the platform expects.
 import * as React from "react";
 import * as SelectPrimitive from "@radix-ui/react-select";
 import { Check, ChevronDown } from "lucide-react";
@@ -42,7 +36,11 @@ export function Select({
   const id = React.useId();
   return (
     <div className={cn("flex w-full flex-col gap-0.5", className)}>
-      {label != null && <FieldLabel htmlFor={id}>{label}</FieldLabel>}
+      {label != null && (
+        <FieldLabel htmlFor={id} className={cn(invalid && "text-destructive")}>
+          {label}
+        </FieldLabel>
+      )}
       <SelectPrimitive.Root
         value={value}
         onValueChange={onValueChange}

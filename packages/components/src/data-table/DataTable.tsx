@@ -1,13 +1,5 @@
 'use client'
 
-// DataTable - the Table drawing (56:82, revised 2026-08-30) powered by
-// TanStack Table v9 (Jacob's ask - and v9 IS stable, 9.2.4). v9's API is
-// tree-shakeable: features and row models are imported and registered
-// explicitly, so the bundle carries exactly what the grid uses. Column defs
-// opt into sorting and filtering per column; the header renders the
-// affordances from column state through this package's own Table family, so
-// a data-grid and a hand-made table are indistinguishable on the page.
-// Active filters render as dismissible Chips above the table.
 import * as React from "react";
 import {
   type ColumnDef,
@@ -29,7 +21,6 @@ import { Chip } from "../chip/Chip";
 import { cn } from "../cn";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../table/Table";
 
-// v9: row-model factories and fn registries are SLOTS on the features object.
 const features = tableFeatures({
   rowSortingFeature,
   columnFilteringFeature,
@@ -44,9 +35,7 @@ export type DataTableColumn<T extends RowData> = ColumnDef<typeof features, T>;
 export type DataTableProps<T extends RowData> = {
   columns: DataTableColumn<T>[];
   data: T[];
-  /** Accessible name for the table. */
   label: string;
-  /** Renders when there are zero rows - an EmptyState usually. */
   empty?: React.ReactNode;
   className?: string;
 };

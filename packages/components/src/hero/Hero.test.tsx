@@ -1,6 +1,3 @@
-// Pins the Hero contract (163:35): an h1 carrying the drawn words, both CTAs
-// pointing where the drawing sends them, and the count coming from the caller
-// rather than the component. No slots - the hero is opinionated on purpose.
 import { describe, expect, it } from "vitest";
 import { render } from "@testing-library/react";
 import * as React from "react";
@@ -23,7 +20,6 @@ describe("Hero", () => {
     expect(getByRole("link", { name: "Browse bullion" }).getAttribute("href")).toBe("/buy");
   });
 
-  // The drawing's own rule: "never hardcode a count that drifts."
   it("renders the caller's count, grouped", () => {
     const { container } = render(<Hero sellerCount={2400} />);
     expect(container.textContent).toContain("Trusted by 2,400+ sellers");

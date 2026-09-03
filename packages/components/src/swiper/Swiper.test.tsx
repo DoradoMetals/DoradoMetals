@@ -1,7 +1,5 @@
-// Pins the Swiper contract (59:63): dots are real buttons naming their slide,
-// the active one marked, motion-reduce collapses smooth scrolling.
-import { describe, expect, it } from "vitest";
-import { render } from "@testing-library/react";
+import { describe, expect, it, afterEach, vi } from "vitest";
+import { render, fireEvent } from "@testing-library/react";
 import * as React from "react";
 
 import { Swiper } from "./Swiper";
@@ -20,5 +18,62 @@ describe("Swiper", () => {
     expect(dot.getAttribute("aria-current")).toBe("true");
     expect(container.querySelector(".motion-reduce\\:scroll-auto, [class*='motion-reduce']")).toBeTruthy();
     expect(await axeViolations(container)).toEqual([]);
+  });
+
+  describe("a dot click's programmatic scroll", () => {
+    const originalScrollTo = HTMLElement.prototype.scrollTo;
+    const originalMatchMedia = window.matchMedia;
+    afterEach(() => {
+      HTMLElement.prototype.scrollTo = originalScrollTo;
+      window.matchMedia = originalMatchMedia;
+    });
+
+    it("uses 'auto' under prefers-reduced-motion", () => {
+      const calls: (ScrollToOptions | undefined)[] = [];
+      HTMLElement.prototype.scrollTo = vi.fn((opts?: ScrollToOptions) => { calls.push(opts); }) as typeof HTMLElement.prototype.scrollTo;
+      window.matchMedia = ((query: string) => ({
+        matches: query.includes("reduce"),
+        media: query,
+        onchange: null,
+        addListener: () => {},
+        removeListener: () => {},
+        addEventListener: () => {},
+        removeEventListener: () => {},
+        dispatchEvent: () => false,
+      })) as typeof window.matchMedia;
+
+      const { getByRole } = render(
+        <Swiper label="Featured products">
+          <div>One</div>
+          <div>Two</div>
+        </Swiper>,
+      );
+      fireEvent.click(getByRole("button", { name: "Go to slide 2 of 2" }));
+      expect(calls[0]?.behavior).toBe("auto");
+    });
+
+    it("uses 'smooth' with no motion preference", () => {
+      const calls: (ScrollToOptions | undefined)[] = [];
+      HTMLElement.prototype.scrollTo = vi.fn((opts?: ScrollToOptions) => { calls.push(opts); }) as typeof HTMLElement.prototype.scrollTo;
+      window.matchMedia = ((query: string) => ({
+        matches: false,
+        media: query,
+        onchange: null,
+        addListener: () => {},
+        removeListener: () => {},
+        addEventListener: () => {},
+        removeEventListener: () => {},
+        dispatchEvent: () => false,
+      })) as typeof window.matchMedia;
+
+      const { getByRole } = render(
+        <Swiper label="Featured products">
+          <div>One</div>
+          <div>Two</div>
+        </Swiper>,
+      );
+      fireEvent.click(getByRole("button", { name: "Go to slide 2 of 2" }));
+      expect(calls[0]?.behavior).toBe("smooth");
+    });
   });
 });

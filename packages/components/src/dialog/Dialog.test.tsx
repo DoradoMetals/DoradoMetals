@@ -1,5 +1,3 @@
-// Pins the Dialog contract: modal semantics, the title as accessible name,
-// Escape dismisses.
 import { describe, expect, it, vi } from "vitest";
 import { fireEvent, render } from "@testing-library/react";
 import * as React from "react";

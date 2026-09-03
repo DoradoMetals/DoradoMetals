@@ -1,21 +1,11 @@
 'use client'
-
-// Progress - the Figma "Progress" set (132:995): Attachment's upload rail
-// promoted to an atom. 6px track, muted fill, full radius (a rail is the one
-// sanctioned pill besides chips), primary indicator moved by transform so the
-// animation composites. INDETERMINATE IS GONE (Jacob, 2026-08-30): an unknown
-// duration is the Spinner's job, and a bar that lies about progress is worse
-// than a wheel that doesn't. Optional value label right of the rail - micro,
-// tabular-nums, placeholder colour - same slot grammar as Slider Field.
 import * as React from 'react'
 import * as ProgressPrimitive from '@radix-ui/react-progress'
 
 import { cn } from '../cn'
 
 interface ProgressProps extends React.ComponentPropsWithoutRef<typeof ProgressPrimitive.Root> {
-  /** 0-100. */
   value: number
-  /** Renders the percent right of the rail. */
   showValue?: boolean
 }
 

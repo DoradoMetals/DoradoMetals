@@ -1,7 +1,3 @@
-// One export per audited component. A component arrives here when it has been
-// checked against its drawing in the Figma library AND carries the hallmarks
-// the drawing cannot express (focus, keyboard, aria, motion-reduce) - not
-// before.
 export { Accordion, type AccordionProps } from "./accordion/Accordion";
 export { Avatar, type AvatarProps } from "./avatar/Avatar";
 export { Badge, badgeVariants, type BadgeProps } from "./badge/Badge";
@@ -17,7 +13,7 @@ export {
   type ButtonIntent,
 } from "./button/Button";
 export { Link, linkVariants, type LinkProps } from "./link/Link";
-export { Upload, type UploadProps } from "./upload/Upload";
+export { Upload, type UploadProps, type UploadError } from "./upload/Upload";
 export { fieldTrigger, fieldPanel, fieldOption, FieldLabel } from "./field/Field";
 export { Select, type SelectProps, type SelectItemShape } from "./select/Select";
 export { Checkbox, type CheckboxProps } from "./checkbox/Checkbox";

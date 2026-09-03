@@ -1,5 +1,3 @@
-// Pins the Address Card contract (163:32): radio semantics when pickable,
-// plain region otherwise, actions stop propagation.
 import { describe, expect, it, vi } from "vitest";
 import { fireEvent, render } from "@testing-library/react";
 import * as React from "react";
@@ -36,5 +34,19 @@ describe("AddressCard", () => {
     fireEvent.click(getByRole("button", { name: /delete/i }));
     expect(onDelete).toHaveBeenCalled();
     expect(onSelect).not.toHaveBeenCalled();
+  });
+
+  it("phone renders at muted-foreground, matching the address lines", () => {
+    const { getByText } = render(<AddressCard {...base} phone="(214) 555-0182" />);
+    expect(getByText("(214) 555-0182").className).toContain("text-muted-foreground");
+    expect(getByText("(214) 555-0182").className).not.toContain("text-placeholder");
+  });
+
+  it("Edit/Delete render at the drawn 32px (sm) height", () => {
+    const { getByRole } = render(
+      <AddressCard {...base} onEdit={() => {}} onDelete={() => {}} />,
+    );
+    expect(getByRole("button", { name: /edit/i }).className).toContain("h-8");
+    expect(getByRole("button", { name: /delete/i }).className).toContain("h-8");
   });
 });

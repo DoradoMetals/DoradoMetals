@@ -1,5 +1,3 @@
-// Pins the Marquee contract (170:48): seam copy hidden from AT, pause classes
-// present, motion-reduce falls back to scroll.
 import { describe, expect, it } from "vitest";
 import { render } from "@testing-library/react";
 import * as React from "react";
@@ -12,7 +10,7 @@ describe("Marquee", () => {
     const { container, getAllByText } = render(
       <Marquee><span>Gold $2,411.20</span></Marquee>,
     );
-    expect(getAllByText("Gold $2,411.20").length).toBe(2); // visual copies
+    expect(getAllByText("Gold $2,411.20").length).toBe(2);
     const hidden = container.querySelector('[aria-hidden="true"]');
     expect(hidden?.textContent).toContain("Gold");
     expect(await axeViolations(container)).toEqual([]);
@@ -24,5 +22,10 @@ describe("Marquee", () => {
     expect(track).toBeTruthy();
     expect(track.className).toContain("group-hover:[animation-play-state:paused]");
     expect(track.className).toContain("group-focus-within:[animation-play-state:paused]");
+  });
+
+  it("insets the band px-6, matching the drawing", () => {
+    const { container } = render(<Marquee><span>x</span></Marquee>);
+    expect(container.firstElementChild!.className).toContain("px-6");
   });
 });

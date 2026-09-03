@@ -1,4 +1,3 @@
-// Pins the Textarea contract: labelled, message line, invalid on aria.
 import { describe, expect, it } from "vitest";
 import { render } from "@testing-library/react";
 import * as React from "react";

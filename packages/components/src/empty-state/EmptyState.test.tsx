@@ -1,5 +1,3 @@
-// Pins the Empty State contract (127:49 revised): bare optional icon, one
-// action at most.
 import { describe, expect, it } from "vitest";
 import { render } from "@testing-library/react";
 import * as React from "react";
@@ -26,5 +24,11 @@ describe("EmptyState", () => {
     withIcon.unmount();
     const bare = render(<EmptyState title="x" />);
     expect(bare.container.querySelector("svg")).toBe(null);
+  });
+
+  it("gaps 24px between icon, text block and action, and titles SemiBold", () => {
+    const { container, getByText } = render(<EmptyState title="No orders yet" />);
+    expect(container.firstElementChild!.className).toContain("gap-6");
+    expect(getByText("No orders yet").className).toContain("font-semibold");
   });
 });

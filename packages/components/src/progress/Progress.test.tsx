@@ -1,5 +1,3 @@
-// Pins the Progress contract (132:995, revised 2026-08-30): determinate only
-// - indeterminate went to Spinner - with the optional value label.
 import { describe, expect, it } from "vitest";
 import { render } from "@testing-library/react";
 import * as React from "react";

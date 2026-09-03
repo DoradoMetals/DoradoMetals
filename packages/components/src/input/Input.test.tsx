@@ -1,5 +1,3 @@
-// Pins the Input contract: label wiring, the message line, invalid state on
-// the aria attribute.
 import { describe, expect, it } from "vitest";
 import { render } from "@testing-library/react";
 import * as React from "react";

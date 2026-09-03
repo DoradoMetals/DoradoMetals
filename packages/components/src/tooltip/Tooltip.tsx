@@ -1,14 +1,5 @@
 'use client'
 
-// Tooltip - the drawing at 32:177: "Hover hint on surface/highest - the top of
-// the elevation stack - separated by a border rather than a shadow (elevation
-// shadows are retired, ruling 27). The arrow is a rotated square; it overlaps
-// the bubble border slightly by design."
-//
-// Radix underneath: hover AND focus open it (a hint only mouse users get is
-// half a hint), Escape dismisses, and the content is wired to the trigger for
-// assistive tech. The rotated-square arrow is drawn with a plain span because
-// Radix's Arrow is an unborderable polygon, so we hand it a rotated square.
 import * as React from "react";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import { cn } from "../cn";
@@ -36,16 +27,8 @@ export function Tooltip({ content, side = "top", children, delayDuration = 300 }
           )}
         >
           {content}
-          {/* The direction indicator is BACK as a normal arrow (Jacob,
-              2026-08-31) - Radix positions it at the anchor; it wears the
-              panel's own surface. */}
-          {/* Radix's own Arrow is a single polygon and cannot take a border,
-              so the arrow is a rotated SQUARE with two of its sides
-              bordered - Radix still owns the positioning via asChild, and
-              the square's unbordered corner hides behind the panel. */}
-          <TooltipPrimitive.Arrow asChild width={12} height={6}>
-            <span className="block size-2.5 rotate-45 rounded-[2px] border-b border-r border-border bg-highest" />
-          </TooltipPrimitive.Arrow>
+
+          <TooltipPrimitive.Arrow width={12} height={6} className="fill-highest" />
         </TooltipPrimitive.Content>
       </TooltipPrimitive.Portal>
     </TooltipPrimitive.Root>

@@ -1,5 +1,3 @@
-// Pins the Accordion contract (Figma 32:36): a Button-borne trigger with
-// measured Radix motion, chevron placement rules, and collapsed-means-gone.
 import { describe, expect, it, vi } from "vitest";
 import { fireEvent, render } from "@testing-library/react";
 import * as React from "react";
@@ -50,9 +48,38 @@ describe("Accordion", () => {
       </Accordion>,
     );
     const trigger = getByRole("button");
-    // Chevron is the first svg; with trailing content it must not be last.
     const svgs = trigger.querySelectorAll("svg");
     expect(svgs.length).toBeGreaterThan(0);
     expect(trigger.lastElementChild?.contains(svgs[0])).toBe(false);
+  });
+
+  it("disabled fades the whole row, not just the trigger text", () => {
+    const { container } = render(
+      <Accordion label="Shipping" disabled>
+        <p>Details</p>
+      </Accordion>,
+    );
+    const root = container.firstElementChild as HTMLElement;
+    expect(root.className).toMatch(/opacity-50/);
+  });
+
+  it("the header uses Body/Medium type, not Button's default Small", () => {
+    const { getByRole } = render(
+      <Accordion label="Shipping">
+        <p>Details</p>
+      </Accordion>,
+    );
+    expect(getByRole("button").className).toMatch(/text-body/);
+  });
+
+  it("hover fills the row with accent - the row language, not Button's opacity law", () => {
+    const { getByRole } = render(
+      <Accordion label="Shipping">
+        <p>Details</p>
+      </Accordion>,
+    );
+    const trigger = getByRole("button");
+    expect(trigger.className).toMatch(/hover:bg-accent/);
+    expect(trigger.className).toMatch(/hover:opacity-100/);
   });
 });

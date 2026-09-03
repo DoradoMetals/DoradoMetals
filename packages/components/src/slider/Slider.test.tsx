@@ -1,5 +1,3 @@
-// Pins the Slider contract: Radix slider semantics, keyboard steps, the
-// caller-supplied label reaching the thumb.
 import { describe, expect, it, vi } from "vitest";
 import { fireEvent, render } from "@testing-library/react";
 import * as React from "react";

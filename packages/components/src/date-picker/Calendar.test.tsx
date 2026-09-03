@@ -1,5 +1,3 @@
-// Pins the Calendar contract (react-day-picker wearing the drawing): a real
-// month grid with labelled navigation.
 import { describe, expect, it } from "vitest";
 import { render } from "@testing-library/react";
 import * as React from "react";
