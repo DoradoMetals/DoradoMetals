@@ -16,3 +16,11 @@ export function convertTroyOz(num: number, unit: string): number {
       return 0;
   }
 }
+
+// Pounds, not troy ounces - what a carrier bills a parcel by. Frontend-only
+// until ruling 58 moved parcel sizing server-side too; not in mirror.test.ts's
+// shared list because it is a unit conversion, not a price.
+export function convertToPounds(value: number, unit: string): number {
+  if (isNaN(value) || value <= 0) return 0;
+  return convertTroyOz(value, unit) / (453.592 / 31.1035);
+}

@@ -19,7 +19,6 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 import {
-  ShippingGetRatesBody,
   ShippingCheckPickupBody,
   ShippingGetLocationsBody,
   ShippingValidateAddressBody,
@@ -37,7 +36,6 @@ vi.mock("@/features/orders/invalidation", () => ({ invalidateOrderReads: vi.fn()
 
 import { apiRequest } from "@/shared/queries/axios";
 import {
-  useShippingRates,
   useShippingPickupTimes,
   useShippingLocations,
   useShippingValidateAddress,
@@ -46,8 +44,6 @@ import {
   useShippingCancelPickup,
   usePatchShipment,
 } from "@/features/shipping/queries";
-import { useGetRatesInput } from "@/features/shipping/utils/getRatesInput";
-import type { ShippingRatesInput } from "@/features/shipping/types";
 
 function wrapper({ children }: { children: ReactNode }) {
   const client = new QueryClient({
@@ -56,90 +52,16 @@ function wrapper({ children }: { children: ReactNode }) {
   return <QueryClientProvider client={client}>{children}</QueryClientProvider>;
 }
 
-const anAddress = () => ({
-  id: "9f1c2b3a-0000-4000-8000-000000000001",
-  line_1: "1 Main St",
-  line_2: null,
-  city: "Dallas",
-  state: "TX",
-  country: "United States",
-  country_code: "US",
-  zip: "75201",
-  phone_number: "5555555555",
-  is_valid: true,
-  is_residential: false,
-  created_at: null,
-  updated_at: null,
-})
-
 beforeEach(() => {
   vi.mocked(apiRequest).mockReset();
   vi.mocked(apiRequest).mockResolvedValue({});
 });
 
-describe("useGetRatesInput composes exactly what /shipping/get_rates accepts", () => {
-  test("address/package become address_id/package_id, declaredValue becomes a number", () => {
-    const { result } = renderHook(() =>
-      useGetRatesInput({
-        address: anAddress() as any,
-        package: { id: "9f1c2b3a-0000-4000-8000-000000000002", weight: { value: 4.5 } },
-        shippingType: "Inbound",
-        pickupLabel: "DROPOFF_AT_FEDEX_LOCATION",
-        insurance: { insured: true, declaredValue: { amount: 500, currency: "USD" } },
-      })
-    );
-
-    expect(result.current).not.toBeNull();
-    const parsed = ShippingGetRatesBody.strict().safeParse(result.current);
-    expect(parsed.success).toBe(true);
-    expect(result.current).toMatchObject({
-      address_id: "9f1c2b3a-0000-4000-8000-000000000001",
-      package_id: "9f1c2b3a-0000-4000-8000-000000000002",
-      weight: 4.5,
-      declaredValue: 500,
-    });
-    expect(result.current).not.toHaveProperty("address");
-    expect(result.current).not.toHaveProperty("pkg");
-
-    // Proven: the old composed shape would fail the same parse.
-    const oldShape = {
-      shippingType: "Inbound",
-      address: anAddress(),
-      pkg: { weight: { units: "LB", value: 4.5 }, dimensions: { length: 1, width: 1, height: 1, units: "IN" } },
-      pickupType: "DROPOFF_AT_FEDEX_LOCATION",
-    };
-    expect(ShippingGetRatesBody.strict().safeParse(oldShape).success).toBe(false);
-  });
-
-  test("returns null until a package id and a weight are both known", () => {
-    const { result } = renderHook(() =>
-      useGetRatesInput({
-        address: anAddress() as any,
-        package: { weight: { value: 4.5 } }, // no id yet
-        pickupLabel: "DROPOFF_AT_FEDEX_LOCATION",
-      })
-    );
-    expect(result.current).toBeNull();
-  });
-});
-
-describe("useShippingRates sends exactly what /shipping/get_rates accepts", () => {
-  test("forwards an already-resolved input clean", async () => {
-    const input: ShippingRatesInput = {
-      shippingType: "Inbound",
-      address_id: "9f1c2b3a-0000-4000-8000-000000000001",
-      package_id: "9f1c2b3a-0000-4000-8000-000000000002",
-      weight: 4.5,
-      pickupType: "DROPOFF_AT_FEDEX_LOCATION",
-    };
-    renderHook(() => useShippingRates(input), { wrapper });
-
-    await waitFor(() => expect(apiRequest).toHaveBeenCalled());
-    const [, url, body] = vi.mocked(apiRequest).mock.calls[0];
-    expect(url).toBe("/shipping/get_rates");
-    expect(ShippingGetRatesBody.strict().safeParse(body).success).toBe(true);
-  });
-});
+// The client-side rate request is GONE (the rates ruling): a checkout step
+// reads GET /checkout/rates?direction= now, already priced, and assembles no
+// address/package/weight body at all - see useCheckoutRates in
+// features/checkout/queries.ts. useGetRatesInput and useShippingRates died
+// with the assembly they served.
 
 describe("useShippingPickupTimes sends exactly what /shipping/check_pickup accepts", () => {
   test("pickupAddress became address_id", async () => {

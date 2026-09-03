@@ -14357,6 +14357,53 @@ would have brought. Not ported: `lint-domain-errors.ts`, the `orders`/
 touch a file this lane changed, so `order-id`'s worktree is simply behind
 `api-hardening` on those, not diverged from it.
 
+### Ruling 58 — parcel weight and declared value are the server's (2026-09-03)
+
+Jacob: *"We don't care about packaging weight on the frontend. Why would it
+live here?"* `checkout.checkouts.package_weight` and `declared_value` (113)
+were written by the CLIENT, patched from a value it computed or copied off a
+quote response. Migration `121_parcel_facts_are_the_servers.sql` DROPS both
+columns — nothing reads them across a request boundary, so nothing needed
+them persisted.
+
+- **Two pure rules, `domain/shipping/rules.ts`**: `parcelWeightLb(items, pkg)`
+  is `max(sum of each item's pre_melt converted to lb via the item's own
+  unit × quantity, pkg.min_weight_lb)` — `convertToPounds` is new on
+  `shared/utils/convertWeights.ts` (not in `mirror.test.ts`'s shared list; a
+  straight unit conversion, not a price). `declaredValue(total)` passes the
+  order/quote's own total through (floored at zero) — the meaning FedEx has
+  always been given, now named in one place instead of inlined at each call
+  site.
+- **Every body that took them from a client loses them**: `CheckoutPatchColumns`
+  (contracts), and `OrderCancel` — closing the open question the wire
+  comment used to carry about `weight` "having nowhere else to live": it now
+  computes from the order's own lines the same way the checkout path does.
+  `domain/orders/service.ts` `cancel()` computes weight from `order.items` and
+  declared value from `order.totals.total`; `domain/orders/place.ts`
+  `placePurchase` computes both from the checkout's cart and its own
+  `purchaseTotal` (new on `domain/checkout/service.ts` — prices the basket
+  the way `orders/read.ts`'s unpriced-line estimate does: stored premium ×
+  live bid).
+- **`GET /api/checkout/rates?direction=` replaces `POST /shipping/get_rates`**
+  (Jacob, same session: *"all the stuff that feeds into it can live directly
+  on the server"*). Declared on the checkout router, handled in
+  `domain/shipping/operations/service.ts` `getCheckoutRates` because shipping
+  owns the carrier call: loads the caller's own checkout row and items,
+  computes the parcel weight and a service-agnostic declared value, and asks
+  the carrier what every offered service costs — nobody has picked one yet.
+  `ShippingGetRatesBody` is deleted with its route; `CarrierRateQuote` (wire/
+  shipping.ts) is the flat response shape, one object per
+  `providers/shipments/utils/parsing.ts` `parseRates` row.
+- **No cassette matches the new endpoint's own request shape** — it builds a
+  request from a real checkout's address/package/items, and the recorded
+  `fedex/rate-quote.json` pins a fixed synthetic request from the provider's
+  own test. `domain/shipping/operations/tests/checkout-rates.test.ts` covers
+  every refusal (no items, no package, no address) over HTTP with no network
+  reachable at all, and names why the success path is `test.skip` rather than
+  faked.
+- **The frontend still PATCHes `package_weight`/`declared_value`** — that
+  lane's job; the API now ignores/rejects those keys.
+
 ### Labels are bought after the commit (2026-09-03)
 
 The four buy-then-void-on-failure sites in `domain/orders/place.ts` (2) and
@@ -14389,14 +14436,12 @@ write records it). No try/catch remains in either file.
   surface.
 - **The re-buy route for placePurchase's own shipment is new**:
   `POST /api/orders/:id/label` (`orders.buyLabel`, admin-only, added to
-  `admin-routes.json`). Weight (and the pickup date/time, if the shipment's
-  handoff needs one) are asked in the body because neither was ever a
-  shipment column - checkout's own copy is consumed by the time an order
-  exists to retry, exactly like `OrderCancel.weight` already works. It
-  refuses with Conflict if the shipment already has a tracking number, and
-  with Invalid if the shipment never got a service or package chosen.
-  `domain/orders/rules.ts` gained `rebuyParcel` to rebuild the `Parcel` from
-  the committed row plus that input.
+  `admin-routes.json`). Its body only asks for the pickup date/time, and only
+  because the shipment's handoff might need one - no column remembers a
+  courier's booked slot. It refuses with Conflict if the shipment already has
+  a tracking number, and with Invalid if the shipment never got a service or
+  package chosen. `domain/orders/rules.ts` gained `rebuyParcel` to rebuild the
+  `Parcel` from the committed row, the computed weight and that input.
 - `db/orders/transactions/repo.ts`'s `update` PATCHABLE list gained
   `"shipping"` - it has to be writable after creation now that the row is
   created before the postage is quoted.
@@ -14418,4 +14463,10 @@ write records it). No try/catch remains in either file.
   themselves are now unreferenced by orders (place.ts and service.ts no
   longer call them) but are left in place since removing them is that other
   file's call.
-
+- **Ruling 58 folded in after this section landed**: `POST /api/orders/:id/
+  label`'s body no longer carries `weight` either - `orders.buyLabel` computes
+  it from `order.items` and the shipment's own package via `shipping/
+  rules.ts`'s `parcelWeightLb`, the same rule `cancel()` uses for its return
+  label. `rules.rebuyParcel` takes the computed weight as its own parameter
+  now; `OrderLabel` keeps only the optional pickup date/time, since no column
+  remembers a courier's booked slot.

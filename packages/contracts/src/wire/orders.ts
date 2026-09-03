@@ -248,30 +248,26 @@ export type OrderItemCreate = z.infer<typeof OrderItemCreate>;
 // It replaces `{ cancel: { return_shipment } }`, which was the admin drawer's
 // whole form typed `Record<string, any>` and hand-mapped into the carrier
 // call. Where the parcel goes is the ORDER's own address snapshot; who signs
-// for it is the provider's configured contact; what it is worth is priced
-// from the order's own lines. What is genuinely new is the box, the service
-// and the amount to insure.
-// `weight` is the one MEASUREMENT here: nothing stores what the parcel going
-// back weighs, and a label cannot be bought without it. The other three are
-// ids and an amount.
+// for it is the provider's configured contact; what it is worth and what it
+// weighs are both computed from the order's own lines (ruling 58,
+// domain/shipping/rules.ts) - closing the open question this comment used to
+// carry about `weight` having nowhere else to live. What is genuinely new is
+// the box and the service.
 export const OrderCancel = z.object({
   carrier_service_id: z.string(),
   package_id: z.string(),
-  declared_value: z.number(),
-  weight: z.number(),
 }).strict();
 export type OrderCancel = z.infer<typeof OrderCancel>;
 
 // POST /orders/:id/label - RETRY SURFACE for a purchase order whose own label
 // purchase failed after the order committed (label-after-commit, 2026-09-03:
 // place.ts's WRITE never waits on the carrier, so a failed AFTER leaves a real
-// order with an unlabelled shipment instead of a rolled-back one). `weight`
-// is asked for the same reason OrderCancel asks it: it was never a column,
-// and checkout - its only copy - is long consumed by the time this order
-// exists to retry. The pickup slot is asked only when the shipment's own
-// handoff needs one.
+// order with an unlabelled shipment instead of a rolled-back one). THE WEIGHT
+// IS THE ORDER'S OWN NOW (ruling 58, same as OrderCancel): computed from its
+// lines and its shipment's package rather than asked for again. The pickup
+// slot is still asked, only when the shipment's own handoff needs one - no
+// column remembers a courier's date and time.
 export const OrderLabel = z.object({
-  weight: z.number(),
   pickup_date: z.string().nullable().optional(),
   pickup_time: z.string().nullable().optional(),
 }).strict();

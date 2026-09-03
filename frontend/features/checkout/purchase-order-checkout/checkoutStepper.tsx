@@ -9,7 +9,7 @@ import ReviewStep from '@/features/checkout/purchase-order-checkout/reviewStep/r
 import { Address, makeEmptyAddress } from '@/features/addresses/types'
 import { useEffect, useMemo, useRef } from 'react'
 import { usePurchaseOrderCheckoutStore } from '@/shared/store/purchaseOrderCheckoutStore'
-import { sellCartStore } from '@/shared/store/sellCartStore'
+import { useCheckoutItems } from '@/shared/store/checkoutItemsStore'
 import { useRouter } from 'next/navigation'
 import { useGetSession } from '@/features/auth/queries'
 import { ShoppingCartIcon } from '@phosphor-icons/react'
@@ -17,13 +17,12 @@ import { ShoppingCartIcon } from '@phosphor-icons/react'
 import { useAddress, useUserAddresses } from '@/features/addresses/queries'
 import { usePurchaseOrderQuote } from '@/features/quotes/queries'
 
+import { useCarrierHandoffs } from '@/features/shipping/queries'
 import {
-  useCarrierHandoffs,
-  useCarrierServiceOptions,
-  useShippingRates,
-} from '@/features/shipping/queries'
-import { useGetRatesInput } from '@/features/shipping/utils/getRatesInput'
-import { useSaveCheckoutPayout, useSyncPurchaseCheckout } from '@/features/checkout/queries'
+  useCheckoutRates,
+  useSaveCheckoutPayout,
+  useSyncPurchaseCheckout,
+} from '@/features/checkout/queries'
 
 const { useStepper, utils } = defineStepper(
   {
@@ -41,51 +40,27 @@ export default function CheckoutStepper() {
 
   const { user } = useGetSession()
 
-  // THE CARRIER'S CATALOGUE, READ ONCE HERE AND INJECTED (ruling 14: the
+  // THE CARRIER'S OWN CATALOGUE, READ ONCE HERE AND INJECTED (ruling 14: the
   // parent holds the reads, the children take props).
   //
-  // This is what wave 5B moved. The two handoff options were a record in
+  // This is what wave 5B moved. The handoff options were a record in
   // features/handoff keyed by DROPOFF_AT_FEDEX_LOCATION and
-  // CONTACT_FEDEX_TO_SCHEDULE; the two services were a record in
-  // features/service keyed by FEDEX_EXPRESS_SAVER and PRIORITY_OVERNIGHT,
-  // carrying FedEx's FDXE code. Both were hand-written in the browser, and
-  // this component branched on the first of them. Neither list is spelled
-  // anywhere in frontend/ now.
+  // CONTACT_FEDEX_TO_SCHEDULE, hand-written in the browser, and this
+  // component branched on it. Neither list is spelled anywhere in frontend/
+  // now, and the rates ruling took the services catalogue with it: GET
+  // /checkout/rates answers one already-priced row per offered service, so
+  // there is no separate services list to join by code any more, and no
+  // rate request the browser assembles.
   const { data: handoffs = [] } = useCarrierHandoffs()
-  const { data: serviceOptions = [] } = useCarrierServiceOptions()
+  const { data: rates = [], isLoading: ratesLoading } = useCheckoutRates('purchase')
 
   const { data: addresses = [] } = useAddress()
   const { data, setData } = usePurchaseOrderCheckoutStore()
-  const items = sellCartStore((state) => state.items)
+  const items = useCheckoutItems((state) => state.purchase)
 
   // The store's items ARE the quote request array - lines come back matched
   // by request index, so nothing may filter or reorder between here and there.
   const { data: quote } = usePurchaseOrderQuote(items)
-
-  // THE SERVER SAYS WHAT THE PARCEL IS INSURED FOR. This line was
-  // `Math.min(quote.declared_value, 50000)` until migration 097 - a carrier's
-  // ceiling hard-coded in the browser, and the browser deciding what a parcel
-  // of metal is covered for, which is money math D82 forbids (D132).
-  //
-  // `quote.declared_value` now arrives already capped at
-  // shipping.services.max_insured_value, and the order-creation request caps it
-  // again against the service actually chosen. Nothing here may re-apply a
-  // limit: a second clamp in the browser is the defect, not the safety net.
-  const declaredValue = quote?.declared_value ?? 0
-
-  useEffect(() => {
-    if (!data.insurance?.insured) return
-
-    setData({
-      insurance: {
-        insured: true,
-        declaredValue: {
-          amount: declaredValue ?? 0,
-          currency: 'USD',
-        },
-      },
-    })
-  }, [data.insurance?.insured, declaredValue, setData])
 
   // Resolved against the reference list rather than compared to a carrier's
   // string. `requires_schedule` is the option's own answer to "does this need a
@@ -116,17 +91,17 @@ export default function CheckoutStepper() {
       user_address: linkOf.get(defaultAddress.id),
       confirmation: false,
       fedexPackageToggle: false,
+      // RULING 58: the browser never computes a declared value - the field
+      // stays a static placeholder for a schema this form shares with the
+      // return-shipment feature, which does send a real one.
       insurance: {
         insured: true,
-        declaredValue: {
-          amount: declaredValue ?? 0,
-          currency: 'USD',
-        },
+        declaredValue: { amount: 0, currency: 'USD' },
       },
     })
 
     hasInitialized.current = true
-  }, [addresses.length, defaultAddress, linkOf, declaredValue, setData])
+  }, [addresses.length, defaultAddress, linkOf, setData])
 
   const stepper = useStepper()
   const currentIndex = utils.getIndex(stepper.current.id)
@@ -153,15 +128,13 @@ export default function CheckoutStepper() {
   const advanceFromShipping = async () => {
     if (!data.address?.id || !data.package?.id || !data.service?.id || !data.pickup?.label) return
     try {
+      // RULING 58: no package_weight, no declared_value - the browser sends
+      // neither. The server owns the parcel's weight and its insured value.
       await syncCheckout.mutateAsync({
         shipper_address_id: data.address.id,
         package_id: data.package.id,
         carrier_service_id: data.service.id,
         handoff_code: data.pickup.label,
-        package_weight: Number(data.package.weight?.value ?? 0),
-        declared_value: data.insurance?.insured
-          ? Number(data.insurance?.declaredValue?.amount ?? 0)
-          : 0,
         pickup_date: data.pickup.date ?? null,
         pickup_time: data.pickup.time ?? null,
       })
@@ -172,48 +145,31 @@ export default function CheckoutStepper() {
     }
   }
 
-  const cartItems = sellCartStore((state) => state.items)
-
-  // NO carrier_id AND NO CARRIER STRING. The id was the production uuid
-  // 30179428-b311-4873-8d08-382901c581d8 written into this file; the API
-  // resolves the carrier it ships with. The default handoff is the first of the
-  // carrier's own options rather than a FedEx enum value spelled here.
-  const ratesInput = useGetRatesInput({
-    address: data.address,
-    package: data.package,
-    shippingType: 'Inbound',
-    pickupLabel: data.pickup?.label ?? handoffs[0]?.code,
-    insurance: data.insurance,
-  })
-
-  const { data: rates = [], isLoading: ratesLoading } = useShippingRates(
-    (ratesInput as any)
-  )
-
+  // The rate ticks on the same 5-minute cadence as the reference read - if
+  // the chosen service's price moved, the store's copy follows it.
   useEffect(() => {
     const currentServiceType = data.service?.serviceType
     if (!currentServiceType) return
 
-    const freshRate = rates.find((r) => r.serviceType === currentServiceType)
+    const freshRate = rates.find((r) => r.code === currentServiceType)
     if (!freshRate) return
 
-    if (freshRate.netCharge !== data.service?.netCharge) {
+    if (freshRate.net_charge !== data.service?.netCharge) {
       setData({
         service: {
           ...data.service,
-          serviceType: freshRate.serviceType,
-          serviceDescription: freshRate.serviceDescription,
-          netCharge: freshRate.netCharge,
+          serviceType: freshRate.code,
+          serviceDescription: freshRate.name,
+          netCharge: freshRate.net_charge,
           currency: freshRate.currency,
-          deliveryDay: freshRate.deliveryDay ?? '',
-          transitTime: freshRate.transitTime ?? '',
-          packagingType: freshRate.packagingType,
+          deliveryDay: freshRate.delivery_day ?? '',
+          transitTime: freshRate.transit_time ? new Date(freshRate.transit_time) : new Date(),
         } as any,
       })
     }
   }, [rates, data.service?.serviceType, data.service?.netCharge, setData])
 
-  if (cartItems.length === 0) {
+  if (items.length === 0) {
     return (
       <div className="w-full h-full flex flex-col items-center justify-center text-center gap-4 pb-10 mt-10 lg:mt-30">
         <div className="relative mb-5">
@@ -268,7 +224,6 @@ export default function CheckoutStepper() {
                 emptyAddress={makeEmptyAddress()}
                 rates={rates}
                 handoffs={handoffs}
-                services={serviceOptions}
                 isLoading={ratesLoading}
               />
             ),

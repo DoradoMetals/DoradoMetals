@@ -1,11 +1,11 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { apiRequest } from '@/shared/queries/axios'
 import { useGetSession } from '@/features/auth/queries'
-import { cartStore } from '@/shared/store/cartStore'
-import { buyLine } from '@/features/cart/queries'
+import { useCheckoutItems } from '@/shared/store/checkoutItemsStore'
+import { replaceCheckoutItems } from '@/features/checkout/items/queries'
 import { usePaymentMethods } from '@/features/payments/queries'
 import { useSaleShippingServices } from '@/features/shipping/queries'
-import { SalesOrder, SalesOrderCheckout } from '@/features/orders/salesOrders/types'
+import { SalesOrder, SaleCheckoutForm } from '@/features/orders/salesOrders/types'
 import { toAddressSnapshot } from '@/features/orders/addressSnapshot'
 import { useApiMutation, useApiQuery } from '@/shared/queries/base'
 import { queryKeys } from '@/shared/queries/keys'
@@ -37,7 +37,8 @@ export const useSalesOrders = () => {
 // then name it":
 //
 //   1. freeze the live buy basket onto checkout.items (the periodic auto-sync
-//      in features/cart/queries.ts can be up to 15s stale by Confirm);
+//      in features/checkout/items/queries.ts can be up to 15s stale by
+//      Confirm);
 //   2. resolve the two ids the checkout row wants from what the stepper
 //      already picked - the service's CODE against the cached shipping.services
 //      rows, the payment method's TYPE against the cached payments.methods
@@ -55,15 +56,10 @@ export const useCreateSalesOrder = () => {
   const { data: saleServices = [] } = useSaleShippingServices()
 
   return useMutation({
-    mutationFn: async ({ sales_order }: { sales_order: SalesOrderCheckout }) => {
+    mutationFn: async ({ sales_order }: { sales_order: SaleCheckoutForm }) => {
       if (!user?.id) throw new Error('User is not authenticated')
 
-      await apiRequest(
-        'PUT',
-        '/checkout/items',
-        { items: cartStore.getState().items.map(buyLine) },
-        { direction: 'sale' }
-      )
+      await replaceCheckoutItems('sale', useCheckoutItems.getState().sale)
 
       const carrier_service_id =
         saleServices.find((s) => s.code === sales_order.service.value)?.id ?? null

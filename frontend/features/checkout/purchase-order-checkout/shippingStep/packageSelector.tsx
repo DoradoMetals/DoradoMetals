@@ -4,9 +4,7 @@ import { RadioGroup } from '@/shared/ui/RadioGroup'
 import { Switch } from '@dorado/components'
 
 import { usePurchaseOrderCheckoutStore } from '@/shared/store/purchaseOrderCheckoutStore'
-import { sellCartStore } from '@/shared/store/sellCartStore'
-import { convertToPounds } from '@/shared/utils/convertWeights'
-import { useEffect, useMemo } from 'react'
+import { useMemo } from 'react'
 import { useOfferedPackages, OfferedPackage } from '@/features/checkout/queries'
 import { Inbox, Package2, Package as PackageIcon } from 'lucide-react'
 
@@ -17,11 +15,15 @@ const iconFor = (pkg: OfferedPackage) => {
   return w <= 2 ? Inbox : w <= 8 ? Package2 : PackageIcon
 }
 
+// RULING 58 (Jacob): "We don't care about packaging weight on the frontend.
+// Why would it live here?" The box's weight and dimensions are the server's -
+// this stores and sends the id, nothing else. The toggle below is local UI
+// state filtering the offered list by is_carrier_packaging; it computes
+// nothing and is never sent.
 export function PackageSelector() {
   const selectedPackage = usePurchaseOrderCheckoutStore((state) => state.data.package)
   const fedexPackageToggle = usePurchaseOrderCheckoutStore((state) => state.data.fedexPackageToggle)
   const setData = usePurchaseOrderCheckoutStore((state) => state.setData)
-  const { items } = sellCartStore()
 
   // The boxes are rows now (D208/112) - packageOptions, the hardcoded record
   // that duplicated shipping.packages while nothing served it, is gone.
@@ -29,23 +31,6 @@ export function PackageSelector() {
   const filteredOptions = useMemo(() => {
     return offered.filter((pkg) => pkg.is_carrier_packaging === fedexPackageToggle)
   }, [offered, fedexPackageToggle])
-
-  const totalCartWeight = useMemo(() => {
-    return items.reduce((sum, item) => {
-      const qty = item.quantity ?? 1
-      const raw = item.pre_melt ?? 0
-      const converted = convertToPounds(raw, item.unit ?? 'g')
-
-      return sum + converted * qty
-    }, 0)
-  }, [items])
-
-  const packagingWeight = useMemo(() => {
-    if (!selectedPackage) return totalCartWeight
-    const opt = offered.find((p) => p.id === selectedPackage.id || p.label === selectedPackage.label)
-    const minWeight = Number(opt?.min_weight_lb ?? 0)
-    return Math.max(totalCartWeight, minWeight)
-  }, [totalCartWeight, selectedPackage, offered])
 
   const handleFedExToggle = (checked: boolean) => {
     setData({
@@ -58,36 +43,9 @@ export function PackageSelector() {
     const selected = offered.find((p) => p.label === label)
     if (!selected) return
     setData({
-      package: {
-        id: selected.id,
-        label: selected.label,
-        fedexPackage: selected.is_carrier_packaging,
-        dimensions: {
-          length: Number(selected.length ?? 0),
-          width: Number(selected.width ?? 0),
-          height: Number(selected.height ?? 0),
-          units: 'IN',
-        },
-        weight: {
-          units: 'LB',
-          value: packagingWeight,
-        },
-      },
+      package: { id: selected.id, label: selected.label },
     })
   }
-
-  useEffect(() => {
-    if (!selectedPackage) return
-    setData({
-      package: {
-        ...selectedPackage,
-        weight: {
-          ...selectedPackage.weight,
-          value: packagingWeight,
-        },
-      },
-    })
-  }, [packagingWeight])
 
   return (
     <div className="space-y-2">

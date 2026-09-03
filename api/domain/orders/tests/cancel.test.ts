@@ -27,19 +27,21 @@ afterAll(async () => {
   await pool.end();
 });
 
+// declared_value and weight are COMPUTED now (ruling 58) - order.totals.total
+// and order.items/package - so the input carries only the two ids OrderCancel
+// still takes.
 async function aCancellableOrder(c: PoolClient) {
   const seller = await aUser(c, { name: "Cancel Test Seller" });
   const address = await anAddress(c, seller);
   const order = await anOrder(c, seller, { direction: "purchase" })
     .withLots(1)
-    .withAddress(address);
+    .withAddress(address)
+    .withTotals({ total: 500 });
   return {
     order_id: order.id,
     input: {
       carrier_service_id: await carrierServiceId(c),
       package_id: await packageId(c),
-      declared_value: 500,
-      weight: 2,
     },
   };
 }

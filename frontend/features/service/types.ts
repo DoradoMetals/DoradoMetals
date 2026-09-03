@@ -26,9 +26,9 @@ import { z } from 'zod/v4'
 // `CarrierServiceOption` from @dorado/contracts is what the API sends.
 // Ruling 32: the dead ones go.
 
-// PARSED ON THE MONEY PATH - purchaseOrderCheckoutSchema.parse in reviewStep,
-// and salesOrderCheckoutSchema before a Stripe confirm. Its shape, its field
-// names and its validation do not move.
+// THE PURCHASE CHECKOUT'S OWN SHIPPING CHOICE. `PurchaseCheckoutForm.service`
+// (features/orders/purchaseOrders/types.ts) is a `z.infer` of this schema.
+// Its shape, its field names and its validation do not move.
 export const serviceSchema = z.object({
   // The shipping.services ROW the checkout row stores (D208).
   id: z.string().uuid().optional(),

@@ -5,52 +5,45 @@ import { usePurchaseOrderCheckoutStore } from '@/shared/store/purchaseOrderCheck
 import { formatTimeDiff } from '@/shared/utils/formatDates'
 import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
 import { serviceIcon } from '@/features/service/types'
-import type { CarrierServiceOption, ShippingRate } from '@/features/shipping/types'
+import type { CheckoutRate } from '@/features/checkout/queries'
 
-// THE SERVICES WE OFFER, JOINED TO THE LIVE RATES BY CODE.
+// THE SERVICES WE OFFER, ALREADY PRICED (rates ruling): GET /checkout/rates
+// answers one flat row per offered service - a name, its codes and the
+// carrier's own quote - so there is no separate catalogue to join by code any
+// more. The browser assembles no rate request.
 //
-// This component used to import `serviceOptions` - a record keyed by
-// FEDEX_EXPRESS_SAVER and PRIORITY_OVERNIGHT, carrying FedEx's FDXE carrier
-// code - so the browser decided which of a carrier's services are on offer and
-// in what order. Both come from GET /carrier_services/offered now; the rates
-// come from the carrier, and `code` is the join.
+// Presentational: rates in, selection out (ruling 14).
 //
-// Presentational: options and rates in, selection out (ruling 14).
-//
-// NO ARITHMETIC ON A PRICE HERE, and there never was: netCharge is the
+// NO ARITHMETIC ON A PRICE HERE, and there never was: net_charge is the
 // carrier's own quote, rendered and stored as given (D82).
 interface ServiceSelectorProps {
-  services: CarrierServiceOption[]
-  rates: ShippingRate[]
+  rates: CheckoutRate[]
   isLoading: boolean
 }
 
-export const ServiceSelector: React.FC<ServiceSelectorProps> = ({ services, rates }) => {
+export const ServiceSelector: React.FC<ServiceSelectorProps> = ({ rates }) => {
   const selected = usePurchaseOrderCheckoutStore((state) => state.data.service)
   const setData = usePurchaseOrderCheckoutStore((state) => state.setData)
   const pickup = usePurchaseOrderCheckoutStore((state) => state.data.pickup)
 
-  const rateMap = new Map(rates.map((r) => [r.serviceType, r]))
-
   const handleSelect = (code: string) => {
-    const option = services.find((s) => s.code === code)
-    if (!option) return
-    const rate = rateMap.get(code)
+    const rate = rates.find((r) => r.code === code)
+    if (!rate) return
 
     setData({
       service: {
         // The shipping.services ROW id - what the checkout row stores (D208).
-        id: option.id ?? undefined,
+        id: rate.id ?? undefined,
         // serviceType and code are the carrier's, received from the server and
         // handed back - the create body still carries them into the label
         // request. The frontend does not interpret either.
-        serviceType: option.code,
-        serviceDescription: option.name,
-        code: option.carrier_code,
-        netCharge: rate?.netCharge || 0,
-        currency: rate?.currency || 'USD',
-        transitTime: rate?.transitTime ?? new Date(),
-        deliveryDay: rate?.deliveryDay ?? '',
+        serviceType: rate.code,
+        serviceDescription: rate.name,
+        code: rate.carrier_code,
+        netCharge: rate.net_charge,
+        currency: rate.currency,
+        transitTime: rate.transit_time ? new Date(rate.transit_time) : new Date(),
+        deliveryDay: rate.delivery_day ?? '',
       },
       pickup: {
         ...pickup,
@@ -67,30 +60,29 @@ export const ServiceSelector: React.FC<ServiceSelectorProps> = ({ services, rate
     <RadioGroup
       value={selected?.serviceType ?? ''}
       onValueChange={handleSelect}
-      options={services}
-      getValue={(option) => option.code}
-      isOptionDisabled={(option) => rateMap.get(option.code)?.netCharge == null}
+      options={rates}
+      getValue={(rate) => rate.code}
+      isOptionDisabled={(rate) => rate.net_charge == null}
       className="flex w-full flex-col gap-3"
     >
-      {(option) => {
-        const rate = rateMap.get(option.code)
-        const Icon = serviceIcon(option.display_order)
+      {(rate) => {
+        const Icon = serviceIcon(rate.display_order)
         return (
           <>
             <div className="flex items-center gap-2">
               <Icon size={24} />
-              <strong>{option.name}</strong>
+              <strong>{rate.name}</strong>
             </div>
             <div className="flex w-full items-center justify-between">
               <small>
-                {rate?.transitTime
-                  ? formatTimeDiff(rate.transitTime)
-                  : rate?.deliveryDay
-                  ? `Arrives ${rate.deliveryDay}`
+                {rate.transit_time
+                  ? formatTimeDiff(new Date(rate.transit_time))
+                  : rate.delivery_day
+                  ? `Arrives ${rate.delivery_day}`
                   : 'Getting estimated delivery...'}
               </small>
               <strong>
-                {rate?.netCharge != null ? <PriceNumberFlow value={rate.netCharge} /> : <>&nbsp;</>}
+                {rate.net_charge != null ? <PriceNumberFlow value={rate.net_charge} /> : <>&nbsp;</>}
               </strong>
             </div>
           </>

@@ -51,27 +51,27 @@ test("there is one session per user per direction", async () => {
 test("update writes the named columns, leaves the rest, and answers true", async () => {
   await inRollback(async (c: PoolClient) => {
     const row = await session(c, (await aUser(c)).id, "purchase");
-    await checkouts.update(row.id, { package_weight: 3, declared_value: 500 }, c);
+    await checkouts.update(row.id, { pickup_date: "2026-09-04", pickup_time: "10:30:00" }, c);
 
-    const changed = await checkouts.update(row.id, { package_weight: 7 }, c);
+    const changed = await checkouts.update(row.id, { pickup_date: "2026-09-05" }, c);
     assert.equal(changed, true, "update reported no row changed");
 
     const after = await checkouts.getOne(row.id, c);
-    assert.equal(Number(after?.package_weight), 7);
-    assert.equal(Number(after?.declared_value), 500, "an absent key overwrote a column");
+    assert.equal(after?.pickup_date, "2026-09-05");
+    assert.equal(after?.pickup_time, "10:30:00", "an absent key overwrote a column");
   });
 });
 
 test("an explicit null clears a column - the reset a placed order performs", async () => {
   await inRollback(async (c: PoolClient) => {
     const row = await session(c, (await aUser(c)).id, "purchase");
-    await checkouts.update(row.id, { package_weight: 3 }, c);
+    await checkouts.update(row.id, { pickup_date: "2026-09-04" }, c);
 
     const cleared = Object.fromEntries(checkouts.PATCHABLE.map((col) => [col, null]));
     assert.equal(await checkouts.update(row.id, cleared, c), true);
 
     const after = await checkouts.getOne(row.id, c);
-    assert.equal(after?.package_weight, null);
+    assert.equal(after?.pickup_date, null);
     assert.equal(after?.fulfillment_id, null);
     assert.equal(after?.payment_details_id, null);
   });
@@ -79,7 +79,7 @@ test("an explicit null clears a column - the reset a placed order performs", asy
 
 test("update answers false for an id with no session", async () => {
   await inRollback(async (c: PoolClient) => {
-    assert.equal(await checkouts.update(randomUUID(), { package_weight: 1 }, c), false);
+    assert.equal(await checkouts.update(randomUUID(), { pickup_date: "2026-09-04" }, c), false);
   });
 });
 

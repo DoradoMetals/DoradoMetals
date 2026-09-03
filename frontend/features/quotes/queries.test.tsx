@@ -19,7 +19,7 @@ vi.mock("@/features/auth/queries", () => ({
 
 import { apiRequest } from "@/shared/queries/axios";
 import { useSalesOrderQuote, usePurchaseOrderQuote } from "@/features/quotes/queries";
-import type { SellCartItem } from "@/features/cart/types";
+import type { CheckoutLine } from "@/features/checkout/items/types";
 
 const SALE_SERVICE_ID = "9f1c2b3a-0000-4000-8000-000000000031";
 const SALE_METHOD_ID = "9f1c2b3a-0000-4000-8000-000000000032";
@@ -35,28 +35,17 @@ function wrapper({ children }: { children: ReactNode }) {
   return <QueryClientProvider client={client}>{children}</QueryClientProvider>;
 }
 
-const aLine = (over: Partial<SellCartItem>): SellCartItem => ({
+const aLine = (over: Partial<CheckoutLine>): CheckoutLine => ({
   id: "line",
-  bullion_id: null,
-  metal_id: null,
-  pre_melt: null,
-  post_melt: null,
-  purity: null,
-  unit: null,
   quantity: 1,
-  gross: null,
-  metal: null,
-  name: null,
-  image_front: null,
-  mint_name: null,
   ...over,
 });
 
-const aProductItem = (): SellCartItem =>
+const aProductItem = (): CheckoutLine =>
   aLine({ id: PRODUCT_ID, bullion_id: PRODUCT_ID, quantity: 2 });
 
-const aScrapItem = (): SellCartItem =>
-  aLine({ id: "lot", metal: "Gold", pre_melt: 10, purity: 0.585, unit: "g" });
+const aScrapItem = (): CheckoutLine =>
+  aLine({ id: "lot", metal_id: GOLD_ID, pre_melt: 10, purity: 0.585, unit: "g" });
 
 beforeEach(() => {
   vi.mocked(apiRequest).mockReset();

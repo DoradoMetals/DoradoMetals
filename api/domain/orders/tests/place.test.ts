@@ -105,8 +105,7 @@ async function primeCheckout(
   await c.query(
     `UPDATE checkout.checkouts SET
        fulfillment_id = $2, fulfillment_method_id = $3, shipper_address_id = $4,
-       package_id = $5, carrier_service_id = $6, payment_details_id = $7,
-       package_weight = 3, declared_value = 2500
+       package_id = $5, carrier_service_id = $6, payment_details_id = $7
      WHERE id = $1`,
     [co.id, draft?.id ?? null, dropoffMethodId, addressId, packageId, labelServiceId, details.id]
   );
@@ -302,7 +301,10 @@ test("the parcel records what the carrier said and what the checkout chose", asy
     assert.equal(shipment.shipping_status, "Label Created");
     assert.equal(Number(shipment.cost), 31.75);
     assert.equal(shipment.insured, true);
-    assert.equal(Number(shipment.declared_value), 2500);
+    // Computed from the checkout's own priced lines now (ruling 58), not a
+    // fixed row value - a live spot and rate band, not a number this test
+    // controls.
+    assert.ok(Number(shipment.declared_value) > 0, "the parcel carries no declared value");
     assert.equal(shipment.package_id, packageId);
     assert.equal(shipment.carrier_service_id, labelServiceId);
     assert.equal(shipment.pickup_type, "Store Dropoff");

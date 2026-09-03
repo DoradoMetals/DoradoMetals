@@ -6,7 +6,7 @@ import { forwardRef, useEffect } from 'react';
 import { cn } from '@/shared/utils/cn';
 import { ShoppingCartIcon } from '@phosphor-icons/react';
 
-interface CartIconProps extends HTMLAttributes<HTMLDivElement> {
+interface CheckoutIconProps extends HTMLAttributes<HTMLDivElement> {
   size?: number;
   isOpen: boolean;
 }
@@ -27,7 +27,7 @@ const iconVariants = {
   },
 };
 
-const CartIcon = forwardRef<HTMLDivElement, CartIconProps>(
+const CheckoutIcon = forwardRef<HTMLDivElement, CheckoutIconProps>(
   ({ isOpen, className, size = 28, ...props }, ref) => {
     const controls = useAnimation();
 
@@ -52,6 +52,6 @@ const CartIcon = forwardRef<HTMLDivElement, CartIconProps>(
   }
 );
 
-CartIcon.displayName = 'MenuIcon';
+CheckoutIcon.displayName = 'CheckoutIcon';
 
-export { CartIcon };
+export { CheckoutIcon };

@@ -47,7 +47,10 @@ const collect = () => {
 };
 
 // Calls KNOWN to hit nothing on purpose, each needing a reason — a 404 here defaults to a defect, which is the whole point. Pinned from both sides: an unlisted 404 fails, and a listed call that starts resolving also fails, so this can't quietly become a stale suppression list.
-// Empty since 086 — the one entry (the offer-accepted email) said to delete itself when its step went; the step went.
+// Ruling 58 (2026-09-03) removed the last entry this list held - POST
+// /api/shipping/get_rates, superseded by GET /api/checkout/rates?direction= -
+// features/shipping/queries.ts no longer calls it, so the frontend cleanup
+// this comment used to wait for is already done; the entry was pure staleness.
 const DELIBERATE_404: Record<string, string | undefined> = {};
 
 // The frontend writes paths without the /api the server mounts them under.

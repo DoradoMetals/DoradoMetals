@@ -40,6 +40,7 @@ import * as ledger from "#domain/transactions/service.ts";
 import * as orderRead from "#domain/orders/read.ts";
 import * as rules from "#domain/orders/rules.ts";
 import { buyPostage as buyPostageLive, recordPostage } from "#domain/orders/postage.ts";
+import * as shippingRules from "#domain/shipping/rules.ts";
 import { calculateTotalPrice, fineContent, unitPrice } from "#domain/pricing/service.ts";
 
 import withTransaction from "#shared/db/withTransaction.ts";
@@ -312,9 +313,12 @@ async function buyReturnLabel(
 // THE ADDRESS IS THE ORDER'S SNAPSHOT and the contact is the provider's
 // configured one. This took the admin drawer's whole form as
 // `Record<string, any>` and hand-mapped fifteen fields out of it.
+//
+// THE WEIGHT AND THE VALUE ARE THE ORDER'S OWN NOW (ruling 58): computed from
+// its lines and its total rather than taken from the admin's form.
 export async function cancel(
   order_id: string,
-  { carrier_service_id, package_id, declared_value, weight }: OrderCancel,
+  { carrier_service_id, package_id }: OrderCancel,
   buy: BuyReturnLabel = buyReturnLabel
 ): Promise<OrderView> {
   const order = await viewOf(order_id);
@@ -323,8 +327,9 @@ export async function cancel(
   const box = await packagesRepo.getOne(package_id);
   if (!box) throw new Invalid("that package does not exist");
   const service = await carrierServices.labelServiceFor(carrier_service_id);
+  const weight = shippingRules.parcelWeightLb(order.items, box);
   const declaredValue = await carrierServices.clampInsuredValue(
-    declared_value, service.serviceType
+    shippingRules.declaredValue(order.totals?.total ?? 0), service.serviceType
   );
   const insured = declaredValue > 0;
 
@@ -376,9 +381,9 @@ export async function cancel(
 
 // POST /api/orders/:id/label - RETRY SURFACE for a purchase order whose own
 // label purchase failed after the order committed (place.ts's own AFTER
-// step). Everything the label needs is already ON the shipment row except the
-// weight, which was never a column - checkout's own copy is long consumed by
-// the time this order exists to retry, same as cancel's return label.
+// step). THE WEIGHT IS THE ORDER'S OWN NOW (ruling 58), computed from its
+// lines and the shipment's own package rather than asked for again - only the
+// pickup slot is still asked, and only when the shipment's handoff needs one.
 export async function buyLabel(
   order_id: string, input: OrderLabel, buy: typeof buyPostageLive = buyPostageLive
 ): Promise<OrderView> {
@@ -402,7 +407,8 @@ export async function buyLabel(
     throw new Invalid(`shipment ${shipment.id} names a handoff the carrier no longer offers`);
   }
   const shipper = rules.requireAddress(order.address ?? undefined, "shipper");
-  const parcel = rules.rebuyParcel(shipment, service, box, handoff, input);
+  const weight = shippingRules.parcelWeightLb(order.items, box);
+  const parcel = rules.rebuyParcel(shipment, service, box, handoff, weight, input);
 
   const postage = await buy(shipper, order.user?.name ?? "", parcel);
   await recordPostage(order_id, shipment.id, postage, parcel.schedule);
