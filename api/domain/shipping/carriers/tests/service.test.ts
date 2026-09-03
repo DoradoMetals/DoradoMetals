@@ -5,7 +5,8 @@ import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
 import { randomUUID } from "node:crypto";
 import pool from "#db";
-import { inRollback } from "#shared/testing/rollback.ts";
+import { inPinnedTransaction } from "#shared/testing/pinned-pool.ts";
+import { TEST_ACTOR } from "#shared/testing/actor.ts";
 import * as service from "#domain/shipping/carriers/service.ts";
 
 let client: PoolClient;
@@ -56,9 +57,14 @@ test("the list is ordered by the organization's name", async () => {
   assert.deepEqual(names, [...names].sort((a, b) => a.localeCompare(b)));
 });
 
+// createCarrier/updateCarrier/removeCarrier are USE CASES now (ruling 56):
+// no executor parameter, each opens its own transaction. inPinnedTransaction
+// patches the pool so that transaction lands on this test's own connection
+// and rolls back with it, the same as inRollback did for the old executor-
+// taking form.
 test("create writes both new rows and reads back as one", async () => {
-  await inRollback(async (c: PoolClient) => {
-    const made = await service.createCarrier(draft(), c);
+  await inPinnedTransaction(async (c: PoolClient) => {
+    const made = await service.createCarrier(draft());
     assert.ok(made, "the service returned nothing");
     assert.ok(made.id);
     assert.equal(made.logo, "/carriers/probe.png");
@@ -70,33 +76,30 @@ test("create writes both new rows and reads back as one", async () => {
       [made.id]
     );
     assert.equal(rows[0].type, "CARRIER");
-  });
+  }, { actor: TEST_ACTOR.id });
 });
 
 test("update changes both the organization and the carrier row", async () => {
-  await inRollback(async (c: PoolClient) => {
-    const made = await service.createCarrier(draft(), c);
+  await inPinnedTransaction(async () => {
+    const made = await service.createCarrier(draft());
     assert.ok(made, "the service returned nothing");
-    const updated = await service.updateCarrier(
-      {
-        ...made,
-        organization: { ...made.organization, name: "renamed", enabled: false },
-        logo: "/carriers/new.png",
-      },
-      c
-    );
+    const updated = await service.updateCarrier({
+      ...made,
+      organization: { ...made.organization, name: "renamed", enabled: false },
+      logo: "/carriers/new.png",
+    });
     assert.ok(updated, "the update returned nothing");
     assert.equal(updated.organization.name, "renamed");
     assert.equal(updated.organization.enabled, false);
     assert.equal(updated.logo, "/carriers/new.png");
     assert.equal(updated.id, made.id);
-  });
+  }, { actor: TEST_ACTOR.id });
 });
 
 // The carrier row holds the foreign key, so it goes first - the reverse order would refuse, or removing only the carrier would orphan the organization.
 test("remove deletes both rows and leaves no orphan", async () => {
-  await inRollback(async (c: PoolClient) => {
-    const made = await service.createCarrier(draft(), c);
+  await inPinnedTransaction(async (c: PoolClient) => {
+    const made = await service.createCarrier(draft());
     assert.ok(made, "the service returned nothing");
     const { rows: before } = await c.query(
       "SELECT organization_id FROM shipping.carriers WHERE id = $1",
@@ -104,9 +107,9 @@ test("remove deletes both rows and leaves no orphan", async () => {
     );
     const orgId = before[0].organization_id;
 
-    await service.removeCarrier(made.id, c);
+    await service.removeCarrier(made.id);
 
-    assert.equal(await service.getCarrierById(made.id, c), null);
+    assert.equal(await service.getCarrierById(made.id), null);
     const { rows: orgs } = await c.query(
       "SELECT 1 FROM organizations.organizations WHERE id = $1",
       [orgId]
@@ -117,7 +120,7 @@ test("remove deletes both rows and leaves no orphan", async () => {
     // shipping.carriers id that no statement anywhere writes to exchange, so
     // it could never have found a row there. getCarrierById above already
     // proves the live table lost the row.
-  });
+  }, { actor: TEST_ACTOR.id });
 });
 
 test("getCarrierName returns an empty string for an unknown id", async () => {
@@ -133,26 +136,15 @@ test("only carrier organizations are returned", async () => {
   assert.ok(rows.length < all[0].n);
 });
 
-test("a write made with a client is invisible on the pool", async () => {
-  await client.query("BEGIN");
-  const made = await service.createCarrier(draft(), client);
-  assert.ok(made, "the service returned nothing");
-  const outside = await service.getCarrierById(made.id);
-  await client.query("ROLLBACK");
-
-  assert.ok(made.id);
-  assert.equal(outside, null);
-});
-
 // No id must return null AND write nothing - not just fail to throw.
 test("an update with no id changes nothing", async () => {
-  await inRollback(async (c: PoolClient) => {
+  await inPinnedTransaction(async (c: PoolClient) => {
     // shipping.carriers, not exchange.carriers (exchange-fixtures lane, D214
     // item 10) - the table this service actually writes, so a count that
     // moved would be caught.
     const { rows: before } = await c.query("SELECT count(*)::int n FROM shipping.carriers");
-    assert.equal(await service.updateCarrier({ organization: { name: "nobody" } }, c), null);
+    assert.equal(await service.updateCarrier({ organization: { name: "nobody" } }), null);
     const { rows: after } = await c.query("SELECT count(*)::int n FROM shipping.carriers");
     assert.equal(after[0].n, before[0].n);
-  });
+  }, { actor: TEST_ACTOR.id });
 });

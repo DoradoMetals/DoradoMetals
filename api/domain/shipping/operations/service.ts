@@ -274,11 +274,15 @@ export async function cancelPickup(
   });
 
   // Two bugs at once: the repo reads pickup_status, so `status` wrote the existing status back unchanged; and the CHECK constraint allows only pending/scheduled/completed/canceled (one L) - "cancelled" was refused outright.
-  return await pickupRepo.update({
-    id: pickup.id,
-    confirmation_number: pickup.confirmation_number,
-    pickup_status: "canceled",
-  });
+  // Opened here rather than taken as an argument (ruling 56): this write must
+  // stand alone, AFTER the FedEx call above - see this function's own header.
+  return await withTransaction((tx) =>
+    pickupRepo.update({
+      id: pickup.id,
+      confirmation_number: pickup.confirmation_number,
+      pickup_status: "canceled",
+    }, tx)
+  );
 }
 
 // ===========================================================================
