@@ -39,7 +39,7 @@ import * as usersService from "#domain/users/service.ts";
 import * as ledger from "#domain/transactions/service.ts";
 import * as orderRead from "#domain/orders/read.ts";
 import * as rules from "#domain/orders/rules.ts";
-import { calculateTotalPrice, unitPrice } from "#domain/pricing/service.ts";
+import { calculateTotalPrice, fineContent, unitPrice } from "#domain/pricing/service.ts";
 
 import withTransaction from "#shared/db/withTransaction.ts";
 import { Invalid, NotFound } from "#shared/errors.ts";
@@ -169,7 +169,7 @@ export async function editLine(
   return await withTransaction(async (tx) => {
     const written = await itemsRepo.update(
       line_id,
-      Object.assign({ content: rules.scrapContent(weight ?? preMelt, unit, purity) }, changes),
+      Object.assign({ content: fineContent(weight ?? preMelt, unit, purity) }, changes),
       { order_id: line.order_id },
       tx
     );

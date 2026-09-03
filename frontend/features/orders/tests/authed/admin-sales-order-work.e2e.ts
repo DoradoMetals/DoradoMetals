@@ -12,7 +12,7 @@ import { test, expect, request as pwRequest } from "@playwright/test";
 // intent for the customer and price it with items (unchanged - the payments
 // surface, not this pass's), then sync the customer's buy cart and PATCH
 // their checkout row through the admin-scoped accessor
-// (GET/PATCH /api/checkout?user_id=, POST /cart/sync_cart with an admin-only
+// (GET/PATCH /api/checkout?user_id=, PUT /api/checkout/items?user_id= with an admin-only
 // user_id - api/transport/checkout/controller.ts), and create the order from
 // the checkout_id it answers - the same one-id create createOrderFromCheckout
 // already let an admin name. The intent is a REAL Stripe TEST-MODE object
@@ -106,10 +106,11 @@ test.beforeAll(async ({ playwright }) => {
 
   // THE ADMIN-SCOPED ACCESSOR (D214 item 2): user_id is admin-only, checked
   // the same way createOrderFromCheckout already checks admin ownership.
-  const synced = await admin.post(`${API}/cart/sync_cart`, {
-    data: { user_id: customerId, cart: [{ id: product.id, quantity: 1 }] },
-  });
-  expect(synced.ok(), `admin cart sync failed: ${await synced.text()}`).toBeTruthy();
+  const synced = await admin.put(
+    `${API}/checkout/items?direction=sale&user_id=${customerId}`,
+    { data: { items: [{ bullion_id: product.id, quantity: 1 }] } }
+  );
+  expect(synced.ok(), `admin basket sync failed: ${await synced.text()}`).toBeTruthy();
 
   const patched = await admin.patch(`${API}/checkout?user_id=${customerId}`, {
     data: {

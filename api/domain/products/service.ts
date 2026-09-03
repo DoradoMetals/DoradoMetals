@@ -99,13 +99,6 @@ export async function getAllTypes(): Promise<{ name: string }[]> {
   return await products.getTypes();
 }
 
-// The id of the product with this exact name, or null — lives here (not checkout) because the id is a products.bullion id and this feature owns that table.
-export async function findProductIdByName(
-  name: string, executor?: Executor
-): Promise<string | null> {
-  return await products.findIdByName(name, executor);
-}
-
 export async function getLiveness(ids: string[], executor?: Executor): Promise<Liveness[]> {
   return await products.getLiveness(ids, executor);
 }

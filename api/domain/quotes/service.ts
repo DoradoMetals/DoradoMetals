@@ -343,7 +343,8 @@ export async function orderQuote({ order_id }: OrderQuoteBody): Promise<OrderQuo
       const premium = Number(item.premium ?? 0);
       const unit_price = stored
         ? Number(item.price)
-        : Number(item.product?.content ?? 0) * (bidFor(item.metal_id) * premium);
+        : Number(item.content ?? item.product?.content ?? 0) *
+          (bidFor(item.metal_id) * premium);
       // A stored price is PER UNIT: every consumer multiplies by quantity.
       const line_total = unit_price * Number(item.quantity ?? 1);
       bullion_total += line_total;

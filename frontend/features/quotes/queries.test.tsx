@@ -35,14 +35,28 @@ function wrapper({ children }: { children: ReactNode }) {
   return <QueryClientProvider client={client}>{children}</QueryClientProvider>;
 }
 
+const aLine = (over: Partial<SellCartItem>): SellCartItem => ({
+  id: "line",
+  bullion_id: null,
+  metal_id: null,
+  pre_melt: null,
+  post_melt: null,
+  purity: null,
+  unit: null,
+  quantity: 1,
+  gross: null,
+  metal: null,
+  name: null,
+  image_front: null,
+  mint_name: null,
+  ...over,
+});
+
 const aProductItem = (): SellCartItem =>
-  ({ type: "product", data: { id: PRODUCT_ID, quantity: 2 } } as unknown as SellCartItem);
+  aLine({ id: PRODUCT_ID, bullion_id: PRODUCT_ID, quantity: 2 });
 
 const aScrapItem = (): SellCartItem =>
-  ({
-    type: "scrap",
-    data: { metal: "Gold", pre_melt: 10, purity: 0.585, gross_unit: "g", content: 5.85 },
-  } as unknown as SellCartItem);
+  aLine({ id: "lot", metal: "Gold", pre_melt: 10, purity: 0.585, unit: "g" });
 
 beforeEach(() => {
   vi.mocked(apiRequest).mockReset();
@@ -137,7 +151,7 @@ describe("usePurchaseOrderQuote sends exactly what /quotes/purchase_order accept
       purity: 0.585,
       unit: "g",
     });
-    for (const retired of ["content", "gross_unit", "metal"]) {
+    for (const retired of ["content", "gross_unit", "metal", "id"]) {
       expect(body.items[1]).not.toHaveProperty(retired);
     }
     expect(body.payout_method_id).toBe(PURCHASE_METHOD_ID);

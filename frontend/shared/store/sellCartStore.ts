@@ -1,14 +1,16 @@
-import { Product } from '@/features/products/types'
-import { assignScrapItemNames, Scrap } from '@/features/scrap/types'
 import { SellCartItem } from '@/features/cart/types'
 import { Rate } from '@/features/rates/types'
 import { getRatePct, sumContentByMetal } from '@/features/rates/utils/resolveRate'
+import { convertTroyOz } from '@/shared/utils/convertWeights'
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
+
+// The sell basket, local-first and flat. Nothing here is a price: the quote is.
 
 interface SellCartState {
   items: SellCartItem[]
   rates: Rate[]
+  premiums: Record<string, number>
   setRates: (rates: Rate[]) => void
   addItem: (item: SellCartItem) => void
   removeOne: (item: SellCartItem) => void
@@ -18,78 +20,45 @@ interface SellCartState {
   mergeSellCart: (backendItems: SellCartItem[]) => void
 }
 
-// Re-price scrap items from the rates table, tiered by the TOTAL scrap content
-// of each metal across the cart. Keeps the customer's preview premium in sync
-// with what the backend will enforce at order creation. No-op without rates or
-// when a metal has no rate band (leaves the existing bid_premium).
-function retierScrap(items: SellCartItem[], rates: Rate[]): SellCartItem[] {
-  if (!rates || rates.length === 0) return items
-
-  const scrapItems = items.filter((i) => i.type === 'scrap')
-  const totalsByMetal = sumContentByMetal(
-    scrapItems,
-    (i) => (i.data as Scrap).metal ?? null,
-    (i) => (i.data as Scrap).content ?? 0
-  )
-
-  return items.map((i) => {
-    if (i.type !== 'scrap') return i
-    const scrap = i.data as Scrap
-    const total = totalsByMetal[String(scrap.metal ?? '').toLowerCase()] ?? 0
-    const pct = getRatePct(rates, scrap.metal, total, 'scrap')
-    if (pct == null) return i
-    return { type: 'scrap' as const, data: { ...scrap, bid_premium: pct } }
-  })
+// Fine metal, for the band preview only.
+export function lineContent(item: SellCartItem): number {
+  if (item.bullion_id !== null) return 0
+  return convertTroyOz(item.pre_melt ?? 0, item.unit ?? 't oz') * (item.purity ?? 0)
 }
 
-function addWithQuantity(item: SellCartItem): SellCartItem {
-  if (item.type === 'product') {
-    return {
-      type: 'product' as const,
-      data: { ...(item.data as Product), quantity: (item.data.quantity ?? 1) },
-    }
-  } else {
-    return {
-      type: 'scrap' as const,
-      data: { ...(item.data as Scrap), quantity: (item.data.quantity ?? 1) },
-    }
+// The band each lot falls in, tiered by the metal's total across the basket.
+function retier(items: SellCartItem[], rates: Rate[]): Record<string, number> {
+  if (!rates || rates.length === 0) return {}
+  const lots = items.filter((i) => i.bullion_id === null)
+  const totals = sumContentByMetal(lots, (i) => i.metal, lineContent)
+
+  const out: Record<string, number> = {}
+  for (const lot of lots) {
+    const total = totals[String(lot.metal ?? '').toLowerCase()] ?? 0
+    const pct = getRatePct(rates, lot.metal ?? '', total, 'scrap')
+    if (pct != null) out[lot.id] = pct
   }
+  return out
 }
 
-function normalizeScrapNames(items: SellCartItem[]): SellCartItem[] {
-  const products = items.filter((i) => i.type === 'product')
-  const scrap = items.filter((i) => i.type === 'scrap')
-
-  const renamedScrap = assignScrapItemNames(scrap.map((i) => i.data as Scrap))
-
-  return [
-    ...products,
-    ...renamedScrap.map((data) => ({
-      type: 'scrap' as const,
-      data,
-    })),
-  ]
-}
-
-function scrapMatches(a: Scrap, b: Scrap): boolean {
-  // bid_premium is a derived (rate-tiered) value, not an intrinsic property, so
-  // it is intentionally excluded — otherwise re-tiering would break merging.
+function sameLine(a: SellCartItem, b: SellCartItem): boolean {
+  if (a.bullion_id !== null || b.bullion_id !== null) return a.bullion_id === b.bullion_id
   return (
+    a.metal === b.metal &&
     a.pre_melt === b.pre_melt &&
     a.purity === b.purity &&
-    a.gross_unit === b.gross_unit &&
-    a.metal === b.metal
+    a.unit === b.unit
   )
 }
 
-// Same persisted-rename note as cartStore: a sell-cart line's product data
-// may predate the products rename in a customer's localStorage.
-const renameLegacySellLine = (line: Record<string, unknown>): Record<string, unknown> => {
-  if (!line || typeof line !== 'object') return line
-  const data = line.data as Record<string, unknown> | undefined
-  if (!data || !('product_name' in data)) return line
-  const { product_name, product_description, product_type, ...rest } = data
-  return { ...line, data: { ...rest, name: product_name, description: product_description, type: product_type } }
+function label(items: SellCartItem[]): SellCartItem[] {
+  const seen: Record<string, number> = {}
+  return items.map((item) => {
+    if (item.bullion_id !== null) return item
+    const metal = item.metal ?? 'Item'
+    seen[metal] = (seen[metal] ?? 0) + 1
+    return { ...item, name: `${metal} Item ${seen[metal]}` }
+  })
 }
 
 export const sellCartStore = create<SellCartState>()(
@@ -97,139 +66,95 @@ export const sellCartStore = create<SellCartState>()(
     (set, get) => ({
       items: [],
       rates: [],
+      premiums: {},
 
       setRates: (rates) => {
-        set({ rates, items: retierScrap(get().items, rates) })
+        set({ rates, premiums: retier(get().items, rates) })
       },
 
       addItem: (item) => {
-        let items = [...get().items]
-
-        const match = (a: SellCartItem, b: SellCartItem) => {
-          if (a.type !== b.type) return false
-          if (a.type === 'product') return a.data.name === (b.data as Product).name
-          if (a.type === 'scrap') return scrapMatches(a.data as Scrap, b.data as Scrap)
-          return false
-        }
-
-        const existing = items.find((i) => match(i, item))
-        if (existing) {
-          existing.data.quantity = (existing.data.quantity ?? 0) + (item.data.quantity ?? 1)
+        const items = [...get().items]
+        const index = items.findIndex((i) => sameLine(i, item))
+        if (index !== -1) {
+          items[index] = {
+            ...items[index],
+            quantity: (items[index].quantity ?? 1) + (item.quantity ?? 1),
+          }
         } else {
-          items.push(addWithQuantity(item))
+          items.push({ ...item, quantity: item.quantity ?? 1 })
         }
-
-        set({ items: retierScrap(normalizeScrapNames(items), get().rates) })
+        const next = label(items)
+        set({ items: next, premiums: retier(next, get().rates) })
       },
 
       removeOne: (item) => {
-        let items = [...get().items]
-
-        const index = items.findIndex((i) => {
-          if (i.type !== item.type) return false
-          if (i.type === 'product')
-            return i.data.name === (item.data as Product).name
-          if (i.type === 'scrap') return scrapMatches(i.data as Scrap, item.data as Scrap)
-          return false
-        })
-
-        if (index !== -1) {
-          const found = items[index]
-          const currentQty = found.data.quantity || 1
-          if (currentQty > 1) {
-            found.data.quantity = currentQty - 1
-          } else {
-            items.splice(index, 1)
-          }
-          set({ items: retierScrap(normalizeScrapNames(items), get().rates) })
+        const items = [...get().items]
+        const index = items.findIndex((i) => sameLine(i, item))
+        if (index === -1) return
+        const found = items[index]
+        if ((found.quantity ?? 1) > 1) {
+          items[index] = { ...found, quantity: (found.quantity ?? 1) - 1 }
+        } else {
+          items.splice(index, 1)
         }
+        const next = label(items)
+        set({ items: next, premiums: retier(next, get().rates) })
       },
 
       removeAll: (item) => {
-        const filtered = get().items.filter((i) => {
-          if (i.type !== item.type) return true
-          if (i.type === 'product')
-            return i.data.name !== (item.data as Product).name
-          if (i.type === 'scrap') return !scrapMatches(i.data as Scrap, item.data as Scrap)
-          return true
-        })
-        set({ items: retierScrap(normalizeScrapNames(filtered), get().rates) })
+        const next = label(get().items.filter((i) => !sameLine(i, item)))
+        set({ items: next, premiums: retier(next, get().rates) })
       },
 
-      clearCart: () => set({ items: [] }),
+      clearCart: () => set({ items: [], premiums: {} }),
 
-      setItems: (items: SellCartItem[]) => set({ items: retierScrap(items, get().rates) }),
+      setItems: (items: SellCartItem[]) => {
+        const next = label(items)
+        set({ items: next, premiums: retier(next, get().rates) })
+      },
 
+      // On sign-in: the server's copy wins, browser-only lines survive.
       mergeSellCart: (backendItems: SellCartItem[]) => {
-        const localItems = get().items
-        const mergedItems: SellCartItem[] = []
-
-        const isProductMatch = (a: SellCartItem, b: SellCartItem) =>
-          a.type === 'product' &&
-          b.type === 'product' &&
-          (a.data as Product).name === (b.data as Product).name
-
-        const isScrapMatch = (a: SellCartItem, b: SellCartItem) =>
-          a.type === 'scrap' && b.type === 'scrap' && scrapMatches(a.data as Scrap, b.data as Scrap)
-
-        backendItems.forEach((backendItem) => {
-          if (backendItem.type === 'product') {
-            mergedItems.push({
-              type: 'product',
-              data: {
-                ...(backendItem.data as Product),
-                quantity: backendItem.data.quantity || 1,
-              },
-            })
-          } else {
-            const alreadyInLocal = localItems.some((i) => isScrapMatch(i, backendItem))
-            if (!alreadyInLocal) {
-              mergedItems.push({
-                type: 'scrap',
-                data: {
-                  ...(backendItem.data as Scrap),
-                  quantity: 1,
-                },
-              })
-            }
-          }
-        })
-
-        localItems.forEach((localItem) => {
-          const alreadyMerged = mergedItems.find((merged) => {
-            return isProductMatch(merged, localItem) || isScrapMatch(merged, localItem)
-          })
-
-          if (!alreadyMerged) {
-            if (localItem.type === 'product') {
-              mergedItems.push({
-                type: 'product',
-                data: {
-                  ...(localItem.data as Product),
-                  quantity: localItem.data.quantity || 1,
-                },
-              })
-            } else {
-              mergedItems.push({
-                type: 'scrap',
-                data: {
-                  ...(localItem.data as Scrap),
-                  quantity: 1,
-                },
-              })
-            }
-          }
-        })
-
-        set({ items: retierScrap(normalizeScrapNames(mergedItems), get().rates) })
+        const merged: SellCartItem[] = backendItems.map((item) => ({
+          ...item,
+          quantity: item.quantity ?? 1,
+        }))
+        for (const item of get().items) {
+          if (!merged.some((i) => sameLine(i, item))) merged.push(item)
+        }
+        const next = label(merged)
+        set({ items: next, premiums: retier(next, get().rates) })
       },
     }),
     {
       name: 'dorado_sell_cart',
-      version: 1,
+      // 2 flattens a stored `{type, data}` basket rather than emptying it.
+      version: 2,
       migrate: (persisted: unknown) => {
-        const state = persisted as { items?: Record<string, unknown>[] }
-        return { ...state, items: (state?.items ?? []).map(renameLegacySellLine) } as never
+        const state = persisted as { items?: Record<string, any>[] }
+        const items = (state?.items ?? []).flatMap((line) => {
+          const data = (line?.data ?? line) as Record<string, any>
+          if (!data) return []
+          const isProduct = line?.type === 'product' || data.bullion_id != null || !!data.slug
+          return [
+            {
+              id: String(data.id ?? crypto.randomUUID()),
+              bullion_id: isProduct ? (data.bullion_id ?? data.id ?? null) : null,
+              metal_id: data.metal_id ?? null,
+              pre_melt: data.pre_melt ?? null,
+              post_melt: data.post_melt ?? null,
+              purity: data.purity ?? null,
+              unit: data.unit ?? data.gross_unit ?? null,
+              quantity: Number(data.quantity ?? 1),
+              gross: data.gross ?? null,
+              metal: data.metal ?? data.metal_type ?? null,
+              name: data.name ?? null,
+              image_front: data.image_front ?? null,
+              mint_name: data.mint_name ?? null,
+            },
+          ]
+        })
+        return { ...state, items } as never
       },
       partialize: (state) => ({ items: state.items }),
     }

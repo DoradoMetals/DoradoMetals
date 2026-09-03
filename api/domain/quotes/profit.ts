@@ -20,7 +20,7 @@ import * as orderSpotsService from "#domain/orders/spots/service.ts";
 import * as refinerSpotsService from "#domain/refiners/spots/service.ts";
 import * as refinerItemsRepo from "#db/refiners/items/repo.ts";
 import * as metalsRepo from "#db/metals/repo.ts";
-import { effectivePayoutFee, inboundShipment } from "#domain/pricing/service.ts";
+import { effectivePayoutFee, inboundShipment, recordedContent } from "#domain/pricing/service.ts";
 import { getRatePct, sumContentByMetal } from "#domain/rates/utils/resolveRate.ts";
 import { NotFound } from "#shared/errors.ts";
 import type {
@@ -66,11 +66,10 @@ const getItemMetal = (item: OrderViewItem, metals: MetalNames): ProfitMetalName 
   return isProfitMetal(name) ? name : null;
 };
 
-// A scrap line's content covers the whole lot; a bullion line's is per coin,
-// so it multiplies by how many.
+// A scrap line's content covers the whole lot; a bullion line's is per coin.
 const getItemContent = (item: OrderViewItem): number => {
   if (item.bullion_id === null) return item.content ?? 0;
-  return Number(item.product?.content ?? 0) * Number(item.quantity ?? 1);
+  return Number(recordedContent(item) ?? 0) * Number(item.quantity ?? 1);
 };
 
 // WHAT THE REFINERY ACTUALLY REPORTED for a scrap line - refiners.items, its

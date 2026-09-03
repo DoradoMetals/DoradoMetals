@@ -13,6 +13,7 @@ import { Popover } from '@radix-ui/react-popover'
 import { cn } from '@/shared/utils/cn'
 import { AnimatePresence, motion } from 'framer-motion'
 import { sellCartStore } from '@/shared/store/sellCartStore'
+import { sellLineFromProduct } from '@/features/cart/types'
 import { useSpotPrices } from '@/features/spots/queries'
 import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
 import { DetailRow } from '@/shared/ui/DetailRow'
@@ -38,12 +39,8 @@ export default function BullionCard({ product, variants, unitPrices }: BullionCa
   const addItem = sellCartStore((state) => state.addItem)
   const removeOne = sellCartStore((state) => state.removeOne)
 
-  const cartItem = items.find(
-    (item) =>
-      item.type === 'product' &&
-      (item.data as Product).name === selectedProduct.name
-  )
-  const quantity = cartItem?.data.quantity ?? 0
+  const cartItem = items.find((item) => item.bullion_id === selectedProduct.id)
+  const quantity = cartItem?.quantity ?? 0
 
   const { data: spotPrices = [] } = useSpotPrices()
 
@@ -213,7 +210,7 @@ export default function BullionCard({ product, variants, unitPrices }: BullionCa
         {quantity === 0 ? (
           <Button
             className="w-full"
-            onClick={() => addItem({ type: 'product', data: { ...selectedProduct, quantity: 1 } })}
+            onClick={() => addItem(sellLineFromProduct(selectedProduct))}
           >
             Add to Sell Cart
           </Button>
@@ -221,7 +218,7 @@ export default function BullionCard({ product, variants, unitPrices }: BullionCa
           <div className="flex items-center justify-center gap-3">
             <Button
               size="icon"
-              onClick={() => removeOne({ type: 'product', data: selectedProduct })}
+              onClick={() => removeOne(sellLineFromProduct(selectedProduct))}
             >
               <Minus size={20} />
             </Button>
@@ -229,7 +226,7 @@ export default function BullionCard({ product, variants, unitPrices }: BullionCa
             <Button
               size="icon"
               onClick={() =>
-                addItem({ type: 'product', data: { ...selectedProduct, quantity: 1 } })
+                addItem(sellLineFromProduct(selectedProduct))
               }
             >
               <Plus size={20} />

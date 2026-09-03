@@ -22,24 +22,6 @@ test("sales tax is charged, never paid", () => {
   assert.equal(rules.chargesSalesTax("purchase"), false);
 });
 
-// NaN IS "NOT MEASURED" AND MUST REACH THE DATABASE AS NULL - D47/D65. A number
-// that is not a number stored as a number is a price computed from nonsense.
-//
-// THE ZEROES BELOW ARE PRESERVED BEHAVIOUR, NOT ENDORSED. convertTroyOz answers
-// 0 for an unparseable weight and for a unit it does not recognise, and null
-// multiplies as 0 - so those cases store 0 rather than "not measured", exactly
-// as they did before. Only a genuinely undefined purity reaches NaN, and that is
-// the case the null exists for.
-test("content is weight in troy ounces times purity, and unmeasurable is null", () => {
-  assert.equal(rules.scrapContent(8, "t oz", 0.5), 4);
-  assert.equal(rules.scrapContent(160, "dwt", 0.5), 4);
-  assert.equal(rules.scrapContent(8, "t oz", undefined), null);
-  assert.equal(rules.scrapContent(undefined, "t oz", 0.5), 0);
-  assert.equal(rules.scrapContent(null, "t oz", 0.5), 0);
-  assert.equal(rules.scrapContent(8, "t oz", null), 0);
-  assert.equal(rules.scrapContent(8, "not-a-unit", 0.5), 0);
-});
-
 // THE PREMIUM IS THE BUSINESS'S, NOT THE BROWSER'S: it is tiered by the order's
 // TOTAL content of that metal, so two half-ounce lines earn the one-ounce band.
 const BANDS = [

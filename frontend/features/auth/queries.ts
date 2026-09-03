@@ -8,6 +8,8 @@ import { sellCartStore } from '@/shared/store/sellCartStore'
 import { apiRequest } from '@/shared/queries/axios'
 import { Product } from '@/features/products/types'
 import { SellCartItem } from '@/features/cart/types'
+import type { SpotPrice } from '@/features/spots/types'
+import type { checkout } from '@dorado/contracts'
 import {
   admin,
   changeEmail,
@@ -26,6 +28,8 @@ import {
 } from './authClient'
 import { useSyncCartToBackend, useSyncSellCartToBackend } from '@/features/cart/queries'
 
+type CheckoutItemRow = checkout.ItemsRow
+
 const clearClientState = () => {
   cartStore.getState().clearCart()
   sellCartStore.getState().clearCart()
@@ -36,24 +40,58 @@ const clearClientState = () => {
   localStorage.removeItem('sales-order-checkout')
 }
 
+// The endpoint answers rows; the name, picture and mint come from the
+// catalogue. A basket that will not hydrate keeps the local copy.
 const hydrateCarts = async (userId: string) => {
   try {
-    const backendCart = await apiRequest<Product[]>('GET', '/cart/get_cart', undefined, {
-      user_id: userId,
+    const [rows, catalogue] = await Promise.all([
+      apiRequest<CheckoutItemRow[]>('GET', '/checkout/items', undefined, {
+        direction: 'sale',
+        user_id: userId,
+      }),
+      apiRequest<Product[]>('GET', '/products/get_products'),
+    ])
+    const byId = new Map(catalogue.map((product) => [product.id, product]))
+    const items = rows.flatMap((row) => {
+      const product = row.bullion_id ? byId.get(row.bullion_id) : undefined
+      return product ? [{ ...product, quantity: Number(row.quantity ?? 1) }] : []
     })
-    cartStore.getState().mergeCartItems(backendCart)
+    cartStore.getState().mergeCartItems(items)
   } catch (err) {
     console.error('Cart hydration failed:', err)
   }
 
   try {
-    const backendSellCart = await apiRequest<SellCartItem[]>(
-      'GET',
-      '/cart/get_sell_cart',
-      undefined,
-      { user_id: userId }
-    )
-    sellCartStore.getState().mergeSellCart(backendSellCart)
+    // The sell catalogue: a basket may hold a product the buy side hides.
+    const [rows, catalogue, metals] = await Promise.all([
+      apiRequest<CheckoutItemRow[]>('GET', '/checkout/items', undefined, {
+        direction: 'purchase',
+        user_id: userId,
+      }),
+      apiRequest<Product[]>('GET', '/products/get_sell_products'),
+      apiRequest<SpotPrice[]>('GET', '/spots/spot_prices'),
+    ])
+    const byId = new Map(catalogue.map((product) => [product.id, product]))
+    const metalName = new Map(metals.map((metal) => [metal.id, metal.name]))
+    const items: SellCartItem[] = rows.map((row) => {
+      const product = row.bullion_id ? byId.get(row.bullion_id) : undefined
+      return {
+        id: row.id,
+        bullion_id: row.bullion_id,
+        metal_id: row.metal_id,
+        pre_melt: row.pre_melt,
+        post_melt: row.post_melt,
+        purity: row.purity,
+        unit: row.unit,
+        quantity: Number(row.quantity ?? 1),
+        gross: product?.gross ?? null,
+        metal: (row.metal_id ? metalName.get(row.metal_id) : null) ?? null,
+        name: product?.name ?? null,
+        image_front: product?.image_front ?? null,
+        mint_name: product?.mint_name ?? null,
+      }
+    })
+    sellCartStore.getState().mergeSellCart(items)
   } catch (err) {
     console.error('Sell cart hydration failed:', err)
   }

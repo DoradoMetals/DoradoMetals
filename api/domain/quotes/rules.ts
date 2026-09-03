@@ -5,7 +5,7 @@
 // answers a number or throws.
 import { Invalid } from "#shared/errors.ts";
 import { getRatePct } from "#domain/rates/utils/resolveRate.ts";
-import { convertTroyOz } from "#shared/utils/convertWeights.ts";
+import { fineContent } from "#domain/pricing/content.ts";
 import type { PricingSpot } from "#domain/pricing/service.ts";
 import type { Rate } from "@dorado/contracts";
 import type { SpotWire } from "#domain/spots/compose.ts";
@@ -57,14 +57,11 @@ export function requireBandPremium(
   return premium;
 }
 
-// A SCRAP DECLARATION'S FINE METAL CONTENT. Turning declared weights into troy
-// ounces is arithmetic, and client arithmetic is what this surface replaces -
-// a stated content used to win when the body carried one, which let a customer
-// declare the quantity of fine metal they are paid for.
+// A declaration's fine content. A quote prices an unmeasurable weight at zero.
 export function declaredContent(
   pre_melt: number, purity: number, unit: string | null | undefined
 ): number {
-  return convertTroyOz(pre_melt, unit ?? "t oz") * purity;
+  return fineContent(pre_melt, unit ?? "t oz", purity) ?? 0;
 }
 
 // A BULLION LINE'S CONTENT IS PER UNIT; A SCRAP LINE'S IS THE WHOLE LOT.
