@@ -41,8 +41,14 @@ const composed = (
   },
 });
 
+// Sequential: no caller passes an executor here, so both default to the
+// shared pool - fine when unpinned (a real connection per call), but a
+// caller running inside a pinned test transaction (or a future caller that
+// starts passing its own client through) puts both queries on ONE client,
+// which is the same "already executing" bug as detailsFor().
 export async function getAllRefiners(): Promise<ComposedRefiner[]> {
-  const [rows, byId] = await Promise.all([refiners.list(), organizations.byId()]);
+  const rows = await refiners.list();
+  const byId = await organizations.byId();
   return rows
     .flatMap((refiner) => {
       const organization = refiner.organization_id === null
@@ -74,27 +80,28 @@ export async function engagementIdFor(order_id: string, executor?: Executor): Pr
 
 // THE REFINER COUNTERPART OF EVERY CUSTOMER LINE (093's invariant). Load the
 // lines and what is already mirrored, derive the missing rows, write them.
+// Sequential, not Promise.all: `executor` is the caller's own transaction
+// client here (order creation runs inside withTransaction), and one pg
+// client cannot run two statements at once - a Promise.all of two different
+// tables on the same client is the exact bug detailsFor() had.
 export async function mirrorLinesForOrder(order_id: string, executor?: Executor): Promise<void> {
   const refiner_order_id = await engagementIdFor(order_id, executor);
-  const [lines, covered] = await Promise.all([
-    orderItems.getFor(order_id, executor),
-    refinerItems.getForOrder(order_id, executor),
-  ]);
+  const lines = await orderItems.getFor(order_id, executor);
+  const covered = await refinerItems.getForOrder(order_id, executor);
   await refinerItems.createMany(counterpartLines(refiner_order_id, lines, covered), executor);
 }
 
 // The counterparts an order is born with: the engagement, one line per customer
 // line, one cover per frozen spot. Values stay NULL until a refinery is
 // actually involved.
+// Sequential for the same reason as mirrorLinesForOrder above.
 export async function mirrorForOrder(order_id: string, executor?: Executor): Promise<void> {
   const refiner_order_id = await engagementIdFor(order_id, executor);
 
-  const [lines, mirroredLines, frozen, coveredSpots] = await Promise.all([
-    orderItems.getFor(order_id, executor),
-    refinerItems.getForOrder(order_id, executor),
-    orderSpots.getRowsFor(order_id, executor),
-    refinerSpots.getForEngagement(refiner_order_id, executor),
-  ]);
+  const lines = await orderItems.getFor(order_id, executor);
+  const mirroredLines = await refinerItems.getForOrder(order_id, executor);
+  const frozen = await orderSpots.getRowsFor(order_id, executor);
+  const coveredSpots = await refinerSpots.getForEngagement(refiner_order_id, executor);
 
   await refinerItems.createMany(
     counterpartLines(refiner_order_id, lines, mirroredLines), executor
