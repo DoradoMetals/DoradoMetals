@@ -1,20 +1,29 @@
-// THE ORDER RULES: pure functions, no database, no request, no provider.
-//
-// Each one reads like the sentence it enforces, takes NAMED ROW TYPES from the
-// contracts, and either answers a value or THROWS a domain error (D214 item
-// 11). A rule never returns a status code and never returns "null, sorry" for
-// an input that would price an order at nothing.
-//
-// PURCHASE AND SALE DIFFER BY ONE COLUMN (Jacob), so `direction` is an
-// ARGUMENT rather than a pair of files. Money arithmetic stays in
-// domain/pricing.
+// THE ORDER RULES: pure functions - named row types in, a complete row out or a domain refusal thrown (D214 item 11).
+import { randomUUID } from "node:crypto";
+
 import { convertTroyOz } from "#shared/utils/convertWeights.ts";
 import { getRatePct, sumContentByMetal } from "#domain/rates/utils/resolveRate.ts";
+import { calculateItemAsk } from "#domain/pricing/ask.ts";
 import { Conflict, Invalid } from "#shared/errors.ts";
-import { DORADO_ADDRESS, DORADO_CONTACT } from "#providers/shipments/constants.ts";
+import {
+  DORADO_ADDRESS, DORADO_CONTACT, FEDEX_STORE_ADDRESS,
+} from "#providers/shipments/constants.ts";
+
+import type { NewOrder } from "#db/orders/repo.ts";
 import type { PricedLine, NewOrderItem } from "#db/orders/items/repo.ts";
 import type { NewOrderSpot } from "#db/orders/spots/repo.ts";
+import type { NewOrderTotals } from "#db/orders/transactions/repo.ts";
+import type { ShipmentNew } from "#db/shipping/shipments/repo.ts";
 import type { CheckoutRow } from "#db/checkout/checkouts/repo.ts";
+import type { OrderLine as CheckoutLine } from "#db/checkout/items/repo.ts";
+import type { AddressRow } from "#db/places/addresses/repo.ts";
+import type { PackageRow } from "#db/shipping/packages/repo.ts";
+import type { MethodRow as PaymentMethodRow } from "#db/payments/methods/repo.ts";
+import type { ComposedFulfillment } from "#domain/fulfillments/compose.ts";
+import type { LabelService } from "#domain/shipping/services/service.ts";
+import type { CarrierHandoff } from "#domain/shipping/handoffs/service.ts";
+import type { StorefrontProduct } from "#domain/products/compose.ts";
+import type { OrderPrices, Spots } from "#domain/pricing/ask.ts";
 import type {
   OrderItemFromScrap, OrderItemPatch, OrderView, OrderViewProduct,
 } from "@dorado/contracts";
@@ -22,13 +31,45 @@ import type { orders } from "@dorado/contracts";
 
 export type Direction = NonNullable<orders.OrdersRow["direction"]>;
 
-// A type-only import, erased at runtime: this file still needs no database.
+// Type-only re-exports, erased at runtime: this file still needs no database.
 export type { PricedLine } from "#db/orders/items/repo.ts";
+export type { OrderLine as CheckoutLine } from "#db/checkout/items/repo.ts";
 export type RateBand = NonNullable<Parameters<typeof getRatePct>[0]>[number];
+
+// A catalogue product as a sale prices it: the storefront row, the quantity the
+// cart asked for, and the rate its delivery state charges.
+export type TaxedProduct = StorefrontProduct & { quantity: number; sales_tax_rate: number };
+
+// One line of a carrier's rate quote, as the provider parses it.
+export type CarrierRate = { serviceType: string | null; netCharge: number | null };
+
+// EVERYTHING THE CARRIER IS ASKED ABOUT, resolved from rows the checkout named
+// by id - so the label, the booking and the parcel row read the same values.
+export type Parcel = {
+  carrier_id: string; serviceType: string; carrierCode: string;
+  handoff: CarrierHandoff; declaredValue: number;
+  weight: { units: string; value: number };
+  dimensions: { length: number; width: number; height: number; units: string };
+  schedule: { date: string; time: string } | null;
+};
+
+// The ids a checkout must hold to become an order, PROVED PRESENT: an absent
+// one is a refusal naming the column, never a null the pricing reads as zero.
+export type PurchaseCheckout = {
+  shipper_address_id: string; package_id: string; carrier_service_id: string;
+  fulfillment_id: string; payment_details_id: string; package_weight: number;
+};
+
+export type SaleCheckout = { recipient_address_id: string };
 
 // SALES TAX IS CHARGED, NOT PAID: a payout to a customer never carries it.
 export function chargesSalesTax(direction: Direction): boolean {
   return direction === "sale";
+}
+
+// The order's direction, from the checkout it came from.
+export function directionOf(checkout: CheckoutRow): Direction {
+  return checkout.direction === "sale" ? "sale" : "purchase";
 }
 
 // WHICH PERCENTAGE COLUMN OF THE BAND A LINE READS. bullion_id is the one
@@ -48,10 +89,8 @@ export function scrapContent(
   return Number.isFinite(value) ? value : null;
 }
 
-// WHAT A LINE CONTRIBUTES TO THE METAL TOTAL THE TIER IS READ AT. A scrap
-// line's `content` already describes the whole lot, so quantity must NOT
-// multiply it; a bullion line's is PER UNIT, so ten one-ounce coins are ten
-// ounces of gold. That is the same asymmetry every sum in domain/pricing keeps.
+// WHAT A LINE CONTRIBUTES TO THE METAL TOTAL THE TIER IS READ AT. A scrap line's
+// `content` is the whole lot; a bullion line's is PER UNIT, so quantity counts.
 export function lineContent(line: Pick<PricedLine, "content" | "quantity" | "bullion_id">): number {
   const content = Number(line.content) || 0;
   if (line.bullion_id == null) return content;
@@ -59,13 +98,8 @@ export function lineContent(line: Pick<PricedLine, "content" | "quantity" | "bul
   return content * (Number.isFinite(quantity) ? quantity : 1);
 }
 
-// EVERY LINE OF A PURCHASE PRICES FROM rates.rates (Jacob, 2026-09-03), tiered
-// by the order's TOTAL content of that metal: a scrap line takes the band's
-// scrap_pct and a bullion line its bullion_pct. The PRODUCT'S bid_premium plays
-// NO PART in what a purchase pays - it is a catalogue figure, not a price fact.
-//
-// No rate bands means NO PLAN: an order placed with rates unconfigured keeps
-// what it was given rather than being repriced to nothing.
+// EVERY LINE OF A PURCHASE PRICES FROM rates.rates (Jacob, 2026-09-03), tiered by
+// the order's TOTAL content of that metal. No bands means NO PLAN.
 export function retierPlan(
   rates: RateBand[] | null | undefined, lines: PricedLine[]
 ): { id: string; premium: number }[] {
@@ -80,14 +114,8 @@ export function retierPlan(
   return plan;
 }
 
-// ONE FROZEN QUOTE PER METAL THE ORDER CONTAINS, as COMPLETE ROWS the caller
-// hands straight to createMany. A spot for a metal nobody sold is a row that
-// means nothing.
-//
-// A METAL WITH NO LIVE QUOTE IS REFUSED, not frozen at null. Every money figure
-// on the order is content * (spot * premium), so a null spot prices the metal
-// at zero - and the old version wrote exactly that, silently, for any metal the
-// feed had not quoted.
+// ONE FROZEN QUOTE PER METAL THE ORDER CONTAINS, as COMPLETE ROWS. A metal with
+// no live quote is REFUSED: a null spot prices that metal at zero.
 export function spotsToFreeze(
   order_id: string,
   lines: { metal_id: string }[],
@@ -109,27 +137,131 @@ export function spotsToFreeze(
   return frozen;
 }
 
-// ===========================================================================
-// THE LINES A CHECKOUT AND AN ADMIN ADD
-// ===========================================================================
+// -------------------- the rows a placement writes
+
+// The order row. The id is the caller's so every derivation below can name it
+// before the row exists; the number comes from the direction's own sequence.
+export function orderFrom(order_id: string, checkout: CheckoutRow, status: string): NewOrder {
+  return { id: order_id, user_id: checkout.user_id, direction: directionOf(checkout), status };
+}
+
+// WHO HANDS THE ORDER OVER, from the choices the stepper left on the row: the
+// draft it mutated, else the method it named, else the direction's default.
+export function handoverOf(order_id: string, checkout: CheckoutRow) {
+  return {
+    order_id, direction: directionOf(checkout),
+    fulfillment_id: checkout.fulfillment_id, method_id: checkout.fulfillment_method_id,
+    pickup_address_id: checkout.pickup_address_id,
+    location_id: checkout.appointment_location_id, start_time: checkout.appointment_time,
+  };
+}
+
+// A line whose metal cannot be resolved is REFUSED, never skipped: an order
+// silently missing a line means the customer's metal arrives unrecorded.
+function metalOf(line: CheckoutLine): string {
+  if (!line.metal_id) {
+    throw new Invalid(
+      `checkout item ${line.id} has no metal, and neither does the product it ` +
+        `names - orders.items.metal_id is NOT NULL, so this order cannot be placed`
+    );
+  }
+  return line.metal_id;
+}
+
+// THE LINES THE BUSINESS BUYS. The cart's premium is a display figure, so it is
+// left out: every purchase line is tiered from rates.rates at placement.
+export function linesBought(order_id: string, cart: CheckoutLine[]): NewOrderItem[] {
+  return cart.map((line) => ({
+    id: randomUUID(), order_id, bullion_id: line.bullion_id, metal_id: metalOf(line),
+    pre_melt: line.pre_melt, post_melt: line.post_melt, purity: line.purity,
+    content: line.content, quantity: line.quantity ?? 1, confirmed: false, unit: line.unit,
+  }));
+}
+
+// THE LINES THE BUSINESS SELLS, priced as they are created from the server's own
+// spot. A line the catalogue did not price is REFUSED - it would sell for zero.
+export function linesSold(
+  order_id: string, cart: CheckoutLine[], catalogue: TaxedProduct[], spots: Spots
+): NewOrderItem[] {
+  const soldById = new Map(catalogue.map((product) => [product.id, product]));
+  return cart.map((line) => {
+    const product = line.bullion_id === null ? undefined : soldById.get(line.bullion_id);
+    if (!product) {
+      throw new Invalid(
+        `checkout item ${line.id} names no product the catalogue prices, so this ` +
+          `sale cannot be placed`
+      );
+    }
+    return {
+      id: randomUUID(), order_id, bullion_id: product.id, metal_id: metalOf(line),
+      pre_melt: product.gross, post_melt: product.content, purity: product.purity,
+      content: product.content, quantity: line.quantity ?? 1, confirmed: true,
+      premium: Number(product.ask_premium ?? 0), sales_tax_charged: product.sales_tax_rate,
+      price: calculateItemAsk(product, spots), unit: "t oz",
+    };
+  });
+}
+
+// WHAT THE CATALOGUE IS ASKED TO PRICE: the bullion lines, by id and quantity.
+export function catalogueWanted(cart: CheckoutLine[]): { id: string; quantity: number }[] {
+  return cart.flatMap((line) =>
+    line.bullion_id === null ? [] : [{ id: line.bullion_id, quantity: line.quantity ?? 0 }]
+  );
+}
+
+// WHAT A PURCHASE COMES TO at placement: the postage the server was quoted, and
+// where the customer is paid, with the method's own flat fee.
+export function totalsBought(
+  order_id: string, checkout: CheckoutRow, parcel: Parcel, netCharge: number, payout_fee: number
+): NewOrderTotals {
+  return {
+    order_id, shipping: netCharge, shipping_service: parcel.serviceType,
+    used_funds: false, payout_fee, payout_details_id: checkout.payment_details_id,
+  };
+}
+
+// WHAT A SALE COMES TO, from the pricing service's own answer.
+export function totalsSold(
+  order_id: string, prices: OrderPrices, shipping_service: string | null | undefined
+): NewOrderTotals {
+  return {
+    order_id, total: prices.order_total, shipping: prices.shipping_charge, shipping_service,
+    funds: prices.pre_charges_amount, post_charges_amount: prices.post_charges_amount,
+    subject_to_charges_amount: prices.subject_to_charges_amount,
+    used_funds: prices.pre_charges_amount > 0, items: prices.item_total,
+    base_total: prices.base_total, surcharge: prices.charges_amount,
+    sales_tax: prices.sales_tax,
+  };
+}
+
+// THE PARCEL ROW, written once with everything the carrier said and everything
+// the checkout chose.
+export function shipmentFrom(
+  checkout: CheckoutRow,
+  parcel: Parcel,
+  postage: { netCharge: number; tracking_number: string | null; label: Buffer | null }
+): ShipmentNew {
+  return {
+    id: randomUUID(), direction: "Inbound", tracking_number: postage.tracking_number,
+    shipping_status: "Label Created", label: postage.label, label_type: "Generated",
+    pickup_type: parcel.handoff.name, package_id: checkout.package_id,
+    carrier_service_id: checkout.carrier_service_id, cost: postage.netCharge,
+    insured: parcel.declaredValue > 0,
+    declared_value: parcel.declaredValue > 0 ? parcel.declaredValue : null,
+  };
+}
+
+// -------------------- the lines an admin adds
 
 // A CATALOGUE LINE. The weights are the product's, and the premium is left for
-// the re-tier to write: a purchase bullion line prices from the rate band's
-// bullion_pct, not from the catalogue's bid_premium.
+// the re-tier to write.
 export function lineFromProduct(
   order_id: string, product: OrderViewProduct
 ): NewOrderItem {
   return {
-    order_id,
-    bullion_id: product.id,
-    metal_id: product.metal_id,
-    pre_melt: product.gross,
-    post_melt: product.content,
-    purity: product.purity,
-    content: product.content,
-    quantity: 1,
-    confirmed: false,
-    unit: "t oz",
+    order_id, bullion_id: product.id, metal_id: product.metal_id,
+    pre_melt: product.gross, post_melt: product.content, purity: product.purity,
+    content: product.content, quantity: 1, confirmed: false, unit: "t oz",
   };
 }
 
@@ -139,24 +271,14 @@ export function lineFromScrap(
   order_id: string, declared: OrderItemFromScrap
 ): NewOrderItem {
   return {
-    order_id,
-    metal_id: declared.metal_id,
-    pre_melt: declared.pre_melt,
-    purity: declared.purity,
-    unit: declared.unit,
+    order_id, metal_id: declared.metal_id, pre_melt: declared.pre_melt,
+    purity: declared.purity, unit: declared.unit, quantity: 1, confirmed: false,
     content: scrapContent(declared.pre_melt, declared.unit, declared.purity),
-    quantity: 1,
-    confirmed: false,
   };
 }
 
-// WHETHER A LINE EDIT RE-TIERS THE ORDER.
-//
-// A weight, a purity, a unit or a quantity moves the order's TOTAL content of
-// that metal, and the band is read at that total - so every line reprices.
-// A PREMIUM IN THE SAME DOCUMENT IS THE ADMIN'S OWN, and it is the one thing
-// the tier must not overwrite: re-tiering after an override would answer 200
-// having thrown the override away.
+// WHETHER A LINE EDIT RE-TIERS THE ORDER: a weight, purity, unit or quantity
+// moves the metal total the band is read at. A PREMIUM IS THE ADMIN'S OWN.
 export function retiersAfterEdit(changes: OrderItemPatch): boolean {
   if (changes.premium !== undefined) return false;
   return (
@@ -168,36 +290,79 @@ export function retiersAfterEdit(changes: OrderItemPatch): boolean {
   );
 }
 
-// ===========================================================================
-// WHAT AN OPERATION REQUIRES OF THE RECORDS IT WAS GIVEN
-// ===========================================================================
+// -------------------- what an operation requires of the records it was given
 
-// The five ids a shipping checkout must hold before it can become an order.
-// Named rather than counted, so the refusal says which one is missing.
-export function assertShippingCheckoutComplete(checkout: CheckoutRow): void {
-  const missing = (
-    [
-      ["shipper_address_id", checkout.shipper_address_id],
-      ["package_id", checkout.package_id],
-      ["carrier_service_id", checkout.carrier_service_id],
-      ["fulfillment_id", checkout.fulfillment_id],
-      ["payment_details_id", checkout.payment_details_id],
-    ] as const
-  ).flatMap(([name, value]) => (value ? [] : [name]));
-
-  if (missing.length) {
-    throw new Invalid(`the checkout is not complete - missing ${missing.join(", ")}`);
-  }
-  if (!(Number(checkout.package_weight) > 0)) {
-    throw new Invalid("the parcel needs a weight");
-  }
+// Names the column in the refusal, and NARROWS: the caller gets a string
+// instead of a `string | null` it would have to assert away.
+function required(column: string, value: string | null | undefined): string {
+  if (!value) throw new Invalid(`the checkout is not complete - missing ${column}`);
+  return value;
 }
 
-// A carrier pickup is a booking, and a booking needs a time.
-export function assertPickupScheduled(checkout: CheckoutRow): void {
-  if (!checkout.pickup_date || !checkout.pickup_time) {
-    throw new Invalid("a carrier pickup needs a date and a time");
+function assertHasItems(cart: CheckoutLine[]): void {
+  if (!cart.length) throw new Invalid("a checkout with no items cannot become an order");
+}
+
+// The five ids and the weight a shipping checkout must hold to buy a label.
+export function assertPlaceableAsPurchase(
+  checkout: CheckoutRow, cart: CheckoutLine[]
+): PurchaseCheckout {
+  assertHasItems(cart);
+  const package_weight = Number(checkout.package_weight);
+  if (!(package_weight > 0)) throw new Invalid("the parcel needs a weight");
+  return {
+    shipper_address_id: required("shipper_address_id", checkout.shipper_address_id),
+    package_id: required("package_id", checkout.package_id),
+    carrier_service_id: required("carrier_service_id", checkout.carrier_service_id),
+    fulfillment_id: required("fulfillment_id", checkout.fulfillment_id),
+    payment_details_id: required("payment_details_id", checkout.payment_details_id),
+    package_weight,
+  };
+}
+
+// A sale is delivered, so it needs somewhere to go - and the state that address
+// names is what the sales tax is charged at.
+export function assertPlaceableAsSale(
+  checkout: CheckoutRow, cart: CheckoutLine[]
+): SaleCheckout {
+  assertHasItems(cart);
+  return {
+    recipient_address_id: required("recipient_address_id", checkout.recipient_address_id),
+  };
+}
+
+// A row the checkout names by id must actually be there.
+export function requireAddress(row: AddressRow | undefined, what: string): AddressRow {
+  if (!row) throw new Invalid(`the checkout's ${what} address does not exist`);
+  return row;
+}
+
+// THE DRAFT THE STEPPER MUTATED, and the two things that must still be true of
+// it: nobody else's order has taken it, and it is still a parcel.
+export function requireFreeShipmentDraft(draft: ComposedFulfillment | null): ComposedFulfillment {
+  if (!draft) throw new Invalid("the checkout names a fulfillment that does not exist");
+  if (draft.order_id) {
+    throw new Conflict(
+      "the checkout's fulfillment already belongs to an order - refresh and start again"
+    );
   }
+  if (draft.method.category !== "SHIPMENT") {
+    throw new Invalid(
+      `a ${draft.method.category} fulfillment cannot be placed through the shipping ` +
+        `checkout yet - choose a shipping handoff`
+    );
+  }
+  return draft;
+}
+
+// WHICH HANDOFF THE CHOSEN METHOD MEANS, by CAPABILITY: the schedulable one is
+// the carrier pickup. No carrier enum is spelled here.
+export function handoffFor(
+  handoffs: CarrierHandoff[], method_type: string | null
+): CarrierHandoff {
+  const handoff = handoffs.find((h) => h.requires_schedule === (method_type === "CARRIER PICKUP"));
+  if (!handoff) throw new Error("the carrier's handoff catalogue is missing an option");
+  return handoff;
 }
 
 export function assertDirection(
@@ -211,11 +376,8 @@ export function assertDirection(
   }
 }
 
-// AN ORDER MAY BE RE-SENT TO THE SAME REFINER and never MOVED to another: two
-// refiners would each hold it. An order with no address cannot be sent at all -
-// the message exists to say where to ship the metal, and production holds a
-// sales order with no address. A refiner with no email cannot be told, and
-// production holds one of those too.
+// AN ORDER MAY BE RE-SENT TO THE SAME REFINER and never MOVED to another. It
+// needs an address to be sent and a refiner needs an email to be told.
 export function assertSendable(
   order: OrderView,
   { refiner_id, attachedRefinerId, refinerEmail }: {
@@ -243,15 +405,87 @@ export function assertSendable(
   }
 }
 
-// ===========================================================================
-// THE RETURN LABEL
-// ===========================================================================
+// -------------------- what the carrier is asked
 
-// THE CARRIER REQUEST FOR SENDING A CUSTOMER'S METAL BACK. It used to be built
-// from the admin drawer's own form object, typed `Record<string, any>` and
-// hand-mapped field by field. Every value here is the server's: the parcel goes
-// to the address the ORDER snapshotted, from the business's configured address,
-// in the box and by the service the admin chose by id.
+// Every value is the server's: the box and the service the customer chose by
+// id, the weight off the row, and the insured amount already clamped (D132).
+export function parcelFor(
+  checkout: CheckoutRow,
+  placeable: PurchaseCheckout,
+  service: LabelService,
+  box: PackageRow | undefined,
+  handoff: CarrierHandoff,
+  declaredValue: number
+): Parcel {
+  if (!box) throw new Invalid("the checkout names a package that does not exist");
+  const { pickup_date, pickup_time } = checkout;
+  const schedule =
+    pickup_date && pickup_time ? { date: pickup_date, time: pickup_time } : null;
+  if (handoff.requires_schedule && !schedule) {
+    throw new Invalid("a carrier pickup needs a date and a time");
+  }
+  return {
+    carrier_id: service.carrier_id, serviceType: service.serviceType,
+    carrierCode: service.carrierCode, handoff, declaredValue,
+    weight: { units: "LB", value: placeable.package_weight },
+    dimensions: {
+      length: Number(box.length), width: Number(box.width),
+      height: Number(box.height), units: "IN",
+    },
+    schedule: handoff.requires_schedule ? schedule : null,
+  };
+}
+
+// POSTAGE IS THE SERVER'S PRICE. A carrier that quoted nothing for the chosen
+// service is a refusal, never a zero the business then eats.
+export function quotedCharge(rates: CarrierRate[], serviceType: string): number {
+  const quoted = rates.find((rate) => rate.serviceType === serviceType);
+  if (quoted?.netCharge == null) {
+    throw new Invalid(
+      `the carrier quoted no rate for ${serviceType} - try a different service`
+    );
+  }
+  return quoted.netCharge;
+}
+
+// A PURCHASE COMES TO THE STORE: the customer's own address ships it, and the
+// business receives it.
+export function rateRequest(shipper: AddressRow, parcel: Parcel) {
+  return {
+    shippingType: "Inbound", address: shipper, pickupType: parcel.handoff.code,
+    pkg: { weight: parcel.weight, dimensions: parcel.dimensions },
+    declaredValue:
+      parcel.declaredValue > 0 ? { amount: parcel.declaredValue, currency: "USD" } : undefined,
+  };
+}
+
+export function labelRequest(shipper: AddressRow, personName: string, parcel: Parcel) {
+  return {
+    shipper: {
+      contact: { personName, phoneNumber: shipper.phone_number ?? "" }, address: shipper,
+    },
+    recipient: { contact: DORADO_CONTACT, address: FEDEX_STORE_ADDRESS },
+    serviceType: parcel.serviceType, pickupType: parcel.handoff.code,
+    pkg: { weight: parcel.weight, dimensions: parcel.dimensions },
+    insurance: { declaredValue: { amount: parcel.declaredValue, currency: "USD" } },
+  };
+}
+
+// The courier comes for the label that was just bought, which is why the
+// tracking number is an argument rather than a field of the parcel.
+export function pickupRequest(
+  shipper: AddressRow, personName: string, parcel: Parcel,
+  schedule: { date: string; time: string }, trackingNumber: string | null
+) {
+  return {
+    pickupContact: { personName, phoneNumber: shipper.phone_number ?? "" },
+    pickupAddress: shipper, pickupDate: schedule.date, pickupTime: schedule.time,
+    carrierCode: parcel.carrierCode, trackingNumber,
+  };
+}
+
+// SENDING A CUSTOMER'S METAL BACK. Every value is the server's: the parcel goes
+// to the address the ORDER snapshotted, from the business's configured one.
 export function returnLabelRequest(
   order: OrderView,
   { serviceType, weight, dimensions, declaredValue }: {
@@ -281,9 +515,7 @@ export function returnLabelRequest(
   };
 }
 
-// ===========================================================================
-// PAYMENT FACTS (D211 - statuses are flair; every decision is a payment fact)
-// ===========================================================================
+// -------------------- payment facts (d211 - statuses are flair; every decision is a payment fact)
 
 // SETTLED MEANS THE MONEY IS COMMITTED. `processing` counts: the funds are on
 // their way, so the intent is no longer free to move to another order.
@@ -309,13 +541,8 @@ export function statusAtPlacement(cents: number, alreadySucceeded: boolean): str
   return cents > 0 && !alreadySucceeded ? "Pending" : "Preparing";
 }
 
-// What an already-attached intent means for a new order. The intent is reused
-// until it settles, so an abandoned checkout comes back still holding one.
-//
-//   conflict   it paid for something, or belongs to a purchase - a SETTLED
-//              intent stays with the order it paid for, whatever label it wears
-//   supersede  an unsettled sale paid for nothing: cancel, detach, proceed
-//   proceed    nothing is attached
+// What an already-attached intent means for a new order: conflict (it paid for
+// something), supersede (an unsettled sale paid for nothing), proceed (free).
 export type IntentFacts = {
   sales_order_id?: string | null;
   purchase_order_id?: string | null;
@@ -336,4 +563,11 @@ export function repairAmountMatches(
   intent_amount: number | string | null | undefined, cents: number
 ): boolean {
   return Number(intent_amount) === cents;
+}
+
+// THE PAYMENT METHOD'S OWN FLAT FEE - server money, never a client's.
+export function payoutFeeOf(
+  methods: PaymentMethodRow[], payment_method_id: string | null
+): number {
+  return Number(methods.find((m) => m.id === payment_method_id)?.flat_fee ?? 0);
 }

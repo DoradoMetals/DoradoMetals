@@ -278,42 +278,115 @@ test("a scrap line derives its content from the weight, the unit and the purity"
 });
 
 // The five ids a shipping checkout must hold, NAMED in the refusal - a caller
-// that is one field short is told which one.
+// that is one field short is told which one, and gets the values back NARROWED
+// rather than as `string | null` it would have to assert away.
 const completeCheckout = {
   shipper_address_id: "a", package_id: "b", carrier_service_id: "c",
   fulfillment_id: "d", payment_details_id: "e", package_weight: 2,
+  recipient_address_id: "f",
   pickup_date: "2026-09-04", pickup_time: "14:00",
-} as unknown as Parameters<typeof rules.assertShippingCheckoutComplete>[0];
+} as unknown as Parameters<typeof rules.assertPlaceableAsPurchase>[0];
+
+const aCart = [{ id: "line", metal_id: "m" }] as unknown as rules.CheckoutLine[];
 
 test("a complete shipping checkout passes, and a short one names what is missing", () => {
-  assert.doesNotThrow(() => rules.assertShippingCheckoutComplete(completeCheckout));
+  assert.deepEqual(rules.assertPlaceableAsPurchase(completeCheckout, aCart), {
+    shipper_address_id: "a", package_id: "b", carrier_service_id: "c",
+    fulfillment_id: "d", payment_details_id: "e", package_weight: 2,
+  });
 
   assert.throws(
     () =>
-      rules.assertShippingCheckoutComplete(
-        Object.assign({}, completeCheckout, { package_id: null })
+      rules.assertPlaceableAsPurchase(
+        Object.assign({}, completeCheckout, { package_id: null }), aCart
       ),
     (err: unknown) => err instanceof Invalid && /missing package_id/.test((err as Error).message)
   );
 
   assert.throws(
     () =>
-      rules.assertShippingCheckoutComplete(
-        Object.assign({}, completeCheckout, { package_weight: 0 })
+      rules.assertPlaceableAsPurchase(
+        Object.assign({}, completeCheckout, { package_weight: 0 }), aCart
       ),
     (err: unknown) => err instanceof Invalid && /needs a weight/.test((err as Error).message)
   );
 });
 
-test("a carrier pickup needs a date and a time", () => {
-  assert.doesNotThrow(() => rules.assertPickupScheduled(completeCheckout));
+// A checkout with nothing in it cannot become an order in either direction.
+test("an empty cart is refused before any id is looked at", () => {
+  for (const assertPlaceable of [
+    rules.assertPlaceableAsPurchase, rules.assertPlaceableAsSale,
+  ]) {
+    assert.throws(
+      () => assertPlaceable(completeCheckout, []),
+      (err: unknown) => err instanceof Invalid && /no items/.test((err as Error).message)
+    );
+  }
+});
+
+test("a sale needs somewhere to be delivered", () => {
+  assert.deepEqual(rules.assertPlaceableAsSale(completeCheckout, aCart), {
+    recipient_address_id: "f",
+  });
   assert.throws(
     () =>
-      rules.assertPickupScheduled(
-        Object.assign({}, completeCheckout, { pickup_time: null })
+      rules.assertPlaceableAsSale(
+        Object.assign({}, completeCheckout, { recipient_address_id: null }), aCart
+      ),
+    (err: unknown) =>
+      err instanceof Invalid && /missing recipient_address_id/.test((err as Error).message)
+  );
+});
+
+// The slot is the carrier pickup handoff's, not the checkout's: the schedulable
+// handoff is what makes a date and a time compulsory.
+const DROPOFF = {
+  code: "DROPOFF", name: "Store Dropoff", requires_schedule: false,
+  has_dropoff_locations: true, display_order: 1,
+};
+const COLLECTION = {
+  code: "PICKUP", name: "Carrier Pickup", requires_schedule: true,
+  has_dropoff_locations: false, display_order: 2,
+};
+const A_SERVICE = { carrier_id: "c", name: "Express Saver", serviceType: "SAVER", carrierCode: "FDXE" };
+const A_BOX = { length: 10, width: 8, height: 6 } as unknown as Parameters<typeof rules.parcelFor>[3];
+
+test("a carrier pickup needs a date and a time, and a dropoff carries no slot", () => {
+  const placeable = rules.assertPlaceableAsPurchase(completeCheckout, aCart);
+  const collected = rules.parcelFor(
+    completeCheckout, placeable, A_SERVICE, A_BOX, COLLECTION, 2500
+  );
+  assert.deepEqual(collected.schedule, { date: "2026-09-04", time: "14:00" });
+  assert.equal(collected.weight.value, 2);
+  assert.equal(collected.declaredValue, 2500);
+
+  assert.equal(
+    rules.parcelFor(completeCheckout, placeable, A_SERVICE, A_BOX, DROPOFF, 0).schedule,
+    null
+  );
+
+  assert.throws(
+    () =>
+      rules.parcelFor(
+        Object.assign({}, completeCheckout, { pickup_time: null }),
+        placeable, A_SERVICE, A_BOX, COLLECTION, 0
       ),
     Invalid
   );
+});
+
+// A carrier that quoted nothing for the chosen service is a refusal, never a
+// zero the business then eats.
+test("postage with no quote is refused rather than priced at nothing", () => {
+  assert.equal(
+    rules.quotedCharge(
+      [{ serviceType: "SAVER", netCharge: 24.5 }, { serviceType: "OTHER", netCharge: 9 }],
+      "SAVER"
+    ),
+    24.5
+  );
+  assert.throws(() => rules.quotedCharge([{ serviceType: "OTHER", netCharge: 9 }], "SAVER"), Invalid);
+  assert.throws(() => rules.quotedCharge([{ serviceType: "SAVER", netCharge: null }], "SAVER"), Invalid);
 });
 
 test("an operation of the wrong direction is refused, naming both", () => {

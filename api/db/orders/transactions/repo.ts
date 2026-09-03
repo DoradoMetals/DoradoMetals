@@ -76,7 +76,8 @@ export type NewOrderTotals = {
   funds?: number | null; post_charges_amount?: number | null;
   subject_to_charges_amount?: number | null; used_funds?: boolean | null;
   items?: number | null; base_total?: number | null; surcharge?: number | null;
-  sales_tax?: number | null;
+  sales_tax?: number | null; payout_fee?: number | null;
+  payout_details_id?: string | null;
 };
 
 export async function create(row: NewOrderTotals, executor?: Executor): Promise<void> {
@@ -88,7 +89,7 @@ export async function create(row: NewOrderTotals, executor?: Executor): Promise<
       row.funds ?? null, row.post_charges_amount ?? null,
       row.subject_to_charges_amount ?? null, row.used_funds ?? null,
       row.items ?? null, row.base_total ?? null, row.surcharge ?? null,
-      row.sales_tax ?? null,
+      row.sales_tax ?? null, row.payout_fee ?? null, row.payout_details_id ?? null,
     ],
     executor
   );
