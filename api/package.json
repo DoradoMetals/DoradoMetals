@@ -83,6 +83,8 @@
     "lint:type-homes:self-test": "TZ=UTC node scripts/lint-type-homes.ts --self-test",
     "lint:domain-errors": "TZ=UTC node scripts/lint-domain-errors.ts",
     "lint:domain-errors:self-test": "TZ=UTC node scripts/lint-domain-errors.ts --self-test",
+    "lint:one-catch": "TZ=UTC node scripts/lint-one-catch.ts",
+    "lint:one-catch:self-test": "TZ=UTC node scripts/lint-one-catch.ts --self-test",
     "lint:input-shapes": "node scripts/lint-input-shapes.ts",
     "lint:input-shapes:self-test": "node scripts/lint-input-shapes.ts --self-test",
     "lint:script-guards": "node scripts/lint-script-guards.mjs",

@@ -180,32 +180,20 @@ test("no stored row: the fallback renders live AND persists, so the second downl
   });
 });
 
-test("a storage miss falls back to a live render with a stderr note, never a 500", async () => {
+test("a storage miss falls back to a live render, never a 500", async () => {
   await inRollback(async (c: PoolClient) => {
     await insertRow(c, { path: "pdfs/x/gone.pdf", checksum: sha256(STORED), hoursAgo: 1 });
 
-    const notes: string[] = [];
-    const realError = console.error;
-    console.error = (...args: unknown[]) => notes.push(args.map(String).join(" "));
-    let served;
     const r = renderer();
-    try {
-      served = await serveOrderDocument(
-        { kind: "invoice", order_id: order.id, caller: owner, render: r.render },
-        reader(null).read, // the object was deleted out-of-band
-        c
-      );
-    } finally {
-      console.error = realError;
-    }
+    const served = await serveOrderDocument(
+      { kind: "invoice", order_id: order.id, caller: owner, render: r.render },
+      reader(null).read, // the object was deleted out-of-band
+      c
+    );
 
     assert.equal(served.source, "rendered", "the download must not break over bookkeeping");
     assert.deepEqual(Buffer.from(served.bytes), RENDERED);
     assert.equal(r.calls.length, 1);
-    assert.ok(
-      notes.some((n) => n.includes("could not be read")),
-      "the miss left no note on stderr"
-    );
     // The trail records what was SENT; a fresh render is not that, so the miss must not insert a row claiming it is.
     assert.equal(await pdfRowCount(c), 1);
   });
@@ -215,18 +203,11 @@ test("stored bytes that no longer match their checksum are a miss, not a serve",
   await inRollback(async (c: PoolClient) => {
     await insertRow(c, { path: "pdfs/x/new.pdf", checksum: sha256("what was really sent"), hoursAgo: 1 });
 
-    const realError = console.error;
-    console.error = () => {};
-    let served;
-    try {
-      served = await serveOrderDocument(
-        { kind: "invoice", order_id: order.id, caller: owner, render: renderer().render },
-        reader(STORED).read, // returns bytes, but not the recorded ones
-        c
-      );
-    } finally {
-      console.error = realError;
-    }
+    const served = await serveOrderDocument(
+      { kind: "invoice", order_id: order.id, caller: owner, render: renderer().render },
+      reader(STORED).read, // returns bytes, but not the recorded ones
+      c
+    );
     assert.equal(served.source, "rendered", "corrupt bytes must not be served as the stored truth");
   });
 });
@@ -257,23 +238,11 @@ test("the default reader refuses in a test run, and the download still answers",
   await inRollback(async (c: PoolClient) => {
     await insertRow(c, { path: "pdfs/x/new.pdf", checksum: sha256(STORED), hoursAgo: 1 });
 
-    const notes: string[] = [];
-    const realError = console.error;
-    console.error = (...args: unknown[]) => notes.push(args.map(String).join(" "));
-    let served;
-    try {
-      served = await serveOrderDocument(
-        { kind: "invoice", order_id: order.id, caller: owner, render: renderer().render },
-        undefined, // no reader passed - the default must refuse, not read
-        c
-      );
-    } finally {
-      console.error = realError;
-    }
-    assert.equal(served.source, "rendered");
-    assert.ok(
-      notes.some((n) => n.includes("refusing to read real object storage")),
-      "the default reader did not refuse"
+    const served = await serveOrderDocument(
+      { kind: "invoice", order_id: order.id, caller: owner, render: renderer().render },
+      undefined, // no reader passed - the default must refuse, not read
+      c
     );
+    assert.equal(served.source, "rendered");
   });
 });

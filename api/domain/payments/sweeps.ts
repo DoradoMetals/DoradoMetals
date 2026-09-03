@@ -22,7 +22,7 @@ import * as usersService from "#domain/users/service.ts";
 import * as transactionsService from "#domain/transactions/service.ts";
 import withTransaction from "#shared/db/withTransaction.ts";
 import * as paymentsService from "#domain/payments/service.ts";
-import { reportError } from "#shared/observability/report.ts";
+import { attempt } from "#shared/attempt.ts";
 import type { Executor } from "#shared/db/executor.ts";
 import type { PoolClient } from "pg";
 
@@ -85,14 +85,14 @@ export async function cancelPendingSale(
  *
  *  MOVES MONEY. The caller decides when this runs; nothing schedules it. */
 export async function sweepAbandoned(
-  ttl_hours: number, executor?: Executor
+  ttl_hours: number
 ): Promise<AbandonedSweepResult[]> {
-  const candidates = await orders.findAbandonedSales(ttl_hours, executor);
+  const candidates = await orders.findAbandonedSales(ttl_hours);
   const out: AbandonedSweepResult[] = [];
 
   for (const c of candidates) {
     // Per-candidate isolation: one order's failure must not strand the rest.
-    try {
+    const result = await attempt(`sweep order ${c.order_id}`, async () => {
       // The intent is CANCELLED FIRST and persisted - that row is the durable
       // swept fact the candidate query excludes next run. Outside the
       // transaction, because a Stripe call cannot be rolled back; if the
@@ -101,18 +101,9 @@ export async function sweepAbandoned(
       if (c.payment_intent_id) {
         await paymentsService.cancelIntentByRef(c.payment_intent_id);
       }
-      const result = executor
-        ? await cancelPendingSale(c.order_id, executor)
-        : await withTransaction((client: PoolClient) => cancelPendingSale(c.order_id, client));
-      out.push(result);
-    } catch (err) {
-      reportError({
-        at: "payments.sweepAbandoned",
-        message: `sweeping order ${c.order_id} failed - continuing with the rest`,
-        err,
-        extra: { order_id: c.order_id },
-      });
-    }
+      return await withTransaction((client: PoolClient) => cancelPendingSale(c.order_id, client));
+    });
+    if (result) out.push(result);
   }
   return out;
 }

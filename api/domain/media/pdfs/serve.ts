@@ -10,6 +10,7 @@ import { orderOwnedBy } from "#shared/middleware/ownership.ts";
 import { linkableOrderId } from "#domain/media/emails/record.ts";
 import { latestPdf, persistPdf } from "#domain/media/pdfs/store.ts";
 import type { PdfKind } from "#domain/media/pdfs/store.ts";
+import { attempt } from "#shared/attempt.ts";
 
 // Same regex as the quote service: refuse before Postgres throws 22P02 comparing a non-uuid against a uuid column.
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -67,20 +68,15 @@ export async function serveOrderDocument(
     const row = await latestPdf({ kind, order_id: orderId }, executor);
 
     if (row) {
-      try {
-        const bytes = await storage(row.path);
-        if (row.checksum && sha256(bytes) !== row.checksum) {
+      const bytes = await attempt(`read stored ${kind} ${row.id} for order ${orderId}`, async () => {
+        const b = await storage(row.path);
+        if (row.checksum && sha256(b) !== row.checksum) {
           throw new Error(`bytes do not match stored checksum ${row.checksum}`);
         }
-        return { bytes, source: "stored" };
-      } catch (err) {
-        // The object is gone or wrong out-of-band - the row stays (it still records what was sent), and the download must still answer.
-        console.error(
-          `[pdfs] stored ${kind} ${row.id} for order ${orderId} could not be read, serving a live render:`,
-          err
-        );
-        return { bytes: await render(), source: "rendered" };
-      }
+        return b;
+      });
+      if (bytes) return { bytes, source: "stored" };
+      return { bytes: await render(), source: "rendered" };
     }
 
     // No stored document: pre-trail orders had nothing persisted, so the first download renders live and persists the result - the second download reads the store.

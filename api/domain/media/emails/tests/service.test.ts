@@ -185,7 +185,7 @@ test("nothing is sent when the document cannot be built", async () => {
 
   await assert.rejects(
     () => emails.sendPricedEmail({ ...built, bids: new Map() }, email, t),
-    /invoice PDF generation failed/
+    /no quote for metal/
   );
   assert.equal(t.sent.length, 0, "a message went out with no document");
 });

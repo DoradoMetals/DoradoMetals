@@ -372,9 +372,9 @@ export async function cancel(
   // leaves it standing - never voided, because voiding a billed label does
   // not un-bill it.
   const { tracking_number, label } = await buy(service.carrier_id, request);
-  await shipmentService.patch(shipment_id, {
+  await withTransaction((tx) => shipmentService.patch(shipment_id, {
     tracking_number, label, label_type: "Generated", shipping_status: "Label Created",
-  });
+  }, tx));
 
   return await viewOf(order_id);
 }
@@ -472,9 +472,9 @@ export async function updateTracking(
   const shipment = await shipmentService.getByOrder(order_id);
   if (!shipment) throw new NotFound(`order ${order_id} has no shipment to track`);
 
-  await shipmentService.patch(shipment.id, { tracking_number });
-  // The flag write needs a transaction even alone: the audit actor reaches the
-  // connection through withTransaction's set_config and nowhere else (116).
-  await withTransaction((tx) => ordersRepo.update(order_id, { tracking_updated: true }, {}, tx));
+  await withTransaction(async (tx) => {
+    await shipmentService.patch(shipment.id, { tracking_number }, tx);
+    await ordersRepo.update(order_id, { tracking_updated: true }, {}, tx);
+  });
   return { success: true };
 }

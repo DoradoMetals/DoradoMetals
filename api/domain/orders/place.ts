@@ -299,7 +299,6 @@ async function openIntentFor(
 
 // The server sets the authoritative amount, and records what Stripe answered.
 async function authorize(payment_intent_id: string, cents: number): Promise<void> {
-  await paymentsService.updateFromProvider(
-    await stripeProvider.updateIntent(payment_intent_id, { amount: cents })
-  );
+  const updated = await stripeProvider.updateIntent(payment_intent_id, { amount: cents });
+  await withTransaction((tx) => paymentsService.updateFromProvider(updated, tx));
 }

@@ -52,14 +52,6 @@ type StripeIntent = {
   client_secret?: string | null;
 };
 
-// Several writes that must land together, on the caller's transaction when it
-// has one and in one of our own when it does not. No Stripe call goes inside.
-function together<T>(
-  executor: Executor, fn: (client: Executor) => Promise<T>
-): Promise<T> {
-  return executor ? fn(executor) : withTransaction((client) => fn(client));
-}
-
 // The reusable intent for this session, keyed on the trio 075 added: without
 // session_id, user_id and type the question cannot be asked at all.
 async function findReusableIntent(
@@ -89,41 +81,36 @@ export async function retrievePaymentIntent(
 // idempotency key. Billing the session's user throughout collided the key
 // across every customer one admin served in a session.
 async function billingIdentity(
-  caller: Caller, type: string | undefined, user_id: string | undefined,
-  executor?: Executor
+  caller: Caller, type: string | undefined, user_id: string | undefined
 ) {
   if (type !== "admin") {
-    const identity = await customers.getOne(caller.user_id, executor);
+    const identity = await customers.getOne(caller.user_id);
     if (!identity?.id) throw new Forbidden("no user row for this session");
     return identity;
   }
-  const identity = user_id ? await customers.getOne(user_id, executor) : undefined;
+  const identity = user_id ? await customers.getOne(user_id) : undefined;
   if (!identity?.id) {
     throw new Invalid("an admin payment intent must name a customer that exists");
   }
   return identity;
 }
 
-// The optional executor is for a caller that already holds a transaction -
-// it is never opened here. Passed straight down to recordIntent so the
-// intent row and its attempt still commit as one write; leaving it un-threaded
-// was the bug: recordIntent's own together() had no executor to join, so it
-// opened a SECOND transaction on a fresh connection instead of the caller's.
-// The two Stripe calls above stay bare awaits either way - never inside one.
+// THE USE CASE for this write: it opens the one transaction recordIntent
+// needs, around that call only. The two Stripe calls stay bare awaits, never
+// inside one.
 export async function createPaymentIntent(
-  caller: Caller, type: string | undefined, user_id: string | undefined,
-  executor?: Executor
+  caller: Caller, type: string | undefined, user_id: string | undefined
 ): Promise<StripeIntent> {
-  const target = await billingIdentity(caller, type, user_id, executor);
+  const target = await billingIdentity(caller, type, user_id);
 
   let customerId = target.stripeCustomerId;
   if (!customerId) {
     const created = await stripe.createCustomer({ name: target.name, email: target.email });
     customerId = created.id;
-    await customers.update(target.id, { [customers.STRIPE_CUSTOMER]: customerId }, executor);
+    await customers.update(target.id, { [customers.STRIPE_CUSTOMER]: customerId });
   }
 
-  const existing = await findReusableIntent(caller, type, user_id, executor);
+  const existing = await findReusableIntent(caller, type, user_id);
   if (existing?.attempt?.provider_ref) {
     return await stripe.retrieveIntent(existing.attempt.provider_ref);
   }
@@ -146,87 +133,86 @@ export async function createPaymentIntent(
     idempotencyKey: `intent:${type}:${target.id}:${caller.session_id}`,
   });
 
-  await recordIntent(paymentIntent, caller, type, user_id, executor);
+  await withTransaction((tx) => recordIntent(paymentIntent, caller, type, user_id, tx));
   return paymentIntent;
 }
 
 // The intent row and the attempt that carries its provider reference, written
 // together: an intent with no attempt can never be found again. They share one
-// id, which is what lets a settlement key off the same value.
+// id, which is what lets a settlement key off the same value. `tx` is REQUIRED
+// - the caller (a use case, or a test's own rolled-back transaction) opens it;
+// this never does.
 export async function recordIntent(
   paymentIntent: StripeIntentLike,
   caller: Caller,
   type: string | undefined,
   user_id: string | undefined,
-  executor?: Executor
+  tx: Executor
 ): Promise<void> {
   const amount_expected = toDollars(paymentIntent.amount);
 
-  await together(executor, async (client) => {
-    const { id: intent_id } = await intents.create(
-      {
-        session_id: caller.session_id,
-        user_id: intentOwner(type, caller.user_id, user_id),
-        type: type ?? null,
-        status: paymentIntent.status ?? null,
-        amount_expected,
-      },
-      client
-    );
-    await attempts.create(
-      {
-        id: intent_id,
-        intent_id,
-        provider: "stripe",
-        provider_ref: paymentIntent.id,
-        amount: amount_expected,
-        status: paymentIntent.status ?? null,
-      },
-      client
-    );
-  });
+  const { id: intent_id } = await intents.create(
+    {
+      session_id: caller.session_id,
+      user_id: intentOwner(type, caller.user_id, user_id),
+      type: type ?? null,
+      status: paymentIntent.status ?? null,
+      amount_expected,
+    },
+    tx
+  );
+  await attempts.create(
+    {
+      id: intent_id,
+      intent_id,
+      provider: "stripe",
+      provider_ref: paymentIntent.id,
+      amount: amount_expected,
+      status: paymentIntent.status ?? null,
+    },
+    tx
+  );
 }
 
 // WHAT THE PROVIDER NOW SAYS, applied to the three rows that record it.
 // Answers whether it matched anything: a webhook that matches no row must not
 // be accepted silently (D24), and the statements are straight overwrites, so
-// applying them twice writes the same values.
+// applying them twice writes the same values. `tx` is REQUIRED - the caller
+// (a use case, or a test's own rolled-back transaction) opens it.
 export async function updateFromProvider(
-  paymentIntent: StripeIntentLike, executor?: Executor
+  paymentIntent: StripeIntentLike, tx: Executor
 ): Promise<boolean> {
-  const attempt = await attempts.findByProviderRef(paymentIntent.id, executor);
+  const attempt = await attempts.findByProviderRef(paymentIntent.id, tx);
   if (!attempt) return false;
   const { id: attempt_id, intent_id } = attempt;
 
   const { status, amount_received } = paymentIntent;
   const amount_expected = toDollars(paymentIntent.amount);
 
-  return await together(executor, async (client) => {
-    const matched = await intents.update(
-      intent_id, { status: status ?? undefined, amount_expected }, client
-    );
-    if (!matched) return false;
-    await attempts.update(
-      attempt_id, { status: status ?? undefined, amount: amount_expected }, client
-    );
+  const matched = await intents.update(
+    intent_id, { status: status ?? undefined, amount_expected }, tx
+  );
+  if (!matched) return false;
+  await attempts.update(
+    attempt_id, { status: status ?? undefined, amount: amount_expected }, tx
+  );
 
-    // A SETTLEMENT ONLY EXISTS ONCE MONEY HAS MOVED, and nothing un-moves it -
-    // a later failed webhook overwrites the intent's status and leaves this
-    // alone.
-    if ((amount_received ?? 0) > 0) {
-      await settlements.create(
-        {
-          id: attempt_id,
-          attempt_id,
-          settled_amount: toDollars(amount_received) as number,
-          provider: "stripe",
-          provider_ref: paymentIntent.id,
-        },
-        client
-      );
-    }
-    return true;
-  });
+  // A SETTLEMENT ONLY EXISTS ONCE MONEY HAS MOVED, and nothing un-moves it -
+  // a later failed webhook overwrites the intent's status and leaves this
+  // alone.
+  if ((amount_received ?? 0) > 0) {
+    await settlements.create(
+      {
+        id: attempt_id,
+        attempt_id,
+        settled_amount: toDollars(amount_received) as number,
+        provider: "stripe",
+        provider_ref: paymentIntent.id,
+      },
+      tx
+    );
+  }
+  return true;
 }
 
 // The payment facts for one provider reference - what order creation decides
@@ -318,11 +304,11 @@ export async function updatePaymentIntent(
   // failed write: a missed webhook can leave the local row saying
   // requires_payment_method while Stripe already says canceled.
   const live = await stripe.retrieveIntent(provider_ref);
-  await updateFromProvider(live);
+  await withTransaction((tx) => updateFromProvider(live, tx));
   if (isResolved(live.status)) return await createPaymentIntent(caller, type, user_id);
 
   const paymentIntent = await stripe.updateIntent(provider_ref, { amount });
-  await updateFromProvider(paymentIntent);
+  await withTransaction((tx) => updateFromProvider(paymentIntent, tx));
   return paymentIntent;
 }
 
@@ -336,7 +322,7 @@ export async function cancelPaymentIntent(payment_intent_id: string): Promise<St
   // meant any environment where deliveries lag kept a stale
   // requires_payment_method row, so the next retrieve offered back an intent
   // Stripe will refuse.
-  await updateFromProvider(paymentIntent);
+  await withTransaction((tx) => updateFromProvider(paymentIntent, tx));
   return paymentIntent;
 }
 
@@ -377,7 +363,8 @@ export async function updateMethod(
 // Any failure (unknown intent, already canceled, a Stripe hiccup) is written
 // off the same way: the sweep has already decided to abandon this intent.
 export async function cancelIntentByRef(provider_ref: string): Promise<void> {
-  await updateFromProvider(await stripe.cancelIntent(provider_ref));
+  const canceled = await stripe.cancelIntent(provider_ref);
+  await withTransaction((tx) => updateFromProvider(canceled, tx));
 }
 
 export async function updateIntentFromWebhook(
@@ -388,7 +375,7 @@ export async function updateIntentFromWebhook(
   // already succeeded and changes no label, which is what lets the label write
   // below be pure, unguarded flair (D211).
   const prior = await findIntentByRef(paymentIntent.id);
-  const matched = await updateFromProvider(paymentIntent);
+  const matched = await withTransaction((tx) => updateFromProvider(paymentIntent, tx));
   if (!matched) {
     throw new Error(`stripe webhook: no payment intent row for ${paymentIntent.id} - refusing so Stripe retries`);
   }
