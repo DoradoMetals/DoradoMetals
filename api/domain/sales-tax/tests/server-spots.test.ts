@@ -1,27 +1,6 @@
-// The price of metal comes from the server, not from the request.
-//
-// Every money figure on an order is content * (spot.ask * ask_premium), so
-// whatever supplies `spots` decides what a customer pays. It used to be the
-// REQUEST BODY, in three places - get_sales_tax, createSalesOrder and
-// updatePaymentIntent - and in the last of those the result becomes the amount
-// Stripe is told to charge. Measured before the fix, same order, same
-// server-fetched items, only the body's spots differing:
-//
-//   ask_spot 3400 (honest)  ->  $3,673.53
-//   ask_spot 1              ->     $26.81
-//
-// An ounce of gold for $26.81, floored at $10.00 by Math.max(rawAmount, 1000).
-//
-// WHAT THIS FILE ASSERTS, and what it cannot. The tax endpoint is the one of
-// the three that can be driven end to end without Stripe, so it is the one
-// tested over HTTP: send a body carrying absurd spots and confirm the answer is
-// the server's. createSalesOrder and updatePaymentIntent take their spots from
-// the same getSpotPrices() call, and updatePaymentIntent cannot be exercised
-// here because it ends at Stripe - that belongs in the sandbox suite.
-//
-// So the second test asserts the shared source directly: getSpotPrices
-// returns what the database holds, in the shape the calculations read. If that
-// holds and all three call it, all three are priced from the server.
+// Every order's money is content * (spot.ask * ask_premium), so whatever supplies `spots` decides what a customer pays — it used to be the REQUEST BODY in three places (get_sales_tax, createSalesOrder, updatePaymentIntent). Measured before the fix, same order and items, only the body's spots differing: ask_spot 3400 (honest) -> $3,673.53; ask_spot 1 -> $26.81, floored at $10 by the old Math.max floor.
+// get_sales_tax is the one of the three drivable end to end without Stripe, so it's tested over HTTP directly; the other two share the same getSpotPrices() source, and updatePaymentIntent belongs to the sandbox suite instead.
+// So the second test below asserts that shared source directly — if getSpotPrices returns the database's own spots and all three call it, all three are priced from the server.
 import test, { after, before } from "node:test";
 import assert from "node:assert/strict";
 import request from "supertest";
@@ -33,8 +12,7 @@ import { inPinnedTransaction, outside } from "#shared/testing/pinned-pool.ts";
 await mockSessions();
 const { default: app } = await import("#app");
 
-// THE STRUCTURAL SUBSET EACH FIXTURE ACTUALLY HAS. These are SELECT
-// projections, not table rows.
+// SELECT projections, not table rows.
 type UserFixture = { id: string; name: string | null; email: string | null };
 type Spot = Awaited<ReturnType<typeof spotsService.getSpotPrices>>[number];
 
@@ -53,11 +31,7 @@ before(async () => {
   serverSpots = await spotsService.getSpotPrices();
   assert.ok(serverSpots.length > 0, "the server has no spots - every assertion here is vacuous");
 
-  // A state that actually CHARGES, and a rule whose band the fixture can sit
-  // inside. The first version took the first state_code it found - AK, which
-  // taxes nothing - so both halves of the comparison returned 0 and the test
-  // passed against the reverted code. A fixture that cannot tell the two apart
-  // is worse than no fixture.
+  // A state that actually charges, with a rule the fixture can sit inside — the first version took the first state_code found (AK, which taxes nothing), so both sides of the comparison were 0 and it passed against the reverted bug.
   const rules = await outside(
     `SELECT state_code, tax_rate, aggregate_max FROM exchange.sales_tax_rules
      WHERE tax_rate > 0 AND product_type IN ('Coin', 'All')
@@ -73,13 +47,8 @@ after(async () => {
   await pool.end();
 });
 
-// THE SHARED SOURCE. All three call sites use this, so this is what makes the
-// fix one fact rather than three.
-// THE FIXTURE READS THE TABLE getSpotPrices READS, WHICH IS NO LONGER
-// exchange. Same change, and the same reason, as features/spots/replay.test.js -
-// see the long note there. Reading exchange.metals here made this a comparison
-// of two schemas by accident, and it failed the moment they drifted apart for a
-// reason that had nothing to do with pricing.
+// All three call sites share this one source, so this is what makes the fix one fact rather than three.
+// Reads spots.spots, not exchange.metals — reading the legacy table made this an accidental comparison of two schemas that could fail for reasons having nothing to do with pricing.
 test("getSpotPrices returns the database's spots in the shape the calculations read", async () => {
   const stored = await outside(
     `SELECT m.name, s.ask, s.bid
@@ -105,13 +74,7 @@ test("getSpotPrices returns the database's spots in the shape the calculations r
   }
 });
 
-// THE ASSERTION THIS FILE EXISTS FOR. Sent the way the exploit was: a real
-// order body, with spots claiming gold is worth a dollar.
-//
-// The item is sized so BOTH prices fall inside the taxed band, which is what
-// makes the two answers differ rather than both collapsing to zero. Priced at
-// the server's gold it is worth a couple of hundred dollars; priced at the
-// forged $1 it is worth pennies. Same rule, same rate, different base.
+// The assertion this file exists for — sent the way the exploit was: a real order body with spots claiming gold is worth a dollar. The item is sized so BOTH prices land inside the taxed band (a couple hundred dollars honest vs pennies forged), so the two answers actually differ rather than both collapsing to zero.
 test("a body claiming gold costs $1 does not change the tax", async () => {
   await inPinnedTransaction(async () => {
     await as({ ...customer, role: "user" }, async () => {
@@ -121,12 +84,7 @@ test("a body claiming gold costs $1 does not change the tax", async () => {
       // and returns zero for a legitimate reason.
       const content = (aggregateMax * 0.5) / Number(gold.ask);
 
-      // EVERY FIELD THE RULE MATCHES ON, not just the ones the calculation
-      // reads. getSalesTax filters on purity, gross weight, domestic tender and
-      // legal tender as well as price and aggregate - so an item missing any of
-      // them matches no rule and is taxed at zero, which looks exactly like a
-      // state that does not collect. That is how the first fixture here passed
-      // against the bug.
+      // Every field the rule matches on, not just the ones the calculation reads — an item missing purity/weight/tender fields matches no rule and taxes at zero, which looks exactly like a non-collecting state. That's how the first fixture here passed against the bug.
       const items = [
         {
           type: "bullion",
@@ -167,9 +125,7 @@ test("a body claiming gold costs $1 does not change the tax", async () => {
             : ((res.body as { tax?: unknown })?.tax ?? res.body)
         );
 
-      // THE FIXTURE MUST NOT BE VACUOUS. If the honest call is untaxed then
-      // both sides are zero and the comparison below proves nothing - which is
-      // exactly how the first version of this test passed against the bug.
+      // The fixture must not be vacuous — if the honest call is untaxed, both sides are zero and this proves nothing, which is exactly how the first version passed against the bug.
       assert.ok(
         value(honest) > 0,
         `the honest request was taxed ${value(honest)} in ${nexusState} - the fixture ` +
@@ -186,9 +142,7 @@ test("a body claiming gold costs $1 does not change the tax", async () => {
   });
 });
 
-// And the same body with NO spots at all must not price at zero, which is what
-// it used to do. That case is the one that made the exposure easy to reach: it
-// needed no forged values, only an omission.
+// Same body with NO spots must not price at zero either — that omission (no forged values needed) was what made the exposure easy to reach.
 test("a body with no spots is priced by the server, not at zero", async () => {
   await inPinnedTransaction(async () => {
     await as({ ...customer, role: "user" }, async () => {

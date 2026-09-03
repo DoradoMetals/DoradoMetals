@@ -1,6 +1,4 @@
--- Whether a Credit was ever logged against this order - the FACT the
--- abandonment refund guards on (D211): a refund that already happened must
--- not happen again, and the ledger is the record that it did.
+-- Whether a Credit was ever logged against this order — the fact the abandonment refund guards on, so a refund that already happened can't happen again.
 SELECT EXISTS (
   SELECT 1 FROM payments.ledger WHERE order_id = $1 AND type = 'Credit'
 ) AS refunded

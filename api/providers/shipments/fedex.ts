@@ -57,10 +57,7 @@ export async function createLabel(input: any) {
 export async function cancelLabel({
   tracking_number,
 }: {
-  // Nullable because the callers' rows are: a shipment may have no tracking
-  // number yet. Asking FedEx to cancel "undefined" is not a cancellation, and
-  // the compensating undoLabel already returns early on a falsy one - this
-  // refuses loudly for anyone who does not.
+  // Nullable — a shipment may have no tracking number yet; cancelling "undefined" isn't a cancellation, and this refuses loudly rather than silently no-op-ing.
   tracking_number: string | null | undefined;
 }) {
   if (!tracking_number) {

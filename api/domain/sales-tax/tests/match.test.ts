@@ -1,12 +1,5 @@
-// THE MATCHER, AGAINST THE STATEMENT IT REPLACES.
-//
-// Moving the rule match out of SQL is the largest behaviour-preserving change
-// in this restructure, and it decides what a customer is charged. So the old
-// statement is carried here VERBATIM as the reference implementation, and both
-// are run over the same facts and required to agree.
-//
-// This is not a test of the matcher's opinions - it has none. It is a test that
-// two implementations of the same seven-way ranking pick the same rule.
+// The matcher, against the statement it replaces — moving the rule match out of SQL is the largest behavior-preserving change in this restructure, and it decides what a customer is charged, so the old statement is carried here VERBATIM as reference and both must agree over the same facts.
+// Not a test of the matcher's opinions (it has none) — just that two implementations of the same seven-way ranking pick the same rule.
 import test, { after } from "node:test";
 import assert from "node:assert/strict";
 import pool from "#db";
@@ -41,9 +34,7 @@ const REFERENCE = `
 
 const reference = async (f: TaxableFacts): Promise<number> => {
   const { rows } = await query(REFERENCE, [
-    // ORDER FROM THE STATEMENT, NOT FROM THE TYPE. $7/$8/$9 are
-    // is_domestic / is_legal_tender / weight - reading them off TaxableFacts in
-    // declaration order put weight into a boolean and pg said so.
+    // Order from the statement, not the type — reading $7/$8/$9 off TaxableFacts in declaration order put weight into a boolean column and pg refused it.
     f.state_code, f.metal_category, f.product_type, f.price,
     f.purity, f.aggregate, f.is_domestic, f.is_legal_tender, f.weight,
   ]);
@@ -103,16 +94,9 @@ test("both agree when nothing matches", async () => {
   }
 });
 
-// LIMIT 1 after a seven-way ORDER BY is only determinate if no two applicable
-// rules tie on all seven. That is a property of the DATA, not of either
-// implementation - so it is asserted, and a new rule that creates a tie fails
-// here rather than silently picking a side.
+// LIMIT 1 after a seven-way ORDER BY is only determinate if no two applicable rules tie on all seven — a property of the DATA, so a new rule creating a tie must fail here rather than silently pick a side.
 test("no two rules for a state tie on every specificity axis", () => {
-  // The key deliberately EXCLUDES tax_rate. Two rules that rank identically and
-  // carry the SAME rate are harmless - either pick gives the same answer. The
-  // ambiguity that matters is identical ranking with DIFFERENT rates, which is
-  // where LIMIT 1 silently chooses. The first version of this put tax_rate in
-  // the key and therefore asked the opposite question.
+  // Key deliberately excludes tax_rate — two rules ranking identically with the SAME rate are harmless; what matters is identical ranking with DIFFERENT rates, which is where LIMIT 1 silently chooses.
   const key = (r: repo.TaxRule) => [
     r.state_code, r.metal_category !== "All", r.product_type !== "All",
     r.is_domestic !== null, r.is_legal_tender !== null,
@@ -133,13 +117,7 @@ test("no two rules for a state tie on every specificity axis", () => {
   assert.deepEqual(ambiguous, [], "rules rank identically but carry different rates - LIMIT 1 picks arbitrarily");
 });
 
-// factsFrom is the seam between two item shapes, and D71 is what happens when
-// it only knows one. The get_sales_tax endpoint hands it req.body items that
-// still spell the legacy product_type; the order-create paths hand it
-// getItemsFromServer rows carrying products.bullion's own `type`. Reading only
-// the legacy spelling made every server-fetched item NULL here, so a rule
-// keyed on a product type fell through to its 'All' fallback silently - the
-// rate was still a number, just the wrong rule's.
+// factsFrom is the seam between two item shapes — reading only the legacy product_type spelling made every server-fetched item NULL here, so a rule keyed on a product type silently fell through to its 'All' fallback (the rate was still a number, just the wrong rule's).
 test("factsFrom reads the product type in both spellings, legacy first", async () => {
   const { factsFrom } = await import("#domain/sales-tax/service.ts");
   const legacy = factsFrom("TX", { metal_type: "Gold", product_type: "Coin" }, 100, 100);

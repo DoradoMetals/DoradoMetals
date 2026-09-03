@@ -1,31 +1,9 @@
 import axios from 'axios';
 import { requiredEnv } from '#shared/env/required.ts';
 
-// The score a v3 token must beat, from RECAPTCHA_THRESHOLD.
-//
-// WHY THIS IS NOT `parseFloat(x || '0.5')` ANY MORE. That expression reads as
-// though it has a default, and it does - but only for UNSET. A value that is
-// present and unreadable fails in one of two ways, and BOTH are silent:
-//
-//   "high"  parseFloat -> NaN, and every comparison against NaN is false, so
-//           every human is refused. The API answers an ordinary `false` and
-//           nothing says why.
-//   "0,7"   parseFloat -> 0. It stops at the comma and keeps the 0. That is
-//           NOT NaN, so no fallback of any kind fires, and the threshold
-//           becomes zero - which every score clears. The captcha is off.
-//
-// The second is the one worth the trouble. A locked-out sign-in gets reported
-// within the hour; a captcha that passes everything looks exactly like a
-// captcha that works.
-//
-// So: parse the WHOLE string or reject it. Number() refuses "0,7", but reads
-// "" and " " as 0, hence the trim-and-reject-empty first. A threshold outside
-// 0..1 is rejected too - v3 scores only ever fall in that range, so a 5 refuses
-// everybody and a -1 accepts everybody, and neither is a policy anyone chose.
-//
-// Unreadable falls back rather than throwing, because locking the site out is a
-// worse answer to a typo than ignoring it - but it says so first, naming the
-// variable and never printing what it holds.
+// The score a v3 token must beat. Not `parseFloat(x || '0.5')` any more — that only defaults for UNSET; a present-but-unreadable value fails silently two ways: "high" -> NaN (every comparison false, every human refused, no reason logged) or "0,7" -> 0 (parseFloat stops at the comma, threshold becomes zero, captcha effectively OFF).
+// The second case is the one that matters — a locked-out sign-in gets reported within the hour; a captcha that passes everything looks exactly like one that works.
+// So: parse the WHOLE string or reject it (Number() refuses "0,7" but reads ""/" " as 0, hence trim-and-reject-empty first), and reject anything outside 0..1 (v3 scores only ever fall there). Falls back rather than throwing — locking out the site is worse than ignoring a typo — but warns first, naming the variable, never its value.
 export function scoreThreshold(): number {
   const raw = process.env.RECAPTCHA_THRESHOLD;
   if (raw === undefined) return DEFAULT_THRESHOLD;

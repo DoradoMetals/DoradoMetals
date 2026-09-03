@@ -1,24 +1,11 @@
-// The quote surface: every number a customer sees, priced by the server on
-// request. Jacob's ruling (FOLLOWUPS.md, 2026-08-28 evening, item 3) kills
-// all client-side money math, and these three reads are what replaces it -
-// the pricing halves of flows that already exist, with the writes taken off:
+// The quote surface: every number a customer sees, priced by the server on request — client-side money math is banned. Three reads, the pricing halves of flows that already exist:
 //
 //   catalog        -> the storefront's price on a product, either side
-//   sales_order    -> createSalesOrder's pricing path (sales-orders/service.ts)
-//   purchase_order -> intake.ts's premium resolution over sell-cart lines
+//   sales_order    -> createSalesOrder's pricing path
+//   purchase_order -> intake's premium resolution over sell-cart lines
 //
-// THE PRICE OF METAL COMES FROM THE SERVER, AND ONLY FROM THE SERVER. Bodies
-// carry items and choices - ids, quantities, weights, a shipping service -
-// never prices and never spots. getSpotPrices' header holds the measurement
-// that made this a rule: the same order priced at $3,673.53 honest and $26.81
-// with ask_spot 1 riding in the body. Nothing below reads a price-shaped
-// field off a request, and the replay test posts one and pins that it
-// changes nothing.
-//
-// NOTHING HERE WRITES. A quote is an answer, not a hold: spot moving between
-// the quote and the order reprices the order, which is the behaviour
-// createSalesOrder already documents. A quote held for a few minutes needs a
-// table and is written up in FOLLOWUPS.
+// THE PRICE OF METAL COMES ONLY FROM THE SERVER — bodies carry ids/quantities/choices, never prices or spots. A spoofed ask_spot once priced a $3,673.53 order at $26.81; nothing here reads a price-shaped field from a request, and a replay test pins it.
+// NOTHING HERE WRITES — a quote is an answer, not a hold; spot movement between quote and order reprices the order (a held quote needs its own table, see FOLLOWUPS).
 import * as productService from "#domain/products/service.ts";
 import * as spotsService from "#domain/spots/service.ts";
 import * as taxService from "#domain/sales-tax/service.ts";
@@ -57,11 +44,7 @@ function badRequest(message: string): HttpError {
 // caller mistake.
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-// The gate checkout's refuseProductsThatAreNotLive applies to a cart, applied
-// to a quote, with the same stance: `display` governs buying from the
-// business, `sell_display` selling to it, and an unknown id is refused the
-// same way a hidden one is - telling them apart in the message would confirm
-// which ids exist.
+// Same gate checkout applies to a cart, applied here to a quote — display/sell_display checked separately, unknown id refused the same as hidden (so the message can't confirm which ids exist).
 async function refuseProductsThatAreNotLive(
   ids: string[],
   direction: "display" | "sell_display"
@@ -82,13 +65,7 @@ async function refuseProductsThatAreNotLive(
   }
 }
 
-// The bid-side mirror of calculateItemAsk, stated once. There is nothing to
-// import for it: calculateTotalPrice (pricing/bid.ts)
-// prices SAVED order lines - it honours a frozen item.price and deliberately
-// throws on a missing spot - and the frontend's getProductBidPrice is exactly
-// what this surface exists to replace. Same expression as the ask, same ?? 0
-// stance: the two sides of one quote should fail the same way, and
-// calculateItemAsk prices a missing spot at zero rather than throwing.
+// Bid-side mirror of calculateItemAsk, stated once here rather than imported — pricing/bid.ts's calculateTotalPrice prices SAVED order lines (frozen price, throws on missing spot); this quote surface needs the same ?? 0 stance as the ask side, so both sides of one quote fail the same way.
 function calculateItemBid(
   item: { metal_type?: string | null; content?: number | null; bid_premium?: number | null },
   spots: PricingSpot[]
@@ -113,13 +90,8 @@ export type CatalogQuote = {
   total: number;
 };
 
-// The catalogue, priced. PUBLIC, mirroring /spots/spot_prices: the storefront
-// quotes prices to anyone who visits, and this returns nothing a visitor
-// cannot already derive from the public product list and the public spot feed.
-//
-// quantity defaults to 1, calculateItemTotals' own default: a catalogue quote
-// with no quantity asks what one costs. getItemsFromServer's ?? 0 is the cart
-// stance, where an absent quantity means the request was malformed.
+// The catalogue, priced. PUBLIC (mirrors /spots/spot_prices) — the storefront quotes anyone who visits, and this returns nothing a visitor can't already derive from the public product list and spot feed.
+// quantity defaults to 1 (what does ONE cost) — the cart's own getItemsFromServer defaults to 0 instead, since an absent quantity there means a malformed request.
 export async function catalogQuote(body: Body): Promise<CatalogQuote> {
   const side = body?.side;
   if (side !== "ask" && side !== "bid") throw badRequest('side must be "ask" or "bid"');
@@ -148,10 +120,7 @@ export async function catalogQuote(body: Body): Promise<CatalogQuote> {
 
   const byId = new Map(rows.map((r) => [r.id, r]));
   const quoted = items.map(({ id, quantity }) => {
-    // The liveness gate proved the id exists; compose.storefront can still
-    // drop a row whose metal or mint no longer resolves. A quote silently
-    // missing a line understates, so it refuses instead - with the gate's
-    // own message, for the gate's own reason.
+    // The liveness gate proved the id exists; a row can still drop out if its metal/mint no longer resolves — refused rather than silently understated.
     const row = byId.get(id);
     if (!row) throw badRequest("That product is not available");
     const unit_price =
@@ -182,20 +151,8 @@ export type SalesOrderQuote = OrderPrices & {
   items: SalesOrderQuoteLine[];
 };
 
-// EXACTLY createSalesOrder's pricing path with the insert taken off:
-// getItemsFromServer -> the address's state -> attachSalesTaxToItems ->
-// calculateSalesOrderTotal. Same functions, same order, so the quote and the
-// order it precedes cannot disagree except by spot movement in between.
-//
-// Two deliberate divergences from the create path, both about what a quote is
-// asked before:
-//   - the address is OPTIONAL. A quote runs before the address step; absent
-//     means taxed in no state, which attachSalesTaxToItems already handles -
-//     rules matched against a null state COALESCE to a rate of zero, the
-//     same behaviour updateStateSalesTax documents for a null-state address.
-//   - an unknown product id drops out silently, because that is what
-//     getItemsFromServer does on the create path and a quote that refuses
-//     where the order would price would quote a different order.
+// Exactly createSalesOrder's pricing path with the insert removed — same functions, same order, so quote and order can't disagree except by spot movement between them.
+// Two deliberate divergences, both about what a quote is asked before the order is: the address is OPTIONAL (absent means taxed in no state, same as a null-state address on the real order); an unknown product id drops out silently (matching getItemsFromServer's behavior on the create path — refusing here would quote a different order than what gets created).
 export async function salesOrderQuote(user_id: string, body: Body): Promise<SalesOrderQuote> {
   const raw = Array.isArray(body?.items) ? body.items : [];
   if (raw.length === 0) throw badRequest("a quote needs at least one item");
@@ -208,18 +165,7 @@ export async function salesOrderQuote(user_id: string, body: Body): Promise<Sale
     return { id, quantity: Number(line?.quantity ?? 0) };
   });
 
-  // THE FUNDS COME FROM THE SUBJECT'S ROW, NEVER THE BODY. The subject is the
-  // session user - or the customer an ADMIN named, resolved by the
-  // controller's subjectOf before this is called; nothing here reads an id
-  // off the body. The create path reads session.user.dorado_funds -
-  // better-auth's serving of the same column, declared as an additionalField
-  // in auth/client.ts. The quote reads the row itself: usersService.getUser
-  // deliberately projects no balance (users/sql/get_one.sql - "preserved
-  // rather than harmonised"), and exchange.users is the table removeFunds
-  // writes, so it is the balance an order placed after this quote would
-  // actually apply. Read the way the order read.services read their user
-  // rows. A caller declaring their own balance would be declaring their own
-  // discount.
+  // Funds come from the SUBJECT's own row, never the body — subject is resolved server-side (session user, or an admin-named customer) before this runs. Reads exchange.users directly (not the session's cached balance) since that's the actual balance an order placed after this quote would apply — a caller declaring their own balance would be declaring their own discount.
   const { rows: funded } = await query(
     `SELECT dorado_funds FROM exchange.users WHERE id = $1`,
     [user_id]
@@ -233,9 +179,7 @@ export async function salesOrderQuote(user_id: string, body: Body): Promise<Sale
 
   let state: string | null = null;
   if (body?.address_id != null) {
-    // Resolved by id like the create path - an id the server cannot find is
-    // refused with the create path's own message rather than quietly taxed
-    // in no state.
+    // Resolved by id like the create path — an unknown address is refused with the create path's own message, not silently taxed at zero.
     const address = await addressService.getAddressFromId(String(body.address_id));
     if (!address) throw badRequest(`no address ${body.address_id}`);
     state = address.state ?? null;
@@ -258,8 +202,7 @@ export async function salesOrderQuote(user_id: string, body: Body): Promise<Sale
   const lines = withTax.map((item) => {
     const row = item as { id: string; quantity?: number; sales_tax_rate: number };
     const unit_ask = calculateItemAsk(item as never, spots);
-    // quantity ?? 1, matching calculateItemTotals: the sum of these lines IS
-    // item_total, and a line the breakdown counted once must not read as zero.
+    // quantity ?? 1, matching calculateItemTotals — a line the breakdown counts once must not read as zero here.
     const quantity = Number(row.quantity ?? 1);
     return {
       id: row.id,
@@ -290,75 +233,27 @@ export type PurchaseOrderQuote = {
   items: PurchaseOrderQuoteLine[];
   total: number;
   declared_value: number;
-  // The three below are the CHECKOUT's bottom line, and they exist because the
-  // browser was computing it (D97). `estimated_payout` is the headline figure
-  // above "Confirm and Place Order"; the other two are the rows printed
-  // underneath it, returned together so the three cannot disagree.
+  // The checkout's bottom line (estimated_payout is the headline figure) — returned together with shipping/payout so the three numbers can't disagree.
   shipping_charge: number;
   payout_charge: number;
   estimated_payout: number;
 };
 
-// What the business would pay for a sell cart, priced the way intake.ts's
-// decompose prices an order: THE PREMIUM COMES FROM RATES, AND FROM NOWHERE
-// ELSE, banded on the metal's TOTAL content across the whole quote - two 5oz
-// gold lines are a 10oz order and price at the 10oz band. Same helpers
-// (getRatePct, sumContentByMetal), same per-line content in the band total
-// (quantity deliberately does not multiply into it - decompose and
-// retierScrapPremiums both band on line content), and the same rates read the
-// intake callers make: ratesService.getAllRates, the composed shape
-// resolveRate keys on by metal NAME.
+// Priced the way intake.ts's decompose prices an order: premium comes ONLY from rates, banded on the metal's TOTAL content across the whole quote (two 5oz gold lines price as a 10oz order); quantity does not multiply into the band total.
+// Where decompose leaves a decision to its caller, this quote decides loudly instead: an unrecognized line is refused by index (decompose silently drops it, understating what the customer is owed); a band-less premium falls back to the product's own bid_premium, or is refused for scrap (rather than a hardcoded default or pricing metal at nothing); a metal with no spot is refused by index (calculateTotalPrice's TypeError, as a 400 instead).
 //
-// Where decompose leaves a decision to its caller, the quote IS the caller,
-// and decides loudly:
-//   - decompose DROPS a line it does not recognise; a quote refuses it by
-//     index instead, because a total silently missing a line understates
-//     what the customer is owed.
-//   - decompose leaves a band-less premium null. Here a product falls back
-//     to its row's own bid_premium - the value replaceSellItems writes on
-//     the cart line - and scrap without a band is refused: the alternatives
-//     are the 0.75 hardcode intake's header dug out, or pricing a customer's
-//     metal at nothing.
-//   - a metal with no spot is refused by index, calculateTotalPrice's
-//     refuse-to-price stance as a 400 rather than its TypeError.
+// Returns the PAYOUT, not just the goods total. The old browser math was `quote.total - (shippingCost ?? 0 + paymentCost)` — `+` binds tighter than `??`, so ONE of the two deductions was always silently discarded; with a shipping service selected, the payout fee vanished and the headline read $20 high on a WIRE payout while the rows beneath it said otherwise.
+// The fix isn't the parenthesis — the frontend computes no money, the server returns the figure. Same subtraction orderQuote already does for a SAVED order, so the two surfaces agree by construction rather than by two people writing the same expression twice.
 //
-// AND IT RETURNS THE PAYOUT, NOT JUST THE GOODS TOTAL (D97). The checkout's
-// "Estimated Payout" figure was `(quote?.total ?? 0) - (shippingCost ?? 0 +
-// paymentCost)`, and `+` binds tighter than `??`, so that parses as
-// `shippingCost ?? (0 + paymentCost)`: whichever deduction the ?? chose, the
-// OTHER ONE WAS SILENTLY DISCARDED, and the two could never both apply. With a
-// shipping service selected - the normal case - the payout fee vanished and
-// the number above the Confirm button read $20 high on a WIRE payout, while
-// the Shipping and Payout-Method-Fee rows immediately beneath it said
-// otherwise. The fix is not the parenthesis (ruling D82): the frontend does not
-// compute money, so the server returns the figure and the component displays
-// it. Same subtraction orderQuote already does for a SAVED order -
-// `scrap_total + bullion_total - shipping - payoutCost` - which is why the two
-// surfaces now agree by construction rather than by two people writing the
-// same expression twice.
+// Payout fee is resolved from the METHOD NAME, never taken as a number from the body (ids in, data out). features/payouts/constants.ts owns the table — its own header records that production's stored payouts.cost disagrees with it on eleven rows, which is why the table is the default for a NEW order and never a way to re-derive an old one.
 //
-// THE PAYOUT FEE IS RESOLVED FROM THE METHOD NAME, never taken as a number
-// from the body - ruling 10, ids in, data out. features/payouts/constants.ts
-// owns the table, and its header records that production's stored
-// payouts.cost disagrees with it on eleven rows, which is why that table is
-// the default for a NEW order and never a way to re-derive an old one.
-//
-// THE SHIPPING CHARGE IS THE ONE NUMBER THIS TAKES FROM THE BODY, and it is
-// worth being honest about why rather than pretending otherwise. It is the
-// carrier's quoted net charge, which the server cannot reproduce without
-// re-quoting FedEx - non-deterministic, slow, and a second charge for a rate
-// the caller already holds from the shipping endpoint. It is DISPLAY ONLY: the
-// payout an order actually pays is computed at accept time from the shipment
-// row's own net_charge, so understating it here buys a caller a bigger number
-// on their own screen and nothing else. Refused unless it is a finite number
-// that is not negative.
+// Shipping charge is the ONE number this takes from the body — the carrier's already-quoted net charge, which the server can't reproduce without re-quoting FedEx (non-deterministic, slow, a second charge for a rate the caller already holds).
+// DISPLAY ONLY: the payout an order actually pays is computed at accept time from the shipment row's own net_charge, so understating this here only inflates the caller's own screen. Refused unless finite and non-negative.
 export async function purchaseOrderQuote(body: Body): Promise<PurchaseOrderQuote> {
   const raw = Array.isArray(body?.items) ? body.items : [];
   if (raw.length === 0) throw badRequest("a quote needs at least one item");
 
-  // Both deductions are OPTIONAL: the review step quotes before a service or a
-  // payout method has been chosen, and a quote of the goods alone is a real
-  // answer. Absent means zero deducted, which is what the screen shows.
+  // Both deductions are OPTIONAL — the review step quotes before a service or payout method is chosen; a goods-only quote is a real answer.
   const payout_charge = (() => {
     if (body?.payout_method === undefined || body?.payout_method === null) return 0;
     const fee = payoutFee(body.payout_method);
@@ -374,17 +269,8 @@ export async function purchaseOrderQuote(body: Body): Promise<PurchaseOrderQuote
   const shipping_charge = (() => {
     const v = body?.shipping_charge;
     if (v === undefined || v === null || v === "") return 0;
-    // NARROWED TO THE TWO THINGS A CALLER CAN LEGITIMATELY SEND - a real
-    // number, or a non-empty string that parses to one - rather than passed
-    // through Number().
-    //
-    // `Number([])` is 0. So is `Number("")` and `Number(null)`. A bare
-    // Number() check accepts all three as a finite, non-negative charge, and
-    // zero shipping quotes a payout that is TOO HIGH, which is the exact class
-    // of bug this whole change exists to end. Caught by the test below, which
-    // sends each of them. Same trap, same fix, as
-    // features/users/service.ts's credit amount (D98) - and it was written the
-    // wrong way here first, which is why the test sends `[]`.
+    // Narrowed to what a caller can legitimately send (a number, or a non-empty string that parses to one) rather than passed through Number() — `Number([])`, `Number("")` and `Number(null)` are all 0, so a bare Number() check would accept a MISSING shipping charge as a legitimate zero, quoting a payout that's TOO HIGH (the exact class of bug this surface exists to end; same trap as users/service.ts's credit amount).
+    // Caught by the test below, which sends each of those three.
     const n =
       typeof v === "number"
         ? v
@@ -409,19 +295,9 @@ export async function purchaseOrderQuote(body: Body): Promise<PurchaseOrderQuote
       let id: string | null =
         typeof data.id === "string" && UUID.test(data.id) ? data.id : null;
       if (!id) {
-        // BOTH SPELLINGS, the D73 lesson from replaceSellItems: sell-cart
-        // lines carry the name at data.name since the products rename,
-        // data.product_name before it, and top-level product_name from the
-        // oldest shape. Reading only one made product lines vanish silently.
+        // Both spellings checked — sell-cart lines carry the product name at different keys across renames; reading only one made product lines vanish silently.
         const name = line?.product_name ?? data.name ?? data.product_name;
-        // RESOLVED BY THE FEATURE THAT OWNS THE TABLE (D142). This was
-        // `checkoutRepo.findProductIdByName`, imported from
-        // `features/checkout/repo.next.ts` DIRECTLY - around the repo.js that
-        // CHECKOUT_SOURCE selects - so audit:switches could report checkout on
-        // `exchange` while this line read products.bullion regardless. The id
-        // has to be a products.bullion id anyway: refuseProductsThatAreNotLive
-        // and getItemsFromServer below both key on that table. Same statement,
-        // asked of its owner, and no second implementation to diverge from.
+        // Resolved through products' own service (owns the table) rather than reaching into checkout's repo directly — the id must be a products.bullion id anyway, since the liveness gate and getItemsFromServer both key on it.
         if (name != null) id = await productService.findProductIdByName(String(name));
       }
       if (!id) throw badRequest(`item ${index} names no product the server recognises`);
@@ -439,13 +315,7 @@ export async function purchaseOrderQuote(body: Body): Promise<PurchaseOrderQuote
     if (line?.type === "scrap") {
       const metal = typeof data.metal === "string" ? data.metal.trim() : "";
       if (!metal) throw badRequest(`item ${index} is scrap with no metal`);
-      // The content the customer declared, or the server's own derivation
-      // from what they declared it from. pre_melt, purity and the unit are
-      // goods declarations - the business assays on receipt - but turning
-      // them into troy-ounce content is arithmetic, and client arithmetic is
-      // what this surface replaces (ReviewStep.tsx computes exactly this
-      // expression). A stated content wins when both arrive, matching
-      // intake.ts item(), which trusts data.content first.
+      // Content is either the stated value, or the server's own derivation from pre_melt/purity/unit — turning declared weights into troy-ounce content is arithmetic, and client arithmetic is exactly what this surface replaces. A stated content wins when both arrive, matching intake.ts.
       const content =
         data.content != null && Number.isFinite(Number(data.content))
           ? Number(data.content)
@@ -460,9 +330,7 @@ export async function purchaseOrderQuote(body: Body): Promise<PurchaseOrderQuote
     throw badRequest(`item ${index} is neither a product nor scrap`);
   }
 
-  // The gate the sell-cart sync applies: a product may only be quoted in the
-  // direction it is live in. Scrap carries its own values and names no
-  // product, so it has nothing to check.
+  // Same gate the sell-cart sync applies — a product may only be quoted in the direction it's live in; scrap has nothing to check.
   const productIds = parsed.flatMap((l) => (l.kind === "product" ? [l.id] : []));
   await refuseProductsThatAreNotLive(productIds, "sell_display");
 
@@ -476,11 +344,7 @@ export async function purchaseOrderQuote(body: Body): Promise<PurchaseOrderQuote
   const spots_at = new Date().toISOString();
   const byId = new Map(rows.map((r) => [r.id, r]));
 
-  // Canonical metal, content and the product's own premium per line, resolved
-  // server-side. A product's metal and content come from its row, never the
-  // body; scrap's metal is matched to the spot case-insensitively, the way
-  // replaceSellItems matches lower(name), and the SPOT's spelling is what the
-  // response carries.
+  // Metal, content and premium resolved server-side — a product's come from its row, never the body; scrap's metal matches the spot case-insensitively, same as replaceSellItems.
   const lines = parsed.map((l) => {
     if (l.kind === "product") {
       const row = byId.get(l.id);
@@ -541,25 +405,9 @@ export async function purchaseOrderQuote(body: Body): Promise<PurchaseOrderQuote
 
   const total = quoted.reduce((acc, l) => acc + l.line_total, 0);
 
-  // DECLARED VALUE IS THE TOTAL, CAPPED BY WHAT WE WILL INSURE (D132).
-  //
-  // It was the bare total until 097, with the cap applied in the browser as
-  // `Math.min(quote.declared_value, 50000)` - FedEx's ceiling, spelled as a
-  // literal in React, deciding what a parcel of metal is covered for. Both
-  // halves of that were wrong: the number is money, so the server owes it
-  // (D82), and the limit is data, so a column owes it. It is now
-  // shipping.services.max_insured_value, 10,000 on every row (Jacob,
-  // 2026-08-29), and this is the same place in the flow the browser applied it.
-  //
-  // SERVICE-AGNOSTIC BY NECESSITY: a quote is priced before the customer picks
-  // a service, so `insuranceCeiling` answers with the LOWEST ceiling among the
-  // services we offer. The label path narrows to the chosen one
-  // (features/orders/service.ts), which can only ever lower it further.
-  //
-  // The other divergence from the browser's old getDeclaredValue stands and is
-  // deliberate: that summed the cart line's own bid_premium (?? 1 for scrap)
-  // where this prices from rates bands, the same divergence D59 records for the
-  // client-side pricing family this replaces.
+  // Declared value is the total, capped by what we'll insure. Was a bare total with the cap applied in the browser as a hardcoded `Math.min(total, 50000)` — FedEx's ceiling, deciding parcel coverage from a literal in React. Now a column, shipping.services.max_insured_value (10,000 on every row), applied here instead.
+  // Service-agnostic by necessity: a quote is priced before a service is chosen, so this uses the LOWEST ceiling among offered services — the label path later narrows to the chosen one, which can only lower it further.
+  // Prices from rate bands rather than the cart line's own bid_premium, a deliberate divergence from the old client math.
   const declared_value = Math.min(total, await servicesService.insuranceCeiling());
 
   return {
@@ -569,10 +417,7 @@ export async function purchaseOrderQuote(body: Body): Promise<PurchaseOrderQuote
     declared_value,
     shipping_charge,
     payout_charge,
-    // What the customer is actually paid. Never below zero: a small order whose
-    // shipping and payout fee exceed it does not owe the business money, and a
-    // negative headline above "Confirm and Place Order" is not a number anyone
-    // should be shown.
+    // Never below zero — a small order whose fees exceed its value doesn't owe the business money, and a negative headline isn't a number to show.
     estimated_payout: Math.max(0, total - shipping_charge - payout_charge),
   };
 }
@@ -598,47 +443,14 @@ export type OrderQuote = {
   total: number;
 };
 
-// An EXISTING purchase order, priced - the order-drawer estimate the
-// frontend's purchaseOrderTotal family computed client-side until this
-// existed. Loaded through purchaseOrdersService.getById, the same repo-switch
-// read GET get_purchase_orders serves the drawers from, so the items and
-// premiums quoted are exactly the ones displayed. The route in front of this
-// carries requireOwnOrder; nothing here re-checks ownership, and nothing in
-// the body is read except the order id.
+// An EXISTING purchase order, priced — replaces the drawer's client-side estimate. Loaded through the same read the drawer's own GET uses, so items/premiums match exactly. requireOwnOrder already checked ownership upstream; nothing here re-reads it, and nothing in the body is used but the order id.
 //
-// WHICH SPOTS. Per metal: the order's OWN frozen bid (order_metals.bid_spot
-// on its way out as `bid`, via getMetalsForOrder) when it is set, else the
-// live pricing spot. That is
-// the frontend rule this replaces - `orderSpot?.bid ?? globalSpot?.bid ?? 0`
-// in every family member - and it is equivalent to how acceptOrder chooses
-// (`order.spots_locked ? order_spots : spot_prices`), because lockSpots is
-// what writes bid_spot into order_metals and unlockSpots/cancel clear it
-// back to NULL: a non-null frozen bid IS the locked state, per metal. So a
-// locked order estimates at its locked spots, an unlocked one at live, and
-// an admin's per-metal update_spot override is honoured the way the drawer
-// honoured it.
+// Per metal: the order's own frozen bid when set, else the live spot — equivalent to how finalizePricing distinguishes locked/unlocked (a non-null frozen bid IS the locked state). A locked order estimates at its locked spots, an unlocked one at live; an admin's per-metal override is honored the same way the drawer honored it.
 //
-// STORED BEFORE ESTIMATE. item.price is the number the accept flow froze;
-// where it is set it is returned verbatim and flagged "stored". Estimates
-// mirror the drawers' own fallback chains EXACTLY so no displayed number
-// shifts:
-//   product: content * bid * (item.premium ?? product.bid_premium ?? 0)
-//     (getPurchaseOrderBullionPrice), line_total = unit * (quantity ?? 1)
-//   scrap:   content * bid * (item.premium ?? scrap.bid_premium ?? 1)
-//     (getPurchaseOrderScrapPrice), content covers the whole line so
-//     quantity does not multiply
-// scrap_total and bullion_total are sums of those lines. The legacy
-// purchaseOrderScrapTotal used `premium ?? 1` with NO bid_premium fallback,
-// so its subtotal could disagree with its own lines when premium was null;
-// the sum-of-lines here keeps the subtotal equal to what the rows show.
-// Zero production scrap lines carry a null premium (see the header of
-// pricing/bid.ts), so no live number moves.
+// STORED price wins where the accept flow froze one; otherwise the estimate mirrors the drawer's own fallback chains exactly, so no displayed number shifts: product = content * bid * (premium ?? product's own bid_premium), * quantity; scrap = content * bid * (premium ?? scrap's own bid_premium ?? 1), quantity not multiplied (content covers the whole line).
+// scrap_total/bullion_total are sums of THESE lines — the legacy total used `premium ?? 1` with no bid_premium fallback and could disagree with its own displayed lines when premium was null. Zero production lines carry a null premium today, so no live number moves.
 //
-// A metal with no spot anywhere prices at 0 rather than throwing - the
-// stance of the display math this replaces (`?? 0` in every family member),
-// NOT calculateTotalPrice's deliberate TypeError: this is a drawer estimate
-// for an order that already exists, and the drawer must render. The accept
-// path keeps its throw.
+// A metal with no spot anywhere prices at 0, not a throw — this is a drawer estimate for an order that already exists and must render; the accept path keeps calculateTotalPrice's throw.
 export async function orderQuote(body: Body): Promise<OrderQuote> {
   const order_id = body?.order_id;
   if (typeof order_id !== "string" || !UUID.test(order_id)) {
@@ -723,19 +535,9 @@ export async function orderQuote(body: Body): Promise<OrderQuote> {
     // priced.
   }
 
-  // The drawers' bottom line, purchaseOrderTotal's own expression: items
-  // minus the shipping charge and the payout cost, both stored fields of the
-  // order read above. `?? 0` where the frontend wrote `order.payout.cost`
-  // bare - JS subtracts null as zero, and the exchange read builds payout
-  // via jsonb_build_object so an orphaned order carries nulls, not a missing
-  // object.
+  // The drawers' own bottom line: items minus shipping and payout cost, both read off the order — `?? 0` where the frontend read `payout.cost` bare (an orphaned order carries nulls, not a missing object).
   const shipping = Number(order.shipment?.shipping_charge ?? 0);
-  // THE EFFECTIVE FEE, NOT THE STORED ONE. An admin who has waived the payout
-  // fee has not changed `payout.cost` - the record stands (D117) - so reading
-  // the row here would quote the customer a deduction the business is not
-  // taking. calculateTotalPrice, which prices the SAME order when it is
-  // finalised, goes through the same helper, and the two agreeing is the whole
-  // reason the condition is not written out twice.
+  // The EFFECTIVE fee, not the stored one — a waived payout fee doesn't change payout.cost itself (the record stands); calculateTotalPrice uses the same helper when the order is finalized, so the two never disagree by construction.
   const payoutCost = effectivePayoutFee(order);
   const total = scrap_total + bullion_total - shipping - payoutCost;
 
@@ -744,25 +546,11 @@ export async function orderQuote(body: Body): Promise<OrderQuote> {
 
 // ------------------------------------------------------ profit breakdown
 
-// THE LAST CLIENT MONEY MATH, PORTED (D83/D84). This is
-// frontend/features/orders/purchaseOrders/utils/calculatePurchaseOrderTotals.ts
-// moved server-side byte-for-byte - the shares algebra, the clamp, the
-// renormalisation, the actual-content basis - because the numbers it produces
-// are the business's margins and the frontend copy died with the orders wire
-// conversion. The math is kept faithful rather than improved; anything that
-// looks odd below looked exactly as odd in the file it came from, and changing
-// what an admin has been reading is not a port's job.
+// The last client-side money math, ported byte-for-byte from the frontend's own calculatePurchaseOrderTotals (the numbers are the business's margins, and the frontend copy died with the orders wire conversion) — kept faithful rather than improved; anything that looks odd here looked exactly as odd in the original.
 //
-// ADMIN ONLY, and that is a property of the DATA, not just the route: the
-// split prices what the business and the refiner each make on a customer's
-// order. The route carries requireAdmin and nothing here may be reachable any
-// other way.
+// ADMIN ONLY as a property of the DATA, not just the route — this splits what the business and the refiner each make on a customer's order.
 //
-// Server-sourced throughout, per the header's rule: the order (the ADMIN
-// read, because the assay actuals ride only on it), its frozen spots, the
-// refiner's spots, and the rates bands. The body supplies the order id and
-// nothing else - the replay test posts a poisoned body and pins that it
-// changes nothing.
+// Server-sourced throughout — the order (admin read, since assay actuals ride only on it), frozen spots, refiner spots, and rate bands. The body supplies only the order id; a replay test pins that a poisoned body changes nothing.
 
 type ProfitMetal = { content: number; percentage: number; profit: number };
 type ProfitMetalsDict = {
@@ -1039,12 +827,7 @@ export async function profitBreakdown(body: Body): Promise<ProfitBreakdown> {
     throw badRequest("no order was named");
   }
 
-  // THE ADMIN READ, deliberately: the assay actuals (content_actual,
-  // post_melt_actual, purity_actual) ride only on getAll's withActuals
-  // projection, and the dorado/refiner content basis is computed from them.
-  // getById is the customer read and omits them, which would silently price
-  // the split off declared weights. This is what the admin drawer read too -
-  // its order came from the admin list.
+  // The ADMIN read, deliberately — assay actuals (content/post_melt/purity _actual) ride only on getAll's withActuals projection; getById (the customer read) omits them, which would silently price the split off declared weights instead.
   const order = (await purchaseOrdersService.getAllPurchases()).find(
     (o) => (o as Record<string, unknown>).id === order_id
   ) as ProfitOrder | undefined;

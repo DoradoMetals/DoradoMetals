@@ -1,10 +1,5 @@
-// The SQL loader. Small, but everything below it reads its statements through
-// this, so its failure modes matter more than its size.
-//
-// The one worth having is the EMPTY file. A missing file throws obviously, but
-// `query("")` is not an error to pg - it simply does nothing - so a truncated
-// or half-written .sql file would read as a working query that returned no
-// rows. That is the failure that looks like data.
+// The SQL loader — small, but everything reads its statements through it, so its failure modes matter more than its size.
+// The one worth having is the EMPTY file — `query("")` isn't an error to pg, it just does nothing, so a truncated .sql file would read as a working query that returned no rows: the failure that looks like data.
 import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";

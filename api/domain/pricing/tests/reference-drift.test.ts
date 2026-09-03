@@ -1,13 +1,4 @@
-// THE PIN BETWEEN PURE PRICING AND THE REFERENCE ROWS (D207).
-//
-// Pricing is pure - getShippingCharge and calculateCardCharge are constants in
-// code, deliberately, because they run inside pure functions that everything
-// prices through. 109 gave the same numbers a second home (shipping.tiers,
-// payments.methods) so the frontend reads rows instead of hardcoding them.
-// Two homes for one number is exactly the drift bug this project keeps
-// finding in itself, so this test holds them together: change either side and
-// it fails until the other moves too. The day pricing reads the tables, this
-// pin comes out with the constants.
+// The pin between pure pricing and the reference rows (D207). getShippingCharge/calculateCardCharge are pure constants in code, but 109 gave the same numbers a second home (shipping.tiers, payments.methods) for the frontend to read as rows — two homes for one number is the drift bug this project keeps finding, so this test holds them together: change one side and it fails until the other moves too.
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import "#env";
@@ -57,10 +48,7 @@ test("the sale surcharges the rows advertise are the ones calculateCardCharge ta
         `calculateCardCharge takes ${calculateCardCharge(100, row.type) / 100}`
     );
   }
-  // CREDIT and WIRE are deliberately NOT pinned: their rows say "No Fee" and
-  // calculateCardCharge surcharges them at 2.9% - the open money question
-  // FOLLOWUPS item 1 records. Pinning would bless one side of a question
-  // Jacob has not answered.
+  // CREDIT and WIRE deliberately NOT pinned — their rows say 'No Fee' but calculateCardCharge surcharges at 2.9% (the open money question FOLLOWUPS item 1 records); pinning would bless one side of a question Jacob hasn't answered.
 });
 
 test.after(async () => {

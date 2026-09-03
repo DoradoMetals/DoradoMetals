@@ -1,26 +1,5 @@
-// THE OPTIONS BETTER-AUTH ACTUALLY READS.
-//
-// betterAuth() takes a plain object. An option spelled wrongly is not an
-// error, not a warning and not a log line - it is a key nobody reads, and the
-// behaviour it was meant to produce simply never happens. Two of them were
-// sitting in features/auth/client.js:
-//
-//   sendChangeEmailVerification  - there has never been an option by this
-//     name. The real one is sendChangeEmailConfirmation. So the "Approve Email
-//     Change" mail was never sent to anybody, and better-auth fell through to
-//     the ordinary verification branch, which mails the NEW address instead of
-//     the old one. frontend/app/change-email/page.tsx exists for a link that
-//     was never sent.
-//
-//   canImpersonate  - never an AdminOption either. It read like a security
-//     control and enforced nothing. Nothing was exposed by it: the impersonate
-//     route carries adminMiddleware and its own hasPermission check, which is
-//     what the dead option was trying to say.
-//
-// The last test is the one that generalises. It does not know which options
-// are real; it asks better-auth's own build whether it has ever heard of each
-// one. That is what would have caught both of these on the day they were
-// written.
+// The options better-auth actually reads — a misspelled option is not an error or a warning, it's a key nobody reads. Two real cases: sendChangeEmailVerification was never a real option (the real name is sendChangeEmailConfirmation), so the approval mail was never sent and better-auth fell through to mailing the NEW address instead; canImpersonate was never an AdminOption either, read like a security control, and enforced nothing (the impersonate route's own adminMiddleware + hasPermission check does the real work).
+// The last test generalizes: it doesn't know which options are real, it asks better-auth's own build whether it's heard of each one — what would have caught both of these on day one.
 
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -42,12 +21,7 @@ test("the email-change approval goes out under the name better-auth reads", () =
       "update-user.mjs falls through to the emailVerification branch and mails " +
       "the NEW address rather than asking the old one to approve"
   );
-  // `in`, NOT `=== undefined`. Converting this file to TypeScript turned the
-  // assertion into a compile error - "Property 'sendChangeEmailVerification'
-  // does not exist ... Did you mean 'sendChangeEmailConfirmation'?" - which is
-  // better-auth's own types agreeing with the test. Asking whether the KEY is
-  // present says the same thing at runtime, is a stronger claim than "reads
-  // undefined", and keeps the compiler's version of the answer as well.
+  // `in`, not `=== undefined` — converting to TypeScript turned this into a compile error naming the typo directly; asking whether the KEY is present says the same thing at runtime, a stronger claim than 'reads undefined'.
   assert.ok(
     !("sendChangeEmailVerification" in changeEmail),
     "sendChangeEmailVerification is not an option and never was - if it is " +
@@ -61,10 +35,7 @@ test("no inert security option pretends to guard impersonation", () => {
 
   // canImpersonate is not an AdminOption. If somebody adds it back it will look
   // like the guard and do nothing, which is worse than the default that works.
-  // COMMENTS STRIPPED FIRST. The first version of this searched the raw file
-  // and failed on the comment above the fix, which names the dead option four
-  // times to explain it. A check that cannot tell code from prose about code
-  // fails the moment somebody documents the thing it is checking for.
+  // Comments stripped first — the first version searched the raw file and failed on the comment naming the dead option to explain the fix; a check that can't tell code from prose about code fails the moment someone documents it.
   const source = fs
     .readFileSync(new URL("../client.ts", import.meta.url), "utf8")
     .replace(/\/\*[\s\S]*?\*\//g, "")
@@ -82,8 +53,6 @@ test("no inert security option pretends to guard impersonation", () => {
   );
 });
 
-// ---------------------------------------------------------------------------
-// The general one.
 
 const betterAuthSource = (() => {
   const root = path.join(process.cwd(), "node_modules", "better-auth", "dist");

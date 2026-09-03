@@ -1,14 +1,5 @@
-// Sales tax: nexus, the rule match, and the running total.
-//
-// THE MATCH MOVED OUT OF SQL. See match.ts. The repo reads 88 rules whole and
-// the ranking happens in TypeScript, where it can be tested without a database -
-// which matters more here than anywhere else in the API, because this decides
-// what a customer is charged.
-//
-// COLLECTING_NEXUS_TAXES is false in production (confirmed by Jacob), which
-// means the early return below never fires and the rules are consulted for
-// every state. Preserved exactly rather than simplified: turning the flag on is
-// a business decision and the branch has to still be there when it happens.
+// Sales tax: nexus, the rule match, and the running total. The match moved OUT of SQL (see match.ts) — 88 rules read once and ranked in TypeScript, testable without a database, which matters most here since this decides what a customer is charged.
+// COLLECTING_NEXUS_TAXES is false in production — the early return below never fires, so every state's rules are consulted. Preserved rather than simplified: flipping it on is a business decision, and the branch must still exist when it happens.
 import * as tax from "#db/sales-tax/repo.ts";
 import { rateFor, type TaxableFacts } from "#domain/sales-tax/match.ts";
 import withTransaction from "#shared/db/withTransaction.ts";
@@ -26,17 +17,12 @@ export async function isNexus(state: string, executor?: Executor): Promise<boole
   return await tax.reachedNexus(state, executor);
 }
 
-// The rules, read once. A caller pricing a whole order should fetch them once
-// and pass them to rateFor per line rather than calling getSalesTax per line -
-// which is what the SQL implementation forced, one query per item.
+// Read once — a caller pricing a whole order should fetch rules once and pass them to rateFor per line, not query per item.
 export async function allRules(executor?: Executor): Promise<TaxRule[]> {
   return await tax.allRules(executor);
 }
 
-// One line's rate. The repo used to expose this shape and callers used it
-// directly; it is kept because pricing a single item is a real need, but it is
-// named for what it does rather than colliding with the order-level
-// getSalesTax below.
+// One line's rate — kept for pricing a single item, named apart from the order-level getSalesTax below.
 export async function rateForItem(
   state: string | null,
   item: Record<string, unknown>,
@@ -63,15 +49,8 @@ export function factsFrom(
   return {
     state_code: state,
     metal_category: (item.metal_type as string) ?? null,
-    // BOTH SPELLINGS, DELIBERATELY. Items reach this from two directions: the
-    // get_sales_tax endpoint hands over req.body, where the frontend still
-    // spells it product_type - and the order-create paths hand over
-    // getItemsFromServer's rows, which carry products.bullion's own name,
-    // `type`. Reading only the legacy spelling made every server-fetched item
-    // NULL here, so rules keyed on a product type silently fell through to
-    // their 'All' fallback - a tax-rate bug, found during the products
-    // conversion (D71). Legacy first: a cart item's own `type` is its
-    // kind discriminator ("product"/"scrap"), never a product type.
+    // BOTH SPELLINGS, DELIBERATELY: the get_sales_tax endpoint sends req.body's `product_type`, order-create paths send getItemsFromServer's rows, which carry products.bullion's own `type`. Reading only the legacy name left every server-fetched item NULL here, silently falling through to the 'All' rate — a real tax bug found during the products conversion.
+    // Legacy name checked FIRST: a cart item's own `type` field is its kind ("product"/"scrap"), never a product type.
     product_type: (item.product_type as string) ?? (item.type as string) ?? null,
     price: item_price,
     purity: Number(item.purity ?? 0),
@@ -82,13 +61,7 @@ export function factsFrom(
   };
 }
 
-// EVERY LINE, WITH THE RULES READ ONCE.
-//
-// The implementation this replaces ran the whole filter-and-rank statement per
-// item - `items.map(async item => taxRepo.getSalesTax(...))` - so an order with
-// twelve lines issued twelve copies of a query over the same 88 rules. Here the
-// rules are fetched once and matched in memory, which is the N+1 the per-table
-// design is usually accused of creating, going the other way.
+// Rules fetched ONCE and matched in memory — replaces an implementation that ran the whole filter-and-rank query per item (twelve lines, twelve queries over the same 88 rules).
 export async function attachSalesTaxToItems(
   state_code: string | null,
   items: Record<string, unknown>[],
@@ -111,10 +84,7 @@ export async function attachSalesTaxToItems(
   }));
 }
 
-// `spots` IS IGNORED IF THE CALLER SENDS IT. The tax on a line is a percentage
-// of what the line is worth, and what it is worth is content * spot * premium -
-// so a caller supplying its own spots was supplying its own tax base. The
-// server's spots are the only ones used, and the type enforces it.
+// `spots` is IGNORED if the caller sends it — tax is a percentage of content * spot * premium, so a caller supplying its own spots would supply its own tax base. Only the server's spots are ever used; the type enforces it.
 export async function getSalesTax({
   address,
   items,
@@ -127,16 +97,8 @@ export async function getSalesTax({
   return calculateSalesTax(withTax as never, spots as never);
 }
 
-// The running total a state is owed. Written to BOTH schemas, in one
-// transaction - this is the only write the feature has.
-// TAKES THE CALLER'S EXECUTOR. sales-orders/service.ts calls this from inside
-// the transaction that creates the order, so the accrual has to join it - an
-// order that rolls back must not leave a state owing tax for it. Opening a new
-// transaction here would have committed the accrual independently.
-// STATE IS NULLABLE, because addresses are - production sales order 1f3e9efe
-// has an address with no state. A null state accrues nothing: both statements
-// key on `WHERE state = $2` and match no row, which is the behaviour that
-// already existed. Typed honestly rather than making the caller pass a lie.
+// The running total a state is owed — the only write this feature makes, threaded through the caller's executor (sales-orders' create transaction) so a rolled-back order never leaves a state owing tax for it.
+// State is nullable (addresses can lack one); a null state accrues nothing rather than lying about a rate — both this check and the WHERE clause below already treat 'no state' as 'no tax collected'.
 export async function updateStateSalesTax(
   amount: number,
   state: string | null,

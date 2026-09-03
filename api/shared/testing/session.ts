@@ -1,31 +1,6 @@
-// Answering a guarded request without committing anything.
-//
-// Every interesting endpoint is behind requireUser or requireAdmin, and both
-// resolve a session through better-auth - which builds its OWN Pool in
-// features/auth/client.js and therefore cannot see the transaction
-// shared/testing/pinned-pool.js holds open. A session would have to be really
-// committed for a guarded route to answer.
-//
-// THE SEAM IS THE SESSION SOURCE, NOT THE MIDDLEWARE. Stubbing
-// authMiddleware.js would make every request succeed and the tests would stop
-// saying anything about who is allowed to do what - a replay test that passes
-// as an anonymous caller has proved nothing. Replacing what
-// auth.api.getSession returns leaves requireAuth, the role ladder and every
-// 401/403 exactly as they are, so an admin route asked for by a `user` still
-// refuses.
-//
-// What this does NOT test is that a real cookie resolves to a real session.
-// That is better-auth's job, and shared/http/endpoints.test.js already proves
-// every guarded endpoint refuses an anonymous request against the real thing.
-// The two files cover different halves on purpose.
-//
-// Done by patching one property rather than by mocking the module.
-// authMiddleware.js imports the auth client once and calls
-// `auth.api.getSession(...)` per request, so the lookup happens at call time
-// and replacing the function is enough. node:test's mock.module would also
-// work in principle and does not exist in this Node build - and it would have
-// needed to run before #app was imported, which is a sharper edge than this
-// needs.
+// Answering a guarded request without committing anything. Every interesting endpoint resolves a session through better-auth, which builds its OWN Pool — invisible to pinned-pool.ts's transaction, so a session would have to be really committed for a guarded route to answer otherwise.
+// The seam is the SESSION SOURCE, not the middleware — stubbing authMiddleware would make every request succeed and stop proving anything about who's allowed; replacing what auth.api.getSession returns leaves requireAuth, the role ladder and every 401/403 exactly as they are.
+// Does NOT test that a real cookie resolves to a real session (that's better-auth's job, proven separately by endpoints.test.ts against the real thing) — patches one property rather than mocking the module, since authMiddleware calls auth.api.getSession(...) per request at call time.
 import { auth } from "#domain/auth/client.ts";
 
 // The session shape the middleware reads. Deliberately minimal: this is what

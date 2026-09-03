@@ -11,24 +11,8 @@ type Job = {
   run: () => Promise<unknown>;
 };
 
-// THE SCHEDULES ARE READ WHEN setupScheduler RUNS, NOT WHEN THIS MODULE LOADS.
-//
-// They used to sit in a module-level array, which worked - checked, rather than
-// assumed: app.ts imports #env on its eleventh line, server.ts imports #app
-// before it imports this, so dotenv had always run by the time the array was
-// built. Both schedules were populated.
-//
-// It worked because of the ORDER OF TWO IMPORTS IN server.ts. Swap those two
-// lines and every schedule reads undefined, both jobs log "no schedule
-// configured" and skip, and the process goes on serving traffic with spot
-// prices that never update again. Nothing would
-// fail; there would just be no cron.
-//
-// A function body cannot be evaluated too early, so this cannot depend on
-// import order at all.
-// Exported ONLY so a test can prove the call-time read. Nothing else imports
-// it, and a test must never invoke `run` - setupScheduler fires each job
-// immediately, and these two reach the live spot provider and the database.
+// Schedules are read when setupScheduler runs, not at module load — the old module-level array worked only because of import order (app.ts imports #env before server.ts imports the scheduler); swapping those two lines would leave every schedule undefined with no error, just no cron.
+// A function body can't be evaluated too early, so this can no longer depend on import order at all. Exported only so a test can prove the call-time read — nothing else imports it, and a test must never invoke `run` (these reach the live spot provider and the database).
 export const jobs = (): Job[] => [
   {
     name: "spot prices",
@@ -36,10 +20,7 @@ export const jobs = (): Job[] => [
     run: updateSpotPrices,
   },
   {
-    // The missed-webhook sweep: sales orders awaiting a payment that already
-    // settled get advanced. Idempotent and moves NO money - which is the whole
-    // reason it is allowed on a timer while the abandonment sweep (cancel +
-    // refund) lives only behind reconcile:payments --commit and a human.
+    // Idempotent and moves NO money — the whole reason it's allowed on a timer while the abandonment sweep (cancel + refund) lives only behind reconcile:payments --commit and a human.
     name: "settle paid orders",
     schedule: process.env.PAYMENT_RECONCILE_SCHEDULE,
     run: async () => { await sweepSettledIntents(); },

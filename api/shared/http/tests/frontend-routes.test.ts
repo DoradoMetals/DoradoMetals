@@ -1,23 +1,6 @@
-// EVERY API CALL THE FRONTEND MAKES NAMES A ROUTE THE API HAS.
-//
-// The frontend posted to /purchase_orders/purchase_order_offer_accepted. That
-// route exists - as /emails/purchase_order_offer_accepted. Wrong feature
-// prefix, so the request 404s and the "your offer was accepted" email is never
-// sent. Sixty lines above it in the same file,
-// /emails/purchase_order_created is called correctly.
-//
-// It fails quietly for two reasons worth naming. The call sits in a mutation's
-// onSuccess, so the offer IS accepted and the customer sees success; only the
-// follow-up dies. And apiRequest throws the response body, which in onSuccess
-// becomes an unhandled rejection rather than a failed mutation.
-//
-// THIS IS THE OTHER HALF OF admin-mutation-urls.test.js. That one asks whether
-// a call sends a key its route reads; this asks whether the route exists at
-// all. The pool-remediation bug had a real URL and the wrong body; this one has
-// the right body and no URL. Neither check sees the other's case.
-//
-// Template-literal paths cannot be resolved statically and are skipped rather
-// than guessed at - the count is printed so the skip cannot grow unnoticed.
+// Every API call the frontend makes names a route the API has. Found: the frontend posted to the wrong feature prefix for an offer-accepted email, so it 404s silently — the call sits in a mutation's onSuccess (the customer sees success; only the follow-up dies) and apiRequest throws the response body, which becomes an unhandled rejection there.
+// The other half of admin-mutation-urls.test.ts — that one asks whether a call sends the key its route reads; this asks whether the route exists at all. Neither check sees the other's case.
+// Template-literal paths can't be resolved statically and are skipped, not guessed at — the skip count is printed so it can't grow unnoticed.
 
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -38,10 +21,7 @@ const walk = (dir: string, out: string[] = []): string[] => {
   return out;
 };
 
-// The three shapes this codebase uses to name an endpoint. PATCH joined the
-// verb lists with the order-mutation consolidation - its paths carry the order
-// id (`/purchase_orders/${id}`), so most PATCH calls are template literals and
-// land in the skip count, but a static one must not be invisible.
+// The three shapes this codebase uses to name an endpoint — most PATCH calls carry the order id as a template literal and land in the skip count, but a static one must not be invisible.
 const PATTERNS = [
   /apiRequest\(\s*'(GET|POST|PUT|PATCH|DELETE)',\s*'([^']+)'/g,
   /url:\s*'([^']+)',\s*\n?\s*method:\s*'(GET|POST|PUT|PATCH|DELETE)'/g,
@@ -66,17 +46,8 @@ const collect = () => {
   return { calls, skipped };
 };
 
-// Calls that are KNOWN to hit nothing, and are meant to. Each needs a reason,
-// because the default reading of a 404 here is a defect - that is the whole
-// point of the test.
-//
-// Pinned from both sides: an unlisted 404 fails, and a listed call that has
-// started resolving also fails, so this cannot quietly become a suppression
-// list for something that was since fixed.
-// Empty since 086: the one entry was the offer-accepted email call, whose own
-// text said "Delete this entry when the step goes". The step went.
-// Keyed by `"<VERB> <url>"`; empty today, and the index signature is what says
-// a lookup here is a question rather than a guaranteed hit.
+// Calls KNOWN to hit nothing on purpose, each needing a reason — a 404 here defaults to a defect, which is the whole point. Pinned from both sides: an unlisted 404 fails, and a listed call that starts resolving also fails, so this can't quietly become a stale suppression list.
+// Empty since 086 — the one entry (the offer-accepted email) said to delete itself when its step went; the step went.
 const DELIBERATE_404: Record<string, string | undefined> = {};
 
 // The frontend writes paths without the /api the server mounts them under.
@@ -87,9 +58,7 @@ test("every frontend API call names a route the API actually has", () => {
   assert.ok(known.size > 100, `only ${known.size} routes known - the route walk is wrong`);
 
   const { calls, skipped } = collect();
-  // The floor was 40 until the order-mutation consolidation: some twenty
-  // single-field POST calls became PATCH documents whose paths carry the order
-  // id, and a template-literal path lands in the skip count rather than here.
+  // Floor was 40 before the order-mutation consolidation turned ~20 single-field POSTs into PATCH documents whose paths carry the order id (and land in the skip count instead).
   assert.ok(
     calls.length >= 30,
     `only ${calls.length} frontend call(s) found - the patterns have stopped ` +

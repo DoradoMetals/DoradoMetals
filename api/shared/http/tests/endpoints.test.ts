@@ -1,34 +1,13 @@
-// The HTTP layer, over real requests.
-//
-// Everything else in this suite tests repos. Nothing tested the routes or the
-// controllers, and that is where the bugs of this session actually lived:
-// servicesRepo.remove(req.body) passed a whole request body where an id was
-// wanted, and the transactions controller still reads req.body.user_id on a
-// GET. Neither is visible from a repo test, because neither is in a repo.
-//
-// Two properties are worth asserting at this level, and they are the two a repo
-// test can never reach:
-//
-//   every endpoint is either guarded or deliberately public, and
-//   a guarded endpoint refuses an anonymous request rather than serving it.
-//
-// The second is the one that matters. A route registered without its middleware
-// is a silent hole - it returns 200 with somebody's data and nothing fails.
-//
-// Read-only: every request here is either rejected before reaching a controller
-// or hits a public read. Nothing in this file writes.
+// The HTTP layer, over real requests — a repo test never sees routing/controller bugs (servicesRepo.remove(req.body) passing a whole body where an id was wanted; a GET controller reading req.body.user_id), because neither lives in a repo.
+// Two properties only this level can check: every endpoint is guarded or deliberately public, and a guarded endpoint refuses an anonymous request rather than serving it — the second matters most, since an unguarded route silently returns 200 with somebody's data.
+// Read-only: every request here is rejected before a controller or hits a public read.
 import test, { after, before } from "node:test";
 import assert from "node:assert/strict";
 import request from "supertest";
 import express from "express";
 import pool from "#db";
 
-// THE MOUNT STRINGS ARE RECORDED AT CONSTRUCTION, because express 5 makes them
-// unreadable afterwards: each layer keeps only matcher closures compiled from
-// the path, and the string lives in scope no reflection reaches. So the walk
-// stopped parsing regexps (the express-4 approach this file used) and instead
-// remembers what every use() was told, before the app is built - which is why
-// the app import below is dynamic and AFTER the patch.
+// Mount strings recorded at construction — express 5 keeps only compiled matcher closures per layer, with no reflection back to the path string, so this records what each use() was told before the app is built (the app import below is deliberately dynamic, after this patch).
 const MOUNTS = new WeakMap<object, string>();
 {
   const proto = (express.Router as unknown as { prototype?: Record<string, unknown> }).prototype
@@ -58,29 +37,14 @@ const PUBLIC = new Set([
   "GET /api/reviews/get_public",
   "GET /api/spots/spot_prices",
   "POST /api/recaptcha/verify-recaptcha",
-  // The catalogue's prices are as public as the catalogue: a signed-out
-  // visitor sees priced product cards, and this is the endpoint that prices
-  // them (Jacob's no-previews ruling - the client computes nothing). It takes
-  // product ids and a side, never a user, and the server prices from its own
-  // spots - the $26.81 pin in features/quotes/replay.test.js holds it there.
+  // Public because the catalogue's prices are public — takes product ids and a side, never a user; prices come from the server's own spots.
   "POST /api/quotes/catalog",
-  // Same reasoning, bid direction: the anonymous sell cart estimates what the
-  // business would pay. Items and goods declarations in, prices out; nothing
-  // about a user crosses it, which the no-public-user-id scan below enforces.
+  // Same reasoning, bid direction — items and goods declarations in, prices out; nothing about a user crosses it.
   "POST /api/quotes/purchase_order",
-  // Reference rows the public pages print (D207/D208): the product page shows
-  // sale delivery prices and payment options to signed-out visitors, the
-  // payout landing shows the payout methods - exactly what the hardcoded
-  // frontend arrays they replaced showed. Fees, delays and marketing copy;
-  // nothing about a user crosses either.
+  // Reference rows public pages print (product page delivery prices/payment options, payout landing methods) — fees and marketing copy, nothing about a user.
   "GET /api/payments/methods/",
   "GET /api/carrier_services/sale_options",
-  // The four cart endpoints used to be here, with the reason "a cart belongs to
-  // a browser, not an account - a signed-out visitor has one". That is true of
-  // the browser-local store and was NOT true of these endpoints: they took a
-  // user id out of the request and were unauthenticated, so an anonymous caller
-  // could read and replace anybody's cart. Demonstrated with a real request
-  // before being fixed. They are guarded now and take the id from the session.
+  // The four cart endpoints used to be here ("a cart belongs to a browser, not an account") — true of the local store, false of these: they took a user id from the request while unauthenticated, so an anonymous caller could read and replace anybody's cart. Demonstrated with a real request before being fixed; now guarded, taking the id from the session.
 ]);
 
 // better-auth and the Stripe webhook are mounted on the app rather than through
@@ -112,12 +76,7 @@ type Endpoint = {
   hasMiddleware: boolean;
 };
 
-// Express's router internals are not part of @types/express - `app.router`,
-// `layer.route`, `layer.handle.stack` are all private - so the shape is declared
-// here as the subset this walk reads. express 5 replaced each layer's `regexp`
-// with an array of matcher closures, and the mount string lives only inside
-// them - unreadable, but askable: a matcher answers a URL with the portion it
-// mounted. The walk below therefore descends by probing, not by parsing.
+// Express's router internals aren't in @types/express — declared here as the subset this walk reads. express 5 replaced each layer's `regexp` with matcher closures that hide the mount string, so the walk descends by PROBING a matcher with a URL, not by parsing a regex.
 type Matcher = (url: string) => false | { path: string };
 type Layer = {
   route?: { path: string | string[]; methods: Record<string, boolean>; stack: unknown[] };
@@ -132,10 +91,7 @@ function inventory(): Endpoint[] {
     for (const layer of stack) {
       if (layer.route) {
         const paths = Array.isArray(layer.route.path) ? layer.route.path : [layer.route.path];
-        // An app.all route is ONE declaration, so it is ONE census entry,
-        // keyed ALL - anything else drowns the lists in verbs. express 4
-        // marked it _all; express 5 enumerates all thirty-five HTTP methods
-        // instead, so "more methods than anyone declares by hand" is the test.
+        // An app.all route is ONE census entry (keyed ALL) — express 5 enumerates all 35 HTTP methods for it instead of express 4's single `_all` flag, so 'more methods than anyone declares by hand' is the tell.
         const names = Object.keys(layer.route.methods);
         const methods = layer.route.methods._all || names.length > 10
           ? ["ALL"]
@@ -147,11 +103,7 @@ function inventory(): Endpoint[] {
               method,
               path: prefix + routePath,
               key,
-              // Whether a route is expected to reject an anonymous request is
-              // not something to infer from how many handlers it has. The real
-              // property is the list above: a route is expected to reject
-              // anonymous callers unless deliberately declared public, and
-              // that declaration is the thing worth maintaining.
+              // Guarded is read off the PUBLIC/NOT_OURS declarations, not inferred from middleware count — that declaration is the thing worth maintaining.
               guarded: !PUBLIC.has(key) && !NOT_OURS.has(key),
               // Kept for the first test, which checks the declaration against
               // reality: a route with no middleware at all cannot be guarded.
@@ -255,53 +207,20 @@ test("public reads return JSON", async () => {
   }
 });
 
-// Every handler a controller exports is either routed or declared dead.
-//
-// features/sales-orders/controller.js exports getSalesOrderById, which has no
-// route. That is harmless until somebody reads one, assumes
-// it is reachable, and builds on it - or until a route is deleted and its
-// handler is left behind looking live.
-//
-// A handler with no route is not automatically wrong: handleStripeWebhook is
-// mounted directly on the app rather than through a feature router, and a
-// controller may reasonably export a helper. So this is a declaration, not a
-// prohibition: unrouted exports go on the list below with a reason, and the
-// list failing when it goes stale is what keeps it honest.
-//
-// IT SEARCHES EVERY routes.js, NOT THE SIBLING ONE. The first version looked
-// only next to the controller and reported features/mints/controller.js as
-// entirely unrouted - which would have meant a migrated feature with a switch
-// in PROMOTION.md was unreachable over HTTP. It is not: getAllMints is routed
-// from features/products/routes.js, deliberately, because the frontend asks
-// products for its mints. A check that assumes a convention reports a
-// legitimate exception to the convention as a bug.
+// Every handler a controller exports is either routed or declared dead — harmless until somebody assumes an orphan is reachable, or a deleted route leaves its handler looking live. A handler with no route isn't automatically wrong (a mounted-directly webhook, a reasonable helper), so unrouted exports go on UNROUTED with a reason, and the list failing when it's stale keeps it honest.
+// Searches EVERY routes file, not just the sibling one — a convention-only check once reported a legitimately cross-routed handler (getAllMints, routed from products' own router) as unrouted.
 //
 // Static - reads the files, and compares against the routes the walk above
 // found in the real app.
 import fs from "node:fs";
 import path from "node:path";
 
-// Phase 0c restructure: routes.ts and controller.ts both live under transport/ now
-// (db/ and domain/ hold no route or controller files), so this walk moved
-// from features/ to transport/ without changing shape.
+// routes.ts and controller.ts live under transport/ now (db/domain hold neither); this walk moved with them.
 const FEATURES = path.join(import.meta.dirname, "..", "..", "..", "transport");
 
 // Exported from a controller and deliberately not routed.
-//
-// KEYED BY FILENAME, so these move when a controller is converted. That is not
-// incidental bookkeeping: if a key stops matching, its handlers stop being
-// "declared dead" and the test reports them as unrouted - which is the right
-// failure, and is how this list stays honest.
+// Keyed by filename, so an entry moves when its controller is converted — if a key stops matching, its handlers stop being 'declared dead' and get reported as unrouted, which is the right failure.
 const UNROUTED = {
-  // getSalesOrderById and getPurchaseOrderById were declared here for as long
-  // as they existed - handlers with no route the frontend read around. The
-  // read-flip wave deleted them outright along with the eight legacy read
-  // routes, so there is nothing left to declare.
-  //
-  // cancelOrder was here before that and its handler is also gone. It awaited
-  // salesOrderService.cancelOrder, which the service has never defined, so it
-  // could not have worked if anyone had routed it. This list going stale is
-  // what surfaced both, which is the check working.
   "payments/controller.ts": {
     handleStripeWebhook: "mounted directly on the app in app.ts, before express.json",
   },
@@ -314,29 +233,13 @@ const controllers = (dir: string, out: string[] = []): string[] => {
   for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
     const full = path.join(dir, e.name);
     if (e.isDirectory()) controllers(full, out);
-    // .ts as well as .js. The controllers are being converted one batch at a
-    // time, and this scan looked only for controller.js - so a converted
-    // controller became invisible and its routes "went unchecked", which is
-    // exactly what the assertion below refuses to let pass silently. It caught
-    // the first batch; this is the fix rather than a suppression.
+    // .ts as well as .js — looking only for controller.js once made a converted controller invisible, so its routes went unchecked silently.
     else if (e.name === "controller.js" || e.name === "controller.ts") out.push(full);
   }
   return out;
 };
 
-// Every routes file in the tree - BOTH EXTENSIONS and PREFIXED NAMES - because
-// a handler may legitimately be routed from another feature's router. Matching
-// only "routes.js" would have shrunk this walk with every conversion batch,
-// which the extension note above already records.
-//
-// AND `<something>.routes.ts` TOO. Wave 5A dissolved features/purchase-orders
-// and features/sales-orders into features/orders, and the two legacy create
-// namespaces they mounted became features/orders/creates.routes.ts - one file,
-// two routers, because /api/purchase_orders and /api/sales_orders are two
-// mounts and ruling 13 keeps a URL where it is. This walk did not open that
-// file, so six live handlers reported as unrouted. Same hardcoded filename,
-// same failure, second place in the tree: scripts/route-guards.ts had it too
-// and dropped the same six routes out of the security census.
+// Every routes file, both extensions AND prefixed names (e.g. `creates.routes.ts`) — matching only exact `routes.js` once silently dropped six live handlers (features/orders/creates.routes.ts) from this walk; the same hardcoded-filename bug independently dropped the same six routes from scripts/route-guards.ts's security census.
 const routeFiles = (dir: string, out: string[] = []): string[] => {
   for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
     const full = path.join(dir, e.name);
@@ -410,26 +313,9 @@ test("the unrouted check can actually fail", () => {
   assert.deepEqual(stillUnrouted, [], "a handler routed from another feature was called an orphan");
 });
 
-// No public endpoint may name a user.
-//
-// THIS IS THE CART BUG, TURNED INTO A CHECK. Those four were on PUBLIC with the
-// reason "a cart belongs to a browser, not an account - a signed-out visitor has
-// one". True of the browser-local store, false of the endpoints: they read
-// req.query.user_id and req.body.user_id, so anyone could read and overwrite
-// anybody's cart. The reason described the feature and not the endpoint, and it
-// was checkable prose that nobody checked.
-//
-// The property that would have caught it is narrow and mechanical: an endpoint
-// answering anonymous callers must not take a user id out of the request. There
-// is no session to compare it against, so it can only be obeyed.
-//
-// The remaining nine entries were audited by hand when this was written and all
-// nine are legitimately public - five product reads over the catalogue, the rate
-// bands, the public reviews (hidden = false, limit 10), spot prices, and the
-// recaptcha verifier. Two had admin siblings and were checked against them:
-// getAllRates omits the audit columns getAdminRates returns, and
-// getPublicReviews filters. This exists so the tenth entry is checked by
-// something other than somebody remembering to.
+// No public endpoint may name a user — turns the cart bug into a mechanical check: those four endpoints were marked public with a true-sounding reason ("a cart belongs to a browser") that described the FEATURE, not the endpoint, while they read user_id straight from the request. Checkable prose that nobody checked.
+// The property that would have caught it is narrow: an endpoint answering anonymous callers must not take a user id from the request — there's no session to compare it against, so it can only be obeyed.
+// The other nine PUBLIC entries were hand-audited when this was written (catalogue reads, rate bands, public reviews, spot prices, recaptcha) — two checked against their admin siblings to confirm they omit what an admin sees.
 test("no public endpoint reads a user id from the request", () => {
   const handlerFor = (key: string): { name: string; dir: string } | null => {
     const [method, full] = key.split(" ");
@@ -447,11 +333,7 @@ test("no public endpoint reads a user id from the request", () => {
       const name = line.match(/,\s*([A-Za-z0-9_]+)\s*\)\s*;?\s*$/)?.[1];
       if (name) return { name, dir: path.dirname(file) };
     }
-    // A sub-resource route declared as "/" carries its path in its MOUNTS
-    // (ruling 13), so the tail above never matches. The URL's own segments
-    // name the feature directory: /api/payments/methods/ is
-    // transport/payments/methods/routes.ts. Only the exact directory is read,
-    // so a "/" in some other resource's routes cannot be mistaken for it.
+    // A sub-resource route declared as "/" carries its path in its mount instead — resolved by the URL's own directory segments instead (e.g. /api/payments/methods/ -> transport/payments/methods/routes.ts).
     const segments = full.replace(/^\/api\//, "").split("/").filter(Boolean);
     const dir = path.join(FEATURES, ...segments);
     const file = path.join(dir, "routes.ts");
@@ -471,10 +353,7 @@ test("no public endpoint reads a user id from the request", () => {
   };
 
   const bodyOf = (dir: string, name: string): string | null => {
-    // .ts as well as .js, for the same reason the scan above needed it: the
-    // controllers are being converted a batch at a time, and this looked only
-    // for controller.js. A converted controller resolved to null, which this
-    // test correctly treats as "went unchecked" rather than "fine".
+    // .ts as well as .js, same reason as above — a converted controller resolves to null, correctly treated as 'went unchecked' rather than 'fine'.
     const file = [path.join(dir, "controller.ts"), path.join(dir, "controller.js")].find(
       (f) => fs.existsSync(f)
     );

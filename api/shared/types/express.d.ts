@@ -1,14 +1,5 @@
-// What requireUser puts on the request, and nothing else does.
-//
-// better-auth's session user, plus the columns features/auth/client.js declares
-// as additionalFields - `role` is what requireAdmin reads, and `dorado_funds` is
-// what prices an order against a customer's store credit.
-//
-// OPTIONAL ON PURPOSE. Express hands the same Request type to every handler,
-// guarded or not, so a controller reading `req.user.id` has to say what it
-// expects when the guard is absent. That is a compile error rather than a
-// TypeError in production, which is where the equivalent service-layer holes
-// were found.
+// What requireUser puts on the request, and nothing else does — better-auth's session user plus the columns client.ts declares as additionalFields (role for requireAdmin, dorado_funds for pricing store credit).
+// Optional on purpose — Express hands the same Request type to every handler whether guarded or not, so reading req.user.id is a compile error when the guard is absent, not a production TypeError.
 declare global {
   namespace Express {
     interface Request {

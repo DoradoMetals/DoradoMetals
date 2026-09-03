@@ -1,14 +1,5 @@
-// The guard that makes it impossible for a test to email a real customer.
-//
-// .env carries live SMTP credentials and this application's recipients are real
-// customers and real refiners. sendEmail takes an optional transport so tests
-// can record instead of send - but "every test remembers to pass one" is a
-// convention, and a convention holds until the day someone writes the test that
-// forgets. The one that forgets would post a fabricated order to Elemetal.
-//
-// So sendEmail refuses to construct the real transport at all during a test
-// run. This proves that refusal, which is the only reason to trust the rest of
-// the email tests.
+// The guard that makes it impossible for a test to email a real customer. .env carries live SMTP credentials, and "every test remembers to pass a transport" is a convention that holds until someone forgets — the one that forgets would post a fabricated order to Elemetal.
+// So sendEmail refuses to build the real transport at all during a test run. This proves that refusal, the only reason to trust the rest of the email tests.
 import test from "node:test";
 import assert from "node:assert/strict";
 import { sendEmail } from "#providers/emails/nodemailer.ts";
@@ -40,21 +31,7 @@ test("a caller's own transport still works", async () => {
   assert.deepEqual(result, { messageId: "recorded" });
 });
 
-// THE CASE THAT DEFEATED THE FIRST VERSION OF THIS GUARD.
-//
-// The check used to be a module-level const:
-//
-//   const looksLikeATestRun = process.env.NODE_ENV === "test" || ...
-//
-// ES module imports are HOISTED, so a script whose first statement sets
-// NODE_ENV runs that statement AFTER every import has already evaluated. The
-// guard captured `undefined`, decided this was not a test, and built the real
-// transport. scripts/seed-e2e-users.mjs did exactly that and reached Gmail - it
-// failed on bad credentials rather than on the guard, which is luck.
-//
-// Run in a child process because the parent is already NODE_ENV=test, so it
-// cannot reproduce the condition. The child starts with NODE_ENV unset and sets
-// it itself, which is the shape that broke.
+// The case that defeated the first guard: a module-level const captured NODE_ENV before a script's own `process.env.NODE_ENV = "test"` (set after imports, which are hoisted) took effect — scripts/seed-e2e-users.mjs reached Gmail that way. Run in a child process since the parent already has NODE_ENV=test and can't reproduce the condition.
 test("a script that sets NODE_ENV after its imports is still refused", async () => {
   const source = `
     process.env.NODE_ENV = "test";

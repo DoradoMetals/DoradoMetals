@@ -1,16 +1,6 @@
-// The sandbox switch, which has to be exercisable to be worth having.
-//
-// Every value is read per call rather than captured at import, and these tests
-// are the reason: the first version captured FEDEX_ENV at module load and
-// claimed in a comment that a test could flip it. It could not. This file is
-// what makes that claim true.
-//
-// No network. Nothing here calls FedEx - it asserts which host and which
-// account a call would use.
-// #env first. Without it none of the FEDEX_* variables exist in a test process,
-// and the first version of this file passed three tests by comparing undefined
-// to undefined - the switch would have been reported working with no
-// configuration present at all.
+// The sandbox switch, which has to be exercisable to be worth having — the first version captured FEDEX_ENV at module load and claimed a test could flip it; it couldn't, so this file makes that claim true (every value read per call, not captured).
+// No network — asserts which host and account a call WOULD use.
+// #env first, or none of the FEDEX_* variables exist and the first version passed by comparing undefined to undefined.
 import "#env";
 import test, { afterEach, before } from "node:test";
 import assert from "node:assert/strict";
@@ -85,21 +75,14 @@ test("the sandbox account is a different account from the live one", () => {
 // built naming the live account.
 test("a built payload carries the account the switch selected", async () => {
   const { createShipmentPayload } = await import("#providers/shipments/payloads.ts");
-  // `packageDetails`, NOT `pkg`. The fixture named a key `createShipmentPayload`
-  // does not read, so every payload this test built carried
-  // `requestedPackageLineItems: [undefined]` - and it passed anyway, because all
-  // it greps the JSON for is an account number. Found by the conversion; the
-  // assertion was never wrong, the thing it was asserting about was.
+  // `packageDetails`, not `pkg` — the fixture named a key createShipmentPayload doesn't read, so every payload built `requestedPackageLineItems: [undefined]` and passed anyway (the assertion only greps for an account number). The assertion was never wrong; what it asserted about was.
   const input = {
     shipper: { contact: {}, address: {} },
     recipient: { contact: {}, address: {} },
     packageDetails: { weight: { units: "LB", value: 1 }, dimensions: {} },
   };
 
-  // The two account numbers are what this test is ABOUT, so an unset one is a
-  // broken run rather than a failing assertion: `includes(undefined)` compares
-  // against the literal string "undefined" and reports "built against the live
-  // account", which would be a lie about what went wrong.
+  // An unset account number must fail as a broken run, not a passing assertion — `includes(undefined)` would compare against the literal string 'undefined' and lie about what went wrong.
   const sandboxAccount = process.env.FEDEX_SANDBOX_ACCOUNT_NUMBER;
   const liveAccount = process.env.FEDEX_ACCOUNT_NUMBER;
   assert.ok(sandboxAccount, "FEDEX_SANDBOX_ACCOUNT_NUMBER is unset - nothing to compare");

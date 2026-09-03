@@ -1,11 +1,4 @@
-// The array API (ruling 34): array in, array of PRICES out.
-//
-// The eleven functions it wraps are pinned by bid.test.js and ask.test.js,
-// which moved here unchanged. What is pinned HERE is the shape of the new
-// surface and the three things that are easy to get wrong about it: that it
-// returns numbers rather than items, that quantity applies to bullion and not
-// to scrap, and that it asks the `bullion_id IS NULL` question of a raw
-// orders.items row as well as of an assembled line.
+// The array API (ruling 34): array in, array of PRICES out. The eleven wrapped functions are pinned by bid.test.ts/ask.test.ts; this pins the new surface's own shape — numbers not items, quantity applying to bullion not scrap, and `bullion_id IS NULL` working on both a raw row and an assembled line.
 import test from "node:test";
 import assert from "node:assert/strict";
 import { unitPrices, lineTotals } from "#domain/pricing/service.ts";

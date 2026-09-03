@@ -1,49 +1,8 @@
-// WHAT THE BUSINESS PAYS FOR METAL - the bid side of features/pricing.
-//
-// Moved here from features/purchase-orders/utils/calculations.ts under ruling
-// 24: "We should have one area of the app for pricing... nowhere else should
-// call pricing except for that one service." It was a module owned by ONE
-// feature and imported by SIX, which is a service in the wrong place. Nothing
-// below changed in the move - see service.ts for what was added around it.
-//
-// What an order is worth.
-//
-// Every scrap branch here used to read `item.premium` on its own while every
-// product branch fell back to the row's own premium - `item.premium ??
-// item?.product?.bid_premium ?? 0`. That asymmetry was an oversight, not a
-// rule, and it valued a scrap line at zero whenever its premium was null.
-//
-// It was found by comparing the two PDFs a customer receives. Purchase order
-// 239 in dev holds one troy ounce of gold with a null premium and a scrap
-// bid_premium of 0.75: the invoice, which uses calculateTotalPrice, put the
-// order at $4,744.11, and the packing list, which had its own copy of the sum
-// with the fallback, put it at $7,980.22. The gold was worth $3,236.11 and the
-// invoice said nothing.
-//
-// calculateReturnDeclaredValue is the worse one - it is the declared value on a
-// return shipment, so the same item would have been posted back uninsured.
-//
-// No production order changes: of 81 scrap lines in production, zero have a
-// null premium. This can only ever have understated, never overstated.
-// TYPESCRIPT NOTES, because two of the choices below look wrong and are not.
-//
-// `spot` is `PricingSpot | undefined` - Array.prototype.find says so - and
-// every use dereferences it with `!` rather than guarding it. That is
-// deliberate and locked in by a test: "a metal absent from spots throws"
-// asserts a TypeError specifically. Writing `spot?.bid` would turn a loud
-// failure into `undefined * content` = NaN, and a NaN would travel all the way
-// to a payout. An order priced against a metal with no spot must stop, not
-// quietly become nothing.
-//
-// The `!` is therefore documentation rather than a shortcut: it says "this can
-// be undefined and the throw is the intended behaviour". Adding an explicit
-// `throw new Error(...)` would be clearer English and would break that test,
-// because the error class would change.
-//
-// `bid` IS NULLABLE, and the `?? 0` on it is behaviour-preserving rather
-// than a fix. JavaScript already evaluates `null * premium` as 0, so this
-// changes nothing at run time - it makes the intent explicit and lets the
-// checker see it. An unquoted metal prices at nothing.
+// What the business PAYS for metal (bid side) — mirrors ask.ts (what it charges).
+// THE BUG THIS FILE'S STORY IS: scrap read `item.premium` alone while product fell back to the row's own bid_premium — an oversight that valued a null-premium scrap line at zero. Found by comparing two PDFs for the same order: the invoice (no fallback) said $4,744.11, the packing list (had one) said $7,980.22 — $3,236.11 of gold the invoice didn't count. Worse on calculateReturnDeclaredValue: that gap would have shipped metal back uninsured.
+// No production order changes: of 81 scrap lines, zero have a null premium — this could only ever have understated, never overstated.
+// TWO CHOICES BELOW LOOK WRONG AND ARE DELIBERATE. `spot` is `PricingSpot | undefined` (Array.find), and every use dereferences it with `!` rather than `?.` — pinned by a test asserting the TypeError. `spot?.bid` would turn a loud failure into `undefined * content` = NaN traveling all the way to a payout; a metal with no spot must stop pricing, not silently price at zero.
+// `bid` IS NULLABLE and `?? 0` on it is behavior-preserving, not a fix (JS already reads `null * x` as 0) — it just makes the intent explicit. Confirmed safe: the 5 production scrap lines currently priced against a null bid all belong to un-quoted (In Transit/Cancelled) orders, never a priced one.
 //
 // That sounds like the premium bug in the header and is not. Checked against
 // production: 5 scrap lines are currently priced against a metal whose frozen
@@ -52,32 +11,9 @@
 // nobody has quoted yet correctly has no price. The dangerous version would be
 // a null spot on a priced order, and there are none.
 //
-// The item type is ComposedItem, the API's own assembled line
-// (D84: the item's product speaks the schema's names now). `scrap` is always
-// present as an object - the repo builds it with jsonb_build_object, so a
-// bullion line carries a scrap object of nulls rather than null - and the
-// optional chaining stays: it describes what a hand-built test fixture might
-// omit, not what the API sends. `product` is nullable on the Next wire, so
-// its accesses chain too; at runtime the repos still emit an object of nulls.
-// THE COMPOSED LINE IS AN INTERNAL SHAPE, NOT A CONTRACT (wave 3). It was
-// the PurchaseOrderItem wire schema until the order wire slimmed; the wire
-// serves orders.items rows verbatim now, and the assembled line with its
-// scrap and product members survives only inside the API, where pricing and
-// the confirmation email genuinely need an order put back together.
-// WHAT THESE FUNCTIONS NEED OF A LINE, rather than the whole assembled shape.
-//
-// This was `ComposedItem`, which declares ten required fields where the sums
-// below read six - all through optional chaining, because a hand-built fixture
-// and an /orders/:id/items body do not carry a whole composed line. tsc never
-// saw the mismatch: **/*.test.js is excluded from the project, so the fixtures
-// that prove it were invisible (ruling 33). Renaming the tests to TypeScript
-// produced eleven errors, every one of them this.
-//
-// The ask side has always declared the subset it reads, for exactly this reason
-// - see `PriceableItem` in ask.ts - so this is the bid side catching up rather
-// than a new stance. A ComposedItem still satisfies it; nothing about what is
-// READ has changed, and every assertion in tests/bid.test.ts passed unedited
-// across the change.
+// The composed line (scrap/product nested) is an INTERNAL shape now, not a wire contract — the wire serves orders.items rows verbatim; this assembled shape survives only where pricing and the confirmation email need an order put back together.
+// Declares only the six fields these sums read, not the ten-field ComposedItem — a hand-built fixture or an /orders/:id/items body doesn't carry a full composed line, and the wider type let 11 real mismatches through until the tests converted to TypeScript caught them.
+// The ask side already declared its own subset (PriceableItem) for the same reason; a ComposedItem still satisfies this, and every existing test passed unedited.
 export type PriceableLine = {
   item_type?: string | null;
   price?: number | null;
@@ -100,92 +36,23 @@ export type PriceableLine = {
 type PurchaseOrderItem = PriceableLine;
 import type { PricingSpot, Spots } from "#domain/pricing/spot.ts";
 
-// Declared once, in spot.ts - it was written out identically here and on the
-// ask side, and re-exported so every existing importer of this module keeps
-// working.
+// Declared once in spot.ts; re-exported here so existing importers keep working.
 export type { PricingSpot, Spots } from "#domain/pricing/spot.ts";
 
-// What these functions need of an order, rather than the whole wire shape. A
-// caller passing a full PurchaseOrder satisfies it; the PDF and email code
-// passes assembled objects that do not carry every column, and demanding the
-// full shape would force casts at those call sites.
+// What these functions need of an order, not the whole wire shape — the PDF/email code passes assembled objects missing columns, and requiring the full shape would force casts there.
 type PricedOrder = {
   order_items: PurchaseOrderItem[];
   shipment?: { shipping_charge?: number | null } | null;
-  // `payout: { cost: number }` until 2026-08-29, and that was a LIE THE TYPE
-  // SYSTEM WAS REPEATING. Every caller reaches here through
-  // features/orders/service.ts's `OrderLike`, whose own header says the order
-  // is "whatever the caller had… several callers are controllers handing over
-  // req.body". So the compiler believed `cost` was a number because a type
-  // ASSERTED it, not because anything checked - the same shape as D103 and
-  // D129, a coupling nothing enforces dressed as a guarantee.
-  //
-  // Widened to what the data can actually be. The composed read builds
-  // EMPTY_PAYOUT for an order with no payout row (compose.ts), so `cost` is
-  // genuinely null on 32 of dev's 48 purchase orders today; a hand-assembled
-  // fixture or a
-  // request body can omit the key entirely. Both are now expressible, which
-  // means `- order.payout.cost` no longer compiles and cannot come back.
+  // Was `{ cost: number }` until 2026-08-29 — a lie the type system repeated from OrderLike's own `req.body`-shaped header; nothing actually checked it.
+  // Widened to what the data can be: compose.ts's EMPTY_PAYOUT makes `cost` genuinely null for an order with no payout row (32 of dev's 48) and lets a fixture omit the key entirely — `order.payout.cost` no longer compiles unchecked.
   payout?: { cost?: number | null } | null;
-  // THE WAIVER (Jacob, 2026-08-29). Optional because most callers here are
-  // hand-assembled orders - the PDF and email renderers - and an order that
-  // does not mention it is an order whose fee is not waived, which is the
-  // right default and the state every production row is in today.
+  // Optional because most callers here (PDF/email renderers) hand-assemble the order; omitting it means not-waived, the default every production row is in today.
   waive_payout_fee?: boolean | null;
 };
 
-// EVERY MONEY FIGURE THIS MODULE RETURNS IS A NUMBER OR AN EXCEPTION. NEVER NaN.
-//
-// THE DEFECT THIS REPLACES, found by lane B on 2026-08-29: the total ended
-//
-//     const shipping = order.shipment?.shipping_charge ?? 0;
-//     return baseTotal - shipping - order.payout.cost;
-//
-// - one subtrahend defended, the next one not, on consecutive lines. Three
-// inputs, three different answers to the same question, and only one of them
-// was deliberate:
-//
-//   payout null            -> TypeError. Loud, and pinned by a test below.
-//   payout { cost: null }  -> 0, because JS reads `x - null` as `x - 0`. This
-//                             is what EVERY real read produces for an order
-//                             with no payout, and it is what the invoice
-//                             template itself does one line under the call
-//                             (`purchaseOrder.payout?.cost ?? 0`).
-//   payout { }             -> *** NaN, SILENTLY, ALL THE WAY TO THE INVOICE. ***
-//
-// MEASURED BEFORE CHOOSING: `getPurchaseById` on dev's purchase orders with no
-// payout row - 32 OF 48 - returns `{ …, cost: null }`, never undefined, so the NaN
-// is not reachable through the API's own reads TODAY. It is reachable through
-// every hand-assembled order - features/media/pdfs/service.ts casts one with
-// `as unknown as`, the emails do the same - and it is one key away at any time,
-// because nothing owns the invariant that EMPTY_PAYOUT lists `cost`.
-// compose.ts's own header SAID "order.payout.cost therefore gives undefined
-// today", which is false for `cost` and true for anything not in that list. An
-// invariant nobody owns is not an invariant; that comment is corrected and now
-// says the key list is load-bearing and why.
-//
-// SO THE SPLIT IS BY MEANING, NOT BY NULLISHNESS, and the two halves are:
-//
-//   ABSENT -> 0. An order with no payout has no payout fee. That is what the
-//   data means, it is what the app already does, and it is NOT "waiving the
-//   fee" (D117: the fee is data on the row): a payout row carrying a real cost
-//   still subtracts it. Defaulting here cannot invoice as though no fee applied
-//   when one did, because a row that says 50 says 50.
-//
-//   PRESENT BUT UNUSABLE -> throw. A value arrived and could not be made into a
-//   number. That is the `spot!` case two functions down, where the deliberate
-//   TypeError exists precisely because turning a loud failure into a quiet
-//   wrong number is the worse trade on a money path.
-//
-// This DOES change the `payout: null` case from TypeError to 0, deliberately
-// and with the failing assertion the old test asked for. The throw there was
-// not protecting a number - a null payout has a well-defined meaning, and
-// throwing on it would refuse to invoice every order placed before a customer
-// picks a payout method. `spot!` is different in kind: an item with no spot
-// price cannot be valued at all, so the total would be meaningless rather than
-// merely missing a subtrahend. And the scale is the argument: THIRTY-TWO of
-// dev's forty-eight purchase orders have no payout row. Throwing would refuse
-// to invoice two thirds of them.
+// EVERY FIGURE THIS MODULE RETURNS IS A NUMBER OR AN EXCEPTION. NEVER NaN. Replaces a real defect: `baseTotal - shipping - order.payout.cost` defended one subtrahend (`shipping ?? 0`) but not the other, so payout `{}` (no `cost` key, unlike `{cost: null}`) silently produced NaN all the way to the invoice.
+// Split by MEANING, not nullishness: ABSENT payout -> 0 (no payout row means no fee — that's data, not a waiver, so a payout with a real cost still subtracts it); a value that arrived but can't become a number -> throw (a loud TypeError beats a silently wrong total on a money path).
+// This deliberately changes `payout: null` from throw to 0 — a null payout has a well-defined meaning (no payout method assigned yet) and throwing would refuse to invoice roughly two-thirds of dev's purchase orders. `spot!` stays a throw: an unpriced item makes the WHOLE total meaningless, not just missing one subtrahend.
 function fee(value: unknown, what: string): number {
   if (value == null) return 0;
   const n = Number(value);
@@ -195,26 +62,8 @@ function fee(value: unknown, what: string): number {
   return n;
 }
 
-// THE EFFECTIVE PAYOUT FEE - what the order actually prices at, which is not
-// always what the payout row says.
-//
-// The comment above says "ABSENT -> 0… and it is NOT waiving the fee (D117:
-// the fee is data on the row)". That was correct and it left a real capability
-// with nowhere to live: Jacob waives the fee on real orders, and production
-// shows it - two WIRE payouts stored at 0 against a $20 method fee. There was
-// no way to say so, so it was said by overwriting the record.
-//
-// THE FLAG IS THE PLACE. `waive_payout_fee` is already a column of
-// orders.transactions and of exchange.purchase_orders; it was read, composed
-// and mirrored, and had no writer and no UI. Waiving it makes THIS return 0
-// while `payout.cost` keeps the number the fee would have been, so un-waiving
-// restores it exactly rather than re-deriving it from a table of defaults that
-// four production rows already disagree with.
-//
-// Exported because three surfaces price a payout - the stored total
-// (calculateTotalPrice), the drawer estimate (quotes' orderQuote) and the
-// customer's line in the profit breakdown - and three copies of one condition
-// is how they would come to disagree.
+// The waiver flag exists because `payout.cost` alone couldn't express Jacob waiving a fee on a real order (two production WIRE payouts show cost=0 against a $20 method fee, previously done by overwriting the record) — waive_payout_fee already existed as a column with no writer or UI.
+// Exported because three surfaces price a payout (calculateTotalPrice, the drawer estimate, the customer's profit breakdown) — one shared condition instead of three copies that could disagree.
 export function effectivePayoutFee(order: {
   payout?: { cost?: number | null } | null;
   waive_payout_fee?: boolean | null;
@@ -223,11 +72,7 @@ export function effectivePayoutFee(order: {
   return fee(order.payout?.cost, "the payout fee");
 }
 
-// The last gate, and it earns its place independently of the fees: migration
-// 087 had to clean up two `content = 'NaN'` rows that reached the wire as the
-// STRING "NaN", so a non-finite line total is a thing this database has
-// actually produced. A total that cannot be computed must stop here rather than
-// be printed on a document a customer is paid against.
+// Earns its place independently — migration 087 had to clean up rows where content literally reached the wire as the string "NaN"; a total that can't be computed must stop here, not print on a document a customer is paid against.
 function finite(total: number, what: string): number {
   if (!Number.isFinite(total)) {
     throw new TypeError(`${what} did not come out as a number (${String(total)})`);
@@ -296,10 +141,7 @@ export function calculateReturnDeclaredValue(order: PricedOrder, spots: Spots): 
     return acc;
   }, 0);
 
-  // Deducts neither fee - a return is insured for what the metal is worth. The
-  // finite check still applies, and here it matters most: this number is the
-  // declared value on a return shipment, so a NaN posts a customer's metal back
-  // uninsured. That is the failure this file's header opens with.
+  // Deducts neither fee — a return is insured for what the metal is worth; a NaN here posts a customer's metal back uninsured, the failure this file's header opens with.
   return finite(total, "the return declared value");
 }
 

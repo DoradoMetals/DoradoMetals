@@ -5,18 +5,8 @@
 import nodemailer from "nodemailer";
 import { isTestRun } from "#shared/testing/is-test-run.ts";
 
-// STRUCTURAL, NOT nodemailer.Transporter. The whole point of the `transport`
-// parameter is that a test can pass something which records the message instead
-// of sending it, and a recorder is an object with one method - not a
-// Transporter, not close to one. Naming nodemailer's type here would reject
-// every caller this seam exists for.
-//
-// The return is `unknown` rather than void because nodemailer returns a result
-// and a caller may depend on it; the tests' recorder returns one for that
-// reason.
-// EXPORTED so callers that thread it through - features/emails/service.ts -
-// can name it instead of restating the shape. Restating a structural type is
-// how the seam narrows by accident.
+// Structural, not nodemailer.Transporter — the whole point of the `transport` param is that a test can pass a one-method recorder instead; naming nodemailer's own type would reject it.
+// Exported so callers threading it through (features/emails/service.ts) can name it instead of restating the shape — restating a structural type is how a seam narrows by accident.
 export type Transport = {
   sendMail: (message: Message) => Promise<unknown>;
 };
@@ -36,27 +26,11 @@ type Message = {
   attachments?: Attachment[];
 };
 
-// The transport is built on first use, not at import.
-//
-// It used to be created at module load, so importing anything that reaches this
-// file - which is most of the app, since features/auth/client.js sends
-// verification mail - opened an SMTP transport. That happens in tests and in
-// one-off scripts too, neither of which is ever going to send anything. Same
-// reasoning as providers/pdfs/puppeteer.ts, which launches Chromium lazily for exactly
-// this reason.
+// Built on first use, not at import — creating it at module load meant importing almost anything (auth sends verification mail) opened a real SMTP transport, including in tests and one-off scripts that never send anything (same reasoning as puppeteer.ts's lazy Chromium).
 let shared: Transport | null = null;
 
-// A TEST RUN MUST NOT BE ABLE TO SEND REAL MAIL.
-//
-// .env carries live SMTP credentials, and the addresses this application sends
-// to are real customers and real refiners. A replay suite that reaches
-// sendEmail without passing a transport would post an order to Elemetal.
-//
-// Relying on every test remembering to pass a recorder is the same shape as a
-// test that is only safe because the code under test throws first - it holds
-// until someone writes the one that forgets. So the shared transport refuses to
-// exist during a test run instead.
-//
+// A test run must not be able to send real mail — .env carries live SMTP credentials to real customers and refiners, and a replay test reaching sendEmail without a recorder would post an order to a real refiner.
+// Relying on every test remembering to pass one is the same fragile shape as a test whose safety depends on code failing first — so the shared transport refuses to exist during a test run instead.
 function sharedTransport(): Transport {
   // Asked HERE, not at module load. See shared/testing/is-test-run.ts - a
   // module-level const captures the environment before a script that sets
@@ -81,33 +55,9 @@ function sharedTransport(): Transport {
     },
   });
 
-  // Wrapped rather than returned directly. nodemailer's sendMail is overloaded
-  // with a callback form, so its type is not assignable to the one-argument,
-  // promise-returning shape this module accepts from callers - and a cast
-  // asserting they are the same would be claiming something untrue about a
-  // signature. One line of adapter says it honestly instead.
-  //
-  // `to` is nullable here because it comes from user.user_email, which the wire
-  // says is nullable; nodemailer will refuse an empty recipient itself, which
-  // is a better place to find out than a type that pretends it cannot happen.
-  //
-  // The attachments cast is the one claim in this file, and it is checked
-  // rather than asserted. @types/nodemailer declares an attachment's content as
-  // `string | Buffer | Readable`, and every PDF this application sends is a
-  // Uint8Array, because that is what puppeteer returns.
-  //
-  // The runtime is wider than the types, and not by accident: nodemailer writes
-  // the content straight to a stream, and Node's stream layer accepts "string
-  // or an instance of Buffer, TypedArray, or DataView" - which a Uint8Array is.
-  // Passing an object that is none of those throws ERR_INVALID_ARG_TYPE from
-  // node:internal/streams/writable, so the boundary is Node's, not nodemailer's.
-  //
-  // sendEmail.test.js pins it: the same message built both ways through
-  // nodemailer's own stream transport produces byte-for-byte identical MIME,
-  // and different bytes produce different MIME, so the comparison is not blind.
-  //
-  // Converting with Buffer.from would copy every byte of a multi-megabyte
-  // document on every send to change nothing observable.
+  // Wrapped, not returned directly — nodemailer's sendMail is overloaded with a callback form, so its type doesn't match this module's one-argument, promise-returning shape; a cast would claim something untrue.
+  // `to` is nullable because it comes from user.user_email, itself nullable on the wire — nodemailer refuses an empty recipient itself, a better place to find out than a type that pretends it can't happen.
+  // The attachments cast is the one real claim here, and it's checked: every PDF sent is a Uint8Array (from puppeteer), and @types/nodemailer only declares string | Buffer | Readable — but Node's stream layer accepts any TypedArray, so the boundary is Node's, not nodemailer's. sendEmail.test.ts pins byte-for-byte identical MIME output either way; Buffer.from would just copy a multi-megabyte document on every send to change nothing.
   const wrapped: Transport = {
     sendMail: (message: Message) =>
       transporter.sendMail({
@@ -121,14 +71,8 @@ function sharedTransport(): Transport {
   return wrapped;
 }
 
-// `transport` is optional and works the way `executor` does on a repo call: the
-// caller passes one when it has a reason to, and everything else gets the
-// shared one. A test passes a transport that records the message instead of
-// sending it, which is the only way to assert on what would have gone out.
-//
-// It is a separate parameter rather than a field on the message, deliberately.
-// The controllers hand `req.body` straight to the service, so a field would be
-// reachable from the request.
+// `transport` works like `executor` on a repo call — optional, and everything without one gets the shared transport; a test passes a recorder to assert what would have gone out.
+// A separate parameter, not a field on the message, because controllers hand req.body straight to the service — a field would be reachable from the request.
 export async function sendEmail(
   { to, subject, text, html, attachments = [] }: Message,
   transport?: Transport

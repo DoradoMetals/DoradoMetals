@@ -1,13 +1,5 @@
-// RECAPTCHA_THRESHOLD, and the silent lockout it used to be able to cause.
-//
-// The old expression was `parseFloat(process.env.RECAPTCHA_THRESHOLD || '0.5')`,
-// which reads as though it has a default. It does, but only for UNSET. A value
-// that is present and unreadable parses to NaN, and `score >= NaN` is false for
-// every score there is - so every human is refused, the API answers a
-// completely ordinary `false`, and nothing anywhere says why.
-//
-// The first test below is the control: it demonstrates the old expression
-// really did produce that, rather than my asserting it did.
+// RECAPTCHA_THRESHOLD, and the silent lockout it used to be able to cause. The old expression, `parseFloat(process.env.RECAPTCHA_THRESHOLD || '0.5')`, defaults only for UNSET — a present-but-unreadable value parses to NaN, and every score fails `>= NaN`, so every human gets refused with an ordinary `false` and no explanation anywhere.
+// The first test below is the control — it demonstrates the old expression really did that, rather than asserting it did.
 
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -53,10 +45,7 @@ test("THE CONTROL: the old expression failed in both directions, silently", () =
   assert.equal(1.0 >= nan, false, "a score of 1.0 - a certain human - did not clear NaN");
   assert.equal(0.0 >= nan, false);
 
-  // Direction two, and the worse one: a decimal comma parses to ZERO. It is a
-  // perfectly finite number, so nothing treated it as an error, and a threshold
-  // of zero is cleared by every score there is. The captcha was off, and it
-  // looked exactly like a captcha that worked.
+  // Direction two, the worse one — a decimal comma parses to a finite ZERO, so no NaN check catches it, and a threshold of zero passes every score: the captcha looked like it worked while being off.
   const zero = old("0,7");
   assert.equal(zero, 0, "parseFloat stopped at the comma and kept the 0");
   assert.ok(Number.isFinite(zero), "which means no NaN check would have caught it");

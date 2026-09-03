@@ -1,25 +1,6 @@
-// What comes back from FedEx, reduced.
-//
-// The test that matters here is the one pinning a THROW. parseTracking
-// optionally chains its way to trackResults[0] and then dereferences it
-// unguarded, so an empty or error response raises a TypeError instead of
-// returning an empty result. That is deliberate, it is load-bearing, and
-// without a test saying so the next person to read it removes the asymmetry in
-// good faith.
-//
-// It is load-bearing because of what runs after it.
-// features/shipping/operations/service.ts calls this inside a transaction, and
-// the next thing it used to do was delete every tracking event for the shipment
-// and re-insert whatever came back. The throw happened before that delete, so
-// it was the only thing preventing an empty response from wiping a shipment's
-// history - production lost seven that way before the service learned to return
-// early. Softening this without that guard would have converted a loud,
-// harmless 500 into a silent deletion.
-//
-// The guard exists now, so this COULD be softened safely. It is not, on
-// purpose: a FedEx outage or a bad tracking number should be loud, and
-// answering "nothing recognised" to "I could not ask" makes an outage look like
-// a quiet parcel.
+// What comes back from FedEx, reduced. The test that matters pins a deliberate THROW: parseTracking dereferences trackResults[0] unguarded, so an empty or error response raises a TypeError instead of an empty result.
+// Load-bearing because of what runs after it: the caller used to delete every tracking event for a shipment and re-insert whatever came back — the throw, landing before that delete, was the only thing stopping an empty response from wiping history (production lost seven shipments' histories this way before the service learned to return early).
+// The service now has its own guard, so this COULD be softened safely. Deliberately not: a FedEx outage or bad tracking number should be loud, not look like a quiet parcel.
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
@@ -30,11 +11,7 @@ import {
   parseScheduledPickup,
 } from "#providers/shipments/utils/parsing.ts";
 
-// The FedEx envelope, declared only as far as this file fills it in. The real
-// `FedexTrackResult` is not exported by parsing.ts, and the honest thing is to
-// state the subset the fixtures build rather than cast: if a test starts
-// supplying a field the parser does not read, or misspells one it does, that is
-// a compile error here instead of a silently-ignored key.
+// Declares only the subset the fixtures build, rather than casting the real (unexported) FedexTrackResult — a misspelled or unread field becomes a compile error here instead of a silently-ignored key.
 type TrackResultFixture = {
   estimatedDeliveryTimeWindow?: { window?: { ends?: string } };
   scanEvents?: {
@@ -85,10 +62,7 @@ test("events of unrecognised types are dropped", () => {
   assert.equal(parsed.deliveredAt, null);
 });
 
-// THE DELIBERATE THROW. See the header. If this test ever fails because
-// somebody added `?.`, read features/shipping/operations/service.ts first: the
-// early return there is what makes softening this survivable, and the reason
-// not to is that an outage should not look like a quiet parcel.
+// The deliberate throw (see header) — if this ever fails because someone added `?.`, check the caller's early-return guard first; an outage should not look like a quiet parcel.
 test("an empty or error response throws rather than reporting nothing", () => {
   assert.throws(() => parseTracking({}), TypeError);
   assert.throws(() => parseTracking({ output: {} }), TypeError);
@@ -115,10 +89,7 @@ test("rates take the ACCOUNT rate and default the currency", () => {
   assert.equal(parsed[0].serviceDescription, null);
 });
 
-// Unlike parseTracking, these return a definite answer for an empty response
-// rather than throwing - and that is safe only because nothing stores it.
-// updateValidation exists on the addresses repo and no service calls it, so a
-// validation result reaches the browser and never the database.
+// Unlike parseTracking, these return a definite answer for an empty response rather than throwing — safe only because nothing stores the result (validation reaches the browser, never the database).
 test("an empty address validation is invalid and residential, and is not stored", () => {
   assert.deepEqual(parseAddressValidation({}), {
     is_valid: false,

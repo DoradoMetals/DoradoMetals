@@ -1,17 +1,5 @@
-// Logic that exists in BOTH repos, held in step.
-//
-// The rate resolution says so itself - "mirrored 1:1 ... keep the two in sync"
-// - and nothing checked it. Weight conversion says nothing at all and is
-// mirrored just the same, which is worse: there was no comment to go stale.
-//
-// It decides the payout premium a customer is quoted, tiered by how much of a
-// metal is in the order. If the two copies drift, the frontend shows one rate
-// and the API pays another, and both are self-consistent so neither test suite
-// notices. This compares the shared functions and fails if they diverge.
-//
-// Formatting is not the point: semicolons, quote style and type annotations
-// differ between the two files and always have. What must match is the
-// sequence of statements.
+// Logic that exists in BOTH repos (api and frontend), held in step — it decides the payout premium a customer is quoted; if the two drift, the frontend shows one rate and the API pays another, and both stay self-consistent so neither test suite notices. This compares the shared functions and fails on divergence.
+// Formatting isn't the point (semicolons, quotes, type annotations differ and always have) — only the sequence of statements must match.
 import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -54,17 +42,8 @@ function extract(file: string, name: string): string {
   return src.slice(from, i + 1);
 }
 
-// ONE difference is real, deliberate, and allowed: the API tolerates a null
-// list where the frontend does not - `(rates ?? [])` and `items ?? []`. The
-// API takes its input off the wire and the frontend's is typed, so the two
-// are right to differ. It is normalised away HERE, by name, rather than by a
-// loose comparison that would also hide a difference that matters. The test
-// below then pins the guards themselves, so dropping the API's null tolerance
-// fails rather than quietly making the two files "agree".
-// TUPLES, DECLARED. As a bare literal this widens to `(RegExp | string)[][]`,
-// so `out.replace(re, to)` matches no overload - both halves arrive as
-// `string | RegExp`. Same shape as lint-migrations' DESTRUCTIVE list; the
-// pattern is invisible until something typechecks the file.
+// One difference is real and allowed: the API tolerates a null list (`?? []`) where the frontend's typed input doesn't need to — normalised away by NAME here so a loose comparison doesn't also hide a difference that matters; the guard below pins the API's null tolerance itself so removing it fails instead of quietly 'agreeing'.
+// Tuples declared explicitly — a bare literal here widens to (RegExp | string)[][], so `.replace(re, to)` would match no overload.
 const ALLOWED_DIFFERENCES: readonly (readonly [RegExp | string, string])[] = [
   [/\(rates \?\? \[\]\)/g, "rates"],
   [/items \?\? \[\]/g, "items"],

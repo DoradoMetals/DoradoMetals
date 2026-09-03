@@ -1,14 +1,5 @@
-// The cipher half of phase 7, tested against synthetic values only.
-//
-// Dev holds no bank details at all, which is what makes this module safe to
-// develop: every value below is invented. No database is touched - this is the
-// half of the encryption work that has no Postgres in it, which is the half
-// that can be tested exhaustively.
-//
-// The suite that matters most is the last one - that no error this module
-// throws ever carries the plaintext it was handed. A stack trace in a log
-// aggregator is a worse exposure than the at-rest plaintext this phase exists
-// to remove, so the error paths are pinned rather than trusted.
+// The cipher half of phase 7, tested against synthetic values only — dev holds no bank details, so every value here is invented; no database is touched, which is what makes this exhaustively testable.
+// The suite that matters most is the last: no error this module throws may ever carry the plaintext it was handed — a stack trace in a log aggregator is a worse exposure than the at-rest plaintext this phase exists to remove.
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { randomBytes } from "node:crypto";
@@ -125,12 +116,7 @@ describe("isEnvelope", () => {
   });
 });
 
-// THE ONE THAT MATTERS MOST.
-//
-// CLAUDE.md: "Never log or return bank details." A throw is a return path -
-// error.message reaches Sentry, a terminal and a ticket. Every failure mode
-// this module has is exercised here with a recognisable plaintext, and the
-// message, the stack and the serialised error are all searched for it.
+// The one that matters most — CLAUDE.md: 'never log or return bank details', and a throw IS a return path (error.message reaches Sentry, a terminal, a ticket). Every failure mode is exercised here with a recognisable plaintext, searched for in the message, stack and serialised error.
 describe("no error path carries the plaintext", () => {
   const SECRET = "987654321098765";
 

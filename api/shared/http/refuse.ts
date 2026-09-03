@@ -1,18 +1,6 @@
-// A refusal that carries its status.
-//
-// shared/middleware/errorHandler.ts shows a message to the caller only when the
-// error carries a deliberate 4xx - "an error raised deliberately is different:
-// it was written to be read, and its status says so". A bare `new Error`
-// arrives as a generic 500 "Server error" and the explanation goes to the log
-// instead of to the admin who needed it.
-//
-// This lived as a private copy in features/fulfillments/service.ts,
-// features/orders/patch.service.ts and features/checkout/service.ts, each with
-// the same three lines and the same comment. It is one function; the per-
-// resource services created by the 26c factoring would have made it five.
-//
-// 400 for "that request is malformed", 403 for "not yours", 404 for "that does
-// not exist", 409 for "the current state forbids this".
+// A refusal that carries its status — errorHandler.ts only shows a message to the caller when the error carries a deliberate 4xx; a bare `new Error` becomes a generic 500 and the real reason only reaches the log.
+// Was a private copy of the same three lines in three services; now one function shared by all.
+// 400 malformed, 403 not yours, 404 doesn't exist, 409 current state forbids this.
 export interface HttpError extends Error {
   statusCode?: number;
 }

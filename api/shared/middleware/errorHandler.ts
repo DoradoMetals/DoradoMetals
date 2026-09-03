@@ -292,16 +292,7 @@ function prettyPrint(safe: any) {
   console.error(chalk.gray("\n" + "—".repeat(Math.min(width, 120))));
 }
 
-// `err` IS `unknown` BECAUSE ANYTHING CAN BE THROWN.
-//
-// Express types it `any`, which is convenient and untrue: a route can throw a
-// string, a plain object, or nothing at all. Everything below already reads it
-// defensively - `err?.message || "Unknown error"` - and the narrowing here says
-// so out loud rather than trusting a dot to be safe.
-//
-// It matters most for `deliberate`, three lines down, which is what decides
-// whether a caller sees the real message or a generic one. That test must
-// answer false for a thrown string, and now cannot silently do otherwise.
+// `err` is `unknown` because anything can be thrown — Express types it `any`, which is convenient and untrue (a route can throw a string, an object, or nothing). Matters most for `deliberate` below, which decides whether the caller sees the real message or a generic one.
 export default function errorHandler(
   err: unknown,
   req: Request,
@@ -325,22 +316,8 @@ export default function errorHandler(
     raised.status ||
     500;
 
-  // What goes back to the client is not what goes to the log.
-  //
-  // safe.message is err.message, and for anything unexpected that is the
-  // underlying error verbatim - a Postgres error carries the column, the type,
-  // the constraint name and, on a unique violation, the conflicting value. That
-  // was being returned to callers, and `where` put the absolute server path
-  // next to it: GET /api/stripe/retrieve_payment_intent answered
-  //
-  //   {"success":false,"error":{
-  //      "message":"invalid input syntax for type uuid: \"not-a-uuid\"",
-  //      "where":"/home/jtj60/dorado-exchange/api/features/stripe/repo.js:23"}}
-  //
-  // Only `where` was gated on NODE_ENV, so production still returned the
-  // message. An error raised deliberately is different: it was written to be
-  // read, and its status says so. Those keep their message; everything else
-  // gets a generic one. The real message is still printed in full above.
+  // What goes back to the client is not what goes to the log — safe.message is the underlying error verbatim (a Postgres error carries the column, type, constraint name and, on a unique violation, the conflicting value), and `where` used to add the absolute server path next to it, both returned to callers with only `where` gated on NODE_ENV.
+  // A deliberately-raised error is different — it was written to be read (its status says so) and keeps its message; everything else gets a generic one. The real message is still printed in full above.
   const deliberate = Number.isInteger(raised.statusCode ?? raised.status)
     && status >= 400 && status < 500;
 

@@ -1,11 +1,5 @@
-// The one place the live path loads the payout key from the environment.
-//
-// scripts/encrypt-payout-details.ts has its own copy of this ceremony because
-// it predates the LIVE need; the payout step (D210) makes the key
-// load-bearing at checkout time, so the load lives here where both the write
-// (payments/details) and the admin read can share it. Refuses loudly and
-// WITHOUT the value, exactly as the script does: a missing or short key is a
-// deploy fault, and the error must be safe to paste anywhere.
+// The one place the live path loads the payout key from the environment — scripts/encrypt-payout-details.ts has its own copy since it predates this need; both the write (payments/details) and the admin read share this one.
+// Refuses loudly and WITHOUT the value, same as the script — a missing or short key is a deploy fault, and the error must be safe to paste anywhere.
 import { parseKey, type Key } from "#shared/crypto/envelope.ts";
 
 export function payoutKeyFromEnv(): Key {

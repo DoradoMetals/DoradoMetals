@@ -1,18 +1,5 @@
-// The schedules are read when setupScheduler runs, not when the module loads.
-//
-// This is the whole point of the change it guards. The schedules used to be a
-// module-level array, which WORKED - app.ts imports #env on its eleventh line
-// and server.ts imports #app before it imports the scheduler, so dotenv had
-// always run first. It worked because of the order of two import lines.
-//
-// Swap them and every schedule reads undefined, both jobs log "no schedule
-// configured" and skip, and the process serves traffic with spot prices that
-// never update again and offers that never expire. Nothing fails. There is
-// just no cron.
-//
-// NOTHING HERE CALLS run(). setupScheduler fires each job immediately, and the
-// two jobs are updateSpotPrices and expireStaleOffers - the live spot provider
-// and a write to the database. Only the schedule strings are read.
+// Schedules are read when setupScheduler runs, not at module load — the old module-level array WORKED only because of import order in server.ts (dotenv always ran first); swapping two lines would leave both cron jobs silently unscheduled with no error at all.
+// Nothing here calls run() — setupScheduler fires each job immediately, and the two jobs reach the live spot provider and the database; only the schedule strings are read.
 
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -37,11 +24,7 @@ const withEnv = <T>(values: Record<string, string | undefined>, fn: () => T): T 
 };
 
 test("the jobs are declared, and not invoked by reading them", () => {
-  // 086 removed offers, and the stale-offers job went with them. Phase 9 added
-  // the missed-webhook sweep: advancing a paid order moves no money and is
-  // idempotent, which is what qualifies it for a timer - the abandonment sweep
-  // (cancel + refund) deliberately is NOT here and must never be; it moves
-  // money and lives behind reconcile:payments --commit and a human.
+  // The abandonment sweep (cancel + refund) is deliberately NOT scheduled here — it moves money and lives behind reconcile:payments --commit and a human.
   const names = jobs().map((j) => j.name);
   assert.deepEqual(names, ["spot prices", "settle paid orders"]);
   for (const job of jobs()) {

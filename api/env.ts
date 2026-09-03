@@ -1,19 +1,5 @@
-// Loads api/.env, wherever the process was started from, and composes the
-// connection URLs from their parts.
-//
-// WHY IT RESOLVES FROM THIS FILE'S LOCATION. `import "dotenv/config"` reads
-// .env relative to the current working directory, which quietly made the
-// working directory decide which database a script talks to. There is a .env at
-// the repo root as well as this one, and they point at different databases - the
-// root at prod, this at dev - so `node api/scripts/compare-tables.mjs` run from
-// the repo root connected to production and reported the new schema as missing,
-// while the same command run from api/ worked. A confusing read was the harmless
-// version of that; the runner applying 27 migrations to the wrong database was
-// the other one.
-//
-// Resolving from this file's own location instead removes the choice. Real
-// environment variables still win, so a deployed container that sets
-// DATABASE_URL directly is unaffected - there is no .env there to find.
+// Loads api/.env relative to THIS FILE, not the working directory — `dotenv/config`'s cwd-relative load let a script run from the repo root (whose own .env points at PRODUCTION) silently connect to the wrong database; one incident applied 27 migrations there.
+// Real environment variables still win, so a deployed container setting DATABASE_URL directly is unaffected.
 import path from "node:path";
 import dotenv from "dotenv";
 
@@ -21,32 +7,11 @@ import dotenv from "dotenv";
 // which under `node --test` means once per test file.
 dotenv.config({ path: path.join(import.meta.dirname, ".env"), quiet: true });
 
-// COMPOSING THE URLS FROM PARTS, RATHER THAN WRITING FIVE OF THEM OUT.
+// Composed from parts rather than five full connection strings — duplicating the password/host/port five times produced two real bugs in a day (a stray username, a doubled variable that wouldn't even parse). Rotating a password is now one edit, which matters since these credentials have had to be rotated already.
 //
-// Five full connection strings meant the same password appeared five times, and
-// the host and port five times. Two real bugs came out of that within a day:
+// One credential per ROLE, not per database — DORADO_USER/PASSWORD for the app and migrations, READONLY_USER/PASSWORD for production audits, sharing PGHOST/PGPORT.
 //
-//   DATABASE_URL=postgresql://w:...          the username was a stray "w",
-//                                            so dev stopped authenticating
-//   REFRESH_ADMIN_DATABASE_URL=DATABASE_URL=postgresql://...
-//                                            a doubled variable name, so the
-//                                            value would not even parse
-//
-// Neither is possible when the username is written once and the URL is built.
-// Rotating a password becomes one edit instead of five-and-hope, which matters
-// here because these credentials have had to be rotated already.
-//
-// THE PARTS. A host and port shared by everything, then one credential per
-// ROLE - not per database, because the roles are the thing that differ:
-//
-//   PGHOST, PGPORT
-//   DORADO_USER / DORADO_PASSWORD          the application and migrations
-//   READONLY_USER / READONLY_PASSWORD      audits against production
-//
-// AN EXPLICIT URL ALWAYS WINS. Each is only composed if it is not already set,
-// so Railway injecting DATABASE_URL, or a one-off `DATABASE_URL=... node ...`,
-// behaves exactly as before. That also means this can be adopted one variable
-// at a time rather than in a single sweep.
+// Only composed if not already set — an explicit DATABASE_URL (Railway, or a one-off override) always wins, and adoption can happen one variable at a time.
 const compose = (
   user: string | undefined,
   password: string | undefined,
@@ -75,8 +40,7 @@ const COMPOSED: Record<string, () => string | undefined> = {
   DUMP_SOURCE_DATABASE_URL: () => dorado(process.env.PROD_DATABASE ?? "prod"),
   BACKUP_SOURCE_DATABASE_URL: () => dorado(process.env.PROD_DATABASE ?? "prod"),
   PROD_READONLY_DATABASE_URL: () => readonly(process.env.PROD_DATABASE ?? "prod"),
-  // The admin connection for refresh-from-backup: any database other than the
-  // one being dropped, which is why it is the maintenance database.
+  // The admin connection for refresh-from-backup: any database other than the one being dropped, which is why it is the maintenance database.
   REFRESH_ADMIN_DATABASE_URL: () => dorado("postgres"),
 };
 
@@ -86,30 +50,9 @@ for (const [name, build] of Object.entries(COMPOSED)) {
   if (url) process.env[name] = url;
 }
 
-// ONE SWITCH TO RUN THE SUITE AGAINST `test` INSTEAD OF `dev`.
-//
-// AFTER the composition loop, deliberately: TEST_DATABASE_URL may be composed
-// rather than written out, and reading it first threw "not set" for anyone
-// using the composed form. Written the wrong way round the first time.
-//
-// The tests read DATABASE_URL like everything else, so pointing them elsewhere
-// has always been possible - this just makes it one flag instead of remembering
-// to export the right variable, and puts the reason in one place.
-//
-// THIS IS THE DEFAULT NOW (2026-09-03). `pnpm --filter @dorado/api test` sets
-// USE_TEST_DB=1 itself, against a LOCAL Postgres provisioned from dev (see
-// docs/waves/local-postgres.md) - not the remote Railway `test`, which is what
-// the paragraph this replaced warned about: that one is rebuilt from a
-// PRODUCTION backup, and production has no leads, rates, reviews, products,
-// metals or media schema at all, so every test reading one of those would see
-// zero rows. `scripts/preflight-test-db.ts` still refuses outright if
-// TEST_DATABASE_URL ever resolves to that remote database instead of loopback.
-//
-//   pnpm --filter @dorado/api test          local Postgres (default)
-//   pnpm --filter @dorado/api test:on-dev   the old behaviour, against dev
-//
-// It refuses to point at anything but the test database, so it cannot become a
-// way to run a suite that writes against dev or prod by accident.
+// USE_TEST_DB=1 points the suite at TEST_DATABASE_URL instead of DATABASE_URL — checked AFTER the composition loop above (composing first, then reading, was backwards the first time and threw "not set").
+// Default since 2026-09-03: `pnpm test` sets this against a LOCAL Postgres provisioned from dev — not the remote Railway `test`, which is rebuilt from a PRODUCTION backup missing several schemas entirely (leads, rates, reviews, products, metals, media), so tests reading them would see zero rows.
+// Refuses outright if TEST_DATABASE_URL doesn't resolve to the actual test database — so this can't become a way to run the suite against dev or prod by accident.
 if (process.env.USE_TEST_DB === "1") {
   const testUrl = process.env.TEST_DATABASE_URL;
   if (!testUrl) {

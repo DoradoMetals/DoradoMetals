@@ -1,20 +1,6 @@
-// SQL loaded from .sql files rather than written as strings in TypeScript.
-//
-// WHY. A query living in a template literal is a string as far as every tool is
-// concerned: no syntax highlighting, no formatter, no linter, and a diff that
-// reads as prose. Moving it to a .sql file makes it a first-class artifact -
-// editors understand it, and if this ever moves to constructed queries or an
-// ORM the statements are already separated from the code that calls them.
-//
-// LAZY AND CACHED. Read on first use rather than at import, so a module that is
-// imported but never used costs nothing, and so a missing file fails at the
-// call that needs it with the name of the file, rather than at boot with a
-// stack trace pointing at an import.
-//
-// FAILS LOUDLY, AND ON EMPTY. A missing file is obvious. An EMPTY one is the
-// dangerous case: `query("")` is not an error to pg, it just does nothing, so a
-// truncated or half-written file would read as a working query that quietly
-// returned no rows. Both are refused here, by name.
+// SQL loaded from .sql files rather than written as strings in TypeScript — a query in a template literal gets no syntax highlighting, formatting or linting from any tool.
+// Lazy and cached: read on first use, so an unused module costs nothing and a missing file fails at the call site with its name, not at boot.
+// Fails loudly on empty too — `query("")` isn't an error to pg, it just does nothing, so a truncated file would silently return no rows.
 import fs from "node:fs";
 import path from "node:path";
 

@@ -1,56 +1,14 @@
-// WHAT THE BUSINESS CHARGES FOR METAL - the ask side of features/pricing.
-//
-// Moved here from features/sales-orders/utils/calculations.ts under ruling 24,
-// with the bid side. Nothing below changed in the move.
-//
-// What a sales order costs.
-//
-// The mirror of features/pricing/bid.ts: that one values
-// metal the business is buying, this one prices metal it is selling. They share
-// no code and should not - a bid and an ask are different sums with different
-// defaults. Most visibly, a metal absent from `spots` throws on the purchase
-// side and prices at zero here, which the tests pin on both.
-//
-// TWO DIVERGENCES FROM THE FRONTEND'S COPY OF THIS SUM, found while converting
-// this file and deliberately left alone: changing either changes money that has
-// already been stored, which is not a type conversion's job. Both are written
-// up in FOLLOWUPS.md.
-//
-//   1. calculateCardCharge surcharges everything that is not "ACH" at 2.9%,
-//      CREDIT and WIRE included - and the checkout labels both of those "No
-//      Fee" (frontend/features/orders/salesOrders/types.ts). Nothing on the
-//      server refuses a CREDIT order whose funds fall short; only
-//      paymentSelect.tsx does, by flipping the method back to CARD when
-//      beginningFunds < baseTotal. Production has never reached it: all 8
-//      orders that applied funds were covered in full, so
-//      subject_to_charges_amount was 0 and no surcharge was taken.
-//
-//   2. The rate is chosen by a payment_method the client sends, and the Stripe
-//      intent is created with automatic_payment_methods enabled, so whatever
-//      method is actually used is never reconciled against the one that set the
-//      rate. Declaring ACH and paying by card costs the business the 2.4%
-//      difference. Production has one collected sales order and it is card at
-//      the card rate, so this has not happened either.
-//
-// AND ONE ASYMMETRY WITHIN THIS FILE. calculateItemTotals defaults a missing
-// quantity to 1, calculateSalesTax does not - so a line with no quantity would
-// be charged for one and taxed on none. It cannot currently happen: every
-// caller but /tax/get_sales_tax passes items through
-// productService.getItemsFromServer, which sets `quantity: ... ?? 0`. See the
-// note on `item.quantity!` below.
+// What the business CHARGES for metal (ask side) — mirrors bid.ts (what it PAYS), and they share no code: different defaults, most visibly that a metal absent from spots throws on the purchase side and prices at zero here (pinned on both).
+// TWO KNOWN DIVERGENCES from the frontend's own copy of this sum, deliberately left alone (fixing either changes money already stored, not a type conversion's job — full account in FOLLOWUPS.md):
+//   1. calculateCardCharge surcharges everything but ACH at 2.9%, but the checkout UI labels CREDIT and WIRE 'No Fee' too. Not yet hit: every funded order so far was covered in full, so no surcharge was taken.
+//   2. The surcharge rate is set by the client-declared payment_method, but Stripe's automatic_payment_methods means the method actually used is never reconciled against it — declaring ACH and paying by card would undercharge by 2.4%. Not yet hit: production's one collected sale used the card rate.
+// AND ONE ASYMMETRY WITHIN THIS FILE: calculateItemTotals defaults a missing quantity to 1, calculateSalesTax does not — cannot currently happen, since every caller but /tax/get_sales_tax passes items through getItemsFromServer, which sets quantity ?? 0.
 // Declared once, in spot.ts - see the note on the bid side.
 import type { PricingSpot, Spots } from "#domain/pricing/spot.ts";
 export type { PricingSpot, Spots } from "#domain/pricing/spot.ts";
 
-// What pricing needs of a line, which is emphatically NOT SalesOrderItem.
-// That is a line on a *saved* order - the product nested underneath, a premium
-// frozen at the time of sale. These functions run before the order exists, over
-// catalogue rows (Bullion) that the cart named and getItemsFromServer read
-// back from the database, with `quantity` overlaid from the request.
-//
-// Every field is optional because /tax/get_sales_tax prices the request body as
-// it arrives, unread and unjoined. Declaring them required would be a type that
-// describes one caller and lies about the other.
+// NOT SalesOrderItem — that's a line on a *saved* order; this runs BEFORE the order exists, over catalogue rows with quantity overlaid from the request.
+// Every field is optional because /tax/get_sales_tax prices the raw request body, unread and unjoined — required fields here would describe one caller and lie about the other.
 type PriceableItem = {
   metal_type?: string | null;
   content?: number | null;
@@ -63,9 +21,7 @@ type PriceableItem = {
 type TaxedItem = PriceableItem & { sales_tax_rate: number };
 
 
-// Only dorado_funds is ever read, so only dorado_funds is required. The
-// checkout passes a better-auth session user and the admin path passes a row
-// from exchange.users; naming either type here would reject the other.
+// Only dorado_funds is read — checkout passes a better-auth session user, admin passes an exchange.users row; naming either type would reject the other.
 type FundedUser = { dorado_funds?: number | null };
 
 export type OrderPrices = {
@@ -100,12 +56,7 @@ export function calculateCardCharge(
   }
 }
 
-// This held its own copy of calculateItemAsk's expression, character for
-// character, and now calls it. Two copies of one money sum drifting apart is
-// exactly the bug the purchase-order file's header describes - an invoice and a
-// packing list disagreeing by $3,236.11 - so the duplicate is worth removing
-// even though it had not yet drifted here. The arithmetic is unchanged, and
-// "item totals apply quantity" pins the result.
+// Calls calculateItemAsk rather than duplicating its expression — two copies drifting apart is the exact bug bid.ts's header describes.
 export function calculateItemTotals(items: PriceableItem[], spots: Spots): number {
   const baseTotal = items.reduce((acc: number, item: PriceableItem) => {
     const price = calculateItemAsk(item, spots);
@@ -130,13 +81,8 @@ export function getShippingCharge(
     : 0;
 }
 
-// `item.quantity!` preserves the arithmetic rather than asserting a fact. A
-// null quantity multiplies to 0 in JavaScript, which is the behaviour described
-// in the header and pinned by nothing, because no caller can currently produce
-// it. Writing `item.quantity ?? 1` here would agree with calculateItemTotals
-// and would change the tax on an order - a real change to stored money, made
-// silently inside a type conversion. It belongs in its own commit, with
-// Jacob's answer on which of the two is right.
+// `item.quantity!` preserves existing arithmetic (null multiplies to 0) rather than asserting a fact — no caller can currently produce a null, so this is unproven, not verified safe.
+// Changing it to `?? 1` (matching calculateItemTotals) would alter stored tax amounts — a real money change that needs its own commit and Jacob's call on which is right.
 export function calculateSalesTax(items: TaxedItem[], spots: Spots): number {
   return items.reduce((acc: number, item: TaxedItem) => {
     return (
@@ -162,17 +108,8 @@ export function calculateSalesOrderTotal(
   const beginning_funds = user.dorado_funds ?? 0;
   let appliedFunds = using_funds ? Math.min(beginning_funds, base_total) : 0;
 
-  // THE CARD REMAINDER IS EITHER ZERO OR CHARGEABLE, and this cap is what
-  // retired the $10 floor (D199). Stripe will not create a charge below $0.50,
-  // and the old answer was Math.max(rawAmount, 1000) at intent time - which
-  // billed a $3 balance as $10. The honest answer lives here in pricing: when
-  // applied credit would leave a sliver between $0.00 and $0.50, apply slightly
-  // LESS credit so the card pays exactly Stripe's minimum. The customer keeps
-  // the sliver as credit rather than being overcharged for it.
-  //
-  // A base_total below $0.50 with insufficient credit cannot be fixed by this
-  // cap (there is no credit to hold back) - that order is refused downstream
-  // at intent time, and no product this business sells costs 49 cents.
+  // The card remainder is either $0 or chargeable — retired the old $10 floor (which billed a $3 balance as $10). When applied credit would leave a sliver between $0.00 and $0.50 (below Stripe's minimum), apply slightly LESS credit so the card pays exactly $0.50; the customer keeps the sliver as credit instead of being overcharged.
+  // A base_total under $0.50 with insufficient credit can't be fixed here (no credit to hold back) — refused downstream at intent time; no product costs 49 cents.
   const STRIPE_MINIMUM_CHARGE = 0.5;
   const cardRemainder = base_total - appliedFunds;
   if (cardRemainder > 0 && cardRemainder < STRIPE_MINIMUM_CHARGE) {

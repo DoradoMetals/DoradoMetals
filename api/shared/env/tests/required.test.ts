@@ -1,14 +1,5 @@
-// requiredEnv is what three secrets are read through - the reCAPTCHA secret,
-// the Stripe webhook secret and the FedEx credentials - so its discipline is a
-// security property, not a convenience: THE MESSAGE NAMES THE VARIABLE AND
-// NEVER ITS VALUE. A missing secret has to be diagnosable from a log nobody had
-// to redact.
-//
-// The other behaviour worth holding is that it refuses an EMPTY string. That is
-// not obvious from the name: an operator who sets a variable to "" in Railway
-// has set it, and this treats that as missing. It is the right answer - "" as a
-// reCAPTCHA secret fails the same way `undefined` did - but it is a decision,
-// so it is pinned rather than left to the truthiness of `!value`.
+// requiredEnv is what three secrets (reCAPTCHA, Stripe webhook, FedEx) are read through, so its discipline is a security property: the message names the variable, never its value.
+// Also refuses an EMPTY string, not just unset — an operator setting a Railway variable to "" has still set it, and this treats that as missing (the right call, since "" fails the same way undefined did, but a decision worth pinning rather than leaving to `!value`).
 import test from "node:test";
 import assert from "node:assert/strict";
 import { requiredEnv } from "#shared/env/required.ts";

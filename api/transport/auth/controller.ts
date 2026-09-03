@@ -3,12 +3,7 @@ import { fromNodeHeaders } from 'better-auth/node';
 import { asyncHandler } from '#shared/middleware/asyncHandler.ts';
 import { auth } from '#domain/auth/client.ts';
 
-// Sets a password for the currently-authenticated user. Used by the magic-link
-// welcome flow (/verify-login): admin-created / order accounts are created
-// passwordless, so after the magic link signs them in they have no credential
-// password and better-auth's setPassword can create one. (This is why the
-// account must be passwordless — setPassword rejects users who already have a
-// password.)
+// Sets a password for the currently-authenticated user, used by the magic-link welcome flow — admin-created/order accounts start passwordless, and setPassword rejects users who already have one, so this only works exactly once.
 export const setPassword = asyncHandler(async (req, res) => {
   const { newPassword } = req.body ?? {};
 
