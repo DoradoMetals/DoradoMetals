@@ -101,3 +101,16 @@ export function instrumentValues(
     provider_ref: paymentMethod?.id ?? null,
   };
 }
+
+// STRIPE SPEAKS CENTS, and the two questions the update asks of an amount.
+// `chargeCents` is the conversion; `isChargeable` is Stripe's own floor - below
+// it there is nothing legal to update an intent TO.
+const STRIPE_MINIMUM_CENTS = 50;
+
+export function chargeCents(dollars: number): number {
+  return Math.round(dollars * 100);
+}
+
+export function isChargeable(cents: number): boolean {
+  return cents >= STRIPE_MINIMUM_CENTS;
+}

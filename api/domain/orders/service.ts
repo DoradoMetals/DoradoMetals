@@ -20,7 +20,6 @@ import * as ordersRepo from "#db/orders/repo.ts";
 import * as itemsRepo from "#db/orders/items/repo.ts";
 import * as orderSpots from "#db/orders/spots/repo.ts";
 import * as orderTransactions from "#db/orders/transactions/repo.ts";
-import * as refinerItems from "#db/refiners/items/repo.ts";
 import * as refinerSpots from "#db/refiners/spots/repo.ts";
 import * as refinerOrders from "#db/refiners/orders/repo.ts";
 import * as productsRepo from "#db/products/repo.ts";
@@ -131,7 +130,7 @@ export async function createLine(
     // admin-added line matches customer checkout - and so the new line is BORN
     // at its tier rather than at null. The line is re-read because the re-tier
     // writes it.
-    await refinerItems.mirrorLinesForOrder(order_id, tx);
+    await refinerService.mirrorLinesForOrder(order_id, tx);
     await retierPremiums(order_id, tx);
     return (await itemsRepo.getOne(created.id, tx)) ?? created;
   });
@@ -388,7 +387,7 @@ export async function sendToRefiner(
   if (order.order.order_sent !== true) {
     await withTransaction(async (tx) => {
       // The engagement owns which refinery has the metal (refiners.orders, 093).
-      const engagementId = await refinerOrders.ensureForOrder(order_id, tx);
+      const engagementId = await refinerService.engagementIdFor(order_id, tx);
       const attached = await refinerOrders.update(engagementId, { refiner_id }, tx);
       if (!attached) {
         throw new Error(

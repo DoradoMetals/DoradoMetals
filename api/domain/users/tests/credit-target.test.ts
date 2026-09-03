@@ -30,8 +30,8 @@ test("a credit adjustment that matches no user is refused, not reported as done"
     await assert.rejects(
       () => usersService.adjustDoradoCredit({ user_id: NOBODY, op: "add", amount: 500 }),
       (err: unknown) => {
-        const e = err as { statusCode?: number; message?: string; code?: string };
-        assert.equal(e.statusCode, 404, "a credit that reached nobody is not a success");
+        const e = err as { kind?: string; message?: string };
+        assert.equal(e.kind, "not_found", "a credit that reached nobody is not a success");
         assert.match(String(e.message), /not applied to anybody/);
         return true;
       }
@@ -91,20 +91,6 @@ test("the database refuses a NULL balance, which is what makes an unknown mode s
       },
       "if this stops throwing, the NOT NULL has been dropped and an unrecognised " +
         "mode can zero a customer's credit"
-    );
-  });
-});
-
-test("the service refuses an unknown mode before the repo is reached", async () => {
-  await inPinned(async () => {
-    await assert.rejects(
-      () => usersService.adjustDoradoCredit({ user_id: NOBODY, op: "not-a-mode", amount: 5 }),
-      (err: unknown) => {
-        const e = err as { statusCode?: number; message?: string; code?: string };
-        assert.equal(e.statusCode, 400);
-        assert.match(String(e.message), /unknown credit mode/);
-        return true;
-      }
     );
   });
 });

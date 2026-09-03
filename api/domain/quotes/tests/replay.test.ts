@@ -37,6 +37,9 @@ let gold: SpotFixture; // the Gold spot row
 let product: ProductFixture;   // a Gold product live in BOTH directions
 let hiddenAsk: { id: string }; // display = false but sell_display = true
 let buyer: BuyerFixture;       // a real user row with an address
+let goldId: string;            // the Gold metal's id - a scrap line names it
+let standardId: string;        // shipping.services, code STANDARD
+let cardId: string;            // payments.methods, sale, type CARD
 
 beforeAll(async () => {
   spots = await outside<SpotFixture>(
@@ -51,6 +54,12 @@ beforeAll(async () => {
     "dev's Gold spot is not priced - every check here would be vacuous"
   );
   gold = found;
+
+  const [goldRow] = await outside<{ id: string }>(
+    `SELECT id FROM metals.metals WHERE name = 'Gold' LIMIT 1`
+  );
+  assert.ok(goldRow, "dev has no Gold metal row - a scrap line names it by id");
+  goldId = goldRow.id;
 
   const products = await outside<ProductFixture>(
     `SELECT b.id, b.name, b.content, b.ask_premium, b.bid_premium, m.name AS metal
@@ -76,6 +85,20 @@ beforeAll(async () => {
   );
   buyer = buyers[0];
   assert.ok(buyer, "dev has no user with an address");
+
+  // The delivery service and payment method are IDS in the body now (D214
+  // item 11); their rows' `code` and `type` are what price the order.
+  const [standard] = await outside<{ id: string }>(
+    `SELECT id FROM shipping.services WHERE code = 'STANDARD' ORDER BY id LIMIT 1`
+  );
+  assert.ok(standard, "dev has no STANDARD shipping service - the charge check would be vacuous");
+  standardId = standard.id;
+
+  const [card] = await outside<{ id: string }>(
+    `SELECT id FROM payments.methods WHERE direction = 'sale' AND type = 'CARD' LIMIT 1`
+  );
+  assert.ok(card, "dev has no CARD sale method - the surcharge check would be vacuous");
+  cardId = card.id;
 });
 
 afterAll(async () => {
@@ -121,7 +144,9 @@ test("a display=false product is refused on the ask side and quoted on the bid s
       const refused = await request(app)
         .post("/api/quotes/catalog")
         .send({ items: [{ id: hiddenAsk.id }], side: "ask" });
-      assert.equal(refused.status, 400, `a hidden product priced on the ask side (${refused.status})`);
+      // 422: the liveness gate is a RULE the service applies, and a domain
+      // refusal is Invalid (D214 item 11). A malformed body would be 400.
+      assert.equal(refused.status, 422, `a hidden product priced on the ask side (${refused.status})`);
       assert.match(refused.body?.error?.message ?? "", /not available/);
 
       // The same id on the bid side: sell_display governs there, and this
@@ -149,7 +174,7 @@ test("the sales-order quote needs a session; the two goods quotes do not", async
       // cart estimates what the business would pay.
       const pub = await request(app)
         .post("/api/quotes/purchase_order")
-        .send({ items: [{ type: "product", data: { id: product.id, quantity: 1 } }] });
+        .send({ items: [{ type: "product", bullion_id: product.id, quantity: 1 }] });
       assert.equal(pub.status, 200, `purchase_order answered ${pub.status} anonymously`);
       assert.ok(pub.body.total > 0, "the anonymous estimate priced at nothing");
     });
@@ -161,10 +186,9 @@ test("the sales-order breakdown reconciles to the cent and funds come from the u
     await as({ id: buyer.id, name: buyer.name, email: buyer.email }, async () => {
       const res = await request(app).post("/api/quotes/sales_order").send({
         items: [{ id: product.id, quantity: 2 }],
-        using_funds: true,
-        shipping_service: "STANDARD",
-        payment_method: "CARD",
         address_id: buyer.address_id,
+        carrier_service_id: standardId,
+        payment_method_id: cardId,
       });
       assert.equal(res.status, 200, `the sales-order quote answered ${res.status}: ${JSON.stringify(res.body)}`);
       const b = res.body;
@@ -203,7 +227,8 @@ test("the sales-order breakdown reconciles to the cent and funds come from the u
       const applied = Math.min(b.beginning_funds, b.base_total);
       assert.ok(Math.abs(b.ending_funds - (b.beginning_funds - applied)) < CENTS,
         "ending_funds is not beginning minus what was applied");
-      assert.ok(Math.abs(b.pre_charges_amount - applied) < CENTS, "using_funds did not apply the funds");
+      assert.ok(Math.abs(b.pre_charges_amount - applied) < CENTS,
+        "the customer's balance was not applied - credit applies whenever there is one");
 
       // CARD surcharges at 2.9% of what is left to charge.
       if (b.subject_to_charges_amount > 0) {
@@ -231,7 +256,7 @@ test("an admin's sales-order quote prices the named user's funds; a customer's n
     const target = targets[0];
     assert.ok(target, "dev has no second user with a different balance - the subject check would be vacuous");
 
-    const body = { items: [{ id: product.id, quantity: 1 }], using_funds: true, user_id: target.id };
+    const body = { items: [{ id: product.id, quantity: 1 }], user_id: target.id };
 
     await as({ id: buyer.id, name: buyer.name, email: buyer.email, role: "admin" }, async () => {
       const res = await request(app).post("/api/quotes/sales_order").send(body);
@@ -256,8 +281,10 @@ test("the purchase-order quote prices scrap and product lines from the rates ban
     await as({ id: buyer.id, name: buyer.name, email: buyer.email }, async () => {
       // 124.414g at .500 purity = exactly 2 troy oz of content, derived by
       // the SERVER - the body carries no content field at all.
-      const scrap = { type: "scrap", data: { metal: "Gold", pre_melt: 124.414, purity: 0.5, gross_unit: "g" } };
-      const line = { type: "product", data: { name: product.name, quantity: 2 } };
+      const scrap = {
+        type: "scrap", metal_id: goldId, pre_melt: 124.414, purity: 0.5, unit: "g",
+      };
+      const line = { type: "product", bullion_id: product.id, quantity: 2 };
 
       const res = await request(app).post("/api/quotes/purchase_order").send({ items: [scrap, line] });
       assert.equal(res.status, 200, `the purchase-order quote answered ${res.status}: ${JSON.stringify(res.body)}`);
@@ -311,20 +338,24 @@ test("the purchase-order quote prices scrap and product lines from the rates ban
       assert.equal(res.body.declared_value, Math.min(res.body.total, cap),
         "declared_value is the total capped at shipping.services.max_insured_value");
 
-      // BOTH SPELLINGS of the product name resolve (D73): data.name above,
-      // data.product_name here, same product, same prices.
-      const other = await request(app).post("/api/quotes/purchase_order").send({
-        items: [scrap, { type: "product", data: { product_name: product.name, quantity: 2 } }],
+      // THE NAME LOOKUP IS GONE (D214 item 11): a product line names its
+      // catalogue id, so the two spellings D73 had to resolve between - and the
+      // `SELECT id FROM products.bullion WHERE name = ...` behind them - do not
+      // exist. A body naming a product by name is refused by the contract.
+      const byName = await request(app).post("/api/quotes/purchase_order").send({
+        items: [{ type: "product", product_name: product.name, quantity: 2 }],
       });
-      assert.equal(other.status, 200);
-      assert.deepEqual(other.body.items, res.body.items,
-        "data.product_name resolved differently from data.name");
+      assert.equal(byName.status, 400, "a product named by name was accepted");
     });
   });
 });
 
-// A body riding spots/prices/premiums prices IDENTICALLY to a clean one — the regression that once sold an ounce of gold for $26.81 (items were server-fetched, only the metal price was trusted).
-test("no body-supplied price, spot or premium is ever honoured", async () => {
+// THE $26.81 REGRESSION, SHUT ONE STEP EARLIER. A body riding spots, prices or
+// premiums used to be IGNORED - the quote read only ids and answered the same
+// number either way. The contracts are strict now, so such a body is REFUSED
+// rather than silently discarded, which is the stronger property: a field the
+// schema has no place for cannot be read by accident later.
+test("no body-supplied price, spot or premium is accepted at all", async () => {
   await inPinnedTransaction(async () => {
     const poison = {
       spots: [{ type: "Gold", name: "Gold", ask_spot: 1, bid_spot: 1, ask: 1, bid: 1 }],
@@ -334,61 +365,83 @@ test("no body-supplied price, spot or premium is ever honoured", async () => {
       price: 0.01,
       total: 0.01,
     };
-    const stripTimestamp = ({ spots_at, ...rest }: Record<string, unknown>) => rest;
 
     await anonymous(async () => {
       const clean = await request(app)
         .post("/api/quotes/catalog")
         .send({ items: [{ id: product.id, quantity: 2 }], side: "ask" });
+      assert.equal(clean.status, 200, JSON.stringify(clean.body));
+      // The honest number is nowhere near the poisoned one it refuses.
+      assert.ok(clean.body.items[0].unit_price > 1, "the clean quote itself is suspiciously tiny");
+
       const poisoned = await request(app).post("/api/quotes/catalog").send({
         ...poison,
         items: [{ id: product.id, quantity: 2, unit_price: 0.01, price: 0.01, ask_premium: 0 }],
         side: "ask",
       });
-      assert.equal(poisoned.status, 200);
-      assert.deepEqual(stripTimestamp(poisoned.body), stripTimestamp(clean.body),
-        "a catalogue quote read something price-shaped off the body");
-      // And the honest number is nowhere near the poisoned one.
-      assert.ok(clean.body.items[0].unit_price > 1, "the clean quote itself is suspiciously tiny");
+      assert.equal(poisoned.status, 400, "a catalogue quote accepted something price-shaped");
+
+      // Each field on its own, so the refusal is not an accident of one of them.
+      for (const field of ["unit_price", "price", "ask_premium", "content"]) {
+        const one = await request(app).post("/api/quotes/catalog").send({
+          items: [{ id: product.id, quantity: 2, [field]: 0.01 }], side: "ask",
+        });
+        assert.equal(one.status, 400, `a catalogue line carrying ${field} was accepted`);
+      }
     });
 
     await as({ id: buyer.id, name: buyer.name, email: buyer.email }, async () => {
       const base = {
         items: [{ id: product.id, quantity: 2 }],
-        using_funds: false,
-        shipping_service: "STANDARD",
-        payment_method: "CARD",
         address_id: buyer.address_id,
+        carrier_service_id: standardId,
+        payment_method_id: cardId,
       };
       const clean = await request(app).post("/api/quotes/sales_order").send(base);
-      const poisoned = await request(app).post("/api/quotes/sales_order").send({
-        ...base,
-        ...poison,
-        items: [{ id: product.id, quantity: 2, ask_premium: 0, price: 0.01 }],
-        dorado_funds: 1000000,
-        user: { dorado_funds: 1000000 },
-      });
-      assert.equal(poisoned.status, 200);
-      assert.deepEqual(stripTimestamp(poisoned.body), stripTimestamp(clean.body),
-        "a sales-order quote read something price-shaped off the body");
+      assert.equal(clean.status, 200, JSON.stringify(clean.body));
+
+      // `dorado_funds` and `user` were the way a caller declared the credit
+      // balance they were discounted by. Neither is a field any more.
+      for (const extra of [
+        poison,
+        { dorado_funds: 1000000 },
+        { user: { dorado_funds: 1000000 } },
+        { items: [{ id: product.id, quantity: 2, ask_premium: 0, price: 0.01 }] },
+      ]) {
+        const poisoned = await request(app)
+          .post("/api/quotes/sales_order").send({ ...base, ...extra });
+        assert.equal(
+          poisoned.status, 400,
+          `a sales-order quote accepted ${JSON.stringify(Object.keys(extra))}`
+        );
+      }
 
       const sellBase = {
         items: [
-          { type: "scrap", data: { metal: "Gold", pre_melt: 124.414, purity: 0.5, gross_unit: "g" } },
-          { type: "product", data: { id: product.id, quantity: 1 } },
+          { type: "scrap", metal_id: goldId, pre_melt: 124.414, purity: 0.5, unit: "g" },
+          { type: "product", bullion_id: product.id, quantity: 1 },
         ],
       };
       const cleanSell = await request(app).post("/api/quotes/purchase_order").send(sellBase);
-      const poisonedSell = await request(app).post("/api/quotes/purchase_order").send({
-        ...poison,
-        items: [
-          { type: "scrap", data: { ...sellBase.items[0].data, bid_premium: 0.0001, premium: 0.0001 } },
-          { type: "product", data: { id: product.id, quantity: 1, bid_premium: 0.0001, content: 9999 } },
-        ],
-      });
-      assert.equal(poisonedSell.status, 200);
-      assert.deepEqual(stripTimestamp(poisonedSell.body), stripTimestamp(cleanSell.body),
-        "a purchase-order quote read a premium, spot or product content off the body");
+      assert.equal(cleanSell.status, 200, JSON.stringify(cleanSell.body));
+      assert.ok(cleanSell.body.total > 1, "the clean sell quote itself is suspiciously tiny");
+
+      // A scrap line carrying its own content is the customer declaring the
+      // quantity of fine metal they are paid for; a product line carrying a
+      // premium is the customer setting the rate.
+      for (const items of [
+        [{ type: "scrap", metal_id: goldId, pre_melt: 124.414, purity: 0.5, unit: "g", content: 9999 }],
+        [{ type: "scrap", metal_id: goldId, pre_melt: 124.414, purity: 0.5, unit: "g", premium: 0.0001 }],
+        [{ type: "product", bullion_id: product.id, quantity: 1, bid_premium: 0.0001 }],
+        [{ type: "product", bullion_id: product.id, quantity: 1, content: 9999 }],
+      ]) {
+        const poisonedSell = await request(app)
+          .post("/api/quotes/purchase_order").send({ ...poison, items });
+        assert.equal(
+          poisonedSell.status, 400,
+          `a purchase-order quote accepted ${JSON.stringify(Object.keys(items[0]))}`
+        );
+      }
     });
   });
 });
@@ -451,10 +504,15 @@ test("a poisoned profit-breakdown body changes nothing", async () => {
       `SELECT id FROM exchange.purchase_orders ORDER BY created_at ASC, id ASC LIMIT 1`
     );
     const order_id = orders[0].id;
-    const stripTimestamp = ({ spots_at, ...rest }: Record<string, unknown>) => rest;
 
     await as({ id: buyer.id, name: buyer.name, email: buyer.email, role: "admin" }, async () => {
       const clean = await request(app).post("/api/quotes/profit_breakdown").send({ order_id });
+      assert.equal(clean.status, 200, JSON.stringify(clean.body));
+
+      // The body is ONE id, strictly. Everything the old body could carry -
+      // the order itself, both spot sets, the rate bands, the fees - is a
+      // field the contract does not have, so it is refused rather than
+      // silently discarded.
       const poisoned = await request(app).post("/api/quotes/profit_breakdown").send({
         order_id,
         order: { id: order_id, totals: { refiner_fee: 1000000 }, order_items: [] },
@@ -465,9 +523,9 @@ test("a poisoned profit-breakdown body changes nothing", async () => {
         shipping_fee_actual: 999999,
         payout: { cost: 999999 },
       });
-      assert.equal(poisoned.status, 200);
-      assert.deepEqual(stripTimestamp(poisoned.body), stripTimestamp(clean.body),
-        "the profit breakdown read something off the body besides the order id");
+      assert.equal(
+        poisoned.status, 400, "the profit breakdown accepted a field besides the order id"
+      );
     });
   });
 });

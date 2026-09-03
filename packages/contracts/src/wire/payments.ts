@@ -79,30 +79,38 @@ export type PaymentIntent = z.infer<typeof PaymentIntent>;
 // ACCEPTS, so the transport boundary can parse a body once, in strict mode,
 // before the money path runs.
 
-// THE PRICING UPDATE. `items` and `user` are LOOSE because the browser sends
-// whole objects - a catalogue product, a session user - and the server reads a
-// named handful off each: an item's id and quantity, a user's id and credit
-// balance. Every price is re-derived server-side (D81-D84).
+// THE PRICING UPDATE, AS IDS (D214 item 11, ruling 43). Every field the
+// browser used to compose is a row the server already holds:
 //
-// `spots` IS DECLARED AND DELIBERATELY NOT READ. The frontend still sends it;
-// feeding it to the pricing call is what let a request name its own metal
-// price - ask_spot 3400 priced an order at $3,673.53 and ask_spot 1 priced the
-// same order at $26.81. Declaring it keeps a deployed client from being
-// answered 400; the service fetches the server's own spots instead.
+//   items[]            still the cart, but each line is an id and a quantity -
+//                      a strict object, not a whole catalogue product.
+//   user               GONE. It carried `dorado_funds`, so a request declared
+//                      the credit balance it was priced against. The admin
+//                      path names the CUSTOMER by id and the server reads
+//                      their balance from auth.users.
+//   spots              GONE. Declared-and-ignored kept a deployed client from
+//                      being answered 400; on this branch no shape is
+//                      preserved, and a price-shaped field the server refuses
+//                      cannot be read by accident later.
+//   shipping_service   -> carrier_service_id. The row's `code` prices delivery.
+//   payment_method     -> payment_method_id. The row's `type` decides the card
+//                      surcharge.
+//   using_funds        GONE, and this is a BEHAVIOUR CHANGE: credit is applied
+//                      whenever the customer has a balance, which is what
+//                      placement already does (orders' OrderCreate). Leaving
+//                      it here would price the intent differently from the
+//                      order the intent pays for.
 export const UpdatePaymentIntentBody = z.object({
-  items: z.array(z.looseObject({ id: z.string(), quantity: z.number() })).default([]),
-  using_funds: z.boolean().nullable().optional(),
-  spots: z.array(z.looseObject({})).optional(),
-  user: z.looseObject({
-    id: z.string().optional(),
-    // COERCED: a credit balance arrives as a numeric string from some
-    // clients and pricing needs a number.
-    dorado_funds: z.coerce.number().nullable().optional(),
-  }).nullable().optional(),
-  shipping_service: z.string().nullable().optional(),
-  payment_method: z.string().nullable().optional(),
+  items: z.array(
+    z.object({ id: z.string().uuid(), quantity: z.number() }).strict()
+  ).default([]),
+  address_id: z.string().uuid().optional(),
+  carrier_service_id: z.string().uuid().optional(),
+  payment_method_id: z.string().uuid().optional(),
+  // ADMIN ONLY: whose order this prices. A customer's own intent is keyed by
+  // their session, never by a body field.
+  user_id: z.string().uuid().optional(),
   type: z.string().optional(),
-  address_id: z.string().optional(),
 }).strict();
 export type UpdatePaymentIntentBody = z.infer<typeof UpdatePaymentIntentBody>;
 

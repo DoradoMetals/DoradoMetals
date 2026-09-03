@@ -186,3 +186,93 @@ export const ProfitBreakdown = z.object({
   customer: ProfitCategoriesDict,
 });
 export type ProfitBreakdown = z.infer<typeof ProfitBreakdown>;
+
+// ===========================================================================
+// THE REQUEST BODIES
+// ===========================================================================
+//
+// Everything above describes what the quote surface ANSWERS; these describe
+// what it ACCEPTS, so the transport boundary parses once, strictly, before any
+// money is computed.
+//
+// IDS AND QUANTITIES, NEVER PRICES (D214 item 11, ruling 43). A quote's whole
+// job is to be the ONE place a customer-visible number comes from, so a body
+// that could name a premium, a spot or a metal's price would be the surface
+// pricing itself against the caller. The one number any of these accepts is
+// `shipping_charge`, and its own note says why.
+
+// One catalogue line: which product, and how many.
+export const QuoteItem = z.object({
+  id: z.string().uuid(),
+  quantity: z.number().optional(),
+}).strict();
+export type QuoteItem = z.infer<typeof QuoteItem>;
+
+// POST /quotes/catalog. Public, like /spots/spot_prices.
+export const CatalogQuoteBody = z.object({
+  side: z.enum(["ask", "bid"]),
+  items: z.array(QuoteItem).min(1),
+}).strict();
+export type CatalogQuoteBody = z.infer<typeof CatalogQuoteBody>;
+
+// POST /quotes/sales_order. `user_id` is ADMIN ONLY and names whose credit
+// balance the order prices against; a customer's own subject is their session.
+// `using_funds` is GONE: credit applies whenever the customer has a balance,
+// which is what placement does, so a quote that could switch it off would
+// quote a different order than the one that gets placed.
+export const SalesOrderQuoteBody = z.object({
+  items: z.array(QuoteItem).min(1),
+  address_id: z.string().uuid().nullable().optional(),
+  carrier_service_id: z.string().uuid().nullable().optional(),
+  payment_method_id: z.string().uuid().nullable().optional(),
+  user_id: z.string().uuid().optional(),
+}).strict();
+export type SalesOrderQuoteBody = z.infer<typeof SalesOrderQuoteBody>;
+
+// One sell-cart line, as the two things a customer can offer. A product line
+// is a catalogue id; a scrap line is a DECLARATION - which metal, how much it
+// weighs, how pure, in what unit - and the server turns that into content.
+// NO METAL NAMES and no content: `metal_id` is the id the sell cart already
+// holds, and a stated content would be the customer declaring the quantity of
+// fine metal they are paid for.
+export const PurchaseQuoteProduct = z.object({
+  type: z.literal("product"),
+  bullion_id: z.string().uuid(),
+  quantity: z.number().optional(),
+}).strict();
+export type PurchaseQuoteProduct = z.infer<typeof PurchaseQuoteProduct>;
+
+export const PurchaseQuoteScrap = z.object({
+  type: z.literal("scrap"),
+  metal_id: z.string().uuid(),
+  pre_melt: z.number(),
+  purity: z.number(),
+  unit: z.string().optional(),
+}).strict();
+export type PurchaseQuoteScrap = z.infer<typeof PurchaseQuoteScrap>;
+
+export const PurchaseQuoteItem = z.discriminatedUnion("type", [
+  PurchaseQuoteProduct, PurchaseQuoteScrap,
+]);
+export type PurchaseQuoteItem = z.infer<typeof PurchaseQuoteItem>;
+
+// POST /quotes/purchase_order. `payout_method_id` is the method row whose fee
+// is deducted; `shipping_charge` is the ONE number taken from the body - the
+// carrier's already-quoted net charge, which the server cannot reproduce
+// without re-quoting FedEx (non-deterministic, slow, and a second charge for a
+// rate the caller already holds). DISPLAY ONLY: the payout an order actually
+// pays is computed at accept time from the shipment row's own net_charge, so
+// understating it here only inflates the caller's own screen.
+export const PurchaseOrderQuoteBody = z.object({
+  items: z.array(PurchaseQuoteItem).min(1),
+  payout_method_id: z.string().uuid().nullable().optional(),
+  shipping_charge: z.number().nonnegative().nullable().optional(),
+}).strict();
+export type PurchaseOrderQuoteBody = z.infer<typeof PurchaseOrderQuoteBody>;
+
+// POST /quotes/order and POST /quotes/profit_breakdown. One id each: an
+// existing order is entirely the server's, so nothing else can be asked.
+export const OrderQuoteBody = z.object({
+  order_id: z.string().uuid(),
+}).strict();
+export type OrderQuoteBody = z.infer<typeof OrderQuoteBody>;

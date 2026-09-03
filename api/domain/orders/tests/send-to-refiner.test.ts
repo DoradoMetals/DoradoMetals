@@ -40,6 +40,7 @@ import query from "#shared/db/query.ts";
 import * as orders from "#domain/orders/service.ts";
 import * as ordersRepo from "#db/orders/repo.ts";
 import * as refinerOrders from "#db/refiners/orders/repo.ts";
+import * as refinerService from "#domain/refiners/service.ts";
 // The SERVICE, not a repo: a shipment is composed from six tables now, and
 // the order link it carries is reconstructed rather than stored.
 import * as shipmentRepo from "#domain/shipping/shipments/service.ts";
@@ -199,7 +200,7 @@ test("those three writes are visible to the assertion that says they did not hap
   await inPinnedTransaction(async (client: PoolClient) => {
     const before = await state(withAddress.id);
 
-    const engagementId = await refinerOrders.ensureForOrder(withAddress.id, client);
+    const engagementId = await refinerService.engagementIdFor(withAddress.id, client);
     await refinerOrders.update(engagementId, { refiner_id: supplier.id }, client);
     await shipmentRepo.create(
       { sales_order_id: withAddress.id, type: "Outbound" },

@@ -117,9 +117,7 @@ test.skip("update_payment_intent no longer dies before it reaches Stripe", async
         .post("/api/stripe/update_payment_intent")
         .send({
           items: [],
-          using_funds: false,
           type: "customer",
-          user: { id: customerId },
           address_id: addressId,
         });
 

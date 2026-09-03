@@ -24,6 +24,7 @@ export const requireAuth = async (
     }
 
     req.user = session.user;
+    req.sessionId = session.session?.id;
     // THE REST OF THE REQUEST RUNS AS THIS PERSON. Everything downstream -
     // the role check, the controller, the service, every transaction it opens -
     // is inside this scope, so `withTransaction` can put the id on the

@@ -1,5 +1,7 @@
-// refiners.orders, and nothing else — the refiner-side ENGAGEMENT attached to a customer order: which refinery has the metal, pool ounces deducted, remediation, and fee. One row per order (UNIQUE(order_id)), own uuid pk so a multi-lot future is a constraint change, not a rekeying.
-// Pool and fee values are ALSO written to their exchange shadows by the purchase-orders services above, pairing each write with its shadow so both schemas stay level.
+// refiners.orders, and nothing else - the refiner-side ENGAGEMENT attached to
+// a customer order: which refinery has the metal, pool ounces deducted,
+// remediation, and fee. One row per order (UNIQUE(order_id)), own uuid pk so a
+// multi-lot future is a constraint change rather than a rekeying.
 import query from "#shared/db/query.ts";
 import { buildUpdate } from "#shared/db/patch.ts";
 import type { Executor } from "#shared/db/executor.ts";
@@ -8,22 +10,22 @@ import type { refiners } from "@dorado/contracts";
 // The verbatim table row (ruling 12) - the generated contract is its home.
 export type RefinerOrderRow = refiners.OrdersRow;
 
-// One engagement per order, every order — idempotent: an order that already has one keeps it untouched, and the id comes back either way so callers can link refiners.items/spots rows to it.
-export async function ensureForOrder(
-  order_id: string, executor?: Executor
-): Promise<string> {
-  const { rows } = await query<{ id: string }>(
+// The engagement row for an order. The caller reads first and creates only
+// when there is none (D214 item 11: repos are the five verbs, the service asks
+// the question), so this is a plain INSERT.
+export type NewRefinerOrder = Pick<RefinerOrderRow, "order_id">;
+
+export async function create(
+  row: NewRefinerOrder, executor?: Executor
+): Promise<RefinerOrderRow> {
+  const { rows } = await query<RefinerOrderRow>(
     `INSERT INTO refiners.orders (order_id) VALUES ($1)
-     ON CONFLICT (order_id) DO NOTHING
-     RETURNING id`,
-    [order_id],
+     RETURNING id, order_id, refiner_id, pool_oz_deducted, pool_remediation, fee,
+               created_at, updated_at`,
+    [row.order_id],
     executor
   );
-  if (rows[0]) return rows[0].id;
-  const { rows: existing } = await query<{ id: string }>(
-    `SELECT id FROM refiners.orders WHERE order_id = $1`, [order_id], executor
-  );
-  return existing[0].id;
+  return rows[0];
 }
 
 export async function findByOrder(
@@ -54,8 +56,8 @@ export async function findById(
   return rows[0];
 }
 
-// refiner_id is NOT a COALESCE column, deliberately: every engagement starts null, and clearing it back to null is a real operation COALESCE can't express, so it's carried by a "was this field named" check (`in`) instead.
-// The other three columns keep plain COALESCE — their exchange shadows are typed `number` and nothing ever clears them to null.
+// refiner_id is nullable and clearing it is a real operation, so it is carried
+// by "was this field named" rather than by COALESCE.
 export type OrderPatch = Partial<Pick<RefinerOrderRow, "pool_oz_deducted" | "pool_remediation" | "fee">> & {
   refiner_id?: string | null;
 };

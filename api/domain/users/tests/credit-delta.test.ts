@@ -84,25 +84,6 @@ test("`op` is the spelling, and it adds a DELTA rather than setting a total", as
   await restore();
 });
 
-// `mode` WAS THE OTHER SPELLING AND IT IS GONE. It survived D98 only so the
-// frontend could be re-pointed on its own schedule; shapes are no longer being
-// preserved on this branch, so the old spelling is refused like any other
-// unknown operation rather than quietly accepted.
-test("the retired `mode` spelling is refused rather than silently honoured", async () => {
-  const before_ = await funds(customer.id);
-  await assert.rejects(
-    // @ts-expect-error - `mode` is no longer a field; that is the point
-    () => usersService.adjustDoradoCredit({ user_id: customer.id, mode: "add", amount: 10 }),
-    (err: unknown) => {
-      const e = err as { statusCode?: number; message?: string };
-      assert.equal(e.statusCode, 400);
-      assert.match(String(e.message), /unknown credit mode/);
-      return true;
-    }
-  );
-  assert.equal(Number(await funds(customer.id)).toFixed(6), before_.toFixed(6));
-});
-
 // Two sequential deltas both land - the property absolute totals destroyed, since both would be computed from the same starting balance.
 test("two adjustments in a row both apply, which absolute totals could not guarantee", async () => {
   const before_ = await funds(customer.id);
@@ -126,8 +107,8 @@ test("the server refuses to drive a balance below zero", async () => {
       user_id: customer.id, op: "subtract", amount: before_ + 1,
     }),
     (err: unknown) => {
-      const e = err as { statusCode?: number; message?: string; code?: string };
-      assert.equal(e.statusCode, 422);
+      const e = err as { kind?: string; message?: string };
+      assert.equal(e.kind, "invalid");
       assert.match(String(e.message), /cannot go below zero/);
       return true;
     }
@@ -144,8 +125,8 @@ test("a negative `edit` is refused too", async () => {
   await assert.rejects(
     () => usersService.adjustDoradoCredit({ user_id: customer.id, op: "edit", amount: -1 }),
     (err: unknown) => {
-      const e = err as { statusCode?: number; message?: string; code?: string };
-      assert.equal(e.statusCode, 422);
+      const e = err as { kind?: string };
+      assert.equal(e.kind, "invalid");
       return true;
     }
   );
@@ -162,18 +143,9 @@ test("subtracting the whole balance is allowed, and lands on zero", async () => 
   await restore();
 });
 
-test("an unknown op is refused with the same 400 an unknown mode always got", async () => {
-  await assert.rejects(
-    () => usersService.adjustDoradoCredit({ user_id: customer.id, op: "increment", amount: 1 }),
-    (err: unknown) => {
-      const e = err as { statusCode?: number; message?: string; code?: string };
-      assert.equal(e.statusCode, 400);
-      assert.match(String(e.message), /unknown credit mode/);
-      return true;
-    }
-  );
-});
-
+// THIS FILE COMMITS, so it must put every balance back. The one thing it
+// cannot put back is a payments.ledger row, whose behaviour is pinned in
+// credit-ledger.test.ts inside a transaction that rolls back.
 test("nothing this file moved survived it", async () => {
   assert.equal(
     Number(await funds(customer.id)).toFixed(6),

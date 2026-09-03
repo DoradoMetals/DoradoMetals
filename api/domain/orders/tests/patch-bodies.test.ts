@@ -24,9 +24,9 @@
 //   pool_remediation    are each typed `number` and were reached by cast.
 //   fee
 //   refiner_id          null KEPT. A nullable foreign key, not a fee. Every
-//                       engagement starts null (ensureForOrder inserts
-//                       `(order_id)` alone), detaching one is a real
-//                       operation, and setEngagementValue already admits null.
+//                       engagement starts null (the engagement row is
+//                       created with `(order_id)` alone), detaching one is a
+//                       real operation, and the repo already admits null.
 //                       Here the FRONTEND was the side that was wrong.
 //
 // And the control, which is what stops the above from reading as a rule about
@@ -34,17 +34,20 @@
 // because the admin drawer really sends those nulls and the service really
 // merges them as "not measured".
 //
-// PURE - refusedField is a function of the document. Nothing here touches the
-// database, but importing the services opens the pool, so it is closed at the
-// end.
+// PURE - each check is a function of the document. Nothing here touches the
+// database, but importing the shipment controller opens the pool, so it is
+// closed at the end.
+//
+// FOUR OF THE SIX ARE THE CONTRACT ITSELF NOW (D214 item 3): orders, order
+// items, refiner orders/items and payouts are parsed strictly at transport, so
+// there is no hand-rolled validator left to call and these assert the schema.
 import { test, afterAll } from "vitest";
 import assert from "node:assert/strict";
 import pool from "#db";
-import { OrderItemPatch, OrderPatch } from "@dorado/contracts";
+import {
+  OrderItemPatch, OrderPatch, PayoutPatch, RefinerItemPatch, RefinerOrderPatch,
+} from "@dorado/contracts";
 import { refusedField as shipmentField } from "#transport/shipping/shipments/controller.ts";
-import { refusedField as refinerOrderField } from "#transport/refiners/orders/controller.ts";
-import { refusedField as refinerItemField } from "#transport/refiners/items/controller.ts";
-import { refusedField as payoutField } from "#domain/payouts/service.ts";
 
 afterAll(async () => {
   await pool.end();
@@ -76,11 +79,10 @@ test("a shipment PATCH refuses a null shipping charge, by name", () => {
 
 test("a refiner order PATCH refuses a null on each of the three money fields", () => {
   for (const field of ["pool_oz_deducted", "pool_remediation", "fee"]) {
-    assert.match(
-      refusalOf(refinerOrderField({ [field]: null }), `${field}: null`),
-      new RegExp(field)
+    refusesField(RefinerOrderPatch, { [field]: null }, field);
+    assert.equal(
+      RefinerOrderPatch.safeParse({ [field]: 0 }).success, true, `${field}: 0 was refused`
     );
-    assert.equal(refinerOrderField({ [field]: 0 }), null, `${field}: 0 was refused`);
   }
 });
 
@@ -88,13 +90,13 @@ test("a refiner order PATCH refuses a null on each of the three money fields", (
 
 test("a refiner order PATCH ACCEPTS a null refiner_id - detaching is an operation", () => {
   assert.equal(
-    refinerOrderField({ refiner_id: null }),
-    null,
+    RefinerOrderPatch.safeParse({ refiner_id: null }).success,
+    true,
     "clearing the engagement's refinery was refused"
   );
   assert.equal(
-    refinerOrderField({ refiner_id: "00000000-0000-4000-8000-000000000000" }),
-    null
+    RefinerOrderPatch.safeParse({ refiner_id: "00000000-0000-4000-8000-000000000000" }).success,
+    true
   );
 });
 
@@ -103,9 +105,11 @@ test("a refiner order PATCH ACCEPTS a null refiner_id - detaching is an operatio
 // drawer would have lost the only way it has to say "not measured".
 test("a refiner item PATCH keeps every one of its nulls", () => {
   for (const field of ["premium", "pre_melt", "post_melt", "purity"]) {
-    assert.equal(refinerItemField({ [field]: null }), null, `${field}: null was refused`);
+    assert.equal(
+      RefinerItemPatch.safeParse({ [field]: null }).success, true, `${field}: null was refused`
+    );
   }
-  assert.equal(refinerItemField({ unit: null }), null);
+  assert.equal(RefinerItemPatch.safeParse({ unit: null }).success, true);
 });
 
 // ------------------------------------------- what the contract now also says
@@ -184,16 +188,13 @@ test("an order item PATCH is flat - the scrap and bullion documents are gone", (
 // The waive flag is a boolean and only a boolean: it is not an operation name
 // like finalize_pricing, because un-waiving is as real as waiving.
 test("a payout PATCH takes the waive flag both ways, and refuses a non-boolean", () => {
-  assert.equal(payoutField({ waive_payout_fee: true }), null);
-  assert.equal(payoutField({ waive_payout_fee: false }), null);
-  assert.match(
-    refusalOf(payoutField({ waive_payout_fee: "yes" }), "waive_payout_fee: 'yes'"),
-    /waive_payout_fee/
-  );
+  assert.equal(PayoutPatch.safeParse({ waive_payout_fee: true }).success, true);
+  assert.equal(PayoutPatch.safeParse({ waive_payout_fee: false }).success, true);
+  refusesField(PayoutPatch, { waive_payout_fee: "yes" }, "waive_payout_fee");
   // And the fee itself is still per-order data, which is the half of
   // production a boolean cannot express: two ECHECK rows are stored ABOVE the
   // method's default fee, not below it.
-  assert.equal(payoutField({ cost: 125 }), null);
+  assert.equal(PayoutPatch.safeParse({ cost: 125 }).success, true);
 });
 
 // ------------------------------------------------- unknown fields still lead
@@ -206,11 +207,13 @@ test("an unknown field is refused by name on every one of the six", () => {
   refusesField(OrderPatch, { nope: 1 }, "nope");
   refusesField(OrderItemPatch, { nope: 1 }, "nope");
   assert.match(refusalOf(shipmentField({ nope: 1 }), "shipment"), /"nope"/);
-  assert.match(refusalOf(refinerOrderField({ nope: 1 }), "refiner order"), /"nope"/);
-  assert.match(refusalOf(refinerItemField({ nope: 1 }), "refiner item"), /"nope"/);
-  assert.match(refusalOf(payoutField({ nope: 1 }), "payout"), /"nope"/);
+  refusesField(RefinerOrderPatch, { nope: 1 }, "nope");
+  refusesField(RefinerItemPatch, { nope: 1 }, "nope");
+  refusesField(PayoutPatch, { nope: 1 }, "nope");
 
-  // And the one bespoke unknown-field message survived the move: `content` is
-  // derived, and saying so is worth more than "not a field".
-  assert.match(refusalOf(refinerItemField({ content: 1 }), "content"), /derived/);
+  // `content` is DERIVED from post_melt and purity, so the refiner item
+  // contract has no such field and a strict parse refuses it by name. The
+  // bespoke "it is derived" message went with the hand-rolled validator; the
+  // refusal is what mattered.
+  refusesField(RefinerItemPatch, { content: 1 }, "content");
 });

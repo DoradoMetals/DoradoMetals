@@ -11,6 +11,11 @@ declare global {
         dorado_funds?: number | null;
         stripeCustomerId?: string | null;
       };
+      // The SESSION's own id, set by the same guard. payments keys its
+      // reusable intent on (session_id, user_id, type), and reading it here
+      // is what lets the domain take ids rather than raw request headers and
+      // run a second getSession of its own (D214 item 11).
+      sessionId?: string;
     }
   }
 }

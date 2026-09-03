@@ -1,5 +1,7 @@
-// refiners.items, and nothing else — the refiner's counterpart to a customer line: what came back once scrap was melted vs what the customer declared, one row per line, null until a refiner reports.
-// ADMIN-ONLY: these are assay actuals and a customer read must not carry them; the service decides by whether it calls this at all.
+// refiners.items, and nothing else - the refiner's counterpart to a customer
+// line: what came back once scrap was melted against what the customer
+// declared. One row per line, null until a refiner reports.
+// ADMIN-ONLY: these are assay actuals and a customer read must not carry them.
 import query from "#shared/db/query.ts";
 import { buildUpdate } from "#shared/db/patch.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
@@ -39,21 +41,37 @@ export async function byOrderItem(
   return out;
 }
 
-// Every customer line gets its refiner counterpart: values stay NULL until the refiner reports; bullion_id/metal_id/quantity ride over from the line; refiner_order_id links to the order's engagement.
-// Idempotent — a line that already has its counterpart is left alone.
-export async function mirrorLinesForOrder(
-  order_id: string, executor?: Executor
-): Promise<void> {
-  await query(
-    `INSERT INTO refiners.items (order_item_id, refiner_order_id, bullion_id, metal_id, quantity)
-     SELECT oi.id, ro.id, oi.bullion_id, oi.metal_id, coalesce(oi.quantity, 1)
-       FROM orders.items oi
-       JOIN refiners.orders ro ON ro.order_id = oi.order_id
-      WHERE oi.order_id = $1
-        AND NOT EXISTS (SELECT 1 FROM refiners.items ri WHERE ri.order_item_id = oi.id)`,
-    [order_id],
+// The refiner counterpart of one customer line. Values stay NULL until the
+// refinery reports; the rule that builds the row decides what rides over.
+export type NewRefinerItem = Pick<
+  RefinerItemRow,
+  "order_item_id" | "refiner_order_id" | "bullion_id" | "metal_id" | "quantity"
+>;
+
+export async function create(
+  row: NewRefinerItem, executor?: Executor
+): Promise<RefinerItemRow> {
+  const { rows } = await query<RefinerItemRow>(
+    `INSERT INTO refiners.items
+       (order_item_id, refiner_order_id, bullion_id, metal_id, quantity)
+     VALUES ($1, $2, $3, $4, $5)
+     RETURNING id, order_item_id, refiner_id, bullion_id, metal_id,
+               pre_melt, post_melt, purity, content, premium, quantity, unit,
+               refiner_order_id`,
+    [row.order_item_id, row.refiner_order_id, row.bullion_id, row.metal_id, row.quantity],
     executor
   );
+  return rows[0];
+}
+
+// THE SIXTH VERB (D214 item 11): a derivation that yields N rows writes them in
+// one call, so the use case carries no loop of its own.
+export async function createMany(
+  rows: NewRefinerItem[], executor?: Executor
+): Promise<RefinerItemRow[]> {
+  const written: RefinerItemRow[] = [];
+  for (const row of rows) written.push(await create(row, executor));
+  return written;
 }
 
 // Keyed on order_item_id — the line's own id and the only key every caller holds; this table's own `id` never leaves it.

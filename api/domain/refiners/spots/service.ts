@@ -1,15 +1,18 @@
-// The refinery's quoted spots (refiners.spots) — its own resource, keyed by the ENGAGEMENT (refiners.orders); a read by the CUSTOMER order id resolves the engagement first, in the WHERE clause, so nothing nests on the wire.
-// NO routes.ts: its one path, GET /api/orders/:orderId/refiners/spots, is declared by orders/routes.ts (the order id is the key the caller holds); the HANDLER lives in controller.ts here, because this feature owns the table.
+// The refinery's quoted spots (refiners.spots), keyed by the ENGAGEMENT
+// (refiners.orders); a read by the CUSTOMER order id resolves the engagement
+// first, so nothing nests on the wire.
+// NO routes.ts: its one path, GET /api/orders/:orderId/refiners/spots, is
+// declared by the orders routes (the order id is the key the caller holds);
+// the HANDLER lives in controller.ts here, because this feature owns the table.
 import * as refinerOrdersRepo from "#db/refiners/orders/repo.ts";
 import * as refinerSpotsRepo from "#db/refiners/spots/repo.ts";
-import type { EngagementSpotRow } from "#db/refiners/spots/repo.ts";
-import type { PoolClient } from "pg";
-
-type Executor = PoolClient | undefined;
+import type { EngagementSpotRow, NamedSpotRow } from "#db/refiners/spots/repo.ts";
+import type { Executor } from "#shared/db/executor.ts";
 
 export type { EngagementSpotRow, RefinerSpotRow } from "#db/refiners/spots/repo.ts";
 
-// NULL means "that order has no engagement" (404), distinct from [] ("the engagement exists but has quoted nothing yet") — collapsing the two would claim an engagement that doesn't exist.
+// NULL means "that order has no engagement" (404), distinct from [] ("the
+// engagement exists but has quoted nothing yet").
 export async function forOrder(
   order_id: string, executor?: Executor
 ): Promise<EngagementSpotRow[] | null> {
@@ -18,10 +21,10 @@ export async function forOrder(
   return await refinerSpotsRepo.getForEngagement(engagement.id, executor);
 }
 
-// The same rows with the metal's NAME resolved - what the profit split and the
-// admin drawer read. Not a wire shape; keyed by the CUSTOMER order id.
+// The same rows with the metal's NAME resolved - what the profit split reads.
+// Not a wire shape; keyed by the CUSTOMER order id.
 export async function namedFor(
   order_id: string, executor?: Executor
-): Promise<Awaited<ReturnType<typeof refinerSpotsRepo.getNamed>>> {
+): Promise<NamedSpotRow[]> {
   return await refinerSpotsRepo.getNamed(order_id, executor);
 }

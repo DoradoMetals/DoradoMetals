@@ -1,11 +1,20 @@
-// Every order's money is content * (spot.ask * ask_premium), so whatever supplies `spots` decides what a customer pays — it used to be the REQUEST BODY in three places (get_sales_tax, createSalesOrder, updatePaymentIntent). Measured before the fix, same order and items, only the body's spots differing: ask_spot 3400 (honest) -> $3,673.53; ask_spot 1 -> $26.81, floored at $10 by the old Math.max floor.
-// get_sales_tax is the one of the three drivable end to end without Stripe, so it's tested over HTTP directly; the other two share the same getSpotPrices() source, and updatePaymentIntent belongs to the sandbox suite instead.
-// So the second test below asserts that shared source directly — if getSpotPrices returns the database's own spots and all three call it, all three are priced from the server.
+// Every order's money is content * (spot.ask * ask_premium), so whatever
+// supplies `spots` decides what a customer pays - it used to be the REQUEST
+// BODY in three places (get_sales_tax, createSalesOrder, updatePaymentIntent).
+// Measured before the fix, same order and items, only the body's spots
+// differing: ask_spot 3400 (honest) -> $3,673.53; ask_spot 1 -> $26.81, floored
+// at $10 by the old Math.max floor.
+//
+// ALL THREE TAKE IDS NOW (D214 item 11), so a body has nowhere to put a spot at
+// all - the contracts are strict and refuse the field by name. What is left to
+// prove is the SHARED SOURCE: if getSpotPrices returns the database's own spots
+// and all three call it, all three are priced from the server.
 import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import request from "supertest";
 import pool from "#db";
 import * as spotsService from "#domain/spots/service.ts";
+import { GetSalesTaxBody } from "@dorado/contracts";
 import { mockSessions, restoreSessions, as } from "#shared/testing/session.ts";
 import { inPinnedTransaction, outside } from "#shared/testing/pinned-pool.ts";
 
@@ -14,32 +23,41 @@ const { default: app } = await import("#app");
 
 // SELECT projections, not table rows.
 type UserFixture = { id: string; name: string | null; email: string | null };
+type AddressFixture = { id: string; state: string };
+type ProductFixture = { id: string };
 type Spot = Awaited<ReturnType<typeof spotsService.getSpotPrices>>[number];
 
 let customer: UserFixture;
+let taxing: AddressFixture;
+let product: ProductFixture;
 let serverSpots: Spot[];
-let nexusState: string | null;
-let aggregateMax: number;
 
 beforeAll(async () => {
-  const users = await outside<UserFixture>(
-    `SELECT id, name, email FROM exchange.users WHERE role IS DISTINCT FROM 'admin' LIMIT 1`
+  [customer] = await outside<UserFixture>(
+    `SELECT id, name, email FROM auth.users WHERE role IS DISTINCT FROM 'admin' LIMIT 1`
   );
-  customer = users[0];
   assert.ok(customer, "dev has no non-admin user");
 
   serverSpots = await spotsService.getSpotPrices();
   assert.ok(serverSpots.length > 0, "the server has no spots - every assertion here is vacuous");
 
-  // A state that actually charges, with a rule the fixture can sit inside — the first version took the first state_code found (AK, which taxes nothing), so both sides of the comparison were 0 and it passed against the reverted bug.
-  const rules = await outside(
-    `SELECT state_code, tax_rate, aggregate_max FROM exchange.sales_tax_rules
-     WHERE tax_rate > 0 AND product_type IN ('Coin', 'All')
-     ORDER BY aggregate_max LIMIT 1`
+  // A state that actually charges - the first version took the first
+  // state_code found (AK, which taxes nothing), so both sides of the
+  // comparison were 0 and it passed against the reverted bug.
+  [taxing] = await outside<AddressFixture>(
+    `SELECT DISTINCT a.id, a.state FROM places.addresses a
+       JOIN places.user_addresses ua ON ua.address_id = a.id
+       JOIN tax.sales_tax_rules r ON r.state_code = a.state
+      WHERE r.tax_rate > 0 AND r.product_type IN ('Coin', 'All')
+      ORDER BY a.id LIMIT 1`
   );
-  assert.ok(rules[0], "dev has no sales tax rule that charges anything");
-  nexusState = rules[0].state_code;
-  aggregateMax = Number(rules[0].aggregate_max);
+  assert.ok(taxing, "dev has no address in a charging state");
+
+  [product] = await outside<ProductFixture>(
+    `SELECT id FROM products.bullion
+      WHERE display AND content IS NOT NULL AND type = 'Coin' ORDER BY id LIMIT 1`
+  );
+  assert.ok(product, "dev has no live coin to price");
 });
 
 afterAll(async () => {
@@ -47,8 +65,11 @@ afterAll(async () => {
   await pool.end();
 });
 
-// All three call sites share this one source, so this is what makes the fix one fact rather than three.
-// Reads spots.spots, not exchange.metals — reading the legacy table made this an accidental comparison of two schemas that could fail for reasons having nothing to do with pricing.
+// All three call sites share this one source, so this is what makes the fix one
+// fact rather than three.
+// Reads spots.spots, not exchange.metals - reading the legacy table made this
+// an accidental comparison of two schemas that could fail for reasons having
+// nothing to do with pricing.
 test("getSpotPrices returns the database's spots in the shape the calculations read", async () => {
   const stored = await outside(
     `SELECT m.name, s.ask, s.bid
@@ -74,94 +95,53 @@ test("getSpotPrices returns the database's spots in the shape the calculations r
   }
 });
 
-// The assertion this file exists for — sent the way the exploit was: a real order body with spots claiming gold is worth a dollar. The item is sized so BOTH prices land inside the taxed band (a couple hundred dollars honest vs pennies forged), so the two answers actually differ rather than both collapsing to zero.
-test("a body claiming gold costs $1 does not change the tax", async () => {
+// THE ASSERTION THIS FILE EXISTS FOR, and the exploit is now shut one step
+// earlier than it used to be. It used to be sent the way the exploit was - a
+// real body with spots claiming gold is worth a dollar - and asserted that the
+// two answers matched, which proved the forged spots were IGNORED. The body
+// cannot carry them at all now: the contract is strict, so the forged request
+// is REFUSED and the honest one is answered.
+test("a body claiming gold costs $1 is refused, not quietly ignored", async () => {
   await inPinnedTransaction(async () => {
     await as({ ...customer, role: "user" }, async () => {
-      const gold = serverSpots.find((s) => s.name === "Gold") ?? serverSpots[0];
-      // Small enough that the server's own price stays under the band's
-      // aggregate ceiling - otherwise the honest call falls outside the rule
-      // and returns zero for a legitimate reason.
-      const content = (aggregateMax * 0.5) / Number(gold.ask);
-
-      // Every field the rule matches on, not just the ones the calculation reads — an item missing purity/weight/tender fields matches no rule and taxes at zero, which looks exactly like a non-collecting state. That's how the first fixture here passed against the bug.
-      const items = [
-        {
-          type: "bullion",
-          quantity: 1,
-          metal_type: gold.name,
-          content,
-          gross: content,
-          purity: 0.9999,
-          // The rule under test carries is_domestic = false, and the query
-          // compares it to this field rather than ignoring it.
-          domestic_tender: false,
-          legal_tender: null,
-          ask_premium: 1.0,
-          product_type: "Coin",
-          price: 100,
-        },
-      ];
+      const items = [{ id: product.id, quantity: 1 }];
 
       const honest = await request(app)
         .post("/api/tax/get_sales_tax")
-        .send({ address: { state: nexusState }, items });
+        .send({ address_id: taxing.id, items });
+      assert.equal(honest.status, 200, JSON.stringify(honest.body));
 
       const lying = await request(app)
         .post("/api/tax/get_sales_tax")
         .send({
-          address: { state: nexusState },
+          address_id: taxing.id,
           items,
-          spots: serverSpots.map((s) => ({ ...s, ask: 1, bid: 1 })),
+          spots: serverSpots.map((s) => ({ name: s.name, ask: 1, bid: 1 })),
         });
-
-      assert.equal(honest.status, 200);
-      assert.equal(lying.status, 200);
-
-      const value = (res: { body: unknown }) =>
-        Number(
-          typeof res.body === "number"
-            ? res.body
-            : ((res.body as { tax?: unknown })?.tax ?? res.body)
-        );
-
-      // The fixture must not be vacuous — if the honest call is untaxed, both sides are zero and this proves nothing, which is exactly how the first version passed against the bug.
-      assert.ok(
-        value(honest) > 0,
-        `the honest request was taxed ${value(honest)} in ${nexusState} - the fixture ` +
-          `falls outside every rule, so this test cannot distinguish anything`
-      );
-
       assert.equal(
-        value(lying).toFixed(6),
-        value(honest).toFixed(6),
-        `supplying spots in the body changed the tax from ${value(honest)} to ` +
-          `${value(lying)} - the client is still pricing the order`
+        lying.status, 400,
+        `a body carrying spots answered ${lying.status} - the client can still price the order`
       );
+
+      // And the shape refuses it by name, so the refusal is the contract's and
+      // not an accident of some other validation.
+      const parsed = GetSalesTaxBody.safeParse({
+        address_id: taxing.id, items, spots: [{ name: "Gold", ask: 1, bid: 1 }],
+      });
+      assert.equal(parsed.success, false, "GetSalesTaxBody accepts a spots field");
     });
   });
 });
 
-// Same body with NO spots must not price at zero either — that omission (no forged values needed) was what made the exposure easy to reach.
-test("a body with no spots is priced by the server, not at zero", async () => {
+// The other half: a legitimate request is priced by the server rather than at
+// zero. That omission - no forged values needed - was what made the old
+// exposure easy to reach.
+test("a legitimate request is priced by the server, not at zero", async () => {
   await inPinnedTransaction(async () => {
     await as({ ...customer, role: "user" }, async () => {
       const res = await request(app)
         .post("/api/tax/get_sales_tax")
-        .send({
-          address: { state: nexusState },
-          items: [
-            {
-              type: "bullion",
-              quantity: 1,
-              metal_type: serverSpots[0].name,
-              content: 1,
-              ask_premium: 1.05,
-              product_type: "Coin",
-              price: 100,
-            },
-          ],
-        });
+        .send({ address_id: taxing.id, items: [{ id: product.id, quantity: 1 }] });
 
       assert.equal(res.status, 200);
       const tax = typeof res.body === "number" ? res.body : (res.body?.tax ?? res.body);

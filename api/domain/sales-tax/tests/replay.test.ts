@@ -1,6 +1,16 @@
-// The sales tax endpoint, over real HTTP — one route, requireUser, and it computes money from an address and items. The 88-row rules table is one of only two table pairs the migration rehearsal managed to populate, so this calculation's inputs already live in the new schema.
-// What's worth asserting is the HTTP boundary, not the rates arithmetic (unit-tested elsewhere): the route is guarded, a malformed body is refused rather than silently taxed at zero, and a state with no nexus differs from one with a rule.
-// A SILENT ZERO IS THE FAILURE THAT MATTERS — it looks identical whether a bad request undercharges an order or a state genuinely doesn't collect. NOTHING IS COMMITTED (pinned-pool.ts).
+// The sales tax endpoint, over real HTTP - one route, requireUser, and it
+// computes money from an address and some products.
+//
+// IDS IN (D214 item 11). The body used to BE the items: a caller sent a
+// product's purity, weight, tender flags and price, which are exactly the facts
+// a tax rule matches on, and so exactly the way to choose the rate you are
+// charged. It names an address and product ids now, and every fact is read
+// from their own rows.
+//
+// A SILENT ZERO IS THE FAILURE THAT MATTERS - it looks identical whether a bad
+// request undercharges an order or a state genuinely does not collect. So the
+// malformed cases must be REFUSED, not answered with 0.
+// NOTHING IS COMMITTED (pinned-pool.ts).
 import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import request from "supertest";
@@ -13,29 +23,45 @@ const { default: app } = await import("#app");
 
 // SELECT projections, not table rows.
 type UserFixture = { id: string; name: string | null; email: string | null };
-type MetalFixture = { type: string; ask_spot: number; bid_spot: number };
+type AddressFixture = { id: string; state: string };
+type ProductFixture = { id: string };
 
 let customer: UserFixture;
-let spots: MetalFixture[];
-let nexusState: string | null;
+let taxing: AddressFixture;
+let untaxed: AddressFixture;
+let product: ProductFixture;
 
 beforeAll(async () => {
-  const users = await outside<UserFixture>(
-    `SELECT id, name, email FROM exchange.users WHERE role IS DISTINCT FROM 'admin' LIMIT 1`
+  [customer] = await outside<UserFixture>(
+    `SELECT id, name, email FROM auth.users WHERE role IS DISTINCT FROM 'admin' LIMIT 1`
   );
-  customer = users[0];
   assert.ok(customer, "dev has no non-admin user");
 
-  spots = await outside<MetalFixture>(
-    `SELECT type, ask_spot, bid_spot FROM exchange.metals ORDER BY type`);
-  assert.ok(spots.length > 0, "dev has no metals - a tax calculation needs a spot to price against");
-
-  // state_code, not state — the first version queried a column that doesn't exist, and every test failed in under a millisecond because beforeAll() threw.
-  const states = await outside(
-    `SELECT DISTINCT state_code FROM exchange.sales_tax_rules WHERE state_code IS NOT NULL LIMIT 1`
+  // An address in a state that actually charges - AK has rules and taxes
+  // nothing, so picking the first state_code found would compare 0 with 0.
+  [taxing] = await outside<AddressFixture>(
+    `SELECT DISTINCT a.id, a.state FROM places.addresses a
+       JOIN places.user_addresses ua ON ua.address_id = a.id
+       JOIN tax.sales_tax_rules r ON r.state_code = a.state
+      WHERE r.tax_rate > 0 AND r.product_type IN ('Coin', 'All')
+      ORDER BY a.id LIMIT 1`
   );
-  nexusState = states[0]?.state_code;
-  assert.ok(nexusState, "dev has no sales tax rule with a state - the suite would prove nothing");
+  assert.ok(taxing, "dev has no book address in a charging state - these tests would prove nothing");
+
+  [untaxed] = await outside<AddressFixture>(
+    `SELECT DISTINCT a.id, a.state FROM places.addresses a
+       JOIN places.user_addresses ua ON ua.address_id = a.id
+      WHERE NOT EXISTS (
+        SELECT 1 FROM tax.sales_tax_rules r WHERE r.state_code = a.state AND r.tax_rate > 0)
+      ORDER BY a.id LIMIT 1`
+  );
+  assert.ok(untaxed, "dev has no address in a state with no charging rule");
+
+  [product] = await outside<ProductFixture>(
+    `SELECT id FROM products.bullion
+      WHERE display AND content IS NOT NULL AND type = 'Coin' ORDER BY id LIMIT 1`
+  );
+  assert.ok(product, "dev has no live coin to price");
 });
 
 afterAll(async () => {
@@ -43,30 +69,18 @@ afterAll(async () => {
   await pool.end();
 });
 
-const body = (state: string | null) => ({
-  address: { state },
-  items: [
-    {
-      type: "bullion",
-      quantity: 1,
-      metal: spots[0].type,
-      content: 1,
-      // Deliberately small. The FL rules cap at aggregate_max 500, so a
-      // $2,500 item falls outside every band and comes back untaxed - which
-      // would make "a real state" indistinguishable from "no rule".
-      price: 100,
-      product_type: "Coin",
-    },
-  ],
-  spots,
+const body = (address_id: string | null) => ({
+  address_id,
+  items: [{ id: product.id, quantity: 1 }],
 });
+
+const taxOf = (res: { body: unknown }) =>
+  Number(typeof res.body === "number" ? res.body : ((res.body as { tax?: unknown })?.tax ?? res.body));
 
 test("an anonymous caller is refused", async () => {
   await inPinnedTransaction(async () => {
     await anonymous(async () => {
-      const res = await request(app)
-        .post("/api/tax/get_sales_tax")
-        .send(body(nexusState));
+      const res = await request(app).post("/api/tax/get_sales_tax").send(body(taxing.id));
       assert.ok([401, 403].includes(res.status), `answered ${res.status} anonymously`);
     });
   });
@@ -75,70 +89,74 @@ test("an anonymous caller is refused", async () => {
 test("a signed-in customer gets a number back for a real state", async () => {
   await inPinnedTransaction(async () => {
     await as({ ...customer, role: "user" }, async () => {
-      const res = await request(app)
-        .post("/api/tax/get_sales_tax")
-        .send(body(nexusState));
+      const res = await request(app).post("/api/tax/get_sales_tax").send(body(taxing.id));
       assert.equal(res.status, 200, JSON.stringify(res.body));
-
-      const tax = typeof res.body === "number" ? res.body : res.body?.tax ?? res.body;
       assert.ok(
-        Number.isFinite(Number(tax)),
+        Number.isFinite(taxOf(res)),
         `sales tax came back as ${JSON.stringify(res.body)}, which is not a number - ` +
           `a NaN here becomes a NaN total on a real order`
       );
-      assert.ok(Number(tax) >= 0, "sales tax came back negative");
+      assert.ok(taxOf(res) >= 0, "sales tax came back negative");
     });
   });
 });
 
-// RECORDED, not asserted as correct — a request with a valid address and items but no `spots` currently answers 200 with zero tax. calculateItemAsk prices every money figure as content * (spot.ask * ask_premium), and `spots` arrives in the request body here and in createSalesOrder/updatePaymentIntent too (FOLLOWUPS has the measured numbers of what that allows).
-// Pins CURRENT behavior, not desired — when the server sources its own spots instead, this is the assertion to invert deliberately, with the figure it should return.
-test("RECORDED: a request with no spots is answered with zero tax", async () => {
+// THE ASSERTION THIS FILE'S OLD "RECORDED: no spots is zero tax" TEST SAID TO
+// INVERT once the server sourced its own spots. It does: there is no `spots`
+// field to omit, and a body carrying one is refused rather than believed.
+test("the body cannot carry spots, prices or product facts at all", async () => {
   await inPinnedTransaction(async () => {
     await as({ ...customer, role: "user" }, async () => {
-      const res = await request(app)
-        .post("/api/tax/get_sales_tax")
-        .send({ address: { state: nexusState }, items: body(nexusState).items });
-
-      const tax = typeof res.body === "number" ? res.body : res.body?.tax ?? res.body;
-      assert.equal(res.status, 200);
-      assert.equal(
-        Number(tax),
-        0,
-        "no-spots no longer prices at zero - if the server now sources its own " +
-          "spots, this is the assertion to update rather than to satisfy"
-      );
-    });
-  });
-});
-
-// The genuinely malformed cases, where there is no coherent answer at all.
-test("a body with no address or no items is not answered with a real tax figure", async () => {
-  await inPinnedTransaction(async () => {
-    await as({ ...customer, role: "user" }, async () => {
-      for (const [name, payload] of [
-        ["no address", { items: body(nexusState).items, spots }],
-        ["no items", { address: { state: nexusState }, spots }],
-      ]) {
-        const res = await request(app).post("/api/tax/get_sales_tax").send(payload);
-        const tax = Number(res.body?.tax ?? res.body);
-        assert.ok(
-          res.status >= 400 || tax === 0 || Number.isNaN(tax),
-          `"${name}" answered ${res.status} with a tax of ${JSON.stringify(res.body)}`
-        );
+      const poisons = [
+        { name: "spots", extra: { spots: [{ name: "Gold", ask: 1, bid: 1 }] } },
+        { name: "an inline item document", extra: {
+          items: [{ id: product.id, quantity: 1, purity: 0.1, content: 9999, price: 1 }],
+        } },
+        { name: "a state instead of an address", extra: { address: { state: "FL" } } },
+      ];
+      for (const { name, extra } of poisons) {
+        const res = await request(app)
+          .post("/api/tax/get_sales_tax")
+          .send({ ...body(taxing.id), ...extra });
+        assert.equal(res.status, 400, `${name} was accepted (${res.status})`);
       }
     });
   });
 });
-// A state nobody has a rule for must come back as no tax, and that is CORRECT -
-// which is exactly why the test above exists to distinguish it from a refusal.
-test("a state with no rule is answered with no tax, not an error", async () => {
+
+// The genuinely malformed cases, where there is no coherent answer at all. A
+// zero would be indistinguishable from a state that does not collect.
+test("a body with no items is refused rather than answered with a tax figure", async () => {
   await inPinnedTransaction(async () => {
     await as({ ...customer, role: "user" }, async () => {
-      const res = await request(app).post("/api/tax/get_sales_tax").send(body("ZZ"));
-      assert.equal(res.status, 200, `an unknown state answered ${res.status}`);
-      const tax = typeof res.body === "number" ? res.body : res.body?.tax ?? res.body;
-      assert.equal(Number(tax), 0, "an unknown state was charged tax");
+      const noItems = await request(app)
+        .post("/api/tax/get_sales_tax").send({ address_id: taxing.id, items: [] });
+      assert.equal(noItems.status, 400, `no items answered ${noItems.status}`);
+
+      // An address id that names nothing is a 404, not a silent tax-free quote.
+      const noSuchAddress = await request(app)
+        .post("/api/tax/get_sales_tax")
+        .send(body("00000000-0000-4000-8000-000000000000"));
+      assert.equal(noSuchAddress.status, 404, `an unknown address answered ${noSuchAddress.status}`);
+    });
+  });
+});
+
+// No address at all is a real question - a quote asked before one is chosen -
+// and the answer is no tax, which is CORRECT. That is exactly why the refusals
+// above exist to distinguish it from a malformed request.
+test("no address is answered with no tax, not an error", async () => {
+  await inPinnedTransaction(async () => {
+    await as({ ...customer, role: "user" }, async () => {
+      const res = await request(app).post("/api/tax/get_sales_tax").send(body(null));
+      assert.equal(res.status, 200, `a stateless quote answered ${res.status}`);
+      assert.equal(taxOf(res), 0, "a quote with no address was charged tax");
+
+      // And a state with no charging rule is likewise zero, through the same
+      // door: a real address, no rule, no tax.
+      const noRule = await request(app).post("/api/tax/get_sales_tax").send(body(untaxed.id));
+      assert.equal(noRule.status, 200, `${untaxed.state} answered ${noRule.status}`);
+      assert.equal(taxOf(noRule), 0, `${untaxed.state} has no charging rule and was taxed`);
     });
   });
 });
