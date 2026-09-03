@@ -13874,3 +13874,35 @@ layer only moved around; it stops here.
     (`test_<branch>` derived by the preflight from `git branch
     --show-current`, created from a template on first use), so a
     migration-writing lane only ever moves its own database.
+
+### D214 status, 2026-09-03 morning (overnight run)
+
+Merged on `api-hardening`, each with its own gate: item 1 (audit stamping,
+116) · item 2 (CRUD batches 3-5, then the streamlining passes over EVERY
+feature: orders x2, A, B) · item 3 (contracts for every write body, 46 of
+61 strict; the rest deferred with reasons in
+docs/waves/contracts-shape-changes.md) · item 5 (comment sweeps x3) · item
+6 (constraint sweep, 117) · item 8 (frontend syncs 1-4: every e2e journey
+green against dev) · item 9 (design written; lanes 0, 3, 4 merged: locks
+lint, vitest in 18 s with per-branch test databases, no-network guard;
+lanes 1-2 and 5 in flight) · item 10 (exchange exit, 118; one live
+statement remained in the composer and died with it) · item 11 (every
+feature) · item 12 (composer dead). Full `pnpm check` CHECK_EXIT=0 at
+5d9a5d3f (245 s; the dev-database audits are the floor).
+
+Open: item 4 (REST route table written, docs/waves/rest-routes.md, awaiting
+Jacob's answers to its five questions) · item 7 (places/locations, no
+consumer) · test lanes 6-7 · `audit:slow-tests` needs a vitest reporter ·
+`audit:test-leaks` fingerprints DATABASE_URL while the suite writes
+test_<branch> · the created_by/updated_by TEXT columns (readers still
+display them) · the 98 pre-existing verify:backfill dev-drift differences.
+
+Decisions for Jacob (also in the lane commits): sale `using_funds` is no
+longer a client flag (credit applies whenever a balance exists; if the
+customer's choice must survive it is a checkout column); OrderCancel
+carries `weight` because nothing stores a return parcel's weight; the
+sale's Stripe amount-set now runs after the commit (create-then-charge);
+reschedules and carrier-service patches no longer clear omitted fields
+(patch semantics); an unknown address on get_sales_tax is 404 not a silent
+zero; the REST table's five questions; the test design's cassette and
+sandbox-label questions.
