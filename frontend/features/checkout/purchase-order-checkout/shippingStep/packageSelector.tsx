@@ -33,9 +33,8 @@ export function PackageSelector() {
   const totalCartWeight = useMemo(() => {
     return items.reduce((sum, item) => {
       const qty = item.quantity ?? 1
-      const coin = item.bullion_id !== null
-      const raw = (coin ? item.gross : item.pre_melt) ?? 0
-      const converted = convertToPounds(raw, coin ? 'toz' : (item.unit ?? 'g'))
+      const raw = item.pre_melt ?? 0
+      const converted = convertToPounds(raw, item.unit ?? 'g')
 
       return sum + converted * qty
     }, 0)
