@@ -50,7 +50,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     src ? (src.startsWith('http') ? src : new URL(src, base).toString()) : undefined
 
   const productEntries: MetadataRoute.Sitemap = products
-    .filter((p) => p.slug && p.sell_display !== false)
+    .filter((p) => p.slug)
     .map(
       (p) =>
         ({

@@ -41,28 +41,20 @@ const scrapId = randomUUID();
 
 const customer = TEST_CUSTOMER;
 
-// EACH FIXTURE IS BUILT TO DISCRIMINATE THE TWO FLAGS (lane 1), which is what
-// this file's own beforeAll comment was already arguing for: the first version
-// took "any product with display = false" and "any with sell_display = false",
-// both happened to be false in BOTH directions, and swapping the flags in the
-// guard passed every test. Finding a discriminating pair on dev then became a
-// search that could come back empty, which is why three `assert.ok`s below
-// said "dev has no product that ...".
-//
-// Stated instead: one product hidden for buying and live for selling, one the
-// reverse, one live for both. Now checking the wrong flag lets a line through
-// and the test fails, on any database.
+// EACH FIXTURE IS BUILT TO DISCRIMINATE THE ONE FLAG THAT STILL GATES
+// ANYTHING (lane 1 built a matrix on two flags; ruling 49, 2026-09-03, dropped
+// `sell_display` and with it the "hidden for buying, live for selling" and
+// "live for buying, hidden for selling" cases - the sell side has no gate at
+// all now, so the only discriminating fact left is `display`, which still
+// gates the buy side.
 const products = async (c: PoolClient) => {
-  const live = await aProduct(c, { display: true, sell_display: true });
-  const hidden = await aProduct(c, { display: false, sell_display: true });
-  const notSellable = await aProduct(c, { display: true, sell_display: false });
+  const live = await aProduct(c, { display: true });
+  const hidden = await aProduct(c, { display: false });
   return {
     product: { id: live.id, product_name: live.name },
     hidden: { id: hidden.id, product_name: hidden.name },
-    notSellable: { id: notSellable.id, product_name: notSellable.name },
     productId: live.id,
     hiddenId: hidden.id,
-    notSellableId: notSellable.id,
   };
 };
 
@@ -73,7 +65,7 @@ afterAll(async () => {
 
 test("sync_cart replaces the customer's buy cart", async () => {
   await inPinnedTransaction(async (client: PoolClient) => {
-    const { product, productId, hiddenId, notSellableId } = await products(client);
+    const { product, productId, hiddenId } = await products(client);
     await as(Object.assign({}, customer, { role: "user" }), async () => {
       const res = await request(app)
         .post("/api/cart/sync_cart")
@@ -99,7 +91,7 @@ test("sync_cart replaces the customer's buy cart", async () => {
 // relies on when it pushes its local cart up.
 test("sync_cart replaces rather than appends", async () => {
   await inPinnedTransaction(async (client: PoolClient) => {
-    const { product, productId, hiddenId, notSellableId } = await products(client);
+    const { product, productId, hiddenId } = await products(client);
     await as(Object.assign({}, customer, { role: "user" }), async () => {
       await request(app)
         .post("/api/cart/sync_cart")
@@ -262,37 +254,25 @@ const cartOf = async (client: PoolClient) => {
   return JSON.stringify(rows);
 };
 
-// The fixtures are BUILT to these flags now rather than found with them, so
+// The fixtures are BUILT to this flag now rather than found with it, so
 // what is left to check is that the builder really writes what it was asked -
 // the one thing a fixture library can get silently wrong.
 test("the fixtures for these cases really are what they claim", async () => {
   await inPinnedTransaction(async (client: PoolClient) => {
-    const { product, hidden, notSellable } = await products(client);
+    const { product, hidden } = await products(client);
     const { rows } = await client.query(
-      `SELECT id, display, sell_display FROM products.bullion WHERE id = ANY($1)`,
-      [[product.id, hidden.id, notSellable.id]]
+      `SELECT id, display FROM products.bullion WHERE id = ANY($1)`,
+      [[product.id, hidden.id]]
     );
     const by = new Map(rows.map((r) => [r.id, r]));
-    assert.deepEqual(
-      { display: by.get(hidden.id)!.display, sell: by.get(hidden.id)!.sell_display },
-      { display: false, sell: true },
-      "the hidden fixture is not hidden for buying and live for selling"
-    );
-    assert.deepEqual(
-      { display: by.get(notSellable.id)!.display, sell: by.get(notSellable.id)!.sell_display },
-      { display: true, sell: false },
-      "the unsellable fixture is not live for buying and hidden for selling"
-    );
-    assert.deepEqual(
-      { display: by.get(product.id)!.display, sell: by.get(product.id)!.sell_display },
-      { display: true, sell: true }
-    );
+    assert.equal(by.get(hidden.id)!.display, false, "the hidden fixture is not hidden");
+    assert.equal(by.get(product.id)!.display, true, "the live fixture is not live");
   }, { actor: TEST_ACTOR.id });
 });
 
 test("sync_cart refuses a product that is not displayed", async () => {
   await inPinnedTransaction(async (client: PoolClient) => {
-    const { product, productId, hiddenId, notSellableId } = await products(client);
+    const { product, productId, hiddenId } = await products(client);
     await as(Object.assign({}, customer, { role: "user" }), async () => {
       const before = await cartOf(client);
 
@@ -313,7 +293,7 @@ test("sync_cart refuses a product that is not displayed", async () => {
 // it would leave the customer with a cart they did not ask for and no error.
 test("one bad line refuses the whole sync, and nothing is written", async () => {
   await inPinnedTransaction(async (client: PoolClient) => {
-    const { product, productId, hiddenId, notSellableId } = await products(client);
+    const { product, productId, hiddenId } = await products(client);
     await as(Object.assign({}, customer, { role: "user" }), async () => {
       const before = await cartOf(client);
 
@@ -348,16 +328,34 @@ test("sync_cart refuses an id that names no product", async () => {
   }, { actor: TEST_ACTOR.id });
 });
 
-// The two directions are separate flags. A product can be sellable to the
-// business without being displayed for sale by it, so neither is a proxy for
-// the other and the sell cart is checked against its own.
-test("sync_sell_cart refuses a product line that is not sell_display", async () => {
+// THE SELL SIDE HAS NO GATE (Jacob, 2026-09-03, ruling 49). `display` still
+// gates the buy side only, so a product the buy side hides is still fair
+// game for the sell cart - the check that remains is existence, not the
+// dropped `sell_display` flag.
+test("sync_sell_cart accepts a product the buy side hides, and refuses an id that names no product", async () => {
   await inPinnedTransaction(async (client: PoolClient) => {
-    const { notSellableId } = await products(client);
+    const { hidden, hiddenId } = await products(client);
     await as(Object.assign({}, customer, { role: "user" }), async () => {
+      const ok = await request(app)
+        .post("/api/cart/sync_sell_cart")
+        .send({
+          cart: [{ type: "product", quantity: 1, data: { id: hiddenId, name: hidden.product_name } }],
+        });
+      assert.equal(ok.status, 200, `answered ${ok.status}: ${JSON.stringify(ok.body)}`);
+
+      const { rows } = await client.query(
+        `SELECT ci.bullion_id AS product_id
+           FROM checkout.items ci
+           JOIN checkout.checkouts c ON c.id = ci.checkout_id
+          WHERE c.user_id = $1 AND c.direction = 'purchase' AND ci.bullion_id IS NOT NULL`,
+        [customer.id]
+      );
+      assert.equal(rows.length, 1, "the hidden product did not land in the sell cart");
+      assert.equal(rows[0].product_id, hiddenId);
+
       const res = await request(app)
         .post("/api/cart/sync_sell_cart")
-        .send({ cart: [{ type: "product", quantity: 1, data: { id: notSellableId } }] });
+        .send({ cart: [{ type: "product", quantity: 1, data: { id: randomUUID() } }] });
       // 422, NOT 400 (D214 item 11): "that product is not available" is a rule
       // the domain refuses, and a domain refusal is Invalid.
       assert.equal(res.status, 422, `answered ${res.status}: ${JSON.stringify(res.body)}`);
@@ -388,7 +386,7 @@ test("a scrap line is unaffected by the product check", async () => {
 // real shape, post-conversion spelling, and proves the product line lands.
 test("sync_sell_cart stores a product line sent in the frontend's own shape", async () => {
   await inPinnedTransaction(async (client: PoolClient) => {
-    const { product, productId, hiddenId, notSellableId } = await products(client);
+    const { product, productId, hiddenId } = await products(client);
     await as(Object.assign({}, customer, { role: "user" }), async () => {
       const res = await request(app)
         .post("/api/cart/sync_sell_cart")

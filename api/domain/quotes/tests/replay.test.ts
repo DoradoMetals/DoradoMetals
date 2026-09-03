@@ -35,7 +35,7 @@ type BuyerFixture = {
 let spots: SpotFixture[];      // per metal, from the tables the API reads
 let gold: SpotFixture; // the Gold spot row
 let product: ProductFixture;   // a Gold product live in BOTH directions
-let hiddenAsk: { id: string }; // display = false but sell_display = true
+let hiddenAsk: { id: string }; // display = false - the sell side has no gate (ruling 49) and quotes it anyway
 let buyer: BuyerFixture;       // a real user - the address it needs is built per-test
 let goldId: string;            // the Gold metal's id - a scrap line names it
 let standardId: string;        // shipping.services, code STANDARD
@@ -64,7 +64,7 @@ beforeAll(async () => {
   const products = await outside<ProductFixture>(
     `SELECT b.id, b.name, b.content, b.ask_premium, b.bid_premium, m.name AS metal
        FROM products.bullion b JOIN metals.metals m ON m.id = b.metal_id
-      WHERE b.display AND b.sell_display AND b.content IS NOT NULL
+      WHERE b.display AND b.content IS NOT NULL
         AND b.ask_premium IS NOT NULL AND b.bid_premium IS NOT NULL
         AND m.name = 'Gold'
       ORDER BY b.name LIMIT 1`
@@ -73,10 +73,10 @@ beforeAll(async () => {
   assert.ok(product, "dev has no gold product live in both directions");
 
   const hiddens = await outside<{ id: string }>(
-    `SELECT id FROM products.bullion WHERE NOT display AND sell_display LIMIT 1`
+    `SELECT id FROM products.bullion WHERE NOT display LIMIT 1`
   );
   hiddenAsk = hiddens[0];
-  assert.ok(hiddenAsk, "dev has no display=false, sell_display=true product");
+  assert.ok(hiddenAsk, "dev has no display=false product");
 
   // Identity only - auth.users, the live table. The address a sales-order
   // quote needs is built fresh inside each test that needs one (see
@@ -156,8 +156,9 @@ test("a display=false product is refused on the ask side and quoted on the bid s
       assert.equal(refused.status, 422, `a hidden product priced on the ask side (${refused.status})`);
       assert.match(refused.body?.error?.message ?? "", /not available/);
 
-      // The same id on the bid side: sell_display governs there, and this
-      // fixture is sell-live. The gate is per side, not per product.
+      // The same id on the bid side: the sell side has no gate at all
+      // (Jacob, 2026-09-03, ruling 49), so a product hidden from buying is
+      // still quoted for selling. The gate is per side, not per product.
       const quoted = await request(app)
         .post("/api/quotes/catalog")
         .send({ items: [{ id: hiddenAsk.id }], side: "bid" });

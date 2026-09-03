@@ -29,7 +29,7 @@ const FULL_PRODUCT = {
   name: "X", description: "d", bid_premium: 1, ask_premium: 1, type: "Coin",
   display: true, content: 1, gross: 1, purity: 0.999, variant_group: "",
   shadow_offset: 0, stock: 0, slug: null, homepage_display: false,
-  legal_tender: false, domestic_tender: false, sell_display: false,
+  legal_tender: false, domestic_tender: false,
   is_generic: false, variant_label: "", quantity: 0,
   image_front: "/f.png", image_back: "/b.png", filter_category: null,
 };

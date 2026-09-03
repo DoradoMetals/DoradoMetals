@@ -981,7 +981,6 @@ CREATE TABLE IF NOT EXISTS products.bullion (
   type text DEFAULT 'Coin'::text NOT NULL,
   display boolean DEFAULT true NOT NULL,
   homepage_display boolean DEFAULT false NOT NULL,
-  sell_display boolean DEFAULT false NOT NULL,
   legal_tender boolean DEFAULT false NOT NULL,
   domestic_tender boolean DEFAULT false NOT NULL,
   is_generic boolean DEFAULT false NOT NULL,
@@ -1015,7 +1014,6 @@ ALTER TABLE products.bullion ADD COLUMN IF NOT EXISTS ask_premium numeric DEFAUL
 ALTER TABLE products.bullion ADD COLUMN IF NOT EXISTS type text DEFAULT 'Coin'::text;
 ALTER TABLE products.bullion ADD COLUMN IF NOT EXISTS display boolean DEFAULT true;
 ALTER TABLE products.bullion ADD COLUMN IF NOT EXISTS homepage_display boolean DEFAULT false;
-ALTER TABLE products.bullion ADD COLUMN IF NOT EXISTS sell_display boolean DEFAULT false;
 ALTER TABLE products.bullion ADD COLUMN IF NOT EXISTS legal_tender boolean DEFAULT false;
 ALTER TABLE products.bullion ADD COLUMN IF NOT EXISTS domestic_tender boolean DEFAULT false;
 ALTER TABLE products.bullion ADD COLUMN IF NOT EXISTS is_generic boolean DEFAULT false;

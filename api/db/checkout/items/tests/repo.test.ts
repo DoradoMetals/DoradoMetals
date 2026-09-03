@@ -79,7 +79,7 @@ test("a bullion line lists in both directions, and the sale projection is wider"
     assert.equal(sale[0].product_id, product.id);
     assert.equal(Number(sale[0].quantity), 3);
     assert.ok("mint_name" in sale[0], "the sale cart lost the mint");
-    assert.ok("sell_display" in sale[0], "the sale cart lost the tender flags");
+    assert.ok("legal_tender" in sale[0], "the sale cart lost the tender flags");
 
     const purchase = await items.listBullionFor(session.id, "purchase", c);
     assert.equal(purchase.length, 1);

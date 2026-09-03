@@ -90,27 +90,36 @@ test("every label matches what a join would have produced", async () => {
   }
 });
 
-// The lists differ only in their WHERE clause, and each is a different promise: `display` is what a customer may buy, `sell_display` what they may sell — swapping them is invisible in a shape check.
-test("each list filters on the flag it claims to", async () => {
+// `display` is what a customer may buy - the storefront and homepage lists
+// still filter on it. THE SELL LIST HAS NO GATE (Jacob, 2026-09-03, ruling
+// 49): get_sell_products returns every row in products.bullion, hidden ones
+// included - swapping "no filter" for a flag check would be the same
+// invisible-in-a-shape-check mistake this test used to guard against.
+test("storefront and homepage filter on display; the sell list has no gate", async () => {
   const [storefront, sell, homepage] = await Promise.all([
     service.getAllProducts(), service.getSellProducts(), service.getHomepageProducts(),
   ]);
   const flags = async (rows: Array<{ id: string }>) => {
     const { rows: got } = await client.query(
-      `SELECT id, display, sell_display, homepage_display FROM products.bullion
+      `SELECT id, display, homepage_display FROM products.bullion
         WHERE id = ANY($1::uuid[])`,
       [rows.map((r: { id: string }) => r.id)]
     );
     return got;
   };
+  const { rows: everyProduct } = await client.query("SELECT id, display FROM products.bullion");
+
   // Checked non-empty first: these loops pass vacuously on an empty result, and "returns nothing" is exactly the failure a read pivot produces pointing at an unwritten table.
-  const [sf, sl, hp] = [await flags(storefront), await flags(sell), await flags(homepage)];
+  const [sf, hp] = [await flags(storefront), await flags(homepage)];
   assert.ok(sf.length, "the storefront list is empty, so this test asserts nothing");
-  assert.ok(sl.length, "the sell list is empty, so this test asserts nothing");
   assert.ok(hp.length, "the homepage list is empty, so this test asserts nothing");
+  assert.ok(everyProduct.some((r) => r.display === false),
+    "dev has no hidden product, so this test cannot tell 'no gate' from 'wide open gate'");
+
+  assert.equal(sell.length, everyProduct.length,
+    "get_sell_products does not return every product any more");
 
   for (const row of sf) assert.equal(row.display, true);
-  for (const row of sl) assert.equal(row.sell_display, true);
   for (const row of hp) {
     assert.equal(row.homepage_display, true);
     // A product pulled from the storefront must leave the homepage with it.
@@ -215,9 +224,11 @@ test("an id nobody sent gets quantity zero rather than being invented", async ()
 
 // getLiveness answers per id AND per direction. Folding it into the storefront
 // read would turn "you may not buy that" into "that does not exist".
-test("liveness answers for both directions independently", async () => {
+// The sell side has no gate any more (ruling 49), so `display` is the only
+// fact getLiveness has left to answer - the buy-side gate, and existence.
+test("liveness answers display, the buy-side gate", async () => {
   const { rows } = await client.query(
-    "SELECT id, display, sell_display FROM products.bullion LIMIT 5"
+    "SELECT id, display FROM products.bullion LIMIT 5"
   );
   const live = await service.getLiveness(rows.map((r) => r.id));
   assert.equal(live.length, rows.length);
@@ -227,7 +238,6 @@ test("liveness answers for both directions independently", async () => {
     const seen = byId.get(row.id);
     assert.ok(seen, `getLiveness did not return product ${row.id}`);
     assert.equal(seen.display, row.display);
-    assert.equal(seen.sell_display, row.sell_display);
   }
 });
 

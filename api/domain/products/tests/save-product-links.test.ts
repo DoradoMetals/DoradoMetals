@@ -63,7 +63,6 @@ const fullBody = (metal_id: string) => ({
   homepage_display: product.homepage_display,
   legal_tender: product.legal_tender,
   domestic_tender: product.domestic_tender,
-  sell_display: product.sell_display,
   is_generic: product.is_generic,
   variant_label: product.variant_label,
   quantity: product.quantity,

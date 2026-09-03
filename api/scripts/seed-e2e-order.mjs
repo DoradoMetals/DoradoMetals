@@ -63,13 +63,14 @@ if (!users.length) {
 }
 const user_id = users[0].id;
 
-// Any sellable product will do as the order's one line; the drawer prices it
-// from live spots either way. The sell cart is keyed by NAME.
+// Any product will do as the order's one line - the sell side has no gate
+// (ruling 49) - the drawer prices it from live spots either way. The sell
+// cart is keyed by NAME.
 const { rows: products } = await query(
-  `SELECT product_name FROM exchange.products WHERE sell_display = true ORDER BY product_name LIMIT 1`
+  `SELECT name AS product_name FROM products.bullion ORDER BY name LIMIT 1`
 );
 if (!products.length) {
-  console.error("no sellable product in dev to put on the order");
+  console.error("no product in dev to put on the order");
   process.exit(1);
 }
 

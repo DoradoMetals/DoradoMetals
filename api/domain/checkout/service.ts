@@ -236,11 +236,15 @@ export async function saveCheckoutPayout(
 
 // ---------------------------------------------------------------- the cart
 
-// A CART MAY ONLY HOLD PRODUCTS THAT ARE LIVE IN THAT DIRECTION. The storefront
+// THE BUY CART MAY ONLY HOLD PRODUCTS LIVE ON THE BUY SIDE. The storefront
 // only ever shows live products, so the frontend never asks for a hidden one -
 // but the cart endpoints take a product id from the request body and nothing
 // checked it, so a caller posting straight to the API could put any id in a
 // cart, including the 25 products carrying a zero ask premium.
+//
+// THE SELL CART MAY HOLD ANY PRODUCT (Jacob, 2026-09-03, ruling 49) - the
+// sell side has no gate. So a "sale" check is `display === true`; a
+// "purchase" check is existence only - does the id name a product at all.
 //
 // An unknown id is refused the same way a hidden one is: telling them apart in
 // the message would confirm which ids exist.
@@ -250,9 +254,12 @@ async function refuseProductsThatAreNotLive(
   const unique = [...new Set(ids.filter((id): id is string => typeof id === "string" && !!id))];
   if (unique.length === 0) return;
 
-  const flag = direction === "sale" ? "display" : "sell_display";
   const rows = await productService.getLiveness(unique, executor);
-  const live = new Set(rows.filter((r) => r[flag] === true).map((r) => r.id));
+  const live = new Set(
+    direction === "sale"
+      ? rows.filter((r) => r.display === true).map((r) => r.id)
+      : rows.map((r) => r.id)
+  );
   const refused = unique.filter((id) => !live.has(id));
 
   if (refused.length > 0) {

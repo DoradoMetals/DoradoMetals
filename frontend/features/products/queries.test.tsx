@@ -78,7 +78,6 @@ const aProduct = (): AdminProduct => ({
   slug: "1oz-silver-round",
   legal_tender: false,
   domestic_tender: false,
-  sell_display: true,
   is_generic: true,
   variant_label: "",
 });

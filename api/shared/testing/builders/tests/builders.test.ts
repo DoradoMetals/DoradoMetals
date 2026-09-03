@@ -71,7 +71,7 @@ test("a built product carries the purity and premiums it was asked for", async (
   await inRollback(async (c: PoolClient) => {
     const product = await aProduct(c, { purity: 0.9995, bid_premium: 12.5, content: 0.5 });
     const { rows } = await c.query(
-      `SELECT purity, bid_premium, content, sell_display, name
+      `SELECT purity, bid_premium, content, name
          FROM products.bullion WHERE id = $1`, [product.id]
     );
     assert.equal(rows.length, 1);
@@ -81,7 +81,6 @@ test("a built product carries the purity and premiums it was asked for", async (
     assert.equal(Number(rows[0].purity), 0.9995);
     assert.equal(Number(rows[0].bid_premium), 12.5);
     assert.equal(Number(rows[0].content), 0.5);
-    assert.equal(rows[0].sell_display, true);
   });
 });
 

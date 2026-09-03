@@ -138,7 +138,7 @@ export const OrderViewProduct = BullionRow.pick({
   gross: true, bid_premium: true, ask_premium: true, type: true,
   image_front: true, image_back: true, variant_group: true,
   shadow_offset: true, slug: true, legal_tender: true, domestic_tender: true,
-  sell_display: true, is_generic: true, variant_label: true, metal_id: true,
+  is_generic: true, variant_label: true, metal_id: true,
   mint_id: true,
 });
 export type OrderViewProduct = z.infer<typeof OrderViewProduct>;

@@ -47,10 +47,11 @@ const RENAMES: Record<string, string> = {
   type: "product_type",
 };
 
-test("the UPDATE assigns the 26 values ProductPatch carries, in order", () => {
+test("the UPDATE assigns the 25 values ProductPatch carries, in order", () => {
   const next = updateColumns(fullPatch);
-  // 27 before: the twenty-seventh was updated_by, written from an `actor` argument. public.audit_stamp writes it now (migration 116), so the form's own columns are 26.
-  assert.equal(next.length, 26, "the update column count changed - ProductPatch has 26 entries");
+  // 27 before migration 116 (updated_by moved to the audit_stamp trigger,
+  // leaving 26); 25 since migration 119 dropped sell_display (ruling 49).
+  assert.equal(next.length, 25, "the update column count changed - ProductPatch has 25 entries");
   assert.deepEqual(next, PATCHABLE.map(String), "the SET list no longer follows repo.ts's PATCHABLE");
   // The three renamed columns write under the table's own names.
   for (const newName of Object.keys(RENAMES)) {

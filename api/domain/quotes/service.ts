@@ -40,17 +40,23 @@ export type {
   CatalogQuote, OrderQuote, PurchaseOrderQuote, SalesOrderQuote,
 } from "@dorado/contracts";
 
-// The same gate checkout applies to a cart, applied to a quote: a product may
-// only be quoted in the direction it is live in. An unknown id is refused the
-// same as a hidden one, so the message cannot confirm which ids exist.
+// The same gate checkout applies to a cart, applied to a quote: an ASK quote
+// may only name a product live on the buy side (`display`). A BID quote has
+// no gate (Jacob, 2026-09-03, ruling 49) - it checks only that the id names a
+// product at all. An unknown id is refused the same as a hidden one, so the
+// message cannot confirm which ids exist.
 async function refuseProductsThatAreNotLive(
-  ids: string[], direction: "display" | "sell_display"
+  ids: string[], side: "ask" | "bid"
 ): Promise<void> {
   const unique = Array.from(new Set(ids));
   if (unique.length === 0) return;
 
   const rows = await productService.getLiveness(unique);
-  const live = new Set(rows.filter((r) => r[direction] === true).map((r) => r.id));
+  const live = new Set(
+    side === "ask"
+      ? rows.filter((r) => r.display === true).map((r) => r.id)
+      : rows.map((r) => r.id)
+  );
   const refused = unique.filter((id) => !live.has(id));
 
   if (refused.length > 0) {
@@ -69,9 +75,7 @@ async function refuseProductsThatAreNotLive(
 // from the public product list and spot feed.
 // quantity defaults to 1 - what does ONE cost.
 export async function catalogQuote({ side, items }: CatalogQuoteBody): Promise<CatalogQuote> {
-  await refuseProductsThatAreNotLive(
-    items.map((line) => line.id), side === "ask" ? "display" : "sell_display"
-  );
+  await refuseProductsThatAreNotLive(items.map((line) => line.id), side);
 
   // Sequential, not Promise.all: neither call takes a client of its own, so
   // both default to the shared pool - genuinely concurrent when unpinned,
@@ -208,7 +212,7 @@ export async function purchaseOrderQuote(
   const productIds = items.flatMap(
     (line) => (line.type === "product" ? [line.bullion_id] : [])
   );
-  await refuseProductsThatAreNotLive(productIds, "sell_display");
+  await refuseProductsThatAreNotLive(productIds, "bid");
 
   // Sequential - see catalogQuote's note above; three calls with no client of
   // their own is the same shared-pool fan-out.
