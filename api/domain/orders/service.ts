@@ -39,6 +39,7 @@ import * as usersService from "#domain/users/service.ts";
 import * as ledger from "#domain/transactions/service.ts";
 import * as orderRead from "#domain/orders/read.ts";
 import * as rules from "#domain/orders/rules.ts";
+import * as shippingRules from "#domain/shipping/rules.ts";
 import { calculateTotalPrice, fineContent, unitPrice } from "#domain/pricing/service.ts";
 
 import withTransaction from "#shared/db/withTransaction.ts";
@@ -285,9 +286,12 @@ export async function addFunds(order_id: string): Promise<OrderView> {
 // THE ADDRESS IS THE ORDER'S SNAPSHOT and the contact is the provider's
 // configured one. This took the admin drawer's whole form as
 // `Record<string, any>` and hand-mapped fifteen fields out of it.
+//
+// THE WEIGHT AND THE VALUE ARE THE ORDER'S OWN NOW (ruling 58): computed from
+// its lines and its total rather than taken from the admin's form.
 export async function cancel(
   order_id: string,
-  { carrier_service_id, package_id, declared_value, weight }: OrderCancel
+  { carrier_service_id, package_id }: OrderCancel
 ): Promise<OrderView> {
   const order = await viewOf(order_id);
   rules.assertDirection(order.order.direction, "purchase", "cancelling");
@@ -295,8 +299,9 @@ export async function cancel(
   const box = await packagesRepo.getOne(package_id);
   if (!box) throw new Invalid("that package does not exist");
   const service = await carrierServices.labelServiceFor(carrier_service_id);
+  const weight = shippingRules.parcelWeightLb(order.items, box);
   const declaredValue = await carrierServices.clampInsuredValue(
-    declared_value, service.serviceType
+    shippingRules.declaredValue(order.totals?.total ?? 0), service.serviceType
   );
 
   const labelData = await shippingOps.createLabel(

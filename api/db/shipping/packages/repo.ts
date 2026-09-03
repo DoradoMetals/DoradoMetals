@@ -10,6 +10,7 @@ export type PackageRow = Pick<
   shipping.PackagesRow,
   | "id" | "carrier_id" | "label" | "length" | "width" | "height"
   | "is_carrier_packaging" | "image_id" | "created_at" | "updated_at"
+  | "min_weight_lb"
 >;
 
 export async function getAll(executor?: Executor): Promise<PackageRow[]> {

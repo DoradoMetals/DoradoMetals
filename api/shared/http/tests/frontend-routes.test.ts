@@ -47,8 +47,13 @@ const collect = () => {
 };
 
 // Calls KNOWN to hit nothing on purpose, each needing a reason — a 404 here defaults to a defect, which is the whole point. Pinned from both sides: an unlisted 404 fails, and a listed call that starts resolving also fails, so this can't quietly become a stale suppression list.
-// Empty since 086 — the one entry (the offer-accepted email) said to delete itself when its step went; the step went.
-const DELIBERATE_404: Record<string, string | undefined> = {};
+const DELIBERATE_404: Record<string, string | undefined> = {
+  // Ruling 58 (2026-09-03): replaced by GET /api/checkout/rates?direction= -
+  // the client sends only its direction now, everything else is read off its
+  // own checkout row. Deleting this entry is the frontend lane's job, along
+  // with the call in features/shipping/queries.ts.
+  "POST /api/shipping/get_rates": "superseded by GET /api/checkout/rates?direction=",
+};
 
 // The frontend writes paths without the /api the server mounts them under.
 const toRoute = (url: string) => (url.startsWith("/api/") ? url : `/api${url.startsWith("/") ? "" : "/"}${url}`);

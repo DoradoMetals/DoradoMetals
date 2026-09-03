@@ -248,17 +248,14 @@ export type OrderItemCreate = z.infer<typeof OrderItemCreate>;
 // It replaces `{ cancel: { return_shipment } }`, which was the admin drawer's
 // whole form typed `Record<string, any>` and hand-mapped into the carrier
 // call. Where the parcel goes is the ORDER's own address snapshot; who signs
-// for it is the provider's configured contact; what it is worth is priced
-// from the order's own lines. What is genuinely new is the box, the service
-// and the amount to insure.
-// `weight` is the one MEASUREMENT here: nothing stores what the parcel going
-// back weighs, and a label cannot be bought without it. The other three are
-// ids and an amount.
+// for it is the provider's configured contact; what it is worth and what it
+// weighs are both computed from the order's own lines (ruling 58,
+// domain/shipping/rules.ts) - closing the open question this comment used to
+// carry about `weight` having nowhere else to live. What is genuinely new is
+// the box and the service.
 export const OrderCancel = z.object({
   carrier_service_id: z.string(),
   package_id: z.string(),
-  declared_value: z.number(),
-  weight: z.number(),
 }).strict();
 export type OrderCancel = z.infer<typeof OrderCancel>;
 

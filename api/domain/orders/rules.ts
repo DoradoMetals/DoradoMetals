@@ -68,7 +68,7 @@ export type Parcel = {
 // one is a refusal naming the column, never a null the pricing reads as zero.
 export type PurchaseCheckout = {
   shipper_address_id: string; package_id: string; carrier_service_id: string;
-  fulfillment_id: string; payment_details_id: string; package_weight: number;
+  fulfillment_id: string; payment_details_id: string;
 };
 
 export type SaleCheckout = { recipient_address_id: string };
@@ -336,20 +336,19 @@ function assertHasItems(cart: CheckoutLine[]): void {
   if (!cart.length) throw new Invalid("a checkout with no items cannot become an order");
 }
 
-// The five ids and the weight a shipping checkout must hold to buy a label.
+// The five ids a shipping checkout must hold to buy a label. The weight is
+// computed from the cart and the package once both are loaded - see
+// domain/shipping/rules.ts parcelWeightLb.
 export function assertPlaceableAsPurchase(
   checkout: CheckoutRow, cart: CheckoutLine[]
 ): PurchaseCheckout {
   assertHasItems(cart);
-  const package_weight = Number(checkout.package_weight);
-  if (!(package_weight > 0)) throw new Invalid("the parcel needs a weight");
   return {
     shipper_address_id: required("shipper_address_id", checkout.shipper_address_id),
     package_id: required("package_id", checkout.package_id),
     carrier_service_id: required("carrier_service_id", checkout.carrier_service_id),
     fulfillment_id: required("fulfillment_id", checkout.fulfillment_id),
     payment_details_id: required("payment_details_id", checkout.payment_details_id),
-    package_weight,
   };
 }
 
@@ -448,7 +447,8 @@ export function parcelFor(
   service: LabelService,
   box: PackageRow | undefined,
   handoff: CarrierHandoff,
-  declaredValue: number
+  declaredValue: number,
+  weight: number
 ): Parcel {
   if (!box) throw new Invalid("the checkout names a package that does not exist");
   const { pickup_date, pickup_time } = checkout;
@@ -460,7 +460,7 @@ export function parcelFor(
   return {
     carrier_id: service.carrier_id, serviceType: service.serviceType,
     carrierCode: service.carrierCode, handoff, declaredValue,
-    weight: { units: "LB", value: placeable.package_weight },
+    weight: { units: "LB", value: weight },
     dimensions: {
       length: Number(box.length), width: Number(box.width),
       height: Number(box.height), units: "IN",

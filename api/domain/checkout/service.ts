@@ -14,6 +14,7 @@ import * as packagesRepo from "#db/shipping/packages/repo.ts";
 import * as servicesRepo from "#db/shipping/services/repo.ts";
 import * as paymentMethods from "#db/payments/methods/repo.ts";
 import * as ratesService from "#domain/rates/service.ts";
+import * as spotsService from "#domain/spots/service.ts";
 import * as productService from "#domain/products/service.ts";
 import * as fulfillmentService from "#domain/fulfillments/service.ts";
 import * as fulfillmentMethods from "#domain/fulfillments/methods/service.ts";
@@ -23,6 +24,8 @@ import * as addressService from "#domain/places/addresses/service.ts";
 import * as usersService from "#domain/users/service.ts";
 import { Forbidden, Invalid, NotFound } from "#shared/errors.ts";
 import * as rules from "#domain/checkout/rules.ts";
+import { bidPrice } from "#domain/quotes/rules.ts";
+import { lineContent } from "#domain/orders/rules.ts";
 import type { Direction, NewCheckoutItem } from "@dorado/contracts";
 import type { CheckoutRow, CheckoutPatch } from "#db/checkout/checkouts/repo.ts";
 import type { ItemRow } from "#db/checkout/items/repo.ts";
@@ -103,12 +106,6 @@ export async function patchCheckout(
     Number.isNaN(Date.parse(String(patch.appointment_time)))
   ) {
     throw new Invalid(`appointment_time is not a timestamp`);
-  }
-  for (const col of ["package_weight", "declared_value"] as const) {
-    const value = patch[col];
-    if (value != null && !(Number(value) >= 0)) {
-      throw new Invalid(`${col} must be a non-negative number`);
-    }
   }
 
   // appointment_location_id is left to its foreign key: places.locations has
@@ -267,6 +264,24 @@ export async function getRowById(checkout_id: string, client?: Executor) {
 
 export async function getItemsForOrder(checkout_id: string, client?: Executor) {
   return await items.listForOrder(checkout_id, client);
+}
+
+// THE BASKET, PRICED - a purchase checkout's current worth, from the items
+// and premiums already on the row (rules.ts's basketRows sets premium at
+// write time). What a live carrier is told the parcel is worth reads this
+// (domain/shipping/rules.ts declaredValue) - an estimate, the same one
+// orders/read.ts makes for an order line with no stored price.
+export async function purchaseTotal(checkout_id: string, client?: Executor): Promise<number> {
+  const rows = await items.listFor(checkout_id, client);
+  if (!rows.length) return 0;
+  const [spots, metalNames] = await Promise.all([
+    spotsService.getSpotPrices(),
+    metalsRepo.namesById(client),
+  ]);
+  return rows.reduce((sum, row) => {
+    const metal = row.metal_id ? (metalNames.get(row.metal_id) ?? null) : null;
+    return sum + bidPrice(lineContent(row), row.premium, metal, spots);
+  }, 0);
 }
 
 export async function getRowFor(user_id: string, direction: Direction, client?: Executor) {

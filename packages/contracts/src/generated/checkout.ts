@@ -19,8 +19,6 @@ export const CheckoutsRow = z.object({
   "package_id": z.string().uuid().nullable(),
   "appointment_time": z.string().nullable(),
   "fulfillment_id": z.string().uuid().nullable(),
-  "package_weight": z.number().nullable(),
-  "declared_value": z.number().nullable(),
   "pickup_date": z.string().nullable(),
   "pickup_time": z.string().nullable(),
 });
