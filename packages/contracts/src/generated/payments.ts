@@ -119,7 +119,7 @@ export const SettlementsRow = z.object({
   "settled_amount": z.number(),
   "provider": z.string().nullable(),
   "provider_ref": z.string(),
-  "settled_at": z.string(),
+  "settled_at": z.string().nullable(),
   "created_at": z.string(),
 });
 export type SettlementsRow = z.infer<typeof SettlementsRow>;
