@@ -9,13 +9,12 @@ import { test, expect } from "@playwright/test";
 // the checkout hand-off, and asserts the checkout surface came up priced -
 // without confirming anything.
 //
-// The buy cart is cleared through the API afterwards - sync replaces
-// wholesale, so an empty sync is a clear.
+// The buy basket is cleared through the API afterwards.
 const API = (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5000/api").replace(/\/$/, "");
 
 test.afterEach(async ({ request }) => {
   try {
-    await request.post(`${API}/cart/sync_cart`, { data: { cart: [] } });
+    await request.delete(`${API}/checkout/items?direction=sale`);
   } catch {
     // Best effort - a leftover cart line is visible in the drawer and harmless.
   }

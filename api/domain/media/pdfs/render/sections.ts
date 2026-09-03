@@ -28,7 +28,9 @@
 //   labels   the names behind the three ids an order's rows carry - the
 //            metal, the carrier service and the box.
 import { formatPhoneNumber } from "#shared/utils/formatPhoneNumber.ts";
-import { inboundShipment, unitPrice, type Bids } from "#domain/pricing/service.ts";
+import {
+  inboundShipment, recordedContent, unitPrice, type Bids,
+} from "#domain/pricing/service.ts";
 import {
   formatCurrency,
   getPayoutDelay,
@@ -465,7 +467,7 @@ export function buildPackingBullionRows(
           <td>${line.product?.name || "Bullion Product"}</td>
           <td>${labels.metals.get(line.metal_id) ?? "-"}</td>
           <td>${line.quantity}</td>
-          <td>${line.product?.content ?? "-"}</td>
+          <td>${recordedContent(line) ?? "-"}</td>
           <td>${total ? formatCurrency(total) : "-"}</td>
         </tr>`;
     })
@@ -503,8 +505,8 @@ export function buildInvoiceBullionRows(lines: OrderViewItem[], bids: Bids): str
           <td class="text-left">${line.product?.name || "Bullion Product"}</td>
           <td>${line.quantity}</td>
           <td>${
-            line.product?.content != null
-              ? `${line.product.content.toFixed(3)} t oz`
+            recordedContent(line) != null
+              ? `${recordedContent(line)!.toFixed(3)} t oz`
               : "&mdash;"
           }</td>
           <td>${line.premium != null ? `${(line.premium * 100).toFixed(1)}% of spot` : "&mdash;"}</td>

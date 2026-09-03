@@ -7,8 +7,8 @@ import NumberFlow from '@number-flow/react'
 import { sellCartStore } from '@/shared/store/sellCartStore'
 import { useRouter } from 'next/navigation'
 import { formatRate } from '@/features/rates/utils/resolveRate'
-import { getGrossLabel, getPurityLabel, Scrap } from '@/features/scrap/types'
-import { Product } from '@/features/products/types'
+import { getGrossLabel, getPurityLabel } from '@/features/scrap/types'
+import type { SellCartItem } from '@/features/cart/types'
 import { useDrawerStore } from '@/shared/store/drawerStore'
 import { useUser } from '@/features/auth/authClient'
 import { ShoppingCartSimpleIcon } from '@phosphor-icons/react'
@@ -22,24 +22,15 @@ export default function SellCart() {
   const { user } = useUser()
   const { closeDrawer } = useDrawerStore()
   const items = sellCartStore((state) => state.items)
+  const premiums = sellCartStore((state) => state.premiums)
   const addItem = sellCartStore((state) => state.addItem)
   const removeOne = sellCartStore((state) => state.removeOne)
   const removeAll = sellCartStore((state) => state.removeAll)
 
-  // ONE purchase-order quote for the whole cart: it prices products and scrap
-  // alike, banded on each metal's total content across every line. Its lines
-  // come back INDEX-ALIGNED with the store array - sell-cart lines have no
-  // stable id, so `items[i]` answers as `index: i` - which is why the
-  // product/scrap renders below carry their ORIGINAL store index rather than
-  // their position in the filtered list. Gated on the session: the endpoint
-  // is per-caller, so a signed-out cart estimates at zero.
+  // Quote lines come back index-aligned with the store array.
   const { data: quote } = usePurchaseOrderQuote(items)
   const lineAt = (storeIndex: number): PurchaseOrderQuoteLine | undefined =>
     quote?.items.find((line) => line.index === storeIndex)
-
-  const indexed = items.map((item, storeIndex) => ({ item, storeIndex }))
-  const productItems = indexed.filter(({ item }) => item.type === 'product')
-  const scrapItems = indexed.filter(({ item }) => item.type === 'scrap')
 
   const total = quote?.total ?? 0
 
@@ -64,24 +55,25 @@ export default function SellCart() {
     </EmptyState>
   )
 
-  const renderProductItem = (item: Product, index: number, storeIndex: number) => {
-    const lineTotal = lineAt(storeIndex)?.line_total ?? 0
+  const border = (index: number) =>
+    index !== items.length - 1 ? 'border-b border-border' : 'border-none'
+
+  const renderProductItem = (item: SellCartItem, index: number) => {
+    const lineTotal = lineAt(index)?.line_total ?? 0
     const quantity = item.quantity ?? 1
 
     return (
       <div
-        key={index}
-        className={`flex items-center justify-between w-full gap-4 py-4 ${
-          index !== items.length - 1 ? 'border-b border-border' : 'border-none'
-        }`}
+        key={item.id}
+        className={`flex items-center justify-between w-full gap-4 py-4 ${border(index)}`}
       >
         <div className="flex-shrink-0">
           <Image
-            src={item.image_front}
+            src={item.image_front ?? ''}
             width={80}
             height={80}
             className="pointer-events-none cursor-auto object-contain focus:outline-none"
-            alt={item.name}
+            alt={item.name ?? ''}
           />
         </div>
 
@@ -91,29 +83,21 @@ export default function SellCart() {
               <h5>{item.name}</h5>
               <small>{item.mint_name}</small>
             </div>
-            <Button
-              variant="tertiary"
-              size="iconSm"
-              onClick={() => removeAll({ type: 'product', data: item })}
-            >
+            <Button variant="tertiary" size="iconSm" onClick={() => removeAll(item)}>
               <Trash2 size={16} />
             </Button>
           </div>
 
           <div className="flex justify-between items-center">
             <div className="flex items-center gap-2">
-              <Button
-                variant="tertiary"
-                size="iconSm"
-                onClick={() => removeOne({ type: 'product', data: item })}
-              >
+              <Button variant="tertiary" size="iconSm" onClick={() => removeOne(item)}>
                 <Minus size={16} />
               </Button>
               <NumberFlow value={quantity} trend={0} />
               <Button
                 variant="tertiary"
                 size="iconSm"
-                onClick={() => addItem({ type: 'product', data: { ...item, quantity: 1 } })}
+                onClick={() => addItem({ ...item, quantity: 1 })}
               >
                 <Plus size={16} />
               </Button>
@@ -127,39 +111,31 @@ export default function SellCart() {
     )
   }
 
-  const renderScrapItem = (item: Scrap, index: number, storeIndex: number) => {
-    // A scrap line's total IS its price - content covers the whole line. The
-    // rate shown prefers the quote's server-resolved band; the store's own
-    // re-tiered bid_premium stands in while there is no quote (signed out).
-    const line = lineAt(storeIndex)
+  const renderScrapItem = (item: SellCartItem, index: number) => {
+    // A lot's total IS its price; the store's band stands in until the quote.
+    const line = lineAt(index)
     const price = line?.line_total ?? 0
 
     return (
       <div
-        key={index}
-        className={`flex items-center justify-between w-full gap-4 py-4 ${
-          index !== items.length - 1 ? 'border-b border-border' : 'border-none'
-        }`}
+        key={item.id}
+        className={`flex items-center justify-between w-full gap-4 py-4 ${border(index)}`}
       >
         <div className="flex flex-col flex-grow">
           <div className="flex justify-between items-start w-full mt-2">
             <div className="flex flex-col">
               <h5>{item.name || 'Custom Scrap'}</h5>
             </div>
-            <Button
-              variant="tertiary"
-              size="iconSm"
-              onClick={() => removeAll({ type: 'scrap', data: item })}
-            >
+            <Button variant="tertiary" size="iconSm" onClick={() => removeAll(item)}>
               <Trash2 size={16} />
             </Button>
           </div>
 
           <div className="flex items-end">
             <div className="flex flex-col mr-auto gap-1">
-              {getGrossLabel(item.pre_melt, item.gross_unit)}
-              {getPurityLabel(item.purity, item.metal)}
-              <small>Rate: {formatRate(line?.premium ?? item.bid_premium)}</small>
+              {getGrossLabel(item.pre_melt ?? 0, item.unit ?? '')}
+              {getPurityLabel(item.purity ?? 0, item.metal ?? '')}
+              <small>Rate: {formatRate(line?.premium ?? premiums[item.id])}</small>
             </div>
 
             <strong className="ml-auto">
@@ -173,19 +149,8 @@ export default function SellCart() {
 
   const cartContent = (
     <div className="w-full flex-col">
-      {productItems.length > 0 && (
-        <div>
-          {productItems.map(({ item, storeIndex }, i) =>
-            renderProductItem(item.data as Product, i, storeIndex)
-          )}
-        </div>
-      )}
-      {scrapItems.length > 0 && (
-        <div>
-          {scrapItems.map(({ item, storeIndex }, i) =>
-            renderScrapItem(item.data as Scrap, i, storeIndex)
-          )}
-        </div>
+      {items.map((item, index) =>
+        item.bullion_id !== null ? renderProductItem(item, index) : renderScrapItem(item, index)
       )}
     </div>
   )

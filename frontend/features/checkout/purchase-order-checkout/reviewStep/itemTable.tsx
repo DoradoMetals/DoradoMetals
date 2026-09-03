@@ -18,9 +18,10 @@ import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
 // A cart line paired with its quote line. Absent until the first quote lands
 // (or if the server refused the quote) - those rows price at zero, never
 // client-side.
-type QuotedRow<T extends SellCartItem['type']> = {
-  item: Extract<SellCartItem, { type: T }>
+type QuotedRow = {
+  item: SellCartItem
   line: PurchaseOrderQuoteLine | undefined
+  premium: number | undefined
 }
 
 export default function ReviewItemTables() {
@@ -30,6 +31,7 @@ export default function ReviewItemTables() {
   const paymentCost = Number(payoutMethods.find((p) => p.type === payout?.method)?.flat_fee ?? 0)
 
   const items = sellCartStore((state) => state.items)
+  const premiums = sellCartStore((state) => state.premiums)
   const { data: quote } = usePurchaseOrderQuote(items, {
     shipping_charge: shippingCost ?? undefined,
     payout_method: payout?.method,
@@ -40,17 +42,15 @@ export default function ReviewItemTables() {
   // filtering into scrap and bullion.
   const rows = useMemo(() => {
     const byIndex = new Map((quote?.items ?? []).map((line) => [line.index, line]))
-    return items.map((item, index) => ({ item, line: byIndex.get(index) }))
-  }, [items, quote])
+    return items.map((item, index) => ({
+      item,
+      line: byIndex.get(index),
+      premium: premiums[item.id],
+    }))
+  }, [items, quote, premiums])
 
-  const scrapRows = useMemo(
-    () => rows.filter((row): row is QuotedRow<'scrap'> => row.item.type === 'scrap'),
-    [rows]
-  )
-  const bullionRows = useMemo(
-    () => rows.filter((row): row is QuotedRow<'product'> => row.item.type === 'product'),
-    [rows]
-  )
+  const scrapRows = useMemo(() => rows.filter((row) => row.item.bullion_id === null), [rows])
+  const bullionRows = useMemo(() => rows.filter((row) => row.item.bullion_id !== null), [rows])
 
   const scrapTotal = useMemo(
     () => scrapRows.reduce((acc, row) => acc + (row.line?.line_total ?? 0), 0),
@@ -231,29 +231,27 @@ function ItemAccordion<T>({
   )
 }
 
-const scrapColumns: ColumnDef<QuotedRow<'scrap'>>[] = [
+const scrapColumns: ColumnDef<QuotedRow>[] = [
   {
     header: 'Name',
-    cell: ({ row }) => row.original.item.data.name || 'Unnamed',
+    cell: ({ row }) => row.original.item.name || 'Unnamed',
   },
   {
     header: 'Weight',
     cell: ({ row }) => (
       <div>
-        {row.original.item.data.pre_melt} {row.original.item.data.gross_unit}
+        {row.original.item.pre_melt} {row.original.item.unit}
       </div>
     ),
   },
   {
     header: 'Purity',
-    cell: ({ row }) => <span>{(row.original.item.data.purity * 100).toFixed(2)}%</span>,
+    cell: ({ row }) => <span>{((row.original.item.purity ?? 0) * 100).toFixed(2)}%</span>,
   },
   {
     header: 'Rate',
-    // The quote's premium is the rates-band resolution; the cart's own
-    // bid_premium only shows while no quote has landed.
     cell: ({ row }) => (
-      <span>{formatRate(row.original.line?.premium ?? row.original.item.data.bid_premium)}</span>
+      <span>{formatRate(row.original.line?.premium ?? row.original.premium)}</span>
     ),
   },
   {
@@ -266,14 +264,14 @@ const scrapColumns: ColumnDef<QuotedRow<'scrap'>>[] = [
   },
 ]
 
-const bullionColumns: ColumnDef<QuotedRow<'product'>>[] = [
+const bullionColumns: ColumnDef<QuotedRow>[] = [
   {
     header: 'Qty',
-    cell: ({ row }) => row.original.item.data.quantity ?? 1,
+    cell: ({ row }) => row.original.item.quantity ?? 1,
   },
   {
     header: 'Name',
-    cell: ({ row }) => row.original.item.data.name,
+    cell: ({ row }) => row.original.item.name,
   },
   {
     header: 'Est. Value',

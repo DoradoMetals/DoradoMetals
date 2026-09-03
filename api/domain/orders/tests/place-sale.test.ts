@@ -221,9 +221,12 @@ async function primeSaleCheckout(c: PoolClient, f: Fixtures): Promise<string> {
   // against exchange now sets a frozen column the price never reads.
   await query(`UPDATE auth.users SET dorado_funds = 0 WHERE id = $1`, [f.user_id], c);
   await query(`DELETE FROM checkout.items WHERE checkout_id = $1`, [co!.id], c);
+  // The line snapshots its product, as the basket endpoint writes it.
   await query(
-    `INSERT INTO checkout.items (checkout_id, bullion_id, metal_id, quantity)
-     VALUES ($1, $2, (SELECT metal_id FROM products.bullion WHERE id = $2), 1)`,
+    `INSERT INTO checkout.items
+       (checkout_id, bullion_id, metal_id, pre_melt, post_melt, purity, content, unit, quantity)
+     SELECT $1, b.id, b.metal_id, b.gross, b.content, b.purity, b.content, 't oz', 1
+       FROM products.bullion b WHERE b.id = $2`,
     [co!.id, f.product_id], c
   );
   return co!.id;

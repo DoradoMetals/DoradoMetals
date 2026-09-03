@@ -28,7 +28,7 @@ type AdminCreateSalesOrderVars = {
 }
 
 // THE ADMIN-SCOPED ACCESSOR EXISTS NOW (D214 item 2: GET/PATCH
-// /api/checkout?user_id= and POST /cart/sync_cart admin-only user_id,
+// /api/checkout?user_id= and PUT /api/checkout/items?user_id=,
 // api/transport/checkout/controller.ts). The create is `POST
 // /sales_orders/admin_create_sales_order { checkout_id }`: the address,
 // items, service and payment method all live on a CHECKOUT ROW the server
@@ -54,10 +54,17 @@ export const useAdminCreateSalesOrder = () => {
       const user_id = sales_order.user.id
       if (!user_id) throw new Error('No customer named for this order')
 
-      await apiRequest('POST', '/cart/sync_cart', {
-        user_id,
-        cart: sales_order.items.map((item) => ({ id: item.id, quantity: item.quantity ?? 1 })),
-      })
+      await apiRequest(
+        'PUT',
+        '/checkout/items',
+        {
+          items: sales_order.items.map((item) => ({
+            bullion_id: item.id,
+            quantity: item.quantity ?? 1,
+          })),
+        },
+        { direction: 'sale', user_id }
+      )
 
       const carrier_service_id =
         saleServices.find((s) => s.code === sales_order.service.value)?.id ?? null

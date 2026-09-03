@@ -2,153 +2,153 @@ import { beforeEach, describe, expect, test } from "vitest";
 
 import { sellCartStore } from "@/shared/store/sellCartStore";
 import type { SellCartItem } from "@/features/cart/types";
-import type { Scrap } from "@/features/scrap/types";
-import type { Product } from "@/features/products/types";
 import type { Rate } from "@/features/rates/types";
 
-// The sell cart's money behaviour, pinned. This store previews the premium the
-// backend will enforce at order creation - retierScrap mirrors the API's rate
-// banding - so a regression here misquotes a customer until the server
-// corrects them at submit. (.tsx so it runs in the jsdom lane: the store
-// persists through localStorage.)
+// The sell basket's behaviour, pinned. (.tsx for the jsdom lane: it persists.)
 
-const product = (name: string, quantity = 1): SellCartItem => ({
-  type: "product",
-  data: { name, quantity } as Product,
+const line = (over: Partial<SellCartItem> = {}): SellCartItem => ({
+  id: over.id ?? "line-1",
+  bullion_id: null,
+  metal_id: null,
+  pre_melt: 10,
+  post_melt: null,
+  purity: 0.585,
+  unit: "g",
+  quantity: 1,
+  gross: null,
+  metal: "Gold",
+  name: null,
+  image_front: null,
+  mint_name: null,
+  ...over,
 });
 
-const scrap = (over: Partial<Scrap> = {}): SellCartItem => ({
-  type: "scrap",
-  data: {
-    metal: "Gold",
-    pre_melt: 10,
-    purity: 0.585,
-    gross_unit: "g",
-    content: 5,
-    bid_premium: 0.5,
-    quantity: 1,
-    ...over,
-  } as Scrap,
-});
+const product = (id: string, quantity = 1): SellCartItem =>
+  line({ id, bullion_id: id, metal: "Silver", name: id, pre_melt: null, purity: null, unit: null, quantity });
 
-// Two gold bands: up to 10 units pays 90%, above pays 95%.
+const lot = (over: Partial<SellCartItem> = {}): SellCartItem =>
+  line({ id: `lot-${over.pre_melt ?? 10}-${over.purity ?? 0.585}`, ...over });
+
+// Up to 10 troy ounces pays 90%, above pays 95%.
 const goldBands: Rate[] = [
   { metal: "Gold", min_qty: 0, max_qty: 10, scrap_pct: 0.9, bullion_pct: 0.98 } as Rate,
   { metal: "Gold", min_qty: 10.0001, max_qty: null, scrap_pct: 0.95, bullion_pct: 0.99 } as Rate,
 ];
 
-const premiums = () =>
-  sellCartStore
-    .getState()
-    .items.filter((i) => i.type === "scrap")
-    .map((i) => (i.data as Scrap).bid_premium);
+const premiums = () => {
+  const { items, premiums } = sellCartStore.getState();
+  return items.filter((i) => i.bullion_id === null).map((i) => premiums[i.id]);
+};
 
 beforeEach(() => {
   localStorage.clear();
-  sellCartStore.setState({ items: [], rates: [] });
+  sellCartStore.setState({ items: [], rates: [], premiums: {} });
 });
 
 describe("adding and merging lines", () => {
   test("the same product added twice is one line with quantity two", () => {
-    sellCartStore.getState().addItem(product("Silver Bar (100 oz)"));
-    sellCartStore.getState().addItem(product("Silver Bar (100 oz)"));
+    sellCartStore.getState().addItem(product("silver-bar-100"));
+    sellCartStore.getState().addItem(product("silver-bar-100"));
 
     const items = sellCartStore.getState().items;
     expect(items).toHaveLength(1);
-    expect(items[0].data.quantity).toBe(2);
+    expect(items[0].quantity).toBe(2);
   });
 
-  test("scrap identity excludes bid_premium, so a re-tiered line still merges", () => {
-    sellCartStore.getState().addItem(scrap({ bid_premium: 0.9 }));
-    sellCartStore.getState().addItem(scrap({ bid_premium: 0.95 }));
+  test("two identical declarations are one line with quantity two", () => {
+    sellCartStore.getState().addItem(lot());
+    sellCartStore.getState().addItem(lot());
 
     const items = sellCartStore.getState().items;
     expect(items).toHaveLength(1);
-    expect(items[0].data.quantity).toBe(2);
+    expect(items[0].quantity).toBe(2);
   });
 
-  test("scrap differing in an intrinsic (purity) stays two lines", () => {
-    sellCartStore.getState().addItem(scrap({ purity: 0.585 }));
-    sellCartStore.getState().addItem(scrap({ purity: 0.999, pre_melt: 3 }));
+  test("a declaration differing in an intrinsic (purity) stays two lines", () => {
+    sellCartStore.getState().addItem(lot({ purity: 0.585 }));
+    sellCartStore.getState().addItem(lot({ purity: 0.999, pre_melt: 3 }));
 
     expect(sellCartStore.getState().items).toHaveLength(2);
   });
+
+  test("declared lots are labelled per metal in the order they were added", () => {
+    sellCartStore.getState().addItem(lot({ pre_melt: 10 }));
+    sellCartStore.getState().addItem(lot({ pre_melt: 20 }));
+
+    expect(sellCartStore.getState().items.map((i) => i.name)).toEqual([
+      "Gold Item 1",
+      "Gold Item 2",
+    ]);
+  });
 });
 
-describe("rate tiering across the whole cart", () => {
+describe("rate tiering across the whole basket", () => {
   test("the band is picked from the metal's TOTAL content, not the line's", () => {
     sellCartStore.getState().setRates(goldBands);
 
-    // 6 units of gold: inside the low band.
-    sellCartStore.getState().addItem(scrap({ content: 6 }));
+    sellCartStore.getState().addItem(lot({ pre_melt: 6, unit: "t oz", purity: 1 }));
     expect(premiums()).toEqual([0.9]);
 
-    // A second, distinct line takes the metal total to 12: BOTH lines re-tier
-    // to the high band - that is the whole point of tiering on the total.
-    sellCartStore.getState().addItem(scrap({ content: 6, pre_melt: 99 }));
+    // A second line takes the total to 12: both re-tier.
+    sellCartStore.getState().addItem(lot({ pre_melt: 6, unit: "t oz", purity: 0.999 }));
     expect(premiums()).toEqual([0.95, 0.95]);
   });
 
-  test("without rates the premiums are left alone", () => {
-    sellCartStore.getState().addItem(scrap({ bid_premium: 0.5 }));
+  test("without rates no band is previewed", () => {
+    sellCartStore.getState().addItem(lot());
     sellCartStore.getState().setRates([]);
-    expect(premiums()).toEqual([0.5]);
+    expect(premiums()).toEqual([undefined]);
   });
 
-  test("a metal with no band keeps its existing premium", () => {
+  test("a metal with no band gets no preview", () => {
     sellCartStore.getState().setRates(goldBands);
-    sellCartStore.getState().addItem(scrap({ metal: "Palladium", bid_premium: 0.5 }));
-    expect(premiums()).toEqual([0.5]);
+    sellCartStore.getState().addItem(lot({ metal: "Palladium" }));
+    expect(premiums()).toEqual([undefined]);
   });
 });
 
 describe("removing lines", () => {
   test("removeOne decrements, then removes the line at quantity one", () => {
-    sellCartStore.getState().addItem(product("Gold Coin (1oz)"));
-    sellCartStore.getState().addItem(product("Gold Coin (1oz)"));
+    sellCartStore.getState().addItem(product("gold-coin-1oz"));
+    sellCartStore.getState().addItem(product("gold-coin-1oz"));
 
-    sellCartStore.getState().removeOne(product("Gold Coin (1oz)"));
-    expect(sellCartStore.getState().items[0].data.quantity).toBe(1);
+    sellCartStore.getState().removeOne(product("gold-coin-1oz"));
+    expect(sellCartStore.getState().items[0].quantity).toBe(1);
 
-    sellCartStore.getState().removeOne(product("Gold Coin (1oz)"));
+    sellCartStore.getState().removeOne(product("gold-coin-1oz"));
     expect(sellCartStore.getState().items).toHaveLength(0);
   });
 
   test("removeAll drops the whole line regardless of quantity", () => {
-    sellCartStore.getState().addItem(scrap());
-    sellCartStore.getState().addItem(scrap());
-    sellCartStore.getState().addItem(product("Silver Bar (100 oz)"));
+    sellCartStore.getState().addItem(lot());
+    sellCartStore.getState().addItem(lot());
+    sellCartStore.getState().addItem(product("silver-bar-100"));
 
-    sellCartStore.getState().removeAll(scrap());
+    sellCartStore.getState().removeAll(lot());
 
     const items = sellCartStore.getState().items;
     expect(items).toHaveLength(1);
-    expect(items[0].type).toBe("product");
+    expect(items[0].bullion_id).toBe("silver-bar-100");
   });
 });
 
-describe("merging the backend cart on sign-in", () => {
-  test("backend products win, local-only lines survive, scrap unions without duplicates", () => {
-    sellCartStore.getState().addItem(product("Silver Bar (100 oz)", 3));
-    sellCartStore.getState().addItem(product("Local Only Coin"));
-    sellCartStore.getState().addItem(scrap());
+describe("merging the server's basket on sign-in", () => {
+  test("the server's copy wins, local-only lines survive, lots union without duplicates", () => {
+    sellCartStore.getState().addItem(product("silver-bar-100", 3));
+    sellCartStore.getState().addItem(product("local-only-coin"));
+    sellCartStore.getState().addItem(lot());
 
     sellCartStore.getState().mergeSellCart([
-      product("Silver Bar (100 oz)", 1), // backend copy of a local line
-      scrap(), // duplicate of the local scrap - must not double
-      scrap({ pre_melt: 42 }), // backend-only scrap
+      product("silver-bar-100", 1), // the server's copy of a local line
+      lot(), // duplicate of the local lot - must not double
+      lot({ pre_melt: 42 }), // server-only lot
     ]);
 
     const items = sellCartStore.getState().items;
-    const silver = items.find(
-      (i) => i.type === "product" && (i.data as Product).name === "Silver Bar (100 oz)"
-    );
-    // The backend's quantity is taken as truth for a product both sides hold.
-    expect(silver?.data.quantity).toBe(1);
-    expect(
-      items.some((i) => i.type === "product" && (i.data as Product).name === "Local Only Coin")
-    ).toBe(true);
-    expect(items.filter((i) => i.type === "scrap")).toHaveLength(2);
+    const silver = items.find((i) => i.bullion_id === "silver-bar-100");
+    expect(silver?.quantity).toBe(1);
+    expect(items.some((i) => i.bullion_id === "local-only-coin")).toBe(true);
+    expect(items.filter((i) => i.bullion_id === null)).toHaveLength(2);
     expect(items).toHaveLength(4);
   });
 });

@@ -1,18 +1,6 @@
-// HTTP in, HTTP out. Every body is parsed against the contract's own schema,
-// in STRICT mode, before the service runs.
-//
-// THE CART BELONGS TO THE SESSION, NOT TO WHOEVER NAMES A USER - UNLESS THE
-// CALLER IS AN ADMIN. These four took the user id out of the request and the
-// routes were unauthenticated, so an anonymous caller with somebody's user id
-// could read their sell cart and replace it - demonstrated, not deduced. The
-// id comes from req.user now; a `user_id` naming the CALLER's own id is a
-// no-op (so an older client that always sends its own is never refused), and
-// one naming somebody else only resolves for an admin session
-// (cartService.resolveSubject) - the admin sales-order create flow is what
-// needs it, to sync and price a named customer's checkout ahead of order
-// creation (see features/orders/salesOrders/admin/queries.ts).
+// HTTP in, HTTP out. Bodies are parsed strictly against the contract.
 import {
-  Direction, SyncCartBody, SyncSellCartBody, CheckoutPatchBody, CheckoutPatchColumns,
+  Direction, CheckoutItemsBody, CheckoutPatchBody, CheckoutPatchColumns,
   CheckoutFulfillmentBody, CheckoutPayoutBody, CheckoutPayoutForm,
 } from "@dorado/contracts";
 import type { Request } from "express";
@@ -22,13 +10,7 @@ import { parseStrict } from "#shared/http/validate.ts";
 import { asyncHandler } from "#shared/middleware/asyncHandler.ts";
 import * as cartService from "#domain/checkout/service.ts";
 
-// Which user's row/cart a request reaches: the caller's own, unless an admin
-// names somebody else's - the same shape places/addresses/controller.ts's own
-// `subjectOf` already uses. Takes the whole request, not an extracted field:
-// GET/PATCH /checkout name it in the query (user_id is not a writable column,
-// so it is never a body field there); the cart syncs already declare it in
-// the body. cartService.resolveSubject is where the admin check and the
-// existence check actually live.
+// The caller's own row, unless an admin names somebody else's (?user_id=).
 function subjectOf(req: Request): Promise<string> {
   const named = req.query?.user_id ?? req.body?.user_id;
   return cartService.resolveSubject(
@@ -36,29 +18,28 @@ function subjectOf(req: Request): Promise<string> {
   );
 }
 
-// RETURNS THE CART. It used to run the query and answer `{ success: true }`,
-// so a signed-in customer's saved buy cart never came back and hydration threw
-// a TypeError on every login.
-export const getCart = asyncHandler(async (req, res) => {
-  return res.status(200).json(await cartService.getCart(callerId(req), "sale"));
+// ---------------------------------------------------------------- the basket
+
+export const getCheckoutItems = asyncHandler(async (req, res) => {
+  const direction = parseStrict(Direction, oneString(req.query.direction), "direction");
+  return res.status(200).json(
+    await cartService.listItems(await subjectOf(req), direction)
+  );
 });
 
-export const syncCart = asyncHandler(async (req, res) => {
-  const body = parseStrict(SyncCartBody, req.body, "cart/sync_cart body");
-  const subject = await subjectOf(req);
-  await cartService.syncCart(subject, "sale", body.cart);
-  return res.status(200).json({ message: "Cart synced successfully" });
+// The sync: replaces the basket, answers what is now in it.
+export const putCheckoutItems = asyncHandler(async (req, res) => {
+  const direction = parseStrict(Direction, oneString(req.query.direction), "direction");
+  const body = parseStrict(CheckoutItemsBody, req.body, "checkout/items body");
+  return res.status(200).json(
+    await cartService.replaceItems(await subjectOf(req), direction, body.items)
+  );
 });
 
-export const getSellCart = asyncHandler(async (req, res) => {
-  return res.status(200).json(await cartService.getCart(callerId(req), "purchase"));
-});
-
-export const syncSellCart = asyncHandler(async (req, res) => {
-  const body = parseStrict(SyncSellCartBody, req.body, "cart/sync_sell_cart body");
-  const subject = await subjectOf(req);
-  await cartService.syncCart(subject, "purchase", body.cart);
-  return res.status(200).json({ message: "Sell cart synced successfully" });
+export const deleteCheckoutItems = asyncHandler(async (req, res) => {
+  const direction = parseStrict(Direction, oneString(req.query.direction), "direction");
+  const removed = await cartService.clearItems(await subjectOf(req), direction);
+  return res.status(200).json({ removed });
 });
 
 // ----------------------------------------------------------- the row (D208)

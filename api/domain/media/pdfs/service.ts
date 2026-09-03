@@ -5,6 +5,7 @@ import {
   effectivePayoutFee,
   inboundShipment,
   itemsTotal,
+  recordedContent,
   scrapLines,
   type Bids,
 } from "#domain/pricing/service.ts";
@@ -480,8 +481,8 @@ export function buildSalesOrderInvoiceHtml({
           <td class="text-left">${line.product?.name || "Bullion Product"}</td>
           <td>${line.quantity}</td>
           <td>${
-            line.product?.content != null
-              ? `${line.product.content.toFixed(3)} t oz`
+            recordedContent(line) != null
+              ? `${recordedContent(line)!.toFixed(3)} t oz`
               : "&mdash;"
           }</td>
           <td class="text-right">

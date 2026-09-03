@@ -95,11 +95,14 @@ export function effectivePayoutFee(order: {
   return fee(order.payout?.cost, "the payout fee");
 }
 
-// The fine metal ONE unit of this line holds. A scrap line's `content`
-// describes the whole lot it was declared as; a bullion line's comes from the
-// catalogue and is per coin.
+// The line's own content. The catalogue is a fallback for rows written before
+// the basket snapshotted one - 24 of dev's 68 bullion order lines hold null.
+export function recordedContent(line: OrderViewItem): number | null {
+  return line.content ?? (line.bullion_id === null ? null : line.product?.content ?? null);
+}
+
 export function unitContent(line: OrderViewItem): number {
-  const content = line.bullion_id === null ? line.content : (line.product?.content ?? null);
+  const content = recordedContent(line);
   // ABSENT IS ZERO, UNREADABLE IS NaN - and the NaN is deliberate. Migration
   // 087 had to clean up rows whose content reached the wire as the STRING
   // "NaN"; `|| 0` here would turn that into a free line on an invoice instead

@@ -39,8 +39,8 @@ type UserFixture = { id: string };
 // What it replaces: a non-admin customer WITH AN ADDRESS, found by joining the
 // FROZEN `exchange.users` to `places.user_addresses` and back to `auth.users`
 // for the name (three tables to answer "a person and where they live"), plus a
-// product name out of `exchange.products` - a table D212 stopped writing,
-// while the cart sync it feeds resolves against `products.bullion`.
+// product name out of `exchange.products` - a table D212 stopped writing.
+// The basket names the product by id now.
 //
 // The seeded reference rows stay named: "Small Box", "Express Saver", a
 // carrier-agnostic sale service, and the three purchase fulfillment methods.
@@ -56,7 +56,7 @@ type Fixtures = {
   dropoffMethodId: string;
   pickupMethodId: string;
   directMethodId: string;
-  productName: string;
+  productId: string;
 };
 
 const aWorld = async (c: PoolClient): Promise<Fixtures> => {
@@ -74,7 +74,7 @@ const aWorld = async (c: PoolClient): Promise<Fixtures> => {
     pickupMethodId: await fulfillmentMethodId(c, "CARRIER PICKUP", "purchase"),
     // A non-SHIPMENT purchase method - the shipping checkout must refuse it.
     directMethodId: await fulfillmentMethodId(c, "PICKUP", "purchase"),
-    productName: product.name,
+    productId: product.id,
   };
 };
 
@@ -125,13 +125,13 @@ afterAll(async () => {
 });
 
 // Drive the same surfaces the stepper drives: PATCH the row (ids AND parcel
-// facts), POST the fulfillment, POST the payout, sync the sell cart.
+// facts), POST the fulfillment, POST the payout, PUT the basket.
 async function primeCheckout(
   fixtures: Fixtures,
   methodId: string,
   { schedule = false }: { schedule?: boolean } = {}
 ) {
-  const { customer, addressId, packageId, labelServiceId, productName } = fixtures;
+  const { customer, addressId, packageId, labelServiceId, productId } = fixtures;
   const patched = await as(customer, () =>
     request(app).patch("/api/checkout").send({
       direction: "purchase",
@@ -161,9 +161,10 @@ async function primeCheckout(
   assert.ok(payout.body.payment_details_id, "the row did not keep the details id");
 
   const cart = await as(customer, () =>
-    request(app).post("/api/cart/sync_sell_cart").send({
-      cart: [{ type: "product", data: { name: productName, quantity: 2 } }],
-    })
+    request(app)
+      .put("/api/checkout/items")
+      .query({ direction: "purchase" })
+      .send({ items: [{ bullion_id: productId, quantity: 2 }] })
   );
   assert.equal(cart.status, 200, cart.text);
 

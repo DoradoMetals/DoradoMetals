@@ -104,37 +104,26 @@ export const useSalesOrderQuote = (body: SalesOrderQuoteBody, enabled = true) =>
   })
 }
 
-// Translates the sell cart's own shape (full product/scrap facts, kept for
-// local display) into the ids-and-weights PurchaseQuoteItem wants. A scrap
-// line's metal is a NAME in the store (`Gold`) and an ID on the wire
-// (PurchaseQuoteScrap.metal_id) - resolved against the same spots reference
-// list every drawer already maps metal_id back to a name with (features/orders
-// /reads.ts nameOf, in reverse). `content` never crosses: the server derives
-// it from pre_melt/purity/unit, the same formula ScrapTab.tsx computes for
-// local display only.
-//
-// Returns null rather than a partial batch when a metal cannot resolve
-// (the metals list has not loaded yet): a dropped line would shift every
-// LATER line's request-array index, and quote lines pair back to the store
-// array by that index (sell-cart lines have no stable id of their own).
+// Null rather than a partial batch: a dropped line shifts every later index,
+// and quote lines pair back to the store array by index.
 function toPurchaseQuoteItems(
   items: SellCartItem[],
   metals: Pick<SpotPrice, 'id' | 'name'>[]
 ): PurchaseQuoteItem[] | null {
   const out: PurchaseQuoteItem[] = []
   for (const item of items) {
-    if (item.type === 'product') {
-      out.push({ type: 'product', bullion_id: item.data.id, quantity: item.data.quantity })
+    if (item.bullion_id !== null) {
+      out.push({ type: 'product', bullion_id: item.bullion_id, quantity: item.quantity })
       continue
     }
-    const metal_id = metals.find((m) => m.name === item.data.metal)?.id
+    const metal_id = item.metal_id ?? metals.find((m) => m.name === item.metal)?.id
     if (!metal_id) return null
     out.push({
       type: 'scrap',
       metal_id,
-      pre_melt: item.data.pre_melt,
-      purity: item.data.purity,
-      unit: item.data.gross_unit,
+      pre_melt: item.pre_melt ?? 0,
+      purity: item.purity ?? 0,
+      unit: item.unit ?? undefined,
     })
   }
   return out

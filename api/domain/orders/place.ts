@@ -40,6 +40,7 @@ import { calculateSalesOrderTotal } from "#domain/pricing/ask.ts";
 import { retierPremiums } from "#domain/orders/service.ts";
 
 import withTransaction from "#shared/db/withTransaction.ts";
+import { attempt } from "#shared/attempt.ts";
 import { Conflict, Invalid, NotFound } from "#shared/errors.ts";
 import type { NewOrderItem } from "#db/orders/items/repo.ts";
 import type { NewOrderTotals } from "#db/orders/transactions/repo.ts";
@@ -194,8 +195,9 @@ async function placePurchase(
     throw err;
   }
 
-  // Device-sync data: a failed clear is a stale basket, not lost data.
-  await checkoutService.syncCart(checkout.user_id, "purchase", []).catch(() => {});
+  await attempt("clear the purchase basket", () =>
+    checkoutService.clearItems(checkout.user_id, "purchase")
+  );
   await world.confirm(order_id);
   return order_id;
 }
@@ -239,8 +241,14 @@ async function placeSale(
     await placeAddresses.getOne(placeable.recipient_address_id), "delivery"
   );
   const spots = await spotsService.getSpotPrices();
-  const catalogue = await taxService.attachSalesTaxToItems(
-    address.state, await productService.getItemsFromServer(rules.catalogueWanted(cart)), spots
+  const priced = await taxService.attachSalesTaxToItems(
+    address.state,
+    rules.saleLines(
+      cart,
+      await productService.getItemsFromServer(rules.catalogueWanted(cart)),
+      new Map(spots.map((spot) => [spot.id, spot.name]))
+    ),
+    spots
   );
   const service = checkout.carrier_service_id
     ? await servicesRepo.getOne(checkout.carrier_service_id)
@@ -252,7 +260,7 @@ async function placeSale(
   // owns, and pricing caps what is applied at the order's own total.
   const balance = (await usersRepo.balanceForUpdate(checkout.user_id)) ?? 0;
   const prices = calculateSalesOrderTotal(
-    catalogue, spots, { dorado_funds: balance }, service?.code, method?.type
+    priced, spots, { dorado_funds: balance }, service?.code, method?.type
   );
   const cents = rules.chargeCents(prices.post_charges_amount);
   const intent = cents > 0 ? await openIntentFor(checkout.user_id, cents) : null;
@@ -263,7 +271,7 @@ async function placeSale(
       {
         order_id, checkout, spots,
         status: rules.statusAtPlacement(cents, intent?.settled === true),
-        lines: rules.linesSold(order_id, cart, catalogue, spots),
+        lines: rules.linesSold(order_id, cart, priced, spots),
         totals: rules.totalsSold(order_id, prices, service?.name),
       },
       tx
