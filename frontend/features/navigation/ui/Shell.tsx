@@ -4,13 +4,12 @@ import Link from 'next/link'
 import NavLink from '@/shared/ui/NavLink'
 import { usePathname } from 'next/navigation'
 import { useDrawerStore } from '@/shared/store/drawerStore'
-import { cartStore } from '@/shared/store/cartStore'
-import { sellCartStore } from '@/shared/store/sellCartStore'
-import { useCartAutoSync } from '@/features/cart/queries'
+import { useCheckoutItems } from '@/shared/store/checkoutItemsStore'
+import { useCheckoutItemsAutoSync } from '@/features/checkout/items/queries'
 
 import { Button } from '@dorado/components'
 import { MenuIcon } from '@/features/navigation/ui/NavIcon'
-import { CartIcon } from '@/features/cart/ui/CartIcon'
+import { CheckoutIcon } from '@/features/checkout/items/ui/CheckoutIcon'
 
 import { motion } from 'framer-motion'
 import { useUser } from '@/features/auth/authClient'
@@ -20,7 +19,7 @@ import Spots from '@/features/spots/ui/Spots'
 import { Logo } from '@/features/navigation/ui/Logo'
 import AccountMenu from '@/features/navigation/ui/ProfileMenu'
 import Sidebar from '@/features/navigation/ui/Sidebar'
-import { CartTabs } from '@/features/cart/ui/CartTabs'
+import { CheckoutDrawer } from '@/features/checkout/items/ui/CheckoutDrawer'
 
 export default function Shell() {
   const pathname = usePathname()
@@ -29,9 +28,9 @@ export default function Shell() {
   const { activeDrawer, openDrawer, closeDrawer } = useDrawerStore()
   const isAnyDrawerOpen = !!activeDrawer
   const items =
-    cartStore((state) => state.items.length) + sellCartStore((state) => state.items.length)
+    useCheckoutItems((state) => state.sale.length) + useCheckoutItems((state) => state.purchase.length)
 
-  useCartAutoSync()
+  useCheckoutItemsAutoSync()
 
   const menuItems = Object.entries(protectedRoutes)
     .filter(([_, route]) => route.desktopDisplay)
@@ -80,10 +79,10 @@ export default function Shell() {
               className="relative"
               variant="tertiary"
               size="icon"
-              aria-label="Open cart"
-              onClick={() => openDrawer('cart')}
+              aria-label="Open checkout"
+              onClick={() => openDrawer('checkout')}
             >
-              <CartIcon size={28} isOpen={activeDrawer === 'cart'} />
+              <CheckoutIcon size={28} isOpen={activeDrawer === 'checkout'} />
               {items > 0 && (
                 <CountBadge size="sm" className="absolute -top-0 -right-1">
                   {items}
@@ -109,8 +108,8 @@ export default function Shell() {
             className="relative"
             variant="tertiary"
             size="icon"
-            aria-label="Open cart"
-            onClick={() => openDrawer('cart')}
+            aria-label="Open checkout"
+            onClick={() => openDrawer('checkout')}
             disabled={isAnyDrawerOpen}
           >
             <motion.div
@@ -119,7 +118,7 @@ export default function Shell() {
               transition={{ duration: 0.3, ease: 'easeInOut' }}
               className="relative flex items-center justify-center will-change-transform"
             >
-              <CartIcon size={28} isOpen={false} />
+              <CheckoutIcon size={28} isOpen={false} />
               {items > 0 && (
                 <CountBadge size="sm" className="absolute -top-0 -right-1">
                   {items}
@@ -146,7 +145,7 @@ export default function Shell() {
       </div>
 
       <Sidebar />
-      <CartTabs />
+      <CheckoutDrawer />
     </header>
   )
 }

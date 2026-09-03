@@ -9,14 +9,10 @@ import type { Icon } from '@phosphor-icons/react'
    ----------------------------------------------------------------------------
    THERE WERE EIGHT OF THESE. This component, `OrderStatusEmptyState` in
    `features/orders/ui/OrderStatusShared`, and SIX hand-rolled copies of one
-   layout found by diffing className strings across the tree:
-
-     features/cart/ui/Cart.tsx                     "Your cart is empty!"
-     features/cart/ui/SellCart.tsx                 "Your sell cart is empty!"
-     features/checkout/sales-order-checkout/…      "Your cart is empty!"
-     features/checkout/purchase-order-checkout/…   "Your cart is empty!"
-     features/orders/…/purchaseOrderTab.tsx        "No Orders Yet!"
-     features/orders/…/salesOrderTab.tsx           "No Orders Yet!"
+   layout found by diffing className strings across the tree - the buy and
+   sell drawer panes (since renamed and rebuilt on the checkout items store,
+   features/checkout/items/ui/), both checkout steppers' own empty states, and
+   the two order-list tabs' "No Orders Yet!" panels.
 
    All eight are: a large outline icon, a small badge pinned to its corner, a
    heading, a line of copy, and sometimes a button. A badge is CONTENT and an
@@ -29,8 +25,8 @@ import type { Icon } from '@phosphor-icons/react'
    `--border-strong` is the right token for an edge that must read as
    deliberate. Headings were `h2` at four and `h3` at two; the body copy was
    `<p>` at some and `<small>` at others; the icon was 128px on the order lists
-   and 80px in the carts. Nobody chose any of that. It is what six copies of
-   one layout look like after a year.
+   and 80px on the two basket panes. Nobody chose any of that. It is what six
+   copies of one layout look like after a year.
 
    FIVE PROPS BECAME ONE CHILD. `buttonLabel`, `buttonIcon`, `buttonIconSize`,
    `buttonVariant` and `buttonClassName` were this component re-declaring

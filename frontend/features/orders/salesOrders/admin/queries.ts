@@ -2,8 +2,10 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { apiRequest } from '@/shared/queries/axios'
 import { usePaymentMethods } from '@/features/payments/queries'
 import { useSaleShippingServices } from '@/features/shipping/queries'
-import { AdminSalesOrderCheckout, SalesOrder } from '@/features/orders/salesOrders/types'
+import { AdminSaleCheckoutForm, SalesOrder } from '@/features/orders/salesOrders/types'
 import { useApiQuery } from '@/shared/queries/base'
+import { replaceCheckoutItems } from '@/features/checkout/items/queries'
+import type { CheckoutLine } from '@/features/checkout/items/types'
 import { queryKeys } from '@/shared/queries/keys'
 import type { OrderView } from '@dorado/contracts'
 
@@ -24,7 +26,8 @@ export const useAdminSalesOrders = () =>
 
 type AdminCreateSalesOrderVars = {
   paymentIntentId?: string
-  sales_order: AdminSalesOrderCheckout
+  sales_order: AdminSaleCheckoutForm
+  items: CheckoutLine[]
 }
 
 // THE ADMIN-SCOPED ACCESSOR EXISTS NOW (D214 item 2: GET/PATCH
@@ -35,7 +38,7 @@ type AdminCreateSalesOrderVars = {
 // resolves by id, the same as the customer flow - mirroring
 // features/orders/salesOrders/users/queries.ts useCreateSalesOrder, three
 // calls against the NAMED customer's row instead of the caller's own:
-//   1. freeze the drawer's item list onto the customer's buy cart;
+//   1. freeze the drawer's item list onto the customer's buy basket;
 //   2. resolve the two ids the checkout row wants (service CODE, payment
 //      method TYPE) and PATCH their row, which answers with its own id;
 //   3. POST the checkout_id - `createOrderFromCheckout` already lets an
@@ -50,21 +53,11 @@ export const useAdminCreateSalesOrder = () => {
   const { data: saleServices = [] } = useSaleShippingServices()
 
   return useMutation({
-    mutationFn: async ({ sales_order }: AdminCreateSalesOrderVars) => {
+    mutationFn: async ({ sales_order, items }: AdminCreateSalesOrderVars) => {
       const user_id = sales_order.user.id
       if (!user_id) throw new Error('No customer named for this order')
 
-      await apiRequest(
-        'PUT',
-        '/checkout/items',
-        {
-          items: sales_order.items.map((item) => ({
-            bullion_id: item.id,
-            quantity: item.quantity ?? 1,
-          })),
-        },
-        { direction: 'sale', user_id }
-      )
+      await replaceCheckoutItems('sale', items, user_id)
 
       const carrier_service_id =
         saleServices.find((s) => s.code === sales_order.service.value)?.id ?? null

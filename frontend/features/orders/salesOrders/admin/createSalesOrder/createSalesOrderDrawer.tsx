@@ -16,7 +16,6 @@ import { DetailRow } from '@/shared/ui/DetailRow'
 import { cn } from '@/shared/utils/cn'
 
 import {
-  adminSalesOrderCheckoutSchema,
   saleServiceToOption,
   SalesOrderServiceUIOption,
 } from '@/features/orders/salesOrders/types'
@@ -27,6 +26,9 @@ import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
 import { useAdminSalesOrderCheckoutStore } from '@/shared/store/adminSalesOrderCheckoutStore'
 import { SearchableDropdown } from '@/shared/ui/inputs/InputDropdownSearch'
 import { Product } from '@/features/products/types'
+import { useCheckoutItems } from '@/shared/store/checkoutItemsStore'
+import { lineFromProduct } from '@/features/checkout/items/types'
+import { useDecoratedLines } from '@/features/checkout/items/flair'
 import Image from 'next/image'
 import { Minus, Plus, Trash2 } from 'lucide-react'
 import { Button } from '@dorado/components'
@@ -50,7 +52,7 @@ import StripeWrapper from '@/features/stripe/ui/StripeWrapper'
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!)
 
 export function CreateSalesOrderDrawer() {
-  const { data, setData } = useAdminSalesOrderCheckoutStore()
+  const { data, setData, items: draft } = useAdminSalesOrderCheckoutStore()
   const { activeDrawer, closeDrawer, createSalesOrderUser } = useDrawerStore()
 
   const [spotsLocked, setSpotsLocked] = useState(false)
@@ -72,7 +74,9 @@ export function CreateSalesOrderDrawer() {
   // No using_funds (D214 item 11): credit applies whenever the customer has
   // a balance, same as placement.
   const { data: orderPrices } = useSalesOrderQuote({
-    items: (data.items ?? []).map((i) => ({ id: i.id, quantity: i.quantity ?? 1 })),
+    items: draft.flatMap((i) =>
+      i.bullion_id ? [{ id: i.bullion_id, quantity: i.quantity ?? 1 }] : []
+    ),
     shipping_service: data.service?.value ?? null,
     payment_method: data.payment_method ?? null,
     address_id: data.address?.id ?? null,
@@ -192,48 +196,39 @@ function SpotSelector({ spotsLocked }: { spotsLocked: boolean }) {
 
 function ProductSelector() {
   const { data: products = [] } = useProducts()
-  const { data, setData } = useAdminSalesOrderCheckoutStore()
-  const items = data.items ?? []
+  const { items, setItems } = useAdminSalesOrderCheckoutStore()
+  const rows = useDecoratedLines(items)
 
   // The per-line preview is the server's ask quote, batched over the picked
   // items. It prices from LIVE server spots: the drawer's locked spot
   // overrides feed the CREATE body, never this preview.
   const { data: quote } = useCatalogQuote(
-    items.map((i) => ({ id: i.id, quantity: i.quantity ?? 1 })),
+    items.flatMap((i) => (i.bullion_id ? [{ id: i.bullion_id, quantity: i.quantity ?? 1 }] : [])),
     'ask'
   )
   const lineTotals = new Map((quote?.items ?? []).map((line) => [line.id, line.line_total]))
 
-  function addItem(item: Product) {
-    const existing = data.items ?? []
-    const found = existing.find((i) => i.id === item.id)
-    if (found) {
-      setData({
-        items: existing.map((i) =>
-          i.id === item.id ? { ...i, quantity: (i.quantity ?? 1) + 1 } : i
-        ),
-      })
-    } else {
-      setData({
-        items: [...existing, { ...item, quantity: 1 }],
-      })
-    }
+  function addItem(product: Product) {
+    const found = items.find((i) => i.bullion_id === product.id)
+    setItems(
+      found
+        ? items.map((i) =>
+            i.bullion_id === product.id ? { ...i, quantity: (i.quantity ?? 1) + 1 } : i
+          )
+        : [...items, lineFromProduct(product)]
+    )
   }
 
-  function removeOne(item: Product) {
-    const existing = data.items ?? []
-    setData({
-      items: existing
-        .map((i) => (i.id === item.id ? { ...i, quantity: (i.quantity ?? 1) - 1 } : i))
-        .filter((i) => (i.quantity ?? 1) > 0),
-    })
+  function removeOne(bullion_id: string) {
+    setItems(
+      items
+        .map((i) => (i.bullion_id === bullion_id ? { ...i, quantity: (i.quantity ?? 1) - 1 } : i))
+        .filter((i) => (i.quantity ?? 1) > 0)
+    )
   }
 
-  function removeAll(item: Product) {
-    const existing = data.items ?? []
-    setData({
-      items: existing.filter((i) => i.id !== item.id),
-    })
+  function removeAll(bullion_id: string) {
+    setItems(items.filter((i) => i.bullion_id !== bullion_id))
   }
 
   return (
@@ -248,38 +243,39 @@ function ProductSelector() {
       />
       <div className="w-full flex-col">
         <div className="flex-col gap-5">
-          {items.map((item, index) => {
-            const lineTotal = lineTotals.get(item.id) ?? 0
-            const quantity = item.quantity ?? 1
+          {rows.map(({ line, index, product, name, image_front, mint_name }) => {
+            const bullion_id = line.bullion_id!
 
             return (
               <div
-                key={item.name}
+                key={line.id}
                 className={`flex items-center justify-between w-full gap-4 py-4 ${
-                  index !== items.length - 1 ? 'border-b border-border' : 'border-none'
+                  index !== rows.length - 1 ? 'border-b border-border' : 'border-none'
                 }`}
               >
-                <div className="flex-shrink-0">
-                  <Image
-                    src={item.image_front}
-                    width={80}
-                    height={80}
-                    className="pointer-events-none cursor-auto object-contain focus:outline-none"
-                    alt={item.name}
-                  />
-                </div>
+                {image_front && (
+                  <div className="flex-shrink-0">
+                    <Image
+                      src={image_front}
+                      width={80}
+                      height={80}
+                      className="pointer-events-none cursor-auto object-contain focus:outline-none"
+                      alt={name}
+                    />
+                  </div>
+                )}
 
                 <div className="flex flex-col flex-grow min-w-0">
                   <div className="flex justify-between items-start w-full mt-2">
                     <div className="flex flex-col">
-                      <strong>{item.name}</strong>
-                      <small>{item.mint_name}</small>
+                      <strong>{name}</strong>
+                      <small>{mint_name}</small>
                     </div>
                     <Button
                       variant="tertiary"
                       size="sm"
                       className="p-0 pb-2"
-                      onClick={() => removeAll(item)}
+                      onClick={() => removeAll(bullion_id)}
                     >
                       <Trash2 size={16} />
                     </Button>
@@ -291,12 +287,12 @@ function ProductSelector() {
                         variant="tertiary"
                         size="sm"
                         className="p-1"
-                        onClick={() => removeOne(item)}
+                        onClick={() => removeOne(bullion_id)}
                       >
                         <Minus size={16} />
                       </Button>
                       <NumberFlow
-                        value={quantity}
+                        value={line.quantity ?? 1}
                         transformTiming={{ duration: 750, easing: 'ease-in' }}
                         spinTiming={{ duration: 150, easing: 'ease-out' }}
                         opacityTiming={{ duration: 350, easing: 'ease-out' }}
@@ -306,13 +302,13 @@ function ProductSelector() {
                         variant="tertiary"
                         size="sm"
                         className="p-1"
-                        onClick={() => addItem(item)}
+                        onClick={() => product && addItem(product)}
                       >
                         <Plus size={16} />
                       </Button>
                     </div>
                     <strong>
-                      <PriceNumberFlow value={lineTotal} />
+                      <PriceNumberFlow value={lineTotals.get(bullion_id) ?? 0} />
                     </strong>
                   </div>
                 </div>
@@ -573,7 +569,7 @@ function PaymentSelect({ orderPrices, user }: { orderPrices?: SalesOrderQuote; u
   const { closeDrawer } = useDrawerStore()
   const [isPending, startTransition] = useTransition()
 
-  const { data, setData } = useAdminSalesOrderCheckoutStore()
+  const { data, setData, items } = useAdminSalesOrderCheckoutStore()
   const createOrder = useAdminCreateSalesOrder()
   const updatePaymentIntent = useUpdatePaymentIntent()
   const { data: clientSecret } = useRetrievePaymentIntent('admin', user.id!)
@@ -593,7 +589,7 @@ function PaymentSelect({ orderPrices, user }: { orderPrices?: SalesOrderQuote; u
       return true
     }
   }, [data.payment_method])
-  const itemsMissing = (data.items?.length ?? 0) === 0
+  const itemsMissing = items.length === 0
 
   const disabled =
     itemsMissing ||
@@ -609,7 +605,7 @@ function PaymentSelect({ orderPrices, user }: { orderPrices?: SalesOrderQuote; u
   useEffect(() => {
     if (clientSecret && (orderPrices?.post_charges_amount ?? 0) > 0 && cardNeeded && !itemsMissing) {
       updatePaymentIntent.mutate({
-        items: data?.items ?? [],
+        items,
         shipping_service: data.service?.value ?? 'STANDARD',
         payment_method: data.payment_method ?? 'CARD',
         type: 'admin',
@@ -618,7 +614,7 @@ function PaymentSelect({ orderPrices, user }: { orderPrices?: SalesOrderQuote; u
       })
     }
   }, [
-    data?.items,
+    items,
     clientSecret,
     orderPrices?.post_charges_amount,
     data.payment_method,
@@ -641,33 +637,25 @@ function PaymentSelect({ orderPrices, user }: { orderPrices?: SalesOrderQuote; u
   // order, with paidButNoOrder as the apology. Under the shared form the
   // order is created awaiting payment first, and a failed charge just
   // retries against the saved order.
-  const createOrderForIntent = async (paymentIntentId: string) => {
-    const checkoutPayload = {
-      ...data,
-      address: data.address!,
-      service: data.service!,
-      items: data.items,
+  const form = () => {
+    if (!data.address || !data.service || !data.user) {
+      throw new Error('The order is not complete')
     }
-    const validated = adminSalesOrderCheckoutSchema.parse(checkoutPayload)
-    await createOrder.mutateAsync({ paymentIntentId, sales_order: validated })
+    return {
+      ...data,
+      address: data.address,
+      service: data.service,
+      user: data.user,
+      order_metals: data.order_metals ?? [],
+    }
+  }
+
+  const createOrderForIntent = async (paymentIntentId: string) => {
+    await createOrder.mutateAsync({ paymentIntentId, sales_order: form(), items })
   }
 
   const handleSubmit = () => {
-    const checkoutPayload = {
-      ...data,
-      address: data.address!,
-      service: data.service!,
-      items: data.items,
-    }
-
-    const validated = adminSalesOrderCheckoutSchema.parse(checkoutPayload)
-
-    createOrder.mutate(
-      { sales_order: validated },
-      {
-        onSuccess: finishCreate,
-      }
-    )
+    createOrder.mutate({ sales_order: form(), items }, { onSuccess: finishCreate })
   }
 
   return (

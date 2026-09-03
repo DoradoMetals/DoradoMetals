@@ -9,7 +9,7 @@ import { AdminUser } from '@/features/users/types'
 import { Address, UserAddress } from '@/features/addresses/types'
 
 type DrawerName =
-  | 'cart'
+  | 'checkout'
   | 'sidebar'
   | 'purchaseOrder'
   | 'salesOrder'

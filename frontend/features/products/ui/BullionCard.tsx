@@ -12,8 +12,8 @@ import { PopoverContent, PopoverTrigger } from '@/shared/ui/base/popover'
 import { Popover } from '@radix-ui/react-popover'
 import { cn } from '@/shared/utils/cn'
 import { AnimatePresence, motion } from 'framer-motion'
-import { sellCartStore } from '@/shared/store/sellCartStore'
-import { sellLineFromProduct } from '@/features/cart/types'
+import { useCheckoutItems } from '@/shared/store/checkoutItemsStore'
+import { lineFromProduct } from '@/features/checkout/items/types'
 import { useSpotPrices } from '@/features/spots/queries'
 import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
 import { DetailRow } from '@/shared/ui/DetailRow'
@@ -35,12 +35,11 @@ export default function BullionCard({ product, variants, unitPrices }: BullionCa
   const [open, setOpen] = useState(false)
   const [variantsOpen, setVariantsOpen] = useState(false)
 
-  const items = sellCartStore((state) => state.items)
-  const addItem = sellCartStore((state) => state.addItem)
-  const removeOne = sellCartStore((state) => state.removeOne)
+  const items = useCheckoutItems((state) => state.purchase)
+  const addItem = useCheckoutItems((state) => state.addItem)
+  const removeOne = useCheckoutItems((state) => state.removeOne)
 
-  const cartItem = items.find((item) => item.bullion_id === selectedProduct.id)
-  const quantity = cartItem?.quantity ?? 0
+  const quantity = items.find((i) => i.bullion_id === selectedProduct.id)?.quantity ?? 0
 
   const { data: spotPrices = [] } = useSpotPrices()
 
@@ -210,15 +209,15 @@ export default function BullionCard({ product, variants, unitPrices }: BullionCa
         {quantity === 0 ? (
           <Button
             className="w-full"
-            onClick={() => addItem(sellLineFromProduct(selectedProduct))}
+            onClick={() => addItem('purchase', lineFromProduct(selectedProduct))}
           >
-            Add to Sell Cart
+            Sell to Us
           </Button>
         ) : (
           <div className="flex items-center justify-center gap-3">
             <Button
               size="icon"
-              onClick={() => removeOne(sellLineFromProduct(selectedProduct))}
+              onClick={() => removeOne('purchase', lineFromProduct(selectedProduct))}
             >
               <Minus size={20} />
             </Button>
@@ -226,7 +225,7 @@ export default function BullionCard({ product, variants, unitPrices }: BullionCa
             <Button
               size="icon"
               onClick={() =>
-                addItem(sellLineFromProduct(selectedProduct))
+                addItem('purchase', lineFromProduct(selectedProduct))
               }
             >
               <Plus size={20} />

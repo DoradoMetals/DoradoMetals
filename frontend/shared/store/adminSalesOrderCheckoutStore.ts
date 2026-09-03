@@ -1,19 +1,21 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import {
-  AdminSalesOrderCheckout,
-  SalesOrderCheckout,
-  DEFAULT_SALES_SERVICE,
-} from '@/features/orders/salesOrders/types'
+import { AdminSaleCheckoutForm, DEFAULT_SALES_SERVICE } from '@/features/orders/salesOrders/types'
+import type { CheckoutLine } from '@/features/checkout/items/types'
 
-type PartialAdminCheckout = Partial<AdminSalesOrderCheckout>
+type PartialAdminCheckout = Partial<AdminSaleCheckoutForm>
 
 interface AdminSalesOrderCheckoutState {
   data: PartialAdminCheckout
+  // The customer's buy basket, held here until create PUTs it at
+  // /checkout/items?direction=sale&user_id=. Same line shape as the
+  // customer's own store; not a field of the form.
+  items: CheckoutLine[]
+  setItems: (items: CheckoutLine[]) => void
   setData: (values: PartialAdminCheckout) => void
-  updateField: <K extends keyof SalesOrderCheckout>(
+  updateField: <K extends keyof AdminSaleCheckoutForm>(
     key: K,
-    value: AdminSalesOrderCheckout[K]
+    value: AdminSaleCheckoutForm[K]
   ) => void
   clear: () => void
 }
@@ -45,6 +47,8 @@ export const useAdminSalesOrderCheckoutStore = create<AdminSalesOrderCheckoutSta
         service: DEFAULT_SALES_SERVICE,
         payment_method: 'CARD',
       },
+      items: [],
+      setItems: (items) => set({ items }),
       setData: (values) => set((state) => ({ data: { ...state.data, ...values } })),
       updateField: (key, value) =>
         set((state) => ({
@@ -55,6 +59,7 @@ export const useAdminSalesOrderCheckoutStore = create<AdminSalesOrderCheckoutSta
         })),
       clear: () =>
         set({
+          items: [],
           data: {
             service: DEFAULT_SALES_SERVICE,
             payment_method: 'CARD',

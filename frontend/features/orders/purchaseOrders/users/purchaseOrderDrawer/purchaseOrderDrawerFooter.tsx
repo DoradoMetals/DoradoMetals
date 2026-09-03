@@ -62,7 +62,7 @@ export default function PurchaseOrderDrawerFooter({ order }: PurchaseOrderDrawer
 
   const { data: quote } = useOrderQuote(order.id)
   // Quote lines pair to order items BY ID - these are stored rows, unlike the
-  // sell-cart quote's index pairing.
+  // purchase basket quote's index pairing.
   const quoteLineById = useMemo(
     () => new Map((quote?.items ?? []).map((line) => [line.id, line])),
     [quote]

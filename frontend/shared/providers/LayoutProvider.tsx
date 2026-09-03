@@ -4,15 +4,13 @@ import { usePathname } from 'next/navigation'
 import MobileProductCarousel from '../../features/products/ui/MobileProductCarousel'
 import { Button } from '@dorado/components'
 
-import React, { useEffect } from 'react'
+import React from 'react'
 
 import { useDrawerStore } from '@/shared/store/drawerStore'
 import { AnimatePresence, motion } from 'framer-motion'
 import { cn } from '@/shared/utils/cn'
 import { useScrollLock } from '@/shared/hooks/useScrollock'
 import { useGetSession, useStopImpersonation } from '@/features/auth/queries'
-import { useRates } from '@/features/rates/queries'
-import { sellCartStore } from '@/shared/store/sellCartStore'
 import Shell from '@/features/navigation/ui/Shell'
 import Footer from '@/features/navigation/ui/Footer'
 
@@ -27,14 +25,6 @@ export default function LayoutProvider({ children }: { children: React.ReactNode
   const { user, isPending, session } = useGetSession()
 
   const stopImpersonation = useStopImpersonation()
-
-  // Keep the sell cart's rate table in sync so scrap premiums stay tiered to
-  // current rates (backend re-resolves as the source of truth on submit).
-  const { data: rates = [] } = useRates()
-  const setSellCartRates = sellCartStore((s) => s.setRates)
-  useEffect(() => {
-    setSellCartRates(rates)
-  }, [rates, setSellCartRates])
 
   useScrollLock(isAnyDrawerOpen)
 
