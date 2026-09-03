@@ -30,7 +30,7 @@ import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
 import request from "supertest";
 import pool from "#db";
-import { mockSessions, restoreSessions, as } from "#shared/testing/session.ts";
+import { mockSessions, restoreSessions, as, asAdmin } from "#shared/testing/session.ts";
 import { inPinnedTransaction, outside } from "#shared/testing/pinned-pool.ts";
 import { LOCKS } from "#shared/testing/locks.ts";
 
@@ -77,7 +77,7 @@ after(async () => {
 
 test("the balance moves by exactly what the ledger records", async () => {
   await inPinnedTransaction(async (client: PoolClient) => {
-    await as({ ...admin, role: "admin" }, async () => {
+    await asAdmin(admin, async () => {
       const before = await client.query(
         `SELECT coalesce(dorado_funds, 0) AS funds FROM exchange.users WHERE id = $1`,
         [order.user_id]
@@ -126,7 +126,7 @@ test("the balance moves by exactly what the ledger records", async () => {
 // had. A test that reads a row it did not cause is not testing anything.
 test("a spot write just before the credit does not reach the ledger", async () => {
   await inPinnedTransaction(async (client: PoolClient) => {
-    await as({ ...admin, role: "admin" }, async () => {
+    await asAdmin(admin, async () => {
       const countOf = async () =>
         Number(
           (

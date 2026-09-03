@@ -29,7 +29,7 @@ import request from "supertest";
 import pool from "#db";
 import { closeBrowser } from "#providers/pdfs/puppeteer.ts";
 import * as poRepo from "#domain/orders/read.service.ts";
-import * as soRepo from "#domain/orders/service.ts";
+import * as soRepo from "#domain/orders/read.service.ts";
 import * as spotsService from "#domain/spots/service.ts";
 import { mockSessions, restoreSessions, as, anonymous } from "#shared/testing/session.ts";
 import { inPinnedTransaction, outside } from "#shared/testing/pinned-pool.ts";

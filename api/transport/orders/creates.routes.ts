@@ -24,8 +24,7 @@ import {
   createPurchaseOrderFromCheckout,
   createSalesOrder,
   adminCreateSalesOrder,
-  createPurchaseReview,
-  createSalesReview,
+  createOrderReview,
 } from "#transport/orders/controller.ts";
 
 import { requireUser, requireAdmin } from "#shared/middleware/authMiddleware.ts";
@@ -41,7 +40,7 @@ export const purchaseOrderRoutes = express.Router();
 // The row-flow create (D208). The composed /create_purchase_order died with
 // the stepper conversion - the server holds the choices now.
 purchaseOrderRoutes.post("/create_from_checkout", requireUser, createPurchaseOrderFromCheckout);
-purchaseOrderRoutes.post("/create_review", requireUser, requireOwnOrder, createPurchaseReview);
+purchaseOrderRoutes.post("/create_review", requireUser, requireOwnOrder, createOrderReview);
 
 // admin
 
@@ -59,7 +58,7 @@ export const salesOrderRoutes = express.Router();
 // be a one-word change here rather than a re-implementation.
 salesOrderRoutes.post("/create_sales_order", requireAdmin, createSalesOrder);
 
-salesOrderRoutes.post("/create_review", requireUser, requireOwnOrder, createSalesReview);
+salesOrderRoutes.post("/create_review", requireUser, requireOwnOrder, createOrderReview);
 
 // admin
 salesOrderRoutes.post("/admin_create_sales_order", requireAdmin, adminCreateSalesOrder);

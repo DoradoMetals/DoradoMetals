@@ -33,10 +33,10 @@ import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
 import request from "supertest";
 import pool from "#db";
-import { mockSessions, restoreSessions, as } from "#shared/testing/session.ts";
+import { mockSessions, restoreSessions, as, asAdmin } from "#shared/testing/session.ts";
 import { inPinnedTransaction, outside } from "#shared/testing/pinned-pool.ts";
 import { calculateTotalPrice } from "#domain/pricing/service.ts";
-import * as purchaseOrderService from "#domain/orders/service.ts";
+import * as readService from "#domain/orders/read.service.ts";
 import { LOCKS } from "#shared/testing/locks.ts";
 
 const ORDER_LOCK = LOCKS.ORDERS;
@@ -111,7 +111,7 @@ const poisonedClaiming = (pricePerItem: number) => ({
 
 test("a document claiming its own prices is refused by name, and the money does not move", async () => {
   await inPinnedTransaction(async (client: PoolClient) => {
-    await as({ ...admin, role: "admin" }, async () => {
+    await asAdmin(admin, async () => {
       for (const claimed of [1, 100000]) {
         const res = await request(app)
           .patch(`/api/orders/${order.id}`)
@@ -142,7 +142,7 @@ test("a document claiming its own prices is refused by name, and the money does 
 
 test("a clean finalize prices the order from the database's own rows", async () => {
   await inPinnedTransaction(async (client: PoolClient) => {
-    await as({ ...admin, role: "admin" }, async () => {
+    await asAdmin(admin, async () => {
       const before = (
         await client.query(
           `SELECT status FROM orders.orders WHERE id = $1`,
@@ -190,12 +190,11 @@ test("a clean finalize prices the order from the database's own rows", async () 
       // is what calculateTotalPrice takes, and what finalizePricing itself
       // priced from. The property is unchanged: every input is a row, and the
       // request contributed nothing but the operation's name.
-      const priced = await purchaseOrderService.getPurchaseById(order.id);
-      // GUARDED. getPurchaseById returns `| undefined`, and this line handed
-      // it straight to calculateTotalPrice: an unreadable order produced a
+      const priced = (await readService.findPurchaseById(order.id)) as Record<string, any> | null;
+      // GUARDED. The composed read can answer null, and this line handed it
+      // straight to calculateTotalPrice: an unreadable order produced a
       // TypeError inside the pricing module instead of naming the missing
-      // read, i.e. the test failed in the wrong place. Surfaced by the
-      // TypeScript conversion.
+      // read, i.e. the test failed in the wrong place.
       assert.ok(priced, `the API could not read order ${order.id} back after pricing it`);
 
       // AND THE PAYOUT IS ESTABLISHED RATHER THAN ASSUMED. calculateTotalPrice
@@ -205,13 +204,24 @@ test("a clean finalize prices the order from the database's own rows", async () 
       // production caller only ASSERTS the shape - service.ts's `OrderLike`
       // intersects `payout: { cost: number }` onto a row that does not
       // promise it. Here it is checked. Surfaced by the TypeScript conversion.
-      const { payout } = priced;
+      const payout = priced!.payout as { cost?: unknown } | null;
       assert.equal(
         typeof payout?.cost,
         "number",
         "the composed order carries no numeric payout.cost - the total would be NaN"
       );
-      const expected = calculateTotalPrice({ ...priced, payout: { cost: payout.cost } }, spots);
+      // The four things calculateTotalPrice reads, named rather than spread -
+      // the shipping charge among them, because the total is
+      // baseTotal - shipping - payout.
+      const expected = calculateTotalPrice(
+        {
+          order_items: priced!.order_items,
+          shipment: priced!.shipment,
+          payout: { cost: payout!.cost as number },
+          waive_payout_fee: priced!.waive_payout_fee,
+        } as never,
+        spots
+      );
 
       assert.equal(
         Number(row.total_price).toFixed(2),

@@ -1,37 +1,20 @@
-import { callerId, param } from "#shared/http/caller.ts";
+// The order row's own handlers, and nothing else (ruling 26c). Each parses its
+// body against the contract in STRICT mode and its ids with uuidParam, then
+// calls ONE use case. The paths did not move (ruling 13).
+import { callerId } from "#shared/http/caller.ts";
 import { asyncHandler } from "#shared/middleware/asyncHandler.ts";
 import { refuseWith } from "#shared/http/refuse.ts";
-import * as orderPatch from "#domain/orders/patch.service.ts";
+import { strictBody, uuidParam } from "#shared/http/validate.ts";
+import * as orderPatch from "#domain/orders/patch.ts";
 import * as orderRead from "#domain/orders/read.ts";
-import * as orderService from "#domain/orders/service.ts";
-import * as orderCreate from "#domain/orders/create.ts";
+import * as place from "#domain/orders/place.ts";
+import * as ordersRepo from "#db/orders/repo.ts";
+import withTransaction from "#shared/db/withTransaction.ts";
+import { SalesOrderCreate, OrderReviewCreate } from "@dorado/contracts";
 
-// THE ORDER ROW'S OWN HANDLERS, AND NOTHING ELSE (ruling 26c). The items,
-// spots and address handlers moved to the resources that own those tables -
-// features/orders/items, /spots and /addresses - each with its own routes.ts,
-// controller.ts and service.ts. Their paths did not move.
-
-// GET /api/orders - the unified list read, and since wave 3 the SLIM one:
-// each order is its orders.orders row plus `totals`, verbatim, with nothing
-// nested (Jacob: "We don't need to send all that shit back in the body with
-// it"). Items, spots, the address, the payout, the fulfillment chain and the
-// refiner engagement are each their own parent-path read - see the family in
-// packages/contracts/src/wire/orders.ts.
-//
-// Each caller's row scope is preserved exactly as the four legacy list routes
-// had it:
-//
-//   owner                        their own orders (the session's id, never the
-//                                query's - the subjectOf precedent: a customer
-//                                naming another user gets their own)
-//   admin                        every order
-//   admin + ?user_id=            that user's orders
-//   ?direction=purchase|sale     one direction; absent, both, newest first
-//
-// ONE STATEMENT PAIR SERVES ALL FOUR. The per-direction services used to be
-// called and merged in JS; orders.orders is one table with a `direction`
-// column, so the narrowing is a WHERE clause and the newest-first order is
-// the statement's, not a re-sort of two lists.
+// GET /api/orders - the SLIM list: each order is its row plus `totals`, nothing
+// nested. Row scope: an owner gets their own (the SESSION's id, never the
+// query's), an admin every order or ?user_id='s; ?direction= narrows either.
 export const listOrders = asyncHandler(async (req, res) => {
   const callerIdValue = callerId(req);
   const isAdmin = req.user?.role === "admin";
@@ -49,68 +32,57 @@ export const listOrders = asyncHandler(async (req, res) => {
   return res.json(await orderRead.list({ direction, user_id }));
 });
 
+// THE PATCH'S STRICT PARSE IS THE SERVICE'S refusedField: the same contract
+// through refusedValue, but asking the unknown-field question first so the
+// refusal NAMES the field, and needing the order's direction, which no schema
+// can see. The ORIGINAL body goes down - absent, null and a value are three
+// different instructions (shared/http/patch-body.ts).
 export const patchOrder = asyncHandler(async (req, res) => {
-  // The one-place acknowledgement that req.user is optional on the type; on
-  // this guarded route it never fires.
-  callerId(req);
-  const updated = await orderPatch.patchOrder(param(req, "id"), req.body ?? {}, req.user!);
+  const updated = await orderPatch.patchOrder(uuidParam(req, "id"), req.body ?? {});
   return res.status(200).json(updated);
 });
 
-// ---------------------------------------------------------------------------
-// THE CREATE SURFACE, both directions.
-//
-// Was features/purchase-orders/controller.ts and
-// features/sales-orders/controller.ts, which are gone: direction is a COLUMN.
-// The paths these serve are NOT changing (ruling 13) - they are still
-// POST /api/purchase_orders/create_purchase_order and its five siblings,
-// declared in creates.routes.ts. Only the file you open to find the handler
-// moved.
-//
-// THE READS LEFT BOTH FEATURES with the read-flip wave, the way the mutations
-// left with D87. The lists are GET /api/orders; the spots
-// GET /api/orders/:id/spots; the refiner spots
-// GET /api/refiners/orders/:id/spots; the bank details
-// GET /api/payouts/:id/details. Ten read handlers were deleted with their
-// routes. What remains here is creation and the review flag.
-//
-// THERE IS NO cancelOrder FOR A SALES ORDER, AND THERE NEVER WORKED ONE. The
-// old sales controller exported a handler awaiting a service function that
-// has never existed; it was mounted on no route, and the frontend's "Cancel
-// Order" button calls the PURCHASE path, which does exist. Removed rather
-// than implemented: what cancelling a sales order should DO - refund,
-// restock, or only mark a status - is a business decision.
+// THE CREATE SURFACE, both directions; the paths are unchanged (ruling 13).
+// There is no cancelOrder for a SALES order and there never worked one - what
+// cancelling one should do is a business decision, not a missing handler.
 
-
-// POST /api/purchase_orders/create_from_checkout (D208). The server holds
-// the choices (checkout row + draft fulfillment); the body carries only what
-// cannot live there - the payout bank form, the parcel weight, the pickup
-// schedule, the insurance declaration.
-// ZERO BODY (D210): every choice is a server-side resource by the time this
-// is called - the checkout row's ids, the draft fulfillment, the sealed
-// payout account. The request is a trigger, nothing more.
+// ZERO BODY (D210): every choice is already a server-side resource - the
+// checkout row's ids, the draft fulfillment, the sealed payout account.
 export const createPurchaseOrderFromCheckout = asyncHandler(async (req, res) => {
-  const order = await orderCreate.placePurchaseOrder(callerId(req));
+  const order = await place.placeOrder(callerId(req));
   return res.status(200).json(order);
 });
 
+// The customer door: the session is resolved server-side, never from the body.
 export const createSalesOrder = asyncHandler(async (req, res) => {
-  const order = await orderService.createSalesOrder(req.body, req.headers);
+  const body = strictBody(SalesOrderCreate, req.body);
+  const order = await place.placeSale({
+    sales_order: body.sales_order,
+    payment_intent_id: body.payment_intent_id ?? "",
+    user: await place.callerFrom(req.headers),
+  });
   return res.status(200).json(order);
 });
 
+// The same use case with the named CUSTOMER as the actor, which is also whose
+// intent the ownership check keys on.
 export const adminCreateSalesOrder = asyncHandler(async (req, res) => {
-  const order = await orderService.adminCreateSalesOrder(req.body);
+  const body = strictBody(SalesOrderCreate, req.body);
+  if (!body.user) refuseWith(400, `"user" is required on an admin create`);
+  const order = await place.placeSale({
+    sales_order: body.sales_order,
+    payment_intent_id: body.payment_intent_id ?? "",
+    user: body.user!,
+  });
   return res.status(200).json(order);
 });
 
-export const createPurchaseReview = asyncHandler(async (req, res) => {
-  const result = await orderService.createPurchaseReview(req.body);
-  return res.status(200).json(result);
+// The review flag: one column on the order row, both directions, one handler.
+export const createOrderReview = asyncHandler(async (req, res) => {
+  const body = strictBody(OrderReviewCreate, req.body);
+  const written = await withTransaction((c) =>
+    ordersRepo.update(body.order.id, { review_created: true }, {}, c)
+  );
+  if (!written) refuseWith(404, `no order ${body.order.id}`);
+  return res.status(200).json({ success: true });
 });
-
-export const createSalesReview = asyncHandler(async (req, res) => {
-  const result = await orderService.createSalesReview(req.body);
-  return res.status(200).json(result);
-});
-

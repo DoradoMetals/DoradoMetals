@@ -22,7 +22,7 @@ import pool from "#db";
 import * as emails from "#domain/media/emails/service.ts";
 import { closeBrowser } from "#providers/pdfs/puppeteer.ts";
 import * as poRepo from "#domain/orders/read.service.ts";
-import * as soRepo from "#domain/orders/service.ts";
+import * as soRepo from "#domain/orders/read.service.ts";
 import * as spotsService from "#domain/spots/service.ts";
 import type { RenderableOrder } from "#domain/media/pdfs/render/sections.ts";
 import type { Transport } from "#providers/emails/nodemailer.ts";

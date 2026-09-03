@@ -13,7 +13,7 @@ import type {
 // the whole point of that filter, and saying so here is what lets the sort and
 // the grouping index by it without a cast.
 type ScrapItem = PurchaseOrderItem & {
-  scrap: ScrapOnOrderItem & { metal: string };
+  scrap: ScrapOnOrderItem & { metal: string; name?: string };
 };
 
 export function assignScrapItemNames(scrapItems: PurchaseOrderItem[]): ScrapItem[] {
@@ -44,17 +44,12 @@ export function assignScrapItemNames(scrapItems: PurchaseOrderItem[]): ScrapItem
     grouped[metal].push(item);
   });
 
-  return validScrapItems.map((item: ScrapItem) => {
+  // NAMED IN PLACE, not spread into a copy. The lines came from the composed
+  // read this document is being rendered from and nothing else holds them, so a
+  // copy would only be a second object to keep in step.
+  for (const item of validScrapItems) {
     const metal = item.scrap.metal;
-    const group = grouped[metal];
-    const index = group.indexOf(item);
-
-    return {
-      ...item,
-      scrap: {
-        ...item.scrap,
-        name: `${metal} Item ${index + 1}`,
-      },
-    };
-  });
+    item.scrap.name = `${metal} Item ${grouped[metal].indexOf(item) + 1}`;
+  }
+  return validScrapItems;
 }

@@ -102,3 +102,77 @@ export type OrderSpot = z.infer<typeof OrderSpot>;
 // which is exactly what ruling 12 permits - and returns the row it lands on.
 export const OrderAddress = AddressesRow;
 export type OrderAddress = z.infer<typeof OrderAddress>;
+
+// ===========================================================================
+// THE REQUEST BODIES OF THE CREATE SURFACE
+// ===========================================================================
+// Everything above describes what the API RETURNS. These describe what the two
+// create routes and the review flag ACCEPT, so the controller can parse before
+// the use case runs.
+
+// A cart line is an id and how many (ruling 43: the client sends ids for what
+// the server holds). Price, premium and content all come from the catalogue.
+export const SalesOrderLine = z.object({
+  id: z.string(),
+  quantity: z.number(),
+});
+export type SalesOrderLine = z.infer<typeof SalesOrderLine>;
+
+// LOOSE ON PURPOSE: the checkout object the browser holds carries UI state -
+// the address book row it was built from, display copies of the spots - and the
+// server reads a named handful off it. Pinning the keys would refuse a body that
+// works today for no gain, since the use case reads only what is declared here.
+export const SalesOrderBody = z.looseObject({
+  address: z.looseObject({ id: z.string() }),
+  items: z.array(SalesOrderLine).default([]),
+  using_funds: z.boolean().nullable().optional(),
+  // `value` prices the delivery; `label` is stored as the order's
+  // shipping_service.
+  service: z.looseObject({
+    value: z.string().nullable().optional(),
+    label: z.string().nullable().optional(),
+  }),
+  payment_method: z.string().nullable().optional(),
+});
+export type SalesOrderBody = z.infer<typeof SalesOrderBody>;
+
+// WHOSE ORDER IT IS. On the admin route this is the named CUSTOMER, which is
+// also whose payment intent the ownership check keys on; on the customer route
+// the server takes it from the session and this field is ignored.
+export const SalesOrderActor = z.looseObject({
+  id: z.string(),
+  name: z.string().nullable().optional(),
+  dorado_funds: z.number().nullable().optional(),
+});
+export type SalesOrderActor = z.infer<typeof SalesOrderActor>;
+
+// `spot_prices` IS DECLARED SO IT CAN BE REFUSED QUIETLY RATHER THAN OBEYED.
+// It used to arrive in the body and decide what the order was worth: an order
+// priced with ask 1 recorded $26.81 for an ounce of gold, and the payment intent
+// agreed with it. The server prices from its own feed now. The field is named
+// here only because the current client still sends it - nothing reads it, and it
+// goes the day that client stops.
+export const SalesOrderCreate = z.object({
+  sales_order: SalesOrderBody,
+  payment_intent_id: z.string().optional(),
+  user: SalesOrderActor.optional(),
+  spot_prices: z.unknown().optional(),
+}).strict();
+export type SalesOrderCreate = z.infer<typeof SalesOrderCreate>;
+
+// POST /{purchase,sales}_orders/create_review - the review flag. The order is
+// sent whole because requireOwnOrder reads its id out of the body; only the id
+// is used.
+export const OrderReviewCreate = z.object({
+  order: z.looseObject({ id: z.string() }),
+  user_id: z.string().optional(),
+}).strict();
+export type OrderReviewCreate = z.infer<typeof OrderReviewCreate>;
+
+// POST /orders/:id/items - a new line. `item` is LOOSE for the same reason the
+// sell cart's is: an existing product arrives as `{ id }` and new scrap as a
+// declaration the admin drawer built, and the use case reads a named handful.
+export const OrderItemCreate = z.object({
+  item: z.looseObject({ id: z.string().optional() }),
+}).strict();
+export type OrderItemCreate = z.infer<typeof OrderItemCreate>;

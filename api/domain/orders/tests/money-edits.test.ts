@@ -26,7 +26,7 @@ import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
 import request from "supertest";
 import pool from "#db";
-import { mockSessions, restoreSessions, as } from "#shared/testing/session.ts";
+import { mockSessions, restoreSessions, as, asAdmin } from "#shared/testing/session.ts";
 import { inPinnedTransaction, outside } from "#shared/testing/pinned-pool.ts";
 
 await mockSessions();
@@ -85,7 +85,7 @@ after(async () => {
 // endpoint's header states.
 test("shipping_charge writes net_charge on the order's shipment", async () => {
   await inPinnedTransaction(async (client: PoolClient) => {
-    await as({ ...admin, role: "admin" }, async () => {
+    await asAdmin(admin, async () => {
       const res = await request(app)
         .patch(`/api/shipments/${shipment.id}`)
         .send({ shipping_charge: 45.67 });
@@ -105,7 +105,7 @@ test("shipping_charge writes net_charge on the order's shipment", async () => {
 // through the parcel, which the endpoint's keying note owns up to.
 test("shipping_actual lands on the shipment's order", async () => {
   await inPinnedTransaction(async (client: PoolClient) => {
-    await as({ ...admin, role: "admin" }, async () => {
+    await asAdmin(admin, async () => {
       const res = await request(app)
         .patch(`/api/shipments/${shipment.id}`)
         .send({ shipping_actual: 12.34 });
@@ -125,7 +125,7 @@ test("shipping_actual lands on the shipment's order", async () => {
 // row as `cost`, and 073 split the per-order fee off the bank account.
 test("cost writes the payout's cost", async () => {
   await inPinnedTransaction(async (client: PoolClient) => {
-    await as({ ...admin, role: "admin" }, async () => {
+    await asAdmin(admin, async () => {
       const res = await request(app)
         .patch(`/api/payouts/${payout.id}`)
         .send({ cost: 56.78 });
@@ -144,7 +144,7 @@ test("cost writes the payout's cost", async () => {
 
 test("method writes the payout's method, and the response is a bare success", async () => {
   await inPinnedTransaction(async (client: PoolClient) => {
-    await as({ ...admin, role: "admin" }, async () => {
+    await asAdmin(admin, async () => {
       const res = await request(app)
         .patch(`/api/payouts/${payout.id}`)
         .send({ method: "ACH" });
@@ -170,7 +170,7 @@ test("method writes the payout's method, and the response is a bare success", as
 // nothing beside a refused field executes.
 test("an unknown field refuses by name on both endpoints", async () => {
   await inPinnedTransaction(async (client: PoolClient) => {
-    await as({ ...admin, role: "admin" }, async () => {
+    await asAdmin(admin, async () => {
       const ship = await request(app)
         .patch(`/api/shipments/${shipment.id}`)
         .send({ shipping_charge: 11.11, pool_oz_deducted: 9 });

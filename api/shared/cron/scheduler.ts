@@ -1,4 +1,4 @@
-import { sweepSettledIntents } from "#domain/orders/reconcile.service.ts";
+import { sweepSettledIntents } from "#domain/payments/sweeps.ts";
 import { reportError } from "#shared/observability/report.ts";
 import cron from "node-cron";
 import { logger } from "#shared/logging/logger.ts";

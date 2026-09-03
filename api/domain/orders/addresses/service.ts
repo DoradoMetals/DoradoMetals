@@ -1,15 +1,8 @@
-// THE ORDER'S ADDRESS SNAPSHOT, as its own resource (ruling 26c).
+// GET /api/orders/:id/address - the places.addresses row the parcel went to.
 //
-//   GET /api/orders/:id/address   the places.addresses row the parcel went to
-//
-// THE CHAIN IS RESOLVED SERVER-SIDE, IN THE WHERE CLAUSE (ruling 12), which is
-// what lets this answer with a row of one table rather than a link plus a
-// nesting: orders.addresses names the snapshot, this reads it. Nothing nests on
-// the wire - the link row itself is not part of the answer.
-//
-// An order snapshot is immutable (Jacob, D84): "order addresses are immutable".
-// So there is no write here and there is not meant to be one - the snapshot is
-// taken at checkout by the create path and never edited afterwards.
+// The chain is resolved SERVER-SIDE, in the WHERE clause (ruling 12): the link
+// row is not part of the answer. NO WRITE, and not meant to be one - an order's
+// address snapshot is immutable (Jacob, D84).
 import * as orderAddresses from "#db/orders/addresses/repo.ts";
 import * as placeAddresses from "#db/places/addresses/repo.ts";
 import type { PoolClient } from "pg";
@@ -18,9 +11,8 @@ type Executor = PoolClient | undefined;
 
 export type { OrderAddressRow } from "#db/orders/addresses/repo.ts";
 
-// Null when the order has no address link - 43 of dev's 63 orders are in that
-// state, which is a real answer about a resource that does not exist, and the
-// controller turns it into a 404.
+// Null when the order has no address link - a real state for most dev orders;
+// the controller turns it into a 404.
 export async function snapshotFor(
   orderId: string, executor?: Executor
 ): Promise<Awaited<ReturnType<typeof placeAddresses.getOne>> | null> {

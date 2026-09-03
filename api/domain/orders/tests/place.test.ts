@@ -8,7 +8,7 @@ import test, { before, after } from "node:test";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
 import pool from "#db";
-import { createFromCheckout } from "#domain/orders/create.ts";
+import { createFromCheckout } from "#domain/orders/place.ts";
 import { takeLocks, LOCKS } from "#shared/testing/locks.ts";
 
 let client: PoolClient;
@@ -118,7 +118,12 @@ async function place(
   }
 
   const placed = await createFromCheckout({ checkout_id, status }, c);
-  return { ...placed, user, address, checkout_id };
+  return {
+    order_id: placed.order_id,
+    number: placed.number,
+    fulfillment_id: placed.fulfillment_id,
+    user, address, checkout_id,
+  };
 }
 
 test("a checkout becomes an order with its items and its fulfillment", async () => {

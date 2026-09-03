@@ -23,7 +23,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import request from "supertest";
 import pool from "#db";
-import { mockSessions, restoreSessions, as, anonymous } from "#shared/testing/session.ts";
+import { mockSessions, restoreSessions, as, anonymous, asAdmin, asUser } from "#shared/testing/session.ts";
 import { inPinnedTransaction, outside } from "#shared/testing/pinned-pool.ts";
 import { LOCKS } from "#shared/testing/locks.ts";
 import type { PoolClient } from "pg";
@@ -149,7 +149,7 @@ test("the mirror invariant: one engagement per order, items matched, spots cover
 test("the engagement PATCH writes the refiner's spot for that metal on that order", async () => {
   await inPinnedTransaction(async (client: PoolClient) => {
     const engagementId = await withEngagement(client, refinerMetal.purchase_order_id);
-    await as({ ...admin, role: "admin" }, async () => {
+    await asAdmin(admin, async () => {
       const res = await request(app)
         .patch(`/api/refiners/orders/${engagementId}`)
         .send({ spots: [{ name: refinerMetal.type, bid: 1234.56 }] });
@@ -171,7 +171,7 @@ test("the engagement PATCH writes the refiner's spot for that metal on that orde
 test("the engagement PATCH lands pool and fee on the engagement AND the order's money row", async () => {
   await inPinnedTransaction(async (client: PoolClient) => {
     const engagementId = await withEngagement(client, refinerMetal.purchase_order_id);
-    await as({ ...admin, role: "admin" }, async () => {
+    await asAdmin(admin, async () => {
       const res = await request(app)
         .patch(`/api/refiners/orders/${engagementId}`)
         .send({ pool_oz_deducted: 1.2345, pool_remediation: 34.56, fee: 23.45 });
@@ -206,7 +206,7 @@ test("the engagement PATCH lands pool and fee on the engagement AND the order's 
 
 test("the item PATCH writes the refiner premium on that line", async () => {
   await inPinnedTransaction(async (client: PoolClient) => {
-    await as({ ...admin, role: "admin" }, async () => {
+    await asAdmin(admin, async () => {
       const res = await request(app)
         .patch(`/api/refiners/items/by-order-item/${scrapItem.id}`)
         .send({ premium: 0.875 });
@@ -224,7 +224,7 @@ test("the item PATCH writes the refiner premium on that line", async () => {
 
 test("the item PATCH writes the assay report to the actual columns", async () => {
   await inPinnedTransaction(async (client: PoolClient) => {
-    await as({ ...admin, role: "admin" }, async () => {
+    await asAdmin(admin, async () => {
       const res = await request(app)
         .patch(`/api/refiners/items/by-order-item/${scrapItem.id}`)
         .send({ purity: 0.9, post_melt: 3.0 });
@@ -249,7 +249,7 @@ test("the item PATCH writes the assay report to the actual columns", async () =>
 test("poisoned bodies refuse by name on both refiners endpoints", async () => {
   await inPinnedTransaction(async (client: PoolClient) => {
     const engagementId = await withEngagement(client, refinerMetal.purchase_order_id);
-    await as({ ...admin, role: "admin" }, async () => {
+    await asAdmin(admin, async () => {
       const item = await request(app)
         .patch(`/api/refiners/items/by-order-item/${scrapItem.id}`)
         .send({ premium: 0.9, order_spots: [] });
@@ -283,7 +283,7 @@ test("both refiners endpoints refuse a customer and an anonymous caller", async 
     // Declared as a tuple list: inferred, the array's element type collapses
     // to `string | ((fn) => ...)` and neither half is usable.
     const callers: Array<[string, (fn: () => Promise<void>) => Promise<void>]> = [
-      ["customer", (fn) => as({ ...customer, role: "user" }, fn)],
+      ["customer", (fn) => asUser(customer, fn)],
       ["anonymous", (fn) => anonymous(fn)],
     ];
     for (const [who, run] of callers) {
@@ -310,7 +310,7 @@ test("both refiners endpoints refuse a customer and an anonymous caller", async 
 // including on failure. The assertions are on KEYS and on status.
 test("GET /payouts/:id/details answers with the payout's fields", async () => {
   await inPinnedTransaction(async () => {
-    await as({ ...admin, role: "admin" }, async () => {
+    await asAdmin(admin, async () => {
       const res = await request(app).get(`/api/payouts/${payoutId}/details`);
 
       assert.equal(res.status, 200, `the details read answered ${res.status}`);
@@ -328,7 +328,7 @@ test("GET /payouts/:id/details answers with the payout's fields", async () => {
 
 test("a customer cannot read a payout's bank details", async () => {
   await inPinnedTransaction(async () => {
-    await as({ ...customer, role: "user" }, async () => {
+    await asUser(customer, async () => {
       const res = await request(app).get(`/api/payouts/${payoutId}/details`);
 
       assert.ok(

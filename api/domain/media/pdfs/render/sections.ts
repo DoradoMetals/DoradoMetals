@@ -1,5 +1,5 @@
 import { formatPhoneNumber } from "#shared/utils/formatPhoneNumber.ts";
-import { assignScrapItemNames } from "#domain/orders/items/utils/assignScrapNames.ts";
+import { assignScrapItemNames } from "#domain/orders/utils/assignScrapNames.ts";
 import { calculateItemPrice } from "#domain/pricing/service.ts";
 import {
   formatCurrency,

@@ -19,7 +19,7 @@
 import "#env";
 import pool from "#db";
 import * as orders from "#db/orders/repo.ts";
-import { sweepSettledIntents, sweepAbandoned } from "#domain/orders/reconcile.service.ts";
+import { sweepSettledIntents, sweepAbandoned } from "#domain/payments/sweeps.ts";
 
 const COMMIT = process.argv.includes("--commit");
 const ttlFlag = process.argv.indexOf("--ttl-hours");

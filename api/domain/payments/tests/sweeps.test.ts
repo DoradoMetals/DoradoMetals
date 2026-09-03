@@ -6,7 +6,7 @@ import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
 import query from "#shared/db/query.ts";
 import { inPinnedTransaction } from "#shared/testing/pinned-pool.ts";
-import { sweepSettledIntents, sweepAbandoned } from "#domain/orders/reconcile.service.ts";
+import { sweepSettledIntents, sweepAbandoned } from "#domain/payments/sweeps.ts";
 
 async function seedSale(
   c: PoolClient,

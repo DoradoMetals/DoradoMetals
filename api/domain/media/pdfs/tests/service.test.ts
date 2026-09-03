@@ -17,7 +17,7 @@ import pool from "#db";
 import * as pdf from "#domain/media/pdfs/service.ts";
 import { closeBrowser } from "#providers/pdfs/puppeteer.ts";
 import * as poRepo from "#domain/orders/read.service.ts";
-import * as soRepo from "#domain/orders/service.ts";
+import * as soRepo from "#domain/orders/read.service.ts";
 import * as spotsService from "#domain/spots/service.ts";
 import { calculateTotalPrice } from "#domain/pricing/service.ts";
 import { formatCurrency } from "#domain/media/pdfs/render/format.ts";

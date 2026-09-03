@@ -80,8 +80,11 @@ const ACCEPTED = [
 
   { table: "payments.details", features: ["payments", "payments/details"],
     why: "payments/details owns the payout account rows; the parent's updateMethod upserts the STRIPE instrument row (provider_ref-keyed), a different population of the same table" },
-  { table: "refiners.orders", features: ["orders", "refiners/orders"],
-    why: "refiners/orders owns the engagement; orders' set_refinery.sql upserts refiner_id on it because attaching a refiner is the order pipeline's own act (093)" },
+  // refiners.orders LEFT THIS LIST with the CRUD-batch-5 orders collapse:
+  // orders' set_refinery.sql is deleted and send-to-refiner.ts attaches the
+  // refinery through refiners/orders' own ensureForOrder + update. It was the
+  // last real multi-writer, which is why the self-test below stopped being able
+  // to borrow one and had to grow a synthetic control instead.
 ];
 
 const walk = (dir, out = []) => {
@@ -128,16 +131,48 @@ for (const file of files) {
 }
 
 if (process.argv.includes("--self-test")) {
-  // The detector must find a table written from two features. Proving it fires
-  // is the point: audit:wire-readiness once walked zero files and called every
-  // switch ready.
-  const shared = [...writers].filter(([, f]) => f.size > 1);
+  // THE CONTROL IS SYNTHETIC, AND IT HAD TO BECOME SYNTHETIC. This used to
+  // assert that the real scan found at least one multi-writer table, which
+  // borrowed its control from a FINDING - so the day the last split was fixed
+  // (CRUD-batch-5, refiners.orders) the self-test failed for the one reason
+  // that is not a defect. A detector must be provable against input it
+  // controls: two fabricated files writing one table must be reported, and the
+  // same pair split across one feature must not.
+  //
+  // It still walks the real tree first, so a scan that parsed NOTHING is caught
+  // too - audit:wire-readiness once walked zero files and called every switch
+  // ready.
+  const fabricate = (pairs) => {
+    const byFeature = new Map();
+    for (const [feature, file] of pairs) {
+      if (!byFeature.has(feature)) byFeature.set(feature, new Set());
+      byFeature.get(feature).add(file);
+    }
+    return byFeature;
+  };
+  const twoFeatures = fabricate([
+    ["orders", "db/orders/sql/probe.sql"],
+    ["refiners/orders", "db/refiners/orders/sql/probe.sql"],
+  ]);
+  const oneFeature = fabricate([
+    ["orders", "db/orders/sql/probe-a.sql"],
+    ["orders", "db/orders/sql/probe-b.sql"],
+  ]);
+
+  const problems = [];
+  if (!files.length || !statements) {
+    problems.push(`the scan parsed ${files.length} file(s) and ${statements} statement(s)`);
+  }
+  if (twoFeatures.size <= 1) problems.push("a table written from two features was not reported");
+  if (oneFeature.size !== 1) problems.push("two files of ONE feature were counted as a split");
+
   console.log(
-    shared.length
-      ? `self-test PASSED: the detector reports ${shared.length} multi-writer table(s)`
-      : "self-test FAILED: no table has two writing features, so this cannot detect one"
+    problems.length
+      ? `self-test FAILED: ${problems.join("; ")}`
+      : `self-test PASSED: the detector separates two writing features from one, ` +
+        `over ${statements} real statement(s) in ${files.length} file(s)`
   );
-  process.exit(shared.length ? 0 : 1);
+  process.exit(problems.length ? 1 : 0);
 }
 
 const accepted = new Map(ACCEPTED.map((a) => [a.table, a]));

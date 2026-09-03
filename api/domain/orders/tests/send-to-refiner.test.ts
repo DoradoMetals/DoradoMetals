@@ -37,8 +37,9 @@ import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
 import pool from "#db";
 import query from "#shared/db/query.ts";
-import * as service from "#domain/orders/service.ts";
-import * as salesOrderRepo from "#domain/orders/write.service.ts";
+import * as sendToRefiner from "#domain/orders/send-to-refiner.ts";
+import * as ordersRepo from "#db/orders/repo.ts";
+import * as refinerOrders from "#db/refiners/orders/repo.ts";
 // The SERVICE, not a repo: a shipment is composed from six tables now, and
 // the order link it carries is reconstructed rather than stored.
 import * as shipmentRepo from "#domain/shipping/shipments/service.ts";
@@ -174,7 +175,7 @@ test("an order with no address is refused, and nothing is written", async () => 
     const mail = recorder();
     await assert.rejects(
       () =>
-        service.sendOrderToSupplier(
+        sendToRefiner.sendOrderToRefiner(
           { order: { id: addressless.id }, spots: [], supplier_id: supplier.id },
           mail
         ),
@@ -201,12 +202,13 @@ test("those three writes are visible to the assertion that says they did not hap
   await inPinnedTransaction(async (client: PoolClient) => {
     const before = await state(withAddress.id);
 
-    await salesOrderRepo.attachSupplierToOrder(withAddress.id, supplier.id, client);
+    const engagementId = await refinerOrders.ensureForOrder(withAddress.id, client);
+    await refinerOrders.update(engagementId, { refiner_id: supplier.id }, client);
     await shipmentRepo.create(
       { sales_order_id: withAddress.id, type: "Outbound" },
       client
     );
-    await salesOrderRepo.setSalesFlag(withAddress.id, "order_sent", client);
+    await ordersRepo.update(withAddress.id, { order_sent: true }, {}, client);
 
     const after = await state(withAddress.id);
     assert.equal(after.order_sent, true, "order_sent was not observed");
@@ -282,7 +284,7 @@ test("a sent order cannot be moved to a different refiner", async () => {
     assert.ok(other, "dev has only one supplier, so this cannot be tested");
 
     await assert.rejects(
-      () => service.sendOrderToSupplier({ order: { id: order.id }, spots: [], supplier_id: other.id }),
+      () => sendToRefiner.sendOrderToRefiner({ order: { id: order.id }, spots: [], supplier_id: other.id }),
       // The thrown value is `unknown` to TypeScript, so the predicate says
       // what it expects of it. The message and status are what the assertion
       // is about, and naming them here is the same claim in a place the
@@ -328,8 +330,8 @@ test("re-sending to the same refiner writes nothing new", async () => {
       ).rows[0].n
     );
 
-    const sent = [];
-    await service.sendOrderToSupplier(
+    const sent: unknown[] = [];
+    await sendToRefiner.sendOrderToRefiner(
       { order: { id: order.id }, spots: [], supplier_id: order.supplier_id },
       { sendMail: async (m) => { sent.push(m); return { messageId: "test" }; } }
     );
@@ -385,7 +387,7 @@ test("the refiner's copy goes to the organization's address, not a field that do
     assert.ok(withEmail, "dev has no refiner with an email - this would prove nothing");
 
     const sent: Message[] = [];
-    await service.sendOrderToSupplier(
+    await sendToRefiner.sendOrderToRefiner(
       { order: { id: order.id }, spots: [], supplier_id: withEmail.id },
       { sendMail: async (m: Message) => { sent.push(m); return { messageId: "test" }; } }
     );
@@ -423,7 +425,7 @@ test("a refiner with no email is refused before anything is written", async () =
     assert.ok(noEmail, "dev has no refiner without an email - this would prove nothing");
 
     await assert.rejects(
-      () => service.sendOrderToSupplier(
+      () => sendToRefiner.sendOrderToRefiner(
         { order: { id: order.id }, spots: [], supplier_id: noEmail.id },
         { sendMail: async () => { throw new Error("must not be reached"); } }
       ),

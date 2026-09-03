@@ -4,20 +4,18 @@
 // order; orders.spots has one order id and a foreign key. Three things this
 // pins that a straight translation would lose:
 //
-//   - CLEARING TOUCHES THE BID ONLY. exchange's clearOrderMetals set bid_spot
-//     and left the ask alone. We bid to buy from the customer; the ask is what
-//     the same metal sells for. Clearing both loses a number this write never
-//     owned.
+//   - THE PATCH TOUCHES THE BID ONLY. We bid to buy from the customer; the ask
+//     is what the same metal sells for. Writing both would lose a number this
+//     write never owned, so `bid` is the only patchable column.
 //   - CREATE IS IDEMPOTENT. (order_id, metal_id) is UNIQUE and exchange's
 //     insert had no conflict handling, so a re-run raised.
-//   - ONE STATEMENT, NOT TWO. updateOrderMetals and updateSpot were the same
-//     UPDATE; the loop is the caller's job.
+//   - ONE UPDATE, KEYED ON (order_id, metal_id). The per-row loop is the
+//     caller's job; a pair the order does not carry answers false.
 //
 // Each test runs inside a transaction that is rolled back.
 import test, { after, before } from "node:test";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
-import { randomUUID } from "node:crypto";
 import pool from "#db";
 import * as spots from "#db/orders/spots/repo.ts";
 
@@ -50,7 +48,7 @@ const anOrderWithSpots = async (c: PoolClient) =>
     `SELECT order_id, metal_id FROM orders.spots ORDER BY order_id, metal_id LIMIT 1`
   )).rows[0] ?? null;
 
-test("clearing bids leaves the ask alone", async () => {
+test("clearing a bid leaves the ask alone", async () => {
   await inRollback(async (c: PoolClient) => {
     const s = await anOrderWithSpots(c);
     assert.ok(s, "orders.spots is empty - this test proves nothing");
@@ -59,7 +57,9 @@ test("clearing bids leaves the ask alone", async () => {
       "UPDATE orders.spots SET bid = 100, ask = 200 WHERE order_id = $1", [s.order_id]
     );
 
-    await spots.clearBids(s.order_id, c);
+    for (const row of (await spots.getRowsFor(s.order_id, c))) {
+      await spots.update(s.order_id, row.metal_id, { bid: null }, c);
+    }
 
     const { rows } = await c.query(
       "SELECT bid, ask FROM orders.spots WHERE order_id = $1", [s.order_id]
@@ -91,10 +91,12 @@ test("a bid lands on one metal of one order", async () => {
     );
     await c.query("UPDATE orders.spots SET bid = 1 WHERE order_id = $1", [s.order_id]);
 
-    const row = await spots.setBid(s.order_id, s.metal_id, 55.5, c);
-
-    assert.ok(row, "setBid wrote no row");
-    assert.equal(Number(row.bid), 55.5);
+    assert.equal(await spots.update(s.order_id, s.metal_id, { bid: 55.5 }, c), true);
+    const { rows: [written] } = await c.query(
+      "SELECT bid FROM orders.spots WHERE order_id = $1 AND metal_id = $2",
+      [s.order_id, s.metal_id]
+    );
+    assert.equal(Number(written.bid), 55.5);
 
     for (const other of others) {
       const { rows: [o] } = await c.query(
@@ -126,14 +128,14 @@ test("a bid for a metal the order does not carry changes nothing", async () => {
     );
 
     assert.equal(
-      await spots.setBid(s.order_id, s.metal_id, 77, c), undefined,
+      await spots.update(s.order_id, s.metal_id, { bid: 77 }, c), false,
       "a bid was written for a metal the order was never quoted"
     );
     const { rows } = await c.query(
       "SELECT id FROM orders.spots WHERE order_id = $1 AND metal_id = $2",
       [s.order_id, s.metal_id]
     );
-    assert.equal(rows.length, 0, "setBid inserted a row rather than matching none");
+    assert.equal(rows.length, 0, "the update inserted a row rather than matching none");
   });
 });
 

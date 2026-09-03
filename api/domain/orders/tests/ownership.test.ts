@@ -17,7 +17,7 @@ import test, { after, before } from "node:test";
 import assert from "node:assert/strict";
 import request from "supertest";
 import pool from "#db";
-import { mockSessions, restoreSessions, as } from "#shared/testing/session.ts";
+import { mockSessions, restoreSessions, as, asAdmin } from "#shared/testing/session.ts";
 import { inPinnedTransaction, outside } from "#shared/testing/pinned-pool.ts";
 
 await mockSessions();
@@ -72,7 +72,7 @@ before(async () => {
   const owner = await outside<UserFixture>(`SELECT id, name, email FROM exchange.users WHERE id = $1`, [
     order.user_id,
   ]);
-  victim = { ...owner[0], role: "user" };
+  victim = { id: owner[0].id, name: owner[0].name, email: owner[0].email, role: "user" };
   // Asserted, because without it a lookup returning nothing makes victim
   // `{ role: "user" }` with an undefined id - and the only symptom is the
   // owner-can-still-read test getting a 403 it cannot explain. That is exactly
@@ -96,7 +96,7 @@ before(async () => {
       WHERE id <> $1 AND role IS DISTINCT FROM 'admin' LIMIT 1`,
     [order.user_id]
   );
-  stranger = { ...others[0], role: "user" };
+  stranger = { id: others[0].id, name: others[0].name, email: others[0].email, role: "user" };
   assert.ok(stranger?.id, "dev has only one non-admin user, so this cannot be tested");
   assert.notEqual(stranger.id, victim.id);
 });
@@ -175,7 +175,7 @@ test("the order's own customer can still read its spots", async () => {
 test("an admin can still reach any order", async () => {
   await inPinnedTransaction(async () => {
     const admins = await outside<UserFixture>(`SELECT id, name, email FROM exchange.users WHERE role = 'admin' LIMIT 1`);
-    await as({ ...admins[0], role: "admin" }, async () => {
+    await asAdmin(admins[0], async () => {
       const res = await request(app).get(`/api/orders/${order.id}/spots`);
       assert.equal(res.status, 200, "an admin was refused an order they administer");
     });

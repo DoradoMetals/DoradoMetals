@@ -13,7 +13,9 @@ import * as addressService from "#domain/places/addresses/service.ts";
 import * as ratesService from "#domain/rates/service.ts";
 import * as servicesService from "#domain/shipping/services/service.ts";
 import { payoutFee, PAYOUT_METHOD_FEES } from "#domain/payouts/constants.ts";
-import * as purchaseOrdersService from "#domain/orders/service.ts";
+import * as orderReads from "#domain/orders/read.service.ts";
+import * as orderSpotsService from "#domain/orders/spots/service.ts";
+import * as refinerSpotsService from "#domain/refiners/spots/service.ts";
 import {
   calculateItemAsk,
   calculateSalesOrderTotal,
@@ -457,7 +459,7 @@ export async function orderQuote(body: Body): Promise<OrderQuote> {
     throw badRequest("no order was named");
   }
 
-  const order = (await purchaseOrdersService.getPurchaseById(order_id)) as
+  const order = (await orderReads.findPurchaseById(order_id)) as
     | Record<string, any>
     | null
     | undefined;
@@ -472,7 +474,7 @@ export async function orderQuote(body: Body): Promise<OrderQuote> {
 
   const [liveSpots, orderSpots] = await Promise.all([
     spotsService.getSpotPrices(),
-    purchaseOrdersService.getPurchaseMetalsForOrder(order_id),
+    orderSpotsService.namedFor(order_id),
   ]);
   const spots_at = new Date().toISOString();
 
@@ -828,7 +830,7 @@ export async function profitBreakdown(body: Body): Promise<ProfitBreakdown> {
   }
 
   // The ADMIN read, deliberately — assay actuals (content/post_melt/purity _actual) ride only on getAll's withActuals projection; getById (the customer read) omits them, which would silently price the split off declared weights instead.
-  const order = (await purchaseOrdersService.getAllPurchases()).find(
+  const order = (await orderReads.getAllPurchases()).find(
     (o) => (o as Record<string, unknown>).id === order_id
   ) as ProfitOrder | undefined;
   if (!order) {
@@ -838,8 +840,8 @@ export async function profitBreakdown(body: Body): Promise<ProfitBreakdown> {
   }
 
   const [orderSpots, refinerSpots, rates] = await Promise.all([
-    purchaseOrdersService.getPurchaseMetalsForOrder(order_id),
-    purchaseOrdersService.getRefinerMetalsForOrder(order_id),
+    orderSpotsService.namedFor(order_id),
+    refinerSpotsService.namedFor(order_id),
     ratesService.getAllRates(),
   ]);
   const spots_at = new Date().toISOString();

@@ -14,7 +14,7 @@ import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
 import pool from "#db";
 import { LOCKS } from "#shared/testing/locks.ts";
-import * as service from "#domain/orders/service.ts";
+import * as editLine from "#domain/orders/edit-line.ts";
 
 let client: PoolClient;
 
@@ -88,9 +88,7 @@ const cleanup = async (c: PoolClient, { orderId }: { orderId: string }) => {
 test("deleting a line removes it and its refiner counterpart together", async () => {
   const fixture = await anOrderWithScrap(client);
   try {
-    await service.deleteOrderItems({
-      items: [{ id: fixture.itemId, purchase_order_id: fixture.orderId }],
-    });
+    await editLine.removeLine(fixture.itemId);
 
     const item = await client.query("SELECT 1 FROM orders.items WHERE id = $1", [fixture.itemId]);
     const refiner = await client.query(
@@ -103,58 +101,32 @@ test("deleting a line removes it and its refiner counterpart together", async ()
   }
 });
 
-// The property the transaction buys: if anything in the delete-and-retier
-// throws, every line must survive - a half-applied delete would leave the
-// per-metal totals and the surviving premiums disagreeing.
-test("a failure mid-delete leaves every line intact", async () => {
-  const fixture = await anOrderWithScrap(client);
-  try {
-    // An id that is not a uuid makes the statement throw after the valid id
-    // is already part of the same statement's parameter set - the whole
-    // transaction rolls back.
-    await assert.rejects(() =>
-      service.deleteOrderItems({
-        items: [
-          { id: fixture.itemId, purchase_order_id: fixture.orderId },
-          { id: "not-a-uuid", purchase_order_id: fixture.orderId },
-        ],
-      })
-    );
-
-    const item = await client.query("SELECT 1 FROM orders.items WHERE id = $1", [fixture.itemId]);
-    assert.equal(item.rows.length, 1, "a failed delete still removed the line");
-  } finally {
-    await cleanup(client, fixture);
-  }
-});
-
-// The delete is GUARDED by the order id now - a line list that names no order
-// is refused rather than deleted on ids alone (the unguarded delete is the
-// exchange behaviour this replaced).
-test("a delete naming no order is refused", async () => {
+// THE ORDER IS THE ROW'S, NEVER THE REQUEST'S. The delete is guarded by the
+// order id, and the id comes from the line itself - so a caller cannot name a
+// line and an order that do not go together, and a line that names nothing is a
+// 404 rather than a delete on an id alone (the exchange behaviour this replaced).
+test("a line that does not exist is refused and nothing is deleted", async () => {
   const fixture = await anOrderWithScrap(client);
   try {
     await assert.rejects(
-      () => service.deleteOrderItems({ items: [{ id: fixture.itemId }] }),
-      /refusing an unguarded delete/
+      () => editLine.removeLine("00000000-0000-4000-8000-000000000000"),
+      /no order item/
     );
     const item = await client.query("SELECT 1 FROM orders.items WHERE id = $1", [fixture.itemId]);
-    assert.equal(item.rows.length, 1, "the refused delete still removed the line");
+    assert.equal(item.rows.length, 1, "a refused delete removed a different line");
   } finally {
     await cleanup(client, fixture);
   }
 });
 
-// updateScrapItem writes the declared weights, the assay actuals and the
-// premium in one transaction; all three feed content * spot * premium, and
-// applying one without the others quotes a price from a mix of old figures
-// and new.
+// ONE PATCH, ONE TRANSACTION: the declared weights, the assay actuals and the
+// premium all feed content * spot * premium, and applying one without the
+// others quotes a price from a mix of old figures and new.
 test("editing a scrap line applies the weights, the actuals and the premium together", async () => {
   const fixture = await anOrderWithScrap(client);
   try {
-    await service.updateScrapItem({
-      item: {
-        id: fixture.itemId,
+    await editLine.editLine(fixture.itemId, {
+      scrap: {
         premium: 0.82,
         scrap: {
           pre_melt: 10, post_melt: 8, purity: 0.5,

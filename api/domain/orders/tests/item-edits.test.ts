@@ -31,7 +31,7 @@ import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
 import request from "supertest";
 import pool from "#db";
-import { mockSessions, restoreSessions, as } from "#shared/testing/session.ts";
+import { mockSessions, restoreSessions, as, asAdmin } from "#shared/testing/session.ts";
 import { inPinnedTransaction, outside } from "#shared/testing/pinned-pool.ts";
 
 await mockSessions();
@@ -87,7 +87,7 @@ after(async () => {
 // dispatch, where no repo test reaches.
 test("confirmed: true confirms the line", async () => {
   await inPinnedTransaction(async (client: PoolClient) => {
-    await as({ ...admin, role: "admin" }, async () => {
+    await asAdmin(admin, async () => {
       await client.query(
         `UPDATE orders.items SET confirmed = false WHERE id = $1`,
         [item.id]
@@ -110,7 +110,7 @@ test("confirmed: true confirms the line", async () => {
 
 test("reset: true unconfirms the line", async () => {
   await inPinnedTransaction(async (client: PoolClient) => {
-    await as({ ...admin, role: "admin" }, async () => {
+    await asAdmin(admin, async () => {
       await client.query(
         `UPDATE orders.items SET confirmed = true WHERE id = $1`,
         [item.id]
@@ -133,7 +133,7 @@ test("reset: true unconfirms the line", async () => {
 
 test("the refiner spots read answers by customer-order id", async () => {
   await inPinnedTransaction(async () => {
-    await as({ ...admin, role: "admin" }, async () => {
+    await asAdmin(admin, async () => {
       // GET /orders/:orderId/refiners/spots replaced the legacy route in the
       // read-flip wave - same key the components hold, the engagement
       // resolved server-side, the path under the parent per the route
@@ -160,7 +160,7 @@ test("the refiner spots read answers by customer-order id", async () => {
 // service puts them in one transaction.
 test("the scrap field writes the scrap AND the line's premium together", async () => {
   await inPinnedTransaction(async (client: PoolClient) => {
-    await as({ ...admin, role: "admin" }, async () => {
+    await asAdmin(admin, async () => {
       const res = await request(app)
         .patch(`/api/orders/items/${scrapItem.id}`)
         .send({
@@ -203,7 +203,7 @@ test("the scrap field writes the scrap AND the line's premium together", async (
 // exist nowhere.
 test("DELETE removes the line and its scrap together", async () => {
   await inPinnedTransaction(async (client: PoolClient) => {
-    await as({ ...admin, role: "admin" }, async () => {
+    await asAdmin(admin, async () => {
       // No body at all: the scrap linkage is the ROW's, resolved server-side,
       // so the request cannot name a different scrap row to delete.
       const res = await request(app).delete(`/api/orders/items/${scrapItem.id}`);

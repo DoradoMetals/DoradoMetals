@@ -298,28 +298,30 @@ export const EMPTY_SHIPMENT = allNull([
 // megabyte. It is also not the shape the frontend decodes.
 const wrap76 = (b64: string): string => (b64.match(/.{1,76}/g) ?? []).join("\n");
 
+// RENAMED IN PLACE, not rebuilt. The three columns below are the only ones this
+// changes; every other column passes through untouched, which a rest-spread also
+// did but by making a copy that a new column could silently fall out of.
 export function nestShipment(s: Record<string, unknown> | null): Record<string, unknown> {
   if (!s) return EMPTY_SHIPMENT;
-  const { net_charge, service_type, shipping_label, ...rest } = s;
-  return {
-    ...rest,
-    // WRAPPED AT 76 CHARACTERS, because that is what Postgres's
-    // `encode(..., 'base64')` produces - MIME base64, with a newline every 76
-    // characters. `Buffer.toString("base64")` produces one unbroken line, and
-    // for a 13KB label that is a 172-newline difference in what the frontend
-    // receives.
-    //
-    // Unwrapped would very likely be fine, and arguably safer - `atob` rejects
-    // whitespace in some engines. But the frontend decodes the WRAPPED form
-    // today and evidently copes, so changing it is a wire change with no
-    // benefit during a schema migration. Matched exactly; unwrapping is a
-    // deliberate change to make later if anyone wants it.
-    shipping_label: Buffer.isBuffer(shipping_label)
-      ? wrap76(shipping_label.toString("base64"))
-      : (shipping_label ?? null),
-    shipping_charge: net_charge ?? null,
-    shipping_service: service_type ?? null,
-  };
+  const { net_charge, service_type, shipping_label } = s;
+  delete s.net_charge;
+  delete s.service_type;
+  // WRAPPED AT 76 CHARACTERS, because that is what Postgres's
+  // `encode(..., 'base64')` produces - MIME base64, with a newline every 76
+  // characters. `Buffer.toString("base64")` produces one unbroken line, and for
+  // a 13KB label that is a 172-newline difference in what the frontend receives.
+  //
+  // Unwrapped would very likely be fine, and arguably safer - `atob` rejects
+  // whitespace in some engines. But the frontend decodes the WRAPPED form today
+  // and evidently copes, so changing it is a wire change with no benefit during
+  // a schema migration. Matched exactly; unwrapping is a deliberate change to
+  // make later if anyone wants it.
+  s.shipping_label = Buffer.isBuffer(shipping_label)
+    ? wrap76(shipping_label.toString("base64"))
+    : (shipping_label ?? null);
+  s.shipping_charge = net_charge ?? null;
+  s.shipping_service = service_type ?? null;
+  return s;
 }
 
 // THE ADDRESS SNAPSHOT (D84). The raw row is the address-BOOK row - see the

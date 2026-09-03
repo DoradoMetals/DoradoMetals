@@ -238,7 +238,7 @@ async function assemblePurchases(
     items.getMany(ids, executor),
   ]);
 
-  const bullionIds = [...new Set(itemRows.map((i) => i.bullion_id).filter((v): v is string => !!v))];
+  const bullionIds = Array.from(new Set(itemRows.map((i) => i.bullion_id).filter((v): v is string => !!v)));
 
   const [products, metals, refiners, payoutRows, users, addressRows] = await Promise.all([
     productsById(bullionIds, executor),
@@ -249,9 +249,9 @@ async function assemblePurchases(
       ? refinerItems.byOrderItem(itemRows.map((i) => i.id), executor)
       : Promise.resolve(new Map()),
     payouts.getMany(ids, executor),
-    usersById([...new Set(orderRows.map((o) => o.user_id).filter((v): v is string => !!v))], executor),
+    usersById(Array.from(new Set(orderRows.map((o) => o.user_id).filter((v): v is string => !!v))), executor),
     addressesById(
-      [...new Set(addrLinks.map((a) => a.source_address_id).filter((v): v is string => !!v))],
+      Array.from(new Set(addrLinks.map((a) => a.source_address_id).filter((v): v is string => !!v))),
       executor
     ),
   ]);
@@ -375,15 +375,15 @@ async function assembleSales(
 
   const [products, users, addressRows] = await Promise.all([
     productsById(
-      [...new Set(itemRows.map((i) => i.bullion_id).filter((v): v is string => !!v))],
+      Array.from(new Set(itemRows.map((i) => i.bullion_id).filter((v): v is string => !!v))),
       executor
     ),
     usersById(
-      [...new Set(orderRows.map((o) => o.user_id).filter((v): v is string => !!v))],
+      Array.from(new Set(orderRows.map((o) => o.user_id).filter((v): v is string => !!v))),
       executor
     ),
     addressesById(
-      [...new Set(addrLinks.map((a) => a.source_address_id).filter((v): v is string => !!v))],
+      Array.from(new Set(addrLinks.map((a) => a.source_address_id).filter((v): v is string => !!v))),
       executor
     ),
   ]);

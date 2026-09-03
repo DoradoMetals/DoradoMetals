@@ -56,7 +56,7 @@ export const OrderPatch = z.object({
   // sending them the order is not an operation this endpoint has.
   supplier: z.object({ supplier_id: z.string(), send: z.literal(true) }).optional(),
   status: z.string().optional(),
-});
+}).strict();
 export type OrderPatch = z.infer<typeof OrderPatch>;
 
 // ===========================================================================
@@ -100,7 +100,7 @@ export const OrderItemPatch = z.object({
   bullion: OrderItemBullionPatch.optional(),
   confirmed: z.literal(true).optional(),
   reset: z.literal(true).optional(),
-});
+}).strict();
 export type OrderItemPatch = z.infer<typeof OrderItemPatch>;
 
 // ===========================================================================
