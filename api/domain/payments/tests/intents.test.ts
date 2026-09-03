@@ -141,11 +141,12 @@ test("attaching an order lands on the intent behind that reference alone", async
 
     assert.equal(await service.attachOrder(paymentIntent.id, order.id, c), true);
     const attached = await service.findIntentByRef(paymentIntent.id, c);
-    assert.equal(attached?.sales_order_id, order.id);
+    assert.equal(attached?.order_id, order.id);
+    assert.equal(attached?.direction, "sale");
 
     // Passing null detaches, which is what a superseded checkout does.
     assert.equal(await service.attachOrder(paymentIntent.id, null, c), true);
-    assert.equal((await service.findIntentByRef(paymentIntent.id, c))?.sales_order_id, null);
+    assert.equal((await service.findIntentByRef(paymentIntent.id, c))?.order_id, null);
 
     assert.equal(await service.attachOrder(`pi_${randomUUID()}`, null, c), false);
   });

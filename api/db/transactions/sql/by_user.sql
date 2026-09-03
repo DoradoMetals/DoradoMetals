@@ -1,5 +1,4 @@
 -- One customer's credit-ledger history, oldest first. Returns the WHOLE history; the SERVICE hands back only its first row — deliberate (the endpoint's shape is pinned, and shapes don't move during a schema migration), not a bug in this statement.
--- `type` and `order_id` ARE projected despite being new-schema-only: they're RENAMES of transaction_type and purchase_order_id/sales_order_id, and compose.ts needs both to rebuild the shape exchange returned.
 SELECT l.id,
        l.user_id,
        l.type,

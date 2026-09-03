@@ -15,7 +15,7 @@ const sql = sqlFrom(import.meta.dirname);
 // percent_change and dollar_change are projected as NULL — see sql/get_for.sql.
 type OrderSpotRow = {
   id: string;
-  purchase_order_id: string | null;
+  order_id: string | null;
   type: string;
   ask_spot: number | null;
   bid_spot: number | null;
@@ -49,7 +49,7 @@ export type RefinerSpotRow = {
 // The same rows as getFor, in the CONVERTED spellings (`name`/`ask`/`bid`) — what the order pipelines and quote read speak. See sql/get_named.sql.
 export type NamedSpotRow = {
   id: string;
-  purchase_order_id: string | null;
+  order_id: string | null;
   name: string;
   ask: number | null;
   bid: number | null;

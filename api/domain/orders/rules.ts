@@ -541,16 +541,16 @@ export function statusAtPlacement(cents: number, alreadySucceeded: boolean): str
 // What an already-attached intent means for a new order: conflict (it paid for
 // something), supersede (an unsettled sale paid for nothing), proceed (free).
 export type IntentFacts = {
-  sales_order_id?: string | null;
-  purchase_order_id?: string | null;
+  order_id?: string | null;
+  direction?: Direction | null;
   payment_status?: string | null;
 };
 
 export function attachmentVerdict(
   intent: IntentFacts
 ): "proceed" | "supersede" | "conflict" {
-  if (intent.purchase_order_id) return "conflict";
-  if (!intent.sales_order_id) return "proceed";
+  if (!intent.order_id) return "proceed";
+  if (intent.direction === "purchase") return "conflict";
   return isSettled(intent.payment_status) ? "conflict" : "supersede";
 }
 

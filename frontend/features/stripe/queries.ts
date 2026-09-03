@@ -67,22 +67,25 @@ export const useUpdatePaymentIntent = () => {
   })
 }
 
-export const useGetSalesOrderPaymentIntent = (sales_order_id: string) => {
+// Named for the admin sales-order screen this serves, not for a two-column
+// vocabulary - orders.orders is one table with a direction, and the id this
+// takes is just the order's own.
+export const useGetSalesOrderPaymentIntent = (order_id: string) => {
   return useApiQuery<PaymentIntent>({
-    key: queryKeys.adminPaymentIntent(sales_order_id),
+    key: queryKeys.adminPaymentIntent(order_id),
     url: '/stripe/get_sales_order_payment_intent',
     method: 'GET',
     requireAdmin: true,
-    enabled: (user) => !!user?.id && !!sales_order_id,
+    enabled: (user) => !!user?.id && !!order_id,
     params: () => ({
-      sales_order_id,
+      order_id,
     }),
   })
 }
 
-export const useCancelPaymentIntent = (sales_order_id: string) => {
+export const useCancelPaymentIntent = (order_id: string) => {
   return useApiMutation<string, string, PaymentIntent[]>({
-    queryKey: queryKeys.adminPaymentIntent(sales_order_id),
+    queryKey: queryKeys.adminPaymentIntent(order_id),
     url: '/stripe/cancel_payment_intent',
     requireAdmin: true,
     optimistic: false,

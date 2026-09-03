@@ -2,6 +2,7 @@ import { requiredEnv } from "#shared/env/required.ts";
 // Everything this codebase asks Stripe to do — the same shape as providers/shipments: the feature says what it wants, the provider knows the API. Before this, features/payments called the Stripe SDK directly in ten places, mixing the payments domain with the SDK itself.
 // Deliberately thin — no mapping, no defaults, no business rules (those belong to features/payments); this is the boundary, not a layer.
 import stripeClient from "#providers/payment/stripe-client.ts";
+import type Stripe from "stripe";
 
 export function retrieveIntent(paymentIntentId: string) {
   return stripeClient.paymentIntents.retrieve(paymentIntentId);
@@ -45,8 +46,19 @@ export function captureIntent(paymentIntentId: string) {
   return stripeClient.paymentIntents.capture(paymentIntentId);
 }
 
-export function cancelIntent(paymentIntentId: string) {
-  return stripeClient.paymentIntents.cancel(paymentIntentId);
+// "No such payment_intent" and "already canceled" are STATES Stripe reports as
+// SDK errors, not faults - translated here, at the boundary, so the domain
+// never inspects an error message. Anything else propagates.
+export async function cancelIntent(paymentIntentId: string): Promise<Stripe.PaymentIntent> {
+  try {
+    return await stripeClient.paymentIntents.cancel(paymentIntentId);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : "";
+    if (/No such payment_intent|already.*cancel/i.test(msg)) {
+      return { id: paymentIntentId, status: "canceled" } as Stripe.PaymentIntent;
+    }
+    throw err;
+  }
 }
 
 export function createCustomer({

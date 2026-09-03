@@ -12,24 +12,13 @@ import * as fulfillmentService from "#domain/fulfillments/service.ts";
 // The LINK table is its own resource - reached directly, not through the fulfillments parent.
 import * as fulfillmentShipments from "#domain/fulfillments/shipments/service.ts";
 import * as orders from "#db/orders/repo.ts";
+import { Invalid, NotFound } from "#shared/errors.ts";
 import type { ShipmentBaseRow, ShipmentRecord } from "#db/shipping/shipments/repo.ts";
 import type { Executor } from "#shared/db/executor.ts";
 
-interface HttpError extends Error {
-  statusCode?: number;
-}
-
-function badRequest(message: string): HttpError {
-  const err: HttpError = new Error(message);
-  err.statusCode = 400;
-  return err;
-}
-
-// What a caller supplies to create one: an order to link against (purchase or sale, whichever is present) and the carrier picked for it.
+// Order direction is read off the order row, never accepted as input.
 type ShipmentCreate = {
-  purchase_order_id?: string | null;
-  sales_order_id?: string | null;
-  carrier_id?: string | null;
+  order_id?: string | null;
   type?: string | null;
 };
 
@@ -144,57 +133,58 @@ export async function getOrderLink(
 
 // ------------------------------------------------------------------ writes
 
-// Creating a shipment creates THREE rows: the shipment, the fulfillment linking it to an order, and the link between them.
-// The fulfillment link is BEST-EFFORT: production has purchase orders with no fulfillment row yet, and a real parcel with a real label must not be refused over that.
 export async function create(
-  input: ShipmentCreate, executor?: Executor
+  input: ShipmentCreate, tx: Executor
 ): Promise<ShipmentBaseRow | null> {
-  const order_id = input.purchase_order_id ?? input.sales_order_id ?? null;
-  const direction = input.purchase_order_id ? "purchase" : "sale";
-
-  // direction is its own enum but shares exchange's old Inbound/Outbound spelling, so the value passes straight through untranslated.
   const shipmentDirection = input.type ?? null;
   if (!shipmentDirection) {
-    throw badRequest("a shipment needs a type - shipping.shipments.direction is NOT NULL");
+    throw new Invalid("a shipment needs a type - shipping.shipments.direction is NOT NULL");
   }
 
-  const run = async (c: Executor): Promise<ShipmentBaseRow | null> => {
-    const id = randomUUID();
-    await shipments.create({ id, direction: shipmentDirection }, c);
+  const id = randomUUID();
+  await shipments.create({ id, direction: shipmentDirection }, tx);
 
-    if (order_id && (await orders.exists(order_id, c))) {
-      const fulfillment = await fulfillmentService.chooseDefault(
-        { order_id, direction, category: "SHIPMENT" }, c
+  if (input.order_id) {
+    const direction = await orders.directionOf(input.order_id, tx);
+    if (!direction) {
+      throw new NotFound(
+        `order ${input.order_id} does not exist - a shipment cannot attach to it`
       );
-      if (fulfillment) {
-        await fulfillmentShipments.link(
-          { fulfillment_id: fulfillment.id, shipment_id: id }, c
-        );
-      }
     }
+    const fulfillment = await fulfillmentService.chooseDefault(
+      { order_id: input.order_id, direction, category: "SHIPMENT" }, tx
+    );
+    if (!fulfillment) {
+      throw new Error(
+        `order ${input.order_id}: no fulfillment could be ensured for this shipment - ` +
+          `this transaction must not commit`
+      );
+    }
+    await fulfillmentShipments.link(
+      { fulfillment_id: fulfillment.id, shipment_id: id }, tx
+    );
+  }
 
-    return await getById(id, c);
-  };
-  return executor ? await run(executor) : await withTransaction(run);
+  return await getById(id, tx);
 }
 
 // service_type/package arrive as NAMES (what the carrier integration produces), resolved here - a not-found is thrown, not silently written as null.
 export async function update(
   input: ShipmentUpdate, executor?: Executor
 ): Promise<ShipmentBaseRow | null> {
-  if (!input.id) throw badRequest("a shipment update needs an id");
+  if (!input.id) throw new Invalid("a shipment update needs an id");
   const id = input.id;
 
   const run = async (c: Executor): Promise<ShipmentBaseRow | null> => {
     // A service name with no carrier used to be silently dropped - now refused.
     if (input.service_type && !input.carrier_id) {
-      throw badRequest(
+      throw new Invalid(
         `a service name needs a carrier to resolve against - ` +
           `${JSON.stringify(input.service_type)} was sent without one`
       );
     }
     if (input.package && !input.carrier_id) {
-      throw badRequest(
+      throw new Invalid(
         `a package label needs a carrier to resolve against - ` +
           `${JSON.stringify(input.package)} was sent without one`
       );
@@ -205,7 +195,7 @@ export async function update(
       const all = await services.getByCarrier(input.carrier_id, c);
       carrier_service_id = all.find((s) => s.name === input.service_type)?.id ?? null;
       if (!carrier_service_id) {
-        throw badRequest(
+        throw new NotFound(
           `carrier ${input.carrier_id} offers no service called ${JSON.stringify(input.service_type)}`
         );
       }
@@ -216,7 +206,7 @@ export async function update(
       const found = await packages.find(input.carrier_id, input.package, c);
       package_id = found?.id ?? null;
       if (!package_id) {
-        throw badRequest(
+        throw new NotFound(
           `carrier ${input.carrier_id} has no package called ${JSON.stringify(input.package)}`
         );
       }

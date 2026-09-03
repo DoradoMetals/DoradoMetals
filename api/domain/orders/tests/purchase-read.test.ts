@@ -226,7 +226,7 @@ test("spot rows come back per metal with the shape the API returns", async () =>
   assert.ok(spots.length, "no purchase order has spot rows, so this asserts nothing");
   assert.deepEqual(Object.keys(spots[0]).sort(), [
     "ask", "bid", "created_at", "dollar_change", "id",
-    "name", "percent_change", "purchase_order_id", "updated_at",
+    "name", "order_id", "percent_change", "updated_at",
   ]);
   assert.deepEqual(spots.map((s) => s.name), [...spots.map((s) => s.name)].sort());
 });

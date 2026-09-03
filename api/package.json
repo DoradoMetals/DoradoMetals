@@ -81,6 +81,8 @@
     "audit:non-finite": "node scripts/audit-non-finite.mjs",
     "lint:type-homes": "TZ=UTC node scripts/lint-type-homes.ts",
     "lint:type-homes:self-test": "TZ=UTC node scripts/lint-type-homes.ts --self-test",
+    "lint:input-shapes": "node scripts/lint-input-shapes.ts",
+    "lint:input-shapes:self-test": "node scripts/lint-input-shapes.ts --self-test",
     "lint:script-guards": "node scripts/lint-script-guards.mjs",
     "lint:script-guards:self-test": "node scripts/lint-script-guards.mjs --self-test",
     "lint:db:self-test": "node scripts/lint-db-calls.ts --self-test",

@@ -1,0 +1,19 @@
+[
+    {
+        "scope": "https://api.stripe.com:443",
+        "method": "POST",
+        "path": "/v1/payment_intents/pi_cassette_transient_error/cancel",
+        "body": "",
+        "status": 400,
+        "response": {
+            "error": {
+                "code": "payment_intent_unexpected_state",
+                "message": "This PaymentIntent could not be canceled because it has a status of processing.",
+                "type": "invalid_request_error"
+            }
+        },
+        "rawHeaders": {
+            "content-type": "application/json"
+        }
+    }
+]

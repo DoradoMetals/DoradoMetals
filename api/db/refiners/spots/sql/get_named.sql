@@ -2,7 +2,7 @@
 -- percent_change/dollar_change have no column in the new schema; projected as NULL to keep the shape.
 SELECT
        sp.id,
-       sp.order_id AS purchase_order_id,
+       sp.order_id,
        m.name,
        sp.ask,
        sp.bid,

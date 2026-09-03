@@ -33,7 +33,9 @@ test("create writes a real ledger entry, and byUser answers it", async () => {
   await inRollback(async (c: PoolClient) => {
     const user = await aUser(c);
 
-    const row = await ledger.create(randomUUID(), user.id, "Credit", null, 42.5, c);
+    const row = await ledger.create(
+      { id: randomUUID(), user_id: user.id, type: "Credit", order_id: null, amount: 42.5 }, c
+    );
     assert.equal(row.user_id, user.id);
     assert.equal(row.type, "Credit");
     assert.equal(Number(row.amount), 42.5);
@@ -53,7 +55,9 @@ test("hasCreditFor is true once a Credit is logged against the order, and false 
       "hasCreditFor reported a credit before one was ever logged"
     );
 
-    await ledger.create(randomUUID(), user.id, "Credit", order.id, 15, c);
+    await ledger.create(
+      { id: randomUUID(), user_id: user.id, type: "Credit", order_id: order.id, amount: 15 }, c
+    );
 
     assert.equal(await ledger.hasCreditFor(order.id, c), true);
   });
@@ -64,7 +68,9 @@ test("hasCreditFor ignores a non-Credit entry against the same order", async () 
     const user = await aUser(c);
     const order = await anOrder(c, user, { direction: "purchase" });
 
-    await ledger.create(randomUUID(), user.id, "Debit", order.id, 15, c);
+    await ledger.create(
+      { id: randomUUID(), user_id: user.id, type: "Debit", order_id: order.id, amount: 15 }, c
+    );
 
     assert.equal(
       await ledger.hasCreditFor(order.id, c), false,

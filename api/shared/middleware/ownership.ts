@@ -4,23 +4,15 @@ import type { NextFunction, Request, Response } from "express";
 import type { PoolClient } from "pg";
 import query from "#shared/db/query.ts";
 
-// A 5th id spelling must be added here AND in orderIdFrom below — the guard refusing on none found is only safe if this list is deliberate.
+// A new id spelling must be added here AND in orderIdFrom below — the guard refusing on none found is only safe if this list is deliberate.
 type OrderBody = {
   order?: { id?: string | null } | null;
-  purchase_order_id?: string | null;
-  sales_order_id?: string | null;
   order_id?: string | null;
 };
 
 // A body using none of these spellings is refused, not waved through — a guard that can't find its subject must not assume it's fine.
 function orderIdFrom(body: OrderBody = {}): string | null {
-  return (
-    body.order?.id ??
-    body.purchase_order_id ??
-    body.sales_order_id ??
-    body.order_id ??
-    null
-  );
+  return body.order?.id ?? body.order_id ?? null;
 }
 
 // Also called directly by features/media/pdfs/serve.ts before serving a stored document — one copy of the ownership query, not two that could drift.

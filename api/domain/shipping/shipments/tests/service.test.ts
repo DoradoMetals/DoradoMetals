@@ -39,7 +39,7 @@ const anOrderWithoutShipment = async (c: PoolClient) => {
 const carrier = (c: PoolClient) => carrierId(c, "FedEx");
 
 const inbound = async (c: PoolClient, orderId: string) =>
-  dual.create({ purchase_order_id: orderId, carrier_id: await carrier(c), type: "Inbound" }, c);
+  dual.create({ order_id: orderId, type: "Inbound" }, c);
 
 test("creating a shipment writes the shipment, its fulfillment and the link", async () => {
   await inRollback(async (c: PoolClient) => {
@@ -87,7 +87,7 @@ test("a second shipment on an order reuses its fulfillment", async () => {
     const first = await inbound(c, orderId);
     assert.ok(first, "the first call returned nothing");
     const second = await dual.create(
-      { purchase_order_id: orderId, carrier_id: await carrier(c), type: "Outbound" }, c
+      { order_id: orderId, type: "Outbound" }, c
     );
     assert.ok(second, "the second call returned nothing");
 
@@ -96,6 +96,19 @@ test("a second shipment on an order reuses its fulfillment", async () => {
       [[first.id, second.id]]
     );
     assert.equal(rows.length, 1, "a second fulfillment was created for one order");
+  });
+});
+
+// THE BEST-EFFORT LINK IS GONE: an order_id that does not resolve used to be
+// silently skipped (a real parcel with a real label was never refused over a
+// missing fulfillment). Now it refuses cleanly instead of shipping an orphan
+// parcel nothing points at.
+test("creating a shipment for an order that does not exist refuses instead of shipping silently", async () => {
+  await inRollback(async (c: PoolClient) => {
+    await assert.rejects(
+      () => dual.create({ order_id: randomUUID(), type: "Inbound" }, c),
+      /does not exist/
+    );
   });
 });
 

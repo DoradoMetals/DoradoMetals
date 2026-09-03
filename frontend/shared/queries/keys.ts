@@ -107,5 +107,5 @@ export const queryKeys = {
 
   // Payment Intents
   paymentIntent: () => ['paymentIntent'] as const,
-  adminPaymentIntent: (salesOrderId: string) => ['adminPaymentIntent', salesOrderId] as const,
+  adminPaymentIntent: (orderId: string) => ['adminPaymentIntent', orderId] as const,
 }

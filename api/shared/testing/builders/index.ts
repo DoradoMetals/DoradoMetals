@@ -33,4 +33,7 @@ export {
   aRefinerEngagement, type BuiltEngagement,
 } from "#shared/testing/builders/refiners.ts";
 export { aLead } from "#shared/testing/builders/leads.ts";
+export {
+  aLedgerEntry, type LedgerRow,
+} from "#shared/testing/builders/transactions.ts";
 export { aReview } from "#shared/testing/builders/reviews.ts";

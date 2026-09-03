@@ -80,7 +80,7 @@ test("every route refuses an anonymous caller", async () => {
           "get_sales_order_payment_intent",
           request(app)
             .get("/api/stripe/get_sales_order_payment_intent")
-            .query({ sales_order_id: randomUUID() }),
+            .query({ order_id: randomUUID() }),
         ],
         [
           "update_payment_intent",
@@ -151,7 +151,7 @@ test("the two admin-only routes refuse a signed-in customer", async () => {
           "get_sales_order_payment_intent",
           request(app)
             .get("/api/stripe/get_sales_order_payment_intent")
-            .query({ sales_order_id: randomUUID() }),
+            .query({ order_id: randomUUID() }),
         ],
         [
           "cancel_payment_intent",
@@ -215,7 +215,7 @@ test("an admin reading a sales order's payment intent gets it, in the nested wir
     await as(Object.assign({}, admin, { role: "admin" }), async () => {
       const res = await request(app)
         .get("/api/stripe/get_sales_order_payment_intent")
-        .query({ sales_order_id: order.id });
+        .query({ order_id: order.id });
 
       assert.equal(res.status, 200, `answered ${res.status} to an admin`);
       assert.ok(res.body && typeof res.body === "object", "the body was not an object");
