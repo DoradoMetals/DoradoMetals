@@ -113,9 +113,10 @@ type CancelOrderVars = { id: string } & OrderCancel
 
 // No UI sends this today (the admin drawer's return-shipment form was never
 // built - the only "Cancel Order" button in the tree just PATCHes `status`).
-// Kept so the day that form exists, the ids-based body (carrier_service_id,
-// package_id, declared_value, weight) is already here rather than the old
-// composed `{ address, service, pickup, package, insurance }` document.
+// Kept so the day that form exists, the ids-based body (RULING 58/59:
+// `carrier_service_id`, `package_id` - no declared_value, no weight, the
+// server owns both) is already here rather than the old composed
+// `{ address, service, pickup, package, insurance }` document.
 export const useCancelOrder = () => {
   const { user } = useGetSession()
   const queryClient = useQueryClient()
