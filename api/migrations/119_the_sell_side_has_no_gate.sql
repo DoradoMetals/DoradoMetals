@@ -1,0 +1,53 @@
+-- products.bullion.sell_display is DROPPED. It was a gate, not a record.
+--
+-- Jacob, 2026-09-03, ruling 49, after `audit:coverage`-style measurement
+-- against production exchange.products: 73 products hidden both ways,
+-- 20 sell-only (every one is_generic), 1 buy-only, 1 both. "That's fine. We
+-- can show all of them on sell tab. We can't show all of them on buy. We're
+-- going to keep the 'display' column but not the 'sell_display'."
+--
+-- So: `display` keeps gating the BUY side exactly as before (storefront
+-- list, ask-side quotes, buy-cart sync). The SELL side gets no gate at all -
+-- GET /api/products/get_sell_products lists every row in products.bullion,
+-- and the bid-side liveness checks (catalog quote, purchase-order quote,
+-- sell-cart sync) refuse only an id that names no product, not one that is
+-- merely hidden.
+--
+-- SAFE BECAUSE THE VALUE IS NOT LOST. exchange.products.sell_display is
+-- untouched by this migration and stays forever - it is what a rebuild
+-- reads, per the covenant. This migration only removes the column products
+-- ever had to CHECK against, on the native table that gates live behavior.
+--
+-- WHAT ELSE MOVES WITH IT, so this is not a column drop that leaves the code
+-- reading a hole:
+--   - 000_genesis_schema.sql regenerated from dev (the column's DDL leaves it)
+--   - 029_genesis_backfill.sql stops selecting/inserting it from exchange
+--   - verify-backfill.mjs stops comparing it
+--   - scripts/lib/feature-map.ts DELIBERATE gains an entry recording why the
+--     exchange column has nowhere to go and does not need one
+--   - db/products/sql/*.sql projections stop selecting it; get_sell.sql loses
+--     its WHERE entirely; get_liveness.sql becomes id+display only
+--   - db/products/repo.ts loses it from PublicProductRow, AdminProductRow,
+--     ProductPatch, PATCHABLE; Liveness becomes Pick<..., "id" | "display">
+--   - db/checkout/items/sql/list_bullion_sale.sql and SaleBullionLine drop it
+--   - domain/checkout/service.ts refuseProductsThatAreNotLive: sale checks
+--     display=true, purchase checks existence only (no gate)
+--   - domain/quotes/service.ts refuseProductsThatAreNotLive takes
+--     ("ask" | "bid") instead of ("display" | "sell_display"); bid means
+--     existence-only, not a column check
+--   - domain/products/{compose,service,constants}.ts drop the field
+--   - scripts/validate-wire.ts and scripts/seed-e2e-order.mjs drop the
+--     dependency on it
+--   - shared/testing/builders/products.ts drops the builder option
+--   - contracts: wire/products.ts Bullion, wire/orders.ts OrderViewProduct
+--     pick, and the regenerated generated/products.ts all drop the field;
+--     generated/exchange.ts KEEPS it, correctly - that table still has it
+--   - frontend: features/products/types.ts, ProductDrawer's Sell toggle,
+--     AdminProductsTable's active-row check, ProductPageDetails' bid-quote
+--     gate (now ungated), app/sitemap.ts (drops the term, keeps filtering
+--     buy urls on slug)
+--
+-- products.bullion.display and exchange.products.{display,sell_display}
+-- STAY. Only the native sell-side gate goes.
+
+ALTER TABLE products.bullion DROP COLUMN IF EXISTS sell_display;

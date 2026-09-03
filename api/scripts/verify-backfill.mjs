@@ -127,7 +127,7 @@ const TABLES = [
     name: "products.bullion",
     key: "id",
     cols: `id, metal_id, mint_id, supplier_id, name, description, type, bid_premium,
-           ask_premium, display, homepage_display, sell_display, legal_tender,
+           ask_premium, display, homepage_display, legal_tender,
            domestic_tender, is_generic, content, gross, purity, variant_group,
            variant_label, shadow_offset, slug, filter_category, image_front,
            image_back, stock, quantity, created_by, updated_by, created_by_id,

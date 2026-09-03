@@ -47,7 +47,6 @@ function patchFor(existing: { metal_id: string; supplier_id: string; mint_id: st
     homepage_display: false,
     legal_tender: false,
     domestic_tender: false,
-    sell_display: false,
     is_generic: false,
     variant_label: "",
     quantity: 0,

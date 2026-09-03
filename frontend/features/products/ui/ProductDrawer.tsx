@@ -60,7 +60,7 @@ export default function ProductDrawer({
 }
 
 function Header({ product }: { product: AdminProduct }) {
-  const activeProduct = product.display || product.sell_display
+  const activeProduct = product.display
 
   return (
     <div className="flex flex-col w-full gap-8">
@@ -270,11 +270,6 @@ function Displays({ product }: { product: AdminProduct }) {
           label="Buy"
           value={!!product.display}
           onChange={(v) => handleUpdate({ display: v })}
-        />
-        <SegmentedField
-          label="Sell"
-          value={!!product.sell_display}
-          onChange={(v) => handleUpdate({ sell_display: v })}
         />
         <SegmentedField
           label="Featured"

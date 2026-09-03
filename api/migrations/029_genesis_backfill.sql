@@ -179,7 +179,7 @@ ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO products.bullion (
   id, metal_id, mint_id, supplier_id, name, description, type,
-  bid_premium, ask_premium, display, homepage_display, sell_display,
+  bid_premium, ask_premium, display, homepage_display,
   legal_tender, domestic_tender, is_generic, content, gross, purity,
   variant_group, variant_label, shadow_offset, slug, filter_category,
   image_front, image_back, stock, quantity,
@@ -188,7 +188,7 @@ INSERT INTO products.bullion (
 SELECT
   e.id, e.metal_id, e.mint_id, e.supplier_id, e.product_name,
   e.product_description, e.product_type,
-  e.bid_premium, e.ask_premium, e.display, e.homepage_display, e.sell_display,
+  e.bid_premium, e.ask_premium, e.display, e.homepage_display,
   e.legal_tender, e.domestic_tender, e.is_generic, e.content, e.gross, e.purity,
   e.variant_group, e.variant_label, e.shadow_offset, e.slug, e.filter_category,
   e.image_front, e.image_back, e.stock, e.quantity,

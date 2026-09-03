@@ -9,7 +9,7 @@ SELECT ci.id AS cart_item_id,
        b.type AS product_type, b.gross, b.purity, b.content, b.slug,
        b.bid_premium, b.ask_premium, b.image_front, b.image_back,
        b.shadow_offset, b.variant_group, b.variant_label,
-       b.is_generic, b.legal_tender, b.domestic_tender, b.sell_display,
+       b.is_generic, b.legal_tender, b.domestic_tender,
        metal.name AS metal_type,
        mint.name AS mint_name
   FROM checkout.items ci

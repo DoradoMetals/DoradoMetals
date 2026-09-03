@@ -81,16 +81,11 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
   const spot = spotPrices.find((s) => s.name === product.metal_type)
 
   // The page's own single-item quotes, one per side, re-quoted when the
-  // selected variant changes. Each side only where the product is live in it:
-  // ask is gated on `display` (already true - the slug read itself filters
-  // it), bid on `sell_display`, because the server refuses the gated side
-  // with a 400 rather than pricing it. A product not for sale back quotes a
-  // buyback of zero.
+  // selected variant changes. Ask is gated on `display` (already true - the
+  // slug read itself filters it). The sell side has no gate at all (Jacob,
+  // 2026-09-03, ruling 49), so the bid quote is always requested.
   const { data: askQuote } = useCatalogQuote([{ id: selectedProduct.id }], 'ask')
-  const { data: bidQuote } = useCatalogQuote(
-    selectedProduct.sell_display ? [{ id: selectedProduct.id }] : [],
-    'bid'
-  )
+  const { data: bidQuote } = useCatalogQuote([{ id: selectedProduct.id }], 'bid')
 
   const price = askQuote?.items[0]?.unit_price ?? 0
   const buybackPrice = bidQuote?.items[0]?.unit_price ?? 0

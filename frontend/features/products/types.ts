@@ -49,7 +49,6 @@ export interface AdminProduct {
   slug: string
   legal_tender: boolean
   domestic_tender: boolean
-  sell_display: boolean
   is_generic: boolean
   variant_label: string
   thickness?: string

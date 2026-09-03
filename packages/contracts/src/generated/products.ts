@@ -15,7 +15,6 @@ export const BullionRow = z.object({
   "type": z.string(),
   "display": z.boolean(),
   "homepage_display": z.boolean(),
-  "sell_display": z.boolean(),
   "legal_tender": z.boolean(),
   "domestic_tender": z.boolean(),
   "is_generic": z.boolean(),

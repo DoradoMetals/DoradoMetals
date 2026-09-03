@@ -33,7 +33,7 @@ export type SaleBullionLine = Nullable<
     | "id" | "gross" | "purity" | "content" | "slug" | "bid_premium"
     | "ask_premium" | "image_front" | "image_back" | "shadow_offset"
     | "variant_group" | "variant_label" | "is_generic" | "legal_tender"
-    | "domestic_tender" | "sell_display"
+    | "domestic_tender"
   >
 > &
   LineKey & {

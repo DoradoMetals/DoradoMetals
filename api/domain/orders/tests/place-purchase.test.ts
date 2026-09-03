@@ -62,7 +62,7 @@ type Fixtures = {
 const aWorld = async (c: PoolClient): Promise<Fixtures> => {
   const customer = await aUser(c, { name: "Row Flow Customer" });
   const address = await anAddress(c, customer);
-  const product = await aProduct(c, { sell_display: true });
+  const product = await aProduct(c);
   return {
     customer: { id: customer.id },
     customerName: customer.name,

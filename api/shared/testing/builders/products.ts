@@ -40,7 +40,6 @@ export type ProductOptions = {
   ask_premium?: number;
   type?: string;
   display?: boolean;
-  sell_display?: boolean;
   stock?: number;
   quantity?: number;
   slug?: string | null;
@@ -94,7 +93,6 @@ export async function aProduct(
       homepage_display: false,
       legal_tender: options.legal_tender ?? false,
       domestic_tender: false,
-      sell_display: options.sell_display ?? true,
       is_generic: options.is_generic ?? false,
       variant_label: options.variant_label ?? "",
       quantity: options.quantity ?? 1,

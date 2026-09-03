@@ -14,7 +14,7 @@ export type PublicProductRow = Pick<
   | "id" | "name" | "description" | "content" | "purity" | "gross"
   | "bid_premium" | "ask_premium" | "type" | "image_front" | "image_back"
   | "variant_group" | "shadow_offset" | "slug" | "legal_tender"
-  | "domestic_tender" | "sell_display" | "is_generic" | "variant_label"
+  | "domestic_tender" | "is_generic" | "variant_label"
   | "metal_id" | "mint_id"
 >;
 
@@ -27,11 +27,11 @@ export type AdminProductRow = Pick<
   | "content" | "gross" | "purity" | "variant_group" | "shadow_offset"
   | "stock" | "created_by" | "updated_by" | "homepage_display"
   | "filter_category" | "quantity" | "slug" | "legal_tender"
-  | "domestic_tender" | "sell_display" | "is_generic" | "variant_label"
+  | "domestic_tender" | "is_generic" | "variant_label"
   | "metal_id" | "mint_id" | "supplier_id"
 >;
 
-export type Liveness = Pick<products.BullionRow, "id" | "display" | "sell_display">;
+export type Liveness = Pick<products.BullionRow, "id" | "display">;
 
 // Full replace, not a sparse patch: an absent field binds NULL, exactly as when this was a positional tuple.
 // metal_id/mint_id/supplier_id are ids already resolved by the service; updated_by/updated_at are the trigger's (migration 116), not this type's.
@@ -55,7 +55,6 @@ export type ProductPatch = {
   homepage_display: boolean;
   legal_tender: boolean;
   domestic_tender: boolean;
-  sell_display: boolean;
   is_generic: boolean;
   variant_label?: string | null;
   quantity?: number | null;
@@ -185,7 +184,7 @@ export const PATCHABLE = [
   "metal_id", "supplier_id", "mint_id", "name", "description",
   "bid_premium", "ask_premium", "type", "display", "content", "gross",
   "purity", "variant_group", "shadow_offset", "stock", "slug",
-  "homepage_display", "legal_tender", "domestic_tender", "sell_display",
+  "homepage_display", "legal_tender", "domestic_tender",
   "is_generic", "variant_label", "quantity", "image_front", "image_back",
   "filter_category",
 ] as const;

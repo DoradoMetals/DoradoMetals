@@ -251,6 +251,9 @@ export const DELIBERATE: Record<string, string> = {
   "exchange.metals.scrap_percentage":
     "rate tiering moved to rates.rates, which supersedes a single percentage per metal",
   "exchange.metals.bullion_percentage": "same",
+  "exchange.products.sell_display":
+    "dropped from products.bullion by migration 119; the sell tab lists every " +
+    "product and `display` gates the buy side only (Jacob, 2026-09-03, ruling 49)",
 };
 
 // Columns whose destination exists but is itself blocked on a decision. They

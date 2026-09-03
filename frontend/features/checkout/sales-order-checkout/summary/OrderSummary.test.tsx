@@ -56,7 +56,6 @@ const eagle = (): Product =>
     variant_group: "",
     shadow_offset: 0,
     slug: "gold-american-eagle",
-    sell_display: true,
     is_generic: false,
     variant_label: null,
     legal_tender: true,

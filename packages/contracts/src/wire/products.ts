@@ -52,7 +52,6 @@ export const Bullion = z.object({
   is_generic: z.boolean().nullable(),
   legal_tender: z.boolean().nullable(),
   domestic_tender: z.boolean().nullable(),
-  sell_display: z.boolean().nullable(),
 });
 export type Bullion = z.infer<typeof Bullion>;
 

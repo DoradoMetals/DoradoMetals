@@ -240,9 +240,9 @@ add(
 
 // The catalogue. The other feature that had no contract, and one the frontend
 // leans on hardest - every price on the site is derived from these numbers.
-// getSellProducts returns rows getAllProducts does not, because a sell-only
-// product has no slug, so both are checked rather than assuming one covers the
-// other.
+// getSellProducts has no gate (Jacob, 2026-09-03, ruling 49) and returns
+// EVERY row - MORE than getAllProducts, not fewer - so both are checked
+// rather than assuming one covers the other.
 // Two shapes now, and both are checked.
 //
 // The repos return Bullion - products.bullion's own names - and since the
@@ -363,7 +363,7 @@ add("GET /shipments/:id/pickups", c.ShipmentPickup, async () => {
 const quotesService = await import("#domain/quotes/service.ts");
 const { rows: quotable } = await pool.query(
   `SELECT id, name FROM products.bullion
-    WHERE display AND sell_display AND content IS NOT NULL
+    WHERE display AND content IS NOT NULL
     ORDER BY name LIMIT 2`
 );
 const quoteItems = quotable.map((r, i) => ({ id: r.id, quantity: i + 1 }));

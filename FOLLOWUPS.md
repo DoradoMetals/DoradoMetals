@@ -13992,3 +13992,53 @@ either empty the sell catalogue (20 → 2) or put twenty stock-0 generic
 products on the buy storefront. The column stays. The FUNCTIONS keyed on it
 were the redundant part, and they are gone.
 
+### Ruling 49 — the sell side has no gate: sell_display is dropped (Jacob, 2026-09-03 afternoon)
+
+The measurement above stood — it was never wrong. Jacob read it and chose to
+widen the sell tab instead of keeping the column:
+
+> That's fine. We can show all of them on sell tab. We can't show all of them
+> on buy. We're going to keep the 'display' column but not the 'sell_display'.
+
+So: `display` keeps gating the buy side exactly as before. The sell side gets
+no gate at all — `GET /products/get_sell_products` now lists every row in
+`products.bullion`, hidden ones included, and the bid-side liveness checks
+(catalog quote, purchase-order quote, sell-cart sync) refuse only an id that
+names no product, never one that is merely `display = false`.
+
+What moved:
+
+- **119_the_sell_side_has_no_gate.sql** drops `products.bullion.sell_display`.
+  `exchange.products.sell_display` is untouched and stays forever — the
+  covenant, not a special case for this column.
+- **000_genesis_schema.sql** regenerated from dev; the column's two DDL lines
+  are gone.
+- **029_genesis_backfill.sql** stops selecting/inserting it from exchange;
+  `verify-backfill.mjs` stops comparing it. `088_*` (applied history) is
+  untouched.
+- **`scripts/lib/feature-map.ts` DELIBERATE** gained
+  `exchange.products.sell_display`, so `audit:coverage` does not report it as
+  an orphaned column.
+- **Contracts**: `generated/products.ts` lost it on regeneration;
+  `generated/exchange.ts` correctly kept it. The hand-written
+  `wire/products.ts` `Bullion` and `wire/orders.ts` `OrderViewProduct` pick
+  both drop the field.
+- **API**: `db/products/sql/get_sell.sql` lost its `WHERE` entirely;
+  `get_liveness.sql` is now `id, display` only, and its comment says it is the
+  buy-side gate. Every other products projection drops the column.
+  `db/products/repo.ts` (`PublicProductRow`, `AdminProductRow`, `ProductPatch`,
+  `PATCHABLE`, `Liveness`), `db/checkout/items/` (`list_bullion_sale.sql`,
+  `SaleBullionLine`), `domain/checkout/service.ts`
+  (`refuseProductsThatAreNotLive`: sale checks `display`, purchase checks
+  existence only), `domain/quotes/service.ts` (same function renamed to take
+  `"ask" | "bid"` instead of the two column names), `domain/products/`
+  (`compose.ts`, `service.ts`, `constants.ts`), `scripts/validate-wire.ts`,
+  `scripts/seed-e2e-order.mjs` (repointed from `exchange.products` to
+  `products.bullion`), `shared/testing/builders/products.ts`, and every test
+  that built a fixture on the flag or asserted the old gated behavior.
+- **Frontend**: `features/products/types.ts` (`AdminProduct`), the "Sell"
+  toggle removed from `ProductDrawer.tsx`, `AdminProductsTable.tsx`'s
+  active-row check narrowed to `display`, `ProductPageDetails.tsx`'s bid quote
+  now always requested (no gate to check), `app/sitemap.ts` filters buy URLs
+  on `slug` alone, and the affected test fixtures.
+

@@ -127,7 +127,7 @@ export default function ProductsPage() {
       filterFnOverride: (row, _columnId, filterValue) => {
         if (!filterValue) return true
         const p = row.original as AdminProduct
-        const active = !!(p.display || p.sell_display)
+        const active = !!p.display
         if (filterValue === 'Active') return active
         if (filterValue === 'Inactive') return !active
         return true
@@ -135,7 +135,7 @@ export default function ProductsPage() {
 
       getChip: ({ row }) => {
         const product = row as AdminProduct
-        const active = !!(product.display || product.sell_display)
+        const active = !!product.display
         return { label: active ? 'Active' : 'Inactive', tone: active ? 'success' : 'danger' } as const
       },
     }),
