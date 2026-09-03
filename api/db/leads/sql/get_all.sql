@@ -1,8 +1,4 @@
--- Every lead, newest first.
---
--- created_at is not unique, so id breaks the tie. Without a unique ORDER BY the
--- rows come back in physical order, which changes as rows are updated and makes
--- two implementations look like they disagree when they do not.
+-- Every lead, newest first. id breaks ties on created_at for a stable order.
 SELECT id, name, phone, email, created_at, updated_at, last_contacted,
        converted, contacted, responded, created_by, updated_by,
        notes, contact, priority

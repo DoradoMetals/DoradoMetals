@@ -1,8 +1,4 @@
-// Media: orchestration, the dual write, and everything that touches storage.
-//
-// Reads come from media.images; writes go to both schemas. The object store is
-// reached through providers/s3 - this file decides WHICH bytes and WHOSE, the
-// provider decides how they get there.
+// Media: orchestration and everything that touches storage. Reads come from media.images; the object store is reached through providers/s3 - this file decides WHICH bytes and WHOSE, the provider decides how they get there.
 import { randomUUID } from "node:crypto";
 import minio from "#providers/s3/minio.ts";
 import withTransaction from "#shared/db/withTransaction.ts";
@@ -23,22 +19,11 @@ export async function uploadImage({
   filename: string;
   user_id: string;
 }): Promise<{ id: string; uploadUrl: string }> {
-  // Read at CALL time, not module level - a module-level const reading
-  // process.env is evaluated before any script that sets it. Unset, the insert
-  // writes a null bucket and the presign is handed undefined; recorded in
-  // FOLLOWUPS.md rather than fixed here, since a boot check is a deploy-time
-  // behaviour change.
+  // Read at CALL time, not module level - a module-level const would evaluate before any script sets the env var. Unset, this writes a null bucket; tracked in FOLLOWUPS.md rather than fixed here (a boot check is a deploy-time change).
   const bucket = process.env.MINIO_BUCKET as string;
 
-  // THE SERVER NAMES THE OBJECT (D201). path and filename used to be taken
-  // from the request body and concatenated into the storage key - so every
-  // iPhone's image.jpg collided with every other one, and a caller could aim
-  // a presigned write at ANY key in the bucket, including somebody else's
-  // document. The key is user-scoped and uuid-prefixed now; the client's
-  // filename survives only as a sanitised, capped suffix for humans reading
-  // the bucket, and the client's path is ignored entirely. The old upsert on
-  // (path, filename, user_id) still stands in the SQL but can no longer
-  // fire - every upload is a fresh key by construction.
+  // The server names the object: path/filename used to come from the request body, so a caller could aim a presigned write at ANY key in the bucket, including someone else's. The key is now user-scoped and uuid-prefixed; the client's filename survives only as a sanitised suffix, and the client's path is ignored entirely.
+  // The upsert on (path, filename, user_id) still stands in the SQL but can no longer fire - every upload is a fresh key by construction.
   const originalName = String(filename ?? "")
     .replace(/[^A-Za-z0-9._-]/g, "_")
     .slice(-80) || "upload";
@@ -51,20 +36,13 @@ export async function uploadImage({
     size_bytes: size,
   };
 
-  // THE ID COMES BACK FROM THE NEW SCHEMA, and the legacy write uses it.
-  //
-  // create is an upsert on (path, filename, user_id), so a retried upload of
-  // the same object returns the id of the row that ALREADY existed rather than
-  // the one generated here. Using the returned id is what lets both schemas
-  // agree on a primary key without reading exchange back - which is the
-  // dependency this restructure exists to remove.
+  // create is an upsert on (path, filename, user_id) - a retried upload returns the id of the row that ALREADY existed rather than the one generated here; callers must use the returned id.
   const row = await withTransaction(async (client) => {
     const written = await images.create(randomUUID(), image, client);
     return written;
   });
 
-  // OUTSIDE THE TRANSACTION. Presigning is a network call to storage, and
-  // nothing irreversible belongs inside a transaction that may roll back.
+  // Outside the transaction: presigning is a network call, and nothing irreversible belongs inside one that may roll back.
   const uploadUrl = await minio.presignedPutObject(
     bucket, image.path + image.filename, PUT_TTL_SECONDS
   );
@@ -72,10 +50,7 @@ export async function uploadImage({
   return { id: row.id, uploadUrl };
 }
 
-// The image, if it is this caller's. Returns null rather than throwing so the
-// controller decides the status; an image that does not exist and an image that
-// is not yours are the same answer to somebody who should not know the
-// difference.
+// Returns null rather than throwing so the controller decides the status - a missing image and someone else's image must answer the same, so as not to leak which.
 async function ownedBy(image_id: string, user_id?: string): Promise<ImageRow | null> {
   const img = await images.getOne(image_id);
   if (!img) return null;
@@ -86,17 +61,14 @@ async function ownedBy(image_id: string, user_id?: string): Promise<ImageRow | n
 const presign = (img: ImageRow) =>
   minio.presignedGetObject(img.bucket, img.path + img.filename, GET_TTL_SECONDS);
 
-// The internal presigner, used by getTestImages to attach a URL to rows it has
-// already decided the caller may see. NOT reachable from a route: the guarded
-// entry point is getUrlFor below.
+// Internal presigner for getTestImages, attaching a URL to rows it already decided the caller may see - NOT reachable from a route (the guarded entry point is getUrlFor below).
 export async function getUrl({ image_id }: { image_id: string }): Promise<string> {
   const img = await images.getOne(image_id);
   if (!img) throw new Error(`no image ${image_id}`);
   return await presign(img);
 }
 
-// What the route calls. A presigned GET URL is a download link for the object,
-// so handing one out for an image id nobody checked is handing out the file.
+// What the route calls - a presigned GET URL is a download link, so handing one out for an unchecked id hands out the file.
 export async function getUrlFor({
   image_id, user_id,
 }: { image_id: string; user_id?: string }): Promise<string | null> {
@@ -133,20 +105,9 @@ export async function listForUser(user_id: string): Promise<ImageRow[]> {
   return await images.listFor(user_id);
 }
 
-// DELETING AN IMAGE, IN THE ORDER THAT MATTERS.
-//
-// This used to read the image by id with no ownership check, remove the object
-// from storage unconditionally, and only then run a DELETE that IS scoped to
-// the user. So a signed-in caller posting somebody else's image id destroyed
-// the real file and left the row behind - and got { success: true } for it.
-//
-// Now: establish ownership, do the database work, and only then touch the
-// outside world. If the object removal fails the row is already gone and the
-// file is orphaned, which a sweep can find; the other order leaves a live row
-// pointing at a file that no longer exists.
-//
-// Returns null for "not yours" AND for "does not exist", deliberately - telling
-// them apart would confirm somebody else's image id is real.
+// Deleting an image, order matters: ownership is established, then the database write, then the outside world (object removal) - never the reverse. The old order removed the object first and could destroy a real file with the row left behind, reporting success.
+// If the object removal fails now, the row is already gone and the file is orphaned (a sweep can find that); the reverse order leaves a live row pointing at nothing.
+// Returns null for "not yours" AND "does not exist", deliberately - telling them apart would confirm somebody else's image id is real.
 export async function deleteImage({
   user_id, id,
 }: { user_id?: string; id: string }): Promise<{ success: true } | null> {
@@ -157,7 +118,7 @@ export async function deleteImage({
     await images.remove(id, user_id as string, client);
   });
 
-  // OUTSIDE the transaction, and last. Removing an object cannot be rolled back.
+  // Outside the transaction, and last - removing an object cannot be rolled back.
   await minio.removeObject(img.bucket, img.path + img.filename);
 
   return { success: true };

@@ -1,11 +1,5 @@
--- Whether an address is in use by an order that has not finished, which is what
--- stops it being edited or deleted underneath one.
---
--- The order no longer carries the address id - orders.addresses does, and it
--- records both the snapshot and the address book row it came from. Matching on
--- source_address_id is what keeps this asking the question exchange asked:
--- compared against the exchange statement for all nine (address, user) pairs
--- dev has an order for, and they agree.
+-- Whether an unfinished order depends on this address - what stops it being edited or deleted underneath one.
+-- Matches on source_address_id (orders.addresses records both the snapshot and the book row it came from).
 SELECT EXISTS (
          SELECT 1
            FROM orders.orders o

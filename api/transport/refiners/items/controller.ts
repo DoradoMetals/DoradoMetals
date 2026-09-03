@@ -5,11 +5,7 @@ import { refusedUnknownField, refusedValue, type Refusal } from "#shared/http/pa
 import { refuseWith } from "#shared/http/refuse.ts";
 import { RefinerItemPatch } from "@dorado/contracts";
 
-// SHAPE VALIDATION, ONCE, HERE (moved from domain/refiners/items/service.ts -
-// Jacob's transport-boundary ruling): the service now receives an already-
-// validated RefinerItemPatch and checks RULES only. `content` keeps its own
-// bespoke refusal message - it is derived from post_melt and purity, and
-// saying so is worth more than "not a field of a refiner item PATCH".
+// Shape validation happens once, here: the service now receives an already-validated RefinerItemPatch and checks RULES only. `content` keeps its own bespoke refusal message, since it's derived from post_melt/purity.
 const FIELDS = Object.keys(RefinerItemPatch.shape);
 
 export function refusedField(body: Record<string, unknown>): Refusal | null {
@@ -33,10 +29,7 @@ export const patchRefinerItem = asyncHandler(async (req, res) => {
   return res.status(200).json(result);
 });
 
-// GET /api/orders/:orderId/refiners/items - the path is declared by
-// features/orders/routes.ts (the order id is the key the caller holds); the
-// handler lives here because this feature owns the table. Admin-only: what the
-// refinery reported decides what the business is paid.
+// GET /api/orders/:orderId/refiners/items - path declared by features/orders/routes.ts (the order id is the key the caller holds); handler lives here because this feature owns the table. Admin-only: what the refinery reported decides what the business is paid.
 export const getRefinerItemsByOrder = asyncHandler(async (req, res) => {
   return res.json(await refinerItemsService.forOrder(uuidParam(req, "orderId")));
 });

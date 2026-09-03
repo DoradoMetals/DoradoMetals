@@ -3,14 +3,8 @@ import { asyncHandler } from "#shared/middleware/asyncHandler.ts";
 import * as emailService from "#domain/media/emails/service.ts"
 import * as purchaseOrderReads from "#domain/orders/read.service.ts";
 
-// WHO THE EMAIL GOES TO IS DECIDED HERE, FROM THE DATABASE.
-//
-// Both routes are requireUser and both used to take the recipient from the
-// request body, which made this an open mail relay on the business's domain.
-// The address now comes from the stored order, and the caller has to be
-// entitled to it: an admin may send on a customer's behalf, anyone else only
-// about their own order. Otherwise naming somebody else's order id would be a
-// way to mail that customer at will.
+// Who the email goes to is decided HERE, from the database - both routes used to take the recipient from the request body, an open mail relay on the business's domain.
+// The address now comes from the stored order, gated by entitlement (owner or admin only) - naming someone else's order id no longer mails them.
 async function recipientFor(
   orderId: string | undefined,
   caller: Request["user"]

@@ -1,12 +1,5 @@
--- One refiner, by id.
---
--- organization_id IS projected, unlike on the wire. compose.ts needs it to
--- attach the organization, and the composed shape drops it again - a refiner's
--- organization is exposed as a nested object, never as a foreign key.
---
--- Columns are listed rather than selected with *: refiners.refiners carries
--- organization_id, which exchange.suppliers has no equivalent for, and
--- it must not reach the wire while both schemas are serving
+-- One refiner, by id. organization_id IS projected but never reaches the wire: compose.ts uses it to attach the organization as a nested object, then drops it.
+-- Columns are listed rather than SELECT * so organization_id can't leak onto the wire by accident.
 SELECT id, logo, organization_id
   FROM refiners.refiners
  WHERE id = $1

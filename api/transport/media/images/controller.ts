@@ -15,9 +15,7 @@ export const uploadImage = asyncHandler(async (req, res) => {
 });
 
 export const getUrl = asyncHandler(async (req, res) => {
-  // The id is the caller's to name; whose image it is, is not. getUrlFor
-  // returns null for an image that is not theirs, and "does not exist" and "is
-  // not yours" are deliberately the same answer.
+  // The id is the caller's to name; whose image it is, is not - getUrlFor returns null either way, since "does not exist" and "is not yours" are deliberately the same answer.
   const result = await mediaService.getUrlFor({
     image_id: requiredParam(req.query.image_id, "image_id"),
     user_id: callerId(req),
@@ -27,15 +25,13 @@ export const getUrl = asyncHandler(async (req, res) => {
 });
 
 export const getTestImages = asyncHandler(async (req, res) => {
-  // getTestImages takes no arguments; req.body was passed and ignored,
-  // which reads as though the body filtered something.
+  // getTestImages takes no arguments; req.body is unused here, not a filter.
   const result = await mediaService.getTestImages();
   return res.status(200).json(result);
 });
 
 export const deleteImage = asyncHandler(async (req, res) => {
-  // user_id from the session, not the body. The body's was only ever used in
-  // the scoped DELETE, which ran after the file had already been removed.
+  // user_id from the session, not the body - the body's user_id was only ever used in the scoped DELETE, which used to run after the file was already removed.
   const result = await mediaService.deleteImage({
     id: req.body.id,
     user_id: callerId(req),

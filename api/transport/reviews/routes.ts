@@ -1,8 +1,4 @@
-// Reviews. Admin throughout except get_public, which is what the storefront
-// shows an anonymous visitor.
-//
-// Paths are unchanged from the previous implementation on purpose: this
-// restructure is meant to be invisible to the frontend.
+// Reviews. Admin throughout except get_public, which is what the storefront shows an anonymous visitor.
 import express from "express";
 import { requireAdmin } from "#shared/middleware/authMiddleware.ts";
 import { getOne, getAll, getPublic, create, update, remove } from "#transport/reviews/controller.ts";

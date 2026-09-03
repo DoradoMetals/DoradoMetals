@@ -1,16 +1,5 @@
-// The PDF service, end to end, against real Chromium and real orders.
-//
-// 746 lines with no test of any kind, generating the documents a customer
-// actually receives: the packing list when an order is placed, the invoice when
-// an offer is accepted, the return packing list when metal goes back.
-//
-// The orders come from the repo rather than a fixture, because the input is the
-// wire shape and a hand-written fixture would drift away from it silently -
-// which is the failure mode that matters here. The service reads deep into the
-// object (item.scrap.metal, order.payout.cost, order.shipment.shipping_charge),
-// so a shape change breaks it in a way no unit test on a literal would notice.
-//
-// Read-only: generating a PDF writes nothing.
+// The PDF service, end to end, against real Chromium and real orders - generates the documents a customer actually receives (packing list, invoice, return packing list).
+// Orders come from the repo, not a fixture: the input is the wire shape, and a hand-written fixture would drift from it silently - the service reads deep into the object (item.scrap.metal, order.payout.cost, order.shipment.shipping_charge), so a shape change breaks it in a way no literal-based unit test would notice. Read-only: generating a PDF writes nothing.
 import test, { after, before } from "node:test";
 import assert from "node:assert/strict";
 import pool from "#db";
@@ -23,10 +12,7 @@ import { calculateTotalPrice } from "#domain/pricing/service.ts";
 import { formatCurrency } from "#domain/media/pdfs/render/format.ts";
 import type { RenderableOrder } from "#domain/media/pdfs/render/sections.ts";
 
-// THE RENDERER'S OWN TYPE, not a restatement. getAllPurchases and getAllSales
-// declare `Record<string, unknown>[]` - read.service.ts discards the composed
-// type at the service boundary - so the fixtures have to be named as something,
-// and the honest something is exactly what the templates under test accept.
+// getAllPurchases/getAllSales declare Record<string, unknown>[] (read.service.ts discards the composed type at the boundary), so the fixtures are named as exactly what the templates under test accept.
 type RenderOrder = RenderableOrder & { id: string };
 type RenderItem = NonNullable<RenderableOrder["order_items"]>[number];
 type Spot = Awaited<ReturnType<typeof spotsService.getSpotPrices>>[number];
@@ -42,9 +28,7 @@ before(async () => {
   );
   orders = (await poRepo.getAllPurchases()) as unknown as RenderOrder[];
   salesOrders = (await soRepo.getAllSales()) as unknown as RenderOrder[];
-  // The composed shape (`name` / `ask` / `bid`): the ORDERS wire converted
-  // (D84), the frontend's mapping edge died with it, and the renderers read
-  // the schema's own spellings off the body.
+  // The composed shape (name/ask/bid) - the renderers read the schema's own spellings off the body.
   spots = await spotsService.getSpotPrices();
   assert.ok(orders.length > 0, "dev has no purchase orders to render");
   assert.ok(spots.length > 0, "dev has no spot prices");
@@ -56,19 +40,15 @@ after(async () => {
   await pool.end();
 });
 
-// puppeteer returns a Uint8Array, not a Buffer. The controller does res.end(pdf)
-// and reads pdf.length, both of which work either way, so accepting both here
-// is the honest assertion rather than a loosened one.
+// puppeteer returns Uint8Array, not Buffer - the controller's res.end(pdf) and pdf.length both work either way, so accepting both here is the honest assertion, not a loosened one.
 const isPdf = (buf: Uint8Array, what: string) => {
   assert.ok(buf instanceof Uint8Array, `${what} did not return bytes`);
   assert.equal(Buffer.from(buf.subarray(0, 5)).toString(), "%PDF-", `${what} is not a PDF`);
-  // A PDF of a blank page is around 1KB; anything real is well past that. This
-  // catches a render that succeeded structurally and drew nothing.
+  // A PDF of a blank page is around 1KB; this catches a render that succeeded structurally and drew nothing.
   assert.ok(buf.length > 4000, `${what} is only ${buf.length} bytes - it rendered nearly nothing`);
 };
 
-// One order through every document, which is the realistic case: the same order
-// produces a packing list on the way in and an invoice on the way out.
+// One order through every document - the realistic case: the same order produces a packing list on the way in, an invoice on the way out.
 test("every document renders for a real order", async () => {
   const order = orders.find((o) => (o.order_items?.length ?? 0) > 0) ?? orders[0];
 
@@ -92,8 +72,7 @@ test("every document renders for a real order", async () => {
   );
 });
 
-// packageDetails is optional at the call site and the service falls back to
-// "Unknown Package" - so a missing one must not throw.
+// packageDetails is optional at the call site (the service falls back to "Unknown Package"), so a missing one must not throw.
 test("a packing list renders with no package details", async () => {
   const order = orders.find((o) => (o.order_items?.length ?? 0) > 0) ?? orders[0];
   isPdf(
@@ -108,19 +87,12 @@ test("a sales order invoice renders", async () => {
   isPdf(await pdf.generateSalesOrderInvoice({ salesOrder: order, spots }), "sales order invoice");
 });
 
-// Every order in dev, not just a convenient one. Orders differ in ways the
-// service reads directly - a mix of scrap and bullion, a null premium, no
-// shipment, a payout of zero, no address at all - and each of those is a
-// branch.
-//
-// Against the HTML rather than the PDF: this same sweep took 65 seconds when it
-// printed 32 documents through Chromium, and found the address bug in the
-// building, not the printing. The three tests above still prove Chromium works.
+// Every order in dev, not just a convenient one - orders differ in ways the service reads directly (scrap/bullion mix, null premium, no shipment, zero payout, no address), each its own branch.
+// Against the HTML rather than the PDF: the same sweep took 65s printing 32 documents through Chromium and found the address bug in the building, not the printing - the three tests above still prove Chromium works.
 test("every purchase order in dev builds both documents", () => {
   const failures: string[] = [];
   for (const order of orders) {
-    // Declared as a tuple list: inferred, the element type collapses to
-    // `string | (() => string)` and `build()` is then not callable.
+    // Declared as a tuple list - inferred, the element type collapses to `string | (() => string)` and build() is then not callable.
     const documents: Array<[string, () => string]> = [
       ["packing list", () => pdf.buildPackingListHtml({ purchaseOrder: order, spotPrices: spots })],
       ["invoice", () => pdf.buildInvoiceHtml({ purchaseOrder: order, spotPrices: spots, orderSpots: [] })],
@@ -132,11 +104,8 @@ test("every purchase order in dev builds both documents", () => {
         if (typeof html !== "string" || html.length < 500) {
           failures.push(`order ${order.number}: ${name} built ${html?.length ?? 0} chars`);
         }
-        // NaN reaches the page as the literal text "NaN" and renders as one:
-        // an SVG attribute, a weight, a price. Nothing throws, so the sweep
-        // above passed on 68 of them for months. Checked across all three
-        // documents rather than only the box, because arithmetic on a missing
-        // field is not specific to the box.
+        // NaN reaches the page as the literal text "NaN" (an SVG attribute, a weight, a price) and nothing throws - the sweep above passed on 68 of them for months.
+        // Checked across all three documents, not just the box, since arithmetic on a missing field isn't specific to it.
         if (typeof html === "string" && html.includes("NaN")) {
           failures.push(`order ${order.number}: ${name} contains NaN`);
         }
@@ -148,9 +117,7 @@ test("every purchase order in dev builds both documents", () => {
   assert.deepEqual(failures, []);
 });
 
-// The bug this whole file was written around: five of dev's sixteen purchase
-// orders have no address_id, and production has one. Every address field was
-// dereferenced unguarded, so the document was a 500 instead of a document.
+// The bug this whole file was written around: 5 of dev's 16 purchase orders have no address_id (production has one), and every address field was dereferenced unguarded - a 500 instead of a document.
 test("an order with no address still builds, with the address left blank", () => {
   const order = orders.find((o) => !o.address);
   assert.ok(order, "dev no longer has an order without an address - the case is untested");
@@ -160,14 +127,8 @@ test("an order with no address still builds, with the address left blank", () =>
   assert.ok(!html.includes("undefined"), "an unset address field reached the page as 'undefined'");
 });
 
-// The box drawn on the packing list is geometry built from the package
-// dimensions, and `packageDetails` comes from the request body. When it is
-// absent, service.js falls back to `{ length: "-", width: "-", height: "-" }` -
-// correct as the printed text "Length: - in", and NaN as arithmetic. Every
-// coordinate is `dimension * scale`, so the customer's packing list carried an
-// SVG with `width="NaN"`, `height="NaN"`, `viewBox="NaN NaN NaN NaN"` and 68
-// NaNs in total. Found by giving generateBoxSVG a type; every test in this file
-// that omits packageDetails had been rendering it for months.
+// The box is geometry built from package dimensions (from the request body); when absent, the fallback `{ length: "-", ... }` is correct as text but NaN as arithmetic - the customer's packing list carried `width="NaN"`, `height="NaN"`, `viewBox="NaN NaN NaN NaN"`, 68 NaNs total.
+// Found by giving generateBoxSVG a type; every test in this file omitting packageDetails had been rendering it for months.
 test("a packing list with no package details draws no box, rather than a broken one", () => {
   const order = orders[0];
 
@@ -175,8 +136,7 @@ test("a packing list with no package details draws no box, rather than a broken 
   assert.ok(!html.includes("NaN"), "the packing list contains NaN");
   assert.ok(!html.includes("<svg"), "a box was drawn from dimensions that do not exist");
 
-  // And the box is still drawn when there is a package, so the two assertions
-  // above cannot pass by never drawing one at all.
+  // The box is still drawn when there is a package, so the two assertions above can't pass by never drawing one at all.
   const withBox = pdf.buildPackingListHtml({
     purchaseOrder: order,
     spotPrices: spots,
@@ -190,13 +150,8 @@ test("a packing list with no package details draws no box, rather than a broken 
   assert.ok(withBox.includes("Length: 9 in"), "the dimensions are not printed");
 });
 
-// The sales order invoice names four metals in its spot table and read
-// `spots.find(...).ask` on each with no guard. `spots` comes from the
-// request body, so an omitted or partial one threw a TypeError - and this
-// invoice is the attachment on the refiner's copy of a sales order, built after
-// the transaction that marks the order sent. Found by removing the address
-// guard in features/sales-orders/service.js to prove its test could fail: it
-// failed here instead.
+// The sales order invoice read `spots.find(...).ask` on each of four metals with no guard; spots comes from the request body, so an omitted or partial one threw - and this invoice is built after the transaction marks the order sent, so the throw was silent.
+// Found by removing the address guard in sales-orders/service.ts to prove its test could fail: it failed here instead.
 test("a sales order invoice builds with no spot prices at all", () => {
   const order = salesOrders[0];
   assert.ok(order, "dev has no sales order");
@@ -215,16 +170,10 @@ test("a sales order invoice builds with no spot prices at all", () => {
   assert.ok(partial.includes("&mdash;"), "the unquoted metals rendered as nothing at all");
 });
 
-// The invoice and the packing list must agree on what the order is worth. They
-// did not: the packing list had its own copy of the sum that fell back to the
-// scrap row's premium, and purchase order 239 came out $3,236.11 apart.
+// The invoice and packing list must agree on what the order is worth. They didn't: the packing list had its own copy of the sum with a different premium fallback, and purchase order 239 came out $3,236.11 apart.
 test("the packing list and the invoice report the same total", () => {
   for (const order of orders) {
-    // The same cast the production caller makes, for the same stated reason:
-    // features/media/pdfs/service.ts:90 does
-    // `purchaseOrder as unknown as Parameters<typeof calculateTotalPrice>[0]`,
-    // because the composed tree overlaps PricedOrder without satisfying it.
-    // Mirrored here rather than papered over - see lane B's L-B2 on the gap.
+    // The same cast the production caller makes (media/pdfs/service.ts), for the same reason: the composed tree overlaps PricedOrder without satisfying it. Mirrored here rather than papered over.
     const total = calculateTotalPrice(
       order as unknown as Parameters<typeof calculateTotalPrice>[0],
       spots
@@ -241,11 +190,8 @@ test("the packing list and the invoice report the same total", () => {
 });
 
 
-// A line that never reaches the table is the quiet failure: the customer sees a
-// document that does not list what they sent, and the total still includes it.
-// Both row builders filter on the nested object being present
-// (`item.item_type === "scrap" && item.scrap`), so an item whose scrap or
-// product did not load disappears without any error.
+// A line that never reaches the table is the quiet failure: the customer sees a document that doesn't list what they sent, while the total still includes it.
+// Both row builders filter on the nested object being present (`item.item_type === "scrap" && item.scrap`), so an item whose scrap or product didn't load disappears without any error.
 test("every order item appears as a row in the packing list", () => {
   const missing: string[] = [];
   for (const order of orders) {

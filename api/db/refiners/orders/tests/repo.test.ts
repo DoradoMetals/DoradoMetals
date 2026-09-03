@@ -1,10 +1,4 @@
-// The write on refiners.orders (the refiner ENGAGEMENT, migration 093),
-// against real Postgres.
-//
-// update collapses setEngagementValue's per-column dispatch into one
-// statement. refiner_id is carried by its own "was this field named" flag
-// rather than COALESCE, because clearing it to null is a real operation - see
-// the repo's own header for why.
+// The write on refiners.orders (the refiner ENGAGEMENT), against real Postgres. refiner_id is carried by its own "was this field named" flag rather than COALESCE — see the repo's own header for why.
 import test, { after, before } from "node:test";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";

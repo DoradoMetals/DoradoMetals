@@ -1,16 +1,4 @@
-// The writes on refiners.spots, against real Postgres.
-//
-// The refiner's own quote, which exchange kept in refiner_metals beside our
-// quote in order_metals. Two things worth pinning:
-//
-//   - BOTH DIRECTIONS USE THIS TABLE. exchange had a column per kind of order
-//     and dev holds 64 purchase and 60 sales rows; the new schema has one
-//     order id, so a write must not assume a purchase order.
-//   - THERE IS NO UNIQUE (order_id, metal_id) HERE, where orders.spots has
-//     one. That is why create has no ON CONFLICT - naming a target with no
-//     matching constraint raises 42P10 at runtime.
-//
-// Each test runs inside a transaction that is rolled back.
+// The writes on refiners.spots, against real Postgres. Two things pinned: both directions use this table (one order id, not a column per kind of order), and there is no UNIQUE (order_id, metal_id) here — why create has no ON CONFLICT (42P10 at runtime otherwise).
 import test, { after, before } from "node:test";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
@@ -34,12 +22,7 @@ after(async () => {
   await pool.end();
 });
 
-// TAKES THE ORDERS LOCK, and it earned that the way locks.ts says these are
-// always earned: it deadlocked in a full run having passed in isolation every
-// time before. This file writes refiners.spots, which hangs off an order and
-// is written by the order-placing files too; nothing here changed, the suite
-// simply got fast enough (the wire slim took the composed order read off the
-// order paths) to interleave differently.
+// Takes the orders lock: this table hangs off an order and is written by the order-placing paths too, so it can deadlock against them when interleaved.
 async function inRollback(fn: (c: PoolClient) => Promise<void>) {
   await client.query("BEGIN");
   try {
@@ -93,9 +76,7 @@ test("a refiner bid lands on one metal of one order", async () => {
   });
 });
 
-// exchange had purchase_order_id and sales_order_id; the new schema has one
-// order id. A write keyed on it must work for a sales order too - and dev has
-// 60 sales rows, so this is not hypothetical.
+// A write keyed on the single order id must work for a sales order too — not hypothetical, dev has 60 sales rows.
 test("a sales order's refiner spot can be written the same way", async () => {
   await inRollback(async (c: PoolClient) => {
     const s = await aRefinerSpot(c, "sale");
@@ -145,9 +126,7 @@ test("the ask is left alone when the bid is written", async () => {
   });
 });
 
-// The condition is CREATED, not found: every order already has a refiner spot
-// for all four metals, so the earlier version of this test returned early every
-// single time and asserted nothing. audit:vacuous-tests caught it.
+// The condition is CREATED, not found: every order already has all four metals' refiner spots, so the earlier version returned early and asserted nothing — audit:vacuous-tests caught it.
 test("a new refiner spot can be created for an order", async () => {
   await inRollback(async (c: PoolClient) => {
     const s = await aRefinerSpot(c, "purchase");

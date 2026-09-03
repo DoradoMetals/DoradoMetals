@@ -1,18 +1,5 @@
-// The product endpoints, over real HTTP.
-//
-// Products are the one feature with a RENAME adapter rather than a reshaping
-// one, and that difference is the point of testing it: a rename passes
-// unmatched keys through, so it cannot produce the nulls that returned a
-// nameless address from features/addresses. What it CAN do is leak the new
-// names to a frontend expecting the old ones, which is what these check.
-//
-// Five of the routes are public, deliberately, and were audited against the
-// controllers when the cart hole was found - they name a product, never a
-// person. The admin writes are asserted by refusal rather than by exercise
-// where they would create rows.
-//
-// No advisory lock: nothing else in the suite writes products.bullion or
-// exchange.products outside its own rolled-back transaction.
+// The product endpoints, over real HTTP — checks the RENAME adapter doesn't leak new names to a frontend expecting the old ones. Five routes are public, deliberately (audited when the cart hole was found: they name a product, never a person).
+// No advisory lock: nothing else in the suite writes products.bullion or exchange.products outside its own rolled-back transaction.
 import test, { after, before } from "node:test";
 import assert from "node:assert/strict";
 import request from "supertest";
@@ -23,8 +10,7 @@ import { inPinnedTransaction, assertNothingEscaped, outside } from "#shared/test
 await mockSessions();
 const { default: app } = await import("#app");
 
-// THE STRUCTURAL SUBSET EACH FIXTURE ACTUALLY HAS. SELECT projections, not
-// table rows.
+// SELECT projections, not table rows.
 type UserFixture = { id: string; name: string | null; email: string | null };
 type Caller = UserFixture & { role: string };
 
@@ -58,10 +44,7 @@ test("the catalogue answers a signed-out visitor in the schema's own shape", asy
       assert.equal(res.status, 200);
       assert.ok(Array.isArray(res.body) && res.body.length > 0);
 
-      // Products is CONVERTED (2026-08-27): the frontend reads `name` from
-      // @dorado/contracts, and the legacy spelling reaching it would render
-      // blank cards - the e2e catalogue spec's price-count floor is the
-      // browser-level canary for exactly that.
+      // Products is CONVERTED: the frontend reads `name` now, and the legacy spelling reaching it would render blank cards — the e2e catalogue spec's price-count floor is the browser-level canary for that.
       const p = res.body[0];
       assert.ok("name" in p, "the legacy spelling came back - the frontend reads name now");
       assert.ok(!("product_name" in p), "both spellings came back at once");
@@ -96,9 +79,7 @@ test("the admin catalogue and the admin writes are refused to a customer", async
         ["post", "/api/products/save_product", { product: {}, user: {} }],
         ["post", "/api/products/create_product", { name: "replay", created_by: "x" }],
       ];
-      // Declared as a tuple list. Inferred, the array's element type collapses
-      // to a union of string and the body shapes, and `request(app)[verb]`
-      // then indexes SuperTest with something that is not one of its methods.
+      // Declared as a tuple list — inferred, the array's element type collapses to a union, and `request(app)[verb]` then indexes SuperTest with something that isn't one of its methods.
       for (const [verb, path, body] of calls as Array<
         ["get" | "post", string, Record<string, unknown>]
       >) {
@@ -109,9 +90,7 @@ test("the admin catalogue and the admin writes are refused to a customer", async
   });
 });
 
-// The write path. Creating is the only product write that makes a row, and
-// it is done inside the pinned transaction. No adapter anymore - the body
-// arrives in the schema's own names and comes back the same way.
+// The write path: creating is the only product write that makes a row (done inside the pinned transaction). No adapter — the body arrives in the schema's own names and comes back the same way.
 test("creating a product round-trips in the schema's own names", async () => {
   await inPinnedTransaction(async () => {
     await as(admin, async () => {
@@ -120,8 +99,7 @@ test("creating a product round-trips in the schema's own names", async () => {
         .post("/api/products/create_product")
         .send({ name, created_by: admin.name });
 
-      // 201, not 200: this route creates. Checked against the route rather
-      // than assumed, after asserting the wrong one here first.
+      // 201, not 200 — checked against the route rather than assumed, after asserting the wrong one here first.
       assert.equal(res.status, 201, JSON.stringify(res.body));
       const made = Array.isArray(res.body) ? res.body[0] : res.body;
       assert.ok(made?.id, "no id came back");
@@ -132,11 +110,7 @@ test("creating a product round-trips in the schema's own names", async () => {
       );
       assert.ok(!("product_name" in made), "the legacy spelling came back after the conversion");
 
-      // created_by comes from the request body rather than the session. That is
-      // admin-only and the frontend sends the real user, so it is audit
-      // attribution an admin could mis-set rather than a hole - noted here
-      // because it is the same "trust the request" shape as five real bugs, and
-      // somebody should decide it deliberately rather than find it again.
+      // created_by comes from the request body, not the session — admin-only, and the frontend sends the real user. Noted because it's the same "trust the request" shape as five real bugs.
       assert.equal(made.created_by, admin.name);
     });
   });

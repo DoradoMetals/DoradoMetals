@@ -21,14 +21,7 @@ import {
 import type { RenderableOrder, SpotPart } from "#domain/media/pdfs/render/sections.ts";
 
 
-// THE INPUTS EACH DOCUMENT TAKES.
-//
-// Same reasoning as sections.ts, which these build on: the order that arrives
-// is COMPOSED - items with nested scrap or product, a shipment, an address -
-// and no generated contract row describes that tree, so RenderableOrder is
-// defined there and reused here, and so is SpotPart: the converted spot
-// spellings (`name` / `ask` / `bid`) the frontend sends since D84.
-//
+// The inputs each document takes - same reasoning as sections.ts, which these build on: the order that arrives is COMPOSED, so RenderableOrder is defined there and reused here, along with SpotPart (the converted spot spellings, name/ask/bid).
 // Every field named is one these builders actually read.
 
 /** The box a parcel ships in. Coerced with Number(), so strings are legal. */
@@ -75,18 +68,10 @@ export function buildPackingListHtml({
   spotPrices = [],
   packageDetails = {},
 }: PackingListInput): string {
-  // The same sum the invoice uses, rather than a second copy of it.
-  //
-  // This had its own inline reduce, and the two drifted: it fell back to the
-  // scrap row's own premium where calculateTotalPrice did not, so purchase
-  // order 239 came out at $7,980.22 here and $4,744.11 on the invoice - both
-  // documents going to the same customer. The fallback was the correct half;
-  // calculations.js now has it, and this calls it.
+  // The same sum the invoice uses, not a second copy: an inline reduce here once drifted from calculateTotalPrice's premium fallback, so purchase order 239 came out at $7,980.22 here and $4,744.11 on the invoice - same customer, same order.
+  // The fallback was the correct half; calculations.ts has it now, and this calls it.
   const total = calculateTotalPrice(
-    // The composed order this file receives overlaps the contract's PricedOrder
-    // without matching it - it carries the nested items and shipment these
-    // templates read, and not the row fields the calculation never touches. The
-    // double cast says that is deliberate rather than a slip.
+    // The composed order overlaps PricedOrder without matching it (nested items/shipment vs row fields) - the double cast says this is deliberate, not a slip.
     purchaseOrder as unknown as Parameters<typeof calculateTotalPrice>[0], spotPrices);
 
   const scrapRows = buildPackingScrapRows(
@@ -110,16 +95,8 @@ export function buildPackingListHtml({
     purchaseOrder.shipment?.pickup_type !== "Store Dropoff" &&
     purchaseOrder.carrier_pickup !== null;
 
-  // The fallback above is display text - "Length: - in" reads correctly on the
-  // page. The box is geometry, and `"-" * scale` is NaN, so passing the same
-  // fallback into generateBoxSVG produced an SVG whose width, height, viewBox
-  // and every polygon were the string NaN: 68 of them, on the packing list a
-  // customer receives, whenever a request arrived without packageDetails. Found
-  // by giving generateBoxSVG a type.
-  //
-  // Coerced rather than type-checked so that nothing which used to draw a box
-  // stops drawing one: `null` and `""` both multiplied to 0 before and still
-  // do. Only the NaN case changes, and it changes to no box at all.
+  // The fallback above is display text ("Length: - in" reads fine) but the box is geometry - `"-" * scale` is NaN, producing an SVG whose width/height/viewBox/every polygon were the string NaN (68 of them) whenever packageDetails was missing. Found by giving generateBoxSVG a type.
+  // Coerced rather than type-checked, so nothing that used to draw a box stops drawing one - null and "" still multiply to 0; only the NaN case changes, to no box at all.
   const boxDimensions = [
     dimensions.length,
     dimensions.width,
@@ -293,20 +270,12 @@ export function buildPackingListHtml({
   return htmlContent;
 }
 
-/* ------------------------------------------------------------------ */
-/* generateReturnPackingList (reuses same helpers)                    */
-/* ------------------------------------------------------------------ */
-
 export function buildReturnPackingListHtml({
   purchaseOrder,
   spotPrices = [],
 }: ReturnPackingListInput): string {
-  // GUARDED DEFENSIVELY. A return packing list is only produced for an order
-  // that has both legs, so in practice both shipments are present - but this
-  // summed them unguarded, and `undefined + undefined` is NaN, which would
-  // print "NaN" on a document going into a parcel. I did not establish whether
-  // an order can reach here with a leg missing; the guard costs nothing and the
-  // failure it prevents is the silent kind this file has produced before.
+  // Guarded defensively: in practice both shipments are present, but summing them unguarded (undefined + undefined is NaN) would print "NaN" on a document going into a parcel.
+  // Whether an order can reach here with a leg missing is unestablished; the guard costs nothing and prevents the same silent-NaN class this file has produced before.
   const total =
     (purchaseOrder.shipment?.shipping_charge ?? 0) +
     (purchaseOrder.return_shipment?.shipping_charge ?? 0);
@@ -395,17 +364,12 @@ export function buildInvoiceHtml({
   spotPrices = [],
   orderSpots = [],
 }: InvoiceInput): string {
-  // 'Accepted' left the status lifecycle (migration 092 remapped its rows to
-  // 'Payment Processing'), so the done set no longer names it.
   const doneStatus = ["Payment Processing", "Completed"];
   const isDone = doneStatus.includes(purchaseOrder.status ?? "");
 
   const browserSpots = purchaseOrder.spots_locked ? orderSpots : spotPrices;
   const total = calculateTotalPrice(
-    // The composed order this file receives overlaps the contract's PricedOrder
-    // without matching it - it carries the nested items and shipment these
-    // templates read, and not the row fields the calculation never touches. The
-    // double cast says that is deliberate rather than a slip.
+    // The composed order overlaps PricedOrder without matching it (nested items/shipment vs row fields) - the double cast says this is deliberate, not a slip.
     purchaseOrder as unknown as Parameters<typeof calculateTotalPrice>[0], browserSpots);
   const payoutCost = purchaseOrder.payout?.cost ?? 0;
 
@@ -530,8 +494,6 @@ export function buildInvoiceHtml({
   `;
 
   const title = isDone ? "Purchase Order Invoice" : "Purchase Order Preview";
-  // Offer language died with the offers (Jacob, 28 August): the customer is
-  // told about PRICING now - finalized or still in progress.
   const subtitle = isDone
     ? "Your order's pricing has been finalized. View your final price breakdown below."
     : "Please note: until your order's pricing has been finalized, prices seen here may not be representative of the final amounts and do not represent an obligation to purchase your items at these amounts.";
@@ -545,18 +507,8 @@ export function buildInvoiceHtml({
   return htmlContent;
 }
 
-// The invoice's spot table names its four metals, and `spots` arrives in the
-// request body rather than from the database, so a missing one is a request
-// away. `spots.find(...).ask.toLocaleString(...)` threw a TypeError on
-// each of them - and this invoice is the attachment on the refiner's copy of a
-// sales order, built after the transaction that marks the order sent, so the
-// throw was silent in exactly the way the packing list's NaN box and the
-// supplier email's null address were.
-//
-// Found by removing the guard in features/orders/service.ts to check that
-// its test could fail: it failed on this instead.
-//
-// Same rule as those two: render what is known and a dash for what is not.
+// spots arrives from the request body, so a missing metal is a request away - `spots.find(...).ask.toLocaleString(...)` threw, and this invoice is built after the transaction marks the order sent, so the throw was silent (same class as the packing list's NaN box and the supplier email's null address).
+// Same rule: render what's known, a dash for what's not.
 const askSpot = (spots: SpotPart[], metal: string): string => {
   const value = spots.find((s) => s.name === metal)?.ask;
   return value == null
@@ -804,16 +756,8 @@ export function buildSalesOrderInvoiceHtml({
 }
 
 
-// Building the document and printing it are separate.
-//
-// Each generator used to end in `return renderPdf(htmlContent)`, so the only
-// way to exercise 746 lines of layout was to start Chromium and get back a
-// PDF - which meant checking that a document came out, never what was in it.
-// Rendering every order in dev took 65 seconds; building the same HTML takes
-// milliseconds, and the HTML is where all of the logic actually is.
-//
-// The generators keep their names and signatures. Nothing that calls them
-// changes.
+// Building the document and printing it are separate: exercising 746 lines of layout used to require starting Chromium (65s for every dev order) just to check a document came out, never what was in it - building the HTML takes milliseconds and is where the logic lives.
+// The generators keep their names and signatures; nothing that calls them changes.
 
 export async function generatePackingList(input: PackingListInput): Promise<Uint8Array> {
   return renderPdf(buildPackingListHtml(input));

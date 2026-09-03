@@ -1,10 +1,5 @@
-// The parts of addresses that need no database: the statements as text, and
-// the in-memory join that replaced a SQL one.
-//
-// The statements matter more here than elsewhere, because the split moved a
-// SECURITY check out of them. exchange scoped its writes with
-// `AND user_id = $2`; places.addresses has no user_id to scope on, so the
-// checks below are about what each statement can and cannot be trusted to do.
+// The parts of addresses that need no database: the statements as text, and the in-memory join that replaced a SQL one.
+// The statements matter more here than elsewhere: places.addresses has no user_id to scope on, so the checks below are about what each statement can and cannot be trusted to do.
 import test from "node:test";
 import assert from "node:assert/strict";
 import path from "node:path";
@@ -15,17 +10,13 @@ import { PATCHABLE as UA_PATCHABLE } from "#db/places/user-addresses/repo.ts";
 import { compose, byDefaultThenId, all } from "#domain/places/addresses/compose.ts";
 import type { ComposedAddress } from "#domain/places/addresses/compose.ts";
 
-// features/places/addresses/sql - the statements as text.
+// db/places/addresses/sql - the statements as text.
 const sql = sqlFrom(path.join(import.meta.dirname, "..", "..", "..", "..", "db", "places", "addresses"));
 
 const body = (name: string): string =>
   sql(name).split("\n").filter((l) => !l.trim().startsWith("--")).join("\n");
 
-// update() collapsed into one dynamic statement (the CRUD ruling), and that
-// statement moved again into shared/db/patch.ts, which every batch-1 and
-// batch-2 repo now shares. It was asserted by reading repo.ts as SOURCE TEXT;
-// it is asserted by BUILDING it now, which is stronger - a source-text match
-// could pass on a string in a comment.
+// Built with shared/db/patch.ts rather than asserted as source text - a source-text match could pass on a string in a comment.
 const built = (patch: Record<string, unknown>) =>
   buildUpdate({ table: "places.addresses", allowed: PATCHABLE, patch, where: { id: "x" } })!;
 
@@ -45,10 +36,7 @@ test("create writes its columns in the order repo.ts supplies them", () => {
   );
 });
 
-// And the new schema's update is NOT scoped, which is a fact worth pinning
-// rather than a gap: it is why service.ts reads the link first. If someone
-// "fixes" this statement by adding a user_id it will not compile against the
-// table, and if they add a join it stops being one table.
+// The update is NOT scoped by user - a fact, not a gap: it's why service.ts reads the link first. Adding a user_id here won't compile against this table.
 test("the new-schema update is keyed on the address alone", () => {
   const text = built({ line_1: "1 A" }).text;
   assert.match(text, /WHERE id = \$2$/, "the dynamic UPDATE must key on id alone");
@@ -56,10 +44,7 @@ test("the new-schema update is keyed on the address alone", () => {
     "places.addresses has no user_id - the ownership check lives in service.ts");
 });
 
-// updated_at LEFT THE SET LIST. It was appended to every one of these
-// statements by hand; public.audit_stamp writes it for every table that has
-// one (migration 116), so a statement that also wrote it would be a second
-// author for one column.
+// updated_at is not in the SET list - public.audit_stamp writes it, so a statement that also wrote it would be a second author for one column.
 test("the update writes no audit column", () => {
   const sets = built(Object.fromEntries(PATCHABLE.map((c) => [c, null])))
     .text.split(" WHERE")[0];
@@ -69,17 +54,14 @@ test("the update writes no audit column", () => {
 });
 
 test("the writes to places.user_addresses are scoped to the person", () => {
-  // user-addresses has no service or controller (db-only), so Phase 0c left it
-  // entirely under db/ - it is no longer a sibling of this test's own feature.
+  // user-addresses has no service or controller (db-only), so it lives under db/ - no longer a sibling of this test's own feature.
   const ua = sqlFrom(
     path.join(import.meta.dirname, "..", "..", "..", "..", "db", "places", "user-addresses")
   );
   const uaBody = (n: string) =>
     ua(n).split("\n").filter((l) => !l.trim().startsWith("--")).join("\n");
 
-  // user-addresses' update is built the same way now, and the OWNERSHIP GUARD
-  // rides in the WHERE - which is the point of this test and the reason the
-  // builder takes a `where` map rather than an id.
+  // The ownership guard rides in the WHERE - the point of this test, and why the builder takes a `where` map rather than an id.
   const uaUpdate = buildUpdate({
     table: "places.user_addresses", allowed: UA_PATCHABLE,
     patch: { label: "Home", default_shipping: true, default_billing: true },
@@ -88,15 +70,12 @@ test("the writes to places.user_addresses are scoped to the person", () => {
   assert.match(uaUpdate.text, /WHERE address_id = \$4 AND user_id = \$5/i);
   assert.match(uaBody("delete"), /WHERE\s+address_id\s*=\s*\$1\s+AND\s+user_id\s*=\s*\$2/i);
   assert.match(uaBody("get_one"), /WHERE\s+address_id\s*=\s*\$1\s+AND\s+user_id\s*=\s*\$2/i);
-  // set_default is two statements since 089's partial unique index: the
-  // one-statement swap held a transient double default and tripped it on
-  // row-visit order. Both halves must stay scoped to the person.
+  // set_default is two statements (a one-statement swap trips the partial unique index on row-visit order) - both halves must stay scoped to the person.
   assert.match(uaBody("set_default_clear"), /WHERE\s+user_id\s*=\s*\$1/i);
   assert.match(uaBody("set_default_mark"), /WHERE\s+user_id\s*=\s*\$1/i);
 });
 
-// One table per repo, except the two questions that are inherently about
-// several - is_active and is_referenced, which are reads and write nothing.
+// One table per repo, except the two questions inherently about several - is_active and is_referenced, which are reads and write nothing.
 test("no write statement reaches into a second table", () => {
   for (const n of ["get_one", "get_many", "create", "delete"]) {
     assert.doesNotMatch(body(n), /exchange\.|orders\.|user_addresses/, `${n} reaches beyond its table`);
@@ -105,9 +84,7 @@ test("no write statement reaches into a second table", () => {
   assert.doesNotMatch(text, /exchange\.|orders\.|user_addresses/, "update reaches beyond its table");
 });
 
-// is_referenced has to ask about BOTH columns of orders.addresses. An order
-// records the snapshot it took and the book row it came from; missing either
-// would delete an address a delivered order points at.
+// is_referenced must ask about BOTH columns of orders.addresses - missing either would delete an address a delivered order points at.
 test("is_referenced asks about both of the order's address columns", () => {
   assert.match(body("is_referenced"), /source_address_id/);
   assert.match(body("is_referenced"), /\baddress_id\b/);
@@ -125,13 +102,11 @@ test("compose nests the person's side and leaves the address flat", () => {
   assert.equal(out.id, "a");
   assert.deepEqual(Object.keys(out.user_address).sort(),
     ["default_shipping", "label", "user_id"]);
-  // default_billing must NOT appear: exchange has no second flag and the
-  // projection this replaced did not return one.
+  // default_billing must NOT appear on the wire.
   assert.ok(!("default_billing" in out.user_address));
 });
 
-// ORDER BY ua.default_shipping DESC, a.id ASC. DESC on a boolean puts true
-// first, which a naive `a - b` on booleans does not do.
+// DESC on a boolean puts true first, which a naive `a - b` on booleans does not do.
 test("the sort puts the default first, then orders by id", () => {
   const rows = [
     compose(address("c"), link("c", false)),

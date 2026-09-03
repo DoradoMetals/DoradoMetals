@@ -1,34 +1,7 @@
 // What each payout method costs the customer, server-side.
 //
-// D97/D82. The fee lived ONLY in the browser - frontend/features/payouts/
-// types.ts's `payoutOptions` - and the checkout both displayed it and sent it
-// back on the create. A number the server has no opinion about is a number the
-// server cannot check, and the bug that surfaced it was the headline
-// "Estimated Payout" reading $20 high because the client's own arithmetic
-// dropped the deduction.
-//
-// THESE ARE DEFAULTS FOR A NEW ORDER, NOT THE TRUTH ABOUT AN OLD ONE.
-// exchange.payouts.cost is per-row and has been overridden in production -
-// measured, 61 rows:
-//
-//   ACH             0     x11
-//   DORADO_ACCOUNT  0     x2
-//   ECHECK          0     x39,  75  x1,  125  x1
-//   WIRE           20     x6,    0  x2
-//
-// So the method does NOT determine the fee for a payout that already exists;
-// FOUR of those 62 rows disagree with the table below - the two zero-fee WIREs,
-// and the ECHECKs at 75 and 125. (This comment said ELEVEN until 2026-08-29;
-// that was the x11 on the ACH line, which is a count of rows that AGREE.
-// Corrected by recomputing against the table rather than re-reading the
-// summary.) A quote for a cart has no
-// payout row yet and this is the right default for it, but nothing here may be
-// used to re-derive the fee of a stored payout - that number is on the row, and
-// features/quotes' orderQuote already reads it from there.
-//
-// Values verified byte-for-byte against payoutOptions on 2026-08-28. If the
-// two ever disagree the frontend is wrong by construction, because it stops
-// computing this at all once D97's handoff lands.
+// DEFAULTS FOR A NEW ORDER ONLY, not the truth for an existing one: exchange.payouts.cost is per-row and overridden in production (4 of 62 rows disagree, both directions).
+// A quote for a cart has no payout row yet and uses this default; a stored payout's fee is read from its own row (features/quotes' orderQuote), never re-derived here.
 export const PAYOUT_METHOD_FEES: Readonly<Record<string, number>> = Object.freeze({
   ACH: 0,
   WIRE: 20,
@@ -43,8 +16,7 @@ export function isPayoutMethod(value: unknown): value is PayoutMethod {
 }
 
 // The fee for a method, or null when the method is not one we pay out by.
-// NULL RATHER THAN ZERO, deliberately: a typo'd method must not silently price
-// as free. The caller decides whether that is a 400 or a "not chosen yet".
+// Null rather than zero, deliberately: a typo'd method must not silently price as free.
 export function payoutFee(method: unknown): number | null {
   return isPayoutMethod(method) ? PAYOUT_METHOD_FEES[method] : null;
 }

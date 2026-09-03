@@ -1,15 +1,5 @@
-// The three remaining reference-data surfaces, over real HTTP: refiners, spots
-// and reviews.
-//
-// One file rather than three, because they ask the same two questions and the
-// answers are short: is the guard the one the routes claim, and does the
-// response carry the shape the frontend reads. None of them takes a user id, so
-// none can have the hole the other five had - which is worth demonstrating
-// rather than asserting in a comment.
-//
-// No advisory lock: none of these writes a table another file touches. Nothing
-// here creates a row at all, so there is nothing to escape - the last test
-// proves that rather than assuming it.
+// The reference-data surfaces, over real HTTP: refiners, spots, reviews and rates — one file because they ask the same two questions (is the guard right, does the response carry the right shape), and none takes a user id, so none can have the hole the other five had.
+// No advisory lock: nothing here writes, which the last test proves rather than assumes.
 import test, { after, before } from "node:test";
 import assert from "node:assert/strict";
 import request from "supertest";
@@ -20,9 +10,7 @@ import { inPinnedTransaction, outside } from "#shared/testing/pinned-pool.ts";
 await mockSessions();
 const { default: app } = await import("#app");
 
-// THE STRUCTURAL SUBSET EACH FIXTURE ACTUALLY HAS. These are SELECT
-// projections, not table rows - naming a row type would claim columns the
-// query never asked for.
+// SELECT projections, not table rows — naming a row type would claim columns the query never asked for.
 type UserFixture = { id: string; name: string | null; email: string | null };
 type Caller = UserFixture & { role: string };
 
@@ -45,8 +33,7 @@ after(async () => {
   await pool.end();
 });
 
-// Refiners: admin-only. Converted 2026-08-27 - the frontend reads the nested
-// organization from @dorado/contracts.
+// Refiners: admin-only. The frontend reads the nested organization from @dorado/contracts.
 test("refiners are admin-only and come back nested", async () => {
   await inPinnedTransaction(async () => {
     await as(customer, async () => {
@@ -83,8 +70,7 @@ test("spot prices answer a signed-out visitor and take nothing from the request"
       assert.ok(Array.isArray(res.body) && res.body.length > 0);
 
       const s = res.body[0];
-      // Spots is converted (2026-08-27): the feed serves the schema's own
-      // names now, and this cross-feature smoke check follows it.
+      // Spots is converted: the feed serves the schema's own names now, and this cross-feature smoke check follows it.
       for (const field of ["name", "bid", "ask"]) {
         assert.ok(field in s, `the spot response is missing ${field}`);
       }
@@ -116,10 +102,7 @@ test("public reviews are filtered, and the admin ones are refused", async () => 
         ["post", "/api/reviews/update", { review: {} }],
         ["delete", "/api/reviews/delete", { review_id: null }],
       ] as Array<["get" | "post" | "delete", string, Record<string, unknown>]>) {
-        // The tuple type above is not decoration: inferred, the element type
-        // collapses to a union of string and the body shapes, and
-        // `request(app)[verb]` then indexes SuperTest with something that is
-        // not one of its methods.
+        // The tuple type above is not decoration: inferred, the element type collapses to a union, and `request(app)[verb]` then indexes SuperTest with something that isn't one of its methods.
         const res = await request(app)[verb](path).send(body);
         assert.equal(res.status, 403, `${path} answered ${res.status} to a customer`);
       }
@@ -146,9 +129,7 @@ test("the public rate bands omit what the admin ones return", async () => {
   });
 });
 
-// Nothing here writes, so nothing can have escaped. Asserted with a count taken
-// before and after rather than assumed, because "this file does not write" is
-// exactly the sort of claim that stops being true when somebody adds a test.
+// Nothing here writes — asserted with a count taken before and after rather than assumed, since "this file does not write" is exactly the claim that stops being true when somebody adds a test.
 test("this file wrote nothing at all", async () => {
   const [{ n }] = await outside(
     `SELECT (SELECT count(*) FROM reviews.reviews)

@@ -1,14 +1,5 @@
-// refiners.items, and nothing else.
-//
-// What the refinery reported for an order line: what came back once the scrap
-// was melted, as against what the customer declared. One row per
-// purchase-order line since 064, and every value is null until a refiner
-// reports.
-//
-// ADMIN-ONLY. These are the assay actuals and a customer read must not carry
-// them. The service decides - the two order reads differ by exactly whether
-// they call this - and that is a better place for the decision than a boolean
-// threaded through a projection.
+// refiners.items, and nothing else — the refiner's counterpart to a customer line: what came back once scrap was melted vs what the customer declared, one row per line, null until a refiner reports.
+// ADMIN-ONLY: these are assay actuals and a customer read must not carry them; the service decides by whether it calls this at all.
 import query from "#shared/db/query.ts";
 import { buildUpdate } from "#shared/db/patch.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
@@ -29,9 +20,7 @@ export async function getForItems(
   return rows;
 }
 
-// GET /orders/:orderId/refiners/items - every refiner row on one order,
-// verbatim. See sql/get_for_order.sql for why this is its own read rather
-// than three fields smeared onto the order's lines.
+// GET /orders/:orderId/refiners/items — every refiner row on one order, verbatim; see sql/get_for_order.sql for why this stays its own read.
 export async function getForOrder(
   order_id: string, executor?: Executor
 ): Promise<RefinerItemRow[]> {
@@ -45,19 +34,13 @@ export async function byOrderItem(
 ): Promise<Map<string, RefinerItemRow>> {
   const rows = await getForItems(order_item_ids, executor);
   const out = new Map<string, RefinerItemRow>();
-  // The first wins. The relationship is one-to-one since 064, so a second row
-  // for one line is data that should not exist rather than a case to handle.
+  // The first wins — the relationship is one-to-one, so a second row for one line is data that should not exist rather than a case to handle.
   for (const r of rows) if (!out.has(r.order_item_id)) out.set(r.order_item_id, r);
   return out;
 }
 
-// The refiner's own premium for a line. Ours lives on orders.items; theirs
-// lives here - see sql/set_premium.sql for why the two were split.
-// EVERY CUSTOMER LINE GETS ITS REFINER COUNTERPART - 093's mirror completion,
-// applied to new traffic. Values stay NULL until the refiner reports (the
-// shape 064 chose); bullion_id, metal_id and quantity ride over from the line;
-// refiner_order_id links the row to the order's engagement. Idempotent: a line
-// that already has its counterpart is left alone.
+// Every customer line gets its refiner counterpart: values stay NULL until the refiner reports; bullion_id/metal_id/quantity ride over from the line; refiner_order_id links to the order's engagement.
+// Idempotent — a line that already has its counterpart is left alone.
 export async function mirrorLinesForOrder(
   order_id: string, executor?: Executor
 ): Promise<void> {
@@ -73,19 +56,8 @@ export async function mirrorLinesForOrder(
   );
 }
 
-// ONE UPDATE (D212's CRUD ruling): replaces setAssay and setPremium, which
-// were the same UPDATE on the same table under two names. Keyed on
-// order_item_id, the line's own id and the only key every caller holds - this
-// table's own `id` never leaves it.
-//
-// content is COMPUTED BY THE CALLER (domain/orders/service.ts's
-// updateScrapItem), never derived here - same rule set_assay.sql always had.
-//
-// THE KNOWN LIMIT IS FIXED. This header recorded that COALESCE($n, col) could
-// not tell "leave this column alone" from "clear it to null", that every column
-// here is nullable, and that a genuine clear was therefore unavailable. The
-// statement is built from the keys the patch carries now (shared/db/patch.ts):
-// omit a column and it is untouched, send it as null and it clears.
+// Keyed on order_item_id — the line's own id and the only key every caller holds; this table's own `id` never leaves it.
+// content is computed by the caller (domain/orders/service.ts), never derived here; omit a column to leave it untouched, send null to clear it (shared/db/patch.ts).
 export const PATCHABLE = [
   "pre_melt", "post_melt", "purity", "content", "premium",
 ] as const;

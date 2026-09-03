@@ -1,7 +1,4 @@
--- The payouts of several orders at once. Same native composition and the same
--- last-four-only projection - see get_for.sql, which carries the reasoning.
--- This is the one the composed order read batches through, so it is the
--- statement that decides whether an order shows its payout at all.
+-- The payouts of several orders at once. Same last-four-only projection as get_for.sql - the composed order read batches through this.
 SELECT d.id,
        d.user_id,
        t.order_id,

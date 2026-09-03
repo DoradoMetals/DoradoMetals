@@ -5,9 +5,7 @@ import { refusedUnknownField, refusedValue, type Refusal } from "#shared/http/pa
 import { refuseWith } from "#shared/http/refuse.ts";
 import { RefinerOrderPatch } from "@dorado/contracts";
 
-// SHAPE VALIDATION, ONCE, HERE (moved from domain/refiners/orders/service.ts -
-// Jacob's transport-boundary ruling): the service now receives an already-
-// validated RefinerOrderPatch and checks RULES only.
+// Shape validation happens once, here: the service now receives an already-validated RefinerOrderPatch and checks RULES only.
 const FIELDS = Object.keys(RefinerOrderPatch.shape);
 
 export function refusedField(body: Record<string, unknown>): Refusal | null {
@@ -54,10 +52,4 @@ export const getRefinerOrderByOrder = asyncHandler(async (req, res) => {
   return res.json(engagement);
 });
 
-// GET /api/orders/:orderId/refiners/spots MOVED to
-// features/refiners/spots/controller.ts (ruling 26c - the handler lives with
-// the table it reads). The path is unchanged and still declared by
-// features/orders/routes.ts.
-
-// GET /api/orders/:orderId/refiners/items MOVED to
-// features/refiners/items/controller.ts (ruling 26c). The path is unchanged.
+// GET /api/orders/:orderId/refiners/spots and .../refiners/items have their handlers in refiners/spots/controller.ts and refiners/items/controller.ts (each owns its own table); the paths are unchanged, still declared by features/orders/routes.ts.

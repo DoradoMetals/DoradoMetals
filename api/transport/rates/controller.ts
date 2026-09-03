@@ -1,16 +1,6 @@
 // HTTP in, HTTP out. No database, no composition, no business rules.
-//
-// EVERY BODY IS PARSED AGAINST THE CONTRACT, IN STRICT MODE. Unknown keys and
-// wrong types are a 400 here, before the service ever runs.
-//
-// created_by/updated_by are OMITTED from both schemas below, not merely
-// optional: RateInput already declared them optional, and a caller naming one
-// is a 400, the same as any other unknown field. `user_name` is still accepted
-// and is ignored. The public.audit_stamp trigger is now the ONLY writer of
-// those columns, taking the author off the connection (migration 116,
-// shared/http/actor.ts). The patch schema derives from the same contract
-// export via `.omit`/`.partial`, not hand-written, so rates has no coverage
-// gap.
+// Every body is parsed against the contract in strict mode: unknown keys and wrong types are a 400 before the service runs.
+// created_by/updated_by are omitted, not merely optional - naming one is a 400. public.audit_stamp is now the only writer of those columns.
 import { z } from "zod/v4";
 import { RateInput } from "@dorado/contracts";
 import { parseStrict, uuidLike } from "#shared/http/validate.ts";
@@ -56,8 +46,7 @@ export const createRate = asyncHandler(async (req, res) => {
   return res.status(200).json(rate);
 });
 
-// TAKES rate_id AND A PATCH - the client sends the id it already holds plus
-// only the fields that changed, not the whole row it read earlier.
+// Takes rate_id and a patch - only the changed fields, not the whole row.
 export const updateRate = asyncHandler(async (req, res) => {
   const body = parseStrict(UpdateBody, req.body, "rates/update body");
   const rate = await rateService.updateRate(body.rate_id, body.patch ?? {});

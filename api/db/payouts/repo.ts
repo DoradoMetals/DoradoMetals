@@ -1,37 +1,7 @@
 // A payout is an ACCOUNT plus a FEE, and since D213 both are read natively:
 // the account from payments.details, the fee from orders.transactions. READ
-// ONLY, and only the last four digits.
-//
-// *** WHY THIS MOVED. *** These projections read exchange.payouts until
-// 2026-09-02. D210 sealed new accounts into payments.details and D212 stopped
-// exchange receiving payout writes, so every order created after the purge had
-// no exchange row and this feature answered nothing for it - the composed
-// order served an all-null payout and priced the fee as 0. Migration 114
-// carried the two last-four values across so the move loses no value.
-//
-// THE FULL NUMBERS ARE STILL RADIOACTIVE, and no statement in this file selects
-// one. The last-four columns are the only bank values here. The full numbers
-// live in payments.details as AES-256-GCM envelopes and are opened in exactly
-// one place, payments/details' `decryptFor`, behind the admin details endpoint.
-//
-// *** THE PLAINTEXT READS ARE GONE. *** getDetails and getDetailsByOrder used
-// to `SELECT routing_number, account_number FROM exchange.payouts`, which was
-// the last live read of a plaintext bank number anywhere in this codebase.
-// scripts/encrypt-payout-details.ts seals those values into payments.details
-// instead; it has been run against dev (which holds no bank numbers at all, so
-// it sealed nothing and said so), and PRODUCTION IS JACOB'S TO RUN, in the
-// pg_dump -> migrate -> backfill -> verify sequence.
-//
-// THE ORDER WITHIN THAT SEQUENCE MATTERS HERE, measured read-only against
-// production on 2026-09-03: the script joins payments.details to
-// exchange.payouts ON id, and TODAY that join resolves ZERO of production's 62
-// payouts, because all 56 of its payments.details rows are January residue and
-// not one shares an id with a payout. 073 is what gives a backfilled details
-// row its payout's own id, and 073 has never run there. So the fourteen
-// plaintext payouts reach this endpoint only after 071 + 073 + encrypt:payouts,
-// in that order; until then this read answers their bank numbers as null. No
-// exchange row moves either way - the rows stay exactly where they are, as the
-// covenant requires.
+// ONLY, and only the last four digits - the full numbers are still
+// radioactive and no statement in this file selects one.
 //
 // There is no write path here on purpose. The account is written by
 // features/payments/details (sealed, D210) and the fee by
@@ -43,10 +13,7 @@ import type { Executor } from "#shared/db/executor.ts";
 
 const sql = sqlFrom(import.meta.dirname);
 
-// account_last4 and routing_last4, NEVER account_number or routing_number. The
-// type says so as much as the statement does. `id` is the payments.details id -
-// equal to the old payout id on any database built by 073, which gave each
-// backfilled row the payout's own id.
+// account_last4 and routing_last4 only, never account_number or routing_number. `id` is the payments.details id, equal to the old payout id on any database built by migration 073.
 export type PayoutRow = {
   id: string;
   user_id: string | null;
@@ -77,9 +44,7 @@ export async function getMany(
   return rows;
 }
 
-// One payout by its OWN id - what PATCH /api/payouts/:id resolves before
-// dispatching its order-keyed writes. Same projection discipline as getFor:
-// last-4 only, the full numbers never leave Postgres on this path.
+// One payout by its own id - what PATCH /api/payouts/:id resolves before dispatching its order-keyed writes.
 export async function getById(
   id: string, executor?: Executor
 ): Promise<PayoutRow | undefined> {

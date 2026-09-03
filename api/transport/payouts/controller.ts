@@ -6,20 +6,12 @@ import * as payoutsService from "#domain/payouts/service.ts";
 //
 // THE ONE DEVIATION FROM "VERBATIM" IS SECURITY, and it is ruling 12's single
 // non-negotiable carve-out: the full routing and account numbers are not
-// columns of this read at all. It projects the two last-four values, which is
-// what the panel renders; the full numbers have exactly one endpoint,
-// GET /payouts/:id/details, admin-only, one payout at a time.
-//
-// ONE READ SINCE D213. This used to ask the legacy table first and fall back to
-// the native composition for a D210 order, which meant the answer depended on
-// which era the order was created in - and every order created after the purge
-// fell through the first read silently. getMany is native now and answers both,
-// so there is no era to branch on.
+// columns of this read at all. It projects the two last-four values; the
+// full numbers have exactly one endpoint, GET /payouts/:id/details.
 //
 // A LIST, NOT A SLOT. The composed order carried a `payout` member that was
-// an OBJECT OF NULLS whenever the order had none, because a LEFT JOIN fed a
-// jsonb_build_object; an order with no payout answers [] here, which is a
-// shape rather than a workaround. Admin-only, like the write it feeds.
+// an OBJECT OF NULLS whenever the order had none - an order with no payout
+// answers [] here, which is a shape rather than a workaround.
 export const getPayoutsByOrder = asyncHandler(async (req, res) => {
   return res.json(await payoutsService.getPayoutsByOrder(param(req, "orderId")));
 });
@@ -35,9 +27,7 @@ export const patchPayout = asyncHandler(async (req, res) => {
 // GET /api/payouts/:id/details - the full bank numbers, admin only, payout-
 // keyed (the payments.details id the order wire serves as payout.id). The
 // RADIOACTIVE rule is absolute: details exist only on this endpoint and never
-// in an order payload. The numbers come out of the AES-256-GCM envelopes on
-// payments.details; the plaintext read of exchange.payouts that used to answer
-// first is gone.
+// in an order payload.
 export const getPayoutDetails = asyncHandler(async (req, res) => {
   const details = await payoutsService.getDetails(param(req, "id"));
   if (!details) {

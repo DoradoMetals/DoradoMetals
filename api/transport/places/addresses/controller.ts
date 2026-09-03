@@ -5,30 +5,15 @@ import { asyncHandler } from "#shared/middleware/asyncHandler.ts";
 import * as addressService from "#domain/places/addresses/service.ts"
 import type { ComposedAddress } from "#domain/places/addresses/compose.ts";
 
-// WHOSE ADDRESS BOOK. Every one of these took user_id out of the request -
-// oneString(req.query.user_id) on the read, req.body.user_id on the writes - behind
-// requireUser, and nothing asked whether it was the caller's. So a signed-in
-// customer naming somebody else's id could read their address book, and create,
-// edit, delete or re-default an address in it. Addresses are names, street
-// addresses and phone numbers.
-//
-// Same shape as the order routes and the cart: an id taken from the request
-// with nothing asking whose it is.
-//
-// An ADMIN may legitimately name another user - frontend/features/addresses/
-// queries.ts has useUserAddress(userId) with requireAdmin, for the customer
-// drawer - so the rule is "your own, unless you are an admin", exactly as
-// shared/middleware/ownership.js treats an order.
+// WHOSE ADDRESS BOOK: every one of these took user_id from the request behind requireUser with nothing checking whose it was - a customer naming somebody else's id could read, edit, delete or re-default their address book.
+// An ADMIN may legitimately name another user (the customer drawer does) - so the rule is "your own, unless you are an admin".
 const subjectOf = (req: Request): string => {
   const named = req.body?.user_id ?? req.query?.user_id;
   if (req.user?.role === "admin" && named) return named;
   return callerId(req);
 };
 
-// THE WIRE KEEPS THE TWO THINGS APART (2026-08-27). Internally the service
-// still composes an address with its link where that is convenient; at this
-// edge the composition is taken back apart, because a user_address inside an
-// address entity is exactly the smearing the new schema exists to end.
+// The wire keeps the two things apart: the service composes an address with its link internally, but a user_address inside an address entity is exactly the smearing the new schema exists to end.
 const split = (c: ComposedAddress) => ({
   address: {
     id: c.id,

@@ -1,15 +1,5 @@
-// THE REFINERY'S QUOTED SPOTS: refiners.spots.
-//
-// Its own resource (ruling 26c). The rows belong to the ENGAGEMENT
-// (refiners.orders) since 093 - order_item_id and order_id stay only as the
-// link back to the customer's line - so a read keyed by the CUSTOMER order id
-// resolves the engagement first and then reads this table. That resolution is
-// the server's, in the WHERE clause (ruling 12); nothing nests on the wire.
-//
-// NO routes.ts: the one path this resource has, GET
-// /api/orders/:orderId/refiners/spots, is declared by features/orders/routes.ts
-// because the order id is the key the caller holds. The HANDLER is
-// controller.ts here, because this feature owns the table.
+// The refinery's quoted spots (refiners.spots) — its own resource, keyed by the ENGAGEMENT (refiners.orders); a read by the CUSTOMER order id resolves the engagement first, in the WHERE clause, so nothing nests on the wire.
+// NO routes.ts: its one path, GET /api/orders/:orderId/refiners/spots, is declared by orders/routes.ts (the order id is the key the caller holds); the HANDLER lives in controller.ts here, because this feature owns the table.
 import * as refinerOrdersRepo from "#db/refiners/orders/repo.ts";
 import * as refinerSpotsRepo from "#db/refiners/spots/repo.ts";
 import type { EngagementSpotRow } from "#db/refiners/spots/repo.ts";
@@ -19,9 +9,7 @@ type Executor = PoolClient | undefined;
 
 export type { EngagementSpotRow, RefinerSpotRow } from "#db/refiners/spots/repo.ts";
 
-// NULL means "that order has no engagement" - a 404 - as distinct from [],
-// which means "the engagement exists and has quoted nothing yet". Collapsing
-// the two would tell a caller an engagement exists when it does not.
+// NULL means "that order has no engagement" (404), distinct from [] ("the engagement exists but has quoted nothing yet") — collapsing the two would claim an engagement that doesn't exist.
 export async function forOrder(
   order_id: string, executor?: Executor
 ): Promise<EngagementSpotRow[] | null> {

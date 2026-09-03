@@ -1,14 +1,5 @@
-// places.addresses, and nothing else.
-//
-// A postal address with no owner - somewhere on earth. Whose address book it is
-// in is places.user_addresses, and that is what lets an order snapshot an
-// address without copying whose it was, and lets two people share a building.
-//
-// NO PLAIN list(). Every caller either has one id (getOne), a batch of ids from
-// a user's links (getMany), or is snapshotting one row (snapshot) - there is no
-// "every address" screen, and a postal address has no natural parent to key
-// listFor() on (ownership lives in places.user_addresses, whose own repo
-// exposes listFor(userId)).
+// places.addresses, and nothing else - a postal address has no owner (places.user_addresses owns that link).
+// NO PLAIN list(): every caller has one id (getOne), a batch (getMany), or is snapshotting one row.
 import query from "#shared/db/query.ts";
 import { buildUpdate } from "#shared/db/patch.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
@@ -19,12 +10,7 @@ const sql = sqlFrom(import.meta.dirname);
 
 export type AddressRow = places.AddressesRow;
 
-// Optional on every field (not just nullable): this is the shape the service
-// receives from the caller and passes straight through, and a field the
-// caller did not send is simply absent rather than defaulted to null by hand -
-// the driver binds undefined the same way. An extra `id` on the object (the
-// service's AddressInput carries one for update) is harmless; only these
-// fields are ever read.
+// Optional, not just nullable: an omitted field binds as undefined, same as omitting it; an extra `id` is harmless, only these fields are read.
 export type NewAddress = {
   line_1?: string | null;
   line_2?: string | null;
@@ -36,24 +22,7 @@ export type NewAddress = {
   phone_number?: string | null;
 };
 
-// THE ONE UPDATE, SERVING TWO CALLERS WITH GENUINELY DIFFERENT COLUMNS.
-//
-// A postal edit patches the eight address fields plus is_residential (always
-// reset to false - see service.ts); address validation patches only is_valid
-// and is_residential. Both used to be separate repo functions and separate
-// statements (update / updateValidation); one dynamic statement now covers
-// both, because "which columns does this write" is a property of the CALLER's
-// patch object, not of the repo. A key ABSENT from the patch is not touched at
-// all (validation never touches the postal fields); a key PRESENT with value
-// null clears that column (an edit can blank line_2). That is why this is
-// built as "which columns are in the patch", never COALESCE - COALESCE cannot
-// tell "omitted" from "explicitly null", and clearing line_2 needs that
-// distinction to keep working.
-//
-// THAT ARGUMENT WON: shared/db/patch.ts is this statement, extracted, and
-// leads, reviews, rates, products and organizations build theirs with it now.
-// updated_at left the SET list with the move - public.audit_stamp writes it
-// (migration 116).
+// One dynamic UPDATE serving two callers with different columns: a key ABSENT from the patch is untouched, a key PRESENT as null clears it - COALESCE can't tell those apart.
 export const PATCHABLE = [
   "line_1", "line_2", "city", "state", "country", "zip",
   "country_code", "phone_number", "is_valid", "is_residential",
@@ -72,9 +41,7 @@ export async function getMany(ids: string[], executor?: Executor): Promise<Addre
   return rows;
 }
 
-// is_valid TRUE and is_residential FALSE are LITERALS, not caller-supplied -
-// which is what the create this replaces did. Address validation sets the real
-// values afterwards through update().
+// is_valid TRUE and is_residential FALSE are literals, not caller-supplied; validation sets the real values afterwards through update().
 export async function create(
   id: string, row: NewAddress, executor?: Executor
 ): Promise<AddressRow> {
@@ -125,9 +92,7 @@ export async function remove(id: string, executor?: Executor): Promise<boolean> 
   return r.rowCount === 1;
 }
 
-// A frozen copy of the address as it is NOW - the row an order records so
-// later edits to the book cannot rewrite where a parcel went. Returns null
-// when the source does not exist; the caller decides whether that refuses.
+// A frozen copy of the address as it is now, so later edits can't rewrite where a parcel went. Returns null when the source doesn't exist; the caller decides whether that refuses.
 export async function snapshot(
   address_id: string, executor?: Executor
 ): Promise<string | null> {

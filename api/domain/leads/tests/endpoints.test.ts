@@ -1,14 +1,6 @@
 // Leads over real HTTP, through the router the app actually mounts.
-//
-// This is the test that proves the restructure is invisible: same paths, same
-// guards, same response shapes as the implementation it replaces. It drives the
-// stack end to end - route, guard, controller, service, both repos - because
-// the thing worth checking is that the dual write happens inside one
-// transaction, and nothing below the service can tell you that.
-//
-// NOTHING IS COMMITTED. shared/testing/pinned-pool.js holds every query in one
-// transaction that is rolled back, including the service's own withTransaction,
-// which becomes a savepoint inside it.
+// Drives the stack end to end - route, guard, controller, service, repo - because nothing below the service can tell you the write happens inside one transaction.
+// Nothing is committed: pinned-pool.ts rolls back every query, including the service's own withTransaction as a savepoint inside it.
 import test, { before } from "node:test";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
@@ -31,8 +23,7 @@ before(async () => {
   assert.ok(customer, "dev has no non-admin user");
 });
 
-// Named, not spread: the fixture is only ever id/name/email plus the role the
-// call is exercising.
+// Named, not spread: the fixture is only ever id/name/email plus the role the call is exercising.
 const asAdmin = <T>(fn: () => Promise<T> | T) =>
   as({ id: admin.id, name: admin.name, email: admin.email, role: "admin" }, fn);
 const asCustomer = <T>(fn: () => Promise<T> | T) =>
@@ -100,9 +91,7 @@ test("update writes the row, and delete removes it", async () => {
   });
 });
 
-// The old implementation answered 200 with an empty body for an id that named
-// nothing, which reaches the client as undefined and is indistinguishable from
-// a lead with no fields.
+// A 200 with an empty body for an id that names nothing is indistinguishable from a lead with no fields.
 test("an id that names no lead is 404, not an empty 200", async () => {
   await inPinnedTransaction(async () => {
     await asAdmin(async () => {

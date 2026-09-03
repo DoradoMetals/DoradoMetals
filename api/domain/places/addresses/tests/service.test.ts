@@ -1,18 +1,5 @@
-// Addresses through the service, against real Postgres.
-//
-// An address is two rows in the new schema - places.addresses, which is
-// somewhere on earth, and places.user_addresses, which is one person's
-// relationship to it - plus one flat row in exchange, and all three are written
-// together.
-//
-// THE ONE TO GET RIGHT IS OWNERSHIP. exchange scoped every write in the
-// statement (`WHERE id = $1 AND user_id = $2`) because the address carried its
-// owner. places.addresses has no user_id, so the check moved into service.ts,
-// and if it were ever lost the exchange statement would still refuse while the
-// new schema accepted - leaving the two disagreeing about a stranger's address.
-// Several of these exist only to notice that.
-//
-// Each test runs inside a transaction that is rolled back.
+// Addresses through the service, against real Postgres. An address is two rows: places.addresses (somewhere on earth) and places.user_addresses (one person's relationship to it).
+// Ownership is the one to get right: places.addresses has no user_id, so the check moved into service.ts. Several tests below exist only to prove it's still there.
 import test, { after, before } from "node:test";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
@@ -54,8 +41,7 @@ async function inRollback(fn: (c: PoolClient) => Promise<void>) {
   }
 }
 
-// The two halves as the service takes them since the split (2026-08-28):
-// the postal address and the caller's relationship, siblings, one call.
+// The two halves as the service takes them: the postal address and the caller's relationship, siblings, one call.
 const draft = (over: Record<string, unknown> = {}, ua: Record<string, unknown> = {}) => ({
   address: {
     line_1: "1 Test Street",
@@ -94,8 +80,7 @@ test("create writes the address and its link under one id", async () => {
   });
 });
 
-// A new address is born valid and non-residential as literals, not from the
-// caller. Address validation sets the real ones afterwards.
+// A new address is born valid and non-residential as literals, not from the caller; validation sets the real ones afterwards.
 test("a new address is valid and non-residential until validation says otherwise", async () => {
   await inRollback(async (c: PoolClient) => {
     const made = await service.create({ ...draft(), userId: owner }, c);
@@ -121,11 +106,7 @@ test("the list is that person's addresses, defaults first", async () => {
     const rows = await service.list(owner, c);
     assert.ok(rows.length >= 2);
 
-    // NOT `rows[0].id === marked.id`. That was the first version and it was
-    // flaky by construction: the owner may already HAVE a default address in
-    // dev, and the tiebreak among defaults is the id - which is a random uuid
-    // here, so it won a coin toss most of the time. What the sort actually
-    // promises is that every default precedes every non-default.
+    // Not `rows[0].id === marked.id` - flaky by construction, since the tiebreak among defaults is a random id. What the sort promises is every default precedes every non-default.
     const marks = rows.map((r) => r.user_address.default_shipping === true);
     assert.equal(marks.indexOf(false) === -1 || marks.lastIndexOf(true) < marks.indexOf(false),
       true, "a non-default address sorted above a default one");
@@ -134,8 +115,7 @@ test("the list is that person's addresses, defaults first", async () => {
       "the address just marked default did not sort among the defaults"
     );
 
-    // Every row is this user's, and every one carries the nested object the
-    // wire adapter flattens.
+    // Every row is this user's, and every one carries the nested object the wire adapter flattens.
     for (const row of rows) {
       assert.equal(row.user_address.user_id, owner);
       assert.deepEqual(Object.keys(row.user_address).sort(),
@@ -144,9 +124,7 @@ test("the list is that person's addresses, defaults first", async () => {
   });
 });
 
-// An address with no user_addresses row is a snapshot taken for an order, not
-// something in anyone's book. exchange's list would never have returned it and
-// neither does this - an inner join by another name.
+// An address with no user_addresses row is a snapshot taken for an order, not something in anyone's book - an inner join by another name.
 test("an address with no link is not in anybody's list", async () => {
   await inRollback(async (c: PoolClient) => {
     const id = randomUUID();
@@ -161,8 +139,7 @@ test("an address with no link is not in anybody's list", async () => {
   });
 });
 
-// getFromId returns a LIST and getAddressFromId returns a ROW. Both call sites
-// depend on which is which - see features/orders/tests/address-state.test.ts.
+// getFromId returns a list and getAddressFromId returns a row - call sites depend on which is which.
 test("getFromId returns a list and getAddressFromId returns the row", async () => {
   await inRollback(async (c: PoolClient) => {
     const made = await service.create({ ...draft(), userId: owner }, c);
@@ -203,9 +180,7 @@ test("update changes the address and its link", async () => {
   });
 });
 
-// THE CHECK THAT MOVED OUT OF THE STATEMENT. A stranger must not be able to
-// rewrite an address by id - places.addresses has no user_id to scope on, so
-// the service's ownership check is the only guard.
+// A stranger must not be able to rewrite an address by id - places.addresses has no user_id to scope on, so the service's ownership check is the only guard.
 test("a stranger cannot update somebody else's address", async () => {
   await inRollback(async (c: PoolClient) => {
     const made = await service.create({ ...draft(), userId: owner }, c);
@@ -254,17 +229,12 @@ test("deleting removes the link and the address", async () => {
   });
 });
 
-// An address an order snapshotted must survive leaving somebody's book, or the
-// order loses where it went.
+// An address an order snapshotted must survive leaving somebody's book, or the order loses where it went.
 test("an address an order points at survives being removed from a book", async () => {
   await inRollback(async (c: PoolClient) => {
     const made = await service.create({ ...draft(), userId: owner }, c);
 
-    // orders.addresses is a LINK, not a copy of the fields: it records the
-    // snapshot the order took (address_id) and the address book row that
-    // snapshot came from (source_address_id). It also carries
-    // `addresses_one_per_order`, so this points an EXISTING row at our address
-    // rather than inserting a second one for the same order.
+    // orders.addresses is a link, not a copy: address_id is the snapshot, source_address_id is the book row it came from. `addresses_one_per_order` means this points the EXISTING row rather than inserting a second one.
     const { rows: [orderLink] } = await c.query(
       "SELECT id FROM orders.addresses LIMIT 1"
     );
@@ -291,22 +261,7 @@ test("an address an order points at survives being removed from a book", async (
 
 test("setting a default clears the others", async () => {
   await inRollback(async (c: PoolClient) => {
-    // THE CALL WAS MIS-SHAPED, AND IT MADE THIS TEST VACUOUS.
-    //
-    // `draft()` returns `{ address, user_address }`, and the ten other call
-    // sites in this file spread it - `{ ...draft(), userId }`. These two wrapped
-    // it AGAIN, as `{ address: draft(), userId }`, so the service received an
-    // `address` with no address columns at all and NO `user_address`, which
-    // means `default_shipping` defaulted to false. `default_shipping: true` was
-    // also passed in draft()'s FIRST argument, which is the address overrides -
-    // so it landed as a stray key on the address object and never reached the
-    // service either.
-    //
-    // The consequence: `first` was never the default, so "setting a default
-    // clears the others" cleared nothing, and the closing assertion - "the
-    // address that used to be the default is still one" - was true because it
-    // never was one. TypeScript named it at once: AddressInput "has no
-    // properties in common with" the wrapper.
+    // A mis-shaped call here once made this test pass vacuously - `draft()` must be spread (`{ ...draft(), userId }`), not wrapped again, or default_shipping never reaches the service and "clears the others" clears nothing.
     const first = await service.create(
       { ...draft({}, { label: "a", default_shipping: true }), userId: owner }, c
     );
@@ -318,8 +273,7 @@ test("setting a default clears the others", async () => {
       `SELECT address_id, default_shipping, default_billing
          FROM places.user_addresses WHERE user_id = $1`, [owner]
     );
-    // Two were just created. An empty nx means neither write landed - the exact
-    // failure this test exists to catch - so it must not pass vacuously.
+    // An empty nx means neither write landed - the exact failure this test exists to catch.
     assert.ok(nx.length >= 2, "the addresses just created are not in the book");
     for (const row of nx) {
       const expected = row.address_id === second.id;

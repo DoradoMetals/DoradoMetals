@@ -1,16 +1,11 @@
 // Leads: orchestration and the wire shape.
 //
-// A service may call any repo; a repo may touch only its own table.
-//
-// update TAKES AN ID AND A PATCH, never a round-tripped row - the client holds
-// the id from a prior read and sends only what changed. The repo answers
-// whether a row changed; this refetches the row so the response still carries
-// the fresh state the caller expects.
+// update takes an id and a patch, never a round-tripped row; it refetches after so the response still carries fresh state.
 import withTransaction from "#shared/db/withTransaction.ts";
 import * as leads from "#db/leads/repo.ts";
 import type { LeadRow, NewLead, LeadPatch } from "#db/leads/repo.ts";
 
-// The wire IS the row - the identity adapter died with D212.
+// The wire IS the row - no identity adapter.
 export type LeadWire = LeadRow;
 
 interface HttpError extends Error {
@@ -25,9 +20,7 @@ const notFound = (id: string): HttpError => {
 
 export async function getOne(id: string): Promise<LeadWire> {
   const row = await leads.getOne(id);
-  // A missing lead is a 404, not a 200 carrying undefined. The old
-  // implementation answered `200 undefined`, which reaches the client as an
-  // empty body and is indistinguishable from a lead with no fields.
+  // A missing lead is a 404, not a 200 carrying undefined - the latter reaches the client as an empty body, indistinguishable from a lead with no fields.
   if (!row) throw notFound(id);
   return row;
 }
@@ -52,8 +45,7 @@ export async function update(id: string, patch: LeadPatch): Promise<LeadWire> {
   });
 }
 
-// Answers whether a row went, so the controller can 404 rather than report
-// success for an id that was never there.
+// Answers whether a row went, so the controller can 404 rather than report success for an id that was never there.
 export async function remove(id: string): Promise<boolean> {
   return withTransaction(async (client) => {
     return await leads.remove(id, client);

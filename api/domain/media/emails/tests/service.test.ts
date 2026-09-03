@@ -1,21 +1,5 @@
-// What actually goes out when the app sends mail.
-//
-// 119 lines with no test, sending the two messages a customer receives - the
-// order confirmation with its packing list, the offer acceptance with its
-// invoice - and the one a refiner receives. Every one carries a PDF built from
-// the order, so a wrong attachment is a customer receiving somebody's document
-// or none at all.
-//
-// It had no test because there was no seam: sendEmail built its transport at
-// module load from the environment, and calling it sent real mail. It now takes
-// an optional transport, the way a repo call takes an executor, and these pass
-// one that records the message instead of sending it.
-//
-// The orders come from the repo rather than a fixture, for the same reason as
-// the PDF tests: the input is the wire shape, and a literal would drift from it
-// silently.
-//
-// Read-only. Nothing is sent and nothing is written.
+// What goes out when the app sends mail - each message (order confirmation, pricing notice, refiner's copy) must carry the right PDF attachment, built from the order.
+// sendEmail takes an optional transport (like a repo call takes an executor) so this can record instead of send. Orders come from the repo, not a fixture, so the input stays the real wire shape. Read-only: nothing is sent or written.
 import test, { after, before } from "node:test";
 import assert from "node:assert/strict";
 import pool from "#db";
@@ -28,9 +12,7 @@ import type { RenderableOrder } from "#domain/media/pdfs/render/sections.ts";
 import type { Transport } from "#providers/emails/nodemailer.ts";
 import { formatPurchaseOrderNumber, formatSalesOrderNumber } from "#shared/utils/formatOrderNumbers.ts";
 
-// The renderer's own type: getAllPurchases/getAllSales declare
-// `Record<string, unknown>[]` because read.service.ts discards the composed
-// type at the service boundary.
+// getAllPurchases/getAllSales declare Record<string, unknown>[] because read.service.ts discards the composed type at the boundary.
 type MailOrder = RenderableOrder & {
   id: string;
   user?: { user_email?: string | null; user_name?: string | null } | null;
@@ -49,9 +31,7 @@ before(async () => {
   );
   orders = (await poRepo.getAllPurchases()) as unknown as MailOrder[];
   salesOrders = (await soRepo.getAllSales()) as unknown as MailOrder[];
-  // The composed shape (`name` / `ask` / `bid`): the ORDERS wire converted
-  // (D84), the frontend's mapping edge died with it, and the renderers read
-  // the schema's own spellings off the body.
+  // The composed shape (name/ask/bid) - the renderers read the schema's own spellings directly.
   spots = await spotsService.getSpotPrices();
 });
 
@@ -60,9 +40,7 @@ after(async () => {
   await pool.end();
 });
 
-// Records what it was asked to send. Returning a result matters: nodemailer
-// does, and a test transport that returns undefined would hide a caller that
-// depends on it.
+// Records what it was asked to send; returns a result because nodemailer does, and undefined would hide a caller depending on it.
 function recorder(): Transport & { sent: Message[] } {
   const sent: Message[] = [];
   return {
@@ -74,8 +52,7 @@ function recorder(): Transport & { sent: Message[] } {
   };
 }
 
-// A transport that fails the way a real one does when the credentials are
-// wrong, so a caller swallowing the failure would show up.
+// Fails the way a real transport does on bad credentials, so a caller swallowing the failure would show up.
 function failing() {
   return {
     sendMail: async () => {
@@ -84,12 +61,8 @@ function failing() {
   };
 }
 
-// Returns the order AND the address it is emailed to, guarded once here rather
-// than reached for through two optional levels at every call site. The composed
-// `user` is optional, so an order without one TypeError'd at the send.
-// The attachment body as a PDF check. `Attachment.content` is
-// `string | Buffer | Uint8Array` because a text part is legal there too, so the
-// PDF assertions say which they expect rather than assuming.
+// Returns the order AND its email address, guarded once here rather than at every call site - the composed user is optional, so an order without one TypeErrors at the send.
+// Attachment.content is string | Buffer | Uint8Array (a text part is legal too), so this asserts which kind is expected rather than assuming.
 const startsPdf = (content: string | Buffer | Uint8Array, what: string) => {
   assert.ok(typeof content !== "string", `${what} arrived as text, not bytes`);
   assert.equal(Buffer.from(content.subarray(0, 5)).toString(), "%PDF-", `${what} is not a PDF`);
@@ -107,10 +80,7 @@ test("the order confirmation goes to the customer with its packing list attached
   const { order, email } = anOrderWithAUser();
   const t = recorder();
 
-  // `to` is a parameter now, resolved and authorised by the controller from the
-  // stored order. It used to be read off purchaseOrder.user.user_email, which
-  // made the endpoint an open relay - the body chose the recipient. Passing the
-  // same address here keeps this test asserting exactly what it did before.
+  // `to` is a parameter, resolved and authorised by the controller from the stored order - it used to be read off the body, which made the endpoint an open relay.
   await emails.sendCreatedEmail(
     { purchaseOrder: order, spotPrices: spots, packageDetails: { label: "Medium Box" } },
     email,
@@ -161,9 +131,7 @@ test("the refiner's copy goes to the address it was given, not the customer's", 
   assert.ok(order, "dev has no sales orders");
   const t = recorder();
 
-  // The sales-order renderer declares its own narrower input; the composed
-  // read hands over `Record<string, unknown>`, so the shape is asserted at the
-  // boundary the same way features/media/pdfs/service.ts does.
+  // The sales-order renderer declares a narrower input than the composed read (Record<string, unknown>) - asserted at the boundary, same as media/pdfs/service.ts.
   await emails.sendSalesOrderToSupplier(
     order as unknown as Parameters<typeof emails.sendSalesOrderToSupplier>[0],
     spots,
@@ -182,8 +150,7 @@ test("the refiner's copy goes to the address it was given, not the customer's", 
   );
 });
 
-// A send that fails must fail the caller. Swallowing it would mean an order
-// marked as sent to a refiner who never received it.
+// A send that fails must fail the caller - swallowing it would mean an order marked sent to a refiner who never received it.
 test("a transport failure propagates rather than being swallowed", async () => {
   const { order, email } = anOrderWithAUser();
 
@@ -198,8 +165,7 @@ test("a transport failure propagates rather than being swallowed", async () => {
   );
 });
 
-// The PDF is built before the send, so a document that cannot be built must
-// stop the message rather than send one with nothing attached.
+// The PDF is built before the send - a document that cannot be built must stop the message rather than send one with nothing attached.
 test("nothing is sent when the document cannot be built", async () => {
   const t = recorder();
 

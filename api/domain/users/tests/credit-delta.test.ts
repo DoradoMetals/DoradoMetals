@@ -1,27 +1,12 @@
 // D98: THE LEDGER TAKES {op, amount} AND APPLIES IT AS A DELTA, IN A
-// TRANSACTION, UNDER A ROW LOCK.
-//
-// UsersDrawer computed `(user.dorado_funds ?? 0) +/- amount` in the BROWSER and
-// PUT the absolute result as `mode: 'edit'`. Two problems, on a ledger holding
-// $66,999.32 across 8 customers:
-//
-//   1. It violates ruling 10 - ids in, data out. The server should be told what
-//      to DO, not what the answer is.
-//   2. A LOST UPDATE. Two admins with the drawer open both compute from the
-//      same stale balance; the second write silently discards the first, and
-//      neither sees an error.
-//
-// The delta statement was always there - `COALESCE(dorado_funds, 0) + $1` - so
-// what these pin is the half that was missing: that `op` is accepted, that the
-// server refuses to drive a balance below zero (a check that lived ONLY in the
-// browser), and that the adjustment reports the balance it produced instead of
-// the caller computing it.
+// TRANSACTION, UNDER A ROW LOCK - not an absolute total the browser computed
+// and PUT, which let two admins on a $66,999.32 ledger silently discard each
+// other's write.
 //
 // THE LEDGER ROW EACH ADJUSTMENT NOW WRITES IS PINNED NEXT DOOR, in
-// credit-ledger.test.ts, and deliberately not here: this file COMMITS and puts
-// the balance back afterwards, and a payments.ledger row cannot be "put back" -
-// it is an append-only record. Those assertions run inside a pinned
-// transaction that rolls back instead.
+// credit-ledger.test.ts, and deliberately not here: this file COMMITS and
+// puts the balance back afterwards, and a payments.ledger row cannot be "put
+// back" - it is an append-only record.
 import test, { after, before } from "node:test";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
@@ -30,7 +15,7 @@ import * as usersService from "#domain/users/service.ts";
 import { LOCKS } from "#shared/testing/locks.ts";
 import { outside } from "#shared/testing/pinned-pool.ts";
 
-// THE STRUCTURAL SUBSET THE FIXTURE QUERY ASKS FOR.
+// The structural subset the fixture query asks for.
 type UserFixture = { id: string };
 
 let customer: UserFixture;
@@ -47,41 +32,23 @@ const funds = async (id: string) => {
   return Number(rows[0]?.dorado_funds);
 };
 
-// THIS FILE COMMITS, AND THEN PUTS THE BALANCE BACK.
+// THIS FILE COMMITS, AND THEN PUTS THE BALANCE BACK: adjustDoradoCredit opens
+// its own transaction (the row lock is the point), so a pinned test
+// transaction can't contain it.
 //
-// The concurrency test below needs two genuinely separate connections racing
-// each other, which a pinned single-connection transaction cannot provide -
-// pinning would hand both calls the same client and serialise the thing being
-// measured. So every test here restores the balance it moved and the last one
-// checks from outside that it did.
-//
-// WHAT IT DOES NOT PUT BACK, said plainly: the payments.ledger rows each
-// adjustment now writes. A ledger row is an append-only record of a movement,
-// and "restoring" one would mean deleting rows from a money table to keep a
-// test tidy - which is a worse habit than a few rows on the test database. The
-// balance assertions below are what this file is for; the ledger's own
-// behaviour is pinned in credit-ledger.test.ts, inside a transaction that rolls
-// back.
+// WHAT IT DOES NOT PUT BACK: the payments.ledger rows each adjustment now
+// writes - an append-only record. The ledger's own behaviour is pinned in
+// credit-ledger.test.ts, inside a transaction that rolls back.
 before(async () => {
-  // THE BALANCE LOCK, HELD FOR THE WHOLE FILE - and a SESSION lock, not the
-  // transaction-scoped one every other balance file uses. takeLocks() cannot be
-  // used here: it takes pg_advisory_xact_lock, and THIS FILE HAS NO
-  // TRANSACTIONS of its own - every adjustment commits. A session lock contends
-  // in the same lock space, so it serialises correctly against every file that
-  // takes USERS the ordinary way.
-  //
-  // IT BECAME NECESSARY WHEN THE ADJUSTMENT STARTED LEDGERING. This file
-  // commits real payments.ledger rows for its fixture customer, and
-  // credit-ledger.test.ts counts that customer's rows before and after its own
-  // adjustment - so without the lock the two files raced and the count was off
-  // by however many rows this one had committed in between.
+  // THE BALANCE LOCK, HELD FOR THE WHOLE FILE - a SESSION lock, not the
+  // transaction-scoped one every other balance file uses: this file has no
+  // transactions of its own, and credit-ledger.test.ts counts this same
+  // customer's ledger rows, so without it the two files race.
   lockHolder = await pool.connect();
   await lockHolder.query("SELECT pg_advisory_lock($1)", [LOCKS.USERS]);
 
   // A customer who HAS a balance: against zero, "set to 0" and "left alone"
-  // are indistinguishable. Dev's largest is 10.23, so the amounts below are
-  // sized to that rather than to a round number - the subtraction tests derive
-  // from the balance they read and never assume headroom.
+  // are indistinguishable.
   const rows = await outside<UserFixture>(
     `SELECT id FROM auth.users
       WHERE role IS DISTINCT FROM 'admin' AND dorado_funds > 0
@@ -112,8 +79,7 @@ test("`op` is the spelling, and it adds a DELTA rather than setting a total", as
     user_id: customer.id, op: "add", amount: 25,
   });
   assert.equal(Number(res.dorado_funds).toFixed(6), (before_ + 25).toFixed(6));
-  // AND THE SERVER SAYS WHAT THE BALANCE BECAME. The drawer displayed a number
-  // it had computed itself; this is the number to display instead.
+  // The server says what the balance became, rather than the caller computing it.
   assert.equal(Number(await funds(customer.id)).toFixed(6), (before_ + 25).toFixed(6));
   await restore();
 });
@@ -137,9 +103,7 @@ test("the retired `mode` spelling is refused rather than silently honoured", asy
   assert.equal(Number(await funds(customer.id)).toFixed(6), before_.toFixed(6));
 });
 
-// TWO SEQUENTIAL DELTAS BOTH LAND. This is the property the browser's
-// read-compute-PUT destroyed: with absolute totals, the second call overwrites
-// the first because both were computed from the same starting balance.
+// Two sequential deltas both land - the property absolute totals destroyed, since both would be computed from the same starting balance.
 test("two adjustments in a row both apply, which absolute totals could not guarantee", async () => {
   const before_ = await funds(customer.id);
   await Promise.all([
@@ -154,9 +118,7 @@ test("two adjustments in a row both apply, which absolute totals could not guara
   await restore();
 });
 
-// THE FLOOR WAS ONLY EVER CHECKED IN THE BROWSER. UsersDrawer refuses to submit
-// a subtraction that would go negative; nothing on the server did, and
-// dorado_funds is NOT NULL with no CHECK, so the database would have taken it.
+// The floor used to be checked only in the browser - the column has no CHECK constraint, so the database would have taken a negative balance.
 test("the server refuses to drive a balance below zero", async () => {
   const before_ = await funds(customer.id);
   await assert.rejects(

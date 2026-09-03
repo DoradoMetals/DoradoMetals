@@ -1,11 +1,5 @@
-// The paper trail: every send becomes a row, both outcomes, and the document
-// it carried is a row the record points at.
-//
-// Runs the REAL senders - real order data, real PDF render - with only the
-// transport replaced, exactly like service.test.js beside it. The trail's
-// writes join this file's transaction through the executor seam and roll
-// back; without an executor a test run writes nothing at all (the isTestRun
-// guard in record.ts / store.ts, pinned here so it cannot rot).
+// The paper trail: every send becomes a row (both outcomes), and the document it carried is a row the record points at.
+// Runs the REAL senders with only the transport replaced; writes join this file's transaction via the executor seam and roll back - without one, a test-run send writes nothing (the isTestRun guard, pinned here).
 import test, { after, before } from "node:test";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
@@ -20,9 +14,7 @@ import type { RenderableOrder } from "#domain/media/pdfs/render/sections.ts";
 import type { Transport } from "#providers/emails/nodemailer.ts";
 
 let client: PoolClient;
-// The renderer's own type: getAllPurchases declares
-// `Record<string, unknown>[]` because read.service.ts discards the composed
-// type at the service boundary.
+// getAllPurchases declares Record<string, unknown>[] because read.service.ts discards the composed type at the boundary.
 type MailOrder = RenderableOrder & {
   id: string;
   user?: { user_id?: string; user_email?: string | null; user_name?: string | null } | null;
@@ -36,7 +28,7 @@ let spots: Spot[];
 before(async () => {
   client = await pool.connect();
   orders = (await poRepo.getAllPurchases()) as unknown as MailOrder[];
-  // The composed shape - what the renderers read since D84.
+  // The composed shape - what the renderers read.
   spots = await spotsService.getSpotPrices();
   assert.ok(orders.length > 0, "dev has no purchase orders to render");
 });
@@ -74,10 +66,7 @@ const failing = () => ({
   },
 });
 
-// Returns the order AND the address it is emailed to, so every caller below
-// has a string rather than reaching back through two optional levels for it.
-// Previously each site read `email` afresh, and the composed
-// `user` is optional - so an order without one TypeError'd at the send.
+// Returns the order AND its email address, so callers get a string rather than reaching through two optional levels each time.
 const anOrderWithAUser = () => {
   const order =
     orders.find((o) => o.user?.user_email && (o.order_items?.length ?? 0) > 0) ?? orders[0];
@@ -138,8 +127,7 @@ test("a failed send is a row too, carrying the error, and the throw continues", 
   });
 });
 
-// An order that predates dual has no orders.orders row; the record survives
-// the refused link rather than vanishing over it.
+// An order with no orders.orders row still gets its record - the refused link is dropped, not the row.
 test("a record for an order the new schema does not know keeps everything but the link", async () => {
   await inRollback(async (c: PoolClient) => {
     await recordEmail(
@@ -161,8 +149,7 @@ test("a record for an order the new schema does not know keeps everything but th
   });
 });
 
-// The guard the whole file leans on: no executor in a test run means NO rows,
-// anywhere, ever - the alternative is a leak into dev on every suite run.
+// The guard the whole file leans on: no executor in a test run means no rows, ever - the alternative is a leak into dev on every suite run.
 test("without a transaction, a test-run send records nothing", async () => {
   const { order, email, user } = anOrderWithAUser();
   const probe = `no-exec-${randomUUID().slice(0, 8)}`;
@@ -178,12 +165,7 @@ test("without a transaction, a test-run send records nothing", async () => {
   assert.equal(rows[0].n, 0, "an executor-less test send committed a real row - the guard rotted");
 });
 
-// THE AUTH MAIL, ON THE TRAIL (D78's open question, migration 091). The
-// verification mail was the one send with no row: better-auth's path - which
-// turns out to be OUR path, a callback in features/auth/client.ts that was
-// already rendering our template through our transport. The callback now goes
-// through sendAuthVerificationEmail, and both outcomes are rows like every
-// other sender's.
+// The verification mail was the one send with no row: better-auth's callback (features/auth/client.ts) now goes through sendAuthVerificationEmail, so both outcomes are rows like every other sender's.
 test("a verification mail leaves an auth_verification row with its user", async () => {
   await inRollback(async (c: PoolClient) => {
     const { order, email, user } = anOrderWithAUser();
@@ -201,10 +183,7 @@ test("a verification mail leaves an auth_verification row with its user", async 
     assert.equal(t.sent.length, 1, "nothing left the recorder");
     assert.equal(t.sent[0].subject, "Welcome to Dorado Metals Exchange");
 
-    // Scoped to THIS send's address, not table-wide: dev accumulated its
-    // first real committed auth_verification row the night live signups were
-    // probed (the auth cutover), and a table-wide count met it as a phantom
-    // second send.
+    // Scoped to this send's address, not table-wide - dev holds other real committed auth_verification rows, which a table-wide count would double-count.
     const { rows } = await c.query(
       `SELECT status, to_address, user_id, order_id, pdf_id, provider_message_id
          FROM media.emails WHERE kind = 'auth_verification' AND to_address = $1`,
@@ -235,8 +214,7 @@ test("a failed verification mail is a row too, and the throw reaches better-auth
       /535 Authentication failed/
     );
 
-    // Scoped by address for the same reason as the test above: the table
-    // holds real committed verification rows since the cutover's live probes.
+    // Scoped by address, same reason as above: the table holds other real committed verification rows.
     const { rows } = await c.query(
       `SELECT status, error, user_id FROM media.emails
         WHERE kind = 'auth_verification' AND to_address = 'new-signup@example.test'`

@@ -1,11 +1,4 @@
-// Field lists for exchange.products.
-//
-// These alias UP to the new schema's names - name, description and type -
-// because the new shape is the internal truth and, since the conversion
-// (2026-08-27), also the wire: the adapter that renamed them back down was
-// deleted when the frontend switched to reading the contracts' names. The
-// aliases here stay for as long as exchange is written at all - exchange's
-// columns keep their names forever; that is schema, not wire.
+// Field lists for exchange.products. These alias UP to the new schema's names (name, description, type) since the new shape is now both the internal truth and the wire; exchange's own columns keep their names forever.
 export const PRODUCT_FIELDS = `
   id,
   product_name AS name,

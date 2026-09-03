@@ -1,28 +1,11 @@
-// The users endpoints, over real HTTP.
-//
-// Every route here is requireAdmin, and one of them moves money: /update_credit
-// adjusts dorado_funds, a customer's store credit. Eight customers hold a
-// balance and the credit ledger it came from holds $66,999.32, so this is
-// the smallest endpoint in the API with the largest consequence.
-//
-// WHAT THIS SUITE FOUND. adjustUserCredit builds the new balance with a CASE
-// that has no ELSE, and the operation came from req.body unvalidated. A CASE
-// matching nothing yields NULL, so an unrecognised one assigned NULL to the
-// balance.
-//
-// It never lost anyone's money, and the reason is the point: the column is NOT
-// NULL, so the DATABASE refused the write and the caller got a 500. The code
-// was not doing this job. auth.users.dorado_funds - where the write lands since
-// migration 118 - was nullable with no default until 080, so the protection was
-// a property of the schema being left behind.
-//
-// Both halves are fixed: the service takes an allowlist of operations (080's
-// companion), and 080 gives auth.users the same NOT NULL DEFAULT 0 the legacy
-// column always had. This suite is what keeps them true.
-//
-// NOTHING IS COMMITTED. shared/testing/pinned-pool.js holds every query in one
-// transaction that is rolled back. The last test checks the balance from
-// outside.
+// The users endpoints, over real HTTP. /update_credit moves money -
+// dorado_funds is a $66,999.32 ledger across eight customers - the smallest
+// endpoint with the largest consequence.
+// The CASE-with-no-ELSE hazard: an unrecognised mode used to assign NULL to
+// the balance. Now double-guarded - the service allowlists modes, and
+// auth.users.dorado_funds is NOT NULL DEFAULT 0.
+// NOTHING IS COMMITTED: pinned-pool.ts rolls back every query; the last test
+// checks the balance from outside.
 import test, { after, before } from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
@@ -32,10 +15,10 @@ import { mockSessions, restoreSessions, as, anonymous } from "#shared/testing/se
 import { LOCKS } from "#shared/testing/locks.ts";
 import { inPinnedTransaction, outside } from "#shared/testing/pinned-pool.ts";
 
-// EVERY PINNED TRANSACTION IN THIS FILE TAKES THE BALANCE LOCK. An adjustment
-// is a locked read on auth.users held across an insert into payments.ledger, so
-// files that move balances agree an order rather than deadlocking on whichever
-// customer each visited first. See LOCKS.USERS.
+// EVERY PINNED TRANSACTION IN THIS FILE TAKES THE BALANCE LOCK: an
+// adjustment is a locked read on auth.users held across an insert into
+// payments.ledger, so files that move balances must agree an order. See
+// LOCKS.USERS.
 const inPinned = <T,>(fn: (c: import("pg").PoolClient) => Promise<T> | T): Promise<T> =>
   inPinnedTransaction(fn, { lock: LOCKS.USERS });
 
@@ -43,8 +26,7 @@ const inPinned = <T,>(fn: (c: import("pg").PoolClient) => Promise<T> | T): Promi
 await mockSessions();
 const { default: app } = await import("#app");
 
-// THE STRUCTURAL SUBSET EACH FIXTURE ACTUALLY HAS. SELECT projections, not
-// table rows.
+// The structural subset each fixture actually has - SELECT projections, not table rows.
 type UserFixture = { id: string; name: string | null; email: string | null };
 type CustomerFixture = UserFixture & { dorado_funds: number | null };
 
@@ -52,17 +34,7 @@ let admin: UserFixture;
 let customer: CustomerFixture;
 let balanceBefore: number | null;
 
-// MONEY IS NOT COMPARED WITH FLOAT ARITHMETIC.
-//
-// dorado_funds is NUMERIC, and Postgres does exact decimal arithmetic on it.
-// JavaScript does not: 10.23 + 25 evaluates to 35.230000000000004, while the
-// database returns 35.23. The first version of this file asserted the JS sum
-// against the database's answer and failed - correctly, because the database
-// was right and the assertion was wrong.
-//
-// Comparing at 6 decimal places is far finer than money needs and far coarser
-// than float error, so it distinguishes a real discrepancy from a
-// representation one.
+// Money is not compared with float arithmetic: dorado_funds is NUMERIC (exact), but JS gives 10.23 + 25 as 35.230000000000004 where the database returns 35.23. Compared at 6 decimal places - finer than money needs, coarser than float error.
 const sameMoney = (actual: unknown, expected: unknown, message: string) =>
   assert.equal(
     Number(actual).toFixed(6),
@@ -83,8 +55,7 @@ before(async () => {
   admin = admins[0];
   assert.ok(admin, "dev has no admin user");
 
-  // Deliberately a customer who HAS a balance: an adjustment against a zero
-  // balance cannot tell "set to 0" apart from "left alone".
+  // Deliberately a customer who HAS a balance: against zero, "set to 0" and "left alone" are indistinguishable.
   const users = await outside<CustomerFixture>(
     `SELECT id, name, email, dorado_funds FROM auth.users
      WHERE role IS DISTINCT FROM 'admin' AND dorado_funds > 0 LIMIT 1`
@@ -114,8 +85,7 @@ test("every route refuses an anonymous caller", async () => {
             .send({ user_id: customer.id, op: "add", amount: 1 }),
         ],
       ];
-      // Declared as a tuple list: inferred, the element type collapses to
-      // `string | Promise<Response>` and neither half is usable.
+      // Declared as a tuple list: inferred, the element type collapses to `string | Promise<Response>` and neither half is usable.
       for (const [name, call] of calls as Array<[string, Promise<{ status: number }>]>) {
         const res = await call;
         assert.ok([401, 403].includes(res.status), `${name} answered ${res.status} anonymously`);
@@ -124,10 +94,7 @@ test("every route refuses an anonymous caller", async () => {
   });
 });
 
-// The guard is requireAdmin, not requireUser. A signed-in customer adjusting
-// their OWN credit is the exact attack this stops, so that is what is sent -
-// not a stranger's id, which would also be caught by an ownership check that
-// does not exist here.
+// The guard is requireAdmin, not requireUser - a signed-in customer adjusting their OWN credit is the exact attack this stops, not a stranger's id (which an ownership check that doesn't exist here would also catch).
 test("a signed-in customer cannot top up their own balance", async () => {
   await inPinned(async () => {
     await as({ ...customer, role: "user" }, async () => {
@@ -151,10 +118,8 @@ test("an admin reads the user list with balances", async () => {
 });
 
 // get_user CARRIES THE BALANCE NOW, where it used to omit it while the list
-// read carried it. That asymmetry was inherited rather than decided, and the
-// single-user read is the one an admin opens in order to adjust a balance - so
-// it is the read most in need of one. Shapes are no longer being preserved on
-// this branch, which is what let the three reads be harmonised.
+// read carried it - the single-user read is the one an admin opens to adjust
+// a balance, so it is the read most in need of one.
 test("the single-user read carries the balance, like the list", async () => {
   await inPinned(async () => {
     await as({ ...admin, role: "admin" }, async () => {
@@ -199,9 +164,7 @@ test("the three operations each move the balance the way they say", async () => 
     await as({ ...admin, role: "admin" }, async () => {
       const read = async () => {
         const res = await request(app).get("/api/users/get_all_users");
-        // GUARDED: this dereferenced find() straight through, so a customer
-        // missing from the list produced a TypeError instead of saying so -
-        // on the read that measures a credit balance.
+        // GUARDED: an unguarded find() would TypeError on a missing customer instead of saying so.
         const row = res.body.find((u: { id: string; dorado_funds: unknown }) => u.id === customer.id);
         assert.ok(row, `customer ${customer.id} is absent from get_all_users`);
         return Number(row.dorado_funds);
@@ -230,25 +193,19 @@ test("the three operations each move the balance the way they say", async () => 
   });
 });
 
-// THE ASSERTION THIS FILE EXISTS FOR.
-//
-// An unrecognised operation must be refused as a 400 BEFORE any UPDATE runs,
-// and the balance must be exactly what it was. Asserting the status alone would
-// not distinguish "refused" from "wrote NULL and then failed", which is what
-// used to happen - the 500 came from the constraint, after the attempt.
-//
-// "mode" IS IN THE LIST NOW. It was the field's old spelling and the service
-// accepted it as an alias; shapes are not being preserved on this branch, so a
-// body still sending it names no operation at all and must be refused like any
-// other unrecognised one - loudly, rather than by silently adjusting nothing.
+// THE ASSERTION THIS FILE EXISTS FOR: an unrecognised operation must be
+// refused as a 400 BEFORE any UPDATE runs, and the balance must be exactly
+// what it was - not "wrote NULL and then failed", which is what used to
+// happen.
+// "mode" IS IN THE LIST NOW: it was the field's old spelling, and a body
+// still sending it names no operation at all, so it must be refused like any
+// other unrecognised one.
 test("an unrecognised operation is refused and the balance is untouched", async () => {
   await inPinned(async () => {
     await as({ ...admin, role: "admin" }, async () => {
       const read = async () => {
         const res = await request(app).get("/api/users/get_all_users");
-        // GUARDED: this dereferenced find() straight through, so a customer
-        // missing from the list produced a TypeError instead of saying so -
-        // on the read that measures a credit balance.
+        // GUARDED: an unguarded find() would TypeError on a missing customer instead of saying so.
         const row = res.body.find((u: { id: string; dorado_funds: unknown }) => u.id === customer.id);
         assert.ok(row, `customer ${customer.id} is absent from get_all_users`);
         return row.dorado_funds;
@@ -281,13 +238,11 @@ test("an unrecognised operation is refused and the balance is untouched", async 
   });
 });
 
-// Number("") and Number(null) are both 0, so an empty amount field under `edit`
-// would have zeroed a customer's balance and returned 200.
+// Number("") and Number(null) are both 0, so an empty amount field under `edit` would have zeroed a customer's balance and returned 200.
 test("an amount that is not a number is refused rather than treated as zero", async () => {
   await inPinned(async () => {
     await as({ ...admin, role: "admin" }, async () => {
-      // Each of these coerces to a finite 0 through Number(), or would have:
-      // "" -> 0, null -> 0, [] -> 0. Under `edit` that is a zeroed balance.
+      // Each of these coerces to a finite 0 through Number(): "" -> 0, null -> 0, [] -> 0.
       for (const amount of ["", null, undefined, "abc", {}, [], NaN, "  "]) {
         const res = await request(app)
           .post("/api/users/update_credit")
@@ -302,9 +257,7 @@ test("an amount that is not a number is refused rather than treated as zero", as
   });
 });
 
-// The property the pin exists for, and the one that matters most here: every
-// test above moved a real customer's credit balance and read it back through
-// the API. This checks the database outside the transaction.
+// The property the pin exists for: every test above moved a real customer's credit balance through the API - this checks the database outside the transaction.
 test("no balance this file moved survived the transaction", async () => {
   assert.equal(
     String(await funds(customer.id)),

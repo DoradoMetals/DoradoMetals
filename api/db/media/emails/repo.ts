@@ -1,8 +1,4 @@
-// media.emails, and nothing else.
-//
-// APPEND-ONLY. A send is recorded once, sent or failed, and never edited or
-// removed - the row is the paper trail (migration 090's design). NO update(),
-// NO remove(): nothing in this codebase changes what was actually sent.
+// media.emails, append-only - a send is recorded once, sent or failed, and never edited. NO update(), NO remove().
 import query from "#shared/db/query.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
 import type { media } from "@dorado/contracts";

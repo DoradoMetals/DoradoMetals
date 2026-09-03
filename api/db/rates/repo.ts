@@ -1,22 +1,9 @@
 // rates.rates, and nothing else.
 //
-// NO JOIN. The metal's NAME is composed in domain/rates/compose.ts from one
-// cached lookup of four rows, rather than a join on every read that would put
-// a column into a row type claiming to be rates.rates.
-//
-// update takes an id and a patch and answers whether a row changed (D212's
-// CRUD ruling); no per-column wrapper lives here.
-//
-// THE COALESCE LIMIT ON max_qty IS FIXED. This repo's header used to record
-// that max_qty is nullable (null means an open-ended band) and that
-// `COALESCE($n, col)` could not tell "leave it alone" from "clear it", so
-// clearing one meant deleting the band and making a new one. The statement is
-// built from the keys the patch carries now (shared/db/patch.ts): omit max_qty
-// and it is untouched, send `max_qty: null` and the band becomes open-ended.
-//
-// NOBODY PASSES AN AUTHOR ANY MORE. created_by, updated_by, created_at and
-// updated_at are the public.audit_stamp trigger's, taken from the actor on the
-// connection (migration 116, shared/http/actor.ts).
+// No join: the metal's name is composed in domain/rates/compose.ts from one cached lookup, rather than a join on every read.
+// update takes an id and a patch and answers whether a row changed; no per-column wrapper lives here.
+// max_qty is nullable (null means an open-ended band): the statement is built from the keys the patch carries, so omitting max_qty leaves it untouched but sending null clears it to open-ended.
+// created_by, updated_by, created_at and updated_at are the public.audit_stamp trigger's, from the actor on the connection (migration 116).
 import query from "#shared/db/query.ts";
 import { buildUpdate } from "#shared/db/patch.ts";
 import { sqlFrom } from "#shared/db/sql.ts";

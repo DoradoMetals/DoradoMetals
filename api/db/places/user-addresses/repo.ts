@@ -1,10 +1,4 @@
-// places.user_addresses, and nothing else.
-//
-// A person's relationship to a postal address: what they call it, and whether
-// it is their default. THE OWNERSHIP OF AN ADDRESS LIVES HERE, which is the
-// consequence of the split that matters most - places.addresses has no user_id,
-// so `WHERE id = $1 AND user_id = $2` is not a statement this schema can write.
-// getOne is that check.
+// places.user_addresses, and nothing else - a person's link to an address (label, default). Ownership lives here: places.addresses has no user_id, so getOne is the ownership check.
 import query from "#shared/db/query.ts";
 import { buildUpdate } from "#shared/db/patch.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
@@ -15,8 +9,7 @@ const sql = sqlFrom(import.meta.dirname);
 
 export type UserAddressRow = places.UserAddressesRow;
 
-// exchange has ONE is_default, so both new-schema defaults follow it -
-// splitting them apart needs a product decision and a UI, not a repo.
+// Both default flags follow the one legacy is_default; splitting them apart needs a product decision and a UI, not a repo.
 export type NewUserAddress = { label?: string | null; default_shipping: boolean };
 export type UserAddressPatch = { label?: string | null; default_shipping: boolean };
 
@@ -34,8 +27,7 @@ export async function getByAddress(
   return rows;
 }
 
-// The ownership check. Undefined means this address is not in that person's
-// book - not that it does not exist.
+// The ownership check: undefined means this address isn't in that person's book, not that it doesn't exist.
 export async function getOne(
   address_id: string, user_id: string, executor?: Executor
 ): Promise<UserAddressRow | undefined> {
@@ -54,14 +46,8 @@ export async function create(
   return rows[0];
 }
 
-// THE OWNERSHIP GUARD IS AN EXTRA WHERE, not a filter the caller applies after
-// reading: `user_id` sits beside `address_id` in the key, so an address in
-// somebody else's book matches no row and comes back undefined.
-//
-// exchange has ONE is_default and the new schema has two, so both follow it -
-// telling shipping and billing apart is a product change, not a migration one.
-// That is why one field of the patch sets two columns, spelled out here rather
-// than hidden in a .sql file's ordinals.
+// The ownership guard is an extra WHERE (user_id beside address_id), not a filter applied after reading - an address in someone else's book matches no row.
+// One patch field sets two columns (shipping and billing both follow the one legacy default) - telling them apart is a product change, not a migration one.
 export const PATCHABLE = ["label", "default_shipping", "default_billing"] as const;
 
 export async function update(

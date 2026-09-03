@@ -1,25 +1,16 @@
-// The HTML of every message the app sends.
-//
-// The templates are files on disk with [PLACEHOLDER] markers; these functions
-// read them and substitute. Nothing here talks to a transport - see
-// utils/sendEmail.ts for that seam.
+// The HTML of every message the app sends - reads [PLACEHOLDER] template files on disk and substitutes; no transport here (see utils/sendEmail.ts).
 import fs from "fs";
 import path from "path";
 import { formatSalesOrderNumber } from "#shared/utils/formatOrderNumbers.ts";
 import { fileURLToPath } from "url";
-// The COMPOSED sales order, which is the API's own internal shape since the
-// wire slimmed (wave 3) - an email genuinely needs the order put back
-// together, and it is rendered server-side from the server's own read.
+// The COMPOSED sales order - an email needs it put back together, rendered server-side from the server's own read.
 import type { ComposedSalesItem as SalesOrderItem } from "#domain/orders/compose.ts";
 type SalesOrder = Record<string, any>;
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// firstName has a default and url is optional, which is what every caller
-// relies on: most send only a name and a URL. offerExpiration left with the
-// offers themselves - nothing rendered it but the offer-sent template, and
-// both are gone.
+// firstName defaults, url is optional - what every caller relies on (most send only a name and a URL).
 type TemplateVars = {
   firstName?: string | null;
   url?: string | null;
@@ -73,27 +64,17 @@ export function renderSalesOrderPlacedEmail({ firstName, url }: TemplateVars): s
   return renderTemplate("salesOrderPlaced.raw.html", { firstName, url });
 }
 
-// renderOfferSentEmail IS GONE with the offers (Jacob, 28 August: "we're
-// removing ANYTHING related to offers"). Nothing but its own test called it -
-// the offer flow left with 086 - and its template went with it.
-
 export function renderOrderPricedEmail({ firstName, url }: TemplateVars): string {
   return renderTemplate("orderPriced.raw.html", { firstName, url });
 }
 
-// TIMESTAMPS ARE Date HERE, NOT string. Contracts describe the wire, so
-// SalesOrder says `created_at: string` - but what reaches this
-// renderer is what getById returned, a database row whose timestamps pg has
-// already parsed. The template only ever formats them, and
-// features/pdf/render/sections.ts declares `string | number | Date | null`
-// for exactly this reason.
+// created_at/updated_at are Date here, not the wire's string - this renderer gets a database row pg already parsed (same reason sections.ts declares string | number | Date | null).
 export type SalesOrderForRender = Omit<SalesOrder, "created_at" | "updated_at"> & {
   created_at?: string | Date | null;
   updated_at?: string | Date | null;
 };
 
-// The converted spot spellings (D84). Only the metal's name and its ask are
-// printed on the refiner's copy.
+// Converted spot spellings - only the metal's name and its ask are printed on the refiner's copy.
 export type SupplierSpot = { name?: string | null; ask?: number | null };
 
 type SupplierEmailInput = {
@@ -103,41 +84,15 @@ type SupplierEmailInput = {
   spots: SupplierSpot[];
 };
 
-// Renders a value that the wire says can be missing. An em dash, never "null"
-// and never a number that is not the number - a supplier reading $0.00 against
-// a line of gold would believe it.
+// Renders a value the wire says can be missing as an em dash - never "null", and never a number that isn't the number (a supplier reading $0.00 against gold would believe it).
 const orDash = (value: string | null | undefined): string =>
   value == null || value === "" ? "&mdash;" : value;
 
 const money = (value: number | null | undefined): string =>
   value == null ? "&mdash;" : `$${value.toFixed(2)}`;
 
-// The refiner's copy of a sales order: where it goes, what the metal was worth
-// when the order was priced, and what to ship.
-//
-// TWO LIVE TypeErrors WERE FOUND HERE BY TYPING IT, both after the point of no
-// return. sendOrderToSupplier attaches the supplier, creates the outbound
-// shipment and sets order_sent in one transaction, and only then sends this -
-// deliberately, so that the failure mode is an order marked sent rather than
-// metal leaving the building against a rolled-back record. That makes anything
-// that throws in here silent: the order says it was sent, and the refiner was
-// never told.
-//
-//   `addr.line_1` on an order with no address. SalesOrder says
-//   `address: OrderAddressSnapshot.nullable()`, and it means it - production sales
-//   order 55 has address_id NULL, a supplier attached and order_sent true. The
-//   invoice PDF built for that order does not read the address at all, so the
-//   document is fine and the render is what falls over.
-//
-//   `s.ask.toFixed(2)` on a spot with no ask. The ask is nullable on the
-//   wire; production's four metals all have one, and the spots come from the
-//   request body rather than the database, so nothing guarantees it.
-//
-// Neither is fixed by rendering something wrong instead. An order with no
-// address must not reach a supplier at all, and features/sales-orders/service.js
-// now refuses it before the transaction rather than after. What is here is the
-// second line of defence: a value the wire calls nullable renders as a dash,
-// and the message goes out.
+// The refiner's copy: where it goes, what the metal was worth when priced, what to ship.
+// Runs AFTER order_sent is already committed, so anything that throws here is silent - the order says sent, the refiner is never told. Two live TypeErrors were found this way (a null address, a null spot ask); features/sales-orders/service.ts now refuses those cases first - what's here is the second line of defence: a nullable value renders as a dash, never a crash.
 export function renderSalesOrderToSupplierEmail({
   firstName,
   url,
@@ -179,11 +134,7 @@ export function renderSalesOrderToSupplierEmail({
     )
     .join("");
 
-  // `quantity * price` keeps its arithmetic rather than gaining a guard. Both
-  // are nullable on the wire and both multiply to 0 today, which shows the
-  // supplier $0.00 for the line - wrong, but not a crash, and production has no
-  // null price or quantity on any of its 14 sales order items. Changing what it
-  // prints is a display decision, and this commit is for the two throws.
+  // quantity * price keeps its arithmetic rather than gaining a guard - both nullable on the wire, multiplying to 0 (wrong but not a crash); production has no null on either across all 14 sales order items today.
   const orderRows = order.order_items
     .map((item: SalesOrderItem) => {
       const subtotal = (item.quantity! * item.price!).toFixed(2);
@@ -197,10 +148,7 @@ export function renderSalesOrderToSupplierEmail({
     })
     .join("");
 
-  // totals.items is what item_total was: the sum of the lines. Nullable on
-  // the Next wire where the old field was declared required - `?? 0` keeps a
-  // missing value from crashing a send that happens after the order is
-  // already marked sent, per this file's own second-line-of-defence rule.
+  // totals.items is nullable on the wire; `?? 0` keeps a missing value from crashing a send that happens after the order is already marked sent.
   const total = (order.totals?.items ?? 0).toFixed(2);
 
   content = content

@@ -1,10 +1,5 @@
 // The leads repo itself, against real Postgres.
-//
-// The one thing worth proving directly rather than through HTTP: `update`
-// answers a BOOLEAN (D209/D212's CRUD ruling), and the boolean has to be
-// trustworthy - false for an id nobody has, true for one that changed.
-// Everything else about leads is exercised end to end in endpoints.test.ts
-// and replay.test.ts.
+// The one thing worth proving directly rather than through HTTP: `update` answers a trustworthy boolean - false for an id nobody has, true for one that changed.
 import test from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";

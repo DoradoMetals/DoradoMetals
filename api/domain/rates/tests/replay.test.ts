@@ -1,17 +1,7 @@
 // The rates endpoints, over real HTTP.
 //
-// Rates is a promotion candidate alongside leads, and it has something leads
-// does not: a PUBLIC route sitting beside admin ones. `/get_all` has no guard
-// at all - anyone on the internet can call it - while `/get_admin`,
-// `/get_one`, `/create`, `/update` and `/delete` are requireAdmin.
-//
-// That asymmetry is the thing worth testing. Two reads over the same table,
-// one of them unauthenticated, is exactly the shape that leaks: it only takes
-// the public read gaining a column, or the two quietly converging on the same
-// repo call, for the guard on the other five to stop meaning anything.
-//
-// NOTHING IS COMMITTED. shared/testing/pinned-pool.js holds every query in one
-// transaction that is rolled back. The last test checks from outside.
+// `/get_all` has no guard at all while `/get_admin`, `/get_one`, `/create`, `/update` and `/delete` are requireAdmin - this file proves the public read can't leak what only admin should see.
+// Nothing is committed: pinned-pool.ts rolls back every query; the last test checks from outside.
 import test, { after, before } from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
@@ -23,8 +13,7 @@ import { inPinnedTransaction, outside } from "#shared/testing/pinned-pool.ts";
 await mockSessions();
 const { default: app } = await import("#app");
 
-// THE STRUCTURAL SUBSET EACH FIXTURE ACTUALLY HAS. These are SELECT
-// projections, not table rows.
+// SELECT projections, not table rows.
 type UserFixture = { id: string; name: string | null; email: string | null };
 
 let admin: UserFixture;
@@ -54,8 +43,7 @@ after(async () => {
   await pool.end();
 });
 
-// Named, not spread: the fixture is only ever id/name/email plus the role the
-// call is exercising.
+// Named, not spread: the fixture is only ever id/name/email plus the role the call is exercising.
 const asAdmin = <T>(fn: () => Promise<T> | T) =>
   as({ id: admin.id, name: admin.name, email: admin.email, role: "admin" }, fn);
 const asCustomer = <T>(fn: () => Promise<T> | T) =>
@@ -72,10 +60,7 @@ test("the public rate list needs no session at all", async () => {
   });
 });
 
-// THE ASSERTION THIS FILE EXISTS FOR. The admin read is allowed to carry more
-// than the public one; the public one must not carry what only an admin should
-// see. Compared field by field rather than by trusting the two service calls
-// stay different.
+// The admin read may carry more than the public one; the public one must not carry what only an admin should see. Compared field by field.
 test("the public list does not carry anything only the admin list has", async () => {
   await inPinnedTransaction(async () => {
     let publicFields: Set<string> | undefined;
@@ -93,10 +78,7 @@ test("the public list does not carry anything only the admin list has", async ()
       adminFields = new Set(Object.keys(res.body[0] ?? {}));
     });
 
-    // GUARDED, and bound to consts: both sets are assigned inside callbacks,
-    // so a request that never ran left them undefined and the spread
-    // TypeError'd instead of naming which read produced nothing. A `let`
-    // narrowed by an assertion widens again inside a closure, hence the consts.
+    // Guarded and bound to consts: a request that never ran left these undefined and the spread TypeError'd instead of naming which read produced nothing.
     assert.ok(publicFields, "the public rates read produced no fields");
     assert.ok(adminFields, "the admin rates read produced no fields");
     const publicSet = publicFields;
@@ -110,9 +92,7 @@ test("the public list does not carry anything only the admin list has", async ()
       `the public read returns fields the admin read does not: ${publicExtras.join(", ")}`
     );
 
-    // Not an assertion that they must differ - they may legitimately be the
-    // same shape today. It records what the difference IS, so that a change to
-    // either is visible in a diff rather than silent.
+    // Not an assertion that they must differ - records what the difference IS so a change to either is visible in a diff.
     console.log(
       `      public rate fields: ${publicSet.size}; admin-only: ` +
         (onlyAdmin.length ? onlyAdmin.join(", ") : "(none - the two reads are the same shape)")
@@ -129,8 +109,7 @@ test("every writing route refuses a signed-in non-admin", async () => {
         ["update", request(app).post("/api/rates/update").send({ rate_id: randomUUID(), patch: {} })],
         ["delete", request(app).delete("/api/rates/delete").send({ rate_id: randomUUID() })],
       ] as Array<[string, Promise<{ status: number }>]>;
-      // Declared as a tuple list: inferred, the element type collapses to
-      // `string | Test` and neither half is usable.
+      // Declared as a tuple list: inferred, the element type collapses to `string | Test` and neither half is usable.
       for (const [name, call] of calls) {
         const res = await call;
         assert.ok([401, 403].includes(res.status), `${name} answered ${res.status} to a non-admin`);
@@ -148,18 +127,7 @@ test("an anonymous caller is refused the admin read", async () => {
   });
 });
 
-// THE REFUSALS WERE REAL, not just a status code.
-//
-// The only writes this file attempts are ones that should be refused - create,
-// update and delete as a non-admin. A 403 says the response was refused; it
-// does not by itself say nothing was written, because a guard placed after the
-// write would return exactly the same status. Counting the table from outside
-// the transaction is what distinguishes them.
-//
-// The first version of this checked `notes = 'rates replay suite'`, against a
-// column exchange.rates does not have. It failed loudly, which is the good
-// outcome, but it was also the weaker assertion: it would have proved nothing
-// about the refused writes even if the column existed.
+// A 403 says the response was refused, not that nothing was written - a guard placed after the write would answer the same. Counting the table from outside the transaction is what distinguishes them.
 test("the refused writes wrote nothing", async () => {
   const after = await outside(`SELECT count(*)::int AS n FROM exchange.rates`);
   assert.equal(

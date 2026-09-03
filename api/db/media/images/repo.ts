@@ -1,8 +1,4 @@
-// media.images, and nothing else.
-//
-// NO update(). An upload record is written once by create() and never edited -
-// there is no admin form or user action that changes a stored image's
-// metadata, only ones that upload a new one or delete it.
+// media.images. NO update() - an upload record is written once and never edited; only upload-new or delete change it.
 import query from "#shared/db/query.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
 import type { media } from "@dorado/contracts";
@@ -40,17 +36,13 @@ export async function listFor(userId: string, executor?: Executor): Promise<Imag
   return rows;
 }
 
-// Returns the row that now exists - which on conflict is the one that ALREADY
-// existed, under its own id rather than the one just generated. Callers must
-// use the returned id, not the one they passed.
+// On conflict, returns the row that ALREADY existed under its own id - callers must use the returned id, not the one they passed.
 export async function create(id: string, image: NewImage, executor?: Executor): Promise<ImageRow> {
   const { rows } = await query<ImageRow>(sql("create"), values(id, image), executor);
   return rows[0];
 }
 
-// GUARDED BY user_id, THE OWNERSHIP CHECK BELONGS IN THE STATEMENT. See
-// sql/delete.sql's header: the clause is the backstop that makes the service's
-// own ownership check unbypassable from any future caller.
+// user_id is part of the WHERE - the ownership check belongs in the statement, not just the service (see sql/delete.sql).
 export async function remove(
   id: string, user_id: string, executor?: Executor
 ): Promise<boolean> {
