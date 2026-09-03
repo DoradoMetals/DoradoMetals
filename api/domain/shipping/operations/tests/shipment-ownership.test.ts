@@ -1,7 +1,7 @@
 // A customer may only ask about their own shipment. POST /api/shipping/get_tracking took shipment_id from the body behind requireUser alone - previously recorded as harmless, wrongly: it deletes and reinserts the shipment's tracking events and rewrites its status/estimate/delivered_at (the same unconditional removeEvents that has already emptied seven production shipments' histories), so a signed-in customer holding somebody else's shipment id could overwrite their tracking and spend a FedEx call doing it.
 // requireAdmin wasn't the answer: this is called from the CUSTOMER order drawers too, not just admin's.
 // Only refusals are exercised over HTTP - the allowed path calls FedEx and rewrites rows for real, so its success branch is tested directly against the guard function instead.
-import test, { after, before } from "node:test";
+import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import request from "supertest";
 import pool from "#db";
@@ -19,7 +19,7 @@ let shipmentId: string;
 let owner: string;
 let stranger: UserFixture;
 
-before(async () => {
+beforeAll(async () => {
   const rows = await outside<{ shipment_id: string; owner: string }>(
     `SELECT s.id AS shipment_id, coalesce(po.user_id, so.user_id) AS owner
        FROM exchange.shipments s
@@ -41,7 +41,7 @@ before(async () => {
   assert.ok(stranger, "dev has no second customer - a refusal test needs somebody else");
 });
 
-after(async () => {
+afterAll(async () => {
   restoreSessions();
   await pool.end();
 });

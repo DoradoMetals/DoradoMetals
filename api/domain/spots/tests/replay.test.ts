@@ -1,6 +1,6 @@
 // The spot price endpoint, over real HTTP. No guard, correctly - the pricing page quotes metal to anyone - so what matters here is the SHAPE and that no admin-only field rides along.
 // NOTHING IS COMMITTED - this file only reads, but runs inside the pin like the rest so a future write cannot escape.
-import test, { after, before } from "node:test";
+import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import request from "supertest";
 import pool from "#db";
@@ -16,7 +16,7 @@ type MetalFixture = { name: string; ask: number; bid: number };
 let metals: MetalFixture[];
 
 // The fixture reads spots.spots (what the endpoint serves), not exchange.metals - whether the two SCHEMAS agree is `verify:parity`'s question, not this file's.
-before(async () => {
+beforeAll(async () => {
   metals = await outside(
     `SELECT m.name, s.ask, s.bid
        FROM spots.spots s JOIN metals.metals m ON m.id = s.metal_id
@@ -25,7 +25,7 @@ before(async () => {
   assert.ok(metals.length > 0, "dev has no metals - every assertion here would be vacuous");
 });
 
-after(async () => {
+afterAll(async () => {
   restoreSessions();
   await pool.end();
 });

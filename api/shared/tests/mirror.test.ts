@@ -1,6 +1,6 @@
 // Logic that exists in BOTH repos (api and frontend), held in step — it decides the payout premium a customer is quoted; if the two drift, the frontend shows one rate and the API pays another, and both stay self-consistent so neither test suite notices. This compares the shared functions and fails on divergence.
 // Formatting isn't the point (semicolons, quotes, type annotations differ and always have) — only the sequence of statements must match.
-import test from "node:test";
+import { test } from "vitest";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";

@@ -16,7 +16,7 @@
 // with it (confirmed: "a YOUNG unpaid order is left alone" times out too,
 // purely from queueing behind this one). Lane 5 ("replay") replaces this with
 // a cassette for Stripe's "no such payment_intent" response.
-import test from "node:test";
+import { test } from "vitest";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
 import query from "#shared/db/query.ts";
@@ -71,14 +71,13 @@ test("the settled sweep advances an order whose webhook went missing", async () 
   }, { lock: [LOCKS.FULFILLMENTS, LOCKS.ORDERS, LOCKS.ADDRESSES, LOCKS.USERS] });
 });
 
-test("the abandonment sweep cancels a stale unpaid order and refunds its credit", {
-  skip: "sweepAbandoned's cancel path reaches Stripe for real (cancelIntentByRef, " +
-    "no DI seam) and shared/testing/no-network.ts now blocks that - the Stripe " +
-    "SDK's retry logic does not resolve against nock's refusal, so this hangs " +
-    "past the per-test timeout instead of failing, taking every test queued " +
-    "behind the same lock set with it. Lane 5 replaces it with a cassette; " +
-    "see this file's header.",
-}, async () => {
+// SKIPPED: sweepAbandoned's cancel path reaches Stripe for real
+// (cancelIntentByRef, no DI seam) and shared/testing/no-network.ts now blocks
+// that - the Stripe SDK's retry logic does not resolve against nock's
+// refusal, so this hangs past the per-test timeout instead of failing, taking
+// every test queued behind the same lock set with it. Lane 5 replaces it with
+// a cassette; see this file's header.
+test.skip("the abandonment sweep cancels a stale unpaid order and refunds its credit", async () => {
   await inPinnedTransaction(async (c: PoolClient) => {
     const { rows: users } = await query<{ id: string; dorado_funds: number | null }>(
       `SELECT id, dorado_funds FROM auth.users LIMIT 1`, [], c);

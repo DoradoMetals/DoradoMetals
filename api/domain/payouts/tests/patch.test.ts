@@ -1,7 +1,7 @@
 // PATCH /api/payouts/:id - the fee waiver, over real HTTP.
 // The stored fee is never overwritten (D117): waiving sets a flag and the EFFECTIVE fee becomes 0; un-waiving restores the stored number rather than guessing.
 // Each test asserts the value lands AND the record survives, not just a 200; nothing here is committed (pinned-pool.ts rolls back every query).
-import test, { after, before } from "node:test";
+import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
 import request from "supertest";
@@ -22,7 +22,7 @@ type PayoutFixture = { id: string; order_id: string; cost: string | null };
 let admin: UserFixture;
 let payout: PayoutFixture;
 
-before(async () => {
+beforeAll(async () => {
   admin = (
     await outside<UserFixture>(`SELECT id, name, email FROM auth.users WHERE role = 'admin' LIMIT 1`)
   )[0];
@@ -42,7 +42,7 @@ before(async () => {
   assert.ok(payout, "dev needs a payout account attached to a purchase order");
 });
 
-after(async () => {
+afterAll(async () => {
   restoreSessions();
   await pool.end();
 });

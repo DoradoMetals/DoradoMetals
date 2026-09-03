@@ -1,6 +1,6 @@
 // The product endpoints, over real HTTP — checks the RENAME adapter doesn't leak new names to a frontend expecting the old ones. Five routes are public, deliberately (audited when the cart hole was found: they name a product, never a person).
 // No advisory lock: nothing else in the suite writes products.bullion or exchange.products outside its own rolled-back transaction.
-import test, { after, before } from "node:test";
+import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import request from "supertest";
 import pool from "#db";
@@ -17,7 +17,7 @@ type Caller = UserFixture & { role: string };
 let admin: Caller;
 let customer: Caller;
 
-before(async () => {
+beforeAll(async () => {
   const admins = await outside<UserFixture>(
 `SELECT id, name, email FROM exchange.users WHERE role = 'admin' LIMIT 1`
   );
@@ -31,7 +31,7 @@ before(async () => {
   assert.ok(customer.id, "dev has no non-admin user");
 });
 
-after(async () => {
+afterAll(async () => {
   restoreSessions();
   await pool.end();
 });

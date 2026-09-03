@@ -22,7 +22,7 @@
 // FedEx before the transaction opens, so replaying them would create a real,
 // billable label. Their database halves are covered by
 // features/orders/parity.test.js, which calls recordPurchaseOrder directly.
-import test, { after, before } from "node:test";
+import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import request from "supertest";
@@ -46,7 +46,7 @@ type Caller = UserFixture & { role: string };
 let admin: Caller;
 let customer: Caller;
 
-before(async () => {
+beforeAll(async () => {
   const rows = await outside<UserFixture>(
     `SELECT id, name, email, role FROM exchange.users WHERE role = 'admin' LIMIT 1`
   );
@@ -60,7 +60,7 @@ before(async () => {
   assert.ok(customer?.id, "dev has no non-admin user");
 });
 
-after(async () => {
+afterAll(async () => {
   restoreSessions();
   await pool.end();
 });

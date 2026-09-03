@@ -18,7 +18,7 @@
 //
 // NOTHING IS COMMITTED - pinned-pool holds every query in one rolled-back
 // transaction.
-import test, { after, before } from "node:test";
+import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import request from "supertest";
@@ -39,7 +39,7 @@ let customer: UserFixture;
 let victim: UserFixture;
 let intentsBefore: number;
 
-before(async () => {
+beforeAll(async () => {
   const admins = await outside<UserFixture>(
     `SELECT id, name, email FROM exchange.users WHERE role = 'admin' LIMIT 1`
   );
@@ -57,7 +57,7 @@ before(async () => {
   intentsBefore = rows[0].n;
 });
 
-after(async () => {
+afterAll(async () => {
   restoreSessions();
   await pool.end();
 });

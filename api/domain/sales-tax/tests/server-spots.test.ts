@@ -1,7 +1,7 @@
 // Every order's money is content * (spot.ask * ask_premium), so whatever supplies `spots` decides what a customer pays — it used to be the REQUEST BODY in three places (get_sales_tax, createSalesOrder, updatePaymentIntent). Measured before the fix, same order and items, only the body's spots differing: ask_spot 3400 (honest) -> $3,673.53; ask_spot 1 -> $26.81, floored at $10 by the old Math.max floor.
 // get_sales_tax is the one of the three drivable end to end without Stripe, so it's tested over HTTP directly; the other two share the same getSpotPrices() source, and updatePaymentIntent belongs to the sandbox suite instead.
 // So the second test below asserts that shared source directly — if getSpotPrices returns the database's own spots and all three call it, all three are priced from the server.
-import test, { after, before } from "node:test";
+import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import request from "supertest";
 import pool from "#db";
@@ -21,7 +21,7 @@ let serverSpots: Spot[];
 let nexusState: string | null;
 let aggregateMax: number;
 
-before(async () => {
+beforeAll(async () => {
   const users = await outside<UserFixture>(
     `SELECT id, name, email FROM exchange.users WHERE role IS DISTINCT FROM 'admin' LIMIT 1`
   );
@@ -42,7 +42,7 @@ before(async () => {
   aggregateMax = Number(rules[0].aggregate_max);
 });
 
-after(async () => {
+afterAll(async () => {
   restoreSessions();
   await pool.end();
 });

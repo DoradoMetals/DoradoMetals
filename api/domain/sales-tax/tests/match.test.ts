@@ -1,6 +1,6 @@
 // The matcher, against the statement it replaces — moving the rule match out of SQL is the largest behavior-preserving change in this restructure, and it decides what a customer is charged, so the old statement is carried here VERBATIM as reference and both must agree over the same facts.
 // Not a test of the matcher's opinions (it has none) — just that two implementations of the same seven-way ranking pick the same rule.
-import test, { after } from "node:test";
+import { test, afterAll } from "vitest";
 import assert from "node:assert/strict";
 import pool from "#db";
 import query from "#shared/db/query.ts";
@@ -43,7 +43,7 @@ const reference = async (f: TaxableFacts): Promise<number> => {
 
 const rules = await repo.allRules();
 
-after(async () => { await pool.end(); });
+afterAll(async () => { await pool.end(); });
 
 test("the rules really were loaded - a matcher over nothing agrees with everything", () => {
   assert.ok(rules.length > 50, `only ${rules.length} rules loaded`);

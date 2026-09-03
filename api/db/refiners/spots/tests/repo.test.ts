@@ -1,5 +1,5 @@
 // The writes on refiners.spots, against real Postgres. Two things pinned: both directions use this table (one order id, not a column per kind of order), and there is no UNIQUE (order_id, metal_id) here — why create has no ON CONFLICT (42P10 at runtime otherwise).
-import test, { after, before } from "node:test";
+import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
 import { randomUUID } from "node:crypto";
@@ -9,7 +9,7 @@ import * as refinerSpots from "#db/refiners/spots/repo.ts";
 
 let client: PoolClient;
 
-before(async () => {
+beforeAll(async () => {
   assert.equal(
     new Date().getTimezoneOffset(), 0,
     "these tests require TZ=UTC - run them with `pnpm --filter @dorado/api test`"
@@ -17,7 +17,7 @@ before(async () => {
   client = await pool.connect();
 });
 
-after(async () => {
+afterAll(async () => {
   client.release();
   await pool.end();
 });

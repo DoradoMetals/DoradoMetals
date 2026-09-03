@@ -1,5 +1,5 @@
 // The parts of leads that need no database: the wire conversion and the statements as text - moving SQL into .sql files means a typo is no longer a TypeScript syntax error.
-import test from "node:test";
+import { test } from "vitest";
 import assert from "node:assert/strict";
 import path from "node:path";
 import { sqlFrom } from "#shared/db/sql.ts";

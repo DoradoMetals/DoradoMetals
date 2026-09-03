@@ -6,7 +6,7 @@
 // resolved with an in-memory lookup. That lookup is gone; the contract is the
 // server's own row shape, and an unmatched id is the database's own foreign
 // key refusal, not a name this service used to check first.
-import test, { after, before } from "node:test";
+import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
 import request from "supertest";
@@ -24,7 +24,7 @@ type UserFixture = { id: string; name: string | null; email: string | null };
 let admin: UserFixture;
 let product: AdminProductRow;
 
-before(async () => {
+beforeAll(async () => {
   admin = (
     await outside<UserFixture>(`SELECT id, name, email FROM exchange.users WHERE role = 'admin' LIMIT 1`)
   )[0];
@@ -35,7 +35,7 @@ before(async () => {
   product = row;
 });
 
-after(async () => {
+afterAll(async () => {
   restoreSessions();
   await pool.end();
 });

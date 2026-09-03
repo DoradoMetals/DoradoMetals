@@ -1,6 +1,6 @@
 // What goes out when the app sends mail - each message (order confirmation, pricing notice, refiner's copy) must carry the right PDF attachment, built from the order.
 // sendEmail takes an optional transport (like a repo call takes an executor) so this can record instead of send. Orders come from the repo, not a fixture, so the input stays the real wire shape. Read-only: nothing is sent or written.
-import test, { after, before } from "node:test";
+import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import pool from "#db";
 import * as emails from "#domain/media/emails/service.ts";
@@ -9,6 +9,8 @@ import * as orderRead from "#domain/orders/read.ts";
 import * as inputs from "#domain/media/pdfs/order-inputs.ts";
 import type { Transport } from "#providers/emails/nodemailer.ts";
 import { formatPurchaseOrderNumber, formatSalesOrderNumber } from "#shared/utils/formatOrderNumbers.ts";
+import { LOCKS } from "#shared/testing/locks.ts";
+import type { PoolClient } from "pg";
 import type { OrderView } from "@dorado/contracts";
 
 type Message = Parameters<Transport["sendMail"]>[0];
@@ -19,6 +21,7 @@ type Message = Parameters<Transport["sendMail"]>[0];
 // service boundary handed over.
 let orders: OrderView[];
 let salesOrders: OrderView[];
+let lockClient: PoolClient;
 
 const viewsOf = async (direction: "purchase" | "sale") => {
   const out: OrderView[] = [];
@@ -29,16 +32,25 @@ const viewsOf = async (direction: "purchase" | "sale") => {
   return out;
 };
 
-before(async () => {
+// SESSION-scoped LOCKS.ORDERS, held for the whole file (lane 3, the runner
+// conversion): `orders`/`salesOrders` are captured here, and
+// domain/orders/tests/edit-line.test.ts writes real, autocommitting rows to
+// orders.orders under the SAME lock - see domain/media/pdfs/tests/
+// documents-agree.test.ts's own comment for the full mechanism.
+beforeAll(async () => {
   assert.equal(
     new Date().getTimezoneOffset(), 0,
     "these tests require TZ=UTC - run them with `pnpm --filter @dorado/api test`"
   );
+  lockClient = await pool.connect();
+  await lockClient.query("SELECT pg_advisory_lock($1)", [LOCKS.ORDERS]);
   orders = await viewsOf("purchase");
   salesOrders = await viewsOf("sale");
 });
 
-after(async () => {
+afterAll(async () => {
+  await lockClient.query("SELECT pg_advisory_unlock($1)", [LOCKS.ORDERS]);
+  lockClient.release();
   await closeBrowser();
   await pool.end();
 });

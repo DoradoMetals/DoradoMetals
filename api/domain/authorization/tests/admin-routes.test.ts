@@ -3,7 +3,7 @@
 // DELETE /api/purchase_orders/purge_cancelled is excluded by name — it's `DELETE FROM exchange.purchase_orders` with no id, so a test proving its guard is missing would BE the delete. Every other request carries an empty body as a mitigation, not a guarantee.
 // No response body is ever printed or interpolated, on any path — several of these routes return payouts.
 // The sweep alone can't catch a DELETED guard (the route just stops being admin and stops being tested) — admin-routes.json is a committed inventory that must be updated by hand, so removing a guard shows as a diff instead of silently narrowing coverage.
-import test, { after, before } from "node:test";
+import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import request from "supertest";
 import pool from "#db";
@@ -32,7 +32,7 @@ type UserRow = { id: string; name: string | null; email: string | null };
 
 let customer: UserRow;
 
-before(async () => {
+beforeAll(async () => {
   customer = (
     await outside<UserRow>(
       `SELECT id, name, email FROM exchange.users WHERE role IS DISTINCT FROM 'admin' LIMIT 1`
@@ -47,7 +47,7 @@ before(async () => {
   );
 });
 
-after(async () => {
+afterAll(async () => {
   restoreSessions();
   await pool.end();
 });

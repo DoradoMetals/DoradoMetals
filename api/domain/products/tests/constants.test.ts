@@ -1,6 +1,6 @@
 // The projections that decide what leaves the API for a product. domain/products/constants.ts survives because checkout still imports it; goes when checkout is restructured.
 // The hazard: a projection that silently grows a column is how columns leak onto the wire. validate:wire only catches drift that reaches a contract shape; this catches list/alias drift and an admin-only column appearing in a public list.
-import test from "node:test";
+import { test } from "vitest";
 import assert from "node:assert/strict";
 import path from "node:path";
 import * as exchange from "#domain/products/constants.ts";

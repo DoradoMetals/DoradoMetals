@@ -2,7 +2,7 @@
 // The public read differs from admin by exactly one clause, `WHERE hidden = false` - the only thing standing between what's published and every review ever left.
 // Dev holds 14 reviews, 13 hidden, so a regression that dropped the clause returns 14 instead of 1 rather than passing vacuously.
 // Nothing is committed: pinned-pool.ts rolls back every query; the last test checks from outside.
-import test, { after, before } from "node:test";
+import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import request from "supertest";
@@ -25,7 +25,7 @@ let visibleCount: number;
 let hiddenCount: number;
 const created: string[] = [];
 
-before(async () => {
+beforeAll(async () => {
   const admins = await outside<UserFixture>(
     `SELECT id, name, email FROM exchange.users WHERE role = 'admin' LIMIT 1`
   );
@@ -51,7 +51,7 @@ before(async () => {
   assert.ok(hiddenCount > 0, "dev has no hidden review - the filter test would be vacuous");
 });
 
-after(async () => {
+afterAll(async () => {
   restoreSessions();
   await pool.end();
 });

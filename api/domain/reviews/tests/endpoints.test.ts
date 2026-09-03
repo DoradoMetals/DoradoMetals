@@ -1,7 +1,7 @@
 // Reviews over real HTTP, through the router the app mounts.
 // Drives the whole stack - route, guard, controller, service, repo - because nothing below the service can tell you the write happens inside one transaction.
 // Nothing is committed: pinned-pool holds every query in one transaction that is rolled back, including the service's own, as a savepoint.
-import test, { before } from "node:test";
+import { test, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
 import request from "supertest";
@@ -15,7 +15,7 @@ type User = { id: string; name: string; email: string };
 let admin: User;
 let customer: User;
 
-before(async () => {
+beforeAll(async () => {
   admin = (await outside<User>(`SELECT id, name, email FROM exchange.users WHERE role = 'admin' LIMIT 1`))[0];
   customer = (await outside<User>(`SELECT id, name, email FROM exchange.users WHERE role IS DISTINCT FROM 'admin' LIMIT 1`))[0];
   assert.ok(admin && customer, "dev needs an admin and a non-admin user");

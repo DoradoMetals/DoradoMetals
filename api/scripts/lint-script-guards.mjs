@@ -236,6 +236,10 @@ const REAL_EXCUSED = {
     kind: "library",
     why:"has scripts/lib/tests/feature-map.test.ts.",
   },
+  "api/scripts/lib/test-layers.ts": {
+    kind: "library",
+    why:"has scripts/lib/tests/test-layers.test.ts.",
+  },
 
   // --- floors, but no detector to attack ---
   "api/scripts/audit-constraints.mjs": {

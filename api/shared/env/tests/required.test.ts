@@ -1,6 +1,6 @@
 // requiredEnv is what three secrets (reCAPTCHA, Stripe webhook, FedEx) are read through, so its discipline is a security property: the message names the variable, never its value.
 // Also refuses an EMPTY string, not just unset — an operator setting a Railway variable to "" has still set it, and this treats that as missing (the right call, since "" fails the same way undefined did, but a decision worth pinning rather than leaving to `!value`).
-import test from "node:test";
+import { test } from "vitest";
 import assert from "node:assert/strict";
 import { requiredEnv } from "#shared/env/required.ts";
 

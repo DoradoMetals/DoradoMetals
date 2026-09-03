@@ -7,7 +7,7 @@
 // credit-ledger.test.ts, and deliberately not here: this file COMMITS and
 // puts the balance back afterwards, and a payments.ledger row cannot be "put
 // back" - it is an append-only record.
-import test, { after, before } from "node:test";
+import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
 import pool from "#db";
@@ -39,7 +39,7 @@ const funds = async (id: string) => {
 // WHAT IT DOES NOT PUT BACK: the payments.ledger rows each adjustment now
 // writes - an append-only record. The ledger's own behaviour is pinned in
 // credit-ledger.test.ts, inside a transaction that rolls back.
-before(async () => {
+beforeAll(async () => {
   // THE BALANCE LOCK, HELD FOR THE WHOLE FILE - a SESSION lock, not the
   // transaction-scoped one every other balance file uses: this file has no
   // transactions of its own, and credit-ledger.test.ts counts this same
@@ -66,7 +66,7 @@ const restore = async () => {
   });
 };
 
-after(async () => {
+afterAll(async () => {
   await restore();
   await lockHolder.query("SELECT pg_advisory_unlock($1)", [LOCKS.USERS]);
   lockHolder.release();

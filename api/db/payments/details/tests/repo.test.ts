@@ -11,7 +11,7 @@
 // and an intent is money coming IN, so it resolved for zero of the sixteen
 // payouts on dev while every test passed (D168). They pick a PURCHASE order
 // deliberately - that is the only kind with a payout.
-import test, { after, before } from "node:test";
+import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
 import { randomUUID } from "node:crypto";
@@ -23,14 +23,14 @@ import { LOCKS, takeLocks } from "#shared/testing/locks.ts";
 
 let client: PoolClient;
 
-before(async () => {
+beforeAll(async () => {
   assert.equal(
     new Date().getTimezoneOffset(), 0,
     "these tests require TZ=UTC - run them with `pnpm --filter @dorado/api test`"
   );
   client = await pool.connect();
 });
-after(async () => { client.release(); await pool.end(); });
+afterAll(async () => { client.release(); await pool.end(); });
 
 // LOCKS.ORDERS because this file writes orders.transactions.
 const inRollback = async (fn: (c: PoolClient) => Promise<void>) => {

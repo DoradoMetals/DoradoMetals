@@ -2,7 +2,7 @@
 // or a wrong-typed value is a 400 before the service runs. save_product also
 // proves the ids-not-names redesign: `metal`/`supplier`/`mint` (the old
 // name-resolution fields) are unknown keys now that the body carries ids.
-import test, { after } from "node:test";
+import { test, afterAll } from "vitest";
 import assert from "node:assert/strict";
 import request from "supertest";
 import { mockSessions, restoreSessions, as } from "#shared/testing/session.ts";
@@ -10,7 +10,7 @@ import { mockSessions, restoreSessions, as } from "#shared/testing/session.ts";
 await mockSessions();
 const { default: app } = await import("#app");
 
-after(() => restoreSessions());
+afterAll(() => restoreSessions());
 
 const admin = { id: "11111111-1111-1111-1111-111111111111", role: "admin", name: "Admin", email: "admin@x.test" };
 const asAdmin = <T>(fn: () => Promise<T> | T) => as(admin, fn);

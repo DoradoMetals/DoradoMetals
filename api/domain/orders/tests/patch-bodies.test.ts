@@ -37,7 +37,7 @@
 // PURE - refusedField is a function of the document. Nothing here touches the
 // database, but importing the services opens the pool, so it is closed at the
 // end.
-import test, { after } from "node:test";
+import { test, afterAll } from "vitest";
 import assert from "node:assert/strict";
 import pool from "#db";
 import { OrderItemPatch, OrderPatch } from "@dorado/contracts";
@@ -46,7 +46,7 @@ import { refusedField as refinerOrderField } from "#transport/refiners/orders/co
 import { refusedField as refinerItemField } from "#transport/refiners/items/controller.ts";
 import { refusedField as payoutField } from "#domain/payouts/service.ts";
 
-after(async () => {
+afterAll(async () => {
   await pool.end();
 });
 

@@ -21,7 +21,7 @@
 // the setting against that table before stamping precisely so an unknown id
 // leaves the row unattributed instead of raising 23503 and refusing a customer's
 // order over an audit field.
-import test from "node:test";
+import { test } from "vitest";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
 import { inPinnedTransaction } from "#shared/testing/pinned-pool.ts";

@@ -13,7 +13,7 @@
 // Order ids are uuids rather than sequential, so this is not a hole anyone
 // stumbles into. It is still the difference between "you cannot" and "you
 // probably will not guess".
-import test, { after, before } from "node:test";
+import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import request from "supertest";
 import pool from "#db";
@@ -42,14 +42,14 @@ let victim: UserFixture & { role: string };
 let stranger: UserFixture & { role: string };
 let order: OrderFixture;
 
-before(async () => {
+beforeAll(async () => {
   // The OLDEST open order, not the newest, and that is the whole point.
   //
   // This file failed once in the full suite and passed in isolation, and the
   // diagnostic said the guard refused an order whose owner was the caller - for
   // an order id that does not exist in any of the three tables now. The fixture
   // was "the newest open order", which is a race against every other file that
-  // creates one: another suite's order was visible when before() ran and gone
+  // creates one: another suite's order was visible when beforeAll() ran and gone
   // by the time the request was made, because that file's transaction had
   // rolled back in between.
   //
@@ -83,7 +83,7 @@ before(async () => {
   );
 
   // And the order is still there when the tests actually run, not merely when
-  // before() looked. A fixture that vanishes between selection and use is what
+  // beforeAll() looked. A fixture that vanishes between selection and use is what
   // made this file intermittent.
   const [{ n }] = await outside<{ n: number }>(
     `SELECT count(*)::int AS n FROM exchange.purchase_orders WHERE id = $1`,
@@ -101,7 +101,7 @@ before(async () => {
   assert.notEqual(stranger.id, victim.id);
 });
 
-after(async () => {
+afterAll(async () => {
   restoreSessions();
   await pool.end();
 });

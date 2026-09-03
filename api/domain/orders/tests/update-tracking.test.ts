@@ -21,7 +21,7 @@
 //
 // NOTHING IS COMMITTED: shared/testing/pinned-pool.js holds every query in one
 // transaction that is rolled back.
-import test, { after, before } from "node:test";
+import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
 import request from "supertest";
@@ -53,7 +53,7 @@ type ShipmentFixture = {
 let admin: AdminFixture;
 let shipment: ShipmentFixture;
 
-before(async () => {
+beforeAll(async () => {
   admin = (
     await outside<AdminFixture>(
       `SELECT id, name, email FROM exchange.users WHERE role = 'admin' LIMIT 1`
@@ -76,7 +76,7 @@ before(async () => {
   assert.ok(shipment, "dev needs a shipment attached to a sales order");
 });
 
-after(async () => {
+afterAll(async () => {
   restoreSessions();
   await pool.end();
 });

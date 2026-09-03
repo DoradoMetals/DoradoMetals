@@ -3,7 +3,7 @@
 // body-accepting addresses endpoint. is_valid/is_residential are a deliberate
 // case - server-controlled facts that used to be accepted in the body and
 // are now refused by name.
-import test, { after } from "node:test";
+import { test, afterAll } from "vitest";
 import assert from "node:assert/strict";
 import request from "supertest";
 import { mockSessions, restoreSessions, as } from "#shared/testing/session.ts";
@@ -11,7 +11,7 @@ import { mockSessions, restoreSessions, as } from "#shared/testing/session.ts";
 await mockSessions();
 const { default: app } = await import("#app");
 
-after(() => restoreSessions());
+afterAll(() => restoreSessions());
 
 const user = { id: "11111111-1111-1111-1111-111111111111", role: "user", name: "U", email: "u@x.test" };
 const asUser = <T>(fn: () => Promise<T> | T) => as(user, fn);

@@ -1,6 +1,6 @@
 // The refiner's copy of a sales order, rendered - pure (reads templates, substitutes; no database/transport/Chromium).
 // Sent AFTER the transaction that attaches the supplier and marks order_sent - a throw here is silent: the order says it went and nobody is told. Values the wire contract declares nullable (address, ask_spot) must render, not throw.
-import test from "node:test";
+import { test } from "vitest";
 import assert from "node:assert/strict";
 import {
   renderSalesOrderToSupplierEmail,

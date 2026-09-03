@@ -1,7 +1,7 @@
 // The options better-auth actually reads — a misspelled option is not an error or a warning, it's a key nobody reads. Two real cases: sendChangeEmailVerification was never a real option (the real name is sendChangeEmailConfirmation), so the approval mail was never sent and better-auth fell through to mailing the NEW address instead; canImpersonate was never an AdminOption either, read like a security control, and enforced nothing (the impersonate route's own adminMiddleware + hasPermission check does the real work).
 // The last test generalizes: it doesn't know which options are real, it asks better-auth's own build whether it's heard of each one — what would have caught both of these on day one.
 
-import test from "node:test";
+import { test } from "vitest";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";

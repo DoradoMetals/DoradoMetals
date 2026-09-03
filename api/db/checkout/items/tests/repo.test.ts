@@ -3,7 +3,7 @@
 // SCRAP AND BULLION ARE ONE TABLE and `bullion_id IS NULL` is what tells them
 // apart, so the two list projections are what this file actually pins - a line
 // that stops being scrap disappears from a cart with no error anywhere.
-import test, { after, before } from "node:test";
+import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
 import { randomUUID } from "node:crypto";
@@ -13,14 +13,14 @@ import * as items from "#db/checkout/items/repo.ts";
 
 let client: PoolClient;
 
-before(async () => {
+beforeAll(async () => {
   assert.equal(
     new Date().getTimezoneOffset(), 0,
     "these tests require TZ=UTC - run them with `pnpm --filter @dorado/api test`"
   );
   client = await pool.connect();
 });
-after(async () => { client.release(); await pool.end(); });
+afterAll(async () => { client.release(); await pool.end(); });
 
 async function inRollback(fn: (c: PoolClient) => Promise<void>) {
   await client.query("BEGIN");

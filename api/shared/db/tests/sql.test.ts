@@ -1,6 +1,6 @@
 // The SQL loader — small, but everything reads its statements through it, so its failure modes matter more than its size.
 // The one worth having is the EMPTY file — `query("")` isn't an error to pg, it just does nothing, so a truncated .sql file would read as a working query that returned no rows: the failure that looks like data.
-import test from "node:test";
+import { test } from "vitest";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";

@@ -1,7 +1,7 @@
 // The fulfillment endpoints, over real HTTP. get_for_order is the one worth aiming at: requireUser alone plus an order id from the query string is exactly the shape that turned out wrong in five other features - a fulfillment has no user of its own, so "is this yours" is a question about the order.
 // The ownership check was written alongside the feature, so this confirms it holds over HTTP rather than closing a hole - tested WITH A STRANGER, since the addresses replay tests passed for weeks over a live hole by only ever sending the caller's own id.
 // Admin routes are asserted to refuse a customer rather than exercised: schedule_pickup/schedule_direct write bookings, set_status moves an order's fulfillment.
-import test, { after, before } from "node:test";
+import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import request from "supertest";
 import pool from "#db";
@@ -24,7 +24,7 @@ let owner: Caller;
 let stranger: Caller;
 let order: OrderFixture;
 
-before(async () => {
+beforeAll(async () => {
   // The OLDEST order that has a fulfillment, so nothing another file creates
   // can move it.
   const orders = await outside<OrderFixture>(
@@ -59,7 +59,7 @@ before(async () => {
   assert.ok(stranger.id, "dev has only one non-admin user");
 });
 
-after(async () => {
+afterAll(async () => {
   restoreSessions();
   await pool.end();
 });

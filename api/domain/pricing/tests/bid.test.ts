@@ -11,7 +11,7 @@
 //   order.waive_payout_fee             ->  totals.waive_payout_fee
 //   getScrapTotal / getBullionTotal    ->  itemsTotal(scrapLines|bullionLines)
 //   calculateItemPrice                 ->  unitPrice
-import test from "node:test";
+import { test } from "vitest";
 import assert from "node:assert/strict";
 import {
   bullionLines,

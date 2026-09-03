@@ -6,7 +6,7 @@
 // auth.users.dorado_funds is NOT NULL DEFAULT 0.
 // NOTHING IS COMMITTED: pinned-pool.ts rolls back every query; the last test
 // checks the balance from outside.
-import test, { after, before } from "node:test";
+import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import request from "supertest";
@@ -48,7 +48,7 @@ const funds = async (id: string): Promise<number | null> => {
   return rows[0]?.dorado_funds ?? null;
 };
 
-before(async () => {
+beforeAll(async () => {
   const admins = await outside<UserFixture>(
     `SELECT id, name, email FROM auth.users WHERE role = 'admin' LIMIT 1`
   );
@@ -66,7 +66,7 @@ before(async () => {
   assert.ok(Number(balanceBefore) > 0, "the fixture customer has no balance to move");
 });
 
-after(async () => {
+afterAll(async () => {
   restoreSessions();
   await pool.end();
 });

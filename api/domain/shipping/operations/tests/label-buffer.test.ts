@@ -18,7 +18,7 @@
 // parameter - not a field on labelData, because labelData is what the carrier
 // said - so the test passes a recorder. That is the whole reason the seam
 // exists: the request that demonstrates this bug is the one that buys a label.
-import test from "node:test";
+import { test } from "vitest";
 import assert from "node:assert/strict";
 import { labelBufferOrVoid, type CancelLabel } from "#domain/shipping/operations/service.ts";
 

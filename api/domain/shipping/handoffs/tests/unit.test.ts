@@ -4,7 +4,7 @@
 // because a later reader tidying a string here would change what a shipment row
 // records and what a packing list prints - neither of which the string looks
 // like it does.
-import test from "node:test";
+import { test } from "vitest";
 import assert from "node:assert/strict";
 
 import { CATALOGUE } from "#domain/shipping/operations/adapters/fedex.catalogue.ts";

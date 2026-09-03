@@ -1,7 +1,7 @@
 // What comes back from FedEx, reduced. The test that matters pins a deliberate THROW: parseTracking dereferences trackResults[0] unguarded, so an empty or error response raises a TypeError instead of an empty result.
 // Load-bearing because of what runs after it: the caller used to delete every tracking event for a shipment and re-insert whatever came back — the throw, landing before that delete, was the only thing stopping an empty response from wiping history (production lost seven shipments' histories this way before the service learned to return early).
 // The service now has its own guard, so this COULD be softened safely. Deliberately not: a FedEx outage or bad tracking number should be loud, not look like a quiet parcel.
-import test from "node:test";
+import { test } from "vitest";
 import assert from "node:assert/strict";
 import {
   parseTracking,

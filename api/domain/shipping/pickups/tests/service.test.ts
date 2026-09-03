@@ -1,14 +1,15 @@
 // Carrier pickup writes, against real Postgres - native shipping.pickups. Each test runs inside a rolled-back transaction.
 // The first test guards a production bug: create() named a column the table lacked (42703) - it threw after FedEx had already booked a real pickup, leaving nothing pointing at it.
-import test, { after, before } from "node:test";
+import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
 import pool from "#db";
+import { LOCKS, takeLocks } from "#shared/testing/locks.ts";
 import * as dual from "#domain/shipping/pickups/service.ts";
 
 let client: PoolClient;
 
-before(async () => {
+beforeAll(async () => {
   assert.equal(
     new Date().getTimezoneOffset(), 0,
     "these tests require TZ=UTC - run them with `pnpm --filter @dorado/api test`"
@@ -16,13 +17,20 @@ before(async () => {
   client = await pool.connect();
 });
 
-after(async () => {
+afterAll(async () => {
   client.release();
   await pool.end();
 });
 
+// LOCKS.ORDERS + LOCKS.FULFILLMENTS, transaction-scoped (lane 3, the runner
+// conversion): this file picks a purchase order off orders.orders and
+// deletes fulfillments.shipments rows, and
+// domain/orders/tests/edit-line.test.ts writes real, autocommitting rows to
+// orders.orders under LOCKS.ORDERS - see purchase-read.test.ts's own comment
+// for the full mechanism.
 async function inRollback(fn: (c: PoolClient) => Promise<void>) {
   await client.query("BEGIN");
+  await takeLocks(client, [LOCKS.ORDERS, LOCKS.FULFILLMENTS]);
   try {
     await fn(client);
   } finally {

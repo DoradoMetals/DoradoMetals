@@ -1,6 +1,6 @@
 // The FedEx input builders - the last thing that runs before a real request reaches FedEx. Everything they get wrong becomes a label/booking/cancellation FedEx interprets differently than intended; the pickup path alone has produced four bugs.
 // Pure functions, no network - what's asserted is the mapping: what the handler is given, and what the provider receives.
-import test, { describe } from "node:test";
+import { test, describe } from "vitest";
 import assert from "node:assert/strict";
 import * as fedex from "#domain/shipping/operations/adapters/fedex.ts";
 

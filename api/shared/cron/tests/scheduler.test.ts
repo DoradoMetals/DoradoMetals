@@ -1,7 +1,7 @@
 // Schedules are read when setupScheduler runs, not at module load — the old module-level array WORKED only because of import order in server.ts (dotenv always ran first); swapping two lines would leave both cron jobs silently unscheduled with no error at all.
 // Nothing here calls run() — setupScheduler fires each job immediately, and the two jobs reach the live spot provider and the database; only the schedule strings are read.
 
-import test from "node:test";
+import { test } from "vitest";
 import assert from "node:assert/strict";
 
 import { jobs } from "#shared/cron/scheduler.ts";

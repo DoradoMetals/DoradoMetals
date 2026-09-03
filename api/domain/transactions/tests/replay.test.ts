@@ -1,7 +1,7 @@
 // The transaction history endpoint, over real HTTP — was reading a customer's identity from the request BODY on a GET (`const { user_id } = req.body`), so a signed-in customer sending one on GET got somebody else's ledger row. Confirmed against dev before the fix: one customer read another's entry, 200, with their user_id and purchase_order_id in it.
 // Survived this long because a GET normally carries no body — every ordinary call passed undefined and got an empty response, so the endpoint read as broken rather than dangerous (the frontend never calls it). This is the customer credit ledger: production holds 17 rows across 8 customers, $66,999.32.
 // NOTHING IS COMMITTED — read-only, but runs inside the pin like everything else so a future write can't escape.
-import test, { after, before } from "node:test";
+import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import request from "supertest";
 import pool from "#db";
@@ -17,7 +17,7 @@ let victim: string;
 let attacker: UserFixture;
 let victimRows: number;
 
-before(async () => {
+beforeAll(async () => {
   // The victim is whoever has the most ledger rows, so "leaked nothing" is a
   // real assertion rather than a property of an empty table.
   const owners = await outside<{ user_id: string; n: number }>(
@@ -38,7 +38,7 @@ before(async () => {
   assert.ok(attacker, "dev has no second non-admin user to attack with");
 });
 
-after(async () => {
+afterAll(async () => {
   restoreSessions();
   await pool.end();
 });

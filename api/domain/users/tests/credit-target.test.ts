@@ -5,7 +5,7 @@
 // NULL DEFAULT 0, so Postgres raises 23502 and nothing is written; the
 // service also refuses an unknown mode with a 400 before the repo is reached.
 
-import test from "node:test";
+import { test } from "vitest";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
 

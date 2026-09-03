@@ -14,7 +14,7 @@
 //
 // In SQL the question is exact, and it covers every order rather than whichever
 // one sorts first.
-import test from "node:test";
+import { test, afterAll } from "vitest";
 import assert from "node:assert/strict";
 import pool from "#db";
 import query from "#shared/db/query.ts";
@@ -23,7 +23,7 @@ import query from "#shared/db/query.ts";
 // back `unknown` rows, which is the point of converting these files.
 type PartialSet = { order_number: number; metals: number; listed: string | null };
 
-test.after(async () => {
+afterAll(async () => {
   await pool.end();
 });
 

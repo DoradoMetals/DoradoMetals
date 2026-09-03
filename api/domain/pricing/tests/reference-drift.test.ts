@@ -1,5 +1,5 @@
 // The pin between pure pricing and the reference rows (D207). getShippingCharge/calculateCardCharge are pure constants in code, but 109 gave the same numbers a second home (shipping.tiers, payments.methods) for the frontend to read as rows — two homes for one number is the drift bug this project keeps finding, so this test holds them together: change one side and it fails until the other moves too.
-import { test } from "node:test";
+import { test, afterAll } from "vitest";
 import assert from "node:assert/strict";
 import "#env";
 import query from "#shared/db/query.ts";
@@ -51,6 +51,6 @@ test("the sale surcharges the rows advertise are the ones calculateCardCharge ta
   // CREDIT and WIRE deliberately NOT pinned — their rows say 'No Fee' but calculateCardCharge surcharges at 2.9% (the open money question FOLLOWUPS item 1 records); pinning would bless one side of a question Jacob hasn't answered.
 });
 
-test.after(async () => {
+afterAll(async () => {
   await pool.end();
 });

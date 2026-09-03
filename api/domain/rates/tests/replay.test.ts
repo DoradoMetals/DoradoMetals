@@ -2,7 +2,7 @@
 //
 // `/get_all` has no guard at all while `/get_admin`, `/get_one`, `/create`, `/update` and `/delete` are requireAdmin - this file proves the public read can't leak what only admin should see.
 // Nothing is committed: pinned-pool.ts rolls back every query; the last test checks from outside.
-import test, { after, before } from "node:test";
+import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import request from "supertest";
@@ -20,7 +20,7 @@ let admin: UserFixture;
 let customer: UserFixture;
 let rateCountBefore: number;
 
-before(async () => {
+beforeAll(async () => {
   const admins = await outside<UserFixture>(
     `SELECT id, name, email FROM exchange.users WHERE role = 'admin' LIMIT 1`
   );
@@ -38,7 +38,7 @@ before(async () => {
   rateCountBefore = rates[0].n;
 });
 
-after(async () => {
+afterAll(async () => {
   restoreSessions();
   await pool.end();
 });

@@ -2,7 +2,7 @@
 // The other half of admin-mutation-urls.test.ts — that one asks whether a call sends the key its route reads; this asks whether the route exists at all. Neither check sees the other's case.
 // Template-literal paths can't be resolved statically and are skipped, not guessed at — the skip count is printed so it can't grow unnoticed.
 
-import test from "node:test";
+import { test } from "vitest";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";

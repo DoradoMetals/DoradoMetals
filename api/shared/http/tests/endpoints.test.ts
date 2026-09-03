@@ -1,7 +1,7 @@
 // The HTTP layer, over real requests — a repo test never sees routing/controller bugs (servicesRepo.remove(req.body) passing a whole body where an id was wanted; a GET controller reading req.body.user_id), because neither lives in a repo.
 // Two properties only this level can check: every endpoint is guarded or deliberately public, and a guarded endpoint refuses an anonymous request rather than serving it — the second matters most, since an unguarded route silently returns 200 with somebody's data.
 // Read-only: every request here is rejected before a controller or hits a public read.
-import test, { after, before } from "node:test";
+import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import request from "supertest";
 import express from "express";
@@ -132,11 +132,11 @@ function inventory(): Endpoint[] {
 
 const endpoints = inventory();
 
-after(async () => {
+afterAll(async () => {
   await pool.end();
 });
 
-before(() => {
+beforeAll(() => {
   assert.ok(endpoints.length > 100, `only ${endpoints.length} endpoints found - the walk is wrong`);
 });
 

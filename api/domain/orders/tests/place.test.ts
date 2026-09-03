@@ -7,7 +7,7 @@
 // leave the building stubbed AT THE PROVIDER BOUNDARY: shared/testing/
 // no-network.ts refuses a real one loudly, so the stub says what the carrier
 // answered rather than asking it.
-import test, { after, before } from "node:test";
+import { test, beforeAll, afterAll } from "vitest";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
 import pool from "#db";
@@ -22,7 +22,7 @@ let packageId: string;
 let labelServiceId: string;
 let dropoffMethodId: string;
 
-before(async () => {
+beforeAll(async () => {
   const users = await outside<{ id: string; address_id: string }>(
     `SELECT u.id, ua.address_id
        FROM auth.users u
@@ -52,7 +52,7 @@ before(async () => {
   )[0].id;
 });
 
-after(async () => {
+afterAll(async () => {
   await pool.end();
 });
 

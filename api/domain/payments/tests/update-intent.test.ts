@@ -36,7 +36,7 @@
 //
 // NOTHING IS COMMITTED: shared/testing/pinned-pool.js holds every query in one
 // transaction that is rolled back.
-import test, { after, before } from "node:test";
+import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import request from "supertest";
 import pool from "#db";
@@ -54,7 +54,7 @@ type UserFixture = { id: string; name: string | null; email: string | null };
 let customer: UserFixture;
 let addressId: string;
 
-before(async () => {
+beforeAll(async () => {
   const users = await outside<UserFixture>(
     `SELECT u.id, u.name, u.email FROM exchange.users u
       WHERE u.role IS DISTINCT FROM 'admin'
@@ -72,7 +72,7 @@ before(async () => {
   assert.ok(addressId, "dev needs an address for that user");
 });
 
-after(async () => {
+afterAll(async () => {
   restoreSessions();
   await pool.end();
 });
@@ -104,13 +104,12 @@ test("an unknown address id resolves to nothing rather than throwing", async () 
   assert.equal(address, undefined, "an unknown id should resolve to undefined");
 });
 
-test("update_payment_intent no longer dies before it reaches Stripe", {
-  skip: "reaches Stripe for real (sk_test_, no DI seam) and shared/testing/" +
-    "no-network.ts now blocks that - the Stripe SDK's retry logic does not " +
-    "resolve against nock's refusal, so this hangs past the per-test timeout " +
-    "instead of failing. Lane 5 replaces it with a cassette; see this file's " +
-    "header.",
-}, async () => {
+// SKIPPED: reaches Stripe for real (sk_test_, no DI seam) and
+// shared/testing/no-network.ts now blocks that - the Stripe SDK's retry logic
+// does not resolve against nock's refusal, so this hangs past the per-test
+// timeout instead of failing. Lane 5 replaces it with a cassette; see this
+// file's header.
+test.skip("update_payment_intent no longer dies before it reaches Stripe", async () => {
   await inPinnedTransaction(async () => {
     const customerId = customer.id;
     await as(Object.assign({}, customer, { role: "user" }), async () => {

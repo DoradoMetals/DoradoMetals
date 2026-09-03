@@ -4,7 +4,7 @@
 // shared/testing/pinned-pool.ts fixes that and is not optional: it makes pool.connect/pool.query hand back the same client, so the service's BEGIN/COMMIT become savepoints inside one outer transaction the last test proves gets discarded.
 // The fixture is self-seeded, not picked from dev, and the expected timestamp is computed through the same ::timestamptz cast the write uses - not a hardcoded UTC literal, since the session's TimeZone isn't always UTC.
 // Nothing calls FedEx: getTracking takes an optional fetchTracking the way sendEmail takes a transport, and these pass one.
-import test, { after } from "node:test";
+import { test, afterAll } from "vitest";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
 import pool from "#db";
@@ -19,7 +19,7 @@ type ShipmentRow = { shipping_status: string | null; delivered_at: Date | null; 
 let firstShipmentId: string | undefined;
 let secondShipmentId: string | undefined;
 
-after(async () => {
+afterAll(async () => {
   await pool.end();
 });
 

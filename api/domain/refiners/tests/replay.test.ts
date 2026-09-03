@@ -1,6 +1,6 @@
 // The reference-data surfaces, over real HTTP: refiners, spots, reviews and rates — one file because they ask the same two questions (is the guard right, does the response carry the right shape), and none takes a user id, so none can have the hole the other five had.
 // No advisory lock: nothing here writes, which the last test proves rather than assumes.
-import test, { after, before } from "node:test";
+import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import request from "supertest";
 import pool from "#db";
@@ -16,7 +16,7 @@ type Caller = UserFixture & { role: string };
 
 let admin: Caller;
 let customer: Caller;
-before(async () => {
+beforeAll(async () => {
   const admins = await outside<UserFixture>(
     `SELECT id, name, email FROM exchange.users WHERE role = 'admin' LIMIT 1`
   );
@@ -28,7 +28,7 @@ before(async () => {
   assert.ok(admin.id && customer.id, "dev needs an admin and a non-admin user");
 });
 
-after(async () => {
+afterAll(async () => {
   restoreSessions();
   await pool.end();
 });

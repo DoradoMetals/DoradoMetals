@@ -407,15 +407,36 @@ the user.
 ## Tests
 
 The API's tests run against real Postgres, each inside a transaction that is
-rolled back, and need `TZ=UTC` — `pnpm --filter @dorado/api test`. **A LOCAL
-Postgres is the default now (2026-09-03)**: `test` runs a preflight that checks
-a local cluster on 127.0.0.1 is up, provisioned, and fully migrated —
-auto-applying any pending migration there and only there — before running the
-suite against it, ~20s for 896 tests. `pnpm --filter @dorado/api test:on-dev`
-runs the old way, against the remote dev database, for the rare case that
-matters. See `docs/waves/local-postgres.md`. They live with their feature,
-grouped under `features/<feature>/tests/` (ruling 31), and a test whose subject
-moves moves with it in the same pass.
+rolled back, and need `TZ=UTC` — `pnpm --filter @dorado/api test`. **The
+runner is vitest 4 now (2026-09-03, lane 3)**: the same suite and the same
+pinned-transaction harness (`pinned-pool.ts`, `locks.ts`, `session.ts`)
+converted mechanically from `node --test` (`before`→`beforeAll`,
+`after`→`afterAll`, `node:assert/strict` untouched), 1017 tests across 165
+files in ~17s (five consecutive runs, 0 fail) against the old runner's
+~20s — forks pool with `isolate: true` reusing worker processes instead of
+spawning one per file, `maxWorkers: 12` because the naive default (all three
+projects racing at once) reproduced real lock-contention failures a single
+project's run never hit. `test` is split by what a file actually imports, not
+by directory
+(`scripts/lib/test-layers.ts`, derived from the tree every run):
+`test:unit` (no database, under 2s), `test:db` (repo + service), `test:http`
+(supertest), and plain `test` runs all three. **A LOCAL Postgres is the
+default** (2026-09-03): `test` runs a preflight that checks a local cluster on
+127.0.0.1 is up, provisioned, and fully migrated — auto-applying any pending
+migration there and only there — before running the suite against it.
+**Each worktree now gets its own database, not the one `test` every lane used
+to share** — the preflight derives `test_<branch>` from the current git
+branch (the main checkout and the `api-hardening` branch itself keep plain
+`test`), creating it from `test` as a template on first use, so a migration
+written in one lane's worktree can no longer change the schema under every
+other lane's gate at once (the lesson FOLLOWUPS D214 item 9 appended
+2026-09-03). `pnpm --filter @dorado/api test:on-dev` runs the suite against
+the remote dev database instead — no preflight, no per-branch database. See
+`docs/waves/local-postgres.md` and `docs/waves/test-suite-redesign.md`. They
+live with their feature, grouped under `<layer>/<feature>/tests/` (ruling
+31 — `db/`, `domain/`, `transport/`, `shared/`, `scripts/`, `providers/` now
+that `features/` has split), and a test whose subject moves moves with it in
+the same pass.
 
 The frontend uses vitest, `pnpm --filter @dorado/frontend test`, in two lanes:
 pure functions and contract shapes run in plain node, and component render

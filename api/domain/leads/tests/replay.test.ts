@@ -1,7 +1,7 @@
 // The leads endpoints, over real HTTP, with the payloads the frontend sends. Drives the whole path: route, guard, controller, service, repo.
 // Every route here is requireAdmin - a lead belongs to the business rather than a customer, so the admin boundary is the first thing worth asserting.
 // Nothing is committed: pinned-pool.ts rolls back every query, including the writes the service makes through its own connection. The last test checks from outside.
-import test, { after, before } from "node:test";
+import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import request from "supertest";
@@ -25,7 +25,7 @@ let customer: UserFixture;
 let existingLead: LeadFixture;
 const created: string[] = [];
 
-before(async () => {
+beforeAll(async () => {
   const admins = await outside<UserFixture>(
     `SELECT id, name, email FROM exchange.users WHERE role = 'admin' LIMIT 1`
   );
@@ -44,7 +44,7 @@ before(async () => {
   assert.ok(existingLead, "dev has no lead to read back");
 });
 
-after(async () => {
+afterAll(async () => {
   restoreSessions();
   await pool.end();
 });

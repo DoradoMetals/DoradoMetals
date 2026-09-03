@@ -1,7 +1,7 @@
 // Guards against browser API calls made from onSuccess/onSettled rather than mutationFn — if these fail, the operation has already succeeded and nothing retries or tells anyone.
 // Real incident: /emails/purchase_order_offer_accepted silently never sent because of exactly this. Only the two order emails are allowed this pattern (D31); a third fails here.
 
-import test from "node:test";
+import { test } from "vitest";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";

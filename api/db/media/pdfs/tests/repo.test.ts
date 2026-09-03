@@ -1,15 +1,16 @@
 // media.pdfs, append-only, against real Postgres - proves create() writes the row given and latestOfKind() reads the newest one back.
-import test, { after, before } from "node:test";
+import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
 import { randomUUID } from "node:crypto";
 import pool from "#db";
+import { LOCKS, takeLocks } from "#shared/testing/locks.ts";
 import * as repo from "#db/media/pdfs/repo.ts";
 
 let client: PoolClient;
 let orderId: string;
 
-before(async () => {
+beforeAll(async () => {
   assert.equal(
     new Date().getTimezoneOffset(), 0,
     "these tests require TZ=UTC - run them with `pnpm --filter @dorado/api test`"
@@ -20,13 +21,19 @@ before(async () => {
   orderId = rows[0].id;
 });
 
-after(async () => {
+afterAll(async () => {
   client.release();
   await pool.end();
 });
 
+// LOCKS.ORDERS, transaction-scoped (lane 3, the runner conversion): this
+// file picks an order off orders.orders as its FK anchor, and
+// domain/orders/tests/edit-line.test.ts writes real, autocommitting rows to
+// the same table under LOCKS.ORDERS - see domain/orders/tests/
+// purchase-read.test.ts's own comment for the full mechanism.
 async function inRollback(fn: (c: PoolClient) => Promise<void>) {
   await client.query("BEGIN");
+  await takeLocks(client, LOCKS.ORDERS);
   try {
     await fn(client);
   } finally {

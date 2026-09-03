@@ -1,6 +1,6 @@
 // Carriers through the service, against real Postgres - a carrier is two rows (organization + shipping.carriers), written together; most of these check that they stay consistent.
 // Each test runs inside a transaction that is rolled back.
-import test, { after, before } from "node:test";
+import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
 import { randomUUID } from "node:crypto";
@@ -9,11 +9,11 @@ import * as service from "#domain/shipping/carriers/service.ts";
 
 let client: PoolClient;
 
-before(async () => {
+beforeAll(async () => {
   client = await pool.connect();
 });
 
-after(async () => {
+afterAll(async () => {
   client.release();
   await pool.end();
 });

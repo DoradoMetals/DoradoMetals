@@ -1,5 +1,5 @@
 // Writes on fulfillments.shipments (the LINK, not the parcel), against real Postgres. Self-contained: the fulfillment is a draft (no order) and the shipment is created fresh.
-import test, { after, before } from "node:test";
+import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
 import { randomUUID } from "node:crypto";
@@ -10,7 +10,7 @@ import * as shippingShipments from "#db/shipping/shipments/repo.ts";
 
 let client: PoolClient;
 
-before(async () => {
+beforeAll(async () => {
   assert.equal(
     new Date().getTimezoneOffset(), 0,
     "these tests require TZ=UTC - run them with `pnpm --filter @dorado/api test`"
@@ -18,7 +18,7 @@ before(async () => {
   client = await pool.connect();
 });
 
-after(async () => {
+afterAll(async () => {
   client.release();
   await pool.end();
 });

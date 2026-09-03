@@ -1,6 +1,6 @@
 // The parts of carriers that need no database: the statements as text.
 // repo.ts builds its parameter array by hand against generated SQL - the one transcription error the generator can't catch, so these check column order and names directly.
-import test from "node:test";
+import { test } from "vitest";
 import assert from "node:assert/strict";
 import path from "node:path";
 import { sqlFrom } from "#shared/db/sql.ts";

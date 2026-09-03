@@ -5,7 +5,7 @@
 // suite starts committing to dev and they all keep passing, because they read
 // their own writes either way. So each property is asserted from OUTSIDE the
 // pinned transaction, on a connection that never sees it.
-import test, { after } from "node:test";
+import { test, afterAll } from "vitest";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import pool from "#db";
@@ -13,7 +13,7 @@ import query from "#shared/db/query.ts";
 import withTransaction from "#shared/db/withTransaction.ts";
 import { inPinnedTransaction, assertNothingEscaped } from "#shared/testing/pinned-pool.ts";
 
-after(async () => {
+afterAll(async () => {
   await pool.end();
 });
 

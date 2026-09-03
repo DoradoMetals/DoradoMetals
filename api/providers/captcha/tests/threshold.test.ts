@@ -1,7 +1,7 @@
 // RECAPTCHA_THRESHOLD, and the silent lockout it used to be able to cause. The old expression, `parseFloat(process.env.RECAPTCHA_THRESHOLD || '0.5')`, defaults only for UNSET — a present-but-unreadable value parses to NaN, and every score fails `>= NaN`, so every human gets refused with an ordinary `false` and no explanation anywhere.
 // The first test below is the control — it demonstrates the old expression really did that, rather than asserting it did.
 
-import test from "node:test";
+import { test } from "vitest";
 import assert from "node:assert/strict";
 
 import { scoreThreshold } from "#providers/captcha/recaptcha.ts";

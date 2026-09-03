@@ -13,7 +13,7 @@
 //
 // NOTHING IS COMMITTED: every statement takes the pinned client, so it is
 // inside the transaction shared/testing/pinned-pool.js rolls back.
-import test from "node:test";
+import { test } from "vitest";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
 import * as service from "#domain/payments/service.ts";

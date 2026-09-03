@@ -9,7 +9,7 @@
 // EVERY VALUE HERE IS SYNTHETIC. Dev holds sixteen payouts and not one bank
 // number - all sixteen are ECHECK or DORADO_ACCOUNT - so there is nothing real
 // to reach for even by accident, and these rows are rolled back regardless.
-import test, { after, before } from "node:test";
+import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
 import pool from "#db";
@@ -19,14 +19,14 @@ import { randomBytes } from "node:crypto";
 
 let client: PoolClient;
 
-before(async () => {
+beforeAll(async () => {
   assert.equal(
     new Date().getTimezoneOffset(), 0,
     "these tests require TZ=UTC - run them with `pnpm --filter @dorado/api test`"
   );
   client = await pool.connect();
 });
-after(async () => { client.release(); await pool.end(); });
+afterAll(async () => { client.release(); await pool.end(); });
 
 // LOCKS.ORDERS, AND THERE IS NO `PAYMENTS` LOCK ON PURPOSE. This file writes
 // payments.details and nothing else, so a lock of its own looks right - but

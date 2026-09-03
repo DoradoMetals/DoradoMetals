@@ -7,7 +7,10 @@
   "scripts": {
     "dev": "node --watch server.ts",
     "start": "node server.ts",
-    "test": "TZ=UTC NODE_ENV=test USE_TEST_DB=1 node scripts/preflight-test-db.ts && TZ=UTC NODE_ENV=test USE_TEST_DB=1 node --import ./shared/testing/no-network.ts --test --test-concurrency=24",
+    "test": "TZ=UTC NODE_ENV=test USE_TEST_DB=1 node scripts/preflight-test-db.ts && TZ=UTC NODE_ENV=test USE_TEST_DB=1 node node_modules/vitest/vitest.mjs run",
+    "test:unit": "TZ=UTC NODE_ENV=test node node_modules/vitest/vitest.mjs run --project unit",
+    "test:db": "TZ=UTC NODE_ENV=test USE_TEST_DB=1 node scripts/preflight-test-db.ts && TZ=UTC NODE_ENV=test USE_TEST_DB=1 node node_modules/vitest/vitest.mjs run --project db",
+    "test:http": "TZ=UTC NODE_ENV=test USE_TEST_DB=1 node scripts/preflight-test-db.ts && TZ=UTC NODE_ENV=test USE_TEST_DB=1 node node_modules/vitest/vitest.mjs run --project http",
     "test:external": "cd tests-external && TZ=UTC NODE_ENV=test node --test",
     "lint:db": "node scripts/lint-db-calls.ts",
     "lint:imports": "node scripts/lint-imports.mjs",
@@ -63,7 +66,7 @@
     "refresh:test": "node scripts/refresh-from-backup.mjs --target test",
     "provision:test": "TZ=UTC node scripts/provision-test-db.ts",
     "refresh:dev": "node scripts/refresh-from-backup.mjs --target dev",
-    "test:on-dev": "TZ=UTC NODE_ENV=test node --test",
+    "test:on-dev": "TZ=UTC NODE_ENV=test node node_modules/vitest/vitest.mjs run",
     "preflight:test-db": "TZ=UTC USE_TEST_DB=1 node scripts/preflight-test-db.ts",
     "audit:test-leaks:self-test": "TZ=UTC node scripts/audit-test-leaks.ts --self-test",
     "dump:stripe": "node scripts/dump-stripe-reconciliation.mjs",
@@ -126,10 +129,12 @@
     "@types/node": "^22.20.1",
     "@types/nodemailer": "^6.4.24",
     "@types/pg": "^8.23.1",
+    "@vitest/coverage-v8": "^4.1.11",
     "nock": "14.0.17",
     "pino-pretty": "^13.1.3",
     "supertest": "^7.2.2",
-    "typescript": "^7.0.2"
+    "typescript": "^7.0.2",
+    "vitest": "^4.1.11"
   },
   "engines": {
     "node": ">=24"

@@ -3,7 +3,7 @@
 // body-accepting fulfillments endpoint (the parent's own five, plus
 // methods/update, schedule_pickup and schedule_direct - each owned by a
 // different sub-resource but reached through this feature's routes).
-import test, { after } from "node:test";
+import { test, afterAll } from "vitest";
 import assert from "node:assert/strict";
 import request from "supertest";
 import { mockSessions, restoreSessions, as } from "#shared/testing/session.ts";
@@ -11,7 +11,7 @@ import { mockSessions, restoreSessions, as } from "#shared/testing/session.ts";
 await mockSessions();
 const { default: app } = await import("#app");
 
-after(() => restoreSessions());
+afterAll(() => restoreSessions());
 
 const admin = { id: "11111111-1111-1111-1111-111111111111", role: "admin", name: "Admin", email: "admin@x.test" };
 const asAdmin = <T>(fn: () => Promise<T> | T) => as(admin, fn);

@@ -1,5 +1,5 @@
 // The parts of carrier services that need no database: the statements as text.
-import test from "node:test";
+import { test } from "vitest";
 import assert from "node:assert/strict";
 import path from "node:path";
 import { sqlFrom } from "#shared/db/sql.ts";

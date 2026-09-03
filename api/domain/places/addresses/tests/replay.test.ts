@@ -1,6 +1,6 @@
 // The addresses endpoints, over real HTTP, with payloads lifted from frontend/features/addresses/queries.ts - exercises route, guard, controller and service together, since that's where this migration's bugs actually lived.
 // NOTHING IS COMMITTED: pinned-pool.ts rolls back every query; the last test asserts that from outside the transaction.
-import test, { after, before } from "node:test";
+import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import request from "supertest";
@@ -26,7 +26,7 @@ const created: string[] = [];
 import { LOCKS } from "#shared/testing/locks.ts";
 const ADDRESS_LOCK = LOCKS.ADDRESSES;
 
-before(async () => {
+beforeAll(async () => {
   // Read outside the pin: a fixture that has to already exist, not something the test wrote.
   const rows = await outside<UserFixture>(
     `SELECT u.id, u.email, u.name FROM exchange.users u
@@ -39,7 +39,7 @@ before(async () => {
   assert.ok(customer, "dev has no user with an address to replay against");
 });
 
-after(async () => {
+afterAll(async () => {
   restoreSessions();
   await pool.end();
 });

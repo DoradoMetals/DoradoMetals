@@ -12,7 +12,7 @@
 // doesn't take - every refusal returns BEFORE reaching the client, so
 // refusals are what's asserted. NOTHING IS COMMITTED: pinned-pool.ts rolls
 // back every query.
-import test, { after, before } from "node:test";
+import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import request from "supertest";
@@ -35,7 +35,7 @@ let owner: UserFixture;
 let stranger: UserFixture;
 const created: string[] = [];
 
-before(async () => {
+beforeAll(async () => {
   const admins = await outside<UserFixture>(
     `SELECT id, name, email FROM auth.users WHERE role = 'admin' LIMIT 1`
   );
@@ -50,7 +50,7 @@ before(async () => {
   assert.notEqual(owner.id, stranger.id, "the owner and the stranger are the same person");
 });
 
-after(async () => {
+afterAll(async () => {
   restoreSessions();
   await pool.end();
 });

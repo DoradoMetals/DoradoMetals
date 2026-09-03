@@ -2,7 +2,7 @@
 //
 // A settlement is money that MOVED. Its create is idempotent because a Stripe
 // webhook is retried, and a retry must rewrite the row rather than raise.
-import test, { after, before } from "node:test";
+import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
 import { randomUUID } from "node:crypto";
@@ -13,14 +13,14 @@ import * as settlements from "#db/payments/settlements/repo.ts";
 
 let client: PoolClient;
 
-before(async () => {
+beforeAll(async () => {
   assert.equal(
     new Date().getTimezoneOffset(), 0,
     "these tests require TZ=UTC - run them with `pnpm --filter @dorado/api test`"
   );
   client = await pool.connect();
 });
-after(async () => { client.release(); await pool.end(); });
+afterAll(async () => { client.release(); await pool.end(); });
 
 async function inRollback(fn: (c: PoolClient) => Promise<void>) {
   await client.query("BEGIN");

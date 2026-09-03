@@ -2,7 +2,7 @@
 // or a wrong-typed value is a 400 before the service runs. `path` is a
 // deliberate case - it used to be an accepted-and-silently-ignored field
 // (the server always chooses the object key); now it is an unknown key.
-import test, { after } from "node:test";
+import { test, afterAll } from "vitest";
 import assert from "node:assert/strict";
 import request from "supertest";
 import { mockSessions, restoreSessions, as } from "#shared/testing/session.ts";
@@ -10,7 +10,7 @@ import { mockSessions, restoreSessions, as } from "#shared/testing/session.ts";
 await mockSessions();
 const { default: app } = await import("#app");
 
-after(() => restoreSessions());
+afterAll(() => restoreSessions());
 
 const user = { id: "11111111-1111-1111-1111-111111111111", role: "user", name: "U", email: "u@x.test" };
 const asUser = <T>(fn: () => Promise<T> | T) => as(user, fn);
