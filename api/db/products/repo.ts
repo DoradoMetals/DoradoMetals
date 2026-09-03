@@ -15,6 +15,7 @@
 // create() and update() each take one named object instead of positional
 // scalars or per-column wrappers, and update() is the one UPDATE statement.
 import query from "#shared/db/query.ts";
+import { buildUpdate } from "#shared/db/patch.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
 import type { products } from "@dorado/contracts";
 import type { Executor } from "#shared/db/executor.ts";
@@ -54,8 +55,9 @@ export type Liveness = Pick<products.BullionRow, "id" | "display" | "sell_displa
 // metal_id, mint_id and supplier_id are IDS - the service resolves the names
 // the admin form sends before this is called; that resolution is the one
 // genuine transformation, everything else here is the request body's own
-// field, unchanged. updated_by is NOT a field of this type - see update()'s
-// separate `actor` parameter below.
+// field, unchanged. updated_by is NOT a field of this type and no longer has
+// an `actor` parameter either: public.audit_stamp writes it, and updated_at,
+// from the actor on the connection (migration 116).
 // undefined is admitted alongside null on every optional column: the admin
 // body types each as `?: T | null` (whatever the form did not send is
 // undefined, whatever it explicitly cleared is null), and the driver binds
@@ -200,12 +202,12 @@ export async function getTypes(executor?: Executor): Promise<{ name: string }[]>
   return rows;
 }
 
-// What create.sql needs beyond a name and who made it - the six columns
-// exchange defaults and products.bullion does not (see the SQL's header).
+// What create.sql needs beyond a name - the six columns exchange defaults and
+// products.bullion does not (see the SQL's header). `created_by` used to be
+// here and is not: the trigger writes it.
 export type NewProduct = {
   id: string;
   name: string;
-  created_by: string;
   metal_id: string; mint_id: string; supplier_id: string;
   image_front: string; image_back: string; stock: number; quantity: number;
 };
@@ -213,31 +215,46 @@ export type NewProduct = {
 export async function create(row: NewProduct, executor?: Executor): Promise<string> {
   const { rows } = await query<{ id: string }>(
     sql("create"),
-    [row.id, row.name, row.created_by, row.metal_id, row.mint_id, row.supplier_id,
+    [row.id, row.name, row.metal_id, row.mint_id, row.supplier_id,
      row.image_front, row.image_back, row.stock, row.quantity],
     executor
   );
   return rows[0].id;
 }
 
-// `actor` is WHO MADE THE EDIT, not a column of the patch - separated so the
-// service passes the request body through as the patch unchanged rather than
-// merging an audit field into it.
+// The columns update() may write. Every key of ProductPatch and nothing else -
+// updated_by and updated_at are absent because they are the trigger's, and
+// shared/db/patch.ts refuses either if one is ever added back.
+export const PATCHABLE = [
+  "metal_id", "supplier_id", "mint_id", "name", "description",
+  "bid_premium", "ask_premium", "type", "display", "content", "gross",
+  "purity", "variant_group", "shadow_offset", "stock", "slug",
+  "homepage_display", "legal_tender", "domestic_tender", "sell_display",
+  "is_generic", "variant_label", "quantity", "image_front", "image_back",
+  "filter_category",
+] as const;
+
+// STILL A FULL REPLACE, which is why every column is named here rather than
+// handed to the builder as the caller's object. shared/db/patch.ts treats an
+// `undefined` value as a column the caller did not mention - the right default
+// for a PATCH, and the opposite of what this statement has always done: the
+// admin form sends the whole product back and a field it omits is CLEARED,
+// exactly as `undefined` bound as NULL through the driver when this was a
+// positional tuple. Spelling the 26 columns with `?? null` keeps that.
 export async function update(
-  id: string, patch: ProductPatch, actor: string, executor?: Executor
+  id: string, patch: ProductPatch, executor?: Executor
 ): Promise<boolean> {
-  const r = await query(
-    sql("update"),
-    [
-      patch.metal_id, patch.supplier_id, patch.name, patch.description,
-      patch.bid_premium, patch.ask_premium, patch.type, patch.display,
-      patch.content, patch.gross, patch.purity, patch.mint_id,
-      patch.variant_group, patch.shadow_offset, patch.stock, actor,
-      patch.slug, patch.homepage_display, patch.legal_tender, patch.domestic_tender,
-      patch.sell_display, patch.is_generic, patch.variant_label, patch.quantity,
-      patch.image_front, patch.image_back, patch.filter_category, id,
-    ],
-    executor
+  const full = Object.fromEntries(
+    PATCHABLE.map((c) => [c, (patch as Record<string, unknown>)[c] ?? null])
   );
+  const built = buildUpdate({
+    table: "products.bullion",
+    allowed: PATCHABLE,
+    patch: full,
+    where: { id },
+    returning: "id",
+  });
+  if (!built) return false;
+  const r = await query(built.text, built.values, executor);
   return r.rowCount === 1;
 }

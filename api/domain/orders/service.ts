@@ -414,16 +414,20 @@ export async function finalizePricing({
   return { purchaseOrder, orderSpots: updatedSpots };
 }
 
+// The label, and only the label. `user_name` was a third field of this input
+// and is gone: public.audit_stamp writes updated_by / updated_by_id / updated_at
+// from the actor on the connection (migration 116).
+//
+// The transaction is what carries the actor - see updateSalesStatus in
+// write.service.ts for why one statement still needs one.
 export async function updatePurchaseStatus({
   order,
   order_status,
-  user_name,
 }: {
   order: OrderLike;
   order_status: string;
-  user_name: string;
 }): Promise<unknown> {
-  return await ordersRepo.update(order.id, { status: order_status, updated_by: user_name });
+  return await withTransaction((c) => ordersRepo.update(order.id, { status: order_status }, {}, c));
 }
 
 export async function updateSpot({
@@ -1015,9 +1019,7 @@ export async function createSalesOrder(
         throw err;
       }
       await withTransaction(async (client) => {
-        await reconcileService.cancelPendingSale(
-          intent.sales_order_id as string, "superseded-by-retry", client
-        );
+        await reconcileService.cancelPendingSale(intent.sales_order_id as string, client);
         await stripeRepo.attachOrder(payment_intent_id, null, null, client);
       });
     }
@@ -1229,9 +1231,7 @@ export async function adminCreateSalesOrder({
       // on (Cancelled, or advanced by hand) is merely detached.
       if (intent.sales_order_id) {
         await withTransaction(async (client) => {
-          await reconcileService.cancelPendingSale(
-            intent.sales_order_id as string, "superseded-by-admin-retry", client
-          );
+          await reconcileService.cancelPendingSale(intent.sales_order_id as string, client);
           await stripeRepo.attachOrder(payment_intent_id, null, null, client);
         });
       }
@@ -1294,17 +1294,15 @@ export async function adminCreateSalesOrder({
 export async function updateSalesStatus({
   order,
   order_status,
-  user_name,
 }: {
   order: SalesOrderRow;
   order_status: string;
-  user_name: string;
 }): Promise<SalesOrderRow | undefined> {
   // The status write returns the id it touched, not the order. The route
   // answers with it and always has - repo.exchange.js returned `rows[0]` of an
   // UPDATE ... RETURNING *, which the caller never read a field off.
   return (await salesOrderWrites.updateSalesStatus(
-    order, order_status, user_name ?? null
+    order, order_status
   )) as unknown as SalesOrderRow;
 }
 

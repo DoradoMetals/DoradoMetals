@@ -7,6 +7,27 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { sqlFrom } from "#shared/db/sql.ts";
+import { buildUpdate } from "#shared/db/patch.ts";
+import { PATCHABLE } from "#db/fulfillments/repo.ts";
+import { PATCHABLE as METHOD_PATCHABLE } from "#db/fulfillments/methods/repo.ts";
+
+// fulfillments/sql/update.sql AND methods/sql/update.sql ARE GONE. Both were
+// COALESCE statements that also wrote updated_at and updated_by_id by hand;
+// shared/db/patch.ts builds them from the column lists the repos export, and
+// public.audit_stamp writes the audit columns (migration 116). What this file
+// asserted about those two files it asserts about the builder's output.
+const builtFulfillment = () =>
+  buildUpdate({
+    table: "fulfillments.fulfillments", allowed: PATCHABLE,
+    patch: { status: "COMPLETED", method_id: "m" }, where: { id: "x" },
+  })!.text;
+
+const builtMethod = () =>
+  buildUpdate({
+    table: "fulfillments.methods", allowed: METHOD_PATCHABLE,
+    patch: Object.fromEntries(METHOD_PATCHABLE.map((c) => [c as string, null])),
+    where: { id: "x" },
+  })!.text;
 import {
   compose, composeAll, byFulfillment, byStartTimeThenId, toWire,
 } from "#domain/fulfillments/compose.ts";
@@ -25,12 +46,14 @@ const strip = (text: string): string =>
   text.split("\n").filter((l) => !l.trim().startsWith("--")).join("\n");
 
 test("every statement loads and is not empty", () => {
-  for (const n of ["get_one", "get_by_order", "get_many", "create", "update"]) {
+  for (const n of ["get_one", "get_by_order", "get_many", "create"]) {
     assert.ok(sql(n).trim().length > 0, `${n} is empty`);
   }
-  for (const n of ["get_available", "get_all", "get_one", "get_default", "update"]) {
+  for (const n of ["get_available", "get_all", "get_one", "get_default"]) {
     assert.ok(methodsSql(n).trim().length > 0, `methods/${n} is empty`);
   }
+  assert.ok(builtFulfillment().trim().length > 0, "the built fulfillments UPDATE is empty");
+  assert.ok(builtMethod().trim().length > 0, "the built methods UPDATE is empty");
   for (const n of ["get_for", "get_many", "get_scheduled", "upsert", "delete"]) {
     assert.ok(pickupsSql(n).trim().length > 0, `pickups/${n} is empty`);
     assert.ok(directsSql(n).trim().length > 0, `directs/${n} is empty`);
@@ -45,10 +68,12 @@ test("every statement loads and is not empty", () => {
 // looks like an optimisation.
 test("no statement joins a second table", () => {
   const all: [string, string][] = [
-    ...["get_one", "get_by_order", "get_many", "create", "update"]
+    ...["get_one", "get_by_order", "get_many", "create"]
       .map((n) => [`fulfillments/${n}`, sql(n)] as [string, string]),
-    ...["get_available", "get_all", "get_one", "get_default", "update"]
+    ...["get_available", "get_all", "get_one", "get_default"]
       .map((n) => [`methods/${n}`, methodsSql(n)] as [string, string]),
+    ["fulfillments/update", builtFulfillment()] as [string, string],
+    ["methods/update", builtMethod()] as [string, string],
     ...["get_for", "get_many", "get_scheduled", "upsert", "delete"]
       .flatMap((n) => [
         [`pickups/${n}`, pickupsSql(n)] as [string, string],
@@ -80,27 +105,41 @@ test("the direction cast is schema-qualified", () => {
 // The method table has no create and no delete, deliberately - the three
 // categories are code rather than data.
 test("methods offers no way to invent a category", () => {
-  const names = ["get_available", "get_all", "get_one", "get_default", "update"];
-  for (const n of names) {
+  for (const n of ["get_available", "get_all", "get_one", "get_default"]) {
     assert.doesNotMatch(strip(methodsSql(n)), /INSERT INTO|DELETE FROM/i,
       `methods/${n} creates or deletes a method`);
   }
+  assert.doesNotMatch(builtMethod(), /INSERT INTO|DELETE FROM/i,
+    "methods/update creates or deletes a method");
 });
 
-// The update COALESCEs every field, so a partial update - which is what every
-// admin toggle sends - leaves the rest alone.
+// PARTIAL, AND NOW BY A ROUTE THAT CANNOT BE WRONG ABOUT IT. The COALESCE
+// statement this replaces got "a partial update leaves the rest alone" from
+// every column being `coalesce($n, col)`; shared/db/patch.ts gets it from the
+// column never entering the SET list. That is the stronger version: the admin
+// toggle that sends only `hidden` produces a one-column UPDATE.
 test("the method update is partial, not a full overwrite", () => {
-  const body = strip(methodsSql("update"));
-  for (const col of ["label", "admin_label", "enabled", "hidden"]) {
-    assert.match(body, new RegExp(`${col}\\s*=\\s*coalesce\\(`, "i"),
-      `methods/update overwrites ${col} instead of coalescing it`);
+  const one = buildUpdate({
+    table: "fulfillments.methods", allowed: METHOD_PATCHABLE,
+    patch: { hidden: true }, where: { id: "x" },
+  })!;
+  assert.match(one.text, /SET hidden = \$1\b/);
+  for (const col of ["label", "admin_label", "enabled"]) {
+    assert.doesNotMatch(one.text, new RegExp(`\\b${col}\\b`),
+      `methods/update touches ${col} on a patch that never named it`);
   }
+
   // type, category and direction are what the code dispatches on. Changing a
   // method's category would move existing fulfillments to a detail table their
-  // rows are not in.
+  // rows are not in - so they are not in METHOD_PATCHABLE, and the builder
+  // throws rather than writing a column outside the whitelist.
   for (const col of ["type", "category", "direction"]) {
-    assert.doesNotMatch(body, new RegExp(`\\b${col}\\s*=`, "i"),
+    assert.doesNotMatch(builtMethod(), new RegExp(`\\b${col}\\s*=`, "i"),
       `methods/update writes ${col}, which the code dispatches on`);
+    assert.throws(() => buildUpdate({
+      table: "fulfillments.methods", allowed: METHOD_PATCHABLE,
+      patch: { [col]: "x" }, where: { id: "x" },
+    }), /is not a patchable column/, `${col} is patchable`);
   }
 });
 

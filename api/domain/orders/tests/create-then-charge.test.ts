@@ -14,6 +14,15 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
 import query from "#shared/db/query.ts";
+import { LOCKS } from "#shared/testing/locks.ts";
+
+// EVERY PINNED TRANSACTION IN THIS FILE TAKES THE BALANCE LOCK. A balance write
+// is two row locks - exchange.users, and auth.users through migration 107's
+// mirror trigger - so files that move balances agree an order rather than
+// deadlocking on whichever customer each visited first. See LOCKS.USERS.
+const inPinned = <T,>(fn: (c: import("pg").PoolClient) => Promise<T> | T): Promise<T> =>
+  inPinnedTransaction(fn, { lock: [LOCKS.USERS, LOCKS.ORDERS] });
+
 import { inPinnedTransaction } from "#shared/testing/pinned-pool.ts";
 import { mockSessions, restoreSessions, as } from "#shared/testing/session.ts";
 import * as ordersRepo from "#db/orders/repo.ts";
@@ -82,21 +91,21 @@ async function statusOf(c: PoolClient, id: string) {
 }
 
 test("the flair stamp relabels from anywhere - a label, never a gate (D211: flair)", async () => {
-  await inPinnedTransaction(async (c: PoolClient) => {
+  await inPinned(async (c: PoolClient) => {
     const id = await seedSale(c, "Pending");
-    await ordersRepo.update(id, { status: "Preparing", updated_by: "payment" }, {}, c);
+    await ordersRepo.update(id, { status: "Preparing" }, {}, c);
     assert.deepEqual(await statusOf(c, id), { native: "Preparing" });
 
     // Unconditional by design - the label is COSMETIC, and the no-stomp
     // property lives at the payments layer (the transition gate), not here.
     const relabelled = await seedSale(c, "Completed");
-    await ordersRepo.update(relabelled, { status: "Preparing", updated_by: "payment" }, {}, c);
+    await ordersRepo.update(relabelled, { status: "Preparing" }, {}, c);
     assert.deepEqual(await statusOf(c, relabelled), { native: "Preparing" });
   });
 });
 
 test("a webhook RETRY does not stomp an admin's later label - by payment fact, not status", async () => {
-  await inPinnedTransaction(async (c: PoolClient) => {
+  await inPinned(async (c: PoolClient) => {
     const orderId = await seedSale(c, "Pending");
     const pi = `pi_p9_retry_${Date.now()}`;
     await seedIntent(c, pi, { order_id: orderId });
@@ -124,7 +133,7 @@ test("a webhook RETRY does not stomp an admin's later label - by payment fact, n
 // ---------------------------------------------------------------- the webhook
 
 test("payment_intent.succeeded advances the order the intent is attached to", async () => {
-  await inPinnedTransaction(async (c: PoolClient) => {
+  await inPinned(async (c: PoolClient) => {
     const orderId = await seedSale(c, "Pending");
     const pi = `pi_p9_webhook_${Date.now()}`;
     await seedIntent(c, pi, { order_id: orderId });
@@ -138,7 +147,7 @@ test("payment_intent.succeeded advances the order the intent is attached to", as
 });
 
 test("payment_intent.processing does NOT advance the order", async () => {
-  await inPinnedTransaction(async (c: PoolClient) => {
+  await inPinned(async (c: PoolClient) => {
     const orderId = await seedSale(c, "Pending");
     const pi = `pi_p9_processing_${Date.now()}`;
     await seedIntent(c, pi, { order_id: orderId });
@@ -196,7 +205,7 @@ async function pricedCents(c: PoolClient, f: { address_id: string; product_id: s
 const statusCodeOf = (err: unknown) => (err as { statusCode?: number }).statusCode;
 
 test("an order with a charge refuses to exist without a payment intent", async () => {
-  await inPinnedTransaction(async (c: PoolClient) => {
+  await inPinned(async (c: PoolClient) => {
     const f = await fixtures(c);
     assert.ok(f, "the test db has no user+address+product to price against");
     await as({ id: f.user_id }, () =>
@@ -211,7 +220,7 @@ test("an order with a charge refuses to exist without a payment intent", async (
 });
 
 test("somebody else's payment intent is refused as if it did not exist", async () => {
-  await inPinnedTransaction(async (c: PoolClient) => {
+  await inPinned(async (c: PoolClient) => {
     const f = await fixtures(c);
     assert.ok(f, "no fixtures");
     const pi = `pi_p9_theirs_${Date.now()}`;
@@ -232,7 +241,7 @@ test("somebody else's payment intent is refused as if it did not exist", async (
 // for - refusing here is what protects a paid order from being cancelled by
 // a retry - and the label on that order is irrelevant flair.
 test("a SETTLED intent already attached to an order refuses a second one", async () => {
-  await inPinnedTransaction(async (c: PoolClient) => {
+  await inPinned(async (c: PoolClient) => {
     const f = await fixtures(c);
     assert.ok(f, "no fixtures");
     // Labelled Pending ON PURPOSE: under the old status-driven rule this
@@ -264,9 +273,9 @@ test("a SETTLED intent already attached to an order refuses a second one", async
 // subject); the supersede MECHANICS are the reconciler helper's, driven here
 // directly.
 test("an unsettled sale is superseded by fact, whatever its label says", async () => {
-  await inPinnedTransaction(async (c: PoolClient) => {
+  await inPinned(async (c: PoolClient) => {
     const id = await seedSale(c, "Preparing");
-    const result = await reconcileService.cancelPendingSale(id, "superseded-by-retry", c);
+    const result = await reconcileService.cancelPendingSale(id, c);
     assert.equal(result.order_id, id);
     assert.deepEqual(await statusOf(c, id), { native: "Cancelled" });
   });
@@ -277,7 +286,7 @@ test("an unsettled sale is superseded by fact, whatever its label says", async (
 // server's price to the cent, the order is created and born Preparing - the
 // money is real and there is nothing left to await.
 test("a paid-but-orderless intent is honoured: the order is created already Preparing", async () => {
-  await inPinnedTransaction(async (c: PoolClient) => {
+  await inPinned(async (c: PoolClient) => {
     const f = await fixtures(c);
     assert.ok(f, "no fixtures");
     const cents = await pricedCents(c, f);
@@ -299,7 +308,7 @@ test("a paid-but-orderless intent is honoured: the order is created already Prep
 });
 
 test("a paid intent at a DIFFERENT price than the cart is refused, naming support", async () => {
-  await inPinnedTransaction(async (c: PoolClient) => {
+  await inPinned(async (c: PoolClient) => {
     const f = await fixtures(c);
     assert.ok(f, "no fixtures");
     const cents = await pricedCents(c, f);
@@ -324,7 +333,7 @@ test("a paid intent at a DIFFERENT price than the cart is refused, naming suppor
 // `payment_method === "CREDIT"` and got exactly this case - full coverage via
 // using_funds - wrong.
 test("an order fully covered by credit is born Preparing, with no intent attached", async () => {
-  await inPinnedTransaction(async (c: PoolClient) => {
+  await inPinned(async (c: PoolClient) => {
     const f = await fixtures(c);
     assert.ok(f, "no fixtures");
     // The credit balance is read off the SESSION user (pricing takes

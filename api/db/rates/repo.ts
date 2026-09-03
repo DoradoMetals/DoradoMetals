@@ -7,17 +7,18 @@
 // update takes an id and a patch and answers whether a row changed (D212's
 // CRUD ruling); no per-column wrapper lives here.
 //
-// KNOWN LIMIT OF THE COALESCE PATCH: max_qty is nullable (null means
-// open-ended), and COALESCE($n, col) cannot distinguish "leave max_qty alone"
-// from "clear it to open-ended" - both arrive as null. Every other patchable
-// column here is non-null, so this is the one place it matters; clearing
-// max_qty today means recreating the band.
+// THE COALESCE LIMIT ON max_qty IS FIXED. This repo's header used to record
+// that max_qty is nullable (null means an open-ended band) and that
+// `COALESCE($n, col)` could not tell "leave it alone" from "clear it", so
+// clearing one meant deleting the band and making a new one. The statement is
+// built from the keys the patch carries now (shared/db/patch.ts): omit max_qty
+// and it is untouched, send `max_qty: null` and the band becomes open-ended.
 //
-// created_by/updated_by are NOT in NewRate/RatePatch - not the client's to
-// set. Both create and update take a separate ACTOR argument; the SQL writes
-// it into created_by (on insert, fixed thereafter) / updated_by (on every
-// update). update.sql no longer touches created_by at all.
+// NOBODY PASSES AN AUTHOR ANY MORE. created_by, updated_by, created_at and
+// updated_at are the public.audit_stamp trigger's, taken from the actor on the
+// connection (migration 116, shared/http/actor.ts).
 import query from "#shared/db/query.ts";
+import { buildUpdate } from "#shared/db/patch.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
 import type { rates } from "@dorado/contracts";
 import type { Executor } from "#shared/db/executor.ts";
@@ -32,9 +33,11 @@ export type NewRate = Pick<
 > &
   { id?: string | null };
 
-export type RatePatch = Partial<
-  Pick<RateRow, "metal_id" | "unit" | "min_qty" | "max_qty" | "scrap_pct" | "bullion_pct">
->;
+export const PATCHABLE = [
+  "metal_id", "unit", "min_qty", "max_qty", "scrap_pct", "bullion_pct",
+] as const;
+
+export type RatePatch = Partial<Pick<RateRow, (typeof PATCHABLE)[number]>>;
 
 export async function getOne(id: string, executor?: Executor): Promise<RateRow | undefined> {
   const { rows } = await query<RateRow>(sql("get_one"), [id], executor);
@@ -46,28 +49,23 @@ export async function list(executor?: Executor): Promise<RateRow[]> {
   return rows;
 }
 
-export async function create(
-  row: NewRate, actor?: string | null, executor?: Executor
-): Promise<RateRow> {
+export async function create(row: NewRate, executor?: Executor): Promise<RateRow> {
   const { rows } = await query<RateRow>(
     sql("create"),
-    [row.id, row.metal_id, row.unit, row.min_qty, row.max_qty, row.scrap_pct, row.bullion_pct, actor, actor],
+    [row.id, row.metal_id, row.unit, row.min_qty, row.max_qty, row.scrap_pct, row.bullion_pct],
     executor
   );
   return rows[0];
 }
 
 export async function update(
-  id: string, patch: RatePatch, actor?: string | null, executor?: Executor
+  id: string, patch: RatePatch, executor?: Executor
 ): Promise<boolean> {
-  const { rowCount } = await query(
-    sql("update"),
-    [
-      patch.metal_id, patch.unit, patch.min_qty, patch.max_qty,
-      patch.scrap_pct, patch.bullion_pct, actor, id,
-    ],
-    executor
-  );
+  const built = buildUpdate({
+    table: "rates.rates", allowed: PATCHABLE, patch, where: { id },
+  });
+  if (!built) return true;
+  const { rowCount } = await query(built.text, built.values, executor);
   return rowCount === 1;
 }
 

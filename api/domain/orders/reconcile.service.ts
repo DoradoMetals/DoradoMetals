@@ -36,7 +36,8 @@ export async function sweepSettledIntents(
   const out: SettledSweepResult[] = [];
   for (const c of candidates) {
     // The flair, nothing else: paid is a payments FACT, "Preparing" is the label.
-    await orders.update(c.order_id, { status: "Preparing", updated_by: "payment" }, {}, executor);
+    // No actor: a sweep is nobody, and the row says so (migration 116).
+    await orders.update(c.order_id, { status: "Preparing" }, {}, executor);
     out.push({ order_id: c.order_id, outcome: "advanced" });
   }
   return out;
@@ -60,9 +61,9 @@ export type AbandonedSweepResult = {
  *    order means the money already went back, whatever any label says;
  *  - the Cancelled labels are then written unconditionally, as flair. */
 export async function cancelPendingSale(
-  order_id: string, by: string, client: Executor
+  order_id: string, client: Executor
 ): Promise<AbandonedSweepResult> {
-  await orders.update(order_id, { status: "Cancelled", updated_by: by }, {}, client);
+  await orders.update(order_id, { status: "Cancelled" }, {}, client);
 
   const money = await orders.findReservedFunds(order_id, client);
   const reserved = Number(money?.reserved_funds ?? 0);
@@ -102,8 +103,8 @@ export async function sweepAbandoned(
         await paymentsService.cancelIntentByRef(c.payment_intent_id);
       }
       const result = executor
-        ? await cancelPendingSale(c.order_id, "reconciler", executor)
-        : await withTransaction((client: PoolClient) => cancelPendingSale(c.order_id, "reconciler", client));
+        ? await cancelPendingSale(c.order_id, executor)
+        : await withTransaction((client: PoolClient) => cancelPendingSale(c.order_id, client));
       out.push(result);
     } catch (err) {
       reportError({

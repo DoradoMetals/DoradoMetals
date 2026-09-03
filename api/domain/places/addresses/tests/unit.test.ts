@@ -8,8 +8,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import path from "node:path";
-import { readFileSync } from "node:fs";
 import { sqlFrom } from "#shared/db/sql.ts";
+import { buildUpdate } from "#shared/db/patch.ts";
+import { PATCHABLE } from "#db/places/addresses/repo.ts";
+import { PATCHABLE as UA_PATCHABLE } from "#db/places/user-addresses/repo.ts";
 import { compose, byDefaultThenId, all } from "#domain/places/addresses/compose.ts";
 import type { ComposedAddress } from "#domain/places/addresses/compose.ts";
 
@@ -19,13 +21,13 @@ const sql = sqlFrom(path.join(import.meta.dirname, "..", "..", "..", "..", "db",
 const body = (name: string): string =>
   sql(name).split("\n").filter((l) => !l.trim().startsWith("--")).join("\n");
 
-// update() collapsed into one dynamic statement inside repo.ts (the CRUD
-// ruling), so it is no longer its own .sql file - it is read as source text
-// instead, the same way the other statements are read as file text.
-const repoSource = readFileSync(
-  path.join(import.meta.dirname, "..", "..", "..", "..", "db", "places", "addresses", "repo.ts"),
-  "utf8"
-);
+// update() collapsed into one dynamic statement (the CRUD ruling), and that
+// statement moved again into shared/db/patch.ts, which every batch-1 and
+// batch-2 repo now shares. It was asserted by reading repo.ts as SOURCE TEXT;
+// it is asserted by BUILDING it now, which is stronger - a source-text match
+// could pass on a string in a comment.
+const built = (patch: Record<string, unknown>) =>
+  buildUpdate({ table: "places.addresses", allowed: PATCHABLE, patch, where: { id: "x" } })!;
 
 const STATEMENTS = ["get_one", "get_many", "create", "delete", "is_active", "is_referenced"];
 
@@ -48,13 +50,22 @@ test("create writes its columns in the order repo.ts supplies them", () => {
 // "fixes" this statement by adding a user_id it will not compile against the
 // table, and if they add a join it stops being one table.
 test("the new-schema update is keyed on the address alone", () => {
-  const updateFn = repoSource.slice(
-    repoSource.indexOf("export async function update("),
-    repoSource.indexOf("\n}", repoSource.indexOf("export async function update("))
-  );
-  assert.match(updateFn, /WHERE id = \$1/, "the dynamic UPDATE must key on id alone");
-  assert.doesNotMatch(updateFn, /user_id/,
+  const text = built({ line_1: "1 A" }).text;
+  assert.match(text, /WHERE id = \$2$/, "the dynamic UPDATE must key on id alone");
+  assert.doesNotMatch(text, /user_id/,
     "places.addresses has no user_id - the ownership check lives in service.ts");
+});
+
+// updated_at LEFT THE SET LIST. It was appended to every one of these
+// statements by hand; public.audit_stamp writes it for every table that has
+// one (migration 116), so a statement that also wrote it would be a second
+// author for one column.
+test("the update writes no audit column", () => {
+  const sets = built(Object.fromEntries(PATCHABLE.map((c) => [c, null])))
+    .text.split(" WHERE")[0];
+  for (const col of ["created_at", "updated_at", "created_by", "updated_by"]) {
+    assert.doesNotMatch(sets, new RegExp(`\\b${col}\\b`), `the built UPDATE writes ${col}`);
+  }
 });
 
 test("the writes to places.user_addresses are scoped to the person", () => {
@@ -66,7 +77,15 @@ test("the writes to places.user_addresses are scoped to the person", () => {
   const uaBody = (n: string) =>
     ua(n).split("\n").filter((l) => !l.trim().startsWith("--")).join("\n");
 
-  assert.match(uaBody("update"), /WHERE\s+address_id\s*=\s*\$4\s+AND\s+user_id\s*=\s*\$5/i);
+  // user-addresses' update is built the same way now, and the OWNERSHIP GUARD
+  // rides in the WHERE - which is the point of this test and the reason the
+  // builder takes a `where` map rather than an id.
+  const uaUpdate = buildUpdate({
+    table: "places.user_addresses", allowed: UA_PATCHABLE,
+    patch: { label: "Home", default_shipping: true, default_billing: true },
+    where: { address_id: "a", user_id: "u" },
+  })!;
+  assert.match(uaUpdate.text, /WHERE address_id = \$4 AND user_id = \$5/i);
   assert.match(uaBody("delete"), /WHERE\s+address_id\s*=\s*\$1\s+AND\s+user_id\s*=\s*\$2/i);
   assert.match(uaBody("get_one"), /WHERE\s+address_id\s*=\s*\$1\s+AND\s+user_id\s*=\s*\$2/i);
   // set_default is two statements since 089's partial unique index: the
@@ -82,11 +101,8 @@ test("no write statement reaches into a second table", () => {
   for (const n of ["get_one", "get_many", "create", "delete"]) {
     assert.doesNotMatch(body(n), /exchange\.|orders\.|user_addresses/, `${n} reaches beyond its table`);
   }
-  const updateFn = repoSource.slice(
-    repoSource.indexOf("export async function update("),
-    repoSource.indexOf("\n}", repoSource.indexOf("export async function update("))
-  );
-  assert.doesNotMatch(updateFn, /exchange\.|orders\.|user_addresses/, "update reaches beyond its table");
+  const text = built(Object.fromEntries(PATCHABLE.map((c) => [c, null]))).text;
+  assert.doesNotMatch(text, /exchange\.|orders\.|user_addresses/, "update reaches beyond its table");
 });
 
 // is_referenced has to ask about BOTH columns of orders.addresses. An order

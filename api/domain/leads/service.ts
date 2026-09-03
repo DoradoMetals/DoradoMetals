@@ -36,17 +36,15 @@ export async function list(): Promise<LeadWire[]> {
   return await leads.list();
 }
 
-export async function create(lead: NewLead, user_name?: string | null): Promise<LeadWire> {
+export async function create(lead: NewLead): Promise<LeadWire> {
   return withTransaction(async (client) => {
-    return await leads.create(lead, user_name, client);
+    return await leads.create(lead, client);
   });
 }
 
-export async function update(
-  id: string, patch: LeadPatch, user_name?: string | null
-): Promise<LeadWire> {
+export async function update(id: string, patch: LeadPatch): Promise<LeadWire> {
   return withTransaction(async (client) => {
-    const changed = await leads.update(id, patch, user_name, client);
+    const changed = await leads.update(id, patch, client);
     if (!changed) throw notFound(id);
     const row = await leads.getOne(id, client);
     if (!row) throw notFound(id);

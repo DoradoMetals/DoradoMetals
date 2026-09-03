@@ -5,6 +5,6 @@
 -- the ask is what the same metal sells for. Clearing both would lose a number
 -- this statement never owned.
 UPDATE orders.spots
-   SET bid = NULL, updated_at = now()
+   SET bid = NULL
  WHERE order_id = $1
 RETURNING id

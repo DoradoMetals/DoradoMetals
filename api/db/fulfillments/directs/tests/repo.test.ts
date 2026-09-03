@@ -37,7 +37,7 @@ async function inRollback(fn: (c: PoolClient) => Promise<void>) {
 async function aDraftFulfillment(c: PoolClient): Promise<string> {
   const { rows: [m] } = await c.query(`SELECT id FROM fulfillments.methods LIMIT 1`);
   assert.ok(m, "dev has no fulfillments.methods row");
-  const draft = await fulfillments.createDraft({ id: randomUUID(), method_id: m.id, created_by_id: null }, c);
+  const draft = await fulfillments.createDraft({ id: randomUUID(), method_id: m.id }, c);
   return draft.id;
 }
 

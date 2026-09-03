@@ -15,8 +15,7 @@
 -- Same (direction, type) resolution and same DORADO_ACCOUNT rename as
 -- create.sql.
 UPDATE payments.details d
-   SET method_id  = m.id,
-       updated_at = now()
+   SET method_id  = m.id
   FROM orders.transactions t, payments.methods m
  WHERE t.order_id = $1
    AND d.id = t.payout_details_id

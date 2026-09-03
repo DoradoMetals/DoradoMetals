@@ -10,6 +10,7 @@
 // listFor() on (ownership lives in places.user_addresses, whose own repo
 // exposes listFor(userId)).
 import query from "#shared/db/query.ts";
+import { buildUpdate } from "#shared/db/patch.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
 import type { places } from "@dorado/contracts";
 import type { Executor } from "#shared/db/executor.ts";
@@ -48,7 +49,12 @@ export type NewAddress = {
 // built as "which columns are in the patch", never COALESCE - COALESCE cannot
 // tell "omitted" from "explicitly null", and clearing line_2 needs that
 // distinction to keep working.
-const PATCHABLE = [
+//
+// THAT ARGUMENT WON: shared/db/patch.ts is this statement, extracted, and
+// leads, reviews, rates, products and organizations build theirs with it now.
+// updated_at left the SET list with the move - public.audit_stamp writes it
+// (migration 116).
+export const PATCHABLE = [
   "line_1", "line_2", "city", "state", "country", "zip",
   "country_code", "phone_number", "is_valid", "is_residential",
 ] as const;
@@ -86,16 +92,11 @@ export async function create(
 export async function update(
   id: string, patch: AddressPatch, executor?: Executor
 ): Promise<boolean> {
-  const cols = PATCHABLE.filter((c) => c in patch);
-  if (!cols.length) return true;
-  const sets = cols.map((c, i) => `${c} = $${i + 2}`);
-  const values: unknown[] = [id, ...cols.map((c) => patch[c] ?? null)];
-  const { rowCount } = await query(
-    `UPDATE places.addresses SET ${sets.join(", ")}, updated_at = now()
-      WHERE id = $1`,
-    values,
-    executor
-  );
+  const built = buildUpdate({
+    table: "places.addresses", allowed: PATCHABLE, patch, where: { id },
+  });
+  if (!built) return true;
+  const { rowCount } = await query(built.text, built.values, executor);
   return rowCount === 1;
 }
 

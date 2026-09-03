@@ -12,5 +12,5 @@
 INSERT INTO refiners.orders (order_id, refiner_id)
 VALUES ($2, $1)
 ON CONFLICT (order_id) DO UPDATE
-  SET refiner_id = EXCLUDED.refiner_id, updated_at = now()
+  SET refiner_id = EXCLUDED.refiner_id
 RETURNING order_id AS id, refiner_id AS supplier_id

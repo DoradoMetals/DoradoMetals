@@ -13,6 +13,7 @@
 // never the row's id, so that stays the real key. `bid` is the only writable
 // column any caller has ever needed; ask is set only at create.
 import query from "#shared/db/query.ts";
+import { buildUpdate } from "#shared/db/patch.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
 import type { Executor } from "#shared/db/executor.ts";
 import type { refiners } from "@dorado/contracts";
@@ -151,13 +152,23 @@ export async function coverFromOrderSpots(
 // function for two exchange ones - updateRefinerMetals and updateRefinerSpot
 // were the same statement). Keyed on (order_id, metal_id): every caller holds
 // that pair, never this table's own id.
-export type SpotPatch = Partial<Pick<refiners.SpotsRow, "bid">>;
+// ONE STATEMENT FOR TWO EXCHANGE FUNCTIONS, exactly as in orders/spots:
+// updateRefinerMetals looped over a list and updateRefinerSpot took one, but
+// the UPDATE was character-for-character the same. The loop is the caller's.
+//
+// KEYED ON TWO COLUMNS, which is why buildUpdate takes a `where` map: a spot
+// is one metal on one order.
+export const PATCHABLE = ["bid"] as const;
+
+export type SpotPatch = Partial<Pick<refiners.SpotsRow, (typeof PATCHABLE)[number]>>;
 
 export async function update(
   order_id: string, metal_id: string, patch: SpotPatch, executor?: Executor
 ): Promise<boolean> {
-  const { rowCount } = await query(
-    sql("update"), [patch.bid, order_id, metal_id], executor
-  );
+  const built = buildUpdate({
+    table: "refiners.spots", allowed: PATCHABLE, patch, where: { order_id, metal_id },
+  });
+  if (!built) return true;
+  const { rowCount } = await query(built.text, built.values, executor);
   return rowCount === 1;
 }

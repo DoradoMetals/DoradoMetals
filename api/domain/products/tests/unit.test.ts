@@ -7,6 +7,8 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import path from "node:path";
 import { sqlFrom } from "#shared/db/sql.ts";
+import { buildUpdate } from "#shared/db/patch.ts";
+import { PATCHABLE } from "#db/products/repo.ts";
 import { storefront, admin } from "#domain/products/compose.ts";
 import type { Labels } from "#domain/products/compose.ts";
 
@@ -17,18 +19,31 @@ const body = (name: string): string =>
   sql(name).split("\n").filter((l) => !l.trim().startsWith("--")).join("\n");
 
 // The SET assignments, ordered by parameter number. The WHERE key is dropped:
-// `WHERE id = $28` matches the same pattern and is not a value being written.
-const updateColumns = (name: string): string[] =>
-  [...body(name).matchAll(/(\w+)\s*=\s*\$(\d+)/g)]
-    .filter(([, , n]) => Number(n) <= 27)
-    .sort((a, b) => Number(a[2]) - Number(b[2]))
+// sql/update.sql IS GONE. The one UPDATE is built by shared/db/patch.ts from
+// the column list repo.ts exports, so everything this file used to assert
+// about the statement's text is asserted about the builder's output instead -
+// the same claims, read from where the statement is now made.
+//
+// The WHERE binds `id` and matches the same pattern as an assignment, so only
+// the SET list is scanned.
+const builtUpdate = (patch: Record<string, unknown>) =>
+  buildUpdate({
+    table: "products.bullion", allowed: PATCHABLE, patch, where: { id: "x" },
+  })!;
+
+const updateColumns = (patch: Record<string, unknown>): string[] =>
+  [...builtUpdate(patch).text.split(" WHERE")[0].matchAll(/(\w+) = \$\d+/g)]
     .map(([, col]) => col);
+
+// What the admin form sends back: every patchable column, present.
+const fullPatch: Record<string, unknown> =
+  Object.fromEntries(PATCHABLE.map((c) => [c as string, null]));
 
 test("every statement loads and is not empty", () => {
   for (const n of [
     "get_storefront", "get_sell", "get_homepage", "get_by_slug", "get_by_ids",
     "get_filtered", "get_admin_all", "get_admin_one", "get_liveness",
-    "get_types", "create", "update",
+    "get_types", "create",
   ]) {
     assert.ok(sql(n).trim().length > 0, `${n} is empty`);
   }
@@ -42,17 +57,32 @@ const RENAMES: Record<string, string> = {
   type: "product_type",
 };
 
-test("the UPDATE assigns the 27 values ProductValues carries, in order", () => {
-  const next = updateColumns("update").filter((c) => c !== "updated_at");
-  assert.equal(next.length, 27, "the update column count changed - ProductValues has 27 entries");
+test("the UPDATE assigns the 26 values ProductPatch carries, in order", () => {
+  const next = updateColumns(fullPatch);
+  // 27 before, and the twenty-seventh was updated_by - the audit column the
+  // statement wrote from an `actor` argument. public.audit_stamp writes it now
+  // (migration 116), so the form's own columns are 26.
+  assert.equal(next.length, 26, "the update column count changed - ProductPatch has 26 entries");
+  assert.deepEqual(next, PATCHABLE.map(String), "the SET list no longer follows repo.ts's PATCHABLE");
   // The three renamed columns write under the table's own names.
   for (const newName of Object.keys(RENAMES)) {
-    assert.ok(next.includes(newName), `sql/update.sql no longer writes ${newName}`);
+    assert.ok(next.includes(newName), `the built UPDATE no longer writes ${newName}`);
   }
 });
 
-test("the update maintains updated_at", () => {
-  assert.match(body("update"), /updated_at\s*=\s*NOW\(\)/i);
+// updated_at USED TO BE ASSERTED PRESENT HERE and is now asserted ABSENT. The
+// statement kept it fresh with `updated_at = NOW()`; the trigger does it, and
+// a second writer is a fight over one column. Same claim - the row records
+// when it changed - moved to the mechanism that keeps it true for every table.
+test("the update writes no audit column at all", () => {
+  const sets = builtUpdate(fullPatch).text.split(" WHERE")[0];
+  for (const col of ["updated_at", "updated_by", "updated_by_id", "created_at", "created_by"]) {
+    assert.doesNotMatch(sets, new RegExp(`\\b${col}\\b`), `the built UPDATE writes ${col}`);
+  }
+  assert.doesNotMatch(
+    body("create").split("RETURNING")[0], /\bcreated_by\b|\bupdated_by\b/,
+    "sql/create.sql still writes an author - the trigger owns it"
+  );
 });
 
 // The reference columns are IDS in the statement. The implementation this
@@ -60,10 +90,11 @@ test("the update maintains updated_at", () => {
 // name matching nothing became NULL and failed on a NOT NULL column without
 // saying which of the three was wrong.
 test("the update takes ids, not names resolved by a subquery", () => {
+  const text = builtUpdate(fullPatch).text;
   for (const table of ["metals.metals", "products.mints", "refiners."]) {
-    assert.ok(!body("update").includes(table), `sql/update.sql still reaches into ${table}`);
+    assert.ok(!text.includes(table), `the built UPDATE still reaches into ${table}`);
   }
-  assert.doesNotMatch(body("update"), /SELECT/i, "sql/update.sql contains a subquery");
+  assert.doesNotMatch(text, /SELECT/i, "the built UPDATE contains a subquery");
 });
 
 // THE SEVEN COLUMNS exchange DEFAULTS AND products.bullion DOES NOT. If the
@@ -82,9 +113,10 @@ test("create names every column bullion declares NOT NULL without a default", ()
 test("no statement reaches into exchange", () => {
   for (const n of ["get_storefront", "get_sell", "get_homepage", "get_by_slug",
                    "get_by_ids", "get_filtered", "get_admin_all", "get_admin_one",
-                   "get_liveness", "get_types", "create", "update"]) {
+                   "get_liveness", "get_types", "create"]) {
     assert.doesNotMatch(body(n), /exchange\./, `${n} reaches into exchange`);
   }
+  assert.doesNotMatch(builtUpdate(fullPatch).text, /exchange\./);
 });
 
 // One join, not three. A statement that grew one back would work and would

@@ -46,15 +46,16 @@ export const getAllTypes = asyncHandler(async (req, res) => {
   res.status(200).json(await productService.getAllTypes());
 });
 
+// `user` AND `created_by` MAY STILL ARRIVE IN THE BODY AND ARE IGNORED. Who
+// made the edit is the session's, read off the connection by the audit_stamp
+// trigger (migration 116); a body field naming an author was a caller claiming
+// to be somebody. Neither is forwarded.
 export const saveProduct = asyncHandler(async (req, res) => {
-  await productService.saveProduct({
-    product: req.body.product,
-    user: req.body.user,
-  });
+  await productService.saveProduct({ product: req.body.product });
   res.status(200).json("Product updated.");
 });
 
 export const createProduct = asyncHandler(async (req, res) => {
-  const created = await productService.createProduct(req.body);
+  const created = await productService.createProduct({ name: req.body?.name });
   res.status(201).json(created);
 });

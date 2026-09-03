@@ -44,14 +44,14 @@ async function aMethodId(c: PoolClient): Promise<string> {
   return m.id;
 }
 
-test("update writes status and method_id, COALESCE-leaving the other alone", async () => {
+test("update writes status and method_id, leaving a column the patch never named alone", async () => {
   await inRollback(async (c: PoolClient) => {
     const method_id = await aMethodId(c);
     const draft = await fulfillments.createDraft(
-      { id: randomUUID(), method_id, created_by_id: null }, c
+      { id: randomUUID(), method_id }, c
     );
 
-    const changed = await fulfillments.update(draft.id, { status: "COMPLETED" }, null, c);
+    const changed = await fulfillments.update(draft.id, { status: "COMPLETED" }, c);
     assert.equal(changed, true, "update reported no row changed");
 
     const after = await fulfillments.getOne(draft.id, c);
@@ -62,7 +62,7 @@ test("update writes status and method_id, COALESCE-leaving the other alone", asy
 
 test("update answers false for an id with no fulfillment row", async () => {
   await inRollback(async (c: PoolClient) => {
-    const changed = await fulfillments.update(randomUUID(), { status: "COMPLETED" }, null, c);
+    const changed = await fulfillments.update(randomUUID(), { status: "COMPLETED" }, c);
     assert.equal(changed, false, "update reported a change for a fulfillment that does not exist");
   });
 });
@@ -72,7 +72,7 @@ test("attachToOrder is one-way: a second attach changes nothing", async () => {
     await takeLocks(c, LOCKS.FULFILLMENTS);
     const method_id = await aMethodId(c);
     const draft = await fulfillments.createDraft(
-      { id: randomUUID(), method_id, created_by_id: null }, c
+      { id: randomUUID(), method_id }, c
     );
     const { rows: [order] } = await c.query(
       `SELECT id FROM orders.orders WHERE NOT EXISTS (
@@ -82,13 +82,13 @@ test("attachToOrder is one-way: a second attach changes nothing", async () => {
     assert.ok(order, "dev has no order free of a fulfillment to attach a draft to");
 
     const attached = await fulfillments.attachToOrder(
-      draft.id, { order_id: order.id, updated_by_id: null }, c
+      draft.id, { order_id: order.id }, c
     );
     assert.ok(attached, "the first attach wrote no row");
     assert.equal(attached.order_id, order.id);
 
     const second = await fulfillments.attachToOrder(
-      draft.id, { order_id: order.id, updated_by_id: null }, c
+      draft.id, { order_id: order.id }, c
     );
     assert.equal(second, undefined, "a second attach on an already-attached draft wrote a row");
   });

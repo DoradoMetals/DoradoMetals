@@ -285,7 +285,13 @@ if (FAIL_ON_FINDINGS && (discarded || unobservable)) process.exit(1);
 // was already read moments earlier in the same function, so a false there is
 // a genuine contradiction, not a normal miss). Net: two calls that were never
 // discards under the old shape stayed non-discards under the new one.
-const CEILING = 23;
+// 23 -> 20 with the AUDIT STAMP (migration 116). Three UPDATEs whose whole
+// purpose was an audit column stopped existing: the two `updated_at = now()`
+// statements in payments/repo.ts's webhook path and the per-column audit
+// writes the batch-1 and batch-2 statements carried. None was observed and
+// none needed to be - a stamp that fails to land is not a lost edit - but they
+// are gone rather than accepted, which is the better kind of reduction.
+const CEILING = 20;
 if (!FAIL_ON_FINDINGS) {
   const total = discarded + unobservable;
   if (total > CEILING) {

@@ -22,15 +22,24 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
 
+import { LOCKS } from "#shared/testing/locks.ts";
 import { inPinnedTransaction } from "#shared/testing/pinned-pool.ts";
 import * as usersService from "#domain/users/service.ts";
 import * as usersRepo from "#db/users/repo.ts";
 import query from "#shared/db/query.ts";
 
+// EVERY PINNED TRANSACTION IN THIS FILE TAKES THE BALANCE LOCK. A balance write
+// is two row locks - exchange.users, and auth.users through migration 107's
+// mirror trigger - so files that move balances agree an order rather than
+// deadlocking on whichever customer each visited first. See LOCKS.USERS.
+const inPinned = <T,>(fn: (c: PoolClient) => Promise<T> | T): Promise<T> =>
+  inPinnedTransaction(fn, { lock: LOCKS.USERS });
+
+
 const NOBODY = "00000000-0000-0000-0000-000000000000";
 
 test("a credit adjustment that matches no user is refused, not reported as done", async () => {
-  await inPinnedTransaction(async () => {
+  await inPinned(async () => {
     await assert.rejects(
       () => usersService.adjustDoradoCredit({ user_id: NOBODY, mode: "add", amount: 500 }),
       (err: unknown) => {
@@ -44,7 +53,7 @@ test("a credit adjustment that matches no user is refused, not reported as done"
 });
 
 test("a real user is still adjusted, and by the right amount", async () => {
-  await inPinnedTransaction(async (client: PoolClient) => {
+  await inPinned(async (client: PoolClient) => {
     const { rows } = await query(
       // exchange.users, because that is where the write lands; joined to
       // auth.users because that is where it is read back from.
@@ -85,7 +94,7 @@ test("a real user is still adjusted, and by the right amount", async () => {
 });
 
 test("the database refuses a NULL balance, which is what makes an unknown mode safe", async () => {
-  await inPinnedTransaction(async (client: PoolClient) => {
+  await inPinned(async (client: PoolClient) => {
     const { rows } = await query(
       `SELECT e.id FROM exchange.users e JOIN auth.users a ON a.id = e.id
         WHERE e.dorado_funds IS NOT NULL LIMIT 1`,
@@ -115,7 +124,7 @@ test("the database refuses a NULL balance, which is what makes an unknown mode s
 });
 
 test("the service refuses an unknown mode before the repo is reached", async () => {
-  await inPinnedTransaction(async () => {
+  await inPinned(async () => {
     await assert.rejects(
       () => usersService.adjustDoradoCredit({ user_id: NOBODY, mode: "not-a-mode", amount: 5 }),
       (err: unknown) => {

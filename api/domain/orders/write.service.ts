@@ -37,6 +37,7 @@ import * as refinerItems from "#db/refiners/items/repo.ts";
 import * as refinerSpots from "#db/refiners/spots/repo.ts";
 import type { Flag } from "#db/orders/repo.ts";
 import type { Executor } from "#shared/db/executor.ts";
+import withTransaction from "#shared/db/withTransaction.ts";
 
 // ===========================================================================
 // THE PURCHASE DIRECTION
@@ -60,7 +61,7 @@ export async function insertPurchaseOrder(
 ): Promise<string> {
   const id = randomUUID();
 
-  const { number } = await orders.create({ id, user_id: userId, direction: "purchase", status: status ?? "In Transit", created_by: by }, executor);
+  const { number } = await orders.create({ id, user_id: userId, direction: "purchase", status: status ?? "In Transit" }, executor);
 
   // ONE ENGAGEMENT PER ORDER, EVERY ORDER (093). The order gets its
   // refiners.orders row at birth, values NULL until the refinery reports -
@@ -104,10 +105,9 @@ export async function insertSalesOrder(
   executor: Executor, { user, status, sales_order, orderPrices }: NewSalesOrder
 ): Promise<string> {
   const id = randomUUID();
-  const by = user.name ?? null;
   const p = orderPrices;
 
-  const { number } = await orders.create({ id, user_id: user.id, direction: "sale", status: status ?? "Pending", created_by: by }, executor);
+  const { number } = await orders.create({ id, user_id: user.id, direction: "sale", status: status ?? "Pending" }, executor);
 
   // ONE ENGAGEMENT PER ORDER, EVERY ORDER (093). A sales order gets its
   // refiners.orders row at birth, values NULL until a refinery is involved -
@@ -128,7 +128,6 @@ export async function insertSalesOrder(
       base_total: p.base_total ?? null,
       surcharge: p.charges_amount ?? null,
       sales_tax: p.sales_tax ?? null,
-      by,
     },
     executor
   );
@@ -232,11 +231,22 @@ export async function insertSalesOrderMetals(
   await refinerSpots.coverFromOrderSpots(orderId, executor);
 }
 
+// WHO changed it is not an argument any more: public.audit_stamp writes
+// updated_by, updated_by_id and updated_at from the actor on the connection
+// (migration 116). The status is the whole write.
+//
+// *** ONE STATEMENT, AND STILL A TRANSACTION WHEN IT HAS NO CALLER'S. *** The
+// actor reaches the connection through withTransaction's set_config, and
+// set_config has to be transaction-local or a pooled connection carries one
+// customer's id to the next request. So a bare pool query CANNOT be
+// attributed - it would land with no author at all, which is how this write
+// silently kept an order's previous updated_by while every test passed. A
+// caller that already holds a transaction passes it and pays nothing.
 export async function updateSalesStatus(
-  order: { id: string }, status: string, by: string | null, executor?: Executor
+  order: { id: string }, status: string, executor?: Executor
 ): Promise<{ id: string } | undefined> {
-  const written = await orders.update(order.id, { status, updated_by: by }, {}, executor);
-  return written;
+  const run = (c: Executor) => orders.update(order.id, { status }, {}, c);
+  return executor ? await run(executor) : await withTransaction(run);
 }
 
 // The three workflow flags share one path because they are one operation with

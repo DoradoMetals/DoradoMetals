@@ -9,6 +9,7 @@
 // One table, one writing service: carriers' service calls this one, inside its
 // own transaction, rather than writing here itself.
 import query from "#shared/db/query.ts";
+import { buildUpdate } from "#shared/db/patch.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
 import type { organizations } from "@dorado/contracts";
 import type { Executor } from "#shared/db/executor.ts";
@@ -25,14 +26,19 @@ export type OrganizationRow = organizations.OrganizationsRow;
 // through; a field this table cannot express is simply not in the type.
 export type OrganizationPatch = Pick<OrganizationRow, "name" | "email" | "phone" | "enabled">;
 
-// THE FULL ROW, NOT A SPARSE PATCH. carriers/service.ts's own header explains
-// why: "Updates every field, including to null when one is absent - exactly
-// what the statement it replaces did. A partial update would be a behaviour
-// change, and the frontend sends the whole carrier back." COALESCE-ing these
-// columns would turn an admin clearing a field back to null into a silent
-// no-op, which is the opposite of what the form does. So the statement writes
-// every column directly - undefined binds as NULL through the driver, which is
-// exactly "absent means clear" for a full-replace write.
+export const PATCHABLE = ["name", "email", "phone", "enabled"] as const;
+
+// THE FULL ROW, NOT A SPARSE PATCH, AND THE BUILDER IS HANDED ONE.
+// carriers/service.ts's own header explains why: "Updates every field,
+// including to null when one is absent - exactly what the statement it
+// replaces did. A partial update would be a behaviour change, and the frontend
+// sends the whole carrier back." shared/db/patch.ts writes only the keys a
+// patch carries, so update() below names all four EXPLICITLY rather than
+// spreading what it was handed - that is what keeps "absent means clear" true
+// while still going through the one builder.
+//
+// updated_at is not in the list and is not set here: public.audit_stamp writes
+// it (migration 116).
 export async function create(
   row: Partial<OrganizationPatch> | undefined, id: string, type: string, executor?: Executor
 ): Promise<OrganizationRow> {
@@ -47,11 +53,19 @@ export async function create(
 export async function update(
   id: string, row: Partial<OrganizationPatch> | undefined, executor?: Executor
 ): Promise<boolean> {
-  const r = await query(
-    sql("update"),
-    [row?.name, row?.email, row?.phone, row?.enabled, id],
-    executor
-  );
+  const built = buildUpdate({
+    table: "organizations.organizations",
+    allowed: PATCHABLE,
+    patch: {
+      name: row?.name ?? null, email: row?.email ?? null,
+      phone: row?.phone ?? null, enabled: row?.enabled ?? null,
+    },
+    where: { id },
+  });
+  // Four literal keys, so the builder can never answer null here - the check is
+  // for the type, not for a case that happens.
+  if (!built) return false;
+  const r = await query(built.text, built.values, executor);
   return r.rowCount === 1;
 }
 

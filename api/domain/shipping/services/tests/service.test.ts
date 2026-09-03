@@ -58,6 +58,19 @@ const draft = async (c: PoolClient, over = {}) => ({
   ...over,
 });
 
+// The signed-in person, as the database sees one. shipping.services.created_by
+// used to be defaulted to the literal "Dorado Metals" by service.ts when a
+// caller sent nothing; the public.audit_stamp trigger fills it from the actor
+// on the connection now (migration 116), so these tests say who is acting.
+const actingAs = async (c: PoolClient, id: string | null) => {
+  await c.query("SELECT set_config('app.actor_id', $1, true)", [id ?? ""]);
+};
+
+const twoPeople = async (c: PoolClient) =>
+  (await c.query<{ id: string; name: string }>(
+    `SELECT id, name FROM auth.users WHERE name IS NOT NULL ORDER BY id LIMIT 2`
+  )).rows;
+
 test("the list keeps the three renamed columns under the names the frontend reads", async () => {
   const [row] = await service.getAllServices();
   for (const field of ["supports_pickup", "supports_dropoff", "max_weight_lbs"]) {
@@ -103,6 +116,10 @@ test("create writes the row the id names", async () => {
 // column so service.ts decides.
 test("a service created with nothing but a name and carrier gets the business's defaults", async () => {
   await inRollback(async (c: PoolClient) => {
+    const [maker] = await twoPeople(c);
+    assert.ok(maker, "auth.users has no named user - this test proves nothing");
+    await actingAs(c, maker.id);
+
     const input = await draft(c, { code: undefined });
     const made = await service.createService(input, c);
     assert.ok(made, "the service returned nothing");
@@ -116,7 +133,10 @@ test("a service created with nothing but a name and carrier gets the business's 
     assert.equal(made.is_international, false);
     assert.equal(Number(made.min_transit_days), 0);
     assert.equal(Number(made.display_order), 0);
-    assert.equal(made.created_by, "Dorado Metals");
+    // "Dorado Metals" WAS THE ANSWER HERE and it was a placeholder: service.ts
+    // wrote that literal whenever the caller named nobody. The row records the
+    // real person now.
+    assert.equal(made.created_by, maker.name);
 
     const { rows: nx } = await c.query(
       `SELECT supports_dropoffs, is_residential, is_active, created_by
@@ -126,7 +146,7 @@ test("a service created with nothing but a name and carrier gets the business's 
       { ...nx[0] },
       {
         supports_dropoffs: true, is_residential: true,
-        is_active: true, created_by: "Dorado Metals",
+        is_active: true, created_by: maker.name,
       },
       "the stored row disagrees about a service nobody gave a value for"
     );
@@ -203,18 +223,22 @@ test("the renamed wire fields land in the right columns", async () => {
 });
 
 // created_by records who made the row and an edit must not overwrite it. The
-// update statement leaves it alone; this is what would notice if a parameter
-// array ever shifted it back in.
+// trigger never touches created_* on an UPDATE, and a caller can no longer
+// claim to be somebody: the two names used to travel in the request body.
 test("an update does not reassign created_by", async () => {
   await inRollback(async (c: PoolClient) => {
-    const made = await service.createService(await draft(c, { created_by: "someone" }), c);
+    const [maker, editor] = await twoPeople(c);
+    assert.ok(editor, "auth.users has fewer than two named users - this proves nothing");
+
+    await actingAs(c, maker.id);
+    const made = await service.createService(await draft(c), c);
     assert.ok(made, "the service returned nothing");
-    const updated = await service.updateService(
-      { ...made, created_by: "somebody else", updated_by: "an editor" }, c
-    );
+
+    await actingAs(c, editor.id);
+    const updated = await service.updateService({ ...made }, c);
     assert.ok(updated, "the service returned nothing");
-    assert.equal(updated.created_by, "someone", "an edit rewrote who created the service");
-    assert.equal(updated.updated_by, "an editor");
+    assert.equal(updated.created_by, maker.name, "an edit rewrote who created the service");
+    assert.equal(updated.updated_by, editor.name);
   });
 });
 

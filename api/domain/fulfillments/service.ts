@@ -197,9 +197,13 @@ export async function getSchedule(
 // The check is here rather than left to the constraint because
 // 'insert or update on table "fulfillments" violates foreign key constraint'
 // tells the caller nothing about what to do next.
+// `created_by_id` USED TO BE A FIELD HERE AND ON ALL FOUR PATHS BELOW, lifted
+// off the session by the controller and threaded through every one of them.
+// public.audit_stamp writes it from the actor on the connection (migration
+// 116), so a fulfillment says what it is for and nothing about who made it.
 async function createFulfillment(
-  { order_id, method_id, status = "PENDING", created_by_id = null }:
-    { order_id: string; method_id: string; status?: string; created_by_id?: string | null },
+  { order_id, method_id, status = "PENDING" }:
+    { order_id: string; method_id: string; status?: string },
   executor?: Executor
 ): Promise<ComposedFulfillment | null> {
   if (!(await orders.exists(order_id, executor))) {
@@ -212,7 +216,7 @@ async function createFulfillment(
   }
 
   const made = await fulfillments.create(
-    { id: randomUUID(), order_id, method_id, status, created_by_id }, executor
+    { id: randomUUID(), order_id, method_id, status }, executor
   );
   // No row means the order already had one - ON CONFLICT DO NOTHING - which is
   // the normal case for a second call rather than an error.
@@ -225,13 +229,12 @@ async function createFulfillment(
 // is the same one choose() runs - a customer's draft can only carry a method
 // the menu offered them.
 export async function createDraft(
-  { method_id, direction, created_by_id = null }:
-    { method_id: string; direction: Direction; created_by_id?: string | null },
+  { method_id, direction }: { method_id: string; direction: Direction },
   executor?: Executor
 ): Promise<ComposedFulfillment | null> {
   await methodService.assertOffered({ method_id, direction }, executor);
   const row = await fulfillments.createDraft(
-    { id: randomUUID(), method_id, created_by_id }, executor
+    { id: randomUUID(), method_id }, executor
   );
   return await composeOne(row, executor);
 }
@@ -240,12 +243,11 @@ export async function createDraft(
 // order's fulfillment never moves, and an order that already has a fulfillment
 // raises 23505 out of the unique index rather than quietly holding two.
 export async function attachDraft(
-  { fulfillment_id, order_id, updated_by_id = null }:
-    { fulfillment_id: string; order_id: string; updated_by_id?: string | null },
+  { fulfillment_id, order_id }: { fulfillment_id: string; order_id: string },
   executor?: Executor
 ): Promise<ComposedFulfillment> {
   const row = await fulfillments.attachToOrder(
-    fulfillment_id, { order_id, updated_by_id }, executor
+    fulfillment_id, { order_id }, executor
   );
   if (!row) {
     throw refuse(409, `fulfillment ${fulfillment_id} is not a draft - it already belongs to an order`);
@@ -259,12 +261,12 @@ export async function attachDraft(
 // chooseById, which is why the offered-method check is here and not shared: an
 // admin putting an order on OWN LABEL is the reason OWN LABEL exists.
 export async function choose(
-  { order_id, method_id, direction, created_by_id }:
-    { order_id: string; method_id: string; direction: Direction; created_by_id?: string | null },
+  { order_id, method_id, direction }:
+    { order_id: string; method_id: string; direction: Direction },
   executor?: Executor
 ): Promise<ComposedFulfillment | null> {
   await methodService.assertOffered({ method_id, direction }, executor);
-  return await createFulfillment({ order_id, method_id, created_by_id }, executor);
+  return await createFulfillment({ order_id, method_id }, executor);
 }
 
 // A method that has already been decided, by id.
@@ -276,11 +278,10 @@ export async function choose(
 // menu check here is the difference between the two, and it is why they are two
 // functions rather than a flag.
 export async function chooseById(
-  { order_id, method_id, created_by_id }:
-    { order_id: string; method_id: string; created_by_id?: string | null },
+  { order_id, method_id }: { order_id: string; method_id: string },
   executor?: Executor
 ): Promise<ComposedFulfillment | null> {
-  return await createFulfillment({ order_id, method_id, created_by_id }, executor);
+  return await createFulfillment({ order_id, method_id }, executor);
 }
 
 // The default for a direction and category, for the flows that do not ask.
@@ -288,25 +289,23 @@ export async function chooseById(
 // CARRIER DROPOFF. Both come from the seed rather than from a constant here, so
 // changing the business's default is an UPDATE rather than a deploy.
 export async function chooseDefault(
-  { order_id, direction, category = "SHIPMENT", created_by_id }:
-    {
-      order_id: string; direction: Direction;
-      category?: Category; created_by_id?: string | null;
-    },
+  { order_id, direction, category = "SHIPMENT" }:
+    { order_id: string; direction: Direction; category?: Category },
   executor?: Executor
 ): Promise<ComposedFulfillment | null> {
   const method = await methodService.getDefault({ direction, category }, executor);
-  return await createFulfillment(
-    { order_id, method_id: method.id, created_by_id }, executor
-  );
+  return await createFulfillment({ order_id, method_id: method.id }, executor);
 }
 
+// `updated_by_id` WAS A THIRD FIELD OF THIS INPUT, threaded down from the
+// session by every caller. public.audit_stamp takes the author off the
+// connection now (migration 116), so a status move says what moved and
+// nothing about who.
 export async function setStatus(
-  { id, status, updated_by_id = null }:
-    { id: string; status: string; updated_by_id?: string | null },
+  { id, status }: { id: string; status: string },
   executor?: Executor
 ): Promise<ComposedFulfillment | null> {
-  const changed = await fulfillments.update(id, { status }, updated_by_id, executor);
+  const changed = await fulfillments.update(id, { status }, executor);
   if (!changed) return null;
   return await getById(id, executor);
 }
@@ -326,8 +325,7 @@ export async function setStatus(
 // cancelling the shipment is a different decision that costs money and belongs
 // to features/shipping.
 export async function setMethod(
-  { id, method_id, updated_by_id = null }:
-    { id: string; method_id: string; updated_by_id?: string | null },
+  { id, method_id }: { id: string; method_id: string },
   executor?: Executor
 ): Promise<ComposedFulfillment | null> {
   const target = await methodService.getOne(method_id, executor);
@@ -349,7 +347,7 @@ export async function setMethod(
     );
   }
 
-  const changed = await fulfillments.update(id, { method_id }, updated_by_id, executor);
+  const changed = await fulfillments.update(id, { method_id }, executor);
   if (!changed) {
     throw refuse(
       500,

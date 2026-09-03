@@ -6,6 +6,7 @@
 // so `WHERE id = $1 AND user_id = $2` is not a statement this schema can write.
 // getOne is that check.
 import query from "#shared/db/query.ts";
+import { buildUpdate } from "#shared/db/patch.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
 import type { places } from "@dorado/contracts";
 import type { Executor } from "#shared/db/executor.ts";
@@ -53,14 +54,33 @@ export async function create(
   return rows[0];
 }
 
+// THE OWNERSHIP GUARD IS AN EXTRA WHERE, not a filter the caller applies after
+// reading: `user_id` sits beside `address_id` in the key, so an address in
+// somebody else's book matches no row and comes back undefined.
+//
+// exchange has ONE is_default and the new schema has two, so both follow it -
+// telling shipping and billing apart is a product change, not a migration one.
+// That is why one field of the patch sets two columns, spelled out here rather
+// than hidden in a .sql file's ordinals.
+export const PATCHABLE = ["label", "default_shipping", "default_billing"] as const;
+
 export async function update(
   address_id: string, user_id: string, row: UserAddressPatch, executor?: Executor
 ): Promise<UserAddressRow | undefined> {
-  const { rows } = await query<UserAddressRow>(
-    sql("update"),
-    [row.label, row.default_shipping, row.default_shipping, address_id, user_id],
-    executor
-  );
+  const built = buildUpdate({
+    table: "places.user_addresses",
+    allowed: PATCHABLE,
+    patch: {
+      label: row.label ?? null,
+      default_shipping: row.default_shipping,
+      default_billing: row.default_shipping,
+    },
+    where: { address_id, user_id },
+    returning:
+      "id, address_id, user_id, label, default_shipping, default_billing",
+  });
+  if (!built) return undefined;
+  const { rows } = await query<UserAddressRow>(built.text, built.values, executor);
   return rows[0];
 }
 

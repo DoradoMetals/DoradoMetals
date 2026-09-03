@@ -16,7 +16,6 @@ test("update returns false for an id nothing names", async () => {
     const changed = await leads.update(
       randomUUID(),
       { notes: "should not land anywhere" },
-      null,
       client
     );
     assert.equal(changed, false, "an update against a missing id reported a change");
@@ -27,12 +26,11 @@ test("update returns true for a real id, and the row actually changed", async ()
   await inPinnedTransaction(async (client) => {
     const created = await leads.create(
       { name: "Repo Fixture", phone: null, email: null },
-      null,
       client
     );
 
     const changed = await leads.update(
-      created.id, { notes: "touched by repo.test.ts" }, null, client
+      created.id, { notes: "touched by repo.test.ts" }, client
     );
     assert.equal(changed, true, "an update against a real id reported no change");
 

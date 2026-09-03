@@ -50,8 +50,12 @@ export async function getMany(
 //
 // `total` and every amount are NULLABLE AND NULL IS MEANINGFUL - "no longer
 // priced" is what clearing pricing writes - so patch values pass through
-// verbatim, never coalesced. A caller that wants updated_by kept simply
-// omits it from the patch.
+// verbatim, never coalesced.
+//
+// updated_by LEFT THIS LIST, and updated_at left the SET clause: both are
+// written by the public.audit_stamp trigger from the actor on the connection
+// (migration 116). The old note here - "a caller that wants updated_by kept
+// simply omits it from the patch" - described a choice no caller has any more.
 //
 // The optional direction guard is evaluated IN THE STATEMENT: the payout-fee
 // waiver is a purchase-order fact, and a sale's row must answer "not
@@ -59,7 +63,6 @@ export async function getMany(
 const PATCHABLE = [
   "total", "shipping_fee_actual", "refiner_fee", "pool_oz_deducted",
   "pool_remediation", "payout_fee", "waive_payout_fee", "payout_details_id",
-  "updated_by",
 ] as const;
 type TotalsColumn = (typeof PATCHABLE)[number];
 export type TotalsPatch = Partial<Record<TotalsColumn, string | number | boolean | null>>;
@@ -82,7 +85,7 @@ export async function update(
     );
   }
   const { rows } = await query<OrderTotalsRow>(
-    `UPDATE orders.transactions SET ${sets.join(", ")}, updated_at = now()
+    `UPDATE orders.transactions SET ${sets.join(", ")}
       WHERE ${wheres.join(" AND ")}
       RETURNING *`,
     values,
@@ -100,7 +103,7 @@ export type NewOrderTotals = {
   funds?: number | null; post_charges_amount?: number | null;
   subject_to_charges_amount?: number | null; used_funds?: boolean | null;
   items?: number | null; base_total?: number | null; surcharge?: number | null;
-  sales_tax?: number | null; by?: string | null;
+  sales_tax?: number | null;
 };
 
 export async function create(row: NewOrderTotals, executor?: Executor): Promise<void> {
@@ -112,7 +115,7 @@ export async function create(row: NewOrderTotals, executor?: Executor): Promise<
       row.funds ?? null, row.post_charges_amount ?? null,
       row.subject_to_charges_amount ?? null, row.used_funds ?? null,
       row.items ?? null, row.base_total ?? null, row.surcharge ?? null,
-      row.sales_tax ?? null, row.by ?? null,
+      row.sales_tax ?? null,
     ],
     executor
   );

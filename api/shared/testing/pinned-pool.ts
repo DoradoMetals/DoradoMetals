@@ -117,15 +117,28 @@ function nestable(client: PoolClient): PoolClient {
 // Takes a number or an array. The numbers and what each covers live in
 // shared/testing/locks.js; a file touching two groups passes both, and they are
 // acquired in ascending order for it.
+//
+// `actor` IS WHO THE DATABASE THINKS IS WRITING, and it is here for the same
+// reason the lock is: the pinned transaction is opened by this function, so
+// this is the only place that can put anything on it. withTransaction sets
+// `app.actor_id` from the ambient request actor - but a repo test calls the
+// repo with the pinned client directly and never opens a transaction of its
+// own, so without this the audit trigger would see no actor and every row a
+// repo test writes would read as system-authored. Pass the seeded admin's id
+// to assert on created_by_id / updated_by_id.
+//
+// It is transaction-local (set_config's third argument), so it dies with the
+// rollback exactly as every other effect of the test does.
 export async function inPinnedTransaction<T>(
   fn: (client: PoolClient) => Promise<T> | T,
-  { lock }: { lock?: number | number[] } = {}
+  { lock, actor }: { lock?: number | number[]; actor?: string | null } = {}
 ): Promise<T> {
   const client = await REAL.connect();
   const pinned = nestable(client);
   depth = 0;
 
   await client.query("BEGIN");
+  await client.query("SELECT set_config('app.actor_id', $1, true)", [actor ?? ""]);
   if (lock) await takeLocks(client, lock);
   patchable.connect = async () => pinned;
   patchable.query = (sql, params) => pinned.query(sql as never, params as never);

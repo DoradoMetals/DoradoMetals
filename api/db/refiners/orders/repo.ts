@@ -12,6 +12,7 @@
 // layer above pairs each write with its shadow so the schemas stay level
 // while both serve.
 import query from "#shared/db/query.ts";
+import { buildUpdate } from "#shared/db/patch.ts";
 import type { Executor } from "#shared/db/executor.ts";
 import type { refiners } from "@dorado/contracts";
 
@@ -85,20 +86,24 @@ export type OrderPatch = Partial<Pick<RefinerOrderRow, "pool_oz_deducted" | "poo
   refiner_id?: string | null;
 };
 
+// THE `CASE WHEN $4 THEN $5 ELSE refiner_id END` IS GONE, and with it the
+// reason it existed. refiner_id is nullable and clearing it is a real
+// operation, which COALESCE cannot express - so this statement carried a
+// hand-rolled "was the key present" flag for one column while COALESCEing the
+// other three. shared/db/patch.ts asks that question for every column: a key
+// absent from the patch is not in the SET list, a key present with null
+// clears. Same behaviour for the three, a real clear for the fourth.
+export const PATCHABLE = [
+  "pool_oz_deducted", "pool_remediation", "fee", "refiner_id",
+] as const;
+
 export async function update(
   id: string, patch: OrderPatch, executor?: Executor
 ): Promise<boolean> {
-  const hasRefinerId = "refiner_id" in patch;
-  const { rowCount } = await query(
-    `UPDATE refiners.orders
-        SET pool_oz_deducted = COALESCE($1, pool_oz_deducted),
-            pool_remediation = COALESCE($2, pool_remediation),
-            fee = COALESCE($3, fee),
-            refiner_id = CASE WHEN $4 THEN $5 ELSE refiner_id END,
-            updated_at = now()
-      WHERE id = $6`,
-    [patch.pool_oz_deducted, patch.pool_remediation, patch.fee, hasRefinerId, patch.refiner_id, id],
-    executor
-  );
+  const built = buildUpdate({
+    table: "refiners.orders", allowed: PATCHABLE, patch, where: { id },
+  });
+  if (!built) return true;
+  const { rowCount } = await query(built.text, built.values, executor);
   return rowCount === 1;
 }
