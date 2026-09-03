@@ -2,6 +2,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { apiRequest } from '@/shared/queries/axios'
 import { useGetSession } from '@/features/auth/queries'
 import { cartStore } from '@/shared/store/cartStore'
+import { buyLine } from '@/features/cart/queries'
 import { usePaymentMethods } from '@/features/payments/queries'
 import { useSaleShippingServices } from '@/features/shipping/queries'
 import { SalesOrder, SalesOrderCheckout } from '@/features/orders/salesOrders/types'
@@ -35,7 +36,7 @@ export const useSalesOrders = () => {
 // so this hook's job changed from "send the document" to "write the row,
 // then name it":
 //
-//   1. freeze the live buy cart onto checkout.items (the periodic auto-sync
+//   1. freeze the live buy basket onto checkout.items (the periodic auto-sync
 //      in features/cart/queries.ts can be up to 15s stale by Confirm);
 //   2. resolve the two ids the checkout row wants from what the stepper
 //      already picked - the service's CODE against the cached shipping.services
@@ -57,7 +58,12 @@ export const useCreateSalesOrder = () => {
     mutationFn: async ({ sales_order }: { sales_order: SalesOrderCheckout }) => {
       if (!user?.id) throw new Error('User is not authenticated')
 
-      await apiRequest('POST', '/cart/sync_cart', { cart: cartStore.getState().items })
+      await apiRequest(
+        'PUT',
+        '/checkout/items',
+        { items: cartStore.getState().items.map(buyLine) },
+        { direction: 'sale' }
+      )
 
       const carrier_service_id =
         saleServices.find((s) => s.code === sales_order.service.value)?.id ?? null

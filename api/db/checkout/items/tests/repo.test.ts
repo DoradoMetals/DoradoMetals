@@ -1,8 +1,6 @@
 // checkout.items, against real Postgres, every test rolled back.
 //
-// SCRAP AND BULLION ARE ONE TABLE and `bullion_id IS NULL` is what tells them
-// apart, so the two list projections are what this file actually pins - a line
-// that stops being scrap disappears from a cart with no error anywhere.
+// Scrap and bullion are one table; `bullion_id IS NULL` tells them apart.
 import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
@@ -34,7 +32,7 @@ const aSession = async (c: PoolClient, direction: string) => {
 // Gold - naming it is the literal this test means, not a discovery.
 const aMetal = (c: PoolClient) => metalId(c, "Gold");
 
-test("a scrap line carries its own values and lists as scrap", async () => {
+test("a line with no product carries its own values", async () => {
   await inRollback(async (c: PoolClient) => {
     const session = await aSession(c, "purchase");
     const line = await items.create(
@@ -47,49 +45,45 @@ test("a scrap line carries its own values and lists as scrap", async () => {
     );
     assert.equal(line.bullion_id, null);
 
-    const scrap = await items.listScrapFor(session.id, c);
-    assert.equal(scrap.length, 1);
-    // scrap_id and id are both the line's own id - there is no second row.
-    assert.equal(scrap[0].scrap_id, line.id);
-    assert.equal(scrap[0].cart_item_id, line.id);
-    assert.equal(Number(scrap[0].purity), 0.75);
-    assert.equal(Number(scrap[0].bid_premium), 0.9);
-
-    assert.equal(
-      (await items.listBullionFor(session.id, "purchase", c)).length, 0,
-      "a scrap line came back as bullion"
-    );
+    const [row] = await items.listFor(session.id, c);
+    assert.equal(row.id, line.id);
+    assert.equal(Number(row.purity), 0.75);
+    assert.equal(Number(row.premium), 0.9);
+    assert.equal(Number(row.content), 1.8);
+    assert.equal(row.unit, "t oz");
   });
 });
 
-test("a bullion line lists in both directions, and the sale projection is wider", async () => {
+test("createMany writes every line and listFor answers them all", async () => {
   await inRollback(async (c: PoolClient) => {
     const session = await aSession(c, "sale");
     const product = await aProduct(c);
-    await items.create(
-      {
-        checkout_id: session.id, bullion_id: product.id,
-        metal_id: product.metal_id, quantity: 3,
-      },
+    const metal_id = await aMetal(c);
+
+    const written = await items.createMany(
+      [
+        {
+          checkout_id: session.id, bullion_id: product.id,
+          metal_id: product.metal_id, pre_melt: product.gross,
+          post_melt: product.content, purity: product.purity,
+          content: product.content, unit: "t oz", premium: 1.05, quantity: 3,
+        },
+        {
+          checkout_id: session.id, bullion_id: null, metal_id,
+          pre_melt: 10, purity: 0.925, content: 9.25, unit: "g", quantity: 1,
+        },
+      ],
       c
     );
+    assert.equal(written.length, 2, "createMany did not write both lines");
 
-    const sale = await items.listBullionFor(session.id, "sale", c);
-    assert.equal(sale.length, 1);
-    assert.equal(sale[0].product_id, product.id);
-    assert.equal(Number(sale[0].quantity), 3);
-    assert.ok("mint_name" in sale[0], "the sale cart lost the mint");
-    assert.ok("legal_tender" in sale[0], "the sale cart lost the tender flags");
-
-    const purchase = await items.listBullionFor(session.id, "purchase", c);
-    assert.equal(purchase.length, 1);
-    assert.equal(
-      "mint_name" in purchase[0], false,
-      "the sell cart's projection widened - that is a wire change"
-    );
-
-    assert.equal((await items.listScrapFor(session.id, c)).length, 0);
-    assert.equal((await items.listForOrder(session.id, c)).length, 1);
+    const listed = await items.listFor(session.id, c);
+    assert.equal(listed.length, 2);
+    const bullion = listed.find((row) => row.bullion_id !== null)!;
+    assert.equal(bullion.bullion_id, product.id);
+    assert.equal(Number(bullion.quantity), 3);
+    assert.equal(Number(bullion.content), Number(product.content));
+    assert.equal((await items.listForOrder(session.id, c)).length, 2);
   });
 });
 

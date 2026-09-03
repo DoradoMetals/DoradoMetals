@@ -19,7 +19,7 @@ import request from "supertest";
 import pool from "#db";
 import { mockSessions, restoreSessions, as, anonymous } from "#shared/testing/session.ts";
 import { TEST_ACTOR, TEST_CUSTOMER } from "#shared/testing/actor.ts";
-import { aUser, aProduct, anOrder } from "#shared/testing/builders/index.ts";
+import { aUser, aProduct, anOrder, aPayout } from "#shared/testing/builders/index.ts";
 import type { PoolClient } from "pg";
 import {
   inPinnedTransaction,
@@ -188,25 +188,28 @@ test("moving a sales order's status takes the document the drawer sends", async 
   }, { actor: TEST_ACTOR.id, lock: ORDER_LOCK });
 });
 
+// BUILT, not discovered (exchange-fixtures lane, D214 item 10): a payout with
+// a KNOWN routing/account number, so "the real value is absent" is checked
+// against a number this file put in the database, not against whichever
+// exchange.payouts row happens to hold one - a frozen table nothing in this
+// path reads any more (payments.details is the account's native home, D213).
 test("no sales order response carries a full bank number", async () => {
-  await inPinnedTransaction(async () => {
+  await inPinnedTransaction(async (c: PoolClient) => {
+    const { order } = await aSalesOrder(c);
+    const payout = await aPayout(c, { id: order.user_id }, { order });
+
     await as(admin, async () => {
       const res = await request(app).get("/api/orders?direction=sale");
       const body = JSON.stringify(res.body);
       assert.ok(!/"routing_number"\s*:\s*"\d{9}"/.test(body));
-
-      const [{ n }] = await outside(
-        `SELECT count(*)::int AS n FROM exchange.payouts
-          WHERE routing_number IS NOT NULL AND length(routing_number) = 9`
+      assert.ok(
+        !body.includes(payout.routing_number),
+        "a real routing number appears in a sales order response"
       );
-      if (n > 0) {
-        const [{ leaked }] = await outside(
-          `SELECT count(*)::int AS leaked FROM exchange.payouts
-            WHERE routing_number IS NOT NULL AND position(routing_number in $1) > 0`,
-          [body]
-        );
-        assert.equal(leaked, 0, "a real routing number appears in a sales order response");
-      }
+      assert.ok(
+        !body.includes(payout.account_number),
+        "a real account number appears in a sales order response"
+      );
     });
   }, { actor: TEST_ACTOR.id, lock: ORDER_LOCK });
 });

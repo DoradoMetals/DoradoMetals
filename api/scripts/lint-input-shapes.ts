@@ -51,13 +51,6 @@ const ACCEPTED: Record<string, string> = {
     "this lane's mandate (FOLLOWUPS 2026-09-03) - tracked for removal.",
   "PickupInput.user_id": "GENUINE DEAD FIELD, same as .carrier above.",
 
-  "SellCartLineInput.type": "the scrap/product discriminant requestedLines() " +
-    "branches on - never written itself.",
-  "SellCartLineInput.product_name": "resolved against products.bullion by " +
-    "requestedLines() before a row exists to write.",
-  "SellCartLineInput.data": "a nested form object requestedLines() reads by " +
-    "hand to build the checkout.items row.",
-
   // Every builder but transactions.ts predates this check and keeps a local
   // Options type - pre-existing, out of this lane's mandate (order-id,
   // 2026-09-03). Not touched here; fix each when its own lane is touched.

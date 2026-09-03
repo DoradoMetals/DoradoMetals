@@ -75,6 +75,7 @@ class CartPlan implements PromiseLike<BuiltCart> {
     return this;
   }
 
+  // The snapshot the service writes: gross -> pre_melt, content -> post_melt.
   withBullion(product: BuiltProduct, quantity = 1): this {
     this.steps.push(async (c, cart) => {
       const row = await items.create(
@@ -82,8 +83,11 @@ class CartPlan implements PromiseLike<BuiltCart> {
           checkout_id: cart.id,
           bullion_id: product.id,
           metal_id: product.metal_id,
+          pre_melt: product.gross,
+          post_melt: product.content,
           content: product.content,
           purity: product.purity,
+          unit: "t oz",
           premium: product.bid_premium,
           quantity,
         },

@@ -148,6 +148,10 @@ test("encryption_key_id finds the rows a rotation would have to touch", async ()
 // The join the script depends on. 073 established that a details row KEEPS its
 // payout's id; if that ever stops being true the script silently processes zero
 // rows, which is the failure mode its --allow-empty refusal exists to catch.
+// KEPT (exchange-fixtures lane, D214 item 10): this is a migration-fidelity
+// check on real backfilled data, not a fixture - a builder-made details row
+// has no exchange.payouts counterpart to join, so it cannot prove the thing
+// encrypt-payout-details.ts actually depends on.
 test("payments.details still joins exchange.payouts on id", async () => {
   const { rows } = await client.query(
     `SELECT count(*)::int n

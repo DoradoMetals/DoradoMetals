@@ -164,11 +164,13 @@ describe("the sell card", () => {
     await waitFor(() => expect(screen.getAllByText("1449.75").length).toBeGreaterThan(0));
   });
 
-  test("add to sell cart stores a product-kind line", async () => {
+  test("add to sell cart stores a line naming the product", async () => {
     renderWithClient(<BullionCard product={eagle()} variants={[]} unitPrices={{}} />);
     await userEvent.click(screen.getByRole("button", { name: /^add to sell cart$/i }));
     const items = sellCartStore.getState().items;
     expect(items).toHaveLength(1);
-    expect(items[0].type).toBe("product");
+    expect(items[0].bullion_id).toBe(eagle().id);
+    expect(items[0].pre_melt).toBeNull();
+    expect(items[0].purity).toBeNull();
   });
 });

@@ -21,6 +21,7 @@ export default function ReviewStep({ showBanner }: { showBanner: boolean }) {
 
   const { user } = useUser()
   const items = sellCartStore((s) => s.items)
+  const premiums = sellCartStore((s) => s.premiums)
 
   // The WHOLE cart is quoted, not just this line: the premium bands on the
   // metal's total content across the order, so this line's rate depends on
@@ -33,20 +34,16 @@ export default function ReviewStep({ showBanner }: { showBanner: boolean }) {
   const { data: quote } = usePurchaseOrderQuote(items)
   const reviewedIndex = items.findIndex(
     (i) =>
-      i.type === 'scrap' &&
-      (i.data as Scrap).metal === metal &&
-      Number((i.data as Scrap).pre_melt) === Number(pre_melt) &&
-      Number((i.data as Scrap).purity) === Number(purity) &&
-      (i.data as Scrap).gross_unit === unit
+      i.bullion_id === null &&
+      i.metal === metal &&
+      Number(i.pre_melt) === Number(pre_melt) &&
+      Number(i.purity) === Number(purity) &&
+      i.unit === unit
   )
   const line = quote?.items.find((l) => l.index === reviewedIndex)
 
-  // The store's own re-tiered bid_premium stands in for the rate label while
-  // there is no quote (signed out) - it is the same rates-table band, and a
-  // band is rate-table display, not a price.
   const bid_premium =
-    line?.premium ??
-    (reviewedIndex >= 0 ? (items[reviewedIndex].data as Scrap).bid_premium : undefined)
+    line?.premium ?? (reviewedIndex >= 0 ? premiums[items[reviewedIndex].id] : undefined)
 
   const price = line?.line_total ?? 0
 

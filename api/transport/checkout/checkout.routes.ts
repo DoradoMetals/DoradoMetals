@@ -5,16 +5,19 @@ import {
   patchCheckout,
   setCheckoutFulfillment,
   saveCheckoutPayout,
+  getCheckoutItems,
+  putCheckoutItems,
+  deleteCheckoutItems,
 } from "#transport/checkout/controller.ts";
 import { requireUser } from "#shared/middleware/authMiddleware.ts";
 
-// THE CHECKOUT ROW (D208), mounted at /api/checkout by app.ts. A separate
-// router from routes.ts - that one is the cart-item sync surface and its
-// mount, /api/cart, is history. This resource is minted today and gets the
-// honest name.
+// The checkout session: the row the stepper fills in, and the basket.
 const router = express.Router();
 
 router.get("/", requireUser, getCheckout);
+router.get("/items", requireUser, getCheckoutItems);
+router.put("/items", requireUser, putCheckoutItems);
+router.delete("/items", requireUser, deleteCheckoutItems);
 router.patch("/", requireUser, patchCheckout);
 router.post("/fulfillment", requireUser, setCheckoutFulfillment);
 router.post("/payout", requireUser, saveCheckoutPayout);

@@ -6,17 +6,11 @@ import withTransaction from "#shared/db/withTransaction.ts";
 import * as rates from "#db/rates/repo.ts";
 import * as compose from "#domain/rates/compose.ts";
 import type { NewRate, RatePatch } from "#db/rates/repo.ts";
-
-interface HttpError extends Error { statusCode?: number }
-const notFound = (id: string): HttpError => {
-  const e: HttpError = new Error(`no rate ${id}`);
-  e.statusCode = 404;
-  return e;
-};
+import { NotFound } from "#shared/errors.ts";
 
 export async function getRate(id: string) {
   const row = await rates.getOne(id);
-  if (!row) throw notFound(id);
+  if (!row) throw new NotFound(`no rate ${id}`);
   return await compose.toAdminOne(row);
 }
 
@@ -39,9 +33,9 @@ export async function updateRate(id: string, patch: RatePatch) {
   const changed = await withTransaction(async (c) => {
     return await rates.update(id, patch, c);
   });
-  if (!changed) throw notFound(id);
+  if (!changed) throw new NotFound(`no rate ${id}`);
   const row = await rates.getOne(id);
-  if (!row) throw notFound(id);
+  if (!row) throw new NotFound(`no rate ${id}`);
   return await compose.toAdminOne(row);
 }
 

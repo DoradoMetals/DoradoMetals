@@ -64,10 +64,11 @@ if (!users.length) {
 const user_id = users[0].id;
 
 // Any product will do as the order's one line - the sell side has no gate
-// (ruling 49) - the drawer prices it from live spots either way. The sell
-// cart is keyed by NAME.
+// (ruling 49) - the drawer prices it from live spots either way. The basket is
+// keyed by ID (ruling 50/43): the server copies the product's metal, weights,
+// purity and content onto the line itself.
 const { rows: products } = await query(
-  `SELECT name AS product_name FROM products.bullion ORDER BY name LIMIT 1`
+  `SELECT id FROM products.bullion ORDER BY name LIMIT 1`
 );
 if (!products.length) {
   console.error("no product in dev to put on the order");
@@ -132,7 +133,7 @@ const address = existingAddr.length
 });
 
 // Prime the checkout row exactly as the stepper does: the ids and parcel
-// facts, the fulfillment draft, the payout account, the cart line.
+// facts, the fulfillment draft, the payout account, the basket line.
 await checkoutService.patchCheckout(user_id, "purchase", {
   shipper_address_id: address.id,
   package_id: packages[0].id,
@@ -148,8 +149,8 @@ await checkoutService.saveCheckoutPayout(user_id, "purchase", {
   payout_email: E2E_CUSTOMER.email,
   account_holder_name: E2E_CUSTOMER.name,
 });
-await checkoutService.syncCart(user_id, "purchase", [
-  { type: "product", data: { name: products[0].product_name, quantity: 1 } },
+await checkoutService.replaceItems(user_id, "purchase", [
+  { bullion_id: products[0].id, quantity: 1 },
 ]);
 
 // The checkout row the priming above just wrote. `place` reads it by id.

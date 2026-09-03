@@ -5,21 +5,14 @@
 import withTransaction from "#shared/db/withTransaction.ts";
 import * as reviews from "#db/reviews/repo.ts";
 import type { ReviewRow, NewReview, ReviewPatch } from "#db/reviews/repo.ts";
+import { NotFound } from "#shared/errors.ts";
 
 // The wire IS the row - no identity adapter.
 export type ReviewWire = ReviewRow;
 
-interface HttpError extends Error { statusCode?: number }
-
-const notFound = (id: string): HttpError => {
-  const err: HttpError = new Error(`no review ${id}`);
-  err.statusCode = 404;
-  return err;
-};
-
 export async function getOne(id: string): Promise<ReviewWire> {
   const row = await reviews.getOne(id);
-  if (!row) throw notFound(id);
+  if (!row) throw new NotFound(`no review ${id}`);
   return row;
 }
 
@@ -40,9 +33,9 @@ export async function create(review: NewReview): Promise<ReviewWire> {
 export async function update(id: string, patch: ReviewPatch): Promise<ReviewWire> {
   return withTransaction(async (client) => {
     const changed = await reviews.update(id, patch, client);
-    if (!changed) throw notFound(id);
+    if (!changed) throw new NotFound(`no review ${id}`);
     const row = await reviews.getOne(id, client);
-    if (!row) throw notFound(id);
+    if (!row) throw new NotFound(`no review ${id}`);
     return row;
   });
 }

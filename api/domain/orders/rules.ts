@@ -1,9 +1,10 @@
 // THE ORDER RULES: pure functions - named row types in, a complete row out or a domain refusal thrown (D214 item 11).
 import { randomUUID } from "node:crypto";
 
-import { convertTroyOz } from "#shared/utils/convertWeights.ts";
 import { getRatePct, sumContentByMetal } from "#domain/rates/utils/resolveRate.ts";
 import { calculateItemAsk } from "#domain/pricing/ask.ts";
+// Fine metal has ONE definition and it lives in pricing - see content.ts.
+import { fineContent } from "#domain/pricing/content.ts";
 import { Conflict, Invalid } from "#shared/errors.ts";
 import {
   DORADO_ADDRESS, DORADO_CONTACT, FEDEX_STORE_ADDRESS,
@@ -33,9 +34,22 @@ export type { PricedLine } from "#db/orders/items/repo.ts";
 export type { OrderLine as CheckoutLine } from "#db/checkout/items/repo.ts";
 export type RateBand = NonNullable<Parameters<typeof getRatePct>[0]>[number];
 
-// A catalogue product as a sale prices it: the storefront row, the quantity the
-// cart asked for, and the rate its delivery state charges.
-export type TaxedProduct = StorefrontProduct & { quantity: number; sales_tax_rate: number };
+// One sale line, priced from the ITEM. The product supplies only the ask
+// premium and the three product facts a tax rule matches on. One per cart line.
+export type SaleLine = {
+  id: string;
+  quantity: number;
+  metal_type: string | null;
+  content: number | null;
+  purity: number | null;
+  gross: number | null;
+  ask_premium: number | null;
+  type: string | null;
+  legal_tender: boolean | null;
+  domestic_tender: boolean | null;
+};
+
+export type TaxedSaleLine = SaleLine & { sales_tax_rate: number };
 
 // One line of a carrier's rate quote, as the provider parses it.
 export type CarrierRate = { serviceType: string | null; netCharge: number | null };
@@ -73,17 +87,6 @@ export function directionOf(checkout: CheckoutRow): Direction {
 // product reference a line carries and null means scrap (ruling 34c).
 export function rateMaterialFor(line: { bullion_id?: string | null }): "scrap" | "bullion" {
   return line.bullion_id == null ? "scrap" : "bullion";
-}
-
-// Fine metal: the weight in troy ounces times the purity. NaN is "not measured"
-// and must reach the database as NULL rather than as a number - D47/D65.
-export function scrapContent(
-  weight: number | null | undefined,
-  unit: string | null | undefined,
-  purity: number | null | undefined
-): number | null {
-  const value = convertTroyOz(weight as number, unit as string) * (purity as number);
-  return Number.isFinite(value) ? value : null;
 }
 
 // WHAT A LINE CONTRIBUTES TO THE METAL TOTAL THE TIER IS READ AT. A scrap line's
@@ -175,11 +178,10 @@ export function linesBought(order_id: string, cart: CheckoutLine[]): NewOrderIte
   }));
 }
 
-// THE LINES THE BUSINESS SELLS, priced as they are created from the server's own
-// spot. A line the catalogue did not price is REFUSED - it would sell for zero.
-export function linesSold(
-  order_id: string, cart: CheckoutLine[], catalogue: TaxedProduct[], spots: Spots
-): NewOrderItem[] {
+// `metals` is metal id -> name; the ask is looked up under the ITEM's metal.
+export function saleLines(
+  cart: CheckoutLine[], catalogue: StorefrontProduct[], metals: Map<string, string>
+): SaleLine[] {
   const soldById = new Map(catalogue.map((product) => [product.id, product]));
   return cart.map((line) => {
     const product = line.bullion_id === null ? undefined : soldById.get(line.bullion_id);
@@ -189,21 +191,55 @@ export function linesSold(
           `sale cannot be placed`
       );
     }
+    // Refused, not priced at zero: a pre-snapshot basket has no content.
+    if (line.content == null) {
+      throw new Invalid(
+        `checkout item ${line.id} has no content, so it cannot be priced - ` +
+          `refresh your basket and try again`
+      );
+    }
     return {
-      id: randomUUID(), order_id, bullion_id: product.id, metal_id: metalOf(line),
-      pre_melt: product.gross, post_melt: product.content, purity: product.purity,
-      content: product.content, quantity: line.quantity ?? 1, confirmed: true,
-      premium: Number(product.ask_premium ?? 0), sales_tax_charged: product.sales_tax_rate,
-      price: calculateItemAsk(product, spots), unit: "t oz",
+      id: product.id,
+      quantity: Number(line.quantity ?? 1),
+      metal_type: metals.get(metalOf(line)) ?? null,
+      content: line.content,
+      purity: line.purity,
+      gross: line.pre_melt,
+      ask_premium: product.ask_premium,
+      type: product.type,
+      legal_tender: product.legal_tender,
+      domestic_tender: product.domestic_tender,
     };
   });
 }
 
-// WHAT THE CATALOGUE IS ASKED TO PRICE: the bullion lines, by id and quantity.
+// Paired to `priced` by position - saleLines is one entry per cart line.
+export function linesSold(
+  order_id: string, cart: CheckoutLine[], priced: TaxedSaleLine[], spots: Spots
+): NewOrderItem[] {
+  return cart.map((line, index) => {
+    const sold = priced[index];
+    if (!sold) {
+      throw new Error(
+        `checkout item ${line.id} was not priced - the sale line list is short`
+      );
+    }
+    return {
+      id: randomUUID(), order_id, bullion_id: sold.id, metal_id: metalOf(line),
+      pre_melt: line.pre_melt, post_melt: line.post_melt, purity: line.purity,
+      content: line.content, quantity: sold.quantity, confirmed: true,
+      premium: Number(sold.ask_premium ?? 0), sales_tax_charged: sold.sales_tax_rate,
+      price: calculateItemAsk(sold, spots), unit: line.unit ?? "t oz",
+    };
+  });
+}
+
+// Each product once. Quantity is zero because the LINE carries it.
 export function catalogueWanted(cart: CheckoutLine[]): { id: string; quantity: number }[] {
-  return cart.flatMap((line) =>
-    line.bullion_id === null ? [] : [{ id: line.bullion_id, quantity: line.quantity ?? 0 }]
+  const ids = new Set(
+    cart.flatMap((line) => (line.bullion_id === null ? [] : [line.bullion_id]))
   );
+  return [...ids].map((id) => ({ id, quantity: 0 }));
 }
 
 // WHAT A PURCHASE COMES TO at placement: the postage the server was quoted, and
@@ -270,7 +306,7 @@ export function lineFromScrap(
   return {
     order_id, metal_id: declared.metal_id, pre_melt: declared.pre_melt,
     purity: declared.purity, unit: declared.unit, quantity: 1, confirmed: false,
-    content: scrapContent(declared.pre_melt, declared.unit, declared.purity),
+    content: fineContent(declared.pre_melt, declared.unit, declared.purity),
   };
 }
 

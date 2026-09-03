@@ -16,13 +16,12 @@ import { test, expect } from "@playwright/test";
 // Full placement wants a seeded disposable order and a cascade cleanup -
 // the same infrastructure the admin drawer spec already names as missing.
 //
-// WRITES COMMIT (the cart is real), so the sell cart is cleared through the
-// API afterwards - sync replaces wholesale, so an empty sync is a clear.
+// WRITES COMMIT, so the sell basket is cleared through the API afterwards.
 const API = (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5000/api").replace(/\/$/, "");
 
 test.afterEach(async ({ request }) => {
   try {
-    await request.post(`${API}/cart/sync_sell_cart`, { data: { cart: [] } });
+    await request.delete(`${API}/checkout/items?direction=purchase`);
   } catch {
     // Best effort - a leftover cart line is visible in the drawer and harmless.
   }

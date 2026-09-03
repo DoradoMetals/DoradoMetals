@@ -14042,6 +14042,244 @@ What moved:
   now always requested (no gate to check), `app/sitemap.ts` filters buy URLs
   on `slug` alone, and the affected test fixtures.
 
+### Domain errors: the six stragglers and the lint (2026-09-03)
+
+D214 item 11 and `shared/errors.ts`'s own header already said domain code
+names a KIND of refusal, never a status - but the rule had no gate, so six
+files still built their own HTTP error and nine call sites spelled a number.
+Found on Jacob's read of `shipping/shipments/service.ts`'s local
+`interface HttpError` + `badRequest()`: *"Why are things like this sitting in
+this file? That should at minimum be a shared type lmfao."*
+
+Fixed in `domain/reviews/service.ts`, `domain/leads/service.ts`,
+`domain/rates/service.ts`, `domain/places/addresses/service.ts`,
+`domain/shipping/operations/service.ts`, `domain/shipping/shipments/service.ts`:
+every local `HttpError` interface/helper deleted, every throw now a
+`NotFound`/`Conflict`/`Invalid` from `#shared/errors.ts`, same messages.
+`shipping/shipments/service.ts` got the narrowest possible diff - only the
+helper and its call sites' error construction - because another lane is
+rewriting that file's `create()` and merges `api-hardening` before finishing.
+
+**Statuses that moved, because no code or test pinned the old number**:
+
+| file | message | old -> new |
+|---|---|---|
+| `places/addresses/service.ts` | "Address cannot be edited because it is associated with an active order." | 400 -> 409 (Conflict) |
+| `places/addresses/service.ts` | "Address cannot be deleted because it is associated with an active order." | 400 -> 409 (Conflict) |
+| `places/addresses/service.ts` | "Address not found." (both sites in `update`) | 400 -> 404 (NotFound) |
+| `shipping/shipments/service.ts` | "a shipment needs a type - ..." | 400 -> 422 (Invalid) |
+| `shipping/shipments/service.ts` | "a shipment update needs an id" | 400 -> 422 (Invalid) |
+| `shipping/shipments/service.ts` | "a service name needs a carrier to resolve against - ..." | 400 -> 422 (Invalid) |
+| `shipping/shipments/service.ts` | "a package label needs a carrier to resolve against - ..." | 400 -> 422 (Invalid) |
+| `shipping/shipments/service.ts` | "carrier ... offers no service called ..." | 400 -> 422 (Invalid) |
+| `shipping/shipments/service.ts` | "carrier ... has no package called ..." | 400 -> 422 (Invalid) |
+
+`shipping/operations/service.ts`'s four sites (two shipment-not-found, one
+pickup-not-found, one no-carrier-yet) kept their existing 404/409 - they were
+already the right status, just spelled with an inline `Error & { statusCode }`
+instead of `NotFound`/`Conflict`. `reviews`, `leads`, `rates` all stayed 404.
+Every "carrier/service/package doesn't resolve" site went `Invalid` rather than
+`NotFound`, matching the precedent already in `shipping/operations/service.ts`
+(`no package ${id}` is `Invalid` there too) - the id names something wrong
+about THIS request, not a resource the caller addressed directly by id.
+`places/addresses` "Address not found." went `NotFound` even though it also
+guards ownership (the header's "any signed-in customer could rewrite any
+address by id" case): the message already says not-found rather than
+forbidden, on purpose, so it doesn't confirm to a stranger that an id exists.
+Searched every test file and the frontend for these exact messages and the
+old status numbers before changing anything - none pinned them.
+
+**The gate**: `api/scripts/lint-domain-errors.ts`, script
+`lint:domain-errors` (+ `:self-test`), wired into `scripts/check.mjs`'s
+`api-lint` group (which is shared by `check` and `check:fast`, so no separate
+`check:fast` wiring was needed beyond that one line). Fails any non-test file
+under `domain/` containing a `statusCode` assignment, `refuse(`, `refuseWith(`,
+an import of `#shared/http/refuse`, or a locally-declared `HttpError` type.
+Modeled on `lint-type-homes.ts`/`lint-migrations.ts`: an 8-case `--self-test`
+(one per pattern, a test-file exclusion, a clean-tree pass, and the floor
+firing on a too-small tree) via the shared self-test harness, and a
+`LINT_DOMAIN_ERRORS_FLOOR` (default 70, against 86 domain files today) so an
+empty or short-circuited walk cannot pass by scanning nothing. No ACCEPTED
+map - the six were the whole list and all six are fixed. Verified via
+`pnpm --filter @dorado/api lint:script-guards`: the new script is
+self-tested, not excused, and needs no floor exemption.
+
+
+### Ruling 50 — carts are checkout items (Jacob, 2026-09-03 evening)
+
+> They have become checkout. We should still have server syncing checkout. But
+> we no longer want the frontend calling 'carts'. The new 'carts' are quite
+> simply checkout items. That whole code and process probably needs a rewrite.
+> It was not done well the first time anyway.
+
+And on the line shape:
+
+> the scrap vs bullion stuff???! New tables erase that distinction
+
+So there is ONE flat line, derived from the `checkout.items` row, with no
+union and no `type` tag: `bullion_id IS NULL` is the only thing that says a
+line is a declared lot rather than a coin.
+
+What moved:
+
+- **`/api/cart` is deleted** — router, four handlers, and its mount in
+  `app.ts`. The basket is on the checkout router:
+  `GET /api/checkout/items?direction=` (the session's rows),
+  `PUT` (replace the basket with the body's lines — that IS the sync),
+  `DELETE` (empty it, answering how many lines went). `direction` is parsed
+  once at the transport with `parseStrict(Direction, …)` (ruling 48); the
+  admin `?user_id=` subject rule holds on all three, because the admin
+  sales-order create flow syncs a named customer's basket.
+- **`CartLineBody`, `SyncCartBody`, `SellCartLineBody`, `SyncSellCartBody`
+  are gone.** `NewCheckoutItem` is a pick of the generated `checkout.ItemsRow`
+  — `bullion_id, metal_id, pre_melt, post_melt, purity, unit, quantity` — and
+  `CheckoutItemsBody` is `{ items }`, strict. Responses are bare
+  `checkout.ItemsRow[]` (ruling 12): no product name, description, type or
+  images joined on, because the frontend already caches the catalogue and maps
+  `bullion_id` against it.
+- **No try/catch, no logging, no catch-and-map.** `patchCheckout`'s
+  23503-into-Invalid catch is gone: the three reference ids with repos are
+  ASSERTED before the write, and `appointment_location_id` is left to its
+  foreign key because `places.locations` has no repo (D214 item 7).
+  Placement's basket clear is `attempt("clear the purchase basket", …)`.
+- **`domain/checkout/service.ts`'s basket is three use cases** —
+  `listItems` / `replaceItems` / `clearItems`, each LOAD → ASSERT → WRITE —
+  and every rule is in a new pure `domain/checkout/rules.ts`.
+  `SellCartLine`, `CartLineInput`, `SellCartLineInput`, `requestedLines` and
+  the D73 `name` / `product_name` shims died with them, and so did
+  `findProductIdByName` (products' last caller was the sell-cart sync; the
+  repo function and `sql/find_id_by_name.sql` went too).
+- **Nothing is skipped silently any more.** The old sync `continue`d past a
+  line it could not resolve; a line the rules refuse now refuses the whole
+  write. An unknown id is refused exactly like a hidden one.
+- **`db/checkout/items`** gained `createMany` and lost three joined
+  projections — `list_bullion_sale`, `list_bullion_purchase`, `list_scrap` —
+  one per frozen cart wire shape, with the `SaleBullionLine` /
+  `PurchaseBullionLine` / `ScrapLine` types they answered.
+- **The frontend was moved onto the new route and the flat line before Jacob
+  ruled it is about to be deleted**; that work is in the diff because it was
+  already done, and nothing in the API was shaped to keep it alive. Full
+  account in `docs/waves/checkout-items-shape-changes.md`.
+
+### Ruling 51 — the item carries every load-bearing value (Jacob, 2026-09-03 evening)
+
+> Let the item record carry all the load bearing parts. The bullion join is
+> only present for flair (images, mint name, etc etc). When an item is created
+> from bullion, the item should inherit the bullion weight/purity/metal on
+> create. but we should never use bullion.weight or whatever to calculate
+> ANYTHING.
+
+And on premiums:
+
+> for purchase orders bullion item premium comes from rates. For sales orders
+> the item premium comes from the bullion ask_premium
+
+— *"(and I guess fix that in the code if it's not present)"*.
+
+What moved:
+
+- **A bullion line SNAPSHOTS its product when it enters the basket**, using
+  the mapping `scripts/lib/feature-map.ts` FLOWS already declares for
+  `orders.items`: `gross → pre_melt`, `content → post_melt` AND `content`,
+  `purity → purity`, plus `metal_id` and `unit = 't oz'`. So a checkout line
+  and the order line it becomes hold the same numbers, and a catalogue edit
+  afterwards cannot reprice a basket.
+- **`content` is COPIED for a coin and DERIVED for a lot, and that split was
+  measured rather than assumed.** `gross * purity` reproduces `content` for
+  exactly ONE of dev's 62 products — a 1000 oz COMEX bar is 1000 gross at
+  0.999 and holds 1000 fine ounces, not 999 — so deriving a bullion line's
+  content would reprice every bullion line in the business. A lot has no such
+  column to copy, so its content comes from its own weight, unit and purity.
+- **There is ONE definition of fine content now.** `domain/orders/rules.ts`'s
+  `scrapContent(weight, unit, purity)` and `domain/quotes/rules.ts`'s
+  `declaredContent(pre_melt, purity, unit)` were the same product with the
+  arguments in a different order, disagreeing about what an unmeasurable value
+  means. Both call `domain/pricing/content.ts` `fineContent` now, and its test
+  moved with it.
+- **The premium is written at replace time by the rule that will price the
+  order**: a purchase line takes the rates band for its metal at the whole
+  basket's total content of that metal — the same rule `retierPremiums`
+  applies at placement — and a sale line takes the product's `ask_premium`.
+  So the basket, the quote and the order agree.
+- **A sale is priced from the ITEM.** `placeSale` used to price
+  `getItemsFromServer(catalogueWanted(cart))` — catalogue rows — and
+  `linesSold` wrote the product's gross, content and purity onto the order.
+  `rules.saleLines` now builds one priced entry PER CART LINE from the line's
+  own metal, weights, purity and content, with the product supplying only the
+  ask premium and the three facts a tax rule matches on that are properties of
+  the product (its type and its two tender flags).
+- **That fixed a second defect nobody had reported.** `getItemsFromServer`
+  dedupes by product id, so two cart lines naming one product priced ONCE, at
+  the second line's quantity, while `linesSold` still wrote two order lines:
+  the order's items and its total disagreed and nothing said so. One entry per
+  line cannot do that.
+- **A sale line with no `content` is REFUSED, not priced at zero.** Baskets
+  written before this ruling hold a bullion line with no weights at all, and
+  pricing one from its own columns sells an ounce of gold for nothing.
+  `checkout.*` is device-sync, so a refusal costs the customer one re-sync and
+  a zero costs the business the metal.
+- **Every pricing path that has an ITEM reads the item**: `pricing/bid.ts`
+  `unitContent`, the quote surface's `orderQuote`, the profit breakdown, and
+  the invoice/packing-list content columns, through one new
+  `recordedContent(line)`. **The catalogue is still its fallback, and that is
+  a data fact rather than a preference**: measured 2026-09-03, 24 of dev's 68
+  bullion order lines hold NULL content (production's 19 hold none), because
+  the old sync stored only `bullion_id`, `metal_id`, `quantity` and `premium`.
+  The fallback goes when those rows are backfilled, not before.
+- **What still prices a PRODUCT, correctly**: `POST /quotes/catalog` ("what
+  does ONE cost" — there is no item), `POST /quotes/purchase_order` (it is
+  public and prices lines a signed-out visitor sends), and
+  `rules.lineFromProduct` (an admin adding a catalogue line to an order — that
+  IS the snapshot-on-create this ruling asks for).
+
+### 120 — bullion order lines carry their content; the fallback is gone (2026-09-03)
+
+Ruling 51 left one deliberate gap: `recordedContent`'s catalogue fallback, kept
+because 24 of dev's 68 bullion `orders.items` rows (and 1 of checkout's 1) held
+NULL `content`/`pre_melt`/`post_melt`/`purity` — written before the basket
+snapshotted a product on create. Migration `120_bullion_lines_carry_their_content.sql`
+backfills them and the fallback is deleted.
+
+- **Measured before writing it**: all 24 `orders.items` rows and the 1
+  `checkout.items` row resolved a `products.bullion` row by id; `metal_id` was
+  never null on either table. After the migration every one of those five
+  counts is 0 on dev.
+- **The mapping is `domain/checkout/rules.ts` `snapshot()`'s own FLOWS**:
+  `gross → pre_melt`, `content → post_melt` AND `content`, `purity → purity`,
+  `metal_id → metal_id`. The `UPDATE` uses `coalesce(column, product column)`
+  so it only fills a NULL — nothing already snapshotted is touched.
+  `checkout.items` is device-sync (CLAUDE.md "not all data is equally
+  precious"), so its one stale row was DELETED rather than repaired; a basket
+  re-syncs.
+- **Cross-checked against the exchange-side rebuild**: for every one of the 51
+  affected `orders.items` rows that also exist in `exchange` (the other 17 are
+  e2e-seeded orders with no exchange counterpart), the value migration 120
+  wrote from `products.bullion` is byte-identical to what `031_backfill_orders.sql`
+  would compute from `exchange.products` for the same row — zero mismatches.
+  So `031` already lands the same mapping on a fresh production rebuild and
+  needed no change.
+- **The fallback is gone from both readers**: `pricing/bid.ts` `recordedContent`
+  now returns only `line.content`, and `quotes/service.ts`'s `orderQuote` lost
+  its `item.product?.content` read. `unitContent` (`pricing/bid.ts`) now
+  REFUSES a bullion line with no content (`Invalid`, naming the line) instead
+  of pricing it at zero — it is corrupt data now, not a case a rebuild could
+  still produce. A scrap line with no content still prices at 0: an unweighed
+  parcel is a real state. `orderQuote`'s own estimate keeps pricing an
+  unreadable line at 0 rather than throwing, unchanged from its own
+  documented "must render" design for an admin drawer view.
+- **No other product-side read of an existing item's content/gross/purity
+  survived**: `orders/rules.ts` `lineFromProduct` (no item exists yet — the
+  snapshot-on-create ruling 51 already names) and `checkout/rules.ts`
+  `basketRows`/`snapshot` (the snapshot itself) are the only remaining reads,
+  both correct by ruling 51's own table.
+- **Verification**: `lint:migrations` passes (no exchange writes — the
+  `UPDATE`/`DELETE` are on `orders.items`/`checkout.items`). `check:fast`
+  green. `verify:genesis` passes (no DDL). `verify:backfill` still reports the
+  112 pre-existing dev-drift differences (D214 open list) — `products.bullion`
+  compares clean (`ok`, 62 rows) and `orders.items`' diff is the known
+  `confirmed`/`unit` field drift plus the e2e-seeded row-count gap, not
+  content/pre_melt/purity/metal_id. `audit:non-finite` and `audit:nullability`
+  both pass.
 ### The two-table vocabulary is gone from code (2026-09-03)
 
 No native table has `purchase_order_id`/`sales_order_id` - `orders.orders` is

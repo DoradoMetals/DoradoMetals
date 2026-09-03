@@ -25,6 +25,12 @@ afterAll(async () => {
 
 const normalize = (name: unknown): string => String(name || "").trim().toLowerCase();
 
+// KEPT (exchange-fixtures lane, D214 item 10): the two exchange.carriers
+// reads below are not fixture discovery - they verify that the SCHEMA
+// MIGRATION preserved carrier identity, comparing every frozen exchange row
+// against its counterpart in the new schema. A builder cannot stand in for
+// this: it would create a NEW carrier, not prove that the OLD, real FedEx
+// row and the new one still agree on name.
 describe("the carrier name every provider lookup depends on", () => {
   // FEDEX_CARRIER_ID has to keep naming FedEx - this asserts it rather than trusting it.
   test("FEDEX_CARRIER_ID names FedEx in the schema the resolver reads", async () => {

@@ -1,52 +1,29 @@
 import { z } from "zod/v4";
 import { Direction } from "./direction.js";
-import { CheckoutsRow } from "../generated/checkout.js";
+import { CheckoutsRow, ItemsRow } from "../generated/checkout.js";
 
-// THE REQUEST BODIES OF THE CHECKOUT SURFACE.
-//
-// Most of wire/ describes what the API RETURNS; these describe what it
-// ACCEPTS, for the same reason wire/patches.ts does - the transport boundary
-// parses a body once, in strict mode, before any service runs, and the schema
-// it parses against has to live where both sides can see it.
-//
-// A FIELD DECLARED AND IGNORED IS NOT A MISTAKE. `user_id` on both cart syncs
-// is sent by a deployed frontend and is deliberately not read: a cart belongs
-// to the SESSION, not to whoever names a user, and the id comes from req.user.
-// Declaring it is what keeps an older client from being answered 400 for
-// sending something harmless.
+// The request bodies of the checkout surface, parsed strictly at the transport.
 
+// One basket line. The value columns are optional as well as nullable: a coin
+// is a bullion_id and a quantity. `content` and `premium` are the server's.
+export const NewCheckoutItem = ItemsRow.pick({
+  bullion_id: true,
+  metal_id: true,
+  pre_melt: true,
+  post_melt: true,
+  purity: true,
+  unit: true,
+})
+  .partial()
+  .extend({ quantity: z.number() })
+  .strict();
+export type NewCheckoutItem = z.infer<typeof NewCheckoutItem>;
 
-// A buy-cart line: an id and how many. Nothing else is read - the price,
-// premium and content all come back from the catalogue.
-export const CartLineBody = z.object({
-  id: z.string(),
-  quantity: z.number(),
-});
-export type CartLineBody = z.infer<typeof CartLineBody>;
-
-export const SyncCartBody = z.object({
-  cart: z.array(CartLineBody).default([]),
-  user_id: z.string().optional(),
+// The whole basket; the sync replaces rather than merges.
+export const CheckoutItemsBody = z.object({
+  items: z.array(NewCheckoutItem),
 }).strict();
-export type SyncCartBody = z.infer<typeof SyncCartBody>;
-
-// A sell-cart line is either a piece of SCRAP carrying its own values or a
-// named catalogue PRODUCT, told apart by `type`. `data` stays an open object
-// because the frontend sends the whole store item and the server reads a
-// named handful off it - pinning the keys would refuse a body that works.
-export const SellCartLineBody = z.looseObject({
-  type: z.string().optional(),
-  quantity: z.number().optional(),
-  product_name: z.string().optional(),
-  data: z.looseObject({}).optional(),
-});
-export type SellCartLineBody = z.infer<typeof SellCartLineBody>;
-
-export const SyncSellCartBody = z.object({
-  cart: z.array(SellCartLineBody).default([]),
-  user_id: z.string().optional(),
-}).strict();
-export type SyncSellCartBody = z.infer<typeof SyncSellCartBody>;
+export type CheckoutItemsBody = z.infer<typeof CheckoutItemsBody>;
 
 // The columns a CUSTOMER may write on their own checkout row. Narrower than
 // the table on purpose: fulfillment_id and the payout pointers are written by

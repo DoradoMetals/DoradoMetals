@@ -29,9 +29,9 @@ import request from "supertest";
 import pool from "#db";
 import { mockSessions, restoreSessions, as } from "#shared/testing/session.ts";
 import { TEST_ACTOR, TEST_CUSTOMER } from "#shared/testing/actor.ts";
-import { aUser, anOrder } from "#shared/testing/builders/index.ts";
+import { aUser, anOrder, aPayout } from "#shared/testing/builders/index.ts";
 import type { PoolClient } from "pg";
-import { inPinnedTransaction, assertNothingEscaped, outside } from "#shared/testing/pinned-pool.ts";
+import { inPinnedTransaction, assertNothingEscaped } from "#shared/testing/pinned-pool.ts";
 
 await mockSessions();
 const { default: app } = await import("#app");
@@ -118,8 +118,20 @@ test("a customer sees only their own rows, and the admin list is served whole", 
 
 // The one that carries real money. An order response must never contain a full
 // routing or account number - only the last four.
+//
+// BUILT, not discovered (exchange-fixtures lane, D214 item 10): a payout with
+// a KNOWN routing/account number, so "the real value is absent" is checked
+// against a number this file put in the database, not against whichever
+// exchange.payouts row happens to hold one - a frozen table nothing in this
+// path reads any more (payments.details is the account's native home, D213).
 test("no admin order response carries a full bank number", async () => {
-  await inPinnedTransaction(async () => {
+  await inPinnedTransaction(async (c: PoolClient) => {
+    const owner = await aUser(c);
+    const order = await anOrder(c, owner, { direction: "purchase", status: "Pending" })
+      .withLots(1, { metal: "Gold" })
+      .withTotals({ total: 100 });
+    const payout = await aPayout(c, owner, { order });
+
     await as(admin, async () => {
       const res = await request(app).get("/api/orders?direction=purchase");
       const body = JSON.stringify(res.body);
@@ -130,22 +142,16 @@ test("no admin order response carries a full bank number", async () => {
         "a full account number is on the wire"
       );
 
-      // And the real values from the database are absent, not merely
-      // unmatched by a regex. Counted and compared rather than read: the
-      // values themselves are never selected.
-      const [{ n }] = await outside(
-        `SELECT count(*)::int AS n FROM exchange.payouts
-          WHERE routing_number IS NOT NULL AND length(routing_number) = 9`
+      // The real values from the row this file just built are absent, not
+      // merely unmatched by a regex.
+      assert.ok(
+        !body.includes(payout.routing_number),
+        "a real routing number appears in the response body"
       );
-      if (n > 0) {
-        const [{ leaked }] = await outside(
-          `SELECT count(*)::int AS leaked FROM exchange.payouts
-            WHERE routing_number IS NOT NULL
-              AND position(routing_number in $1) > 0`,
-          [body]
-        );
-        assert.equal(leaked, 0, "a real routing number appears in the response body");
-      }
+      assert.ok(
+        !body.includes(payout.account_number),
+        "a real account number appears in the response body"
+      );
     });
   }, { actor: TEST_ACTOR.id, lock: ORDER_LOCK });
 });

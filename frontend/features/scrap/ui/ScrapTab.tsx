@@ -10,7 +10,7 @@ import { useEffect, useState } from 'react'
 import { defineStepper } from '@stepperize/react'
 import { sellCartStore } from '@/shared/store/sellCartStore'
 import { useRouter } from 'next/navigation'
-import { convertTroyOz } from '@/shared/utils/convertWeights'
+import { useSpotPrices } from '@/features/spots/queries'
 import ReviewStep from '@/features/scrap/ui/ReviewStep'
 import MetalStep from '@/features/scrap/ui/MetalStep'
 import WeightStep from '@/features/scrap/ui/WeightStep'
@@ -40,6 +40,7 @@ export default function ScrapForm() {
   const currentIndex = utils.getIndex(stepper.current.id)
 
   const addItem = sellCartStore.getState().addItem
+  const { data: metals = [] } = useSpotPrices()
 
   const [submitted, setSubmitted] = useState(false)
   const [showBanner, setShowBanner] = useState(false)
@@ -57,23 +58,22 @@ export default function ScrapForm() {
   const router = useRouter()
 
   const handleSubmit = (values: Scrap) => {
-    // Only the goods declaration goes into the cart - weight, purity and the
-    // troy-ounce content they resolve to. NO price and NO resolved premium:
-    // every number the customer sees comes from POST /quotes/purchase_order
-    // (ReviewStep, SellCart), the store re-tiers bid_premium from the rates
-    // table on add, and the backend re-resolves both on submit.
-    const content =
-      convertTroyOz(values.pre_melt ?? 0, values.gross_unit ?? 'g') * (values.purity ?? 0)
-
-    const item = {
-      type: 'scrap' as const,
-      data: {
-        ...values,
-        content,
-      },
-    }
-
-    addItem(item)
+    // Only the declaration: content and premium are the server's.
+    addItem({
+      id: values.id,
+      bullion_id: null,
+      metal_id: metals.find((m) => m.name === values.metal)?.id ?? null,
+      pre_melt: values.pre_melt ?? null,
+      post_melt: values.post_melt ?? null,
+      purity: values.purity ?? null,
+      unit: values.gross_unit ?? null,
+      quantity: 1,
+      gross: null,
+      metal: values.metal ?? null,
+      name: values.name ?? null,
+      image_front: null,
+      mint_name: null,
+    })
     setSubmitted(true)
     setShowBanner(true)
 

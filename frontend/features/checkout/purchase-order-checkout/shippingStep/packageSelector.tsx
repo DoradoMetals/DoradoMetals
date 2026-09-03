@@ -32,9 +32,9 @@ export function PackageSelector() {
 
   const totalCartWeight = useMemo(() => {
     return items.reduce((sum, item) => {
-      const qty = item.data.quantity ?? 1
-      const raw = item.type === 'product' ? item.data.gross : item.data.pre_melt
-      const converted = convertToPounds(raw, item.type === 'product' ? 'toz' : item.data.gross_unit)
+      const qty = item.quantity ?? 1
+      const raw = item.pre_melt ?? 0
+      const converted = convertToPounds(raw, item.unit ?? 'g')
 
       return sum + converted * qty
     }, 0)

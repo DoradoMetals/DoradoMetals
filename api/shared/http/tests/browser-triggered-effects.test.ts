@@ -24,10 +24,14 @@ const walk = (dir: string, out: string[] = []): string[] => {
 
 // Committed rather than derived — a list read out of the file it checks would always agree with itself.
 const ALLOWED = [
-  // These are reads, not post-success effects — a failed read loses no user action (sitemap runs server-side; cart hydrations run post-login with their own catch, keeping the local copy).
+  // These are reads, not post-success effects — a failed read loses no user action (sitemap runs server-side; basket hydration runs post-login with its own catch, keeping the local copy).
   "(top level) GET /products/get_all_products",
-  "(top level) GET /cart/get_cart",
-  "(top level) GET /cart/get_sell_cart",
+  // Basket hydration: rows, plus the catalogues that name them.
+  "(top level) GET /checkout/items",
+  "(top level) GET /checkout/items",
+  "(top level) GET /products/get_products",
+  "(top level) GET /products/get_sell_products",
+  "(top level) GET /spots/spot_prices",
 ];
 
 test("only the two order emails are triggered after an operation already succeeded", () => {

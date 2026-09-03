@@ -42,7 +42,7 @@ const READS = [
   ["admin", "/api/products/get_metals"],
   ["admin", "/api/products/get_mints"],
   ["admin", "/api/products/get_product_types"],
-  ["user", "/api/cart/get_cart"],
+  ["user", "/api/checkout/items?direction=sale"],
   ["admin", "/api/fulfillments/methods/all"],
   ["admin", "/api/fulfillments/schedule"],
   ["user", "/api/orders"],
