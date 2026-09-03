@@ -1,5 +1,6 @@
-// spots.spots, and nothing else - upsert-by-metal, no per-row lifecycle: one row per metal seeded by migration, and upsert is the only write the application makes.
+// spots.spots, and nothing else - one row per metal, seeded by migration.
 import query from "#shared/db/query.ts";
+import { buildUpdate } from "#shared/db/patch.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
 import type { Executor } from "#shared/db/executor.ts";
 import type { spots } from "@dorado/contracts";
@@ -21,10 +22,33 @@ export async function list(executor?: Executor): Promise<SpotRow[]> {
   return rows;
 }
 
-export async function upsert(metal_id: string, q: Quote, executor?: Executor): Promise<void> {
-  await query(
-    sql("upsert"),
-    [metal_id, q.ask ?? null, q.bid ?? null, q.dollarChange ?? null, q.percentChange ?? null],
+export type NewSpot = {
+  metal_id: string;
+  ask: number | null;
+  bid: number | null;
+  dollar_change: number | null;
+  percent_change: number | null;
+};
+
+export async function create(row: NewSpot, executor?: Executor): Promise<SpotRow> {
+  const { rows } = await query<SpotRow>(
+    sql("create"),
+    [row.metal_id, row.ask, row.bid, row.dollar_change, row.percent_change],
     executor
   );
+  return rows[0];
+}
+
+export const PATCHABLE = ["ask", "bid", "dollar_change", "percent_change"] as const;
+export type SpotQuotePatch = Partial<Record<(typeof PATCHABLE)[number], number | null>>;
+
+export async function update(
+  metal_id: string, patch: SpotQuotePatch, executor?: Executor
+): Promise<boolean> {
+  const built = buildUpdate({
+    table: "spots.spots", allowed: PATCHABLE, patch, where: { metal_id },
+  });
+  if (!built) return true;
+  const { rowCount } = await query(built.text, built.values, executor);
+  return rowCount === 1;
 }

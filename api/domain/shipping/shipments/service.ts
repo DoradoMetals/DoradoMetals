@@ -270,27 +270,28 @@ export async function patch(
     const existing = await shipments.getOne(id, c);
     if (!existing) return null;
 
-    const written = await shipments.update(
-      id,
-      {
-        tracking_number: existing.tracking_number,
-        shipping_status: existing.shipping_status,
-        est_delivery: existing.est_delivery,
-        shipped_at: existing.shipped_at,
-        delivered_at: existing.delivered_at,
-        label: existing.label,
-        label_type: existing.label_type,
-        pickup_type: existing.pickup_type,
-        package_id: existing.package_id,
-        carrier_service_id: existing.carrier_service_id,
-        cost: existing.cost,
-        insured: existing.insured ?? undefined,
-        declared_value: existing.declared_value,
-        direction: existing.direction,
-        ...changes,
-      },
-      c
-    );
+    // Assigned onto a plain record rather than spread into a copy - every
+    // column starts at its current value, and `changes` overrides only what
+    // it names, matching shipments.update's own full-replace contract.
+    const merged: ShipmentRecord = {
+      tracking_number: existing.tracking_number,
+      shipping_status: existing.shipping_status,
+      est_delivery: existing.est_delivery,
+      shipped_at: existing.shipped_at,
+      delivered_at: existing.delivered_at,
+      label: existing.label,
+      label_type: existing.label_type,
+      pickup_type: existing.pickup_type,
+      package_id: existing.package_id,
+      carrier_service_id: existing.carrier_service_id,
+      cost: existing.cost,
+      insured: existing.insured ?? undefined,
+      declared_value: existing.declared_value,
+      direction: existing.direction,
+    };
+    Object.assign(merged, changes);
+
+    const written = await shipments.update(id, merged, c);
     if (!written) return null;
     return await getById(id, c);
   };

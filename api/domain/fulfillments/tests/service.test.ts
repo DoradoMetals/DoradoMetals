@@ -188,7 +188,7 @@ test("a pickup is scheduled, rescheduled, and cancelled without touching the ful
     );
     assert.match(JSON.stringify(booked.pickup.start_time), /[+-]\d{2}:\d{2}"$|Z"$/);
 
-    // Rescheduling is an upsert, not a second row: one pickup per fulfillment.
+    // Rescheduling reads first and updates: one pickup per fulfillment, not a second row.
     const moved = await pickupService.schedule(
       { fulfillment_id: f.id, pickup_address_id: addr[0].id, start_time: "2026-09-02T15:00:00Z" },
       c

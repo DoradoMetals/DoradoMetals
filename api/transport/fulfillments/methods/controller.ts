@@ -20,8 +20,10 @@ export const getAllMethods = asyncHandler(async (_req, res) => {
 });
 
 export const updateMethod = asyncHandler(async (req, res) => {
-  const body = parseStrict(UpdateBody, req.body, "fulfillments/methods/update body");
-  const { id, ...patch } = body.method;
-  const saved = await methodService.update(id, patch);
+  const { method } = parseStrict(UpdateBody, req.body, "fulfillments/methods/update body");
+  const saved = await methodService.update(method.id, {
+    label: method.label, admin_label: method.admin_label,
+    enabled: method.enabled, hidden: method.hidden,
+  });
   return res.status(200).json(saved);
 });

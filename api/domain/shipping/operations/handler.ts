@@ -4,6 +4,7 @@
 // `client` is the optional executor threaded through, like every repo call.
 import { resolveCarrier } from "#domain/shipping/operations/resolver.ts";
 import { BUILDERS } from "#domain/shipping/operations/builders.ts";
+import type { Executor } from "#shared/db/executor.ts";
 
 type Builders = (typeof BUILDERS)[keyof typeof BUILDERS];
 type InputFor<K extends keyof Builders> = Parameters<Builders[K]>[0];
@@ -13,7 +14,7 @@ export type RatesInput = NonNullable<InputFor<"getRates">>;
 
 export async function validateAddress(
   carrier_id: string,
-  client: unknown,
+  client: Executor,
   { address }: InputFor<"validateAddress">
 ) {
   const { provider, builders } = await resolveCarrier(carrier_id, client);
@@ -22,7 +23,7 @@ export async function validateAddress(
 
 export async function getRates(
   carrier_id: string,
-  client: unknown,
+  client: Executor,
   input: InputFor<"getRates">
 ) {
   const { provider, builders } = await resolveCarrier(carrier_id, client);
@@ -31,7 +32,7 @@ export async function getRates(
 
 export async function createLabel(
   carrier_id: string,
-  client: unknown,
+  client: Executor,
   input: InputFor<"createLabel">
 ) {
   const { provider, builders } = await resolveCarrier(carrier_id, client);
@@ -40,7 +41,7 @@ export async function createLabel(
 
 export async function cancelLabel(
   carrier_id: string,
-  client: unknown,
+  client: Executor,
   input: InputFor<"cancelLabel">
 ) {
   const { provider, builders } = await resolveCarrier(carrier_id, client);
@@ -49,7 +50,7 @@ export async function cancelLabel(
 
 export async function checkPickup(
   carrier_id: string,
-  client: unknown,
+  client: Executor,
   input: InputFor<"checkPickup">
 ) {
   const { provider, builders } = await resolveCarrier(carrier_id, client);
@@ -58,7 +59,7 @@ export async function checkPickup(
 
 export async function createPickup(
   carrier_id: string,
-  client: unknown,
+  client: Executor,
   input: InputFor<"createPickup">
 ) {
   const { provider, builders } = await resolveCarrier(carrier_id, client);
@@ -68,7 +69,7 @@ export async function createPickup(
 
 export async function cancelPickup(
   carrier_id: string,
-  client: unknown,
+  client: Executor,
   input: InputFor<"cancelPickup">
 ) {
   const { provider, builders } = await resolveCarrier(carrier_id, client);
@@ -77,7 +78,7 @@ export async function cancelPickup(
 
 export async function getLocations(
   carrier_id: string,
-  client: unknown,
+  client: Executor,
   input: InputFor<"getLocations">
 ) {
   const { provider, builders } = await resolveCarrier(carrier_id, client);
@@ -86,7 +87,7 @@ export async function getLocations(
 
 export async function getTracking(
   carrier_id: string,
-  client: unknown,
+  client: Executor,
   input: InputFor<"getTracking">
 ) {
   const { provider, builders } = await resolveCarrier(carrier_id, client);

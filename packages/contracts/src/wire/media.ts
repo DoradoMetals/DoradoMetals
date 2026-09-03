@@ -1,5 +1,6 @@
 import { z } from "zod/v4";
 import { ImagesRow } from "../generated/media.js";
+import { OrdersRow } from "../generated/orders.js";
 
 // SOURCED FROM THE LIVE `media` SCHEMA, NOT `exchange`. This used to import
 // exchange's ImagesRow and adapt it (exchange aliased `checksum_sha256` up to
@@ -37,3 +38,13 @@ export type MediaUploadBody = z.infer<typeof MediaUploadBody>;
 // never the body's (media/images/service.ts's `ownedBy`).
 export const MediaDeleteBody = ImagesRow.pick({ id: true });
 export type MediaDeleteBody = z.infer<typeof MediaDeleteBody>;
+
+// POST /media/emails/send_created and /send_priced - the order id alone
+// (ruling 10). Everything else (recipient, document fields, spot prices)
+// is resolved server-side from it (transport/media/emails/controller.ts);
+// the body used to be the whole composed order plus the spot feed plus the
+// recipient address.
+export const SendOrderEmailBody = z.object({
+  order_id: OrdersRow.shape.id,
+}).strict();
+export type SendOrderEmailBody = z.infer<typeof SendOrderEmailBody>;

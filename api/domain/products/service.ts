@@ -160,11 +160,26 @@ export async function saveProduct(
   { product }: { product: ProductPatchInput },
   executor?: Executor
 ): Promise<{ id: string } | undefined> {
-  const { id, ...patch } = product;
   const run = async (c: Executor): Promise<{ id: string } | undefined> => {
-    const written = await products.update(id, patch as ProductPatch, c);
+    const written = await products.update(
+      product.id,
+      {
+        metal_id: product.metal_id, supplier_id: product.supplier_id, mint_id: product.mint_id,
+        name: product.name, description: product.description,
+        bid_premium: product.bid_premium, ask_premium: product.ask_premium, type: product.type,
+        display: product.display, content: product.content, gross: product.gross,
+        purity: product.purity, variant_group: product.variant_group,
+        shadow_offset: product.shadow_offset, stock: product.stock, slug: product.slug,
+        homepage_display: product.homepage_display, legal_tender: product.legal_tender,
+        domestic_tender: product.domestic_tender, sell_display: product.sell_display,
+        is_generic: product.is_generic, variant_label: product.variant_label,
+        quantity: product.quantity, image_front: product.image_front,
+        image_back: product.image_back, filter_category: product.filter_category,
+      },
+      c
+    );
     if (!written) return undefined;
-    return { id };
+    return { id: product.id };
   };
   return executor ? await run(executor) : await withTransaction(run);
 }

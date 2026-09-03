@@ -1,36 +1,17 @@
-import { uuidParam } from "#shared/http/validate.ts";
-import { refuseWith } from "#shared/http/refuse.ts";
+import { parseStrict, uuidParam } from "#shared/http/validate.ts";
 import { asyncHandler } from "#shared/middleware/asyncHandler.ts";
 import * as shipmentPatch from "#domain/shipping/shipments/patch.service.ts";
 import * as orderRead from "#domain/shipping/shipments/order-read.ts";
 import * as carrierPickups from "#db/shipping/pickups/repo.ts";
-import { refusedUnknownField, refusedValue, type Refusal } from "#shared/http/patch-body.ts";
 import { ShipmentPatch } from "@dorado/contracts";
 
-// Shape validation happens once, here (moved from patch.service.ts) - the service receives an already-validated ShipmentPatch and checks RULES only.
-const FIELDS = Object.keys(ShipmentPatch.shape);
-
-export function refusedField(body: Record<string, unknown>): Refusal | null {
-  const unknown = refusedUnknownField(body, FIELDS, "a shipment PATCH");
-  if (unknown) return unknown;
-  // The tracking pair travels together: a number with no carrier (or the
-  // reverse) is half a write the old route never made.
-  if ((body.tracking_number === undefined) !== (body.carrier_id === undefined)) {
-    return {
-      statusCode: 400,
-      message: `"tracking_number" and "carrier_id" travel together`,
-    };
-  }
-  return refusedValue(ShipmentPatch, body ?? {});
-}
-
-// PATCH /api/shipments/:id - the id is a uuid and the body is a ShipmentPatch, checked before the service runs.
+// PATCH /api/shipments/:id - strict parsing once, here; the service (D214
+// item 11) receives a typed ShipmentPatch and checks RULES only - the
+// tracking-pair rule moved with it.
 export const patchShipment = asyncHandler(async (req, res) => {
   const id = uuidParam(req, "id");
-  const body = (req.body ?? {}) as Record<string, unknown>;
-  const refusal = refusedField(body);
-  if (refusal) refuseWith(refusal.statusCode, refusal.message);
-  const result = await shipmentPatch.patchShipment(id, body as never);
+  const body = parseStrict(ShipmentPatch, req.body, "shipments/:id patch body");
+  const result = await shipmentPatch.patchShipment(id, body);
   return res.status(200).json(result);
 });
 

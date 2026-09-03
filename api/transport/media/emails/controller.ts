@@ -1,11 +1,11 @@
 import type { Request } from "express";
+import { SendOrderEmailBody } from "@dorado/contracts";
 import { asyncHandler } from "#shared/middleware/asyncHandler.ts";
 import { strictBody } from "#shared/http/validate.ts";
 import * as emailService from "#domain/media/emails/service.ts";
 import * as inputs from "#domain/media/pdfs/order-inputs.ts";
 import * as orderRead from "#domain/orders/read.ts";
 import { Forbidden, Invalid, NotFound } from "#shared/errors.ts";
-import { z } from "zod/v4";
 
 // Who the email goes to is decided HERE, from the database - both routes used to take the recipient from the request body, an open mail relay on the business's domain.
 // The address now comes from the stored order, gated by entitlement (owner or admin only) - naming someone else's order id no longer mails them.
@@ -26,19 +26,15 @@ async function recipientFor(
   return to;
 }
 
-// The body is one id (ruling 10). It used to be the whole composed order plus
-// the spot feed plus the recipient.
-const Body = z.object({ order_id: z.string() }).strict();
-
 export const sendCreatedEmail = asyncHandler(async (req, res) => {
-  const { order_id } = strictBody(Body, req.body);
+  const { order_id } = strictBody(SendOrderEmailBody, req.body);
   const to = await recipientFor(order_id, req.user);
   await emailService.sendCreatedEmail(await inputs.packingListInputs(order_id), to);
   return res.status(200).json({ success: true });
 });
 
 export const sendPricedEmail = asyncHandler(async (req, res) => {
-  const { order_id } = strictBody(Body, req.body);
+  const { order_id } = strictBody(SendOrderEmailBody, req.body);
   const to = await recipientFor(order_id, req.user);
   await emailService.sendPricedEmail(await inputs.invoiceInputs(order_id), to);
   return res.status(200).json({ success: true });

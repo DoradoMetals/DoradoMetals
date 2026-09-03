@@ -3,5 +3,5 @@ import * as mints from "#db/mints/repo.ts";
 import type { MintRow } from "#db/mints/repo.ts";
 
 export async function getAllMints(): Promise<MintRow[]> {
-  return await mints.getAll();
+  return await mints.list();
 }

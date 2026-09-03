@@ -263,10 +263,13 @@ test("a write made with a client is invisible on the pool", async () => {
   assert.equal(outsideRow, null);
 });
 
-test("an update with no id changes nothing", async () => {
+// `id` is required on CarrierServicePatch now (the contract, parsed strictly
+// at transport) - a request naming none is a 400 before this ever runs. What
+// this proves is the reachable case: an id nothing names changes nothing.
+test("an update naming an id nothing has changes nothing", async () => {
   await inRollback(async (c: PoolClient) => {
     const { rows: before } = await c.query("SELECT count(*)::int n FROM exchange.carrier_services");
-    assert.equal(await service.updateService({ name: "nobody" }, c), null);
+    assert.equal(await service.updateService({ id: randomUUID(), name: "nobody" }, c), null);
     const { rows: after } = await c.query("SELECT count(*)::int n FROM exchange.carrier_services");
     assert.equal(after[0].n, before[0].n);
   });

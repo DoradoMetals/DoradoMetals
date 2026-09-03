@@ -17,6 +17,11 @@ export async function patchShipment(
   if (Object.keys(body).length === 0) {
     throw new Invalid("the document names no field to write");
   }
+  // The tracking pair travels together: a number with no carrier (or the
+  // reverse) is half a write.
+  if ((body.tracking_number === undefined) !== (body.carrier_id === undefined)) {
+    throw new Invalid(`"tracking_number" and "carrier_id" travel together`);
+  }
 
   const shipment = await shipmentsService.getById(shipmentId);
   if (!shipment) throw new NotFound(`no shipment ${shipmentId}`);

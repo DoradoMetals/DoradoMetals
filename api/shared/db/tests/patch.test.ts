@@ -97,6 +97,21 @@ test("an empty where is refused rather than rewriting the table", () => {
   );
 });
 
+// THE ONE-WAY TRANSITION. fulfillments.attachToOrder folded into `update`:
+// `where`'s equality binding cannot express "order_id IS NULL" - a bound NULL
+// parameter never equals anything, itself included - so this is its own clause.
+test("whereNull adds an IS NULL guard that binds no parameter", () => {
+  const built = buildUpdate({
+    table: "fulfillments.fulfillments",
+    allowed: ["order_id"],
+    patch: { order_id: "o1" },
+    where: { id: "f1" },
+    whereNull: ["order_id"],
+  })!;
+  assert.match(built.text, /WHERE id = \$2 AND order_id IS NULL/);
+  assert.deepEqual(built.values, ["o1", "f1"]);
+});
+
 test("a cast is applied to the parameter, in the SET list and in the WHERE", () => {
   const built = buildUpdate({
     table: "orders.orders",

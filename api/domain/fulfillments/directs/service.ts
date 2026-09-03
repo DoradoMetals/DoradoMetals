@@ -12,7 +12,7 @@ type Executor = PoolClient | undefined;
 
 export type { DirectRow, DirectInput } from "#db/fulfillments/directs/repo.ts";
 
-// GET /api/orders/:orderId/directs - VERBATIM rows, at most one (upsert keyed on fulfillment_id). [] rather than 404 when the order has no fulfillment.
+// GET /api/orders/:orderId/directs - VERBATIM rows, at most one (fulfillments.directs holds one row per fulfillment). [] rather than 404 when the order has no fulfillment.
 export async function forOrder(
   order_id: string, executor?: Executor
 ): Promise<DirectRow[]> {
@@ -22,21 +22,35 @@ export async function forOrder(
   return row ? [row] : [];
 }
 
+// READ FIRST: a fulfillment holds at most one appointment, so booking it a second time is a PATCH of the row already there, not a second insert.
 export async function schedule(
   input: { fulfillment_id: string } & DirectInput, executor?: Executor
 ): Promise<ComposedFulfillment | null> {
   await fulfillmentService.assertCategory(input.fulfillment_id, "DIRECT", executor);
-  await directs.upsert(
-    {
-      id: randomUUID(),
-      fulfillment_id: input.fulfillment_id,
-      location_id: input.location_id,
-      assigned_employee_id: input.assigned_employee_id,
-      is_appointment: input.is_appointment,
-      start_time: input.start_time,
-      end_time: input.end_time,
-    },
-    executor
-  );
+  const existing = await directs.getFor(input.fulfillment_id, executor);
+  if (existing) {
+    await directs.update(
+      input.fulfillment_id,
+      {
+        location_id: input.location_id,
+        assigned_employee_id: input.assigned_employee_id,
+        is_appointment: input.is_appointment,
+        start_time: input.start_time,
+        end_time: input.end_time,
+      },
+      executor
+    );
+  } else {
+    await directs.create(
+      {
+        id: randomUUID(), fulfillment_id: input.fulfillment_id,
+        location_id: input.location_id,
+        assigned_employee_id: input.assigned_employee_id,
+        is_appointment: input.is_appointment,
+        start_time: input.start_time, end_time: input.end_time,
+      },
+      executor
+    );
+  }
   return await fulfillmentService.getById(input.fulfillment_id, executor);
 }

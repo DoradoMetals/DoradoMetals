@@ -138,18 +138,16 @@ export async function createDraft(
   return await composeOne(row, executor);
 }
 
-// The one-way attach. Refuses rather than repoints: a draft that is already an order's fulfillment never moves, and a second attach raises 23505 rather than quietly holding two.
+// The one-way attach. Refuses rather than repoints: a draft that is already an order's fulfillment never moves.
 export async function attachDraft(
   { fulfillment_id, order_id }: { fulfillment_id: string; order_id: string },
   executor?: Executor
 ): Promise<ComposedFulfillment> {
-  const row = await fulfillments.attachToOrder(
-    fulfillment_id, { order_id }, executor
-  );
-  if (!row) {
+  const changed = await fulfillments.update(fulfillment_id, { order_id }, executor);
+  if (!changed) {
     throw new Conflict(`fulfillment ${fulfillment_id} is not a draft - it already belongs to an order`);
   }
-  const composed = await composeOne(row, executor);
+  const composed = await getById(fulfillment_id, executor);
   if (!composed) throw new Error(`fulfillment ${fulfillment_id} vanished mid-attach`);
   return composed;
 }
@@ -157,8 +155,9 @@ export async function attachDraft(
 // THE HAND-OVER A CHECKOUT ASKED FOR, given to the order it became: the draft
 // the stepper mutated, else the method it named, else the direction's default -
 // and the booking the chosen category needs.
-// The two upserts go straight to the child repos rather than through their
-// services: assertCategory is what those add, and the category is right here.
+// Both bookings go straight to the child repos, reading first, rather than
+// through their services: assertCategory is what those add, and the category
+// is right here.
 export async function attachForCheckout(
   { order_id, direction, fulfillment_id, method_id, pickup_address_id, location_id, start_time }: {
     order_id: string;
@@ -190,20 +189,26 @@ export async function attachForCheckout(
   // together before the detail row existed, so it would say the order is going
   // to be collected by nobody.
   if (chosen.method.category === "PICKUP" && pickup_address_id) {
-    await pickups.upsert(
-      { id: randomUUID(), fulfillment_id: chosen.id, pickup_address_id, start_time },
-      executor
-    );
+    if (await pickups.getFor(chosen.id, executor)) {
+      await pickups.update(chosen.id, { pickup_address_id, start_time }, executor);
+    } else {
+      await pickups.create(
+        { id: randomUUID(), fulfillment_id: chosen.id, pickup_address_id, start_time },
+        executor
+      );
+    }
     return await recompose(chosen.id, executor);
   }
   if (chosen.method.category === "DIRECT" && location_id) {
-    await directs.upsert(
-      {
-        id: randomUUID(), fulfillment_id: chosen.id, location_id,
-        is_appointment: chosen.method.type === "APPOINTMENT", start_time,
-      },
-      executor
-    );
+    const is_appointment = chosen.method.type === "APPOINTMENT";
+    if (await directs.getFor(chosen.id, executor)) {
+      await directs.update(chosen.id, { location_id, is_appointment, start_time }, executor);
+    } else {
+      await directs.create(
+        { id: randomUUID(), fulfillment_id: chosen.id, location_id, is_appointment, start_time },
+        executor
+      );
+    }
     return await recompose(chosen.id, executor);
   }
   return chosen;

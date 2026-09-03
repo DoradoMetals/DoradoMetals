@@ -44,19 +44,20 @@ async function aLocationId(c: PoolClient): Promise<string> {
   return l.id;
 }
 
-test("upsert books an appointment, defaulting is_appointment to true", async () => {
+test("create books an appointment, defaulting is_appointment to true; update reschedules the same row", async () => {
   await inRollback(async (c: PoolClient) => {
     const fulfillment_id = await aDraftFulfillment(c);
     const location_id = await aLocationId(c);
 
-    const row = await directs.upsert({ id: randomUUID(), fulfillment_id, location_id }, c);
+    const row = await directs.create({ id: randomUUID(), fulfillment_id, location_id }, c);
     assert.equal(row.is_appointment, true, "is_appointment did not default to true");
 
-    const walkin = await directs.upsert(
-      { id: randomUUID(), fulfillment_id, location_id, is_appointment: false }, c
-    );
-    assert.equal(walkin.id, row.id, "a second call created a second row instead of rescheduling");
-    assert.equal(walkin.is_appointment, false, "an explicit false was overridden by the default");
+    const changed = await directs.update(fulfillment_id, { is_appointment: false }, c);
+    assert.equal(changed, true, "update reported no row changed");
+
+    const walkin = await directs.getFor(fulfillment_id, c);
+    assert.equal(walkin?.id, row.id, "a second call created a second row instead of rescheduling");
+    assert.equal(walkin?.is_appointment, false, "an explicit false was overridden by the default");
   });
 });
 
@@ -64,7 +65,7 @@ test("remove deletes the direct and answers false the second time", async () => 
   await inRollback(async (c: PoolClient) => {
     const fulfillment_id = await aDraftFulfillment(c);
     const location_id = await aLocationId(c);
-    await directs.upsert({ id: randomUUID(), fulfillment_id, location_id }, c);
+    await directs.create({ id: randomUUID(), fulfillment_id, location_id }, c);
 
     const removed = await directs.remove(fulfillment_id, c);
     assert.equal(removed, true, "remove reported no row changed");

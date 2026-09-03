@@ -6,6 +6,9 @@ import { sqlFrom } from "#shared/db/sql.ts";
 import { buildUpdate } from "#shared/db/patch.ts";
 import { PATCHABLE } from "#db/fulfillments/repo.ts";
 import { PATCHABLE as METHOD_PATCHABLE } from "#db/fulfillments/methods/repo.ts";
+import { PATCHABLE as PICKUP_PATCHABLE } from "#db/fulfillments/pickups/repo.ts";
+import { PATCHABLE as DIRECT_PATCHABLE } from "#db/fulfillments/directs/repo.ts";
+import { PATCHABLE as LINK_PATCHABLE } from "#db/fulfillments/shipments/repo.ts";
 
 // fulfillments/sql/update.sql and methods/sql/update.sql are gone - both were COALESCE statements that also wrote updated_at/updated_by_id by hand; shared/db/patch.ts builds them from the column lists the repos export, and audit_stamp writes the audit columns.
 const builtFulfillment = () =>
@@ -19,6 +22,26 @@ const builtMethod = () =>
     table: "fulfillments.methods", allowed: METHOD_PATCHABLE,
     patch: Object.fromEntries(METHOD_PATCHABLE.map((c) => [c as string, null])),
     where: { id: "x" },
+  })!.text;
+
+// pickups/directs upsert.sql and shipments upsert.sql are gone too (D214 item
+// 11): the service reads first and calls create or this same builder.
+const builtPickup = () =>
+  buildUpdate({
+    table: "fulfillments.pickups", allowed: PICKUP_PATCHABLE,
+    patch: { pickup_address_id: "a" }, where: { fulfillment_id: "f1" },
+  })!.text;
+
+const builtDirect = () =>
+  buildUpdate({
+    table: "fulfillments.directs", allowed: DIRECT_PATCHABLE,
+    patch: { location_id: "l" }, where: { fulfillment_id: "f1" },
+  })!.text;
+
+const builtLink = () =>
+  buildUpdate({
+    table: "fulfillments.shipments", allowed: LINK_PATCHABLE,
+    patch: { recipient_location_id: "r" }, where: { shipment_id: "s1" },
   })!.text;
 import {
   compose, composeAll, byFulfillment, byStartTimeThenId, toWire,
@@ -45,13 +68,16 @@ test("every statement loads and is not empty", () => {
   }
   assert.ok(builtFulfillment().trim().length > 0, "the built fulfillments UPDATE is empty");
   assert.ok(builtMethod().trim().length > 0, "the built methods UPDATE is empty");
-  for (const n of ["get_for", "get_many", "get_scheduled", "upsert", "delete"]) {
+  for (const n of ["get_for", "get_many", "get_scheduled", "create", "delete"]) {
     assert.ok(pickupsSql(n).trim().length > 0, `pickups/${n} is empty`);
     assert.ok(directsSql(n).trim().length > 0, `directs/${n} is empty`);
   }
-  for (const n of ["get_for", "get_many", "get_by_shipment", "exists_for", "upsert"]) {
+  assert.ok(builtPickup().trim().length > 0, "the built pickups UPDATE is empty");
+  assert.ok(builtDirect().trim().length > 0, "the built directs UPDATE is empty");
+  for (const n of ["get_for", "get_many", "get_by_shipment", "exists_for", "create"]) {
     assert.ok(linksSql(n).trim().length > 0, `shipments/${n} is empty`);
   }
+  assert.ok(builtLink().trim().length > 0, "the built shipments UPDATE is empty");
 });
 
 // One table per repo - the property the split exists for, and the one a future edit is most likely to undo: adding a join back is easy and looks like an optimisation.
@@ -63,17 +89,22 @@ test("no statement joins a second table", () => {
       .map((n) => [`methods/${n}`, methodsSql(n)] as [string, string]),
     ["fulfillments/update", builtFulfillment()] as [string, string],
     ["methods/update", builtMethod()] as [string, string],
-    ...["get_for", "get_many", "get_scheduled", "upsert", "delete"]
+    ...["get_for", "get_many", "get_scheduled", "create", "delete"]
       .flatMap((n) => [
         [`pickups/${n}`, pickupsSql(n)] as [string, string],
         [`directs/${n}`, directsSql(n)] as [string, string],
       ]),
-    ...["get_for", "get_many", "get_by_shipment", "exists_for", "upsert"]
+    ["pickups/update", builtPickup()] as [string, string],
+    ["directs/update", builtDirect()] as [string, string],
+    ...["get_for", "get_many", "get_by_shipment", "exists_for", "create"]
       .map((n) => [`shipments/${n}`, linksSql(n)] as [string, string]),
+    ["shipments/update", builtLink()] as [string, string],
   ];
 
-  // 25, not 26: set_status.sql and set_method.sql (the same UPDATE under two names) collapsed into one update.sql, one fewer statement by design.
-  assert.ok(all.length >= 25, `only ${all.length} statements found - the walk broke`);
+  // 28: set_status.sql and set_method.sql (the same UPDATE under two names)
+  // collapsed into one update.sql, and pickups/directs/shipments each traded
+  // their upsert.sql for a create.sql plus one built update (D214 item 11).
+  assert.ok(all.length >= 28, `only ${all.length} statements found - the walk broke`);
   for (const [name, text] of all) {
     assert.doesNotMatch(strip(text), /\bJOIN\b/i, `${name} joins a second table`);
   }
@@ -121,13 +152,26 @@ test("the method update is partial, not a full overwrite", () => {
   }
 });
 
-// Both booking statements are upserts, because rescheduling is the common case
-// and each table holds one row per fulfillment.
-test("booking a pickup or an appointment is an upsert", () => {
-  for (const [what, s] of [["pickups", pickupsSql], ["directs", directsSql]] as const) {
-    assert.match(strip(s("upsert")), /ON CONFLICT \(fulfillment_id\) DO UPDATE/i,
-      `${what}/upsert would insert a second row instead of rescheduling`);
+// Booking reads first now (D214 item 11): create is a genuine INSERT, no
+// ON CONFLICT left to fall back on, because the service checks for an
+// existing row before choosing create or update.
+test("pickups, directs and shipments create with no conflict handling", () => {
+  for (const [what, text] of [
+    ["pickups", strip(pickupsSql("create"))],
+    ["directs", strip(directsSql("create"))],
+    ["shipments", strip(linksSql("create"))],
+  ] as const) {
+    assert.doesNotMatch(text, /ON CONFLICT/i, `${what}/create still upserts`);
   }
+});
+
+// Rescheduling is a PATCH of the one row each holds, keyed by the column that
+// makes it unique - fulfillment_id for pickups/directs, shipment_id for the
+// link table (a fulfillment may carry several parcels).
+test("pickups/directs update key on fulfillment_id, shipments on shipment_id", () => {
+  assert.match(builtPickup(), /WHERE fulfillment_id = \$2/);
+  assert.match(builtDirect(), /WHERE fulfillment_id = \$2/);
+  assert.match(builtLink(), /WHERE shipment_id = \$2/);
 });
 
 // create is ON CONFLICT DO NOTHING - one fulfillment per order is the rule, not

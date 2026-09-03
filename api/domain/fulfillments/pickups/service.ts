@@ -13,7 +13,7 @@ type Executor = PoolClient | undefined;
 export type { PickupRow, PickupInput } from "#db/fulfillments/pickups/repo.ts";
 
 // GET /api/orders/:orderId/pickups - VERBATIM rows, resolved from the order.
-// An array of at most one - the plural is the route's, not the table's (fulfillments.pickups keys on fulfillment_id, upsert-only). [] instead of 404 lets a drawer render the same component for every method rather than branching before it asks.
+// An array of at most one - the plural is the route's, not the table's (fulfillments.pickups holds one row per fulfillment). [] instead of 404 lets a drawer render the same component for every method rather than branching before it asks.
 export async function forOrder(
   order_id: string, executor?: Executor
 ): Promise<PickupRow[]> {
@@ -24,20 +24,33 @@ export async function forOrder(
 }
 
 // Booking one. Category is checked against the method, not trusted - a pickup row for a DROPSHIP fulfillment is a row every read attaches and none expects, and nothing in the schema would catch it.
+// READ FIRST: a fulfillment holds at most one pickup, so scheduling it a second time is a PATCH of the row already there, not a second insert.
 export async function schedule(
   input: { fulfillment_id: string } & PickupInput, executor?: Executor
 ): Promise<ComposedFulfillment | null> {
   await fulfillmentService.assertCategory(input.fulfillment_id, "PICKUP", executor);
-  await pickups.upsert(
-    {
-      id: randomUUID(),
-      fulfillment_id: input.fulfillment_id,
-      pickup_address_id: input.pickup_address_id,
-      assigned_employee_id: input.assigned_employee_id,
-      start_time: input.start_time,
-      end_time: input.end_time,
-    },
-    executor
-  );
+  const existing = await pickups.getFor(input.fulfillment_id, executor);
+  if (existing) {
+    await pickups.update(
+      input.fulfillment_id,
+      {
+        pickup_address_id: input.pickup_address_id,
+        assigned_employee_id: input.assigned_employee_id,
+        start_time: input.start_time,
+        end_time: input.end_time,
+      },
+      executor
+    );
+  } else {
+    await pickups.create(
+      {
+        id: randomUUID(), fulfillment_id: input.fulfillment_id,
+        pickup_address_id: input.pickup_address_id,
+        assigned_employee_id: input.assigned_employee_id,
+        start_time: input.start_time, end_time: input.end_time,
+      },
+      executor
+    );
+  }
   return await fulfillmentService.getById(input.fulfillment_id, executor);
 }

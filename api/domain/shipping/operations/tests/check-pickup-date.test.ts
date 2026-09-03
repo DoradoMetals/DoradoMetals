@@ -14,9 +14,11 @@ const { default: app } = await import("#app");
 // THE STRUCTURAL SUBSET EACH FIXTURE ACTUALLY HAS.
 type UserFixture = { id: string; name: string | null; email: string | null };
 type CarrierFixture = { id: string };
+type AddressFixture = { id: string };
 
 let customer: UserFixture;
 let carrier: CarrierFixture;
+let address: AddressFixture;
 
 beforeAll(async () => {
   customer = (
@@ -28,6 +30,9 @@ beforeAll(async () => {
 
   carrier = (await outside<CarrierFixture>(`SELECT id FROM exchange.carriers LIMIT 1`))[0];
   assert.ok(carrier, "dev has no carrier - the route would refuse before the date mattered");
+
+  address = (await outside<AddressFixture>(`SELECT id FROM places.addresses LIMIT 1`))[0];
+  assert.ok(address, "dev has no places.addresses row");
 });
 
 afterAll(async () => {
@@ -43,7 +48,7 @@ const check = (readyDate: string | undefined) =>
     .post("/api/shipping/check_pickup")
     .send({
       carrier_id: carrier.id,
-      pickupAddress: { streetLines: ["1 Test St"], city: "Dallas", stateOrProvinceCode: "TX", postalCode: "75201", countryCode: "US" },
+      address_id: address.id,
       code: "FDXE",
       readyDate,
     });
@@ -81,16 +86,22 @@ test("the payload builder needs a Date, which is why the controller converts", a
   );
 });
 
-test("a readyDate that is not a date is refused with a 400 naming it", async () => {
+// 422, not 400 (D214 item 11): a string that parses (satisfies the contract's
+// z.string()) but does not make a Date is a DOMAIN refusal now
+// (shared/errors.ts Invalid), not a hand-thrown 400 - the shape passed
+// transport, the business rule failed after.
+test("a readyDate that is not a date is refused with a 422 naming it", async () => {
   await inPinnedTransaction(async () => {
     await as({ ...customer, role: "user" }, async () => {
       const res = await check("not-a-date");
-      assert.equal(res.status, 400, `an unparseable readyDate was answered ${res.status}`);
+      assert.equal(res.status, 422, `an unparseable readyDate was answered ${res.status}`);
       assert.match(String(res.body?.error?.message ?? ""), /readyDate/);
     });
   });
 });
 
+// STILL 400: an absent field never reaches the domain - the contract's
+// z.string() refuses it at the transport boundary.
 test("a missing readyDate is refused too, rather than becoming Invalid Date", async () => {
   await inPinnedTransaction(async () => {
     await as({ ...customer, role: "user" }, async () => {

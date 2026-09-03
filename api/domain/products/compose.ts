@@ -35,8 +35,8 @@ export type Labels = {
 
 export async function labels(): Promise<Labels> {
   const [metalRows, mintRows, refinerRows] = await Promise.all([
-    metals.getAll(),
-    mints.getAll(),
+    metals.list(),
+    mints.list(),
     // A refiner's name lives on its ORGANIZATION, not refiners.refiners, so this goes through the composing service rather than a table without the column.
     refiners.getAllRefiners(),
   ]);

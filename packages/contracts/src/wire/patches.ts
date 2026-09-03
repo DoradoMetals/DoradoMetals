@@ -114,7 +114,7 @@ export const ShipmentPatch = z.object({
   shipping_actual: z.number().optional(),
   tracking_number: z.string().optional(),
   carrier_id: z.string().uuid().optional(),
-});
+}).strict();
 export type ShipmentPatch = z.infer<typeof ShipmentPatch>;
 
 // ===========================================================================
