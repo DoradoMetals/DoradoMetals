@@ -3,7 +3,6 @@
 import * as React from 'react'
 import type { ColumnDef, Row } from '@tanstack/react-table'
 
-import { useGetSession } from '@/features/auth/queries'
 import { useDrawerStore } from '@/shared/store/drawerStore'
 
 import type { Review } from '@/features/reviews/types'
@@ -22,7 +21,6 @@ import { CreateConfig } from '@/shared/ui/table/CreateDialog'
 
 export default function ReviewsPage() {
   const { data: reviews = [] } = useReviews()
-  const { user } = useGetSession()
   const createReview = useCreateReview()
   const { openDrawer } = useDrawerStore()
 
@@ -138,8 +136,6 @@ export default function ReviewsPage() {
           name,
           review_text: reviewText,
           rating,
-          created_by: user?.name ?? '',
-          updated_by: user?.name ?? '',
           hidden: true,
         })
       },
@@ -150,7 +146,7 @@ export default function ReviewsPage() {
         return name !== '' && reviewText !== '' && rating > 0
       },
     }),
-    [createReview, user]
+    [createReview]
   )
 
   const handleRowClick = (row: Row<Review>) => {

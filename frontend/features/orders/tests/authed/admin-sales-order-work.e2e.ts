@@ -7,12 +7,18 @@ import { test, expect, request as pwRequest } from "@playwright/test";
 // THE SEED IS THE REAL ADMIN FLOW, NOT A ROWS-ONLY SCRIPT. createSalesOrder
 // is session-coupled top to bottom (it re-reads the session, prices the named
 // customer's funds, and is deliberately 403 for customers - sales are
-// admin-created for now). So this drives the same three calls the admin
-// drawer drives: retrieve the admin-flavoured intent for the customer, price
-// it with items, create the order against it. The intent is a REAL Stripe
-// TEST-MODE object (Jacob: "as long as we're hitting the stripe sandbox in
-// testing it's fine"); nothing is ever confirmed or captured, and the order
-// ends Cancelled like every disposable e2e order.
+// admin-created for now). So this drives the same calls the admin drawer's
+// useAdminCreateSalesOrder drives (D214 item 2): retrieve the admin-flavoured
+// intent for the customer and price it with items (unchanged - the payments
+// surface, not this pass's), then sync the customer's buy cart and PATCH
+// their checkout row through the admin-scoped accessor
+// (GET/PATCH /api/checkout?user_id=, POST /cart/sync_cart with an admin-only
+// user_id - api/transport/checkout/controller.ts), and create the order from
+// the checkout_id it answers - the same one-id create createOrderFromCheckout
+// already let an admin name. The intent is a REAL Stripe TEST-MODE object
+// (Jacob: "as long as we're hitting the stripe sandbox in testing it's
+// fine"); nothing is ever confirmed or captured, and the order ends Cancelled
+// like every disposable e2e order.
 const API = (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5000/api").replace(/\/$/, "");
 
 let orderId = "";
@@ -83,21 +89,50 @@ test.beforeAll(async ({ playwright }) => {
     },
   });
   expect(update.ok(), `update_payment_intent failed: ${await update.text()}`).toBeTruthy();
+  // The intent this priming call answers is the one `place()` finds on its
+  // own (intentsRepo.findOpenForUser) - the create body below never names it.
+  void paymentIntentId;
+
+  // ANY offered service/method will do - the checkout row just needs valid
+  // ids, the same "any live X" choice seed-e2e-order.mjs makes on the
+  // purchase side.
+  const services = await admin.get(`${API}/carrier_services/sale_options`);
+  expect(services.ok(), `sale_options failed: ${await services.text()}`).toBeTruthy();
+  const service = (await services.json())[0];
+  expect(service?.id, "no sale shipping service to put on the checkout").toBeTruthy();
+
+  const methods = await admin.get(`${API}/payments/methods?direction=sale`);
+  expect(methods.ok(), `payments/methods failed: ${await methods.text()}`).toBeTruthy();
+  const methodRows = await methods.json();
+  const method = methodRows.find((m: { type?: string }) => m?.type === "CARD") ?? methodRows[0];
+  expect(method?.id, "no sale payment method to put on the checkout").toBeTruthy();
+
+  // THE ADMIN-SCOPED ACCESSOR (D214 item 2): user_id is admin-only, checked
+  // the same way createOrderFromCheckout already checks admin ownership.
+  const synced = await admin.post(`${API}/cart/sync_cart`, {
+    data: { user_id: customerId, cart: [{ id: product.id, quantity: 1 }] },
+  });
+  expect(synced.ok(), `admin cart sync failed: ${await synced.text()}`).toBeTruthy();
+
+  const patched = await admin.patch(`${API}/checkout?user_id=${customerId}`, {
+    data: {
+      direction: "sale",
+      recipient_address_id: seedAddress.id,
+      carrier_service_id: service.id,
+      payment_method_id: method.id,
+    },
+  });
+  expect(patched.ok(), `admin checkout PATCH failed: ${await patched.text()}`).toBeTruthy();
+  const { id: checkout_id } = await patched.json();
+  expect(checkout_id, "the admin checkout PATCH answered no id").toBeTruthy();
 
   // admin_create_sales_order, NOT create_sales_order: the latter is the
   // mothballed customer flow (admin-gated but ownership-checked against the
   // SESSION user, so an admin creating for a customer is refused by design).
+  // ONE ID NOW (D214 item 11) - the address, items, service and payment
+  // method all live on the checkout row PATCHed above.
   const created = await admin.post(`${API}/sales_orders/admin_create_sales_order`, {
-    data: {
-      sales_order: {
-        address: { id: seedAddress.id },
-        items: [{ id: product.id, quantity: 1 }],
-        using_funds: false,
-        service: { value: "Standard", label: "Standard" },
-      },
-      payment_intent_id: paymentIntentId,
-      user: customerRow,
-    },
+    data: { checkout_id },
   });
   expect(created.ok(), `create_sales_order failed: ${await created.text()}`).toBeTruthy();
   const order = await created.json();

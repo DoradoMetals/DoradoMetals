@@ -1,7 +1,11 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { apiRequest } from '@/shared/queries/axios'
+import { usePaymentMethods } from '@/features/payments/queries'
+import { useSaleShippingServices } from '@/features/shipping/queries'
 import { AdminSalesOrderCheckout, SalesOrder } from '@/features/orders/salesOrders/types'
 import { useApiQuery } from '@/shared/queries/base'
 import { queryKeys } from '@/shared/queries/keys'
+import type { OrderView } from '@dorado/contracts'
 
 // The admin mutation surface is per-resource under /orders now (D87 final
 // form) - the order row via features/orders/patch.ts, the shipment via
@@ -23,41 +27,58 @@ type AdminCreateSalesOrderVars = {
   sales_order: AdminSalesOrderCheckout
 }
 
-// BLOCKED ON A MISSING API ENDPOINT (D214 item 11, reported - not invented
-// here). The create is `POST /sales_orders/admin_create_sales_order
-// { checkout_id }` now: the address, items, service, payment method and spot
-// overrides all live on a CHECKOUT ROW the server resolves by id, the same
-// as the customer flow. But every checkout endpoint - GET/PATCH /checkout,
-// POST /checkout/fulfillment, /checkout/payout, /cart/sync_cart,
-// /cart/sync_sell_cart - reads the row through `callerId(req)` only
-// (api/transport/checkout/controller.ts); none takes a `user_id`, so there
-// is no way for an admin session to read, create or write a CUSTOMER's
-// checkout row. `createOrderFromCheckout` itself already lets an admin name
-// any checkout_id (it skips the ownership check for req.user.role ===
-// "admin"), so the missing piece is narrow: an admin-scoped accessor for the
-// row itself.
-//
-// Needed API change: something in the shape of
-//   GET/PATCH /api/checkout?direction=sale&user_id=:id   (admin-only)
-// (or an equivalent explicit "get-or-create the named customer's checkout"
-// endpoint) so this hook can sync the target's items/address/service/payment
-// method onto their row before naming its id here - mirroring
-// features/orders/salesOrders/users/queries.ts useCreateSalesOrder, which
-// already does this for the customer's OWN row via the existing endpoints.
-//
-// Until that exists, this refuses client-side rather than sending the old
-// composed body (which the endpoint's strict `{ checkout_id }` schema would
-// 400 on anyway) - the drawer's submit surfaces this as its usual "could not
-// create the order" message.
+// THE ADMIN-SCOPED ACCESSOR EXISTS NOW (D214 item 2: GET/PATCH
+// /api/checkout?user_id= and POST /cart/sync_cart admin-only user_id,
+// api/transport/checkout/controller.ts). The create is `POST
+// /sales_orders/admin_create_sales_order { checkout_id }`: the address,
+// items, service and payment method all live on a CHECKOUT ROW the server
+// resolves by id, the same as the customer flow - mirroring
+// features/orders/salesOrders/users/queries.ts useCreateSalesOrder, three
+// calls against the NAMED customer's row instead of the caller's own:
+//   1. freeze the drawer's item list onto the customer's buy cart;
+//   2. resolve the two ids the checkout row wants (service CODE, payment
+//      method TYPE) and PATCH their row, which answers with its own id;
+//   3. POST the checkout_id - `createOrderFromCheckout` already lets an
+//      admin name any checkout_id, ownership-check skipped for req.user.role
+//      === "admin".
+// `order_metals` and `using_funds` are not sent: the server prices from its
+// own live feed and applies credit whenever the customer has a balance,
+// exactly as the customer path does.
 export const useAdminCreateSalesOrder = () => {
   const queryClient = useQueryClient()
+  const { data: saleMethods = [] } = usePaymentMethods('sale')
+  const { data: saleServices = [] } = useSaleShippingServices()
 
   return useMutation({
-    mutationFn: async (_vars: AdminCreateSalesOrderVars): Promise<SalesOrder> => {
-      throw new Error(
-        'Admin sales-order create needs an admin-scoped checkout endpoint - ' +
-          'see the comment above useAdminCreateSalesOrder in this file.'
+    mutationFn: async ({ sales_order }: AdminCreateSalesOrderVars) => {
+      const user_id = sales_order.user.id
+      if (!user_id) throw new Error('No customer named for this order')
+
+      await apiRequest('POST', '/cart/sync_cart', {
+        user_id,
+        cart: sales_order.items.map((item) => ({ id: item.id, quantity: item.quantity ?? 1 })),
+      })
+
+      const carrier_service_id =
+        saleServices.find((s) => s.code === sales_order.service.value)?.id ?? null
+      const payment_method_id =
+        saleMethods.find((m) => m.type === sales_order.payment_method)?.id ?? null
+
+      const { id: checkout_id } = await apiRequest<{ id: string }>(
+        'PATCH',
+        '/checkout',
+        {
+          direction: 'sale',
+          recipient_address_id: sales_order.address.id,
+          carrier_service_id,
+          payment_method_id,
+        },
+        { user_id }
       )
+
+      return await apiRequest<OrderView>('POST', '/sales_orders/admin_create_sales_order', {
+        checkout_id,
+      })
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.adminSalesOrders(), refetchType: 'active' })

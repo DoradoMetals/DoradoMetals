@@ -26,8 +26,6 @@ export default function CompletedPurchaseOrder({ order }: PurchaseOrderDrawerCon
                 await createReview.mutateAsync({
                   review_text: text,
                   rating,
-                  created_by: user?.name ?? '',
-                  updated_by: user?.name ?? '',
                   name: user?.name ?? '',
                   hidden: false,
                 })

@@ -1,11 +1,11 @@
 // Seeds ONE disposable purchase order for the Playwright admin drawer spec.
 //
-// WHY NOT THE REAL ENDPOINT. placePurchaseOrder calls shippingOps.createLabel
-// unconditionally - a FedEx label per invocation, which is an outside-world
-// side effect a test suite must never mint. The flow's own recordPlacedPurchase
-// exists as the transaction half precisely so the row-writing can run with no
-// provider call; this script primes the SAME checkout row the stepper primes
-// and runs that half, invoked for the E2E customer.
+// WHY NOT THE REAL ENDPOINT. `place()` calls world.buyPostage unconditionally,
+// and the LIVE world buys a real FedEx label - an outside-world side effect a
+// test suite must never mint. `place(checkout_id, world)` takes the World as
+// an injectable seam precisely so a caller can run the same row-writing with
+// no provider reachable; this script primes the SAME checkout row the stepper
+// primes and calls `place` with a fake World, for the E2E customer.
 //
 // WRITES COMMIT, NATIVE SCHEMA ONLY (D210/D212) - the same rows the live path
 // writes, so the seeded order is real-shaped everywhere the admin drawer
@@ -26,10 +26,28 @@ process.env.NODE_ENV = "test";
 import "#env";
 import pool from "#db";
 import query from "#shared/db/query.ts";
-import withTransaction from "#shared/db/withTransaction.ts";
 import * as checkoutService from "#domain/checkout/service.ts";
 import * as addressService from "#domain/places/addresses/service.ts";
-import { resolvePurchaseCheckout, recordPlacedPurchase } from "#domain/orders/place.ts";
+import { place } from "#domain/orders/place.ts";
+
+// THE FAKE WORLD: buyPostage answers a null-tracking, null-label postage with
+// an unconfirmed FRONT pickup - the same fixture the old recordPlacedPurchase
+// call built by hand - and confirm/authorize are no-ops, so nothing outside
+// the database is ever touched. `place`'s purchase path never calls
+// `authorize` (that is the sale side); it stays here only because World
+// requires all three.
+const world = {
+  async buyPostage() {
+    return {
+      netCharge: 0,
+      tracking_number: null,
+      label: null,
+      pickup: { confirmationNumber: null, location: "FRONT" },
+    };
+  },
+  async authorize() {},
+  async confirm() {},
+};
 // NOT imported from seed-e2e-users.mjs: that file is a script, not a module -
 // importing it for the constant RUNS it, and it ends the shared pool on its
 // way out, which killed this script's own queries. The values mirror its
@@ -133,19 +151,14 @@ await checkoutService.syncCart(user_id, "purchase", [
   { type: "product", data: { name: products[0].product_name, quantity: 1 } },
 ]);
 
-// The transaction half of the live flow - rows only, no FedEx call reachable.
-// A null label is a real state (labels are voided and reissued); the pickup is
-// recorded unconfirmed, which is also real (bookings confirm asynchronously).
-const resolved = await resolvePurchaseCheckout(user_id);
-const placed = await withTransaction((client) =>
-  recordPlacedPurchase(client, {
-    user_id,
-    resolved,
-    netCharge: 0,
-    label: null,
-    pickupResult: { confirmationNumber: null, location: "FRONT" },
-  })
-);
+// The checkout row the priming above just wrote. `place` reads it by id.
+const { id: checkout_id } = await checkoutService.getRowFor(user_id, "purchase");
 
-console.log(JSON.stringify({ order_id: placed.order_id, number: placed.number ?? null }));
+// The one door orders are placed through, with the fake World: rows only, no
+// FedEx call reachable. A null label is a real state (labels are voided and
+// reissued); the pickup is recorded unconfirmed, which is also real
+// (bookings confirm asynchronously).
+const order = await place(checkout_id, world);
+
+console.log(JSON.stringify({ order_id: order.order.id, number: order.order.number ?? null }));
 await pool.end();

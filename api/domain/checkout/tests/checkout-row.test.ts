@@ -9,10 +9,11 @@
 // to order reads, the attach is one-way, and the whitelist holds.
 import test, { after, before } from "node:test";
 import assert from "node:assert/strict";
+import { randomUUID } from "node:crypto";
 import type { PoolClient } from "pg";
 import request from "supertest";
 import pool from "#db";
-import { mockSessions, restoreSessions, as } from "#shared/testing/session.ts";
+import { mockSessions, restoreSessions, as, asAdmin } from "#shared/testing/session.ts";
 import { inPinnedTransaction, outside } from "#shared/testing/pinned-pool.ts";
 import { LOCKS } from "#shared/testing/locks.ts";
 
@@ -23,6 +24,7 @@ type UserFixture = { id: string; name: string | null; email: string | null };
 
 let customer: UserFixture;
 let stranger: UserFixture;
+let admin: UserFixture;
 let purchaseMethodId: string; // an offered purchase-direction fulfillment method
 let saleMethodId: string;     // an offered sale-direction one
 let hiddenMethodId: string;   // a hidden method the menu never offered
@@ -36,6 +38,12 @@ before(async () => {
   );
   assert.ok(users.length >= 2, "dev needs two non-admin users present in auth.users");
   [customer, stranger] = users;
+
+  const admins = await outside<UserFixture>(
+    `SELECT id, name, email FROM exchange.users WHERE role = 'admin' LIMIT 1`
+  );
+  assert.ok(admins.length, "dev needs an admin user");
+  [admin] = admins;
 
   const methods = await outside<{ id: string; direction: string; hidden: boolean }>(
     `SELECT id, direction, hidden FROM fulfillments.methods WHERE enabled`
@@ -364,5 +372,73 @@ test("two customers' rows never touch: the stranger sees their own empty checkou
     assert.equal(theirs.status, 200);
     assert.equal(theirs.body.user_id, stranger.id);
     assert.equal(theirs.body.fulfillment_id, null, "the stranger saw the customer's draft");
+  }, { lock: [LOCKS.FULFILLMENTS, LOCKS.ORDERS] });
+});
+
+// -------------------------------------------------- admin-scoped access
+
+// THE NARROW THING (D214 item 2): createOrderFromCheckout already lets an
+// admin name any checkout_id; this is the other half - reading and writing a
+// NAMED customer's row, the piece the admin sales-order create needed and did
+// not have (see the comment this closes in
+// features/orders/salesOrders/admin/queries.ts).
+test("an admin reads and writes a NAMED customer's checkout by ?user_id=", async () => {
+  await inPinnedTransaction(async (c: PoolClient) => {
+    const { rows: [pkg] } = await c.query(`SELECT id FROM shipping.packages LIMIT 1`);
+
+    const got = await asAdmin(admin, () =>
+      request(app).get(`/api/checkout?direction=purchase&user_id=${stranger.id}`)
+    );
+    assert.equal(got.status, 200, got.text);
+    assert.equal(got.body.user_id, stranger.id, "the admin did not reach the named row");
+
+    const patched = await asAdmin(admin, () =>
+      request(app)
+        .patch(`/api/checkout?user_id=${stranger.id}`)
+        .send({ direction: "purchase", package_id: pkg.id })
+    );
+    assert.equal(patched.status, 200, patched.text);
+    assert.equal(patched.body.user_id, stranger.id);
+    assert.equal(patched.body.package_id, pkg.id);
+  }, { lock: [LOCKS.FULFILLMENTS, LOCKS.ORDERS] });
+});
+
+test("a non-admin naming somebody else's user_id is refused, not answered", async () => {
+  await inPinnedTransaction(async () => {
+    const read = await as(customer, () =>
+      request(app).get(`/api/checkout?direction=purchase&user_id=${stranger.id}`)
+    );
+    assert.equal(read.status, 403, read.text);
+
+    const write = await as(customer, () =>
+      request(app)
+        .patch(`/api/checkout?user_id=${stranger.id}`)
+        .send({ direction: "purchase" })
+    );
+    assert.equal(write.status, 403, write.text);
+
+    // Naming YOURSELF is not "somebody else" - a deployed client sending its
+    // own id (the cart auto-sync does) must never be refused.
+    const own = await as(customer, () =>
+      request(app).get(`/api/checkout?direction=purchase&user_id=${customer.id}`)
+    );
+    assert.equal(own.status, 200, own.text);
+  }, { lock: [LOCKS.FULFILLMENTS, LOCKS.ORDERS] });
+});
+
+test("an admin naming a user_id nothing owns gets 404, not a minted row", async () => {
+  await inPinnedTransaction(async () => {
+    const nobody = randomUUID();
+    const read = await asAdmin(admin, () =>
+      request(app).get(`/api/checkout?direction=purchase&user_id=${nobody}`)
+    );
+    assert.equal(read.status, 404, read.text);
+
+    const write = await asAdmin(admin, () =>
+      request(app)
+        .patch(`/api/checkout?user_id=${nobody}`)
+        .send({ direction: "purchase" })
+    );
+    assert.equal(write.status, 404, write.text);
   }, { lock: [LOCKS.FULFILLMENTS, LOCKS.ORDERS] });
 });
