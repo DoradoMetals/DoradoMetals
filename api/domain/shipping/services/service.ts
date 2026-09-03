@@ -203,33 +203,29 @@ export async function getServicesByCarrierId(
   return await services.getByCarrier(carrier_id, executor);
 }
 
-export async function createService(
-  body: CarrierServiceCreate, executor?: Executor
-): Promise<ServiceRow | null> {
-  const run = async (c: Executor): Promise<ServiceRow | null> => {
+// A USE CASE (ruling 56): only the controller calls this.
+export async function createService(body: CarrierServiceCreate): Promise<ServiceRow | null> {
+  return await withTransaction(async (tx) => {
     const id = randomUUID();
-    return await services.create(toNewRow(body, id), c);
-  };
-  return executor ? await run(executor) : await withTransaction(run);
+    return await services.create(toNewRow(body, id), tx);
+  });
 }
 
-export async function updateService(
-  body: CarrierServicePatch, executor?: Executor
-): Promise<ServiceRow | null> {
-  const run = async (c: Executor): Promise<ServiceRow | null> => {
-    const changed = await services.update(body.id, toPatchRow(body), c);
+// A USE CASE, same reasoning as createService.
+export async function updateService(body: CarrierServicePatch): Promise<ServiceRow | null> {
+  return await withTransaction(async (tx) => {
+    const changed = await services.update(body.id, toPatchRow(body), tx);
     if (!changed) return null;
-    return (await services.getOne(body.id, c)) ?? null;
-  };
-  return executor ? await run(executor) : await withTransaction(run);
+    return (await services.getOne(body.id, tx)) ?? null;
+  });
 }
 
 // Deleting is stricter than it was, and that's the database's doing: shipping.shipments.carrier_service_id and checkout.checkouts.carrier_service_id reference this table with no ON DELETE, so removing a service something points at raises 23503 - exchange had no such reference.
 // Not a regression in practice: this endpoint had never once succeeded, since the controller passed the whole body where an id was wanted.
-export async function removeService(id: string, executor?: Executor): Promise<boolean> {
-  const run = async (c: Executor): Promise<boolean> => {
-    await services.remove(id, c);
+// A USE CASE, same reasoning as createService.
+export async function removeService(id: string): Promise<boolean> {
+  return await withTransaction(async (tx) => {
+    await services.remove(id, tx);
     return true;
-  };
-  return executor ? await run(executor) : await withTransaction(run);
+  });
 }
