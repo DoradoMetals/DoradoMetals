@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 // The parallel gate runner (phase5-fast-gate.md task 3).
 //
-// `pnpm check` runs 23 members in one long serial chain today. Most of them
+// `pnpm check` runs 27 members in one long serial chain today. Most of them
 // are mutually independent - eight static API lints, the dev-database audits,
-// and the components lane - and only pay for being serial because the
-// chain was written as one line. This runs the SAME 23 commands, grouped by
+// the frontend/components lanes - and only pay for being serial because the
+// chain was written as one line. This runs the SAME 27 commands, grouped by
 // what they actually depend on, and lets independent groups run concurrently.
 //
 // WHAT MUST STAY SERIAL, AND WHY:
@@ -23,8 +23,9 @@
 //     error should be reported before spending 20s on the suite, matching the
 //     original chain's order.
 //
-// Everything else - the 8 static API lints and components' typecheck+test - has
-// no shared mutable state, so each runs as its own concurrent step within its group.
+// Everything else - the 8 static API lints, components' typecheck+test, and
+// frontend's lint+typecheck+test+build - has no shared mutable state, so each
+// runs as its own concurrent step within its group.
 //
 // Usage:
 //   node scripts/check.mjs           runs every group (what `pnpm check` calls)
@@ -115,6 +116,20 @@ const FULL_ONLY_GROUPS = [
     steps: [
       { name: "components:typecheck", cmd: pnpm("@dorado/components", "typecheck") },
       { name: "components:test", cmd: pnpm("@dorado/components", "test") },
+    ],
+  },
+  {
+    name: "frontend",
+    // Serial for the same reason as components above: `test` (vitest) and
+    // `build` (next, its own worker pool) are each already internally
+    // parallel. The same measured run had `frontend:build` at 351s against a
+    // serial baseline of 68s.
+    parallel: false,
+    steps: [
+      { name: "frontend:lint:carrier-vocabulary", cmd: pnpm("@dorado/frontend", "lint:carrier-vocabulary") },
+      { name: "frontend:typecheck", cmd: pnpm("@dorado/frontend", "typecheck") },
+      { name: "frontend:test", cmd: pnpm("@dorado/frontend", "test") },
+      { name: "frontend:build", cmd: pnpm("@dorado/frontend", "build") },
     ],
   },
   {
