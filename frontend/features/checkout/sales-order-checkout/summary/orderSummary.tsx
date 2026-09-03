@@ -1,5 +1,6 @@
 import { Button } from '@dorado/components'
 import { useCheckoutItems } from '@/shared/store/checkoutItemsStore'
+import { useCheckoutItemActions } from '@/features/checkout/items/queries'
 import { useDecoratedLines } from '@/features/checkout/items/flair'
 import { usePaymentMethods } from '@/features/payments/queries'
 import { Minus, Plus, Trash2 } from 'lucide-react'
@@ -18,9 +19,7 @@ import { DetailRow } from '@/shared/ui/DetailRow'
 export default function OrderSummary({ orderPrices }: { orderPrices?: SalesOrderQuote }) {
   const { data: saleMethods = [] } = usePaymentMethods('sale')
   const items = useCheckoutItems((state) => state.sale)
-  const addItem = useCheckoutItems((state) => state.addItem)
-  const removeOne = useCheckoutItems((state) => state.removeOne)
-  const removeAll = useCheckoutItems((state) => state.removeAll)
+  const { addItem, removeOne, removeAll } = useCheckoutItemActions()
   const rows = useDecoratedLines(items)
   const { data } = useSalesOrderCheckoutStore()
   const router = useRouter()

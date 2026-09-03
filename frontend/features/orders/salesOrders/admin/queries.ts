@@ -4,7 +4,7 @@ import { usePaymentMethods } from '@/features/payments/queries'
 import { useSaleShippingServices } from '@/features/shipping/queries'
 import { AdminSaleCheckoutForm, SalesOrder } from '@/features/orders/salesOrders/types'
 import { useApiQuery } from '@/shared/queries/base'
-import { replaceCheckoutItems } from '@/features/checkout/items/queries'
+import { useReplaceCheckoutItems } from '@/features/checkout/items/queries'
 import type { CheckoutLine } from '@/features/checkout/items/types'
 import { queryKeys } from '@/shared/queries/keys'
 import type { OrderView } from '@dorado/contracts'
@@ -51,13 +51,14 @@ export const useAdminCreateSalesOrder = () => {
   const queryClient = useQueryClient()
   const { data: saleMethods = [] } = usePaymentMethods('sale')
   const { data: saleServices = [] } = useSaleShippingServices()
+  const syncItems = useReplaceCheckoutItems('sale')
 
   return useMutation({
     mutationFn: async ({ sales_order, items }: AdminCreateSalesOrderVars) => {
       const user_id = sales_order.user.id
       if (!user_id) throw new Error('No customer named for this order')
 
-      await replaceCheckoutItems('sale', items, user_id)
+      await syncItems.mutateAsync({ lines: items, user_id })
 
       const carrier_service_id =
         saleServices.find((s) => s.code === sales_order.service.value)?.id ?? null

@@ -23,7 +23,6 @@ import {
   usePatchPurchaseCheckout,
   usePurchaseCheckoutRow,
   useSaveCheckoutPayout,
-  useSetPurchaseHandoff,
 } from '@/features/checkout/queries'
 
 const { useStepper, utils } = defineStepper(
@@ -95,6 +94,8 @@ export default function CheckoutStepper() {
   const defaultAddress: Address | undefined =
     addresses.find((a) => linkOf.get(a.id)?.default_shipping) ?? addresses[0]
 
+  const patchCheckout = usePatchPurchaseCheckout()
+
   useEffect(() => {
     if (hasInitialized.current) return
     if (addresses.length === 0 || !defaultAddress) return
@@ -112,6 +113,11 @@ export default function CheckoutStepper() {
         declaredValue: { amount: 0, currency: 'USD' },
       },
     })
+    // The row takes it too (D208) - this IS the handler that picked the
+    // address, it just picked it automatically rather than from a click.
+    if (defaultAddress.is_valid) {
+      patchCheckout.mutate({ shipper_address_id: defaultAddress.id })
+    }
 
     hasInitialized.current = true
   }, [addresses.length, defaultAddress, linkOf, setData])
@@ -119,43 +125,7 @@ export default function CheckoutStepper() {
   const stepper = useStepper()
   const currentIndex = utils.getIndex(stepper.current.id)
 
-  const patchCheckout = usePatchPurchaseCheckout()
-  const setHandoff = useSetPurchaseHandoff()
   const savePayout = useSaveCheckoutPayout()
-
-  // THE ROW PATCHES THE MOMENT A CHOICE IS MADE (D208, Jacob: "each time an
-  // option is changed, the server-side row gets updated") - not batched at
-  // "Go to Payment". Each effect owns exactly one field, so picking a fresh
-  // address never re-sends the package, and going back and forward simply
-  // re-fires the same idempotent write.
-  useEffect(() => {
-    if (!data.address?.id || !data.address.is_valid) return
-    patchCheckout.mutate({ shipper_address_id: data.address.id })
-  }, [data.address?.id, data.address?.is_valid])
-
-  useEffect(() => {
-    if (!data.package?.id) return
-    patchCheckout.mutate({ package_id: data.package.id })
-  }, [data.package?.id])
-
-  useEffect(() => {
-    if (!data.service?.id) return
-    patchCheckout.mutate({ carrier_service_id: data.service.id })
-  }, [data.service?.id])
-
-  // The draft fulfillment's own write - a separate endpoint (D208).
-  useEffect(() => {
-    if (!data.pickup?.label) return
-    setHandoff.mutate(data.pickup.label)
-  }, [data.pickup?.label])
-
-  useEffect(() => {
-    if (!data.pickup?.date && !data.pickup?.time) return
-    patchCheckout.mutate({
-      pickup_date: data.pickup?.date ?? null,
-      pickup_time: data.pickup?.time ?? null,
-    })
-  }, [data.pickup?.date, data.pickup?.time])
 
   // Leaving the PAYOUT step records the bank form server-side (D210) - the
   // numbers are sealed at rest there, and Confirm later links the row. Going

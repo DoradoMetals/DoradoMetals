@@ -6,6 +6,7 @@ import { Button } from '@dorado/components'
 import type { ShippingPickupTimes } from '@/features/shipping/types'
 import { parseISO } from 'date-fns'
 import { usePurchaseOrderCheckoutStore } from '@/shared/store/purchaseOrderCheckoutStore'
+import { usePatchPurchaseCheckout } from '@/features/checkout/queries'
 
 import {
   formatPickupDate,
@@ -21,6 +22,7 @@ type PickupSchedulerProps = {
 export default function PickupScheduler({ times }: PickupSchedulerProps) {
   const pickup = usePurchaseOrderCheckoutStore((state) => state.data.pickup)
   const setData = usePurchaseOrderCheckoutStore((state) => state.setData)
+  const patchCheckout = usePatchPurchaseCheckout()
 
   const today = new Date()
 
@@ -48,6 +50,9 @@ export default function PickupScheduler({ times }: PickupSchedulerProps) {
           time: undefined,
         },
       })
+      // D208: this IS the handler that picked the date, it just picked a
+      // sensible default rather than one from a click.
+      patchCheckout.mutate({ pickup_date: selectedDateStr, pickup_time: null })
     }
   }, [pickup?.date, selectedDateStr, setData])
 
@@ -85,6 +90,7 @@ export default function PickupScheduler({ times }: PickupSchedulerProps) {
                   time: undefined,
                 },
               })
+              patchCheckout.mutate({ pickup_date: iso, pickup_time: null })
             }}
             className="p-2 sm:pe-5 bg-card"
             disabled={[
@@ -118,7 +124,7 @@ export default function PickupScheduler({ times }: PickupSchedulerProps) {
                   variant={pickup?.time === slot ? 'primary' : 'secondary'}
                   size="sm"
                   className="w-full"
-                  onClick={() =>
+                  onClick={() => {
                     setData({
                       pickup: {
                         ...pickup,
@@ -127,7 +133,11 @@ export default function PickupScheduler({ times }: PickupSchedulerProps) {
                         time: slot,
                       },
                     })
-                  }
+                    patchCheckout.mutate({
+                      pickup_date: pickup?.date ?? selectedDateStr ?? null,
+                      pickup_time: slot,
+                    })
+                  }}
                 >
                   {formatPickupTime(slot)}
                 </Button>

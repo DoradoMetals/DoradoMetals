@@ -10,6 +10,7 @@ import { FloatingButton, FloatingButtonItem } from '@/features/products/ui/Float
 
 import { useState } from 'react'
 import { useCheckoutItems } from '@/shared/store/checkoutItemsStore'
+import { useCheckoutItemActions } from '@/features/checkout/items/queries'
 import { lineFromProduct } from '@/features/checkout/items/types'
 
 import { PopoverContent, PopoverTrigger } from '@/shared/ui/base/popover'
@@ -48,8 +49,7 @@ export default function ProductCard({ product, variants, unitPrices }: ProductCa
   const [isEnd, setIsEnd] = useState(false)
 
   const items = useCheckoutItems((state) => state.sale)
-  const addItem = useCheckoutItems((state) => state.addItem)
-  const removeOne = useCheckoutItems((state) => state.removeOne)
+  const { addItem, removeOne } = useCheckoutItemActions()
 
   const quantity = items.find((i) => i.bullion_id === selectedProduct.id)?.quantity ?? 0
   const { data: spotPrices = [] } = useSpotPrices()

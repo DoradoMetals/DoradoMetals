@@ -6,6 +6,7 @@ import { Button } from '@dorado/components'
 import { formatPickupDateShort, formatPickupTime, formatTimeDiff } from '@/shared/utils/formatDates'
 import ItemTables from './itemTable'
 import { useCheckoutItems } from '@/shared/store/checkoutItemsStore'
+import { useClearCheckoutItems } from '@/features/checkout/items/queries'
 import { useRouter } from 'next/navigation'
 import { useState, useTransition } from 'react'
 import { useCreatePurchaseOrderFromCheckout } from '@/features/checkout/queries'
@@ -14,6 +15,7 @@ import { DetailRow } from '@/shared/ui/DetailRow'
 export default function ReviewStep() {
   const data = usePurchaseOrderCheckoutStore((state) => state.data)
   const createPurchaseOrder = useCreatePurchaseOrderFromCheckout()
+  const clearItems = useClearCheckoutItems('purchase')
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [message, setMessage] = useState<string | null>(null)
@@ -117,6 +119,7 @@ export default function ReviewStep() {
                 router.push('/order-placed')
               })
               useCheckoutItems.getState().clear('purchase')
+              clearItems.mutate()
               usePurchaseOrderCheckoutStore.getState().clear()
             },
             onError: (err) => {

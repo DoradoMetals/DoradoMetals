@@ -6,6 +6,7 @@ import Image from 'next/image'
 import NumberFlow from '@number-flow/react'
 import { useRouter } from 'next/navigation'
 import { useCheckoutItems } from '@/shared/store/checkoutItemsStore'
+import { useCheckoutItemActions } from '@/features/checkout/items/queries'
 import { useDecoratedLines } from '@/features/checkout/items/flair'
 import { useDrawerStore } from '@/shared/store/drawerStore'
 import { useUser } from '@/features/auth/authClient'
@@ -20,9 +21,7 @@ export default function SaleItems() {
   const { closeDrawer } = useDrawerStore()
 
   const items = useCheckoutItems((state) => state.sale)
-  const addItem = useCheckoutItems((state) => state.addItem)
-  const removeOne = useCheckoutItems((state) => state.removeOne)
-  const removeAll = useCheckoutItems((state) => state.removeAll)
+  const { addItem, removeOne, removeAll } = useCheckoutItemActions()
   const rows = useDecoratedLines(items)
 
   // ONE ask quote for the whole basket - every line total and the footer total

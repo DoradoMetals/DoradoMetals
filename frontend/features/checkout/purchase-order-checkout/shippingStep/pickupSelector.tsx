@@ -4,6 +4,7 @@ import { format } from 'date-fns'
 
 import { RadioGroup } from '@/shared/ui/RadioGroup'
 import { usePurchaseOrderCheckoutStore } from '@/shared/store/purchaseOrderCheckoutStore'
+import { useSetPurchaseHandoff } from '@/features/checkout/queries'
 import { handoffIcon } from '@/features/handoff/types'
 import type { CarrierHandoff } from '@/features/shipping/types'
 
@@ -18,6 +19,7 @@ import type { CarrierHandoff } from '@/features/shipping/types'
 export function PickupSelector({ handoffs }: { handoffs: CarrierHandoff[] }) {
   const selectedPickup = usePurchaseOrderCheckoutStore((state) => state.data.pickup)
   const setData = usePurchaseOrderCheckoutStore((state) => state.setData)
+  const setHandoff = useSetPurchaseHandoff()
 
   const handleSelect = (code: string) => {
     const handoff = handoffs.find((h) => h.code === code)
@@ -38,6 +40,8 @@ export function PickupSelector({ handoffs }: { handoffs: CarrierHandoff[] }) {
         selectedDate: undefined,
       },
     })
+    // D208: the draft fulfillment takes the handoff the moment it's picked.
+    setHandoff.mutate(handoff.code)
   }
 
   return (

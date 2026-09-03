@@ -5,7 +5,6 @@ import NavLink from '@/shared/ui/NavLink'
 import { usePathname } from 'next/navigation'
 import { useDrawerStore } from '@/shared/store/drawerStore'
 import { useCheckoutItems } from '@/shared/store/checkoutItemsStore'
-import { useCheckoutItemsAutoSync } from '@/features/checkout/items/queries'
 
 import { Button } from '@dorado/components'
 import { MenuIcon } from '@/features/navigation/ui/NavIcon'
@@ -29,8 +28,6 @@ export default function Shell() {
   const isAnyDrawerOpen = !!activeDrawer
   const items =
     useCheckoutItems((state) => state.sale.length) + useCheckoutItems((state) => state.purchase.length)
-
-  useCheckoutItemsAutoSync()
 
   const menuItems = Object.entries(protectedRoutes)
     .filter(([_, route]) => route.desktopDisplay)
