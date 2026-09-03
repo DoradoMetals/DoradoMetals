@@ -1,48 +1,7 @@
 // What a fulfillment means, as opposed to how it is stored.
-//
-// THE THIN REMAINDER (ruling 26b/26c). Every sub-resource now has its own full
-// stack and orchestrates for itself - methods/, pickups/, directs/ and
-// shipments/ each hold their own service, and the first three their own routes
-// and controller. What is left here is what genuinely SPANS those children:
-//
-//   getForOrder / getById  the fulfillment row itself, composed with whichever
-//                          detail row exists - the parent resource
-//   getSchedule            everyone due somewhere: pickups AND directs, merged
-//                          and sorted on one timeline
-//   setMethod              moving between categories, which deletes the detail
-//                          row of the category being left
-//   cancelSchedule         a booking removed whichever of the two it was
-//   assertCategory         the invariant the children check themselves against
-//   choose / chooseById / chooseDefault / setStatus
-//                          the fulfillment's own lifecycle
-//
-// The test for a handler being here is "does it span children", applied AFTER
-// every child has its stack - not "does it look orchestral".
-//
-// THE GUARDS LIVE HERE, and after the split that is not a stylistic choice -
-// every one of them is a question about a table this feature's own repo does
-// not own. Whether the order exists (orders.orders), whether the method exists
-// and what category it is (fulfillments.methods), whether a parcel is already
-// attached (fulfillments.shipments). A repo that answered any of them would be
-// reading a second table.
-//
-// Two rules are about the business rather than the schema, and neither is
-// enforceable by a constraint:
-//
-//   a customer may only see and schedule their own order's fulfillment, and
-//   the method a customer picks has to be one they were offered.
-//
-// The second is the one that matters. getAvailable filters on enabled and
-// hidden, and a client that posts a method_id it was never shown - OWN LABEL,
-// say, which is hidden precisely because it is an admin's decision - would
-// otherwise get it. Checking the id against the same query that produced the
-// menu is what makes the menu mean something.
-//
-// THERE IS NO exchange SIDE AND NEVER WILL BE. Fulfillments are capability
-// exchange never recorded - there is no source to read from, so a *_SOURCE
-// switch would have one state. That also means these are the shapes a contract
-// is worth the most on: nothing else is comparing them against a second
-// implementation.
+// The thin remainder: every sub-resource (methods/, pickups/, directs/, shipments/) now has its own full stack and orchestrates for itself. What's left here genuinely SPANS those children - getForOrder/getById composes the row with its detail; getSchedule merges pickups+directs on one timeline; setMethod/cancelSchedule handle category moves and booking removal; assertCategory/choose*/setStatus are the lifecycle and the invariant children check themselves against.
+// The guards live here because every one is a question about a table this feature's own repo doesn't own - orders.orders, fulfillments.methods, fulfillments.shipments. A repo answering any of them would be reading a second table.
+// There is no exchange side and never will be: fulfillments are a capability exchange never recorded, so these are the shapes a contract is worth the most on - nothing compares them against a second implementation.
 import { randomUUID } from "node:crypto";
 import * as fulfillments from "#db/fulfillments/repo.ts";
 import * as methodService from "#domain/fulfillments/methods/service.ts";
@@ -63,36 +22,13 @@ export type { MethodRow } from "#domain/fulfillments/methods/service.ts";
 // the name the old row type had.
 type FulfillmentRow = ComposedFulfillment;
 
-// DIRECTION AND CATEGORY COME FROM THE DATABASE, NOT FROM THIS FILE (D103).
-//
-// Both were hand-written unions here - `"purchase" | "sale"` and
-// `"SHIPMENT" | "PICKUP" | "DIRECT"` - which D103 says is always one of two
-// defects. Direction was the first kind: an exact duplicate of the
-// `orders.direction` enum, spelled three times across the API. Category was the
-// second: the column was `text NOT NULL DEFAULT 'OTHER'`, so the database
-// admitted a fourth value no code here could represent, and the type was
-// asserting a constraint that did not exist. Migration 098 made it a real
-// fulfillments.category enum and dropped the default; these are now derived
-// from the generated row, so widening the enum is a compile error rather than a
-// runtime surprise.
+// direction/category come from the database, not hand-written here: a hand-written union either duplicates an enum by hand (direction, spelled three times) or asserts a constraint the column didn't have (category was `text DEFAULT 'OTHER'` until it became a real enum).
+// These are derived from the generated row now, so widening the enum is a compile error, not a runtime surprise.
 type Direction = NonNullable<fulfillmentTables.MethodsRow["direction"]>;
 type Category = fulfillmentTables.MethodsRow["category"];
 
-// EVERY REFUSAL CARRIES A STATUS, AND THAT IS WHY THE MESSAGES ARE WORTH
-// WRITING.
-//
-// shared/middleware/errorHandler.js shows a message to the caller only when the
-// error carries a deliberate 4xx - "an error raised deliberately is different:
-// it was written to be read, and its status says so". These were bare
-// `new Error`, so every one arrived as a generic 500 "Server error" and the
-// explanation went to the log instead of to the admin who needed it. An admin
-// trying to move an order off SHIPMENT was told "Server error" rather than
-// "cancel the shipment first".
-//
-// 404 for "that does not exist", 409 for "the current state forbids this".
-// refuse() is shared/http/refuse.ts now - the same three lines lived here, in
-// features/orders/patch.service.ts and in features/checkout/service.ts, and the
-// 26c factoring would have made it five copies.
+// Every refusal carries a status, which is why the messages are worth writing: errorHandler shows a message to the caller only for a deliberate 4xx - these used to be bare `new Error`, so every one arrived as a generic 500 "Server error", and an admin trying to move an order off SHIPMENT was told that instead of "cancel the shipment first".
+// 404 for "that doesn't exist", 409 for "the current state forbids this". refuse() is shared/http/refuse.ts - the same three lines used to live in several services; sharing it avoided yet another copy.
 
 // ------------------------------------------------------------- composition
 
@@ -123,22 +59,12 @@ async function composeOne(
   return compose.compose(row, await detailsFor([row], executor));
 }
 
-// THE METHODS SECTION MOVED to features/fulfillments/methods/service.ts
-// (ruling 26b: "Checkout will call fulfillment methods... we need to hit the
-// fulfillment/methods/controller.ts"). listMethods/listAllMethods/updateMethod
-// are listAvailable/listAll/update there, and the offered-method check that
-// made the customer menu mean something is assertOffered.
+// The methods section moved to domain/fulfillments/methods/service.ts: listMethods/listAllMethods/updateMethod are listAvailable/listAll/update there, and the offered-method check is assertOffered.
 
 // ------------------------------------------------------------------- reads
 
-// A fulfillment carries no user of its own, so "is this yours" is a question
-// about the order. requireUser alone would have let any signed-in customer read
-// any order's pickup address and appointment time by changing a query string -
-// the same class of hole as an unguarded route, and invisible from the routes
-// file because the guard is present and simply not enough.
-//
-// Returns null for "not yours" as well as "not found", deliberately: telling
-// the two apart would confirm the order exists.
+// A fulfillment carries no user of its own, so "is this yours" is a question about the order. requireUser alone would let any signed-in customer read any order's pickup address and appointment time by changing a query string - present but not enough.
+// Returns null for "not yours" as well as "not found", deliberately - telling the two apart would confirm the order exists.
 export async function getForOrder(
   order_id: string,
   { userId, isAdmin = false }: { userId?: string; isAdmin?: boolean } = {},
@@ -157,18 +83,8 @@ export async function getById(
   return await composeOne(await fulfillments.getOne(id, executor), executor);
 }
 
-// Everything an employee is expected to turn up for: the scheduled pickups and
-// appointments, soonest first.
-//
-// SHIPMENTS ARE EXCLUDED, and that falls out of the shape rather than needing a
-// category filter: this reads the pickups and directs tables, so a fulfillment
-// with neither is not in the answer. Nobody is due anywhere for a parcel, which
-// is the whole point of the category split.
-//
-// The implementation this replaces filtered `m.category IN ('PICKUP','DIRECT')`
-// against four joined tables and sorted on `coalesce(p.start_time,
-// d.start_time)`. Both halves move: the filter becomes which tables are read,
-// and the sort becomes compose.byStartTimeThenId, which keeps NULLS LAST.
+// Everything an employee is expected to turn up for: scheduled pickups and appointments, soonest first.
+// Shipments are excluded, which falls out of the shape rather than needing a category filter: this reads only pickups/directs, and nobody is due anywhere for a parcel.
 export async function getSchedule(
   filters: { from?: string; to?: string; employee_id?: string } = {},
   executor?: Executor
@@ -188,19 +104,8 @@ export async function getSchedule(
 
 // ------------------------------------------------------------------ writes
 
-// THE ORDER MUST EXIST IN THE NEW SCHEMA. order_id references orders.orders,
-// which is populated by backfill and kept current by the orders dual-write. So
-// creating a fulfillment for an order that only exists in exchange fails on the
-// foreign key, and it should: a fulfillment pointing at an order nobody can
-// find is worse than a refusal.
-//
-// The check is here rather than left to the constraint because
-// 'insert or update on table "fulfillments" violates foreign key constraint'
-// tells the caller nothing about what to do next.
-// `created_by_id` USED TO BE A FIELD HERE AND ON ALL FOUR PATHS BELOW, lifted
-// off the session by the controller and threaded through every one of them.
-// public.audit_stamp writes it from the actor on the connection (migration
-// 116), so a fulfillment says what it is for and nothing about who made it.
+// order_id references orders.orders, so creating a fulfillment for an order that doesn't exist there fails on the foreign key - checked here first, because the raw constraint error tells the caller nothing about what to do next.
+// created_by_id isn't a field here (or on the paths below) - audit_stamp writes it from the connection's actor, so a fulfillment says what it's for and nothing about who made it.
 async function createFulfillment(
   { order_id, method_id, status = "PENDING" }:
     { order_id: string; method_id: string; status?: string },
@@ -224,10 +129,7 @@ async function createFulfillment(
   return await composeOne(row, executor);
 }
 
-// A DRAFT FOR A CHECKOUT (D208): the fulfillment exists and mutates while the
-// customer decides, and order creation attaches it. The offered-method check
-// is the same one choose() runs - a customer's draft can only carry a method
-// the menu offered them.
+// A draft for checkout: the fulfillment exists and mutates while the customer decides, and order creation attaches it. The offered-method check is the same one choose() runs.
 export async function createDraft(
   { method_id, direction }: { method_id: string; direction: Direction },
   executor?: Executor
@@ -239,9 +141,7 @@ export async function createDraft(
   return await composeOne(row, executor);
 }
 
-// The one-way attach. Refuses rather than repoints: a draft that is already an
-// order's fulfillment never moves, and an order that already has a fulfillment
-// raises 23505 out of the unique index rather than quietly holding two.
+// The one-way attach. Refuses rather than repoints: a draft that is already an order's fulfillment never moves, and a second attach raises 23505 rather than quietly holding two.
 export async function attachDraft(
   { fulfillment_id, order_id }: { fulfillment_id: string; order_id: string },
   executor?: Executor
@@ -257,9 +157,7 @@ export async function attachDraft(
   return composed;
 }
 
-// Choosing a method, from the customer's side. Admin callers go through
-// chooseById, which is why the offered-method check is here and not shared: an
-// admin putting an order on OWN LABEL is the reason OWN LABEL exists.
+// Choosing a method, from the customer's side. Admin callers go through chooseById instead - an admin putting an order on OWN LABEL is the reason OWN LABEL exists.
 export async function choose(
   { order_id, method_id, direction }:
     { order_id: string; method_id: string; direction: Direction },
@@ -269,14 +167,7 @@ export async function choose(
   return await createFulfillment({ order_id, method_id }, executor);
 }
 
-// A method that has already been decided, by id.
-//
-// choose() is the CUSTOMER's path and checks the id against the same query that
-// produced the menu, which is what makes the menu mean something. This is the
-// path for a method that was already validated - recorded on a checkout at
-// intake, or picked by an admin who is allowed the hidden ones. Skipping the
-// menu check here is the difference between the two, and it is why they are two
-// functions rather than a flag.
+// A method that has already been decided, by id. choose() is the CUSTOMER's path and checks the id against the menu; this is for a method already validated elsewhere (checkout intake, or an admin picking a hidden one) - skipping that check is the whole difference between the two functions.
 export async function chooseById(
   { order_id, method_id }: { order_id: string; method_id: string },
   executor?: Executor
@@ -284,10 +175,7 @@ export async function chooseById(
   return await createFulfillment({ order_id, method_id }, executor);
 }
 
-// The default for a direction and category, for the flows that do not ask.
-// A sale with nothing chosen is a DROPSHIP; a purchase with nothing chosen is a
-// CARRIER DROPOFF. Both come from the seed rather than from a constant here, so
-// changing the business's default is an UPDATE rather than a deploy.
+// The default for a direction/category, for flows that don't ask. Both come from the seed, not a constant here, so changing the default is an UPDATE, not a deploy.
 export async function chooseDefault(
   { order_id, direction, category = "SHIPMENT" }:
     { order_id: string; direction: Direction; category?: Category },
@@ -297,10 +185,7 @@ export async function chooseDefault(
   return await createFulfillment({ order_id, method_id: method.id }, executor);
 }
 
-// `updated_by_id` WAS A THIRD FIELD OF THIS INPUT, threaded down from the
-// session by every caller. public.audit_stamp takes the author off the
-// connection now (migration 116), so a status move says what moved and
-// nothing about who.
+// updated_by_id isn't a third argument any more - audit_stamp takes the author off the connection, so a status move says what moved and nothing about who.
 export async function setStatus(
   { id, status }: { id: string; status: string },
   executor?: Executor
@@ -310,20 +195,8 @@ export async function setStatus(
   return await getById(id, executor);
 }
 
-// Changing how an order will be handed over.
-//
-// THE DETAIL ROW GOES WITH IT. A fulfillment that was a PICKUP and becomes a
-// SHIPMENT still has its pickups row otherwise, and compose.ts attaches all
-// three slots - so the response would carry both a pickup and a shipment and
-// the caller would have to guess which one is true. Nothing in the schema
-// prevents that; this does.
-//
-// THE SHIPMENT LINK IS DELIBERATELY NOT DELETED. It points at a real
-// shipping.shipments row with a tracking number and a label that was paid for,
-// and a parcel does not stop existing because somebody changed a dropdown.
-// Moving off SHIPMENT with a parcel still attached is refused instead, because
-// cancelling the shipment is a different decision that costs money and belongs
-// to features/shipping.
+// Changing how an order will be handed over. The detail row goes with it - compose.ts attaches all three slots, so leaving the old one behind would make the response carry both a pickup and a shipment with no way to tell which is true.
+// The shipment link is deliberately NOT deleted: it points at a real shipping.shipments row with a paid-for label, and moving off SHIPMENT with a parcel still attached is refused instead - cancelling a shipment is a different decision that costs money and belongs to domain/shipping.
 export async function setMethod(
   { id, method_id }: { id: string; method_id: string },
   executor?: Executor
@@ -362,10 +235,7 @@ export async function setMethod(
   return await getById(id, executor);
 }
 
-// The category is checked against the method rather than trusted. Writing a
-// pickup row for a fulfillment whose method is DROPSHIP produces a row every
-// read attaches and no read expects, and the constraint that would have caught
-// it does not exist in the schema.
+// Category is checked against the method, not trusted. A pickup row for a DROPSHIP fulfillment is a row every read attaches and none expects, and nothing in the schema would catch it.
 export async function assertCategory(
   fulfillment_id: string, category: Category, executor?: Executor
 ): Promise<void> {
@@ -383,21 +253,10 @@ export async function assertCategory(
   }
 }
 
-// schedulePickup / scheduleDirect / linkShipment MOVED to the resources that
-// own their tables - fulfillments/pickups/service.ts, fulfillments/directs/
-// service.ts and fulfillments/shipments/service.ts. Each is one table's write
-// plus assertCategory, which is exactly the shape ruling 26c describes; the
-// callers (features/orders/create.ts, features/shipping/shipments/service.ts)
-// reach those directly rather than through this file.
+// schedulePickup/scheduleDirect/linkShipment moved to the resources that own their tables - pickups/service.ts, directs/service.ts, shipments/service.ts. Each is one table's write plus assertCategory; callers (orders/create.ts, shipping/shipments/service.ts) reach those directly.
 
-// Cancelling a booking removes the appointment, not the fulfillment. The order
-// is still going to be fulfilled somehow; what changed is that nobody is due
-// anywhere yet.
-//
-// THIS ONE GENUINELY SPANS CHILDREN, which is why it stays: a fulfillment
-// carries at most one booking and the caller does not say which kind it was, so
-// cancelling means clearing BOTH tables. Pushing it into either child would
-// leave the other's row behind.
+// Cancelling a booking removes the appointment, not the fulfillment - the order is still going to be fulfilled somehow, just nobody is due anywhere yet.
+// This one genuinely spans children: a fulfillment carries at most one booking and the caller doesn't say which kind, so cancelling clears BOTH tables - pushing it into either child would leave the other's row behind.
 export async function cancelSchedule(
   fulfillment_id: string, executor?: Executor
 ): Promise<ComposedFulfillment | null> {

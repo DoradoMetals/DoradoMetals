@@ -2,8 +2,7 @@ import { uuidParam } from "#shared/http/validate.ts";
 import { asyncHandler } from "#shared/middleware/asyncHandler.ts";
 import * as directService from "#domain/fulfillments/directs/service.ts";
 
-// NO CONTRACT SCHEMA EXISTS YET for a direct-schedule body - listed rather
-// than hand-written (see the batch report).
+// No contract schema exists yet for a direct-schedule body.
 export const scheduleDirect = asyncHandler(async (req, res) => {
   const { direct } = req.body;
   return res.status(200).json(await directService.schedule(direct));

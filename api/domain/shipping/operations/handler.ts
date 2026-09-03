@@ -1,40 +1,14 @@
-// One call per shipping operation: resolve the carrier, build its request,
-// send it.
-//
-// Every function is the same three lines, and the repetition is the point -
-// each one names an operation the application performs, so a carrier that
-// cannot do one of them fails at the call rather than by omission. See
-// createPickup for what the alternative cost.
-//
-// THE INPUT TYPES ARE DERIVED FROM THE BUILDERS, NOT WRITTEN HERE. Each
-// operation takes exactly what its builder takes, so `InputFor<"getRates">` is
-// whatever getRatesInput accepts and changes when that does. Nothing to keep in
-// step by hand.
-//
-// `unknown` was the first attempt and the checker refused it, correctly: this
-// layer passes the value straight to a builder that does inspect it, so a type
-// saying "we know nothing" is not usable at the call it makes. Writing one
-// interface by hand was the other option, and it would describe FedEx's shape
-// while claiming to be the general case - which registry.ts already declines to
-// do for the same reason.
-//
-// When a second carrier arrives, `Builders` becomes a union and this stops
-// compiling. That is the intended outcome: two carriers wanting different
-// shapes is a design conversation, not something to paper over with `any`.
-//
-// `client` is an optional executor threaded through to the carriers repo, the
-// same convention every repo call here follows.
+// One call per shipping operation: resolve the carrier, build its request, send it. The repetition is the point - each function names an operation, so a carrier that can't do one fails at the call, not by omission (see createPickup).
+// Input types are derived from the BUILDERS, not written here - InputFor<K> is whatever the builder accepts, so nothing has to be kept in step by hand.
+// Not `unknown` (this layer inspects the value) and not one hand-written interface (it would describe FedEx's shape while claiming to be general). A second carrier turns `Builders` into a union and this stops compiling - deliberately, since two carriers wanting different shapes is a design conversation.
+// `client` is the optional executor threaded through, like every repo call.
 import { resolveCarrier } from "#domain/shipping/operations/resolver.ts";
 import { BUILDERS } from "#domain/shipping/operations/builders.ts";
 
 type Builders = (typeof BUILDERS)[keyof typeof BUILDERS];
 type InputFor<K extends keyof Builders> = Parameters<Builders[K]>[0];
 
-// EXPORTED for callers that assemble one of these inputs rather than receiving
-// it whole - features/shipping/operations/service.ts builds the two addresses
-// for a rate quote out of one address plus a direction. Derived here for the
-// same reason the parameters are: restating the builder's shape by hand is a
-// second copy that stops agreeing the moment the builder changes.
+// Exported for callers that assemble this input themselves rather than receiving it whole - domain/shipping/operations/service.ts builds the two addresses for a rate quote from one address plus a direction. Derived here so it can't drift from the builder's own shape.
 export type RatesInput = NonNullable<InputFor<"getRates">>;
 
 export async function validateAddress(
@@ -88,10 +62,7 @@ export async function createPickup(
   input: InputFor<"createPickup">
 ) {
   const { provider, builders } = await resolveCarrier(carrier_id, client);
-  // provider.createPickup, not schedulePickup - fedex.js has never exported a
-  // function by that name, so this threw "provider.schedulePickup is not a
-  // function" before any FedEx request was built or sent. Every other method
-  // here matches its export exactly; this one did not.
+  // provider.createPickup, not schedulePickup - fedex.ts never exported that name, so calling it threw before any FedEx request was built.
   return await provider.createPickup(builders.createPickup(input));
 }
 

@@ -1,9 +1,4 @@
--- A new service. The id is supplied by the service layer, not generated here,
--- so both schemas end up with the same primary key.
---
--- The three renamed columns take their NEW names here and their old ones in
--- sql/legacy/create.sql; the parameter ORDER is identical in both, so one
--- values array feeds each.
+-- A new service. The id is supplied by the caller, not generated here.
 INSERT INTO shipping.services
        (id, carrier_id, name, description, code, provider_code,
         supports_pickups, supports_dropoffs, supports_returns, supports_insurance,

@@ -1,7 +1,4 @@
-// The writes on shipping.pickups, against real Postgres.
-//
-// Self-contained: the shipment each pickup hangs off is created inside the
-// same rolled-back transaction, so no shared row and no lock applies.
+// Writes on shipping.pickups, against real Postgres. Self-contained: the shipment each pickup hangs off is created in the same rolled-back transaction, so no lock applies.
 import test, { after, before } from "node:test";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";

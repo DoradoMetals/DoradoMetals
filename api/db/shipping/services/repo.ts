@@ -1,8 +1,4 @@
-// shipping.services, and nothing else.
-//
-// Three columns are aliased back to the names exchange uses - see the header of
-// sql/get_all.sql. The type says so too rather than describing the table: it is
-// the wire shape that must not change, not the schema.
+// shipping.services. Three columns alias back to exchange's names (see sql/get_all.sql) - the wire shape must not change.
 import query from "#shared/db/query.ts";
 import { buildUpdate } from "#shared/db/patch.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
@@ -11,9 +7,6 @@ import type { Executor } from "#shared/db/executor.ts";
 
 const sql = sqlFrom(import.meta.dirname);
 
-// created_by_id and updated_by_id are dropped because no statement projects
-// them; the three renamed columns are dropped and re-added under exchange's
-// names, because that is what comes back.
 export type ServiceRow = Omit<
   shipping.ServicesRow,
   | "supports_pickups"
@@ -21,10 +14,7 @@ export type ServiceRow = Omit<
   | "max_weight_lb"
   | "created_by_id"
   | "updated_by_id"
-  // max_insured_value is 097's, and it is NOT on this wire. See
-  // sql/get_insurance_ceilings.sql for why: this shape is validated against
-  // exchange.carrier_services, which has no such column. getInsuranceCeilings
-  // reads it instead.
+  // max_insured_value is not on this wire - getInsuranceCeilings reads it instead.
   | "max_insured_value"
 > & {
   supports_pickup: shipping.ServicesRow["supports_pickups"];
@@ -32,10 +22,7 @@ export type ServiceRow = Omit<
   max_weight_lbs: shipping.ServicesRow["max_weight_lb"];
 };
 
-// Every column a create or an update supplies, BY NAME (CRUD-batch-3): the
-// service builds this object once and repo.ts spells its fields onto each
-// statement's parameter list in exactly one place - no more one hand-built
-// positional array feeding both statements by shared accident of column order.
+// Every column a create or update supplies, by name - spelled onto each statement's parameter list in one place, not a shared positional array.
 export type ServiceWrite = Pick<
   shipping.ServicesRow,
   | "carrier_id" | "name" | "description" | "code" | "provider_code"
@@ -55,8 +42,7 @@ export async function getOne(id: string, executor?: Executor): Promise<ServiceRo
   return rows[0];
 }
 
-// THE INSURANCE CEILING, per service, for one carrier. Read on its own rather
-// than folded into the row reads - see sql/get_insurance_ceilings.sql.
+// The insurance ceiling per service, for one carrier - read on its own, not folded into the row reads.
 type InsuranceCeiling = { name: string; max_insured_value: number };
 
 export async function getInsuranceCeilings(
@@ -75,10 +61,7 @@ export async function getByCarrier(
   return rows;
 }
 
-// created_by and updated_by ARE NOT FIELDS OF THIS TYPE any more: the caller
-// used to name its own author and the service defaulted it to the string
-// "Dorado Metals". public.audit_stamp writes both from the actor on the
-// connection (migration 116).
+// created_by/updated_by are NOT fields here - public.audit_stamp writes both from the connection's actor.
 export type ServiceNew = ServiceWrite & Pick<shipping.ServicesRow, "id">;
 
 export async function create(row: ServiceNew, executor?: Executor): Promise<ServiceRow> {
@@ -96,15 +79,10 @@ export async function create(row: ServiceNew, executor?: Executor): Promise<Serv
   return rows[0];
 }
 
-// created_by is NOT part of the patch - an edit does not change who created
-// the row - and neither is updated_by any more: public.audit_stamp writes it,
-// and updated_at, from the actor on the connection (migration 116).
+// created_by/updated_by are NOT part of the patch - audit_stamp writes both from the connection's actor.
 export type ServicePatch = ServiceWrite;
 
-// The twenty columns a create or an edit supplies, in the order the statement
-// this replaces assigned them. sql/update.sql is gone; shared/db/patch.ts
-// builds it, and the RETURNING list below is that file's, verbatim, so the
-// wire's exchange-era aliases are unchanged.
+// The columns a create or edit supplies; RETURNING below preserves the wire's aliased names.
 export const PATCHABLE = [
   "carrier_id", "name", "description", "code", "provider_code",
   "supports_pickups", "supports_dropoffs", "supports_returns", "supports_insurance",
@@ -123,10 +101,8 @@ export const RETURNING = `id, carrier_id, name, description, code, provider_code
           min_transit_days, max_transit_days, display_order,
           created_by, updated_by, created_at, updated_at`;
 
-// STILL A FULL REPLACE: the admin form sends every field back, and a field it
-// omits is CLEARED - which is what the positional tuple did by binding
-// undefined as NULL. shared/db/patch.ts reads `undefined` as "not mentioned",
-// so the twenty columns are named here with `?? null` to keep that contract.
+// STILL A FULL REPLACE: the admin form always sends every field, and an omitted field is CLEARED - not merged.
+// buildUpdate treats undefined as "not mentioned", so fields are named here with `?? null` to force that.
 export async function update(
   id: string, patch: ServicePatch, executor?: Executor
 ): Promise<boolean> {
@@ -150,9 +126,7 @@ export async function remove(id: string, executor?: Executor): Promise<boolean> 
   return rowCount === 1;
 }
 
-// THE SALE DELIVERY OPTIONS (D208): the business's carrier-agnostic priced
-// rows. A projection, not ServiceRow - the customer-facing read carries no
-// carrier capability flags and no legacy aliases.
+// The sale delivery options: the business's carrier-agnostic priced rows - a projection, not ServiceRow, with no carrier flags or legacy aliases.
 export type SaleServiceOption = {
   id: string;
   name: string;

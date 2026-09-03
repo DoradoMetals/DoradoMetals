@@ -1,28 +1,6 @@
-// readyDate arrives as a string, and the FedEx provider wants a Date.
-//
-// WHY THIS FILE EXISTS. POST /api/shipping/check_pickup answered 500 on every
-// call. JSON cannot carry a Date, and the frontend sends
-// `new Date().toISOString().split("T")[0]` - a date-only STRING - which reached
-// two provider functions that both treat it as a Date:
-// pickupAvailabilityPayload calls formatFedexTime(d), reading d.getHours(), and
-// parsePickupAvailability calls d.getTime(). 94b99e15 converts it at the
-// controller, which is the boundary where a request stops being JSON.
-//
-// WHAT THE ROUTE CAN AND CANNOT SHOW, established by trying it. Every outbound
-// FedEx request goes through fetchAccessToken, which refuses during a test run
-// unless FEDEX_ENV=sandbox - deliberately, with no escape hatch. And
-// fedex.checkPickup fetches the token BEFORE it builds the payload.
-//
-// So the happy path cannot be asserted over HTTP at all: with the fix reverted,
-// the route still stops at the carrier refusal and never reaches getHours. My
-// first version of this file asserted exactly that and passed identically
-// before and after the fix - a test that cannot fail. It is replaced below by
-// one on the pure function, which is where the requirement actually lives.
-//
-// The two refusal tests DO discriminate: with the guard removed they answer 500
-// instead of 400, and both fail. Verified by reverting the whole fix, not half
-// of it - my first attempt removed only the assignment and left the guard, so
-// the control passed and told me nothing.
+// readyDate arrives as a string, and the FedEx provider wants a Date - JSON can't carry a Date, and two provider functions (pickupAvailabilityPayload's formatFedexTime, parsePickupAvailability) both call Date methods on it. The controller converts at the boundary, where a request stops being JSON.
+// The happy path can't be asserted over HTTP at all: fetchAccessToken refuses during a test run unless FEDEX_ENV=sandbox, and checkPickup fetches the token before building the payload - so with the fix reverted, the route stops at the carrier refusal before ever reaching getHours. A first version asserted exactly that and passed identically before and after the fix. The test on the pure function below is where the requirement actually lives.
+// The two refusal tests DO discriminate: with the guard removed they answer 500 instead of 400 - verified by reverting the whole fix, not half of it, since removing only the assignment and leaving the guard left a control that passed and told nothing.
 import test, { after, before } from "node:test";
 import assert from "node:assert/strict";
 import request from "supertest";
@@ -81,12 +59,7 @@ test("the payload builder needs a Date, which is why the controller converts", a
       payloads.pickupAvailabilityPayload({
         pickupAddress: address,
         code: "FDXE",
-        // DELIBERATELY A STRING WHERE A Date IS DECLARED, and pinned from both
-        // sides. This is the bug the route had: the frontend's ISO string went
-        // straight to formatFedexTime, which calls getHours on it. The
-        // signature ALREADY FORBIDS the value that broke it - which is the
-        // whole argument for typechecking the tests, since this call was
-        // invisible to tsc as JavaScript.
+        // DELIBERATELY a string where a Date is declared: the signature already forbids the value that broke this route (getHours on a string), which is the whole argument for typechecking the tests - this call was invisible to tsc as JavaScript.
         // @ts-expect-error - a string is exactly what the defect supplied
         readyDate: asTheFrontendSendsIt(),
       }),

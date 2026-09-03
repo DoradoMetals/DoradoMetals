@@ -19,11 +19,7 @@ import {
 
 const router = express.Router();
 
-// THE PARENT MOUNTS, IT DOES NOT DECLARE (ruling 26c). Every sub-resource
-// declares its own paths in its own routes.ts; this file's job is to say where
-// they hang. THE URLS ARE UNCHANGED - ruling 13: the URL and the file answer
-// different questions, and factoring the file is not a reason to move the URL.
-//
+// The parent mounts, it does not declare: every sub-resource declares its own paths in its own routes.ts; this file says where they hang. The URLs are unchanged - factoring the file is not a reason to move the URL.
 //   /methods, /methods/all, /methods/update   fulfillments/methods
 //   /schedule_pickup                          fulfillments/pickups
 //   /schedule_direct                          fulfillments/directs
@@ -31,10 +27,7 @@ router.use("/methods", methodRoutes);
 router.use("/", pickupRoutes);
 router.use("/", directRoutes);
 
-// WHAT SPANS CHILDREN STAYS HERE, and nothing else does. get_for_order and
-// schedule branch across pickups/directs/shipments; cancel_schedule clears
-// whichever booking existed; set_method moves between categories and deletes
-// the detail row of the one being left; set_status is the fulfillment's own.
+// What spans children stays here, nothing else does: get_for_order/schedule branch across pickups/directs/shipments, cancel_schedule clears whichever booking existed, set_method moves categories and deletes the detail row being left, set_status is the fulfillment's own.
 router.get("/get_for_order", requireUser, getForOrder);
 router.get("/schedule", requireAdmin, getSchedule);
 

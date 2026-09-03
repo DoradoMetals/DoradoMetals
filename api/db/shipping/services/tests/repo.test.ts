@@ -1,8 +1,4 @@
-// The writes on shipping.services, against real Postgres.
-//
-// Self-contained: the carrier each service is created under already exists in
-// dev (FedEx), read once and never written; the service rows this file
-// creates are its own, named so no other suite's rows are ever touched.
+// Writes on shipping.services, against real Postgres. Self-contained: the carrier used already exists (seeded FedEx), read-only; the service rows here are its own.
 import test, { after, before } from "node:test";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
@@ -60,11 +56,7 @@ const write = (over: Partial<services.ServiceWrite> = {}): services.ServiceWrite
   ...over,
 });
 
-// WHO IS NOT AN ARGUMENT ANY MORE. This passed created_by/updated_by into the
-// create and the patch; public.audit_stamp writes them from the actor on the
-// connection (migration 116). The claim is the same one - an edit records the
-// editor and does NOT rewrite the creator - asked of the mechanism that
-// answers it, and of the *_by_id columns as well as the legacy name ones.
+// Author fields aren't arguments any more - audit_stamp records them from the actor now; this checks an edit never rewrites the creator.
 const actingAs = async (c: PoolClient, id: string | null) => {
   await c.query("SELECT set_config('app.actor_id', $1, true)", [id ?? ""]);
 };

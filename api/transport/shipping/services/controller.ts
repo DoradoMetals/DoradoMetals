@@ -7,11 +7,7 @@ export const getAll = asyncHandler(async (req, res) => {
   return res.status(200).json(result);
 });
 
-// GET /api/carrier_services/sale_options
-//
-// PUBLIC, deliberately: the product page shows the sale delivery prices to
-// signed-out visitors. Reference rows the client maps by `code` (ruling 12);
-// icons stay a client-side map beside the selector.
+// GET /api/carrier_services/sale_options - PUBLIC, deliberately: the product page shows the sale delivery prices to signed-out visitors. Reference rows the client maps by `code`; icons stay a client-side map beside the selector.
 export const getSaleOptions = asyncHandler(async (_req, res) => {
   const result = await servicesService.getSaleOptions();
   return res.status(200).json(result);

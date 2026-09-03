@@ -1,17 +1,5 @@
-// The carrier admin endpoints, over real HTTP.
-//
-// Carriers have a RESHAPING wire adapter - the organization is its own object
-// internally and flat on the wire - which is the same arrangement that returned
-// a nameless address from features/addresses. That bug was invisible to a repo
-// test because the repo returned the right row and the damage happened in
-// middleware afterwards. These ask the same question of carriers.
-//
-// The delete endpoint is the other reason. It was recorded as having never
-// succeeded: the controller passed the whole request body where the repo wanted
-// an id. That was fixed; this is what would notice if it came back.
-//
-// NOTHING IS COMMITTED - the pool is pinned to a rolled-back transaction, and
-// the last test proves it from outside.
+// The carrier admin endpoints, over real HTTP - checks the wire shape end to end (nested organization) and that delete takes an id, not the whole body.
+// NOTHING IS COMMITTED - the pool is pinned to a rolled-back transaction; the last test proves it from outside.
 import test, { after, before } from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
@@ -27,11 +15,8 @@ import {
 await mockSessions();
 const { default: app } = await import("#app");
 
-// Carriers are reference data and share no tables with the order or address
-// groups, so this file needs no lock: nothing else in the suite writes
-// shipping.carriers or the organizations behind them.
-// THE STRUCTURAL SUBSET EACH FIXTURE ACTUALLY HAS. SELECT projections, not
-// table rows.
+// No lock needed: carriers share no tables with the order/address test groups.
+// UserFixture/Caller are the SELECT projection actually returned, not the full table row.
 type UserFixture = { id: string; name: string | null; email: string | null };
 type Caller = UserFixture & { role: string };
 
@@ -58,8 +43,7 @@ after(async () => {
   await pool.end();
 });
 
-// The shape frontend/features/carriers/queries.ts posts since the
-// conversion (2026-08-27): the organization is its own object.
+// The shape frontend/features/carriers/queries.ts posts - the organization is its own nested object.
 const newCarrier = () => ({
   logo: "/carriers/replay.png",
   organization: {
@@ -82,9 +66,7 @@ test("the carrier list is served to a user and refused to nobody", async () => {
       assert.equal(res.status, 200);
       assert.ok(Array.isArray(res.body) && res.body.length > 0);
 
-      // Carriers is CONVERTED (2026-08-27): the frontend reads the nested
-      // organization from @dorado/contracts, and a flat row reaching it would
-      // render undefined for every identity field.
+      // A flat row would render undefined for every identity field - the frontend reads the nested shape.
       const c = res.body[0];
       for (const field of ["id", "logo", "organization"]) {
         assert.ok(field in c, `the carrier list is missing ${field}`);
@@ -109,8 +91,7 @@ test("only an admin may create a carrier", async () => {
   });
 });
 
-// The addresses bug, asked of carriers - now with no adapter: the write must
-// return the nested row exactly as stored.
+// The addresses bug, asked of carriers: the write must return the nested row exactly as stored.
 test("creating a carrier returns it nested, with its name intact", async () => {
   await inPinnedTransaction(async () => {
     await as(admin, async () => {
@@ -157,9 +138,7 @@ test("updating a carrier returns the updated row, still nested", async () => {
   });
 });
 
-// This endpoint had never once succeeded: the controller passed req.body where
-// the repo wanted an id, so the delete ran WHERE id = <object> and died on
-// "invalid input syntax for type uuid". The frontend sends { carrier_id }.
+// This endpoint had never once succeeded: the controller passed the whole body where the repo wanted an id.
 test("deleting a carrier takes the carrier_id the frontend sends", async () => {
   await inPinnedTransaction(async () => {
     await as(admin, async () => {

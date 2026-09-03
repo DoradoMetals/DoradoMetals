@@ -2,8 +2,7 @@ import { uuidParam } from "#shared/http/validate.ts";
 import { asyncHandler } from "#shared/middleware/asyncHandler.ts";
 import * as pickupService from "#domain/fulfillments/pickups/service.ts";
 
-// NO CONTRACT SCHEMA EXISTS YET for a pickup-schedule body - listed rather
-// than hand-written (see the batch report).
+// No contract schema exists yet for a pickup-schedule body.
 export const schedulePickup = asyncHandler(async (req, res) => {
   const { pickup } = req.body;
   return res.status(200).json(await pickupService.schedule(pickup));

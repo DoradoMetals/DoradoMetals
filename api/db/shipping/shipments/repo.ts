@@ -1,11 +1,5 @@
-// shipping.shipments, and nothing else.
-//
-// THE ORDER LINK IS NOT IN THIS TABLE. exchange.shipments carries
-// purchase_order_id and sales_order_id; this schema carries neither, because an
-// order's FULFILLMENT is what knows about the order. compose.ts puts them back.
-//
-// carrier_service_id and package_id are projected so compose.ts can resolve
-// them to the names exchange kept inline, and are dropped again on the way out.
+// shipping.shipments: no order link here - a fulfillment knows the order; compose.ts puts it back.
+// carrier_service_id/package_id are projected for compose.ts to resolve, then dropped again.
 import query from "#shared/db/query.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
 import type { shipping } from "@dorado/contracts";
@@ -13,8 +7,7 @@ import type { Executor } from "#shared/db/executor.ts";
 
 const sql = sqlFrom(import.meta.dirname);
 
-// `direction` is projected as text, because exchange's `type` is text and the
-// wire has always carried a string.
+// `direction` is projected as text - the wire has always carried a string.
 export type ShipmentBaseRow = Omit<
   Pick<
     shipping.ShipmentsRow,
@@ -47,9 +40,7 @@ export async function getMany(
   return rows;
 }
 
-// A shell. Everything else arrives from the carrier afterwards, through
-// update() - a shipment exists from the moment an order needs one, and the
-// label is bought later.
+// A shell - everything else arrives from the carrier later, through update(). A shipment exists before its label is bought.
 export type ShipmentNew = { id: string; direction: string };
 
 export async function create(row: ShipmentNew, executor?: Executor): Promise<string> {
@@ -57,16 +48,8 @@ export async function create(row: ShipmentNew, executor?: Executor): Promise<str
   return rows[0].id;
 }
 
-// ONE UPDATE (D212's CRUD ruling): replaces the legacy positional-tuple
-// `update` and `record`, which wrote the same statement under two calling
-// conventions. THE ROW (Jacob, 2026-09-01): the caller maps named fields onto
-// sql/update.sql's parameter order in exactly one place, here.
-//
-// NOT A COALESCE PATCH, deliberately: this is "everything the carrier told
-// us", a full replace of all fourteen columns whenever it runs (see
-// sql/update.sql's own header) - a field a caller omits writes NULL, exactly
-// as it always has. The service resolves the service/package NAMES exchange
-// stores into the ids this table wants before calling this.
+// NOT a COALESCE patch - a full replace of all fourteen columns; a field a caller omits writes NULL.
+// Caller resolves the carrier's service/package name into this table's id before calling this.
 export type ShipmentRecord = {
   tracking_number?: string | null;
   shipping_status?: string | null;
@@ -102,17 +85,8 @@ export async function update(
   return rowCount === 1;
 }
 
-// The shipping cost of every parcel on one order.
-//
-// Narrow on purpose. `update` above is a whole-row write of the fourteen things
-// the carrier told us, keyed on the shipment id; this is one column keyed on an
-// ORDER, which is what the purchase-order screen edits. Squeezing it into
-// `update` would mean reading the row back first just to rewrite it unchanged.
-//
-// It lives HERE, in the feature that owns shipping.shipments, because
-// purchase-orders used to write the table directly - see D41. Two writers to
-// one table means only one of them dual-writes after a pivot, and the column
-// goes quietly out of step between the schemas.
+// The shipping cost of every parcel on one order. Narrow on purpose - one column keyed on an order, not a whole-row rewrite of update().
+// Lives here because only the feature owning shipping.shipments should ever write it - two writers to one table go out of step.
 export async function setChargeForOrder(
   orderId: string, cost: number | null, executor?: Executor
 ): Promise<string[]> {

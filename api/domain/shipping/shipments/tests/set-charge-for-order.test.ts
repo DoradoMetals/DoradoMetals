@@ -1,9 +1,4 @@
-// The shipping cost of an order's parcels.
-//
-// This is the D41 write: purchase-orders used to run the UPDATE itself, which
-// made it a second writer to a table features/shipping owns. What is worth
-// pinning is that the ORDER-scoped statement reaches every parcel of that
-// order and no other order's. Each test rolls back.
+// The shipping cost of an order's parcels - the ORDER-scoped write must reach every parcel of that order and no other's. Each test rolls back.
 import test, { after, before } from "node:test";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
@@ -68,10 +63,7 @@ test("a charge lands on every parcel of the order", async () => {
   });
 });
 
-// exchange keys a shipment by purchase_order_id OR sales_order_id and the
-// caller holds one id without knowing which. Matching both columns is what
-// makes the legacy half select the same rows the new schema's single order_id
-// does - and it must not reach across to an unrelated order.
+// The write must reach exactly one order's parcels and not cross into another's.
 test("the charge lands on that order and no other", async () => {
   await inRollback(async (c: PoolClient) => {
     const orderId = await anOrderWithShipment(c);

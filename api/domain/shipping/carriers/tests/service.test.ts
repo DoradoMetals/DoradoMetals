@@ -1,13 +1,4 @@
-// Carriers through the service, against real Postgres.
-//
-// A carrier is two rows in the new schema - an organization and a
-// shipping.carriers row - and both are
-// written together. Most of these are about that trio staying consistent.
-//
-// This replaces repo.next.test.js, which compared the two implementations
-// against each other. There is only one implementation now: reads come from the
-// organization and the carrier row, and the reads compose the two back.
-//
+// Carriers through the service, against real Postgres - a carrier is two rows (organization + shipping.carriers), written together; most of these check that they stay consistent.
 // Each test runs inside a transaction that is rolled back.
 import test, { after, before } from "node:test";
 import assert from "node:assert/strict";
@@ -36,8 +27,7 @@ async function inRollback(fn: (c: PoolClient) => Promise<void>) {
   }
 }
 
-// The service takes the nested shape; a request arrives flat and the adapter
-// nests it at the edge.
+// The shape the controller passes through untouched - createCarrier takes it nested.
 const draft = (over = {}) => ({
   logo: "/carriers/probe.png",
   organization: {
@@ -59,24 +49,16 @@ test("getAllCarriers keeps the organization as its own object", async () => {
   ]);
 });
 
-// The flatten/round-trip tests lived here until the conversion
-// (2026-08-27): carriers' lift adapter was deleted when the frontend switched
-// to the nested contracts shape, so there is no flattening left to prove.
-// replay.test.js asserts the nested shape over HTTP.
+// No flatten/round-trip tests here - there's no adapter any more; replay.test.ts asserts the nested shape over HTTP.
 
-// FEDEX_CARRIER_ID is a literal uuid in providers/shipments/constants.ts and
-// exchange.shipments.carrier_id references it. If the id did not survive the
-// split, label creation would break.
+// FEDEX_CARRIER_ID (providers/shipments/constants.ts) is a literal uuid. If it did not survive as a real carrier's id, label creation would break.
 test("the FedEx carrier keeps its original id", async () => {
   const fedex = await service.getCarrierById("30179428-b311-4873-8d08-382901c581d8");
   assert.ok(fedex, "FEDEX_CARRIER_ID must still resolve");
   assert.equal(fedex.organization.name, "FedEx");
 });
 
-// The list is sorted by the organization's name, which is not a column of
-// shipping.carriers - `ORDER BY o.name ASC, c.id ASC` was on the joined column
-// and moved into compose.ts. A sort that quietly stopped happening is the kind
-// of thing nothing else would notice.
+// Sorted by the organization's name (not a column of shipping.carriers) - moved into compose.ts; a silently dropped sort is the kind of bug nothing else would notice.
 test("the list is ordered by the organization's name", async () => {
   const names = (await service.getAllCarriers()).map((c) => c.organization.name ?? "");
   assert.deepEqual(names, [...names].sort((a, b) => a.localeCompare(b)));
@@ -119,9 +101,7 @@ test("update changes both the organization and the carrier row", async () => {
   });
 });
 
-// The carrier row holds the foreign key, so it has to go first. Removing the
-// organization first would be refused, and removing only the carrier row would
-// orphan the organization.
+// The carrier row holds the foreign key, so it goes first - the reverse order would refuse, or removing only the carrier would orphan the organization.
 test("remove deletes both rows and leaves no orphan", async () => {
   await inRollback(async (c: PoolClient) => {
     const made = await service.createCarrier(draft(), c);
@@ -151,9 +131,7 @@ test("getCarrierName returns an empty string for an unknown id", async () => {
   assert.equal(await service.getCarrierName(randomUUID()), "");
 });
 
-// Only CARRIER organizations are carriers. Mints, refiners and the business
-// share the table, and a compose step that lost the shipping.carriers row would
-// return all of them.
+// Only CARRIER organizations are carriers - mints, refiners and the business share the table, and a broken compose step would return all of them.
 test("only carrier organizations are returned", async () => {
   const rows = await service.getAllCarriers();
   const { rows: all } = await client.query(
@@ -173,9 +151,7 @@ test("a write made with a client is invisible on the pool", async () => {
   assert.equal(outside, null);
 });
 
-// updateCarrier with no id used to be `WHERE id = NULL`, which matched nothing
-// and returned null. It still returns null rather than throwing, and - the part
-// worth pinning - it must not have written anything on the way there.
+// No id must return null AND write nothing - not just fail to throw.
 test("an update with no id changes nothing", async () => {
   await inRollback(async (c: PoolClient) => {
     const { rows: before } = await c.query("SELECT count(*)::int n FROM exchange.carriers");

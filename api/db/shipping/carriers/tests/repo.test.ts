@@ -1,8 +1,4 @@
-// The writes on shipping.carriers, against real Postgres.
-//
-// Self-contained: every row this file touches is created inside the same
-// rolled-back transaction, so no other suite's carriers or organizations rows
-// are ever read or written and no lock from shared/testing/locks.ts applies.
+// Writes on shipping.carriers, against real Postgres. Self-contained: every row is created and rolled back in the same transaction, so no shared/testing/locks.ts lock applies.
 import test, { after, before } from "node:test";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";

@@ -9,12 +9,7 @@ function normalizeCarrierCode(name: string | null | undefined): string {
     .toLowerCase();
 }
 
-// A carrier row as this function needs it, deliberately structural rather
-// than the Carrier contract. Two shapes reached here while the wire axis
-// existed: the nested one, where a carrier is an organization with a role and
-// the name lives on the organization, and the flattened legacy one. The axis
-// and the legacy shape are retired (2026-08-28); the structural type stays
-// because this function needs one field, not a contract.
+// A carrier row as this function needs it, deliberately structural rather than the Carrier contract - this needs one field, not a contract.
 type CarrierLike = {
   organization?: { name?: string | null } | null;
   name?: string | null;
@@ -22,10 +17,7 @@ type CarrierLike = {
 
 type ProviderCode = keyof typeof PROVIDERS;
 
-// The carrier's name is the organization's, not the carrier row's - a carrier is
-// an organization with a role, and the repos return the two apart. The fallback
-// to carrier.name dates from the flattened legacy shape; the wire axis that
-// produced one is retired, so it should never be reached.
+// The carrier's name is the organization's, not the carrier row's - a carrier is an organization with a role, and the repos return the two apart.
 export async function resolveCarrier(carrier_id: string, client?: unknown) {
   // The SERVICE, not a repo: the carrier this needs is composed from two
   // tables, and the name it reads lives on the organization half.
@@ -34,11 +26,7 @@ export async function resolveCarrier(carrier_id: string, client?: unknown) {
   );
   const code = normalizeCarrierCode(carrier?.organization?.name ?? carrier?.name);
 
-  // Indexed as a plain lookup rather than narrowed first: `code` comes from the
-  // database and may name a carrier nothing implements, which is precisely what
-  // the two throws below are for. Narrowing it to ProviderCode beforehand would
-  // move an error the database can cause into a place the compiler pretends it
-  // cannot.
+  // Indexed as a plain lookup, not narrowed first: `code` comes from the database and may name a carrier nothing implements - narrowing first would hide that as a compiler-can't-happen case.
   const provider = PROVIDERS[code as ProviderCode];
   const builders = BUILDERS[code as ProviderCode];
   const catalogue = CATALOGUES[code as ProviderCode];
@@ -50,23 +38,8 @@ export async function resolveCarrier(carrier_id: string, client?: unknown) {
   return { code, provider, builders, catalogue };
 }
 
-// THE CARRIER WE SHIP WITH, WHEN THE CALLER DOES NOT NAME ONE.
-//
-// The browser used to name it, as a UUID literal repeated at three call sites
-// in checkout with a `// TODO: source from store when you add carrier
-// selection` beside one of them. It happens to be right - dev and production
-// both give FedEx 30179428-b311-4873-8d08-382901c581d8, checked against both -
-// but a production id compiled into a React component is one restore away from
-// quoting shipping against a carrier that no longer exists, and nothing would
-// have reported it except a failed checkout.
-//
-// This is NOT a business preference and does not invent one. It is a fact about
-// the code: exactly one carrier has a provider implementation registered, so
-// exactly one carrier can be quoted, labelled or tracked. `getAllCarriers`
-// returns them sorted by organization name and the filter preserves that, so
-// the answer is stable; the moment a second provider is registered this throws
-// rather than picking, because at that point which carrier to use IS a business
-// question and the caller has to answer it.
+// The carrier we ship with, when the caller names none. Not a hardcoded id: a literal compiled into the frontend is one restore away from naming a carrier that no longer exists, with nothing to report it but a failed checkout.
+// Not a business preference either - it's a fact about the code: exactly one carrier has a provider registered, so exactly one can be quoted, labelled or tracked. The moment a second is registered, this throws rather than picking, because which one becomes a real business question.
 export async function resolveShippingCarrierId(client?: unknown): Promise<string> {
   const carriers = await carriersService.getAllCarriers();
   const shippable = carriers.filter(
@@ -87,21 +60,8 @@ export async function resolveShippingCarrierId(client?: unknown): Promise<string
   return shippable[0].id;
 }
 
-// MEMOISED, AND THE REASON IS D101 RATHER THAN TIDINESS.
-//
-// resolveShippingCarrierId costs TWO round trips - every carrier row, then
-// every organization row - and the dev and production databases are remote,
-// measured at 130ms per trip. resolveCarrier then spends two more. So resolving
-// the default on every rate quote would have added ~260ms to the checkout's
-// most-hit path to answer a question whose answer has not changed since the
-// carriers were created on 2025-06-20 in both databases.
-//
-// THE TTL IS WHAT MAKES IT HONEST. A process-lifetime memo would be defensible
-// - the map it reads is PROVIDERS, which is code, so changing it needs a deploy
-// - but the OTHER input is an organization's name, which an admin can edit at
-// runtime. Five minutes is the window in which a rename takes effect. Note that
-// such a rename breaks every label either way: resolveCarrier looks the
-// provider up by that same name.
+// Memoised: resolving the default costs ~260ms (two round trips here, two more in resolveCarrier) on the checkout's most-hit path, for an answer that almost never changes.
+// TTL, not process-lifetime: PROVIDERS is code (deploy-gated) but the organization's name isn't - five minutes is the window a rename takes to propagate (and a rename breaks every label either way, since resolveCarrier looks the provider up by that same name).
 const CARRIER_ID_TTL_MS = 5 * 60 * 1000;
 let cachedCarrierId: { id: string; at: number } | null = null;
 
@@ -110,13 +70,8 @@ export function forgetShippingCarrier(): void {
   cachedCarrierId = null;
 }
 
-// Every operations endpoint takes an optional carrier_id now. This is the one
-// place that turns "none given" into one, so a caller that does name a carrier
-// keeps naming it and nothing about the existing behaviour moves.
-//
-// NOTHING IS CACHED WHEN THE CALLER NAMES A CARRIER - that path does not reach
-// here at all, so an admin acting on a specific carrier is never served this
-// answer.
+// The one place "no carrier given" becomes one - a caller that does name a carrier keeps naming it, unaffected.
+// Nothing is cached when the caller names a carrier - that path never reaches here, so an admin acting on a specific carrier is never served the cached answer.
 export async function carrierIdOr(
   carrier_id: string | null | undefined, client?: unknown
 ): Promise<string> {

@@ -1,9 +1,5 @@
 -- Everything the carrier told us, once the label exists.
---
--- carrier_service_id and package_id are IDS here. exchange stores the service
--- and the package as TEXT on the shipment row; the service resolves both
--- before this runs, and says which one it could not find rather than writing a
--- null into a column that means "no service".
+-- carrier_service_id/package_id are ids - the caller resolves them first and reports what it could not find, rather than writing NULL.
 UPDATE shipping.shipments
    SET tracking_number = $1,
        shipping_status = $2,

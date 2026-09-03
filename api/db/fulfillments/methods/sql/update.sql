@@ -1,23 +1,5 @@
--- Availability and wording only.
---
--- type, category and direction are what the code dispatches on and are
--- deliberately NOT updatable: changing a method's category would move existing
--- fulfillments to a detail table their rows are not in.
---
--- COALESCE rather than a built statement, so a partial update leaves the rest
--- alone - which is what every admin toggle sends. A `false` still lands,
--- because the parameter is only null when the caller omitted the field.
---
--- THERE IS NO create AND NO delete HERE, DELIBERATELY. The three categories are
--- code rather than data: each names the table that carries its detail, and a
--- method of category 'COURIER' would be a fulfillment nothing can complete,
--- because no table holds a courier's details and no code reads one. Turning
--- Pickup off for a week is reference data changing; inventing a category is a
--- row that looks like a feature and is not.
---
--- updated_at and updated_by_id LEFT THIS STATEMENT: public.audit_stamp writes
--- both from the actor on the connection (migration 116), COALESCEing the
--- author for exactly the reason this file used to COALESCE it here.
+-- Availability and wording only - type/category/direction are NOT updatable: changing a method's category would move existing fulfillments to a detail table their rows aren't in.
+-- COALESCE leaves an untouched field alone; a `false` still lands since the parameter is only null when omitted. No create/delete: categories are code, not data.
 UPDATE fulfillments.methods
    SET label         = coalesce($2, label),
        admin_label   = coalesce($3, admin_label),

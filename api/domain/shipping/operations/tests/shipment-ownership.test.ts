@@ -1,26 +1,6 @@
-// A customer may only ask about their own shipment.
-//
-// WHY THIS EXISTS. POST /api/shipping/get_tracking took `shipment_id` from the
-// body behind requireUser alone, and FOLLOWUPS recorded the shipping reads as
-// harmless because they "expose carrier reference data or a tracking status".
-//
-// It is not a read. operationsService.getTracking deletes and reinserts the
-// shipment's tracking events and rewrites its status, estimate and
-// delivered_at - the same unconditional removeEvents documented as having
-// already emptied seven production shipments' histories. So a signed-in
-// customer holding somebody else's shipment id could overwrite their tracking,
-// and spend a FedEx call doing it.
-//
-// requireAdmin was not the answer: useTracking is called from the CUSTOMER
-// purchase-order and sales-order drawers as well as the admin ones, checked in
-// the frontend before writing requireOwnShipment.
-//
-// WHAT IS DRIVEN AND WHAT IS NOT. Only the refusals. A request that passes the
-// guard reaches a handler that calls FedEx and rewrites rows, so the allowed
-// path is deliberately not exercised over HTTP - the test proving it works
-// would be the test making the call. The guard's own success branch is covered
-// directly against the database instead, which is where the join it turns on
-// actually lives.
+// A customer may only ask about their own shipment. POST /api/shipping/get_tracking took shipment_id from the body behind requireUser alone - previously recorded as harmless, wrongly: it deletes and reinserts the shipment's tracking events and rewrites its status/estimate/delivered_at (the same unconditional removeEvents that has already emptied seven production shipments' histories), so a signed-in customer holding somebody else's shipment id could overwrite their tracking and spend a FedEx call doing it.
+// requireAdmin wasn't the answer: this is called from the CUSTOMER order drawers too, not just admin's.
+// Only refusals are exercised over HTTP - the allowed path calls FedEx and rewrites rows for real, so its success branch is tested directly against the guard function instead.
 import test, { after, before } from "node:test";
 import assert from "node:assert/strict";
 import request from "supertest";
@@ -99,27 +79,8 @@ test("a request naming no shipment is refused rather than waved through", async 
   });
 });
 
-// ON PROVING THIS CAN FAIL, WHICH IS USUALLY DONE BY REMOVING THE GUARD.
-//
-// Not here. Without requireOwnShipment the stranger's request reaches
-// getTracking, which calls FedEx and deletes that shipment's tracking events -
-// the negative control would be the thing the guard exists to prevent, run
-// against real dev data. That is how tracking.test.js emptied five dev
-// shipments' histories, and it is documented in CLAUDE.md as the bug the test
-// for it committed.
-//
-// What holds instead, and it is enough: NOTHING ELSE ON THIS PATH ANSWERS 403.
-// The handler has no such branch and errorHandler defaults to 500, so a 403 can
-// only have come from this middleware - a passing test proves it is mounted and
-// firing, not merely present in the file. Grepped rather than assumed.
-//
-// The allowed branch, against the guard rather than the route, so no FedEx call
-// happens. Without this the suite would pass against a guard that refuses
-// EVERYONE - which is secure and broken, and would take the customer drawers
-// down with it.
-// The Express seam this drives, spelled out: the guard is middleware, so the
-// test builds the `res` it writes to and resolves on whichever of json/send/
-// next it reaches.
+// Proving this can fail usually means removing the guard and running the negative control - not here: that would be the exact bug that emptied five dev shipments' tracking histories (documented in CLAUDE.md), run for real against dev data.
+// What holds instead: NOTHING ELSE on this path answers 403 (the handler has no such branch, errorHandler defaults to 500), so a passing test proves the guard is mounted and firing - grepped, not assumed. And the allowed branch is tested against the guard directly, not the route, so the suite can't quietly pass against a guard that refuses EVERYONE (secure, but broken, and it would take the customer drawers down too).
 type GuardResult = { refused: boolean; code?: number };
 
 const runGuard = (user: { id: string; role: string } | null, body: Record<string, unknown>): Promise<GuardResult> =>
@@ -127,10 +88,7 @@ const runGuard = (user: { id: string; role: string } | null, body: Record<string
     let code: number | undefined;
     const res = {
       status(status: number) {
-        // `this.code = code` before the conversion: the property was never
-        // declared on the literal, so it was a new key on an inferred object
-        // and tsc had nothing to check. Held in a closure variable now, which
-        // is the same value and one the compiler can see.
+        // Held in a closure variable, not `this.code = code`: that property was never declared on the literal, so tsc had nothing to check.
         code = status;
         return res;
       },

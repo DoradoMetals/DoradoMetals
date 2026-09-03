@@ -1,12 +1,4 @@
-// shipping.pickups, and nothing else.
-//
-// A CARRIER collecting a parcel. NOT fulfillments.pickups, which is US
-// collecting from a customer - two different things that share a word, and the
-// backfill keeps them apart deliberately.
-//
-// The order, the user and the carrier are not columns here: this table hangs a
-// pickup off a SHIPMENT and the shipment knows the rest. compose.ts puts them
-// back.
+// shipping.pickups: a CARRIER collecting a parcel - not fulfillments.pickups (us collecting from the customer). Order/user/carrier aren't columns; compose.ts reconstructs them from the shipment.
 import query from "#shared/db/query.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
 import type { shipping } from "@dorado/contracts";
@@ -41,15 +33,8 @@ export async function getByShipments(
   return rows;
 }
 
-// FULL REPLACE, not a COALESCE patch: the service reads the existing row and
-// merges the document over it before calling this (see
-// domain/shipping/pickups/service.ts's update), so what arrives here is
-// already the whole intended row.
-//
-// requested_at widens the contract's `string | null` to admit a Date too:
-// callers pass a JS Date straight into a timestamptz column, which pg accepts
-// either way, and the type says so rather than pretending every caller
-// stringifies first.
+// FULL REPLACE, not a COALESCE patch - the service merges the whole row before calling this.
+// requested_at widens to admit a JS Date too; pg accepts either.
 export type PickupWrite = Omit<
   Pick<shipping.PickupsRow, "requested_at" | "status" | "confirmation_number" | "location">,
   "requested_at"

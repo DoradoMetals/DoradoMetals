@@ -1,19 +1,6 @@
-// The fulfillment endpoints, over real HTTP.
-//
-// get_for_order is the one worth aiming at: it is requireUser and takes an
-// order id from the query string. A fulfillment carries no user of its own - it
-// belongs to an order and the order belongs to somebody - so "is this yours" is
-// a question about the order, and that is exactly the shape that turned out to
-// be wrong in five other features.
-//
-// The ownership check here was written at the same time as the feature rather
-// than discovered later, so this file is confirming it holds over HTTP rather
-// than closing a hole. WITH A STRANGER, because the addresses replay tests
-// passed for weeks over a live hole by only ever sending the caller's own id.
-//
-// The admin routes are asserted to refuse a customer rather than exercised:
-// schedule_pickup and schedule_direct write bookings, and set_status moves an
-// order's fulfillment.
+// The fulfillment endpoints, over real HTTP. get_for_order is the one worth aiming at: requireUser alone plus an order id from the query string is exactly the shape that turned out wrong in five other features - a fulfillment has no user of its own, so "is this yours" is a question about the order.
+// The ownership check was written alongside the feature, so this confirms it holds over HTTP rather than closing a hole - tested WITH A STRANGER, since the addresses replay tests passed for weeks over a live hole by only ever sending the caller's own id.
+// Admin routes are asserted to refuse a customer rather than exercised: schedule_pickup/schedule_direct write bookings, set_status moves an order's fulfillment.
 import test, { after, before } from "node:test";
 import assert from "node:assert/strict";
 import request from "supertest";
@@ -27,9 +14,7 @@ const { default: app } = await import("#app");
 
 const FULFILLMENT_LOCK = [LOCKS.ORDERS, LOCKS.FULFILLMENTS];
 
-// THE STRUCTURAL SUBSET EACH FIXTURE ACTUALLY HAS. These are SELECT
-// projections, not table rows - naming a row type would claim columns the
-// query never asked for.
+// The structural subset each fixture actually has - SELECT projections, not table rows.
 type UserFixture = { id: string; name: string | null; email: string | null };
 type Caller = UserFixture & { role: string };
 type OrderFixture = { id: string; user_id: string };
@@ -128,8 +113,7 @@ test("the order's own customer and an admin can both read it", async () => {
         assert.equal(res.status, 200);
         assert.ok(res.body, `${who.role} was refused a fulfillment they may see`);
         assert.equal(res.body.order_id, order.id);
-        // The WIRE is the bare row (wave-2 final form): method_id, never the
-        // method object - the client maps it off GET /fulfillments/methods.
+        // The wire is the bare row: method_id, never the method object - the client maps it off GET /fulfillments/methods.
         assert.ok(res.body.method_id, "the row lost its method_id");
         assert.ok(!("method" in res.body), "the method object reached the wire");
       });
@@ -152,9 +136,7 @@ test("a customer cannot reach any of the admin fulfillment routes", async () => 
         ["post", "/api/fulfillments/set_status", { fulfillment_id: null, status: "COMPLETED" }],
         ["post", "/api/fulfillments/methods/update", { method: {} }],
       ];
-      // Declared as a tuple list. Inferred, the array's element type collapses
-      // to a union of string and the three body shapes, and `request(app)[verb]`
-      // then indexes SuperTest with something that is not one of its methods.
+      // Declared as a tuple list - inferred, the element type collapses to a union that `request(app)[verb]` can't index SuperTest with.
       for (const [verb, path, body] of calls as Array<
         ["get" | "post", string, Record<string, unknown>]
       >) {

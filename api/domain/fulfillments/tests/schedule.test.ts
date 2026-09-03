@@ -1,22 +1,7 @@
-// The fulfillment write routes, over real HTTP.
-//
-// Six more of the routes no test had ever driven - the list that has produced
-// four production defects. These are how an admin books a customer in: which
-// method an order is fulfilled by, its status, and the appointment itself.
-//
-// ALL PURE DATABASE WORK. Checked each service and repo function before driving
-// it - no email, no FedEx, no Stripe. fulfillments is also the one feature with
-// NO *_SOURCE switch, because it is capability exchange never recorded, so
-// there is no second implementation these could disagree with.
-//
-// THE PICKUP TEST HAS TO BUILD ITS OWN FIXTURE, and that is the point of it.
-// schedulePickup calls assertCategory(fulfillment_id, "PICKUP") first, and dev
-// holds no PICKUP fulfillment at all - 22 SHIPMENT and one DIRECT. So it sets
-// the method first through set_method and then books, which drives both routes
-// and proves the category guard is reached rather than skipped.
-//
-// NOTHING IS COMMITTED. shared/testing/pinned-pool.js holds every query in one
-// transaction that is rolled back.
+// The fulfillment write routes, over real HTTP - six routes no test had ever driven, from the list that has produced four production defects. These are how an admin books a customer in: which method fulfills an order, its status, and the appointment itself.
+// All pure database work - checked each service/repo function before driving it: no email, FedEx or Stripe. fulfillments has no exchange side and never will, so there's no second implementation these could disagree with.
+// The pickup test builds its own fixture, and that's the point: dev holds no PICKUP fulfillment at all, so it sets the method first through set_method and then books, proving the category guard is reached rather than skipped.
+// NOTHING IS COMMITTED - shared/testing/pinned-pool.ts holds every query in one rolled-back transaction.
 import test, { after, before } from "node:test";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
@@ -28,8 +13,7 @@ import { inPinnedTransaction, outside } from "#shared/testing/pinned-pool.ts";
 await mockSessions();
 const { default: app } = await import("#app");
 
-// THE STRUCTURAL SUBSET EACH FIXTURE ACTUALLY HAS. SELECT projections, not
-// table rows.
+// The structural subset each fixture actually has - SELECT projections, not table rows.
 type UserFixture = { id: string; name: string | null; email: string | null };
 type IdRow = { id: string };
 
@@ -45,14 +29,8 @@ before(async () => {
   )[0];
   assert.ok(admin, "dev has no admin user");
 
-  // EVERY SHIPMENT FULFILLMENT IN DEV HAS A SHIPMENT, which is what you would
-  // expect - one exists because the other does. That makes setMethod's "move
-  // off SHIPMENT" path unreachable from this data, so the move is tested on the
-  // DIRECT fulfillment and the SHIPMENT one is used for the guard instead.
-  //
-  // My first version asked for a SHIPMENT fulfillment with no shipment, found
-  // none, and every test in the file failed in `before` - which at least failed
-  // honestly rather than skipping.
+  // Every SHIPMENT fulfillment in dev has a shipment (one exists because the other does), so setMethod's "move off SHIPMENT" path is unreachable from a SHIPMENT fixture - tested on the DIRECT fulfillment instead, with the SHIPMENT one used for the guard.
+  // An earlier version asked for a SHIPMENT fulfillment with no shipment, found none, and every test in the file failed in `before` - which at least failed honestly rather than skipping.
   shipmentFulfilment = (
     await outside<IdRow>(
       `SELECT f.id FROM fulfillments.fulfillments f
@@ -248,14 +226,8 @@ test("schedule_pickup books once the fulfillment is moved onto a PICKUP method",
   });
 });
 
-// THE GUARD, WHICH IS THE MORE IMPORTANT HALF.
-//
-// Moving an order off SHIPMENT while a shipment exists would leave a live FedEx
-// label attached to a fulfillment that no longer claims to be a shipment. The
-// repo refuses, and until this commit it refused with a bare Error - so the
-// admin saw a generic 500 "Server error" and the explanation went to the log.
-// It now carries 409, which is what makes errorHandler pass the message
-// through. Asserted here because a repo test cannot see what the caller gets.
+// The guard, which is the more important half: moving an order off SHIPMENT while a shipment exists would leave a live FedEx label attached to a fulfillment that no longer claims to be one.
+// Until this fix it refused with a bare Error (a generic 500, explanation lost to the log) - it now carries 409, which is what makes errorHandler pass the message through. Asserted here because a repo test can't see what the caller gets.
 test("set_method refuses to move a fulfillment that already has a shipment, and says why", async () => {
   await inPinnedTransaction(async () => {
     await as({ ...admin, role: "admin" }, async () => {
