@@ -109,10 +109,6 @@ const columnsOf = async (table) => {
 // the queries is what makes a shape finding real; reading them CARELESSLY is
 // what makes a real one disappear.
 const ACCEPTED = {
-  idx_products_supplier_id:
-    "supplier_id is only ever joined FROM products.bullion TO refiners' primary " +
-    "key (repo.next.ts:116), never used to look a bullion row up. The index that " +
-    "serves that join is refiners.exchange_compat's PK, which exists.",
   purchase_orders_order_number_key:
     "nothing looks an order up by number alone - orders.orders merged purchase " +
     "and sales orders and is unique on (direction, number), which every caller " +

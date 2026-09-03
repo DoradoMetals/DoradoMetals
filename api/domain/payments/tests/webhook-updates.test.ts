@@ -40,8 +40,8 @@ async function seedSettledIntent(c: PoolClient, provider_ref: string) {
     c
   );
   await query(
-    `INSERT INTO payments.settlements (id, attempt_id, settled_amount, provider, provider_ref)
-     VALUES ($1, $1, 51.78, 'stripe', $2)`,
+    `INSERT INTO payments.settlements (id, attempt_id, settled_amount, provider, provider_ref, settled_at)
+     VALUES ($1, $1, 51.78, 'stripe', $2, now())`,
     [rows[0]!.id, provider_ref],
     c
   );

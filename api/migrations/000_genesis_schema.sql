@@ -660,7 +660,8 @@ CREATE TABLE IF NOT EXISTS payments.attempts (
   amount numeric,
   status text DEFAULT 'CREATED'::text NOT NULL,
   error_code text,
-  error_message text
+  error_message text,
+  created_at timestamp with time zone DEFAULT now() NOT NULL
 );
 ALTER TABLE payments.attempts ADD COLUMN IF NOT EXISTS id uuid DEFAULT gen_random_uuid();
 ALTER TABLE payments.attempts ADD COLUMN IF NOT EXISTS intent_id uuid;
@@ -671,6 +672,7 @@ ALTER TABLE payments.attempts ADD COLUMN IF NOT EXISTS amount numeric;
 ALTER TABLE payments.attempts ADD COLUMN IF NOT EXISTS status text DEFAULT 'CREATED'::text;
 ALTER TABLE payments.attempts ADD COLUMN IF NOT EXISTS error_code text;
 ALTER TABLE payments.attempts ADD COLUMN IF NOT EXISTS error_message text;
+ALTER TABLE payments.attempts ADD COLUMN IF NOT EXISTS created_at timestamp with time zone DEFAULT now();
 
 CREATE TABLE IF NOT EXISTS payments.details (
   id uuid DEFAULT gen_random_uuid() NOT NULL,
@@ -844,7 +846,8 @@ CREATE TABLE IF NOT EXISTS payments.settlements (
   settled_amount numeric NOT NULL,
   provider text,
   provider_ref text NOT NULL,
-  settled_at timestamp with time zone
+  settled_at timestamp with time zone,
+  created_at timestamp with time zone DEFAULT now() NOT NULL
 );
 ALTER TABLE payments.settlements ADD COLUMN IF NOT EXISTS id uuid DEFAULT gen_random_uuid();
 ALTER TABLE payments.settlements ADD COLUMN IF NOT EXISTS attempt_id uuid;
@@ -852,6 +855,7 @@ ALTER TABLE payments.settlements ADD COLUMN IF NOT EXISTS settled_amount numeric
 ALTER TABLE payments.settlements ADD COLUMN IF NOT EXISTS provider text;
 ALTER TABLE payments.settlements ADD COLUMN IF NOT EXISTS provider_ref text;
 ALTER TABLE payments.settlements ADD COLUMN IF NOT EXISTS settled_at timestamp with time zone;
+ALTER TABLE payments.settlements ADD COLUMN IF NOT EXISTS created_at timestamp with time zone DEFAULT now();
 
 CREATE TABLE IF NOT EXISTS payments.stripe_charges (
   payment_intent_id text NOT NULL,
@@ -1211,9 +1215,9 @@ CREATE TABLE IF NOT EXISTS shipping.packages (
   image_id uuid,
   created_by uuid,
   updated_by uuid,
-  length text,
-  width text,
-  height text,
+  length numeric,
+  width numeric,
+  height numeric,
   created_at timestamp with time zone DEFAULT now() NOT NULL,
   updated_at timestamp with time zone DEFAULT now() NOT NULL,
   label text DEFAULT ''::text NOT NULL,
@@ -1225,9 +1229,9 @@ ALTER TABLE shipping.packages ADD COLUMN IF NOT EXISTS carrier_id uuid;
 ALTER TABLE shipping.packages ADD COLUMN IF NOT EXISTS image_id uuid;
 ALTER TABLE shipping.packages ADD COLUMN IF NOT EXISTS created_by uuid;
 ALTER TABLE shipping.packages ADD COLUMN IF NOT EXISTS updated_by uuid;
-ALTER TABLE shipping.packages ADD COLUMN IF NOT EXISTS length text;
-ALTER TABLE shipping.packages ADD COLUMN IF NOT EXISTS width text;
-ALTER TABLE shipping.packages ADD COLUMN IF NOT EXISTS height text;
+ALTER TABLE shipping.packages ADD COLUMN IF NOT EXISTS length numeric;
+ALTER TABLE shipping.packages ADD COLUMN IF NOT EXISTS width numeric;
+ALTER TABLE shipping.packages ADD COLUMN IF NOT EXISTS height numeric;
 ALTER TABLE shipping.packages ADD COLUMN IF NOT EXISTS created_at timestamp with time zone DEFAULT now();
 ALTER TABLE shipping.packages ADD COLUMN IF NOT EXISTS updated_at timestamp with time zone DEFAULT now();
 ALTER TABLE shipping.packages ADD COLUMN IF NOT EXISTS label text DEFAULT ''::text;
@@ -1664,6 +1668,16 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint con
     JOIN pg_class c ON c.oid = con.conrelid
     JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'metals_name_key' AND c.relname = 'metals' AND n.nspname = 'metals'
+  ) THEN
+    ALTER TABLE metals.metals ADD CONSTRAINT metals_name_key UNIQUE (name);
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
     WHERE con.conname = 'metals_pkey' AND c.relname = 'metals' AND n.nspname = 'metals'
   ) THEN
     ALTER TABLE metals.metals ADD CONSTRAINT metals_pkey PRIMARY KEY (id);
@@ -2084,6 +2098,16 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint con
     JOIN pg_class c ON c.oid = con.conrelid
     JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'reviews_rating_range' AND c.relname = 'reviews' AND n.nspname = 'reviews'
+  ) THEN
+    ALTER TABLE reviews.reviews ADD CONSTRAINT reviews_rating_range CHECK (((rating >= (1)::numeric) AND (rating <= (5)::numeric)));
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
     WHERE con.conname = 'carriers_pkey' AND c.relname = 'carriers' AND n.nspname = 'shipping'
   ) THEN
     ALTER TABLE shipping.carriers ADD CONSTRAINT carriers_pkey PRIMARY KEY (id);
@@ -2436,7 +2460,7 @@ DO $$ BEGIN
     JOIN pg_namespace n ON n.oid = c.relnamespace
     WHERE con.conname = 'emails_user_id_fkey' AND c.relname = 'emails' AND n.nspname = 'media'
   ) THEN
-    ALTER TABLE media.emails ADD CONSTRAINT emails_user_id_fkey FOREIGN KEY (user_id) REFERENCES exchange.users(id);
+    ALTER TABLE media.emails ADD CONSTRAINT emails_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id);
   END IF;
 END $$;
 DO $$ BEGIN
@@ -2467,6 +2491,26 @@ DO $$ BEGIN
     WHERE con.conname = 'order_addresses_address_id_fkey' AND c.relname = 'addresses' AND n.nspname = 'orders'
   ) THEN
     ALTER TABLE orders.addresses ADD CONSTRAINT order_addresses_address_id_fkey FOREIGN KEY (address_id) REFERENCES places.addresses(id);
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'order_addresses_order_id_fkey' AND c.relname = 'addresses' AND n.nspname = 'orders'
+  ) THEN
+    ALTER TABLE orders.addresses ADD CONSTRAINT order_addresses_order_id_fkey FOREIGN KEY (order_id) REFERENCES orders.orders(id);
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'order_addresses_source_address_id_fkey' AND c.relname = 'addresses' AND n.nspname = 'orders'
+  ) THEN
+    ALTER TABLE orders.addresses ADD CONSTRAINT order_addresses_source_address_id_fkey FOREIGN KEY (source_address_id) REFERENCES places.addresses(id) DEFERRABLE INITIALLY DEFERRED;
   END IF;
 END $$;
 DO $$ BEGIN
@@ -2564,6 +2608,16 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint con
     JOIN pg_class c ON c.oid = con.conrelid
     JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'transactions_order_fk' AND c.relname = 'transactions' AND n.nspname = 'orders'
+  ) THEN
+    ALTER TABLE orders.transactions ADD CONSTRAINT transactions_order_fk FOREIGN KEY (order_id) REFERENCES orders.orders(id);
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
     WHERE con.conname = 'transactions_payout_details_fk' AND c.relname = 'transactions' AND n.nspname = 'orders'
   ) THEN
     ALTER TABLE orders.transactions ADD CONSTRAINT transactions_payout_details_fk FOREIGN KEY (payout_details_id) REFERENCES payments.details(id);
@@ -2587,6 +2641,16 @@ DO $$ BEGIN
     WHERE con.conname = 'organizations_created_by_id_fkey' AND c.relname = 'organizations' AND n.nspname = 'organizations'
   ) THEN
     ALTER TABLE organizations.organizations ADD CONSTRAINT organizations_created_by_id_fkey FOREIGN KEY (created_by_id) REFERENCES auth.users(id);
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'organizations_image_id_fkey' AND c.relname = 'organizations' AND n.nspname = 'organizations'
+  ) THEN
+    ALTER TABLE organizations.organizations ADD CONSTRAINT organizations_image_id_fkey FOREIGN KEY (image_id) REFERENCES media.images(id);
   END IF;
 END $$;
 DO $$ BEGIN
@@ -2656,7 +2720,7 @@ DO $$ BEGIN
     JOIN pg_namespace n ON n.oid = c.relnamespace
     WHERE con.conname = 'details_user_fk' AND c.relname = 'details' AND n.nspname = 'payments'
   ) THEN
-    ALTER TABLE payments.details ADD CONSTRAINT details_user_fk FOREIGN KEY (user_id) REFERENCES exchange.users(id);
+    ALTER TABLE payments.details ADD CONSTRAINT details_user_fk FOREIGN KEY (user_id) REFERENCES auth.users(id);
   END IF;
 END $$;
 DO $$ BEGIN
@@ -2714,9 +2778,29 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint con
     JOIN pg_class c ON c.oid = con.conrelid
     JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'intents_user_fk' AND c.relname = 'intents' AND n.nspname = 'payments'
+  ) THEN
+    ALTER TABLE payments.intents ADD CONSTRAINT intents_user_fk FOREIGN KEY (user_id) REFERENCES auth.users(id) NOT VALID;
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
     WHERE con.conname = 'ledger_order_id_fkey' AND c.relname = 'ledger' AND n.nspname = 'payments'
   ) THEN
     ALTER TABLE payments.ledger ADD CONSTRAINT ledger_order_id_fkey FOREIGN KEY (order_id) REFERENCES orders.orders(id) ON DELETE SET NULL;
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'ledger_user_id_fkey' AND c.relname = 'ledger' AND n.nspname = 'payments'
+  ) THEN
+    ALTER TABLE payments.ledger ADD CONSTRAINT ledger_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id);
   END IF;
 END $$;
 DO $$ BEGIN
@@ -2836,7 +2920,7 @@ DO $$ BEGIN
     JOIN pg_namespace n ON n.oid = c.relnamespace
     WHERE con.conname = 'bullion_metal_id_fkey' AND c.relname = 'bullion' AND n.nspname = 'products'
   ) THEN
-    ALTER TABLE products.bullion ADD CONSTRAINT bullion_metal_id_fkey FOREIGN KEY (metal_id) REFERENCES metals.metals(id) ON UPDATE CASCADE ON DELETE RESTRICT NOT VALID;
+    ALTER TABLE products.bullion ADD CONSTRAINT bullion_metal_id_fkey FOREIGN KEY (metal_id) REFERENCES metals.metals(id) ON UPDATE CASCADE ON DELETE RESTRICT;
   END IF;
 END $$;
 DO $$ BEGIN
@@ -2846,7 +2930,7 @@ DO $$ BEGIN
     JOIN pg_namespace n ON n.oid = c.relnamespace
     WHERE con.conname = 'bullion_mint_id_fkey' AND c.relname = 'bullion' AND n.nspname = 'products'
   ) THEN
-    ALTER TABLE products.bullion ADD CONSTRAINT bullion_mint_id_fkey FOREIGN KEY (mint_id) REFERENCES products.mints(id) ON UPDATE CASCADE ON DELETE RESTRICT NOT VALID;
+    ALTER TABLE products.bullion ADD CONSTRAINT bullion_mint_id_fkey FOREIGN KEY (mint_id) REFERENCES products.mints(id) ON UPDATE CASCADE ON DELETE RESTRICT;
   END IF;
 END $$;
 DO $$ BEGIN
@@ -2896,7 +2980,7 @@ DO $$ BEGIN
     JOIN pg_namespace n ON n.oid = c.relnamespace
     WHERE con.conname = 'migration_rates_metal_fk' AND c.relname = 'rates' AND n.nspname = 'rates'
   ) THEN
-    ALTER TABLE rates.rates ADD CONSTRAINT migration_rates_metal_fk FOREIGN KEY (metal_id) REFERENCES metals.metals(id) NOT VALID;
+    ALTER TABLE rates.rates ADD CONSTRAINT migration_rates_metal_fk FOREIGN KEY (metal_id) REFERENCES metals.metals(id);
   END IF;
 END $$;
 DO $$ BEGIN
@@ -3046,7 +3130,7 @@ DO $$ BEGIN
     JOIN pg_namespace n ON n.oid = c.relnamespace
     WHERE con.conname = 'migration_reviews_order_fk' AND c.relname = 'reviews' AND n.nspname = 'reviews'
   ) THEN
-    ALTER TABLE reviews.reviews ADD CONSTRAINT migration_reviews_order_fk FOREIGN KEY (order_id) REFERENCES orders.orders(id) NOT VALID;
+    ALTER TABLE reviews.reviews ADD CONSTRAINT migration_reviews_order_fk FOREIGN KEY (order_id) REFERENCES orders.orders(id);
   END IF;
 END $$;
 DO $$ BEGIN
@@ -3056,7 +3140,7 @@ DO $$ BEGIN
     JOIN pg_namespace n ON n.oid = c.relnamespace
     WHERE con.conname = 'migration_reviews_user_fk' AND c.relname = 'reviews' AND n.nspname = 'reviews'
   ) THEN
-    ALTER TABLE reviews.reviews ADD CONSTRAINT migration_reviews_user_fk FOREIGN KEY (user_id) REFERENCES auth.users(id) NOT VALID;
+    ALTER TABLE reviews.reviews ADD CONSTRAINT migration_reviews_user_fk FOREIGN KEY (user_id) REFERENCES auth.users(id);
   END IF;
 END $$;
 DO $$ BEGIN
@@ -3226,10 +3310,14 @@ CREATE INDEX IF NOT EXISTS idx_fulfillment_directs_fulfillment_id ON fulfillment
 CREATE INDEX IF NOT EXISTS idx_fulfillment_directs_location_id ON fulfillments.directs USING btree (location_id);
 CREATE UNIQUE INDEX IF NOT EXISTS fulfillments_order_uniq ON fulfillments.fulfillments USING btree (order_id);
 CREATE INDEX IF NOT EXISTS fulfillments_status_idx ON fulfillments.fulfillments USING btree (status);
+CREATE INDEX IF NOT EXISTS idx_fulfillments_fulfillments_created_by_id ON fulfillments.fulfillments USING btree (created_by_id);
 CREATE INDEX IF NOT EXISTS idx_fulfillments_fulfillments_method_id ON fulfillments.fulfillments USING btree (method_id);
+CREATE INDEX IF NOT EXISTS idx_fulfillments_fulfillments_updated_by_id ON fulfillments.fulfillments USING btree (updated_by_id);
 CREATE UNIQUE INDEX IF NOT EXISTS fulfillment_methods_direction_type_uniq ON fulfillments.methods USING btree (direction, type);
 CREATE INDEX IF NOT EXISTS fulfillment_methods_enabled_idx ON fulfillments.methods USING btree (enabled);
 CREATE UNIQUE INDEX IF NOT EXISTS fulfillment_methods_one_default_per_bucket_uniq ON fulfillments.methods USING btree (direction, category) WHERE (is_default = true);
+CREATE INDEX IF NOT EXISTS idx_fulfillments_methods_created_by_id ON fulfillments.methods USING btree (created_by_id);
+CREATE INDEX IF NOT EXISTS idx_fulfillments_methods_updated_by_id ON fulfillments.methods USING btree (updated_by_id);
 CREATE INDEX IF NOT EXISTS idx_fulfillment_pickups_assigned_to ON fulfillments.pickups USING btree (assigned_employee_id);
 CREATE INDEX IF NOT EXISTS idx_fulfillment_pickups_fulfillment_id ON fulfillments.pickups USING btree (fulfillment_id);
 CREATE INDEX IF NOT EXISTS idx_fulfillment_pickups_pickup_address_id ON fulfillments.pickups USING btree (pickup_address_id);
@@ -3238,11 +3326,14 @@ CREATE INDEX IF NOT EXISTS idx_fulfillment_shipments_fulfillment_id ON fulfillme
 CREATE INDEX IF NOT EXISTS idx_fulfillment_shipments_recipient_location_id ON fulfillments.shipments USING btree (recipient_location_id);
 CREATE INDEX IF NOT EXISTS idx_fulfillment_shipments_shipment_id ON fulfillments.shipments USING btree (shipment_id);
 CREATE INDEX IF NOT EXISTS idx_fulfillment_shipments_shipper_location_id ON fulfillments.shipments USING btree (shipper_location_id);
+CREATE INDEX IF NOT EXISTS idx_leads_leads_created_by_id ON leads.leads USING btree (created_by_id);
+CREATE INDEX IF NOT EXISTS idx_leads_leads_updated_by_id ON leads.leads USING btree (updated_by_id);
 CREATE INDEX IF NOT EXISTS migration_leads_email_idx ON leads.leads USING btree (lower(email));
 CREATE INDEX IF NOT EXISTS migration_leads_phone_idx ON leads.leads USING btree (phone);
 CREATE INDEX IF NOT EXISTS migration_leads_status_idx ON leads.leads USING btree (converted, contacted, responded);
 CREATE INDEX IF NOT EXISTS emails_order_idx ON media.emails USING btree (order_id, sent_at DESC);
 CREATE INDEX IF NOT EXISTS emails_user_idx ON media.emails USING btree (user_id, sent_at DESC);
+CREATE INDEX IF NOT EXISTS idx_media_emails_pdf_id ON media.emails USING btree (pdf_id);
 CREATE INDEX IF NOT EXISTS idx_images_user_created ON media.images USING btree (user_id, created_at);
 CREATE INDEX IF NOT EXISTS pdfs_order_kind_idx ON media.pdfs USING btree (order_id, kind, created_at DESC);
 CREATE UNIQUE INDEX IF NOT EXISTS addresses_one_per_order ON orders.addresses USING btree (order_id);
@@ -3252,13 +3343,20 @@ CREATE INDEX IF NOT EXISTS order_addresses_order_idx ON orders.addresses USING b
 CREATE INDEX IF NOT EXISTS idx_order_items_bullion_id ON orders.items USING btree (bullion_id);
 CREATE INDEX IF NOT EXISTS idx_order_items_metal_id ON orders.items USING btree (metal_id);
 CREATE INDEX IF NOT EXISTS idx_order_items_order_id ON orders.items USING btree (order_id);
+CREATE INDEX IF NOT EXISTS idx_orders_orders_created_by_id ON orders.orders USING btree (created_by_id);
+CREATE INDEX IF NOT EXISTS idx_orders_orders_updated_by_id ON orders.orders USING btree (updated_by_id);
 CREATE INDEX IF NOT EXISTS idx_orders_user_id ON orders.orders USING btree (user_id);
 CREATE INDEX IF NOT EXISTS idx_order_spots_metal ON orders.spots USING btree (metal_id);
 CREATE INDEX IF NOT EXISTS idx_order_spots_order ON orders.spots USING btree (order_id);
 CREATE UNIQUE INDEX IF NOT EXISTS order_spots_one_per_order_metal ON orders.spots USING btree (order_id, metal_id);
 CREATE INDEX IF NOT EXISTS idx_order_tx_order_id ON orders.transactions USING btree (order_id);
+CREATE INDEX IF NOT EXISTS idx_orders_transactions_created_by_id ON orders.transactions USING btree (created_by_id);
+CREATE INDEX IF NOT EXISTS idx_orders_transactions_updated_by_id ON orders.transactions USING btree (updated_by_id);
 CREATE UNIQUE INDEX IF NOT EXISTS transactions_one_per_order ON orders.transactions USING btree (order_id);
 CREATE INDEX IF NOT EXISTS transactions_payout_details_id_idx ON orders.transactions USING btree (payout_details_id);
+CREATE INDEX IF NOT EXISTS idx_organizations_organizations_created_by_id ON organizations.organizations USING btree (created_by_id);
+CREATE INDEX IF NOT EXISTS idx_organizations_organizations_image_id ON organizations.organizations USING btree (image_id);
+CREATE INDEX IF NOT EXISTS idx_organizations_organizations_updated_by_id ON organizations.organizations USING btree (updated_by_id);
 CREATE UNIQUE INDEX IF NOT EXISTS organizations_carrier_uniq ON organizations.organizations USING btree (type, name, email);
 CREATE UNIQUE INDEX IF NOT EXISTS organizations_refiner_email_unique ON organizations.organizations USING btree (email) WHERE ((type = 'REFINER'::text) AND (email IS NOT NULL));
 CREATE UNIQUE INDEX IF NOT EXISTS organizations_refiner_phone_unique ON organizations.organizations USING btree (phone) WHERE ((type = 'REFINER'::text) AND (phone IS NOT NULL));
@@ -3274,14 +3372,21 @@ CREATE INDEX IF NOT EXISTS details_method_idx ON payments.details USING btree (m
 CREATE UNIQUE INDEX IF NOT EXISTS details_provider_ref_key ON payments.details USING btree (provider, provider_ref) WHERE (provider_ref IS NOT NULL);
 CREATE INDEX IF NOT EXISTS details_user_idx ON payments.details USING btree (user_id);
 CREATE INDEX IF NOT EXISTS details_user_method_idx ON payments.details USING btree (user_id, method_id);
+CREATE INDEX IF NOT EXISTS idx_payments_details_created_by_id ON payments.details USING btree (created_by_id);
+CREATE INDEX IF NOT EXISTS idx_payments_details_updated_by_id ON payments.details USING btree (updated_by_id);
 CREATE INDEX IF NOT EXISTS idx_intents_session_user_type ON payments.intents USING btree (session_id, user_id, type);
+CREATE INDEX IF NOT EXISTS idx_payments_intents_created_by_id ON payments.intents USING btree (created_by_id);
 CREATE INDEX IF NOT EXISTS idx_payments_intents_details_id ON payments.intents USING btree (details_id);
+CREATE INDEX IF NOT EXISTS idx_payments_intents_updated_by_id ON payments.intents USING btree (updated_by_id);
+CREATE INDEX IF NOT EXISTS idx_payments_intents_user_id ON payments.intents USING btree (user_id);
 CREATE INDEX IF NOT EXISTS intents_method_idx ON payments.intents USING btree (method_id);
 CREATE INDEX IF NOT EXISTS intents_order_idx ON payments.intents USING btree (order_id);
 CREATE INDEX IF NOT EXISTS intents_status_idx ON payments.intents USING btree (status);
 CREATE INDEX IF NOT EXISTS idx_ledger_order_id ON payments.ledger USING btree (order_id);
 CREATE INDEX IF NOT EXISTS idx_ledger_user_id ON payments.ledger USING btree (user_id);
+CREATE INDEX IF NOT EXISTS idx_payments_methods_created_by_id ON payments.methods USING btree (created_by_id);
 CREATE INDEX IF NOT EXISTS idx_payments_methods_image_id ON payments.methods USING btree (image_id);
+CREATE INDEX IF NOT EXISTS idx_payments_methods_updated_by_id ON payments.methods USING btree (updated_by_id);
 CREATE UNIQUE INDEX IF NOT EXISTS methods_direction_type_uniq ON payments.methods USING btree (direction, type);
 CREATE INDEX IF NOT EXISTS methods_display_sort_idx ON payments.methods USING btree (display, enabled, sort_order);
 CREATE INDEX IF NOT EXISTS methods_provider_idx ON payments.methods USING btree (provider, provider_value);
@@ -3302,8 +3407,13 @@ CREATE INDEX IF NOT EXISTS user_addresses_user_idx ON places.user_addresses USIN
 CREATE INDEX IF NOT EXISTS idx_bullion_metal_id ON products.bullion USING btree (metal_id);
 CREATE INDEX IF NOT EXISTS idx_bullion_mint_id ON products.bullion USING btree (mint_id);
 CREATE INDEX IF NOT EXISTS idx_bullion_slug ON products.bullion USING btree (slug, display);
+CREATE INDEX IF NOT EXISTS idx_products_bullion_created_by_id ON products.bullion USING btree (created_by_id);
+CREATE INDEX IF NOT EXISTS idx_products_bullion_supplier_id ON products.bullion USING btree (supplier_id);
+CREATE INDEX IF NOT EXISTS idx_products_bullion_updated_by_id ON products.bullion USING btree (updated_by_id);
 CREATE INDEX IF NOT EXISTS idx_core_mints_image_id ON products.mints USING btree (image_id);
 CREATE UNIQUE INDEX IF NOT EXISTS mints_organization_uniq ON products.mints USING btree (organization_id);
+CREATE INDEX IF NOT EXISTS idx_rates_rates_created_by_id ON rates.rates USING btree (created_by_id);
+CREATE INDEX IF NOT EXISTS idx_rates_rates_updated_by_id ON rates.rates USING btree (updated_by_id);
 CREATE UNIQUE INDEX IF NOT EXISTS migration_rates_band_uniq ON rates.rates USING btree (metal_id, unit, min_qty, COALESCE(max_qty, ('-1'::integer)::numeric));
 CREATE INDEX IF NOT EXISTS idx_refiner_items_bullion_id ON refiners.items USING btree (bullion_id);
 CREATE INDEX IF NOT EXISTS idx_refiner_items_metal_id ON refiners.items USING btree (metal_id);
@@ -3319,6 +3429,8 @@ CREATE INDEX IF NOT EXISTS idx_refiner_spots_metal ON refiners.spots USING btree
 CREATE INDEX IF NOT EXISTS idx_refiner_spots_order ON refiners.spots USING btree (order_id);
 CREATE INDEX IF NOT EXISTS idx_refiner_spots_refiner ON refiners.spots USING btree (refiner_id);
 CREATE INDEX IF NOT EXISTS refiners_spots_refiner_order_id_idx ON refiners.spots USING btree (refiner_order_id);
+CREATE INDEX IF NOT EXISTS idx_reviews_reviews_created_by_id ON reviews.reviews USING btree (created_by_id);
+CREATE INDEX IF NOT EXISTS idx_reviews_reviews_updated_by_id ON reviews.reviews USING btree (updated_by_id);
 CREATE INDEX IF NOT EXISTS migration_reviews_hidden_idx ON reviews.reviews USING btree (hidden);
 CREATE INDEX IF NOT EXISTS migration_reviews_order_idx ON reviews.reviews USING btree (order_id);
 CREATE INDEX IF NOT EXISTS migration_reviews_user_idx ON reviews.reviews USING btree (user_id);
@@ -3329,6 +3441,8 @@ CREATE INDEX IF NOT EXISTS packages_carrier_idx ON shipping.packages USING btree
 CREATE INDEX IF NOT EXISTS idx_shipping_pickups_shipment_id ON shipping.pickups USING btree (shipment_id);
 CREATE INDEX IF NOT EXISTS carrier_services_active_idx ON shipping.services USING btree (carrier_id, is_active);
 CREATE INDEX IF NOT EXISTS carrier_services_carrier_idx ON shipping.services USING btree (carrier_id);
+CREATE INDEX IF NOT EXISTS idx_shipping_services_created_by_id ON shipping.services USING btree (created_by_id);
+CREATE INDEX IF NOT EXISTS idx_shipping_services_updated_by_id ON shipping.services USING btree (updated_by_id);
 CREATE UNIQUE INDEX IF NOT EXISTS services_agnostic_code_key ON shipping.services USING btree (code) WHERE (carrier_id IS NULL);
 CREATE UNIQUE INDEX IF NOT EXISTS services_carrier_code_key ON shipping.services USING btree (carrier_id, code);
 CREATE UNIQUE INDEX IF NOT EXISTS services_carrier_name_key ON shipping.services USING btree (carrier_id, name);
