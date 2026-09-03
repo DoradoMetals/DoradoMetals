@@ -1,0 +1,271 @@
+[
+    {
+        "scope": "https://apis-sandbox.fedex.com:443",
+        "method": "POST",
+        "path": "/oauth/token",
+        "body": "grant_type=client_credentials&client_id=SCRUBBED_CLIENT_ID&client_secret=SCRUBBED_CLIENT_SECRET",
+        "status": 200,
+        "response": {
+            "access_token": "SCRUBBED_ACCESS_TOKEN",
+            "token_type": "bearer",
+            "expires_in": 3599,
+            "scope": "CXS-TP"
+        },
+        "rawHeaders": {
+            "content-type": "application/json;charset=UTF-8"
+        }
+    },
+    {
+        "scope": "https://apis-sandbox.fedex.com:443",
+        "method": "POST",
+        "path": "/track/v1/trackingnumbers",
+        "body": {
+            "includeDetailedScans": true,
+            "trackingInfo": [
+                {
+                    "trackingNumberInfo": {
+                        "trackingNumber": "449044304137821"
+                    }
+                }
+            ]
+        },
+        "status": 200,
+        "response": {
+            "transactionId": "APIF_SV_TRKC_TxIDaa32210e-1e07-42ae-88cd-ca60ebf31361",
+            "customertransactionId": "APIF_SV_TRKC_TxIDcustomer test",
+            "output": {
+                "alerts": [
+                    {
+                        "code": "VIRTUAL.RESPONSE",
+                        "message": "This is a Virtual Response."
+                    }
+                ],
+                "completeTrackResults": [
+                    {
+                        "trackingNumber": "449044304137821",
+                        "trackResults": [
+                            {
+                                "trackingNumberInfo": {
+                                    "trackingNumber": "449044304137821",
+                                    "trackingNumberUniqueId": "12013~449044304137821~FDEG",
+                                    "carrierCode": "FDXG"
+                                },
+                                "additionalTrackingInfo": {
+                                    "nickname": "",
+                                    "packageIdentifiers": [
+                                        {
+                                            "type": "GROUND_SHIPMENT_ID",
+                                            "values": [
+                                                "DMWsGWdnN"
+                                            ],
+                                            "trackingNumberUniqueId": "",
+                                            "carrierCode": ""
+                                        },
+                                        {
+                                            "type": "CUSTOMER_REFERENCE",
+                                            "values": [
+                                                "115380173"
+                                            ],
+                                            "trackingNumberUniqueId": "",
+                                            "carrierCode": ""
+                                        }
+                                    ],
+                                    "hasAssociatedShipments": false
+                                },
+                                "shipperInformation": {
+                                    "address": {
+                                        "city": "JEFFERSONVILLE",
+                                        "stateOrProvinceCode": "IN",
+                                        "countryCode": "US",
+                                        "residential": false,
+                                        "countryName": "United States"
+                                    }
+                                },
+                                "recipientInformation": {
+                                    "address": {
+                                        "city": "Miami",
+                                        "stateOrProvinceCode": "FL",
+                                        "countryCode": "US",
+                                        "residential": false,
+                                        "countryName": "United States"
+                                    }
+                                },
+                                "latestStatusDetail": {
+                                    "code": "OC",
+                                    "derivedCode": "IN",
+                                    "statusByLocale": "Initiated",
+                                    "description": "Shipment information sent to FedEx",
+                                    "scanLocation": {
+                                        "city": "Miami",
+                                        "stateOrProvinceCode": "FL",
+                                        "countryCode": "US",
+                                        "residential": false,
+                                        "countryName": "United States"
+                                    },
+                                    "ancillaryDetails": [
+                                        {
+                                            "reason": "IN001",
+                                            "reasonDescription": "Please check back later for shipment status or subscribe for e-mail notifications",
+                                            "action": "",
+                                            "actionDescription": ""
+                                        }
+                                    ]
+                                },
+                                "dateAndTimes": [
+                                    {
+                                        "type": "ACTUAL_PICKUP",
+                                        "dateTime": "2016-08-01T00:00:00-06:00"
+                                    },
+                                    {
+                                        "type": "SHIP",
+                                        "dateTime": "2020-08-15T00:00:00-06:00"
+                                    }
+                                ],
+                                "availableImages": [],
+                                "packageDetails": {
+                                    "packagingDescription": {
+                                        "type": "YOUR_PACKAGING",
+                                        "description": "Package"
+                                    },
+                                    "physicalPackagingType": "PACKAGE",
+                                    "sequenceNumber": "1",
+                                    "count": "1",
+                                    "weightAndDimensions": {
+                                        "weight": [
+                                            {
+                                                "value": "3.0",
+                                                "unit": "LB"
+                                            },
+                                            {
+                                                "value": "1.36",
+                                                "unit": "KG"
+                                            }
+                                        ],
+                                        "dimensions": [
+                                            {
+                                                "length": 14,
+                                                "width": 11,
+                                                "height": 5,
+                                                "units": "IN"
+                                            },
+                                            {
+                                                "length": 35,
+                                                "width": 27,
+                                                "height": 12,
+                                                "units": "CM"
+                                            }
+                                        ]
+                                    },
+                                    "packageContent": []
+                                },
+                                "shipmentDetails": {
+                                    "possessionStatus": true
+                                },
+                                "scanEvents": [
+                                    {
+                                        "date": "2013-12-30T13:24:00-05:00",
+                                        "eventType": "OC",
+                                        "eventDescription": "Shipment information sent to FedEx",
+                                        "exceptionCode": "",
+                                        "exceptionDescription": "",
+                                        "scanLocation": {
+                                            "streetLines": [
+                                                ""
+                                            ],
+                                            "postalCode": "471307761",
+                                            "countryCode": "US",
+                                            "residential": false,
+                                            "countryName": "United States"
+                                        },
+                                        "locationType": "CUSTOMER",
+                                        "derivedStatusCode": "IN",
+                                        "derivedStatus": "Initiated"
+                                    }
+                                ],
+                                "availableNotifications": [
+                                    "ON_DELIVERY",
+                                    "ON_EXCEPTION",
+                                    "ON_ESTIMATED_DELIVERY"
+                                ],
+                                "deliveryDetails": {
+                                    "deliveryAttempts": "0",
+                                    "deliveryOptionEligibilityDetails": [
+                                        {
+                                            "option": "INDIRECT_SIGNATURE_RELEASE",
+                                            "eligibility": "INELIGIBLE"
+                                        },
+                                        {
+                                            "option": "REDIRECT_TO_HOLD_AT_LOCATION",
+                                            "eligibility": "INELIGIBLE"
+                                        },
+                                        {
+                                            "option": "REROUTE",
+                                            "eligibility": "INELIGIBLE"
+                                        },
+                                        {
+                                            "option": "RESCHEDULE",
+                                            "eligibility": "INELIGIBLE"
+                                        },
+                                        {
+                                            "option": "RETURN_TO_SHIPPER",
+                                            "eligibility": "INELIGIBLE"
+                                        },
+                                        {
+                                            "option": "DISPUTE_DELIVERY",
+                                            "eligibility": "INELIGIBLE"
+                                        },
+                                        {
+                                            "option": "SUPPLEMENT_ADDRESS",
+                                            "eligibility": "INELIGIBLE"
+                                        }
+                                    ],
+                                    "destinationServiceArea": "OC"
+                                },
+                                "originLocation": {
+                                    "locationContactAndAddress": {
+                                        "address": {
+                                            "city": "JEFFERSONVILLE",
+                                            "stateOrProvinceCode": "IN",
+                                            "countryCode": "US",
+                                            "residential": false,
+                                            "countryName": "United States"
+                                        }
+                                    }
+                                },
+                                "lastUpdatedDestinationAddress": {
+                                    "city": "Miami",
+                                    "stateOrProvinceCode": "FL",
+                                    "countryCode": "US",
+                                    "residential": false,
+                                    "countryName": "United States"
+                                },
+                                "serviceCommitMessage": {
+                                    "message": "The delivery date may be updated when FedEx receives the package.",
+                                    "type": "SHIPMENT_LABEL_CREATED"
+                                },
+                                "serviceDetail": {
+                                    "type": "GROUND_HOME_DELIVERY",
+                                    "description": "FedEx Home Delivery",
+                                    "shortDescription": "HD"
+                                },
+                                "standardTransitTimeWindow": {
+                                    "window": {
+                                        "ends": "2014-01-02T00:00:00-06:00"
+                                    }
+                                },
+                                "estimatedDeliveryTimeWindow": {
+                                    "window": {}
+                                },
+                                "goodsClassificationCode": "",
+                                "returnDetail": {}
+                            }
+                        ]
+                    }
+                ]
+            }
+        },
+        "rawHeaders": {
+            "content-type": "application/json"
+        }
+    }
+]

@@ -19,30 +19,40 @@
 // A 500 whose body points at features/payments is exactly what regressing this
 // looks like.
 //
-// THE LAST TEST IS SKIPPED (lane 4, docs/waves/test-suite-redesign.md 1.3 and
-// 2.4): "this suite does not call [Stripe]" used to be true only because
+// THE LAST TEST WAS SKIPPED (lane 4, docs/waves/test-suite-redesign.md 1.3
+// and 2.4): "this suite does not call [Stripe]" used to be true only because
 // nothing stopped it - STRIPE_SECRET_KEY is sk_test_, so the call reached
 // Stripe's real test-mode API and the test tolerated whatever came back.
-// `shared/testing/no-network.ts` (preloaded by the `test` script) now blocks
+// `shared/testing/no-network.ts` (preloaded by the `test` script) blocked
 // that outbound call with nock - which is the guard this file always needed -
-// but the Stripe SDK's own retry logic does not treat nock's synthetic
+// but the Stripe SDK's own retry logic did not treat nock's synthetic
 // NetConnectNotAllowedError as terminal, so the call that used to complete
-// (slowly, over the real network) now hangs past node:test's own per-test
-// timeout instead of failing fast. Confirmed in isolation: the other two
-// tests in this file pass in under 20ms each; this one only stops via the
-// timeout, never rejects on its own. Lane 5 ("replay") is where this gets a
-// real fix - a recorded cassette for `update_payment_intent`'s success shape,
-// so the assertion below runs against a response instead of a live socket.
+// (slowly, over the real network) hung past the per-test timeout instead of
+// failing fast.
+//
+// LANE 5 REPLACES THE HANG WITH A CASSETTE, and turns this into a real
+// success-path assertion instead of a "did not crash" one. `items: []`
+// prices to $0, which is below Stripe's minimum (D199 - no floor), so
+// `updatePaymentIntent` falls into `createPaymentIntent`'s cold-start branch:
+// open (or reuse) a Stripe customer, then create a $10.00 placeholder intent.
+// Forcing the fixture user's `stripeCustomerId` closed BEFORE the request
+// means the only Stripe call this request makes is that createIntent -
+// `stripe/create-payment-intent.json`, the same cassette
+// providers/payment/tests/stripe-cassettes.test.ts records for the identical
+// call shape (amount 1000, metadata.type "customer").
 //
 // NOTHING IS COMMITTED: shared/testing/pinned-pool.js holds every query in one
 // transaction that is rolled back.
 import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import request from "supertest";
+import type { PoolClient } from "pg";
 import pool from "#db";
+import query from "#shared/db/query.ts";
 import { mockSessions, restoreSessions, as } from "#shared/testing/session.ts";
 import { inPinnedTransaction, outside } from "#shared/testing/pinned-pool.ts";
 import { LOCKS } from "#shared/testing/locks.ts";
+import { withCassette } from "#shared/testing/cassettes.ts";
 import * as addressService from "#domain/places/addresses/service.ts";
 
 await mockSessions();
@@ -104,35 +114,46 @@ test("an unknown address id resolves to nothing rather than throwing", async () 
   assert.equal(address, undefined, "an unknown id should resolve to undefined");
 });
 
-// SKIPPED: reaches Stripe for real (sk_test_, no DI seam) and
-// shared/testing/no-network.ts now blocks that - the Stripe SDK's retry logic
-// does not resolve against nock's refusal, so this hangs past the per-test
-// timeout instead of failing. Lane 5 replaces it with a cassette; see this
-// file's header.
-test.skip("update_payment_intent no longer dies before it reaches Stripe", async () => {
-  await inPinnedTransaction(async () => {
+// UN-SKIPPED (lane 5). The success path this file's header describes: a real
+// response, played back from a cassette, instead of only checking the route
+// did not fall over.
+test("update_payment_intent succeeds against a recorded Stripe response", async () => {
+  await inPinnedTransaction(async (c: PoolClient) => {
     const customerId = customer.id;
-    await as(Object.assign({}, customer, { role: "user" }), async () => {
-      const res = await request(app)
-        .post("/api/stripe/update_payment_intent")
-        .send({
-          items: [],
-          type: "customer",
-          address_id: addressId,
-        });
+    // Closes createPaymentIntent's "open a Stripe customer" branch before the
+    // request, so the ONLY Stripe call this request makes is the createIntent
+    // the cassette answers. The value itself is arbitrary - the cassette
+    // normalises the `customer` field to a fixed placeholder on both the
+    // recorded and the live side (shared/testing/cassettes.ts), so nothing
+    // here needs to match anything Stripe actually issued.
+    await query(
+      `UPDATE auth.users SET "stripeCustomerId" = $1 WHERE id = $2`,
+      ["cus_cassette_update_intent", customerId],
+      c
+    );
 
-      // Not asserting 200: the success path ends at Stripe and this suite does
-      // not call it. What must never come back is the route falling over inside
-      // domain/payments before any of that.
-      const where = res.body?.error?.where ?? "";
-      assert.ok(
-        !where.includes("domain/payments/service"),
-        `update_payment_intent failed inside the service itself: ${where}`
-      );
-      assert.ok(
-        !JSON.stringify(res.body ?? "").includes("is not a function"),
-        "the handler called something that does not exist"
-      );
-    });
+    await withCassette("stripe/create-payment-intent.json", () =>
+      as(Object.assign({}, customer, { role: "user" }), async () => {
+        const res = await request(app)
+          .post("/api/stripe/update_payment_intent")
+          .send({
+            items: [],
+            type: "customer",
+            address_id: addressId,
+          });
+
+        assert.equal(
+          res.status, 200,
+          `expected 200, got ${res.status}: ${JSON.stringify(res.body)}`
+        );
+        // The controller responds with just the client_secret (see
+        // transport/payments/controller.ts) - the browser's authority to
+        // confirm the intent it just opened.
+        assert.ok(
+          typeof res.body === "string" && res.body.startsWith("pi_"),
+          `no client_secret came back: ${JSON.stringify(res.body)}`
+        );
+      })
+    );
   }, { lock: LOCKS.ADDRESSES });
 });
