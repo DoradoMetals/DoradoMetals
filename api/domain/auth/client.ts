@@ -19,7 +19,6 @@ export const auth = betterAuth({
     connectionString: process.env.DATABASE_URL,
   }),
   user: {
-    // better-auth writes auth.users; exchange.users stays fresh via migration 107's trigger — identity flows one way, dorado_funds the other, neither side clobbers the other's columns.
     modelName: 'auth.users',
     additionalFields: {
       role: { type: 'string', required: false, defaultValue: 'user', input: false },

@@ -11,7 +11,8 @@ export default function ChangeEmail() {
   
     const searchParams = useSearchParams();
     const token = searchParams.get("token");
-  
+
+    // Step one of two: this token is the OLD address approving the change. better-auth then mails the NEW address its own verification link, and only that link changes the email (api/domain/auth/client.ts, changeEmail).
     useEffect(() => {
       if (token) {
         verifyEmailMutation.mutate(token, {
@@ -25,8 +26,8 @@ export default function ChangeEmail() {
 
   return (
     <div className="flex flex-col items-center justify-center">
-      {verifyEmailMutation.isPending && <p>Changing your email...</p>}
-      {verifyEmailMutation.isSuccess && <p>Email changed! Redirecting...</p>}
+      {verifyEmailMutation.isPending && <p>Approving your email change...</p>}
+      {verifyEmailMutation.isSuccess && <p>Change approved. Check your new inbox for a verification link to finish. Redirecting...</p>}
       {verifyEmailMutation.isError && (
         <div>
           <p className="text-destructive">Invalid or expired email change link.</p>
