@@ -16,6 +16,7 @@ export const AttemptsRow = z.object({
   "status": z.string(),
   "error_code": z.string().nullable(),
   "error_message": z.string().nullable(),
+  "created_at": z.string(),
 });
 export type AttemptsRow = z.infer<typeof AttemptsRow>;
 
@@ -118,7 +119,8 @@ export const SettlementsRow = z.object({
   "settled_amount": z.number(),
   "provider": z.string().nullable(),
   "provider_ref": z.string(),
-  "settled_at": z.string().nullable(),
+  "settled_at": z.string(),
+  "created_at": z.string(),
 });
 export type SettlementsRow = z.infer<typeof SettlementsRow>;
 

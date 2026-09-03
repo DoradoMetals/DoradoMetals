@@ -77,8 +77,8 @@ async function seedIntent(
   );
   if ((over.settledCents ?? 0) > 0) {
     await query(
-      `INSERT INTO payments.settlements (id, attempt_id, settled_amount, provider, provider_ref)
-       VALUES ($1, $1, $2, 'stripe', $3)`,
+      `INSERT INTO payments.settlements (id, attempt_id, settled_amount, provider, provider_ref, settled_at)
+       VALUES ($1, $1, $2, 'stripe', $3, now())`,
       [rows[0]!.id, (over.settledCents as number) / 100, provider_ref], c
     );
   }

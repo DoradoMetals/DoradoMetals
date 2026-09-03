@@ -197,13 +197,6 @@ const ACCEPTED_FK = {
     "session, which is a customer failing to check out. The FK becomes correct " +
     "when the auth cutover makes auth.sessions the real table; it is not one " +
     "yet.",
-  account_transactions_user_id_fkey:
-    "Same shape, on the credit ledger: exchange.users -> auth.users is a " +
-    "TRIGGER mirror (migration 056) and it is incomplete - 1 of 12 dev " +
-    "exchange.users rows has no auth.users counterpart, because the trigger only " +
-    "fires on write and predates that row. An FK on payments.ledger.user_id " +
-    "would raise 23503 on a credit adjustment for that customer, and a refused " +
-    "credit write is money the ledger never records. 0 orphans today.",
 };
 
 const describe = async (table) => {
