@@ -215,17 +215,18 @@ test("an update does not reassign created_by", async () => {
   });
 });
 
-test("delete removes the row from both schemas", async () => {
+test("delete removes the row", async () => {
   await inRollback(async (c: PoolClient) => {
     const made = await service.createService(await draft(c), c);
     assert.ok(made, "the service returned nothing");
     await service.removeService(made.id, c);
 
+    // The exchange.carrier_services check that used to sit here
+    // (exchange-fixtures lane, D214 item 10, removed) was vacuous: made.id
+    // is a freshly minted shipping.services id nothing ever writes to
+    // exchange, so it could never have found a row there - and this already
+    // proves the live table lost it.
     assert.equal(await service.getServiceById(made.id, c), null);
-    const { rows } = await c.query(
-      "SELECT 1 FROM exchange.carrier_services WHERE id = $1", [made.id]
-    );
-    assert.equal(rows.length, 0, "the service is still in exchange after a delete");
   });
 });
 
@@ -266,9 +267,11 @@ test("a write made with a client is invisible on the pool", async () => {
 // this proves is the reachable case: an id nothing names changes nothing.
 test("an update naming an id nothing has changes nothing", async () => {
   await inRollback(async (c: PoolClient) => {
-    const { rows: before } = await c.query("SELECT count(*)::int n FROM exchange.carrier_services");
+    // shipping.services, not exchange.carrier_services (exchange-fixtures
+    // lane, D214 item 10) - the table this service actually writes.
+    const { rows: before } = await c.query("SELECT count(*)::int n FROM shipping.services");
     assert.equal(await service.updateService({ id: randomUUID(), name: "nobody" }, c), null);
-    const { rows: after } = await c.query("SELECT count(*)::int n FROM exchange.carrier_services");
+    const { rows: after } = await c.query("SELECT count(*)::int n FROM shipping.services");
     assert.equal(after[0].n, before[0].n);
   });
 });

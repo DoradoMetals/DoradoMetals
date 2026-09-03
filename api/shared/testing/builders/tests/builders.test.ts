@@ -38,6 +38,11 @@ test("a built user is a real person on both sides of the identity mirror", async
 
     // Migration 107's identity mirror, narrowed by 118 - the row exists on the
     // exchange side too, which is what every feature still JOINing it needs.
+    // KEPT (exchange-fixtures lane, D214 item 10): this asserts on the
+    // MIRRORED CONSEQUENCE of aUser's own write, proving the auth->exchange
+    // trigger fires - not a fixture read of pre-existing frozen data, and a
+    // builder cannot make this row any other way (aUser IS the write being
+    // mirrored).
     const { rows: mirrored } = await c.query(
       `SELECT email, name FROM exchange.users WHERE id = $1`, [user.id]
     );
