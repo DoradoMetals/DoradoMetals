@@ -12,7 +12,6 @@ import { salesOrderCheckoutSchema } from '@/features/orders/salesOrders/types'
 import { ShoppingCartIcon } from '@phosphor-icons/react'
 import { useGetSession } from '@/features/auth/queries'
 import { useMutationState } from '@tanstack/react-query'
-import { useSpotPrices } from '@/features/spots/queries'
 import { useAddress } from '@/features/addresses/queries'
 import { useSalesOrderQuote } from '@/features/quotes/queries'
 import { useRetrievePaymentIntent, useUpdatePaymentIntent } from '@/features/stripe/queries'
@@ -35,7 +34,6 @@ export default function SalesOrderCheckout() {
   const { data, setData } = useSalesOrderCheckoutStore()
   const cartItems = cartStore((state) => state.items)
 
-  const { data: spotPrices = [] } = useSpotPrices()
   const { data: addresses = [], isPending: isAddressesPending } = useAddress()
 
   const createOrder = useCreateSalesOrder()
@@ -54,16 +52,16 @@ export default function SalesOrderCheckout() {
   // Items and choices only - the server prices from its own spots, the session
   // user's funds, and the address's state. Until the first quote lands,
   // orderPrices is undefined and the summary renders zeros; nothing here
-  // computes a fallback.
+  // computes a fallback. `using_funds` is not sent (D214 item 11): credit
+  // applies whenever the customer has a balance, same as placement.
   const quoteBody = useMemo(
     () => ({
       items: cartItems.map((item) => ({ id: item.id, quantity: item.quantity ?? 1 })),
-      using_funds: data.using_funds ?? true,
       shipping_service: data.service?.value ?? null,
       payment_method: data.payment_method ?? 'CARD',
       address_id: data.address?.id ?? null,
     }),
-    [cartItems, data.using_funds, data.service?.value, data.payment_method, data.address?.id]
+    [cartItems, data.service?.value, data.payment_method, data.address?.id]
   )
 
   const { data: orderPrices } = useSalesOrderQuote(quoteBody)
@@ -76,13 +74,13 @@ export default function SalesOrderCheckout() {
     }
   }, [data.payment_method])
 
+  // No `spots`, `using_funds` or `user`: the server prices at its own live
+  // feed, applies credit whenever the customer has a balance, and this is
+  // the customer's own intent - keyed by their session, not a body field.
   useEffect(() => {
     if (clientSecret && (orderPrices?.base_total ?? 0) > 0 && cardNeeded) {
       updatePaymentIntent.mutate({
         items: cartItems,
-        using_funds: data?.using_funds ?? true,
-        spots: spotPrices,
-        user: user!,
         shipping_service: data.service?.value ?? 'STANDARD',
         payment_method: data.payment_method ?? 'CARD',
         type: 'sales_order_checkout',
@@ -91,12 +89,10 @@ export default function SalesOrderCheckout() {
     }
   }, [
     cartItems,
-    data.using_funds,
-    spotPrices,
     clientSecret,
     orderPrices?.base_total,
     data.payment_method,
-    user,
+    data.service?.value,
     cardNeeded,
   ])
 

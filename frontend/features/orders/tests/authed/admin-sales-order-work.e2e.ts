@@ -69,33 +69,11 @@ test.beforeAll(async ({ playwright }) => {
     `could not extract an intent id from ${JSON.stringify(intentBody).slice(0, 200)}`
   ).toBeTruthy();
 
-  // The admin update names the customer as a full `user` object - the pricing
-  // reads dorado_funds off it - so the row comes from the admin users list.
-  const usersRes = await admin.get(`${API}/users/get_all_users`);
-  expect(usersRes.ok(), `get_all_users failed: ${usersRes.status()}`).toBeTruthy();
-  const customerRow = (await usersRes.json()).find(
-    (u: { id?: string }) => u?.id === customerId
-  );
-  expect(customerRow, "the e2e customer is not in the admin users list").toBeTruthy();
-
-  const update = await admin.post(`${API}/stripe/update_payment_intent`, {
-    data: {
-      type: "admin",
-      user: customerRow,
-      address_id: seedAddress.id,
-      items: [{ id: product.id, quantity: 1 }],
-      using_funds: false,
-      shipping_service: "Standard",
-    },
-  });
-  expect(update.ok(), `update_payment_intent failed: ${await update.text()}`).toBeTruthy();
-  // The intent this priming call answers is the one `place()` finds on its
-  // own (intentsRepo.findOpenForUser) - the create body below never names it.
-  void paymentIntentId;
-
   // ANY offered service/method will do - the checkout row just needs valid
   // ids, the same "any live X" choice seed-e2e-order.mjs makes on the
-  // purchase side.
+  // purchase side. Fetched before the priming call below: the intent body is
+  // ids now (carrier_service_id / payment_method_id), not the code/type
+  // strings the checkout row resolves the same rows from.
   const services = await admin.get(`${API}/carrier_services/sale_options`);
   expect(services.ok(), `sale_options failed: ${await services.text()}`).toBeTruthy();
   const service = (await services.json())[0];
@@ -106,6 +84,25 @@ test.beforeAll(async ({ playwright }) => {
   const methodRows = await methods.json();
   const method = methodRows.find((m: { type?: string }) => m?.type === "CARD") ?? methodRows[0];
   expect(method?.id, "no sale payment method to put on the checkout").toBeTruthy();
+
+  // THE PRICING UPDATE IS IDS NOW (D214 item 11): no `user` object (the
+  // customer is named by `user_id`, admin only), no `using_funds` or
+  // `spots`, and the service/method are the ROW IDS above, not
+  // `shipping_service`/`payment_method` code/type strings.
+  const update = await admin.post(`${API}/stripe/update_payment_intent`, {
+    data: {
+      type: "admin",
+      user_id: customerId,
+      address_id: seedAddress.id,
+      items: [{ id: product.id, quantity: 1 }],
+      carrier_service_id: service.id,
+      payment_method_id: method.id,
+    },
+  });
+  expect(update.ok(), `update_payment_intent failed: ${await update.text()}`).toBeTruthy();
+  // The intent this priming call answers is the one `place()` finds on its
+  // own (intentsRepo.findOpenForUser) - the create body below never names it.
+  void paymentIntentId;
 
   // THE ADMIN-SCOPED ACCESSOR (D214 item 2): user_id is admin-only, checked
   // the same way createOrderFromCheckout already checks admin ownership.

@@ -2,8 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { apiRequest } from '@/shared/queries/axios'
 import { useGetSession } from '@/features/auth/queries'
 import { invalidateOrderReads } from '@/features/orders/invalidation'
-import { PayoutDetails } from '@/features/payouts/types'
-import type { Payout, PayoutPatch } from '@dorado/contracts'
+import type { Payout, PayoutDetails, PayoutPatch } from '@dorado/contracts'
 
 // THE ORDER'S PAYOUTS AS THEIR OWN READ (wave 3):
 // GET /orders/:orderId/payouts, LAST FOUR ONLY - ruling 12's single deviation
@@ -71,6 +70,15 @@ export const usePatchPayout = () => {
 //
 // PAYOUT-KEYED: GET /payouts/:id/details, the payout's own id off the order
 // wire (order.payout.id). Admin-only server-side.
+//
+// THE RESPONSE IS THE CONTRACT'S NOW (D214): the payout row plus the two
+// sealed values opened onto it (payments.details' AES-256-GCM envelopes),
+// not the verbatim exchange.payouts row this used to hand-type. A hand type
+// that only named nine of the row's fields kept compiling against either
+// shape - it is the contract's PayoutDetails now, so a field this reads that
+// the server stops sending is a type error, not a silent undefined.
+export type { PayoutDetails } from '@dorado/contracts'
+
 export const usePayoutDetails = (payout_id: string | null | undefined, enabled: boolean) => {
   return useQuery<PayoutDetails>({
     queryKey: ['payout_details', payout_id],

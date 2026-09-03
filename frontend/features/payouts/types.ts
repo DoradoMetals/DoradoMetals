@@ -9,8 +9,9 @@ import {
 } from '@phosphor-icons/react'
 
 // The payout as it arrives on an order. Full routing and account numbers are
-// deliberately absent - see PayoutDetails at the bottom of this file for the
-// admin-only endpoint that returns them one order at a time.
+// deliberately absent - see @dorado/contracts' PayoutDetails, re-exported
+// from features/payouts/queries.ts, for the admin-only endpoint that returns
+// them one order at a time.
 export interface Payout {
   id: string
   user_id: string
@@ -130,16 +131,7 @@ export const accountTypeOptions = [
   },
 ]
 
-// Returned only by GET /payouts/:id/details (admin only). Order payloads
-// carry account_last4 / routing_last4 instead.
-export type PayoutDetails = {
-  id: string
-  order_id: string
-  method: string
-  account_holder_name: string | null
-  bank_name: string | null
-  account_type: string | null
-  routing_number: string | null
-  account_number: string | null
-  email_to: string | null
-}
+// PayoutDetails - returned only by GET /payouts/:id/details (admin only) -
+// moved to @dorado/contracts (D214): it is the payout row plus the two
+// sealed values opened onto it now, not a hand-picked nine fields. Import it
+// from there; features/payouts/queries.ts re-exports it.

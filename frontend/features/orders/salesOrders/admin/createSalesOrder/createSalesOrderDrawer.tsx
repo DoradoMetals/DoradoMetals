@@ -70,9 +70,10 @@ export function CreateSalesOrderDrawer() {
   // order_metals rides the body as spot_prices - never this preview.
   // user_id names the TARGET customer, honored because this caller is an
   // admin: funds price against that customer's row, not the admin's own.
+  // No using_funds (D214 item 11): credit applies whenever the customer has
+  // a balance, same as placement.
   const { data: orderPrices } = useSalesOrderQuote({
     items: (data.items ?? []).map((i) => ({ id: i.id, quantity: i.quantity ?? 1 })),
-    using_funds: data.using_funds ?? true,
     shipping_service: data.service?.value ?? null,
     payment_method: data.payment_method ?? null,
     address_id: data.address?.id ?? null,
@@ -614,26 +615,26 @@ function PaymentSelect({ orderPrices, user }: { orderPrices?: SalesOrderQuote; u
     isPending ||
     (cardNeeded && (!clientSecret || !stripePromise))
 
+  // No `spots` or `using_funds`: the server prices at its own live feed and
+  // applies credit whenever the customer has a balance. `user_id` names the
+  // TARGET customer - ADMIN ONLY, and this is the one caller that sends it.
   useEffect(() => {
     if (clientSecret && (orderPrices?.post_charges_amount ?? 0) > 0 && cardNeeded && !itemsMissing) {
       updatePaymentIntent.mutate({
         items: data?.items ?? [],
-        using_funds: data?.using_funds ?? true,
-        spots: data.order_metals ?? [],
-        user: user!,
         shipping_service: data.service?.value ?? 'STANDARD',
         payment_method: data.payment_method ?? 'CARD',
         type: 'admin',
         address_id: data?.address?.id ?? '',
+        user_id: user.id!,
       })
     }
   }, [
     data?.items,
-    data.using_funds,
-    data.order_metals,
     clientSecret,
     orderPrices?.post_charges_amount,
     data.payment_method,
+    data.service?.value,
     user,
     cardNeeded,
     itemsMissing,
