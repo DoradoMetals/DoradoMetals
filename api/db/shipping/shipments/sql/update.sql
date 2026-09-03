@@ -16,7 +16,7 @@ UPDATE shipping.shipments
        package_id = $9,
        carrier_service_id = $10,
        cost = $11,
-       insured = $12,
+       insured = COALESCE($12, false),
        declared_value = $13,
        direction = $14::shipping.direction
  WHERE id = $15

@@ -48,6 +48,16 @@ export async function schedule(
   input: { fulfillment_id: string } & PickupInput, executor?: Executor
 ): Promise<ComposedFulfillment | null> {
   await fulfillmentService.assertCategory(input.fulfillment_id, "PICKUP", executor);
-  await pickups.upsert(randomUUID(), input.fulfillment_id, input, executor);
+  await pickups.upsert(
+    {
+      id: randomUUID(),
+      fulfillment_id: input.fulfillment_id,
+      pickup_address_id: input.pickup_address_id,
+      assigned_employee_id: input.assigned_employee_id,
+      start_time: input.start_time,
+      end_time: input.end_time,
+    },
+    executor
+  );
   return await fulfillmentService.getById(input.fulfillment_id, executor);
 }

@@ -72,27 +72,30 @@ export async function mirrorLinesForOrder(
   );
 }
 
-// The assay report - the refinery's own weights for a line, written when the
-// report arrives. See sql/set_assay.sql; content arrives computed.
-export async function setAssay(
-  order_item_id: string,
-  a: {
-    pre_melt: number | null; post_melt: number | null;
-    purity: number | null; content: number | null;
-  },
-  executor?: Executor
-): Promise<{ id: string; order_item_id: string } | undefined> {
-  const { rows } = await query<{ id: string; order_item_id: string }>(
-    sql("set_assay"), [a.pre_melt, a.post_melt, a.purity, a.content, order_item_id], executor
-  );
-  return rows[0];
-}
+// ONE UPDATE (D212's CRUD ruling): replaces setAssay and setPremium, which
+// were the same UPDATE on the same table under two names. Keyed on
+// order_item_id, the line's own id and the only key every caller holds - this
+// table's own `id` never leaves it.
+//
+// content is COMPUTED BY THE CALLER (domain/orders/service.ts's
+// updateScrapItem), never derived here - same rule set_assay.sql always had.
+//
+// KNOWN LIMIT, same as rates.ts's max_qty: COALESCE($n, col) cannot tell
+// "leave this column alone" from "clear it to null" - every column here is
+// nullable, and a caller wanting a genuine clear cannot get one from this
+// statement today. Nothing calls for that yet: the assay quad is written as a
+// unit whenever it changes, and premium's own clear is unexercised.
+export type ItemPatch = Partial<
+  Pick<RefinerItemRow, "pre_melt" | "post_melt" | "purity" | "content" | "premium">
+>;
 
-export async function setPremium(
-  order_item_id: string, premium: number | null, executor?: Executor
-): Promise<{ id: string; order_item_id: string; premium: number | null } | undefined> {
-  const { rows } = await query<{ id: string; order_item_id: string; premium: number | null }>(
-    sql("set_premium"), [premium, order_item_id], executor
+export async function update(
+  order_item_id: string, patch: ItemPatch, executor?: Executor
+): Promise<boolean> {
+  const { rowCount } = await query(
+    sql("update"),
+    [patch.pre_melt, patch.post_melt, patch.purity, patch.content, patch.premium, order_item_id],
+    executor
   );
-  return rows[0];
+  return rowCount === 1;
 }

@@ -3,9 +3,19 @@
 // What the REFINER quoted for an order, as against what the customer was
 // quoted. Same shape as orders.spots deliberately, so the two can be read and
 // composed the same way - the difference is whose price it is.
+//
+// create takes THE ROW (CRUD-batch-3); its shape is Pick<refiners.SpotsRow, ...>
+// - the generated contract row is the type's home, the same way ItemPatch in
+// refiners/items/repo.ts derives from refiners.ItemsRow.
+//
+// update REPLACES setBid, and is keyed on (order_id, metal_id) rather than
+// this table's own `id` - every caller of the old function held that pair,
+// never the row's id, so that stays the real key. `bid` is the only writable
+// column any caller has ever needed; ask is set only at create.
 import query from "#shared/db/query.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
 import type { Executor } from "#shared/db/executor.ts";
+import type { refiners } from "@dorado/contracts";
 
 const sql = sqlFrom(import.meta.dirname);
 
@@ -74,12 +84,13 @@ export async function getNamed(
 // NOT idempotent, and see sql/create.sql for why: this table has no unique
 // constraint on (order_id, metal_id) where orders.spots does, so there is no
 // conflict target to name.
-export async function create(
-  id: string, order_id: string, metal_id: string, refiner_id: string | null,
-  ask: number | null, bid: number | null, executor?: Executor
-): Promise<RefinerSpotRow | undefined> {
+export type SpotNew = Pick<
+  refiners.SpotsRow, "id" | "order_id" | "metal_id" | "refiner_id" | "ask" | "bid"
+>;
+
+export async function create(row: SpotNew, executor?: Executor): Promise<RefinerSpotRow | undefined> {
   const { rows } = await query<RefinerSpotRow>(
-    sql("create"), [id, order_id, metal_id, refiner_id, ask, bid], executor
+    sql("create"), [row.id, row.order_id, row.metal_id, row.refiner_id, row.ask, row.bid], executor
   );
   return rows[0];
 }
@@ -136,11 +147,17 @@ export async function coverFromOrderSpots(
   );
 }
 
-// ONE FUNCTION FOR TWO EXCHANGE ONES - updateRefinerMetals and
-// updateRefinerSpot were the same UPDATE.
-export async function setBid(
-  order_id: string, metal_id: string, bid: number | null, executor?: Executor
-): Promise<RefinerSpotRow | undefined> {
-  const { rows } = await query<RefinerSpotRow>(sql("set_bid"), [bid, order_id, metal_id], executor);
-  return rows[0];
+// ONE UPDATE (D212's CRUD ruling, replacing setBid, itself already one
+// function for two exchange ones - updateRefinerMetals and updateRefinerSpot
+// were the same statement). Keyed on (order_id, metal_id): every caller holds
+// that pair, never this table's own id.
+export type SpotPatch = Partial<Pick<refiners.SpotsRow, "bid">>;
+
+export async function update(
+  order_id: string, metal_id: string, patch: SpotPatch, executor?: Executor
+): Promise<boolean> {
+  const { rowCount } = await query(
+    sql("update"), [patch.bid, order_id, metal_id], executor
+  );
+  return rowCount === 1;
 }

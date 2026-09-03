@@ -13,17 +13,10 @@
 // while both serve.
 import query from "#shared/db/query.ts";
 import type { Executor } from "#shared/db/executor.ts";
+import type { refiners } from "@dorado/contracts";
 
-export type RefinerOrderRow = {
-  id: string;
-  order_id: string;
-  refiner_id: string | null;
-  pool_oz_deducted: number | null;
-  pool_remediation: number | null;
-  fee: number | null;
-  created_at: Date | null;
-  updated_at: Date | null;
-};
+// The verbatim table row (ruling 12) - the generated contract is its home.
+export type RefinerOrderRow = refiners.OrdersRow;
 
 // ONE ENGAGEMENT PER ORDER, EVERY ORDER - 093's invariant, maintained by the
 // create paths. Idempotent: an order that already has one keeps it untouched
@@ -74,28 +67,38 @@ export async function findById(
   return rows[0];
 }
 
-// One column, named from a fixed list rather than interpolated from input -
-// the caller picks a key, never the request.
-const ENGAGEMENT_COLUMNS = {
-  pool_oz_deducted: "pool_oz_deducted",
-  pool_remediation: "pool_remediation",
-  fee: "fee",
-  refiner_id: "refiner_id",
-} as const;
+// ONE UPDATE (D212's CRUD ruling), replacing setEngagementValue's per-column
+// dispatch through a fixed column map.
+//
+// refiner_id IS NOT A COALESCE COLUMN, and that is deliberate rather than an
+// oversight: every engagement starts with it null (ensureForOrder inserts
+// `(order_id)` alone), and detaching an engagement from a refinery - setting
+// it back to null - is a real operation the wire contract (RefinerOrderPatch)
+// names on purpose. COALESCE($n, col) cannot write a null, so refiner_id is
+// carried with its own "was this field even named" flag instead: `refiner_id`
+// present in the patch (checked with `in`, so an explicit null counts) means
+// write it, value included; absent means leave it alone. The other three
+// columns keep the plain COALESCE shape - their exchange shadows are typed
+// `number` and nothing ever clears them to null (see RefinerOrderPatch's own
+// header for why).
+export type OrderPatch = Partial<Pick<RefinerOrderRow, "pool_oz_deducted" | "pool_remediation" | "fee">> & {
+  refiner_id?: string | null;
+};
 
-type EngagementColumn = keyof typeof ENGAGEMENT_COLUMNS;
-
-export async function setEngagementValue(
-  id: string,
-  column: EngagementColumn,
-  value: number | string | null,
-  executor?: Executor
-): Promise<void> {
-  const col = ENGAGEMENT_COLUMNS[column];
-  if (!col) throw new Error(`no such engagement column: ${String(column)}`);
-  await query(
-    `UPDATE refiners.orders SET ${col} = $1, updated_at = now() WHERE id = $2`,
-    [value, id],
+export async function update(
+  id: string, patch: OrderPatch, executor?: Executor
+): Promise<boolean> {
+  const hasRefinerId = "refiner_id" in patch;
+  const { rowCount } = await query(
+    `UPDATE refiners.orders
+        SET pool_oz_deducted = COALESCE($1, pool_oz_deducted),
+            pool_remediation = COALESCE($2, pool_remediation),
+            fee = COALESCE($3, fee),
+            refiner_id = CASE WHEN $4 THEN $5 ELSE refiner_id END,
+            updated_at = now()
+      WHERE id = $6`,
+    [patch.pool_oz_deducted, patch.pool_remediation, patch.fee, hasRefinerId, patch.refiner_id, id],
     executor
   );
+  return rowCount === 1;
 }

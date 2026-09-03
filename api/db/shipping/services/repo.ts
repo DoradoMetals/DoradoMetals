@@ -31,17 +31,18 @@ export type ServiceRow = Omit<
   max_weight_lbs: shipping.ServicesRow["max_weight_lb"];
 };
 
-// The values every write supplies, in the order both sql/create.sql and
-// sql/legacy/create.sql take them. ONE array feeds both statements, which is
-// the whole reason the two column lists are kept in the same order despite
-// three of the names differing.
-export type ServiceValues = [
-  string | null, string | null, string | null, string | null, string | null,
-  boolean, boolean, boolean, boolean, boolean, boolean, boolean,
-  number | null, number | null, number | null, number | null, number | null,
-  number | null, number | null, number | null,
-  string, string,
-];
+// Every column a create or an update supplies, BY NAME (CRUD-batch-3): the
+// service builds this object once and repo.ts spells its fields onto each
+// statement's parameter list in exactly one place - no more one hand-built
+// positional array feeding both statements by shared accident of column order.
+export type ServiceWrite = Pick<
+  shipping.ServicesRow,
+  | "carrier_id" | "name" | "description" | "code" | "provider_code"
+  | "supports_pickups" | "supports_dropoffs" | "supports_returns" | "supports_insurance"
+  | "is_international" | "is_residential" | "is_active"
+  | "max_weight_lb" | "max_length_in" | "max_width_in" | "max_height_in"
+  | "max_declared_value" | "min_transit_days" | "max_transit_days" | "display_order"
+>;
 
 export async function getAll(executor?: Executor): Promise<ServiceRow[]> {
   const { rows } = await query<ServiceRow>(sql("get_all"), [], executor);
@@ -73,34 +74,49 @@ export async function getByCarrier(
   return rows;
 }
 
-export async function create(
-  id: string, values: ServiceValues, executor?: Executor
-): Promise<ServiceRow> {
-  const { rows } = await query<ServiceRow>(sql("create"), [id, ...values], executor);
+export type ServiceNew = ServiceWrite & Pick<shipping.ServicesRow, "id" | "created_by" | "updated_by">;
+
+export async function create(row: ServiceNew, executor?: Executor): Promise<ServiceRow> {
+  const { rows } = await query<ServiceRow>(
+    sql("create"),
+    [
+      row.id, row.carrier_id, row.name, row.description, row.code, row.provider_code,
+      row.supports_pickups, row.supports_dropoffs, row.supports_returns, row.supports_insurance,
+      row.is_international, row.is_residential, row.is_active,
+      row.max_weight_lb, row.max_length_in, row.max_width_in, row.max_height_in,
+      row.max_declared_value, row.min_transit_days, row.max_transit_days, row.display_order,
+      row.created_by, row.updated_by,
+    ],
+    executor
+  );
   return rows[0];
 }
 
-// The update takes the same values in the same order with TWO differences:
-// created_by is not reassigned (an edit does not change who created the row),
-// and the id moves to the end. Spelled out rather than sliced, because a
-// silently misaligned parameter array is the one error the generator cannot
-// catch and tests/unit.test.ts asserts this ordering against the SQL.
-export function updateParams(id: string, values: ServiceValues): unknown[] {
-  const [, ...rest] = [...values].reverse();      // drop updated_by
-  const withoutBoth = rest.slice(1).reverse();    // and created_by
-  return [...withoutBoth, values[values.length - 1], id];
-}
+// created_by is NOT part of the patch - an edit does not change who created
+// the row, which is why the UPDATE statement never assigns it.
+export type ServicePatch = ServiceWrite & Pick<shipping.ServicesRow, "updated_by">;
 
 export async function update(
-  id: string, values: ServiceValues, executor?: Executor
-): Promise<ServiceRow | undefined> {
-  const { rows } = await query<ServiceRow>(sql("update"), updateParams(id, values), executor);
-  return rows[0];
+  id: string, patch: ServicePatch, executor?: Executor
+): Promise<boolean> {
+  const { rowCount } = await query(
+    sql("update"),
+    [
+      patch.carrier_id, patch.name, patch.description, patch.code, patch.provider_code,
+      patch.supports_pickups, patch.supports_dropoffs, patch.supports_returns, patch.supports_insurance,
+      patch.is_international, patch.is_residential, patch.is_active,
+      patch.max_weight_lb, patch.max_length_in, patch.max_width_in, patch.max_height_in,
+      patch.max_declared_value, patch.min_transit_days, patch.max_transit_days, patch.display_order,
+      patch.updated_by, id,
+    ],
+    executor
+  );
+  return rowCount === 1;
 }
 
-export async function remove(id: string, executor?: Executor): Promise<number> {
-  const r = await query(sql("delete"), [id], executor);
-  return r.rowCount ?? 0;
+export async function remove(id: string, executor?: Executor): Promise<boolean> {
+  const { rowCount } = await query(sql("delete"), [id], executor);
+  return rowCount === 1;
 }
 
 // THE SALE DELIVERY OPTIONS (D208): the business's carrier-agnostic priced

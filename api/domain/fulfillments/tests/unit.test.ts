@@ -25,7 +25,7 @@ const strip = (text: string): string =>
   text.split("\n").filter((l) => !l.trim().startsWith("--")).join("\n");
 
 test("every statement loads and is not empty", () => {
-  for (const n of ["get_one", "get_by_order", "get_many", "create", "set_status", "set_method"]) {
+  for (const n of ["get_one", "get_by_order", "get_many", "create", "update"]) {
     assert.ok(sql(n).trim().length > 0, `${n} is empty`);
   }
   for (const n of ["get_available", "get_all", "get_one", "get_default", "update"]) {
@@ -45,7 +45,7 @@ test("every statement loads and is not empty", () => {
 // looks like an optimisation.
 test("no statement joins a second table", () => {
   const all: [string, string][] = [
-    ...["get_one", "get_by_order", "get_many", "create", "set_status", "set_method"]
+    ...["get_one", "get_by_order", "get_many", "create", "update"]
       .map((n) => [`fulfillments/${n}`, sql(n)] as [string, string]),
     ...["get_available", "get_all", "get_one", "get_default", "update"]
       .map((n) => [`methods/${n}`, methodsSql(n)] as [string, string]),
@@ -58,7 +58,10 @@ test("no statement joins a second table", () => {
       .map((n) => [`shipments/${n}`, linksSql(n)] as [string, string]),
   ];
 
-  assert.ok(all.length >= 26, `only ${all.length} statements found - the walk broke`);
+  // 25, not 26: CRUD-batch-3 collapsed set_status.sql and set_method.sql (the
+  // same UPDATE under two names) into one update.sql, one fewer statement by
+  // design rather than a broken walk.
+  assert.ok(all.length >= 25, `only ${all.length} statements found - the walk broke`);
   for (const [name, text] of all) {
     assert.doesNotMatch(strip(text), /\bJOIN\b/i, `${name} joins a second table`);
   }

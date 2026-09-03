@@ -21,14 +21,8 @@
 import * as purchaseOrderService from "#domain/orders/service.ts";
 import * as orderItemsRepo from "#db/orders/items/repo.ts";
 import * as refinerItemsRepo from "#db/refiners/items/repo.ts";
-import { refusedUnknownField, refusedValue, type Refusal } from "#shared/http/patch-body.ts";
-import { RefinerItemPatch } from "@dorado/contracts";
-
-const refuse = (statusCode: number, message: string): never => {
-  const err: Error & { statusCode?: number } = new Error(message);
-  err.statusCode = statusCode;
-  throw err;
-};
+import { refuseWith } from "#shared/http/refuse.ts";
+import type { RefinerItemPatch } from "@dorado/contracts";
 
 // GET /api/orders/:orderId/refiners/items - THE REFINERY'S NUMBERS PER LINE,
 // verbatim refiners.items rows, keyed by the customer order.
@@ -58,32 +52,25 @@ export async function forOrder(
 // open. The refusal names the field so nothing is silently recomputed over.
 export type { RefinerItemPatch } from "@dorado/contracts";
 
-const FIELDS = Object.keys(RefinerItemPatch.shape);
-
-export function refusedField(body: Record<string, unknown>): Refusal | null {
-  const unknown = refusedUnknownField(body, FIELDS, "a refiner item PATCH", (field) =>
-    field === "content"
-      ? `"content" is derived from post_melt and purity, not written`
-      : null
-  );
-  if (unknown) return unknown;
-  if (Object.keys(body ?? {}).length === 0) {
-    return { statusCode: 400, message: "the document names no field to write" };
-  }
-  return refusedValue(RefinerItemPatch, body ?? {});
-}
-
+// SHAPE VALIDATION HAPPENS ONCE, AT THE TRANSPORT BOUNDARY
+// (transport/refiners/items/controller.ts strict-parses the body against this
+// same RefinerItemPatch before this function ever runs - `content` naming its
+// own refusal message lived there in the schema check; it is now a 400 that
+// zod raises for an unknown key, same status, same field named). What is left
+// here is a RULE, not a shape: a patch document must name at least one field,
+// which no zod schema of all-optional fields can express on its own.
 export async function patchRefinerItem(
   orderItemId: string,
-  body: RefinerItemPatch & Record<string, unknown>
+  body: RefinerItemPatch
 ): Promise<{ success: true }> {
-  const refusal = refusedField(body);
-  if (refusal) refuse(refusal.statusCode, refusal.message);
+  if (Object.keys(body).length === 0) {
+    refuseWith(400, "the document names no field to write");
+  }
 
   // The refinery's premium for the line - refiners.items.premium, with
   // exchange.purchase_order_items.refiner_premium as its shadow.
   if (body.premium !== undefined) {
-    await refinerItemsRepo.setPremium(orderItemId, body.premium);
+    await refinerItemsRepo.update(orderItemId, { premium: body.premium });
   }
 
   // The assay report - what the refinery says came back once the metal was
@@ -97,7 +84,7 @@ export async function patchRefinerItem(
   ) {
     const [line] = await orderItemsRepo.getByIds([orderItemId]);
     if (!line || line.bullion_id !== null) {
-      refuse(404, `order item ${orderItemId} has no scrap line to report assay values on`);
+      refuseWith(404, `order item ${orderItemId} has no scrap line to report assay values on`);
     }
     const current = line!;
     const refiner = (await refinerItemsRepo.byOrderItem([orderItemId])).get(orderItemId);

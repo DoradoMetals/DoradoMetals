@@ -75,8 +75,7 @@ export async function getDefault(
 // COALESCEs each one, so a partial update - which is what every admin toggle
 // sends - leaves the rest alone. `null` is therefore not usable as a value
 // here, and no column this writes is nullable in a way that would want it.
-export type MethodInput = {
-  id: string;
+export type MethodPatch = {
   label?: string;
   admin_label?: string;
   enabled?: boolean;
@@ -86,13 +85,12 @@ export type MethodInput = {
 
 // No create and no remove - see the header of sql/update.sql.
 export async function update(
-  m: MethodInput, executor?: Executor
-): Promise<MethodRow | undefined> {
-  const { rows } = await query<MethodRow>(
+  id: string, patch: MethodPatch, executor?: Executor
+): Promise<boolean> {
+  const { rowCount } = await query(
     sql("update"),
-    [m.id, m.label ?? null, m.admin_label ?? null,
-     m.enabled ?? null, m.hidden ?? null, m.updated_by_id ?? null],
+    [id, patch.label, patch.admin_label, patch.enabled, patch.hidden, patch.updated_by_id],
     executor
   );
-  return rows[0];
+  return rowCount === 1;
 }

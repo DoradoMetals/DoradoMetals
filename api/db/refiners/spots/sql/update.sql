@@ -11,4 +11,3 @@ UPDATE refiners.spots
    SET bid = $1, updated_at = now()
  WHERE order_id = $2
    AND metal_id = $3
-RETURNING id, order_id, metal_id, ask, bid

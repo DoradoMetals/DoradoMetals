@@ -197,7 +197,8 @@ export async function create(
 
     const shipment_id = await shipmentFor(input.order_id, c);
     if (shipment_id) {
-      await pickups.create(id, shipment_id, {
+      await pickups.create({
+        id, shipment_id,
         requested_at,
         status: input.pickup_status ?? "scheduled",
         confirmation_number:
@@ -240,9 +241,9 @@ export async function recordForShipment(
   executor?: Executor
 ): Promise<PickupBaseRow> {
   return await pickups.create(
-    randomUUID(),
-    shipment_id,
     {
+      id: randomUUID(),
+      shipment_id,
       requested_at: `${date} ${time || "00:00:00"}`,
       status: "scheduled",
       confirmation_number:

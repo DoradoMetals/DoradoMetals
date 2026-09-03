@@ -1,16 +1,23 @@
 // The parts of carrier services that need no database: the statements as text.
 //
-// This feature has the largest hand-written parameter array in the project -
-// twenty-three values, feeding two statements whose column lists differ in
-// three places. repo.ts builds ONE array and both statements consume it, so the
-// two column orders have to stay identical or a boolean lands in the wrong
-// boolean and nothing complains.
+// This feature used to have the largest hand-written parameter array in the
+// project - twenty-three values, feeding two statements whose column lists
+// differed in three places, with `updateParams` slicing the shared array
+// apart by position. CRUD-batch-3 replaced it: repo.ts's create and update
+// each take a named ServiceWrite-shaped object (service.ts's toRow builds it)
+// and spell their own columns, so the positional-array tests below - the ones
+// that asserted `toValues`/`updateParams` agreed with the SQL on LENGTH and
+// ORDER - no longer have a subject. DELETED: "the values array is the length
+// both statements expect" and "updateParams drops created_by and keeps
+// updated_by" (both exercised functions that are gone; the behaviour they
+// protected - created_by never reassigned by an edit - is still covered by
+// "the UPDATE never reassigns created_by" below and by
+// tests/service.test.ts's "an update does not reassign created_by", which
+// goes through Postgres).
 import test from "node:test";
 import assert from "node:assert/strict";
 import path from "node:path";
 import { sqlFrom } from "#shared/db/sql.ts";
-import { toValues } from "#domain/shipping/services/service.ts";
-import { updateParams } from "#db/shipping/services/repo.ts";
 
 // The statements live in db/shipping/services/sql (Phase 0c moved repo + sql
 // there; this test stayed in domain/ because it also exercises service.ts),
@@ -61,34 +68,6 @@ test("the INSERT takes the 23 values repo.ts builds, renames included", () => {
 test("the UPDATE never reassigns created_by", () => {
   const next = updateColumns("update").filter((c) => c !== "updated_at");
   assert.ok(!next.includes("created_by"), "the update reassigns created_by");
-});
-
-// The bridge between the array and the statements. toValues produces the
-// INSERT's values after the id; updateParams reorders them for the UPDATE.
-// Asserting the LENGTHS against the SQL is what catches a column added to one
-// statement and not to the array.
-test("the values array is the length both statements expect", () => {
-  const values = toValues({});
-  assert.equal(values.length, insertColumns("create").length - 1,
-    "toValues and sql/create.sql disagree about how many values there are");
-
-  const params = updateParams("an-id", values);
-  const highest = Math.max(
-    ...[...body("update").matchAll(/\$(\d+)/g)].map(([, n]) => Number(n))
-  );
-  assert.equal(params.length, highest,
-    "updateParams and sql/update.sql disagree about how many parameters there are");
-  assert.equal(params[params.length - 1], "an-id", "the id is not the last parameter");
-});
-
-// created_by is dropped by updateParams and updated_by is kept. Getting this
-// backwards would rewrite who created every row on every edit, which is the
-// kind of thing nobody looks at until they need it.
-test("updateParams drops created_by and keeps updated_by", () => {
-  const values = toValues({ created_by: "the creator", updated_by: "the editor" });
-  const params = updateParams("an-id", values);
-  assert.ok(!params.includes("the creator"), "created_by survived into the update");
-  assert.ok(params.includes("the editor"), "updated_by was dropped from the update");
 });
 
 // created_by_id and updated_by_id exist only in the new schema. Projecting one

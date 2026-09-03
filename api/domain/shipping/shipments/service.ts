@@ -20,7 +20,7 @@ import * as fulfillmentShipments from "#domain/fulfillments/shipments/service.ts
 import * as orders from "#db/orders/repo.ts";
 import * as compose from "#domain/shipping/shipments/compose.ts";
 import type { ComposedShipment, Lookups, OrderLink } from "#domain/shipping/shipments/compose.ts";
-import type { ShipmentBaseRow, ShipmentValues } from "#db/shipping/shipments/repo.ts";
+import type { ShipmentBaseRow, ShipmentRecord } from "#db/shipping/shipments/repo.ts";
 import type { Executor } from "#shared/db/executor.ts";
 
 interface HttpError extends Error {
@@ -264,7 +264,7 @@ export async function create(
 
   const run = async (c: Executor): Promise<ComposedShipment | null> => {
     const id = randomUUID();
-    await shipments.create(id, shipmentDirection, c);
+    await shipments.create({ id, direction: shipmentDirection }, c);
 
     if (order_id && (await orders.exists(order_id, c))) {
       const fulfillment = await fulfillmentService.chooseDefault(
@@ -335,24 +335,24 @@ export async function update(
       }
     }
 
-    const values: ShipmentValues = [
-      input.tracking_number ?? null,
-      input.shipping_status ?? null,
-      input.estimated_delivery ?? null,
-      input.shipped_at ?? null,
-      input.delivered_at ?? null,
-      input.shipping_label ?? null,
-      input.label_type ?? null,
-      input.pickup_type ?? null,
+    const row: ShipmentRecord = {
+      tracking_number: input.tracking_number,
+      shipping_status: input.shipping_status,
+      est_delivery: input.estimated_delivery,
+      shipped_at: input.shipped_at,
+      delivered_at: input.delivered_at,
+      label: input.shipping_label,
+      label_type: input.label_type,
+      pickup_type: input.pickup_type,
       package_id,
       carrier_service_id,
-      input.net_charge ?? null,
-      input.insured === true,
-      input.declared_value ?? null,
-      input.type ?? null,
-    ];
+      cost: input.net_charge,
+      insured: input.insured === true,
+      declared_value: input.declared_value,
+      direction: input.type,
+    };
 
-    const written = await shipments.update(id, values, c);
+    const written = await shipments.update(id, row, c);
     if (!written) return null;
 
     // DELIVERED IS WHAT COMPLETES A FULFILLMENT, and losing that would leave an
