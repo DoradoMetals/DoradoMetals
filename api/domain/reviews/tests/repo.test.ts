@@ -4,6 +4,7 @@ import { test } from "vitest";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { inPinnedTransaction } from "#shared/testing/pinned-pool.ts";
+import { TEST_ACTOR } from "#shared/testing/actor.ts";
 import * as reviews from "#db/reviews/repo.ts";
 
 test("update returns false for an id nothing names", async () => {
@@ -14,7 +15,7 @@ test("update returns false for an id nothing names", async () => {
       client
     );
     assert.equal(changed, false, "an update against a missing id reported a change");
-  });
+  }, { actor: TEST_ACTOR.id });
 });
 
 test("update returns true for a real id, and the row actually changed", async () => {
@@ -28,5 +29,5 @@ test("update returns true for a real id, and the row actually changed", async ()
 
     const row = await reviews.getOne(created.id, client);
     assert.equal(row?.review_text, "touched by repo.test.ts");
-  });
+  }, { actor: TEST_ACTOR.id });
 });

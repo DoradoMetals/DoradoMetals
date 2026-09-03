@@ -5,6 +5,8 @@ import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
 import { randomUUID } from "node:crypto";
 import pool from "#db";
+import { inRollback } from "#shared/testing/rollback.ts";
+import { aUser, anOrder, carrierId } from "#shared/testing/builders/index.ts";
 import * as dual from "#domain/shipping/shipments/service.ts";
 
 let client: PoolClient;
@@ -22,37 +24,19 @@ afterAll(async () => {
   await pool.end();
 });
 
-async function inRollback(fn: (c: PoolClient) => Promise<void>) {
-  await client.query("BEGIN");
-  try {
-    await fn(client);
-  } finally {
-    await client.query("ROLLBACK");
-  }
-}
-
 // An order with no shipment yet, so creating one is a clean case.
 // USED TO SEARCH FOR ONE, returning null (and every test returning early) when dev had none shipment-less - all seven passed asserting nothing. Builds one instead, inside the rolled-back transaction, so it can't silently stop finding what it needs.
+// THE CUSTOMER IS BUILT AND THE EXCHANGE HALF IS GONE (lane 1). This read a
+// real person out of the frozen exchange.users table and then INSERTED into
+// exchange.purchase_orders as well as orders.orders - a write to a frozen
+// table, dating from the dual era, which nothing in the service has needed
+// since D212. The order is one builder call now.
 const anOrderWithoutShipment = async (c: PoolClient) => {
-  const { rows: [user] } = await c.query("SELECT id FROM exchange.users ORDER BY id LIMIT 1");
-  const id = randomUUID();
-
-  await c.query(
-    `INSERT INTO exchange.purchase_orders (id, user_id, purchase_order_status)
-     VALUES ($1, $2, 'Pending')`,
-    [id, user.id]
-  );
-  await c.query(
-    `INSERT INTO orders.orders (id, user_id, direction, status, number)
-     VALUES ($1, $2, 'purchase', 'Pending',
-             nextval('orders.purchase_number_seq'))`,
-    [id, user.id]
-  );
-  return id;
+  const order = await anOrder(c, await aUser(c), { direction: "purchase" });
+  return order.id;
 };
 
-const carrier = async (c: PoolClient) =>
-  (await c.query("SELECT id FROM exchange.carriers WHERE name = 'FedEx' LIMIT 1")).rows[0].id;
+const carrier = (c: PoolClient) => carrierId(c, "FedEx");
 
 const inbound = async (c: PoolClient, orderId: string) =>
   dual.create({ purchase_order_id: orderId, carrier_id: await carrier(c), type: "Inbound" }, c);
@@ -171,10 +155,8 @@ test("deleting a shipment removes it and its link from both schemas", async () =
 
     await dual.remove(created.id, c);
 
-    const ex = await c.query("SELECT 1 FROM exchange.shipments WHERE id = $1", [created.id]);
     const nx = await c.query("SELECT 1 FROM shipping.shipments WHERE id = $1", [created.id]);
     const link = await c.query("SELECT 1 FROM fulfillments.shipments WHERE shipment_id = $1", [created.id]);
-    assert.equal(ex.rows.length, 0);
     assert.equal(nx.rows.length, 0, "the shipment survived in the shipping schema");
     assert.equal(link.rows.length, 0, "the fulfillment link survived");
   });
@@ -182,7 +164,12 @@ test("deleting a shipment removes it and its link from both schemas", async () =
 
 // The fixture must be built INSIDE the transaction - this test needs a SECOND connection to prove the write is invisible, and building the order there would commit it.
 // This leaked five purchase orders into dev before it was caught: the order is built on `client` inside BEGIN; only observations happen on `other`.
-test("rolling back a dual write undoes both sides", async () => {
+//
+// "BOTH SIDES" WAS THE DUAL WRITE and there is one side left (D212), so what
+// this now pins is the property that outlives it: the shipment AND the order it
+// hangs off are one transaction, and a rollback takes both. The exchange
+// observations are gone with the writes they watched.
+test("rolling back a shipment write undoes the order it hangs off too", async () => {
   const other = await pool.connect();
   try {
     await client.query("BEGIN");
@@ -198,12 +185,12 @@ test("rolling back a dual write undoes both sides", async () => {
 
     await client.query("ROLLBACK");
 
-    const after = await other.query("SELECT 1 FROM exchange.shipments WHERE id = $1", [created.id]);
-    assert.equal(after.rows.length, 0, "the exchange write escaped the transaction");
+    const after = await other.query("SELECT 1 FROM shipping.shipments WHERE id = $1", [created.id]);
+    assert.equal(after.rows.length, 0, "the shipment write escaped the transaction");
 
     // And the fixture itself, which is the half that actually leaked.
     const order = await other.query(
-      "SELECT 1 FROM exchange.purchase_orders WHERE id = $1", [orderId]
+      "SELECT 1 FROM orders.orders WHERE id = $1", [orderId]
     );
     assert.equal(order.rows.length, 0, "the fixture order escaped the transaction");
   } finally {

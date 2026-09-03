@@ -5,6 +5,7 @@ import assert from "node:assert/strict";
 import request from "supertest";
 import pool from "#db";
 import { mockSessions, restoreSessions, as, anonymous } from "#shared/testing/session.ts";
+import { TEST_ACTOR, TEST_CUSTOMER } from "#shared/testing/actor.ts";
 import { inPinnedTransaction, assertNothingEscaped, outside } from "#shared/testing/pinned-pool.ts";
 
 await mockSessions();
@@ -18,17 +19,9 @@ let admin: Caller;
 let customer: Caller;
 
 beforeAll(async () => {
-  const admins = await outside<UserFixture>(
-`SELECT id, name, email FROM exchange.users WHERE role = 'admin' LIMIT 1`
-  );
-  admin = { ...admins[0], role: "admin" };
-  assert.ok(admin.id, "dev has no admin");
+  admin = { ...TEST_ACTOR, role: "admin" };
 
-  const users = await outside<UserFixture>(
-`SELECT id, name, email FROM exchange.users WHERE role IS DISTINCT FROM 'admin' LIMIT 1`
-  );
-  customer = { ...users[0], role: "user" };
-  assert.ok(customer.id, "dev has no non-admin user");
+  customer = { ...TEST_CUSTOMER, role: "user" };
 });
 
 afterAll(async () => {
@@ -50,7 +43,7 @@ test("the catalogue answers a signed-out visitor in the schema's own shape", asy
       assert.ok(!("product_name" in p), "both spellings came back at once");
       assert.ok(p.name, "a product came back with no name");
     });
-  });
+  }, { actor: TEST_ACTOR.id });
 });
 
 test("a slug names a product, not a person", async () => {
@@ -65,7 +58,7 @@ test("a slug names a product, not a person", async () => {
       assert.ok(rows.length > 0 && rows[0], "a real slug returned nothing");
       assert.ok("name" in rows[0]);
     });
-  });
+  }, { actor: TEST_ACTOR.id });
 });
 
 test("the admin catalogue and the admin writes are refused to a customer", async () => {
@@ -87,7 +80,7 @@ test("the admin catalogue and the admin writes are refused to a customer", async
         assert.equal(res.status, 403, `${path} answered ${res.status} to a customer`);
       }
     });
-  });
+  }, { actor: TEST_ACTOR.id });
 });
 
 // The write path: creating is the only product write that makes a row (done inside the pinned transaction). No adapter — the body arrives in the schema's own names and comes back the same way.
@@ -115,7 +108,7 @@ test("creating a product round-trips in the schema's own names", async () => {
       // created_by comes from the request body, not the session — admin-only, and the frontend sends the real user. Noted because it's the same "trust the request" shape as five real bugs.
       assert.equal(made.created_by, admin.name);
     });
-  });
+  }, { actor: TEST_ACTOR.id });
 });
 
 test("nothing this file created survived the transaction", async () => {

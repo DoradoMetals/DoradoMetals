@@ -8,6 +8,7 @@ import { randomUUID } from "node:crypto";
 import request from "supertest";
 import pool from "#db";
 import { mockSessions, restoreSessions, as, anonymous } from "#shared/testing/session.ts";
+import { TEST_ACTOR, TEST_CUSTOMER } from "#shared/testing/actor.ts";
 import {
   inPinnedTransaction,
   assertNothingEscaped,
@@ -26,17 +27,9 @@ let hiddenCount: number;
 const created: string[] = [];
 
 beforeAll(async () => {
-  const admins = await outside<UserFixture>(
-    `SELECT id, name, email FROM exchange.users WHERE role = 'admin' LIMIT 1`
-  );
-  admin = admins[0];
-  assert.ok(admin, "dev has no admin user");
+  admin = TEST_ACTOR;
 
-  const users = await outside<UserFixture>(
-    `SELECT id, name, email FROM exchange.users WHERE role IS DISTINCT FROM 'admin' LIMIT 1`
-  );
-  customer = users[0];
-  assert.ok(customer, "dev has no non-admin user - the refusal case is untested");
+  customer = TEST_CUSTOMER;
 
   const counts = await outside<{ visible: number; hidden: number }>(
     `SELECT count(*) FILTER (WHERE NOT hidden)::int AS visible,
@@ -85,7 +78,7 @@ test("the public review list needs no session at all", async () => {
       assert.ok(Array.isArray(res.body), "the marketing site expects an array");
       assert.ok(res.body.length > 0, "dev has a visible review and none came back");
     });
-  });
+  }, { actor: TEST_ACTOR.id });
 });
 
 // Not "the counts differ" - that would pass if the public read returned a hidden review and dropped a visible one. Every row is checked individually.
@@ -111,7 +104,7 @@ test("no hidden review reaches the public list", async () => {
         "the public read returned a different number of rows than dev has visible"
       );
     });
-  });
+  }, { actor: TEST_ACTOR.id });
 });
 
 // The counterpart: an admin DOES see the hidden ones. If this ever returns the same rows as the public read, the two have converged and the previous test proves nothing.
@@ -128,7 +121,7 @@ test("an admin sees the hidden reviews the public list withholds", async () => {
       );
       assert.equal(res.body.length, visibleCount + hiddenCount);
     });
-  });
+  }, { actor: TEST_ACTOR.id });
 });
 
 // Recorded, not fixed: the public read returns created_by/updated_by (an admin's real name) to anyone on the internet - a real leak, left alone because removing a field is a wire change and wire shapes don't move during a schema migration.
@@ -161,7 +154,7 @@ test("the public list carries no field the admin list lacks", async () => {
           `the one to delete - it records a known leak, it does not want one.`
       );
     }
-  });
+  }, { actor: TEST_ACTOR.id });
 });
 
 test("every admin route refuses a signed-in non-admin", async () => {
@@ -180,7 +173,7 @@ test("every admin route refuses a signed-in non-admin", async () => {
         assert.ok([401, 403].includes(res.status), `${name} answered ${res.status} to a non-admin`);
       }
     });
-  });
+  }, { actor: TEST_ACTOR.id });
 });
 
 test("an anonymous caller is refused every route but the public one", async () => {
@@ -189,7 +182,7 @@ test("an anonymous caller is refused every route but the public one", async () =
       const res = await request(app).get("/api/reviews/get_all");
       assert.ok([401, 403].includes(res.status), `get_all answered ${res.status}`);
     });
-  });
+  }, { actor: TEST_ACTOR.id });
 });
 
 test("an admin creating a review round-trips, and a hidden one stays out of public", async () => {
@@ -213,7 +206,7 @@ test("an admin creating a review round-trips, and a hidden one stays out of publ
         "a review created as hidden appeared on the public list"
       );
     });
-  });
+  }, { actor: TEST_ACTOR.id });
 });
 
 // The property the pin exists for.

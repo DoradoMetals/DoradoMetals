@@ -15,15 +15,17 @@
 //
 // Fixtures are SELF-SEEDED over the same HTTP surface, inside the rolled-back
 // transaction, so every assertion stands on data this file put there.
-import { test, afterAll, beforeAll } from "vitest";
+import { test, afterAll } from "vitest";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
 import request from "supertest";
 import { randomUUID } from "node:crypto";
 import pool from "#db";
 import { mockSessions, restoreSessions, as, anonymous } from "#shared/testing/session.ts";
-import { inPinnedTransaction, outside } from "#shared/testing/pinned-pool.ts";
+import { TEST_ACTOR } from "#shared/testing/actor.ts";
+import { inPinnedTransaction } from "#shared/testing/pinned-pool.ts";
 import { LOCKS } from "#shared/testing/locks.ts";
+import { anId, aUser, type BuiltUser } from "#shared/testing/builders/index.ts";
 
 await mockSessions();
 const { default: app } = await import("#app");
@@ -32,40 +34,24 @@ const { default: app } = await import("#app");
 // tests too, so this shares their group.
 const CART_LOCK = LOCKS.ORDERS;
 
-// THE STRUCTURAL SUBSET EACH FIXTURE ACTUALLY HAS. These are SELECT
-// projections, not table rows - naming a row type would claim columns the
-// query never asked for.
-type UserFixture = { id: string; name: string | null; email: string | null };
-type Caller = UserFixture & { role: string };
-
-let owner: Caller;
-let stranger: Caller;
-
-beforeAll(async () => {
-  // Two non-admin users that exist in BOTH exchange.users and auth.users -
-  // checkout.checkouts.user_id has an FK to auth.users, so a fixture missing
-  // there makes every seed insert fail with a 500 rather than the 200 these
-  // tests expect.
-  const users = await outside<UserFixture>(
-    `SELECT u.id, u.name, u.email FROM exchange.users u
-      WHERE u.role IS DISTINCT FROM 'admin'
-        AND EXISTS (SELECT 1 FROM auth.users a WHERE a.id = u.id)
-      ORDER BY u.email LIMIT 2`
-  );
-  assert.ok(users.length >= 2, "dev needs two non-admin users present in auth.users");
-  owner = Object.assign({}, users[0], { role: "user" });
-  stranger = Object.assign({}, users[1], { role: "user" });
-});
+type Caller = { id: string; name: string | null; email: string | null; role: string };
 
 afterAll(async () => {
   restoreSessions();
   await pool.end();
 });
 
+// checkout.checkouts.user_id has an FK to auth.users, so the caller must be a
+// REAL row there - built fresh per test rather than discovered from
+// exchange.users, since `aUser` writes auth.users directly (and the identity
+// mirror keeps exchange.users in step, which is what the old discovery relied
+// on without saying so).
+const asCaller = (u: BuiltUser): Caller => ({ id: u.id, name: u.name, email: u.email, role: "user" });
+
 // Seeds the owner's own sell cart with one scrap line, over the real route -
 // the same shape carts-http.test.ts sends. Returns the count so callers can
 // assert against it rather than a hardcoded 1.
-async function seedOwnerCart(): Promise<number> {
+async function seedOwnerCart(owner: Caller): Promise<number> {
   const res = await as(owner, () =>
     request(app)
       .post("/api/cart/sync_sell_cart")
@@ -92,7 +78,7 @@ async function seedOwnerCart(): Promise<number> {
   return 1;
 }
 
-async function ownerCartCount(client: PoolClient): Promise<number> {
+async function ownerCartCount(client: PoolClient, owner: Caller): Promise<number> {
   const { rows } = await client.query(
     `SELECT count(*)::int AS n FROM checkout.items ci
        JOIN checkout.checkouts c ON c.id = ci.checkout_id
@@ -102,41 +88,45 @@ async function ownerCartCount(client: PoolClient): Promise<number> {
   return rows[0].n;
 }
 
-// The exposure as it actually was: no session at all.
+// The exposure as it actually was: no session at all. Nothing here reaches a
+// repo (the guard refuses before any lookup), so the named id needs only to
+// be shaped like one.
 test("an anonymous caller cannot read a cart, whoever they name", async () => {
   await inPinnedTransaction(async () => {
     await anonymous(async () => {
       for (const path of ["/api/cart/get_sell_cart", "/api/cart/get_cart"]) {
-        const res = await request(app).get(path).query({ user_id: owner.id });
+        const res = await request(app).get(path).query({ user_id: anId() });
         assert.ok(
           [401, 403].includes(res.status),
           `${path} answered ${res.status} to a request with no session`
         );
       }
     });
-  }, { lock: CART_LOCK });
+  }, { actor: TEST_ACTOR.id, lock: CART_LOCK });
 });
 
 test("an anonymous caller cannot replace a cart", async () => {
   await inPinnedTransaction(async () => {
     await anonymous(async () => {
       for (const path of ["/api/cart/sync_sell_cart", "/api/cart/sync_cart"]) {
-        const res = await request(app).post(path).send({ user_id: owner.id, cart: [] });
+        const res = await request(app).post(path).send({ user_id: anId(), cart: [] });
         assert.ok(
           [401, 403].includes(res.status),
           `${path} answered ${res.status} to a request with no session`
         );
       }
     });
-  }, { lock: CART_LOCK });
+  }, { actor: TEST_ACTOR.id, lock: CART_LOCK });
 });
 
 // The other half: signed in, but naming somebody else. The id in the request
 // must be ignored rather than obeyed.
 test("a signed-in caller naming somebody else gets their own cart, not theirs", async () => {
   await inPinnedTransaction(async (client: PoolClient) => {
-    const seeded = await seedOwnerCart();
-    assert.equal(await ownerCartCount(client), seeded, "the seed did not land");
+    const owner = asCaller(await aUser(client));
+    const stranger = asCaller(await aUser(client));
+    const seeded = await seedOwnerCart(owner);
+    assert.equal(await ownerCartCount(client, owner), seeded, "the seed did not land");
 
     await as(stranger, async () => {
       const res = await request(app)
@@ -161,12 +151,14 @@ test("a signed-in caller naming somebody else gets their own cart, not theirs", 
         "the owner got somebody else's cart by naming them"
       );
     });
-  }, { lock: CART_LOCK });
+  }, { actor: TEST_ACTOR.id, lock: CART_LOCK });
 });
 
 test("a stranger cannot replace somebody else's cart by naming them", async () => {
   await inPinnedTransaction(async (client: PoolClient) => {
-    const seeded = await seedOwnerCart();
+    const owner = asCaller(await aUser(client));
+    const stranger = asCaller(await aUser(client));
+    const seeded = await seedOwnerCart(owner);
 
     await as(stranger, async () => {
       const res = await request(app)
@@ -177,16 +169,17 @@ test("a stranger cannot replace somebody else's cart by naming them", async () =
 
     // The owner's cart is untouched: the sync never ran, admin-only refused it.
     assert.equal(
-      await ownerCartCount(client),
+      await ownerCartCount(client, owner),
       seeded,
       "a stranger emptied somebody else's cart"
     );
-  }, { lock: CART_LOCK });
+  }, { actor: TEST_ACTOR.id, lock: CART_LOCK });
 });
 
 test("the owner can still read and sync their own cart", async () => {
-  await inPinnedTransaction(async () => {
-    const seeded = await seedOwnerCart();
+  await inPinnedTransaction(async (client: PoolClient) => {
+    const owner = asCaller(await aUser(client));
+    const seeded = await seedOwnerCart(owner);
 
     await as(owner, async () => {
       const read = await request(app).get("/api/cart/get_sell_cart");
@@ -198,5 +191,5 @@ test("the owner can still read and sync their own cart", async () => {
         .send({ cart: [] });
       assert.equal(synced.status, 200, JSON.stringify(synced.body));
     });
-  }, { lock: CART_LOCK });
+  }, { actor: TEST_ACTOR.id, lock: CART_LOCK });
 });

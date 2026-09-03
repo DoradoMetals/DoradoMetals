@@ -12,6 +12,7 @@ import pool from "#db";
 import query from "#shared/db/query.ts";
 import withTransaction from "#shared/db/withTransaction.ts";
 import { inPinnedTransaction, assertNothingEscaped } from "#shared/testing/pinned-pool.ts";
+import { TEST_ACTOR } from "#shared/testing/actor.ts";
 
 afterAll(async () => {
   await pool.end();
@@ -47,7 +48,7 @@ test("a write through the shared executor does not escape", async () => {
 
     const { rows } = await query(`SELECT 1 FROM exchange.leads WHERE name = $1`, [name]);
     assert.equal(rows.length, 1, "the write did not happen at all");
-  });
+  }, { actor: TEST_ACTOR.id });
 
   assert.equal(
     await assertNothingEscaped("exchange.leads", "name = $1", [name]),
@@ -78,7 +79,7 @@ test("withTransaction nests instead of committing the outer transaction", async 
       `INSERT INTO exchange.leads (name, email) VALUES ($1, $2)`,
       [outer, `${outer}@example.test`]
     );
-  });
+  }, { actor: TEST_ACTOR.id });
 
   assert.equal(
     await assertNothingEscaped("exchange.leads", "name IN ($1, $2)", [inner, outer]),
@@ -114,7 +115,7 @@ test("a nested rollback undoes itself and leaves the rest alone", async () => {
       [kept, rolled]
     );
     assert.deepEqual(rows.map((r) => r.name), [kept], "the rollback took the wrong rows with it");
-  });
+  }, { actor: TEST_ACTOR.id });
 
   assert.equal(await assertNothingEscaped("exchange.leads", "name = $1", [kept]), 0);
 });
@@ -131,7 +132,7 @@ test("releasing the pinned client is a no-op, so the pin survives a transaction"
       `INSERT INTO exchange.leads (name, email) VALUES ($1, $2)`,
       [after, `${after}@example.test`]
     );
-  });
+  }, { actor: TEST_ACTOR.id });
 
   assert.equal(
     await assertNothingEscaped("exchange.leads", "name = $1", [after]),
@@ -148,7 +149,7 @@ test("the pool is restored afterwards, even when the body throws", async () => {
   await assert.rejects(() =>
     inPinnedTransaction(async () => {
       throw new Error("deliberate");
-    })
+    }, { actor: TEST_ACTOR.id })
   );
 
   assert.equal(pool.connect, before.connect, "pool.connect was not restored");

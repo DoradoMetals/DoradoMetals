@@ -4,43 +4,37 @@ import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
 import { randomUUID } from "node:crypto";
 import pool from "#db";
+import { inRollback } from "#shared/testing/rollback.ts";
+import { fulfillmentMethodId } from "#shared/testing/builders/index.ts";
 import * as directs from "#db/fulfillments/directs/repo.ts";
 import * as fulfillments from "#db/fulfillments/repo.ts";
 
-let client: PoolClient;
 
 beforeAll(async () => {
   assert.equal(
     new Date().getTimezoneOffset(), 0,
     "these tests require TZ=UTC - run them with `pnpm --filter @dorado/api test`"
   );
-  client = await pool.connect();
 });
 
 afterAll(async () => {
-  client.release();
   await pool.end();
 });
 
-async function inRollback(fn: (c: PoolClient) => Promise<void>) {
-  await client.query("BEGIN");
-  try {
-    await fn(client);
-  } finally {
-    await client.query("ROLLBACK");
-  }
-}
-
 async function aDraftFulfillment(c: PoolClient): Promise<string> {
-  const { rows: [m] } = await c.query(`SELECT id FROM fulfillments.methods LIMIT 1`);
-  assert.ok(m, "dev has no fulfillments.methods row");
-  const draft = await fulfillments.createDraft({ id: randomUUID(), method_id: m.id }, c);
+  const method_id = await fulfillmentMethodId(c, "CARRIER DROPOFF", "purchase");
+  const draft = await fulfillments.createDraft({ id: randomUUID(), method_id }, c);
   return draft.id;
 }
 
+// THE BUSINESS'S OWN ADDRESS, by name. places.locations is seeded reference
+// data (migration 047) - three rows, and this appointment is at the one a
+// customer walks into.
 async function aLocationId(c: PoolClient): Promise<string> {
-  const { rows: [l] } = await c.query(`SELECT id FROM places.locations LIMIT 1`);
-  assert.ok(l, "dev has no places.locations row");
+  const { rows: [l] } = await c.query(
+    `SELECT id FROM places.locations WHERE name = $1`, ["Dorado Return Address"]
+  );
+  assert.ok(l, "the places.locations seed is missing - run provision:test");
   return l.id;
 }
 

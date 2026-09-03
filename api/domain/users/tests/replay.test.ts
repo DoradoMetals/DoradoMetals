@@ -14,13 +14,15 @@ import pool from "#db";
 import { mockSessions, restoreSessions, as, anonymous } from "#shared/testing/session.ts";
 import { LOCKS } from "#shared/testing/locks.ts";
 import { inPinnedTransaction, outside } from "#shared/testing/pinned-pool.ts";
+import { TEST_ACTOR, TEST_CUSTOMER } from "#shared/testing/actor.ts";
+import * as usersRepo from "#db/users/repo.ts";
 
 // EVERY PINNED TRANSACTION IN THIS FILE TAKES THE BALANCE LOCK: an
 // adjustment is a locked read on auth.users held across an insert into
 // payments.ledger, so files that move balances must agree an order. See
 // LOCKS.USERS.
 const inPinned = <T,>(fn: (c: import("pg").PoolClient) => Promise<T> | T): Promise<T> =>
-  inPinnedTransaction(fn, { lock: LOCKS.USERS });
+  inPinnedTransaction(fn, { actor: TEST_ACTOR.id, lock: LOCKS.USERS });
 
 
 await mockSessions();
@@ -48,23 +50,25 @@ const funds = async (id: string): Promise<number | null> => {
   return rows[0]?.dorado_funds ?? null;
 };
 
-beforeAll(async () => {
-  const admins = await outside<UserFixture>(
-    `SELECT id, name, email FROM auth.users WHERE role = 'admin' LIMIT 1`
-  );
-  admin = admins[0];
-  assert.ok(admin, "dev has no admin user");
+// THE TWO NAMED PEOPLE (lane 1). Both identities were discovered - the first
+// admin, and the first non-admin who happened to hold credit - so every
+// adjustment below moved a REAL customer's balance through the API, and the
+// file's own closing test exists because of it. The people are named now and
+// the customer starts at a KNOWN balance, given to them INSIDE each pinned
+// transaction by `fund()`, so "set to 0" and "left alone" are still
+// distinguishable without anybody's real money being involved.
+const STARTING_BALANCE = 250;
 
-  // Deliberately a customer who HAS a balance: against zero, "set to 0" and "left alone" are indistinguishable.
-  const users = await outside<CustomerFixture>(
-    `SELECT id, name, email, dorado_funds FROM auth.users
-     WHERE role IS DISTINCT FROM 'admin' AND dorado_funds > 0 LIMIT 1`
-  );
-  customer = users[0];
-  assert.ok(customer, "dev has no non-admin user with credit - the adjustment tests are vacuous");
+beforeAll(async () => {
+  admin = TEST_ACTOR;
+  customer = { ...TEST_CUSTOMER, dorado_funds: STARTING_BALANCE };
   balanceBefore = await funds(customer.id);
-  assert.ok(Number(balanceBefore) > 0, "the fixture customer has no balance to move");
 });
+
+// Inside the pin, so it rolls back with everything else.
+const fund = async (client: import("pg").PoolClient) => {
+  await usersRepo.adjustCredit(customer.id, "edit", STARTING_BALANCE, client);
+};
 
 afterAll(async () => {
   restoreSessions();
@@ -160,7 +164,8 @@ test("the admin list is only admins, and the full list is more than that", async
 });
 
 test("the three operations each move the balance the way they say", async () => {
-  await inPinned(async () => {
+  await inPinned(async (client) => {
+    await fund(client);
     await as({ ...admin, role: "admin" }, async () => {
       const read = async () => {
         const res = await request(app).get("/api/users/get_all_users");
@@ -201,7 +206,8 @@ test("the three operations each move the balance the way they say", async () => 
 // still sending it names no operation at all, so it must be refused like any
 // other unrecognised one.
 test("an unrecognised operation is refused and the balance is untouched", async () => {
-  await inPinned(async () => {
+  await inPinned(async (client) => {
+    await fund(client);
     await as({ ...admin, role: "admin" }, async () => {
       const read = async () => {
         const res = await request(app).get("/api/users/get_all_users");

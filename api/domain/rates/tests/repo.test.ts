@@ -4,6 +4,7 @@ import { test } from "vitest";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { inPinnedTransaction } from "#shared/testing/pinned-pool.ts";
+import { TEST_ACTOR } from "#shared/testing/actor.ts";
 import * as rates from "#db/rates/repo.ts";
 import * as metals from "#db/metals/repo.ts";
 
@@ -11,7 +12,7 @@ test("update returns false for an id nothing names", async () => {
   await inPinnedTransaction(async (client) => {
     const changed = await rates.update(randomUUID(), { unit: "oz" }, client);
     assert.equal(changed, false, "an update against a missing id reported a change");
-  });
+  }, { actor: TEST_ACTOR.id });
 });
 
 test("update returns true for a real id, and the row actually changed", async () => {
@@ -32,5 +33,5 @@ test("update returns true for a real id, and the row actually changed", async ()
 
     const row = await rates.getOne(created.id, client);
     assert.equal(Number(row?.scrap_pct), 0.5);
-  });
+  }, { actor: TEST_ACTOR.id });
 });

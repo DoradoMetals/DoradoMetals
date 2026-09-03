@@ -4,31 +4,22 @@ import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
 import { randomUUID } from "node:crypto";
 import pool from "#db";
+import { inRollback } from "#shared/testing/rollback.ts";
+import { actingAs } from "#shared/testing/actor.ts";
+import { aUser } from "#shared/testing/builders/index.ts";
 import * as services from "#db/shipping/services/repo.ts";
 
-let client: PoolClient;
 
 beforeAll(async () => {
   assert.equal(
     new Date().getTimezoneOffset(), 0,
     "these tests require TZ=UTC - run them with `pnpm --filter @dorado/api test`"
   );
-  client = await pool.connect();
 });
 
 afterAll(async () => {
-  client.release();
   await pool.end();
 });
-
-async function inRollback(fn: (c: PoolClient) => Promise<void>) {
-  await client.query("BEGIN");
-  try {
-    await fn(client);
-  } finally {
-    await client.query("ROLLBACK");
-  }
-}
 
 const aName = () => `test-repo-service-${randomUUID().slice(0, 8)}`;
 
@@ -56,15 +47,14 @@ const write = (over: Partial<services.ServiceWrite> = {}): services.ServiceWrite
   ...over,
 });
 
-// Author fields aren't arguments any more - audit_stamp records them from the actor now; this checks an edit never rewrites the creator.
-const actingAs = async (c: PoolClient, id: string | null) => {
-  await c.query("SELECT set_config('app.actor_id', $1, true)", [id ?? ""]);
-};
-
-const twoPeople = async (c: PoolClient) =>
-  (await c.query<{ id: string; name: string }>(
-    `SELECT id, name FROM auth.users WHERE name IS NOT NULL ORDER BY id LIMIT 2`
-  )).rows;
+// Author fields aren't arguments any more - audit_stamp records them from the
+// actor now; this checks an edit never rewrites the creator. `actingAs` is
+// shared/testing/actor.ts's, and the two people are BUILT rather than being
+// whichever two named rows auth.users happened to hold.
+const twoPeople = async (c: PoolClient) => [
+  await aUser(c, { name: "Fixture Maker" }),
+  await aUser(c, { name: "Fixture Editor" }),
+];
 
 test("update writes a real service and leaves created_by alone", async () => {
   await inRollback(async (c: PoolClient) => {

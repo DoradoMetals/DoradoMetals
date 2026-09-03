@@ -24,36 +24,42 @@ import { randomUUID } from "node:crypto";
 import request from "supertest";
 import pool from "#db";
 import { mockSessions, restoreSessions, as, anonymous } from "#shared/testing/session.ts";
+import { TEST_ACTOR } from "#shared/testing/actor.ts";
 import { inPinnedTransaction, outside } from "#shared/testing/pinned-pool.ts";
+import { anId, aUser, anOrder } from "#shared/testing/builders/index.ts";
+import * as paymentsService from "#domain/payments/service.ts";
+import { LOCKS } from "#shared/testing/locks.ts";
 import { PaymentIntent } from "@dorado/contracts";
 
 await mockSessions();
 const { default: app } = await import("#app");
+
+// This file imports #domain/payments/service.ts, which reaches orders.* and
+// auth.users through its own dependencies - lint:test-locks derives the
+// requirement from the whole file's import graph, not per-call, so every
+// inPinnedTransaction below carries it even where a given test builds nothing.
+const PAYMENTS_LOCKS = [LOCKS.ORDERS, LOCKS.ADDRESSES, LOCKS.USERS];
 
 // THE STRUCTURAL SUBSET EACH FIXTURE ACTUALLY HAS. These are SELECT
 // projections, not table rows.
 type UserFixture = { id: string; name: string | null; email: string | null };
 
 let admin: UserFixture;
-let customer: UserFixture;
-let victim: UserFixture;
+// MINTED, NOT DISCOVERED. `as()` mocks the SESSION only (session.ts never
+// touches the database), and every route these two exercise refuses before a
+// repo call - the attack this file is about is the type=admin CLAIM, not
+// anything that needs either identity to be a real row. Two distinct minted
+// ids do everything a discovered pair would.
+const customer: UserFixture = { id: anId(), name: "Replay Customer", email: "replay-customer@dorado.test" };
+const victim: UserFixture = { id: anId(), name: "Replay Victim", email: "replay-victim@dorado.test" };
 let intentsBefore: number;
 
 beforeAll(async () => {
-  const admins = await outside<UserFixture>(
-    `SELECT id, name, email FROM exchange.users WHERE role = 'admin' LIMIT 1`
-  );
-  admin = admins[0];
-  assert.ok(admin, "dev has no admin user");
+  admin = TEST_ACTOR;
 
-  const users = await outside<UserFixture>(
-    `SELECT id, name, email FROM exchange.users WHERE role IS DISTINCT FROM 'admin' LIMIT 2`
-  );
-  [customer, victim] = users;
-  assert.ok(customer && victim, "dev needs two non-admin users - one to attack the other");
-  assert.notEqual(customer.id, victim.id);
-
-  const rows = await outside(`SELECT count(*)::int AS n FROM exchange.payment_intents`);
+  // payments.intents, not the frozen exchange.payment_intents - D212 stopped
+  // writing the old table, so a count against it can never move.
+  const rows = await outside(`SELECT count(*)::int AS n FROM payments.intents`);
   intentsBefore = rows[0].n;
 });
 
@@ -92,7 +98,7 @@ test("every route refuses an anonymous caller", async () => {
         assert.ok([401, 403].includes(res.status), `${name} answered ${res.status} anonymously`);
       }
     });
-  });
+  }, { actor: TEST_ACTOR.id, lock: PAYMENTS_LOCKS });
 });
 
 // THE ASSERTION THIS FILE EXISTS FOR.
@@ -120,7 +126,7 @@ test("a customer cannot claim type=admin to read another user's payment intent",
         "a refused request still returned something secret-shaped"
       );
     });
-  });
+  }, { actor: TEST_ACTOR.id, lock: PAYMENTS_LOCKS });
 });
 
 // The same claim aimed at the caller's OWN id. Still refused - the check is on
@@ -134,7 +140,7 @@ test("a customer cannot claim type=admin even against their own id", async () =>
         .query({ type: "admin", user_id: customer.id });
       assert.equal(res.status, 403, `answered ${res.status} to a claimed admin type`);
     });
-  });
+  }, { actor: TEST_ACTOR.id, lock: PAYMENTS_LOCKS });
 });
 
 test("the two admin-only routes refuse a signed-in customer", async () => {
@@ -159,13 +165,13 @@ test("the two admin-only routes refuse a signed-in customer", async () => {
         assert.ok([401, 403].includes(res.status), `${name} answered ${res.status} to a customer`);
       }
     });
-  });
+  }, { actor: TEST_ACTOR.id, lock: PAYMENTS_LOCKS });
 });
 
 // The refusals must not have written anything. Payment intents are rows; a
 // guard placed after the write would return the same 403.
 test("the refused requests created no payment intent", async () => {
-  const rows = await outside(`SELECT count(*)::int AS n FROM exchange.payment_intents`);
+  const rows = await outside(`SELECT count(*)::int AS n FROM payments.intents`);
   assert.equal(
     rows[0].n,
     intentsBefore,
@@ -185,21 +191,31 @@ test("the refused requests created no payment intent", async () => {
 // database holds for that order, the amounts arrive in DOLLARS, and the legacy
 // flat names are absent - there is no adapter left to put them back.
 test("an admin reading a sales order's payment intent gets it, in the nested wire shape", async () => {
-  const [seed] = await outside(
-    `SELECT sales_order_id, payment_intent_id, amount
-       FROM exchange.payment_intents
-      WHERE sales_order_id IS NOT NULL AND payment_intent_id IS NOT NULL
-      ORDER BY created_at DESC, id
-      LIMIT 1`
-  );
-  assert.ok(seed, "dev has no sales order with a payment intent - this test would be vacuous");
-  const seededOrderId = seed.sales_order_id;
+  await inPinnedTransaction(async (c) => {
+    // Built here rather than discovered: the endpoint reads payments.intents
+    // through orders.orders (find_for_order.sql), not the frozen
+    // exchange.payment_intents this test used to seed itself from - the two
+    // tables have diverged since D212, so a fixture drawn from the old one
+    // was testing nothing about the live path.
+    const buyer = await aUser(c);
+    const order = await anOrder(c, buyer, { direction: "sale" });
+    const providerRef = `pi_${anId().slice(0, 24)}`;
+    await paymentsService.recordIntent(
+      { id: providerRef, status: "succeeded", amount: 25000, amount_received: 25000 },
+      { session_id: anId(), user_id: buyer.id },
+      "checkout",
+      undefined,
+      c
+    );
+    assert.ok(
+      await paymentsService.attachOrder(providerRef, order.id, c),
+      "the built intent did not attach to the built order"
+    );
 
-  await inPinnedTransaction(async () => {
     await as(Object.assign({}, admin, { role: "admin" }), async () => {
       const res = await request(app)
         .get("/api/stripe/get_sales_order_payment_intent")
-        .query({ sales_order_id: seededOrderId });
+        .query({ sales_order_id: order.id });
 
       assert.equal(res.status, 200, `answered ${res.status} to an admin`);
       assert.ok(res.body && typeof res.body === "object", "the body was not an object");
@@ -214,19 +230,13 @@ test("an admin reading a sales order's payment intent gets it, in the nested wir
       // The right intent, not merely a well-shaped one.
       assert.equal(
         res.body.attempt?.provider_ref,
-        seed.payment_intent_id,
+        providerRef,
         "a different intent came back"
       );
 
-      // DOLLARS. exchange stores cents; the wire is the internal shape now,
-      // and a flatten reappearing would announce itself as a hundredfold error.
-      if (seed.amount != null) {
-        assert.equal(
-          Number(res.body.amount_expected),
-          Number(seed.amount) / 100,
-          "the wire is not in dollars"
-        );
-      }
+      // DOLLARS. Stripe speaks cents; the wire is the internal shape now, and
+      // a flatten reappearing would announce itself as a hundredfold error.
+      assert.equal(Number(res.body.amount_expected), 250, "the wire is not in dollars");
 
       // The legacy names are gone, and so is the one field that must never
       // come back: a bank routing number was on the old wire only because the
@@ -238,7 +248,7 @@ test("an admin reading a sales order's payment intent gets it, in the nested wir
         "a routing key reached the wire"
       );
     });
-  });
+  }, { actor: TEST_ACTOR.id, lock: PAYMENTS_LOCKS });
 });
 
 // A GAP, STATED RATHER THAN PAPERED OVER.

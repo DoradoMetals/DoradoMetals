@@ -11,20 +11,19 @@ import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
 import pool from "#db";
 import { LOCKS, takeLocks } from "#shared/testing/locks.ts";
+import { rollbackIn } from "#shared/testing/rollback.ts";
+import { aUser, anAddress, anOrder } from "#shared/testing/builders/index.ts";
 import * as addresses from "#db/orders/addresses/repo.ts";
 
-let client: PoolClient;
 
 beforeAll(async () => {
   assert.equal(
     new Date().getTimezoneOffset(), 0,
     "these tests require TZ=UTC - run them with `pnpm --filter @dorado/api test`"
   );
-  client = await pool.connect();
 });
 
 afterAll(async () => {
-  client.release();
   await pool.end();
 });
 
@@ -33,28 +32,26 @@ afterAll(async () => {
 // domain/orders/tests/edit-line.test.ts writes real, autocommitting rows to
 // the same table under LOCKS.ORDERS - see domain/orders/tests/
 // purchase-read.test.ts's own comment for the full mechanism.
-async function inRollback(fn: (c: PoolClient) => Promise<void>) {
-  await client.query("BEGIN");
-  await takeLocks(client, LOCKS.ORDERS);
-  try {
-    await fn(client);
-  } finally {
-    await client.query("ROLLBACK");
-  }
-}
+// THE FILE'S LOCK, BOUND ONCE. A lock is a property of what this file
+// WRITES, not of one call, so it is named here and every inRollback below
+// inherits it - which is also what stops a new test being added without one.
+const inRollback = rollbackIn({ lock: LOCKS.ORDERS });
 
-const anOrder = async (c: PoolClient): Promise<string | null> =>
-  (await c.query("SELECT id FROM orders.orders ORDER BY id LIMIT 1")).rows[0]?.id ?? null;
-
-const twoAddresses = async (c: PoolClient) =>
-  (await c.query("SELECT id FROM places.addresses ORDER BY id LIMIT 2")).rows;
+// THE ORDER AND THE TWO ADDRESSES ARE BUILT (lane 1). The pair used to come
+// off places.addresses with `LIMIT 2`, so "the correction landed" was a claim
+// about two rows a customer owns, and a database holding one address made the
+// test assert nothing at all.
+const anOrderAndTwoAddresses = async (c: PoolClient) => {
+  const user = await aUser(c);
+  const order = await anOrder(c, user, { direction: "purchase" });
+  const first = await anAddress(c, user, { city: "Dallas" });
+  const second = await anAddress(c, user, { city: "Fresno", default_shipping: false });
+  return { order_id: order.id, books: [first, second] };
+};
 
 test("a second link for the same order corrects the first rather than adding one", async () => {
   await inRollback(async (c: PoolClient) => {
-    const order_id = await anOrder(c);
-    assert.ok(order_id, "orders.orders is empty - this test proves nothing");
-    const books = await twoAddresses(c);
-    assert.equal(books.length, 2, "places.addresses needs two rows for this test to mean anything");
+    const { order_id, books } = await anOrderAndTwoAddresses(c);
 
     assert.equal(
       await addresses.create({ order_id, address_id: books[0].id, source_address_id: books[0].id }, c),
@@ -75,10 +72,7 @@ test("a second link for the same order corrects the first rather than adding one
 
 test("getFor reads the link back and getMany batches it", async () => {
   await inRollback(async (c: PoolClient) => {
-    const order_id = await anOrder(c);
-    assert.ok(order_id, "orders.orders is empty");
-    const books = await twoAddresses(c);
-    assert.ok(books.length > 0, "places.addresses is empty");
+    const { order_id, books } = await anOrderAndTwoAddresses(c);
 
     await addresses.create({ order_id, address_id: books[0].id, source_address_id: books[0].id }, c);
 

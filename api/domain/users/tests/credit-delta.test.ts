@@ -14,6 +14,7 @@ import pool from "#db";
 import * as usersService from "#domain/users/service.ts";
 import { LOCKS } from "#shared/testing/locks.ts";
 import { outside } from "#shared/testing/pinned-pool.ts";
+import { TEST_CUSTOMER } from "#shared/testing/actor.ts";
 
 // The structural subset the fixture query asks for.
 type UserFixture = { id: string };
@@ -21,6 +22,11 @@ type UserFixture = { id: string };
 let customer: UserFixture;
 let startingBalance: number;
 let lockHolder: PoolClient;
+
+// Not a round number, and not zero: an exact-cent starting figure would hide a
+// rounding fault, and zero makes "set to 0" indistinguishable from "left
+// alone".
+const STARTING_BALANCE = 1234.56;
 
 // auth.users, WHICH IS WHERE THE WRITE LANDS SINCE MIGRATION 118. It was
 // exchange.users while a trigger mirrored the balance across; reading the
@@ -47,17 +53,23 @@ beforeAll(async () => {
   lockHolder = await pool.connect();
   await lockHolder.query("SELECT pg_advisory_lock($1)", [LOCKS.USERS]);
 
-  // A customer who HAS a balance: against zero, "set to 0" and "left alone"
-  // are indistinguishable.
-  const rows = await outside<UserFixture>(
-    `SELECT id FROM auth.users
-      WHERE role IS DISTINCT FROM 'admin' AND dorado_funds > 0
-      ORDER BY dorado_funds DESC LIMIT 1`
-  );
-  customer = rows[0];
-  assert.ok(customer, "dev has no customer with credit - these tests would be vacuous");
-  startingBalance = await funds(customer.id);
-  assert.ok(startingBalance > 0, "the fixture customer has no balance to move");
+  // THE NAMED TEST CUSTOMER, GIVEN A BALANCE BY THIS FILE (lane 1). This used
+  // to take the RICHEST real customer on the database - `ORDER BY dorado_funds
+  // DESC LIMIT 1` - and move their credit for real, because this file
+  // deliberately commits. It put the balance back afterwards, but a crash
+  // between the two left a stranger's money wrong, and the ledger rows it
+  // could never put back were somebody's real ledger.
+  //
+  // TEST_CUSTOMER owns nothing and starts at zero, so the file both sets the
+  // starting balance and restores it - "against zero, set-to-0 and left-alone
+  // are indistinguishable" is still true, which is what STARTING_BALANCE is
+  // for.
+  customer = TEST_CUSTOMER;
+  startingBalance = STARTING_BALANCE;
+  await usersService.adjustDoradoCredit({
+    user_id: customer.id, op: "edit", amount: STARTING_BALANCE,
+  });
+  assert.equal(await funds(customer.id), STARTING_BALANCE, "the fixture balance was not set");
 });
 
 const restore = async () => {
@@ -67,7 +79,9 @@ const restore = async () => {
 };
 
 afterAll(async () => {
-  await restore();
+  // Back to zero, which is where TEST_CUSTOMER lives when no test is running -
+  // the balance this file borrowed is its own, so it is left as it was found.
+  await usersService.adjustDoradoCredit({ user_id: customer.id, op: "edit", amount: 0 });
   await lockHolder.query("SELECT pg_advisory_unlock($1)", [LOCKS.USERS]);
   lockHolder.release();
   await pool.end();

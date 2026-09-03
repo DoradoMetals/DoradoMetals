@@ -27,6 +27,7 @@ import type { PoolClient } from "pg";
 import request from "supertest";
 import pool from "#db";
 import { mockSessions, restoreSessions, as, asAdmin } from "#shared/testing/session.ts";
+import { TEST_ACTOR } from "#shared/testing/actor.ts";
 import { inPinnedTransaction, outside } from "#shared/testing/pinned-pool.ts";
 import { LOCKS } from "#shared/testing/locks.ts";
 
@@ -47,16 +48,20 @@ let order: SalesOrderFixture; // a sales order WITH an address - the pipeline re
 let refiners: RefinerFixture[]; // dev holds two
 
 beforeAll(async () => {
-  admin = (
-    await outside<UserFixture>(`SELECT id, name, email FROM exchange.users WHERE role = 'admin' LIMIT 1`)
-  )[0];
-  assert.ok(admin, "dev has no admin user");
+  admin = TEST_ACTOR;
 
+  // orders.orders and refiners.orders - what send_to_refiner's own guards
+  // read (see afterNext below). exchange.sales_orders stopped receiving
+  // writes at D212/D214; discovering from it here was answering the fixture
+  // question for a table the pipeline no longer touches.
   order = (
     await outside<SalesOrderFixture>(
-      `SELECT id, order_sent, supplier_id FROM exchange.sales_orders
-        WHERE address_id IS NOT NULL
-        ORDER BY created_at ASC, id ASC LIMIT 1`
+      `SELECT o.id, o.order_sent, ro.refiner_id AS supplier_id
+         FROM orders.orders o
+         JOIN orders.addresses oa ON oa.order_id = o.id
+         LEFT JOIN refiners.orders ro ON ro.order_id = o.id
+        WHERE o.direction = 'sale'
+        ORDER BY o.created_at ASC, o.id ASC LIMIT 1`
     )
   )[0];
   assert.ok(order, "dev has no sales order with an address");
@@ -81,7 +86,7 @@ test("an order that does not exist is refused before anything runs", async () =>
         .send({ refiner_id: refiners[0].id });
       assert.equal(res.status, 404, `answered ${res.status} against a nonexistent order`);
     });
-  }, { lock: ORDER_LOCK });
+  }, { actor: TEST_ACTOR.id, lock: ORDER_LOCK });
 });
 
 test("a refiner with no email is refused, and nothing is written", async () => {
@@ -89,16 +94,10 @@ test("a refiner with no email is refused, and nothing is written", async () => {
     await asAdmin(admin, async () => {
       // The Dillion Gage shape, made deterministic: inside the rolled-back
       // transaction this refiner has no email, whatever dev holds today. The
-      // order is unsent, so the 409 guard cannot answer first - in BOTH
-      // schemas, because the read side serves orders.orders while exchange
-      // still dual-writes.
+      // order is unsent, so the 409 guard cannot answer first.
       await client.query(
         `UPDATE organizations.organizations SET email = NULL WHERE id = $1`,
         [refiners[0].organization_id]
-      );
-      await client.query(
-        `UPDATE exchange.sales_orders SET order_sent = false, supplier_id = NULL WHERE id = $1`,
-        [order.id]
       );
       await client.query(
         `UPDATE orders.orders SET order_sent = false WHERE id = $1`,
@@ -111,7 +110,10 @@ test("a refiner with no email is refused, and nothing is written", async () => {
 
       const shipmentsBefore = (
         await client.query(
-          `SELECT count(*)::int AS n FROM exchange.shipments WHERE sales_order_id = $1`,
+          `SELECT count(*)::int AS n
+             FROM fulfillments.shipments fs
+             JOIN fulfillments.fulfillments f ON f.id = fs.fulfillment_id
+            WHERE f.order_id = $1`,
           [order.id]
         )
       ).rows[0].n;
@@ -123,16 +125,7 @@ test("a refiner with no email is refused, and nothing is written", async () => {
       assert.equal(res.status, 422, `answered ${res.status}: ${JSON.stringify(res.body)}`);
 
       // Refused means refused: no supplier attached, not marked sent, no
-      // outbound shipment created - checked in the schema the reads serve AND
-      // the one the writes still mirror to.
-      const after = (
-        await client.query(
-          `SELECT order_sent, supplier_id FROM exchange.sales_orders WHERE id = $1`,
-          [order.id]
-        )
-      ).rows[0];
-      assert.equal(after.order_sent, false, "a refused send still marked the order sent");
-      assert.equal(after.supplier_id, null, "a refused send still attached the supplier");
+      // outbound shipment created - the schema the guards actually read.
       const afterNext = (
         await client.query(
           `SELECT o.order_sent, ro.refiner_id
@@ -147,13 +140,16 @@ test("a refiner with no email is refused, and nothing is written", async () => {
 
       const shipmentsAfter = (
         await client.query(
-          `SELECT count(*)::int AS n FROM exchange.shipments WHERE sales_order_id = $1`,
+          `SELECT count(*)::int AS n
+             FROM fulfillments.shipments fs
+             JOIN fulfillments.fulfillments f ON f.id = fs.fulfillment_id
+            WHERE f.order_id = $1`,
           [order.id]
         )
       ).rows[0].n;
       assert.equal(shipmentsAfter, shipmentsBefore, "a refused send still created a shipment");
     });
-  }, { lock: ORDER_LOCK });
+  }, { actor: TEST_ACTOR.id, lock: ORDER_LOCK });
 });
 
 test("a sent order cannot be moved to a different refiner", async (t) => {
@@ -163,12 +159,7 @@ test("a sent order cannot be moved to a different refiner", async (t) => {
   }
   await inPinnedTransaction(async (client: PoolClient) => {
     await asAdmin(admin, async () => {
-      // Already sent to refiner A, inside the rolled-back transaction - in
-      // both schemas, since the read side serves orders.orders.
-      await client.query(
-        `UPDATE exchange.sales_orders SET order_sent = true, supplier_id = $2 WHERE id = $1`,
-        [order.id, refiners[0].id]
-      );
+      // Already sent to refiner A, inside the rolled-back transaction.
       await client.query(
         `UPDATE orders.orders SET order_sent = true WHERE id = $1`,
         [order.id]
@@ -189,7 +180,7 @@ test("a sent order cannot be moved to a different refiner", async (t) => {
       ).rows[0];
       assert.equal(after.refiner_id, refiners[0].id, "the order moved to the second refiner");
     });
-  }, { lock: ORDER_LOCK });
+  }, { actor: TEST_ACTOR.id, lock: ORDER_LOCK });
 });
 
 // `send: true` USED TO BE REQUIRED because the field was a flag in a PATCH
@@ -211,7 +202,7 @@ test("the send body is one id, and nothing else is a field of it", async () => {
       assert.equal(missing.status, 400, `answered ${missing.status}`);
       assert.match(missing.body?.error?.message ?? "", /refiner_id/);
     });
-  }, { lock: ORDER_LOCK });
+  }, { actor: TEST_ACTOR.id, lock: ORDER_LOCK });
 });
 
 test("a field the PATCH does not have - and a wrong-direction field - refuse by name", async () => {
@@ -237,14 +228,20 @@ test("a field the PATCH does not have - and a wrong-direction field - refuse by 
         /purchase-direction operation and this is a sale order/
       );
     });
-  }, { lock: ORDER_LOCK });
+  }, { actor: TEST_ACTOR.id, lock: ORDER_LOCK });
 });
 
 test("nothing this file did survived the transaction", async () => {
-  const [{ order_sent, supplier_id }] = await outside(
-    `SELECT order_sent, supplier_id FROM exchange.sales_orders WHERE id = $1`,
+  // orders.orders and refiners.orders - the tables this file's tests actually
+  // write inside the pin. exchange.sales_orders receives nothing any more, so
+  // checking it here would prove the rollback held for a table nothing wrote to.
+  const [row] = await outside(
+    `SELECT o.order_sent, ro.refiner_id AS supplier_id
+       FROM orders.orders o
+       LEFT JOIN refiners.orders ro ON ro.order_id = o.id
+      WHERE o.id = $1`,
     [order.id]
   );
-  assert.equal(order_sent, order.order_sent, "an order's sent flag was really changed in dev");
-  assert.equal(supplier_id, order.supplier_id, "an order's supplier was really changed in dev");
+  assert.equal(row.order_sent, order.order_sent, "an order's sent flag was really changed in dev");
+  assert.equal(row.supplier_id, order.supplier_id, "an order's supplier was really changed in dev");
 });

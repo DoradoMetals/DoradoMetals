@@ -1,43 +1,32 @@
 // The addresses endpoints, over real HTTP, with payloads lifted from frontend/features/addresses/queries.ts - exercises route, guard, controller and service together, since that's where this migration's bugs actually lived.
 // NOTHING IS COMMITTED: pinned-pool.ts rolls back every query; the last test asserts that from outside the transaction.
-import { test, afterAll, beforeAll } from "vitest";
+import { test, afterAll } from "vitest";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import request from "supertest";
 import pool from "#db";
 import { mockSessions, restoreSessions, as, anonymous } from "#shared/testing/session.ts";
-import { inPinnedTransaction, assertNothingEscaped, outside } from "#shared/testing/pinned-pool.ts";
+import { TEST_ACTOR } from "#shared/testing/actor.ts";
+import { inPinnedTransaction, assertNothingEscaped } from "#shared/testing/pinned-pool.ts";
+import { anId, aUser, anAdmin, anAddress, type BuiltUser } from "#shared/testing/builders/index.ts";
 
 // The patch replaces a property the middleware looks up per request, so order relative to importing #app doesn't matter - done first for legibility.
 await mockSessions();
 const { default: app } = await import("#app");
 
-// The structural subset each fixture actually has - SELECT projections, not table rows.
-type UserFixture = { id: string; name: string | null; email: string | null };
-
 // The two wire shapes this file reads: a postal row on /addresses/get, the relationship on /addresses/get_user_addresses.
 type WireAddress = { id: string };
 type WireLink = { address_id: string; label: string | null; default_shipping: boolean };
 
-let customer: UserFixture;
 const created: string[] = [];
 
 // Addresses have their own lock group - sharing one with the orders tests made this wait behind whole order placements for nothing.
 import { LOCKS } from "#shared/testing/locks.ts";
 const ADDRESS_LOCK = LOCKS.ADDRESSES;
 
-beforeAll(async () => {
-  // Read outside the pin: a fixture that has to already exist, not something the test wrote.
-  const rows = await outside<UserFixture>(
-    `SELECT u.id, u.email, u.name FROM exchange.users u
-      JOIN exchange.addresses a ON a."user_id" = u.id
-     GROUP BY u.id, u.email, u.name
-     ORDER BY count(a.id) DESC
-     LIMIT 1`
-  );
-  customer = rows[0];
-  assert.ok(customer, "dev has no user with an address to replay against");
-});
+// `as()` wants a session shape - named rather than spread, same reasoning
+// session.ts gives for asAdmin/asUser.
+const sessionOf = (u: BuiltUser, role = "user") => ({ id: u.id, name: u.name, email: u.email, role });
 
 afterAll(async () => {
   restoreSessions();
@@ -66,22 +55,28 @@ const newAddress = (over = {}) => ({
   },
 });
 
+// Nothing here reaches a repo (the guard refuses before any lookup), so the
+// named id needs only to be shaped like one.
 test("an anonymous request is refused before it reaches a controller", async () => {
   await inPinnedTransaction(async () => {
     await anonymous(async () => {
-      const res = await request(app).get("/api/addresses/get").query({ user_id: customer.id });
+      const res = await request(app).get("/api/addresses/get").query({ user_id: anId() });
       assert.ok([401, 403].includes(res.status), `answered with ${res.status}`);
     });
-  }, { lock: ADDRESS_LOCK });
+  }, { actor: TEST_ACTOR.id, lock: ADDRESS_LOCK });
 });
 
 test("a signed-in customer gets their addresses in the shape the hook destructures", async () => {
-  await inPinnedTransaction(async () => {
+  await inPinnedTransaction(async (c) => {
+    const owner = await aUser(c);
+    await anAddress(c, owner);
+    const customer = sessionOf(owner);
+
     await as(customer, async () => {
       const res = await request(app).get("/api/addresses/get").query({ user_id: customer.id });
       assert.equal(res.status, 200);
       assert.ok(Array.isArray(res.body), "useAddress expects an array");
-      assert.ok(res.body.length > 0, "the borrowed user has addresses and none came back");
+      assert.ok(res.body.length > 0, "the built user has an address and none came back");
 
       // /get serves the postal address alone - the caller's relationship travels on its own endpoint below.
       const a = res.body[0];
@@ -107,11 +102,12 @@ test("a signed-in customer gets their addresses in the shape the hook destructur
         "a relationship points at an address the list did not return"
       );
     });
-  }, { lock: ADDRESS_LOCK });
+  }, { actor: TEST_ACTOR.id, lock: ADDRESS_LOCK });
 });
 
 test("creating an address round-trips in the split shape", async () => {
-  await inPinnedTransaction(async () => {
+  await inPinnedTransaction(async (c) => {
+    const customer = sessionOf(await aUser(c));
     await as(customer, async () => {
       const address = newAddress();
       const res = await request(app)
@@ -138,11 +134,19 @@ test("creating an address round-trips in the split shape", async () => {
         "the address created a moment ago is not in the book"
       );
     });
-  }, { lock: ADDRESS_LOCK });
+  }, { actor: TEST_ACTOR.id, lock: ADDRESS_LOCK });
 });
 
 test("setting a default clears the others, as one request", async () => {
-  await inPinnedTransaction(async () => {
+  await inPinnedTransaction(async (c) => {
+    const owner = await aUser(c);
+    // Two addresses, one already NOT the default - otherwise the fallback
+    // below would target the sole (already-default) row and the request
+    // would be a no-op that still reports success.
+    await anAddress(c, owner, { default_shipping: true });
+    await anAddress(c, owner, { default_shipping: false });
+    const customer = sessionOf(owner);
+
     await as(customer, async () => {
       const list = await request(app)
         .get("/api/addresses/get_user_addresses")
@@ -161,65 +165,50 @@ test("setting a default clears the others, as one request", async () => {
       assert.equal(defaults.length, 1, "more than one address is the default");
       assert.equal(defaults[0].address_id, target.address_id);
     });
-  }, { lock: ADDRESS_LOCK });
+  }, { actor: TEST_ACTOR.id, lock: ADDRESS_LOCK });
 });
 
 // Every test above passed the same user_id as the session, so none could tell whether the endpoint used the session or obeyed the request. It obeyed the request: a customer naming somebody else could read their address book.
 test("a signed-in customer naming somebody else gets their own addresses", async () => {
-  await inPinnedTransaction(async () => {
-    const others = await outside(
-      `SELECT DISTINCT a."user_id" FROM exchange.addresses a
-        WHERE a."user_id" IS NOT NULL AND a."user_id" <> $1 LIMIT 1`,
-      [customer.id]
-    );
-    if (!others.length) return; // dev has only one user with addresses
+  await inPinnedTransaction(async (c) => {
+    const caller = await aUser(c);
+    await anAddress(c, caller);
+    const victim = await aUser(c);
+    await anAddress(c, victim);
+    await anAddress(c, victim, { default_shipping: false });
 
-    const victim = others[0].user_id;
-    const theirs = await outside(
-      `SELECT count(*)::int AS n FROM exchange.addresses WHERE "user_id" = $1`,
-      [victim]
-    );
-    assert.ok(theirs[0].n > 0);
-
-    await as({ ...customer, role: "user" }, async () => {
-      const res = await request(app).get("/api/addresses/get").query({ user_id: victim });
+    await as(sessionOf(caller), async () => {
+      const res = await request(app).get("/api/addresses/get").query({ user_id: victim.id });
       assert.equal(res.status, 200);
       assert.ok(
         res.body.every((a: WireAddress) => !("user_address" in a)),
         "sanity - the split holds on this path too"
       );
-      // Their own, not the victim's - compared by count, since an empty array would pass either way if the caller had none.
-      const mine = await outside(
-        `SELECT count(*)::int AS n FROM exchange.addresses WHERE "user_id" = $1`,
-        [customer.id]
-      );
+      // Their own (one address), not the victim's (two) - compared by count,
+      // since an empty array would pass either way if the caller had none.
       assert.equal(
         res.body.length,
-        mine[0].n,
+        1,
         "naming somebody else returned a different number of addresses than the caller owns"
       );
     });
-  }, { lock: ADDRESS_LOCK });
+  }, { actor: TEST_ACTOR.id, lock: ADDRESS_LOCK });
 });
 
 // An admin naming a user is legitimate (the customer drawer does it) - the rule is "your own unless you are an admin", and this half has to keep working too.
 test("an admin may still read another user's addresses", async () => {
-  await inPinnedTransaction(async () => {
-    const admins = await outside<UserFixture>(
-      `SELECT id, name, email FROM exchange.users WHERE role = 'admin' LIMIT 1`
-    );
-    if (!admins.length) return;
+  await inPinnedTransaction(async (c) => {
+    const admin = await anAdmin(c);
+    const customer = await aUser(c);
+    await anAddress(c, customer);
+    await anAddress(c, customer, { default_shipping: false });
 
-    await as({ ...(admins[0] as UserFixture), role: "admin" }, async () => {
+    await as(sessionOf(admin, "admin"), async () => {
       const res = await request(app).get("/api/addresses/get").query({ user_id: customer.id });
       assert.equal(res.status, 200);
-      const owned = await outside(
-        `SELECT count(*)::int AS n FROM exchange.addresses WHERE "user_id" = $1`,
-        [customer.id]
-      );
-      assert.equal(res.body.length, owned[0].n, "an admin was refused a customer's addresses");
+      assert.equal(res.body.length, 2, "an admin was refused a customer's addresses");
     });
-  }, { lock: ADDRESS_LOCK });
+  }, { actor: TEST_ACTOR.id, lock: ADDRESS_LOCK });
 });
 
 // The property the whole harness exists for: if the pin ever stops working, every test above still passes - they read their own writes either way.

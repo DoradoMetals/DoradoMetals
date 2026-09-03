@@ -5,6 +5,10 @@ import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
 import pool from "#db";
 import { LOCKS, takeLocks } from "#shared/testing/locks.ts";
+import { rollbackIn } from "#shared/testing/rollback.ts";
+import {
+  aUser, anOrder, anAddress, fulfillmentMethodId, anId,
+} from "#shared/testing/builders/index.ts";
 // Pointed at the SERVICE, not a repo: every function here asks about a table the fulfillments repo doesn't own (whether the order exists, the method's category, whether a parcel is attached), so after the per-table split they all live in the service.
 import * as methods from "#db/fulfillments/methods/repo.ts";
 import * as service from "#domain/fulfillments/service.ts";
@@ -12,58 +16,41 @@ import * as pickupService from "#domain/fulfillments/pickups/service.ts";
 import * as directService from "#domain/fulfillments/directs/service.ts";
 const repo = service;
 
-let client: PoolClient;
 
 beforeAll(async () => {
-  client = await pool.connect();
 });
 
 afterAll(async () => {
-  client.release();
   await pool.end();
 });
 
-async function inRollback(fn: (c: PoolClient) => Promise<void>) {
-  await client.query("BEGIN");
+// THE FILE'S LOCK, BOUND ONCE. A lock is a property of what this file
+// WRITES, not of one call, so it is named here and every inRollback below
+// inherits it - which is also what stops a new test being added without one.
   // fulfillments_order_uniq means two tests borrowing the same order deadlock rather than fail - one lock, taken first, in the one file that writes these tables.
-  await takeLocks(client, LOCKS.FULFILLMENTS);
-  try {
-    await fn(client);
-  } finally {
-    await client.query("ROLLBACK");
-  }
-}
+const inRollback = rollbackIn({ lock: LOCKS.FULFILLMENTS });
 
-// An order with no fulfillment yet, so create() has something legal to attach to. Borrowed rather than invented: orders.orders is FK'd in six directions.
-// Every purchase order in dev already has a fulfillment, so the one borrowed has its fulfillment deleted first - inside the rolled-back transaction, which is the only reason that isn't a data-loss bug. fulfillments.shipments cascades from it and comes back with it.
+// An order with no fulfillment yet, so create() has something legal to attach
+// to. BUILT (lane 1), and this is the fixture whose old shape did the most
+// damage on paper: it looked for an order nothing had attached to yet and,
+// FAILING THAT, took the newest real order of that direction and DELETED its
+// fulfillment - which is why the header had to explain that the rolled-back
+// transaction was "the only reason that isn't a data-loss bug". It also
+// returned null when the table was empty, and every caller then guarded.
+//
+// A built order has no fulfillment by construction, so nothing is borrowed and
+// nothing is deleted. The lock stays: fulfillments_order_uniq is still one row
+// per order and this file still writes the three detail tables.
 async function freeOrder(c: PoolClient, direction: "purchase" | "sale") {
-  const { rows } = await c.query(
-    `SELECT o.id, o.user_id FROM orders.orders o
-      WHERE o.direction = $1::orders.direction
-        AND NOT EXISTS (SELECT 1 FROM fulfillments.fulfillments f WHERE f.order_id = o.id)
-      ORDER BY o.created_at DESC
-      LIMIT 1`,
-    [direction]
-  );
-  if (rows.length) return rows[0];
-
-  const { rows: taken } = await c.query(
-    `SELECT o.id, o.user_id FROM orders.orders o
-      WHERE o.direction = $1::orders.direction
-      ORDER BY o.created_at DESC LIMIT 1`,
-    [direction]
-  );
-  const row = taken[0];
-  if (!row) return null;
-  await c.query(`DELETE FROM fulfillments.fulfillments WHERE order_id = $1`, [row.id]);
-  return row;
+  const user = await aUser(c);
+  const order = await anOrder(c, user, { direction });
+  return { id: order.id, user_id: user.id };
 }
 
 const methodOf = async (c: PoolClient, type: string, direction: "purchase" | "sale") => {
+  const id = await fulfillmentMethodId(c, type, direction);
   const { rows } = await c.query(
-    `SELECT id, category FROM fulfillments.methods
-      WHERE type = $1 AND direction = $2::orders.direction LIMIT 1`,
-    [type, direction]
+    `SELECT id, category FROM fulfillments.methods WHERE id = $1`, [id]
   );
   return rows[0];
 };
@@ -102,7 +89,6 @@ test("every direction has exactly one default shipment method", async () => {
 test("a fulfillment can be created for an order and is found by it", async () => {
   await inRollback(async (c: PoolClient) => {
     const order = await freeOrder(c, "purchase");
-    assert.ok(order, "dev has no order to attach a fulfillment to");
     const method = await methodOf(c, "PICKUP", "purchase");
 
     const created = await repo.chooseById(
@@ -143,13 +129,13 @@ test("a second create returns the same fulfillment rather than a second one", as
 test("creating a fulfillment for an order the new schema does not have says why", async () => {
   await inRollback(async (c: PoolClient) => {
     const method = await methodOf(c, "PICKUP", "purchase");
-    // A real exchange order with no orders.orders row, if dev still has one; falls back to an all-zero id otherwise.
-    const { rows } = await c.query(
-      `SELECT e.id FROM exchange.purchase_orders e
-        WHERE NOT EXISTS (SELECT 1 FROM orders.orders o WHERE o.id = e.id)
-        LIMIT 1`
-    );
-    const orphan = rows[0]?.id ?? "00000000-0000-0000-0000-000000000000";
+    // AN ID THAT NAMES NO ORDER, WHICH IS THE WHOLE POINT. This looked for a
+    // real exchange.purchase_orders row with no orders.orders counterpart -
+    // dual-era residue - and fell back to an all-zero uuid when it found none,
+    // so the test's subject depended on frozen data that D212 stopped feeding.
+    // The claim is about a missing order, and a minted id is missing by
+    // construction.
+    const orphan = anId();
 
     await assert.rejects(
       () => repo.chooseById({ order_id: orphan, method_id: method.id }, c),
@@ -166,7 +152,7 @@ test("a pickup is scheduled, rescheduled, and cancelled without touching the ful
     const f = await repo.chooseById({ order_id: order.id, method_id: method.id }, c);
     assert.ok(f, "the fulfillment could not be read back");
 
-    const { rows: addr } = await c.query(`SELECT id FROM places.addresses LIMIT 1`);
+    const addr = [{ id: await anAddressId(c, order.user_id) }];
     const start = "2026-09-01T15:00:00Z";
 
     const booked = await pickupService.schedule(
@@ -209,7 +195,6 @@ test("a pickup is scheduled, rescheduled, and cancelled without touching the ful
 test("an appointment is scheduled at a location", async () => {
   await inRollback(async (c: PoolClient) => {
     const order = await freeOrder(c, "sale");
-    assert.ok(order, "dev has no sale order to attach a fulfillment to");
     const method = await methodOf(c, "APPOINTMENT", "sale");
     const f = await repo.chooseById({ order_id: order.id, method_id: method.id }, c);
     assert.ok(f, "the fulfillment could not be read back");
@@ -241,7 +226,7 @@ test("a pickup cannot be booked against a method that is not a pickup", async ()
     const method = await methodOf(c, "DROPSHIP", "sale");
     const f = await repo.chooseById({ order_id: order.id, method_id: method.id }, c);
     assert.ok(f, "the fulfillment could not be read back");
-    const { rows: addr } = await c.query(`SELECT id FROM places.addresses LIMIT 1`);
+    const addr = [{ id: await anAddressId(c, order.user_id) }];
 
     await assert.rejects(
       () => pickupService.schedule({ fulfillment_id: f.id, pickup_address_id: addr[0].id }, c),
@@ -258,7 +243,7 @@ test("changing the method takes the booking with it", async () => {
     const f = await repo.chooseById({ order_id: order.id, method_id: pickup.id }, c);
     assert.ok(f, "the fulfillment could not be read back");
 
-    const { rows: addr } = await c.query(`SELECT id FROM places.addresses LIMIT 1`);
+    const addr = [{ id: await anAddressId(c, order.user_id) }];
     await pickupService.schedule(
       { fulfillment_id: f.id, pickup_address_id: addr[0].id, start_time: "2026-09-01T15:00:00Z" },
       c
@@ -301,7 +286,7 @@ test("the schedule lists only what somebody is due to attend", async () => {
     const method = await methodOf(c, "PICKUP", "purchase");
     const f = await repo.chooseById({ order_id: order.id, method_id: method.id }, c);
     assert.ok(f, "the fulfillment could not be read back");
-    const { rows: addr } = await c.query(`SELECT id FROM places.addresses LIMIT 1`);
+    const addr = [{ id: await anAddressId(c, order.user_id) }];
     await pickupService.schedule(
       { fulfillment_id: f.id, pickup_address_id: addr[0].id, start_time: "2026-09-01T15:00:00Z" },
       c
@@ -370,10 +355,18 @@ test("another customer's fulfillment is not readable by asking for its order", a
 // including the two bookings, which a shipping checkout cannot reach at all
 // (place() refuses a non-SHIPMENT draft) and an admin door will.
 
-const anAddress = async (c: PoolClient) =>
-  (await c.query(`SELECT id FROM places.addresses LIMIT 1`)).rows[0].id;
+// An address of the order's own customer, BUILT - the pickup is booked at
+// their door, and `SELECT id FROM places.addresses LIMIT 1` booked it at
+// somebody else's.
+const anAddressId = async (c: PoolClient, user_id: string) =>
+  (await anAddress(c, { id: user_id })).id;
+
+// The business's own address, by name: places.locations is seeded reference
+// data (three rows) and an appointment happens at the one a customer walks
+// into.
 const aLocation = async (c: PoolClient) =>
-  (await c.query(`SELECT id FROM places.locations LIMIT 1`)).rows[0].id;
+  (await c.query(`SELECT id FROM places.locations WHERE name = $1`,
+    ["Dorado Return Address"])).rows[0].id;
 
 const handover = (
   order_id: string,
@@ -426,7 +419,7 @@ test("a checkout that named nothing falls back to the direction's default", asyn
   await inRollback(async (c: PoolClient) => {
     const order = await freeOrder(c, "purchase");
     const attached = await service.attachForCheckout(
-      handover(order.id, { pickup_address_id: await anAddress(c) }), c
+      handover(order.id, { pickup_address_id: await anAddressId(c, order.user_id) }), c
     );
     assert.equal(attached.method.type, "CARRIER DROPOFF");
     assert.equal(attached.method.category, "SHIPMENT");
@@ -436,9 +429,10 @@ test("a checkout that named nothing falls back to the direction's default", asyn
 
 test("a PICKUP method books the pickup", async () => {
   await inRollback(async (c: PoolClient) => {
-    const address = await anAddress(c);
+    const order = await freeOrder(c, "purchase");
+    const address = await anAddressId(c, order.user_id);
     const collected = await service.attachForCheckout(
-      handover((await freeOrder(c, "purchase")).id, {
+      handover(order.id, {
         method_id: (await methodOf(c, "PICKUP", "purchase")).id,
         pickup_address_id: address,
         start_time: "2026-09-05T15:00:00Z",

@@ -8,46 +8,31 @@ import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
 import { randomUUID } from "node:crypto";
 import pool from "#db";
+import { inRollback } from "#shared/testing/rollback.ts";
+import { aUser, aProduct, metalId } from "#shared/testing/builders/index.ts";
 import * as checkouts from "#db/checkout/checkouts/repo.ts";
 import * as items from "#db/checkout/items/repo.ts";
 
-let client: PoolClient;
 
 beforeAll(async () => {
   assert.equal(
     new Date().getTimezoneOffset(), 0,
     "these tests require TZ=UTC - run them with `pnpm --filter @dorado/api test`"
   );
-  client = await pool.connect();
 });
-afterAll(async () => { client.release(); await pool.end(); });
+afterAll(async () => { await pool.end(); });
 
-async function inRollback(fn: (c: PoolClient) => Promise<void>) {
-  await client.query("BEGIN");
-  try { await fn(client); } finally { await client.query("ROLLBACK"); }
-}
-
+// A BUILT CUSTOMER HAS NO CART, so this is a create every time - no
+// found-or-empty branch, and no dependence on what dev happens to hold.
 const aSession = async (c: PoolClient, direction: string) => {
-  const { rows } = await c.query("SELECT id FROM exchange.users ORDER BY id LIMIT 1");
-  const found = await checkouts.findFor(rows[0].id, direction, c);
-  if (found) {
-    await items.removeFor(found.id, c);
-    return found;
-  }
-  const created = await checkouts.create({ user_id: rows[0].id, direction }, c);
+  const user = await aUser(c);
+  const created = await checkouts.create({ user_id: user.id, direction }, c);
   return created!;
 };
 
-const aProduct = async (c: PoolClient) => {
-  const { rows } = await c.query(
-    "SELECT id, metal_id FROM products.bullion WHERE metal_id IS NOT NULL ORDER BY id LIMIT 1"
-  );
-  assert.ok(rows.length, "the test database has no products");
-  return rows[0];
-};
-
-const aMetal = async (c: PoolClient) =>
-  (await c.query("SELECT id FROM metals.metals ORDER BY name LIMIT 1")).rows[0].id;
+// Gold, by name. metals.metals holds exactly four rows and one of them IS
+// Gold - naming it is the literal this test means, not a discovery.
+const aMetal = (c: PoolClient) => metalId(c, "Gold");
 
 test("a scrap line carries its own values and lists as scrap", async () => {
   await inRollback(async (c: PoolClient) => {

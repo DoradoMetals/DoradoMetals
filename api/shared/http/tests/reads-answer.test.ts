@@ -6,6 +6,7 @@ import assert from "node:assert/strict";
 import request from "supertest";
 import pool from "#db";
 import { mockSessions, restoreSessions, as } from "#shared/testing/session.ts";
+import { TEST_ACTOR, TEST_CUSTOMER } from "#shared/testing/actor.ts";
 import { inPinnedTransaction, outside } from "#shared/testing/pinned-pool.ts";
 
 await mockSessions();
@@ -20,14 +21,8 @@ beforeAll(async () => {
   // `outside` is generic and defaults to Record<string, any>; naming the row
   // shape here is what makes the three columns below checked rather than
   // whatever the query happened to select.
-  admin = (
-    await outside<UserRow>(`SELECT id, name, email FROM exchange.users WHERE role = 'admin' LIMIT 1`)
-  )[0];
-  customer = (
-    await outside<UserRow>(
-      `SELECT id, name, email FROM exchange.users WHERE role IS DISTINCT FROM 'admin' LIMIT 1`
-    )
-  )[0];
+  admin = TEST_ACTOR;
+  customer = TEST_CUSTOMER;
   assert.ok(admin && customer, "dev needs an admin and a non-admin user");
 });
 
@@ -74,6 +69,6 @@ for (const [who, url] of READS) {
       const role = who === "admin" ? "admin" : "user";
       const person = who === "admin" ? admin : customer;
       await as({ ...person, role }, call);
-    });
+    }, { actor: TEST_ACTOR.id });
   });
 }

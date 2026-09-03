@@ -37,21 +37,21 @@ export type { ProfitBreakdown } from "@dorado/contracts";
 type MetalNames = ReadonlyMap<string, string>;
 type AssayRows = ReadonlyMap<string, RefinerItemRow>;
 
-type MetalName = "Gold" | "Silver" | "Platinum" | "Palladium";
+type ProfitMetalName = "Gold" | "Silver" | "Platinum" | "Palladium";
 type MetalKey = "gold" | "silver" | "platinum" | "palladium";
 // The spot as this math reads it - the metal it prices and the bid.
 type ProfitSpot = { metal_id: string; bid: number | null };
 
-const PROFIT_METALS: MetalName[] = ["Gold", "Silver", "Platinum", "Palladium"];
+const PROFIT_METALS: ProfitMetalName[] = ["Gold", "Silver", "Platinum", "Palladium"];
 
 // The four the split is reported for. A metal outside them has no slot in the
 // dictionary, so a line naming one is skipped rather than cast into a key that
 // does not exist.
-const KEY_OF: Readonly<Record<MetalName, MetalKey>> = {
+const KEY_OF: Readonly<Record<ProfitMetalName, MetalKey>> = {
   Gold: "gold", Silver: "silver", Platinum: "platinum", Palladium: "palladium",
 };
-const toKey = (m: MetalName): MetalKey => KEY_OF[m];
-const isProfitMetal = (name: string | undefined): name is MetalName =>
+const toKey = (m: ProfitMetalName): MetalKey => KEY_OF[m];
+const isProfitMetal = (name: string | undefined): name is ProfitMetalName =>
   name !== undefined && name in KEY_OF;
 
 const emptyMetalsDict = (): ProfitMetalsDict => ({
@@ -61,7 +61,7 @@ const emptyMetalsDict = (): ProfitMetalsDict => ({
   palladium: { content: 0, percentage: 0, profit: 0 },
 });
 
-const getItemMetal = (item: OrderViewItem, metals: MetalNames): MetalName | null => {
+const getItemMetal = (item: OrderViewItem, metals: MetalNames): ProfitMetalName | null => {
   const name = metals.get(item.metal_id);
   return isProfitMetal(name) ? name : null;
 };
@@ -140,7 +140,7 @@ function premiumsToShares(
 
 function getSharesForItem(
   item: OrderViewItem,
-  metal: MetalName,
+  metal: ProfitMetalName,
   orderSpots: ProfitSpot[],
   refinerSpots: ProfitSpot[],
   category: "scrap" | "bullion" | "total",

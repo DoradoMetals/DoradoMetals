@@ -8,6 +8,7 @@ import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
 import { randomUUID } from "node:crypto";
 import pool from "#db";
+import { inRollback } from "#shared/testing/rollback.ts";
 import * as methods from "#db/payments/methods/repo.ts";
 
 let client: PoolClient;
@@ -20,11 +21,6 @@ beforeAll(async () => {
   client = await pool.connect();
 });
 afterAll(async () => { client.release(); await pool.end(); });
-
-async function inRollback(fn: (c: PoolClient) => Promise<void>) {
-  await client.query("BEGIN");
-  try { await fn(client); } finally { await client.query("ROLLBACK"); }
-}
 
 test("listFor answers one direction, list answers both", async () => {
   await inRollback(async (c: PoolClient) => {

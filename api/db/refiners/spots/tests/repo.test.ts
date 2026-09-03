@@ -5,56 +5,56 @@ import type { PoolClient } from "pg";
 import { randomUUID } from "node:crypto";
 import pool from "#db";
 import { LOCKS, takeLocks } from "#shared/testing/locks.ts";
+import { rollbackIn } from "#shared/testing/rollback.ts";
+import {
+  aUser, anOrder, aRefinerEngagement, metalId,
+} from "#shared/testing/builders/index.ts";
 import * as refinerSpots from "#db/refiners/spots/repo.ts";
 
-let client: PoolClient;
 
 beforeAll(async () => {
   assert.equal(
     new Date().getTimezoneOffset(), 0,
     "these tests require TZ=UTC - run them with `pnpm --filter @dorado/api test`"
   );
-  client = await pool.connect();
 });
 
 afterAll(async () => {
-  client.release();
   await pool.end();
 });
 
 // Takes the orders lock: this table hangs off an order and is written by the order-placing paths too, so it can deadlock against them when interleaved.
-async function inRollback(fn: (c: PoolClient) => Promise<void>) {
-  await client.query("BEGIN");
-  try {
-    await takeLocks(client, LOCKS.ORDERS);
-    await fn(client);
-  } finally {
-    await client.query("ROLLBACK");
-  }
-}
+// THE FILE'S LOCK, BOUND ONCE. A lock is a property of what this file
+// WRITES, not of one call, so it is named here and every inRollback below
+// inherits it - which is also what stops a new test being added without one.
+const inRollback = rollbackIn({ lock: LOCKS.ORDERS });
 
-const aRefinerSpot = async (c: PoolClient, direction: string) =>
-  (await c.query(
-    `SELECT s.order_id, s.metal_id, s.refiner_id, s.refiner_order_id
-       FROM refiners.spots s
-       JOIN orders.orders o ON o.id = s.order_id
-      WHERE o.direction = $1
-      ORDER BY s.order_id, s.metal_id LIMIT 1`, [direction]
-  )).rows[0] ?? null;
+// A REFINER SPOT ON AN ORDER OF THE GIVEN DIRECTION, BUILT. The direction was
+// always the point - "a write keyed on the single order id must work for a
+// sales order too" - and it stays; what changes is that TWO metals are quoted
+// on purpose, because the narrowness assertion needs a second one and the
+// previous version had to look for one and assert it had found it.
+const aRefinerSpot = async (c: PoolClient, direction: "purchase" | "sale") => {
+  const order = await anOrder(c, await aUser(c), { direction })
+    .withLots(1, { metal: "Gold" })
+    .withLots(1, { metal: "Silver" });
+  const engagement = await aRefinerEngagement(c, order);
+  return {
+    order_id: order.id,
+    metal_id: await metalId(c, "Gold"),
+    refiner_order_id: engagement.id,
+    refiner_id: null as string | null,
+  };
+};
 
 test("a refiner bid lands on one metal of one order", async () => {
   await inRollback(async (c: PoolClient) => {
     const s = await aRefinerSpot(c, "purchase");
-    assert.ok(s, "no purchase order has a refiner spot - this test proves nothing");
     const { rows: others } = await c.query(
       `SELECT metal_id FROM refiners.spots WHERE order_id = $1 AND metal_id <> $2`,
       [s.order_id, s.metal_id]
     );
-    assert.ok(
-      others.length > 0,
-      "this order has a refiner spot for only one metal, so the loop below would " +
-        "assert nothing and the test would pass without proving the update is narrow"
-    );
+    assert.ok(others.length > 0, "the fixture quoted only one metal");
     await c.query("UPDATE refiners.spots SET bid = 1 WHERE order_id = $1", [s.order_id]);
 
     const changed = await refinerSpots.update(s.order_id, s.metal_id, { bid: 42.5 }, c);
@@ -80,7 +80,6 @@ test("a refiner bid lands on one metal of one order", async () => {
 test("a sales order's refiner spot can be written the same way", async () => {
   await inRollback(async (c: PoolClient) => {
     const s = await aRefinerSpot(c, "sale");
-    assert.ok(s, "no sales order has a refiner spot - exchange holds 60 such rows, so this is wrong");
 
     const changed = await refinerSpots.update(s.order_id, s.metal_id, { bid: 33.25 }, c);
     assert.equal(changed, true, "a sales order's refiner spot could not be written");
@@ -96,7 +95,6 @@ test("a sales order's refiner spot can be written the same way", async () => {
 test("update answers false for a (order, metal) pair with no row", async () => {
   await inRollback(async (c: PoolClient) => {
     const s = await aRefinerSpot(c, "purchase");
-    assert.ok(s, "no purchase order has a refiner spot");
     await c.query(
       "DELETE FROM refiners.spots WHERE order_id = $1 AND metal_id = $2",
       [s.order_id, s.metal_id]
@@ -110,7 +108,6 @@ test("update answers false for a (order, metal) pair with no row", async () => {
 test("the ask is left alone when the bid is written", async () => {
   await inRollback(async (c: PoolClient) => {
     const s = await aRefinerSpot(c, "purchase");
-    assert.ok(s, "no purchase order has a refiner spot");
     await c.query(
       "UPDATE refiners.spots SET ask = 500 WHERE order_id = $1 AND metal_id = $2",
       [s.order_id, s.metal_id]
@@ -130,7 +127,6 @@ test("the ask is left alone when the bid is written", async () => {
 test("a new refiner spot can be created for an order", async () => {
   await inRollback(async (c: PoolClient) => {
     const s = await aRefinerSpot(c, "purchase");
-    assert.ok(s, "no purchase order has a refiner spot");
 
     // Free the pair up inside the transaction this test rolls back.
     await c.query(

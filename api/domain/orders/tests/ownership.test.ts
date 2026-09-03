@@ -13,12 +13,15 @@
 // Order ids are uuids rather than sequential, so this is not a hole anyone
 // stumbles into. It is still the difference between "you cannot" and "you
 // probably will not guess".
-import { test, afterAll, beforeAll } from "vitest";
+import { test, afterAll } from "vitest";
 import assert from "node:assert/strict";
 import request from "supertest";
 import pool from "#db";
 import { mockSessions, restoreSessions, as, asAdmin } from "#shared/testing/session.ts";
-import { inPinnedTransaction, outside } from "#shared/testing/pinned-pool.ts";
+import { TEST_ACTOR } from "#shared/testing/actor.ts";
+import { inPinnedTransaction } from "#shared/testing/pinned-pool.ts";
+import { aUser, anOrder } from "#shared/testing/builders/index.ts";
+import type { PoolClient } from "pg";
 
 await mockSessions();
 const { default: app } = await import("#app");
@@ -38,68 +41,36 @@ type OrderFixture = {
   order_number: number;
 };
 
-let victim: UserFixture & { role: string };
-let stranger: UserFixture & { role: string };
-let order: OrderFixture;
-
-beforeAll(async () => {
-  // The OLDEST open order, not the newest, and that is the whole point.
-  //
-  // This file failed once in the full suite and passed in isolation, and the
-  // diagnostic said the guard refused an order whose owner was the caller - for
-  // an order id that does not exist in any of the three tables now. The fixture
-  // was "the newest open order", which is a race against every other file that
-  // creates one: another suite's order was visible when beforeAll() ran and gone
-  // by the time the request was made, because that file's transaction had
-  // rolled back in between.
-  //
-  // Uncommitted rows are not visible across connections, so the read that saw
-  // it was inside no transaction of its own and caught a row mid-flight; the
-  // detail that matters is not the mechanism but that the fixture was not
-  // stable. The oldest order is: nothing creates rows older than the ones dev
-  // already has, so this picks the same one every time, in isolation and in the
-  // full suite.
-  const orders = await outside<OrderFixture>(
-    `SELECT po.id, po.user_id, po.purchase_order_status, po.order_number
-       FROM exchange.purchase_orders po
-      WHERE po.user_id IS NOT NULL
-        AND po.purchase_order_status NOT IN ('Cancelled', 'Completed')
-      ORDER BY po.created_at ASC, po.id ASC LIMIT 1`
-  );
-  order = orders[0];
-  assert.ok(order, "dev has no open purchase order with an owner");
-
-  const owner = await outside<UserFixture>(`SELECT id, name, email FROM exchange.users WHERE id = $1`, [
-    order.user_id,
-  ]);
-  victim = { id: owner[0].id, name: owner[0].name, email: owner[0].email, role: "user" };
-  // Asserted, because without it a lookup returning nothing makes victim
-  // `{ role: "user" }` with an undefined id - and the only symptom is the
-  // owner-can-still-read test getting a 403 it cannot explain. That is exactly
-  // how this file failed once in the full suite and passed in isolation.
-  assert.ok(
-    victim.id,
-    `no exchange.users row for ${order.user_id}, the owner of order ${order.id}`
-  );
-
-  // And the order is still there when the tests actually run, not merely when
-  // beforeAll() looked. A fixture that vanishes between selection and use is what
-  // made this file intermittent.
-  const [{ n }] = await outside<{ n: number }>(
-    `SELECT count(*)::int AS n FROM exchange.purchase_orders WHERE id = $1`,
-    [order.id]
-  );
-  assert.equal(n, 1, `order ${order.id} disappeared between being chosen and being used`);
-
-  const others = await outside<UserFixture>(
-    `SELECT id, name, email FROM exchange.users
-      WHERE id <> $1 AND role IS DISTINCT FROM 'admin' LIMIT 1`,
-    [order.user_id]
-  );
-  stranger = { id: others[0].id, name: others[0].name, email: others[0].email, role: "user" };
-  assert.ok(stranger?.id, "dev has only one non-admin user, so this cannot be tested");
-  assert.notEqual(stranger.id, victim.id);
-});
+// THE ORDER AND ITS THREE PEOPLE ARE BUILT (lane 1), and this file's own
+// deleted `beforeAll` is the best argument in the suite for why.
+//
+// It picked "the OLDEST open order, not the newest, and that is the whole
+// point": the newest was a race against every other file that creates one -
+// another suite's uncommitted order was visible when beforeAll ran and gone by
+// the time the request was made - so the fixture was chosen for being too old
+// to move. It then asserted that the order was STILL THERE after choosing it,
+// looked its owner up in exchange.users and asserted that row existed too, and
+// hunted a second non-admin to be the stranger. Six guards, all of them
+// describing the same defect: the test did not own its fixture.
+//
+// It also read `exchange.purchase_orders`, which D212 froze - so the fixture
+// was drawn from a table nothing writes any more while the guards under test
+// read `orders.orders`.
+//
+// Built inside the pin, which is where the requests run. Nothing else can move
+// it, and the two people are two people by construction.
+const world = async (c: PoolClient) => {
+  const victimUser = await aUser(c, { name: "The Owner" });
+  const strangerUser = await aUser(c, { name: "The Stranger" });
+  const order = await anOrder(c, victimUser, { direction: "purchase", status: "Pending" })
+    .withLots(1)
+    .withSpots();
+  return {
+    victim: { ...victimUser, role: "user" },
+    stranger: { ...strangerUser, role: "user" },
+    order: { id: order.id, user_id: victimUser.id },
+  };
+};
 
 afterAll(async () => {
   restoreSessions();
@@ -107,14 +78,15 @@ afterAll(async () => {
 });
 
 test("a stranger cannot read the spots frozen on somebody else's order", async () => {
-  await inPinnedTransaction(async () => {
+  await inPinnedTransaction(async (c: PoolClient) => {
+    const { stranger, order } = await world(c);
     await as(stranger, async () => {
       // GET /orders/:id/spots replaced the body-keyed legacy route in the
       // read-flip wave; requireOwnOrderParam reads the id from the path.
       const res = await request(app).get(`/api/orders/${order.id}/spots`);
       assert.equal(res.status, 403, `answered ${res.status} with somebody else's spot prices`);
     });
-  }, { lock: ORDER_LOCK });
+  }, { actor: TEST_ACTOR.id, lock: ORDER_LOCK });
 });
 
 // The offer routes left with 086; the accept route left with the PATCH
@@ -124,20 +96,22 @@ test("a stranger cannot read the spots frozen on somebody else's order", async (
 // the order's own owner - is refused outright, because pricing decides what
 // the business pays and customers have no order-management surface at all.
 test("a plain user cannot finalize an order's pricing, even their own", async () => {
-  await inPinnedTransaction(async () => {
+  await inPinnedTransaction(async (c: PoolClient) => {
+    const { victim, order } = await world(c);
     await as(victim, async () => {
       const res = await request(app)
         .patch(`/api/orders/${order.id}`)
         .send({ finalize_pricing: true });
       assert.equal(res.status, 403, `answered ${res.status} - a customer priced an order`);
     });
-  }, { lock: ORDER_LOCK });
+  }, { actor: TEST_ACTOR.id, lock: ORDER_LOCK });
 });
 
 // The expensive one. A successful call here creates a real FedEx return label
 // and sends another customer's metal back to them.
 test("a stranger cannot cancel somebody else's order", async () => {
-  await inPinnedTransaction(async () => {
+  await inPinnedTransaction(async (c: PoolClient) => {
+    const { stranger, order } = await world(c);
     await as(stranger, async () => {
       const res = await request(app)
         .patch(`/api/orders/${order.id}`)
@@ -148,13 +122,14 @@ test("a stranger cannot cancel somebody else's order", async () => {
         `answered ${res.status} - a stranger reached the code that buys a return label`
       );
     });
-  }, { lock: ORDER_LOCK });
+  }, { actor: TEST_ACTOR.id, lock: ORDER_LOCK });
 });
 
 // And the owner is still allowed, or the fix has broken the feature rather than
 // secured it.
 test("the order's own customer can still read its spots", async () => {
-  await inPinnedTransaction(async () => {
+  await inPinnedTransaction(async (c: PoolClient) => {
+    const { victim, order } = await world(c);
     await as(victim, async () => {
       const res = await request(app).get(`/api/orders/${order.id}/spots`);
       // The ids are in the message because this failed once in the full suite
@@ -169,15 +144,15 @@ test("the order's own customer can still read its spots", async () => {
       );
       assert.ok(Array.isArray(res.body));
     });
-  }, { lock: ORDER_LOCK });
+  }, { actor: TEST_ACTOR.id, lock: ORDER_LOCK });
 });
 
 test("an admin can still reach any order", async () => {
-  await inPinnedTransaction(async () => {
-    const admins = await outside<UserFixture>(`SELECT id, name, email FROM exchange.users WHERE role = 'admin' LIMIT 1`);
-    await asAdmin(admins[0], async () => {
+  await inPinnedTransaction(async (c: PoolClient) => {
+    const { order } = await world(c);
+    await asAdmin(TEST_ACTOR, async () => {
       const res = await request(app).get(`/api/orders/${order.id}/spots`);
       assert.equal(res.status, 200, "an admin was refused an order they administer");
     });
-  }, { lock: ORDER_LOCK });
+  }, { actor: TEST_ACTOR.id, lock: ORDER_LOCK });
 });

@@ -10,22 +10,22 @@ import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import pool from "#db";
-import { LOCKS, takeLocks } from "#shared/testing/locks.ts";
+import { LOCKS } from "#shared/testing/locks.ts";
+import { rollbackIn } from "#shared/testing/rollback.ts";
+import { actingAs } from "#shared/testing/actor.ts";
+import { aUser, anAdmin, anOrder, aStatus } from "#shared/testing/builders/index.ts";
 import * as orders from "#db/orders/repo.ts";
 import type { PoolClient } from "pg";
 
-let client: PoolClient;
 
 beforeAll(async () => {
   assert.equal(
     new Date().getTimezoneOffset(), 0,
     "these tests require TZ=UTC - run them with `pnpm --filter @dorado/api test`"
   );
-  client = await pool.connect();
 });
 
 afterAll(async () => {
-  client.release();
   await pool.end();
 });
 
@@ -34,18 +34,20 @@ afterAll(async () => {
 // domain/orders/tests/edit-line.test.ts writes real, autocommitting rows to
 // the same table under LOCKS.ORDERS - see domain/orders/tests/
 // purchase-read.test.ts's own comment for the full mechanism.
-async function inRollback(fn: (c: PoolClient) => Promise<void>) {
-  await client.query("BEGIN");
-  await takeLocks(client, LOCKS.ORDERS);
-  try {
-    await fn(client);
-  } finally {
-    await client.query("ROLLBACK");
-  }
-}
+// THE FILE'S LOCK, BOUND ONCE. A lock is a property of what this file
+// WRITES, not of one call, so it is named here and every inRollback below
+// inherits it - which is also what stops a new test being added without one.
+const inRollback = rollbackIn({ lock: LOCKS.ORDERS });
 
-const anOrder = async (c: PoolClient): Promise<string | null> =>
-  (await c.query("SELECT id FROM orders.orders ORDER BY id LIMIT 1")).rows[0]?.id ?? null;
+// THE ORDER IS BUILT, NOT FOUND (lane 1). This picked whatever row
+// orders.orders happened to hold first and guarded every test with "the table
+// is empty - this test proves nothing" - so the file's subject was a
+// production row whose status these tests then overwrote. anOrder builds one,
+// in this transaction, and it disappears with the rollback.
+const anOrderFor = async (c: PoolClient): Promise<string> => {
+  const user = await aUser(c);
+  return (await anOrder(c, user, { direction: "purchase" })).id;
+};
 
 const orderRow = async (c: PoolClient, id: string) =>
   (await c.query(
@@ -54,17 +56,13 @@ const orderRow = async (c: PoolClient, id: string) =>
        FROM orders.orders WHERE id = $1`, [id]
   )).rows[0] as Record<string, unknown>;
 
-// The signed-in person, as the database sees one. Read from auth.users because
-// updated_by_id is a foreign key to it, and the trigger resolves the setting
-// against that table before stamping - an invented uuid would be discarded.
-const anAdmin = async (c: PoolClient): Promise<{ id: string; name: string }> =>
-  (await c.query(`SELECT id, name FROM auth.users WHERE role = 'admin' LIMIT 1`)).rows[0];
-
-// What shared/db/withTransaction.ts does for a real request, done by hand: a
-// repo test holds the transaction itself and never opens one.
-const actingAs = async (c: PoolClient, id: string | null) => {
-  await c.query("SELECT set_config('app.actor_id', $1, true)", [id ?? ""]);
-};
+// The signed-in person is BUILT for the same reason the order is, and it still
+// has to be a real auth.users row: updated_by_id is a foreign key to that
+// table and the trigger resolves the setting against it before stamping, so an
+// invented uuid is discarded silently rather than refused.
+//
+// `actingAs` is shared/testing/actor.ts's now - one copy, where
+// shared/db/withTransaction.ts's equivalent lives for the production path.
 
 // THE AUTHOR IS NOT AN ARGUMENT ANY MORE. `update` used to take
 // `{ status, updated_by }` and this test passed "alice"; migration 116 moved
@@ -73,12 +71,10 @@ const actingAs = async (c: PoolClient, id: string | null) => {
 // asked of the mechanism that now answers it.
 test("a status change records the status and its author", async () => {
   await inRollback(async (c: PoolClient) => {
-    const id = await anOrder(c);
-    assert.ok(id, "orders.orders is empty - this test proves nothing");
+    const id = await anOrderFor(c);
     const admin = await anAdmin(c);
-    assert.ok(admin, "auth.users has no admin - this test proves nothing");
     // A sentinel, so a pass cannot come from the value already being there.
-    const status = `probe-${randomUUID().slice(0, 8)}`;
+    const status = aStatus();
 
     await actingAs(c, admin.id);
     const returned = await orders.update(id, { status }, {}, c);
@@ -99,10 +95,8 @@ test("a status change records the status and its author", async () => {
 // moves, so the row records that something happened.
 test("a status change with no actor keeps the previous author and still moves updated_at", async () => {
   await inRollback(async (c: PoolClient) => {
-    const id = await anOrder(c);
-    assert.ok(id, "orders.orders is empty");
+    const id = await anOrderFor(c);
     const admin = await anAdmin(c);
-    assert.ok(admin, "auth.users has no admin");
 
     await actingAs(c, admin.id);
     await orders.update(id, { status: "Pending" }, {}, c);
@@ -124,8 +118,7 @@ test("a status change with no actor keeps the previous author and still moves up
 
 test("each of the three flags sets its own column and no other", async () => {
   await inRollback(async (c: PoolClient) => {
-    const id = await anOrder(c);
-    assert.ok(id, "orders.orders is empty");
+    const id = await anOrderFor(c);
 
     // The three workflow flags are ordinary patchable columns now: there is no
     // per-flag writer and no interpolated column name left to keep safe.
@@ -159,8 +152,7 @@ test("update answers false for an id that names nothing and true for a real one"
     const missing = await orders.update(randomUUID(), { status: "Pending" }, {}, c);
     assert.equal(missing, false, "an update against no row reported success");
 
-    const id = await anOrder(c);
-    assert.ok(id, "orders.orders is empty - this test proves nothing");
+    const id = await anOrderFor(c);
     assert.equal(await orders.update(id, { status: "Pending" }, {}, c), true);
   });
 });
@@ -169,8 +161,7 @@ test("update answers false for an id that names nothing and true for a real one"
 // what makes the Pending-only transitions atomic under webhook retries.
 test("a guard that does not match writes nothing and says so", async () => {
   await inRollback(async (c: PoolClient) => {
-    const id = await anOrder(c);
-    assert.ok(id, "orders.orders is empty");
+    const id = await anOrderFor(c);
     await orders.update(id, { status: "Preparing" }, {}, c);
 
     const wrong = await orders.update(id, { status: "Cancelled" }, { status: "Pending" }, c);
@@ -185,8 +176,7 @@ test("a guard that does not match writes nothing and says so", async () => {
 // A patch naming no column is not an error and not an empty UPDATE.
 test("an empty patch changes nothing and is not a failure", async () => {
   await inRollback(async (c: PoolClient) => {
-    const id = await anOrder(c);
-    assert.ok(id, "orders.orders is empty");
+    const id = await anOrderFor(c);
     assert.equal(await orders.update(id, {}, {}, c), true);
   });
 });

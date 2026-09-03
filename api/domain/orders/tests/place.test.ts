@@ -7,50 +7,44 @@
 // leave the building stubbed AT THE PROVIDER BOUNDARY: shared/testing/
 // no-network.ts refuses a real one loudly, so the stub says what the carrier
 // answered rather than asking it.
-import { test, beforeAll, afterAll } from "vitest";
+import { test, afterAll } from "vitest";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
 import pool from "#db";
-import { assertNothingEscaped, inPinnedTransaction, outside } from "#shared/testing/pinned-pool.ts";
+import { assertNothingEscaped, inPinnedTransaction } from "#shared/testing/pinned-pool.ts";
+import { TEST_ACTOR } from "#shared/testing/actor.ts";
 import { LOCKS } from "#shared/testing/locks.ts";
 import * as place from "#domain/orders/place.ts";
 import * as fulfillmentService from "#domain/fulfillments/service.ts";
+import {
+  aUser, anAddress, aProduct, metalId,
+  packageId as builtPackageId, carrierServiceId, fulfillmentMethodId,
+} from "#shared/testing/builders/index.ts";
 
+// THE CUSTOMER AND THEIR ADDRESS ARE BUILT (lane 1); the three seeded
+// reference rows are NAMED. This joined auth.users to places.user_addresses
+// for "a non-admin with an address" - a real person, whose address the
+// placement then snapshots and whose parcel it books - and took the package,
+// the service and the method by LIMIT 1 on tables whose rows are literals of
+// migration 047.
+//
+// Resolved inside the pin, per test, because that is where the placement runs.
 let customer: string;
 let addressId: string;
 let packageId: string;
 let labelServiceId: string;
 let dropoffMethodId: string;
 
-beforeAll(async () => {
-  const users = await outside<{ id: string; address_id: string }>(
-    `SELECT u.id, ua.address_id
-       FROM auth.users u
-       JOIN places.user_addresses ua ON ua.user_id = u.id
-      WHERE u.role IS DISTINCT FROM 'admin'
-      ORDER BY u.email LIMIT 1`
-  );
-  assert.ok(users.length, "the test db needs a non-admin user with an address");
-  customer = users[0].id;
-  addressId = users[0].address_id;
-
-  packageId = (
-    await outside<{ id: string }>(
-      `SELECT id FROM shipping.packages WHERE carrier_id IS NULL AND label = 'Small Box' LIMIT 1`
-    )
-  )[0].id;
-  labelServiceId = (
-    await outside<{ id: string }>(
-      `SELECT id FROM shipping.services WHERE name = 'Express Saver' AND carrier_id IS NOT NULL LIMIT 1`
-    )
-  )[0].id;
-  dropoffMethodId = (
-    await outside<{ id: string }>(
-      `SELECT id FROM fulfillments.methods
-        WHERE direction = 'purchase' AND type = 'CARRIER DROPOFF' LIMIT 1`
-    )
-  )[0].id;
-});
+const aWorld = async (c: PoolClient) => {
+  const person = await aUser(c, { name: "Placement Customer" });
+  const address = await anAddress(c, person);
+  customer = person.id;
+  addressId = address.id;
+  packageId = await builtPackageId(c, "Small Box");
+  labelServiceId = await carrierServiceId(c, "Express Saver");
+  dropoffMethodId = await fulfillmentMethodId(c, "CARRIER DROPOFF", "purchase");
+  return { customer, addressId };
+};
 
 afterAll(async () => {
   await pool.end();
@@ -147,10 +141,11 @@ async function primeCheckout(
 // Placing an order writes orders.*, checkout.*, fulfillments.* AND snapshots
 // into places.addresses, so this file takes both lock groups.
 const inPinned = <T,>(fn: (c: PoolClient) => Promise<T>): Promise<T> =>
-  inPinnedTransaction(fn, { lock: [LOCKS.ORDERS, LOCKS.ADDRESSES] });
+  inPinnedTransaction(fn, { actor: TEST_ACTOR.id, lock: [LOCKS.ORDERS, LOCKS.ADDRESSES] });
 
 test("a checkout becomes an order with its items and its fulfillment", async () => {
   await inPinned(async (c: PoolClient) => {
+    await aWorld(c);
     const order = await place.place(await primeCheckout(c), carrierAnswers());
 
     assert.equal(order.order.direction, "purchase");
@@ -211,6 +206,7 @@ test("a checkout becomes an order with its items and its fulfillment", async () 
 // emails and PDFs. 115 seeded past all of them; this proves it stayed past.
 test("the order number comes from the native sequence and collides with nothing", async () => {
   await inPinned(async (c: PoolClient) => {
+    await aWorld(c);
     const { rows: before } = await c.query(`SELECT last_value FROM orders.purchase_number_seq`);
     const order = await place.place(await primeCheckout(c), carrierAnswers());
     const { rows: after } = await c.query(`SELECT last_value FROM orders.purchase_number_seq`);
@@ -225,10 +221,11 @@ test("the order number comes from the native sequence and collides with nothing"
       Number(order.order.number) > Number(before[0].last_value),
       "the number drawn is not above where the sequence started"
     );
+    // orders.orders alone: the exchange half of this check counted rows in a
+    // table D212 stopped writing, so it could only ever have been zero.
     const { rows: clash } = await c.query(
-      `SELECT (SELECT count(*) FROM exchange.purchase_orders WHERE order_number = $1)
-            + (SELECT count(*) FROM orders.orders
-                WHERE direction = 'purchase' AND number = $1 AND id <> $2) AS n`,
+      `SELECT count(*) AS n FROM orders.orders
+        WHERE direction = 'purchase' AND number = $1 AND id <> $2`,
       [order.order.number, order.order.id]
     );
     assert.equal(Number(clash[0].n), 0, "the number handed out already belongs to an order");
@@ -239,6 +236,7 @@ test("the order number comes from the native sequence and collides with nothing"
 // where a parcel was sent.
 test("the order takes a copy of the address, not a pointer to it", async () => {
   await inPinned(async (c: PoolClient) => {
+    await aWorld(c);
     const order = await place.place(await primeCheckout(c), carrierAnswers());
 
     const { rows } = await c.query(
@@ -258,6 +256,7 @@ test("the order takes a copy of the address, not a pointer to it", async () => {
 
 test("spots are frozen per metal the order actually contains", async () => {
   await inPinned(async (c: PoolClient) => {
+    await aWorld(c);
     const order = await place.place(
       await primeCheckout(c, {
         items: [
@@ -284,6 +283,7 @@ test("spots are frozen per metal the order actually contains", async () => {
 // the ids the checkout chose - rather than as a shell and an update.
 test("the parcel records what the carrier said and what the checkout chose", async () => {
   await inPinned(async (c: PoolClient) => {
+    await aWorld(c);
     const order = await place.place(
       await primeCheckout(c),
       carrierAnswers({ netCharge: 31.75, tracking_number: "794000000001" })
@@ -322,6 +322,7 @@ test("the parcel records what the carrier said and what the checkout chose", asy
 // customer's metal arrives and nothing recorded that it was coming.
 test("an item whose metal cannot be resolved fails the order rather than being dropped", async () => {
   await inPinned(async (c: PoolClient) => {
+    await aWorld(c);
     const checkout_id = await primeCheckout(c, {
       items: [{ metal: "Unobtainium", quantity: 1 }],
     });
@@ -334,22 +335,31 @@ test("an item whose metal cannot be resolved fails the order rather than being d
 // placement overwrites it with the band, exactly as it always has for scrap.
 test("a placed bullion line takes the rate band, not the premium the cart carried", async () => {
   await inPinned(async (c: PoolClient) => {
-    const { rows: [product] } = await c.query(
-      `SELECT b.id, b.content, b.bid_premium, band.bullion_pct
-         FROM products.bullion b
-         JOIN metals.metals m ON m.id = b.metal_id
-         CROSS JOIN LATERAL (
-           SELECT r.bullion_pct FROM rates.rates r
-            WHERE r.metal_id = b.metal_id
-              AND b.content >= r.min_qty
-              AND (r.max_qty IS NULL OR b.content <= r.max_qty)
-            ORDER BY r.min_qty LIMIT 1
-         ) band
-        WHERE m.name = 'Gold' AND b.content IS NOT NULL
-          AND b.bid_premium IS DISTINCT FROM band.bullion_pct
-        ORDER BY b.content LIMIT 1`
+    await aWorld(c);
+    // A GOLD PRODUCT WHOSE OWN PREMIUM IS NOT ITS BAND, BUILT (lane 1). This
+    // hunted the catalogue with a lateral join for one that happened to differ
+    // and then said "no gold product is off its band - this check would be
+    // vacuous" if it found none. The band is read for ONE product's content
+    // rather than searched across all of them, and the fixture's own premium
+    // is then set deliberately away from it - so the assertion can never be
+    // vacuous, on any database.
+    const built = await aProduct(c, { metal: "Gold", content: 1, bid_premium: 1.5 });
+    const { rows: [band] } = await c.query<{ bullion_pct: string }>(
+      `SELECT r.bullion_pct FROM rates.rates r
+        WHERE r.metal_id = $1 AND $2 >= r.min_qty
+          AND (r.max_qty IS NULL OR $2 <= r.max_qty)
+        ORDER BY r.min_qty`,
+      [await metalId(c, "Gold"), built.content]
     );
-    assert.ok(product, "no gold product is off its band - this check would be vacuous");
+    assert.ok(band, "the rates seed has no gold band for a one-ounce product");
+    const product = {
+      id: built.id, content: built.content,
+      bid_premium: built.bid_premium, bullion_pct: band.bullion_pct,
+    };
+    assert.notEqual(
+      Number(product.bid_premium), Number(product.bullion_pct),
+      "the fixture's own premium equals its band, so this check would be vacuous"
+    );
 
     const order = await place.place(
       await primeCheckout(c, {
@@ -377,6 +387,7 @@ test("a placed bullion line takes the rate band, not the premium the cart carrie
 
 test("an empty checkout cannot become an order", async () => {
   await inPinned(async (c: PoolClient) => {
+    await aWorld(c);
     const checkout_id = await primeCheckout(c, { items: [] });
     await assert.rejects(() => place.place(checkout_id, carrierAnswers()), /no items/);
   });
@@ -388,6 +399,7 @@ test("an empty checkout cannot become an order", async () => {
 test("an order, its fulfillment and its parcel roll back together", async () => {
   let order_id = "";
   await inPinned(async (c: PoolClient) => {
+    await aWorld(c);
     order_id = (await place.place(await primeCheckout(c), carrierAnswers())).order.id;
     const { rows } = await c.query(`SELECT 1 FROM orders.orders WHERE id = $1`, [order_id]);
     assert.equal(rows.length, 1, "the order was never written at all");

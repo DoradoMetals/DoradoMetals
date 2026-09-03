@@ -5,6 +5,10 @@ import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
 import { randomUUID } from "node:crypto";
 import pool from "#db";
+import { inRollback } from "#shared/testing/rollback.ts";
+import { carrierId } from "#shared/testing/builders/index.ts";
+import { aUser } from "#shared/testing/builders/index.ts";
+import { actingAs } from "#shared/testing/actor.ts";
 import * as service from "#domain/shipping/services/service.ts";
 
 let client: PoolClient;
@@ -22,17 +26,12 @@ afterAll(async () => {
   await pool.end();
 });
 
-async function inRollback(fn: (c: PoolClient) => Promise<void>) {
-  await client.query("BEGIN");
-  try {
-    await fn(client);
-  } finally {
-    await client.query("ROLLBACK");
-  }
-}
-
-const fedex = async (c: PoolClient) =>
-  (await c.query("SELECT id FROM exchange.carriers WHERE name = 'FedEx' LIMIT 1")).rows[0].id;
+// FedEx BY NAME, out of shipping.carriers - the table the service writes
+// against. This read exchange.carriers, a frozen table, for an id it then
+// used as a foreign key in the NEW schema; the two agree today (the resolver
+// test next door is what proves it) but the fixture had no business depending
+// on that.
+const fedex = (c: PoolClient) => carrierId(c, "FedEx");
 
 // A name nothing else uses, so assertions can be scoped to it rather than to a
 // table count - vitest runs files in parallel.
@@ -45,15 +44,14 @@ const draft = async (c: PoolClient, over = {}) => ({
   ...over,
 });
 
-// The signed-in person, as the database sees one - public.audit_stamp fills created_by/updated_by from the actor on the connection, so these tests say who is acting.
-const actingAs = async (c: PoolClient, id: string | null) => {
-  await c.query("SELECT set_config('app.actor_id', $1, true)", [id ?? ""]);
-};
-
-const twoPeople = async (c: PoolClient) =>
-  (await c.query<{ id: string; name: string }>(
-    `SELECT id, name FROM auth.users WHERE name IS NOT NULL ORDER BY id LIMIT 2`
-  )).rows;
+// TWO NAMED PEOPLE, BUILT (lane 1). These were the first two named rows of
+// auth.users, so "the maker" and "the editor" were whichever two customers
+// sorted first - and a database with fewer made the attribution assertions
+// vacuous rather than red.
+const twoPeople = async (c: PoolClient) => [
+  await aUser(c, { name: "Fixture Maker" }),
+  await aUser(c, { name: "Fixture Editor" }),
+];
 
 test("the list keeps the three renamed columns under the names the frontend reads", async () => {
   const [row] = await service.getAllServices();

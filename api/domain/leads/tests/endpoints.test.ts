@@ -6,6 +6,7 @@ import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
 import request from "supertest";
 import { mockSessions, as } from "#shared/testing/session.ts";
+import { TEST_ACTOR, TEST_CUSTOMER } from "#shared/testing/actor.ts";
 import { inPinnedTransaction, outside } from "#shared/testing/pinned-pool.ts";
 
 await mockSessions();
@@ -17,10 +18,8 @@ let admin: User;
 let customer: User;
 
 beforeAll(async () => {
-  admin = (await outside<User>(`SELECT id, name, email FROM exchange.users WHERE role = 'admin' LIMIT 1`))[0];
-  customer = (await outside<User>(`SELECT id, name, email FROM exchange.users WHERE role IS DISTINCT FROM 'admin' LIMIT 1`))[0];
-  assert.ok(admin, "dev has no admin user");
-  assert.ok(customer, "dev has no non-admin user");
+  admin = TEST_ACTOR;
+  customer = TEST_CUSTOMER;
 });
 
 // Named, not spread: the fixture is only ever id/name/email plus the role the call is exercising.
@@ -37,7 +36,7 @@ test("a customer cannot reach any lead route", async () => {
       assert.equal((await request(app).get("/api/leads/get_all")).status, 403);
       assert.equal((await request(app).post("/api/leads/create").send({ lead: NEW_LEAD })).status, 403);
     });
-  });
+  }, { actor: TEST_ACTOR.id });
 });
 
 test("create writes the row the id names", async () => {
@@ -51,7 +50,7 @@ test("create writes the row the id names", async () => {
       assert.equal(nu.rows.length, 1, "not written to leads.leads");
       assert.equal(nu.rows[0].name, NEW_LEAD.name);
     });
-  });
+  }, { actor: TEST_ACTOR.id });
 });
 
 test("the read serves what the table holds", async () => {
@@ -66,7 +65,7 @@ test("the read serves what the table holds", async () => {
       assert.equal(one.status, 200);
       assert.equal(one.body.name, "FROM-NEW-SCHEMA", "the read did not serve the row");
     });
-  });
+  }, { actor: TEST_ACTOR.id });
 });
 
 test("update writes the row, and delete removes it", async () => {
@@ -88,7 +87,7 @@ test("update writes the row, and delete removes it", async () => {
         `SELECT 1 FROM leads.leads WHERE id = $1`, [created.id]);
       assert.equal(gone.length, 0, "leads.leads still holds the deleted lead");
     });
-  });
+  }, { actor: TEST_ACTOR.id });
 });
 
 // A 200 with an empty body for an id that names nothing is indistinguishable from a lead with no fields.
@@ -100,7 +99,7 @@ test("an id that names no lead is 404, not an empty 200", async () => {
         .query({ lead_id: "11111111-1111-1111-1111-111111111111" });
       assert.equal(res.status, 404, `answered ${res.status}`);
     });
-  });
+  }, { actor: TEST_ACTOR.id });
 });
 
 test("deleting an id that names nothing is 404, not a success", async () => {
@@ -111,5 +110,5 @@ test("deleting an id that names nothing is 404, not a success", async () => {
         .send({ lead_id: "11111111-1111-1111-1111-111111111111" });
       assert.equal(res.status, 404, `answered ${res.status}`);
     });
-  });
+  }, { actor: TEST_ACTOR.id });
 });

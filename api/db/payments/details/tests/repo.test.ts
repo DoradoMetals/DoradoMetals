@@ -19,31 +19,21 @@ import pool from "#db";
 import * as details from "#db/payments/details/repo.ts";
 import * as methods from "#db/payments/methods/repo.ts";
 import * as transactions from "#db/orders/transactions/repo.ts";
-import { LOCKS, takeLocks } from "#shared/testing/locks.ts";
+import { LOCKS } from "#shared/testing/locks.ts";
+import { rollbackIn } from "#shared/testing/rollback.ts";
+import { aUser, anOrder } from "#shared/testing/builders/index.ts";
 
-let client: PoolClient;
 
 beforeAll(async () => {
   assert.equal(
     new Date().getTimezoneOffset(), 0,
     "these tests require TZ=UTC - run them with `pnpm --filter @dorado/api test`"
   );
-  client = await pool.connect();
 });
-afterAll(async () => { client.release(); await pool.end(); });
+afterAll(async () => { await pool.end(); });
 
 // LOCKS.ORDERS because this file writes orders.transactions.
-const inRollback = async (fn: (c: PoolClient) => Promise<void>) => {
-  await client.query("BEGIN");
-  await takeLocks(client, [LOCKS.ORDERS]);
-  try { await fn(client); } finally { await client.query("ROLLBACK"); }
-};
-
-const aUser = async (c: PoolClient) => {
-  const { rows } = await c.query("SELECT id FROM exchange.users LIMIT 1");
-  assert.ok(rows.length, "the test database has no users, so this would assert nothing");
-  return rows[0].id;
-};
+const inRollback = rollbackIn({ lock: LOCKS.ORDERS });
 
 const methodId = async (c: PoolClient, type: string) => {
   const row = await methods.findByType("purchase", type, c);
@@ -54,7 +44,7 @@ const methodId = async (c: PoolClient, type: string) => {
 const anAccount = async (c: PoolClient, type = "ECHECK") =>
   await details.create(
     randomUUID(),
-    await aUser(c),
+    (await aUser(c)).id,
     { method_id: await methodId(c, type), account_holder: "A Customer", email_to: "a@b.co" },
     c
   );
@@ -79,7 +69,7 @@ test("the account write never stores routing or account numbers", async () => {
   await inRollback(async (c: PoolClient) => {
     const row = await details.create(
       randomUUID(),
-      await aUser(c),
+      (await aUser(c)).id,
       {
         method_id: await methodId(c, "ACH"),
         account_holder: "A Customer",
@@ -130,24 +120,23 @@ test("remove answers true once and false the second time", async () => {
   });
 });
 
-// A PURCHASE order, and the test says out loud why. `LIMIT 1` on a table
-// holding both directions is how the previous version of this file came to
-// assert nothing.
-const aPurchaseOrderWithTotals = async (c: PoolClient) => {
-  const { rows } = await c.query(
-    `SELECT t.order_id
-       FROM orders.transactions t JOIN orders.orders o ON o.id = t.order_id
-      WHERE o.direction = 'purchase'
-      ORDER BY t.order_id LIMIT 2`
-  );
-  assert.ok(rows.length, "no purchase order has a transactions row - this would assert nothing");
-  return rows;
+// TWO PURCHASE ORDERS, EACH WITH ITS OWN MONEY ROW, BUILT. The direction was
+// already spelled out here because `LIMIT 1` on a table holding both is how an
+// earlier version of this file came to assert nothing (D168) - and building
+// them removes the other half of that problem: the pair is now guaranteed to
+// exist and guaranteed to be two DIFFERENT orders, which is what "only that
+// order" needs to mean anything.
+const twoPurchaseOrdersWithTotals = async (c: PoolClient) => {
+  const user = await aUser(c);
+  const first = await anOrder(c, user, { direction: "purchase" }).withTotals({ total: 100 });
+  const second = await anOrder(c, user, { direction: "purchase" }).withTotals({ total: 200 });
+  return [first, second];
 };
 
 test("linking points the ORDER at the account, and only that order", async () => {
   await inRollback(async (c: PoolClient) => {
-    const orders = await aPurchaseOrderWithTotals(c);
-    const mine = orders[0].order_id;
+    const orders = await twoPurchaseOrdersWithTotals(c);
+    const mine = orders[0].id;
 
     const row = await anAccount(c);
     const touched = await transactions.update(mine, { payout_details_id: row.id }, {}, c);
@@ -160,7 +149,7 @@ test("linking points the ORDER at the account, and only that order", async () =>
     if (orders[1]) {
       const { rows: [other] } = await c.query(
         "SELECT payout_details_id FROM orders.transactions WHERE order_id = $1",
-        [orders[1].order_id]
+        [orders[1].id]
       );
       assert.notEqual(
         other.payout_details_id, row.id, "linking one order changed another order's account"

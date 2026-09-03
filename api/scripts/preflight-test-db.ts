@@ -174,6 +174,42 @@ try {
     process.exit(1);
   }
 
+  // *** THE TEST ACTOR (lane 2). *** Every audited table's created_by_id is a
+  // foreign key to auth.users and the audit_stamp trigger resolves the
+  // connection's `app.actor_id` against that table before stamping, so an
+  // invented uuid stamps NOTHING rather than failing. The harness therefore
+  // needs one real row to name, and it has to be COMMITTED - creating it
+  // inside each pinned transaction would have every test file inserting the
+  // same primary key at once, which serializes on the unique index in an
+  // order the advisory locks know nothing about.
+  //
+  // Written here, once per test database, and idempotent afterwards. It does
+  // reach `exchange.users` the first time, through migration 107's identity
+  // mirror - which is why `audit:test-leaks` should be given a preflight of
+  // its own before it fingerprints. Only ever this database: everything above
+  // has already refused a target that is not local and not named for
+  // disposal.
+  const actors = await client.query(
+    `INSERT INTO auth.users (id, email, name, role, "emailVerified")
+     SELECT * FROM (VALUES
+       ($1::uuid, $2::text, $3::text, 'user'::text, true),
+       ($4::uuid, $5::text, $6::text, 'user'::text, true)
+     ) AS v
+     ON CONFLICT (id) DO NOTHING
+     RETURNING id`,
+    [
+      "00000000-0000-4000-8000-0000000ac700",
+      "zz-test-actor@dorado.test",
+      "Test Actor",
+      "00000000-0000-4000-8000-0000000c5700",
+      "zz-test-customer@dorado.test",
+      "Test Customer",
+    ]
+  );
+  if (actors.rowCount) {
+    console.log(`seeded ${actors.rowCount} named test person(s) (shared/testing/actor.ts)`);
+  }
+
   const { rows: db } = await client.query<{ db: string }>("SELECT current_database() db");
   console.log(`test database ready: ${db[0]!.db} on ${port}, ${users[0]!.n} user(s)`);
 

@@ -36,41 +36,19 @@
 //
 // NOTHING IS COMMITTED: shared/testing/pinned-pool.js holds every query in one
 // transaction that is rolled back.
-import { test, afterAll, beforeAll } from "vitest";
+import { test, afterAll } from "vitest";
 import assert from "node:assert/strict";
 import request from "supertest";
 import pool from "#db";
 import { mockSessions, restoreSessions, as } from "#shared/testing/session.ts";
-import { inPinnedTransaction, outside } from "#shared/testing/pinned-pool.ts";
+import { TEST_ACTOR } from "#shared/testing/actor.ts";
+import { inPinnedTransaction } from "#shared/testing/pinned-pool.ts";
 import { LOCKS } from "#shared/testing/locks.ts";
+import { aUser, anAddress } from "#shared/testing/builders/index.ts";
 import * as addressService from "#domain/places/addresses/service.ts";
 
 await mockSessions();
 const { default: app } = await import("#app");
-
-// THE STRUCTURAL SUBSET THE FIXTURE QUERIES ASK FOR.
-type UserFixture = { id: string; name: string | null; email: string | null };
-
-let customer: UserFixture;
-let addressId: string;
-
-beforeAll(async () => {
-  const users = await outside<UserFixture>(
-    `SELECT u.id, u.name, u.email FROM exchange.users u
-      WHERE u.role IS DISTINCT FROM 'admin'
-        AND EXISTS (SELECT 1 FROM exchange.addresses a WHERE a.user_id = u.id)
-      LIMIT 1`
-  );
-  customer = users[0];
-  assert.ok(customer, "dev needs a non-admin user with an address");
-
-  const rows = await outside(
-    `SELECT id FROM exchange.addresses WHERE user_id = $1 ORDER BY id LIMIT 1`,
-    [customer.id]
-  );
-  addressId = rows[0]?.id;
-  assert.ok(addressId, "dev needs an address for that user");
-});
 
 afterAll(async () => {
   restoreSessions();
@@ -78,7 +56,10 @@ afterAll(async () => {
 });
 
 // The unit the route died on, asserted directly so a failure says which half
-// broke rather than only that the route is down.
+// broke rather than only that the route is down. Built rather than discovered:
+// getAddressFromId reads places.addresses (its own feature's table), so a
+// fixture drawn from the frozen exchange.addresses was testing an id that only
+// coincidentally lined up across the two schemas.
 test("the addresses service can resolve one address by id", async () => {
   assert.equal(
     typeof addressService.getAddressFromId,
@@ -86,13 +67,18 @@ test("the addresses service can resolve one address by id", async () => {
     "getAddressFromId is missing - domain/payments/service.ts awaits it"
   );
 
-  const address = await addressService.getAddressFromId(addressId);
-  assert.ok(address, "a real address id resolved to nothing");
-  assert.equal(address.id, addressId, "it returned a different address");
-  assert.ok(
-    typeof address.state === "string" || address.state === null,
-    "the caller reads `address?.state` to decide the tax state"
-  );
+  await inPinnedTransaction(async (c) => {
+    const customer = await aUser(c);
+    const built = await anAddress(c, customer);
+
+    const address = await addressService.getAddressFromId(built.id);
+    assert.ok(address, "a real address id resolved to nothing");
+    assert.equal(address.id, built.id, "it returned a different address");
+    assert.ok(
+      typeof address.state === "string" || address.state === null,
+      "the caller reads `address?.state` to decide the tax state"
+    );
+  }, { actor: TEST_ACTOR.id, lock: LOCKS.ADDRESSES });
 });
 
 // An id that matches nothing must come back empty rather than throw: the call
@@ -110,15 +96,16 @@ test("an unknown address id resolves to nothing rather than throwing", async () 
 // timeout instead of failing. Lane 5 replaces it with a cassette; see this
 // file's header.
 test.skip("update_payment_intent no longer dies before it reaches Stripe", async () => {
-  await inPinnedTransaction(async () => {
-    const customerId = customer.id;
+  await inPinnedTransaction(async (c) => {
+    const customer = await aUser(c);
+    const built = await anAddress(c, customer);
     await as(Object.assign({}, customer, { role: "user" }), async () => {
       const res = await request(app)
         .post("/api/stripe/update_payment_intent")
         .send({
           items: [],
           type: "customer",
-          address_id: addressId,
+          address_id: built.id,
         });
 
       // Not asserting 200: the success path ends at Stripe and this suite does
@@ -134,5 +121,5 @@ test.skip("update_payment_intent no longer dies before it reaches Stripe", async
         "the handler called something that does not exist"
       );
     });
-  }, { lock: LOCKS.ADDRESSES });
+  }, { actor: TEST_ACTOR.id, lock: LOCKS.ADDRESSES });
 });

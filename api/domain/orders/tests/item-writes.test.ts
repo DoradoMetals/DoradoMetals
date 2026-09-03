@@ -12,14 +12,16 @@
 //
 // NOTHING IS COMMITTED. shared/testing/pinned-pool.js holds every query in one
 // transaction that is rolled back.
-import { test, afterAll, beforeAll } from "vitest";
+import { test, afterAll } from "vitest";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
 import request from "supertest";
 import pool from "#db";
-import { mockSessions, restoreSessions, as, asAdmin } from "#shared/testing/session.ts";
-import { inPinnedTransaction, outside } from "#shared/testing/pinned-pool.ts";
+import { mockSessions, restoreSessions, asAdmin } from "#shared/testing/session.ts";
+import { inPinnedTransaction } from "#shared/testing/pinned-pool.ts";
 import { LOCKS } from "#shared/testing/locks.ts";
+import { TEST_ACTOR } from "#shared/testing/actor.ts";
+import { aUser, anOrder, aProduct } from "#shared/testing/builders/index.ts";
 
 // Both tests write orders.items (and its refiners.items counterpart) - the
 // scrap IS the line since D212. The lock declaration has to cover the tables
@@ -30,49 +32,27 @@ const ITEM_LOCKS = [LOCKS.SCRAP_SWEEP, LOCKS.ORDERS];
 await mockSessions();
 const { default: app } = await import("#app");
 
-// THE STRUCTURAL SUBSET EACH FIXTURE ACTUALLY HAS. These are SELECT
-// projections, not table rows - naming a row type would claim columns the
-// query never asked for.
-type UserFixture = { id: string; name: string | null; email: string | null };
-type OrderFixture = { id: string; user_id: string };
-type ItemFixture = { id: string; purchase_order_id: string; premium: string | number | null };
+// THE FIXTURES ARE BUILT INSIDE THE TRANSACTION (lane 1). They used to be
+// resolved in `beforeAll` through `outside()` - the first admin in
+// exchange.users, the first purchase order with a user, the first bullion line
+// on one - which meant every edit below was made to a real customer's real
+// order, recoverable only because the pin rolls it back. Building them here
+// costs three inserts and makes each test's subject exactly what it says.
+//
+// The admin is shared/testing/actor.ts's TEST_ACTOR: the session is mocked, so
+// the ROLE comes from `asAdmin`, but the id must be a real auth.users row for
+// the audit trigger to stamp the edits - and TEST_ACTOR is the one person the
+// preflight commits for exactly that.
+const admin = TEST_ACTOR;
 
-let admin: UserFixture;
-let customer: UserFixture;
-let order: OrderFixture;
-let bullionItem: ItemFixture;
-
-beforeAll(async () => {
-  admin = (
-    await outside<UserFixture>(`SELECT id, name, email FROM exchange.users WHERE role = 'admin' LIMIT 1`)
-  )[0];
-  assert.ok(admin, "dev has no admin user");
-
-  order = (
-    await outside<OrderFixture>(
-      `SELECT id, user_id FROM orders.orders
-        WHERE direction = 'purchase' AND user_id IS NOT NULL ORDER BY id LIMIT 1`
-    )
-  )[0];
-  assert.ok(order, "dev needs a purchase order with a user");
-
-  customer = (
-    await outside<UserFixture>(`SELECT id, name, email FROM exchange.users WHERE id = $1`, [order.user_id])
-  )[0];
-  assert.ok(customer, "the fixture order's user is missing");
-
-  // A bullion line - one with a product rather than scrap.
-  bullionItem = (
-    await outside<ItemFixture>(
-      `SELECT i.id, i.order_id AS purchase_order_id, i.premium
-         FROM orders.items i
-         JOIN orders.orders o ON o.id = i.order_id
-        WHERE o.direction = 'purchase' AND i.bullion_id IS NOT NULL
-        ORDER BY i.id LIMIT 1`
-    )
-  )[0];
-  assert.ok(bullionItem, "dev needs a bullion line on a purchase order");
-});
+const aPurchaseOrderWithABullionLine = async (c: PoolClient) => {
+  const customer = await aUser(c);
+  const product = await aProduct(c);
+  const order = await anOrder(c, customer, { direction: "purchase" })
+    .withBullion(product, 2, { premium: 12.5 })
+    .withSpots();
+  return { customer, order, bullionItem: { id: order.items[0]!.id } };
+};
 
 afterAll(async () => {
   restoreSessions();
@@ -87,10 +67,22 @@ afterAll(async () => {
 // alone writes the quantity and leaves the premium exactly where it was.
 test("the quantity is written alone, and the premium beside it is untouched", async () => {
   await inPinnedTransaction(async (client: PoolClient) => {
+    const { bullionItem } = await aPurchaseOrderWithABullionLine(client);
     await asAdmin(admin, async () => {
+      // A WARM-UP EDIT FIRST, and it is not ceremony. A quantity change
+      // RE-TIERS the order (rules.retiersAfterEdit), so the premium is
+      // re-resolved from rates.rates against the order's total content - the
+      // premium a built line starts with is whatever the fixture chose, and
+      // the first edit moves it to the band. Every dev line this test used to
+      // borrow had already been through that, which is the only reason
+      // "unchanged" held there. The claim being made is about the SECOND edit:
+      // a document naming only `quantity` must not null the premium beside it.
+      await request(app).patch(`/api/orders/items/${bullionItem.id}`).send({ quantity: 2 });
+
       const before = await client.query(
         `SELECT premium FROM orders.items WHERE id = $1`, [bullionItem.id]
       );
+      assert.notEqual(before.rows[0].premium, null, "the fixture line has no premium to lose");
 
       const res = await request(app)
         .patch(`/api/orders/items/${bullionItem.id}`)
@@ -109,7 +101,7 @@ test("the quantity is written alone, and the premium beside it is untouched", as
         "the premium beside the quantity was nulled"
       );
     });
-  }, { lock: ITEM_LOCKS });
+  }, { actor: TEST_ACTOR.id, lock: ITEM_LOCKS });
 });
 
 // Creating a scrap line is the line, its refiner counterpart and a re-tier of
@@ -117,6 +109,7 @@ test("the quantity is written alone, and the premium beside it is untouched", as
 // what distinguishes "created" from "answered 200".
 test("POST :id/items adds a scrap line and its scrap row", async () => {
   await inPinnedTransaction(async (client: PoolClient) => {
+    const { order } = await aPurchaseOrderWithABullionLine(client);
     await asAdmin(admin, async () => {
       const before = await client.query(
         `SELECT count(*)::int n FROM orders.items WHERE order_id = $1`,
@@ -151,5 +144,5 @@ test("POST :id/items adds a scrap line and its scrap row", async () => {
         "the route answered 200 but added no line"
       );
     });
-  }, { lock: ITEM_LOCKS });
+  }, { actor: TEST_ACTOR.id, lock: ITEM_LOCKS });
 });

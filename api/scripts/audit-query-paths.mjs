@@ -95,10 +95,23 @@ if (process.argv.includes("--self-test")) {
 // its own header says. There is no live query here to excuse.
 const ACCEPTED = {};
 
+// shared/testing/ IS EXCLUDED, and the exclusion is about what this audit
+// MEANS. It asks "does a query the application runs have an index to enter
+// by", because the symptom of a missing one is production latency. The fixture
+// library (shared/testing/builders/) resolves seeded reference rows BY NAME -
+// `organizations.organizations WHERE name = $1`, `shipping.services WHERE
+// name = $1` - against tables holding sixteen and a few dozen rows, inside a
+// transaction that is rolled back, on a local database. A sequential scan
+// there is the correct plan and adding a production index to satisfy this scan
+// would be a schema change made for a test. Test FILES were already excluded
+// by the `.test.` filter; the builders are not test files, so they need
+// naming.
 const walk = (d, out = []) => {
   for (const e of fs.readdirSync(d, { withFileTypes: true })) {
     const p = path.join(d, e.name);
-    if (e.isDirectory()) { if (!/node_modules|\.git|dist|migrations/.test(p)) walk(p, out); }
+    if (e.isDirectory()) {
+      if (!/node_modules|\.git|dist|migrations|shared\/testing/.test(p)) walk(p, out);
+    }
     // .sql TOO. Statements moved out of template literals and into .sql files
     // with the per-table feature restructure, and this scan could no longer see
     // them - which the known-present control below caught immediately rather

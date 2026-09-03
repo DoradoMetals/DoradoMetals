@@ -9,13 +9,18 @@
 // an argument instead - the seam sendToRefiner already had for email - and the
 // stub RECORDS what the carrier was asked for, which is what the resolution
 // used to be asserted on.
-import { test, afterAll, beforeAll } from "vitest";
+import { test, afterAll } from "vitest";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
 import request from "supertest";
 import pool from "#db";
 import { mockSessions, restoreSessions, as } from "#shared/testing/session.ts";
-import { inPinnedTransaction, outside } from "#shared/testing/pinned-pool.ts";
+import { TEST_ACTOR } from "#shared/testing/actor.ts";
+import { inPinnedTransaction } from "#shared/testing/pinned-pool.ts";
+import {
+  aUser, anAddress, aProduct, packageId, carrierServiceId, saleServiceId,
+  fulfillmentMethodId,
+} from "#shared/testing/builders/index.ts";
 import { LOCKS } from "#shared/testing/locks.ts";
 import { open, aadFor } from "#shared/crypto/envelope.ts";
 import { payoutKeyFromEnv } from "#shared/crypto/payoutKey.ts";
@@ -28,16 +33,51 @@ const checkoutService = await import("#domain/checkout/service.ts");
 
 type UserFixture = { id: string };
 
-let customer: UserFixture;
-let addressId: string;
-let customerName: string | null;
-let packageId: string;
-let labelServiceId: string;   // 'Express Saver' - a real carrier row the catalogue offers
-let saleServiceId: string;    // a carrier-agnostic sale row (110) - must be refused
-let dropoffMethodId: string;  // CARRIER DROPOFF
-let pickupMethodId: string;   // CARRIER PICKUP
-let directMethodId: string;   // a non-SHIPMENT purchase method
-let productName: string;
+// THE WHOLE WORLD IS BUILT (lane 1), and it is threaded through primeCheckout
+// rather than held in module-scope `let`s.
+//
+// What it replaces: a non-admin customer WITH AN ADDRESS, found by joining the
+// FROZEN `exchange.users` to `places.user_addresses` and back to `auth.users`
+// for the name (three tables to answer "a person and where they live"), plus a
+// product name out of `exchange.products` - a table D212 stopped writing,
+// while the cart sync it feeds resolves against `products.bullion`.
+//
+// The seeded reference rows stay named: "Small Box", "Express Saver", a
+// carrier-agnostic sale service, and the three purchase fulfillment methods.
+// Those are literals of the seed, not fixtures - see
+// shared/testing/builders/reference.ts.
+type Fixtures = {
+  customer: UserFixture;
+  customerName: string | null;
+  addressId: string;
+  packageId: string;
+  labelServiceId: string;
+  saleServiceId: string;
+  dropoffMethodId: string;
+  pickupMethodId: string;
+  directMethodId: string;
+  productName: string;
+};
+
+const aWorld = async (c: PoolClient): Promise<Fixtures> => {
+  const customer = await aUser(c, { name: "Row Flow Customer" });
+  const address = await anAddress(c, customer);
+  const product = await aProduct(c, { sell_display: true });
+  return {
+    customer: { id: customer.id },
+    customerName: customer.name,
+    addressId: address.id,
+    packageId: await packageId(c, "Small Box"),
+    labelServiceId: await carrierServiceId(c, "Express Saver"),
+    saleServiceId: await saleServiceId(c),
+    dropoffMethodId: await fulfillmentMethodId(c, "CARRIER DROPOFF", "purchase"),
+    pickupMethodId: await fulfillmentMethodId(c, "CARRIER PICKUP", "purchase"),
+    // A non-SHIPMENT purchase method - the shipping checkout must refuse it.
+    directMethodId: await fulfillmentMethodId(c, "PICKUP", "purchase"),
+    productName: product.name,
+  };
+};
+
 
 // A BUILDER, not a base object to spread over: the two fields a variant changes
 // are arguments, so no call site copies the other five.
@@ -61,6 +101,9 @@ type Asked = {
   parcel: Parameters<placeModule.World["buyPostage"]>[2];
 };
 
+// `World` here is domain/orders/place.ts's - the outside world the placement
+// is handed. Not to be confused with this file's own fixture `World` above;
+// the import is aliased, so both names stay readable.
 function carrier(
   { pickup = null as { confirmationNumber: string | null; location: string | null } | null } = {}
 ) {
@@ -76,55 +119,6 @@ function carrier(
   return { world, asked };
 }
 
-beforeAll(async () => {
-  // WHO SIGNS FOR THE PARCEL IS THE CUSTOMER'S NAME (D214 item 12). It used to
-  // be the address BOOK's label ("Home"), read from exchange.addresses' `name`
-  // through the composer; places.addresses has no such column, and the person
-  // is the same person either way.
-  const users = await outside<{ id: string; address_id: string; name: string | null }>(
-    `SELECT u.id, ua.address_id, a.name
-       FROM exchange.users u
-       JOIN places.user_addresses ua ON ua.user_id = u.id
-       JOIN auth.users a ON a.id = u.id
-      WHERE u.role IS DISTINCT FROM 'admin'
-      ORDER BY u.email LIMIT 1`
-  );
-  assert.ok(users.length, "dev needs a non-admin user with an address");
-  customer = { id: users[0].id };
-  addressId = users[0].address_id;
-  customerName = users[0].name;
-
-  packageId = (
-    await outside<{ id: string }>(
-      `SELECT id FROM shipping.packages WHERE carrier_id IS NULL AND label = 'Small Box' LIMIT 1`
-    )
-  )[0].id;
-  labelServiceId = (
-    await outside<{ id: string }>(
-      `SELECT id FROM shipping.services WHERE name = 'Express Saver' AND carrier_id IS NOT NULL LIMIT 1`
-    )
-  )[0].id;
-  saleServiceId = (
-    await outside<{ id: string }>(
-      `SELECT id FROM shipping.services WHERE carrier_id IS NULL AND price IS NOT NULL LIMIT 1`
-    )
-  )[0].id;
-
-  const methods = await outside<{ id: string; type: string; category: string }>(
-    `SELECT id, type, category FROM fulfillments.methods
-      WHERE direction = 'purchase' AND enabled AND NOT hidden`
-  );
-  dropoffMethodId = methods.find((m) => m.type === "CARRIER DROPOFF")!.id;
-  pickupMethodId = methods.find((m) => m.type === "CARRIER PICKUP")!.id;
-  directMethodId = methods.find((m) => m.category !== "SHIPMENT")!.id;
-
-  productName = (
-    await outside<{ product_name: string }>(
-      `SELECT product_name FROM exchange.products WHERE sell_display = true LIMIT 1`
-    )
-  )[0].product_name;
-});
-
 afterAll(async () => {
   await restoreSessions();
   await pool.end();
@@ -133,9 +127,11 @@ afterAll(async () => {
 // Drive the same surfaces the stepper drives: PATCH the row (ids AND parcel
 // facts), POST the fulfillment, POST the payout, sync the sell cart.
 async function primeCheckout(
+  fixtures: Fixtures,
   methodId: string,
   { schedule = false }: { schedule?: boolean } = {}
 ) {
+  const { customer, addressId, packageId, labelServiceId, productName } = fixtures;
   const patched = await as(customer, () =>
     request(app).patch("/api/checkout").send({
       direction: "purchase",
@@ -183,7 +179,9 @@ async function primeCheckout(
 
 test("the payout step SEALS the numbers and the plaintext columns stay NULL", async () => {
   await inPinnedTransaction(async (c: PoolClient) => {
-    const { payment_details_id } = await primeCheckout(dropoffMethodId);
+    const fixtures = await aWorld(c);
+    const { customer, dropoffMethodId } = fixtures;
+    const { payment_details_id } = await primeCheckout(fixtures, dropoffMethodId);
 
     const { rows: [d] } = await c.query(
       `SELECT account_holder, last_four, routing_number, account_number,
@@ -220,11 +218,13 @@ test("the payout step SEALS the numbers and the plaintext columns stay NULL", as
         AND account_holder = $2`, [customer.id, PAYOUT.account_holder_name]
     );
     assert.equal(count.n, 1);
-  }, { lock: LOCKS.ORDERS });
+  }, { actor: TEST_ACTOR.id, lock: LOCKS.ORDERS });
 });
 
 test("an incomplete or nonsense payout form refuses", async () => {
-  await inPinnedTransaction(async () => {
+  await inPinnedTransaction(async (c: PoolClient) => {
+    const fixtures = await aWorld(c);
+    const { customer } = fixtures;
     for (const [form, why] of [
       [{ direction: "purchase", method: "ACH", account_holder_name: "X" }, /routing number/],
       [payoutForm("12"), /9 digits/],
@@ -240,15 +240,17 @@ test("an incomplete or nonsense payout form refuses", async () => {
       assert.equal(res.status, 422, `accepted: ${JSON.stringify(form)}`);
       assert.match(res.body?.error?.message ?? res.text, why);
     }
-  }, { lock: LOCKS.ORDERS });
+  }, { actor: TEST_ACTOR.id, lock: LOCKS.ORDERS });
 });
 
 // ------------------------------------------------------- what the carrier is asked
 
 test("the carrier is asked ONLY what the row holds - no body exists any more", async () => {
-  await inPinnedTransaction(async () => {
+  await inPinnedTransaction(async (c: PoolClient) => {
+    const fixtures = await aWorld(c);
+    const { customerName, addressId, dropoffMethodId } = fixtures;
     const { world, asked } = carrier();
-    const { checkout_id } = await primeCheckout(dropoffMethodId);
+    const { checkout_id } = await primeCheckout(fixtures, dropoffMethodId);
     await place.place(checkout_id, world);
 
     assert.equal(asked.length, 1, "the carrier was asked once, for one parcel");
@@ -260,17 +262,19 @@ test("the carrier is asked ONLY what the row holds - no body exists any more", a
     assert.equal(parcel.weight.value, 3, "the weight came off the ROW");
     assert.equal(parcel.declaredValue, 2500, "the declared value came off the ROW");
     assert.equal(parcel.schedule, null, "a dropoff booked a courier");
-  }, { lock: LOCKS.ORDERS });
+  }, { actor: TEST_ACTOR.id, lock: LOCKS.ORDERS });
 });
 
 test("a pickup needs its slot ON THE ROW, and carries it when set", async () => {
-  await inPinnedTransaction(async () => {
-    const unscheduled = await primeCheckout(pickupMethodId);
+  await inPinnedTransaction(async (c: PoolClient) => {
+    const fixtures = await aWorld(c);
+    const { pickupMethodId } = fixtures;
+    const unscheduled = await primeCheckout(fixtures, pickupMethodId);
     await assert.rejects(
       () => place.place(unscheduled.checkout_id, carrier().world), /date and a time/
     );
 
-    const { checkout_id } = await primeCheckout(pickupMethodId, { schedule: true });
+    const { checkout_id } = await primeCheckout(fixtures, pickupMethodId, { schedule: true });
     const { world, asked } = carrier({
       pickup: { confirmationNumber: "9971234", location: "FRONT" },
     });
@@ -278,24 +282,28 @@ test("a pickup needs its slot ON THE ROW, and carries it when set", async () => 
     assert.equal(asked[0].parcel.handoff.name, "Carrier Pickup");
     assert.equal(asked[0].parcel.schedule?.date, "2026-09-15");
     assert.equal(asked[0].parcel.schedule?.time, "10:30:00");
-  }, { lock: LOCKS.ORDERS });
+  }, { actor: TEST_ACTOR.id, lock: LOCKS.ORDERS });
 });
 
 test("an incomplete checkout names the piece that is missing - the payout included", async () => {
   await inPinnedTransaction(async (c: PoolClient) => {
-    const { checkout_id } = await primeCheckout(dropoffMethodId);
+    const fixtures = await aWorld(c);
+    const { dropoffMethodId } = fixtures;
+    const { checkout_id } = await primeCheckout(fixtures, dropoffMethodId);
     await c.query(
       `UPDATE checkout.checkouts SET payment_details_id = NULL WHERE id = $1`, [checkout_id]
     );
     await assert.rejects(
       () => place.place(checkout_id, carrier().world), /missing payment_details_id/
     );
-  }, { lock: LOCKS.ORDERS });
+  }, { actor: TEST_ACTOR.id, lock: LOCKS.ORDERS });
 });
 
 test("a sale delivery service buys no labels, and a non-SHIPMENT method refuses", async () => {
-  await inPinnedTransaction(async () => {
-    const { checkout_id } = await primeCheckout(dropoffMethodId);
+  await inPinnedTransaction(async (c: PoolClient) => {
+    const fixtures = await aWorld(c);
+    const { customer, labelServiceId, saleServiceId, directMethodId, dropoffMethodId } = fixtures;
+    const { checkout_id } = await primeCheckout(fixtures, dropoffMethodId);
     await as(customer, () =>
       request(app).patch("/api/checkout").send({
         direction: "purchase", carrier_service_id: saleServiceId,
@@ -320,15 +328,17 @@ test("a sale delivery service buys no labels, and a non-SHIPMENT method refuses"
       () => place.place(checkout_id, carrier().world),
       /cannot be placed through the shipping checkout/
     );
-  }, { lock: LOCKS.ORDERS });
+  }, { actor: TEST_ACTOR.id, lock: LOCKS.ORDERS });
 });
 
 // ------------------------------------------------------- the rows it writes
 
 test("the placement links ids and writes NO exchange rows at all", async () => {
   await inPinnedTransaction(async (c: PoolClient) => {
+    const fixtures = await aWorld(c);
+    const { customer, labelServiceId, pickupMethodId } = fixtures;
     const { checkout_id, fulfillment_id, payment_details_id } =
-      await primeCheckout(pickupMethodId, { schedule: true });
+      await primeCheckout(fixtures, pickupMethodId, { schedule: true });
 
     const placed = await place.place(
       checkout_id,
@@ -411,15 +421,17 @@ test("the placement links ids and writes NO exchange rows at all", async () => {
     assert.equal(fresh.payment_details_id, null);
     assert.equal(fresh.fulfillment_id, null);
     assert.equal(fresh.package_weight, null);
-  }, { lock: LOCKS.ORDERS });
+  }, { actor: TEST_ACTOR.id, lock: LOCKS.ORDERS });
 });
 
 test("a spent draft refuses the SECOND order", async () => {
   await inPinnedTransaction(async (c: PoolClient) => {
-    const first = await primeCheckout(dropoffMethodId);
+    const fixtures = await aWorld(c);
+    const { dropoffMethodId } = fixtures;
+    const first = await primeCheckout(fixtures, dropoffMethodId);
     await place.place(first.checkout_id, carrier().world);
 
-    const second = await primeCheckout(dropoffMethodId);
+    const second = await primeCheckout(fixtures, dropoffMethodId);
     await c.query(
       `UPDATE checkout.checkouts SET fulfillment_id = $2 WHERE id = $1`,
       [second.checkout_id, first.fulfillment_id]
@@ -428,5 +440,5 @@ test("a spent draft refuses the SECOND order", async () => {
       () => place.place(second.checkout_id, carrier().world),
       /already belongs to an order/
     );
-  }, { lock: LOCKS.ORDERS });
+  }, { actor: TEST_ACTOR.id, lock: LOCKS.ORDERS });
 });

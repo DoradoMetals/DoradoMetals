@@ -14,7 +14,13 @@ import type { PoolClient } from "pg";
 import request from "supertest";
 import pool from "#db";
 import { mockSessions, restoreSessions, as, asAdmin } from "#shared/testing/session.ts";
+import { TEST_ACTOR } from "#shared/testing/actor.ts";
 import { inPinnedTransaction, outside } from "#shared/testing/pinned-pool.ts";
+import { TEST_CUSTOMER } from "#shared/testing/actor.ts";
+import {
+  aUser, anAddress, anOrder, anId, packageId, saleServiceId, paymentMethodId,
+  fulfillmentMethodId,
+} from "#shared/testing/builders/index.ts";
 import { LOCKS } from "#shared/testing/locks.ts";
 
 await mockSessions();
@@ -22,33 +28,31 @@ const { default: app } = await import("#app");
 
 type UserFixture = { id: string; name: string | null; email: string | null };
 
-let customer: UserFixture;
-let stranger: UserFixture;
-let admin: UserFixture;
 let purchaseMethodId: string; // an offered purchase-direction fulfillment method
 let saleMethodId: string;     // an offered sale-direction one
 let hiddenMethodId: string;   // a hidden method the menu never offered
 
+// THE TWO NAMED PEOPLE AND THE SEEDED METHODS (lane 1). The customer and the
+// stranger were the first two non-admin rows of the frozen exchange.users
+// table, joined to auth.users to avoid picking one that existed in only one
+// place - a join 118 made pointless. They are named now, and anything they
+// need to OWN (a cart, an address) is built inside the transaction.
+//
+// The methods stay a read: `fulfillments.methods` is seeded reference data and
+// what these tests mean is "an offered purchase method", "an offered sale
+// method" and "a hidden one" - three named facts about the seed, resolved once
+// rather than by three LIMIT 1 queries.
+const customer: UserFixture = TEST_CUSTOMER;
+const admin: UserFixture = TEST_ACTOR;
+
 beforeAll(async () => {
-  const users = await outside<UserFixture>(
-    `SELECT u.id, u.name, u.email FROM exchange.users u
-      WHERE u.role IS DISTINCT FROM 'admin'
-        AND EXISTS (SELECT 1 FROM auth.users a WHERE a.id = u.id)
-      ORDER BY u.email LIMIT 2`
+  const methods = await outside<{ id: string; type: string; direction: string; hidden: boolean }>(
+    `SELECT id, type, direction, hidden FROM fulfillments.methods WHERE enabled`
   );
-  assert.ok(users.length >= 2, "dev needs two non-admin users present in auth.users");
-  [customer, stranger] = users;
-
-  const admins = await outside<UserFixture>(
-    `SELECT id, name, email FROM exchange.users WHERE role = 'admin' LIMIT 1`
-  );
-  assert.ok(admins.length, "dev needs an admin user");
-  [admin] = admins;
-
-  const methods = await outside<{ id: string; direction: string; hidden: boolean }>(
-    `SELECT id, direction, hidden FROM fulfillments.methods WHERE enabled`
-  );
-  purchaseMethodId = methods.find((m) => m.direction === "purchase" && !m.hidden)!.id;
+  // NAMED, not "the first one that matches": which method sorts first is not a
+  // fact any test here means, and `other` below has to be a DIFFERENT one.
+  purchaseMethodId = methods.find(
+    (m) => m.direction === "purchase" && m.type === "CARRIER DROPOFF")!.id;
   saleMethodId = methods.find((m) => m.direction === "sale" && !m.hidden)!.id;
   hiddenMethodId = methods.find((m) => m.direction === "purchase" && m.hidden)!.id;
   assert.ok(purchaseMethodId && saleMethodId && hiddenMethodId, "the methods seed is missing rows");
@@ -80,7 +84,7 @@ test("GET /api/checkout mints the row on first read, one per direction", async (
       request(app).get("/api/checkout?direction=sale")
     );
     assert.notEqual(sale.body.id, first.body.id, "the two directions shared a row");
-  }, { lock: [LOCKS.FULFILLMENTS, LOCKS.ORDERS] });
+  }, { actor: TEST_ACTOR.id, lock: [LOCKS.FULFILLMENTS, LOCKS.ORDERS] });
 });
 
 // 422, NOT 400 (D214 item 11): a direction the business does not have is a
@@ -95,21 +99,18 @@ test("an anonymous caller gets nothing, and a bad direction is refused", async (
       request(app).get("/api/checkout?direction=sideways")
     );
     assert.equal(bogus.status, 422);
-  }, { lock: [LOCKS.FULFILLMENTS, LOCKS.ORDERS] });
+  }, { actor: TEST_ACTOR.id, lock: [LOCKS.FULFILLMENTS, LOCKS.ORDERS] });
 });
 
 // ------------------------------------------------------------------- patch
 
 test("PATCH writes the whitelisted id columns and answers the fresh row", async (t) => {
   await inPinnedTransaction(async (c: PoolClient) => {
-    const { rows: [pkg] } = await c.query(`SELECT id FROM shipping.packages LIMIT 1`);
-    const { rows: [svc] } = await c.query(
-      `SELECT id FROM shipping.services WHERE carrier_id IS NULL AND price IS NOT NULL LIMIT 1`
-    );
-    const { rows: [pm] } = await c.query(
-      `SELECT id FROM payments.methods WHERE direction = 'purchase' LIMIT 1`
-    );
-    console.log(`package ${pkg?.id}, service ${svc?.id}, method ${pm?.id}`);
+    // Three seeded reference rows, each named rather than taken by LIMIT 1 -
+    // see shared/testing/builders/reference.ts on the distinction.
+    const pkg = { id: await packageId(c, "Small Box") };
+    const svc = { id: await saleServiceId(c) };
+    const pm = { id: await paymentMethodId(c, "ACH", "purchase") };
 
     const res = await as(customer, () =>
       request(app).patch("/api/checkout").send({
@@ -136,28 +137,18 @@ test("PATCH writes the whitelisted id columns and answers the fresh row", async 
       cleared.body.carrier_service_id, svc.id,
       "clearing one column disturbed another"
     );
-  }, { lock: [LOCKS.FULFILLMENTS, LOCKS.ORDERS] });
+  }, { actor: TEST_ACTOR.id, lock: [LOCKS.FULFILLMENTS, LOCKS.ORDERS] });
 });
 
 test("an address lands only if it is in the CALLER'S book", async () => {
   await inPinnedTransaction(async (c: PoolClient) => {
-    // An address of the customer's own - book membership is the check the
-    // service runs (places.user_addresses), nothing else.
-    const { rows: [own] } = await c.query(
-      `SELECT ua.address_id FROM places.user_addresses ua
-        WHERE ua.user_id = $1 LIMIT 1`,
-      [customer.id]
-    );
-    // Somebody else's, in no book of the customer's.
-    const { rows: [foreign] } = await c.query(
-      `SELECT ua.address_id FROM places.user_addresses ua
-        WHERE ua.user_id <> $1
-          AND NOT EXISTS (SELECT 1 FROM places.user_addresses x
-                           WHERE x.address_id = ua.address_id AND x.user_id = $1)
-        LIMIT 1`,
-      [customer.id]
-    );
-    assert.ok(own && foreign, "dev needs addresses in two different books");
+    // TWO BOOKS, BUILT (lane 1). Book membership is the check the service runs
+    // (places.user_addresses) and nothing else, so the claim needs one address
+    // in the caller's book and one in somebody else's - which this hunted for
+    // with a NOT EXISTS and then asserted it had found. Both are stated now.
+    const own = { address_id: (await anAddress(c, customer)).id };
+    const someoneElse = await aUser(c);
+    const foreign = { address_id: (await anAddress(c, someoneElse)).id };
 
     const good = await as(customer, () =>
       request(app).patch("/api/checkout").send({
@@ -175,7 +166,7 @@ test("an address lands only if it is in the CALLER'S book", async () => {
       })
     );
     assert.equal(theft.status, 422, "somebody else's address id was accepted");
-  }, { lock: [LOCKS.FULFILLMENTS, LOCKS.ORDERS] });
+  }, { actor: TEST_ACTOR.id, lock: [LOCKS.FULFILLMENTS, LOCKS.ORDERS] });
 });
 
 // THE WHITELIST HOLDS, AND IT NOW REFUSES OUT LOUD. The contract schema is
@@ -184,14 +175,15 @@ test("an address lands only if it is in the CALLER'S book", async () => {
 // them was the older behaviour; a request that thinks it set fulfillment_id
 // and got a 200 is worse than one that is told no.
 test("the whitelist holds: fulfillment_id, user_id and id cannot be patched in", async () => {
-  await inPinnedTransaction(async () => {
+  await inPinnedTransaction(async (c: PoolClient) => {
+    const somebodyElse = await aUser(c);
     const before = await as(customer, () =>
       request(app).get("/api/checkout?direction=purchase")
     );
 
     for (const body of [
       { fulfillment_id: "11111111-1111-4111-8111-111111111111" },
-      { user_id: stranger.id },
+      { user_id: somebodyElse.id },
       { id: "22222222-2222-4222-8222-222222222222" },
     ]) {
       const res = await as(customer, () =>
@@ -206,7 +198,7 @@ test("the whitelist holds: fulfillment_id, user_id and id cannot be patched in",
     assert.equal(after.body.fulfillment_id, before.body.fulfillment_id);
     assert.equal(after.body.user_id, customer.id);
     assert.equal(after.body.id, before.body.id);
-  }, { lock: [LOCKS.FULFILLMENTS, LOCKS.ORDERS] });
+  }, { actor: TEST_ACTOR.id, lock: [LOCKS.FULFILLMENTS, LOCKS.ORDERS] });
 });
 
 test("a reference id that matches no row is refused, not a 500", async () => {
@@ -218,7 +210,7 @@ test("a reference id that matches no row is refused, not a 500", async () => {
       })
     );
     assert.equal(res.status, 422, res.text);
-  }, { lock: [LOCKS.FULFILLMENTS, LOCKS.ORDERS] });
+  }, { actor: TEST_ACTOR.id, lock: [LOCKS.FULFILLMENTS, LOCKS.ORDERS] });
 });
 
 test("a malformed appointment_time is refused before it reaches the database", async () => {
@@ -230,7 +222,7 @@ test("a malformed appointment_time is refused before it reaches the database", a
       })
     );
     assert.equal(res.status, 422);
-  }, { lock: [LOCKS.FULFILLMENTS, LOCKS.ORDERS] });
+  }, { actor: TEST_ACTOR.id, lock: [LOCKS.FULFILLMENTS, LOCKS.ORDERS] });
 });
 
 // ------------------------------------------------------- the draft fulfillment
@@ -251,11 +243,11 @@ test("the draft is minted ONCE, linked, and later calls move its method in place
 
     // Change the option: same draft, new method - Jacob's "each time an
     // option is changed, the server-side fulfillment gets updated".
-    const { rows: [other] } = await c.query(
-      `SELECT id FROM fulfillments.methods
-        WHERE direction = 'purchase' AND enabled AND NOT hidden AND id <> $1 LIMIT 1`,
-      [purchaseMethodId]
-    );
+    // The OTHER offered purchase method, named: the seed has CARRIER DROPOFF,
+    // CARRIER PICKUP, PICKUP and APPOINTMENT, and what matters is that it is
+    // not the one already on the row.
+    const other = { id: await fulfillmentMethodId(c, "CARRIER PICKUP", "purchase") };
+    assert.notEqual(other.id, purchaseMethodId, "the fixture named the same method twice");
     const second = await as(customer, () =>
       request(app).post("/api/checkout/fulfillment").send({
         direction: "purchase",
@@ -272,7 +264,7 @@ test("the draft is minted ONCE, linked, and later calls move its method in place
       [customer.id]
     );
     assert.equal(drafts[0].n, 1, "draft rows accumulated");
-  }, { lock: [LOCKS.FULFILLMENTS, LOCKS.ORDERS] });
+  }, { actor: TEST_ACTOR.id, lock: [LOCKS.FULFILLMENTS, LOCKS.ORDERS] });
 });
 
 test("a hidden method never gets a draft - the menu has to mean something", async () => {
@@ -284,7 +276,7 @@ test("a hidden method never gets a draft - the menu has to mean something", asyn
       })
     );
     assert.equal(res.status, 409, `a hidden method was accepted: ${res.text}`);
-  }, { lock: [LOCKS.FULFILLMENTS, LOCKS.ORDERS] });
+  }, { actor: TEST_ACTOR.id, lock: [LOCKS.FULFILLMENTS, LOCKS.ORDERS] });
 });
 
 test("a sale method cannot land on a purchase checkout", async () => {
@@ -296,7 +288,7 @@ test("a sale method cannot land on a purchase checkout", async () => {
       })
     );
     assert.equal(res.status, 409, `a cross-direction method was accepted: ${res.text}`);
-  }, { lock: [LOCKS.FULFILLMENTS, LOCKS.ORDERS] });
+  }, { actor: TEST_ACTOR.id, lock: [LOCKS.FULFILLMENTS, LOCKS.ORDERS] });
 });
 
 test("a draft is INVISIBLE to order-facing reads", async () => {
@@ -317,7 +309,7 @@ test("a draft is INVISIBLE to order-facing reads", async () => {
       [customer.id]
     );
     assert.equal(rows.length, 0, "a draft joined to an order");
-  }, { lock: [LOCKS.FULFILLMENTS, LOCKS.ORDERS] });
+  }, { actor: TEST_ACTOR.id, lock: [LOCKS.FULFILLMENTS, LOCKS.ORDERS] });
 });
 
 test("the attach is one-way: once an order holds the draft, a second attach refuses", async () => {
@@ -334,14 +326,11 @@ test("the attach is one-way: once an order holds the draft, a second attach refu
     );
     const draftId = res.body.fulfillment_id;
 
-    // Any order in both schemas will do as the attach target; the transaction
-    // rolls back.
-    const { rows: [order] } = await c.query(
-      `SELECT o.id FROM orders.orders o
-        WHERE NOT EXISTS (SELECT 1 FROM fulfillments.fulfillments f WHERE f.order_id = o.id)
-        LIMIT 1`
-    );
-    assert.ok(order, "dev needs an order with no fulfillment yet");
+    // THE ATTACH TARGET IS BUILT (lane 1). "Any order in both schemas will do;
+    // the transaction rolls back" was true and still meant the fixture was a
+    // real order, found by NOT EXISTS - and a built order has no fulfillment
+    // by construction, so the search and its guard both go.
+    const order = await anOrder(c, customer, { direction: "purchase" });
 
     const attached = await fulfillmentService.attachDraft(
       { fulfillment_id: draftId, order_id: order.id }, c
@@ -355,11 +344,15 @@ test("the attach is one-way: once an order holds the draft, a second attach refu
       /not a draft/,
       "a second attach did not refuse"
     );
-  }, { lock: [LOCKS.FULFILLMENTS, LOCKS.ORDERS] });
+  }, { actor: TEST_ACTOR.id, lock: [LOCKS.FULFILLMENTS, LOCKS.ORDERS] });
 });
 
 test("two customers' rows never touch: the stranger sees their own empty checkout", async () => {
-  await inPinnedTransaction(async () => {
+  await inPinnedTransaction(async (c: PoolClient) => {
+    // THE STRANGER IS BUILT, per test: the checkout service resolves the
+    // user_id it is given, so this person has to exist - and a built one has no
+    // checkout at all, which is exactly what "their own empty checkout" needs.
+    const stranger = await aUser(c, { name: "A Stranger" });
     await as(customer, () =>
       request(app).post("/api/checkout/fulfillment").send({
         direction: "purchase",
@@ -372,7 +365,7 @@ test("two customers' rows never touch: the stranger sees their own empty checkou
     assert.equal(theirs.status, 200);
     assert.equal(theirs.body.user_id, stranger.id);
     assert.equal(theirs.body.fulfillment_id, null, "the stranger saw the customer's draft");
-  }, { lock: [LOCKS.FULFILLMENTS, LOCKS.ORDERS] });
+  }, { actor: TEST_ACTOR.id, lock: [LOCKS.FULFILLMENTS, LOCKS.ORDERS] });
 });
 
 // -------------------------------------------------- admin-scoped access
@@ -384,7 +377,8 @@ test("two customers' rows never touch: the stranger sees their own empty checkou
 // features/orders/salesOrders/admin/queries.ts).
 test("an admin reads and writes a NAMED customer's checkout by ?user_id=", async () => {
   await inPinnedTransaction(async (c: PoolClient) => {
-    const { rows: [pkg] } = await c.query(`SELECT id FROM shipping.packages LIMIT 1`);
+    const stranger = await aUser(c, { name: "A Stranger" });
+    const pkg = { id: await packageId(c, "Small Box") };
 
     const got = await asAdmin(admin, () =>
       request(app).get(`/api/checkout?direction=purchase&user_id=${stranger.id}`)
@@ -400,11 +394,15 @@ test("an admin reads and writes a NAMED customer's checkout by ?user_id=", async
     assert.equal(patched.status, 200, patched.text);
     assert.equal(patched.body.user_id, stranger.id);
     assert.equal(patched.body.package_id, pkg.id);
-  }, { lock: [LOCKS.FULFILLMENTS, LOCKS.ORDERS] });
+  }, { actor: TEST_ACTOR.id, lock: [LOCKS.FULFILLMENTS, LOCKS.ORDERS] });
 });
 
 test("a non-admin naming somebody else's user_id is refused, not answered", async () => {
-  await inPinnedTransaction(async () => {
+  await inPinnedTransaction(async (c: PoolClient) => {
+    // The refusal happens before any user is resolved, so this stranger need
+    // not own anything - but it must be a DIFFERENT person from the caller,
+    // which is the whole claim.
+    const stranger = await aUser(c, { name: "A Stranger" });
     const read = await as(customer, () =>
       request(app).get(`/api/checkout?direction=purchase&user_id=${stranger.id}`)
     );
@@ -423,7 +421,7 @@ test("a non-admin naming somebody else's user_id is refused, not answered", asyn
       request(app).get(`/api/checkout?direction=purchase&user_id=${customer.id}`)
     );
     assert.equal(own.status, 200, own.text);
-  }, { lock: [LOCKS.FULFILLMENTS, LOCKS.ORDERS] });
+  }, { actor: TEST_ACTOR.id, lock: [LOCKS.FULFILLMENTS, LOCKS.ORDERS] });
 });
 
 test("an admin naming a user_id nothing owns gets 404, not a minted row", async () => {
@@ -440,5 +438,5 @@ test("an admin naming a user_id nothing owns gets 404, not a minted row", async 
         .send({ direction: "purchase" })
     );
     assert.equal(write.status, 404, write.text);
-  }, { lock: [LOCKS.FULFILLMENTS, LOCKS.ORDERS] });
+  }, { actor: TEST_ACTOR.id, lock: [LOCKS.FULFILLMENTS, LOCKS.ORDERS] });
 });

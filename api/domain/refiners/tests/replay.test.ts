@@ -5,6 +5,7 @@ import assert from "node:assert/strict";
 import request from "supertest";
 import pool from "#db";
 import { mockSessions, restoreSessions, as, anonymous } from "#shared/testing/session.ts";
+import { TEST_ACTOR, TEST_CUSTOMER } from "#shared/testing/actor.ts";
 import { inPinnedTransaction, outside } from "#shared/testing/pinned-pool.ts";
 
 await mockSessions();
@@ -17,14 +18,8 @@ type Caller = UserFixture & { role: string };
 let admin: Caller;
 let customer: Caller;
 beforeAll(async () => {
-  const admins = await outside<UserFixture>(
-    `SELECT id, name, email FROM exchange.users WHERE role = 'admin' LIMIT 1`
-  );
-  admin = { ...admins[0], role: "admin" };
-  const users = await outside<UserFixture>(
-    `SELECT id, name, email FROM exchange.users WHERE role IS DISTINCT FROM 'admin' LIMIT 1`
-  );
-  customer = { ...users[0], role: "user" };
+  admin = { ...TEST_ACTOR, role: "admin" };
+  customer = { ...TEST_CUSTOMER, role: "user" };
   assert.ok(admin.id && customer.id, "dev needs an admin and a non-admin user");
 });
 
@@ -53,7 +48,7 @@ test("refiners are admin-only and come back nested", async () => {
       assert.ok("enabled" in r.organization, "enabled is missing from the organization");
       assert.ok(!("is_active" in r), "the flat is_active came back after the conversion");
     });
-  });
+  }, { actor: TEST_ACTOR.id });
 });
 
 // Spots: public market data, no parameters at all.
@@ -76,7 +71,7 @@ test("spot prices answer a signed-out visitor and take nothing from the request"
       }
       assert.equal(typeof s.bid, "number", "a price came back as a string");
     });
-  });
+  }, { actor: TEST_ACTOR.id });
 });
 
 // Reviews: the public read is filtered, the admin reads and writes are not
@@ -107,7 +102,7 @@ test("public reviews are filtered, and the admin ones are refused", async () => 
         assert.equal(res.status, 403, `${path} answered ${res.status} to a customer`);
       }
     });
-  });
+  }, { actor: TEST_ACTOR.id });
 });
 
 // Rates: the public band list must not carry the admin audit columns.
@@ -126,7 +121,7 @@ test("the public rate bands omit what the admin ones return", async () => {
         assert.ok(!(audit in r), `the public rate response carries ${audit}`);
       }
     });
-  });
+  }, { actor: TEST_ACTOR.id });
 });
 
 // Nothing here writes — asserted with a count taken before and after rather than assumed, since "this file does not write" is exactly the claim that stops being true when somebody adds a test.

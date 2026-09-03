@@ -26,13 +26,15 @@
 // NOTHING IS COMMITTED. shared/testing/pinned-pool.js holds every query in one
 // transaction that is rolled back, and this suite writes to a customer's credit
 // balance, so that matters more here than usual.
-import { test, afterAll, beforeAll } from "vitest";
+import { test, afterAll } from "vitest";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
 import request from "supertest";
 import pool from "#db";
 import { mockSessions, restoreSessions, as, asAdmin } from "#shared/testing/session.ts";
-import { inPinnedTransaction, outside } from "#shared/testing/pinned-pool.ts";
+import { TEST_ACTOR } from "#shared/testing/actor.ts";
+import { inPinnedTransaction } from "#shared/testing/pinned-pool.ts";
+import { aUser, anOrder } from "#shared/testing/builders/index.ts";
 import { LOCKS } from "#shared/testing/locks.ts";
 
 // BOTH LOCKS, NOT JUST ORDERS. This file's earlier comment said funds and the
@@ -54,27 +56,25 @@ const { default: app } = await import("#app");
 type UserFixture = { id: string; name: string | null; email: string | null };
 type OrderFixture = { id: string; user_id: string; total_price: string | null };
 
-let admin: UserFixture;
-let order: OrderFixture;
+const admin: UserFixture = TEST_ACTOR;
 
-beforeAll(async () => {
-  admin = (
-    await outside<UserFixture>(`SELECT id, name, email FROM exchange.users WHERE role = 'admin' LIMIT 1`)
-  )[0];
-  assert.ok(admin, "dev has no admin user");
+// A PURCHASE ORDER WITH A TOTAL, BUILT (lane 1). This used to take the first
+// one dev held with a non-null total and then CREDIT ITS OWNER - real money on
+// a real customer's balance, recoverable only because the pin rolls it back.
+//
+// THE TOTAL IS A LITERAL, which is the other half of the gain: the assertions
+// below compare what the balance moved by against what the ledger recorded, and
+// both are now known figures rather than whatever the borrowed order came to.
+const TOTAL = 1234.56;
 
-  order = (
-    await outside<OrderFixture>(
-      `SELECT o.id, o.user_id, t.total AS total_price
-         FROM orders.orders o
-         JOIN orders.transactions t ON t.order_id = o.id
-        WHERE o.direction = 'purchase' AND o.user_id IS NOT NULL AND t.total IS NOT NULL
-        ORDER BY o.id LIMIT 1`
-    )
-  )[0];
-  assert.ok(order, "dev needs a purchase order with a user and a total");
-  assert.ok(Number(order.total_price) > 0, "the fixture order must be worth something");
-});
+const anOrderWorthSomething = async (c: PoolClient): Promise<OrderFixture> => {
+  const customer = await aUser(c, { funds: 0 });
+  const order = await anOrder(c, customer, { direction: "purchase", status: "Pending" })
+    .withLots(1)
+    .withSpots()
+    .withTotals({ total: TOTAL });
+  return { id: order.id, user_id: customer.id, total_price: String(TOTAL) };
+};
 
 afterAll(async () => {
   restoreSessions();
@@ -83,6 +83,7 @@ afterAll(async () => {
 
 test("the balance moves by exactly what the ledger records", async () => {
   await inPinnedTransaction(async (client: PoolClient) => {
+    const order = await anOrderWorthSomething(client);
     await asAdmin(admin, async () => {
       // auth.users, WHERE THE BALANCE LIVES SINCE MIGRATION 118. Reading the
       // frozen exchange copy measured a number that no longer moves, so this
@@ -120,7 +121,7 @@ test("the balance moves by exactly what the ledger records", async () => {
         `credited ${moved.toFixed(2)} but the ledger says ${Number(logged.rows[0].amount).toFixed(2)}`
       );
     });
-  }, { lock: FUNDS_LOCKS });
+  }, { actor: TEST_ACTOR.id, lock: FUNDS_LOCKS });
 });
 
 // The nearest thing an admin can still do with spots must change nothing:
@@ -135,6 +136,7 @@ test("the balance moves by exactly what the ledger records", async () => {
 // had. A test that reads a row it did not cause is not testing anything.
 test("a spot write just before the credit does not reach the ledger", async () => {
   await inPinnedTransaction(async (client: PoolClient) => {
+    const order = await anOrderWorthSomething(client);
     await asAdmin(admin, async () => {
       const countOf = async () =>
         Number(
@@ -177,5 +179,5 @@ test("a spot write just before the credit does not reach the ledger", async () =
         "the ledger amount followed the spot write that ran before it"
       );
     });
-  }, { lock: FUNDS_LOCKS });
+  }, { actor: TEST_ACTOR.id, lock: FUNDS_LOCKS });
 });

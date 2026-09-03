@@ -5,6 +5,8 @@ import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
 import { randomUUID } from "node:crypto";
 import pool from "#db";
+import { inRollback } from "#shared/testing/rollback.ts";
+import { aUser } from "#shared/testing/builders/index.ts";
 import * as customers from "#db/payments/customers/repo.ts";
 
 let client: PoolClient;
@@ -18,27 +20,23 @@ beforeAll(async () => {
 });
 afterAll(async () => { client.release(); await pool.end(); });
 
-async function inRollback(fn: (c: PoolClient) => Promise<void>) {
-  await client.query("BEGIN");
-  try { await fn(client); } finally { await client.query("ROLLBACK"); }
-}
-
 test("the billing identity comes back with the provider's id for the customer", async () => {
   await inRollback(async (c: PoolClient) => {
-    const { rows } = await c.query("SELECT id FROM auth.users ORDER BY id LIMIT 1");
-    assert.ok(rows.length, "the test database has no auth.users row");
+    const user = await aUser(c);
 
-    const row = await customers.getOne(rows[0].id, c);
-    assert.equal(row?.id, rows[0].id);
+    const row = await customers.getOne(user.id, c);
+    assert.equal(row?.id, user.id);
     assert.ok("stripeCustomerId" in (row ?? {}), "the provider's customer id is not projected");
   });
 });
 
 test("update sets the customer id on that user alone, and answers true", async () => {
   await inRollback(async (c: PoolClient) => {
-    const { rows } = await c.query("SELECT id FROM auth.users ORDER BY id LIMIT 2");
-    assert.ok(rows.length >= 2, "the test database needs two auth.users rows");
-    const [target, bystander] = rows.map((r) => r.id);
+    // TWO BUILT PEOPLE. The claim is that one person's billing id does not
+    // land on another's row, and reading two arbitrary users made that a claim
+    // about whichever two the database happened to hold.
+    const target = (await aUser(c)).id;
+    const bystander = (await aUser(c)).id;
     const before = (await customers.getOne(bystander, c))?.stripeCustomerId ?? null;
 
     const customerId = `cus_${randomUUID().slice(0, 10)}`;

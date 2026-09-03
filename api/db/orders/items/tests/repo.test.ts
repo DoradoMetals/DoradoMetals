@@ -18,31 +18,20 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import type { PoolClient } from "pg";
 import pool from "#db";
+import { inRollback } from "#shared/testing/rollback.ts";
 import * as items from "#db/orders/items/repo.ts";
 
-let client: PoolClient;
 
 beforeAll(async () => {
   assert.equal(
     new Date().getTimezoneOffset(), 0,
     "these tests require TZ=UTC - run them with `pnpm --filter @dorado/api test`"
   );
-  client = await pool.connect();
 });
 
 afterAll(async () => {
-  client.release();
   await pool.end();
 });
-
-async function inRollback(fn: (c: PoolClient) => Promise<void>) {
-  await client.query("BEGIN");
-  try {
-    await fn(client);
-  } finally {
-    await client.query("ROLLBACK");
-  }
-}
 
 // Two DIFFERENT orders that each have at least one line. Without two, the
 // cross-order test cannot distinguish a scoped delete from an unscoped one.

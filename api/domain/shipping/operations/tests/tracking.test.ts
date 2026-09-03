@@ -11,6 +11,7 @@ import pool from "#db";
 import query from "#shared/db/query.ts";
 import * as service from "#domain/shipping/operations/service.ts";
 import { LOCKS } from "#shared/testing/locks.ts";
+import { TEST_ACTOR } from "#shared/testing/actor.ts";
 import { inPinnedTransaction, assertNothingEscaped } from "#shared/testing/pinned-pool.ts";
 
 type ShipmentRow = { shipping_status: string | null; delivered_at: Date | null; estimated_delivery: Date | null };
@@ -91,7 +92,7 @@ test("a refresh that recognises nothing leaves the events and the status alone",
       before.row,
       "an empty tracking response overwrote the status, the estimate or the delivery date"
     );
-  }, { lock: LOCKS.ORDERS });
+  }, { actor: TEST_ACTOR.id, lock: LOCKS.ORDERS });
 });
 
 // The guard must not disable tracking: refusing every write would pass the test above too, so this proves a response that DOES recognise something still replaces the events and status.
@@ -139,7 +140,7 @@ test("a refresh that recognises something still replaces what is stored", async 
       expected.toISOString(),
       "the estimate was not updated"
     );
-  }, { lock: LOCKS.ORDERS });
+  }, { actor: TEST_ACTOR.id, lock: LOCKS.ORDERS });
 });
 
 // The property the pin exists for: every assertion above reads its own writes and passes either way if the pin breaks - this is the one that notices.

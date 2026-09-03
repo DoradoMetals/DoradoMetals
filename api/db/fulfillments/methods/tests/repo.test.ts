@@ -4,36 +4,29 @@ import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
 import { randomUUID } from "node:crypto";
 import pool from "#db";
+import { inRollback } from "#shared/testing/rollback.ts";
+import { fulfillmentMethodId } from "#shared/testing/builders/index.ts";
 import * as methods from "#db/fulfillments/methods/repo.ts";
 
-let client: PoolClient;
 
 beforeAll(async () => {
   assert.equal(
     new Date().getTimezoneOffset(), 0,
     "these tests require TZ=UTC - run them with `pnpm --filter @dorado/api test`"
   );
-  client = await pool.connect();
 });
 
 afterAll(async () => {
-  client.release();
   await pool.end();
 });
 
-async function inRollback(fn: (c: PoolClient) => Promise<void>) {
-  await client.query("BEGIN");
-  try {
-    await fn(client);
-  } finally {
-    await client.query("ROLLBACK");
-  }
-}
-
 test("update writes label, leaving admin_label alone when absent", async () => {
   await inRollback(async (c: PoolClient) => {
-    const { rows: [row] } = await c.query(`SELECT id, admin_label FROM fulfillments.methods LIMIT 1`);
-    assert.ok(row, "dev has no fulfillments.methods row");
+    // fulfillments.methods IS the subject here - a reference table with no
+    // create verb, so the row is named rather than built (see
+    // shared/testing/builders/reference.ts). The rename rolls back.
+    const id = await fulfillmentMethodId(c, "CARRIER DROPOFF", "purchase");
+    const row = (await methods.getOne(id, c))!;
 
     const changed = await methods.update(row.id, { label: "Renamed for a test" }, c);
     assert.equal(changed, true, "update reported no row changed");

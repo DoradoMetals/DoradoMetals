@@ -4,44 +4,35 @@ import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
 import { randomUUID } from "node:crypto";
 import pool from "#db";
+import { inRollback } from "#shared/testing/rollback.ts";
+import { aUser, anAddress, fulfillmentMethodId } from "#shared/testing/builders/index.ts";
 import * as pickups from "#db/fulfillments/pickups/repo.ts";
 import * as fulfillments from "#db/fulfillments/repo.ts";
 
-let client: PoolClient;
 
 beforeAll(async () => {
   assert.equal(
     new Date().getTimezoneOffset(), 0,
     "these tests require TZ=UTC - run them with `pnpm --filter @dorado/api test`"
   );
-  client = await pool.connect();
 });
 
 afterAll(async () => {
-  client.release();
   await pool.end();
 });
 
-async function inRollback(fn: (c: PoolClient) => Promise<void>) {
-  await client.query("BEGIN");
-  try {
-    await fn(client);
-  } finally {
-    await client.query("ROLLBACK");
-  }
-}
-
 async function aDraftFulfillment(c: PoolClient): Promise<string> {
-  const { rows: [m] } = await c.query(`SELECT id FROM fulfillments.methods LIMIT 1`);
-  assert.ok(m, "dev has no fulfillments.methods row");
-  const draft = await fulfillments.createDraft({ id: randomUUID(), method_id: m.id }, c);
+  const method_id = await fulfillmentMethodId(c, "CARRIER DROPOFF", "purchase");
+  const draft = await fulfillments.createDraft({ id: randomUUID(), method_id }, c);
   return draft.id;
 }
 
+// AN ADDRESS IS A FIXTURE, NOT REFERENCE DATA, so it is built. The pickup
+// this books is a real row pointing at a real customer address either way -
+// it just no longer points at somebody's actual house.
 async function anAddressId(c: PoolClient): Promise<string> {
-  const { rows: [a] } = await c.query(`SELECT id FROM places.addresses LIMIT 1`);
-  assert.ok(a, "dev has no places.addresses row");
-  return a.id;
+  const user = await aUser(c);
+  return (await anAddress(c, user)).id;
 }
 
 test("create books a pickup, and update reschedules the same row", async () => {

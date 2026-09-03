@@ -21,6 +21,7 @@ import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
 import query from "#shared/db/query.ts";
 import { inPinnedTransaction } from "#shared/testing/pinned-pool.ts";
+import { TEST_ACTOR } from "#shared/testing/actor.ts";
 import { LOCKS } from "#shared/testing/locks.ts";
 import { sweepSettledIntents, sweepAbandoned } from "#domain/payments/sweeps.ts";
 
@@ -68,7 +69,7 @@ test("the settled sweep advances an order whose webhook went missing", async () 
       "the missed-webhook order was not advanced"
     );
     assert.equal(await statusOf(c, id), "Preparing");
-  }, { lock: [LOCKS.FULFILLMENTS, LOCKS.ORDERS, LOCKS.ADDRESSES, LOCKS.USERS] });
+  }, { actor: TEST_ACTOR.id, lock: [LOCKS.FULFILLMENTS, LOCKS.ORDERS, LOCKS.ADDRESSES, LOCKS.USERS] });
 });
 
 // SKIPPED: sweepAbandoned's cancel path reaches Stripe for real
@@ -108,7 +109,7 @@ test.skip("the abandonment sweep cancels a stale unpaid order and refunds its cr
       `SELECT count(*)::int n FROM payments.ledger
         WHERE order_id = $1 AND type = 'Credit'`, [id], c);
     assert.equal(ledger[0]!.n, 1, "the refund has no ledger entry");
-  }, { lock: [LOCKS.FULFILLMENTS, LOCKS.ORDERS, LOCKS.ADDRESSES, LOCKS.USERS] });
+  }, { actor: TEST_ACTOR.id, lock: [LOCKS.FULFILLMENTS, LOCKS.ORDERS, LOCKS.ADDRESSES, LOCKS.USERS] });
 });
 
 test("a YOUNG unpaid order is left alone", async () => {
@@ -116,7 +117,7 @@ test("a YOUNG unpaid order is left alone", async () => {
     const id = await seedSale(c, { ageHours: 1 });
     await sweepAbandoned(24, c);
     assert.equal(await statusOf(c, id), "Pending", "a fresh order was cancelled");
-  }, { lock: [LOCKS.FULFILLMENTS, LOCKS.ORDERS, LOCKS.ADDRESSES, LOCKS.USERS] });
+  }, { actor: TEST_ACTOR.id, lock: [LOCKS.FULFILLMENTS, LOCKS.ORDERS, LOCKS.ADDRESSES, LOCKS.USERS] });
 });
 
 test("a PROCESSING intent protects its order from the abandonment sweep", async () => {
@@ -125,5 +126,5 @@ test("a PROCESSING intent protects its order from the abandonment sweep", async 
     await seedIntent(c, `pi_rec_processing_${Date.now()}`, "processing", id);
     await sweepAbandoned(24, c);
     assert.equal(await statusOf(c, id), "Pending", "an order with money in flight was cancelled");
-  }, { lock: [LOCKS.FULFILLMENTS, LOCKS.ORDERS, LOCKS.ADDRESSES, LOCKS.USERS] });
+  }, { actor: TEST_ACTOR.id, lock: [LOCKS.FULFILLMENTS, LOCKS.ORDERS, LOCKS.ADDRESSES, LOCKS.USERS] });
 });

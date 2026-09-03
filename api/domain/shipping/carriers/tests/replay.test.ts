@@ -6,6 +6,7 @@ import { randomUUID } from "node:crypto";
 import request from "supertest";
 import pool from "#db";
 import { mockSessions, restoreSessions, as, anonymous } from "#shared/testing/session.ts";
+import { TEST_ACTOR, TEST_CUSTOMER } from "#shared/testing/actor.ts";
 import {
   inPinnedTransaction,
   assertNothingEscaped,
@@ -25,17 +26,9 @@ let customer: Caller;
 const created: string[] = [];
 
 beforeAll(async () => {
-  const admins = await outside<UserFixture>(
-    `SELECT id, name, email FROM exchange.users WHERE role = 'admin' LIMIT 1`
-  );
-  admin = { ...admins[0], role: "admin" };
-  assert.ok(admin.id, "dev has no admin user");
+  admin = { ...TEST_ACTOR, role: "admin" };
 
-  const users = await outside<UserFixture>(
-    `SELECT id, name, email FROM exchange.users WHERE role IS DISTINCT FROM 'admin' LIMIT 1`
-  );
-  customer = { ...users[0], role: "user" };
-  assert.ok(customer.id, "dev has no non-admin user");
+  customer = { ...TEST_CUSTOMER, role: "user" };
 });
 
 afterAll(async () => {
@@ -77,7 +70,7 @@ test("the carrier list is served to a user and refused to nobody", async () => {
       assert.ok(!("is_active" in c), "the flat shape came back after the conversion");
       assert.ok(c.organization.name, "a carrier came back with no name");
     });
-  });
+  }, { actor: TEST_ACTOR.id });
 });
 
 test("only an admin may create a carrier", async () => {
@@ -88,7 +81,7 @@ test("only an admin may create a carrier", async () => {
         .send({ carrier: newCarrier() });
       assert.equal(res.status, 403, "a customer created a carrier");
     });
-  });
+  }, { actor: TEST_ACTOR.id });
 });
 
 // The addresses bug, asked of carriers: the write must return the nested row exactly as stored.
@@ -113,7 +106,7 @@ test("creating a carrier returns it nested, with its name intact", async () => {
         "the carrier created a moment ago is not in the list"
       );
     });
-  });
+  }, { actor: TEST_ACTOR.id });
 });
 
 test("updating a carrier returns the updated row, still nested", async () => {
@@ -150,7 +143,7 @@ test("updating a carrier returns the updated row, still nested", async () => {
       assert.equal(back.organization.name, renamed, "the update response lost the new name");
       assert.equal(back.id, saved.id, "the update returned a different carrier");
     });
-  });
+  }, { actor: TEST_ACTOR.id });
 });
 
 // This endpoint had never once succeeded: the controller passed the whole body where the repo wanted an id.
@@ -173,7 +166,7 @@ test("deleting a carrier takes the carrier_id the frontend sends", async () => {
         "the carrier is still there after a successful delete"
       );
     });
-  });
+  }, { actor: TEST_ACTOR.id });
 });
 
 test("nothing this file created survived the transaction", async () => {

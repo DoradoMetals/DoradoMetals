@@ -21,6 +21,7 @@ import pool from "#db";
 import * as orderRead from "#domain/orders/read.ts";
 import * as spotsRepo from "#db/orders/spots/repo.ts";
 import { LOCKS, takeLocks } from "#shared/testing/locks.ts";
+import { rollbackIn } from "#shared/testing/rollback.ts";
 
 let client: PoolClient;
 
@@ -48,15 +49,10 @@ afterAll(async () => {
 // `locks.ts`'s own warning that a missing lock is latent until timing changes
 // elsewhere. Postgres advisory locks contend across the xact/session split, so
 // taking the same id here, transaction-scoped, serializes against both kinds.
-async function inRollback(fn: (c: PoolClient) => Promise<void>) {
-  await client.query("BEGIN");
-  await takeLocks(client, LOCKS.ORDERS);
-  try {
-    await fn(client);
-  } finally {
-    await client.query("ROLLBACK");
-  }
-}
+// THE FILE'S LOCK, BOUND ONCE. A lock is a property of what this file
+// WRITES, not of one call, so it is named here and every inRollback below
+// inherits it - which is also what stops a new test being added without one.
+const inRollback = rollbackIn({ lock: LOCKS.ORDERS });
 
 // Every purchase order in the database, as the view assembles it. The view is
 // per-order by design - the composed read used to fetch them all so the admin

@@ -13,6 +13,9 @@ import type { PoolClient } from "pg";
 import pool from "#db";
 import * as repo from "#db/users/repo.ts";
 import { takeLocks, LOCKS } from "#shared/testing/locks.ts";
+import { rollbackIn } from "#shared/testing/rollback.ts";
+import { TEST_ACTOR } from "#shared/testing/actor.ts";
+import { aUser as buildUser } from "#shared/testing/builders/index.ts";
 
 let client: PoolClient;
 
@@ -29,23 +32,20 @@ afterAll(async () => {
   await pool.end();
 });
 
-async function inRollback(fn: (c: PoolClient) => Promise<void>) {
-  await client.query("BEGIN");
+// THE FILE'S LOCK, BOUND ONCE. A lock is a property of what this file
+// WRITES, not of one call, so it is named here and every inRollback below
+// inherits it - which is also what stops a new test being added without one.
   // Files that move balances agree an order rather than deadlocking on
   // whichever customer each visited first. See LOCKS.USERS.
-  await takeLocks(client, LOCKS.USERS);
-  try {
-    await fn(client);
-  } finally {
-    await client.query("ROLLBACK");
-  }
-}
+const inRollback = rollbackIn({ lock: LOCKS.USERS });
 
-// One user of auth.users. This used to join exchange.users to auth.users to
-// avoid picking a row present in only one - 118 collapses the two tables into
-// one, so the join has nothing left to establish.
-const aUser = async (c: PoolClient) =>
-  (await c.query(`SELECT id FROM auth.users ORDER BY id LIMIT 1`)).rows[0].id;
+// THE CUSTOMER IS BUILT (lane 1), and here that changes what the tests MEAN.
+// They adjust a balance and then assert on it, so picking whichever auth.users
+// row sorted first made every one of them a write against a real customer's
+// credit - recoverable only because the transaction rolls back. A built user
+// starts at a known zero, which also lets the assertions state an absolute
+// figure rather than "before + 150".
+const aUser = async (c: PoolClient) => (await buildUser(c, { funds: 0 })).id;
 
 const balance = async (c: PoolClient, id: string) =>
   Number((await c.query("SELECT dorado_funds FROM auth.users WHERE id = $1", [id])).rows[0].dorado_funds ?? 0);
@@ -53,18 +53,18 @@ const balance = async (c: PoolClient, id: string) =>
 test("add increases the balance", async () => {
   await inRollback(async (c: PoolClient) => {
     const user = await aUser(c);
-    const before = await balance(c, user);
+    assert.equal(await balance(c, user), 0, "a built customer does not start at zero");
     await repo.adjustCredit(user, "add", 150, c);
-    assert.equal(await balance(c, user), before + 150);
+    assert.equal(await balance(c, user), 150);
   });
 });
 
 test("subtract decreases it", async () => {
   await inRollback(async (c: PoolClient) => {
     const user = await aUser(c);
-    const before = await balance(c, user);
+    await repo.adjustCredit(user, "add", 200, c);
     await repo.adjustCredit(user, "subtract", 50, c);
-    assert.equal(await balance(c, user), before - 50);
+    assert.equal(await balance(c, user), 150);
   });
 });
 
@@ -97,6 +97,13 @@ test("an unrecognised mode is refused rather than blanking the balance", async (
     await repo.adjustCredit(user, "add", 200, c);
     const before = await balance(c, user);
 
+    // A SAVEPOINT, NOT A ROLLBACK. The refusal aborts the transaction, so the
+    // balance cannot be read again until something clears that state - this
+    // used to be ROLLBACK/BEGIN, which also discarded the customer the test
+    // was about. That was invisible while the customer was a pre-existing row
+    // and is a TypeError now that the fixture is built, which is the honest
+    // version: the assertion below is about THIS customer's balance.
+    await c.query("SAVEPOINT before_bad_mode");
     await assert.rejects(
       // Deliberately outside CreditMode - the mode arrives from a request body cast by service.ts, so an unrecognised one really can reach here.
       // @ts-expect-error - an unrecognised mode is the point of this test
@@ -104,10 +111,9 @@ test("an unrecognised mode is refused rather than blanking the balance", async (
       /not-null|null value/i,
       "an unrecognised mode was accepted"
     );
+    await c.query("ROLLBACK TO SAVEPOINT before_bad_mode");
 
-    await c.query("ROLLBACK");
-    await c.query("BEGIN");
-    assert.notEqual(await balance(c, user), null);
+    assert.equal(await balance(c, user), before, "the refused write moved the balance");
   });
 });
 
@@ -121,17 +127,24 @@ test("subtracting more than the balance goes negative", async () => {
 });
 
 test("an adjustment on a client is invisible on another connection", async () => {
+  // THE SEEDED TEST ACTOR, NOT A BUILT CUSTOMER. The whole claim is that one
+  // connection cannot see the other's uncommitted write, so the row has to
+  // exist on BOTH connections before either writes - which means committed,
+  // and a builder's customer is deliberately not. shared/testing/actor.ts's
+  // row is the one committed person the suite is allowed to name.
   const other = await pool.connect();
+  const client = await pool.connect();
   await client.query("BEGIN");
   await takeLocks(client, LOCKS.USERS);
   try {
-    const user = await aUser(client);
+    const user = TEST_ACTOR.id;
     const sentinel = 123456.78;
     await repo.adjustCredit(user, "edit", sentinel, client);
     assert.equal(await balance(client, user), sentinel, "the write did not happen");
     assert.notEqual(await balance(other, user), sentinel, "an uncommitted balance was visible elsewhere");
   } finally {
     await client.query("ROLLBACK");
+    client.release();
     other.release();
   }
 });

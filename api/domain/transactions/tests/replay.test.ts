@@ -6,6 +6,7 @@ import assert from "node:assert/strict";
 import request from "supertest";
 import pool from "#db";
 import { mockSessions, restoreSessions, as, anonymous } from "#shared/testing/session.ts";
+import { TEST_ACTOR } from "#shared/testing/actor.ts";
 import { inPinnedTransaction, outside } from "#shared/testing/pinned-pool.ts";
 
 await mockSessions();
@@ -49,7 +50,7 @@ test("an anonymous caller is refused", async () => {
       const res = await request(app).get("/api/transactions/get_transactions");
       assert.ok([401, 403].includes(res.status), `answered ${res.status}`);
     });
-  });
+  }, { actor: TEST_ACTOR.id });
 });
 
 // THE ASSERTION THIS FILE EXISTS FOR. Sent exactly the way the exploit was:
@@ -77,7 +78,7 @@ test("a body naming another customer does not return their ledger", async () => 
         );
       }
     });
-  });
+  }, { actor: TEST_ACTOR.id });
 });
 
 // The same claim in the query string, in case the read ever moves to req.query
@@ -94,7 +95,7 @@ test("a query parameter naming another customer is ignored too", async () => {
         "the query string decided whose ledger was returned"
       );
     });
-  });
+  }, { actor: TEST_ACTOR.id });
 });
 
 // The counterpart: the victim gets their own row without naming anyone — without this, the tests above would pass equally well against an endpoint that returns nothing to anybody, which is what it did before and isn't the same as fixed.
@@ -113,7 +114,7 @@ test("a customer gets their own ledger without naming anyone", async () => {
         "the owner's own read did not return the owner's row"
       );
     });
-  });
+  }, { actor: TEST_ACTOR.id });
 });
 
 // Recorded, not fixed — the repo returns rows[0] despite the endpoint being called 'history', so a customer with 11 rows gets one. Wrong, written up in FOLLOWUPS, but a response SHAPE, and shapes don't move during a schema migration.
@@ -130,5 +131,5 @@ test("the response is a single row, not a history", async () => {
       );
       assert.ok(victimRows > 1, "the victim has one row, so this records nothing interesting");
     });
-  });
+  }, { actor: TEST_ACTOR.id });
 });

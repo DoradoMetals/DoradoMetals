@@ -14,20 +14,20 @@ import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
 import pool from "#db";
 import { LOCKS, takeLocks } from "#shared/testing/locks.ts";
+import { rollbackIn } from "#shared/testing/rollback.ts";
+import { TEST_ACTOR } from "#shared/testing/actor.ts";
+import { aUser } from "#shared/testing/builders/index.ts";
 import * as orders from "#db/orders/repo.ts";
 
-let client: PoolClient;
 
 beforeAll(async () => {
   assert.equal(
     new Date().getTimezoneOffset(), 0,
     "these tests require TZ=UTC - run them with `pnpm --filter @dorado/api test`"
   );
-  client = await pool.connect();
 });
 
 afterAll(async () => {
-  client.release();
   await pool.end();
 });
 
@@ -39,23 +39,14 @@ afterAll(async () => {
 // writes real, autocommitting rows to the same table under LOCKS.ORDERS; see
 // domain/orders/tests/purchase-read.test.ts's own comment for the full
 // mechanism.
-async function inRollback(fn: (c: PoolClient) => Promise<void>) {
-  await client.query("BEGIN");
-  await takeLocks(client, LOCKS.ORDERS);
-  try {
-    await fn(client);
-  } finally {
-    await client.query("ROLLBACK");
-  }
-}
-
-const aUser = async (c: PoolClient) =>
-  (await c.query("SELECT id FROM exchange.users LIMIT 1")).rows[0]?.id ?? null;
+// THE FILE'S LOCK, BOUND ONCE. A lock is a property of what this file
+// WRITES, not of one call, so it is named here and every inRollback below
+// inherits it - which is also what stops a new test being added without one.
+const inRollback = rollbackIn({ lock: LOCKS.ORDERS });
 
 test("a new order lands with its direction, status and number", async () => {
   await inRollback(async (c: PoolClient) => {
-    const user_id = await aUser(c);
-    assert.ok(user_id, "the test db needs a user");
+    const user_id = (await aUser(c)).id;
 
     const { id, number } = await orders.create(
       { user_id, direction: "purchase", status: "Pending" }, c
@@ -72,8 +63,7 @@ test("a new order lands with its direction, status and number", async () => {
 
 test("each direction draws from its own sequence, and each draw advances it", async () => {
   await inRollback(async (c: PoolClient) => {
-    const user_id = await aUser(c);
-    assert.ok(user_id, "the test db needs a user");
+    const user_id = (await aUser(c)).id;
 
     const first = await orders.create({ user_id, direction: "purchase", status: "Pending" }, c);
     const second = await orders.create({ user_id, direction: "purchase", status: "Pending" }, c);
@@ -92,8 +82,7 @@ test("each direction draws from its own sequence, and each draw advances it", as
 
 test("a new order starts with its spots unpinned", async () => {
   await inRollback(async (c: PoolClient) => {
-    const user_id = await aUser(c);
-    assert.ok(user_id, "the test db needs a user");
+    const user_id = (await aUser(c)).id;
 
     const { id } = await orders.create(
       { user_id, direction: "purchase", status: "Pending" }, c
@@ -110,20 +99,27 @@ test("a new order starts with its spots unpinned", async () => {
 // The write must join the caller's transaction, or a rolled-back creation
 // would leave rows behind.
 test("rolling back undoes the order", async () => {
-  const other = await pool.connect();
+  // TWO CONNECTIONS, DELIBERATELY: the id is written inside a transaction that
+  // is rolled back and then looked for from OUTSIDE it, which is the only way
+  // to tell "the write joined my transaction" from "the write committed".
+  //
+  // THE CUSTOMER IS THE SEEDED TEST ACTOR rather than a built one, and that is
+  // the point of the seed: user_id is a foreign key, so the row it names has
+  // to be COMMITTED - and a builder's user is not, by design. Committing one
+  // here would mean deleting it afterwards, from a frozen table.
+  const outside = await pool.connect();
+  const writer = await pool.connect();
   try {
-    const user_id = await aUser(other);
-    assert.ok(user_id, "the test db needs a user");
-
-    await client.query("BEGIN");
+    await writer.query("BEGIN");
     const { id } = await orders.create(
-      { user_id, direction: "purchase", status: "Pending" }, client
+      { user_id: TEST_ACTOR.id, direction: "purchase", status: "Pending" }, writer
     );
-    await client.query("ROLLBACK");
+    await writer.query("ROLLBACK");
 
-    const { rows } = await other.query("SELECT id FROM orders.orders WHERE id = $1", [id]);
+    const { rows } = await outside.query("SELECT id FROM orders.orders WHERE id = $1", [id]);
     assert.equal(rows.length, 0, "orders.orders kept a row from a rolled-back creation");
   } finally {
-    other.release();
+    outside.release();
+    writer.release();
   }
 });

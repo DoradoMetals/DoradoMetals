@@ -4,6 +4,14 @@ import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
 import { randomUUID } from "node:crypto";
 import pool from "#db";
+import { inRollback } from "#shared/testing/rollback.ts";
+import { inPinnedTransaction } from "#shared/testing/pinned-pool.ts";
+import { actingAs, TEST_ACTOR } from "#shared/testing/actor.ts";
+// LOCKS.ORDERS because the two PINNED tests here reach products through the
+// service, whose module graph writes orders.* - lint:test-locks derives that
+// and requires the lock at every pinned call in the file.
+import { LOCKS } from "#shared/testing/locks.ts";
+import { aProduct, anAdmin } from "#shared/testing/builders/index.ts";
 import * as service from "#domain/products/service.ts";
 import * as productsRepo from "#db/products/repo.ts";
 
@@ -21,15 +29,6 @@ afterAll(async () => {
   client.release();
   await pool.end();
 });
-
-async function inRollback(fn: (c: PoolClient) => Promise<void>) {
-  await client.query("BEGIN");
-  try {
-    await fn(client);
-  } finally {
-    await client.query("ROLLBACK");
-  }
-}
 
 // A product missing any of the three labels was dropped by the inner joins, and is dropped by compose.ts too.
 test("the storefront carries the metal and mint names, and no ids", async () => {
@@ -122,13 +121,18 @@ test("each list filters on the flag it claims to", async () => {
 // A slug is a public URL; without `display` in the statement, an unpublished product would be readable by anyone who knows its slug.
 // The count is not asserted to be one — a slug names a variant SET (gold-american-eagle is four rows); an earlier version asserted 1 and failed against real data.
 test("an undisplayed product is not reachable by its slug", async () => {
-  await inRollback(async (c: PoolClient) => {
-    const { rows: [live] } = await c.query(
-      "SELECT id, slug FROM products.bullion WHERE display = true AND slug IS NOT NULL LIMIT 1"
-    );
-    if (!live) return;
+  // PINNED, NOT MERELY ROLLED BACK: getProductFromSlug reads through the pool
+  // and takes no executor, so a plain BEGIN/ROLLBACK on one client would leave
+  // the service unable to see the product this test builds.
+  await inPinnedTransaction(async (c: PoolClient) => {
+    // BUILT, DISPLAYED, WITH ITS OWN SLUG (lane 1). This picked whichever
+    // displayed product came first and then set `display = false` on every row
+    // sharing its slug - a real catalogue entry, hidden, and correct only
+    // because the transaction rolls back. It also RETURNED EARLY when the
+    // query found nothing, which is one of audit:vacuous-tests' five SKIPs.
+    const live = await aProduct(c, { display: true, slug: `slug-probe-${randomUUID().slice(0, 8)}` });
 
-    const shown = await service.getProductFromSlug(live.slug);
+    const shown = await service.getProductFromSlug(live.slug!);
     assert.ok(shown.length > 0, "a displayed product is not reachable by its own slug");
     for (const row of shown) assert.equal(row.slug, live.slug);
 
@@ -140,22 +144,30 @@ test("an undisplayed product is not reachable by its slug", async () => {
       [live.slug]
     );
     assert.equal(after[0].n, 0, "the slug statement would still return it");
-  });
+  }, { actor: TEST_ACTOR.id, lock: LOCKS.ORDERS });
 });
 
 // The variant set itself, which is why the slug read returns a list at all.
 test("a slug with variants returns every one of them", async () => {
-  const { rows } = await client.query(
-    `SELECT slug, count(*)::int n FROM products.bullion
-      WHERE slug IS NOT NULL AND display = true
-      GROUP BY slug HAVING count(*) > 1 ORDER BY n DESC LIMIT 1`
-  );
-  if (!rows[0]) return; // dev has no product with variants
+  // A VARIANT SET IS BUILT (lane 1): three products sharing one slug and
+  // differing by variant_label, which is what a slug NAMES. This hunted dev
+  // for a slug with more than one row and RETURNED EARLY when it found none -
+  // so on a database with no variants the test asserted nothing at all.
+  //
+  // It runs inside the rollback now, where it used to read on the file's own
+  // client and then call the service on the pool: the service could not see a
+  // built set otherwise.
+  await inPinnedTransaction(async (c: PoolClient) => {
+    const slug = `variant-set-${randomUUID().slice(0, 8)}`;
+    for (const variant_label of ["1 oz", "1/2 oz", "1/10 oz"]) {
+      await aProduct(c, { slug, variant_label, display: true });
+    }
 
-  const set = await service.getProductFromSlug(rows[0].slug);
-  assert.equal(set.length, rows[0].n, "the product page would be missing a size");
-  assert.equal(new Set(set.map((p) => p.variant_label)).size, set.length,
-    "two variants share a label, so the page cannot tell them apart");
+    const set = await service.getProductFromSlug(slug);
+    assert.equal(set.length, 3, "the product page would be missing a size");
+    assert.equal(new Set(set.map((p) => p.variant_label)).size, set.length,
+      "two variants share a label, so the page cannot tell them apart");
+  }, { actor: TEST_ACTOR.id, lock: LOCKS.ORDERS });
 });
 
 // getFilteredProducts takes a metal NAME and the column is an id.
@@ -250,11 +262,8 @@ test("saving a product writes the row, and records who saved it", async () => {
     assert.ok(existing, "dev has no product to read reference ids from");
     const renamed = `${existing.name}-renamed`;
 
-    const { rows: admins } = await c.query(
-      `SELECT id, name FROM auth.users WHERE role = 'admin' LIMIT 1`
-    );
-    assert.ok(admins[0], "auth.users has no admin - this test proves nothing");
-    await c.query("SELECT set_config('app.actor_id', $1, true)", [admins[0].id]);
+    const admin = await anAdmin(c, { name: "Saving Admin" });
+    await actingAs(c, admin.id);
 
     // metal_id/mint_id/supplier_id travel as ids now (ruling 43), read off
     // the raw admin row rather than resolved from the composed shape's names.
@@ -267,8 +276,8 @@ test("saving a product writes the row, and records who saved it", async () => {
       [existing.id]
     );
     assert.equal(nx[0].name, renamed);
-    assert.equal(nx[0].updated_by_id, admins[0].id, "the trigger did not stamp the actor");
-    assert.equal(nx[0].updated_by, admins[0].name);
+    assert.equal(nx[0].updated_by_id, admin.id, "the trigger did not stamp the actor");
+    assert.equal(nx[0].updated_by, admin.name);
   });
 });
 

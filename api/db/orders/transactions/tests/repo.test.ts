@@ -13,41 +13,34 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import type { PoolClient } from "pg";
 import pool from "#db";
+import { LOCKS } from "#shared/testing/locks.ts";
+import { rollbackIn } from "#shared/testing/rollback.ts";
+import { aUser, anOrder } from "#shared/testing/builders/index.ts";
 import * as totals from "#db/orders/transactions/repo.ts";
 
-let client: PoolClient;
+// LOCKS.ORDERS: this file BUILDS its orders now rather than borrowing them,
+// which means it writes orders.orders and orders.transactions.
+const inRollback = rollbackIn({ lock: LOCKS.ORDERS });
+
 
 beforeAll(async () => {
   assert.equal(
     new Date().getTimezoneOffset(), 0,
     "these tests require TZ=UTC - run them with `pnpm --filter @dorado/api test`"
   );
-  client = await pool.connect();
 });
 
 afterAll(async () => {
-  client.release();
   await pool.end();
 });
 
-async function inRollback(fn: (c: PoolClient) => Promise<void>) {
-  await client.query("BEGIN");
-  try {
-    await fn(client);
-  } finally {
-    await client.query("ROLLBACK");
-  }
-}
-
+// BUILT WITH ITS MONEY ROW. The direction was already spelled out - the guard
+// under test is a direction guard - and building it removes the other half of
+// the fixture question: D202 measured five of twenty-one purchase orders with
+// NO transactions row at all, so "the first purchase order that has one" was a
+// narrower set than the test's own comment claimed.
 const anOrderWithTotals = async (c: PoolClient, direction: "purchase" | "sale") =>
-  (await c.query(
-    `SELECT t.order_id
-       FROM orders.transactions t
-       JOIN orders.orders o ON o.id = t.order_id
-      WHERE o.direction = $1::orders.direction
-      ORDER BY t.order_id LIMIT 1`,
-    [direction]
-  )).rows[0]?.order_id ?? null;
+  (await anOrder(c, await aUser(c), { direction }).withTotals({ total: 0 })).id;
 
 test("update answers false for an order with no row and true for a real one", async () => {
   await inRollback(async (c: PoolClient) => {
@@ -57,7 +50,6 @@ test("update answers false for an order with no row and true for a real one", as
     );
 
     const orderId = await anOrderWithTotals(c, "purchase");
-    assert.ok(orderId, "no purchase order has a transactions row - this test proves nothing");
     assert.equal(await totals.update(orderId, { total: 1 }, {}, c), true);
   });
 });
@@ -65,7 +57,6 @@ test("update answers false for an order with no row and true for a real one", as
 test("null is a real value: clearing a total is not the same as omitting it", async () => {
   await inRollback(async (c: PoolClient) => {
     const orderId = await anOrderWithTotals(c, "purchase");
-    assert.ok(orderId, "no purchase order has a transactions row");
 
     await totals.update(orderId, { total: 42, payout_fee: 7 }, {}, c);
     await totals.update(orderId, { total: null }, {}, c);
@@ -96,7 +87,6 @@ test("the direction guard refuses a sale and lets a purchase through", async () 
 test("an empty patch changes nothing and is not a failure", async () => {
   await inRollback(async (c: PoolClient) => {
     const orderId = await anOrderWithTotals(c, "purchase");
-    assert.ok(orderId, "no purchase order has a transactions row");
     assert.equal(await totals.update(orderId, {}, {}, c), true);
   });
 });

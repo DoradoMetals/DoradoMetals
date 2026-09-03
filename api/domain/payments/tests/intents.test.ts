@@ -11,6 +11,8 @@ import type { PoolClient } from "pg";
 import { randomUUID } from "node:crypto";
 import pool from "#db";
 import { LOCKS, takeLocks } from "#shared/testing/locks.ts";
+import { rollbackIn } from "#shared/testing/rollback.ts";
+import { aUser, anOrder } from "#shared/testing/builders/index.ts";
 import * as service from "#domain/payments/service.ts";
 
 let client: PoolClient;
@@ -24,22 +26,15 @@ beforeAll(async () => {
 });
 afterAll(async () => { client.release(); await pool.end(); });
 
-// LOCKS.ORDERS, transaction-scoped (lane 3, the runner conversion): this
-// file picks an existing sale order id off orders.orders, and
+// LOCKS.ORDERS, transaction-scoped (lane 3, the runner conversion): the last
+// test here builds a sale order of its own through `anOrder`, and
 // domain/orders/tests/edit-line.test.ts writes real, autocommitting rows to
 // the same table under LOCKS.ORDERS - see purchase-read.test.ts's own
 // comment for the full mechanism.
-async function inRollback(fn: (c: PoolClient) => Promise<void>) {
-  await client.query("BEGIN");
-  await takeLocks(client, LOCKS.ORDERS);
-  try { await fn(client); } finally { await client.query("ROLLBACK"); }
-}
-
-const users = async (c: PoolClient, n = 1) => {
-  const { rows } = await c.query(`SELECT id FROM exchange.users ORDER BY id LIMIT ${n}`);
-  assert.ok(rows.length >= n, `the test database needs ${n} users`);
-  return rows.map((r) => r.id as string);
-};
+// THE FILE'S LOCK, BOUND ONCE. A lock is a property of what this file
+// WRITES, not of one call, so it is named here and every inRollback below
+// inherits it - which is also what stops a new test being added without one.
+const inRollback = rollbackIn({ lock: LOCKS.ORDERS });
 
 // WHO IS ASKING, as the two ids an intent is keyed on. The service takes these
 // rather than a session object read out of request headers (D214 item 11).
@@ -54,8 +49,8 @@ const anIntent = () => ({
 
 test("an intent is recorded against the session's user, in dollars", async () => {
   await inRollback(async (c: PoolClient) => {
-    const [user] = await users(c);
-    const caller = aCaller(user);
+    const user = await aUser(c);
+    const caller = aCaller(user.id);
     const paymentIntent = anIntent();
 
     await service.recordIntent(paymentIntent, caller, "checkout", undefined, c);
@@ -68,7 +63,7 @@ test("an intent is recorded against the session's user, in dollars", async () =>
       [paymentIntent.id]
     );
     assert.equal(rows.length, 1, "the intent and its attempt were not both written");
-    assert.equal(rows[0].user_id, user);
+    assert.equal(rows[0].user_id, user.id);
     assert.equal(rows[0].type, "checkout");
     assert.equal(rows[0].status, paymentIntent.status);
     // Stripe speaks cents; every payments.* column is in dollars.
@@ -81,10 +76,11 @@ test("an intent is recorded against the session's user, in dollars", async () =>
 // and collides the idempotency key across every customer that admin serves.
 test("an admin intent is recorded against the customer, not the admin", async () => {
   await inRollback(async (c: PoolClient) => {
-    const [admin, customer] = await users(c, 2);
+    const admin = await aUser(c, { role: "admin" });
+    const customer = await aUser(c);
     const paymentIntent = anIntent();
 
-    await service.recordIntent(paymentIntent, aCaller(admin), "admin", customer, c);
+    await service.recordIntent(paymentIntent, aCaller(admin.id), "admin", customer.id, c);
 
     const { rows } = await c.query(
       `SELECT i.user_id FROM payments.intents i
@@ -92,19 +88,19 @@ test("an admin intent is recorded against the customer, not the admin", async ()
         WHERE a.provider_ref = $1`,
       [paymentIntent.id]
     );
-    assert.equal(rows[0].user_id, customer);
-    assert.notEqual(rows[0].user_id, admin);
+    assert.equal(rows[0].user_id, customer.id);
+    assert.notEqual(rows[0].user_id, admin.id);
   });
 });
 
 test("what the provider says lands on the intent, the attempt and the settlement", async () => {
   await inRollback(async (c: PoolClient) => {
-    const [user] = await users(c);
+    const user = await aUser(c);
     const mine = anIntent();
     const mineRef = mine.id;
     const other = anIntent();
-    await service.recordIntent(mine, aCaller(user), "checkout", undefined, c);
-    await service.recordIntent(other, aCaller(user), "checkout", undefined, c);
+    await service.recordIntent(mine, aCaller(user.id), "checkout", undefined, c);
+    await service.recordIntent(other, aCaller(user.id), "checkout", undefined, c);
 
     const matched = await service.updateFromProvider(
       { id: mineRef, status: "succeeded", amount: 25000, amount_received: 25000 }, c
@@ -137,18 +133,15 @@ test("what the provider says lands on the intent, the attempt and the settlement
 
 test("attaching an order lands on the intent behind that reference alone", async () => {
   await inRollback(async (c: PoolClient) => {
-    const [user] = await users(c);
+    const user = await aUser(c);
     const paymentIntent = anIntent();
-    await service.recordIntent(paymentIntent, aCaller(user), "checkout", undefined, c);
+    await service.recordIntent(paymentIntent, aCaller(user.id), "checkout", undefined, c);
 
-    const { rows: orders } = await c.query(
-      "SELECT id FROM orders.orders WHERE direction = 'sale' ORDER BY id LIMIT 1"
-    );
-    assert.ok(orders.length, "the test database has no sales order to attach");
+    const order = await anOrder(c, user, { direction: "sale" });
 
-    assert.equal(await service.attachOrder(paymentIntent.id, orders[0].id, c), true);
+    assert.equal(await service.attachOrder(paymentIntent.id, order.id, c), true);
     const attached = await service.findIntentByRef(paymentIntent.id, c);
-    assert.equal(attached?.sales_order_id, orders[0].id);
+    assert.equal(attached?.sales_order_id, order.id);
 
     // Passing null detaches, which is what a superseded checkout does.
     assert.equal(await service.attachOrder(paymentIntent.id, null, c), true);

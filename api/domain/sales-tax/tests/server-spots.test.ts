@@ -16,7 +16,12 @@ import pool from "#db";
 import * as spotsService from "#domain/spots/service.ts";
 import { GetSalesTaxBody } from "@dorado/contracts";
 import { mockSessions, restoreSessions, as } from "#shared/testing/session.ts";
+import { TEST_ACTOR } from "#shared/testing/actor.ts";
 import { inPinnedTransaction, outside } from "#shared/testing/pinned-pool.ts";
+import { TEST_CUSTOMER } from "#shared/testing/actor.ts";
+import { LOCKS } from "#shared/testing/locks.ts";
+import { aUser, anAddress, aProduct } from "#shared/testing/builders/index.ts";
+import type { PoolClient } from "pg";
 
 await mockSessions();
 const { default: app } = await import("#app");
@@ -27,37 +32,28 @@ type AddressFixture = { id: string; state: string };
 type ProductFixture = { id: string };
 type Spot = Awaited<ReturnType<typeof spotsService.getSpotPrices>>[number];
 
-let customer: UserFixture;
-let taxing: AddressFixture;
-let product: ProductFixture;
+const customer: UserFixture = TEST_CUSTOMER;
 let serverSpots: Spot[];
 
-beforeAll(async () => {
-  [customer] = await outside<UserFixture>(
-    `SELECT id, name, email FROM auth.users WHERE role IS DISTINCT FROM 'admin' LIMIT 1`
-  );
-  assert.ok(customer, "dev has no non-admin user");
+// A STATE THAT ACTUALLY CHARGES, NAMED (lane 1). The address used to be found
+// by joining places.addresses to tax.sales_tax_rules for a taxing state - and
+// the version before THAT took the first state_code it saw, which was AK,
+// which taxes nothing, so both sides of the comparison were 0 and the test
+// passed against the reverted bug. California is the literal that matters:
+// 7.25% on Coin, which is the product type built below.
+const TAXING_STATE = "CA";
 
+// Built inside the pin, where the request runs.
+const fixtures = async (c: PoolClient) => {
+  const owner = await aUser(c);
+  const address = await anAddress(c, owner, { state: TAXING_STATE, city: "Fresno", zip: "93701" });
+  const coin = await aProduct(c, { type: "Coin", display: true, content: 1 });
+  return { taxing: { id: address.id, state: address.state }, product: { id: coin.id } };
+};
+
+beforeAll(async () => {
   serverSpots = await spotsService.getSpotPrices();
   assert.ok(serverSpots.length > 0, "the server has no spots - every assertion here is vacuous");
-
-  // A state that actually charges - the first version took the first
-  // state_code found (AK, which taxes nothing), so both sides of the
-  // comparison were 0 and it passed against the reverted bug.
-  [taxing] = await outside<AddressFixture>(
-    `SELECT DISTINCT a.id, a.state FROM places.addresses a
-       JOIN places.user_addresses ua ON ua.address_id = a.id
-       JOIN tax.sales_tax_rules r ON r.state_code = a.state
-      WHERE r.tax_rate > 0 AND r.product_type IN ('Coin', 'All')
-      ORDER BY a.id LIMIT 1`
-  );
-  assert.ok(taxing, "dev has no address in a charging state");
-
-  [product] = await outside<ProductFixture>(
-    `SELECT id FROM products.bullion
-      WHERE display AND content IS NOT NULL AND type = 'Coin' ORDER BY id LIMIT 1`
-  );
-  assert.ok(product, "dev has no live coin to price");
 });
 
 afterAll(async () => {
@@ -102,7 +98,8 @@ test("getSpotPrices returns the database's spots in the shape the calculations r
 // cannot carry them at all now: the contract is strict, so the forged request
 // is REFUSED and the honest one is answered.
 test("a body claiming gold costs $1 is refused, not quietly ignored", async () => {
-  await inPinnedTransaction(async () => {
+  await inPinnedTransaction(async (c: PoolClient) => {
+    const { taxing, product } = await fixtures(c);
     await as({ ...customer, role: "user" }, async () => {
       const items = [{ id: product.id, quantity: 1 }];
 
@@ -130,14 +127,15 @@ test("a body claiming gold costs $1 is refused, not quietly ignored", async () =
       });
       assert.equal(parsed.success, false, "GetSalesTaxBody accepts a spots field");
     });
-  });
+  }, { actor: TEST_ACTOR.id, lock: LOCKS.ADDRESSES });
 });
 
 // The other half: a legitimate request is priced by the server rather than at
 // zero. That omission - no forged values needed - was what made the old
 // exposure easy to reach.
 test("a legitimate request is priced by the server, not at zero", async () => {
-  await inPinnedTransaction(async () => {
+  await inPinnedTransaction(async (c: PoolClient) => {
+    const { taxing, product } = await fixtures(c);
     await as({ ...customer, role: "user" }, async () => {
       const res = await request(app)
         .post("/api/tax/get_sales_tax")
@@ -150,5 +148,5 @@ test("a legitimate request is priced by the server, not at zero", async () => {
         `tax came back as ${JSON.stringify(res.body)}, which is not a number`
       );
     });
-  });
+  }, { actor: TEST_ACTOR.id, lock: LOCKS.ADDRESSES });
 });

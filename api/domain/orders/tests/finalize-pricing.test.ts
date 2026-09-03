@@ -34,6 +34,7 @@ import type { PoolClient } from "pg";
 import request from "supertest";
 import pool from "#db";
 import { mockSessions, restoreSessions, as, asAdmin } from "#shared/testing/session.ts";
+import { TEST_ACTOR } from "#shared/testing/actor.ts";
 import { inPinnedTransaction, outside } from "#shared/testing/pinned-pool.ts";
 import { calculateTotalPrice } from "#domain/pricing/service.ts";
 import * as orderRead from "#domain/orders/read.ts";
@@ -70,10 +71,7 @@ beforeAll(async () => {
   assert.ok(rows[0], "dev has no purchase order with items, spots and a payout");
   order = rows[0];
 
-  admin = (
-    await outside<UserFixture>(`SELECT id, name, email FROM exchange.users WHERE role = 'admin' LIMIT 1`)
-  )[0];
-  assert.ok(admin, "dev has no admin user");
+  admin = TEST_ACTOR;
 
   items = await outside<ItemFixture>(
     `SELECT id, quantity FROM orders.items WHERE order_id = $1`,
@@ -140,7 +138,7 @@ test("a document claiming its own prices is refused by name, and the money does 
         "a refused document still moved the order's total"
       );
     });
-  }, { lock: ORDER_LOCK });
+  }, { actor: TEST_ACTOR.id, lock: ORDER_LOCK });
 });
 
 test("a clean finalize prices the order from the database's own rows", async () => {
@@ -208,5 +206,5 @@ test("a clean finalize prices the order from the database's own rows", async () 
         "the stored total does not derive from the database's own rows"
       );
     });
-  }, { lock: ORDER_LOCK });
+  }, { actor: TEST_ACTOR.id, lock: ORDER_LOCK });
 });

@@ -7,41 +7,29 @@ import { randomUUID } from "node:crypto";
 import request from "supertest";
 import pool from "#db";
 import { mockSessions, restoreSessions, as, anonymous } from "#shared/testing/session.ts";
-import {
-  inPinnedTransaction,
-  assertNothingEscaped,
-  outside,
-} from "#shared/testing/pinned-pool.ts";
+import { TEST_ACTOR, TEST_CUSTOMER } from "#shared/testing/actor.ts";
+import { inPinnedTransaction, assertNothingEscaped } from "#shared/testing/pinned-pool.ts";
+import { anId } from "#shared/testing/builders/index.ts";
 
 await mockSessions();
 const { default: app } = await import("#app");
 
 // SELECT projections, not table rows.
 type UserFixture = { id: string; name: string | null; email: string | null };
-type LeadFixture = { id: string; name: string | null };
 
 let admin: UserFixture;
 let customer: UserFixture;
-let existingLead: LeadFixture;
+// `requireAdmin` runs before any lookup on get_one/update/delete, so the
+// non-admin refusal test below never reaches the repo - a minted id is
+// enough, and it means this file needs no committed lead of its own.
+const someLeadId = anId();
 const created: string[] = [];
 
 beforeAll(async () => {
-  const admins = await outside<UserFixture>(
-    `SELECT id, name, email FROM exchange.users WHERE role = 'admin' LIMIT 1`
-  );
-  admin = admins[0];
-  assert.ok(admin, "dev has no admin user - every route here is requireAdmin");
+  admin = TEST_ACTOR;
 
   // A non-admin, to prove the guard refuses rather than merely existing.
-  const users = await outside<UserFixture>(
-    `SELECT id, name, email FROM exchange.users WHERE role IS DISTINCT FROM 'admin' LIMIT 1`
-  );
-  customer = users[0];
-  assert.ok(customer, "dev has no non-admin user - the refusal case is untested");
-
-  const leads = await outside<LeadFixture>(`SELECT id, name FROM exchange.leads LIMIT 1`);
-  existingLead = leads[0];
-  assert.ok(existingLead, "dev has no lead to read back");
+  customer = TEST_CUSTOMER;
 });
 
 afterAll(async () => {
@@ -70,7 +58,7 @@ test("an anonymous request is refused before it reaches a controller", async () 
       const res = await request(app).get("/api/leads/get_all");
       assert.ok([401, 403].includes(res.status), `answered with ${res.status}`);
     });
-  });
+  }, { actor: TEST_ACTOR.id });
 });
 
 // The guard is requireAdmin, not requireUser: "signed in" is not "allowed".
@@ -79,10 +67,10 @@ test("a signed-in customer is refused every route", async () => {
     await asCustomer(async () => {
       const calls = [
         request(app).get("/api/leads/get_all"),
-        request(app).get("/api/leads/get_one").query({ lead_id: existingLead.id }),
+        request(app).get("/api/leads/get_one").query({ lead_id: someLeadId }),
         request(app).post("/api/leads/create").send({ lead: newLead() }),
-        request(app).post("/api/leads/update").send({ lead_id: existingLead.id, patch: {} }),
-        request(app).delete("/api/leads/delete").send({ lead_id: existingLead.id }),
+        request(app).post("/api/leads/update").send({ lead_id: someLeadId, patch: {} }),
+        request(app).delete("/api/leads/delete").send({ lead_id: someLeadId }),
       ];
       for (const call of calls) {
         const res = await call;
@@ -92,7 +80,7 @@ test("a signed-in customer is refused every route", async () => {
         );
       }
     });
-  });
+  }, { actor: TEST_ACTOR.id });
 });
 
 test("an admin gets the list in the shape the table reads", async () => {
@@ -108,7 +96,7 @@ test("an admin gets the list in the shape the table reads", async () => {
         assert.ok(field in lead, `the response is missing ${field}`);
       }
     });
-  });
+  }, { actor: TEST_ACTOR.id });
 });
 
 test("creating a lead round-trips and appears in the list", async () => {
@@ -129,7 +117,7 @@ test("creating a lead round-trips and appears in the list", async () => {
         "the lead created a moment ago is not in the list"
       );
     });
-  });
+  }, { actor: TEST_ACTOR.id });
 });
 
 test("updating a lead changes it and leaves the others alone", async () => {
@@ -149,7 +137,7 @@ test("updating a lead changes it and leaves the others alone", async () => {
       const updated = after.body.find((l: { id: string; name: string }) => l.id === target.id);
       assert.equal(updated.notes, "touched by the replay suite");
     });
-  });
+  }, { actor: TEST_ACTOR.id });
 });
 
 // Asserted by refusal rather than by outcome: a delete a non-admin can reach is the failure that matters.
@@ -180,7 +168,7 @@ test("deleting removes exactly one lead, and only for an admin", async () => {
       assert.equal(after.body.length, before.body.length - 1, "delete removed the wrong number");
       assert.ok(!after.body.some((l: { id: string; name: string }) => l.id === id), "the lead is still there");
     });
-  });
+  }, { actor: TEST_ACTOR.id });
 });
 
 // The property the pin exists for: every assertion above reads its own writes and passes either way if the pin stops working.

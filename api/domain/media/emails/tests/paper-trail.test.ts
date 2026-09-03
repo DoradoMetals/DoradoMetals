@@ -11,6 +11,7 @@ import { closeBrowser } from "#providers/pdfs/puppeteer.ts";
 import * as orderRead from "#domain/orders/read.ts";
 import * as inputs from "#domain/media/pdfs/order-inputs.ts";
 import { LOCKS } from "#shared/testing/locks.ts";
+import { inRollback } from "#shared/testing/rollback.ts";
 import type { Transport } from "#providers/emails/nodemailer.ts";
 import type { OrderView } from "@dorado/contracts";
 
@@ -44,15 +45,6 @@ afterAll(async () => {
   await closeBrowser();
   await pool.end();
 });
-
-async function inRollback(fn: (c: PoolClient) => Promise<void>) {
-  await client.query("BEGIN");
-  try {
-    await fn(client);
-  } finally {
-    await client.query("ROLLBACK");
-  }
-}
 
 // Satisfies the transport rather than restating its shape.
 const recorder = (): Transport & { sent: Message[] } => {
