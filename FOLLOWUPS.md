@@ -65,7 +65,7 @@ Three checks looked straight at this and none could see it:
   the value.
 - the scrap side agrees exactly — `exchange.scrap` declares the same narrow
   types — so the one pair anyone had reason to compare was already fine. The
-  product side is a *value flow* rather than an ownership mapping, so it
+  product side is a _value flow_ rather than an ownership mapping, so it
   appeared in no map at all.
 
 `audit:precision` now casts every source value into the type of the column it
@@ -83,7 +83,7 @@ so the same bug is not waiting there.
 Separate defect, found because the fix above did not reach the committed
 genesis. `verify-genesis.mjs` built its comparison schema from
 `dump-schema.mjs --stdout` — a live regeneration from dev — so it proved the
-*generator* reproduces dev and never once read `000_genesis_schema.sql`. After
+_generator_ reproduces dev and never once read `000_genesis_schema.sql`. After
 058, dev was correct, the generator emitted the correct types, the check said
 "identical to dev", and the committed file still declared `numeric(4,3)`.
 
@@ -105,11 +105,11 @@ scrap line with a null premium was worth nothing.
 Found by comparing the two PDFs for the same order. Dev purchase order 239 holds
 one troy ounce of gold with a null premium and a scrap `bid_premium` of 0.75:
 
-| | |
-|---|---|
-| invoice (`calculateTotalPrice`) | **$4,744.11** |
+|                                        |               |
+| -------------------------------------- | ------------- |
+| invoice (`calculateTotalPrice`)        | **$4,744.11** |
 | packing list (its own copy of the sum) | **$7,980.22** |
-| the gold | $3,236.11 |
+| the gold                               | $3,236.11     |
 
 `calculateReturnDeclaredValue` is the worse one — that is the declared value on a
 return shipment, so the same ounce would have gone back in the post uninsured.
@@ -269,18 +269,18 @@ body where an id was wanted, and the transactions controller reading
 neither is in a repo.
 
 `server.js` built the app, started the cron scheduler and bound the port all at
-module load, and never exported the app, so nothing *could* test it. The app is
+module load, and never exported the app, so nothing _could_ test it. The app is
 now `api/app.js` and `server.js` is twelve lines that start things. Behaviour is
 unchanged; the scheduler and `listen` still happen in exactly one place.
 
 The inventory it produced, which is worth having written down:
 
-| | |
-|---|---|
-| endpoints | **124** |
-| guarded | 111 |
-| deliberately public | 13 |
-| unaccounted for | **0** |
+|                     |         |
+| ------------------- | ------- |
+| endpoints           | **124** |
+| guarded             | 111     |
+| deliberately public | 13      |
+| unaccounted for     | **0**   |
 
 By guard: 73 `requireAdmin`, 35 `requireUser`, 1 `requireAuth`, plus better-auth's
 own mount and the Stripe webhook, which authenticate by their own means.
@@ -294,7 +294,7 @@ Two properties are asserted, and both were proved to fail before being trusted:
 - **every endpoint is guarded or on an explicit public list.** Removing
   `requireUser` from one route fails it, naming the route.
 - **no guarded endpoint answers an anonymous request.** This is the one that
-  matters: a route can *look* guarded — middleware present, handler count above
+  matters: a route can _look_ guarded — middleware present, handler count above
   one — and still serve anybody. Replacing a guard with a pass-through
   middleware fails it with `GET /api/transactions/get_transactions -> 200`.
 
@@ -302,7 +302,7 @@ All 111 anonymous requests run in about 150ms, because better-auth short-circuit
 without a cookie, so this is cheap enough to keep in the normal suite.
 
 **What is not covered yet:** the 111 guarded endpoints are only tested to the
-point of refusing anonymous requests. What they *return* to a real session is
+point of refusing anonymous requests. What they _return_ to a real session is
 untested, and that is the more interesting half — it is where the wire shapes of
 the migrated features would be proved end to end rather than at the repo
 boundary. The seam for it is mocking `#features/auth/client.js`'s
@@ -325,7 +325,7 @@ noticed because **the frontend never calls it**:
    `undefined` and the query matches nothing;
 2. `getTransactionHistory` returns `result.rows[0]` — one row — despite being
    named history and being the only way to read the ledger;
-3. it had no `ORDER BY`, so *which* row that was came back in physical order.
+3. it had no `ORDER BY`, so _which_ row that was came back in physical order.
 
 Only (3) was fixed, in both implementations, because without a deterministic
 order the diff between them means nothing. (1) and (2) are left alone
@@ -350,18 +350,18 @@ a balance movement and its ledger entry commit together.
 
 ### RESOLVED: every page was blank until an auth request completed
 
-**Fixed.** `LayoutProvider` no longer returns its skeleton *instead of*
+**Fixed.** `LayoutProvider` no longer returns its skeleton _instead of_
 `children`. The skeleton now stands in for the **nav**, which is the thing that
 actually needs a session, and everything below it renders immediately.
 
 Measured before and after with the frontend up and the API stopped:
 
-| | before | after |
-|---|---|---|
-| ~2s | empty | heading and prose rendered |
-| ~10s | empty | heading and prose rendered |
-| ~40s | empty | heading and prose rendered |
-| 77s | empty | — |
+|      | before | after                      |
+| ---- | ------ | -------------------------- |
+| ~2s  | empty  | heading and prose rendered |
+| ~10s | empty  | heading and prose rendered |
+| ~40s | empty  | heading and prose rendered |
+| 77s  | empty  | —                          |
 
 The data-driven rate cards are correctly absent in both cases; it is the page's
 own copy that now survives an outage. Three permanent tests in
@@ -375,8 +375,6 @@ and the failure looked exactly like the bug they were written to prove was
 fixed. Scoped to the API's own origin now, taken from the same environment
 variable the app uses.
 
-
-
 **Not fixed — it is a visible product decision, not a patch.** Found by the
 negative control for the first Playwright test, which is the only reason it
 surfaced at all.
@@ -385,11 +383,11 @@ surfaced at all.
 
 ```jsx
 if (!session && isPending === true) {
-  return (<>{/* a pulsing skeleton */}</>)   // note: NOT {children}
+  return <>{/* a pulsing skeleton */}</> // note: NOT {children}
 }
 ```
 
-It returns the skeleton *instead of* `children`, so nothing below it renders
+It returns the skeleton _instead of_ `children`, so nothing below it renders
 while `useGetSession()` is pending. That includes pages that need no session at
 all.
 
@@ -397,11 +395,11 @@ all.
 real browser:
 
 | elapsed | heading | skeleton | body text |
-|---|---|---|---|
-| ~2s | 0 | 1 | *(empty)* |
-| ~10s | 0 | 1 | *(empty)* |
-| ~40s | 0 | 1 | *(empty)* |
-| 77s | 0 | 1 | *(empty)* |
+| ------- | ------- | -------- | --------- |
+| ~2s     | 0       | 1        | _(empty)_ |
+| ~10s    | 0       | 1        | _(empty)_ |
+| ~40s    | 0       | 1        | _(empty)_ |
+| 77s     | 0       | 1        | _(empty)_ |
 
 It never recovers. I expected React Query's default three retries to exhaust and
 let `isPending` fall to false — that reasoning was wrong, and the measurement is
@@ -453,11 +451,11 @@ does a scrap edit reach the new schema with no dual repo?
 Through the orders dual repo, and the ordering is what makes it work. All three
 callers write scrap **first**, then make an orders write that syncs:
 
-| service call | writes scrap | then | which syncs |
-|---|---|---|---|
-| `updateScrapItem` | `scrapRepo.updateScrapItem` | `updatePremium` | `["items"]` |
-| `deleteOrderItems` | `scrapRepo.deleteItems` | `deleteOrderItems` | `["items"]` |
-| `createOrderItem` | `scrapRepo.createNewItem` | `createOrderItem` | `["items"]` |
+| service call       | writes scrap                | then               | which syncs |
+| ------------------ | --------------------------- | ------------------ | ----------- |
+| `updateScrapItem`  | `scrapRepo.updateScrapItem` | `updatePremium`    | `["items"]` |
+| `deleteOrderItems` | `scrapRepo.deleteItems`     | `deleteOrderItems` | `["items"]` |
+| `createOrderItem`  | `scrapRepo.createNewItem`   | `createOrderItem`  | `["items"]` |
 
 `sync(..., ["items"])` calls `next.mirrorItems(orderId)`, which **re-derives**
 `orders.items` from `exchange` rather than replaying the write — so it reads the
@@ -492,8 +490,6 @@ Self-hosted locally rather than served from S3. S3 would work, but the whole
 reason the logo and icons are inlined is that a rendered PDF should depend on
 nothing external; putting the font back on a network hop, even ours,
 reintroduces exactly the failure mode being removed.
-
-
 
 Found while converting the PDF renderer, not caused by it.
 
@@ -559,7 +555,7 @@ all three (`name` → `label`, `is_default` → `default_shipping`). Nothing was
 homeless.
 
 The bug was that the loop is per feature and built its list of available columns
-only from *that* feature's targets, so a column another feature already carried
+only from _that_ feature's targets, so a column another feature already carried
 still counted as a gap. The grouping by feature stays — it is useful context —
 but the gap test is now global.
 
@@ -570,7 +566,7 @@ Two smaller things fixed alongside, both about the number being believable:
   distinct `source.column` pairs now.
 - Proven both ways rather than assumed. Removing `places.user_addresses` from
   the map brings the three back and reports "3"; restoring it clears them. A
-  change that makes a check *less* likely to fire has to be shown still able to.
+  change that makes a check _less_ likely to fire has to be shown still able to.
 
 This matters more than a cosmetic report. `audit:coverage` is the thing that
 catches a feature being split while columns of live data have nowhere to land —
@@ -583,7 +579,7 @@ finds something real.
 **Fixed.** `spots` no longer comes from the request. `features/spots/service.js`
 gains `getPricingSpots()`, and all three call sites use it — `get_sales_tax`,
 `createSalesOrder` (and the admin variant), and `updatePaymentIntent`, where the
-result becomes the amount Stripe is told to charge. The parameter is *removed*
+result becomes the amount Stripe is told to charge. The parameter is _removed_
 from each signature rather than accepted-and-overwritten, so nothing can read it
 by accident.
 
@@ -616,8 +612,6 @@ recording because the same trap will catch the next person:
    comparing anything, so a vacuous fixture now fails loudly instead of passing
    quietly. Verified by reverting the service and confirming the test fails.
 
-
-
 **Not fixed. It needs a decision that is yours, and the fix runs through a wire
 shape that is mid-migration.** This is live in production today.
 
@@ -627,7 +621,7 @@ shape that is mid-migration.** This is live in production today.
 > — it makes **the business pay more**.
 >
 > `acceptOffer` takes the whole order out of `req.body`. `calculateTotalPrice`
-> reads ``item.price ?? (content * bid_spot * premium)``, so a price in the body
+> reads `item.price ?? (content * bid_spot * premium)`, so a price in the body
 > is used **verbatim** and no spot lookup even happens; `shipping_charge` and
 > `payout.cost` are **subtracted**, so sending zero for both maximises the
 > result. `calculateItemPrice` does the same, and `updateOrderItemPrices` writes
@@ -675,11 +669,11 @@ Measured against `calculateSalesOrderTotal`, one Coin, `content: 1`,
 the `spots` array in the body:
 
 | client's `ask_spot` | order total | Stripe is told |
-|---|---|---|
-| 3400 (honest) | $3,673.53 | 367353 |
-| 100 | $133.77 | 13377 |
-| 1 | $26.81 | 2681 |
-| 0 | $25.73 | 2573 |
+| ------------------- | ----------- | -------------- |
+| 3400 (honest)       | $3,673.53   | 367353         |
+| 100                 | $133.77     | 13377          |
+| 1                   | $26.81      | 2681           |
+| 0                   | $25.73      | 2573           |
 
 So an ounce of gold can be bought for **$26.81**, and the floor means nothing
 goes below $10.00. The recorded order total and the charge agree with each
@@ -699,7 +693,7 @@ it:
    `calculateItemAsk` matches `s.type` and reads `s.ask_spot`. The repo returns
    `{ id, name, ask, bid }` and `shared/wire` converts to
    `{ type, ask_spot, bid_spot }` at the edge. So server-sourced spots have to
-   be converted *back* into the wire shape to feed the calculation — and
+   be converted _back_ into the wire shape to feed the calculation — and
    `SPOTS_WIRE` is one of the seven switches still on `legacy`. Whatever is
    written now has to keep working when it flips.
 2. **It is partly a pricing-policy question.** Sending spots from the client is
@@ -749,7 +743,7 @@ call site was left broken and one was "fixed" into something quieter.
 rules are ever consulted and this defect changes nothing today. Exactly **one**
 sales order was placed after `cf724c4e`: a Texas order, and Texas exempts
 bullion. There is no order whose tax can be shown to be wrong. The one
-production order that *did* carry tax — $18.67, Maryland, 27 June 2025 —
+production order that _did_ carry tax — $18.67, Maryland, 27 June 2025 —
 predates the regression, which is consistent with the engine working before it.
 Consistent with, not proof of.
 
@@ -765,7 +759,7 @@ reason, and the Texas order would have been zero anyway.
 
 **Fixed two ways.** The call sites now use `addressService.getAddressFromId`,
 and `features/addresses/repo.d.ts` types the facade so `getFromId(...).state` is
-a **compile error** rather than a silent zero — *for TypeScript callers*.
+a **compile error** rather than a silent zero — _for TypeScript callers_.
 
 **Correction to the first version of this note**, which said "for every caller,
 permanently". That is wrong. `checkJs` is `false`, so a `.js` caller is never
@@ -806,7 +800,7 @@ unlike a bug, reputation is not recovered by deploying a fix.
 
 **The fix.** The recipient is resolved by the controller from the **stored**
 order and handed to the service as its own parameter — the same seam shape as
-`transport`, and for the same reason: the input object *is* `req.body`, so
+`transport`, and for the same reason: the input object _is_ `req.body`, so
 anything read off it can be chosen by the caller. The caller must also be
 entitled to the order: an admin may send on a customer's behalf, anyone else
 only about their own. Without that, naming somebody else's order id would be a
@@ -819,7 +813,7 @@ me when a too-broad edit briefly rewrote its recipient.
 
 **Two things about the tests are worth knowing.**
 
-The suite proves the fix through the cases that *require* the lookup to have
+The suite proves the fix through the cases that _require_ the lookup to have
 happened — an unknown order id answering 404, a stranger answering 403. The
 more obvious test, "an address in the body cannot redirect the mail", **does not
 discriminate**: with the fix the controller resolves the real address and
@@ -856,8 +850,8 @@ customers, **$66,999.32**.
 passed `user_id` as `undefined` and got an empty response back — and the
 frontend does not call this endpoint at all. It was already written up here as
 "reads req.body.user_id and always returns nothing", and that description was
-accurate for every caller who did not think to send a body. *Returns nothing*
-and *returns anyone's ledger* were the same endpoint, separated only by a
+accurate for every caller who did not think to send a body. _Returns nothing_
+and _returns anyone's ledger_ were the same endpoint, separated only by a
 request header. It was filed as broken, and being broken is what kept it from
 being read as dangerous.
 
@@ -866,7 +860,7 @@ replay suite sends the exploit exactly as it was confirmed, and reverting the
 controller fails it.
 
 **Not fixed, deliberately**: the repo returns `rows[0]`, so a customer with 11
-ledger rows receives one, despite the endpoint being called *history*. That is a
+ledger rows receives one, despite the endpoint being called _history_. That is a
 response shape, and shapes do not move during a schema migration. The suite
 asserts the current shape so the change is deliberate when it comes.
 
@@ -920,12 +914,12 @@ promotion landmine, not a current bug.
 Both halves fixed. Migration `080` gives `auth.users` the same `NOT NULL DEFAULT
 0`, checked against production rather than dev row counts:
 
-| | rows | null | total |
-|---|---|---|---|
-| prod `exchange.users` | 75 | 0 | 10.251268973986002615 |
-| prod `auth.users` | 60 | 0 | 10.251268973986002615 |
-| dev `exchange.users` | 10 | 0 | |
-| dev `auth.users` | 11 | **2** | |
+|                       | rows | null  | total                 |
+| --------------------- | ---- | ----- | --------------------- |
+| prod `exchange.users` | 75   | 0     | 10.251268973986002615 |
+| prod `auth.users`     | 60   | 0     | 10.251268973986002615 |
+| dev `exchange.users`  | 10   | 0     |                       |
+| dev `auth.users`      | 11   | **2** |                       |
 
 Production needs no repair. Dev's two nulls are seeded employees `exchange.users`
 has no row for, so there was no value to preserve. And the service now takes an
@@ -933,7 +927,7 @@ allowlist of modes — that is the half that does not depend on a constraint
 existing, because a validation can be bypassed by a new caller and a constraint
 only turns silent loss into a loud failure. Neither alone is the answer.
 
-The amount is validated too, and the first attempt at that check *was* the bug it
+The amount is validated too, and the first attempt at that check _was_ the bug it
 was written to prevent: `Number(null)`, `Number("")` and `Number([])` are all 0,
 and 0 is finite, so an empty amount field passed validation and became a zero
 adjustment — under `edit`, a zeroed balance, returned as 200. The suite sends
@@ -978,12 +972,12 @@ been stale since `077a` and nothing re-ran it.
 somebody had already thought about. A table missing from the map was invisible.
 It now reports them, and there are seven:
 
-| table | dev | production |
-|---|---|---|
-| `account_transactions` | 19 | **17** |
-| `carts` / `cart_items` | 8 / 4 | 16 / 3 |
-| `sell_carts` / `sell_cart_items` | 8 / 2 | **65 / 27** |
-| `auctions` / `auction_items` | 1 / 10 | 1 / 2 |
+| table                            | dev    | production  |
+| -------------------------------- | ------ | ----------- |
+| `account_transactions`           | 19     | **17**      |
+| `carts` / `cart_items`           | 8 / 4  | 16 / 3      |
+| `sell_carts` / `sell_cart_items` | 8 / 2  | **65 / 27** |
+| `auctions` / `auction_items`     | 1 / 10 | 1 / 2       |
 
 `exchange.account_transactions` is the one that matters: **17 rows, 8 customers,
 $66,999.32, dated June 2025 to January 2026, tied to purchase and sales orders.**
@@ -1012,10 +1006,10 @@ update the frontend."
 
 Two switches per feature now, deliberately not conflated:
 
-| switch | question |
-|---|---|
+| switch     | question                           |
+| ---------- | ---------------------------------- |
 | `*_SOURCE` | which schema the data is read from |
-| `*_WIRE` | which shape it leaves the API in |
+| `*_WIRE`   | which shape it leaves the API in   |
 
 A feature can be on `dual` and `legacy`, or `exchange` and `next` — they answer
 different questions and get flipped for different reasons, the first when the
@@ -1027,7 +1021,7 @@ repos returning legacy, something converting up — makes the legacy shape the
 internal truth and leaves nothing to delete at the end. This way the adapter is a
 shim with an expiry date, exactly like `repo.exchange`.
 
-Proved on products first, because its aliasing already *was* a legacy adapter
+Proved on products first, because its aliasing already _was_ a legacy adapter
 written in SQL. `constants.js` now aliases exchange's `product_name` UP to
 `name`; `constants.bullion.js` stops aliasing down; `wire.js` renames on the way
 out and back on the way in.
@@ -1172,7 +1166,7 @@ here because that path is mid-rebuild and changing it twice would be worse.
 > order tables: it must answer identically whichever `SHIPMENTS_SOURCE` is
 > serving. `exchange.shipments` carries the order id inline; the new schema
 > reaches it through `fulfillments.shipments → fulfillments.fulfillments →
-> orders.orders`.
+orders.orders`.
 >
 > **The last axis, and it is clean.** The guards say who may call; they do not
 > say whose rows come back. Checked the three list endpoints at the repo rather
@@ -1186,10 +1180,10 @@ here because that path is mid-rebuild and changing it twice would be worse.
 > question is not re-opened.
 >
 > > `features/shipping/operations/shipment-ownership.test.js` drives the refusals
-> only. The allowed path calls FedEx and rewrites rows, so it is covered against
-> the middleware directly rather than over HTTP — including the owner and admin
-> branches, without which the suite would pass against a guard that refuses
-> everybody and takes the customer drawers down with it.
+> > only. The allowed path calls FedEx and rewrites rows, so it is covered against
+> > the middleware directly rather than over HTTP — including the owner and admin
+> > branches, without which the suite would pass against a guard that refuses
+> > everybody and takes the customer drawers down with it.
 
 ### FOR JACOB: any signed-in user could destroy any image file in storage
 
@@ -1197,7 +1191,7 @@ here because that path is mid-rebuild and changing it twice would be worse.
 
 `features/media/service.js` `deleteImage` read the image by id **with no
 ownership check**, removed the object from MinIO **unconditionally**, and only
-then ran a `DELETE` that *is* scoped to the user:
+then ran a `DELETE` that _is_ scoped to the user:
 
 ```
 const img = await mediaRepo.getImageById(id);                    // unscoped
@@ -1222,8 +1216,8 @@ from the request with nothing asking whose it is.
 **A passing test made it look covered.** `features/media/repo.next.test.js` has
 "deleteImage will not delete another user's image", and it passes: it exercises
 the **repo**, whose `DELETE` is correctly scoped. The bug was one layer up in the
-service. *A test can prove the right property about the wrong layer and read as
-coverage.*
+service. _A test can prove the right property about the wrong layer and read as
+coverage._
 
 **Fixed**: ownership is established first, the database work happens next, and
 the object is removed last — which is the order CLAUDE.md gives and the reason it
@@ -1244,12 +1238,12 @@ nothing.** The most exposed thing found in this migration.
 All four cart endpoints took the user id out of the request — `req.query.user_id`
 on the reads, `req.body.user_id` on the writes — and none of them had a guard:
 
-| Endpoint | As a complete stranger |
-|---|---|
+| Endpoint                                | As a complete stranger                   |
+| --------------------------------------- | ---------------------------------------- |
 | `GET /api/cart/get_sell_cart?user_id=…` | **200**, that customer's sell-cart items |
-| `POST /api/cart/sync_sell_cart` | replaces that customer's sell cart |
-| `POST /api/cart/sync_cart` | replaces their buy cart |
-| `GET /api/cart/get_cart?user_id=…` | 200 (returns only `{success:true}`) |
+| `POST /api/cart/sync_sell_cart`         | replaces that customer's sell cart       |
+| `POST /api/cart/sync_cart`              | replaces their buy cart                  |
+| `GET /api/cart/get_cart?user_id=…`      | 200 (returns only `{success:true}`)      |
 
 Demonstrated rather than deduced: a request with no session returned another
 customer's cart, 200, two items. `exchange.sell_carts` holds **65 rows in
@@ -1291,12 +1285,12 @@ Every customer-facing purchase-order route takes its order out of the request
 `req.user`. `requireUser` asks whether somebody is signed in; it never asks who.
 Demonstrated with real requests before anything was changed:
 
-| Endpoint | As a stranger |
-|---|---|
-| `get_purchase_order_metals` | **200** - another customer's frozen spot prices |
-| `reject_offer` | **200** - another customer's offer rejected |
-| `update_offer_notes` | **200** - notes written on another customer's order |
-| `cancel_order` | reached the code that **buys a FedEx return label** |
+| Endpoint                    | As a stranger                                       |
+| --------------------------- | --------------------------------------------------- |
+| `get_purchase_order_metals` | **200** - another customer's frozen spot prices     |
+| `reject_offer`              | **200** - another customer's offer rejected         |
+| `update_offer_notes`        | **200** - notes written on another customer's order |
+| `cancel_order`              | reached the code that **buys a FedEx return label** |
 
 `accept_offer` is the same shape and was covered by the same fix; it was not
 exercised directly because accepting an offer moves money.
@@ -1354,7 +1348,7 @@ use. `refiners` is read-only. `payments` has no write that returns a row over
 the wire. The renaming adapters - products, media, spots - cannot hit this at
 all, because a rename passes unmatched keys through rather than nulling them.
 
-So the bug was unique to addresses, but the *class* is not, and it is the thing
+So the bug was unique to addresses, but the _class_ is not, and it is the thing
 to look for first whenever a feature gains a reshaping adapter: does every
 function in the repo return the shape the adapter expects, writes included.
 
@@ -1450,7 +1444,7 @@ Three things worth knowing about it:
   indistinguishable. Asserted by editing the book row and checking the order's
   copy did not move.
 - **An item whose metal will not resolve fails the order.** `orders.items
-  .metal_id` is NOT NULL, and an order silently missing a line is worse than an
+.metal_id` is NOT NULL, and an order silently missing a line is worse than an
   order that failed to be placed: the customer's metal arrives and nothing
   recorded that it was coming.
 
@@ -1468,7 +1462,7 @@ nothing.
    lines and wants doing after the write path is proven, not before.
 
 **A constraint worth knowing before touching this.** Order creation now calls
-FedEx *before* the transaction (see the entry below), so any test that exercises
+FedEx _before_ the transaction (see the entry below), so any test that exercises
 the real creation path creates a real, billable label. Whatever proves the two
 paths agree has to stub the provider.
 
@@ -1500,7 +1494,7 @@ orphaned. **The label was**, and that is the part that was real.
 **Why the guard missed it.** `transaction-side-effects.test.js` matched
 `provider.x(` and `fedex*.x(` by name. The calls are spelled
 `shippingOps.createLabel(` - the same FedEx request through an intermediate
-module - so the check passed. It now resolves *modules*: any namespace imported
+module - so the check passed. It now resolves _modules_: any namespace imported
 from `#providers/*`, the shipping operations handler, or the email service is
 external whatever the local binding is called. Proved by restoring the buggy
 file: the new check reports 5 sites, the old one reports 0.
@@ -1538,11 +1532,11 @@ own records do not say so.
 `exchange.payment_intents` is updated by the Stripe webhook, and the webhook is
 not reliably landing. Three intents show it:
 
-| intent | Stripe | `exchange.payment_status` | `exchange.amount_received` |
-|---|---|---|---|
-| `pi_3RvkIT…` | Paid $51.78 | `requires_payment_method` | `0` |
-| `pi_3RcYBY…` | Paid $64.70 | `requires_payment_method` | `null` |
-| `pi_3TuK5t…` | Paid $10.00 | `requires_payment_method` | `null` |
+| intent       | Stripe      | `exchange.payment_status` | `exchange.amount_received` |
+| ------------ | ----------- | ------------------------- | -------------------------- |
+| `pi_3RvkIT…` | Paid $51.78 | `requires_payment_method` | `0`                        |
+| `pi_3RcYBY…` | Paid $64.70 | `requires_payment_method` | `null`                     |
+| `pi_3TuK5t…` | Paid $10.00 | `requires_payment_method` | `null`                     |
 
 $126.48 across 3 of the 8 settled charges. A fourth, `pi_3SfQTS…` at $255.17,
 is recorded correctly - so the webhook works sometimes, which points at delivery
@@ -1619,13 +1613,13 @@ resume a checkout. It decides "unresolved" from `exchange.payment_intents
 and that column is demonstrably stale: `exchange` records **1 of 25** production
 intents as succeeded while Stripe shows **8** that took money.
 
-Three of them are reusable by that filter *and already paid*:
+Three of them are reusable by that filter _and already paid_:
 
-| intent | `exchange` says | Stripe says | amount |
-|---|---|---|---|
-| `pi_3RvkIT…` | `requires_payment_method` | Paid | $51.78 |
-| `pi_3RcYBY…` | `requires_payment_method` | Paid | $64.70 |
-| `pi_3TuK5t…` | `requires_payment_method` | Paid | $10.00 |
+| intent       | `exchange` says           | Stripe says | amount |
+| ------------ | ------------------------- | ----------- | ------ |
+| `pi_3RvkIT…` | `requires_payment_method` | Paid        | $51.78 |
+| `pi_3RcYBY…` | `requires_payment_method` | Paid        | $64.70 |
+| `pi_3TuK5t…` | `requires_payment_method` | Paid        | $10.00 |
 
 **The customer is not double-charged** — Stripe rejects confirming an intent that
 has already succeeded — so the symptom is a checkout that fails at the last step
@@ -1650,12 +1644,12 @@ order for which `exchange` was the only copy, and it was never blocked — it wa
 simply undone. 070 derives `refiners.spots` from it by the same transformation
 that turned `order_metals` into `orders.spots`:
 
-| `exchange.refiner_metals` | `refiners.spots` |
-|---|---|
-| `purchase_order_id` / `sales_order_id` | `order_id` |
-| `type` | `metal_id` |
-| `ask_spot` / `bid_spot` | `ask` / `bid` |
-| `percent_change`, `dollar_change` | dropped — null on every row, nothing writes them |
+| `exchange.refiner_metals`              | `refiners.spots`                                 |
+| -------------------------------------- | ------------------------------------------------ |
+| `purchase_order_id` / `sales_order_id` | `order_id`                                       |
+| `type`                                 | `metal_id`                                       |
+| `ask_spot` / `bid_spot`                | `ask` / `bid`                                    |
+| `percent_change`, `dollar_change`      | dropped — null on every row, nothing writes them |
 
 Two columns have no source in `exchange` and stay null: `refiner_id`, which was
 never recorded (same fact already settled for `orders.orders.refinery_id`), and
@@ -1684,7 +1678,7 @@ Jacob wants this column gone, and it can go — the algebra works. It is deferre
 only on ordering, not on doubt, and the proof is already done.
 
 **The recovery.** `exchange.scrap.content` is `numeric(20,3)` and a line's price
-was computed from the content *before* it was rounded, so the price still
+was computed from the content _before_ it was rounded, so the price still
 carries the precision the content lost:
 
 ```
@@ -1713,7 +1707,7 @@ and breaks nothing. Same destination, better order.
 
 1. `UPDATE orders.items SET content = poi.price / (sp.bid * i.premium)` guarded
    on `round(recovered, 3) = round(content, 3)`, spot from `orders.spots`
-   (the *locked* spot — `exchange.order_metals` — not a live quote).
+   (the _locked_ spot — `exchange.order_metals` — not a live quote).
 2. `ALTER TABLE orders.items DROP COLUMN price`.
 3. `repo.next` derives it: `i.content * sp.bid * i.premium`, joining
    `orders.spots` on `(order_id, metal_id)`.
@@ -1745,10 +1739,10 @@ production lines, and null means "this quote has been invalidated" —
 > of them is true here.
 >
 > Whether it should refuse on an accepted or completed order is **D27**. Deriving cannot reproduce that,
-because the locked spot deliberately stays frozen (Jacob: unfreezing is an admin
-action, never automatic). Two production lines would show a withdrawn quote.
-Jacob has decided that does not matter, twice, and it is his call — recorded
-here so the behaviour change is not a surprise later.
+> because the locked spot deliberately stays frozen (Jacob: unfreezing is an admin
+> action, never automatic). Two production lines would show a withdrawn quote.
+> Jacob has decided that does not matter, twice, and it is his call — recorded
+> here so the behaviour change is not a surprise later.
 
 The offer workflow itself is a separate question. Jacob is happy to drop it
 entirely; the scope is 5 endpoints, 7 service functions, the `expireStaleOffers`
@@ -1780,7 +1774,7 @@ report stays honest rather than silent.
 **Carts: not removed — migrated, and now split.** The tables and the feature
 stay, because `features/carts` was live: the frontend syncs the cart on sign-in
 (`frontend/features/auth/queries.ts:43`). "Not data we NEED to keep" applies to
-the *rows*, which are transient and deliberately not backfilled.
+the _rows_, which are transient and deliberately not backfilled.
 
 It is `features/checkout` now, behind `CHECKOUT_SOURCE`. The route stays
 `/api/cart` — the frontend calls it, and renaming a module is not a reason to
@@ -1800,7 +1794,7 @@ Two shape differences drove the design:
   a sell cart references.
 
 That second difference is why the repo interface had to change. `exchange` hands
-out a scrap *id*; a dual write needs the *values*. So the boundary is
+out a scrap _id_; a dual write needs the _values_. So the boundary is
 `replaceCart` / `replaceSellCart` — "make this cart equal this list" — and each
 implementation does it in its own idiom. There is no shared id to mirror on, and
 none is needed: nothing outside the feature refers to a cart by id.
@@ -1831,16 +1825,16 @@ from 19.
 Four moved to the refiner's line, which is what `refiners.items.order_item_id`
 is for:
 
-| was on `orders.items` | now |
-|---|---|
-| `refiner_premium` | `refiners.items.premium` |
-| `purity_actual` | `refiners.items.purity` |
-| `post_melt_actual` | `refiners.items.post_melt` |
-| `content_actual` | `refiners.items.content` |
+| was on `orders.items` | now                        |
+| --------------------- | -------------------------- |
+| `refiner_premium`     | `refiners.items.premium`   |
+| `purity_actual`       | `refiners.items.purity`    |
+| `post_melt_actual`    | `refiners.items.post_melt` |
+| `content_actual`      | `refiners.items.content`   |
 
 What was missing all along is that **no migration had ever written
 `refiners.items`** — its rows were January's, and what they held was a copy of
-the *quoted* values rather than what the refiner reported. So the four columns
+the _quoted_ values rather than what the refiner reported. So the four columns
 genuinely had nowhere to go, which is exactly what `audit:coverage` kept saying.
 064 rebuilds it from `exchange` as one row per purchase-order line holding the
 assay; 066 states the same derivation as a backfill so a database built from
@@ -1856,7 +1850,7 @@ Two of the six stay:
 
 - **`price`** cannot be re-derived. Of 82 priced purchase lines in production, 62
   reproduce from `content × bid_spot × premium` and 20 do not — all 20 scrap,
-  because `exchange.scrap.content` is `numeric(20,3)` *at source*. The precision
+  because `exchange.scrap.content` is `numeric(20,3)` _at source_. The precision
   was lost in `exchange` years ago and `price` is the only record of it.
 - **`bid_premium`** stays because dropping it changes what the API returns. It is
   0.75 on 17 of 20 populated rows — the hardcoded default in
@@ -1959,8 +1953,8 @@ production.
 FedEx had just returned:
 
 ```js
-await trackingRepo.removeEvents(shipment_id, client);   // unconditional DELETE
-await trackingRepo.insertEvents(trackingInfo, shipment_id, client);
+await trackingRepo.removeEvents(shipment_id, client) // unconditional DELETE
+await trackingRepo.insertEvents(trackingInfo, shipment_id, client)
 ```
 
 `insertEvents` returns 0 without inserting when there is nothing to insert. So a
@@ -1974,12 +1968,12 @@ and `null` for `delivered_at`.
 
 **Production, read-only:**
 
-| status | shipments | with zero tracking events |
-|---|---|---|
-| Delivered | 42 | **3** |
-| Label Created | 16 | 7 |
-| Cancelled | 8 | 1 |
-| **Status Unknown** | **4** | **4** |
+| status             | shipments | with zero tracking events |
+| ------------------ | --------- | ------------------------- |
+| Delivered          | 42        | **3**                     |
+| Label Created      | 16        | 7                         |
+| Cancelled          | 8         | 1                         |
+| **Status Unknown** | **4**     | **4**                     |
 
 `"Delivered"` and `"Status Unknown"` can only ever come from this function —
 every other writer of `shipping_status` sets `"Label Created"` or `"Cancelled"`,
@@ -1996,7 +1990,7 @@ first rule in CLAUDE.md is about.
 chaining and then dereferences `trackingOutput.estimatedDeliveryTimeWindow`
 **unguarded**, so an empty or error response throws. That looks like the obvious
 next bug to fix, and fixing it first would have made this one worse: the throw
-happens *before* `removeEvents`, inside the transaction, so it was the only
+happens _before_ `removeEvents`, inside the transaction, so it was the only
 thing preventing the delete. Adding `?.` there without fixing the service would
 have converted a loud, harmless 500 into a silent deletion. It is left throwing
 deliberately, and now says so — a FedEx outage should be loud.
@@ -2008,7 +2002,7 @@ history".
 
 - a refresh that recognises nothing leaves the events, the status, the estimate
   and the delivery date exactly as they were;
-- a refresh that *does* recognise something still replaces all of it — because a
+- a refresh that _does_ recognise something still replaces all of it — because a
   guard that refused every write would pass the first test, and because it is
   what proves the first test's assertions can see a change at all.
 
@@ -2028,8 +2022,8 @@ sets `order_sent` in one transaction, and sends the refiner their copy only
 afterwards. That ordering is deliberate and already documented in the service:
 the email used to be the first statement inside the transaction, so a later
 failure rolled back the record and left a refiner shipping metal against an
-order nothing recorded. The accepted worst case of the current ordering is *an
-order marked sent whose email did not arrive.*
+order nothing recorded. The accepted worst case of the current ordering is _an
+order marked sent whose email did not arrive._
 
 That is only acceptable while it is visible. Three separate TypeErrors made it
 invisible — the order says it went, the refiner was never told, and the admin
@@ -2154,12 +2148,12 @@ fix.
 
 **What auctions actually is**, checked against production rather than assumed:
 
-| table | rows |
-|---|---|
-| `exchange.auctions` | 1 |
-| `exchange.auction_items` | 2 |
-| `auctions.auctions` | 0 |
-| `auctions.items` | 0 |
+| table                    | rows |
+| ------------------------ | ---- |
+| `exchange.auctions`      | 1    |
+| `exchange.auction_items` | 2    |
+| `auctions.auctions`      | 0    |
+| `auctions.items`         | 0    |
 
 No live code references auctions anywhere — not a route, not a repo, not a
 service. The new schema's copies are empty. This is consistent with the earlier
@@ -2167,7 +2161,7 @@ decision recorded here that auctions is retired and carts become checkout.
 
 **Three rows is still three rows.** "Unused" is an argument for dropping it, not
 evidence that nothing is lost. The dump is what makes it recoverable, and the
-dump has to be taken *after* the last write anyone cares about.
+dump has to be taken _after_ the last write anyone cares about.
 
 **Preconditions, all of which must hold before this migration is written:**
 
@@ -2197,30 +2191,30 @@ notices, and on dev it is clean, so nothing would have flagged this before
 production.
 
 **The mechanism.** `000_genesis_schema.sql` declares `-- baseline: 002-049`,
-which *records* those migrations as applied without running them. That is honest
+which _records_ those migrations as applied without running them. That is honest
 for dev, which really did run them. It is false for production twice over:
 
 - Production's domain schemas were built in the abandoned January 2026 refactor,
-  so anything a baselined migration *changed* never happened there. That is what
+  so anything a baselined migration _changed_ never happened there. That is what
   broke 058: migration 039 relaxes `orders.items.quantity`, the baseline skips
   it, and production's column is still `NOT NULL` against 13 null rows.
-- Worse, anything a baselined migration *populated* never happened either.
+- Worse, anything a baselined migration _populated_ never happened either.
   **`013_split_core_into_feature_schemas` is inside the range.** Production has
   `core` with 9 tables and no `leads`, `rates`, `reviews`, `media`, `products`,
   `metals`, `spots` or `organizations` schema at all. Genesis creates those
   empty; 013 would fill them from `core`; the baseline skips it; they stay
   empty.
 
-| target | source rows | after migrating |
-|---|---|---|
-| `leads.leads` | 233 | **0** |
-| `products.bullion` | 95 | **0** |
-| `rates.rates` | 16 | **0** |
-| `products.mints_exchange_compat` | 10 | **0** |
-| `reviews.reviews` | 6 | **0** |
-| `metals`, `media`, `refiners`, `carriers` compat | 21 | **0** |
-| `payments.ledger` | 17 | 17 |
-| `tax.sales_tax_rules` | 88 | 88 |
+| target                                           | source rows | after migrating |
+| ------------------------------------------------ | ----------- | --------------- |
+| `leads.leads`                                    | 233         | **0**           |
+| `products.bullion`                               | 95          | **0**           |
+| `rates.rates`                                    | 16          | **0**           |
+| `products.mints_exchange_compat`                 | 10          | **0**           |
+| `reviews.reviews`                                | 6           | **0**           |
+| `metals`, `media`, `refiners`, `carriers` compat | 21          | **0**           |
+| `payments.ledger`                                | 17          | 17              |
+| `tax.sales_tax_rules`                            | 88          | 88              |
 
 The two that survive are backfilled by migrations **past** the baseline. Every
 empty one is backfilled by a migration inside it.
@@ -2252,13 +2246,13 @@ the backfills so the baseline never records them.
 **Five blockers were found and fixed on the way**, each of which would have
 stopped a production migration partway with 50-odd already applied:
 
-| migration | failure | fix |
-|---|---|---|
-| 058 | `quantity` NOT NULL, baseline skipped 039 | `057a` relax |
-| 060 | genesis already created `ledger_amount_check` | `059a` conditional drop |
-| 062 | January payment intents referenced deleted orders | `061a` |
-| 062 | two more FKs 062 never knew about | `061b` |
-| 078 | two intents with a method id and no type | `077a` relax |
+| migration | failure                                           | fix                     |
+| --------- | ------------------------------------------------- | ----------------------- |
+| 058       | `quantity` NOT NULL, baseline skipped 039         | `057a` relax            |
+| 060       | genesis already created `ledger_amount_check`     | `059a` conditional drop |
+| 062       | January payment intents referenced deleted orders | `061a`                  |
+| 062       | two more FKs 062 never knew about                 | `061b`                  |
+| 078       | two intents with a method id and no type          | `077a` relax            |
 
 `061b` came from enumerating every foreign key to `orders.orders` and counting
 residue in each, rather than discovering them one rollback at a time. Two were
@@ -2267,7 +2261,7 @@ outstanding: `refiners.spots` (which the run hit) and
 
 **Also proven, and worth knowing before production night:** the runner refuses a
 database it does not recognise until named explicitly; a failing migration rolls
-back cleanly and leaves nothing half-built; and every fix has to sort *before*
+back cleanly and leaves nothing half-built; and every fix has to sort _before_
 the migration it unblocks, because the runner stops at the first failure.
 
 ### FOR JACOB: every database has a collation version mismatch, and production has 41 text indexes
@@ -2327,8 +2321,8 @@ The server charges the surcharge from the `payment_method` string in the request
 body. `calculateCardCharge` is the whole rule:
 
 ```js
-if (payment_method === "ACH") return order_total * 0.005;
-else                          return order_total * 0.029;
+if (payment_method === 'ACH') return order_total * 0.005
+else return order_total * 0.029
 ```
 
 Two things follow from that, neither caused by the migration.
@@ -2378,16 +2372,16 @@ lives. It is not `exchange.payment_intents`.
 `pnpm --filter @dorado/api audit:payments` compares production's intents against
 Stripe. **Seven of the eight settled payments are not recorded as succeeded:**
 
-| intent | Stripe | database |
-|---|---|---|
-| pi_3SfQTS… | Paid $255.17 | `succeeded` |
-| pi_3TuK5t… | Paid $10.00 | `requires_payment_method` |
-| pi_3RvkIT… | Paid $51.78 | `requires_payment_method` |
-| pi_3RcYBY… | Paid $64.70 | `requires_payment_method` |
-| pi_3RgCh9… | Refunded $1248.37 | no row |
-| pi_3RcYBR… | Refunded $434.00 | no row |
-| pi_3RcVdp… | Paid $114.80 | no row |
-| pi_3RcV9l… | Paid $0.50 | no row |
+| intent     | Stripe            | database                  |
+| ---------- | ----------------- | ------------------------- |
+| pi_3SfQTS… | Paid $255.17      | `succeeded`               |
+| pi_3TuK5t… | Paid $10.00       | `requires_payment_method` |
+| pi_3RvkIT… | Paid $51.78       | `requires_payment_method` |
+| pi_3RcYBY… | Paid $64.70       | `requires_payment_method` |
+| pi_3RgCh9… | Refunded $1248.37 | no row                    |
+| pi_3RcYBR… | Refunded $434.00  | no row                    |
+| pi_3RcVdp… | Paid $114.80      | no row                    |
+| pi_3RcV9l… | Paid $0.50        | no row                    |
 
 $2,179.32 charged and $1,682.37 refunded across those eight. The export holds 45
 intents; 20 of them have no row in `exchange` at all. Only 2 of production's 25
@@ -2419,16 +2413,16 @@ from three session timezones.
 to a user through `exchange.users.stripeCustomerId`, and from there to their
 sales orders. Six of the eight resolve to a user; three tie to a specific order:
 
-| charge | amount | user | order |
-|---|---|---|---|
-| pi_3SfQTS… | $255.17 | `0c1dbd9f…` | #62 — exact |
-| pi_3RcYBY… | $64.70 | `3a4fffbb…` | #55 — exact |
-| pi_3RgCh9… | $1248.37 refunded | `148b2cc0…` | #58 ($1248.58) — within 1%, wants confirming |
-| pi_3RvkIT… | $51.78 | `289f6d31…` | their only order is #61 at $3534.53 — not a match |
-| pi_3TuK5t… | $10.00 | `422b1c08…` | no sales orders at all |
-| pi_3RcYBR… | $434.00 refunded | `3ad23094…` | no sales orders at all |
-| pi_3RcVdp… | $114.80 | — | no exchange user carries `cus_SXaL4qR7SGg8OD` |
-| pi_3RcV9l… | $0.50 | — | no exchange user carries `cus_SXaKVDtOlduH4J` |
+| charge     | amount            | user        | order                                             |
+| ---------- | ----------------- | ----------- | ------------------------------------------------- |
+| pi_3SfQTS… | $255.17           | `0c1dbd9f…` | #62 — exact                                       |
+| pi_3RcYBY… | $64.70            | `3a4fffbb…` | #55 — exact                                       |
+| pi_3RgCh9… | $1248.37 refunded | `148b2cc0…` | #58 ($1248.58) — within 1%, wants confirming      |
+| pi_3RvkIT… | $51.78            | `289f6d31…` | their only order is #61 at $3534.53 — not a match |
+| pi_3TuK5t… | $10.00            | `422b1c08…` | no sales orders at all                            |
+| pi_3RcYBR… | $434.00 refunded  | `3ad23094…` | no sales orders at all                            |
+| pi_3RcVdp… | $114.80           | —           | no exchange user carries `cus_SXaL4qR7SGg8OD`     |
+| pi_3RcV9l… | $0.50             | —           | no exchange user carries `cus_SXaKVDtOlduH4J`     |
 
 The last two are the two earliest charges on the account, both 21 June 2025, and
 per the export they belong to the same person as the `jaketjohnson97` customer —
@@ -2466,7 +2460,7 @@ not correspond to what exchange holds.
   Stripe payment_intent_id.
 - So the 28 rows are not a reference to copy from. Migrating means designing
   the transformation from scratch - 21 Stripe intents across 8 orders becoming
-  intents, attempts and settlements - and then *replacing* what is there, which
+  intents, attempts and settlements - and then _replacing_ what is there, which
   means deleting rows in the new schema. That is a decision, not a mechanical
   step.
 
@@ -2486,7 +2480,7 @@ written because orders turned out to be missing twenty-one columns of live data,
 found one repo function at a time, after the row counts had matched and the
 shapes looked plausible.
 
-The eleven migrated features are clean. What remains, to be fixed *before* each
+The eleven migrated features are clean. What remains, to be fixed _before_ each
 feature's repo is split rather than during it:
 
 - **shipping — 13 columns.** `exchange.shipments` has essentially nothing mapped:
@@ -2503,7 +2497,7 @@ feature's repo is split rather than during it:
   already added them to `refiners.spots`; they are listed here because the
   refiners feature has not been backfilled yet, so its table is still empty.
 
-The audit only proves a mapping *exists*, not that it is right. It is a floor.
+The audit only proves a mapping _exists_, not that it is right. It is a floor.
 
 ### When addresses is promoted, orders should return the snapshot id
 
@@ -2515,7 +2509,7 @@ frontend posts it back at checkout and `getAddressFromId` resolved it against
 Under `ADDRESSES_SOURCE=dual` that still works, and not by luck: the address
 book kept its exchange ids, so the same id resolves in `places.addresses`. But
 once addresses is promoted, the better answer is for the order to return the
-*snapshot* id. The snapshot is the address that order was actually sent to,
+_snapshot_ id. The snapshot is the address that order was actually sent to,
 frozen at the time; the address-book row is whatever the customer has edited it
 into since.
 
@@ -2556,7 +2550,7 @@ easier conversation than recovering a column that was never carried across.
 A fulfillment is derived from a shipment, and the dependency is one-to-one:
 
 - all 17 orders that have a fulfillment have a shipment in `exchange`
-- the 6 orders that have a shipment but *no* fulfillment are precisely the 6
+- the 6 orders that have a shipment but _no_ fulfillment are precisely the 6
   whose shipments were never copied into `shipping.shipments`
 - all 16 `fulfillments.shipments` links resolve, because they can only point at
   shipments that were copied
@@ -2602,7 +2596,7 @@ someone knew in January that `orders.orders.refinery_id` needs, and the same
 decision answers both.
 
 Unlike the orders case, null is not an option here: the column is NOT NULL, so
-a backfill must assert *some* refiner for every row.
+a backfill must assert _some_ refiner for every row.
 
 The columns are otherwise fine - `audit:coverage refiners` is clean, since
 migration 035 added the four it was missing. It is only the identity that is
@@ -2686,7 +2680,7 @@ So the backfills would write into a shape that cannot hold what they carry.
 `034` — the migration that exists specifically to backfill the 21 order columns
 `033` added — would be marked done without ever having run.
 
-**Why nothing caught it.** `verify:genesis` builds into *renamed empty* schemas
+**Why nothing caught it.** `verify:genesis` builds into _renamed empty_ schemas
 and compares against dev. Building from nothing is exactly the case where
 `IF NOT EXISTS` is invisible. Production is the one starting state that has
 never been tested: partially built, older, and non-empty.
@@ -2738,7 +2732,7 @@ was delivered to Irving TX on 2026-01-02. Fifteen scans. That is a real
 shipment and it really arrived.
 
 What was wrong: concluding from `exchange` not having the order that `exchange`
-had *never* had it. Orders 298 and 299 carry exactly the profile of order 297,
+had _never_ had it. Orders 298 and 299 carry exactly the profile of order 297,
 which is still in `exchange` — one address snapshot, one item, four spots, one
 offer. Those snapshots are created by the migration **reading `exchange`**, so
 all three orders were in `exchange` when it ran and were deleted from it
@@ -2748,19 +2742,19 @@ afterwards. Their shipments and tracking rows went with them, which is why
 Jacob's account, which fits every field better than mine did: the business
 occasionally receives fake metal, and those orders are cancelled and deleted.
 
-| field | read as "unpaid customer" | read as "rejected as fake" |
-|---|---|---|
-| `purity 0.000`, `content 0.000` | never assayed | assayed, worth nothing |
-| `confirmed: true` | — | someone did check it |
-| `status: Received` | arrived, unprocessed | arrived, processed, rejected |
-| no payout, no transaction | customer unpaid | nothing to pay for |
-| absent from `exchange` | never written there | cancelled and deleted |
+| field                           | read as "unpaid customer" | read as "rejected as fake"   |
+| ------------------------------- | ------------------------- | ---------------------------- |
+| `purity 0.000`, `content 0.000` | never assayed             | assayed, worth nothing       |
+| `confirmed: true`               | —                         | someone did check it         |
+| `status: Received`              | arrived, unprocessed      | arrived, processed, rejected |
+| no payout, no transaction       | customer unpaid           | nothing to pay for           |
+| absent from `exchange`          | never written there       | cancelled and deleted        |
 
 **The general rule this violated.** A row missing from `exchange` has two
 explanations — it was never there, or it was deleted — and only one of them was
 considered. The same mistake as the "orphan duplicate" addresses earlier the
 same evening: reading one table and inferring history from its current contents.
-`exchange` is authoritative for what exists *now*; it is not a log of what
+`exchange` is authoritative for what exists _now_; it is not a log of what
 existed.
 
 **What this means for the backfill guards.** Nothing changes. `audit:guards`
@@ -2771,7 +2765,7 @@ but it is a bookkeeping decision rather than an urgent one.
 
 **Worth one check on Jacob's side, and only one.** The retraction rests on the
 orders having been deleted from `exchange` deliberately. If any of 298, 299 or
-303 was *not* a deliberate cancellation, the original reading would apply to it.
+303 was _not_ a deliberate cancellation, the original reading would apply to it.
 That is a memory question, not a data one.
 
 ### FOR JACOB: three production purchase orders exist only in the new schema
@@ -2780,11 +2774,11 @@ Not a code question. Three purchase orders live in `orders.orders` on production
 and in neither `exchange.purchase_orders` nor `exchange.sales_orders`, which
 means **the live application cannot see them** — it reads `exchange`.
 
-| number | created | status | pre-melt | purity | content |
-|---|---|---|---|---|---|
-| 298 | 2025-12-24 | In Transit | 141.096 | 0.925 | 130.514 |
-| 299 | 2025-12-30 | Received | 100.000 | 0.000 | 0.000 |
-| 303 | 2026-01-12 | In Transit | 130.000 | 0.925 | 120.250 |
+| number | created    | status     | pre-melt | purity | content |
+| ------ | ---------- | ---------- | -------- | ------ | ------- |
+| 298    | 2025-12-24 | In Transit | 141.096  | 0.925  | 130.514 |
+| 299    | 2025-12-30 | Received   | 100.000  | 0.000  | 0.000   |
+| 303    | 2026-01-12 | In Transit | 130.000  | 0.925  | 120.250 |
 
 ids `5f211253-…`, `a678721b-…`, `e91da7f0-…`.
 
@@ -2826,13 +2820,13 @@ The backfill guard refuses when the target holds rows the source does not.
 That has been theoretical, checked only against dev. It is production's actual
 state:
 
-| source | rows | target | rows | orphans in target |
-|---|---|---|---|---|
-| exchange.addresses | 72 | places.addresses | 118 | 60 |
-| exchange.payment_intents | 25 | payments.intents | 70 | 45 |
-| exchange.shipments | 70 | shipping.shipments | 44 | 3 |
-| exchange.users | 74 | auth.users | 60 | 0 |
-| exchange.tracking_events | 525 | shipping.tracking | 427 | — |
+| source                   | rows | target             | rows | orphans in target |
+| ------------------------ | ---- | ------------------ | ---- | ----------------- |
+| exchange.addresses       | 72   | places.addresses   | 118  | 60                |
+| exchange.payment_intents | 25   | payments.intents   | 70   | 45                |
+| exchange.shipments       | 70   | shipping.shipments | 44   | 3                 |
+| exchange.users           | 74   | auth.users         | 60   | 0                 |
+| exchange.tracking_events | 525  | shipping.tracking  | 427  | —                 |
 
 Divergence runs both ways: exchange also holds rows the new schema lacks —
 14 addresses, 29 shipments, 14 users, 116 tracking events — which is what the
@@ -2846,7 +2840,7 @@ the conclusion drawn from it was wrong.
 
 They are **order address snapshots**. `orders.addresses` holds exactly 59 rows,
 and all 59 point at one of these — none points at an `exchange.addresses` row.
-A snapshot is *supposed* to carry the same values under a fresh id: that is what
+A snapshot is _supposed_ to carry the same values under a fresh id: that is what
 makes it a record of where an order was actually sent, rather than a pointer to
 an address book entry the customer may since have edited or deleted. The value
 match that looked like duplication is the snapshot doing its job.
@@ -2857,8 +2851,8 @@ shipment.
 
 So **zero of the 60 are safe to delete**, and a cleanup migration would have
 destroyed the delivery address of every order in the new schema. 050's guard
-already said as much in a comment — *"Snapshots are excluded from that check,
-they are created by the orders backfill and have no counterpart by design"* —
+already said as much in a comment — _"Snapshots are excluded from that check,
+they are created by the orders backfill and have no counterpart by design"_ —
 which was there to be read before the count was interpreted.
 
 What made this look like a duplicate was reading `places.addresses` alone.
@@ -2897,7 +2891,7 @@ for a purchase order. Listed in the order they fire:
    `pending / scheduled / completed / canceled`. One `l`.
 
 **A correction to what was written earlier.** The first version of this note said
-the throw happened *after* `shippingOps.createPickup` had booked a real pickup
+the throw happened _after_ `shippingOps.createPickup` had booked a real pickup
 with FedEx, leaving orphaned bookings nobody had a record of. That was wrong.
 Defect 1 fires first, before the payload is built and before any request is
 sent, so **no FedEx pickup was ever booked through this path**. There is nothing
@@ -2927,13 +2921,13 @@ noise rather than signal. What was left was 107 errors, of which five were
 All fixed; `TS2304` is now zero. The remaining ~55 are known-benign categories
 and are listed here so a future sweep can tell new signal from old noise:
 
-| code | count | what it is |
-|---|---|---|
-| TS2345 | 16 | argument shapes inferred from the widest call site — e.g. `renderTemplate` defaults `offerExpiration`, so callers omitting it are fine |
-| TS2339 | 13 | `err.status` / `err.statusCode` on `Error`, the usual JS idiom for attaching an HTTP status |
-| TS2307 | 8 | `better-auth` ships no type declarations |
-| TS18046 | 6 | `err` is `unknown` in a `catch` |
-| others | 12 | inference noise on destructured defaults |
+| code    | count | what it is                                                                                                                             |
+| ------- | ----- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| TS2345  | 16    | argument shapes inferred from the widest call site — e.g. `renderTemplate` defaults `offerExpiration`, so callers omitting it are fine |
+| TS2339  | 13    | `err.status` / `err.statusCode` on `Error`, the usual JS idiom for attaching an HTTP status                                            |
+| TS2307  | 8     | `better-auth` ships no type declarations                                                                                               |
+| TS18046 | 6     | `err` is `unknown` in a `catch`                                                                                                        |
+| others  | 12    | inference noise on destructured defaults                                                                                               |
 
 `checkJs` is deliberately **not** enabled in `tsconfig.json`. Turning it on would
 fail `pnpm check` on those 55, and annotating them away is churn with no
@@ -2964,12 +2958,16 @@ Found by pointing the new endpoint tests at a guarded GET as an admin.
 `GET /api/stripe/retrieve_payment_intent` answered, verbatim:
 
 ```json
-{"success": false,
- "error": {"message": "invalid input syntax for type uuid: \"not-a-uuid\"",
-           "where": "/home/jtj60/dorado-exchange/api/features/stripe/repo.js:23"}}
+{
+  "success": false,
+  "error": {
+    "message": "invalid input syntax for type uuid: \"not-a-uuid\"",
+    "where": "/home/jtj60/dorado-exchange/api/features/stripe/repo.js:23"
+  }
+}
 ```
 
-Two separate disclosures. `message` is `err.message` for *any* unexpected error,
+Two separate disclosures. `message` is `err.message` for _any_ unexpected error,
 and a Postgres error carries the column, the type, the constraint name and — on
 a unique violation — the value that collided, which is customer data. `where` is
 the absolute path of the source file on the server.
@@ -3081,7 +3079,7 @@ actually turned out to weigh once melted, which exists nowhere else. There is a
 test asserting the current behaviour, so a guard added later will fail it
 loudly rather than silently.
 
-`lint:migrations` protects `exchange` from destructive *migrations*. Nothing
+`lint:migrations` protects `exchange` from destructive _migrations_. Nothing
 protects it from application code doing an unbounded `DELETE`, and this is the
 only one that does.
 
@@ -3172,7 +3170,7 @@ features.
 **Fixed:** `deleteRate` in both `features/rates/repo.exchange.js` and
 `repo.next.js` declared an `executor` parameter and never passed it to
 `query()`. The dual layer threaded it correctly, so under
-`RATES_SOURCE=dual` a delete would have run on the pool on *both* sides —
+`RATES_SOURCE=dual` a delete would have run on the pool on _both_ sides —
 committing immediately, outside the caller's transaction, leaving a rate deleted
 from both schemas even when the surrounding operation rolled back. There is now
 a test.
@@ -3187,7 +3185,7 @@ pool", which is the behaviour they had.
 
 Every write in every repo now accepts an executor and passes it on.
 
-Checked and *fine*: `features/transactions/repo.js` `addFunds` and `removeFunds`
+Checked and _fine_: `features/transactions/repo.js` `addFunds` and `removeFunds`
 both take a client, so the checkout path that moves a customer's balance is
 already transaction-safe.
 
@@ -3422,7 +3420,7 @@ shipment, which duplicates what the fulfillment already says. Probably leave it.
 Decided rather than asked, under Jacob's standing delegation, and reversible:
 both are now in `047_seed_reference_data.sql` as literals.
 
-They *could* be derived from `exchange.carrier_services`, which on production
+They _could_ be derived from `exchange.carrier_services`, which on production
 holds the same eight (carrier, name) pairs. They are not, for two reasons. No id
 is shared between the two tables, so deriving would re-key every service and
 orphan anything already pointing at one. And dev's `carrier_services` holds two
@@ -3463,7 +3461,7 @@ So:
 - **"Should `GET /carrier_services` start returning 8 instead of 2?"** It already
   returns 8 in production. Nothing changes.
 - **"Is `2fb26257…` called Overnight or Priority Overnight?"** Production has
-  *both*, as separate FedEx services. There is no rename and no conflict.
+  _both_, as separate FedEx services. There is no rename and no conflict.
 
 The one real difference is that the ids do not match — no id is shared between
 the two tables. So the migration maps by `(carrier, name)` rather than by id,
@@ -3550,10 +3548,10 @@ It shows in production. **All nine `Credit` entries differ from the
 `total_price` of the order they name**, three materially:
 
 | ledger amount | order total | difference |
-|---|---|---|
-| 13,619.75 | 13,839.35 | −219.60 |
-| 13,619.75 | 13,839.35 | −219.60 |
-| 405.17 | 422.86 | −17.69 |
+| ------------- | ----------- | ---------- |
+| 13,619.75     | 13,839.35   | −219.60    |
+| 13,619.75     | 13,839.35   | −219.60    |
+| 405.17        | 422.86      | −17.69     |
 
 **Two: two orders carry more than one `Credit` entry.** Order
 `6d9b867d-…` has **three**, totalling **$41,078.85 against an order worth
@@ -3692,7 +3690,7 @@ The one that hid the August checkout outage for months was the last of them.
 
 - The frontend now has vitest and 53 tests, covering rate resolution (mirrored
   1:1 from the API and previously tested on only one side), weight conversion
-  (mirrored *three* ways), the scrap price, the declared value on a shipping
+  (mirrored _three_ ways), the scrap price, the declared value on a shipping
   label, the client-side scrap naming, date formatting, and the address id
   checkout posts back. That is a start on 42k lines, not coverage.
 - No browser or e2e harness, deliberately. Anything that renders a component
@@ -3788,7 +3786,7 @@ same kind of thing:
   The same product can appear twice in one cart.
 - **`exchange.purchase_orders(order_number)` → `orders.orders(direction, number)`.**
   Strictly weaker — a composite does not make either column unique alone — but
-  correct for a table that merged both directions, and *stricter* than today for
+  correct for a table that merged both directions, and _stricter_ than today for
   sales orders, which have no unique on their number at all.
 - **`exchange.rates(metal_id, unit, min_qty, max_qty)` → an expression index on
   `(metal_id, unit, min_qty, COALESCE(max_qty, -1))`.** An improvement: NULLs do
@@ -3797,7 +3795,7 @@ same kind of thing:
 
 ### And 3 CHECK constraints with nothing standing in for them
 
-The audit now covers CHECKs too, and the interesting part is what it does *not*
+The audit now covers CHECKs too, and the interesting part is what it does _not_
 report. A CHECK is often replaced by something stronger: `exchange` guards a
 metal type with `type = ANY (ARRAY['Gold', ...])`, and the new schema makes it a
 uuid referencing `metals.metals`. `payouts.method` becomes a foreign key into
@@ -3810,7 +3808,7 @@ protects has **no check, no enum type and no foreign key** — a sound test of
   the one to care about, and it is the second time this column has come up: the
   precision audit already found `orders.items` declared `purity numeric(4,3)`
   against an unconstrained source, so `.9999` fine gold was stored as `1.000`.
-  The type has been fixed; the *range* is still unguarded. Purity multiplies
+  The type has been fixed; the _range_ is still unguarded. Purity multiplies
   into content and content into price, so a value entered as `99.99` rather than
   `0.9999` is a hundredfold error that `exchange` refuses today and the new
   schema would accept. Dev holds 20 scrap rows with a purity, all between 0.011
@@ -3871,7 +3869,7 @@ erased. `/update_pool_remediation` had **zero** callers.
 `money-edits.test.js` posts to each one from an `ORDER_EDITS` table with the
 correct body key and reads the row back — so it passes, and would have passed
 before this fix. It tests whether the route writes the column. Nothing tested
-whether the *frontend* calls the route that reads what it sends.
+whether the _frontend_ calls the route that reads what it sends.
 `admin-mutation-urls.test.js` now does, checking each mutation against the keys
 the API service actually destructures. It fails against the old URL.
 
@@ -3883,8 +3881,8 @@ have worked: `/update_shipping_actual` reads `shipping_fee_actual`, and
 `exchange.purchase_orders` there has neither `pool_oz_deducted` nor
 `pool_remediation` — migration 033 adds them and no migration has been applied
 to production, so both fail with `42703, column does not exist`. The admin UI's
-pool fields have never worked there. That also means the wipe is *armed by a
-migration* rather than happening now: applying 033 without this fix would turn a
+pool fields have never worked there. That also means the wipe is _armed by a
+migration_ rather than happening now: applying 033 without this fix would turn a
 loud 500 into a silent erasure.
 
 Worth keeping in view generally: **the suite runs against dev, which is ahead of
@@ -3918,7 +3916,7 @@ exactly 2 are not** — and the two are the order emails:
 Nothing server-side sends either. `sendCreatedEmail` and `sendAcceptedEmail`
 are reachable only through their HTTP routes, and only those two calls reach
 them. So a customer's order confirmation depends on their browser making a
-second request *after* the order has already been placed.
+second request _after_ the order has already been placed.
 
 **A call in a `mutationFn` is the mutation** — if it fails, the mutation fails
 and the user is told. **A call in `onSuccess` is a follow-up** — the operation
@@ -3950,11 +3948,11 @@ does the frontend still read the legacy names?
 
 Three of the seven adapters are simple renames and can be counted:
 
-| switch | verdict | legacy names the frontend still reads |
-| --- | --- | --- |
-| `MEDIA_WIRE` | **clear** | `checksum_sha256` → `checksum`: 0 |
+| switch          | verdict         | legacy names the frontend still reads                                                   |
+| --------------- | --------------- | --------------------------------------------------------------------------------------- |
+| `MEDIA_WIRE`    | **clear**       | `checksum_sha256` → `checksum`: 0                                                       |
 | `PRODUCTS_WIRE` | **would break** | `product_name` 98, `product_type` 19, `product_description` 7 — **124** across 24 files |
-| `SPOTS_WIRE` | **would break** | `bid_spot` 66, `ask_spot` 17 — **83** across 27 files |
+| `SPOTS_WIRE`    | **would break** | `bid_spot` 66, `ask_spot` 17 — **83** across 27 files                                   |
 
 Counts are occurrences, not lines — a direct `grep -c` reports fewer because it
 counts lines that match. Do not report the two numbers as a disagreement.
@@ -4034,12 +4032,12 @@ parsed by a frontend schema after all, one hop removed. `.parse()` takes
 
 The two schemas disagree about null:
 
-| field | contract (`SpotPriceWire`) | frontend (`spotPriceSchema`) | prod column |
-| --- | --- | --- | --- |
-| `ask_spot` | `z.number().nullable()` | `z.number()` | `NOT NULL` |
-| `bid_spot` | `z.number().nullable()` | `z.number()` | **nullable** |
-| `percent_change` | `z.number().nullable()` | `z.number()` | **nullable** |
-| `dollar_change` | `z.number().nullable()` | `z.number()` | **nullable** |
+| field            | contract (`SpotPriceWire`) | frontend (`spotPriceSchema`) | prod column  |
+| ---------------- | -------------------------- | ---------------------------- | ------------ |
+| `ask_spot`       | `z.number().nullable()`    | `z.number()`                 | `NOT NULL`   |
+| `bid_spot`       | `z.number().nullable()`    | `z.number()`                 | **nullable** |
+| `percent_change` | `z.number().nullable()`    | `z.number()`                 | **nullable** |
+| `dollar_change`  | `z.number().nullable()`    | `z.number()`                 | **nullable** |
 
 **Not live — verified.** Production has 4 metals rows and zero nulls in all
 four columns, so the parse succeeds today. But three of the columns permit
@@ -4069,12 +4067,12 @@ the schema **requires** whose column **permits NULL** — reading
 Against production: **77 fields compared, 31 stricter than the database, 17 of
 them in schemas that are actually parsed at runtime.**
 
-| schema | table | required-but-nullable |
-| --- | --- | --- |
-| `addressSchema` | `addresses` | `user_id`, `line_1`, `city`, `state`, `country`, `country_code`, `zip`, `name`, `phone_number`, `is_valid`, `is_residential` |
-| `productSchema` | `products` | `sell_display`, `is_generic` |
-| `spotPriceSchema` | `metals` | `bid_spot`, `percent_change`, `dollar_change` |
-| `userSchema` | `users` | `name` |
+| schema            | table       | required-but-nullable                                                                                                        |
+| ----------------- | ----------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| `addressSchema`   | `addresses` | `user_id`, `line_1`, `city`, `state`, `country`, `country_code`, `zip`, `name`, `phone_number`, `is_valid`, `is_residential` |
+| `productSchema`   | `products`  | `sell_display`, `is_generic`                                                                                                 |
+| `spotPriceSchema` | `metals`    | `bid_spot`, `percent_change`, `dollar_change`                                                                                |
+| `userSchema`      | `users`     | `name`                                                                                                                       |
 
 **None is live. Measured: 247 production rows across those four tables, and not
 one null in any of the seventeen.** Each is a single row away from throwing a
@@ -4082,7 +4080,7 @@ one null in any of the seventeen.** Each is a single row away from throwing a
 schemas sit in the checkout `.parse()` path.
 
 **A mismatch is not automatically a defect, and the report says so.** A form
-schema *should* be stricter than its column — the user must supply what the
+schema _should_ be stricter than its column — the user must supply what the
 database allows to be absent. `wireSchema` requiring `routing_number` is
 correct. What narrows the list is whether the schema is reached from a real
 `.parse()` call, computed transitively from the five call sites; the other 14
@@ -4090,10 +4088,10 @@ can disagree with the database forever in silence.
 
 **Two guards, both of which caught something immediately.**
 
-- *Suspect mappings.* The report prints how many of a schema's fields are
+- _Suspect mappings._ The report prints how many of a schema's fields are
   actually columns of the table it is mapped to. `pickupSchema` matched **0 of
   6** and had been reporting a clean "yes" — a check that proved nothing.
-- *Shared words.* `serviceSchema` was mapped to `carrier_services` and reported
+- _Shared words._ `serviceSchema` was mapped to `carrier_services` and reported
   that it requires `code` while `code` is NULL in **all 8** production rows —
   which looks like a live broken checkout. It is not: `serviceSchema` is a
   FedEx rate quote (`serviceType`, `netCharge`, `transitTime`, a Lucide
@@ -4202,7 +4200,7 @@ four uncovered files are form/address helpers and `cn`.
 ## The rate resolution exists twice, and nothing checked the copies agree
 
 `frontend/features/rates/utils/resolveRate.ts` carries its own instruction:
-*"this file is mirrored 1:1 in the API … keep the two in sync."* Nothing
+_"this file is mirrored 1:1 in the API … keep the two in sync."_ Nothing
 checked it, and the path it named — `features/rates/utils/resolveRate.js` —
 **does not exist**; the API's copy became `.ts` in the TypeScript conversion, so
 the one pointer a reader had was stale.
@@ -4383,12 +4381,12 @@ Nothing changed.
 **The safe direction is the point.** An unset switch, or one holding a typo,
 `"NEXT"`, `"true"` or a trailing space, resolves to **legacy** — never to the
 shape the frontend has never seen. That is pinned across seven bad values.
-`fromWire` converts in *both* switch positions, which is right and looks wrong
+`fromWire` converts in _both_ switch positions, which is right and looks wrong
 until you see why: a request already in the new shape has no legacy names left
 to rename, so converting it is a no-op.
 
 **Two sharp edges, both stated.** `rename()` writes into a fresh object, so a
-row that *already* holds the key a rename is about to write loses one of the
+row that _already_ holds the key a rename is about to write loses one of the
 two values silently — the row's own value wins and nothing says a field went
 missing. And the double-apply guarantee only holds while no legacy name is also
 a new name. Neither can happen today, and a structural test over the real
@@ -4401,7 +4399,7 @@ finds fewer than three maps.
 "applies once per response" test used a rename adapter — and a rename applied
 twice renames nothing the second time, exactly as the source comment says. So
 deleting the guard entirely left all 15 tests passing. Rewritten with a
-counting adapter that is *not* idempotent, which is the case the guard actually
+counting adapter that is _not_ idempotent, which is the case the guard actually
 exists for: `flatten()` on an already-flat object nulls every field it meant to
 lift. **A test of an idempotency guard must use something non-idempotent.**
 
@@ -4421,7 +4419,7 @@ than a bug in the lists.
 carrying a column nobody declared parsed clean. The check could see a missing
 field and a mistyped one, and was blind to an extra one — which is precisely
 the hazard `features/products/constants.bullion.ts` names in its own comment:
-*"a projection that silently grew is how columns start leaking onto the wire."*
+_"a projection that silently grew is how columns start leaking onto the wire."_
 
 Undeclared keys are recoverable by diffing what went in against what
 `safeParse` handed back. Measured first: **zero undeclared fields across all 61
@@ -4541,7 +4539,7 @@ versions are the stale ones. `api/.env` has four more it does not.
 **So deleting it loses nothing — but it is an untracked credentials file, so it
 is not mine to delete. That is D37**, and it matters for a job already on the
 list: rotating the leaked FedEx credentials and the database password means
-updating *both* copies, or the stale one keeps the old values sitting around.
+updating _both_ copies, or the stale one keeps the old values sitting around.
 
 ### The committed contracts are now checked for freshness
 
@@ -4585,7 +4583,7 @@ leaves nothing behind in dev.
 **`audit:payments --prod` exits 1, and the numbers are unchanged.** I first read
 "7 settled payments the database does not record as succeeded" as growth from
 the five on record. It is not: 7 is the count of Stripe intents whose row
-*differs*, and two of those are **refunds**. The paid-but-unrecorded set is
+_differs_, and two of those are **refunds**. The paid-but-unrecorded set is
 still **3 intents, $126.48**, plus two paid charges with no row at all —
 exactly what was already written down.
 
@@ -4600,14 +4598,14 @@ columns by plausible market moves — gold `4599.06` against `4326.81`, about 6%
 schema holds a point-in-time backfill.
 
 **Dual-write already exists.** `features/spots/repo.dual.js` `updateQuotes`
-writes `exchange` *and* `next`. The drift exists only because `SPOTS_SOURCE` is
+writes `exchange` _and_ `next`. The drift exists only because `SPOTS_SOURCE` is
 unset, so `repo.js` selects `repo.exchange` and only one side is written. **The
 moment the switch goes to `dual`, the next cron tick converges them** — no
 backfill needed, and re-running one is not the answer.
 
 Written down because someone running `verify:parity` before promoting spots
 will see NOT SAFE on a money table and may reasonably panic, or re-run a
-backfill that is not required. It is the *only* pair that drifts, because it is
+backfill that is not required. It is the _only_ pair that drifts, because it is
 the only table a cron rewrites continuously.
 
 ### Still to triage, and not from tonight
@@ -4616,7 +4614,7 @@ the only table a cron rewrites continuously.
   `spots.getAllMetals` — the same staleness as above, same explanation. The
   other three are `shipping-shipments.getAll`,
   `shipping-tracking.getEvents(first)` and `sales-orders.getAll`. The tracking
-  one shows `exchange` holding *less* than the new schema: `"Dropped Off"` with
+  one shows `exchange` holding _less_ than the new schema: `"Dropped Off"` with
   a 2026 estimated delivery and no `delivered_at`, against `"Delivered"` with
   the real dates. That is the shape of dev's tracking history having been
   damaged — which is recorded: `tracking.test.js` deleted the real FedEx
@@ -4670,7 +4668,7 @@ Do **not** reason from timestamps.
 
 **Note the difference from the spots drift.** Spots converge by themselves —
 dual-write already writes both, and the next cron tick fixes it. This one does
-not: `SALES_ORDERS_SOURCE` going to `dual` makes *future* writes land in both,
+not: `SALES_ORDERS_SOURCE` going to `dual` makes _future_ writes land in both,
 but this already-drifted row stays wrong until the backfill is re-run.
 
 **Whether those 42 writes should maintain `updated_at` is D38.** It is not a
@@ -4701,10 +4699,10 @@ the next tick. Same cause as the single `verify:parity` NOT SAFE.
 Compared all 15 sales orders on 10 fields: **exactly one row differs, on
 exactly two fields.** Sales order 57 (`f437ce8a…`):
 
-| | `exchange` | new schema |
-| --- | --- | --- |
+|                     | `exchange`                     | new schema                 |
+| ------------------- | ------------------------------ | -------------------------- |
 | supplier / refinery | `18b3ccd9…` — **Dillion Gage** | `d7414aa4…` — **Elemetal** |
-| `order_sent` | **true** | false |
+| `order_sent`        | **true**                       | false                      |
 
 **These are not a remap.** `refiners.refiners` preserves both ids, so the new
 schema is not translating — it names a **different company**. `exchange` is
@@ -4753,8 +4751,7 @@ schema replacing it: NOT NULL, CHECK, foreign keys, and unique indexes. It reads
 filters on `i.indisunique`. **The plain indexes had never been looked at at all.**
 
 That the gap survived this long is a consequence of what a plain index is. A
-uniqueness guard is a correctness guard: drop it and something eventually raises
-23505. A plain index guarantees nothing, so dropping it raises nothing. The query
+uniqueness guard is a correctness guard: drop it and something eventually raises 23505. A plain index guarantees nothing, so dropping it raises nothing. The query
 returns the same rows, in the same order, and takes a sequential scan to do it.
 
 Nothing downstream closes it either. `diff` compares the two implementations'
@@ -4770,11 +4767,11 @@ measured, on the day a `*_SOURCE` switch moved.
 Not "did uniqueness survive" — that one is `audit:constraints`', and it already
 reports eight source uniques with no exact counterpart while exiting 0, because a
 source unique on `(number)` against a target unique on `(direction, number)` is
-the *correct* meaning for a table that merged purchase and sales orders.
+the _correct_ meaning for a table that merged purchase and sales orders.
 
 The question here is whether the **access path** survived. btree is only
 enterable on a leading prefix, so the line between a mild degradation and a
-sequential scan is whether any target index — unique, primary or plain — *leads*
+sequential scan is whether any target index — unique, primary or plain — _leads_
 with the column the source index leads with. A source index on `(a, b)` is served
 by a target index on `(a, b, c)`. It is not served by one on `(b, a)`.
 
@@ -4809,7 +4806,7 @@ half a static audit cannot do — and it split them three to two.
   closes one of the eight gaps `audit:constraints` reports.
 
 **Not fixed, named in `ACCEPTED` with the reason:** `products.bullion.supplier_id`
-is only ever joined *from* bullion *to* refiners' primary key, never used to look
+is only ever joined _from_ bullion _to_ refiners' primary key, never used to look
 a bullion row up; nothing looks an order up by `number` alone; `provider_ref` is
 always paired with the indexed `intent_id`. An index nothing reads still costs
 every write, so speculation is the wrong default in both directions. The list is
@@ -4995,7 +4992,7 @@ Three things, none of which I did:
 1. **`UPDATE exchange.products SET product_type = 'Bar'` for the two rows.** A
    two-row data fix against production. Trivial, and still yours.
 2. **Should `product_type` be the enum rather than text?** The value is already
-   constrained *de facto* by the query that consumes it; declaring it would move
+   constrained _de facto_ by the query that consumes it; declaring it would move
    the failure from checkout to the write that introduces it. That is a schema
    decision with a migration attached.
 3. **Should `get_product_types` return only valid labels** (or the enum's labels
@@ -5039,7 +5036,7 @@ Checked all 14 list-returning reads that exist on both sides:
 Two false alarms worth recording. `purchase-orders` and `sales-orders` looked
 like they had **lost** the main list ordering; the `ORDER BY` lives in a shared
 constant, `features/orders/fragments.ts`'s `newestFirst`, so a per-file grep
-undercounted. And `transactions` looked like it differed because a *comment*
+undercounted. And `transactions` looked like it differed because a _comment_
 mentioning `ORDER BY` was counted as one.
 
 ## The four small shared files that had no test
@@ -5049,10 +5046,10 @@ on paths that matter. 23 tests now, every one mutation-checked.
 
 **`isTestRun` is the one worth reading.** It is the guard the mail transport, the
 FedEx client and the Stripe client all ask before reaching a live third party,
-and its whole design is one sentence: *evaluated when asked, never cached*. The
+and its whole design is one sentence: _evaluated when asked, never cached_. The
 bug it was written for is invisible without a test — each guard used to compute
 the answer once at module scope, and ES module imports are hoisted, so a script
-whose first statement is `process.env.NODE_ENV = "test"` sets it *after* every
+whose first statement is `process.env.NODE_ENV = "test"` sets it _after_ every
 imported module has evaluated. The guard captured `undefined`, decided this was
 not a test, and built the real transport. `seed-e2e-users.mjs` did exactly that
 and reached Gmail; it failed on credentials rather than on the guard, which is
@@ -5064,7 +5061,7 @@ calls** when the environment changes between them. Reintroducing the module-scop
 constant fails 2 of the 5 tests, including that one.
 
 That suite also carries a control asserting the harness satisfies both detectors,
-because it runs under `NODE_ENV=test` *and* `node --test`: every case has to
+because it runs under `NODE_ENV=test` _and_ `node --test`: every case has to
 neutralise both and reinstate them, or it is asserting the harness rather than
 the function.
 
@@ -5089,7 +5086,7 @@ boxed `String` object is not a string primitive and does not.
 business's own number in the PDF header and the from/to numbers on a label — so
 what it does with unexpected input ends up printed on paper a courier reads.
 Partial input is a supported case, not an edge one. Two behaviours are pinned as
-*decisions* rather than discoveries: the leading-`1` strip is unconditional, so
+_decisions_ rather than discoveries: the leading-`1` strip is unconditional, so
 it also applies to short input (`"1555"` → `"(555"`, which no real number reaches
 because US area and exchange codes cannot begin with 1); and digits past the
 tenth are **truncated rather than rejected**, so an over-long number prints as a
@@ -5110,7 +5107,7 @@ how much more of that class exists. Answer: not much, and what exists is clean.
   enum cast the backfill performs cannot fail.
 
 `audit:precision` turns out to already cover the text-to-enum case properly — it
-casts and treats a *throwing* cast as a loss, with a comment saying a cast that
+casts and treats a _throwing_ cast as a loss, with a comment saying a cast that
 throws is worse than one that rounds. What it cannot cover is a value that is
 valid in its own target and only becomes invalid somewhere else, which is exactly
 D39 and exactly why `audit:enum-domains` exists.
@@ -5118,7 +5115,7 @@ D39 and exactly why `audit:enum-domains` exists.
 One near-miss worth recording. Grepping for `direction = '...'` showed the
 shipping repo writing `'purchase'` and `'sale'` while `shipping.shipments.direction`
 stores `Inbound`/`Outbound` — which reads like a live 22P02. It is not: those are
-`o.direction` (the *order's* direction, type `orders.direction`) inside `CASE`
+`o.direction` (the _order's_ direction, type `orders.direction`) inside `CASE`
 expressions that derive `purchase_order_id` and `sales_order_id`, not
 `s.direction`. **Two different types are both named `direction`**, in `orders` and
 in `shipping` — the same shared-name trap that has now produced a false lead three
@@ -5249,14 +5246,14 @@ gained a `tests/` folder with three kinds of file, and the split is deliberate:
 
 **Six things still have no test of their own**, and the reasons differ:
 
-| | why |
-|---|---|
-| `features/metals` | four seeded rows, read-only; covered through spots |
-| `features/mints` | ten seeded rows, read-only; covered through products |
-| `features/organizations` | no routes; covered through carriers and refiners |
-| `features/places/user-addresses` | no routes; covered through addresses |
-| `features/fulfillments/methods` | no routes; reference data |
-| **`features/shipping/tracking`** | **nothing covers it, and it is not reference data** |
+|                                  | why                                                  |
+| -------------------------------- | ---------------------------------------------------- |
+| `features/metals`                | four seeded rows, read-only; covered through spots   |
+| `features/mints`                 | ten seeded rows, read-only; covered through products |
+| `features/organizations`         | no routes; covered through carriers and refiners     |
+| `features/places/user-addresses` | no routes; covered through addresses                 |
+| `features/fulfillments/methods`  | no routes; reference data                            |
+| **`features/shipping/tracking`** | **nothing covers it, and it is not reference data**  |
 
 Tracking is the real gap. It is the one feature with a live write path, a FedEx
 integration, and no test file at all — and `tracking.test.js` is the file that
@@ -5362,13 +5359,13 @@ have asserted nothing for its entire life. It reads every test statically and
 reports two shapes:
 
 - **SKIP** — the test returns early when a fixture finds nothing. Legitimate
-  when dev genuinely may not hold the case; a silent no-op when dev *never*
+  when dev genuinely may not hold the case; a silent no-op when dev _never_
   holds it. The script cannot tell those apart, so it reports them for a human.
 - **LOOP** — the test asserts inside `for (… of X)` with nothing asserting `X`
   is non-empty. `for (const x of [])` runs zero times and passes.
 
-    pnpm --filter @dorado/api audit:vacuous-tests
-    pnpm --filter @dorado/api audit:vacuous-tests:self-test
+  pnpm --filter @dorado/api audit:vacuous-tests
+  pnpm --filter @dorado/api audit:vacuous-tests:self-test
 
 **764 tests in 114 files: 21 LOOP, 10 SKIP.** It is report-only and not in
 `pnpm check` — a skip can be correct, and failing the build on one would make
@@ -5394,7 +5391,7 @@ noise without hiding anything:
       if (!o.payout) continue;
       assert.equal("account_number" in o.payout, false);
 
-so it asserted nothing if `getAll()` came back empty *or* if no order in dev
+so it asserted nothing if `getAll()` came back empty _or_ if no order in dev
 carried a payout. That is the single constraint this project puts above every
 other one — "never log or return bank details" — and it was checking it
 conditionally. It now asserts orders came back, asserts at least one has a
@@ -5574,7 +5571,7 @@ still reads through `repo.js` until the writes land beside it.
 - the whole shape against the composed query: **every real order identical**,
   nested objects included;
 - the whole shape against **`repo.exchange.js`, which is what serves traffic**:
-  16 real orders, and *"nothing else differs"*.
+  16 real orders, and _"nothing else differs"_.
 
 Two differences are declared in the script with their reasons - the `scrap.id`
 change, and the five dev shipments. Five partial orders are skipped and the
@@ -5662,7 +5659,7 @@ ever-smaller sample, for the whole TypeScript conversion. It reported clean at
 every commit.
 
 What caught it was its own floor — the second test in the file asserts
-`withTx.length > 3` with the message *"the walk is probably wrong"*. Deleting
+`withTx.length > 3` with the message _"the walk is probably wrong"_. Deleting
 `features/sales-orders/repo.dual.js` took the count from 4 to 3 and the floor
 fired. One more restructure and it would have been finding two, then one, then
 zero, and a walk that finds zero files has nothing to report and passes
@@ -5690,9 +5687,9 @@ it can report clean on an empty walk.
 
 **Two more had the same extension bug**, and both guard the switch surface:
 
-| guard | walked | should walk |
-|---|---|---|
-| `shared/db/switch-surface.test.js` | `repo.js` | `repo.js` **and** `repo.ts` |
+| guard                               | walked    | should walk                 |
+| ----------------------------------- | --------- | --------------------------- |
+| `shared/db/switch-surface.test.js`  | `repo.js` | `repo.js` **and** `repo.ts` |
 | `shared/db/source-switches.test.js` | `repo.js` | `repo.js` **and** `repo.ts` |
 
 These matter more than the count suggests. `switch-surface` is what proves a
@@ -5724,14 +5721,14 @@ moves.
 Mapping the purchase-orders write surface before pivoting it produced a clean
 answer: **35 writing functions across exactly six `exchange` tables.**
 
-| exchange table | functions |
-|---|---|
-| `purchase_orders` | 15 |
-| `purchase_order_items` | 9 |
-| `order_metals` | 4 |
-| `payouts` | 3 |
-| `refiner_metals` | 3 |
-| `shipments` | 1 |
+| exchange table         | functions |
+| ---------------------- | --------- |
+| `purchase_orders`      | 15        |
+| `purchase_order_items` | 9         |
+| `order_metals`         | 4         |
+| `payouts`              | 3         |
+| `refiner_metals`       | 3         |
+| `shipments`            | 1         |
 
 Five of those six are the feature's own. The sixth is not.
 `editShippingCharge` does:
@@ -5746,7 +5743,7 @@ and that last file already sets `net_charge`. So there are two writers to one
 table, in two features, and only one of them will be dual-writing after the
 purchase-orders pivot. The other would keep writing `exchange` alone.
 
-This is the exact failure mode of *one table, one writing service*, and it is
+This is the exact failure mode of _one table, one writing service_, and it is
 worse than a duplication: after the pivot, a shipping charge edited from the
 purchase-order screen lands in `exchange` only, while everything else about
 that shipment lands in both. The two schemas then disagree about one column,
@@ -5859,7 +5856,7 @@ The thirteen fall into three groups, and the split is the useful output:
 - **Nine are mid-pivot duplication.** A feature being restructured holds
   `repo.exchange.js` / `repo.next.ts` beside its new per-table repos, so both
   show up. These go when the pivots delete those files. They are pinned rather
-  than filtered *because* they should disappear — a table still on this list
+  than filtered _because_ they should disappear — a table still on this list
   after its feature is done is a real finding.
 - **Two are verified safe for a reason other than "it goes away".** payments
   sets `"stripeCustomerId"` on the user row, which is a payments fact living on
@@ -5879,7 +5876,7 @@ deliberately not in `pnpm check` yet, for the reason the first group names.
 
 ### D41's dead statement, removed
 
-Writing the audit turned up that `editShippingCharge` was still *present* in
+Writing the audit turned up that `editShippingCharge` was still _present_ in
 `purchase-orders/repo.exchange.js` and re-exported through `repo.dual.js` and
 `repo.js`, even though the live path had already been repointed at
 `shipping/shipments`. Dead, but dead code that a future reader would have
@@ -5896,8 +5893,8 @@ The audit's own numbers moved to match: 213 statements to 212, and
 `order_spots_one_per_order_metal`. `refiners.spots` carries no equivalent: a
 primary key on `id` and three plain indexes, nothing more.
 
-The two tables are the same idea twice over. One holds what *we* quoted for a
-metal on an order, the other what the *refiner* quoted. They were built
+The two tables are the same idea twice over. One holds what _we_ quoted for a
+metal on an order, the other what the _refiner_ quoted. They were built
 together, they are read together, and their exchange predecessors —
 `order_metals` and `refiner_metals` — were near-identical tables written by
 near-identical functions. One of them constrains the pair; the other does not.
@@ -5905,8 +5902,8 @@ near-identical functions. One of them constrains the pair; the other does not.
 **Found by trying to copy the statement across.** `orders/spots/sql/create.sql`
 uses `ON CONFLICT (order_id, metal_id) DO NOTHING`, which is what makes the
 dual-write path safe to re-run. The same clause against `refiners.spots` raises
-**42P10** — *"there is no unique or exclusion constraint matching the ON
-CONFLICT specification"* — and it raises it at runtime, not at compile time, so
+**42P10** — _"there is no unique or exclusion constraint matching the ON
+CONFLICT specification"_ — and it raises it at runtime, not at compile time, so
 it would have shipped and failed on the first mirror re-run. Checked
 `pg_indexes` rather than assuming the sibling matched.
 
@@ -5945,20 +5942,20 @@ the only destructive path in purchase-orders.
 `pg_constraint`, which is authoritative here (the `information_schema` join
 gives duplicated rows and disagreed):
 
-| child | order_id FK | ON DELETE |
-|---|---|---|
-| `orders.items` | yes | NO ACTION |
-| `orders.spots` | yes | NO ACTION |
-| `refiners.spots` | yes | NO ACTION |
-| `fulfillments.fulfillments` | yes | CASCADE |
-| `payments.intents` | yes | NO ACTION |
-| `payments.ledger` | yes | SET NULL |
-| `reviews.reviews` | yes | NO ACTION |
-| **`orders.offers`** | **none** | — |
-| **`orders.transactions`** | **none** | — |
-| **`orders.addresses`** | **none** | — |
+| child                       | order_id FK | ON DELETE |
+| --------------------------- | ----------- | --------- |
+| `orders.items`              | yes         | NO ACTION |
+| `orders.spots`              | yes         | NO ACTION |
+| `refiners.spots`            | yes         | NO ACTION |
+| `fulfillments.fulfillments` | yes         | CASCADE   |
+| `payments.intents`          | yes         | NO ACTION |
+| `payments.ledger`           | yes         | SET NULL  |
+| `reviews.reviews`           | yes         | NO ACTION |
+| **`orders.offers`**         | **none**    | —         |
+| **`orders.transactions`**   | **none**    | —         |
+| **`orders.addresses`**      | **none**    | —         |
 
-Those three carry foreign keys for *other* columns — `offers` and
+Those three carry foreign keys for _other_ columns — `offers` and
 `transactions` to `auth.users` for their audit columns, `addresses` to
 `places.addresses` — so it is not that constraints were forgotten wholesale.
 The link to the order specifically is missing.
@@ -5981,7 +5978,7 @@ becomes three separate problems in the new schema:
 
 1. **`orders.orders` holds BOTH directions.** exchange had two tables; the new
    schema has one with a `direction`. `DELETE FROM orders.orders WHERE status =
-   'Cancelled'` deletes cancelled **sales** orders as well. Dev has 3 cancelled
+'Cancelled'` deletes cancelled **sales** orders as well. Dev has 3 cancelled
    purchase orders and **0 cancelled sales orders**, so nothing would be lost
    today — that is luck, not safety, and production is unmeasured.
 2. **It would raise 23503 rather than run.** `orders.items`, `orders.spots`,
@@ -6132,10 +6129,8 @@ output that looked exactly like data.** The numbers above are the rerun.
 
 ```js
 const content_actual =
-  convertTroyOz(
-    item.scrap.post_melt_actual ?? item.scrap.pre_melt,
-    item.scrap.gross_unit
-  ) * item.scrap.purity_actual ?? item.scrap.content;
+  convertTroyOz(item.scrap.post_melt_actual ?? item.scrap.pre_melt, item.scrap.gross_unit) *
+    item.scrap.purity_actual ?? item.scrap.content
 ```
 
 The trailing `?? item.scrap.content` is plainly meant to say "and if we cannot
@@ -6176,7 +6171,7 @@ visible (D46).
 
 **Not fixed, deliberately, and this one is a genuine question rather than
 caution.** Making the fallback work is one line — reject non-finite results
-before the `??`. What it should fall back *to* is the part I should not decide:
+before the `??`. What it should fall back _to_ is the part I should not decide:
 `item.scrap.content` is the **estimated** content, and quietly substituting an
 estimate for a measurement is arguably worse than storing nothing. Refusing the
 write, or leaving the column untouched, may be the right answer instead. That
@@ -6230,7 +6225,7 @@ on. `--strict` makes it CI-ready the moment the two dev rows are cleared.
 ### The sweep it came from
 
 Every arithmetic expression feeding a `??` was checked. The correct pattern —
-guarding each operand *before* the multiplication, `(a ?? 0) * (b ?? 0)` — is
+guarding each operand _before_ the multiplication, `(a ?? 0) * (b ?? 0)` — is
 used consistently in both `calculations.ts` files. **The D47 shape appears only
 on lines 9 and 15 of `features/scrap/repo.js`.** Line 75 of the same file has
 it the right way round: `item.content ?? (item.pre_melt ?? 1) * (item.purity ?? 1)`.
@@ -6248,18 +6243,18 @@ figure. There is no `components/` directory — the 260 are feature components �
 so "0 of 260 covered" remains the honest summary.
 
 **Exactly five files call `.parse()` at runtime**, and all five parse an
-*outgoing checkout payload* rather than an API response:
+_outgoing checkout payload_ rather than an API response:
 
-| file | schema | path |
-|---|---|---|
-| `checkout/purchase-order-checkout/reviewStep/reviewStep.tsx` | `purchaseOrderCheckoutSchema` | customer sells |
-| `checkout/sales-order-checkout/salesOrderCheckout.tsx` | `salesOrderCheckoutSchema` | customer buys |
-| `stripe/ui/SalesOrderStripeForm.tsx` | `salesOrderCheckoutSchema` | customer buys |
-| `stripe/ui/AdminStripeForm.tsx` | `adminSalesOrderCheckoutSchema` | admin |
-| `orders/salesOrders/admin/createSalesOrder/createSalesOrderDrawer.tsx` | `adminSalesOrderCheckoutSchema` | admin |
+| file                                                                   | schema                          | path           |
+| ---------------------------------------------------------------------- | ------------------------------- | -------------- |
+| `checkout/purchase-order-checkout/reviewStep/reviewStep.tsx`           | `purchaseOrderCheckoutSchema`   | customer sells |
+| `checkout/sales-order-checkout/salesOrderCheckout.tsx`                 | `salesOrderCheckoutSchema`      | customer buys  |
+| `stripe/ui/SalesOrderStripeForm.tsx`                                   | `salesOrderCheckoutSchema`      | customer buys  |
+| `stripe/ui/AdminStripeForm.tsx`                                        | `adminSalesOrderCheckoutSchema` | admin          |
+| `orders/salesOrders/admin/createSalesOrder/createSalesOrderDrawer.tsx` | `adminSalesOrderCheckoutSchema` | admin          |
 
 That distinction matters and softens part of the earlier concern: a schema
-validating what the browser is about to *send* **should** be strict, and is not
+validating what the browser is about to _send_ **should** be strict, and is not
 the same hazard as one parsing what the API returns. But the payload is
 assembled from API-supplied data — `{ ...data, items: liveCartItems }`, where
 the cart comes from the server — so an API null in a field the schema requires
@@ -6282,7 +6277,7 @@ with the explanation in a console they will never open.
 **The other four have no `catch` at all, and the app has no error boundary** —
 no `ErrorBoundary`, no `componentDidCatch`, anywhere in `frontend/`.
 
-### And two of those four parse *after* the payment succeeds
+### And two of those four parse _after_ the payment succeeds
 
 `SalesOrderStripeForm.tsx`:
 
@@ -6347,7 +6342,7 @@ effect is that the check aimed at this hazard skips the schemas where the
 hazard costs money.
 
 **They are covered indirectly, and that is where the triggers are.** The
-composites are built from schemas the audit *did* flag:
+composites are built from schemas the audit _did_ flag:
 
 ```
 salesOrderCheckoutSchema      items: z.array(productSchema)          [RUN] requires is_generic
@@ -6363,12 +6358,12 @@ Every one of those columns permits NULL. So a single cart product with a null
 
 **Measured against production: not currently triggerable by nulls.**
 
-| required field | production |
-|---|---|
-| `products.is_generic` | 0 null of 95 |
-| `metals.bid_spot` / `percent_change` / `dollar_change` | 0 null of 4 |
-| `users.name` | 0 null of 75 |
-| `addresses.is_valid` / `is_residential` | 0 null of 73 |
+| required field                                         | production   |
+| ------------------------------------------------------ | ------------ |
+| `products.is_generic`                                  | 0 null of 95 |
+| `metals.bid_spot` / `percent_change` / `dollar_change` | 0 null of 4  |
+| `users.name`                                           | 0 null of 75 |
+| `addresses.is_valid` / `is_residential`                | 0 null of 73 |
 
 So the D49 path is real but its nullability triggers are absent today — the
 same shape as D47: a live mechanism, no damage yet. The columns still permit
@@ -6421,7 +6416,7 @@ explicit assertion.
 The other two are the interesting ones. Both read:
 
 ```js
-if (!absent) return assert.ok(true, "every metal is already quoted on this order");
+if (!absent) return assert.ok(true, 'every metal is already quoted on this order')
 ```
 
 Adding the assertion the detector wanted turned both **red**. `absent` was
@@ -6449,7 +6444,7 @@ checkout payload schemas. **That overstates it, and the correction matters.**
 
 Reading the script rather than its output: it already resolves composition. A
 fixed-point loop walks every `\w+Schema` name inside a schema body and marks it
-parsed-at-runtime if anything embedding it is parsed. That is precisely *why*
+parsed-at-runtime if anything embedding it is parsed. That is precisely _why_
 `productSchema`, `spotPriceSchema` and `userSchema` carry the `RUN` marker —
 they are not parsed directly anywhere, they inherit it from the checkout
 payloads. So the connection D49 asked for was already being made, for the
@@ -6474,7 +6469,7 @@ That is the D49 blast radius in three lines: **16 stricter-than-the-column
 fields reachable from the admin checkout parse, 12 from the customer sales
 checkout, 11 from the purchase checkout** — each one a value that, if it ever
 arrives null from the API, throws inside a `.parse()` that in two of the three
-runs *after* the Stripe charge.
+runs _after_ the Stripe charge.
 
 Note `addressSchema` carries **11** findings, not the two named earlier; the
 earlier figure was the two I happened to quote from the output, not the total.
@@ -6504,13 +6499,13 @@ failure because data now exists that exercises it.
 
 **And there are five of them:**
 
-| order | status | created | in new schema |
-|---|---|---|---|
-| 7866 | Pending | 2026-08-27 | yes |
-| 7880 | Pending | 2026-08-27 | yes |
-| 7894 | Pending | 2026-08-27 | yes |
-| 7908 | Pending | 2026-08-27 | yes |
-| 7922 | Pending | 2026-08-27 | yes |
+| order | status  | created    | in new schema |
+| ----- | ------- | ---------- | ------------- |
+| 7866  | Pending | 2026-08-27 | yes           |
+| 7880  | Pending | 2026-08-27 | yes           |
+| 7894  | Pending | 2026-08-27 | yes           |
+| 7908  | Pending | 2026-08-27 | yes           |
+| 7922  | Pending | 2026-08-27 | yes           |
 
 **Spaced by exactly 14, all created today, all in BOTH schemas.** The suite has
 been run five times tonight. That is one itemless order per run, with the
@@ -6541,10 +6536,10 @@ The signature is narrow: a purchase order with a user, `Pending`, and no items.
 Two candidates eliminated by measurement (`exchange.purchase_orders` total and
 itemless count, before and after, one file at a time):
 
-| file | total/itemless |
-|---|---|
+| file                                       | total/itemless    |
+| ------------------------------------------ | ----------------- |
 | `shipping/shipments/tests/service.test.js` | 21/5 → 21/5 clean |
-| `purchase-orders/service.test.js` | 21/5 → 21/5 clean |
+| `purchase-orders/service.test.js`          | 21/5 → 21/5 clean |
 
 The shipments fixture was the obvious suspect — it inserts a purchase order
 into **both** schemas with the same id, `Pending`, with no items, which is D51's
@@ -6566,7 +6561,7 @@ called exactly **once** per run, not once per test.
 **Method note for whoever continues this.** Measuring
 `exchange.purchase_orders` is the right probe, not `orders.orders` — D46's
 strays inflate the latter and would mask the signal. Count the itemless subset
-too; a test that creates an order *with* items is not this one.
+too; a test that creates an order _with_ items is not this one.
 
 ### D51 — seven candidates eliminated, and the creator is application code
 
@@ -6578,7 +6573,7 @@ All seven order-creating test files measured **21/5 → 21/5, clean**:
 from the previous pass.
 
 **So no test creates these directly.** Searching for the distinctive shape — the
-same id inserted into `exchange.purchase_orders` *and* `orders.orders` — finds
+same id inserted into `exchange.purchase_orders` _and_ `orders.orders` — finds
 exactly one test file (the shipments one, clean) and three pieces of
 **application code**:
 
@@ -6624,7 +6619,7 @@ consecutive itemless orders — which may span several runs, since `nextval`
 counts every attempt from every run.
 
 **"Fires on every run, serialised or not" — not measured either.** I never took
-an `exchange.purchase_orders` count *before* the serialised run. What I observed
+an `exchange.purchase_orders` count _before_ the serialised run. What I observed
 was `orders.orders` holding at 42, which is a different counter and speaks to
 D46's strays, not these. The serialised run may well have leaked nothing.
 
@@ -6655,11 +6650,11 @@ actually measured the thing they claimed.
 
 **A full PARALLEL suite run, counted on both sides:**
 
-| counter | before | after |
-|---|---|---|
-| `exchange.purchase_orders` total / itemless | 21 / 5 | **21 / 5** |
-| `orders.orders` | 42 | **42** |
-| `orders.orders` rows in neither exchange table | 6 | **6** |
+| counter                                        | before | after      |
+| ---------------------------------------------- | ------ | ---------- |
+| `exchange.purchase_orders` total / itemless    | 21 / 5 | **21 / 5** |
+| `orders.orders`                                | 42     | **42**     |
+| `orders.orders` rows in neither exchange table | 6      | **6**      |
 
 **Nothing leaked. Not one row, on either counter, under full parallelism.**
 
@@ -6670,7 +6665,7 @@ serialising avoids it. **The "three per parallel run" was never measured.** I
 derived it from six new-schema-only rows whose `created_at` fell into two
 clusters (06:47:46–56 and 06:52:42–53) and matched those clusters to two runs.
 That is a plausible reading of timestamps, not a before/after count. The
-serialised observation *was* measured (42 → 42) — but a measurement showing no
+serialised observation _was_ measured (42 → 42) — but a measurement showing no
 leak proves nothing about concurrency if the parallel case also shows no leak,
 which is what just happened.
 
@@ -6718,13 +6713,13 @@ the count.
 
 A direct comparison of how each read path renders the five itemless orders:
 
-| order | `repo.next.ts` | `read.service.ts` |
-|---|---|---|
-| 7866 | 1 item, `item_type: "scrap"` | **0 items** |
-| 7880 | 1 item, `item_type: "scrap"` | **0 items** |
-| 7894 | 1 item, `item_type: "scrap"` | **0 items** |
-| 7908 | 1 item, `item_type: "scrap"` | **0 items** |
-| 7922 | 1 item, `item_type: "scrap"` | **0 items** |
+| order | `repo.next.ts`               | `read.service.ts` |
+| ----- | ---------------------------- | ----------------- |
+| 7866  | 1 item, `item_type: "scrap"` | **0 items**       |
+| 7880  | 1 item, `item_type: "scrap"` | **0 items**       |
+| 7894  | 1 item, `item_type: "scrap"` | **0 items**       |
+| 7908  | 1 item, `item_type: "scrap"` | **0 items**       |
+| 7922  | 1 item, `item_type: "scrap"` | **0 items**       |
 
 `repo.next.ts` reproduces the legacy artifact — `json_agg` over a `LEFT JOIN`
 yields one object whose every field is null, and `item_type` is computed as
@@ -6740,8 +6735,8 @@ phantom item fails its count. They are not reporting a defect in the migration �
 they are reporting that **the file the pivot deletes** renders itemless orders
 the way exchange does. The replacement already gets it right.
 
-**The gate.** `verify:orders-decomposition`'s shape comparison is *composed
-query vs read service* — that is `repo.next.ts` against `read.service.ts`. So
+**The gate.** `verify:orders-decomposition`'s shape comparison is _composed
+query vs read service_ — that is `repo.next.ts` against `read.service.ts`. So
 the divergences it lists for those orders are the new path disagreeing with the
 old mirror **in the direction where the new path is correct**. Its other half,
 the comparison against `exchange`, still says "nothing else differs" across 16
@@ -6750,7 +6745,7 @@ orders, which is the half that speaks to the pivot's safety.
 **What follows, and it is the useful part:**
 
 - The pivot does not need the strays deleted to be safe. It needs them deleted
-  to make the *legacy* tests green, which is a different and lesser thing.
+  to make the _legacy_ tests green, which is a different and lesser thing.
 - Six of the gate's 13 divergences would vanish on the pivot itself, because
   `repo.next.ts` goes with it.
 - The remaining declared differences are the 2 NaN rows (D47) and the 4 shipment
@@ -6807,8 +6802,8 @@ entries in `audit:table-owners` and the "one per run" rate in D51.
 `audit:wire-readiness` is the measurement behind half the promotion rule:
 `*_WIRE` moves "when the frontend is ready", and this is the only thing that
 says whether it is. Its SPOTS_WIRE figure had drifted from the 83 recorded in
-CLAUDE.md to 86, and the drift was worth chasing precisely because *nothing in
-the frontend had been touched tonight* — zero frontend files are in the 251
+CLAUDE.md to 86, and the drift was worth chasing precisely because _nothing in
+the frontend had been touched tonight_ — zero frontend files are in the 251
 staged.
 
 **Bisected: all three occurrences came from my own frontend test commits.**
@@ -6822,11 +6817,11 @@ measurement that punishes the work it is supposed to support.
 **Measured split, two independent ways** (the audit's own regex, and a
 `git grep` over the same file set, agreeing exactly):
 
-| switch | counted | product code | test fixtures |
-|---|---|---|---|
-| SPOTS_WIRE | 86 | **76** | 10 |
-| PRODUCTS_WIRE | 124 | **124** | 0 |
-| MEDIA_WIRE | 0 | 0 | 0 |
+| switch        | counted | product code | test fixtures |
+| ------------- | ------- | ------------ | ------------- |
+| SPOTS_WIRE    | 86      | **76**       | 10            |
+| PRODUCTS_WIRE | 124     | **124**      | 0             |
+| MEDIA_WIRE    | 0       | 0            | 0             |
 
 **The verdict does not change** — SPOTS_WIRE is blocked either way, on 76 real
 reads. What changes is that the number is now interpretable.
@@ -6839,7 +6834,7 @@ that is genuinely safe. Nobody would suspect the cause, because the report said
 
 **Fixed by reporting, not by excluding.** Fixtures stay in the headline count —
 a flip really does break them, and that really is work — but the line now reads
-`86 ... (76 in product code, 10 in tests)`, and a switch blocked *only* by
+`86 ... (76 in product code, 10 in tests)`, and a switch blocked _only_ by
 fixtures says so explicitly: `ALL of them test fixtures, none in product code`.
 Conservative default, visible interpretation.
 
@@ -6875,7 +6870,7 @@ changed.
 Read all 23 `audit:vacuous-tests` LOOP findings one at a time rather than
 dismissing the class. Most are false positives of one consistent kind — the
 detector cannot see a `deepEqual` against a literal in the same test, nor a
-floor asserted in a *sibling* test — but **six were real**, and they cluster
+floor asserted in a _sibling_ test — but **six were real**, and they cluster
 exactly where it matters.
 
 **`features/sales-orders/repo.next.test.js` — three tests, no floor.**
@@ -6895,15 +6890,16 @@ were needed — three green ticks over zero assertions.
 buy and `sell_display` what they may sell. An empty list passes all three loops.
 
 **Three more, layered:**
+
 - `shipping/operations/resolver.test.js:83` — the chain bottoms out here. An
-  empty `PROVIDERS`/`BUILDERS` is caught *only* by this test, and only if
+  empty `PROVIDERS`/`BUILDERS` is caught _only_ by this test, and only if
   `getAllCarriers()` returns something. Nothing asserted that it did, so all
   three resolver tests could pass having checked nothing. (`:186`/`:197` are
   themselves false positives — the preceding test asserts
   `dispatched(...).length >= 9` with a comment naming this very hazard. The
   author saw it; the detector cannot see across tests.)
 - `places/addresses/tests/service.test.js:300` — `nx` empty means neither
-  address write landed, which *is* the thing under test. Now `>= 2`.
+  address write landed, which _is_ the thing under test. Now `>= 2`.
 - `shipping/services/tests/unit.test.ts:121` — an empty `RENAMES` passes every
   alias check.
 
@@ -7056,6 +7052,7 @@ it can happen on the one schema where it would matter most. Runs clean,
 **TRUE_EXIT=0**.
 
 Two process notes:
+
 - `audit:nullability` defaults to **production**, not dev. Worth knowing before
   reading its output as a dev report.
 - Its first exit code read as 1 because I piped it to `head`, which closes the
@@ -7079,12 +7076,12 @@ agreeing is not a nicety — it is whether the screen adds up.
 
 **The scrap premium, three ways:**
 
-| function | premium rule |
-|---|---|
-| `getPurchaseOrderScrapPrice` | `item.premium ?? scrap.bid_premium ?? 1` |
-| `purchaseOrderScrapTotal` | `item.premium ?? 1` |
-| `purchaseOrderTotal` (scrap branch) | `item.premium ?? 1` |
-| `getPurchaseOrderItemPrice` | `item.premium ?? product.bid_premium ?? scrap.bid_premium ?? 1` |
+| function                            | premium rule                                                    |
+| ----------------------------------- | --------------------------------------------------------------- |
+| `getPurchaseOrderScrapPrice`        | `item.premium ?? scrap.bid_premium ?? 1`                        |
+| `purchaseOrderScrapTotal`           | `item.premium ?? 1`                                             |
+| `purchaseOrderTotal` (scrap branch) | `item.premium ?? 1`                                             |
+| `getPurchaseOrderItemPrice`         | `item.premium ?? product.bid_premium ?? scrap.bid_premium ?? 1` |
 
 **Both total functions never look at `scrap.bid_premium` at all.** For a scrap
 line with a `bid_premium` and no explicit `premium` — what a line looks like
@@ -7161,13 +7158,13 @@ asked. A filename convention is not coverage.
 
 **The genuinely untested five, and what each is worth:**
 
-| module | verdict |
-|---|---|
-| `features/addresses/utils/places.ts` | **tested this tick — 17 tests** |
-| `features/addresses/utils/form.ts` | thin `react-hook-form` setValue wrapper; testable with a fake form, low yield |
-| `features/shipping/utils/getRatesInput.ts` | a React hook calling `useMemo` — needs a renderer, and **a renderer is the harness decision that is Jacob's, not mine** |
-| `shared/utils/cn.ts` | three lines wrapping `clsx` + `twMerge`; a test here tests those libraries |
-| `features/orders/purchaseOrders/utils/calculatePurchaseOrder.ts` | **a 0-byte file** |
+| module                                                           | verdict                                                                                                                 |
+| ---------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| `features/addresses/utils/places.ts`                             | **tested this tick — 17 tests**                                                                                         |
+| `features/addresses/utils/form.ts`                               | thin `react-hook-form` setValue wrapper; testable with a fake form, low yield                                           |
+| `features/shipping/utils/getRatesInput.ts`                       | a React hook calling `useMemo` — needs a renderer, and **a renderer is the harness decision that is Jacob's, not mine** |
+| `shared/utils/cn.ts`                                             | three lines wrapping `clsx` + `twMerge`; a test here tests those libraries                                              |
+| `features/orders/purchaseOrders/utils/calculatePurchaseOrder.ts` | **a 0-byte file**                                                                                                       |
 
 ### `calculatePurchaseOrder.ts` is empty and always has been
 
@@ -7176,7 +7173,7 @@ Zero bytes, **imported by nothing** (verified: no import of it anywhere in
 present since `ff6320e2`, the workspace conversion.
 
 **Not deleted** — that is Jacob's call and there is no urgency. But it sits in a
-folder with five real pricing functions, under a name that reads as *the* place
+folder with five real pricing functions, under a name that reads as _the_ place
 the purchase-order calculation lives, which is a trap for the next person
 looking for D59's logic.
 
@@ -7267,7 +7264,7 @@ the direction of the business overpaying**. Tiny per order and not a crisis at
 ### What this is and is not
 
 - **Not a migration defect.** Nothing here was introduced by the 89 migrations;
-  `exchange` has been this way throughout, and the migration work *fixed* the
+  `exchange` has been this way throughout, and the migration work _fixed_ the
   target half.
 - **Not something any audit was ever going to catch.** `audit:precision` is
   source-driven by design; `audit:non-finite` asks about NaN, not scale;
@@ -7347,16 +7344,16 @@ Changing dev's schema breaks `000_genesis_schema.sql`, and I would have left the
 tree worse than I found it by stopping at the migration. Full sequence, each
 step verified:
 
-| step | result |
-|---|---|
-| `pnpm migrate` | applied 084, **`database: dev`** |
-| `pnpm lint:migrations` | passed, 90 files, no destructive writes to `exchange` |
-| `audit:query-paths` | **exit 1 → exit 0** |
-| `verify:genesis` | **exit 1**, naming the one stale line |
-| `pnpm dump:schema` | regenerated, 3242 lines |
-| genesis diff | **exactly one line added — mine, nothing else drifted** |
-| `verify:genesis` | **exit 0**, "identical to dev, and the committed genesis matches" |
-| `audit:indexes`, `audit:coverage` | still 0 |
+| step                              | result                                                            |
+| --------------------------------- | ----------------------------------------------------------------- |
+| `pnpm migrate`                    | applied 084, **`database: dev`**                                  |
+| `pnpm lint:migrations`            | passed, 90 files, no destructive writes to `exchange`             |
+| `audit:query-paths`               | **exit 1 → exit 0**                                               |
+| `verify:genesis`                  | **exit 1**, naming the one stale line                             |
+| `pnpm dump:schema`                | regenerated, 3242 lines                                           |
+| genesis diff                      | **exactly one line added — mine, nothing else drifted**           |
+| `verify:genesis`                  | **exit 0**, "identical to dev, and the committed genesis matches" |
+| `audit:indexes`, `audit:coverage` | still 0                                                           |
 
 The one-line diff is worth its own note: it confirms genesis was in sync before I
 touched it, so nothing else in dev had quietly drifted.
@@ -7375,15 +7372,15 @@ denominator of **137 NOT NULL columns in the source, 163 with a counterpart**:
 - **27 constraints that promotion would drop**, and
 - **7 of 15 unique indexes without an exact counterpart**, with the sharp note
   that `orders.orders(direction, number)` does not restore
-  `exchange.purchase_orders(order_number)` — *"WIDER is not the same as equal."*
+  `exchange.purchase_orders(order_number)` — _"WIDER is not the same as equal."_
 
-Its own closing line is exactly right: *"That is not automatically wrong — some
+Its own closing line is exactly right: _"That is not automatically wrong — some
 columns are deliberately optional in the new model — but each one should be a
-decision rather than an accident."*
+decision rather than an accident."_
 
 **There is nowhere to record that decision.** `audit:indexes` and
 `audit:query-paths` each carry an `ACCEPTED` map, pinned from both sides so a new
-gap fails *and* a stale entry fails, and both are members of `pnpm check`.
+gap fails _and_ a stale entry fails, and both are members of `pnpm check`.
 `audit:constraints` has **neither** — no accept mechanism, and it is not in the
 gate. So 27 items that "should be a decision" are re-read from scratch by
 whoever looks next, and nothing notices if the list changes.
@@ -7447,7 +7444,7 @@ aggregate over the whole table hides that completely.**
 `pnpm check` completed. **`CHECK_EXIT=1`.**
 
 **First, a trap worth recording:** the harness's task notification said
-*"completed (exit code 0)"*. That is the exit of the compound command's trailing
+_"completed (exit code 0)"_. That is the exit of the compound command's trailing
 `echo`, not of `pnpm check`. The real code was in the file, as `CHECK_EXIT=1`.
 Had I trusted the notification I would have reported the first green build of
 the session, and it is red.
@@ -7533,7 +7530,7 @@ Ran the three gate members that had never executed in any context this session.
 - `frontend typecheck` — **exit 0**
 - `audit:switches` — **exit 0**; 10 switches (3 `*_SOURCE`, 7 `*_WIRE`), all unset
   at their defaults, which independently confirms the switch floor of 3
-- **`validate:wire` — EXIT 1.** *23 endpoint shapes match, 4 diverge.*
+- **`validate:wire` — EXIT 1.** _23 endpoint shapes match, 4 diverge._
 
 So D64's `api test` failure was **not** the only thing wrong: `validate:wire` is
 gate member 14 and would have failed too. Anyone who fixed the six D53 tests and
@@ -7547,6 +7544,7 @@ re-ran `pnpm check` expecting green would have hit this next.
 `"scrap"|"product"`, `confirmed` null. Same rows, same cause as the six failures.
 
 **New, and `[next]`-only:**
+
 - `pool_remediation` and `pool_oz_deducted` null ×5 — both members of the
   `AMOUNTS` closed set I built `setAmount` over. The exchange path supplies a
   value; the new path returns null and the contract wants a number.
@@ -7558,7 +7556,7 @@ re-ran `pnpm check` expecting green would have hit this next.
 ### The one worth the most: a NaN changes JavaScript type depending on the read path
 
 `2x scrap.content_actual: expected number, received string`, on `[next]` only.
-A numeric arriving as a *string* is the failure mode CLAUDE.md warns about for
+A numeric arriving as a _string_ is the failure mode CLAUDE.md warns about for
 the `db.js` parsers — but that would affect every row, not two. Measured
 instead:
 
@@ -7575,7 +7573,7 @@ The counts line up exactly: `refiners.items` holds **2** rows with
 `content = 'NaN'`, `exchange.scrap` holds **0**, and `validate:wire` reports
 exactly **2**, only on `next`. (The step I am inferring rather than proving is
 that `refiners.items.content` is what surfaces as the composed
-`scrap.content_actual` — the refiner's assay being the *actual* recovered
+`scrap.content_actual` — the refiner's assay being the _actual_ recovered
 content. The counts and the path-exclusivity both fit.)
 
 **This closes a chain across four findings.** D47 found the `??` fallback on the
@@ -7676,7 +7674,7 @@ reads come from the new schema in the legacy shape, and the shape is verified.
 **Measured, not argued:**
 
 - **Full API suite under `CHECKOUT_SOURCE=dual PURCHASE_ORDERS_SOURCE=dual
-  PAYMENTS_SOURCE=dual`: 859/859, zero failures.** Every replay test drove real
+PAYMENTS_SOURCE=dual`: 859/859, zero failures.** Every replay test drove real
   HTTP through routes -> services -> dual writes -> both schemas, and every
   response stayed byte-compatible with the wire.
 - **The switch selection was proven, not assumed**: a probe printed
@@ -8101,6 +8099,7 @@ family survive until the admin create drawer and the order drawers convert
 (slice c).
 
 FOR JACOB, three display-behavior calls preserved or created tonight:
+
 1. itemTable's fee expression `- (shippingCost ?? 0 + paymentCost)` binds
    as `shippingCost ?? (0 + paymentCost)` - the payout fee is silently NOT
    subtracted whenever shippingCost is set. Preserved verbatim: fixing it
@@ -8171,17 +8170,17 @@ the services hand them (item.product.product_name, address.name). They
 convert in the same series or refiner emails render blank fields.
 
 **Slices** (each render-tests-first, gated, committed):
-  c2. Contracts: the Next shapes stated/derived + validate:wire wired
-      bothWays-style against both READ paths (repo switch still exists).
-  c3. API: read services compose to Next; renderers/PDF sections
-      convert; replay tests convert.
-  c4. Frontend: 48 consumer files - tsc-position-driven renames off the
-      types flip, fixtures WITH components, seam trio deleted; render
-      pins for the two user drawers + admin drawers FIRST.
-  c5. Retirements: contracts legacy family + legacy-shape.ts + a
-      -WireNext -> plain-name rename pass across contracts (the
-      post-conversion cleanup Jacob asked about, done here where the
-      last consumer moves).
+c2. Contracts: the Next shapes stated/derived + validate:wire wired
+bothWays-style against both READ paths (repo switch still exists).
+c3. API: read services compose to Next; renderers/PDF sections
+convert; replay tests convert.
+c4. Frontend: 48 consumer files - tsc-position-driven renames off the
+types flip, fixtures WITH components, seam trio deleted; render
+pins for the two user drawers + admin drawers FIRST.
+c5. Retirements: contracts legacy family + legacy-shape.ts + a
+-WireNext -> plain-name rename pass across contracts (the
+post-conversion cleanup Jacob asked about, done here where the
+last consumer moves).
 
 **Blocked/parked**: the PO READ pivot (repo.next deletion) stays behind
 the damaged-shipments ruling - unrelated to the wire shape. The
@@ -8371,13 +8370,13 @@ with ONE invalidation policy replacing the 13-mutation zoo.
    orders.transactions is a table or a view/derivation. A note, not a
    plan.
 
-7. ORDERS.TRANSACTIONS MAY NOT NEED TO EXIST (Jacob, deferred): most of
+8. ORDERS.TRANSACTIONS MAY NOT NEED TO EXIST (Jacob, deferred): most of
    what it records may be derivable from payments + the dorado-funds
    ledger. Not touched now - the order wire's totals composes from it -
    but revisit as table-or-derivation when payments/ledger settle. A
    note, not a plan.
 
-8. FULL REWRITE (Jacob): "I no longer care about ANY of the legacy code.
+9. FULL REWRITE (Jacob): "I no longer care about ANY of the legacy code.
    I only care about the legacy table, which we have in place." Exchange
    TABLES sacred, dual-writes continue; legacy READ paths, repo switches,
    bothWays machinery are disposable - delete as you go, READS INCLUDED
@@ -8390,18 +8389,18 @@ with ONE invalidation policy replacing the 13-mutation zoo.
    /api/orders (the direction-split routes are legacy vocabulary);
    service restructuring explicitly authorized.
 
-9. RESOURCE READS RETURN THE BARE RESOURCE (Jacob): components never read
-   order.shipment or any embedded slot - a shipment is fetched by order id
-   (server walks order -> fulfillments -> method link -> shipment) and
-   comes back as ITSELF. "That's how prop drilling gets messy and awful."
-   GET /orders/:id/fulfillment lands in the D87 series as the target; the
-   order wire keeps its embedded slots until the NEXT series slims it and
-   converts every drawer reader (same pass as AccordionTable adoption +
-   the drawers-to-resource-reads rebuild). The fulfillments chain itself
-   is honored per the ninth delta: shipments lose their direct order_id
-   (seed-then-drop after the linkage verifies).
+10. RESOURCE READS RETURN THE BARE RESOURCE (Jacob): components never read
+    order.shipment or any embedded slot - a shipment is fetched by order id
+    (server walks order -> fulfillments -> method link -> shipment) and
+    comes back as ITSELF. "That's how prop drilling gets messy and awful."
+    GET /orders/:id/fulfillment lands in the D87 series as the target; the
+    order wire keeps its embedded slots until the NEXT series slims it and
+    converts every drawer reader (same pass as AccordionTable adoption +
+    the drawers-to-resource-reads rebuild). The fulfillments chain itself
+    is honored per the ninth delta: shipments lose their direct order_id
+    (seed-then-drop after the linkage verifies).
 
-10. IDS IN, DATA OUT (Jacob, the general rule): the frontend sends IDs -
+11. IDS IN, DATA OUT (Jacob, the general rule): the frontend sends IDs -
     plus genuine user input (form data, inputs) - and gets data back. The
     client never round-trips composed/derived objects to the server.
     This generalizes the $26.81 stance (never prices), the dead accept
@@ -8464,13 +8463,13 @@ rendering.
     projections. Prune what the frontend sees LATER (the app has zero
     active customers). ONE deviation class only: SECURITY, non-negotiable
     - payout routing/account numbers and auth tokens/secrets never go on
-    the wire regardless. NO join carve-out (tightened same session): "we
-    shouldn't let UI dictate the API. The frontend can make do" - no
-    scalar joined onto a row (mint_name dies); the frontend maps ids
-    against cached reference reads (GET /mints etc.). Chain-resolving
-    reads returning whole bare rows (orders/:id/fulfillment) survive as
-    resolution, not shape. Extra columns riding along is fine; removing
-    one later is a delete, not a redesign.
+      the wire regardless. NO join carve-out (tightened same session): "we
+      shouldn't let UI dictate the API. The frontend can make do" - no
+      scalar joined onto a row (mint_name dies); the frontend maps ids
+      against cached reference reads (GET /mints etc.). Chain-resolving
+      reads returning whole bare rows (orders/:id/fulfillment) survive as
+      resolution, not shape. Extra columns riding along is fine; removing
+      one later is a delete, not a redesign.
 
 13. FULFILLMENT READS LIVE WITH FULFILLMENTS (Jacob): the chain-resolving
     read is GET /api/fulfillments/by-order/:orderId, owned by the
@@ -8564,10 +8563,10 @@ in the WHERE clause, not by nesting in the response.
     the frontend maps ids against.
 
 14. CONTAINER / PRESENTATIONAL (Jacob, standing, all frontend work from
-    now): parents hold state - a hook, a fetch, a form - and inject it
-    into children as PROPS; the child is presentational, takes no hooks
-    and fetches nothing, and can therefore be rendered in isolation.
-    "Aiming for component reusability."
+now): parents hold state - a hook, a fetch, a form - and inject it
+into children as PROPS; the child is presentational, takes no hooks
+and fetches nothing, and can therefore be rendered in isolation.
+"Aiming for component reusability."
 
     THIS DOES NOT CONTRADICT the no-prop-drilling ruling, and the
     difference is WHERE THE CONTAINER SITS. Drilling is threading data
@@ -8589,22 +8588,22 @@ in the WHERE clause, not by nesting in the response.
 
 === D90: THE STYLING PROGRAM (Jacob's plan, 2026-08-28 night) ===
 Eight workstreams, functionality-neutral by construction:
-  (a) kill custom CSS - inset shadows, glassmorphism, gradients,
-      animations - AT THE CALL SITES TOO, not just the stylesheets.
-  (b) centralize typography: semantic tags (h1-h6/p/a/...) carry
-      weight/size/color from theme.css; call sites converge on them.
-      Where a tag swap is impossible -> RUNBOOK for manual verification.
-  (c) LIGHT MODE DIES. White text on dark/black, Linear.app-style.
-      Token NAMES stay (bg-primary et al) - only VALUES change; raw hex
-      call sites move to theme tokens.
-  (d) standard rounding + border colors from theme.css.
-  (e) div soup -> semantic HTML.
-  (f) standard padding/margin as TOKENS (p-small/p-medium/p-large),
-      not ad-hoc p-N/m-N everywhere.
-  (g) standard surfaces (background/card) - mostly in place, needs a
-      lift after the black-and-white flip.
-  (h) shared components look the SAME everywhere: strip per-call-site
-      style overrides; components may need the new semantic typography.
+(a) kill custom CSS - inset shadows, glassmorphism, gradients,
+animations - AT THE CALL SITES TOO, not just the stylesheets.
+(b) centralize typography: semantic tags (h1-h6/p/a/...) carry
+weight/size/color from theme.css; call sites converge on them.
+Where a tag swap is impossible -> RUNBOOK for manual verification.
+(c) LIGHT MODE DIES. White text on dark/black, Linear.app-style.
+Token NAMES stay (bg-primary et al) - only VALUES change; raw hex
+call sites move to theme tokens.
+(d) standard rounding + border colors from theme.css.
+(e) div soup -> semantic HTML.
+(f) standard padding/margin as TOKENS (p-small/p-medium/p-large),
+not ad-hoc p-N/m-N everywhere.
+(g) standard surfaces (background/card) - mostly in place, needs a
+lift after the black-and-white flip.
+(h) shared components look the SAME everywhere: strip per-call-site
+style overrides; components may need the new semantic typography.
 Measured surface at dispatch: 258 .tsx; 1082 text-size utilities in 169
 files; 1080 p-/m- utilities; 1834 <div> vs 94 <h1-6>; 276 rounded-*;
 47 files touching glass; 37 dark: variants; 36 raw hex in 8 files; 12
@@ -8635,7 +8634,7 @@ deletion is the last step, not the first.
     every send; recording is not sending.
 
 === D91: THE ORDER CONFIRMATION EMAIL IS SENT BY THE BROWSER, FROM THE
-    BROWSER'S OWN COPY OF THE ORDER ===
+BROWSER'S OWN COPY OF THE ORDER ===
 Found while grounding ruling 15. Of the four senders, three are exactly
 where they should be (auth verification, supplier send behind the
 explicit admin op, priced email uncalled - which ruling 15 now makes
@@ -8644,28 +8643,29 @@ correct on purpose). The fourth is not.
 POST /emails/purchase_order_created, and the trigger is
 frontend/features/orders/purchaseOrders/users/queries.ts:85 - the
 create mutation's onSuccess. THREE PROBLEMS, each a standing ruling:
- 1. RULING 10 (ids in, data out): the body is the WHOLE composed order
+
+1.  RULING 10 (ids in, data out): the body is the WHOLE composed order
     plus spotPrices, packageDetails and payoutDetails. The email's
     content comes from the browser. This is the PDF/email-body
     violation already queued, now with a named worst case: the
     confirmation a customer receives is rendered from data the client
     supplied.
- 2. RELIABILITY: it is an await in onSuccess wrapped in a try/catch
+2.  RELIABILITY: it is an await in onSuccess wrapped in a try/catch
     that only console.errors. Close the tab, lose the network, get a
     500 - no email, no record, no retry, nobody told. Same SHAPE as
     D49 (Stripe confirms, then a client-side step can fail silently),
     on the same checkout path.
- 3. IT READS SLOTS WAVE 3 DELETES - purchaseOrder.shipment.package and
+3.  IT READS SLOTS WAVE 3 DELETES - purchaseOrder.shipment.package and
     purchaseOrder.payout.method. The composed order wire is going away,
     so this breaks in wave 3 regardless. Fixing it is not optional
     extra scope; it is on the critical path.
-FIX (wave 3): the server sends it at order creation, after commit,
-keyed by order_id, rendering from its own read - which also honors the
-transaction rule (email is irreversible, so it goes AFTER the commit,
-never inside it). The route dies with the frontend call.
+    FIX (wave 3): the server sends it at order creation, after commit,
+    keyed by order_id, rendering from its own read - which also honors the
+    transaction rule (email is irreversible, so it goes AFTER the commit,
+    never inside it). The route dies with the frontend call.
 
 === D92: THE PALETTE FLIP MAKES 52 CTAs INVISIBLE - PALETTE AND
-    CALL-SITE FIX MUST SHIP IN ONE COMMIT ===
+CALL-SITE FIX MUST SHIP IN ONE COMMIT ===
 Found by the inventory agent mid-survey, VERIFIED by the coordinator
 against the files: theme.css now sets --primary: hsl(0,0%,98%) (the
 gold moved to --brand), and 52 lines across 39 .tsx files put
@@ -8693,58 +8693,59 @@ rendered - predates the sweep, gets fixed by it.
 From the inventory (frontend/app/styles/STYLING-INVENTORY.md, 1082
 lines). The counts Jacob and I worked from were close but three were
 materially wrong, and the corrections change the plan:
- - SPACING IS 1815, NOT 1080 - 735 gap-/space- utilities went
-   uncounted, and gap-1 + gap-2 alone are 392.
- - text-* is 2816 occurrences of which 239 ARE ALIGNMENT
-   (text-left/center/right). A naive size-sweep regex destroys them.
- - `raised-off-page` is in 71 of 258 files - removing it is not a
-   local change.
- - rounded is 292 not 276 (16 are the bare `rounded`); raw hex is 62
-   occurrences on 40 lines, not 36; dark: is 38 and 29 are Footer.tsx.
- - (e) DIV SOUP: only 320 of 1834 divs have a semantic answer (17%) -
-   269 text-leaf divs, 30 .map() roots, 10 missing <main>, 11
-   clickable divs. The other 1514 stay divs. The 269 are THE SAME
-   ELEMENTS as (b)'s convertible divs, so (b) AND (e) MUST RUN IN THE
-   SAME PASS PER FILE or the same lines get touched twice.
- - (b) TYPOGRAPHY: of 931 elements carrying a text size only 262 sit
-   on a semantic tag; 669 NEED A HUMAN (150 wrapper divs styling by
-   inheritance, 63 inline spans, 49 labels, 47 buttons, 109 responsive
-   pairs, 62 runtime-conditional classes, 4 cross-origin - Stripe
-   Elements renders in an IFRAME and cannot see theme.css, ON THE
-   MONEY PATH).
- - (h) IS A DESIGN QUESTION, NOT A SWEEP: 684 of 1040 shared/ui call
-   sites override styling, 422 of them appearance. Button is 185
-   overrides on 190 call sites - either the six variants are wrong or
-   the call sites are, and deleting 185 classNames without fixing the
-   variants FLATTENS EVERY BUTTON IN THE APP. Jacob's call.
- - SelectMenu has ZERO call sites (written, adopted nowhere) - confirm
-   the deferral is intended.
- - Cleanest available win: all five StatusChip call sites pass a
-   different text size, and the component's own comment admits it.
-PARTITION (disjoint, from the inventory): P0 foundation serial+alone
-(shared/ui/**, styles half done) containing P0.0 the white-on-white
-fix which crosses every partition; then parallel P1 commerce (1201),
-P2 checkout+identity (1183), P3 shell+admin-lite (1344); P4 HELD BACK
-= orders, payouts, shipping, refiners, fulfillments (1447, 25% of the
-total, every file hot with wave 3).
+
+- SPACING IS 1815, NOT 1080 - 735 gap-/space- utilities went
+  uncounted, and gap-1 + gap-2 alone are 392.
+- text-* is 2816 occurrences of which 239 ARE ALIGNMENT
+  (text-left/center/right). A naive size-sweep regex destroys them.
+- `raised-off-page` is in 71 of 258 files - removing it is not a
+  local change.
+- rounded is 292 not 276 (16 are the bare `rounded`); raw hex is 62
+  occurrences on 40 lines, not 36; dark: is 38 and 29 are Footer.tsx.
+- (e) DIV SOUP: only 320 of 1834 divs have a semantic answer (17%) -
+  269 text-leaf divs, 30 .map() roots, 10 missing <main>, 11
+  clickable divs. The other 1514 stay divs. The 269 are THE SAME
+  ELEMENTS as (b)'s convertible divs, so (b) AND (e) MUST RUN IN THE
+  SAME PASS PER FILE or the same lines get touched twice.
+- (b) TYPOGRAPHY: of 931 elements carrying a text size only 262 sit
+  on a semantic tag; 669 NEED A HUMAN (150 wrapper divs styling by
+  inheritance, 63 inline spans, 49 labels, 47 buttons, 109 responsive
+  pairs, 62 runtime-conditional classes, 4 cross-origin - Stripe
+  Elements renders in an IFRAME and cannot see theme.css, ON THE
+  MONEY PATH).
+- (h) IS A DESIGN QUESTION, NOT A SWEEP: 684 of 1040 shared/ui call
+  sites override styling, 422 of them appearance. Button is 185
+  overrides on 190 call sites - either the six variants are wrong or
+  the call sites are, and deleting 185 classNames without fixing the
+  variants FLATTENS EVERY BUTTON IN THE APP. Jacob's call.
+- SelectMenu has ZERO call sites (written, adopted nowhere) - confirm
+  the deferral is intended.
+- Cleanest available win: all five StatusChip call sites pass a
+  different text size, and the component's own comment admits it.
+  PARTITION (disjoint, from the inventory): P0 foundation serial+alone
+  (shared/ui/**, styles half done) containing P0.0 the white-on-white
+  fix which crosses every partition; then parallel P1 commerce (1201),
+  P2 checkout+identity (1183), P3 shell+admin-lite (1344); P4 HELD BACK
+  = orders, payouts, shipping, refiners, fulfillments (1447, 25% of the
+  total, every file hot with wave 3).
 
 === D94: THE API SUITE IS ~20x ITS DOCUMENTED WALL CLOCK - WAVE 3 ===
 Jacob: "those slow tests are problems. Add that to the list to fix in
 wave 3." Measured on the wave-2 gate run: the suite took ~18 minutes
 against the ~120s baseline shared/testing/locks.ts documents, 890 tests
 green throughout. THE SLOWEST TWELVE:
-  467.6s  both paths record the same line, same weights, same premium
-  436.7s  createNewItem derives content from weight and purity
-  424.9s  a scrap line carries its values inline and has no bullion
-  413.5s  getCart returns the wire shape the frontend reads
-  374.5s  the bullion field writes the line's quantity
-  343.9s  POST :id/items adds a scrap line and its scrap row
-  298.3s  ensureSellCart is idempotent too
-  256.3s  the new schema keeps the weights on the item, not behind a join
-  218.7s  finalize + label in one document equals finalize then label
-  206.8s  a sell cart lands under the purchase direction, not the sale
-  195.6s  an order that does not exist is refused before anything runs
-  195.3s  the list is refused to anonymous; a customer sees only their own
+467.6s both paths record the same line, same weights, same premium
+436.7s createNewItem derives content from weight and purity
+424.9s a scrap line carries its values inline and has no bullion
+413.5s getCart returns the wire shape the frontend reads
+374.5s the bullion field writes the line's quantity
+343.9s POST :id/items adds a scrap line and its scrap row
+298.3s ensureSellCart is idempotent too
+256.3s the new schema keeps the weights on the item, not behind a join
+218.7s finalize + label in one document equals finalize then label
+206.8s a sell cart lands under the purchase direction, not the sale
+195.6s an order that does not exist is refused before anything runs
+195.3s the list is refused to anonymous; a customer sees only their own
 THE LAST TWO ARE THE DIAGNOSIS. "An order that does not exist is refused
 before anything runs" asserts a 404 and touches nothing - 195 seconds of
 that is PURE LOCK WAIT, not work. So the wall clock is queueing, and the
@@ -8869,13 +8870,13 @@ is empty or genuinely accepted.
     classNames."
     ALLOWED at a call site: flex/grid, gap, padding/margin, width/
     height/size, position, order, alignment, responsive layout.
-    NOT ALLOWED: bg-*, text-* colour, text-<size>, font-*, border-*,
-    rounded-*, shadow-*, hover:/focus: appearance, opacity, transition.
+    NOT ALLOWED: bg-_, text-_ colour, text-<size>, font-_, border-_,
+    rounded-_, shadow-_, hover:/focus: appearance, opacity, transition.
     Those belong to the component's variants or to the semantic tag's
     typography in theme.css.
     THE EVIDENCE THAT SETTLED IT, from the Button Jacob pasted:
-      "gap-1 bg-primary hover:bg-primary text-primary-foreground
-       hover:text-primary-foreground raised-off-page text-sm sm:text-base"
+    "gap-1 bg-primary hover:bg-primary text-primary-foreground
+    hover:text-primary-foreground raised-off-page text-sm sm:text-base"
     That call site re-asserts the default primary appearance AND
     CANCELS ITS OWN HOVER (hover:bg-primary set to the same value),
     adds a shadow ruling 16 deletes, and hand-rolls a responsive type
@@ -8888,7 +8889,7 @@ is empty or genuinely accepted.
     responsive type step too - `text-sm sm:text-base` belongs in the
     size, not at 190 call sites.
     A SECOND EXAMPLE FROM JACOB, a different and worse failure:
-      <Button variant="secondary" className="raised-off-page bg-primary
+    <Button variant="secondary" className="raised-off-page bg-primary
        text-primary-foreground hover:text-primary-foreground px-10">
     It DECLARES secondary and then PAINTS IT PRIMARY. The variant prop
     is decorative - the call site asks for one thing and overrides it
@@ -8923,41 +8924,41 @@ is empty or genuinely accepted.
     override when you come across it."
     MY ORDERING WAS WRONG and this replaces it. Three phases, no phase
     starting before the previous completes:
-      1. FOUNDATION COMPLETE - theme.css + typography.css: full scale on
-         every semantic tag, the ruling-19 Linear tuning, spacing tokens
-         (1815 utilities, not 1080), radius, borders, surfaces. Done
-         means the tokens can express EVERY appearance the app needs -
-         otherwise the sweep invents one-offs.
-      2. SHARED COMPONENTS GET VARIANTS - all of shared/ui, hover and
-         focus included, typography from the semantic scale. INCLUDING
-         COMPONENTS THAT DO NOT EXIST YET: Jacob's example
-           <span className="flex ml-auto h-5 min-w-5 items-center
-            justify-center rounded-full bg-primary px-1 text-[10px]
-            font-medium text-white">
-         is a COUNT BADGE hand-rolled inline. The fix is not recolouring
-         it; it is that this should be a component. RULE: the same
-         inline appearance pattern seen 3+ times IS A MISSING COMPONENT.
-         Note `text-[10px]` too - arbitrary-value utilities are SCALE
-         GAPS; grep text-[ / bg-[ / w-[ and treat each as one.
-      3. THE SWEEP, file by file, ALL EIGHT WORKSTREAMS PER FILE AT ONCE
-         (D93: (b) and (e) must share a pass or the same lines get
-         touched twice).
-    NEW TOOL, built to make this measurable rather than asserted:
-    `frontend/scripts/lint-call-site-styling.mjs` (pnpm --filter
-    @dorado/frontend lint:call-site-styling, plus --json and
-    --self-test). Walks every .tsx importing shared/ui and reports
-    appearance classes at call sites, split into CONTRADICTED (a variant
-    prop overridden - the variant is decorative there) and
-    OVER-SPECIFIED (no variant; flags self-cancelling hovers), ranked BY
-    COMPONENT so the top names the missing variant set. FIRST RUN: 143
-    files, 555 call sites with a className, 98 CONTRADICTED. Does not
-    flag padding (the size variant's job, and it cannot tell which
-    components have sizes) or text-left/center/right (239 alignment
-    classes a naive regex would destroy). Not in `pnpm check` while the
-    sweep is outstanding; exits non-zero by design, like
-    audit:slow-tests and audit:enum-domains. The number must FALL as the
-    sweep proceeds - that is how the sweep gets proven instead of
-    claimed.
+    1. FOUNDATION COMPLETE - theme.css + typography.css: full scale on
+       every semantic tag, the ruling-19 Linear tuning, spacing tokens
+       (1815 utilities, not 1080), radius, borders, surfaces. Done
+       means the tokens can express EVERY appearance the app needs -
+       otherwise the sweep invents one-offs.
+    2. SHARED COMPONENTS GET VARIANTS - all of shared/ui, hover and
+       focus included, typography from the semantic scale. INCLUDING
+       COMPONENTS THAT DO NOT EXIST YET: Jacob's example
+       <span className="flex ml-auto h-5 min-w-5 items-center
+          justify-center rounded-full bg-primary px-1 text-[10px]
+          font-medium text-white">
+       is a COUNT BADGE hand-rolled inline. The fix is not recolouring
+       it; it is that this should be a component. RULE: the same
+       inline appearance pattern seen 3+ times IS A MISSING COMPONENT.
+       Note `text-[10px]` too - arbitrary-value utilities are SCALE
+       GAPS; grep text-[ / bg-[ / w-[ and treat each as one.
+    3. THE SWEEP, file by file, ALL EIGHT WORKSTREAMS PER FILE AT ONCE
+       (D93: (b) and (e) must share a pass or the same lines get
+       touched twice).
+       NEW TOOL, built to make this measurable rather than asserted:
+       `frontend/scripts/lint-call-site-styling.mjs` (pnpm --filter
+       @dorado/frontend lint:call-site-styling, plus --json and
+       --self-test). Walks every .tsx importing shared/ui and reports
+       appearance classes at call sites, split into CONTRADICTED (a variant
+       prop overridden - the variant is decorative there) and
+       OVER-SPECIFIED (no variant; flags self-cancelling hovers), ranked BY
+       COMPONENT so the top names the missing variant set. FIRST RUN: 143
+       files, 555 call sites with a className, 98 CONTRADICTED. Does not
+       flag padding (the size variant's job, and it cannot tell which
+       components have sizes) or text-left/center/right (239 alignment
+       classes a naive regex would destroy). Not in `pnpm check` while the
+       sweep is outstanding; exits non-zero by design, like
+       audit:slow-tests and audit:enum-domains. The number must FALL as the
+       sweep proceeds - that is how the sweep gets proven instead of
+       claimed.
 
 22. SPANS ARE NOT TEXT ELEMENTS - BUT MIND THE CONTENT MODEL (Jacob:
     "Spans aren't really semantic for text. A span can have a <p> or <h>
@@ -8990,7 +8991,7 @@ is empty or genuinely accepted.
     on semantic html, use those semantic html for similar things and
     then have only one place to update."
     That is a measurable claim, so it is now measured:
-      pnpm --filter @dorado/frontend lint:typography-scatter
+    pnpm --filter @dorado/frontend lint:typography-scatter
     counts every type-size/weight utility in every .tsx - not only on
     shared components - and THE TARGET IS ZERO, not a threshold. Zero
     means changing a heading size is one line in typography.css, which
@@ -8999,8 +9000,7 @@ is empty or genuinely accepted.
     (text-[...], each one a SCALE GAP) across 146 of 259 files. 201
     alignment classes counted separately - alignment is LAYOUT and never
     in scope. Worst directories: features/orders 231, features/products
-    160, features/checkout 106, app/terms-and-conditions 95, shared/ui
-    67. NOTE features/orders is the biggest single block and belongs to
+    160, features/checkout 106, app/terms-and-conditions 95, shared/ui 67. NOTE features/orders is the biggest single block and belongs to
     WAVE 3, so the number cannot reach zero until that tree converts -
     the styling partitions can drive it to ~230 at best.
 
@@ -9054,18 +9054,18 @@ is empty or genuinely accepted.
     warningGhost...); two axes is 3 + 6 = 9 values, and every
     combination exists for free.
     TWO NAMING CORRECTIONS, both taken:
-      a. NOT `type`. <button type="submit|button|reset"> is a native
-         attribute and it is what makes forms submit. A prop named
-         `type` shadows it or forces awkward forwarding, and the
-         failure mode is a form that silently stops submitting. Use
-         `variant` for the emphasis axis - it is already the prop name,
-         so the migration is cheaper too.
-      b. THE AXES MUST NOT SHARE VALUE NAMES. Jacob's utility list
-         starts primary/secondary, which are also emphasis names, so
-         `variant="primary" intent="primary"` would be legal and
-         unreadable. Intent values that can only be intents:
-         neutral | brand | success | danger | warning | info.
-         (brand is the gold, ruling 19's one permitted hue.)
+    a. NOT `type`. <button type="submit|button|reset"> is a native
+    attribute and it is what makes forms submit. A prop named
+    `type` shadows it or forces awkward forwarding, and the
+    failure mode is a form that silently stops submitting. Use
+    `variant` for the emphasis axis - it is already the prop name,
+    so the migration is cheaper too.
+    b. THE AXES MUST NOT SHARE VALUE NAMES. Jacob's utility list
+    starts primary/secondary, which are also emphasis names, so
+    `variant="primary" intent="primary"` would be legal and
+    unreadable. Intent values that can only be intents:
+    neutral | brand | success | danger | warning | info.
+    (brand is the gold, ruling 19's one permitted hue.)
     SO: variant = primary (filled) | secondary (outline) | tertiary
     (ghost); intent = neutral | brand | success | danger | warning |
     info; size carries the type scale INCLUDING its responsive step
@@ -9093,10 +9093,10 @@ is empty or genuinely accepted.
     MEASURED, and Jacob's hunch was right - THIRTEEN sub-resource
     folders own a repo but NO controller, so their handlers sit in a
     parent:
-      fulfillments/{directs,methods,pickups,shipments}
-      orders/{addresses,spots,transactions}
-      shipping/{packages,pickups,tracking}
-      payments/details    places/user-addresses    refiners/spots
+    fulfillments/{directs,methods,pickups,shipments}
+    orders/{addresses,spots,transactions}
+    shipping/{packages,pickups,tracking}
+    payments/details places/user-addresses refiners/spots
     Worst offenders by handler count: fulfillments 13, products 9,
     orders 7, rates 6, reviews 6.
     ENFORCEABLE the same way lint:db and lint:namespace-calls are: a
@@ -9105,7 +9105,7 @@ is empty or genuinely accepted.
     route. Worth writing once the relocations land.
 
 === D95: THE WHITE-ON-WHITE AUDIT WAS LINE-BASED, AND THE REAL ONES
-    CROSS ELEMENTS ===
+CROSS ELEMENTS ===
 P3 found two live white-on-white bands D92 never counted, and the reason
 generalises: D92's detection was `grep bg-primary | grep text-white`,
 i.e. BOTH CLASSES ON ONE LINE, and the base.css compatibility bridge is
@@ -9117,28 +9117,29 @@ features/reviews/ui/ReviewsLandingSection.tsx:250, both now flat
 bg-card + border-y with no colour classes.
 RE-RUN AS A CROSS-ELEMENT CHECK (coordinator, done): EIGHT files pair
 bg-primary and text-white on different lines -
-  features/orders/.../AdminInTransit, AdminReceived (13x/12x!),
-  features/orders/ui/OrderStatusShared, AdminPreparing, AdminPending,
-  features/payouts/ui/PayoutLandingSection,
-  shared/ui/SidebarLayout, shared/ui/ReviewInput.
+features/orders/.../AdminInTransit, AdminReceived (13x/12x!),
+features/orders/ui/OrderStatusShared, AdminPreparing, AdminPending,
+features/payouts/ui/PayoutLandingSection,
+shared/ui/SidebarLayout, shared/ui/ReviewInput.
 TWO ARE STRUCTURAL AND WORSE THAN A CLASS PAIR:
-  - shared/ui/SidebarLayout.tsx:133-142 - a bg-primary tile whose icons
-    resolve to text-white through a cn() where the white wins. White
-    icon on a white tile.
-  - shared/ui/ReviewInput.tsx:41-48 - the values are DEFAULT PROPS
-    (buttonColor='bg-primary', titleTextColor='text-white',
-    subtitleTextcolor='text-white'), so EVERY consumer that does not
-    override inherits the invisible combination. Same class as
-    DotSelect.tsx:11, which D92 did catch - defaults are where this hides.
-    It is also appearance-passed-as-props, which ruling 20 forbids on
-    its own merits.
-LESSON FOR EVERY AUDIT ON THIS PROJECT, and it has now happened twice
-(audit:indexes' uniqueness filter, this): A DETECTOR THAT ONLY SEES ONE
-SHAPE REPORTS CLEAN ON THE OTHERS. Contrast is a property of an ELEMENT
-PAIR IN THE RENDERED TREE, not of a source line, so the only complete
-check is computed contrast in a browser - which nothing here can run (no
-Playwright browsers cached). Until then the cross-element scan above is
-the best available and should be re-run before the styling commit.
+
+- shared/ui/SidebarLayout.tsx:133-142 - a bg-primary tile whose icons
+  resolve to text-white through a cn() where the white wins. White
+  icon on a white tile.
+- shared/ui/ReviewInput.tsx:41-48 - the values are DEFAULT PROPS
+  (buttonColor='bg-primary', titleTextColor='text-white',
+  subtitleTextcolor='text-white'), so EVERY consumer that does not
+  override inherits the invisible combination. Same class as
+  DotSelect.tsx:11, which D92 did catch - defaults are where this hides.
+  It is also appearance-passed-as-props, which ruling 20 forbids on
+  its own merits.
+  LESSON FOR EVERY AUDIT ON THIS PROJECT, and it has now happened twice
+  (audit:indexes' uniqueness filter, this): A DETECTOR THAT ONLY SEES ONE
+  SHAPE REPORTS CLEAN ON THE OTHERS. Contrast is a property of an ELEMENT
+  PAIR IN THE RENDERED TREE, not of a source line, so the only complete
+  check is computed contrast in a browser - which nothing here can run (no
+  Playwright browsers cached). Until then the cross-element scan above is
+  the best available and should be re-run before the styling commit.
 
 === D96: WHAT THE SWEEPS FOUND THAT NOBODY WAS LOOKING FOR ===
 P1 (commerce) and P3 (shell/pages) both finished; their scatter went
@@ -9146,15 +9147,16 @@ P1 (commerce) and P3 (shell/pages) both finished; their scatter went
 
 SEVEN MORE LIVE INVISIBLE-UI SITES, all cross-element (D95's shape),
 all found by agents reading files rather than by any audit:
-  - RatesLandingSection.tsx:25 - bg-primary banner, text-white <h2>.
-    ON THE HOMEPAGE, white on white, today.
-  - SIX CTA BARS - ProductCard, BullionCard, ProductPageDetails x4 -
-    bg-primary on a WRAPPER DIV with text-white on the <Button>s inside.
-    "Add to Cart" and "Add to Sell Cart" are INVISIBLE right now.
-  - ProductPageDetails' variant-pill check mark: text-white on a
-    bg-primary pill, i.e. invisible exactly when checked.
-Fixed structurally, not by repaint: the wrapper drops its paint and the
-button uses the primary variant, which already IS light-ground/dark-text.
+
+- RatesLandingSection.tsx:25 - bg-primary banner, text-white <h2>.
+  ON THE HOMEPAGE, white on white, today.
+- SIX CTA BARS - ProductCard, BullionCard, ProductPageDetails x4 -
+  bg-primary on a WRAPPER DIV with text-white on the <Button>s inside.
+  "Add to Cart" and "Add to Sell Cart" are INVISIBLE right now.
+- ProductPageDetails' variant-pill check mark: text-white on a
+  bg-primary pill, i.e. invisible exactly when checked.
+  Fixed structurally, not by repaint: the wrapper drops its paint and the
+  button uses the primary variant, which already IS light-ground/dark-text.
 
 A BUG IN button.tsx THAT MAKES THE CONVERSION TABLE HARMFUL: cva emits
 `size` AFTER `variant`, so twMerge lets the default size (h-10 px-4
@@ -9167,45 +9169,47 @@ comment until it lands.
 
 TWO BUGS IN MY OWN LINT (frontend/scripts/lint-call-site-styling.mjs),
 found by P1 and now FIXED:
-  - the import regex required a COMMA after a default import, so
-    `import Drawer from '...'` was never scanned and Drawer call sites
-    were invisible TREE-WIDE. Scanned files 143 -> 156.
-  - cn() arguments were split on whitespace without stripping quotes, so
-    `text-center'` failed the alignment test and reported as a colour.
-D95's lesson, third instance in one session: A DETECTOR'S BLIND SPOT
-REPORTS AS CLEAN CODE. The lint I wrote to catch this class of defect
-had the same disease.
+
+- the import regex required a COMMA after a default import, so
+  `import Drawer from '...'` was never scanned and Drawer call sites
+  were invisible TREE-WIDE. Scanned files 143 -> 156.
+- cn() arguments were split on whitespace without stripping quotes, so
+  `text-center'` failed the alignment test and reported as a colour.
+  D95's lesson, third instance in one session: A DETECTOR'S BLIND SPOT
+  REPORTS AS CLEAN CODE. The lint I wrote to catch this class of defect
+  had the same disease.
 
 DESIGN DECISIONS FOR JACOB, both raised by P1 and NOT acted on:
-  1. THE SPOTS TICKER BAR (Spots.tsx) - DELETION-ORDER maps liquid-gold
-     to bg-brand, giving a full-bleed GOLD bar. It collides with three
-     things at once: ruling 19 forbids structural chrome carrying a hue;
-     every semantic tag colours itself for the DARK ground, so <p>/<small>
-     are unreadable on gold (its leaves had to stay bare spans); and the
-     trend colours it must show are ~1.5:1 on gold (--success #3ecc89 on
-     #d9b559). Recommendation from P1, which I endorse: bg-card plus a
-     hairline. THIS IS THE MOST-SEEN CHROME IN THE APP.
-  2. NO DISPLAY/METRIC TYPE ROLE. --text-display (64px) exists with ZERO
-     call sites and NO TAG MAPS TO IT, and a text-display utility is
-     forbidden by the scatter target. So the four homepage rate figures
-     went from 48-60px to <h2> at 28px - a real visual regression, and
-     the same gap forces heading tags onto non-heading numerals in
-     RatesCard, hero payouts and cart totals. NEEDS a .metric/.stat
-     utility or a display tag mapping. Routed to the shared/ui agent.
-  3. A SEGMENTED-CONTROL COMPONENT is the clearest 3+ case in the app:
-     hand-rolled at 9 sites (BullionTab metal filter, PremiumControl
-     unit+direction, ProductCard/BullionCard/ProductPageDetails variant
-     pills), always a <label> wrapping an sr-only radio with checked and
-     unchecked appearance passed as strings.
+
+1. THE SPOTS TICKER BAR (Spots.tsx) - DELETION-ORDER maps liquid-gold
+   to bg-brand, giving a full-bleed GOLD bar. It collides with three
+   things at once: ruling 19 forbids structural chrome carrying a hue;
+   every semantic tag colours itself for the DARK ground, so <p>/<small>
+   are unreadable on gold (its leaves had to stay bare spans); and the
+   trend colours it must show are ~1.5:1 on gold (--success #3ecc89 on
+   #d9b559). Recommendation from P1, which I endorse: bg-card plus a
+   hairline. THIS IS THE MOST-SEEN CHROME IN THE APP.
+2. NO DISPLAY/METRIC TYPE ROLE. --text-display (64px) exists with ZERO
+   call sites and NO TAG MAPS TO IT, and a text-display utility is
+   forbidden by the scatter target. So the four homepage rate figures
+   went from 48-60px to <h2> at 28px - a real visual regression, and
+   the same gap forces heading tags onto non-heading numerals in
+   RatesCard, hero payouts and cart totals. NEEDS a .metric/.stat
+   utility or a display tag mapping. Routed to the shared/ui agent.
+3. A SEGMENTED-CONTROL COMPONENT is the clearest 3+ case in the app:
+   hand-rolled at 9 sites (BullionTab metal filter, PremiumControl
+   unit+direction, ProductCard/BullionCard/ProductPageDetails variant
+   pills), always a <label> wrapping an sr-only radio with checked and
+   unchecked appearance passed as strings.
 
 === D97: THE "ESTIMATED PAYOUT" ABOVE "CONFIRM AND PLACE ORDER" IS
-    WRONG, AND IT READS HIGH ===
+WRONG, AND IT READS HIGH ===
 Found by the P2 styling agent while restyling the file; VERIFIED by the
 coordinator in node. features/checkout/purchase-order-checkout/
 reviewStep/itemTable.tsx:61
-    return (quote?.total ?? 0) - (shippingCost ?? 0 + paymentCost)
+return (quote?.total ?? 0) - (shippingCost ?? 0 + paymentCost)
 `+` BINDS TIGHTER THAN `??`, so this parses as
-    shippingCost ?? (0 + paymentCost)
+shippingCost ?? (0 + paymentCost)
 When a shipping service IS selected - the normal case - the whole
 parenthesis evaluates to shippingCost and PAYMENT COST IS SILENTLY
 DISCARDED. When one is not selected, shipping is discarded instead. The
@@ -9220,18 +9224,20 @@ customer they will receive more than they will. A customer who notices
 has been quoted two different numbers on one screen; one who does not
 notice is disappointed at payout.
 TWO FIXES, AND THEY ARE DIFFERENT DECISIONS:
-  1. IMMEDIATE: the parenthesis. One character, restores agreement with
-     the rows beneath it.
-  2. CORRECT, per ruling D82: THE FRONTEND SHOULD NOT COMPUTE THIS AT
-     ALL. Every customer-visible number comes from /quotes/*. This
-     component is doing arithmetic on money, which is exactly the class
-     of defect the quote endpoints were built to end - and the bug is
-     the proof of why. The payout figure should come from the server.
-NOT FIXED BY ME - it is money, and choosing between a stopgap and the
-D82 fix is Jacob's call, not a styling agent's and not mine.
+
+1. IMMEDIATE: the parenthesis. One character, restores agreement with
+   the rows beneath it.
+2. CORRECT, per ruling D82: THE FRONTEND SHOULD NOT COMPUTE THIS AT
+   ALL. Every customer-visible number comes from /quotes/*. This
+   component is doing arithmetic on money, which is exactly the class
+   of defect the quote endpoints were built to end - and the bug is
+   the proof of why. The payout figure should come from the server.
+   NOT FIXED BY ME - it is money, and choosing between a stopgap and the
+   D82 fix is Jacob's call, not a styling agent's and not mine.
 
 === D98: TWO MORE MONEY-PATH FINDINGS FROM THE SAME SWEEP ===
- 1. THE CUSTOMER CREDIT LEDGER IS COMPUTED IN THE BROWSER.
+
+1.  THE CUSTOMER CREDIT LEDGER IS COMPUTED IN THE BROWSER.
     features/users/ui/UsersDrawer.tsx DoradoCredit does
     newAmount = (user.dorado_funds ?? 0) +/- amount, then PUTs the
     ABSOLUTE result. This is exchange.account_transactions - $66,999.32
@@ -9240,7 +9246,7 @@ D82 fix is Jacob's call, not a styling agent's and not mine.
     LOST-UPDATE RACE - two admins with the drawer open both compute from
     a stale balance and last-write-wins, silently discarding the other's
     adjustment. Restyled only; logic untouched.
- 2. JS READING CSS VARIABLES IS INVISIBLE TO CSS REVIEW.
+2.  JS READING CSS VARIABLES IS INVISIBLE TO CSS REVIEW.
     StoreLocations.tsx reads --secondary for the default FedEx map pin.
     The foundation de-hued --secondary from saturated blue to a dark
     neutral, so unselected pins are now near-black dots on the map. Same
@@ -9250,34 +9256,35 @@ D82 fix is Jacob's call, not a styling agent's and not mine.
     before the styling commit.
 
 === D99: THE THIRD INVISIBLE-UI CLASS - A STATE TOKEN AND A REST TOKEN
-    COLLAPSED ONTO EACH OTHER ===
+COLLAPSED ONTO EACH OTHER ===
 The shared/ui agent fixed D95's two named defects and then ran the
 general scan. It found three more, and TWO OF THEM NO CONTRAST CHECK OF
 ANY KIND WOULD EVER FIND:
-  - base/calendar.tsx - THE SELECTED DAY WAS INDISTINGUISHABLE FROM AN
-    UNSELECTED ONE. Selected was `bg-transparent text-primary` (#fafafa)
-    against a rest state of text-foreground (#f6f7f9). On a date picker.
-    Its hover was dead too - `hover:bg-transparent` sat after
-    `hover:bg-accent` and cancelled it.
-  - inputs/InputDropdownSearch.tsx - the highlighted row was
-    bg-neutral-700, a LIGHT band under light text after the ramp
-    inversion.
-  - SelectMenu.tsx - text-primary AND hover:bg-primary on one row: the
-    label vanished under the cursor.
-THE GENERALISATION, and it is the important part: D95 framed this as a
-light background with a light foreground ACROSS ELEMENTS. These are a
-STATE token and a REST token that the palette flip collapsed onto the
-same value. Contrast is fine in both states - selected and unselected
-are each perfectly legible. WHAT IS LOST IS THE DIFFERENCE BETWEEN
-THEM, and no contrast metric measures a difference between two states of
-the same element. Only a human looking at a rendered date picker finds
-it, or a test that asserts selected != unselected.
-SO THE PALETTE FLIP HAS THREE DISTINCT FAILURE MODES, found in three
-separate passes by three different agents: (1) same-element class pair
-(D92, grep-able, bridged), (2) cross-element container/child (D95,
-grep-able with effort, unbridged), (3) STATE/REST COLLAPSE (D99, NOT
-grep-able at all). Each was invisible to the detector built for the
-previous one. Table in MANUAL-VERIFICATION.md 5.4b.
+
+- base/calendar.tsx - THE SELECTED DAY WAS INDISTINGUISHABLE FROM AN
+  UNSELECTED ONE. Selected was `bg-transparent text-primary` (#fafafa)
+  against a rest state of text-foreground (#f6f7f9). On a date picker.
+  Its hover was dead too - `hover:bg-transparent` sat after
+  `hover:bg-accent` and cancelled it.
+- inputs/InputDropdownSearch.tsx - the highlighted row was
+  bg-neutral-700, a LIGHT band under light text after the ramp
+  inversion.
+- SelectMenu.tsx - text-primary AND hover:bg-primary on one row: the
+  label vanished under the cursor.
+  THE GENERALISATION, and it is the important part: D95 framed this as a
+  light background with a light foreground ACROSS ELEMENTS. These are a
+  STATE token and a REST token that the palette flip collapsed onto the
+  same value. Contrast is fine in both states - selected and unselected
+  are each perfectly legible. WHAT IS LOST IS THE DIFFERENCE BETWEEN
+  THEM, and no contrast metric measures a difference between two states of
+  the same element. Only a human looking at a rendered date picker finds
+  it, or a test that asserts selected != unselected.
+  SO THE PALETTE FLIP HAS THREE DISTINCT FAILURE MODES, found in three
+  separate passes by three different agents: (1) same-element class pair
+  (D92, grep-able, bridged), (2) cross-element container/child (D95,
+  grep-able with effort, unbridged), (3) STATE/REST COLLAPSE (D99, NOT
+  grep-able at all). Each was invisible to the detector built for the
+  previous one. Table in MANUAL-VERIFICATION.md 5.4b.
 
 === D100: cn() WAS DELETING THE TYPE SCALE - CONFIRMED AND FIXED ===
 P2's finding, confirmed by probe and fixed by the shared/ui agent:
@@ -9376,7 +9383,7 @@ redundant and safe to delete.
     a bet that the difference is real.
 
 === D101: D94 WAS WRONG. THE SLOW SUITE IS AN N+1 AGAINST A REMOTE
-    DATABASE, AND IT WAS NEVER WAVE 2 ===
+DATABASE, AND IT WAS NEVER WAVE 2 ===
 D94 recorded a hypothesis - that wave 2's engagement mirrors made order
 creation heavier and lengthened the ORDERS lock's serial chain - and
 said the point of the task was to TEST it rather than act on it. Wave 3
@@ -9384,10 +9391,10 @@ tested it. IT IS REFUTED, and so is the coordinator's framing that
 "tests doing no work take 195s, therefore the wall clock is lock wait".
 The lock wait was real; what the lock was HOLDING is the finding.
 THE MEASUREMENT, run alone with nothing contending:
-  20 sequential round trips   3572 ms  =>  178.6 ms EACH
-  composed getAll()          38198 ms  for 48 orders (~214 round trips)
-  slim list()                  351 ms  for 63 orders (2 round trips)
-                                            ONE HUNDRED AND EIGHT TIMES
+20 sequential round trips 3572 ms => 178.6 ms EACH
+composed getAll() 38198 ms for 48 orders (~214 round trips)
+slim list() 351 ms for 63 orders (2 round trips)
+ONE HUNDRED AND EIGHT TIMES
 THE CAUSE: read.service.ts's assemble() queries the shipment and the
 pickup INSIDE A PER-ORDER LOOP, and each fans out to ~9 more. Every one
 of those is a round trip, and DEV IS REMOTE - a Railway proxy at ~178 ms.
@@ -9416,99 +9423,99 @@ forever - precisely the failure locks.ts documents. Given the ORDERS
 lock, and refiners.* added to that lock's registered coverage.
 
 26b. RULING 26 CORRECTED - "ORCHESTRATES" IS NOT AN EXEMPTION (Jacob):
-    "Methods needs an orchestrator too, that's what I was trying to tell
-    you. Checkout will call fulfillment methods, for instance. We don't
-    need to hit the fulfillments controller for that, we need to hit the
-    fulfillment/methods/controller.ts, etc. That's why controllers/
-    orchestrators are factored the way they are."
-    WHAT WAVE 3 AND I GOT WRONG: wave 3 concluded that getForOrder and
-    getSchedule should stay in fulfillments/controller.ts because they
-    "compose across resources and belong to the orchestrator", and the
-    coordinator relayed that approvingly as the interesting judgement
-    call. The error is treating ORCHESTRATION AS A REASON TO STAY IN A
-    PARENT CONTROLLER.
-    THE ACTUAL STRUCTURE: EVERY resource folder gets the FULL STACK -
-    routes.ts, controller.ts, and its own service/orchestrator over its
-    repo. A sub-resource is not a passive table hanging off its parent;
-    it has consumers of its own. CHECKOUT ASKS FOR FULFILLMENT METHODS,
-    and it must reach fulfillments/methods/ directly, never through
-    fulfillments/controller.ts. So getMethods/getAllMethods/updateMethod
-    move because METHODS ORCHESTRATES FOR ITSELF - not conditionally on
-    whether a handler looked orchestral.
-    THE PARENT CONTROLLER IS THE THIN REMAINDER: only what genuinely
-    spans its children. getForOrder and getSchedule may still qualify
-    (they branch on method.category across pickups/directs/shipments) -
-    but that is now a narrow test applied AFTER every resource has its
-    own stack, not a blanket excuse applied before.
-    WHY IT MATTERS BEYOND TIDINESS: the whole point is that a CONSUMER
-    IN ANOTHER FEATURE can depend on one resource without depending on
-    its parent. checkout -> fulfillments/methods is a thin edge;
-    checkout -> fulfillments/controller.ts drags in pickups, directs,
-    shipments and the schedule. The factoring is what keeps the
-    dependency graph honest, which is also why the proposed lint's
-    second half - no controller may import a sibling feature's service -
-    is the half that actually enforces it.
-    WAVE 4: factor ALL of them on this reading, starting with
-    fulfillments/methods since checkout is about to depend on it.
+"Methods needs an orchestrator too, that's what I was trying to tell
+you. Checkout will call fulfillment methods, for instance. We don't
+need to hit the fulfillments controller for that, we need to hit the
+fulfillment/methods/controller.ts, etc. That's why controllers/
+orchestrators are factored the way they are."
+WHAT WAVE 3 AND I GOT WRONG: wave 3 concluded that getForOrder and
+getSchedule should stay in fulfillments/controller.ts because they
+"compose across resources and belong to the orchestrator", and the
+coordinator relayed that approvingly as the interesting judgement
+call. The error is treating ORCHESTRATION AS A REASON TO STAY IN A
+PARENT CONTROLLER.
+THE ACTUAL STRUCTURE: EVERY resource folder gets the FULL STACK -
+routes.ts, controller.ts, and its own service/orchestrator over its
+repo. A sub-resource is not a passive table hanging off its parent;
+it has consumers of its own. CHECKOUT ASKS FOR FULFILLMENT METHODS,
+and it must reach fulfillments/methods/ directly, never through
+fulfillments/controller.ts. So getMethods/getAllMethods/updateMethod
+move because METHODS ORCHESTRATES FOR ITSELF - not conditionally on
+whether a handler looked orchestral.
+THE PARENT CONTROLLER IS THE THIN REMAINDER: only what genuinely
+spans its children. getForOrder and getSchedule may still qualify
+(they branch on method.category across pickups/directs/shipments) -
+but that is now a narrow test applied AFTER every resource has its
+own stack, not a blanket excuse applied before.
+WHY IT MATTERS BEYOND TIDINESS: the whole point is that a CONSUMER
+IN ANOTHER FEATURE can depend on one resource without depending on
+its parent. checkout -> fulfillments/methods is a thin edge;
+checkout -> fulfillments/controller.ts drags in pickups, directs,
+shipments and the schedule. The factoring is what keeps the
+dependency graph honest, which is also why the proposed lint's
+second half - no controller may import a sibling feature's service -
+is the half that actually enforces it.
+WAVE 4: factor ALL of them on this reading, starting with
+fulfillments/methods since checkout is about to depend on it.
 
 26c. THE PATTERN, STATED ONCE FOR EVERY RESOURCE (Jacob): "Same thing
-    with for example with like, order.items. If we want to update an
-    order's items... that should hit the order/items orchestrator
-    (controller) and call the domain logic (service), not the orders
-    ones."
-    THE FULL STACK PER RESOURCE FOLDER:
-      routes.ts  - declares its own paths; the parent MOUNTS them
-      controller.ts - HTTP in, HTTP out
-      service.ts - the domain logic / orchestrator for THIS resource
-      repo.ts + sql/ - the table
-    THE PATHS DO NOT CHANGE. PATCH /orders/items/:id stays exactly that
-    (ruling 13: the URL and the file are different questions). What
-    changes is that the call runs controller -> orders/items/service.ts
-    and THE ORDER SERVICE IS NOT IN THE PATH AT ALL.
-    MEASURED STATE OF THE ORDERS TREE, which shows three stages of the
-    same incompleteness:
-      items/        controller + service + repo, NO routes.ts - its
-                    paths are declared in orders/routes.ts:57,99,100,103
-      addresses/    repo only
-      spots/        repo only
-      transactions/ repo only
-    So wave 2 got items half-way (the orchestrator exists, the parent
-    still declares the paths) and the other three are bare repos whose
-    handlers live in the parent. All four get the full stack; the
-    parent's routes.ts shrinks to mounting.
-    THE TEST FOR THE PARENT, applied AFTER every child has its stack:
-    does this handler genuinely span children? Almost nothing does.
+with for example with like, order.items. If we want to update an
+order's items... that should hit the order/items orchestrator
+(controller) and call the domain logic (service), not the orders
+ones."
+THE FULL STACK PER RESOURCE FOLDER:
+routes.ts - declares its own paths; the parent MOUNTS them
+controller.ts - HTTP in, HTTP out
+service.ts - the domain logic / orchestrator for THIS resource
+repo.ts + sql/ - the table
+THE PATHS DO NOT CHANGE. PATCH /orders/items/:id stays exactly that
+(ruling 13: the URL and the file are different questions). What
+changes is that the call runs controller -> orders/items/service.ts
+and THE ORDER SERVICE IS NOT IN THE PATH AT ALL.
+MEASURED STATE OF THE ORDERS TREE, which shows three stages of the
+same incompleteness:
+items/ controller + service + repo, NO routes.ts - its
+paths are declared in orders/routes.ts:57,99,100,103
+addresses/ repo only
+spots/ repo only
+transactions/ repo only
+So wave 2 got items half-way (the orchestrator exists, the parent
+still declares the paths) and the other three are bare repos whose
+handlers live in the parent. All four get the full stack; the
+parent's routes.ts shrinks to mounting.
+THE TEST FOR THE PARENT, applied AFTER every child has its stack:
+does this handler genuinely span children? Almost nothing does.
 
 === D102: WHAT purchase-orders/ AND sales-orders/ STILL HOLD, AND THE
-    ORDER THEY COME APART IN ===
+ORDER THEY COME APART IN ===
 Jacob asked whether they can be yanked yet; answer is not yet, and the
 reason differs per file. Authorised: "Yes you should separate the logic
 where it makes sense." MEASURED - 88 imports across six features.
-  MOVES OUT (wave 4 and its follow-on):
-    utils/calculations.ts  17 imports  -> features/pricing (ruling 24).
-      Eleven functions across the two files; `quotes` imports from BOTH,
-      so it is already the de facto pricing service wearing an HTTP hat.
-    read.service.ts + compose.ts  22 imports  -> the composed order is
-      now the API's INTERNAL lifecycle read (pricing, email, PDFs) and
-      is typed as ComposedOrder rather than as a contract. It needs a
-      home where orders actually live, not inside a direction-named
-      feature. NOTE its N+1 is D101's 108x finding - move it and fix the
-      batching in the same pass, since both touch assemble().
-    write.service.ts - the creates, which wave 4's checkout work unifies
-      anyway.
-  STAYS UNTIL JACOB PROMOTES, AND IS NOT A REFACTORING QUESTION:
-    repo.dual.js / legacy.repo.ts - THE DUAL-WRITE MIRRORS. They are
-    what keeps `exchange` a level shadow. They go when a *_SOURCE switch
-    is promoted past `dual`, which is a data decision and a ONE-WAY DOOR
-    (CLAUDE.md): once exchange stops receiving writes, flipping back
-    loses everything written in between. No wave deletes these.
-  ALREADY SPENT: the oracle tests pinned to the old implementation, and
-    repo.exchange.js's remainder now that wave 3 deleted its read paths.
-  END STATE: these two stop being FEATURES once pricing and the composed
-  read move out - what remains is a thin dual-write shim pair - and they
-  stop EXISTING at promotion. The unification landed on the read and
-  route surface first precisely because the write path touches the
-  mirrors, and the mirrors are the data covenant.
+MOVES OUT (wave 4 and its follow-on):
+utils/calculations.ts 17 imports -> features/pricing (ruling 24).
+Eleven functions across the two files; `quotes` imports from BOTH,
+so it is already the de facto pricing service wearing an HTTP hat.
+read.service.ts + compose.ts 22 imports -> the composed order is
+now the API's INTERNAL lifecycle read (pricing, email, PDFs) and
+is typed as ComposedOrder rather than as a contract. It needs a
+home where orders actually live, not inside a direction-named
+feature. NOTE its N+1 is D101's 108x finding - move it and fix the
+batching in the same pass, since both touch assemble().
+write.service.ts - the creates, which wave 4's checkout work unifies
+anyway.
+STAYS UNTIL JACOB PROMOTES, AND IS NOT A REFACTORING QUESTION:
+repo.dual.js / legacy.repo.ts - THE DUAL-WRITE MIRRORS. They are
+what keeps `exchange` a level shadow. They go when a *_SOURCE switch
+is promoted past `dual`, which is a data decision and a ONE-WAY DOOR
+(CLAUDE.md): once exchange stops receiving writes, flipping back
+loses everything written in between. No wave deletes these.
+ALREADY SPENT: the oracle tests pinned to the old implementation, and
+repo.exchange.js's remainder now that wave 3 deleted its read paths.
+END STATE: these two stop being FEATURES once pricing and the composed
+read move out - what remains is a thin dual-write shim pair - and they
+stop EXISTING at promotion. The unification landed on the read and
+route surface first precisely because the write path touches the
+mirrors, and the mirrors are the data covenant.
 
 29. NECESSARY LEGACY GETS GROUPED; UNNECESSARY LEGACY GETS DELETED
     (Jacob, on purchase-orders/ and sales-orders/): "they should be
@@ -9516,35 +9523,35 @@ where it makes sense." MEASURED - 88 imports across six features.
     code grouped together. But whatever is not necessary legacy code
     anymore should be removed entirely."
     So the decomposition in D102 has a destination for each half:
-      MOVES TO ITS REAL HOME (it is not legacy, it was just filed under
-      a direction-named feature): utils/calculations.ts -> the pricing
-      service (ruling 24); read.service.ts + compose.ts -> wherever the
-      internal composed order belongs now that orders is one feature;
-      write.service.ts -> the creates, which checkout unifies.
-      MOVES TO api/legacy/ - ONE TOP-LEVEL DIRECTORY, A SIBLING OF
-      features/ (Jacob, refining this ruling: "Move all legacy code to
-      a folder called 'legacy' that is a sibling to 'features'"). NOT a
-      legacy/ subfolder inside each feature - thirteen scattered
-      legacy/ folders is the same hunt we have today with better names.
-      One directory is a single deletion and a single grep to prove
-      nothing imports it. Mirror the feature names inside
-      (api/legacy/purchase-orders/...) so origin stays obvious.
-      What goes there: the dual-write mirrors (repo.dual.js,
-      legacy.repo.ts), repo.exchange.js's remainder, sql/legacy/.
-      MECHANICS: add a #legacy/* subpath import to api/package.json
-      rather than relative paths crossing between the trees, and check
-      lint:imports / lint:namespace-calls still pass. THE DEPENDENCY
-      DIRECTION IS THE POINT: features/ may import legacy/ during the
-      dual-write period; legacy/ must not import features/, or the
-      directory cannot be deleted in one move. Every place legacy
-      reaches into a feature is a thread to cut before promotion.
-      ENTRY CRITERIA: a module moves to legacy/ only when it is genuinely
-      on death row - verified data migration, pivoted reads. Something
-      still load-bearing for a live path is not legacy yet.
-      DELETED OUTRIGHT: repo.exchange.js's remainder now that its read
-      paths are gone, and the oracle tests pinned to an implementation
-      that no longer runs. Legacy code that protects nothing is not
-      legacy code, it is dead code.
+    MOVES TO ITS REAL HOME (it is not legacy, it was just filed under
+    a direction-named feature): utils/calculations.ts -> the pricing
+    service (ruling 24); read.service.ts + compose.ts -> wherever the
+    internal composed order belongs now that orders is one feature;
+    write.service.ts -> the creates, which checkout unifies.
+    MOVES TO api/legacy/ - ONE TOP-LEVEL DIRECTORY, A SIBLING OF
+    features/ (Jacob, refining this ruling: "Move all legacy code to
+    a folder called 'legacy' that is a sibling to 'features'"). NOT a
+    legacy/ subfolder inside each feature - thirteen scattered
+    legacy/ folders is the same hunt we have today with better names.
+    One directory is a single deletion and a single grep to prove
+    nothing imports it. Mirror the feature names inside
+    (api/legacy/purchase-orders/...) so origin stays obvious.
+    What goes there: the dual-write mirrors (repo.dual.js,
+    legacy.repo.ts), repo.exchange.js's remainder, sql/legacy/.
+    MECHANICS: add a #legacy/* subpath import to api/package.json
+    rather than relative paths crossing between the trees, and check
+    lint:imports / lint:namespace-calls still pass. THE DEPENDENCY
+    DIRECTION IS THE POINT: features/ may import legacy/ during the
+    dual-write period; legacy/ must not import features/, or the
+    directory cannot be deleted in one move. Every place legacy
+    reaches into a feature is a thread to cut before promotion.
+    ENTRY CRITERIA: a module moves to legacy/ only when it is genuinely
+    on death row - verified data migration, pivoted reads. Something
+    still load-bearing for a live path is not legacy yet.
+    DELETED OUTRIGHT: repo.exchange.js's remainder now that its read
+    paths are gone, and the oracle tests pinned to an implementation
+    that no longer runs. Legacy code that protects nothing is not
+    legacy code, it is dead code.
     THE TEST FOR WHICH PILE SOMETHING GOES IN: does it still receive
     writes, or is it still the oracle for something live? If yes, it is
     necessary legacy and it gets grouped. If no, it goes. "It might be
@@ -9683,14 +9690,14 @@ real, and three bets have now been called wrong.
     we have unified items so it will be way easier."
     SO THREE THINGS:
     a. ARRAY IN, ARRAY OUT. One call prices thirty items; a single item
-       is an array of one. No N calls for N lines.
+    is an array of one. No N calls for N lines.
     b. IT RETURNS PRICES, NOT ENRICHED ITEMS. The caller already has the
-       items - it sent them. Echoing them back is the composed-wire
-       mistake in another costume (rulings 10 and 12).
+    items - it sent them. Echoing them back is the composed-wire
+    mistake in another costume (rulings 10 and 12).
     c. UNIFIED ITEMS MAKE IT SIMPLE. orders.items is one shape, so
-       pricing branches on `bullion_id IS NULL` rather than maintaining
-       parallel scrap and product paths. Sales-order bullion stays a
-       branch inside the one module, not a second module.
+    pricing branches on `bullion_id IS NULL` rather than maintaining
+    parallel scrap and product paths. Sales-order bullion stays a
+    branch inside the one module, not a second module.
     STILL ONE MODULE SERVER-SIDE, though - the PDF renderer and the
     confirmation email need prices without an HTTP hop, so the endpoint
     is a thin caller of the module, not the only way to price.
@@ -9715,11 +9722,10 @@ real, and three bets have now been called wrong.
 "wave 4 can continue on with the styling stuff. Just follow the rules
 I've been sending (and the original ones as well)." So wave 4 carries
 BOTH lanes. He stops after wave 4 if he is not back.
-  LANE A - API LOGIC (owns api/** + packages/contracts/**):
-    1. THE BATCHING FIX (D101) FIRST. assemble() queries the shipment
-       and the pickup inside a per-order loop; ~214 round trips against
-       a database 178ms away vs 2 for the slim list. 108x. Batch with
-       WHERE order_id = ANY($1). Prove equivalence with `diff` and both
+LANE A - API LOGIC (owns api/** + packages/contracts/**): 1. THE BATCHING FIX (D101) FIRST. assemble() queries the shipment
+and the pickup inside a per-order loop; ~214 round trips against
+a database 178ms away vs 2 for the slim list. 108x. Batch with
+WHERE order_id = ANY($1). Prove equivalence with `diff` and both
        decomposition gates - it feeds pricing, email and PDFs. ~500s per
        gate run.
     2. PRICING: one module, ARRAY IN / ARRAY OUT, RETURNS PRICES NOT
@@ -9727,58 +9733,57 @@ BOTH lanes. He stops after wave 4 if he is not back.
        are unified. The endpoint is a thin caller; the module is what
        the PDF renderer and the email use without an HTTP hop.
     3. D97 - the Estimated Payout figure comes from the server (D82),
-       not from browser arithmetic that currently reads $20 high.
-    4. D98 - the credit ledger takes {op, amount} applied in a
-       transaction, not an absolute total computed in the browser.
-  LANE B - STYLING (owns frontend/** styling; must NOT collide with
-  lane A's frontend re-pointing - partition before dispatching):
-    ruling 27 (the shadows die, not tokenised), ruling 30 (ONE radio
-    group; RadioCard and RadioGroupImage deleted; the measure is the
-    four checkout selectors' 307 lines shrinking), the orders tree's
-    263 remaining scatter utilities, and THE D99 AUDIT NOBODY HAS RUN -
-    selected-vs-unselected across order rows, drawer tabs, status chips,
-    chosen services. Contrast metrics cannot answer that question.
-  THEN CHECKOUT PROPER, which Jacob sizes as "a big lift just like
-  orders": creates unify, scrap and bullion legacy layers delete after
-  covenant verification, and the shipping mess - the frontend matches
-  FedEx service types DIRECTLY, which is the same defect class as the
-  wire work (the frontend should not know carrier vocabulary at all).
-  It may be too big for wave 4; if so it becomes wave 5 rather than
-  being half-done.
+       not from browser arithmetic that currently reads $20 high. 4. D98 - the credit ledger takes {op, amount} applied in a
+transaction, not an absolute total computed in the browser.
+LANE B - STYLING (owns frontend/** styling; must NOT collide with
+lane A's frontend re-pointing - partition before dispatching):
+ruling 27 (the shadows die, not tokenised), ruling 30 (ONE radio
+group; RadioCard and RadioGroupImage deleted; the measure is the
+four checkout selectors' 307 lines shrinking), the orders tree's
+263 remaining scatter utilities, and THE D99 AUDIT NOBODY HAS RUN -
+selected-vs-unselected across order rows, drawer tabs, status chips,
+chosen services. Contrast metrics cannot answer that question.
+THEN CHECKOUT PROPER, which Jacob sizes as "a big lift just like
+orders": creates unify, scrap and bullion legacy layers delete after
+covenant verification, and the shipping mess - the frontend matches
+FedEx service types DIRECTLY, which is the same defect class as the
+wire work (the frontend should not know carrier vocabulary at all).
+It may be too big for wave 4; if so it becomes wave 5 rather than
+being half-done.
 
 === D103: A HAND-WRITTEN UNION IS EITHER A DUPLICATE OR AN UNENFORCED
-    CONSTRAINT, AND WE HAVE ONE OF EACH ===
+CONSTRAINT, AND WE HAVE ONE OF EACH ===
 Jacob, on `export type Direction = "purchase" | "sale"` and
 `export type Category = "SHIPMENT" | "PICKUP" | "DIRECT"`: "These should
 come from shared contracts, no?" Yes - and the two are different
 problems wearing the same clothes.
-  DIRECTION IS ALREADY GENERATED. packages/contracts/src/generated/
-  orders.ts:7 emits z.enum(["purchase","sale"]) from the real Postgres
-  enum (payments.ts emits its own copy of the same). SIX hand-written
-  duplicates exist across api/features/fulfillments/service.ts,
-  fulfillments/methods/service.ts and checkout/repo.next.ts. Pure
-  duplication - import the generated one and delete them.
-  CATEGORY IS NOT GENERATED BECAUSE THE DATABASE DOES NOT CONSTRAIN IT.
-  fulfillments.methods.category is plain `text`, so the generator
-  correctly emits z.string(). The three-value union exists ONLY in
-  TypeScript and is enforced nowhere.
-  *** AND THE COLUMN'S DEFAULT IS 'OTHER' *** - a value the
-  hand-written type says cannot exist and which the WIRE CONTRACT'S
-  z.enum(["SHIPMENT","PICKUP","DIRECT"]) WOULD REJECT AT PARSE TIME. So
-  any insert omitting category produces a row the API cannot serve. Dev
-  holds only the three real values (6 SHIPMENT, 4 DIRECT, 1 PICKUP), so
-  it is latent, not live - the same shape as D39's sales-tax
-  product_type: a text column meeting an enum somewhere else, with the
-  mismatch surfacing only at runtime.
-  THE FIX THAT SOLVES BOTH: make category a real Postgres enum on the
-  NEW schema (fulfillments - allowed, it is not exchange), drop the
-  'OTHER' default, regenerate. The generator then emits the union and
-  all six hand-written copies get DELETED rather than re-pointed.
-  THE GENERAL RULE WORTH ENFORCING: a hand-written union of string
-  literals in this codebase is always one of two defects - a duplicate
-  of a generated enum, or a constraint the database does not have.
-  Neither should survive. Grep-able, and a candidate for the same
-  treatment as lint:db and lint:namespace-calls.
+DIRECTION IS ALREADY GENERATED. packages/contracts/src/generated/
+orders.ts:7 emits z.enum(["purchase","sale"]) from the real Postgres
+enum (payments.ts emits its own copy of the same). SIX hand-written
+duplicates exist across api/features/fulfillments/service.ts,
+fulfillments/methods/service.ts and checkout/repo.next.ts. Pure
+duplication - import the generated one and delete them.
+CATEGORY IS NOT GENERATED BECAUSE THE DATABASE DOES NOT CONSTRAIN IT.
+fulfillments.methods.category is plain `text`, so the generator
+correctly emits z.string(). The three-value union exists ONLY in
+TypeScript and is enforced nowhere.
+*** AND THE COLUMN'S DEFAULT IS 'OTHER' *** - a value the
+hand-written type says cannot exist and which the WIRE CONTRACT'S
+z.enum(["SHIPMENT","PICKUP","DIRECT"]) WOULD REJECT AT PARSE TIME. So
+any insert omitting category produces a row the API cannot serve. Dev
+holds only the three real values (6 SHIPMENT, 4 DIRECT, 1 PICKUP), so
+it is latent, not live - the same shape as D39's sales-tax
+product_type: a text column meeting an enum somewhere else, with the
+mismatch surfacing only at runtime.
+THE FIX THAT SOLVES BOTH: make category a real Postgres enum on the
+NEW schema (fulfillments - allowed, it is not exchange), drop the
+'OTHER' default, regenerate. The generator then emits the union and
+all six hand-written copies get DELETED rather than re-pointed.
+THE GENERAL RULE WORTH ENFORCING: a hand-written union of string
+literals in this codebase is always one of two defects - a duplicate
+of a generated enum, or a constraint the database does not have.
+Neither should survive. Grep-able, and a candidate for the same
+treatment as lint:db and lint:namespace-calls.
 
 === D104: THE ORDER SPOT LOCK WAS PINNING A STALE TABLE ===
 Found by the wave-3.5 agent while re-pointing legacy reads. Two live spot
@@ -9845,7 +9850,7 @@ specifier RESOLVES, and with both files existing a wrong prefix resolves
 perfectly and writes the wrong schema.
 
 === D108: audit:test-leaks WAS LOOKING AT THE WRONG HALF OF THE DATABASE
-    (fixed) ===
+(fixed) ===
 THE GATE WENT RED on wave 3.5 with one real failure:
 features/purchase-orders/repo.next.test.js "reads do not write",
 64 != 63. It counts `orders.orders` before and after a read and asserts
@@ -9903,10 +9908,10 @@ and a harness self-check correctly noticed. Not a defect; a reminder to
 use the package script, which exists precisely to carry that env.
 
 === D110: THE FACTORING BROKE A GATE SCRIPT, AND THE AGENT'S OWN GATE
-    RUN DID NOT SEE IT ===
+RUN DID NOT SEE IT ===
 Second red gate on wave 3.5, and this one was a real regression rather
 than a race: validate:wire failed with
-  `refinerOrdersService.getSpotsByOrder is not a function`
+`refinerOrdersService.getSpotsByOrder is not a function`
 Ruling 26c gave refiners/spots its own stack, and the function moved to
 features/refiners/spots/service.ts as `forOrder()`. The source comment
 recording the move was written; the CALLER IN scripts/ WAS NOT UPDATED.
@@ -9927,7 +9932,7 @@ directly and so tend to fail loudly; scripts import a service by
 namespace and fail only when the function is called.
 
 === D111: WHY THE RESOURCE SPLIT IS NOT THE N+1 IT RESEMBLES, AND THE
-    ONE CASE WHERE IT WOULD BE ===
+ONE CASE WHERE IT WOULD BE ===
 Jacob, on reading D101: "I'm starting to see the issue with not
 combining resources on the api returns lol." Fair instinct, and the
 distinction is worth stating because the answer is not "trust me".
@@ -9944,24 +9949,25 @@ whether one order is assembled or fifty", which was true of everything
 above the loop and false of the loop.
 THE RESOURCE SPLIT IS PARALLEL CLIENT->SERVER, and holds for four
 reasons that are rulings rather than luck:
-  1. React Query fires the reads CONCURRENTLY - six reads cost about one
-     read's latency, not six.
-  2. CONSTANT COUNT per view, not per row. The N+1 scaled with orders.
-  3. NO WATERFALLS: every order-scoped read keys off `orderId`, which the
-     client already holds, so they all start at once. This is exactly why
-     the engagement read is /orders/:orderId/refiners rather than
-     fetch-engagement-then-fetch-its-spots - that version SERIALISES, and
-     Jacob rejected it on other grounds before the latency was known.
-  4. CACHEABLE, and the composed wire was not: it embedded product and
-     metal rows INSIDE every item of every order, re-sending the same
-     reference data dozens of times per page. Split, the catalogue and
-     metals are fetched once and shared.
-*** THE CASE THAT WOULD BITE, and the signal to watch for: A LIST VIEW
-WHERE EACH ROW FETCHES ITS OWN SUB-RESOURCE. Fifty rows each calling
-useFulfillment(order.id) is a client-side N+1 with precisely the shape
-D101 fixed on the server. THE RULE: list reads return ROWS; per-resource
-reads belong to the DETAIL view. If a table row starts wanting a
-sub-resource, add the column to the LIST read - do not fan out. ***
+
+1. React Query fires the reads CONCURRENTLY - six reads cost about one
+   read's latency, not six.
+2. CONSTANT COUNT per view, not per row. The N+1 scaled with orders.
+3. NO WATERFALLS: every order-scoped read keys off `orderId`, which the
+   client already holds, so they all start at once. This is exactly why
+   the engagement read is /orders/:orderId/refiners rather than
+   fetch-engagement-then-fetch-its-spots - that version SERIALISES, and
+   Jacob rejected it on other grounds before the latency was known.
+4. CACHEABLE, and the composed wire was not: it embedded product and
+   metal rows INSIDE every item of every order, re-sending the same
+   reference data dozens of times per page. Split, the catalogue and
+   metals are fetched once and shared.
+   *** THE CASE THAT WOULD BITE, and the signal to watch for: A LIST VIEW
+   WHERE EACH ROW FETCHES ITS OWN SUB-RESOURCE. Fifty rows each calling
+   useFulfillment(order.id) is a client-side N+1 with precisely the shape
+   D101 fixed on the server. THE RULE: list reads return ROWS; per-resource
+   reads belong to the DETAIL view. If a table row starts wanting a
+   sub-resource, add the column to the LIST read - do not fan out. ***
 
 === D111b: THE LIST FAN-OUT IS MEASURED, AND IT IS ESSENTIALLY EMPTY ===
 Built `frontend/scripts/lint-list-fanout.mjs` to make D111's concern
@@ -9987,40 +9993,37 @@ preferred resolution; the lint stays as the thing that notices if it
 comes back.
 
 === WAVE 5 PLAN (Jacob amended the stop point: "go ahead and queue up
-    wave 5 as well once you get through finishing wave 3.5 and 4") ===
+wave 5 as well once you get through finishing wave 3.5 and 4") ===
 So the sequence is: gate -> commit wave 4 -> DISPATCH WAVE 5, rather
 than stopping after 4.
-  CARRIED IN, whatever wave 4 does not finish:
-    A5 - dissolving purchase-orders/ and sales-orders/ (the one bar
-    still at zero; ~2000 lines, a merge at every name collision).
-    A6 - test co-location and the TypeScript conversion, which ride with
-    A5 one pass per file.
-  WAVE 5 PROPER - checkout, which Jacob sizes as orders-scale:
-    1. The creates unify off the legacy routes.
-    2. The scrap and bullion legacy API layers delete AFTER covenant
-       verification (they are checkout.items now; the scrap DECLARATION
-       forms stay - that is UI, not an API layer).
-    3. THE SHIPPING MESS: the frontend matches FedEx service types
-       DIRECTLY. Same defect class as the wire work - the frontend
-       should not know carrier vocabulary at all. Note ruling 26's
-       correction while doing it: fulfillments.pickups (Dorado collects)
-       and carrier pickups (FedEx collects) are DIFFERENT THINGS sharing
-       a word, and must not be unified.
-  SCOPING DECISION, made deliberately and recorded so it can be
-  overruled: CHECKOUT IS THE MONEY PATH AND JACOB IS ASLEEP. The wave is
-  briefed to STOP AT SEAMS rather than half-rewrite a flow that takes
-  customer payments - the same discipline that made wave 3.5 stop at the
-  legacy writers, which was the right call. A named seam handed over is
-  worth more than a checkout in pieces. Three frontend schemas are
-  `.parse()`d on that path and a Stripe confirm sits one step before the
-  order create (D49: a throw between them means CHARGED, NO ORDER).
-  THE ONE THING WAVE 5 MUST NOT DO: the legacy WRITE path rewrite
-  (D105). Five native statements, then the covenant ledger BEFORE the
-  switch, because verify:parity cannot check it afterwards. That is its
-  own wave with its own verification, not a task inside a checkout wave.
+CARRIED IN, whatever wave 4 does not finish:
+A5 - dissolving purchase-orders/ and sales-orders/ (the one bar
+still at zero; ~2000 lines, a merge at every name collision).
+A6 - test co-location and the TypeScript conversion, which ride with
+A5 one pass per file.
+WAVE 5 PROPER - checkout, which Jacob sizes as orders-scale: 1. The creates unify off the legacy routes. 2. The scrap and bullion legacy API layers delete AFTER covenant
+verification (they are checkout.items now; the scrap DECLARATION
+forms stay - that is UI, not an API layer). 3. THE SHIPPING MESS: the frontend matches FedEx service types
+DIRECTLY. Same defect class as the wire work - the frontend
+should not know carrier vocabulary at all. Note ruling 26's
+correction while doing it: fulfillments.pickups (Dorado collects)
+and carrier pickups (FedEx collects) are DIFFERENT THINGS sharing
+a word, and must not be unified.
+SCOPING DECISION, made deliberately and recorded so it can be
+overruled: CHECKOUT IS THE MONEY PATH AND JACOB IS ASLEEP. The wave is
+briefed to STOP AT SEAMS rather than half-rewrite a flow that takes
+customer payments - the same discipline that made wave 3.5 stop at the
+legacy writers, which was the right call. A named seam handed over is
+worth more than a checkout in pieces. Three frontend schemas are
+`.parse()`d on that path and a Stripe confirm sits one step before the
+order create (D49: a throw between them means CHARGED, NO ORDER).
+THE ONE THING WAVE 5 MUST NOT DO: the legacy WRITE path rewrite
+(D105). Five native statements, then the covenant ledger BEFORE the
+switch, because verify:parity cannot check it afterwards. That is its
+own wave with its own verification, not a task inside a checkout wave.
 
 === D112: A FOURTH INVISIBLE-UI FAILURE MODE - A REPAINTED CONTAINER
-    CANNOT REACH CHILDREN THAT DECLARE THEIR OWN COLOUR ===
+CANNOT REACH CHILDREN THAT DECLARE THEIR OWN COLOUR ===
 Lane B built `audit:state-collapse` and found FOURTEEN real defects. One
 of them breaks a pattern three earlier agents used and I endorsed.
 THE PATTERN WE KEPT USING: when a container was painted a light ground
@@ -10074,7 +10077,7 @@ so it belongs at the END of the chain, after the cheap members have had
 their chance to fail.
 
 === D114: THE PARTITION LEFT BOTH MONEY FIXES HALF-DONE, AND ONLY THE
-    TRACKER NOTICED ===
+TRACKER NOTICED ===
 Wave 4 gated green on lane A's side with A3 and A4 reported at 95%, and
 BOTH MONEY DEFECTS WERE STILL LIVE IN THE PRODUCT. Lane A built the API
 halves - `/quotes/purchase_order` now takes `shipping_charge` and
@@ -10103,7 +10106,7 @@ shipped half-finished - and it would have LOOKED complete, because the
 API side was tested and green.
 
 === D115: THE LEAK AUDIT RAN THE SUITE WITH HALF THE LIVE-SERVICE GUARD
-    TURNED OFF ===
+TURNED OFF ===
 Lane A's last finding, and the strongest of the wave.
 `shared/testing/is-test-run.ts` is what stops a test reaching the real
 mail transport, the FedEx client and the Stripe client. Its own header
@@ -10131,17 +10134,17 @@ if only a --self-test, and any script that RUNS the suite should run it
 the same way `pnpm test` does rather than assembling its own invocation.
 
 === D116: RULING 34 IS ANSWERED - `orders.items.price` CANNOT BE
-    DROPPED, AND NOT FOR THE REASON WE FEARED ===
+DROPPED, AND NOT FOR THE REASON WE FEARED ===
 New audit: `pnpm --filter @dorado/api audit:item-price --prod`. It reads
 against `exchange`, because production's `orders.items` is the January
 snapshot and HAS NO `price` COLUMN AT ALL.
-  PURCHASE: 84 priced lines, 20 divergent, ALL SCRAP. Every one's
-  implied content is within 0.0005 of the stored value - inside
-  `numeric(20,3)`'s half-digit. THIS IS D61 FROM THE OTHER SIDE: the
-  weight was rounded at the source, so `price` is now THE ONLY SURVIVING
-  RECORD OF WHAT THE METAL WEIGHED.
-  SALES: 14 priced, 4 divergent, each implying a premium the row does
-  not carry (1.0997 and 1.0000 against a stored `premium` of 1.01).
+PURCHASE: 84 priced lines, 20 divergent, ALL SCRAP. Every one's
+implied content is within 0.0005 of the stored value - inside
+`numeric(20,3)`'s half-digit. THIS IS D61 FROM THE OTHER SIDE: the
+weight was rounded at the source, so `price` is now THE ONLY SURVIVING
+RECORD OF WHAT THE METAL WEIGHED.
+SALES: 14 priced, 4 divergent, each implying a premium the row does
+not carry (1.0997 and 1.0000 against a stored `premium` of 1.01).
 ZERO ARE ADMIN OVERRIDES. Nobody typed a different number - which was
 the hazard ruling 34 was written against, and it is not what is there.
 The column survives anyway, and for a stronger reason: on 24 of 98 lines
@@ -10151,14 +10154,14 @@ the weight of metal a customer was paid for. NO MIGRATION WAS WRITTEN.
 === D117: THE PAYOUT FEE IS NOT A FUNCTION OF THE PAYOUT METHOD ===
 Found by lane A while building D97's server-side fee resolution, and it
 qualifies that fix. In production `exchange.payouts`:
-  ACH            0 x11   (table: 0)  agrees
-  DORADO_ACCOUNT 0 x2    (table: 0)  agrees
-  ECHECK         0 x39   (table: 0)  agrees
-  ECHECK        75 x1    (table: 0)  DISAGREES
-  ECHECK       125 x1    (table: 0)  DISAGREES
-  WIRE           0 x2    (table: 20) DISAGREES
-  WIRE          20 x6    (table: 20) agrees
-                                     62 rows total
+ACH 0 x11 (table: 0) agrees
+DORADO_ACCOUNT 0 x2 (table: 0) agrees
+ECHECK 0 x39 (table: 0) agrees
+ECHECK 75 x1 (table: 0) DISAGREES
+ECHECK 125 x1 (table: 0) DISAGREES
+WIRE 0 x2 (table: 20) DISAGREES
+WIRE 20 x6 (table: 20) agrees
+62 rows total
 *** FOUR ROWS DISAGREE, NOT ELEVEN. *** This entry said eleven until
 2026-08-29 and said 61 rows; both were the coordinator's error, caught
 by the tracker recomputing against PAYOUT_METHOD_FEES instead of
@@ -10246,36 +10249,37 @@ sort of drift the one-writer-per-file rule exists to prevent. FOLLOWUPS
 is the authority for D-numbers.)
 
 === D120: THE AUTHORIZATION CENSUS SILENTLY DROPPED SIX ROUTES AND
-    EXITED 0 ===
+EXITED 0 ===
 `scripts/route-guards.mjs` is the census of every route and the
 middleware in front of it - the thing that answers "is this endpoint
 guarded". A factoring pass revealed it had THREE HARDCODED ASSUMPTIONS,
 each true of the shape the codebase happened to have rather than
 required by anything:
-  1. `walk()` matched the exact filename `routes.ts`, so the new
-     `creates.routes.ts` was never opened at all.
-  2. The import parser matched DEFAULT imports only.
-  3. The route regex matched a variable literally named `router`, so a
-     file declaring two routers contributed NEITHER.
-ANY ONE OF THEM MADE SIX ROUTES VANISH FROM AN AUTHORIZATION AUDIT while
-it reported success. Among the missing: `DELETE /api/purchase_orders/
+
+1. `walk()` matched the exact filename `routes.ts`, so the new
+   `creates.routes.ts` was never opened at all.
+2. The import parser matched DEFAULT imports only.
+3. The route regex matched a variable literally named `router`, so a
+   file declaring two routers contributed NEITHER.
+   ANY ONE OF THEM MADE SIX ROUTES VANISH FROM AN AUTHORIZATION AUDIT while
+   it reported success. Among the missing: `DELETE /api/purchase_orders/
 purge_cancelled` and BOTH `create_review` paths. Census restored to 131
-from 125; the guards themselves were unchanged, so nothing was actually
-unguarded - but for an unknown period the tool that would have told us
-was answering about a subset and calling it the whole.
-An unresolvable `app.use` is now a FAILURE rather than a skip.
-FOURTH GATE SCRIPT BROKEN BY A FACTORING PASS THIS SESSION - after
-`diff` (D118, unparsed for ten commits), `validate:wire`'s moved caller
-(D110) and `audit:test-leaks` running with half the live-service guard
-dead (D115). THE PATTERN IS NOW UNDENIABLE: tooling under `scripts/`
-that nothing typechecks, nothing imports and no test covers rots
-silently while everything it audits stays green. Two of the four were
-invisible because they are not gate members; this one was invisible
-DESPITE being run, because it exited 0 on a subset.
-WORTH BUILDING: a check that every scripts/*.mjs either has a
---self-test or is exercised by something, and that any script counting
-things asserts a FLOOR. `audit:query-paths` and `audit:wire-readiness`
-already do the floor trick; the ones that rotted do not.
+   from 125; the guards themselves were unchanged, so nothing was actually
+   unguarded - but for an unknown period the tool that would have told us
+   was answering about a subset and calling it the whole.
+   An unresolvable `app.use` is now a FAILURE rather than a skip.
+   FOURTH GATE SCRIPT BROKEN BY A FACTORING PASS THIS SESSION - after
+   `diff` (D118, unparsed for ten commits), `validate:wire`'s moved caller
+   (D110) and `audit:test-leaks` running with half the live-service guard
+   dead (D115). THE PATTERN IS NOW UNDENIABLE: tooling under `scripts/`
+   that nothing typechecks, nothing imports and no test covers rots
+   silently while everything it audits stays green. Two of the four were
+   invisible because they are not gate members; this one was invisible
+   DESPITE being run, because it exited 0 on a subset.
+   WORTH BUILDING: a check that every scripts/*.mjs either has a
+   --self-test or is exercised by something, and that any script counting
+   things asserts a FLOOR. `audit:query-paths` and `audit:wire-readiness`
+   already do the floor trick; the ones that rotted do not.
 
 === D121: THE LEGACY BOUNDARY GUARD CAUGHT A REAL ONE, ONE MERGE IN ===
 `lint:legacy-boundary` - written during wave 3.5 for exactly this -
@@ -10286,12 +10290,12 @@ written speculatively against a hazard nobody had hit yet, and it paid
 off inside one wave.
 
 === D122: THE TWO ORDER DIRECTIONS ALREADY CHOSE OPPOSITE CREATE
-    STRATEGIES, AND NOBODY DECIDED IT ===
+STRATEGIES, AND NOBODY DECIDED IT ===
 Surfaced by 5a during the dissolution and correctly LEFT ALONE:
-  PURCHASE - the live path is the re-deriving mirror; `insertPurchaseOrder`
-  has no product-code caller.
-  SALES - exactly inverted; and `create.ts` sits as a THIRD implementation
-  called by nothing.
+PURCHASE - the live path is the re-deriving mirror; `insertPurchaseOrder`
+has no product-code caller.
+SALES - exactly inverted; and `create.ts` sits as a THIRD implementation
+called by nothing.
 So the same operation is implemented three ways across two directions
 with the live path different in each, and no decision behind it - just
 accretion. Unifying it IS D105's write-path rewrite (five native
@@ -10306,15 +10310,16 @@ AND THE RULE WOULD HAVE CAUGHT ONLY THREE OF THE FOUR. `diff`,
 `validate:wire`'s caller and `route-guards` had no guard. But
 `audit:test-leaks` DID HAVE A --self-test AND ROTTED ANYWAY, because its
 failure was ENVIRONMENTAL - a missing NODE_ENV in the process it spawned
+
 - not a miscount. A self-test proves the DETECTOR can see a change; it
-says nothing about the ENVIRONMENT THE SUBJECT RUNS IN.
-So the recommendation stands on those terms and not as a guarantee, and
-the fourth case needs a different rule: A SCRIPT THAT RUNS THE SUITE
-MUST RUN IT THE WAY `pnpm test` DOES rather than assembling its own
-invocation. Two rules, not one.
+  says nothing about the ENVIRONMENT THE SUBJECT RUNS IN.
+  So the recommendation stands on those terms and not as a guarantee, and
+  the fourth case needs a different rule: A SCRIPT THAT RUNS THE SUITE
+  MUST RUN IT THE WAY `pnpm test` DOES rather than assembling its own
+  invocation. Two rules, not one.
 
 === D124: THE FLIP SIDE OF D119 - A TASK SPANNING FEATURES NOBODY OWNS
-    NEVER GETS DONE ===
+NEVER GETS DONE ===
 Partitioning by feature (D119) guarantees no agent reaches across a
 boundary, which is what fixed D114. IT ALSO GUARANTEES THAT WORK IN A
 FEATURE NOBODY WAS GIVEN SIMPLY DOES NOT HAPPEN. Wave 5's task 2 - the
@@ -10369,7 +10374,7 @@ written down is a decision; the same change unstated is a bug somebody
 finds in production.
 
 === D128: A PROMISED-BUT-ABSENT EVIDENCE SECTION IS WORSE THAN SILENCE
-    ===
+\===
 The tracker noticed that 5b's file said the checkout covenant evidence
 "is recorded below rather than assumed" AND THE FILE ENDED THERE. No
 evidence followed.
@@ -10382,35 +10387,36 @@ THE RULE: never write that evidence exists until it is written down.
 "Verified" with nothing after it is a claim, not a record.
 
 === D129: A STRING THAT LOOKS LIKE A DISPLAY LABEL DECIDES WHETHER A
-    COURIER IS DISPATCHED TO A CUSTOMER'S DOOR ===
+COURIER IS DISPATCHED TO A CUSTOMER'S DOOR ===
 Found by 5b inside the very file it was there to rewrite, which is the
 part that should worry us.
 `pickup.name` READS LIKE A UI LABEL. Three modules depend on its exact
 value, with NO FOREIGN KEY AND NO CONSTRAINT ANYWHERE BETWEEN THEM:
-  1. `features/orders/intake.ts` indexes `handoffMethods` BY IT and
-     THROWS on a name it does not recognise - so an unknown value does
-     not degrade, IT REFUSES THE ORDER.
-  2. `features/orders/service.ts:501` BOOKS A COURIER when it equals
-     `"Carrier Pickup"` - a real FedEx dispatch to a customer's address,
-     triggered by string equality.
-  3. It is written verbatim to `shipments.pickup_type`, and
-     `features/media/pdfs` compares it against `"Store Dropoff"` TWICE
-     to decide what a packing list says.
-NOTHING CONNECTED THE OFFERED LIST TO THE ACCEPTED LIST. A developer
-renaming a "display" string - the safest-looking edit in the file -
-WOULD HAVE REFUSED EVERY ORDER PLACED THROUGH IT, and the failure would
-have arrived at checkout rather than in review.
-THIS IS D39'S SHAPE, one layer up: values in different places that must
-agree, with the coupling expressed nowhere. D39 was text-vs-enum in SQL;
-this is text-vs-text across three modules and a database column, and the
-consequence is a courier rather than a query error.
-PINNED by `handoffs/tests/unit.test.ts`: every offered handoff is a name
-intake can file, and the one that books a courier is the one that
-collects a date and a time.
-THE GENERAL RULE, and it now has three instances (D39, D103, this): IF
-TWO PLACES MUST AGREE BY VALUE AND NOTHING ENFORCES IT, THAT IS A
-DEFECT WAITING FOR ITS FIRST RENAME. Look for it wherever a string
-crosses a module boundary without a type or a constraint following it.
+
+1. `features/orders/intake.ts` indexes `handoffMethods` BY IT and
+   THROWS on a name it does not recognise - so an unknown value does
+   not degrade, IT REFUSES THE ORDER.
+2. `features/orders/service.ts:501` BOOKS A COURIER when it equals
+   `"Carrier Pickup"` - a real FedEx dispatch to a customer's address,
+   triggered by string equality.
+3. It is written verbatim to `shipments.pickup_type`, and
+   `features/media/pdfs` compares it against `"Store Dropoff"` TWICE
+   to decide what a packing list says.
+   NOTHING CONNECTED THE OFFERED LIST TO THE ACCEPTED LIST. A developer
+   renaming a "display" string - the safest-looking edit in the file -
+   WOULD HAVE REFUSED EVERY ORDER PLACED THROUGH IT, and the failure would
+   have arrived at checkout rather than in review.
+   THIS IS D39'S SHAPE, one layer up: values in different places that must
+   agree, with the coupling expressed nowhere. D39 was text-vs-enum in SQL;
+   this is text-vs-text across three modules and a database column, and the
+   consequence is a courier rather than a query error.
+   PINNED by `handoffs/tests/unit.test.ts`: every offered handoff is a name
+   intake can file, and the one that books a courier is the one that
+   collects a date and a time.
+   THE GENERAL RULE, and it now has three instances (D39, D103, this): IF
+   TWO PLACES MUST AGREE BY VALUE AND NOTHING ENFORCES IT, THAT IS A
+   DEFECT WAITING FOR ITS FIRST RENAME. Look for it wherever a string
+   crosses a module boundary without a type or a constraint following it.
 
 === D128, CORRECTED AT SOURCE ===
 Worth recording that the rule worked rather than merely being written:
@@ -10463,20 +10469,21 @@ justification is worth stating: A PAGE THAT IS RIGHT ABOUT THE
 CONCLUSION AND WRONG ABOUT THE COUNT TEACHES A READER TO TRUST NEITHER.
 
 === D132: THE BROWSER DECIDES WHAT THE PARCEL IS INSURED FOR, AGAINST A
-    CARRIER LIMIT SPELLED AS A LITERAL ===
+CARRIER LIMIT SPELLED AS A LITERAL ===
 `checkoutStepper.tsx:67` is `Math.min(quote.declared_value, 50000)`.
 Two defects in one expression:
-  1. 50000 IS A CARRIER'S DECLARED-VALUE CEILING, hard-coded in the
-     browser. It is FedEx's limit, it is not ours, and if FedEx changes
-     it the app is silently wrong - the same class as the service codes
-     and the production uuid 5b just removed, and the one instance it
-     could not take because it sits outside its partition.
-  2. THE BROWSER IS COMPUTING WHAT THE LABEL'S INSURANCE IS BOUGHT WITH,
-     which is D82 - the frontend computes no money. Declared value is
-     what the business is covered for if a parcel of metal is lost.
-BELONGS IN `/quotes/purchase_order` with the rest of the money. Reported
-by 5b and deliberately NOT fixed, correctly - it is in 5a's tree and a
-cross-partition grab is exactly what D119 exists to prevent.
+
+1. 50000 IS A CARRIER'S DECLARED-VALUE CEILING, hard-coded in the
+   browser. It is FedEx's limit, it is not ours, and if FedEx changes
+   it the app is silently wrong - the same class as the service codes
+   and the production uuid 5b just removed, and the one instance it
+   could not take because it sits outside its partition.
+2. THE BROWSER IS COMPUTING WHAT THE LABEL'S INSURANCE IS BOUGHT WITH,
+   which is D82 - the frontend computes no money. Declared value is
+   what the business is covered for if a parcel of metal is lost.
+   BELONGS IN `/quotes/purchase_order` with the rest of the money. Reported
+   by 5b and deliberately NOT fixed, correctly - it is in 5a's tree and a
+   cross-partition grab is exactly what D119 exists to prevent.
 
 === D133: A SEAM 5b DECLINED, WRITTEN DOWN PROPERLY ===
 Package types. `packageOptions` in the browser duplicates the nine
@@ -10515,7 +10522,7 @@ writes, at the moment it is written, before its green is ever used as
 evidence for anything.
 
 === D135: THE SAME BUG IN TWO FILES - ONE SILENT, ONE LOUD. THAT IS THE
-    WHOLE LESSON OF TONIGHT IN ONE PAIR. ===
+WHOLE LESSON OF TONIGHT IN ONE PAIR. ===
 5a fixed `scripts/route-guards.mjs` (D120), which hardcoded the filename
 `routes.ts` and so silently dropped six routes from a SECURITY audit
 while exiting 0. Then it found `shared/http/endpoints.test.js` HAD THE
@@ -10536,7 +10543,7 @@ both assert a minimum count and neither rotted. A report with a floor is
 an assertion about its own coverage.
 
 === D136: THE ENTIRE ORDER MUTATION SURFACE HAS NEVER BEEN TYPECHECKED
-    IN TESTS ===
+IN TESTS ===
 Surfaced by 5a converting five test files to TypeScript.
 `types/supertest.d.ts` HAS NEVER DECLARED `patch`. And PATCH is the
 whole order mutation surface - D87 replaced a ~25-route RPC zoo with
@@ -10555,7 +10562,7 @@ the `bid.ts` ComposedItem mismatch in wave 4) and the remaining files
 are the LARGE ones.
 
 === D137: THE COVENANT IS REFUTED, AND THE DEPLOY BLOCKER IS BIGGER
-    THAN A BACKFILL ===
+THAN A BACKFILL ===
 5c did not delete the scrap and bullion legacy layers, and the numbers
 say it must not.
 `checkout.checkouts` AND `checkout.items` HOLD ZERO ROWS - in dev AND in
@@ -10573,21 +10580,22 @@ item `d16b7c32`, pre_melt 18.662 vs 20.000, purity 0.570 vs 0.563. On a
 purchase order those two numbers are what a customer is PAID on. 5c
 reported it and did not touch it.
 *** AND PRODUCTION IS MISSING EIGHT OF THE EIGHTEEN SCHEMAS ENTIRELY ***
+
 - verified by the coordinator, read-only: products, organizations,
-metals, spots, media, leads, rates, reviews are ABSENT. Production has
-ten. So the deploy sequence in CLAUDE.md was understated: it is not
-"migrate and backfill", it is "most of genesis has never run there".
-Code touching a missing schema raises 42P01 at once, and at least one
-such path is on the money: `features/quotes/service.ts:416` ->
-`findProductIdByName` -> `SELECT id FROM products.bullion`, NO SWITCH,
-on the endpoint that prices every customer-visible number. It arrived in
-`d2926fd0`, on this branch, never deployed - so it is a deploy blocker
-and not a live outage. CLAUDE.md updated with all of this.
-ALSO: `features/quotes/` belongs to NO LANE - a second instance of D124,
-found the same night the first was.
+  metals, spots, media, leads, rates, reviews are ABSENT. Production has
+  ten. So the deploy sequence in CLAUDE.md was understated: it is not
+  "migrate and backfill", it is "most of genesis has never run there".
+  Code touching a missing schema raises 42P01 at once, and at least one
+  such path is on the money: `features/quotes/service.ts:416` ->
+  `findProductIdByName` -> `SELECT id FROM products.bullion`, NO SWITCH,
+  on the endpoint that prices every customer-visible number. It arrived in
+  `d2926fd0`, on this branch, never deployed - so it is a deploy blocker
+  and not a live outage. CLAUDE.md updated with all of this.
+  ALSO: `features/quotes/` belongs to NO LANE - a second instance of D124,
+  found the same night the first was.
 
 === D138: THE NEW PARITY PAIRS ARE EXACT ONLY WHILE THE TARGET IS EMPTY
-    ===
+\===
 5c added the four cart pairs to `verify:parity` (11 -> 15) and all four
 report `>> NOT SAFE`, which is correct today. IT ALSO STATED THE LIMIT,
 and the limit is the important half: THE COMPARISON JOINS ON `id`, AND A
@@ -10667,7 +10675,7 @@ the count fell while the sentence naming it did not. The retired ones
 were never promoted; they ceased to exist.
 
 === D143: A CLAIM IN MY OWN COMMIT MESSAGE IS UNPROVEN - THE SCATTER
-    SCAN CANNOT SEE `cn()` ARGUMENTS ===
+SCAN CANNOT SEE `cn()` ARGUMENTS ===
 Found by lane C, routed to lane D, and CONFIRMED BY THE COORDINATOR BY
 ATTACK: planted `className={cn('text-sm', 'flex')}` in a new file and
 `lint:typography-scatter` still reported ZERO. Blind by construction -
@@ -10694,7 +10702,7 @@ AS EVIDENCE, PLANT A VIOLATION AND CONFIRM IT FAILS. Thirty seconds.
 Every number in a commit message is a claim someone will rely on later.
 
 === D144: THE ORPHANED SEAM - `api/shared/` BELONGED TO NO LANE, AND THE
-    DECLARATION FILES IT HELD WERE DEAD AND WRONG ===
+DECLARATION FILES IT HELD WERE DEAD AND WRONG ===
 THIRD cross-lane seam of the night, found by the tracker checking a lane
 report against every lane's declared scope rather than assuming somebody
 owned it. Lane B found two `.d.ts` files in `api/shared/testing/` whose
@@ -10725,11 +10733,11 @@ the argument for the tracker existing, and it is a stronger one than
 keeping a progress bar current.
 
 === D145: A MISSING PAYOUT COST MAKES THE WHOLE INVOICE `NaN`, AND THE
-    TYPE SYSTEM WAS TALKED OUT OF NOTICING ===
+TYPE SYSTEM WAS TALKED OUT OF NOTICING ===
 Found by lane B while converting tests, verified by the coordinator in
 source and by reproducing the arithmetic.
 `api/features/pricing/bid.ts:148`:
-    return baseTotal - shipping - order.payout.cost;
+return baseTotal - shipping - order.payout.cost;
 The line ABOVE defends the other subtrahend - `shipping_charge ?? 0` -
 and the return line does not defend `payout.cost`. An order with a
 missing payout row, or a `cost` of undefined, yields `number -
@@ -10751,7 +10759,7 @@ on purpose and a test PINS the TypeError for exactly this reason. On a
 money path a loud failure beats a plausible total.
 
 === D146: `api/legacy/`'s OWN EXIT CRITERIA ARE UNSATISFIABLE, AND THE
-    REAL QUESTION IS ONE QUESTION ASKED ONCE ===
+REAL QUESTION IS ONE QUESTION ASKED ONCE ===
 `legacy/README.md` step 3 requires a `*_SOURCE` switch promoted past
 `dual` before a directory may be deleted. ELEVEN OF THE FOURTEEN
 DIRECTORIES NO LONGER HAVE A SWITCH - as each feature's reads pivoted,
@@ -10761,7 +10769,7 @@ D142). So the folder's own exit criteria can never be met by eleven of
 its residents, and "legacy is deletable when its switch is promoted"
 quietly became "legacy is never deletable".
 WHAT REPLACES IT IS SIMPLER AND IS JACOB'S TO ANSWER, ONCE, FOR ALL
-ELEVEN: *may `exchange` stop receiving these writes?* That is the whole
+ELEVEN: _may `exchange` stop receiving these writes?_ That is the whole
 of it. There is no per-feature ceremony left to perform, because the
 per-feature switches that would have performed it are gone.
 THE EVIDENCE IS ALREADY GATHERED so it can be ANSWERED rather than
@@ -10786,7 +10794,7 @@ disclosed it as crossing #3 of three with the `--self-test` result
 prevent every crossing, it makes each one visible and argued.
 
 === D148: THE DO-NOT-LOSE-DATA GUARD WAS BLIND TO A WRAPPED STATEMENT,
-    AND AN UNMARKED DESTRUCTIVE CHANGE HAD ALREADY PASSED THROUGH IT ===
+AND AN UNMARKED DESTRUCTIVE CHANGE HAD ALREADY PASSED THROUGH IT ===
 The most serious finding of the night, and the last one anybody would
 have looked for.
 CLAUDE.md's first rule is that nothing may overwrite, truncate or delete
@@ -10794,14 +10802,14 @@ any of `exchange`, and it names `lint:migrations` as the thing that
 "enforces this statically and runs in CI". Lane D documented that the
 scan is LINE-BY-LINE and therefore cannot see a statement split across
 lines. The coordinator planted one to check:
-    DROP
-      TABLE exchange.payouts;
+DROP
+TABLE exchange.payouts;
 *** THE GUARD PRINTED "105 files, no destructive writes to exchange". ***
 CLOSING IT FOUND A REAL ONE THAT WAS ALREADY IN THE TREE.
 `086_offers_go_away.sql:46` is
-    ALTER TABLE exchange.purchase_orders
-      DROP COLUMN IF EXISTS offer_status,
-      ... four more ...
+ALTER TABLE exchange.purchase_orders
+DROP COLUMN IF EXISTS offer_status,
+... four more ...
 FIVE COLUMNS DROPPED FROM `exchange.purchase_orders`, WITH NO
 `-- allow-destructive:` MARKER, because the statement wraps and the
 guard never saw it and so never demanded one. The change itself was
@@ -10827,9 +10835,9 @@ do-not-lose-data guard the difference is the whole thing.
 === D149: THE NaN INVOICE, RESOLVED BY MEASURING FIRST ===
 D145 handed lane A a choice rather than a patch, and it measured before
 choosing. THREE INPUTS GAVE THREE DIFFERENT ANSWERS:
-  `payout: null`        -> TypeError
-  `payout: {cost: null}` -> 0
-  `payout: {}`           -> NaN, SILENTLY, into the invoice
+`payout: null` -> TypeError
+`payout: {cost: null}` -> 0
+`payout: {}` -> NaN, SILENTLY, into the invoice
 That third arm could never have been covered by a test, because the type
 said it was impossible - `OrderLike` intersects `{ payout: { cost:
 number } }` onto `req.body`.
@@ -10844,7 +10852,7 @@ SWEPT AGAINST THE DATABASE, not just unit-tested: 48 dev orders priced,
 explicitly checked and untouched.
 
 === D150: SIX ROTTED GATE SCRIPTS, AND THE COUNT ONLY STOPPED BECAUSE
-    SOMEONE WENT LOOKING ===
+SOMEONE WENT LOOKING ===
 The tally, because the number is the finding: `diff` (unparsed for ten
 commits), `audit:test-leaks` (suite spawned without NODE_ENV, half the
 live-service guard dead), `validate:wire`'s moved caller, `route-guards`
@@ -10866,7 +10874,7 @@ must exit 0 AND say it ran, because a script ignoring an unknown flag
 exits 0 too.
 
 === D151: CHECKOUT_SOURCE HAS ITS EVIDENCE, AND THE AGENT DECLINED TO
-    PROMOTE ANYWAY ===
+PROMOTE ANYWAY ===
 Jacob's bar for checkout is FUNCTION, not preservation (`checkout.*` is
 device-sync; empty is fine). Nothing in the gate tested that, so lane A
 exercised the dual path directly in a rolled-back transaction: 8 passed,
@@ -10881,36 +10889,37 @@ recipe, a refutation, a measured seam. Stopping is not the absence of
 work; on this project it has been most of the value.
 
 === D152: WE JUST MADE THE TERMS AND CONDITIONS DISAGREE WITH THE
-    DATABASE, ON INSURANCE ===
+DATABASE, ON INSURANCE ===
 `app/terms-and-conditions/page.tsx:177` promises insurance "up to
 $50,000". Tonight's migration 097 sets `shipping.services
 .max_insured_value` to **10000** on all eight rows, and the clamp is now
 server-side and authoritative. So the site's LEGAL COPY promises five
 times what the system will actually insure.
 NEITHER SIDE IS OBVIOUSLY WRONG, WHICH IS WHY IT IS JACOB'S:
- - 10000 is what he asked for, verbatim: "make it 10,000 for all of them
-   at the moment". "At the moment" suggests a placeholder.
- - 50000 was the browser literal we removed, and it is the CARRIER'S
-   declared-value ceiling - a different quantity from what Dorado
-   chooses to insure. Lane A kept them separate deliberately and did not
-   seed `max_declared_value`, because that column is dual-written to
-   `exchange` and seeding it would mean writing `exchange` from a
-   migration.
- - The T&C is contractual. A customer who reads $50,000 and ships
+
+- 10000 is what he asked for, verbatim: "make it 10,000 for all of them
+  at the moment". "At the moment" suggests a placeholder.
+- 50000 was the browser literal we removed, and it is the CARRIER'S
+  declared-value ceiling - a different quantity from what Dorado
+  chooses to insure. Lane A kept them separate deliberately and did not
+  seed `max_declared_value`, because that column is dual-written to
+  `exchange` and seeding it would mean writing `exchange` from a
+  migration.
+- The T&C is contractual. A customer who reads $50,000 and ships
    $30,000 of metal has been told something the system will not honour.
-NOTHING WAS TOUCHED. Legal copy is Jacob's and already has one
-outstanding review (the offers purge deleted both deemed-acceptance
-clauses, the "Rejecting Our Offer" section and the 7-business-day term,
-leaving the Return Policy with no trigger). This is the second item on
-that same review.
-THE GENERAL POINT WORTH KEEPING: moving a number out of the browser and
-into the database makes it AUTHORITATIVE, and anything that was quietly
-agreeing with the old literal now has to agree with the new column or be
-wrong out loud. Grep for the number, not just the code, when a constant
-becomes data.
+  NOTHING WAS TOUCHED. Legal copy is Jacob's and already has one
+  outstanding review (the offers purge deleted both deemed-acceptance
+  clauses, the "Rejecting Our Offer" section and the 7-business-day term,
+  leaving the Return Policy with no trigger). This is the second item on
+  that same review.
+  THE GENERAL POINT WORTH KEEPING: moving a number out of the browser and
+  into the database makes it AUTHORITATIVE, and anything that was quietly
+  agreeing with the old literal now has to agree with the new column or be
+  wrong out loud. Grep for the number, not just the code, when a constant
+  becomes data.
 
 === D153: A COMPONENT WITH ZERO IMPORTERS, AND SIX HAND-ROLLED COPIES OF
-    IT IN THE TREE - EVERY ONE CARRYING THE SAME LIVE DEFECT ===
+IT IN THE TREE - EVERY ONE CARRYING THE SAME LIVE DEFECT ===
 `SelectMenu` was lifted during the D88 component push and NEVER ADOPTED -
 zero importers, noted as such three separate times across three waves
 and each time left alone. Meanwhile SIX hand-rolled popover menus sat in
@@ -10931,7 +10940,7 @@ somewhere). Never leave it as "worth confirming later" - that is the
 state in which it was reported three times.
 
 === D154: LANE C RE-BASELINED ITS OWN NUMBERS MID-RUN, WHICH IS WHY THEY
-    ARE TRUE ===
+ARE TRUE ===
 Lane D fixed both frontend linters WHILE LANE C WAS USING THEM. So the
 `0` lane C started from was "zero of the ones the linter could see" -
 the same wrong zero that reached two of my commit messages (D143).
@@ -10973,43 +10982,44 @@ brace-depth check above is ten lines and belongs in
 `lint:script-guards`.
 
 === D156: THE PAYMENTS PARITY TEST - THE EVIDENCE FOR PROMOTING THE
-    SWITCH - WAS COMPARING NOTHING ===
+SWITCH - WAS COMPARING NOTHING ===
 Found by lane B's conversion, VERIFIED TWO WAYS by the tracker and again
 by the coordinator. This one matters more than the other ten because of
 what it was being used for.
 `PAYMENTS_SOURCE` is one of the two surviving switches, and its parity
 test is the evidence that it can be promoted. Both of its assertions
 compare fields THAT DO NOT EXIST ON EITHER SIDE:
- - `repo.exchange.js:45` projects `(amount::numeric / 100) AS
-   amount_expected` - there is no `amount`.
- - line 52 puts the intent id inside
-   `jsonb_build_object('provider_ref', payment_intent_id)` - it surfaces
-   as `attempt.provider_ref`, not `.payment_intent_id`.
-Both reads were converted to the wire shape; THE TEST WAS NOT. So
-`.payment_intent_id` and `.amount` are `undefined` on BOTH
-implementations, and undefined equals undefined.
-*** AND `NaN` PASSES. *** Confirmed at the console: under
-`node:assert/strict`, `assert.equal` is strictEqual, strictEqual uses
-`Object.is`, and `Object.is(NaN, NaN)` is TRUE. `Number(undefined)` is
-`NaN`. So a numeric comparison of two absent fields is a GREEN
-ASSERTION. The one deep-equality idiom most people assume is safe is the
-one that makes this invisible.
-TWO GREEN ASSERTIONS, NEITHER COMPARING ANYTHING, on the feature holding
-FOURTEEN SETS OF UNENCRYPTED BANK DETAILS. Ninth vacuous-test instance
-on this project, second tonight, and the second found by THE COMPILER
-rather than by a person - which is the argument for ruling 33 in one
-line.
-FOR JACOB: if "payments parity is green" was part of why promoting
-`PAYMENTS_SOURCE` felt safe, it was not evidence until a few minutes
-ago. It is a real comparison now, but the green is HOURS OLD rather than
-months - let it run before leaning on it.
+
+- `repo.exchange.js:45` projects `(amount::numeric / 100) AS
+amount_expected` - there is no `amount`.
+- line 52 puts the intent id inside
+  `jsonb_build_object('provider_ref', payment_intent_id)` - it surfaces
+  as `attempt.provider_ref`, not `.payment_intent_id`.
+  Both reads were converted to the wire shape; THE TEST WAS NOT. So
+  `.payment_intent_id` and `.amount` are `undefined` on BOTH
+  implementations, and undefined equals undefined.
+  *** AND `NaN` PASSES. *** Confirmed at the console: under
+  `node:assert/strict`, `assert.equal` is strictEqual, strictEqual uses
+  `Object.is`, and `Object.is(NaN, NaN)` is TRUE. `Number(undefined)` is
+  `NaN`. So a numeric comparison of two absent fields is a GREEN
+  ASSERTION. The one deep-equality idiom most people assume is safe is the
+  one that makes this invisible.
+  TWO GREEN ASSERTIONS, NEITHER COMPARING ANYTHING, on the feature holding
+  FOURTEEN SETS OF UNENCRYPTED BANK DETAILS. Ninth vacuous-test instance
+  on this project, second tonight, and the second found by THE COMPILER
+  rather than by a person - which is the argument for ruling 33 in one
+  line.
+  FOR JACOB: if "payments parity is green" was part of why promoting
+  `PAYMENTS_SOURCE` felt safe, it was not evidence until a few minutes
+  ago. It is a real comparison now, but the green is HOURS OLD rather than
+  months - let it run before leaning on it.
 
 === D157: THE ROOT CAUSE OF EVERY ROTTED GATE SCRIPT IS ONE WORD IN
-    tsconfig.json ===
+tsconfig.json ===
 Mentioned in passing by lane B, verified by the tracker and again here.
 `api/tsconfig.json`:
-    "exclude": ["node_modules", "migrations", "**/*.test.js", "scripts"]
-                                                               ^^^^^^^
+"exclude": ["node_modules", "migrations", "**/*.test.js", "scripts"]
+^^^^^^^
 FORTY-SIX SCRIPTS, ZERO TYPE COVERAGE, BY CONFIGURATION. Nothing imports
 them, no test covered them, and `tsc` is explicitly told not to look.
 That is the whole mechanism behind D110, D115, D118, D120, D148 and the
@@ -11074,31 +11084,32 @@ the first try.
 === D160: THREE WRONG NUMBERS TONIGHT, ALL WRONG THE SAME WAY ===
 Not three mistakes. One mistake, made three times, by three different
 agents including the coordinator:
-  1. D117's "ELEVEN rows disagree" - actually FOUR. The eleven was the
-     x11 on the ACH line, which is a count of rows that AGREE. Mine.
-  2. The tracker's "224 uncommitted paths" - actually 215. Typed from
-     memory of an earlier reading instead of re-running the command.
-     Caught and published by the tracker against itself.
-  3. Lane B comparing vacuous-test counts against "CLAUDE.md's 13 LOOP /
-     9 SKIP" - CLAUDE.md DOES NOT MENTION audit:vacuous-tests, LOOP or
-     SKIP anywhere. The real baseline, in FOLLOWUPS.md, is 21 LOOP and
-     10 SKIP. So the movement is 21->24 and 10->8, and SKIP WENT DOWN
-     where the quoted baseline implied a jump.
-EVERY ONE IS A FIGURE CARRIED FORWARD INSTEAD OF RE-DERIVED. None was a
-miscalculation; each was a number remembered, or read from the wrong
-place, and then reasoned from. All three were harmless-looking. All
-three were in documents whose purpose is to be trusted later.
-THE RULE, and it is cheap: A NUMBER YOU DID NOT COMPUTE IN THIS SESSION
-IS A CLAIM, NOT A FACT. Re-derive it, or cite where it came from so the
-next reader can. The tracker's practice of stating whose number a figure
-is, and when it was taken, is the working form of this.
-NOTE ALSO WHAT SURVIVED EACH TIME: all three conclusions held. The
-disagreement was real, the tree was dirty, the suite had drifted. Wrong
-numbers attached to right conclusions are the hardest kind to catch,
-because nothing downstream misbehaves.
+
+1. D117's "ELEVEN rows disagree" - actually FOUR. The eleven was the
+   x11 on the ACH line, which is a count of rows that AGREE. Mine.
+2. The tracker's "224 uncommitted paths" - actually 215. Typed from
+   memory of an earlier reading instead of re-running the command.
+   Caught and published by the tracker against itself.
+3. Lane B comparing vacuous-test counts against "CLAUDE.md's 13 LOOP /
+   9 SKIP" - CLAUDE.md DOES NOT MENTION audit:vacuous-tests, LOOP or
+   SKIP anywhere. The real baseline, in FOLLOWUPS.md, is 21 LOOP and
+   10 SKIP. So the movement is 21->24 and 10->8, and SKIP WENT DOWN
+   where the quoted baseline implied a jump.
+   EVERY ONE IS A FIGURE CARRIED FORWARD INSTEAD OF RE-DERIVED. None was a
+   miscalculation; each was a number remembered, or read from the wrong
+   place, and then reasoned from. All three were harmless-looking. All
+   three were in documents whose purpose is to be trusted later.
+   THE RULE, and it is cheap: A NUMBER YOU DID NOT COMPUTE IN THIS SESSION
+   IS A CLAIM, NOT A FACT. Re-derive it, or cite where it came from so the
+   next reader can. The tracker's practice of stating whose number a figure
+   is, and when it was taken, is the working form of this.
+   NOTE ALSO WHAT SURVIVED EACH TIME: all three conclusions held. The
+   disagreement was real, the tree was dirty, the suite had drifted. Wrong
+   numbers attached to right conclusions are the hardest kind to catch,
+   because nothing downstream misbehaves.
 
 === D161: A NEGATIVE RESULT WORTH RECORDING - THE MASS RENAME BLINDED
-    NOTHING ===
+NOTHING ===
 The session's largest single change was renaming 89 `.test.js` files to
 `.ts`. THE RISK: a script matching the old extension goes silently blind
 over the conversion - and the one that matters is `audit:test-leaks`,
@@ -11116,7 +11127,7 @@ walking zero files since the night of the conversion - is exactly the
 shape of six other findings tonight.
 
 === D162: A TEST WHOSE CLOSING ASSERTION PASSED BECAUSE ITS SUBJECT NEVER
-    HAPPENED ===
+HAPPENED ===
 Lane B's L-B8, and the clearest case yet of green meaning nothing.
 `places/addresses/tests/service`: ten of thirteen `service.create` calls
 spread `draft()`; THREE WRAPPED IT AGAIN as `{ address: draft() }`. So
@@ -11175,7 +11186,7 @@ And the crossing itself was right: splitting it would have put a
 money-path fix in one commit and its only proof in another.
 
 === D165: TWO CORRECT NUMBERS, DIFFERENT DENOMINATORS - THE THIRD TIME
-    TONIGHT ===
+TONIGHT ===
 Lane A says it wrote NINE tests. Lane B measured the suite moving
 934 -> 942, EIGHT. Neither is wrong: `bid.test.ts` holds 24 tests, eight
 of them new payout/shipping arms, and THE NINTH WAS A REWRITE - the old
@@ -11198,7 +11209,7 @@ TOLD". That is L-B2 in three words, written by the lane that FIXED it
 rather than the one that found it.
 
 === D166: THE LAST FINDING HAS NO OWNER, AND IT IS A GENUINE CONFLICT
-    BETWEEN TWO RULINGS ===
+BETWEEN TWO RULINGS ===
 The typography sweep was never at zero (D143). The true figure is 28
 type utilities across 9 files, ALL IN `shared/ui` - and they are not
 leftovers anyone forgot. They are shadcn base primitives declaring their
@@ -11214,18 +11225,18 @@ one line in typography.css" - and by that standard a hardcoded
 change the dialog.
 BOTH ARE RIGHT AND THEY DISAGREE HERE. The resolution is a design
 decision, and it is Jacob's:
-  (a) A shared primitive MAY carry its own type class, and the scatter
-      metric should exclude `shared/ui` - in which case the real target
-      is already met and the number should stop being reported as a gap.
-  (b) A primitive may NOT, and each renders a semantic tag that
-      typography.css styles - `DialogTitle` an `<h2>`, `FormMessage` a
-      `<small>` - which is the stricter and better answer, and is DOM
-      structure work on 9 files with no browser to check it.
-  (c) A middle: primitives may carry type classes but only SEMANTIC
-      SCALE tokens (`text-small`, `text-h3`), never raw Tailwind sizes
-      (`text-lg`, `text-sm`). `table.tsx` ALREADY DOES THIS and
-      `dialog.tsx` does not - so the codebase has already half-chosen
-      (c) without anyone deciding it.
+(a) A shared primitive MAY carry its own type class, and the scatter
+metric should exclude `shared/ui` - in which case the real target
+is already met and the number should stop being reported as a gap.
+(b) A primitive may NOT, and each renders a semantic tag that
+typography.css styles - `DialogTitle` an `<h2>`, `FormMessage` a
+`<small>` - which is the stricter and better answer, and is DOM
+structure work on 9 files with no browser to check it.
+(c) A middle: primitives may carry type classes but only SEMANTIC
+SCALE tokens (`text-small`, `text-h3`), never raw Tailwind sizes
+(`text-lg`, `text-sm`). `table.tsx` ALREADY DOES THIS and
+`dialog.tsx` does not - so the codebase has already half-chosen
+(c) without anyone deciding it.
 NOT RESOLVED TONIGHT, DELIBERATELY: (b) changes rendered markup across
 nine shared primitives with no browser available, and the difference
 between (a) and (c) is a rule about what the metric MEANS. Both want a
@@ -11234,7 +11245,7 @@ does, it keeps ruling 20 intact, and it makes the scale single-sourced
 without touching DOM.
 
 === D167: MY ROLL-UP SCRIPT HAD THE SAME BLIND SPOT AS EVERYTHING ELSE
-    ===
+\===
 The tracker relocated a section, `WAVES.md` ended up with TWO
 `## Wave 6` headings, and `scripts/waves.mjs` matches a heading then
 takes THE FIRST CODE BLOCK AFTER IT - so the second heading rolled up a
@@ -11326,30 +11337,30 @@ found by someone re-computing a number the tool had already given them.
     in exactly one.
     That split IS the rule, and it makes "randomly" impossible by
     construction:
-      - USED IN MORE THAN ONE FILE -> it crosses a boundary, so it
-        belongs in `@dorado/contracts` and both sides import it. This is
-        ruling 37 generalised: not just request bodies, ANY shape two
-        files agree about.
-      - USED IN EXACTLY ONE FILE -> it is an implementation detail and
-        MUST NOT BE EXPORTED. `Lookups`, `HttpError`, a local `Executor`
-        alias: these are not contracts and moving them into one would
-        make the contracts a dumping ground. The fix for these is to
-        stop exporting them, not to relocate them.
-    SO EVERY EXPORTED TYPE IN `features/` IS EITHER IN THE WRONG PLACE
-    OR SHOULD NOT BE EXPORTED. There is no third case, which is what
-    makes it checkable: a lint can walk the exports, count the importing
-    files, and fail on both arms. That belongs beside lint:db and
-    lint:namespace-calls.
-    THE ONE THING TO PRESERVE THROUGH THE MOVE, because it is where this
-    goes wrong: several of these types are deliberately WIDER than they
-    look. `ShipmentUpdate` types every timestamp as `Date | string`
-    because callers spread a row pg has already parsed; `shipping_label`
-    is `string | Buffer` because FedEx returns a buffer and one call
-    site passes it through. `ServiceInput` is all-optional-and-untrusted
-    because it is `req.body`. A contract that "cleans these up" into
-    narrow types is not tidying, it is asserting something about callers
-    that the compiler already disproved - the same class of loss as
-    D145's `?? 0` and D149's rejected blanket throw.
+    - USED IN MORE THAN ONE FILE -> it crosses a boundary, so it
+      belongs in `@dorado/contracts` and both sides import it. This is
+      ruling 37 generalised: not just request bodies, ANY shape two
+      files agree about.
+    - USED IN EXACTLY ONE FILE -> it is an implementation detail and
+      MUST NOT BE EXPORTED. `Lookups`, `HttpError`, a local `Executor`
+      alias: these are not contracts and moving them into one would
+      make the contracts a dumping ground. The fix for these is to
+      stop exporting them, not to relocate them.
+      SO EVERY EXPORTED TYPE IN `features/` IS EITHER IN THE WRONG PLACE
+      OR SHOULD NOT BE EXPORTED. There is no third case, which is what
+      makes it checkable: a lint can walk the exports, count the importing
+      files, and fail on both arms. That belongs beside lint:db and
+      lint:namespace-calls.
+      THE ONE THING TO PRESERVE THROUGH THE MOVE, because it is where this
+      goes wrong: several of these types are deliberately WIDER than they
+      look. `ShipmentUpdate` types every timestamp as `Date | string`
+      because callers spread a row pg has already parsed; `shipping_label`
+      is `string | Buffer` because FedEx returns a buffer and one call
+      site passes it through. `ServiceInput` is all-optional-and-untrusted
+      because it is `req.body`. A contract that "cleans these up" into
+      narrow types is not tidying, it is asserting something about callers
+      that the compiler already disproved - the same class of loss as
+      D145's `?? 0` and D149's rejected blanket throw.
 
 39. THE SAME DISEASE ON THE FRONTEND, AND IT GETS ITS OWN WAVE (Jacob,
     on a checkout file importing seven schemas from seven feature
@@ -11383,8 +11394,8 @@ found by someone re-computing a number the tool had already given them.
     a data type left in a feature is the drift we have spent six waves
     removing.
 
-=== D168: RULING 36 AUTHORISED STOPPING *DUAL* WRITES. THREE OF THEM ARE
-    NOT DUAL WRITES. ===
+=== D168: RULING 36 AUTHORISED STOPPING _DUAL_ WRITES. THREE OF THEM ARE
+NOT DUAL WRITES. ===
 The write-pivot lane captured the covenant ledger (15 pairs, 10
 byte-identical, `only_in_target` = 0 on all fifteen - the number that
 would have blocked the wave, since a target-only row is one a backfill
@@ -11392,49 +11403,50 @@ overwrites), closed three of the five native gaps, and then STOPPED at
 three writes to `exchange` that HAVE NO MIRROR BECAUSE THEY HAVE NO
 DESTINATION. Applying ruling 36 to these would not have removed a
 redundant write; it would have removed the ONLY write.
-  1. `exchange.payouts`. The successor reaches its order through
-     `order -> payments.intents -> details`, and DEV HAS EIGHT INTENTS,
-     ALL ON SALES ORDERS, AGAINST FORTY-EIGHT PURCHASE ORDERS. A payout
-     is money going OUT; an intent is money coming IN. The join the
-     successor needs DOES NOT EXIST for the row it must serve, and it
-     fails SILENTLY. This is bigger than the known bank-details problem
-     and sits underneath it.
-  2. *** `exchange.users` - THE DIRECTION IS INVERTED. *** The
-     `mirror_users_to_auth` trigger makes `exchange` the SOURCE, so the
-     statement filed under "legacy" is THE LIVE ONE, and
-     `features/users/repo.ts adjustCredit` is called by nothing but
-     tests. STOPPING THIS WRITE FREEZES EVERY CUSTOMER CREDIT BALANCE -
-     the $66,999.32 ledger across eight customers. The word "legacy" on
-     a directory was doing the reasoning, and it was wrong.
-  3. `purgeCancelled` already points at the WRONG COPY: it destroys the
-     `exchange` backup and leaves the `orders.orders` rows the admin is
-     looking at. A native port needs a six-table cascade AND a
-     `direction = 'purchase'` predicate the old statement got free from
-     its table name - and DEV HAS NO CANCELLED SALES ORDERS, which is
-     exactly the condition under which that ships green.
-CONSEQUENCE FOR `api/legacy/`: its promise that "promotion deletes one
-directory" DOES NOT HOLD. Two of its residents are SOLE IMPLEMENTATIONS
-OF LIVE WRITES, which its own entry criteria disqualify. The folder was
-built on the assumption that everything in it was a mirror; two things
-in it are not.
-THE LESSON, and it is the one this project keeps relearning in new
-costumes: A LABEL IS NOT EVIDENCE. "legacy" described where the code sat
-in a directory tree, not what it did, and the ledger is what found the
-difference. Same shape as D129 (a display label steering a courier),
-D103 (a hand-written union that was really an unenforced constraint) and
-D163 (a rename read as a loss).
+
+1. `exchange.payouts`. The successor reaches its order through
+   `order -> payments.intents -> details`, and DEV HAS EIGHT INTENTS,
+   ALL ON SALES ORDERS, AGAINST FORTY-EIGHT PURCHASE ORDERS. A payout
+   is money going OUT; an intent is money coming IN. The join the
+   successor needs DOES NOT EXIST for the row it must serve, and it
+   fails SILENTLY. This is bigger than the known bank-details problem
+   and sits underneath it.
+2. *** `exchange.users` - THE DIRECTION IS INVERTED. *** The
+   `mirror_users_to_auth` trigger makes `exchange` the SOURCE, so the
+   statement filed under "legacy" is THE LIVE ONE, and
+   `features/users/repo.ts adjustCredit` is called by nothing but
+   tests. STOPPING THIS WRITE FREEZES EVERY CUSTOMER CREDIT BALANCE -
+   the $66,999.32 ledger across eight customers. The word "legacy" on
+   a directory was doing the reasoning, and it was wrong.
+3. `purgeCancelled` already points at the WRONG COPY: it destroys the
+   `exchange` backup and leaves the `orders.orders` rows the admin is
+   looking at. A native port needs a six-table cascade AND a
+   `direction = 'purchase'` predicate the old statement got free from
+   its table name - and DEV HAS NO CANCELLED SALES ORDERS, which is
+   exactly the condition under which that ships green.
+   CONSEQUENCE FOR `api/legacy/`: its promise that "promotion deletes one
+   directory" DOES NOT HOLD. Two of its residents are SOLE IMPLEMENTATIONS
+   OF LIVE WRITES, which its own entry criteria disqualify. The folder was
+   built on the assumption that everything in it was a mirror; two things
+   in it are not.
+   THE LESSON, and it is the one this project keeps relearning in new
+   costumes: A LABEL IS NOT EVIDENCE. "legacy" described where the code sat
+   in a directory tree, not what it did, and the ledger is what found the
+   difference. Same shape as D129 (a display label steering a courier),
+   D103 (a hand-written union that was really an unenforced constraint) and
+   D163 (a rename read as a loss).
 
 === D169: THE PARSE CHECK WENT BLIND EXACTLY WHERE IT WAS ABOUT TO BE
-    NEEDED - AND I FAILED TWICE TRYING TO REFUTE IT ===
+NEEDED - AND I FAILED TWICE TRYING TO REFUTE IT ===
 `lint-script-guards.mjs` assertion 1 is "every script parses", written
 for D118 (`diff` unparseable for ten commits while every run exited 0
 before opening a connection). It ran `node --check <file>`.
 *** `node --check` EXITS 0 ON A `.ts` FILE CONTAINING AN UNCLOSED OBJECT
 LITERAL *** - the precise shape D118 was. Confirmed against the lane's
 own fixture:
-    export const F: Record<string,string> = {
-      a: "b",
-  -> exit 0.
+export const F: Record<string,string> = {
+a: "b",
+-> exit 0.
 So the scripts-to-TypeScript conversion WOULD HAVE SILENTLY DISABLED THE
 PARSE CHECK FOR EVERY SCRIPT IT CONVERTED, while the census went on
 printing "54 parse". It was caught only because the fix landed before
@@ -11443,44 +11455,45 @@ the conversion did. Fixed by parsing `.ts` through `node:module`'s
 *** AND THE PART THAT IS MINE. *** I doubted the claim and tested it
 twice, badly, both times in the way this session has spent two days
 cataloguing:
-  1. `node --check f.ts 2>&1 | head -3 && echo ok` - the `&&` and a
-     later `$?` read HEAD's exit status through the pipe, never node's.
-     A check that could not see its subject, built to check a check that
-     could not see its subject.
-  2. A fixture of `const x: number = 1;` with no `export`. That takes a
-     different module-detection path and exits 1, so I concluded the
-     opposite of the truth from an unrepresentative case.
-THE LESSON I HAD ALREADY WRITTEN DOWN AND DID NOT APPLY: a detector's
-result is only as good as the fixture, and a pipeline's exit status is
-the LAST command's. D160 said a number you did not compute is a claim;
-this is the same rule for a test you did not construct carefully. The
-lane's evidence was better than my refutation, and the record should say
-so plainly.
+
+1. `node --check f.ts 2>&1 | head -3 && echo ok` - the `&&` and a
+   later `$?` read HEAD's exit status through the pipe, never node's.
+   A check that could not see its subject, built to check a check that
+   could not see its subject.
+2. A fixture of `const x: number = 1;` with no `export`. That takes a
+   different module-detection path and exits 1, so I concluded the
+   opposite of the truth from an unrepresentative case.
+   THE LESSON I HAD ALREADY WRITTEN DOWN AND DID NOT APPLY: a detector's
+   result is only as good as the fixture, and a pipeline's exit status is
+   the LAST command's. D160 said a number you did not compute is a claim;
+   this is the same rule for a test you did not construct carefully. The
+   lane's evidence was better than my refutation, and the record should say
+   so plainly.
 
 === D170: TWO ORPHANED ITEMS, BOTH TYPES THAT DISAGREE WITH THEIR OWN
-    TESTS ===
+TESTS ===
 Both lanes have stopped; neither of these has an owner, and both live in
 `api/shared/` or `api/features/` where the write-pivot lane's scope
 ended. Recorded so they are not lost between phases.
-  I-10: `WireData` in `shared/wire/rename.ts` is
-  `WireRow | WireRow[] | null | undefined`, and
-  `shared/wire/tests/adapter.test.ts` has a test called "nothing, and
-  things that are not rows, pass through" WHICH FEEDS IT A BOOLEAN, A
-  STRING AND A NUMBER. All three are outside the declared domain, and
-  `rename()` guards for exactly that case and passes them through. SO
-  THE TYPE FORBIDS WHAT THE CODE DELIBERATELY SUPPORTS AND A TEST
-  PROVES. That is the mirror of D145: there a type ASSERTED something
-  false and the compiler was talked out of noticing; here a type DENIES
-  something true and the test is the only record of it. Both are a
-  declaration disagreeing with behaviour; only one of them fails loudly.
-  TASK 3 / D159 IS A TWO-FILE CHANGE, NOT ONE. `compose.ts` discards
-  the type at its OWN boundary - `composePurchaseOrder` and
-  `composeSalesOrder` both return `Record<string, unknown>` - so
-  narrowing `read.service.ts` alone would move the cast rather than
-  remove it. The probe also surfaced three real mismatches, the sharpest
-  being `ScrapPart.content: number` against a NULLABLE column, with
-  `{} as ScrapPart` disabling the constraint ONE LINE from where it
-  would have fired.
+I-10: `WireData` in `shared/wire/rename.ts` is
+`WireRow | WireRow[] | null | undefined`, and
+`shared/wire/tests/adapter.test.ts` has a test called "nothing, and
+things that are not rows, pass through" WHICH FEEDS IT A BOOLEAN, A
+STRING AND A NUMBER. All three are outside the declared domain, and
+`rename()` guards for exactly that case and passes them through. SO
+THE TYPE FORBIDS WHAT THE CODE DELIBERATELY SUPPORTS AND A TEST
+PROVES. That is the mirror of D145: there a type ASSERTED something
+false and the compiler was talked out of noticing; here a type DENIES
+something true and the test is the only record of it. Both are a
+declaration disagreeing with behaviour; only one of them fails loudly.
+TASK 3 / D159 IS A TWO-FILE CHANGE, NOT ONE. `compose.ts` discards
+the type at its OWN boundary - `composePurchaseOrder` and
+`composeSalesOrder` both return `Record<string, unknown>` - so
+narrowing `read.service.ts` alone would move the cast rather than
+remove it. The probe also surfaced three real mismatches, the sharpest
+being `ScrapPart.content: number` against a NULLABLE column, with
+`{} as ScrapPart` disabling the constraint ONE LINE from where it
+would have fired.
 BOTH BELONG TO PHASE 3, which is now "one home for every type" - and
 both are instances of its thesis: a type is only worth having if it is
 the single place the shape is stated. A type contradicted by its own
@@ -11524,7 +11537,7 @@ replaced; it is less safe, because the next person assumes it was
 checked. Move and ADOPT in the same pass, or leave it where it is.
 
 === D173: TWO DIFFERENT THINGS ARE CALLED A USER, AND THE CHECKOUT
-    SCHEMA WAS SILENTLY STRIPPING FIELDS ===
+SCHEMA WAS SILENTLY STRIPPING FIELDS ===
 `setCreateSalesOrderUser` hands a snake_case `/users` row into a slot
 typed as better-auth's camelCase SESSION user. It compiled because the
 form schema's fields are nearly all optional - so
@@ -11559,8 +11572,8 @@ found by someone noticing a number that would not move.
 
 ## D175 — the progress tracker was reporting progress it could not see
 
-Jacob, looking at the page: *"is the waves file still being updated...? seems to
-be the same progress as from an hour ago."* It was not being updated, and there
+Jacob, looking at the page: _"is the waves file still being updated...? seems to
+be the same progress as from an hour ago."_ It was not being updated, and there
 were two independent reasons, both mine.
 
 **One: the live set was a hardcoded list of two filenames.** `waves.mjs` warns
@@ -11635,7 +11648,7 @@ correct today.
 a hand-written contract and the projection it mirrors agree only by coincidence
 of authorship. Nothing ties `PaymentDetails` to that `jsonb_build_object` — not
 an import, not `validate:wire`, not a test. Either can be edited without the
-other. The contract is not wrong; it is *unenforced*, which is the state that
+other. The contract is not wrong; it is _unenforced_, which is the state that
 precedes being wrong and is invisible while it lasts.
 
 **Consequence for phase 3.** The wave moves ~150 declarations into the contracts.
@@ -11686,7 +11699,7 @@ finds orphans reports them.
 
 ## D178 — one type, thirty-SEVEN identical declarations
 
-Jacob: *"if we have types randomly living in files, then we have failed"*. The
+Jacob: _"if we have types randomly living in files, then we have failed"_. The
 sharpest instance is not a subtle one. **`export type Executor = PoolClient |
 undefined;` is declared 37 times**, byte-identical. **This said 35 and was
 wrong**: my scan looked at `features/` and two of them live in `legacy/`. The
@@ -11695,9 +11708,9 @@ today a carried-forward figure was off. It is referenced in
 69 files — the single most widely used type in the API.
 
 It is the argument that lets a repo call join its caller's transaction, i.e. the
-one convention CLAUDE.md calls out as load-bearing (*"the third argument is what
+one convention CLAUDE.md calls out as load-bearing (_"the third argument is what
 lets a repo call join its caller's transaction. Getting it wrong broke checkout
-in August 2026"*). So the type that expresses the project's most important
+in August 2026"_). So the type that expresses the project's most important
 database convention has no home at all; each feature re-derives it.
 
 **Nothing is wrong today, and that is the point.** Thirty-five identical
@@ -11724,20 +11737,20 @@ compared before either is moved.
 
 ## Ruling 39 — purview widened to "fix what is not best practice" (Jacob, 2026-08-29)
 
-*"if you see things that are NOT best practice (even things as broad reaching as
+_"if you see things that are NOT best practice (even things as broad reaching as
 like, DB architecture...) feel free to change them. That includes API/Frontend
 code. I'm giving you purview to do so. Just obviously be careful and record
-decisions you make so I can review them tomorrow."*
+decisions you make so I can review them tomorrow."_
 
-Given alongside *"I'm not gonna be around today so you can't wait on me"* and
-*"I'm sure you can find things to work [on] without me having to tell you what to
-do"*.
+Given alongside _"I'm not gonna be around today so you can't wait on me"_ and
+_"I'm sure you can find things to work [on] without me having to tell you what to
+do"_.
 
 **What this changes.** Previously the standing posture was to FIND and REPORT —
 D59's three-rules-for-one-premium, D49's charge-then-parse ordering, D63's 27
 money-nullability constraints and D117's payout fee were all left unfixed and
 marked "business call" or "Jacob's". That deference is now wrong for anything
-that is a *quality* judgement rather than a *business* judgement.
+that is a _quality_ judgement rather than a _business_ judgement.
 
 **What it does NOT change, and these are not reinterpretable:**
 
@@ -11748,7 +11761,7 @@ that is a *quality* judgement rather than a *business* judgement.
   migrate → backfill → verify → merge sequence is Jacob's to run.
 - **`purge_cancelled` stays untouched** — a standing explicit instruction, and a
   later general grant does not silently revoke a specific prior prohibition. It
-  is *reported* (D177 and `docs/waves/seams.md`), not modified.
+  is _reported_ (D177 and `docs/waves/seams.md`), not modified.
 - **Never print or move a secret's value.** The bank-detail columns are the
   obvious temptation for a "fix the encryption" task; building the encryption
   path must not log, echo or copy a plaintext value.
@@ -11764,8 +11777,8 @@ unexplained diff is worse than no diff.
 
 ### Session mechanics, confirmed by Jacob the same day
 
-*"if you need to turn loop on you can. But it's been messing up recently, like
-the wakeups get scheduled but don't actually happen"* — which is exactly what
+_"if you need to turn loop on you can. But it's been messing up recently, like
+the wakeups get scheduled but don't actually happen"_ — which is exactly what
 CLAUDE.md already records: **`ScheduleWakeup` timers die when WSL idles; task
 notifications have never failed.** So the heartbeat is a chained background task
 (`sleep`/poll with `run_in_background`), not `/loop`. Do not spend a session
@@ -11773,8 +11786,8 @@ diagnosing the wakeup; use the mechanism that works.
 
 ## D179 — the charge-then-fail path, fully traced (supersedes D49's description)
 
-D49 recorded *"Stripe confirms -> `schema.parse(...)` -> `createOrder.mutate(...)`.
-A throw between = CUSTOMER CHARGED, NO ORDER"* and left it unfixed. Under ruling
+D49 recorded _"Stripe confirms -> `schema.parse(...)` -> `createOrder.mutate(...)`.
+A throw between = CUSTOMER CHARGED, NO ORDER"_ and left it unfixed. Under ruling
 39 it is now mine to fix. Tracing it properly first, because the mechanism is
 worse than the note and there are **two** distinct failure modes, not one.
 
@@ -11817,7 +11830,7 @@ makes B the more dangerous of the two, which is the reverse of how it looks.
 — **`onError` is omitted, so no caller can supply one at the hook level.** The
 one global `onError` in `shared/queries/base.ts` rolls back the optimistic cache
 entry and returns. It does not rethrow, toast, log or surface anything. This
-mutation is `optimistic: false`, so that handler does *nothing at all*.
+mutation is `optimistic: false`, so that handler does _nothing at all_.
 
 The call site passes `onSuccess` and no per-call `onError`. So a failed
 `POST /sales_orders/create_sales_order` after a successful charge produces:
@@ -11826,7 +11839,7 @@ sits there. **The customer has paid and there is no order, and nothing anywhere
 knows.**
 
 **CORRECTION, made before implementing rather than after.** The paragraph that
-stood here said a shared wrapper *structurally forbids* error handling, so
+stood here said a shared wrapper _structurally forbids_ error handling, so
 "nothing `useApiMutation` writes can report its own failure". **That is too
 strong and I checked it rather than shipping it.** React Query is v5, where
 `mutate(vars, { onError })` is supported per call and runs IN ADDITION to the
@@ -11873,13 +11886,13 @@ so rather than pretending it is a fix for the ordering.
 
 **CORRECTION, 2026-08-29, and this is the fourth carried-forward number to be
 wrong today.** This said "every `pnpm check` costs roughly ninety minutes". I
-never measured one. The figure came from a lane's estimate — *"budget ninety
-minutes at this environment's ~160-200 ms round trip"* — which I repeated into a
+never measured one. The figure came from a lane's estimate — _"budget ninety
+minutes at this environment's ~160-200 ms round trip"_ — which I repeated into a
 finding, then into a phase proposal, then into three separate reports to Jacob,
 including an ask to install a database server on his machine.
 
 **Measured, across four complete runs: 10, 13, 10 minutes** (gate3, gate4 which
-went green end to end, gate5). The two runs I *had* timed were 203 s and 51 s
+went green end to end, gate5). The two runs I _had_ timed were 203 s and 51 s
 and both had been killed, so I knew I had no complete measurement and
 extrapolated anyway.
 
@@ -11937,12 +11950,12 @@ not a migration defect. It is worse in one specific way, and better in another.
 **What the two copies say.** The id is a `purchase_order_items` row; the weights
 live in `exchange.scrap 11f54b5d` behind its `scrap_id`.
 
-| | `exchange.scrap` (legacy) | `orders.items` (new) |
-|---|---|---|
-| pre_melt | **18.662** | **20.000** |
-| purity | 0.570 declared, **0.563 actual** | **0.563** |
-| content | 0.342 (0.338 actual) | **0.362** |
-| confirmed | true | false |
+|           | `exchange.scrap` (legacy)        | `orders.items` (new) |
+| --------- | -------------------------------- | -------------------- |
+| pre_melt  | **18.662**                       | **20.000**           |
+| purity    | 0.570 declared, **0.563 actual** | **0.563**            |
+| content   | 0.342 (0.338 actual)             | **0.362**            |
+| confirmed | true                             | false                |
 
 The new copy's `content` is internally consistent with its own wrong weight
 (20.000 g × 0.563 ÷ 31.1035 = 0.362), so this is one wrong input propagated, not
@@ -11991,7 +12004,6 @@ would "serve customers a January snapshot". It is now measured: 47 of 62 orders
 would come back as their January selves, 6 of them demonstrably out of date, and
 **running the backfill would not fix it.**
 
-
 ## D182 — "118 cross-file types" was a word-frequency count, and the real number is 8
 
 The phase 3 brief said 118 of 188 exported API types "appear in more than one
@@ -12004,7 +12016,7 @@ by import and the picture is different in kind, not just in size:
   `repo.ts` → `service.ts` → `compose.ts` plus that feature's tests. That is a
   feature's internal layering. It is not a type "randomly living in a file",
   which is the thing Jacob's ruling is about.
-- **9** cross only into `legacy/<the same feature>`, which *is* the dual write.
+- **9** cross only into `legacy/<the same feature>`, which _is_ the dual write.
 - **The genuinely boundary-crossing set is EIGHT.** Three were pure aliases and
   are gone.
 
@@ -12022,8 +12034,8 @@ would hand the compiler a null **the server has already disproved** — D145's
 class, in the widening direction. The same holds for every wire shape whose
 timestamps are `z.string()` while pg hands the server a `Date`.
 
-**The principle, worth keeping:** *contracts parse the wire; feature types are
-what the server knows.* They answer different questions, and collapsing them
+**The principle, worth keeping:** _contracts parse the wire; feature types are
+what the server knows._ They answer different questions, and collapsing them
 loses information — which means "one home for every type" cannot mean "one type".
 Jacob's ruling stands; the naive reading of it was mine, not his.
 
@@ -12038,8 +12050,8 @@ string and agrees.
 
 **There is no bug today, and I checked rather than assumed.** Every server-side
 read of a contract-typed timestamp — `refiners/compose.ts`,
-`shipping/carriers/compose.ts`, `orders/compose.ts` — only *passes the value
-through* into a response object. Nothing does string work on one: a grep for
+`shipping/carriers/compose.ts`, `orders/compose.ts` — only _passes the value
+through_ into a response object. Nothing does string work on one: a grep for
 `.created_at.slice(` / `.split(` / `.startsWith(` across `api/features` returns
 nothing.
 
@@ -12057,8 +12069,8 @@ will actively encourage it.
 - Widening the contract to `z.string() | z.date()` is wrong: the contract
   describes the wire, and a `Date` never appears there.
 
-**So this is the structural reason D182's rule holds** — *contracts parse the
-wire; feature types are what the server knows* — and it wants a decision of its
+**So this is the structural reason D182's rule holds** — _contracts parse the
+wire; feature types are what the server knows_ — and it wants a decision of its
 own rather than a fix smuggled into a sweep. The cheapest real guard, if one is
 wanted, is a lint that refuses string methods on a contract-typed `*_at` field.
 
@@ -12074,7 +12086,7 @@ touch it. Then it told me, which is exactly right.
 **"One writer per file" is a rule I wrote and then broke within the day**, and
 the reason it exists is not tidiness. Two writers who both believe they fixed
 something produce a green gate that neither can account for — and on this
-project the whole discipline rests on being able to say *why* a check passed,
+project the whole discipline rests on being able to say _why_ a check passed,
 not just that it did. It is the same failure as two agents editing one shared
 file, which is how two of Jacob's rulings were lost on 2026-08-28.
 
@@ -12082,7 +12094,7 @@ file, which is how two of Jacob's rulings were lost on 2026-08-28.
 it too: the lane looked finished (it had reported), the fix was small, and the
 gate was already burning ninety minutes. All three are arguments for speed, and
 none of them is an argument that the file was free. A lane owns its files until
-it is *dispatched-and-collected*, not until it has said something useful.
+it is _dispatched-and-collected_, not until it has said something useful.
 
 **No harm this time**, and only because the lane happened to re-read the file
 rather than trusting its own earlier view. The failure mode where this bites is
@@ -12095,8 +12107,8 @@ lane is stopped first and told why.
 
 ## D185 — the empty-scan class is already closed, and my scan for it was wrong twice
 
-Phase 8's founding rule is *"a check that reads zero bytes must refuse, not
-report"* — the defect behind D95, D99, D108, D115, D157, D176, and two of my own
+Phase 8's founding rule is _"a check that reads zero bytes must refuse, not
+report"_ — the defect behind D95, D99, D108, D115, D157, D176, and two of my own
 mistakes today (grepping `validate-wire.mjs` when the file is `.ts`, and
 `find -name "error.tsx"` which cannot match `global-error.tsx`). So I went
 looking for gate members that could still report clean on a broken walk.
@@ -12106,9 +12118,9 @@ looking for gate members that could still report clean on a broken walk.
 - `lint-imports`, `lint-namespace-calls`, `lint-row-vs-list`, `lint-db-calls`,
   `lint-script-guards`, `audit-coverage`, `validate-wire`, `audit-switches`,
   `audit-indexes`, `audit-query-paths` carry **explicit literal floors** — and
-  `lint-imports` states the principle better than I did: *"A LITERAL FLOOR, not a
+  `lint-imports` states the principle better than I did: _"A LITERAL FLOOR, not a
   zero-check. `checked === 0` only catches a walk that found NOTHING; it is blind
-  to a walk that found a tenth of the tree."*
+  to a walk that found a tenth of the tree."_
 - `verify-genesis` has no floor and **does not need one**: it reports every
   relation present in dev and absent from the build, so a build that produced
   nothing yields a failure per table rather than a silent pass. Guarded by
@@ -12116,8 +12128,8 @@ looking for gate members that could still report clean on a broken walk.
 
 **My detector was wrong twice on the way to that answer, in the exact way it was
 hunting.** First pass grepped for `REFUS|walked zero|scanned 0` and reported
-fifteen scripts unguarded — including `lint-imports`, whose guard says *"the walk
-is broken, not the codebase clean"* and matches none of those words. Second pass
+fifteen scripts unguarded — including `lint-imports`, whose guard says _"the walk
+is broken, not the codebase clean"_ and matches none of those words. Second pass
 flagged `verify-genesis` as having no floor, which is true and irrelevant. **A
 scan for scans-that-report-falsely reported falsely, twice.** The only reason
 either was caught is that I opened the file instead of trusting the grep.
@@ -12139,7 +12151,7 @@ column's INSERT — **42804**, proven rather than assumed — so `verify:backfil
 aborted at the seed and never reached the twenty-odd comparisons past it.
 
 The fix edits a migration that has already been applied, which is why WAVES.md
-had it under *Needs Jacob*. It is the narrow case `migrate --reconcile` exists
+had it under _Needs Jacob_. It is the narrow case `migrate --reconcile` exists
 for: **the cast changes, the rows do not.** Dev's eleven rows match the fixed
 seed id for id — SHIPMENT 6, DIRECT 4, PICKUP 1, the distribution 098 measured
 before it ran — so the applied object and the file build the same thing. Dev
@@ -12167,10 +12179,10 @@ schema and its comments anticipate exactly this case. But it is not in
 `clean-dual-run-orphans.mjs` describes the same shape and covered six of them;
 it was written on the 27th and the leaking continued after it.
 
-Removed 2026-08-29 with Jacob's approval, backup waived (*"It's just dev"*), by
+Removed 2026-08-29 with Jacob's approval, backup waived (_"It's just dev"_), by
 `scripts/clean-leaked-test-orders.mjs`: 27 orders, 16 items, 24 transactions, 27
 `refiners.orders`, 16 `refiners.items`. Nothing in `exchange` — by construction,
-since the set is *defined* as the orders with no exchange row.
+since the set is _defined_ as the orders with no exchange row.
 
 **`verify:backfill` is still red, and the rest is pre-existing drift.** 52
 differences became 46. `orders.items` compares clean; `orders.orders` row counts
@@ -12182,7 +12194,7 @@ now match. What remains, none of it caused by the cleanup:
 - **`orders.transactions`: dev 31, rebuild 36.** Five dev orders have never had
   a transaction row. Pre-existing — the 24 orphans were masking it, since
   55 = 31 kept + 24 leaked.
-- **`shipping.tracking`: dev 6, rebuild 16.** Dev is *missing* ten. This is the
+- **`shipping.tracking`: dev 6, rebuild 16.** Dev is _missing_ ten. This is the
   `tracking.test.js` incident CLAUDE.md records, seen from the other side.
 - **`refiners.items` (41 vs 25), `spots.spots`, `shipping.shipments`,
   `fulfillments.fulfillments`** — uninvestigated.
@@ -12195,9 +12207,9 @@ needs a different subject or the green stops being reachable at all.
 
 ## D187 — the script two files cited in the present tense had never been written
 
-Migration 073's header: routing and account numbers *"are written separately,
+Migration 073's header: routing and account numbers _"are written separately,
 and encrypted, by `scripts/encrypt-payout-details.mjs`, which refuses to run
-without `PAYOUT_ENCRYPTION_KEY`"*. `verify-backfill.mjs` excluded the same two
+without `PAYOUT_ENCRYPTION_KEY`"_. `verify-backfill.mjs` excluded the same two
 columns from its comparison on the same understanding. **Neither sentence was
 true, and neither had ever been true.** The file did not exist. The columns it
 would have written did not exist either.
@@ -12243,19 +12255,19 @@ first executes on production under `--commit`, after a `pg_dump`, with
 
 ## D188 — the exposure was 14, not 18, and the doc said both
 
-CLAUDE.md's open threads opened with *"production has fourteen of them"* and
-then said *"the 10 ACH and 8 WIRE rows carry real routing and account numbers"*.
+CLAUDE.md's open threads opened with _"production has fourteen of them"_ and
+then said _"the 10 ACH and 8 WIRE rows carry real routing and account numbers"_.
 Those are different numbers, in consecutive sentences, and both had been there
 for months.
 
 Measured by the new `audit:plaintext-secrets`, production, read-only:
 
-| method | rows | carrying numbers |
-|---|---|---|
-| ACH | 11 | **7** |
-| WIRE | 8 | **7** |
-| ECHECK | 41 | 0 |
-| DORADO_ACCOUNT | 2 | 0 |
+| method         | rows | carrying numbers |
+| -------------- | ---- | ---------------- |
+| ACH            | 11   | **7**            |
+| WIRE           | 8    | **7**            |
+| ECHECK         | 41   | 0                |
+| DORADO_ACCOUNT | 2    | 0                |
 
 **62 payouts, not 61. 14 carrying plaintext, across 9 customers.** The "10 and
 8" counted the ROWS OF THOSE METHODS and called them the exposed ones — 4 ACH
@@ -12325,12 +12337,12 @@ The clearest example, and it documents itself —
 `features/shipping/shipments/service.ts:417`:
 
 ```ts
-await shipments.setChargeForOrder(orderId, cost, c);      // native: result dropped
-return await legacy.setChargeForOrder(orderId, cost, c);  // exchange: returned
+await shipments.setChargeForOrder(orderId, cost, c) // native: result dropped
+return await legacy.setChargeForOrder(orderId, cost, c) // exchange: returned
 ```
 
-The comment above it says *"the exchange ids are returned because exchange is
-still authoritative"*. That is exactly the assumption ruling 36 retires. The
+The comment above it says _"the exchange ids are returned because exchange is
+still authoritative"_. That is exactly the assumption ruling 36 retires. The
 native statement joins three tables (`shipping.shipments` ->
 `fulfillments.shipments` -> `fulfillments.fulfillments` -> order); if any hop
 fails to resolve it updates nothing and says nothing.
@@ -12350,8 +12362,8 @@ It matched call sites **by function name alone**. `remove`, `update` and
 different feature. It reported **54** findings, most pointing at the wrong file.
 
 `shared/testing/locks.ts` records the lesson that made this worth fixing before
-shipping rather than after: *"A check with false positives gets suppressed, so
-it was not shipped."* The namespace is now resolved through the calling file's
+shipping rather than after: _"A check with false positives gets suppressed, so
+it was not shipped."_ The namespace is now resolved through the calling file's
 own `import` statements, and the count fell 56 → 24 with every finding pointing
 at its own feature.
 
@@ -12365,7 +12377,7 @@ runs so a synthetic INSERT-only tree does not trip it.
 
 ## D191 — "error paths that reach Sentry" reach nothing: the API has no Sentry, and the frontend's server half was never initialised
 
-Phase 8's task 2 is written as *"Error paths that reach Sentry"*, which presumes
+Phase 8's task 2 is written as _"Error paths that reach Sentry"_, which presumes
 an integration to reach. Measured 2026-08-29:
 
 **The API has no error reporting at all.** No `@sentry/*`, no bugsnag, rollbar,
@@ -12376,13 +12388,13 @@ already looking.
 That matters because of what the log-only paths actually are. They are correct
 best-effort designs, each with a comment saying so, and each one is money:
 
-| site | what is silently lost |
-|---|---|
-| `features/orders/service.ts:145` | `ORPHANED SHIPPING LABEL <tracking>` — a FedEx label the business is paying for, whose order rolled back, and cancelling it also failed |
-| `features/orders/service.ts:166` | `ORPHANED CARRIER PICKUP <confirmation>` — a booked pickup with no order behind it |
-| `features/media/pdfs/store.ts:95` | the order's PDF was never persisted; returns null and the order proceeds |
-| `features/media/emails/record.ts:59` | the record that an email was sent is missing, while the email went |
-| `shared/cron/scheduler.ts:41` | any cron job failing — including `updateSpotPrices`, which every customer-visible price depends on |
+| site                                 | what is silently lost                                                                                                                   |
+| ------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------- |
+| `features/orders/service.ts:145`     | `ORPHANED SHIPPING LABEL <tracking>` — a FedEx label the business is paying for, whose order rolled back, and cancelling it also failed |
+| `features/orders/service.ts:166`     | `ORPHANED CARRIER PICKUP <confirmation>` — a booked pickup with no order behind it                                                      |
+| `features/media/pdfs/store.ts:95`    | the order's PDF was never persisted; returns null and the order proceeds                                                                |
+| `features/media/emails/record.ts:59` | the record that an email was sent is missing, while the email went                                                                      |
+| `shared/cron/scheduler.ts:41`        | any cron job failing — including `updateSpotPrices`, which every customer-visible price depends on                                      |
 
 **Not one of these is a bug.** Failing the order because a PDF did not save
 would be worse. The defect is that nobody is told.
@@ -12425,8 +12437,8 @@ and `frontend/.env` defines it under that name. A Sentry auth token is a **write
 credential** — it uploads source maps and creates releases against the
 `dorado-metals-exchange` org.
 
-`NEXT_PUBLIC_` is the prefix that tells Next.js *"inline this into the browser
-bundle."*
+`NEXT_PUBLIC_` is the prefix that tells Next.js _"inline this into the browser
+bundle."_
 
 **Measured before claiming anything.** Next inlines only the
 `process.env.NEXT_PUBLIC_X` occurrences it can see in code that reaches the
@@ -12470,7 +12482,7 @@ about their own order.
 **The gap is the CONTENT.** `sendPricedEmail` destructures `order`,
 `order_spots` and `spot_prices` **straight out of `req.body`** and passes them
 to `pdfService.generateInvoice`. Nothing is re-read from the database. The order
-id is used to decide *who may trigger it* and *where it goes*, and then the
+id is used to decide _who may trigger it_ and _where it goes_, and then the
 numbers that get rendered are whatever the client posted.
 
 So an authenticated customer, for an order they legitimately own, can cause the
@@ -12501,14 +12513,14 @@ and nothing else, read the order through the composition path
 
 **Not done, deliberately, and this is a judgement call worth stating.** Mapping
 a composed order onto `InvoiceInput` is a non-trivial reshaping, and getting it
-wrong means customers receive *wrong* invoices or none at all — a live,
+wrong means customers receive _wrong_ invoices or none at all — a live,
 customer-visible regression, shipped unattended, at the end of a long session.
 That is a worse expected outcome than a forgery vector that requires a motivated
 authenticated customer and harms mainly their own credibility.
 
 **The cheaper first step, if the reshaping is not wanted yet**: read the order
 server-side, compare the submitted totals against it, and `reportError()` on a
-mismatch while still sending. That makes the forgery *visible* without risking a
+mismatch while still sending. That makes the forgery _visible_ without risking a
 broken invoice, and it is this codebase's own idiom — measure first, change
 after. It costs one read on a path that already generates a PDF and sends an
 email, so the cost is noise.
@@ -12518,7 +12530,7 @@ treatment.
 
 ## D194 — no environment variable is validated at boot, and FRONTEND_URL builds password-reset links
 
-`api/env.ts` is careful about *where* `.env` is read from — its header records
+`api/env.ts` is careful about _where_ `.env` is read from — its header records
 the runner that applied 27 migrations to the wrong database because dotenv
 resolved relative to the working directory. What it does not do is check that
 anything it loaded is actually **there**.
@@ -12526,14 +12538,14 @@ anything it loaded is actually **there**.
 `FRONTEND_URL` is the one that matters most. It is read in at least nine places
 and never checked:
 
-| use | what an unset value does |
-|---|---|
-| `app.js:53` `cors({ origin })` | `origin: undefined` makes the cors package answer `*`; with `credentials: true` browsers then refuse it, so **every** cross-origin request fails |
-| `features/auth/client.ts:97` `trustedOrigins` | `[undefined]` — better-auth's origin allow-list is meaningless |
-| `auth/client.ts:67` reset-password | the email says `undefined/reset-password?token=...` |
-| `auth/client.ts:86` verify-email | `undefined/verify-email?token=...` |
-| `auth/client.ts:45` change-email | `undefined/change-email?token=...` |
-| `media/emails/service.ts` ×3 | order links in customer email |
+| use                                           | what an unset value does                                                                                                                         |
+| --------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `app.js:53` `cors({ origin })`                | `origin: undefined` makes the cors package answer `*`; with `credentials: true` browsers then refuse it, so **every** cross-origin request fails |
+| `features/auth/client.ts:97` `trustedOrigins` | `[undefined]` — better-auth's origin allow-list is meaningless                                                                                   |
+| `auth/client.ts:67` reset-password            | the email says `undefined/reset-password?token=...`                                                                                              |
+| `auth/client.ts:86` verify-email              | `undefined/verify-email?token=...`                                                                                                               |
+| `auth/client.ts:45` change-email              | `undefined/change-email?token=...`                                                                                                               |
+| `media/emails/service.ts` ×3                  | order links in customer email                                                                                                                    |
 
 **The reset-password one is the real damage.** The token is still minted and the
 email is still sent, so the customer receives a genuine password-reset mail
@@ -12553,7 +12565,7 @@ through matters. It is not read through `requiredEnv`; it is interpolated
 directly into template strings:
 
 ```ts
-const emailUrl = `${process.env.FRONTEND_URL}/reset-password?token=${token}`;
+const emailUrl = `${process.env.FRONTEND_URL}/reset-password?token=${token}`
 ```
 
 An undefined value in a template literal does not throw — **it stringifies to
@@ -12610,7 +12622,7 @@ interpolation, `features/orders/create.ts:56`:
 qualified sequence names; `direction` chooses between literals and never enters
 the string. Everything else is parameterised, which `lint:db` enforces.
 
-**Stripe webhook — correctly verified.** `express.raw` is mounted *before*
+**Stripe webhook — correctly verified.** `express.raw` is mounted _before_
 `express.json` so the signature sees the unparsed body, the `stripe-signature`
 header is required with a 400 when missing, and `constructEvent` runs against
 `requiredEnv("STRIPE_WEBHOOK_SECRET")`.
@@ -12626,6 +12638,7 @@ no `new Function`.
 Express practice rather than a swallowed rejection.
 
 **Not findings, recorded so they are not re-raised:**
+
 - `target="_blank"` without `rel="noopener"` in 5 places. Every current browser
   implies `noopener` for `target="_blank"`; this stopped being a vulnerability
   around 2021.
@@ -12685,23 +12698,23 @@ ascending-order rule is being honoured.
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: { rejectUnauthorized: false },
-});
+})
 ```
 
 Everything else is `node-pg`'s defaults, and two of them matter enormously:
 
-| option | default | consequence |
-|---|---|---|
-| `max` | **10** | ten concurrent clients per process, chosen by nobody |
-| `connectionTimeoutMillis` | **0** | *wait forever* for a free client |
+| option                    | default | consequence                                          |
+| ------------------------- | ------- | ---------------------------------------------------- |
+| `max`                     | **10**  | ten concurrent clients per process, chosen by nobody |
+| `connectionTimeoutMillis` | **0**   | _wait forever_ for a free client                     |
 
 **`connectionTimeoutMillis: 0` is the dangerous one.** When all ten clients are
 checked out, the eleventh caller does not fail, does not warn and does not time
 out. It waits, silently, for as long as the process lives.
 
 **This is the mechanism behind D196.** A test file takes an advisory lock, then
-needs a connection its own pool cannot supply, and blocks forever *while holding
-the lock*. Everything queued behind that lock stops. Postgres cannot break it:
+needs a connection its own pool cannot supply, and blocks forever _while holding
+the lock_. Everything queued behind that lock stops. Postgres cannot break it:
 the holder is `idle in transaction`, blocked in Node rather than in Postgres, so
 there is no cycle for the deadlock detector to find. Ruled out first: the
 cluster is nowhere near its limit (`max_connections` **500**, 38 in use), and
@@ -12735,7 +12748,7 @@ const pool = new Pool({
   ssl: { rejectUnauthorized: false },
   max: Number(process.env.PGPOOL_MAX ?? 10),
   connectionTimeoutMillis: 10_000,
-});
+})
 ```
 
 `connectionTimeoutMillis` alone converts the worst failure mode from "silent
@@ -12784,13 +12797,12 @@ Everything about the stall follows from that, and nothing else needs inventing:
 
 **The 968 ms outlier in eight samples is the other half of it.** The link is not
 merely slow, it is jittery — so the convoy's length varies run to run. That is
-why the identical suite finished in one run this evening (1822 log lines, exit
-0) and advanced three lines in thirty minutes on the next attempt, **with no
+why the identical suite finished in one run this evening (1822 log lines, exit 0) and advanced three lines in thirty minutes on the next attempt, **with no
 relevant code change in between**. Confirmed by removing the newly added test
 file and watching it stall anyway: 19 lines in seven minutes.
 
-**THIS IS ALREADY PHASE 5's PREMISE, NOW MEASURED.** `WAVES.md` lists *"A local
-PostgreSQL 16 for the test suite"* as phase 5 task 1, sitting at 0%. The stated
+**THIS IS ALREADY PHASE 5's PREMISE, NOW MEASURED.** `WAVES.md` lists _"A local
+PostgreSQL 16 for the test suite"_ as phase 5 task 1, sitting at 0%. The stated
 case for it was "the gate is 10-13 minutes". The real case is stronger: the
 gate's duration is **not a property of this codebase at all**. It is the
 round-trip time to Railway, it is nobody's to control, and on a bad evening it
@@ -12807,8 +12819,8 @@ and the measurement that settled it takes four seconds.
 `features/payments/service.ts:254-256`:
 
 ```ts
-const rawAmount = Math.round(orderPrices.post_charges_amount * 100);
-const amount = Math.max(rawAmount, 1000);
+const rawAmount = Math.round(orderPrices.post_charges_amount * 100)
+const amount = Math.max(rawAmount, 1000)
 ```
 
 `Math.round` at the cents boundary is **correct** and is what stops float
@@ -12820,15 +12832,15 @@ $10.00.** An order whose real balance is $3.00 tells Stripe 1000, and Stripe
 charges what the intent says, not what the page said.
 
 **Where 1000 comes from.** `createPaymentIntent` opens the intent with
-`createIntent({ amount: 1000 })` and its comment is explicit: *"The placeholder
+`createIntent({ amount: 1000 })` and its comment is explicit: _"The placeholder
 amount is the feature's decision, not Stripe's: an intent is opened before the
-cart is priced and updated when it is."* So 1000 is a placeholder — and the
+cart is priced and updated when it is."_ So 1000 is a placeholder — and the
 `Math.max` in the update path pins the priced amount back to it. Stripe's actual
 minimum is 50 cents, so the floor is not a platform constraint.
 
 The only comment that mentions it (line 212) does so in passing, while
-documenting the *fixed* client-supplied-spots vulnerability: *"The floor of
-Math.max(rawAmount, 1000) meant the bottom was $10.00."* That describes it
+documenting the _fixed_ client-supplied-spots vulnerability: _"The floor of
+Math.max(rawAmount, 1000) meant the bottom was $10.00."_ That describes it
 limiting an exploit's downside. Nothing anywhere justifies it as intended
 pricing.
 
@@ -12843,11 +12855,11 @@ account_transactions` holds **$66,999.32 across 8 customers**.
 
 Before reporting this as an overcharge, it was checked:
 
-| payment_status | total | amount = 1000 | paid at 1000 |
-|---|---|---|---|
-| `requires_payment_method` | 22 | 1 | **0** |
-| `requires_confirmation` | 2 | 0 | **0** |
-| `succeeded` | 1 | 0 | **0** |
+| payment_status            | total | amount = 1000 | paid at 1000 |
+| ------------------------- | ----- | ------------- | ------------ |
+| `requires_payment_method` | 22    | 1             | **0**        |
+| `requires_confirmation`   | 2     | 0             | **0**        |
+| `succeeded`               | 1     | 0             | **0**        |
 
 25 intents; the single one at 1000 is an unconfirmed placeholder. **No customer
 has been overcharged by this.** It is a latent defect, not an incident, and
@@ -12892,8 +12904,8 @@ not recoverable from this database.
 
 ### The direction is the opposite of what the note implies
 
-CLAUDE.md says *"`purity_actual` multiplies into `content_actual`, which is what
-a customer is paid on"*, which reads as customer harm. It is not.
+CLAUDE.md says _"`purity_actual` multiplies into `content_actual`, which is what
+a customer is paid on"_, which reads as customer harm. It is not.
 
 The rounding goes **UP**: .9999 → 1.000 and .9995 → 1.000. So `content_actual`
 is larger than the metal actually assayed, and **the business pays out for more
@@ -12907,7 +12919,7 @@ to favour the customer.
 
 ### One claim in CLAUDE.md is wrong and is corrected here
 
-It says the scrap column's *"commonest value is exactly 1.000"*. It is not.
+It says the scrap column's _"commonest value is exactly 1.000"_. It is not.
 `purity` is commonest at **0.925** (14 rows — sterling silver), then 0.400,
 0.563, 0.900, 0.999. `purity_actual` is 47 NULL, then 0.563 (9), then 1.000 (8).
 The real scrap distribution is karat-based — 0.925, 0.585, 0.750 — and **three
@@ -12939,12 +12951,12 @@ four decimals, and now all eighteen agree.
 
 **106 exists because 105 was incomplete, and a TEST found it.**
 `parity.test.ts` asserted `["content:3", "post_melt:3", "pre_melt:3",
-"purity:3"]` with the note *"exchange.scrap has been widened — update FOLLOWUPS
-and delete this test"*. 105 widened `content` and `purity` and left the two
+"purity:3"]` with the note _"exchange.scrap has been widened — update FOLLOWUPS
+and delete this test"_. 105 widened `content` and `purity` and left the two
 WEIGHT columns behind. `pre_melt` and `post_melt` are troy ounces and
 `content = post_melt × purity`, so rounding the weight rounds the payout one
 step earlier. `audit:precision` could not have caught it — it casts a source
-value into the *target's* type, so a loss at the source is invisible to it by
+value into the _target's_ type, so a loss at the source is invisible to it by
 construction.
 
 **Proven, not assumed**: `.9999`, `.9995`, `1.23456789` and `9.87654321` now
@@ -12957,13 +12969,13 @@ of 0.9167")`. Inverted rather than deleted, so they now fail if anything
 re-narrows. 992/992.
 
 **`lint:migrations` had to learn the difference.** It flagged all six ALTERs as
-destructive, because a type change *can* round. Using the
+destructive, because a type change _can_ round. Using the
 `allow-destructive:` marker would have been dishonest — nothing is destroyed.
 The rule now exempts `TYPE numeric` with no precision, which cannot lose a
 numeric value, and still flags `TYPE numeric(p,s)`, which can. Both directions
 are pinned as self-test cases. `audit:precision` is the check that should go green afterwards —
 and note its own blind spot, recorded in CLAUDE.md: it casts a source value into
-the *target's* type, so a loss that already happened at the source is invisible
+the _target's_ type, so a loss that already happened at the source is invisible
 to it by construction. This one was found by reading the source column's type,
 not by the audit.
 
@@ -12973,10 +12985,10 @@ not by the audit.
 
 ```ts
 // controller.ts
-await mediaService.uploadImage({ ...req.body, user_id: callerId(req) });
+await mediaService.uploadImage({ ...req.body, user_id: callerId(req) })
 
 // service.ts
-const uploadUrl = await minio.presignedPutObject(bucket, path + filename, PUT_TTL_SECONDS);
+const uploadUrl = await minio.presignedPutObject(bucket, path + filename, PUT_TTL_SECONDS)
 ```
 
 `path` and `filename` arrive in the request body, are concatenated, and become
@@ -12995,11 +13007,11 @@ and more certain.
 
 Production `exchange.images`:
 
-| path | filename |
-|---|---|
+| path     | filename        |
+| -------- | --------------- |
 | `/test/` | `IMG_6698.jpeg` |
 | `/test/` | `Instagram.jpg` |
-| `/test/` | `eBay.jpg` |
+| `/test/` | `eBay.jpg`      |
 
 **Keys are not namespaced by user, not even by convention** — the paths in use
 are category-shaped (`/test/`, and `products/gold-eagle/` in the component
@@ -13033,7 +13045,7 @@ Derive the key server-side and never trust the body for it. The row already has
 a uuid before the presign:
 
 ```ts
-const key = `${user_id}/${row.id}${extname(filename)}`;
+const key = `${user_id}/${row.id}${extname(filename)}`
 ```
 
 That makes collisions impossible, makes the key unguessable, and makes the
@@ -13056,8 +13068,8 @@ same `requiredEnv`.
 ## D202 — the 23 silent mutations, triaged: 18 are fine and 5 lose money
 
 `audit:silent-mutations` (D190) reports 23 discarded results. A raw list is not
-actionable, so here is every one classified, with the question asked being *"is
-zero rows wrong HERE?"*
+actionable, so here is every one classified, with the question asked being _"is
+zero rows wrong HERE?"_
 
 ### The 18 where zero rows is the correct outcome
 
@@ -13107,7 +13119,7 @@ D168 shape again — a `WHERE` that resolves for some rows and not others — on
 money, with no test that would catch it because a test creates its own order and
 its own transactions row.
 
-Production's 50 is *not* directly comparable: `orders.orders` there is the
+Production's 50 is _not_ directly comparable: `orders.orders` there is the
 abandoned January snapshot and no migration has run. The dev number is the live
 one and it is the one that matters.
 
@@ -13146,7 +13158,7 @@ an error. The two DISAGREEING is, and that is the condition that fires.
 which made it a map nobody was forced to read — and a report nobody reads is a
 report that rots, which is the failure this codebase keeps rediscovering. It is
 pinned at **18** from both sides: a nineteenth silent mutation fails the gate,
-and fixing one of the eighteen *also* fails until the ceiling is lowered to
+and fixing one of the eighteen _also_ fails until the ceiling is lowered to
 match. Giving the gain back silently is exactly as hard as losing it was.
 
 ## D203 — the overnight majors, and the pin that saved every login
@@ -13599,12 +13611,12 @@ service. Jacob redesigned the model in one sitting the same evening. The
 design lives in `docs/model/` (one file per concern); this entry carries the
 rulings and the reasons, because the file is the authority.
 
-Jacob, on the shape of the API he wants: *"ensure all db code is simple CRUD.
+Jacob, on the shape of the API he wants: _"ensure all db code is simple CRUD.
 Domain layers should call db layers with the crud operations in the service
-(domain) layer"*; *"Remove all prop spreading across the api. FUCK prop
-spreading. It looks terrible and makes shit complicated."*; *"I fucking hate
+(domain) layer"_; _"Remove all prop spreading across the api. FUCK prop
+spreading. It looks terrible and makes shit complicated."_; _"I fucking hate
 seeing the prop spreading and random ass function names everywhere that at
-the end of the day just do fucking updates that 20 other functions do."*
+the end of the day just do fucking updates that 20 other functions do."_
 
 ### Ruling 40 — the model (docs/model/)
 
@@ -13613,46 +13625,46 @@ One row per physical LOT (`items.items`); weights and purity as
 append-only, never overwritten. `checkout.items` / `orders.items` /
 `refiners.items` dissolve into the lot plus `lines` link tables carrying only
 the money that belongs to that stage. Bullion lots get a declared row minted
-from the product so historical orders never reprice. Jacob: *"We probably
-don't need 3 item tables, probably only need link tables between them."*
+from the product so historical orders never reprice. Jacob: _"We probably
+don't need 3 item tables, probably only need link tables between them."_
 
 ### Ruling 41 — freeze what changes outside your control, derive the rest
 
-`content` and `price` are DROPPED and computed on read (Jacob: *"remove price
-and content from the items since they are derivable"*). Spot, premium and
+`content` and `price` are DROPPED and computed on read (Jacob: _"remove price
+and content from the items since they are derivable"_). Spot, premium and
 sales-tax rate are frozen on the order; `orders.spots` and `orders.addresses`
 stay as the snapshots they are. Which measurement stage prices which order is
 a domain rule in `rules.ts`, not a column.
 
 ### Ruling 42 — refiner orders are separate orders; the lot is the only join
 
-`orders.orders` has a counterparty: `user_id` XOR `refiner_id`. Jacob: *"We
+`orders.orders` has a counterparty: `user_id` XOR `refiner_id`. Jacob: _"We
 don't necessarily need to attach what the refinery order to the customer
-order. At the end of the day they are separate."* No foreign key between
+order. At the end of the day they are separate."_ No foreign key between
 them; pooling across customer orders is free; `refiners.orders/items/spots`
 dissolve. A settlement is DATA (assayed rows per lot — what makes the
 customer order payable, by a rule over its lots) plus MONEY (a transaction
 against the refiner order). The pool is a LEDGER per refiner per metal:
-`credit` entries from settlements, `lock` entries at a locked spot (*"we do
-lock spots with refiners when we take it out of pool"*); cash cites the lock.
+`credit` entries from settlements, `lock` entries at a locked spot (_"we do
+lock spots with refiners when we take it out of pool"_); cash cites the lock.
 A customer is paid on the assayed measurement at the CUSTOMER's frozen spot,
 never at the refiner's lock price. `orders.transactions` dissolves into the
 `transactions` schema (renamed from `payments`) per D211.
 
 ### Ruling 43 — the client sends ids for what the server holds
 
-*"I want the client driving/sending as little data as possible."* If the
+_"I want the client driving/sending as little data as possible."_ If the
 server could have looked it up, the id is the whole message (a fulfillment
 method is two ids). Whole shapes cross the wire only for genuinely new
 records — a first-time address, a scrap declaration, a lead.
 
 ### Ruling 44 — the frontend informs nothing; it updates to match the API
 
-Verbatim: *"fuck the frontend. It's not as important as the API. It can
+Verbatim: _"fuck the frontend. It's not as important as the API. It can
 adjust to this new model and shape after we write the code. Don't let the
 frontend inform our decision making on the api AT ALL. We should be fully
-ignoring the legacy frontend."* And: *"the frontend must update to match
-the api, the api shouldn't care what the frontend has/wants."* So no API
+ignoring the legacy frontend."_ And: _"the frontend must update to match
+the api, the api shouldn't care what the frontend has/wants."_ So no API
 design fork is decided by what the frontend reads today; wire shapes change
 as the model changes; each surface's frontend is adapted AFTER its API
 surface lands. The standing "never change a wire shape during a schema
@@ -13661,8 +13673,8 @@ apply here.
 
 ### Ruling 45 — continue the migration, do not restart; the restructure is next
 
-*"we don't need to restart. We can continue with the migration just updated
-with this idea in mind."* Then: *"After that we should do the restructure."*
+_"we don't need to restart. We can continue with the migration just updated
+with this idea in mind."_ Then: _"After that we should do the restructure."_
 Sequence: this design → the mechanical `features/` → `db/` + `domain/` +
 `http/` split with `lint:layers` and the tooling re-pointed → per feature,
 tables + backfill + API rewritten together against the model → frontend
@@ -13691,9 +13703,9 @@ sections stands.
 
 ### D213 addendum — PARKED the same evening (Jacob, 2026-09-02)
 
-*"Lets just keep it how it is. This shit is too complicated. The current
+_"Lets just keep it how it is. This shit is too complicated. The current
 system can be migrated again later on if needed. Our business rules aren't
-changing."* The current tables stay. `docs/model/` is deleted at his
+changing."_ The current tables stay. `docs/model/` is deleted at his
 request; rulings 40–46 above stand as the record of what was designed and
 why, not as scheduled work. Rulings 44 (the frontend informs nothing), 45's
 restructure and 46 (five-verb CRUD, no spreading, one file per use case)
@@ -13721,11 +13733,11 @@ land. Strike items here as they merge.
    write bodies; leads has no `LeadPatch`; `CreateReviewBody.hidden` is
    stale-nullable against a NOT NULL column. Regenerate/compose, then
    `parseStrict` at every body-accepting endpoint.
-4. **Proper REST transport** (Jacob, 2026-09-02): *"instead of
+4. **Proper REST transport** (Jacob, 2026-09-02): _"instead of
    `/api/orders/create_purchase_order` it could be
-   `/api/orders/create/:direction/:checkout_id` (or something)"*. Shape to
+   `/api/orders/create/:direction/:checkout_id` (or something)"_. Shape to
    use: the verb is the METHOD - `POST /api/orders` `{ direction,
-   checkout_id }` -> 201; `GET|PATCH|DELETE /api/orders/:id`; sub-resources
+checkout_id }` -> 201; `GET|PATCH|DELETE /api/orders/:id`; sub-resources
    as nouns (`/api/orders/:id/items`); `POST .../:id/cancel` only for a real
    action. This RETIRES ruling 13 (URLs frozen for the schema migration);
    the frontend adapts after (ruling 44). One feature per pass, route table
@@ -13747,10 +13759,10 @@ land. Strike items here as they merge.
 8. **Frontend adaptation** to every shape change listed in the batch commit
    messages (three update bodies, one delete response so far).
 9. **API test suite overhaul** (Jacob, 2026-09-02 night, liberty granted:
-   *"All of our API test stuff could probably use a pretty big lift... I'll
+   _"All of our API test stuff could probably use a pretty big lift... I'll
    give you liberty to work through that and design/implement a better
    version. Pick best libraries for the job... Main things with tests is
-   that stripe/fedex need to be using the sandboxes"*). Sequence: audit the
+   that stripe/fedex need to be using the sandboxes"_). Sequence: audit the
    suite as it is → a short design (layers: pure rules / repo / service /
    HTTP / external; runner; fixtures; what stays: real Postgres in
    rolled-back transactions on the local cluster) → implementation lanes per
@@ -13758,7 +13770,7 @@ land. Strike items here as they merge.
    their SANDBOXES in a tagged lane run deliberately, with recorded responses
    replayed in the default lane; live keys refused as today.
 10. **Exchange exit - the remaining code references** (Jacob, 2026-09-03:
-    *"figure out a way to get rid of the remaining exchange code"*). Code
+    _"figure out a way to get rid of the remaining exchange code"_). Code
     only; tables and rows never move (covenant). Items: the
     `users.dorado_funds` write -> `auth.users` + a `payments.ledger` row,
     with a migration retiring the exchange->auth funds mirror (the
@@ -13775,33 +13787,33 @@ land. Strike items here as they merge.
     audit:coverage still green (the backfill scripts keep reading exchange
     by design).
 11. **CRUD conformance - the redesign trumps rule comments** (Jacob,
-    2026-09-03: *"our redesign should trump 'rule' comments if needed"*).
+    2026-09-03: _"our redesign should trump 'rule' comments if needed"_).
     A comment that preserves a deviation from the five-verb contract is the
     deviation winning. Make them conform and delete the comments:
     `fulfillments.attachToOrder` -> guarded `update`; the upsert-only link
     tables (fulfillments pickups/directs/shipments) and `spots` -> `create`
-    + `update` with the service reading first; refiners'
-    `ensureForOrder`/`mirrorLinesForOrder`/`coverFromOrderSpots` -> rules +
-    plain creates (orders' treatment); metals/mints `getAll`/`namesById`/
-    `idsByName` -> `list` + named finders. NOT deviations, stay: payouts
-    read-only while nothing writes it; `users.adjustCredit` as a money
-    operation over the repo verbs; "no HTTP surface, one consumer" headers
-    (layout, not CRUD). Runs after item 10.
-    **Item 11 widened (Jacob, 2026-09-03 02:xx):** *"Would LOVE if I didn't
-    see any more prop spreads or random types and all the types came from
-    shared contracts."* Every use case reads as LOAD (records by id) →
-    ASSERT (one call into rules.ts, pure, throws the refusal) → WRITE (inside
-    withTransaction, a few lines) → AFTER (email/label/Stripe outside).
-    Inputs are ids + genuinely new data, never prices or composed objects
-    from the client (send-to-refiner took `spots` from the body - the $26.81
-    hazard). Small use cases live together in the feature's service.ts;
-    a use case gets its own file only when it outgrows a screen (place).
-    Types come from @dorado/contracts or the generated row types; a local
-    `type X = {}` in domain/ or transport/ is a finding unless it is an
-    internal computation shape; lint:type-homes tightened with an ACCEPTED
-    list that only shrinks. No object spreads anywhere in the API.
+    - `update` with the service reading first; refiners'
+      `ensureForOrder`/`mirrorLinesForOrder`/`coverFromOrderSpots` -> rules +
+      plain creates (orders' treatment); metals/mints `getAll`/`namesById`/
+      `idsByName` -> `list` + named finders. NOT deviations, stay: payouts
+      read-only while nothing writes it; `users.adjustCredit` as a money
+      operation over the repo verbs; "no HTTP surface, one consumer" headers
+      (layout, not CRUD). Runs after item 10.
+      **Item 11 widened (Jacob, 2026-09-03 02:xx):** _"Would LOVE if I didn't
+      see any more prop spreads or random types and all the types came from
+      shared contracts."_ Every use case reads as LOAD (records by id) →
+      ASSERT (one call into rules.ts, pure, throws the refusal) → WRITE (inside
+      withTransaction, a few lines) → AFTER (email/label/Stripe outside).
+      Inputs are ids + genuinely new data, never prices or composed objects
+      from the client (send-to-refiner took `spots` from the body - the $26.81
+      hazard). Small use cases live together in the feature's service.ts;
+      a use case gets its own file only when it outgrows a screen (place).
+      Types come from @dorado/contracts or the generated row types; a local
+      `type X = {}` in domain/ or transport/ is a finding unless it is an
+      internal computation shape; lint:type-homes tightened with an ACCEPTED
+      list that only shrinks. No object spreads anywhere in the API.
 12. **Composer death** (Jacob, 2026-09-03, on `domain/orders/compose.ts`:
-    *"we still have this compose file which sucks to see"*). It survives only
+    _"we still have this compose file which sucks to see"_). It survives only
     because the PDF, the emails and the pricing service consume exchange's
     composed order shape, guarded by `verify:orders-decomposition` and
     `verify:sales-order-decomposition` - dual-era gates that compare against
@@ -13823,7 +13835,7 @@ land. Strike items here as they merge.
       explicit null clears (that IS the full-replace semantics the `?? null`s
       defended). Refiner assay numbers are a separate patch on the refiner
       route. Line creation takes `{bullion_id} | {metal_id, pre_melt, purity,
-      unit}` (discriminated contract) and two pure rules turn either into a
+unit}` (discriminated contract) and two pure rules turn either into a
       row; no metal names from the client, no casts.
     - **No client-shaped forms.** cancel took the drawer's `return_shipment`
       form as `Record<string, any>` and hand-mapped it into the carrier call,
@@ -13855,9 +13867,9 @@ land. Strike items here as they merge.
 
 ### Ruling 44, reaffirmed hard (Jacob, 2026-09-03 03:xx)
 
-*"I imagine this will cause the frontend to break and THATS OK. We don't
+_"I imagine this will cause the frontend to break and THATS OK. We don't
 give a fuck about the frontend. It's all gonna change as part of this branch
-anyway."* So: NO lane preserves a request or response shape on
+anyway."_ So: NO lane preserves a request or response shape on
 `api-hardening`. Inputs are ids plus new data; responses are rows or the
 composed read; every use case is rewritten from its inputs inward. The
 streamlining lane (D214 item 11) covers EVERY feature, orders first, then
@@ -13866,19 +13878,18 @@ the frontend follow-up (item 8), which happens once, at the end, against a
 stable API. The earlier lanes' caution (keeping the drawer documents, the
 `{scrap, bullion}` bodies, the client-sent totals) is the reason the domain
 layer only moved around; it stops here.
-    **Lesson, 2026-09-03 04:xx (item 9, add to lane 3):** every worktree's
-    preflight auto-migrates the ONE shared local test database, so a lane
-    writing a migration (117) changed the schema under every other lane's
-    gate at once (12 failures in exchange-exit's suite, none its own). The
-    fix belongs in the runner lane: one test database per worktree/branch
-    (`test_<branch>` derived by the preflight from `git branch
+**Lesson, 2026-09-03 04:xx (item 9, add to lane 3):** every worktree's
+preflight auto-migrates the ONE shared local test database, so a lane
+writing a migration (117) changed the schema under every other lane's
+gate at once (12 failures in exchange-exit's suite, none its own). The
+fix belongs in the runner lane: one test database per worktree/branch
+(`test_<branch>` derived by the preflight from `git branch
     --show-current`, created from a template on first use), so a
-    migration-writing lane only ever moves its own database.
+migration-writing lane only ever moves its own database.
 
 ### D214 status, 2026-09-03 morning (overnight run)
 
-Merged on `api-hardening`, each with its own gate: item 1 (audit stamping,
-116) · item 2 (CRUD batches 3-5, then the streamlining passes over EVERY
+Merged on `api-hardening`, each with its own gate: item 1 (audit stamping, 116) · item 2 (CRUD batches 3-5, then the streamlining passes over EVERY
 feature: orders x2, A, B) · item 3 (contracts for every write body, 46 of
 61 strict; the rest deferred with reasons in
 docs/waves/contracts-shape-changes.md) · item 5 (comment sweeps x3) · item
@@ -13909,10 +13920,10 @@ sandbox-label questions.
 
 ### Ruling 47 — credit is not a choice (Jacob, 2026-09-03 afternoon)
 
-Put to him as a statement: *sale `using_funds` is no longer a client flag;
+Put to him as a statement: _sale `using_funds` is no longer a client flag;
 credit applies whenever a balance exists; if the customer's choice must
-survive, it becomes a checkout column.* His answer: *"Yeah I like that. No
-reason to let them make a choice."*
+survive, it becomes a checkout column._ His answer: _"Yeah I like that. No
+reason to let them make a choice."_
 
 So the flag is dead at every layer, not just on the wire. What changed with
 the ruling: `calculateSalesOrderTotal` lost its `using_funds` parameter (the
@@ -13929,12 +13940,12 @@ not money.
 ### Ruling 48 — a direction is parsed once, at the transport, against the contract (Jacob, 2026-09-03 afternoon)
 
 Jacob, on `domain/checkout/rules.ts` — five functions keyed on the
-direction: *"Do we really need all of these functions..? They're all doing
-kinda the same thing."* Then, on the one that survived the collapse,
-`assertDirection(direction: unknown): Direction`: *"why does this exist at
+direction: _"Do we really need all of these functions..? They're all doing
+kinda the same thing."_ Then, on the one that survived the collapse,
+`assertDirection(direction: unknown): Direction`: _"why does this exist at
 all? It's just returning itself lmao. We can have strict type checking in
-zod to ensure the direction, no?"* And: *"Direction should probably live in
-our contracts as well."*
+zod to ensure the direction, no?"_ And: _"Direction should probably live in
+our contracts as well."_
 
 Yes on all three. The file is deleted. What replaced it:
 
@@ -13975,14 +13986,14 @@ USING direction::orders.direction` makes the row type the enum too.
 Jacob asked, in the same breath, whether `sell_display` could go entirely
 ("kinda asking, not really telling"). Measured read-only before answering:
 
-| | display / sell_display | count |
-|---|---|---|
-| prod `exchange.products` | f / f | 73 |
-| | f / **t** (sell-only) | **20** — every one `is_generic = true` |
-| | t / f | 1 (1oz Silver Buffalo Round) |
-| | t / t | 1 (1oz Gold Krugerrand) |
-| dev `products.bullion` | f / t | 27 (20 generic + 7) |
-| | t / t | 32 |
+|                          | display / sell_display | count                                  |
+| ------------------------ | ---------------------- | -------------------------------------- |
+| prod `exchange.products` | f / f                  | 73                                     |
+|                          | f / **t** (sell-only)  | **20** — every one `is_generic = true` |
+|                          | t / f                  | 1 (1oz Silver Buffalo Round)           |
+|                          | t / t                  | 1 (1oz Gold Krugerrand)                |
+| dev `products.bullion`   | f / t                  | 27 (20 generic + 7)                    |
+|                          | t / t                  | 32                                     |
 
 So on production the sell side IS the `sell_display` column: the twenty
 generic products ("Gold Bar (1 oz)", "Silver Coin (1 oz)", …) that a
@@ -14048,8 +14059,8 @@ D214 item 11 and `shared/errors.ts`'s own header already said domain code
 names a KIND of refusal, never a status - but the rule had no gate, so six
 files still built their own HTTP error and nine call sites spelled a number.
 Found on Jacob's read of `shipping/shipments/service.ts`'s local
-`interface HttpError` + `badRequest()`: *"Why are things like this sitting in
-this file? That should at minimum be a shared type lmfao."*
+`interface HttpError` + `badRequest()`: _"Why are things like this sitting in
+this file? That should at minimum be a shared type lmfao."_
 
 Fixed in `domain/reviews/service.ts`, `domain/leads/service.ts`,
 `domain/rates/service.ts`, `domain/places/addresses/service.ts`,
@@ -14062,17 +14073,17 @@ rewriting that file's `create()` and merges `api-hardening` before finishing.
 
 **Statuses that moved, because no code or test pinned the old number**:
 
-| file | message | old -> new |
-|---|---|---|
-| `places/addresses/service.ts` | "Address cannot be edited because it is associated with an active order." | 400 -> 409 (Conflict) |
-| `places/addresses/service.ts` | "Address cannot be deleted because it is associated with an active order." | 400 -> 409 (Conflict) |
-| `places/addresses/service.ts` | "Address not found." (both sites in `update`) | 400 -> 404 (NotFound) |
-| `shipping/shipments/service.ts` | "a shipment needs a type - ..." | 400 -> 422 (Invalid) |
-| `shipping/shipments/service.ts` | "a shipment update needs an id" | 400 -> 422 (Invalid) |
-| `shipping/shipments/service.ts` | "a service name needs a carrier to resolve against - ..." | 400 -> 422 (Invalid) |
-| `shipping/shipments/service.ts` | "a package label needs a carrier to resolve against - ..." | 400 -> 422 (Invalid) |
-| `shipping/shipments/service.ts` | "carrier ... offers no service called ..." | 400 -> 422 (Invalid) |
-| `shipping/shipments/service.ts` | "carrier ... has no package called ..." | 400 -> 422 (Invalid) |
+| file                            | message                                                                    | old -> new            |
+| ------------------------------- | -------------------------------------------------------------------------- | --------------------- |
+| `places/addresses/service.ts`   | "Address cannot be edited because it is associated with an active order."  | 400 -> 409 (Conflict) |
+| `places/addresses/service.ts`   | "Address cannot be deleted because it is associated with an active order." | 400 -> 409 (Conflict) |
+| `places/addresses/service.ts`   | "Address not found." (both sites in `update`)                              | 400 -> 404 (NotFound) |
+| `shipping/shipments/service.ts` | "a shipment needs a type - ..."                                            | 400 -> 422 (Invalid)  |
+| `shipping/shipments/service.ts` | "a shipment update needs an id"                                            | 400 -> 422 (Invalid)  |
+| `shipping/shipments/service.ts` | "a service name needs a carrier to resolve against - ..."                  | 400 -> 422 (Invalid)  |
+| `shipping/shipments/service.ts` | "a package label needs a carrier to resolve against - ..."                 | 400 -> 422 (Invalid)  |
+| `shipping/shipments/service.ts` | "carrier ... offers no service called ..."                                 | 400 -> 422 (Invalid)  |
+| `shipping/shipments/service.ts` | "carrier ... has no package called ..."                                    | 400 -> 422 (Invalid)  |
 
 `shipping/operations/service.ts`'s four sites (two shipment-not-found, one
 pickup-not-found, one no-carrier-yet) kept their existing 404/409 - they were
@@ -14104,3 +14115,15 @@ map - the six were the whole list and all six are fixed. Verified via
 `pnpm --filter @dorado/api lint:script-guards`: the new script is
 self-tested, not excused, and needs no floor exemption.
 
+### Prettier on commit (2026-09-03)
+
+Root `.prettierrc` (frontend's real settings, promoted) and
+`.prettierignore` now govern the whole repo; `frontend/.prettierrc` is
+deleted (its two non-prettier editor keys aside, it was identical). Root
+devDependencies: `prettier` 3.9.6, `husky` 9.1.7, `lint-staged` 17.4.1, all
+exact-pinned. `prepare` runs `husky`; `.husky/pre-commit` runs
+`pnpm exec lint-staged`, which runs `prettier --write` on staged
+`*.{ts,tsx,mjs,js,json,md,css}` (`.sql` excluded on purpose - hand-laid-out).
+Repo is not reformatted yet: `prettier --check` counts 498 api files and 262
+frontend files that would change. That one-time repo-wide format is a
+separate commit.

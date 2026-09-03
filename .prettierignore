@@ -1,0 +1,9 @@
+node_modules
+dist
+.next
+coverage
+.check-logs
+api/migrations/*.sql
+packages/contracts/src/generated/
+pnpm-lock.yaml
+.claude/
