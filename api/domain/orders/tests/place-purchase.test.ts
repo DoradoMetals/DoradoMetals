@@ -447,3 +447,55 @@ test("a spent draft refuses the SECOND order", async () => {
     );
   }, { actor: TEST_ACTOR.id, lock: LOCKS.ORDERS });
 });
+
+// ------------------------------------------------- label-after-commit (2026-09-03)
+
+// THE ORACLE FOR THE FINDING THIS FILE'S SIBLING WAVE FIXED: a carrier failure
+// used to leave a voided-but-billed label and a rolled-back order. Now the
+// order and its shell shipment commit BEFORE the carrier is ever asked, so a
+// failure here must leave them standing rather than undoing them.
+test("a carrier failure buying the label leaves the order and its shell shipment behind", async () => {
+  await inPinnedTransaction(async (c: PoolClient) => {
+    const fixtures = await aWorld(c);
+    const { dropoffMethodId } = fixtures;
+    const { checkout_id, fulfillment_id } = await primeCheckout(fixtures, dropoffMethodId);
+
+    const failing: placeModule.World = {
+      buyPostage: async () => {
+        throw new Error("FEDEX IS DOWN");
+      },
+      authorize: async () => {},
+      confirm: async () => {},
+    };
+
+    await assert.rejects(() => place.place(checkout_id, failing), /FEDEX IS DOWN/);
+
+    // The rejected promise never handed back an order id, so it is found the
+    // way the DATABASE links it - through the fulfillment id the checkout
+    // already named.
+    const { rows: [fulfillment] } = await c.query(
+      `SELECT order_id FROM fulfillments.fulfillments WHERE id = $1`, [fulfillment_id]
+    );
+    assert.ok(fulfillment?.order_id, "the order did not commit before the carrier was asked");
+
+    const { rows: [order] } = await c.query(
+      `SELECT status FROM orders.orders WHERE id = $1`, [fulfillment.order_id]
+    );
+    assert.equal(order.status, "In Transit", "the order row itself did not survive");
+
+    const { rows: [shipment] } = await c.query(
+      `SELECT s.tracking_number, s.label, s.shipping_status FROM shipping.shipments s
+        JOIN fulfillments.shipments fs ON fs.shipment_id = s.id
+       WHERE fs.fulfillment_id = $1`,
+      [fulfillment_id]
+    );
+    assert.ok(shipment, "the shell shipment was never committed");
+    assert.equal(shipment.tracking_number, null, "a failed carrier call still recorded a tracking number");
+    assert.equal(shipment.label, null, "a failed carrier call still recorded a label");
+
+    const { rows: [totals] } = await c.query(
+      `SELECT shipping FROM orders.transactions WHERE order_id = $1`, [fulfillment.order_id]
+    );
+    assert.equal(totals.shipping, null, "a failed carrier call still recorded a shipping charge");
+  }, { actor: TEST_ACTOR.id, lock: LOCKS.ORDERS });
+});

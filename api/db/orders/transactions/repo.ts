@@ -33,8 +33,12 @@ export async function getMany(
 // The direction guard is evaluated IN THE STATEMENT: a payout-fee waiver is a
 // purchase fact and a sale must answer "not written". It is a cross-table
 // EXISTS, which buildUpdate's WHERE cannot spell, so it is appended.
+// "shipping" joined this list for the label-after-commit rewrite: the row is
+// created with it NULL (the quote is bundled with the label purchase, and that
+// now happens AFTER the write - domain/orders/postage.ts), so the AFTER step
+// patches it in once the carrier has answered.
 const PATCHABLE = [
-  "total", "shipping_fee_actual", "refiner_fee", "pool_oz_deducted",
+  "total", "shipping", "shipping_fee_actual", "refiner_fee", "pool_oz_deducted",
   "pool_remediation", "payout_fee", "waive_payout_fee", "payout_details_id",
 ] as const;
 type TotalsColumn = (typeof PATCHABLE)[number];

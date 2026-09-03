@@ -26,7 +26,7 @@ import type { CarrierHandoff } from "#domain/shipping/handoffs/service.ts";
 import type { StorefrontProduct } from "#domain/products/compose.ts";
 import type { OrderPrices, Spots } from "#domain/pricing/ask.ts";
 import type {
-  Direction, OrderItemFromScrap, OrderItemPatch, OrderView, OrderViewProduct,
+  Direction, OrderItemFromScrap, OrderItemPatch, OrderLabel, OrderView, OrderViewProduct,
 } from "@dorado/contracts";
 
 // Type-only re-exports, erased at runtime: this file still needs no database.
@@ -242,13 +242,15 @@ export function catalogueWanted(cart: CheckoutLine[]): { id: string; quantity: n
   return [...ids].map((id) => ({ id, quantity: 0 }));
 }
 
-// WHAT A PURCHASE COMES TO at placement: the postage the server was quoted, and
-// where the customer is paid, with the method's own flat fee.
+// WHAT A PURCHASE COMES TO at placement, MINUS the postage: buying the label
+// is the outside-world step this order's WRITE must not wait on (label-after-
+// commit, 2026-09-03), so `shipping` is left for postage.ts's recordPostage to
+// fill in once the carrier has actually quoted and charged it.
 export function totalsBought(
-  order_id: string, checkout: CheckoutRow, parcel: Parcel, netCharge: number, payout_fee: number
+  order_id: string, checkout: CheckoutRow, parcel: Parcel, payout_fee: number
 ): NewOrderTotals {
   return {
-    order_id, shipping: netCharge, shipping_service: parcel.serviceType,
+    order_id, shipping_service: parcel.serviceType,
     used_funds: false, payout_fee, payout_details_id: checkout.payment_details_id,
   };
 }
@@ -267,18 +269,16 @@ export function totalsSold(
   };
 }
 
-// THE PARCEL ROW, written once with everything the carrier said and everything
-// the checkout chose.
-export function shipmentFrom(
-  checkout: CheckoutRow,
-  parcel: Parcel,
-  postage: { netCharge: number; tracking_number: string | null; label: Buffer | null }
-): ShipmentNew {
+// THE PARCEL ROW, written as a SHELL with everything the checkout already
+// chose - the label columns are what the carrier has not been asked for yet,
+// so they are left out (repo.create writes them null). postage.ts's
+// recordPostage fills tracking_number/label/label_type/shipping_status/cost
+// in once the label is actually bought.
+export function shipmentFrom(checkout: CheckoutRow, parcel: Parcel): ShipmentNew {
   return {
-    id: randomUUID(), direction: "Inbound", tracking_number: postage.tracking_number,
-    shipping_status: "Label Created", label: postage.label, label_type: "Generated",
+    id: randomUUID(), direction: "Inbound",
     pickup_type: parcel.handoff.name, package_id: checkout.package_id,
-    carrier_service_id: checkout.carrier_service_id, cost: postage.netCharge,
+    carrier_service_id: checkout.carrier_service_id,
     insured: parcel.declaredValue > 0,
     declared_value: parcel.declaredValue > 0 ? parcel.declaredValue : null,
   };
@@ -461,6 +461,44 @@ export function parcelFor(
     carrier_id: service.carrier_id, serviceType: service.serviceType,
     carrierCode: service.carrierCode, handoff, declaredValue,
     weight: { units: "LB", value: placeable.package_weight },
+    dimensions: {
+      length: Number(box.length), width: Number(box.width),
+      height: Number(box.height), units: "IN",
+    },
+    schedule: handoff.requires_schedule ? schedule : null,
+  };
+}
+
+// THE PARCEL A COMMITTED SHIPMENT ALREADY HOLDS, rebuilt for buying (or
+// re-buying) its label - orders.buyLabel's retry surface for a purchase order
+// whose own label purchase failed after the order committed. Everything but
+// the weight is the row's own; the weight was never a shipment column
+// (checkout's own copy is gone by the time an order exists to retry it), so
+// it is asked again - exactly like cancel's return label always has.
+export function rebuyParcel(
+  shipment: {
+    carrier_service_id: string | null; package_id: string | null;
+    declared_value: number | null;
+  },
+  service: LabelService,
+  box: PackageRow | undefined,
+  handoff: CarrierHandoff,
+  input: OrderLabel
+): Parcel {
+  if (!box) throw new Invalid("the shipment names a package that does not exist");
+  if (!(input.weight > 0)) throw new Invalid("the parcel needs a weight");
+  const schedule =
+    input.pickup_date && input.pickup_time
+      ? { date: input.pickup_date, time: input.pickup_time }
+      : null;
+  if (handoff.requires_schedule && !schedule) {
+    throw new Invalid("a carrier pickup needs a date and a time");
+  }
+  return {
+    carrier_id: service.carrier_id, serviceType: service.serviceType,
+    carrierCode: service.carrierCode, handoff,
+    declaredValue: shipment.declared_value ?? 0,
+    weight: { units: "LB", value: input.weight },
     dimensions: {
       length: Number(box.length), width: Number(box.width),
       height: Number(box.height), units: "IN",
