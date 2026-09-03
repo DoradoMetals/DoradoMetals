@@ -30,24 +30,34 @@ export type ProductFilters = {
 
 // ------------------------------------------------------------------- reads
 
+// Each of these reads two independent things (the product rows, and the
+// reference-table labels) and neither takes a client of its own - so both
+// default to the shared pool. Sequential rather than Promise.all: genuinely
+// concurrent when unpinned, but the same client under a pinned test
+// transaction - see domain/products/compose.ts's labels() for the fuller
+// note.
 export async function getAllProducts(): Promise<StorefrontProduct[]> {
-  const [rows, l] = await Promise.all([products.getStorefront(), compose.labels()]);
+  const rows = await products.getStorefront();
+  const l = await compose.labels();
   return compose.storefront(rows, l);
 }
 
 export async function getSellProducts(): Promise<StorefrontProduct[]> {
-  const [rows, l] = await Promise.all([products.getSell(), compose.labels()]);
+  const rows = await products.getSell();
+  const l = await compose.labels();
   return compose.storefront(rows, l);
 }
 
 export async function getHomepageProducts(): Promise<StorefrontProduct[]> {
-  const [rows, l] = await Promise.all([products.getHomepage(), compose.labels()]);
+  const rows = await products.getHomepage();
+  const l = await compose.labels();
   return compose.storefront(rows, l);
 }
 
 // A LIST: a slug names a product's whole variant SET, not one row. See repo.ts.
 export async function getProductFromSlug(slug: string): Promise<StorefrontProduct[]> {
-  const [rows, l] = await Promise.all([products.getBySlug(slug), compose.labels()]);
+  const rows = await products.getBySlug(slug);
+  const l = await compose.labels();
   return compose.storefront(rows, l);
 }
 
@@ -72,7 +82,8 @@ export async function getFilteredProducts(
 }
 
 export async function getAllAdminProducts(): Promise<AdminProduct[]> {
-  const [rows, l] = await Promise.all([products.getAdminAll(), compose.labels()]);
+  const rows = await products.getAdminAll();
+  const l = await compose.labels();
   return compose.admin(rows, l);
 }
 
@@ -115,10 +126,8 @@ export async function getByIds(
 export async function getItemsFromServer(
   items: { id: string; quantity: number }[]
 ): Promise<(StorefrontProduct & { quantity: number })[]> {
-  const [rows, l] = await Promise.all([
-    products.getByIds(items.map((i) => i.id)),
-    compose.labels(),
-  ]);
+  const rows = await products.getByIds(items.map((i) => i.id));
+  const l = await compose.labels();
   const wanted = new Map(items.map((i) => [i.id, i.quantity]));
   return compose.storefront(rows, l).map((p) => ({
     id: p.id,

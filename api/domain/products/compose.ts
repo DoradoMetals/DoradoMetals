@@ -33,13 +33,19 @@ export type Labels = {
   refinerNames: Map<string, string>;
 };
 
+// Sequential, not Promise.all: every caller of this reaches it with no
+// executor of its own, so all three calls default to the shared pool - which
+// looks safe (a real, unpinned pool hands out a separate connection per
+// call), but a request running inside a transaction (an HTTP test, or any
+// caller that later starts passing its own client through) pins the pool to
+// ONE client for its whole lifetime, and three concurrent queries on that one
+// client is the same "already executing" bug detailsFor() had. Three
+// different reference tables, so there is no one query to merge them into.
 export async function labels(): Promise<Labels> {
-  const [metalRows, mintRows, refinerRows] = await Promise.all([
-    metals.list(),
-    mints.list(),
-    // A refiner's name lives on its ORGANIZATION, not refiners.refiners, so this goes through the composing service rather than a table without the column.
-    refiners.getAllRefiners(),
-  ]);
+  const metalRows = await metals.list();
+  const mintRows = await mints.list();
+  // A refiner's name lives on its ORGANIZATION, not refiners.refiners, so this goes through the composing service rather than a table without the column.
+  const refinerRows = await refiners.getAllRefiners();
   return {
     metalNames: new Map(metalRows.map((m) => [m.id, m.name])),
     mintNames: new Map(mintRows.map((m) => [m.id, m.name])),

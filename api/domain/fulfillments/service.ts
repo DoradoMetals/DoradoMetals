@@ -34,16 +34,19 @@ type Category = fulfillmentTables.MethodsRow["category"];
 
 // The details of a set of fulfillments, one read per table rather than a query
 // per row or four joins per query.
+// Sequential, not Promise.all: these four calls share the caller's own
+// transaction client (`executor`) whenever one is open, and a single pg
+// client can only run one statement at a time - concurrent calls on it just
+// queue today (with a deprecation warning) and raise in pg@9. Four different
+// tables, so there is no one query to merge them into either.
 async function detailsFor(
   rows: fulfillments.FulfillmentBaseRow[], executor?: Executor
 ): Promise<Details> {
   const ids = rows.map((f) => f.id);
-  const [methods, p, d, s] = await Promise.all([
-    methodService.byId(executor),
-    pickups.getMany(ids, executor),
-    directs.getMany(ids, executor),
-    shipmentLinks.getMany(ids, executor),
-  ]);
+  const methods = await methodService.byId(executor);
+  const p = await pickups.getMany(ids, executor);
+  const d = await directs.getMany(ids, executor);
+  const s = await shipmentLinks.getMany(ids, executor);
   return {
     methods,
     pickups: compose.byFulfillment(p),
@@ -89,10 +92,10 @@ export async function getSchedule(
   filters: { from?: string; to?: string; employee_id?: string } = {},
   executor?: Executor
 ): Promise<ComposedFulfillment[]> {
-  const [p, d] = await Promise.all([
-    pickups.getScheduled(filters, executor),
-    directs.getScheduled(filters, executor),
-  ]);
+  // Sequential for the same reason as detailsFor above: one shared client,
+  // two different tables.
+  const p = await pickups.getScheduled(filters, executor);
+  const d = await directs.getScheduled(filters, executor);
 
   const ids = [...new Set([...p, ...d].map((r) => r.fulfillment_id))];
   if (ids.length === 0) return [];

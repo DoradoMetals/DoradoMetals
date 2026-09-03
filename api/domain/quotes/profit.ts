@@ -311,13 +311,16 @@ export async function profitBreakdown({ order_id }: OrderQuoteBody): Promise<Pro
   const order = await orderRead.view(order_id);
   if (!order) throw new NotFound("no such purchase order");
 
-  const [frozenSpots, refinerNamed, rates, metals, assayRows] = await Promise.all([
-    orderSpotsService.rowsFor(order_id),
-    refinerSpotsService.namedFor(order_id),
-    ratesService.getAllRates(),
-    metalsRepo.namesById(),
-    refinerItemsRepo.getForOrder(order_id),
-  ]);
+  // Sequential, not Promise.all: none of these five calls takes a client of
+  // its own, so they default to the shared pool - genuinely concurrent when
+  // unpinned, but the same client under a pinned test transaction. See
+  // domain/products/compose.ts's labels() for the fuller version of this
+  // note.
+  const frozenSpots = await orderSpotsService.rowsFor(order_id);
+  const refinerNamed = await refinerSpotsService.namedFor(order_id);
+  const rates = await ratesService.getAllRates();
+  const metals = await metalsRepo.namesById();
+  const assayRows = await refinerItemsRepo.getForOrder(order_id);
   const spots_at = new Date().toISOString();
 
   // Both spot sets keyed by the metal they price. The refiner's are named

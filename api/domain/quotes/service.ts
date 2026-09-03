@@ -73,12 +73,15 @@ export async function catalogQuote({ side, items }: CatalogQuoteBody): Promise<C
     items.map((line) => line.id), side === "ask" ? "display" : "sell_display"
   );
 
-  const [rows, spots] = await Promise.all([
-    productService.getItemsFromServer(
-      items.map((line) => ({ id: line.id, quantity: line.quantity ?? 1 }))
-    ),
-    spotsService.getSpotPrices(),
-  ]);
+  // Sequential, not Promise.all: neither call takes a client of its own, so
+  // both default to the shared pool - genuinely concurrent when unpinned,
+  // but the same client under a pinned test transaction. See
+  // domain/products/compose.ts's labels() for the fuller version of this
+  // note.
+  const rows = await productService.getItemsFromServer(
+    items.map((line) => ({ id: line.id, quantity: line.quantity ?? 1 }))
+  );
+  const spots = await spotsService.getSpotPrices();
   const spots_at = new Date().toISOString();
   const byId = new Map(rows.map((row) => [row.id, row]));
 
@@ -207,15 +210,15 @@ export async function purchaseOrderQuote(
   );
   await refuseProductsThatAreNotLive(productIds, "sell_display");
 
-  const [rows, spots, rates] = await Promise.all([
-    // quantity 0 because only the row is wanted: each line below keeps its own
-    // quantity, so duplicate ids cannot collapse into one.
-    productService.getItemsFromServer(
-      Array.from(new Set(productIds)).map((id) => ({ id, quantity: 0 }))
-    ),
-    spotsService.getSpotPrices(),
-    ratesService.getAllRates(),
-  ]);
+  // Sequential - see catalogQuote's note above; three calls with no client of
+  // their own is the same shared-pool fan-out.
+  // quantity 0 because only the row is wanted: each line below keeps its own
+  // quantity, so duplicate ids cannot collapse into one.
+  const rows = await productService.getItemsFromServer(
+    Array.from(new Set(productIds)).map((id) => ({ id, quantity: 0 }))
+  );
+  const spots = await spotsService.getSpotPrices();
+  const rates = await ratesService.getAllRates();
   const spots_at = new Date().toISOString();
   const byId = new Map(rows.map((row) => [row.id, row]));
 
@@ -306,10 +309,9 @@ export async function orderQuote({ order_id }: OrderQuoteBody): Promise<OrderQuo
   // theirs or does not exist; only an admin reaches this.
   if (!order) throw new NotFound("no such purchase order");
 
-  const [liveSpots, frozenSpots] = await Promise.all([
-    spotsService.getSpotPrices(),
-    orderSpotsService.rowsFor(order_id),
-  ]);
+  // Sequential - see catalogQuote's note above.
+  const liveSpots = await spotsService.getSpotPrices();
+  const frozenSpots = await orderSpotsService.rowsFor(order_id);
   const spots_at = new Date().toISOString();
 
   // KEYED BY METAL ID, where this used to match on the metal's display NAME. A
