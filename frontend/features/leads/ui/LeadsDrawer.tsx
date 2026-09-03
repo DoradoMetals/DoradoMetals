@@ -8,7 +8,7 @@ import { formatFullDate } from '@/shared/utils/formatDates'
 import StatusChip from '@/shared/ui/StatusChip'
 import UpdatedByline from '@/shared/ui/UpdatedByline'
 
-import { Lead, LeadPriority } from '@/features/leads/types'
+import { Lead, LeadPatch, LeadPriority } from '@/features/leads/types'
 import { PrioritySelect } from '@/features/leads/ui/PrioritySelect'
 import { Input } from '@/shared/ui/base/input'
 import { Textarea } from '@/shared/ui/base/textarea'
@@ -80,9 +80,8 @@ function Details({ lead }: { lead: Lead }) {
 
   const inputRef = useRef<HTMLInputElement | null>(null)
 
-  const handleUpdate = (updatedFields: Partial<Lead>) => {
-    const updated = { ...lead, ...updatedFields }
-    updateLead.mutate({ lead: updated, user_name: user?.name ?? '' })
+  const handleUpdate = (patch: LeadPatch) => {
+    updateLead.mutate({ lead_id: lead.id, patch, user_name: user?.name ?? '' })
   }
 
   return (
@@ -154,9 +153,8 @@ function Booleans({ lead }: { lead: Lead }) {
   const { user } = useGetSession()
   const updateLead = useUpdateLead()
 
-  const handleUpdate = (updatedFields: Partial<Lead>) => {
-    const updated = { ...lead, ...updatedFields }
-    updateLead.mutate({ lead: updated, user_name: user?.name ?? '' })
+  const handleUpdate = (patch: LeadPatch) => {
+    updateLead.mutate({ lead_id: lead.id, patch, user_name: user?.name ?? '' })
   }
 
   return (
@@ -192,9 +190,8 @@ function Contacted({ lead }: { lead: Lead }) {
   const updateLead = useUpdateLead()
   const { data: admins = [] } = useAdminRoleUsers()
 
-  const handleUpdate = (updatedFields: Partial<Lead>) => {
-    const updated = { ...lead, ...updatedFields }
-    updateLead.mutate({ lead: updated, user_name: user?.name ?? '' })
+  const handleUpdate = (patch: LeadPatch) => {
+    updateLead.mutate({ lead_id: lead.id, patch, user_name: user?.name ?? '' })
   }
 
   // last_contacted is historical, so allow past dates (back to launch) and

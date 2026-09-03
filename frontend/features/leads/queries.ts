@@ -1,6 +1,6 @@
-import { useApiMutation, useApiQuery } from "@/shared/queries/base";
+import { upsertById, useApiMutation, useApiQuery } from "@/shared/queries/base";
 import { queryKeys } from "@/shared/queries/keys";
-import { Lead, NewLead } from "@/features/leads/types";
+import { Lead, LeadPatch, NewLead } from "@/features/leads/types";
 
 export const useLeads = () =>
   useApiQuery<Lead[]>({
@@ -23,14 +23,18 @@ export const useCreateLead = () =>
   })
 
 export const useUpdateLead = () =>
-  useApiMutation<Lead, { lead: Lead; user_name: string }, Lead[]>({
+  useApiMutation<Lead, { lead_id: string; patch: LeadPatch; user_name: string }, Lead[]>({
     queryKey: queryKeys.adminLeads(),
     url: '/leads/update',
     requireAdmin: true,
-    optimisticItemKey: 'lead',
-    body: ({ lead, user_name }) => ({
+    optimisticUpdater: (previous, vars) => {
+      const current = previous?.find((l) => l.id === vars.lead_id)
+      return upsertById(previous, { ...current, ...vars.patch, id: vars.lead_id } as Lead)
+    },
+    body: ({ lead_id, patch, user_name }) => ({
+      lead_id,
+      patch,
       user_name,
-      lead,
     }),
   })
 

@@ -4,9 +4,7 @@ import {
   ShipmentTracking,
   ShipmentTrackingInput,
   ShippingCancelLabelInput,
-  ShippingCancelLabelResult,
   ShippingCancelPickupInput,
-  ShippingCancelPickupResult,
   ShippingLocationsInput,
   ShippingLocationsReturn,
   ShippingPickupTimes,
@@ -206,17 +204,17 @@ export const useShippingValidateAddress = (input: ShippingValidateAddressInput) 
   })
 
 export const useShippingCancelLabel = () => {
-  return useApiMutation<ShippingCancelLabelResult, ShippingCancelLabelInput>({
+  return useApiMutation<Shipment | null, ShippingCancelLabelInput>({
     queryKey: queryKeys.shippingCancelLabel(),
     url: '/shipping/cancel_label',
     method: 'POST',
     requireAdmin: true,
     body: input => input,
-  }) 
+  })
 }
 
 export const useShippingCancelPickup = () => {
-  return useApiMutation<ShippingCancelPickupResult, ShippingCancelPickupInput>({
+  return useApiMutation<ShipmentPickup | null, ShippingCancelPickupInput>({
     queryKey: queryKeys.shippingCancelPickup(),
     url: '/shipping/cancel_pickup',
     method: 'POST',

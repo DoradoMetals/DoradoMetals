@@ -161,10 +161,10 @@ export type ShippingCancelLabelInput = {
   tracking_number: string
 }
 
-export type ShippingCancelLabelResult = {
-  success: boolean
-  shipping_status?: string
-}
+// POST /shipping/cancel_label answers the bare shipping.shipments row after
+// patching shipping_status to 'Cancelled' (or null if the shipment id did
+// not resolve), not the old { success, shipping_status } message.
+// See Shipment in features/shipping/queries.ts.
 
 export type ShippingCancelPickupInput = {
   carrier_id?: ShippingCarrierId
@@ -172,7 +172,6 @@ export type ShippingCancelPickupInput = {
   confirmation_code?: number
 }
 
-export type ShippingCancelPickupResult = {
-  success: boolean
-  status?: string
-}
+// POST /shipping/cancel_pickup answers the bare shipping.pickups row (or
+// null), not the old { success, status } message. See ShipmentPickup in
+// features/shipping/queries.ts.

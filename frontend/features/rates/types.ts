@@ -13,6 +13,12 @@ import type { Rate as RateContract, AdminRate as AdminRateContract } from '@dora
 export type Rate = RateContract
 export type AdminRate = AdminRateContract
 
+// The update body's `patch`: the six writable columns (api/db/rates/repo.ts
+// PATCHABLE), same set RateInput carries minus the two audit names.
+export type RatePatch = Partial<
+  Pick<AdminRate, 'metal_id' | 'unit' | 'min_qty' | 'max_qty' | 'scrap_pct' | 'bullion_pct'>
+>
+
 // *** NOT A CONTRACT - D103's second arm, same as leads' LeadPriority. ***
 // `metals.name` is plain text; these four names are the metals THE RATE CARD
 // RENDERS, and METAL_BOUNDS below keys its sliders by them. A UI list, kept

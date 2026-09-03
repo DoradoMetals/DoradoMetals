@@ -16,10 +16,17 @@ export type Review = ReviewContract
 // contract for why `hidden` is load-bearing and must not be trimmed off.
 export type NewReview = CreateReviewBody
 
-// The update mutation's variable bundle: the row plus who is editing it.
-// react-query plumbing, not a wire shape - the body it builds is
-// { user_name, review }.
+// The update body's `patch`: only the columns reviews.update() writes
+// (api/db/reviews/repo.ts PATCHABLE - name, review_text, rating, hidden).
+// created_at/updated_at are stamped by the audit trigger now and are no
+// longer patchable at all.
+export type ReviewPatch = Partial<Pick<Review, 'name' | 'review_text' | 'rating' | 'hidden'>>
+
+// The update mutation's variable bundle: the id, the patch, and who is
+// editing it. react-query plumbing, not a wire shape - the body it builds is
+// { review_id, patch, user_name }.
 export type UpdateReviewVars = {
-  review: Review
+  review_id: string
+  patch: ReviewPatch
   user_name: string
 }

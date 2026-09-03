@@ -46,7 +46,7 @@ export const useAdminRoleUsers = () =>
 // locked and the outcome does not depend on what the browser last saw.
 export const useUpdateCredit = () =>
   useApiMutation<
-    { rowCount: number; dorado_funds: number | null },
+    { id: string; dorado_funds: number | null },
     { user_id: string; op: 'add' | 'subtract' | 'edit'; amount: number },
     AdminUser[]
   >({

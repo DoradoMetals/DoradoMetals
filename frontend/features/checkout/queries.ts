@@ -71,6 +71,12 @@ export const useSyncPurchaseCheckout = () => {
 // The payout STEP's write (D210): the bank form goes server-side when the
 // customer completes the step - numbers sealed at rest - and creation later
 // LINKS the row. The response never carries numbers, only last_four.
+//
+// CheckoutPayoutBody now parses strict (batch 4): only the seven form
+// columns plus direction. `form` is the payoutSchema union, which also
+// carries `confirmation` (a client-only checkbox) and `cost` (a display
+// figure the server recomputes) - both would 400 as unknown keys, so they
+// are picked out rather than forwarded whole.
 export const useSaveCheckoutPayout = () => {
   const { user } = useGetSession()
   return useMutation({
@@ -78,7 +84,13 @@ export const useSaveCheckoutPayout = () => {
       if (!user?.id) throw new Error('User is not authenticated')
       return await apiRequest('POST', '/checkout/payout', {
         direction: 'purchase',
-        ...form,
+        method: form.method,
+        account_holder_name: form.account_holder_name,
+        bank_name: form.bank_name,
+        account_type: form.account_type,
+        routing_number: form.routing_number,
+        account_number: form.account_number,
+        payout_email: form.payout_email,
       })
     },
   })

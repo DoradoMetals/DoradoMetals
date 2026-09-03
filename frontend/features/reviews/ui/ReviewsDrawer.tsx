@@ -78,9 +78,8 @@ function EditFields({ review }: { review: Review }) {
   const { user } = useGetSession()
   const updateReview = useUpdateReview()
 
-  const handleUpdate = (patch: Partial<Review>) => {
-    const updated: Review = { ...review, ...patch }
-    updateReview.mutate({ review: updated, user_name: user?.name ?? '' })
+  const handleUpdate = (patch: Partial<Pick<Review, 'name' | 'review_text' | 'rating'>>) => {
+    updateReview.mutate({ review_id: review.id, patch, user_name: user?.name ?? '' })
   }
 
   return (
@@ -128,7 +127,7 @@ function Visibility({ review }: { review: Review }) {
   const { user } = useGetSession()
   const updateReview = useUpdateReview()
   const handleUpdate = (hidden: boolean) =>
-    updateReview.mutate({ review: { ...review, hidden }, user_name: user?.name ?? '' })
+    updateReview.mutate({ review_id: review.id, patch: { hidden }, user_name: user?.name ?? '' })
 
   return (
     <div className="flex flex-col gap-4">
@@ -148,19 +147,12 @@ function Visibility({ review }: { review: Review }) {
   )
 }
 
+// created_at is stamped by the audit trigger (migration 116) and is no
+// longer part of reviews' patch (api/db/reviews/repo.ts PATCHABLE has only
+// name, review_text, rating, hidden). This calendar is now a read-only
+// display of when the review was recorded; sending created_at in the patch
+// would 400. See the report for the dropped capability.
 function Created({ review }: { review: Review }) {
-  const { user } = useGetSession()
-  const updateReview = useUpdateReview()
-
-  // The row's created_at is a STRING on the wire. A Date was assigned here
-  // and axios stringified it on the way out, so `.toISOString()` sends the
-  // identical bytes - it is the same value, stated rather than implied.
-  const handleUpdate = (created_at: Date) =>
-    updateReview.mutate({
-      review: { ...review, created_at: created_at.toISOString() },
-      user_name: user?.name ?? '',
-    })
-
   const maxDate = useMemo(() => {
     const d = new Date()
     d.setDate(d.getDate())
@@ -198,13 +190,6 @@ function Created({ review }: { review: Review }) {
           endMonth={endMonth}
           defaultMonth={selectedDate}
           selected={selectedDate}
-          onSelect={(newDate) => {
-            if (!newDate) return
-            const d = new Date(newDate)
-            d.setHours(0, 0, 0, 0)
-            if (d < minDate || d > maxDate) return
-            handleUpdate(d)
-          }}
           className="p-2 w-full"
           disabled={[{ before: minDate }, { after: maxDate }]}
         />

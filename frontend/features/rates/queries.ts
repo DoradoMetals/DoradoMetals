@@ -1,6 +1,6 @@
-import { useApiMutation, useApiQuery } from '@/shared/queries/base'
+import { upsertById, useApiMutation, useApiQuery } from '@/shared/queries/base'
 import { queryKeys } from '@/shared/queries/keys'
-import type { Rate, AdminRate } from '@/features/rates/types'
+import type { Rate, AdminRate, RatePatch } from '@/features/rates/types'
 import type { RateInput } from '@dorado/contracts'
 
 // TWO READS, TWO SHAPES. /rates/get_all drops the audit columns and
@@ -39,21 +39,28 @@ export const useCreateRate = () => {
 }
 
 export const useUpdateRate = () => {
-  return useApiMutation<AdminRate, { rate: AdminRate; user_name: string }, AdminRate[]>({
+  return useApiMutation<
+    AdminRate,
+    { rate_id: string; patch: RatePatch; user_name: string },
+    AdminRate[]
+  >({
     queryKey: queryKeys.adminRates(),
     url: '/rates/update',
     requireAdmin: true,
-    listAction: 'upsert',
-    optimisticItemKey: 'rate',
-    body: ({ rate, user_name }) => ({
+    optimisticUpdater: (previous, vars) => {
+      const current = previous?.find((r) => r.id === vars.rate_id)
+      return upsertById(previous, { ...current, ...vars.patch, id: vars.rate_id } as AdminRate)
+    },
+    body: ({ rate_id, patch, user_name }) => ({
+      rate_id,
+      patch,
       user_name,
-      rate,
     }),
   })
 }
 
 export const useDeleteRate = () => {
-  return useApiMutation<void, AdminRate, AdminRate[]>({
+  return useApiMutation<boolean, AdminRate, AdminRate[]>({
     queryKey: queryKeys.adminRates(),
     method: 'DELETE',
     url: '/rates/delete',
