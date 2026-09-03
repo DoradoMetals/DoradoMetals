@@ -9,8 +9,6 @@ import {
   ShippingLocationsReturn,
   ShippingPickupTimes,
   ShippingPickupTimesInput,
-  ShippingRate,
-  ShippingRatesInput,
   ShippingValidateAddressInput,
 } from '@/features/shipping/types'
 import { useApiMutation, useApiQuery } from '@/shared/queries/base'
@@ -162,17 +160,6 @@ export const useTracking = (input: ShipmentTrackingInput) => {
     }),
   })
 }
-
-export const useShippingRates = (input: ShippingRatesInput | null) =>
-  useApiQuery<ShippingRate[]>({
-    key: queryKeys.shippingRates(input ?? ({} as any)),
-    method: 'POST',
-    url: '/shipping/get_rates',
-    enabled: !!input,
-    staleTime: 5 * 60 * 1000,
-    retry: false,
-    body: () => input!,
-  })
 
 export const useShippingPickupTimes = (input: ShippingPickupTimesInput) =>
   useApiQuery<ShippingPickupTimes[]>({

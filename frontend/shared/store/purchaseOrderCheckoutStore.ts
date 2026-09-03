@@ -1,15 +1,15 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import { PurchaseOrderCheckout } from '@/features/orders/purchaseOrders/types'
+import { PurchaseCheckoutForm } from '@/features/orders/purchaseOrders/types'
 
-type PartialCheckout = Partial<PurchaseOrderCheckout>
+type PartialCheckout = Partial<PurchaseCheckoutForm>
 
 interface PurchaseOrderCheckoutState {
   data: PartialCheckout
   setData: (values: PartialCheckout) => void
-  updateField: <K extends keyof PurchaseOrderCheckout>(
+  updateField: <K extends keyof PurchaseCheckoutForm>(
     key: K,
-    value: PurchaseOrderCheckout[K]
+    value: PurchaseCheckoutForm[K]
   ) => void
   clear: () => void
 }

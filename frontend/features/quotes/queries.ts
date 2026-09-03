@@ -8,7 +8,7 @@
 //
 // REFRESH CADENCE: quotes reprice on the same 10s rhythm the spot ticker
 // already uses, and keepPreviousData stops the totals flickering to
-// undefined between ticks. The query key is the serialized body, so a cart
+// undefined between ticks. The query key is the serialized body, so a basket
 // or choice change is a new quote, not a refetch of the old one.
 //
 // IDS AND QUANTITIES, NEVER PRICES (D214 item 11, ruling 43; streamline-a).
@@ -23,11 +23,9 @@
 import { useApiQuery } from '@/shared/queries/base'
 import { queryKeys } from '@/shared/queries/keys'
 import { apiRequest } from '@/shared/queries/axios'
-import { useSpotPrices } from '@/features/spots/queries'
 import { usePaymentMethods } from '@/features/payments/queries'
 import { useSaleShippingServices } from '@/features/shipping/queries'
-import type { SellCartItem } from '@/features/cart/types'
-import type { SpotPrice } from '@/features/spots/types'
+import type { CheckoutLine } from '@/features/checkout/items/types'
 import type {
   CatalogQuote,
   SalesOrderQuote,
@@ -106,21 +104,17 @@ export const useSalesOrderQuote = (body: SalesOrderQuoteBody, enabled = true) =>
 
 // Null rather than a partial batch: a dropped line shifts every later index,
 // and quote lines pair back to the store array by index.
-function toPurchaseQuoteItems(
-  items: SellCartItem[],
-  metals: Pick<SpotPrice, 'id' | 'name'>[]
-): PurchaseQuoteItem[] | null {
+function toPurchaseQuoteItems(items: CheckoutLine[]): PurchaseQuoteItem[] | null {
   const out: PurchaseQuoteItem[] = []
   for (const item of items) {
-    if (item.bullion_id !== null) {
+    if (item.bullion_id) {
       out.push({ type: 'product', bullion_id: item.bullion_id, quantity: item.quantity })
       continue
     }
-    const metal_id = item.metal_id ?? metals.find((m) => m.name === item.metal)?.id
-    if (!metal_id) return null
+    if (!item.metal_id) return null
     out.push({
       type: 'scrap',
-      metal_id,
+      metal_id: item.metal_id,
       pre_melt: item.pre_melt ?? 0,
       purity: item.purity ?? 0,
       unit: item.unit ?? undefined,
@@ -132,17 +126,16 @@ function toPurchaseQuoteItems(
 // `deductions.payout_method` is a payments.methods row's TYPE ('ACH', not its
 // id) - resolved here the same way the sales quote resolves its own two
 // choices. They are optional because three of the four call sites quote
-// GOODS rather than a payout - the sell cart and the scrap review step want
+// GOODS rather than a payout - the sell basket and the scrap review step want
 // "what is this metal worth", not "what will land in your account".
 export const usePurchaseOrderQuote = (
-  items: SellCartItem[],
+  items: CheckoutLine[],
   deductions: { shipping_charge?: number; payout_method?: string } = {},
   enabled = true
 ) => {
-  const { data: metals = [] } = useSpotPrices()
   const { data: payoutMethods = [] } = usePaymentMethods('purchase')
 
-  const quoteItems = toPurchaseQuoteItems(items, metals)
+  const quoteItems = toPurchaseQuoteItems(items)
   const payout_method_id = deductions.payout_method
     ? payoutMethods.find((m) => m.type === deductions.payout_method)?.id
     : undefined
@@ -155,7 +148,7 @@ export const usePurchaseOrderQuote = (
       shipping_charge: deductions.shipping_charge,
       payout_method_id,
     }),
-    // Public like the catalogue: the anonymous sell cart estimates what the
+    // Public like the catalogue: the anonymous sell basket estimates what the
     // business would pay, exactly as the client math it replaced did.
     requireUser: false,
     enabled: enabled && !!quoteItems && quoteItems.length > 0 && !payoutPending,

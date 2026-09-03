@@ -1,27 +1,25 @@
 'use client'
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@dorado/components'
-import Cart from './Cart'
-import SellCart from './SellCart'
 import { Button } from '@dorado/components'
 import { X } from 'lucide-react'
-import { cartStore } from '@/shared/store/cartStore'
-import { sellCartStore } from '@/shared/store/sellCartStore'
-import { useCartTabStore } from '@/shared/store/cartTabsStore'
-import { useDrawerStore } from '@/shared/store/drawerStore'
 import { usePathname } from 'next/navigation'
 import { useEffect } from 'react'
+import type { Direction } from '@dorado/contracts'
+import SaleItems from './SaleItems'
+import PurchaseItems from './PurchaseItems'
+import { useCheckoutItems } from '@/shared/store/checkoutItemsStore'
+import { useCheckoutTab } from '@/shared/store/checkoutTabStore'
+import { useDrawerStore } from '@/shared/store/drawerStore'
 import Drawer from '@/shared/ui/base/drawer'
 
-export function CartTabs() {
-  const { tab, setTab } = useCartTabStore()
+export function CheckoutDrawer() {
+  const { direction, setDirection } = useCheckoutTab()
 
-  const items = cartStore((state) => state.items)
-  const sellItems = sellCartStore((state) => state.items)
+  const saleItems = useCheckoutItems((state) => state.sale)
+  const purchaseItems = useCheckoutItems((state) => state.purchase)
 
   const { activeDrawer, closeDrawer } = useDrawerStore()
-  const isCartOpen = activeDrawer === 'cart'
-
   const pathname = usePathname()
 
   useEffect(() => {
@@ -30,23 +28,19 @@ export function CartTabs() {
 
   return (
     <div>
-      <Drawer label="Cart"
-        open={isCartOpen}
+      <Drawer
+        label="Checkout"
+        open={activeDrawer === 'checkout'}
         setOpen={closeDrawer}
         surface="card"
         className="sm:!overflow-hidden"
       >
-        <Button
-          variant="tertiary"
-          size="icon"
-          className="hidden sm:flex"
-          onClick={closeDrawer}
-        >
+        <Button variant="tertiary" size="icon" className="hidden sm:flex" onClick={closeDrawer}>
           <X size={24} />
         </Button>
         <Tabs
-          defaultValue={tab}
-          onValueChange={(val) => setTab(val as 'buy' | 'sell')}
+          defaultValue={direction}
+          onValueChange={(val) => setDirection(val as Direction)}
           className="w-full h-full"
         >
           {/* NOTE: "Buy" uses the SUBTLE indicator and "Sell" the primary one,
@@ -55,20 +49,16 @@ export function CartTabs() {
               is preserved exactly rather than harmonised - it looks accidental
               and the call is Jacob's. */}
           <TabsList className="w-full">
-            <TabsTrigger value="buy">
-              Buy Cart {`(${items.length})`}
-            </TabsTrigger>
-            <TabsTrigger value="sell">
-              Sell Cart {`(${sellItems.length})`}
-            </TabsTrigger>
+            <TabsTrigger value="sale">Buying {`(${saleItems.length})`}</TabsTrigger>
+            <TabsTrigger value="purchase">Selling {`(${purchaseItems.length})`}</TabsTrigger>
           </TabsList>
           <div className="h-px w-full bg-border -mt-[11px]" />
 
-          <TabsContent value="buy">
-            <Cart />
+          <TabsContent value="sale">
+            <SaleItems />
           </TabsContent>
-          <TabsContent value="sell">
-            <SellCart />
+          <TabsContent value="purchase">
+            <PurchaseItems />
           </TabsContent>
         </Tabs>
       </Drawer>

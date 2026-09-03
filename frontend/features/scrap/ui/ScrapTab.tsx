@@ -8,7 +8,7 @@ import { Separator } from '@/shared/ui/base/separator'
 import { Form } from '@/shared/ui/base/form'
 import { useEffect, useState } from 'react'
 import { defineStepper } from '@stepperize/react'
-import { sellCartStore } from '@/shared/store/sellCartStore'
+import { useCheckoutItems } from '@/shared/store/checkoutItemsStore'
 import { useRouter } from 'next/navigation'
 import { useSpotPrices } from '@/features/spots/queries'
 import ReviewStep from '@/features/scrap/ui/ReviewStep'
@@ -39,7 +39,7 @@ export default function ScrapForm() {
   const stepper = useStepper()
   const currentIndex = utils.getIndex(stepper.current.id)
 
-  const addItem = sellCartStore.getState().addItem
+  const addItem = useCheckoutItems.getState().addItem
   const { data: metals = [] } = useSpotPrices()
 
   const [submitted, setSubmitted] = useState(false)
@@ -59,20 +59,14 @@ export default function ScrapForm() {
 
   const handleSubmit = (values: Scrap) => {
     // Only the declaration: content and premium are the server's.
-    addItem({
+    addItem('purchase', {
       id: values.id,
-      bullion_id: null,
-      metal_id: metals.find((m) => m.name === values.metal)?.id ?? null,
-      pre_melt: values.pre_melt ?? null,
-      post_melt: values.post_melt ?? null,
-      purity: values.purity ?? null,
-      unit: values.gross_unit ?? null,
+      metal_id: metals.find((m) => m.name === values.metal)?.id,
+      pre_melt: values.pre_melt,
+      post_melt: values.post_melt,
+      purity: values.purity,
+      unit: values.gross_unit,
       quantity: 1,
-      gross: null,
-      metal: values.metal ?? null,
-      name: values.name ?? null,
-      image_front: null,
-      mint_name: null,
     })
     setSubmitted(true)
     setShowBanner(true)

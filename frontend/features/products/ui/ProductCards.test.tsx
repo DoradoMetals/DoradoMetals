@@ -42,8 +42,7 @@ vi.mock("@/shared/ui/PriceNumberFlow", () => ({
 }));
 
 import { apiRequest } from "@/shared/queries/axios";
-import { cartStore } from "@/shared/store/cartStore";
-import { sellCartStore } from "@/shared/store/sellCartStore";
+import { useCheckoutItems } from "@/shared/store/checkoutItemsStore";
 import { useCatalogQuote } from "@/features/quotes/queries";
 import { catalogQuoteItems, unitPricesById } from "@/features/quotes/catalogPrices";
 import ProductCard from "@/features/products/ui/ProductCard";
@@ -51,8 +50,8 @@ import BullionCard from "@/features/products/ui/BullionCard";
 import type { Product } from "@/features/products/types";
 
 // One gold eagle, in the CURRENT wire shape. The card's price comes from the
-// quote, so the product's own premiums exist only to feed the accidental
-// client math this file guards against.
+// quote, so the product's own bid/ask premium columns exist only to feed the
+// accidental client math this file guards against.
 const eagle = (): Product =>
   ({
     id: "11111111-1111-4111-8111-111111111111",
@@ -84,7 +83,7 @@ const liveSpots = () => [
 // The quoted unit prices are DELIBERATELY not what the client math would
 // compute from the fixture spots (content * 3000 * 1.5 = 4500 ask,
 // content * 2900 * 0.5 = 1450 bid): a card showing 4501.25 or 1449.75 can
-// only have read the quote, never multiplied premiums itself.
+// only have read the quote, never multiplied a bid/ask premium itself.
 const quotedLine = (id: string, side: "ask" | "bid") => {
   const unit_price = side === "ask" ? 4501.25 : 1449.75;
   return { id, quantity: 1, unit_price, line_total: unit_price };
@@ -109,8 +108,7 @@ beforeEach(() => {
     return {};
   });
   localStorage.clear();
-  cartStore.setState({ items: [] });
-  sellCartStore.setState({ items: [] });
+  useCheckoutItems.setState({ sale: [], purchase: [] });
 });
 
 // The cards take their prices as a map the PAGE quotes once for the whole
@@ -134,25 +132,25 @@ describe("the buy card", () => {
     await waitFor(() => expect(screen.getAllByText("4501.25").length).toBeGreaterThan(0));
   });
 
-  test("add to cart puts the product in the cart store, and a second add increments", async () => {
+  test("add to checkout puts the product in the sale basket, and a second add increments", async () => {
     const { container } = renderWithClient(
       <ProductCard product={eagle()} variants={[]} unitPrices={{}} />
     );
     // The whole card is role="button" and its accessible name contains every
     // word on it - anchor the match so it can only be the real control.
-    await userEvent.click(screen.getByRole("button", { name: /^add to cart$/i }));
-    expect(cartStore.getState().items).toHaveLength(1);
-    expect(cartStore.getState().items[0].quantity).toBe(1);
+    await userEvent.click(screen.getByRole("button", { name: /^add to checkout$/i }));
+    expect(useCheckoutItems.getState().sale).toHaveLength(1);
+    expect(useCheckoutItems.getState().sale[0].quantity).toBe(1);
 
-    // With one in the cart the labelled button becomes -/+ steppers; the
+    // With one in the basket the labelled button becomes -/+ steppers; the
     // plus is icon-only, so it is found by its lucide class.
     const plus = [...container.querySelectorAll("button")].find((b) =>
       b.querySelector("svg.lucide-plus")
     );
     expect(plus).toBeTruthy();
     await userEvent.click(plus as HTMLElement);
-    expect(cartStore.getState().items).toHaveLength(1);
-    expect(cartStore.getState().items[0].quantity).toBe(2);
+    expect(useCheckoutItems.getState().sale).toHaveLength(1);
+    expect(useCheckoutItems.getState().sale[0].quantity).toBe(2);
   });
 });
 
@@ -164,13 +162,18 @@ describe("the sell card", () => {
     await waitFor(() => expect(screen.getAllByText("1449.75").length).toBeGreaterThan(0));
   });
 
-  test("add to sell cart stores a line naming the product", async () => {
+  test("add to the purchase basket stores a line naming the product", async () => {
     renderWithClient(<BullionCard product={eagle()} variants={[]} unitPrices={{}} />);
-    await userEvent.click(screen.getByRole("button", { name: /^add to sell cart$/i }));
-    const items = sellCartStore.getState().items;
+    await userEvent.click(screen.getByRole("button", { name: /^sell to us$/i }));
+    const items = useCheckoutItems.getState().purchase;
     expect(items).toHaveLength(1);
     expect(items[0].bullion_id).toBe(eagle().id);
-    expect(items[0].pre_melt).toBeNull();
-    expect(items[0].purity).toBeNull();
+    // A coin snapshots the product's own gross weight locally (ruling 51's
+    // FLOWS), the same way the server does on create - so a parcel weighs
+    // correctly before the basket has round-tripped. It carries no purity:
+    // that is the product's, never the line's, for a coin.
+    expect(items[0].pre_melt).toBe(eagle().gross);
+    expect(items[0].unit).toBe("t oz");
+    expect(items[0].purity).toBeUndefined();
   });
 });

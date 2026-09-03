@@ -3,7 +3,6 @@ import {
   ShipmentTrackingInput,
   ShippingLocationsInput,
   ShippingPickupTimesInput,
-  ShippingRatesInput,
   ShippingValidateAddressInput,
 } from '@/features/shipping/types'
 import { PlacesSuggestionsInput } from '@/features/addresses/types'
@@ -49,7 +48,6 @@ export const queryKeys = {
   places: (input: PlacesSuggestionsInput) => ['places', input] as const,
 
   // Shipping
-  shippingRates: (input: ShippingRatesInput) => ['shipping', 'rates', input] as const,
   shippingPickupTimes: (input: ShippingPickupTimesInput) =>
     ['shipping', 'pickup-times', input] as const,
   shippingLocations: (input: ShippingLocationsInput) => ['shipping', 'locations', input] as const,

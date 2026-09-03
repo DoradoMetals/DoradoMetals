@@ -3,27 +3,28 @@ import { test, expect } from "@playwright/test";
 // The purchase-order checkout journey, from the sell catalogue to the
 // stepper - the path every dollar the business pays out starts on.
 //
-// Cross-feature by nature (products, cart, checkout, addresses), so it lives
-// in shared/tests per the config's own rule.
+// Cross-feature by nature (products, the checkout basket, addresses), so it
+// lives in shared/tests per the config's own rule.
 //
 // IT STOPS AT THE BRINK, DELIBERATELY. Placing a purchase order creates real
 // rows in dev, can generate a FedEx label and an email, and cleaning a placed
 // order back out needs the six-table cascade that purgeCancelled never got.
-// So this walks the surface a customer walks - add to sell cart, cart drawer,
-// the checkout stepper - and asserts each hand-off happened, without
-// submitting. The five 'Pending' husks deleted on 2026-08-31 are what
-// unfinished creates look like in dev; this suite must not mint more.
-// Full placement wants a seeded disposable order and a cascade cleanup -
-// the same infrastructure the admin drawer spec already names as missing.
+// So this walks the surface a customer walks - add to the purchase basket,
+// the checkout drawer, the checkout stepper - and asserts each hand-off
+// happened, without submitting. The five 'Pending' husks deleted on
+// 2026-08-31 are what unfinished creates look like in dev; this suite must
+// not mint more. Full placement wants a seeded disposable order and a
+// cascade cleanup - the same infrastructure the admin drawer spec already
+// names as missing.
 //
-// WRITES COMMIT, so the sell basket is cleared through the API afterwards.
+// WRITES COMMIT, so the purchase basket is cleared through the API afterwards.
 const API = (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5000/api").replace(/\/$/, "");
 
 test.afterEach(async ({ request }) => {
   try {
     await request.delete(`${API}/checkout/items?direction=purchase`);
   } catch {
-    // Best effort - a leftover cart line is visible in the drawer and harmless.
+    // Best effort - a leftover line is visible in the drawer and harmless.
   }
 });
 
@@ -33,7 +34,7 @@ test("bullion and scrap added on /sell reach the checkout stepper", async ({ pag
   // BULLION first. The sell catalogue prices through /quotes/*, so cards can
   // take a moment.
   await page.goto("/sell");
-  const addButton = page.getByRole("button", { name: /^Add to Sell Cart$/i }).first();
+  const addButton = page.getByRole("button", { name: /^Sell to Us$/i }).first();
   await expect(addButton, "no sellable product card rendered on /sell").toBeVisible({
     timeout: 30_000,
   });
@@ -62,21 +63,22 @@ test("bullion and scrap added on /sell reach the checkout stepper", async ({ pag
     "the scrap item was never accepted"
   ).toBeVisible({ timeout: 15_000 });
 
-  // The cart drawer, on its sell side, now carrying TWO kinds. The tab names
-  // carry live counts - "Sell Cart (2)" - so match on the prefix.
-  await page.getByRole("button", { name: /open cart/i }).click();
-  await page.getByRole("tab", { name: /Sell Cart/i }).click();
+  // The checkout drawer, on its purchase (selling) side, now carrying TWO
+  // kinds. The tab names carry live counts - "Selling (2)" - so match on the
+  // prefix.
+  await page.getByRole("button", { name: /open checkout/i }).click();
+  await page.getByRole("tab", { name: /Selling/i }).click();
 
-  // The scrap line is named "<Metal> Item N" by assignScrapItemNames; the
+  // The scrap line is named "<Metal> Item N" by useDecoratedLines; the
   // bullion line carries its product name. Both being present is the point.
   await expect(
     page.getByText(/Gold Item/i).first(),
-    "the scrap line never reached the sell cart"
+    "the scrap line never reached the purchase basket"
   ).toBeVisible({ timeout: 15_000 });
 
   await expect(
     page.getByText(/Price Estimate/i).first(),
-    "the sell cart shows no price estimate for the added item"
+    "the purchase basket shows no price estimate for the added item"
   ).toBeVisible({ timeout: 20_000 });
 
   // The estimate must be a real rendered price. Prices render through
@@ -86,7 +88,7 @@ test("bullion and scrap added on /sell reach the checkout stepper", async ({ pag
   // assertion innerText cannot make.
   await expect(
     page.locator("number-flow-react").first(),
-    "the sell cart rendered no price element"
+    "the purchase basket rendered no price element"
   ).toBeVisible({ timeout: 15_000 });
 
   // Signed in, the proceed button reads 'Sell Your Items' and lands on the
