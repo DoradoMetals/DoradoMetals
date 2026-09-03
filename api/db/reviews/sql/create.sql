@@ -3,8 +3,12 @@
 -- caller may legitimately omit it and the two schemas must agree on what
 -- that becomes (Jacob's correction on this batch - defaults live in SQL,
 -- not in a service's `?? false`).
+--
+-- NO AUDIT COLUMNS. public.audit_stamp writes created_at, updated_at,
+-- created_by and updated_by from the actor on the connection (migration 116);
+-- they are projected here because the wire carries them.
 INSERT INTO reviews.reviews
-       (id, name, review_text, rating, hidden, created_by, updated_by)
-VALUES (COALESCE($1, gen_random_uuid()), $2, $3, $4, COALESCE($5, false), $6, $7)
+       (id, name, review_text, rating, hidden)
+VALUES (COALESCE($1, gen_random_uuid()), $2, $3, $4, COALESCE($5, false))
 RETURNING id, name, review_text, rating, hidden, created_at, updated_at,
           created_by, updated_by

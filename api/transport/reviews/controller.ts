@@ -4,11 +4,12 @@
 // wrong types are a 400 here, before the service ever runs - the service
 // checks RULES (does this id exist, is the caller allowed), never shapes.
 //
-// created_by/updated_by ride along as OPTIONAL on both schemas below (a
-// caller may still send them) but are ignored either way: the actor argument
-// is what the service and repo actually write into those columns, never the
-// row/patch (Jacob's correction on this batch - audit fields are not the
-// client's to set). CreateReviewBody and the patch schema both derive from
+// created_by/updated_by/user_name ride along as OPTIONAL on both schemas below
+// (a caller may still send them) and are IGNORED - accepted rather than
+// rejected so an older client is not 400ed, forwarded nowhere. Those columns
+// are written by the public.audit_stamp trigger from the session on the
+// connection (migration 116, shared/http/actor.ts); audit fields are not the
+// client's to set. CreateReviewBody and the patch schema both derive from
 // the one contract export, `.partial`/`.omit` rather than hand-written, so
 // this feature has no coverage gap the way leads' patch does.
 //
@@ -68,14 +69,14 @@ export const getPublic = asyncHandler(async (_req, res) => {
 
 export const create = asyncHandler(async (req, res) => {
   const body = parseStrict(CreateBody, req.body, "reviews/create body");
-  return res.status(200).json(await service.create(body.review, body.user_name));
+  return res.status(200).json(await service.create(body.review));
 });
 
 // TAKES review_id AND A PATCH - the client sends the id it already holds plus
 // only the fields that changed, not the whole row it read earlier.
 export const update = asyncHandler(async (req, res) => {
   const body = parseStrict(UpdateBody, req.body, "reviews/update body");
-  const review = await service.update(body.review_id, body.patch ?? {}, body.user_name);
+  const review = await service.update(body.review_id, body.patch ?? {});
   return res.status(200).json(review);
 });
 

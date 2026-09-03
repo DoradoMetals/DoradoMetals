@@ -74,7 +74,7 @@ test("update returns false on a missing id", async () => {
   await inRollback(async (c) => {
     const [existing] = await repo.getAdminAll(c);
     assert.ok(existing, "dev has no product to read reference ids from");
-    const ok = await repo.update(NOBODY, patchFor(existing, "Test Product"), "test", c);
+    const ok = await repo.update(NOBODY, patchFor(existing, "Test Product"), c);
     assert.equal(ok, false);
   });
 });
@@ -83,7 +83,7 @@ test("update returns true on a real id, and the row reflects the patch", async (
   await inRollback(async (c) => {
     const [existing] = await repo.getAdminAll(c);
     assert.ok(existing, "dev has no product to read reference ids from");
-    const ok = await repo.update(existing.id, patchFor(existing, "Renamed Product"), "test", c);
+    const ok = await repo.update(existing.id, patchFor(existing, "Renamed Product"), c);
     assert.equal(ok, true);
 
     const row = await repo.getAdminOne(existing.id, c);

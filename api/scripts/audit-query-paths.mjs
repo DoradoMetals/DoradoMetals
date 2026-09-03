@@ -82,12 +82,18 @@ if (process.argv.includes("--self-test")) {
 
 // Queries that legitimately have no index to enter by. Pinned from both sides:
 // an unnamed one fails, and a name that no longer reports fails too.
-const ACCEPTED = {
-  "metals.metals|name":
-    "four rows. The product save resolves a metal by name inside the statement " +
-    "that writes everything else; on a table this size a sequential scan is the " +
-    "faster plan and an index would only cost writes.",
-};
+// EMPTY, AND THE ONE ENTRY IT HELD WAS PINNED TO A PHANTOM. It excused
+// `metals.metals|name` on the grounds that "the product save resolves a metal
+// by name inside the statement that writes everything else" - and that
+// statement had already stopped doing so: the CRUD pass moved the resolution
+// into products/service.ts and the UPDATE took ids. The only remaining text
+// matching `metals.metals WHERE name = $n` was the COMMENT in
+// db/products/sql/update.sql explaining what the statement no longer did, and
+// this scan reads a .sql file whole. Deleting that file with the audit-stamp
+// pass (the statement is built by shared/db/patch.ts now) removed the comment,
+// and the entry went stale - which is the both-sides pin working exactly as
+// its own header says. There is no live query here to excuse.
+const ACCEPTED = {};
 
 const walk = (d, out = []) => {
   for (const e of fs.readdirSync(d, { withFileTypes: true })) {

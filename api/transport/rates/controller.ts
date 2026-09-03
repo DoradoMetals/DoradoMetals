@@ -4,12 +4,13 @@
 // wrong types are a 400 here, before the service ever runs.
 //
 // created_by/updated_by are OMITTED from both schemas below, not merely
-// optional: RateInput already declared them optional (the service used to
-// overwrite them from user_name when one was sent), and the actor argument is
-// now the ONLY way those columns get written (Jacob's correction on this
-// batch) - so a caller naming them is a 400, the same as any other unknown
-// field. The patch schema derives from the same contract export via
-// `.omit`/`.partial`, not hand-written, so rates has no coverage gap.
+// optional: RateInput already declared them optional, and a caller naming one
+// is a 400, the same as any other unknown field. `user_name` is still accepted
+// and is ignored. The public.audit_stamp trigger is now the ONLY writer of
+// those columns, taking the author off the connection (migration 116,
+// shared/http/actor.ts). The patch schema derives from the same contract
+// export via `.omit`/`.partial`, not hand-written, so rates has no coverage
+// gap.
 import { z } from "zod/v4";
 import { RateInput } from "@dorado/contracts";
 import { parseStrict, uuidLike } from "#shared/http/validate.ts";
@@ -51,7 +52,7 @@ export const getAdmin = asyncHandler(async (req, res) => {
 
 export const createRate = asyncHandler(async (req, res) => {
   const body = parseStrict(CreateBody, req.body, "rates/create body");
-  const rate = await rateService.createRate(body.rate, body.user_name);
+  const rate = await rateService.createRate(body.rate);
   return res.status(200).json(rate);
 });
 
@@ -59,7 +60,7 @@ export const createRate = asyncHandler(async (req, res) => {
 // only the fields that changed, not the whole row it read earlier.
 export const updateRate = asyncHandler(async (req, res) => {
   const body = parseStrict(UpdateBody, req.body, "rates/update body");
-  const rate = await rateService.updateRate(body.rate_id, body.patch ?? {}, body.user_name);
+  const rate = await rateService.updateRate(body.rate_id, body.patch ?? {});
   return res.status(200).json(rate);
 });
 

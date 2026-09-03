@@ -256,19 +256,18 @@ export async function patchOrder(
 
   if (body.status !== undefined) {
     // The label, through the direction's own service - each writes its
-    // column and its audit name, nothing else. The session's name is the
-    // audit value; the old routes took it from the body.
+    // column and nothing else. The audit name used to be lifted off the
+    // session here and passed down; the database takes it off the connection
+    // now (public.audit_stamp, migration 116), so neither call mentions it.
     await op("status", () =>
       direction === "purchase"
         ? purchaseOrderService.updatePurchaseStatus({
             order: { id: orderId } as OrderArg,
             order_status: body.status!,
-            user_name: (caller.name ?? null) as string,
           })
         : salesOrderService.updateSalesStatus({
             order: { id: orderId } as never,
             order_status: body.status!,
-            user_name: (caller.name ?? null) as string,
           })
     );
   }

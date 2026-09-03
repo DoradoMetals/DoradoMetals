@@ -477,7 +477,8 @@ export async function updateIntentFromWebhook({
   ) {
     // The flair, nothing else (D211): paid is the intent's own settled fact,
     // read where it lives; the label is decoration for the customer.
-    await ordersRepo.update(prior.sales_order_id, { status: "Preparing", updated_by: "payment" });
+    // No actor: a webhook is nobody signed in, and the row says so (116).
+    await ordersRepo.update(prior.sales_order_id, { status: "Preparing" });
   }
 }
 

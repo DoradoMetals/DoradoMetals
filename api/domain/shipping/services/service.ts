@@ -58,8 +58,6 @@ export type ServiceInput = {
   min_transit_days?: number | null;
   max_transit_days?: number | null;
   display_order?: number | null;
-  created_by?: string | null;
-  updated_by?: string | null;
 };
 
 // `== null` rather than a falsy check: `false` is a value a caller can send and
@@ -120,8 +118,6 @@ function toNewRow(s: ServiceInput, id: string): services.ServiceNew {
     max_declared_value: w.max_declared_value,
     min_transit_days: w.min_transit_days, max_transit_days: w.max_transit_days,
     display_order: w.display_order,
-    created_by: s.created_by ?? "Dorado Metals",
-    updated_by: s.updated_by ?? "Dorado Metals",
   };
 }
 
@@ -139,7 +135,6 @@ function toPatchRow(s: ServiceInput): services.ServicePatch {
     max_declared_value: w.max_declared_value,
     min_transit_days: w.min_transit_days, max_transit_days: w.max_transit_days,
     display_order: w.display_order,
-    updated_by: s.updated_by ?? "Dorado Metals",
   };
 }
 

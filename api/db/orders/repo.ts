@@ -13,6 +13,7 @@
 // orders/spots, orders/transactions, orders/addresses, refiners/spots,
 // refiners/items, shipping/shipments. Those are shared by both directions.
 import query from "#shared/db/query.ts";
+import { buildUpdate } from "#shared/db/patch.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
 import type { orders } from "@dorado/contracts";
 import type { Executor } from "#shared/db/executor.ts";
@@ -110,8 +111,14 @@ export async function ownersById(
 // transitions (payment settled, abandonment cancelled) atomic under webhook
 // and reconciler retries - zero rows means "nothing needed doing", never a
 // stomped later status.
-const PATCHABLE = [
-  "status", "updated_by", "order_sent", "tracking_updated",
+// `updated_by` USED TO BE IN THIS LIST and is not any more: the caller passed
+// the session's name into the patch beside the status, so a status write and
+// an audit write were the same statement and either could be forgotten. The
+// public.audit_stamp trigger writes updated_by, updated_by_id and updated_at
+// on every UPDATE built here (migration 116); shared/db/patch.ts throws if one
+// is ever put back in a patch.
+export const PATCHABLE = [
+  "status", "order_sent", "tracking_updated",
   "review_created", "spots_locked", "notes",
 ] as const;
 type Patchable = (typeof PATCHABLE)[number];
@@ -124,24 +131,18 @@ export type OrderGuard = Partial<Record<Guardable, string>>;
 export async function update(
   id: string, patch: OrderPatch, guard: OrderGuard = {}, executor?: Executor
 ): Promise<{ id: string } | undefined> {
-  const cols = PATCHABLE.filter((c) => c in patch);
-  if (!cols.length) return { id };
-  const sets = cols.map((c, i) => `${c} = $${i + 2}`);
-  const values: unknown[] = [id, ...cols.map((c) => patch[c] ?? null)];
-  const wheres = ["id = $1"];
-  for (const g of GUARDABLE) {
-    if (g in guard) {
-      values.push(guard[g]);
-      wheres.push(`${g} = $${values.length}${g === "direction" ? "::orders.direction" : ""}`);
-    }
-  }
-  const { rows } = await query<{ id: string }>(
-    `UPDATE orders.orders SET ${sets.join(", ")}, updated_at = now()
-      WHERE ${wheres.join(" AND ")}
-      RETURNING id`,
-    values,
-    executor
-  );
+  const where: Record<string, unknown> = { id };
+  for (const g of GUARDABLE) if (g in guard) where[g] = guard[g];
+  const built = buildUpdate({
+    table: "orders.orders",
+    allowed: PATCHABLE,
+    patch,
+    where,
+    casts: { direction: "orders.direction" },
+    returning: "id",
+  });
+  if (!built) return { id };
+  const { rows } = await query<{ id: string }>(built.text, built.values, executor);
   return rows[0];
 }
 
@@ -184,14 +185,16 @@ export async function findReservedFunds(
 // and the row decides it. `number` is drawn from EXCHANGE's sequence for the
 // direction - the two schemas share one numbering space while both are live,
 // and the new schema has no sequence of its own.
+// created_by and created_by_id ARE NOT FIELDS OF THIS TYPE any more. An order
+// is created by whoever is signed in, and public.audit_stamp reads that off the
+// connection (migration 116) - a create path that also carried the author was
+// a second place for it to be wrong.
 export type NewOrder = {
   id?: string | null;
   user_id: string | null;
   direction: "purchase" | "sale";
   status: string;
   notes?: string | null;
-  created_by?: string | null;
-  created_by_id?: string | null;
 };
 
 export async function create(
@@ -199,10 +202,7 @@ export async function create(
 ): Promise<{ id: string; number: number }> {
   const { rows } = await query<{ id: string; number: number }>(
     sql("create"),
-    [
-      row.id ?? null, row.user_id, row.direction, row.status,
-      row.notes ?? null, row.created_by ?? null, row.created_by_id ?? null,
-    ],
+    [row.id ?? null, row.user_id, row.direction, row.status, row.notes ?? null],
     executor
   );
   return rows[0];

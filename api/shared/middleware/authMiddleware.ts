@@ -1,6 +1,7 @@
 import type { NextFunction, Request, RequestHandler, Response } from "express";
 import { auth } from "#domain/auth/client.ts";
 import { fromNodeHeaders } from "better-auth/node";
+import { runWithActor } from "#shared/http/actor.ts";
 
 export const requireAuth = async (
   req: Request,
@@ -23,7 +24,17 @@ export const requireAuth = async (
     }
 
     req.user = session.user;
-    next();
+    // THE REST OF THE REQUEST RUNS AS THIS PERSON. Everything downstream -
+    // the role check, the controller, the service, every transaction it opens -
+    // is inside this scope, so `withTransaction` can put the id on the
+    // connection and public.audit_stamp can write created_by_id / updated_by_id
+    // without a single function in between taking an actor argument.
+    //
+    // Only the GUARDED routes get one, and that is deliberate: an anonymous
+    // request, a cron sweep and a Stripe webhook never reach here, so they run
+    // with no actor and their rows read as system-authored. See
+    // shared/http/actor.ts.
+    return runWithActor(session.user.id, () => next());
   } catch (error) {
     return res.status(500).json({ error: "Internal Server Error" });
   }

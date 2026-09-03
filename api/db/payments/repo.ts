@@ -243,8 +243,7 @@ export async function updatePaymentIntent(
   const { rows } = await query<{ id: string }>(
     `UPDATE payments.intents i
         SET status = $1,
-            amount_expected = $2,
-            updated_at = now()
+            amount_expected = $2
        FROM payments.attempts a
       WHERE a.intent_id = i.id AND a.provider_ref = $3
       RETURNING i.id`,
@@ -339,8 +338,7 @@ export async function attachOrder(
 ): Promise<void> {
   await query(
     `UPDATE payments.intents i
-        SET order_id = (SELECT o.id FROM orders.orders o WHERE o.id = $1),
-            updated_at = now()
+        SET order_id = (SELECT o.id FROM orders.orders o WHERE o.id = $1)
        FROM payments.attempts a
       WHERE a.intent_id = i.id AND a.provider_ref = $2`,
     [sales_order_id ?? purchase_order_id, payment_intent_id],

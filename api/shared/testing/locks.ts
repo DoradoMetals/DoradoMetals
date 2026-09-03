@@ -40,6 +40,25 @@ export const LOCKS = {
   // most address work does not touch an order, and that is the pair that was
   // costing the most. A file doing both takes both.
   ADDRESSES: 4214,
+  // exchange.users.dorado_funds and, through migration 107's mirror trigger,
+  // auth.users.
+  //
+  // A TENTH JOINED THE LIST THE WAY THE NINTH DID (2026-09-03, the audit-stamp
+  // pass): db/users/tests/repo.test.ts deadlocked in a full run having passed
+  // in isolation and in the run before, with 40P01 raised INSIDE
+  // exchange.mirror_funds_to_auth's `UPDATE auth.users SET dorado_funds`.
+  // Nothing about the balance path changed - a new test file and a handful of
+  // moved statements shifted the interleaving, which is exactly what this
+  // file's own closing paragraph says will happen.
+  //
+  // ONE BALANCE WRITE IS TWO ROW LOCKS, and that is why it deadlocks rather
+  // than merely queueing: the write lands on exchange.users and the trigger
+  // carries it to auth.users, so a file touching two customers takes four row
+  // locks in whatever order it happens to visit them. Every file that MOVES a
+  // balance takes this - db/users/tests/repo.test.ts, users' funds,
+  // credit-target and replay, and orders' create-then-charge, which sets a
+  // balance by hand before charging.
+  USERS: 4215,
 };
 
 // COVERAGE IS THE HARD PART, and a mechanical check for it was attempted and

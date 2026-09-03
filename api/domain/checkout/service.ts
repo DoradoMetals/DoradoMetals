@@ -286,11 +286,11 @@ export async function setFulfillmentMethod(
     if (row.fulfillment_id) {
       await fulfillmentMethods.assertOffered({ method_id, direction: dir }, client);
       await fulfillmentService.setMethod(
-        { id: row.fulfillment_id, method_id, updated_by_id: user_id }, client
+        { id: row.fulfillment_id, method_id }, client
       );
     } else {
       const draft = await fulfillmentService.createDraft(
-        { method_id, direction: dir, created_by_id: user_id }, client
+        { method_id, direction: dir }, client
       );
       if (!draft) throw badRequest(`no such fulfillment method: ${method_id}`);
       await checkoutRows.linkFulfillment(user_id, dir, draft.id, client);

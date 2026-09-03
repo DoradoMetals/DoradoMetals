@@ -10,6 +10,7 @@
 // they call this - and that is a better place for the decision than a boolean
 // threaded through a projection.
 import query from "#shared/db/query.ts";
+import { buildUpdate } from "#shared/db/patch.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
 import type { refiners } from "@dorado/contracts";
 import type { Executor } from "#shared/db/executor.ts";
@@ -80,22 +81,24 @@ export async function mirrorLinesForOrder(
 // content is COMPUTED BY THE CALLER (domain/orders/service.ts's
 // updateScrapItem), never derived here - same rule set_assay.sql always had.
 //
-// KNOWN LIMIT, same as rates.ts's max_qty: COALESCE($n, col) cannot tell
-// "leave this column alone" from "clear it to null" - every column here is
-// nullable, and a caller wanting a genuine clear cannot get one from this
-// statement today. Nothing calls for that yet: the assay quad is written as a
-// unit whenever it changes, and premium's own clear is unexercised.
-export type ItemPatch = Partial<
-  Pick<RefinerItemRow, "pre_melt" | "post_melt" | "purity" | "content" | "premium">
->;
+// THE KNOWN LIMIT IS FIXED. This header recorded that COALESCE($n, col) could
+// not tell "leave this column alone" from "clear it to null", that every column
+// here is nullable, and that a genuine clear was therefore unavailable. The
+// statement is built from the keys the patch carries now (shared/db/patch.ts):
+// omit a column and it is untouched, send it as null and it clears.
+export const PATCHABLE = [
+  "pre_melt", "post_melt", "purity", "content", "premium",
+] as const;
+
+export type ItemPatch = Partial<Pick<RefinerItemRow, (typeof PATCHABLE)[number]>>;
 
 export async function update(
   order_item_id: string, patch: ItemPatch, executor?: Executor
 ): Promise<boolean> {
-  const { rowCount } = await query(
-    sql("update"),
-    [patch.pre_melt, patch.post_melt, patch.purity, patch.content, patch.premium, order_item_id],
-    executor
-  );
+  const built = buildUpdate({
+    table: "refiners.items", allowed: PATCHABLE, patch, where: { order_item_id },
+  });
+  if (!built) return true;
+  const { rowCount } = await query(built.text, built.values, executor);
   return rowCount === 1;
 }

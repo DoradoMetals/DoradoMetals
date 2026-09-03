@@ -13,5 +13,4 @@ ON CONFLICT (metal_id) DO UPDATE SET
   ask            = COALESCE(EXCLUDED.ask,            spots.spots.ask),
   bid            = COALESCE(EXCLUDED.bid,            spots.spots.bid),
   dollar_change  = COALESCE(EXCLUDED.dollar_change,  spots.spots.dollar_change),
-  percent_change = COALESCE(EXCLUDED.percent_change, spots.spots.percent_change),
-  updated_at     = now()
+  percent_change = COALESCE(EXCLUDED.percent_change, spots.spots.percent_change)

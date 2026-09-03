@@ -219,8 +219,12 @@ const resolve = (
 
 const flag = (v: unknown): boolean => v === true || v === "true";
 
+// `user` USED TO BE THE SECOND FIELD OF THIS INPUT, read only to take a name
+// off it for updated_by. The database takes the author off the connection now
+// (public.audit_stamp, migration 116), so the edit says what changed and
+// nothing about who.
 export async function saveProduct(
-  { product, user }: { product: ProductInput; user?: { name?: string } },
+  { product }: { product: ProductInput },
   executor?: Executor
 ): Promise<{ id: string } | undefined> {
   const id = product.id;
@@ -260,10 +264,8 @@ export async function saveProduct(
     image_back: product.image_back,
     filter_category: product.filter_category,
   };
-  const actor = user?.name ?? "";
-
   const run = async (c: Executor): Promise<{ id: string } | undefined> => {
-    const written = await products.update(id, patch, actor, c);
+    const written = await products.update(id, patch, c);
     if (!written) return undefined;
     return { id };
   };
@@ -272,8 +274,11 @@ export async function saveProduct(
 
 // Insert then read back the composed admin shape, in one transaction - a
 // failure on the read cannot leave a half-created product behind.
+// `created_by` used to be a field of this input, sent by the CLIENT. It is
+// gone: the trigger writes the author from the session (migration 116), so a
+// caller can no longer claim to be somebody else.
 export async function createProduct(
-  { created_by, name }: { created_by: string; name: string },
+  { name }: { name: string },
   executor?: Executor
 ): Promise<AdminProduct | undefined> {
   const run = async (c: Executor): Promise<AdminProduct | undefined> => {
@@ -281,7 +286,6 @@ export async function createProduct(
     await products.create({
       id,
       name,
-      created_by,
       metal_id: EXCHANGE_CREATE_DEFAULTS.metal_id,
       mint_id: EXCHANGE_CREATE_DEFAULTS.mint_id,
       supplier_id: EXCHANGE_CREATE_DEFAULTS.supplier_id,

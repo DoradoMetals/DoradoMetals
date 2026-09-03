@@ -8,7 +8,7 @@
 -- exchange keyed the metal by NAME (`type`); here it is a foreign key, so the
 -- caller resolves the name once rather than per row.
 UPDATE orders.spots
-   SET bid = $1, updated_at = now()
+   SET bid = $1
  WHERE order_id = $2
    AND metal_id = $3
 RETURNING id, order_id, metal_id, ask, bid

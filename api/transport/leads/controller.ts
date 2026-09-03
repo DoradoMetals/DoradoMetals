@@ -23,10 +23,12 @@ import type { LeadPatch } from "#db/leads/repo.ts";
 
 const leadId = uuidLike;
 
-// created_by/updated_by ride along as optional on CreateLeadBody (a caller
-// MAY still send them) but are ignored - the actor argument is what the
-// service and repo actually write, never the body (Jacob's correction on
-// this batch: audit fields are not the client's to set).
+// created_by/updated_by/user_name ride along as optional (a caller MAY still
+// send them) and are IGNORED. They are accepted rather than rejected so an
+// older client is not 400ed by a strict schema; nothing forwards them. The
+// author is the session's, put on the connection by shared/http/actor.ts and
+// written by the public.audit_stamp trigger (migration 116) - audit fields are
+// not the client's to set.
 const CreateBody = z.object({
   lead: CreateLeadBody.strict(),
   user_name: z.string().optional(),
@@ -52,7 +54,7 @@ export const getAll = asyncHandler(async (_req, res) => {
 
 export const create = asyncHandler(async (req, res) => {
   const body = parseStrict(CreateBody, req.body, "leads/create body");
-  return res.status(200).json(await service.create(body.lead, body.user_name));
+  return res.status(200).json(await service.create(body.lead));
 });
 
 // TAKES lead_id AND A PATCH - the client sends the id it already holds plus
@@ -62,7 +64,7 @@ export const update = asyncHandler(async (req, res) => {
   // patch is not schema-checked (see header) - passed through as the caller
   // sent it, same as before this endpoint parsed anything strictly.
   const patch = (body.patch ?? {}) as LeadPatch;
-  const lead = await service.update(body.lead_id, patch, body.user_name);
+  const lead = await service.update(body.lead_id, patch);
   return res.status(200).json(lead);
 });
 

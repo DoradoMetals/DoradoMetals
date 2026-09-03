@@ -246,7 +246,7 @@ test("liveness answers for both directions independently", async () => {
 test("creating a product supplies what exchange defaults and bullion does not", async () => {
   await inRollback(async (c: PoolClient) => {
     const name = `probe-${randomUUID().slice(0, 8)}`;
-    const made = await service.createProduct({ created_by: "a test", name }, c);
+    const made = await service.createProduct({ name }, c);
     assert.ok(made, "the product service returned nothing");
 
     assert.ok(made, "createProduct returned nothing");
@@ -266,22 +266,33 @@ test("creating a product supplies what exchange defaults and bullion does not", 
   });
 });
 
-test("saving a product writes the row", async () => {
+// THE EDITOR IS NOT AN ARGUMENT ANY MORE. saveProduct took `user: { name }`
+// and the repo took an `actor`; migration 116 moved the write to the
+// public.audit_stamp trigger, which reads app.actor_id off the connection. The
+// claim is unchanged - a save records WHO edited - asked of the mechanism that
+// answers it now, and of updated_by_id as well as the legacy name column.
+test("saving a product writes the row, and records who saved it", async () => {
   await inRollback(async (c: PoolClient) => {
     const [existing] = await service.getAllAdminProducts();
     const renamed = `${existing.name}-renamed`;
 
-    const saved = await service.saveProduct(
-      { product: { ...existing, name: renamed }, user: { name: "an editor" } }, c
+    const { rows: admins } = await c.query(
+      `SELECT id, name FROM auth.users WHERE role = 'admin' LIMIT 1`
     );
+    assert.ok(admins[0], "auth.users has no admin - this test proves nothing");
+    await c.query("SELECT set_config('app.actor_id', $1, true)", [admins[0].id]);
+
+    const saved = await service.saveProduct({ product: { ...existing, name: renamed } }, c);
     assert.ok(saved, "saveProduct returned nothing");
     assert.equal(saved.id, existing.id);
 
     const { rows: nx } = await c.query(
-      "SELECT name, updated_by FROM products.bullion WHERE id = $1", [existing.id]
+      "SELECT name, updated_by, updated_by_id FROM products.bullion WHERE id = $1",
+      [existing.id]
     );
     assert.equal(nx[0].name, renamed);
-    assert.equal(nx[0].updated_by, "an editor");
+    assert.equal(nx[0].updated_by_id, admins[0].id, "the trigger did not stamp the actor");
+    assert.equal(nx[0].updated_by, admins[0].name);
   });
 });
 
@@ -310,7 +321,7 @@ test("a save with no id is refused rather than writing to nothing", async () => 
 test("a write made with a client is invisible on the pool", async () => {
   await client.query("BEGIN");
   const made = await service.createProduct(
-    { created_by: "a test", name: `probe-${randomUUID().slice(0, 8)}` }, client
+    { name: `probe-${randomUUID().slice(0, 8)}` }, client
   );
   assert.ok(made, "createProduct returned nothing");
   const outsideRow = await service.getAdminProductById(made.id);

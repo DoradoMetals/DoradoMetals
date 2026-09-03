@@ -28,7 +28,16 @@ import { randomUUID } from "node:crypto";
 import request from "supertest";
 import pool from "#db";
 import { mockSessions, restoreSessions, as, anonymous } from "#shared/testing/session.ts";
+import { LOCKS } from "#shared/testing/locks.ts";
 import { inPinnedTransaction, outside } from "#shared/testing/pinned-pool.ts";
+
+// EVERY PINNED TRANSACTION IN THIS FILE TAKES THE BALANCE LOCK. A balance write
+// is two row locks - exchange.users, and auth.users through migration 107's
+// mirror trigger - so files that move balances agree an order rather than
+// deadlocking on whichever customer each visited first. See LOCKS.USERS.
+const inPinned = <T,>(fn: (c: import("pg").PoolClient) => Promise<T> | T): Promise<T> =>
+  inPinnedTransaction(fn, { lock: LOCKS.USERS });
+
 
 await mockSessions();
 const { default: app } = await import("#app");
@@ -91,7 +100,7 @@ after(async () => {
 });
 
 test("every route refuses an anonymous caller", async () => {
-  await inPinnedTransaction(async () => {
+  await inPinned(async () => {
     await anonymous(async () => {
       const calls = [
         ["get_user", request(app).get("/api/users/get_user").query({ user_id: customer.id })],
@@ -119,7 +128,7 @@ test("every route refuses an anonymous caller", async () => {
 // not a stranger's id, which would also be caught by an ownership check that
 // does not exist here.
 test("a signed-in customer cannot top up their own balance", async () => {
-  await inPinnedTransaction(async () => {
+  await inPinned(async () => {
     await as({ ...customer, role: "user" }, async () => {
       const res = await request(app)
         .post("/api/users/update_credit")
@@ -130,7 +139,7 @@ test("a signed-in customer cannot top up their own balance", async () => {
 });
 
 test("an admin reads the user list with balances", async () => {
-  await inPinnedTransaction(async () => {
+  await inPinned(async () => {
     await as({ ...admin, role: "admin" }, async () => {
       const res = await request(app).get("/api/users/get_all_users");
       assert.equal(res.status, 200);
@@ -143,7 +152,7 @@ test("an admin reads the user list with balances", async () => {
 // get_user is the single-row read, and it deliberately does NOT carry
 // dorado_funds. Recorded so a future change to the shared field list is visible.
 test("the single-user read carries no balance, unlike the list", async () => {
-  await inPinnedTransaction(async () => {
+  await inPinned(async () => {
     await as({ ...admin, role: "admin" }, async () => {
       const res = await request(app).get("/api/users/get_user").query({ user_id: customer.id });
       assert.equal(res.status, 200);
@@ -154,7 +163,7 @@ test("the single-user read carries no balance, unlike the list", async () => {
 });
 
 test("the admin list is only admins, and the full list is more than that", async () => {
-  await inPinnedTransaction(async () => {
+  await inPinned(async () => {
     await as({ ...admin, role: "admin" }, async () => {
       const admins = await request(app).get("/api/users/get_admin_users");
       assert.equal(admins.status, 200);
@@ -175,7 +184,7 @@ test("the admin list is only admins, and the full list is more than that", async
 });
 
 test("the three modes each move the balance the way they say", async () => {
-  await inPinnedTransaction(async () => {
+  await inPinned(async () => {
     await as({ ...admin, role: "admin" }, async () => {
       const read = async () => {
         const res = await request(app).get("/api/users/get_all_users");
@@ -217,7 +226,7 @@ test("the three modes each move the balance the way they say", async () => {
 // distinguish "refused" from "wrote NULL and then failed", which is what used
 // to happen - the 500 came from the constraint, after the attempt.
 test("an unrecognised mode is refused and the balance is untouched", async () => {
-  await inPinnedTransaction(async () => {
+  await inPinned(async () => {
     await as({ ...admin, role: "admin" }, async () => {
       const read = async () => {
         const res = await request(app).get("/api/users/get_all_users");
@@ -252,7 +261,7 @@ test("an unrecognised mode is refused and the balance is untouched", async () =>
 // Number("") and Number(null) are both 0, so an empty amount field under `edit`
 // would have zeroed a customer's balance and returned 200.
 test("an amount that is not a number is refused rather than treated as zero", async () => {
-  await inPinnedTransaction(async () => {
+  await inPinned(async () => {
     await as({ ...admin, role: "admin" }, async () => {
       // Each of these coerces to a finite 0 through Number(), or would have:
       // "" -> 0, null -> 0, [] -> 0. Under `edit` that is a zeroed balance.

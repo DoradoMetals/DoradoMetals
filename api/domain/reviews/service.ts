@@ -37,17 +37,15 @@ export async function getPublic(): Promise<ReviewWire[]> {
   return await reviews.getPublic();
 }
 
-export async function create(review: NewReview, user_name?: string | null): Promise<ReviewWire> {
+export async function create(review: NewReview): Promise<ReviewWire> {
   return withTransaction(async (client) => {
-    return await reviews.create(review, user_name, client);
+    return await reviews.create(review, client);
   });
 }
 
-export async function update(
-  id: string, patch: ReviewPatch, user_name?: string | null
-): Promise<ReviewWire> {
+export async function update(id: string, patch: ReviewPatch): Promise<ReviewWire> {
   return withTransaction(async (client) => {
-    const changed = await reviews.update(id, patch, user_name, client);
+    const changed = await reviews.update(id, patch, client);
     if (!changed) throw notFound(id);
     const row = await reviews.getOne(id, client);
     if (!row) throw notFound(id);

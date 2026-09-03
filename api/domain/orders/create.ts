@@ -174,12 +174,10 @@ export async function createFromCheckout(
   {
     checkout_id,
     status,
-    created_by_id = null,
     notes = null,
   }: {
     checkout_id: string;
     status: string;
-    created_by_id?: string | null;
     notes?: string | null;
   },
   executor?: Executor
@@ -192,7 +190,7 @@ export async function createFromCheckout(
     {
       user_id: checkout.user_id,
       direction: direction as "purchase" | "sale",
-      status, notes, created_by_id,
+      status, notes,
     },
     executor
   );
@@ -232,16 +230,16 @@ export async function createFromCheckout(
   // booking has to match its method's category.
   const fulfillment = checkout.fulfillment_id
     ? await fulfillmentService.attachDraft(
-        { fulfillment_id: checkout.fulfillment_id, order_id, updated_by_id: created_by_id },
+        { fulfillment_id: checkout.fulfillment_id, order_id },
         executor
       )
     : checkout.fulfillment_method_id
       ? await fulfillmentService.chooseById(
-          { order_id, method_id: checkout.fulfillment_method_id, created_by_id },
+          { order_id, method_id: checkout.fulfillment_method_id },
           executor
         )
       : await fulfillmentService.chooseDefault(
-          { order_id, direction: direction as "purchase" | "sale", category: "SHIPMENT", created_by_id },
+          { order_id, direction: direction as "purchase" | "sale", category: "SHIPMENT" },
           executor
         );
 
@@ -447,7 +445,7 @@ export async function recordPlacedPurchase(
   }
 ) {
   const { order_id, number, fulfillment_id } = await createFromCheckout(
-    { checkout_id: resolved.row.id, status: "In Transit", created_by_id: user_id },
+    { checkout_id: resolved.row.id, status: "In Transit" },
     client
   );
 

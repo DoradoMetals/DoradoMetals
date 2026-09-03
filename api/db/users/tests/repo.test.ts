@@ -19,6 +19,7 @@ import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
 import pool from "#db";
 import * as repo from "#db/users/repo.ts";
+import { takeLocks, LOCKS } from "#shared/testing/locks.ts";
 
 let client: PoolClient;
 
@@ -37,6 +38,10 @@ after(async () => {
 
 async function inRollback(fn: (c: PoolClient) => Promise<void>) {
   await client.query("BEGIN");
+  // A balance write is TWO row locks - exchange.users and, through 107's
+  // trigger, auth.users - so files that move balances agree an order. See
+  // LOCKS.USERS.
+  await takeLocks(client, LOCKS.USERS);
   try {
     await fn(client);
   } finally {
@@ -141,6 +146,7 @@ test("subtracting more than the balance goes negative", async () => {
 test("an adjustment on a client is invisible on another connection", async () => {
   const other = await pool.connect();
   await client.query("BEGIN");
+  await takeLocks(client, LOCKS.USERS);
   try {
     const user = await aUser(client);
     const sentinel = 123456.78;

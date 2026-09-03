@@ -52,22 +52,16 @@ export const cancelSchedule = asyncHandler(async (req, res) => {
 export const setMethod = asyncHandler(async (req, res) => {
   const fulfillment_id = uuidField(req.body, "fulfillment_id");
   const method_id = uuidField(req.body, "method_id");
-  const saved = await fulfillmentService.setMethod({
-    id: fulfillment_id,
-    method_id,
-    updated_by_id: req.user?.id ?? null,
-  });
+  // WHO is not sent down any more: the audit_stamp trigger reads the session
+  // off the connection (migration 116, shared/http/actor.ts).
+  const saved = await fulfillmentService.setMethod({ id: fulfillment_id, method_id });
   return res.status(200).json(saved);
 });
 
 export const setStatus = asyncHandler(async (req, res) => {
   const fulfillment_id = uuidField(req.body, "fulfillment_id");
   const { status } = req.body;
-  const saved = await fulfillmentService.setStatus({
-    id: fulfillment_id,
-    status,
-    updated_by_id: req.user?.id ?? null,
-  });
+  const saved = await fulfillmentService.setStatus({ id: fulfillment_id, status });
   return res.status(200).json(saved);
 });
 

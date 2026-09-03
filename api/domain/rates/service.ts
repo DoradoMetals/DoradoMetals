@@ -34,16 +34,16 @@ export async function getAdminRates() {
   return await compose.toAdminList(await rates.list());
 }
 
-export async function createRate(rate: NewRate, user_name?: string | null) {
+export async function createRate(rate: NewRate) {
   const row = await withTransaction(async (c) => {
-    return await rates.create(rate, user_name, c);
+    return await rates.create(rate, c);
   });
   return await compose.toAdminOne(row);
 }
 
-export async function updateRate(id: string, patch: RatePatch, user_name?: string | null) {
+export async function updateRate(id: string, patch: RatePatch) {
   const changed = await withTransaction(async (c) => {
-    return await rates.update(id, patch, user_name, c);
+    return await rates.update(id, patch, c);
   });
   if (!changed) throw notFound(id);
   const row = await rates.getOne(id);

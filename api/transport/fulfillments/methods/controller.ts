@@ -29,7 +29,6 @@ export const updateMethod = asyncHandler(async (req, res) => {
     admin_label: method.admin_label as string | undefined,
     enabled: method.enabled as boolean | undefined,
     hidden: method.hidden as boolean | undefined,
-    updated_by_id: req.user?.id ?? null,
   });
   return res.status(200).json(saved);
 });

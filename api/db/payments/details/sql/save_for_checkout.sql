@@ -32,6 +32,5 @@ ON CONFLICT (id) DO UPDATE SET
   email_to = EXCLUDED.email_to,
   routing_number_encrypted = EXCLUDED.routing_number_encrypted,
   account_number_encrypted = EXCLUDED.account_number_encrypted,
-  encryption_key_id = EXCLUDED.encryption_key_id,
-  updated_at = now()
+  encryption_key_id = EXCLUDED.encryption_key_id
 RETURNING id, method_id, account_holder, bank_name, account_type, last_four, email_to

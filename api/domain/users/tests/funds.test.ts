@@ -25,6 +25,7 @@ import * as usersService from "#domain/users/service.ts";
 // The ledger entry that records WHY a balance moved lives in its own feature -
 // the balance is users', the log is transactions'. Two tables, two owners.
 import * as transactions from "#domain/transactions/service.ts";
+import { takeLocks, LOCKS } from "#shared/testing/locks.ts";
 
 let client: PoolClient;
 
@@ -43,6 +44,8 @@ after(async () => {
 
 async function inRollback(fn: (c: PoolClient) => Promise<void>) {
   await client.query("BEGIN");
+  // Two row locks per balance write - see LOCKS.USERS.
+  await takeLocks(client, LOCKS.USERS);
   try {
     await fn(client);
   } finally {

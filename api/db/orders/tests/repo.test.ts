@@ -43,40 +43,75 @@ const anOrder = async (c: PoolClient): Promise<string | null> =>
 
 const orderRow = async (c: PoolClient, id: string) =>
   (await c.query(
-    `SELECT status, updated_by, order_sent, tracking_updated, review_created
+    `SELECT status, updated_by, updated_by_id, updated_at, created_at,
+            order_sent, tracking_updated, review_created
        FROM orders.orders WHERE id = $1`, [id]
   )).rows[0] as Record<string, unknown>;
 
+// The signed-in person, as the database sees one. Read from auth.users because
+// updated_by_id is a foreign key to it, and the trigger resolves the setting
+// against that table before stamping - an invented uuid would be discarded.
+const anAdmin = async (c: PoolClient): Promise<{ id: string; name: string }> =>
+  (await c.query(`SELECT id, name FROM auth.users WHERE role = 'admin' LIMIT 1`)).rows[0];
+
+// What shared/db/withTransaction.ts does for a real request, done by hand: a
+// repo test holds the transaction itself and never opens one.
+const actingAs = async (c: PoolClient, id: string | null) => {
+  await c.query("SELECT set_config('app.actor_id', $1, true)", [id ?? ""]);
+};
+
+// THE AUTHOR IS NOT AN ARGUMENT ANY MORE. `update` used to take
+// `{ status, updated_by }` and this test passed "alice"; migration 116 moved
+// the write to the public.audit_stamp trigger, which reads app.actor_id off
+// the connection. The claim is the same one - a status change records WHO -
+// asked of the mechanism that now answers it.
 test("a status change records the status and its author", async () => {
   await inRollback(async (c: PoolClient) => {
     const id = await anOrder(c);
     assert.ok(id, "orders.orders is empty - this test proves nothing");
+    const admin = await anAdmin(c);
+    assert.ok(admin, "auth.users has no admin - this test proves nothing");
     // A sentinel, so a pass cannot come from the value already being there.
     const status = `probe-${randomUUID().slice(0, 8)}`;
 
-    const returned = await orders.update(id, { status, updated_by: "alice" }, {}, c);
+    await actingAs(c, admin.id);
+    const returned = await orders.update(id, { status }, {}, c);
     assert.equal(returned?.id, id, "the write did not report the row it changed");
 
     const row = await orderRow(c, id);
     assert.equal(row.status, status);
-    assert.equal(row.updated_by, "alice");
+    assert.equal(row.updated_by_id, admin.id, "the trigger did not stamp the actor");
+    assert.equal(row.updated_by, admin.name, "the legacy name column went unfilled");
   });
 });
 
-// updated_by is ASSIGNED here, not coalesced - both exchange statements
-// overwrote it unconditionally. This pins that, so a later "improvement" to
-// coalesce it has to be a deliberate decision rather than a silent one.
-test("a status change with no author clears the author", async () => {
+// The replacement for "a status change with no author clears the author",
+// which pinned exchange's unconditional overwrite. The answer is deliberately
+// the other one now: with nobody signed in - a cron sweep, a Stripe webhook -
+// the trigger COALESCEs and the previous author STAYS, because "the reconciler
+// touched this" is not a reason to forget who last edited it. updated_at still
+// moves, so the row records that something happened.
+test("a status change with no actor keeps the previous author and still moves updated_at", async () => {
   await inRollback(async (c: PoolClient) => {
     const id = await anOrder(c);
     assert.ok(id, "orders.orders is empty");
-    await c.query("UPDATE orders.orders SET updated_by = 'alice' WHERE id = $1", [id]);
+    const admin = await anAdmin(c);
+    assert.ok(admin, "auth.users has no admin");
 
-    await orders.update(id, { status: "Pending", updated_by: null }, {}, c);
+    await actingAs(c, admin.id);
+    await orders.update(id, { status: "Pending" }, {}, c);
+    const before = await orderRow(c, id);
 
-    assert.equal(
-      (await orderRow(c, id)).updated_by, null,
-      "updated_by is assigned, not coalesced - exchange overwrote it unconditionally"
+    await actingAs(c, null);
+    await orders.update(id, { status: "Preparing" }, {}, c);
+    const after = await orderRow(c, id);
+
+    assert.equal(after.status, "Preparing");
+    assert.equal(after.updated_by_id, admin.id, "an unattributed write erased the author");
+    assert.equal(after.updated_by, admin.name);
+    assert.ok(
+      (after.updated_at as Date) > (before.updated_at as Date),
+      "updated_at did not move on the second write"
     );
   });
 });

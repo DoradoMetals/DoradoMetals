@@ -18,6 +18,7 @@
 // two different things to a customer depending on the category, and the admin
 // side needs to tell 'Dorado Pickup' from 'Carrier Pickup'.
 import query from "#shared/db/query.ts";
+import { buildUpdate } from "#shared/db/patch.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
 import type { fulfillments } from "@dorado/contracts";
 import type { Executor } from "#shared/db/executor.ts";
@@ -71,26 +72,31 @@ export async function getDefault(
   return rows[0];
 }
 
-// EVERY FIELD IS OPTIONAL AND `undefined` MEANS "LEAVE IT". The statement
-// COALESCEs each one, so a partial update - which is what every admin toggle
-// sends - leaves the rest alone. `null` is therefore not usable as a value
-// here, and no column this writes is nullable in a way that would want it.
+// EVERY FIELD IS OPTIONAL AND AN ABSENT ONE IS NOT WRITTEN AT ALL. The
+// statement is built from the keys the patch carries (shared/db/patch.ts), so
+// a partial update - which is what every admin toggle sends - leaves the rest
+// alone. The COALESCE statement this replaces got the same answer by a route
+// that could not have expressed a deliberate null; none of these columns is
+// nullable, so nothing is lost and the mechanism is now the shared one.
+export const PATCHABLE = ["label", "admin_label", "enabled", "hidden"] as const;
+
 export type MethodPatch = {
   label?: string;
   admin_label?: string;
   enabled?: boolean;
   hidden?: boolean;
-  updated_by_id?: string | null;
 };
 
-// No create and no remove - see the header of sql/update.sql.
+// No create and no remove - see the header of sql/update.sql, which the
+// builder replaced: the three categories are code rather than data, so a
+// method can be reworded and switched off and nothing else.
 export async function update(
   id: string, patch: MethodPatch, executor?: Executor
 ): Promise<boolean> {
-  const { rowCount } = await query(
-    sql("update"),
-    [id, patch.label, patch.admin_label, patch.enabled, patch.hidden, patch.updated_by_id],
-    executor
-  );
+  const built = buildUpdate({
+    table: "fulfillments.methods", allowed: PATCHABLE, patch, where: { id },
+  });
+  if (!built) return true;
+  const { rowCount } = await query(built.text, built.values, executor);
   return rowCount === 1;
 }

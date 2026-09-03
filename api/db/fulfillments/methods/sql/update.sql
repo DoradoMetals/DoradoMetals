@@ -14,13 +14,15 @@
 -- because no table holds a courier's details and no code reads one. Turning
 -- Pickup off for a week is reference data changing; inventing a category is a
 -- row that looks like a feature and is not.
+--
+-- updated_at and updated_by_id LEFT THIS STATEMENT: public.audit_stamp writes
+-- both from the actor on the connection (migration 116), COALESCEing the
+-- author for exactly the reason this file used to COALESCE it here.
 UPDATE fulfillments.methods
    SET label         = coalesce($2, label),
        admin_label   = coalesce($3, admin_label),
        enabled       = coalesce($4, enabled),
-       hidden        = coalesce($5, hidden),
-       updated_at    = now(),
-       updated_by_id = coalesce($6, updated_by_id)
+       hidden        = coalesce($5, hidden)
  WHERE id = $1
 RETURNING
           id, type, label, admin_label, category, direction, enabled, hidden,

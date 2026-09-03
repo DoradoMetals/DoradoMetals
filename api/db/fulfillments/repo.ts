@@ -9,6 +9,7 @@
 // created_by / updated_by (the text columns) are not projected. created_by_id
 // and updated_by_id are, because the response has always carried them.
 import query from "#shared/db/query.ts";
+import { buildUpdate } from "#shared/db/patch.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
 import type { fulfillments } from "@dorado/contracts";
 import type { Executor } from "#shared/db/executor.ts";
@@ -63,29 +64,30 @@ export async function getByOrders(
 // Returns undefined when the order already had one - ON CONFLICT DO NOTHING
 // returns no row. That is the normal case for a second call rather than an
 // error, and the service reads the existing one back.
+// created_by_id IS NOT A FIELD OF THIS TYPE any more - the trigger writes it.
 export type FulfillmentNew = {
   id: string; order_id: string; method_id: string; status: string;
-  created_by_id: string | null;
 };
 
 export async function create(
   row: FulfillmentNew, executor?: Executor
 ): Promise<FulfillmentBaseRow | undefined> {
   const { rows } = await query<FulfillmentBaseRow>(
-    sql("create"), [row.id, row.order_id, row.method_id, row.status, row.created_by_id], executor
+    sql("create"), [row.id, row.order_id, row.method_id, row.status], executor
   );
   return rows[0];
 }
 
 // A DRAFT (D208): a fulfillment with no order yet, mutated by the checkout
 // flow and attached at order creation. See create_draft.sql.
-export type FulfillmentDraftNew = { id: string; method_id: string; created_by_id: string | null };
+// created_by_id IS NOT A FIELD OF THIS TYPE any more - the trigger writes it.
+export type FulfillmentDraftNew = { id: string; method_id: string };
 
 export async function createDraft(
   row: FulfillmentDraftNew, executor?: Executor
 ): Promise<FulfillmentBaseRow> {
   const { rows } = await query<FulfillmentBaseRow>(
-    sql("create_draft"), [row.id, row.method_id, row.created_by_id], executor
+    sql("create_draft"), [row.id, row.method_id], executor
   );
   return rows[0];
 }
@@ -95,23 +97,32 @@ export async function createDraft(
 // (attach_to_order.sql), not a general column patch - order_id is never
 // COALESCE-patchable anywhere else, only ever set once, from null.
 export async function attachToOrder(
-  id: string, patch: { order_id: string; updated_by_id: string | null }, executor?: Executor
+  id: string, patch: { order_id: string }, executor?: Executor
 ): Promise<FulfillmentBaseRow | undefined> {
   const { rows } = await query<FulfillmentBaseRow>(
-    sql("attach_to_order"), [id, patch.order_id, patch.updated_by_id], executor
+    sql("attach_to_order"), [id, patch.order_id], executor
   );
   return rows[0];
 }
 
 // ONE UPDATE (D212's CRUD ruling): replaces setStatus and setMethod, which
 // were the same UPDATE under two names.
-export type FulfillmentPatch = Partial<Pick<FulfillmentBaseRow, "status" | "method_id">>;
+export const PATCHABLE = ["status", "method_id"] as const;
 
+export type FulfillmentPatch = Partial<Pick<FulfillmentBaseRow, (typeof PATCHABLE)[number]>>;
+
+//
+// THE INTERIM ACTOR ARGUMENT IS GONE. `update` took `updated_by_id` as a third
+// parameter, threaded down from the session by every caller; public.audit_stamp
+// writes it from the connection now (migration 116), so the signature is the
+// two-argument one every other repo has.
 export async function update(
-  id: string, patch: FulfillmentPatch, updated_by_id: string | null, executor?: Executor
+  id: string, patch: FulfillmentPatch, executor?: Executor
 ): Promise<boolean> {
-  const { rowCount } = await query(
-    sql("update"), [patch.status, patch.method_id, updated_by_id, id], executor
-  );
+  const built = buildUpdate({
+    table: "fulfillments.fulfillments", allowed: PATCHABLE, patch, where: { id },
+  });
+  if (!built) return true;
+  const { rowCount } = await query(built.text, built.values, executor);
   return rowCount === 1;
 }

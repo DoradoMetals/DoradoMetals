@@ -60,34 +60,51 @@ const write = (over: Partial<services.ServiceWrite> = {}): services.ServiceWrite
   ...over,
 });
 
+// WHO IS NOT AN ARGUMENT ANY MORE. This passed created_by/updated_by into the
+// create and the patch; public.audit_stamp writes them from the actor on the
+// connection (migration 116). The claim is the same one - an edit records the
+// editor and does NOT rewrite the creator - asked of the mechanism that
+// answers it, and of the *_by_id columns as well as the legacy name ones.
+const actingAs = async (c: PoolClient, id: string | null) => {
+  await c.query("SELECT set_config('app.actor_id', $1, true)", [id ?? ""]);
+};
+
+const twoPeople = async (c: PoolClient) =>
+  (await c.query<{ id: string; name: string }>(
+    `SELECT id, name FROM auth.users WHERE name IS NOT NULL ORDER BY id LIMIT 2`
+  )).rows;
+
 test("update writes a real service and leaves created_by alone", async () => {
   await inRollback(async (c: PoolClient) => {
-    const row = await services.create(
-      { ...write(), id: randomUUID(), created_by: "someone", updated_by: "someone" }, c
-    );
+    const [maker, editor] = await twoPeople(c);
+    assert.ok(editor, "auth.users has fewer than two named users - this proves nothing");
 
+    await actingAs(c, maker.id);
+    const row = await services.create({ ...write(), id: randomUUID() }, c);
+
+    await actingAs(c, editor.id);
     const changed = await services.update(
-      row.id, { ...write({ name: `${row.name}-renamed` }), updated_by: "an editor" }, c
+      row.id, write({ name: `${row.name}-renamed` }), c
     );
     assert.equal(changed, true, "update reported no row changed");
 
     const after = await services.getOne(row.id, c);
     assert.equal(after?.name, `${row.name}-renamed`);
-    assert.equal(after?.updated_by, "an editor");
-    assert.equal(after?.created_by, "someone", "an edit rewrote who created the service");
+    assert.equal(after?.updated_by, editor.name);
+    assert.equal(after?.created_by, maker.name, "an edit rewrote who created the service");
   });
 });
 
 test("update answers false for an id with no service row", async () => {
   await inRollback(async (c: PoolClient) => {
-    const changed = await services.update(randomUUID(), { ...write(), updated_by: null }, c);
+    const changed = await services.update(randomUUID(), write(), c);
     assert.equal(changed, false, "update reported a change for a service that does not exist");
   });
 });
 
 test("remove deletes a real service and answers false the second time", async () => {
   await inRollback(async (c: PoolClient) => {
-    const row = await services.create({ ...write(), id: randomUUID(), created_by: null, updated_by: null }, c);
+    const row = await services.create({ ...write(), id: randomUUID() }, c);
 
     const removed = await services.remove(row.id, c);
     assert.equal(removed, true, "remove reported no row changed");

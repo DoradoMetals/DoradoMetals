@@ -18,14 +18,13 @@
 // not the row itself, so a caller who wants the fresh state asks getOne for
 // it. No setX/markY-style wrapper lives here.
 //
-// created_by/updated_by are NOT in NewLead/LeadPatch (Jacob's correction on
-// this batch, "the point was to get rid of this type of prop spreading" -
-// applied here as the audit columns not being the CLIENT's to set at all).
-// Both create and update take a separate ACTOR argument, and the SQL is what
-// writes it into created_by (on insert) / updated_by (on every update). A
-// service that wants those columns changed passes an actor; it never reads
-// them off the row/patch it was handed.
+// NOBODY PASSES AN AUTHOR ANY MORE. created_by, updated_by, created_at and
+// updated_at are written by the public.audit_stamp trigger from the actor on
+// the connection (migration 116, shared/http/actor.ts). The `actor` argument
+// these functions used to take is gone, and so is the SQL that wrote those
+// columns - the signatures are create(row, tx?) and update(id, patch, tx?).
 import query from "#shared/db/query.ts";
+import { buildUpdate } from "#shared/db/patch.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
 import type { leads } from "@dorado/contracts";
 import type { Executor } from "#shared/db/executor.ts";
@@ -43,16 +42,16 @@ export type NewLead = Pick<LeadRow, "name" | "phone" | "email"> &
   Partial<Pick<LeadRow, "notes">> &
   { priority?: string | null; id?: string | null };
 
-// Every column a caller may change. Booleans included: `?? null` only
-// substitutes on null/undefined, so an explicit `false` survives it - the
-// column that is absent from the patch is the one COALESCE leaves alone.
-export type LeadPatch = Partial<
-  Pick<
-    LeadRow,
-    | "name" | "phone" | "email" | "last_contacted" | "converted" | "contacted"
-    | "responded" | "contact" | "notes" | "priority"
-  >
->;
+// Every column a caller may change. The statement is BUILT from the keys the
+// patch actually carries (shared/db/patch.ts), so an absent key is not written
+// and a key present with null CLEARS the column - which the COALESCE statement
+// this replaces could not express, because both arrive as null.
+export const PATCHABLE = [
+  "name", "phone", "email", "last_contacted", "converted", "contacted",
+  "responded", "contact", "notes", "priority",
+] as const;
+
+export type LeadPatch = Partial<Pick<LeadRow, (typeof PATCHABLE)[number]>>;
 
 export async function getOne(id: string, executor?: Executor): Promise<LeadRow | undefined> {
   const { rows } = await query<LeadRow>(sql("get_one"), [id], executor);
@@ -64,29 +63,23 @@ export async function list(executor?: Executor): Promise<LeadRow[]> {
   return rows;
 }
 
-export async function create(
-  row: NewLead, actor?: string | null, executor?: Executor
-): Promise<LeadRow> {
+export async function create(row: NewLead, executor?: Executor): Promise<LeadRow> {
   const { rows } = await query<LeadRow>(
     sql("create"),
-    [row.id, row.name, row.phone, row.email, actor, actor, row.priority, row.notes],
+    [row.id, row.name, row.phone, row.email, row.priority, row.notes],
     executor
   );
   return rows[0];
 }
 
 export async function update(
-  id: string, patch: LeadPatch, actor?: string | null, executor?: Executor
+  id: string, patch: LeadPatch, executor?: Executor
 ): Promise<boolean> {
-  const { rowCount } = await query(
-    sql("update"),
-    [
-      patch.name, patch.phone, patch.email, patch.last_contacted, patch.converted,
-      patch.contacted, patch.responded, patch.contact, patch.notes, patch.priority,
-      actor, id,
-    ],
-    executor
-  );
+  // An empty patch changed nothing and nothing failed - true, not a statement
+  // with no SET list.
+  const built = buildUpdate({ table: "leads.leads", allowed: PATCHABLE, patch, where: { id } });
+  if (!built) return true;
+  const { rowCount } = await query(built.text, built.values, executor);
   return rowCount === 1;
 }
 

@@ -4,6 +4,7 @@
 // sql/get_all.sql. The type says so too rather than describing the table: it is
 // the wire shape that must not change, not the schema.
 import query from "#shared/db/query.ts";
+import { buildUpdate } from "#shared/db/patch.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
 import type { shipping } from "@dorado/contracts";
 import type { Executor } from "#shared/db/executor.ts";
@@ -74,7 +75,11 @@ export async function getByCarrier(
   return rows;
 }
 
-export type ServiceNew = ServiceWrite & Pick<shipping.ServicesRow, "id" | "created_by" | "updated_by">;
+// created_by and updated_by ARE NOT FIELDS OF THIS TYPE any more: the caller
+// used to name its own author and the service defaulted it to the string
+// "Dorado Metals". public.audit_stamp writes both from the actor on the
+// connection (migration 116).
+export type ServiceNew = ServiceWrite & Pick<shipping.ServicesRow, "id">;
 
 export async function create(row: ServiceNew, executor?: Executor): Promise<ServiceRow> {
   const { rows } = await query<ServiceRow>(
@@ -85,7 +90,6 @@ export async function create(row: ServiceNew, executor?: Executor): Promise<Serv
       row.is_international, row.is_residential, row.is_active,
       row.max_weight_lb, row.max_length_in, row.max_width_in, row.max_height_in,
       row.max_declared_value, row.min_transit_days, row.max_transit_days, row.display_order,
-      row.created_by, row.updated_by,
     ],
     executor
   );
@@ -93,24 +97,51 @@ export async function create(row: ServiceNew, executor?: Executor): Promise<Serv
 }
 
 // created_by is NOT part of the patch - an edit does not change who created
-// the row, which is why the UPDATE statement never assigns it.
-export type ServicePatch = ServiceWrite & Pick<shipping.ServicesRow, "updated_by">;
+// the row - and neither is updated_by any more: public.audit_stamp writes it,
+// and updated_at, from the actor on the connection (migration 116).
+export type ServicePatch = ServiceWrite;
 
+// The twenty columns a create or an edit supplies, in the order the statement
+// this replaces assigned them. sql/update.sql is gone; shared/db/patch.ts
+// builds it, and the RETURNING list below is that file's, verbatim, so the
+// wire's exchange-era aliases are unchanged.
+export const PATCHABLE = [
+  "carrier_id", "name", "description", "code", "provider_code",
+  "supports_pickups", "supports_dropoffs", "supports_returns", "supports_insurance",
+  "is_international", "is_residential", "is_active",
+  "max_weight_lb", "max_length_in", "max_width_in", "max_height_in",
+  "max_declared_value", "min_transit_days", "max_transit_days", "display_order",
+] as const;
+
+export const RETURNING = `id, carrier_id, name, description, code, provider_code,
+          supports_pickups  AS supports_pickup,
+          supports_dropoffs AS supports_dropoff,
+          supports_returns, supports_insurance,
+          is_international, is_residential, is_active,
+          max_weight_lb     AS max_weight_lbs,
+          max_length_in, max_width_in, max_height_in, max_declared_value,
+          min_transit_days, max_transit_days, display_order,
+          created_by, updated_by, created_at, updated_at`;
+
+// STILL A FULL REPLACE: the admin form sends every field back, and a field it
+// omits is CLEARED - which is what the positional tuple did by binding
+// undefined as NULL. shared/db/patch.ts reads `undefined` as "not mentioned",
+// so the twenty columns are named here with `?? null` to keep that contract.
 export async function update(
   id: string, patch: ServicePatch, executor?: Executor
 ): Promise<boolean> {
-  const { rowCount } = await query(
-    sql("update"),
-    [
-      patch.carrier_id, patch.name, patch.description, patch.code, patch.provider_code,
-      patch.supports_pickups, patch.supports_dropoffs, patch.supports_returns, patch.supports_insurance,
-      patch.is_international, patch.is_residential, patch.is_active,
-      patch.max_weight_lb, patch.max_length_in, patch.max_width_in, patch.max_height_in,
-      patch.max_declared_value, patch.min_transit_days, patch.max_transit_days, patch.display_order,
-      patch.updated_by, id,
-    ],
-    executor
+  const full = Object.fromEntries(
+    PATCHABLE.map((c) => [c, (patch as Record<string, unknown>)[c] ?? null])
   );
+  const built = buildUpdate({
+    table: "shipping.services",
+    allowed: PATCHABLE,
+    patch: full,
+    where: { id },
+    returning: RETURNING,
+  });
+  if (!built) return false;
+  const { rowCount } = await query(built.text, built.values, executor);
   return rowCount === 1;
 }
 
