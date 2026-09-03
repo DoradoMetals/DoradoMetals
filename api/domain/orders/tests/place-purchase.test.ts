@@ -380,6 +380,10 @@ test("the placement links ids and writes NO exchange rows at all", async () => {
     assert.equal(booking?.confirmation_number, "9971234");
 
     // *** ZERO EXCHANGE ROWS - the write pivot for this path, executed. ***
+    // KEPT (exchange-fixtures lane, D214 item 10): this reads exchange to
+    // prove its ABSENCE for the order this test itself just placed, not as a
+    // fixture source - a builder-made row could not prove a negative about
+    // the write path the way asserting on the live app's own output does.
     const { rows: [exchange] } = await c.query(
       `SELECT
          (SELECT count(*)::int FROM exchange.purchase_orders WHERE id = $1) AS orders,

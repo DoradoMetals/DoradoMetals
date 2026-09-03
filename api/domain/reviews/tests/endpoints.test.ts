@@ -54,17 +54,24 @@ test("create writes the row the id names", async () => {
   }, { actor: TEST_ACTOR.id });
 });
 
-// Proves the read direction rather than assuming it.
-test("the read comes from the new schema", async () => {
+// Proves the read is LIVE, not a stale or cached copy.
+//
+// This used to also write exchange.reviews with a different sentinel, to
+// prove the read came from the new schema rather than the old one - a real
+// question while reviews dual-wrote both. Since D212 nothing writes
+// exchange.reviews any more (a freshly created review's id never exists
+// there at all), so that second write was a no-op affecting zero rows, not a
+// live oracle (exchange-fixtures lane, D214 item 10). What remains is still
+// worth asserting: get_one reflects a direct write to the table it owns.
+test("the read comes from reviews.reviews, not a stale copy", async () => {
   await inPinnedTransaction(async (client: PoolClient) => {
     await asAdmin(async () => {
       const id = (await request(app).post("/api/reviews/create").send({ review: NEW })).body.id;
       await client.query(`UPDATE reviews.reviews SET name = $1 WHERE id = $2`, ["FROM-NEW-SCHEMA", id]);
-      await client.query(`UPDATE exchange.reviews SET name = $1 WHERE id = $2`, ["FROM-EXCHANGE", id]);
 
       const one = await request(app).get("/api/reviews/get_one").query({ review_id: id });
       assert.equal(one.status, 200);
-      assert.equal(one.body.name, "FROM-NEW-SCHEMA", "the read came from exchange");
+      assert.equal(one.body.name, "FROM-NEW-SCHEMA", "the read did not reflect the direct write to reviews.reviews");
     });
   }, { actor: TEST_ACTOR.id });
 });

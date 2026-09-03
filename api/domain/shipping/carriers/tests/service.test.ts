@@ -112,10 +112,11 @@ test("remove deletes both rows and leaves no orphan", async () => {
       [orgId]
     );
     assert.equal(orgs.length, 0, "organization should not be orphaned");
-    const { rows: ex } = await c.query(
-      "SELECT 1 FROM exchange.carriers WHERE id = $1", [made.id]
-    );
-    assert.equal(ex.length, 0, "the carrier is still in exchange after a delete");
+    // The exchange.carriers check that used to sit here (exchange-fixtures
+    // lane, D214 item 10, removed) was vacuous: made.id is a freshly minted
+    // shipping.carriers id that no statement anywhere writes to exchange, so
+    // it could never have found a row there. getCarrierById above already
+    // proves the live table lost the row.
   });
 });
 
@@ -146,9 +147,12 @@ test("a write made with a client is invisible on the pool", async () => {
 // No id must return null AND write nothing - not just fail to throw.
 test("an update with no id changes nothing", async () => {
   await inRollback(async (c: PoolClient) => {
-    const { rows: before } = await c.query("SELECT count(*)::int n FROM exchange.carriers");
+    // shipping.carriers, not exchange.carriers (exchange-fixtures lane, D214
+    // item 10) - the table this service actually writes, so a count that
+    // moved would be caught.
+    const { rows: before } = await c.query("SELECT count(*)::int n FROM shipping.carriers");
     assert.equal(await service.updateCarrier({ organization: { name: "nobody" } }, c), null);
-    const { rows: after } = await c.query("SELECT count(*)::int n FROM exchange.carriers");
+    const { rows: after } = await c.query("SELECT count(*)::int n FROM shipping.carriers");
     assert.equal(after[0].n, before[0].n);
   });
 });
