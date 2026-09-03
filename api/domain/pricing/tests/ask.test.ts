@@ -65,9 +65,9 @@ test("sales tax is per item ask x quantity x rate", () => {
   assert.equal(calculateSalesTax(items, spots), 6.6000000000000005);
 });
 
-test("an order total with no funds applied charges the card on everything", () => {
+test("an order total with no balance charges the card on everything", () => {
   const items = [item({ content: 1, ask_premium: 1 })]; // 30
-  const t = calculateSalesOrderTotal(items, false, spots, { dorado_funds: 0 }, "STANDARD", "CARD");
+  const t = calculateSalesOrderTotal(items, spots, { dorado_funds: 0 }, "STANDARD", "CARD");
   assert.equal(t.item_total, 30);
   assert.equal(t.shipping_charge, 25);
   assert.equal(t.sales_tax, 0);
@@ -79,7 +79,7 @@ test("an order total with no funds applied charges the card on everything", () =
 
 test("account funds cover the order and no card charge is taken", () => {
   const items = [item({ content: 1, ask_premium: 1 })]; // 30, +25 shipping
-  const t = calculateSalesOrderTotal(items, true, spots, { dorado_funds: 500 }, "STANDARD", "CARD");
+  const t = calculateSalesOrderTotal(items, spots, { dorado_funds: 500 }, "STANDARD", "CARD");
   assert.equal(t.base_total, 55);
   assert.equal(t.pre_charges_amount, 55);
   assert.equal(t.subject_to_charges_amount, 0);
@@ -90,7 +90,7 @@ test("account funds cover the order and no card charge is taken", () => {
 
 test("partial funds leave the remainder subject to card charges", () => {
   const items = [item({ content: 1, ask_premium: 1 })];
-  const t = calculateSalesOrderTotal(items, true, spots, { dorado_funds: 20 }, "STANDARD", "ACH");
+  const t = calculateSalesOrderTotal(items, spots, { dorado_funds: 20 }, "STANDARD", "ACH");
   assert.equal(t.pre_charges_amount, 20);
   assert.equal(t.subject_to_charges_amount, 35);
   assert.equal(t.ending_funds, 0);
@@ -100,14 +100,14 @@ test("partial funds leave the remainder subject to card charges", () => {
 
 test("funds are never over-applied beyond the order total", () => {
   const items = [item({ content: 1, ask_premium: 1 })];
-  const t = calculateSalesOrderTotal(items, true, spots, { dorado_funds: 1e6 }, "STANDARD", "CARD");
+  const t = calculateSalesOrderTotal(items, spots, { dorado_funds: 1e6 }, "STANDARD", "CARD");
   assert.equal(t.pre_charges_amount, t.base_total);
   assert.equal(t.ending_funds, 1e6 - t.base_total);
 });
 
 test("a user with no funds recorded is treated as zero", () => {
   const items = [item({ content: 1, ask_premium: 1 })];
-  const t = calculateSalesOrderTotal(items, true, spots, {}, "STANDARD", "CARD");
+  const t = calculateSalesOrderTotal(items, spots, {}, "STANDARD", "CARD");
   assert.equal(t.beginning_funds, 0);
   assert.equal(t.pre_charges_amount, 0);
 });

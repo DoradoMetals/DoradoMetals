@@ -43,7 +43,6 @@ export const useAdminSalesOrderCheckoutStore = create<AdminSalesOrderCheckoutSta
     (set) => ({
       data: {
         service: DEFAULT_SALES_SERVICE,
-        using_funds: true,
         payment_method: 'CARD',
       },
       setData: (values) => set((state) => ({ data: { ...state.data, ...values } })),
@@ -58,7 +57,6 @@ export const useAdminSalesOrderCheckoutStore = create<AdminSalesOrderCheckoutSta
         set({
           data: {
             service: DEFAULT_SALES_SERVICE,
-            using_funds: true,
             payment_method: 'CARD',
           },
         }),

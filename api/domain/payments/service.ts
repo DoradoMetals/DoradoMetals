@@ -295,7 +295,7 @@ export async function updatePaymentIntent(
   // caps what is applied at the order's own total and holds back a sliver
   // below Stripe's minimum.
   const prices = calculateSalesOrderTotal(
-    items_with_tax, dorado_funds > 0, spots, { dorado_funds }, service?.code, method?.type
+    items_with_tax, spots, { dorado_funds }, service?.code, method?.type
   );
   const amount = chargeCents(prices.post_charges_amount);
 

@@ -142,7 +142,7 @@ export async function salesOrderQuote(
   // Credit applies whenever the customer has a balance - placement's own rule,
   // so the quote and the order price identically.
   const prices = calculateSalesOrderTotal(
-    withTax, dorado_funds > 0, spots, { dorado_funds }, service?.code, method?.type
+    withTax, spots, { dorado_funds }, service?.code, method?.type
   );
 
   const lines = withTax.map((item) => {

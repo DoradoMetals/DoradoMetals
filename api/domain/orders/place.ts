@@ -252,7 +252,7 @@ async function placeSale(
   // owns, and pricing caps what is applied at the order's own total.
   const balance = (await usersRepo.balanceForUpdate(checkout.user_id)) ?? 0;
   const prices = calculateSalesOrderTotal(
-    catalogue, balance > 0, spots, { dorado_funds: balance }, service?.code, method?.type
+    catalogue, spots, { dorado_funds: balance }, service?.code, method?.type
   );
   const cents = rules.chargeCents(prices.post_charges_amount);
   const intent = cents > 0 ? await openIntentFor(checkout.user_id, cents) : null;

@@ -168,7 +168,6 @@ export const salesOrderCheckoutSchema = z.object({
   address: AddressContract,
   user_address: UserAddressContract.optional(),
   service: salesOrderServiceSchema,
-  using_funds: z.boolean(),
   payment_method: paymentMethodTypeSchema,
   items: z.array(productSchema).min(1, 'At least one item is required'),
 })
@@ -178,7 +177,6 @@ export const adminSalesOrderCheckoutSchema = z.object({
   address: AddressContract,
   user_address: UserAddressContract.optional(),
   service: salesOrderServiceSchema,
-  using_funds: z.boolean(),
   payment_method: paymentMethodTypeSchema,
   items: z.array(productSchema).min(1, 'At least one item is required'),
   // Client-side form state: the admin picks the spots the order is

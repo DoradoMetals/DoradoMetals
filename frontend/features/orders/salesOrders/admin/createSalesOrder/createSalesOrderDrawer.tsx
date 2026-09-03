@@ -38,7 +38,6 @@ import { LockIcon, LockOpenIcon, QuestionIcon } from '@phosphor-icons/react'
 import { useRouter } from 'next/navigation'
 import { useMutationState } from '@tanstack/react-query'
 import { loadStripe } from '@stripe/stripe-js'
-import { Switch } from '@dorado/components'
 import { AddressSelect } from '@/features/addresses/ui/AddressSelect'
 import { useUserAddress, useUserAddressLinks } from '@/features/addresses/queries'
 import { useSpotPrices } from '@/features/spots/queries'
@@ -522,50 +521,39 @@ function CreditSelect({
 }) {
   const { data, setData } = useAdminSalesOrderCheckoutStore()
 
-  const handleFundsToggle = (checked: boolean) => {
-    setData({
-      using_funds: checked,
-    })
-  }
-
+  // CREDIT IS NOT A CHOICE (Jacob, 2026-09-03): the server applies the
+  // customer's balance whenever one exists. The switch is gone; the method
+  // follows the quote.
   useEffect(() => {
     // Hold the auto-switch until the first quote lands - a 0 base total
     // would call any credit balance "covers it" and flip to CREDIT.
     if (!orderPrices) return
-    const usingFunds = !!data.using_funds
     const prev = data.payment_method
 
     let next = prev
-
-    if (usingFunds) {
-      if (funds >= orderPrices.base_total) {
-        next = 'CREDIT'
-      } else if (prev === 'CREDIT') {
-        next = 'CARD'
-      }
-    } else {
-      if (prev === 'CREDIT') next = 'CARD'
+    if (funds >= orderPrices.base_total) {
+      next = 'CREDIT'
+    } else if (prev === 'CREDIT') {
+      next = 'CARD'
     }
 
     if (next !== prev) {
       setData({ payment_method: next })
     }
-  }, [data.using_funds, data.payment_method, funds, orderPrices?.base_total])
+  }, [data.payment_method, funds, orderPrices?.base_total])
 
   return (
     <>
       {funds > 0 && (
         <div className="">
-          <h2 className="eyebrow mb-4">Payment Method:</h2>
+          <h2 className="eyebrow mb-4">Bullion Credit:</h2>
 
           <div className="flex items-center justify-between">
             <div className="flex flex-col gap-1 items-start">
-              <p>Use Bullion Credit?</p>
-              <Switch
-                checked={data.using_funds}
-                onCheckedChange={handleFundsToggle}
-                disabled={funds <= 0}
-              />
+              <p>Credit Applied:</p>
+              <strong className="stat-sm">
+                <PriceNumberFlow value={orderPrices?.pre_charges_amount ?? 0} />
+              </strong>
             </div>
             <div className="flex flex-col gap-1 items-end">
               <p>Credit Available:</p>

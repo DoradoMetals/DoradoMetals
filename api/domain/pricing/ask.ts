@@ -91,9 +91,11 @@ export function calculateSalesTax(items: TaxedItem[], spots: Spots): number {
   }, 0);
 }
 
+// CREDIT IS NOT A CHOICE (Jacob, 2026-09-03: "No reason to let them make a
+// choice"). A balance is applied whenever one exists, capped at the order's
+// own total; the old `using_funds` flag is gone from the wire and from here.
 export function calculateSalesOrderTotal(
   items: TaxedItem[],
-  using_funds: boolean | null | undefined,
   spots: Spots,
   user: FundedUser,
   shipping_service: string | null | undefined,
@@ -106,7 +108,7 @@ export function calculateSalesOrderTotal(
   const base_total = item_total + shipping_charge + sales_tax;
 
   const beginning_funds = user.dorado_funds ?? 0;
-  let appliedFunds = using_funds ? Math.min(beginning_funds, base_total) : 0;
+  let appliedFunds = Math.min(beginning_funds, base_total);
 
   // The card remainder is either $0 or chargeable — retired the old $10 floor (which billed a $3 balance as $10). When applied credit would leave a sliver between $0.00 and $0.50 (below Stripe's minimum), apply slightly LESS credit so the card pays exactly $0.50; the customer keeps the sliver as credit instead of being overcharged.
   // A base_total under $0.50 with insufficient credit can't be fixed here (no credit to hold back) — refused downstream at intent time; no product costs 49 cents.

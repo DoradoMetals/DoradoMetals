@@ -13898,11 +13898,30 @@ test_<branch> · the created_by/updated_by TEXT columns (readers still
 display them) · the 98 pre-existing verify:backfill dev-drift differences.
 
 Decisions for Jacob (also in the lane commits): sale `using_funds` is no
-longer a client flag (credit applies whenever a balance exists; if the
-customer's choice must survive it is a checkout column); OrderCancel
+longer a client flag (credit applies whenever a balance exists) — **RULED,
+ruling 47 below**; OrderCancel
 carries `weight` because nothing stores a return parcel's weight; the
 sale's Stripe amount-set now runs after the commit (create-then-charge);
 reschedules and carrier-service patches no longer clear omitted fields
 (patch semantics); an unknown address on get_sales_tax is 404 not a silent
 zero; the REST table's five questions; the test design's cassette and
 sandbox-label questions.
+
+### Ruling 47 — credit is not a choice (Jacob, 2026-09-03 afternoon)
+
+Put to him as a statement: *sale `using_funds` is no longer a client flag;
+credit applies whenever a balance exists; if the customer's choice must
+survive, it becomes a checkout column.* His answer: *"Yeah I like that. No
+reason to let them make a choice."*
+
+So the flag is dead at every layer, not just on the wire. What changed with
+the ruling: `calculateSalesOrderTotal` lost its `using_funds` parameter (the
+three live callers were all passing `balance > 0`, which is the same rule
+spelled by the caller); the customer stepper's and the admin drawer's
+"Use Bullion Credit?" switch is gone, replaced by the quote's own
+`pre_charges_amount` / `ending_funds` as "Credit Applied" / "Credit
+Remaining"; the two zustand stores and the two checkout schemas dropped the
+field. No checkout column is added — nothing survives because there is no
+choice to record. The CARD/CREDIT method still follows the quote (balance
+covers the base total → CREDIT, no Stripe element), which is display logic,
+not money.

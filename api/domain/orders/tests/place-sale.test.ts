@@ -235,7 +235,7 @@ async function pricedCents(c: PoolClient, f: Fixtures) {
   const items = await productService.getItemsFromServer([{ id: f.product_id, quantity: 1 }]);
   const spots = await spotsService.getSpotPrices();
   const taxed = await taxService.attachSalesTaxToItems(state[0]!.state, items, spots);
-  const prices = calculateSalesOrderTotal(taxed, false, spots, { dorado_funds: 0 }, "STANDARD", "CARD");
+  const prices = calculateSalesOrderTotal(taxed, spots, { dorado_funds: 0 }, "STANDARD", "CARD");
   return Math.round(prices.post_charges_amount * 100);
 }
 
