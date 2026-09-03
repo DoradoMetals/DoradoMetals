@@ -13702,3 +13702,167 @@ the day it resumes: a party supertype, symmetric buy/sell orders with one
 `party_id`, facts on the lot (`declared_*` / `assayed_*`), terms on the
 order-lot row, the pool as the refiner settlement instrument; batching is a
 refiner sell order.
+
+## D214 — the queue after the CRUD batches (2026-09-02, running list)
+
+What Jacob has asked for or agreed to, not yet done, in the order it should
+land. Strike items here as they merge.
+
+1. **Audit stamping by trigger** — IN FLIGHT (audit-stamp lane, opus): actor
+   in `AsyncLocalStorage` from the auth middleware, `set_config('app.actor_id')`
+   transaction-local in `withTransaction`, one `audit_stamp()` trigger on
+   every audited table, actor arguments removed from repos, one shared patch
+   builder (keys present are set; explicit null clears) replacing COALESCE
+   updates.
+2. **CRUD batches 3-5** — refiners/shipping/fulfillments (in flight),
+   payments/checkout, orders (opus).
+3. **Contracts for write bodies + strict parsing everywhere** — products,
+   organizations, media, places, users have no contract schema for their
+   write bodies; leads has no `LeadPatch`; `CreateReviewBody.hidden` is
+   stale-nullable against a NOT NULL column. Regenerate/compose, then
+   `parseStrict` at every body-accepting endpoint.
+4. **Proper REST transport** (Jacob, 2026-09-02): *"instead of
+   `/api/orders/create_purchase_order` it could be
+   `/api/orders/create/:direction/:checkout_id` (or something)"*. Shape to
+   use: the verb is the METHOD - `POST /api/orders` `{ direction,
+   checkout_id }` -> 201; `GET|PATCH|DELETE /api/orders/:id`; sub-resources
+   as nouns (`/api/orders/:id/items`); `POST .../:id/cancel` only for a real
+   action. This RETIRES ruling 13 (URLs frozen for the schema migration);
+   the frontend adapts after (ruling 44). One feature per pass, route table
+   in the report.
+5. **Comment sweep** for the batch features (leads, reviews, rates, spots,
+   mints, metals, products, organizations, media, places, users, payouts,
+   refiners, shipping, fulfillments) - the comments-1 lane covers everything
+   else.
+6. **Constraint sweep from the dev-schema audit** (additive migration): FKs
+   still pointing at `exchange.users` (media.emails, payments.details),
+   missing FKs (orders.addresses.order_id, payments.intents.user_id,
+   payments.ledger.user_id, organizations.image_id), five NOT VALID FKs to
+   validate, `created_at` on payments.attempts/settlements,
+   shipping.packages dims text->numeric, ON DELETE on checkout's nine FKs,
+   FK indexes, UNIQUE metals.name, CHECK reviews.rating, drop
+   `created_by`/`updated_by` TEXT beside `_id` once the trigger fills the ids.
+7. **places/locations** has no application consumer; build only when one
+   appears.
+8. **Frontend adaptation** to every shape change listed in the batch commit
+   messages (three update bodies, one delete response so far).
+9. **API test suite overhaul** (Jacob, 2026-09-02 night, liberty granted:
+   *"All of our API test stuff could probably use a pretty big lift... I'll
+   give you liberty to work through that and design/implement a better
+   version. Pick best libraries for the job... Main things with tests is
+   that stripe/fedex need to be using the sandboxes"*). Sequence: audit the
+   suite as it is → a short design (layers: pure rules / repo / service /
+   HTTP / external; runner; fixtures; what stays: real Postgres in
+   rolled-back transactions on the local cluster) → implementation lanes per
+   layer, each gated, `check:fast` kept near 20 s → Stripe and FedEx against
+   their SANDBOXES in a tagged lane run deliberately, with recorded responses
+   replayed in the default lane; live keys refused as today.
+10. **Exchange exit - the remaining code references** (Jacob, 2026-09-03:
+    *"figure out a way to get rid of the remaining exchange code"*). Code
+    only; tables and rows never move (covenant). Items: the
+    `users.dorado_funds` write -> `auth.users` + a `payments.ledger` row,
+    with a migration retiring the exchange->auth funds mirror (the
+    auth->exchange identity mirror stays); `payouts` reads of
+    `exchange.payouts` -> the sealed `payments.details` columns (104), with
+    `encrypt:payouts` run on dev as part of the backfill chain and on prod
+    by Jacob; identity joins on `exchange.users` -> `auth.users`; the PDF/
+    email composer's `exchange.addresses` read -> the `orders.addresses`
+    snapshot (+ `recipient_name` if missing); test fixtures that pick
+    exchange rows -> seeded fixtures (test overhaul); comments and the
+    order-number sequence (115 already did the sequence). Acceptance:
+    `grep -rn "exchange\." api/{db,domain,transport}` returns nothing but
+    comments in backfill-facing code; verify:genesis, verify:backfill,
+    audit:coverage still green (the backfill scripts keep reading exchange
+    by design).
+11. **CRUD conformance - the redesign trumps rule comments** (Jacob,
+    2026-09-03: *"our redesign should trump 'rule' comments if needed"*).
+    A comment that preserves a deviation from the five-verb contract is the
+    deviation winning. Make them conform and delete the comments:
+    `fulfillments.attachToOrder` -> guarded `update`; the upsert-only link
+    tables (fulfillments pickups/directs/shipments) and `spots` -> `create`
+    + `update` with the service reading first; refiners'
+    `ensureForOrder`/`mirrorLinesForOrder`/`coverFromOrderSpots` -> rules +
+    plain creates (orders' treatment); metals/mints `getAll`/`namesById`/
+    `idsByName` -> `list` + named finders. NOT deviations, stay: payouts
+    read-only while nothing writes it; `users.adjustCredit` as a money
+    operation over the repo verbs; "no HTTP surface, one consumer" headers
+    (layout, not CRUD). Runs after item 10.
+    **Item 11 widened (Jacob, 2026-09-03 02:xx):** *"Would LOVE if I didn't
+    see any more prop spreads or random types and all the types came from
+    shared contracts."* Every use case reads as LOAD (records by id) →
+    ASSERT (one call into rules.ts, pure, throws the refusal) → WRITE (inside
+    withTransaction, a few lines) → AFTER (email/label/Stripe outside).
+    Inputs are ids + genuinely new data, never prices or composed objects
+    from the client (send-to-refiner took `spots` from the body - the $26.81
+    hazard). Small use cases live together in the feature's service.ts;
+    a use case gets its own file only when it outgrows a screen (place).
+    Types come from @dorado/contracts or the generated row types; a local
+    `type X = {}` in domain/ or transport/ is a finding unless it is an
+    internal computation shape; lint:type-homes tightened with an ACCEPTED
+    list that only shrinks. No object spreads anywhere in the API.
+12. **Composer death** (Jacob, 2026-09-03, on `domain/orders/compose.ts`:
+    *"we still have this compose file which sucks to see"*). It survives only
+    because the PDF, the emails and the pricing service consume exchange's
+    composed order shape, guarded by `verify:orders-decomposition` and
+    `verify:sales-order-decomposition` - dual-era gates that compare against
+    a frozen table (ruling 36: proves nothing). Lane: delete compose.ts,
+    read.service.ts, fragments.ts and both verify scripts; one `OrderView`
+    from generated row types nested by table (order, totals, items+product,
+    address snapshot, shipments, pickup, payout, user), built in orders/
+    read.ts from one read per repo, absent = null, no renames, no all-null
+    objects, no base64 wrapping; PDF sections, email templates and pricing
+    consumers read the view; documents-agree keeps its money assertions.
+    Closes the composer's `exchange.addresses`/`exchange.users` reads (item
+    10). Runs right after item 10.
+    **Item 11, three more rules from Jacob's reading of edit-line.ts and
+    cancel.ts (2026-09-03):**
+    - **One row, one patch.** The scrap/bullion split in edit-line is the old
+      drawer document `{scrap, bullion}` typed `Record<string, unknown>` and
+      copied with casts. The contract is ONE flat `OrderItemPatch` derived
+      from the row schema, strict, passed through; keys present are set,
+      explicit null clears (that IS the full-replace semantics the `?? null`s
+      defended). Refiner assay numbers are a separate patch on the refiner
+      route. Line creation takes `{bullion_id} | {metal_id, pre_melt, purity,
+      unit}` (discriminated contract) and two pure rules turn either into a
+      row; no metal names from the client, no casts.
+    - **No client-shaped forms.** cancel took the drawer's `return_shipment`
+      form as `Record<string, any>` and hand-mapped it into the carrier call,
+      then spelled fifteen shipment columns. It takes the order id, the
+      carrier service id, the package id and the declared value; the address
+      is the order's snapshot; a rules function builds the carrier request;
+      the shipment row is created ONCE with everything known; FedEx names/
+      phones come from the provider config, never `process.env` in a use
+      case.
+    - **Domain errors, not HTTP statuses.** Express 5 + asyncHandler +
+      errorHandler already pass thrown errors through; the defect is that 17
+      domain files call `refuse(404, ...)`. Add `shared/errors.ts`
+      (NotFound, Forbidden, Conflict, Invalid); the domain throws those; the
+      error middleware maps them; controllers do nothing; the
+      `Refusal`-returning validators become strict parsing at transport.
+    - **Rules read like their sentence** (Jacob on `spotsToFreeze`:
+      "function impossible to decipher"). A rules function takes named row
+      types from contracts, not inline structural types; its variables are
+      named for meaning (`liveByMetal`, `metals`) not mechanism (`quoted`,
+      `seen`); a lookup is keyed by the thing it is keyed by (`metal_id`,
+      not `id`); and a missing input that would price an order at nothing
+      REFUSES (throw Invalid) instead of freezing null.
+    - **Derivations are one line** (Jacob on `freezeSpots`: "idk broo"). A
+      rules function returns COMPLETE rows (`NewOrderSpot[]` with order_id);
+      repos gain `createMany(rows, tx)` as the sixth verb; the use case reads
+      `await orderSpots.createMany(rules.spotsToFreeze(order_id, lines, live), tx)`.
+      No loop, no re-spelled row, no named three-line helper - it inlines
+      into the use case.
+
+### Ruling 44, reaffirmed hard (Jacob, 2026-09-03 03:xx)
+
+*"I imagine this will cause the frontend to break and THATS OK. We don't
+give a fuck about the frontend. It's all gonna change as part of this branch
+anyway."* So: NO lane preserves a request or response shape on
+`api-hardening`. Inputs are ids plus new data; responses are rows or the
+composed read; every use case is rewritten from its inputs inward. The
+streamlining lane (D214 item 11) covers EVERY feature, orders first, then
+payments and checkout, then the rest; each pass lists its shape changes for
+the frontend follow-up (item 8), which happens once, at the end, against a
+stable API. The earlier lanes' caution (keeping the drawer documents, the
+`{scrap, bullion}` bodies, the client-sent totals) is the reason the domain
+layer only moved around; it stops here.

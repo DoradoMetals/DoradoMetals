@@ -728,7 +728,11 @@ Since then, in order:
   migration chain rehearsed there, then CI/CD with the tests. The memory
   file `uat-environment-plan` lists the assets and tripwires; the Stripe SDK
   majors and `USE_TEST_DB=1` both unblock there.
-- **THE FRONTEND INFORMS NOTHING** (Jacob, 2026-09-02): *"Don't let the
+- **THE FRONTEND INFORMS NOTHING, AND BREAKING IT IS FINE** (Jacob,
+  2026-09-02, reaffirmed 2026-09-03: *"It's all gonna change as part of
+  this branch anyway"*). No lane on this branch preserves a request or
+  response shape; inputs are ids plus new data; each pass lists its shape
+  changes for the one frontend pass at the end. Original ruling: *"Don't let the
   frontend inform our decision making on the api AT ALL."* The frontend
   updates to match the API, per surface, after the API is written; the API
   does not care what the frontend has or wants. The "never change a wire
