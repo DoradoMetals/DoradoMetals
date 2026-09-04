@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { cn } from "../cn";
-import { useDragScroll } from "./hooks/useDragScroll";
+import { useDragScroll } from "../hooks/useDragScroll";
 
 export type SwiperProps = {
   children: React.ReactNode;

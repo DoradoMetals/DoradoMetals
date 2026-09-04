@@ -8,9 +8,6 @@ import NumberFlow from '@number-flow/react'
 
 import { useState } from 'react'
 
-import 'swiper/css'
-import 'swiper/css/navigation'
-import 'swiper/css/pagination'
 import { cn } from '@/shared/utils/cn'
 import { AnimatePresence, motion } from 'framer-motion'
 import {

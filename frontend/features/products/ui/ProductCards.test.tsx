@@ -2,7 +2,7 @@
 //
 // Same rules as media and spots: jsdom, real component tree, real query cache,
 // real quote hook, with the network boundary and the heavy presentation
-// libraries (swiper, next/image, NumberFlow) shimmed. What is pinned survives
+// libraries (next/image, NumberFlow) shimmed. What is pinned survives
 // the quotes conversion: the card shows the product's name, its price is the
 // SERVER'S QUOTED unit_price for the side it is for (ask to buy, bid to sell)
 // and never a client computation, and add-to-cart puts the product in the right
@@ -30,16 +30,6 @@ vi.mock("next/image", () => ({
     React.createElement("img", { src: props.src, alt: String(props.alt ?? "") }),
 }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
-// Swiper is a browser carousel; in jsdom it renders nothing measurable. The
-// slides become plain divs so their contents stay in the tree.
-vi.mock("swiper/react", () => ({
-  Swiper: ({ children }: { children: React.ReactNode }) => React.createElement("div", null, children),
-  SwiperSlide: ({ children }: { children: React.ReactNode }) => React.createElement("div", null, children),
-}));
-vi.mock("swiper/modules", () => ({ Navigation: {}, Pagination: {} }));
-vi.mock("swiper/css", () => ({}));
-vi.mock("swiper/css/navigation", () => ({}));
-vi.mock("swiper/css/pagination", () => ({}));
 vi.mock("@number-flow/react", () => ({
   __esModule: true,
   default: ({ value }: { value: number }) => React.createElement("span", null, String(value)),
