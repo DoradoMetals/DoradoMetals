@@ -2,22 +2,14 @@
 
 import type { Review } from "@dorado/contracts";
 import * as React from 'react'
-import type { ColumnDef, Row } from '@tanstack/react-table'
 
 import { useDrawerStore } from '@/shared/store/drawerStore'
 
-
-import { DataTable } from '@/shared/ui/table/Table'
-import {
-  TextColumn,
-  DateColumn,
-  IconColumn,
-  RatingColumn,
-} from '@/shared/ui/table/Columns'
-import { EyeSlashIcon, EyeIcon, PlusIcon, StarIcon } from '@phosphor-icons/react'
+import { DataTable, type DataTableColumn, Rating, RatingButton, Button } from '@dorado/components'
+import { EyeSlashIcon, EyeIcon, PlusIcon } from '@phosphor-icons/react'
 import { useCreateReview, useReviews } from '@/features/reviews/queries'
 import ReviewsDrawer from '@/features/reviews/ui/ReviewsDrawer'
-import { CreateConfig } from '@/shared/ui/table/CreateDialog'
+import { AddNewDialog, type CreateConfig } from '@/shared/ui/CreateDialog'
 
 export default function ReviewsPage() {
   const { data: reviews = [] } = useReviews()
@@ -25,82 +17,60 @@ export default function ReviewsPage() {
   const { openDrawer } = useDrawerStore()
 
   const [activeReview, setActiveReview] = React.useState<string | null>(null)
+  const [createOpen, setCreateOpen] = React.useState(false)
 
-  // ----- star counts for filter cards -----
-  const starCounts = React.useMemo(() => {
-    const counts: Record<number, number> = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 }
-    for (const r of reviews) {
-      const rt = Math.round(Number(r.rating) || 0)
-      if (rt >= 1 && rt <= 5) counts[rt]++
-    }
-    return counts
-  }, [reviews])
-
-  const filterCards = React.useMemo(
-    () =>
-      [5, 4, 3, 2, 1].map((star) => ({
-        key: star,
-        Icon: StarIcon,
-        filter: `${star}`,
-        header: `${starCounts[star] ?? 0}`,
-        label: `${star} Star${star === 1 ? '' : 's'}`,
-        predicate: (row: Review) =>
-          Math.round(Number(row.rating) || 0) === star,
-      })),
-    [starCounts]
-  )
-
-  const columns: ColumnDef<Review>[] = React.useMemo(
+  const columns: DataTableColumn<Review>[] = React.useMemo(
     () => [
-      TextColumn<Review>({
-        id: 'name',
-        header: 'Name',
-        accessorKey: 'name',
-        align: 'left',
-        enableHiding: false,
-        enableColumnFilter: true,
-      }),
+      { accessorKey: 'name', header: 'Name', enableSorting: true },
 
-      RatingColumn<Review>({
+      {
         id: 'rating',
-        accessorKey: 'rating',
         header: 'Rating',
-        align: 'center',
-        size: 140,
-      }),
+        cell: ({ row }) => {
+          const rating = Number(row.original.rating) || 0
+          return (
+            <Rating value={rating} readOnly>
+              {Array.from({ length: 5 }).map((_, i) => (
+                <RatingButton key={i} size={16} />
+              ))}
+            </Rating>
+          )
+        },
+      },
 
-      TextColumn<Review>({
-        id: 'review_text',
-        header: 'Review',
+      {
         accessorKey: 'review_text',
-        align: 'left',
-        enableColumnFilter: true,
-        textClassName: 'line-clamp-2 max-w-[38ch]',
-        size: 320,
-      }),
+        header: 'Review',
+        cell: ({ row }) => (
+          <span className="line-clamp-2 max-w-[38ch]">{row.original.review_text}</span>
+        ),
+      },
 
-      IconColumn<Review>({
+      {
         id: 'hidden',
         header: 'Visibility',
-        accessorKey: 'hidden',
-        align: 'center',
-        renderIcon: ({ value }) =>
-          value ? (
+        cell: ({ row }) =>
+          row.original.hidden ? (
             <EyeSlashIcon size={24} className="text-destructive" />
           ) : (
             <EyeIcon size={24} className="text-success" />
           ),
-        size: 120,
-      }),
+      },
 
-      DateColumn<Review>({
-        id: 'created_at',
-        header: 'Created',
+      {
         accessorKey: 'created_at',
-        align: 'center',
-        hideOnSmall: true,
-        size: 160,
-      }),
+        header: 'Created',
+        enableSorting: true,
+        cell: ({ row }) => {
+          const raw = row.original.created_at
+          if (!raw) return '-'
+          return new Date(raw).toLocaleDateString('en-US', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+          })
+        },
+      },
     ],
     []
   )
@@ -149,25 +119,35 @@ export default function ReviewsPage() {
     [createReview]
   )
 
-  const handleRowClick = (row: Row<Review>) => {
-    setActiveReview(row.original.id)
+  const handleRowClick = (row: Review) => {
+    setActiveReview(row.id)
     openDrawer('reviews')
   }
 
   return (
     <>
       <DataTable<Review>
+        label="Reviews"
         data={reviews}
         columns={columns}
-        initialPageSize={12}
-        searchColumnId="name"
-        searchPlaceholder="Search by reviewer name..."
-        enableColumnVisibility
+        getRowId={(row) => row.id}
         onRowClick={handleRowClick}
-        createIcon={PlusIcon}
-        createConfig={createConfig}
-        filterCards={filterCards}
+        searchable
+        searchPlaceholder="Search by reviewer name..."
+        actions={
+          <Button
+            variant="tertiary"
+            size="sm"
+            onClick={() => setCreateOpen(true)}
+            aria-label="Create Review"
+            title="Create Review"
+          >
+            <PlusIcon size={20} />
+          </Button>
+        }
       />
+
+      <AddNewDialog open={createOpen} onOpenChange={setCreateOpen} createConfig={createConfig} />
 
       {activeReview && <ReviewsDrawer review_id={activeReview} reviews={reviews} />}
     </>

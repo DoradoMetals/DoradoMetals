@@ -1,4 +1,4 @@
-import { describe, expect, it, afterEach, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { render, fireEvent } from "@testing-library/react";
 import * as React from "react";
 
@@ -6,74 +6,75 @@ import { Swiper } from "./Swiper";
 import { axeViolations } from "../test/axe";
 
 describe("Swiper", () => {
-  it("dots are labelled buttons with aria-current, and axe finds nothing", async () => {
-    const { container, getByRole } = render(
-      <Swiper label="Featured products">
+  it("is a labelled, keyboard-focusable scroll region with no pagination, and axe finds nothing", async () => {
+    const { container, getByRole, queryAllByRole } = render(
+      <Swiper label="Order statuses">
         <div>One</div>
         <div>Two</div>
         <div>Three</div>
       </Swiper>,
     );
-    const dot = getByRole("button", { name: "Go to slide 1 of 3" });
-    expect(dot.getAttribute("aria-current")).toBe("true");
-    expect(container.querySelector(".motion-reduce\\:scroll-auto, [class*='motion-reduce']")).toBeTruthy();
+    const region = getByRole("region", { name: "Order statuses" });
+    expect(region.getAttribute("tabindex")).toBe("0");
+    expect(queryAllByRole("button")).toHaveLength(0);
     expect(await axeViolations(container)).toEqual([]);
   });
 
-  describe("a dot click's programmatic scroll", () => {
-    const originalScrollTo = HTMLElement.prototype.scrollTo;
-    const originalMatchMedia = window.matchMedia;
-    afterEach(() => {
-      HTMLElement.prototype.scrollTo = originalScrollTo;
-      window.matchMedia = originalMatchMedia;
-    });
+  it("honours prefers-reduced-motion through CSS on the scroll container", () => {
+    const { getByRole } = render(
+      <Swiper label="Order statuses">
+        <div>One</div>
+      </Swiper>,
+    );
+    const region = getByRole("region", { name: "Order statuses" });
+    expect(region.className).toMatch(/scroll-smooth/);
+    expect(region.className).toMatch(/motion-reduce:scroll-auto/);
+  });
 
-    it("uses 'auto' under prefers-reduced-motion", () => {
-      const calls: (ScrollToOptions | undefined)[] = [];
-      HTMLElement.prototype.scrollTo = vi.fn((opts?: ScrollToOptions) => { calls.push(opts); }) as typeof HTMLElement.prototype.scrollTo;
-      window.matchMedia = ((query: string) => ({
-        matches: query.includes("reduce"),
-        media: query,
-        onchange: null,
-        addListener: () => {},
-        removeListener: () => {},
-        addEventListener: () => {},
-        removeEventListener: () => {},
-        dispatchEvent: () => false,
-      })) as typeof window.matchMedia;
+  it("slides are auto-width, and slideClassName reaches every slide", () => {
+    const { getByText } = render(
+      <Swiper label="Order statuses" slideClassName="py-2">
+        <div>One</div>
+        <div>Two</div>
+      </Swiper>,
+    );
+    const first = getByText("One").parentElement as HTMLElement;
+    const second = getByText("Two").parentElement as HTMLElement;
+    expect(first.className).toMatch(/w-auto/);
+    expect(first.className).toMatch(/py-2/);
+    expect(second.className).toMatch(/py-2/);
+  });
 
-      const { getByRole } = render(
-        <Swiper label="Featured products">
-          <div>One</div>
-          <div>Two</div>
-        </Swiper>,
-      );
-      fireEvent.click(getByRole("button", { name: "Go to slide 2 of 2" }));
-      expect(calls[0]?.behavior).toBe("auto");
-    });
+  it("a mouse drag past the threshold scrolls the strip and does not fire a click on the slide underneath", () => {
+    const onClick = vi.fn();
+    const { getByRole } = render(
+      <Swiper label="Order statuses">
+        <button onClick={onClick}>Pending</button>
+      </Swiper>,
+    );
+    const region = getByRole("region", { name: "Order statuses" });
 
-    it("uses 'smooth' with no motion preference", () => {
-      const calls: (ScrollToOptions | undefined)[] = [];
-      HTMLElement.prototype.scrollTo = vi.fn((opts?: ScrollToOptions) => { calls.push(opts); }) as typeof HTMLElement.prototype.scrollTo;
-      window.matchMedia = ((query: string) => ({
-        matches: false,
-        media: query,
-        onchange: null,
-        addListener: () => {},
-        removeListener: () => {},
-        addEventListener: () => {},
-        removeEventListener: () => {},
-        dispatchEvent: () => false,
-      })) as typeof window.matchMedia;
+    fireEvent.pointerDown(region, { pointerId: 1, clientX: 100, pointerType: "mouse", button: 0 });
+    fireEvent.pointerMove(region, { pointerId: 1, clientX: 60, pointerType: "mouse", button: 0 });
+    fireEvent.pointerUp(region, { pointerId: 1, clientX: 60, pointerType: "mouse", button: 0 });
+    fireEvent.click(getByRole("button", { name: "Pending" }));
 
-      const { getByRole } = render(
-        <Swiper label="Featured products">
-          <div>One</div>
-          <div>Two</div>
-        </Swiper>,
-      );
-      fireEvent.click(getByRole("button", { name: "Go to slide 2 of 2" }));
-      expect(calls[0]?.behavior).toBe("smooth");
-    });
+    expect(onClick).not.toHaveBeenCalled();
+  });
+
+  it("a plain click with no drag still reaches the slide", () => {
+    const onClick = vi.fn();
+    const { getByRole } = render(
+      <Swiper label="Order statuses">
+        <button onClick={onClick}>Pending</button>
+      </Swiper>,
+    );
+    const region = getByRole("region", { name: "Order statuses" });
+
+    fireEvent.pointerDown(region, { pointerId: 1, clientX: 100, pointerType: "mouse", button: 0 });
+    fireEvent.pointerUp(region, { pointerId: 1, clientX: 100, pointerType: "mouse", button: 0 });
+    fireEvent.click(getByRole("button", { name: "Pending" }));
+
+    expect(onClick).toHaveBeenCalledTimes(1);
   });
 });

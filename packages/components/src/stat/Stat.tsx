@@ -1,6 +1,7 @@
 import * as React from "react";
-import NumberFlow, { type Format } from "@number-flow/react";
+import { type Format } from "@number-flow/react";
 import { cn } from "../cn";
+import { Amount } from "../amount/Amount";
 
 export type StatProps = {
   label: React.ReactNode;
@@ -19,7 +20,7 @@ export function Stat({ label, value, format, size = "default", trend, align = "l
       <span className="text-small tracking-wider text-muted-foreground">{label}</span>
       <span className={cn("flex items-center gap-2", centered && "justify-center")}>
         <span className={cn("text-foreground", size === "default" ? "stat" : "stat-sm")}>
-          {typeof value === "number" ? <NumberFlow value={value} format={format} /> : value}
+          {typeof value === "number" ? <Amount value={value} format={format} /> : value}
         </span>
         {trend && (
           <span

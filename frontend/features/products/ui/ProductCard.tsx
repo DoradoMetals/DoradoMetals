@@ -2,8 +2,8 @@
 
 import Image from 'next/image'
 import { Product } from '@/features/products/types'
-import { Button } from '@dorado/components'
-import { ChevronLeft, ChevronRight, CircleHelp, Equal, Minus, Plus, Scale, X } from 'lucide-react'
+import { Button, Carousel } from '@dorado/components'
+import { CircleHelp, Equal, Minus, Plus, Scale, X } from 'lucide-react'
 import NumberFlow from '@number-flow/react'
 import { RadioGroup, RadioOption } from '@dorado/components'
 import { FloatingButton, FloatingButtonItem } from '@/features/products/ui/FloatingButton'
@@ -14,13 +14,6 @@ import { lineFromProduct } from '@/features/checkout/items/types'
 
 import { PopoverContent, PopoverTrigger } from '@/shared/ui/base/popover'
 import { Popover } from '@radix-ui/react-popover'
-import { Swiper, SwiperSlide } from 'swiper/react'
-import { Navigation, Pagination } from 'swiper/modules'
-
-import 'swiper/css'
-import 'swiper/css/navigation'
-import 'swiper/css/pagination'
-import { cn } from '@/shared/utils/cn'
 import { AnimatePresence, motion } from 'framer-motion'
 import { useRouter } from 'next/navigation'
 import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
@@ -43,8 +36,6 @@ export default function ProductCard({ product, variants, unitPrices }: ProductCa
   const [selectedProduct, setSelectedProduct] = useState<Product>(product)
   const [open, setOpen] = useState(false)
   const [variantsOpen, setVariantsOpen] = useState(false)
-  const [isBeginning, setIsBeginning] = useState(true)
-  const [isEnd, setIsEnd] = useState(false)
 
   const items = useBasket('sale')
   const { addItem, removeOne } = useCheckoutItemActions()
@@ -85,79 +76,26 @@ export default function ProductCard({ product, variants, unitPrices }: ProductCa
     >
       <div className="h-1/5 rounded-lg mb-8">
         <div className="relative w-full aspect-[4/3]">
-          <Swiper
-            modules={[Navigation, Pagination]}
-            navigation={{
-              nextEl: '.product-swiper-next',
-              prevEl: '.product-swiper-prev',
-            }}
-            pagination
-            slidesPerView={1}
-            nested
-            onReachBeginning={() => setIsBeginning(true)}
-            onReachEnd={() => setIsEnd(true)}
-            onFromEdge={() => {
-              setIsBeginning(false)
-              setIsEnd(false)
-            }}
-            className={cn(`w-full product-swiper
-            [&.product-swiper_.swiper-pagination]:!absolute
-            [&.product-swiper_.swiper-pagination]:!-top-1
-            [&.product-swiper__.swiper-pagination-bullet]:!bg-muted-foreground
-            [&.product-swiper__.swiper-pagination-bullet]:!opacity-30
-            [&.product-swiper__.swiper-pagination-bullet-active]:!opacity-100`)}
-          >
-            <SwiperSlide>
-              <div className="flex relative aspect-square pb-4">
-                <Image
-                  src={selectedProduct.image_front}
-                  width={500}
-                  height={500}
-                  className="relative z-20 pointer-events-none cursor-auto w-full h-full object-contain focus:outline-none"
-                  alt="thumbnail front"
-                />
-              </div>
-            </SwiperSlide>
-
-            <SwiperSlide>
-              <div className="flex relative aspect-square pb-4">
-                <Image
-                  src={selectedProduct.image_back}
-                  width={500}
-                  height={500}
-                  className="relative z-20 pointer-events-none cursor-auto w-full h-full object-contain focus:outline-none"
-                  alt="thumbnail back"
-                />
-              </div>
-            </SwiperSlide>
-            <div className="absolute top-1/2 -translate-y-1/2 product-swiper-prev z-20">
-              <Button
-                size="icon"
-                variant="tertiary"
-                disabled={isBeginning}
-                onClick={(e) => {
-                  e.stopPropagation()
-                }}
-                className="z-1"
-              >
-                <ChevronLeft size={24} />
-              </Button>
+          <Carousel label={`${selectedProduct.name} photos`} slideClassName="w-full">
+            <div className="flex relative aspect-square pb-4">
+              <Image
+                src={selectedProduct.image_front}
+                width={500}
+                height={500}
+                className="relative z-20 pointer-events-none cursor-auto w-full h-full object-contain focus:outline-none"
+                alt="thumbnail front"
+              />
             </div>
-
-            <div className="absolute right-0 top-1/2 -translate-y-1/2 product-swiper-next z-20">
-              <Button
-                size="icon"
-                variant="tertiary"
-                disabled={isEnd}
-                onClick={(e) => {
-                  e.stopPropagation()
-                }}
-                className="z-1"
-              >
-                <ChevronRight size={24} />
-              </Button>
+            <div className="flex relative aspect-square pb-4">
+              <Image
+                src={selectedProduct.image_back}
+                width={500}
+                height={500}
+                className="relative z-20 pointer-events-none cursor-auto w-full h-full object-contain focus:outline-none"
+                alt="thumbnail back"
+              />
             </div>
-          </Swiper>
+          </Carousel>
         </div>
       </div>
 

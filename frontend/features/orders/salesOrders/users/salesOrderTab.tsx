@@ -84,7 +84,6 @@ export function SalesOrdersContent() {
               setSelectedStatus={setSelectedStatus}
               open={open}
               setOpen={setOpen}
-              mobileSwiperClassName="sales-order-status-swiper [&.sales-order-status-swiper_.swiper-wrapper]:pl-1"
             />
 
             <motion.div
@@ -112,7 +111,6 @@ export function SalesOrdersContent() {
                 setSelectedStatus={setSelectedStatus}
                 open={open}
                 setOpen={setOpen}
-                mobileSwiperClassName="sales-order-status-swiper [&.sales-order-status-swiper_.swiper-wrapper]:pl-1"
               />
 
               <Button

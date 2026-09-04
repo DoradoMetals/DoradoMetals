@@ -83,7 +83,6 @@ export function PurchaseOrdersContent() {
               setSelectedStatus={setSelectedStatus}
               open={open}
               setOpen={setOpen}
-              mobileSwiperClassName="purchase-order-status-swiper [&.purchase-order-status-swiper_.swiper-wrapper]:pl-1"
             />
 
             <motion.div
@@ -111,7 +110,6 @@ export function PurchaseOrdersContent() {
                 setSelectedStatus={setSelectedStatus}
                 open={open}
                 setOpen={setOpen}
-                mobileSwiperClassName="purchase-order-status-swiper [&.purchase-order-status-swiper_.swiper-wrapper]:pl-1"
               />
 
               <Button
