@@ -68,7 +68,7 @@ test("buyLabel computes the parcel's weight from the order's own items, never th
       return { netCharge: 12, tracking_number: "794000000010", label: null, pickup: null };
     };
 
-    const view = await orders.buyLabel(order_id, {}, buy as Parameters<typeof orders.buyLabel>[2]);
+    const view = await orders.buyLabel(order_id, buy as Parameters<typeof orders.buyLabel>[1]);
 
     assert.equal(askedWeight, expectedWeight, "the carrier was not asked about the order's own weight");
     const inbound = view.shipments.find((s) => s.direction === "Inbound");
@@ -82,10 +82,10 @@ test("buyLabel refuses a shipment that already has a label", async () => {
     const buy = async (): Promise<Postage> => ({
       netCharge: 12, tracking_number: "794000000011", label: null, pickup: null,
     });
-    await orders.buyLabel(order_id, {}, buy as Parameters<typeof orders.buyLabel>[2]);
+    await orders.buyLabel(order_id, buy as Parameters<typeof orders.buyLabel>[1]);
 
     await assert.rejects(
-      () => orders.buyLabel(order_id, {}, buy as Parameters<typeof orders.buyLabel>[2]),
+      () => orders.buyLabel(order_id, buy as Parameters<typeof orders.buyLabel>[1]),
       /already has a label/
     );
   }, { actor: TEST_ACTOR.id, lock: LOCKS.ORDERS });

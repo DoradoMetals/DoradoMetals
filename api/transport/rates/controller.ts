@@ -1,8 +1,8 @@
 // HTTP in, HTTP out. No database, no composition, no business rules.
 // Every body is parsed against the contract in strict mode: unknown keys and wrong types are a 400 before the service runs.
-// created_by/updated_by are not fields of RateInput at all - naming one is a 400. public.audit_stamp is the only writer of those columns.
+// created_by/updated_by are not fields of RatePatch at all - naming one is a 400. public.audit_stamp is the only writer of those columns.
 import { z } from "zod/v4";
-import { RateInput, RatePatch } from "@dorado/contracts";
+import { RatePatch } from "@dorado/contracts";
 import { parseStrict, uuidLike } from "#shared/http/validate.ts";
 import { asyncHandler } from "#shared/middleware/asyncHandler.ts";
 import * as rateService from "#domain/rates/service.ts"
@@ -10,7 +10,7 @@ import * as rateService from "#domain/rates/service.ts"
 const rateId = uuidLike;
 
 const CreateBody = z.object({
-  rate: RateInput.strict(),
+  rate: RatePatch.strict(),
 }).strict();
 
 const UpdateBody = z.object({

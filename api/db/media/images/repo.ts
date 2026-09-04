@@ -1,12 +1,12 @@
 // media.images. NO update() - an upload record is written once and never edited; only upload-new or delete change it.
 import query from "#shared/db/query.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
-import type { media } from "@dorado/contracts";
+import type { Image } from "@dorado/contracts";
 import type { Executor } from "#shared/db/executor.ts";
 
 const sql = sqlFrom(import.meta.dirname);
 
-export type ImageRow = media.ImagesRow;
+export type ImageRow = Image;
 
 export type NewImage = {
   user_id: string;

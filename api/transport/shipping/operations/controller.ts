@@ -1,9 +1,4 @@
-import {
-  Direction,
-  ShippingCancelLabelBody, ShippingCancelPickupBody, ShippingCheckPickupBody,
-  ShippingGetLocationsBody, ShippingGetTrackingBody,
-  ShippingValidateAddressBody,
-} from "@dorado/contracts";
+import { Direction, ShippingCancelLabelBody, ShippingCancelPickupBody, ShippingCheckPickupBody, ShippingGetLocationsBody, ShippingGetTrackingBody, ShippingValidateAddressBody } from "@dorado/contracts";
 import { asyncHandler } from "#shared/middleware/asyncHandler.ts";
 import { parseStrict } from "#shared/http/validate.ts";
 import { callerId } from "#shared/http/caller.ts";

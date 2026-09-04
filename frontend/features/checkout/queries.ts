@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { apiRequest } from '@/shared/queries/axios'
 import { useApiQuery } from '@/shared/queries/base'
 import { useGetSession } from '@/features/auth/queries'
-import type { CarrierRateQuote, OrderView, checkout } from '@dorado/contracts'
+import type { CarrierRateQuote, Checkout, OrderView } from '@dorado/contracts'
 
 // THE CHECKOUT ROW FLOW (D208, Jacob: "each time an option is changed, the
 // server-side row gets updated"): the stepper PATCHes the row THE MOMENT a
@@ -19,7 +19,7 @@ const CHECKOUT_ROW_KEY = ['checkout', 'purchase'] as const
 // this is what gates GET /checkout/rates (address + package must already be
 // on the row before the carrier can be asked to quote it).
 export const usePurchaseCheckoutRow = () =>
-  useApiQuery<checkout.CheckoutsRow>({
+  useApiQuery<Checkout>({
     key: CHECKOUT_ROW_KEY,
     url: '/checkout',
     params: () => ({ direction: 'purchase' }),
@@ -37,13 +37,13 @@ export const usePatchPurchaseCheckout = () => {
     mutationFn: async (
       patch: Partial<
         Pick<
-          checkout.CheckoutsRow,
+          Checkout,
           'shipper_address_id' | 'package_id' | 'carrier_service_id' | 'pickup_date' | 'pickup_time'
         >
       >
     ) => {
       if (!user?.id) throw new Error('User is not authenticated')
-      return await apiRequest<checkout.CheckoutsRow>('PATCH', '/checkout', {
+      return await apiRequest<Checkout>('PATCH', '/checkout', {
         direction: 'purchase',
         ...patch,
       })
@@ -60,7 +60,7 @@ export const useSetPurchaseHandoff = () => {
   return useMutation({
     mutationFn: async (handoff_code: string) => {
       if (!user?.id) throw new Error('User is not authenticated')
-      return await apiRequest<checkout.CheckoutsRow>('POST', '/checkout/fulfillment', {
+      return await apiRequest<Checkout>('POST', '/checkout/fulfillment', {
         direction: 'purchase',
         handoff_code,
       })
@@ -93,7 +93,7 @@ export const useOfferedPackages = () =>
 // address, the package and the weight are read off the caller's own checkout
 // row and items server-side now, so the browser sends only its direction.
 // The answer is the carrier's raw quote per service, `CarrierRateQuote`
-// (packages/contracts/src/wire/shipping.ts) - not every field is joined to
+// (packages/contracts/src/computed/providers.ts) - not every field is joined to
 // a shipping.services row (no id, no display order), which is why the
 // service catalogue (useCarrierServiceOptions) is still read alongside it and
 // joined by `serviceType`/`code`, same as the deleted client-side assembly did.

@@ -1,16 +1,13 @@
 'use client'
 
-import type { Address, AddressFormValues, UserAddress } from '@/features/addresses/types'
+import type { Address, CarrierHandoff } from "@dorado/contracts";
+import type { AddressFormValues, UserAddress } from '@/features/addresses/types'
 import { Button } from '@dorado/components'
 import { Plus } from 'lucide-react'
 import { useMemo, useState } from 'react'
 
-import type {
-  CarrierHandoff,
-  CarrierServiceOption,
-  ShippingPickupTimesInput,
-} from '@/features/shipping/types'
-import type { CarrierRateQuote } from '@dorado/contracts'
+import type { ShippingPickupTimesInput } from '@/features/shipping/types'
+import type { CarrierRateQuote, CarrierServiceOption } from '@dorado/contracts'
 import { useShippingPickupTimes } from '@/features/shipping/queries'
 
 import { usePurchaseOrderCheckoutStore } from '@/shared/store/purchaseOrderCheckoutStore'

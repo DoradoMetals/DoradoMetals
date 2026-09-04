@@ -1,12 +1,13 @@
 'use client'
 
+import type { Address } from "@dorado/contracts";
 import { Button } from '@dorado/components'
 import { defineStepper } from '@stepperize/react'
 import ShippingStep from './shippingStep/shippingStep'
 import PayoutStep from './payoutStep/payoutStep'
 import ReviewStep from '@/features/checkout/purchase-order-checkout/reviewStep/reviewStep'
 
-import { Address, makeEmptyAddress } from '@/features/addresses/types'
+import { makeEmptyAddress } from '@/features/addresses/types'
 import { useEffect, useMemo, useRef } from 'react'
 import { usePurchaseOrderCheckoutStore } from '@/shared/store/purchaseOrderCheckoutStore'
 import { useCheckoutItems } from '@/shared/store/checkoutItemsStore'

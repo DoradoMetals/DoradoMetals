@@ -26,14 +26,7 @@ import { apiRequest } from '@/shared/queries/axios'
 import { usePaymentMethods } from '@/features/payments/queries'
 import { useSaleShippingServices } from '@/features/shipping/queries'
 import type { CheckoutLine } from '@/features/checkout/items/types'
-import type {
-  CatalogQuote,
-  SalesOrderQuote,
-  PurchaseOrderQuote,
-  PurchaseQuoteItem,
-  OrderQuote,
-  ProfitBreakdown,
-} from '@dorado/contracts'
+import type { CatalogQuote, OrderQuote, ProfitBreakdown, PurchaseOrderQuote, PurchaseQuoteItem, SalesOrderQuote } from "@dorado/contracts";
 
 export type CatalogQuoteItem = { id: string; quantity?: number }
 
@@ -108,7 +101,7 @@ function toPurchaseQuoteItems(items: CheckoutLine[]): PurchaseQuoteItem[] | null
   const out: PurchaseQuoteItem[] = []
   for (const item of items) {
     if (item.bullion_id) {
-      out.push({ type: 'product', bullion_id: item.bullion_id, quantity: item.quantity })
+      out.push({ type: 'product', bullion_id: item.bullion_id, quantity: item.quantity ?? undefined })
       continue
     }
     if (!item.metal_id) return null

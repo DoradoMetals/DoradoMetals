@@ -17,13 +17,7 @@ import { pickupSchema } from '@/features/handoff/types'
 import { serviceSchema } from '@/features/service/types'
 import { insuranceSchema } from '@/features/insurance/types'
 import { User } from '@/features/users/types'
-import {
-  Address as AddressContract,
-  SpotPrice as SpotPriceContract,
-  User as UserContract,
-  UserAddress as UserAddressContract,
-  type Order as OrderContract,
-} from '@dorado/contracts'
+import { Address, AdminUser, SpotPrice, UserAddressRead } from "@dorado/contracts";
 
 // THE SHARED HALF LIVES IN ../types.ts - the order type, the return-shipment
 // schema, the status-config types and the drawer prop interfaces, declared once
@@ -166,8 +160,8 @@ export const DEFAULT_SALES_SERVICE: SalesOrderService = {
 // and the schema that parsed a whole array of catalogue products as if it
 // were the basket died with them.
 export type SaleCheckoutForm = {
-  address: AddressContract
-  user_address?: UserAddressContract
+  address: Address
+  user_address?: UserAddressRead
   service: SalesOrderService
   payment_method?: PaymentMethodType
 }
@@ -176,8 +170,8 @@ export type SaleCheckoutForm = {
 // and the spots the drawer displays it at. Both create endpoints price
 // server-side and ignore what is sent; `order_metals` is display state.
 export type AdminSaleCheckoutForm = SaleCheckoutForm & {
-  order_metals: SpotPriceContract[]
-  user: UserContract
+  order_metals: SpotPrice[]
+  user: AdminUser
 }
 
 // SalesOrderTotals lived here until 2026-08-28: the return shape of

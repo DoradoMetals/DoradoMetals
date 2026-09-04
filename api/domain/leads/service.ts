@@ -3,7 +3,7 @@
 // update takes an id and a patch, never a round-tripped row; it refetches after so the response still carries fresh state.
 import withTransaction from "#shared/db/withTransaction.ts";
 import * as leads from "#db/leads/repo.ts";
-import type { LeadRow, NewLead, LeadPatch } from "#db/leads/repo.ts";
+import type { LeadRow, LeadPatch } from "#db/leads/repo.ts";
 import { NotFound } from "#shared/errors.ts";
 
 // The wire IS the row - no identity adapter.
@@ -20,7 +20,7 @@ export async function list(): Promise<LeadWire[]> {
   return await leads.list();
 }
 
-export async function create(lead: NewLead): Promise<LeadWire> {
+export async function create(lead: LeadPatch): Promise<LeadWire> {
   return withTransaction(async (client) => {
     return await leads.create(lead, client);
   });

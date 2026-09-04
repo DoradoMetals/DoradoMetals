@@ -1,12 +1,13 @@
 'use client'
 
+import type { Address } from "@dorado/contracts";
 import Drawer from '@/shared/ui/base/drawer'
 import { X } from 'lucide-react'
 import { Button } from '@dorado/components'
 import { useDrawerStore } from '@/shared/store/drawerStore'
 import { usePathname } from 'next/navigation'
 import { useEffect } from 'react'
-import { Address, UserAddress } from '@/features/addresses/types'
+import { UserAddress } from '@/features/addresses/types'
 import AddressForm from '@/features/addresses/ui/AddressForm'
 
 

@@ -44,9 +44,7 @@
 import { test, afterAll } from "vitest";
 import assert from "node:assert/strict";
 import pool from "#db";
-import {
-  OrderItemPatch, OrderPatch, PayoutPatch, RefinerItemPatch, RefinerOrderPatch, ShipmentPatch,
-} from "@dorado/contracts";
+import { OrderItemPatch, OrderPatch, PayoutPatch, RefinerItemPatch, RefinerOrderPatch, ShipmentPatch } from "@dorado/contracts";
 
 afterAll(async () => {
   await pool.end();

@@ -9,7 +9,6 @@ import type { CarrierHandoff, CarrierServiceOption } from "@dorado/contracts";
 //   `code` is round-tripped by the browser into the FedEx label request unread - it's still FedEx's enum on the way back out, so the values here are the values FedEx accepts.
 
 // Shapes live in @dorado/contracts (a wire shape both halves need) - every field is documented there too, including why `name` isn't a display string.
-export type { CarrierHandoff, CarrierServiceOption };
 
 // The carrier's half of a service option, not all of one: max_insured_value is DORADO's policy, not FedEx's vocabulary - a carrier adapter stating it would be the same defect this file exists to fix, in reverse. domain/shipping/services/service.ts joins the two.
 type CarrierServiceVocabulary = Omit<CarrierServiceOption, "max_insured_value" | "id">;

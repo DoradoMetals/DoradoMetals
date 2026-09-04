@@ -1,6 +1,4 @@
-import {
-  FulfillmentCancelScheduleBody, FulfillmentSetMethodBody, FulfillmentSetStatusBody,
-} from "@dorado/contracts";
+import { FulfillmentCancelScheduleBody, FulfillmentSetMethodBody, FulfillmentSetStatusBody } from "@dorado/contracts";
 import { requiredParam } from "#shared/http/caller.ts";
 import { parseStrict, uuidParam } from "#shared/http/validate.ts";
 import { oneString } from "#shared/http/query.ts";

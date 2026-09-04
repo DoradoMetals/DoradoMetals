@@ -1,14 +1,10 @@
 import { useQuery } from '@tanstack/react-query'
 import { apiRequest } from '@/shared/queries/axios'
 import { useGetSession } from '@/features/auth/queries'
-import type {
-  FulfillmentDirect,
-  FulfillmentPickup,
-  OrderFulfillment,
-} from '@dorado/contracts'
+import type { Fulfillment, FulfillmentDirect, FulfillmentPickup } from "@dorado/contracts";
 
 // How an order is handed over, as its own read: GET /orders/:orderId/fulfillments
-// - LIVE since the read-flip wave, typed by the OrderFulfillment contract both
+// - LIVE since the read-flip wave, typed by the Fulfillment contract both
 // sides intake: THE BARE fulfillments.fulfillments row, verbatim, nothing
 // else (Jacob, final form - no method embed, no resolved children, "so our
 // types don't spiral out of control"). method_id maps to a label off the
@@ -22,15 +18,15 @@ import type {
 // shipment/payout slots until the wire-slimming and drawer conversion (next
 // series), and this hook is that work's target - it re-points reads instead
 // of inventing them.
-export type { OrderFulfillment } from '@dorado/contracts'
+export type OrderFulfillment = Fulfillment;
 
 export const useFulfillment = (order_id: string) => {
   const { user } = useGetSession()
 
-  return useQuery<OrderFulfillment>({
+  return useQuery<Fulfillment>({
     queryKey: ['order_fulfillment', order_id],
     queryFn: async () =>
-      await apiRequest<OrderFulfillment>('GET', `/orders/${order_id}/fulfillments`),
+      await apiRequest<Fulfillment>('GET', `/orders/${order_id}/fulfillments`),
     enabled: !!user && !!order_id,
   })
 }
@@ -41,7 +37,6 @@ export const useFulfillment = (order_id: string) => {
 // for a parcel, hangs off the shipment, and lives in features/shipping. Both
 // answer [] rather than 404 when the order is handed over some other way, so
 // a drawer renders the same component for every method.
-export type { FulfillmentPickup, FulfillmentDirect } from '@dorado/contracts'
 
 export const useOrderPickups = (order_id: string) => {
   const { user } = useGetSession()

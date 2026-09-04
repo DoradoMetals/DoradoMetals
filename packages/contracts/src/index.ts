@@ -1,31 +1,31 @@
 // Shared contracts for the Dorado API.
 //
-//   generated/  one zod schema per table, produced from information_schema.
-//               Never hand-edited.
-//   wire/       the shapes the API actually returns, composed from the leaves.
+// ONE FILE PER DATABASE ENTITY, and ONE FLAT NAMESPACE (Jacob, 2026-09-03:
+// "It should be Rate. That's it."). The file mirrors the database -
+// `src/<schema>/<table>.ts` - and the export is the entity's own name:
 //
-// exchange is exported flat because it is still what serves traffic. Every
-// per-feature schema is namespaced, because table names collide across them by
-// design - leads.LeadsRow and the exchange LeadsRow are the same concept at two
-// points in the migration.
-export * from "./generated/exchange.js";
+//   import { Rate, RatePatch, OrderItem, BullionStorefront } from "@dorado/contracts";
+//
+// A collision is resolved by the name the code already uses for the concept -
+// orders.items is an `OrderItem`, checkout.items is a `CheckoutItem`,
+// refiners.items is a `RefinerItem` - never by a schema prefix.
+//
+// Each entity file holds a GENERATED REGION - the entity schema, written from
+// information_schema and never edited by hand - and, below it, hand-written
+// derivations that are all `.pick()` / `.omit()` / `.extend()` of an entity:
+// `<Entity>Patch`, and the named reads an endpoint serves. So every field that
+// crosses the wire traces to a column, and a column added, dropped or made
+// nullable shows up in the contract rather than in production.
+//
+// THERE IS NO `New<Entity>` (Jacob: "For new, it can just send the patch!!").
+// A create takes the same patch an update does; the database's NOT NULL
+// columns and defaults decide what a create needs, and a missing one comes
+// back as the shared pg-error translation naming the column.
+//
+// `computed/` is the one exception and is pinned from both sides by
+// `lint:contracts-derived`: shapes no table backs - the quote surface's
+// arithmetic and the carrier provider catalogue.
+export * from "./schemas.js";
 
-export * as fulfillments from "./generated/fulfillments.js";
-export * as leads from "./generated/leads.js";
-export * as media from "./generated/media.js";
-export * as metals from "./generated/metals.js";
-export * as orders from "./generated/orders.js";
-export * as organizations from "./generated/organizations.js";
-export * as payments from "./generated/payments.js";
-export * as places from "./generated/places.js";
-export * as products from "./generated/products.js";
-export * as rates from "./generated/rates.js";
-export * as reviews from "./generated/reviews.js";
-export * as shipping from "./generated/shipping.js";
-export * as spots from "./generated/spots.js";
-export * as tax from "./generated/tax.js";
-export * as refiners from "./generated/refiners.js";
-export * as checkout from "./generated/checkout.js";
-export * as auth from "./generated/auth.js";
-
-export * from "./wire/index.js";
+export * from "./computed/quotes.js";
+export * from "./computed/providers.js";

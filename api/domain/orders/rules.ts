@@ -22,11 +22,10 @@ import type { PackageRow } from "#db/shipping/packages/repo.ts";
 import type { MethodRow as PaymentMethodRow } from "#db/payments/methods/repo.ts";
 import type { ComposedFulfillment } from "#domain/fulfillments/compose.ts";
 import type { LabelService } from "#domain/shipping/services/service.ts";
-import type { CarrierHandoff } from "#domain/shipping/handoffs/service.ts";
 import type { StorefrontProduct } from "#domain/products/compose.ts";
 import type { OrderPrices, Spots } from "#domain/pricing/ask.ts";
 import type {
-  Direction, OrderItemFromScrap, OrderItemPatch, OrderLabel, OrderView, OrderViewProduct,
+  BullionPublic, CarrierHandoff, Direction, OrderItemPatch, OrderView,
 } from "@dorado/contracts";
 
 // Type-only re-exports, erased at runtime: this file still needs no database.
@@ -118,11 +117,11 @@ export function retierPlan(
 // no live quote is REFUSED: a null spot prices that metal at zero.
 export function spotsToFreeze(
   order_id: string,
-  lines: { metal_id: string }[],
+  lines: { metal_id?: string | null }[],
   live: { id: string; ask: number | null; bid: number | null }[]
 ): NewOrderSpot[] {
   const liveByMetal = new Map(live.map((quote) => [quote.id, quote]));
-  const metals = new Set(lines.map((line) => line.metal_id));
+  const metals = new Set(lines.map((line) => line.metal_id).filter((m): m is string => !!m));
 
   const frozen: NewOrderSpot[] = [];
   for (const metal_id of metals) {
@@ -289,7 +288,7 @@ export function shipmentFrom(checkout: CheckoutRow, parcel: Parcel): ShipmentNew
 // A CATALOGUE LINE. The weights are the product's, and the premium is left for
 // the re-tier to write.
 export function lineFromProduct(
-  order_id: string, product: OrderViewProduct
+  order_id: string, product: BullionPublic
 ): NewOrderItem {
   return {
     order_id, bullion_id: product.id, metal_id: product.metal_id,
@@ -301,7 +300,7 @@ export function lineFromProduct(
 // A SCRAP LINE: the scrap IS the line. Content is derived here and nowhere
 // else - two definitions of what content means is the defect that costs money.
 export function lineFromScrap(
-  order_id: string, declared: OrderItemFromScrap
+  order_id: string, declared: OrderItemPatch
 ): NewOrderItem {
   return {
     order_id, metal_id: declared.metal_id, pre_melt: declared.pre_melt,
@@ -469,13 +468,25 @@ export function parcelFor(
   };
 }
 
+// THE COURIER SCHEDULE, from the order's OWN fulfillment pickup row when one
+// is scheduled - never asked for again on retry.
+export function scheduleFromPickup(
+  pickup: { start_time?: string | null } | undefined
+): { pickup_date: string | null; pickup_time: string | null } {
+  if (!pickup?.start_time) return { pickup_date: null, pickup_time: null };
+  const start = new Date(pickup.start_time);
+  return {
+    pickup_date: start.toISOString().slice(0, 10),
+    pickup_time: start.toISOString().slice(11, 16),
+  };
+}
+
 // THE PARCEL A COMMITTED SHIPMENT ALREADY HOLDS, rebuilt for buying (or
 // re-buying) its label - orders.buyLabel's retry surface for a purchase order
 // whose own label purchase failed after the order committed. THE WEIGHT IS
 // THE ORDER'S OWN NOW (ruling 58): the caller computes it from the order's
 // lines and this same package via shipping/rules.ts's parcelWeightLb, so it
-// is a parameter here rather than something asked for again. The pickup slot
-// stays admin-supplied - no column remembers a courier's date and time.
+// is a parameter here rather than something asked for again.
 export function rebuyParcel(
   shipment: {
     carrier_service_id: string | null; package_id: string | null;
@@ -485,7 +496,7 @@ export function rebuyParcel(
   box: PackageRow | undefined,
   handoff: CarrierHandoff,
   weight: number,
-  input: Pick<OrderLabel, "pickup_date" | "pickup_time">
+  input: { pickup_date: string | null; pickup_time: string | null }
 ): Parcel {
   if (!box) throw new Invalid("the shipment names a package that does not exist");
   if (!(weight > 0)) throw new Invalid("the parcel needs a weight");

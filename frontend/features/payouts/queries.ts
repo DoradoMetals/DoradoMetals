@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { apiRequest } from '@/shared/queries/axios'
 import { useGetSession } from '@/features/auth/queries'
 import { invalidateOrderReads } from '@/features/orders/invalidation'
-import type { Payout, PayoutDetails, PayoutPatch } from '@dorado/contracts'
+import type { Payout, PayoutDetails, PayoutPatch } from "@dorado/contracts";
 
 // THE ORDER'S PAYOUTS AS THEIR OWN READ (wave 3):
 // GET /orders/:orderId/payouts, LAST FOUR ONLY - ruling 12's single deviation
@@ -14,7 +14,6 @@ import type { Payout, PayoutDetails, PayoutPatch } from '@dorado/contracts'
 // which is exactly what the old slot showed them, and never more than the
 // last four digits. The full numbers still have one endpoint,
 // usePayoutDetails, admin-only, one payout at a time.
-export type { Payout } from '@dorado/contracts'
 
 export const useOrderPayouts = (order_id: string) => {
   const { user } = useGetSession()
@@ -38,7 +37,6 @@ export const useOrderPayouts = (order_id: string) => {
 // what the fee would have been (D117) - it sets a flag the server prices
 // against, so the effective fee is 0 and un-waiving restores the stored number
 // exactly. Read back off the order wire as `order.totals.waive_payout_fee`.
-export type { PayoutPatch } from '@dorado/contracts'
 
 type PatchPayoutVars = {
   payout_id: string
@@ -77,7 +75,6 @@ export const usePatchPayout = () => {
 // that only named nine of the row's fields kept compiling against either
 // shape - it is the contract's PayoutDetails now, so a field this reads that
 // the server stops sending is a type error, not a silent undefined.
-export type { PayoutDetails } from '@dorado/contracts'
 
 export const usePayoutDetails = (payout_id: string | null | undefined, enabled: boolean) => {
   return useQuery<PayoutDetails>({

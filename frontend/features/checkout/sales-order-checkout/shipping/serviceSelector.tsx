@@ -9,7 +9,7 @@ import {
   SalesOrderServiceUIOption,
 } from '@/features/orders/salesOrders/types'
 import { useSaleShippingServices } from '@/features/shipping/queries'
-import type { SalesOrderQuote } from '@dorado/contracts'
+import type { SalesOrderQuote } from "@dorado/contracts";
 import { DetailRow } from '@/shared/ui/DetailRow'
 
 export default function ServiceSelector({ orderPrices }: { orderPrices?: SalesOrderQuote }) {

@@ -12,7 +12,7 @@ import { formatRate } from '@/features/rates/utils/resolveRate'
 import { usePurchaseOrderCheckoutStore } from '@/shared/store/purchaseOrderCheckoutStore'
 import { usePaymentMethods } from '@/features/payments/queries'
 import { usePurchaseOrderQuote } from '@/features/quotes/queries'
-import type { PurchaseOrderQuoteLine } from '@dorado/contracts'
+import type { PurchaseOrderQuoteLine } from "@dorado/contracts";
 import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
 
 // A basket line paired with its quote line. Absent until the first quote lands

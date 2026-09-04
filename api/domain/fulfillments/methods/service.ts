@@ -5,14 +5,13 @@ import * as methods from "#db/fulfillments/methods/repo.ts";
 import { Conflict, NotFound } from "#shared/errors.ts";
 import type { MethodRow, MethodPatch } from "#db/fulfillments/methods/repo.ts";
 import type { PoolClient } from "pg";
-import type { Direction, fulfillments } from "@dorado/contracts";
+import type { Direction, FulfillmentMethod } from "@dorado/contracts";
 
 type Executor = PoolClient | undefined;
 
 export type { MethodRow, MethodPatch } from "#db/fulfillments/methods/repo.ts";
 
 // Direction is the contract's; category is the generated row's own enum. Neither is hand-written here, so widening either is a compile error, not a runtime surprise.
-type Category = fulfillments.MethodsRow["category"];
 
 // The transport parses `direction` against the contract; this takes the
 // parsed value.
@@ -40,7 +39,7 @@ export async function byId(executor?: Executor): Promise<Map<string, MethodRow>>
 // The default for a direction and category. Both come from the seed, not a constant here, so changing the business's default is an UPDATE, not a deploy.
 // REFUSES rather than returning undefined: a silent null becomes a null method_id and a foreign key violation three calls later.
 export async function getDefault(
-  { direction, category }: { direction: Direction; category: Category },
+  { direction, category }: { direction: Direction; category: FulfillmentMethod["category"] },
   executor?: Executor
 ): Promise<MethodRow> {
   const method = await methods.getDefault({ direction, category }, executor);

@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import type { Direction } from '@dorado/contracts'
+import type { Direction } from "@dorado/contracts";
 import { sameLine, type CheckoutLine } from '@/features/checkout/items/types'
 
 // ONE store, direction as data - the same axis the API keys on
@@ -23,7 +23,7 @@ const collapse = (lines: CheckoutLine[]): CheckoutLine[] => {
   const out: CheckoutLine[] = []
   for (const line of lines) {
     const found = out.find((o) => sameLine(o, line))
-    if (found) found.quantity += line.quantity ?? 1
+    if (found) found.quantity = (found.quantity ?? 1) + (line.quantity ?? 1)
     else out.push({ ...line, quantity: line.quantity ?? 1 })
   }
   return out

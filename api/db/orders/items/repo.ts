@@ -5,12 +5,12 @@ import { randomUUID } from "node:crypto";
 import query from "#shared/db/query.ts";
 import { buildUpdate } from "#shared/db/patch.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
-import type { orders } from "@dorado/contracts";
+import type { OrderItem } from "@dorado/contracts";
 import type { Executor } from "#shared/db/executor.ts";
 
 const sql = sqlFrom(import.meta.dirname);
 
-export type OrderItemRow = orders.ItemsRow;
+export type OrderItemRow = OrderItem;
 
 export async function getOne(
   id: string, executor?: Executor
@@ -65,7 +65,7 @@ export type NewOrderItem = {
   id?: string;
   order_id: string;
   bullion_id?: string | null;
-  metal_id: string;
+  metal_id?: string;
   pre_melt?: number | null;
   post_melt?: number | null;
   purity?: number | null;

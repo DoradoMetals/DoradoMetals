@@ -40,13 +40,6 @@ const ACCEPTED: Record<string, string> = {
     "declarations collapsed into it (A0); the remaining copies are in scripts/, " +
     "which does not import through #shared.",
 
-  Category: "one-line indexed access into a contract - " +
-    "fulfillments.MethodsRow['category'] - in three files. THE CONTRACT IS " +
-    "ALREADY THE HOME. There is no `Category` a second feature should reach for, " +
-    "only MethodsRow['category'], and a shared alias would add a hop without " +
-    "adding a source of truth. phase3-api.md reached the same verdict after " +
-    "diffing all eleven duplicate names.",
-
   Window: "THE ONE REAL STRUCTURAL DUPLICATE, and it is accepted deliberately " +
     "rather than because it is harmless. `{ from?, to?, employee_id? }` is " +
     "byte-identical in fulfillments/directs/repo.ts and fulfillments/pickups/" +

@@ -2,13 +2,14 @@
 import type { PoolClient } from "pg";
 import { anId } from "#shared/testing/builders/ids.ts";
 import * as ledger from "#db/transactions/repo.ts";
-import type { LedgerRow, NewLedgerEntry } from "#db/transactions/repo.ts";
+import type { LedgerRow } from "#db/transactions/repo.ts";
+import type { LedgerEntryPatch } from "@dorado/contracts";
 import type { BuiltUser } from "#shared/testing/builders/users.ts";
 
 export type { LedgerRow } from "#db/transactions/repo.ts";
 
 export async function aLedgerEntry(
-  c: PoolClient, user: BuiltUser | { id: string }, row: Partial<NewLedgerEntry> = {}
+  c: PoolClient, user: BuiltUser | { id: string }, row: Partial<LedgerEntryPatch> = {}
 ): Promise<LedgerRow> {
   return await ledger.create(
     {

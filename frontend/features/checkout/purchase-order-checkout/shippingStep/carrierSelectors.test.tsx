@@ -12,6 +12,7 @@
 // and the order create body depend on: `pickup.name` lands in
 // shipments.pickup_type verbatim, and `service.serviceType` and `service.code`
 // travel into the label request.
+import type { CarrierHandoff } from "@dorado/contracts";
 import { describe, expect, test, vi, beforeEach } from "vitest";
 import { screen } from "@testing-library/react";
 import { renderWithClient } from "@/shared/tests/renderWithClient";
@@ -29,8 +30,7 @@ vi.mock("@/shared/ui/PriceNumberFlow", () => ({
 import { PickupSelector } from "@/features/checkout/purchase-order-checkout/shippingStep/pickupSelector";
 import { ServiceSelector } from "@/features/checkout/purchase-order-checkout/shippingStep/serviceSelector";
 import { usePurchaseOrderCheckoutStore } from "@/shared/store/purchaseOrderCheckoutStore";
-import type { CarrierHandoff, CarrierServiceOption } from "@/features/shipping/types";
-import type { CarrierRateQuote } from "@dorado/contracts";
+import type { CarrierRateQuote, CarrierServiceOption } from "@dorado/contracts";
 
 // DELIBERATELY NOT FEDEX'S SPELLINGS. If a component still carried
 // 'CONTACT_FEDEX_TO_SCHEDULE' or 'FEDEX_EXPRESS_SAVER' anywhere, none of these

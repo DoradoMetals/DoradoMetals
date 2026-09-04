@@ -1,9 +1,5 @@
-import {
-  Address,
-  ParsedPlaceSuggestion,
-  PlacesAddressComponent,
-  PlacesJsSuggestion,
-} from '@/features/addresses/types'
+import type { Address } from "@dorado/contracts";
+import { ParsedPlaceSuggestion, PlacesAddressComponent, PlacesJsSuggestion } from '@/features/addresses/types'
 
 export function formatAddressSearchText(address?: Partial<Address>) {
   const line = address?.line_1 ?? ''

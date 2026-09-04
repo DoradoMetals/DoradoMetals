@@ -1,5 +1,6 @@
 'use client'
 
+import type { AdminUser } from "@dorado/contracts";
 import { useDrawerStore } from '@/shared/store/drawerStore'
 import Drawer from '@/shared/ui/base/drawer'
 import { useMemo, useState } from 'react'
@@ -20,7 +21,6 @@ import { cn } from '@/shared/utils/cn'
 import { MinusIcon, PenIcon, PlusIcon } from '@phosphor-icons/react'
 import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
 import { useUpdateCredit } from '@/features/users/queries'
-import { AdminUser } from '@/features/users/types'
 
 export default function AdminUsersDrawer({
   users,

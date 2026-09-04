@@ -26,7 +26,7 @@ import { Forbidden, Invalid, NotFound } from "#shared/errors.ts";
 import * as rules from "#domain/checkout/rules.ts";
 import { bidPrice } from "#domain/quotes/rules.ts";
 import { lineContent } from "#domain/orders/rules.ts";
-import type { Direction, NewCheckoutItem } from "@dorado/contracts";
+import type { CheckoutItemPatch, Direction } from "@dorado/contracts";
 import type { CheckoutRow, CheckoutPatch } from "#db/checkout/checkouts/repo.ts";
 import type { ItemRow } from "#db/checkout/items/repo.ts";
 import type { ComposedFulfillment } from "#domain/fulfillments/compose.ts";
@@ -217,7 +217,7 @@ export async function listItems(
 
 // Replaces, never merges; one refused line refuses the whole write.
 export async function replaceItems(
-  user_id: string, direction: Direction, lines: NewCheckoutItem[]
+  user_id: string, direction: Direction, lines: CheckoutItemPatch[]
 ): Promise<ItemRow[]> {
   return await withTransaction(async (client) => {
     const session = await ensure(user_id, direction, client);

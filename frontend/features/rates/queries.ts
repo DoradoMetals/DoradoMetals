@@ -1,7 +1,7 @@
 import { upsertById, useApiMutation, useApiQuery } from '@/shared/queries/base'
 import { queryKeys } from '@/shared/queries/keys'
-import type { Rate, AdminRate, RatePatch } from '@/features/rates/types'
-import type { RateInput } from '@dorado/contracts'
+import type { Rate } from '@/features/rates/types'
+import type { AdminRate, RatePatch } from "@dorado/contracts";
 
 // TWO READS, TWO SHAPES. /rates/get_all drops the audit columns and
 // /rates/get_admin keeps them (api/features/rates/wire.ts). Both were typed
@@ -28,7 +28,7 @@ export const useAdminRates = () => {
 }
 
 export const useCreateRate = () => {
-  return useApiMutation<AdminRate, RateInput, AdminRate[]>({
+  return useApiMutation<AdminRate, RatePatch, AdminRate[]>({
     queryKey: queryKeys.adminRates(),
     url: '/rates/create',
     requireAdmin: true,

@@ -1,18 +1,15 @@
-import {
-  CatalogQuoteBody, OrderQuoteBody, PurchaseOrderQuoteBody, SalesOrderQuoteBody,
-} from "@dorado/contracts";
+import { CatalogQuoteBody, OrderQuoteBody, PurchaseOrderQuoteBody, SalesOrderQuoteBody } from "@dorado/contracts";
 import { asyncHandler } from "#shared/middleware/asyncHandler.ts";
 import { callerId } from "#shared/http/caller.ts";
 import { parseStrict } from "#shared/http/validate.ts";
 import * as quoteService from "#domain/quotes/service.ts";
 import * as profitService from "#domain/quotes/profit.ts";
 import type { Request } from "express";
-import type { SalesOrderQuoteBody as SalesOrderQuoteBodyType } from "@dorado/contracts";
 
 // Whose funds the sales-order quote prices: your own, unless you are an admin
 // (the same rule as places/addresses' subjectOf) - a customer naming somebody
 // else is silently ignored, never an error, never somebody else's balance.
-const subjectOf = (req: Request, body: SalesOrderQuoteBodyType): string =>
+const subjectOf = (req: Request, body: SalesOrderQuoteBody): string =>
   req.user?.role === "admin" && body.user_id ? body.user_id : callerId(req);
 
 export const catalogQuote = asyncHandler(async (req, res) => {

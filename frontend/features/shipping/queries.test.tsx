@@ -18,15 +18,7 @@ import { describe, expect, test, vi, beforeEach } from "vitest";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
-import {
-  ShippingCheckPickupBody,
-  ShippingGetLocationsBody,
-  ShippingValidateAddressBody,
-  ShippingGetTrackingBody,
-  ShippingCancelLabelBody,
-  ShippingCancelPickupBody,
-  ShipmentPatch,
-} from "@dorado/contracts";
+import { ShipmentPatch, ShippingCancelLabelBody, ShippingCancelPickupBody, ShippingCheckPickupBody, ShippingGetLocationsBody, ShippingGetTrackingBody, ShippingValidateAddressBody } from "@dorado/contracts";
 
 vi.mock("@/shared/queries/axios", () => ({ apiRequest: vi.fn() }));
 vi.mock("@/features/auth/queries", () => ({

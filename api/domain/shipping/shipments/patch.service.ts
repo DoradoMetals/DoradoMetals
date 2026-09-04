@@ -8,7 +8,6 @@ import { Invalid, NotFound } from "#shared/errors.ts";
 import type { ShipmentPatch } from "@dorado/contracts";
 
 // shipping_charge is `number`, not nullable - a cleared charge was never distinguishable from a zero one (every reader does `?? 0`), so a null capability was a second spelling of 0.
-export type { ShipmentPatch } from "@dorado/contracts";
 
 // Shape validation happens once, at the transport boundary (transport/shipping/shipments/controller.ts) - what's left here is a RULE: a patch must name at least one field.
 export async function patchShipment(

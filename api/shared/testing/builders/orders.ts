@@ -32,7 +32,6 @@ import type { BuiltUser } from "#shared/testing/builders/users.ts";
 import type { BuiltProduct } from "#shared/testing/builders/products.ts";
 
 import type { Direction } from "@dorado/contracts";
-export type { Direction } from "@dorado/contracts";
 
 export type BuiltOrder = {
   id: string;

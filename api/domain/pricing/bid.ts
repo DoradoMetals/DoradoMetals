@@ -38,7 +38,6 @@
 import { Invalid } from "#shared/errors.ts";
 import type { OrderView, OrderViewItem } from "@dorado/contracts";
 
-export type { OrderView, OrderViewItem } from "@dorado/contracts";
 
 // THE QUOTE FEED, KEYED BY THE METAL IT PRICES. A map rather than an array of
 // `{name, ask, bid}` because a line names a metal by ID and always has: the

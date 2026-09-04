@@ -5,12 +5,12 @@
 import query from "#shared/db/query.ts";
 import { buildUpdate } from "#shared/db/patch.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
-import type { refiners } from "@dorado/contracts";
+import type { RefinerItem } from "@dorado/contracts";
 import type { Executor } from "#shared/db/executor.ts";
 
 const sql = sqlFrom(import.meta.dirname);
 
-export type RefinerItemRow = refiners.ItemsRow;
+export type RefinerItemRow = RefinerItem;
 
 export async function getForItems(
   order_item_ids: string[], executor?: Executor

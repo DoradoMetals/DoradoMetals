@@ -3,7 +3,7 @@
 import path from "node:path";
 import query from "#shared/db/query.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
-import type { shipping } from "@dorado/contracts";
+import type { Shipment } from "@dorado/contracts";
 import type { PoolClient } from "pg";
 
 // Lives in domain/ (a composed read, not CRUD); its statement is in db/shipping/shipments/sql.
@@ -12,7 +12,7 @@ const sql = sqlFrom(path.join(import.meta.dirname, "..", "..", "..", "db", "ship
 type Executor = PoolClient | undefined;
 
 // The verbatim row, with `direction` as text - see sql/get_for_order.sql.
-type OrderShipmentRow = Omit<shipping.ShipmentsRow, "direction"> & {
+type OrderShipmentRow = Omit<Shipment, "direction"> & {
   direction: string;
 };
 

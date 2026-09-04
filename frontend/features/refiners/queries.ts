@@ -2,13 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { apiRequest } from '@/shared/queries/axios'
 import { useGetSession } from '@/features/auth/queries'
 import { invalidateOrderReads } from '@/features/orders/invalidation'
-import type {
-  RefinerItem,
-  RefinerItemPatch,
-  RefinerOrder,
-  RefinerOrderPatch,
-  RefinerSpot,
-} from '@dorado/contracts'
+import type { RefinerItem, RefinerItemPatch, RefinerOrder, RefinerOrderPatch, RefinerSpot, RefinerSpotWrite } from "@dorado/contracts";
 
 // REFINERS IS ITS OWN FEATURE, and the endpoint follows the feature that
 // owns the table (Jacob's rule, fourth D87 correction). The standing rule of
@@ -68,7 +62,6 @@ export const useRefinerMetals = (order_id: string) => {
 // refiner's premium as a field of the customer's own line - four values of
 // another table wearing customer-facing names. Map them onto the items read
 // by order_item_id.
-export type { RefinerItem } from '@dorado/contracts'
 
 export const useRefinerItems = (order_id: string) => {
   const { user } = useGetSession()
@@ -100,11 +93,6 @@ export const useRefinerItems = (order_id: string) => {
 //     is a nullable foreign key, not a fee: every engagement starts with it
 //     null, and detaching one from a refinery is a real operation. No drawer
 //     sends it today.
-export type {
-  RefinerItemPatch,
-  RefinerSpotWrite,
-  RefinerOrderPatch,
-} from '@dorado/contracts'
 
 // Settles through the one order cache policy in
 // features/orders/invalidation.ts - refiner values render inside order reads

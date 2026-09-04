@@ -10,7 +10,7 @@ import { describe, expect, test, vi, beforeEach } from "vitest";
 import { renderHook, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
-import { SalesOrderQuoteBody, PurchaseOrderQuoteBody } from "@dorado/contracts";
+import { PurchaseOrderQuoteBody, SalesOrderQuoteBody } from "@dorado/contracts";
 
 vi.mock("@/shared/queries/axios", () => ({ apiRequest: vi.fn() }));
 vi.mock("@/features/auth/queries", () => ({

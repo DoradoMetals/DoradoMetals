@@ -1,6 +1,6 @@
 import { useApiQuery } from '@/shared/queries/base'
 import { queryKeys } from '@/shared/queries/keys'
-import type { Direction, payments } from '@dorado/contracts'
+import type { Direction, PaymentMethod } from "@dorado/contracts";
 
 // THE METHOD ROWS, BOTH DIRECTIONS (D207): how a customer pays us
 // (direction=sale - the checkout's payment options) and how we pay a customer
@@ -13,7 +13,7 @@ import type { Direction, payments } from '@dorado/contracts'
 // Fees and surcharges here are DISPLAY. The server's calculateCardCharge is
 // the pricing authority, and api/features/pricing/tests/reference-drift pins
 // the CARD and ACH rows to its constants.
-export type PaymentMethodRow = payments.MethodsRow
+export type PaymentMethodRow = PaymentMethod
 
 const REFERENCE_STALE_TIME = 60 * 60 * 1000
 

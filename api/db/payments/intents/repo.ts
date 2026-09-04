@@ -11,18 +11,18 @@
 import query from "#shared/db/query.ts";
 import { buildUpdate } from "#shared/db/patch.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
-import type { payments, PaymentIntent, Direction } from "@dorado/contracts";
+import type { Direction, PaymentIntent, PaymentIntentView } from "@dorado/contracts";
 import type { Executor } from "#shared/db/executor.ts";
 
 const sql = sqlFrom(import.meta.dirname);
 
-export type IntentRow = payments.IntentsRow;
+export type IntentRow = PaymentIntent;
 
 // The COMPOSED intent - the wire shape, joined across the attempt, the
 // settlement and the instrument. The two timestamps are the exception to
 // taking the contract unchanged: a contract describes the WIRE, where JSON
 // made a timestamp a string, and pg hands back a Date.
-export type ComposedIntentRow = Omit<PaymentIntent, "created_at" | "updated_at"> & {
+export type ComposedIntentRow = Omit<PaymentIntentView, "created_at" | "updated_at"> & {
   created_at: Date;
   updated_at: Date;
 };

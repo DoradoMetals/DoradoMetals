@@ -1,5 +1,5 @@
 // What useCreateCarrier, useUpdateCarrier and useUpdateCarrierService
-// actually POST, checked against @dorado/contracts' CarrierCreate/
+// actually POST, checked against @dorado/contracts' CarrierPatch/
 // CarrierPatch/CarrierServicePatch in strict mode. Every one of these hooks
 // used to spread the whole READ shape into the body - organization.id,
 // created_at, updated_at for carriers; created_by/updated_by/created_at/
@@ -9,7 +9,7 @@ import { describe, expect, test, vi, beforeEach } from "vitest";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
-import { CarrierCreate, CarrierPatch, CarrierServicePatch } from "@dorado/contracts";
+import { CarrierPatch, CarrierServicePatch } from "@dorado/contracts";
 
 vi.mock("@/shared/queries/axios", () => ({ apiRequest: vi.fn() }));
 vi.mock("@/features/auth/queries", () => ({
@@ -91,7 +91,7 @@ describe("useCreateCarrier sends exactly what /carriers/create accepts", () => {
     expect(url).toBe("/carriers/create");
 
     const b = body as { carrier: Record<string, unknown> };
-    expect(CarrierCreate.strict().safeParse(b.carrier).success).toBe(true);
+    expect(CarrierPatch.strict().safeParse(b.carrier).success).toBe(true);
     expect(b.carrier).not.toHaveProperty("id");
     expect(b.carrier).not.toHaveProperty("created_at");
     expect(b.carrier).not.toHaveProperty("updated_at");

@@ -7,7 +7,7 @@ import {
   optimisticallyUpdateSalesOrder,
   rollbackOrderLists,
 } from '@/features/orders/invalidation'
-import type { OrderCancel, OrderPatch, OrderView } from '@dorado/contracts'
+import type { OrderCancelBody, OrderPatch, OrderView } from "@dorado/contracts";
 import type { PurchaseOrder } from '@/features/orders/purchaseOrders/types'
 import type { SalesOrder } from '@/features/orders/salesOrders/types'
 
@@ -25,7 +25,6 @@ import type { SalesOrder } from '@/features/orders/salesOrders/types'
 // but nothing in this file reads that response: the cache policy stays
 // optimistic-flip-then-invalidate (D83), so the response is a POST result no
 // caller destructures.
-export type { OrderPatch } from '@dorado/contracts'
 
 type PatchOrderVars = {
   id: string
@@ -109,7 +108,7 @@ export const useFinalizeOrderPricing = () => {
   })
 }
 
-type CancelOrderVars = { id: string } & OrderCancel
+type CancelOrderVars = { id: string } & OrderCancelBody
 
 // No UI sends this today (the admin drawer's return-shipment form was never
 // built - the only "Cancel Order" button in the tree just PATCHes `status`).

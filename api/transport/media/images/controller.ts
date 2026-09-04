@@ -1,4 +1,4 @@
-import { MediaUploadBody, MediaDeleteBody } from "@dorado/contracts";
+import { MediaDeleteBody, MediaUploadBody } from "@dorado/contracts";
 import { callerId, requiredParam } from "#shared/http/caller.ts";
 import { oneString } from "#shared/http/query.ts";
 import { parseStrict } from "#shared/http/validate.ts";

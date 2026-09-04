@@ -1,5 +1,5 @@
 import { z } from 'zod/v4'
-import { Bullion, type Refiner } from '@dorado/contracts'
+import { BullionStorefront, RefinerRead } from "@dorado/contracts";
 
 // THIRD CONVERTED FEATURE (2026-08-27). The catalogue product is the
 // contracts shape - products.bullion's own names, `name` / `description` /
@@ -12,7 +12,7 @@ import { Bullion, type Refiner } from '@dorado/contracts'
 // (2026-08-28) and speak the same names; those are the contracts'
 // ProductOnOrderItem, not this - an order item's product summary, not the
 // catalogue row.
-export type Product = Bullion & {
+export type Product = BullionStorefront & {
   price?: number
   quantity?: number
 }
@@ -60,7 +60,7 @@ export interface AdminProduct {
 // refiners conversion (2026-08-27) the frontend reads it nested from
 // @dorado/contracts. The old flat interface also claimed a
 // `shipping_carrier` field no wire ever served - read by nothing, gone.
-export type Supplier = Refiner
+export type Supplier = RefinerRead
 
 
 
@@ -80,11 +80,11 @@ export interface AdminTypes {
 }
 
 // Parsed on the checkout path. DERIVED from the contract now that this file
-// is zod v4 like the contracts: the catalogue shape IS Bullion, plus the
+// is zod v4 like the contracts: the catalogue shape IS BullionStorefront, plus the
 // two fields the client adds (`price` from the live spot, `quantity` cart
 // state). `satisfies` still pins the output to Product, so a contract change
 // fails typecheck here rather than silently rejecting checkouts at runtime.
-export const productSchema = Bullion.extend({
+export const productSchema = BullionStorefront.extend({
   price: z.number().optional(),
   quantity: z.number().optional(),
 }) satisfies z.ZodType<Product>

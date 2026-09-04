@@ -2,12 +2,12 @@
 import query from "#shared/db/query.ts";
 import { buildUpdate } from "#shared/db/patch.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
-import type { fulfillments } from "@dorado/contracts";
+import type { FulfillmentPickup } from "@dorado/contracts";
 import type { Executor } from "#shared/db/executor.ts";
 
 const sql = sqlFrom(import.meta.dirname);
 
-export type PickupRow = fulfillments.PickupsRow;
+export type PickupRow = FulfillmentPickup;
 
 type Window = { from?: string | null; to?: string | null; employee_id?: string | null };
 
@@ -34,7 +34,7 @@ export async function getScheduled(
 }
 
 export type PickupInput = {
-  pickup_address_id: string;
+  pickup_address_id?: string;
   assigned_employee_id?: string | null;
   start_time?: string | null;
   end_time?: string | null;

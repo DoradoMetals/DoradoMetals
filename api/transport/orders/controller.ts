@@ -17,13 +17,7 @@ import * as checkoutService from "#domain/checkout/service.ts";
 import * as ordersRepo from "#db/orders/repo.ts";
 import withTransaction from "#shared/db/withTransaction.ts";
 import { Forbidden, NotFound } from "#shared/errors.ts";
-import {
-  OrderCancel,
-  OrderCreate,
-  OrderPatch,
-  OrderReviewCreate,
-  OrderSendToRefiner,
-} from "@dorado/contracts";
+import { OrderCancelBody, OrderCreateBody, OrderPatch, OrderReviewBody, OrderSendToRefinerBody } from "@dorado/contracts";
 
 // GET /api/orders - the SLIM list: each order is its row plus `totals`, nothing
 // nested. Row scope: an owner gets their own (the SESSION's id, never the
@@ -59,7 +53,7 @@ export const patchOrder = asyncHandler(async (req, res) => {
 // OWNERSHIP IS ASKED HERE, not in the use case: a customer places their own
 // checkout, an admin places anybody's.
 export const createOrderFromCheckout = asyncHandler(async (req, res) => {
-  const { checkout_id } = strictBody(OrderCreate, req.body);
+  const { checkout_id } = strictBody(OrderCreateBody, req.body);
   const checkout = await checkoutService.getRowById(checkout_id);
   if (!checkout) throw new NotFound(`no checkout ${checkout_id}`);
   if (checkout.user_id !== callerId(req) && req.user?.role !== "admin") {
@@ -70,7 +64,7 @@ export const createOrderFromCheckout = asyncHandler(async (req, res) => {
 
 // The review flag: one column on the order row, both directions, one handler.
 export const createOrderReview = asyncHandler(async (req, res) => {
-  const body = strictBody(OrderReviewCreate, req.body);
+  const body = strictBody(OrderReviewBody, req.body);
   const written = await withTransaction((tx) =>
     ordersRepo.update(body.order.id, { review_created: true }, {}, tx)
   );
@@ -93,18 +87,18 @@ export const finalizeOrderPricing = asyncHandler(async (req, res) => {
 });
 
 export const cancelOrder = asyncHandler(async (req, res) => {
-  const input = strictBody(OrderCancel, req.body);
+  const input = strictBody(OrderCancelBody, req.body);
   return res.status(200).json(await orders.cancel(uuidParam(req, "id"), input));
 });
 
 // RETRY SURFACE for a purchase order whose own label purchase failed after
 // the order committed (label-after-commit, 2026-09-03) - see orders.buyLabel.
+// NO BODY (ruling 58): the use case computes everything it needs.
 export const buyOrderLabel = asyncHandler(async (req, res) => {
-  const input = strictBody(OrderPatch, req.body);
-  return res.status(200).json(await orders.buyLabel(uuidParam(req, "id"), input));
+  return res.status(200).json(await orders.buyLabel(uuidParam(req, "id")));
 });
 
 export const sendOrderToRefiner = asyncHandler(async (req, res) => {
-  const { refiner_id } = strictBody(OrderSendToRefiner, req.body);
+  const { refiner_id } = strictBody(OrderSendToRefinerBody, req.body);
   return res.status(200).json(await orders.sendToRefiner(uuidParam(req, "id"), refiner_id));
 });

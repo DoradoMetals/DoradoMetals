@@ -4,16 +4,13 @@
 // required strings against four NULLABLE columns, and typed the timestamps as
 // `Date` against a wire that sends strings. `NewLead` was a second, different
 // guess at the create body.
-import type { Lead as LeadContract, CreateLeadBody, LeadPatch as LeadPatchContract } from '@dorado/contracts'
+import type { Lead, LeadPatch } from "@dorado/contracts";
 
-export type Lead = LeadContract
 
 // The create body, as the API's own statement takes it.
-export type NewLead = CreateLeadBody
 
 // The update body's `patch`: the ten columns leads.update() writes
 // (api/db/leads/repo.ts PATCHABLE), now the contract's own export.
-export type LeadPatch = LeadPatchContract
 
 // *** NOT A CONTRACT, AND DELIBERATELY SO - D103's second arm. ***
 //

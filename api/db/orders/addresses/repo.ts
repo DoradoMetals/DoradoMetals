@@ -9,12 +9,12 @@
 import { randomUUID } from "node:crypto";
 import query from "#shared/db/query.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
-import type { orders } from "@dorado/contracts";
+import type { OrderAddressLink } from "@dorado/contracts";
 import type { Executor } from "#shared/db/executor.ts";
 
 const sql = sqlFrom(import.meta.dirname);
 
-export type OrderAddressRow = orders.AddressesRow;
+export type OrderAddressRow = OrderAddressLink;
 
 export async function getFor(
   order_id: string, executor?: Executor

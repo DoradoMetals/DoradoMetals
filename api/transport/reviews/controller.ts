@@ -2,7 +2,7 @@
 // Every body is parsed against the contract in strict mode: unknown keys and wrong types are a 400 before the service runs.
 // created_by/updated_by/user_name are not fields of either body: public.audit_stamp writes the audit columns from the connection's actor, so a request naming any of the three is a 400.
 import { z } from "zod/v4";
-import { CreateReviewBody, ReviewPatch } from "@dorado/contracts";
+import { ReviewPatch } from "@dorado/contracts";
 import { parseStrict, uuidLike } from "#shared/http/validate.ts";
 import { asyncHandler } from "#shared/middleware/asyncHandler.ts";
 import * as service from "#domain/reviews/service.ts";
@@ -10,7 +10,7 @@ import * as service from "#domain/reviews/service.ts";
 const reviewId = uuidLike;
 
 const CreateBody = z.object({
-  review: CreateReviewBody.strict(),
+  review: ReviewPatch.strict(),
 }).strict();
 
 const UpdateBody = z.object({

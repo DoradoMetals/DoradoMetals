@@ -3,14 +3,14 @@
 import query from "#shared/db/query.ts";
 import { buildUpdate } from "#shared/db/patch.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
-import type { fulfillments } from "@dorado/contracts";
+import type { FulfillmentMethod } from "@dorado/contracts";
 import type { Executor } from "#shared/db/executor.ts";
 
 const sql = sqlFrom(import.meta.dirname);
 
 // created_by/updated_by(_id) aren't projected here - who edited a reference row isn't part of the menu. get_one.sql serves the whole row instead.
 export type MethodRow = Pick<
-  fulfillments.MethodsRow,
+  FulfillmentMethod,
   | "id" | "type" | "label" | "admin_label" | "category" | "direction"
   | "enabled" | "hidden" | "is_default" | "created_at" | "updated_at"
 >;

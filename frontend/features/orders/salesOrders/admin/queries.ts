@@ -7,7 +7,7 @@ import { useApiQuery } from '@/shared/queries/base'
 import { useReplaceCheckoutItems } from '@/features/checkout/items/queries'
 import type { CheckoutLine } from '@/features/checkout/items/types'
 import { queryKeys } from '@/shared/queries/keys'
-import type { OrderView } from '@dorado/contracts'
+import type { OrderView } from "@dorado/contracts";
 
 // The admin mutation surface is per-resource under /orders now (D87 final
 // form) - the order row via features/orders/patch.ts, the shipment via

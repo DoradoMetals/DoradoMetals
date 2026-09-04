@@ -34,7 +34,6 @@ import {
 import type { CarrierHandoff } from "@dorado/contracts";
 import type { Executor } from "#shared/db/executor.ts";
 
-export type { CarrierHandoff };
 
 // carrier_id is optional: exactly one carrier has a provider registered, so the
 // server can answer "which carrier" without the browser holding a uuid. See

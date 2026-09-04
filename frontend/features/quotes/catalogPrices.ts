@@ -3,7 +3,7 @@
 // ONE POST /quotes/catalog for the whole grid, never a quote per card: the
 // page collects every id a card can select - the group default and each
 // variant - quotes the batch, and hands each card the answers as a map.
-import type { CatalogQuote } from '@dorado/contracts'
+import type { CatalogQuote } from "@dorado/contracts";
 import type { ProductGroup } from '@/features/products/types'
 import type { CatalogQuoteItem } from '@/features/quotes/queries'
 

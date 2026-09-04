@@ -6,8 +6,7 @@ import { usePatchPurchaseCheckout } from '@/features/checkout/queries'
 import { formatTimeDiff } from '@/shared/utils/formatDates'
 import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
 import { serviceIcon } from '@/features/service/types'
-import type { CarrierServiceOption } from '@/features/shipping/types'
-import type { CarrierRateQuote } from '@dorado/contracts'
+import type { CarrierRateQuote, CarrierServiceOption } from '@dorado/contracts'
 
 // THE SERVICES WE OFFER, JOINED TO THE CARRIER'S OWN QUOTE BY `code`.
 //

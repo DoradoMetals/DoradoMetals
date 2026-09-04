@@ -1,5 +1,5 @@
 import { useSalesOrderCheckoutStore } from '@/shared/store/salesOrderCheckoutStore'
-import type { SalesOrderQuote } from '@dorado/contracts'
+import type { SalesOrderQuote } from "@dorado/contracts";
 import { useEffect } from 'react'
 import PriceNumberFlow from '../../../../shared/ui/PriceNumberFlow'
 

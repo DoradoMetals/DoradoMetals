@@ -1,17 +1,12 @@
 // Ledger row -> wire shape: one order_id + the order's own direction.
 import * as ordersRepo from "#db/orders/repo.ts";
 import type { LedgerRow } from "#db/transactions/repo.ts";
-import type { Direction } from "@dorado/contracts";
+import type { AccountTransaction } from "@dorado/contracts";
 import type { PoolClient } from "pg";
 
-export type TransactionWire = {
-  id: string; user_id: string; transaction_type: string;
-  order_id: string | null; direction: Direction | null;
-  amount: LedgerRow["amount"];
-  occurred_at: LedgerRow["occurred_at"];
-  created_at: LedgerRow["created_at"];
-  updated_at: LedgerRow["updated_at"];
-};
+// The shape lives in the contract (AccountTransaction), not here: a type
+// that crosses to a client is a contract's, and a local copy is the drift.
+export type TransactionWire = AccountTransaction;
 
 export async function toWire(rows: LedgerRow[], executor?: PoolClient): Promise<TransactionWire[]> {
   const orderIds = rows.map((r) => r.order_id).filter((x): x is string => !!x);

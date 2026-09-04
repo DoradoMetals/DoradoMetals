@@ -31,6 +31,7 @@ import * as refinerService from "#domain/refiners/service.ts";
 import * as shipmentService from "#domain/shipping/shipments/service.ts";
 import * as carrierServices from "#domain/shipping/services/service.ts";
 import * as handoffsService from "#domain/shipping/handoffs/service.ts";
+import * as fulfillmentPickups from "#domain/fulfillments/pickups/service.ts";
 import * as shippingOperations from "#domain/shipping/operations/service.ts";
 import * as shippingOps from "#domain/shipping/operations/handler.ts";
 import * as emailService from "#domain/media/emails/service.ts";
@@ -49,12 +50,7 @@ import type { Transport } from "#providers/emails/nodemailer.ts";
 import type { Executor } from "#shared/db/executor.ts";
 import type { OrderItemRow } from "#db/orders/items/repo.ts";
 import type {
-  OrderCancel,
-  OrderItemCreate,
-  OrderItemPatch,
-  OrderLabel,
-  OrderPatch,
-  OrderView,
+  OrderCancelBody, OrderItemPatch, OrderPatch, OrderView,
 } from "@dorado/contracts";
 
 // ===========================================================================
@@ -117,13 +113,13 @@ export async function linesFor(order_id: string): Promise<OrderItemRow[]> {
 // declared lot of scrap. No metal NAMES cross the wire - the old body sent one
 // and the server resolved it against metals.metals.
 export async function createLine(
-  order_id: string, input: OrderItemCreate
+  order_id: string, input: OrderItemPatch
 ): Promise<OrderItemRow> {
   rules.assertDirection(
     await ordersRepo.directionOf(order_id), "purchase", "adding a line"
   );
 
-  const row = "bullion_id" in input
+  const row = input.bullion_id
     ? rules.lineFromProduct(order_id, await requireProduct(input.bullion_id))
     : rules.lineFromScrap(order_id, input);
 
@@ -318,7 +314,7 @@ async function buyReturnLabel(
 // its lines and its total rather than taken from the admin's form.
 export async function cancel(
   order_id: string,
-  { carrier_service_id, package_id }: OrderCancel,
+  { carrier_service_id, package_id }: OrderCancelBody,
   buy: BuyReturnLabel = buyReturnLabel
 ): Promise<OrderView> {
   const order = await viewOf(order_id);
@@ -381,11 +377,12 @@ export async function cancel(
 
 // POST /api/orders/:id/label - RETRY SURFACE for a purchase order whose own
 // label purchase failed after the order committed (place.ts's own AFTER
-// step). THE WEIGHT IS THE ORDER'S OWN NOW (ruling 58), computed from its
-// lines and the shipment's own package rather than asked for again - only the
-// pickup slot is still asked, and only when the shipment's handoff needs one.
+// step). NO BODY (ruling 58): the weight is computed from its lines and the
+// shipment's own package, and the pickup slot, if the shipment's handoff
+// needs one, comes from the order's own fulfillment pickup row when one is
+// scheduled.
 export async function buyLabel(
-  order_id: string, input: OrderLabel, buy: typeof buyPostageLive = buyPostageLive
+  order_id: string, buy: typeof buyPostageLive = buyPostageLive
 ): Promise<OrderView> {
   const order = await viewOf(order_id);
   rules.assertDirection(order.order.direction, "purchase", "buying a label");
@@ -408,7 +405,10 @@ export async function buyLabel(
   }
   const shipper = rules.requireAddress(order.address ?? undefined, "shipper");
   const weight = shippingRules.parcelWeightLb(order.items, box);
-  const parcel = rules.rebuyParcel(shipment, service, box, handoff, weight, input);
+  const [scheduled] = await fulfillmentPickups.forOrder(order_id);
+  const parcel = rules.rebuyParcel(
+    shipment, service, box, handoff, weight, rules.scheduleFromPickup(scheduled)
+  );
 
   const postage = await buy(shipper, order.user?.name ?? "", parcel);
   await recordPostage(order_id, shipment.id, postage, parcel.schedule);

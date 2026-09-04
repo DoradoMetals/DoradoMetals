@@ -1,16 +1,4 @@
-import {
-  CarrierHandoff,
-  CarrierServiceOption,
-  ShipmentTracking,
-  ShipmentTrackingInput,
-  ShippingCancelLabelInput,
-  ShippingCancelPickupInput,
-  ShippingLocationsInput,
-  ShippingLocationsReturn,
-  ShippingPickupTimes,
-  ShippingPickupTimesInput,
-  ShippingValidateAddressInput,
-} from '@/features/shipping/types'
+import { ShipmentTracking, ShipmentTrackingInput, ShippingCancelLabelInput, ShippingCancelPickupInput, ShippingLocationsInput, ShippingLocationsReturn, ShippingPickupTimes, ShippingPickupTimesInput, ShippingValidateAddressInput } from '@/features/shipping/types'
 import { useApiMutation, useApiQuery } from '@/shared/queries/base'
 import { queryKeys } from '@/shared/queries/keys'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -18,7 +6,7 @@ import { apiRequest } from '@/shared/queries/axios'
 import { useGetSession } from '@/features/auth/queries'
 import { useCarrierServices } from '@/features/carriers/queries'
 import { invalidateOrderReads } from '@/features/orders/invalidation'
-import type { Shipment, ShipmentPatch, ShipmentPickup, shipping } from '@dorado/contracts'
+import type { CarrierHandoff, CarrierService, CarrierServiceOption, Shipment, ShipmentPatch, ShipmentPickup } from "@dorado/contracts";
 
 // THE ORDER'S PARCELS, BOTH DIRECTIONS IN ONE ARRAY (wave 3):
 // GET /orders/:orderId/shipments, verbatim shipping.shipments rows. This is
@@ -31,7 +19,6 @@ import type { Shipment, ShipmentPatch, ShipmentPickup, shipping } from '@dorado/
 // type; the package and the service are ids the client maps against the
 // cached /shipping package and /carrier_services lists. Owner-or-admin
 // server-side - a customer tracks their own parcel.
-export type { Shipment, ShipmentPickup } from '@dorado/contracts'
 
 export const useOrderShipments = (order_id: string) => {
   const { user } = useGetSession()
@@ -127,7 +114,7 @@ export const useCarrierServiceOptions = () =>
 // the server's getShippingCharge remains the pricing authority, and
 // api/features/pricing/tests/reference-drift pins the two together.
 export type SaleShippingService = Pick<
-  shipping.ServicesRow,
+  CarrierService,
   'id' | 'name' | 'code' | 'price' | 'display' | 'is_active' | 'min_transit_days' | 'max_transit_days'
 >
 
@@ -232,7 +219,6 @@ export const useShippingCancelPickup = () => {
 // The null is gone rather than this widened - nothing under the API ever
 // honoured it (editShippingCharge takes `number`), and null and 0 price
 // identically because every reader is `?? 0`. "Free" is 0.
-export type { ShipmentPatch } from '@dorado/contracts'
 
 type PatchShipmentVars = {
   shipment_id: string

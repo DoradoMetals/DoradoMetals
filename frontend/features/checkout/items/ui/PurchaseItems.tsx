@@ -14,7 +14,7 @@ import { getGrossLabel, getPurityLabel } from '@/features/scrap/types'
 import { useDrawerStore } from '@/shared/store/drawerStore'
 import { useUser } from '@/features/auth/authClient'
 import { usePurchaseOrderQuote } from '@/features/quotes/queries'
-import type { PurchaseOrderQuoteLine } from '@dorado/contracts'
+import type { PurchaseOrderQuoteLine } from "@dorado/contracts";
 import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
 import { EmptyState } from '@/shared/ui/EmptyState'
 

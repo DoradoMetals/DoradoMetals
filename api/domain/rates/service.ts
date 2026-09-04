@@ -5,7 +5,7 @@
 import withTransaction from "#shared/db/withTransaction.ts";
 import * as rates from "#db/rates/repo.ts";
 import * as compose from "#domain/rates/compose.ts";
-import type { NewRate, RatePatch } from "#db/rates/repo.ts";
+import type { RatePatch } from "#db/rates/repo.ts";
 import { NotFound } from "#shared/errors.ts";
 
 export async function getRate(id: string) {
@@ -22,7 +22,7 @@ export async function getAdminRates() {
   return await compose.toAdminList(await rates.list());
 }
 
-export async function createRate(rate: NewRate) {
+export async function createRate(rate: RatePatch) {
   const row = await withTransaction(async (c) => {
     return await rates.create(rate, c);
   });

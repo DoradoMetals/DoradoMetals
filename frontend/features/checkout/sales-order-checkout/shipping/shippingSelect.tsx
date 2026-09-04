@@ -1,6 +1,6 @@
 'use client'
 
-import { Address, UserAddress } from '@/features/addresses/types'
+import { UserAddress } from '@/features/addresses/types'
 import { Button } from '@dorado/components'
 import { Plus } from 'lucide-react'
 import { useMemo } from 'react'
@@ -8,7 +8,7 @@ import { useDrawerStore } from '@/shared/store/drawerStore'
 import { useUserAddresses } from '@/features/addresses/queries'
 import { useSalesOrderCheckoutStore } from '@/shared/store/salesOrderCheckoutStore'
 import ServiceSelector from './serviceSelector'
-import type { SalesOrderQuote } from '@dorado/contracts'
+import type { Address, SalesOrderQuote } from "@dorado/contracts";
 import { AddressSelect } from '@/features/addresses/ui/AddressSelect'
 import { AddressDrawer } from '@/features/addresses/ui/AddressDrawer'
 import { Separator } from '@/shared/ui/base/separator'

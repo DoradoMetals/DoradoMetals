@@ -1,7 +1,7 @@
 // Transactions: the customer credit ledger. Reads and writes both go through payments.ledger.
 import * as ledger from "#db/transactions/repo.ts";
 import { toWire, type TransactionWire } from "#domain/transactions/compose.ts";
-import type { NewLedgerEntry } from "#db/transactions/repo.ts";
+import type { LedgerEntryPatch } from "@dorado/contracts";
 import type { Executor } from "#shared/db/executor.ts";
 
 // One row, not the history — deliberately, though it's wrong. get_transactions is unlimited and ordered but both prior implementations ended in rows[0], so a customer with 11 ledger rows gets one. Pinned by replay.test.ts as a response SHAPE that must not move during a schema migration, even though nothing in the frontend currently calls this endpoint — a deliberate prior decision isn't this session's to reverse. Recorded for Jacob.
@@ -23,6 +23,6 @@ export async function hasCreditFor(order_id: string, executor?: Executor): Promi
 
 // The caller's transaction, always - a ledger row for an order that rolls
 // back must roll back with it, so this never opens one of its own.
-export async function addTransactionLog(row: NewLedgerEntry, tx: Executor): Promise<void> {
+export async function addTransactionLog(row: LedgerEntryPatch, tx: Executor): Promise<void> {
   await ledger.create(row, tx);
 }

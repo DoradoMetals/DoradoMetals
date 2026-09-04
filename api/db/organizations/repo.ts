@@ -4,12 +4,12 @@
 import query from "#shared/db/query.ts";
 import { buildUpdate } from "#shared/db/patch.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
-import type { organizations } from "@dorado/contracts";
+import type { Organization } from "@dorado/contracts";
 import type { Executor } from "#shared/db/executor.ts";
 
 const sql = sqlFrom(import.meta.dirname);
 
-export type OrganizationRow = organizations.OrganizationsRow;
+export type OrganizationRow = Organization;
 
 // id and type are supplied separately, not part of this Pick: id is caller-generated, type (CARRIER/REFINER/the business) is a fact this table does not decide.
 export type OrganizationPatch = Pick<OrganizationRow, "name" | "email" | "phone" | "enabled">;

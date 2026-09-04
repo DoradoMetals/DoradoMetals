@@ -1,7 +1,7 @@
 // HTTP in, HTTP out. Every body is parsed against the contract's own schema in
 // STRICT mode - except the webhook, whose body is raw bytes Stripe signs and
 // this file verifies before reading a field off it.
-import { UpdatePaymentIntentBody, CancelPaymentIntentBody } from "@dorado/contracts";
+import { CancelPaymentIntentBody, UpdatePaymentIntentBody } from "@dorado/contracts";
 import { asyncHandler } from "#shared/middleware/asyncHandler.ts";
 import { oneString } from "#shared/http/query.ts";
 import { parseStrict, uuidLike } from "#shared/http/validate.ts";

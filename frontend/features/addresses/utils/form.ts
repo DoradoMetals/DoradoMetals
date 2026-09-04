@@ -1,5 +1,6 @@
+import type { Address } from "@dorado/contracts";
 import type { UseFormReturn } from 'react-hook-form'
-import type { Address, AddressFormValues } from '@/features/addresses/types'
+import type { AddressFormValues } from '@/features/addresses/types'
 
 type AddressForm = UseFormReturn<AddressFormValues>
 

@@ -2,7 +2,7 @@
 // carrier_service_id/package_id are projected for compose.ts to resolve, then dropped again.
 import query from "#shared/db/query.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
-import type { shipping } from "@dorado/contracts";
+import type { Shipment } from "@dorado/contracts";
 import type { Executor } from "#shared/db/executor.ts";
 
 const sql = sqlFrom(import.meta.dirname);
@@ -10,7 +10,7 @@ const sql = sqlFrom(import.meta.dirname);
 // `direction` is projected as text - the wire has always carried a string.
 export type ShipmentBaseRow = Omit<
   Pick<
-    shipping.ShipmentsRow,
+    Shipment,
     | "id" | "carrier_service_id" | "package_id" | "recipient_address_id"
     | "shipper_address_id" | "tracking_number" | "shipping_status"
     | "est_delivery" | "shipped_at" | "delivered_at" | "created_at" | "label"

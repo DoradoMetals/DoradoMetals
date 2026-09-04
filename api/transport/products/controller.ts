@@ -1,13 +1,14 @@
 import { z } from "zod/v4";
-import { ProductCreate, ProductPatch } from "@dorado/contracts";
+import { BullionPatch } from "@dorado/contracts";
 import { requiredParam } from "#shared/http/caller.ts";
 import { oneString } from "#shared/http/query.ts";
 import { parseStrict } from "#shared/http/validate.ts";
 import { asyncHandler } from "#shared/middleware/asyncHandler.ts";
+import { Invalid } from "#shared/errors.ts";
 import * as productService from "#domain/products/service.ts";
 
-const SaveBody = z.object({ product: ProductPatch.strict() }).strict();
-const CreateBody = ProductCreate.strict();
+const SaveBody = z.object({ product: BullionPatch.strict() }).strict();
+const CreateBody = BullionPatch.strict();
 
 export const getAllProducts = asyncHandler(async (req, res) => {
   res.status(200).json(await productService.getAllProducts());
@@ -56,12 +57,16 @@ export const getAllTypes = asyncHandler(async (req, res) => {
 // accepted-and-ignored field.
 export const saveProduct = asyncHandler(async (req, res) => {
   const body = parseStrict(SaveBody, req.body, "products/save_product body");
-  await productService.saveProduct({ product: body.product });
+  // save_product UPDATES an existing row, so the id is the message; every
+  // other column is optional because a create sends this same patch.
+  if (!body.product.id) throw new Invalid("id is required");
+  await productService.saveProduct({ product: { ...body.product, id: body.product.id } });
   res.status(200).json("Product updated.");
 });
 
 export const createProduct = asyncHandler(async (req, res) => {
   const body = parseStrict(CreateBody, req.body, "products/create_product body");
+  if (!body.name) throw new Invalid("name is required");
   const created = await productService.createProduct({ name: body.name });
   res.status(201).json(created);
 });

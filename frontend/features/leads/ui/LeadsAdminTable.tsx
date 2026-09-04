@@ -1,9 +1,10 @@
 'use client'
 
+import type { Lead } from "@dorado/contracts";
 import * as React from 'react'
 import type { ColumnDef, Row } from '@tanstack/react-table'
 
-import { Lead, LeadPriority } from '@/features/leads/types'
+import { LeadPriority } from '@/features/leads/types'
 import { PrioritySelect } from '@/features/leads/ui/PrioritySelect'
 import { normalizePhone } from '@/shared/utils/formatPhoneNumber'
 import { useDrawerStore } from '@/shared/store/drawerStore'

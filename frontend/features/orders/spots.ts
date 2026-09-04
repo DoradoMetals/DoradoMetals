@@ -1,8 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { apiRequest } from '@/shared/queries/axios'
 import { useGetSession } from '@/features/auth/queries'
-import type { OrderSpot } from '@dorado/contracts'
-import type { SpotPrice } from '@/features/spots/types'
+import type { OrderSpot, SpotPrice } from "@dorado/contracts";
 import {
   invalidateOrderReads,
   optimisticallyUpdatePurchaseOrder,

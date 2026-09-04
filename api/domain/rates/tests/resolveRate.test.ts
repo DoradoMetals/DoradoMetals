@@ -5,11 +5,11 @@ import {
   getRatePct,
   sumContentByMetal,
 } from "#domain/rates/utils/resolveRate.ts";
-import type { Rate } from "@dorado/contracts";
+import type { RateRead } from "@dorado/contracts";
 
 // Bands are per metal over [min_qty, max_qty], max_qty null meaning open-ended.
-// `id` and `unit` are required by Rate though resolveRate reads neither.
-const rates: Rate[] = [
+// `id` and `unit` are required by `rates.rates.Read` though resolveRate reads neither.
+const rates: RateRead[] = [
   { id: "r1", unit: "troy_oz", metal: "Gold", min_qty: 0, max_qty: 1, scrap_pct: 0.8, bullion_pct: 0.9 },
   { id: "r2", unit: "troy_oz", metal: "Gold", min_qty: 1, max_qty: 10, scrap_pct: 0.85, bullion_pct: 0.93 },
   { id: "r3", unit: "troy_oz", metal: "Gold", min_qty: 10, max_qty: null, scrap_pct: 0.9, bullion_pct: 0.96 },
@@ -60,18 +60,18 @@ test("getRatePct returns undefined when there is nothing to resolve", () => {
 });
 
 test("getRatePct returns undefined when the band has no pct for that material", () => {
-  // Deliberately outside Rate (scrap_pct: number): the column is nullable in the table, and getRatePct exists to return undefined for it.
+  // Deliberately outside `rates.rates.Read` (scrap_pct: number): the column is nullable in the table, and getRatePct exists to return undefined for it.
   // @ts-expect-error - a null pct is exactly what this test is about
-  const missing: Rate[] = [{ metal: "Gold", min_qty: 0, max_qty: null, scrap_pct: null }];
+  const missing: RateRead[] = [{ metal: "Gold", min_qty: 0, max_qty: null, scrap_pct: null }];
   assert.equal(getRatePct(missing, "Gold", 1, "scrap"), undefined);
 });
 
 // pg returns NUMERIC as a string unless a parser is registered, and rates come
 // straight from the rates table, so the coercion here is load-bearing.
 test("getRatePct coerces a numeric-as-string pct", () => {
-  // Deliberately outside Rate - pg's NUMERIC-as-string is exactly what this pins.
+  // Deliberately outside `rates.rates.Read` - pg's NUMERIC-as-string is exactly what this pins.
   // @ts-expect-error - a numeric-as-string pct is exactly what this test is about
-  const strings: Rate[] = [{ metal: "Gold", min_qty: 0, max_qty: null, scrap_pct: "0.85" }];
+  const strings: RateRead[] = [{ metal: "Gold", min_qty: 0, max_qty: null, scrap_pct: "0.85" }];
   assert.equal(getRatePct(strings, "Gold", 1, "scrap"), 0.85);
 });
 

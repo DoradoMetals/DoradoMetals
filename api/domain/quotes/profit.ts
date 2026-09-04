@@ -23,12 +23,9 @@ import * as metalsRepo from "#db/metals/repo.ts";
 import { effectivePayoutFee, inboundShipment, recordedContent } from "#domain/pricing/service.ts";
 import { getRatePct, sumContentByMetal } from "#domain/rates/utils/resolveRate.ts";
 import { NotFound } from "#shared/errors.ts";
-import type {
-  OrderQuoteBody, OrderView, OrderViewItem, ProfitBreakdown, ProfitMetalsDict,
-} from "@dorado/contracts";
+import type { OrderQuoteBody, OrderView, OrderViewItem, ProfitBreakdown, ProfitMetalsDict } from "@dorado/contracts";
 import type { RefinerItemRow } from "#db/refiners/items/repo.ts";
 
-export type { ProfitBreakdown } from "@dorado/contracts";
 
 // metal_id -> the metal's name, and order_item_id -> what the refinery
 // reported. Two lookups the COMPOSED order used to smear onto every line

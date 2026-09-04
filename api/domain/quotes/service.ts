@@ -30,15 +30,8 @@ import { calculateItemAsk, calculateSalesOrderTotal } from "#domain/pricing/serv
 import { effectivePayoutFee, inboundShipment } from "#domain/pricing/service.ts";
 import { sumContentByMetal } from "#domain/rates/utils/resolveRate.ts";
 import { Forbidden, Invalid, NotFound } from "#shared/errors.ts";
-import type {
-  CatalogQuote, CatalogQuoteBody, OrderQuote, OrderQuoteBody, OrderQuoteLine,
-  PurchaseOrderQuote, PurchaseOrderQuoteBody, PurchaseOrderQuoteLine,
-  SalesOrderQuote, SalesOrderQuoteBody,
-} from "@dorado/contracts";
+import type { CatalogQuote, CatalogQuoteBody, OrderQuote, OrderQuoteBody, OrderQuoteLine, PurchaseOrderQuote, PurchaseOrderQuoteBody, PurchaseOrderQuoteLine, SalesOrderQuote, SalesOrderQuoteBody } from "@dorado/contracts";
 
-export type {
-  CatalogQuote, OrderQuote, PurchaseOrderQuote, SalesOrderQuote,
-} from "@dorado/contracts";
 
 // The same gate checkout applies to a cart, applied to a quote: an ASK quote
 // may only name a product live on the buy side (`display`). A BID quote has

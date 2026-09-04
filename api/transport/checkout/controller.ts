@@ -1,8 +1,5 @@
 // HTTP in, HTTP out. Bodies are parsed strictly against the contract.
-import {
-  Direction, CheckoutItemsBody, CheckoutPatchBody, CheckoutPatchColumns,
-  CheckoutFulfillmentBody, CheckoutPayoutBody, CheckoutPayoutForm,
-} from "@dorado/contracts";
+import { CheckoutFulfillmentBody, CheckoutItemsBody, CheckoutPatch, CheckoutPatchBody, CheckoutPayoutBody, CheckoutPayoutForm, Direction } from "@dorado/contracts";
 import type { Request } from "express";
 import { callerId } from "#shared/http/caller.ts";
 import { oneString } from "#shared/http/query.ts";
@@ -61,7 +58,7 @@ export const patchCheckout = asyncHandler(async (req, res) => {
   const body = parseStrict(CheckoutPatchBody, req.body, "checkout PATCH body");
   // The columns, parsed out of the body: a plain object schema strips
   // `direction`, which names the session rather than a column of it.
-  const patch = CheckoutPatchColumns.parse(body);
+  const patch = CheckoutPatch.parse(body);
   const subject = await subjectOf(req);
   return res.status(200).json(
     await cartService.patchCheckout(subject, body.direction, patch)

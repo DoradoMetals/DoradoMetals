@@ -1,10 +1,10 @@
 'use client'
 
+import type { Address } from "@dorado/contracts";
 import { Alert } from '@dorado/components'
 import React, { useRef, useState, FormEvent } from 'react'
 import { PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js'
 import type { StripePaymentElementOptions } from '@stripe/stripe-js'
-import { Address } from '@/features/addresses/types'
 import { PaymentMethodTypeValues } from '@/features/orders/salesOrders/types'
 import { usePaymentMethods } from '@/features/payments/queries'
 import { orderAwaitingPayment } from '@/features/stripe/orderAwaitingPayment'

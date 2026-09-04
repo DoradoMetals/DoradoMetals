@@ -1,4 +1,4 @@
-import { AddressCreateBody, AddressUpdateBody, AddressIdBody } from "@dorado/contracts";
+import { AddressCreateBody, AddressIdBody, AddressUpdateBody } from "@dorado/contracts";
 import { callerId, requiredParam } from "#shared/http/caller.ts";
 import type { Request } from "express";
 import { oneString } from "#shared/http/query.ts";

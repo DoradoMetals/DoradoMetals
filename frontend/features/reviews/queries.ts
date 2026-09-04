@@ -1,6 +1,7 @@
+import type { Review, ReviewPatch } from "@dorado/contracts";
 import { upsertById, useApiMutation, useApiQuery } from '@/shared/queries/base'
 import { queryKeys } from '@/shared/queries/keys'
-import { NewReview, Review, UpdateReviewVars } from '@/features/reviews/types'
+import { UpdateReviewVars } from '@/features/reviews/types'
 
 export const useReviews = () => {
   return useApiQuery<Review[]>({
@@ -21,7 +22,7 @@ export const usePublicReviews = () => {
 }
 
 export const useCreateReview = () => {
-  return useApiMutation<Review, NewReview, Review[]>({
+  return useApiMutation<Review, ReviewPatch, Review[]>({
     queryKey: queryKeys.reviews(),
     url: '/reviews/create',
     requireAdmin: true,

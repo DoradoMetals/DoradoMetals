@@ -59,12 +59,12 @@ const add = (name: string, schema: WireSchema, load: () => unknown, many = true)
 // field to go missing, and BOTH shapes are still checked - the internal one and
 // what the adapter flattens it to.
 const carriersService = await import("#domain/shipping/carriers/service.ts");
-add("GET /carriers", c.Carrier, () => carriersService.getAllCarriers());
+add("GET /carriers", c.CarrierRead, () => carriersService.getAllCarriers());
 // Carrier services is restructured - one implementation. Kept as a DIRECT
 // check: it is the feature whose projection renames three columns back, so a
 // contract that stopped being exercised would stop noticing a rename escaping.
 const servicesService = await import("#domain/shipping/services/service.ts");
-add("GET /carrier_services", c.CarrierService, () => servicesService.getAllServices());
+add("GET /carrier_services", c.CarrierServiceRead, () => servicesService.getAllServices());
 // Spots: one implementation after the restructure.
 // Rates: one implementation after the restructure.
 // Reviews: one implementation after the restructure, so no both-ways to run.
@@ -107,7 +107,7 @@ const listAddresses = async () => (addressUser ? await addressesService.list(add
 add("GET /addresses", c.Address, async () =>
   (await listAddresses()).map(({ user_address, ...a }) => a)
 );
-add("GET /addresses/user_addresses", c.UserAddress, async () =>
+add("GET /addresses/user_addresses", c.UserAddressRead, async () =>
   (await listAddresses()).map((r) => ({ address_id: r.id, ...r.user_address }))
 );
 
@@ -132,15 +132,16 @@ add("GET /addresses/user_addresses", c.UserAddress, async () =>
 // orders.orders.direction. That projection is exactly the sort of thing that
 // is right until it is not.
 //
-// TRANSACTIONS_SOURCE=dual deliberately READS exchange, so repo.next is never
-// on the request path today - which is the argument for checking it here
-// rather than against it. Nothing else looks at it before promotion.
+// THE READ IS payments.ledger NOW, and so is this check: db/transactions/repo.ts
+// selects from it and nothing selects exchange.account_transactions any more,
+// so a contract pinned to the exchange row was asserting columns
+// (purchase_order_id, sales_order_id) the statement stopped returning.
 //
 // getTransactionHistory returns ONE row, not a list, in both implementations -
 // hence many=false. That it does so at all is a separate bug; see the note in
 // FOLLOWUPS.md. This check asserts the shape the code HAS.
 const { rows: withLedger } = await pool.query(
-  `SELECT user_id FROM exchange.account_transactions
+  `SELECT user_id FROM payments.ledger
    GROUP BY user_id ORDER BY count(*) DESC LIMIT 1`
 );
 const ledgerUser = withLedger[0]?.user_id;
@@ -149,7 +150,7 @@ if (!ledgerUser) {
   // that silently proves nothing is what let the ledger go unnoticed for seven
   // months in the first place.
   add("GET /get_transactions", c.AccountTransaction, () => {
-    throw new Error("dev has no account_transactions - the ledger check would be vacuous");
+    throw new Error("dev has no payments.ledger rows - the ledger check would be vacuous");
   });
 } else {
   // ONE IMPLEMENTATION AFTER THE RESTRUCTURE, so there is no both-ways to run -
@@ -176,13 +177,13 @@ if (!ledgerUser) {
 const fulfillments = await import("#domain/fulfillments/service.ts");
 const fulfillmentMethods = await import("#db/fulfillments/methods/repo.ts");
 
-add("GET /fulfillments/methods (purchase)", c.FulfillmentMethod, () =>
+add("GET /fulfillments/methods (purchase)", c.FulfillmentMethodRead, () =>
   fulfillmentMethods.getAvailable("purchase")
 );
-add("GET /fulfillments/methods (sale)", c.FulfillmentMethod, () =>
+add("GET /fulfillments/methods (sale)", c.FulfillmentMethodRead, () =>
   fulfillmentMethods.getAvailable("sale")
 );
-add("GET /fulfillments/methods/all", c.FulfillmentMethod, () =>
+add("GET /fulfillments/methods/all", c.FulfillmentMethodRead, () =>
   fulfillmentMethods.getAll()
 );
 
@@ -234,7 +235,7 @@ const intents = async (m: Record<string, unknown>) => {
 // other restructured feature.
 add(
   "GET /stripe/get_sales_order_payment_intent [payments]",
-  c.PaymentIntent,
+  c.PaymentIntentView,
   async () => intents(await import("#db/payments/intents/repo.ts"))
 );
 
@@ -253,8 +254,8 @@ add(
 // storefront row is no longer a projection, it is a projection plus two labels
 // attached in JS, so a field can now go missing in a place SQL never could.
 const productsService = await import("#domain/products/service.ts");
-add("GET /products", c.Bullion, () => productsService.getAllProducts());
-add("GET /products (sell)", c.Bullion, () => productsService.getSellProducts());
+add("GET /products", c.BullionStorefront, () => productsService.getAllProducts());
+add("GET /products (sell)", c.BullionStorefront, () => productsService.getSellProducts());
 
 // Orders. ONE SHAPE, BOTH DIRECTIONS, since the wire slimmed (wave 3): an
 // order on the wire is its orders.orders row plus `totals`, and every other
@@ -265,7 +266,7 @@ add("GET /products (sell)", c.Bullion, () => productsService.getSellProducts());
 // verifiers are what check THAT.
 const orderRead = await import("#domain/orders/read.ts");
 const orders = await orderRead.list({ direction: "purchase" });
-add("GET /orders", c.Order, () => orderRead.list({}));
+add("GET /orders", c.OrderRead, () => orderRead.list({}));
 
 // The bare-resource reads the flip landed - VERBATIM table rows (ruling 12),
 // parsed through the generated-row re-exports. Payout DETAILS are
@@ -301,7 +302,7 @@ const orderFulfillmentRead = await import("#domain/fulfillments/order-read.ts");
 // the table it returns.
 const fulfillmentPickups = await import("#domain/fulfillments/pickups/service.ts");
 const fulfillmentDirects = await import("#domain/fulfillments/directs/service.ts");
-add("GET /orders/:orderId/fulfillments", c.OrderFulfillment, async () => {
+add("GET /orders/:orderId/fulfillments", c.Fulfillment, async () => {
   const reads = await Promise.all(
     orders.map((o) => orderFulfillmentRead.getOrderFulfillment(o.id))
   );
@@ -335,7 +336,7 @@ add("GET /orders/:orderId/directs", c.FulfillmentDirect, async () => {
 // are bank data. The shape is pinned on keys by refiner-edits.test.js.
 const orderAddressesRepo = await import("#db/orders/addresses/repo.ts");
 const placeAddressesRepo = await import("#db/places/addresses/repo.ts");
-add("GET /orders/:id/address", c.OrderAddress, async () => {
+add("GET /orders/:id/address", c.Address, async () => {
   const links = await Promise.all(orders.map((o) => orderAddressesRepo.getFor(o.id)));
   const rows = await Promise.all(
     links

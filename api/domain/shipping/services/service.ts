@@ -1,6 +1,6 @@
 // Defaults are applied here explicitly, not by the columns: shipping.services' column defaults disagree with what exchange's always meant (supports_dropoff/is_residential defaulted true there, false here), so every write states every value.
 // A minimal (carrier_id, name) insert - what exchange's create did - would be refused here: several columns are NOT NULL with no default.
-// Inputs are the CONTRACT'S types now, parsed strictly at transport - CarrierServiceCreate/CarrierServicePatch, not a hand-typed "arrives as req.body" shape.
+// Inputs are the CONTRACT'S types now, parsed strictly at transport - CarrierServicePatch/CarrierServicePatch, not a hand-typed "arrives as req.body" shape.
 import { randomUUID } from "node:crypto";
 import withTransaction from "#shared/db/withTransaction.ts";
 import * as services from "#db/shipping/services/repo.ts";
@@ -11,18 +11,17 @@ import {
 import type { ServiceRow } from "#db/shipping/services/repo.ts";
 import type { Executor } from "#shared/db/executor.ts";
 // From the contracts, not the adapter (which merely re-exports it) - contracts is where the shape is declared.
-import type { CarrierServiceOption, CarrierServiceCreate, CarrierServicePatch } from "@dorado/contracts";
+import type { CarrierServiceOption, CarrierServicePatch } from "@dorado/contracts";
 import { Invalid } from "#shared/errors.ts";
 
-export type { CarrierServiceOption };
 
 // Every field spelled explicitly, by name - no prop-spreading, so the repo
 // call never receives a field it wasn't written to expect.
-function toNewRow(body: CarrierServiceCreate, id: string): services.ServiceNew {
+function toNewRow(body: CarrierServicePatch, id: string): services.ServiceNew {
   return {
     id,
     carrier_id: body.carrier_id ?? null,
-    name: body.name,
+    name: body.name ?? "",
     description: body.description ?? null,
     code: body.code ?? null,
     provider_code: body.provider_code ?? null,
@@ -204,7 +203,7 @@ export async function getServicesByCarrierId(
 }
 
 // A USE CASE (ruling 56): only the controller calls this.
-export async function createService(body: CarrierServiceCreate): Promise<ServiceRow | null> {
+export async function createService(body: CarrierServicePatch): Promise<ServiceRow | null> {
   return await withTransaction(async (tx) => {
     const id = randomUUID();
     return await services.create(toNewRow(body, id), tx);
@@ -213,10 +212,14 @@ export async function createService(body: CarrierServiceCreate): Promise<Service
 
 // A USE CASE, same reasoning as createService.
 export async function updateService(body: CarrierServicePatch): Promise<ServiceRow | null> {
+  // The id is the message on an update; every column beside it is optional
+  // because a create sends this same patch.
+  const id = body.id;
+  if (!id) throw new Invalid("id is required");
   return await withTransaction(async (tx) => {
-    const changed = await services.update(body.id, toPatchRow(body), tx);
+    const changed = await services.update(id, toPatchRow(body), tx);
     if (!changed) return null;
-    return (await services.getOne(body.id, tx)) ?? null;
+    return (await services.getOne(id, tx)) ?? null;
   });
 }
 

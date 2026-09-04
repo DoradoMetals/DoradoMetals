@@ -7,7 +7,7 @@ import { describe, expect, test, vi, beforeEach } from "vitest";
 import { act, renderHook } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
-import { RefinerOrderPatch, RefinerItemPatch } from "@dorado/contracts";
+import { RefinerItemPatch, RefinerOrderPatch } from "@dorado/contracts";
 
 vi.mock("@/shared/queries/axios", () => ({ apiRequest: vi.fn() }));
 vi.mock("@/features/auth/queries", () => ({

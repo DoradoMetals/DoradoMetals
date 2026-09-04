@@ -6,7 +6,7 @@ import {
   optimisticallyUpdateOrderItems,
   rollbackOrderLists,
 } from '@/features/orders/invalidation'
-import type { OrderItem, OrderItemCreate, OrderItemPatch } from '@dorado/contracts'
+import type { OrderItem, OrderItemPatch } from "@dorado/contracts";
 
 // Order lines as their own resource (D87, unified form): everything under
 // /orders - a line's id is already unique, and creation is order-scoped.
@@ -25,7 +25,6 @@ import type { OrderItem, OrderItemCreate, OrderItemPatch } from '@dorado/contrac
 // wire any more: a catalogue line names `bullion_id`, a scrap line names
 // `metal_id` plus its own weight/purity/unit - both ids the client already
 // holds off its cached reference reads (the catalogue, the spots list).
-export type { OrderItemPatch } from '@dorado/contracts'
 
 type PatchOrderItemVars = {
   order_item_id: string
@@ -72,7 +71,7 @@ export const usePatchOrderItem = () => {
 
 type CreateOrderItemVars = {
   order_id: string
-  item: OrderItemCreate
+  item: OrderItemPatch
 }
 
 export const useCreateOrderItem = () => {

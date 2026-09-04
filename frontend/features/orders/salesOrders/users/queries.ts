@@ -9,7 +9,7 @@ import { SalesOrder, SaleCheckoutForm } from '@/features/orders/salesOrders/type
 import { toAddressSnapshot } from '@/features/orders/addressSnapshot'
 import { useApiMutation, useApiQuery } from '@/shared/queries/base'
 import { queryKeys } from '@/shared/queries/keys'
-import type { OrderView } from '@dorado/contracts'
+import type { OrderView } from "@dorado/contracts";
 
 // toAddressSnapshot moved to features/orders/addressSnapshot.ts - one copy
 // for both directions and the cancel op, which had three.

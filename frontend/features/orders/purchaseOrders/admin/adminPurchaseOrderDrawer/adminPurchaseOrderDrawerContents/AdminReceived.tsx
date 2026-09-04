@@ -10,7 +10,7 @@ import {
 import { usePatchShipment, useOrderShipments, outboundOf } from '@/features/shipping/queries'
 import { usePatchPayout, useOrderPayouts } from '@/features/payouts/queries'
 import { useOrderItems, nameOf, byId } from '@/features/orders/reads'
-import type { OrderItem, OrderItemPatch } from '@dorado/contracts'
+import type { OrderItem, OrderItemPatch, SpotPrice } from "@dorado/contracts";
 import type { NamedScrapItem } from '@/features/orders/purchaseOrders/types'
 
 import { cn } from '@/shared/utils/cn'
@@ -38,7 +38,6 @@ import SelectMenu from '@/shared/ui/SelectMenu'
 import { Field } from '@/shared/ui/Field'
 import { Product } from '@/features/products/types'
 import { useSpotPrices } from '@/features/spots/queries'
-import type { SpotPrice } from '@/features/spots/types'
 import { useProducts } from '@/features/products/queries'
 import { useOrderSpots, nameSpots, type NamedOrderSpot } from '@/features/orders/spots'
 
@@ -263,7 +262,7 @@ export default function AdminReceivedPurchaseOrder({ order }: PurchaseOrderDrawe
             <SelectMenu
               open={payoutOpen}
               onOpenChange={setPayoutOpen}
-              value={payout?.method}
+              value={payout?.method ?? undefined}
               items={payoutMethods.map(({ label, type }) => ({
                 label,
                 value: type,

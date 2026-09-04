@@ -1,12 +1,12 @@
-import type { NewCheckoutItem, checkout } from '@dorado/contracts'
+import type { CheckoutItem, CheckoutItemPatch } from "@dorado/contracts";
 import type { Product } from '@/features/products/types'
 
-// A basket line IS the contract's NewCheckoutItem. `id` is a browser key so a
+// A basket line IS the contract's CheckoutItemPatch. `id` is a browser key so a
 // line survives a re-render and a local declaration has something to be found
 // by; it never crosses the wire. Nothing else is stored: name, image and mint
 // are looked up from the catalogue by bullion_id, and content, premium and
 // price are the server's.
-export type CheckoutLine = NewCheckoutItem & { id: string }
+export type CheckoutLine = CheckoutItemPatch & { id: string }
 
 // A coin snapshots the product's weight the way the server does on create
 // (ruling 51's FLOWS: gross -> pre_melt, t oz), so a parcel weighs correctly
@@ -20,7 +20,7 @@ export const lineFromProduct = (product: Product, quantity = 1): CheckoutLine =>
   quantity,
 })
 
-export const lineFromRow = (row: checkout.ItemsRow): CheckoutLine => ({
+export const lineFromRow = (row: CheckoutItem): CheckoutLine => ({
   id: row.id,
   bullion_id: row.bullion_id ?? undefined,
   metal_id: row.metal_id ?? undefined,
@@ -31,7 +31,7 @@ export const lineFromRow = (row: checkout.ItemsRow): CheckoutLine => ({
   quantity: Number(row.quantity ?? 1),
 })
 
-export const toNewCheckoutItem = ({ id, ...line }: CheckoutLine): NewCheckoutItem =>
+export const toNewCheckoutItem = ({ id, ...line }: CheckoutLine): CheckoutItemPatch =>
   line.bullion_id
     ? { bullion_id: line.bullion_id, quantity: line.quantity }
     : {

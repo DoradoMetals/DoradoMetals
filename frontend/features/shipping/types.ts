@@ -72,15 +72,13 @@ type ShippingCarrierId = string
 //
 // `CarrierHandoff` (GET /api/shipping/handoffs) and `CarrierServiceOption`
 // (GET /api/carrier_services/offered) are wire shapes both halves of the app
-// need, so they are declared once in packages/contracts/src/wire/shipping.ts -
-// where every field is documented, including why a handoff's `name` is not a
-// display string. Re-exported here under the same names so this tree's imports
-// read from one place (CLAUDE.md: the frontend keeps local names for UI
-// concerns and takes shapes from the contracts).
+// need, so they are declared once in packages/contracts/src/computed/providers.ts
+// - where every field is documented, including why a handoff's `name` is not a
+// display string. Every consumer imports them from there directly, not
+// through this file.
 //
 // NOT a fulfillment pickup - see features/handoff/types.ts for the two things
 // that share the word. A CarrierHandoff is how a parcel reaches the CARRIER.
-export type { CarrierHandoff, CarrierServiceOption } from '@dorado/contracts'
 
 export type ShippingPickupTimesInput = {
   carrier_id?: ShippingCarrierId

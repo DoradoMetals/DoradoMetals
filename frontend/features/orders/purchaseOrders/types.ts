@@ -1,6 +1,6 @@
 import { z } from 'zod/v4'
 
-import type { OrderItem as OrderItemRow } from '@dorado/contracts'
+import type { Address, OrderItem, UserAddressRead } from "@dorado/contracts";
 
 import {
   Truck,
@@ -10,10 +10,6 @@ import {
   ShieldCheck,
 } from 'lucide-react'
 
-import type {
-  Address as AddressContract,
-  UserAddress as UserAddressContract,
-} from '@dorado/contracts'
 import { pickupSchema } from '@/features/handoff/types'
 import { payoutSchema } from '@/features/payouts/types'
 import { serviceSchema } from '@/features/service/types'
@@ -50,8 +46,8 @@ import type { StatusConfig } from '@/features/orders/types'
 // checkout.items (ruling 50) - and the schema that used to parse this whole
 // object died with them.
 export type PurchaseCheckoutForm = {
-  address: AddressContract
-  user_address?: UserAddressContract
+  address: Address
+  user_address?: UserAddressRead
   // RULING 58: the box's weight and dimensions are the server's - the shipping.packages
   // ROW id is the only thing the browser holds onto, plus its label for display.
   package: { id: string; label: string }
@@ -104,17 +100,17 @@ export const statusConfig: StatusConfig = {
 // (features/orders/spots.ts does the same for spot rows). So this is handed
 // `[row, metalName]` pairs and stays a pure function of them - which is why
 // it is the one thing in this file with a unit test.
-export type NamedScrapItem = OrderItemRow & { metal: string; name: string }
+export type NamedScrapItem = OrderItem & { metal: string; name: string }
 
 export function assignScrapItemNames(
-  scrapItems: OrderItemRow[],
+  scrapItems: OrderItem[],
   metalNameOf: (metal_id: string) => string | null
 ): NamedScrapItem[] {
   const metalOrder = ['Gold', 'Silver', 'Platinum', 'Palladium']
 
   const named = scrapItems
     .map((item) => ({ item, metal: metalNameOf(item.metal_id) }))
-    .filter((n): n is { item: OrderItemRow; metal: string } => !!n.metal)
+    .filter((n): n is { item: OrderItem; metal: string } => !!n.metal)
 
   named.sort((a, b) => metalOrder.indexOf(a.metal) - metalOrder.indexOf(b.metal))
 

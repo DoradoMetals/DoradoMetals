@@ -8,26 +8,18 @@
 // orders.transactions; a writer here would make it easy to grow one by
 // accident, which is how the numbers got copied around in the first place.
 import query from "#shared/db/query.ts";
+import type { Payout } from "@dorado/contracts";
 import { sqlFrom } from "#shared/db/sql.ts";
 import type { Executor } from "#shared/db/executor.ts";
 
 const sql = sqlFrom(import.meta.dirname);
 
 // account_last4 and routing_last4 only, never account_number or routing_number. `id` is the payments.details id, equal to the old payout id on any database built by migration 073.
-export type PayoutRow = {
-  id: string;
-  user_id: string | null;
-  order_id: string | null;
-  method: string | null;
-  account_holder_name: string | null;
-  bank_name: string | null;
-  account_type: string | null;
-  account_last4: string | null;
-  routing_last4: string | null;
-  email_to: string | null;
-  cost: number | null;
-  created_at: Date | null;
-};
+// THE CONTRACT OWNS THE SHAPE. This was a hand-written twelve-field copy of
+// what get_for.sql projects; `Payout` is the same projection derived from
+// payments.details, orders.transactions and payments.methods, so a column
+// that moves moves here too.
+export type PayoutRow = Payout;
 
 export async function getFor(
   order_id: string, executor?: Executor

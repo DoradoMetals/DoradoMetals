@@ -1,10 +1,11 @@
 'use client'
 
+import type { AdminUser } from "@dorado/contracts";
 import * as React from 'react'
 import type { ColumnDef, Row } from '@tanstack/react-table'
 
 import { useCreateUser } from '@/features/auth/queries'
-import { AdminUser, userRoleOptions } from '@/features/users/types'
+import { userRoleOptions } from '@/features/users/types'
 
 import { useDrawerStore } from '@/shared/store/drawerStore'
 

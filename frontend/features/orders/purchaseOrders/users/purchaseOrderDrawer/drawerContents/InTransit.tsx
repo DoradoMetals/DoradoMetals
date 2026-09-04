@@ -2,7 +2,7 @@ import { Button } from '@dorado/components'
 import { cn } from '@/shared/utils/cn'
 import { useOfferedPackages } from '@/features/checkout/queries'
 import { useShipmentPickups } from '@/features/shipping/queries'
-import type { Shipment } from '@dorado/contracts'
+import type { Shipment } from "@dorado/contracts";
 import { PurchaseOrderDrawerContentProps } from '@/features/orders/purchaseOrders/types'
 import { formatPickupDateTime } from '@/shared/utils/formatDates'
 import { Car, CheckCheck, PackageOpen, Printer } from 'lucide-react'

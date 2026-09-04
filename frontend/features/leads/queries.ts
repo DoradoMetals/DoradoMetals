@@ -1,6 +1,6 @@
+import type { Lead, LeadPatch } from "@dorado/contracts";
 import { upsertById, useApiMutation, useApiQuery } from "@/shared/queries/base";
 import { queryKeys } from "@/shared/queries/keys";
-import { Lead, LeadPatch, NewLead } from "@/features/leads/types";
 
 export const useLeads = () =>
   useApiQuery<Lead[]>({
@@ -11,7 +11,7 @@ export const useLeads = () =>
   })
 
 export const useCreateLead = () =>
-  useApiMutation<Lead, NewLead, Lead[]>({
+  useApiMutation<Lead, LeadPatch, Lead[]>({
     queryKey: queryKeys.adminLeads(),
     url: '/leads/create',
     requireAdmin: true,

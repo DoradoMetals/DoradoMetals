@@ -1,4 +1,5 @@
-import type { Address, UserAddress } from '@/features/addresses/types'
+import type { Address } from "@dorado/contracts";
+import type { UserAddress } from '@/features/addresses/types'
 
 // THE ADDRESS A CHECKOUT SENDS, and it is a REQUEST shape rather than a read.
 //

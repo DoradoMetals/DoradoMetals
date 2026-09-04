@@ -24,7 +24,12 @@ const ROOT = process.env.LINT_INPUT_SHAPES_ROOT
 const DOMAIN_ROOT = path.join(ROOT, "api", "domain");
 const DB_ROOT = path.join(ROOT, "api", "db");
 const BUILDERS_ROOT = path.join(ROOT, "api", "shared", "testing", "builders");
-const CONTRACTS_ROOT = path.join(ROOT, "packages", "contracts", "src", "generated");
+// ONE FILE PER ENTITY since the contracts restructure: src/<schema>/<table>.ts,
+// each with a generated region whose only `export const Row = z.object({...})`
+// is the table. The old src/generated/<schema>.ts held every table of a schema
+// under a PascalRow name; when it went, this resolved nothing, every lookup
+// returned null, and the "SCAN IS BROKEN" floor is what said so.
+const CONTRACTS_ROOT = path.join(ROOT, "packages", "contracts", "src");
 
 // Genuine non-column inputs ("Type.field") and genuine local builder options
 // types ("Options:Type") this lint would otherwise flag. PINNED FROM BOTH
@@ -169,22 +174,21 @@ function repoImports(src: string): Map<string, string> {
 
 const tableColumnsCache = new Map<string, string[] | null>();
 
-// shipments -> ShipmentsRow, user_addresses -> UserAddressesRow - the
-// generator's own convention.
-function rowExportName(tableName: string): string {
-  return tableName.split("_").map((w) => w[0]!.toUpperCase() + w.slice(1)).join("") + "Row";
-}
-
 function columnsOfTable(table: string): string[] | null {
   if (tableColumnsCache.has(table)) return tableColumnsCache.get(table)!;
   const [schema, tableName] = table.split(".");
   if (!schema || !tableName) { tableColumnsCache.set(table, null); return null; }
-  const file = path.join(CONTRACTS_ROOT, `${schema}.ts`);
+  const file = path.join(CONTRACTS_ROOT, schema, `${tableName}.ts`);
   if (!existsSync(file)) { tableColumnsCache.set(table, null); return null; }
   const src = readFileSync(file, "utf8");
-  const exportName = rowExportName(tableName);
-  const re = new RegExp(`export const ${exportName} = z\\.object\\(\\{([\\s\\S]*?)\\n\\}\\);`);
-  const m = re.exec(src);
+  // THE ENTITY'S NAME IS ITS EXPORT, so match the region's own object rather
+  // than a fixed identifier: it was `Row` for a day and is `Rate`/`Order`/...
+  // now, and a fixed name silently matched nothing - which this script's
+  // "SCAN IS BROKEN" floor is what caught.
+  const a = src.indexOf("// generated:start");
+  const b = src.indexOf("// generated:end");
+  const region = a === -1 || b === -1 ? src : src.slice(a, b);
+  const m = /export const \w+ = z\.object\(\{([\s\S]*?)\n\}\);/.exec(region);
   if (!m) { tableColumnsCache.set(table, null); return null; }
   const cols = [...m[1]!.matchAll(/"(\w+)":/g)].map((x) => x[1]!);
   tableColumnsCache.set(table, cols);
@@ -310,12 +314,12 @@ function checkBuilderOptions(lines: string[]): { findings: number; scanned: numb
 
 if (process.argv.includes("--self-test")) {
   const { selfTest } = await import("./lib/self-test-harness.ts");
-  const genTable = 'import { z } from "zod/v4";\n' +
-    'export const ShipmentsRow = z.object({\n' +
+  const genTable = '// generated:start\nimport { z } from "zod/v4";\n' +
+    'export const Shipment = z.object({\n' +
     '  "id": z.string().uuid(),\n' +
     '  "direction": z.string(),\n' +
     '});\n' +
-    'export type ShipmentsRow = z.infer<typeof ShipmentsRow>;\n';
+    'export type Shipment = z.infer<typeof Shipment>;\n// generated:end\n';
   const repoFile =
     'export async function create(row: unknown, executor?: unknown) {\n' +
     '  return null;\n' +
@@ -341,7 +345,7 @@ if (process.argv.includes("--self-test")) {
     "api/domain/shipping/shipments/service.ts": service,
     "api/db/shipping/shipments/repo.ts": repoFile,
     "api/db/shipping/shipments/sql/create.sql": createSql,
-    "packages/contracts/src/generated/shipping.ts": genTable,
+    "packages/contracts/src/shipping/shipments.ts": genTable,
   });
   await selfTest({
     script: new URL(import.meta.url).pathname,

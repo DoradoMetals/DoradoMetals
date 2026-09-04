@@ -22,11 +22,7 @@ import type { ParsedTracking } from "#providers/shipments/utils/parsing.ts";
 import type { RatesInput } from "#domain/shipping/operations/handler.ts";
 import type { PickupBaseRow as PickupRow } from "#db/shipping/pickups/repo.ts";
 import type { PoolClient } from "pg";
-import type {
-  Direction,
-  ShippingCancelLabelBody, ShippingCancelPickupBody, ShippingCheckPickupBody,
-  ShippingGetLocationsBody, ShippingValidateAddressBody,
-} from "@dorado/contracts";
+import type { Direction, Shipment, ShippingCancelLabelBody, ShippingCancelPickupBody, ShippingCheckPickupBody, ShippingGetLocationsBody, ShippingValidateAddressBody } from "@dorado/contracts";
 
 type Executor = PoolClient | undefined;
 
@@ -40,15 +36,13 @@ async function requireAddress(address_id: string) {
 }
 
 // fetchTracking is the seam a test uses instead of calling FedEx. Returns ParsedTracking, not TrackingInfo: this reads four fields (scanEvents, latestStatus, estimatedDeliveryTime, deliveredAt), and TrackingInfo declares only the one insertEvents needs - the narrower type would compile then fail at the body.
-import type { shipping } from "@dorado/contracts";
-
 export type FetchTracking = (
   shipment: ShipmentRow,
   client?: Executor
 ) => Promise<ParsedTracking>;
 
 // The three directions a parcel moves, read from shipping.direction itself rather than duplicated by hand - not to be confused with orders.direction (purchase/sale), a different enum with the same name.
-type ShippingType = shipping.ShipmentsRow["direction"];
+type ShippingType = Shipment["direction"];
 
 // Runs OUTSIDE any transaction: cancelling a label first, inside one, risked a later failure rolling back our record while FedEx had already killed the label - a customer holding a label the system still calls active.
 // Safe because cancel is idempotent - a retry just cancels an already-cancelled label. Creating a label is NOT idempotent and doesn't get this treatment; see domain/orders/service.ts.

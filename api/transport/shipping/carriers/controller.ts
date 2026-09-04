@@ -1,11 +1,11 @@
 import { z } from "zod/v4";
-import { CarrierCreate, CarrierPatch, CarrierDeleteBody } from "@dorado/contracts";
+import { CarrierDeleteBody, CarrierPatch } from "@dorado/contracts";
 import { asyncHandler } from "#shared/middleware/asyncHandler.ts";
 import * as carriersService from "#domain/shipping/carriers/service.ts";
 import { oneString } from "#shared/http/query.ts";
 import { parseStrict } from "#shared/http/validate.ts";
 
-const CreateBody = z.object({ carrier: CarrierCreate }).strict();
+const CreateBody = z.object({ carrier: CarrierPatch }).strict();
 const UpdateBody = z.object({ carrier: CarrierPatch }).strict();
 
 export const getAll = asyncHandler(async (req, res) => {

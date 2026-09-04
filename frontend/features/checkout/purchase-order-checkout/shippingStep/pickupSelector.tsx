@@ -1,12 +1,12 @@
 'use client'
 
+import type { CarrierHandoff } from "@dorado/contracts";
 import { format } from 'date-fns'
 
 import { RadioGroup } from '@/shared/ui/RadioGroup'
 import { usePurchaseOrderCheckoutStore } from '@/shared/store/purchaseOrderCheckoutStore'
 import { useSetPurchaseHandoff } from '@/features/checkout/queries'
 import { handoffIcon } from '@/features/handoff/types'
-import type { CarrierHandoff } from '@/features/shipping/types'
 
 // HOW THE PARCEL REACHES THE CARRIER - the customer drops it off, or the
 // carrier collects it. NOT a Dorado pickup; see features/handoff/types.ts for

@@ -1,5 +1,5 @@
 import { useMutation } from '@tanstack/react-query'
-import type { Direction, checkout } from '@dorado/contracts'
+import type { CheckoutItem, Direction } from '@dorado/contracts'
 import { apiRequest } from '@/shared/queries/axios'
 import { useUser } from '@/features/auth/authClient'
 import { useCheckoutItems } from '@/shared/store/checkoutItemsStore'
@@ -13,7 +13,7 @@ import { lineFromRow, toNewCheckoutItem, type CheckoutLine } from '@/features/ch
 // ALLOWED list) - hydration at sign-in, its own try/catch: a basket that will
 // not hydrate keeps the local copy.
 export const listCheckoutItems = async (direction: Direction, user_id?: string) => {
-  const rows = await apiRequest<checkout.ItemsRow[]>('GET', '/checkout/items', undefined, {
+  const rows = await apiRequest<CheckoutItem[]>('GET', '/checkout/items', undefined, {
     direction,
     ...(user_id ? { user_id } : {}),
   })
@@ -43,7 +43,7 @@ export const useReplaceCheckoutItems = (direction: Direction) => {
   return useMutation({
     mutationFn: async ({ lines, user_id }: { lines: CheckoutLine[]; user_id?: string }) => {
       if (!user?.id) throw new Error('User is not authenticated')
-      const rows = await apiRequest<checkout.ItemsRow[]>(
+      const rows = await apiRequest<CheckoutItem[]>(
         'PUT',
         '/checkout/items',
         { items: lines.map(toNewCheckoutItem) },

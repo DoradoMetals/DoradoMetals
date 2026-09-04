@@ -1,4 +1,4 @@
-import { AdminUser } from "@/features/users/types"
+import type { AdminUser } from "@dorado/contracts";
 import { useApiMutation, useApiQuery } from "@/shared/queries/base"
 import { queryKeys } from "@/shared/queries/keys"
 

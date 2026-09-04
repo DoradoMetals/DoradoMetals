@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { apiRequest } from '@/shared/queries/axios'
 import { useGetSession } from '@/features/auth/queries'
-import type { OrderAddress, OrderItem } from '@dorado/contracts'
+import type { Address, OrderItem } from "@dorado/contracts";
 
 // THE ORDER-SCOPED READS THAT ORDERS OWNS (wave 3). One read per table, each
 // keyed by the order id a component already holds, each returning the table's
@@ -15,7 +15,7 @@ import type { OrderAddress, OrderItem } from '@dorado/contracts'
 // payouts in features/payouts, the engagement in features/refiners, the
 // fulfillment chain in features/fulfillments.
 
-export type { OrderItem, OrderAddress } from '@dorado/contracts'
+export type OrderAddress = Address;
 
 // The order's LINES - orders.items rows, scrap and bullion in one table.
 // bullion_id is the only product reference (null means scrap) and metal_id
@@ -39,9 +39,9 @@ export const useOrderItems = (order_id: string) => {
 export const useOrderAddress = (order_id: string) => {
   const { user } = useGetSession()
 
-  return useQuery<OrderAddress>({
+  return useQuery<Address>({
     queryKey: ['order_address', order_id],
-    queryFn: async () => await apiRequest<OrderAddress>('GET', `/orders/${order_id}/address`),
+    queryFn: async () => await apiRequest<Address>('GET', `/orders/${order_id}/address`),
     enabled: !!user && !!order_id,
     retry: false,
   })

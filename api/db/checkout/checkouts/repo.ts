@@ -11,12 +11,12 @@
 import query from "#shared/db/query.ts";
 import { buildUpdate } from "#shared/db/patch.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
-import type { checkout } from "@dorado/contracts";
+import type { Checkout } from "@dorado/contracts";
 import type { Executor } from "#shared/db/executor.ts";
 
 const sql = sqlFrom(import.meta.dirname);
 
-export type CheckoutRow = checkout.CheckoutsRow;
+export type CheckoutRow = Checkout;
 
 export type NewCheckout = { user_id: string; direction: string };
 

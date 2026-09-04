@@ -1,12 +1,12 @@
 // shipping.carriers: id, logo, organization_id. Name/email/phone/enabled belong to the organization and update through its own service.
 import query from "#shared/db/query.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
-import type { shipping } from "@dorado/contracts";
+import type { Carrier } from "@dorado/contracts";
 import type { Executor } from "#shared/db/executor.ts";
 
 const sql = sqlFrom(import.meta.dirname);
 
-export type CarrierRow = shipping.CarriersRow;
+export type CarrierRow = Carrier;
 
 export async function getAll(executor?: Executor): Promise<CarrierRow[]> {
   const { rows } = await query<CarrierRow>(sql("get_all"), [], executor);

@@ -1,6 +1,6 @@
+import type { Address } from "@dorado/contracts";
 import { Elements } from '@stripe/react-stripe-js'
 import { Stripe } from '@stripe/stripe-js'
-import { Address } from '@/features/addresses/types'
 import { createStripeAppearance } from '@/features/stripe/ui/appearance'
 import StripePaymentForm from '@/features/stripe/ui/StripePaymentForm'
 import type { ComponentProps } from 'react'

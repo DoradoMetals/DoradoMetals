@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { Direction } from '@dorado/contracts'
+import type { Direction } from "@dorado/contracts";
 
 interface CheckoutTabState {
   direction: Direction

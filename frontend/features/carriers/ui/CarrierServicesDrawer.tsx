@@ -132,7 +132,7 @@ function Details({ service, carriers }: { service: CarrierService; carriers: Car
 
       <div className="flex flex-col gap-2">
         <RadioGroup
-          value={service.carrier_id}
+          value={service.carrier_id ?? undefined}
           onValueChange={(id) => handlePatch({ carrier_id: id })}
           options={carriers}
           getValue={(c) => c.id}
@@ -411,7 +411,7 @@ function Flags({ service }: { service: CarrierService }) {
 }
 
 function Dev({ service }: { service: CarrierService }) {
-  const { data: services = [] } = useCarrierServicesByCarrier(service.carrier_id)
+  const { data: services = [] } = useCarrierServicesByCarrier(service.carrier_id ?? '')
 
   const updateService = useUpdateCarrierService()
   const handlePatch = (patch: Partial<CarrierService>) => {
