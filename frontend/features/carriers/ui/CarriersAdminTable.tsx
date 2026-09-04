@@ -1,7 +1,7 @@
 'use client'
 import { useState } from 'react'
+import { Rows3 } from '@dorado/icons'
 
-import { RowsPlusTopIcon } from '@phosphor-icons/react'
 import { Badge, Button, DataTable, type DataTableColumn } from '@dorado/components'
 
 import { useDrawerStore } from '@/shared/store/drawerStore'
@@ -109,7 +109,7 @@ export default function CarriersPage() {
               aria-label="Create Carrier"
               title="Create Carrier"
             >
-              <RowsPlusTopIcon size={28} />
+              <Rows3 size={28} />
             </Button>
             <AddNewDialog open={createOpen} onOpenChange={setCreateOpen} createConfig={createConfig} />
           </>

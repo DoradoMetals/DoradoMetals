@@ -1,10 +1,9 @@
 'use client'
 
 import { Button, Drawer } from '@dorado/components'
-import { Banknote, ChevronLeft, CircleUser, ContactRound, Lock, UserRoundX } from '@dorado/icons'
+import { Banknote, ChevronLeft, CircleUser, ContactRound, Lock, Store, UserRoundX } from '@dorado/icons'
 import { useRouter } from 'next/navigation'
 import { useMemo } from 'react'
-import { CashRegisterIcon } from '@phosphor-icons/react'
 import {
   SidebarLayout,
   SidebarSection,
@@ -86,7 +85,7 @@ function AccountShell() {
           {
             key: 'bought',
             label: 'Bought',
-            icon: CashRegisterIcon,
+            icon: Store,
             badge: salesOrders.length,
           },
         ],

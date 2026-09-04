@@ -1,8 +1,8 @@
 'use client'
 
 import { useMemo, useState } from 'react'
+import { Rows3 } from '@dorado/icons'
 
-import { RowsPlusTopIcon } from '@phosphor-icons/react'
 import { Badge, Button, DataTable, RadioGroup, RadioOption, type DataTableColumn } from '@dorado/components'
 import Image from 'next/image'
 
@@ -154,7 +154,7 @@ export default function CarrierServicesPage() {
               aria-label="Create Carrier Service"
               title="Create Carrier Service"
             >
-              <RowsPlusTopIcon size={28} />
+              <Rows3 size={28} />
             </Button>
             <AddNewDialog open={createOpen} onOpenChange={setCreateOpen} createConfig={createConfig} />
           </>

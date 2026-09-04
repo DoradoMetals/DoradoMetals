@@ -1,7 +1,6 @@
 import { z } from 'zod/v4'
 import { ReactNode } from 'react'
-import { BarbellIcon, IconProps } from '@phosphor-icons/react'
-import { Coins, Gem, Scale } from '@dorado/icons'
+import { Coins, Dumbbell, Gem, type IconProps, Scale } from '@dorado/icons'
 import { GoldIcon, SilverIcon, PlatinumIcon, PalladiumIcon } from '@/features/navigation/ui/Logo'
 
 export const scrapSchema = z.object({
@@ -157,7 +156,7 @@ export const weightOptions: WeightOption[] = [
   },
   {
     label: 'Pounds',
-    icon: BarbellIcon,
+    icon: Dumbbell,
     unit: 'lb',
     id: '4',
   },
