@@ -215,7 +215,8 @@ CREATE TABLE IF NOT EXISTS auth.users (
   banned boolean,
   "banReason" text,
   "banExpires" timestamp without time zone,
-  phone_number text
+  phone_number text,
+  "isAnonymous" boolean DEFAULT false NOT NULL
 );
 ALTER TABLE auth.users ADD COLUMN IF NOT EXISTS id uuid DEFAULT gen_random_uuid();
 ALTER TABLE auth.users ADD COLUMN IF NOT EXISTS email text;
@@ -231,6 +232,7 @@ ALTER TABLE auth.users ADD COLUMN IF NOT EXISTS banned boolean;
 ALTER TABLE auth.users ADD COLUMN IF NOT EXISTS "banReason" text;
 ALTER TABLE auth.users ADD COLUMN IF NOT EXISTS "banExpires" timestamp without time zone;
 ALTER TABLE auth.users ADD COLUMN IF NOT EXISTS phone_number text;
+ALTER TABLE auth.users ADD COLUMN IF NOT EXISTS "isAnonymous" boolean DEFAULT false;
 
 CREATE TABLE IF NOT EXISTS auth.verification (
   id uuid DEFAULT gen_random_uuid() NOT NULL,
@@ -3302,6 +3304,7 @@ CREATE INDEX IF NOT EXISTS employees_enabled_idx ON auth.employees USING btree (
 CREATE UNIQUE INDEX IF NOT EXISTS employees_user_uniq ON auth.employees USING btree (user_id);
 CREATE INDEX IF NOT EXISTS session_impersonatedby_idx ON auth.sessions USING btree ("impersonatedBy");
 CREATE INDEX IF NOT EXISTS session_userid_idx ON auth.sessions USING btree ("userId");
+CREATE INDEX IF NOT EXISTS users_anonymous_stale_idx ON auth.users USING btree ("updatedAt") WHERE "isAnonymous";
 CREATE INDEX IF NOT EXISTS verification_expiresat_idx ON auth.verification USING btree ("expiresAt");
 CREATE INDEX IF NOT EXISTS idx_fulfillment_directs_assigned_to ON fulfillments.directs USING btree (assigned_employee_id);
 CREATE INDEX IF NOT EXISTS idx_fulfillment_directs_fulfillment_id ON fulfillments.directs USING btree (fulfillment_id);
@@ -3477,6 +3480,11 @@ CREATE OR REPLACE FUNCTION auth.mirror_identity_to_exchange()
 AS $function$
 BEGIN
   IF pg_trigger_depth() > 1 THEN RETURN NEW; END IF;
+  -- A VISITOR IS NOT A CUSTOMER. An anonymous row never reaches exchange, and
+  -- an anonymous user never becomes a real one: signing up mints a SECOND user
+  -- and links to it (better-auth's anonymous plugin), so there is no
+  -- false -> true or true -> false transition to catch up on.
+  IF COALESCE(NEW."isAnonymous", false) THEN RETURN NEW; END IF;
   INSERT INTO exchange.users (
     id, email, name, "createdAt", "updatedAt", "emailVerified",
     image, role, "stripeCustomerId", dorado_funds, banned, "banReason", "banExpires"
@@ -3492,9 +3500,8 @@ BEGIN
     image = EXCLUDED.image, role = EXCLUDED.role,
     "stripeCustomerId" = EXCLUDED."stripeCustomerId", banned = EXCLUDED.banned,
     "banReason" = EXCLUDED."banReason", "banExpires" = EXCLUDED."banExpires";
-    -- dorado_funds DELIBERATELY absent: exchange owns it. The INSERT above
-    -- seeds a NEW user's balance at 0; an existing row's balance is never
-    -- touched from this side - that is the $1000 bug, direction-proofed.
+    -- dorado_funds DELIBERATELY absent: 118 made auth the owner and this side
+    -- has never written it. The INSERT above seeds a NEW user's balance at 0.
   RETURN NEW;
 END;
 $function$;
@@ -3504,8 +3511,15 @@ CREATE OR REPLACE FUNCTION auth.mirror_session_to_exchange()
  LANGUAGE plpgsql
  SECURITY DEFINER
 AS $function$
+DECLARE
+  anon boolean;
 BEGIN
   IF pg_trigger_depth() > 1 THEN RETURN NEW; END IF;
+  SELECT COALESCE(u."isAnonymous", false) INTO anon
+    FROM auth.users u WHERE u.id = NEW."userId";
+  -- No exchange.users row exists for a visitor, and exchange.session."userId"
+  -- points at one. A visitor's session lives only in auth.sessions.
+  IF COALESCE(anon, false) THEN RETURN NEW; END IF;
   INSERT INTO exchange.session (
     id, "userId", token, "expiresAt", "ipAddress", "userAgent",
     "createdAt", "updatedAt", "impersonatedBy"

@@ -20,7 +20,7 @@
 //   4. Ids are minted, readable and file-scoped - see builders/ids.ts.
 export { anId, aTag } from "#shared/testing/builders/ids.ts";
 export * from "#shared/testing/builders/reference.ts";
-export { aUser, anAdmin, type BuiltUser } from "#shared/testing/builders/users.ts";
+export { aUser, anAdmin, aVisitor, type BuiltUser } from "#shared/testing/builders/users.ts";
 export { anAddress, type BuiltAddress } from "#shared/testing/builders/places.ts";
 export { aProduct, type BuiltProduct } from "#shared/testing/builders/products.ts";
 export { anOrder, aStatus, type BuiltOrder } from "#shared/testing/builders/orders.ts";

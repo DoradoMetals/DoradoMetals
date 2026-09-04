@@ -26,7 +26,7 @@ const withEnv = <T>(values: Record<string, string | undefined>, fn: () => T): T 
 test("the jobs are declared, and not invoked by reading them", () => {
   // The abandonment sweep (cancel + refund) is deliberately NOT scheduled here — it moves money and lives behind reconcile:payments --commit and a human.
   const names = jobs().map((j) => j.name);
-  assert.deepEqual(names, ["spot prices", "settle paid orders"]);
+  assert.deepEqual(names, ["spot prices", "anonymous visitors", "settle paid orders"]);
   for (const job of jobs()) {
     assert.equal(typeof job.run, "function", `${job.name} has something to run`);
   }

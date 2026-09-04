@@ -1,8 +1,7 @@
 import { useMutation } from '@tanstack/react-query'
 import { usePlaceOrder } from '@dorado/client'
 import { apiRequest } from '@/shared/queries/axios'
-import { useCheckoutItems } from '@/shared/store/checkoutItemsStore'
-import { useReplaceCheckoutItems } from '@/features/checkout/items/queries'
+import { useBasket, useReplaceCheckoutItems } from '@/features/checkout/items/queries'
 import { usePaymentMethods } from '@/features/payments/queries'
 import { useSaleShippingServices } from '@/features/shipping/queries'
 import type { SaleCheckoutForm } from '@/features/orders/salesOrders/types'
@@ -19,12 +18,15 @@ import type { SaleCheckoutForm } from '@/features/orders/salesOrders/types'
 export const useCreateSalesOrder = () => {
   const { data: saleMethods = [] } = usePaymentMethods('sale')
   const { data: saleServices = [] } = useSaleShippingServices()
+  const lines = useBasket('sale')
   const syncItems = useReplaceCheckoutItems('sale')
   const place = usePlaceOrder()
 
   return useMutation({
     mutationFn: async ({ sales_order }: { sales_order: SaleCheckoutForm }) => {
-      await syncItems.mutateAsync({ lines: useCheckoutItems.getState().sale })
+      // The rows the server already holds, re-PUT so the basket is exactly
+      // what the order is about to be built from.
+      await syncItems.mutateAsync({ lines })
 
       const { id: checkout_id } = await apiRequest<{ id: string }>('PATCH', '/checkout', {
         direction: 'sale',

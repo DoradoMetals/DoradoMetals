@@ -5,8 +5,10 @@
 // no-previews ruling), fetched by the checkout and passed down as a prop.
 // What is pinned survived the switch: the basket's items render by name (the
 // catalogue read supplies the flair, by bullion_id), the order total renders
-// from the prop, and removing an item goes through the checkout items store.
-// The fixture speaks the contract's field names and nothing else does.
+// from the prop, and removing an item WRITES THE SERVER'S BASKET - there is no
+// browser store behind it any more (ruling 63), so `stubCheckoutServer` stands
+// in for /checkout/items and the assertion is about the rows the API was told
+// to hold. The fixture speaks the contract's field names and nothing else does.
 import { describe, expect, test, vi, beforeEach } from "vitest";
 import { screen, waitFor } from "@testing-library/react";
 import { renderWithClient } from "@/shared/tests/renderWithClient";
@@ -16,6 +18,9 @@ import React from "react";
 vi.mock("@/shared/queries/axios", () => ({ apiRequest: vi.fn() }));
 vi.mock("@/features/auth/queries", () => ({
   useGetSession: () => ({ user: { id: "u-1", role: "user", name: "Cust" } }),
+}));
+vi.mock("@/features/auth/authClient", () => ({
+  useUser: () => ({ user: { id: "u-1" }, session: null, error: null, isPending: false }),
 }));
 vi.mock("next/image", () => ({
   default: (props: Record<string, unknown>) =>
@@ -33,7 +38,7 @@ vi.mock("@/shared/ui/PriceNumberFlow", () => ({
 }));
 
 import { apiRequest } from "@/shared/queries/axios";
-import { useCheckoutItems } from "@/shared/store/checkoutItemsStore";
+import { stubCheckoutServer, type CheckoutServer } from "@/shared/tests/checkoutServer";
 import OrderSummary from "@/features/checkout/sales-order-checkout/summary/orderSummary";
 import type { SalesOrderQuote } from "@dorado/contracts";
 import type { Product } from "@/features/products/types";
@@ -95,8 +100,11 @@ beforeEach(() => {
     ] as never;
   });
   localStorage.clear();
-  useCheckoutItems.setState({ sale: [{ id: "p-1", bullion_id: "p-1", quantity: 1 }], purchase: [] });
+  checkout = stubCheckoutServer();
+  checkout.seed("sale", [{ bullion_id: "p-1", quantity: 1 }]);
 });
+
+let checkout: CheckoutServer;
 
 describe("the sales-order summary", () => {
   test("the basket's items render by name with the order total", async () => {
@@ -106,7 +114,7 @@ describe("the sales-order summary", () => {
     await waitFor(() => expect(screen.getAllByText("4714.57").length).toBeGreaterThan(0));
   });
 
-  test("removing an item goes through the checkout items store", async () => {
+  test("removing an item writes the server's basket", async () => {
     const { container } = renderWithClient(<OrderSummary orderPrices={prices()} />);
     await waitFor(() => expect(screen.getByText("Gold American Eagle")).toBeDefined());
     // lucide's class spelling for Trash2 varies by version; match loosely.
@@ -115,6 +123,6 @@ describe("the sales-order summary", () => {
     );
     expect(trash).toBeTruthy();
     await userEvent.click(trash as HTMLElement);
-    expect(useCheckoutItems.getState().sale).toHaveLength(0);
+    await waitFor(() => expect(checkout.lines("sale")).toHaveLength(0));
   });
 });

@@ -10,7 +10,6 @@ import { formatPickupDateShort, formatPickupTime, formatTimeDiff } from '@/share
 import ItemTables from './itemTable'
 import { useAddress, useUserAddresses } from '@/features/addresses/queries'
 import { useOfferedPackages, usePlaceOrderFromCheckout } from '@/features/checkout/queries'
-import { useCheckoutItems as useLocalBasket } from '@/shared/store/checkoutItemsStore'
 import { usePayoutDraft } from '@/features/checkout/purchase-order-checkout/payoutStep/payoutDraft'
 import { DetailRow } from '@/shared/ui/DetailRow'
 
@@ -135,8 +134,10 @@ export default function ReviewStep({
           setMessage(null)
           placeOrder.mutate(undefined, {
             onSuccess: () => {
+              // The basket is emptied by the placement itself (place.ts clears
+              // the purchase basket after the label is bought), and the client
+              // package invalidates the query - so nothing here clears rows.
               startTransition(() => router.push('/order-placed'))
-              useLocalBasket.getState().clear('purchase')
               clearPayout()
             },
             onError: (err) =>

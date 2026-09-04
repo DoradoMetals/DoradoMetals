@@ -9,8 +9,7 @@ import { RadioGroupRoot, RadioOption } from '@/shared/ui/RadioGroup'
 import { FloatingButton, FloatingButtonItem } from '@/features/products/ui/FloatingButton'
 
 import { useState } from 'react'
-import { useCheckoutItems } from '@/shared/store/checkoutItemsStore'
-import { useCheckoutItemActions } from '@/features/checkout/items/queries'
+import { useBasket, useCheckoutItemActions } from '@/features/checkout/items/queries'
 import { lineFromProduct } from '@/features/checkout/items/types'
 
 import { PopoverContent, PopoverTrigger } from '@/shared/ui/base/popover'
@@ -48,7 +47,7 @@ export default function ProductCard({ product, variants, unitPrices }: ProductCa
   const [isBeginning, setIsBeginning] = useState(true)
   const [isEnd, setIsEnd] = useState(false)
 
-  const items = useCheckoutItems((state) => state.sale)
+  const items = useBasket('sale')
   const { addItem, removeOne } = useCheckoutItemActions()
 
   const quantity = items.find((i) => i.bullion_id === selectedProduct.id)?.quantity ?? 0

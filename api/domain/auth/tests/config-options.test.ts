@@ -80,12 +80,22 @@ test("every option this codebase sets is one better-auth has heard of", () => {
   // The option objects this codebase hands to betterAuth(), by the path they
   // sit at. Nested deliberately rather than walked wholesale: `additionalFields`
   // holds OUR column names, which better-auth has correctly never heard of.
+  const anonymousPlugin = options.plugins.find((p) => p.id === "anonymous");
+  assert.ok(anonymousPlugin, "the anonymous plugin is mounted (ruling 63)");
+
   const configured = {
     "user.changeEmail": options.user.changeEmail,
     session: { cookieCache: options.session.cookieCache },
     emailAndPassword: options.emailAndPassword,
     emailVerification: options.emailVerification,
     advanced: options.advanced,
+    // A PLUGIN'S OPTIONS ARE OPTIONS TOO, and are exactly as easy to misspell -
+    // better-auth reads them off the object it was handed and a key it has
+    // never heard of is a key nobody reads. `emailDomainName`,
+    // `onLinkAccount` and `disableDeleteAnonymousUser` are the three ruling 63
+    // depends on; a typo in the last one would silently put the visitor's
+    // deletion back inside a customer's sign-in.
+    "plugins.anonymous": anonymousPlugin.options,
   };
 
   const unknown = [];

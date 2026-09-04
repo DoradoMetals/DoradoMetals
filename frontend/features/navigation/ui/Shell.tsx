@@ -4,7 +4,7 @@ import Link from 'next/link'
 import NavLink from '@/shared/ui/NavLink'
 import { usePathname } from 'next/navigation'
 import { useDrawerStore } from '@/shared/store/drawerStore'
-import { useCheckoutItems } from '@/shared/store/checkoutItemsStore'
+import { useBasket } from '@/features/checkout/items/queries'
 
 import { Button } from '@dorado/components'
 import { MenuIcon } from '@/features/navigation/ui/NavIcon'
@@ -26,8 +26,9 @@ export default function Shell() {
 
   const { activeDrawer, openDrawer, closeDrawer } = useDrawerStore()
   const isAnyDrawerOpen = !!activeDrawer
-  const items =
-    useCheckoutItems((state) => state.sale.length) + useCheckoutItems((state) => state.purchase.length)
+  // The badge counts the SERVER's basket, for a visitor as much as for a
+  // customer (ruling 63) - there is no browser copy to count any more.
+  const items = useBasket('sale').length + useBasket('purchase').length
 
   const menuItems = Object.entries(protectedRoutes)
     .filter(([_, route]) => route.desktopDisplay)

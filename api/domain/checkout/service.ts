@@ -13,6 +13,7 @@
 // placed. The browser renders those fields; it does not compute them.
 import withTransaction from "#shared/db/withTransaction.ts";
 import {
+  anonymousUsers,
   checkouts,
   checkoutItems,
   metals,
@@ -132,6 +133,29 @@ export async function resolveSubject(
   return target.id;
 }
 
+// WHAT A VISITOR MAY NOT DO (ruling 63). An anonymous better-auth user is an
+// ordinary subject everywhere above: they build a basket, save an address,
+// choose a box, get live rates and see priced quotes, all on the same rows and
+// the same code as a customer. Two things need a real account, and both for the
+// same reason - they create something that OUTLIVES the session and cannot be
+// re-done:
+//
+//   PLACING AN ORDER. It takes money, buys a label and is a permanent record
+//   against a person. An order owned by a throwaway identity the sweep deletes
+//   in seven days is a lost order.
+//
+//   SAVING A PAYOUT ACCOUNT. Bank numbers are sealed at rest against a user id
+//   (payments/details, D210). Sealing a customer's account details to an
+//   identity that is about to be deleted is worse than refusing.
+//
+// It is a FORBIDDEN, not a 401: the caller has a perfectly good session, and
+// the UI turns this into the sign-in prompt rather than a logged-out state.
+export async function assertRealAccount(user_id: string, action: string): Promise<void> {
+  if (await anonymousUsers.isAnonymous(user_id)) {
+    throw new Forbidden(`sign in to ${action}`);
+  }
+}
+
 export async function getCheckout(
   user_id: string, direction: Direction
 ): Promise<CheckoutView> {
@@ -240,6 +264,7 @@ export async function saveCheckoutPayout(
   if (direction !== "purchase") {
     throw new Invalid("the payout step belongs to the purchase checkout");
   }
+  await assertRealAccount(user_id, "save a payout account");
   return await withTransaction(async (client) => {
     const row = await ensure(user_id, direction, client);
     const saved = await payoutDetails.saveCheckoutPayout(

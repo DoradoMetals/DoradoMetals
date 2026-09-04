@@ -6,8 +6,7 @@ import { useRouter } from 'next/navigation'
 import { loadStripe } from '@stripe/stripe-js'
 import { ShoppingCartIcon } from '@phosphor-icons/react'
 
-import { useBasket } from '@/features/checkout/items/queries'
-import { useCheckoutItems as useLocalBasket } from '@/shared/store/checkoutItemsStore'
+import { useBasket, useClearCheckoutItems } from '@/features/checkout/items/queries'
 import ShippingSelect from './shipping/shippingSelect'
 import { useGetSession } from '@/features/auth/queries'
 import { useRetrievePaymentIntent } from '@/features/stripe/queries'
@@ -51,9 +50,14 @@ export default function SalesOrderCheckout() {
   // for a card to do.
   const cardNeeded = !quote || quote.beginning_funds < quote.base_total
 
+  // The basket the order was built from is emptied SERVER-side - there is no
+  // browser copy to clear (ruling 63). The purchase side does this in the use
+  // case itself; the sale side does not, so the surface asks.
+  const clearBasket = useClearCheckoutItems('sale')
+
   const finishCheckout = () => {
     startTransition(() => router.push('/order-placed'))
-    useLocalBasket.getState().clear('sale')
+    clearBasket.mutate()
   }
 
   const place = async () => {

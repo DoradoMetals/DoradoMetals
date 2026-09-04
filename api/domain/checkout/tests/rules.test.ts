@@ -7,7 +7,10 @@
 import { test } from "vitest";
 import assert from "node:assert/strict";
 import type { Checkout } from "@dorado/contracts";
-import { addressColumnFor, checkoutState, handoffFor, methodTypeFor } from "#domain/checkout/rules.ts";
+import {
+  addressColumnFor, checkoutState, handoffFor, methodTypeFor,
+  CHOICE_COLUMNS, mergeChoices,
+} from "#domain/checkout/rules.ts";
 
 const row = (over: Partial<Checkout> = {}): Checkout =>
   ({
@@ -148,4 +151,54 @@ test("a handoff and its fulfillment method round-trip", () => {
   // A method that is not a carrier handoff at all - PICKUP, APPOINTMENT -
   // resolves to no handoff rather than to the first one in the list.
   assert.equal(handoffFor([dropoff, collect], "APPOINTMENT"), null);
+});
+
+// ------------------------------------------- the merge a sign-in performs
+
+// Ruling 63: a visitor's choices win where they made one, the customer's saved
+// answers survive where the visitor has none. The patch is what gets applied to
+// the row that SURVIVES, which is the customer's.
+
+test("the visitor's choices win where the visitor made one", () => {
+  const patch = mergeChoices(
+    { package_id: "visitor-box", carrier_service_id: "visitor-service" },
+    { package_id: "saved-box", carrier_service_id: null }
+  );
+  assert.equal(patch.package_id, "visitor-box");
+  assert.equal(patch.carrier_service_id, "visitor-service");
+});
+
+test("the customer's saved answer survives where the visitor has none", () => {
+  const patch = mergeChoices(
+    { package_id: null, shipper_address_id: "visitor-address" },
+    { package_id: "saved-box", shipper_address_id: null }
+  );
+  // Not named at all: it already holds the winning value, and a merge that
+  // rewrote every column would make signing in look like a full row update.
+  assert.ok(!("package_id" in patch), "an unchanged column is not in the patch");
+  assert.equal(patch.shipper_address_id, "visitor-address");
+});
+
+test("a merge with nothing to say writes nothing", () => {
+  assert.deepEqual(mergeChoices({}, {}), {});
+  assert.deepEqual(mergeChoices({ package_id: "same" }, { package_id: "same" }), {});
+});
+
+test("a visitor who chose nothing cannot blank a saved choice", () => {
+  // The failure this pins: `anonymous[column] ?? real[column]` written as
+  // `anonymous[column]` would clear every answer the customer had saved, and
+  // the symptom - a checkout that resets itself on sign-in - reads like a bug
+  // in the stepper rather than in the merge.
+  const saved = Object.fromEntries(CHOICE_COLUMNS.map((c) => [c, `saved-${c}`]));
+  assert.deepEqual(mergeChoices({}, saved), {});
+});
+
+test("every column a step writes is in the merge's subject", () => {
+  // The list is `checkouts.PATCHABLE` restated (rules.ts says why it is not
+  // imported). tests/adopt.test.ts pins the two equal against the repo; this
+  // half pins the shape, so a typo in one entry fails without a database.
+  assert.equal(new Set(CHOICE_COLUMNS).size, CHOICE_COLUMNS.length, "no duplicates");
+  for (const column of CHOICE_COLUMNS) {
+    assert.ok(column in row(), `${column} is a column of the checkout row`);
+  }
 });

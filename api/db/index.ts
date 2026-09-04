@@ -46,3 +46,4 @@ export * as tracking from "#db/shipping/tracking/repo.ts";
 export * as spots from "#db/spots/repo.ts";
 export * as transactions from "#db/transactions/repo.ts";
 export * as users from "#db/users/repo.ts";
+export * as anonymousUsers from "#db/users/anonymous/repo.ts";

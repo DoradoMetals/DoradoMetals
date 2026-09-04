@@ -20,6 +20,7 @@ export const User = z.object({
   "banReason": z.string().nullable(),
   "banExpires": z.string().nullable(),
   "phone_number": z.string().nullable(),
+  "isAnonymous": z.boolean(),
 });
 export type User = z.infer<typeof User>;
 // generated:end
