@@ -34,4 +34,32 @@ describe("Input", () => {
     const input = container.querySelector("input") as HTMLInputElement;
     expect(input.className).toContain("disabled:text-foreground-disabled");
   });
-});
+
+  it("a number field hides its spinners and asks for the decimal keypad", () => {
+    const { getByLabelText } = render(<Input label="Weight" type="number" />)
+    const el = getByLabelText("Weight") as HTMLInputElement
+    expect(el.getAttribute("inputmode")).toBe("decimal")
+    expect(el.className).toContain("[&::-webkit-inner-spin-button]:appearance-none")
+    expect(el.className).toContain("[-moz-appearance:textfield]")
+  })
+
+  it("a text field gets neither", () => {
+    const { getByLabelText } = render(<Input label="Name" />)
+    const el = getByLabelText("Name") as HTMLInputElement
+    expect(el.getAttribute("inputmode")).toBeNull()
+    expect(el.className).not.toContain("appearance-none")
+  })
+
+  it("an explicit inputMode still wins", () => {
+    const { getByLabelText } = render(<Input label="Pin" type="number" inputMode="numeric" />)
+    expect((getByLabelText("Pin") as HTMLInputElement).getAttribute("inputmode")).toBe("numeric")
+  })
+
+  it("inputClassName reaches the control, className stays on the wrapper", () => {
+    const { getByLabelText, container } = render(
+      <Input label="Qty" inputClassName="h-6 text-right" className="w-16" />,
+    )
+    expect((getByLabelText("Qty") as HTMLInputElement).className).toContain("h-6")
+    expect((container.firstElementChild as HTMLElement).className).toContain("w-16")
+  })
+})

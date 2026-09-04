@@ -12,13 +12,21 @@ export type InputProps = Omit<React.InputHTMLAttributes<HTMLInputElement>, "size
   leading?: React.ReactNode;
   trailing?: React.ReactNode;
   className?: string;
+  inputClassName?: string;
 };
 
+const NUMBER_FIELD =
+  "[&::-webkit-outer-spin-button]:m-0 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:m-0 [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]";
+
 export const Input = React.forwardRef<HTMLInputElement, InputProps>(
-  ({ label, message, invalid, success, leading, trailing, className, id, disabled, ...props }, ref) => {
+  (
+    { label, message, invalid, success, leading, trailing, className, inputClassName, id, disabled, type, inputMode, ...props },
+    ref
+  ) => {
     const autoId = React.useId();
     const inputId = id ?? autoId;
     const messageId = `${inputId}-message`;
+    const isNumber = type === "number";
 
     return (
       <div className={cn("flex w-full flex-col gap-0.5", className)}>
@@ -42,7 +50,13 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
             disabled={disabled}
             aria-invalid={invalid || undefined}
             aria-describedby={message != null ? messageId : undefined}
-            className="min-w-0 flex-1 bg-transparent text-body text-foreground outline-none placeholder:text-placeholder disabled:cursor-not-allowed disabled:text-foreground-disabled"
+            type={type}
+            inputMode={inputMode ?? (isNumber ? "decimal" : undefined)}
+            className={cn(
+              "min-w-0 flex-1 bg-transparent text-body text-foreground outline-none placeholder:text-placeholder disabled:cursor-not-allowed disabled:text-foreground-disabled",
+              isNumber && NUMBER_FIELD,
+              inputClassName
+            )}
             {...props}
           />
           {trailing != null && (
