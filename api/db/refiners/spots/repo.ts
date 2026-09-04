@@ -7,7 +7,8 @@ import query from "#shared/db/query.ts";
 import { buildUpdate } from "#shared/db/patch.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
 import type { Executor } from "#shared/db/executor.ts";
-import type { RefinerSpot } from "@dorado/contracts";
+import { columnsOf } from "#shared/db/columns.ts";
+import { RefinerSpot } from "@dorado/contracts";
 
 const sql = sqlFrom(import.meta.dirname);
 
@@ -120,7 +121,9 @@ export async function createMany(
 }
 
 // Keyed on (order_id, metal_id): every caller holds that pair, never this table's own id — which is why buildUpdate takes a `where` map, a spot being one metal on one order.
-export const PATCHABLE = ["bid"] as const;
+// THE COLUMN, FROM THE CONTRACT (ruling 64) - the refinery's bid, and nothing
+// else on the cover row.
+export const PATCHABLE = columnsOf(RefinerSpot.pick({ bid: true }));
 
 export type SpotPatch = Partial<Pick<RefinerSpot, (typeof PATCHABLE)[number]>>;
 

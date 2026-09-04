@@ -40,13 +40,11 @@ import { retierPremiums } from "#domain/orders/service.ts";
 
 import withTransaction from "#shared/db/withTransaction.ts";
 import { attempt } from "#shared/attempt.ts";
-import { Conflict, Invalid, NotFound } from "#shared/errors.ts";
 import type { NewOrderItem } from "#db/orders/items/repo.ts";
 import type { NewOrderTotals } from "#db/orders/transactions/repo.ts";
-import type { CheckoutRow } from "#db/checkout/checkouts/repo.ts";
 import type { AddressRow } from "#db/places/addresses/repo.ts";
 import type { SpotWire } from "#domain/spots/compose.ts";
-import type { OrderView } from "@dorado/contracts";
+import type { Checkout, OrderView } from "@dorado/contracts";
 import type { Postage } from "#domain/orders/postage.ts";
 
 export type { Postage } from "#domain/orders/postage.ts";
@@ -71,7 +69,7 @@ export const LIVE: World = {
 
 export async function place(checkout_id: string, world: World = LIVE): Promise<OrderView> {
   const checkout = await checkoutService.getRowById(checkout_id);
-  if (!checkout) throw new NotFound(`no checkout ${checkout_id}`);
+  rules.assertCheckout(checkout, checkout_id);
   // A VISITOR MAY SHOP AND MAY NOT BUY (ruling 63). The subject is the
   // CHECKOUT ROW's owner rather than the request's caller, because that is who
   // the order would belong to - an admin placing a customer's checkout is
@@ -85,7 +83,7 @@ export async function place(checkout_id: string, world: World = LIVE): Promise<O
       : await placePurchase(checkout, cart, world);
 
   const order = await orderRead.view(order_id);
-  if (!order) throw new Error(`order ${order_id} was placed and cannot be read back`);
+  rules.assertPlacedOrder(order, order_id);
   return order;
 }
 
@@ -95,7 +93,7 @@ export async function place(checkout_id: string, world: World = LIVE): Promise<O
 // here computes.
 async function writeOrder(
   { order_id, checkout, status, lines, totals, spots }: {
-    order_id: string; checkout: CheckoutRow; status: string;
+    order_id: string; checkout: Checkout; status: string;
     lines: NewOrderItem[]; totals: NewOrderTotals; spots: SpotWire[];
   },
   tx: PoolClient
@@ -116,7 +114,7 @@ async function writeOrder(
 // COPYING IS THE WHOLE POINT: editing a book entry afterwards must not rewrite
 // where a parcel was sent, and deleting one must not take the record away.
 async function snapshotAddress(
-  order_id: string, checkout: CheckoutRow, tx: PoolClient
+  order_id: string, checkout: Checkout, tx: PoolClient
 ): Promise<void> {
   const source_address_id =
     checkout.shipper_address_id ?? checkout.recipient_address_id ?? checkout.pickup_address_id;
@@ -136,7 +134,7 @@ async function snapshotAddress(
 // this request's error, and orders.buyLabel (POST /api/orders/:id/label) is
 // the retry surface for the shipment it left behind.
 async function placePurchase(
-  checkout: CheckoutRow, cart: rules.CheckoutLine[], world: World
+  checkout: Checkout, cart: rules.CheckoutLine[], world: World
 ): Promise<string> {
   const placeable = rules.assertPlaceableAsPurchase(checkout, cart);
   const draft = rules.requireFreeShipmentDraft(
@@ -145,7 +143,7 @@ async function placePurchase(
   const service = await carrierServices.labelServiceFor(placeable.carrier_service_id);
   const box = await packagesRepo.getOne(placeable.package_id);
   const weight = shippingRules.parcelWeightLb(cart, box);
-  if (!(weight > 0)) throw new Invalid("the parcel needs a weight");
+  rules.assertWeight(weight);
   const declaredValue = await carrierServices.clampInsuredValue(
     shippingRules.declaredValue(await checkoutService.purchaseTotal(checkout.id)),
     service.serviceType
@@ -195,7 +193,7 @@ async function placePurchase(
 // CREATE-THEN-CHARGE: the order exists before money moves - the old ordering
 // left a paid customer with no order (D179).
 async function placeSale(
-  checkout: CheckoutRow, cart: rules.CheckoutLine[], world: World
+  checkout: Checkout, cart: rules.CheckoutLine[], world: World
 ): Promise<string> {
   const placeable = rules.assertPlaceableAsSale(checkout, cart);
   const address = rules.requireAddress(
@@ -260,23 +258,13 @@ async function placeSale(
 async function openIntentFor(
   user_id: string, cents: number
 ): Promise<{ payment_intent_id: string; settled: boolean }> {
-  if (rules.belowStripeMinimum(cents)) {
-    throw new Invalid("the amount left to charge is below Stripe's $0.50 minimum");
-  }
+  rules.assertAboveStripeMinimum(cents);
   const intent = await intentsRepo.findOpenForUser(user_id);
-  if (!intent) {
-    throw new Invalid(
-      "this order has a card charge and the customer has no open payment intent"
-    );
-  }
-  if (intent.payment_status === "canceled") {
-    throw new Conflict("that payment intent was cancelled - start checkout again");
-  }
+  rules.assertOpenIntent(intent);
+  rules.assertIntentLive(intent.payment_status);
 
   const verdict = rules.attachmentVerdict(intent);
-  if (verdict === "conflict") {
-    throw new Conflict("that payment intent already belongs to an order");
-  }
+  rules.assertAttachable(verdict);
   const superseded = verdict === "supersede" ? intent.order_id : null;
   if (superseded) {
     // An abandoned checkout is SUPERSEDED, not refused: the intent is reused
@@ -292,12 +280,7 @@ async function openIntentFor(
   }
   // A settled, unattached intent is D179 wreckage arriving to be repaired: the
   // money is real, so the order is born paid IF the amount still matches.
-  if (!rules.repairAmountMatches(intent.amount, cents)) {
-    throw new Conflict(
-      `payment ${intent.payment_intent_id} was taken at a different price than this ` +
-        `order totals now - contact support with that reference`
-    );
-  }
+  rules.assertRepairable(intent, cents);
   const settled = intent.payment_status === "succeeded";
   return { payment_intent_id: intent.payment_intent_id, settled };
 }

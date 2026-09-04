@@ -11,8 +11,10 @@
 import query from "#shared/db/query.ts";
 import { buildUpdate } from "#shared/db/patch.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
-import type { PaymentDetails, PaymentDetailsPatch } from "@dorado/contracts";
+import type { PaymentDetails } from "@dorado/contracts";
 import type { Executor } from "#shared/db/executor.ts";
+import { columnsOf } from "#shared/db/columns.ts";
+import { PaymentDetailsPatch } from "@dorado/contracts";
 
 const sql = sqlFrom(import.meta.dirname);
 
@@ -37,11 +39,11 @@ export type SealedDetailRow = Pick<
 // is what lets the service build one payload and pass it through to either.
 // user_id and id are not here: an account does not change hands, and the id is
 // the key.
-export const PATCHABLE = [
-  "method_id", "account_holder", "bank_name", "account_type", "card_brand",
-  "last_four", "routing_last_four", "email_to", "provider", "provider_ref",
-  "routing_number_encrypted", "account_number_encrypted", "encryption_key_id",
-] as const;
+// THE COLUMNS, FROM THE CONTRACT (ruling 64) - `PaymentDetailsPatch` without
+// the id (the key) and the user (an account does not change hands). The
+// plaintext routing_number/account_number columns are not on that patch at
+// all, which is the point: only the sealed envelopes are writable.
+export const PATCHABLE = columnsOf(PaymentDetailsPatch.omit({ id: true, user_id: true }));
 
 export async function getOne(id: string, executor?: Executor): Promise<DetailRow | undefined> {
   const { rows } = await query<DetailRow>(sql("get_one"), [id], executor);

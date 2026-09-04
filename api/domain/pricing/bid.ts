@@ -35,7 +35,7 @@
 // Migration 087 had to clean up rows where content reached the wire as the
 // string "NaN"; a total that cannot be computed must stop here, not print on a
 // document a customer is paid against.
-import { Invalid } from "#shared/errors.ts";
+import * as rules from "#domain/pricing/rules.ts";
 import type { OrderView, OrderViewItem } from "@dorado/contracts";
 
 
@@ -55,27 +55,6 @@ export function inboundShipment(view: OrderView): OrderView["shipments"][number]
   return view.shipments.find((s) => s.direction !== "Return") ?? null;
 }
 
-// Split by MEANING, not by nullishness: an ABSENT fee is 0 (no payout row means
-// no fee - that is data, not a waiver), and a value that arrived and cannot
-// become a number THROWS. `baseTotal - shipping - order.payout.cost` once
-// defended one subtrahend and not the other, so a payout object with no `cost`
-// key produced NaN all the way to the invoice.
-function fee(value: unknown, what: string): number {
-  if (value == null) return 0;
-  const n = Number(value);
-  if (!Number.isFinite(n)) {
-    throw new TypeError(`${what} is not a number: ${String(value)}`);
-  }
-  return n;
-}
-
-function finite(total: number, what: string): number {
-  if (!Number.isFinite(total)) {
-    throw new TypeError(`${what} did not come out as a number (${String(total)})`);
-  }
-  return total;
-}
-
 // THE WAIVER IS A FLAG AND THE FEE IS A RECORD (D117): waiving does not
 // overwrite `cost`, so un-waiving does not have to guess what it was.
 //
@@ -92,7 +71,7 @@ export function effectivePayoutFee(order: {
 }): number {
   if (order.waive_payout_fee === true) return 0;
   if (order.totals?.waive_payout_fee === true) return 0;
-  return fee(order.payout?.cost, "the payout fee");
+  return rules.feeOf(order.payout?.cost, "the payout fee");
 }
 
 // The line's own content, and only the line's. Migration 120 backfilled the
@@ -105,13 +84,7 @@ export function recordedContent(line: OrderViewItem): number | null {
 export function unitContent(line: OrderViewItem): number {
   const content = recordedContent(line);
   if (content == null) {
-    // A bullion line with no content is corrupt data (migration 120 backfilled
-    // every row that legitimately lacked one) - REFUSE rather than price at
-    // zero. A scrap line's content is absent only when nobody has weighed the
-    // parcel yet, which is a real state and prices at 0.
-    if (line.bullion_id !== null) {
-      throw new Invalid(`line ${line.id} has no recorded content`);
-    }
+    rules.assertRecordedContent(line);
     return 0;
   }
   // UNREADABLE IS NaN, deliberately. Migration 087 had to clean up rows whose
@@ -133,11 +106,7 @@ export function unitsOf(line: OrderViewItem): number {
 // metal times the quote times the premium the line carries.
 export function unitPrice(line: OrderViewItem, bids: Bids): number {
   if (line.price != null) return line.price;
-  if (!bids.has(line.metal_id)) {
-    throw new TypeError(
-      `no quote for metal ${line.metal_id}, so line ${line.id} cannot be priced`
-    );
-  }
+  rules.assertQuoted(bids, line);
   return unitContent(line) * ((bids.get(line.metal_id) ?? 0) * (line.premium ?? 0));
 }
 
@@ -164,13 +133,17 @@ export function bullionLines(lines: OrderViewItem[]): OrderViewItem[] {
 // point - the asymmetry between them is how the NaN got in.
 export function calculateTotalPrice(view: OrderView, bids: Bids): number {
   const metal = itemsTotal(view.items, bids);
-  const shipping = fee(inboundShipment(view)?.cost, "the shipping charge");
-  return finite(metal - shipping - effectivePayoutFee(view), "the order total");
+  const shipping = rules.feeOf(inboundShipment(view)?.cost, "the shipping charge");
+  const total = metal - shipping - effectivePayoutFee(view);
+  rules.assertFinite(total, "the order total");
+  return total;
 }
 
 // WHAT THE RETURN PARCEL IS INSURED FOR: the metal, and neither fee. A return
 // is insured for what the metal is worth, and a NaN here posts a customer's
 // metal back uninsured.
 export function calculateReturnDeclaredValue(view: OrderView, bids: Bids): number {
-  return finite(itemsTotal(view.items, bids), "the return declared value");
+  const total = itemsTotal(view.items, bids);
+  rules.assertFinite(total, "the return declared value");
+  return total;
 }

@@ -29,23 +29,21 @@ const aRateRow = async (c: PoolClient) =>
     c
   );
 
-test("update writes a real rate band and answers true", async () => {
+test("update writes a real rate band and answers the written row", async () => {
   await inRollback(async (c: PoolClient) => {
     const row = await aRateRow(c);
 
-    const changed = await rates.update(row.id, { scrap_pct: 0.88, max_qty: null }, c);
-    assert.equal(changed, true, "update reported no row changed");
-
-    const after = await rates.getOne(row.id, c);
-    assert.equal(Number(after?.scrap_pct), 0.88);
-    assert.equal(after?.max_qty, null, "max_qty was not cleared to open-ended");
+    const written = await rates.update(row.id, { scrap_pct: 0.88, max_qty: null }, c);
+    assert.equal(Number(written?.scrap_pct), 0.88);
+    assert.equal(written?.max_qty, null, "max_qty was not cleared to open-ended");
+    assert.deepEqual(written, await rates.getOne(row.id, c));
   });
 });
 
-test("update answers false for an id with no rate row", async () => {
+test("update answers undefined for an id with no rate row", async () => {
   await inRollback(async (c: PoolClient) => {
-    const changed = await rates.update(randomUUID(), { scrap_pct: 0.5 }, c);
-    assert.equal(changed, false, "update reported a change for a rate that does not exist");
+    const written = await rates.update(randomUUID(), { scrap_pct: 0.5 }, c);
+    assert.equal(written, undefined, "update answered a row for a rate that does not exist");
   });
 });
 

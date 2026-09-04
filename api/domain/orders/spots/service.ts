@@ -9,7 +9,6 @@ import * as spotsRepo from "#db/orders/spots/repo.ts";
 import * as spotsFeed from "#domain/spots/service.ts";
 import * as rules from "#domain/orders/rules.ts";
 import withTransaction from "#shared/db/withTransaction.ts";
-import { Invalid } from "#shared/errors.ts";
 import type { OrderSpotsPutBody } from "@dorado/contracts";
 import type { OrderSpotRow, OrderSpotRawRow } from "#db/orders/spots/repo.ts";
 import type { PoolClient } from "pg";
@@ -45,9 +44,7 @@ export async function setSpots(
   orderId: string, body: OrderSpotsPutBody
 ): Promise<OrderSpotRow[]> {
   rules.assertDirection(await ordersRepo.directionOf(orderId), "purchase", "the spots PUT");
-  if (body.lock === undefined && !body.set) {
-    throw new Invalid("the document names no field to write");
-  }
+  rules.assertNamesASpotField(body);
 
   // SERVER-RESOLVED, never the body: the route this replaced took the browser's
   // copy of the feed, which decides what the business pays.

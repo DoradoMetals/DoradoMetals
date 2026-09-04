@@ -11,14 +11,13 @@
 import query from "#shared/db/query.ts";
 import { buildUpdate } from "#shared/db/patch.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
-import type {
-  Direction, PaymentIntent, PaymentIntentPatch, PaymentIntentView,
-} from "@dorado/contracts";
+import type { Direction, PaymentIntent, PaymentIntentView } from "@dorado/contracts";
 import type { Executor } from "#shared/db/executor.ts";
+import { columnsOf } from "#shared/db/columns.ts";
+import { PaymentIntentPatch } from "@dorado/contracts";
 
 const sql = sqlFrom(import.meta.dirname);
 
-export type IntentRow = PaymentIntent;
 
 // The COMPOSED intent - the wire shape, joined across the attempt, the
 // settlement and the instrument. The two timestamps are the exception to
@@ -48,12 +47,15 @@ export type IntentFacts = {
 // update both take. The two local ones this replaced (`NewIntent` for the
 // insert, `IntentPatch` for the update) were the same columns listed twice.
 // An explicit id wins; omitting one lets create.sql generate it.
-export const PATCHABLE = [
-  "status", "amount_expected", "order_id", "details_id", "method_id",
-] as const;
+// THE COLUMNS, FROM THE CONTRACT (ruling 64) - the create's own shape without
+// the four an intent is BORN with and never changes: its id, the session and
+// customer it belongs to, and what kind it is.
+export const PATCHABLE = columnsOf(
+  PaymentIntentPatch.omit({ id: true, session_id: true, user_id: true, type: true })
+);
 
-export async function getOne(id: string, executor?: Executor): Promise<IntentRow | undefined> {
-  const { rows } = await query<IntentRow>(sql("get_one"), [id], executor);
+export async function getOne(id: string, executor?: Executor): Promise<PaymentIntent | undefined> {
+  const { rows } = await query<PaymentIntent>(sql("get_one"), [id], executor);
   return rows[0];
 }
 
@@ -65,8 +67,8 @@ export async function getOne(id: string, executor?: Executor): Promise<IntentRow
 
 export async function create(
   row: PaymentIntentPatch, executor?: Executor
-): Promise<IntentRow> {
-  const { rows } = await query<IntentRow>(
+): Promise<PaymentIntent> {
+  const { rows } = await query<PaymentIntent>(
     sql("create"),
     [
       row.id ?? null, row.session_id ?? null, row.user_id ?? null,

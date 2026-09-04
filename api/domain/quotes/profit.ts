@@ -22,9 +22,8 @@ import * as refinerItemsRepo from "#db/refiners/items/repo.ts";
 import * as metalsRepo from "#db/metals/repo.ts";
 import { effectivePayoutFee, inboundShipment, recordedContent } from "#domain/pricing/service.ts";
 import { getRatePct, sumContentByMetal } from "#domain/rates/utils/resolveRate.ts";
-import { NotFound } from "#shared/errors.ts";
-import type { OrderQuoteBody, OrderView, OrderViewItem, ProfitBreakdown, ProfitMetalsDict } from "@dorado/contracts";
-import type { RefinerItemRow } from "#db/refiners/items/repo.ts";
+import * as rules from "#domain/quotes/rules.ts";
+import type { OrderQuoteBody, OrderView, OrderViewItem, ProfitBreakdown, ProfitMetalsDict, RefinerItem } from "@dorado/contracts";
 
 
 // metal_id -> the metal's name, and order_item_id -> what the refinery
@@ -32,7 +31,7 @@ import type { RefinerItemRow } from "#db/refiners/items/repo.ts";
 // (`scrap.metal`, `scrap.content_actual`, `item.refiner_premium`); the composer
 // died with D214 item 12 and they are reads of their own tables now.
 type MetalNames = ReadonlyMap<string, string>;
-type AssayRows = ReadonlyMap<string, RefinerItemRow>;
+type AssayRows = ReadonlyMap<string, RefinerItem>;
 
 type ProfitMetalName = "Gold" | "Silver" | "Platinum" | "Palladium";
 type MetalKey = "gold" | "silver" | "platinum" | "palladium";
@@ -305,7 +304,7 @@ export async function profitBreakdown({ order_id }: OrderQuoteBody): Promise<Pro
   // one in the array, because the assay actuals rode only on the admin list's
   // projection. They are refiners.items rows now, read below by the same id.
   const order = await orderRead.view(order_id);
-  if (!order) throw new NotFound("no such purchase order");
+  rules.assertOrder(order);
 
   // Sequential, not Promise.all: none of these five calls takes a client of
   // its own, so they default to the shared pool - genuinely concurrent when

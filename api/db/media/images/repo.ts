@@ -6,7 +6,6 @@ import type { Executor } from "#shared/db/executor.ts";
 
 const sql = sqlFrom(import.meta.dirname);
 
-export type ImageRow = Image;
 
 export type NewImage = {
   user_id: string;
@@ -21,24 +20,24 @@ const values = (id: string, i: NewImage) => [
   id, i.user_id, i.bucket, i.path, i.filename, i.mime_type ?? null, i.size_bytes ?? null,
 ];
 
-export async function getOne(id: string, executor?: Executor): Promise<ImageRow | undefined> {
-  const { rows } = await query<ImageRow>(sql("get_one"), [id], executor);
+export async function getOne(id: string, executor?: Executor): Promise<Image | undefined> {
+  const { rows } = await query<Image>(sql("get_one"), [id], executor);
   return rows[0];
 }
 
-export async function list(executor?: Executor): Promise<ImageRow[]> {
-  const { rows } = await query<ImageRow>(sql("get_all"), [], executor);
+export async function list(executor?: Executor): Promise<Image[]> {
+  const { rows } = await query<Image>(sql("get_all"), [], executor);
   return rows;
 }
 
-export async function listFor(userId: string, executor?: Executor): Promise<ImageRow[]> {
-  const { rows } = await query<ImageRow>(sql("by_user"), [userId], executor);
+export async function listFor(userId: string, executor?: Executor): Promise<Image[]> {
+  const { rows } = await query<Image>(sql("by_user"), [userId], executor);
   return rows;
 }
 
 // On conflict, returns the row that ALREADY existed under its own id - callers must use the returned id, not the one they passed.
-export async function create(id: string, image: NewImage, executor?: Executor): Promise<ImageRow> {
-  const { rows } = await query<ImageRow>(sql("create"), values(id, image), executor);
+export async function create(id: string, image: NewImage, executor?: Executor): Promise<Image> {
+  const { rows } = await query<Image>(sql("create"), values(id, image), executor);
   return rows[0];
 }
 

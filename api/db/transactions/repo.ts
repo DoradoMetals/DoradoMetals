@@ -7,7 +7,6 @@ import type { Executor } from "#shared/db/executor.ts";
 
 const sql = sqlFrom(import.meta.dirname);
 
-export type LedgerRow = LedgerEntry;
 
 // THE HISTORY, ALREADY IN THE WIRE'S OWN NAMES. by_user.sql joins the order for
 // its direction and aliases `type` to `transaction_type`, so there is nothing
@@ -20,8 +19,8 @@ export async function byUser(
   return rows;
 }
 
-export async function create(row: LedgerEntryPatch, executor?: Executor): Promise<LedgerRow> {
-  const { rows } = await query<LedgerRow>(
+export async function create(row: LedgerEntryPatch, executor?: Executor): Promise<LedgerEntry> {
+  const { rows } = await query<LedgerEntry>(
     sql("create"),
     [row.id ?? randomUUID(), row.user_id, row.type, row.order_id, row.amount],
     executor

@@ -1,9 +1,8 @@
 // A carrier and the organization it is, joined in memory.
 // A carrier with no organization is dropped, not composed with nulls - resolveCarrier reads the org's NAME to pick a shipping provider, and a blank name would fail every label far from the cause.
 import * as organizations from "#db/organizations/repo.ts";
-import type { CarrierRow } from "#db/shipping/carriers/repo.ts";
 // Row type comes from the contract, not the other feature's repo - avoids a type edge between features that don't otherwise depend on each other.
-import type { Organization } from "@dorado/contracts";
+import type { Organization, Carrier } from "@dorado/contracts";
 import type { Executor } from "#shared/db/executor.ts";
 
 export type ComposedCarrier = {
@@ -14,7 +13,7 @@ export type ComposedCarrier = {
   organization: Pick<Organization, "id" | "name" | "email" | "phone" | "enabled">;
 };
 
-const compose = (c: CarrierRow, o: Organization): ComposedCarrier => ({
+const compose = (c: Carrier, o: Organization): ComposedCarrier => ({
   id: c.id,
   logo: c.logo,
   // From the ORGANIZATION - shipping.carriers has no timestamps of its own.
@@ -30,7 +29,7 @@ const byName = (a: ComposedCarrier, b: ComposedCarrier) =>
   (a.organization.name ?? "").localeCompare(b.organization.name ?? "") ||
   a.id.localeCompare(b.id);
 
-export async function all(rows: CarrierRow[]): Promise<ComposedCarrier[]> {
+export async function all(rows: Carrier[]): Promise<ComposedCarrier[]> {
   const orgs = await organizations.byId();
   return rows
     .flatMap((c) => {
@@ -41,7 +40,7 @@ export async function all(rows: CarrierRow[]): Promise<ComposedCarrier[]> {
 }
 
 export async function one(
-  row: CarrierRow, executor?: Executor
+  row: Carrier, executor?: Executor
 ): Promise<ComposedCarrier | null> {
   const o = row.organization_id === null
     ? undefined

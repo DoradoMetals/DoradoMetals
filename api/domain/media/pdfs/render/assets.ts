@@ -1,6 +1,7 @@
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
+import { assertAssetsDir } from "#domain/media/pdfs/rules.ts";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -8,15 +9,17 @@ const __dirname = path.dirname(__filename);
 // Read SYNCHRONOUSLY at module load, on purpose: five small SVGs (plus three font files below) inlined as data URIs so a rendered PDF depends on nothing external mid-render.
 // Found by walking up, not by counting ".." - a fixed depth broke the moment this file moved (every document lost its logo); walking up doesn't care how deep the file sits.
 const assetsDir = (() => {
+  let found: string | null = null;
   let dir = __dirname;
-  for (let i = 0; i < 10; i++) {
+  for (let i = 0; i < 10 && found === null; i++) {
     const candidate = path.join(dir, "shared", "assets");
-    if (fs.existsSync(candidate)) return candidate;
+    if (fs.existsSync(candidate)) found = candidate;
     const parent = path.dirname(dir);
     if (parent === dir) break;
     dir = parent;
   }
-  throw new Error(`no shared/assets directory above ${__dirname}`);
+  assertAssetsDir(found, __dirname);
+  return found;
 })();
 
 function dataUriFromAssets(relPath: string, mime: string): string {

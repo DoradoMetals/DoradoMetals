@@ -1,5 +1,5 @@
 // The rates repo itself, against real Postgres.
-// The one thing worth proving directly rather than through HTTP: `update` answers a boolean - false for an id nobody has, true for one that changed.
+// The one thing worth proving directly rather than through HTTP: `update` answers THE WRITTEN ROW - undefined for an id nobody has, the fresh row for one that changed.
 import { test } from "vitest";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
@@ -8,14 +8,14 @@ import { TEST_ACTOR } from "#shared/testing/actor.ts";
 import * as rates from "#db/rates/repo.ts";
 import * as metals from "#db/metals/repo.ts";
 
-test("update returns false for an id nothing names", async () => {
+test("update returns undefined for an id nothing names", async () => {
   await inPinnedTransaction(async (client) => {
-    const changed = await rates.update(randomUUID(), { unit: "oz" }, client);
-    assert.equal(changed, false, "an update against a missing id reported a change");
+    const written = await rates.update(randomUUID(), { unit: "oz" }, client);
+    assert.equal(written, undefined, "an update against a missing id answered a row");
   }, { actor: TEST_ACTOR.id });
 });
 
-test("update returns true for a real id, and the row actually changed", async () => {
+test("update answers the written row for a real id, with the change on it", async () => {
   await inPinnedTransaction(async (client) => {
     const [metal] = await metals.list(client);
     assert.ok(metal, "dev has no metal to band a rate against");
@@ -28,10 +28,8 @@ test("update returns true for a real id, and the row actually changed", async ()
       client
     );
 
-    const changed = await rates.update(created.id, { scrap_pct: 0.5 }, client);
-    assert.equal(changed, true, "an update against a real id reported no change");
-
-    const row = await rates.getOne(created.id, client);
-    assert.equal(Number(row?.scrap_pct), 0.5);
+    const written = await rates.update(created.id, { scrap_pct: 0.5 }, client);
+    assert.equal(Number(written?.scrap_pct), 0.5);
+    assert.deepEqual(written, await rates.getOne(created.id, client));
   }, { actor: TEST_ACTOR.id });
 });

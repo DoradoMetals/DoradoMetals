@@ -8,17 +8,15 @@
 import * as orderItemsRepo from "#db/orders/items/repo.ts";
 import * as refinerItemsRepo from "#db/refiners/items/repo.ts";
 import { fineContent } from "#domain/pricing/content.ts";
-import { assayedRow } from "#domain/refiners/items/rules.ts";
-import { Invalid, NotFound } from "#shared/errors.ts";
-import type { RefinerItemPatch } from "@dorado/contracts";
-import type { RefinerItemRow } from "#db/refiners/items/repo.ts";
+import * as rules from "#domain/refiners/items/rules.ts";
+import type { RefinerItemPatch, RefinerItem } from "@dorado/contracts";
 import type { Executor } from "#shared/db/executor.ts";
 
 // GET /api/orders/:orderId/refiners/items - the refinery's numbers per line,
 // verbatim rows, keyed by the customer order.
 export async function forOrder(
   order_id: string, executor?: Executor
-): Promise<RefinerItemRow[]> {
+): Promise<RefinerItem[]> {
   return await refinerItemsRepo.getForOrder(order_id, executor);
 }
 
@@ -31,10 +29,8 @@ export async function forOrder(
 // customer said they sent, and only the customer's declaration writes it.
 export async function patchRefinerItem(
   order_item_id: string, patch: RefinerItemPatch
-): Promise<RefinerItemRow> {
-  if (Object.keys(patch).length === 0) {
-    throw new Invalid("the document names no field to write");
-  }
+): Promise<RefinerItem> {
+  rules.assertNamesAField(patch);
 
   if (patch.premium !== undefined) {
     await refinerItemsRepo.update(order_item_id, { premium: patch.premium });
@@ -45,17 +41,15 @@ export async function patchRefinerItem(
     patch.purity !== undefined || patch.unit !== undefined
   ) {
     const [line] = await orderItemsRepo.getByIds([order_item_id]);
-    if (!line || line.bullion_id !== null) {
-      throw new NotFound(`order item ${order_item_id} has no scrap line to report assay values on`);
-    }
+    rules.assertScrapLine(line, order_item_id);
     const reported = (await refinerItemsRepo.byOrderItem([order_item_id])).get(order_item_id);
     await refinerItemsRepo.update(
-      order_item_id, assayedRow(patch, reported, line.unit, fineContent)
+      order_item_id, rules.assayedRow(patch, reported, line.unit, fineContent)
     );
   }
 
   const written = (await refinerItemsRepo.byOrderItem([order_item_id])).get(order_item_id);
-  if (!written) throw new NotFound(`order item ${order_item_id} has no refiner row`);
+  rules.assertRefinerItem(written, order_item_id);
   return written;
 }
 

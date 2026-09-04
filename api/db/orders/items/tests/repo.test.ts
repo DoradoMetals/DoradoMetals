@@ -73,18 +73,21 @@ test("a delete cannot reach a line belonging to another order", async () => {
   });
 });
 
-// The whole reason update returns a boolean: Postgres does not raise on a
-// zero-row UPDATE, so a WHERE that has stopped resolving succeeds forever.
-test("update answers false for an id that names nothing and true for a real one", async () => {
+// The whole reason update answers the WRITTEN ROW rather than nothing:
+// Postgres does not raise on a zero-row UPDATE, so a WHERE that has stopped
+// resolving succeeds forever. undefined is that miss, and the row is the proof
+// it landed - no second read to disagree with it.
+test("update answers undefined for an id that names nothing and the row for a real one", async () => {
   await inRollback(async (c: PoolClient) => {
     assert.equal(
-      await items.update(randomUUID(), { premium: 1 }, {}, c), false,
+      await items.update(randomUUID(), { premium: 1 }, {}, c), undefined,
       "an update against no row reported success"
     );
 
     const pair = await twoOrdersWithItems(c);
     assert.ok(pair, "dev needs two orders with lines");
-    assert.equal(await items.update(pair[0].item_id, { premium: 1 }, {}, c), true);
+    const written = await items.update(pair[0].item_id, { premium: 1 }, {}, c);
+    assert.equal(Number(written?.premium), 1);
   });
 });
 
@@ -98,14 +101,12 @@ test("a price is scoped to its own order too", async () => {
     const wrong = await items.update(
       theirs.item_id, { price: 123.45 }, { order_id: mine.order_id }, c
     );
-    assert.equal(wrong, false, "a price landed on a line from another order");
+    assert.equal(wrong, undefined, "a price landed on a line from another order");
 
     const right = await items.update(
       mine.item_id, { price: 123.45 }, { order_id: mine.order_id }, c
     );
-    assert.equal(right, true, "the update wrote no row for the line it was given");
-    const row = await items.getOne(mine.item_id, c);
-    assert.equal(Number(row!.price), 123.45);
+    assert.equal(Number(right?.price), 123.45, "the update wrote no row for the line it was given");
   });
 });
 
@@ -139,13 +140,15 @@ test("confirming is scoped to the order as well as the id", async () => {
     const wrong = await items.update(
       theirs.item_id, { confirmed: true }, { order_id: mine.order_id }, c
     );
-    assert.equal(wrong, false);
+    assert.equal(wrong, undefined);
 
     const other = await c.query("SELECT confirmed FROM orders.items WHERE id = $1", [theirs.item_id]);
     assert.equal(other.rows[0].confirmed, false, "another order's line was confirmed");
 
     assert.equal(
-      await items.update(mine.item_id, { confirmed: true }, { order_id: mine.order_id }, c), true
+      (await items.update(mine.item_id, { confirmed: true }, { order_id: mine.order_id }, c))
+        ?.confirmed,
+      true
     );
   });
 });

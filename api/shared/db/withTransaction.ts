@@ -1,6 +1,7 @@
 import pool from "#pool";
 import type { PoolClient } from "pg";
 import { currentActor } from "#shared/http/actor.ts";
+import { asDomainError } from "#shared/db/pg-error.ts";
 
 /**
  * Runs fn inside a single database transaction, handing it the client.
@@ -41,6 +42,11 @@ import { currentActor } from "#shared/http/actor.ts";
  * in a test. Transaction-local cannot leak, because there is no moment at
  * which the connection is both idle and still carrying a value.
  *
+ * ---------------------------------------------------------------------------
+ * A CONSTRAINT VIOLATION THE SCHEMA RAISES ON THE CALLER'S BEHALF becomes a
+ * domain refusal here and nowhere else (ruling 52) - shared/db/pg-error.ts
+ * says which, and why only one direction of 23503 qualifies.
+ *
  * IT IS ISSUED EVEN WHEN THE ACTOR IS NULL, which costs one round trip and buys
  * the reset. In production the connection is always fresh out of BEGIN so
  * skipping would be safe - but shared/testing/pinned-pool.ts runs a whole test
@@ -67,7 +73,11 @@ export default async function withTransaction<T>(
     return result;
   } catch (err) {
     await client.query("ROLLBACK");
-    throw err;
+    // THE ONE PG-ERROR TRANSLATION (ruling 52). A constraint the schema
+    // enforces on the caller's behalf - "that address is not in your book",
+    // migration 123 - has to reach them as a refusal, not a 500. Everything
+    // else is rethrown exactly as it arrived; see shared/db/pg-error.ts.
+    throw asDomainError(err);
   } finally {
     client.release();
   }

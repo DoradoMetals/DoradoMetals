@@ -2,12 +2,13 @@
 import query from "#shared/db/query.ts";
 import { buildUpdate } from "#shared/db/patch.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
-import type { Direction, Order } from "@dorado/contracts";
+import type { Direction } from "@dorado/contracts";
 import type { Executor } from "#shared/db/executor.ts";
+import { columnsOf } from "#shared/db/columns.ts";
+import { Order } from "@dorado/contracts";
 
 const sql = sqlFrom(import.meta.dirname);
 
-export type OrderRow = Order;
 
 export async function exists(id: string, executor?: Executor): Promise<boolean> {
   const { rows } = await query<{ present: boolean }>(sql("exists"), [id], executor);
@@ -42,15 +43,15 @@ export async function directionsById(
 export async function list(
   { direction = null, user_id = null }: { direction?: string | null; user_id?: string | null },
   executor?: Executor
-): Promise<OrderRow[]> {
-  const { rows } = await query<OrderRow>(sql("list"), [direction, user_id], executor);
+): Promise<Order[]> {
+  const { rows } = await query<Order>(sql("list"), [direction, user_id], executor);
   return rows;
 }
 
 export async function getOne(
   id: string, executor?: Executor
-): Promise<OrderRow | undefined> {
-  const { rows } = await query<OrderRow>(sql("get_one"), [id], executor);
+): Promise<Order | undefined> {
+  const { rows } = await query<Order>(sql("get_one"), [id], executor);
   return rows[0];
 }
 
@@ -72,16 +73,21 @@ export async function ownersById(
 // THE ONE WRITE. The guard is a row-state precondition evaluated IN THE
 // STATEMENT, which makes the Pending-only transitions atomic under webhook
 // retries: false means "nothing needed doing", never a stomped later status.
-export const PATCHABLE = [
-  "status", "order_sent", "tracking_updated",
-  "review_created", "spots_locked", "notes",
-] as const;
-type OrderColumn = (typeof PATCHABLE)[number];
-export type OrderPatch = Partial<Record<OrderColumn, string | boolean | null>>;
+// THE COLUMNS, FROM THE CONTRACT (ruling 64): the row without its identity
+// (id, user_id, direction, number) and without the audit columns the
+// audit_stamp trigger writes. What a REQUEST may name is the narrower
+// `OrderPatch` in @dorado/contracts, parsed strictly at the transport.
+const WRITABLE = Order.omit({
+  id: true, user_id: true, direction: true, number: true,
+  created_by: true, updated_by: true, created_at: true, updated_at: true,
+  created_by_id: true, updated_by_id: true,
+});
+export const PATCHABLE = columnsOf(WRITABLE);
+export type OrderPatch = Partial<Record<(typeof PATCHABLE)[number], string | boolean | null>>;
 
-const GUARDABLE = ["status", "direction"] as const;
-type Guardable = (typeof GUARDABLE)[number];
-export type OrderGuard = Partial<Record<Guardable, string>>;
+// The two columns a caller may bind as a row-state precondition.
+const GUARDABLE = columnsOf(Order.pick({ status: true, direction: true }));
+export type OrderGuard = Partial<Record<(typeof GUARDABLE)[number], string>>;
 
 export async function update(
   id: string, patch: OrderPatch, guard: OrderGuard = {}, executor?: Executor

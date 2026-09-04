@@ -11,6 +11,7 @@ import { linkableOrderId } from "#domain/media/emails/record.ts";
 import { latestPdf, persistPdf } from "#domain/media/pdfs/store.ts";
 import type { PdfKind } from "#domain/media/pdfs/store.ts";
 import { attempt } from "#shared/attempt.ts";
+import * as rules from "#domain/media/pdfs/rules.ts";
 
 // Same regex as the quote service: refuse before Postgres throws 22P02 comparing a non-uuid against a uuid column.
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -21,11 +22,7 @@ export type StoredReader = (path: string) => Promise<Buffer>;
 
 // The real reader - refuses to exist during a test run (like the shared mail transport): a forgotten stub must not reach live MinIO; the caller's catch turns the refusal into a live render instead of a crash.
 const readFromStorage: StoredReader = async (path) => {
-  if (isTestRun()) {
-    throw new Error(
-      "refusing to read real object storage during a test run - pass a StoredReader"
-    );
-  }
+  rules.assertNotTestRun(isTestRun());
   const stream = await minio.getObject(process.env.MINIO_BUCKET as string, path);
   const chunks: Buffer[] = [];
   for await (const chunk of stream) {
@@ -70,9 +67,7 @@ export async function serveOrderDocument(
     if (row) {
       const bytes = await attempt(`read stored ${kind} ${row.id} for order ${orderId}`, async () => {
         const b = await storage(row.path);
-        if (row.checksum && sha256(b) !== row.checksum) {
-          throw new Error(`bytes do not match stored checksum ${row.checksum}`);
-        }
+        if (row.checksum) rules.assertChecksum(sha256(b) === row.checksum, row.checksum);
         return b;
       });
       if (bytes) return { bytes, source: "stored" };

@@ -3,7 +3,8 @@ import query from "#shared/db/query.ts";
 import { buildUpdate } from "#shared/db/patch.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
 import type { Executor } from "#shared/db/executor.ts";
-import type { Spot } from "@dorado/contracts";
+import { columnsOf } from "#shared/db/columns.ts";
+import { Spot } from "@dorado/contracts";
 
 const sql = sqlFrom(import.meta.dirname);
 
@@ -39,7 +40,9 @@ export async function create(row: NewSpot, executor?: Executor): Promise<SpotRow
   return rows[0];
 }
 
-export const PATCHABLE = ["ask", "bid", "dollar_change", "percent_change"] as const;
+// THE COLUMNS, FROM THE CONTRACT (ruling 64): the quote itself, without the
+// row's identity and without the timestamp the feed's own statement stamps.
+export const PATCHABLE = columnsOf(Spot.omit({ id: true, metal_id: true, updated_at: true }));
 export type SpotQuotePatch = Partial<Record<(typeof PATCHABLE)[number], number | null>>;
 
 export async function update(

@@ -963,7 +963,8 @@ CREATE TABLE IF NOT EXISTS places.user_addresses (
   user_id uuid NOT NULL,
   label text,
   default_shipping boolean DEFAULT false NOT NULL,
-  default_billing boolean DEFAULT false NOT NULL
+  default_billing boolean DEFAULT false NOT NULL,
+  recipient_name text
 );
 ALTER TABLE places.user_addresses ADD COLUMN IF NOT EXISTS id uuid DEFAULT gen_random_uuid();
 ALTER TABLE places.user_addresses ADD COLUMN IF NOT EXISTS address_id uuid;
@@ -971,6 +972,7 @@ ALTER TABLE places.user_addresses ADD COLUMN IF NOT EXISTS user_id uuid;
 ALTER TABLE places.user_addresses ADD COLUMN IF NOT EXISTS label text;
 ALTER TABLE places.user_addresses ADD COLUMN IF NOT EXISTS default_shipping boolean DEFAULT false;
 ALTER TABLE places.user_addresses ADD COLUMN IF NOT EXISTS default_billing boolean DEFAULT false;
+ALTER TABLE places.user_addresses ADD COLUMN IF NOT EXISTS recipient_name text;
 
 CREATE TABLE IF NOT EXISTS products.bullion (
   id uuid DEFAULT gen_random_uuid() NOT NULL,
@@ -1931,6 +1933,16 @@ DO $$ BEGIN
     WHERE con.conname = 'user_addresses_pkey' AND c.relname = 'user_addresses' AND n.nspname = 'places'
   ) THEN
     ALTER TABLE places.user_addresses ADD CONSTRAINT user_addresses_pkey PRIMARY KEY (id);
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE con.conname = 'user_addresses_user_address_key' AND c.relname = 'user_addresses' AND n.nspname = 'places'
+  ) THEN
+    ALTER TABLE places.user_addresses ADD CONSTRAINT user_addresses_user_address_key UNIQUE (user_id, address_id);
   END IF;
 END $$;
 DO $$ BEGIN
@@ -3403,7 +3415,6 @@ CREATE INDEX IF NOT EXISTS locations_address_idx ON places.locations USING btree
 CREATE INDEX IF NOT EXISTS locations_org_idx ON places.locations USING btree (organization_id);
 CREATE INDEX IF NOT EXISTS user_addresses_address_idx ON places.user_addresses USING btree (address_id);
 CREATE UNIQUE INDEX IF NOT EXISTS user_addresses_one_default_per_user ON places.user_addresses USING btree (user_id) WHERE default_shipping;
-CREATE UNIQUE INDEX IF NOT EXISTS user_addresses_user_address_uniq ON places.user_addresses USING btree (user_id, address_id);
 CREATE INDEX IF NOT EXISTS user_addresses_user_idx ON places.user_addresses USING btree (user_id);
 CREATE INDEX IF NOT EXISTS idx_bullion_metal_id ON products.bullion USING btree (metal_id);
 CREATE INDEX IF NOT EXISTS idx_bullion_mint_id ON products.bullion USING btree (mint_id);

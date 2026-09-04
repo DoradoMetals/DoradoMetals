@@ -7,7 +7,7 @@ import type { Executor } from "#shared/db/executor.ts";
 import * as spotsService from "#domain/spots/service.ts";
 import * as productService from "#domain/products/service.ts";
 import * as addressService from "#domain/places/addresses/service.ts";
-import { NotFound } from "#shared/errors.ts";
+import * as taxRules from "#domain/sales-tax/rules.ts";
 import {
   calculateSalesTax,
   calculateItemTotals,
@@ -134,7 +134,7 @@ export async function getSalesTax(
   { address_id, items }: GetSalesTaxBody
 ): Promise<number> {
   const address = address_id ? await addressService.getAddressFromId(address_id) : undefined;
-  if (address_id && !address) throw new NotFound(`no address ${address_id}`);
+  if (address_id) taxRules.assertAddress(address, address_id);
 
   const spots = await spotsService.getSpotPrices();
   const withTax = await attachSalesTaxToItems(

@@ -6,19 +6,20 @@ import query from "#shared/db/query.ts";
 import { buildUpdate } from "#shared/db/patch.ts";
 import type { Executor } from "#shared/db/executor.ts";
 import type { RefinerOrder } from "@dorado/contracts";
+import { columnsOf } from "#shared/db/columns.ts";
+import { RefinerOrderPatch } from "@dorado/contracts";
 
 // The verbatim table row (ruling 12) - the generated contract is its home.
-export type RefinerOrderRow = RefinerOrder;
 
 // The engagement row for an order. The caller reads first and creates only
 // when there is none (D214 item 11: repos are the five verbs, the service asks
 // the question), so this is a plain INSERT.
-export type NewRefinerOrder = Pick<RefinerOrderRow, "order_id">;
+export type NewRefinerOrder = Pick<RefinerOrder, "order_id">;
 
 export async function create(
   row: NewRefinerOrder, executor?: Executor
-): Promise<RefinerOrderRow> {
-  const { rows } = await query<RefinerOrderRow>(
+): Promise<RefinerOrder> {
+  const { rows } = await query<RefinerOrder>(
     `INSERT INTO refiners.orders (order_id) VALUES ($1)
      RETURNING id, order_id, refiner_id, pool_oz_deducted, pool_remediation, fee,
                created_at, updated_at`,
@@ -30,8 +31,8 @@ export async function create(
 
 export async function findByOrder(
   order_id: string, executor?: Executor
-): Promise<RefinerOrderRow | undefined> {
-  const { rows } = await query<RefinerOrderRow>(
+): Promise<RefinerOrder | undefined> {
+  const { rows } = await query<RefinerOrder>(
     `SELECT id, order_id, refiner_id, pool_oz_deducted, pool_remediation, fee,
             created_at, updated_at
        FROM refiners.orders
@@ -44,8 +45,8 @@ export async function findByOrder(
 
 export async function findById(
   id: string, executor?: Executor
-): Promise<RefinerOrderRow | undefined> {
-  const { rows } = await query<RefinerOrderRow>(
+): Promise<RefinerOrder | undefined> {
+  const { rows } = await query<RefinerOrder>(
     `SELECT id, order_id, refiner_id, pool_oz_deducted, pool_remediation, fee,
             created_at, updated_at
        FROM refiners.orders
@@ -58,13 +59,14 @@ export async function findById(
 
 // refiner_id is nullable and clearing it is a real operation, so it is carried
 // by "was this field named" rather than by COALESCE.
-export type OrderPatch = Partial<Pick<RefinerOrderRow, "pool_oz_deducted" | "pool_remediation" | "fee">> & {
+export type OrderPatch = Partial<Pick<RefinerOrder, "pool_oz_deducted" | "pool_remediation" | "fee">> & {
   refiner_id?: string | null;
 };
 
-export const PATCHABLE = [
-  "pool_oz_deducted", "pool_remediation", "fee", "refiner_id",
-] as const;
+// THE COLUMNS, FROM THE CONTRACT (ruling 64). `spots` is on the patch and is
+// not a column of this table - the refinery's bid per metal is refiners.spots,
+// written by its own repo - so it is the one field dropped.
+export const PATCHABLE = columnsOf(RefinerOrderPatch.omit({ spots: true }));
 
 export async function update(
   id: string, patch: OrderPatch, executor?: Executor

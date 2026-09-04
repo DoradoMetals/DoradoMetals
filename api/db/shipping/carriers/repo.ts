@@ -6,29 +6,28 @@ import type { Executor } from "#shared/db/executor.ts";
 
 const sql = sqlFrom(import.meta.dirname);
 
-export type CarrierRow = Carrier;
 
-export async function getAll(executor?: Executor): Promise<CarrierRow[]> {
-  const { rows } = await query<CarrierRow>(sql("get_all"), [], executor);
+export async function getAll(executor?: Executor): Promise<Carrier[]> {
+  const { rows } = await query<Carrier>(sql("get_all"), [], executor);
   return rows;
 }
 
-export async function getOne(id: string, executor?: Executor): Promise<CarrierRow | undefined> {
-  const { rows } = await query<CarrierRow>(sql("get_one"), [id], executor);
+export async function getOne(id: string, executor?: Executor): Promise<Carrier | undefined> {
+  const { rows } = await query<Carrier>(sql("get_one"), [id], executor);
   return rows[0];
 }
 
-export type CarrierNew = Pick<CarrierRow, "id" | "organization_id" | "logo">;
+export type CarrierNew = Pick<Carrier, "id" | "organization_id" | "logo">;
 
-export async function create(row: CarrierNew, executor?: Executor): Promise<CarrierRow> {
-  const { rows } = await query<CarrierRow>(
+export async function create(row: CarrierNew, executor?: Executor): Promise<Carrier> {
+  const { rows } = await query<Carrier>(
     sql("create"), [row.id, row.organization_id, row.logo], executor
   );
   return rows[0];
 }
 
 // Replaces `logo` whole, null included - not a COALESCE patch.
-export type CarrierPatch = Pick<CarrierRow, "logo">;
+export type CarrierPatch = Pick<Carrier, "logo">;
 
 export async function update(
   id: string, patch: CarrierPatch, executor?: Executor

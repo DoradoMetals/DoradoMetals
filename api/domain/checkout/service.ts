@@ -12,15 +12,7 @@
 // what is still missing, whether rates can be quoted, whether the order may be
 // placed. The browser renders those fields; it does not compute them.
 import withTransaction from "#shared/db/withTransaction.ts";
-import {
-  anonymousUsers,
-  checkouts,
-  checkoutItems,
-  metals,
-  packages,
-  carrierServices,
-  paymentMethods,
-} from "#db";
+import { anonymousUsers, checkouts, checkoutItems, metals } from "#db";
 import {
   addresses as addressService,
   fulfillments as fulfillmentService,
@@ -32,18 +24,14 @@ import {
   spots as spotsService,
   users as usersService,
 } from "#domain";
-import { Forbidden, Invalid, NotFound } from "#shared/errors.ts";
 import * as rules from "#domain/checkout/rules.ts";
 import { bidPrice } from "#domain/quotes/rules.ts";
 import { lineContent } from "#domain/orders/rules.ts";
-import type {
-  CheckoutItemPatch, CheckoutPayoutForm, CheckoutView, Direction,
-} from "@dorado/contracts";
-import type { CheckoutRow, CheckoutPatch } from "#db/checkout/checkouts/repo.ts";
-import type { ItemRow } from "#db/checkout/items/repo.ts";
+import type { Checkout, CheckoutItemPatch, CheckoutPayoutForm, CheckoutView, Direction, CheckoutItem } from "@dorado/contracts";
+import type { CheckoutPatch } from "#db/checkout/checkouts/repo.ts";
 import type { Executor } from "#shared/db/executor.ts";
 
-export type { CheckoutRow, CheckoutPatch } from "#db/checkout/checkouts/repo.ts";
+export type { CheckoutPatch } from "#db/checkout/checkouts/repo.ts";
 
 // ------------------------------------------------------------------ the row
 
@@ -51,13 +39,13 @@ export type { CheckoutRow, CheckoutPatch } from "#db/checkout/checkouts/repo.ts"
 // not an error - the winner's row is the answer.
 async function find(
   user_id: string, direction: Direction, client?: Executor
-): Promise<CheckoutRow> {
+): Promise<Checkout> {
   const found = await checkouts.findFor(user_id, direction, client);
   if (found) return found;
   const created = await checkouts.create({ user_id, direction }, client);
   if (created) return created;
   const raced = await checkouts.findFor(user_id, direction, client);
-  if (!raced) throw new Error("the checkout session could not be created");
+  rules.assertSession(raced);
   return raced;
 }
 
@@ -68,7 +56,7 @@ async function find(
 // chosen anything and after an order reset the row, never over a choice.
 async function ensure(
   user_id: string, direction: Direction, client?: Executor
-): Promise<CheckoutRow> {
+): Promise<Checkout> {
   const row = await find(user_id, direction, client);
   const column = rules.addressColumnFor(direction);
   if (row[column]) return row;
@@ -79,15 +67,14 @@ async function ensure(
     book.find((a) => a.is_valid);
   if (!preferred) return row;
 
-  await checkouts.update(row.id, { [column]: preferred.id }, client);
-  return (await checkouts.getOne(row.id, client)) ?? row;
+  return (await checkouts.update(row.id, { [column]: preferred.id }, client)) ?? row;
 }
 
 // The row plus what the stepper needs to render itself. The draft
 // fulfillment's METHOD is resolved back into the handoff the customer picked,
 // so the browser never learns a carrier's vocabulary (wave 5B) and never
 // re-derives which step is next.
-async function compose(row: CheckoutRow, client?: Executor): Promise<CheckoutView> {
+async function compose(row: Checkout, client?: Executor): Promise<CheckoutView> {
   const fulfillment = row.fulfillment_id
     ? await fulfillmentService.getById(row.fulfillment_id, client)
     : null;
@@ -129,33 +116,20 @@ export async function resolveSubject(
   caller_id: string, is_admin: boolean, named_user_id?: string
 ): Promise<string> {
   if (!named_user_id || named_user_id === caller_id) return caller_id;
-  if (!is_admin) throw new Forbidden("user_id is admin-only");
+  rules.assertMaySubjectAnother(is_admin);
   const target = await usersService.getUser(named_user_id);
-  if (!target) throw new NotFound(`no user ${named_user_id}`);
+  rules.assertSubject(target, named_user_id);
   return target.id;
 }
 
 // WHAT A VISITOR MAY NOT DO (ruling 63). An anonymous better-auth user is an
 // ordinary subject everywhere above: they build a basket, save an address,
 // choose a box, get live rates and see priced quotes, all on the same rows and
-// the same code as a customer. Two things need a real account, and both for the
-// same reason - they create something that OUTLIVES the session and cannot be
-// re-done:
-//
-//   PLACING AN ORDER. It takes money, buys a label and is a permanent record
-//   against a person. An order owned by a throwaway identity the sweep deletes
-//   in seven days is a lost order.
-//
-//   SAVING A PAYOUT ACCOUNT. Bank numbers are sealed at rest against a user id
-//   (payments/details, D210). Sealing a customer's account details to an
-//   identity that is about to be deleted is worse than refusing.
-//
-// It is a FORBIDDEN, not a 401: the caller has a perfectly good session, and
-// the UI turns this into the sign-in prompt rather than a logged-out state.
+// the same code as a customer. The two things that need a real account, and why,
+// are in rules.assertRealAccount - which is PURE, so this reads the identity and
+// the rule decides (ruling 65).
 export async function assertRealAccount(user_id: string, action: string): Promise<void> {
-  if (await anonymousUsers.isAnonymous(user_id)) {
-    throw new Forbidden(`sign in to ${action}`);
-  }
+  rules.assertRealAccount(await anonymousUsers.isAnonymous(user_id), action);
 }
 
 export async function getCheckout(
@@ -164,47 +138,27 @@ export async function getCheckout(
   return await compose(await ensure(user_id, direction));
 }
 
-// Checked as THEIRS. The other reference ids are the foreign keys' to refuse.
-const ADDRESS_COLUMNS = [
-  "recipient_address_id", "shipper_address_id", "pickup_address_id",
-] as const;
-
+// EVERY REFERENCE ID IS THE SCHEMA'S TO REFUSE (ruling 64, migration 123).
+// This carried ADDRESS_COLUMNS and a `references` array - two hand-written
+// lists of column names and six round trips per patch - asking, per id,
+// whether the address was in the caller's book and whether the package,
+// service and method rows existed. Every one of those questions is a foreign
+// key: (user_id, <address column>) now references places.user_addresses, and
+// the other three already referenced their own tables. Postgres raises 23503
+// and shared/db/pg-error.ts turns it into the same Invalid naming the column,
+// from every caller rather than from the ones that remembered the loop.
+//
+// appointment_time stays a RULE: it is a value, not a reference, and Postgres
+// would refuse an unparseable literal with a fault nobody can act on.
 export async function patchCheckout(
   user_id: string, direction: Direction, patch: CheckoutPatch
 ): Promise<CheckoutView> {
-
-  for (const col of ADDRESS_COLUMNS) {
-    const id = patch[col];
-    if (id != null && !(await addressService.inBook(String(id), user_id))) {
-      throw new Invalid(`${col}: that address is not in your book`);
-    }
-  }
-  if (
-    patch.appointment_time != null &&
-    Number.isNaN(Date.parse(String(patch.appointment_time)))
-  ) {
-    throw new Invalid(`appointment_time is not a timestamp`);
-  }
-
-  // appointment_location_id is left to its foreign key: places.locations has
-  // no repo (D214 item 7).
-  const references = [
-    ["package_id", packages.getOne] as const,
-    ["carrier_service_id", carrierServices.getOne] as const,
-    ["payment_method_id", paymentMethods.getOne] as const,
-  ];
-  for (const [col, getOne] of references) {
-    const id = patch[col];
-    if (id != null && !(await getOne(String(id)))) {
-      throw new Invalid(`${col}: no such row`);
-    }
-  }
+  rules.assertTimestamp(patch.appointment_time);
 
   return await withTransaction(async (client) => {
     const row = await ensure(user_id, direction, client);
-    await checkouts.update(row.id, patch, client);
-    const fresh = await checkouts.getOne(row.id, client);
-    if (!fresh) throw new Error("the checkout session vanished mid-write");
+    const fresh = await checkouts.update(row.id, patch, client);
+    rules.assertSession(fresh);
     return await compose(fresh, client);
   });
 }
@@ -225,15 +179,13 @@ export async function setFulfillmentMethod(
   if (!chosen && handoff_code) {
     const handoffs = await handoffsService.getHandoffs();
     const handoff = handoffs.find((h) => h.code === handoff_code);
-    if (!handoff) throw new Invalid(`no such handoff: ${handoff_code}`);
+    rules.assertHandoff(handoff, handoff_code);
     const type = rules.methodTypeFor(handoff);
     const offered = await fulfillmentMethods.listAvailable(direction);
     chosen = offered.find((m) => m.type === type)?.id;
-    if (!chosen) throw new Invalid(`no offered ${type} method for a ${direction}`);
+    rules.assertOfferedMethod(chosen, type, direction);
   }
-  if (typeof chosen !== "string" || chosen.length === 0) {
-    throw new Invalid("method_id or handoff_code is required");
-  }
+  rules.assertMethodNamed(chosen);
   const wanted = chosen;
 
   return await withTransaction(async (client) => {
@@ -242,16 +194,17 @@ export async function setFulfillmentMethod(
     if (row.fulfillment_id) {
       await fulfillmentMethods.assertOffered({ method_id: wanted, direction: direction }, client);
       await fulfillmentService.setMethod({ id: row.fulfillment_id, method_id: wanted }, client);
-    } else {
-      const draft = await fulfillmentService.createDraft(
-        { method_id: wanted, direction: direction }, client
-      );
-      if (!draft) throw new Invalid(`no such fulfillment method: ${wanted}`);
-      await checkouts.update(row.id, { fulfillment_id: draft.fulfillment.id }, client);
+      return await compose(row, client);
     }
 
-    const fresh = await checkouts.getOne(row.id, client);
-    if (!fresh) throw new Error("the checkout session vanished mid-write");
+    const draft = await fulfillmentService.createDraft(
+      { method_id: wanted, direction: direction }, client
+    );
+    rules.assertDraft(draft, wanted);
+    const fresh = await checkouts.update(
+      row.id, { fulfillment_id: draft.fulfillment.id }, client
+    );
+    rules.assertSession(fresh);
     return await compose(fresh, client);
   });
 }
@@ -263,22 +216,19 @@ export async function setFulfillmentMethod(
 export async function saveCheckoutPayout(
   user_id: string, direction: Direction, form: CheckoutPayoutForm
 ): Promise<CheckoutView> {
-  if (direction !== "purchase") {
-    throw new Invalid("the payout step belongs to the purchase checkout");
-  }
+  rules.assertPayoutDirection(direction);
   await assertRealAccount(user_id, "save a payout account");
   return await withTransaction(async (client) => {
     const row = await ensure(user_id, direction, client);
     const saved = await payoutDetails.saveCheckoutPayout(
       user_id, row.payment_details_id, form, client
     );
-    await checkouts.update(
+    const fresh = await checkouts.update(
       row.id,
       { payment_details_id: saved.id, payment_method_id: saved.method_id },
       client
     );
-    const fresh = await checkouts.getOne(row.id, client);
-    if (!fresh) throw new Error("the checkout session vanished mid-write");
+    rules.assertSession(fresh);
     return await compose(fresh, client);
   });
 }
@@ -288,7 +238,7 @@ export async function saveCheckoutPayout(
 // No session is an empty basket, not an error.
 export async function listItems(
   user_id: string, direction: Direction, client?: Executor
-): Promise<ItemRow[]> {
+): Promise<CheckoutItem[]> {
   const session = await checkouts.findFor(user_id, direction, client);
   if (!session) return [];
   return await checkoutItems.listFor(session.id, client);
@@ -297,7 +247,7 @@ export async function listItems(
 // Replaces, never merges; one refused line refuses the whole write.
 export async function replaceItems(
   user_id: string, direction: Direction, lines: CheckoutItemPatch[]
-): Promise<ItemRow[]> {
+): Promise<CheckoutItem[]> {
   return await withTransaction(async (client) => {
     const session = await ensure(user_id, direction, client);
 

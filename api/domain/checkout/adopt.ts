@@ -24,7 +24,7 @@
 // rebuild, rather than an account they cannot get into.
 import { checkouts, checkoutItems, userAddresses } from "#db";
 import withTransaction from "#shared/db/withTransaction.ts";
-import { mergeChoices } from "#domain/checkout/rules.ts";
+import * as rules from "#domain/checkout/rules.ts";
 import { attempt } from "#shared/attempt.ts";
 import type { Executor } from "#shared/db/executor.ts";
 
@@ -79,6 +79,12 @@ export const adoptAnonymousCheckoutQuietly = (
 async function adopt(
   anonymousUserId: string, userId: string, client: Executor
 ): Promise<AdoptionResult> {
+  // BOTH SIDES MOVE, SO THE KEY BETWEEN THEM WAITS FOR THE COMMIT. The address
+  // book and the checkout rows that point at it are only consistent together
+  // (migration 126, and checkouts.deferAddressOwnership carries the reasoning);
+  // this is the only caller that asks for it, and it lasts one transaction.
+  await checkouts.deferAddressOwnership(client);
+
   // THE ADDRESS BOOK FIRST. A visitor's checkout row points at addresses the
   // visitor entered, and patchCheckout refuses an address that is not in the
   // caller's book - so a checkout that moved without its addresses would be a
@@ -95,9 +101,8 @@ async function adopt(
       // The answer is checked rather than discarded - a re-key that matched no
       // row would silently leave the basket with the visitor, and a zero-row
       // UPDATE does not raise (audit:silent-mutations).
-      if (!(await checkouts.reassign(visitor.id, userId, client))) {
-        throw new Error(`checkout ${visitor.id} could not be re-keyed to ${userId}`);
-      }
+      const rekeyed = await checkouts.reassign(visitor.id, userId, client);
+      rules.assertRekeyed(rekeyed, visitor.id, userId);
       moved.push({
         direction: visitor.direction, outcome: "moved",
         checkout_id: visitor.id, replaced: 0,
@@ -109,7 +114,7 @@ async function adopt(
     // other reference already points at - and takes the visitor's choices where
     // the visitor made one (rules.mergeChoices) and the visitor's basket
     // outright.
-    const patch = mergeChoices(visitor, mine);
+    const patch = rules.mergeChoices(visitor, mine);
     if (Object.keys(patch).length > 0) await checkouts.update(mine.id, patch, client);
 
     let replaced = 0;
@@ -123,18 +128,13 @@ async function adopt(
       // thing this function can do to a customer.
       replaced = await checkoutItems.removeFor(mine.id, client);
       const carried = await checkoutItems.reassign(visitor.id, mine.id, client);
-      if (carried !== lines.length) {
-        throw new Error(
-          `checkout ${visitor.id}: ${lines.length} line(s) to carry, ${carried} moved`
-        );
-      }
+      rules.assertLinesCarried(carried, lines.length, visitor.id);
     }
 
     // The emptied visitor row goes, so the sweep has nothing to find and the
     // (user_id, direction) unique index cannot be hit twice.
-    if (!(await checkouts.remove(visitor.id, client))) {
-      throw new Error(`checkout ${visitor.id} survived the merge onto ${mine.id}`);
-    }
+    const removed = await checkouts.remove(visitor.id, client);
+    rules.assertVisitorRowGone(removed, visitor.id, mine.id);
     moved.push({
       direction: visitor.direction, outcome: "merged",
       checkout_id: mine.id, replaced,

@@ -22,7 +22,7 @@ import * as packagesRepo from "#db/shipping/packages/repo.ts";
 // The LIVE spot feed - the same read the pricing paths use (spots.spots).
 import * as spotsFeed from "#domain/spots/service.ts";
 import { inboundShipment, type Bids } from "#domain/pricing/service.ts";
-import { NotFound } from "#shared/errors.ts";
+import * as rules from "#domain/media/pdfs/rules.ts";
 import type { DocumentLabels, PackageDetails } from "#domain/media/pdfs/service.ts";
 import type { OrderView } from "@dorado/contracts";
 import type { Executor } from "#shared/db/executor.ts";
@@ -52,7 +52,7 @@ async function bidsFor(order: OrderView, executor?: Executor): Promise<Bids> {
 
 async function loadOrder(order_id: string, executor?: Executor): Promise<OrderView> {
   const order = await orderRead.view(order_id, executor);
-  if (!order) throw new NotFound(`no order ${order_id}`);
+  rules.assertOrder(order, order_id);
   return order;
 }
 

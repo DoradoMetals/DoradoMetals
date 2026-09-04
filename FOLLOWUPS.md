@@ -14689,3 +14689,130 @@ the type style it inherits, which `Text` already models, and what it really owns
 is behaviour Figma cannot express. Either draw a one-variant component whose
 description carries the contract, or map it in `scripts/figma/map.mjs` as the
 behavioural half of `Text`, the way `Icon Button` maps onto `Button`.
+
+### Rulings 64-65 executed on checkout and orders (2026-09-04)
+
+Two of Jacob's rulings, one lane. **65**: *"I'm still seeing error throws… makes
+it kinda hard to read. Unless we need those for dev work and will remove them
+later"* - they are permanent rules, so they MOVE rather than vanish. **64**:
+*"Why do we have to reference arrays of columns so much? That shouldn't be a
+thing."*
+
+**RULING 65 - 80 throws moved out of 19 files, into 12 `rules.ts` files.** Each
+one is a named one-line assert the use case CALLS, so a service file reads as
+the happy path and every refusal a feature can make sits in one place, testable
+without Postgres. Per file: `orders/service.ts` 19, `checkout/service.ts` 15,
+`orders/place.ts` 8, `quotes/service.ts` 7, `pricing/bid.ts` 4,
+`checkout/adopt.ts` 3, `leads/service.ts` 3, `rates/service.ts` 3,
+`refiners/items/service.ts` 3, `refiners/orders/service.ts` 3,
+`reviews/service.ts` 3, `media/pdfs/serve.ts` 2, and one each in
+`media/images/service.ts`, `media/pdfs/order-inputs.ts`,
+`media/pdfs/render/assets.ts`, `orders/spots/service.ts`, `quotes/profit.ts`,
+`rates/compose.ts`, `sales-tax/service.ts`. Eight `rules.ts` files are new
+(leads, reviews, rates, sales-tax, pricing, media/images, media/pdfs,
+refiners/orders); four existing ones grew a refusals section (orders, checkout,
+quotes, refiners/items). **`lint:no-throw-in-services`' ACCEPTED map is down to
+ONE entry**: `domain/places/addresses/service.ts` (4), the places/users lane's
+file, left exactly as it was found. The both-sides pin is honest - the count
+came down in the same diff.
+
+- **The KIND is preserved, not re-decided.** A refusal that was `Invalid` is
+  still `Invalid`; a plain `Error` - the "vanished mid-write" faults, the
+  missing assets directory, the internal image presigner - is still a plain
+  `Error`, and each says in its own comment why it is a fault rather than a
+  refusal. No status moved.
+- **The async case was split as ruling 65 asks.** `assertRealAccount` used to
+  READ (`anonymousUsers.isAnonymous`) and then refuse. The use case does the
+  read now and `checkout/rules.ts`'s `assertRealAccount(anonymous, action)` is
+  pure.
+- **Six "vanished mid-write" re-reads are gone because the repo returns the
+  row.** `update()` on `leads.leads`, `reviews.reviews`, `rates.rates`,
+  `checkout.checkouts` and `orders.items` answers the WRITTEN ROW via
+  `RETURNING` (or `undefined` for an id that matched nothing) instead of a
+  boolean, and `getOne(id)` when the patch names no column. Three of
+  `checkout/service.ts`'s throws were the second read that could come back
+  empty; they had nothing left to refuse.
+
+**RULING 64 - every hand-listed column array under `db/` and `domain/` is now a
+contract derivation.** `shared/db/columns.ts` is the one helper (`columnsOf`,
+`returningOf`, `ACTOR_IDS`), and `columnsOf` answers a union of LITERALS so a
+derived whitelist keys a `Pick` or a `Record` exactly as the hand-written tuple
+did. Seventeen `PATCHABLE` arrays derive from a contract `Patch` or a
+`.pick()`/`.omit()` of the entity - **every one verified equal in membership to
+the array it replaced before the old one was deleted**. `CHOICE_COLUMNS` in
+`checkout/rules.ts` (thirteen names restated by hand, pinned to the repo's list
+by a test) is `columnsOf(CheckoutWrite)`, the same call the repo makes, so the
+two cannot drift at all. Twenty-six `type XRow = <Contract>` aliases died
+(rulings 60-61: the row IS `Lead`, `Checkout`, `OrderItem`); `read.ts`'s local
+`Order & { totals }` is `OrderWithTotals` now, since `Order` is the contract.
+
+- **`CheckoutWrite` is new in @dorado/contracts** - what the SERVER may write on
+  a checkout row, which is `CheckoutPatch` plus the three pointers the services
+  that create what they point at set. It exists so the repo's whitelist and the
+  sign-in merge rule are one call on one schema.
+- **`ADDRESS_COLUMNS` and its ownership loop are a FOREIGN KEY now** (123). Six
+  round trips per patch - three "is this address in your book", three "does this
+  row exist" - are three composite FKs `checkout.checkouts (user_id, <address
+  column>) -> places.user_addresses (user_id, address_id)` plus the
+  single-column FKs that already existed. `shared/db/pg-error.ts` translates
+  23503 into `Invalid` naming the column, in `withTransaction`'s catch and
+  nowhere else (ruling 52), so the wire answer is the same 422 the loop gave.
+  **One direction only**: "Key (...) is not present in table" (a write naming a
+  row that is not there) is translated; "is still referenced from" (a delete
+  something needs) is left alone, because that is a 500 today which
+  `shipping/services/service.ts` documents and tests.
+- **`orders.addresses` deliberately gets NO such FK.** It looks like the same
+  "must be theirs" reference and is the opposite: it is the snapshot of where a
+  parcel WENT. A composite FK onto the book would make deleting a book entry
+  SET NULL the snapshot's source - deleting business history to enforce a rule
+  about a live choice.
+- **`ON DELETE SET NULL (<the address column>)`, read from how a book entry is
+  actually deleted** (`places/addresses/service.ts` `remove` drops the LINK
+  first, then the address only if nothing else needs it). Postgres 15+ takes the
+  column list, so the composite key nulls only the address column and not
+  `user_id`, which is NOT NULL. `db/checkout/checkouts/tests/repo.test.ts` pins
+  both halves: a stranger's address id is refused, and deleting the book entry
+  clears that column and no other.
+- **Three follow-on migrations, each written because the previous one was
+  measured and found wanting.** 124: `user_addresses_user_address_uniq` (a bare
+  unique index from January, in genesis and in no migration) was a second copy
+  of 123's named UNIQUE constraint, and the FKs had bound to it - which made
+  `dump-schema.mjs` drop it from genesis (it skips any index a constraint points
+  at, and a FK's `conindid` is the index it REFERENCES), which `verify:genesis`
+  caught. 125: the FKs broke ruling 63's basket adoption, which re-keys the
+  address book and then the checkouts that point at it - no statement order is
+  valid, so they became DEFERRABLE INITIALLY DEFERRED. 126: **that made the rule
+  untestable** - `pinned-pool.ts` rewrites COMMIT to RELEASE SAVEPOINT, deferred
+  constraints never fire, and `checkout-row.test.ts`'s "an address lands only if
+  it is in the CALLER'S book" went from 422 to 200 while live behaviour was
+  unchanged. So: DEFERRABLE INITIALLY **IMMEDIATE**, and adoption asks for its
+  own deferral in one line (`checkouts.deferAddressOwnership`). A guarantee
+  nothing can test is one nobody notices losing.
+
+**THE GATE: `lint:no-column-arrays`** (`api/scripts/lint-no-column-arrays.ts`,
+11-case self-test, wired into `check.mjs`'s api-lint group). It fails a literal
+array of two or more strings that are ALL column names of one contract row, and
+a `type XRow = <contract schema>` alias, under `db/` and `domain/`. Two floors,
+because a scan that read no contracts cannot tell a column name from any other
+string and would call the whole tree clean: one on the files walked, one on the
+contract tables read. ACCEPTED holds four entries, all other lanes':
+`db/products/repo.ts` (products lane), `db/places/addresses/repo.ts`,
+`db/places/user-addresses/repo.ts`, `db/users/repo.ts` (places/users lane).
+
+**Shape changes for the one frontend pass (ruling 44)**: `PATCH /api/checkout`
+now answers `"<column>: no such row"` where it used to say `"<column>: that
+address is not in your book"` - same 422, same column named, and deliberately
+vaguer so the message cannot confirm which address ids exist. Nothing else on
+the wire moved; the repos' `update()` returning a row instead of a boolean is
+internal.
+
+**`000_genesis_schema.sql` carries `places.user_addresses.recipient_name`, and
+this lane did not add it.** It is the places/users lane's column, landed on the
+SHARED dev database mid-pass and picked up by this lane's mandated
+`dump:schema`. Genesis is generated from dev and hand-editing it is forbidden,
+so it stays. The CONTRACTS regeneration produced the same column and was
+REVERTED: no migration on this branch creates it, so `test_<branch>` does not
+have it, and a contract requiring it raised 42703 in 61 tests. Running
+`pnpm --filter @dorado/contracts generate` will re-add it; it belongs with the
+places lane's migration, not before it. Same lesson as D214 item 9's shared test
+database, one layer up: two lanes, one dev database.

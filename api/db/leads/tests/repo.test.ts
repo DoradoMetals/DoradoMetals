@@ -21,23 +21,22 @@ afterAll(async () => {
   await pool.end();
 });
 
-test("update writes a real lead and answers true", async () => {
+test("update writes a real lead and answers the written row", async () => {
   await inRollback(async (c: PoolClient) => {
     const lead = await aLead(c);
 
-    const changed = await leads.update(lead.id, { name: "Renamed Lead", contacted: true }, c);
-    assert.equal(changed, true, "update reported no row changed");
-
-    const after = await leads.getOne(lead.id, c);
-    assert.equal(after?.name, "Renamed Lead");
-    assert.equal(after?.contacted, true);
+    const written = await leads.update(lead.id, { name: "Renamed Lead", contacted: true }, c);
+    assert.equal(written?.name, "Renamed Lead");
+    assert.equal(written?.contacted, true);
+    // RETURNING answers the row itself, so there is no second read to disagree.
+    assert.deepEqual(written, await leads.getOne(lead.id, c));
   });
 });
 
-test("update answers false for an id with no lead row", async () => {
+test("update answers undefined for an id with no lead row", async () => {
   await inRollback(async (c: PoolClient) => {
-    const changed = await leads.update(randomUUID(), { name: "Nobody" }, c);
-    assert.equal(changed, false, "update reported a change for a lead that does not exist");
+    const written = await leads.update(randomUUID(), { name: "Nobody" }, c);
+    assert.equal(written, undefined, "update answered a row for a lead that does not exist");
   });
 });
 

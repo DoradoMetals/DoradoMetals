@@ -5,6 +5,8 @@ import query from "#shared/db/query.ts";
 import { buildUpdate } from "#shared/db/patch.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
 import type { Executor } from "#shared/db/executor.ts";
+import { columnsOf } from "#shared/db/columns.ts";
+import { OrderSpot } from "@dorado/contracts";
 
 const sql = sqlFrom(import.meta.dirname);
 
@@ -90,7 +92,9 @@ export async function createMany(
 
 // ONE UPDATE, keyed on (order_id, metal_id). `bid` ONLY: the ask is what the
 // same metal sells for, and writing it here would lose a number this never owned.
-export const PATCHABLE = ["bid"] as const;
+// THE COLUMN, FROM THE CONTRACT (ruling 64). Only the BID: the ask is what the
+// same metal sells for and this table never quotes it.
+export const PATCHABLE = columnsOf(OrderSpot.pick({ bid: true }));
 export type SpotPatch = Partial<Record<(typeof PATCHABLE)[number], number | null>>;
 
 export async function update(
