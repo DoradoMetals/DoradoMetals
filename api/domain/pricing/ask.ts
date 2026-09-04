@@ -3,42 +3,29 @@
 //   1. calculateCardCharge surcharges everything but ACH at 2.9%, but the checkout UI labels CREDIT and WIRE 'No Fee' too. Not yet hit: every funded order so far was covered in full, so no surcharge was taken.
 //   2. The surcharge rate is set by the client-declared payment_method, but Stripe's automatic_payment_methods means the method actually used is never reconciled against it — declaring ACH and paying by card would undercharge by 2.4%. Not yet hit: production's one collected sale used the card rate.
 // AND ONE ASYMMETRY WITHIN THIS FILE: calculateItemTotals defaults a missing quantity to 1, calculateSalesTax does not — cannot currently happen, since every caller but /tax/get_sales_tax passes items through getItemsFromServer, which sets quantity ?? 0.
-// Declared once, in spot.ts - see the note on the bid side.
-import type { PricingSpot, Spots } from "#domain/pricing/spot.ts";
-export type { PricingSpot, Spots } from "#domain/pricing/spot.ts";
+// Declared once, in @dorado/contracts (ruling 57/60/61: PricingSpot and Spots
+// are exported across features, so a re-export here rather than a copy).
+import type { OrderPrices, PricingSpot, Spots } from "@dorado/contracts";
+export type { OrderPrices, PricingSpot, Spots } from "@dorado/contracts";
 
-// NOT SalesOrderItem — that's a line on a *saved* order; this runs BEFORE the order exists, over catalogue rows with quantity overlaid from the request.
-// Every field is optional because /tax/get_sales_tax prices the raw request body, unread and unjoined — required fields here would describe one caller and lie about the other.
-type PriceableItem = {
-  metal_type?: string | null;
-  content?: number | null;
-  ask_premium?: number | null;
-  quantity?: number | null;
-};
-
-// The same line once taxService.attachSalesTaxToItems has run. The rate is not
-// optional: that function always sets it, from a query that COALESCEs to 0.
-type TaxedItem = PriceableItem & { sales_tax_rate: number };
-
-
-// Only dorado_funds is read — checkout passes a better-auth session user, admin passes an exchange.users row; naming either type would reject the other.
-type FundedUser = { dorado_funds?: number | null };
-
-export type OrderPrices = {
-  item_total: number;
-  base_total: number;
-  shipping_charge: number;
-  beginning_funds: number;
-  ending_funds: number;
-  pre_charges_amount: number;
-  subject_to_charges_amount: number;
-  post_charges_amount: number;
-  charges_amount: number;
-  sales_tax: number;
-  order_total: number;
-};
-
-export function calculateItemAsk(item: PriceableItem, spots: Spots): number {
+// NOT SalesOrderItem — that's a line on a *saved* order; this runs BEFORE the
+// order exists, over catalogue rows with quantity overlaid from the request.
+// Every field is optional because /tax/get_sales_tax prices the raw request
+// body, unread and unjoined — required fields here would describe one caller
+// and lie about the other. Genuinely internal (ruling 57/60/61): the two
+// real shapes this spans - a catalogue row and an unvalidated request body -
+// are not one entity, so there is no single contract to derive it from
+// rather than inline it; sales-tax/service.ts keeps its own copy for the
+// same reason (its own comment names this one as the original).
+export function calculateItemAsk(
+  item: {
+    metal_type?: string | null;
+    content?: number | null;
+    ask_premium?: number | null;
+    quantity?: number | null;
+  },
+  spots: Spots
+): number {
   const spot = spots?.find((s: PricingSpot) => s.name === item.metal_type);
   return (
     (item?.content ?? 0) * ((spot?.ask ?? 0) * (item?.ask_premium ?? 0))
@@ -57,8 +44,16 @@ export function calculateCardCharge(
 }
 
 // Calls calculateItemAsk rather than duplicating its expression — two copies drifting apart is the exact bug bid.ts's header describes.
-export function calculateItemTotals(items: PriceableItem[], spots: Spots): number {
-  const baseTotal = items.reduce((acc: number, item: PriceableItem) => {
+export function calculateItemTotals(
+  items: {
+    metal_type?: string | null;
+    content?: number | null;
+    ask_premium?: number | null;
+    quantity?: number | null;
+  }[],
+  spots: Spots
+): number {
+  const baseTotal = items.reduce((acc, item) => {
     const price = calculateItemAsk(item, spots);
 
     const quantity = item.quantity ?? 1;
@@ -83,8 +78,19 @@ export function getShippingCharge(
 
 // `item.quantity!` preserves existing arithmetic (null multiplies to 0) rather than asserting a fact — no caller can currently produce a null, so this is unproven, not verified safe.
 // Changing it to `?? 1` (matching calculateItemTotals) would alter stored tax amounts — a real money change that needs its own commit and Jacob's call on which is right.
-export function calculateSalesTax(items: TaxedItem[], spots: Spots): number {
-  return items.reduce((acc: number, item: TaxedItem) => {
+// The same line once taxService.attachSalesTaxToItems has run: a priceable
+// item plus the rate that function always sets, from a query that COALESCEs
+// to 0 - so it is never optional here.
+export function calculateSalesTax(
+  items: ({
+    metal_type?: string | null;
+    content?: number | null;
+    ask_premium?: number | null;
+    quantity?: number | null;
+  } & { sales_tax_rate: number })[],
+  spots: Spots
+): number {
+  return items.reduce((acc, item) => {
     return (
       acc + calculateItemAsk(item, spots) * item.quantity! * item.sales_tax_rate
     );
@@ -95,9 +101,17 @@ export function calculateSalesTax(items: TaxedItem[], spots: Spots): number {
 // choice"). A balance is applied whenever one exists, capped at the order's
 // own total; the old `using_funds` flag is gone from the wire and from here.
 export function calculateSalesOrderTotal(
-  items: TaxedItem[],
+  items: ({
+    metal_type?: string | null;
+    content?: number | null;
+    ask_premium?: number | null;
+    quantity?: number | null;
+  } & { sales_tax_rate: number })[],
   spots: Spots,
-  user: FundedUser,
+  // Only dorado_funds is read — checkout passes a better-auth session user,
+  // admin passes an exchange.users row; naming either type would reject the
+  // other, which is why this stays a structural shape rather than a name.
+  user: { dorado_funds?: number | null },
   shipping_service: string | null | undefined,
   payment_method: string | null | undefined
 ): OrderPrices {

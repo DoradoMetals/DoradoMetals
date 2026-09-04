@@ -3,30 +3,15 @@
 import query from "#shared/db/query.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
 import type { Executor } from "#shared/db/executor.ts";
+import type { TrackingRecord } from "@dorado/contracts";
+// The carrier's own payload, parsed - somebody else's shape, so it lives with
+// the adapter that reads it rather than in a package of our columns.
+import type { ParsedTracking, TrackingEvent } from "#providers/shipments/utils/parsing.ts";
 
 const sql = sqlFrom(import.meta.dirname);
 
-// A scan event as the wire carries it - scan_time, not time.
-type ScanEventRow = {
-  id: string;
-  shipment_id: string;
-  status: string | null;
-  location: string | null;
-  scan_time: Date | string | null;
-};
-
-// A scan event as FedEx returns it. Deliberately loose: this is somebody
-// else's payload, and narrowing it would be asserting a shape we do not
-// control. The three fields read are the only three used.
-export interface ScanEvent {
-  status?: string | null;
-  location?: string | null;
-  date?: string | null;
-}
-
-export interface TrackingInfo {
-  scanEvents?: ScanEvent[];
-}
+// A scan event as the wire carries it - `scan_time`, not `time`.
+type ScanEventRow = Omit<TrackingRecord, "time"> & { scan_time: Date | string | null };
 
 export async function getFor(
   shipment_id: string, executor?: Executor
@@ -42,7 +27,7 @@ export async function remove(shipment_id: string, executor?: Executor): Promise<
 
 // Four parallel arrays rather than a row per event - see sql/insert.sql.
 export function columnsOf(
-  events: ScanEvent[], shipment_id: string
+  events: TrackingEvent[], shipment_id: string
 ): [string[], (string | null)[], (string | null)[], (string | null)[]] {
   return [
     new Array(events.length).fill(shipment_id),
@@ -53,7 +38,7 @@ export function columnsOf(
 }
 
 export async function insert(
-  events: ScanEvent[], shipment_id: string, executor?: Executor
+  events: TrackingEvent[], shipment_id: string, executor?: Executor
 ): Promise<number> {
   if (!events.length) return 0;
   await query(sql("insert"), columnsOf(events, shipment_id), executor);

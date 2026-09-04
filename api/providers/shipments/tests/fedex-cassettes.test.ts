@@ -29,7 +29,7 @@ import { test, beforeAll, afterAll } from "vitest";
 import assert from "node:assert/strict";
 import { withCassette } from "#shared/testing/cassettes.ts";
 import * as fedex from "#providers/shipments/fedex.ts";
-import * as adapters from "#domain/shipping/operations/adapters/fedex.ts";
+import * as adapters from "#providers/shipments/adapters/fedex.ts";
 
 // Synthetic and public - a university and a convention centre, chosen so that
 // no cassette can ever hold a customer's address. Same two the sandbox smoke

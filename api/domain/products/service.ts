@@ -7,10 +7,9 @@
 import withTransaction from "#shared/db/withTransaction.ts";
 import * as products from "#db/products/repo.ts";
 import * as rules from "#domain/products/rules.ts";
-import type { ProductFilter } from "#db/products/repo.ts";
 import type { Executor } from "#shared/db/executor.ts";
 import type {
-  BullionAdmin, BullionGroup, BullionLiveness, BullionPatch, BullionPatchColumns,
+  BullionAdmin, BullionFilter, BullionGroup, BullionLiveness, BullionPatch, BullionPatchColumns,
   BullionStorefront,
 } from "@dorado/contracts";
 
@@ -19,7 +18,7 @@ import type {
 // THE STOREFRONT, GROUPED. A caller asks with filters and gets families, not
 // rows: the browser used to group by `variant_group`, pick a headline variant
 // and re-sort the siblings on four different screens.
-export async function listGroups(filter: ProductFilter): Promise<BullionGroup[]> {
+export async function listGroups(filter: BullionFilter): Promise<BullionGroup[]> {
   return rules.group(await products.listFor(filter));
 }
 

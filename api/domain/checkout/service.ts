@@ -27,11 +27,12 @@ import {
 import * as rules from "#domain/checkout/rules.ts";
 import { bidPrice } from "#domain/quotes/rules.ts";
 import { lineContent } from "#domain/orders/rules.ts";
-import type { Checkout, CheckoutItemPatch, CheckoutPayoutForm, CheckoutView, Direction, CheckoutItem } from "@dorado/contracts";
-import type { CheckoutPatch } from "#db/checkout/checkouts/repo.ts";
+import type {
+  Checkout, CheckoutItem, CheckoutItemPatch, CheckoutPayoutForm, CheckoutView,
+  CheckoutWrite, Direction, OrderLine,
+} from "@dorado/contracts";
 import type { Executor } from "#shared/db/executor.ts";
 
-export type { CheckoutPatch } from "#db/checkout/checkouts/repo.ts";
 
 // ------------------------------------------------------------------ the row
 
@@ -75,32 +76,41 @@ async function ensure(
 // so the browser never learns a carrier's vocabulary (wave 5B) and never
 // re-derives which step is next.
 async function compose(row: Checkout, client?: Executor): Promise<CheckoutView> {
-  const fulfillment = row.fulfillment_id
-    ? await fulfillmentService.getById(row.fulfillment_id, client)
+  const method = await chosenMethod(row, client);
+  const handoff = method?.type
+    ? rules.handoffFor(await handoffsService.getHandoffs(null, client), method.type)
     : null;
-  const method_type = fulfillment?.method.type ?? null;
-  const handoff = method_type
-    ? rules.handoffFor(await handoffsService.getHandoffs(null, client), method_type)
-    : null;
-  const requires_schedule = handoff?.requires_schedule === true;
-  const item_count = (await checkoutItems.listFor(row.id, client)).length;
 
   return Object.assign(
     row,
-    {
-      fulfillment_method_type: method_type,
-      handoff_code: handoff?.code ?? null,
-      requires_schedule,
-      item_count,
-    },
     rules.checkoutState({
       row,
       direction: row.direction as Direction,
-      item_count,
-      requires_schedule,
-      has_fulfillment: !!row.fulfillment_id,
+      item_count: (await checkoutItems.listFor(row.id, client)).length,
+      category: method?.category ?? null,
+      requires_schedule: handoff?.requires_schedule === true,
     })
   );
+}
+
+// WHAT THE CHECKOUT STILL OWES, for a caller that holds the row rather than
+// the composed view - placement's one readiness question (ruling 66).
+export async function missingFor(
+  row: Checkout, client?: Executor
+): Promise<CheckoutView["missing"]> {
+  return (await compose(row, client)).missing;
+}
+
+// WHICH METHOD THE CHECKOUT HAS CHOSEN - the draft fulfillment's when the
+// stepper has made one, else the method the row names on its own. Its CATEGORY
+// is what decides which steps the checkout still owes (Jacob, 2026-09-04).
+export async function chosenMethod(row: Checkout, client?: Executor) {
+  if (row.fulfillment_id) {
+    const draft = await fulfillmentService.getById(row.fulfillment_id, client);
+    if (draft) return draft.method;
+  }
+  if (!row.fulfillment_method_id) return null;
+  return (await fulfillmentMethods.getOne(row.fulfillment_method_id, client)) ?? null;
 }
 
 // ADMIN SCOPING (D214 item 11's "narrow thing"): a customer only ever reaches
@@ -151,7 +161,7 @@ export async function getCheckout(
 // appointment_time stays a RULE: it is a value, not a reference, and Postgres
 // would refuse an unparseable literal with a fault nobody can act on.
 export async function patchCheckout(
-  user_id: string, direction: Direction, patch: CheckoutPatch
+  user_id: string, direction: Direction, patch: CheckoutWrite
 ): Promise<CheckoutView> {
   rules.assertTimestamp(patch.appointment_time);
 
@@ -320,7 +330,7 @@ export async function getRowFor(user_id: string, direction: Direction, client?: 
 // After an order consumes the checkout (D208) the choices are the ORDER's, so
 // the row goes back to empty and the next checkout starts clean. Built from the
 // repo's own whitelist, so a column added there cannot be left behind here.
-const CLEARED: CheckoutPatch = Object.fromEntries(
+const CLEARED: CheckoutWrite = Object.fromEntries(
   checkouts.PATCHABLE.map((column) => [column, null])
 );
 

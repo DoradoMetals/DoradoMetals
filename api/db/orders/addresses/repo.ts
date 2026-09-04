@@ -30,11 +30,11 @@ export async function getMany(
   return rows;
 }
 
-export type NewOrderAddress = {
-  id?: string; order_id: string; address_id: string; source_address_id?: string | null;
-};
-
-export async function create(row: NewOrderAddress, executor?: Executor): Promise<boolean> {
+export async function create(
+  row: Pick<OrderAddressLink, "order_id" | "address_id"> &
+    Partial<Pick<OrderAddressLink, "id" | "source_address_id">>,
+  executor?: Executor
+): Promise<boolean> {
   const { rowCount } = await query(
     sql("create"),
     [row.id ?? randomUUID(), row.order_id, row.address_id, row.source_address_id ?? null],

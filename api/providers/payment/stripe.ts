@@ -4,6 +4,46 @@ import { requiredEnv } from "#shared/env/required.ts";
 import stripeClient from "#providers/payment/stripe-client.ts";
 import type Stripe from "stripe";
 
+// THIRD-PARTY SHAPES LIVE HERE, NOT IN CONTRACTS. @dorado/contracts describes
+// our own columns; these describe what Stripe hands back, so this adapter is
+// their one home rather than a domain file re-declaring them (ruling 60/61's
+// "one home" applies to a provider's shapes as much as a table's).
+
+// The fields this application reads off a Stripe PaymentIntent - deliberately
+// not Stripe's whole type, which would be a claim about a shape we do not
+// own. `amount` is in CENTS. THIS IS THE ONLY SHAPE: domain/payments/service.ts
+// used to carry a second, near-identical local for what its use cases hand
+// back, and the two are merged into this one.
+export type StripeIntentLike = {
+  id: string;
+  status?: string | null;
+  amount?: number | null;
+  amount_received?: number | null;
+  client_secret?: string | null;
+};
+
+// The fields read off a Stripe PaymentMethod. Every one is optional because
+// which are present depends on the instrument.
+export type StripePaymentMethodLike = {
+  id?: string;
+  type?: string;
+  card?: { last4?: string | null; brand?: string | null } | null;
+  us_bank_account?: {
+    bank_name?: string | null;
+    account_type?: string | null;
+    last4?: string | null;
+  } | null;
+};
+
+// THE SEAM domain/payments/webhook.ts's applyIntentEvent takes for "what does
+// Stripe say this instrument is" - place.ts takes its World the same way. A
+// webhook payload names an instrument by REFERENCE ONLY, so something has to
+// ask Stripe what it is; this is what a test supplies instead, with no
+// network and no cassette.
+export type Instruments = {
+  retrieve: (payment_method_ref: string) => Promise<StripePaymentMethodLike>;
+};
+
 export function retrieveIntent(paymentIntentId: string) {
   return stripeClient.paymentIntents.retrieve(paymentIntentId);
 }

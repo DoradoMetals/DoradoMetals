@@ -6,35 +6,12 @@
 // mean an intent is still live.
 import { Forbidden, Invalid, NotFound } from "#shared/errors.ts";
 import type { PaymentDetailsPatch, PaymentSurface } from "@dorado/contracts";
-
-// The fields this application reads off a Stripe PaymentIntent. Deliberately
-// not Stripe's whole type: a wider one would be a claim about a shape we do not
-// own. `amount` is in CENTS.
-//
-// THIS IS THE ONLY SHAPE. service.ts carried a second, near-identical
-// `StripeIntent` for what its use cases hand back - the same four fields plus
-// `client_secret` - so the same object was described twice, one file apart.
-// `client_secret` joins this one and the duplicate is gone.
-export type StripeIntentLike = {
-  id: string;
-  status?: string | null;
-  amount?: number | null;
-  amount_received?: number | null;
-  client_secret?: string | null;
-};
-
-// The fields read off a Stripe PaymentMethod. Every one is optional because
-// which are present depends on the instrument.
-export type StripePaymentMethodLike = {
-  id?: string;
-  type?: string;
-  card?: { last4?: string | null; brand?: string | null } | null;
-  us_bank_account?: {
-    bank_name?: string | null;
-    account_type?: string | null;
-    last4?: string | null;
-  } | null;
-};
+// THIRD-PARTY SHAPES LIVE WITH THE PROVIDER, NOT HERE - StripePaymentMethodLike
+// describes what Stripe hands back, not a column of ours, so
+// #providers/payment/stripe.ts is its one home (ruling 60/61 for a provider's
+// shapes). This is a type-only import - it costs this file nothing at runtime
+// and does not make it any less "no database, no provider, no request".
+import type { StripePaymentMethodLike } from "#providers/payment/stripe.ts";
 
 // *** MONEY UNITS. *** Stripe speaks CENTS; every payments.* column is in
 // DOLLARS, like the rest of the new schema. Getting this backwards is a

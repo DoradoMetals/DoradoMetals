@@ -7,20 +7,10 @@
 // present, since a fulfillment has one method and a method has one category;
 // setMethod deletes the detail that no longer applies to keep that true.
 import * as rules from "#domain/fulfillments/rules.ts";
-import type { FulfillmentBaseRow } from "#db/fulfillments/repo.ts";
-import type { MethodRow } from "#db/fulfillments/methods/repo.ts";
 import type {
-  FulfillmentDirect, FulfillmentPickup, FulfillmentShipment, FulfillmentView,
+  Fulfillment, FulfillmentDirect, FulfillmentMethodRead, FulfillmentPickup,
+  FulfillmentShipment, FulfillmentView,
 } from "@dorado/contracts";
-
-// Everything the details of a set of fulfillments need, keyed by
-// fulfillment_id - one read per table rather than a query per row.
-export type Details = {
-  methods: Map<string, MethodRow>;
-  pickups: Map<string, FulfillmentPickup>;
-  directs: Map<string, FulfillmentDirect>;
-  shipmentLinks: Map<string, FulfillmentShipment[]>;
-};
 
 // The first row wins for the one-per-fulfillment children (the table enforces
 // it); shipments are grouped instead, because a fulfillment may legitimately
@@ -43,11 +33,20 @@ export const groupByFulfillment = <T extends { fulfillment_id: string }>(
   return out;
 };
 
-// `method` is passed through, never re-spelled: MethodRow IS
-// FulfillmentMethodRead - the same reference row GET /fulfillments/methods
-// serves - so a client holds one method type and not two.
+// `method` is passed through, never re-spelled: it IS FulfillmentMethodRead -
+// the same reference row GET /fulfillments/methods serves - so a client holds
+// one method type and not two.
 
-export function compose(f: FulfillmentBaseRow, d: Details): FulfillmentView | null {
+// `d` is everything the details of a set of fulfillments need, keyed by
+// fulfillment_id - one read per table rather than a query per row. Not a named
+// type: it is a bag of four different entities' Maps, not a derivation of any
+// one of them, and its only two consumers are this file and service.ts.
+export function compose(f: Fulfillment, d: {
+  methods: Map<string, FulfillmentMethodRead>;
+  pickups: Map<string, FulfillmentPickup>;
+  directs: Map<string, FulfillmentDirect>;
+  shipmentLinks: Map<string, FulfillmentShipment[]>;
+}): FulfillmentView | null {
   const method = d.methods.get(f.method_id);
   // The method join is INNER. A fulfillment whose method is gone is dropped
   // rather than returned with a null where every rule reads a category.
@@ -74,7 +73,12 @@ export function compose(f: FulfillmentBaseRow, d: Details): FulfillmentView | nu
   };
 }
 
-export function composeAll(rows: FulfillmentBaseRow[], d: Details): FulfillmentView[] {
+export function composeAll(rows: Fulfillment[], d: {
+  methods: Map<string, FulfillmentMethodRead>;
+  pickups: Map<string, FulfillmentPickup>;
+  directs: Map<string, FulfillmentDirect>;
+  shipmentLinks: Map<string, FulfillmentShipment[]>;
+}): FulfillmentView[] {
   return rows.flatMap((f) => {
     const composed = compose(f, d);
     return composed ? [composed] : [];

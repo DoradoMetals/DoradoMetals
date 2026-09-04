@@ -28,26 +28,24 @@ import {
   assertBillingIdentity, assertIntentSubject, assertPriceableBalance,
 } from "#domain/payments/rules.ts";
 
-import type { StripeIntentLike } from "#domain/payments/rules.ts";
-import type { ComposedIntentRow, IntentFacts } from "#db/payments/intents/repo.ts";
+// StripeIntentLike is the provider's shape, not ours - #providers/payment
+// is its one home (ruling 60/61), and this is a type-only import of it.
+import type { StripeIntentLike } from "#providers/payment/stripe.ts";
+import type { PaymentIntentView, PaymentIntentFacts, PaymentCaller } from "@dorado/contracts";
 import type { Executor } from "#shared/db/executor.ts";
 import type { UpdatePaymentIntentBody } from "@dorado/contracts";
 
-export type { ComposedIntentRow, IntentFacts } from "#db/payments/intents/repo.ts";
-export type { StripeIntentLike } from "#domain/payments/rules.ts";
-
-// WHO IS ASKING, resolved by the guard and handed down as ids. An intent is
-// keyed on (session_id, user_id, type), so the session's own id is part of the
+// WHO IS ASKING - `PaymentCaller` (@dorado/contracts). An intent is keyed on
+// (session_id, user_id, type), so the session's own id is part of the
 // question and travels with the caller rather than as request headers the
 // domain would have to open a second auth lookup on.
-export type Caller = { session_id: string; user_id: string };
 
 // The reusable intent for this session, keyed on the trio 075 added: without
 // session_id, user_id and type the question cannot be asked at all.
 async function findReusableIntent(
-  caller: Caller, type: string | undefined, named_user_id: string | undefined,
+  caller: PaymentCaller, type: string | undefined, named_user_id: string | undefined,
   executor?: Executor
-): Promise<ComposedIntentRow | undefined> {
+): Promise<PaymentIntentView | undefined> {
   return await intents.findReusable(
     {
       session_id: caller.session_id,
@@ -59,7 +57,7 @@ async function findReusableIntent(
 }
 
 export async function retrievePaymentIntent(
-  caller: Caller, type: string | undefined, user_id: string | undefined
+  caller: PaymentCaller, type: string | undefined, user_id: string | undefined
 ): Promise<StripeIntentLike> {
   const open = await findReusableIntent(caller, type, user_id);
   if (open?.attempt?.provider_ref) return await stripe.retrieveIntent(open.attempt.provider_ref);
@@ -71,7 +69,7 @@ export async function retrievePaymentIntent(
 // idempotency key. Billing the session's user throughout collided the key
 // across every customer one admin served in a session.
 async function billingIdentity(
-  caller: Caller, type: string | undefined, user_id: string | undefined
+  caller: PaymentCaller, type: string | undefined, user_id: string | undefined
 ) {
   const subject = type === "admin" ? user_id : caller.user_id;
   return assertBillingIdentity(subject ? await customers.getOne(subject) : undefined, type);
@@ -81,7 +79,7 @@ async function billingIdentity(
 // needs, around that call only. The two Stripe calls stay bare awaits, never
 // inside one.
 export async function createPaymentIntent(
-  caller: Caller, type: string | undefined, user_id: string | undefined
+  caller: PaymentCaller, type: string | undefined, user_id: string | undefined
 ): Promise<StripeIntentLike> {
   const target = await billingIdentity(caller, type, user_id);
 
@@ -126,7 +124,7 @@ export async function createPaymentIntent(
 // this never does.
 export async function recordIntent(
   paymentIntent: StripeIntentLike,
-  caller: Caller,
+  caller: PaymentCaller,
   type: string | undefined,
   user_id: string | undefined,
   tx: Executor
@@ -184,9 +182,8 @@ export async function updateFromProvider(
   // alone.
   if ((amount_received ?? 0) > 0) {
     await settlements.create(
+      attempt_id, attempt_id,
       {
-        id: attempt_id,
-        attempt_id,
         settled_amount: toDollars(amount_received) as number,
         provider: "stripe",
         provider_ref: paymentIntent.id,
@@ -201,7 +198,7 @@ export async function updateFromProvider(
 // on (D211). The amount is in CENTS; see the repo's own statement.
 export async function findIntentByRef(
   provider_ref: string, executor?: Executor
-): Promise<IntentFacts | undefined> {
+): Promise<PaymentIntentFacts | undefined> {
   return await intents.findFactsByRef(provider_ref, executor);
 }
 
@@ -227,7 +224,7 @@ export async function attachOrder(
 // priced $3,673.53 and ask_spot 1 priced $26.81 on the same order. They are
 // fetched fresh on every update, so a revised intent carries the current price.
 export async function updatePaymentIntent(
-  caller: Caller,
+  caller: PaymentCaller,
   { items, address_id, carrier_service_id, payment_method_id, user_id, type }: UpdatePaymentIntentBody
 ): Promise<StripeIntentLike> {
   // WHOSE ORDER THIS PRICES. Falling back to the session user on the admin path
@@ -317,6 +314,6 @@ export async function cancelIntentByRef(provider_ref: string): Promise<void> {
 // Named for the admin sales-order screen; the parameter is just order_id.
 export async function getPaymentIntentFromSalesOrderId(
   order_id: string
-): Promise<ComposedIntentRow | undefined> {
+): Promise<PaymentIntentView | undefined> {
   return await intents.findForOrder(order_id);
 }

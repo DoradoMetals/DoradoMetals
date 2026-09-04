@@ -1,36 +1,29 @@
 // shipping.shipments: no order link here - a fulfillment knows the order; compose.ts puts it back.
 // carrier_service_id/package_id are projected for compose.ts to resolve, then dropped again.
+import { randomUUID } from "node:crypto";
 import query from "#shared/db/query.ts";
 import { buildUpdate } from "#shared/db/patch.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
 import { ShipmentPatchColumns } from "@dorado/contracts";
-import type { OrderViewShipment, Shipment, ShipmentRead } from "@dorado/contracts";
+import type {
+  OrderViewShipment, ShipmentDirection, ShipmentRead, ShipmentWrite,
+} from "@dorado/contracts";
 import type { Executor } from "#shared/db/executor.ts";
 
 const sql = sqlFrom(import.meta.dirname);
 
-// `direction` is projected as text - the wire has always carried a string.
-export type ShipmentBaseRow = Omit<
-  Pick<
-    Shipment,
-    | "id" | "carrier_service_id" | "package_id" | "recipient_address_id"
-    | "shipper_address_id" | "tracking_number" | "shipping_status"
-    | "est_delivery" | "shipped_at" | "delivered_at" | "created_at" | "label"
-    | "label_type" | "pickup_type" | "cost" | "insured" | "declared_value"
-    | "direction"
-  >,
-  "direction"
-> & { direction: string | null };
-
-export async function getAll(executor?: Executor): Promise<ShipmentBaseRow[]> {
-  const { rows } = await query<ShipmentBaseRow>(sql("get_all"), [], executor);
+// The row a WRITE reads back is `OrderViewShipment` - the table with
+// `direction` widened to text, which is what every projection here casts it
+// to and what every wire it has reached has carried.
+export async function getAll(executor?: Executor): Promise<OrderViewShipment[]> {
+  const { rows } = await query<OrderViewShipment>(sql("get_all"), [], executor);
   return rows;
 }
 
 export async function getOne(
   id: string, executor?: Executor
-): Promise<ShipmentBaseRow | undefined> {
-  const { rows } = await query<ShipmentBaseRow>(sql("get_one"), [id], executor);
+): Promise<OrderViewShipment | undefined> {
+  const { rows } = await query<OrderViewShipment>(sql("get_one"), [id], executor);
   return rows[0];
 }
 
@@ -65,25 +58,39 @@ export async function getForOrder(
 
 export async function getMany(
   ids: string[], executor?: Executor
-): Promise<ShipmentBaseRow[]> {
+): Promise<OrderViewShipment[]> {
   if (ids.length === 0) return [];
-  const { rows } = await query<ShipmentBaseRow>(sql("get_many"), [ids], executor);
+  const { rows } = await query<OrderViewShipment>(sql("get_many"), [ids], executor);
   return rows;
+}
+
+// THE SHELL A PURCHASE PLACEMENT COMMITS, copied from the checkout row by the
+// statement (ruling 66) - see sql/create_from_checkout.sql.
+export async function createForCheckout(
+  { checkout_id, direction, pickup_type, insured, declared_value }: {
+    checkout_id: string;
+    direction: ShipmentDirection;
+    pickup_type: string | null;
+    insured: boolean;
+    declared_value: number | null;
+  },
+  executor?: Executor
+): Promise<string> {
+  const { rows } = await query<{ id: string }>(
+    sql("create_from_checkout"),
+    [randomUUID(), direction, pickup_type, insured, declared_value, checkout_id],
+    executor
+  );
+  return rows[0].id;
 }
 
 // A shipment exists before its label is bought, so only id and direction are
 // required; a caller that already holds the carrier's answer writes the parcel
 // in one statement instead of creating a shell and updating it (D214 item 11).
-export type ShipmentNew = {
-  id: string; direction: string;
-  tracking_number?: string | null; shipping_status?: string | null;
-  label?: string | Buffer | null; label_type?: string | null;
-  pickup_type?: string | null; package_id?: string | null;
-  carrier_service_id?: string | null; cost?: number | null;
-  insured?: boolean | null; declared_value?: number | null;
-};
-
-export async function create(row: ShipmentNew, executor?: Executor): Promise<string> {
+export async function create(
+  row: ShipmentWrite & { id: string; direction: ShipmentDirection },
+  executor?: Executor
+): Promise<string> {
   const { rows } = await query<{ id: string }>(
     sql("create"),
     [
@@ -103,24 +110,6 @@ export async function create(row: ShipmentNew, executor?: Executor): Promise<str
 // every column it was not changing, and write the lot back - a read-modify-
 // write in the service for what the database can express directly, and one
 // forgotten column away from blanking a bought label.
-export type ShipmentPatchRow = {
-  tracking_number?: string | null;
-  shipping_status?: string | null;
-  est_delivery?: Date | string | null;
-  shipped_at?: Date | string | null;
-  delivered_at?: Date | string | null;
-  label?: string | Buffer | null;
-  label_type?: string | null;
-  pickup_type?: string | null;
-  package_id?: string | null;
-  carrier_service_id?: string | null;
-  cost?: number | null;
-  actual_cost?: number | null;
-  insured?: boolean;
-  declared_value?: number | null;
-  direction?: string | null;
-};
-
 // THE COLUMNS, FROM THE CONTRACT (ruling 64). ShipmentPatchColumns is the
 // table minus its key, its two address ids (written once at creation) and the
 // stamped `created_at` - so a column added to shipping.shipments becomes
@@ -130,7 +119,7 @@ export const PATCHABLE = Object.keys(
 ) as readonly (keyof ShipmentPatchColumns)[];
 
 export async function update(
-  id: string, patch: ShipmentPatchRow, executor?: Executor
+  id: string, patch: ShipmentWrite, executor?: Executor
 ): Promise<boolean> {
   const built = buildUpdate({
     table: "shipping.shipments", allowed: PATCHABLE, patch, where: { id },

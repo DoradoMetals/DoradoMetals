@@ -6,8 +6,7 @@ import withTransaction from "#shared/db/withTransaction.ts";
 import {
   assertCreditSubject, balanceAfter, movementBetween, refuseNegativeBalance,
 } from "#domain/users/rules.ts";
-import type { CreditRow } from "#db/users/repo.ts";
-import type { AdminUser } from "@dorado/contracts";
+import type { AdminUser, UserCredit } from "@dorado/contracts";
 import type { Executor } from "#shared/db/executor.ts";
 import type { UpdateCreditBody } from "@dorado/contracts";
 
@@ -32,7 +31,7 @@ export async function getAdminUsers(): Promise<AdminUser[]> {
 // a movement and its record commit together or neither does.
 export async function adjustDoradoCredit(
   user_id: string, { op, amount }: UpdateCreditBody
-): Promise<CreditRow> {
+): Promise<UserCredit> {
   return await withTransaction(async (tx) => {
     const current = assertCreditSubject(user_id, await users.balanceForUpdate(user_id, tx));
     const before = Number(current ?? 0);
@@ -73,14 +72,14 @@ export async function getBalance(user_id: string): Promise<number | null | undef
 // its own payments.ledger row with the order id that explains it.
 export async function addFunds(
   user_id: string | null, total: number | null, tx: Executor
-): Promise<CreditRow | undefined> {
+): Promise<UserCredit | undefined> {
   if (!user_id || total === null) return undefined;
   return await users.adjustCredit(user_id, "add", total, tx);
 }
 
 export async function removeFunds(
   user_id: string | null, total: number | null, tx: Executor
-): Promise<CreditRow | undefined> {
+): Promise<UserCredit | undefined> {
   if (!user_id || total === null) return undefined;
   return await users.adjustCredit(user_id, "subtract", total, tx);
 }

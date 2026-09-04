@@ -4,7 +4,7 @@ import { Button } from '@dorado/components'
 import { defineStepper } from '@stepperize/react'
 import { useRouter } from 'next/navigation'
 import { ShoppingCartIcon } from '@phosphor-icons/react'
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 
 import ShippingStep from './shippingStep/shippingStep'
 import PayoutStep from './payoutStep/payoutStep'
@@ -14,10 +14,11 @@ import {
   toPayoutForm,
   usePayoutDraft,
 } from '@/features/checkout/purchase-order-checkout/payoutStep/payoutDraft'
+import { readyForPayment, resolveHandoff } from '@/features/checkout/gates'
 
 import { useGetSession } from '@/features/auth/queries'
 import { useBasket } from '@/features/checkout/items/queries'
-import { useCarrierHandoffs } from '@dorado/client'
+import { useCarrierHandoffs, useFulfillmentMethods } from '@dorado/client'
 import {
   useCheckoutRates,
   usePurchaseCheckoutRow,
@@ -30,8 +31,9 @@ import {
 //   - the default-address effect. `GET /checkout` sets the customer's default
 //     shipping address on a row that has none, so the row arrives with it.
 //   - the `isShippingStepComplete` expression over five store fields.
-//     `row.ready_for_payment` is that rule, in domain/checkout/rules.ts, and
-//     `row.missing` names whichever step is still outstanding.
+//     `row.missing` names whichever step is still outstanding, and
+//     `readyForPayment(row.missing)` (frontend/features/checkout/gates.ts) is
+//     that same rule read off the list.
 //   - the rate-refresh effect that copied a moved netCharge back into a store.
 //     Nothing stores a rate: the row holds `carrier_service_id` and
 //     `GET /checkout/rates` answers the live charge beside it.
@@ -56,6 +58,13 @@ export default function CheckoutStepper() {
   const { data: row } = usePurchaseCheckoutRow()
   const { data: rates = [], isLoading: ratesLoading } = useCheckoutRates('purchase', row)
   const { data: handoffs = [] } = useCarrierHandoffs()
+  const { data: methods = [] } = useFulfillmentMethods('purchase')
+  // The one place the carrier's vocabulary and the row's `fulfillment_method_id`
+  // meet - resolved once here and handed down, rather than in each selector.
+  const handoff = useMemo(
+    () => resolveHandoff(methods, handoffs, row?.fulfillment_method_id),
+    [methods, handoffs, row?.fulfillment_method_id]
+  )
   const items = useBasket('purchase')
 
   const stepper = useStepper()
@@ -127,10 +136,16 @@ export default function CheckoutStepper() {
         <div className="lg:col-span-2 lg:mt-12">
           {stepper.switch({
             shipping: () => (
-              <ShippingStep row={row} rates={rates} handoffs={handoffs} isLoading={ratesLoading} />
+              <ShippingStep
+                row={row}
+                rates={rates}
+                handoffs={handoffs}
+                handoff={handoff}
+                isLoading={ratesLoading}
+              />
             ),
             payout: () => <PayoutStep user={user} />,
-            review: () => <ReviewStep row={row} rates={rates} />,
+            review: () => <ReviewStep row={row} rates={rates} handoff={handoff} />,
           })}
 
           {payoutError && <p className="text-destructive mt-2">{payoutError}</p>}
@@ -153,11 +168,11 @@ export default function CheckoutStepper() {
                 className="ml-auto"
                 onClick={stepper.current.id === 'shipping' ? stepper.next : advanceFromPayout}
                 disabled={
-                  // THE SERVER'S ANSWER, both times. `ready_for_payment` is
-                  // every shipping choice landed on the row; the payout draft
+                  // THE SERVER'S ANSWER, both times. `readyForPayment` reads
+                  // every shipping choice off `row.missing`; the payout draft
                   // is the one thing no row can hold until it is complete.
                   stepper.current.id === 'shipping'
-                    ? row?.ready_for_payment !== true
+                    ? !row || !readyForPayment(row.missing)
                     : !isPayoutComplete(payout) || savePayout.isPending
                 }
               >

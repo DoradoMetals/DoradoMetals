@@ -47,6 +47,11 @@ export const AdminUser = User.omit({
 });
 export type AdminUser = z.infer<typeof AdminUser>;
 
+// A credit write's answer: id and the balance it produced, nothing else
+// (rulings 60-61 - no hand-written CreditRow beside this).
+export const UserCredit = User.pick({ id: true, dorado_funds: true });
+export type UserCredit = z.infer<typeof UserCredit>;
+
 // POST /api/users/:id/credit - the admin balance edit. `amount` matches
 // auth.users.dorado_funds's own type: a magnitude, never a signed delta -
 // the sign is `op`. The SUBJECT is the path's id (ruling 43: named once), so

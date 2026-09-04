@@ -4,10 +4,17 @@
 // screens dug out of an order response and posted back as `address_id`, and
 // the tightest coupling between the two halves of the codebase. That coupling
 // is gone: the surface reads `shipper_address_id` / `recipient_address_id` off
-// the checkout row and PATCHes an id into the same column. What is worth
-// pinning now is the contract that REPLACED the browser's own reasoning -
-// `missing` and the three readiness flags - because a component that started
-// re-deriving any of them would still render, and would drift silently.
+// the checkout row and PATCHes an id into the same column.
+//
+// CheckoutView SHRANK to `Checkout & { missing: CheckoutStep[] }`
+// (Jacob, 2026-09-04: "Why does it need ready_for_rates? Why does it need
+// ready_for_payment?") - `ready_for_rates`, `ready_for_payment`,
+// `ready_to_place`, `item_count`, `fulfillment_method_type` and `handoff_code`
+// are gone: the three readiness flags were readings of `missing` a component
+// can do itself now (frontend/features/checkout/gates.ts, pinned in its own
+// test file), and the handoff fields were a join the row's own
+// `fulfillment_method_id` already lets a caller make (gates.ts
+// `resolveHandoff`). What is worth pinning here now is just the shrunk shape.
 import { describe, expect, test } from "vitest";
 import { CheckoutStep, CheckoutView } from "@dorado/contracts";
 import { isPayoutComplete, toPayoutForm } from "@/features/checkout/purchase-order-checkout/payoutStep/payoutDraft";
@@ -29,32 +36,14 @@ const serverRow = (over: Record<string, unknown> = {}) => ({
   fulfillment_id: null,
   pickup_date: null,
   pickup_time: null,
-  fulfillment_method_type: null,
-  handoff_code: null,
-  requires_schedule: false,
-  item_count: 0,
-  missing: ["items", "shipper_address", "package", "handoff", "carrier_service", "payout_account"],
-  ready_for_rates: false,
-  ready_for_payment: false,
-  ready_to_place: false,
+  missing: ["items", "shipper_address", "package", "carrier_service", "payout_account"],
   ...over,
 });
 
 describe("the composed checkout row", () => {
-  test("parses as CheckoutView, computed fields included", () => {
+  test("parses as CheckoutView, missing included", () => {
     const parsed = CheckoutView.safeParse(serverRow());
     expect(parsed.success).toBe(true);
-  });
-
-  // The stepper disables "Go to Payment" and "Confirm" on these two booleans.
-  // If the server ever stopped sending them, `row.ready_for_payment !== true`
-  // would disable the button forever rather than fail loudly - so the shape is
-  // asserted here instead.
-  test("carries the three flags the stepper's buttons read", () => {
-    const row = CheckoutView.parse(serverRow());
-    expect(typeof row.ready_for_rates).toBe("boolean");
-    expect(typeof row.ready_for_payment).toBe("boolean");
-    expect(typeof row.ready_to_place).toBe("boolean");
   });
 
   // `missing` is a closed enum, so a step the server invents cannot arrive as
@@ -69,20 +58,6 @@ describe("the composed checkout row", () => {
 
   test("a step the server does not know about is refused, not rendered", () => {
     expect(CheckoutView.safeParse(serverRow({ missing: ["insurance"] })).success).toBe(false);
-  });
-
-  // The handoff round-trip: the browser sends a code and reads the same code
-  // back, never the fulfillment method type the server stores behind it.
-  test("answers the handoff by the code the selector offered", () => {
-    const row = CheckoutView.parse(
-      serverRow({
-        handoff_code: "CONTACT_FEDEX_TO_SCHEDULE",
-        fulfillment_method_type: "CARRIER PICKUP",
-        requires_schedule: true,
-      })
-    );
-    expect(row.handoff_code).toBe("CONTACT_FEDEX_TO_SCHEDULE");
-    expect(row.requires_schedule).toBe(true);
   });
 });
 

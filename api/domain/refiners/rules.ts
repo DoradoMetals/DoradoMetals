@@ -3,7 +3,7 @@
 // line, one cover per frozen spot. Pure - no database, no request.
 import type { NewRefinerItem } from "#db/refiners/items/repo.ts";
 import type { SpotNew } from "#db/refiners/spots/repo.ts";
-import type { OrderSpotRawRow } from "#db/orders/spots/repo.ts";
+import type { OrderSpot as OrderSpotRawRow } from "@dorado/contracts";
 import type { EngagementSpotRow } from "#db/refiners/spots/repo.ts";
 import type { OrderItem, RefinerItem } from "@dorado/contracts";
 

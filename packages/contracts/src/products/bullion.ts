@@ -130,3 +130,28 @@ export type BullionGroup = z.infer<typeof BullionGroup>;
 // bid check only asks whether the row exists at all.
 export const BullionLiveness = Bullion.pick({ id: true, display: true });
 export type BullionLiveness = z.infer<typeof BullionLiveness>;
+
+// EVERY QUESTION THE CATALOGUE IS ASKED, as keys (ruling 57/60/61 - the shape
+// db/products/repo.ts builds its WHERE from lives here, not as a hand-rolled
+// object type in the repo). Absent means "do not filter". `ids` replaces a
+// single id because a filter may name many; `metal` is the metal's NAME, not
+// its id - a JOIN column the query filters by string; `search` and `sort`
+// name no column at all, so they arrive through .extend() rather than
+// .pick(). The picked columns stay nullable/optional exactly as the row
+// declares them - a filter that cannot express "no such row" for a nullable
+// column would be stricter than the table it questions.
+export const BullionFilter = Bullion.pick({
+  slug: true, display: true, homepage_display: true, filter_category: true,
+  type: true, is_generic: true,
+}).partial().extend({
+  ids: z.array(Bullion.shape.id).optional(),
+  metal: Metal.shape.name.optional(),
+  search: z.string().optional(),
+  sort: z.enum(["name", "content", "newest"]).optional(),
+});
+export type BullionFilter = z.infer<typeof BullionFilter>;
+
+// THE ORDERING KEYS db/products/repo.ts's closed ORDERINGS map answers for -
+// no caller string ever reaches the statement itself.
+export const BullionSort = BullionFilter.shape.sort.unwrap();
+export type BullionSort = z.infer<typeof BullionSort>;

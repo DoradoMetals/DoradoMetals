@@ -16,14 +16,16 @@ import * as shippingHandler from "#domain/shipping/operations/handler.ts";
 import { carrierIdOr } from "#domain/shipping/operations/resolver.ts";
 import { FEDEX_STORE_ADDRESS, DORADO_ADDRESS } from "#providers/shipments/constants.ts";
 import { attempt } from "#shared/attempt.ts";
-import type { ShipmentBaseRow as ShipmentRow } from "#db/shipping/shipments/repo.ts";
+import type { OrderViewShipment as ShipmentRow } from "@dorado/contracts";
 import type { ParsedTracking } from "#providers/shipments/utils/parsing.ts";
-import type { RatesInput } from "#domain/shipping/operations/handler.ts";
-import type { PickupBaseRow } from "#db/shipping/pickups/repo.ts";
-import type { PoolClient } from "pg";
+// The carrier's own rate-quote input, derived from the handler rather than
+// named there: a provider's request shape is not one of our columns, so it has
+// no home in @dorado/contracts and no home under db/ or domain/ either.
+type RatesInput = Parameters<typeof shippingHandler.getRates>[2];
+import type { ShipmentPickup } from "@dorado/contracts";
+import type { Executor } from "#shared/db/executor.ts";
 import type { CheckoutRate, Direction, Shipment, ShipmentView, ShippingCancelLabelBody, ShippingCancelPickupBody, ShippingCheckPickupBody, ShippingGetLocationsBody, ShippingValidateAddressBody } from "@dorado/contracts";
 
-type Executor = PoolClient | undefined;
 
 // EVERY OPERATION RESOLVES THE ADDRESS FROM ITS OWN ID (D214 item 11): the
 // client sends address_id, never a composed address object, so a rate quote
@@ -34,15 +36,10 @@ async function requireAddress(address_id: string) {
   return address;
 }
 
-// fetchTracking is the seam a test uses instead of calling FedEx. Returns ParsedTracking, not TrackingInfo: this reads four fields (scanEvents, latestStatus, estimatedDeliveryTime, deliveredAt), and TrackingInfo declares only the one insertEvents needs - the narrower type would compile then fail at the body.
-export type FetchTracking = (
-  shipment: ShipmentRow,
-  client?: Executor
-) => Promise<ParsedTracking>;
-
-// The three directions a parcel moves, read from shipping.direction itself rather than duplicated by hand - not to be confused with orders.direction (purchase/sale), a different enum with the same name.
-type ShippingType = Shipment["direction"];
-
+// fetchTracking is the seam a test uses instead of calling FedEx. It answers
+// the provider's own ParsedTracking - four fields (scanEvents, latestStatus,
+// estimatedDeliveryTime, deliveredAt) - and a narrower shape would compile and
+// then fail at the body.
 // Runs OUTSIDE any transaction: cancelling a label first, inside one, risked a later failure rolling back our record while FedEx had already killed the label - a customer holding a label the system still calls active.
 // Safe because cancel is idempotent - a retry just cancels an already-cancelled label. Creating a label is NOT idempotent and doesn't get this treatment; see domain/orders/service.ts.
 export async function cancelLabel(
@@ -68,7 +65,7 @@ export async function cancelLabel(
 export async function getTracking(
   shipment_id: string,
   isAdmin: boolean,
-  fetchTracking?: FetchTracking
+  fetchTracking?: (shipment: ShipmentRow, client?: Executor) => Promise<ParsedTracking>
 ): Promise<ShipmentView | null> {
   return withTransaction(async (client) => {
     const shipment = await shipmentRepo.getById(shipment_id, client);
@@ -250,12 +247,12 @@ export async function getLocations(
 // Same shape and reasoning as cancelLabel: cancelling a pickup is idempotent and runs outside any transaction - a rollback after it would leave a courier not coming and a row that says one is.
 export async function cancelPickup(
   { pickup_id, carrier_id }: ShippingCancelPickupBody
-): Promise<PickupBaseRow | null> {
+): Promise<ShipmentPickup | null> {
   // Same guard as cancelLabel and getTracking: an unknown id used to read three fields off null after deciding to call the carrier.
   const pickup = await pickupRepo.getById(pickup_id);
   shippingRules.assertPickup(pickup, pickup_id);
 
-  // Widened rather than assumed: PickupBaseRow.requested_at is declared
+  // Widened rather than assumed: ShipmentPickup.requested_at is declared
   // `string` (the wire's shape, also what orders' OrderView needs it to stay
   // - widening the repo type ripples into that composed read), but pg parses
   // a timestamp column into a Date at runtime. The date is sent as
@@ -300,13 +297,13 @@ export async function voidLabel(
 // Takes the booking as the carrier reported it - a confirmation code, the date
 // it was requested for and where the courier was sent - because the row that
 // would have recorded it is exactly what the rollback removed.
-export type OrphanedPickup = {
-  confirmationNumber?: string | null;
-  pickupDate?: string | null;
-  location?: string | null;
-};
-
-export async function voidPickup(pickup: OrphanedPickup | null | undefined): Promise<void> {
+export async function voidPickup(
+  pickup: {
+    confirmationNumber?: string | null;
+    pickupDate?: string | null;
+    location?: string | null;
+  } | null | undefined
+): Promise<void> {
   if (!pickup?.confirmationNumber) return;
   await attempt(`ORPHANED CARRIER PICKUP ${pickup.confirmationNumber}`, async () =>
     shippingHandler.cancelPickup(await carrierIdOr(null), undefined, {
@@ -329,11 +326,9 @@ export async function voidPickup(pickup: OrphanedPickup | null | undefined): Pro
 // `cancel` is a SEPARATE parameter rather than a field on labelData: labelData
 // comes from the carrier's response, and a field would be reachable from
 // something the carrier said.
-export type CancelLabel = (trackingNumber: string | undefined | null) => Promise<void>;
-
 export async function labelBufferOrVoid(
   labelData: { labelFile: string | null; tracking_number: string | null },
-  cancel: CancelLabel = voidLabel
+  cancel: typeof voidLabel = voidLabel
 ): Promise<Buffer> {
   if (!labelData.labelFile) await cancel(labelData.tracking_number);
   shippingRules.assertLabelFile(labelData.labelFile);

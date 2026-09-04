@@ -3,6 +3,7 @@ import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
 import { randomUUID } from "node:crypto";
+import type { CarrierServiceWrite } from "@dorado/contracts";
 import pool from "#pool";
 import { inRollback } from "#shared/testing/rollback.ts";
 import { actingAs } from "#shared/testing/actor.ts";
@@ -23,7 +24,7 @@ afterAll(async () => {
 
 const aName = () => `test-repo-service-${randomUUID().slice(0, 8)}`;
 
-const write = (over: Partial<services.ServiceWrite> = {}): services.ServiceWrite => ({
+const write = (over: Partial<CarrierServiceWrite> = {}): CarrierServiceWrite => ({
   carrier_id: null,
   name: aName(),
   description: null,

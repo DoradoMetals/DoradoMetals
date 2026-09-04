@@ -120,3 +120,22 @@ export const OrderSendToRefinerBody = z.object({
 }).strict();
 export type OrderSendToRefinerBody = z.infer<typeof OrderSendToRefinerBody>;
 
+
+// WHAT THE SERVER MAY WRITE on an order row - wider than `OrderPatch`, which
+// is what a REQUEST may name, and narrower than the row. The identity columns
+// (id, user_id, direction, number) are set once at creation and the audit
+// columns are the `audit_stamp` trigger's, so what is left is the state a use
+// case moves: the label, the notes, the two flags and the spot pin.
+// db/orders/repo.ts derives its PATCHABLE from these keys (ruling 64).
+export const OrderWrite = Order.omit({
+  id: true, user_id: true, direction: true, number: true,
+  created_by: true, updated_by: true, created_at: true, updated_at: true,
+  created_by_id: true, updated_by_id: true,
+}).partial();
+export type OrderWrite = z.infer<typeof OrderWrite>;
+
+// The two columns a caller may bind as a row-state PRECONDITION on that write
+// - evaluated in the statement, which is what makes the Pending-only
+// transitions atomic under webhook retries.
+export const OrderGuard = Order.pick({ status: true, direction: true }).partial();
+export type OrderGuard = z.infer<typeof OrderGuard>;

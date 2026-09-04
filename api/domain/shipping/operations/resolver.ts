@@ -11,20 +11,15 @@ function normalizeCarrierCode(name: string | null | undefined): string {
     .toLowerCase();
 }
 
-// A carrier row as this function needs it, deliberately structural rather than the Carrier contract - this needs one field, not a contract.
-type CarrierLike = {
-  organization?: { name?: string | null } | null;
-  name?: string | null;
-};
-
 type ProviderCode = keyof typeof PROVIDERS;
 
 // The carrier's name is the organization's, not the carrier row's - a carrier is an organization with a role, and the repos return the two apart.
 export async function resolveCarrier(carrier_id: string, client?: Executor) {
   // The SERVICE, not a repo: the carrier this needs is composed from two
   // tables, and the name it reads lives on the organization half.
-  const carrier: CarrierLike | null = await carriersService.getCarrierById(carrier_id, client);
-  const code = normalizeCarrierCode(carrier?.organization?.name ?? carrier?.name);
+  // One field, read structurally: the carrier's NAME is the organization's.
+  const carrier = await carriersService.getCarrierById(carrier_id, client);
+  const code = normalizeCarrierCode(carrier?.organization?.name);
 
   // Indexed as a plain lookup, not narrowed first: `code` comes from the database and may name a carrier nothing implements - narrowing first would hide that as a compiler-can't-happen case.
   const provider = PROVIDERS[code as ProviderCode];

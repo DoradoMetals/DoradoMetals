@@ -25,8 +25,14 @@ import * as paymentsService from "#domain/payments/service.ts";
 import { attempt } from "#shared/attempt.ts";
 import type { Executor } from "#shared/db/executor.ts";
 import type { PoolClient } from "pg";
+import type { PaymentIntent } from "@dorado/contracts";
 
-export type SettledSweepResult = { order_id: string; outcome: "advanced" };
+// NOT EXPORTED: nothing outside this file names either result type (a caller
+// gets an array of them back, never imports the shape). `order_id` is derived
+// from the contract in the same statement rather than re-typed as `string` -
+// PaymentIntent.order_id is nullable at the column, and every candidate here
+// has already resolved to one.
+type SettledSweepResult = { order_id: NonNullable<PaymentIntent["order_id"]>; outcome: "advanced" };
 
 /** Sweep (a): LABEL REPAIR for the missed webhook. Paidness is the intent row -
  *  already settled, nothing to decide - and the candidates are exactly the
@@ -45,8 +51,8 @@ export async function sweepSettledIntents(
   return out;
 }
 
-export type AbandonedSweepResult = {
-  order_id: string;
+type AbandonedSweepResult = {
+  order_id: NonNullable<PaymentIntent["order_id"]>;
   refunded: number;
 };
 

@@ -14,11 +14,8 @@ import {
 } from "#domain/payments/details/rules.ts";
 import { seal, open, aadFor } from "#shared/crypto/envelope.ts";
 import { payoutKeyFromEnv } from "#shared/crypto/payoutKey.ts";
-import type { DetailRow } from "#db/payments/details/repo.ts";
 import type { Executor } from "#shared/db/executor.ts";
-import type { CheckoutPayoutForm, PaymentDetailsPatch } from "@dorado/contracts";
-
-export type { DetailRow } from "#db/payments/details/repo.ts";
+import type { CheckoutPayoutForm, PaymentDetailsPatch, PaymentDetailsView } from "@dorado/contracts";
 
 // Save, or rewrite in place - the details id is stable per checkout, so a
 // customer correcting a digit does not litter rows.
@@ -31,7 +28,7 @@ export async function saveCheckoutPayout(
   existing_id: string | null,
   form: CheckoutPayoutForm,
   tx: Executor
-): Promise<DetailRow> {
+): Promise<PaymentDetailsView> {
   const method = assertPayableForm(form);
 
   const resolved = assertResolvedMethod(

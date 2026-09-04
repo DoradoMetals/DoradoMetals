@@ -27,32 +27,13 @@ import withTransaction from "#shared/db/withTransaction.ts";
 import * as rules from "#domain/checkout/rules.ts";
 import { attempt } from "#shared/attempt.ts";
 import type { Executor } from "#shared/db/executor.ts";
-
-export type Adoption = {
-  direction: string;
-  outcome: "moved" | "merged";
-  checkout_id: string;
-  /** Lines of the customer's OWN basket that the visitor's replaced. Zero on a
-   *  "moved" adoption (there was no basket to replace) and usually zero on a
-   *  merge; a non-zero number is a customer who had a basket on this account
-   *  and is now looking at the visitor's, which is the merge rule working. */
-  replaced: number;
-};
-
-export type AdoptionResult = {
-  /** Named `adopted` rather than `checkouts` on purpose: `result.checkouts.map`
-   *  reads to lint:namespace-calls as a call on the `checkouts` REPO, which
-   *  exports no `map`. A field name that makes a linter lie about a caller is
-   *  the field name's problem. */
-  adopted: Adoption[];
-  addresses: number;
-};
+import type { CheckoutAdoption, CheckoutAdoptionResult } from "@dorado/contracts";
 
 // The one door, and the shape better-auth's hook hands us: two user ids.
 export async function adoptAnonymousCheckout(
   { anonymousUserId, userId }: { anonymousUserId: string; userId: string },
   executor?: Executor
-): Promise<AdoptionResult> {
+): Promise<CheckoutAdoptionResult> {
   // Linking a user to itself is not a merge; it is a no-op, and better-auth's
   // own hook already treats that case as "nothing happened".
   if (!anonymousUserId || !userId || anonymousUserId === userId) {
@@ -71,14 +52,14 @@ export async function adoptAnonymousCheckout(
 // the error.
 export const adoptAnonymousCheckoutQuietly = (
   ids: { anonymousUserId: string; userId: string }
-): Promise<AdoptionResult | undefined> =>
+): Promise<CheckoutAdoptionResult | undefined> =>
   attempt("carry a visitor's basket onto their new account", () =>
     adoptAnonymousCheckout(ids)
   );
 
 async function adopt(
   anonymousUserId: string, userId: string, client: Executor
-): Promise<AdoptionResult> {
+): Promise<CheckoutAdoptionResult> {
   // BOTH SIDES MOVE, SO THE KEY BETWEEN THEM WAITS FOR THE COMMIT. The address
   // book and the checkout rows that point at it are only consistent together
   // (migration 126, and checkouts.deferAddressOwnership carries the reasoning);
@@ -92,7 +73,7 @@ async function adopt(
   // customer's book; the address row itself is shared and is not re-keyed.
   const addresses = await userAddresses.reassign(anonymousUserId, userId, client);
 
-  const moved: Adoption[] = [];
+  const moved: CheckoutAdoption[] = [];
   for (const visitor of await checkouts.listFor(anonymousUserId, client)) {
     const mine = await checkouts.findFor(userId, visitor.direction, client);
 

@@ -25,9 +25,11 @@ import * as shipmentLinks from "#db/fulfillments/shipments/repo.ts";
 import * as orders from "#db/orders/repo.ts";
 import * as compose from "#domain/fulfillments/compose.ts";
 import * as rules from "#domain/fulfillments/rules.ts";
-import type { Details } from "#domain/fulfillments/compose.ts";
 import type { Executor } from "#shared/db/executor.ts";
-import type { Direction, FulfillmentCategory, FulfillmentView } from "@dorado/contracts";
+import type { Checkout,
+  Direction, Fulfillment, FulfillmentCategory, FulfillmentDirect, FulfillmentMethodRead,
+  FulfillmentPickup, FulfillmentShipment, FulfillmentView,
+} from "@dorado/contracts";
 
 // ------------------------------------------------------------- composition
 
@@ -37,9 +39,18 @@ import type { Direction, FulfillmentCategory, FulfillmentView } from "@dorado/co
 // transaction client (`executor`) whenever one is open, and a single pg client
 // can only run one statement at a time - concurrent calls on it just queue
 // today (with a deprecation warning) and raise in pg@9.
+// The return shape is inline, not named: it is a bag of four different
+// entities' Maps, not a derivation of any one of them - compose.ts's compose()
+// and composeAll() take the identical shape (duplicated rather than shared,
+// same call as the Window type in fulfillments/directs and pickups repos).
 async function detailsFor(
-  rows: fulfillments.FulfillmentBaseRow[], executor?: Executor
-): Promise<Details> {
+  rows: Fulfillment[], executor?: Executor
+): Promise<{
+  methods: Map<string, FulfillmentMethodRead>;
+  pickups: Map<string, FulfillmentPickup>;
+  directs: Map<string, FulfillmentDirect>;
+  shipmentLinks: Map<string, FulfillmentShipment[]>;
+}> {
   const ids = rows.map((f) => f.id);
   const methods = await methodService.byId(executor);
   const p = await pickups.getMany(ids, executor);
@@ -54,7 +65,7 @@ async function detailsFor(
 }
 
 async function composeOne(
-  row: fulfillments.FulfillmentBaseRow | undefined, executor?: Executor
+  row: Fulfillment | undefined, executor?: Executor
 ): Promise<FulfillmentView | null> {
   if (!row) return null;
   return compose.compose(row, await detailsFor([row], executor));
@@ -166,17 +177,13 @@ export async function attachDraft(
 // through their services: assertCategory is what those add, and the category
 // is right here.
 export async function attachForCheckout(
-  { order_id, direction, fulfillment_id, method_id, pickup_address_id, location_id, start_time }: {
-    order_id: string;
-    direction: Direction;
-    fulfillment_id: string | null;
-    method_id: string | null;
-    pickup_address_id: string | null;
-    location_id: string | null;
-    start_time: string | null;
-  },
-  executor?: Executor
+  order_id: string, checkout: Checkout, executor?: Executor
 ): Promise<FulfillmentView> {
+  const {
+    fulfillment_id, fulfillment_method_id: method_id,
+    pickup_address_id, appointment_location_id: location_id, appointment_time: start_time,
+  } = checkout;
+  const direction: Direction = checkout.direction === "sale" ? "sale" : "purchase";
   const chosen = fulfillment_id
     ? await attachDraft({ fulfillment_id, order_id }, executor)
     : method_id

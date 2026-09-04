@@ -5,9 +5,7 @@
 // address snapshot is immutable (Jacob, D84).
 import * as orderAddresses from "#db/orders/addresses/repo.ts";
 import * as placeAddresses from "#db/places/addresses/repo.ts";
-import type { PoolClient } from "pg";
-
-type Executor = PoolClient | undefined;
+import type { Executor } from "#shared/db/executor.ts";
 
 export type { OrderAddressLink } from "@dorado/contracts";
 

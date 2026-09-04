@@ -1,5 +1,5 @@
 // Which function turns this application's shapes into each carrier's request - keyed like PROVIDERS/CATALOGUES, so resolveCarrier catches a missing entry at startup rather than a silent half-configuration.
-import * as fedexAdapters from "#domain/shipping/operations/adapters/fedex.ts";
+import * as fedexAdapters from "#providers/shipments/adapters/fedex.ts";
 
 export const BUILDERS = {
   fedex: {

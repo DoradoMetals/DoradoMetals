@@ -1,104 +1,62 @@
 // orders.spots - CRUD only. The spots an order was quoted at. EVERY money
 // figure on the order derives from these, so a wrong one misprices all of it.
-import { randomUUID } from "node:crypto";
 import query from "#shared/db/query.ts";
 import { buildUpdate } from "#shared/db/patch.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
 import type { Executor } from "#shared/db/executor.ts";
 import { columnsOf } from "#shared/db/columns.ts";
-import { OrderSpot } from "@dorado/contracts";
+import { OrderSpot, OrderSpotPatch } from "@dorado/contracts";
+import type { OrderSpotNamed } from "@dorado/contracts";
 
 const sql = sqlFrom(import.meta.dirname);
 
-// The metal's NAME joined on - what the PDFs, the emails and the refiner
-// surfaces read. percent_change and dollar_change are projected NULL.
-export type OrderSpotRow = {
-  id: string;
-  order_id: string | null;
-  name: string;
-  ask: number | null;
-  bid: number | null;
-  percent_change: number | null;
-  dollar_change: number | null;
-  created_at: Date | null;
-  updated_at: Date | null;
-};
-
+// The metal's NAME joined on (`OrderSpotNamed`) - what the PDFs, the emails
+// and the refiner surfaces read. percent_change and dollar_change are
+// projected NULL.
 export async function getFor(
   order_id: string, executor?: Executor
-): Promise<OrderSpotRow[]> {
-  const { rows } = await query<OrderSpotRow>(sql("get_for"), [order_id], executor);
+): Promise<OrderSpotNamed[]> {
+  const { rows } = await query<OrderSpotNamed>(sql("get_for"), [order_id], executor);
   return rows;
 }
 
 export async function getMany(
   order_ids: string[], executor?: Executor
-): Promise<OrderSpotRow[]> {
+): Promise<OrderSpotNamed[]> {
   if (order_ids.length === 0) return [];
-  const { rows } = await query<OrderSpotRow>(sql("get_many"), [order_ids], executor);
+  const { rows } = await query<OrderSpotNamed>(sql("get_many"), [order_ids], executor);
   return rows;
 }
 
 // The VERBATIM table rows (ruling 12) - what GET /orders/:id/spots serves.
-export type OrderSpotRawRow = {
-  id: string;
-  metal_id: string;
-  order_id: string;
-  ask: number | null;
-  bid: number | null;
-  scrap_percentage: number | null;
-  bullion_percentage: number | null;
-  created_at: Date | null;
-  updated_at: Date | null;
-};
-
 export async function getRowsFor(
   order_id: string, executor?: Executor
-): Promise<OrderSpotRawRow[]> {
-  const { rows } = await query<OrderSpotRawRow>(sql("get_rows_for"), [order_id], executor);
+): Promise<OrderSpot[]> {
+  const { rows } = await query<OrderSpot>(sql("get_rows_for"), [order_id], executor);
   return rows;
 }
 
-export type SpotRow = {
-  id: string; order_id: string; metal_id: string;
-  ask: number | null; bid: number | null;
-};
-
-// Idempotent: (order_id, metal_id) is UNIQUE, so a repeat does nothing.
-export type NewOrderSpot = {
-  id?: string; order_id: string; metal_id: string;
-  ask?: number | null; bid?: number | null;
-};
-
-export async function create(row: NewOrderSpot, executor?: Executor): Promise<SpotRow | undefined> {
-  const { rows } = await query<SpotRow>(
-    sql("create"),
-    [row.id ?? randomUUID(), row.order_id, row.metal_id, row.ask ?? null, row.bid ?? null],
-    executor
+// ONE FROZEN QUOTE PER METAL THE ORDER CONTAINS, copied from the live feed by
+// the statement (ruling 66). A metal with no live quote does not join, so the
+// answer is SHORT - the caller compares it against the metals it asked for and
+// refuses, because a null spot prices that metal at zero.
+export async function freezeForOrder(
+  order_id: string, executor?: Executor
+): Promise<Pick<OrderSpot, "id" | "order_id" | "metal_id" | "ask" | "bid">[]> {
+  const { rows } = await query<Pick<OrderSpot, "id" | "order_id" | "metal_id" | "ask" | "bid">>(
+    sql("freeze"), [order_id], executor
   );
-  return rows[0];
-}
-
-// THE SIXTH VERB (D214 item 11): a derivation that yields N rows writes them in
-// one call, so the use case reads
-// `await orderSpots.createMany(rules.spotsToFreeze(...), tx)` and carries no
-// loop of its own.
-export async function createMany(
-  rows: NewOrderSpot[], executor?: Executor
-): Promise<number> {
-  for (const row of rows) await create(row, executor);
-  return rows.length;
+  return rows;
 }
 
 // ONE UPDATE, keyed on (order_id, metal_id). `bid` ONLY: the ask is what the
 // same metal sells for, and writing it here would lose a number this never owned.
 // THE COLUMN, FROM THE CONTRACT (ruling 64). Only the BID: the ask is what the
 // same metal sells for and this table never quotes it.
-export const PATCHABLE = columnsOf(OrderSpot.pick({ bid: true }));
-export type SpotPatch = Partial<Record<(typeof PATCHABLE)[number], number | null>>;
+export const PATCHABLE = columnsOf(OrderSpotPatch);
 
 export async function update(
-  order_id: string, metal_id: string, patch: SpotPatch, executor?: Executor
+  order_id: string, metal_id: string, patch: OrderSpotPatch, executor?: Executor
 ): Promise<boolean> {
   const built = buildUpdate({
     table: "orders.spots",

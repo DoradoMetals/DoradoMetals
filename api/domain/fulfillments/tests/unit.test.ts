@@ -47,7 +47,19 @@ import {
   compose, composeAll, byFulfillment,
 } from "#domain/fulfillments/compose.ts";
 import { byStartTimeThenId } from "#domain/fulfillments/rules.ts";
-import type { Details } from "#domain/fulfillments/compose.ts";
+import type {
+  FulfillmentDirect, FulfillmentMethodRead, FulfillmentPickup, FulfillmentShipment,
+} from "@dorado/contracts";
+
+// compose.ts and service.ts each inline this shape rather than naming it (it
+// is a bag of four entities' Maps, not a derivation of one) - the test needs
+// its own copy to type `details()` below.
+type Details = {
+  methods: Map<string, FulfillmentMethodRead>;
+  pickups: Map<string, FulfillmentPickup>;
+  directs: Map<string, FulfillmentDirect>;
+  shipmentLinks: Map<string, FulfillmentShipment[]>;
+};
 
 // The statements are in db/fulfillments; these tests stay in domain/ alongside compose.ts.
 const here = new URL("../../../db/fulfillments/", import.meta.url).pathname;

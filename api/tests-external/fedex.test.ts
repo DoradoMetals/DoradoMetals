@@ -74,7 +74,7 @@ test("refuses to run against a live-shaped FedEx configuration", () => {
 // being refused outright.
 // ---------------------------------------------------------------------------
 const fedex = await import("#providers/shipments/fedex.ts");
-const adapters = await import("#domain/shipping/operations/adapters/fedex.ts");
+const adapters = await import("#providers/shipments/adapters/fedex.ts");
 
 // Synthetic and public - a university and a convention centre - so no run of
 // this file can ever send FedEx a customer's address. Same two

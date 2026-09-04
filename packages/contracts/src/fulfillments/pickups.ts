@@ -19,6 +19,12 @@ export type FulfillmentPickup = z.infer<typeof FulfillmentPickup>;
 export const FulfillmentPickupPatch = FulfillmentPickup.omit({ id: true }).partial();
 export type FulfillmentPickupPatch = z.infer<typeof FulfillmentPickupPatch>;
 
+// THE COLUMNS db/fulfillments/pickups/repo.ts's update() MAY TOUCH (ruling 64) -
+// `fulfillment_id` is the WHERE key, dropped for the same reason the schedule
+// body drops it too.
+export const FulfillmentPickupPatchColumns = FulfillmentPickupPatch.omit({ fulfillment_id: true });
+export type FulfillmentPickupPatchColumns = z.infer<typeof FulfillmentPickupPatchColumns>;
+
 // POST /fulfillments/schedule_pickup - the fulfillment named ONCE, at the top
 // level, and the booking beside it (ruling 43). It used to be nested inside
 // the patch, where it read as one of the columns being written and had to be

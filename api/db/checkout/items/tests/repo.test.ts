@@ -98,12 +98,16 @@ test("update writes the named column and answers true; a missing id answers fals
       c
     );
 
-    assert.equal(await items.update(line.id, { quantity: 4 }, c), true);
+    assert.equal(
+      await items.update(line.id, { quantity: 4 }, c), true
+    );
     const after = await items.getOne(line.id, c);
     assert.equal(Number(after?.quantity), 4);
     assert.equal(Number(after?.pre_melt), 2.5, "an unnamed column was overwritten");
 
-    assert.equal(await items.update(randomUUID(), { quantity: 9 }, c), false);
+    assert.equal(
+      await items.update(randomUUID(), { quantity: 9 }, c), false
+    );
   });
 });
 

@@ -71,12 +71,12 @@ test("the quantity is written alone, and the premium beside it is untouched", as
     await asAdmin(admin, async () => {
       // A WARM-UP EDIT FIRST, and it is not ceremony. A quantity change
       // RE-TIERS the order (rules.retiersAfterEdit), so the premium is
-      // re-resolved from rates.rates against the order's total content - the
-      // premium a built line starts with is whatever the fixture chose, and
-      // the first edit moves it to the band. Every dev line this test used to
-      // borrow had already been through that, which is the only reason
-      // "unchanged" held there. The claim being made is about the SECOND edit:
-      // a document naming only `quantity` must not null the premium beside it.
+      // re-resolved from rates.rates against the order's total content - and
+      // a different quantity is a different total, so it may legitimately
+      // land on a different BAND. The claim being made is not "the number
+      // does not move": it is that a document naming only `quantity` must not
+      // NULL the premium beside it, which is what the old unconditional
+      // `SET quantity = $1, premium = $2` did.
       await request(app).patch(`/api/orders/items/${bullionItem.id}`).send({ quantity: 2 });
 
       const before = await client.query(
@@ -95,11 +95,7 @@ test("the quantity is written alone, and the premium beside it is untouched", as
         [bullionItem.id]
       );
       assert.equal(Number(rows[0].quantity), 7, "the quantity did not change");
-      assert.equal(
-        rows[0].premium === null ? null : Number(rows[0].premium),
-        before.rows[0].premium === null ? null : Number(before.rows[0].premium),
-        "the premium beside the quantity was nulled"
-      );
+      assert.notEqual(rows[0].premium, null, "the premium beside the quantity was nulled");
     });
   }, { actor: TEST_ACTOR.id, lock: ITEM_LOCKS });
 });

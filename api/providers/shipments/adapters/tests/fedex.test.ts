@@ -2,7 +2,7 @@
 // Pure functions, no network - what's asserted is the mapping: what the handler is given, and what the provider receives.
 import { test, describe } from "vitest";
 import assert from "node:assert/strict";
-import * as fedex from "#domain/shipping/operations/adapters/fedex.ts";
+import * as fedex from "#providers/shipments/adapters/fedex.ts";
 
 // The shape formatAddressForFedEx produces, so a pre-formatted address can be
 // told apart from one still needing conversion.

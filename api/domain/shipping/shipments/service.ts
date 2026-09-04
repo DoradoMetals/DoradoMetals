@@ -10,25 +10,24 @@ import * as fulfillmentService from "#domain/fulfillments/service.ts";
 import * as fulfillmentShipments from "#domain/fulfillments/shipments/service.ts";
 import * as orders from "#db/orders/repo.ts";
 import * as rules from "#domain/shipping/rules.ts";
-import type { ShipmentBaseRow, ShipmentPatchRow } from "#db/shipping/shipments/repo.ts";
 import type { Executor } from "#shared/db/executor.ts";
-import type { ShipmentDirection } from "@dorado/contracts";
+import type { Direction, OrderViewShipment, ShipmentDirection, ShipmentWrite } from "@dorado/contracts";
 
 // ------------------------------------------------------------------- reads
 
-export async function getAll(executor?: Executor): Promise<ShipmentBaseRow[]> {
+export async function getAll(executor?: Executor): Promise<OrderViewShipment[]> {
   return await shipments.getAll(executor);
 }
 
 export async function getById(
   id: string, executor?: Executor
-): Promise<ShipmentBaseRow | null> {
+): Promise<OrderViewShipment | null> {
   return (await shipments.getOne(id, executor)) ?? null;
 }
 
 export async function getManyById(
   ids: string[], executor?: Executor
-): Promise<ShipmentBaseRow[]> {
+): Promise<OrderViewShipment[]> {
   if (ids.length === 0) return [];
   return await shipments.getMany([...new Set(ids)], executor);
 }
@@ -36,7 +35,7 @@ export async function getManyById(
 // Returns ONE shipment, not a list - an order can legitimately have more than one; this takes the first.
 export async function getByOrder(
   order_id: string, executor?: Executor
-): Promise<ShipmentBaseRow | null> {
+): Promise<OrderViewShipment | null> {
   const fulfillment = await fulfillmentsRepo.getByOrder(order_id, executor);
   if (!fulfillment) return null;
 
@@ -50,8 +49,8 @@ export async function getByOrder(
 // Same read for a list of orders, in a fixed number of round trips - walks the identical hops with `= ANY($1)`. An order or fulfillment with nothing to find is simply absent from the map.
 export async function getByOrders(
   order_ids: string[], executor?: Executor
-): Promise<Map<string, ShipmentBaseRow>> {
-  const out = new Map<string, ShipmentBaseRow>();
+): Promise<Map<string, OrderViewShipment>> {
+  const out = new Map<string, OrderViewShipment>();
   const ids = [...new Set(order_ids)];
   if (ids.length === 0) return out;
 
@@ -88,11 +87,9 @@ export async function getByOrders(
 }
 
 // Which order/direction this shipment belongs to - not the shipment's shape, but resolution patch.service.ts needs to route a write to the right order-side table.
-export type OrderLink = { order_id: string; direction: string };
-
 export async function getOrderLink(
   shipment_id: string, executor?: Executor
-): Promise<OrderLink | null> {
+): Promise<{ order_id: string; direction: Direction } | null> {
   const [link] = await fulfillmentLinks.getByShipment([shipment_id], executor);
   if (!link) return null;
   const fulfillment = await fulfillmentsRepo.getOne(link.fulfillment_id, executor);
@@ -111,7 +108,7 @@ export async function getOrderLink(
 export async function create(
   { order_id, direction }: { order_id?: string | null; direction: ShipmentDirection },
   tx: Executor
-): Promise<ShipmentBaseRow | null> {
+): Promise<OrderViewShipment | null> {
   const id = randomUUID();
   await shipments.create({ id, direction }, tx);
 
@@ -146,8 +143,8 @@ export async function create(
 // `tx` is REQUIRED: the caller (a use case, or a test's own transaction) opens
 // it; this never does.
 export async function update(
-  id: string, patch: ShipmentPatchRow, tx: Executor
-): Promise<ShipmentBaseRow | null> {
+  id: string, patch: ShipmentWrite, tx: Executor
+): Promise<OrderViewShipment | null> {
   const written = await shipments.update(id, patch, tx);
   if (!written) return null;
 

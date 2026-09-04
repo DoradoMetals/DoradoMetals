@@ -76,6 +76,26 @@ export const PaymentDetailsPatch = PaymentDetails.pick({
 }).partial();
 export type PaymentDetailsPatch = z.infer<typeof PaymentDetailsPatch>;
 
+// THE SAFE READ - last four digits and nothing else of the bank. Every read
+// but the sealed envelope door below projects to this.
+export const PaymentDetailsView = PaymentDetails.pick({
+  id: true, user_id: true, method_id: true, account_holder: true, bank_name: true,
+  account_type: true, last_four: true, routing_last_four: true, card_brand: true,
+  email_to: true, provider: true, provider_ref: true, created_at: true, updated_at: true,
+});
+export type PaymentDetailsView = z.infer<typeof PaymentDetailsView>;
+
+// THE ENVELOPES, plus what identifies the row they belong to. Read by the
+// admin bank-details door alone (payments/details' getSealed) - never the
+// legacy plaintext columns, which stay NULL on every row this flow writes.
+export const PaymentDetailsSealed = PaymentDetails.pick({
+  id: true, account_holder: true, bank_name: true, account_type: true,
+  last_four: true, email_to: true, method_id: true,
+  routing_number_encrypted: true, account_number_encrypted: true,
+  encryption_key_id: true,
+});
+export type PaymentDetailsSealed = z.infer<typeof PaymentDetailsSealed>;
+
 // GET /orders/:orderId/payouts - the payout on one order, composed from
 // payments.details, the order's transactions row and payments.methods
 // (db/payouts/sql/get_for.sql). It is NOT exchange.payouts: the last-four

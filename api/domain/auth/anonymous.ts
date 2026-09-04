@@ -69,17 +69,10 @@ export function fillMissingRole<T extends Record<string, unknown>>(
 // return value, so it describes only the two properties it touches and hands
 // the plugin back at its own type. Typing it against BetterAuthPlugin would
 // widen the plugins array and cost `auth.options` its inference, which
-// config-options.test.ts reads.
-type UserCreateAfter = (user: { isAnonymous?: unknown }, ctx: never) => unknown;
-
-type InitResult = {
-  options?: { databaseHooks?: { user?: { create?: { after?: UserCreateAfter } } } };
-} | undefined | void;
-
-type PluginShape = { id?: string; init?: (ctx: never) => unknown };
-
+// config-options.test.ts reads. Inlined rather than named (rulings 60-61):
+// these describe better-auth's plugin shape, not a column of ours.
 export function withoutAnonymousCustomers<P extends object>(plugin: P): P {
-  const source = plugin as PluginShape;
+  const source = plugin as { id?: string; init?: (ctx: never) => unknown };
   const original = source.init;
   if (typeof original !== "function") {
     // Not a fault worth refusing a boot for - but it IS the whole guard going
@@ -97,7 +90,13 @@ export function withoutAnonymousCustomers<P extends object>(plugin: P): P {
   const wrapped = {
     ...plugin,
     init(ctx: never): unknown {
-      const result = original.call(plugin, ctx) as InitResult;
+      const result = original.call(plugin, ctx) as {
+        options?: {
+          databaseHooks?: {
+            user?: { create?: { after?: (user: { isAnonymous?: unknown }, ctx: never) => unknown } };
+          };
+        };
+      } | undefined | void;
       const create = result?.options?.databaseHooks?.user?.create;
       const after = create?.after;
       if (!create || typeof after !== "function") {

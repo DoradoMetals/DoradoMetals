@@ -3,9 +3,10 @@
 // The eleven rows come from 047_seed_reference_data.sql - there's no exchange side and never will be, so nothing here is a migration shim.
 import * as methods from "#db/fulfillments/methods/repo.ts";
 import * as rules from "#domain/fulfillments/rules.ts";
-import type { MethodRow } from "#db/fulfillments/methods/repo.ts";
 import type { Executor } from "#shared/db/executor.ts";
-import type { Direction, FulfillmentCategory, FulfillmentMethodPatch } from "@dorado/contracts";
+import type {
+  Direction, FulfillmentCategory, FulfillmentMethodPatch, FulfillmentMethodRead,
+} from "@dorado/contracts";
 
 // Direction is the contract's; category is the generated row's own enum. Neither is hand-written here, so widening either is a compile error, not a runtime surprise.
 
@@ -13,22 +14,22 @@ import type { Direction, FulfillmentCategory, FulfillmentMethodPatch } from "@do
 // parsed value.
 export async function listAvailable(
   direction: Direction, executor?: Executor
-): Promise<MethodRow[]> {
+): Promise<FulfillmentMethodRead[]> {
   return await methods.getAvailable(direction, executor);
 }
 
-export async function listAll(executor?: Executor): Promise<MethodRow[]> {
+export async function listAll(executor?: Executor): Promise<FulfillmentMethodRead[]> {
   return await methods.getAll(executor);
 }
 
 export async function getOne(
   id: string, executor?: Executor
-): Promise<MethodRow | undefined> {
+): Promise<FulfillmentMethodRead | undefined> {
   return await methods.getOne(id, executor);
 }
 
 // By id, for composing a method into a fulfillment without a join per row.
-export async function byId(executor?: Executor): Promise<Map<string, MethodRow>> {
+export async function byId(executor?: Executor): Promise<Map<string, FulfillmentMethodRead>> {
   return await methods.byId(executor);
 }
 
@@ -37,7 +38,7 @@ export async function byId(executor?: Executor): Promise<Map<string, MethodRow>>
 export async function getDefault(
   { direction, category }: { direction: Direction; category: FulfillmentCategory },
   executor?: Executor
-): Promise<MethodRow> {
+): Promise<FulfillmentMethodRead> {
   const method = await methods.getDefault({ direction, category }, executor);
   rules.assertDefault(method, { direction, category });
   return method;
@@ -58,7 +59,7 @@ export async function assertOffered(
 // which one".
 export async function update(
   id: string, patch: FulfillmentMethodPatch
-): Promise<MethodRow | null> {
+): Promise<FulfillmentMethodRead | null> {
   const changed = await methods.update(id, patch);
   if (!changed) return null;
   return (await methods.getOne(id)) ?? null;

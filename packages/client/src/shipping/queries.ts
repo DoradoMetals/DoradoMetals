@@ -282,3 +282,23 @@ export function useDeleteCarrierService() {
     catalogueWrite<{ id: string }, boolean>(client, "DELETE", "/carrier_services/delete")
   );
 }
+
+// POST /api/shipments/:id/label - BUY (OR RETRY BUYING) THIS PARCEL'S LABEL.
+//
+// It was POST /orders/:id/label until ruling 67 ("I don't understand why any
+// carrier or shipping stuff is living in orders"). NO BODY: the weight, the
+// declared value, the box, the service and the courier slot are all the
+// server's, read off the shipment and the order it belongs to. Answers the
+// refreshed ShipmentView; the ORDER is invalidated too, because its
+// `actions.buy_label` and its totals both move when a label is bought.
+export function useBuyShipmentLabel(order_id?: string) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ shipment_id }: { shipment_id: string }) =>
+      await apiRequest<ShipmentView>("POST", `/shipments/${shipment_id}/label`),
+    onSuccess: (view) => {
+      client.setQueryData(keys.shipping.shipment(view.shipment.id), view);
+      if (order_id) client.invalidateQueries({ queryKey: keys.orders.scoped(order_id) });
+    },
+  });
+}

@@ -15,12 +15,7 @@ import * as addresses from "#db/places/addresses/repo.ts";
 import * as userAddresses from "#db/places/user-addresses/repo.ts";
 import * as rules from "#domain/places/addresses/rules.ts";
 import type { Executor } from "#shared/db/executor.ts";
-import type {
-  Address, AddressBookEntry, AddressPatch, UserAddressPatch,
-} from "@dorado/contracts";
-
-export type Subject = { userId: string };
-export type Write = Subject & { address?: AddressPatch; user_address?: UserAddressPatch };
+import type { Address, AddressBookEntry, AddressWriteBody } from "@dorado/contracts";
 
 // ---------------------------------------------------------------------- reads
 
@@ -92,7 +87,9 @@ export async function snapshot(
 
 // --------------------------------------------------------------------- writes
 
-export async function create({ address, user_address, userId }: Write): Promise<AddressBookEntry> {
+export async function create(
+  { address, user_address, userId }: AddressWriteBody & { userId: string }
+): Promise<AddressBookEntry> {
   return await withTransaction(async (tx) => {
     const size = (await userAddresses.listFor(userId, tx)).length;
     const id = randomUUID();
@@ -114,7 +111,7 @@ export async function create({ address, user_address, userId }: Write): Promise<
 }
 
 export async function update(
-  addressId: string, { address, user_address, userId }: Write
+  addressId: string, { address, user_address, userId }: AddressWriteBody & { userId: string }
 ): Promise<AddressBookEntry> {
   return await withTransaction(async (tx) => {
     rules.assertInBook(addressId, await userAddresses.getOne(addressId, userId, tx));

@@ -27,6 +27,7 @@
 import { anonymousUsers } from "#db";
 import withTransaction from "#shared/db/withTransaction.ts";
 import type { Executor } from "#shared/db/executor.ts";
+import type { VisitorSweepResult } from "@dorado/contracts";
 
 // Seven days (ruling 63). Long enough that a customer who left a tab open over
 // a long weekend comes back to their basket; short enough that a crawler's
@@ -36,11 +37,6 @@ export const STALE_AFTER_DAYS = 7;
 // One tick's worth. Five thousand rows is a fraction of a second of DELETEs and
 // still bounds the very first run.
 export const BATCH = 5_000;
-
-export type VisitorSweepResult = {
-  considered: number;
-  deleted: string[];
-};
 
 export async function sweepAnonymousVisitors(
   options: { days?: number; limit?: number; now?: Date } = {},

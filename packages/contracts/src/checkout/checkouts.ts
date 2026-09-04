@@ -107,35 +107,77 @@ export type CheckoutPayoutBody = z.infer<typeof CheckoutPayoutBody>;
 // not compute it. Every label is a column of the row or a fact about its draft
 // fulfillment, so a step the server stops requiring disappears from the UI
 // without a frontend edit.
+// ORDERED THE WAY THE STEPPER WALKS IT, so the first entry is the next thing
+// to do - and CATEGORY-AWARE (Jacob, 2026-09-04: "If it's a direct or pickup,
+// why would it need shipper_address_id or package_id?"). A parcel needs a box
+// and a carrier; DORADO COLLECTING needs somewhere to collect from and a time;
+// a customer walking in needs a store and a time. The three lists share only
+// `items` and the payout account.
 export const CheckoutStep = z.enum([
   "items",
+  "fulfillment_method",
+  // SHIPMENT
   "shipper_address",
-  "recipient_address",
   "package",
   "carrier_service",
-  "handoff",
   "pickup_schedule",
+  // PICKUP - Dorado collects
+  "pickup_address",
+  // DIRECT - the customer visits
+  "appointment_location",
+  // both of those
+  "appointment_time",
+  // the sale
+  "recipient_address",
+  // the money
   "payout_account",
   "payment_method",
 ]);
 export type CheckoutStep = z.infer<typeof CheckoutStep>;
 
-// THE COMPOSED ROW, and the only checkout shape that crosses the wire.
-// The columns are the customer's recorded choices; everything added here is
-// the SERVER'S answer to a question the browser used to answer for itself -
-// which step is complete, whether the carrier can be asked for rates yet,
-// whether the order may be placed. See docs/waves/checkout-feature.md.
-export const CheckoutView = Checkout.extend({
-  // The draft fulfillment's method, resolved back to the vocabulary the
-  // stepper renders: the handoff CODE it offered and whether that handoff
-  // needs a date and a time.
-  fulfillment_method_type: z.string().nullable(),
-  handoff_code: z.string().nullable(),
-  requires_schedule: z.boolean(),
-  item_count: z.number().int(),
-  missing: z.array(CheckoutStep),
-  ready_for_rates: z.boolean(),
-  ready_for_payment: z.boolean(),
-  ready_to_place: z.boolean(),
-});
+// THE COMPOSED ROW, and the only checkout shape that crosses the wire: the
+// customer's recorded choices, plus ONE derived field.
+//
+// `missing` is the columns `place` would refuse over, in step order. It is the
+// one list because every other field this carried was a second reading of it
+// (Jacob, 2026-09-04: "Why does it need ready_for_rates? Why does it need
+// ready_for_payment?"). `ready_for_rates` was "neither the address nor the box
+// is missing", `ready_for_payment` "nothing but the money step is missing",
+// `ready_to_place` "the list is empty" - three booleans a stepper can read off
+// the list itself, and it does. `item_count` was the same for "items" being on
+// it; `fulfillment_method_type` and `handoff_code` were scalar joins onto rows
+// the stepper already lists (ruling 12), selectable by the row's own
+// `fulfillment_method_id`; `requires_schedule` is a field of the handoff in
+// that same list, and `missing` already names pickup_date/pickup_time when the
+// chosen one needs them.
+export const CheckoutView = Checkout.extend({ missing: z.array(CheckoutStep) });
 export type CheckoutView = z.infer<typeof CheckoutView>;
+
+// ADOPTING A VISITOR'S BASKET (ruling 63) - what one direction's adoption did,
+// and what the whole sign-in hook did. No table backs either: they are the
+// hook's own report, read by the log and by its tests.
+export const CheckoutAdoption = z
+  .object({ direction: Checkout.shape.direction, checkout_id: Checkout.shape.id })
+  // Through .extend, because neither is a column: which way the adoption went,
+  // and how many lines of the customer's OWN basket the visitor's replaced.
+  // Zero on a "moved" adoption (there was no basket to replace) and usually
+  // zero on a merge; a non-zero number is a customer who had a basket on this
+  // account and is now looking at the visitor's - the merge rule working.
+  .extend({ outcome: z.enum(["moved", "merged"]), replaced: z.number().int() });
+export type CheckoutAdoption = z.infer<typeof CheckoutAdoption>;
+
+// `adopted` rather than `checkouts` on purpose: `result.checkouts.map` reads to
+// lint:namespace-calls as a call on the `checkouts` REPO, which exports no
+// `map`. A field name that makes a linter lie about a caller is the field
+// name's problem.
+export const CheckoutAdoptionResult = z
+  .object({ adopted: z.array(CheckoutAdoption) })
+  .extend({ addresses: z.number().int() });
+export type CheckoutAdoptionResult = z.infer<typeof CheckoutAdoptionResult>;
+
+// One tick of the stale-visitor sweep: how many identities it looked at, and
+// which it deleted.
+export const VisitorSweepResult = z
+  .object({ deleted: z.array(Checkout.shape.user_id) })
+  .extend({ considered: z.number().int() });
+export type VisitorSweepResult = z.infer<typeof VisitorSweepResult>;

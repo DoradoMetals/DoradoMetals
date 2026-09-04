@@ -16,6 +16,7 @@ import OrderSummary from '@/features/checkout/sales-order-checkout/summary/order
 import { useAddress } from '@/features/addresses/queries'
 import { useSaleCheckoutRow, usePlaceOrderFromCheckout } from '@/features/checkout/queries'
 import { useSaleQuoteFor } from '@/features/checkout/sales-order-checkout/saleQuote'
+import { readyForPayment, readyToPlace } from '@/features/checkout/gates'
 
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!)
 
@@ -113,10 +114,15 @@ export default function SalesOrderCheckout() {
             {!cardNeeded ? (
               <Button
                 className="w-full"
-                // THE ROW'S OWN ANSWER: an address, a service and a payment
-                // method, all landed.
+                // `missing` is the row's own answer: an address, a service and
+                // a payment method, all landed - `readyToPlace` is that list
+                // empty.
                 disabled={
-                  placeOrder.isPending || isLoading || isPending || row?.ready_to_place !== true
+                  placeOrder.isPending ||
+                  isLoading ||
+                  isPending ||
+                  !row ||
+                  !readyToPlace(row.missing)
                 }
                 onClick={() => {
                   setMessage(null)
@@ -137,7 +143,8 @@ export default function SalesOrderCheckout() {
                   isPending ||
                   !clientSecret ||
                   !stripePromise ||
-                  row?.ready_for_payment !== true
+                  !row ||
+                  !readyForPayment(row.missing)
                 }
                 type="submit"
                 form="payment-form"

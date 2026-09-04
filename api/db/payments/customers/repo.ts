@@ -9,6 +9,7 @@ import query from "#shared/db/query.ts";
 import { buildUpdate } from "#shared/db/patch.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
 import type { Executor } from "#shared/db/executor.ts";
+import type { BillingIdentity, User } from "@dorado/contracts";
 
 const sql = sqlFrom(import.meta.dirname);
 
@@ -16,15 +17,12 @@ const sql = sqlFrom(import.meta.dirname);
 // quoted - and the quotes are part of the name buildUpdate whitelists.
 export const STRIPE_CUSTOMER = '"stripeCustomerId"';
 
-export type BillingIdentity = {
-  id: string;
-  name: string | null;
-  email: string | null;
-  stripeCustomerId: string | null;
-};
-
 export const PATCHABLE = [STRIPE_CUSTOMER] as const;
-export type CustomerPatch = Partial<Record<typeof STRIPE_CUSTOMER, string | null>>;
+// Keyed by the same quoted identifier as PATCHABLE, so a caller can only ever
+// build a patch buildUpdate will accept - `User["stripeCustomerId"]` is the
+// value type the column actually holds, taken from the contract rather than
+// re-typed here. Not exported: nothing outside `update` below needs the name.
+type CustomerPatch = Partial<Record<typeof STRIPE_CUSTOMER, User["stripeCustomerId"]>>;
 
 export async function getOne(
   user_id: string, executor?: Executor

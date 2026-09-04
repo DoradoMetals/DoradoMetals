@@ -20,11 +20,13 @@
 // exists: the request that demonstrates this bug is the one that buys a label.
 import { test } from "vitest";
 import assert from "node:assert/strict";
-import { labelBufferOrVoid, type CancelLabel } from "#domain/shipping/operations/service.ts";
+import { labelBufferOrVoid, voidLabel } from "#domain/shipping/operations/service.ts";
 
-// The recorder IS a CancelLabel with a `calls` array bolted on, and saying so
-// is what lets the assertions below read `cancel.calls` without a cast.
-type Recorder = CancelLabel & { calls: (string | null | undefined)[] };
+// The recorder IS the cancel seam with a `calls` array bolted on, and saying so
+// is what lets the assertions below read `cancel.calls` without a cast. The
+// seam's type is derived from `voidLabel` itself now - the exported alias went
+// with the rest of the type sweep.
+type Recorder = typeof voidLabel & { calls: (string | null | undefined)[] };
 
 const recorder = (): Recorder => {
   const calls: (string | null | undefined)[] = [];

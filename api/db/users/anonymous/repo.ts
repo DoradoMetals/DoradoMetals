@@ -21,8 +21,6 @@ import type { Executor } from "#shared/db/executor.ts";
 
 const sql = sqlFrom(import.meta.dirname);
 
-export type StaleVisitor = { id: string; last_seen: Date };
-
 // Is this subject a visitor? `undefined` (no such user) answers false: a
 // missing user is refused further down by the reads that need one, and
 // answering "not anonymous" here would be a claim this statement cannot make.
@@ -37,8 +35,8 @@ export async function isAnonymous(user_id: string, executor?: Executor): Promise
 // newest basket line - is older than `cutoff`.
 export async function listStale(
   cutoff: Date, limit: number, executor?: Executor
-): Promise<StaleVisitor[]> {
-  const { rows } = await query<StaleVisitor>(
+): Promise<{ id: string; last_seen: Date }[]> {
+  const { rows } = await query<{ id: string; last_seen: Date }>(
     sql("list_stale"), [cutoff, limit], executor
   );
   return rows;

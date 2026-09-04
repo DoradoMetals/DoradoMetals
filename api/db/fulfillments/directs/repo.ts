@@ -2,14 +2,12 @@
 import query from "#shared/db/query.ts";
 import { buildUpdate } from "#shared/db/patch.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
-import { FulfillmentDirectPatch } from "@dorado/contracts";
+import { FulfillmentDirectPatchColumns } from "@dorado/contracts";
 import type { FulfillmentDirect } from "@dorado/contracts";
 import type { Executor } from "#shared/db/executor.ts";
 
 const sql = sqlFrom(import.meta.dirname);
 
-
-type Window = { from?: string | null; to?: string | null; employee_id?: string | null };
 
 export async function getFor(
   fulfillment_id: string, executor?: Executor
@@ -25,7 +23,9 @@ export async function getMany(ids: string[], executor?: Executor): Promise<Fulfi
 }
 
 export async function getScheduled(
-  { from = null, to = null, employee_id = null }: Window = {}, executor?: Executor
+  { from = null, to = null, employee_id = null }:
+    { from?: string | null; to?: string | null; employee_id?: string | null } = {},
+  executor?: Executor
 ): Promise<FulfillmentDirect[]> {
   const { rows } = await query<FulfillmentDirect>(
     sql("get_scheduled"), [from, to, employee_id], executor
@@ -33,18 +33,11 @@ export async function getScheduled(
   return rows;
 }
 
-export type DirectInput = {
-  location_id?: string;
-  assigned_employee_id?: string | null;
-  is_appointment?: boolean;
-  start_time?: string | null;
-  end_time?: string | null;
-};
-
-export type DirectNew = DirectInput & { id: string; fulfillment_id: string };
-
 // is_appointment defaults true when the caller names none - walking in is the exception, so the column's own default would otherwise only apply to a bare INSERT.
-export async function create(row: DirectNew, executor?: Executor): Promise<FulfillmentDirect> {
+export async function create(
+  row: Pick<FulfillmentDirect, "id" | "fulfillment_id"> & FulfillmentDirectPatchColumns,
+  executor?: Executor
+): Promise<FulfillmentDirect> {
   const { rows } = await query<FulfillmentDirect>(
     sql("create"),
     [
@@ -57,15 +50,13 @@ export async function create(row: DirectNew, executor?: Executor): Promise<Fulfi
 }
 
 // THE COLUMNS, FROM THE CONTRACT (ruling 64) - `fulfillment_id` dropped for
-// the same reason as pickups': it is this update's WHERE key.
-export type DirectPatchColumns = Omit<FulfillmentDirectPatch, "fulfillment_id">;
+// the same reason pickups' is: it is this update's WHERE key.
 export const PATCHABLE = Object.keys(
-  FulfillmentDirectPatch.omit({ fulfillment_id: true }).shape
-) as readonly (keyof DirectPatchColumns)[];
-export type DirectPatch = Partial<Record<(typeof PATCHABLE)[number], string | boolean | null>>;
+  FulfillmentDirectPatchColumns.shape
+) as readonly (keyof FulfillmentDirectPatchColumns)[];
 
 export async function update(
-  fulfillment_id: string, patch: DirectPatch, executor?: Executor
+  fulfillment_id: string, patch: FulfillmentDirectPatchColumns, executor?: Executor
 ): Promise<boolean> {
   const built = buildUpdate({
     table: "fulfillments.directs", allowed: PATCHABLE, patch, where: { fulfillment_id },

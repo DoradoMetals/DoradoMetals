@@ -74,17 +74,22 @@ test("GET /api/checkout mints the row on first read, one per direction", async (
     assert.equal(first.body.direction, "purchase");
     assert.equal(first.body.user_id, customer.id);
     assert.equal(first.body.fulfillment_id, null);
-    assert.equal(first.body.fulfillment_method_type, null);
-    assert.equal(first.body.handoff_code, null);
-    assert.equal(first.body.requires_schedule, false);
-    // The stepper reads this instead of computing it. An empty basket with no
-    // choices is missing every purchase step.
-    assert.equal(first.body.item_count, 0);
-    assert.equal(first.body.ready_for_rates, false);
-    assert.equal(first.body.ready_for_payment, false);
-    assert.equal(first.body.ready_to_place, false);
-    assert.ok(first.body.missing.includes("items"));
-    assert.ok(first.body.missing.includes("package"));
+    // THE ROW PLUS ONE LIST (Jacob, 2026-09-04). `fulfillment_method_type`,
+    // `handoff_code` and `requires_schedule` were scalar joins onto lists the
+    // stepper already renders (ruling 12); `item_count` and the three
+    // `ready_*` booleans were second readings of `missing`.
+    assert.equal(first.body.fulfillment_method_type, undefined);
+    assert.equal(first.body.handoff_code, undefined);
+    assert.equal(first.body.requires_schedule, undefined);
+    assert.equal(first.body.item_count, undefined);
+    assert.equal(first.body.ready_to_place, undefined);
+    // A purchase with no method chosen owes its items, the method itself and
+    // the payout account - and nothing about a box it may never need.
+    assert.deepEqual(first.body.missing, ["items", "fulfillment_method", "payout_account"]);
+    // AND NOTHING ABOUT A BOX: `missing` follows the chosen method's CATEGORY,
+    // and nothing has been chosen yet (Jacob, 2026-09-04: "If it's a direct or
+    // pickup, why would it need shipper_address_id or package_id?").
+    assert.ok(!first.body.missing.includes("package"));
 
     const again = await as(customer, () =>
       request(app).get("/api/checkout?direction=purchase")
@@ -250,11 +255,16 @@ test("the draft is minted ONCE, linked, and later calls move its method in place
     assert.equal(first.status, 200, first.text);
     const draftId = first.body.fulfillment_id;
     assert.ok(draftId, "the row did not keep the draft's id");
-    // The nested fulfillment object left the wire with this lane: the row
-    // carries the METHOD TYPE the draft holds, resolved back into the handoff
-    // the stepper offered, so the browser never learns a carrier's vocabulary.
-    assert.equal(first.body.fulfillment_method_type, "CARRIER DROPOFF");
-    assert.equal(first.body.requires_schedule, false);
+    // The method type left the wire too (Jacob, 2026-09-04): the row names its
+    // fulfillment, and the stepper selects the handoff by that id against the
+    // list it already renders. What the row still says is what it OWES - and a
+    // dropoff owes no courier slot, which is the only thing the type was read
+    // for here.
+    assert.equal(first.body.fulfillment_method_type, undefined);
+    assert.ok(
+      !first.body.missing.includes("pickup_schedule"),
+      "a dropoff was asked for a courier slot"
+    );
     const { rows: draft } = await c.query(
       `SELECT method_id, order_id FROM fulfillments.fulfillments WHERE id = $1`, [draftId]
     );
@@ -276,10 +286,11 @@ test("the draft is minted ONCE, linked, and later calls move its method in place
     );
     assert.equal(second.status, 200, second.text);
     assert.equal(second.body.fulfillment_id, draftId, "a second call minted a second draft");
-    assert.equal(second.body.fulfillment_method_type, "CARRIER PICKUP");
     // A carrier pickup is the schedulable handoff, so the schedule becomes a
-    // step the customer still owes.
-    assert.equal(second.body.requires_schedule, true);
+    // step the customer still owes - which is the ONE thing the method type
+    // and `requires_schedule` were ever read for here, and `missing` says it.
+    assert.equal(second.body.fulfillment_method_type, undefined);
+    assert.equal(second.body.requires_schedule, undefined);
     assert.ok(second.body.missing.includes("pickup_schedule"));
 
     const { rows: drafts } = await c.query(

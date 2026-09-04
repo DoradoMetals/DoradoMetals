@@ -17,9 +17,9 @@ export async function getOne(id: string, executor?: Executor): Promise<Carrier |
   return rows[0];
 }
 
-export type CarrierNew = Pick<Carrier, "id" | "organization_id" | "logo">;
-
-export async function create(row: CarrierNew, executor?: Executor): Promise<Carrier> {
+export async function create(
+  row: Pick<Carrier, "id" | "organization_id" | "logo">, executor?: Executor
+): Promise<Carrier> {
   const { rows } = await query<Carrier>(
     sql("create"), [row.id, row.organization_id, row.logo], executor
   );
@@ -27,10 +27,8 @@ export async function create(row: CarrierNew, executor?: Executor): Promise<Carr
 }
 
 // Replaces `logo` whole, null included - not a COALESCE patch.
-export type CarrierPatch = Pick<Carrier, "logo">;
-
 export async function update(
-  id: string, patch: CarrierPatch, executor?: Executor
+  id: string, patch: Pick<Carrier, "logo">, executor?: Executor
 ): Promise<boolean> {
   const { rowCount } = await query(sql("update"), [patch.logo, id], executor);
   return rowCount === 1;

@@ -1,15 +1,17 @@
 // THE TWO SELECTORS THAT USED TO SPELL A CARRIER'S VOCABULARY.
 //
 // Both are presentational (ruling 14): the options come in as a prop and the
-// SELECTION comes off the checkout row, so what a click produces is a request,
-// not a store write. That is the change this file records - the assertions
-// used to read `usePurchaseOrderCheckoutStore.getState().data`, and the store
-// is gone because every field of it was a column.
+// SELECTION is a prop too, so what a click produces is a request, not a store
+// write. That is the change this file records - the assertions used to read
+// `usePurchaseOrderCheckoutStore.getState().data`, and the store is gone
+// because every field of it was a column. `PickupSelector`'s `selected` used
+// to be read straight off the row's `handoff_code`; the row shrank
+// (2026-09-04) and the caller now resolves it (gates.ts `resolveHandoff`).
 //
 // What is still pinned: NOTHING IN EITHER COMPONENT KNOWS WHAT A FEDEX SERVICE
 // IS CALLED. The fixtures use invented codes, so a component carrying a
 // carrier's enum would fail rather than pass by coincidence.
-import type { CarrierHandoff, CheckoutRate, CheckoutView } from "@dorado/contracts";
+import type { CarrierHandoff, CheckoutRate } from "@dorado/contracts";
 import { describe, expect, test, vi, beforeEach } from "vitest";
 import { screen } from "@testing-library/react";
 import { renderWithClient } from "@/shared/tests/renderWithClient";
@@ -97,8 +99,6 @@ const rates = (): CheckoutRate[] => [
 const unpriced = (): CheckoutRate[] =>
   rates().map((rate) => ({ ...rate, netCharge: null, transitTime: null }));
 
-const row = (over: Partial<CheckoutView> = {}) => over as CheckoutView;
-
 beforeEach(() => {
   patched.length = 0;
   fulfilled.length = 0;
@@ -106,7 +106,7 @@ beforeEach(() => {
 
 describe("the carrier handoff selector", () => {
   test("renders the names the server sent, in the order it sent them", () => {
-    renderWithClient(<PickupSelector handoffs={handoffs()} row={row()} />);
+    renderWithClient(<PickupSelector handoffs={handoffs()} selected={null} />);
 
     expect(screen.getByText("Depot Dropoff")).toBeDefined();
     expect(screen.getByText("Courier Collection")).toBeDefined();
@@ -115,12 +115,12 @@ describe("the carrier handoff selector", () => {
   test("renders nothing at all when the reference read has not landed", () => {
     // The parent passes [] for one tick. A selector that assumed two options
     // would throw here, and the customer's first paint is the failure.
-    renderWithClient(<PickupSelector handoffs={[]} row={row()} />);
+    renderWithClient(<PickupSelector handoffs={[]} selected={null} />);
     expect(screen.queryAllByRole("radio").length).toBe(0);
   });
 
   test("choosing one sends the carrier's code and nothing else", async () => {
-    renderWithClient(<PickupSelector handoffs={handoffs()} row={row()} />);
+    renderWithClient(<PickupSelector handoffs={handoffs()} selected={null} />);
 
     await userEvent.click(screen.getByText("Courier Collection"));
 
@@ -129,10 +129,10 @@ describe("the carrier handoff selector", () => {
     expect(fulfilled).toEqual([{ handoff_code: "THEY_COME_TO_YOU" }]);
   });
 
-  test("the selection is the row's, not a local memory of the click", () => {
-    renderWithClient(
-      <PickupSelector handoffs={handoffs()} row={row({ handoff_code: "THEY_COME_TO_YOU" })} />
-    );
+  // `selected` is resolved by the caller from the row's `fulfillment_method_id`
+  // (gates.ts `resolveHandoff`), not remembered locally by this component.
+  test("the selection is the caller's, not a local memory of the click", () => {
+    renderWithClient(<PickupSelector handoffs={handoffs()} selected="THEY_COME_TO_YOU" />);
     const chosen = screen
       .getAllByRole("radio")
       .find((r) => r.getAttribute("aria-checked") === "true" || (r as HTMLInputElement).checked);

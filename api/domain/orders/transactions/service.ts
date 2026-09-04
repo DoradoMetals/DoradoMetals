@@ -5,14 +5,11 @@
 // operation - the shipment's charge, the payout's fee, the refiner's fee.
 import { reportError } from "#shared/observability/report.ts";
 import * as transactionsRepo from "#db/orders/transactions/repo.ts";
-import type { TotalsPatch, TotalsGuard } from "#db/orders/transactions/repo.ts";
-import type { PoolClient } from "pg";
-import type { OrderTotals } from "@dorado/contracts";
+import type { Executor } from "#shared/db/executor.ts";
+import type { Direction, OrderTotals, OrderTotalsWrite } from "@dorado/contracts";
 
-type Executor = PoolClient | undefined;
 
-export type { OrderTotals } from "@dorado/contracts";
-export type { TotalsPatch, TotalsGuard } from "#db/orders/transactions/repo.ts";
+export type { OrderTotals, OrderTotalsWrite } from "@dorado/contracts";
 
 export async function forOrder(
   orderId: string, executor?: Executor
@@ -35,8 +32,8 @@ export async function byOrderId(
 // ONE UPDATE: the patch names the columns and every money edit comes through it.
 export async function update(
   orderId: string,
-  patch: TotalsPatch,
-  guard: TotalsGuard = {},
+  patch: OrderTotalsWrite,
+  guard: { direction?: Direction } = {},
   executor?: Executor
 ): Promise<boolean> {
   // ZERO ROWS HERE IS A LOST MONEY EDIT, AND IT USED TO BE SILENT: 5 of 21 dev

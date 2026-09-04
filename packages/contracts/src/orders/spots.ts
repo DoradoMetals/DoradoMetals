@@ -34,3 +34,20 @@ export const OrderSpotsPutBody = z.object({ set: z.array(OrderSpotWrite).optiona
   .strict();
 export type OrderSpotsPutBody = z.infer<typeof OrderSpotsPutBody>;
 
+
+// THE ONE COLUMN A WRITE MAY TOUCH: the BID. The ask is what the same metal
+// sells for and this table never quotes it, so writing it here would lose a
+// number the row never owned.
+export const OrderSpotPatch = OrderSpot.pick({ bid: true }).partial();
+export type OrderSpotPatch = z.infer<typeof OrderSpotPatch>;
+
+// The metal's NAME joined on - what the PDFs, the emails and the refiner
+// surfaces read. `percent_change` and `dollar_change` are projected NULL.
+export const OrderSpotNamed = OrderSpot
+  .omit({ metal_id: true, scrap_percentage: true, bullion_percentage: true })
+  .extend({
+    name: z.string(),
+    percent_change: OrderSpot.shape.ask,
+    dollar_change: OrderSpot.shape.ask,
+  });
+export type OrderSpotNamed = z.infer<typeof OrderSpotNamed>;

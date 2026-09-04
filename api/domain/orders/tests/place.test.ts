@@ -50,19 +50,23 @@ afterAll(async () => {
   await pool.end();
 });
 
-// A BUILDER, not a base object to spread over: what the carrier answered is
-// three values, so a variant names the one it changes.
-const carrierAnswers = (
-  {
-    netCharge = 24.5,
-    tracking_number = "794123456789" as string | null,
-    pickup = null as { confirmationNumber: string | null; location: string | null } | null,
-  } = {}
-): place.World => ({
-  buyPostage: async () => ({ netCharge, tracking_number, label: null, pickup }),
-  authorize: async () => {},
-  confirm: async () => {},
-});
+// THE SEAM IS THE PARCEL'S ID NOW (ruling 67): buying a label is
+// domain/shipping/labels.ts' job and placement only asks it to, by shipment
+// id, once its own transaction has committed. A stub that records what it was
+// asked about is all this file needs.
+const carrierAnswers = (): typeof place.LIVE & { labelled: string[] } => {
+  const labelled: string[] = [];
+  return Object.assign(
+    {
+      buyLabel: async (shipment_id: string) => {
+        labelled.push(shipment_id);
+      },
+      authorize: async () => {},
+      confirm: async () => {},
+    },
+    { labelled }
+  );
+};
 
 type ScrapItem = {
   metal: string | null; quantity?: number; pre_melt?: number; post_melt?: number;
@@ -278,28 +282,31 @@ test("spots are frozen per metal the order actually contains", async () => {
   });
 });
 
-// The parcel is written ONCE with everything known - the carrier's answer and
-// the ids the checkout chose - rather than as a shell and an update.
-test("the parcel records what the carrier said and what the checkout chose", async () => {
+// THE PARCEL IS A SHELL, and every carrier column on it is COPIED from the
+// checkout row by db/shipping/shipments/sql/create_from_checkout.sql (ruling
+// 66). The label columns are what the carrier has not been asked for yet:
+// buying one is domain/shipping/labels.ts' job, AFTER this commit (ruling 67),
+// so a stubbed placement leaves them null by design - which is exactly what
+// makes the retry surface a real one.
+test("the parcel is committed as a shell holding what the checkout chose", async () => {
   await inPinned(async (c: PoolClient) => {
     await aWorld(c);
-    const order = await place.place(
-      await primeCheckout(c),
-      carrierAnswers({ netCharge: 31.75, tracking_number: "794000000001" })
-    );
+    const world = carrierAnswers();
+    const order = await place.place(await primeCheckout(c), world);
 
     const { rows: [shipment] } = await c.query(
-      `SELECT s.tracking_number, s.shipping_status, s.cost, s.insured, s.declared_value,
-              s.package_id, s.carrier_service_id, s.pickup_type, s.direction
+      `SELECT s.id, s.tracking_number, s.shipping_status, s.cost, s.insured,
+              s.declared_value, s.package_id, s.carrier_service_id, s.pickup_type,
+              s.direction::text AS direction
          FROM shipping.shipments s
          JOIN fulfillments.shipments fs ON fs.shipment_id = s.id
          JOIN fulfillments.fulfillments f ON f.id = fs.fulfillment_id
         WHERE f.order_id = $1`,
       [order.order.id]
     );
-    assert.equal(shipment.tracking_number, "794000000001");
-    assert.equal(shipment.shipping_status, "Label Created");
-    assert.equal(Number(shipment.cost), 31.75);
+    assert.equal(shipment.tracking_number, null, "the shell committed with a label");
+    assert.equal(shipment.shipping_status, null);
+    assert.equal(shipment.cost, null);
     assert.equal(shipment.insured, true);
     // Computed from the checkout's own priced lines now (ruling 58), not a
     // fixed row value - a live spot and rate band, not a number this test
@@ -310,13 +317,9 @@ test("the parcel records what the carrier said and what the checkout chose", asy
     assert.equal(shipment.pickup_type, "Store Dropoff");
     assert.equal(shipment.direction, "Inbound");
 
-    // The postage the server was quoted, on the order's money row.
-    const { rows: [totals] } = await c.query(
-      `SELECT shipping, shipping_service FROM orders.transactions WHERE order_id = $1`,
-      [order.order.id]
-    );
-    assert.equal(Number(totals.shipping), 31.75);
-    assert.equal(totals.shipping_service, "FEDEX_EXPRESS_SAVER");
+    // And THAT is the parcel shipping was asked to label, once the order had
+    // committed - the whole point of label-after-commit.
+    assert.deepEqual(world.labelled, [shipment.id]);
   });
 });
 
@@ -328,7 +331,7 @@ test("an item whose metal cannot be resolved fails the order rather than being d
     const checkout_id = await primeCheckout(c, {
       items: [{ metal: "Unobtainium", quantity: 1 }],
     });
-    await assert.rejects(() => place.place(checkout_id, carrierAnswers()), /has no metal/);
+    await assert.rejects(() => place.place(checkout_id, carrierAnswers()), /metal_id/);
   });
 });
 
@@ -391,7 +394,7 @@ test("an empty checkout cannot become an order", async () => {
   await inPinned(async (c: PoolClient) => {
     await aWorld(c);
     const checkout_id = await primeCheckout(c, { items: [] });
-    await assert.rejects(() => place.place(checkout_id, carrierAnswers()), /no items/);
+    await assert.rejects(() => place.place(checkout_id, carrierAnswers()), /missing items/);
   });
 });
 

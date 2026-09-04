@@ -3,6 +3,7 @@ import { ShipmentRead } from "../shipping/shipments.js";
 import { CarrierServiceRead } from "../shipping/services.js";
 import { PackageRead } from "../shipping/packages.js";
 import { ShipmentPickup } from "../shipping/pickups.js";
+import { CarrierHandoff } from "./providers.js";
 
 // computed: no table backs these. A PARCEL'S PROGRESS is a derivation over
 // shipping.tracking's scan rows, and what may be done to a parcel is read from
@@ -71,3 +72,37 @@ export const ShipmentView = z.object({
   actions: ShipmentActions,
 });
 export type ShipmentView = z.infer<typeof ShipmentView>;
+
+// ============================================================================
+// THE PARCEL - everything a carrier is asked about one box (ruling 67).
+// ============================================================================
+//
+// No table backs it: it is resolved from rows the checkout named by id - the
+// service, the box, the handoff - plus two figures the server computes (the
+// weight and the declared value). It lived in api/domain/orders/rules.ts until
+// ruling 67 moved every carrier fact out of orders; the label, the courier
+// booking and the rate quote all read the same values from here, which is why
+// it is one shape rather than three argument lists.
+export const ParcelWeight = z.object({ units: z.string(), value: z.number() });
+export type ParcelWeight = z.infer<typeof ParcelWeight>;
+
+export const ParcelDimensions = z.object({
+  length: z.number(), width: z.number(), height: z.number(), units: z.string(),
+});
+export type ParcelDimensions = z.infer<typeof ParcelDimensions>;
+
+// When the courier is due. Null unless the handoff requires one.
+export const ParcelSchedule = z.object({ date: z.string(), time: z.string() });
+export type ParcelSchedule = z.infer<typeof ParcelSchedule>;
+
+export const Parcel = z.object({
+  carrier_id: z.string(),
+  serviceType: z.string(),
+  carrierCode: z.string(),
+  handoff: CarrierHandoff,
+  declaredValue: z.number(),
+  weight: ParcelWeight,
+  dimensions: ParcelDimensions,
+  schedule: ParcelSchedule.nullable(),
+});
+export type Parcel = z.infer<typeof Parcel>;

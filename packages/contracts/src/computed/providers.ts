@@ -180,3 +180,16 @@ export const CarrierLocations = z.object({
   locations: z.array(CarrierLocation),
 });
 export type CarrierLocations = z.infer<typeof CarrierLocations>;
+
+// THE CARRIER FACTS BEHIND ONE `shipping.services` ROW, resolved from its id -
+// the catalogue entry plus the carrier that sells it. A label needs three
+// things the table does not hold (which carrier buys it, the carrier's own
+// service type, the service family), and all three live in the catalogue,
+// joined to the row by name. It was a hand-written type in
+// api/domain/shipping/services/service.ts, which also renamed `code` to
+// `serviceType` and `carrier_code` to `carrierCode` on the way through; the
+// carrier's own spellings are kept here instead.
+export const LabelService = CarrierServiceOption.extend({
+  carrier_id: z.string().uuid(),
+});
+export type LabelService = z.infer<typeof LabelService>;

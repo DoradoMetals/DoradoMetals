@@ -42,20 +42,16 @@ test("a settlement is created and re-created without raising", async () => {
   await inRollback(async (c: PoolClient) => {
     const attempt = await anAttempt(c);
     const first = await settlements.create(
-      {
-        id: attempt.id, attempt_id: attempt.id, settled_amount: 100,
-        provider: "stripe", provider_ref: attempt.provider_ref,
-      },
+      attempt.id, attempt.id,
+      { settled_amount: 100, provider: "stripe", provider_ref: attempt.provider_ref },
       c
     );
     assert.equal(Number(first.settled_amount), 100);
 
     // The retry: same id, a corrected amount, no second row.
     const again = await settlements.create(
-      {
-        id: attempt.id, attempt_id: attempt.id, settled_amount: 114.8,
-        provider: "stripe", provider_ref: attempt.provider_ref,
-      },
+      attempt.id, attempt.id,
+      { settled_amount: 114.8, provider: "stripe", provider_ref: attempt.provider_ref },
       c
     );
     assert.equal(Number(again.settled_amount), 114.8);
@@ -67,10 +63,8 @@ test("update answers true for a real id and false for one with no settlement", a
   await inRollback(async (c: PoolClient) => {
     const attempt = await anAttempt(c);
     await settlements.create(
-      {
-        id: attempt.id, attempt_id: attempt.id, settled_amount: 100,
-        provider: "stripe", provider_ref: attempt.provider_ref,
-      },
+      attempt.id, attempt.id,
+      { settled_amount: 100, provider: "stripe", provider_ref: attempt.provider_ref },
       c
     );
 
@@ -84,10 +78,8 @@ test("remove answers true once and false the second time", async () => {
   await inRollback(async (c: PoolClient) => {
     const attempt = await anAttempt(c);
     await settlements.create(
-      {
-        id: attempt.id, attempt_id: attempt.id, settled_amount: 100,
-        provider: "stripe", provider_ref: attempt.provider_ref,
-      },
+      attempt.id, attempt.id,
+      { settled_amount: 100, provider: "stripe", provider_ref: attempt.provider_ref },
       c
     );
     assert.equal(await settlements.remove(attempt.id, c), true);

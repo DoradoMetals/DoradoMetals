@@ -21,6 +21,38 @@ import { z } from "zod/v4";
 // business holds right now (see getPricingSpots' header), and the timestamp
 // says when "now" was.
 
+// ===========================================================================
+// PRICING PRIMITIVES (ruling 57/60/61)
+// ===========================================================================
+//
+// Not answers of their own - domain/pricing and domain/quotes build every
+// shape above out of these - but each one is exported across features
+// (domain/orders' rules.ts, domain/media/pdfs, domain/sales-tax all read one)
+// so the type-homes rule gives it one home here rather than a copy per file.
+// Never themselves a response body: a Map has no JSON form, and a spot/bid
+// pair is read off `spots.spots`' own SpotPrice/SpotTicker for GET /spots.
+
+// A spot as pricing reads it - just what a line prices against. Optional AND
+// nullable throughout: several call sites pass whatever a read returned
+// without checking, so "the feed has nothing for this metal" and "the feed
+// answered null" have to be the same question here.
+export const PricingSpot = z.object({
+  name: z.string().nullable().optional(),
+  ask: z.number().nullable().optional(),
+  bid: z.number().nullable().optional(),
+});
+export type PricingSpot = z.infer<typeof PricingSpot>;
+
+// Spots as a caller holds them - nullable/undefined for the same reason.
+export const Spots = z.array(PricingSpot).nullable().optional();
+export type Spots = z.infer<typeof Spots>;
+
+// THE BID FEED, KEYED BY METAL ID. domain/pricing/bid.ts and
+// domain/quotes/profit.ts each build one to look a line's price up by the
+// metal id it names rather than a display string a join could disagree on.
+export const Bids = z.map(z.string(), z.number().nullable());
+export type Bids = z.infer<typeof Bids>;
+
 // One catalogue line, priced in the direction the caller asked for.
 export const CatalogQuoteLine = z.object({
   id: z.string().uuid(),
@@ -89,6 +121,18 @@ export const SalesOrderQuote = z.object({
   items: z.array(SalesOrderQuoteLine),
 });
 export type SalesOrderQuote = z.infer<typeof SalesOrderQuote>;
+
+// domain/pricing/ask.ts's calculateSalesOrderTotal return shape -
+// SalesOrderQuote UNDECORATED: no spots_at (read once for the whole quote,
+// one level up), no payment_surface or items (both computed one level up
+// too, in quotes/service.ts). domain/orders/rules.ts imports this name as
+// well - it is what createSalesOrder stores on the order, and a quote that
+// renamed it would be quoting a different order than the one that gets
+// placed (see SalesOrderQuote's own note).
+export const OrderPrices = SalesOrderQuote.omit({
+  spots_at: true, payment_surface: true, items: true,
+});
+export type OrderPrices = z.infer<typeof OrderPrices>;
 
 // One purchase-order line. `index` is the request array position - sell-cart
 // lines have no stable id - and `premium` is the resolved rates-band fraction,

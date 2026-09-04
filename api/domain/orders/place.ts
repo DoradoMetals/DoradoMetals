@@ -1,5 +1,19 @@
-// PLACING AN ORDER: one checkout id in (ruling 43), the order out. LOAD -> ASSERT -> WRITE -> OUTSIDE WORLD (D214 item 11; the purchase side moved its postage purchase from BEFORE the write to AFTER on 2026-09-03 - label-after-commit).
-import { randomUUID } from "node:crypto";
+// PLACING AN ORDER: one checkout id in (ruling 43), the order out.
+//
+//   LOAD -> ASSERT -> WRITE -> OUTSIDE WORLD
+//
+// THE WRITE IS SQL THAT COPIES (ruling 66, Jacob: "I also hate all those
+// returns"). The order, its lines, its frozen spots and a purchase's totals
+// are `INSERT … SELECT`s off checkout.checkouts, checkout.items and
+// spots.spots - the columns share names, so nothing here maps one row shape
+// into another. What is still passed is what was DECIDED: the status, the
+// payout fee, and a sale's three per-line figures.
+//
+// THE CARRIER IS NOT THIS FILE'S BUSINESS (ruling 67). A purchase that SHIPS
+// asks domain/shipping to commit the parcel shell and, after the commit, to
+// buy its label. A purchase that Dorado COLLECTS, or that the customer brings
+// in, writes its booking and buys nothing (Jacob, 2026-09-04: "If it's a
+// direct or pickup, why would it need shipper_address_id or package_id?").
 import type { PoolClient } from "pg";
 
 import * as ordersRepo from "#db/orders/repo.ts";
@@ -7,19 +21,16 @@ import * as orderItems from "#db/orders/items/repo.ts";
 import * as orderSpots from "#db/orders/spots/repo.ts";
 import * as orderAddresses from "#db/orders/addresses/repo.ts";
 import * as orderTransactions from "#db/orders/transactions/repo.ts";
-import * as newShipments from "#db/shipping/shipments/repo.ts";
-import * as packagesRepo from "#db/shipping/packages/repo.ts";
-import * as servicesRepo from "#db/shipping/services/repo.ts";
 import * as paymentMethods from "#db/payments/methods/repo.ts";
 import * as intentsRepo from "#db/payments/intents/repo.ts";
 import * as placeAddresses from "#db/places/addresses/repo.ts";
 import * as usersRepo from "#db/users/repo.ts";
+import * as servicesRepo from "#db/shipping/services/repo.ts";
+import * as packagesRepo from "#db/shipping/packages/repo.ts";
 
 import * as addressService from "#domain/places/addresses/service.ts";
 import * as fulfillmentService from "#domain/fulfillments/service.ts";
 import * as fulfillmentShipments from "#domain/fulfillments/shipments/service.ts";
-import * as carrierServices from "#domain/shipping/services/service.ts";
-import * as handoffsService from "#domain/shipping/handoffs/service.ts";
 import * as checkoutService from "#domain/checkout/service.ts";
 import * as emailService from "#domain/media/emails/service.ts";
 import * as spotsService from "#domain/spots/service.ts";
@@ -33,40 +44,30 @@ import * as sweeps from "#domain/payments/sweeps.ts";
 import * as stripeProvider from "#providers/payment/stripe.ts";
 import * as orderRead from "#domain/orders/read.ts";
 import * as rules from "#domain/orders/rules.ts";
-import { buyPostage, recordPostage } from "#domain/orders/postage.ts";
+import * as shippingLabels from "#domain/shipping/labels.ts";
 import * as shippingRules from "#domain/shipping/rules.ts";
-import { calculateSalesOrderTotal } from "#domain/pricing/ask.ts";
+import { calculateItemAsk, calculateSalesOrderTotal } from "#domain/pricing/ask.ts";
 import { retierPremiums } from "#domain/orders/service.ts";
 
 import withTransaction from "#shared/db/withTransaction.ts";
 import { attempt } from "#shared/attempt.ts";
-import type { NewOrderItem } from "#db/orders/items/repo.ts";
-import type { NewOrderTotals } from "#db/orders/transactions/repo.ts";
-import type { Address } from "@dorado/contracts";
-import type { Checkout, OrderView, SpotPrice } from "@dorado/contracts";
-import type { Postage } from "#domain/orders/postage.ts";
-
-export type { Postage } from "#domain/orders/postage.ts";
+import type { Checkout, OrderItem, OrderLine, OrderView } from "@dorado/contracts";
 
 // -------------------- the outside world
 
 // THE THREE CALLS A PLACEMENT CANNOT ROLL BACK, injected as sendToRefiner's
 // transport is: a test drives the real row flow with no provider reachable.
-export type World = {
-  buyPostage: (shipper: Address, personName: string, parcel: rules.Parcel) => Promise<Postage>;
-  authorize: (payment_intent_id: string, cents: number) => Promise<void>;
-  confirm: (order_id: string) => Promise<void>;
-};
-
-export const LIVE: World = {
-  buyPostage,
+export const LIVE = {
+  buyLabel: shippingLabels.buyLabel,
   authorize,
-  confirm: (order_id) => emailService.sendOrderPlacedConfirmation(order_id),
+  confirm: (order_id: string) => emailService.sendOrderPlacedConfirmation(order_id),
 };
 
 // -------------------- the one door
 
-export async function place(checkout_id: string, world: World = LIVE): Promise<OrderView> {
+export async function place(
+  checkout_id: string, world: typeof LIVE = LIVE
+): Promise<OrderView> {
   const checkout = await checkoutService.getRowById(checkout_id);
   rules.assertCheckout(checkout, checkout_id);
   // A VISITOR MAY SHOP AND MAY NOT BUY (ruling 63). The subject is the
@@ -74,6 +75,9 @@ export async function place(checkout_id: string, world: World = LIVE): Promise<O
   // the order would belong to - an admin placing a customer's checkout is
   // asking about the customer. checkout/service.ts carries the reasoning.
   await checkoutService.assertRealAccount(checkout.user_id, "place an order");
+  // THE ONE READINESS QUESTION: `missing` is the checkout's own list, already
+  // narrowed to the chosen method's category.
+  rules.assertPlaceable(await checkoutService.missingFor(checkout));
   const cart = await checkoutService.getItemsForOrder(checkout_id);
 
   const order_id =
@@ -88,26 +92,51 @@ export async function place(checkout_id: string, world: World = LIVE): Promise<O
 
 // -------------------- the rows an order is
 
-// One transaction, both directions. Every derivation arrives complete; nothing
-// here computes.
+// ONE TRANSACTION, BOTH DIRECTIONS, and every statement is a copy. The lines
+// are the caller's because they are the one thing the two directions write
+// differently: a purchase copies the basket, a sale copies it joined to what
+// the pricing decided.
 async function writeOrder(
-  { order_id, checkout, status, lines, totals, spots }: {
-    order_id: string; checkout: Checkout; status: string;
-    lines: NewOrderItem[]; totals: NewOrderTotals; spots: SpotPrice[];
+  { checkout, status, lines, cart }: {
+    checkout: Checkout;
+    status: string;
+    lines: (order_id: string, tx: PoolClient) => Promise<OrderItem[]>;
+    cart: OrderLine[];
   },
   tx: PoolClient
-): Promise<void> {
-  await ordersRepo.create(rules.orderFrom(order_id, checkout, status), tx);
-  await orderItems.createMany(lines, tx);
+): Promise<string> {
+  const order = await ordersRepo.createForCheckout(
+    { checkout_id: checkout.id, status }, tx
+  );
+  rules.assertPlacedOrder(order, checkout.id);
+  const order_id = order.id;
+
+  const written = await lines(order_id, tx);
+  rules.assertEveryLineCopied(written.length, cart.length, order_id);
+
   // A purchase's premiums are the rate bands', read at the order's own metal
   // totals; retierPremiums reads the direction and leaves a sale alone.
   await retierPremiums(order_id, tx);
-  await orderSpots.createMany(rules.spotsToFreeze(order_id, lines, spots), tx);
-  await orderTransactions.create(totals, tx);
+
+  // THE SPOTS THE ORDER IS QUOTED AT, copied off the live feed. A metal with
+  // no quote does not join, and the rule refuses the short answer.
+  rules.assertEveryMetalQuoted(written, await orderSpots.freezeForOrder(order_id, tx));
+
   await snapshotAddress(order_id, checkout, tx);
-  await fulfillmentService.attachForCheckout(rules.handoverOf(order_id, checkout), tx);
+  await fulfillmentService.attachForCheckout(order_id, checkout, tx);
   await refinerService.mirrorForOrder(order_id, tx);
-  await checkoutService.resetAfterOrder(checkout.user_id, rules.directionOf(checkout), tx);
+  return order_id;
+}
+
+// THE CHECKOUT GOES BACK TO EMPTY, AND IT GOES LAST (D208): the choices are
+// the ORDER's now. It is the caller's final statement rather than writeOrder's
+// because every `INSERT … SELECT` above reads `checkout.checkouts` LIVE -
+// clearing the row first would copy nulls into the totals' payout account and
+// the parcel's box and service.
+async function clearChoices(checkout: Checkout, tx: PoolClient): Promise<void> {
+  await checkoutService.resetAfterOrder(
+    checkout.user_id, rules.directionOf(checkout), tx
+  );
 }
 
 // COPYING IS THE WHOLE POINT: editing a book entry afterwards must not rewrite
@@ -123,68 +152,80 @@ async function snapshotAddress(
   await orderAddresses.create({ order_id, address_id, source_address_id }, tx);
 }
 
-// -------------------- the purchase side: the business buys metal, so it buys the postage
+// -------------------- the purchase side: the business buys metal
 
 // LOAD -> ASSERT -> WRITE -> AFTER (label-after-commit, 2026-09-03). The order
-// and its shipment SHELL commit with every label column NULL; the label is
-// bought only once that commit has happened, so a carrier failure leaves a
-// real order behind - not a rolled-back one with a label FedEx has already
-// billed for. Nothing here catches: a failure in the AFTER step propagates as
-// this request's error, and orders.buyLabel (POST /api/orders/:id/label) is
-// the retry surface for the shipment it left behind.
+// and, when it ships, its parcel SHELL commit with every label column NULL;
+// the label is bought only once that commit has happened, so a carrier failure
+// leaves a real order behind - not a rolled-back one with a label FedEx has
+// already billed for. Nothing here catches: a failure in the AFTER step
+// propagates as this request's error, and POST /api/shipments/:id/label is the
+// retry surface for the parcel it left behind.
 async function placePurchase(
-  checkout: Checkout, cart: rules.CheckoutLine[], world: World
+  checkout: Checkout, cart: OrderLine[], world: typeof LIVE
 ): Promise<string> {
-  const placeable = rules.assertPlaceableAsPurchase(checkout, cart);
-  const draft = rules.requireFreeShipmentDraft(
-    await fulfillmentService.getById(placeable.fulfillment_id)
-  );
-  const service = await carrierServices.labelServiceFor(placeable.carrier_service_id);
-  const box = await packagesRepo.getOne(placeable.package_id);
-  const weight = shippingRules.parcelWeightLb(cart, box);
-  rules.assertWeight(weight);
-  const declaredValue = await carrierServices.clampInsuredValue(
-    shippingRules.declaredValue(await checkoutService.purchaseTotal(checkout.id)),
-    service.serviceType
-  );
-  const parcel = rules.parcelFor(
-    checkout, placeable, service, box,
-    rules.handoffFor(await handoffsService.getHandoffs(), draft.method.type),
-    declaredValue, weight
-  );
-  const shipper = rules.requireAddress(
-    await placeAddresses.getOne(placeable.shipper_address_id), "shipper"
-  );
-  const customer = await usersRepo.getOne(checkout.user_id);
+  const draft = checkout.fulfillment_id
+    ? rules.requireFreeFulfillmentDraft(
+        await fulfillmentService.getById(checkout.fulfillment_id)
+      )
+    : null;
+  const method = await checkoutService.chosenMethod(checkout);
+  const ships = method?.category === "SHIPMENT";
+
+  // THE PARCEL'S WEIGHT IS THE SERVER'S (ruling 58), and only a parcel has one.
+  const weight = ships
+    ? shippingRules.parcelWeightLb(cart, await packagesRepo.getOne(checkout.package_id!))
+    : 0;
+
   const payout_fee = rules.payoutFeeOf(
     await paymentMethods.listFor("purchase"), checkout.payment_method_id
   );
-  const spots = await spotsService.getSpotPrices();
 
-  const order_id = randomUUID();
-  const shipment_id = await withTransaction(async (tx) => {
-    await writeOrder(
+  const placed = await withTransaction(async (tx) => {
+    const order_id = await writeOrder(
       {
-        order_id, checkout, spots, status: "In Transit",
-        lines: rules.linesBought(order_id, cart),
-        totals: rules.totalsBought(order_id, checkout, parcel, payout_fee),
+        checkout, cart, status: "In Transit",
+        lines: (id, client) => orderItems.createBought(id, checkout.id, client),
       },
       tx
     );
-    const id = await newShipments.create(rules.shipmentFrom(checkout, parcel), tx);
-    await fulfillmentShipments.link({ fulfillment_id: draft.fulfillment.id, shipment_id: id }, tx);
-    return id;
+    rules.assertTotalsWritten(
+      await orderTransactions.createForCheckout(
+        { order_id, checkout_id: checkout.id, payout_fee }, tx
+      ),
+      order_id
+    );
+
+    if (!ships) {
+      await clearChoices(checkout, tx);
+      return { order_id, shipment_id: null };
+    }
+
+    const shipment_id = await shippingLabels.createForCheckout(
+      checkout, weight, method?.type ?? null, tx
+    );
+    if (draft) {
+      await fulfillmentShipments.link(
+        { fulfillment_id: draft.fulfillment.id, shipment_id }, tx
+      );
+    }
+    await clearChoices(checkout, tx);
+    return { order_id, shipment_id };
   });
 
-  // OUTSIDE WORLD, AFTER: the order and its shell shipment already exist.
-  const postage = await world.buyPostage(shipper, customer?.name ?? "", parcel);
-  await recordPostage(order_id, shipment_id, postage, parcel.schedule);
+  // OUTSIDE WORLD, AFTER: the order and its shell already exist.
+  if (placed.shipment_id) {
+    await world.buyLabel(
+      placed.shipment_id,
+      shippingRules.scheduleOf(checkout.pickup_date, checkout.pickup_time)
+    );
+  }
 
   await attempt("clear the purchase basket", () =>
     checkoutService.clearItems(checkout.user_id, "purchase")
   );
-  await world.confirm(order_id);
-  return order_id;
+  await world.confirm(placed.order_id);
+  return placed.order_id;
 }
 
 // -------------------- the sale side: the customer buys metal, so is charged
@@ -192,11 +233,10 @@ async function placePurchase(
 // CREATE-THEN-CHARGE: the order exists before money moves - the old ordering
 // left a paid customer with no order (D179).
 async function placeSale(
-  checkout: Checkout, cart: rules.CheckoutLine[], world: World
+  checkout: Checkout, cart: OrderLine[], world: typeof LIVE
 ): Promise<string> {
-  const placeable = rules.assertPlaceableAsSale(checkout, cart);
   const address = rules.requireAddress(
-    await placeAddresses.getOne(placeable.recipient_address_id), "delivery"
+    await placeAddresses.getOne(checkout.recipient_address_id!), "delivery"
   );
   const spots = await spotsService.getSpotPrices();
   const priced = await taxService.attachSalesTaxToItems(
@@ -223,27 +263,49 @@ async function placeSale(
   const cents = rules.chargeCents(prices.post_charges_amount);
   const intent = cents > 0 ? await openIntentFor(checkout.user_id, cents) : null;
 
-  const order_id = randomUUID();
-  await withTransaction(async (tx) => {
-    await writeOrder(
+  const lines = rules.pricedSaleLines(cart, priced, (line) => calculateItemAsk(line, spots));
+
+  const order_id = await withTransaction(async (tx) => {
+    const id = await writeOrder(
       {
-        order_id, checkout, spots,
+        checkout, cart,
         status: rules.statusAtPlacement(cents, intent?.settled === true),
-        lines: rules.linesSold(order_id, cart, priced, spots),
-        totals: rules.totalsSold(order_id, prices, service?.name),
+        lines: (order, client) => orderItems.createSold(order, checkout.id, lines, client),
       },
       tx
     );
+    // EVERY FIGURE IS THE PRICING SERVICE'S ANSWER, so this is the one create
+    // with nothing to copy. The five renames are the table's own - see
+    // db/orders/transactions/sql/create.sql.
+    await orderTransactions.create(
+      {
+        order_id: id, total: prices.order_total, shipping: prices.shipping_charge,
+        shipping_service: service?.name, funds: prices.pre_charges_amount,
+        post_charges_amount: prices.post_charges_amount,
+        subject_to_charges_amount: prices.subject_to_charges_amount,
+        used_funds: prices.pre_charges_amount > 0, items: prices.item_total,
+        base_total: prices.base_total, surcharge: prices.charges_amount,
+        sales_tax: prices.sales_tax,
+      },
+      tx
+    );
+
     if (prices.pre_charges_amount > 0) {
       // Credit is RESERVED at creation so the same dollars cannot be spent
       // twice; the abandonment sweep puts it back if payment never arrives.
       await usersService.removeFunds(checkout.user_id, prices.pre_charges_amount, tx);
       await transactionsService.addTransactionLog(
-        { user_id: checkout.user_id, type: "Debit", order_id, amount: prices.pre_charges_amount }, tx
+        {
+          user_id: checkout.user_id, type: "Debit", order_id: id,
+          amount: prices.pre_charges_amount,
+        },
+        tx
       );
     }
     await taxService.updateStateSalesTax(prices.sales_tax, address.state, tx);
-    if (intent) await paymentsService.attachOrder(intent.payment_intent_id, order_id, tx);
+    if (intent) await paymentsService.attachOrder(intent.payment_intent_id, id, tx);
+    await clearChoices(checkout, tx);
+    return id;
   });
 
   // OUTSIDE WORLD, AFTER: the order exists, so the card is set to exactly what

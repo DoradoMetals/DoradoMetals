@@ -19,20 +19,24 @@ import PickupScheduler from '@/features/checkout/purchase-order-checkout/shippin
 import { AddressDrawer } from '@/features/addresses/ui/AddressDrawer'
 import { StoreLocationsMap } from '@/features/checkout/purchase-order-checkout/shippingStep/StoreLocations'
 
-// EVERY GATE HERE IS A COLUMN OF THE ROW. `row.package_id`, `row.handoff_code`
-// and `row.requires_schedule` replaced the store fields this file used to
-// branch on, and `requires_schedule` in particular is the server's answer to
-// "does this handoff need a date and a time" - the browser never sees a
-// carrier's enum.
+// EVERY GATE HERE IS A COLUMN OF THE ROW, or the one join `row.missing` cannot
+// name. `row.package_id` still is; `handoff_code` and `requires_schedule` are
+// gone from the row (2026-09-04 shrink) - the caller resolves the row's
+// `fulfillment_method_id` against the fulfillment-method and carrier-handoff
+// lists (gates.ts `resolveHandoff`) and hands the result down as `handoff`.
+// `requires_schedule` is the server's answer to "does this handoff need a
+// date and a time", read off that handoff now rather than off the row.
 export default function ShippingStep({
   row,
   rates,
   handoffs,
+  handoff,
   isLoading,
 }: {
   row?: CheckoutView
   rates: CheckoutRate[]
   handoffs: CarrierHandoff[]
+  handoff: CarrierHandoff | null
   isLoading: boolean
 }) {
   const { openDrawer } = useDrawerStore()
@@ -58,7 +62,7 @@ export default function ShippingStep({
   // The carrier needs a service family and an address to answer "when could we
   // collect"; both come off the row and the joined rate, never a uuid literal.
   const pickupTimesInput =
-    row?.requires_schedule && address?.is_valid && selectedRate?.carrier_code
+    handoff?.requires_schedule && address?.is_valid && selectedRate?.carrier_code
       ? {
           address_id: address.id,
           code: selectedRate.carrier_code,
@@ -127,7 +131,7 @@ export default function ShippingStep({
       {/* Handoff FIRST (only needs address + package) */}
       {address?.is_valid && row?.package_id && (
         <>
-          <PickupSelector handoffs={handoffs} row={row} />
+          <PickupSelector handoffs={handoffs} selected={handoff?.code ?? null} />
           <Divider />
         </>
       )}
@@ -141,9 +145,9 @@ export default function ShippingStep({
         </>
       )}
 
-      {row?.handoff_code && selectedRate && (
+      {handoff && selectedRate && (
         <div>
-          {row.requires_schedule ? (
+          {handoff.requires_schedule ? (
             times.length > 0 ? (
               <PickupScheduler times={times} row={row} />
             ) : (
