@@ -1,6 +1,4 @@
-import { Button } from '@dorado/components'
-import { Input } from '@/shared/ui/base/input'
-import { Field } from '@/shared/ui/Field'
+import { Button, Field, Input } from '@dorado/components'
 import { MinusIcon, PlusIcon } from '@phosphor-icons/react'
 import { useEffect, useState } from 'react'
 
@@ -87,7 +85,8 @@ export default function QuantityBar({
               commit((e.target as HTMLInputElement).value)
             }
           }}
-          className="flex-1 h-10 text-center"
+          className="flex-1"
+          inputClassName="h-10 text-center"
         />
 
         <Button

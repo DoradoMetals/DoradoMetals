@@ -3,8 +3,7 @@
 import { useForm, FormProvider } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { purityOptions, ScrapInput, scrapSchema, type Scrap } from '@/features/scrap/types'
-import { Button } from '@dorado/components'
-import { Separator } from '@/shared/ui/base/separator'
+import { Button, Divider } from '@dorado/components'
 import { Form } from '@/shared/ui/base/form'
 import { useEffect, useState } from 'react'
 import { defineStepper } from '@stepperize/react'
@@ -134,7 +133,7 @@ function ItemFormStep() {
         </div>
       </div>
 
-      <Separator />
+      <Divider />
 
       <div className="w-full lg:flex lg:justify-between">
         <div className="hidden lg:block flex flex-col">
@@ -145,7 +144,7 @@ function ItemFormStep() {
         </div>
       </div>
 
-      <Separator />
+      <Divider />
 
       <div className="lg:flex lg:justify-between">
         <div className="hidden lg:block flex flex-col">

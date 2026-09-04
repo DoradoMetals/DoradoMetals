@@ -2,8 +2,7 @@
 
 import type { AdminRate } from "@dorado/contracts";
 import * as React from 'react'
-import { Button } from '@dorado/components'
-import { Input } from '@/shared/ui/base/input'
+import { Button, Input } from '@dorado/components'
 import { cn } from '@/shared/utils/cn'
 import { PencilSimpleIcon, FloppyDiskIcon, XIcon } from '@phosphor-icons/react'
 import { getBoundsForMetal, sortRatesByMin, pctToInt, intToPct, labelFor } from '@/features/rates/types'
@@ -300,7 +299,8 @@ function PercentBox({
        a shared component's call site. Reported as a missing Input state. */
     <div className={cn('flex items-center gap-1 rounded-md', isDirty && 'ring-2 ring-primary/60')}>
       <Input
-        className="h-10 w-16 text-center no-spinner"
+        className="w-16"
+        inputClassName="text-center"
         inputMode="decimal"
         type="number"
         value={value}

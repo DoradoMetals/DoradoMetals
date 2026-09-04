@@ -2,10 +2,9 @@
 
 import Image from 'next/image'
 import { Product } from '@/features/products/types'
-import { Accordion, Button } from '@dorado/components'
+import { Accordion, Button, RadioGroup, RadioOption } from '@dorado/components'
 import { Equal, Minus, Plus, X } from 'lucide-react'
 import NumberFlow from '@number-flow/react'
-import { RadioGroup } from '@/shared/ui/RadioGroup'
 
 import { useState } from 'react'
 
@@ -88,36 +87,23 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
   return (
     <div>
       <div className="hidden lg:flex items-start w-5xl flex-1 gap-4">
-        {/* THE PRODUCT-IMAGE PICKER IS A RADIO GROUP, and this is the exact case
-            ruling 30 deleted `RadioGroupImage` for: "it was this control with an
-            <Image> in the option, which is CONTENT, and content is children."
-            It was hand-rolled TWICE in this file, once for each breakpoint, with
-            the checked appearance spelled as a string at four call sites.
-            `` rather than the neutral fill: neutral FILLS with
-            --primary, which is near-white, and a white ground behind a product
-            photograph is not a selection cue, it is a different photograph.
-            Gold is ruling 19's one permitted hue and this is the business's own
-            catalogue - FLAGGED for Jacob as the one colour judgement in this pass. */}
         <RadioGroup
           value={selectedImage}
           onValueChange={setSelectedImage}
-          options={[selectedProduct.image_front, selectedProduct.image_back]}
-          getValue={(src) => src}
-          variant="tile"
-
           aria-label="Product images"
           className="flex flex-col gap-3"
-          optionClassName="h-20 w-20 p-0"
         >
-          {(src) => (
-            <Image
-              src={src}
-              height={500}
-              width={500}
-              className="pointer-events-none h-full w-full object-contain"
-              alt={src === selectedProduct.image_front ? 'Front thumbnail' : 'Back thumbnail'}
-            />
-          )}
+          {[selectedProduct.image_front, selectedProduct.image_back].map((src) => (
+            <RadioOption key={src} value={src} variant="tile" className="h-20 w-20 p-0">
+              <Image
+                src={src}
+                height={500}
+                width={500}
+                className="pointer-events-none h-full w-full object-contain"
+                alt={src === selectedProduct.image_front ? 'Front thumbnail' : 'Back thumbnail'}
+              />
+            </RadioOption>
+          ))}
         </RadioGroup>
         <div className="flex flex-col gap-3 w-full h-full">
           <div className="flex relative aspect-square bg-card border border-border rounded-lg h-full w-full">
@@ -152,13 +138,15 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
                 const variant = variants.find((v) => v.name === val)
                 if (variant) setSelectedProduct(variant)
               }}
-              options={[...variants].sort((a, b) => b.content - a.content)}
-              getValue={(option) => option.name}
-              variant="segment"
               className="flex w-full gap-3"
-              optionClassName="w-full"
             >
-              {(option) => option.variant_label}
+              {[...variants]
+                .sort((a, b) => b.content - a.content)
+                .map((option) => (
+                  <RadioOption key={option.id} value={option.name} variant="segment" className="w-full">
+                    {option.variant_label}
+                  </RadioOption>
+                ))}
             </RadioGroup>
           )}
           <div className="w-full">
@@ -487,36 +475,23 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
               </motion.div>
             </AnimatePresence>
           </div>
-          {/* THE PRODUCT-IMAGE PICKER IS A RADIO GROUP, and this is the exact case
-              ruling 30 deleted `RadioGroupImage` for: "it was this control with an
-              <Image> in the option, which is CONTENT, and content is children."
-              It was hand-rolled TWICE in this file, once for each breakpoint, with
-              the checked appearance spelled as a string at four call sites.
-              `` rather than the neutral fill: neutral FILLS with
-              --primary, which is near-white, and a white ground behind a product
-              photograph is not a selection cue, it is a different photograph.
-              Gold is ruling 19's one permitted hue and this is the business's own
-              catalogue - FLAGGED for Jacob as the one colour judgement in this pass. */}
           <RadioGroup
             value={selectedImage}
             onValueChange={setSelectedImage}
-            options={[selectedProduct.image_front, selectedProduct.image_back]}
-            getValue={(src) => src}
-            variant="tile"
-
             aria-label="Product images"
             className="flex items-center w-full gap-3 flex-1"
-            optionClassName="h-20 w-20 p-0"
           >
-            {(src) => (
-              <Image
-                src={src}
-                height={500}
-                width={500}
-                className="pointer-events-none h-full w-full object-contain"
-                alt={src === selectedProduct.image_front ? 'Front thumbnail' : 'Back thumbnail'}
-              />
-            )}
+            {[selectedProduct.image_front, selectedProduct.image_back].map((src) => (
+              <RadioOption key={src} value={src} variant="tile" className="h-20 w-20 p-0">
+                <Image
+                  src={src}
+                  height={500}
+                  width={500}
+                  className="pointer-events-none h-full w-full object-contain"
+                  alt={src === selectedProduct.image_front ? 'Front thumbnail' : 'Back thumbnail'}
+                />
+              </RadioOption>
+            ))}
           </RadioGroup>
         </div>
 
@@ -527,13 +502,15 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
               const variant = variants.find((v) => v.name === val)
               if (variant) setSelectedProduct(variant)
             }}
-            options={[...variants].sort((a, b) => b.content - a.content)}
-            getValue={(option) => option.name}
-            variant="segment"
             className="flex w-full gap-3"
-            optionClassName="w-full"
           >
-            {(option) => option.variant_label}
+            {[...variants]
+              .sort((a, b) => b.content - a.content)
+              .map((option) => (
+                <RadioOption key={option.id} value={option.name} variant="segment" className="w-full">
+                  {option.variant_label}
+                </RadioOption>
+              ))}
           </RadioGroup>
         )}
 

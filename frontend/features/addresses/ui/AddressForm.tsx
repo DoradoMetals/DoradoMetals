@@ -5,8 +5,7 @@ import { useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Form, FormField, FormItem } from '@/shared/ui/base/form'
-import { Button } from '@dorado/components'
-import { Switch } from '@dorado/components'
+import { Button, Field, Switch } from '@dorado/components'
 
 import { AddressFormValues, UserAddress, addressSchema, makeEmptyAddress } from '@/features/addresses/types'
 
@@ -25,7 +24,6 @@ import { useAddress, useCreateAddress, useUpdateAddress , type SavedAddress } fr
 import { useGeocodeAddress } from '@/features/addresses/hooks/useGeocoder'
 import { usePlacesAutocompleteController } from '@/features/addresses/hooks/useAutocomplete'
 import { AddressSearchInput } from '@/features/addresses/ui/AutocompleteInput'
-import { Field } from '@/shared/ui/Field'
 
 const US_CENTER = { lat: 39.8283, lng: -98.5795 }
 const US_ZOOM = 3

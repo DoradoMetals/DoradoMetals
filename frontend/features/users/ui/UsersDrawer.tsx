@@ -2,7 +2,6 @@
 
 import type { AdminUser } from "@dorado/contracts";
 import { useDrawerStore } from '@/shared/store/drawerStore'
-import Drawer from '@/shared/ui/base/drawer'
 import { useMemo, useState } from 'react'
 
 import { formatFullDate } from '@/shared/utils/formatDates'
@@ -13,10 +12,7 @@ import {
   useRequestPasswordReset,
   useUpdateUser,
 } from '@/features/auth/queries'
-import { Button } from '@dorado/components'
-import { Separator } from '@/shared/ui/base/separator'
-import { Input } from '@/shared/ui/base/input'
-import { RadioGroup } from '@/shared/ui/RadioGroup'
+import { Button, Divider, Drawer, Input, RadioGroup, RadioOption } from '@dorado/components'
 import { cn } from '@/shared/utils/cn'
 import { MinusIcon, PenIcon, PlusIcon } from '@phosphor-icons/react'
 import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
@@ -44,14 +40,14 @@ export default function AdminUsersDrawer({
         <h3>{user.name}</h3>
         <time dateTime={user.created_at ?? undefined}>{formatFullDate(user.created_at)}</time>
       </div>
-      <Separator />
+      <Divider />
       <div className="space-y-8">
         <UserInfo user={user} />
-        <Separator />
+        <Divider />
         <DoradoCredit user={user} />
-        <Separator />
+        <Divider />
         <UserActions user={user} />
-        <Separator />
+        <Divider />
         <UserOrders user={user} />
       </div>
     </Drawer>
@@ -146,25 +142,17 @@ function DoradoCredit({ user }: { user: AdminUser }) {
       </div>
 
       <div className="flex flex-col gap-2 w-full">
-        {/* ⚠ D99 — WAS A SELECTED STATE NOBODY COULD SEE. The checked row was
-            `bg-primary/15 border-primary text-primary`: a 15% white wash on a
-            near-black ground, with `text-primary` (#fafafa) against a rest
-            state of `text-foreground` (#f6f7f9). Two of the three signals were
-            invisible and the third was a border. `intent="neutral"` FILLS. */}
         <RadioGroup
           value={mode}
           onValueChange={(val) => setMode(val as 'add' | 'subtract' | 'edit')}
-          options={modes}
-          variant="segment"
           className="flex w-full items-center gap-1"
-          optionClassName="w-full gap-1"
         >
-          {(m) => (
-            <>
+          {modes.map((m) => (
+            <RadioOption key={m.value} value={m.value} variant="segment" className="w-full gap-1">
               {m.label}
               <m.icon size={20} />
-            </>
-          )}
+            </RadioOption>
+          ))}
         </RadioGroup>
         <Input
           type="text"
@@ -172,7 +160,7 @@ function DoradoCredit({ user }: { user: AdminUser }) {
           value={`$${displayAmount}`}
           onChange={handleAmountChange}
           placeholder="$0.00"
-          className="w-full text-right no-spinner"
+          inputClassName="text-right"
         />
       </div>
 

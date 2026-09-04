@@ -1,6 +1,6 @@
 'use client'
 
-import { Button } from '@dorado/components'
+import { Button, Rating, RatingButton } from '@dorado/components'
 import Banner from '@/shared/ui/Banner'
 import { ArrowLeftIcon, ArrowRightIcon } from '@phosphor-icons/react'
 import { useRef, useState } from 'react'
@@ -8,7 +8,6 @@ import { Swiper, SwiperSlide } from 'swiper/react'
 import { Navigation, Pagination } from 'swiper/modules'
 import type { Swiper as SwiperType } from 'swiper'
 import 'swiper/css'
-import { Rating, RatingButton } from '@/shared/ui/base/rating'
 import { formatFullDate } from '@/shared/utils/formatDates'
 import { usePublicReviews } from '@/features/reviews/queries'
 

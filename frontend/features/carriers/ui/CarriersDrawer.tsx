@@ -1,12 +1,9 @@
 'use client'
 
 import { useDrawerStore } from '@/shared/store/drawerStore'
-import Drawer from '@/shared/ui/base/drawer'
 import { useMemo, useState } from 'react'
 import { formatFullDate } from '@/shared/utils/formatDates'
-import { Input } from '@/shared/ui/base/input'
 import { SegmentedField } from '@/shared/ui/SegmentedField'
-import StatusChip from '@/shared/ui/StatusChip'
 import UpdatedByline from '@/shared/ui/UpdatedByline'
 import formatPhoneNumber, { normalizePhone } from '@/shared/utils/formatPhoneNumber'
 
@@ -19,8 +16,7 @@ import {
 import { ColumnDef } from '@tanstack/react-table'
 import { ChipColumn, IconColumn, TextColumn } from '@/shared/ui/table/Columns'
 import { DataTable } from '@/shared/ui/table/Table'
-import { Button } from '@dorado/components'
-import { Field } from '@/shared/ui/Field'
+import { Badge, Button, Drawer, Input } from '@dorado/components'
 
 export default function CarriersDrawer({
   carriers,
@@ -69,9 +65,9 @@ function Header({ carrier }: { carrier: Carrier }) {
           )}
         </div>
 
-        <StatusChip positive={active} size="lg" className="h-fit">
+        <Badge intent={active ? 'success' : 'danger'} size="lg" className="h-fit">
           {active ? 'Active' : 'Inactive'}
-        </StatusChip>
+        </Badge>
       </div>
 
       <UpdatedByline date={formatFullDate(carrier.updated_at ?? '')} />
@@ -92,25 +88,23 @@ function Details({ carrier }: { carrier: Carrier }) {
     <div className="flex flex-col w-full gap-4">
       <p className="eyebrow mb-4">Details</p>
 
-      <Field label="Name" htmlFor="carrier_name">
-        <Input
-          id="carrier_name"
-          placeholder="Carrier name..."
-          type="text"
-          defaultValue={carrier.organization.name ?? ''}
-          onBlur={(e) => handleOrgUpdate({ name: e.target.value })}
-        />
-      </Field>
+      <Input
+        id="carrier_name"
+        label="Name"
+        placeholder="Carrier name..."
+        type="text"
+        defaultValue={carrier.organization.name ?? ''}
+        onBlur={(e) => handleOrgUpdate({ name: e.target.value })}
+      />
 
-      <Field label="Logo" htmlFor="carrier_logo">
-        <Input
-          id="carrier_logo"
-          placeholder="/logos/fedex.svg or https://..."
-          type="text"
-          defaultValue={carrier.logo ?? ''}
-          onBlur={(e) => updateCarrier.mutate({ ...carrier, logo: e.target.value })}
-        />
-      </Field>
+      <Input
+        id="carrier_logo"
+        label="Logo"
+        placeholder="/logos/fedex.svg or https://..."
+        type="text"
+        defaultValue={carrier.logo ?? ''}
+        onBlur={(e) => updateCarrier.mutate({ ...carrier, logo: e.target.value })}
+      />
     </div>
   )
 }
@@ -125,25 +119,23 @@ function Contact({ carrier }: { carrier: Carrier }) {
     <div className="flex flex-col w-full gap-4">
       <p className="eyebrow mb-4">Contact</p>
 
-      <Field label="Email" htmlFor="carrier_email">
-        <Input
-          id="carrier_email"
-          placeholder="support@carrier.com"
-          type="text"
-          defaultValue={carrier.organization.email ?? ''}
-          onBlur={(e) => handleOrgUpdate({ email: e.target.value })}
-        />
-      </Field>
+      <Input
+        id="carrier_email"
+        label="Email"
+        placeholder="support@carrier.com"
+        type="text"
+        defaultValue={carrier.organization.email ?? ''}
+        onBlur={(e) => handleOrgUpdate({ email: e.target.value })}
+      />
 
-      <Field label="Phone" htmlFor="carrier_phone">
-        <Input
-          id="carrier_phone"
-          placeholder="(555) 555-5555"
-          type="text"
-          defaultValue={formatPhoneNumber(carrier.organization.phone ?? '')}
-          onBlur={(e) => handleOrgUpdate({ phone: normalizePhone(e.target.value) })}
-        />
-      </Field>
+      <Input
+        id="carrier_phone"
+        label="Phone"
+        placeholder="(555) 555-5555"
+        type="text"
+        defaultValue={formatPhoneNumber(carrier.organization.phone ?? '')}
+        onBlur={(e) => handleOrgUpdate({ phone: normalizePhone(e.target.value) })}
+      />
     </div>
   )
 }

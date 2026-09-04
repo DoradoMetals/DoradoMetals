@@ -12,7 +12,7 @@ import {
   useCreateCarrierService,
 } from '@/features/carriers/queries'
 import type { Carrier, CarrierService } from '@/features/carriers/types'
-import { RadioGroup } from '@/shared/ui/RadioGroup'
+import { RadioGroup, RadioOption } from '@dorado/components'
 import Image from 'next/image'
 import CarrierServiceDrawer from '@/features/carriers/ui/CarrierServicesDrawer'
 import { useMemo, useState } from 'react'
@@ -145,14 +145,15 @@ export default function CarrierServicesPage() {
           <RadioGroup
             value={value}
             onValueChange={(id) => setValue('carrier_id', id)}
-            options={carriers}
-            getValue={(c) => c.id}
-            isOptionDisabled={(c) => !c.organization.enabled}
-            variant="tile"
             className="grid w-full grid-cols-1 gap-4 sm:grid-cols-2"
           >
-            {(c) => (
-              <>
+            {carriers.map((c) => (
+              <RadioOption
+                key={c.id}
+                value={c.id}
+                variant="tile"
+                disabled={!c.organization.enabled}
+              >
                 <div className="relative flex h-20 w-full items-center justify-center">
                   <Image
                     src={c.logo ?? ''}
@@ -162,8 +163,8 @@ export default function CarrierServicesPage() {
                   />
                 </div>
                 <strong>{c.organization.name}</strong>
-              </>
-            )}
+              </RadioOption>
+            ))}
           </RadioGroup>
         ),
       },

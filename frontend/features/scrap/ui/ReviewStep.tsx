@@ -8,8 +8,7 @@ import { formatRate } from '@/features/rates/utils/resolveRate'
 import { useCheckoutItems } from '@/shared/store/checkoutItemsStore'
 import { useSpotPrices } from '@/features/spots/queries'
 import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
-import StatusChip from '@/shared/ui/StatusChip'
-import { Separator } from '@/shared/ui/base/separator'
+import { Badge, Divider } from '@dorado/components'
 import { DetailRow } from '@/shared/ui/DetailRow'
 
 export default function ReviewStep({ showBanner }: { showBanner: boolean }) {
@@ -79,7 +78,7 @@ export default function ReviewStep({ showBanner }: { showBanner: boolean }) {
           </div>
         </div>
 
-        <Separator />
+        <Divider />
 
         <DetailRow label="Price Estimate:" className="items-end">
           <PriceNumberFlow value={price} />
@@ -93,10 +92,9 @@ export default function ReviewStep({ showBanner }: { showBanner: boolean }) {
             transition={{ duration: 0.5 }}
             className="mb-4 will-change-transform"
           >
-            <StatusChip tone="positive" size="lg">
-              <CheckCircle className="w-4 h-4" />
+            <Badge variant="soft" intent="success" size="lg" icon={<CheckCircle className="w-4 h-4" />}>
               Item submitted!
-            </StatusChip>
+            </Badge>
           </motion.div>
         )}
       </div>

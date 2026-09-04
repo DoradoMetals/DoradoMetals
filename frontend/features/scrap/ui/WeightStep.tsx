@@ -1,5 +1,5 @@
 import { FormField, FormItem, FormMessage } from '@/shared/ui/base/form'
-import { RadioGroup } from '@/shared/ui/RadioGroup'
+import { RadioGroup, RadioOption } from '@dorado/components'
 import { Scrap, weightOptions } from '@/features/scrap/types'
 import { useFormContext } from 'react-hook-form'
 import { FloatingLabelInput } from '@/shared/ui/inputs/FloatingLabelInput'
@@ -19,18 +19,14 @@ export default function WeightStep() {
             <RadioGroup
               value={field.value}
               onValueChange={field.onChange}
-              options={weightOptions}
-              getValue={(weight) => weight.unit}
-              variant="tile"
               className="flex w-full gap-3"
-              optionClassName="w-full"
             >
-              {(weight) => (
-                <>
+              {weightOptions.map((weight) => (
+                <RadioOption key={weight.id} value={weight.unit} variant="tile" className="w-full">
                   <weight.icon size={20} />
                   <strong>{weight.label}</strong>
-                </>
-              )}
+                </RadioOption>
+              ))}
             </RadioGroup>
             <FormMessage />
           </FormItem>

@@ -3,12 +3,10 @@
 import { useState, useMemo } from 'react'
 import { Plus } from 'lucide-react'
 
-import { Button } from '@dorado/components'
-import { Skeleton } from '@dorado/components'
+import { Button, EmptyState, Skeleton } from '@dorado/components'
 import { useAddress, useUserAddresses } from '@/features/addresses/queries'
 import { useDrawerStore } from '@/shared/store/drawerStore'
 import { DebouncedInputSearch } from '@/shared/ui/inputs/DebouncedInputSearch'
-import { EmptyState } from '@/shared/ui/EmptyState'
 import { MapPinIcon } from '@phosphor-icons/react'
 import { AddressDrawer } from '@/features/addresses/ui/AddressDrawer'
 import { AddressCard } from '@/features/addresses/ui/AddressCard'
@@ -106,14 +104,15 @@ export default function AddressList() {
             </>
           ) : (
             <EmptyState
-              icon={MapPinIcon}
+              icon={<MapPinIcon />}
               title="No Addresses Found!"
               description="Add an address so we can save it to your account."
-            >
-              <Button variant="secondary" onClick={handleAdd}>
-                Add New Address
-              </Button>
-            </EmptyState>
+              action={
+                <Button variant="secondary" onClick={handleAdd}>
+                  Add New Address
+                </Button>
+              }
+            />
           )}
 
           <AddressDrawer />

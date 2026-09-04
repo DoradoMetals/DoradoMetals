@@ -6,14 +6,13 @@ import { usePathname } from 'next/navigation'
 import { useDrawerStore } from '@/shared/store/drawerStore'
 import { useCheckoutItems } from '@/shared/store/checkoutItemsStore'
 
-import { Button } from '@dorado/components'
+import { Badge, Button } from '@dorado/components'
 import { MenuIcon } from '@/features/navigation/ui/NavIcon'
 import { CheckoutIcon } from '@/features/checkout/items/ui/CheckoutIcon'
 
 import { motion } from 'framer-motion'
 import { useUser } from '@/features/auth/authClient'
 import { protectedRoutes } from '@/features/routes/types'
-import CountBadge from '@/shared/ui/CountBadge'
 import Spots from '@/features/spots/ui/Spots'
 import { Logo } from '@/features/navigation/ui/Logo'
 import AccountMenu from '@/features/navigation/ui/ProfileMenu'
@@ -81,9 +80,9 @@ export default function Shell() {
             >
               <CheckoutIcon size={28} isOpen={activeDrawer === 'checkout'} />
               {items > 0 && (
-                <CountBadge size="sm" className="absolute -top-0 -right-1">
+                <Badge variant="solid" intent="neutral" size="sm" className="absolute -top-0 -right-1">
                   {items}
-                </CountBadge>
+                </Badge>
               )}
             </Button>
 
@@ -117,9 +116,9 @@ export default function Shell() {
             >
               <CheckoutIcon size={28} isOpen={false} />
               {items > 0 && (
-                <CountBadge size="sm" className="absolute -top-0 -right-1">
+                <Badge variant="solid" intent="neutral" size="sm" className="absolute -top-0 -right-1">
                   {items}
-                </CountBadge>
+                </Badge>
               )}
             </motion.div>
           </Button>
