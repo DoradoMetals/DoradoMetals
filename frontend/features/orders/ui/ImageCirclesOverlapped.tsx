@@ -34,7 +34,7 @@ const AvatarCircles = ({ items, maxDisplay = 3, className }: AvatarCirclesProps)
       ))}
 
       {extra > 0 && (
-        <small className="w-14 h-14 rounded-full z-50 flex items-center justify-center bg-gray-200 border-2 border-card">
+        <small className="w-14 h-14 rounded-full z-50 flex items-center justify-center bg-muted border-2 border-card">
           +{extra}
         </small>
       )}

@@ -9,8 +9,8 @@ import {
   DialogTrigger,
   DialogTitle,
   DialogDescription,
-} from '@/shared/ui/base/dialog'
-import { Button } from '@dorado/components'
+  Button,
+} from '@dorado/components'
 import { Form } from '@/shared/ui/base/form'
 import { useRequestPasswordReset } from '@/features/auth/queries'
 import { ValidatedField } from '@/shared/ui/form/ValidatedField'

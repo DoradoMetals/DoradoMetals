@@ -71,7 +71,7 @@ export default function SalesOrdersPage() {
         formatValue: (value) => usersById.get(String(value)) ?? '',
         align: 'center',
         enableHiding: false,
-        textClassName: 'text-xs sm:text-sm text-foreground',
+        textClassName: 'text-micro sm:text-small text-foreground',
         size: 160,
       }),
 

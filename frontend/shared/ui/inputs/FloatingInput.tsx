@@ -27,7 +27,7 @@ const customInputVariant = cva(
 				xs: "h-10 text-base",
 				sm: "h-10 text-base",
 				md: "h-14 text-base py-4",
-				lg: "h-16 text-lg",
+				lg: "h-16 text-h4",
 			},
 		},
 		defaultVariants: {

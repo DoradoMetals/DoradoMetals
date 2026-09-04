@@ -1,6 +1,7 @@
 import { cn } from '@/shared/utils/cn'
 import { ShipmentTracking } from '@/features/shipping/types'
 import { formatDateWithTimeInParens } from '@/shared/utils/formatDates'
+import { Skeleton } from '@dorado/components'
 
 const MASTER_STAGES = ['Picked Up', 'In Transit', 'Out for Delivery', 'Delivered'] as const
 
@@ -74,8 +75,8 @@ export default function TrackingEvents({
       {isLoading ? (
         <div className="flex flex-col gap-5 w-full animate-pulse">
           <div className="flex items-center justify-between w-full mb-4">
-            <div className="h-4 bg-card rounded w-1/3" />
-            <div className="h-4 bg-card rounded w-1/6" />
+            <Skeleton className="h-4 w-1/3 bg-card" />
+            <Skeleton className="h-4 w-1/6 bg-card" />
           </div>
           {/* A timeline, not prose - see the note in the order drawer's
               InTransit: `flex` is what typography.css's layout-intent
@@ -83,12 +84,12 @@ export default function TrackingEvents({
           <ol className="relative ml-4 flex flex-col">
             {MASTER_STAGES.map((_, i) => (
               <li key={i} className="relative pl-6 pb-6 flex items-center">
-                <div className="absolute -left-[10px] w-5 h-5 bg-card rounded-full" />
+                <Skeleton className="absolute -left-[10px] h-5 w-5 rounded-full bg-card" />
                 <div className="flex-1 space-y-2">
-                  <div className="h-3 bg-card rounded w-1/4" />
-                  <div className="h-3 bg-card rounded w-1/2" />
+                  <Skeleton className="h-3 w-1/4 bg-card" />
+                  <Skeleton className="h-3 w-1/2 bg-card" />
                 </div>
-                <div className="h-3 w-16 bg-card rounded ml-auto" />
+                <Skeleton className="h-3 w-16 ml-auto bg-card" />
               </li>
             ))}
           </ol>
