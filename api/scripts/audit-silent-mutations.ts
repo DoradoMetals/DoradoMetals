@@ -77,6 +77,23 @@ if (process.argv.includes("--self-test")) {
         mustPrint: "0 discarded",
       },
       {
+        // THE BARREL PATH, proven rather than assumed: a service reaching a
+        // repo through `import { xRepo } from "#db"` names it by a specifier
+        // that looks like a bare package, and an unresolved namespace is
+        // silently skipped - so this check would go blind for every call that
+        // moved onto the barrel without a case here to notice.
+        name: "a call through the #db barrel is still seen",
+        rootEnv: "AUDIT_SILENT_ROOT",
+        files: {
+          "db/index.ts": "export * as xRepo from \"#db/x/repo.ts\";\n",
+          "db/x/sql/bump.sql": "UPDATE t SET a = 1 WHERE id = $1 RETURNING id",
+          "db/x/repo.ts": repo,
+          "domain/x/service.ts": "import { xRepo } from \"#db\";\nawait xRepo.bump(id, c);\n",
+        },
+        expect: "fail",
+        mustPrint: "bump",
+      },
+      {
         name: "an INSERT is not a finding",
         rootEnv: "AUDIT_SILENT_ROOT",
         files: {
@@ -185,6 +202,20 @@ for (const f of files.filter((f) => /repo(\.\w+)?\.(ts|js)$/.test(f))) {
 const byFile = new Map<string, Fn[]>();
 for (const fn of fns) byFile.set(fn.file, [...(byFile.get(fn.file) ?? []), fn]);
 
+// THE `#db` BARREL. `api/db/index.ts` exports one flat module per table
+// (`export * as checkouts from "#db/checkout/checkouts/repo.ts"`), so a service
+// writing `import { checkouts } from "#db"` names a repo through a specifier
+// this resolver would otherwise see as a bare package - and every call through
+// it would silently stop being audited. Read once, from the barrel itself, so
+// a table added there is covered without an edit here.
+const BARREL = new Map<string, string>();
+try {
+  const barrel = readFileSync(path.join(ROOT, "db", "index.ts"), "utf8");
+  for (const m of barrel.matchAll(/export\s+\*\s+as\s+(\w+)\s+from\s+["']#db\/([^"']+)["']/g)) {
+    BARREL.set(m[1]!, `db/${m[2]!}`);
+  }
+} catch { /* no barrel in a synthetic self-test tree */ }
+
 // "#db/x/repo.ts", "#domain/x/service.ts" or "./repo.ts" -> "db/x/repo.ts" etc.
 function resolveSpecifier(fromFile: string, spec: string): string | null {
   if (spec.startsWith("#db/") || spec.startsWith("#domain/") || spec.startsWith("#transport/")) {
@@ -211,6 +242,17 @@ for (const f of files.filter((f) => /\.(ts|js)$/.test(f) && !/\.test\./.test(f) 
     const alias = (im[1] ?? im[2])!;
     const target = resolveSpecifier(self, im[3]!);
     if (target) ns2file.set(alias, target);
+  }
+
+  // `import { checkouts, checkoutItems as items } from "#db"` - the barrel.
+  const barrelRe = /import\s*\{([^}]+)\}\s*from\s*["']#db["']/g;
+  let bm: RegExpExecArray | null;
+  while ((bm = barrelRe.exec(src))) {
+    for (const entry of bm[1]!.split(",")) {
+      const [name, alias] = entry.trim().split(/\s+as\s+/);
+      const target = BARREL.get((name ?? "").trim());
+      if (target) ns2file.set((alias ?? name)!.trim(), target);
+    }
   }
 
   src.split("\n").forEach((line, i) => {

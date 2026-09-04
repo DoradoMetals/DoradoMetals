@@ -17,12 +17,11 @@ import {
   doradoAccountSchema,
 } from '@/features/payouts/types'
 
-import { usePurchaseOrderCheckoutStore } from '@/shared/store/purchaseOrderCheckoutStore'
+import { usePayoutDraft } from '@/features/checkout/purchase-order-checkout/payoutStep/payoutDraft'
 import ACHForm from './achForm'
 import WireForm from './wireForm'
 import EcheckForm from './echeckForm'
 import { cn } from '@/shared/utils/cn'
-import { useEffect } from 'react'
 import { User } from '@/features/users/types'
 import PriceNumberFlow from '../../../../shared/ui/PriceNumberFlow'
 import { CircleIcon } from '@phosphor-icons/react'
@@ -30,27 +29,27 @@ import DoradoAccountForm from './doradoAccountForm'
 import { usePaymentMethods } from '@/features/payments/queries'
 
 export default function PayoutStep({ user }: { user?: User }) {
-  const setData = usePurchaseOrderCheckoutStore((state) => state.setData)
+  const setPayout = usePayoutDraft((state) => state.setPayout)
 
   // The method rows (D207). The old array lookups here keyed on LABEL
   // ('ACH' against 'ACH Transfer'), so they never matched and every cost fell
   // through to its ?? fallback; the rows are keyed by type, which does.
   const { data: payoutMethods = [] } = usePaymentMethods('purchase')
 
-  const selected = usePurchaseOrderCheckoutStore((state) => state.data.payout?.method)
-  const storeData = usePurchaseOrderCheckoutStore((state) => state.data.payout)
+  const storeData = usePayoutDraft((state) => state.payout)
+  const selected = storeData?.method
 
   const achForm = useForm<AchPayout>({
     resolver: zodResolver(achSchema),
     mode: 'onChange',
     defaultValues: {
       account_holder_name:
-        storeData?.method === 'ACH' ? storeData.account_holder_name : user?.name ?? '',
-      bank_name: storeData?.method === 'ACH' ? storeData.bank_name : '',
-      routing_number: storeData?.method === 'ACH' ? storeData.routing_number : '',
-      account_number: storeData?.method === 'ACH' ? storeData.account_number : '',
-      account_type: storeData?.method === 'ACH' ? storeData.account_type : 'Checking',
-      confirmation: storeData?.method === 'ACH' ? storeData.confirmation : false,
+        storeData?.method === 'ACH' ? storeData.account_holder_name ?? '' : user?.name ?? '',
+      bank_name: storeData?.method === 'ACH' ? storeData.bank_name ?? '' : '',
+      routing_number: storeData?.method === 'ACH' ? storeData.routing_number ?? '' : '',
+      account_number: storeData?.method === 'ACH' ? storeData.account_number ?? '' : '',
+      account_type: storeData?.method === 'ACH' ? storeData.account_type ?? 'Checking' : 'Checking',
+      confirmation: storeData?.method === 'ACH' ? storeData.confirmation ?? false : false,
       cost: Number(payoutMethods.find((option) => option.type === 'ACH')?.flat_fee ?? 0),
     },
   })
@@ -60,11 +59,11 @@ export default function PayoutStep({ user }: { user?: User }) {
     mode: 'onChange',
     defaultValues: {
       account_holder_name:
-        storeData?.method === 'WIRE' ? storeData.account_holder_name : user?.name ?? '',
-      bank_name: storeData?.method === 'WIRE' ? storeData.bank_name : '',
-      routing_number: storeData?.method === 'WIRE' ? storeData.routing_number : '',
-      account_number: storeData?.method === 'WIRE' ? storeData.account_number : '',
-      confirmation: storeData?.method === 'WIRE' ? storeData.confirmation : false,
+        storeData?.method === 'WIRE' ? storeData.account_holder_name ?? '' : user?.name ?? '',
+      bank_name: storeData?.method === 'WIRE' ? storeData.bank_name ?? '' : '',
+      routing_number: storeData?.method === 'WIRE' ? storeData.routing_number ?? '' : '',
+      account_number: storeData?.method === 'WIRE' ? storeData.account_number ?? '' : '',
+      confirmation: storeData?.method === 'WIRE' ? storeData.confirmation ?? false : false,
       cost: Number(payoutMethods.find((option) => option.type === 'WIRE')?.flat_fee ?? 20),
     },
   })
@@ -75,8 +74,8 @@ export default function PayoutStep({ user }: { user?: User }) {
     shouldUnregister: false,
     defaultValues: {
       account_holder_name:
-        storeData?.method === 'ECHECK' ? storeData.account_holder_name : user?.name ?? '',
-      payout_email: storeData?.method === 'ECHECK' ? storeData.payout_email : user?.email ?? '',
+        storeData?.method === 'ECHECK' ? storeData.account_holder_name ?? '' : user?.name ?? '',
+      payout_email: storeData?.method === 'ECHECK' ? storeData.payout_email ?? '' : user?.email ?? '',
       cost: Number(payoutMethods.find((option) => option.type === 'ECHECK')?.flat_fee ?? 0),
     },
   })
@@ -87,74 +86,29 @@ export default function PayoutStep({ user }: { user?: User }) {
     shouldUnregister: false,
     defaultValues: {
       account_holder_name:
-        storeData?.method === 'DORADO_ACCOUNT' ? storeData.account_holder_name : user?.name ?? '',
+        storeData?.method === 'DORADO_ACCOUNT' ? storeData.account_holder_name ?? '' : user?.name ?? '',
       payout_email:
-        storeData?.method === 'DORADO_ACCOUNT' ? storeData.payout_email : user?.email ?? '',
+        storeData?.method === 'DORADO_ACCOUNT' ? storeData.payout_email ?? '' : user?.email ?? '',
       cost: Number(payoutMethods.find((option) => option.type === 'DORADO_ACCOUNT')?.flat_fee ?? 0),
     },
   })
 
-  useEffect(() => {
-    if (selected === 'ACH') {
-      setData({ payoutValid: achForm.formState.isValid })
-    } else if (selected === 'WIRE') {
-      setData({ payoutValid: wireForm.formState.isValid })
-    } else if (selected === 'ECHECK') {
-      setData({ payoutValid: echeckForm.formState.isValid })
-    } else if (selected === 'DORADO_ACCOUNT') {
-      setData({ payoutValid: doradoAccountForm.formState.isValid })
-    }
-  }, [
-    selected,
-    achForm.formState.isValid,
-    wireForm.formState.isValid,
-    echeckForm.formState.isValid,
-    doradoAccountForm.formState.isValid,
-    setData,
-  ])
-
-  useEffect(() => {
-    if (selected === 'ACH') {
-      achForm.trigger()
-    } else if (selected === 'WIRE') {
-      wireForm.trigger()
-    } else if (selected === 'ECHECK') {
-      echeckForm.trigger()
-    } else if (selected === 'DORADO_ACCOUNT') {
-      doradoAccountForm.trigger()
-    }
-  }, [selected])
+  // NO EFFECT SYNCS VALIDITY, and none needs to: every field's own onChange
+  // already writes the draft, and the stepper parses that draft against
+  // `payoutSchema` (payoutDraft.ts's isPayoutComplete) when it decides whether
+  // "Review Order" is enabled. The two effects this replaces watched four
+  // `formState.isValid` flags and called `trigger()` on a selection change.
 
   const handleFormSwitch = (method: PayoutMethodType) => {
-    if (method === 'ACH') {
-      setData({
-        payout: {
-          method: method,
-          ...achForm.getValues(),
-        },
-      })
-    } else if (method === 'WIRE') {
-      setData({
-        payout: {
-          method: method,
-          ...wireForm.getValues(),
-        },
-      })
-    } else if (method === 'ECHECK') {
-      setData({
-        payout: {
-          method: method,
-          ...echeckForm.getValues(),
-        },
-      })
-    } else {
-      setData({
-        payout: {
-          method: method,
-          ...doradoAccountForm.getValues(),
-        },
-      })
-    }
+    const form =
+      method === 'ACH' ? achForm
+        : method === 'WIRE' ? wireForm
+        : method === 'ECHECK' ? echeckForm
+        : doradoAccountForm
+    setPayout({ method, ...form.getValues() })
+    // The newly opened form has never been submitted, so nothing has computed
+    // its validity yet - this is the handler that opened it.
+    void form.trigger()
   }
 
   return (

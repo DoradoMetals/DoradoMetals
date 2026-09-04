@@ -5,7 +5,7 @@ import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import request from "supertest";
 import express from "express";
-import pool from "#db";
+import pool from "#pool";
 
 // Mount strings recorded at construction — express 5 keeps only compiled matcher closures per layer, with no reflection back to the path string, so this records what each use() was told before the app is built (the app import below is deliberately dynamic, after this patch).
 const MOUNTS = new WeakMap<object, string>();

@@ -6,8 +6,7 @@ import Image from 'next/image'
 import NumberFlow from '@number-flow/react'
 import { useRouter } from 'next/navigation'
 import { ShoppingCartSimpleIcon } from '@phosphor-icons/react'
-import { useCheckoutItems } from '@/shared/store/checkoutItemsStore'
-import { useCheckoutItemActions } from '@/features/checkout/items/queries'
+import { useBasket, useCheckoutItemActions } from '@/features/checkout/items/queries'
 import { useDecoratedLines, type DecoratedLine } from '@/features/checkout/items/flair'
 import { formatRate } from '@/features/rates/utils/resolveRate'
 import { getGrossLabel, getPurityLabel } from '@/features/scrap/types'
@@ -24,7 +23,7 @@ export default function PurchaseItems() {
   const { user } = useUser()
   const { closeDrawer } = useDrawerStore()
 
-  const items = useCheckoutItems((state) => state.purchase)
+  const items = useBasket('purchase')
   const { addItem, removeOne, removeAll } = useCheckoutItemActions()
   const rows = useDecoratedLines(items)
 

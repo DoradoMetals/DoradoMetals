@@ -11,7 +11,7 @@
 import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
-import pool from "#db";
+import pool from "#pool";
 import * as handoffs from "#domain/shipping/handoffs/service.ts";
 import * as services from "#domain/shipping/services/service.ts";
 import {

@@ -12,7 +12,7 @@
 import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import request from "supertest";
-import pool from "#db";
+import pool from "#pool";
 import * as spotsService from "#domain/spots/service.ts";
 import { GetSalesTaxBody } from "@dorado/contracts";
 import { mockSessions, restoreSessions, as } from "#shared/testing/session.ts";

@@ -5,7 +5,7 @@ import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
 import { randomUUID } from "node:crypto";
-import pool from "#db";
+import pool from "#pool";
 import * as mediaService from "#domain/media/images/service.ts";
 import * as mediaRepo from "#db/media/images/repo.ts";
 

@@ -4,7 +4,7 @@ import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
 import { randomUUID } from "node:crypto";
-import pool from "#db";
+import pool from "#pool";
 import * as emails from "#domain/media/emails/service.ts";
 import { recordEmail } from "#domain/media/emails/record.ts";
 import { closeBrowser } from "#providers/pdfs/puppeteer.ts";

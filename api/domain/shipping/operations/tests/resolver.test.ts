@@ -5,7 +5,7 @@ import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
 import fs from "node:fs";
 import path from "node:path";
-import pool from "#db";
+import pool from "#pool";
 import { PROVIDERS } from "#domain/shipping/operations/registry.ts";
 import { BUILDERS } from "#domain/shipping/operations/builders.ts";
 import { resolveCarrier } from "#domain/shipping/operations/resolver.ts";

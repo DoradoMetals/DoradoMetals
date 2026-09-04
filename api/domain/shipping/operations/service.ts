@@ -22,7 +22,7 @@ import type { ParsedTracking } from "#providers/shipments/utils/parsing.ts";
 import type { RatesInput } from "#domain/shipping/operations/handler.ts";
 import type { PickupBaseRow as PickupRow } from "#db/shipping/pickups/repo.ts";
 import type { PoolClient } from "pg";
-import type { Direction, Shipment, ShippingCancelLabelBody, ShippingCancelPickupBody, ShippingCheckPickupBody, ShippingGetLocationsBody, ShippingValidateAddressBody } from "@dorado/contracts";
+import type { CheckoutRate, Direction, Shipment, ShippingCancelLabelBody, ShippingCancelPickupBody, ShippingCheckPickupBody, ShippingGetLocationsBody, ShippingValidateAddressBody } from "@dorado/contracts";
 
 type Executor = PoolClient | undefined;
 
@@ -185,7 +185,7 @@ export async function quoteRate({
 // point of the call, so this asks the carrier about every one it offers.
 export async function getCheckoutRates(
   user_id: string, direction: Direction
-): Promise<ReturnType<typeof shippingHandler.getRates>> {
+): Promise<CheckoutRate[]> {
   const checkout = await checkoutService.getRowFor(user_id, direction);
   const cart = await checkoutService.getItemsForOrder(checkout.id);
   if (!cart.length) throw new Invalid("the checkout has no items to rate");
@@ -208,7 +208,7 @@ export async function getCheckoutRates(
     shippingRules.declaredValue(total)
   );
 
-  return quoteRate({
+  const quoted = await quoteRate({
     shippingType,
     address,
     pkg: {
@@ -220,6 +220,14 @@ export async function getCheckoutRates(
     },
     declaredValue: declaredValue > 0 ? { amount: declaredValue, currency: "USD" } : undefined,
   });
+
+  // JOINED HERE, NOT IN THE BROWSER. The carrier answers by its own
+  // serviceType; the row stores a shipping.services id. Pairing the two was a
+  // client-side join in the stepper's ServiceSelector - it is the server's,
+  // and it is what lets a selector render a list and send back one id.
+  return shippingRules.offeredRates(
+    quoted, await carrierServices.getOfferedServices(null), checkout.carrier_service_id
+  );
 }
 
 // An address as the customer entered it, checked against the carrier before

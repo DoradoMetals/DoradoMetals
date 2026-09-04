@@ -29,7 +29,7 @@
 //   node scripts/audit-precision.mjs orders    one feature
 import "#env";
 import pg from "pg";
-import pool from "#db";
+import pool from "#pool";
 import { FEATURES, RENAMES, FLOWS } from "./lib/feature-map.ts";
 
 const useProd = process.argv.includes("--prod");

@@ -24,7 +24,7 @@
 process.env.NODE_ENV = "test";
 
 import "#env";
-import pool from "#db";
+import pool from "#pool";
 import query from "#shared/db/query.ts";
 import * as checkoutService from "#domain/checkout/service.ts";
 import * as addressService from "#domain/places/addresses/service.ts";

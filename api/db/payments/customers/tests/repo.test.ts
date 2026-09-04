@@ -4,7 +4,7 @@ import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
 import { randomUUID } from "node:crypto";
-import pool from "#db";
+import pool from "#pool";
 import { inRollback } from "#shared/testing/rollback.ts";
 import { aUser } from "#shared/testing/builders/index.ts";
 import * as customers from "#db/payments/customers/repo.ts";

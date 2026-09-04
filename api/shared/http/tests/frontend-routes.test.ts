@@ -10,6 +10,10 @@ import path from "node:path";
 import { allRoutes } from "../../../scripts/route-guards.ts";
 
 const FRONTEND = path.resolve(process.cwd(), "..", "frontend");
+// THE CALLS MOVED (ruling 62). `@dorado/client` is where the checkout surface
+// names its endpoints now, so a scan of frontend/ alone stopped seeing them -
+// which its own floor caught. Both trees are walked.
+const CLIENT = path.resolve(process.cwd(), "..", "packages", "client", "src");
 
 const walk = (dir: string, out: string[] = []): string[] => {
   for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
@@ -27,18 +31,21 @@ const PATTERNS = [
   /apiRequest(?:<[^>]*>)?\(\s*'(GET|POST|PUT|PATCH|DELETE)',\s*'([^']+)'/g,
   /url:\s*'([^']+)',\s*\n?\s*method:\s*'(GET|POST|PUT|PATCH|DELETE)'/g,
   /method:\s*'(GET|POST|PUT|PATCH|DELETE)',\s*\n?\s*url:\s*'([^']+)'/g,
+  // @dorado/client's calls, double-quoted. APPENDED, not inserted: `collect`
+  // special-cases index 1, whose groups are (url, verb).
+  /apiRequest(?:<[^>]*>)?\(\s*"(GET|POST|PUT|PATCH|DELETE)",\s*"([^"]+)"/g,
 ];
 
 const collect = () => {
   const calls = [];
   let skipped = 0;
-  for (const file of walk(FRONTEND)) {
+  for (const file of [...walk(FRONTEND), ...walk(CLIENT)]) {
     const src = fs.readFileSync(file, "utf8");
     for (const [i, re] of PATTERNS.entries()) {
       for (const m of src.matchAll(re)) {
         const [verb, url] = i === 1 ? [m[2], m[1]] : [m[1], m[2]];
         if (url.includes("${")) { skipped += 1; continue; }
-        calls.push({ file: path.relative(FRONTEND, file), verb, url });
+        calls.push({ file: path.relative(path.resolve(FRONTEND, ".."), file), verb, url });
       }
     }
     // A template-literal endpoint is a skip, not a pass.

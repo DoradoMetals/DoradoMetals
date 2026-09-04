@@ -10,7 +10,7 @@ import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import request from "supertest";
-import pool from "#db";
+import pool from "#pool";
 import { mockSessions, restoreSessions, as, anonymous } from "#shared/testing/session.ts";
 import { LOCKS } from "#shared/testing/locks.ts";
 import { inPinnedTransaction, outside } from "#shared/testing/pinned-pool.ts";

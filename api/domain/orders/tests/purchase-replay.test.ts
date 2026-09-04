@@ -26,7 +26,7 @@ import { test, afterAll } from "vitest";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import request from "supertest";
-import pool from "#db";
+import pool from "#pool";
 import { mockSessions, restoreSessions, as } from "#shared/testing/session.ts";
 import { TEST_ACTOR, TEST_CUSTOMER } from "#shared/testing/actor.ts";
 import { aUser, anOrder, aPayout } from "#shared/testing/builders/index.ts";

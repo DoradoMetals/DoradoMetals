@@ -1,52 +1,53 @@
 'use client'
 
-import { UserAddress } from '@/features/addresses/types'
 import { Button } from '@dorado/components'
 import { Plus } from 'lucide-react'
 import { useMemo } from 'react'
 import { useDrawerStore } from '@/shared/store/drawerStore'
 import { useUserAddresses } from '@/features/addresses/queries'
-import { useSalesOrderCheckoutStore } from '@/shared/store/salesOrderCheckoutStore'
+import { usePatchCheckout } from '@/features/checkout/queries'
 import ServiceSelector from './serviceSelector'
-import type { Address, SalesOrderQuote } from "@dorado/contracts";
+import type { Address, CheckoutView, SalesOrderQuote } from '@dorado/contracts'
 import { AddressSelect } from '@/features/addresses/ui/AddressSelect'
 import { AddressDrawer } from '@/features/addresses/ui/AddressDrawer'
 import { Separator } from '@/shared/ui/base/separator'
 
-interface ShippingSelectProps {
+export default function ShippingSelect({
+  addresses,
+  row,
+  orderPrices,
+}: {
   addresses: Address[]
-  isLoading: boolean
+  row?: CheckoutView
   orderPrices?: SalesOrderQuote
-}
-
-export default function ShippingSelect({ addresses, orderPrices }: ShippingSelectProps) {
+}) {
   const { openDrawer } = useDrawerStore()
-
-  const isEmpty = addresses.length === 0
-
-  const address = useSalesOrderCheckoutStore((state) => state.data.address)
-  const setData = useSalesOrderCheckoutStore((state) => state.setData)
+  const patchCheckout = usePatchCheckout('sale')
 
   const { data: links = [] } = useUserAddresses()
   const linkOf = useMemo(() => new Map(links.map((l) => [l.address_id, l])), [links])
 
-  const sortedAddresses = useMemo(() => {
-    return [...addresses].sort(
-      (a, b) =>
-        Number(linkOf.get(b.id)?.default_shipping ?? false) -
-        Number(linkOf.get(a.id)?.default_shipping ?? false)
-    )
-  }, [addresses, linkOf])
+  const sortedAddresses = useMemo(
+    () =>
+      [...addresses].sort(
+        (a, b) =>
+          Number(linkOf.get(b.id)?.default_shipping ?? false) -
+          Number(linkOf.get(a.id)?.default_shipping ?? false)
+      ),
+    [addresses, linkOf]
+  )
+
+  const address = addresses.find((a) => a.id === row?.recipient_address_id)
 
   return (
     <div className="flex flex-col w-full">
       <AddressDrawer
-        onSuccess={(savedAddress: Address, savedLink?: UserAddress) => {
-          setData({ address: savedAddress, user_address: savedLink })
+        onSuccess={(saved: Address) => {
+          if (saved.is_valid) patchCheckout.mutate({ recipient_address_id: saved.id })
         }}
       />
 
-      {isEmpty ? (
+      {addresses.length === 0 ? (
         <div className="flex flex-col items-center gap-4 mb-6">
           <p className="text-center">Create an address to continue checkout.</p>
           <Button
@@ -56,9 +57,7 @@ export default function ShippingSelect({ addresses, orderPrices }: ShippingSelec
             iconPlacement="right"
             icon={Plus}
             iconSize={16}
-            onClick={() => {
-              openDrawer('address')
-            }}
+            onClick={() => openDrawer('address')}
           >
             Add Address
           </Button>
@@ -70,9 +69,9 @@ export default function ShippingSelect({ addresses, orderPrices }: ShippingSelec
               <AddressSelect
                 addresses={sortedAddresses}
                 userAddresses={links}
-                value={address?.id ?? ''}
+                value={row?.recipient_address_id ?? ''}
                 onChange={(addr: Address) =>
-                  setData({ address: addr, user_address: linkOf.get(addr.id) })
+                  patchCheckout.mutate({ recipient_address_id: addr.id })
                 }
                 onAddNew={() => openDrawer('address')}
                 title="SHIPPING TO:"
@@ -90,7 +89,7 @@ export default function ShippingSelect({ addresses, orderPrices }: ShippingSelec
 
       <div className="flex flex-col gap-6">
         <Separator />
-        <ServiceSelector orderPrices={orderPrices} />
+        <ServiceSelector row={row} orderPrices={orderPrices} />
       </div>
     </div>
   )

@@ -4,7 +4,7 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { Form } from '@/shared/ui/base/form'
 import { EcheckPayout } from '@/features/payouts/types'
 import { UseFormReturn } from 'react-hook-form'
-import { usePurchaseOrderCheckoutStore } from '@/shared/store/purchaseOrderCheckoutStore'
+import { usePayoutDraft } from '@/features/checkout/purchase-order-checkout/payoutStep/payoutDraft'
 import { ValidatedField } from '@/shared/ui/form/ValidatedField'
 
 export default function EcheckForm({
@@ -14,11 +14,11 @@ export default function EcheckForm({
   form: UseFormReturn<EcheckPayout>
   visible: boolean
 }) {
-  const setData = usePurchaseOrderCheckoutStore((state) => state.setData)
+  const setPayout = usePayoutDraft((state) => state.setPayout)
 
   const syncToStore = () => {
     const values = form.getValues()
-    setData({ payout: { method: 'ECHECK', ...values } })
+    setPayout({ method: 'ECHECK', ...values })
   }
 
   return (

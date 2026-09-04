@@ -10,7 +10,7 @@ import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
 import request from "supertest";
-import pool from "#db";
+import pool from "#pool";
 import * as productsRepo from "#db/products/repo.ts";
 import type { AdminProductRow } from "#db/products/repo.ts";
 import { mockSessions, restoreSessions, as } from "#shared/testing/session.ts";

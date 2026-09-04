@@ -4,7 +4,7 @@ import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
 import { randomUUID } from "node:crypto";
-import pool from "#db";
+import pool from "#pool";
 import { inPinnedTransaction } from "#shared/testing/pinned-pool.ts";
 import { TEST_ACTOR } from "#shared/testing/actor.ts";
 import * as service from "#domain/shipping/carriers/service.ts";

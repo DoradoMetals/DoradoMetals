@@ -1,27 +1,31 @@
 import { Button } from '@dorado/components'
-import { useCheckoutItems } from '@/shared/store/checkoutItemsStore'
+import { useBasket } from '@/features/checkout/items/queries'
 import { useCheckoutItemActions } from '@/features/checkout/items/queries'
 import { useDecoratedLines } from '@/features/checkout/items/flair'
 import { usePaymentMethods } from '@/features/payments/queries'
 import { Minus, Plus, Trash2 } from 'lucide-react'
 import Image from 'next/image'
 import NumberFlow from '@number-flow/react'
-import { useSalesOrderCheckoutStore } from '@/shared/store/salesOrderCheckoutStore'
 import { QuestionIcon } from '@phosphor-icons/react'
 import { useRouter } from 'next/navigation'
-import type { SalesOrderQuote } from "@dorado/contracts";
+import type { CheckoutView, SalesOrderQuote } from "@dorado/contracts";
 import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
 import { Separator } from '@/shared/ui/base/separator'
 import { DetailRow } from '@/shared/ui/DetailRow'
 
 // orderPrices is the server's quote, absent until the first one lands - the
 // summary renders zeros in the meantime, never a client-computed price.
-export default function OrderSummary({ orderPrices }: { orderPrices?: SalesOrderQuote }) {
+export default function OrderSummary({
+  row,
+  orderPrices,
+}: {
+  row?: CheckoutView
+  orderPrices?: SalesOrderQuote
+}) {
   const { data: saleMethods = [] } = usePaymentMethods('sale')
-  const items = useCheckoutItems((state) => state.sale)
+  const items = useBasket('sale')
   const { addItem, removeOne, removeAll } = useCheckoutItemActions()
   const rows = useDecoratedLines(items)
-  const { data } = useSalesOrderCheckoutStore()
   const router = useRouter()
 
   const {
@@ -127,12 +131,10 @@ export default function OrderSummary({ orderPrices }: { orderPrices?: SalesOrder
       {charges_amount > 0 && (
         <div className="w-full flex items-center justify-between">
           <p>
-            {`${
-              saleMethods.find((m) => m.type === data.payment_method)?.label
-            } Surcharge `}
-            {`(${
-              saleMethods.find((m) => m.type === data.payment_method)?.surcharge_label
-            })`}
+            {/* The method is the ROW's, by id - not a store field holding a
+                TYPE the browser looked up by string. */}
+            {`${saleMethods.find((m) => m.id === row?.payment_method_id)?.label ?? 'Card'} Surcharge `}
+            {`(${saleMethods.find((m) => m.id === row?.payment_method_id)?.surcharge_label ?? ''})`}
           </p>
           <strong>
             <PriceNumberFlow value={charges_amount} />

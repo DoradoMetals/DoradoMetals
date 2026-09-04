@@ -125,6 +125,9 @@ importers:
       '@dnd-kit/utilities':
         specifier: ^3.2.2
         version: 3.2.2(react@19.2.8)
+      '@dorado/client':
+        specifier: workspace:*
+        version: link:../packages/client
       '@dorado/components':
         specifier: workspace:*
         version: link:../packages/components
@@ -399,6 +402,31 @@ importers:
       vitest:
         specifier: ^4.1.11
         version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@20.19.43)(@vitest/coverage-v8@4.1.11)(jsdom@30.0.1(@noble/hashes@2.4.0))(vite@7.3.6(@types/node@20.19.43)(jiti@2.7.0)(lightningcss@1.32.0)(terser@5.51.2))
+
+  packages/client:
+    dependencies:
+      '@dorado/contracts':
+        specifier: workspace:*
+        version: link:../contracts
+    devDependencies:
+      '@tanstack/react-query':
+        specifier: ^5.102.8
+        version: 5.102.8(react@19.2.8)
+      '@types/node':
+        specifier: ^22.20.1
+        version: 22.20.1
+      '@types/react':
+        specifier: ^19.2.18
+        version: 19.2.18
+      react:
+        specifier: ^19.2.8
+        version: 19.2.8
+      typescript:
+        specifier: ^7.0.2
+        version: 7.0.2
+      vitest:
+        specifier: ^4.1.11
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@22.20.1)(@vitest/coverage-v8@4.1.11)(jsdom@30.0.1(@noble/hashes@2.4.0))(vite@7.3.6(@types/node@22.20.1)(jiti@2.7.0)(lightningcss@1.32.0)(terser@5.51.2))
 
   packages/components:
     dependencies:

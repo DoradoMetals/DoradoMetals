@@ -26,11 +26,12 @@ const walk = (dir: string, out: string[] = []): string[] => {
 const ALLOWED = [
   // These are reads, not post-success effects — a failed read loses no user action (sitemap runs server-side; basket hydration runs post-login with its own catch, keeping the local copy).
   "(top level) GET /products/get_all_products",
-  // Basket hydration at sign-in (features/checkout/items/queries.ts listCheckoutItems) - one
-  // call site looped over both directions, not two, since the checkout rewrite: flair (name,
-  // image, mint) now resolves through the products/spots query hooks a component already
-  // renders under, not a second top-level read at hydration time.
-  "(top level) GET /checkout/items",
+  // The basket-hydration entry that sat here is GONE, not excused: the call
+  // moved into @dorado/client as `fetchCheckoutItems`, so no `apiRequest`
+  // remains in frontend/ for it to match. This scan is apiRequest-shaped and
+  // frontend-scoped on purpose - `lint:client-boundary` is what now refuses a
+  // new one, and the client package's own calls all sit inside a queryFn or a
+  // mutationFn by construction.
 ];
 
 test("only the two order emails are triggered after an operation already succeeded", () => {

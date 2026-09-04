@@ -9,7 +9,7 @@
 import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
-import pool from "#db";
+import pool from "#pool";
 import { LOCKS } from "#shared/testing/locks.ts";
 import { rollbackIn } from "#shared/testing/rollback.ts";
 import { actingAs } from "#shared/testing/actor.ts";

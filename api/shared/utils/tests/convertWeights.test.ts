@@ -2,7 +2,7 @@
 // The frontend copy had a test; THIS one — what the API actually pays people with — had none, and nothing compared it to the SQL function. This does both.
 import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
-import pool from "#db";
+import pool from "#pool";
 import type { PoolClient } from "pg";
 import { convertTroyOz } from "#shared/utils/convertWeights.ts";
 

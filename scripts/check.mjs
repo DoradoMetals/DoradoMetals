@@ -78,6 +78,7 @@ const GROUPS = [
       { name: "api:lint:domain-errors", cmd: pnpm("@dorado/api", "lint:domain-errors") },
       { name: "api:lint:one-catch", cmd: pnpm("@dorado/api", "lint:one-catch") },
       { name: "api:lint:input-shapes", cmd: pnpm("@dorado/api", "lint:input-shapes") },
+      { name: "api:lint:client-boundary", cmd: pnpm("@dorado/api", "lint:client-boundary") },
       { name: "api:lint:test-locks", cmd: pnpm("@dorado/api", "lint:test-locks") },
       { name: "api:lint:test-actor", cmd: pnpm("@dorado/api", "lint:test-actor") },
       { name: "api:audit:silent-mutations", cmd: pnpm("@dorado/api", "audit:silent-mutations") },
@@ -133,6 +134,8 @@ const FULL_ONLY_GROUPS = [
       { name: "icons:typecheck", cmd: pnpm("@dorado/icons", "typecheck") },
       { name: "components:typecheck", cmd: pnpm("@dorado/components", "typecheck") },
       { name: "components:test", cmd: pnpm("@dorado/components", "test") },
+      { name: "client:typecheck", cmd: pnpm("@dorado/client", "typecheck") },
+      { name: "client:test", cmd: pnpm("@dorado/client", "test") },
     ],
   },
   {

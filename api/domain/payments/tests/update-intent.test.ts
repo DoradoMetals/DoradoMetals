@@ -47,7 +47,7 @@ import { test, afterAll } from "vitest";
 import assert from "node:assert/strict";
 import request from "supertest";
 import type { PoolClient } from "pg";
-import pool from "#db";
+import pool from "#pool";
 import query from "#shared/db/query.ts";
 import { mockSessions, restoreSessions, as } from "#shared/testing/session.ts";
 import { TEST_ACTOR } from "#shared/testing/actor.ts";

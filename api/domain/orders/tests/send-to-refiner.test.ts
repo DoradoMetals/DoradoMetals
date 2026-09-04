@@ -35,7 +35,7 @@
 import { test, afterAll } from "vitest";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
-import pool from "#db";
+import pool from "#pool";
 import query from "#shared/db/query.ts";
 import * as orders from "#domain/orders/service.ts";
 import * as ordersRepo from "#db/orders/repo.ts";

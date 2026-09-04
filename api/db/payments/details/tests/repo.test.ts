@@ -15,7 +15,7 @@ import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
 import { randomUUID } from "node:crypto";
-import pool from "#db";
+import pool from "#pool";
 import * as details from "#db/payments/details/repo.ts";
 import * as methods from "#db/payments/methods/repo.ts";
 import * as transactions from "#db/orders/transactions/repo.ts";

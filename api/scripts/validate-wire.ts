@@ -20,7 +20,7 @@
 import "#env";
 import fs from "node:fs";
 import path from "node:path";
-import pool from "#db";
+import pool from "#pool";
 import * as c from "@dorado/contracts";
 import type { ZodType } from "zod/v4";
 

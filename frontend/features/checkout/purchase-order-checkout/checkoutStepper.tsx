@@ -1,31 +1,44 @@
 'use client'
 
-import type { Address } from "@dorado/contracts";
 import { Button } from '@dorado/components'
 import { defineStepper } from '@stepperize/react'
+import { useRouter } from 'next/navigation'
+import { ShoppingCartIcon } from '@phosphor-icons/react'
+import { useState } from 'react'
+
 import ShippingStep from './shippingStep/shippingStep'
 import PayoutStep from './payoutStep/payoutStep'
 import ReviewStep from '@/features/checkout/purchase-order-checkout/reviewStep/reviewStep'
+import {
+  isPayoutComplete,
+  toPayoutForm,
+  usePayoutDraft,
+} from '@/features/checkout/purchase-order-checkout/payoutStep/payoutDraft'
 
-import { makeEmptyAddress } from '@/features/addresses/types'
-import { useEffect, useMemo, useRef } from 'react'
-import { usePurchaseOrderCheckoutStore } from '@/shared/store/purchaseOrderCheckoutStore'
-import { useCheckoutItems } from '@/shared/store/checkoutItemsStore'
-import { useRouter } from 'next/navigation'
 import { useGetSession } from '@/features/auth/queries'
-import { ShoppingCartIcon } from '@phosphor-icons/react'
-
-import { useAddress, useUserAddresses } from '@/features/addresses/queries'
-import { usePurchaseOrderQuote } from '@/features/quotes/queries'
-
-import { useCarrierHandoffs, useCarrierServiceOptions } from '@/features/shipping/queries'
+import { useBasket } from '@/features/checkout/items/queries'
+import { useCarrierHandoffs } from '@/features/shipping/queries'
 import {
   useCheckoutRates,
-  usePatchPurchaseCheckout,
   usePurchaseCheckoutRow,
   useSaveCheckoutPayout,
 } from '@/features/checkout/queries'
 
+// THE STEPPER RENDERS THE SERVER'S ROW.
+//
+// What left this file, and why it is the point of the lane:
+//   - the default-address effect. `GET /checkout` sets the customer's default
+//     shipping address on a row that has none, so the row arrives with it.
+//   - the `isShippingStepComplete` expression over five store fields.
+//     `row.ready_for_payment` is that rule, in domain/checkout/rules.ts, and
+//     `row.missing` names whichever step is still outstanding.
+//   - the rate-refresh effect that copied a moved netCharge back into a store.
+//     Nothing stores a rate: the row holds `carrier_service_id` and
+//     `GET /checkout/rates` answers the live charge beside it.
+//   - the client-side rate/catalogue join; the rates arrive joined.
+//
+// No effect remains. Every write is a mutation fired from the handler that
+// made the choice, and every one answers the fresh row.
 const { useStepper, utils } = defineStepper(
   {
     id: 'shipping',
@@ -38,136 +51,31 @@ const { useStepper, utils } = defineStepper(
 
 export default function CheckoutStepper() {
   const router = useRouter()
-  const hasInitialized = useRef(false)
-
   const { user } = useGetSession()
 
-  // THE CARRIER'S OWN CATALOGUES, READ ONCE HERE AND INJECTED (ruling 14: the
-  // parent holds the reads, the children take props).
-  //
-  // This is what wave 5B moved. The handoff options were a record in
-  // features/handoff keyed by DROPOFF_AT_FEDEX_LOCATION and
-  // CONTACT_FEDEX_TO_SCHEDULE, hand-written in the browser, and this
-  // component branched on it. Neither list is spelled anywhere in frontend/
-  // now. GET /checkout/rates replaced the client-assembled POST
-  // /shipping/get_rates (no address/package/weight composed here any more),
-  // but it answers the carrier's raw per-service quote, not a joined row -
-  // the offered services list is still read and joined to it by code, same
-  // as before.
-  const { data: handoffs = [] } = useCarrierHandoffs()
-  const { data: serviceOptions = [] } = useCarrierServiceOptions()
-
-  // THE ROW ITSELF (D208): rates are the carrier answering "what does IT cost
-  // to ship the parcel this row already describes", so the server 400s until
-  // shipper_address_id and package_id are actually on it - which only a
-  // landed PATCH puts there. Gate and key off the ROW, not the local pick.
   const { data: row } = usePurchaseCheckoutRow()
-  const { data: rates = [], isLoading: ratesLoading } = useCheckoutRates('purchase', {
-    address_id: row?.shipper_address_id,
-    package_id: row?.package_id,
-  })
-
-  const { data: addresses = [] } = useAddress()
-  const { data, setData } = usePurchaseOrderCheckoutStore()
-  const items = useCheckoutItems((state) => state.purchase)
-
-  // The store's items ARE the quote request array - lines come back matched
-  // by request index, so nothing may filter or reorder between here and there.
-  const { data: quote } = usePurchaseOrderQuote(items)
-
-  // Resolved against the reference list rather than compared to a carrier's
-  // string. `requires_schedule` is the option's own answer to "does this need a
-  // date and a time", so a third handoff needs no edit here.
-  const selectedHandoff = useMemo(
-    () => handoffs.find((h) => h.code === data.pickup?.label) ?? null,
-    [handoffs, data.pickup?.label]
-  )
-
-  const isShippingStepComplete =
-    !!data.address?.is_valid &&
-    !!data.package &&
-    !!data.service &&
-    !!data.pickup?.label &&
-    (!selectedHandoff?.requires_schedule || (!!data.pickup.date && !!data.pickup.time))
-
-  const { data: links = [] } = useUserAddresses()
-  const linkOf = useMemo(() => new Map(links.map((l) => [l.address_id, l])), [links])
-  const defaultAddress: Address | undefined =
-    addresses.find((a) => linkOf.get(a.id)?.default_shipping) ?? addresses[0]
-
-  const patchCheckout = usePatchPurchaseCheckout()
-
-  useEffect(() => {
-    if (hasInitialized.current) return
-    if (addresses.length === 0 || !defaultAddress) return
-
-    setData({
-      address: defaultAddress,
-      user_address: linkOf.get(defaultAddress.id),
-      confirmation: false,
-      fedexPackageToggle: false,
-      // RULING 58: the browser never computes a declared value - the field
-      // stays a static placeholder for a schema this form shares with the
-      // return-shipment feature, which does send a real one.
-      insurance: {
-        insured: true,
-        declaredValue: { amount: 0, currency: 'USD' },
-      },
-    })
-    // The row takes it too (D208) - this IS the handler that picked the
-    // address, it just picked it automatically rather than from a click.
-    if (defaultAddress.is_valid) {
-      patchCheckout.mutate({ shipper_address_id: defaultAddress.id })
-    }
-
-    hasInitialized.current = true
-  }, [addresses.length, defaultAddress, linkOf, setData])
+  const { data: rates = [], isLoading: ratesLoading } = useCheckoutRates('purchase', row)
+  const { data: handoffs = [] } = useCarrierHandoffs()
+  const items = useBasket('purchase')
 
   const stepper = useStepper()
   const currentIndex = utils.getIndex(stepper.current.id)
 
-  const savePayout = useSaveCheckoutPayout()
+  const savePayout = useSaveCheckoutPayout('purchase')
+  const payout = usePayoutDraft((state) => state.payout)
+  const [payoutError, setPayoutError] = useState<string | null>(null)
 
   // Leaving the PAYOUT step records the bank form server-side (D210) - the
   // numbers are sealed at rest there, and Confirm later links the row. Going
-  // back and editing simply rewrites the same row.
-  const advanceFromPayout = async () => {
-    try {
-      await savePayout.mutateAsync({ ...data.payout })
-      stepper.next()
-    } catch {
-      // The form was refused - stay on the step; the fields are intact.
-    }
+  // back and editing rewrites the same row.
+  const advanceFromPayout = () => {
+    if (!payout) return
+    setPayoutError(null)
+    savePayout.mutate(toPayoutForm(payout), {
+      onSuccess: () => stepper.next(),
+      onError: (error) => setPayoutError(error.message),
+    })
   }
-
-  // NO NETWORK CALL HERE ANY MORE: every choice already landed on the row as
-  // it was made, above. Advancing is a pure local check.
-  const advanceFromShipping = () => {
-    if (!isShippingStepComplete || !data.service?.id) return
-    stepper.next()
-  }
-
-  // The rate ticks on the same 5-minute cadence as the reference read - if
-  // the chosen service's price moved, the store's copy follows it.
-  useEffect(() => {
-    const currentServiceType = data.service?.serviceType
-    if (!currentServiceType) return
-
-    const freshRate = rates.find((r) => r.serviceType === currentServiceType)
-    if (!freshRate || freshRate.netCharge == null) return
-
-    if (freshRate.netCharge !== data.service?.netCharge) {
-      setData({
-        service: {
-          ...data.service,
-          netCharge: freshRate.netCharge,
-          currency: freshRate.currency,
-          deliveryDay: freshRate.deliveryDay ?? '',
-          transitTime: freshRate.transitTime ? new Date(freshRate.transitTime) : new Date(),
-        } as any,
-      })
-    }
-  }, [rates, data.service?.serviceType, data.service?.netCharge, setData])
 
   if (items.length === 0) {
     return (
@@ -219,18 +127,13 @@ export default function CheckoutStepper() {
         <div className="lg:col-span-2 lg:mt-12">
           {stepper.switch({
             shipping: () => (
-              <ShippingStep
-                addresses={addresses}
-                emptyAddress={makeEmptyAddress()}
-                rates={rates}
-                handoffs={handoffs}
-                services={serviceOptions}
-                isLoading={ratesLoading}
-              />
+              <ShippingStep row={row} rates={rates} handoffs={handoffs} isLoading={ratesLoading} />
             ),
             payout: () => <PayoutStep user={user} />,
-            review: () => <ReviewStep />,
+            review: () => <ReviewStep row={row} rates={rates} />,
           })}
+
+          {payoutError && <p className="text-destructive mt-2">{payoutError}</p>}
 
           <div className="flex justify-between gap-4 mt-4">
             {stepper.current.id !== 'shipping' && (
@@ -240,11 +143,7 @@ export default function CheckoutStepper() {
                 onClick={stepper.prev}
                 disabled={stepper.isFirst}
               >
-                {stepper.current.id === 'payout'
-                  ? 'Back to Shipping'
-                  : stepper.current.id === 'review'
-                  ? 'Back to Payment'
-                  : 'Back'}
+                {stepper.current.id === 'payout' ? 'Back to Shipping' : 'Back to Payment'}
               </Button>
             )}
 
@@ -252,27 +151,21 @@ export default function CheckoutStepper() {
               <Button
                 type="button"
                 className="ml-auto"
-                onClick={
-                  stepper.current.id === 'shipping'
-                    ? advanceFromShipping
-                    : stepper.current.id === 'payout'
-                    ? advanceFromPayout
-                    : stepper.next
-                }
+                onClick={stepper.current.id === 'shipping' ? stepper.next : advanceFromPayout}
                 disabled={
-                  (stepper.current.id === 'shipping' &&
-                    (!isShippingStepComplete || !data.service?.id)) ||
-                  (stepper.current.id === 'payout' &&
-                    (!data.payoutValid || savePayout.isPending))
+                  // THE SERVER'S ANSWER, both times. `ready_for_payment` is
+                  // every shipping choice landed on the row; the payout draft
+                  // is the one thing no row can hold until it is complete.
+                  stepper.current.id === 'shipping'
+                    ? row?.ready_for_payment !== true
+                    : !isPayoutComplete(payout) || savePayout.isPending
                 }
               >
                 {stepper.current.id === 'shipping'
                   ? 'Go to Payment'
-                  : stepper.current.id === 'payout'
-                  ? savePayout.isPending
-                    ? 'Saving…'
-                    : 'Review Order'
-                  : 'Next'}
+                  : savePayout.isPending
+                  ? 'Saving…'
+                  : 'Review Order'}
               </Button>
             )}
           </div>

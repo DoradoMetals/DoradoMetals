@@ -8,7 +8,7 @@ import { useEffect } from 'react'
 import type { Direction } from "@dorado/contracts";
 import SaleItems from './SaleItems'
 import PurchaseItems from './PurchaseItems'
-import { useCheckoutItems } from '@/shared/store/checkoutItemsStore'
+import { useBasket } from '@/features/checkout/items/queries'
 import { useCheckoutTab } from '@/shared/store/checkoutTabStore'
 import { useDrawerStore } from '@/shared/store/drawerStore'
 import Drawer from '@/shared/ui/base/drawer'
@@ -16,8 +16,8 @@ import Drawer from '@/shared/ui/base/drawer'
 export function CheckoutDrawer() {
   const { direction, setDirection } = useCheckoutTab()
 
-  const saleItems = useCheckoutItems((state) => state.sale)
-  const purchaseItems = useCheckoutItems((state) => state.purchase)
+  const saleItems = useBasket('sale')
+  const purchaseItems = useBasket('purchase')
 
   const { activeDrawer, closeDrawer } = useDrawerStore()
   const pathname = usePathname()

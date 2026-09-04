@@ -36,7 +36,7 @@ import "#env";
 import { execFileSync } from "node:child_process";
 import path from "node:path";
 import pg from "pg";
-import pool from "#db";
+import pool from "#pool";
 
 const PREFIX = "zz_prodshape_";
 

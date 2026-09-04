@@ -42,7 +42,7 @@
 // `exchange`, needing the `allow-destructive:` marker, a stated backup and
 // Jacob. This script only ever adds ciphertext.
 import "#env";
-import pool from "#db";
+import pool from "#pool";
 import type { PoolClient } from "pg";
 import { parseKey, seal, open, aadFor, isEnvelope, keyIdOf, type Key } from "#shared/crypto/envelope.ts";
 

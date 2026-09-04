@@ -1,53 +1,32 @@
 'use client'
 
-import type { CarrierHandoff } from "@dorado/contracts";
-import { format } from 'date-fns'
+import type { CarrierHandoff, CheckoutView } from '@dorado/contracts'
 
 import { RadioGroup } from '@/shared/ui/RadioGroup'
-import { usePurchaseOrderCheckoutStore } from '@/shared/store/purchaseOrderCheckoutStore'
-import { useSetPurchaseHandoff } from '@/features/checkout/queries'
+import { useSetCheckoutFulfillment } from '@/features/checkout/queries'
 import { handoffIcon } from '@/features/handoff/types'
 
 // HOW THE PARCEL REACHES THE CARRIER - the customer drops it off, or the
 // carrier collects it. NOT a Dorado pickup; see features/handoff/types.ts for
 // the two things that share the word.
 //
-// Presentational, per ruling 14: the options are a prop, the parent holds the
-// read. This component used to import `pickupOptions` and render a record keyed
-// by DROPOFF_AT_FEDEX_LOCATION - so it knew a carrier's enum, which is exactly
-// what the wire conversion took out of every other feature.
-export function PickupSelector({ handoffs }: { handoffs: CarrierHandoff[] }) {
-  const selectedPickup = usePurchaseOrderCheckoutStore((state) => state.data.pickup)
-  const setData = usePurchaseOrderCheckoutStore((state) => state.setData)
-  const setHandoff = useSetPurchaseHandoff()
-
-  const handleSelect = (code: string) => {
-    const handoff = handoffs.find((h) => h.code === code)
-    if (!handoff) return
-
-    setData({
-      pickup: {
-        // `label` is the carrier's code, received and handed back untouched.
-        label: handoff.code,
-        // `name` is what lands in shipments.pickup_type, which is why it comes
-        // from the server rather than being composed here.
-        name: handoff.name,
-        // Was baked into the constant at MODULE LOAD, so a tab left open across
-        // midnight offered yesterday. Read at selection instead - same shape,
-        // and the scheduler overwrites it with a date the carrier confirms.
-        date: format(new Date(), 'yyyy-MM-dd'),
-        time: '',
-        selectedDate: undefined,
-      },
-    })
-    // D208: the draft fulfillment takes the handoff the moment it's picked.
-    setHandoff.mutate(handoff.code)
-  }
+// Presentational: the options are a prop and the SELECTION is the row's own
+// `handoff_code`, which the server resolves back from the draft fulfillment's
+// method. Nothing local remembers which one was picked, so a second device
+// shows the same choice.
+export function PickupSelector({
+  handoffs,
+  row,
+}: {
+  handoffs: CarrierHandoff[]
+  row?: CheckoutView
+}) {
+  const setFulfillment = useSetCheckoutFulfillment('purchase')
 
   return (
     <RadioGroup
-      value={selectedPickup?.label}
-      onValueChange={handleSelect}
+      value={row?.handoff_code ?? ''}
+      onValueChange={(handoff_code) => setFulfillment.mutate({ handoff_code })}
       options={handoffs}
       getValue={(handoff) => handoff.code}
       variant="tile"

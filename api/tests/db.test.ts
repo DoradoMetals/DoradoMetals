@@ -14,7 +14,7 @@
 import { test } from "vitest";
 import assert from "node:assert/strict";
 
-import { refusesUnsetDatabaseUrl } from "#db";
+import { refusesUnsetDatabaseUrl } from "#pool";
 
 test("an unset DATABASE_URL is refused everywhere except production", () => {
   for (const NODE_ENV of ["test", "development", undefined, "staging"]) {

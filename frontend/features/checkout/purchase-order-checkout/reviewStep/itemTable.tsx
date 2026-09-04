@@ -5,14 +5,13 @@ import { ChevronDown } from 'lucide-react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { useMemo, useState } from 'react'
 import { useReactTable, getCoreRowModel, flexRender, ColumnDef } from '@tanstack/react-table'
-import { useCheckoutItems } from '@/shared/store/checkoutItemsStore'
+import { useBasket } from '@/features/checkout/items/queries'
 import { cn } from '@/shared/utils/cn'
 import { useDecoratedLines, type DecoratedLine } from '@/features/checkout/items/flair'
 import { formatRate } from '@/features/rates/utils/resolveRate'
-import { usePurchaseOrderCheckoutStore } from '@/shared/store/purchaseOrderCheckoutStore'
 import { usePaymentMethods } from '@/features/payments/queries'
 import { usePurchaseOrderQuote } from '@/features/quotes/queries'
-import type { PurchaseOrderQuoteLine } from "@dorado/contracts";
+import type { CheckoutRate, CheckoutView, PurchaseOrderQuoteLine } from "@dorado/contracts";
 import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
 
 // A basket line paired with its quote line. Absent until the first quote lands
@@ -20,17 +19,26 @@ import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
 // client-side.
 type QuotedRow = DecoratedLine & { quoted: PurchaseOrderQuoteLine | undefined }
 
-export default function ReviewItemTables() {
-  const shippingCost = usePurchaseOrderCheckoutStore((state) => state.data.service?.netCharge)
-  const payout = usePurchaseOrderCheckoutStore((state) => state.data.payout)
+// The two deductions come from the row and the joined rate now, not from a
+// store: `carrier_service_id` picks the rate the carrier quoted, and
+// `payment_method_id` is the payout account the payout step sealed.
+export default function ReviewItemTables({
+  row,
+  rates,
+}: {
+  row?: CheckoutView
+  rates: CheckoutRate[]
+}) {
+  const shippingCost = rates.find((rate) => rate.selected)?.netCharge ?? undefined
   const { data: payoutMethods = [] } = usePaymentMethods('purchase')
-  const paymentCost = Number(payoutMethods.find((p) => p.type === payout?.method)?.flat_fee ?? 0)
+  const payoutMethod = payoutMethods.find((p) => p.id === row?.payment_method_id)
+  const paymentCost = Number(payoutMethod?.flat_fee ?? 0)
 
-  const items = useCheckoutItems((state) => state.purchase)
+  const items = useBasket('purchase')
   const decorated = useDecoratedLines(items)
   const { data: quote } = usePurchaseOrderQuote(items, {
     shipping_charge: shippingCost ?? undefined,
-    payout_method: payout?.method,
+    payout_method: payoutMethod?.type,
   })
 
   // Quote lines carry the request array position, and the store's items array
@@ -69,17 +77,13 @@ export default function ReviewItemTables() {
   // place that is tested rather than in a component.
   const total = quote?.estimated_payout ?? 0
 
-  const shippingRow = useMemo(() => {
-    const label =
-      usePurchaseOrderCheckoutStore.getState().data.service?.serviceDescription ?? 'Unknown Service'
-    return [{ label, cost: shippingCost ?? 0 }]
-  }, [shippingCost])
-
-  const payoutRow = useMemo(() => {
-    const method = payoutMethods.find((p) => p.type === payout?.method)
-    if (!method) return []
-    return [{ label: method.label, cost: Number(method.flat_fee ?? 0) }]
-  }, [payout, payoutMethods])
+  const selectedRate = rates.find((rate) => rate.selected)
+  const shippingRow = [
+    { label: selectedRate?.name ?? 'Unknown Service', cost: shippingCost ?? 0 },
+  ]
+  const payoutRow = payoutMethod
+    ? [{ label: payoutMethod.label, cost: Number(payoutMethod.flat_fee ?? 0) }]
+    : []
 
   const [open, setOpen] = useState({
     scrap: false,

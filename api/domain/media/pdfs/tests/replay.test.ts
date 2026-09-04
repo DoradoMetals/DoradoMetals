@@ -4,7 +4,7 @@
 import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import request from "supertest";
-import pool from "#db";
+import pool from "#pool";
 import { closeBrowser } from "#providers/pdfs/puppeteer.ts";
 import * as spotsService from "#domain/spots/service.ts";
 import { mockSessions, restoreSessions, as, anonymous } from "#shared/testing/session.ts";

@@ -20,7 +20,7 @@
 //   node scripts/verify-parity.mjs                     all known pairs
 //   node scripts/verify-parity.mjs exchange.leads leads.leads
 import "#env";
-import pool from "#db";
+import pool from "#pool";
 
 const PAIRS = [
   ["exchange.leads", "leads.leads"],

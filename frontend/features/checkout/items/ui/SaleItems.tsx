@@ -5,8 +5,7 @@ import { Minus, Plus, ShoppingCart, Trash2 } from 'lucide-react'
 import Image from 'next/image'
 import NumberFlow from '@number-flow/react'
 import { useRouter } from 'next/navigation'
-import { useCheckoutItems } from '@/shared/store/checkoutItemsStore'
-import { useCheckoutItemActions } from '@/features/checkout/items/queries'
+import { useBasket, useCheckoutItemActions } from '@/features/checkout/items/queries'
 import { useDecoratedLines } from '@/features/checkout/items/flair'
 import { useDrawerStore } from '@/shared/store/drawerStore'
 import { useUser } from '@/features/auth/authClient'
@@ -20,7 +19,7 @@ export default function SaleItems() {
   const { user } = useUser()
   const { closeDrawer } = useDrawerStore()
 
-  const items = useCheckoutItems((state) => state.sale)
+  const items = useBasket('sale')
   const { addItem, removeOne, removeAll } = useCheckoutItemActions()
   const rows = useDecoratedLines(items)
 

@@ -24,7 +24,7 @@ function tree(files: Record<string, string>): string {
 test("an http-signal file (imports supertest) is classified http, even when it also touches #db", () => {
   const root = tree({
     "domain/orders/tests/endpoints.test.ts":
-      'import request from "supertest";\nimport pool from "#db";\ntest("x", () => {});\n',
+      'import request from "supertest";\nimport pool from "#pool";\ntest("x", () => {});\n',
   });
   const layers = classifyTestFiles(root);
   assert.deepEqual(layers.http.map((f) => path.relative(root, f)), [

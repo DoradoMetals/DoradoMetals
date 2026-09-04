@@ -3,7 +3,7 @@ import { test, afterAll } from "vitest";
 import assert from "node:assert/strict";
 import "#env";
 import query from "#shared/db/query.ts";
-import pool from "#db";
+import pool from "#pool";
 import {
   calculateCardCharge,
   getShippingCharge,

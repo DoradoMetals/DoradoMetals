@@ -4,7 +4,7 @@ import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
 import { createHash, randomUUID } from "node:crypto";
-import pool from "#db";
+import pool from "#pool";
 import { serveOrderDocument } from "#domain/media/pdfs/serve.ts";
 import * as orderRead from "#domain/orders/read.ts";
 import { LOCKS } from "#shared/testing/locks.ts";

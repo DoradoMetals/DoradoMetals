@@ -10,7 +10,7 @@
 import { test, afterAll } from "vitest";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
-import pool from "#db";
+import pool from "#pool";
 import { assertNothingEscaped, inPinnedTransaction } from "#shared/testing/pinned-pool.ts";
 import { TEST_ACTOR } from "#shared/testing/actor.ts";
 import { LOCKS } from "#shared/testing/locks.ts";

@@ -4,7 +4,7 @@
 import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import request from "supertest";
-import pool from "#db";
+import pool from "#pool";
 import { outside } from "#shared/testing/pinned-pool.ts";
 
 const { default: app } = await import("#app");

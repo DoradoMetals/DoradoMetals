@@ -7,7 +7,7 @@
 import { test, afterAll } from "vitest";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
-import pool from "#db";
+import pool from "#pool";
 import query from "#shared/db/query.ts";
 import * as service from "#domain/shipping/operations/service.ts";
 import { LOCKS } from "#shared/testing/locks.ts";

@@ -18,7 +18,9 @@ const sql = sqlFrom(import.meta.dirname);
 
 export type CheckoutRow = Checkout;
 
-export type NewCheckout = { user_id: string; direction: string };
+// The two columns a session cannot be created without. Derived, not spelled:
+// widening either in the database widens this without an edit here.
+export type NewCheckout = Pick<Checkout, "user_id" | "direction">;
 
 // EVERY COLUMN A SESSION CARRIES except its own key and its owner. Which of
 // these a REQUEST may name is a narrower question, and it is answered at the

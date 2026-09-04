@@ -5,7 +5,7 @@ import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
 import request from "supertest";
-import pool from "#db";
+import pool from "#pool";
 import { mockSessions, restoreSessions, as } from "#shared/testing/session.ts";
 import { TEST_ACTOR } from "#shared/testing/actor.ts";
 import { inPinnedTransaction, outside } from "#shared/testing/pinned-pool.ts";

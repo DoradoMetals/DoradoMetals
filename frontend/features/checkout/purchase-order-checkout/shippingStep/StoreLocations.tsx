@@ -1,7 +1,6 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { usePurchaseOrderCheckoutStore } from '@/shared/store/purchaseOrderCheckoutStore'
 
 import { useShippingLocations } from '@/features/shipping/queries'
 import type { ShippingLocation, ShippingLocationsInput } from '@/features/shipping/types'
@@ -9,9 +8,9 @@ import type { ShippingLocation, ShippingLocationsInput } from '@/features/shippi
 import formatPhoneNumber from '@/shared/utils/formatPhoneNumber'
 import { formatPickupTime } from '@/shared/utils/formatDates'
 import { GoogleMapDisplay, MarkerType } from '@/shared/ui/GoogleMapDisplay'
+import type { Address } from '@dorado/contracts'
 
-export const StoreLocationsMap = () => {
-  const address = usePurchaseOrderCheckoutStore((state) => state.data.address)
+export const StoreLocationsMap = ({ address }: { address?: Address }) => {
 
   // NO carrier_id. It was the production uuid
   // 30179428-b311-4873-8d08-382901c581d8 with a `// TODO: source from store
@@ -34,9 +33,9 @@ export const StoreLocationsMap = () => {
     return data.locations.find((loc) => loc.locationId === selectedId) ?? data.locations[0]
   }, [data?.locations, selectedId])
 
-  useEffect(() => {
-    if (!selectedId && data?.locations?.length) setSelectedId(data.locations[0].locationId)
-  }, [data?.locations, selectedId])
+  // THE "SELECT THE FIRST STORE" EFFECT IS GONE: `selected` above already
+  // falls back to locations[0], so the effect wrote state for a value this
+  // render already had and cost a second render to do it.
 
   const center = useMemo(() => {
     return {

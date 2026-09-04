@@ -28,7 +28,7 @@
 // purchase, and refuses if any survive the delete. Safe to re-run: it now
 // finds nothing.
 import "#env";
-import pool from "#db";
+import pool from "#pool";
 import fs from "node:fs";
 
 const COMMIT = process.argv.includes("--commit");
