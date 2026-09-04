@@ -18,7 +18,7 @@ const FloatingLabelInput = React.forwardRef<
       {...containerProps}
       className={cn(
         'relative',
-        error && '[&>*]:text-error [&>fieldset]:border-error',
+        error && '[&>*]:text-destructive [&>fieldset]:border-destructive',
         containerProps?.className
       )}
     >
@@ -29,7 +29,7 @@ const FloatingLabelInput = React.forwardRef<
           className,
           'focus-visible:ring-ring focus-visible:ring-0 focus-visible:ring-opacity-0',
           {
-            'text-error': error,
+            'text-destructive': error,
           }
         )}
         {...props}
@@ -38,7 +38,7 @@ const FloatingLabelInput = React.forwardRef<
         htmlFor={id}
         size={props.size}
         className={cn('floating-label', {
-          'text-error peer-focus:text-error': error,
+          'text-destructive peer-focus:text-destructive': error,
         })}
       >
         {label}

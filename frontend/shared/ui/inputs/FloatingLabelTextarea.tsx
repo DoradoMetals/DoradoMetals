@@ -19,7 +19,7 @@ const FloatingLabelTextarea = React.forwardRef<
       {...containerProps}
       className={cn(
         "relative",
-        error && "[&>*]:text-error [&>fieldset]:border-error",
+        error && "[&>*]:text-destructive [&>fieldset]:border-destructive",
         containerProps?.className
       )}
     >
@@ -29,7 +29,7 @@ const FloatingLabelTextarea = React.forwardRef<
         className={cn(
           className,
           "focus-visible:ring-ring focus-visible:ring-0 focus-visible:ring-opacity-0",
-          error && "text-error"
+          error && "text-destructive"
         )}
         {...props}
       />
@@ -38,7 +38,7 @@ const FloatingLabelTextarea = React.forwardRef<
         htmlFor={id}
         size={props.size}
         className={cn("peer-focus:text-primary", {
-          "text-error peer-focus:text-error": error,
+          "text-destructive peer-focus:text-destructive": error,
         })}
       >
         {label}

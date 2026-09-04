@@ -45,17 +45,7 @@ export function Rates() {
                     <div className="flex flex-col items-start">
                       <p className="pl-1">Up to</p>
                       <dt className="sr-only">{metal} payout</dt>
-                      {/* Was text-5xl/6xl (48-60px). No TAG reaches display
-                          size - typography.css defines --text-display (64px)
-                          but maps no element to it - and `text-display` is a
-                          type utility, which the scatter target forbids. h2
-                          (28px) is the largest tag that does not add a fifth
-                          top-level heading to this page (app/page.tsx already
-                          has one). SEE THE REPORT: this is the one real visual
-                          regression of the P1 sweep. */}
-                      <dd>
-                        <h2>{pctLabel(value)}</h2>
-                      </dd>
+                      <dd className="display">{pctLabel(value)}</dd>
                       <p className="pl-1">on {metal}</p>
                     </div>
                   </div>

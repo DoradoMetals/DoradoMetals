@@ -170,15 +170,12 @@ function ReadView({ unit, rows }: { unit: string; rows: AdminRate[] }) {
             <p className="basis-0 grow-[2] tabular-nums">
               {r.max_qty == null ? `${r.min_qty}+ ${u}` : `${r.min_qty}–${r.max_qty} ${u}`}
             </p>
-            {/* Display figures. The scale has no `.metric` utility, so the
-                heading tag is the only way to reach this size without a
-                type utility at the call site - see the report. */}
-            <h3 className="basis-0 grow text-center">
+            <strong className="stat-sm basis-0 grow text-center">
               {Math.round((r.scrap_pct ?? 0) * 100)}%
-            </h3>
-            <h3 className="basis-0 grow text-center">
+            </strong>
+            <strong className="stat-sm basis-0 grow text-center">
               {Math.round((r.bullion_pct ?? 0) * 100)}%
-            </h3>
+            </strong>
           </div>
         ))}
       </div>
