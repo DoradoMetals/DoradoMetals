@@ -70,6 +70,7 @@ export type DataTableProps<T extends RowData> = {
   actions?: React.ReactNode;
   selectable?: boolean;
   onRowSelectionChange?: (rows: T[]) => void;
+  onRowClick?: (row: T) => void;
   pageSize?: number;
 };
 
@@ -85,6 +86,7 @@ export function DataTable<T extends RowData>({
   actions,
   selectable = false,
   onRowSelectionChange,
+  onRowClick,
   pageSize,
 }: DataTableProps<T>) {
   const helper = React.useMemo(() => createColumnHelper<typeof features, T>(), []);
@@ -197,7 +199,23 @@ export function DataTable<T extends RowData>({
             </TableRow>
           ) : (
             rows.map((row) => (
-              <TableRow key={row.id} selected={selectable ? row.getIsSelected() : undefined}>
+              <TableRow
+                key={row.id}
+                selected={selectable ? row.getIsSelected() : undefined}
+                onClick={onRowClick ? () => onRowClick(row.original) : undefined}
+                onKeyDown={
+                  onRowClick
+                    ? (event) => {
+                        if (event.target !== event.currentTarget) return;
+                        if (event.key !== "Enter" && event.key !== " ") return;
+                        event.preventDefault();
+                        onRowClick(row.original);
+                      }
+                    : undefined
+                }
+                tabIndex={onRowClick ? 0 : undefined}
+                className={onRowClick ? "cursor-pointer" : undefined}
+              >
                 {row.getVisibleCells().map((cell) => {
                   const meta = cell.column.columnDef.meta;
                   return (

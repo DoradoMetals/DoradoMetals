@@ -100,4 +100,27 @@ describe("DataTable", () => {
     );
     expect(getByRole("button", { name: "New" })).toBeTruthy();
   });
-});
+
+  it('a clickable row fires on click and on Enter, and is reachable by keyboard', async () => {
+    const seen: string[] = []
+    const { getAllByRole } = render(
+      <DataTable
+        label="Scrap"
+        columns={columns}
+        data={data}
+        onRowClick={(row) => seen.push(row.item)}
+      />,
+    )
+    const bodyRows = getAllByRole('row').filter((r) => r.querySelector('td'))
+    expect(bodyRows[0].getAttribute('tabindex')).toBe('0')
+    fireEvent.click(bodyRows[0])
+    fireEvent.keyDown(bodyRows[1], { key: 'Enter', target: bodyRows[1] })
+    expect(seen.length).toBe(2)
+  })
+
+  it('rows are not focusable when nothing handles a click', () => {
+    const { getAllByRole } = render(<DataTable label="Scrap" columns={columns} data={data} />)
+    const bodyRows = getAllByRole('row').filter((r) => r.querySelector('td'))
+    expect(bodyRows[0].getAttribute('tabindex')).toBeNull()
+  })
+})
