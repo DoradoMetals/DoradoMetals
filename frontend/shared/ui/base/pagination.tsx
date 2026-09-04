@@ -1,8 +1,8 @@
 import * as React from 'react'
 
 import { cn } from '@/shared/utils/cn'
-import { ButtonProps, buttonVariants, ChevronLeft, ChevronRight, MoreHorizontal } from '@dorado/components'
-
+import { ButtonProps, buttonVariants } from '@dorado/components'
+import { ChevronLeft, ChevronRight, MoreHorizontal } from '@dorado/icons'
 const Pagination = ({ className, ...props }: React.ComponentProps<'nav'>) => (
   <nav
     role="navigation"

@@ -1,7 +1,7 @@
 'use client'
 
 import * as React from "react";
-import { Download, FileText } from "../icons";
+import { Download, FileText } from "@dorado/icons";
 
 import { Button } from "../button/Button";
 import { cn } from "../cn";

@@ -1,4 +1,5 @@
-import { Button, Field, Input, Minus, Plus } from '@dorado/components'
+import { Button, Field, Input } from '@dorado/components'
+import { Minus, Plus } from '@dorado/icons'
 import { useEffect, useState } from 'react'
 
 /* EIGHT className PROPS, ONE CALL SITE, AND IT PASSED NONE OF THEM.

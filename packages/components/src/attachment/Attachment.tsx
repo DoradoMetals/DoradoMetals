@@ -1,7 +1,7 @@
 'use client'
 
 import * as React from "react";
-import { File as FileIcon, Trash2 } from "../icons";
+import { File as FileIcon, Trash2 } from "@dorado/icons";
 
 import { Progress } from "../progress/Progress";
 import { Button } from "../button/Button";

@@ -3,7 +3,8 @@
 // The app's face of @dorado/components' Autocomplete. The library owns the
 // anatomy, the combobox semantics and the keyboard (aria-activedescendant,
 // arrows, Enter, Escape); this holds the wiring to the API's own suggestions.
-import { Autocomplete, Button, MapPin, X } from '@dorado/components'
+import { Autocomplete, Button } from '@dorado/components'
+import { MapPin, X } from '@dorado/icons'
 import type { PlaceSuggestion } from '@dorado/contracts'
 
 export function AddressSearchInput({

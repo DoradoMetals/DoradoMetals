@@ -1,7 +1,8 @@
 'use client'
 
 import * as React from 'react'
-import { Button, Smile } from '@dorado/components'
+import { Button } from '@dorado/components'
+import { Smile } from '@dorado/icons'
 import { Textarea } from '@/shared/ui/base/textarea'
 import { Rating, RatingButton } from '@/shared/ui/base/rating'
 

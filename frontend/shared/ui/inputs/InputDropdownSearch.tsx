@@ -2,8 +2,8 @@
 
 import { useMemo, useState, type InputHTMLAttributes } from 'react'
 import * as fuzzysort from 'fuzzysort'
-import { Autocomplete, Button, X, type AutocompleteItem } from '@dorado/components'
-
+import { Autocomplete, Button, type AutocompleteItem } from '@dorado/components'
+import { X } from '@dorado/icons'
 export interface SearchableDropdownProps<T> {
   items: T[]
   getLabel: (item: T) => string

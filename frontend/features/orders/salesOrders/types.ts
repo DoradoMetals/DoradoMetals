@@ -1,14 +1,4 @@
-import {
-  CreditCard,
-  DollarSign,
-  Hourglass,
-  Landmark,
-  Package,
-  Plane,
-  ShieldCheck,
-  Truck,
-} from '@dorado/components'
-
+import { CreditCard, DollarSign, Hourglass, Landmark, Package, Plane, ShieldCheck, Truck } from '@dorado/icons'
 import { z } from 'zod/v4'
 
 import { packageSchema } from '@/features/packaging/types'

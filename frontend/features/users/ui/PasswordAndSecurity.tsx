@@ -1,6 +1,7 @@
 'use client'
 
-import { Button, Mail, MessageSquareText, MonitorSmartphone, Smartphone, LogOut } from '@dorado/components'
+import { Button } from '@dorado/components'
+import { Mail, MessageSquareText, MonitorSmartphone, Smartphone, LogOut } from '@dorado/icons'
 import { useGetSession, useRequestPasswordReset } from '@/features/auth/queries'
 import { AccountAction } from '@/features/users/ui/AccountAction'
 import { useState } from 'react'

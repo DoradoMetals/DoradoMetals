@@ -13,14 +13,7 @@ import {
 } from '@/shared/ui/base/popover'
 import { Button } from '@dorado/components'
 import { Avatar } from '@dorado/components'
-import {
-  ListIcon,
-  Lock,
-  LogIn,
-  CircleUser,
-  User,
-  UserPlus,
-} from '@dorado/components'
+import { ListIcon, Lock, LogIn, CircleUser, User, UserPlus } from '@dorado/icons'
 import { useGetSession, useSignOut } from '@/features/auth/queries'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'

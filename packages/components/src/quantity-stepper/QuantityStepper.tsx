@@ -1,7 +1,7 @@
 'use client'
 
 import * as React from 'react'
-import { Minus, Plus } from '../icons'
+import { Minus, Plus } from '@dorado/icons'
 
 import { cn } from '../cn'
 

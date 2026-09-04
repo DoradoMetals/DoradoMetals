@@ -1,8 +1,8 @@
 'use client'
 
 import type { ComponentType, ReactNode } from 'react'
-import { Button, Download } from '@dorado/components'
-
+import { Button } from '@dorado/components'
+import { Download } from '@dorado/icons'
 /* ============================================================================
    ORDER DRAWER HEADER — the same 34 lines, four times.
    ----------------------------------------------------------------------------

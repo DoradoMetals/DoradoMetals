@@ -1,4 +1,5 @@
-import { Divider, Button, Input, Checkbox, Field, ChevronDown, Lock, Plus, RotateCcw, Unlock } from '@dorado/components'
+import { Divider, Button, Input, Checkbox, Field } from '@dorado/components'
+import { ChevronDown, Lock, Plus, RotateCcw, Unlock } from '@dorado/icons'
 import { outboundOf } from '@/features/shipping/queries'
 import { usePatchShipment } from '@/features/shipping/queries'
 import { useOrderShipments, usePatchPayout } from '@dorado/client'

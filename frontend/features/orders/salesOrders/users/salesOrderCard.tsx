@@ -1,7 +1,8 @@
 'use client'
 
 import { MouseEvent } from 'react'
-import { Button, Download } from '@dorado/components'
+import { Button } from '@dorado/components'
+import { Download } from '@dorado/icons'
 import { useDrawerStore } from '@/shared/store/drawerStore'
 import { formatFullDate } from '@/shared/utils/formatDates'
 import { SalesOrder, statusConfig } from '@/features/orders/salesOrders/types'

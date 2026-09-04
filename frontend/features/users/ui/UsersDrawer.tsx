@@ -12,7 +12,8 @@ import {
   useRequestPasswordReset,
   useUpdateUser,
 } from '@/features/auth/queries'
-import { Button, Divider, Drawer, Input, Minus, Pen, Plus, RadioGroup, RadioOption } from '@dorado/components'
+import { Button, Divider, Drawer, Input, RadioGroup, RadioOption } from '@dorado/components'
+import { Minus, Pen, Plus } from '@dorado/icons'
 import { cn } from '@/shared/utils/cn'
 import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
 import { useUpdateCredit } from '@dorado/client'

@@ -1,4 +1,5 @@
-import { Button, Car, CheckCheck, PackageOpen, Printer } from '@dorado/components'
+import { Button } from '@dorado/components'
+import { Car, CheckCheck, PackageOpen, Printer } from '@dorado/icons'
 import { cn } from '@/shared/utils/cn'
 import type { ShipmentView } from '@dorado/contracts'
 import { PurchaseOrderDrawerContentProps } from '@/features/orders/purchaseOrders/types'

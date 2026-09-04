@@ -1,6 +1,5 @@
 'use client'
-import { Scroll } from '@dorado/components'
-
+import { Scroll } from '@dorado/icons'
 import { Button } from '@dorado/components'
 import { useRouter } from 'next/navigation'
 import { useEffect, useRef } from 'react'

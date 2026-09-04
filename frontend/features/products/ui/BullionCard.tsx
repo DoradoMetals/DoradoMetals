@@ -2,7 +2,8 @@
 
 import Image from 'next/image'
 import { Product } from '@/features/products/types'
-import { Button, CircleHelp, Equal, Minus, Plus, RadioGroup, RadioOption, Scale, X } from '@dorado/components'
+import { Button, RadioGroup, RadioOption } from '@dorado/components'
+import { CircleHelp, Equal, Minus, Plus, Scale, X } from '@dorado/icons'
 import NumberFlow from '@number-flow/react'
 import { BullionFloatingButton, BullionFloatingButtonItem } from '@/features/products/ui/FloatingButton'
 import { useState } from 'react'

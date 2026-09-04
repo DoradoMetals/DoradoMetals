@@ -2,8 +2,7 @@
 
 import * as React from "react"
 import * as DialogPrimitive from "@radix-ui/react-dialog"
-import { XIcon } from "@dorado/components"
-
+import { XIcon } from "@dorado/icons"
 import { cn } from "@/shared/utils/cn"
 
 function Dialog({

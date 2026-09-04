@@ -5,7 +5,8 @@ import * as React from 'react'
 
 import { useDrawerStore } from '@/shared/store/drawerStore'
 
-import { DataTable, type DataTableColumn, Rating, RatingButton, Button, EyeOff, Eye, Plus } from '@dorado/components'
+import { DataTable, type DataTableColumn, Rating, RatingButton, Button } from '@dorado/components'
+import { EyeOff, Eye, Plus } from '@dorado/icons'
 import { useCreateReview, useReviews } from '@/features/reviews/queries'
 import ReviewsDrawer from '@/features/reviews/ui/ReviewsDrawer'
 import { AddNewDialog, type CreateConfig } from '@/shared/ui/CreateDialog'

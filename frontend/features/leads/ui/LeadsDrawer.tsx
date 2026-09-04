@@ -13,23 +13,8 @@ import { useCreateUser } from '@/features/auth/queries'
 import { SegmentedField } from '@/shared/ui/SegmentedField'
 import formatPhoneNumber, { normalizePhone } from '@/shared/utils/formatPhoneNumber'
 import SchedulePicker from '@/shared/ui/SchedulePicker'
-import {
-  Autocomplete,
-  Badge,
-  Button,
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-  Drawer,
-  Field,
-  Input,
-  Textarea,
-  Trash2,
-  UserPlus,
-} from '@dorado/components'
+import { Autocomplete, Badge, Button, Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, Drawer, Field, Input, Textarea } from '@dorado/components'
+import { Trash2, UserPlus } from '@dorado/icons'
 import { isValidEmail } from '@/shared/utils/isValid'
 import { useDeleteLead, useUpdateLead } from '@/features/leads/queries'
 import { useAdminRoleUsers, useAdminUsers } from '@dorado/client'

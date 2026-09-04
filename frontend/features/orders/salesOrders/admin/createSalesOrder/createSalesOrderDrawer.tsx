@@ -3,23 +3,8 @@
 // THE CUSTOMER THE ADMIN IS ORDERING FOR, off GET /users/get_all - the
 // contracts' user wire, snake_case. NOT better-auth's session user, which is
 // the admin themselves and is a different shape under the same word.
-import {
-  Link,
-  Skeleton,
-  Drawer,
-  RadioGroup,
-  RadioOption,
-  Divider,
-  Button,
-  Input,
-  Autocomplete,
-  CircleHelp,
-  Lock,
-  LockOpen,
-  Minus,
-  Plus,
-  Trash2,
-} from '@dorado/components'
+import { Link, Skeleton, Drawer, RadioGroup, RadioOption, Divider, Button, Input, Autocomplete } from '@dorado/components'
+import { CircleHelp, Lock, LockOpen, Minus, Plus, Trash2 } from '@dorado/icons'
 import NextLink from 'next/link'
 import { UserAddress, makeEmptyWireAddress } from '@/features/addresses/types'
 import { useDrawerStore } from '@/shared/store/drawerStore'

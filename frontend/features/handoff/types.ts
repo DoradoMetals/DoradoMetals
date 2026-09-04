@@ -1,6 +1,5 @@
 import { z } from 'zod/v4'
-import { Truck, Store, type IconProps } from '@dorado/components'
-
+import { Truck, Store, type IconProps } from '@dorado/icons'
 // HOW A PARCEL REACHES THE CARRIER - the customer drops it at the carrier's
 // location, or the carrier comes and collects it.
 //

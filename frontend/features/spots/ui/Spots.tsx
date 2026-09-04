@@ -1,7 +1,8 @@
 'use client'
 
 import { NumberFlowGroup } from '@number-flow/react'
-import { Button, ChevronUp, ChevronDown, ArrowLeftRight } from '@dorado/components'
+import { Button } from '@dorado/components'
+import { ChevronUp, ChevronDown, ArrowLeftRight } from '@dorado/icons'
 import { useSpotTypeStore } from '@/shared/store/spotStore'
 import { cn } from '@/shared/utils/cn'
 import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'

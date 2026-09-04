@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import * as CheckboxPrimitive from "@radix-ui/react-checkbox";
-import { Check } from "../icons";
+import { Check } from "@dorado/icons";
 import { cn } from "../cn";
 
 export type CheckboxProps = React.ComponentProps<typeof CheckboxPrimitive.Root>;

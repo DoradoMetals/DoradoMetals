@@ -1,5 +1,5 @@
-import { Button, Eye, EyeOff } from '@dorado/components'
-
+import { Button } from '@dorado/components'
+import { Eye, EyeOff } from '@dorado/icons'
 export default function ShowPasswordButton({
   showPassword,
   setShowPassword,

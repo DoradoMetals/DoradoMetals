@@ -2,8 +2,7 @@
 
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { ChevronDown, Circle } from '@dorado/components'
-
+import { ChevronDown, Circle } from '@dorado/icons'
 import {
   payoutMethodIcon,
   achSchema,

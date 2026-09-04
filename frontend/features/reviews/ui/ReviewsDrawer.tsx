@@ -9,7 +9,8 @@ import { FloatingLabelTextarea } from '@/shared/ui/inputs/FloatingLabelTextarea'
 import { SegmentedField } from '@/shared/ui/SegmentedField'
 
 import { formatFullDate } from '@/shared/utils/formatDates'
-import { Badge, Calendar, Drawer, Rating, RatingButton, Eye, EyeOff } from '@dorado/components'
+import { Badge, Drawer, Rating, RatingButton, Calendar } from '@dorado/components'
+import { Eye, EyeOff } from '@dorado/icons'
 import { useUpdateReview } from '@/features/reviews/queries'
 
 // <time dateTime> must be machine-readable; the wire hands these back as

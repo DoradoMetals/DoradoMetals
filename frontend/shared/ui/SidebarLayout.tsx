@@ -10,7 +10,7 @@ import {
   useState,
 } from 'react'
 import { cn } from '@/shared/utils/cn'
-import { ChevronsRight, User } from '@dorado/components'
+import { ChevronsRight, User } from '@dorado/icons'
 import { useSearchParams, useRouter, usePathname } from 'next/navigation'
 import CountBadge from '@/shared/ui/CountBadge'
 

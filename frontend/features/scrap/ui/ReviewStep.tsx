@@ -6,7 +6,8 @@ import { formatRate } from '@/features/rates/types'
 import { useBasket } from '@/features/checkout/items/queries'
 import { useSpotPrices } from '@/features/spots/queries'
 import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
-import { Badge, CheckCircle, Coins, Divider, Percent, Scale } from '@dorado/components'
+import { Badge, Divider } from '@dorado/components'
+import { CheckCircle, Coins, Percent, Scale } from '@dorado/icons'
 import { DetailRow } from '@/shared/ui/DetailRow'
 
 export default function ReviewStep({ showBanner }: { showBanner: boolean }) {

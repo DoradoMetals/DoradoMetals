@@ -2,7 +2,8 @@
 
 import Image from 'next/image'
 import { Product } from '@/features/products/types'
-import { Accordion, Button, Circle, Clock, Equal, Minus, Plus, RadioGroup, RadioOption, ShieldCheck, Tag, X } from '@dorado/components'
+import { Accordion, Button, RadioGroup, RadioOption } from '@dorado/components'
+import { Circle, Clock, Equal, Minus, Plus, ShieldCheck, Tag, X } from '@dorado/icons'
 import NumberFlow from '@number-flow/react'
 
 import { useState } from 'react'

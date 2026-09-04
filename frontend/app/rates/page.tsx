@@ -4,7 +4,7 @@ import { useRateTiers } from '@dorado/client'
 import { pctLabel } from '@/features/rates/types'
 import { cn } from '@/shared/utils/cn'
 import { GoldIcon, PalladiumIcon, PlatinumIcon, SilverIcon } from '@/features/navigation/ui/Logo'
-import { Coins, IconProps, Scale } from '@dorado/components'
+import { Coins, IconProps, Scale } from '@dorado/icons'
 import type { RateBand, RateTier } from '@dorado/contracts'
 
 // THE TABLE IS THE SERVER'S. This page used to take the flat rate list and, in

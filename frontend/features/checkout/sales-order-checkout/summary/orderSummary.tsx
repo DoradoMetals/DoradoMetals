@@ -1,4 +1,5 @@
-import { Button, CircleHelp, Divider, Minus, Plus, Trash2 } from '@dorado/components'
+import { Button, Divider } from '@dorado/components'
+import { CircleHelp, Minus, Plus, Trash2 } from '@dorado/icons'
 import { useBasket } from '@/features/checkout/items/queries'
 import { useCheckoutItemActions } from '@/features/checkout/items/queries'
 import { useDecoratedLines } from '@/features/checkout/items/flair'

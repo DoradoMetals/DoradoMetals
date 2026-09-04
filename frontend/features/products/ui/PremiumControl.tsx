@@ -1,8 +1,8 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { ArrowDown, ArrowUp, DollarSign, Field, Input, Percent, RadioGroup, RadioOption } from '@dorado/components'
-
+import { Field, Input, RadioGroup, RadioOption } from '@dorado/components'
+import { ArrowDown, ArrowUp, DollarSign, Percent } from '@dorado/icons'
 type Unit = 'dollar' | 'percent'
 const UNITS: Unit[] = ['dollar', 'percent']
 type Direction = 'over' | 'under'

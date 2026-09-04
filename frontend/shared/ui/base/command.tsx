@@ -11,8 +11,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/shared/ui/base/dialog"
-import { Search } from "@dorado/components"
-
+import { Search } from "@dorado/icons"
 /* The call-site rule is stated in full in base/button.tsx. Short form:
    a call site's className is LAYOUT ONLY. Appearance is this file's job.
 

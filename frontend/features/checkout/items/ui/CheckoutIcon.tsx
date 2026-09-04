@@ -4,8 +4,7 @@ import { motion, useAnimation } from 'framer-motion';
 import type { HTMLAttributes } from 'react';
 import { forwardRef, useEffect } from 'react';
 import { cn } from '@/shared/utils/cn';
-import { ShoppingCart } from '@dorado/components';
-
+import { ShoppingCart } from '@dorado/icons'
 interface CheckoutIconProps extends HTMLAttributes<HTMLDivElement> {
   size?: number;
   isOpen: boolean;

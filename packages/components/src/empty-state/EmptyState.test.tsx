@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { render } from "@testing-library/react";
 import * as React from "react";
-import { Package } from "../icons";
+import { Package } from "@dorado/icons";
 
 import { EmptyState } from "./EmptyState";
 import { axeViolations } from "../test/axe";

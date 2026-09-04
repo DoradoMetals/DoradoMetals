@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Check } from '@dorado/components'
+import { Check } from '@dorado/icons'
 import { Popover, PopoverContent, PopoverTrigger } from '@/shared/ui/base/popover'
 import {
   Command,

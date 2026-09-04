@@ -1,6 +1,7 @@
 'use client'
 
-import { Button, EmptyState, Minus, Plus, ShoppingCart, Trash2 } from '@dorado/components'
+import { Button, EmptyState } from '@dorado/components'
+import { Minus, Plus, ShoppingCart, Trash2 } from '@dorado/icons'
 import Image from 'next/image'
 import NumberFlow from '@number-flow/react'
 import { useRouter } from 'next/navigation'

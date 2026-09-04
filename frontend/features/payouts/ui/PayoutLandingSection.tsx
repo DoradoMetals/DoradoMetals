@@ -2,7 +2,8 @@ import { Link } from '@dorado/components'
 import NextLink from 'next/link'
 import { payoutMethodIcon, PayoutMethodType } from '@/features/payouts/types'
 import { usePaymentMethods } from '@dorado/client'
-import { Button, ArrowUpRight } from '@dorado/components'
+import { Button } from '@dorado/components'
+import { ArrowUpRight } from '@dorado/icons'
 import { useRouter } from 'next/navigation'
 
 export function Payout() {

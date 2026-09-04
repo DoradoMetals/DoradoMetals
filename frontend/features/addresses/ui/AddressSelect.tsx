@@ -4,7 +4,8 @@ import type { Address } from "@dorado/contracts";
 import { motion, AnimatePresence } from 'framer-motion'
 import { UserAddress } from '@/features/addresses/types'
 import { cn } from '@/shared/utils/cn'
-import { Building2, Button, ChevronDown, House, Plus, RadioGroup, RadioOption } from '@dorado/components'
+import { Button, RadioGroup, RadioOption } from '@dorado/components'
+import { Building2, ChevronDown, House, Plus } from '@dorado/icons'
 import { useEffect, useMemo, useState } from 'react'
 import formatPhoneNumber from '@/shared/utils/formatPhoneNumber'
 

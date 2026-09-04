@@ -2,7 +2,8 @@
 
 import type { AdminRate } from "@dorado/contracts";
 import * as React from 'react'
-import { Button, Input, Pencil, Save, X } from '@dorado/components'
+import { Button, Input } from '@dorado/components'
+import { Pencil, Save, X } from '@dorado/icons'
 import { cn } from '@/shared/utils/cn'
 import { getBoundsForMetal, sortRatesByMin, pctToInt, intToPct, labelFor } from '@/features/rates/types'
 import { DualRangeSlider } from '@/features/rates/ui/DualRangeSlider'

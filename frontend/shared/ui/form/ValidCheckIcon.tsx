@@ -1,5 +1,4 @@
-import { Check, X } from '@dorado/components'
-
+import { Check, X } from '@dorado/icons'
 interface IconProps {
   size?: number
   className?: string

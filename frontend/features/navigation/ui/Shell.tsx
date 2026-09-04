@@ -7,7 +7,7 @@ import { useDrawerStore } from '@/shared/store/drawerStore'
 import { useBasket } from '@/features/checkout/items/queries'
 
 import { Badge, Button } from '@dorado/components'
-import { MenuIcon } from '@dorado/components'
+import { MenuIcon } from '@dorado/icons'
 import { CheckoutIcon } from '@/features/checkout/items/ui/CheckoutIcon'
 
 import { motion } from 'framer-motion'

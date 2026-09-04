@@ -8,8 +8,8 @@ import { userRoleOptions } from '@/features/users/types'
 
 import { useDrawerStore } from '@/shared/store/drawerStore'
 
-import { DataTable, type DataTableColumn, Amount, Button, Plus } from '@dorado/components'
-
+import { DataTable, type DataTableColumn, Amount, Button } from '@dorado/components'
+import { Plus } from '@dorado/icons'
 import { cn } from '@/shared/utils/cn'
 import { isValidEmail } from '@/shared/utils/isValid'
 import AdminUsersDrawer from '@/features/users/ui/UsersDrawer'

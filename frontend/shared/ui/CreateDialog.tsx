@@ -2,7 +2,8 @@
 
 import { InputHTMLAttributes, ReactNode, useEffect, useMemo, useState } from 'react'
 
-import { Button, X } from '@dorado/components'
+import { Button } from '@dorado/components'
+import { X } from '@dorado/icons'
 import {
   Dialog,
   DialogContent,

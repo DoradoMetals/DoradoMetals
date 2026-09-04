@@ -1,7 +1,8 @@
 'use client'
 
 import { useState } from 'react'
-import { Button, Pagination, EmptyState, DollarSign, ChevronDown, SearchX } from '@dorado/components'
+import { Button, Pagination, EmptyState } from '@dorado/components'
+import { DollarSign, ChevronDown, SearchX } from '@dorado/icons'
 import { AnimatePresence, motion } from 'framer-motion'
 import { useRouter } from 'next/navigation'
 import PurchaseOrderCard from './purchaseOrderCard'

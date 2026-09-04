@@ -1,13 +1,5 @@
 import { z } from 'zod/v4'
-import {
-  Landmark,
-  PiggyBank,
-  CreditCard,
-  Globe,
-  Mail,
-  Coins,
-} from '@dorado/components'
-
+import { Landmark, PiggyBank, CreditCard, Globe, Mail, Coins } from '@dorado/icons'
 // The payout as it arrives on an order is `Payout` in @dorado/contracts, and
 // the admin-only full-number read is `PayoutDetails` beside it. A local
 // interface restating the first used to sit here with nothing importing it -

@@ -2,14 +2,7 @@ import { z } from 'zod/v4'
 
 import type { Address, UserAddressRead } from "@dorado/contracts";
 
-import {
-  Truck,
-  PackageOpen,
-  CreditCard,
-  Ban,
-  ShieldCheck,
-} from '@dorado/components'
-
+import { Truck, PackageOpen, CreditCard, Ban, ShieldCheck } from '@dorado/icons'
 import { pickupSchema } from '@/features/handoff/types'
 import { payoutSchema } from '@/features/payouts/types'
 import { serviceSchema } from '@/features/service/types'

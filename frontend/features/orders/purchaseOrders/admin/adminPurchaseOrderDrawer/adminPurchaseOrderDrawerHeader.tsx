@@ -5,7 +5,7 @@ import {
 } from '@/features/pdfs/queries'
 import { PurchaseOrderDrawerHeaderProps, statusConfig } from '@/features/orders/purchaseOrders/types'
 import { useFormatPurchaseOrderNumber } from '@/features/orders/utils/formatOrderNumbers'
-import { CheckCheck } from '@dorado/components'
+import { CheckCheck } from '@dorado/icons'
 import { useSpotPrices } from '@/features/spots/queries'
 import { OrderDrawerHeader } from '@/features/orders/ui/OrderDrawerHeader'
 import { useOrderSpots } from '@dorado/client'

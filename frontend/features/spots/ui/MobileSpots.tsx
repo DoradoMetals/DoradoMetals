@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { motion, useAnimationFrame, useMotionValue, useTransform } from 'framer-motion'
 import { wrap } from '@motionone/utils'
-import { ChevronUp, ChevronDown } from '@dorado/components'
+import { ChevronUp, ChevronDown } from '@dorado/icons'
 import { NumberFlowGroup } from '@number-flow/react'
 import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
 import { cn } from '@/shared/utils/cn'

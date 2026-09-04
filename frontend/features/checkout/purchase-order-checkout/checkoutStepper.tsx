@@ -1,6 +1,7 @@
 'use client'
 
-import { Button, ShoppingCart } from '@dorado/components'
+import { Button } from '@dorado/components'
+import { ShoppingCart } from '@dorado/icons'
 import { defineStepper } from '@stepperize/react'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'

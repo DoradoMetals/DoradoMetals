@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
-import { X } from "../icons";
+import { X } from "@dorado/icons";
 import { Button } from "../button/Button";
 import { cn } from "../cn";
 

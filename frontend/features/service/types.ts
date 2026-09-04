@@ -1,4 +1,4 @@
-import { LucideIcon, Rocket, PackageCheck } from '@dorado/components'
+import { LucideIcon, Rocket, PackageCheck } from '@dorado/icons'
 import { z } from 'zod/v4'
 
 // A SHIPPING SERVICE AS THE CHECKOUT FORM CARRIES IT.

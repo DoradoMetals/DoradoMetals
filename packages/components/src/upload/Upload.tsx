@@ -1,7 +1,7 @@
 'use client'
 
 import * as React from "react";
-import { File as FileIcon, UploadCloud } from "../icons";
+import { File as FileIcon, UploadCloud } from "@dorado/icons";
 import { cn } from "../cn";
 import { ScrollArea } from "../scroll-area/ScrollArea";
 

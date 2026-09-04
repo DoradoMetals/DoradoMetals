@@ -1,4 +1,4 @@
-import { LucideIcon, Package2, Inbox } from '@dorado/components'
+import { LucideIcon, Package2, Inbox } from '@dorado/icons'
 import { z } from 'zod/v4'
 
 export interface Package {

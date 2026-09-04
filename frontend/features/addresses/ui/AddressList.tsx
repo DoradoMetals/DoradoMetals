@@ -9,7 +9,8 @@
 // input box and not of the book.
 import { useState, useMemo } from 'react'
 
-import { Button, EmptyState, MapPin, Plus, Skeleton } from '@dorado/components'
+import { Button, EmptyState, Skeleton } from '@dorado/components'
+import { MapPin, Plus } from '@dorado/icons'
 import { useAddressBook } from '@dorado/client'
 import { useDrawerStore } from '@/shared/store/drawerStore'
 import { DebouncedInputSearch } from '@/shared/ui/inputs/DebouncedInputSearch'

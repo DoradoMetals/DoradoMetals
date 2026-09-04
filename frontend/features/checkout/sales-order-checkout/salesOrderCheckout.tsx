@@ -1,6 +1,7 @@
 'use client'
 
-import { Button, Divider, EmptyState, ShoppingCart } from '@dorado/components'
+import { Button, Divider, EmptyState } from '@dorado/components'
+import { ShoppingCart } from '@dorado/icons'
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { loadStripe } from '@stripe/stripe-js'

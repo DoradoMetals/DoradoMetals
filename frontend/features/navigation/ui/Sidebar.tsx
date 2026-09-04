@@ -1,6 +1,7 @@
 'use client'
 
-import { Drawer, User, ListIcon, LogOut, LogIn, ArrowLeftRight } from '@dorado/components'
+import { Drawer } from '@dorado/components'
+import { User, ListIcon, LogOut, LogIn, ArrowLeftRight } from '@dorado/icons'
 import IconTile from '@/shared/ui/IconTile'
 import NavLink from '@/shared/ui/NavLink'
 import Link from 'next/link'

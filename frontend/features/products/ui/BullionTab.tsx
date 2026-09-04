@@ -2,7 +2,8 @@
 
 import { useState } from 'react'
 import { FloatingLabelInput } from '@/shared/ui/inputs/FloatingLabelInput'
-import { Button, FieldLabel, RadioGroup, RadioOption, Switch, X } from '@dorado/components'
+import { Button, FieldLabel, RadioGroup, RadioOption, Switch } from '@dorado/components'
+import { X } from '@dorado/icons'
 import { useMetals, useProducts } from '@dorado/client'
 import BullionCard from '@/features/products/ui/BullionCard'
 import { useCatalogQuote } from '@/features/quotes/queries'

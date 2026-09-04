@@ -1,6 +1,7 @@
 'use client'
 
-import { Calendar, ScrollArea, Button } from '@dorado/components'
+import { ScrollArea, Button, Calendar } from '@dorado/components'
+
 import type { CarrierPickupWindow, CheckoutView } from '@dorado/contracts'
 import { parseISO } from 'date-fns'
 import { usePatchCheckout } from '@/features/checkout/queries'

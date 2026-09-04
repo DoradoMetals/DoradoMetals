@@ -4,7 +4,8 @@ import * as React from 'react'
 import { Controller, type Control, type FieldPath, type FieldValues } from 'react-hook-form'
 
 import { cn } from '@/shared/utils/cn'
-import { Button, Check, ChevronDown, Field } from '@dorado/components'
+import { Button, Field } from '@dorado/components'
+import { Check, ChevronDown } from '@dorado/icons'
 import { Popover, PopoverContent, PopoverTrigger } from '@/shared/ui/base/popover'
 import {
   Command,

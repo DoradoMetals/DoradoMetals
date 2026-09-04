@@ -1,7 +1,8 @@
 'use client'
 
 import SelectMenu from '@/shared/ui/SelectMenu'
-import { Button, ChevronDown, ListIcon, Swiper } from '@dorado/components'
+import { Button, Swiper } from '@dorado/components'
+import { ChevronDown, ListIcon } from '@dorado/icons'
 import { cn } from '@/shared/utils/cn'
 
 /* The "no filter" row needs a value because `SelectMenu` is keyed by string,

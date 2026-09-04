@@ -1,7 +1,8 @@
 'use client'
 
 import type { AddressBookEntry } from '@dorado/contracts'
-import { Button, Drawer, X } from '@dorado/components'
+import { Button, Drawer } from '@dorado/components'
+import { X } from '@dorado/icons'
 import { useDrawerStore } from '@/shared/store/drawerStore'
 import { usePathname } from 'next/navigation'
 import { useEffect } from 'react'

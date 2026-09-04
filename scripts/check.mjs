@@ -139,6 +139,7 @@ const FULL_ONLY_GROUPS = [
     // is to stop each group ALSO racing its own steps against itself.
     parallel: false,
     steps: [
+      { name: "icons:typecheck", cmd: pnpm("@dorado/icons", "typecheck") },
       { name: "components:typecheck", cmd: pnpm("@dorado/components", "typecheck") },
       { name: "components:test", cmd: pnpm("@dorado/components", "test") },
       { name: "client:typecheck", cmd: pnpm("@dorado/client", "typecheck") },

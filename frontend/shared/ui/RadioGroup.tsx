@@ -2,7 +2,7 @@
 
 import type { ComponentProps, ElementType, ReactNode } from 'react'
 import { cva, type VariantProps } from 'class-variance-authority'
-import { CheckCircle } from '@dorado/components'
+import { CheckCircle } from '@dorado/icons'
 import {
   RadioGroup as RadioGroupRoot,
   RadioGroupItem,

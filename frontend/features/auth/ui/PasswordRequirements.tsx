@@ -2,8 +2,7 @@
 
 import { Control, useWatch } from 'react-hook-form'
 import { AnimatePresence, motion } from 'framer-motion'
-import { CircleCheckIcon, CircleXIcon } from '@dorado/components'
-
+import { CircleCheckIcon, CircleXIcon } from '@dorado/icons'
 const rules = [
   { label: 'At least 6 characters', validate: (pw: string) => pw.length >= 6 },
   { label: 'One uppercase letter', validate: (pw: string) => /[A-Z]/.test(pw) },

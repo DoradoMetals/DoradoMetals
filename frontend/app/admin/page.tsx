@@ -11,24 +11,8 @@ import {
 } from '@/shared/ui/SidebarLayout'
 import { userRoleOptions } from '@/features/users/types'
 import { useGetSession } from '@/features/auth/queries'
-import {
-  Button,
-  Calculator,
-  CalendarIcon,
-  ChevronLeft,
-  Coins,
-  Container,
-  DollarSign,
-  Drawer,
-  Lasso,
-  MessagesSquare,
-  Percent,
-  TrendingUp,
-  Truck,
-  Users,
-  ClipboardList,
-  Wallet,
-} from '@dorado/components'
+import { Button, Drawer } from '@dorado/components'
+import { Calculator, CalendarIcon, ChevronLeft, Coins, Container, DollarSign, Lasso, MessagesSquare, Percent, TrendingUp, Truck, Users, ClipboardList, Wallet } from '@dorado/icons'
 import { useDrawerStore } from '@/shared/store/drawerStore'
 
 import { UsersPage } from '@/features/users/ui/UsersAdminTable'

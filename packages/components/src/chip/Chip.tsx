@@ -1,7 +1,7 @@
 'use client'
 
 import * as React from "react";
-import { X } from "../icons";
+import { X } from "@dorado/icons";
 import { cn } from "../cn";
 import { Button } from "../button/Button";
 

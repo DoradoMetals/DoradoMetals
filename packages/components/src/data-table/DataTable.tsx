@@ -1,7 +1,7 @@
 'use client'
 
 import * as React from "react";
-import { Search } from "../icons";
+import { Search } from "@dorado/icons";
 import {
   type ColumnDef,
   type ColumnFiltersState,

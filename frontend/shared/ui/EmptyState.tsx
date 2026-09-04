@@ -1,8 +1,8 @@
 'use client'
 
 import type { ReactNode } from 'react'
-import { EmptyState as LibraryEmptyState, type IconComponent as Icon } from '@dorado/components'
-
+import { EmptyState as LibraryEmptyState } from '@dorado/components'
+import { type IconComponent as Icon } from '@dorado/icons'
 export type EmptyStateProps = {
   icon: Icon
   /** No longer honoured — the library bakes the icon at 64px. Kept so a call

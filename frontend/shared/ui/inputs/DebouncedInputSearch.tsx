@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 
-import { Button, Search, X } from '@dorado/components'
+import { Button } from '@dorado/components'
+import { Search, X } from '@dorado/icons'
 import { Input } from '../base/input'
 import { cn } from '@/shared/utils/cn'
 
