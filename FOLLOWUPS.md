@@ -14599,3 +14599,44 @@ write records it). No try/catch remains in either file.
   label. `rules.rebuyParcel` takes the computed weight as its own parameter
   now; `OrderLabel` keeps only the optional pickup date/time, since no column
   remembers a courier's booked slot.
+
+## D215 — The component library needs an accessibility pass of its own (2026-09-03)
+
+Jacob, while Drawer was being lifted: *"we probably want max accessibility.
+Make a note of that for a future ticket."*
+
+**What prompted it.** Drawer's Figma description claims "Focus is trapped...
+(Radix Dialog under the hood)". It was not. There was no trap, no initial
+focus and no restore on close, across all 16 call sites, and nobody had
+noticed because the drawing said otherwise and the code was never checked
+against it. `useFocusTrap` now exists in `packages/components/src/hooks/` and
+Drawer uses it, so that specific hole is closed.
+
+**Why it needs a ticket rather than a fix.** The Drawer hole was found by
+accident. Two others were found the same way in the same week: every star
+button in Rating had no accessible name, so a screen reader announced a row of
+silent anonymous buttons; and Swiper's pagination dots called `scrollTo` with
+smooth behaviour, overriding the CSS that `prefers-reduced-motion` had already
+turned off. Three real defects, none caught by a test, all found by someone
+happening to look. The axe check every component test runs is necessary and
+was passing throughout — axe cannot see a missing focus trap, a keyboard path
+that dead-ends, or motion that ignores a preference.
+
+**What the pass should cover, per component:**
+
+- focus management: is focus trapped where it must be, moved on open, restored
+  on close, and never lost to a portal
+- keyboard: every interactive path reachable and escapable without a mouse,
+  including the ones Radix does not give us for free
+- motion: every animation honours `prefers-reduced-motion`, including
+  JavaScript-driven scrolling and framer-motion transitions, which CSS cannot
+  turn off
+- naming: every icon-only control has an accessible name, and every name is
+  the one a user would say out loud
+- the drawing's own claims: several descriptions assert accessibility
+  behaviour the code does not implement. Those are the cheapest places to look.
+
+**What exists to build on:** `useFocusTrap` is the first library hook and the
+shape the others should follow. Candidates named in passing: a reduced-motion
+hook so components stop each solving it differently, and a roving-focus helper
+for the composites Radix does not cover.

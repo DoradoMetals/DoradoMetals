@@ -5,6 +5,7 @@ import type { ReactNode } from 'react';
 import { useEffect } from 'react';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { cn } from '../cn';
+import { useFocusTrap } from '../hooks/useFocusTrap';
 
 type DrawerAnchor = 'left' | 'right';
 type DrawerSurface = 'highest' | 'card' | 'none';
@@ -29,6 +30,7 @@ export function Drawer({
   label,
 }: DrawerProps) {
   const shouldReduceMotion = useReducedMotion();
+  const panelRef = useFocusTrap<HTMLDivElement>(open);
 
   useEffect(() => {
     if (!open) return;
@@ -56,6 +58,7 @@ export function Drawer({
           />
 
           <motion.div
+            ref={panelRef}
             role="dialog"
             aria-modal="true"
             aria-label={label ? `${label} details` : 'Details'}
