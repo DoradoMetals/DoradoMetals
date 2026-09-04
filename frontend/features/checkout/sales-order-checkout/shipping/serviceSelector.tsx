@@ -9,10 +9,10 @@ import {
   SalesOrderServiceUIOption,
 } from '@/features/orders/salesOrders/types'
 import { useSaleShippingServices } from '@/features/shipping/queries'
-import type { quotes } from "@dorado/contracts";
+import type { SalesOrderQuote } from "@dorado/contracts";
 import { DetailRow } from '@/shared/ui/DetailRow'
 
-export default function ServiceSelector({ orderPrices }: { orderPrices?: quotes.SalesOrderQuote }) {
+export default function ServiceSelector({ orderPrices }: { orderPrices?: SalesOrderQuote }) {
   const selected = useSalesOrderCheckoutStore((state) => state.data.service)
   const setData = useSalesOrderCheckoutStore((state) => state.setData)
 

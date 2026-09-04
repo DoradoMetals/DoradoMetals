@@ -5,7 +5,7 @@
 // Postgres table: places.addresses
 import { z } from "zod/v4";
 
-export const Row = z.object({
+export const Address = z.object({
   "id": z.string().uuid(),
   "line_1": z.string().nullable(),
   "line_2": z.string().nullable(),
@@ -20,16 +20,21 @@ export const Row = z.object({
   "is_valid": z.boolean().nullable(),
   "is_residential": z.boolean(),
 });
-export type Row = z.infer<typeof Row>;
+export type Address = z.infer<typeof Address>;
 // generated:end
-import * as userAddresses from "./user_addresses.js";
-import * as users from "../auth/users.js";
+import { UserAddressPatch } from "./user_addresses.js";
+import { User } from "../auth/users.js";
 
 // The postal fields a caller may write. is_valid/is_residential are NOT here:
 // create.sql hard-codes them and validation sets the real values through its
 // own write, so a body naming either is a 400 rather than a value quietly
 // overwritten server-side.
-export const Write = Row.pick({
+//
+// A CREATE TAKES THE SAME PATCH (Jacob, 2026-09-03: "For new, it can just send
+// the patch!!"). There is no second type: the database's NOT NULL columns and
+// defaults decide what a create needs, and a missing one surfaces as the shared
+// pg-error translation naming the column.
+export const AddressPatch = Address.pick({
   line_1: true,
   line_2: true,
   city: true,
@@ -39,29 +44,29 @@ export const Write = Row.pick({
   country_code: true,
   phone_number: true,
 }).partial();
-export type Write = z.infer<typeof Write>;
+export type AddressPatch = z.infer<typeof AddressPatch>;
 
 // `user_id` is an ID for what the server holds (ruling 43): an admin naming
 // another customer's book. A non-admin caller sending one is overridden by
 // the session.
-export const CreateBody = z.object({
-  address: Write.strict(),
-  user_address: userAddresses.Write.optional(),
-  user_id: users.Row.shape.id.optional(),
+export const AddressCreateBody = z.object({
+  address: AddressPatch.strict(),
+  user_address: UserAddressPatch.optional(),
+  user_id: User.shape.id.optional(),
 }).strict();
-export type CreateBody = z.infer<typeof CreateBody>;
+export type AddressCreateBody = z.infer<typeof AddressCreateBody>;
 
-export const UpdateBody = z.object({
-  address: Write.extend({ id: Row.shape.id }).strict(),
-  user_address: userAddresses.Write.optional(),
-  user_id: users.Row.shape.id.optional(),
+export const AddressUpdateBody = z.object({
+  address: AddressPatch.extend({ id: Address.shape.id }).strict(),
+  user_address: UserAddressPatch.optional(),
+  user_id: User.shape.id.optional(),
 }).strict();
-export type UpdateBody = z.infer<typeof UpdateBody>;
+export type AddressUpdateBody = z.infer<typeof AddressUpdateBody>;
 
 // DELETE /places/addresses/delete and POST /set_default - the id alone.
-export const IdBody = z.object({
-  address_id: Row.shape.id,
-  user_id: users.Row.shape.id.optional(),
+export const AddressIdBody = z.object({
+  address_id: Address.shape.id,
+  user_id: User.shape.id.optional(),
 }).strict();
-export type IdBody = z.infer<typeof IdBody>;
+export type AddressIdBody = z.infer<typeof AddressIdBody>;
 

@@ -5,7 +5,7 @@
 // Postgres table: places.user_addresses
 import { z } from "zod/v4";
 
-export const Row = z.object({
+export const UserAddress = z.object({
   "id": z.string().uuid(),
   "address_id": z.string().uuid(),
   "user_id": z.string().uuid(),
@@ -13,21 +13,21 @@ export const Row = z.object({
   "default_shipping": z.boolean(),
   "default_billing": z.boolean(),
 });
-export type Row = z.infer<typeof Row>;
+export type UserAddress = z.infer<typeof UserAddress>;
 // generated:end
 // One person's relationship to one address - ITS OWN read, never nested
 // inside the address; the client joins the two lists by address_id.
-export const Read = Row.omit({ id: true, default_billing: true }).extend({
-  user_id: Row.shape.user_id.nullable(),
-  default_shipping: Row.shape.default_shipping.nullable(),
+export const UserAddressRead = UserAddress.omit({ id: true, default_billing: true }).extend({
+  user_id: UserAddress.shape.user_id.nullable(),
+  default_shipping: UserAddress.shape.default_shipping.nullable(),
 });
-export type Read = z.infer<typeof Read>;
+export type UserAddressRead = z.infer<typeof UserAddressRead>;
 
 // The relationship beside the address: genuinely new data (a label) plus one
 // flag, never an id the caller could instead have sent (ruling 43).
-export const Write = Row.pick({ label: true })
-  .extend({ default_shipping: Row.shape.default_shipping.optional() })
-  .partial({ label: true })
-  .strict();
-export type Write = z.infer<typeof Write>;
+export const UserAddressPatch = UserAddress.pick({
+  label: true,
+  default_shipping: true,
+}).partial().strict();
+export type UserAddressPatch = z.infer<typeof UserAddressPatch>;
 

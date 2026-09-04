@@ -7,12 +7,12 @@
 import query from "#shared/db/query.ts";
 import { buildUpdate } from "#shared/db/patch.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
-import type { reviews } from "@dorado/contracts";
+import type { Review } from "@dorado/contracts";
 import type { Executor } from "#shared/db/executor.ts";
 
 const sql = sqlFrom(import.meta.dirname);
 
-export type ReviewRow = reviews.reviews.Row;
+export type ReviewRow = Review;
 
 // An explicit id wins on create; omitting one lets create.sql generate one.
 export type NewReview = Partial<

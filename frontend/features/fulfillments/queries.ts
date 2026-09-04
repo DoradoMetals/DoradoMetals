@@ -1,10 +1,10 @@
 import { useQuery } from '@tanstack/react-query'
 import { apiRequest } from '@/shared/queries/axios'
 import { useGetSession } from '@/features/auth/queries'
-import type { fulfillments } from "@dorado/contracts";
+import type { Fulfillment, FulfillmentDirect, FulfillmentPickup } from "@dorado/contracts";
 
 // How an order is handed over, as its own read: GET /orders/:orderId/fulfillments
-// - LIVE since the read-flip wave, typed by the fulfillments.fulfillments.Row contract both
+// - LIVE since the read-flip wave, typed by the Fulfillment contract both
 // sides intake: THE BARE fulfillments.fulfillments row, verbatim, nothing
 // else (Jacob, final form - no method embed, no resolved children, "so our
 // types don't spiral out of control"). method_id maps to a label off the
@@ -18,15 +18,15 @@ import type { fulfillments } from "@dorado/contracts";
 // shipment/payout slots until the wire-slimming and drawer conversion (next
 // series), and this hook is that work's target - it re-points reads instead
 // of inventing them.
-export type OrderFulfillment = fulfillments.fulfillments.Row;
+export type OrderFulfillment = Fulfillment;
 
 export const useFulfillment = (order_id: string) => {
   const { user } = useGetSession()
 
-  return useQuery<fulfillments.fulfillments.Row>({
+  return useQuery<Fulfillment>({
     queryKey: ['order_fulfillment', order_id],
     queryFn: async () =>
-      await apiRequest<fulfillments.fulfillments.Row>('GET', `/orders/${order_id}/fulfillments`),
+      await apiRequest<Fulfillment>('GET', `/orders/${order_id}/fulfillments`),
     enabled: !!user && !!order_id,
   })
 }
@@ -37,16 +37,14 @@ export const useFulfillment = (order_id: string) => {
 // for a parcel, hangs off the shipment, and lives in features/shipping. Both
 // answer [] rather than 404 when the order is handed over some other way, so
 // a drawer renders the same component for every method.
-export type FulfillmentPickup = fulfillments.pickups.Row;
-export type FulfillmentDirect = fulfillments.directs.Row;
 
 export const useOrderPickups = (order_id: string) => {
   const { user } = useGetSession()
 
-  return useQuery<fulfillments.pickups.Row[]>({
+  return useQuery<FulfillmentPickup[]>({
     queryKey: ['order_pickups', order_id],
     queryFn: async () =>
-      await apiRequest<fulfillments.pickups.Row[]>('GET', `/orders/${order_id}/pickups`),
+      await apiRequest<FulfillmentPickup[]>('GET', `/orders/${order_id}/pickups`),
     enabled: !!user && !!order_id,
   })
 }
@@ -54,10 +52,10 @@ export const useOrderPickups = (order_id: string) => {
 export const useOrderDirects = (order_id: string) => {
   const { user } = useGetSession()
 
-  return useQuery<fulfillments.directs.Row[]>({
+  return useQuery<FulfillmentDirect[]>({
     queryKey: ['order_directs', order_id],
     queryFn: async () =>
-      await apiRequest<fulfillments.directs.Row[]>('GET', `/orders/${order_id}/directs`),
+      await apiRequest<FulfillmentDirect[]>('GET', `/orders/${order_id}/directs`),
     enabled: !!user && !!order_id,
   })
 }

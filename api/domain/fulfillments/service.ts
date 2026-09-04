@@ -13,7 +13,7 @@ import * as compose from "#domain/fulfillments/compose.ts";
 import type { ComposedFulfillment, Details } from "#domain/fulfillments/compose.ts";
 import { Conflict, NotFound } from "#shared/errors.ts";
 import type { PoolClient } from "pg";
-import type { fulfillments as fulfillmentTables, orders as ordersContract } from "@dorado/contracts";
+import type { Direction, FulfillmentMethod } from "@dorado/contracts";
 
 type Executor = PoolClient | undefined;
 
@@ -128,7 +128,7 @@ async function createFulfillment(
 
 // A draft for checkout: the fulfillment exists and mutates while the customer decides, and order creation attaches it. The offered-method check is the same one choose() runs.
 export async function createDraft(
-  { method_id, direction }: { method_id: string; direction: ordersContract.enums.Direction },
+  { method_id, direction }: { method_id: string; direction: Direction },
   executor?: Executor
 ): Promise<ComposedFulfillment | null> {
   await methodService.assertOffered({ method_id, direction }, executor);
@@ -161,7 +161,7 @@ export async function attachDraft(
 export async function attachForCheckout(
   { order_id, direction, fulfillment_id, method_id, pickup_address_id, location_id, start_time }: {
     order_id: string;
-    direction: ordersContract.enums.Direction;
+    direction: Direction;
     fulfillment_id: string | null;
     method_id: string | null;
     pickup_address_id: string | null;
@@ -223,7 +223,7 @@ async function recompose(id: string, executor?: Executor): Promise<ComposedFulfi
 // Choosing a method, from the customer's side. Admin callers go through chooseById instead - an admin putting an order on OWN LABEL is the reason OWN LABEL exists.
 export async function choose(
   { order_id, method_id, direction }:
-    { order_id: string; method_id: string; direction: ordersContract.enums.Direction },
+    { order_id: string; method_id: string; direction: Direction },
   executor?: Executor
 ): Promise<ComposedFulfillment | null> {
   await methodService.assertOffered({ method_id, direction }, executor);
@@ -241,7 +241,7 @@ export async function chooseById(
 // The default for a direction/category, for flows that don't ask. Both come from the seed, not a constant here, so changing the default is an UPDATE, not a deploy.
 export async function chooseDefault(
   { order_id, direction, category = "SHIPMENT" }:
-    { order_id: string; direction: ordersContract.enums.Direction; category?: fulfillmentTables.methods.Row["category"] },
+    { order_id: string; direction: Direction; category?: FulfillmentMethod["category"] },
   executor?: Executor
 ): Promise<ComposedFulfillment | null> {
   const method = await methodService.getDefault({ direction, category }, executor);
@@ -294,7 +294,7 @@ export async function setMethod(
 
 // Category is checked against the method, not trusted. A pickup row for a DROPSHIP fulfillment is a row every read attaches and none expects, and nothing in the schema would catch it.
 export async function assertCategory(
-  fulfillment_id: string, category: fulfillmentTables.methods.Row["category"], executor?: Executor
+  fulfillment_id: string, category: FulfillmentMethod["category"], executor?: Executor
 ): Promise<void> {
   const row = await fulfillments.getOne(fulfillment_id, executor);
   if (!row) throw new NotFound(`no such fulfillment: ${fulfillment_id}`);

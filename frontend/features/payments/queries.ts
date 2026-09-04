@@ -1,6 +1,6 @@
 import { useApiQuery } from '@/shared/queries/base'
 import { queryKeys } from '@/shared/queries/keys'
-import type { orders, payments } from "@dorado/contracts";
+import type { Direction, PaymentMethod } from "@dorado/contracts";
 
 // THE METHOD ROWS, BOTH DIRECTIONS (D207): how a customer pays us
 // (direction=sale - the checkout's payment options) and how we pay a customer
@@ -13,11 +13,11 @@ import type { orders, payments } from "@dorado/contracts";
 // Fees and surcharges here are DISPLAY. The server's calculateCardCharge is
 // the pricing authority, and api/features/pricing/tests/reference-drift pins
 // the CARD and ACH rows to its constants.
-export type PaymentMethodRow = payments.methods.Row
+export type PaymentMethodRow = PaymentMethod
 
 const REFERENCE_STALE_TIME = 60 * 60 * 1000
 
-export const usePaymentMethods = (direction: orders.enums.Direction) =>
+export const usePaymentMethods = (direction: Direction) =>
   useApiQuery<PaymentMethodRow[]>({
     key: queryKeys.paymentMethods(direction),
     url: `/payments/methods?direction=${direction}`,

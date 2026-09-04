@@ -1,16 +1,13 @@
 'use client'
 
-import type { Address, AddressFormValues, UserAddress } from '@/features/addresses/types'
+import type { Address, CarrierHandoff } from "@dorado/contracts";
+import type { AddressFormValues, UserAddress } from '@/features/addresses/types'
 import { Button } from '@dorado/components'
 import { Plus } from 'lucide-react'
 import { useMemo, useState } from 'react'
 
-import type {
-  CarrierHandoff,
-  CarrierServiceOption,
-  ShippingPickupTimesInput,
-  ShippingRate,
-} from '@/features/shipping/types'
+import type { ShippingPickupTimesInput } from '@/features/shipping/types'
+import type { CheckoutRate } from '@/features/checkout/queries'
 import { useShippingPickupTimes } from '@/features/shipping/queries'
 
 import { usePurchaseOrderCheckoutStore } from '@/shared/store/purchaseOrderCheckoutStore'
@@ -31,12 +28,12 @@ import { Separator } from '@/shared/ui/base/separator'
 interface ShippingStepProps {
   addresses: Address[]
   emptyAddress: AddressFormValues
-  rates: ShippingRate[]
-  // The carrier's own catalogue, read once by the stepper and injected
-  // (ruling 14: the parent holds the read, the children take props). Neither
-  // list is spelled anywhere in this tree any more.
+  // GET /checkout/rates?direction= - one flat, already-priced row per
+  // offered service. Read once by the stepper and injected (ruling 14).
+  rates: CheckoutRate[]
+  // The carrier's own handoff catalogue, read once by the stepper and
+  // injected. Neither list is spelled anywhere in this tree any more.
   handoffs: CarrierHandoff[]
-  services: CarrierServiceOption[]
   isLoading: boolean
 }
 
@@ -45,7 +42,6 @@ export default function ShippingStep({
   emptyAddress,
   rates,
   handoffs,
-  services,
   isLoading,
 }: ShippingStepProps) {
   const [draftAddress, setDraftAddress] = useState<AddressFormValues>(emptyAddress)
@@ -154,7 +150,7 @@ export default function ShippingStep({
       )}
 
       {/* Pickup FIRST (only needs address + pkg) */}
-      {address?.is_valid && pkg?.dimensions && pkg?.weight?.value !== undefined && (
+      {address?.is_valid && pkg?.id && (
         <>
           <PickupSelector handoffs={handoffs} />
           <Separator />
@@ -162,9 +158,9 @@ export default function ShippingStep({
       )}
 
       {/* Service AFTER pickup (needs address + pkg; service gets set here) */}
-      {address?.is_valid && pkg?.dimensions && pkg?.weight?.value !== undefined && (
+      {address?.is_valid && pkg?.id && (
         <>
-          <ServiceSelector services={services} rates={rates} isLoading={isLoading} />
+          <ServiceSelector rates={rates} isLoading={isLoading} />
           <Separator />
         </>
       )}

@@ -14280,3 +14280,127 @@ backfills them and the fallback is deleted.
   `confirmed`/`unit` field drift plus the e2e-seeded row-count gap, not
   content/pre_melt/purity/metal_id. `audit:non-finite` and `audit:nullability`
   both pass.
+### The two-table vocabulary is gone from code (2026-09-03)
+
+No native table has `purchase_order_id`/`sales_order_id` - `orders.orders` is
+one table with `direction`. 47 code lines + ~50 test lines still spelled the
+pair anyway. Fixed: SQL aliases now project `order_id` plain; `payments.
+intents`' `IntentFacts`/`ComposedIntentRow` carry `order_id` + `direction`
+(joined off `orders.orders`, never a CASE split); `domain/transactions/
+compose.ts` no longer splits a ledger row's `order_id` back into two wire
+fields (`wire/transactions.ts`'s `AccountTransaction` carries `order_id` +
+`direction` now); `ownership.ts`, `rules.ts`'s intent verdict, `payments/
+service.ts`, and the `?sales_order_id=` query param (now `?order_id=`) all
+follow. `feature-map.ts`'s LHS keys and the `exchange.*` SQL in quotes/
+order-metals-invariant tests are real legacy column names and correctly
+unchanged.
+
+**Not a rename pass.** `domain/shipping/shipments/service.ts` `create()` was
+rewritten from its inputs inward (D214 item 11): input is `order_id` (+
+`type`), direction is read off `orders.orders` via `directionOf`, never
+inferred from which of two ids was set. The "best-effort" fulfillment link
+(silently skipped when the order or its fulfillment couldn't be resolved) is
+gone - it now refuses (`NotFound`) rather than shipping a parcel nothing
+points at. `carrier_id` was accepted and never read; dropped, not excused.
+`create()` also now takes `tx: Executor` as a required last argument and
+never opens its own transaction (both its two real call sites already held
+one). `domain/transactions/service.ts` `addTransactionLog` similarly
+collapsed from five positional scalars into `(row: NewLedgerEntry, tx:
+Executor)` - `NewLedgerEntry` lives in `@dorado/contracts` (`wire/
+transactions.ts`), and `api/shared/testing/builders/transactions.ts`
+(`aLedgerEntry`) takes `Partial<NewLedgerEntry>`, no local Options type.
+
+**Every `try`/`catch` is gone from `transport/payments/controller.ts` and
+`domain/payments/service.ts`** (ruling 52: bans the catch, not the
+behavior). `updatePaymentIntent`'s self-heal STAYS, rewritten load->assert
+->write: `stripe.retrieveIntent(provider_ref)` first, `updateFromProvider`
+persists whatever Stripe says, and only if `isResolved(live.status)` does it
+mint a fresh intent via `createPaymentIntent` - otherwise it proceeds to
+`updateIntent`. No catch; a missed webhook still heals instead of 500ing at
+the last checkout step. `cancelIntentByRef` has no catch either - the
+translation moved to the PROVIDER: `providers/payment/stripe.ts`'s
+`cancelIntent` catches the SDK error and returns `{id, status: "canceled"}`
+for "no such payment_intent"/"already canceled" (states Stripe reports as
+errors), rethrowing anything else; the domain is one line,
+`updateFromProvider(await stripe.cancelIntent(provider_ref))`. A transient
+Stripe failure now propagates and the sweep retries next run, rather than
+being written off. Pinned in `providers/payment/tests/stripe-cassettes.
+test.ts`: unknown-intent resolves canceled (was: threw, adjusted), a new
+`cancel-intent-transient-error.json` cassette proves a real error still
+propagates. `domain/payments/tests/sweeps.test.ts`'s hard-won cassette test
+still passes unmodified. NOT added: a dedicated cassette test for the
+self-heal path itself (retrieve-then-mint-fresh) - the fixture engineering
+(a chargeable priced cart, a pre-seeded stale local intent, a two-interaction
+cassette) didn't fit the time box. The cassette is ready at `api/tests/
+cassettes/stripe/self-heal-stale-intent.json`; the test that consumes it is
+the remaining diff.
+
+**`lint-input-shapes.ts` is new** (`lint:input-shapes`, wired into
+`check.mjs`'s api-lint group): every write-facing `*Create/*New/*Patch/
+*Input/*Body` type in `api/domain/**` must name only columns its repo call
+can reach, and every builder in `api/shared/testing/builders/*.ts` must take
+a contract type (or `Partial<>` of one) rather than a local `*Options` type.
+Self-test plants both violation shapes. Real run: 0 unaccepted findings, 26
+accepted - 13 are genuine (renames, resolved ids, nested form objects; two,
+`PickupInput.carrier`/`.user_id`, are dead fields this lint found but this
+lane did not fix), 13 are every OTHER builder's pre-existing local Options
+type (not touched - out of this lane's mandate).
+
+**api-hardening moved twice during this lane** (8be6da5a, then 99916034) and
+a literal `git merge` could not be completed: this lane's ~40 touched files
+collide with the fast-forward's dirty-tree check regardless of content, and
+stash/commit are both off-limits. Hand-ported instead: `api/shared/
+attempt.ts` (byte-identical to the canonical version once it landed) and the
+`aLedgerEntry`/`NewLedgerEntry` shape 8be6da5a's `builders/transactions.ts`
+would have brought. Not ported: `lint-domain-errors.ts`, the `orders`/
+`quotes`/`shipping` test rewrites, and 99916034's checkout-items work - none
+touch a file this lane changed, so `order-id`'s worktree is simply behind
+`api-hardening` on those, not diverged from it.
+
+
+### Ruling 58 — parcel weight and declared value are the server's (2026-09-03)
+
+Jacob: *"We don't care about packaging weight on the frontend. Why would it
+live here?"* `checkout.checkouts.package_weight` and `declared_value` (113)
+were written by the CLIENT, patched from a value it computed or copied off a
+quote response. Migration `121_parcel_facts_are_the_servers.sql` DROPS both
+columns — nothing reads them across a request boundary, so nothing needed
+them persisted.
+
+- **Two pure rules, `domain/shipping/rules.ts`**: `parcelWeightLb(items, pkg)`
+  is `max(sum of each item's pre_melt converted to lb via the item's own
+  unit × quantity, pkg.min_weight_lb)` — `convertToPounds` is new on
+  `shared/utils/convertWeights.ts` (not in `mirror.test.ts`'s shared list; a
+  straight unit conversion, not a price). `declaredValue(total)` passes the
+  order/quote's own total through (floored at zero) — the meaning FedEx has
+  always been given, now named in one place instead of inlined at each call
+  site.
+- **Every body that took them from a client loses them**: `CheckoutPatchColumns`
+  (contracts), and `OrderCancel` — closing the open question the wire
+  comment used to carry about `weight` "having nowhere else to live": it now
+  computes from the order's own lines the same way the checkout path does.
+  `domain/orders/service.ts` `cancel()` computes weight from `order.items` and
+  declared value from `order.totals.total`; `domain/orders/place.ts`
+  `placePurchase` computes both from the checkout's cart and its own
+  `purchaseTotal` (new on `domain/checkout/service.ts` — prices the basket
+  the way `orders/read.ts`'s unpriced-line estimate does: stored premium ×
+  live bid).
+- **`GET /api/checkout/rates?direction=` replaces `POST /shipping/get_rates`**
+  (Jacob, same session: *"all the stuff that feeds into it can live directly
+  on the server"*). Declared on the checkout router, handled in
+  `domain/shipping/operations/service.ts` `getCheckoutRates` because shipping
+  owns the carrier call: loads the caller's own checkout row and items,
+  computes the parcel weight and a service-agnostic declared value, and asks
+  the carrier what every offered service costs — nobody has picked one yet.
+  `ShippingGetRatesBody` is deleted with its route; `CarrierRateQuote` (wire/
+  shipping.ts) is the flat response shape, one object per
+  `providers/shipments/utils/parsing.ts` `parseRates` row.
+- **No cassette matches the new endpoint's own request shape** — it builds a
+  request from a real checkout's address/package/items, and the recorded
+  `fedex/rate-quote.json` pins a fixed synthetic request from the provider's
+  own test. `domain/shipping/operations/tests/checkout-rates.test.ts` covers
+  every refusal (no items, no package, no address) over HTTP with no network
+  reachable at all, and names why the success path is `test.skip` rather than
+  faked.
+- **The frontend still PATCHes `package_weight`/`declared_value`** — that
+  lane's job; the API now ignores/rejects those keys.

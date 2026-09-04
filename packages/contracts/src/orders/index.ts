@@ -2,9 +2,9 @@
 // Run `pnpm --filter @dorado/contracts generate` to refresh.
 //
 // Every entity of the `orders` schema, one namespace each.
-export * as enums from "./enums.js";
-export * as addresses from "./addresses.js";
-export * as items from "./items.js";
-export * as orders from "./orders.js";
-export * as spots from "./spots.js";
-export * as transactions from "./transactions.js";
+export * from "./enums.js";
+export * from "./addresses.js";
+export * from "./items.js";
+export * from "./orders.js";
+export * from "./spots.js";
+export * from "./transactions.js";

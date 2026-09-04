@@ -6,12 +6,12 @@
 import query from "#shared/db/query.ts";
 import { buildUpdate } from "#shared/db/patch.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
-import type { payments } from "@dorado/contracts";
+import type { PaymentAttempt } from "@dorado/contracts";
 import type { Executor } from "#shared/db/executor.ts";
 
 const sql = sqlFrom(import.meta.dirname);
 
-export type AttemptRow = payments.attempts.Row;
+export type AttemptRow = PaymentAttempt;
 
 // An explicit id wins; every caller passes the intent's own id, so an intent
 // and its first attempt share one.

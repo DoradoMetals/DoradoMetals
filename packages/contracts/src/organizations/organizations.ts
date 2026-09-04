@@ -5,7 +5,7 @@
 // Postgres table: organizations.organizations
 import { z } from "zod/v4";
 
-export const Row = z.object({
+export const Organization = z.object({
   "id": z.string().uuid(),
   "image_id": z.string().uuid().nullable(),
   "type": z.string(),
@@ -22,12 +22,12 @@ export const Row = z.object({
   "created_by_id": z.string().uuid().nullable(),
   "updated_by_id": z.string().uuid().nullable(),
 });
-export type Row = z.infer<typeof Row>;
+export type Organization = z.infer<typeof Organization>;
 // generated:end
 // The organization BESIDE a carrier or a refiner, never smeared across it.
 // name and enabled widen to nullable: both are composed through a join that
 // can miss.
-export const Summary = Row.pick({
+export const OrganizationSummary = Organization.pick({
   id: true,
   name: true,
   email: true,
@@ -36,17 +36,17 @@ export const Summary = Row.pick({
 })
   .partial({ id: true })
   .extend({
-    name: Row.shape.name.nullable(),
-    enabled: Row.shape.enabled.nullable(),
+    name: Organization.shape.name.nullable(),
+    enabled: Organization.shape.enabled.nullable(),
   });
-export type Summary = z.infer<typeof Summary>;
+export type OrganizationSummary = z.infer<typeof OrganizationSummary>;
 
-// What a carrier/refiner create or patch may write on the organization.
-export const Write = Row.pick({
+// What a carrier or refiner write may set on its organization.
+export const OrganizationPatch = Organization.pick({
   name: true,
   email: true,
   phone: true,
   enabled: true,
 }).partial();
-export type Write = z.infer<typeof Write>;
+export type OrganizationPatch = z.infer<typeof OrganizationPatch>;
 

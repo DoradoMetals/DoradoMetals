@@ -1,12 +1,12 @@
 import { z } from "zod/v4";
-import { shipping } from "@dorado/contracts";
+import { CarrierDeleteBody, CarrierPatch } from "@dorado/contracts";
 import { asyncHandler } from "#shared/middleware/asyncHandler.ts";
 import * as carriersService from "#domain/shipping/carriers/service.ts";
 import { oneString } from "#shared/http/query.ts";
 import { parseStrict } from "#shared/http/validate.ts";
 
-const CreateBody = z.object({ carrier: shipping.carriers.New }).strict();
-const UpdateBody = z.object({ carrier: shipping.carriers.Patch }).strict();
+const CreateBody = z.object({ carrier: CarrierPatch }).strict();
+const UpdateBody = z.object({ carrier: CarrierPatch }).strict();
 
 export const getAll = asyncHandler(async (req, res) => {
   const result = await carriersService.getAllCarriers();
@@ -34,7 +34,7 @@ export const update = asyncHandler(async (req, res) => {
 
 // The frontend sends { carrier_id }, not { id } - the same mistake services/controller.ts had too.
 export const remove = asyncHandler(async (req, res) => {
-  const body = parseStrict(shipping.carriers.DeleteBody, req.body, "carriers/delete body");
+  const body = parseStrict(CarrierDeleteBody, req.body, "carriers/delete body");
   await carriersService.removeCarrier(body.carrier_id);
   return res.status(200).json(true);
 });

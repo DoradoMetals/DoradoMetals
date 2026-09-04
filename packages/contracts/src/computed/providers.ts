@@ -92,3 +92,19 @@ export const CarrierServiceOption = z.object({
   max_insured_value: z.number(),
 });
 export type CarrierServiceOption = z.infer<typeof CarrierServiceOption>;
+
+// ONE PRICED SERVICE, flat because the provider's own answer already is -
+// providers/shipments/utils/parsing.ts's parseRates. Not every carrier fills
+// every field; a value the provider omitted is null, not absent. No table
+// backs a rate quote: it is what FedEx said when asked, and it is never
+// stored.
+export const CarrierRateQuote = z.object({
+  serviceType: z.string().nullable(),
+  packagingType: z.string().nullable(),
+  netCharge: z.number().nullable(),
+  currency: z.string(),
+  deliveryDay: z.string().nullable(),
+  transitTime: z.string().nullable(),
+  serviceDescription: z.string().nullable(),
+});
+export type CarrierRateQuote = z.infer<typeof CarrierRateQuote>;

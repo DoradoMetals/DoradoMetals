@@ -7,7 +7,7 @@ import query from "#shared/db/query.ts";
 import { buildUpdate } from "#shared/db/patch.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
 import type { Executor } from "#shared/db/executor.ts";
-import type { refiners } from "@dorado/contracts";
+import type { RefinerSpot } from "@dorado/contracts";
 
 const sql = sqlFrom(import.meta.dirname);
 
@@ -15,7 +15,7 @@ const sql = sqlFrom(import.meta.dirname);
 // percent_change and dollar_change are projected as NULL — see sql/get_for.sql.
 type OrderSpotRow = {
   id: string;
-  purchase_order_id: string | null;
+  order_id: string | null;
   type: string;
   ask_spot: number | null;
   bid_spot: number | null;
@@ -49,7 +49,7 @@ export type RefinerSpotRow = {
 // The same rows as getFor, in the CONVERTED spellings (`name`/`ask`/`bid`) — what the order pipelines and quote read speak. See sql/get_named.sql.
 export type NamedSpotRow = {
   id: string;
-  purchase_order_id: string | null;
+  order_id: string | null;
   name: string;
   ask: number | null;
   bid: number | null;
@@ -69,8 +69,8 @@ export async function getNamed(
 // NOT idempotent: this table has no unique constraint on (order_id, metal_id)
 // where orders.spots does, so there is no conflict target to name. The rule
 // that builds these rows filters out the metals already covered.
-export type SpotNew = Pick<refiners.spots.Row, "order_id" | "metal_id" | "refiner_order_id"> &
-  Partial<Pick<refiners.spots.Row, "id" | "refiner_id" | "ask" | "bid">>;
+export type SpotNew = Pick<RefinerSpot, "order_id" | "metal_id" | "refiner_order_id"> &
+  Partial<Pick<RefinerSpot, "id" | "refiner_id" | "ask" | "bid">>;
 
 export async function create(row: SpotNew, executor?: Executor): Promise<RefinerSpotRow | undefined> {
   const { rows } = await query<RefinerSpotRow>(
@@ -122,7 +122,7 @@ export async function createMany(
 // Keyed on (order_id, metal_id): every caller holds that pair, never this table's own id — which is why buildUpdate takes a `where` map, a spot being one metal on one order.
 export const PATCHABLE = ["bid"] as const;
 
-export type SpotPatch = Partial<Pick<refiners.spots.Row, (typeof PATCHABLE)[number]>>;
+export type SpotPatch = Partial<Pick<RefinerSpot, (typeof PATCHABLE)[number]>>;
 
 export async function update(
   order_id: string, metal_id: string, patch: SpotPatch, executor?: Executor

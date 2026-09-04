@@ -36,10 +36,10 @@ import { TruckIcon, StorefrontIcon, IconProps } from '@phosphor-icons/react'
 // `pickupOptions` entry and nothing else ever referenced it. Ruling 32: the
 // dead ones go rather than being kept in case.
 
-// THE CHECKOUT FORM'S PICKUP BLOCK. Parsed on the money path -
-// purchaseOrderCheckoutSchema.parse in reviewStep - and its shape is what the
-// order create body carries, so it does not move while the create still takes
-// the composed checkout.
+// THE CHECKOUT FORM'S PICKUP BLOCK. `PurchaseCheckoutForm.pickup`
+// (features/orders/purchaseOrders/types.ts) is a `z.infer` of this schema,
+// and its shape is what the order create body carries, so it does not move
+// while the create still takes the composed checkout.
 //
 // It matches no table by design, which is why `audit:frontend-nullability`
 // reports it 0-of-6 against carrier_pickups: it is a FORM schema, and a form

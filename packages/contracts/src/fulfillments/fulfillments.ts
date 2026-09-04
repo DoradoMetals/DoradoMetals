@@ -5,7 +5,7 @@
 // Postgres table: fulfillments.fulfillments
 import { z } from "zod/v4";
 
-export const Row = z.object({
+export const Fulfillment = z.object({
   "id": z.string().uuid(),
   "method_id": z.string().uuid(),
   "order_id": z.string().uuid().nullable(),
@@ -17,29 +17,29 @@ export const Row = z.object({
   "created_by_id": z.string().uuid().nullable(),
   "updated_by_id": z.string().uuid().nullable(),
 });
-export type Row = z.infer<typeof Row>;
+export type Fulfillment = z.infer<typeof Fulfillment>;
 // generated:end
-import * as methods from "./methods.js";
+import { FulfillmentMethod } from "./methods.js";
 
 // GET /orders/:orderId/fulfillments - THE BARE ROW, verbatim, and nothing
 // else (rulings 9 + 12). No method embed - methods are reference data the
 // client maps by method_id off GET /fulfillments/methods - and no resolved
 // children: the shipment, pickup and direct reads are their own parent-path
 // endpoints.
-export const SetMethodBody = z.object({
-  fulfillment_id: Row.shape.id,
-  method_id: methods.Row.shape.id,
+export const FulfillmentSetMethodBody = z.object({
+  fulfillment_id: Fulfillment.shape.id,
+  method_id: FulfillmentMethod.shape.id,
 }).strict();
-export type SetMethodBody = z.infer<typeof SetMethodBody>;
+export type FulfillmentSetMethodBody = z.infer<typeof FulfillmentSetMethodBody>;
 
-export const SetStatusBody = z.object({
-  fulfillment_id: Row.shape.id,
-  status: Row.shape.status,
+export const FulfillmentSetStatusBody = z.object({
+  fulfillment_id: Fulfillment.shape.id,
+  status: Fulfillment.shape.status,
 }).strict();
-export type SetStatusBody = z.infer<typeof SetStatusBody>;
+export type FulfillmentSetStatusBody = z.infer<typeof FulfillmentSetStatusBody>;
 
-export const CancelScheduleBody = z.object({
-  fulfillment_id: Row.shape.id,
+export const FulfillmentCancelScheduleBody = z.object({
+  fulfillment_id: Fulfillment.shape.id,
 }).strict();
-export type CancelScheduleBody = z.infer<typeof CancelScheduleBody>;
+export type FulfillmentCancelScheduleBody = z.infer<typeof FulfillmentCancelScheduleBody>;
 

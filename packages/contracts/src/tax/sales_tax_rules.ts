@@ -6,7 +6,7 @@
 import { z } from "zod/v4";
 import { SalesTaxMetalCategory, SalesTaxProductType } from "./enums.js";
 
-export const Row = z.object({
+export const SalesTaxRule = z.object({
   "id": z.string().uuid(),
   "state_code": z.string(),
   "metal_category": SalesTaxMetalCategory,
@@ -25,7 +25,7 @@ export const Row = z.object({
   "is_domestic": z.boolean().nullable(),
   "is_legal_tender": z.boolean().nullable(),
 });
-export type Row = z.infer<typeof Row>;
+export type SalesTaxRule = z.infer<typeof SalesTaxRule>;
 // generated:end
 
 // Hand-written derivations go here: New, Patch, named reads.

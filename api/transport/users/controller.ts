@@ -1,4 +1,4 @@
-import { auth } from "@dorado/contracts";
+import { UpdateCreditBody } from "@dorado/contracts";
 import { callerId, requiredParam } from "#shared/http/caller.ts";
 import { oneString } from "#shared/http/query.ts";
 import { parseStrict } from "#shared/http/validate.ts";
@@ -28,7 +28,7 @@ export const getAdmins = asyncHandler(async (req, res) => {
 // type is a 400 before the service runs, and the answer is the user row the
 // adjustment produced - id and balance - rather than a count.
 export const updateCredit = asyncHandler(async (req, res) => {
-  const body = parseStrict(auth.users.CreditBody, req.body, "users/update_credit body");
+  const body = parseStrict(UpdateCreditBody, req.body, "users/update_credit body");
   const row = await usersService.adjustDoradoCredit(body);
   return res.status(200).json(row);
 });

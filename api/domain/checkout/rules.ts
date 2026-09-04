@@ -3,17 +3,17 @@ import { Invalid } from "#shared/errors.ts";
 import { fineContent } from "#domain/pricing/content.ts";
 import { getRatePct, sumContentByMetal } from "#domain/rates/utils/resolveRate.ts";
 import { lineContent, rateMaterialFor } from "#domain/orders/rules.ts";
-import type { checkout, orders, rates } from "@dorado/contracts";
+import type { CheckoutItemPatch, Direction, RateRead } from "@dorado/contracts";
 import type { NewItem } from "#db/checkout/items/repo.ts";
 import type { Liveness, PublicProductRow } from "#db/products/repo.ts";
 
 export type BasketFacts = {
   checkout_id: string;
-  direction: orders.enums.Direction;
-  items: checkout.items.New[];
+  direction: Direction;
+  items: CheckoutItemPatch[];
   products: PublicProductRow[];
   liveness: Liveness[];
-  rates: rates.rates.Read[];
+  rates: RateRead[];
   metalNames: Map<string, string>;
 };
 
@@ -30,7 +30,7 @@ function notAvailable(count: number): never {
 }
 
 function requireLiveProducts(
-  items: checkout.items.New[], direction: orders.enums.Direction, byId: Map<string, PublicProductRow>,
+  items: CheckoutItemPatch[], direction: Direction, byId: Map<string, PublicProductRow>,
   live: Set<string>
 ): void {
   const refused = new Set<string>();
@@ -48,7 +48,7 @@ function requireLiveProducts(
 type Snapshot = { row: NewItem; metal: string | null };
 
 function snapshot(
-  line: checkout.items.New, direction: orders.enums.Direction, checkout_id: string,
+  line: CheckoutItemPatch, direction: Direction, checkout_id: string,
   byId: Map<string, PublicProductRow>, metalNames: Map<string, string>
 ): Snapshot {
   if (line.bullion_id != null) {
@@ -106,7 +106,7 @@ function snapshot(
 // Purchase: the rates band at the basket's total content of that metal, which
 // is placement's own rule. Sale: the product's ask. No band leaves it null.
 function premiums(
-  snapshots: Snapshot[], direction: orders.enums.Direction, rates: rates.rates.Read[],
+  snapshots: Snapshot[], direction: Direction, rates: RateRead[],
   byId: Map<string, PublicProductRow>
 ): (number | null)[] {
   if (direction === "sale") {

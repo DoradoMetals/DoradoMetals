@@ -8,6 +8,9 @@ import * as pickupRepo from "#domain/shipping/pickups/service.ts";
 import * as servicesRepo from "#db/shipping/services/repo.ts";
 import * as addressesRepo from "#db/places/addresses/repo.ts";
 import * as packagesRepo from "#db/shipping/packages/repo.ts";
+import * as checkoutService from "#domain/checkout/service.ts";
+import * as carrierServices from "#domain/shipping/services/service.ts";
+import * as shippingRules from "#domain/shipping/rules.ts";
 import * as shippingHandler from "#domain/shipping/operations/handler.ts";
 import { carrierIdOr } from "#domain/shipping/operations/resolver.ts";
 import { FEDEX_STORE_ADDRESS, DORADO_ADDRESS } from "#providers/shipments/constants.ts";
@@ -19,7 +22,7 @@ import type { ParsedTracking } from "#providers/shipments/utils/parsing.ts";
 import type { RatesInput } from "#domain/shipping/operations/handler.ts";
 import type { PickupBaseRow as PickupRow } from "#db/shipping/pickups/repo.ts";
 import type { PoolClient } from "pg";
-import type { shipping as shippingContract } from "@dorado/contracts";
+import type { Direction, Shipment, ShippingCancelLabelBody, ShippingCancelPickupBody, ShippingCheckPickupBody, ShippingGetLocationsBody, ShippingValidateAddressBody } from "@dorado/contracts";
 
 type Executor = PoolClient | undefined;
 
@@ -33,20 +36,18 @@ async function requireAddress(address_id: string) {
 }
 
 // fetchTracking is the seam a test uses instead of calling FedEx. Returns ParsedTracking, not TrackingInfo: this reads four fields (scanEvents, latestStatus, estimatedDeliveryTime, deliveredAt), and TrackingInfo declares only the one insertEvents needs - the narrower type would compile then fail at the body.
-import type { shipping } from "@dorado/contracts";
-
 export type FetchTracking = (
   shipment: ShipmentRow,
   client?: Executor
 ) => Promise<ParsedTracking>;
 
 // The three directions a parcel moves, read from shipping.direction itself rather than duplicated by hand - not to be confused with orders.direction (purchase/sale), a different enum with the same name.
-type ShippingType = shippingContract.shipments.Row["direction"];
+type ShippingType = Shipment["direction"];
 
 // Runs OUTSIDE any transaction: cancelling a label first, inside one, risked a later failure rolling back our record while FedEx had already killed the label - a customer holding a label the system still calls active.
 // Safe because cancel is idempotent - a retry just cancels an already-cancelled label. Creating a label is NOT idempotent and doesn't get this treatment; see domain/orders/service.ts.
 export async function cancelLabel(
-  { shipment_id, carrier_id }: shippingContract.shipments.CancelBody
+  { shipment_id, carrier_id }: ShippingCancelLabelBody
 ): Promise<ShipmentRow | null> {
   // An unknown shipment id used to reach the carrier before this guard existed - getById returning null meant a TypeError AFTER deciding to call FedEx, not before.
   const shipment = await shipmentRepo.getById(shipment_id);
@@ -176,41 +177,55 @@ export async function quoteRate({
   });
 }
 
-// A RATE QUOTE, priced from ids the server holds: address_id names the
-// customer's own address, package_id the box, weight the one genuine
-// measurement nothing else stores. Inbound quotes FROM that address TO the
-// store; Outbound/Return quote FROM the store (the business always ships its
-// own side of those two).
-export async function getRates(
-  body: shippingContract.shipments.RatesBody
+// GET /checkout/rates?direction= replaced the old body-fed rate endpoint
+// (Jacob, 2026-09-03: "all the stuff that feeds into it can live directly on
+// the server"). The client sends only its direction; everything else -
+// address, package, weight, declared value - is read off the caller's own
+// checkout row and items. Nobody has picked a service yet, which is the whole
+// point of the call, so this asks the carrier about every one it offers.
+export async function getCheckoutRates(
+  user_id: string, direction: Direction
 ): Promise<ReturnType<typeof shippingHandler.getRates>> {
-  if (!(body.weight > 0)) throw new Invalid("the parcel needs a weight");
+  const checkout = await checkoutService.getRowFor(user_id, direction);
+  const cart = await checkoutService.getItemsForOrder(checkout.id);
+  if (!cart.length) throw new Invalid("the checkout has no items to rate");
 
-  const address = await requireAddress(body.address_id);
-  const box = await packagesRepo.getOne(body.package_id);
-  if (!box) throw new Invalid(`no package ${body.package_id}`);
+  if (!checkout.package_id) throw new Invalid("choose a package before requesting rates");
+  const box = await packagesRepo.getOne(checkout.package_id);
+  if (!box) throw new Invalid(`no package ${checkout.package_id}`);
+  const weight = shippingRules.parcelWeightLb(cart, box);
+
+  const shippingType = direction === "purchase" ? "Inbound" : "Outbound";
+  const address_id =
+    direction === "purchase" ? checkout.shipper_address_id : checkout.recipient_address_id;
+  if (!address_id) throw new Invalid("choose an address before requesting rates");
+  const address = await requireAddress(address_id);
+
+  // Service-agnostic clamp - the same lowest-ceiling answer
+  // quotes/service.ts's purchaseOrderQuote applies before a service exists.
+  const total = direction === "purchase" ? await checkoutService.purchaseTotal(checkout.id) : 0;
+  const declaredValue = await carrierServices.clampInsuredValue(
+    shippingRules.declaredValue(total)
+  );
 
   return quoteRate({
-    carrier_id: body.carrier_id,
-    shippingType: body.shippingType,
+    shippingType,
     address,
     pkg: {
-      weight: { units: "LB", value: body.weight },
+      weight: { units: "LB", value: weight },
       dimensions: {
         length: Number(box.length), width: Number(box.width),
         height: Number(box.height), units: "IN",
       },
     },
-    pickupType: body.pickupType,
-    declaredValue:
-      body.declaredValue != null ? { amount: body.declaredValue, currency: "USD" } : undefined,
+    declaredValue: declaredValue > 0 ? { amount: declaredValue, currency: "USD" } : undefined,
   });
 }
 
 // An address as the customer entered it, checked against the carrier before
 // the checkout that owns it commits to it.
 export async function validateAddress(
-  body: shippingContract.shipments.ValidateAddressBody
+  body: ShippingValidateAddressBody
 ): Promise<ReturnType<typeof shippingHandler.validateAddress>> {
   const address = await requireAddress(body.address_id);
   return shippingHandler.validateAddress(await carrierIdOr(body.carrier_id), undefined, { address });
@@ -218,7 +233,7 @@ export async function validateAddress(
 
 // The pickup windows a carrier will collect from address_id on readyDate.
 export async function checkPickup(
-  body: shippingContract.pickups.CheckBody
+  body: ShippingCheckPickupBody
 ): Promise<ReturnType<typeof shippingHandler.checkPickup>> {
   const address = await requireAddress(body.address_id);
   // readyDate is a Date everywhere below - JSON cannot carry one, so it is
@@ -234,7 +249,7 @@ export async function checkPickup(
 
 // The carrier's own drop-off points near address_id.
 export async function getLocations(
-  body: shippingContract.shipments.LocationsBody
+  body: ShippingGetLocationsBody
 ): Promise<ReturnType<typeof shippingHandler.getLocations>> {
   const address = await requireAddress(body.address_id);
   return shippingHandler.getLocations(await carrierIdOr(body.carrier_id), undefined, {
@@ -244,7 +259,7 @@ export async function getLocations(
 
 // Same shape and reasoning as cancelLabel: cancelling a pickup is idempotent and runs outside any transaction - a rollback after it would leave a courier not coming and a row that says one is.
 export async function cancelPickup(
-  { pickup_id, carrier_id }: shippingContract.pickups.CancelBody
+  { pickup_id, carrier_id }: ShippingCancelPickupBody
 ): Promise<PickupRow | null> {
   // Same guard as cancelLabel and getTracking: an unknown id used to read three fields off null after deciding to call the carrier.
   const pickup = await pickupRepo.getById(pickup_id);
@@ -271,11 +286,15 @@ export async function cancelPickup(
   });
 
   // Two bugs at once: the repo reads pickup_status, so `status` wrote the existing status back unchanged; and the CHECK constraint allows only pending/scheduled/completed/canceled (one L) - "cancelled" was refused outright.
-  return await pickupRepo.update({
-    id: pickup.id,
-    confirmation_number: pickup.confirmation_number,
-    pickup_status: "canceled",
-  });
+  // Opened here rather than taken as an argument (ruling 56): this write must
+  // stand alone, AFTER the FedEx call above - see this function's own header.
+  return await withTransaction((tx) =>
+    pickupRepo.update({
+      id: pickup.id,
+      confirmation_number: pickup.confirmation_number,
+      pickup_status: "canceled",
+    }, tx)
+  );
 }
 
 // ===========================================================================

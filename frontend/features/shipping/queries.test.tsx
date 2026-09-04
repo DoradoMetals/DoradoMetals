@@ -5,20 +5,20 @@
 // package_id through shipping.packages) plus the one genuine measurement
 // nothing else stores (weight). Three of these tests exist because the old
 // bodies would 400 under strict parsing and did not before:
-//   - useTracking sent tracking_number/carrier_id that shipping.tracking.Body
+//   - useTracking sent tracking_number/carrier_id that ShippingGetTrackingBody
 //     never declared (the server reads both off the shipment row by id).
-//   - useShippingCancelLabel sent a tracking_number shipping.shipments.CancelBody
+//   - useShippingCancelLabel sent a tracking_number ShippingCancelLabelBody
 //     never declared.
 //   - useShippingCancelPickup nested its whole body under an `input` key
 //     ({ input: {...} }) instead of sending the fields at the top level, and
-//     also sent a confirmation_code shipping.pickups.CancelBody never declared -
+//     also sent a confirmation_code ShippingCancelPickupBody never declared -
 //     a real bug an unvalidated req.body destructure had been silently
 //     absorbing.
 import { describe, expect, test, vi, beforeEach } from "vitest";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
-import { shipping } from "@dorado/contracts";
+import { ShipmentPatch, ShippingCancelLabelBody, ShippingCancelPickupBody, ShippingCheckPickupBody, ShippingGetLocationsBody, ShippingGetTrackingBody, ShippingValidateAddressBody } from "@dorado/contracts";
 
 vi.mock("@/shared/queries/axios", () => ({ apiRequest: vi.fn() }));
 vi.mock("@/features/auth/queries", () => ({
@@ -28,7 +28,6 @@ vi.mock("@/features/orders/invalidation", () => ({ invalidateOrderReads: vi.fn()
 
 import { apiRequest } from "@/shared/queries/axios";
 import {
-  useShippingRates,
   useShippingPickupTimes,
   useShippingLocations,
   useShippingValidateAddress,
@@ -37,8 +36,6 @@ import {
   useShippingCancelPickup,
   usePatchShipment,
 } from "@/features/shipping/queries";
-import { useGetRatesInput } from "@/features/shipping/utils/getRatesInput";
-import type { ShippingRatesInput } from "@/features/shipping/types";
 
 function wrapper({ children }: { children: ReactNode }) {
   const client = new QueryClient({
@@ -47,90 +44,16 @@ function wrapper({ children }: { children: ReactNode }) {
   return <QueryClientProvider client={client}>{children}</QueryClientProvider>;
 }
 
-const anAddress = () => ({
-  id: "9f1c2b3a-0000-4000-8000-000000000001",
-  line_1: "1 Main St",
-  line_2: null,
-  city: "Dallas",
-  state: "TX",
-  country: "United States",
-  country_code: "US",
-  zip: "75201",
-  phone_number: "5555555555",
-  is_valid: true,
-  is_residential: false,
-  created_at: null,
-  updated_at: null,
-})
-
 beforeEach(() => {
   vi.mocked(apiRequest).mockReset();
   vi.mocked(apiRequest).mockResolvedValue({});
 });
 
-describe("useGetRatesInput composes exactly what /shipping/get_rates accepts", () => {
-  test("address/package become address_id/package_id, declaredValue becomes a number", () => {
-    const { result } = renderHook(() =>
-      useGetRatesInput({
-        address: anAddress() as any,
-        package: { id: "9f1c2b3a-0000-4000-8000-000000000002", weight: { value: 4.5 } },
-        shippingType: "Inbound",
-        pickupLabel: "DROPOFF_AT_FEDEX_LOCATION",
-        insurance: { insured: true, declaredValue: { amount: 500, currency: "USD" } },
-      })
-    );
-
-    expect(result.current).not.toBeNull();
-    const parsed = shipping.shipments.RatesBody.strict().safeParse(result.current);
-    expect(parsed.success).toBe(true);
-    expect(result.current).toMatchObject({
-      address_id: "9f1c2b3a-0000-4000-8000-000000000001",
-      package_id: "9f1c2b3a-0000-4000-8000-000000000002",
-      weight: 4.5,
-      declaredValue: 500,
-    });
-    expect(result.current).not.toHaveProperty("address");
-    expect(result.current).not.toHaveProperty("pkg");
-
-    // Proven: the old composed shape would fail the same parse.
-    const oldShape = {
-      shippingType: "Inbound",
-      address: anAddress(),
-      pkg: { weight: { units: "LB", value: 4.5 }, dimensions: { length: 1, width: 1, height: 1, units: "IN" } },
-      pickupType: "DROPOFF_AT_FEDEX_LOCATION",
-    };
-    expect(shipping.shipments.RatesBody.strict().safeParse(oldShape).success).toBe(false);
-  });
-
-  test("returns null until a package id and a weight are both known", () => {
-    const { result } = renderHook(() =>
-      useGetRatesInput({
-        address: anAddress() as any,
-        package: { weight: { value: 4.5 } }, // no id yet
-        pickupLabel: "DROPOFF_AT_FEDEX_LOCATION",
-      })
-    );
-    expect(result.current).toBeNull();
-  });
-});
-
-describe("useShippingRates sends exactly what /shipping/get_rates accepts", () => {
-  test("forwards an already-resolved input clean", async () => {
-    const input: ShippingRatesInput = {
-      shippingType: "Inbound",
-      address_id: "9f1c2b3a-0000-4000-8000-000000000001",
-      package_id: "9f1c2b3a-0000-4000-8000-000000000002",
-      weight: 4.5,
-      pickupType: "DROPOFF_AT_FEDEX_LOCATION",
-    };
-    renderHook(() => useShippingRates(input), { wrapper });
-
-    await waitFor(() => expect(apiRequest).toHaveBeenCalled());
-    const [, url, body] = vi.mocked(apiRequest).mock.calls[0];
-    expect(url).toBe("/shipping/get_rates");
-    expect(shipping.shipments.RatesBody.strict().safeParse(body).success).toBe(true);
-  });
-});
+// The client-side rate request is GONE (the rates ruling): a checkout step
+// reads GET /checkout/rates?direction= now, already priced, and assembles no
+// address/package/weight body at all - see useCheckoutRates in
+// features/checkout/queries.ts. useGetRatesInput and useShippingRates died
+// with the assembly they served.
 
 describe("useShippingPickupTimes sends exactly what /shipping/check_pickup accepts", () => {
   test("pickupAddress became address_id", async () => {
@@ -147,7 +70,7 @@ describe("useShippingPickupTimes sends exactly what /shipping/check_pickup accep
     await waitFor(() => expect(apiRequest).toHaveBeenCalled());
     const [, url, body] = vi.mocked(apiRequest).mock.calls[0];
     expect(url).toBe("/shipping/check_pickup");
-    expect(shipping.pickups.CheckBody.strict().safeParse(body).success).toBe(true);
+    expect(ShippingCheckPickupBody.strict().safeParse(body).success).toBe(true);
     expect(body).not.toHaveProperty("pickupAddress");
   });
 });
@@ -167,7 +90,7 @@ describe("useShippingLocations sends exactly what /shipping/get_locations accept
     await waitFor(() => expect(apiRequest).toHaveBeenCalled());
     const [, url, body] = vi.mocked(apiRequest).mock.calls[0];
     expect(url).toBe("/shipping/get_locations");
-    expect(shipping.shipments.LocationsBody.strict().safeParse(body).success).toBe(true);
+    expect(ShippingGetLocationsBody.strict().safeParse(body).success).toBe(true);
     expect(body).not.toHaveProperty("address");
   });
 });
@@ -182,7 +105,7 @@ describe("useShippingValidateAddress sends exactly what /shipping/validate_addre
     await waitFor(() => expect(apiRequest).toHaveBeenCalled());
     const [, url, body] = vi.mocked(apiRequest).mock.calls[0];
     expect(url).toBe("/shipping/validate_address");
-    expect(shipping.shipments.ValidateAddressBody.strict().safeParse(body).success).toBe(true);
+    expect(ShippingValidateAddressBody.strict().safeParse(body).success).toBe(true);
   });
 });
 
@@ -201,13 +124,13 @@ describe("useTracking sends exactly what /shipping/get_tracking accepts", () => 
     await waitFor(() => expect(apiRequest).toHaveBeenCalled());
     const [, url, body] = vi.mocked(apiRequest).mock.calls[0];
     expect(url).toBe("/shipping/get_tracking");
-    expect(shipping.tracking.Body.strict().safeParse(body).success).toBe(true);
+    expect(ShippingGetTrackingBody.strict().safeParse(body).success).toBe(true);
     expect(body).not.toHaveProperty("tracking_number");
     expect(body).not.toHaveProperty("carrier_id");
 
     // Proven: the old body would fail the same parse.
     expect(
-      shipping.tracking.Body.strict().safeParse({
+      ShippingGetTrackingBody.strict().safeParse({
         shipment_id: "9f1c2b3a-0000-4000-8000-000000000003",
         tracking_number: "1Z999",
         carrier_id: "9f1c2b3a-0000-4000-8000-000000000004",
@@ -230,7 +153,7 @@ describe("useShippingCancelLabel sends exactly what /shipping/cancel_label accep
     await waitFor(() => expect(apiRequest).toHaveBeenCalled());
     const [, url, body] = vi.mocked(apiRequest).mock.calls[0];
     expect(url).toBe("/shipping/cancel_label");
-    expect(shipping.shipments.CancelBody.strict().safeParse(body).success).toBe(true);
+    expect(ShippingCancelLabelBody.strict().safeParse(body).success).toBe(true);
     expect(body).not.toHaveProperty("tracking_number");
   });
 });
@@ -249,7 +172,7 @@ describe("useShippingCancelPickup sends exactly what /shipping/cancel_pickup acc
     await waitFor(() => expect(apiRequest).toHaveBeenCalled());
     const [, url, body] = vi.mocked(apiRequest).mock.calls[0];
     expect(url).toBe("/shipping/cancel_pickup");
-    expect(shipping.pickups.CancelBody.strict().safeParse(body).success).toBe(true);
+    expect(ShippingCancelPickupBody.strict().safeParse(body).success).toBe(true);
     expect(body).not.toHaveProperty("input");
     expect(body).not.toHaveProperty("confirmation_code");
     expect(body).toHaveProperty("pickup_id", "9f1c2b3a-0000-4000-8000-000000000005");
@@ -272,6 +195,6 @@ describe("usePatchShipment sends exactly what PATCH /shipments/:id accepts", () 
     const [method, url, body] = vi.mocked(apiRequest).mock.calls[0];
     expect(method).toBe("PATCH");
     expect(url).toBe("/shipments/9f1c2b3a-0000-4000-8000-000000000003");
-    expect(shipping.shipments.Patch.strict().safeParse(body).success).toBe(true);
+    expect(ShipmentPatch.strict().safeParse(body).success).toBe(true);
   });
 });

@@ -1,5 +1,6 @@
 'use client'
 
+import type { Lead, LeadPatch } from "@dorado/contracts";
 import { useDrawerStore } from '@/shared/store/drawerStore'
 import Drawer from '@/shared/ui/base/drawer'
 import { useMemo, useRef, useState } from 'react'
@@ -8,7 +9,7 @@ import { formatFullDate } from '@/shared/utils/formatDates'
 import StatusChip from '@/shared/ui/StatusChip'
 import UpdatedByline from '@/shared/ui/UpdatedByline'
 
-import { Lead, LeadPatch, LeadPriority } from '@/features/leads/types'
+import { LeadPriority } from '@/features/leads/types'
 import { PrioritySelect } from '@/features/leads/ui/PrioritySelect'
 import { Input } from '@/shared/ui/base/input'
 import { Textarea } from '@/shared/ui/base/textarea'

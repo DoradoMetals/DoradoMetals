@@ -5,7 +5,7 @@
 // Postgres table: spots.spots
 import { z } from "zod/v4";
 
-export const Row = z.object({
+export const Spot = z.object({
   "id": z.string().uuid(),
   "metal_id": z.string().uuid(),
   "ask": z.number(),
@@ -14,21 +14,21 @@ export const Row = z.object({
   "dollar_change": z.number().nullable(),
   "updated_at": z.string(),
 });
-export type Row = z.infer<typeof Row>;
+export type Spot = z.infer<typeof Spot>;
 // generated:end
-import * as metals from "../metals/metals.js";
+import { Metal } from "../metals/metals.js";
 
 // A spot quote, flat, because it has no existence apart from the metal it
 // prices - the id here IS the metal's id, and the name is the metal's name.
-export const Read = Row.pick({
+export const SpotPrice = Spot.pick({
   ask: true,
   bid: true,
   percent_change: true,
   dollar_change: true,
 }).extend({
-  id: metals.Row.shape.id,
-  name: metals.Row.shape.name,
-  ask: Row.shape.ask.nullable(),
+  id: Metal.shape.id,
+  name: Metal.shape.name,
+  ask: Spot.shape.ask.nullable(),
 });
-export type Read = z.infer<typeof Read>;
+export type SpotPrice = z.infer<typeof SpotPrice>;
 

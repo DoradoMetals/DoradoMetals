@@ -1,12 +1,12 @@
 // media.emails, append-only - a send is recorded once, sent or failed, and never edited. NO update(), NO remove().
 import query from "#shared/db/query.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
-import type { media } from "@dorado/contracts";
+import type { Email } from "@dorado/contracts";
 import type { Executor } from "#shared/db/executor.ts";
 
 const sql = sqlFrom(import.meta.dirname);
 
-export type EmailRow = media.emails.Row;
+export type EmailRow = Email;
 
 export type NewEmail = {
   kind: EmailRow["kind"];

@@ -1,5 +1,5 @@
 // What useSalesOrderQuote and usePurchaseOrderQuote actually POST, checked
-// against @dorado/contracts' quotes.SalesOrderQuoteBody/quotes.PurchaseOrderQuoteBody in
+// against @dorado/contracts' SalesOrderQuoteBody/PurchaseOrderQuoteBody in
 // strict mode. The contracts lane replaced `shipping_service`/
 // `payment_method` (codes/types) with `carrier_service_id`/
 // `payment_method_id`, replaced a scrap line's metal NAME with `metal_id`,
@@ -10,7 +10,7 @@ import { describe, expect, test, vi, beforeEach } from "vitest";
 import { renderHook, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
-import { quotes } from "@dorado/contracts";
+import { PurchaseOrderQuoteBody, SalesOrderQuoteBody } from "@dorado/contracts";
 
 vi.mock("@/shared/queries/axios", () => ({ apiRequest: vi.fn() }));
 vi.mock("@/features/auth/queries", () => ({
@@ -19,7 +19,7 @@ vi.mock("@/features/auth/queries", () => ({
 
 import { apiRequest } from "@/shared/queries/axios";
 import { useSalesOrderQuote, usePurchaseOrderQuote } from "@/features/quotes/queries";
-import type { SellCartItem } from "@/features/cart/types";
+import type { CheckoutLine } from "@/features/checkout/items/types";
 
 const SALE_SERVICE_ID = "9f1c2b3a-0000-4000-8000-000000000031";
 const SALE_METHOD_ID = "9f1c2b3a-0000-4000-8000-000000000032";
@@ -35,28 +35,17 @@ function wrapper({ children }: { children: ReactNode }) {
   return <QueryClientProvider client={client}>{children}</QueryClientProvider>;
 }
 
-const aLine = (over: Partial<SellCartItem>): SellCartItem => ({
+const aLine = (over: Partial<CheckoutLine>): CheckoutLine => ({
   id: "line",
-  bullion_id: null,
-  metal_id: null,
-  pre_melt: null,
-  post_melt: null,
-  purity: null,
-  unit: null,
   quantity: 1,
-  gross: null,
-  metal: null,
-  name: null,
-  image_front: null,
-  mint_name: null,
   ...over,
 });
 
-const aProductItem = (): SellCartItem =>
+const aProductItem = (): CheckoutLine =>
   aLine({ id: PRODUCT_ID, bullion_id: PRODUCT_ID, quantity: 2 });
 
-const aScrapItem = (): SellCartItem =>
-  aLine({ id: "lot", metal: "Gold", pre_melt: 10, purity: 0.585, unit: "g" });
+const aScrapItem = (): CheckoutLine =>
+  aLine({ id: "lot", metal_id: GOLD_ID, pre_melt: 10, purity: 0.585, unit: "g" });
 
 beforeEach(() => {
   vi.mocked(apiRequest).mockReset();
@@ -100,7 +89,7 @@ describe("useSalesOrderQuote sends exactly what /quotes/sales_order accepts", ()
       .mock.calls.find(([, url]) => url === "/quotes/sales_order")!;
     const body = call[2] as Record<string, unknown>;
 
-    expect(quotes.SalesOrderQuoteBody.strict().safeParse(body).success).toBe(true);
+    expect(SalesOrderQuoteBody.strict().safeParse(body).success).toBe(true);
     expect(body.carrier_service_id).toBe(SALE_SERVICE_ID);
     expect(body.payment_method_id).toBe(SALE_METHOD_ID);
 
@@ -110,7 +99,7 @@ describe("useSalesOrderQuote sends exactly what /quotes/sales_order accepts", ()
 
     // Proven: using_funds returning would fail the same parse.
     expect(
-      quotes.SalesOrderQuoteBody.strict().safeParse({ ...body, using_funds: true }).success
+      SalesOrderQuoteBody.strict().safeParse({ ...body, using_funds: true }).success
     ).toBe(false);
   });
 });
@@ -142,7 +131,7 @@ describe("usePurchaseOrderQuote sends exactly what /quotes/purchase_order accept
       shipping_charge?: number;
     };
 
-    expect(quotes.PurchaseOrderQuoteBody.strict().safeParse(body).success).toBe(true);
+    expect(PurchaseOrderQuoteBody.strict().safeParse(body).success).toBe(true);
     expect(body.items[0]).toMatchObject({ type: "product", bullion_id: PRODUCT_ID, quantity: 2 });
     expect(body.items[1]).toMatchObject({
       type: "scrap",
@@ -159,6 +148,6 @@ describe("usePurchaseOrderQuote sends exactly what /quotes/purchase_order accept
 
     // Proven: a scrap line naming content would fail the same parse.
     const poisoned = { ...body, items: [body.items[0], { ...body.items[1], content: 5.85 }] };
-    expect(quotes.PurchaseOrderQuoteBody.strict().safeParse(poisoned).success).toBe(false);
+    expect(PurchaseOrderQuoteBody.strict().safeParse(poisoned).success).toBe(false);
   });
 });

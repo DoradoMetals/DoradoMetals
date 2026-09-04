@@ -5,7 +5,7 @@
 // Postgres table: auth.verification
 import { z } from "zod/v4";
 
-export const Row = z.object({
+export const Verification = z.object({
   "id": z.string().uuid(),
   "identifier": z.string(),
   "value": z.string(),
@@ -13,7 +13,7 @@ export const Row = z.object({
   "createdAt": z.string(),
   "updatedAt": z.string(),
 });
-export type Row = z.infer<typeof Row>;
+export type Verification = z.infer<typeof Verification>;
 // generated:end
 
 // Hand-written derivations go here: New, Patch, named reads.

@@ -5,12 +5,12 @@
 import query from "#shared/db/query.ts";
 import { buildUpdate } from "#shared/db/patch.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
-import type { payments } from "@dorado/contracts";
+import type { PaymentSettlement } from "@dorado/contracts";
 import type { Executor } from "#shared/db/executor.ts";
 
 const sql = sqlFrom(import.meta.dirname);
 
-export type SettlementRow = payments.settlements.Row;
+export type SettlementRow = PaymentSettlement;
 
 export type NewSettlement = {
   id: string;

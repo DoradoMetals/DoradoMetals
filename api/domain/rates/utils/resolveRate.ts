@@ -1,5 +1,5 @@
 /**
- * rates.rates.Read resolution for quantity-tiered pricing (server-side source of truth).
+ * RateRead resolution for quantity-tiered pricing (server-side source of truth).
  * Mirror of the frontend helper at `frontend/features/rates/utils/resolveRate.ts` - keep the two in sync.
  *
  * Rates are banded per metal by [min_qty, max_qty] (max_qty null = open-ended)
@@ -7,7 +7,7 @@
  * `scrap_pct` / `bullion_pct` are fractions (0–1) that plug into
  * `bid_spot * premium`.
  */
-import type { rates } from "@dorado/contracts";
+import type { RateRead } from "@dorado/contracts";
 
 const normMetal = (m: unknown): string => String(m ?? "").trim().toLowerCase();
 
@@ -18,10 +18,10 @@ const normMetal = (m: unknown): string => String(m ?? "").trim().toLowerCase();
  * - above the highest band → the highest band
  */
 export function getRateBand(
-  rates: rates.rates.Read[] | null | undefined,
+  rates: RateRead[] | null | undefined,
   metal: unknown,
   totalQty: number
-): rates.rates.Read | null {
+): RateRead | null {
   const bands = (rates ?? [])
     .filter((r) => normMetal(r.metal) === normMetal(metal))
     .sort((a, b) => a.min_qty - b.min_qty);
@@ -42,7 +42,7 @@ export function getRateBand(
  * Returns undefined when no band exists (caller decides the fallback).
  */
 export function getRatePct(
-  rates: rates.rates.Read[] | null | undefined,
+  rates: RateRead[] | null | undefined,
   metal: unknown,
   totalQty: number,
   material: "scrap" | "bullion"

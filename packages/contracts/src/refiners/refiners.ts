@@ -5,22 +5,22 @@
 // Postgres table: refiners.refiners
 import { z } from "zod/v4";
 
-export const Row = z.object({
+export const Refiner = z.object({
   "id": z.string().uuid(),
   "logo": z.string().nullable(),
   "organization_id": z.string().uuid(),
 });
-export type Row = z.infer<typeof Row>;
+export type Refiner = z.infer<typeof Refiner>;
 // generated:end
-import * as organizations from "../organizations/organizations.js";
+import { Organization, OrganizationSummary } from "../organizations/organizations.js";
 
 // A refiner and the organization it is, KEPT APART. A supplier is two rows in
 // the new schema and the response says so rather than smearing the
 // organization's fields across the top level.
-export const Read = Row.omit({ organization_id: true }).extend({
-  created_at: organizations.Row.shape.created_at.nullable(),
-  updated_at: organizations.Row.shape.updated_at.nullable(),
-  organization: organizations.Summary,
+export const RefinerRead = Refiner.omit({ organization_id: true }).extend({
+  created_at: Organization.shape.created_at.nullable(),
+  updated_at: Organization.shape.updated_at.nullable(),
+  organization: OrganizationSummary,
 });
-export type Read = z.infer<typeof Read>;
+export type RefinerRead = z.infer<typeof RefinerRead>;
 

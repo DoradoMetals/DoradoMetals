@@ -5,7 +5,7 @@
 // Postgres table: fulfillments.pickups
 import { z } from "zod/v4";
 
-export const Row = z.object({
+export const FulfillmentPickup = z.object({
   "id": z.string().uuid(),
   "fulfillment_id": z.string().uuid(),
   "pickup_address_id": z.string().uuid(),
@@ -13,14 +13,10 @@ export const Row = z.object({
   "start_time": z.string().nullable(),
   "end_time": z.string().nullable(),
 });
-export type Row = z.infer<typeof Row>;
+export type FulfillmentPickup = z.infer<typeof FulfillmentPickup>;
 // generated:end
-// POST /fulfillments/schedule_pickup - the booking's own row, minus the id
-// the service issues.
-export const New = Row.omit({ id: true }).partial({
-  assigned_employee_id: true,
-  start_time: true,
-  end_time: true,
-});
-export type New = z.infer<typeof New>;
+// POST /fulfillments/schedule_pickup - the booking's own columns, all
+// optional; the id is the service's to issue.
+export const FulfillmentPickupPatch = FulfillmentPickup.omit({ id: true }).partial();
+export type FulfillmentPickupPatch = z.infer<typeof FulfillmentPickupPatch>;
 

@@ -7,7 +7,7 @@ import { Invalid } from "#shared/errors.ts";
 import { getRatePct } from "#domain/rates/utils/resolveRate.ts";
 import { fineContent } from "#domain/pricing/content.ts";
 import type { PricingSpot } from "#domain/pricing/service.ts";
-import type { rates } from "@dorado/contracts";
+import type { RateRead } from "@dorado/contracts";
 import type { SpotWire } from "#domain/spots/compose.ts";
 
 // Bid-side mirror of calculateItemAsk, stated here rather than imported:
@@ -43,7 +43,7 @@ export function requireSpot(spots: SpotWire[], metal_id: string): SpotWire {
 // order will not honour is worse than no quote: the customer sees a figure,
 // agrees to it, and is paid something else.
 export function requireBandPremium(
-  rates: rates.rates.Read[],
+  rates: RateRead[],
   metal_name: string,
   metalTotalContent: number,
   kind: "product" | "scrap"

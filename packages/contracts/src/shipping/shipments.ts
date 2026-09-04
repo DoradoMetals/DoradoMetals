@@ -4,9 +4,9 @@
 //
 // Postgres table: shipping.shipments
 import { z } from "zod/v4";
-import { Direction } from "./enums.js";
+import { ShipmentDirection } from "./enums.js";
 
-export const Row = z.object({
+export const Shipment = z.object({
   "id": z.string().uuid(),
   "carrier_service_id": z.string().uuid().nullable(),
   "package_id": z.string().uuid().nullable(),
@@ -18,7 +18,7 @@ export const Row = z.object({
   "est_delivery": z.string().nullable(),
   "label_type": z.string().nullable(),
   "label": z.string().nullable(),
-  "direction": Direction,
+  "direction": ShipmentDirection,
   "insured": z.boolean(),
   "declared_value": z.number().nullable(),
   "cost": z.number().nullable(),
@@ -27,18 +27,16 @@ export const Row = z.object({
   "pickup_type": z.string().nullable(),
   "created_at": z.string().nullable(),
 });
-export type Row = z.infer<typeof Row>;
+export type Shipment = z.infer<typeof Shipment>;
 // generated:end
-import * as carriers from "./carriers.js";
-import * as packages from "./packages.js";
-import * as addresses from "../places/addresses.js";
-import { Direction as ShippingDirection } from "./enums.js";
+import { Carrier } from "./carriers.js";
+import { Address } from "../places/addresses.js";
 
 // The order's parcels as ONE order's view carries them. `direction` widens to
 // text because the read casts it - it is an enum in the table and a string on
 // every wire it has ever reached.
-export const View = Row.extend({ direction: z.string() });
-export type View = z.infer<typeof View>;
+export const OrderViewShipment = Shipment.extend({ direction: z.string() });
+export type OrderViewShipment = z.infer<typeof OrderViewShipment>;
 
 // PATCH /api/shipments/:id - the shipment's money and its tracking pair.
 //
@@ -49,48 +47,42 @@ export type View = z.infer<typeof View>;
 //
 // `tracking_number` and `carrier_id` travel together; the service refuses
 // half a pair by name.
-export const Patch = Row.pick({ tracking_number: true })
+export const ShipmentPatch = Shipment.pick({ tracking_number: true })
   .extend({
     shipping_charge: z.number().optional(),
     shipping_actual: z.number().optional(),
-    tracking_number: Row.shape.tracking_number.unwrap().optional(),
-    carrier_id: carriers.Row.shape.id.optional(),
+    tracking_number: Shipment.shape.tracking_number.unwrap().optional(),
+    carrier_id: Carrier.shape.id.optional(),
   })
   .strict();
-export type Patch = z.infer<typeof Patch>;
+export type ShipmentPatch = z.infer<typeof ShipmentPatch>;
 
 // The provider calls. Every one names an ADDRESS BY ID (ruling 43); the
 // carrier is optional because one provider is configured by default.
-export const ValidateAddressBody = z.object({
-  carrier_id: carriers.Row.shape.id.optional(),
-  address_id: addresses.Row.shape.id,
+export const ShippingValidateAddressBody = z.object({
+  carrier_id: Carrier.shape.id.optional(),
+  address_id: Address.shape.id,
 }).strict();
-export type ValidateAddressBody = z.infer<typeof ValidateAddressBody>;
+export type ShippingValidateAddressBody = z.infer<typeof ShippingValidateAddressBody>;
 
-export const RatesBody = z.object({
-  carrier_id: carriers.Row.shape.id.optional(),
-  address_id: addresses.Row.shape.id,
-  package_id: packages.Row.shape.id,
-  shippingType: ShippingDirection,
-}).extend({
-  weight: z.number(),
-  pickupType: z.string().optional(),
-  declaredValue: z.number().optional(),
-}).strict();
-export type RatesBody = z.infer<typeof RatesBody>;
+// POST /shipping/get_rates is GONE, replaced by GET /checkout/rates?direction=
+// (Jacob, 2026-09-03: "all the stuff that feeds into it can live directly on
+// the server"). The address, the package, the weight and the declared value
+// are read off the caller's own checkout row and items, so there is no body
+// left to declare. What comes back is CarrierRateQuote.
 
-export const LocationsBody = z.object({
-  carrier_id: carriers.Row.shape.id.optional(),
-  address_id: addresses.Row.shape.id,
+export const ShippingGetLocationsBody = z.object({
+  carrier_id: Carrier.shape.id.optional(),
+  address_id: Address.shape.id,
 }).extend({
   radius_miles: z.number().optional(),
   max_results: z.number().optional(),
 }).strict();
-export type LocationsBody = z.infer<typeof LocationsBody>;
+export type ShippingGetLocationsBody = z.infer<typeof ShippingGetLocationsBody>;
 
-export const CancelBody = z.object({
-  shipment_id: Row.shape.id,
-  carrier_id: carriers.Row.shape.id.optional(),
+export const ShippingCancelLabelBody = z.object({
+  shipment_id: Shipment.shape.id,
+  carrier_id: Carrier.shape.id.optional(),
 }).strict();
-export type CancelBody = z.infer<typeof CancelBody>;
+export type ShippingCancelLabelBody = z.infer<typeof ShippingCancelLabelBody>;
 

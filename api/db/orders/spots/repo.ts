@@ -12,7 +12,7 @@ const sql = sqlFrom(import.meta.dirname);
 // surfaces read. percent_change and dollar_change are projected NULL.
 export type OrderSpotRow = {
   id: string;
-  purchase_order_id: string | null;
+  order_id: string | null;
   name: string;
   ask: number | null;
   bid: number | null;

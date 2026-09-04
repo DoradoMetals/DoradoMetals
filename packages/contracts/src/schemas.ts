@@ -3,22 +3,20 @@
 //
 // Every database schema, one namespace each. src/index.ts re-exports this
 // beside the computed shapes no table backs.
-export * as auth from "./auth/index.js";
-export * as checkout from "./checkout/index.js";
-export * as exchange from "./exchange/index.js";
-export * as fulfillments from "./fulfillments/index.js";
-export * as leads from "./leads/index.js";
-export * as media from "./media/index.js";
-export * as metals from "./metals/index.js";
-export * as orders from "./orders/index.js";
-export * as organizations from "./organizations/index.js";
-export * as payments from "./payments/index.js";
-export * as places from "./places/index.js";
-export * as products from "./products/index.js";
-export * as public_schema from "./public/index.js";
-export * as rates from "./rates/index.js";
-export * as refiners from "./refiners/index.js";
-export * as reviews from "./reviews/index.js";
-export * as shipping from "./shipping/index.js";
-export * as spots from "./spots/index.js";
-export * as tax from "./tax/index.js";
+export * from "./auth/index.js";
+export * from "./checkout/index.js";
+export * from "./fulfillments/index.js";
+export * from "./leads/index.js";
+export * from "./media/index.js";
+export * from "./metals/index.js";
+export * from "./orders/index.js";
+export * from "./organizations/index.js";
+export * from "./payments/index.js";
+export * from "./places/index.js";
+export * from "./products/index.js";
+export * from "./rates/index.js";
+export * from "./refiners/index.js";
+export * from "./reviews/index.js";
+export * from "./shipping/index.js";
+export * from "./spots/index.js";
+export * from "./tax/index.js";

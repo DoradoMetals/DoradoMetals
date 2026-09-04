@@ -5,34 +5,35 @@
 // Postgres table: shipping.carriers
 import { z } from "zod/v4";
 
-export const Row = z.object({
+export const Carrier = z.object({
   "id": z.string().uuid(),
   "organization_id": z.string().uuid().nullable(),
   "logo": z.string().nullable(),
 });
-export type Row = z.infer<typeof Row>;
+export type Carrier = z.infer<typeof Carrier>;
 // generated:end
-import * as organizations from "../organizations/organizations.js";
+import { Organization, OrganizationSummary, OrganizationPatch } from "../organizations/organizations.js";
 
 // A carrier and the organization it is, KEPT APART - the same split refiners
 // gets. An organization exists independently and can be a refiner or a
 // carrier, so it stays its own object.
-export const Read = Row.omit({ organization_id: true }).extend({
-  created_at: organizations.Row.shape.created_at.nullable(),
-  updated_at: organizations.Row.shape.updated_at.nullable(),
-  organization: organizations.Summary,
+export const CarrierRead = Carrier.omit({ organization_id: true }).extend({
+  created_at: Organization.shape.created_at.nullable(),
+  updated_at: Organization.shape.updated_at.nullable(),
+  organization: OrganizationSummary,
 });
-export type Read = z.infer<typeof Read>;
+export type CarrierRead = z.infer<typeof CarrierRead>;
 
-export const New = z.object({
-  logo: Row.shape.logo.optional(),
-  organization: organizations.Write.strict().optional(),
-}).strict();
-export type New = z.infer<typeof New>;
+// Create and update take the same patch; the id names an existing carrier.
+export const CarrierPatch = Carrier.pick({ logo: true })
+  .extend({
+    id: Carrier.shape.id.optional(),
+    organization: OrganizationPatch.strict().optional(),
+  })
+  .partial({ logo: true })
+  .strict();
+export type CarrierPatch = z.infer<typeof CarrierPatch>;
 
-export const Patch = New.extend({ id: Row.shape.id });
-export type Patch = z.infer<typeof Patch>;
-
-export const DeleteBody = z.object({ carrier_id: Row.shape.id }).strict();
-export type DeleteBody = z.infer<typeof DeleteBody>;
+export const CarrierDeleteBody = z.object({ carrier_id: Carrier.shape.id }).strict();
+export type CarrierDeleteBody = z.infer<typeof CarrierDeleteBody>;
 

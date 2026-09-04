@@ -1,9 +1,9 @@
 // The pure decisions behind a credit adjustment: what the balance becomes, and
 // what the ledger calls the movement.
 import { Invalid } from "#shared/errors.ts";
-import type { auth } from "@dorado/contracts";
+import type { UpdateCreditBody } from "@dorado/contracts";
 
-export type CreditOp = auth.users.CreditBody["op"];
+export type CreditOp = UpdateCreditBody["op"];
 
 // Mirrors the repo's SQL CASE so the floor below can be checked before the
 // write. Rounded to 6 places: NUMERIC is exact and JS floats are not, so a

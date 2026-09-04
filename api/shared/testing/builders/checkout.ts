@@ -19,16 +19,16 @@ import { metalId, type MetalName } from "#shared/testing/builders/reference.ts";
 import type { BuiltUser } from "#shared/testing/builders/users.ts";
 import type { BuiltProduct } from "#shared/testing/builders/products.ts";
 
-import type { orders } from "@dorado/contracts";
+import type { Direction } from "@dorado/contracts";
 
 export type BuiltCart = {
   id: string;
   user_id: string;
-  direction: orders.enums.Direction;
+  direction: Direction;
   item_ids: string[];
 };
 
-export type CartOptions = { direction?: orders.enums.Direction };
+export type CartOptions = { direction?: Direction };
 
 type LotOptions = {
   metal?: MetalName;

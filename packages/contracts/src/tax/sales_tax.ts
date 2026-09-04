@@ -5,30 +5,30 @@
 // Postgres table: tax.sales_tax
 import { z } from "zod/v4";
 
-export const Row = z.object({
+export const SalesTax = z.object({
   "id": z.string().uuid(),
   "state": z.string(),
   "reached_nexus": z.boolean(),
   "amount_owed": z.number(),
   "last_remitted": z.string().nullable(),
 });
-export type Row = z.infer<typeof Row>;
+export type SalesTax = z.infer<typeof SalesTax>;
 // generated:end
-import * as bullion from "../products/bullion.js";
-import * as addresses from "../places/addresses.js";
+import { Bullion } from "../products/bullion.js";
+import { Address } from "../places/addresses.js";
 
 // POST /api/tax/get_sales_tax - what a cart of catalogue lines owes in one
 // state. IDS IN (ruling 43): the endpoint used to take the lines themselves,
 // so a caller could declare the purity, weight and legal-tender flags a tax
 // rule matches on - exactly the way to choose the rate you are charged.
-export const QuoteLine = bullion.Row.pick({ id: true }).extend({
+export const SalesTaxQuoteLine = Bullion.pick({ id: true }).extend({
   quantity: z.number(),
 }).strict();
-export type QuoteLine = z.infer<typeof QuoteLine>;
+export type SalesTaxQuoteLine = z.infer<typeof SalesTaxQuoteLine>;
 
-export const QuoteBody = z.object({
-  address_id: addresses.Row.shape.id.nullable().optional(),
-  items: z.array(QuoteLine).min(1),
+export const GetSalesTaxBody = z.object({
+  address_id: Address.shape.id.nullable().optional(),
+  items: z.array(SalesTaxQuoteLine).min(1),
 }).strict();
-export type QuoteBody = z.infer<typeof QuoteBody>;
+export type GetSalesTaxBody = z.infer<typeof GetSalesTaxBody>;
 

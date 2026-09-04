@@ -3,18 +3,18 @@
 import * as organizations from "#db/organizations/repo.ts";
 import type { CarrierRow } from "#db/shipping/carriers/repo.ts";
 // Row type comes from the contract, not the other feature's repo - avoids a type edge between features that don't otherwise depend on each other.
-import type { organizations as organizationTables } from "@dorado/contracts";
+import type { Organization } from "@dorado/contracts";
 import type { Executor } from "#shared/db/executor.ts";
 
 export type ComposedCarrier = {
   id: string;
   logo: string | null;
-  created_at: organizationTables.organizations.Row["created_at"];
-  updated_at: organizationTables.organizations.Row["updated_at"];
-  organization: Pick<organizationTables.organizations.Row, "id" | "name" | "email" | "phone" | "enabled">;
+  created_at: Organization["created_at"];
+  updated_at: Organization["updated_at"];
+  organization: Pick<Organization, "id" | "name" | "email" | "phone" | "enabled">;
 };
 
-const compose = (c: CarrierRow, o: organizationTables.organizations.Row): ComposedCarrier => ({
+const compose = (c: CarrierRow, o: Organization): ComposedCarrier => ({
   id: c.id,
   logo: c.logo,
   // From the ORGANIZATION - shipping.carriers has no timestamps of its own.

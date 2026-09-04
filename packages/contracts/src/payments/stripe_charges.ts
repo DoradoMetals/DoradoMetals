@@ -5,7 +5,7 @@
 // Postgres table: payments.stripe_charges
 import { z } from "zod/v4";
 
-export const Row = z.object({
+export const StripeCharge = z.object({
   "payment_intent_id": z.string(),
   "charge_id": z.string().nullable(),
   "created_at": z.string(),
@@ -21,7 +21,7 @@ export const Row = z.object({
   "livemode": z.boolean().nullable(),
   "imported_at": z.string(),
 });
-export type Row = z.infer<typeof Row>;
+export type StripeCharge = z.infer<typeof StripeCharge>;
 // generated:end
 
 // Hand-written derivations go here: New, Patch, named reads.

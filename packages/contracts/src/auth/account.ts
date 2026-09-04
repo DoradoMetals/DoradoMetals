@@ -5,7 +5,7 @@
 // Postgres table: auth.account
 import { z } from "zod/v4";
 
-export const Row = z.object({
+export const AuthAccount = z.object({
   "id": z.string().uuid(),
   "userId": z.string().uuid(),
   "accountId": z.string(),
@@ -20,7 +20,7 @@ export const Row = z.object({
   "createdAt": z.string(),
   "updatedAt": z.string(),
 });
-export type Row = z.infer<typeof Row>;
+export type AuthAccount = z.infer<typeof AuthAccount>;
 // generated:end
 
 // Hand-written derivations go here: New, Patch, named reads.

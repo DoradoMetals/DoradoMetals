@@ -2,14 +2,14 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { apiRequest } from '@/shared/queries/axios'
 import { useApiQuery } from '@/shared/queries/base'
 import { useGetSession } from '@/features/auth/queries'
-import type { orders } from "@dorado/contracts";
+import type { OrderView } from "@dorado/contracts";
 
 // THE CHECKOUT ROW FLOW (D208): the stepper writes IDS onto the server's
 // checkout row as the customer decides, the fulfillment is a live draft the
 // same call mutates, and order creation consumes what the server holds. The
 // body of the create carries ONLY what cannot live server-side - the payout
-// bank form, the parcel's weight, the pickup schedule, the insurance
-// declaration.
+// bank form, the pickup schedule, the insurance declaration. RULING 58: the
+// parcel's weight is not one of those any more - the server owns it.
 
 // The boxes a checkout offers - shipping.packages rows (112), replacing the
 // hardcoded packageOptions record. Icons stay client-side beside the selector.
@@ -34,13 +34,15 @@ export const useOfferedPackages = () =>
 // One synchronisation when the customer leaves the shipping step: the row
 // takes the ids, the draft fulfillment takes the handoff. Idempotent - going
 // back and forward simply re-writes the same choices.
+//
+// RULING 58 (Jacob): no package_weight, no declared_value - the browser
+// neither computes nor sends either. The server owns the parcel's weight and
+// its insured value.
 export type PurchaseCheckoutSync = {
   shipper_address_id: string
   package_id: string
   carrier_service_id: string
   handoff_code: string
-  package_weight: number
-  declared_value: number
   pickup_date: string | null
   pickup_time: string | null
 }
@@ -55,8 +57,6 @@ export const useSyncPurchaseCheckout = () => {
         shipper_address_id: sync.shipper_address_id,
         package_id: sync.package_id,
         carrier_service_id: sync.carrier_service_id,
-        package_weight: sync.package_weight,
-        declared_value: sync.declared_value,
         pickup_date: sync.pickup_date,
         pickup_time: sync.pickup_time,
       })
@@ -67,6 +67,35 @@ export const useSyncPurchaseCheckout = () => {
     },
   })
 }
+
+// GET /api/checkout/rates?direction= - the carrier's own priced catalogue for
+// THIS checkout, one flat row per offered service (API lane, landing
+// separately). The browser assembles no rate request any more: no address,
+// no package, no weight composed client-side - it renders what the server
+// quotes. Field names are provisional; retype against the real response when
+// that lane lands.
+export type CheckoutRate = {
+  id: string | null
+  code: string
+  carrier_code: string
+  name: string
+  display_order: number
+  net_charge: number
+  currency: string
+  delivery_day: string | null
+  transit_time: string | null
+}
+
+export const useCheckoutRates = (direction: 'purchase' | 'sale', enabled = true) =>
+  useApiQuery<CheckoutRate[]>({
+    key: ['checkout', 'rates', direction] as const,
+    url: '/checkout/rates',
+    params: () => ({ direction }),
+    requireUser: true,
+    enabled,
+    staleTime: 5 * 60 * 1000,
+    retry: false,
+  })
 
 // The payout STEP's write (D210): the bank form goes server-side when the
 // customer completes the step - numbers sealed at rest - and creation later
@@ -111,7 +140,7 @@ export const useCreatePurchaseOrderFromCheckout = () => {
       const { id: checkout_id } = await apiRequest<{ id: string }>(
         'GET', '/checkout', undefined, { direction: 'purchase' }
       )
-      return await apiRequest<orders.orders.View>(
+      return await apiRequest<OrderView>(
         'POST', '/purchase_orders/create_from_checkout', { checkout_id }
       )
     },

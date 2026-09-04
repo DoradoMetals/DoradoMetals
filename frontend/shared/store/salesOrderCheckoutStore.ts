@@ -1,13 +1,13 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import { SalesOrderCheckout, DEFAULT_SALES_SERVICE } from '@/features/orders/salesOrders/types'
+import { SaleCheckoutForm, DEFAULT_SALES_SERVICE } from '@/features/orders/salesOrders/types'
 
-type PartialCheckout = Partial<SalesOrderCheckout>
+type PartialCheckout = Partial<SaleCheckoutForm>
 
 interface SalesOrderCheckoutState {
   data: PartialCheckout
   setData: (values: PartialCheckout) => void
-  updateField: <K extends keyof SalesOrderCheckout>(key: K, value: SalesOrderCheckout[K]) => void
+  updateField: <K extends keyof SaleCheckoutForm>(key: K, value: SaleCheckoutForm[K]) => void
   clear: () => void
 }
 

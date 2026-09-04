@@ -10,7 +10,7 @@ import { requireUser, requireAdmin } from "#shared/middleware/authMiddleware.ts"
 // The order quote prices an EXISTING order by id, so it needs what every
 // order route needs: not just a session but ownership - a customer may only
 // quote their own order, an admin any. Same guard, same body spelling
-// (order_id is one of the four requireOwnOrder reads).
+// (order_id is one of the two requireOwnOrder reads).
 import { requireOwnOrder } from "#shared/middleware/ownership.ts";
 
 const router = express.Router();

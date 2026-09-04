@@ -13,14 +13,14 @@ import * as inputs from "#domain/media/pdfs/order-inputs.ts";
 import { LOCKS } from "#shared/testing/locks.ts";
 import { inRollback } from "#shared/testing/rollback.ts";
 import type { Transport } from "#providers/emails/nodemailer.ts";
-import type { orders as ordersContract } from "@dorado/contracts";
+import type { OrderView } from "@dorado/contracts";
 
 let client: PoolClient;
 type Message = Parameters<Transport["sendMail"]>[0];
 
 // EVERY SENDER TAKES THE DOCUMENT'S INPUTS (D214 item 12), resolved from the
 // order's id - the composed order they used to take is gone.
-let orders: ordersContract.orders.View[];
+let orders: OrderView[];
 
 // SESSION-scoped LOCKS.ORDERS, held for the whole file (lane 3, the runner
 // conversion): `orders` is captured here, before any per-test transaction

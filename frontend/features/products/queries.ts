@@ -1,9 +1,9 @@
+import type { SpotPrice } from "@dorado/contracts";
 import { apiRequest } from '@/shared/queries/axios'
 import type { Product, ProductGroup, ProductFilters, AdminProduct, AdminTypes, Supplier, AdminMints } from '@/features/products/types'
 import { groupProducts } from '@/features/products/types'
 import { useApiMutation, useApiQuery } from '@/shared/queries/base'
 import { queryKeys } from '@/shared/queries/keys'
-import { SpotPrice } from '@/features/spots/types'
 
 export const useProducts = () => {
   return useApiQuery<Product[]>({

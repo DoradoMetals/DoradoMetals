@@ -1,6 +1,6 @@
 // Defaults are applied here explicitly, not by the columns: shipping.services' column defaults disagree with what exchange's always meant (supports_dropoff/is_residential defaulted true there, false here), so every write states every value.
 // A minimal (carrier_id, name) insert - what exchange's create did - would be refused here: several columns are NOT NULL with no default.
-// Inputs are the CONTRACT'S types now, parsed strictly at transport - shipping.services.New/shipping.services.Patch, not a hand-typed "arrives as req.body" shape.
+// Inputs are the CONTRACT'S types now, parsed strictly at transport - CarrierServicePatch/CarrierServicePatch, not a hand-typed "arrives as req.body" shape.
 import { randomUUID } from "node:crypto";
 import withTransaction from "#shared/db/withTransaction.ts";
 import * as services from "#db/shipping/services/repo.ts";
@@ -11,17 +11,17 @@ import {
 import type { ServiceRow } from "#db/shipping/services/repo.ts";
 import type { Executor } from "#shared/db/executor.ts";
 // From the contracts, not the adapter (which merely re-exports it) - contracts is where the shape is declared.
-import type { providers, shipping } from "@dorado/contracts";
+import type { CarrierServiceOption, CarrierServicePatch } from "@dorado/contracts";
 import { Invalid } from "#shared/errors.ts";
 
 
 // Every field spelled explicitly, by name - no prop-spreading, so the repo
 // call never receives a field it wasn't written to expect.
-function toNewRow(body: shipping.services.New, id: string): services.ServiceNew {
+function toNewRow(body: CarrierServicePatch, id: string): services.ServiceNew {
   return {
     id,
     carrier_id: body.carrier_id ?? null,
-    name: body.name,
+    name: body.name ?? "",
     description: body.description ?? null,
     code: body.code ?? null,
     provider_code: body.provider_code ?? null,
@@ -46,7 +46,7 @@ function toNewRow(body: shipping.services.New, id: string): services.ServiceNew 
 // A key PRESENT is written, a key ABSENT is left alone (shared/db/patch.ts) -
 // the admin form sends every field today, but the patch itself no longer
 // forces that.
-function toPatchRow(body: shipping.services.Patch): services.ServicePatch {
+function toPatchRow(body: CarrierServicePatch): services.ServicePatch {
   return {
     carrier_id: body.carrier_id, name: body.name, description: body.description,
     code: body.code, provider_code: body.provider_code,
@@ -77,7 +77,7 @@ export async function getSaleOptions(): Promise<services.SaleServiceOption[]> {
 // `code` on the way out is the carrier's SERVICE type (matches a rate quote's serviceType); `carrier_code` is the service family FedEx wants for pickup availability.
 export async function getOfferedServices(
   carrier_id?: string | null, client?: Executor
-): Promise<providers.CarrierServiceOption[]> {
+): Promise<CarrierServiceOption[]> {
   const id = await carrierIdOr(carrier_id, client);
   const { catalogue } = await resolveCarrier(id, client);
   const ceilings = await ceilingsByName(id, client);
@@ -122,7 +122,7 @@ export async function insuranceCeiling(
   return lowestCeiling(await ceilingsByName(id, client));
 }
 
-// `code` is the carrier's service type - providers.CarrierServiceOption.code, which is
+// `code` is the carrier's service type - CarrierServiceOption.code, which is
 // what the browser round-trips back as `service.serviceType`.
 export async function insuranceCeilingFor(
   code: string | null | undefined, carrier_id?: string | null, client?: Executor
@@ -202,33 +202,33 @@ export async function getServicesByCarrierId(
   return await services.getByCarrier(carrier_id, executor);
 }
 
-export async function createService(
-  body: shipping.services.New, executor?: Executor
-): Promise<ServiceRow | null> {
-  const run = async (c: Executor): Promise<ServiceRow | null> => {
+// A USE CASE (ruling 56): only the controller calls this.
+export async function createService(body: CarrierServicePatch): Promise<ServiceRow | null> {
+  return await withTransaction(async (tx) => {
     const id = randomUUID();
-    return await services.create(toNewRow(body, id), c);
-  };
-  return executor ? await run(executor) : await withTransaction(run);
+    return await services.create(toNewRow(body, id), tx);
+  });
 }
 
-export async function updateService(
-  body: shipping.services.Patch, executor?: Executor
-): Promise<ServiceRow | null> {
-  const run = async (c: Executor): Promise<ServiceRow | null> => {
-    const changed = await services.update(body.id, toPatchRow(body), c);
+// A USE CASE, same reasoning as createService.
+export async function updateService(body: CarrierServicePatch): Promise<ServiceRow | null> {
+  // The id is the message on an update; every column beside it is optional
+  // because a create sends this same patch.
+  const id = body.id;
+  if (!id) throw new Invalid("id is required");
+  return await withTransaction(async (tx) => {
+    const changed = await services.update(id, toPatchRow(body), tx);
     if (!changed) return null;
-    return (await services.getOne(body.id, c)) ?? null;
-  };
-  return executor ? await run(executor) : await withTransaction(run);
+    return (await services.getOne(id, tx)) ?? null;
+  });
 }
 
 // Deleting is stricter than it was, and that's the database's doing: shipping.shipments.carrier_service_id and checkout.checkouts.carrier_service_id reference this table with no ON DELETE, so removing a service something points at raises 23503 - exchange had no such reference.
 // Not a regression in practice: this endpoint had never once succeeded, since the controller passed the whole body where an id was wanted.
-export async function removeService(id: string, executor?: Executor): Promise<boolean> {
-  const run = async (c: Executor): Promise<boolean> => {
-    await services.remove(id, c);
+// A USE CASE, same reasoning as createService.
+export async function removeService(id: string): Promise<boolean> {
+  return await withTransaction(async (tx) => {
+    await services.remove(id, tx);
     return true;
-  };
-  return executor ? await run(executor) : await withTransaction(run);
+  });
 }

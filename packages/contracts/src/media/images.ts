@@ -5,7 +5,7 @@
 // Postgres table: media.images
 import { z } from "zod/v4";
 
-export const Row = z.object({
+export const Image = z.object({
   "id": z.string().uuid(),
   "bucket": z.string(),
   "mime_type": z.string(),
@@ -19,22 +19,22 @@ export const Row = z.object({
   "user_id": z.string().uuid().nullable(),
   "created_at": z.string(),
 });
-export type Row = z.infer<typeof Row>;
+export type Image = z.infer<typeof Image>;
 // generated:end
 // POST /media/images/upload - a presigned-PUT request. The server names the
 // object; `filename` survives only as a sanitised suffix and `path` is not
 // accepted at all - it was accepted and silently ignored.
-export const UploadBody = Row.pick({
+export const MediaUploadBody = Image.pick({
   mime_type: true,
   size_bytes: true,
   filename: true,
 }).extend({
-  mime_type: Row.shape.mime_type.nullable().optional(),
-  size_bytes: Row.shape.size_bytes.optional(),
+  mime_type: Image.shape.mime_type.nullable().optional(),
+  size_bytes: Image.shape.size_bytes.optional(),
 });
-export type UploadBody = z.infer<typeof UploadBody>;
+export type MediaUploadBody = z.infer<typeof MediaUploadBody>;
 
 // DELETE /media/images/delete - the id alone; ownership is the session's.
-export const DeleteBody = Row.pick({ id: true });
-export type DeleteBody = z.infer<typeof DeleteBody>;
+export const MediaDeleteBody = Image.pick({ id: true });
+export type MediaDeleteBody = z.infer<typeof MediaDeleteBody>;
 

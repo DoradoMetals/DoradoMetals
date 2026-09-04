@@ -6,7 +6,7 @@
 import { z } from "zod/v4";
 import { Direction } from "./enums.js";
 
-export const Row = z.object({
+export const Order = z.object({
   "id": z.string().uuid(),
   "user_id": z.string().uuid().nullable(),
   "direction": Direction.nullable(),
@@ -24,19 +24,19 @@ export const Row = z.object({
   "tracking_updated": z.boolean().nullable(),
   "spots_locked": z.boolean(),
 });
-export type Row = z.infer<typeof Row>;
+export type Order = z.infer<typeof Order>;
 // generated:end
-import * as transactions from "./transactions.js";
-import * as items from "./items.js";
-import * as addresses from "../places/addresses.js";
-import * as shipments from "../shipping/shipments.js";
-import * as carrierPickups from "../shipping/pickups.js";
-import * as payouts from "../exchange/payouts.js";
-import * as users from "../auth/users.js";
-import * as checkouts from "../checkout/checkouts.js";
-import * as services from "../shipping/services.js";
-import * as packages from "../shipping/packages.js";
-import * as refiners from "../refiners/refiners.js";
+import { OrderTotals } from "./transactions.js";
+import { OrderViewItem } from "./items.js";
+import { Address } from "../places/addresses.js";
+import { OrderViewShipment } from "../shipping/shipments.js";
+import { ShipmentPickup } from "../shipping/pickups.js";
+import { OrderViewPayout } from "../payments/details.js";
+import { User, UserSummary } from "../auth/users.js";
+import { Checkout } from "../checkout/checkouts.js";
+import { CarrierService } from "../shipping/services.js";
+import { Package } from "../shipping/packages.js";
+import { Refiner } from "../refiners/refiners.js";
 
 // THE ORDER ON THE WIRE IS THE ROW (Jacob, wave 3): "We only need the
 // bullion_id for production information. We don't need to send all that shit
@@ -47,41 +47,27 @@ import * as refiners from "../refiners/refiners.js";
 // /orders/:id/items, /spots, /address, /payouts, /fulfillments, /shipments,
 // /pickups, /directs, /refiners. Display names are the CLIENT's job, mapped by
 // id against reference reads it already caches.
-//
-// `totals` survives as a nested member where nothing else did, for the reason
-// Jacob gave when he pinned the slim: transactions IS the order's money, not
-// another resource's row borrowed onto it.
-export const Read = Row.extend({ totals: transactions.Row.nullable() });
-export type Read = z.infer<typeof Read>;
+export const OrderRead = Order.extend({ totals: OrderTotals.nullable() });
+export type OrderRead = z.infer<typeof OrderRead>;
 
 // THE ORDER VIEW - one order, assembled from its tables (D214 item 12).
 //
-// THE RULES THIS SHAPE OBEYS, each of which the composer it replaced broke:
-//   ROWS, NOT PROJECTIONS. Every member is a generated row schema.
-//   NESTED BY TABLE, NOT BY SLOT. `shipments` is the rows with their own
-//   `direction` column - not a shipment / return_shipment pair.
-//   ABSENT IS null. Never an object whose every key is null.
-//   NO RENAMES and NO DERIVED SCALARS.
-//   NOT A LIST WIRE. `Read` above is still what GET /orders serves.
-export const View = z.object({
-  order: Row,
-  totals: transactions.Row.nullable(),
-  items: z.array(items.ViewItem),
-  address: addresses.Row.nullable(),
-  shipments: z.array(shipments.View),
-  pickup: carrierPickups.Row.nullable(),
-  payout: payouts.OrderView.nullable(),
-  user: users.Summary.nullable(),
+// ROWS, NOT PROJECTIONS: every member is a generated entity, so a column added
+// to a table appears here for free and one removed fails the build. NESTED BY
+// TABLE, NOT BY SLOT: `shipments` is the rows with their own `direction`
+// column, not a shipment/return_shipment pair. ABSENT IS null, never an object
+// whose every key is null. NO RENAMES and NO DERIVED SCALARS.
+export const OrderView = z.object({
+  order: Order,
+  totals: OrderTotals.nullable(),
+  items: z.array(OrderViewItem),
+  address: Address.nullable(),
+  shipments: z.array(OrderViewShipment),
+  pickup: ShipmentPickup.nullable(),
+  payout: OrderViewPayout.nullable(),
+  user: UserSummary.nullable(),
 });
-export type View = z.infer<typeof View>;
-
-// POST /{purchase,sales}_orders/create_* - THE WHOLE BODY IS ONE ID. Every
-// fact the old body carried is a column of checkout.checkouts or
-// checkout.items, which the server already holds; the customer is the
-// checkout row's own user_id, so the admin door and the customer door take
-// the same body.
-export const New = z.object({ checkout_id: checkouts.Row.shape.id }).strict();
-export type New = z.infer<typeof New>;
+export type OrderView = z.infer<typeof OrderView>;
 
 // PATCH /api/orders/:id - THE ORDER ROW'S OWN FIELDS, AND ONLY THOSE.
 //
@@ -91,36 +77,39 @@ export type New = z.infer<typeof New>;
 // pure customer-facing label driving no logic (ruling 2); `notes` is free
 // text. Both are nullable, so an explicit null CLEARS and an absent key
 // leaves the column alone - exactly what buildUpdate does with it.
-export const Patch = Row.pick({ status: true, notes: true }).partial().strict();
-export type Patch = z.infer<typeof Patch>;
+export const OrderPatch = Order.pick({ status: true, notes: true }).partial().strict();
+export type OrderPatch = z.infer<typeof OrderPatch>;
+
+// POST /{purchase,sales}_orders/create_* - THE WHOLE BODY IS ONE ID, and it is
+// not an order patch: every fact the old body carried is a column of
+// checkout.checkouts or checkout.items, which the server already holds.
+export const OrderCreateBody = z.object({ checkout_id: Checkout.shape.id }).strict();
+export type OrderCreateBody = z.infer<typeof OrderCreateBody>;
 
 // POST /{purchase,sales}_orders/create_review - the review flag. The order is
 // sent whole because requireOwnOrder reads its id out of the body.
-export const ReviewBody = z.object({
-  order: z.looseObject({ id: Row.shape.id }),
-  user_id: users.Row.shape.id.optional(),
+export const OrderReviewBody = z.object({
+  order: z.looseObject({ id: Order.shape.id }),
+  user_id: User.shape.id.optional(),
 }).strict();
-export type ReviewBody = z.infer<typeof ReviewBody>;
+export type OrderReviewBody = z.infer<typeof OrderReviewBody>;
 
 // POST /orders/:id/cancel - the customer's metal goes back. Where the parcel
 // goes is the ORDER's own address snapshot; who signs for it is the
-// provider's configured contact; what it is worth is priced from the order's
-// own lines. `weight` is the one MEASUREMENT: nothing stores what the parcel
-// going back weighs, and a label cannot be bought without it.
-export const CancelBody = z.object({
-  carrier_service_id: services.Row.shape.id,
-  package_id: packages.Row.shape.id,
-}).extend({
-  declared_value: z.number(),
-  weight: z.number(),
+// provider's configured contact; what it is worth and what it WEIGHS are both
+// computed from the order's own lines (ruling 58, domain/shipping/rules.ts).
+// What is genuinely new is the box and the service.
+export const OrderCancelBody = z.object({
+  carrier_service_id: CarrierService.shape.id,
+  package_id: Package.shape.id,
 }).strict();
-export type CancelBody = z.infer<typeof CancelBody>;
+export type OrderCancelBody = z.infer<typeof OrderCancelBody>;
 
 // POST /orders/:id/send_to_refiner - which refinery gets the metal. The spots
 // the message quotes are the ORDER's frozen ones, read server-side: they used
 // to arrive in the body, which is the $26.81-an-ounce hazard.
-export const SendToRefinerBody = z.object({
-  refiner_id: refiners.Row.shape.id,
+export const OrderSendToRefinerBody = z.object({
+  refiner_id: Refiner.shape.id,
 }).strict();
-export type SendToRefinerBody = z.infer<typeof SendToRefinerBody>;
+export type OrderSendToRefinerBody = z.infer<typeof OrderSendToRefinerBody>;
 

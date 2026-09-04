@@ -1,5 +1,5 @@
 // What useUpdateCredit actually POSTs, checked against @dorado/contracts'
-// auth.users.CreditBody in strict mode. The contracts lane dropped `mode` (an
+// UpdateCreditBody in strict mode. The contracts lane dropped `mode` (an
 // earlier field the service had already stopped reading) and made an
 // unrecognized key a 400 rather than a silent no-op; a grep found no `mode`
 // in this hook's body, but nothing had proven it. This pins that.
@@ -7,7 +7,7 @@ import { describe, expect, test, vi, beforeEach } from "vitest";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
-import { auth } from "@dorado/contracts";
+import { UpdateCreditBody } from "@dorado/contracts";
 
 vi.mock("@/shared/queries/axios", () => ({ apiRequest: vi.fn() }));
 vi.mock("@/features/auth/queries", () => ({
@@ -44,10 +44,10 @@ describe("useUpdateCredit sends exactly what /users/update_credit accepts", () =
     await waitFor(() => expect(apiRequest).toHaveBeenCalled());
     const [, url, body] = vi.mocked(apiRequest).mock.calls[0];
     expect(url).toBe("/users/update_credit");
-    expect(auth.users.CreditBody.safeParse(body).success).toBe(true);
+    expect(UpdateCreditBody.safeParse(body).success).toBe(true);
 
     expect(body).not.toHaveProperty("mode");
     const withMode = { ...(body as object), mode: "add" };
-    expect(auth.users.CreditBody.safeParse(withMode).success).toBe(false);
+    expect(UpdateCreditBody.safeParse(withMode).success).toBe(false);
   });
 });

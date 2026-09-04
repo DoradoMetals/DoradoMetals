@@ -3,13 +3,13 @@
 import query from "#shared/db/query.ts";
 import { buildUpdate } from "#shared/db/patch.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
-import type { fulfillments } from "@dorado/contracts";
+import type { Fulfillment } from "@dorado/contracts";
 import type { Executor } from "#shared/db/executor.ts";
 
 const sql = sqlFrom(import.meta.dirname);
 
 export type FulfillmentBaseRow = Pick<
-  fulfillments.fulfillments.Row,
+  Fulfillment,
   | "id" | "order_id" | "method_id" | "status" | "created_at" | "updated_at"
   | "created_by" | "updated_by"
   | "created_by_id" | "updated_by_id"

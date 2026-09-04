@@ -1,15 +1,16 @@
 // shipping.packages: reference data, read-only - no create/update/remove. `find` resolves a carrier+label pair to its row.
 import query from "#shared/db/query.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
-import type { shipping } from "@dorado/contracts";
+import type { Package } from "@dorado/contracts";
 import type { Executor } from "#shared/db/executor.ts";
 
 const sql = sqlFrom(import.meta.dirname);
 
 export type PackageRow = Pick<
-  shipping.packages.Row,
+  Package,
   | "id" | "carrier_id" | "label" | "length" | "width" | "height"
   | "is_carrier_packaging" | "image_id" | "created_at" | "updated_at"
+  | "min_weight_lb"
 >;
 
 export async function getAll(executor?: Executor): Promise<PackageRow[]> {

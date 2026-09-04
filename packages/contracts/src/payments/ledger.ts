@@ -5,7 +5,7 @@
 // Postgres table: payments.ledger
 import { z } from "zod/v4";
 
-export const Row = z.object({
+export const LedgerEntry = z.object({
   "id": z.string().uuid(),
   "user_id": z.string().uuid(),
   "type": z.string(),
@@ -15,7 +15,31 @@ export const Row = z.object({
   "created_at": z.string(),
   "updated_at": z.string(),
 });
-export type Row = z.infer<typeof Row>;
+export type LedgerEntry = z.infer<typeof LedgerEntry>;
 // generated:end
+import { Direction } from "../orders/enums.js";
 
-// Hand-written derivations go here: New, Patch, named reads.
+// A payments.ledger write: ids plus the fact, no audit or default columns.
+// `id` is the caller's to supply (ruling 43) and the repo issues one if not.
+export const LedgerEntryPatch = LedgerEntry.pick({
+  id: true,
+  user_id: true,
+  order_id: true,
+  type: true,
+  amount: true,
+}).extend({
+  user_id: LedgerEntry.shape.user_id.nullable(),
+  amount: LedgerEntry.shape.amount.nullable(),
+}).partial({ id: true });
+export type LedgerEntryPatch = z.infer<typeof LedgerEntryPatch>;
+
+// GET /get_transactions - the customer credit ledger as it crosses the wire.
+// The column is `type` and the wire has always called it `transaction_type`;
+// `direction` is the ORDER's, resolved through order_id (one order id now,
+// not exchange's purchase/sale column pair).
+export const AccountTransaction = LedgerEntry.omit({ type: true }).extend({
+  transaction_type: LedgerEntry.shape.type,
+  direction: Direction.nullable(),
+});
+export type AccountTransaction = z.infer<typeof AccountTransaction>;
+

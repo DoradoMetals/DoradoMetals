@@ -1,4 +1,4 @@
-// Checks the generated table schemas against rows that actually exist.
+// Checks the generated entity schemas against rows that actually exist.
 //
 // The generated schemas come from information_schema, so they should describe
 // every row by construction. Running them over real data proves that, and more
@@ -28,13 +28,30 @@ dotenv.config({
 // the application actually sees rather than pg defaults.
 pg.types.setTypeParser(pg.types.builtins.NUMERIC, (v) => (v === null ? null : parseFloat(v)));
 pg.types.setTypeParser(pg.types.builtins.INT8, (v) => (v === null ? null : Number(v)));
-// THE ENTITY NAMESPACE, not a per-schema barrel. The generator used to emit
-// one file per SCHEMA and this imported `dist/generated/exchange.js`; when the
-// output split per TABLE that path stopped existing. tsc does not delete stale
-// outputs, so a fossil in dist/ once let this validate against a schema the
-// database no longer had - the build's clean step and this import both point
-// at what the package actually exports now.
-import { exchange } from "../dist/index.js";
+// THE ENTITIES, resolved from the source tree. The package exports one FLAT
+// name per table now - `Rate`, `OrderItem` - so the table a name belongs to is
+// not recoverable from the export alone; each src/<schema>/<table>.ts names it
+// in its own generated region, which is what this reads. The old version
+// imported `dist/generated/exchange.js`, a file that stopped being emitted:
+// tsc does not delete stale outputs, so a fossil in dist/ once let this
+// validate against a schema the database no longer had.
+import * as contracts from "../dist/index.js";
+import { readFileSync, readdirSync, existsSync } from "node:fs";
+
+const SRC = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "src");
+const entityOf = (schema, table) => {
+  const file = path.join(SRC, schema, `${table}.ts`);
+  if (!existsSync(file)) return null;
+  const src = readFileSync(file, "utf8");
+  const a = src.indexOf("// generated:start");
+  const b = src.indexOf("// generated:end");
+  const m = /export const (\w+) = z\.object\(\{/.exec(a === -1 ? src : src.slice(a, b));
+  return m ? contracts[m[1]] ?? null : null;
+};
+
+const SCHEMAS = readdirSync(SRC, { withFileTypes: true })
+  .filter((e) => e.isDirectory() && e.name !== "computed")
+  .map((e) => e.name);
 
 const LIMIT = Number(process.env.VALIDATE_LIMIT ?? 200);
 
@@ -47,18 +64,19 @@ await client.connect();
 const target = new URL(process.env.DATABASE_URL);
 console.log(`validating against ${target.pathname.slice(1)} @ ${target.hostname}\n`);
 
-const { rows: tableRows } = await client.query(`
-  SELECT table_name FROM information_schema.tables
-  WHERE table_schema = 'exchange' AND table_type = 'BASE TABLE'
-  ORDER BY table_name
-`);
+const { rows: tableRows } = await client.query(
+  `SELECT table_schema, table_name FROM information_schema.tables
+    WHERE table_schema = ANY($1) AND table_type = 'BASE TABLE'
+    ORDER BY table_schema, table_name`,
+  [SCHEMAS]
+);
 
 let checked = 0;
 let clean = 0;
 const failures = [];
 
-for (const { table_name } of tableRows) {
-  const schema = exchange[table_name]?.Row;
+for (const { table_schema, table_name } of tableRows) {
+  const schema = entityOf(table_schema, table_name);
   if (!schema) continue;
 
   // bytea reaches the wire as encode(col, 'base64'), so a raw SELECT * hands
@@ -66,13 +84,13 @@ for (const { table_name } of tableRows) {
   // rather than reporting a divergence that only exists in this script.
   const { rows: byteaCols } = await client.query(
     `SELECT column_name FROM information_schema.columns
-     WHERE table_schema = 'exchange' AND table_name = $1 AND data_type = 'bytea'`,
-    [table_name]
+     WHERE table_schema = $1 AND table_name = $2 AND data_type = 'bytea'`,
+    [table_schema, table_name]
   );
   const encoded = byteaCols.map((c) => c.column_name);
 
   const { rows } = await client.query(
-    `SELECT * FROM exchange."${table_name}" LIMIT ${LIMIT}`
+    `SELECT * FROM "${table_schema}"."${table_name}" LIMIT ${LIMIT}`
   );
   if (!rows.length) continue;
 
@@ -98,7 +116,7 @@ for (const { table_name } of tableRows) {
     clean++;
     continue;
   }
-  failures.push({ table: table_name, rows: rows.length, problems });
+  failures.push({ table: `${table_schema}.${table_name}`, rows: rows.length, problems });
 }
 
 for (const f of failures) {

@@ -9,7 +9,8 @@ import { RadioGroupRoot, RadioOption } from '@/shared/ui/RadioGroup'
 import { FloatingButton, FloatingButtonItem } from '@/features/products/ui/FloatingButton'
 
 import { useState } from 'react'
-import { cartStore } from '@/shared/store/cartStore'
+import { useCheckoutItems } from '@/shared/store/checkoutItemsStore'
+import { lineFromProduct } from '@/features/checkout/items/types'
 
 import { PopoverContent, PopoverTrigger } from '@/shared/ui/base/popover'
 import { Popover } from '@radix-ui/react-popover'
@@ -46,12 +47,11 @@ export default function ProductCard({ product, variants, unitPrices }: ProductCa
   const [isBeginning, setIsBeginning] = useState(true)
   const [isEnd, setIsEnd] = useState(false)
 
-  const items = cartStore((state) => state.items)
-  const addItem = cartStore((state) => state.addItem)
-  const removeOne = cartStore((state) => state.removeOne)
+  const items = useCheckoutItems((state) => state.sale)
+  const addItem = useCheckoutItems((state) => state.addItem)
+  const removeOne = useCheckoutItems((state) => state.removeOne)
 
-  const cartItem = items.find((item) => item.name === selectedProduct.name)
-  const quantity = cartItem?.quantity ?? 0
+  const quantity = items.find((i) => i.bullion_id === selectedProduct.id)?.quantity ?? 0
   const { data: spotPrices = [] } = useSpotPrices()
 
   const spot = spotPrices.find((s) => s.name === product.metal_type)
@@ -319,10 +319,10 @@ export default function ProductCard({ product, variants, unitPrices }: ProductCa
                 className="w-full"
                 onClick={(e) => {
                   e.stopPropagation()
-                  addItem(selectedProduct)
+                  addItem('sale', lineFromProduct(selectedProduct))
                 }}
               >
-                Add to Cart
+                Add to Checkout
               </Button>
             ) : (
               <div className="flex items-center justify-center gap-3">
@@ -330,7 +330,7 @@ export default function ProductCard({ product, variants, unitPrices }: ProductCa
                   size="icon"
                   onClick={(e) => {
                     e.stopPropagation()
-                    removeOne(selectedProduct)
+                    removeOne('sale', lineFromProduct(selectedProduct))
                   }}
                 >
                   <Minus size={20} />
@@ -340,7 +340,7 @@ export default function ProductCard({ product, variants, unitPrices }: ProductCa
                   size="icon"
                   onClick={(e) => {
                     e.stopPropagation()
-                    addItem(selectedProduct)
+                    addItem('sale', lineFromProduct(selectedProduct))
                   }}
                 >
                   <Plus size={20} />

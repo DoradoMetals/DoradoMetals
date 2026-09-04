@@ -2,7 +2,7 @@
 // Run `pnpm --filter @dorado/contracts generate` to refresh.
 //
 // Every entity of the `places` schema, one namespace each.
-export * as addresses from "./addresses.js";
-export * as location_hours from "./location_hours.js";
-export * as locations from "./locations.js";
-export * as user_addresses from "./user_addresses.js";
+export * from "./addresses.js";
+export * from "./location_hours.js";
+export * from "./locations.js";
+export * from "./user_addresses.js";

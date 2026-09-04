@@ -15,7 +15,7 @@ import {
   calculateItemAsk,
 } from "#domain/pricing/service.ts";
 import type { PricingSpot } from "#domain/pricing/service.ts";
-import type { tax as taxContract } from "@dorado/contracts";
+import type { GetSalesTaxBody } from "@dorado/contracts";
 
 // What the ask side reads off a line. Named here rather than imported because
 // pricing does not export it; the fields are its `PriceableItem`.
@@ -132,7 +132,7 @@ export async function attachSalesTaxToItems<T extends TaxableItem & PriceableLin
 // content * spot * premium, so a caller supplying spots would supply its own
 // tax base.
 export async function getSalesTax(
-  { address_id, items }: taxContract.sales_tax.QuoteBody
+  { address_id, items }: GetSalesTaxBody
 ): Promise<number> {
   const address = address_id ? await addressService.getAddressFromId(address_id) : undefined;
   if (address_id && !address) throw new NotFound(`no address ${address_id}`);

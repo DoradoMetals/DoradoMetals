@@ -30,12 +30,8 @@ import { calculateItemAsk, calculateSalesOrderTotal } from "#domain/pricing/serv
 import { effectivePayoutFee, inboundShipment } from "#domain/pricing/service.ts";
 import { sumContentByMetal } from "#domain/rates/utils/resolveRate.ts";
 import { Forbidden, Invalid, NotFound } from "#shared/errors.ts";
-import type { quotes } from "@dorado/contracts";
+import type { CatalogQuote, CatalogQuoteBody, OrderQuote, OrderQuoteBody, OrderQuoteLine, PurchaseOrderQuote, PurchaseOrderQuoteBody, PurchaseOrderQuoteLine, SalesOrderQuote, SalesOrderQuoteBody } from "@dorado/contracts";
 
-export type CatalogQuote = quotes.CatalogQuote;
-export type OrderQuote = quotes.OrderQuote;
-export type PurchaseOrderQuote = quotes.PurchaseOrderQuote;
-export type SalesOrderQuote = quotes.SalesOrderQuote;
 
 // The same gate checkout applies to a cart, applied to a quote: an ASK quote
 // may only name a product live on the buy side (`display`). A BID quote has
@@ -71,7 +67,7 @@ async function refuseProductsThatAreNotLive(
 // quotes anyone who visits, and this returns nothing a visitor cannot derive
 // from the public product list and spot feed.
 // quantity defaults to 1 - what does ONE cost.
-export async function catalogQuote({ side, items }: quotes.CatalogQuoteBody): Promise<quotes.CatalogQuote> {
+export async function catalogQuote({ side, items }: CatalogQuoteBody): Promise<CatalogQuote> {
   await refuseProductsThatAreNotLive(items.map((line) => line.id), side);
 
   // Sequential, not Promise.all: neither call takes a client of its own, so
@@ -113,8 +109,8 @@ export async function catalogQuote({ side, items }: quotes.CatalogQuoteBody): Pr
 // one is chosen, and absent means taxed in no state.
 export async function salesOrderQuote(
   subject_user_id: string,
-  { items, address_id, carrier_service_id, payment_method_id }: quotes.SalesOrderQuoteBody
-): Promise<quotes.SalesOrderQuote> {
+  { items, address_id, carrier_service_id, payment_method_id }: SalesOrderQuoteBody
+): Promise<SalesOrderQuote> {
   // THE BALANCE IS THE SUBJECT'S OWN ROW, read fresh rather than taken from the
   // session's cached copy, because that is the balance an order placed after
   // this quote would actually apply. A caller declaring their own balance would
@@ -199,8 +195,8 @@ type PricedPurchaseLine = {
 // The fix is not the parenthesis: the server returns the figure, and the same
 // subtraction orderQuote does for a SAVED order.
 export async function purchaseOrderQuote(
-  { items, payout_method_id, shipping_charge }: quotes.PurchaseOrderQuoteBody
-): Promise<quotes.PurchaseOrderQuote> {
+  { items, payout_method_id, shipping_charge }: PurchaseOrderQuoteBody
+): Promise<PurchaseOrderQuote> {
   // Both deductions are OPTIONAL: the review step quotes before a service or a
   // payout method is chosen, and a goods-only quote is a real answer.
   const payout_charge = await payoutChargeFor(payout_method_id);
@@ -244,7 +240,7 @@ export async function purchaseOrderQuote(
     lines, (line) => line.metal, (line) => bandableContent(line.kind, line.content, line.quantity)
   );
 
-  const quoted: quotes.PurchaseOrderQuoteLine[] = lines.map((line) => {
+  const quoted: PurchaseOrderQuoteLine[] = lines.map((line) => {
     const premium = requireBandPremium(
       rates, line.metal, contentByMetal[line.metal.trim().toLowerCase()] ?? 0, line.kind
     );
@@ -304,7 +300,7 @@ async function payoutChargeFor(payout_method_id: string | null | undefined): Pro
 // A metal with no spot anywhere prices at 0 rather than throwing: this is a
 // drawer estimate for an order that already exists and must render. The accept
 // path keeps calculateTotalPrice's throw.
-export async function orderQuote({ order_id }: quotes.OrderQuoteBody): Promise<quotes.OrderQuote> {
+export async function orderQuote({ order_id }: OrderQuoteBody): Promise<OrderQuote> {
   const order = await orderRead.view(order_id);
   // requireOwnOrder answers 403 for a customer naming an order that is not
   // theirs or does not exist; only an admin reaches this.
@@ -326,7 +322,7 @@ export async function orderQuote({ order_id }: quotes.OrderQuoteBody): Promise<q
     return Number(liveBidByMetal.get(metal_id) ?? 0);
   };
 
-  const items: quotes.OrderQuoteLine[] = [];
+  const items: OrderQuoteLine[] = [];
   let scrap_total = 0;
   let bullion_total = 0;
 

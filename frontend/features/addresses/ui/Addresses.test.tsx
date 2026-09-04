@@ -5,6 +5,7 @@
 // addresses lift: the list shows every address by its label with the default
 // sorted first and bannered, and the set-default action carries the
 // address's id - wherever the shape keeps the label and the default flag.
+import type { Address } from "@dorado/contracts";
 import { describe, expect, test, vi, beforeEach } from "vitest";
 import { screen, waitFor } from "@testing-library/react";
 import { renderWithClient } from "@/shared/tests/renderWithClient";
@@ -17,7 +18,6 @@ vi.mock("@/features/auth/queries", () => ({
 
 import { apiRequest } from "@/shared/queries/axios";
 import AddressList from "@/features/addresses/ui/AddressList";
-import type { Address } from "@/features/addresses/types";
 
 // Two addresses in the CURRENT wire shape - the pure postal rows from one
 // endpoint and the caller's links from the other, joined by address_id.

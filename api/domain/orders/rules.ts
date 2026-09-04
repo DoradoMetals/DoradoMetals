@@ -22,10 +22,9 @@ import type { PackageRow } from "#db/shipping/packages/repo.ts";
 import type { MethodRow as PaymentMethodRow } from "#db/payments/methods/repo.ts";
 import type { ComposedFulfillment } from "#domain/fulfillments/compose.ts";
 import type { LabelService } from "#domain/shipping/services/service.ts";
-import type { providers } from "@dorado/contracts";
+import type { BullionPublic, CarrierHandoff, Direction, OrderItemPatch, OrderView } from "@dorado/contracts";
 import type { StorefrontProduct } from "#domain/products/compose.ts";
 import type { OrderPrices, Spots } from "#domain/pricing/ask.ts";
-import type { orders, products } from "@dorado/contracts";
 
 // Type-only re-exports, erased at runtime: this file still needs no database.
 export type { PricedLine } from "#db/orders/items/repo.ts";
@@ -56,7 +55,7 @@ export type CarrierRate = { serviceType: string | null; netCharge: number | null
 // by id - so the label, the booking and the parcel row read the same values.
 export type Parcel = {
   carrier_id: string; serviceType: string; carrierCode: string;
-  handoff: providers.CarrierHandoff; declaredValue: number;
+  handoff: CarrierHandoff; declaredValue: number;
   weight: { units: string; value: number };
   dimensions: { length: number; width: number; height: number; units: string };
   schedule: { date: string; time: string } | null;
@@ -66,18 +65,18 @@ export type Parcel = {
 // one is a refusal naming the column, never a null the pricing reads as zero.
 export type PurchaseCheckout = {
   shipper_address_id: string; package_id: string; carrier_service_id: string;
-  fulfillment_id: string; payment_details_id: string; package_weight: number;
+  fulfillment_id: string; payment_details_id: string;
 };
 
 export type SaleCheckout = { recipient_address_id: string };
 
 // SALES TAX IS CHARGED, NOT PAID: a payout to a customer never carries it.
-export function chargesSalesTax(direction: orders.enums.Direction): boolean {
+export function chargesSalesTax(direction: Direction): boolean {
   return direction === "sale";
 }
 
 // The order's direction, from the checkout it came from.
-export function directionOf(checkout: CheckoutRow): orders.enums.Direction {
+export function directionOf(checkout: CheckoutRow): Direction {
   return checkout.direction === "sale" ? "sale" : "purchase";
 }
 
@@ -116,11 +115,11 @@ export function retierPlan(
 // no live quote is REFUSED: a null spot prices that metal at zero.
 export function spotsToFreeze(
   order_id: string,
-  lines: { metal_id: string }[],
+  lines: { metal_id?: string | null }[],
   live: { id: string; ask: number | null; bid: number | null }[]
 ): NewOrderSpot[] {
   const liveByMetal = new Map(live.map((quote) => [quote.id, quote]));
-  const metals = new Set(lines.map((line) => line.metal_id));
+  const metals = new Set(lines.map((line) => line.metal_id).filter((m): m is string => !!m));
 
   const frozen: NewOrderSpot[] = [];
   for (const metal_id of metals) {
@@ -287,7 +286,7 @@ export function shipmentFrom(
 // A CATALOGUE LINE. The weights are the product's, and the premium is left for
 // the re-tier to write.
 export function lineFromProduct(
-  order_id: string, product: products.bullion.Public
+  order_id: string, product: BullionPublic
 ): NewOrderItem {
   return {
     order_id, bullion_id: product.id, metal_id: product.metal_id,
@@ -299,7 +298,7 @@ export function lineFromProduct(
 // A SCRAP LINE: the scrap IS the line. Content is derived here and nowhere
 // else - two definitions of what content means is the defect that costs money.
 export function lineFromScrap(
-  order_id: string, declared: orders.items.NewScrap
+  order_id: string, declared: OrderItemPatch
 ): NewOrderItem {
   return {
     order_id, metal_id: declared.metal_id, pre_melt: declared.pre_melt,
@@ -310,7 +309,7 @@ export function lineFromScrap(
 
 // WHETHER A LINE EDIT RE-TIERS THE ORDER: a weight, purity, unit or quantity
 // moves the metal total the band is read at. A PREMIUM IS THE ADMIN'S OWN.
-export function retiersAfterEdit(changes: orders.items.Patch): boolean {
+export function retiersAfterEdit(changes: OrderItemPatch): boolean {
   if (changes.premium !== undefined) return false;
   return (
     changes.pre_melt !== undefined ||
@@ -334,20 +333,19 @@ function assertHasItems(cart: CheckoutLine[]): void {
   if (!cart.length) throw new Invalid("a checkout with no items cannot become an order");
 }
 
-// The five ids and the weight a shipping checkout must hold to buy a label.
+// The five ids a shipping checkout must hold to buy a label. The weight is
+// computed from the cart and the package once both are loaded - see
+// domain/shipping/rules.ts parcelWeightLb.
 export function assertPlaceableAsPurchase(
   checkout: CheckoutRow, cart: CheckoutLine[]
 ): PurchaseCheckout {
   assertHasItems(cart);
-  const package_weight = Number(checkout.package_weight);
-  if (!(package_weight > 0)) throw new Invalid("the parcel needs a weight");
   return {
     shipper_address_id: required("shipper_address_id", checkout.shipper_address_id),
     package_id: required("package_id", checkout.package_id),
     carrier_service_id: required("carrier_service_id", checkout.carrier_service_id),
     fulfillment_id: required("fulfillment_id", checkout.fulfillment_id),
     payment_details_id: required("payment_details_id", checkout.payment_details_id),
-    package_weight,
   };
 }
 
@@ -389,15 +387,15 @@ export function requireFreeShipmentDraft(draft: ComposedFulfillment | null): Com
 // WHICH HANDOFF THE CHOSEN METHOD MEANS, by CAPABILITY: the schedulable one is
 // the carrier pickup. No carrier enum is spelled here.
 export function handoffFor(
-  handoffs: providers.CarrierHandoff[], method_type: string | null
-): providers.CarrierHandoff {
+  handoffs: CarrierHandoff[], method_type: string | null
+): CarrierHandoff {
   const handoff = handoffs.find((h) => h.requires_schedule === (method_type === "CARRIER PICKUP"));
   if (!handoff) throw new Error("the carrier's handoff catalogue is missing an option");
   return handoff;
 }
 
 export function assertDirection(
-  direction: orders.enums.Direction | null, wanted: orders.enums.Direction, operation: string
+  direction: Direction | null, wanted: Direction, operation: string
 ): void {
   if (direction === null) throw new Invalid(`${operation} needs an order with a direction`);
   if (direction !== wanted) {
@@ -410,7 +408,7 @@ export function assertDirection(
 // AN ORDER MAY BE RE-SENT TO THE SAME REFINER and never MOVED to another. It
 // needs an address to be sent and a refiner needs an email to be told.
 export function assertSendable(
-  order: orders.orders.View,
+  order: OrderView,
   { refiner_id, attachedRefinerId, refinerEmail }: {
     refiner_id: string;
     attachedRefinerId: string | null;
@@ -445,8 +443,9 @@ export function parcelFor(
   placeable: PurchaseCheckout,
   service: LabelService,
   box: PackageRow | undefined,
-  handoff: providers.CarrierHandoff,
-  declaredValue: number
+  handoff: CarrierHandoff,
+  declaredValue: number,
+  weight: number
 ): Parcel {
   if (!box) throw new Invalid("the checkout names a package that does not exist");
   const { pickup_date, pickup_time } = checkout;
@@ -458,7 +457,7 @@ export function parcelFor(
   return {
     carrier_id: service.carrier_id, serviceType: service.serviceType,
     carrierCode: service.carrierCode, handoff, declaredValue,
-    weight: { units: "LB", value: placeable.package_weight },
+    weight: { units: "LB", value: weight },
     dimensions: {
       length: Number(box.length), width: Number(box.width),
       height: Number(box.height), units: "IN",
@@ -518,7 +517,7 @@ export function pickupRequest(
 // SENDING A CUSTOMER'S METAL BACK. Every value is the server's: the parcel goes
 // to the address the ORDER snapshotted, from the business's configured one.
 export function returnLabelRequest(
-  order: orders.orders.View,
+  order: OrderView,
   { serviceType, weight, dimensions, declaredValue }: {
     serviceType: string;
     weight: { units: string; value: number };
@@ -575,16 +574,16 @@ export function statusAtPlacement(cents: number, alreadySucceeded: boolean): str
 // What an already-attached intent means for a new order: conflict (it paid for
 // something), supersede (an unsettled sale paid for nothing), proceed (free).
 export type IntentFacts = {
-  sales_order_id?: string | null;
-  purchase_order_id?: string | null;
+  order_id?: string | null;
+  direction?: Direction | null;
   payment_status?: string | null;
 };
 
 export function attachmentVerdict(
   intent: IntentFacts
 ): "proceed" | "supersede" | "conflict" {
-  if (intent.purchase_order_id) return "conflict";
-  if (!intent.sales_order_id) return "proceed";
+  if (!intent.order_id) return "proceed";
+  if (intent.direction === "purchase") return "conflict";
   return isSettled(intent.payment_status) ? "conflict" : "supersede";
 }
 

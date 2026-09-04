@@ -31,20 +31,20 @@ import { metalId, metalIds, type MetalName } from "#shared/testing/builders/refe
 import type { BuiltUser } from "#shared/testing/builders/users.ts";
 import type { BuiltProduct } from "#shared/testing/builders/products.ts";
 
-import type { orders } from "@dorado/contracts";
+import type { Direction } from "@dorado/contracts";
 
 export type BuiltOrder = {
   id: string;
   number: number;
   user_id: string | null;
-  direction: orders.enums.Direction;
+  direction: Direction;
   status: string;
   items: { id: string; bullion_id: string | null; metal_id: string }[];
 };
 
 export type OrderOptions = {
   id?: string;
-  direction?: orders.enums.Direction;
+  direction?: Direction;
   status?: string;
   notes?: string | null;
 };

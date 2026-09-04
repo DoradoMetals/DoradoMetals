@@ -32,7 +32,7 @@ import * as pickupService from "#domain/shipping/pickups/service.ts";
 import type { OrderRow } from "#db/orders/repo.ts";
 import type { OrderItemRow } from "#db/orders/items/repo.ts";
 import type { OrderTotalsRow } from "#domain/orders/transactions/service.ts";
-import type { orders, products } from "@dorado/contracts";
+import type { BullionPublic, OrderView, OrderViewItem } from "@dorado/contracts";
 import type { PoolClient } from "pg";
 
 type Executor = PoolClient | undefined;
@@ -72,8 +72,8 @@ export async function getOne(
 // A bullion line names its catalogue row; a scrap line's weights ARE its
 // columns, so it names none.
 function withProduct(
-  item: OrderItemRow, catalogue: Map<string, products.bullion.Public>
-): orders.items.ViewItem {
+  item: OrderItemRow, catalogue: Map<string, BullionPublic>
+): OrderViewItem {
   return Object.assign(item, {
     product: item.bullion_id === null ? null : (catalogue.get(item.bullion_id) ?? null),
   });
@@ -83,7 +83,7 @@ function withProduct(
 // whether that is a 404 or a skipped email.
 export async function view(
   order_id: string, executor?: Executor
-): Promise<orders.orders.View | null> {
+): Promise<OrderView | null> {
   const order = await ordersRepo.getOne(order_id, executor);
   if (!order) return null;
 

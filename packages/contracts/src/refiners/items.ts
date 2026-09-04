@@ -5,7 +5,7 @@
 // Postgres table: refiners.items
 import { z } from "zod/v4";
 
-export const Row = z.object({
+export const RefinerItem = z.object({
   "id": z.string().uuid(),
   "order_item_id": z.string().uuid(),
   "refiner_id": z.string().uuid().nullable(),
@@ -20,7 +20,7 @@ export const Row = z.object({
   "unit": z.string().nullable(),
   "refiner_order_id": z.string().uuid().nullable(),
 });
-export type Row = z.infer<typeof Row>;
+export type RefinerItem = z.infer<typeof RefinerItem>;
 // generated:end
 // PATCH /api/refiners/items/by-order-item/:orderItemId - the refinery's
 // report on one customer line. EVERY FIELD IS NULLABLE HERE and that is not
@@ -31,12 +31,12 @@ export type Row = z.infer<typeof Row>;
 //
 // `content` is DELIBERATELY not a field: it is derived from post_melt (or
 // pre_melt) and purity, and the service refuses a raw override by name.
-export const Patch = Row.pick({
+export const RefinerItemPatch = RefinerItem.pick({
   premium: true,
   pre_melt: true,
   post_melt: true,
   purity: true,
   unit: true,
 }).partial().strict();
-export type Patch = z.infer<typeof Patch>;
+export type RefinerItemPatch = z.infer<typeof RefinerItemPatch>;
 

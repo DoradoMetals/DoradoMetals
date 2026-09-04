@@ -1,5 +1,5 @@
 // What usePatchPayout actually PATCHes, checked against @dorado/contracts'
-// exchange.payouts.Patch in strict mode. The body shape did not change in streamline-a -
+// PayoutPatch in strict mode. The body shape did not change in streamline-a -
 // {cost?, method?, waive_payout_fee?} was already the contract's own - but
 // the contract itself moved to `.strict()` at transport, so this pins that
 // an unrecognized field (a bank number, an id, anything the drawer never
@@ -8,7 +8,7 @@ import { describe, expect, test, vi, beforeEach } from "vitest";
 import { act, renderHook } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
-import { exchange } from "@dorado/contracts";
+import { PayoutPatch } from "@dorado/contracts";
 
 vi.mock("@/shared/queries/axios", () => ({ apiRequest: vi.fn() }));
 vi.mock("@/features/auth/queries", () => ({
@@ -51,11 +51,11 @@ describe("usePatchPayout sends exactly what PATCH /payouts/:id accepts", () => {
     expect(call).toBeTruthy();
     const body = call![2];
 
-    expect(exchange.payouts.Patch.strict().safeParse(body).success).toBe(true);
+    expect(PayoutPatch.strict().safeParse(body).success).toBe(true);
 
     // Proven: the bank details never had a write surface here, and naming
     // one fails the same parse rather than being silently dropped.
     const poisoned = { ...(body as object), account_number: "12345" };
-    expect(exchange.payouts.Patch.strict().safeParse(poisoned).success).toBe(false);
+    expect(PayoutPatch.strict().safeParse(poisoned).success).toBe(false);
   });
 });

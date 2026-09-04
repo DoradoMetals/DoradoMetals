@@ -2,7 +2,7 @@
 // Run `pnpm --filter @dorado/contracts generate` to refresh.
 //
 // Every entity of the `refiners` schema, one namespace each.
-export * as items from "./items.js";
-export * as orders from "./orders.js";
-export * as refiners from "./refiners.js";
-export * as spots from "./spots.js";
+export * from "./items.js";
+export * from "./orders.js";
+export * from "./refiners.js";
+export * from "./spots.js";

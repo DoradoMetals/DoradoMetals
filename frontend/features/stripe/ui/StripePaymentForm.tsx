@@ -1,10 +1,10 @@
 'use client'
 
+import type { Address } from "@dorado/contracts";
 import { Alert } from '@dorado/components'
 import React, { useRef, useState, FormEvent } from 'react'
 import { PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js'
 import type { StripePaymentElementOptions } from '@stripe/stripe-js'
-import { Address } from '@/features/addresses/types'
 import { PaymentMethodTypeValues } from '@/features/orders/salesOrders/types'
 import { usePaymentMethods } from '@/features/payments/queries'
 import { orderAwaitingPayment } from '@/features/stripe/orderAwaitingPayment'
@@ -65,7 +65,7 @@ export default function StripePaymentForm({
   //
   //   1. createOrder - the caller parses its payload (nothing has happened
   //      yet; a throw costs nothing) and POSTs. The server verifies THIS
-  //      intent belongs to the order's customer, prices the cart itself, sets
+  //      intent belongs to the order's customer, prices the basket itself, sets
   //      the intent's amount to that price, and creates the order AWAITING
   //      PAYMENT.
   //   2. confirmPayment - the money moves last. Success calls onSuccess;
@@ -126,7 +126,7 @@ export default function StripePaymentForm({
       }
     } catch (err) {
       // Creation failed, or the parse did - EITHER WAY NOTHING HAS BEEN
-      // CHARGED, which is the entire point of the ordering. The cart is
+      // CHARGED, which is the entire point of the ordering. The basket is
       // intact; whoever is driving fixes the problem and submits again.
       const detail = err instanceof Error ? err.message : null
       setMessage(

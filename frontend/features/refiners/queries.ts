@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { apiRequest } from '@/shared/queries/axios'
 import { useGetSession } from '@/features/auth/queries'
 import { invalidateOrderReads } from '@/features/orders/invalidation'
-import type { refiners } from "@dorado/contracts";
+import type { RefinerItem, RefinerItemPatch, RefinerOrder, RefinerOrderPatch, RefinerSpot, RefinerSpotWrite } from "@dorado/contracts";
 
 // REFINERS IS ITS OWN FEATURE, and the endpoint follows the feature that
 // owns the table (Jacob's rule, fourth D87 correction). The standing rule of
@@ -25,15 +25,15 @@ import type { refiners } from "@dorado/contracts";
 // the client honestly holds.
 
 // The bare engagement row for one customer order, VERBATIM (the
-// refiners.orders.Row contract re-exports refiners.orders' generated row). Its `id`
+// RefinerOrder contract re-exports refiners.orders' generated row). Its `id`
 // is the key usePatchRefinerOrder needs.
 export const useRefinerOrder = (order_id: string) => {
   const { user } = useGetSession()
 
-  return useQuery<refiners.orders.Row>({
+  return useQuery<RefinerOrder>({
     queryKey: ['refiner_order', order_id],
     queryFn: async () =>
-      await apiRequest<refiners.orders.Row>('GET', `/orders/${order_id}/refiners`),
+      await apiRequest<RefinerOrder>('GET', `/orders/${order_id}/refiners`),
     enabled: !!user && !!order_id,
   })
 }
@@ -46,10 +46,10 @@ export const useRefinerOrder = (order_id: string) => {
 export const useRefinerMetals = (order_id: string) => {
   const { user } = useGetSession()
 
-  return useQuery<refiners.spots.Row[]>({
+  return useQuery<RefinerSpot[]>({
     queryKey: ['refiner_metals', order_id],
     queryFn: async () =>
-      await apiRequest<refiners.spots.Row[]>('GET', `/orders/${order_id}/refiners/spots`),
+      await apiRequest<RefinerSpot[]>('GET', `/orders/${order_id}/refiners/spots`),
     enabled: !!user && !!order_id,
     refetchInterval: 60_000,
   })
@@ -62,15 +62,14 @@ export const useRefinerMetals = (order_id: string) => {
 // refiner's premium as a field of the customer's own line - four values of
 // another table wearing customer-facing names. Map them onto the items read
 // by order_item_id.
-export type RefinerItem = refiners.items.Row;
 
 export const useRefinerItems = (order_id: string) => {
   const { user } = useGetSession()
 
-  return useQuery<refiners.items.Row[]>({
+  return useQuery<RefinerItem[]>({
     queryKey: ['refiner_items', order_id],
     queryFn: async () =>
-      await apiRequest<refiners.items.Row[]>('GET', `/orders/${order_id}/refiners/items`),
+      await apiRequest<RefinerItem[]>('GET', `/orders/${order_id}/refiners/items`),
     enabled: !!user && !!order_id,
   })
 }
@@ -94,9 +93,6 @@ export const useRefinerItems = (order_id: string) => {
 //     is a nullable foreign key, not a fee: every engagement starts with it
 //     null, and detaching one from a refinery is a real operation. No drawer
 //     sends it today.
-export type RefinerItemPatch = refiners.items.Patch;
-export type RefinerSpotWrite = refiners.spots.Write;
-export type RefinerOrderPatch = refiners.orders.Patch;
 
 // Settles through the one order cache policy in
 // features/orders/invalidation.ts - refiner values render inside order reads
@@ -108,7 +104,7 @@ type PatchRefinerItemVars = {
   order_item_id: string
   // For invalidation only; the URL does not carry it.
   order_id: string
-  patch: refiners.items.Patch
+  patch: RefinerItemPatch
 }
 
 export const usePatchRefinerItem = () => {
@@ -132,7 +128,7 @@ type PatchRefinerOrderVars = {
   refiner_order_id: string
   // The customer order's id, for invalidation only; the URL does not carry it.
   order_id: string
-  patch: refiners.orders.Patch
+  patch: RefinerOrderPatch
 }
 
 export const usePatchRefinerOrder = () => {

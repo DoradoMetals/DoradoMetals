@@ -11,14 +11,14 @@
 import query from "#shared/db/query.ts";
 import { buildUpdate } from "#shared/db/patch.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
-import type { payments } from "@dorado/contracts";
+import type { PaymentDetails } from "@dorado/contracts";
 import type { Executor } from "#shared/db/executor.ts";
 
 const sql = sqlFrom(import.meta.dirname);
 
 // The safe projection: last four digits and nothing else of the bank.
 export type DetailRow = Pick<
-  payments.details.Row,
+  PaymentDetails,
   | "id" | "user_id" | "method_id" | "account_holder" | "bank_name"
   | "account_type" | "last_four" | "routing_last_four" | "card_brand"
   | "email_to" | "provider" | "provider_ref" | "created_at" | "updated_at"
@@ -27,7 +27,7 @@ export type DetailRow = Pick<
 // The envelopes plus what identifies the row they belong to. Read by the admin
 // bank-details door alone.
 export type SealedDetailRow = Pick<
-  payments.details.Row,
+  PaymentDetails,
   | "id" | "account_holder" | "bank_name" | "account_type" | "last_four"
   | "email_to" | "method_id" | "routing_number_encrypted"
   | "account_number_encrypted" | "encryption_key_id"
@@ -43,7 +43,7 @@ export const PATCHABLE = [
   "routing_number_encrypted", "account_number_encrypted", "encryption_key_id",
 ] as const;
 
-export type DetailValues = Partial<Pick<payments.details.Row, (typeof PATCHABLE)[number]>>;
+export type DetailValues = Partial<Pick<PaymentDetails, (typeof PATCHABLE)[number]>>;
 
 export async function getOne(id: string, executor?: Executor): Promise<DetailRow | undefined> {
   const { rows } = await query<DetailRow>(sql("get_one"), [id], executor);

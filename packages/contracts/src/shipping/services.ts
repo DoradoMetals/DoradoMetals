@@ -5,7 +5,7 @@
 // Postgres table: shipping.services
 import { z } from "zod/v4";
 
-export const Row = z.object({
+export const CarrierService = z.object({
   "id": z.string().uuid(),
   "carrier_id": z.string().uuid().nullable(),
   "name": z.string(),
@@ -37,20 +37,13 @@ export const Row = z.object({
   "price": z.number().nullable(),
   "display": z.boolean(),
 });
-export type Row = z.infer<typeof Row>;
+export type CarrierService = z.infer<typeof CarrierService>;
 // generated:end
-// The writable columns of one carrier service.
-//
 // THE THREE LEGACY SPELLINGS ARE THE WIRE'S, KEPT ON PURPOSE: the column is
 // `supports_pickups` and the field is `supports_pickup`; likewise
-// `supports_dropoffs` and `max_weight_lb`. Wire shapes never moved during
-// the schema migration and these are what the admin form sends.
-const Fields = Row.omit({
-  id: true,
-  created_at: true,
-  updated_at: true,
-  created_by: true,
-  updated_by: true,
+// `supports_dropoffs` and `max_weight_lb`. Both the read and the write use
+// them, and get_all.sql aliases in the SELECT to match.
+const Fields = CarrierService.omit({
   created_by_id: true,
   updated_by_id: true,
   supports_pickups: true,
@@ -60,37 +53,25 @@ const Fields = Row.omit({
   price: true,
   display: true,
 }).extend({
-  supports_pickup: Row.shape.supports_pickups,
-  supports_dropoff: Row.shape.supports_dropoffs,
-  max_weight_lbs: Row.shape.max_weight_lb,
-}).partial({
-  carrier_id: true,
-  description: true,
-  code: true,
-  provider_code: true,
-  supports_pickup: true,
-  supports_dropoff: true,
-  supports_returns: true,
-  supports_insurance: true,
-  is_international: true,
-  is_residential: true,
-  is_active: true,
-  max_weight_lbs: true,
-  max_length_in: true,
-  max_width_in: true,
-  max_height_in: true,
-  max_declared_value: true,
-  min_transit_days: true,
-  max_transit_days: true,
-  display_order: true,
+  supports_pickup: CarrierService.shape.supports_pickups,
+  supports_dropoff: CarrierService.shape.supports_dropoffs,
+  max_weight_lbs: CarrierService.shape.max_weight_lb,
 });
 
-export const New = Fields.strict();
-export type New = z.infer<typeof New>;
+// GET /carrier_services - the admin per-carrier list, exactly what
+// db/shipping/services/sql/get_all.sql projects.
+export const CarrierServiceRead = Fields;
+export type CarrierServiceRead = z.infer<typeof CarrierServiceRead>;
 
-export const Patch = Fields.extend({ id: Row.shape.id }).strict();
-export type Patch = z.infer<typeof Patch>;
+// Create and update take the same patch; the id names an existing service.
+export const CarrierServicePatch = Fields.omit({
+  created_at: true,
+  updated_at: true,
+  created_by: true,
+  updated_by: true,
+}).partial().strict();
+export type CarrierServicePatch = z.infer<typeof CarrierServicePatch>;
 
-export const DeleteBody = z.object({ id: Row.shape.id }).strict();
-export type DeleteBody = z.infer<typeof DeleteBody>;
+export const CarrierServiceDeleteBody = z.object({ id: CarrierService.shape.id }).strict();
+export type CarrierServiceDeleteBody = z.infer<typeof CarrierServiceDeleteBody>;
 

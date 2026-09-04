@@ -47,8 +47,11 @@ const collect = () => {
 };
 
 // Calls KNOWN to hit nothing on purpose, each needing a reason — a 404 here defaults to a defect, which is the whole point. Pinned from both sides: an unlisted 404 fails, and a listed call that starts resolving also fails, so this can't quietly become a stale suppression list.
-// Empty since 086 — the one entry (the offer-accepted email) said to delete itself when its step went; the step went.
-const DELIBERATE_404: Record<string, string | undefined> = {};
+const DELIBERATE_404: Record<string, string | undefined> = {
+  // Empty on purpose. The last entry - POST /api/shipping/get_rates, superseded
+  // by GET /api/checkout/rates?direction= under ruling 58 - left when the
+  // frontend call did, which is exactly the both-sides pin working.
+};
 
 // The frontend writes paths without the /api the server mounts them under.
 const toRoute = (url: string) => (url.startsWith("/api/") ? url : `/api${url.startsWith("/") ? "" : "/"}${url}`);

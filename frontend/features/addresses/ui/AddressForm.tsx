@@ -1,5 +1,6 @@
 'use client'
 
+import type { Address } from "@dorado/contracts";
 import { useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -7,13 +8,7 @@ import { Form, FormField, FormItem } from '@/shared/ui/base/form'
 import { Button } from '@dorado/components'
 import { Switch } from '@dorado/components'
 
-import {
-  Address,
-  AddressFormValues,
-  UserAddress,
-  addressSchema,
-  makeEmptyAddress,
-} from '@/features/addresses/types'
+import { AddressFormValues, UserAddress, addressSchema, makeEmptyAddress } from '@/features/addresses/types'
 
 import { useDrawerStore } from '@/shared/store/drawerStore'
 import { useGetSession } from '@/features/auth/queries'

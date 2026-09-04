@@ -2,4 +2,4 @@
 // Run `pnpm --filter @dorado/contracts generate` to refresh.
 //
 // Every entity of the `reviews` schema, one namespace each.
-export * as reviews from "./reviews.js";
+export * from "./reviews.js";

@@ -47,8 +47,12 @@ dotenv.config({
 
 // Every schema the API reads. exchange is frozen but still read by scripts and
 // by the payouts feature, so it gets entities like everything else.
+// `exchange` IS NOT HERE, and that is the point (Jacob, 2026-09-03: "why do we
+// still have all the exchange contracts?"). The legacy schema is frozen, no
+// application code imports one of its rows, and the backfill and audit scripts
+// read it through their own raw SQL. Generating 39 contracts nobody imports
+// only made the flat namespace collide with itself.
 const DEFAULT_SCHEMAS = [
-  "exchange",
   "leads", "reviews", "rates", "spots", "products",
   "media", "organizations", "metals",
   "orders", "shipping", "tax", "payments", "fulfillments", "places",
@@ -104,6 +108,109 @@ const exportName = (schema) => (RESERVED.has(schema) ? `${schema}_schema` : sche
 
 const pascal = (s) =>
   s.split(/[_\s]+/).map((w) => w[0].toUpperCase() + w.slice(1)).join("");
+
+
+// THE ENTITY'S NAME IS ITS EXPORT (Jacob, 2026-09-03: "I don't think it needs
+// to be rates.rates.New. Do you not understand how dumb that looks? It should
+// be Rate. That's it."). Flat, singular, PascalCase - one namespace for the
+// whole package, so a collision is resolved by the name the code already uses
+// for the concept (orders.items is an OrderItem, checkout.items is a
+// CheckoutItem) and never by a schema prefix. `exchange` is the exception and
+// the prefix IS the concept there: those rows are the frozen legacy table,
+// read by scripts. The three exchange tables still on a live path keep their
+// live names.
+const ENTITY = {
+  "auth.account": "AuthAccount",
+  "auth.employees": "Employee",
+  "auth.sessions": "Session",
+  "auth.users": "User",
+  "auth.verification": "Verification",
+
+  "checkout.checkouts": "Checkout",
+  "checkout.items": "CheckoutItem",
+
+
+  "fulfillments.directs": "FulfillmentDirect",
+  "fulfillments.fulfillments": "Fulfillment",
+  "fulfillments.methods": "FulfillmentMethod",
+  "fulfillments.pickups": "FulfillmentPickup",
+  "fulfillments.shipments": "FulfillmentShipment",
+
+  "leads.leads": "Lead",
+
+  "media.emails": "Email",
+  "media.images": "Image",
+  "media.pdfs": "Pdf",
+
+  "metals.metals": "Metal",
+
+  "orders.addresses": "OrderAddressLink",
+  "orders.items": "OrderItem",
+  "orders.orders": "Order",
+  "orders.spots": "OrderSpot",
+  "orders.transactions": "OrderTotals",
+
+  "organizations.organizations": "Organization",
+
+  "payments.attempts": "PaymentAttempt",
+  "payments.details": "PaymentDetails",
+  "payments.intents": "PaymentIntent",
+  "payments.ledger": "LedgerEntry",
+  "payments.methods": "PaymentMethod",
+  "payments.settlements": "PaymentSettlement",
+  "payments.stripe_charges": "StripeCharge",
+
+  "places.addresses": "Address",
+  "places.location_hours": "LocationHours",
+  "places.locations": "Location",
+  "places.user_addresses": "UserAddress",
+
+  "products.bullion": "Bullion",
+  "products.mints": "Mint",
+
+  "rates.rates": "Rate",
+
+  "refiners.items": "RefinerItem",
+  "refiners.orders": "RefinerOrder",
+  "refiners.refiners": "Refiner",
+  "refiners.spots": "RefinerSpot",
+
+  "reviews.reviews": "Review",
+
+  "shipping.carriers": "Carrier",
+  "shipping.packages": "Package",
+  "shipping.pickups": "ShipmentPickup",
+  "shipping.services": "CarrierService",
+  "shipping.shipments": "Shipment",
+  "shipping.tracking": "TrackingRecord",
+
+  "spots.spots": "Spot",
+
+  "tax.sales_tax": "SalesTax",
+  "tax.sales_tax_rules": "SalesTaxRule",
+};
+
+// Two schemas hold a `direction` enum and they are different types, so the
+// flat namespace has to tell them apart: orders.direction is purchase/sale and
+// is THE direction of this business; shipping.direction is a parcel's leg.
+// (`public` owned two more, used only by exchange.sales_tax_rules; they left
+// with the exchange contracts.)
+const ENUM_NAME = {
+  "shipping.direction": "ShipmentDirection",
+  "fulfillments.category": "FulfillmentCategory",
+};
+
+const entityName = (schema, table) => {
+  const n = ENTITY[`${schema}.${table}`];
+  if (!n) {
+    console.error(`no entity name for ${schema}.${table} - add one to ENTITY in this generator`);
+    process.exit(1);
+  }
+  return n;
+};
+
+const enumName = (schema, name) =>
+  ENUM_NAME[`${schema}.${name}`] ?? pascal(name);
 
 const client = new pg.Client({
   connectionString: process.env.DATABASE_URL,
@@ -184,7 +291,7 @@ const writeFile = (rel, body) => {
 // ---------------------------------------------------------------- enums.ts
 for (const [owner, byName] of usedEnums) {
   const lines = [...byName.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([name, values]) => {
-    const n = pascal(name);
+    const n = enumName(owner, name);
     return `export const ${n} = z.enum([${values.map((v) => JSON.stringify(v)).join(", ")}]);\n` +
       `export type ${n} = z.infer<typeof ${n}>;`;
   });
@@ -199,12 +306,13 @@ for (const [owner, byName] of usedEnums) {
 for (const { schema, tables, byTable } of model) {
   for (const table of tables) {
     const cols = byTable[table] ?? [];
+    const name = entityName(schema, table);
     const needed = new Map(); // ownerSchema -> Set(PascalName)
     const lines = cols.map((c) => {
       let zod;
       const qualified = `${c.udt_schema}.${c.udt_name}`;
       if (c.data_type === "USER-DEFINED" && enums[qualified]) {
-        zod = pascal(c.udt_name);
+        zod = enumName(c.udt_schema, c.udt_name);
         const set = needed.get(c.udt_schema) ?? new Set();
         set.add(zod);
         needed.set(c.udt_schema, set);
@@ -230,7 +338,7 @@ for (const { schema, tables, byTable } of model) {
     const region =
       `${START}\n` +
       `${HEAD(`Postgres table: ${schema}.${table}`)}${imports.join("\n")}\n\n` +
-      `export const Row = z.object({\n${lines.join("\n")}\n});\nexport type Row = z.infer<typeof Row>;\n` +
+      `export const ${name} = z.object({\n${lines.join("\n")}\n});\nexport type ${name} = z.infer<typeof ${name}>;\n` +
       `${END}`;
 
     const rel = `${schema}/${table}.ts`;
@@ -252,8 +360,8 @@ for (const { schema, tables, byTable } of model) {
   }
 
   // ------------------------------------------------------------- schema index
-  const members = tables.map((t) => `export * as ${t} from "./${t}.js";`);
-  if (usedEnums.has(schema)) members.unshift(`export * as enums from "./enums.js";`);
+  const members = tables.map((t) => `export * from "./${t}.js";`);
+  if (usedEnums.has(schema)) members.unshift(`export * from "./enums.js";`);
   writeFile(
     `${schema}/index.ts`,
     `${HEAD(`Every entity of the \`${schema}\` schema, one namespace each.`)}${members.join("\n")}\n`
@@ -266,7 +374,7 @@ for (const owner of usedEnums.keys()) {
   if (model.some((m) => m.schema === owner)) continue;
   writeFile(
     `${owner}/index.ts`,
-    `${HEAD(`Enum types of the \`${owner}\` schema.`)}export * as enums from "./enums.js";\n`
+    `${HEAD(`Enum types of the \`${owner}\` schema.`)}export * from "./enums.js";\n`
   );
   wholeFiles.push(`${owner}/index.ts`);
 }
@@ -276,7 +384,7 @@ const schemaNames = [...new Set([...model.map((m) => m.schema), ...usedEnums.key
 writeFile(
   "schemas.ts",
   `${HEAD("Every database schema, one namespace each. src/index.ts re-exports this\n// beside the computed shapes no table backs.")}` +
-    schemaNames.map((s) => `export * as ${exportName(s)} from "./${s}/index.js";`).join("\n") +
+    schemaNames.map((s) => `export * from "./${s}/index.js";`).join("\n") +
     "\n"
 );
 wholeFiles.push("schemas.ts");

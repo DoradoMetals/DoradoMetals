@@ -35,6 +35,7 @@ export default function CarrierServicesPage() {
   const carrierFilterCards = useMemo(() => {
     const counts = new Map<string, number>()
     for (const s of services) {
+      if (!s.carrier_id) continue
       counts.set(s.carrier_id, (counts.get(s.carrier_id) ?? 0) + 1)
     }
 

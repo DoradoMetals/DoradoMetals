@@ -4,10 +4,10 @@
 //
 // Postgres table: fulfillments.methods
 import { z } from "zod/v4";
-import { Category } from "./enums.js";
+import { FulfillmentCategory } from "./enums.js";
 import { Direction } from "../orders/enums.js";
 
-export const Row = z.object({
+export const FulfillmentMethod = z.object({
   "id": z.string().uuid(),
   "type": z.string(),
   "label": z.string(),
@@ -17,18 +17,18 @@ export const Row = z.object({
   "updated_by": z.string().nullable(),
   "created_at": z.string(),
   "updated_at": z.string(),
-  "category": Category,
+  "category": FulfillmentCategory,
   "hidden": z.boolean(),
   "admin_label": z.string().nullable(),
   "is_default": z.boolean(),
   "created_by_id": z.string().uuid().nullable(),
   "updated_by_id": z.string().uuid().nullable(),
 });
-export type Row = z.infer<typeof Row>;
+export type FulfillmentMethod = z.infer<typeof FulfillmentMethod>;
 // generated:end
 // The customer-facing menu and the admin list are the same row, minus the
 // audit columns nobody outside the API needs.
-export const Read = Row.pick({
+export const FulfillmentMethodRead = FulfillmentMethod.pick({
   id: true,
   type: true,
   label: true,
@@ -41,17 +41,17 @@ export const Read = Row.pick({
   created_at: true,
   updated_at: true,
 });
-export type Read = z.infer<typeof Read>;
+export type FulfillmentMethodRead = z.infer<typeof FulfillmentMethodRead>;
 
 // The four columns an admin may change. `admin_label` refuses null: an empty
 // admin label is the empty string, not an absent one.
-export const Patch = Row.pick({
+export const FulfillmentMethodPatch = FulfillmentMethod.pick({
   label: true,
   admin_label: true,
   enabled: true,
   hidden: true,
 }).extend({
-  admin_label: Row.shape.admin_label.unwrap(),
+  admin_label: FulfillmentMethod.shape.admin_label.unwrap(),
 }).partial();
-export type Patch = z.infer<typeof Patch>;
+export type FulfillmentMethodPatch = z.infer<typeof FulfillmentMethodPatch>;
 

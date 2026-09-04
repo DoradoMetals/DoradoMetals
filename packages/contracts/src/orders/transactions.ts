@@ -5,7 +5,7 @@
 // Postgres table: orders.transactions
 import { z } from "zod/v4";
 
-export const Row = z.object({
+export const OrderTotals = z.object({
   "id": z.string().uuid(),
   "order_id": z.string().uuid().nullable(),
   "total": z.number().nullable(),
@@ -35,7 +35,7 @@ export const Row = z.object({
   "payout_fee": z.number().nullable(),
   "payout_details_id": z.string().uuid().nullable(),
 });
-export type Row = z.infer<typeof Row>;
+export type OrderTotals = z.infer<typeof OrderTotals>;
 // generated:end
 
 // Hand-written derivations go here: New, Patch, named reads.

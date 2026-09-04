@@ -5,7 +5,7 @@
 // Postgres table: shipping.packages
 import { z } from "zod/v4";
 
-export const Row = z.object({
+export const Package = z.object({
   "id": z.string().uuid(),
   "carrier_id": z.string().uuid().nullable(),
   "image_id": z.string().uuid().nullable(),
@@ -20,7 +20,7 @@ export const Row = z.object({
   "is_carrier_packaging": z.boolean(),
   "min_weight_lb": z.number().nullable(),
 });
-export type Row = z.infer<typeof Row>;
+export type Package = z.infer<typeof Package>;
 // generated:end
 
 // Hand-written derivations go here: New, Patch, named reads.

@@ -1,8 +1,8 @@
 'use client'
 
+import type { AdminRate } from "@dorado/contracts";
 import { useMemo } from 'react'
 
-import { AdminRate } from '@/features/rates/types'
 import { useAdminRates } from '@/features/rates/queries'
 import RatesCard from '@/features/rates/ui/RatesCard'
 

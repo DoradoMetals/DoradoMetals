@@ -5,7 +5,7 @@
 // Postgres table: reviews.reviews
 import { z } from "zod/v4";
 
-export const Row = z.object({
+export const Review = z.object({
   "id": z.string().uuid(),
   "user_id": z.string().uuid().nullable(),
   "order_id": z.string().uuid().nullable(),
@@ -20,22 +20,18 @@ export const Row = z.object({
   "created_by_id": z.string().uuid().nullable(),
   "updated_by_id": z.string().uuid().nullable(),
 });
-export type Row = z.infer<typeof Row>;
+export type Review = z.infer<typeof Review>;
 // generated:end
-// POST /reviews/create - THE FOUR COLUMNS THE SERVICE ACTUALLY WRITES.
+// POST /reviews/create and PATCH - THE FOUR COLUMNS THE SERVICE WRITES.
 // created_by/updated_by are NOT fields here: public.audit_stamp writes both
 // from the connection's actor, and neither was ever a column create() took -
 // carrying them just meant a caller's claimed author was silently discarded
 // rather than refused.
-export const New = Row.pick({
+export const ReviewPatch = Review.pick({
   review_text: true,
   rating: true,
   name: true,
   hidden: true,
 }).partial();
-export type New = z.infer<typeof New>;
-
-// PATCH - the same four columns.
-export const Patch = New;
-export type Patch = z.infer<typeof Patch>;
+export type ReviewPatch = z.infer<typeof ReviewPatch>;
 

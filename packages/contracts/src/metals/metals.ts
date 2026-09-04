@@ -5,11 +5,11 @@
 // Postgres table: metals.metals
 import { z } from "zod/v4";
 
-export const Row = z.object({
+export const Metal = z.object({
   "id": z.string().uuid(),
   "name": z.string(),
 });
-export type Row = z.infer<typeof Row>;
+export type Metal = z.infer<typeof Metal>;
 // generated:end
 
 // Hand-written derivations go here: New, Patch, named reads.

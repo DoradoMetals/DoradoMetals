@@ -2,12 +2,12 @@
 import query from "#shared/db/query.ts";
 import { buildUpdate } from "#shared/db/patch.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
-import type { places } from "@dorado/contracts";
+import type { UserAddress } from "@dorado/contracts";
 import type { Executor } from "#shared/db/executor.ts";
 
 const sql = sqlFrom(import.meta.dirname);
 
-export type UserAddressRow = places.user_addresses.Row;
+export type UserAddressRow = UserAddress;
 
 // Both default flags follow the one legacy is_default; splitting them apart needs a product decision and a UI, not a repo.
 export type NewUserAddress = { label?: string | null; default_shipping: boolean };

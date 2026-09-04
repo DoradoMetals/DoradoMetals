@@ -17,7 +17,7 @@
 import { z } from 'zod/v4'
 import type { LucideIcon } from 'lucide-react'
 
-import { orders, places } from "@dorado/contracts";
+import { Address, OrderRead, UserAddressRead } from "@dorado/contracts";
 import { pickupSchema } from '@/features/handoff/types'
 import { packageSchema } from '@/features/packaging/types'
 import { serviceSchema } from '@/features/service/types'
@@ -41,13 +41,13 @@ import { User } from '@/features/users/types'
 // waive_shipping_fee, waive_payout_fee, shipping_fee_actual, used_funds,
 // shipping_service - is on `totals`, which is the orders.transactions row it
 // always came from.
-export type Order = orders.orders.Read
+export type Order = OrderRead
 
 // The return leg an admin books when cancelling. Identical for both
 // directions, and it always was: one form, one shape.
 export const orderReturnShipmentSchema = z.object({
-  address: places.addresses.Row,
-  user_address: places.user_addresses.Read.optional(),
+  address: Address,
+  user_address: UserAddressRead.optional(),
   package: packageSchema,
   pickup: pickupSchema,
   service: serviceSchema,

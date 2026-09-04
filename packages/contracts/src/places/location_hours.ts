@@ -5,7 +5,7 @@
 // Postgres table: places.location_hours
 import { z } from "zod/v4";
 
-export const Row = z.object({
+export const LocationHours = z.object({
   "id": z.string().uuid(),
   "location_id": z.string().uuid(),
   "weekday": z.number().int(),
@@ -14,7 +14,7 @@ export const Row = z.object({
   "sort_order": z.number().int(),
   "notes": z.string().nullable(),
 });
-export type Row = z.infer<typeof Row>;
+export type LocationHours = z.infer<typeof LocationHours>;
 // generated:end
 
 // Hand-written derivations go here: New, Patch, named reads.

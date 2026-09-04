@@ -11,7 +11,7 @@ import type { Transport } from "#providers/emails/nodemailer.ts";
 import { formatPurchaseOrderNumber, formatSalesOrderNumber } from "#shared/utils/formatOrderNumbers.ts";
 import { LOCKS } from "#shared/testing/locks.ts";
 import type { PoolClient } from "pg";
-import type { orders as ordersContract } from "@dorado/contracts";
+import type { OrderView } from "@dorado/contracts";
 
 type Message = Parameters<Transport["sendMail"]>[0];
 
@@ -19,12 +19,12 @@ type Message = Parameters<Transport["sendMail"]>[0];
 // the order's id by domain/media/pdfs/order-inputs.ts - the composed order the
 // senders used to take is gone, and so is the `Record<string, unknown>` its
 // service boundary handed over.
-let orders: ordersContract.orders.View[];
-let salesOrders: ordersContract.orders.View[];
+let orders: OrderView[];
+let salesOrders: OrderView[];
 let lockClient: PoolClient;
 
 const viewsOf = async (direction: "purchase" | "sale") => {
-  const out: ordersContract.orders.View[] = [];
+  const out: OrderView[] = [];
   for (const row of await orderRead.list({ direction })) {
     const view = await orderRead.view(row.id);
     if (view) out.push(view);

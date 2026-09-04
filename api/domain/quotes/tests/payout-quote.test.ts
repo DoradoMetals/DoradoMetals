@@ -13,7 +13,7 @@
 import { test, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import * as quotes from "#domain/quotes/service.ts";
-import { quotes as quotesContract } from "@dorado/contracts";
+import { PurchaseOrderQuoteBody } from "@dorado/contracts";
 import query from "#shared/db/query.ts";
 import { inPinnedTransaction, outside } from "#shared/testing/pinned-pool.ts";
 import { TEST_ACTOR } from "#shared/testing/actor.ts";
@@ -109,7 +109,7 @@ test("a free payout method deducts nothing, and says so rather than omitting it"
 // a caller cannot send a number and be believed, and the contract has no field
 // for one to arrive in.
 test("the payout fee is not taken from the body", () => {
-  const withAFee = quotesContract.PurchaseOrderQuoteBody.safeParse({
+  const withAFee = PurchaseOrderQuoteBody.safeParse({
     items: [{ type: "scrap", metal_id: "00000000-0000-4000-8000-000000000000",
               pre_melt: 1, purity: 1 }],
     payout_charge: 0,
@@ -122,7 +122,7 @@ test("the payout fee is not taken from the body", () => {
 // metal the customer is paid for, and the server derives it from the weight,
 // the purity and the unit.
 test("a scrap line cannot declare its own content", () => {
-  const stated = quotesContract.PurchaseOrderQuoteBody.safeParse({
+  const stated = PurchaseOrderQuoteBody.safeParse({
     items: [{ type: "scrap", metal_id: "00000000-0000-4000-8000-000000000000",
               pre_melt: 1, purity: 1, content: 100 }],
   });
@@ -154,16 +154,16 @@ test("a shipping charge that is not a charge is refused rather than coerced to z
     pre_melt: 1, purity: 1,
   };
   for (const shipping_charge of ["abc", {}, [], NaN, -1, "-5", "  ", true, "12.5abc", "25"]) {
-    const parsed = quotesContract.PurchaseOrderQuoteBody.safeParse({ items: [line], shipping_charge });
+    const parsed = PurchaseOrderQuoteBody.safeParse({ items: [line], shipping_charge });
     assert.equal(
       parsed.success, false, `${JSON.stringify(shipping_charge)} was accepted as a charge`
     );
   }
   assert.equal(
-    quotesContract.PurchaseOrderQuoteBody.safeParse({ items: [line], shipping_charge: 12.5 }).success, true
+    PurchaseOrderQuoteBody.safeParse({ items: [line], shipping_charge: 12.5 }).success, true
   );
   assert.equal(
-    quotesContract.PurchaseOrderQuoteBody.safeParse({ items: [line], shipping_charge: 0 }).success, true
+    PurchaseOrderQuoteBody.safeParse({ items: [line], shipping_charge: 0 }).success, true
   );
 });
 

@@ -24,7 +24,7 @@ import * as spotsFeed from "#domain/spots/service.ts";
 import { inboundShipment, type Bids } from "#domain/pricing/service.ts";
 import { NotFound } from "#shared/errors.ts";
 import type { DocumentLabels, PackageDetails } from "#domain/media/pdfs/service.ts";
-import type { orders } from "@dorado/contracts";
+import type { OrderView } from "@dorado/contracts";
 import type { Executor } from "#shared/db/executor.ts";
 
 // The three name lookups every document shares, read once.
@@ -41,7 +41,7 @@ async function documentLabels(executor?: Executor): Promise<DocumentLabels> {
 // FROZEN onto it - that is what orders.spots exists for - and an unlocked one
 // at today's feed, because its price is still an estimate. Keyed by metal_id
 // both ways: the live feed's `id` IS the metal's id (domain/spots/compose.ts).
-async function bidsFor(order: orders.orders.View, executor?: Executor): Promise<Bids> {
+async function bidsFor(order: OrderView, executor?: Executor): Promise<Bids> {
   if (order.order.spots_locked) {
     const frozen = await orderSpots.getRowsFor(order.order.id, executor);
     return new Map(frozen.map((s) => [s.metal_id, s.bid]));
@@ -50,7 +50,7 @@ async function bidsFor(order: orders.orders.View, executor?: Executor): Promise<
   return new Map(live.map((s) => [s.id, s.bid]));
 }
 
-async function loadOrder(order_id: string, executor?: Executor): Promise<orders.orders.View> {
+async function loadOrder(order_id: string, executor?: Executor): Promise<OrderView> {
   const order = await orderRead.view(order_id, executor);
   if (!order) throw new NotFound(`no order ${order_id}`);
   return order;
@@ -61,7 +61,7 @@ async function loadOrder(order_id: string, executor?: Executor): Promise<orders.
 // shipping.shipments names the row by id and shipping.packages holds the label
 // and the dimensions the packing list prints.
 export async function packageDetailsFor(
-  order: orders.orders.View, executor?: Executor
+  order: OrderView, executor?: Executor
 ): Promise<PackageDetails | null> {
   const package_id = inboundShipment(order)?.package_id ?? null;
   if (!package_id) return null;

@@ -6,7 +6,7 @@ import {
   optimisticallyUpdateOrderItems,
   rollbackOrderLists,
 } from '@/features/orders/invalidation'
-import type { orders } from "@dorado/contracts";
+import type { OrderItem, OrderItemPatch } from "@dorado/contracts";
 
 // Order lines as their own resource (D87, unified form): everything under
 // /orders - a line's id is already unique, and creation is order-scoped.
@@ -25,13 +25,12 @@ import type { orders } from "@dorado/contracts";
 // wire any more: a catalogue line names `bullion_id`, a scrap line names
 // `metal_id` plus its own weight/purity/unit - both ids the client already
 // holds off its cached reference reads (the catalogue, the spots list).
-export type OrderItemPatch = orders.items.Patch;
 
 type PatchOrderItemVars = {
   order_item_id: string
   // For the caches; the URL does not carry it.
   order_id: string
-  patch: orders.items.Patch
+  patch: OrderItemPatch
 }
 
 export const usePatchOrderItem = () => {
@@ -41,7 +40,7 @@ export const usePatchOrderItem = () => {
   return useMutation({
     mutationFn: async ({ order_item_id, patch }: PatchOrderItemVars) => {
       if (!user?.id) throw new Error('User is not authenticated')
-      return await apiRequest<orders.items.Row>('PATCH', `/orders/items/${order_item_id}`, patch)
+      return await apiRequest<OrderItem>('PATCH', `/orders/items/${order_item_id}`, patch)
     },
 
     // The confirmed flag is the one NON-price field here (D83); every scrap
@@ -53,7 +52,7 @@ export const usePatchOrderItem = () => {
       const { confirmed } = patch
       return {
         previous: await optimisticallyUpdateOrderItems(queryClient, order_id, (items) =>
-          (items as orders.items.Row[]).map((item) =>
+          (items as OrderItem[]).map((item) =>
             item.id === order_item_id ? { ...item, confirmed } : item
           )
         ),
@@ -72,7 +71,7 @@ export const usePatchOrderItem = () => {
 
 type CreateOrderItemVars = {
   order_id: string
-  item: orders.items.New
+  item: OrderItemPatch
 }
 
 export const useCreateOrderItem = () => {
@@ -82,7 +81,7 @@ export const useCreateOrderItem = () => {
   return useMutation({
     mutationFn: async ({ order_id, item }: CreateOrderItemVars) => {
       if (!user?.id) throw new Error('User is not authenticated')
-      return await apiRequest<orders.items.Row>('POST', `/orders/${order_id}/items`, item)
+      return await apiRequest<OrderItem>('POST', `/orders/${order_id}/items`, item)
     },
 
     onSettled: (_data, _err, { order_id }) => {
@@ -112,7 +111,7 @@ export const useDeleteOrderItem = () => {
     // delete hook wrote.
     onMutate: async ({ order_item_id, order_id }) => ({
       previous: await optimisticallyUpdateOrderItems(queryClient, order_id, (items) =>
-        (items as orders.items.Row[]).filter((item) => item.id !== order_item_id)
+        (items as OrderItem[]).filter((item) => item.id !== order_item_id)
       ),
     }),
 

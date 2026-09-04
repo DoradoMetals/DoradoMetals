@@ -3,14 +3,14 @@ import { asyncHandler } from "#shared/middleware/asyncHandler.ts";
 import * as shipmentPatch from "#domain/shipping/shipments/patch.service.ts";
 import * as orderRead from "#domain/shipping/shipments/order-read.ts";
 import * as carrierPickups from "#db/shipping/pickups/repo.ts";
-import { shipping } from "@dorado/contracts";
+import { ShipmentPatch } from "@dorado/contracts";
 
 // PATCH /api/shipments/:id - strict parsing once, here; the service (D214
-// item 11) receives a typed shipping.shipments.Patch and checks RULES only - the
+// item 11) receives a typed ShipmentPatch and checks RULES only - the
 // tracking-pair rule moved with it.
 export const patchShipment = asyncHandler(async (req, res) => {
   const id = uuidParam(req, "id");
-  const body = parseStrict(shipping.shipments.Patch, req.body, "shipments/:id patch body");
+  const body = parseStrict(ShipmentPatch, req.body, "shipments/:id patch body");
   const result = await shipmentPatch.patchShipment(id, body);
   return res.status(200).json(result);
 });

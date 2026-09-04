@@ -11,12 +11,12 @@
 import query from "#shared/db/query.ts";
 import { buildUpdate } from "#shared/db/patch.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
-import type { checkout } from "@dorado/contracts";
+import type { Checkout } from "@dorado/contracts";
 import type { Executor } from "#shared/db/executor.ts";
 
 const sql = sqlFrom(import.meta.dirname);
 
-export type CheckoutRow = checkout.checkouts.Row;
+export type CheckoutRow = Checkout;
 
 export type NewCheckout = { user_id: string; direction: string };
 
@@ -28,8 +28,7 @@ export const PATCHABLE = [
   "payment_method_id", "payment_details_id", "fulfillment_id",
   "fulfillment_method_id", "appointment_location_id", "pickup_address_id",
   "shipper_address_id", "recipient_address_id", "carrier_service_id",
-  "package_id", "appointment_time", "package_weight", "declared_value",
-  "pickup_date", "pickup_time",
+  "package_id", "appointment_time", "pickup_date", "pickup_time",
 ] as const;
 
 export type CheckoutPatch = Partial<Pick<CheckoutRow, (typeof PATCHABLE)[number]>>;

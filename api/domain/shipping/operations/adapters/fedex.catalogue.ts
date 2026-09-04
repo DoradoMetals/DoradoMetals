@@ -2,7 +2,7 @@
 // "Pickup" means two different things here, and this file is the CARRIER one: fulfillments.pickups is DORADO'S OWN pickup (NOT this); shipping.shipments.pickup_type is what the CARRIER does (THIS).
 // "Handoff" names the carrier concept precisely because it can't be misread as either - frontend/features/handoff already uses the word.
 // Constants, not shipping.services rows: code/provider_code are NULL on every row in prod and dev, so the table can't say which FedEx service a row means - filling them is an UPDATE against production, Jacob's to run.
-import type { providers } from "@dorado/contracts";
+import type { CarrierHandoff, CarrierServiceOption } from "@dorado/contracts";
 
 // TWO VALUES BELOW ARE LOAD-BEARING BEYOND DISPLAY AND MUST NOT BE "TIDIED":
 //   `name` IS NOT A DISPLAY STRING - three modules key off its exact value: orders/intake.ts indexes handoffMethods by it and THROWS on an unknown name; orders/service.ts BOOKS A COURIER when it equals "Carrier Pickup"; and it's written to shipments.pickup_type verbatim, compared twice by media/pdfs to decide what a packing list prints. handoffs/tests/unit.test.ts pins all three - renaming it here alone breaks order creation outright.
@@ -11,10 +11,10 @@ import type { providers } from "@dorado/contracts";
 // Shapes live in @dorado/contracts (a wire shape both halves need) - every field is documented there too, including why `name` isn't a display string.
 
 // The carrier's half of a service option, not all of one: max_insured_value is DORADO's policy, not FedEx's vocabulary - a carrier adapter stating it would be the same defect this file exists to fix, in reverse. domain/shipping/services/service.ts joins the two.
-type CarrierServiceVocabulary = Omit<providers.CarrierServiceOption, "max_insured_value" | "id">;
+type CarrierServiceVocabulary = Omit<CarrierServiceOption, "max_insured_value" | "id">;
 
 type CarrierCatalogue = {
-  handoffs: providers.CarrierHandoff[];
+  handoffs: CarrierHandoff[];
   services: CarrierServiceVocabulary[];
 };
 

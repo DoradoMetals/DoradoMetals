@@ -19,10 +19,9 @@ const blockedCities = ['Test', 'Fake City', 'Unknown', 'N/A']
 // postal fields plus the label and default flag as plain form fields, split
 // into the two body halves at submit. Its rules are deliberately stricter
 // than the columns, the pattern audit:frontend-nullability documents.
-import { places } from "@dorado/contracts";
+import { Address, UserAddressRead } from "@dorado/contracts";
 
-export type Address = places.addresses.Row
-export type UserAddress = places.user_addresses.Read
+export type UserAddress = UserAddressRead
 
 // The FORM: what a human submits, one flat set of fields for the UX, split
 // into { address, user_address } at the mutation edge.

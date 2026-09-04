@@ -5,7 +5,7 @@
 // Postgres table: products.mints
 import { z } from "zod/v4";
 
-export const Row = z.object({
+export const Mint = z.object({
   "id": z.string().uuid(),
   "name": z.string(),
   "type": z.string(),
@@ -15,7 +15,7 @@ export const Row = z.object({
   "image_id": z.string().uuid().nullable(),
   "organization_id": z.string().uuid(),
 });
-export type Row = z.infer<typeof Row>;
+export type Mint = z.infer<typeof Mint>;
 // generated:end
 
 // Hand-written derivations go here: New, Patch, named reads.

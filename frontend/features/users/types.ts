@@ -1,4 +1,4 @@
-import type { exchange } from "@dorado/contracts";
+import type { AdminUser } from "@dorado/contracts";
 import {
   CrownIcon,
   Icon,
@@ -170,4 +170,3 @@ export function getDeviceIcon(ua: ParsedUA): DeviceIconResult {
 //     emailVerified, stripeCustomerId), which arrives through authClient's own
 //     getSession and never through apiRequest. They are not interchangeable
 //     and neither is a rename of the other.
-export type AdminUser = exchange.users.Read;

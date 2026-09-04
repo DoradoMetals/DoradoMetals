@@ -5,7 +5,7 @@
 // Postgres table: fulfillments.directs
 import { z } from "zod/v4";
 
-export const Row = z.object({
+export const FulfillmentDirect = z.object({
   "id": z.string().uuid(),
   "fulfillment_id": z.string().uuid(),
   "location_id": z.string().uuid(),
@@ -14,15 +14,10 @@ export const Row = z.object({
   "start_time": z.string().nullable(),
   "end_time": z.string().nullable(),
 });
-export type Row = z.infer<typeof Row>;
+export type FulfillmentDirect = z.infer<typeof FulfillmentDirect>;
 // generated:end
-// POST /fulfillments/schedule_direct - the booking's own row, minus the id
-// the service issues.
-export const New = Row.omit({ id: true }).partial({
-  assigned_employee_id: true,
-  is_appointment: true,
-  start_time: true,
-  end_time: true,
-});
-export type New = z.infer<typeof New>;
+// POST /fulfillments/schedule_direct - the booking's own columns, all
+// optional; the id is the service's to issue.
+export const FulfillmentDirectPatch = FulfillmentDirect.omit({ id: true }).partial();
+export type FulfillmentDirectPatch = z.infer<typeof FulfillmentDirectPatch>;
 

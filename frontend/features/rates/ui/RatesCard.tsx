@@ -1,18 +1,12 @@
 'use client'
 
+import type { AdminRate } from "@dorado/contracts";
 import * as React from 'react'
 import { Button } from '@dorado/components'
 import { Input } from '@/shared/ui/base/input'
 import { cn } from '@/shared/utils/cn'
 import { PencilSimpleIcon, FloppyDiskIcon, XIcon } from '@phosphor-icons/react'
-import {
-  AdminRate,
-  getBoundsForMetal,
-  sortRatesByMin,
-  pctToInt,
-  intToPct,
-  labelFor,
-} from '@/features/rates/types'
+import { getBoundsForMetal, sortRatesByMin, pctToInt, intToPct, labelFor } from '@/features/rates/types'
 import { DualRangeSlider } from '@/features/rates/ui/DualRangeSlider'
 import { useCreateRate, useDeleteRate, useUpdateRate } from '@/features/rates/queries'
 

@@ -6,7 +6,7 @@
 import { z } from "zod/v4";
 import { Direction } from "../orders/enums.js";
 
-export const Row = z.object({
+export const PaymentMethod = z.object({
   "id": z.string().uuid(),
   "image_id": z.string().uuid().nullable(),
   "direction": Direction,
@@ -39,7 +39,7 @@ export const Row = z.object({
   "updated_by_id": z.string().uuid().nullable(),
   "details": z.array(z.string()).nullable(),
 });
-export type Row = z.infer<typeof Row>;
+export type PaymentMethod = z.infer<typeof PaymentMethod>;
 // generated:end
 
 // Hand-written derivations go here: New, Patch, named reads.

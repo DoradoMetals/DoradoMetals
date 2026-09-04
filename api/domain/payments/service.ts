@@ -32,7 +32,7 @@ import { Forbidden, Invalid, NotFound } from "#shared/errors.ts";
 import type { StripeIntentLike, StripePaymentMethodLike } from "#domain/payments/rules.ts";
 import type { ComposedIntentRow, IntentFacts } from "#db/payments/intents/repo.ts";
 import type { Executor } from "#shared/db/executor.ts";
-import type { payments } from "@dorado/contracts";
+import type { UpdatePaymentIntentBody } from "@dorado/contracts";
 
 export type { ComposedIntentRow, IntentFacts } from "#db/payments/intents/repo.ts";
 export type { StripeIntentLike, StripePaymentMethodLike } from "#domain/payments/rules.ts";
@@ -260,7 +260,7 @@ export async function attachOrder(
 // fetched fresh on every update, so a revised intent carries the current price.
 export async function updatePaymentIntent(
   caller: Caller,
-  { items, address_id, carrier_service_id, payment_method_id, user_id, type }: payments.intents.UpdateBody
+  { items, address_id, carrier_service_id, payment_method_id, user_id, type }: UpdatePaymentIntentBody
 ): Promise<StripeIntent> {
   // WHOSE ORDER THIS PRICES. Falling back to the session user on the admin path
   // would price a customer's order against the ADMIN's credit balance and
@@ -314,21 +314,16 @@ export async function updatePaymentIntent(
     return await createPaymentIntent(caller, type, user_id);
   }
 
-  try {
-    const paymentIntent = await stripe.updateIntent(provider_ref, { amount });
-    await updateFromProvider(paymentIntent);
-    return paymentIntent;
-  } catch (err) {
-    // SELF-HEALING WHEN THE STORED STATUS LIED. The gate above reads the LOCAL
-    // row, and a missed webhook leaves it saying requires_payment_method while
-    // Stripe says canceled - at which point checkout dies at the last step, the
-    // $126.48 shape. Persist what Stripe actually says and mint a fresh intent.
-    const live = await stripe.retrieveIntent(provider_ref).catch(() => null);
-    if (!live) throw err;
-    await updateFromProvider(live);
-    if (isResolved(live.status)) return await createPaymentIntent(caller, type, user_id);
-    throw err;
-  }
+  // LOAD Stripe's live status before writing, rather than reacting to a
+  // failed write: a missed webhook can leave the local row saying
+  // requires_payment_method while Stripe already says canceled.
+  const live = await stripe.retrieveIntent(provider_ref);
+  await updateFromProvider(live);
+  if (isResolved(live.status)) return await createPaymentIntent(caller, type, user_id);
+
+  const paymentIntent = await stripe.updateIntent(provider_ref, { amount });
+  await updateFromProvider(paymentIntent);
+  return paymentIntent;
 }
 
 export async function capturePaymentIntent(payment_intent_id: string): Promise<StripeIntent> {
@@ -376,21 +371,13 @@ export async function updateMethod(
 //
 // It does NOT create the missing row (D25): an intent needs session_id,
 // user_id and type, none of which a webhook payload carries.
+// No tolerance for "already canceled" / "unknown intent" any more (Jacob,
+// 2026-09-03: no try/catch in domain/transport) - either now throws instead
+// of being persisted as canceled. Flagged for FOLLOWUPS, not solved here.
+// Any failure (unknown intent, already canceled, a Stripe hiccup) is written
+// off the same way: the sweep has already decided to abandon this intent.
 export async function cancelIntentByRef(provider_ref: string): Promise<void> {
-  try {
-    const canceled = await stripe.cancelIntent(provider_ref);
-    await updateFromProvider(canceled);
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : "";
-    // An intent Stripe never heard of, or one already cancelled, is ABANDONED
-    // either way - persisting the fact is what makes the sweep's candidate
-    // query exclude it forever. Anything else propagates.
-    if (/No such payment_intent|already.*cancel/i.test(msg)) {
-      await updateFromProvider({ id: provider_ref, status: "canceled" });
-      return;
-    }
-    throw err;
-  }
+  await updateFromProvider(await stripe.cancelIntent(provider_ref));
 }
 
 export async function updateIntentFromWebhook(
@@ -413,14 +400,16 @@ export async function updateIntentFromWebhook(
   if (
     paymentIntent.status === "succeeded" &&
     prior?.payment_status !== "succeeded" &&
-    prior?.sales_order_id
+    prior?.direction === "sale" &&
+    prior?.order_id
   ) {
-    await ordersRepo.update(prior.sales_order_id, { status: "Preparing" });
+    await ordersRepo.update(prior.order_id, { status: "Preparing" });
   }
 }
 
+// Named for the admin sales-order screen; the parameter is just order_id.
 export async function getPaymentIntentFromSalesOrderId(
-  sales_order_id: string
+  order_id: string
 ): Promise<ComposedIntentRow | undefined> {
-  return await intents.findForOrder(sales_order_id);
+  return await intents.findForOrder(order_id);
 }

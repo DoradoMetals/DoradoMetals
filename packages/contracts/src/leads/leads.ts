@@ -5,7 +5,7 @@
 // Postgres table: leads.leads
 import { z } from "zod/v4";
 
-export const Row = z.object({
+export const Lead = z.object({
   "id": z.string().uuid(),
   "name": z.string(),
   "phone": z.string().nullable(),
@@ -24,9 +24,10 @@ export const Row = z.object({
   "created_by_id": z.string().uuid().nullable(),
   "updated_by_id": z.string().uuid().nullable(),
 });
-export type Row = z.infer<typeof Row>;
+export type Lead = z.infer<typeof Lead>;
 // generated:end
-// POST /leads/create - WHAT THE STATEMENT ACTUALLY TAKES.
+// The ten columns leads.leads allows to change, all optional - and a create
+// sends exactly this (Jacob: "For new, it can just send the patch!!").
 //
 // created_by/updated_by are NOT fields here: public.audit_stamp writes both
 // from the connection's actor, and a body naming either is a caller claiming
@@ -36,18 +37,7 @@ export type Row = z.infer<typeof Row>;
 // `text DEFAULT 'Medium'` with no constraint, so a three-value union here
 // would be a constraint the database does not have. The frontend's
 // High/Medium/Low list is the set its SELECTOR offers.
-export const New = Row.pick({
-  name: true,
-  phone: true,
-  email: true,
-}).extend({
-  priority: Row.shape.priority.optional(),
-  notes: Row.shape.notes.optional(),
-});
-export type New = z.infer<typeof New>;
-
-// The ten columns leads.leads actually allows to change, all optional.
-export const Patch = Row.pick({
+export const LeadPatch = Lead.pick({
   name: true,
   phone: true,
   email: true,
@@ -59,5 +49,5 @@ export const Patch = Row.pick({
   notes: true,
   priority: true,
 }).partial();
-export type Patch = z.infer<typeof Patch>;
+export type LeadPatch = z.infer<typeof LeadPatch>;
 

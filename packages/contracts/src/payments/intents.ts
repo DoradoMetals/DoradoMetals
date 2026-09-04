@@ -5,7 +5,7 @@
 // Postgres table: payments.intents
 import { z } from "zod/v4";
 
-export const Row = z.object({
+export const PaymentIntent = z.object({
   "id": z.string().uuid(),
   "order_id": z.string().uuid().nullable(),
   "method_id": z.string().uuid().nullable(),
@@ -22,15 +22,15 @@ export const Row = z.object({
   "user_id": z.string().uuid().nullable(),
   "type": z.string(),
 });
-export type Row = z.infer<typeof Row>;
+export type PaymentIntent = z.infer<typeof PaymentIntent>;
 // generated:end
-import * as attempts from "./attempts.js";
-import * as details from "./details.js";
-import * as methods from "./methods.js";
-import * as addresses from "../places/addresses.js";
-import * as services from "../shipping/services.js";
-import * as bullion from "../products/bullion.js";
-import * as users from "../auth/users.js";
+import { PaymentAttempt, IntentAttempt } from "./attempts.js";
+import { IntentDetails } from "./details.js";
+import { PaymentMethod } from "./methods.js";
+import { Address } from "../places/addresses.js";
+import { CarrierService } from "../shipping/services.js";
+import { Bullion } from "../products/bullion.js";
+import { User } from "../auth/users.js";
 import { Direction } from "../orders/enums.js";
 
 // Stripe reports money as a number in process and as a string over its own
@@ -40,7 +40,7 @@ const money = z.union([z.number(), z.string()]).nullable();
 // The intent as the checkout surface reads it: the row's own columns plus the
 // latest attempt and the instrument. amount_received / amount_capturable are
 // the provider's, not columns.
-export const Read = Row.pick({
+export const PaymentIntentView = PaymentIntent.pick({
   id: true,
   session_id: true,
   user_id: true,
@@ -50,36 +50,37 @@ export const Read = Row.pick({
   created_at: true,
   updated_at: true,
 }).extend({
-  type: Row.shape.type.nullable(),
-  status: Row.shape.status.nullable(),
+  type: PaymentIntent.shape.type.nullable(),
+  status: PaymentIntent.shape.status.nullable(),
   direction: Direction.nullable(),
   amount_expected: money,
   amount_received: money,
   amount_capturable: money,
-  attempt: attempts.Read,
-  details: details.Read.nullable(),
+  attempt: IntentAttempt,
+  details: IntentDetails.nullable(),
 });
-export type Read = z.infer<typeof Read>;
+export type PaymentIntentView = z.infer<typeof PaymentIntentView>;
 
 // POST /payments/update_intent - the cart and the four ids that price it.
-export const UpdateLine = bullion.Row.pick({ id: true })
+export const PaymentIntentLine = Bullion.pick({ id: true })
   .extend({ quantity: z.number() })
   .strict();
-export type UpdateLine = z.infer<typeof UpdateLine>;
+export type PaymentIntentLine = z.infer<typeof PaymentIntentLine>;
 
-export const UpdateBody = z.object({
-  items: z.array(UpdateLine).default([]),
-  address_id: addresses.Row.shape.id.optional(),
-  carrier_service_id: services.Row.shape.id.optional(),
-  payment_method_id: methods.Row.shape.id.optional(),
-  user_id: users.Row.shape.id.optional(),
-  type: Row.shape.type.optional(),
+export const UpdatePaymentIntentBody = z.object({
+  items: z.array(PaymentIntentLine).default([]),
+  address_id: Address.shape.id.optional(),
+  carrier_service_id: CarrierService.shape.id.optional(),
+  payment_method_id: PaymentMethod.shape.id.optional(),
+  user_id: User.shape.id.optional(),
+  type: PaymentIntent.shape.type.optional(),
 }).strict();
-export type UpdateBody = z.infer<typeof UpdateBody>;
+export type UpdatePaymentIntentBody = z.infer<typeof UpdatePaymentIntentBody>;
 
-// The provider's id, not ours: a Stripe intent reference.
-export const CancelBody = z.object({
-  payment_intent_id: attempts.Row.shape.provider_ref,
+// The PROVIDER's id, not ours: a Stripe intent reference, which is the same
+// kind of value payments.attempts stores as provider_ref.
+export const CancelPaymentIntentBody = z.object({
+  payment_intent_id: PaymentAttempt.shape.provider_ref,
 }).strict();
-export type CancelBody = z.infer<typeof CancelBody>;
+export type CancelPaymentIntentBody = z.infer<typeof CancelPaymentIntentBody>;
 

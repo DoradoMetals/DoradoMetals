@@ -10,7 +10,7 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 import { z } from "zod/v4";
-import { leads } from "@dorado/contracts";
+import { LeadPatch } from "@dorado/contracts";
 
 vi.mock("@/shared/queries/axios", () => ({ apiRequest: vi.fn() }));
 vi.mock("@/features/auth/queries", () => ({
@@ -22,10 +22,10 @@ import { useUpdateLead } from "@/features/leads/queries";
 
 // Mirrors api/transport/leads/controller.ts's own UpdateBody exactly - the
 // wrapper isn't exported, so it is restated here from the same source the
-// controller reads (@dorado/contracts' leads.leads.Patch) rather than guessed.
+// controller reads (@dorado/contracts' LeadPatch) rather than guessed.
 const UpdateLeadBody = z.object({
   lead_id: z.string().uuid(),
-  patch: leads.leads.Patch.strict().optional(),
+  patch: LeadPatch.strict().optional(),
 }).strict();
 
 function wrapper({ children }: { children: ReactNode }) {

@@ -14,7 +14,7 @@ import assert from "node:assert/strict";
 import request from "supertest";
 import pool from "#db";
 import * as spotsService from "#domain/spots/service.ts";
-import { tax } from "@dorado/contracts";
+import { GetSalesTaxBody } from "@dorado/contracts";
 import { mockSessions, restoreSessions, as } from "#shared/testing/session.ts";
 import { TEST_ACTOR } from "#shared/testing/actor.ts";
 import { inPinnedTransaction, outside } from "#shared/testing/pinned-pool.ts";
@@ -122,7 +122,7 @@ test("a body claiming gold costs $1 is refused, not quietly ignored", async () =
 
       // And the shape refuses it by name, so the refusal is the contract's and
       // not an accident of some other validation.
-      const parsed = tax.sales_tax.QuoteBody.safeParse({
+      const parsed = GetSalesTaxBody.safeParse({
         address_id: taxing.id, items, spots: [{ name: "Gold", ask: 1, bid: 1 }],
       });
       assert.equal(parsed.success, false, "GetSalesTaxBody accepts a spots field");

@@ -5,7 +5,7 @@
 // Postgres table: refiners.orders
 import { z } from "zod/v4";
 
-export const Row = z.object({
+export const RefinerOrder = z.object({
   "id": z.string().uuid(),
   "order_id": z.string().uuid(),
   "refiner_id": z.string().uuid().nullable(),
@@ -15,9 +15,9 @@ export const Row = z.object({
   "created_at": z.string(),
   "updated_at": z.string(),
 });
-export type Row = z.infer<typeof Row>;
+export type RefinerOrder = z.infer<typeof RefinerOrder>;
 // generated:end
-import * as spots from "./spots.js";
+import { RefinerSpotWrite } from "./spots.js";
 
 // PATCH /api/refiners/orders/:id - the ENGAGEMENT's writable facts, and the
 // file where the null question splits. Four of these five fields refuse null
@@ -30,19 +30,19 @@ import * as spots from "./spots.js";
 // foreign key, not a fee. Every engagement starts with it null, so null is the
 // column's own "no refinery yet". Detaching an engagement from a refinery is a
 // real operation - the metal went to the wrong one.
-export const Patch = Row.pick({
+export const RefinerOrderPatch = RefinerOrder.pick({
   pool_oz_deducted: true,
   pool_remediation: true,
   fee: true,
   refiner_id: true,
 })
   .extend({
-    spots: z.array(spots.Write).min(1).optional(),
-    pool_oz_deducted: Row.shape.pool_oz_deducted.unwrap().optional(),
-    pool_remediation: Row.shape.pool_remediation.unwrap().optional(),
-    fee: Row.shape.fee.unwrap().optional(),
-    refiner_id: Row.shape.refiner_id.optional(),
+    spots: z.array(RefinerSpotWrite).min(1).optional(),
+    pool_oz_deducted: RefinerOrder.shape.pool_oz_deducted.unwrap().optional(),
+    pool_remediation: RefinerOrder.shape.pool_remediation.unwrap().optional(),
+    fee: RefinerOrder.shape.fee.unwrap().optional(),
+    refiner_id: RefinerOrder.shape.refiner_id.optional(),
   })
   .strict();
-export type Patch = z.infer<typeof Patch>;
+export type RefinerOrderPatch = z.infer<typeof RefinerOrderPatch>;
 

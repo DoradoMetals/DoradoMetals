@@ -5,7 +5,7 @@
 // Postgres table: orders.spots
 import { z } from "zod/v4";
 
-export const Row = z.object({
+export const OrderSpot = z.object({
   "id": z.string().uuid(),
   "metal_id": z.string().uuid(),
   "order_id": z.string().uuid(),
@@ -16,21 +16,21 @@ export const Row = z.object({
   "created_at": z.string().nullable(),
   "updated_at": z.string().nullable(),
 });
-export type Row = z.infer<typeof Row>;
+export type OrderSpot = z.infer<typeof OrderSpot>;
 // generated:end
 // PUT /orders/:id/spots - pin or unpin the order's spots, and adjust one.
 // `set` names a metal by ID and not by name: a display string used to decide
 // which money row an edit landed on.
-export const Write = z.object({
-  metal_id: Row.shape.metal_id,
-  bid: Row.shape.bid.unwrap(),
+export const OrderSpotWrite = z.object({
+  metal_id: OrderSpot.shape.metal_id,
+  bid: OrderSpot.shape.bid.unwrap(),
 }).strict();
-export type Write = z.infer<typeof Write>;
+export type OrderSpotWrite = z.infer<typeof OrderSpotWrite>;
 
 // `lock: true` freezes every metal on the order at today's feed;
 // `lock: false` clears the bids it pinned.
-export const PutBody = z.object({ set: z.array(Write).optional() })
+export const OrderSpotsPutBody = z.object({ set: z.array(OrderSpotWrite).optional() })
   .extend({ lock: z.boolean().optional() })
   .strict();
-export type PutBody = z.infer<typeof PutBody>;
+export type OrderSpotsPutBody = z.infer<typeof OrderSpotsPutBody>;
 

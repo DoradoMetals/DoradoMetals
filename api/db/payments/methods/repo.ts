@@ -8,12 +8,12 @@
 import query from "#shared/db/query.ts";
 import { buildUpdate } from "#shared/db/patch.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
-import type { payments } from "@dorado/contracts";
+import type { PaymentMethod } from "@dorado/contracts";
 import type { Executor } from "#shared/db/executor.ts";
 
 const sql = sqlFrom(import.meta.dirname);
 
-export type MethodRow = payments.methods.Row;
+export type MethodRow = PaymentMethod;
 
 export const PATCHABLE = [
   "enabled", "display", "label", "surcharge_label", "flat_fee",

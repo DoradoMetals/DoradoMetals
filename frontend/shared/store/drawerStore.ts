@@ -1,3 +1,4 @@
+import type { Address, AdminUser } from "@dorado/contracts";
 import { create } from 'zustand'
 // THE ADMIN USERS WIRE, not better-auth's session user. `setCreateSalesOrderUser`
 // has exactly one caller - features/users/ui/UsersDrawer.tsx's "Create Sales
@@ -5,11 +6,10 @@ import { create } from 'zustand'
 // was typed as the session user, which is camelCase and a DIFFERENT SHAPE; it
 // compiled only because every field of that type is optional, so a snake_case
 // object satisfied it vacuously.
-import { AdminUser } from '@/features/users/types'
-import { Address, UserAddress } from '@/features/addresses/types'
+import { UserAddress } from '@/features/addresses/types'
 
 type DrawerName =
-  | 'cart'
+  | 'checkout'
   | 'sidebar'
   | 'purchaseOrder'
   | 'salesOrder'

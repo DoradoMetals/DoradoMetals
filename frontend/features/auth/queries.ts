@@ -2,14 +2,9 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useRouter } from 'next/navigation'
-import { cartStore } from '@/shared/store/cartStore'
-import { sellCartStore } from '@/shared/store/sellCartStore'
+import { useCheckoutItems } from '@/shared/store/checkoutItemsStore'
 
 import { apiRequest } from '@/shared/queries/axios'
-import { Product } from '@/features/products/types'
-import { SellCartItem } from '@/features/cart/types'
-import type { SpotPrice } from '@/features/spots/types'
-import type { checkout } from "@dorado/contracts";
 import {
   admin,
   changeEmail,
@@ -26,75 +21,13 @@ import {
   updateUser,
   verifyEmail,
 } from './authClient'
-import { useSyncCartToBackend, useSyncSellCartToBackend } from '@/features/cart/queries'
-
-type CheckoutItemRow = checkout.items.Row
+import { hydrateCheckoutItems, pushCheckoutItems } from '@/features/checkout/items/queries'
 
 const clearClientState = () => {
-  cartStore.getState().clearCart()
-  sellCartStore.getState().clearCart()
-  localStorage.removeItem('dorado_cart')
-  localStorage.removeItem('dorado_sell_cart')
-  localStorage.removeItem('cartSynced')
+  useCheckoutItems.getState().clearAll()
+  localStorage.removeItem('dorado_checkout_items')
   localStorage.removeItem('purchase-order-checkout')
   localStorage.removeItem('sales-order-checkout')
-}
-
-// The endpoint answers rows; the name, picture and mint come from the
-// catalogue. A basket that will not hydrate keeps the local copy.
-const hydrateCarts = async (userId: string) => {
-  try {
-    const [rows, catalogue] = await Promise.all([
-      apiRequest<CheckoutItemRow[]>('GET', '/checkout/items', undefined, {
-        direction: 'sale',
-        user_id: userId,
-      }),
-      apiRequest<Product[]>('GET', '/products/get_products'),
-    ])
-    const byId = new Map(catalogue.map((product) => [product.id, product]))
-    const items = rows.flatMap((row) => {
-      const product = row.bullion_id ? byId.get(row.bullion_id) : undefined
-      return product ? [{ ...product, quantity: Number(row.quantity ?? 1) }] : []
-    })
-    cartStore.getState().mergeCartItems(items)
-  } catch (err) {
-    console.error('Cart hydration failed:', err)
-  }
-
-  try {
-    // The sell catalogue: a basket may hold a product the buy side hides.
-    const [rows, catalogue, metals] = await Promise.all([
-      apiRequest<CheckoutItemRow[]>('GET', '/checkout/items', undefined, {
-        direction: 'purchase',
-        user_id: userId,
-      }),
-      apiRequest<Product[]>('GET', '/products/get_sell_products'),
-      apiRequest<SpotPrice[]>('GET', '/spots/spot_prices'),
-    ])
-    const byId = new Map(catalogue.map((product) => [product.id, product]))
-    const metalName = new Map(metals.map((metal) => [metal.id, metal.name]))
-    const items: SellCartItem[] = rows.map((row) => {
-      const product = row.bullion_id ? byId.get(row.bullion_id) : undefined
-      return {
-        id: row.id,
-        bullion_id: row.bullion_id,
-        metal_id: row.metal_id,
-        pre_melt: row.pre_melt,
-        post_melt: row.post_melt,
-        purity: row.purity,
-        unit: row.unit,
-        quantity: Number(row.quantity ?? 1),
-        gross: product?.gross ?? null,
-        metal: (row.metal_id ? metalName.get(row.metal_id) : null) ?? null,
-        name: product?.name ?? null,
-        image_front: product?.image_front ?? null,
-        mint_name: product?.mint_name ?? null,
-      }
-    })
-    sellCartStore.getState().mergeSellCart(items)
-  } catch (err) {
-    console.error('Sell cart hydration failed:', err)
-  }
 }
 
 export const useGetSession = () => {
@@ -199,7 +132,7 @@ export const useSignIn = () => {
       queryClient.clear()
       const session = (await getSession()).data
       if (session?.user?.id) {
-        await hydrateCarts(session.user.id)
+        await hydrateCheckoutItems()
       }
       queryClient.invalidateQueries({ queryKey: ['session'], refetchType: 'active' })
     },
@@ -212,21 +145,14 @@ export const useSignIn = () => {
 export const useSignOut = () => {
   const queryClient = useQueryClient()
   const router = useRouter()
-  const syncCart = useSyncCartToBackend()
-  const syncSellCart = useSyncSellCartToBackend()
-
   return useMutation({
     mutationFn: async () => {
-      try {
-        await syncCart.mutateAsync()
-      } catch (err) {
-        console.warn('Cart sync failed, continuing logout:', err)
-      }
-
-      try {
-        await syncSellCart.mutateAsync()
-      } catch (err) {
-        console.warn('Sell cart sync failed, continuing logout:', err)
+      for (const direction of ['sale', 'purchase'] as const) {
+        try {
+          await pushCheckoutItems(direction)
+        } catch (err) {
+          console.warn('checkout items did not sync, continuing logout:', err)
+        }
       }
 
       await signOut()
@@ -253,7 +179,7 @@ export const useGoogleSignIn = () => {
       queryClient.clear()
       const session = (await getSession()).data
       if (session?.user?.id) {
-        await hydrateCarts(session.user.id)
+        await hydrateCheckoutItems()
       }
       queryClient.invalidateQueries({ queryKey: ['session'], refetchType: 'active' })
     },
@@ -376,7 +302,7 @@ export const useImpersonateUser = () => {
     onSettled: async () => {
       const session = (await getSession()).data
       if (session?.user?.id) {
-        await hydrateCarts(session.user.id)
+        await hydrateCheckoutItems()
       }
     },
     onSuccess: async () => {
@@ -399,7 +325,7 @@ export const useStopImpersonation = () => {
     onSettled: async () => {
       const session = (await getSession()).data
       if (session?.user?.id) {
-        await hydrateCarts(session.user.id)
+        await hydrateCheckoutItems()
       }
     },
     onSuccess: async () => {

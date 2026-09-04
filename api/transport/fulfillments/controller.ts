@@ -1,4 +1,4 @@
-import { fulfillments } from "@dorado/contracts";
+import { FulfillmentCancelScheduleBody, FulfillmentSetMethodBody, FulfillmentSetStatusBody } from "@dorado/contracts";
 import { requiredParam } from "#shared/http/caller.ts";
 import { parseStrict, uuidParam } from "#shared/http/validate.ts";
 import { oneString } from "#shared/http/query.ts";
@@ -34,20 +34,20 @@ export const getSchedule = asyncHandler(async (req, res) => {
 });
 
 export const cancelSchedule = asyncHandler(async (req, res) => {
-  const body = parseStrict(fulfillments.fulfillments.CancelScheduleBody, req.body, "fulfillments/cancel_schedule body");
+  const body = parseStrict(FulfillmentCancelScheduleBody, req.body, "fulfillments/cancel_schedule body");
   const saved = await fulfillmentService.cancelSchedule(body.fulfillment_id);
   return res.status(200).json(saved);
 });
 
 export const setMethod = asyncHandler(async (req, res) => {
-  const body = parseStrict(fulfillments.fulfillments.SetMethodBody, req.body, "fulfillments/set_method body");
+  const body = parseStrict(FulfillmentSetMethodBody, req.body, "fulfillments/set_method body");
   // WHO isn't sent down any more - the audit_stamp trigger reads the session off the connection.
   const saved = await fulfillmentService.setMethod({ id: body.fulfillment_id, method_id: body.method_id });
   return res.status(200).json(saved);
 });
 
 export const setStatus = asyncHandler(async (req, res) => {
-  const body = parseStrict(fulfillments.fulfillments.SetStatusBody, req.body, "fulfillments/set_status body");
+  const body = parseStrict(FulfillmentSetStatusBody, req.body, "fulfillments/set_status body");
   const saved = await fulfillmentService.setStatus({ id: body.fulfillment_id, status: body.status });
   return res.status(200).json(saved);
 });

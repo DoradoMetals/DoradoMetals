@@ -3,12 +3,12 @@
 // READ ONLY: the four metals are seeded reference data, nothing writes them at runtime.
 import query from "#shared/db/query.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
-import type { metals } from "@dorado/contracts";
+import type { Metal } from "@dorado/contracts";
 import type { Executor } from "#shared/db/executor.ts";
 
 const sql = sqlFrom(import.meta.dirname);
 
-type MetalRow = metals.metals.Row;
+type MetalRow = Metal;
 
 export async function list(executor?: Executor): Promise<MetalRow[]> {
   const { rows } = await query<MetalRow>(sql("get_all"), [], executor);

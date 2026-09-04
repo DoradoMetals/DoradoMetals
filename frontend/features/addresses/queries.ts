@@ -1,14 +1,7 @@
 'use client'
 
-import {
-  Address,
-  AddressFormValues,
-  ParsedPlaceSuggestion,
-  PlacesJsAutocompleteResponse,
-  PlacesSuggestionsInput,
-  UserAddress,
-  splitFormValues,
-} from '@/features/addresses/types'
+import type { Address } from "@dorado/contracts";
+import { AddressFormValues, ParsedPlaceSuggestion, PlacesJsAutocompleteResponse, PlacesSuggestionsInput, UserAddress, splitFormValues } from '@/features/addresses/types'
 import { parsePlacesJsAutocomplete } from '@/features/addresses/utils/places'
 import { useApiMutation, useApiQuery } from '@/shared/queries/base'
 import { queryKeys } from '@/shared/queries/keys'

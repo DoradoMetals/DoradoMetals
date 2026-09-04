@@ -36,6 +36,7 @@ import * as sweeps from "#domain/payments/sweeps.ts";
 import * as stripeProvider from "#providers/payment/stripe.ts";
 import * as orderRead from "#domain/orders/read.ts";
 import * as rules from "#domain/orders/rules.ts";
+import * as shippingRules from "#domain/shipping/rules.ts";
 import { calculateSalesOrderTotal } from "#domain/pricing/ask.ts";
 import { retierPremiums } from "#domain/orders/service.ts";
 
@@ -47,7 +48,7 @@ import type { NewOrderTotals } from "#db/orders/transactions/repo.ts";
 import type { CheckoutRow } from "#db/checkout/checkouts/repo.ts";
 import type { AddressRow } from "#db/places/addresses/repo.ts";
 import type { SpotWire } from "#domain/spots/compose.ts";
-import type { orders } from "@dorado/contracts";
+import type { OrderView } from "@dorado/contracts";
 
 // -------------------- the outside world
 
@@ -76,7 +77,7 @@ export const LIVE: World = {
 
 // -------------------- the one door
 
-export async function place(checkout_id: string, world: World = LIVE): Promise<orders.orders.View> {
+export async function place(checkout_id: string, world: World = LIVE): Promise<OrderView> {
   const checkout = await checkoutService.getRowById(checkout_id);
   if (!checkout) throw new NotFound(`no checkout ${checkout_id}`);
   const cart = await checkoutService.getItemsForOrder(checkout_id);
@@ -138,11 +139,17 @@ async function placePurchase(
     await fulfillmentService.getById(placeable.fulfillment_id)
   );
   const service = await carrierServices.labelServiceFor(placeable.carrier_service_id);
+  const box = await packagesRepo.getOne(placeable.package_id);
+  const weight = shippingRules.parcelWeightLb(cart, box);
+  if (!(weight > 0)) throw new Invalid("the parcel needs a weight");
+  const declaredValue = await carrierServices.clampInsuredValue(
+    shippingRules.declaredValue(await checkoutService.purchaseTotal(checkout.id)),
+    service.serviceType
+  );
   const parcel = rules.parcelFor(
-    checkout, placeable, service,
-    await packagesRepo.getOne(placeable.package_id),
+    checkout, placeable, service, box,
     rules.handoffFor(await handoffsService.getHandoffs(), draft.method.type),
-    await carrierServices.clampInsuredValue(checkout.declared_value, service.serviceType)
+    declaredValue, weight
   );
   const shipper = rules.requireAddress(
     await placeAddresses.getOne(placeable.shipper_address_id), "shipper"
@@ -281,7 +288,7 @@ async function placeSale(
       // twice; the abandonment sweep puts it back if payment never arrives.
       await usersService.removeFunds(checkout.user_id, prices.pre_charges_amount, tx);
       await transactionsService.addTransactionLog(
-        checkout.user_id, "Debit", null, order_id, prices.pre_charges_amount, tx
+        { user_id: checkout.user_id, type: "Debit", order_id, amount: prices.pre_charges_amount }, tx
       );
     }
     await taxService.updateStateSalesTax(prices.sales_tax, address.state, tx);
@@ -316,7 +323,7 @@ async function openIntentFor(
   if (verdict === "conflict") {
     throw new Conflict("that payment intent already belongs to an order");
   }
-  const superseded = verdict === "supersede" ? intent.sales_order_id : null;
+  const superseded = verdict === "supersede" ? intent.order_id : null;
   if (superseded) {
     // An abandoned checkout is SUPERSEDED, not refused: the intent is reused
     // until it settles, and refusing strands the customer paying.

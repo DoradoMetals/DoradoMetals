@@ -39,6 +39,7 @@ import * as usersService from "#domain/users/service.ts";
 import * as ledger from "#domain/transactions/service.ts";
 import * as orderRead from "#domain/orders/read.ts";
 import * as rules from "#domain/orders/rules.ts";
+import * as shippingRules from "#domain/shipping/rules.ts";
 import { calculateTotalPrice, fineContent, unitPrice } from "#domain/pricing/service.ts";
 
 import withTransaction from "#shared/db/withTransaction.ts";
@@ -46,7 +47,7 @@ import { Invalid, NotFound } from "#shared/errors.ts";
 import type { Transport } from "#providers/emails/nodemailer.ts";
 import type { Executor } from "#shared/db/executor.ts";
 import type { OrderItemRow } from "#db/orders/items/repo.ts";
-import type { orders } from "@dorado/contracts";
+import type { OrderCancelBody, OrderItemPatch, OrderPatch, OrderView } from "@dorado/contracts";
 
 // ===========================================================================
 // THE ORDER ROW
@@ -56,7 +57,7 @@ import type { orders } from "@dorado/contracts";
 // The four ACTIONS that used to ride in this body (add_funds, finalize_pricing,
 // cancel, supplier) are their own endpoints now, so there is no dispatcher, no
 // direction matrix and no per-field refusal message left here.
-export async function patch(order_id: string, changes: orders.orders.Patch): Promise<orders.orders.View> {
+export async function patch(order_id: string, changes: OrderPatch): Promise<OrderView> {
   if (Object.keys(changes).length === 0) {
     throw new Invalid("the document names no field to write");
   }
@@ -65,7 +66,7 @@ export async function patch(order_id: string, changes: orders.orders.Patch): Pro
   return await viewOf(order_id);
 }
 
-async function viewOf(order_id: string): Promise<orders.orders.View> {
+async function viewOf(order_id: string): Promise<OrderView> {
   const order = await orderRead.view(order_id);
   if (!order) throw new NotFound(`no order ${order_id}`);
   return order;
@@ -108,13 +109,13 @@ export async function linesFor(order_id: string): Promise<OrderItemRow[]> {
 // declared lot of scrap. No metal NAMES cross the wire - the old body sent one
 // and the server resolved it against metals.metals.
 export async function createLine(
-  order_id: string, input: orders.items.New
+  order_id: string, input: OrderItemPatch
 ): Promise<OrderItemRow> {
   rules.assertDirection(
     await ordersRepo.directionOf(order_id), "purchase", "adding a line"
   );
 
-  const row = "bullion_id" in input
+  const row = input.bullion_id
     ? rules.lineFromProduct(order_id, await requireProduct(input.bullion_id))
     : rules.lineFromScrap(order_id, input);
 
@@ -145,7 +146,7 @@ async function requireProduct(bullion_id: string) {
 // one of them - it is DERIVED here from the weight, the unit and the purity,
 // because two definitions of what content means is the defect that costs money.
 export async function editLine(
-  line_id: string, changes: orders.items.Patch
+  line_id: string, changes: OrderItemPatch
 ): Promise<OrderItemRow> {
   if (Object.keys(changes).length === 0) {
     throw new Invalid("the document names no field to write");
@@ -205,7 +206,7 @@ export async function removeLine(line_id: string): Promise<{ success: true }> {
 // EVERY NUMBER IS THE SERVER'S. It used to take the order, its spots and the
 // live feed as arguments assembled by the PATCH dispatcher; all three are read
 // here, from the order's own id.
-export async function finalizePricing(order_id: string): Promise<orders.orders.View> {
+export async function finalizePricing(order_id: string): Promise<OrderView> {
   const order = await viewOf(order_id);
   rules.assertDirection(order.order.direction, "purchase", "finalizing pricing");
 
@@ -245,7 +246,7 @@ export async function finalizePricing(order_id: string): Promise<orders.orders.V
 // THE LEDGER MUST RECORD WHAT WAS ACTUALLY CREDITED. One figure, read once:
 // logging a separately computed number is how nine production Credit entries
 // came to disagree with the orders they explain.
-export async function addFunds(order_id: string): Promise<orders.orders.View> {
+export async function addFunds(order_id: string): Promise<OrderView> {
   const order = await viewOf(order_id);
   rules.assertDirection(order.order.direction, "purchase", "adding funds");
 
@@ -258,7 +259,9 @@ export async function addFunds(order_id: string): Promise<orders.orders.View> {
 
   await withTransaction(async (tx) => {
     await usersService.addFunds(order.order.user_id, amount, tx);
-    await ledger.addTransactionLog(order.order.user_id, "Credit", order_id, null, amount, tx);
+    await ledger.addTransactionLog(
+      { user_id: order.order.user_id, type: "Credit", order_id, amount }, tx
+    );
   });
 
   return await viewOf(order_id);
@@ -279,18 +282,22 @@ export async function addFunds(order_id: string): Promise<orders.orders.View> {
 // THE ADDRESS IS THE ORDER'S SNAPSHOT and the contact is the provider's
 // configured one. This took the admin drawer's whole form as
 // `Record<string, any>` and hand-mapped fifteen fields out of it.
+//
+// THE WEIGHT AND THE VALUE ARE THE ORDER'S OWN NOW (ruling 58): computed from
+// its lines and its total rather than taken from the admin's form.
 export async function cancel(
   order_id: string,
-  { carrier_service_id, package_id, declared_value, weight }: orders.orders.CancelBody
-): Promise<orders.orders.View> {
+  { carrier_service_id, package_id }: OrderCancelBody
+): Promise<OrderView> {
   const order = await viewOf(order_id);
   rules.assertDirection(order.order.direction, "purchase", "cancelling");
 
   const box = await packagesRepo.getOne(package_id);
   if (!box) throw new Invalid("that package does not exist");
   const service = await carrierServices.labelServiceFor(carrier_service_id);
+  const weight = shippingRules.parcelWeightLb(order.items, box);
   const declaredValue = await carrierServices.clampInsuredValue(
-    declared_value, service.serviceType
+    shippingRules.declaredValue(order.totals?.total ?? 0), service.serviceType
   );
 
   const labelData = await shippingOps.createLabel(
@@ -321,7 +328,7 @@ export async function cancel(
       // ONE RETURN SHIPMENT, written with everything known: the service that
       // created it links it to the order, the record that follows is the row.
       const shipment = await shipmentService.create(
-        { purchase_order_id: order_id, type: "Return" }, tx
+        { order_id, type: "Return" }, tx
       );
       if (!shipment) throw new Error("the return shipment was not created");
 
@@ -365,7 +372,7 @@ export async function cancel(
 // arrive in the request body - the $26.81-an-ounce hazard.
 export async function sendToRefiner(
   order_id: string, refiner_id: string, transport?: Transport
-): Promise<orders.orders.View> {
+): Promise<OrderView> {
   const order = await viewOf(order_id);
   rules.assertDirection(order.order.direction, "sale", "sending to a refiner");
 
@@ -389,7 +396,7 @@ export async function sendToRefiner(
             `transaction must not commit`
         );
       }
-      await shipmentService.create({ sales_order_id: order_id, type: "Outbound" }, tx);
+      await shipmentService.create({ order_id, type: "Outbound" }, tx);
       await ordersRepo.update(order_id, { order_sent: true }, {}, tx);
     });
   }

@@ -1,4 +1,4 @@
-import type { providers } from "@dorado/contracts";
+import type { CarrierHandoff, CarrierServiceOption } from "@dorado/contracts";
 // PHASE 3 (ruling 39). What is left in this file is the CARRIER ADAPTER'S
 // surface - the shapes FedEx's own API answers in, passed through by
 // api/features/shipping/operations/adapters/. Read the notes on each below:
@@ -49,37 +49,25 @@ type ShippingCarrierId = string
 
 // THE CARRIER IS THE SERVER'S TO NAME, NOT THE BROWSER'S.
 //
-// Every one of these inputs used to carry a required carrier_id, and checkout
-// supplied it as the UUID LITERAL 30179428-b311-4873-8d08-382901c581d8 at three
-// call sites, one of them with `// TODO: source from store when you add carrier
-// selection` beside it. The value is right - dev and production both give FedEx
-// that id - but a production uuid compiled into a React component is one
-// restore away from quoting shipping against a carrier that no longer exists,
-// and nothing would report it except a failed checkout.
+// Rate assembly used to live here: every input carried a required carrier_id,
+// and checkout supplied it as the UUID LITERAL
+// 30179428-b311-4873-8d08-382901c581d8 at three call sites, one of them with
+// `// TODO: source from store when you add carrier selection` beside it. The
+// value was right - dev and production both give FedEx that id - but a
+// production uuid compiled into a React component is one restore away from
+// quoting shipping against a carrier that no longer exists, and nothing would
+// report it except a failed checkout.
 //
-// It is optional now. Exactly one carrier has a shipping provider implemented,
-// so the API answers "which carrier" itself; admin surfaces that DO hold a
-// carrier id (the tracking read, the two cancel mutations) keep sending it and
-// keep getting that carrier.
+// THE RATE REQUEST ITSELF IS GONE (the rates ruling): GET /checkout/rates
+// answers a checkout's already-priced services directly - no address, no
+// package, no weight assembled client-side, and `ShippingRatesInput` /
+// `ShippingRate` died with the assembly. `CheckoutRate` in
+// features/checkout/queries.ts is what a checkout step reads now.
 //
-// STREAMLINE B (D214 item 11): ids in, never a composed address/package
-// object. `address_id` resolves through places.addresses, `package_id`
-// through shipping.packages; dimensions come off the package row server-side
-// - `pkg: ShippingPackage` (a whole weight+dimensions object) is gone, and
-// `weight` is the one genuine measurement nothing else stores. `declaredValue`
-// is a plain number now too - the wire never carried a currency, that was a
-// client-only wrapper (features/insurance/types.ts keeps it for the form).
-export type ShippingRatesInput = {
-  carrier_id?: ShippingCarrierId
-  shippingType: 'Inbound' | 'Outbound' | 'Return'
-  address_id: string
-  package_id: string
-  weight: number
-  // The carrier handoff's `code`, received from GET /shipping/handoffs and
-  // handed straight back. The frontend does not interpret it.
-  pickupType?: string
-  declaredValue?: number
-}
+// It is optional below. Exactly one carrier has a shipping provider
+// implemented, so the API answers "which carrier" itself; admin surfaces that
+// DO hold a carrier id (the tracking read, the two cancel mutations) keep
+// sending it and keep getting that carrier.
 
 // THE CARRIER'S CATALOGUE COMES FROM @dorado/contracts, not from here.
 //
@@ -93,24 +81,6 @@ export type ShippingRatesInput = {
 //
 // NOT a fulfillment pickup - see features/handoff/types.ts for the two things
 // that share the word. A CarrierHandoff is how a parcel reaches the CARRIER.
-export type CarrierHandoff = providers.CarrierHandoff;
-export type CarrierServiceOption = providers.CarrierServiceOption;
-
-// A RATE QUOTE, as the carrier answers it. `serviceType` is what joins it to a
-// CarrierServiceOption's `code`.
-//
-// `packagingType` is the carrier's packaging enum riding along. NOTHING READS
-// IT - checkoutStepper copies it onto data.service and no consumer exists - and
-// it should go with the package work (see docs/waves/wave-5b.md).
-export type ShippingRate = {
-  serviceType: string
-  packagingType: string
-  netCharge: number
-  currency: string
-  deliveryDay?: string
-  transitTime?: Date
-  serviceDescription: string
-}
 
 export type ShippingPickupTimesInput = {
   carrier_id?: ShippingCarrierId

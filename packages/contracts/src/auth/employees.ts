@@ -5,7 +5,7 @@
 // Postgres table: auth.employees
 import { z } from "zod/v4";
 
-export const Row = z.object({
+export const Employee = z.object({
   "id": z.string().uuid(),
   "user_id": z.string().uuid(),
   "role": z.string().nullable(),
@@ -15,7 +15,7 @@ export const Row = z.object({
   "created_by": z.string().nullable(),
   "updated_by": z.string().nullable(),
 });
-export type Row = z.infer<typeof Row>;
+export type Employee = z.infer<typeof Employee>;
 // generated:end
 
 // Hand-written derivations go here: New, Patch, named reads.

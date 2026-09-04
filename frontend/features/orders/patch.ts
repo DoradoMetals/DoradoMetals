@@ -7,7 +7,7 @@ import {
   optimisticallyUpdateSalesOrder,
   rollbackOrderLists,
 } from '@/features/orders/invalidation'
-import type { orders } from "@dorado/contracts";
+import type { OrderCancelBody, OrderPatch, OrderView } from "@dorado/contracts";
 import type { PurchaseOrder } from '@/features/orders/purchaseOrders/types'
 import type { SalesOrder } from '@/features/orders/salesOrders/types'
 
@@ -21,24 +21,23 @@ import type { SalesOrder } from '@/features/orders/salesOrders/types'
 // writes `status` any more (status is a pure label, never a side effect).
 // A caller that wants both the action AND the status change makes two calls.
 //
-// Every one of the five here answers the whole orders.orders.View now, not the row -
+// Every one of the five here answers the whole OrderView now, not the row -
 // but nothing in this file reads that response: the cache policy stays
 // optimistic-flip-then-invalidate (D83), so the response is a POST result no
 // caller destructures.
-export type OrderPatch = orders.orders.Patch;
 
 type PatchOrderVars = {
   id: string
-  patch: orders.orders.Patch
+  patch: OrderPatch
 }
 
 // D83's rule: only NON-price flips are optimistic. The maps run per list
 // family, and the patched order's id matches in exactly one of them - so the
 // purchase map never touches a sale and vice versa.
-const applyPurchaseFields = (order: PurchaseOrder, patch: orders.orders.Patch): PurchaseOrder =>
+const applyPurchaseFields = (order: PurchaseOrder, patch: OrderPatch): PurchaseOrder =>
   patch.status ? { ...order, status: patch.status } : order
 
-const applySalesFields = (order: SalesOrder, patch: orders.orders.Patch): SalesOrder =>
+const applySalesFields = (order: SalesOrder, patch: OrderPatch): SalesOrder =>
   patch.status ? { ...order, status: patch.status } : order
 
 export const usePatchOrder = () => {
@@ -48,7 +47,7 @@ export const usePatchOrder = () => {
   return useMutation({
     mutationFn: async ({ id, patch }: PatchOrderVars) => {
       if (!user?.id) throw new Error('User is not authenticated')
-      return await apiRequest<orders.orders.View>('PATCH', `/orders/${id}`, patch)
+      return await apiRequest<OrderView>('PATCH', `/orders/${id}`, patch)
     },
 
     onMutate: async ({ id, patch }) => ({
@@ -86,7 +85,7 @@ export const useAddFundsToOrder = () => {
   return useMutation({
     mutationFn: async ({ id }: { id: string }) => {
       if (!user?.id) throw new Error('User is not authenticated')
-      return await apiRequest<orders.orders.View>('POST', `/orders/${id}/add_funds`)
+      return await apiRequest<OrderView>('POST', `/orders/${id}/add_funds`)
     },
     onSettled: (_data, _err, { id }) => {
       invalidateOrderReads(queryClient, id)
@@ -101,7 +100,7 @@ export const useFinalizeOrderPricing = () => {
   return useMutation({
     mutationFn: async ({ id }: { id: string }) => {
       if (!user?.id) throw new Error('User is not authenticated')
-      return await apiRequest<orders.orders.View>('POST', `/orders/${id}/finalize_pricing`)
+      return await apiRequest<OrderView>('POST', `/orders/${id}/finalize_pricing`)
     },
     onSettled: (_data, _err, { id }) => {
       invalidateOrderReads(queryClient, id)
@@ -109,7 +108,7 @@ export const useFinalizeOrderPricing = () => {
   })
 }
 
-type CancelOrderVars = { id: string } & orders.orders.CancelBody
+type CancelOrderVars = { id: string } & OrderCancelBody
 
 // No UI sends this today (the admin drawer's return-shipment form was never
 // built - the only "Cancel Order" button in the tree just PATCHes `status`).
@@ -123,7 +122,7 @@ export const useCancelOrder = () => {
   return useMutation({
     mutationFn: async ({ id, ...body }: CancelOrderVars) => {
       if (!user?.id) throw new Error('User is not authenticated')
-      return await apiRequest<orders.orders.View>('POST', `/orders/${id}/cancel`, body)
+      return await apiRequest<OrderView>('POST', `/orders/${id}/cancel`, body)
     },
     onSettled: (_data, _err, { id }) => {
       invalidateOrderReads(queryClient, id)
@@ -138,7 +137,7 @@ export const useSendOrderToRefiner = () => {
   return useMutation({
     mutationFn: async ({ id, refiner_id }: { id: string; refiner_id: string }) => {
       if (!user?.id) throw new Error('User is not authenticated')
-      return await apiRequest<orders.orders.View>('POST', `/orders/${id}/send_to_refiner`, { refiner_id })
+      return await apiRequest<OrderView>('POST', `/orders/${id}/send_to_refiner`, { refiner_id })
     },
     onSettled: (_data, _err, { id }) => {
       invalidateOrderReads(queryClient, id)

@@ -2,12 +2,12 @@
 import query from "#shared/db/query.ts";
 import { buildUpdate } from "#shared/db/patch.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
-import type { fulfillments } from "@dorado/contracts";
+import type { FulfillmentDirect } from "@dorado/contracts";
 import type { Executor } from "#shared/db/executor.ts";
 
 const sql = sqlFrom(import.meta.dirname);
 
-export type DirectRow = fulfillments.directs.Row;
+export type DirectRow = FulfillmentDirect;
 
 type Window = { from?: string | null; to?: string | null; employee_id?: string | null };
 
@@ -34,7 +34,7 @@ export async function getScheduled(
 }
 
 export type DirectInput = {
-  location_id: string;
+  location_id?: string;
   assigned_employee_id?: string | null;
   is_appointment?: boolean;
   start_time?: string | null;

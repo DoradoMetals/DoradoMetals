@@ -1,5 +1,5 @@
 // What usePatchRefinerOrder and usePatchRefinerItem actually PATCH, checked
-// against @dorado/contracts' refiners.orders.Patch/refiners.items.Patch in strict
+// against @dorado/contracts' RefinerOrderPatch/RefinerItemPatch in strict
 // mode. The contracts lane replaced a spot write's `name` with `metal_id`
 // (RefinerSpotWrite) - editRefinerValues.tsx sent `{name, bid}` and this
 // file fails if that spelling comes back.
@@ -7,7 +7,7 @@ import { describe, expect, test, vi, beforeEach } from "vitest";
 import { act, renderHook } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
-import { refiners } from "@dorado/contracts";
+import { RefinerItemPatch, RefinerOrderPatch } from "@dorado/contracts";
 
 vi.mock("@/shared/queries/axios", () => ({ apiRequest: vi.fn() }));
 vi.mock("@/features/auth/queries", () => ({
@@ -52,13 +52,13 @@ describe("usePatchRefinerOrder sends exactly what PATCH /refiners/orders/:id acc
     expect(call).toBeTruthy();
     const body = call![2] as { spots: Record<string, unknown>[] };
 
-    expect(refiners.orders.Patch.strict().safeParse(body).success).toBe(true);
+    expect(RefinerOrderPatch.strict().safeParse(body).success).toBe(true);
     expect(body.spots[0]).toEqual({ metal_id: METAL_ID, bid: 1990 });
     expect(body.spots[0]).not.toHaveProperty("name");
 
     // Proven: the retired `name` spelling fails the same parse.
     const poisoned = { spots: [{ name: "Gold", bid: 1990 }] };
-    expect(refiners.orders.Patch.strict().safeParse(poisoned).success).toBe(false);
+    expect(RefinerOrderPatch.strict().safeParse(poisoned).success).toBe(false);
   });
 });
 
@@ -80,9 +80,9 @@ describe("usePatchRefinerItem sends exactly what PATCH /refiners/items/by-order-
     expect(call).toBeTruthy();
     const body = call![2];
 
-    expect(refiners.items.Patch.strict().safeParse(body).success).toBe(true);
+    expect(RefinerItemPatch.strict().safeParse(body).success).toBe(true);
 
     const poisoned = { ...(body as object), content: 2.4 };
-    expect(refiners.items.Patch.strict().safeParse(poisoned).success).toBe(false);
+    expect(RefinerItemPatch.strict().safeParse(poisoned).success).toBe(false);
   });
 });

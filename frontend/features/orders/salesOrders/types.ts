@@ -12,13 +12,12 @@ import {
 
 import { z } from 'zod/v4'
 
-import { productSchema } from '@/features/products/types'
 import { packageSchema } from '@/features/packaging/types'
 import { pickupSchema } from '@/features/handoff/types'
 import { serviceSchema } from '@/features/service/types'
 import { insuranceSchema } from '@/features/insurance/types'
 import { User } from '@/features/users/types'
-import { exchange, orders, places, spots } from "@dorado/contracts";
+import { Address, AdminUser, SpotPrice, UserAddressRead } from "@dorado/contracts";
 
 // THE SHARED HALF LIVES IN ../types.ts - the order type, the return-shipment
 // schema, the status-config types and the drawer prop interfaces, declared once
@@ -79,14 +78,12 @@ export const PaymentMethodTypeValues = [
 
 type PaymentMethodType = (typeof PaymentMethodTypeValues)[number]
 
-const paymentMethodTypeSchema = z.enum(PaymentMethodTypeValues)
-
 // THE METHOD ROWS COME FROM THE DATABASE NOW (D207). `paymentOptions` - six
 // hardcoded records duplicating payments.methods field for field - is gone;
 // consumers read usePaymentMethods('sale') (features/payments/queries) and
 // look rows up by `type`, which speaks the same vocabulary as this enum
 // (migration 109 reconciled the two rows that did not). The enum stays: it is
-// the checkout schema's validation contract, a vocabulary rather than data.
+// the form state's vocabulary rather than data.
 //
 // The ICON is the one thing that stays client-side, deliberately (Jacob's
 // standing call from the handoff conversion): a picture is a client concern
@@ -158,52 +155,24 @@ export const DEFAULT_SALES_SERVICE: SalesOrderService = {
   time: '3 Days',
 }
 
-export const salesOrderCheckoutSchema = z.object({
-  address: places.addresses.Row,
-  user_address: places.user_addresses.Read.optional(),
-  service: salesOrderServiceSchema,
-  payment_method: paymentMethodTypeSchema,
-  items: z.array(productSchema).min(1, 'At least one item is required'),
-})
-export type SalesOrderCheckout = z.infer<typeof salesOrderCheckoutSchema>
+// THE SALES CHECKOUT'S OWN FORM STATE. The basket is not a field of it: the
+// lines live in the checkout items store and on checkout.items (ruling 50),
+// and the schema that parsed a whole array of catalogue products as if it
+// were the basket died with them.
+export type SaleCheckoutForm = {
+  address: Address
+  user_address?: UserAddressRead
+  service: SalesOrderService
+  payment_method?: PaymentMethodType
+}
 
-export const adminSalesOrderCheckoutSchema = z.object({
-  address: places.addresses.Row,
-  user_address: places.user_addresses.Read.optional(),
-  service: salesOrderServiceSchema,
-  payment_method: paymentMethodTypeSchema,
-  items: z.array(productSchema).min(1, 'At least one item is required'),
-  // Client-side form state: the admin picks the spots the order is
-  // quoted at. Both create endpoints price server-side and ignore what
-  // is sent, so this embeds the contract's live-spot schema directly.
-  order_metals: z.array(spots.spots.Read),
-  // THE CUSTOMER THE ORDER IS FOR, AND IT IS THE CONTRACT NOW (phase 3).
-  //
-  // This was the ACCOUNT FORM's schema in features/users/types.ts -
-  // better-auth's camelCase session shape with `name` required non-empty. The
-  // value that reaches it has never been that: `setCreateSalesOrderUser` is
-  // called from the admin users drawer with a row off GET /users/get_all, so
-  // it is snake_case and API-sourced. It compiled because every field of the
-  // form schema is optional except email and name, so a snake_case object
-  // satisfied it vacuously. (The form schema is NOT NAMED here on purpose:
-  // audit:frontend-nullability walks a parsed schema's body for `\w+Schema`
-  // to build its transitive closure, and that regex reads comments too - so
-  // spelling the old identifier inside this object would keep reporting it as
-  // parsed at runtime after it stopped being.)
-  //
-  // *** DELIBERATE BEHAVIOUR CHANGE ON THE CHECKOUT PATH, and it is the one
-  //     `audit:frontend-nullability` was pointing at. *** Two things differ:
-  //   - `created_at`, `updated_at` and `email_verified` were STRIPPED by zod
-  //     on every admin sales order and now travel;
-  //   - a customer whose `users.name` is NULL threw a ZodError in the browser
-  //     at the Stripe confirm, and now does not. The column is nullable.
-  // Safe in both directions because the server reads exactly two fields off
-  // this object - api/features/orders/service.ts adminCreateSalesOrder types
-  // its own parameter `{ id: string; dorado_funds?: number | null }` - and
-  // both shapes carry both.
-  user: exchange.users.Read,
-})
-export type AdminSalesOrderCheckout = z.infer<typeof adminSalesOrderCheckoutSchema>
+// The admin create adds two things a customer never picks: WHOSE order it is,
+// and the spots the drawer displays it at. Both create endpoints price
+// server-side and ignore what is sent; `order_metals` is display state.
+export type AdminSaleCheckoutForm = SaleCheckoutForm & {
+  order_metals: SpotPrice[]
+  user: AdminUser
+}
 
 // SalesOrderTotals lived here until 2026-08-28: the return shape of
 // calculateSalesOrderPrices, the last client money math on the sales side.

@@ -5,14 +5,14 @@
 // Postgres table: fulfillments.shipments
 import { z } from "zod/v4";
 
-export const Row = z.object({
+export const FulfillmentShipment = z.object({
   "id": z.string().uuid(),
   "fulfillment_id": z.string().uuid(),
   "recipient_location_id": z.string().uuid().nullable(),
   "shipper_location_id": z.string().uuid().nullable(),
   "shipment_id": z.string().uuid(),
 });
-export type Row = z.infer<typeof Row>;
+export type FulfillmentShipment = z.infer<typeof FulfillmentShipment>;
 // generated:end
 
 // Hand-written derivations go here: New, Patch, named reads.

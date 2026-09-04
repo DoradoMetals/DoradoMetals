@@ -4,15 +4,14 @@ import * as shipmentsService from "#domain/shipping/shipments/service.ts";
 import * as orderTransactions from "#domain/orders/transactions/service.ts";
 import { updateTracking } from "#domain/orders/service.ts";
 import { Invalid, NotFound } from "#shared/errors.ts";
-import type { shipping } from "@dorado/contracts";
+import type { ShipmentPatch } from "@dorado/contracts";
 
 // shipping_charge is `number`, not nullable - a cleared charge was never distinguishable from a zero one (every reader does `?? 0`), so a null capability was a second spelling of 0.
-export type ShipmentPatch = shipping.shipments.Patch;
 
 // Shape validation happens once, at the transport boundary (transport/shipping/shipments/controller.ts) - what's left here is a RULE: a patch must name at least one field.
 export async function patchShipment(
   shipmentId: string,
-  body: shipping.shipments.Patch
+  body: ShipmentPatch
 ): Promise<{ success: true }> {
   if (Object.keys(body).length === 0) {
     throw new Invalid("the document names no field to write");

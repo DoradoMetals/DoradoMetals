@@ -26,9 +26,9 @@ import {
   buildInvoiceScrapRows,
 } from "#domain/media/pdfs/render/sections.ts";
 import { LOCKS } from "#shared/testing/locks.ts";
-import type { orders as ordersContract } from "@dorado/contracts";
+import type { OrderView, OrderViewItem } from "@dorado/contracts";
 
-let orders: ordersContract.orders.View[];
+let orders: OrderView[];
 let lockClient: PoolClient;
 
 // SESSION-scoped LOCKS.ORDERS, held for the whole file (lane 3, the runner
@@ -119,7 +119,7 @@ test("a line with no premium renders unpriced on both documents, not differently
     post_melt: 1,
     unit: "t oz",
     product: null,
-  } as unknown as ordersContract.items.ViewItem;
+  } as unknown as OrderViewItem;
 
   const bids = new Map([[GOLD, 4000]]);
   const labels = {

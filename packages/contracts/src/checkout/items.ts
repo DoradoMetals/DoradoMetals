@@ -5,7 +5,7 @@
 // Postgres table: checkout.items
 import { z } from "zod/v4";
 
-export const Row = z.object({
+export const CheckoutItem = z.object({
   "id": z.string().uuid(),
   "bullion_id": z.string().uuid().nullable(),
   "metal_id": z.string().uuid().nullable(),
@@ -22,24 +22,22 @@ export const Row = z.object({
   "content": z.number().nullable(),
   "unit": z.string().nullable(),
 });
-export type Row = z.infer<typeof Row>;
+export type CheckoutItem = z.infer<typeof CheckoutItem>;
 // generated:end
-// One basket line. The value columns are optional as well as nullable: a coin
-// is a bullion_id and a quantity. `content` and `premium` are the server's.
-export const New = Row.pick({
+// One basket line. Every column is optional - a create sends the same patch,
+// and the table decides what it needs.
+export const CheckoutItemPatch = CheckoutItem.pick({
   bullion_id: true,
   metal_id: true,
   pre_melt: true,
   post_melt: true,
   purity: true,
   unit: true,
-})
-  .partial()
-  .extend({ quantity: Row.shape.quantity.unwrap() })
-  .strict();
-export type New = z.infer<typeof New>;
+  quantity: true,
+}).partial().strict();
+export type CheckoutItemPatch = z.infer<typeof CheckoutItemPatch>;
 
 // The whole basket; the sync replaces rather than merges.
-export const SyncBody = z.object({ items: z.array(New) }).strict();
-export type SyncBody = z.infer<typeof SyncBody>;
+export const CheckoutItemsBody = z.object({ items: z.array(CheckoutItemPatch) }).strict();
+export type CheckoutItemsBody = z.infer<typeof CheckoutItemsBody>;
 

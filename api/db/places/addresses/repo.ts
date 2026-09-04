@@ -3,12 +3,12 @@
 import query from "#shared/db/query.ts";
 import { buildUpdate } from "#shared/db/patch.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
-import type { places } from "@dorado/contracts";
+import type { Address } from "@dorado/contracts";
 import type { Executor } from "#shared/db/executor.ts";
 
 const sql = sqlFrom(import.meta.dirname);
 
-export type AddressRow = places.addresses.Row;
+export type AddressRow = Address;
 
 // Optional, not just nullable: an omitted field binds as undefined, same as omitting it; an extra `id` is harmless, only these fields are read.
 export type NewAddress = {

@@ -30,7 +30,7 @@
 //                       Here the FRONTEND was the side that was wrong.
 //
 // And the control, which is what stops the above from reading as a rule about
-// nulls: refiners.items.Patch's five fields are ALL nullable and stay that way,
+// nulls: RefinerItemPatch's five fields are ALL nullable and stay that way,
 // because the admin drawer really sends those nulls and the service really
 // merges them as "not measured".
 //
@@ -44,7 +44,7 @@
 import { test, afterAll } from "vitest";
 import assert from "node:assert/strict";
 import pool from "#db";
-import { exchange, orders, refiners, shipping } from "@dorado/contracts";
+import { OrderItemPatch, OrderPatch, PayoutPatch, RefinerItemPatch, RefinerOrderPatch, ShipmentPatch } from "@dorado/contracts";
 
 afterAll(async () => {
   await pool.end();
@@ -52,22 +52,22 @@ afterAll(async () => {
 
 // --------------------------------------------------- the four nulls refused
 
-// shipping.shipments.Patch is parsed strictly at transport now (D214 item 11), so this
+// ShipmentPatch is parsed strictly at transport now (D214 item 11), so this
 // asserts the contract directly - shipping_charge is z.number(), not
 // nullable, which IS the refusal.
 test("a shipment PATCH refuses a null shipping charge, by name", () => {
-  refusesField(shipping.shipments.Patch, { shipping_charge: null }, "shipping_charge");
+  refusesField(ShipmentPatch, { shipping_charge: null }, "shipping_charge");
   // The value it replaced is still accepted, zero included - the decision was
   // "there is no third state", not "no clearing-shaped number".
-  assert.equal(shipping.shipments.Patch.safeParse({ shipping_charge: 0 }).success, true);
-  assert.equal(shipping.shipments.Patch.safeParse({ shipping_charge: 45.67 }).success, true);
+  assert.equal(ShipmentPatch.safeParse({ shipping_charge: 0 }).success, true);
+  assert.equal(ShipmentPatch.safeParse({ shipping_charge: 45.67 }).success, true);
 });
 
 test("a refiner order PATCH refuses a null on each of the three money fields", () => {
   for (const field of ["pool_oz_deducted", "pool_remediation", "fee"]) {
-    refusesField(refiners.orders.Patch, { [field]: null }, field);
+    refusesField(RefinerOrderPatch, { [field]: null }, field);
     assert.equal(
-      refiners.orders.Patch.safeParse({ [field]: 0 }).success, true, `${field}: 0 was refused`
+      RefinerOrderPatch.safeParse({ [field]: 0 }).success, true, `${field}: 0 was refused`
     );
   }
 });
@@ -76,12 +76,12 @@ test("a refiner order PATCH refuses a null on each of the three money fields", (
 
 test("a refiner order PATCH ACCEPTS a null refiner_id - detaching is an operation", () => {
   assert.equal(
-    refiners.orders.Patch.safeParse({ refiner_id: null }).success,
+    RefinerOrderPatch.safeParse({ refiner_id: null }).success,
     true,
     "clearing the engagement's refinery was refused"
   );
   assert.equal(
-    refiners.orders.Patch.safeParse({ refiner_id: "00000000-0000-4000-8000-000000000000" }).success,
+    RefinerOrderPatch.safeParse({ refiner_id: "00000000-0000-4000-8000-000000000000" }).success,
     true
   );
 });
@@ -92,10 +92,10 @@ test("a refiner order PATCH ACCEPTS a null refiner_id - detaching is an operatio
 test("a refiner item PATCH keeps every one of its nulls", () => {
   for (const field of ["premium", "pre_melt", "post_melt", "purity"]) {
     assert.equal(
-      refiners.items.Patch.safeParse({ [field]: null }).success, true, `${field}: null was refused`
+      RefinerItemPatch.safeParse({ [field]: null }).success, true, `${field}: null was refused`
     );
   }
-  assert.equal(refiners.items.Patch.safeParse({ unit: null }).success, true);
+  assert.equal(RefinerItemPatch.safeParse({ unit: null }).success, true);
 });
 
 // ------------------------------------------- what the contract now also says
@@ -120,12 +120,12 @@ const refusesField = (
 // supplier were operations multiplexed through a PATCH; each is a POST of its
 // own now, so naming one here is naming a field the endpoint does not have.
 test("the order PATCH is the row's own columns, and the four actions are not among them", () => {
-  assert.equal(orders.orders.Patch.safeParse({ status: "Received" }).success, true);
-  assert.equal(orders.orders.Patch.safeParse({ notes: "left on the porch" }).success, true);
+  assert.equal(OrderPatch.safeParse({ status: "Received" }).success, true);
+  assert.equal(OrderPatch.safeParse({ notes: "left on the porch" }).success, true);
   // Both columns are nullable, so an explicit null CLEARS.
-  assert.equal(orders.orders.Patch.safeParse({ notes: null }).success, true);
+  assert.equal(OrderPatch.safeParse({ notes: null }).success, true);
   for (const action of ["add_funds", "finalize_pricing", "cancel", "supplier"]) {
-    refusesField(orders.orders.Patch, { [action]: true }, action);
+    refusesField(OrderPatch, { [action]: true }, action);
   }
 });
 
@@ -135,9 +135,9 @@ test("the order PATCH is the row's own columns, and the four actions are not amo
 // matched no branch. One flat patch of the row makes both directions the same
 // write, so `false` is legal and `reset` is not a field at all.
 test("an order item PATCH takes confirmed both ways, and has no `reset`", () => {
-  assert.equal(orders.items.Patch.safeParse({ confirmed: true }).success, true);
-  assert.equal(orders.items.Patch.safeParse({ confirmed: false }).success, true);
-  refusesField(orders.items.Patch, { reset: true }, "reset");
+  assert.equal(OrderItemPatch.safeParse({ confirmed: true }).success, true);
+  assert.equal(OrderItemPatch.safeParse({ confirmed: false }).success, true);
+  refusesField(OrderItemPatch, { reset: true }, "reset");
 });
 
 // THE PARTIAL THAT NULLED. `SET quantity = $1, premium = $2` unconditionally
@@ -146,11 +146,11 @@ test("an order item PATCH takes confirmed both ways, and has no `reset`", () => 
 // contract defended it by REQUIRING both members; buildUpdate names only the
 // keys the document carries, so a partial is safe and the requirement is gone.
 test("an order item PATCH writes only what it names, so a partial is legal", () => {
-  assert.equal(orders.items.Patch.safeParse({ premium: 1.02 }).success, true);
-  assert.equal(orders.items.Patch.safeParse({ quantity: 2 }).success, true);
-  assert.equal(orders.items.Patch.safeParse({ quantity: 2, premium: 1.02 }).success, true);
+  assert.equal(OrderItemPatch.safeParse({ premium: 1.02 }).success, true);
+  assert.equal(OrderItemPatch.safeParse({ quantity: 2 }).success, true);
+  assert.equal(OrderItemPatch.safeParse({ quantity: 2, premium: 1.02 }).success, true);
   // Nullable, both of them - the columns are, and clearing a premium is real.
-  assert.equal(orders.items.Patch.safeParse({ quantity: null, premium: null }).success, true);
+  assert.equal(OrderItemPatch.safeParse({ quantity: null, premium: null }).success, true);
 });
 
 // ONE ROW, ONE PATCH. `{scrap: {premium, scrap: {...}}}` was the admin
@@ -158,15 +158,15 @@ test("an order item PATCH writes only what it names, so a partial is legal", () 
 // are the body now, and the nested spellings are not fields.
 test("an order item PATCH is flat - the scrap and bullion documents are gone", () => {
   assert.equal(
-    orders.items.Patch.safeParse({ pre_melt: 3, post_melt: 2.8, purity: 0.585, unit: "g" }).success,
+    OrderItemPatch.safeParse({ pre_melt: 3, post_melt: 2.8, purity: 0.585, unit: "g" }).success,
     true
   );
-  refusesField(orders.items.Patch, { scrap: { premium: 0.9, scrap: { pre_melt: 3 } } }, "scrap");
-  refusesField(orders.items.Patch, { bullion: { quantity: 2, premium: 1.02 } }, "bullion");
+  refusesField(OrderItemPatch, { scrap: { premium: 0.9, scrap: { pre_melt: 3 } } }, "scrap");
+  refusesField(OrderItemPatch, { bullion: { quantity: 2, premium: 1.02 } }, "bullion");
   // `content` is DERIVED from the weight, the unit and the purity, and the
   // refiner's assay numbers are refiners.items - neither is a field here.
-  refusesField(orders.items.Patch, { content: 4 }, "content");
-  refusesField(orders.items.Patch, { purity_actual: 0.5 }, "purity_actual");
+  refusesField(OrderItemPatch, { content: 4 }, "content");
+  refusesField(OrderItemPatch, { purity_actual: 0.5 }, "purity_actual");
 });
 
 // ------------------------------------------------------------- the new field
@@ -174,13 +174,13 @@ test("an order item PATCH is flat - the scrap and bullion documents are gone", (
 // The waive flag is a boolean and only a boolean: it is not an operation name
 // like finalize_pricing, because un-waiving is as real as waiving.
 test("a payout PATCH takes the waive flag both ways, and refuses a non-boolean", () => {
-  assert.equal(exchange.payouts.Patch.safeParse({ waive_payout_fee: true }).success, true);
-  assert.equal(exchange.payouts.Patch.safeParse({ waive_payout_fee: false }).success, true);
-  refusesField(exchange.payouts.Patch, { waive_payout_fee: "yes" }, "waive_payout_fee");
+  assert.equal(PayoutPatch.safeParse({ waive_payout_fee: true }).success, true);
+  assert.equal(PayoutPatch.safeParse({ waive_payout_fee: false }).success, true);
+  refusesField(PayoutPatch, { waive_payout_fee: "yes" }, "waive_payout_fee");
   // And the fee itself is still per-order data, which is the half of
   // production a boolean cannot express: two ECHECK rows are stored ABOVE the
   // method's default fee, not below it.
-  assert.equal(exchange.payouts.Patch.safeParse({ cost: 125 }).success, true);
+  assert.equal(PayoutPatch.safeParse({ cost: 125 }).success, true);
 });
 
 // ------------------------------------------------- unknown fields still lead
@@ -190,16 +190,16 @@ test("a payout PATCH takes the waive flag both ways, and refuses a non-boolean",
 // into a silent 200 that wrote nothing - the admin-mutation-urls bug. Every
 // one of the six refuses by name BEFORE the contract sees the body.
 test("an unknown field is refused by name on every one of the six", () => {
-  refusesField(orders.orders.Patch, { nope: 1 }, "nope");
-  refusesField(orders.items.Patch, { nope: 1 }, "nope");
-  refusesField(shipping.shipments.Patch, { nope: 1 }, "nope");
-  refusesField(refiners.orders.Patch, { nope: 1 }, "nope");
-  refusesField(refiners.items.Patch, { nope: 1 }, "nope");
-  refusesField(exchange.payouts.Patch, { nope: 1 }, "nope");
+  refusesField(OrderPatch, { nope: 1 }, "nope");
+  refusesField(OrderItemPatch, { nope: 1 }, "nope");
+  refusesField(ShipmentPatch, { nope: 1 }, "nope");
+  refusesField(RefinerOrderPatch, { nope: 1 }, "nope");
+  refusesField(RefinerItemPatch, { nope: 1 }, "nope");
+  refusesField(PayoutPatch, { nope: 1 }, "nope");
 
   // `content` is DERIVED from post_melt and purity, so the refiner item
   // contract has no such field and a strict parse refuses it by name. The
   // bespoke "it is derived" message went with the hand-rolled validator; the
   // refusal is what mattered.
-  refusesField(refiners.items.Patch, { content: 1 }, "content");
+  refusesField(RefinerItemPatch, { content: 1 }, "content");
 });

@@ -1,4 +1,4 @@
-import { SpotPrice } from '@/features/spots/types'
+import type { SpotPrice } from "@dorado/contracts";
 import { useApiQuery } from '@/shared/queries/base'
 import { queryKeys } from '@/shared/queries/keys'
 

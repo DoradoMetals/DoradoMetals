@@ -5,7 +5,7 @@
 // Postgres table: auth.sessions
 import { z } from "zod/v4";
 
-export const Row = z.object({
+export const Session = z.object({
   "id": z.string().uuid(),
   "userId": z.string().uuid(),
   "token": z.string(),
@@ -16,7 +16,7 @@ export const Row = z.object({
   "userAgent": z.string().nullable(),
   "impersonatedBy": z.string().uuid().nullable(),
 });
-export type Row = z.infer<typeof Row>;
+export type Session = z.infer<typeof Session>;
 // generated:end
 
 // Hand-written derivations go here: New, Patch, named reads.

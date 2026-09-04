@@ -1,8 +1,9 @@
 'use client'
 
+import type { Address } from "@dorado/contracts";
 import { motion, AnimatePresence } from 'framer-motion'
 import { ChevronDown, Plus } from 'lucide-react'
-import { Address, UserAddress } from '@/features/addresses/types'
+import { UserAddress } from '@/features/addresses/types'
 import { cn } from '@/shared/utils/cn'
 import { RadioGroupRoot, RadioOption } from '@/shared/ui/RadioGroup'
 import { Button } from '@dorado/components'

@@ -2,7 +2,7 @@
 import query from "#shared/db/query.ts";
 import { buildUpdate } from "#shared/db/patch.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
-import type { products } from "@dorado/contracts";
+import type { Bullion } from "@dorado/contracts";
 import type { Executor } from "#shared/db/executor.ts";
 
 const sql = sqlFrom(import.meta.dirname);
@@ -10,7 +10,7 @@ const sql = sqlFrom(import.meta.dirname);
 // The public row: what any visitor may see, plus the two ids compose.ts turns
 // into labels and then drops.
 export type PublicProductRow = Pick<
-  products.bullion.Row,
+  Bullion,
   | "id" | "name" | "description" | "content" | "purity" | "gross"
   | "bid_premium" | "ask_premium" | "type" | "image_front" | "image_back"
   | "variant_group" | "shadow_offset" | "slug" | "legal_tender"
@@ -21,7 +21,7 @@ export type PublicProductRow = Pick<
 // The admin row: everything above plus what only an admin sees, and the third
 // id - a supplier is not a public fact about a product.
 export type AdminProductRow = Pick<
-  products.bullion.Row,
+  Bullion,
   | "id" | "name" | "description" | "bid_premium" | "ask_premium" | "type"
   | "created_at" | "updated_at" | "image_front" | "image_back" | "display"
   | "content" | "gross" | "purity" | "variant_group" | "shadow_offset"
@@ -31,20 +31,20 @@ export type AdminProductRow = Pick<
   | "metal_id" | "mint_id" | "supplier_id"
 >;
 
-export type Liveness = Pick<products.bullion.Row, "id" | "display">;
+export type Liveness = Pick<Bullion, "id" | "display">;
 
 // Full replace, not a sparse patch: an absent field binds NULL, exactly as when this was a positional tuple.
 // metal_id/mint_id/supplier_id are ids already resolved by the service; updated_by/updated_at are the trigger's (migration 116), not this type's.
 export type ProductPatch = {
-  metal_id: string;
-  supplier_id: string;
-  mint_id: string;
+  metal_id?: string;
+  supplier_id?: string;
+  mint_id?: string;
   name?: string | null;
   description?: string | null;
   bid_premium?: number | null;
   ask_premium?: number | null;
   type?: string | null;
-  display: boolean;
+  display?: boolean;
   content?: number | null;
   gross?: number | null;
   variant_group?: string | null;
@@ -52,10 +52,10 @@ export type ProductPatch = {
   purity?: number | null;
   stock?: number | null;
   slug?: string | null;
-  homepage_display: boolean;
-  legal_tender: boolean;
-  domestic_tender: boolean;
-  is_generic: boolean;
+  homepage_display?: boolean;
+  legal_tender?: boolean;
+  domestic_tender?: boolean;
+  is_generic?: boolean;
   variant_label?: string | null;
   quantity?: number | null;
   image_front?: string | null;

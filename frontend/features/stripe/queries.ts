@@ -1,4 +1,4 @@
-import { Product } from '@/features/products/types'
+import type { CheckoutLine } from '@/features/checkout/items/types'
 import { PaymentIntent } from '@/features/stripe/types'
 import { useApiMutation, useApiQuery } from '@/shared/queries/base'
 import { queryKeys } from '@/shared/queries/keys'
@@ -9,7 +9,7 @@ import { useSaleShippingServices } from '@/features/shipping/queries'
 // UpdatePaymentIntentBody). Every field the browser used to compose is a row
 // the server already holds:
 //
-//   items[]            still the cart, reduced to {id, quantity} here - a
+//   items[]            still the basket, reduced to {id, quantity} here - a
 //                      strict object, not a whole catalogue product.
 //   using_funds/spots  GONE. `spots` was declared-and-ignored; `using_funds`
 //                      is a BEHAVIOUR CHANGE - credit applies whenever the
@@ -25,7 +25,7 @@ import { useSaleShippingServices } from '@/features/shipping/queries'
 //   payment_method     -> payment_method_id, resolved against payments.methods
 //                      the same way.
 interface IntentParams {
-  items: Product[]
+  items: CheckoutLine[]
   shipping_service: string
   payment_method: string
   type: string
@@ -57,7 +57,9 @@ export const useUpdatePaymentIntent = () => {
     requireUser: true,
     optimistic: false,
     body: (params) => ({
-      items: params.items.map((i) => ({ id: i.id, quantity: i.quantity ?? 1 })),
+      items: params.items.flatMap((i) =>
+        i.bullion_id ? [{ id: i.bullion_id, quantity: i.quantity ?? 1 }] : []
+      ),
       address_id: params.address_id || undefined,
       carrier_service_id: saleServices.find((s) => s.code === params.shipping_service)?.id,
       payment_method_id: saleMethods.find((m) => m.type === params.payment_method)?.id,
@@ -67,22 +69,25 @@ export const useUpdatePaymentIntent = () => {
   })
 }
 
-export const useGetSalesOrderPaymentIntent = (sales_order_id: string) => {
+// Named for the admin sales-order screen this serves, not for a two-column
+// vocabulary - orders.orders is one table with a direction, and the id this
+// takes is just the order's own.
+export const useGetSalesOrderPaymentIntent = (order_id: string) => {
   return useApiQuery<PaymentIntent>({
-    key: queryKeys.adminPaymentIntent(sales_order_id),
+    key: queryKeys.adminPaymentIntent(order_id),
     url: '/stripe/get_sales_order_payment_intent',
     method: 'GET',
     requireAdmin: true,
-    enabled: (user) => !!user?.id && !!sales_order_id,
+    enabled: (user) => !!user?.id && !!order_id,
     params: () => ({
-      sales_order_id,
+      order_id,
     }),
   })
 }
 
-export const useCancelPaymentIntent = (sales_order_id: string) => {
+export const useCancelPaymentIntent = (order_id: string) => {
   return useApiMutation<string, string, PaymentIntent[]>({
-    queryKey: queryKeys.adminPaymentIntent(sales_order_id),
+    queryKey: queryKeys.adminPaymentIntent(order_id),
     url: '/stripe/cancel_payment_intent',
     requireAdmin: true,
     optimistic: false,

@@ -5,21 +5,21 @@
 // Postgres table: shipping.tracking
 import { z } from "zod/v4";
 
-export const Row = z.object({
+export const TrackingRecord = z.object({
   "id": z.string().uuid(),
   "shipment_id": z.string().uuid(),
   "status": z.string().nullable(),
   "location": z.string().nullable(),
   "time": z.string().nullable(),
 });
-export type Row = z.infer<typeof Row>;
+export type TrackingRecord = z.infer<typeof TrackingRecord>;
 // generated:end
-import * as shipments from "./shipments.js";
+import { Shipment } from "./shipments.js";
 
 // POST /shipping/get_tracking - the shipment id alone; the carrier and the
 // tracking number are the shipment's own columns.
-export const Body = z.object({
-  shipment_id: shipments.Row.shape.id,
+export const ShippingGetTrackingBody = z.object({
+  shipment_id: Shipment.shape.id,
 }).strict();
-export type Body = z.infer<typeof Body>;
+export type ShippingGetTrackingBody = z.infer<typeof ShippingGetTrackingBody>;
 

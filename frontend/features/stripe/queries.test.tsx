@@ -1,5 +1,5 @@
 // What useUpdatePaymentIntent actually POSTs, checked against
-// @dorado/contracts' payments.intents.UpdateBody in strict mode. The contracts
+// @dorado/contracts' UpdatePaymentIntentBody in strict mode. The contracts
 // lane replaced `shipping_service`/`payment_method` (a code/type string) with
 // `carrier_service_id`/`payment_method_id`, and dropped `using_funds`,
 // `spots` and the top-level `user` object entirely - this file fails if any
@@ -8,8 +8,8 @@ import { describe, expect, test, vi, beforeEach } from "vitest";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
-import { payments } from "@dorado/contracts";
-import type { Product } from "@/features/products/types";
+import { UpdatePaymentIntentBody } from "@dorado/contracts";
+import type { CheckoutLine } from "@/features/checkout/items/types";
 
 vi.mock("@/shared/queries/axios", () => ({ apiRequest: vi.fn() }));
 vi.mock("@/features/auth/queries", () => ({
@@ -45,7 +45,11 @@ function useHarness() {
   };
 }
 
-const anItem = (): Product => ({ id: "9f1c2b3a-0000-4000-8000-000000000025", quantity: 1 } as unknown as Product);
+const anItem = (): CheckoutLine => ({
+  id: "9f1c2b3a-0000-4000-8000-000000000025",
+  bullion_id: "9f1c2b3a-0000-4000-8000-000000000025",
+  quantity: 1,
+});
 
 beforeEach(() => {
   vi.mocked(apiRequest).mockReset();
@@ -85,7 +89,7 @@ describe("useUpdatePaymentIntent sends exactly what /stripe/update_payment_inten
     expect(call).toBeTruthy();
     const body = call![2] as Record<string, unknown>;
 
-    expect(payments.intents.UpdateBody.strict().safeParse(body).success).toBe(true);
+    expect(UpdatePaymentIntentBody.strict().safeParse(body).success).toBe(true);
     expect(body.carrier_service_id).toBe(SERVICE_ID);
     expect(body.payment_method_id).toBe(METHOD_ID);
 
@@ -97,7 +101,7 @@ describe("useUpdatePaymentIntent sends exactly what /stripe/update_payment_inten
 
     // Proven: any retired field returning would fail the same parse.
     expect(
-      payments.intents.UpdateBody.strict().safeParse({ ...body, using_funds: false }).success
+      UpdatePaymentIntentBody.strict().safeParse({ ...body, using_funds: false }).success
     ).toBe(false);
   });
 
@@ -125,7 +129,7 @@ describe("useUpdatePaymentIntent sends exactly what /stripe/update_payment_inten
       .mock.calls.find(([, url]) => url === "/stripe/update_payment_intent");
     const body = call![2] as Record<string, unknown>;
 
-    expect(payments.intents.UpdateBody.strict().safeParse(body).success).toBe(true);
+    expect(UpdatePaymentIntentBody.strict().safeParse(body).success).toBe(true);
     expect(body.user_id).toBe(CUSTOMER_ID);
   });
 });

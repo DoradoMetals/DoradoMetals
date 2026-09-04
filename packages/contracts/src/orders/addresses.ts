@@ -5,13 +5,13 @@
 // Postgres table: orders.addresses
 import { z } from "zod/v4";
 
-export const Row = z.object({
+export const OrderAddressLink = z.object({
   "id": z.string().uuid(),
   "address_id": z.string().uuid(),
   "order_id": z.string().uuid(),
   "source_address_id": z.string().uuid().nullable(),
 });
-export type Row = z.infer<typeof Row>;
+export type OrderAddressLink = z.infer<typeof OrderAddressLink>;
 // generated:end
 
 // Hand-written derivations go here: New, Patch, named reads.

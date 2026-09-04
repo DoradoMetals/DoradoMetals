@@ -7,24 +7,22 @@
 import query from "#shared/db/query.ts";
 import { buildUpdate } from "#shared/db/patch.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
-import type { rates } from "@dorado/contracts";
+import type { Rate } from "@dorado/contracts";
 import type { Executor } from "#shared/db/executor.ts";
 
 const sql = sqlFrom(import.meta.dirname);
 
-export type RateRow = rates.rates.Row;
-
-// An explicit id wins on create; omitting one lets create.sql generate one.
-export type NewRate = Pick<
-  RateRow, "metal_id" | "unit" | "min_qty" | "max_qty" | "scrap_pct" | "bullion_pct"
-> &
-  { id?: string | null };
+export type RateRow = Rate;
 
 export const PATCHABLE = [
   "metal_id", "unit", "min_qty", "max_qty", "scrap_pct", "bullion_pct",
 ] as const;
 
-export type RatePatch = Partial<Pick<RateRow, (typeof PATCHABLE)[number]>>;
+// ONE WRITE TYPE, AND A CREATE SENDS IT TOO (Jacob, 2026-09-03: "For new, it
+// can just send the patch!!"). An explicit id wins on create; omitting one
+// lets create.sql generate one. A column the table needs and the patch does
+// not carry comes back as the shared pg-error translation naming it.
+export type RatePatch = Partial<Pick<RateRow, (typeof PATCHABLE)[number]>> & { id?: string | null };
 
 export async function getOne(id: string, executor?: Executor): Promise<RateRow | undefined> {
   const { rows } = await query<RateRow>(sql("get_one"), [id], executor);
@@ -36,7 +34,7 @@ export async function list(executor?: Executor): Promise<RateRow[]> {
   return rows;
 }
 
-export async function create(row: NewRate, executor?: Executor): Promise<RateRow> {
+export async function create(row: RatePatch, executor?: Executor): Promise<RateRow> {
   const { rows } = await query<RateRow>(
     sql("create"),
     [row.id, row.metal_id, row.unit, row.min_qty, row.max_qty, row.scrap_pct, row.bullion_pct],

@@ -5,17 +5,12 @@
 import query from "#shared/db/query.ts";
 import { buildUpdate } from "#shared/db/patch.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
-import type { leads } from "@dorado/contracts";
+import type { Lead } from "@dorado/contracts";
 import type { Executor } from "#shared/db/executor.ts";
 
 const sql = sqlFrom(import.meta.dirname);
 
-export type LeadRow = leads.leads.Row;
-
-// priority accepts null even though the column is NOT NULL: null means "unspecified", resolved to 'Medium' by create.sql's own COALESCE.
-export type NewLead = Pick<LeadRow, "name" | "phone" | "email"> &
-  Partial<Pick<LeadRow, "notes">> &
-  { priority?: string | null; id?: string | null };
+export type LeadRow = Lead;
 
 // The statement is built from the keys the patch actually carries: an absent key is not written, a key present with null CLEARS the column.
 export const PATCHABLE = [
@@ -23,7 +18,10 @@ export const PATCHABLE = [
   "responded", "contact", "notes", "priority",
 ] as const;
 
-export type LeadPatch = Partial<Pick<LeadRow, (typeof PATCHABLE)[number]>>;
+// ONE WRITE TYPE, AND A CREATE SENDS IT TOO. priority accepts null even
+// though the column is NOT NULL: null means "unspecified", resolved to
+// 'Medium' by create.sql's own COALESCE.
+export type LeadPatch = Partial<Pick<LeadRow, (typeof PATCHABLE)[number]>> & { id?: string | null };
 
 export async function getOne(id: string, executor?: Executor): Promise<LeadRow | undefined> {
   const { rows } = await query<LeadRow>(sql("get_one"), [id], executor);
@@ -35,7 +33,7 @@ export async function list(executor?: Executor): Promise<LeadRow[]> {
   return rows;
 }
 
-export async function create(row: NewLead, executor?: Executor): Promise<LeadRow> {
+export async function create(row: LeadPatch, executor?: Executor): Promise<LeadRow> {
   const { rows } = await query<LeadRow>(
     sql("create"),
     [row.id, row.name, row.phone, row.email, row.priority, row.notes],

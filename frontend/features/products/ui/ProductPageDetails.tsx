@@ -8,7 +8,6 @@ import NumberFlow from '@number-flow/react'
 import { RadioGroup } from '@/shared/ui/RadioGroup'
 
 import { useState } from 'react'
-import { cartStore } from '@/shared/store/cartStore'
 
 import 'swiper/css'
 import 'swiper/css/navigation'
@@ -21,8 +20,8 @@ import {
   ShieldCheckIcon,
   TagIcon,
 } from '@phosphor-icons/react'
-import { sellCartStore } from '@/shared/store/sellCartStore'
-import { sellLineFromProduct } from '@/features/cart/types'
+import { useCheckoutItems } from '@/shared/store/checkoutItemsStore'
+import { lineFromProduct } from '@/features/checkout/items/types'
 import { Lens } from '@/shared/ui/base/lens'
 import { paymentMethodIcon, transitLabel } from '@/features/orders/salesOrders/types'
 import { usePaymentMethods } from '@/features/payments/queries'
@@ -61,17 +60,13 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
     specs: false,
   })
 
-  const items = cartStore((state) => state.items)
-  const addItem = cartStore((state) => state.addItem)
-  const removeOne = cartStore((state) => state.removeOne)
-  const cartItem = items.find((item) => item.name === selectedProduct.name)
-  const quantity = cartItem?.quantity ?? 0
+  const buyItems = useCheckoutItems((state) => state.sale)
+  const sellItems = useCheckoutItems((state) => state.purchase)
+  const addItem = useCheckoutItems((state) => state.addItem)
+  const removeOne = useCheckoutItems((state) => state.removeOne)
 
-  const sellItems = sellCartStore((state) => state.items)
-  const addSellItem = sellCartStore((state) => state.addItem)
-  const removeOneSell = sellCartStore((state) => state.removeOne)
-  const sellCartItem = sellItems.find((item) => item.bullion_id === selectedProduct.id)
-  const sellQuantity = sellCartItem?.quantity ?? 0
+  const quantity = buyItems.find((i) => i.bullion_id === selectedProduct.id)?.quantity ?? 0
+  const sellQuantity = sellItems.find((i) => i.bullion_id === selectedProduct.id)?.quantity ?? 0
 
   const { data: spotPrices = [] } = useSpotPrices()
 
@@ -178,17 +173,17 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
               <Button
                 className="w-full"
                 onClick={() => {
-                  addItem(selectedProduct)
+                  addItem('sale', lineFromProduct(selectedProduct))
                 }}
               >
-                Add to Cart
+                Add to Checkout
               </Button>
             ) : (
               <div className="flex items-center justify-center gap-3">
                 <Button
                   size="icon"
                   onClick={() => {
-                    removeOne(selectedProduct)
+                    removeOne('sale', lineFromProduct(selectedProduct))
                   }}
                 >
                   <Minus size={20} />
@@ -197,7 +192,7 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
                 <Button
                   size="icon"
                   onClick={() => {
-                    addItem(selectedProduct)
+                    addItem('sale', lineFromProduct(selectedProduct))
                   }}
                 >
                   <Plus size={20} />
@@ -210,16 +205,16 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
               <Button
                 className="w-full"
                 onClick={() =>
-                  addSellItem(sellLineFromProduct(selectedProduct))
+                  addItem('purchase', lineFromProduct(selectedProduct))
                 }
               >
-                Add to Sell Cart
+                Sell to Us
               </Button>
             ) : (
               <div className="flex items-center justify-center gap-3">
                 <Button
                   size="icon"
-                  onClick={() => removeOneSell(sellLineFromProduct(selectedProduct))}
+                  onClick={() => removeOne('purchase', lineFromProduct(selectedProduct))}
                 >
                   <Minus size={20} />
                 </Button>
@@ -227,7 +222,7 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
                 <Button
                   size="icon"
                   onClick={() =>
-                    addSellItem(sellLineFromProduct(selectedProduct))
+                    addItem('purchase', lineFromProduct(selectedProduct))
                   }
                 >
                   <Plus size={20} />
@@ -538,24 +533,24 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
           </RadioGroup>
         )}
 
-        {/* cart buttons */}
+        {/* basket buttons */}
         <div className="flex flex-col gap-1 w-full">
           <div className="w-full">
             {quantity === 0 ? (
               <Button
                 className="w-full"
                 onClick={() => {
-                  addItem(selectedProduct)
+                  addItem('sale', lineFromProduct(selectedProduct))
                 }}
               >
-                Add to Cart
+                Add to Checkout
               </Button>
             ) : (
               <div className="flex items-center justify-center gap-3">
                 <Button
                   size="icon"
                   onClick={() => {
-                    removeOne(selectedProduct)
+                    removeOne('sale', lineFromProduct(selectedProduct))
                   }}
                 >
                   <Minus size={20} />
@@ -564,7 +559,7 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
                 <Button
                   size="icon"
                   onClick={() => {
-                    addItem(selectedProduct)
+                    addItem('sale', lineFromProduct(selectedProduct))
                   }}
                 >
                   <Plus size={20} />
@@ -577,16 +572,16 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
               <Button
                 className="w-full"
                 onClick={() =>
-                  addSellItem(sellLineFromProduct(selectedProduct))
+                  addItem('purchase', lineFromProduct(selectedProduct))
                 }
               >
-                Add to Sell Cart
+                Sell to Us
               </Button>
             ) : (
               <div className="flex items-center justify-center gap-3">
                 <Button
                   size="icon"
-                  onClick={() => removeOneSell(sellLineFromProduct(selectedProduct))}
+                  onClick={() => removeOne('purchase', lineFromProduct(selectedProduct))}
                 >
                   <Minus size={20} />
                 </Button>
@@ -594,7 +589,7 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
                 <Button
                   size="icon"
                   onClick={() =>
-                    addSellItem(sellLineFromProduct(selectedProduct))
+                    addItem('purchase', lineFromProduct(selectedProduct))
                   }
                 >
                   <Plus size={20} />

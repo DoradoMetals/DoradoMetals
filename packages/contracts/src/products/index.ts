@@ -2,5 +2,5 @@
 // Run `pnpm --filter @dorado/contracts generate` to refresh.
 //
 // Every entity of the `products` schema, one namespace each.
-export * as bullion from "./bullion.js";
-export * as mints from "./mints.js";
+export * from "./bullion.js";
+export * from "./mints.js";

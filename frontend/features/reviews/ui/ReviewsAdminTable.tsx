@@ -1,11 +1,11 @@
 'use client'
 
+import type { Review } from "@dorado/contracts";
 import * as React from 'react'
 import type { ColumnDef, Row } from '@tanstack/react-table'
 
 import { useDrawerStore } from '@/shared/store/drawerStore'
 
-import type { Review } from '@/features/reviews/types'
 
 import { DataTable } from '@/shared/ui/table/Table'
 import {

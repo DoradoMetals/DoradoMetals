@@ -1,5 +1,6 @@
 'use client'
 
+import type { Review } from "@dorado/contracts";
 import { useMemo } from 'react'
 import Drawer from '@/shared/ui/base/drawer'
 import { useDrawerStore } from '@/shared/store/drawerStore'
@@ -11,7 +12,6 @@ import StatusChip from '@/shared/ui/StatusChip'
 import { Rating, RatingButton } from '@/shared/ui/base/rating'
 import { EyeIcon, EyeSlashIcon } from '@phosphor-icons/react'
 
-import type { Review } from '@/features/reviews/types'
 import { formatFullDate } from '@/shared/utils/formatDates'
 import { Calendar } from '@dorado/components'
 import { useUpdateReview } from '@/features/reviews/queries'

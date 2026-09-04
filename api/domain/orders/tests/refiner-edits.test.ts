@@ -52,8 +52,8 @@ const MIGRATION = fs.readFileSync(
 // projections, not table rows - naming a row type would claim columns the
 // query never asked for.
 type UserFixture = { id: string; name: string | null; email: string | null };
-type RefinerMetalFixture = { purchase_order_id: string; metal_id: string; type: string };
-type ScrapItemFixture = { id: string; purchase_order_id: string };
+type RefinerMetalFixture = { order_id: string; metal_id: string; type: string };
+type ScrapItemFixture = { id: string; order_id: string };
 
 let refinerMetal: RefinerMetalFixture; // an order with refiner spots
 let scrapItem: ScrapItemFixture; // a scrap-backed purchase line
@@ -76,11 +76,11 @@ const world = async (c: PoolClient) => {
   const payout = await aPayout(c, owner, { order });
   return {
     refinerMetal: {
-      purchase_order_id: order.id,
+      order_id: order.id,
       metal_id: order.items[0]!.metal_id,
       type: "Gold",
     },
-    scrapItem: { id: order.items[0]!.id, purchase_order_id: order.id },
+    scrapItem: { id: order.items[0]!.id, order_id: order.id },
     payoutId: payout.id,
     owner,
   };
@@ -132,7 +132,7 @@ test("the mirror invariant: one engagement per order, items matched, spots cover
 test("the engagement PATCH writes the refiner's spot for that metal on that order", async () => {
   await inPinnedTransaction(async (client: PoolClient) => {
     const { refinerMetal } = await world(client);
-    const engagementId = await withEngagement(client, refinerMetal.purchase_order_id);
+    const engagementId = await withEngagement(client, refinerMetal.order_id);
     await asAdmin(admin, async () => {
       const res = await request(app)
         .patch(`/api/refiners/orders/${engagementId}`)
@@ -144,7 +144,7 @@ test("the engagement PATCH writes the refiner's spot for that metal on that orde
         `SELECT sp.bid FROM refiners.spots sp
           JOIN metals.metals m ON m.id = sp.metal_id
          WHERE sp.order_id = $1 AND m.name = $2`,
-        [refinerMetal.purchase_order_id, refinerMetal.type]
+        [refinerMetal.order_id, refinerMetal.type]
       );
       assert.ok(rows.length, "no refiners.spots row matched");
       assert.equal(Number(rows[0].bid), 1234.56, "the refiner bid did not change");
@@ -155,7 +155,7 @@ test("the engagement PATCH writes the refiner's spot for that metal on that orde
 test("the engagement PATCH lands pool and fee on the engagement AND the order's money row", async () => {
   await inPinnedTransaction(async (client: PoolClient) => {
     const { refinerMetal } = await world(client);
-    const engagementId = await withEngagement(client, refinerMetal.purchase_order_id);
+    const engagementId = await withEngagement(client, refinerMetal.order_id);
     await asAdmin(admin, async () => {
       const res = await request(app)
         .patch(`/api/refiners/orders/${engagementId}`)
@@ -179,7 +179,7 @@ test("the engagement PATCH lands pool and fee on the engagement AND the order's 
         await client.query(
           `SELECT pool_oz_deducted, pool_remediation, refiner_fee
              FROM orders.transactions WHERE order_id = $1`,
-          [refinerMetal.purchase_order_id]
+          [refinerMetal.order_id]
         )
       ).rows[0];
       assert.equal(Number(money.pool_oz_deducted), 1.2345, "the money row lost the pool ounces");
@@ -236,7 +236,7 @@ test("the item PATCH writes the assay report to the actual columns", async () =>
 test("poisoned bodies refuse by name on both refiners endpoints", async () => {
   await inPinnedTransaction(async (client: PoolClient) => {
     const { refinerMetal, scrapItem } = await world(client);
-    const engagementId = await withEngagement(client, refinerMetal.purchase_order_id);
+    const engagementId = await withEngagement(client, refinerMetal.order_id);
     await asAdmin(admin, async () => {
       const item = await request(app)
         .patch(`/api/refiners/items/by-order-item/${scrapItem.id}`)
@@ -270,7 +270,7 @@ test("poisoned bodies refuse by name on both refiners endpoints", async () => {
 test("both refiners endpoints refuse a customer and an anonymous caller", async () => {
   await inPinnedTransaction(async (client: PoolClient) => {
     const { refinerMetal, scrapItem } = await world(client);
-    const engagementId = await withEngagement(client, refinerMetal.purchase_order_id);
+    const engagementId = await withEngagement(client, refinerMetal.order_id);
     // Declared as a tuple list: inferred, the array's element type collapses
     // to `string | ((fn) => ...)` and neither half is usable.
     const callers: Array<[string, (fn: () => Promise<void>) => Promise<void>]> = [

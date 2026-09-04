@@ -1,13 +1,13 @@
 // shipping.pickups: a CARRIER collecting a parcel - not fulfillments.pickups (us collecting from the customer). Order/user/carrier aren't columns; compose.ts reconstructs them from the shipment.
 import query from "#shared/db/query.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
-import type { shipping } from "@dorado/contracts";
+import type { ShipmentPickup } from "@dorado/contracts";
 import type { Executor } from "#shared/db/executor.ts";
 
 const sql = sqlFrom(import.meta.dirname);
 
 export type PickupBaseRow = Pick<
-  shipping.pickups.Row,
+  ShipmentPickup,
   "id" | "shipment_id" | "requested_at" | "status" | "confirmation_number" | "location"
 >;
 
@@ -36,11 +36,11 @@ export async function getByShipments(
 // FULL REPLACE, not a COALESCE patch - the service merges the whole row before calling this.
 // requested_at widens to admit a JS Date too; pg accepts either.
 export type PickupWrite = Omit<
-  Pick<shipping.pickups.Row, "requested_at" | "status" | "confirmation_number" | "location">,
+  Pick<ShipmentPickup, "requested_at" | "status" | "confirmation_number" | "location">,
   "requested_at"
 > & { requested_at: Date | string | null };
 
-export type PickupNew = PickupWrite & Pick<shipping.pickups.Row, "id" | "shipment_id">;
+export type PickupNew = PickupWrite & Pick<ShipmentPickup, "id" | "shipment_id">;
 
 export async function create(row: PickupNew, executor?: Executor): Promise<PickupBaseRow> {
   const { rows } = await query<PickupBaseRow>(

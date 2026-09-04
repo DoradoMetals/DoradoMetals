@@ -1,9 +1,10 @@
 'use client'
 
+import type { Address } from "@dorado/contracts";
 import * as React from 'react'
 import { Building2, House } from 'lucide-react'
 
-import { Address, UserAddress } from '@/features/addresses/types'
+import { UserAddress } from '@/features/addresses/types'
 import formatPhoneNumber from '@/shared/utils/formatPhoneNumber'
 import { Button } from '@dorado/components'
 import { cn } from '@/shared/utils/cn'

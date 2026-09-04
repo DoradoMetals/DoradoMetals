@@ -8,16 +8,14 @@ import * as refinerSpotsRepo from "#db/refiners/spots/repo.ts";
 import * as orderTransactions from "#domain/orders/transactions/service.ts";
 import * as refinerOrdersRepo from "#db/refiners/orders/repo.ts";
 import { Invalid, NotFound } from "#shared/errors.ts";
-import type { refiners } from "@dorado/contracts";
+import type { RefinerOrderPatch, RefinerSpotWrite } from "@dorado/contracts";
 import type { RefinerOrderRow } from "#db/refiners/orders/repo.ts";
 
-export type RefinerOrderPatch = refiners.orders.Patch;
-export type RefinerSpotWrite = refiners.spots.Write;
 
 // The body is parsed strictly at transport; what is left is the RULE that a
 // patch must name at least one field, which an all-optional schema cannot say.
 export async function patchRefinerOrder(
-  id: string, patch: refiners.orders.Patch
+  id: string, patch: RefinerOrderPatch
 ): Promise<RefinerOrderRow> {
   if (Object.keys(patch).length === 0) {
     throw new Invalid("the document names no field to write");

@@ -5,10 +5,10 @@
 import query from "#shared/db/query.ts";
 import { buildUpdate } from "#shared/db/patch.ts";
 import type { Executor } from "#shared/db/executor.ts";
-import type { refiners } from "@dorado/contracts";
+import type { RefinerOrder } from "@dorado/contracts";
 
 // The verbatim table row (ruling 12) - the generated contract is its home.
-export type RefinerOrderRow = refiners.orders.Row;
+export type RefinerOrderRow = RefinerOrder;
 
 // The engagement row for an order. The caller reads first and creates only
 // when there is none (D214 item 11: repos are the five verbs, the service asks

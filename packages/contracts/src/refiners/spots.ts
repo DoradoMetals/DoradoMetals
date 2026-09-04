@@ -5,7 +5,7 @@
 // Postgres table: refiners.spots
 import { z } from "zod/v4";
 
-export const Row = z.object({
+export const RefinerSpot = z.object({
   "id": z.string().uuid(),
   "metal_id": z.string().uuid(),
   "refiner_id": z.string().uuid().nullable(),
@@ -19,16 +19,16 @@ export const Row = z.object({
   "updated_at": z.string().nullable(),
   "refiner_order_id": z.string().uuid().nullable(),
 });
-export type Row = z.infer<typeof Row>;
+export type RefinerSpot = z.infer<typeof RefinerSpot>;
 // generated:end
 // A refiner spot write: which metal, at what bid. THE METAL IS AN ID, not a
 // display name (D214 item 11): refiners.spots is keyed on
 // (order_id, metal_id), the client already holds the id, and a name the
 // server had to resolve turned an unrecognised spelling into a silently
 // skipped bid.
-export const Write = z.object({
-  metal_id: Row.shape.metal_id,
-  bid: Row.shape.bid.unwrap(),
+export const RefinerSpotWrite = z.object({
+  metal_id: RefinerSpot.shape.metal_id,
+  bid: RefinerSpot.shape.bid.unwrap(),
 }).strict();
-export type Write = z.infer<typeof Write>;
+export type RefinerSpotWrite = z.infer<typeof RefinerSpotWrite>;
 

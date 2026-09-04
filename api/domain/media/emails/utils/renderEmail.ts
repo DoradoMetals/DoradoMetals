@@ -11,7 +11,7 @@ import { fileURLToPath } from "url";
 // from its tables (D214 item 12). It replaces the composed sales order this
 // file used to take as `Record<string, any>`.
 import { bullionLines } from "#domain/pricing/service.ts";
-import type { orders } from "@dorado/contracts";
+import type { OrderView } from "@dorado/contracts";
 import type { DocumentLabels } from "#domain/media/pdfs/render/sections.ts";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -105,7 +105,7 @@ export function renderOrderPricedEmail({ firstName, url }: TemplateVars): string
 type RefinerEmailInput = {
   firstName?: string | null;
   url?: string | null;
-  order: orders.orders.View;
+  order: OrderView;
   /** metal_id -> the ask the order was priced at. */
   asks: ReadonlyMap<string, number | null>;
   labels: DocumentLabels;

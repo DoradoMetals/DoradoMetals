@@ -5,7 +5,7 @@
 // Postgres table: checkout.checkouts
 import { z } from "zod/v4";
 
-export const Row = z.object({
+export const Checkout = z.object({
   "id": z.string().uuid(),
   "user_id": z.string().uuid(),
   "direction": z.string(),
@@ -20,24 +20,24 @@ export const Row = z.object({
   "package_id": z.string().uuid().nullable(),
   "appointment_time": z.string().nullable(),
   "fulfillment_id": z.string().uuid().nullable(),
-  "package_weight": z.number().nullable(),
-  "declared_value": z.number().nullable(),
   "pickup_date": z.string().nullable(),
   "pickup_time": z.string().nullable(),
 });
-export type Row = z.infer<typeof Row>;
+export type Checkout = z.infer<typeof Checkout>;
 // generated:end
 import { Direction } from "../orders/enums.js";
-import * as details from "../payments/details.js";
+import { PaymentDetails } from "../payments/details.js";
 
 // The columns a CUSTOMER may write on their own checkout row. Narrower than
 // the table on purpose: fulfillment_id and the payout pointers are written by
 // the services that also create what they point at, never by a request.
+// package_weight and declared_value are GONE (ruling 58, migration 121): the
+// server computes both from the checkout's own items and package.
 //
 // SPLIT IN TWO ON PURPOSE. `direction` names WHICH session is being written
 // and is not a column of the patch, so the columns get their own schema: the
 // controller parses the body strictly, then parses the columns out of it.
-export const Patch = Row.pick({
+export const CheckoutPatch = Checkout.pick({
   payment_method_id: true,
   recipient_address_id: true,
   shipper_address_id: true,
@@ -46,29 +46,27 @@ export const Patch = Row.pick({
   package_id: true,
   appointment_location_id: true,
   appointment_time: true,
-  package_weight: true,
-  declared_value: true,
   pickup_date: true,
   pickup_time: true,
 }).partial();
-export type Patch = z.infer<typeof Patch>;
+export type CheckoutPatch = z.infer<typeof CheckoutPatch>;
 
-export const PatchBody = Patch.extend({ direction: Direction }).strict();
-export type PatchBody = z.infer<typeof PatchBody>;
+export const CheckoutPatchBody = CheckoutPatch.extend({ direction: Direction }).strict();
+export type CheckoutPatchBody = z.infer<typeof CheckoutPatchBody>;
 
 // The stepper picks a carrier HANDOFF and never spells a fulfillment method;
 // the server owns that vocabulary. Either names the step.
-export const FulfillmentBody = z.object({ direction: Direction })
+export const CheckoutFulfillmentBody = z.object({ direction: Direction })
   .extend({
     method_id: z.string().optional(),
     handoff_code: z.string().optional(),
   })
   .strict();
-export type FulfillmentBody = z.infer<typeof FulfillmentBody>;
+export type CheckoutFulfillmentBody = z.infer<typeof CheckoutFulfillmentBody>;
 
 // The payout step's form (D210). THE TWO NUMBERS NEVER COME BACK: they are
 // sealed at rest and the response carries only the last four digits.
-export const PayoutForm = details.Row.pick({
+export const CheckoutPayoutForm = PaymentDetails.pick({
   bank_name: true,
   account_type: true,
   routing_number: true,
@@ -80,8 +78,8 @@ export const PayoutForm = details.Row.pick({
     account_holder_name: z.string(),
     payout_email: z.string().nullable().optional(),
   });
-export type PayoutForm = z.infer<typeof PayoutForm>;
+export type CheckoutPayoutForm = z.infer<typeof CheckoutPayoutForm>;
 
-export const PayoutBody = PayoutForm.extend({ direction: Direction }).strict();
-export type PayoutBody = z.infer<typeof PayoutBody>;
+export const CheckoutPayoutBody = CheckoutPayoutForm.extend({ direction: Direction }).strict();
+export type CheckoutPayoutBody = z.infer<typeof CheckoutPayoutBody>;
 

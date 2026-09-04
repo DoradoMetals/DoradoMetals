@@ -10,7 +10,7 @@ import {
 import { usePatchShipment, useOrderShipments, outboundOf } from '@/features/shipping/queries'
 import { usePatchPayout, useOrderPayouts } from '@/features/payouts/queries'
 import { useOrderItems, nameOf, byId } from '@/features/orders/reads'
-import type { orders } from "@dorado/contracts";
+import type { OrderItem, OrderItemPatch, SpotPrice } from "@dorado/contracts";
 import type { NamedScrapItem } from '@/features/orders/purchaseOrders/types'
 
 import { cn } from '@/shared/utils/cn'
@@ -38,7 +38,6 @@ import SelectMenu from '@/shared/ui/SelectMenu'
 import { Field } from '@/shared/ui/Field'
 import { Product } from '@/features/products/types'
 import { useSpotPrices } from '@/features/spots/queries'
-import type { SpotPrice } from '@/features/spots/types'
 import { useProducts } from '@/features/products/queries'
 import { useOrderSpots, nameSpots, type NamedOrderSpot } from '@/features/orders/spots'
 
@@ -263,7 +262,7 @@ export default function AdminReceivedPurchaseOrder({ order }: PurchaseOrderDrawe
             <SelectMenu
               open={payoutOpen}
               onOpenChange={setPayoutOpen}
-              value={payout?.method}
+              value={payout?.method ?? undefined}
               items={payoutMethods.map(({ label, type }) => ({
                 label,
                 value: type,
@@ -321,7 +320,7 @@ function ScrapTable({
   // a key present is written, an absent one is left alone. The old body sent
   // the full scrap object on every edit because the API's op SET every
   // column it knew; this sends only the field that changed.
-  const handleUpdateItem = (item: NamedScrapItem, changes: orders.items.Patch) => {
+  const handleUpdateItem = (item: NamedScrapItem, changes: OrderItemPatch) => {
     patchItem.mutate({ order_item_id: item.id, order_id, patch: changes })
   }
 
@@ -588,7 +587,7 @@ function BullionTable({
   config,
   order_id,
 }: {
-  bullionItems: orders.items.Row[]
+  bullionItems: OrderItem[]
   // Reference data, resolved by the container and passed down - the row
   // carries bullion_id and nothing else about the product.
   catalogue: Product[]
@@ -607,7 +606,7 @@ function BullionTable({
   // ONE FLAT PATCH (D214 item 11): only the field that changed rides the
   // wire now - an absent key is left alone, so a quantity edit no longer has
   // to resend the current premium and vice versa.
-  const handleUpdateItem = (item: orders.items.Row, changes: orders.items.Patch) => {
+  const handleUpdateItem = (item: OrderItem, changes: OrderItemPatch) => {
     patchItem.mutate({ order_item_id: item.id, order_id, patch: changes })
   }
 

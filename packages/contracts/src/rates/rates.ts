@@ -5,7 +5,7 @@
 // Postgres table: rates.rates
 import { z } from "zod/v4";
 
-export const Row = z.object({
+export const Rate = z.object({
   "id": z.string().uuid(),
   "metal_id": z.string().uuid(),
   "unit": z.string(),
@@ -20,13 +20,13 @@ export const Row = z.object({
   "created_by_id": z.string().uuid().nullable(),
   "updated_by_id": z.string().uuid().nullable(),
 });
-export type Row = z.infer<typeof Row>;
+export type Rate = z.infer<typeof Rate>;
 // generated:end
-import * as metals from "../metals/metals.js";
+import { Metal } from "../metals/metals.js";
 
 // GET /rates/get_all. The query joins metals and returns the metal's NAME in
 // place of its id, and drops the audit columns.
-export const Read = Row.omit({
+export const RateRead = Rate.omit({
   metal_id: true,
   created_at: true,
   updated_at: true,
@@ -34,37 +34,35 @@ export const Read = Row.omit({
   updated_by: true,
   created_by_id: true,
   updated_by_id: true,
-}).extend({ metal: metals.Row.shape.name });
-export type Read = z.infer<typeof Read>;
+}).extend({ metal: Metal.shape.name });
+export type RateRead = z.infer<typeof RateRead>;
 
 // GET /rates/get_admin, and what create/update answer with - THE SECOND SHAPE
 // THIS ENDPOINT HAS ALWAYS SERVED. The frontend used to cover the gap with one
 // hand-written type carrying the union of both, metal_id and unit optional, so
 // the admin card read metal_id off a value whose type said it might not be
 // there.
-export const AdminRead = Read.extend({
-  metal_id: Row.shape.metal_id,
-  created_at: Row.shape.created_at,
-  updated_at: Row.shape.updated_at,
-  created_by: Row.shape.created_by,
-  updated_by: Row.shape.updated_by,
+export const AdminRate = RateRead.extend({
+  metal_id: Rate.shape.metal_id,
+  created_at: Rate.shape.created_at,
+  updated_at: Rate.shape.updated_at,
+  created_by: Rate.shape.created_by,
+  updated_by: Rate.shape.updated_by,
 });
-export type AdminRead = z.infer<typeof AdminRead>;
+export type AdminRate = z.infer<typeof AdminRate>;
 
 // POST /rates/create and /rates/update - the six writable columns and nothing
-// else. created_by/updated_by are NOT fields here: public.audit_stamp writes
-// both from the connection's actor. The METAL travels as `metal_id` here and
-// as `metal` on the way back, which is this feature's one asymmetry.
-export const New = Row.pick({
+// else, all optional (a create sends the same patch). created_by/updated_by
+// are NOT fields here: public.audit_stamp writes both from the connection's
+// actor. The METAL travels as `metal_id` here and as `metal` on the way
+// back, which is this feature's one asymmetry.
+export const RatePatch = Rate.pick({
   metal_id: true,
   unit: true,
   min_qty: true,
   max_qty: true,
   scrap_pct: true,
   bullion_pct: true,
-});
-export type New = z.infer<typeof New>;
-
-export const Patch = New.partial();
-export type Patch = z.infer<typeof Patch>;
+}).partial();
+export type RatePatch = z.infer<typeof RatePatch>;
 

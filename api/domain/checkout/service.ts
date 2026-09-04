@@ -14,6 +14,7 @@ import * as packagesRepo from "#db/shipping/packages/repo.ts";
 import * as servicesRepo from "#db/shipping/services/repo.ts";
 import * as paymentMethods from "#db/payments/methods/repo.ts";
 import * as ratesService from "#domain/rates/service.ts";
+import * as spotsService from "#domain/spots/service.ts";
 import * as productService from "#domain/products/service.ts";
 import * as fulfillmentService from "#domain/fulfillments/service.ts";
 import * as fulfillmentMethods from "#domain/fulfillments/methods/service.ts";
@@ -23,7 +24,9 @@ import * as addressService from "#domain/places/addresses/service.ts";
 import * as usersService from "#domain/users/service.ts";
 import { Forbidden, Invalid, NotFound } from "#shared/errors.ts";
 import * as rules from "#domain/checkout/rules.ts";
-import type { checkout, orders } from "@dorado/contracts";
+import { bidPrice } from "#domain/quotes/rules.ts";
+import { lineContent } from "#domain/orders/rules.ts";
+import type { CheckoutItemPatch, Direction } from "@dorado/contracts";
 import type { CheckoutRow, CheckoutPatch } from "#db/checkout/checkouts/repo.ts";
 import type { ItemRow } from "#db/checkout/items/repo.ts";
 import type { ComposedFulfillment } from "#domain/fulfillments/compose.ts";
@@ -40,7 +43,7 @@ export type ComposedCheckout = CheckoutRow & {
 // A session exists the moment anyone asks for one. Losing the create race is
 // not an error - the winner's row is the answer.
 async function ensure(
-  user_id: string, direction: orders.enums.Direction, client?: Executor
+  user_id: string, direction: Direction, client?: Executor
 ): Promise<CheckoutRow> {
   const found = await checkouts.findFor(user_id, direction, client);
   if (found) return found;
@@ -78,7 +81,7 @@ export async function resolveSubject(
 }
 
 export async function getCheckout(
-  user_id: string, direction: orders.enums.Direction
+  user_id: string, direction: Direction
 ): Promise<ComposedCheckout> {
   return await compose(await ensure(user_id, direction));
 }
@@ -89,7 +92,7 @@ const ADDRESS_COLUMNS = [
 ] as const;
 
 export async function patchCheckout(
-  user_id: string, direction: orders.enums.Direction, patch: CheckoutPatch
+  user_id: string, direction: Direction, patch: CheckoutPatch
 ): Promise<ComposedCheckout> {
 
   for (const col of ADDRESS_COLUMNS) {
@@ -103,12 +106,6 @@ export async function patchCheckout(
     Number.isNaN(Date.parse(String(patch.appointment_time)))
   ) {
     throw new Invalid(`appointment_time is not a timestamp`);
-  }
-  for (const col of ["package_weight", "declared_value"] as const) {
-    const value = patch[col];
-    if (value != null && !(Number(value) >= 0)) {
-      throw new Invalid(`${col} must be a non-negative number`);
-    }
   }
 
   // appointment_location_id is left to its foreign key: places.locations has
@@ -139,7 +136,7 @@ export async function patchCheckout(
 // stores the fulfillment id"). The offered-method check runs on BOTH paths -
 // this is the customer's surface and the menu has to mean something.
 export async function setFulfillmentMethod(
-  user_id: string, direction: orders.enums.Direction,
+  user_id: string, direction: Direction,
   method_id?: string, handoff_code?: string
 ): Promise<ComposedCheckout> {
 
@@ -186,7 +183,7 @@ export async function setFulfillmentMethod(
 // LINKS the row. The details id is stable per checkout, so edits rewrite in
 // place.
 export async function saveCheckoutPayout(
-  user_id: string, direction: orders.enums.Direction, form: payoutDetails.PayoutForm
+  user_id: string, direction: Direction, form: payoutDetails.PayoutForm
 ): Promise<ComposedCheckout> {
   if (direction !== "purchase") {
     throw new Invalid("the payout step belongs to the purchase checkout");
@@ -211,7 +208,7 @@ export async function saveCheckoutPayout(
 
 // No session is an empty basket, not an error.
 export async function listItems(
-  user_id: string, direction: orders.enums.Direction, client?: Executor
+  user_id: string, direction: Direction, client?: Executor
 ): Promise<ItemRow[]> {
   const session = await checkouts.findFor(user_id, direction, client);
   if (!session) return [];
@@ -220,7 +217,7 @@ export async function listItems(
 
 // Replaces, never merges; one refused line refuses the whole write.
 export async function replaceItems(
-  user_id: string, direction: orders.enums.Direction, lines: checkout.items.New[]
+  user_id: string, direction: Direction, lines: CheckoutItemPatch[]
 ): Promise<ItemRow[]> {
   return await withTransaction(async (client) => {
     const session = await ensure(user_id, direction, client);
@@ -246,7 +243,7 @@ export async function replaceItems(
 
 // Answers how many lines went: a DELETE that matched nothing does not raise.
 export async function clearItems(
-  user_id: string, direction: orders.enums.Direction, client?: Executor
+  user_id: string, direction: Direction, client?: Executor
 ): Promise<number> {
   const write = async (c: Executor) => {
     const session = await checkouts.findFor(user_id, direction, c);
@@ -269,7 +266,25 @@ export async function getItemsForOrder(checkout_id: string, client?: Executor) {
   return await items.listForOrder(checkout_id, client);
 }
 
-export async function getRowFor(user_id: string, direction: orders.enums.Direction, client?: Executor) {
+// THE BASKET, PRICED - a purchase checkout's current worth, from the items
+// and premiums already on the row (rules.ts's basketRows sets premium at
+// write time). What a live carrier is told the parcel is worth reads this
+// (domain/shipping/rules.ts declaredValue) - an estimate, the same one
+// orders/read.ts makes for an order line with no stored price.
+export async function purchaseTotal(checkout_id: string, client?: Executor): Promise<number> {
+  const rows = await items.listFor(checkout_id, client);
+  if (!rows.length) return 0;
+  const [spots, metalNames] = await Promise.all([
+    spotsService.getSpotPrices(),
+    metalsRepo.namesById(client),
+  ]);
+  return rows.reduce((sum, row) => {
+    const metal = row.metal_id ? (metalNames.get(row.metal_id) ?? null) : null;
+    return sum + bidPrice(lineContent(row), row.premium, metal, spots);
+  }, 0);
+}
+
+export async function getRowFor(user_id: string, direction: Direction, client?: Executor) {
   return await ensure(user_id, direction, client);
 }
 
@@ -281,7 +296,7 @@ const CLEARED: CheckoutPatch = Object.fromEntries(
 );
 
 export async function resetAfterOrder(
-  user_id: string, direction: orders.enums.Direction, client?: Executor
+  user_id: string, direction: Direction, client?: Executor
 ): Promise<void> {
   const row = await checkouts.findFor(user_id, direction, client);
   if (!row) return;

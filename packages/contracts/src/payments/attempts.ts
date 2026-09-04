@@ -5,7 +5,7 @@
 // Postgres table: payments.attempts
 import { z } from "zod/v4";
 
-export const Row = z.object({
+export const PaymentAttempt = z.object({
   "id": z.string().uuid(),
   "intent_id": z.string().uuid(),
   "method_id": z.string().uuid().nullable(),
@@ -17,16 +17,16 @@ export const Row = z.object({
   "error_message": z.string().nullable(),
   "created_at": z.string(),
 });
-export type Row = z.infer<typeof Row>;
+export type PaymentAttempt = z.infer<typeof PaymentAttempt>;
 // generated:end
 // The latest attempt on an intent, as the checkout surface reads it.
-export const Read = Row.pick({
+export const IntentAttempt = PaymentAttempt.pick({
   provider: true,
   provider_ref: true,
   status: true,
 }).extend({
-  provider_ref: Row.shape.provider_ref.nullable(),
-  status: Row.shape.status.nullable(),
+  provider_ref: PaymentAttempt.shape.provider_ref.nullable(),
+  status: PaymentAttempt.shape.status.nullable(),
 });
-export type Read = z.infer<typeof Read>;
+export type IntentAttempt = z.infer<typeof IntentAttempt>;
 

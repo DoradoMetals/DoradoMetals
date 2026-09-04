@@ -3,10 +3,10 @@
 //
 // The totals arrive as POST /quotes/sales_order's wire shape (Jacob's
 // no-previews ruling), fetched by the checkout and passed down as a prop.
-// What is pinned survived the switch: the items in the cart render by name,
-// the order total renders from the prop, and removing an item goes through
-// the cart store. The fixture speaks the contract's field names and nothing
-// else does.
+// What is pinned survived the switch: the basket's items render by name (the
+// catalogue read supplies the flair, by bullion_id), the order total renders
+// from the prop, and removing an item goes through the checkout items store.
+// The fixture speaks the contract's field names and nothing else does.
 import { describe, expect, test, vi, beforeEach } from "vitest";
 import { screen, waitFor } from "@testing-library/react";
 import { renderWithClient } from "@/shared/tests/renderWithClient";
@@ -33,9 +33,9 @@ vi.mock("@/shared/ui/PriceNumberFlow", () => ({
 }));
 
 import { apiRequest } from "@/shared/queries/axios";
-import { cartStore } from "@/shared/store/cartStore";
+import { useCheckoutItems } from "@/shared/store/checkoutItemsStore";
 import OrderSummary from "@/features/checkout/sales-order-checkout/summary/orderSummary";
-import type { quotes } from "@dorado/contracts";
+import type { SalesOrderQuote } from "@dorado/contracts";
 import type { Product } from "@/features/products/types";
 
 const eagle = (): Product =>
@@ -65,7 +65,7 @@ const eagle = (): Product =>
 
 // Distinct values so an assertion can only match the field it means. The
 // quote's line id matches eagle()'s so the item row shows its line_total.
-const prices = (): quotes.SalesOrderQuote => ({
+const prices = (): SalesOrderQuote => ({
   spots_at: "2026-08-27T00:00:00.000Z",
   item_total: 4500,
   base_total: 4577.25,
@@ -84,34 +84,37 @@ const prices = (): quotes.SalesOrderQuote => ({
 beforeEach(() => {
   vi.mocked(apiRequest).mockReset();
   // Branched by URL: the summary's totals arrive as a prop, but anything in
-  // the tree that fetches the quote gets the same fixture the prop carries.
-  vi.mocked(apiRequest).mockImplementation(async (_method, url) =>
-    String(url).startsWith("/quotes/sales_order")
-      ? (prices() as never)
-      : ([
-          { id: "m-au", name: "Gold", ask: 3000, bid: 2900, dollar_change: 1, percent_change: 0.1 },
-        ] as never)
-  );
+  // the tree that fetches the quote or the catalogue gets its own fixture -
+  // the catalogue read is what supplies the name and picture by bullion_id.
+  vi.mocked(apiRequest).mockImplementation(async (_method, url) => {
+    const u = String(url);
+    if (u.startsWith("/quotes/sales_order")) return prices() as never;
+    if (u.startsWith("/products/get_all_products")) return [eagle()] as never;
+    return [
+      { id: "m-au", name: "Gold", ask: 3000, bid: 2900, dollar_change: 1, percent_change: 0.1 },
+    ] as never;
+  });
   localStorage.clear();
-  cartStore.setState({ items: [eagle()] });
+  useCheckoutItems.setState({ sale: [{ id: "p-1", bullion_id: "p-1", quantity: 1 }], purchase: [] });
 });
 
 describe("the sales-order summary", () => {
-  test("the cart's items render by name with the order total", async () => {
+  test("the basket's items render by name with the order total", async () => {
     renderWithClient(<OrderSummary orderPrices={prices()} />);
-    expect(screen.getByText("Gold American Eagle")).toBeDefined();
+    await waitFor(() => expect(screen.getByText("Gold American Eagle")).toBeDefined());
     expect(screen.getByText("Order Total")).toBeDefined();
     await waitFor(() => expect(screen.getAllByText("4714.57").length).toBeGreaterThan(0));
   });
 
-  test("removing an item goes through the cart store", async () => {
+  test("removing an item goes through the checkout items store", async () => {
     const { container } = renderWithClient(<OrderSummary orderPrices={prices()} />);
+    await waitFor(() => expect(screen.getByText("Gold American Eagle")).toBeDefined());
     // lucide's class spelling for Trash2 varies by version; match loosely.
     const trash = [...container.querySelectorAll("button")].find((b) =>
       /trash/.test(b.querySelector("svg")?.getAttribute("class") ?? "")
     );
     expect(trash).toBeTruthy();
     await userEvent.click(trash as HTMLElement);
-    expect(cartStore.getState().items).toHaveLength(0);
+    expect(useCheckoutItems.getState().sale).toHaveLength(0);
   });
 });

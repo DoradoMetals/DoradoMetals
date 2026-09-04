@@ -4,12 +4,12 @@
 import query from "#shared/db/query.ts";
 import { buildUpdate } from "#shared/db/patch.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
-import type { fulfillments } from "@dorado/contracts";
+import type { FulfillmentShipment } from "@dorado/contracts";
 import type { Executor } from "#shared/db/executor.ts";
 
 const sql = sqlFrom(import.meta.dirname);
 
-export type ShipmentLinkRow = fulfillments.shipments.Row;
+export type ShipmentLinkRow = FulfillmentShipment;
 
 // Returns a LIST - the unique index is on shipment_id, so a fulfillment may have several parcels.
 export async function getFor(

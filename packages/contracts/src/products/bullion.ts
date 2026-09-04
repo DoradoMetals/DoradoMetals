@@ -5,7 +5,7 @@
 // Postgres table: products.bullion
 import { z } from "zod/v4";
 
-export const Row = z.object({
+export const Bullion = z.object({
   "id": z.string().uuid(),
   "metal_id": z.string().uuid(),
   "mint_id": z.string().uuid(),
@@ -39,59 +39,50 @@ export const Row = z.object({
   "stock": z.number(),
   "quantity": z.number(),
 });
-export type Row = z.infer<typeof Row>;
+export type Bullion = z.infer<typeof Bullion>;
 // generated:end
+import { Metal } from "../metals/metals.js";
+import { Mint } from "./mints.js";
+
 // THE CATALOGUE ROW BEHIND A BULLION LINE - the PUBLIC columns, which is
 // exactly what db/products/sql/get_by_ids.sql projects. Stock, display flags,
 // the supplier and the audit columns are not facts about an order line and do
 // not travel with one.
-export const Public = Row.pick({
+export const BullionPublic = Bullion.pick({
   id: true, name: true, description: true, content: true, purity: true,
   gross: true, bid_premium: true, ask_premium: true, type: true,
   image_front: true, image_back: true, variant_group: true,
   shadow_offset: true, slug: true, legal_tender: true, domestic_tender: true,
   is_generic: true, variant_label: true, metal_id: true, mint_id: true,
 });
-export type Public = z.infer<typeof Public>;
+export type BullionPublic = z.infer<typeof BullionPublic>;
 
-// POST /products/save_product - the id of an EXISTING product plus every
-// writable column, full-replace (an absent field is not "unchanged": the admin
-// form always sends the whole product back). Audit columns are omitted -
+// THE STOREFRONT ROW - the public projection plus the two labels the read
+// attaches in JS. get_storefront.sql projects exactly BullionPublic, carries
+// metal_id and mint_id only to resolve them, and drops both. The two extends
+// ARE the join, and are what a later products read pivot removes: a client
+// holding /metals and /mints maps the ids itself.
+export const BullionStorefront = BullionPublic.omit({ metal_id: true, mint_id: true }).extend({
+  metal_type: Metal.shape.name,
+  mint_name: Mint.shape.name,
+});
+export type BullionStorefront = z.infer<typeof BullionStorefront>;
+
+// POST /products/save_product and /create_product - the writable columns, all
+// optional (a create sends the same patch). Audit columns are omitted:
 // public.audit_stamp writes them.
 //
 // metal_id/supplier_id/mint_id travel as IDS, not names (ruling 43). The body
 // used to carry "Silver"/"APMEX"/"U.S. Mint" and the service resolved each
 // with an in-memory name lookup. Booleans are real booleans - zod refuses the
 // string "true" the old bespoke flag() coercion accepted.
-export const Patch = Row.omit({
+export const BullionPatch = Bullion.omit({
   created_by: true,
   updated_by: true,
   created_at: true,
   updated_at: true,
   created_by_id: true,
   updated_by_id: true,
-});
-export type Patch = z.infer<typeof Patch>;
+}).partial();
+export type BullionPatch = z.infer<typeof BullionPatch>;
 
-// POST /products/create_product - a bare name; every other column is filled
-// server-side from the create defaults.
-export const New = Row.pick({ name: true });
-export type New = z.infer<typeof New>;
-
-
-import * as metals from "../metals/metals.js";
-import * as mints from "./mints.js";
-
-// THE STOREFRONT ROW - the public projection, plus the two labels the read
-// attaches in JS. db/products/sql/get_storefront.sql projects exactly `Public`
-// (its own comment: "anyone on the internet reads this, so no display, stock,
-// created_by, timestamps, filter_category or quantity"), carries metal_id and
-// mint_id only to resolve them, and drops both.
-//
-// The two extends are the join, and they are what a later products read pivot
-// removes: a client that holds /metals and /mints maps the ids itself.
-export const Storefront = Public.omit({ metal_id: true, mint_id: true }).extend({
-  metal_type: metals.Row.shape.name,
-  mint_name: mints.Row.shape.name,
-});
-export type Storefront = z.infer<typeof Storefront>;

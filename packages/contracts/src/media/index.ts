@@ -2,7 +2,7 @@
 // Run `pnpm --filter @dorado/contracts generate` to refresh.
 //
 // Every entity of the `media` schema, one namespace each.
-export * as enums from "./enums.js";
-export * as emails from "./emails.js";
-export * as images from "./images.js";
-export * as pdfs from "./pdfs.js";
+export * from "./enums.js";
+export * from "./emails.js";
+export * from "./images.js";
+export * from "./pdfs.js";

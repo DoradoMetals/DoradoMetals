@@ -2,10 +2,10 @@
 // Run `pnpm --filter @dorado/contracts generate` to refresh.
 //
 // Every entity of the `shipping` schema, one namespace each.
-export * as enums from "./enums.js";
-export * as carriers from "./carriers.js";
-export * as packages from "./packages.js";
-export * as pickups from "./pickups.js";
-export * as services from "./services.js";
-export * as shipments from "./shipments.js";
-export * as tracking from "./tracking.js";
+export * from "./enums.js";
+export * from "./carriers.js";
+export * from "./packages.js";
+export * from "./pickups.js";
+export * from "./services.js";
+export * from "./shipments.js";
+export * from "./tracking.js";

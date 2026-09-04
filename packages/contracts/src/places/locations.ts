@@ -5,7 +5,7 @@
 // Postgres table: places.locations
 import { z } from "zod/v4";
 
-export const Row = z.object({
+export const Location = z.object({
   "id": z.string().uuid(),
   "address_id": z.string().uuid(),
   "image_id": z.string().uuid().nullable(),
@@ -16,7 +16,7 @@ export const Row = z.object({
   "label_company_name": z.string().nullable(),
   "label_phone_number": z.string().nullable(),
 });
-export type Row = z.infer<typeof Row>;
+export type Location = z.infer<typeof Location>;
 // generated:end
 
 // Hand-written derivations go here: New, Patch, named reads.

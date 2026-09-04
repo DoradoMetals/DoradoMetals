@@ -13,6 +13,6 @@
 //   - `routing`. A customer's bank routing number, on the wire only because
 //     the exchange read was SELECT *. It is gone permanently - never SELECT,
 //     log, or return bank details.
-import type { payments } from "@dorado/contracts";
+import type { PaymentIntentView } from "@dorado/contracts";
 
-export type PaymentIntent = payments.intents.Read
+export type PaymentIntent = PaymentIntentView

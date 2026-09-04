@@ -4,5 +4,5 @@
 // Postgres enum types owned by the `shipping` schema.
 import { z } from "zod/v4";
 
-export const Direction = z.enum(["Inbound", "Outbound", "Return"]);
-export type Direction = z.infer<typeof Direction>;
+export const ShipmentDirection = z.enum(["Inbound", "Outbound", "Return"]);
+export type ShipmentDirection = z.infer<typeof ShipmentDirection>;

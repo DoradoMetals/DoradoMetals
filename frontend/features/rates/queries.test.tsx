@@ -7,7 +7,7 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 import { z } from "zod/v4";
-import { rates } from "@dorado/contracts";
+import { RatePatch } from "@dorado/contracts";
 
 vi.mock("@/shared/queries/axios", () => ({ apiRequest: vi.fn() }));
 vi.mock("@/features/auth/queries", () => ({
@@ -20,7 +20,7 @@ import { useUpdateRate } from "@/features/rates/queries";
 // Mirrors api/transport/rates/controller.ts's own UpdateBody exactly.
 const UpdateRateBody = z.object({
   rate_id: z.string().uuid(),
-  patch: rates.rates.Patch.strict().optional(),
+  patch: RatePatch.strict().optional(),
 }).strict();
 
 function wrapper({ children }: { children: ReactNode }) {

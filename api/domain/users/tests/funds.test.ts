@@ -104,7 +104,9 @@ test("a transaction log records the movement", async () => {
   await inRollback(async (c: PoolClient) => {
     const user = await aUser(c);
     const order = await anOrder(c, user, { direction: "purchase" });
-    await transactions.addTransactionLog(user.id, "credit", order.id, null, 42.5, c);
+    await transactions.addTransactionLog(
+      { user_id: user.id, type: "credit", order_id: order.id, amount: 42.5 }, c
+    );
 
     const { rows } = await c.query(
       `SELECT amount, type FROM payments.ledger
@@ -133,7 +135,10 @@ test("a rolled-back movement leaves neither the balance nor the log changed", as
 
     await client.query("BEGIN");
     await usersService.addFunds(user.id, 999.99, client);
-    await transactions.addTransactionLog(user.id, `sentinel-${randomUUID().slice(0, 8)}`, null, null, 999.99, client);
+    await transactions.addTransactionLog(
+      { user_id: user.id, type: `sentinel-${randomUUID().slice(0, 8)}`, order_id: null, amount: 999.99 },
+      client
+    );
 
     // Visible inside, invisible outside.
     assert.equal(await balance(client, user.id), before + 999.99);

@@ -5,7 +5,7 @@
 // Postgres table: orders.items
 import { z } from "zod/v4";
 
-export const Row = z.object({
+export const OrderItem = z.object({
   "id": z.string().uuid(),
   "order_id": z.string().uuid(),
   "bullion_id": z.string().uuid().nullable(),
@@ -21,40 +21,20 @@ export const Row = z.object({
   "unit": z.string().nullable(),
   "price": z.number().nullable(),
 });
-export type Row = z.infer<typeof Row>;
+export type OrderItem = z.infer<typeof OrderItem>;
 // generated:end
-import * as bullion from "../products/bullion.js";
+import { BullionPublic } from "../products/bullion.js";
 
 // The line as ONE order's view carries it: the row plus the catalogue product
 // behind a bullion line. Null on a scrap line, where the weights and the
 // purity are columns of the line itself.
-export const ViewItem = Row.extend({ product: bullion.Public.nullable() });
-export type ViewItem = z.infer<typeof ViewItem>;
+export const OrderViewItem = OrderItem.extend({ product: BullionPublic.nullable() });
+export type OrderViewItem = z.infer<typeof OrderViewItem>;
 
-// POST /orders/:id/items - ONE NEW LINE, AND THE TWO KINDS ARE A UNION.
-//
-// A line is a catalogue product OR a declared lot of scrap. The old body was
-// `{ item: looseObject }` read through Record<string, unknown> with a metal
-// NAME on it, so the server resolved a customer-supplied string against
-// metals.metals; both members here name ids the client already holds.
-export const NewBullion = z.object({
-  bullion_id: Row.shape.bullion_id.unwrap(),
-}).strict();
-export type NewBullion = z.infer<typeof NewBullion>;
-
-export const NewScrap = z.object({
-  metal_id: Row.shape.metal_id,
-  pre_melt: Row.shape.pre_melt.unwrap(),
-  purity: Row.shape.purity.unwrap(),
-  unit: Row.shape.unit.unwrap(),
-}).strict();
-export type NewScrap = z.infer<typeof NewScrap>;
-
-export const New = z.union([NewBullion, NewScrap]);
-export type New = z.infer<typeof New>;
-
-// PATCH /api/orders/items/:id - ONE ROW, ONE PATCH (Jacob, 2026-09-03: the
-// scrap / bullion split "is the old drawer document").
+// PATCH /api/orders/items/:id, and POST /orders/:id/items - ONE ROW, ONE PATCH
+// (Jacob, 2026-09-03: the scrap / bullion split "is the old drawer document",
+// and "For new, it can just send the patch!!"). A new line is a bullion_id or
+// a metal_id with its weights; which one it is is a rule, not a type.
 //
 //   ABSENT   leave the column alone
 //   null     clear it
@@ -63,10 +43,11 @@ export type New = z.infer<typeof New>;
 // which is buildUpdate's contract. THREE COLUMNS ARE DELIBERATELY NOT HERE.
 // `content` is DERIVED by rules.lineContent - two definitions of what content
 // means is the defect that costs money. `price` is written by
-// finalize-pricing from the frozen spots. bullion_id / metal_id / order_id are
-// the line's identity, not its facts. The refiner's assay numbers are
-// refiners.items and have their own patch there.
-export const Patch = Row.pick({
+// finalize-pricing from the frozen spots. `order_id` is the line's identity.
+// The refiner's assay numbers are refiners.items and have their own patch.
+export const OrderItemPatch = OrderItem.pick({
+  bullion_id: true,
+  metal_id: true,
   pre_melt: true,
   post_melt: true,
   purity: true,
@@ -75,5 +56,5 @@ export const Patch = Row.pick({
   confirmed: true,
   unit: true,
 }).partial().strict();
-export type Patch = z.infer<typeof Patch>;
+export type OrderItemPatch = z.infer<typeof OrderItemPatch>;
 

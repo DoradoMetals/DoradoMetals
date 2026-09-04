@@ -72,7 +72,7 @@ export async function cancelPendingSale(
   ) {
     await usersService.addFunds(money.user_id, reserved, client);
     await transactionsService.addTransactionLog(
-      money.user_id, "Credit", null, order_id, reserved, client
+      { user_id: money.user_id, type: "Credit", order_id, amount: reserved }, client
     );
     return { order_id, refunded: reserved };
   }

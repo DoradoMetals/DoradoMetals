@@ -24,16 +24,16 @@ import { formatCurrency } from "#domain/media/pdfs/render/format.ts";
 import type { DocumentLabels } from "#domain/media/pdfs/render/sections.ts";
 import { LOCKS } from "#shared/testing/locks.ts";
 import type { PoolClient } from "pg";
-import type { orders as ordersContract } from "@dorado/contracts";
+import type { OrderView } from "@dorado/contracts";
 
-let orders: ordersContract.orders.View[];
-let salesOrders: ordersContract.orders.View[];
+let orders: OrderView[];
+let salesOrders: OrderView[];
 let bids: Bids;
 let labels: DocumentLabels;
 let lockClient: PoolClient;
 
 const viewsOf = async (direction: "purchase" | "sale") => {
-  const out: ordersContract.orders.View[] = [];
+  const out: OrderView[] = [];
   for (const row of await orderRead.list({ direction })) {
     const view = await orderRead.view(row.id);
     if (view) out.push(view);
@@ -43,7 +43,7 @@ const viewsOf = async (direction: "purchase" | "sale") => {
 
 // The document's inputs, resolved once: whichever quote the order prices at
 // and the labels behind the ids its rows carry.
-const inputsFor = async (order: ordersContract.orders.View) => await inputs.invoiceInputs(order.order.id);
+const inputsFor = async (order: OrderView) => await inputs.invoiceInputs(order.order.id);
 
 // SESSION-scoped LOCKS.ORDERS, held for the whole file (lane 3, the runner
 // conversion): `orders`/`salesOrders` are captured here and re-read later by
@@ -216,7 +216,7 @@ test("the packing list and the invoice report the same total", async () => {
   // NO CAST ANY MORE. The production caller used to do
   // `purchaseOrder as unknown as Parameters<typeof calculateTotalPrice>[0]`
   // because the composed tree overlapped PricedOrder without satisfying it;
-  // both take the ordersContract.orders.View now.
+  // both take the OrderView now.
   for (const order of orders) {
     const own = await inputsFor(order);
     let total: number;

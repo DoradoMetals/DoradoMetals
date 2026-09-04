@@ -17,7 +17,7 @@ import * as checkoutService from "#domain/checkout/service.ts";
 import * as ordersRepo from "#db/orders/repo.ts";
 import withTransaction from "#shared/db/withTransaction.ts";
 import { Forbidden, NotFound } from "#shared/errors.ts";
-import { orders as ordersContract } from "@dorado/contracts";
+import { OrderCancelBody, OrderCreateBody, OrderPatch, OrderReviewBody, OrderSendToRefinerBody } from "@dorado/contracts";
 
 // GET /api/orders - the SLIM list: each order is its row plus `totals`, nothing
 // nested. Row scope: an owner gets their own (the SESSION's id, never the
@@ -42,7 +42,7 @@ export const listOrders = asyncHandler(async (req, res) => {
 // PATCH /api/orders/:id - the order row's own fields. `status` and `notes`; the
 // four actions that used to ride in this body are the routes below.
 export const patchOrder = asyncHandler(async (req, res) => {
-  const changes = strictBody(ordersContract.orders.Patch, req.body);
+  const changes = strictBody(OrderPatch, req.body);
   return res.status(200).json(await orders.patch(uuidParam(req, "id"), changes));
 });
 
@@ -53,7 +53,7 @@ export const patchOrder = asyncHandler(async (req, res) => {
 // OWNERSHIP IS ASKED HERE, not in the use case: a customer places their own
 // checkout, an admin places anybody's.
 export const createOrderFromCheckout = asyncHandler(async (req, res) => {
-  const { checkout_id } = strictBody(ordersContract.orders.New, req.body);
+  const { checkout_id } = strictBody(OrderCreateBody, req.body);
   const checkout = await checkoutService.getRowById(checkout_id);
   if (!checkout) throw new NotFound(`no checkout ${checkout_id}`);
   if (checkout.user_id !== callerId(req) && req.user?.role !== "admin") {
@@ -64,7 +64,7 @@ export const createOrderFromCheckout = asyncHandler(async (req, res) => {
 
 // The review flag: one column on the order row, both directions, one handler.
 export const createOrderReview = asyncHandler(async (req, res) => {
-  const body = strictBody(ordersContract.orders.ReviewBody, req.body);
+  const body = strictBody(OrderReviewBody, req.body);
   const written = await withTransaction((tx) =>
     ordersRepo.update(body.order.id, { review_created: true }, {}, tx)
   );
@@ -87,11 +87,11 @@ export const finalizeOrderPricing = asyncHandler(async (req, res) => {
 });
 
 export const cancelOrder = asyncHandler(async (req, res) => {
-  const input = strictBody(ordersContract.orders.CancelBody, req.body);
+  const input = strictBody(OrderCancelBody, req.body);
   return res.status(200).json(await orders.cancel(uuidParam(req, "id"), input));
 });
 
 export const sendOrderToRefiner = asyncHandler(async (req, res) => {
-  const { refiner_id } = strictBody(ordersContract.orders.SendToRefinerBody, req.body);
+  const { refiner_id } = strictBody(OrderSendToRefinerBody, req.body);
   return res.status(200).json(await orders.sendToRefiner(uuidParam(req, "id"), refiner_id));
 });

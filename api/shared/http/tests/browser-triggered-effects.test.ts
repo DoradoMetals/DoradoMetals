@@ -26,12 +26,14 @@ const walk = (dir: string, out: string[] = []): string[] => {
 const ALLOWED = [
   // These are reads, not post-success effects — a failed read loses no user action (sitemap runs server-side; basket hydration runs post-login with its own catch, keeping the local copy).
   "(top level) GET /products/get_all_products",
-  // Basket hydration: rows, plus the catalogues that name them.
+  // The checkout-items module's three exported helpers. They are module-level
+  // functions, not effects: every caller invokes them FROM a mutationFn, and
+  // the scan's "(top level)" only means "no react-query key precedes them in
+  // this file". The catalogue reads that used to sit here went with
+  // features/cart, which the checkout rework deleted.
   "(top level) GET /checkout/items",
-  "(top level) GET /checkout/items",
-  "(top level) GET /products/get_products",
-  "(top level) GET /products/get_sell_products",
-  "(top level) GET /spots/spot_prices",
+  "(top level) PUT /checkout/items",
+  "(top level) DELETE /checkout/items",
 ];
 
 test("only the two order emails are triggered after an operation already succeeded", () => {

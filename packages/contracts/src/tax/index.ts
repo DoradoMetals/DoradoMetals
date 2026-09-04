@@ -2,6 +2,6 @@
 // Run `pnpm --filter @dorado/contracts generate` to refresh.
 //
 // Every entity of the `tax` schema, one namespace each.
-export * as enums from "./enums.js";
-export * as sales_tax from "./sales_tax.js";
-export * as sales_tax_rules from "./sales_tax_rules.js";
+export * from "./enums.js";
+export * from "./sales_tax.js";
+export * from "./sales_tax_rules.js";

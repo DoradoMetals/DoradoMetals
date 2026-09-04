@@ -273,8 +273,9 @@ test("a status write moves the label and NOTHING else", async () => {
 
 // ------------------------------------------------------- the cancel action
 
-// POST /api/orders/:id/cancel, four fields: the box, the service, what to
-// insure and what it weighs. It took the admin drawer's WHOLE form as
+// POST /api/orders/:id/cancel, two fields: the box and the service. What to
+// insure and what it weighs are computed from the order's own lines and
+// total now (ruling 58). It took the admin drawer's WHOLE form as
 // `Record<string, any>` and hand-mapped fifteen values out of it; where the
 // parcel goes is the order's own address snapshot and who signs for the
 // business is the provider's configured contact.
@@ -291,8 +292,6 @@ test("the cancel action reaches the label pipeline and a label failure cancels n
         .send({
           carrier_service_id: service.id,
           package_id: box.id,
-          declared_value: 1000,
-          weight: 3,
         });
 
       // NOT a refusal: the document is sound and the pipeline began. What
@@ -326,8 +325,6 @@ test("an order with no address snapshot refuses the cancel before the carrier", 
         .send({
           carrier_service_id: service.id,
           package_id: box.id,
-          declared_value: 1000,
-          weight: 3,
         });
       assert.equal(res.status, 422, `answered ${res.status}`);
       assert.match(res.body?.error?.message ?? "", /no address snapshot/);

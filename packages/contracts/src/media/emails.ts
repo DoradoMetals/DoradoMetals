@@ -6,7 +6,7 @@
 import { z } from "zod/v4";
 import { EmailKind, EmailStatus } from "./enums.js";
 
-export const Row = z.object({
+export const Email = z.object({
   "id": z.string().uuid(),
   "kind": EmailKind,
   "status": EmailStatus,
@@ -19,12 +19,12 @@ export const Row = z.object({
   "error": z.string().nullable(),
   "sent_at": z.string(),
 });
-export type Row = z.infer<typeof Row>;
+export type Email = z.infer<typeof Email>;
 // generated:end
-import * as orders from "../orders/orders.js";
+import { Order } from "../orders/orders.js";
 
 // POST /media/emails/send_created and /send_priced - the order id alone
 // (ruling 10). Everything else is resolved server-side from it.
-export const SendBody = z.object({ order_id: orders.Row.shape.id }).strict();
-export type SendBody = z.infer<typeof SendBody>;
+export const SendOrderEmailBody = z.object({ order_id: Order.shape.id }).strict();
+export type SendOrderEmailBody = z.infer<typeof SendOrderEmailBody>;
 

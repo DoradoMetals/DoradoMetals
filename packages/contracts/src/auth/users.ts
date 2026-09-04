@@ -5,7 +5,7 @@
 // Postgres table: auth.users
 import { z } from "zod/v4";
 
-export const Row = z.object({
+export const User = z.object({
   "id": z.string().uuid(),
   "email": z.string(),
   "name": z.string().nullable(),
@@ -21,12 +21,30 @@ export const Row = z.object({
   "banExpires": z.string().nullable(),
   "phone_number": z.string().nullable(),
 });
-export type Row = z.infer<typeof Row>;
+export type User = z.infer<typeof User>;
 // generated:end
 // WHO AN ORDER IS FOR: three columns of auth.users, the authoritative
 // identity row since the 2026-09-01 cutover.
-export const Summary = Row.pick({ id: true, name: true, email: true });
-export type Summary = z.infer<typeof Summary>;
+export const UserSummary = User.pick({ id: true, name: true, email: true });
+export type UserSummary = z.infer<typeof UserSummary>;
+
+// The admin users list. better-auth's camelCase columns are aliased to
+// snake_case and the Stripe and ban columns are dropped - one of the few
+// places where the wire genuinely differs from the table.
+export const AdminUser = User.omit({
+  createdAt: true,
+  updatedAt: true,
+  emailVerified: true,
+  stripeCustomerId: true,
+  banned: true,
+  banReason: true,
+  banExpires: true,
+}).extend({
+  created_at: User.shape.createdAt.nullable(),
+  updated_at: User.shape.updatedAt.nullable(),
+  email_verified: User.shape.emailVerified.nullable(),
+});
+export type AdminUser = z.infer<typeof AdminUser>;
 
 // POST /users/update_credit - the admin balance edit. `amount` matches
 // auth.users.dorado_funds's own type: a magnitude, never a signed delta -
@@ -34,10 +52,10 @@ export type Summary = z.infer<typeof Summary>;
 export const CreditOp = z.enum(["add", "subtract", "edit"]);
 export type CreditOp = z.infer<typeof CreditOp>;
 
-export const CreditBody = z.object({
-  user_id: Row.shape.id,
+export const UpdateCreditBody = z.object({
+  user_id: User.shape.id,
   op: CreditOp,
-  amount: Row.shape.dorado_funds,
+  amount: User.shape.dorado_funds,
 }).strict();
-export type CreditBody = z.infer<typeof CreditBody>;
+export type UpdateCreditBody = z.infer<typeof UpdateCreditBody>;
 

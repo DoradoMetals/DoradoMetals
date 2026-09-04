@@ -5,7 +5,7 @@
 // Postgres table: payments.settlements
 import { z } from "zod/v4";
 
-export const Row = z.object({
+export const PaymentSettlement = z.object({
   "id": z.string().uuid(),
   "attempt_id": z.string().uuid(),
   "settled_amount": z.number(),
@@ -14,7 +14,7 @@ export const Row = z.object({
   "settled_at": z.string().nullable(),
   "created_at": z.string(),
 });
-export type Row = z.infer<typeof Row>;
+export type PaymentSettlement = z.infer<typeof PaymentSettlement>;
 // generated:end
 
 // Hand-written derivations go here: New, Patch, named reads.

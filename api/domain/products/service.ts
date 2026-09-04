@@ -8,7 +8,7 @@ import type { ProductPatch, Liveness, PublicProductRow } from "#db/products/repo
 import type { Executor } from "#shared/db/executor.ts";
 // The transport layer's parsed body - the contract IS the input type now
 // (no hand-written ProductInput mirroring it).
-import type { products as productsContract } from "@dorado/contracts";
+import type { BullionPatch } from "@dorado/contracts";
 
 // What exchange.products defaults and products.bullion does not: products.bullion declares seven columns NOT NULL with no default, so a create must state them, and stated as exchange's own defaults so a product doesn't differ across promotion.
 // Literals, not a runtime lookup: resolving by name (e.g. "Silver") would make product creation depend on that metal still existing under that name.
@@ -158,7 +158,7 @@ export async function getItemsFromServer(
 // caller sends real booleans, which strict parsing at the transport layer
 // already enforces.
 export async function saveProduct(
-  { product }: { product: productsContract.bullion.Patch },
+  { product }: { product: BullionPatch & { id: string } },
   executor?: Executor
 ): Promise<{ id: string } | undefined> {
   const run = async (c: Executor): Promise<{ id: string } | undefined> => {

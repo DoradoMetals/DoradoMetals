@@ -4,5 +4,5 @@
 // Postgres enum types owned by the `fulfillments` schema.
 import { z } from "zod/v4";
 
-export const Category = z.enum(["SHIPMENT", "PICKUP", "DIRECT"]);
-export type Category = z.infer<typeof Category>;
+export const FulfillmentCategory = z.enum(["SHIPMENT", "PICKUP", "DIRECT"]);
+export type FulfillmentCategory = z.infer<typeof FulfillmentCategory>;

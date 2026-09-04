@@ -10,7 +10,7 @@ import * as refinerItemsRepo from "#db/refiners/items/repo.ts";
 import { fineContent } from "#domain/pricing/content.ts";
 import { assayedRow } from "#domain/refiners/items/rules.ts";
 import { Invalid, NotFound } from "#shared/errors.ts";
-import type { refiners } from "@dorado/contracts";
+import type { RefinerItemPatch } from "@dorado/contracts";
 import type { RefinerItemRow } from "#db/refiners/items/repo.ts";
 import type { Executor } from "#shared/db/executor.ts";
 
@@ -30,7 +30,7 @@ export async function forOrder(
 // move the customer's DECLARED weight: orders.items.pre_melt is what the
 // customer said they sent, and only the customer's declaration writes it.
 export async function patchRefinerItem(
-  order_item_id: string, patch: refiners.items.Patch
+  order_item_id: string, patch: RefinerItemPatch
 ): Promise<RefinerItemRow> {
   if (Object.keys(patch).length === 0) {
     throw new Invalid("the document names no field to write");

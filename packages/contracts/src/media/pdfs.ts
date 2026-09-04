@@ -6,7 +6,7 @@
 import { z } from "zod/v4";
 import { PdfKind } from "./enums.js";
 
-export const Row = z.object({
+export const Pdf = z.object({
   "id": z.string().uuid(),
   "kind": PdfKind,
   "order_id": z.string().uuid().nullable(),
@@ -15,7 +15,7 @@ export const Row = z.object({
   "checksum": z.string().nullable(),
   "created_at": z.string(),
 });
-export type Row = z.infer<typeof Row>;
+export type Pdf = z.infer<typeof Pdf>;
 // generated:end
 
 // Hand-written derivations go here: New, Patch, named reads.

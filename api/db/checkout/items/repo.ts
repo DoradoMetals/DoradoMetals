@@ -7,12 +7,12 @@
 import query from "#shared/db/query.ts";
 import { buildUpdate } from "#shared/db/patch.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
-import type { checkout } from "@dorado/contracts";
+import type { CheckoutItem } from "@dorado/contracts";
 import type { Executor } from "#shared/db/executor.ts";
 
 const sql = sqlFrom(import.meta.dirname);
 
-export type ItemRow = checkout.items.Row;
+export type ItemRow = CheckoutItem;
 
 // The lines as order creation needs them - see sql/list_for_order.sql.
 export type OrderLine = Pick<
