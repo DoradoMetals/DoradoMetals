@@ -43,7 +43,7 @@ export { QuantityStepper } from "./quantity-stepper/QuantityStepper";
 export { cn, SEMANTIC_TEXT_SIZES } from "./cn";
 export { AddressCard, type AddressCardProps } from "./address-card/AddressCard";
 export { AreaChart, BarChart, DonutChart, LineChart, Sparkline, type Series } from "./chart/Chart";
-export { DataTable, type DataTableProps, type DataTableColumn } from "./data-table/DataTable";
+export { DataTable, type DataTableProps, type DataTableColumn, type DataTableColumnMeta } from "./data-table/DataTable";
 export { EmptyState, type EmptyStateProps } from "./empty-state/EmptyState";
 export { Hero, type HeroProps } from "./hero/Hero";
 export { Marquee, type MarqueeProps } from "./marquee/Marquee";

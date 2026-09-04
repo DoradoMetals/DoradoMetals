@@ -10,14 +10,16 @@ function renderTable(onSort = () => {}) {
     <Table>
       <TableHeader>
         <TableRow>
-          <TableHead sort="asc" onSort={onSort}>Date</TableHead>
-          <TableHead>Amount</TableHead>
+          <TableHead sorted="asc" onSort={onSort}>
+            Date
+          </TableHead>
+          <TableHead numeric>Amount</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
         <TableRow>
-          <TableCell>2026-08-30</TableCell>
-          <TableCell>$120.00</TableCell>
+          <TableCell primary>2026-08-30</TableCell>
+          <TableCell numeric>$120.00</TableCell>
         </TableRow>
       </TableBody>
     </Table>,
@@ -29,6 +31,7 @@ describe("Table", () => {
     const { container } = renderTable();
     expect(container.querySelector("table")).toBeTruthy();
     expect(container.querySelectorAll("th").length).toBe(2);
+    expect(container.querySelector("th")?.getAttribute("scope")).toBe("col");
     expect(await axeViolations(container)).toEqual([]);
   });
 
@@ -41,6 +44,64 @@ describe("Table", () => {
     expect(onSort).toHaveBeenCalled();
   });
 
+  it("aria-sort cycles through the three states as the sorted prop changes, driven by props not internal state", () => {
+    const { container, rerender } = render(
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead sorted={null} onSort={() => {}}>
+              Date
+            </TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody />
+      </Table>,
+    );
+    expect(container.querySelector("th")?.getAttribute("aria-sort")).toBe("none");
+
+    rerender(
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead sorted="asc" onSort={() => {}}>
+              Date
+            </TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody />
+      </Table>,
+    );
+    expect(container.querySelector("th")?.getAttribute("aria-sort")).toBe("ascending");
+
+    rerender(
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead sorted="desc" onSort={() => {}}>
+              Date
+            </TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody />
+      </Table>,
+    );
+    expect(container.querySelector("th")?.getAttribute("aria-sort")).toBe("descending");
+  });
+
+  it("a column with no onSort carries no aria-sort at all", () => {
+    const { container } = render(
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Purity</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody />
+      </Table>,
+    );
+    expect(container.querySelector("th")?.hasAttribute("aria-sort")).toBe(false);
+  });
+
   it("uses the drawing's named sort glyphs, not a generic arrow (56:82, node 510:26)", () => {
     const { container, rerender } = renderTable();
     expect(container.querySelector("svg.lucide-arrow-up-narrow-wide")).toBeTruthy();
@@ -48,12 +109,101 @@ describe("Table", () => {
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead sort="desc" onSort={() => {}}>Date</TableHead>
+            <TableHead sorted="desc" onSort={() => {}}>
+              Date
+            </TableHead>
           </TableRow>
         </TableHeader>
         <TableBody />
       </Table>,
     );
     expect(container.querySelector("svg.lucide-arrow-down-wide-narrow")).toBeTruthy();
+  });
+
+  it("a filterable column's funnel carries aria-pressed and flips it on click", () => {
+    const onFilter = vi.fn();
+    const { container, getByRole, rerender } = render(
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead filtered={false} onFilter={onFilter}>
+              Item
+            </TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody />
+      </Table>,
+    );
+    const button = getByRole("button", { name: /filter column/i });
+    expect(button.getAttribute("aria-pressed")).toBe("false");
+    fireEvent.click(button);
+    expect(onFilter).toHaveBeenCalled();
+
+    rerender(
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead filtered onFilter={onFilter}>
+              Item
+            </TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody />
+      </Table>,
+    );
+    expect(container.querySelector('button[aria-pressed="true"]')).toBeTruthy();
+  });
+
+  it("a column with no onFilter renders no filter button", () => {
+    const { queryByRole } = render(
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Purity</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody />
+      </Table>,
+    );
+    expect(queryByRole("button", { name: /filter column/i })).toBeNull();
+  });
+
+  it("a selected row is expressed in a way assistive tech can read, and axe finds nothing", async () => {
+    const { container } = render(
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Item</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          <TableRow selected>
+            <TableCell primary>gold-chain-photo.jpg</TableCell>
+          </TableRow>
+        </TableBody>
+      </Table>,
+    );
+    const row = container.querySelector("tbody tr");
+    expect(row?.getAttribute("aria-selected")).toBe("true");
+    expect(row?.getAttribute("data-state")).toBe("selected");
+    expect(await axeViolations(container)).toEqual([]);
+  });
+
+  it("an unselected row carries no aria-selected", () => {
+    const { container } = render(
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Item</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          <TableRow>
+            <TableCell primary>gold-chain-photo.jpg</TableCell>
+          </TableRow>
+        </TableBody>
+      </Table>,
+    );
+    expect(container.querySelector("tbody tr")?.hasAttribute("aria-selected")).toBe(false);
   });
 });

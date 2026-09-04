@@ -1,89 +1,215 @@
 'use client'
 
 import * as React from "react";
+import { Search } from "lucide-react";
 import {
   type ColumnDef,
   type ColumnFiltersState,
+  type ColumnVisibilityState,
+  type PaginationState,
   type RowData,
-  createFilteredRowModel,
-  createSortedRowModel,
-  columnFilteringFeature,
-  filterFns,
-  flexRender,
-  rowSortingFeature,
+  type RowSelectionState,
   type SortingState,
-  sortFns,
+  columnFilteringFeature,
+  columnVisibilityFeature,
+  createColumnHelper,
+  createFilteredRowModel,
+  createPaginatedRowModel,
+  createSortedRowModel,
+  filterFn_includesString,
+  filterFn_notEmpty,
+  globalFilteringFeature,
+  rowPaginationFeature,
+  rowSelectionFeature,
+  rowSortingFeature,
+  sortFn_alphanumeric,
+  sortFn_basic,
+  sortFn_datetime,
   tableFeatures,
   useTable,
 } from "@tanstack/react-table";
 
+import { Checkbox } from "../checkbox/Checkbox";
 import { Chip } from "../chip/Chip";
 import { cn } from "../cn";
+import { Input } from "../input/Input";
+import { Pagination } from "../pagination/Pagination";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../table/Table";
+
+export type DataTableColumnMeta = {
+  numeric?: boolean;
+  primary?: boolean;
+};
 
 const features = tableFeatures({
   rowSortingFeature,
-  columnFilteringFeature,
   sortedRowModel: createSortedRowModel(),
+  sortFns: { alphanumeric: sortFn_alphanumeric, basic: sortFn_basic, datetime: sortFn_datetime },
+  columnFilteringFeature,
+  globalFilteringFeature,
   filteredRowModel: createFilteredRowModel(),
-  sortFns,
-  filterFns,
+  filterFns: { notEmpty: filterFn_notEmpty, includesString: filterFn_includesString },
+  rowSelectionFeature,
+  columnVisibilityFeature,
+  rowPaginationFeature,
+  paginatedRowModel: createPaginatedRowModel(),
+  columnMeta: {} as DataTableColumnMeta,
 });
 
 export type DataTableColumn<T extends RowData> = ColumnDef<typeof features, T>;
+
+const SELECT_COLUMN_ID = "__select";
 
 export type DataTableProps<T extends RowData> = {
   columns: DataTableColumn<T>[];
   data: T[];
   label: string;
+  getRowId?: (row: T, index: number) => string;
   empty?: React.ReactNode;
   className?: string;
+  searchable?: boolean;
+  searchPlaceholder?: string;
+  actions?: React.ReactNode;
+  selectable?: boolean;
+  onRowSelectionChange?: (rows: T[]) => void;
+  pageSize?: number;
 };
 
-export function DataTable<T extends RowData>({ columns, data, label, empty, className }: DataTableProps<T>) {
+export function DataTable<T extends RowData>({
+  columns,
+  data,
+  label,
+  getRowId,
+  empty,
+  className,
+  searchable = false,
+  searchPlaceholder = "Search",
+  actions,
+  selectable = false,
+  onRowSelectionChange,
+  pageSize,
+}: DataTableProps<T>) {
+  const helper = React.useMemo(() => createColumnHelper<typeof features, T>(), []);
+
+  const tableColumns = React.useMemo<DataTableColumn<T>[]>(() => {
+    if (!selectable) return columns;
+    return [
+      helper.display({
+        id: SELECT_COLUMN_ID,
+        enableHiding: false,
+        enableGlobalFilter: false,
+        header: ({ table }) => (
+          <Checkbox
+            checked={table.getIsAllRowsSelected() ? true : table.getIsSomeRowsSelected() ? "indeterminate" : false}
+            onCheckedChange={(value) => table.toggleAllRowsSelected(value === true)}
+            aria-label="Select all rows"
+          />
+        ),
+        cell: ({ row }) => (
+          <Checkbox
+            checked={row.getIsSelected()}
+            onCheckedChange={(value) => row.toggleSelected(value === true)}
+            aria-label="Select row"
+          />
+        ),
+      }),
+      ...columns,
+    ];
+  }, [columns, helper, selectable]);
+
   const [sorting, setSorting] = React.useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
+  const [globalFilter, setGlobalFilter] = React.useState("");
+  const [rowSelection, setRowSelection] = React.useState<RowSelectionState>({});
+  const [columnVisibility, setColumnVisibility] = React.useState<ColumnVisibilityState>({});
+  const [pagination, setPagination] = React.useState<PaginationState>({
+    pageIndex: 0,
+    pageSize: pageSize ?? Infinity,
+  });
 
   const table = useTable<typeof features, T>({
     features,
-    columns,
+    columns: tableColumns,
     data,
-    state: { sorting, columnFilters },
+    getRowId,
+    defaultColumn: { enableSorting: false, enableColumnFilter: false, filterFn: "notEmpty" },
+    sortDescFirst: false,
+    enableRowSelection: selectable,
+    globalFilterFn: "includesString",
+    state: { sorting, columnFilters, globalFilter, rowSelection, columnVisibility, pagination },
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,
+    onGlobalFilterChange: setGlobalFilter,
+    onRowSelectionChange: setRowSelection,
+    onColumnVisibilityChange: setColumnVisibility,
+    onPaginationChange: setPagination,
   });
 
   const rows = table.getRowModel().rows;
 
+  React.useEffect(() => {
+    if (!onRowSelectionChange) return;
+    onRowSelectionChange(table.getSelectedRowModel().rows.map((row) => row.original));
+  }, [rowSelection, data, onRowSelectionChange]);
+
   return (
-    <div className={cn("flex w-full flex-col gap-2", className)}>
-      {columnFilters.length > 0 && (
-        <div className="flex flex-wrap items-center gap-1.5">
-          {columnFilters.map((f) => (
-            <Chip
-              key={f.id}
-              label={`${f.id}: ${String(f.value)}`}
-              onDismiss={() => setColumnFilters((cur) => cur.filter((x) => x.id !== f.id))}
+    <div className={cn("flex w-full flex-col gap-sm", className)}>
+      {(searchable || actions != null) && (
+        <div className="flex flex-wrap items-center gap-sm">
+          {searchable && (
+            <Input
+              type="search"
+              value={globalFilter}
+              onChange={(event) => table.setGlobalFilter(event.target.value)}
+              placeholder={searchPlaceholder}
+              leading={<Search aria-hidden className="size-4" />}
+              aria-label="Search table"
+              className="w-64"
             />
-          ))}
+          )}
+          {actions != null && <div className="ml-auto flex items-center gap-xs">{actions}</div>}
+        </div>
+      )}
+      {columnFilters.length > 0 && (
+        <div className="flex flex-wrap items-center gap-xs">
+          {columnFilters.map((filter) => {
+            const column = table.getColumn(filter.id);
+            const header = column?.columnDef.header;
+            const filterLabel = typeof header === "string" ? header : filter.id;
+            return (
+              <Chip
+                key={filter.id}
+                label={filterLabel}
+                selected
+                onDismiss={() => column?.setFilterValue(false)}
+              />
+            );
+          })}
         </div>
       )}
       <Table aria-label={label}>
         <TableHeader>
-          {table.getHeaderGroups().map((hg) => (
-            <TableRow key={hg.id}>
-              {hg.headers.map((header) => {
+          {table.getHeaderGroups().map((headerGroup) => (
+            <TableRow key={headerGroup.id}>
+              {headerGroup.headers.map((header) => {
                 const canSort = header.column.getCanSort();
-                const dir = header.column.getIsSorted();
+                const canFilter = header.column.getCanFilter();
+                const sortDirection = header.column.getIsSorted();
+                const numeric = header.column.columnDef.meta?.numeric;
                 return (
                   <TableHead
                     key={header.id}
-                    sort={canSort ? (dir === false ? null : dir) : undefined}
+                    numeric={numeric}
+                    sorted={canSort ? (sortDirection === false ? null : sortDirection) : undefined}
                     onSort={canSort ? () => header.column.toggleSorting() : undefined}
+                    filtered={canFilter ? header.column.getIsFiltered() : undefined}
+                    onFilter={
+                      canFilter
+                        ? () => header.column.setFilterValue(header.column.getIsFiltered() ? false : true)
+                        : undefined
+                    }
                   >
-                    {header.isPlaceholder
-                      ? null
-                      : flexRender(header.column.columnDef.header, header.getContext())}
+                    {header.isPlaceholder ? null : <table.FlexRender header={header} />}
                   </TableHead>
                 );
               })}
@@ -93,21 +219,31 @@ export function DataTable<T extends RowData>({ columns, data, label, empty, clas
         <TableBody>
           {rows.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={columns.length}>{empty ?? "No results."}</TableCell>
+              <TableCell colSpan={table.getAllLeafColumns().length}>{empty ?? "No results."}</TableCell>
             </TableRow>
           ) : (
             rows.map((row) => (
-              <TableRow key={row.id}>
-                {row.getAllCells().map((cell) => (
-                  <TableCell key={cell.id}>
-                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                  </TableCell>
-                ))}
+              <TableRow key={row.id} selected={selectable ? row.getIsSelected() : undefined}>
+                {row.getVisibleCells().map((cell) => {
+                  const meta = cell.column.columnDef.meta;
+                  return (
+                    <TableCell key={cell.id} numeric={meta?.numeric} primary={meta?.primary}>
+                      <table.FlexRender cell={cell} />
+                    </TableCell>
+                  );
+                })}
               </TableRow>
             ))
           )}
         </TableBody>
       </Table>
+      {pageSize != null && (
+        <Pagination
+          page={pagination.pageIndex + 1}
+          pageCount={Math.max(1, table.getPageCount())}
+          onPageChange={(page) => table.setPageIndex(page - 1)}
+        />
+      )}
     </div>
   );
 }
