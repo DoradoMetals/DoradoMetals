@@ -88,6 +88,8 @@
     "lint:one-catch": "TZ=UTC node scripts/lint-one-catch.ts",
     "lint:one-catch:self-test": "TZ=UTC node scripts/lint-one-catch.ts --self-test",
     "lint:input-shapes": "node scripts/lint-input-shapes.ts",
+    "lint:client-boundary": "node scripts/lint-client-boundary.ts",
+    "lint:client-boundary:self-test": "node scripts/lint-client-boundary.ts --self-test",
     "lint:input-shapes:self-test": "node scripts/lint-input-shapes.ts --self-test",
     "lint:script-guards": "node scripts/lint-script-guards.mjs",
     "lint:script-guards:self-test": "node scripts/lint-script-guards.mjs --self-test",
@@ -103,11 +105,13 @@
   },
   "imports": {
     "#env": "./env.ts",
-    "#db": "./db.ts",
+    "#db": "./db/index.ts",
+    "#pool": "./db.ts",
     "#app": "./app.ts",
     "#shared/*": "./shared/*",
     "#providers/*": "./providers/*",
     "#db/*": "./db/*",
+    "#domain": "./domain/index.ts",
     "#domain/*": "./domain/*",
     "#transport/*": "./transport/*"
   },

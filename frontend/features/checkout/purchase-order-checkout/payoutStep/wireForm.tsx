@@ -9,7 +9,7 @@ import {
 } from '@/shared/ui/base/form'
 import { WirePayout } from '@/features/payouts/types'
 import { UseFormReturn } from 'react-hook-form'
-import { usePurchaseOrderCheckoutStore } from '@/shared/store/purchaseOrderCheckoutStore'
+import { usePayoutDraft } from '@/features/checkout/purchase-order-checkout/payoutStep/payoutDraft'
 import { ValidatedField } from '@/shared/ui/form/ValidatedField'
 import { Checkbox } from '@dorado/components'
 
@@ -20,11 +20,11 @@ export default function WireForm({
   form: UseFormReturn<WirePayout>
   visible: boolean
 }) {
-  const setData = usePurchaseOrderCheckoutStore((state) => state.setData)
+  const setPayout = usePayoutDraft((state) => state.setPayout)
 
   const syncToStore = () => {
     const values = form.getValues()
-    setData({ payout: { method: 'WIRE', ...values } })
+    setPayout({ method: 'WIRE', ...values })
   }
 
   return (

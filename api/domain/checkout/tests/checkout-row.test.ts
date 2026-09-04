@@ -12,7 +12,7 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import type { PoolClient } from "pg";
 import request from "supertest";
-import pool from "#db";
+import pool from "#pool";
 import { mockSessions, restoreSessions, as, asAdmin } from "#shared/testing/session.ts";
 import { TEST_ACTOR } from "#shared/testing/actor.ts";
 import { inPinnedTransaction, outside } from "#shared/testing/pinned-pool.ts";
@@ -73,7 +73,18 @@ test("GET /api/checkout mints the row on first read, one per direction", async (
     assert.equal(first.status, 200);
     assert.equal(first.body.direction, "purchase");
     assert.equal(first.body.user_id, customer.id);
-    assert.equal(first.body.fulfillment, null);
+    assert.equal(first.body.fulfillment_id, null);
+    assert.equal(first.body.fulfillment_method_type, null);
+    assert.equal(first.body.handoff_code, null);
+    assert.equal(first.body.requires_schedule, false);
+    // The stepper reads this instead of computing it. An empty basket with no
+    // choices is missing every purchase step.
+    assert.equal(first.body.item_count, 0);
+    assert.equal(first.body.ready_for_rates, false);
+    assert.equal(first.body.ready_for_payment, false);
+    assert.equal(first.body.ready_to_place, false);
+    assert.ok(first.body.missing.includes("items"));
+    assert.ok(first.body.missing.includes("package"));
 
     const again = await as(customer, () =>
       request(app).get("/api/checkout?direction=purchase")
@@ -239,8 +250,16 @@ test("the draft is minted ONCE, linked, and later calls move its method in place
     assert.equal(first.status, 200, first.text);
     const draftId = first.body.fulfillment_id;
     assert.ok(draftId, "the row did not keep the draft's id");
-    assert.equal(first.body.fulfillment?.method_id, purchaseMethodId);
-    assert.equal(first.body.fulfillment?.order_id, null, "a draft must have no order");
+    // The nested fulfillment object left the wire with this lane: the row
+    // carries the METHOD TYPE the draft holds, resolved back into the handoff
+    // the stepper offered, so the browser never learns a carrier's vocabulary.
+    assert.equal(first.body.fulfillment_method_type, "CARRIER DROPOFF");
+    assert.equal(first.body.requires_schedule, false);
+    const { rows: draft } = await c.query(
+      `SELECT method_id, order_id FROM fulfillments.fulfillments WHERE id = $1`, [draftId]
+    );
+    assert.equal(draft[0].method_id, purchaseMethodId);
+    assert.equal(draft[0].order_id, null, "a draft must have no order");
 
     // Change the option: same draft, new method - Jacob's "each time an
     // option is changed, the server-side fulfillment gets updated".
@@ -257,7 +276,11 @@ test("the draft is minted ONCE, linked, and later calls move its method in place
     );
     assert.equal(second.status, 200, second.text);
     assert.equal(second.body.fulfillment_id, draftId, "a second call minted a second draft");
-    assert.equal(second.body.fulfillment?.method_id, other.id);
+    assert.equal(second.body.fulfillment_method_type, "CARRIER PICKUP");
+    // A carrier pickup is the schedulable handoff, so the schedule becomes a
+    // step the customer still owes.
+    assert.equal(second.body.requires_schedule, true);
+    assert.ok(second.body.missing.includes("pickup_schedule"));
 
     const { rows: drafts } = await c.query(
       `SELECT count(*)::int AS n FROM fulfillments.fulfillments

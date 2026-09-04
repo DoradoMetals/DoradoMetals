@@ -21,7 +21,7 @@
 //   node scripts/audit-coverage.mjs orders     one
 import "#env";
 import pg from "pg";
-import pool from "#db";
+import pool from "#pool";
 
 // Shape comes from dev, because the new schema exists nowhere else. Population
 // comes from production when --prod is passed, because dev's row counts prove

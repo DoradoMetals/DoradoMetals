@@ -2,6 +2,9 @@
 // packaging weight on the frontend. Why would it live here?"). Both take rows
 // already loaded; neither reads a database.
 import { convertToPounds } from "#shared/utils/convertWeights.ts";
+import type {
+  CarrierRateQuote, CarrierServiceOption, CheckoutRate,
+} from "@dorado/contracts";
 
 export type WeighableLine = {
   pre_melt: number | null;
@@ -28,4 +31,36 @@ export function parcelWeightLb(items: WeighableLine[], pkg: WeighableBox): numbe
 // (shipping/services/service.ts clampInsuredValue).
 export function declaredValue(total: number): number {
   return Math.max(0, Number(total) || 0);
+}
+
+// THE RATE/CATALOGUE JOIN, which the browser used to do. A carrier answers by
+// its own `serviceType`; the checkout row stores a `shipping.services` id. One
+// entry per OFFERED service, in the catalogue's own display order, so a
+// service the carrier priced but the business does not sell never reaches a
+// screen - and a service it sells but the carrier did not price comes back
+// with a null charge, which is what makes its option render disabled.
+export function offeredRates(
+  quoted: CarrierRateQuote[], offered: CarrierServiceOption[], chosen_id: string | null
+): CheckoutRate[] {
+  const byType = new Map(
+    quoted.filter((r) => r.serviceType != null).map((r) => [r.serviceType as string, r])
+  );
+  return offered.map((option) => {
+    const rate = byType.get(option.code);
+    return {
+      serviceType: option.code,
+      packagingType: rate?.packagingType ?? null,
+      netCharge: rate?.netCharge ?? null,
+      currency: rate?.currency ?? "USD",
+      deliveryDay: rate?.deliveryDay ?? null,
+      transitTime: rate?.transitTime ?? null,
+      serviceDescription: rate?.serviceDescription ?? option.name,
+      carrier_service_id: option.id,
+      name: option.name,
+      carrier_code: option.carrier_code,
+      display_order: option.display_order,
+      max_insured_value: option.max_insured_value,
+      selected: option.id != null && option.id === chosen_id,
+    };
+  });
 }

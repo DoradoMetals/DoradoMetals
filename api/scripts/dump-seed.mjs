@@ -16,7 +16,7 @@
 import "#env";
 import fs from "node:fs";
 import path from "node:path";
-import pool from "#db";
+import pool from "#pool";
 
 // Emitted in dependency order.
 const TABLES = [

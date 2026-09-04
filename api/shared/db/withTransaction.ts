@@ -1,4 +1,4 @@
-import pool from "#db";
+import pool from "#pool";
 import type { PoolClient } from "pg";
 import { currentActor } from "#shared/http/actor.ts";
 

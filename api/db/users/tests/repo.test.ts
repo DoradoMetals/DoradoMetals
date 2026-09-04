@@ -10,7 +10,7 @@
 import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
-import pool from "#db";
+import pool from "#pool";
 import * as repo from "#db/users/repo.ts";
 import { takeLocks, LOCKS } from "#shared/testing/locks.ts";
 import { rollbackIn } from "#shared/testing/rollback.ts";

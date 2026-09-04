@@ -15,7 +15,7 @@
 // checks every name in the map against the database.
 import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
-import pool from "#db";
+import pool from "#pool";
 import type { PoolClient } from "pg";
 import { FEATURES, RENAMES, DELIBERATE, FLOWS } from "../feature-map.ts";
 import type { FeatureMap } from "../feature-map.ts";

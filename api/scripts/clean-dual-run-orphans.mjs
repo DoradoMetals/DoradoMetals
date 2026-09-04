@@ -60,7 +60,7 @@
 // widen - refuses if anything at all references them, and refuses if the row
 // counts are not exactly what was backed up.
 import "#env";
-import pool from "#db";
+import pool from "#pool";
 
 const COMMIT = process.argv.includes("--commit");
 

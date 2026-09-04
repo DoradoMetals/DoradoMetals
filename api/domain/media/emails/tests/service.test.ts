@@ -2,7 +2,7 @@
 // sendEmail takes an optional transport (like a repo call takes an executor) so this can record instead of send. Orders come from the repo, not a fixture, so the input stays the real wire shape. Read-only: nothing is sent or written.
 import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
-import pool from "#db";
+import pool from "#pool";
 import * as emails from "#domain/media/emails/service.ts";
 import { closeBrowser } from "#providers/pdfs/puppeteer.ts";
 import * as orderRead from "#domain/orders/read.ts";

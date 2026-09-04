@@ -20,7 +20,7 @@
 // payment, because that is money the application cannot account for.
 import "#env";
 import pg from "pg";
-import pool from "#db";
+import pool from "#pool";
 
 // Stripe statuses that mean money actually moved.
 const SETTLED = new Set(["Paid", "Refunded", "Partially Refunded"]);

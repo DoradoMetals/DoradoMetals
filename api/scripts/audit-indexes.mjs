@@ -38,7 +38,7 @@
 // production has no new schema to compare against.
 
 import "#env";
-import pool from "#db";
+import pool from "#pool";
 import { FEATURES, RENAMES } from "./lib/feature-map.ts";
 
 const indexesOf = async (table) => {

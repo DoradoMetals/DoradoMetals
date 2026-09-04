@@ -12,10 +12,15 @@
     "./orders": {
       "types": "./src/orders/index.ts",
       "default": "./src/orders/index.ts"
+    },
+    "./checkout": {
+      "types": "./src/checkout/index.ts",
+      "default": "./src/checkout/index.ts"
     }
   },
   "scripts": {
-    "typecheck": "tsc -p tsconfig.json --noEmit"
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run"
   },
   "peerDependencies": {
     "@tanstack/react-query": "*",
@@ -26,8 +31,10 @@
   },
   "devDependencies": {
     "@tanstack/react-query": "^5.102.8",
+    "@types/node": "^22.20.1",
     "@types/react": "^19.2.18",
     "react": "^19.2.8",
-    "typescript": "^7.0.2"
+    "typescript": "^7.0.2",
+    "vitest": "^4.1.11"
   }
 }

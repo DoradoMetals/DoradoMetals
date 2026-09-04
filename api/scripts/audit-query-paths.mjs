@@ -39,7 +39,7 @@
 import "#env";
 import fs from "node:fs";
 import path from "node:path";
-import pool from "#db";
+import pool from "#pool";
 
 const ROOT = process.env.AUDIT_QP_ROOT
   ? path.resolve(process.env.AUDIT_QP_ROOT)

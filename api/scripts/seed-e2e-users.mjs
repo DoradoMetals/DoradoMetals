@@ -24,7 +24,7 @@
 process.env.NODE_ENV = "test";
 
 import "#env";
-import pool from "#db";
+import pool from "#pool";
 import query from "#shared/db/query.ts";
 import { auth } from "#domain/auth/client.ts";
 

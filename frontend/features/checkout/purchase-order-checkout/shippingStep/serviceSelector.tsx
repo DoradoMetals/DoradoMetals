@@ -1,104 +1,64 @@
 'use client'
 
 import { RadioGroup } from '@/shared/ui/RadioGroup'
-import { usePurchaseOrderCheckoutStore } from '@/shared/store/purchaseOrderCheckoutStore'
-import { usePatchPurchaseCheckout } from '@/features/checkout/queries'
+import { usePatchCheckout } from '@/features/checkout/queries'
 import { formatTimeDiff } from '@/shared/utils/formatDates'
 import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
 import { serviceIcon } from '@/features/service/types'
-import type { CarrierRateQuote, CarrierServiceOption } from '@dorado/contracts'
+import type { CheckoutRate } from '@dorado/contracts'
 
-// THE SERVICES WE OFFER, JOINED TO THE CARRIER'S OWN QUOTE BY `code`.
-//
-// GET /checkout/rates answers the carrier's raw per-service quote
-// (CarrierRateQuote) - not every field ties to a shipping.services row (no
-// id, no display order), so the offered catalogue (GET
-// /carrier_services/offered) is still read separately and joined here, same
-// as the deleted client-side rate assembly did. The browser composes no rate
-// REQUEST any more; it still joins the ANSWER to the catalogue it already
-// caches.
-//
-// Presentational: options and rates in, selection out (ruling 14).
+// ONE LIST, ALREADY JOINED. `GET /checkout/rates` answers one entry per
+// OFFERED service, carrying both the carrier's quote and the
+// `shipping.services` id the row stores - so the browser no longer holds two
+// lists and pairs them by `code`, and `selected` is the row's own answer to
+// which one is chosen.
 //
 // NO ARITHMETIC ON A PRICE HERE, and there never was: netCharge is the
-// carrier's own quote, rendered and stored as given (D82).
-interface ServiceSelectorProps {
-  services: CarrierServiceOption[]
-  rates: CarrierRateQuote[]
+// carrier's own quote, rendered as given (D82).
+export function ServiceSelector({
+  rates,
+  isLoading,
+}: {
+  rates: CheckoutRate[]
   isLoading: boolean
-}
-
-export const ServiceSelector: React.FC<ServiceSelectorProps> = ({ services, rates }) => {
-  const selected = usePurchaseOrderCheckoutStore((state) => state.data.service)
-  const setData = usePurchaseOrderCheckoutStore((state) => state.setData)
-  const pickup = usePurchaseOrderCheckoutStore((state) => state.data.pickup)
-  const patchCheckout = usePatchPurchaseCheckout()
-
-  const rateMap = new Map(
-    rates.filter((r) => r.serviceType != null).map((r) => [r.serviceType as string, r])
-  )
-
-  const handleSelect = (code: string) => {
-    const option = services.find((s) => s.code === code)
-    if (!option) return
-    const rate = rateMap.get(code)
-
-    setData({
-      service: {
-        // The shipping.services ROW id - what the checkout row stores (D208).
-        id: option.id ?? undefined,
-        // serviceType and code are the carrier's, received from the server and
-        // handed back - the create body still carries them into the label
-        // request. The frontend does not interpret either.
-        serviceType: option.code,
-        serviceDescription: option.name,
-        code: option.carrier_code,
-        netCharge: rate?.netCharge ?? 0,
-        currency: rate?.currency ?? 'USD',
-        transitTime: rate?.transitTime ? new Date(rate.transitTime) : new Date(),
-        deliveryDay: rate?.deliveryDay ?? '',
-      },
-      pickup: {
-        ...pickup,
-        label: pickup?.label ?? '',
-        name: pickup?.name ?? '',
-        selectedDate: undefined,
-        time: undefined,
-        date: undefined,
-      },
-    })
-    // D208: the row takes the service the moment it's picked.
-    if (option.id) patchCheckout.mutate({ carrier_service_id: option.id })
-  }
+}) {
+  const patchCheckout = usePatchCheckout('purchase')
+  const selected = rates.find((rate) => rate.selected)
 
   return (
     <RadioGroup
       value={selected?.serviceType ?? ''}
-      onValueChange={handleSelect}
-      options={services}
-      getValue={(option) => option.code}
-      isOptionDisabled={(option) => rateMap.get(option.code)?.netCharge == null}
+      onValueChange={(code) => {
+        const rate = rates.find((r) => r.serviceType === code)
+        if (rate?.carrier_service_id) {
+          patchCheckout.mutate({ carrier_service_id: rate.carrier_service_id })
+        }
+      }}
+      options={rates}
+      getValue={(rate) => rate.serviceType ?? ''}
+      isOptionDisabled={(rate) => rate.netCharge == null || rate.carrier_service_id == null}
       className="flex w-full flex-col gap-3"
     >
-      {(option) => {
-        const rate = rateMap.get(option.code)
-        const Icon = serviceIcon(option.display_order)
+      {(rate) => {
+        const Icon = serviceIcon(rate.display_order)
         return (
           <>
             <div className="flex items-center gap-2">
               <Icon size={24} />
-              <strong>{option.name}</strong>
+              <strong>{rate.name}</strong>
             </div>
             <div className="flex w-full items-center justify-between">
               <small>
-                {rate?.transitTime
+                {rate.transitTime
                   ? formatTimeDiff(new Date(rate.transitTime))
-                  : rate?.deliveryDay
+                  : rate.deliveryDay
                   ? `Arrives ${rate.deliveryDay}`
-                  : 'Getting estimated delivery...'}
+                  : isLoading
+                  ? 'Getting estimated delivery...'
+                  : 'Not available for this parcel'}
               </small>
               <strong>
-                {rate?.netCharge != null ? <PriceNumberFlow value={rate.netCharge} /> : <>&nbsp;</>}
+                {rate.netCharge != null ? <PriceNumberFlow value={rate.netCharge} /> : <>&nbsp;</>}
               </strong>
             </div>
           </>

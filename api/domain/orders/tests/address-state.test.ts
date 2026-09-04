@@ -33,7 +33,7 @@
 import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
-import pool from "#db";
+import pool from "#pool";
 // Both names now come from the one service. `getFromId` returning a LIST and
 // `getAddressFromId` returning a ROW is the distinction this whole file exists
 // to pin, and the restructure kept both - so the pair is still testable, it is

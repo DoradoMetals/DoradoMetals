@@ -17,7 +17,7 @@
 // Report mode prints ids and amounts only - never bank details, never a
 // customer's name (the standing constraint; ids are what an operator needs).
 import "#env";
-import pool from "#db";
+import pool from "#pool";
 import * as orders from "#db/orders/repo.ts";
 import { sweepSettledIntents, sweepAbandoned } from "#domain/payments/sweeps.ts";
 

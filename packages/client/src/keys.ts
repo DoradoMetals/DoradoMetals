@@ -20,4 +20,20 @@ export const keys = {
     // write. It is the same prefix every order-scoped read above begins with.
     scoped: (order_id: string) => ["orders", order_id] as const,
   },
+  checkout: {
+    // ONE ROW PER DIRECTION. The direction is a segment, never baked into a
+    // hook name, so one basket's cache entry can never be served for the
+    // other.
+    row: (direction: string) => ["checkout", direction] as const,
+    items: (direction: string) => ["checkout", "items", direction] as const,
+    // Rates are the carrier's answer about a specific parcel, so the parcel's
+    // facts are the key: a new address or box is a different question, not a
+    // refetch of the old one.
+    rates: (direction: string, address_id?: string | null, package_id?: string | null) =>
+      ["checkout", "rates", direction, address_id ?? null, package_id ?? null] as const,
+  },
+  quotes: {
+    purchase: (body: unknown) => ["quote", "purchase_order", JSON.stringify(body)] as const,
+    sales: (body: unknown) => ["quote", "sales_order", JSON.stringify(body)] as const,
+  },
 } as const;

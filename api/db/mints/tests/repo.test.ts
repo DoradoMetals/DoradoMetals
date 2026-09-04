@@ -6,7 +6,7 @@ import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import type { PoolClient } from "pg";
-import pool from "#db";
+import pool from "#pool";
 import { inRollback } from "#shared/testing/rollback.ts";
 import { mintId } from "#shared/testing/builders/index.ts";
 import * as mints from "#db/mints/repo.ts";

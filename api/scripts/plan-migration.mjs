@@ -22,7 +22,7 @@
 import "#env";
 import fs from "node:fs";
 import path from "node:path";
-import pool from "#db";
+import pool from "#pool";
 
 const FEATURES_DIR = path.join(import.meta.dirname, "..", "features");
 

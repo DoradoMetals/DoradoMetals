@@ -14,6 +14,11 @@ const sql = sqlFrom(import.meta.dirname);
 
 export type ItemRow = CheckoutItem;
 
+export const PATCHABLE = [
+  "bullion_id", "metal_id", "pre_melt", "post_melt", "purity",
+  "content", "unit", "premium", "quantity",
+] as const;
+
 // The lines as order creation needs them - see sql/list_for_order.sql.
 export type OrderLine = Pick<
   ItemRow,
@@ -21,23 +26,12 @@ export type OrderLine = Pick<
   | "content" | "unit" | "premium" | "quantity"
 >;
 
-export type NewItem = {
-  checkout_id: string;
-  bullion_id: string | null;
-  metal_id: string | null;
-  pre_melt?: number | null;
-  post_melt?: number | null;
-  purity?: number | null;
-  content?: number | null;
-  unit?: string | null;
-  premium?: number | null;
-  quantity?: number | null;
-};
-
-export const PATCHABLE = [
-  "bullion_id", "metal_id", "pre_melt", "post_melt", "purity",
-  "content", "unit", "premium", "quantity",
-] as const;
+// A line as create.sql binds it: the session it belongs to, plus the nine
+// value columns. Derived from the row rather than restated - `content` and
+// `premium` are on it because the SERVER computes both (rules.ts), which is
+// exactly why CheckoutItemPatch (the request shape) does not carry them.
+export type NewItem = Pick<CheckoutItem, "checkout_id"> &
+  Partial<Pick<CheckoutItem, (typeof PATCHABLE)[number]>>;
 
 export type ItemPatch = Partial<Pick<ItemRow, (typeof PATCHABLE)[number]>>;
 

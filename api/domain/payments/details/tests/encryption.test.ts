@@ -12,7 +12,7 @@
 import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
-import pool from "#db";
+import pool from "#pool";
 import { LOCKS, takeLocks } from "#shared/testing/locks.ts";
 import { parseKey, seal, open, aadFor, isEnvelope, keyIdOf } from "#shared/crypto/envelope.ts";
 import { randomBytes } from "node:crypto";

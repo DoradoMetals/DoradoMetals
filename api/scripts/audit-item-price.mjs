@@ -41,7 +41,7 @@
 //   node scripts/audit-item-price.mjs --prod    against production
 import "#env";
 import pg from "pg";
-import pool from "#db";
+import pool from "#pool";
 
 const useProd = process.argv.includes("--prod");
 const db = useProd

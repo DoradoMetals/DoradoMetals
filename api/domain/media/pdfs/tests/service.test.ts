@@ -14,7 +14,7 @@
 // Read-only: generating a PDF writes nothing.
 import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
-import pool from "#db";
+import pool from "#pool";
 import * as pdf from "#domain/media/pdfs/service.ts";
 import { closeBrowser } from "#providers/pdfs/puppeteer.ts";
 import * as orderRead from "#domain/orders/read.ts";

@@ -29,7 +29,7 @@ import { test, afterAll } from "vitest";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
 import request from "supertest";
-import pool from "#db";
+import pool from "#pool";
 import { mockSessions, restoreSessions, as, asAdmin } from "#shared/testing/session.ts";
 import { TEST_ACTOR } from "#shared/testing/actor.ts";
 import { inPinnedTransaction } from "#shared/testing/pinned-pool.ts";
@@ -87,6 +87,26 @@ test("basket, row, fulfillment, payout and placement agree on one order's money"
     assert.equal(basket.status, 200, basket.text);
     assert.equal(basket.body.length, 2, "the basket did not keep both lines");
 
+    // ---- WHAT THE STEPPER RENDERS. `missing` walks the steps in order and
+    // the three readiness flags are the server's answer to the three
+    // questions the browser used to answer with a boolean expression over a
+    // zustand store. The address is already on the row: GET /checkout takes
+    // the customer's default one when the column is null.
+    const opened = await as(customer, () =>
+      request(app).get("/api/checkout").query({ direction: "purchase" })
+    );
+    assert.equal(opened.status, 200, opened.text);
+    assert.equal(opened.body.item_count, 2);
+    assert.equal(opened.body.shipper_address_id, address.id, "the default address was not taken");
+    assert.deepEqual(
+      opened.body.missing,
+      ["package", "handoff", "carrier_service", "payout_account"],
+      "missing is not the outstanding steps, in stepper order"
+    );
+    assert.equal(opened.body.ready_for_rates, false, "rates were offered with no package");
+    assert.equal(opened.body.ready_for_payment, false);
+    assert.equal(opened.body.ready_to_place, false);
+
     // ---- the row: package, carrier service, shipper address.
     const patched = await as(customer, () =>
       request(app).patch("/api/checkout").send({
@@ -98,6 +118,10 @@ test("basket, row, fulfillment, payout and placement agree on one order's money"
     );
     assert.equal(patched.status, 200, patched.text);
     const checkout_id: string = patched.body.id;
+    // A package and an address is exactly what the carrier needs to be asked
+    // what the parcel costs - the same three refusals getCheckoutRates raises.
+    assert.equal(patched.body.ready_for_rates, true);
+    assert.deepEqual(patched.body.missing, ["handoff", "payout_account"]);
 
     // ---- the fulfillment: a live draft, attached to the row.
     const fulfillment = await as(customer, () =>
@@ -107,6 +131,13 @@ test("basket, row, fulfillment, payout and placement agree on one order's money"
     );
     assert.equal(fulfillment.status, 200, fulfillment.text);
     assert.ok(fulfillment.body.fulfillment_id, "no draft fulfillment was minted");
+    // A DROPOFF needs no date and no time, so the shipping step is complete
+    // and only the payout account is outstanding.
+    assert.equal(fulfillment.body.requires_schedule, false);
+    assert.equal(fulfillment.body.fulfillment_method_type, "CARRIER DROPOFF");
+    assert.deepEqual(fulfillment.body.missing, ["payout_account"]);
+    assert.equal(fulfillment.body.ready_for_payment, true, "the shipping step never completed");
+    assert.equal(fulfillment.body.ready_to_place, false, "placeable with no payout account");
 
     // ---- the payout: sealed at rest, last-four answered, never the number.
     const payout = await as(customer, () =>
@@ -125,6 +156,9 @@ test("basket, row, fulfillment, payout and placement agree on one order's money"
       JSON.stringify(payout.body).includes("000123456789"), false,
       "the full account number reached the wire"
     );
+    // The last step: the row now answers the question Confirm is disabled on.
+    assert.deepEqual(payout.body.missing, []);
+    assert.equal(payout.body.ready_to_place, true);
 
     // ---- PLACE (domain-level - see header).
     const placed = await place.place(checkout_id, stubWorld());

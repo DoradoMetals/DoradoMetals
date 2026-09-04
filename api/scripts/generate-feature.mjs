@@ -32,7 +32,7 @@
 import "#env";
 import fs from "node:fs";
 import path from "node:path";
-import pool from "#db";
+import pool from "#pool";
 
 const args = process.argv.slice(2);
 const target = args.find((a) => !a.startsWith("--"));

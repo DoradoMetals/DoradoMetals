@@ -1,99 +1,97 @@
-import { useMutation } from '@tanstack/react-query'
-import type { CheckoutItem, Direction } from '@dorado/contracts'
-import { apiRequest } from '@/shared/queries/axios'
+'use client'
+
+// THE BASKET, WHICH IS SERVER STATE THE MOMENT SOMEBODY SIGNS IN.
+//
+// `@dorado/client` owns every call; this file owns the ONE thing it cannot:
+// a signed-out visitor has no `checkout.items` row, because the endpoint is
+// `requireUser`. So the zustand store below is the ANONYMOUS basket and
+// nothing else - a signed-in surface reads `useBasket`, which answers the
+// server's rows, and every add/remove is a PUT from the handler that made it.
+//
+// No effect syncs the two. Sign-in merges once (`hydrateCheckoutItems`, called
+// from the auth flow's own success handler), and after that the server is the
+// only copy a checkout surface renders.
+import type { Direction } from '@dorado/contracts'
+import {
+  fetchCheckoutItems,
+  useCheckoutItems as useServerCheckoutItems,
+  useClearCheckoutItems as useClearServerItems,
+  useReplaceCheckoutItems as useReplaceServerItems,
+} from '@dorado/client'
 import { useUser } from '@/features/auth/authClient'
-import { useCheckoutItems } from '@/shared/store/checkoutItemsStore'
+import { useCheckoutItems as useLocalBasket } from '@/shared/store/checkoutItemsStore'
 import { lineFromRow, toNewCheckoutItem, type CheckoutLine } from '@/features/checkout/items/types'
 
-// The basket's whole server surface (ruling 50). PUT replaces - it IS the
-// sync - and answers the rows now held. `user_id` is admin-only and names the
-// customer an admin is ordering for.
-
-// A top-level read, not a post-success effect (browser-triggered-effects.test.ts
-// ALLOWED list) - hydration at sign-in, its own try/catch: a basket that will
-// not hydrate keeps the local copy.
-export const listCheckoutItems = async (direction: Direction, user_id?: string) => {
-  const rows = await apiRequest<CheckoutItem[]>('GET', '/checkout/items', undefined, {
-    direction,
-    ...(user_id ? { user_id } : {}),
-  })
-  return rows.map(lineFromRow)
-}
-
-// Sign-in: the server's copy wins, browser-only lines survive.
+// Sign-in: the server's copy wins, browser-only lines survive. A top-level
+// read, not a post-success effect - the auth flow calls it from its own
+// handler, and a basket that will not hydrate keeps the local copy.
 export const hydrateCheckoutItems = async () => {
   for (const direction of ['sale', 'purchase'] as const) {
-    try {
-      useCheckoutItems.getState().merge(direction, await listCheckoutItems(direction))
-    } catch (err) {
-      console.error(`checkout items (${direction}) did not hydrate:`, err)
-    }
+    const rows = await fetchCheckoutItems(direction).catch(() => null)
+    if (rows) useLocalBasket.getState().merge(direction, rows.map(lineFromRow))
   }
 }
 
-// THE BASKET'S WRITE SURFACE, AS MUTATIONS. A PUT/DELETE fires from the
-// handler that changed the value - an add, a remove, an order just placed -
-// never from an effect (browser-triggered-effects.test.ts: a mutation lives
-// in `mutationFn`, called from a handler, not chained after one already
-// succeeded and not fired by a background timer). `user_id` rides the
-// mutation's own variables, not the hook's arguments, because the admin
-// create flow only learns WHICH customer at call time.
+// WHAT A CHECKOUT SURFACE RENDERS. Signed in: the server's rows, which carry
+// the content, the premium and the snapshot the API took at PUT time. Signed
+// out: the local basket, which is all there is.
+export const useBasket = (direction: Direction): CheckoutLine[] => {
+  const { user } = useUser()
+  const local = useLocalBasket((state) => state[direction])
+  const { data: rows } = useServerCheckoutItems(direction, { enabled: !!user?.id })
+  return user?.id ? (rows ?? []).map(lineFromRow) : local
+}
+
 export const useReplaceCheckoutItems = (direction: Direction) => {
   const { user } = useUser()
-  return useMutation({
-    mutationFn: async ({ lines, user_id }: { lines: CheckoutLine[]; user_id?: string }) => {
-      if (!user?.id) throw new Error('User is not authenticated')
-      const rows = await apiRequest<CheckoutItem[]>(
-        'PUT',
-        '/checkout/items',
-        { items: lines.map(toNewCheckoutItem) },
-        { direction, ...(user_id ? { user_id } : {}) }
-      )
-      return rows.map(lineFromRow)
+  const mutation = useReplaceServerItems(direction)
+  return {
+    ...mutation,
+    mutate: (vars: { lines: CheckoutLine[]; user_id?: string }) => {
+      if (!user?.id) return
+      mutation.mutate({ items: vars.lines.map(toNewCheckoutItem), user_id: vars.user_id })
     },
-    onSuccess: (rows, { user_id }) => {
-      // An admin syncing a NAMED customer's basket must not overwrite the
-      // caller's own local copy with someone else's rows.
-      if (!user_id) useCheckoutItems.getState().setItems(direction, rows)
-    },
-  })
-}
-
-// Emptying the basket server-side, fired from the same handler that clears
-// it locally - an order just placed, nothing left to hold.
-export const useClearCheckoutItems = (direction: Direction) => {
-  const { user } = useUser()
-  return useMutation({
-    mutationFn: async () => {
+    mutateAsync: async (vars: { lines: CheckoutLine[]; user_id?: string }) => {
       if (!user?.id) throw new Error('User is not authenticated')
-      return await apiRequest<{ removed: number }>('DELETE', '/checkout/items', undefined, {
-        direction,
+      return await mutation.mutateAsync({
+        items: vars.lines.map(toNewCheckoutItem),
+        user_id: vars.user_id,
       })
     },
-  })
+  }
 }
 
-// ONE HOOK, BOTH DIRECTIONS: every add/remove call site already names its
-// own direction per line, so this keeps that shape - a call site swaps the
-// store's own setters for these and the write reaches the server from the
-// same click that changed the local copy.
+export const useClearCheckoutItems = (direction: Direction) => useClearServerItems(direction)
+
+// ONE HOOK, BOTH DIRECTIONS, called from the click that changed the basket -
+// a product card's add button, a scrap declaration's remove. The local copy
+// moves first so an anonymous visitor sees the change; a signed-in one PUTs
+// the whole basket, and the answer replaces the query cache.
 export const useCheckoutItemActions = () => {
-  const syncSale = useReplaceCheckoutItems('sale')
-  const syncPurchase = useReplaceCheckoutItems('purchase')
+  const { user } = useUser()
+  const syncSale = useReplaceServerItems('sale')
+  const syncPurchase = useReplaceServerItems('purchase')
   const syncFor = (direction: Direction) => (direction === 'sale' ? syncSale : syncPurchase)
 
-  const addItem = (direction: Direction, line: CheckoutLine) => {
-    useCheckoutItems.getState().addItem(direction, line)
-    syncFor(direction).mutate({ lines: useCheckoutItems.getState()[direction] })
-  }
-  const removeOne = (direction: Direction, line: CheckoutLine) => {
-    useCheckoutItems.getState().removeOne(direction, line)
-    syncFor(direction).mutate({ lines: useCheckoutItems.getState()[direction] })
-  }
-  const removeAll = (direction: Direction, line: CheckoutLine) => {
-    useCheckoutItems.getState().removeAll(direction, line)
-    syncFor(direction).mutate({ lines: useCheckoutItems.getState()[direction] })
+  const push = (direction: Direction) => {
+    if (!user?.id) return
+    syncFor(direction).mutate({
+      items: useLocalBasket.getState()[direction].map(toNewCheckoutItem),
+    })
   }
 
-  return { addItem, removeOne, removeAll }
+  return {
+    addItem: (direction: Direction, line: CheckoutLine) => {
+      useLocalBasket.getState().addItem(direction, line)
+      push(direction)
+    },
+    removeOne: (direction: Direction, line: CheckoutLine) => {
+      useLocalBasket.getState().removeOne(direction, line)
+      push(direction)
+    },
+    removeAll: (direction: Direction, line: CheckoutLine) => {
+      useLocalBasket.getState().removeAll(direction, line)
+      push(direction)
+    },
+  }
 }

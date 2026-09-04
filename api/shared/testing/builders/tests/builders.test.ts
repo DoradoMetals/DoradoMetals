@@ -12,7 +12,7 @@
 import { test, afterAll } from "vitest";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
-import pool from "#db";
+import pool from "#pool";
 import { inRollback } from "#shared/testing/rollback.ts";
 import { LOCKS } from "#shared/testing/locks.ts";
 import { TEST_ACTOR, actingAs } from "#shared/testing/actor.ts";

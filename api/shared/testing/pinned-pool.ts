@@ -2,7 +2,7 @@
 // Fix: pool.connect()/pool.query() are replaced for the test's duration with ones that always hand back the same client, inside a transaction rolled back at the end. Works only because lint:db enforces one place (the shared executor) to intercept — a repo reaching for its own connection would write straight through this.
 // Cannot cover better-auth: it builds its OWN Pool (features/auth/client.ts) and never sees this transaction — a session must be really committed for a guarded endpoint to answer, which is why session.ts commits a user/session but nothing about an order.
 // withTransaction still works while pinned: its BEGIN/COMMIT are rewritten to SAVEPOINTs (a nested COMMIT would otherwise end the outer transaction early and defeat the whole thing).
-import pool from "#db";
+import pool from "#pool";
 import { takeLocks } from "#shared/testing/locks.ts";
 import { TEST_ACTOR, actingAs } from "#shared/testing/actor.ts";
 import type { PoolClient, QueryResult } from "pg";

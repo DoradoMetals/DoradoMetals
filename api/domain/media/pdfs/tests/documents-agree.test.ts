@@ -17,7 +17,7 @@
 import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
-import pool from "#db";
+import pool from "#pool";
 import * as orderRead from "#domain/orders/read.ts";
 import * as inputs from "#domain/media/pdfs/order-inputs.ts";
 import { scrapLines } from "#domain/pricing/service.ts";

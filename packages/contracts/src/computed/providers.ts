@@ -108,3 +108,18 @@ export const CarrierRateQuote = z.object({
   serviceDescription: z.string().nullable(),
 });
 export type CarrierRateQuote = z.infer<typeof CarrierRateQuote>;
+
+// GET /api/checkout/rates?direction= - the carrier's quote for the parcel the
+// caller's checkout row describes, JOINED to the service catalogue server-side
+// (this lane). The browser used to hold both lists and pair them by `code`,
+// which is a join, so it is the server's; `carrier_service_id` is the id a
+// PATCH sends back and `selected` is what the row already holds.
+export const CheckoutRate = CarrierRateQuote.extend({
+  carrier_service_id: z.string().uuid().nullable(),
+  name: z.string(),
+  carrier_code: z.string(),
+  display_order: z.number(),
+  max_insured_value: z.number(),
+  selected: z.boolean(),
+});
+export type CheckoutRate = z.infer<typeof CheckoutRate>;

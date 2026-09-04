@@ -22,7 +22,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import pg from "pg";
-import pool from "#db";
+import pool from "#pool";
 
 const ROOT = path.resolve(new URL("..", import.meta.url).pathname, "..");
 const FRONTEND = process.env.FE_NULL_FRONTEND_DIR ?? path.join(ROOT, "frontend");

@@ -26,7 +26,7 @@
 import "#env";
 import fs from "node:fs";
 import path from "node:path";
-import pool from "#db";
+import pool from "#pool";
 
 const SCHEMAS = [
   "auth", "fulfillments", "leads", "media", "metals", "orders",

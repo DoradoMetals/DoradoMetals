@@ -19,7 +19,7 @@
 // held for the file: a rolled-back transaction leaves the connection clean, so
 // there is nothing to gain from keeping it, and a per-call checkout means a
 // file's `beforeAll`/`afterAll` no longer has to own one.
-import pool from "#db";
+import pool from "#pool";
 import { takeLocks } from "#shared/testing/locks.ts";
 import { TEST_ACTOR, actingAs } from "#shared/testing/actor.ts";
 import type { PoolClient } from "pg";

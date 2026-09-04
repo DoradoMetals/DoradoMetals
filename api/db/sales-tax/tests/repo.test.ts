@@ -14,7 +14,7 @@
 import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
-import pool from "#db";
+import pool from "#pool";
 import query from "#shared/db/query.ts";
 import { inRollback } from "#shared/testing/rollback.ts";
 import * as salesTax from "#db/sales-tax/repo.ts";

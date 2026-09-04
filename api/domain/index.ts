@@ -1,0 +1,48 @@
+// One flat module per WORKFLOW, so a use case that spans several of them names
+// each once instead of carrying nine deep paths. Same idea as `#db`'s table
+// barrel, one layer up: `import { rates, spots, products } from "#domain"`.
+//
+// A service that needs ONE sibling still imports it by path - the barrel earns
+// its keep only where a file reaches for several, which is what a use case
+// does and a repo never does.
+export * as checkout from "#domain/checkout/service.ts";
+export * as fulfillments from "#domain/fulfillments/service.ts";
+export * as fulfillmentMethods from "#domain/fulfillments/methods/service.ts";
+export * as fulfillmentPickups from "#domain/fulfillments/pickups/service.ts";
+export * as fulfillmentDirects from "#domain/fulfillments/directs/service.ts";
+export * as fulfillmentShipments from "#domain/fulfillments/shipments/service.ts";
+export * as leads from "#domain/leads/service.ts";
+export * as emails from "#domain/media/emails/service.ts";
+export * as images from "#domain/media/images/service.ts";
+export * as pdfs from "#domain/media/pdfs/service.ts";
+export * as mints from "#domain/mints/service.ts";
+export * as orders from "#domain/orders/service.ts";
+export * as orderAddresses from "#domain/orders/addresses/service.ts";
+export * as orderSpots from "#domain/orders/spots/service.ts";
+export * as orderTransactions from "#domain/orders/transactions/service.ts";
+export * as payments from "#domain/payments/service.ts";
+export * as paymentDetails from "#domain/payments/details/service.ts";
+export * as paymentMethods from "#domain/payments/methods/service.ts";
+export * as payouts from "#domain/payouts/service.ts";
+export * as addresses from "#domain/places/addresses/service.ts";
+export * as pricing from "#domain/pricing/service.ts";
+export * as products from "#domain/products/service.ts";
+export * as quotes from "#domain/quotes/service.ts";
+export * as rates from "#domain/rates/service.ts";
+export * as refiners from "#domain/refiners/service.ts";
+export * as refinerItems from "#domain/refiners/items/service.ts";
+export * as refinerOrders from "#domain/refiners/orders/service.ts";
+export * as refinerSpots from "#domain/refiners/spots/service.ts";
+export * as reviews from "#domain/reviews/service.ts";
+export * as salesTax from "#domain/sales-tax/service.ts";
+export * as carriers from "#domain/shipping/carriers/service.ts";
+export * as handoffs from "#domain/shipping/handoffs/service.ts";
+export * as shippingOperations from "#domain/shipping/operations/service.ts";
+export * as packages from "#domain/shipping/packages/service.ts";
+export * as shippingPickups from "#domain/shipping/pickups/service.ts";
+export * as carrierServices from "#domain/shipping/services/service.ts";
+export * as shipments from "#domain/shipping/shipments/service.ts";
+export * as tracking from "#domain/shipping/tracking/service.ts";
+export * as spots from "#domain/spots/service.ts";
+export * as transactions from "#domain/transactions/service.ts";
+export * as users from "#domain/users/service.ts";

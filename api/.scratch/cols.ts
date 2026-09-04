@@ -1,6 +1,6 @@
 process.env.USE_TEST_DB = "1";
 process.env.NODE_ENV = "test";
-const { default: pool } = await import("#db");
+const { default: pool } = await import("#pool");
 const tables = process.argv.slice(2);
 for (const t of tables) {
   const [schema, table] = t.split(".");

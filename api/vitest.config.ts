@@ -34,8 +34,9 @@ if (process.env.TEST_DATABASE) sharedEnv.TEST_DATABASE = process.env.TEST_DATABA
 // the redesign doc's own prototype hit this ("subpath imports resolved by
 // resolve.alias"). Exact (`#env`, `#db`, `#app`) and wildcard (`#db/*`, ...)
 // entries need separate, anchored regexes: `#db` and `#db/*` point at
-// DIFFERENT targets (db.ts vs the db/ directory), and a plain string alias
-// would prefix-match both onto the same one.
+// DIFFERENT targets (db/index.ts, the table barrel, vs the db/ directory), and
+// a plain string alias would prefix-match both onto the same one. `#pool` is
+// the pg pool itself.
 const exact = (specifier: string, target: string) => ({
   find: new RegExp(`^${specifier}$`),
   replacement: path.resolve(ROOT, target),
@@ -47,8 +48,10 @@ const wildcard = (prefix: string, dir: string) => ({
 
 const alias = [
   exact("#env", "env.ts"),
-  exact("#db", "db.ts"),
+  exact("#db", "db/index.ts"),
+  exact("#pool", "db.ts"),
   exact("#app", "app.ts"),
+  exact("#domain", "domain/index.ts"),
   wildcard("#shared", "shared"),
   wildcard("#providers", "providers"),
   wildcard("#db", "db"),

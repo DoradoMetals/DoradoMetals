@@ -2,7 +2,7 @@
 // Not a test of the matcher's opinions (it has none) — just that two implementations of the same seven-way ranking pick the same rule.
 import { test, afterAll } from "vitest";
 import assert from "node:assert/strict";
-import pool from "#db";
+import pool from "#pool";
 import query from "#shared/db/query.ts";
 import * as repo from "#db/sales-tax/repo.ts";
 import { rateFor, type TaxableFacts } from "#domain/sales-tax/match.ts";

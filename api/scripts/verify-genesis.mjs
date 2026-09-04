@@ -19,7 +19,7 @@ import "#env";
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
-import pool from "#db";
+import pool from "#pool";
 
 const PREFIX = "zz_genesis_";
 const SCHEMAS = [

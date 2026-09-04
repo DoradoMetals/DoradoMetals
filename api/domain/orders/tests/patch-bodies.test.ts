@@ -43,7 +43,7 @@
 // call anywhere in this file - every check below asserts a schema directly.
 import { test, afterAll } from "vitest";
 import assert from "node:assert/strict";
-import pool from "#db";
+import pool from "#pool";
 import { OrderItemPatch, OrderPatch, PayoutPatch, RefinerItemPatch, RefinerOrderPatch, ShipmentPatch } from "@dorado/contracts";
 
 afterAll(async () => {

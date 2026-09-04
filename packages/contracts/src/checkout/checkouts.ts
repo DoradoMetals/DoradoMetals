@@ -83,3 +83,40 @@ export type CheckoutPayoutForm = z.infer<typeof CheckoutPayoutForm>;
 export const CheckoutPayoutBody = CheckoutPayoutForm.extend({ direction: Direction }).strict();
 export type CheckoutPayoutBody = z.infer<typeof CheckoutPayoutBody>;
 
+
+// WHAT THE CUSTOMER HAS NOT CHOSEN YET. The stepper renders this list; it does
+// not compute it. Every label is a column of the row or a fact about its draft
+// fulfillment, so a step the server stops requiring disappears from the UI
+// without a frontend edit.
+export const CheckoutStep = z.enum([
+  "items",
+  "shipper_address",
+  "recipient_address",
+  "package",
+  "carrier_service",
+  "handoff",
+  "pickup_schedule",
+  "payout_account",
+  "payment_method",
+]);
+export type CheckoutStep = z.infer<typeof CheckoutStep>;
+
+// THE COMPOSED ROW, and the only checkout shape that crosses the wire.
+// The columns are the customer's recorded choices; everything added here is
+// the SERVER'S answer to a question the browser used to answer for itself -
+// which step is complete, whether the carrier can be asked for rates yet,
+// whether the order may be placed. See docs/waves/checkout-feature.md.
+export const CheckoutView = Checkout.extend({
+  // The draft fulfillment's method, resolved back to the vocabulary the
+  // stepper renders: the handoff CODE it offered and whether that handoff
+  // needs a date and a time.
+  fulfillment_method_type: z.string().nullable(),
+  handoff_code: z.string().nullable(),
+  requires_schedule: z.boolean(),
+  item_count: z.number().int(),
+  missing: z.array(CheckoutStep),
+  ready_for_rates: z.boolean(),
+  ready_for_payment: z.boolean(),
+  ready_to_place: z.boolean(),
+});
+export type CheckoutView = z.infer<typeof CheckoutView>;

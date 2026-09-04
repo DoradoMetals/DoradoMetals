@@ -7,7 +7,7 @@
 import { test, afterAll } from "vitest";
 import assert from "node:assert/strict";
 import request from "supertest";
-import pool from "#db";
+import pool from "#pool";
 import { mockSessions, restoreSessions, asAdmin, as } from "#shared/testing/session.ts";
 import { inPinnedTransaction } from "#shared/testing/pinned-pool.ts";
 import { aUser, anAdmin, aTag } from "#shared/testing/builders/index.ts";

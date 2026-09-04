@@ -4,7 +4,7 @@ import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
 import { randomUUID } from "node:crypto";
-import pool from "#db";
+import pool from "#pool";
 // MOVED FROM features/transactions: addFunds and removeFunds write
 // auth.users.dorado_funds, and features/users owns that table - two services
 // writing one table is the thing the structure forbids.

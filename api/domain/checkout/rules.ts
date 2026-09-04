@@ -3,7 +3,9 @@ import { Invalid } from "#shared/errors.ts";
 import { fineContent } from "#domain/pricing/content.ts";
 import { getRatePct, sumContentByMetal } from "#domain/rates/utils/resolveRate.ts";
 import { lineContent, rateMaterialFor } from "#domain/orders/rules.ts";
-import type { CheckoutItemPatch, Direction, RateRead } from "@dorado/contracts";
+import type {
+  CarrierHandoff, Checkout, CheckoutItemPatch, CheckoutStep, Direction, RateRead,
+} from "@dorado/contracts";
 import type { NewItem } from "#db/checkout/items/repo.ts";
 import type { Liveness, PublicProductRow } from "#db/products/repo.ts";
 
@@ -118,7 +120,7 @@ function premiums(
     lineContent({
       content: s.row.content ?? null,
       quantity: s.row.quantity ?? null,
-      bullion_id: s.row.bullion_id,
+      bullion_id: s.row.bullion_id ?? null,
     })
   );
   return snapshots.map(({ row, metal }) => {
@@ -140,4 +142,86 @@ export function basketRows(
   );
   const resolved = premiums(snapshots, direction, rates, byId);
   return snapshots.map(({ row }, i) => Object.assign(row, { premium: resolved[i] }));
+}
+
+// ------------------------------------------------------- the stepper's rules
+//
+// EVERY "CAN I PROCEED" QUESTION THE BROWSER USED TO ANSWER. The stepper had
+// them as a boolean expression over a zustand store; they are here, pure, and
+// they reach the client as fields of the composed row.
+
+// The one place the two vocabularies meet: a carrier HANDOFF (what the
+// customer picks) and a fulfillment METHOD (what the row stores). Read in both
+// directions so the choice and its read-back cannot drift.
+export const methodTypeFor = (handoff: CarrierHandoff): string =>
+  handoff.requires_schedule ? "CARRIER PICKUP" : "CARRIER DROPOFF";
+
+export const handoffFor = (
+  handoffs: CarrierHandoff[], method_type: string | null
+): CarrierHandoff | null =>
+  method_type == null
+    ? null
+    : handoffs.find((h) => methodTypeFor(h) === method_type) ?? null;
+
+export type CheckoutFacts = {
+  row: Checkout;
+  direction: Direction;
+  item_count: number;
+  requires_schedule: boolean;
+  has_fulfillment: boolean;
+};
+
+export type CheckoutState = {
+  missing: CheckoutStep[];
+  ready_for_rates: boolean;
+  ready_for_payment: boolean;
+  ready_to_place: boolean;
+};
+
+// The address slot a direction ships from or to. Purchase parcels leave the
+// customer; sale parcels arrive at them.
+export const addressColumnFor = (direction: Direction) =>
+  direction === "purchase" ? "shipper_address_id" : "recipient_address_id";
+
+// `missing` is ordered the way the stepper walks it, so the first entry is the
+// next thing to do.
+export function checkoutState(
+  { row, direction, item_count, requires_schedule, has_fulfillment }: CheckoutFacts
+): CheckoutState {
+  const missing: CheckoutStep[] = [];
+  if (item_count === 0) missing.push("items");
+
+  if (direction === "purchase") {
+    if (!row.shipper_address_id) missing.push("shipper_address");
+    if (!row.package_id) missing.push("package");
+    if (!has_fulfillment) missing.push("handoff");
+    if (!row.carrier_service_id) missing.push("carrier_service");
+    if (requires_schedule && !(row.pickup_date && row.pickup_time)) {
+      missing.push("pickup_schedule");
+    }
+    if (!row.payment_details_id) missing.push("payout_account");
+  } else {
+    if (!row.recipient_address_id) missing.push("recipient_address");
+    if (!row.carrier_service_id) missing.push("carrier_service");
+    if (!row.payment_method_id) missing.push("payment_method");
+  }
+
+  // The carrier is asked what a parcel costs, so it needs the parcel: lines to
+  // weigh, a box to weigh them in, and somewhere to collect them from. Exactly
+  // the three refusals shipping/operations' getCheckoutRates raises.
+  const address = direction === "purchase" ? row.shipper_address_id : row.recipient_address_id;
+  const ready_for_rates = item_count > 0 && !!row.package_id && !!address;
+
+  // The money step is reached once everything BEFORE it is chosen: for a
+  // purchase that is the whole shipping step, for a sale everything but the
+  // card.
+  const paymentStep: CheckoutStep = direction === "purchase" ? "payout_account" : "payment_method";
+  const ready_for_payment = missing.every((step) => step === paymentStep);
+
+  return {
+    missing,
+    ready_for_rates,
+    ready_for_payment,
+    ready_to_place: missing.length === 0,
+  };
 }

@@ -1,58 +1,30 @@
 'use client'
 
+import { useState } from 'react'
 import { RadioGroup } from '@/shared/ui/RadioGroup'
 import { Switch } from '@dorado/components'
-
-import { usePurchaseOrderCheckoutStore } from '@/shared/store/purchaseOrderCheckoutStore'
-import { useMemo } from 'react'
-import {
-  useOfferedPackages,
-  usePatchPurchaseCheckout,
-  OfferedPackage,
-} from '@/features/checkout/queries'
 import { Inbox, Package2, Package as PackageIcon } from 'lucide-react'
+import type { CheckoutView, Package } from '@dorado/contracts'
+import { useOfferedPackages, usePatchCheckout } from '@/features/checkout/queries'
 
 // The one thing that stays client-side (Jacob's standing call): a picture.
 // Sized by the row's own minimum weight, so a fourth box needs no edit here.
-const iconFor = (pkg: OfferedPackage) => {
+const iconFor = (pkg: Package) => {
   const w = Number(pkg.min_weight_lb ?? 0)
   return w <= 2 ? Inbox : w <= 8 ? Package2 : PackageIcon
 }
 
-// RULING 58 (Jacob): "We don't care about packaging weight on the frontend.
-// Why would it live here?" The box's weight and dimensions are the server's -
-// this stores and sends the id, nothing else. The toggle below is local UI
-// state filtering the offered list by is_carrier_packaging; it computes
-// nothing and is never sent.
-export function PackageSelector() {
-  const selectedPackage = usePurchaseOrderCheckoutStore((state) => state.data.package)
-  const fedexPackageToggle = usePurchaseOrderCheckoutStore((state) => state.data.fedexPackageToggle)
-  const setData = usePurchaseOrderCheckoutStore((state) => state.setData)
-  const patchCheckout = usePatchPurchaseCheckout()
-
-  // The boxes are rows now (D208/112) - packageOptions, the hardcoded record
-  // that duplicated shipping.packages while nothing served it, is gone.
+// RULING 58: the box's weight and dimensions are the server's - this sends the
+// id and nothing else. The FedEx-packaging switch is local component state: it
+// filters the offered list and is never sent, so it is not a store field and
+// certainly not a column.
+export function PackageSelector({ row }: { row?: CheckoutView }) {
+  const [carrierPackaging, setCarrierPackaging] = useState(false)
   const { data: offered = [] } = useOfferedPackages()
-  const filteredOptions = useMemo(() => {
-    return offered.filter((pkg) => pkg.is_carrier_packaging === fedexPackageToggle)
-  }, [offered, fedexPackageToggle])
+  const patchCheckout = usePatchCheckout('purchase')
 
-  const handleFedExToggle = (checked: boolean) => {
-    setData({
-      fedexPackageToggle: checked,
-      package: undefined,
-    })
-  }
-
-  const handleChange = (label: string) => {
-    const selected = offered.find((p) => p.label === label)
-    if (!selected) return
-    setData({
-      package: { id: selected.id, label: selected.label },
-    })
-    // D208: the row takes the id the moment it's picked, not at "Go to Payment".
-    patchCheckout.mutate({ package_id: selected.id })
-  }
+  const options = offered.filter((pkg) => pkg.is_carrier_packaging === carrierPackaging)
+  const selected = offered.find((pkg) => pkg.id === row?.package_id)
 
   return (
     <div className="space-y-2">
@@ -60,13 +32,17 @@ export function PackageSelector() {
 
       <div className="flex items-center justify-end gap-2 mb-4">
         <p>Use FedEx Packaging?</p>
-        <Switch checked={fedexPackageToggle} onCheckedChange={handleFedExToggle} />
+        <Switch checked={carrierPackaging} onCheckedChange={setCarrierPackaging} />
       </div>
 
       <RadioGroup
-        value={selectedPackage?.label ?? ''}
-        onValueChange={handleChange}
-        options={filteredOptions}
+        value={selected?.label ?? ''}
+        onValueChange={(label) => {
+          const pkg = offered.find((p) => p.label === label)
+          // D208: the row takes the id the moment it is picked.
+          if (pkg) patchCheckout.mutate({ package_id: pkg.id })
+        }}
+        options={options}
         getValue={(pkg) => pkg.label}
         variant="tile"
         className="flex w-full items-stretch justify-between gap-2"
