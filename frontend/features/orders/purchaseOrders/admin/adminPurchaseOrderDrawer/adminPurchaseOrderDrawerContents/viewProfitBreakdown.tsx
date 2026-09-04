@@ -70,7 +70,7 @@ export default function ProfitBreakdown({ order }: { order: PurchaseOrder }) {
   if (!totals || availableBuckets.length === 0) {
     return (
       <div className="flex w-full h-full">
-        <div className="text-muted-foreground">No items to display.</div>
+        <p>No items to display.</p>
       </div>
     )
   }

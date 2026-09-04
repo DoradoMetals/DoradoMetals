@@ -69,7 +69,7 @@ export function PreTransit({
   return (
     <div className="flex flex-col w-full gap-5">
       <div className="flex w-full justify-between items-center">
-        <h3>Package Not Yet Scanned</h3>
+        <h2>Package Not Yet Scanned</h2>
         {carrierPickup?.confirmation_number && carrierPickup?.requested_at && (
           <Button
             variant="tertiary"

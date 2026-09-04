@@ -26,11 +26,11 @@ export function OrderCardShell({
   statusLabel,
   StatusIcon,
   statusIconClassName = 'text-primary',
-  statusTextClassName = 'text-h4 text-foreground',
+  statusTextClassName,
   total,
-  totalTextClassName = 'text-h4 text-foreground',
+  totalTextClassName,
   secondaryInfo,
-  secondaryTextClassName = 'text-small text-subtle',
+  secondaryTextClassName,
   rightContent,
   downloadArea,
   onOpen,
@@ -68,17 +68,17 @@ export function OrderCardShell({
         <div className="flex items-start justify-between w-full gap-4">
           <div className="flex items-center gap-2">
             {StatusIcon && <StatusIcon size={24} className={statusIconClassName} />}
-            <span className={statusTextClassName}>{statusLabel}</span>
+            <strong className={cn('stat-sm', statusTextClassName)}>{statusLabel}</strong>
           </div>
 
           <div className="flex flex-col items-end gap-1">
-            <div className={totalTextClassName}>
+            <strong className={cn('stat-sm', totalTextClassName)}>
               <PriceNumberFlow value={total} />
-            </div>
+            </strong>
             {secondaryInfo && (
-              <div className={secondaryTextClassName}>
+              <small data-emphasis="subtle" className={secondaryTextClassName}>
                 {secondaryInfo}
-              </div>
+              </small>
             )}
           </div>
         </div>

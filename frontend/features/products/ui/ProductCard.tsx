@@ -297,7 +297,7 @@ export default function ProductCard({ product, variants, unitPrices }: ProductCa
               </div>
 
               <div className="flex flex-col items-end gap-1 ml-auto my-0">
-                <strong>
+                <strong className="stat-sm">
                   <PriceNumberFlow value={price} />
                 </strong>
               </div>

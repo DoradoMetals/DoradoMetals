@@ -72,7 +72,6 @@ export default function PurchaseOrdersPage() {
         formatValue: (value) => usersById.get(String(value)) ?? '',
         align: 'center',
         enableHiding: false,
-        textClassName: 'text-micro sm:text-small text-foreground',
         size: 160,
       }),
 

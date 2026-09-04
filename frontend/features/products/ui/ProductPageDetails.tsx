@@ -217,15 +217,15 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
             <div className="flex w-full justify-between items-center">
               <div className="flex flex-col items-start gap-0">
                 <small>Price:</small>
-                <h3>
+                <strong className="stat-sm">
                   <PriceNumberFlow value={price} />
-                </h3>
+                </strong>
               </div>
               <div className="flex flex-col items-start gap-0">
                 <small>Buyback:</small>
-                <h3>
+                <strong className="stat-sm">
                   <PriceNumberFlow value={buybackPrice} />
-                </h3>
+                </strong>
               </div>
             </div>
           </div>
@@ -437,15 +437,15 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
           <div className="flex w-full justify-between items-center">
             <div className="flex flex-col items-start gap-0">
               <small>Price:</small>
-              <h3>
+              <strong className="stat-sm">
                 <PriceNumberFlow value={price} />
-              </h3>
+              </strong>
             </div>
             <div className="flex flex-col items-start gap-0">
               <small>Buyback:</small>
-              <h3>
+              <strong className="stat-sm">
                 <PriceNumberFlow value={buybackPrice} />
-              </h3>
+              </strong>
             </div>
           </div>
         </div>

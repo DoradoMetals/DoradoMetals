@@ -117,7 +117,7 @@ export default function RefinerValues({ order }: { order: PurchaseOrder }) {
                 className="flex items-center justify-between w-full items-center px-3 py-2"
               >
                 <div className="truncate">
-                  <span className="text-foreground">{label}</span>
+                  <span>{label}</span>
                 </div>
 
                 <div className="flex items-center gap-1">

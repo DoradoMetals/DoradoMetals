@@ -79,9 +79,9 @@ export default function BullionCard({ product, variants, unitPrices }: BullionCa
             </div>
             <div className="flex items-end h-full mt-auto">
               <div className="flex items-baseline gap-1">
-                <h3>
+                <strong className="stat-sm">
                   <PriceNumberFlow value={price} />
-                </h3>
+                </strong>
                 <small>per unit</small>
               </div>
             </div>

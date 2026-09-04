@@ -45,8 +45,8 @@ export function PurchaseOrdersContent() {
 
   if (isLoading) {
     return (
-      <div className="h-[300px] flex items-center justify-center text-muted-foreground">
-        Loading orders...
+      <div className="h-[300px] flex items-center justify-center">
+        <p>Loading orders...</p>
       </div>
     )
   }
