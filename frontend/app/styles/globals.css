@@ -2,12 +2,6 @@
 @source '../../../packages/components/src';
 @plugin "tailwindcss-animate";
 
-/* The tokens and the type ramp live in packages/theme now - one package, so
-   the design system's CSS half is importable anywhere the components package
-   goes. base.css stays here: document chrome is the app's, not the theme's. */
 @import '@dorado/theme/theme.css';
-@import './base.css';
+@import '@dorado/theme/base.css';
 @import '@dorado/theme/typography.css';
-@import './components.css';
-@import './drawer.css';
-@import './icons.css';
