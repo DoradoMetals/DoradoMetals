@@ -123,14 +123,13 @@ export function useSaveCheckoutPayout(
 
 // --------------------------------------------------------------- the basket
 
-// A ONE-SHOT READ, outside react-query: sign-in merges the server's basket
-// into whatever the browser was holding, and that happens in an auth handler
-// rather than in a component.
-export function fetchCheckoutItems(
-  direction: Direction, subject?: Subject
-): Promise<CheckoutItem[]> {
-  return apiRequest<CheckoutItem[]>("GET", "/checkout/items", undefined, scope(direction, subject));
-}
+// `fetchCheckoutItems` used to live here as a one-shot read for a sign-in
+// merge. Ruling 63 removed that merge entirely - a visitor gets an anonymous
+// better-auth user on the first basket touch, so there is one copy of the
+// basket, the server's, and signing in moves it server-side
+// (`domain/checkout/adopt.ts`). Nothing ever called this export; deleted
+// rather than kept "just in case" (frontend/features/checkout/items/queries.ts
+// carries the same before/after note).
 
 export function useCheckoutItems(
   direction: Direction, options: ReadOptions & Subject = {}
