@@ -14,7 +14,7 @@ export {
 } from "./button/Button";
 export { Link, linkVariants, type LinkProps } from "./link/Link";
 export { Upload, type UploadProps, type UploadError } from "./upload/Upload";
-export { fieldTrigger, fieldPanel, fieldOption, FieldLabel } from "./field/Field";
+export { fieldTrigger, fieldPanel, fieldOption, FieldLabel, Field, type FieldProps } from "./field/Field";
 export { Select, type SelectProps, type SelectItemShape } from "./select/Select";
 export { Checkbox, type CheckboxProps } from "./checkbox/Checkbox";
 export { Chip, type ChipProps } from "./chip/Chip";
