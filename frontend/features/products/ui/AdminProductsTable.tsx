@@ -1,163 +1,90 @@
 'use client'
-
 import * as React from 'react'
-import type { ColumnDef, Row } from '@tanstack/react-table'
+
+import { RowsPlusTopIcon } from '@phosphor-icons/react'
+import { Amount, Badge, Button, DataTable, type DataTableColumn } from '@dorado/components'
 
 import { useDrawerStore } from '@/shared/store/drawerStore'
-import { TextColumn, ChipColumn, ImageColumn } from '@/shared/ui/table/Columns'
-import { DataTable } from '@/shared/ui/table/Table'
-import { GoldIcon, SilverIcon, PlatinumIcon, PalladiumIcon } from '@/features/navigation/ui/Logo'
 import ProductDrawer from '@/features/products/ui/ProductDrawer'
 import { useAdminProducts, useCreateProduct } from '@/features/products/queries'
 import { AdminProduct } from '@/features/products/types'
-import { CreateConfig } from '@/shared/ui/table/CreateDialog'
+import { AddNewDialog, CreateConfig } from '@/shared/ui/CreateDialog'
 
-const formatPremium = (mult?: number | null) => {
-  if (mult == null) return '-'
-  const pct = Math.abs(mult - 1) * 100
+function PremiumCell({ mult }: { mult: number | null | undefined }) {
+  if (mult == null) return <span className="flex justify-center">-</span>
+
+  const pct = Math.abs(mult - 1)
   const dir = mult >= 1 ? 'over' : 'under'
-  return `${pct.toFixed(2)}% ${dir}`
-}
 
-type Metal = 'Gold' | 'Silver' | 'Platinum' | 'Palladium'
+  return (
+    <span className="flex items-center justify-center gap-1">
+      <Amount value={pct} format={{ style: 'percent', minimumFractionDigits: 2, maximumFractionDigits: 2 }} />
+      {dir}
+    </span>
+  )
+}
 
 export default function ProductsPage() {
   const { data: products = [] } = useAdminProducts()
   const createProduct = useCreateProduct()
   const { openDrawer } = useDrawerStore()
   const [activeProduct, setActiveProduct] = React.useState<string | null>(null)
+  const [createOpen, setCreateOpen] = React.useState(false)
 
-  const metalCounts = React.useMemo(() => {
-    const base: Record<Metal, number> = {
-      Gold: 0,
-      Silver: 0,
-      Platinum: 0,
-      Palladium: 0,
-    }
-
-    for (const p of products) {
-      const metal = p.metal as Metal | null
-      if (metal && metal in base) base[metal]++
-    }
-
-    return base
-  }, [products])
-
-  const metalFilterCards = React.useMemo(
-    () => [
-      {
-        key: 'Gold',
-        Icon: GoldIcon,
-        filter: 'gold',
-        header: 'Gold',
-        label: `${metalCounts.Gold} products`,
-        predicate: (p: AdminProduct) => p.metal === 'Gold',
-      },
-      {
-        key: 'Silver',
-        Icon: SilverIcon,
-        filter: 'silver',
-        header: 'Silver',
-        label: `${metalCounts.Silver} products`,
-        predicate: (p: AdminProduct) => p.metal === 'Silver',
-      },
-      {
-        key: 'Platinum',
-        Icon: PlatinumIcon,
-        filter: 'platinum',
-        header: 'Platinum',
-        label: `${metalCounts.Platinum} products`,
-        predicate: (p: AdminProduct) => p.metal === 'Platinum',
-      },
-      {
-        key: 'Palladium',
-        Icon: PalladiumIcon,
-        filter: 'palladium',
-        header: 'Palladium',
-        label: `${metalCounts.Palladium} products`,
-        predicate: (p: AdminProduct) => p.metal === 'Palladium',
-      },
-    ],
-    [metalCounts]
-  )
-
-  const columns: ColumnDef<AdminProduct>[] = [
-    ImageColumn<AdminProduct>({
+  const columns: DataTableColumn<AdminProduct>[] = [
+    {
       id: 'image_front',
       header: 'Obverse',
-      accessorKey: 'image_front',
-      align: 'left',
-      enableHiding: true,
-      height: 50,
-      width: 50,
-      rounded: 'md',
-      getAlt: ({ row }) => `${row.name}`,
-      size: 50,
-    }),
-    TextColumn<AdminProduct>({
+      cell: ({ row }) => {
+        const src = (row.original.image_front ?? '').trim()
+        if (!src) return <div className="size-12.5 rounded-md border border-border bg-muted" />
+        return (
+          <img
+            src={src}
+            alt={row.original.name}
+            width={50}
+            height={50}
+            loading="lazy"
+            decoding="async"
+            className="rounded-md object-contain"
+          />
+        )
+      },
+    },
+    {
       id: 'name',
       header: 'Name',
       accessorKey: 'name',
-      align: 'left',
-      enableHiding: false,
-      size: 240,
-    }),
-    TextColumn<AdminProduct>({
+      meta: { primary: true },
+      enableSorting: true,
+    },
+    {
       id: 'metal',
       header: 'Metal',
       accessorKey: 'metal',
-      align: 'left',
-      enableHiding: true,
-      headerClassName: 'hidden sm:flex',
-      cellClassName: 'hidden sm:flex',
-      size: 100,
-    }),
-    ChipColumn<AdminProduct>({
+    },
+    {
       id: 'display',
-      header: '',
-      accessorKey: 'display',
-      align: 'center',
-      size: 110,
-      headerFilter: {
-        options: ['All', 'Active', 'Inactive'],
-        widthClass: 'w-30',
-        triggerClass: 'flex w-full justify-center items-center gap-2',
-        includeSearch: false,
+      header: () => <span className="flex w-full justify-center">Status</span>,
+      cell: ({ row }) => {
+        const active = !!row.original.display
+        return (
+          <span className="flex justify-center">
+            <Badge intent={active ? 'success' : 'danger'}>{active ? 'Active' : 'Inactive'}</Badge>
+          </span>
+        )
       },
-      filterFnOverride: (row, _columnId, filterValue) => {
-        if (!filterValue) return true
-        const p = row.original as AdminProduct
-        const active = !!p.display
-        if (filterValue === 'Active') return active
-        if (filterValue === 'Inactive') return !active
-        return true
-      },
-
-      getChip: ({ row }) => {
-        const product = row as AdminProduct
-        const active = !!product.display
-        return { label: active ? 'Active' : 'Inactive', tone: active ? 'success' : 'danger' } as const
-      },
-    }),
-
-    TextColumn<AdminProduct>({
+    },
+    {
       id: 'bid_premium',
-      header: 'Bid',
-      accessorKey: 'bid_premium',
-      align: 'center',
-      enableHiding: true,
-      formatValue: (raw) => formatPremium(raw as number | null | undefined),
-      size: 120,
-    }),
-    TextColumn<AdminProduct>({
+      header: () => <span className="flex w-full justify-center">Bid</span>,
+      cell: ({ row }) => <PremiumCell mult={row.original.bid_premium} />,
+    },
+    {
       id: 'ask_premium',
-      header: 'Ask',
-      accessorKey: 'ask_premium',
-      align: 'center',
-      enableHiding: true,
-      formatValue: (raw) => formatPremium(raw as number | null | undefined),
-      size: 120,
-    }),
+      header: () => <span className="flex w-full justify-center">Ask</span>,
+      cell: ({ row }) => <PremiumCell mult={row.original.ask_premium} />,
+    },
   ]
 
   const createConfig: CreateConfig = {
@@ -176,22 +103,36 @@ export default function ProductsPage() {
     },
     canSubmit: (values: Record<string, string>) => (values.name ?? '').trim().length > 0,
   }
-  const handleRowClick = (row: Row<AdminProduct>) => {
-    setActiveProduct(row.original.id)
+  const handleRowClick = (row: AdminProduct) => {
+    setActiveProduct(row.id)
     openDrawer('product')
   }
 
   return (
     <>
       <DataTable<AdminProduct>
+        label="Products"
         data={products}
         columns={columns}
-        searchColumnId="name"
+        getRowId={(row) => row.id}
+        searchable
         searchPlaceholder="Search products..."
-        enableColumnVisibility
         onRowClick={handleRowClick}
-        filterCards={metalFilterCards}
-        createConfig={createConfig}
+        pageSize={10}
+        actions={
+          <>
+            <Button
+              variant="tertiary"
+              size="sm"
+              onClick={() => setCreateOpen(true)}
+              aria-label="Create Product"
+              title="Create Product"
+            >
+              <RowsPlusTopIcon size={28} />
+            </Button>
+            <AddNewDialog open={createOpen} onOpenChange={setCreateOpen} createConfig={createConfig} />
+          </>
+        }
       />
 
       {activeProduct && <ProductDrawer product_id={activeProduct} products={products} />}

@@ -1,7 +1,10 @@
 'use client'
 
-import { useDrawerStore } from '@/shared/store/drawerStore'
 import { useMemo, useState } from 'react'
+
+import { Badge, Button, DataTable, Drawer, Input, type DataTableColumn } from '@dorado/components'
+
+import { useDrawerStore } from '@/shared/store/drawerStore'
 import { formatFullDate } from '@/shared/utils/formatDates'
 import { SegmentedField } from '@/shared/ui/SegmentedField'
 import UpdatedByline from '@/shared/ui/UpdatedByline'
@@ -13,10 +16,6 @@ import {
   useUpdateCarrier,
   useUpdateCarrierService,
 } from '@/features/carriers/queries'
-import { ColumnDef } from '@tanstack/react-table'
-import { ChipColumn, IconColumn, TextColumn } from '@/shared/ui/table/Columns'
-import { DataTable } from '@/shared/ui/table/Table'
-import { Badge, Button, Drawer, Input } from '@dorado/components'
 
 export default function CarriersDrawer({
   carriers,
@@ -178,41 +177,32 @@ function Services({ carrier }: { carrier: Carrier }) {
       setPending(null)
     }
   }
-  const columns: ColumnDef<CarrierService>[] = [
-    TextColumn<CarrierService>({
+
+  const columns: DataTableColumn<CarrierService>[] = [
+    {
       id: 'name',
       header: 'Service',
       accessorKey: 'name',
-      enableHiding: false,
-      size: 260,
-    }),
-
-    TextColumn<CarrierService>({
+      meta: { primary: true },
+    },
+    {
       id: 'transit',
       header: 'Transit',
-      accessorKey: 'id',
-      enableHiding: true,
-      size: 160,
-      formatValue: (_value, row) => {
-        const min = row.min_transit_days
-        const max = row.max_transit_days
+      cell: ({ row }) => {
+        const min = row.original.min_transit_days
+        const max = row.original.max_transit_days
 
         if (min == null && max == null) return '—'
         if (min != null && max != null) return `${min}–${max} days`
         if (min != null) return `${min}+ days`
         return `≤ ${max} days`
       },
-    }),
-
-    IconColumn<CarrierService>({
+    },
+    {
       id: 'is_active',
-      header: 'Active',
-      accessorKey: 'is_active',
-      align: 'center',
-      enableHiding: true,
-      size: 120,
-      renderIcon: ({ row }) => {
-        const svc = row as CarrierService
+      header: () => <span className="flex w-full justify-center">Active</span>,
+      cell: ({ row }) => {
+        const svc = row.original
         const active = !!svc.is_active
 
         const isThisPending = pending?.id === svc.id
@@ -225,22 +215,24 @@ function Services({ carrier }: { carrier: Carrier }) {
           : 'Enable'
 
         return (
-          <Button
-            variant="secondary"
-            intent={active ? 'danger' : 'success'}
-            size="xs"
-            onClick={(e) => {
-              e.stopPropagation()
-              toggleActive(svc)
-            }}
-            disabled={isThisPending}
-            className="min-w-24"
-          >
-            {label}
-          </Button>
+          <span className="flex justify-center">
+            <Button
+              variant="secondary"
+              intent={active ? 'danger' : 'success'}
+              size="xs"
+              onClick={(e) => {
+                e.stopPropagation()
+                toggleActive(svc)
+              }}
+              disabled={isThisPending}
+              className="min-w-24"
+            >
+              {label}
+            </Button>
+          </span>
         )
       },
-    }),
+    },
   ]
 
   return (
@@ -248,14 +240,10 @@ function Services({ carrier }: { carrier: Carrier }) {
       <p className="eyebrow">Services</p>
 
       <DataTable<CarrierService>
+        label={`${carrier.organization.name ?? 'Carrier'} services`}
         data={services}
         columns={columns}
-        initialPageSize={8}
-        showCardBackground={false}
-        hidePagination={true}
-        wrapperClassName="p-1 bg-transparent"
-        showHeaders={false}
-        getRowClassName={() => 'cursor-default'}
+        getRowId={(row) => row.id}
       />
     </div>
   )

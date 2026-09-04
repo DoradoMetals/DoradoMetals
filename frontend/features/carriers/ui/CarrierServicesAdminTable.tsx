@@ -1,22 +1,20 @@
 'use client'
 
-import type { ColumnDef, Row } from '@tanstack/react-table'
+import { useMemo, useState } from 'react'
+
+import { RowsPlusTopIcon } from '@phosphor-icons/react'
+import { Badge, Button, DataTable, RadioGroup, RadioOption, type DataTableColumn } from '@dorado/components'
+import Image from 'next/image'
 
 import { useDrawerStore } from '@/shared/store/drawerStore'
-import { TextColumn, ChipColumn, ImageColumn } from '@/shared/ui/table/Columns'
-import { DataTable } from '@/shared/ui/table/Table'
-
 import {
   useCarriers,
   useCarrierServices,
   useCreateCarrierService,
 } from '@/features/carriers/queries'
 import type { Carrier, CarrierService } from '@/features/carriers/types'
-import { RadioGroup, RadioOption } from '@dorado/components'
-import Image from 'next/image'
 import CarrierServiceDrawer from '@/features/carriers/ui/CarrierServicesDrawer'
-import { useMemo, useState } from 'react'
-import { CreateConfig } from '@/shared/ui/table/CreateDialog'
+import { AddNewDialog, CreateConfig } from '@/shared/ui/CreateDialog'
 
 export default function CarrierServicesPage() {
   const { data: carriers = [] } = useCarriers()
@@ -25,6 +23,7 @@ export default function CarrierServicesPage() {
 
   const { openDrawer } = useDrawerStore()
   const [activeService, setActiveService] = useState<string | null>(null)
+  const [createOpen, setCreateOpen] = useState(false)
 
   const carrierById = useMemo(() => {
     const map = new Map<string, Carrier>()
@@ -32,106 +31,52 @@ export default function CarrierServicesPage() {
     return map
   }, [carriers])
 
-  const carrierFilterCards = useMemo(() => {
-    const counts = new Map<string, number>()
-    for (const s of services) {
-      if (!s.carrier_id) continue
-      counts.set(s.carrier_id, (counts.get(s.carrier_id) ?? 0) + 1)
-    }
-
-    return carriers.map((c) => {
-      const count = counts.get(c.id) ?? 0
-      const logo = (c.logo ?? '').trim()
-
-      return {
-        key: c.id,
-        filter: c.id,
-        header: c.organization.name ?? '',
-        label: `${count} services`,
-        predicate: (row: CarrierService) => row.carrier_id === c.id,
-
-        IconNode: logo ? (
-          <div className="relative flex h-10 md:h-16 pl-3">
-            <img
-              src={logo}
-              alt={`${c.organization.name} logo`}
-              height={100}
-              width={100}
-              className="object-contain"
-            />
-          </div>
-        ) : (
-          <div />
-        ),
-      }
-    })
-  }, [carriers, services])
-
-  const columns: ColumnDef<CarrierService>[] = [
-    ImageColumn<CarrierService>({
+  const columns: DataTableColumn<CarrierService>[] = [
+    {
       id: 'carrier_logo',
       header: '',
-      accessorKey: 'carrier_id',
-      align: 'left',
-      enableHiding: true,
-      size: 56,
-      height: 40,
-      width: 40,
-      rounded: 'md',
-
-      getSrc: ({ value }) => {
-        const carrierId = String(value ?? '')
-        return carrierById.get(carrierId)?.logo ?? ''
+      cell: ({ row }) => {
+        const carrier = carrierById.get(row.original.carrier_id ?? '')
+        const logo = (carrier?.logo ?? '').trim()
+        const alt = `${carrier?.organization.name ?? 'Carrier'} logo`
+        if (!logo) return <div className="size-10 rounded-md border border-border bg-muted" />
+        return (
+          <img
+            src={logo}
+            alt={alt}
+            width={40}
+            height={40}
+            loading="lazy"
+            decoding="async"
+            className="rounded-md object-contain"
+          />
+        )
       },
-      getAlt: ({ value }) => {
-        const carrierId = String(value ?? '')
-        const name = carrierById.get(carrierId)?.organization.name ?? 'Carrier'
-        return `${name} logo`
-      },
-    }),
-
-    TextColumn<CarrierService>({
+    },
+    {
       id: 'name',
       header: 'Service',
       accessorKey: 'name',
-      enableHiding: false,
-      size: 260,
-    }),
-
-    TextColumn<CarrierService>({
+      meta: { primary: true },
+      enableSorting: true,
+    },
+    {
       id: 'code',
       header: 'Code',
       accessorKey: 'code',
-      enableHiding: true,
-      headerClassName: 'hidden md:flex',
-      cellClassName: 'hidden md:flex',
-      size: 180,
-    }),
-
-    TextColumn<CarrierService>({
-      id: 'delivery_speed',
-      header: 'Speed',
-      accessorKey: 'delivery_speed',
-      enableHiding: true,
-      headerClassName: 'hidden lg:flex',
-      cellClassName: 'hidden lg:flex',
-      formatValue: (v) => (v ? String(v) : '-'),
-      size: 140,
-    }),
-
-    ChipColumn<CarrierService>({
+    },
+    {
       id: 'is_active',
-      header: 'Active',
-      accessorKey: 'is_active',
-      align: 'center',
-      enableHiding: true,
-      size: 120,
-      getChip: ({ row }) => {
-        const svc = row as CarrierService
-        const active = !!svc.is_active
-        return { label: active ? 'Active' : 'Inactive', tone: active ? 'success' : 'danger' } as const
+      header: () => <span className="flex w-full justify-center">Active</span>,
+      cell: ({ row }) => {
+        const active = !!row.original.is_active
+        return (
+          <span className="flex justify-center">
+            <Badge intent={active ? 'success' : 'danger'}>{active ? 'Active' : 'Inactive'}</Badge>
+          </span>
+        )
       },
-    }),
+    },
   ]
 
   const createConfig: CreateConfig = {
@@ -184,24 +129,36 @@ export default function CarrierServicesPage() {
     canSubmit: (values) =>
       (values.carrier_id ?? '').trim().length > 0 && (values.name ?? '').trim().length > 0,
   }
-  const handleRowClick = (row: Row<CarrierService>) => {
-    setActiveService(row.original.id)
+  const handleRowClick = (row: CarrierService) => {
+    setActiveService(row.id)
     openDrawer('carrierServices')
   }
 
   return (
     <>
       <DataTable<CarrierService>
+        label="Carrier services"
         data={services}
         columns={columns}
-        initialPageSize={12}
-        searchColumnId="name"
+        getRowId={(row) => row.id}
+        searchable
         searchPlaceholder="Search services..."
-        enableColumnVisibility
         onRowClick={handleRowClick}
-        filterCards={carrierFilterCards}
-        createConfig={createConfig}
-        showCardBackground={false}
+        pageSize={12}
+        actions={
+          <>
+            <Button
+              variant="tertiary"
+              size="sm"
+              onClick={() => setCreateOpen(true)}
+              aria-label="Create Carrier Service"
+              title="Create Carrier Service"
+            >
+              <RowsPlusTopIcon size={28} />
+            </Button>
+            <AddNewDialog open={createOpen} onOpenChange={setCreateOpen} createConfig={createConfig} />
+          </>
+        }
       />
 
       {activeService && (

@@ -2,24 +2,17 @@
 
 import type { Lead } from "@dorado/contracts";
 import * as React from 'react'
-import type { ColumnDef, Row } from '@tanstack/react-table'
 
 import { LeadPriority } from '@/features/leads/types'
 import { PrioritySelect } from '@/features/leads/ui/PrioritySelect'
 import { normalizePhone } from '@/shared/utils/formatPhoneNumber'
 import { useDrawerStore } from '@/shared/store/drawerStore'
-import {
-  PlusIcon,
-  InfoIcon,
-  ChatsCircleIcon,
-  CheckCircleIcon,
-} from '@phosphor-icons/react'
-import { TextColumn, ChipColumn } from '@/shared/ui/table/Columns'
-import { DataTable } from '@/shared/ui/table/Table'
+import { PlusIcon } from '@phosphor-icons/react'
+import { DataTable, type DataTableColumn, Badge, Button } from '@dorado/components'
 import { isValidEmail } from '@/shared/utils/isValid'
 import LeadsDrawer from '@/features/leads/ui/LeadsDrawer'
 import { useCreateLead, useLeads } from '@/features/leads/queries'
-import { CreateConfig } from '@/shared/ui/table/CreateDialog'
+import { AddNewDialog, type CreateConfig } from '@/shared/ui/CreateDialog'
 
 export default function LeadsPage() {
   const { data: leads = [] } = useLeads()
@@ -27,110 +20,41 @@ export default function LeadsPage() {
   const { openDrawer } = useDrawerStore()
 
   const [activeLead, setActiveLead] = React.useState<string | null>(null)
+  const [createOpen, setCreateOpen] = React.useState(false)
 
-  const {
-    respondedCount,
-    convertedCount,
-    contactedCount,
-    respondedPct,
-    convertedPct,
-    contactedPct,
-  } = React.useMemo(() => {
-    const total = leads.length || 0
-    const responded = leads.filter((l) => !!l.responded).length
-    const converted = leads.filter((l) => !!l.converted).length
-    const contacted = leads.filter((l) => !!l.contacted).length
-    const pct = (n: number, d: number) => (d <= 0 ? 0 : Math.round((n / d) * 100))
-
-    return {
-      respondedCount: responded,
-      convertedCount: converted,
-      contactedCount: contacted,
-      respondedPct: pct(responded, total),
-      convertedPct: pct(converted, total),
-      contactedPct: pct(contacted, total),
-    }
-  }, [leads])
-
-  const columns: ColumnDef<Lead>[] = [
-    TextColumn<Lead>({
-      id: 'name',
-      header: 'Name',
-      accessorKey: 'name',
-      align: 'left',
-      enableHiding: false,
-      size: 240,
-    }),
-    ChipColumn<Lead>({
-      id: 'priority',
-      header: 'Priority',
+  const columns: DataTableColumn<Lead>[] = [
+    { accessorKey: 'name', header: 'Name', enableSorting: true },
+    {
       accessorKey: 'priority',
-      align: 'left',
-      enableHiding: true,
-      size: 160,
-      getChip: ({ row }) => {
-        const priority = (row as Lead).priority
+      header: 'Priority',
+      cell: ({ row }) => {
+        const priority = row.original.priority
         /* 'Medium' was `bg-primary/20 text-primary` - the neutral tone, which
-           StatusChip fills solid rather than washing (a 15% white wash on a
+           Badge fills soft rather than washing (a 15% white wash on a
            near-black ground is not a state anyone can see). */
-        const tone = priority === 'High' ? 'danger' : priority === 'Low' ? 'success' : 'neutral'
-        return { label: priority ?? 'Medium', tone } as const
+        const intent = priority === 'High' ? 'danger' : priority === 'Low' ? 'success' : 'neutral'
+        return <Badge intent={intent}>{priority ?? 'Medium'}</Badge>
       },
-    }),
-    TextColumn<Lead>({
-      id: 'contact',
-      header: 'Point of Contact',
+    },
+    {
       accessorKey: 'contact',
-      align: 'left',
-      enableHiding: true,
-      formatValue: (value) => String(value ?? '').trim() || '—',
-      size: 220,
-    }),
-    ChipColumn<Lead>({
-      id: 'contacted',
-      header: 'Contacted',
+      header: 'Point of Contact',
+      cell: ({ row }) => String(row.original.contact ?? '').trim() || '—',
+    },
+    {
       accessorKey: 'contacted',
-      align: 'left',
-      enableHiding: true,
-      size: 150,
-      getChip: ({ row }) => {
-        const contacted = !!(row as Lead).contacted
-        return { label: contacted ? 'Yes' : 'No', tone: contacted ? 'success' : 'danger' } as const
+      header: 'Contacted',
+      cell: ({ row }) => {
+        const contacted = !!row.original.contacted
+        return <Badge intent={contacted ? 'success' : 'danger'}>{contacted ? 'Yes' : 'No'}</Badge>
       },
-    }),
+    },
   ]
 
-  const handleRowClick = (row: Row<Lead>) => {
-    setActiveLead(row.original.id)
+  const handleRowClick = (row: Lead) => {
+    setActiveLead(row.id)
     openDrawer('leads')
   }
-
-  const filterCards = [
-    {
-      key: 1,
-      Icon: CheckCircleIcon,
-      filter: 'converted',
-      header: `${convertedPct}% (${convertedCount})`,
-      label: 'Converted',
-      predicate: (l: Lead) => !!l.converted,
-    },
-    {
-      key: 2,
-      Icon: ChatsCircleIcon,
-      filter: 'responded',
-      header: `${respondedPct}% (${respondedCount})`,
-      label: 'Responded',
-      predicate: (l: Lead) => !!l.responded,
-    },
-    {
-      key: 3,
-      Icon: InfoIcon,
-      filter: 'contacted',
-      header: `${contactedPct}% (${contactedCount})`,
-      label: 'Contacted',
-      predicate: (l: Lead) => !!l.contacted,
-    },
-  ]
 
   const createConfig: CreateConfig = {
     title: 'Create New Lead',
@@ -197,17 +121,27 @@ export default function LeadsPage() {
   return (
     <>
       <DataTable<Lead>
+        label="Leads"
         data={leads}
         columns={columns}
-        initialPageSize={12}
-        searchColumnId="name"
-        searchPlaceholder="Search leads..."
-        createIcon={PlusIcon}
-        enableColumnVisibility
+        getRowId={(row) => row.id}
         onRowClick={handleRowClick}
-        filterCards={filterCards}
-        createConfig={createConfig}
+        searchable
+        searchPlaceholder="Search leads..."
+        actions={
+          <Button
+            variant="tertiary"
+            size="sm"
+            onClick={() => setCreateOpen(true)}
+            aria-label="Create Lead"
+            title="Create Lead"
+          >
+            <PlusIcon size={20} />
+          </Button>
+        }
       />
+
+      <AddNewDialog open={createOpen} onOpenChange={setCreateOpen} createConfig={createConfig} />
 
       {activeLead && <LeadsDrawer lead_id={activeLead} leads={leads ?? []} />}
     </>

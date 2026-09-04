@@ -1,19 +1,14 @@
 'use client'
 
 import * as React from 'react'
-import type { ColumnDef, Row } from '@tanstack/react-table'
+
+import { DataTable, type DataTableColumn } from '@dorado/components'
 
 import { PurchaseOrder, statusConfig } from '@/features/orders/purchaseOrders/types'
 import { useOrders } from '@dorado/client'
 import { useDrawerStore } from '@/shared/store/drawerStore'
 import AdminPurchaseOrderDrawer from './adminPurchaseOrderDrawer/adminPurchaseOrderDrawer'
-import { DataTable } from '@/shared/ui/table/Table'
-import { TextColumn, DateColumn, IconColumn, OrderNumberColumn } from '@/shared/ui/table/Columns'
-import { cn } from '@/shared/utils/cn'
-import { useFormatPurchaseOrderNumber } from '@/features/orders/utils/formatOrderNumbers'
 import { useAdminUsers } from '@/features/users/queries'
-
-const STATUS_FILTERS = ['In Transit', 'Received', 'Payment Processing', 'Completed'] as const
 
 export default function PurchaseOrdersPage() {
   const { data: purchaseOrders = [] } = useOrders({ direction: 'purchase' }, { refetchInterval: 10_000 })
@@ -29,99 +24,63 @@ export default function PurchaseOrdersPage() {
     [adminUsers]
   )
 
-  const filterCards = React.useMemo(() => {
-    const counts = purchaseOrders.reduce<Record<string, number>>((acc, po) => {
-      acc[po.status ?? ''] = (acc[po.status ?? ''] || 0) + 1
-      return acc
-    }, {})
-
-    return STATUS_FILTERS.map((status) => {
-      const config = statusConfig[status]
-      const Icon = config.icon
-      const count = counts[status] ?? 0
-
-      return {
-        key: status,
-        Icon,
-        filter: status,
-        header: `${count}`,
-        label: status,
-        predicate: (po: PurchaseOrder) => po.status === status,
-        buttonActiveClassName: cn('bg-primary/20', 'border-primary', 'text-foreground'),
-        iconBaseClassName: 'text-primary',
-        iconActiveClassName: 'text-primary',
-      }
-    })
-  }, [purchaseOrders])
-
-  const columns: ColumnDef<PurchaseOrder>[] = React.useMemo(
+  const columns: DataTableColumn<PurchaseOrder>[] = React.useMemo(
     () => [
-      OrderNumberColumn<PurchaseOrder>({
-        id: 'number',
+      {
         accessorKey: 'number',
-        align: 'center',
-        useFormatterHook: useFormatPurchaseOrderNumber,
-        enableHiding: false,
-      }),
+        header: 'Order #',
+      },
 
-      TextColumn<PurchaseOrder>({
+      {
         id: 'user_name',
         header: 'User',
-        accessorKey: 'user_id',
-        formatValue: (value) => usersById.get(String(value)) ?? '',
-        align: 'center',
-        enableHiding: false,
-        size: 160,
-      }),
+        accessorFn: (row) => usersById.get(row.user_id ?? '') ?? '',
+      },
 
-      IconColumn<PurchaseOrder>({
-        id: 'status',
-        header: 'Status',
+      {
         accessorKey: 'status',
-        align: 'center',
-        renderIcon: ({ value, row }) => {
-          const status = (value as string) ?? (row as PurchaseOrder).status ?? ''
+        header: 'Status',
+        cell: ({ row }) => {
+          const status = row.original.status ?? ''
           const config = statusConfig[status]
           if (!config) return null
           const Icon = config.icon
-          return <Icon size={20} className={'text-primary'} />
+          return <Icon size={20} className="text-primary" />
         },
-        size: 80,
-      }),
+      },
 
-      DateColumn<PurchaseOrder>({
-        id: 'created_at',
-        header: 'Created On',
+      {
         accessorKey: 'created_at',
-        align: 'center',
-        hideOnSmall: true,
-        size: 200,
-      }),
-
+        header: 'Created On',
+        cell: ({ row }) => {
+          const raw = row.original.created_at
+          if (!raw) return '-'
+          return new Date(raw).toLocaleDateString('en-US', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+          })
+        },
+      },
     ],
     [usersById]
   )
 
-  const handleRowClick = (row: Row<PurchaseOrder>) => {
-    setActiveOrder(row.original.id)
+  const handleRowClick = (order: PurchaseOrder) => {
+    setActiveOrder(order.id)
     openDrawer('purchaseOrder')
   }
 
   return (
     <>
       <DataTable<PurchaseOrder>
+        label="Purchase orders"
         data={purchaseOrders}
         columns={columns}
-        hidePagination
-        searchColumnId="number"
+        getRowId={(row) => row.id}
+        searchable
         searchPlaceholder="Search orders..."
-        enableColumnVisibility={true}
         onRowClick={handleRowClick}
-        getRowClassName={(row) => {
-          const cfg = statusConfig[row.original.status ?? '']
-          return cn('hover:bg-background hover:cursor-pointer', 'hover:bg-primary/20')
-        }}
-        filterCards={filterCards}
       />
 
       {activeOrder && (

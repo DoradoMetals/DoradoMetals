@@ -1,68 +1,69 @@
 'use client'
 import { useState } from 'react'
 
-import { ColumnDef, Row } from '@tanstack/react-table'
+import { RowsPlusTopIcon } from '@phosphor-icons/react'
+import { Badge, Button, DataTable, type DataTableColumn } from '@dorado/components'
 
 import { useDrawerStore } from '@/shared/store/drawerStore'
-import { TextColumn, ChipColumn, ImageColumn } from '@/shared/ui/table/Columns'
-import { DataTable } from '@/shared/ui/table/Table'
-
 import { useCarriers, useCreateCarrier } from '@/features/carriers/queries'
 import { Carrier } from '@/features/carriers/types'
 import formatPhoneNumber from '@/shared/utils/formatPhoneNumber'
 import CarriersDrawer from '@/features/carriers/ui/CarriersDrawer'
-import { CreateConfig } from '@/shared/ui/table/CreateDialog'
+import { AddNewDialog, CreateConfig } from '@/shared/ui/CreateDialog'
 
 export default function CarriersPage() {
   const { data: carriers = [] } = useCarriers()
   const createCarrier = useCreateCarrier()
   const { openDrawer } = useDrawerStore()
   const [activeCarrier, setActiveCarrier] = useState<string | null>(null)
+  const [createOpen, setCreateOpen] = useState(false)
 
-  const columns: ColumnDef<Carrier>[] = [
-    TextColumn<Carrier>({
+  const columns: DataTableColumn<Carrier>[] = [
+    {
       id: 'name',
       header: 'Name',
-      accessorKey: 'organization.name',
-      enableHiding: false,
-      size: 260,
-    }),
-    ImageColumn<Carrier>({
+      accessorFn: (row) => row.organization.name ?? '',
+      meta: { primary: true },
+      enableSorting: true,
+    },
+    {
       id: 'logo',
       header: 'Logo',
-      accessorKey: 'logo',
-      align: 'left',
-      enableHiding: true,
-      height: 50,
-      width: 50,
-      rounded: 'md',
-      getAlt: ({ row }) => `${row.organization?.name} logo`,
-      size: 50,
-    }),
-    TextColumn<Carrier>({
+      cell: ({ row }) => {
+        const logo = (row.original.logo ?? '').trim()
+        const alt = `${row.original.organization.name ?? ''} logo`
+        if (!logo) return <div className="size-12.5 rounded-md border border-border bg-muted" />
+        return (
+          <img
+            src={logo}
+            alt={alt}
+            width={50}
+            height={50}
+            loading="lazy"
+            decoding="async"
+            className="rounded-md object-contain"
+          />
+        )
+      },
+    },
+    {
       id: 'phone',
       header: 'Phone',
-      accessorKey: 'phone',
-      align: 'left',
-      enableHiding: true,
-      headerClassName: 'hidden lg:flex',
-      cellClassName: 'hidden lg:flex',
-      formatValue: (value) => formatPhoneNumber(String(value ?? '')),
-      size: 170,
-    }),
-    ChipColumn<Carrier>({
+      accessorFn: (row) => row.organization.phone ?? '',
+      cell: ({ getValue }) => formatPhoneNumber(String(getValue() ?? '')),
+    },
+    {
       id: 'is_active',
-      header: 'Status',
-      accessorKey: 'organization.enabled',
-      align: 'center',
-      enableHiding: true,
-      size: 130,
-      getChip: ({ row }) => {
-        const carrier = row as Carrier
-        const active = !!carrier.organization.enabled
-        return { label: active ? 'Active' : 'Inactive', tone: active ? 'success' : 'danger' } as const
+      header: () => <span className="flex w-full justify-center">Status</span>,
+      cell: ({ row }) => {
+        const active = !!row.original.organization.enabled
+        return (
+          <span className="flex justify-center">
+            <Badge intent={active ? 'success' : 'danger'}>{active ? 'Active' : 'Inactive'}</Badge>
+          </span>
+        )
       },
-    }),
+    },
   ]
 
   const createConfig: CreateConfig = {
@@ -83,23 +84,36 @@ export default function CarriersPage() {
     canSubmit: (values: Record<string, string>) => (values.name ?? '').trim().length > 0,
   }
 
-  const handleRowClick = (row: Row<Carrier>) => {
-    setActiveCarrier(row.original.id)
+  const handleRowClick = (row: Carrier) => {
+    setActiveCarrier(row.id)
     openDrawer('carriers')
   }
 
   return (
     <>
       <DataTable<Carrier>
+        label="Carriers"
         data={carriers}
         columns={columns}
-        initialPageSize={12}
-        searchColumnId="name"
+        getRowId={(row) => row.id}
+        searchable
         searchPlaceholder="Search carriers..."
-        enableColumnVisibility
-        showCardBackground={false}
         onRowClick={handleRowClick}
-        createConfig={createConfig}
+        pageSize={12}
+        actions={
+          <>
+            <Button
+              variant="tertiary"
+              size="sm"
+              onClick={() => setCreateOpen(true)}
+              aria-label="Create Carrier"
+              title="Create Carrier"
+            >
+              <RowsPlusTopIcon size={28} />
+            </Button>
+            <AddNewDialog open={createOpen} onOpenChange={setCreateOpen} createConfig={createConfig} />
+          </>
+        }
       />
 
       {activeCarrier && <CarriersDrawer carrier_id={activeCarrier} carriers={carriers} />}

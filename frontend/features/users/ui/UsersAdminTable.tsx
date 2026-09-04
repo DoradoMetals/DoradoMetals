@@ -2,24 +2,21 @@
 
 import type { AdminUser } from "@dorado/contracts";
 import * as React from 'react'
-import type { ColumnDef, Row } from '@tanstack/react-table'
 
 import { useCreateUser } from '@/features/auth/queries'
 import { userRoleOptions } from '@/features/users/types'
 
 import { useDrawerStore } from '@/shared/store/drawerStore'
 
-import { DataTable } from '@/shared/ui/table/Table'
-import { TextColumn, DateColumn } from '@/shared/ui/table/Columns'
+import { DataTable, type DataTableColumn, Amount, Button } from '@dorado/components'
 
 import { cn } from '@/shared/utils/cn'
 import { isValidEmail } from '@/shared/utils/isValid'
 import { PlusIcon } from '@phosphor-icons/react'
-import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
 import AdminUsersDrawer from '@/features/users/ui/UsersDrawer'
 import { useAdminUsers } from '@/features/users/queries'
 import { CreateSalesOrderDrawer } from '@/features/orders/salesOrders/admin/createSalesOrder/createSalesOrderDrawer'
-import { CreateConfig } from '@/shared/ui/table/CreateDialog'
+import { AddNewDialog, type CreateConfig } from '@/shared/ui/CreateDialog'
 
 export function UsersPage() {
   const { data: users = [] } = useAdminUsers()
@@ -27,63 +24,55 @@ export function UsersPage() {
   const { openDrawer } = useDrawerStore()
 
   const [activeUser, setActiveUser] = React.useState<string | null>(null)
+  const [createOpen, setCreateOpen] = React.useState(false)
 
-
-  const columns: ColumnDef<AdminUser>[] = React.useMemo(
+  const columns: DataTableColumn<AdminUser>[] = React.useMemo(
     () => [
-      TextColumn<AdminUser>({
-        id: 'name',
-        header: 'Name',
+      {
         accessorKey: 'name',
-        align: 'left',
-        enableHiding: false,
-        textClassName: 'inline-flex items-center gap-2',
-        formatValue: (_value, row) => {
-          const role =
-            userRoleOptions.find((r) => r.value === row.role) ?? userRoleOptions[1]
+        header: 'Name',
+        enableSorting: true,
+        cell: ({ row }) => {
+          const user = row.original
+          const role = userRoleOptions.find((r) => r.value === user.role) ?? userRoleOptions[1]
           const Icon = role.icon
           return (
-            <>
+            <span className="inline-flex items-center gap-2">
               <Icon size={20} className={role.colorClass} />
-              <span className={cn('truncate', role.colorClass)}>{row.name}</span>
-            </>
+              <span className={cn('truncate', role.colorClass)}>{user.name}</span>
+            </span>
           )
         },
-        size: 220,
-      }),
+      },
 
-      TextColumn<AdminUser>({
-        id: 'email',
-        header: 'Email',
+      {
         accessorKey: 'email',
-        align: 'left',
-        enableHiding: false,
-        hideOnSmall: true,
-        textClassName:
-          'hidden sm:block w-full overflow-hidden text-ellipsis whitespace-nowrap',
-        size: 260,
-      }),
+        header: 'Email',
+        cell: ({ row }) => <span className="truncate">{row.original.email}</span>,
+      },
 
-      DateColumn<AdminUser>({
-        id: 'created_at',
-        header: 'Created On',
+      {
         accessorKey: 'created_at',
-        align: 'left',
-        hideOnSmall: true,
-        size: 200,
-      }),
+        header: 'Created On',
+        enableSorting: true,
+        cell: ({ row }) => {
+          const raw = row.original.created_at
+          if (!raw) return '-'
+          return new Date(raw).toLocaleDateString('en-US', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+          })
+        },
+      },
 
-      TextColumn<AdminUser>({
-        id: 'dorado_funds',
-        header: 'Dorado Credit',
+      {
         accessorKey: 'dorado_funds',
-        align: 'right',
-        enableHiding: true,
-        hideOnSmall: true,
-        textClassName: '',
-        formatValue: (_value, row) => <PriceNumberFlow value={row.dorado_funds} />,
-        size: 160,
-      }),
+        header: 'Dorado Credit',
+        enableSorting: true,
+        meta: { numeric: true },
+        cell: ({ row }) => <Amount value={row.original.dorado_funds} />,
+      },
     ],
     []
   )
@@ -120,25 +109,35 @@ export function UsersPage() {
     [createUser]
   )
 
-
-  const handleRowClick = (row: Row<AdminUser>) => {
-    setActiveUser(row.original.id)
+  const handleRowClick = (row: AdminUser) => {
+    setActiveUser(row.id)
     openDrawer('users')
   }
 
   return (
     <>
       <DataTable<AdminUser>
+        label="Users"
         data={users}
         columns={columns}
-        initialPageSize={12}
-        searchColumnId="name"
-        searchPlaceholder="Search by user name..."
-        enableColumnVisibility
+        getRowId={(row) => row.id}
         onRowClick={handleRowClick}
-        createIcon={PlusIcon}
-        createConfig={createConfig}
+        searchable
+        searchPlaceholder="Search by user name..."
+        actions={
+          <Button
+            variant="tertiary"
+            size="sm"
+            onClick={() => setCreateOpen(true)}
+            aria-label="Create User"
+            title="Create User"
+          >
+            <PlusIcon size={20} />
+          </Button>
+        }
       />
+
+      <AddNewDialog open={createOpen} onOpenChange={setCreateOpen} createConfig={createConfig} />
 
       {activeUser && <AdminUsersDrawer user_id={activeUser} users={users} />}
       {activeUser && <CreateSalesOrderDrawer />}

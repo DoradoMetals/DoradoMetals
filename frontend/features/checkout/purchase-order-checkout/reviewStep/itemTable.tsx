@@ -1,9 +1,8 @@
 'use client'
 
 import { Table, TableBody, TableCell, TableRow } from '@/shared/ui/base/table'
-import { Accordion } from '@dorado/components'
+import { Accordion, Amount } from '@dorado/components'
 import { useMemo, useState } from 'react'
-import { useReactTable, getCoreRowModel, flexRender, ColumnDef } from '@tanstack/react-table'
 import { useBasket } from '@/features/checkout/items/queries'
 import { cn } from '@/shared/utils/cn'
 import { useDecoratedLines, type DecoratedLine } from '@/features/checkout/items/flair'
@@ -112,7 +111,7 @@ export default function ReviewItemTables({
           onToggle={() => setOpen((prev) => ({ ...prev, scrap: !prev.scrap }))}
           surface="bare"
         >
-          <AccordionTable rows={scrapRows} columns={scrapColumns} />
+          <AccordionTable rows={scrapRows} cells={scrapCells} />
         </Accordion>
       )}
 
@@ -128,7 +127,7 @@ export default function ReviewItemTables({
           onToggle={() => setOpen((prev) => ({ ...prev, bullion: !prev.bullion }))}
           surface="bare"
         >
-          <AccordionTable rows={bullionRows} columns={bullionColumns} />
+          <AccordionTable rows={bullionRows} cells={bullionCells} />
         </Accordion>
       )}
       {shippingRow.length > 0 && (
@@ -143,7 +142,7 @@ export default function ReviewItemTables({
           onToggle={() => setOpen((prev) => ({ ...prev, shipping: !prev.shipping }))}
           surface="bare"
         >
-          <AccordionTable rows={shippingRow} columns={costSummaryColumns} />
+          <AccordionTable rows={shippingRow} cells={costSummaryCells} />
         </Accordion>
       )}
 
@@ -159,29 +158,25 @@ export default function ReviewItemTables({
           onToggle={() => setOpen((prev) => ({ ...prev, payout: !prev.payout }))}
           surface="bare"
         >
-          <AccordionTable rows={payoutRow} columns={costSummaryColumns} />
+          <AccordionTable rows={payoutRow} cells={costSummaryCells} />
         </Accordion>
       )}
     </div>
   )
 }
 
-function AccordionTable<T>({ rows, columns }: { rows: T[]; columns: ColumnDef<T>[] }) {
-  const table = useReactTable({
-    data: rows,
-    columns,
-    getCoreRowModel: getCoreRowModel(),
-  })
+type Cell<T> = (row: T) => React.ReactNode
 
+function AccordionTable<T>({ rows, cells }: { rows: T[]; cells: Cell<T>[] }) {
   return (
     <div className="px-2">
       <Table className="w-full">
         <TableBody>
-          {table.getRowModel().rows.map((row) => (
-            <TableRow key={row.id} borderless>
-              {row.getVisibleCells().map((cell) => (
-                <TableCell className="text-left" key={cell.id}>
-                  {flexRender(cell.column.columnDef.cell, cell.getContext())}
+          {rows.map((row, i) => (
+            <TableRow key={i} borderless>
+              {cells.map((cell, j) => (
+                <TableCell className="text-left" key={j}>
+                  {cell(row)}
                 </TableCell>
               ))}
             </TableRow>
@@ -192,72 +187,37 @@ function AccordionTable<T>({ rows, columns }: { rows: T[]; columns: ColumnDef<T>
   )
 }
 
-const scrapColumns: ColumnDef<QuotedRow>[] = [
-  {
-    header: 'Name',
-    cell: ({ row }) => row.original.name,
-  },
-  {
-    header: 'Weight',
-    cell: ({ row }) => (
-      <div>
-        {row.original.line.pre_melt} {row.original.line.unit}
-      </div>
-    ),
-  },
-  {
-    header: 'Purity',
-    cell: ({ row }) => <span>{((row.original.line.purity ?? 0) * 100).toFixed(2)}%</span>,
-  },
-  {
-    header: 'Rate',
-    cell: ({ row }) => <span>{formatRate(row.original.quoted?.premium)}</span>,
-  },
-  {
-    header: 'Est. Value',
-    cell: ({ row }) => (
-      <span className="text-right block w-full">
-        <PriceNumberFlow value={row.original.quoted?.line_total ?? 0} className="tabular-nums" />
-      </span>
-    ),
-  },
+const scrapCells: Cell<QuotedRow>[] = [
+  (row) => row.name,
+  (row) => (
+    <div>
+      {row.line.pre_melt} {row.line.unit}
+    </div>
+  ),
+  (row) => <span>{((row.line.purity ?? 0) * 100).toFixed(2)}%</span>,
+  (row) => <span>{formatRate(row.quoted?.premium)}</span>,
+  (row) => (
+    <span className="text-right block w-full">
+      <Amount value={row.quoted?.line_total ?? 0} />
+    </span>
+  ),
 ]
 
-const bullionColumns: ColumnDef<QuotedRow>[] = [
-  {
-    header: 'Qty',
-    cell: ({ row }) => row.original.line.quantity ?? 1,
-  },
-  {
-    header: 'Name',
-    cell: ({ row }) => row.original.name,
-  },
-  {
-    header: 'Est. Value',
-    cell: ({ row }) => (
-      <span className="text-right block w-full">
-        <PriceNumberFlow value={row.original.quoted?.line_total ?? 0} className="tabular-nums" />
-      </span>
-    ),
-  },
+const bullionCells: Cell<QuotedRow>[] = [
+  (row) => row.line.quantity ?? 1,
+  (row) => row.name,
+  (row) => (
+    <span className="text-right block w-full">
+      <Amount value={row.quoted?.line_total ?? 0} />
+    </span>
+  ),
 ]
 
-const costSummaryColumns: ColumnDef<{ label: string; cost: number }>[] = [
-  {
-    header: 'Type',
-    accessorKey: 'label',
-    cell: (info) => info.getValue(),
-  },
-  {
-    header: 'Cost',
-    accessorKey: 'cost',
-    cell: ({ getValue }) => {
-      const value = getValue<number>()
-      return (
-        <span className="text-right block w-full">
-          -<PriceNumberFlow value={value} className="tabular-nums" />
-        </span>
-      )
-    },
-  },
+const costSummaryCells: Cell<{ label: string; cost: number }>[] = [
+  (row) => row.label,
+  (row) => (
+    <span className="text-right block w-full">
+      -<Amount value={row.cost} />
+    </span>
+  ),
 ]
