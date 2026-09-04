@@ -82,19 +82,24 @@ export function OTPInput({
         maxLength={length}
         className="absolute inset-0 z-10 h-full w-full cursor-default opacity-0"
       />
-      <div aria-hidden className={cn("flex items-center gap-[13px]", disabled && "opacity-50")}>
+      <div aria-hidden className="flex items-center gap-[13px]">
         {Array.from({ length }, (_, i) => {
           const isActive = focused && i === activeIndex && !disabled;
           return (
             <span
               key={i}
               className={cn(
-                "flex h-14 min-w-0 flex-1 items-center justify-center rounded-lg bg-card text-h3 font-semibold text-foreground",
-                invalid
-                  ? "border-[1.5px] border-destructive"
-                  : isActive
-                  ? "border-[1.5px] border-border-strong"
-                  : "border border-border"
+                "flex h-14 min-w-0 flex-1 items-center justify-center rounded-lg text-h3 font-semibold",
+                disabled
+                  ? "bg-muted border border-border text-foreground-disabled"
+                  : cn(
+                      "bg-card text-foreground",
+                      invalid
+                        ? "border-[1.5px] border-destructive"
+                        : isActive
+                        ? "border-[1.5px] border-border-strong"
+                        : "border border-border"
+                    )
               )}
             >
               {digits[i] ?? ""}

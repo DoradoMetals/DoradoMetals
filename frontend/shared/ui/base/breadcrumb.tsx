@@ -16,7 +16,7 @@ const BreadcrumbList = React.forwardRef<HTMLOListElement, React.ComponentPropsWi
     <ol
       ref={ref}
       className={cn(
-        'flex flex-wrap items-center gap-1.5 break-words text-sm text-muted-foreground sm:gap-2',
+        'flex flex-wrap items-center gap-1.5 break-words text-small text-muted-foreground sm:gap-2',
         className
       )}
       {...props}
@@ -47,7 +47,7 @@ const BreadcrumbLink = React.forwardRef<
       // component's quiet state - muted, raised to foreground with underline
       // on hover. text-foreground was the pre-refresh palette.
       className={cn(
-        'text-sm text-muted-foreground transition-colors hover:text-foreground hover:underline hover:underline-offset-4',
+        'text-small text-muted-foreground transition-colors hover:text-foreground hover:underline hover:underline-offset-4',
         className,
       )}
       {...props}
@@ -64,7 +64,7 @@ const BreadcrumbPage = React.forwardRef<HTMLSpanElement, React.ComponentPropsWit
       aria-disabled="true"
       aria-current="page"
       // Current page: Medium foreground, not a link (aria-current above).
-      className={cn('text-sm font-medium text-foreground', className)}
+      className={cn('text-small font-medium text-foreground', className)}
       {...props}
     />
   )

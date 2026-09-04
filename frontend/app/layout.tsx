@@ -7,7 +7,6 @@ import QueryProvider from '@/shared/providers/QueryProvider'
 import GoogleMapsProvider from '@/shared/providers/GoogleMapsProvider'
 
 import GoogleRecaptchaProvider from '@/shared/providers/GoogleRecaptchaProvider'
-import { Toaster } from '@dorado/components'
 
 // GEIST, ONE FAMILY (brand refresh, 2026-08-30). Every text style in the Figma
 // library is Geist; Montserrat, Open Sans and Poppins are the old brand. Both
@@ -51,11 +50,6 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
             <QueryProvider>
               <GoogleMapsProvider>
                 <LayoutProvider>{children}</LayoutProvider>
-                {/* The toast region - one mount for the whole app. sonner sat
-                    in package.json imported by NOTHING until the Toast
-                    component landed; the styled Toaster and the house toast()
-                    live in @dorado/components. */}
-                <Toaster />
               </GoogleMapsProvider>
             </QueryProvider>
           </GoogleRecaptchaProvider>

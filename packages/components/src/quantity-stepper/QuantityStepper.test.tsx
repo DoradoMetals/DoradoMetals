@@ -65,4 +65,14 @@ describe("QuantityStepper", () => {
     const input = getByRole("textbox") as HTMLInputElement;
     expect(input.className).toContain("text-small");
   });
+
+  it("disabled reads as a muted fill, not an opacity fade", () => {
+    const { getByRole } = render(<QuantityStepper value={2} onChange={() => {}} disabled />);
+    const group = getByRole("group");
+    expect(group.className).toContain("bg-muted");
+    expect(group.className).not.toContain("opacity-50");
+    const input = getByRole("textbox") as HTMLInputElement;
+    expect(input.disabled).toBe(true);
+    expect(input.className).toContain("disabled:text-foreground-disabled");
+  });
 });

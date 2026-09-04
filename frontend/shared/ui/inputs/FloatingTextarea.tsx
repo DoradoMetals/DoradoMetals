@@ -8,10 +8,10 @@ const customTextareaVariant = cva(
   {
     variants: {
       size: {
-        xs: "text-sm min-h-[2.5rem]",
-        sm: "text-sm min-h-[3rem]",
+        xs: "text-small min-h-[2.5rem]",
+        sm: "text-small min-h-[3rem]",
         md: "text-base min-h-[3.5rem]",
-        lg: "text-lg min-h-[4rem]",
+        lg: "text-h4 min-h-[4rem]",
       },
     },
     defaultVariants: {

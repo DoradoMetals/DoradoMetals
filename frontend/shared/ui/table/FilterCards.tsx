@@ -74,13 +74,13 @@ export function FilterCards({ cards, activeKey, onChangeActive }: FilterCardsStr
         const iconClass = cn(isActive ? effectiveIconActive : effectiveIconBase)
 
         const headerClass = cn(
-          'text-base sm:text-lg text-foreground',
+          'text-body sm:text-h4 text-foreground',
           headerBaseClassName,
           isActive && effectiveHeaderActive
         )
 
         const labelClass = cn(
-          'text-xs sm:text-sm text-muted-foreground font-normal',
+          'text-micro sm:text-small text-muted-foreground font-normal',
           labelBaseClassName,
           isActive && effectiveLabelActive
         )

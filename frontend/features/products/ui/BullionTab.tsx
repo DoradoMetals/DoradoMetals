@@ -1,12 +1,10 @@
 import { useState } from 'react'
 import { FloatingLabelInput } from '@/shared/ui/inputs/FloatingLabelInput'
 import fuzzysort from 'fuzzysort'
-import { Button } from '@dorado/components'
-import { Label } from '@/shared/ui/base/label'
+import { Button, FieldLabel, Switch } from '@dorado/components'
 import { X } from 'lucide-react'
 import { RadioGroupRoot, RadioOption } from '@/shared/ui/RadioGroup'
 import { cn } from '@/shared/utils/cn'
-import { Switch } from '@dorado/components'
 import { useSellProducts } from '@/features/products/queries'
 import BullionCard from '@/features/products/ui/BullionCard'
 import { useCatalogQuote } from '@/features/quotes/queries'
@@ -63,7 +61,7 @@ export default function BullionTab() {
   return (
     <div className="relative flex flex-col gap-2 mt-8 mb-8 w-full">
       <div className="flex items-center justify-between w-full gap-2">
-        <Label htmlFor="show-generics">Show All Products</Label>
+        <FieldLabel htmlFor="show-generics">Show All Products</FieldLabel>
         <Switch
           id="show-generics"
           checked={isShowAll}

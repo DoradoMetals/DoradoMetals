@@ -74,7 +74,7 @@ function PopoverDescription({
   ...props
 }: React.ComponentProps<'p'>) {
   return (
-    <p className={cn('text-muted-foreground text-sm', className)} {...props} />
+    <p className={cn('text-muted-foreground text-small', className)} {...props} />
   );
 }
 

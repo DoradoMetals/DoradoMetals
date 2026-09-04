@@ -13,6 +13,15 @@ describe("Field chassis", () => {
     expect(c).toContain("aria-[invalid=true]:border-destructive");
   });
 
+  it("disabled reads as a muted fill, not an opacity fade", () => {
+    const c = fieldTrigger();
+    expect(c).toContain("disabled:bg-muted");
+    expect(c).toContain("disabled:text-foreground-disabled");
+    expect(c).toContain("data-[disabled]:bg-muted");
+    expect(c).toContain("data-[disabled]:text-foreground-disabled");
+    expect(c).not.toContain("opacity-50");
+  });
+
   it("panel is the popover surface, option highlights with accent", () => {
     expect(fieldPanel()).toContain("bg-popover");
     expect(fieldOption()).toContain("data-[highlighted]:bg-accent");

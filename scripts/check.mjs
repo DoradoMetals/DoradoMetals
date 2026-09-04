@@ -101,6 +101,19 @@ const GROUPS = [
       { name: "api:test", cmd: pnpm("@dorado/api", FAST ? "test" : "test:coverage") },
     ],
   },
+  {
+    name: "design",
+    // The Figma sync checks. Pure file reads against the committed snapshot at
+    // scripts/figma/snapshot.json - no database, no network, no build, ~100ms
+    // for all three - so they sit in the fast set and cost check:fast nothing
+    // measurable. They do not depend on the contracts build either.
+    parallel: true,
+    steps: [
+      { name: "figma:tokens", cmd: "node scripts/figma/check-tokens.mjs" },
+      { name: "figma:inventory", cmd: "node scripts/figma/check-inventory.mjs" },
+      { name: "figma:hygiene", cmd: "node scripts/figma/check-hygiene.mjs" },
+    ],
+  },
 ];
 
 const FULL_ONLY_GROUPS = [

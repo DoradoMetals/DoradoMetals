@@ -21,7 +21,7 @@ describe('the Button is the drawing at 25:510', () => {
     expect(c).toContain('px-2')
     expect(c).toContain('-mx-2')
     expect(c).not.toContain('px-4')
-    expect(c).toContain('text-muted-foreground')
+    expect(c).toContain('text-subtle')
   })
 
   it('hover is opacity for every variant, and NOTHING else', () => {
@@ -96,5 +96,11 @@ describe('rendered Button', () => {
     expect(rendered({ variant: 'tertiary', size: 'lg' })).toContain('gap-1.5')
     expect(rendered({ variant: 'secondary', size: 'default' })).toContain('gap-1.5')
     expect(rendered({ variant: 'secondary', size: 'lg' })).toContain('gap-2')
+  })
+
+  it('tertiary neutral is the one place the library uses subtle', () => {
+    expect(rendered({ variant: 'tertiary' })).toContain('text-subtle')
+    expect(rendered({ variant: 'tertiary', intent: 'danger' })).toContain('text-destructive')
+    expect(rendered({ variant: 'secondary' })).not.toContain('text-subtle')
   })
 })

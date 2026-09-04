@@ -26,4 +26,15 @@ describe("SliderField", () => {
     fireEvent.blur(input);
     expect(onValueChange).toHaveBeenCalledWith(75);
   });
+
+  it("disabled reads as a muted fill, not an opacity fade", () => {
+    const { container } = render(
+      <SliderField label="Purity" unit="%" value={50} onValueChange={() => {}} disabled />,
+    );
+    const input = container.querySelector("input") as HTMLInputElement;
+    const box = input.parentElement as HTMLElement;
+    expect(box.className).toContain("bg-muted");
+    expect(box.className).not.toContain("opacity-50");
+    expect(input.className).toContain("disabled:text-foreground-disabled");
+  });
 });

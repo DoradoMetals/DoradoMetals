@@ -54,4 +54,14 @@ describe("Autocomplete", () => {
     expect(onFocus).toHaveBeenCalled();
     expect(input.getAttribute("aria-expanded")).toBe("true");
   });
+
+  it("disabled reads as a muted fill, not an opacity fade", () => {
+    const { getByRole } = renderAC({ disabled: true });
+    const input = getByRole("combobox") as HTMLInputElement;
+    const wrapper = input.parentElement as HTMLElement;
+    expect(wrapper.getAttribute("data-disabled")).toBe("true");
+    expect(wrapper.className).toContain("data-[disabled]:bg-muted");
+    expect(wrapper.className).not.toContain("opacity-50");
+    expect(input.className).toContain("disabled:text-foreground-disabled");
+  });
 });

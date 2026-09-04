@@ -17,18 +17,18 @@ import { useCreateUser } from '@/features/auth/queries'
 import { SegmentedField } from '@/shared/ui/SegmentedField'
 import formatPhoneNumber, { normalizePhone } from '@/shared/utils/formatPhoneNumber'
 import SchedulePicker from '@/shared/ui/SchedulePicker'
-import { Button } from '@dorado/components'
-import { TrashIcon, UserPlusIcon } from '@phosphor-icons/react'
-import { PopoverSelect } from '@/shared/ui/table/PopoverSelect'
-import { Field } from '@/shared/ui/Field'
 import {
+  Button,
   Dialog,
   DialogContent,
   DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from '@/shared/ui/base/dialog'
+} from '@dorado/components'
+import { TrashIcon, UserPlusIcon } from '@phosphor-icons/react'
+import { PopoverSelect } from '@/shared/ui/table/PopoverSelect'
+import { Field } from '@/shared/ui/Field'
 import { isValidEmail } from '@/shared/utils/isValid'
 import { useDeleteLead, useUpdateLead } from '@/features/leads/queries'
 import { useAdminRoleUsers, useAdminUsers } from '@/features/users/queries'

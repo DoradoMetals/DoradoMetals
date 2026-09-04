@@ -79,7 +79,7 @@ export function Autocomplete({
   return (
     <div className={cn("relative flex w-full flex-col gap-0.5", className)}>
       {label != null && <FieldLabel htmlFor={id}>{label}</FieldLabel>}
-      <div className={cn(fieldTrigger(), disabled && "pointer-events-none opacity-50")}>
+      <div data-disabled={disabled || undefined} className={fieldTrigger()}>
         {leading != null && <span className="shrink-0 text-muted-foreground">{leading}</span>}
         <input
           id={id}
@@ -108,7 +108,7 @@ export function Autocomplete({
             onKeyDown(e);
             inputProps?.onKeyDown?.(e);
           }}
-          className="min-w-0 flex-1 bg-transparent text-body text-foreground outline-none placeholder:text-placeholder"
+          className="min-w-0 flex-1 bg-transparent text-body text-foreground outline-none placeholder:text-placeholder disabled:text-foreground-disabled"
           {...(({ onFocus: _f, onBlur: _b, onKeyDown: _k, ...rest }) => rest)(inputProps ?? {})}
         />
         {trailing != null && <span className="shrink-0">{trailing}</span>}

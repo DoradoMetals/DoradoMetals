@@ -58,7 +58,7 @@ export const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
             "placeholder:text-placeholder focus-visible:border-primary",
             invalid && "border-destructive",
             success && "border-success",
-            "disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50"
+            "disabled:pointer-events-none disabled:cursor-not-allowed disabled:bg-muted disabled:text-foreground-disabled"
           )}
           {...props}
         />

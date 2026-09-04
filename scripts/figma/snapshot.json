@@ -1,0 +1,1344 @@
+{
+  "fileKey": "8A73quhBLBqotJlX95jN9j",
+  "fileName": "Themes and Components",
+  "capturedAt": "2026-09-03",
+  "collections": {
+    "Color": {
+      "modes": [
+        "Dark"
+      ],
+      "variables": [
+        {
+          "name": "accent/default",
+          "type": "COLOR",
+          "alias": null,
+          "value": "#23252a"
+        },
+        {
+          "name": "accent/foreground",
+          "type": "COLOR",
+          "alias": null,
+          "value": "#f6f7f9"
+        },
+        {
+          "name": "border/default",
+          "type": "COLOR",
+          "alias": null,
+          "value": "#2c2f35"
+        },
+        {
+          "name": "border/input",
+          "type": "COLOR",
+          "alias": null,
+          "value": "#383b43"
+        },
+        {
+          "name": "border/strong",
+          "type": "COLOR",
+          "alias": null,
+          "value": "#3f434b"
+        },
+        {
+          "name": "brand/default",
+          "type": "COLOR",
+          "alias": null,
+          "value": "#d9b559"
+        },
+        {
+          "name": "focus/ring",
+          "type": "COLOR",
+          "alias": null,
+          "value": "#a7b0be"
+        },
+        {
+          "name": "primary/default",
+          "type": "COLOR",
+          "alias": null,
+          "value": "#fafafa"
+        },
+        {
+          "name": "primary/foreground",
+          "type": "COLOR",
+          "alias": null,
+          "value": "#0d0e11"
+        },
+        {
+          "name": "secondary/default",
+          "type": "COLOR",
+          "alias": null,
+          "value": "#23252a"
+        },
+        {
+          "name": "secondary/foreground",
+          "type": "COLOR",
+          "alias": null,
+          "value": "#f6f7f9"
+        },
+        {
+          "name": "status/destructive",
+          "type": "COLOR",
+          "alias": null,
+          "value": "#ec5165"
+        },
+        {
+          "name": "status/destructive-foreground",
+          "type": "COLOR",
+          "alias": null,
+          "value": "#fafafa"
+        },
+        {
+          "name": "status/destructive-muted",
+          "type": "COLOR",
+          "alias": null,
+          "value": "#32161c"
+        },
+        {
+          "name": "status/info",
+          "type": "COLOR",
+          "alias": null,
+          "value": "#3eaef4"
+        },
+        {
+          "name": "status/info-foreground",
+          "type": "COLOR",
+          "alias": null,
+          "value": "#0d0e11"
+        },
+        {
+          "name": "status/info-muted",
+          "type": "COLOR",
+          "alias": null,
+          "value": "#132736"
+        },
+        {
+          "name": "status/success",
+          "type": "COLOR",
+          "alias": null,
+          "value": "#3ecc89"
+        },
+        {
+          "name": "status/success-foreground",
+          "type": "COLOR",
+          "alias": null,
+          "value": "#0d0e11"
+        },
+        {
+          "name": "status/success-muted",
+          "type": "COLOR",
+          "alias": null,
+          "value": "#172c22"
+        },
+        {
+          "name": "status/warning",
+          "type": "COLOR",
+          "alias": null,
+          "value": "#f6ae31"
+        },
+        {
+          "name": "status/warning-foreground",
+          "type": "COLOR",
+          "alias": null,
+          "value": "#0d0e11"
+        },
+        {
+          "name": "status/warning-muted",
+          "type": "COLOR",
+          "alias": null,
+          "value": "#342713"
+        },
+        {
+          "name": "surface/background",
+          "type": "COLOR",
+          "alias": null,
+          "value": "#09090c"
+        },
+        {
+          "name": "surface/card",
+          "type": "COLOR",
+          "alias": null,
+          "value": "#101114"
+        },
+        {
+          "name": "surface/default",
+          "type": "COLOR",
+          "alias": "surface/card",
+          "value": "#101114"
+        },
+        {
+          "name": "surface/highest",
+          "type": "COLOR",
+          "alias": null,
+          "value": "#191b1f"
+        },
+        {
+          "name": "surface/muted",
+          "type": "COLOR",
+          "alias": null,
+          "value": "#1e2024"
+        },
+        {
+          "name": "surface/overlay",
+          "type": "COLOR",
+          "alias": "surface/highest",
+          "value": "#191b1f"
+        },
+        {
+          "name": "surface/popover",
+          "type": "COLOR",
+          "alias": null,
+          "value": "#151619"
+        },
+        {
+          "name": "surface/raised",
+          "type": "COLOR",
+          "alias": "surface/popover",
+          "value": "#151619"
+        },
+        {
+          "name": "text/danger",
+          "type": "COLOR",
+          "alias": "status/destructive",
+          "value": "#ec5165"
+        },
+        {
+          "name": "text/default",
+          "type": "COLOR",
+          "alias": null,
+          "value": "#f6f7f9"
+        },
+        {
+          "name": "text/disabled",
+          "type": "COLOR",
+          "alias": null,
+          "value": "#5b5e67"
+        },
+        {
+          "name": "text/info",
+          "type": "COLOR",
+          "alias": "status/info",
+          "value": "#3eaef4"
+        },
+        {
+          "name": "text/inverse",
+          "type": "COLOR",
+          "alias": "primary/foreground",
+          "value": "#0d0e11"
+        },
+        {
+          "name": "text/muted",
+          "type": "COLOR",
+          "alias": null,
+          "value": "#9499a4"
+        },
+        {
+          "name": "text/placeholder",
+          "type": "COLOR",
+          "alias": null,
+          "value": "#787c87"
+        },
+        {
+          "name": "text/subtle",
+          "type": "COLOR",
+          "alias": null,
+          "value": "#babec5"
+        },
+        {
+          "name": "text/success",
+          "type": "COLOR",
+          "alias": "status/success",
+          "value": "#3ecc89"
+        },
+        {
+          "name": "text/warning",
+          "type": "COLOR",
+          "alias": "status/warning",
+          "value": "#f6ae31"
+        }
+      ]
+    },
+    "Scale": {
+      "modes": [
+        "Default"
+      ],
+      "variables": [
+        {
+          "name": "breakpoint/xs",
+          "type": "FLOAT",
+          "alias": null,
+          "value": 304
+        },
+        {
+          "name": "radius/base",
+          "type": "FLOAT",
+          "alias": null,
+          "value": 8
+        },
+        {
+          "name": "radius/lg",
+          "type": "FLOAT",
+          "alias": "radius/base",
+          "value": 8
+        },
+        {
+          "name": "radius/md",
+          "type": "FLOAT",
+          "alias": null,
+          "value": 6
+        },
+        {
+          "name": "radius/sm",
+          "type": "FLOAT",
+          "alias": null,
+          "value": 4
+        },
+        {
+          "name": "radius/xl",
+          "type": "FLOAT",
+          "alias": null,
+          "value": 12
+        },
+        {
+          "name": "spacing/2xl",
+          "type": "FLOAT",
+          "alias": null,
+          "value": 48
+        },
+        {
+          "name": "spacing/2xs",
+          "type": "FLOAT",
+          "alias": null,
+          "value": 4
+        },
+        {
+          "name": "spacing/3xl",
+          "type": "FLOAT",
+          "alias": null,
+          "value": 64
+        },
+        {
+          "name": "spacing/3xs",
+          "type": "FLOAT",
+          "alias": null,
+          "value": 2
+        },
+        {
+          "name": "spacing/lg",
+          "type": "FLOAT",
+          "alias": null,
+          "value": 24
+        },
+        {
+          "name": "spacing/md",
+          "type": "FLOAT",
+          "alias": null,
+          "value": 16
+        },
+        {
+          "name": "spacing/sm",
+          "type": "FLOAT",
+          "alias": null,
+          "value": 12
+        },
+        {
+          "name": "spacing/xl",
+          "type": "FLOAT",
+          "alias": null,
+          "value": 32
+        },
+        {
+          "name": "spacing/xs",
+          "type": "FLOAT",
+          "alias": null,
+          "value": 8
+        }
+      ]
+    },
+    "Typography": {
+      "modes": [
+        "Default"
+      ],
+      "variables": [
+        {
+          "name": "letter-spacing/body",
+          "type": "FLOAT",
+          "alias": null,
+          "value": -0.045
+        },
+        {
+          "name": "letter-spacing/display",
+          "type": "FLOAT",
+          "alias": null,
+          "value": -2.048
+        },
+        {
+          "name": "letter-spacing/h1",
+          "type": "FLOAT",
+          "alias": null,
+          "value": -0.864
+        },
+        {
+          "name": "letter-spacing/h2",
+          "type": "FLOAT",
+          "alias": null,
+          "value": -0.56
+        },
+        {
+          "name": "letter-spacing/h3",
+          "type": "FLOAT",
+          "alias": null,
+          "value": -0.33
+        },
+        {
+          "name": "letter-spacing/h4",
+          "type": "FLOAT",
+          "alias": null,
+          "value": -0.198
+        },
+        {
+          "name": "letter-spacing/h5",
+          "type": "FLOAT",
+          "alias": null,
+          "value": -0.096
+        },
+        {
+          "name": "letter-spacing/h6",
+          "type": "FLOAT",
+          "alias": null,
+          "value": 0
+        },
+        {
+          "name": "letter-spacing/micro",
+          "type": "FLOAT",
+          "alias": null,
+          "value": 0.048
+        },
+        {
+          "name": "letter-spacing/small",
+          "type": "FLOAT",
+          "alias": null,
+          "value": 0
+        },
+        {
+          "name": "letter-spacing/stat",
+          "type": "FLOAT",
+          "alias": null,
+          "value": -0.864
+        },
+        {
+          "name": "letter-spacing/stat-sm",
+          "type": "FLOAT",
+          "alias": null,
+          "value": -0.6
+        },
+        {
+          "name": "line-height/body",
+          "type": "FLOAT",
+          "alias": null,
+          "value": 24
+        },
+        {
+          "name": "line-height/display",
+          "type": "FLOAT",
+          "alias": null,
+          "value": 67.2
+        },
+        {
+          "name": "line-height/h1",
+          "type": "FLOAT",
+          "alias": null,
+          "value": 41.4
+        },
+        {
+          "name": "line-height/h2",
+          "type": "FLOAT",
+          "alias": null,
+          "value": 34.16
+        },
+        {
+          "name": "line-height/h3",
+          "type": "FLOAT",
+          "alias": null,
+          "value": 28.6
+        },
+        {
+          "name": "line-height/h4",
+          "type": "FLOAT",
+          "alias": null,
+          "value": 25.2
+        },
+        {
+          "name": "line-height/h5",
+          "type": "FLOAT",
+          "alias": null,
+          "value": 23.2
+        },
+        {
+          "name": "line-height/h6",
+          "type": "FLOAT",
+          "alias": null,
+          "value": 21
+        },
+        {
+          "name": "line-height/micro",
+          "type": "FLOAT",
+          "alias": null,
+          "value": 17.4
+        },
+        {
+          "name": "line-height/small",
+          "type": "FLOAT",
+          "alias": null,
+          "value": 19.5
+        },
+        {
+          "name": "line-height/stat",
+          "type": "FLOAT",
+          "alias": null,
+          "value": 39.6
+        },
+        {
+          "name": "line-height/stat-sm",
+          "type": "FLOAT",
+          "alias": null,
+          "value": 34.5
+        },
+        {
+          "name": "size/body",
+          "type": "FLOAT",
+          "alias": null,
+          "value": 15
+        },
+        {
+          "name": "size/display",
+          "type": "FLOAT",
+          "alias": null,
+          "value": 64
+        },
+        {
+          "name": "size/h1",
+          "type": "FLOAT",
+          "alias": null,
+          "value": 36
+        },
+        {
+          "name": "size/h2",
+          "type": "FLOAT",
+          "alias": null,
+          "value": 28
+        },
+        {
+          "name": "size/h3",
+          "type": "FLOAT",
+          "alias": null,
+          "value": 22
+        },
+        {
+          "name": "size/h4",
+          "type": "FLOAT",
+          "alias": null,
+          "value": 18
+        },
+        {
+          "name": "size/h5",
+          "type": "FLOAT",
+          "alias": null,
+          "value": 16
+        },
+        {
+          "name": "size/h6",
+          "type": "FLOAT",
+          "alias": null,
+          "value": 14
+        },
+        {
+          "name": "size/micro",
+          "type": "FLOAT",
+          "alias": null,
+          "value": 12
+        },
+        {
+          "name": "size/small",
+          "type": "FLOAT",
+          "alias": null,
+          "value": 13
+        },
+        {
+          "name": "size/stat",
+          "type": "FLOAT",
+          "alias": null,
+          "value": 36
+        },
+        {
+          "name": "size/stat-sm",
+          "type": "FLOAT",
+          "alias": null,
+          "value": 30
+        },
+        {
+          "name": "weight/medium",
+          "type": "FLOAT",
+          "alias": null,
+          "value": 500
+        },
+        {
+          "name": "weight/regular",
+          "type": "FLOAT",
+          "alias": null,
+          "value": 400
+        },
+        {
+          "name": "weight/semibold",
+          "type": "FLOAT",
+          "alias": null,
+          "value": 600
+        }
+      ]
+    }
+  },
+  "textStyles": [
+    {
+      "name": "Body/Medium",
+      "family": "Geist",
+      "style": "Medium",
+      "fontSize": 15,
+      "lineHeight": 24,
+      "letterSpacing": -0.045
+    },
+    {
+      "name": "Body/Regular",
+      "family": "Geist",
+      "style": "Regular",
+      "fontSize": 15,
+      "lineHeight": 24,
+      "letterSpacing": -0.045
+    },
+    {
+      "name": "Display",
+      "family": "Geist",
+      "style": "SemiBold",
+      "fontSize": 64,
+      "lineHeight": 67.2,
+      "letterSpacing": -2.048
+    },
+    {
+      "name": "Eyebrow",
+      "family": "Geist Mono",
+      "style": "Medium",
+      "fontSize": 12,
+      "lineHeight": 17.4,
+      "letterSpacing": 1.2
+    },
+    {
+      "name": "Heading/H1",
+      "family": "Geist",
+      "style": "SemiBold",
+      "fontSize": 36,
+      "lineHeight": 41.4,
+      "letterSpacing": -0.864
+    },
+    {
+      "name": "Heading/H2",
+      "family": "Geist",
+      "style": "SemiBold",
+      "fontSize": 28,
+      "lineHeight": 34.16,
+      "letterSpacing": -0.56
+    },
+    {
+      "name": "Heading/H3",
+      "family": "Geist",
+      "style": "SemiBold",
+      "fontSize": 22,
+      "lineHeight": 28.6,
+      "letterSpacing": -0.33
+    },
+    {
+      "name": "Heading/H4",
+      "family": "Geist",
+      "style": "SemiBold",
+      "fontSize": 18,
+      "lineHeight": 25.2,
+      "letterSpacing": -0.198
+    },
+    {
+      "name": "Heading/H5",
+      "family": "Geist",
+      "style": "SemiBold",
+      "fontSize": 16,
+      "lineHeight": 23.2,
+      "letterSpacing": -0.096
+    },
+    {
+      "name": "Heading/H6",
+      "family": "Geist",
+      "style": "SemiBold",
+      "fontSize": 14,
+      "lineHeight": 21,
+      "letterSpacing": 0
+    },
+    {
+      "name": "Micro/Medium",
+      "family": "Geist",
+      "style": "Medium",
+      "fontSize": 12,
+      "lineHeight": 17.4,
+      "letterSpacing": 0.048
+    },
+    {
+      "name": "Micro/Regular",
+      "family": "Geist",
+      "style": "Regular",
+      "fontSize": 12,
+      "lineHeight": 17.4,
+      "letterSpacing": 0.048
+    },
+    {
+      "name": "Small/Medium",
+      "family": "Geist",
+      "style": "Medium",
+      "fontSize": 13,
+      "lineHeight": 19.5,
+      "letterSpacing": 0
+    },
+    {
+      "name": "Small/Regular",
+      "family": "Geist",
+      "style": "Regular",
+      "fontSize": 13,
+      "lineHeight": 19.5,
+      "letterSpacing": 0
+    },
+    {
+      "name": "Stat/Default",
+      "family": "Geist",
+      "style": "SemiBold",
+      "fontSize": 36,
+      "lineHeight": 39.6,
+      "letterSpacing": -0.864
+    },
+    {
+      "name": "Stat/Small",
+      "family": "Geist",
+      "style": "SemiBold",
+      "fontSize": 30,
+      "lineHeight": 34.5,
+      "letterSpacing": -0.6
+    }
+  ],
+  "pages": [
+    {
+      "id": "0:1",
+      "name": "Cover"
+    },
+    {
+      "id": "14:2",
+      "name": "Foundations"
+    },
+    {
+      "id": "34:2",
+      "name": "Logo"
+    },
+    {
+      "id": "441:2",
+      "name": "Brand Logos"
+    },
+    {
+      "id": "33:2",
+      "name": "Icons"
+    },
+    {
+      "id": "14:3",
+      "name": "———  COMPONENTS  ———"
+    },
+    {
+      "id": "163:2",
+      "name": "Address Card"
+    },
+    {
+      "id": "54:2",
+      "name": "Alert"
+    },
+    {
+      "id": "40:2",
+      "name": "Attachment"
+    },
+    {
+      "id": "14:10",
+      "name": "Accordion"
+    },
+    {
+      "id": "100:2",
+      "name": "Autocomplete"
+    },
+    {
+      "id": "32:122",
+      "name": "Avatar"
+    },
+    {
+      "id": "32:37",
+      "name": "Badge"
+    },
+    {
+      "id": "125:2",
+      "name": "Banner"
+    },
+    {
+      "id": "126:2",
+      "name": "Breadcrumb"
+    },
+    {
+      "id": "14:4",
+      "name": "Button"
+    },
+    {
+      "id": "457:2",
+      "name": "Icon Button"
+    },
+    {
+      "id": "57:2",
+      "name": "Chart"
+    },
+    {
+      "id": "14:6",
+      "name": "Checkbox"
+    },
+    {
+      "id": "32:84",
+      "name": "Chip"
+    },
+    {
+      "id": "47:2",
+      "name": "Datepicker"
+    },
+    {
+      "id": "41:2",
+      "name": "Dialog"
+    },
+    {
+      "id": "431:2",
+      "name": "Divider"
+    },
+    {
+      "id": "127:2",
+      "name": "Drawer"
+    },
+    {
+      "id": "127:33",
+      "name": "Empty State"
+    },
+    {
+      "id": "51:59",
+      "name": "Footer"
+    },
+    {
+      "id": "51:2",
+      "name": "Header"
+    },
+    {
+      "id": "163:33",
+      "name": "Hero"
+    },
+    {
+      "id": "14:5",
+      "name": "Input"
+    },
+    {
+      "id": "26:392",
+      "name": "Link"
+    },
+    {
+      "id": "97:2",
+      "name": "List"
+    },
+    {
+      "id": "32:178",
+      "name": "Loader"
+    },
+    {
+      "id": "170:46",
+      "name": "Marquee"
+    },
+    {
+      "id": "170:65",
+      "name": "Masked Field (deprecated)"
+    },
+    {
+      "id": "132:2",
+      "name": "Menu"
+    },
+    {
+      "id": "132:955",
+      "name": "Pagination"
+    },
+    {
+      "id": "541:2",
+      "name": "Paperwork"
+    },
+    {
+      "id": "106:2",
+      "name": "Popover"
+    },
+    {
+      "id": "132:981",
+      "name": "Progress"
+    },
+    {
+      "id": "132:996",
+      "name": "Quantity Stepper"
+    },
+    {
+      "id": "14:7",
+      "name": "Radio"
+    },
+    {
+      "id": "306:2",
+      "name": "Scroll Area"
+    },
+    {
+      "id": "38:2",
+      "name": "Select"
+    },
+    {
+      "id": "32:148",
+      "name": "Skeleton"
+    },
+    {
+      "id": "14:9",
+      "name": "Slider"
+    },
+    {
+      "id": "53:2",
+      "name": "Stat"
+    },
+    {
+      "id": "54:45",
+      "name": "Stepper"
+    },
+    {
+      "id": "59:2",
+      "name": "Swiper"
+    },
+    {
+      "id": "14:8",
+      "name": "Switch"
+    },
+    {
+      "id": "56:2",
+      "name": "Table"
+    },
+    {
+      "id": "39:2",
+      "name": "Tabs"
+    },
+    {
+      "id": "37:2",
+      "name": "Textarea"
+    },
+    {
+      "id": "32:156",
+      "name": "Tooltip"
+    },
+    {
+      "id": "541:3",
+      "name": "Tracker"
+    },
+    {
+      "id": "74:2",
+      "name": "Typography"
+    },
+    {
+      "id": "117:2",
+      "name": "Upload"
+    },
+    {
+      "id": "96:2",
+      "name": "OTP"
+    }
+  ],
+  "hygiene": {
+    "scanned": 3153,
+    "totals": {
+      "color": 4,
+      "spacing": 695,
+      "radius": 766,
+      "textStyle": 172,
+      "iconFill": 0,
+      "iconWeight": 31
+    },
+    "perPage": {
+      "Address Card": {
+        "color": 0,
+        "spacing": 29,
+        "radius": 8,
+        "textStyle": 0,
+        "iconFill": 0,
+        "iconWeight": 4
+      },
+      "Alert": {
+        "color": 0,
+        "spacing": 0,
+        "radius": 0,
+        "textStyle": 0,
+        "iconFill": 0,
+        "iconWeight": 10
+      },
+      "Attachment": {
+        "color": 0,
+        "spacing": 18,
+        "radius": 0,
+        "textStyle": 0,
+        "iconFill": 0,
+        "iconWeight": 6
+      },
+      "Accordion": {
+        "color": 1,
+        "spacing": 0,
+        "radius": 0,
+        "textStyle": 0,
+        "iconFill": 0,
+        "iconWeight": 0
+      },
+      "Autocomplete": {
+        "color": 0,
+        "spacing": 0,
+        "radius": 0,
+        "textStyle": 0,
+        "iconFill": 0,
+        "iconWeight": 2
+      },
+      "Avatar": {
+        "color": 0,
+        "spacing": 0,
+        "radius": 16,
+        "textStyle": 0,
+        "iconFill": 0,
+        "iconWeight": 0
+      },
+      "Badge": {
+        "color": 0,
+        "spacing": 31,
+        "radius": 0,
+        "textStyle": 0,
+        "iconFill": 0,
+        "iconWeight": 0
+      },
+      "Banner": {
+        "color": 0,
+        "spacing": 6,
+        "radius": 0,
+        "textStyle": 0,
+        "iconFill": 0,
+        "iconWeight": 0
+      },
+      "Breadcrumb": {
+        "color": 0,
+        "spacing": 7,
+        "radius": 0,
+        "textStyle": 0,
+        "iconFill": 0,
+        "iconWeight": 0
+      },
+      "Button": {
+        "color": 0,
+        "spacing": 135,
+        "radius": 0,
+        "textStyle": 135,
+        "iconFill": 0,
+        "iconWeight": 0
+      },
+      "Icon Button": {
+        "color": 0,
+        "spacing": 5,
+        "radius": 0,
+        "textStyle": 0,
+        "iconFill": 0,
+        "iconWeight": 0
+      },
+      "Chart": {
+        "color": 0,
+        "spacing": 0,
+        "radius": 8,
+        "textStyle": 0,
+        "iconFill": 0,
+        "iconWeight": 0
+      },
+      "Checkbox": {
+        "color": 0,
+        "spacing": 10,
+        "radius": 0,
+        "textStyle": 0,
+        "iconFill": 0,
+        "iconWeight": 0
+      },
+      "Chip": {
+        "color": 0,
+        "spacing": 5,
+        "radius": 24,
+        "textStyle": 0,
+        "iconFill": 0,
+        "iconWeight": 5
+      },
+      "Datepicker": {
+        "color": 0,
+        "spacing": 41,
+        "radius": 8,
+        "textStyle": 0,
+        "iconFill": 0,
+        "iconWeight": 0
+      },
+      "Dialog": {
+        "color": 0,
+        "spacing": 8,
+        "radius": 0,
+        "textStyle": 0,
+        "iconFill": 0,
+        "iconWeight": 0
+      },
+      "Divider": {
+        "color": 0,
+        "spacing": 5,
+        "radius": 0,
+        "textStyle": 0,
+        "iconFill": 0,
+        "iconWeight": 0
+      },
+      "Drawer": {
+        "color": 2,
+        "spacing": 32,
+        "radius": 30,
+        "textStyle": 0,
+        "iconFill": 0,
+        "iconWeight": 0
+      },
+      "Empty State": {
+        "color": 0,
+        "spacing": 14,
+        "radius": 8,
+        "textStyle": 0,
+        "iconFill": 0,
+        "iconWeight": 0
+      },
+      "Footer": {
+        "color": 0,
+        "spacing": 52,
+        "radius": 0,
+        "textStyle": 0,
+        "iconFill": 0,
+        "iconWeight": 0
+      },
+      "Header": {
+        "color": 0,
+        "spacing": 11,
+        "radius": 16,
+        "textStyle": 0,
+        "iconFill": 0,
+        "iconWeight": 0
+      },
+      "Hero": {
+        "color": 0,
+        "spacing": 8,
+        "radius": 0,
+        "textStyle": 1,
+        "iconFill": 0,
+        "iconWeight": 0
+      },
+      "Link": {
+        "color": 0,
+        "spacing": 15,
+        "radius": 0,
+        "textStyle": 0,
+        "iconFill": 0,
+        "iconWeight": 0
+      },
+      "List": {
+        "color": 0,
+        "spacing": 1,
+        "radius": 0,
+        "textStyle": 0,
+        "iconFill": 0,
+        "iconWeight": 0
+      },
+      "Marquee": {
+        "color": 0,
+        "spacing": 9,
+        "radius": 0,
+        "textStyle": 0,
+        "iconFill": 0,
+        "iconWeight": 0
+      },
+      "Masked Field (deprecated)": {
+        "color": 0,
+        "spacing": 10,
+        "radius": 0,
+        "textStyle": 0,
+        "iconFill": 0,
+        "iconWeight": 0
+      },
+      "Menu": {
+        "color": 0,
+        "spacing": 34,
+        "radius": 4,
+        "textStyle": 0,
+        "iconFill": 0,
+        "iconWeight": 0
+      },
+      "Pagination": {
+        "color": 0,
+        "spacing": 6,
+        "radius": 44,
+        "textStyle": 0,
+        "iconFill": 0,
+        "iconWeight": 0
+      },
+      "Paperwork": {
+        "color": 0,
+        "spacing": 0,
+        "radius": 0,
+        "textStyle": 0,
+        "iconFill": 0,
+        "iconWeight": 4
+      },
+      "Progress": {
+        "color": 0,
+        "spacing": 6,
+        "radius": 24,
+        "textStyle": 0,
+        "iconFill": 0,
+        "iconWeight": 0
+      },
+      "Quantity Stepper": {
+        "color": 0,
+        "spacing": 5,
+        "radius": 16,
+        "textStyle": 0,
+        "iconFill": 0,
+        "iconWeight": 0
+      },
+      "Radio": {
+        "color": 0,
+        "spacing": 24,
+        "radius": 192,
+        "textStyle": 0,
+        "iconFill": 0,
+        "iconWeight": 0
+      },
+      "Scroll Area": {
+        "color": 0,
+        "spacing": 20,
+        "radius": 136,
+        "textStyle": 0,
+        "iconFill": 0,
+        "iconWeight": 0
+      },
+      "Select": {
+        "color": 0,
+        "spacing": 0,
+        "radius": 32,
+        "textStyle": 0,
+        "iconFill": 0,
+        "iconWeight": 0
+      },
+      "Skeleton": {
+        "color": 0,
+        "spacing": 0,
+        "radius": 4,
+        "textStyle": 0,
+        "iconFill": 0,
+        "iconWeight": 0
+      },
+      "Slider": {
+        "color": 0,
+        "spacing": 0,
+        "radius": 48,
+        "textStyle": 0,
+        "iconFill": 0,
+        "iconWeight": 0
+      },
+      "Stat": {
+        "color": 0,
+        "spacing": 0,
+        "radius": 0,
+        "textStyle": 36,
+        "iconFill": 0,
+        "iconWeight": 0
+      },
+      "Stepper": {
+        "color": 0,
+        "spacing": 0,
+        "radius": 48,
+        "textStyle": 0,
+        "iconFill": 0,
+        "iconWeight": 0
+      },
+      "Switch": {
+        "color": 0,
+        "spacing": 12,
+        "radius": 24,
+        "textStyle": 0,
+        "iconFill": 0,
+        "iconWeight": 0
+      },
+      "Table": {
+        "color": 1,
+        "spacing": 4,
+        "radius": 0,
+        "textStyle": 0,
+        "iconFill": 0,
+        "iconWeight": 0
+      },
+      "Tabs": {
+        "color": 0,
+        "spacing": 10,
+        "radius": 0,
+        "textStyle": 0,
+        "iconFill": 0,
+        "iconWeight": 0
+      },
+      "Upload": {
+        "color": 0,
+        "spacing": 113,
+        "radius": 76,
+        "textStyle": 0,
+        "iconFill": 0,
+        "iconWeight": 0
+      },
+      "OTP": {
+        "color": 0,
+        "spacing": 9,
+        "radius": 0,
+        "textStyle": 0,
+        "iconFill": 0,
+        "iconWeight": 0
+      }
+    },
+    "samples": {
+      "color": [
+        "Accordion :: Open=False, State=Hover, Chevron=Leading [COMPONENT.fills]",
+        "Drawer :: Side=Bottom/Overlay [RECTANGLE.fills]",
+        "Drawer :: Side=Right/Overlay [RECTANGLE.fills]",
+        "Table :: Header/Head 1/funnel/Vector [VECTOR.strokes]"
+      ],
+      "textStyle": [
+        "Button :: 135 - one unstyled Label, counted once per variant. One fix.",
+        "Stat :: 36",
+        "Hero :: 1 - the 44px headline, an off-ramp size (see the component description)"
+      ],
+      "iconWeight": [
+        "Alert :: 5 x 28px icons at w=1.333, want 2.333 - too THIN",
+        "Alert / Attachment / Address Card :: Button's 14px arrow at w=2, want 1.167",
+        "Chip :: 5 x 14px dismiss at w=0.833, want 1.167",
+        "Paperwork :: 4 x file-text (16px at w=2, and the 32px empty-state glyph at w=2)",
+        "Autocomplete :: 2 x 16px scale at w=2, want 1.333"
+      ],
+      "spacing": [
+        "Button :: 135 - one unbound gap, counted once per variant. One fix.",
+        "Upload :: 113, Footer :: 52, Datepicker :: 41, Menu :: 34, Drawer :: 32, Badge :: 31, Address Card :: 29",
+        "Attachment :: 18 - the Layout=Row 10px vertical padding is off-token (Scale has 8 and 12)"
+      ],
+      "radius": [
+        "Radio :: 192, Scroll Area :: 136, Upload :: 76, Slider/Stepper :: 48 each - largely pills and circles, which have no token by design",
+        "Pagination :: 44, Select :: 32, Drawer :: 30"
+      ]
+    }
+  }
+}

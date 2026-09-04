@@ -162,7 +162,9 @@
 
   --subtle: hsl(219, 9%, 75%);
   --foreground-disabled: #5b5e67;
-  --placeholder: hsl(229, 6%, 50%);
+  --placeholder: #787c87; /* was hsl(229, 6%, 50%), which resolves to #787b87 -
+     one unit of green off the Figma variable text/placeholder. Pinned as hex
+     to match exactly, same as --foreground-disabled above. figma:tokens. */
 
   --primary: hsl(0, 0%, 98%);
   --primary-foreground: hsl(228, 13%, 6%);

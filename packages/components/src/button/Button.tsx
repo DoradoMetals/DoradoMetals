@@ -67,7 +67,7 @@ const buttonVariants = cva(
       { variant: "tertiary", size: "lg", className: "gap-1.5" },
 
       { variant: "tertiary", intent: "neutral",
-        className: "text-muted-foreground" },
+        className: "text-subtle" },
       { variant: "tertiary", intent: "success", className: "text-success" },
       { variant: "tertiary", intent: "danger", className: "text-destructive" },
       { variant: "tertiary", intent: "warning", className: "text-warning" },
