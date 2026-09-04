@@ -18,7 +18,8 @@
 // RESPONSE rather than invalidated and re-fetched.
 import { useMutation, useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
 import type {
-  Direction, FulfillmentDirectPatch, FulfillmentMethodPatch, FulfillmentMethodRead,
+  CheckoutRate, Direction, FulfillmentCreateBody, FulfillmentDirectPatch,
+  FulfillmentMethodPatch, FulfillmentMethodRead, FulfillmentPatchBody,
   FulfillmentPickupPatch, FulfillmentView,
 } from "@dorado/contracts";
 
@@ -165,5 +166,98 @@ export function useSetFulfillmentStatus() {
         "POST", "/fulfillments/set_status", { fulfillment_id, status }
       ),
     onSuccess: (view) => absorb(client, view),
+  });
+}
+
+
+// ---------------------------------------------- the customer's own handover
+//
+// RULINGS 69/70 (Jacob, 2026-09-04): "Everything needs to stay in its own
+// lane... All checkout needs to do is send the checkout row and ask
+// fulfillments if the order is ready for placement."
+//
+// These four replace `useSetCheckoutFulfillment` and `useCheckoutRates`. The
+// handover choices - the box, the service, where the parcel leaves from, the
+// courier slot, the collection address, the store, the appointment time - were
+// nine columns of the checkout row and are the draft fulfillment's detail row
+// now (migration 128). So the stepper patches THIS resource, and reads what it
+// still owes off `view.missing`.
+
+// THE DRAFT for a checkout. Idempotent server-side: a checkout that already
+// has one has its METHOD set instead of a second being minted, which is what
+// makes clicking through the handoff options a sequence of patches on one row.
+// Sending neither a method nor a handoff asks for the direction's default,
+// which is what a surface with no handover step (the sale) wants.
+export function useCreateFulfillment() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: async (body: FulfillmentCreateBody) =>
+      await apiRequest<FulfillmentView>("POST", "/fulfillments", body),
+    onSuccess: (view) => {
+      client.setQueryData(keys.fulfillments.one(view.fulfillment.id), view);
+      // The checkout row's `missing` is composed from this one, so it is a
+      // different answer now.
+      client.invalidateQueries({ queryKey: keys.checkout.all() });
+      absorb(client, view);
+    },
+  });
+}
+
+// ONE CHOICE, ONE PATCH, fired from the handler that made it - and the body is
+// keyed by CATEGORY, so a pickup's address can never be sent at a parcel.
+export function usePatchFulfillment() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: async (
+      { fulfillment_id, ...body }: { fulfillment_id: string } & FulfillmentPatchBody
+    ) =>
+      await apiRequest<FulfillmentView>(
+        "PATCH", `/fulfillments/${fulfillment_id}`, body as FulfillmentPatchBody
+      ),
+    onSuccess: (view) => {
+      client.setQueryData(keys.fulfillments.one(view.fulfillment.id), view);
+      client.invalidateQueries({ queryKey: keys.checkout.all() });
+      absorb(client, view);
+    },
+  });
+}
+
+// GET /api/fulfillments/:id - the whole view, `missing` included. Owner-or-
+// admin server-side; a stranger gets 404 rather than a 403 that would confirm
+// the draft exists, so this does not sit re-asking.
+export function useFulfillment(fulfillment_id: string | null | undefined, enabled = true) {
+  return useQuery<FulfillmentView>({
+    queryKey: keys.fulfillments.one(fulfillment_id ?? ""),
+    queryFn: () => apiRequest<FulfillmentView>("GET", `/fulfillments/${fulfillment_id}`),
+    enabled: enabled && !!fulfillment_id,
+    retry: false,
+  });
+}
+
+// GET /api/fulfillments/:id/rates - the carrier's live prices for THIS parcel,
+// already joined to the service catalogue: one entry per offered service, with
+// `carrier_service_id` being the id a patch sends back.
+//
+// GATED ON THE DRAFT'S OWN `missing`, not on a local pick: the server refuses
+// until the box and the origin are actually stored, which only a landed patch
+// does. Mirrors the refusals getFulfillmentRates raises (no cart, no package,
+// no address).
+export function useFulfillmentRates(view: FulfillmentView | undefined) {
+  const parcel = view?.parcel ?? null;
+  const missing = view?.missing ?? [];
+  const ready =
+    !!view
+    && view.method.category === "SHIPMENT"
+    && !missing.includes("package_id")
+    && !missing.includes("shipper_address_id");
+  return useQuery<CheckoutRate[]>({
+    queryKey: keys.fulfillments.rates(
+      view?.fulfillment.id ?? "", parcel?.shipper_address_id, parcel?.package_id
+    ),
+    enabled: ready,
+    staleTime: 5 * 60 * 1000,
+    retry: false,
+    queryFn: () =>
+      apiRequest<CheckoutRate[]>("GET", `/fulfillments/${view!.fulfillment.id}/rates`),
   });
 }

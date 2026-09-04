@@ -1,9 +1,9 @@
 'use client'
 
 import { Calendar, ScrollArea, Button } from '@dorado/components'
-import type { CarrierPickupWindow, CheckoutView } from '@dorado/contracts'
+import type { CarrierPickupWindow, FulfillmentView } from '@dorado/contracts'
 import { parseISO } from 'date-fns'
-import { usePatchCheckout } from '@/features/checkout/queries'
+import { usePatchFulfillment } from '@/features/checkout/queries'
 
 import {
   formatPickupDate,
@@ -17,22 +17,30 @@ import {
 // day the moment the calendar rendered - a write nobody asked for, from a
 // render rather than a click, which also meant the row said "scheduled" before
 // the customer had scheduled anything. The calendar now SHOWS the first
-// available day while `row.pickup_date` is null and writes only when a day or
-// a slot is actually clicked; `missing` names `pickup_schedule` exactly when
-// the chosen handoff needs a date and time and the two columns are unset, so
-// an unscheduled pickup blocks the step honestly.
+// available day while the parcel's `pickup_date` is null and writes only when a
+// day or a slot is actually clicked; the draft's own `missing` names
+// `pickup_date`/`pickup_time` exactly when the chosen handoff needs them, so an
+// unscheduled pickup blocks the step honestly.
+//
+// THE SLOT IS THE PARCEL'S (rulings 69/70, migration 128) - it was two columns
+// of the checkout row until then.
 export default function PickupScheduler({
   times,
-  row,
+  fulfillment,
 }: {
   times: CarrierPickupWindow[]
-  row?: CheckoutView
+  fulfillment?: FulfillmentView
 }) {
-  const patchCheckout = usePatchCheckout('purchase')
+  const patchFulfillment = usePatchFulfillment()
+  const patchSlot = (shipment: { pickup_date?: string | null; pickup_time?: string | null }) => {
+    if (fulfillment) {
+      patchFulfillment.mutate({ fulfillment_id: fulfillment.fulfillment.id, shipment })
+    }
+  }
 
   const today = new Date()
   const nextAvailable = times.find((t) => t.times.length > 0)
-  const stored = row?.pickup_date
+  const stored = fulfillment?.parcel?.pickup_date
   const shownDate =
     stored && times.some((t) => t.pickupDate === stored)
       ? stored
@@ -53,7 +61,7 @@ export default function PickupScheduler({
             onSelect={(newDate) => {
               if (!newDate) return
               const iso = newDate.toISOString().split('T')[0]
-              patchCheckout.mutate({ pickup_date: iso, pickup_time: null })
+              patchSlot({ pickup_date: iso, pickup_time: null })
             }}
             className="p-2 sm:pe-5 bg-card"
             disabled={[
@@ -82,11 +90,11 @@ export default function PickupScheduler({
               {availableSlots.map((slot) => (
                 <Button
                   key={slot}
-                  variant={row?.pickup_time === slot ? 'primary' : 'secondary'}
+                  variant={fulfillment?.parcel?.pickup_time === slot ? 'primary' : 'secondary'}
                   size="sm"
                   className="w-full"
                   onClick={() =>
-                    patchCheckout.mutate({ pickup_date: shownDate, pickup_time: slot })
+                    patchSlot({ pickup_date: shownDate, pickup_time: slot })
                   }
                 >
                   {formatPickupTime(slot)}

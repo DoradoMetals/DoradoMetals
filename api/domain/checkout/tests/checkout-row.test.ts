@@ -18,8 +18,7 @@ import { TEST_ACTOR } from "#shared/testing/actor.ts";
 import { inPinnedTransaction, outside } from "#shared/testing/pinned-pool.ts";
 import { TEST_CUSTOMER } from "#shared/testing/actor.ts";
 import {
-  aUser, anAddress, anOrder, anId, packageId, saleServiceId, paymentMethodId,
-  fulfillmentMethodId,
+  aUser, anAddress, anOrder, anId, paymentMethodId, fulfillmentMethodId,
 } from "#shared/testing/builders/index.ts";
 import { LOCKS } from "#shared/testing/locks.ts";
 
@@ -44,6 +43,26 @@ let hiddenMethodId: string;   // a hidden method the menu never offered
 // rather than by three LIMIT 1 queries.
 const customer: UserFixture = TEST_CUSTOMER;
 const admin: UserFixture = TEST_ACTOR;
+
+// THE HANDOVER IS A FULFILLMENT CALL NOW (rulings 69/70). POST
+// /api/checkout/fulfillment is POST /api/fulfillments, and the checkout row is
+// named by id rather than by direction - so these two helpers stand in for what
+// the stepper does: read the row, then ask fulfillments for a draft on it.
+const checkoutIdFor = async (
+  who: UserFixture, direction: "purchase" | "sale" = "purchase"
+): Promise<string> =>
+  (await as(who, () => request(app).get(`/api/checkout?direction=${direction}`))).body.id;
+
+const chooseHandover = async (
+  who: UserFixture,
+  choice: { method_id?: string; handoff_code?: string },
+  direction: "purchase" | "sale" = "purchase"
+) => {
+  const checkout_id = await checkoutIdFor(who, direction);
+  return await as(who, () =>
+    request(app).post("/api/fulfillments").send({ checkout_id, ...choice })
+  );
+};
 
 beforeAll(async () => {
   const methods = await outside<{ id: string; type: string; direction: string; hidden: boolean }>(
@@ -85,11 +104,13 @@ test("GET /api/checkout mints the row on first read, one per direction", async (
     assert.equal(first.body.ready_to_place, undefined);
     // A purchase with no method chosen owes its items, the method itself and
     // the payout account - and nothing about a box it may never need.
-    assert.deepEqual(first.body.missing, ["items", "fulfillment_method", "payout_account"]);
-    // AND NOTHING ABOUT A BOX: `missing` follows the chosen method's CATEGORY,
-    // and nothing has been chosen yet (Jacob, 2026-09-04: "If it's a direct or
-    // pickup, why would it need shipper_address_id or package_id?").
-    assert.ok(!first.body.missing.includes("package"));
+    assert.deepEqual(
+      first.body.missing, ["items", "fulfillment_id", "payment_details_id"]
+    );
+    // AND NOTHING ABOUT A BOX: the handover's own list is spliced in only once
+    // a draft exists, and fulfillments is the only thing that writes it
+    // (ruling 70).
+    assert.ok(!first.body.missing.includes("package_id"));
 
     const again = await as(customer, () =>
       request(app).get("/api/checkout?direction=purchase")
@@ -123,35 +144,33 @@ test("an anonymous caller gets nothing, and a bad direction is refused", async (
 
 test("PATCH writes the whitelisted id columns and answers the fresh row", async (t) => {
   await inPinnedTransaction(async (c: PoolClient) => {
-    // Three seeded reference rows, each named rather than taken by LIMIT 1 -
-    // see shared/testing/builders/reference.ts on the distinction.
-    const pkg = { id: await packageId(c, "Small Box") };
-    const svc = { id: await saleServiceId(c) };
+    // TWO COLUMNS LEFT (rulings 69/70, migration 128): where a sale is
+    // delivered and how it is paid for. The eight handover ids that used to
+    // arrive here are PATCH /api/fulfillments/:id's.
+    const address = { id: (await anAddress(c, customer)).id };
     const pm = { id: await paymentMethodId(c, "ACH", "purchase") };
 
     const res = await as(customer, () =>
       request(app).patch("/api/checkout").send({
         direction: "purchase",
-        package_id: pkg.id,
-        carrier_service_id: svc.id,
+        recipient_address_id: address.id,
         payment_method_id: pm.id,
       })
     );
     assert.equal(res.status, 200, res.text);
-    assert.equal(res.body.package_id, pkg.id);
-    assert.equal(res.body.carrier_service_id, svc.id);
+    assert.equal(res.body.recipient_address_id, address.id);
     assert.equal(res.body.payment_method_id, pm.id);
 
     // Clearing is a write too - a customer un-picking an option.
     const cleared = await as(customer, () =>
       request(app).patch("/api/checkout").send({
         direction: "purchase",
-        package_id: null,
+        recipient_address_id: null,
       })
     );
-    assert.equal(cleared.body.package_id, null);
+    assert.equal(cleared.body.recipient_address_id, null);
     assert.equal(
-      cleared.body.carrier_service_id, svc.id,
+      cleared.body.payment_method_id, pm.id,
       "clearing one column disturbed another"
     );
   }, { actor: TEST_ACTOR.id, lock: [LOCKS.FULFILLMENTS, LOCKS.ORDERS] });
@@ -170,16 +189,16 @@ test("an address lands only if it is in the CALLER'S book", async () => {
     const good = await as(customer, () =>
       request(app).patch("/api/checkout").send({
         direction: "purchase",
-        shipper_address_id: own.address_id,
+        recipient_address_id: own.address_id,
       })
     );
     assert.equal(good.status, 200, good.text);
-    assert.equal(good.body.shipper_address_id, own.address_id);
+    assert.equal(good.body.recipient_address_id, own.address_id);
 
     const theft = await as(customer, () =>
       request(app).patch("/api/checkout").send({
         direction: "purchase",
-        shipper_address_id: foreign.address_id,
+        recipient_address_id: foreign.address_id,
       })
     );
     assert.equal(theft.status, 422, "somebody else's address id was accepted");
@@ -223,22 +242,24 @@ test("a reference id that matches no row is refused, not a 500", async () => {
     const res = await as(customer, () =>
       request(app).patch("/api/checkout").send({
         direction: "purchase",
-        package_id: "33333333-3333-4333-8333-333333333333",
+        recipient_address_id: "33333333-3333-4333-8333-333333333333",
       })
     );
     assert.equal(res.status, 422, res.text);
   }, { actor: TEST_ACTOR.id, lock: [LOCKS.FULFILLMENTS, LOCKS.ORDERS] });
 });
 
-test("a malformed appointment_time is refused before it reaches the database", async () => {
-  await inPinnedTransaction(async () => {
+test("a malformed start_time is refused before it reaches the database", async () => {
+  await inPinnedTransaction(async (c: PoolClient) => {
+    const draft = await chooseHandover(customer, {
+      method_id: await fulfillmentMethodId(c, "PICKUP", "purchase"),
+    });
     const res = await as(customer, () =>
-      request(app).patch("/api/checkout").send({
-        direction: "purchase",
-        appointment_time: "half past never",
-      })
+      request(app)
+        .patch(`/api/fulfillments/${draft.body.fulfillment.id}`)
+        .send({ pickup: { start_time: "half past never" } })
     );
-    assert.equal(res.status, 422);
+    assert.equal(res.status, 422, res.text);
   }, { actor: TEST_ACTOR.id, lock: [LOCKS.FULFILLMENTS, LOCKS.ORDERS] });
 });
 
@@ -246,23 +267,23 @@ test("a malformed appointment_time is refused before it reaches the database", a
 
 test("the draft is minted ONCE, linked, and later calls move its method in place", async () => {
   await inPinnedTransaction(async (c: PoolClient) => {
-    const first = await as(customer, () =>
-      request(app).post("/api/checkout/fulfillment").send({
-        direction: "purchase",
-        method_id: purchaseMethodId,
-      })
-    );
+    const first = await chooseHandover(customer, { method_id: purchaseMethodId });
     assert.equal(first.status, 200, first.text);
-    const draftId = first.body.fulfillment_id;
-    assert.ok(draftId, "the row did not keep the draft's id");
+    const draftId = first.body.fulfillment.id;
+    assert.ok(draftId, "no draft came back");
+    assert.equal(
+      (await as(customer, () => request(app).get("/api/checkout?direction=purchase"))).body
+        .fulfillment_id,
+      draftId,
+      "the row did not keep the draft's id"
+    );
     // The method type left the wire too (Jacob, 2026-09-04): the row names its
     // fulfillment, and the stepper selects the handoff by that id against the
     // list it already renders. What the row still says is what it OWES - and a
     // dropoff owes no courier slot, which is the only thing the type was read
     // for here.
-    assert.equal(first.body.fulfillment_method_type, undefined);
     assert.ok(
-      !first.body.missing.includes("pickup_schedule"),
+      !first.body.missing.includes("pickup_date"),
       "a dropoff was asked for a courier slot"
     );
     const { rows: draft } = await c.query(
@@ -278,20 +299,14 @@ test("the draft is minted ONCE, linked, and later calls move its method in place
     // not the one already on the row.
     const other = { id: await fulfillmentMethodId(c, "CARRIER PICKUP", "purchase") };
     assert.notEqual(other.id, purchaseMethodId, "the fixture named the same method twice");
-    const second = await as(customer, () =>
-      request(app).post("/api/checkout/fulfillment").send({
-        direction: "purchase",
-        method_id: other.id,
-      })
-    );
+    const second = await chooseHandover(customer, { method_id: other.id });
     assert.equal(second.status, 200, second.text);
-    assert.equal(second.body.fulfillment_id, draftId, "a second call minted a second draft");
-    // A carrier pickup is the schedulable handoff, so the schedule becomes a
-    // step the customer still owes - which is the ONE thing the method type
-    // and `requires_schedule` were ever read for here, and `missing` says it.
-    assert.equal(second.body.fulfillment_method_type, undefined);
-    assert.equal(second.body.requires_schedule, undefined);
-    assert.ok(second.body.missing.includes("pickup_schedule"));
+    assert.equal(second.body.fulfillment.id, draftId, "a second call minted a second draft");
+    // A carrier pickup is the schedulable handoff, so the courier slot becomes
+    // a pair of steps the customer still owes - and `missing` says so without
+    // anybody reading a method type.
+    assert.ok(second.body.missing.includes("pickup_date"));
+    assert.ok(second.body.missing.includes("pickup_time"));
 
     const { rows: drafts } = await c.query(
       `SELECT count(*)::int AS n FROM fulfillments.fulfillments
@@ -304,36 +319,21 @@ test("the draft is minted ONCE, linked, and later calls move its method in place
 
 test("a hidden method never gets a draft - the menu has to mean something", async () => {
   await inPinnedTransaction(async () => {
-    const res = await as(customer, () =>
-      request(app).post("/api/checkout/fulfillment").send({
-        direction: "purchase",
-        method_id: hiddenMethodId,
-      })
-    );
+    const res = await chooseHandover(customer, { method_id: hiddenMethodId });
     assert.equal(res.status, 409, `a hidden method was accepted: ${res.text}`);
   }, { actor: TEST_ACTOR.id, lock: [LOCKS.FULFILLMENTS, LOCKS.ORDERS] });
 });
 
 test("a sale method cannot land on a purchase checkout", async () => {
   await inPinnedTransaction(async () => {
-    const res = await as(customer, () =>
-      request(app).post("/api/checkout/fulfillment").send({
-        direction: "purchase",
-        method_id: saleMethodId,
-      })
-    );
+    const res = await chooseHandover(customer, { method_id: saleMethodId });
     assert.equal(res.status, 409, `a cross-direction method was accepted: ${res.text}`);
   }, { actor: TEST_ACTOR.id, lock: [LOCKS.FULFILLMENTS, LOCKS.ORDERS] });
 });
 
 test("a draft is INVISIBLE to order-facing reads", async () => {
   await inPinnedTransaction(async (c: PoolClient) => {
-    await as(customer, () =>
-      request(app).post("/api/checkout/fulfillment").send({
-        direction: "purchase",
-        method_id: purchaseMethodId,
-      })
-    );
+    await chooseHandover(customer, { method_id: purchaseMethodId });
     // Every order-facing read joins through order_id; a draft has none. The
     // schedule is the read that would leak an appointment to an employee
     // screen if a draft ever surfaced.
@@ -353,13 +353,8 @@ test("the attach is one-way: once an order holds the draft, a second attach refu
       "#domain/fulfillments/service.ts"
     ).then((m) => ({ default: m }));
 
-    const res = await as(customer, () =>
-      request(app).post("/api/checkout/fulfillment").send({
-        direction: "purchase",
-        method_id: purchaseMethodId,
-      })
-    );
-    const draftId = res.body.fulfillment_id;
+    const res = await chooseHandover(customer, { method_id: purchaseMethodId });
+    const draftId = res.body.fulfillment.id;
 
     // THE ATTACH TARGET IS BUILT (lane 1). "Any order in both schemas will do;
     // the transaction rolls back" was true and still meant the fixture was a
@@ -367,15 +362,11 @@ test("the attach is one-way: once an order holds the draft, a second attach refu
     // by construction, so the search and its guard both go.
     const order = await anOrder(c, customer, { direction: "purchase" });
 
-    const attached = await fulfillmentService.attachDraft(
-      { fulfillment_id: draftId, order_id: order.id }, c
-    );
+    const attached = await fulfillmentService.attachToOrder(draftId, order.id, c);
     assert.equal(attached.fulfillment.order_id, order.id);
 
     await assert.rejects(
-      () => fulfillmentService.attachDraft(
-        { fulfillment_id: draftId, order_id: order.id }, c
-      ),
+      () => fulfillmentService.attachToOrder(draftId, order.id, c),
       /not a draft/,
       "a second attach did not refuse"
     );
@@ -388,12 +379,7 @@ test("two customers' rows never touch: the stranger sees their own empty checkou
     // user_id it is given, so this person has to exist - and a built one has no
     // checkout at all, which is exactly what "their own empty checkout" needs.
     const stranger = await aUser(c, { name: "A Stranger" });
-    await as(customer, () =>
-      request(app).post("/api/checkout/fulfillment").send({
-        direction: "purchase",
-        method_id: purchaseMethodId,
-      })
-    );
+    await chooseHandover(customer, { method_id: purchaseMethodId });
     const theirs = await as(stranger, () =>
       request(app).get("/api/checkout?direction=purchase")
     );
@@ -413,7 +399,7 @@ test("two customers' rows never touch: the stranger sees their own empty checkou
 test("an admin reads and writes a NAMED customer's checkout by ?user_id=", async () => {
   await inPinnedTransaction(async (c: PoolClient) => {
     const stranger = await aUser(c, { name: "A Stranger" });
-    const pkg = { id: await packageId(c, "Small Box") };
+    const address = { id: (await anAddress(c, stranger)).id };
 
     const got = await asAdmin(admin, () =>
       request(app).get(`/api/checkout?direction=purchase&user_id=${stranger.id}`)
@@ -424,11 +410,11 @@ test("an admin reads and writes a NAMED customer's checkout by ?user_id=", async
     const patched = await asAdmin(admin, () =>
       request(app)
         .patch(`/api/checkout?user_id=${stranger.id}`)
-        .send({ direction: "purchase", package_id: pkg.id })
+        .send({ direction: "purchase", recipient_address_id: address.id })
     );
     assert.equal(patched.status, 200, patched.text);
     assert.equal(patched.body.user_id, stranger.id);
-    assert.equal(patched.body.package_id, pkg.id);
+    assert.equal(patched.body.recipient_address_id, address.id);
   }, { actor: TEST_ACTOR.id, lock: [LOCKS.FULFILLMENTS, LOCKS.ORDERS] });
 });
 

@@ -4,9 +4,10 @@
 //
 // ONE DOOR PER LEG, each keyed by the SHIPMENT it labels:
 //
-//   createForCheckout  the Inbound shell a purchase placement commits - every
-//                      carrier column resolved here, copied from the checkout
-//                      row by the statement itself
+//   sealForPlacement   the parcel the draft fulfillment already carries, SEALED
+//                      as an order is written: the insured amount and the
+//                      handoff are the server's answers, and the choices are
+//                      already on the row (rulings 69/70, migration 128)
 //   buyLabel           the Inbound label, bought AFTER that commit (and the
 //                      admin's retry surface, POST /api/shipments/:id/label)
 //   buyReturnLabel     the Return leg an order cancellation asks for
@@ -29,6 +30,8 @@ import * as ordersRepo from "#db/orders/repo.ts";
 import * as orderTransactions from "#db/orders/transactions/repo.ts";
 import * as usersRepo from "#db/users/repo.ts";
 
+import * as servicesRepo from "#db/shipping/services/repo.ts";
+import * as fulfillmentService from "#domain/fulfillments/service.ts";
 import * as shipmentService from "#domain/shipping/shipments/service.ts";
 import * as pickupService from "#domain/shipping/pickups/service.ts";
 import * as carrierServices from "#domain/shipping/services/service.ts";
@@ -42,35 +45,50 @@ import * as checkoutService from "#domain/checkout/service.ts";
 
 import withTransaction from "#shared/db/withTransaction.ts";
 import type { Executor } from "#shared/db/executor.ts";
-import type { Address, Checkout, Parcel, ParcelSchedule } from "@dorado/contracts";
+import type { Address, CarrierServiceRead, Parcel, ParcelSchedule } from "@dorado/contracts";
 
-// ------------------------------------------------- the shell a placement writes
+// --------------------------------------------- the parcel a placement seals
 
-// THE INBOUND PARCEL A PURCHASE CHECKOUT DESCRIBES, committed as a SHELL: the
-// label columns are what the carrier has not been asked for yet, so they are
-// left null and `buyLabel` fills them in once it has. The box and the service
-// are COPIED from the checkout row by the statement (ruling 66); what is
-// passed is what the server decided - the handoff, and the insured amount
-// already clamped to the service's ceiling (D132).
-export async function createForCheckout(
-  checkout: Checkout, weight: number, method_type: string | null, tx: Executor
-): Promise<string> {
-  const service = await carrierServices.labelServiceFor(checkout.carrier_service_id!, tx);
+// THE PARCEL A PURCHASE IS HANDED OVER AS, SEALED at placement.
+//
+// It used to be CREATED here, copied whole off the checkout row. Rulings 69/70
+// moved the customer's choices onto the parcel itself the moment they pick a
+// SHIPMENT (migration 128), so the row already holds the box, the service,
+// where it leaves from and the courier slot. What is left is what the SERVER
+// decides and only an order can decide: the handoff the chosen method means,
+// and the insured amount clamped to that service's ceiling (D132).
+//
+// The label columns stay null - the carrier has not been asked yet
+// (label-after-commit, 2026-09-03) - and `buyLabel` fills them in once it has.
+export async function sealForPlacement(
+  shipment_id: string, checkout_id: string, method_type: string | null, tx: Executor
+): Promise<void> {
+  const shipment = await shipmentsRepo.getOne(shipment_id, tx);
+  rules.assertShipment(shipment, shipment_id);
+  rules.assertParcelChosen(shipment, shipment_id);
+
+  const service = await carrierServices.labelServiceFor(shipment.carrier_service_id!, tx);
   const declaredValue = await carrierServices.clampInsuredValue(
-    rules.declaredValue(await checkoutService.purchaseTotal(checkout.id, tx)),
+    rules.declaredValue(await checkoutService.purchaseTotal(checkout_id, tx)),
     service.code
   );
   const handoff = rules.handoffFor(await handoffsService.getHandoffs(), method_type);
-  // Built and thrown away: it is what PROVES the checkout can be labelled -
-  // a box that exists, a weight above zero, a courier slot where the handoff
-  // needs one - before an order is written against it.
+  // Built and thrown away: it is what PROVES the parcel can be labelled - a box
+  // that exists, a weight above zero, a courier slot where the handoff needs
+  // one - before an order is written against it.
   rules.parcelFor(
-    service, await packagesRepo.getOne(checkout.package_id!, tx), handoff,
-    declaredValue, weight, rules.scheduleOf(checkout.pickup_date, checkout.pickup_time)
+    service, await packagesRepo.getOne(shipment.package_id!, tx), handoff, declaredValue,
+    rules.parcelWeightLb(
+      await checkoutService.getItemsForOrder(checkout_id, tx),
+      await packagesRepo.getOne(shipment.package_id!, tx)
+    ),
+    rules.scheduleOf(shipment.pickup_date, shipment.pickup_time)
   );
-  return await shipmentsRepo.createForCheckout(
+
+  await shipmentsRepo.update(
+    shipment_id,
     {
-      checkout_id: checkout.id, direction: "Inbound", pickup_type: handoff.name,
+      pickup_type: handoff.name,
       insured: declaredValue > 0,
       declared_value: declaredValue > 0 ? declaredValue : null,
     },
@@ -84,12 +102,11 @@ export async function createForCheckout(
 // its own transaction has committed, and by POST /api/shipments/:id/label when
 // that call failed - the two are the same act, so they are the same function.
 //
-// `schedule` is the slot the checkout collected; a caller that has none (the
-// admin retry) falls back to the order's own booked pickup, because no column
-// remembers a courier's requested slot.
-export async function buyLabel(
-  shipment_id: string, schedule: ParcelSchedule | null = null
-): Promise<void> {
+// THE COURIER SLOT IS A COLUMN NOW (migration 128): the customer's requested
+// date and time live on the parcel itself, so a placement and the admin retry
+// read the same row rather than one of them passing it in. The order's own
+// booked pickup is still the fallback, for a parcel that predates the column.
+export async function buyLabel(shipment_id: string): Promise<void> {
   const shipment = await shipmentsRepo.getOne(shipment_id);
   rules.assertShipment(shipment, shipment_id);
   rules.assertUnlabelled(shipment.tracking_number, shipment_id);
@@ -109,7 +126,8 @@ export async function buyLabel(
     handoff,
     shipment.declared_value ?? 0,
     rules.parcelWeightLb(await orderItems.getFor(order_id), await boxOf(shipment.package_id)),
-    schedule ?? rules.scheduleFromPickup((await fulfillmentPickups.forOrder(order_id))[0])
+    rules.scheduleOf(shipment.pickup_date, shipment.pickup_time)
+      ?? rules.scheduleFromPickup((await fulfillmentPickups.forOrder(order_id))[0])
   );
 
   const shipper = await snapshotOf(order_id, shipment_id);
@@ -245,4 +263,18 @@ async function customerName(order_id: string): Promise<string> {
   const user_id = await ordersRepo.ownerOf(order_id);
   if (!user_id) return "";
   return (await usersRepo.getOne(user_id))?.name ?? "";
+}
+
+
+// WHICH SERVICE A FULFILLMENT'S PARCEL WAS BOOKED WITH. domain/orders asks this
+// to price a sale's postage: the choice is the parcel's column (128), and
+// resolving a `shipping.services` row from it is shipping's job, not orders'.
+export async function serviceForFulfillment(
+  fulfillment_id: string, executor?: Executor
+): Promise<CarrierServiceRead | undefined> {
+  const shipment_id = await fulfillmentService.shipmentIdOf(fulfillment_id, executor);
+  if (!shipment_id) return undefined;
+  const shipment = await shipmentsRepo.getOne(shipment_id, executor);
+  if (!shipment?.carrier_service_id) return undefined;
+  return await servicesRepo.getOne(shipment.carrier_service_id, executor);
 }

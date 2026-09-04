@@ -6,8 +6,8 @@ import { fineContent } from "#domain/pricing/content.ts";
 import { getRatePct, sumContentByMetal } from "#domain/rates/utils/resolveRate.ts";
 import { lineContent, rateMaterialFor } from "#domain/orders/rules.ts";
 import type {
-  BullionLiveness, BullionStorefront, CarrierHandoff, Checkout, CheckoutItemWrite,
-  CheckoutStep, Direction, FulfillmentCategory, RateRead,
+  BullionLiveness, BullionStorefront, Checkout, CheckoutItemWrite, CheckoutMissing,
+  Direction, FulfillmentStep, RateRead,
 } from "@dorado/contracts";
 
 // A bullion line names an id and a quantity; the rest is the server's - which
@@ -151,72 +151,44 @@ export function basketRows(
 }
 
 // ------------------------------------------------------- the stepper's rules
+
+// WHAT THE CHECKOUT ITSELF HAS NOT DONE YET, SPLICED WITH WHAT THE FULFILLMENT
+// SAYS IT OWES - the ONE list, ordered the way the stepper walks it, so the
+// first entry is the next thing to do. It is exactly what `place` would refuse
+// over, which is what lets an empty list mean placeable.
 //
-// EVERY "CAN I PROCEED" QUESTION THE BROWSER USED TO ANSWER. The stepper had
-// them as a boolean expression over a zustand store; they are here, pure, and
-// they reach the client as fields of the composed row.
-
-// The one place the two vocabularies meet: a carrier HANDOFF (what the
-// customer picks) and a fulfillment METHOD (what the row stores). Read in both
-// directions so the choice and its read-back cannot drift.
-export const methodTypeFor = (handoff: CarrierHandoff): string =>
-  handoff.requires_schedule ? "CARRIER PICKUP" : "CARRIER DROPOFF";
-
-export const handoffFor = (
-  handoffs: CarrierHandoff[], method_type: string | null
-): CarrierHandoff | null =>
-  method_type == null
-    ? null
-    : handoffs.find((h) => methodTypeFor(h) === method_type) ?? null;
-
-// The address slot a direction ships from or to. Purchase parcels leave the
-// customer; sale parcels arrive at them.
-export const addressColumnFor = (direction: Direction) =>
-  direction === "purchase" ? "shipper_address_id" : "recipient_address_id";
-
-// WHAT THE CUSTOMER HAS NOT CHOSEN YET - the ONE list, ordered the way the
-// stepper walks it, so the first entry is the next thing to do. It is exactly
-// what `place` would refuse over, which is what lets an empty list mean
-// placeable and stops the answer being three booleans that read it again.
-//
-// IT FOLLOWS THE CHOSEN METHOD'S CATEGORY (Jacob, 2026-09-04: "If it's a
-// direct or pickup, why would it need shipper_address_id or package_id?").
-// Until a method is chosen the only purchase step is the method itself.
+// RULING 70 (Jacob, 2026-09-04): "The only thing that should be deciding if
+// fulfillments is 'ready' is fulfillments." This function used to branch on the
+// chosen method's CATEGORY and read eight handover columns off the checkout
+// row to decide which steps a SHIPMENT, a PICKUP or a DIRECT still owed. Those
+// columns are the detail rows' now (migration 128) and that decision is
+// `domain/fulfillments/rules.ts` `missingFor`. What arrives here is its
+// ANSWER, an opaque list this file splices into position and never inspects -
+// which is why nothing in domain/checkout names a fulfillment column, and why
+// `lint:domain-boundaries` can prove it.
 export function checkoutState(
-  { row, direction, item_count, category, requires_schedule }: {
+  { row, direction, item_count, handover }: {
     row: Checkout;
     direction: Direction;
     item_count: number;
-    category: FulfillmentCategory | null;
-    requires_schedule: boolean;
+    handover: FulfillmentStep[];
   }
-): { missing: CheckoutStep[] } {
-  const missing: CheckoutStep[] = [];
+): { missing: CheckoutMissing[] } {
+  const missing: CheckoutMissing[] = [];
   if (item_count === 0) missing.push("items");
 
-  if (direction !== "purchase") {
-    if (!row.recipient_address_id) missing.push("recipient_address");
-    return { missing };
+  // No draft means nobody can say how the order would be handed over, so the
+  // handover list is empty for a reason the customer can act on: pick a method.
+  if (!row.fulfillment_id) missing.push("fulfillment_id");
+  else missing.push(...handover);
+
+  // A sale is delivered; a purchase is paid out. Exactly one of the two.
+  if (direction === "purchase") {
+    if (!row.payment_details_id) missing.push("payment_details_id");
+  } else if (!row.recipient_address_id) {
+    missing.push("recipient_address_id");
   }
 
-  if (!category) {
-    missing.push("fulfillment_method");
-  } else if (category === "SHIPMENT") {
-    if (!row.shipper_address_id) missing.push("shipper_address");
-    if (!row.package_id) missing.push("package");
-    if (!row.carrier_service_id) missing.push("carrier_service");
-    if (requires_schedule && !(row.pickup_date && row.pickup_time)) {
-      missing.push("pickup_schedule");
-    }
-  } else if (category === "PICKUP") {
-    if (!row.pickup_address_id) missing.push("pickup_address");
-    if (!row.appointment_time) missing.push("appointment_time");
-  } else {
-    if (!row.appointment_location_id) missing.push("appointment_location");
-    if (!row.appointment_time) missing.push("appointment_time");
-  }
-
-  if (!row.payment_details_id) missing.push("payout_account");
   return { missing };
 }
 
@@ -312,42 +284,6 @@ export function assertSubject<T>(
 // identity and this decides.
 export function assertRealAccount(anonymous: boolean, action: string): void {
   if (anonymous) throw new Forbidden(`sign in to ${action}`);
-}
-
-// The column is `timestamptz` and Postgres would refuse an unparseable literal
-// with 22007 - a fault, not a message anyone can act on. Refused here instead,
-// naming the field.
-export function assertTimestamp(value: unknown): void {
-  if (value != null && Number.isNaN(Date.parse(String(value)))) {
-    throw new Invalid(`appointment_time is not a timestamp`);
-  }
-}
-
-// The stepper picks a carrier HANDOFF and never spells a fulfillment method.
-export function assertHandoff<T>(
-  handoff: T | null | undefined, handoff_code: string
-): asserts handoff is T {
-  if (!handoff) throw new Invalid(`no such handoff: ${handoff_code}`);
-}
-
-// The menu has to mean something: a method type the direction does not offer
-// is a step the customer was never shown.
-export function assertOfferedMethod(
-  method_id: string | undefined, type: string, direction: string
-): asserts method_id is string {
-  if (!method_id) throw new Invalid(`no offered ${type} method for a ${direction}`);
-}
-
-export function assertMethodNamed(chosen: unknown): asserts chosen is string {
-  if (typeof chosen !== "string" || chosen.length === 0) {
-    throw new Invalid("method_id or handoff_code is required");
-  }
-}
-
-export function assertDraft<T>(
-  draft: T | null | undefined, method_id: string
-): asserts draft is T {
-  if (!draft) throw new Invalid(`no such fulfillment method: ${method_id}`);
 }
 
 // A sale is delivered and paid for; there is nothing to pay OUT.

@@ -40,6 +40,16 @@ export async function findFor(
   return rows[0];
 }
 
+// The draft fulfillment's owner - see sql/find_by_fulfillment.sql.
+export async function findByFulfillment(
+  fulfillment_id: string, executor?: Executor
+): Promise<Checkout | undefined> {
+  const { rows } = await query<Checkout>(
+    sql("find_by_fulfillment"), [fulfillment_id], executor
+  );
+  return rows[0];
+}
+
 export async function listFor(user_id: string, executor?: Executor): Promise<Checkout[]> {
   const { rows } = await query<Checkout>(sql("list_for_user"), [user_id], executor);
   return rows;
@@ -84,23 +94,25 @@ export async function reassign(
 
 // THE ONE PLACE THE OWNERSHIP KEYS ARE ALLOWED TO WAIT (migration 126).
 //
-// checkout.checkouts (user_id, <address column>) references
+// checkout.checkouts (user_id, recipient_address_id) references
 // places.user_addresses (user_id, address_id), and signing in moves BOTH sides:
 // domain/checkout/adopt.ts re-keys the visitor's address book to the customer
 // and then re-keys the checkout rows that point at it. Neither order is valid
 // statement by statement - move the book first and the checkout points at a row
 // that changed hands; move the checkout first and it names a book entry the
-// visitor still owns - so this asks Postgres to check the three at COMMIT
-// instead, for THIS transaction only.
+// visitor still owns - so this asks Postgres to check it at COMMIT instead,
+// for THIS transaction only.
 //
-// The constraints are DEFERRABLE INITIALLY IMMEDIATE, so every other write in
+// ONE CONSTRAINT NOW, not three: 128 moved the shipper and pickup addresses to
+// the draft fulfillment's own detail rows, and their composite keys went with
+// the columns.
+//
+// The constraint is DEFERRABLE INITIALLY IMMEDIATE, so every other write in
 // the application is still refused at the statement that makes it. This is the
 // deliberate exception, not the default.
 export async function deferAddressOwnership(executor?: Executor): Promise<void> {
   await query(
-    `SET CONSTRAINTS checkout.checkouts_recipient_address_theirs_fk,
-                     checkout.checkouts_shipper_address_theirs_fk,
-                     checkout.checkouts_pickup_address_theirs_fk DEFERRED`,
+    `SET CONSTRAINTS checkout.checkouts_recipient_address_theirs_fk DEFERRED`,
     [],
     executor
   );

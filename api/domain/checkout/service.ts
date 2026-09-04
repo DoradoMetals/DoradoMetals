@@ -16,8 +16,6 @@ import { anonymousUsers, checkouts, checkoutItems, metals } from "#db";
 import {
   addresses as addressService,
   fulfillments as fulfillmentService,
-  fulfillmentMethods,
-  handoffs as handoffsService,
   paymentDetails as payoutDetails,
   products as productService,
   rates as ratesService,
@@ -50,17 +48,21 @@ async function find(
   return raced;
 }
 
-// A ROW WITH NO ADDRESS TAKES THE CUSTOMER'S DEFAULT ONE. The stepper used to
+// A SALE WITH NO ADDRESS TAKES THE CUSTOMER'S DEFAULT ONE. The stepper used to
 // do this from an effect on first render, so a checkout opened on a second
 // device started blank and a re-render could re-pick. It is the server's now,
 // and it runs only while the column is null - which is before the customer has
 // chosen anything and after an order reset the row, never over a choice.
+//
+// A PURCHASE'S default address is the FULFILLMENT's business now (rulings
+// 69/70): where the parcel leaves from, or where we collect, are columns of
+// the draft's detail row, and domain/fulfillments/drafts.ts fills them the
+// same way when it creates one.
 async function ensure(
   user_id: string, direction: Direction, client?: Executor
 ): Promise<Checkout> {
   const row = await find(user_id, direction, client);
-  const column = rules.addressColumnFor(direction);
-  if (row[column]) return row;
+  if (direction !== "sale" || row.recipient_address_id) return row;
 
   const book = await addressService.list(user_id, client);
   const preferred =
@@ -68,27 +70,28 @@ async function ensure(
     book.find((e) => e.address.is_valid);
   if (!preferred) return row;
 
-  return (await checkouts.update(row.id, { [column]: preferred.address.id }, client)) ?? row;
+  return (
+    await checkouts.update(row.id, { recipient_address_id: preferred.address.id }, client)
+  ) ?? row;
 }
 
-// The row plus what the stepper needs to render itself. The draft
-// fulfillment's METHOD is resolved back into the handoff the customer picked,
-// so the browser never learns a carrier's vocabulary (wave 5B) and never
-// re-derives which step is next.
+// The row plus what the stepper needs to render itself: ONE list, its own
+// steps spliced with whatever the draft fulfillment says it still owes.
+// `fulfillments.missing` is the only thing this feature asks about a handover
+// (ruling 70) and its answer is passed through untouched.
 async function compose(row: Checkout, client?: Executor): Promise<CheckoutView> {
-  const method = await chosenMethod(row, client);
-  const handoff = method?.type
-    ? rules.handoffFor(await handoffsService.getHandoffs(null, client), method.type)
-    : null;
+  const item_count = (await checkoutItems.listFor(row.id, client)).length;
+  const handover = row.fulfillment_id
+    ? await fulfillmentService.missing(row.fulfillment_id, client)
+    : [];
 
   return Object.assign(
     row,
     rules.checkoutState({
       row,
       direction: row.direction as Direction,
-      item_count: (await checkoutItems.listFor(row.id, client)).length,
-      category: method?.category ?? null,
-      requires_schedule: handoff?.requires_schedule === true,
+      item_count,
+      handover,
     })
   );
 }
@@ -101,16 +104,26 @@ export async function missingFor(
   return (await compose(row, client)).missing;
 }
 
-// WHICH METHOD THE CHECKOUT HAS CHOSEN - the draft fulfillment's when the
-// stepper has made one, else the method the row names on its own. Its CATEGORY
-// is what decides which steps the checkout still owes (Jacob, 2026-09-04).
-export async function chosenMethod(row: Checkout, client?: Executor) {
-  if (row.fulfillment_id) {
-    const draft = await fulfillmentService.getById(row.fulfillment_id, client);
-    if (draft) return draft.method;
-  }
-  if (!row.fulfillment_method_id) return null;
-  return (await fulfillmentMethods.getOne(row.fulfillment_method_id, client)) ?? null;
+// THE DRAFT FULFILLMENT'S ID, WRITTEN BY THE FEATURE THAT OWNS THE COLUMN.
+// domain/fulfillments/drafts.ts creates the draft and hands the id here; the
+// statement that writes `checkout.checkouts.fulfillment_id` is this one, so
+// fulfillments never names a column of this table either.
+export async function attachFulfillment(
+  checkout_id: string, fulfillment_id: string, client?: Executor
+): Promise<Checkout> {
+  const fresh = await checkouts.update(checkout_id, { fulfillment_id }, client);
+  rules.assertSession(fresh);
+  return fresh;
+}
+
+// WHOSE CHECKOUT A DRAFT BELONGS TO. A fulfillment carries no user of its own
+// and a draft has no order either, so this is the only answer to "is this
+// yours" while the customer is still deciding - read by the fulfillments
+// transport before it serves or patches one.
+export async function ownerOfFulfillment(
+  fulfillment_id: string, client?: Executor
+): Promise<Checkout | undefined> {
+  return await checkouts.findByFulfillment(fulfillment_id, client);
 }
 
 // ADMIN SCOPING (D214 item 11's "narrow thing"): a customer only ever reaches
@@ -153,67 +166,20 @@ export async function getCheckout(
 // lists of column names and six round trips per patch - asking, per id,
 // whether the address was in the caller's book and whether the package,
 // service and method rows existed. Every one of those questions is a foreign
-// key: (user_id, <address column>) now references places.user_addresses, and
-// the other three already referenced their own tables. Postgres raises 23503
+// key: (user_id, recipient_address_id) references places.user_addresses, and
+// the payment method already referenced its own table. Postgres raises 23503
 // and shared/db/pg-error.ts turns it into the same Invalid naming the column,
 // from every caller rather than from the ones that remembered the loop.
 //
-// appointment_time stays a RULE: it is a value, not a reference, and Postgres
-// would refuse an unparseable literal with a fault nobody can act on.
+// TWO COLUMNS ARE LEFT (rulings 69/70, migration 128): where a sale is
+// delivered, and how it is paid for. The eight handover ids that used to
+// arrive here are PATCH /api/fulfillments/:id's now.
 export async function patchCheckout(
   user_id: string, direction: Direction, patch: CheckoutWrite
 ): Promise<CheckoutView> {
-  rules.assertTimestamp(patch.appointment_time);
-
   return await withTransaction(async (client) => {
     const row = await ensure(user_id, direction, client);
     const fresh = await checkouts.update(row.id, patch, client);
-    rules.assertSession(fresh);
-    return await compose(fresh, client);
-  });
-}
-
-// THE DRAFT FULFILLMENT, ensured and mutated in one call (Jacob: "each time an
-// option is changed, the server-side fulfillment gets updated, and checkout
-// stores the fulfillment id"). The offered-method check runs on BOTH paths -
-// this is the customer's surface and the menu has to mean something.
-export async function setFulfillmentMethod(
-  user_id: string, direction: Direction,
-  method_id?: string, handoff_code?: string
-): Promise<CheckoutView> {
-
-  // The stepper picks a carrier HANDOFF and never spells a fulfillment method;
-  // the SERVER owns that vocabulary - rules.methodTypeFor, which compose()
-  // reads back the other way so the choice and its read-back cannot drift.
-  let chosen = method_id;
-  if (!chosen && handoff_code) {
-    const handoffs = await handoffsService.getHandoffs();
-    const handoff = handoffs.find((h) => h.code === handoff_code);
-    rules.assertHandoff(handoff, handoff_code);
-    const type = rules.methodTypeFor(handoff);
-    const offered = await fulfillmentMethods.listAvailable(direction);
-    chosen = offered.find((m) => m.type === type)?.id;
-    rules.assertOfferedMethod(chosen, type, direction);
-  }
-  rules.assertMethodNamed(chosen);
-  const wanted = chosen;
-
-  return await withTransaction(async (client) => {
-    const row = await ensure(user_id, direction, client);
-
-    if (row.fulfillment_id) {
-      await fulfillmentMethods.assertOffered({ method_id: wanted, direction: direction }, client);
-      await fulfillmentService.setMethod({ id: row.fulfillment_id, method_id: wanted }, client);
-      return await compose(row, client);
-    }
-
-    const draft = await fulfillmentService.createDraft(
-      { method_id: wanted, direction: direction }, client
-    );
-    rules.assertDraft(draft, wanted);
-    const fresh = await checkouts.update(
-      row.id, { fulfillment_id: draft.fulfillment.id }, client
-    );
     rules.assertSession(fresh);
     return await compose(fresh, client);
   });

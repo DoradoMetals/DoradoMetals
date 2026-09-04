@@ -7,6 +7,7 @@
 // does and a repo never does.
 export * as checkout from "#domain/checkout/service.ts";
 export * as fulfillments from "#domain/fulfillments/service.ts";
+export * as fulfillmentDrafts from "#domain/fulfillments/drafts.ts";
 export * as fulfillmentMethods from "#domain/fulfillments/methods/service.ts";
 export * as fulfillmentPickups from "#domain/fulfillments/pickups/service.ts";
 export * as fulfillmentDirects from "#domain/fulfillments/directs/service.ts";

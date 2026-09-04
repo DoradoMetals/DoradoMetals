@@ -60,9 +60,14 @@ describe("keys", () => {
     expect(keys.checkout.items("sale")).not.toEqual(keys.checkout.items("purchase"));
   });
 
+  // The rates key moved to the fulfillment with the parcel facts it is built
+  // from (rulings 69/70, migration 128).
   test("a rates key carries the parcel's facts, so a new box is a new question", () => {
-    expect(keys.checkout.rates("purchase", "a", "b")).not.toEqual(
-      keys.checkout.rates("purchase", "a", "c")
+    expect(keys.fulfillments.rates("f1", "a", "b")).not.toEqual(
+      keys.fulfillments.rates("f1", "a", "c")
+    );
+    expect(keys.fulfillments.rates("f1", "a", "b")).not.toEqual(
+      keys.fulfillments.rates("f2", "a", "b")
     );
   });
 

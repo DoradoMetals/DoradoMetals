@@ -1,8 +1,7 @@
-import { Direction, ShippingCancelLabelBody, ShippingCancelPickupBody, ShippingCheckPickupBody, ShippingGetLocationsBody, ShippingGetTrackingBody, ShippingValidateAddressBody } from "@dorado/contracts";
+import { ShippingCancelLabelBody, ShippingCancelPickupBody, ShippingCheckPickupBody, ShippingGetLocationsBody, ShippingGetTrackingBody, ShippingValidateAddressBody } from "@dorado/contracts";
 import { asyncHandler } from "#shared/middleware/asyncHandler.ts";
-import { parseStrict } from "#shared/http/validate.ts";
-import { callerId } from "#shared/http/caller.ts";
-import { oneString } from "#shared/http/query.ts";
+import { parseStrict, uuidParam } from "#shared/http/validate.ts";
+import { requireFulfillmentOwner } from "#transport/fulfillments/owner.ts";
 import * as operationsService from "#domain/shipping/operations/service.ts";
 
 // Every body below is ids for what the server holds plus genuinely new
@@ -15,12 +14,15 @@ export const validateAddress = asyncHandler(async (req, res) => {
   res.json(await operationsService.validateAddress(body));
 });
 
-// GET /checkout/rates?direction= - mounted on the checkout router, handled
-// here because shipping owns the carrier call. The caller sends only its
-// direction; everything else is read off their own checkout row.
-export const getCheckoutRates = asyncHandler(async (req, res) => {
-  const direction = parseStrict(Direction, oneString(req.query.direction), "direction");
-  res.json(await operationsService.getCheckoutRates(callerId(req), direction));
+// GET /api/fulfillments/:id/rates - declared on the FULFILLMENTS router
+// (rulings 69/70: it owns the parcel facts), handled here because shipping owns
+// the carrier call. The caller sends one id; the box, the address and the
+// insured value are read from the parcel and the basket behind it.
+// Owner-or-admin, checked before the carrier is asked.
+export const getFulfillmentRates = asyncHandler(async (req, res) => {
+  const fulfillment_id = uuidParam(req, "id");
+  await requireFulfillmentOwner(req, fulfillment_id);
+  res.json(await operationsService.getFulfillmentRates(fulfillment_id));
 });
 
 export const checkPickup = asyncHandler(async (req, res) => {

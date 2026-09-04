@@ -95,17 +95,17 @@ const PAYOUT = payoutForm();
 // THE PROVIDER BOUNDARY, STUBBED AND RECORDED. no-network.ts refuses a real
 // carrier call loudly.
 //
-// PLACEMENT ASKS FOR A LABEL BY SHIPMENT ID NOW (ruling 67): buying one is
-// domain/shipping/labels.ts' job and everything it needs - the service, the
-// box, the handoff, the insured amount - is on the SHELL the placement already
-// committed. So the stub records the id and the slot, and the assertions that
-// used to read a parcel object read that row instead, which is the stronger
+// PLACEMENT ASKS FOR A LABEL BY SHIPMENT ID, AND BY NOTHING ELSE (ruling 67,
+// then 69/70): buying one is domain/shipping/labels.ts' job and everything it
+// needs - the service, the box, the handoff, the insured amount and now the
+// courier slot the customer asked for - is a column of the parcel. So the stub
+// records one id, and every assertion reads the row, which is the stronger
 // question anyway: what got WRITTEN, not what was passed.
 function carrier() {
-  const asked: { shipment_id: string; schedule: { date: string; time: string } | null }[] = [];
+  const asked: string[] = [];
   const world: typeof place.LIVE = {
-    buyLabel: async (shipment_id, schedule = null) => {
-      asked.push({ shipment_id, schedule });
+    buyLabel: async (shipment_id) => {
+      asked.push(shipment_id);
     },
     authorize: async () => {},
     confirm: async () => {},
@@ -117,7 +117,8 @@ function carrier() {
 async function shellFor(c: PoolClient, order_id: string) {
   const { rows: [shell] } = await c.query(
     `SELECT s.id, s.carrier_service_id, s.package_id, s.pickup_type, s.insured,
-            s.declared_value, s.tracking_number, s.direction::text AS direction
+            s.declared_value, s.tracking_number, s.pickup_date, s.pickup_time,
+            s.direction::text AS direction
        FROM shipping.shipments s
        JOIN fulfillments.shipments fs ON fs.shipment_id = s.id
        JOIN fulfillments.fulfillments f ON f.id = fs.fulfillment_id
@@ -132,33 +133,43 @@ afterAll(async () => {
   await pool.end();
 });
 
-// Drive the same surfaces the stepper drives: PATCH the row (ids AND parcel
-// facts), POST the fulfillment, POST the payout, PUT the basket.
+// Drive the same surfaces the stepper drives: POST the fulfillment, PATCH its
+// parcel, POST the payout, PUT the basket.
+//
+// THE PARCEL FACTS ARE A FULFILLMENT PATCH NOW (rulings 69/70, migration 128).
+// They used to be a PATCH /api/checkout naming five handover columns, which is
+// exactly the arrangement ruling 70 forbids.
 async function primeCheckout(
   fixtures: Fixtures,
   methodId: string,
   { schedule = false }: { schedule?: boolean } = {}
 ) {
   const { customer, addressId, packageId, labelServiceId, productId } = fixtures;
-  const patched = await as(customer, () =>
-    request(app).patch("/api/checkout").send({
-      direction: "purchase",
-      shipper_address_id: addressId,
-      package_id: packageId,
-      carrier_service_id: labelServiceId,
-      pickup_date: schedule ? "2026-09-15" : null,
-      pickup_time: schedule ? "10:30:00" : null,
-    })
-  );
-  assert.equal(patched.status, 200, patched.text);
+  const row = await checkoutService.getRowFor(customer.id, "purchase");
 
   const ff = await as(customer, () =>
-    request(app).post("/api/checkout/fulfillment").send({
-      direction: "purchase",
+    request(app).post("/api/fulfillments").send({
+      checkout_id: row.id,
       method_id: methodId,
     })
   );
   assert.equal(ff.status, 200, ff.text);
+  const fulfillment_id = ff.body.fulfillment.id as string;
+
+  if (ff.body.method.category === "SHIPMENT") {
+    const patched = await as(customer, () =>
+      request(app).patch(`/api/fulfillments/${fulfillment_id}`).send({
+        shipment: {
+          shipper_address_id: addressId,
+          package_id: packageId,
+          carrier_service_id: labelServiceId,
+          pickup_date: schedule ? "2026-09-15" : null,
+          pickup_time: schedule ? "10:30:00" : null,
+        },
+      })
+    );
+    assert.equal(patched.status, 200, patched.text);
+  }
 
   const payout = await as(customer, () =>
     request(app).post("/api/checkout/payout").send(payoutForm())
@@ -174,10 +185,9 @@ async function primeCheckout(
   );
   assert.equal(cart.status, 200, cart.text);
 
-  const row = await checkoutService.getRowFor(customer.id, "purchase");
   return {
     checkout_id: row.id,
-    fulfillment_id: ff.body.fulfillment_id as string,
+    fulfillment_id,
     payment_details_id: payout.body.payment_details_id as string,
   };
 }
@@ -252,7 +262,7 @@ test("an incomplete or nonsense payout form refuses", async () => {
 
 // ------------------------------------------------------- what the carrier is asked
 
-test("the parcel is COPIED from the row - no body exists any more", async () => {
+test("the parcel is the draft's own row - no body exists any more", async () => {
   await inPinnedTransaction(async (c: PoolClient) => {
     const fixtures = await aWorld(c);
     const { dropoffMethodId } = fixtures;
@@ -260,9 +270,9 @@ test("the parcel is COPIED from the row - no body exists any more", async () => 
     const { checkout_id } = await primeCheckout(fixtures, dropoffMethodId);
     const order = await place.place(checkout_id, world);
 
-    // db/shipping/shipments/sql/create_from_checkout.sql copies the box and
-    // the service off the checkout row; the handoff and the insured amount are
-    // what the server DECIDED (ruling 66).
+    // The box, the service and the origin are the parcel's own columns, patched
+    // there by the stepper (128); the handoff and the insured amount are what
+    // the server DECIDED at placement.
     const shell = await shellFor(c, order.order.id);
     assert.equal(shell.direction, "Inbound");
     assert.equal(shell.pickup_type, "Store Dropoff");
@@ -272,30 +282,35 @@ test("the parcel is COPIED from the row - no body exists any more", async () => 
     assert.equal(shell.tracking_number, null, "the shell committed with a label");
 
     assert.deepEqual(
-      asked, [{ shipment_id: shell.id, schedule: null }],
-      "shipping was asked for a label against a different parcel, or a courier slot"
+      asked, [shell.id],
+      "shipping was asked for a label against a different parcel"
     );
+    assert.equal(shell.pickup_date, null, "a dropoff recorded a courier slot");
   }, { actor: TEST_ACTOR.id, lock: LOCKS.ORDERS });
 });
 
-test("a pickup needs its slot ON THE ROW, and carries it when set", async () => {
+test("a pickup needs its slot ON THE PARCEL, and carries it when set", async () => {
   await inPinnedTransaction(async (c: PoolClient) => {
     const fixtures = await aWorld(c);
     const { pickupMethodId } = fixtures;
     const unscheduled = await primeCheckout(fixtures, pickupMethodId);
     await assert.rejects(
       () => place.place(unscheduled.checkout_id, carrier().world),
-      // The refusal is the CHECKOUT's list now, not the parcel builder's.
-      /missing pickup_schedule/
+      // The refusal is the composed list now - checkout's own steps plus
+      // whatever fulfillments says its parcel still owes.
+      /missing pickup_date, pickup_time/
     );
 
     const { checkout_id } = await primeCheckout(fixtures, pickupMethodId, { schedule: true });
     const { world, asked } = carrier();
     const order = await place.place(checkout_id, world);
 
-    assert.equal((await shellFor(c, order.order.id)).pickup_type, "Carrier Pickup");
-    assert.equal(asked[0].schedule?.date, "2026-09-15");
-    assert.equal(asked[0].schedule?.time, "10:30:00");
+    const shell = await shellFor(c, order.order.id);
+    assert.equal(shell.pickup_type, "Carrier Pickup");
+    // THE SLOT IS A COLUMN (128), so the label call needs no argument for it.
+    assert.equal(shell.pickup_date, "2026-09-15");
+    assert.equal(shell.pickup_time, "10:30:00");
+    assert.deepEqual(asked, [shell.id]);
   }, { actor: TEST_ACTOR.id, lock: LOCKS.ORDERS });
 });
 
@@ -308,7 +323,7 @@ test("an incomplete checkout names the piece that is missing - the payout includ
       `UPDATE checkout.checkouts SET payment_details_id = NULL WHERE id = $1`, [checkout_id]
     );
     await assert.rejects(
-      () => place.place(checkout_id, carrier().world), /missing payout_account/
+      () => place.place(checkout_id, carrier().world), /missing payment_details_id/
     );
   }, { actor: TEST_ACTOR.id, lock: LOCKS.ORDERS });
 });
@@ -317,10 +332,10 @@ test("a sale delivery service buys no labels, and a collected order owes its own
   await inPinnedTransaction(async (c: PoolClient) => {
     const fixtures = await aWorld(c);
     const { customer, labelServiceId, saleServiceId, directMethodId, dropoffMethodId } = fixtures;
-    const { checkout_id } = await primeCheckout(fixtures, dropoffMethodId);
+    const { checkout_id, fulfillment_id } = await primeCheckout(fixtures, dropoffMethodId);
     await as(customer, () =>
-      request(app).patch("/api/checkout").send({
-        direction: "purchase", carrier_service_id: saleServiceId,
+      request(app).patch(`/api/fulfillments/${fulfillment_id}`).send({
+        shipment: { carrier_service_id: saleServiceId },
       })
     );
     await assert.rejects(
@@ -329,23 +344,25 @@ test("a sale delivery service buys no labels, and a collected order owes its own
     );
 
     await as(customer, () =>
-      request(app).patch("/api/checkout").send({
-        direction: "purchase", carrier_service_id: labelServiceId,
+      request(app).patch(`/api/fulfillments/${fulfillment_id}`).send({
+        shipment: { carrier_service_id: labelServiceId },
       })
     );
     await as(customer, () =>
-      request(app).post("/api/checkout/fulfillment").send({
-        direction: "purchase", method_id: directMethodId,
+      request(app).post("/api/fulfillments").send({
+        checkout_id, method_id: directMethodId,
       })
     );
     // THE CATEGORY REFUSAL IS GONE (Jacob, 2026-09-04: "If it's a direct or
     // pickup, why would it need shipper_address_id or package_id?"). A
     // non-SHIPMENT fulfillment is placeable; what it owes is its OWN steps -
-    // somewhere to be collected from and a time - and it is refused for those
-    // rather than for being the wrong kind of thing.
+    // and only the TIME is left, because a new draft takes the customer's
+    // default address the way the checkout row used to (domain/fulfillments/
+    // drafts.ts). It is refused for that rather than for being the wrong kind
+    // of thing.
     await assert.rejects(
       () => place.place(checkout_id, carrier().world),
-      /missing pickup_address, appointment_time/
+      /missing start_time/
     );
   }, { actor: TEST_ACTOR.id, lock: LOCKS.ORDERS });
 });
@@ -397,9 +414,7 @@ test("the placement links ids and writes NO exchange rows at all", async () => {
     assert.equal(shipment.carrier_service_id, labelServiceId);
     // The courier booking is the carrier's answer too, so it is recorded by
     // the same AFTER step: what the placement itself hands over is the slot.
-    assert.deepEqual(
-      asked, [{ shipment_id: shipment.id, schedule: { date: "2026-09-15", time: "10:30:00" } }]
-    );
+    assert.deepEqual(asked, [shipment.id]);
 
     // *** ZERO EXCHANGE ROWS - the write pivot for this path, executed. ***
     // KEPT (exchange-fixtures lane, D214 item 10): this reads exchange to

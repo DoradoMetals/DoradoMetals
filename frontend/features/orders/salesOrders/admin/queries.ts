@@ -1,4 +1,10 @@
-import { useAdminPlaceSalesOrder, usePatchCheckout, usePaymentMethods } from '@dorado/client'
+import {
+  useAdminPlaceSalesOrder,
+  useCreateFulfillment,
+  usePatchCheckout,
+  usePatchFulfillment,
+  usePaymentMethods,
+} from '@dorado/client'
 import { useSaleShippingServices } from '@/features/shipping/queries'
 import { useReplaceCheckoutItems } from '@/features/checkout/items/queries'
 import type { AdminSaleCheckoutForm } from '@/features/orders/salesOrders/types'
@@ -30,6 +36,8 @@ export const useAdminCreateSalesOrder = (user_id: string) => {
   const { data: saleServices = [] } = useSaleShippingServices()
   const syncItems = useReplaceCheckoutItems('sale')
   const patchCheckout = usePatchCheckout('sale', { user_id })
+  const createFulfillment = useCreateFulfillment()
+  const patchFulfillment = usePatchFulfillment()
   const place = useAdminPlaceSalesOrder()
 
   const mutateAsync = async (
@@ -39,10 +47,21 @@ export const useAdminCreateSalesOrder = (user_id: string) => {
 
     const checkout = await patchCheckout.mutateAsync({
       recipient_address_id: sales_order.address.id,
-      carrier_service_id:
-        saleServices.find((s) => s.code === sales_order.service.value)?.id ?? null,
       payment_method_id:
         saleMethods.find((m) => m.type === sales_order.payment_method)?.id ?? null,
+    })
+
+    // THE DELIVERY SERVICE IS THE PARCEL'S (rulings 69/70, migration 128), and
+    // every checkout needs a draft fulfillment to be placeable. Two calls where
+    // there was one column, and the same substitution the customer surfaces
+    // got - this file is otherwise untouched.
+    const draft = await createFulfillment.mutateAsync({ checkout_id: checkout.id })
+    await patchFulfillment.mutateAsync({
+      fulfillment_id: draft.fulfillment.id,
+      shipment: {
+        carrier_service_id:
+          saleServices.find((s) => s.code === sales_order.service.value)?.id ?? null,
+      },
     })
 
     return await place.mutateAsync({ checkout_id: checkout.id })
@@ -56,7 +75,17 @@ export const useAdminCreateSalesOrder = (user_id: string) => {
     ) => {
       mutateAsync(vars).then((view) => options?.onSuccess?.(view)).catch(() => {})
     },
-    isPending: syncItems.isPending || patchCheckout.isPending || place.isPending,
-    error: syncItems.error ?? patchCheckout.error ?? place.error,
+    isPending:
+      syncItems.isPending
+      || patchCheckout.isPending
+      || createFulfillment.isPending
+      || patchFulfillment.isPending
+      || place.isPending,
+    error:
+      syncItems.error
+      ?? patchCheckout.error
+      ?? createFulfillment.error
+      ?? patchFulfillment.error
+      ?? place.error,
   }
 }

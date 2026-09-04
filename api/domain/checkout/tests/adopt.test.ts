@@ -11,7 +11,7 @@ import { inPinnedTransaction } from "#shared/testing/pinned-pool.ts";
 import { LOCKS } from "#shared/testing/locks.ts";
 import { TEST_ACTOR } from "#shared/testing/actor.ts";
 import {
-  aCart, aProduct, aUser, aVisitor, anAddress, packageId, carrierServiceId,
+  aCart, aProduct, aUser, aVisitor, anAddress, paymentMethodId,
 } from "#shared/testing/builders/index.ts";
 import * as checkouts from "#db/checkout/checkouts/repo.ts";
 import * as checkoutItems from "#db/checkout/items/repo.ts";
@@ -83,18 +83,22 @@ test("when the customer already has a row, theirs survives and takes the visitor
     const visitor = await aVisitor(c);
     const customer = await aUser(c);
     const product = await aProduct(c);
-    const box = await packageId(c, "Small Box");
-    const service = await carrierServiceId(c, "Express Saver");
+    const payout = await paymentMethodId(c, "ACH", "purchase");
+    // The visitor typed an address, so it is in THEIR book - the composite key
+    // (user_id, recipient_address_id) would refuse it otherwise. The address
+    // half of the hook re-keys it to the customer before the choices merge.
+    const address = await anAddress(c, visitor);
 
-    // The customer's own row, from a previous visit, with a saved package.
+    // The customer's own row, from a previous visit, with a saved payout
+    // method.
     const mine = await aCart(c, customer, { direction: "purchase" })
       .withLots(2)
-      .withRow({ package_id: box });
-    // The visitor's row: a different basket and a service the customer never
+      .withRow({ payment_method_id: payout });
+    // The visitor's row: a different basket and an address the customer never
     // chose.
     const theirs = await aCart(c, visitor, { direction: "purchase" })
-      .withBullion(product, 1)
-      .withRow({ carrier_service_id: service });
+      .withBullion(product, 1);
+    await checkouts.update(theirs.id, { recipient_address_id: address.id }, c);
 
     const result = await adoptAnonymousCheckout(
       { anonymousUserId: visitor.id, userId: customer.id }, c
@@ -107,8 +111,8 @@ test("when the customer already has a row, theirs survives and takes the visitor
     const survivor = await checkouts.findFor(customer.id, "purchase", c);
     assert.equal(survivor?.id, mine.id, "the customer's row is the one that survives");
     // The visitor's choice landed; the customer's saved one was not blanked.
-    assert.equal(survivor?.carrier_service_id, service);
-    assert.equal(survivor?.package_id, box);
+    assert.equal(survivor?.recipient_address_id, address.id);
+    assert.equal(survivor?.payment_method_id, payout);
 
     // THE BASKET REPLACES rather than merges - it is the set the customer is
     // looking at. Two lots gone, one bullion line in their place.

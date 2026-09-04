@@ -72,27 +72,35 @@ test("a visitor builds a basket, is refused the two things that need an account,
     assert.ok(!row.body.missing.includes("items"), "a basket with lines still owes items");
     assert.ok(row.body.missing.length > 0, "an unfinished checkout claims to be placeable");
 
-    // ---- 2. THE RATE SURFACE answers a visitor the way it answers anyone:
-    // with its own refusal about the checkout, not about who is asking.
+    // ---- 2. THE HANDOVER. A visitor asks fulfillments for a draft on the
+    // same endpoint a customer does (rulings 69/70) - and the RATE SURFACE
+    // answers them the way it answers anyone: with its own refusal about the
+    // parcel, not about who is asking.
+    const draft = await as(visitor, () =>
+      request(app).post("/api/fulfillments").send({ checkout_id: row.body.id })
+    );
+    assert.equal(draft.status, 200, draft.text);
+    const fulfillment_id = draft.body.fulfillment.id as string;
+
     const tooEarly = await as(visitor, () =>
-      request(app).get("/api/checkout/rates").query({ direction: "purchase" })
+      request(app).get(`/api/fulfillments/${fulfillment_id}/rates`)
     );
     assert.equal(tooEarly.status, 422, tooEarly.text);
     assert.match(tooEarly.body?.error?.message ?? "", /choose a package/);
 
-    // ---- 3. READINESS. An address the visitor entered and a box: the row
-    // itself says the carrier can now be asked.
+    // ---- 3. READINESS. An address the visitor entered and a box, both onto
+    // the parcel: the draft itself says the carrier can now be asked.
     const patched = await as(visitor, () =>
-      request(app).patch("/api/checkout").send({
-        direction: "purchase", package_id: box, shipper_address_id: address.id,
+      request(app).patch(`/api/fulfillments/${fulfillment_id}`).send({
+        shipment: { package_id: box, shipper_address_id: address.id },
       })
     );
     assert.equal(patched.status, 200, patched.text);
     // Items + a package + an address is the whole of what a rate quote needs,
     // and a visitor reaches it on the same three writes a customer does. The
-    // row says so by not OWING any of the three (Jacob, 2026-09-04: the three
-    // `ready_*` booleans were second readings of `missing`).
-    for (const step of ["items", "package", "shipper_address"]) {
+    // draft says so by not OWING either of its two, and the checkout row by
+    // not owing `items`.
+    for (const step of ["package_id", "shipper_address_id"]) {
       assert.ok(
         !patched.body.missing.includes(step),
         `a visitor who wrote every rate input still owes ${step}`
@@ -144,8 +152,16 @@ test("a visitor builds a basket, is refused the two things that need an account,
     );
     assert.equal(myRow.status, 200, myRow.text);
     assert.equal(myRow.body.id, row.body.id, "the same checkout row, re-keyed");
-    assert.equal(myRow.body.package_id, box);
-    assert.equal(myRow.body.shipper_address_id, address.id);
+    assert.equal(myRow.body.fulfillment_id, fulfillment_id, "the draft did not follow");
+    // The PARCEL followed too - the box and the origin the visitor chose are
+    // its columns (128), and the draft never changed hands because it never
+    // belonged to a user in the first place.
+    const kept = await as(customer, () =>
+      request(app).get(`/api/fulfillments/${fulfillment_id}`)
+    );
+    assert.equal(kept.status, 200, kept.text);
+    assert.equal(kept.body.parcel.package_id, box);
+    assert.equal(kept.body.parcel.shipper_address_id, address.id);
 
     // And now the wall is down. THE CONTROL, asserted at the guard rather
     // than by placing: a real placement buys a FedEx label and sends an email

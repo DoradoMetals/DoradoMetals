@@ -48,17 +48,21 @@ import {
 } from "#domain/fulfillments/compose.ts";
 import { byStartTimeThenId } from "#domain/fulfillments/rules.ts";
 import type {
-  FulfillmentDirect, FulfillmentMethodRead, FulfillmentPickup, FulfillmentShipment,
+  CarrierHandoff, FulfillmentDirect, FulfillmentMethodRead, FulfillmentParcel,
+  FulfillmentPickup, FulfillmentShipment,
 } from "@dorado/contracts";
 
 // compose.ts and service.ts each inline this shape rather than naming it (it
-// is a bag of four entities' Maps, not a derivation of one) - the test needs
-// its own copy to type `details()` below.
+// is a bag of several entities' Maps, not a derivation of one) - the test
+// needs its own copy to type `details()` below.
 type Details = {
   methods: Map<string, FulfillmentMethodRead>;
   pickups: Map<string, FulfillmentPickup>;
   directs: Map<string, FulfillmentDirect>;
   shipmentLinks: Map<string, FulfillmentShipment[]>;
+  parcels: Map<string, FulfillmentParcel>;
+  labelled: Set<string>;
+  handoffs: CarrierHandoff[];
 };
 
 // The statements are in db/fulfillments; these tests stay in domain/ alongside compose.ts.
@@ -210,6 +214,9 @@ const details = (over: Partial<Details> = {}): Details => ({
   pickups: new Map(),
   directs: new Map(),
   shipmentLinks: new Map(),
+  parcels: new Map(),
+  labelled: new Set(),
+  handoffs: [],
   ...over,
 });
 

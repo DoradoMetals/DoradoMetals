@@ -1,45 +1,23 @@
 import { describe, expect, test } from "vitest";
-import type { CarrierHandoff, FulfillmentMethodRead } from "@dorado/contracts";
+import type { CarrierHandoff } from "@dorado/contracts";
 
-import { readyForPayment, readyForRates, readyToPlace, resolveHandoff } from "@/features/checkout/gates";
+import { readyForPayment, readyToPlace, resolveHandoff } from "@/features/checkout/gates";
 
-describe("readyForRates", () => {
-  test("blocked while items is missing", () => {
-    expect(readyForRates(["items", "shipper_address", "package"])).toBe(false);
-  });
-
-  test("blocked while the address step is missing, purchase-shaped", () => {
-    expect(readyForRates(["shipper_address", "package"])).toBe(false);
-  });
-
-  test("blocked while the address step is missing, sale-shaped", () => {
-    expect(readyForRates(["recipient_address"])).toBe(false);
-  });
-
-  test("blocked while package is missing", () => {
-    expect(readyForRates(["package"])).toBe(false);
-  });
-
-  test("ready once items, the address and package are all landed", () => {
-    expect(readyForRates(["carrier_service", "payout_account"])).toBe(true);
-  });
-
-  test("ready on an empty list", () => {
-    expect(readyForRates([])).toBe(true);
-  });
-});
+// `readyForRates` is GONE with the columns it read (rulings 69/70, migration
+// 128): the parcel's own `missing` gates the rate query now, inside
+// @dorado/client's `useFulfillmentRates`.
 
 describe("readyForPayment", () => {
   test("blocked while anything but the money step remains", () => {
-    expect(readyForPayment(["carrier_service", "payout_account"])).toBe(false);
+    expect(readyForPayment(["carrier_service_id", "payment_details_id"])).toBe(false);
+  });
+
+  test("blocked while a handover step the fulfillment spliced in remains", () => {
+    expect(readyForPayment(["pickup_date", "pickup_time"])).toBe(false);
   });
 
   test("ready holding only the purchase money step", () => {
-    expect(readyForPayment(["payout_account"])).toBe(true);
-  });
-
-  test("ready holding only the sale money step", () => {
-    expect(readyForPayment(["payment_method"])).toBe(true);
+    expect(readyForPayment(["payment_details_id"])).toBe(true);
   });
 
   test("ready on an empty list", () => {
@@ -49,7 +27,7 @@ describe("readyForPayment", () => {
 
 describe("readyToPlace", () => {
   test("blocked while anything remains", () => {
-    expect(readyToPlace(["payout_account"])).toBe(false);
+    expect(readyToPlace(["payment_details_id"])).toBe(false);
   });
 
   test("ready on an empty list", () => {
@@ -74,36 +52,24 @@ describe("resolveHandoff", () => {
   };
   const handoffs = [dropoff, collect];
 
-  const method = (over: Partial<FulfillmentMethodRead> = {}): FulfillmentMethodRead => ({
-    id: "m-1",
-    type: "CARRIER DROPOFF",
-    label: "Drop off",
-    admin_label: null,
-    category: "SHIPMENT",
-    direction: "purchase",
-    enabled: true,
-    hidden: false,
-    is_default: false,
-    created_at: "2026-01-01T00:00:00.000Z",
-    updated_at: "2026-01-01T00:00:00.000Z",
-    ...over,
-  });
-
   test("a dropoff method resolves to the non-schedule handoff", () => {
-    expect(resolveHandoff([method()], handoffs, "m-1")).toEqual(dropoff);
+    expect(resolveHandoff(handoffs, "CARRIER DROPOFF")).toEqual(dropoff);
   });
 
   test("a pickup method resolves to the schedule handoff", () => {
-    expect(resolveHandoff([method({ id: "m-2", type: "CARRIER PICKUP" })], handoffs, "m-2")).toEqual(
-      collect
-    );
+    expect(resolveHandoff(handoffs, "CARRIER PICKUP")).toEqual(collect);
   });
 
-  test("nothing chosen when fulfillment_method_id is null", () => {
-    expect(resolveHandoff([method()], handoffs, null)).toBeNull();
+  test("nothing chosen when the draft has no method type yet", () => {
+    expect(resolveHandoff(handoffs, null)).toBeNull();
+    expect(resolveHandoff(handoffs, undefined)).toBeNull();
   });
 
-  test("nothing chosen when the id matches no method", () => {
-    expect(resolveHandoff([method()], handoffs, "missing")).toBeNull();
+  // A method that is not a carrier handoff at all - PICKUP, APPOINTMENT -
+  // resolves to the non-schedule handoff, which is what the server's own
+  // `handoffFor` does with the same input. The shipping step never renders
+  // this selector for those categories.
+  test("a non-carrier method resolves to the dropoff handoff", () => {
+    expect(resolveHandoff(handoffs, "PICKUP")).toEqual(dropoff);
   });
 });

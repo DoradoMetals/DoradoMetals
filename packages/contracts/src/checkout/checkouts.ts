@@ -11,28 +11,32 @@ export const Checkout = z.object({
   "direction": z.string(),
   "payment_method_id": z.string().uuid().nullable(),
   "payment_details_id": z.string().uuid().nullable(),
-  "fulfillment_method_id": z.string().uuid().nullable(),
-  "appointment_location_id": z.string().uuid().nullable(),
-  "pickup_address_id": z.string().uuid().nullable(),
-  "shipper_address_id": z.string().uuid().nullable(),
   "recipient_address_id": z.string().uuid().nullable(),
-  "carrier_service_id": z.string().uuid().nullable(),
-  "package_id": z.string().uuid().nullable(),
-  "appointment_time": z.string().nullable(),
   "fulfillment_id": z.string().uuid().nullable(),
-  "pickup_date": z.string().nullable(),
-  "pickup_time": z.string().nullable(),
 });
 export type Checkout = z.infer<typeof Checkout>;
 // generated:end
 import { Direction } from "../orders/enums.js";
+import { FulfillmentStep } from "../fulfillments/fulfillments.js";
 import { PaymentDetails } from "../payments/details.js";
 
-// The columns a CUSTOMER may write on their own checkout row. Narrower than
-// the table on purpose: fulfillment_id and the payout pointers are written by
-// the services that also create what they point at, never by a request.
-// package_weight and declared_value are GONE (ruling 58, migration 121): the
-// server computes both from the checkout's own items and package.
+// THE CHECKOUT ROW IS FOUR POINTERS AND A DIRECTION (rulings 69/70, migration
+// 128). It used to carry nine handover columns as well - a shipper address, a
+// box, a carrier service, a courier slot, a collection address, a store, an
+// appointment time and a fulfillment method. They live on the draft
+// fulfillment's own detail row now, and nothing in domain/checkout names one.
+//
+// The columns a CUSTOMER may write are narrower still: `fulfillment_id` and
+// `payment_details_id` are written by the services that create what they point
+// at, never by a request.
+//
+// `recipient_address_id` STAYED, deliberately. It is a sale's delivery
+// address, and it is read to price the order - domain/orders/place.ts hands its
+// state to the sales-tax service before any fulfillment is consulted - so it
+// is the CHECKOUT's tax key rather than a handover choice. Migration 123's
+// composite foreign key (user_id, recipient_address_id) -> places.user_addresses
+// says "this address is in THIS row's owner's book", which is a statement about
+// the checkout's owner that no fulfillment row carries a user to make.
 //
 // SPLIT IN TWO ON PURPOSE. `direction` names WHICH session is being written
 // and is not a column of the patch, so the columns get their own schema: the
@@ -40,14 +44,6 @@ import { PaymentDetails } from "../payments/details.js";
 export const CheckoutPatch = Checkout.pick({
   payment_method_id: true,
   recipient_address_id: true,
-  shipper_address_id: true,
-  pickup_address_id: true,
-  carrier_service_id: true,
-  package_id: true,
-  appointment_location_id: true,
-  appointment_time: true,
-  pickup_date: true,
-  pickup_time: true,
 }).partial();
 export type CheckoutPatch = z.infer<typeof CheckoutPatch>;
 
@@ -55,10 +51,10 @@ export const CheckoutPatchBody = CheckoutPatch.extend({ direction: Direction }).
 export type CheckoutPatchBody = z.infer<typeof CheckoutPatchBody>;
 
 // WHAT THE SERVER MAY WRITE on a checkout row, which is wider than what a
-// REQUEST may name and narrower than the row. The three extra columns are
+// REQUEST may name and narrower than the row. The two extra columns are
 // pointers the services that create what they point at set for themselves -
-// the draft fulfillment (domain/checkout setFulfillmentMethod) and the sealed
-// payout details (saveCheckoutPayout); no body may carry one.
+// the draft fulfillment (domain/fulfillments/drafts.ts) and the sealed payout
+// details (saveCheckoutPayout); no body may carry one.
 //
 // It exists so that nothing hand-lists these columns (ruling 64): the repo's
 // patch whitelist is `columnsOf(CheckoutWrite)` and the sign-in merge rule's
@@ -68,20 +64,9 @@ export const CheckoutWrite = CheckoutPatch.extend(
   Checkout.pick({
     payment_details_id: true,
     fulfillment_id: true,
-    fulfillment_method_id: true,
   }).partial().shape
 );
 export type CheckoutWrite = z.infer<typeof CheckoutWrite>;
-
-// The stepper picks a carrier HANDOFF and never spells a fulfillment method;
-// the server owns that vocabulary. Either names the step.
-export const CheckoutFulfillmentBody = z.object({ direction: Direction })
-  .extend({
-    method_id: z.string().optional(),
-    handoff_code: z.string().optional(),
-  })
-  .strict();
-export type CheckoutFulfillmentBody = z.infer<typeof CheckoutFulfillmentBody>;
 
 // The payout step's form (D210). THE TWO NUMBERS NEVER COME BACK: they are
 // sealed at rest and the response carries only the last four digits.
@@ -103,54 +88,44 @@ export const CheckoutPayoutBody = CheckoutPayoutForm.extend({ direction: Directi
 export type CheckoutPayoutBody = z.infer<typeof CheckoutPayoutBody>;
 
 
-// WHAT THE CUSTOMER HAS NOT CHOSEN YET. The stepper renders this list; it does
-// not compute it. Every label is a column of the row or a fact about its draft
-// fulfillment, so a step the server stops requiring disappears from the UI
-// without a frontend edit.
-// ORDERED THE WAY THE STEPPER WALKS IT, so the first entry is the next thing
-// to do - and CATEGORY-AWARE (Jacob, 2026-09-04: "If it's a direct or pickup,
-// why would it need shipper_address_id or package_id?"). A parcel needs a box
-// and a carrier; DORADO COLLECTING needs somewhere to collect from and a time;
-// a customer walking in needs a store and a time. The three lists share only
-// `items` and the payout account.
+// WHAT THE CHECKOUT ITSELF STILL OWES - four entries, and every one is a
+// column of `checkout.checkouts` or its basket.
+//
+// It was twelve until rulings 69/70. Eight of those were fulfillment's
+// business, decided here by branching on the chosen method's category, which
+// is precisely what 70 forbids: "The only thing that should be deciding if
+// fulfillments is 'ready' is fulfillments." Those eight are `FulfillmentStep`
+// now, answered by `fulfillments.missing(fulfillment_id)`, and this list keeps
+// only what checkout owns:
+//
+//   items                 the basket is empty
+//   fulfillment_id        no draft fulfillment yet, so nobody can say how the
+//                         order would be handed over
+//   payment_details_id    a purchase has no payout account
+//   recipient_address_id  a sale has nowhere to be delivered
 export const CheckoutStep = z.enum([
   "items",
-  "fulfillment_method",
-  // SHIPMENT
-  "shipper_address",
-  "package",
-  "carrier_service",
-  "pickup_schedule",
-  // PICKUP - Dorado collects
-  "pickup_address",
-  // DIRECT - the customer visits
-  "appointment_location",
-  // both of those
-  "appointment_time",
-  // the sale
-  "recipient_address",
-  // the money
-  "payout_account",
-  "payment_method",
+  "fulfillment_id",
+  "recipient_address_id",
+  "payment_details_id",
 ]);
 export type CheckoutStep = z.infer<typeof CheckoutStep>;
+
+// THE COMPOSED LIST: checkout's own steps, then whatever the fulfillment says
+// it still owes. The union is the composition, spelled once - checkout never
+// re-declares a fulfillment column name and `lint:domain-boundaries` fails the
+// build if `domain/checkout` does.
+export const CheckoutMissing = z.union([CheckoutStep, FulfillmentStep]);
+export type CheckoutMissing = z.infer<typeof CheckoutMissing>;
 
 // THE COMPOSED ROW, and the only checkout shape that crosses the wire: the
 // customer's recorded choices, plus ONE derived field.
 //
-// `missing` is the columns `place` would refuse over, in step order. It is the
-// one list because every other field this carried was a second reading of it
+// `missing` is what `place` would refuse over, in step order. It is the one
+// list because every other field this carried was a second reading of it
 // (Jacob, 2026-09-04: "Why does it need ready_for_rates? Why does it need
-// ready_for_payment?"). `ready_for_rates` was "neither the address nor the box
-// is missing", `ready_for_payment` "nothing but the money step is missing",
-// `ready_to_place` "the list is empty" - three booleans a stepper can read off
-// the list itself, and it does. `item_count` was the same for "items" being on
-// it; `fulfillment_method_type` and `handoff_code` were scalar joins onto rows
-// the stepper already lists (ruling 12), selectable by the row's own
-// `fulfillment_method_id`; `requires_schedule` is a field of the handoff in
-// that same list, and `missing` already names pickup_date/pickup_time when the
-// chosen one needs them.
-export const CheckoutView = Checkout.extend({ missing: z.array(CheckoutStep) });
+// ready_for_payment?").
+export const CheckoutView = Checkout.extend({ missing: z.array(CheckoutMissing) });
 export type CheckoutView = z.infer<typeof CheckoutView>;
 
 // ADOPTING A VISITOR'S BASKET (ruling 63) - what one direction's adoption did,

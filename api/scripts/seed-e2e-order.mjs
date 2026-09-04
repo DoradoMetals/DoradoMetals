@@ -27,6 +27,8 @@ import "#env";
 import pool from "#pool";
 import query from "#shared/db/query.ts";
 import * as checkoutService from "#domain/checkout/service.ts";
+import * as fulfillmentDrafts from "#domain/fulfillments/drafts.ts";
+import * as fulfillmentService from "#domain/fulfillments/service.ts";
 import * as addressService from "#domain/places/addresses/service.ts";
 import { place } from "#domain/orders/place.ts";
 
@@ -132,18 +134,25 @@ const address = existingAddr.length
   user_address: { label: 'e2e-order-seed' },
 });
 
-// Prime the checkout row exactly as the stepper does: the ids, the
-// fulfillment draft, the payout account, the basket line. The parcel's
-// weight and declared value are the server's now (ruling 58) - `place`
-// computes both from the basket and the package chosen above.
-await checkoutService.patchCheckout(user_id, "purchase", {
-  shipper_address_id: address.id,
-  package_id: packages[0].id,
-  carrier_service_id: services[0].id,
-  pickup_date: "2026-09-15",
-  pickup_time: "10:30:00",
+// Prime the checkout exactly as the stepper does: the draft fulfillment, its
+// PARCEL's choices (rulings 69/70, migration 128 - the box, the service, the
+// origin and the courier slot are its columns, not the checkout row's), the
+// payout account, the basket line. The parcel's weight and declared value are
+// the server's (ruling 58) - `place` computes both from the basket and the
+// package chosen above.
+const { id: checkout_row_id } = await checkoutService.getRowFor(user_id, "purchase");
+const draft = await fulfillmentDrafts.createForCheckout(
+  { checkout_id: checkout_row_id, method_id: methods[0].id }, user_id, false
+);
+await fulfillmentService.patchChoices(draft.fulfillment.id, {
+  shipment: {
+    shipper_address_id: address.id,
+    package_id: packages[0].id,
+    carrier_service_id: services[0].id,
+    pickup_date: "2026-09-15",
+    pickup_time: "10:30:00",
+  },
 });
-await checkoutService.setFulfillmentMethod(user_id, "purchase", methods[0].id);
 await checkoutService.saveCheckoutPayout(user_id, "purchase", {
   method: "ECHECK",
   payout_email: E2E_CUSTOMER.email,

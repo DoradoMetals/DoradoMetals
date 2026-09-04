@@ -22,13 +22,20 @@ import * as methodService from "#domain/fulfillments/methods/service.ts";
 import * as pickups from "#db/fulfillments/pickups/repo.ts";
 import * as directs from "#db/fulfillments/directs/repo.ts";
 import * as shipmentLinks from "#db/fulfillments/shipments/repo.ts";
+// THE PARCEL is shipping's table, and a SHIPMENT's handover choices are five
+// of its columns (migration 128). domain/shipping/parcel.ts is the door -
+// domain/shipping/shipments/service.ts imports THIS file, so calling that one
+// would be a cycle, and its own header says so.
+import * as parcel from "#domain/shipping/parcel.ts";
+import * as handoffsService from "#domain/shipping/handoffs/service.ts";
 import * as orders from "#db/orders/repo.ts";
 import * as compose from "#domain/fulfillments/compose.ts";
 import * as rules from "#domain/fulfillments/rules.ts";
 import type { Executor } from "#shared/db/executor.ts";
-import type { Checkout,
-  Direction, Fulfillment, FulfillmentCategory, FulfillmentDirect, FulfillmentMethodRead,
-  FulfillmentPickup, FulfillmentShipment, FulfillmentView,
+import type {
+  CarrierHandoff, Direction, Fulfillment, FulfillmentCategory, FulfillmentDirect,
+  FulfillmentMethodRead, FulfillmentParcel, FulfillmentPatchBody, FulfillmentPickup,
+  FulfillmentShipment, FulfillmentStep, FulfillmentView,
 } from "@dorado/contracts";
 
 // ------------------------------------------------------------- composition
@@ -50,17 +57,33 @@ async function detailsFor(
   pickups: Map<string, FulfillmentPickup>;
   directs: Map<string, FulfillmentDirect>;
   shipmentLinks: Map<string, FulfillmentShipment[]>;
+  parcels: Map<string, FulfillmentParcel>;
+  labelled: Set<string>;
+  handoffs: CarrierHandoff[];
 }> {
   const ids = rows.map((f) => f.id);
   const methods = await methodService.byId(executor);
   const p = await pickups.getMany(ids, executor);
   const d = await directs.getMany(ids, executor);
   const s = await shipmentLinks.getMany(ids, executor);
+  const parcelRows = await parcel.getMany(s.map((l) => l.shipment_id), executor);
   return {
     methods,
     pickups: compose.byFulfillment(p),
     directs: compose.byFulfillment(d),
     shipmentLinks: compose.groupByFulfillment(s),
+    parcels: new Map(parcelRows.map((row) => [row.id, row])),
+    // A PARCEL WITH A TRACKING NUMBER IS MONEY ALREADY SPENT, and that is the
+    // only thing that locks a fulfillment into SHIPMENT. Every SHIPMENT draft
+    // has a shell from the moment the method is chosen, so "has a link" would
+    // lock every one of them the instant the customer picked it.
+    labelled: new Set(
+      parcelRows.filter((row) => row.tracking_number != null).map((row) => row.id)
+    ),
+    // The carrier catalogue, not the database's: whether a courier slot is
+    // owed is the chosen handoff's own `requires_schedule`, and no carrier
+    // enum is spelled anywhere in this feature.
+    handoffs: await handoffsService.getHandoffs(null, executor),
   };
 }
 
@@ -143,82 +166,142 @@ async function createFulfillment(
   return view;
 }
 
-// A draft for checkout: the fulfillment exists and mutates while the customer
-// decides, and order creation attaches it. The offered-method check is the
-// same one choose() runs.
+// A DRAFT, WITH ITS DETAIL ROW (rulings 69/70, migration 128). The fulfillment
+// exists and mutates while the customer decides, and order creation attaches
+// it. What is new is that the detail row is written HERE, empty, rather than at
+// placement: the customer's handover choices are its columns, so there has to
+// be a row for a PATCH to land on. The offered-method check is the same one
+// choose() runs.
 export async function createDraft(
   { method_id, direction }: { method_id: string; direction: Direction },
   executor?: Executor
 ): Promise<FulfillmentView> {
   await methodService.assertOffered({ method_id, direction }, executor);
-  const row = await fulfillments.createDraft(
-    { id: randomUUID(), method_id }, executor
-  );
+  const method = await methodService.getOne(method_id, executor);
+  rules.assertMethod(method, method_id);
+
+  const row = await fulfillments.createDraft({ id: randomUUID(), method_id }, executor);
+  await ensureDetail(row.id, method.category, direction, executor);
   const view = await composeOne(row, executor);
   rules.assertComposed(view, row.id);
   return view;
 }
 
+// THE EMPTY DETAIL ROW for a category, created once and reused. Every column
+// is nullable (128 widened the two that were not), because the customer fills
+// them in one PATCH at a time.
+//
+// An existing row is LEFT ALONE, including one belonging to a category the
+// fulfillment has since left: a shell with no tracking number cost nothing and
+// is reused if the customer changes their mind back, and deleting a
+// shipping.shipments row to tidy up is not a trade this project makes.
+async function ensureDetail(
+  fulfillment_id: string, category: FulfillmentCategory, direction: Direction,
+  executor?: Executor
+): Promise<void> {
+  if (category === "SHIPMENT") {
+    if (await shipmentLinks.existsFor(fulfillment_id, executor)) return;
+    const shipment_id = await parcel.createShell(
+      direction === "sale" ? "Outbound" : "Inbound", executor
+    );
+    await shipmentLinks.create(
+      { id: randomUUID(), fulfillment_id, shipment_id }, executor
+    );
+    return;
+  }
+  if (category === "PICKUP") {
+    if (await pickups.getFor(fulfillment_id, executor)) return;
+    await pickups.create({ id: randomUUID(), fulfillment_id }, executor);
+    return;
+  }
+  if (await directs.getFor(fulfillment_id, executor)) return;
+  await directs.create({ id: randomUUID(), fulfillment_id }, executor);
+}
+
+// THE CUSTOMER'S HANDOVER CHOICES, one PATCH at a time. The body names one of
+// three keys and the fulfillment's own method says which one it is allowed to
+// be, so a pickup's address can never be written onto a parcel.
+export async function patchChoices(
+  id: string, body: FulfillmentPatchBody, executor?: Executor
+): Promise<FulfillmentView> {
+  const row = await fulfillments.getOne(id, executor);
+  rules.assertFulfillment(row, id);
+  const method = await methodService.getOne(row.method_id, executor);
+  rules.assertMethod(method, row.method_id);
+
+  if ("shipment" in body) {
+    rules.assertChoicesMatchCategory(method.category, "SHIPMENT", id);
+    const [link] = await shipmentLinks.getFor(id, executor);
+    rules.assertParcel(link, id);
+    await parcel.applyChoices(link.shipment_id, body.shipment, executor);
+  } else if ("pickup" in body) {
+    rules.assertChoicesMatchCategory(method.category, "PICKUP", id);
+    rules.assertTimestamp(body.pickup.start_time);
+    await pickups.update(id, body.pickup, executor);
+  } else {
+    rules.assertChoicesMatchCategory(method.category, "DIRECT", id);
+    rules.assertTimestamp(body.direct.start_time);
+    await directs.update(id, body.direct, executor);
+  }
+
+  return await recompose(id, executor);
+}
+
+// THE ONE FUNCTION CHECKOUT CALLS (ruling 70). It answers the column names the
+// handover is still missing, and checkout appends them to its own four-entry
+// list without knowing what any of them mean.
+//
+// A fulfillment that has vanished owes nothing this function can name; the
+// caller's own list already carries `fulfillment_id` for that state.
+export async function missing(
+  fulfillment_id: string, executor?: Executor
+): Promise<FulfillmentStep[]> {
+  return (await getById(fulfillment_id, executor))?.missing ?? [];
+}
+
+// WHERE THE HANDOVER HAPPENS, as an address id - the parcel's origin for a
+// SHIPMENT, the collection address for a PICKUP, nothing for a store visit.
+// domain/orders reads this to snapshot the address onto the order it writes,
+// which is the one thing placement still needs to know about the handover and
+// the reason it does not name a column to get it.
+export async function addressIdOf(
+  fulfillment_id: string, executor?: Executor
+): Promise<string | null> {
+  const view = await getById(fulfillment_id, executor);
+  if (!view) return null;
+  if (view.method.category === "SHIPMENT") return view.parcel?.shipper_address_id ?? null;
+  if (view.method.category === "PICKUP") return view.pickup?.pickup_address_id ?? null;
+  return null;
+}
+
+// THE PARCEL a SHIPMENT is handed over as, by id. Placement seals it and buys
+// its label after the commit; nothing else needs it.
+export async function shipmentIdOf(
+  fulfillment_id: string, executor?: Executor
+): Promise<string | null> {
+  const [link] = await shipmentLinks.getFor(fulfillment_id, executor);
+  return link?.shipment_id ?? null;
+}
+
+// WHOSE ORDER THIS IS, for a fulfillment that has one. A draft has none - the
+// checkout that points at it is the owner then, and transport asks checkout.
+export async function orderOwnerOf(
+  fulfillment_id: string, executor?: Executor
+): Promise<string | null> {
+  const row = await fulfillments.getOne(fulfillment_id, executor);
+  if (!row?.order_id) return null;
+  return (await orders.ownerOf(row.order_id, executor)) ?? null;
+}
+
 // The one-way attach. Refuses rather than repoints: a draft that is already an
 // order's fulfillment never moves.
-export async function attachDraft(
-  { fulfillment_id, order_id }: { fulfillment_id: string; order_id: string },
-  executor?: Executor
+export async function attachToOrder(
+  fulfillment_id: string, order_id: string, executor?: Executor
 ): Promise<FulfillmentView> {
+  rules.assertFulfillable(await orders.exists(order_id, executor), order_id);
   const changed = await fulfillments.update(fulfillment_id, { order_id }, executor);
   rules.assertDraft(changed, fulfillment_id);
   return await recompose(fulfillment_id, executor);
-}
-
-// THE HAND-OVER A CHECKOUT ASKED FOR, given to the order it became: the draft
-// the stepper mutated, else the method it named, else the direction's default -
-// and the booking the chosen category needs.
-// Both bookings go straight to the child repos, reading first, rather than
-// through their services: assertCategory is what those add, and the category
-// is right here.
-export async function attachForCheckout(
-  order_id: string, checkout: Checkout, executor?: Executor
-): Promise<FulfillmentView> {
-  const {
-    fulfillment_id, fulfillment_method_id: method_id,
-    pickup_address_id, appointment_location_id: location_id, appointment_time: start_time,
-  } = checkout;
-  const direction: Direction = checkout.direction === "sale" ? "sale" : "purchase";
-  const chosen = fulfillment_id
-    ? await attachDraft({ fulfillment_id, order_id }, executor)
-    : method_id
-      ? await chooseById({ order_id, method_id }, executor)
-      : await chooseDefault({ order_id, direction, category: "SHIPMENT" }, executor);
-
-  // Re-composed after a booking, never returned stale: `chosen` was put
-  // together before the detail row existed, so it would say the order is going
-  // to be collected by nobody.
-  if (chosen.method.category === "PICKUP" && pickup_address_id) {
-    const id = chosen.fulfillment.id;
-    if (await pickups.getFor(id, executor)) {
-      await pickups.update(id, { pickup_address_id, start_time }, executor);
-    } else {
-      await pickups.create(
-        { id: randomUUID(), fulfillment_id: id, pickup_address_id, start_time },
-        executor
-      );
-    }
-    return await recompose(id, executor);
-  }
-  if (chosen.method.category === "DIRECT" && location_id) {
-    const id = chosen.fulfillment.id;
-    const is_appointment = chosen.method.type === "APPOINTMENT";
-    if (await directs.getFor(id, executor)) {
-      await directs.update(id, { location_id, is_appointment, start_time }, executor);
-    } else {
-      await directs.create(
-        { id: randomUUID(), fulfillment_id: id, location_id, is_appointment, start_time },
-        executor
-      );
-    }
-    return await recompose(id, executor);
-  }
-  return chosen;
 }
 
 // A view of a row this transaction has just written, so "not found" is not a
@@ -294,8 +377,12 @@ export async function setMethod(
 
   const currentMethod = await methodService.getOne(current.method_id, executor);
   if (currentMethod) {
+    // A BOUGHT LABEL is the lock, not a link. Every SHIPMENT draft carries a
+    // shell from the moment the method is picked (128), so asking "is a parcel
+    // linked" would refuse the customer's very next change of mind.
+    const view = await getById(id, executor);
     rules.assertMovable(currentMethod.category, target.category, {
-      hasShipment: await shipmentLinks.existsFor(id, executor),
+      hasShipment: view?.actions.categories.length === 1,
       id,
     });
   }
@@ -304,6 +391,10 @@ export async function setMethod(
 
   if (target.category !== "PICKUP") await pickups.remove(id, executor);
   if (target.category !== "DIRECT") await directs.remove(id, executor);
+  // The target's own detail row, empty, so the choices have somewhere to land.
+  // A SHIPMENT's shell is kept when the category is LEFT, not deleted, so
+  // coming back to it reuses the row rather than minting a second one.
+  await ensureDetail(id, target.category, target.direction ?? "purchase", executor);
 
   return await recompose(id, executor);
 }

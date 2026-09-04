@@ -7,17 +7,19 @@ import { useDrawerStore } from '@/shared/store/drawerStore'
 import { useUserAddresses } from '@/features/addresses/queries'
 import { usePatchCheckout } from '@/features/checkout/queries'
 import ServiceSelector from './serviceSelector'
-import type { Address, CheckoutView, SalesOrderQuote } from '@dorado/contracts'
+import type { Address, CheckoutView, FulfillmentView, SalesOrderQuote } from '@dorado/contracts'
 import { AddressSelect } from '@/features/addresses/ui/AddressSelect'
 import { AddressDrawer } from '@/features/addresses/ui/AddressDrawer'
 
 export default function ShippingSelect({
   addresses,
   row,
+  fulfillment,
   orderPrices,
 }: {
   addresses: Address[]
   row?: CheckoutView
+  fulfillment?: FulfillmentView
   orderPrices?: SalesOrderQuote
 }) {
   const { openDrawer } = useDrawerStore()
@@ -88,7 +90,7 @@ export default function ShippingSelect({
 
       <div className="flex flex-col gap-6">
         <Divider />
-        <ServiceSelector row={row} orderPrices={orderPrices} />
+        <ServiceSelector fulfillment={fulfillment} orderPrices={orderPrices} />
       </div>
     </div>
   )

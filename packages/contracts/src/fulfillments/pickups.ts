@@ -8,7 +8,7 @@ import { z } from "zod/v4";
 export const FulfillmentPickup = z.object({
   "id": z.string().uuid(),
   "fulfillment_id": z.string().uuid(),
-  "pickup_address_id": z.string().uuid(),
+  "pickup_address_id": z.string().uuid().nullable(),
   "assigned_employee_id": z.string().uuid().nullable(),
   "start_time": z.string().nullable(),
   "end_time": z.string().nullable(),

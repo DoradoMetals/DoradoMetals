@@ -14953,3 +14953,155 @@ and it gains `pickup_address`, `appointment_location`, `appointment_time`;
 `POST /orders/:id/label` moves to `POST /shipments/:id/label` and answers a
 `ShipmentView` rather than an `OrderView`; `GET /shipments/:id` and the order
 view's parcels now carry `actual_cost`, which the table always had.
+
+### Rulings 69-70 executed — fulfillments owns the handover (2026-09-04)
+
+Jacob: *"Checkout/Orders shouldn't care about what's going on over in
+fulfillment world."* And: *"Everything needs to stay in its own lane. The only
+thing that should be deciding if fulfillments is 'ready' is fulfillments... All
+checkout needs to do is send the checkout row and ask fulfillments if the order
+is ready for placement. It shouldn't know anything else about fulfillments."*
+
+Ruling 68 had made `CheckoutView = Checkout.extend({ missing })` with `missing`
+computed BY CATEGORY INSIDE CHECKOUT - checkout deciding fulfillment readiness,
+which 70 forbids. It was only possible because nine columns describing the
+handover sat on `checkout.checkouts`. **Migration 128 moves all nine onto the
+detail row of the draft fulfillment**, which is where the same value already
+lived once an order existed, and migration 111 predicted the move in its own
+comment ("they stay until the checkout conversion is proven, then leave with
+their own migration"). Full detail in `docs/waves/boundary-feature.md`.
+
+- **ONLY TWO THINGS WERE GENUINELY MISSING, and only two were added.** The
+  COURIER SLOT (`shipping.shipments.pickup_date/pickup_time`, text, for 113's
+  reason) - `domain/shipping/labels.ts` said in its own comment that "no column
+  remembers a courier's requested slot" and passed it as an argument;
+  `shipping.pickups` is the carrier's ANSWER, written after the label is
+  bought, so it was never the home. And a draft's detail row starts EMPTY, so
+  `fulfillments.pickups.pickup_address_id` and `fulfillments.directs.location_id`
+  widen to nullable. Widening only; nothing is dropped outside `checkout`.
+- **MEASURED READ-ONLY ON DEV FIRST**: 6 checkout rows, ZERO non-null values in
+  all nine columns, zero draft fulfillments. So the four `UPDATE … FROM` moves
+  carry nothing there and the drop loses nothing, provably - they are written
+  for the databases that are not dev. `lint:migrations` guards `exchange`, which
+  this schema is not, and CLAUDE.md is explicit that `checkout.*` is device-sync
+  rather than a ledger.
+- **`recipient_address_id` STAYED, and that is the one open call the lane had to
+  make.** It is a sale's TAX key: `domain/orders/place.ts` reads its state and
+  hands it to sales-tax to price the order before any fulfillment is consulted,
+  so moving it would force a sale to mint a fulfillment before it could be
+  QUOTED - checkout asking fulfillment for permission to price, which is 70
+  backwards. And 123's composite FK `(user_id, recipient_address_id) ->
+  places.user_addresses` is a statement about the CHECKOUT'S OWNER that no
+  fulfillment row carries a user to make. `deferAddressOwnership` names one
+  constraint now; the other two went with their columns.
+- **THE ROUTES.** `POST /api/checkout/fulfillment` and `GET /api/checkout/rates`
+  are deleted. `POST /api/fulfillments` creates the draft (`{ checkout_id,
+  method_id? | handoff_code? }`, idempotent - an existing draft has its METHOD
+  set; NEITHER id resolves the direction's default, which is what a surface with
+  no handover step wants); `GET /api/fulfillments/:id` answers the view;
+  `PATCH /api/fulfillments/:id` takes one strict contract patch per category and
+  the fulfillment's own method says which it may be; `GET /api/fulfillments/:id/
+  rates` is declared by fulfillments (it owns the parcel facts) and handled in
+  shipping (it owns the carrier call). Owner-or-admin is checked in transport -
+  a draft belongs to the checkout that points at it, an attached one to its
+  order, 404 either way so the answer cannot confirm somebody else's exists.
+- **`missing` IS COMPOSED, AND CHECKOUT NEVER INSPECTS THE HALF IT DID NOT
+  WRITE.** `fulfillments.missing(fulfillment_id, tx)` is the ONE function
+  checkout calls; `checkoutState` takes its answer as an opaque
+  `handover: FulfillmentStep[]` and splices it between `items`/`fulfillment_id`
+  and the money step. The entries are COLUMN NAMES now rather than step labels,
+  so a caller that renders a step and a caller that patches it send the same
+  string. Placement follows: `attachToOrder(fulfillment_id, order_id, tx)`,
+  `fulfillments.addressIdOf` for the snapshot, and
+  `shipping.buyLabel(shipment_id)` after the commit with the slot read off the
+  parcel's own columns instead of passed in.
+- **`domain/shipping/parcel.ts` is new and small.** Shipping still owns every
+  write to `shipping.shipments`; this is the door fulfillments calls through,
+  because `domain/shipping/shipments/service.ts` imports
+  `domain/fulfillments/service.ts` and a call the other way would be a cycle.
+  `db/shipping/shipments/sql/create_from_checkout.sql` is deleted - the shell is
+  created when the customer picks a SHIPMENT, not at placement, and
+  `labels.sealForPlacement` now only writes what an ORDER decides (the handoff
+  and the clamped insured amount).
+- **A BOUGHT LABEL IS WHAT LOCKS A CATEGORY, NOT A LINK.** Every SHIPMENT draft
+  carries a shell from the moment the method is picked, so `actions.categories`
+  and `setMethod`'s refusal read "has a parcel with a tracking number" - asking
+  "is a parcel linked" would have refused the customer's very next change of
+  mind. A shell left behind when the category is LEFT is kept and reused, never
+  deleted.
+
+**THE GATE: `lint:domain-boundaries`** (`api/scripts/lint-domain-boundaries.ts`,
+14-case self-test, wired into `check.mjs`'s api-lint group). domain -> the column
+names of the schemas it may not name, derived from the contracts' generated
+entity files by their `<schema>.<table>` header. Three kinds of name are dropped
+BY CONSTRUCTION rather than by an ACCEPTED entry, because none of them is a
+finding: AMBIGUOUS ones owned by two schemas (`recipient_address_id`,
+`fulfillment_id`, `shipment_id`, `order_id`, `user_id`); SINGLE WORDS (`length`,
+`code`, `name`, `type`, `category`, `amount` are all real columns and all
+ordinary English - `.length` alone appears in every file that counts anything);
+and THE OTHER DOMAIN'S OWN ROW ID, `<schema singular>_id`, because holding one
+and handing it over IS the boundary (ruling 43). Two floors and a known-present
+control (`shipping.package_id`, `shipping.carrier_service_id`,
+`fulfillments.pickup_address_id`), because a scan that read no schemas would
+call every lane clean and an over-eager ambiguity filter would too.
+
+- **`payments` IS DELIBERATELY NOT IN EITHER LANE**, and it is the one judgement
+  call in the file: checkout OWNS `payment_method_id` and `payment_details_id`
+  as columns of its own row and `CheckoutPayoutForm` is a `PaymentDetails` pick
+  BY DESIGN (D210), so that boundary is already a contract derivation rather
+  than a rule about names - adding it would report the design as a defect.
+  Orders' payment-intent handling is D179's subject, not this ruling's.
+- **ACCEPTED holds two ADMIN files, both pinned from both sides**:
+  `domain/orders/service.ts` (10) - the admin cancel's `OrderCancelBody` names
+  a RETURN parcel's box and service, which no customer handover describes, and
+  `updateTracking` records a number an admin was given by phone;
+  `domain/orders/rules.ts` (2) - `OrderActions.buy_label` and `update_tracking`
+  are answered from the parcel's own state, which is ruling 67 working as
+  written. Neither is the customer path 69/70 is about.
+
+**Contract homes are load-bearing here, and not for taste.** `FulfillmentStep`
+lives in `fulfillments/fulfillments.ts` and `FulfillmentCreateBody` in
+`computed/fulfillments.ts` because `checkout/checkouts.ts` has to import the
+step list (for `CheckoutMissing`) and `FulfillmentCreateBody.checkout_id` has to
+derive from `Checkout.shape.id` (`lint:contracts-derived` refuses a
+hand-written field) - putting both in one file is a module cycle, and
+`fulfillments/enums.ts` is FULLY generated, so a hand-written enum there is
+wiped by the next `generate` (caught by `verify:fresh`, not by a typecheck).
+
+**Shape changes for the one frontend pass (ruling 44):** `Checkout` loses nine
+columns; `CheckoutPatch` is two; `CheckoutStep` is four entries and
+`CheckoutView.missing` is `CheckoutMissing[]` (`CheckoutStep | FulfillmentStep`);
+`FulfillmentView` gains `parcel` and `missing`; `POST /checkout/fulfillment` ->
+`POST /fulfillments`; `GET /checkout/rates` -> `GET /fulfillments/:id/rates`;
+`@dorado/client` gains `useCreateFulfillment` / `usePatchFulfillment` /
+`useFulfillment` / `useFulfillmentRates` and loses
+`useSetCheckoutFulfillment` / `useCheckoutRates`; `keys.checkout.rates` is
+`keys.fulfillments.rates`.
+
+**THE ADMIN FREEZE WAS BROKEN ONCE, DELIBERATELY, AND IT IS THE ONE EXCEPTION.**
+`frontend/features/orders/salesOrders/admin/queries.ts` set
+`carrier_service_id` in its `PATCH /api/checkout` body - a column that no longer
+exists - so an import swap would not have compiled, let alone worked, and every
+checkout now needs a draft fulfillment to be placeable. Two calls replace one
+column, the same substitution the customer surfaces got. Nothing else under
+`frontend/features/**/admin/**` or `frontend/app/admin/**` was opened.
+
+**Verified 2026-09-04** (every run captured to a file and read):
+`lint:migrations` 0; `migrate` applied 128 to dev; `dump:schema` (three intended
+lines: two NOT NULLs dropped, two columns added); contracts `generate` + `build`
+0; `verify:genesis` 0 - "identical to dev, and the committed genesis matches";
+`verify:fresh` 0 - 74 generated files match; `pnpm --filter @dorado/api test`
+**1312 passed / 1 skipped across 221 files, exit 0**; `lint:domain-boundaries` 0
+(19 files, 3 lanes, 46 unambiguous column names from 51 contract tables) and its
+`--self-test` 14 cases both directions; `@dorado/client` typecheck 0 / 26 tests;
+`@dorado/frontend` typecheck 0 / 183 tests; `validate:wire` 33 shapes match, 0
+diverge. `pnpm check:fast` fails on ONE member, `figma:inventory`, with the same
+design-system findings the previous lane recorded - `packages/components` and
+`scripts/figma/` are untouched here.
+
+**Left undone, named rather than hidden:** the e2e selectors are updated and NOT
+run (no browser in this lane); `GET /fulfillments/:id/rates` supports an Outbound
+parcel only as far as reading `parcel.recipient_address_id`, which nothing
+patches today, so a SALE that asked for rates would be refused "choose an
+address" - no surface asks, and the sale prices its postage through
+`/quotes/sales_order` instead.

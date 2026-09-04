@@ -3,8 +3,8 @@
 import { useState } from 'react'
 import { RadioGroup, RadioOption, Switch } from '@dorado/components'
 import { Inbox, Package2, Package as PackageIcon } from 'lucide-react'
-import type { CheckoutView, Package } from '@dorado/contracts'
-import { useOfferedPackages, usePatchCheckout } from '@/features/checkout/queries'
+import type { FulfillmentView, Package } from '@dorado/contracts'
+import { useOfferedPackages, usePatchFulfillment } from '@/features/checkout/queries'
 
 // The one thing that stays client-side (Jacob's standing call): a picture.
 // Sized by the row's own minimum weight, so a fourth box needs no edit here.
@@ -17,13 +17,13 @@ const iconFor = (pkg: Package) => {
 // id and nothing else. The FedEx-packaging switch is local component state: it
 // filters the offered list and is never sent, so it is not a store field and
 // certainly not a column.
-export function PackageSelector({ row }: { row?: CheckoutView }) {
+export function PackageSelector({ fulfillment }: { fulfillment?: FulfillmentView }) {
   const [carrierPackaging, setCarrierPackaging] = useState(false)
   const { data: offered = [] } = useOfferedPackages()
-  const patchCheckout = usePatchCheckout('purchase')
+  const patchFulfillment = usePatchFulfillment()
 
   const options = offered.filter((pkg) => pkg.is_carrier_packaging === carrierPackaging)
-  const selected = offered.find((pkg) => pkg.id === row?.package_id)
+  const selected = offered.find((pkg) => pkg.id === fulfillment?.parcel?.package_id)
 
   return (
     <div className="space-y-2">
@@ -38,8 +38,13 @@ export function PackageSelector({ row }: { row?: CheckoutView }) {
         value={selected?.label ?? ''}
         onValueChange={(label) => {
           const pkg = offered.find((p) => p.label === label)
-          // D208: the row takes the id the moment it is picked.
-          if (pkg) patchCheckout.mutate({ package_id: pkg.id })
+          // The PARCEL takes the id the moment it is picked (rulings 69/70).
+          if (pkg && fulfillment) {
+            patchFulfillment.mutate({
+              fulfillment_id: fulfillment.fulfillment.id,
+              shipment: { package_id: pkg.id },
+            })
+          }
         }}
         className="flex w-full items-stretch justify-between gap-2"
       >

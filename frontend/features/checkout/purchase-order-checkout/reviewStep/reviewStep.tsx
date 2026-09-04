@@ -3,7 +3,7 @@
 import { useRouter } from 'next/navigation'
 import { useState, useTransition } from 'react'
 import { Button } from '@dorado/components'
-import type { CarrierHandoff, CheckoutRate, CheckoutView } from '@dorado/contracts'
+import type { CarrierHandoff, CheckoutRate, CheckoutView, FulfillmentView } from '@dorado/contracts'
 
 import formatPhoneNumber from '@/shared/utils/formatPhoneNumber'
 import { formatPickupDateShort, formatPickupTime, formatTimeDiff } from '@/shared/utils/formatDates'
@@ -24,16 +24,18 @@ const PAYOUT_LABEL: Record<string, string> = {
 // EVERYTHING ON THIS SCREEN IS THE ROW'S, except the bank form - which the
 // server sealed at the payout step and deliberately never returns, so the
 // unsent draft is the only place the last four digits can be read from.
-// `handoff` is the one thing that is not: the row's `fulfillment_method_id`
-// only names a fulfillment method, so the caller resolves it against the
-// carrier's own vocabulary (gates.ts `resolveHandoff`) and hands the result
-// down - `requires_schedule` reads off THAT, not off the row.
+// THE PARCEL'S CHOICES ARE THE DRAFT FULFILLMENT'S (rulings 69/70, migration
+// 128): the box, the origin address and the courier slot are read off
+// `fulfillment.parcel`, and `handoff` is resolved from the draft's own method
+// type (gates.ts `resolveHandoff`).
 export default function ReviewStep({
   row,
+  fulfillment,
   rates,
   handoff,
 }: {
   row?: CheckoutView
+  fulfillment?: FulfillmentView
   rates: CheckoutRate[]
   handoff: CarrierHandoff | null
 }) {
@@ -48,9 +50,10 @@ export default function ReviewStep({
   const payout = usePayoutDraft((state) => state.payout)
   const clearPayout = usePayoutDraft((state) => state.clear)
 
-  const address = addresses.find((a) => a.id === row?.shipper_address_id)
-  const link = links.find((l) => l.address_id === row?.shipper_address_id)
-  const box = packages.find((p) => p.id === row?.package_id)
+  const parcel = fulfillment?.parcel
+  const address = addresses.find((a) => a.id === parcel?.shipper_address_id)
+  const link = links.find((l) => l.address_id === parcel?.shipper_address_id)
+  const box = packages.find((p) => p.id === parcel?.package_id)
   const service = rates.find((r) => r.selected)
 
   return (
@@ -73,7 +76,7 @@ export default function ReviewStep({
           {service?.transitTime && <p>{formatTimeDiff(new Date(service.transitTime))}</p>}
         </div>
 
-        {/* RULING 58: the box's dimensions are the server's - the row holds
+        {/* RULING 58: the box's dimensions are the server's - the parcel holds
             the id and the catalogue supplies the label. */}
         <div className="mt-4 flex justify-between">
           <strong>{box?.label}</strong>
@@ -84,8 +87,8 @@ export default function ReviewStep({
             <>
               <strong>Carrier Pickup</strong>
               <small>
-                {formatPickupTime(row?.pickup_time ?? undefined)} on{' '}
-                {formatPickupDateShort(row?.pickup_date ?? undefined)}
+                {formatPickupTime(parcel?.pickup_time ?? undefined)} on{' '}
+                {formatPickupDateShort(parcel?.pickup_date ?? undefined)}
               </small>
             </>
           ) : (

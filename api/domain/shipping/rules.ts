@@ -360,6 +360,34 @@ export function assertShippingType(
 // A RATE QUOTE NEEDS A PARCEL AND SOMEWHERE TO SEND IT. Each of these is a
 // step of the checkout the customer has not taken yet, not a malformed
 // request - which is why they name the step rather than the column.
+// A DRAFT THAT CAN BE PRICED. Each is a state a caller can act on: pick a
+// method, then a box, then an address - and none of them is a fault.
+export function assertRatableFulfillment<T>(
+  view: T | null | undefined, fulfillment_id: string
+): asserts view is T {
+  if (!view) throw new NotFound(`no such fulfillment: ${fulfillment_id}`);
+}
+
+export function assertRatableParcel<T>(
+  parcel: T | null | undefined, fulfillment_id: string
+): asserts parcel is T {
+  if (!parcel) {
+    throw new Invalid(
+      `fulfillment ${fulfillment_id} is not a shipment - there is no parcel to rate`
+    );
+  }
+}
+
+export function assertRatableCheckout<T>(
+  checkout: T | null | undefined, fulfillment_id: string
+): asserts checkout is T {
+  if (!checkout) {
+    throw new Invalid(
+      `fulfillment ${fulfillment_id} belongs to no checkout - there is nothing to weigh`
+    );
+  }
+}
+
 export function assertRatableCart(count: number): void {
   if (!count) throw new Invalid("the checkout has no items to rate");
 }

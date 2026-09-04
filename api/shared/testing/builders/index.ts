@@ -26,6 +26,7 @@ export { aProduct, type BuiltProduct } from "#shared/testing/builders/products.t
 export { anOrder, aStatus, type BuiltOrder } from "#shared/testing/builders/orders.ts";
 export { aCart, anAbsentCartId, type BuiltCart } from "#shared/testing/builders/checkout.ts";
 export { aShipment, type BuiltShipment } from "#shared/testing/builders/shipping.ts";
+export { aHandover } from "#shared/testing/builders/fulfillments.ts";
 export {
   aPayout, aPaymentIntent, TEST_ROUTING, TEST_ACCOUNT, type BuiltPayout,
 } from "#shared/testing/builders/payments.ts";

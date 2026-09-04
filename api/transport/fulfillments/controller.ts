@@ -1,9 +1,13 @@
 import {
-  FulfillmentCancelScheduleBody, FulfillmentSetMethodBody, FulfillmentSetStatusBody,
+  FulfillmentCancelScheduleBody, FulfillmentCreateBody, FulfillmentPatchBody,
+  FulfillmentSetMethodBody, FulfillmentSetStatusBody,
 } from "@dorado/contracts";
 import { uuidParam, parseStrict } from "#shared/http/validate.ts";
 import { oneString } from "#shared/http/query.ts";
+import { callerId } from "#shared/http/caller.ts";
 import { asyncHandler } from "#shared/middleware/asyncHandler.ts";
+import { requireFulfillmentOwner } from "#transport/fulfillments/owner.ts";
+import * as fulfillmentDrafts from "#domain/fulfillments/drafts.ts";
 import * as fulfillmentService from "#domain/fulfillments/service.ts";
 
 // The thin remainder: methods handlers live in methods/controller.ts, booking
@@ -67,4 +71,45 @@ export const getFulfillmentByOrder = asyncHandler(async (req, res) => {
     });
   }
   return res.json(view);
+});
+
+
+// ---------------------------------------------------- the customer's handover
+//
+// RULINGS 69/70 (Jacob, 2026-09-04). These three replace
+// POST /api/checkout/fulfillment and the eight handover columns a
+// PATCH /api/checkout used to accept: the draft is created here, its choices
+// are patched here, and what it still owes is answered here.
+
+// POST /api/fulfillments - the draft for a checkout. Idempotent: a checkout
+// that already has one has its METHOD set instead.
+export const createFulfillment = asyncHandler(async (req, res) => {
+  const body = parseStrict(FulfillmentCreateBody, req.body, "fulfillments body");
+  return res.status(200).json(
+    await fulfillmentDrafts.createForCheckout(
+      body, callerId(req), req.user?.role === "admin"
+    )
+  );
+});
+
+// GET /api/fulfillments/:id - the whole view, `missing` included.
+export const getFulfillment = asyncHandler(async (req, res) => {
+  const id = uuidParam(req, "id");
+  await requireFulfillmentOwner(req, id);
+  const view = await fulfillmentService.getById(id);
+  if (!view) {
+    return res.status(404).json({
+      error: "Not Found", message: `no such fulfillment: ${id}`,
+    });
+  }
+  return res.status(200).json(view);
+});
+
+// PATCH /api/fulfillments/:id - one strict body per category, and the
+// fulfillment's own method says which one it is allowed to be.
+export const patchFulfillment = asyncHandler(async (req, res) => {
+  const id = uuidParam(req, "id");
+  await requireFulfillmentOwner(req, id);
+  const body = parseStrict(FulfillmentPatchBody, req.body, "fulfillments PATCH body");
+  return res.status(200).json(await fulfillmentService.patchChoices(id, body));
 });

@@ -252,7 +252,7 @@ ALTER TABLE auth.verification ADD COLUMN IF NOT EXISTS "updatedAt" timestamp wit
 CREATE TABLE IF NOT EXISTS fulfillments.directs (
   id uuid DEFAULT gen_random_uuid() NOT NULL,
   fulfillment_id uuid NOT NULL,
-  location_id uuid NOT NULL,
+  location_id uuid,
   assigned_employee_id uuid,
   is_appointment boolean DEFAULT false NOT NULL,
   start_time timestamp with time zone,
@@ -325,7 +325,7 @@ ALTER TABLE fulfillments.methods ADD COLUMN IF NOT EXISTS updated_by_id uuid;
 CREATE TABLE IF NOT EXISTS fulfillments.pickups (
   id uuid DEFAULT gen_random_uuid() NOT NULL,
   fulfillment_id uuid NOT NULL,
-  pickup_address_id uuid NOT NULL,
+  pickup_address_id uuid,
   assigned_employee_id uuid,
   start_time timestamp with time zone,
   end_time timestamp with time zone
@@ -1337,7 +1337,9 @@ CREATE TABLE IF NOT EXISTS shipping.shipments (
   actual_cost numeric,
   shipping_status text,
   pickup_type text,
-  created_at timestamp with time zone
+  created_at timestamp with time zone,
+  pickup_date text,
+  pickup_time text
 );
 ALTER TABLE shipping.shipments ADD COLUMN IF NOT EXISTS id uuid DEFAULT gen_random_uuid();
 ALTER TABLE shipping.shipments ADD COLUMN IF NOT EXISTS carrier_service_id uuid;
@@ -1358,6 +1360,8 @@ ALTER TABLE shipping.shipments ADD COLUMN IF NOT EXISTS actual_cost numeric;
 ALTER TABLE shipping.shipments ADD COLUMN IF NOT EXISTS shipping_status text;
 ALTER TABLE shipping.shipments ADD COLUMN IF NOT EXISTS pickup_type text;
 ALTER TABLE shipping.shipments ADD COLUMN IF NOT EXISTS created_at timestamp with time zone;
+ALTER TABLE shipping.shipments ADD COLUMN IF NOT EXISTS pickup_date text;
+ALTER TABLE shipping.shipments ADD COLUMN IF NOT EXISTS pickup_time text;
 
 CREATE TABLE IF NOT EXISTS shipping.tracking (
   id uuid DEFAULT gen_random_uuid() NOT NULL,
