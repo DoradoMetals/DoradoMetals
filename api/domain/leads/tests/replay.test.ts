@@ -55,7 +55,7 @@ const asCustomer = <T>(fn: () => Promise<T> | T) =>
 test("an anonymous request is refused before it reaches a controller", async () => {
   await inPinnedTransaction(async () => {
     await anonymous(async () => {
-      const res = await request(app).get("/api/leads/get_all");
+      const res = await request(app).get("/api/leads");
       assert.ok([401, 403].includes(res.status), `answered with ${res.status}`);
     });
   }, { actor: TEST_ACTOR.id });
@@ -66,11 +66,11 @@ test("a signed-in customer is refused every route", async () => {
   await inPinnedTransaction(async () => {
     await asCustomer(async () => {
       const calls = [
-        request(app).get("/api/leads/get_all"),
-        request(app).get("/api/leads/get_one").query({ lead_id: someLeadId }),
-        request(app).post("/api/leads/create").send({ lead: newLead() }),
-        request(app).post("/api/leads/update").send({ lead_id: someLeadId, patch: {} }),
-        request(app).delete("/api/leads/delete").send({ lead_id: someLeadId }),
+        request(app).get("/api/leads"),
+        request(app).get(`/api/leads/${someLeadId}`),
+        request(app).post("/api/leads").send(newLead()),
+        request(app).patch(`/api/leads/${someLeadId}`).send({}),
+        request(app).delete(`/api/leads/${someLeadId}`),
       ];
       for (const call of calls) {
         const res = await call;
@@ -86,7 +86,7 @@ test("a signed-in customer is refused every route", async () => {
 test("an admin gets the list in the shape the table reads", async () => {
   await inPinnedTransaction(async () => {
     await asAdmin(async () => {
-      const res = await request(app).get("/api/leads/get_all");
+      const res = await request(app).get("/api/leads");
       assert.equal(res.status, 200);
       assert.ok(Array.isArray(res.body), "the leads table expects an array");
       assert.ok(res.body.length > 0, "dev has leads and none came back");
@@ -103,15 +103,15 @@ test("creating a lead round-trips and appears in the list", async () => {
   await inPinnedTransaction(async () => {
     await asAdmin(async () => {
       const lead = newLead();
-      const res = await request(app).post("/api/leads/create").send({ lead });
-      assert.equal(res.status, 200, JSON.stringify(res.body));
+      const res = await request(app).post("/api/leads").send(lead);
+      assert.equal(res.status, 201, JSON.stringify(res.body));
       created.push(lead.name);
 
       const saved = Array.isArray(res.body) ? res.body[0] : res.body;
       assert.ok(saved?.id, "no id came back, so the frontend cannot select it");
       assert.equal(saved.name, lead.name, "the name was lost on the way out");
 
-      const back = await request(app).get("/api/leads/get_all");
+      const back = await request(app).get("/api/leads");
       assert.ok(
         back.body.some((l: { id: string; name: string }) => l.name === lead.name),
         "the lead created a moment ago is not in the list"
@@ -123,16 +123,16 @@ test("creating a lead round-trips and appears in the list", async () => {
 test("updating a lead changes it and leaves the others alone", async () => {
   await inPinnedTransaction(async () => {
     await asAdmin(async () => {
-      const before = await request(app).get("/api/leads/get_all");
+      const before = await request(app).get("/api/leads");
       const target = before.body[0];
       const others = before.body.length;
 
       const res = await request(app)
-        .post("/api/leads/update")
-        .send({ lead_id: target.id, patch: { notes: "touched by the replay suite" } });
+        .patch(`/api/leads/${target.id}`)
+        .send({ notes: "touched by the replay suite" });
       assert.equal(res.status, 200, JSON.stringify(res.body));
 
-      const after = await request(app).get("/api/leads/get_all");
+      const after = await request(app).get("/api/leads");
       assert.equal(after.body.length, others, "an update changed how many leads exist");
       const updated = after.body.find((l: { id: string; name: string }) => l.id === target.id);
       assert.equal(updated.notes, "touched by the replay suite");
@@ -147,24 +147,24 @@ test("deleting removes exactly one lead, and only for an admin", async () => {
     let id: string | undefined;
 
     await asAdmin(async () => {
-      const made = await request(app).post("/api/leads/create").send({ lead });
+      const made = await request(app).post("/api/leads").send(lead);
       created.push(lead.name);
       id = (Array.isArray(made.body) ? made.body[0] : made.body).id;
     });
 
     await asCustomer(async () => {
-      const res = await request(app).delete("/api/leads/delete").send({ lead_id: id });
+      const res = await request(app).delete(`/api/leads/${id}`);
       assert.ok([401, 403].includes(res.status), `a non-admin got ${res.status} deleting a lead`);
     });
 
     await asAdmin(async () => {
-      const before = await request(app).get("/api/leads/get_all");
+      const before = await request(app).get("/api/leads");
       assert.ok(before.body.some((l: { id: string; name: string }) => l.id === id), "the non-admin delete went through");
 
-      const res = await request(app).delete("/api/leads/delete").send({ lead_id: id });
+      const res = await request(app).delete(`/api/leads/${id}`);
       assert.equal(res.status, 200, JSON.stringify(res.body));
 
-      const after = await request(app).get("/api/leads/get_all");
+      const after = await request(app).get("/api/leads");
       assert.equal(after.body.length, before.body.length - 1, "delete removed the wrong number");
       assert.ok(!after.body.some((l: { id: string; name: string }) => l.id === id), "the lead is still there");
     });

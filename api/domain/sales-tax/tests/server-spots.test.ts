@@ -104,12 +104,12 @@ test("a body claiming gold costs $1 is refused, not quietly ignored", async () =
       const items = [{ id: product.id, quantity: 1 }];
 
       const honest = await request(app)
-        .post("/api/tax/get_sales_tax")
+        .post("/api/tax")
         .send({ address_id: taxing.id, items });
       assert.equal(honest.status, 200, JSON.stringify(honest.body));
 
       const lying = await request(app)
-        .post("/api/tax/get_sales_tax")
+        .post("/api/tax")
         .send({
           address_id: taxing.id,
           items,
@@ -138,7 +138,7 @@ test("a legitimate request is priced by the server, not at zero", async () => {
     const { taxing, product } = await fixtures(c);
     await as({ ...customer, role: "user" }, async () => {
       const res = await request(app)
-        .post("/api/tax/get_sales_tax")
+        .post("/api/tax")
         .send({ address_id: taxing.id, items: [{ id: product.id, quantity: 1 }] });
 
       assert.equal(res.status, 200);

@@ -15,39 +15,39 @@ afterAll(() => restoreSessions());
 const admin = { id: "11111111-1111-1111-1111-111111111111", role: "admin", name: "Admin", email: "admin@x.test" };
 const asAdmin = <T>(fn: () => Promise<T> | T) => as(admin, fn);
 
-test("POST /reviews/create refuses an unknown key (created_by)", async () => {
+test("POST /reviews refuses an unknown key (created_by)", async () => {
   await asAdmin(async () => {
     const res = await request(app)
-      .post("/api/reviews/create")
-      .send({ review: { name: "A", review_text: "t", rating: 5, hidden: false, created_by: "someone" } });
+      .post("/api/reviews")
+      .send({ name: "A", review_text: "t", rating: 5, hidden: false, created_by: "someone" });
     assert.equal(res.status, 400, JSON.stringify(res.body));
     assert.match(res.body?.error?.message ?? "", /created_by/);
   });
 });
 
-test("POST /reviews/create refuses a wrong type", async () => {
+test("POST /reviews refuses a wrong type", async () => {
   await asAdmin(async () => {
     const res = await request(app)
-      .post("/api/reviews/create")
-      .send({ review: { name: "A", review_text: "t", rating: "five", hidden: false } });
+      .post("/api/reviews")
+      .send({ name: "A", review_text: "t", rating: "five", hidden: false });
     assert.equal(res.status, 400, JSON.stringify(res.body));
   });
 });
 
-test("POST /reviews/update refuses an unknown key in the patch", async () => {
+test("PATCH /reviews/:id refuses an unknown key in the patch", async () => {
   await asAdmin(async () => {
     const res = await request(app)
-      .post("/api/reviews/update")
-      .send({ review_id: "11111111-1111-1111-1111-111111111111", patch: { user_name: "someone" } });
+      .patch("/api/reviews/11111111-1111-1111-1111-111111111111")
+      .send({ user_name: "someone" });
     assert.equal(res.status, 400, JSON.stringify(res.body));
   });
 });
 
-test("POST /reviews/update refuses a wrong type in the patch", async () => {
+test("PATCH /reviews/:id refuses a wrong type in the patch", async () => {
   await asAdmin(async () => {
     const res = await request(app)
-      .post("/api/reviews/update")
-      .send({ review_id: "11111111-1111-1111-1111-111111111111", patch: { hidden: "yes" } });
+      .patch("/api/reviews/11111111-1111-1111-1111-111111111111")
+      .send({ hidden: "yes" });
     assert.equal(res.status, 400, JSON.stringify(res.body));
   });
 });

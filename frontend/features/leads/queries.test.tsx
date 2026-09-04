@@ -1,32 +1,24 @@
-// What useUpdateLead actually PUTS on the wire, checked against the
+// What useUpdateLead actually sends on the wire, checked against the
 // contract's own strict schema - not against what the hook is typed to
-// accept, which would only prove the hook agrees with itself. The contracts
-// lane (docs/waves/contracts-shape-changes.md) made /leads/update parse
-// { lead_id, patch } in strict mode: user_name is no longer a field, and a
-// caller naming it now gets a 400 instead of a silently-ignored key. This
-// test fails if that field ever creeps back in.
+// accept, which would only prove the hook agrees with itself.
+//
+// D214 item 4 made this a REST call: PATCH /leads/:id with a bare LeadPatch
+// body (the old POST /leads/update took { lead_id, patch } instead). The
+// hook itself still takes { lead_id, patch } as its mutation variables - only
+// the id moved from the body into the URL, and the body is now the patch
+// alone. user_name has never been a field of LeadPatch; naming it gets a 400.
+//
+// The hooks live in @dorado/client now and build their request with that
+// package's own `apiRequest` (a thin wrapper over the global `fetch`, not
+// axios) - so this test stubs `fetch` directly rather than mocking
+// `@/shared/queries/axios`, which the new hooks never call.
 import { describe, expect, test, vi, beforeEach } from "vitest";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
-import { z } from "zod/v4";
 import { LeadPatch } from "@dorado/contracts";
 
-vi.mock("@/shared/queries/axios", () => ({ apiRequest: vi.fn() }));
-vi.mock("@/features/auth/queries", () => ({
-  useGetSession: () => ({ user: { id: "u-admin", role: "admin" } }),
-}));
-
-import { apiRequest } from "@/shared/queries/axios";
 import { useUpdateLead } from "@/features/leads/queries";
-
-// Mirrors api/transport/leads/controller.ts's own UpdateBody exactly - the
-// wrapper isn't exported, so it is restated here from the same source the
-// controller reads (@dorado/contracts' LeadPatch) rather than guessed.
-const UpdateLeadBody = z.object({
-  lead_id: z.string().uuid(),
-  patch: LeadPatch.strict().optional(),
-}).strict();
 
 function wrapper({ children }: { children: ReactNode }) {
   const client = new QueryClient({
@@ -36,12 +28,17 @@ function wrapper({ children }: { children: ReactNode }) {
 }
 
 beforeEach(() => {
-  vi.mocked(apiRequest).mockReset();
-  vi.mocked(apiRequest).mockResolvedValue({});
+  vi.stubGlobal(
+    "fetch",
+    vi.fn().mockResolvedValue({
+      ok: true,
+      text: async () => JSON.stringify({ id: "9f1c2b3a-0000-4000-8000-000000000001" }),
+    })
+  );
 });
 
-describe("useUpdateLead sends exactly what /leads/update accepts", () => {
-  test("a real edit parses clean against the strict contract", async () => {
+describe("useUpdateLead sends exactly what PATCH /leads/:id accepts", () => {
+  test("a real edit PATCHes /leads/:id with a bare patch that parses clean", async () => {
     const { result } = renderHook(() => useUpdateLead(), { wrapper });
 
     await act(async () => {
@@ -51,12 +48,15 @@ describe("useUpdateLead sends exactly what /leads/update accepts", () => {
       });
     });
 
-    await waitFor(() => expect(apiRequest).toHaveBeenCalled());
-    const [, url, body] = vi.mocked(apiRequest).mock.calls[0];
-    expect(url).toBe("/leads/update");
+    await waitFor(() => expect(fetch).toHaveBeenCalled());
+    const [url, init] = vi.mocked(fetch).mock.calls[0] as [string, RequestInit];
+    expect(url).toMatch(/\/leads\/9f1c2b3a-0000-4000-8000-000000000001$/);
+    expect(init.method).toBe("PATCH");
 
-    const parsed = UpdateLeadBody.safeParse(body);
-    expect(parsed.success).toBe(true);
+    const body: unknown = JSON.parse(init.body as string);
+    expect(body).not.toHaveProperty("lead_id");
+    expect(body).not.toHaveProperty("patch");
+    expect(LeadPatch.strict().safeParse(body).success).toBe(true);
   });
 
   // The regression this test exists for: the hook used to also send
@@ -71,12 +71,13 @@ describe("useUpdateLead sends exactly what /leads/update accepts", () => {
       });
     });
 
-    await waitFor(() => expect(apiRequest).toHaveBeenCalled());
-    const [, , body] = vi.mocked(apiRequest).mock.calls[0];
+    await waitFor(() => expect(fetch).toHaveBeenCalled());
+    const [, init] = vi.mocked(fetch).mock.calls[0] as [string, RequestInit];
+    const body = JSON.parse(init.body as string) as Record<string, unknown>;
     expect(body).not.toHaveProperty("user_name");
 
     // Proven, not just asserted: naming it would fail the same parse.
-    const withUserName = { ...(body as object), user_name: "Dorado Admin" };
-    expect(UpdateLeadBody.safeParse(withUserName).success).toBe(false);
+    const withUserName = { ...body, user_name: "Dorado Admin" };
+    expect(LeadPatch.strict().safeParse(withUserName).success).toBe(false);
   });
 });

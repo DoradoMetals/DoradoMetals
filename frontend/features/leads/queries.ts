@@ -1,51 +1,7 @@
-import type { Lead, LeadPatch } from "@dorado/contracts";
-import { upsertById, useApiMutation, useApiQuery } from "@/shared/queries/base";
-import { queryKeys } from "@/shared/queries/keys";
-
-export const useLeads = () =>
-  useApiQuery<Lead[]>({
-    key: queryKeys.adminLeads(),
-    url: '/leads/get_all',
-    requireAdmin: true,
-    requireUser: true,
-  })
-
-export const useCreateLead = () =>
-  useApiMutation<Lead, LeadPatch, Lead[]>({
-    queryKey: queryKeys.adminLeads(),
-    url: '/leads/create',
-    requireAdmin: true,
-    listAction: 'create',
-    listInsertPosition: 'start',
-    body: (lead) => ({
-      lead,
-    }),
-  })
-
-export const useUpdateLead = () =>
-  useApiMutation<Lead, { lead_id: string; patch: LeadPatch }, Lead[]>({
-    queryKey: queryKeys.adminLeads(),
-    url: '/leads/update',
-    requireAdmin: true,
-    optimisticUpdater: (previous, vars) => {
-      const current = previous?.find((l) => l.id === vars.lead_id)
-      return upsertById(previous, { ...current, ...vars.patch, id: vars.lead_id } as Lead)
-    },
-    body: ({ lead_id, patch }) => ({
-      lead_id,
-      patch,
-    }),
-  })
-
-export const useDeleteLead = () =>
-  useApiMutation<void, Lead, Lead[]>({
-    queryKey: queryKeys.adminLeads(),
-    method: 'DELETE',
-    url: '/leads/delete',
-    requireAdmin: true,
-    listAction: 'delete',
-    optimisticItemKey: 'id',
-    body: (lead) => ({
-      lead_id: lead.id,
-    }),
-  })
+// Leads - the hooks now live in @dorado/client (one per endpoint, typed only
+// from @dorado/contracts); this file re-exports them under the same names so
+// LeadsAdminTable.tsx, LeadsDrawer.tsx and PrioritySelect.tsx need no changes.
+// The legacy useApiQuery/useApiMutation wrapper (and its optimistic-update
+// dance) is gone - @dorado/client owns the request, the query key and the
+// cache update now.
+export { useLeads, useCreateLead, useUpdateLead, useDeleteLead } from "@dorado/client";

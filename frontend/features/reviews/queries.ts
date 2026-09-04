@@ -1,50 +1,8 @@
-import type { Review, ReviewPatch } from "@dorado/contracts";
-import { upsertById, useApiMutation, useApiQuery } from '@/shared/queries/base'
-import { queryKeys } from '@/shared/queries/keys'
-import { UpdateReviewVars } from '@/features/reviews/types'
-
-export const useReviews = () => {
-  return useApiQuery<Review[]>({
-    key: queryKeys.reviews(),
-    url: '/reviews/get_all',
-    requireAdmin: true,
-    enabled: (user) => !!user?.id,
-    staleTime: 100_000,
-  })
-}
-
-export const usePublicReviews = () => {
-  return useApiQuery<Review[]>({
-    key: queryKeys.publicReviews(),
-    url: '/reviews/get_public',
-    requireUser: false,
-  })
-}
-
-export const useCreateReview = () => {
-  return useApiMutation<Review, ReviewPatch, Review[]>({
-    queryKey: queryKeys.reviews(),
-    url: '/reviews/create',
-    requireAdmin: true,
-    listAction: 'create',
-    listInsertPosition: 'start',
-    body: (review) => ({ review }),
-  })
-}
-
-export const useUpdateReview = () => {
-  return useApiMutation<Review, UpdateReviewVars, Review[]>({
-    queryKey: queryKeys.reviews(),
-    url: '/reviews/update',
-    requireAdmin: true,
-    optimisticUpdater: (previous, vars) => {
-      const current = previous?.find((r) => r.id === vars.review_id)
-      return upsertById(previous, { ...current, ...vars.patch, id: vars.review_id } as Review)
-    },
-    body: (vars) => ({
-      review_id: vars.review_id,
-      patch: vars.patch,
-    }),
-  })
-}
-
+// Reviews - the hooks now live in @dorado/client; this file re-exports them
+// under the same names so ReviewsAdminTable.tsx, ReviewsDrawer.tsx and
+// ReviewsLandingSection.tsx need no changes. `useDeleteReview` is new (the
+// API has the verb; nothing on the frontend calls it yet, but it is exported
+// for parity with the other four).
+export {
+  useReviews, usePublicReviews, useCreateReview, useUpdateReview, useDeleteReview,
+} from "@dorado/client";

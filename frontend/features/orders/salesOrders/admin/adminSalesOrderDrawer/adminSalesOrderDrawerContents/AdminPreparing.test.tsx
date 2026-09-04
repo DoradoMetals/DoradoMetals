@@ -55,20 +55,7 @@ const order = () => view({ id: "so-1", status: "Preparing", order_sent: false })
 beforeEach(() => {
   vi.mocked(apiRequest).mockReset();
   vi.mocked(apiRequest).mockImplementation(async (_m, url) => {
-    if (url === "/suppliers/get_all")
-      return [
-        {
-          id: "s-1",
-          logo: "/logos/elemetal.png",
-          created_at: null,
-          updated_at: null,
-          organization: { name: "Elemetal", email: null, phone: null, enabled: true },
-        },
-      ];
     if (url === "/carriers/get") return [];
-    // The engagement and the parcels, each its own parent-path read.
-    if (url === "/orders/so-1/refiners") return { id: "ro-1", order_id: "so-1", refiner_id: null };
-    if (url === "/orders/so-1/shipments") return [];
     if (url === "/carrier_services/get") return [];
     // A LIST, not an object: every read this component makes now answers with
     // rows, and a bare `{}` fallback made `services.find` throw.
@@ -79,7 +66,9 @@ beforeEach(() => {
 // THE CLIENT PACKAGE TALKS TO `fetch`, NOT TO THIS APP'S AXIOS WRAPPER.
 // @dorado/client carries no runtime dependency of its own, so the seam a test
 // stubs for an order action is the platform one. Recorded, so the assertion
-// below can read the URL and the body it sent.
+// below can read the URL and the body it sent. The refiners hooks moved into
+// @dorado/client (small-features lane) - the supplier list and the order's
+// refiner engagement now answer through this seam too, not the axios mock.
 const sent: { method: string; url: string; body: unknown }[] = [];
 
 beforeEach(() => {
@@ -92,6 +81,26 @@ beforeEach(() => {
         url: String(url),
         body: init?.body ? JSON.parse(String(init.body)) : undefined,
       });
+      if (String(url).endsWith("/suppliers/get_all")) {
+        return {
+          ok: true, status: 200,
+          text: async () => JSON.stringify([
+            {
+              id: "s-1",
+              logo: "/logos/elemetal.png",
+              created_at: null,
+              updated_at: null,
+              organization: { name: "Elemetal", email: null, phone: null, enabled: true },
+            },
+          ]),
+        } as unknown as Response;
+      }
+      if (String(url).endsWith("/orders/so-1/refiners")) {
+        return {
+          ok: true, status: 200,
+          text: async () => JSON.stringify({ id: "ro-1", order_id: "so-1", refiner_id: null }),
+        } as unknown as Response;
+      }
       // A LIST where the endpoint answers rows. GET /orders/:id/shipments is
       // the client package's now, so it comes through THIS seam rather than
       // the axios mock above - and `outboundOf` filters an array.

@@ -62,12 +62,13 @@ const ACCEPTED: Record<string, string> = {
 // library's transport and not an API call this package should wrap.
 // `frontend/features/addresses` was never on the list and is converted too -
 // its file is a re-export plus four projections of `useAddressBook`.
+// `frontend/features/leads` and `frontend/features/reviews` were never on the
+// list either (small-features lane, 2026-09-04); `frontend/features/media`
+// came OFF it the same pass - all three are re-exports of @dorado/client now.
 const PENDING: Record<string, string> = {
-  "frontend/features/media": "the media surface - not this lane's.",
   "frontend/features/orders": "the orders surface - the parallel orders lane owns it.",
   "frontend/features/pdfs": "the document surface - not this lane's.",
   "frontend/features/quotes": "the remaining quote hooks (order + profit) - not this lane's; the two checkout quotes moved.",
-  "frontend/features/refiners": "the refiner surface - not this lane's.",
   "frontend/shared/queries": "the legacy transport and its useApiQuery/useApiMutation wrappers, kept while the surfaces above still import them.",
 };
 

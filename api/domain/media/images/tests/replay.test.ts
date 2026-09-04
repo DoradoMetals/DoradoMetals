@@ -3,7 +3,7 @@
 // checking whose it was - a presigned URL is a download link, so an
 // unchecked id hands out the file.
 //
-// A third was found writing this suite: /get_test_image (requireUser) read
+// A third was found writing this suite: GET /images (requireUser) read
 // media.images with no user scoping and a presigned URL on every row - any
 // signed-in account could enumerate and download every image in the system.
 // The route is requireAdmin now.
@@ -56,7 +56,7 @@ afterAll(async () => {
   await pool.end();
 });
 
-// An image belonging to `owner`, created inside the pin (rolled back) - written directly since /upload presigns.
+// An image belonging to `owner`, created inside the pin (rolled back) - written directly since POST /images presigns.
 async function imageFor(userId: string) {
   const filename = `replay-${randomUUID().slice(0, 8)}.jpg`;
   created.push(filename);
@@ -72,10 +72,10 @@ test("every route refuses an anonymous caller", async () => {
   await inPinnedTransaction(async () => {
     await anonymous(async () => {
       const calls = [
-        ["upload", request(app).post("/api/images/upload").send({ filename: "x.jpg" })],
-        ["get_test_image", request(app).get("/api/images/get_test_image")],
-        ["get_url", request(app).get("/api/images/get_url").query({ image_id: randomUUID() })],
-        ["delete", request(app).delete("/api/images/delete").send({ id: randomUUID() })],
+        ["upload", request(app).post("/api/images").send({ filename: "x.jpg" })],
+        ["list", request(app).get("/api/images")],
+        ["get_url", request(app).get(`/api/images/${randomUUID()}/url`)],
+        ["delete", request(app).delete(`/api/images/${randomUUID()}`)],
       ] as Array<[string, Promise<{ status: number }>]>;
       // Declared as a tuple list - inferred, the element type collapses to `string | Test` and neither half is usable.
       for (const [name, call] of calls) {
@@ -90,10 +90,10 @@ test("every route refuses an anonymous caller", async () => {
 test("a signed-in customer cannot list every image in the system", async () => {
   await inPinnedTransaction(async () => {
     await as({ ...owner, role: "user" }, async () => {
-      const res = await request(app).get("/api/images/get_test_image");
+      const res = await request(app).get("/api/images");
       assert.ok(
         [401, 403].includes(res.status),
-        `get_test_image answered ${res.status} to a customer - it lists every image there is`
+        `list answered ${res.status} to a customer - it lists every image there is`
       );
       // Belt and braces: whatever came back must not be a list of images with URLs attached.
       assert.ok(
@@ -110,12 +110,12 @@ test("a stranger cannot get a download URL for someone else's image", async () =
     const image = await imageFor(owner.id);
 
     await as({ ...stranger, role: "user" }, async () => {
-      const res = await request(app).get("/api/images/get_url").query({ image_id: image.id });
+      const res = await request(app).get(`/api/images/${image.id}/url`);
       assert.equal(res.status, 404, "a stranger was given a download URL for another user's file");
     });
 
     await as({ ...stranger, role: "user" }, async () => {
-      const res = await request(app).get("/api/images/get_url").query({ image_id: randomUUID() });
+      const res = await request(app).get(`/api/images/${randomUUID()}/url`);
       assert.equal(res.status, 404, "a missing image answers differently from a forbidden one");
     });
   }, { actor: TEST_ACTOR.id });
@@ -128,7 +128,7 @@ test("a stranger deleting someone else's image is refused and the row survives",
     const image = await imageFor(owner.id);
 
     await as({ ...stranger, role: "user" }, async () => {
-      const res = await request(app).delete("/api/images/delete").send({ id: image.id });
+      const res = await request(app).delete(`/api/images/${image.id}`);
       assert.equal(res.status, 404, `a stranger got ${res.status} deleting another user's image`);
     });
 
@@ -143,7 +143,7 @@ test("the owner can delete their own image", async () => {
     const image = await imageFor(owner.id);
 
     await as({ ...owner, role: "user" }, async () => {
-      const res = await request(app).delete("/api/images/delete").send({ id: image.id });
+      const res = await request(app).delete(`/api/images/${image.id}`);
       assert.ok(
         [200, 500].includes(res.status),
         `the owner got ${res.status} deleting their own image`

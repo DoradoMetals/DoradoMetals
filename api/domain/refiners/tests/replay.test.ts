@@ -79,7 +79,7 @@ test("spot prices answer a signed-out visitor and take nothing from the request"
 test("public reviews are filtered, and the admin ones are refused", async () => {
   await inPinnedTransaction(async () => {
     await anonymous(async () => {
-      const res = await request(app).get("/api/reviews/get_public");
+      const res = await request(app).get("/api/reviews/public");
       assert.equal(res.status, 200);
       assert.ok(Array.isArray(res.body));
       assert.ok(
@@ -90,13 +90,14 @@ test("public reviews are filtered, and the admin ones are refused", async () => 
     });
 
     await as(customer, async () => {
+      const someReviewId = "11111111-1111-1111-1111-111111111111";
       for (const [verb, path, body] of [
-        ["get", "/api/reviews/get_all", {}],
-        ["get", "/api/reviews/get_one", {}],
-        ["post", "/api/reviews/create", { review: {} }],
-        ["post", "/api/reviews/update", { review: {} }],
-        ["delete", "/api/reviews/delete", { review_id: null }],
-      ] as Array<["get" | "post" | "delete", string, Record<string, unknown>]>) {
+        ["get", "/api/reviews", {}],
+        ["get", `/api/reviews/${someReviewId}`, {}],
+        ["post", "/api/reviews", {}],
+        ["patch", `/api/reviews/${someReviewId}`, {}],
+        ["delete", `/api/reviews/${someReviewId}`, {}],
+      ] as Array<["get" | "post" | "patch" | "delete", string, Record<string, unknown>]>) {
         // The tuple type above is not decoration: inferred, the element type collapses to a union, and `request(app)[verb]` then indexes SuperTest with something that isn't one of its methods.
         const res = await request(app)[verb](path).send(body);
         assert.equal(res.status, 403, `${path} answered ${res.status} to a customer`);

@@ -120,7 +120,7 @@ export async function attachSalesTaxToItems<T extends TaxableItem & PriceableLin
   );
 }
 
-// POST /api/tax/get_sales_tax - what a cart of catalogue lines owes in one
+// POST /api/tax - what a cart of catalogue lines owes in one
 // state. IDS IN (D214 item 11, ruling 43): the body names an address and the
 // products, and the rows behind both are read here. It used to price the
 // request body itself - a caller could declare a line's purity, weight and

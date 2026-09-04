@@ -1,27 +1,23 @@
-// What useUpdateReview actually PUTS on the wire, checked against the
-// contract's own strict schema. The contracts lane made /reviews/update
-// parse { review_id, patch } in strict mode: user_name is no longer a field.
-// This test fails if that field ever creeps back in.
+// What useUpdateReview actually sends on the wire, checked against the
+// contract's own strict schema.
+//
+// D214 item 4 made this a REST call: PATCH /reviews/:id with a bare
+// ReviewPatch body (the old POST /reviews/update took { review_id, patch }
+// instead). The hook still takes { review_id, patch } as its mutation
+// variables - only the id moved from the body into the URL. user_name has
+// never been a field of ReviewPatch; naming it gets a 400.
+//
+// The hooks live in @dorado/client now and build their request with that
+// package's own `apiRequest` (a thin wrapper over the global `fetch`, not
+// axios) - so this test stubs `fetch` directly rather than mocking
+// `@/shared/queries/axios`, which the new hooks never call.
 import { describe, expect, test, vi, beforeEach } from "vitest";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
-import { z } from "zod/v4";
 import { ReviewPatch } from "@dorado/contracts";
 
-vi.mock("@/shared/queries/axios", () => ({ apiRequest: vi.fn() }));
-vi.mock("@/features/auth/queries", () => ({
-  useGetSession: () => ({ user: { id: "u-admin", role: "admin" } }),
-}));
-
-import { apiRequest } from "@/shared/queries/axios";
 import { useUpdateReview } from "@/features/reviews/queries";
-
-// Mirrors api/transport/reviews/controller.ts's own UpdateBody exactly.
-const UpdateReviewBody = z.object({
-  review_id: z.string().uuid(),
-  patch: ReviewPatch.strict().optional(),
-}).strict();
 
 function wrapper({ children }: { children: ReactNode }) {
   const client = new QueryClient({
@@ -31,12 +27,17 @@ function wrapper({ children }: { children: ReactNode }) {
 }
 
 beforeEach(() => {
-  vi.mocked(apiRequest).mockReset();
-  vi.mocked(apiRequest).mockResolvedValue({});
+  vi.stubGlobal(
+    "fetch",
+    vi.fn().mockResolvedValue({
+      ok: true,
+      text: async () => JSON.stringify({ id: "9f1c2b3a-0000-4000-8000-000000000002" }),
+    })
+  );
 });
 
-describe("useUpdateReview sends exactly what /reviews/update accepts", () => {
-  test("a real edit parses clean against the strict contract", async () => {
+describe("useUpdateReview sends exactly what PATCH /reviews/:id accepts", () => {
+  test("a real edit PATCHes /reviews/:id with a bare patch that parses clean", async () => {
     const { result } = renderHook(() => useUpdateReview(), { wrapper });
 
     await act(async () => {
@@ -46,11 +47,15 @@ describe("useUpdateReview sends exactly what /reviews/update accepts", () => {
       });
     });
 
-    await waitFor(() => expect(apiRequest).toHaveBeenCalled());
-    const [, url, body] = vi.mocked(apiRequest).mock.calls[0];
-    expect(url).toBe("/reviews/update");
+    await waitFor(() => expect(fetch).toHaveBeenCalled());
+    const [url, init] = vi.mocked(fetch).mock.calls[0] as [string, RequestInit];
+    expect(url).toMatch(/\/reviews\/9f1c2b3a-0000-4000-8000-000000000002$/);
+    expect(init.method).toBe("PATCH");
 
-    expect(UpdateReviewBody.safeParse(body).success).toBe(true);
+    const body: unknown = JSON.parse(init.body as string);
+    expect(body).not.toHaveProperty("review_id");
+    expect(body).not.toHaveProperty("patch");
+    expect(ReviewPatch.strict().safeParse(body).success).toBe(true);
   });
 
   // The regression this test exists for: the hook used to also send
@@ -65,11 +70,12 @@ describe("useUpdateReview sends exactly what /reviews/update accepts", () => {
       });
     });
 
-    await waitFor(() => expect(apiRequest).toHaveBeenCalled());
-    const [, , body] = vi.mocked(apiRequest).mock.calls[0];
+    await waitFor(() => expect(fetch).toHaveBeenCalled());
+    const [, init] = vi.mocked(fetch).mock.calls[0] as [string, RequestInit];
+    const body = JSON.parse(init.body as string) as Record<string, unknown>;
     expect(body).not.toHaveProperty("user_name");
 
-    const withUserName = { ...(body as object), user_name: "Dorado Admin" };
-    expect(UpdateReviewBody.safeParse(withUserName).success).toBe(false);
+    const withUserName = { ...body, user_name: "Dorado Admin" };
+    expect(ReviewPatch.strict().safeParse(withUserName).success).toBe(false);
   });
 });

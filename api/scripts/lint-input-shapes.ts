@@ -41,14 +41,11 @@ const ACCEPTED: Record<string, string> = {
   // 2026-09-03). Not touched here; fix each when its own lane is touched.
   "Options:CartOptions": "pre-existing (checkout.ts) - not this lane's file.",
   "Options:LotOptions": "pre-existing (checkout.ts/orders.ts) - not this lane's file.",
-  "Options:LeadOptions": "pre-existing (leads.ts) - not this lane's file.",
   "Options:OrderOptions": "pre-existing (orders.ts) - not this lane's file.",
   "Options:BullionOptions": "pre-existing (orders.ts) - not this lane's file.",
   "Options:AddressOptions":
     "places.ts - the builder writes two tables through two repos, so its options " +
     "are not one table's patch; the recipient and the nickname are the link's.",
-  "Options:EngagementOptions": "pre-existing (refiners.ts) - not this lane's file.",
-  "Options:ReviewOptions": "pre-existing (reviews.ts) - not this lane's file.",
   "Options:ShipmentOptions": "pre-existing (shipping.ts) - not this lane's file.",
 };
 
