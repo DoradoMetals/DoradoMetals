@@ -42,7 +42,7 @@ const QuantityStepper = React.forwardRef<HTMLDivElement, QuantityStepperProps>(
         aria-label={label ?? 'Quantity'}
         className={cn(
           'inline-flex h-9 items-center overflow-hidden rounded-lg border border-border bg-card transition-colors focus-within:border-primary',
-          disabled && 'pointer-events-none opacity-50',
+          disabled && 'pointer-events-none bg-muted',
           className,
         )}
       >
@@ -69,7 +69,7 @@ const QuantityStepper = React.forwardRef<HTMLDivElement, QuantityStepperProps>(
             if (e.key === 'ArrowUp') { e.preventDefault(); step(1) }
             if (e.key === 'ArrowDown') { e.preventDefault(); step(-1) }
           }}
-          className="h-full w-8 cursor-text bg-transparent text-center text-small font-medium tabular-nums text-foreground outline-none"
+          className="h-full w-8 cursor-text bg-transparent text-center text-small font-medium tabular-nums text-foreground outline-none disabled:text-foreground-disabled"
         />
         <button
           type="button"

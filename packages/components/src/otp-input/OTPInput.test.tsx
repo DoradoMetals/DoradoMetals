@@ -35,4 +35,17 @@ describe("OTPInput", () => {
     fireEvent.change(container.querySelector("input")!, { target: { value: "12a" } });
     expect(onValueChange).toHaveBeenCalledWith("12");
   });
+
+  it("disabled reads as a muted fill, not an opacity fade", () => {
+    const { container } = render(
+      <OTPInput value="" onValueChange={() => {}} label="Code" disabled />,
+    );
+    const cells = container.querySelectorAll('[aria-hidden] > span');
+    expect(cells.length).toBeGreaterThan(0);
+    cells.forEach((cell) => {
+      expect(cell.className).toContain("bg-muted");
+      expect(cell.className).toContain("text-foreground-disabled");
+      expect(cell.className).not.toContain("opacity-50");
+    });
+  });
 });

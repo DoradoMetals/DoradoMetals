@@ -35,4 +35,13 @@ describe("Select", () => {
     const { getByText } = render(<Select label="Method" items={items} invalid />);
     expect(getByText("Method").className).toContain("text-destructive");
   });
+
+  it("disabled reads as a muted fill, not an opacity fade", () => {
+    const { getByRole } = render(<Select label="Method" items={items} disabled />);
+    const trigger = getByRole("combobox") as HTMLButtonElement;
+    expect(trigger.disabled).toBe(true);
+    expect(trigger.className).toContain("disabled:bg-muted");
+    expect(trigger.className).toContain("disabled:text-foreground-disabled");
+    expect(trigger.className).not.toContain("opacity-50");
+  });
 });

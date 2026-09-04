@@ -42,7 +42,7 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
             disabled={disabled}
             aria-invalid={invalid || undefined}
             aria-describedby={message != null ? messageId : undefined}
-            className="min-w-0 flex-1 bg-transparent text-body text-foreground outline-none placeholder:text-placeholder disabled:cursor-not-allowed"
+            className="min-w-0 flex-1 bg-transparent text-body text-foreground outline-none placeholder:text-placeholder disabled:cursor-not-allowed disabled:text-foreground-disabled"
             {...props}
           />
           {trailing != null && (

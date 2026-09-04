@@ -25,4 +25,13 @@ describe("Input", () => {
     const { getByText } = render(<Input label="Weight" trailing={<span>t oz</span>} />);
     expect(getByText("t oz")).toBeTruthy();
   });
+
+  it("disabled reads as a muted fill, not an opacity fade", () => {
+    const { container } = render(<Input label="Weight" disabled />);
+    const wrapper = container.querySelector("[data-disabled]") as HTMLElement;
+    expect(wrapper.className).toContain("disabled:bg-muted");
+    expect(wrapper.className).not.toContain("opacity-50");
+    const input = container.querySelector("input") as HTMLInputElement;
+    expect(input.className).toContain("disabled:text-foreground-disabled");
+  });
 });

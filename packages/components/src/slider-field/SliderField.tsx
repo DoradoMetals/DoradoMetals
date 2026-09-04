@@ -52,7 +52,7 @@ export function SliderField({
         className={cn(
           "flex h-10 w-21 shrink-0 items-center gap-2 rounded-lg border border-border bg-card px-3",
           "focus-within:border-border-strong",
-          disabled && "pointer-events-none opacity-50"
+          disabled && "pointer-events-none bg-muted"
         )}
       >
         <input
@@ -66,7 +66,7 @@ export function SliderField({
           disabled={disabled}
           inputMode="decimal"
           aria-label={`${label}${unit ? ` (${unit})` : ""}`}
-          className="min-w-0 flex-1 bg-transparent text-body text-foreground outline-none"
+          className="min-w-0 flex-1 bg-transparent text-body text-foreground outline-none disabled:text-foreground-disabled"
         />
         {unit && <span className="text-small text-muted-foreground">{unit}</span>}
       </span>

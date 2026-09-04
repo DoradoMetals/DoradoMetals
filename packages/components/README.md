@@ -52,6 +52,7 @@ Audited 2026-09-03 against file `8A73quhBLBqotJlX95jN9j`.
 | Input | 26:391 | Textarea | 37:63 |
 | Link | 26:513 | Tooltip | 32:177 |
 | List | 97:35 | Upload | 349:340 |
+| Paperwork | 549:63 | Tracker | 546:10 |
 
 Chart's five sub-drawings: Bar 57:36, Line 57:60, Area 140:961, Donut 140:964,
 Sparkline 140:968.
@@ -65,8 +66,18 @@ it every time. Select and ScrollArea had no id at all.
 folded into Datepicker on 2026-09-02, and the embedded time-slot markup inside
 104:438 is now the only spec for it.
 
-**Toaster's node is unknown.** 132:1041 does not resolve and no search finds it.
-Its audit is outstanding.
+**Toaster is GONE** (Jacob, 2026-09-03: "Remove Toaster, we don't have it any
+more"). It had no drawing: the library has no Toast or Toaster page at all, which
+is why its recorded node never resolved. The component, its test and the `sonner`
+dependency are deleted, and the only consumer was the root layout.
+
+**TimePicker is no longer a public component.** Its Figma node was folded into
+Datepicker on 2026-09-02, so the code follows: the file stays as an internal of
+DatePicker, and only the `TimeGroup` and `TimeSlotShape` types are still exported,
+because DatePicker's own props take them.
+
+Tracker composes Tracker Step (542:1417) and Tracker Node (541:14); Paperwork
+composes Paperwork Row (548:41). Both keep their row components internal.
 
 ## Known defects in the Figma file, not in this code
 
@@ -75,11 +86,12 @@ Its audit is outstanding.
   variants (40:19, 40:36, 40:53), so the frame renders every label twice and
   looks bolded. The variants are correctly named and their specs read fine
   individually, so the code is right; the canvas is what needs fixing.
-- **Attachment's Row remove button carries the wrong icon.** It instances
-  `arrow-left` where Card instances `trash-2`, contradicting the component's own
-  description ("the remove affordance is a TRASHCAN, not an X"). Almost
-  certainly a duplicate whose icon swap reset to Button's default. The code
-  follows the description and uses the trashcan.
+- **Attachment's remove icon is FINE, and a first reading said otherwise.**
+  Every variant's remove button sets `Leading icon` to 226:12, which resolves to
+  `trash-2`. The layer is merely still NAMED `arrow-left`, inherited from
+  Button's default icon slot, and the design-context output shows that stale
+  layer name rather than the swapped component. Renaming those six layers would
+  stop the next audit making the same mistake.
 - **The Hero headline is not bound to a text style.** It is typed raw at 44px
   while the Display style, which names `--text-display` outright, is 64px.
 - **Two descriptions disagree with their own frames.** EmptyState's says a 32px
@@ -87,3 +99,38 @@ Its audit is outstanding.
   measures 12px. Both were resolved in favour of the frame.
 - **Chip's description mentions a 7px X**, which matches no token and no
   rendered geometry. Treated as stale prose.
+
+## The library cannot absorb the app yet
+
+The frontend sweep on 2026-09-03 tried to replace local components with library
+ones and mostly could not. Five agents reported the same handful of gaps, so
+these are the specification for the next round of library work rather than one
+agent's opinion.
+
+- **`Input` sets `text-body`, which is 15px, and iOS Safari zooms the viewport
+  when a focused input is under 16px.** The app's local input uses 16px on
+  purpose and says so in its own comment. This is a platform behaviour, not a
+  look, and it blocks every Input and Textarea swap in the app. It needs a
+  decision: hold 16px on touch devices, or accept the zoom.
+- **`Input` and `Textarea` own their wrapper.** The library renders a bordered
+  box plus an optional label, so a call site's `className` lands on the wrapper
+  rather than the control. The app has many dense inline fields that put sizing
+  straight on the element.
+- **`EmptyState` has no `badge`, `description` or `iconSize`.** Every call site
+  in the app uses at least one.
+- **`Badge` has no size axis and is `rounded-md`.** The app's status labels are
+  pills with a size axis, deliberately, under an existing ruling.
+- **`Table` always draws its own card and border**, and has none of the app's
+  `surface`, `borderless`, `interactive`, `intent` or `disabled` row props.
+- **`DataTable` is far thinner than the app's**, which carries filter cards,
+  search, row click and column visibility.
+- **Nothing exists for** drawer, form, separator, popover, rating, command,
+  lens, radio group, pagination or breadcrumb. Figma has pages for Divider,
+  Drawer, Radio, Pagination and Breadcrumb, plus Banner, Icon Button, Loader,
+  Header and Footer, none of which is built.
+
+Two smaller ones found the same day: `FloatingLabelInput` and
+`FloatingLabelTextarea` in the app reference `text-error` and `border-error`,
+which are not tokens and never have been, so their error state has always
+rendered as nothing. And the app's mobile nav scrim uses raw `black/15` because
+the theme has no overlay or scrim token.
