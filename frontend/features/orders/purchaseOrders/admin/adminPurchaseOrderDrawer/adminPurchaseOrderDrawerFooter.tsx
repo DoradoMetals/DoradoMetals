@@ -19,7 +19,8 @@ import formatPhoneNumber from '@/shared/utils/formatPhoneNumber'
 import { PurchaseOrderActionButtons } from './adminPurchaseOrderDrawerContents/adminPurchaseOrderActionButtons'
 import { payoutMethodIcon, PayoutMethodType } from '@/features/payouts/types'
 import { usePaymentMethods } from '@/features/payments/queries'
-import { useShipmentDisplay, outboundOf, returnOf } from '@/features/shipping/queries'
+import { outboundOf, returnOf } from '@/features/shipping/queries'
+import { useOrderShipments } from '@dorado/client'
 import { useProducts } from '@/features/products/queries'
 import { useSpotPrices } from '@/features/spots/queries'
 import { formatRate } from '@/features/rates/utils/resolveRate'
@@ -57,10 +58,11 @@ export default function AdminPurchaseOrderDrawerFooter({ view }: PurchaseOrderDr
   const { data: catalogue = [] } = useProducts()
   const { data: spotPrices = [] } = useSpotPrices()
 
-  const shipment = outboundOf(view.shipments)
-  const returnShipment = returnOf(view.shipments)
-  const { service_name: shipmentService } = useShipmentDisplay(shipment)
-  const { service_name: returnService } = useShipmentDisplay(returnShipment)
+  const { data: shipments = [] } = useOrderShipments(order.id)
+  const shipment = outboundOf(shipments)
+  const returnShipment = returnOf(shipments)
+  const shipmentService = shipment?.service?.name
+  const returnService = returnShipment?.service?.name
   const payout = view.payout
 
   // bullion_id IS the discriminator - null means scrap; `item_type` was
@@ -161,7 +163,7 @@ export default function AdminPurchaseOrderDrawerFooter({ view }: PurchaseOrderDr
               onToggle={() => setOpen((prev) => ({ ...prev, shipment: !prev.shipment }))}
               trailing={
                 <>
-                  -<PriceNumberFlow value={shipment.cost ?? 0} />
+                  -<PriceNumberFlow value={shipment.shipment.cost ?? 0} />
                 </>
               }
             >
@@ -169,17 +171,17 @@ export default function AdminPurchaseOrderDrawerFooter({ view }: PurchaseOrderDr
                 <TableBody>
                   <TableRow>
                     <TableCell>{shipmentService}</TableCell>
-                    <TableCell>{shipment.insured ? 'Insured' : 'Uninsured'}</TableCell>
+                    <TableCell>{shipment.shipment.insured ? 'Insured' : 'Uninsured'}</TableCell>
                     <TableCell className="text-right p-0">
-                      -<PriceNumberFlow value={shipment.cost ?? 0} />
+                      -<PriceNumberFlow value={shipment.shipment.cost ?? 0} />
                     </TableCell>
                   </TableRow>
                   {order.status === 'Cancelled' && returnShipment && (
                     <TableRow>
                       <TableCell>{returnService} (Return)</TableCell>
-                      <TableCell>{returnShipment.insured ? 'Insured' : 'Uninsured'}</TableCell>
+                      <TableCell>{returnShipment.shipment.insured ? 'Insured' : 'Uninsured'}</TableCell>
                       <TableCell className="text-right p-0">
-                        -<PriceNumberFlow value={returnShipment.cost ?? 0} />
+                        -<PriceNumberFlow value={returnShipment.shipment.cost ?? 0} />
                       </TableCell>
                     </TableRow>
                   )}
@@ -233,9 +235,9 @@ export default function AdminPurchaseOrderDrawerFooter({ view }: PurchaseOrderDr
                 </DetailRow>
               )}
 
-              {(shipment?.cost ?? 0) > 0 && (
+              {(shipment?.shipment.cost ?? 0) > 0 && (
                 <DetailRow label="Shipping:">
-                  -<PriceNumberFlow value={shipment?.cost ?? 0} />
+                  -<PriceNumberFlow value={shipment?.shipment.cost ?? 0} />
                 </DetailRow>
               )}
 

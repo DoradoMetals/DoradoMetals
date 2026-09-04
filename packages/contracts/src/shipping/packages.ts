@@ -23,4 +23,7 @@ export const Package = z.object({
 export type Package = z.infer<typeof Package>;
 // generated:end
 
-// Hand-written derivations go here: New, Patch, named reads.
+// The box as every read serves it - db/shipping/packages/sql/get_one.sql's
+// projection. `created_by`/`updated_by` are the audit columns no client needs.
+export const PackageRead = Package.omit({ created_by: true, updated_by: true });
+export type PackageRead = z.infer<typeof PackageRead>;

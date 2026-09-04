@@ -5,7 +5,8 @@ import { SalesOrderDrawerContentProps, statusConfig } from '@/features/orders/sa
 import { FloatingLabelInput } from '@/shared/ui/inputs/FloatingLabelInput'
 import Image from 'next/image'
 import { useAdminSuppliers } from '@/features/products/queries'
-import { usePatchShipment, useShipmentDisplay, outboundOf } from '@/features/shipping/queries'
+import { usePatchShipment, outboundOf } from '@/features/shipping/queries'
+import { useOrderShipments } from '@dorado/client'
 import { useRefinerOrder } from '@/features/refiners/queries'
 import { Supplier } from '@/features/products/types'
 import { useCarriers } from '@/features/carriers/queries'
@@ -19,8 +20,9 @@ export default function AdminPreparingSalesOrder({ view }: SalesOrderDrawerConte
   // wire aliased refiners.orders.refiner_id onto the order as supplier_id, and
   // orders.orders.refinery_id was dropped in 094.
   const { data: engagement } = useRefinerOrder(order.id)
-  const shipment = outboundOf(view.shipments)
-  const { carrier_id: shipmentCarrierId } = useShipmentDisplay(shipment)
+  const { data: shipments = [] } = useOrderShipments(order.id)
+  const shipment = outboundOf(shipments)
+  const shipmentCarrierId = shipment?.carrier_id ?? null
   const { data: carriers = [] } = useCarriers()
 
   // Tracking writes to the SHIPMENT resource; sending to the refiner is its
@@ -135,10 +137,9 @@ export default function AdminPreparingSalesOrder({ view }: SalesOrderDrawerConte
       <Button
         className="w-full"
         onClick={() => {
-          if (!shipment?.id) return
+          if (!shipment?.shipment.id) return
           updateTracking.mutate({
-            shipment_id: shipment.id,
-            order_id: order.id,
+            shipment_id: shipment.shipment.id,
             patch: {
               tracking_number: trackingNumber,
               carrier_id: selectedCarrier?.id ?? '',

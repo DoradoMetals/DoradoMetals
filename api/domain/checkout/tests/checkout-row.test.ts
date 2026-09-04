@@ -359,7 +359,7 @@ test("the attach is one-way: once an order holds the draft, a second attach refu
     const attached = await fulfillmentService.attachDraft(
       { fulfillment_id: draftId, order_id: order.id }, c
     );
-    assert.equal(attached.order_id, order.id);
+    assert.equal(attached.fulfillment.order_id, order.id);
 
     await assert.rejects(
       () => fulfillmentService.attachDraft(

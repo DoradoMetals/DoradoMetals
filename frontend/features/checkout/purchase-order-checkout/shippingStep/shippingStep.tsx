@@ -6,7 +6,7 @@ import { Button, Divider } from '@dorado/components'
 import { Plus } from 'lucide-react'
 import { useMemo } from 'react'
 
-import { useShippingPickupTimes } from '@/features/shipping/queries'
+import { useCarrierPickupTimes } from '@dorado/client'
 import { usePatchCheckout } from '@/features/checkout/queries'
 import { useDrawerStore } from '@/shared/store/drawerStore'
 import { useAddress, useUserAddresses } from '@/features/addresses/queries'
@@ -65,9 +65,8 @@ export default function ShippingStep({
           readyDate: new Date().toISOString().split('T')[0],
         }
       : null
-  // The hook's own input type is not nullable; null means "do not ask", which
-  // is what the query's `enabled` reads from it.
-  const { data: times = [] } = useShippingPickupTimes(pickupTimesInput as never)
+  // null means "do not ask", which is what the query's `enabled` reads from it.
+  const { data: times = [] } = useCarrierPickupTimes(pickupTimesInput)
 
   return (
     <div className="space-y-6 w-full">

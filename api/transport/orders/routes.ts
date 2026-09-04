@@ -57,7 +57,8 @@ router.use("/", addressRoutes);
 // reads their own order.
 router.get("/:id", requireUser, requireOwnOrderParam, getOrder);
 
-//   /:orderId/fulfillments    the fulfillments.fulfillments row, verbatim
+//   /:orderId/fulfillments    the FulfillmentView - the row, its method, its
+//                             children and what may be done to it
 //   /:orderId/shipments       shipping.shipments rows, BOTH directions in one
 //                             array - the frontend filters on `direction`,
 //                             which is what retires the shipment /
@@ -70,7 +71,7 @@ router.get("/:id", requireUser, requireOwnOrderParam, getOrder);
 //                             one deviation class, security
 //   /:orderId/refiners        the engagement row - refiners.orders, verbatim
 //   /:orderId/refiners/spots  the refinery's quoted spots, verbatim rows
-router.get("/:orderId/fulfillments", requireAdmin, getFulfillmentByOrder);
+router.get("/:orderId/fulfillments", requireUser, requireOwnOrderParam, getFulfillmentByOrder);
 router.get("/:orderId/shipments", requireUser, requireOwnOrderParam, getShipmentsByOrder);
 router.get("/:orderId/pickups", requireAdmin, getPickupsByOrder);
 router.get("/:orderId/directs", requireAdmin, getDirectsByOrder);

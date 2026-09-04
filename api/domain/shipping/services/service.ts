@@ -4,6 +4,7 @@
 import { randomUUID } from "node:crypto";
 import withTransaction from "#shared/db/withTransaction.ts";
 import * as services from "#db/shipping/services/repo.ts";
+import * as rules from "#domain/shipping/rules.ts";
 import {
   carrierIdOr,
   resolveCarrier,
@@ -12,7 +13,6 @@ import type { ServiceRow } from "#db/shipping/services/repo.ts";
 import type { Executor } from "#shared/db/executor.ts";
 // From the contracts, not the adapter (which merely re-exports it) - contracts is where the shape is declared.
 import type { CarrierServiceOption, CarrierServicePatch } from "@dorado/contracts";
-import { Invalid } from "#shared/errors.ts";
 
 
 // Every field spelled explicitly, by name - no prop-spreading, so the repo
@@ -173,15 +173,10 @@ export async function labelServiceFor(
   carrier_service_id: string, executor?: Executor
 ): Promise<LabelService> {
   const row = await services.getOne(carrier_service_id, executor);
-  if (!row) throw new Invalid("that carrier service does not exist");
-  if (!row.carrier_id) {
-    throw new Invalid(`${row.name} is a sale delivery service, not a label service`);
-  }
+  rules.assertLabelService(row, carrier_service_id);
   const offered = await getOfferedServices(row.carrier_id, executor);
   const entry = offered.find((o) => o.name.toLowerCase() === row.name.toLowerCase());
-  if (!entry) {
-    throw new Invalid(`${row.name} is not a label service the carrier offers`);
-  }
+  rules.assertCatalogueEntry(entry, row.name);
   return {
     carrier_id: row.carrier_id,
     name: row.name,
@@ -215,7 +210,7 @@ export async function updateService(body: CarrierServicePatch): Promise<ServiceR
   // The id is the message on an update; every column beside it is optional
   // because a create sends this same patch.
   const id = body.id;
-  if (!id) throw new Invalid("id is required");
+  rules.assertServiceId(id);
   return await withTransaction(async (tx) => {
     const changed = await services.update(id, toPatchRow(body), tx);
     if (!changed) return null;

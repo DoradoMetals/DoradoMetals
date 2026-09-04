@@ -3,6 +3,7 @@ import withTransaction from "#shared/db/withTransaction.ts";
 // write helpers (getOrderLink, patch) alongside the bare CRUD.
 import * as shipmentRepo from "#domain/shipping/shipments/service.ts";
 import * as trackingRepo from "#domain/shipping/tracking/service.ts";
+import * as shipmentView from "#domain/shipping/shipments/view.ts";
 // The SERVICE, not a repo: a pickup hangs off a SHIPMENT.
 import * as pickupRepo from "#domain/shipping/pickups/service.ts";
 import * as servicesRepo from "#db/shipping/services/repo.ts";
@@ -15,14 +16,12 @@ import * as shippingHandler from "#domain/shipping/operations/handler.ts";
 import { carrierIdOr } from "#domain/shipping/operations/resolver.ts";
 import { FEDEX_STORE_ADDRESS, DORADO_ADDRESS } from "#providers/shipments/constants.ts";
 import { attempt } from "#shared/attempt.ts";
-import { Conflict, Invalid, NotFound } from "#shared/errors.ts";
 import type { ShipmentBaseRow as ShipmentRow } from "#db/shipping/shipments/repo.ts";
-import type { TrackedShipment as TrackingRow } from "#domain/shipping/tracking/service.ts";
 import type { ParsedTracking } from "#providers/shipments/utils/parsing.ts";
 import type { RatesInput } from "#domain/shipping/operations/handler.ts";
 import type { PickupBaseRow as PickupRow } from "#db/shipping/pickups/repo.ts";
 import type { PoolClient } from "pg";
-import type { CheckoutRate, Direction, Shipment, ShippingCancelLabelBody, ShippingCancelPickupBody, ShippingCheckPickupBody, ShippingGetLocationsBody, ShippingValidateAddressBody } from "@dorado/contracts";
+import type { CheckoutRate, Direction, Shipment, ShipmentView, ShippingCancelLabelBody, ShippingCancelPickupBody, ShippingCheckPickupBody, ShippingGetLocationsBody, ShippingValidateAddressBody } from "@dorado/contracts";
 
 type Executor = PoolClient | undefined;
 
@@ -31,7 +30,7 @@ type Executor = PoolClient | undefined;
 // cannot be asked about somewhere the caller does not actually hold on file.
 async function requireAddress(address_id: string) {
   const address = await addressesRepo.getOne(address_id);
-  if (!address) throw new NotFound(`no address ${address_id}`);
+  shippingRules.assertAddress(address, address_id);
   return address;
 }
 
@@ -51,69 +50,61 @@ export async function cancelLabel(
 ): Promise<ShipmentRow | null> {
   // An unknown shipment id used to reach the carrier before this guard existed - getById returning null meant a TypeError AFTER deciding to call FedEx, not before.
   const shipment = await shipmentRepo.getById(shipment_id);
-  if (!shipment) {
-    throw new NotFound(`no shipment ${shipment_id} to cancel`);
-  }
+  shippingRules.assertShipment(shipment, shipment_id);
 
   await shippingHandler.cancelLabel(await carrierIdOr(carrier_id), undefined, {
     trackingNumber: shipment.tracking_number,
   });
 
-  // patch(), not update(): preserves carrier_service_id/package_id verbatim and only changes the status.
-  return await withTransaction((tx) => shipmentRepo.patch(shipment.id, { shipping_status: "Cancelled" }, tx));
+  // A one-column update: everything else is left alone by the statement itself.
+  return await withTransaction((tx) => shipmentRepo.update(shipment.id, { shipping_status: "Cancelled" }, tx));
 }
 
 // fetchTracking is a separate parameter, not a request field - the controller only ever passes shipment_id, so nothing in production could reach it. Tests inject a function instead of calling FedEx; FEDEX_ENV=sandbox is for a human smoke test, never a test dependency.
 // Returns the shipment's tracking EVENTS, not the shipment - even on the early return, so "nothing recognised" looks the same as "nothing changed".
-function requireCarrier(carrier_id: string | null, shipment_id: string): string {
-  if (!carrier_id) {
-    throw new Conflict(
-      `shipment ${shipment_id} has no carrier - it has no service, so no label ` +
-        `has been bought for it yet`
-    );
-  }
-  return carrier_id;
-}
-
+// Answers the whole ShipmentView, refreshed: the caller asked "where is my
+// parcel", and the answer is the parcel - its progress timeline included -
+// rather than a bag of scan rows it would have to reason over itself.
 export async function getTracking(
   shipment_id: string,
+  isAdmin: boolean,
   fetchTracking?: FetchTracking
-): Promise<TrackingRow | null> {
+): Promise<ShipmentView | null> {
   return withTransaction(async (client) => {
     const shipment = await shipmentRepo.getById(shipment_id, client);
     // Same guard as cancelLabel: an unknown id used to read off null after opening a transaction, before reaching the carrier.
-    if (!shipment) {
-      throw new NotFound(`no shipment ${shipment_id} to track`);
-    }
+    shippingRules.assertShipment(shipment, shipment_id);
 
     // carrier_id comes through the shipment's service - a shipment with no service yet (a shell, before its label) has none.
     const service = shipment.carrier_service_id
       ? await servicesRepo.getOne(shipment.carrier_service_id, client)
       : undefined;
 
-    const trackingInfo = fetchTracking
-      ? await fetchTracking(shipment, client)
-      : await shippingHandler.getTracking(
-          // There is no carrier to ask, and asking `undefined` would have
-          // reached the provider registry as "Unsupported carrier: ".
-          requireCarrier(service?.carrier_id ?? null, shipment_id),
-          client,
-          { tracking_number: shipment.tracking_number }
-        );
+    // There is no carrier to ask, and asking `undefined` would have reached
+    // the provider registry as "Unsupported carrier: ".
+    const carrier_id = service?.carrier_id ?? null;
+    let trackingInfo: ParsedTracking;
+    if (fetchTracking) {
+      trackingInfo = await fetchTracking(shipment, client);
+    } else {
+      shippingRules.assertCarrier(carrier_id, shipment_id);
+      trackingInfo = await shippingHandler.getTracking(
+        carrier_id, client, { tracking_number: shipment.tracking_number }
+      );
+    }
 
     // A refresh that recognizes nothing is not news - it used to be treated as news that everything is gone: removeEvents is an unconditional DELETE, so an unrecognized response (parseTracking's placeholder strings, which `??` never catches) deleted a shipment's whole tracking history and wrote back "Status Unknown" or a nulled estimate/delivered_at.
     // It already happened: production has four shipments at "Status Unknown" with zero events and three at "Delivered" with zero - only this function ever writes those two statuses, so they had events when marked and don't now.
     // Nothing here is authoritative - FedEx is, and a later good refresh replaces the lot. Keeping what's known beats replacing it with a placeholder, so an unrecognized response now returns the existing row unchanged.
     if (!trackingInfo.scanEvents?.length) {
-      return await trackingRepo.getEvents(shipment_id, client);
+      return await shipmentView.getById(shipment_id, isAdmin, client);
     }
 
     await trackingRepo.removeEvents(shipment_id, client);
     await trackingRepo.insertEvents(trackingInfo, shipment_id, client);
 
-    // patch(), not update(): see cancelLabel's note above - this changes
-    // three columns and preserves every other one verbatim, ids included.
-    await shipmentRepo.patch(
+    // Three columns; every other one is left alone by the statement itself.
+    await shipmentRepo.update(
       shipment_id,
       {
         shipping_status: trackingInfo.latestStatus ?? shipment.shipping_status,
@@ -126,7 +117,7 @@ export async function getTracking(
       client
     );
 
-    return await trackingRepo.getEvents(shipment_id, client);
+    return await shipmentView.getById(shipment_id, isAdmin, client);
   });
 }
 
@@ -152,22 +143,15 @@ export async function quoteRate({
   pickupType?: RatesInput["pickupType"];
   declaredValue?: RatesInput["declaredValue"];
 }): Promise<ReturnType<typeof shippingHandler.getRates>> {
-  let shipperAddress: RatesInput["shipperAddress"];
-  let recipientAddress: RatesInput["recipientAddress"];
+  shippingRules.assertShippingType(shippingType);
+  // Inbound is the customer sending metal in; Outbound and Return both leave
+  // from us, which is the only distinction this call needs.
+  const inbound = shippingType === "Inbound";
+  const shipperAddress: RatesInput["shipperAddress"] = inbound ? address : DORADO_ADDRESS;
+  const recipientAddress: RatesInput["recipientAddress"] = inbound
+    ? FEDEX_STORE_ADDRESS
+    : address;
 
-  switch (shippingType) {
-    case "Inbound":
-      shipperAddress = address;
-      recipientAddress = FEDEX_STORE_ADDRESS;
-      break;
-    case "Outbound":
-    case "Return":
-      shipperAddress = DORADO_ADDRESS;
-      recipientAddress = address;
-      break;
-    default:
-      throw new Invalid(`invalid shippingType: ${shippingType}`);
-  }
   return shippingHandler.getRates(await carrierIdOr(carrier_id), undefined, {
     shipperAddress,
     recipientAddress,
@@ -188,17 +172,17 @@ export async function getCheckoutRates(
 ): Promise<CheckoutRate[]> {
   const checkout = await checkoutService.getRowFor(user_id, direction);
   const cart = await checkoutService.getItemsForOrder(checkout.id);
-  if (!cart.length) throw new Invalid("the checkout has no items to rate");
+  shippingRules.assertRatableCart(cart.length);
 
-  if (!checkout.package_id) throw new Invalid("choose a package before requesting rates");
+  shippingRules.assertPackageChosen(checkout.package_id);
   const box = await packagesRepo.getOne(checkout.package_id);
-  if (!box) throw new Invalid(`no package ${checkout.package_id}`);
+  shippingRules.assertPackage(box, checkout.package_id);
   const weight = shippingRules.parcelWeightLb(cart, box);
 
   const shippingType = direction === "purchase" ? "Inbound" : "Outbound";
   const address_id =
     direction === "purchase" ? checkout.shipper_address_id : checkout.recipient_address_id;
-  if (!address_id) throw new Invalid("choose an address before requesting rates");
+  shippingRules.assertAddressChosen(address_id);
   const address = await requireAddress(address_id);
 
   // Service-agnostic clamp - the same lowest-ceiling answer
@@ -247,9 +231,7 @@ export async function checkPickup(
   // readyDate is a Date everywhere below - JSON cannot carry one, so it is
   // converted at this boundary, where a request becomes objects.
   const readyAt = new Date(body.readyDate);
-  if (Number.isNaN(readyAt.getTime())) {
-    throw new Invalid("readyDate is required and must be a date");
-  }
+  shippingRules.assertReadyDate(readyAt);
   return shippingHandler.checkPickup(await carrierIdOr(body.carrier_id), undefined, {
     pickupAddress: address, code: body.code, readyDate: readyAt,
   });
@@ -271,9 +253,7 @@ export async function cancelPickup(
 ): Promise<PickupRow | null> {
   // Same guard as cancelLabel and getTracking: an unknown id used to read three fields off null after deciding to call the carrier.
   const pickup = await pickupRepo.getById(pickup_id);
-  if (!pickup) {
-    throw new NotFound(`no pickup ${pickup_id} to cancel`);
-  }
+  shippingRules.assertPickup(pickup, pickup_id);
 
   // Widened rather than assumed: PickupBaseRow.requested_at is declared
   // `string` (the wire's shape, also what orders' OrderView needs it to stay
@@ -293,14 +273,16 @@ export async function cancelPickup(
     location: pickup.location,
   });
 
-  // Two bugs at once: the repo reads pickup_status, so `status` wrote the existing status back unchanged; and the CHECK constraint allows only pending/scheduled/completed/canceled (one L) - "cancelled" was refused outright.
+  // The CHECK constraint allows only pending/scheduled/completed/canceled (one
+  // L) - "cancelled" is refused outright.
   // Opened here rather than taken as an argument (ruling 56): this write must
   // stand alone, AFTER the FedEx call above - see this function's own header.
   return await withTransaction((tx) =>
-    pickupRepo.update({
-      id: pickup.id,
+    pickupRepo.update(pickup.id, {
+      requested_at: requestedAt,
+      status: "canceled",
       confirmation_number: pickup.confirmation_number,
-      pickup_status: "canceled",
+      location: pickup.location,
     }, tx)
   );
 }
@@ -353,11 +335,7 @@ export async function labelBufferOrVoid(
   labelData: { labelFile: string | null; tracking_number: string | null },
   cancel: CancelLabel = voidLabel
 ): Promise<Buffer> {
-  if (!labelData.labelFile) {
-    await cancel(labelData.tracking_number);
-    throw new Error(
-      "the carrier created a shipment but returned no label file - the label has been cancelled"
-    );
-  }
+  if (!labelData.labelFile) await cancel(labelData.tracking_number);
+  shippingRules.assertLabelFile(labelData.labelFile);
   return Buffer.from(labelData.labelFile, "base64");
 }

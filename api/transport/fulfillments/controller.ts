@@ -1,23 +1,19 @@
-import { FulfillmentCancelScheduleBody, FulfillmentSetMethodBody, FulfillmentSetStatusBody } from "@dorado/contracts";
-import { requiredParam } from "#shared/http/caller.ts";
-import { parseStrict, uuidParam } from "#shared/http/validate.ts";
+import {
+  FulfillmentCancelScheduleBody, FulfillmentSetMethodBody, FulfillmentSetStatusBody,
+} from "@dorado/contracts";
+import { uuidParam, parseStrict } from "#shared/http/validate.ts";
 import { oneString } from "#shared/http/query.ts";
 import { asyncHandler } from "#shared/middleware/asyncHandler.ts";
 import * as fulfillmentService from "#domain/fulfillments/service.ts";
-import * as orderRead from "#domain/fulfillments/order-read.ts";
-import * as compose from "#domain/fulfillments/compose.ts";
 
-// The thin remainder: methods handlers live in methods/controller.ts, booking handlers in pickups/ and directs/. What's here spans children - the fulfillment itself, the merged schedule, the method change and the booking cancel.
-
-// Bare rows on the wire: what the service composes (the nested method) never leaves the API.
-export const getForOrder = asyncHandler(async (req, res) => {
-  const order_id = requiredParam(req.query.order_id, "order_id");
-  const row = await fulfillmentService.getForOrder(order_id, {
-    userId: req.user?.id,
-    isAdmin: req.user?.role === "admin",
-  });
-  return res.status(200).json(row ? compose.toWire(row) : row);
-});
+// The thin remainder: methods handlers live in methods/controller.ts, booking
+// handlers in pickups/ and directs/. What is here spans children - the
+// fulfillment view, the merged schedule, the method change and the cancel.
+//
+// EVERY ONE ANSWERS THE FulfillmentView: the row, its method, its children and
+// what may be done to it. A caller that has just moved an order onto a pickup
+// gets back a view whose `actions.schedule` is already true, so nothing has to
+// be re-derived or re-fetched to know what to offer next.
 
 // Everyone due somewhere, soonest first. The window comes from the query rather
 // than defaulting to "today", because an admin scrolling next week wants next
@@ -28,39 +24,47 @@ export const getSchedule = asyncHandler(async (req, res) => {
   const from = oneString(req.query.from);
   const to = oneString(req.query.to);
   const employee_id = oneString(req.query.employee_id);
-  // Composed internally (sorted by the booking's start time) and wired down to bare rows - booking details are the children's own reads.
-  const rows = await fulfillmentService.getSchedule({ from, to, employee_id });
-  return res.status(200).json(rows.map(compose.toWire));
+  return res.status(200).json(await fulfillmentService.getSchedule({ from, to, employee_id }));
 });
 
 export const cancelSchedule = asyncHandler(async (req, res) => {
   const body = parseStrict(FulfillmentCancelScheduleBody, req.body, "fulfillments/cancel_schedule body");
-  const saved = await fulfillmentService.cancelSchedule(body.fulfillment_id);
-  return res.status(200).json(saved);
+  return res.status(200).json(await fulfillmentService.cancelSchedule(body.fulfillment_id));
 });
 
 export const setMethod = asyncHandler(async (req, res) => {
   const body = parseStrict(FulfillmentSetMethodBody, req.body, "fulfillments/set_method body");
-  // WHO isn't sent down any more - the audit_stamp trigger reads the session off the connection.
-  const saved = await fulfillmentService.setMethod({ id: body.fulfillment_id, method_id: body.method_id });
-  return res.status(200).json(saved);
+  // WHO is not sent down - the audit_stamp trigger reads the session off the connection.
+  return res.status(200).json(
+    await fulfillmentService.setMethod({ id: body.fulfillment_id, method_id: body.method_id })
+  );
 });
 
 export const setStatus = asyncHandler(async (req, res) => {
   const body = parseStrict(FulfillmentSetStatusBody, req.body, "fulfillments/set_status body");
-  const saved = await fulfillmentService.setStatus({ id: body.fulfillment_id, status: body.status });
-  return res.status(200).json(saved);
+  return res.status(200).json(
+    await fulfillmentService.setStatus({ id: body.fulfillment_id, status: body.status })
+  );
 });
 
-// GET /api/orders/:orderId/fulfillments - the chain, resolved to the bare verbatim row (see order-read.ts). Mounted from the orders routes (order id is the key); the handler lives here (fulfillments owns the chain).
-// No fulfillment answers 404, because the resource asked for does not exist.
+// GET /api/orders/:orderId/fulfillments - THE ONE READ of how an order is
+// handed over. It replaces the query-string twin (GET /fulfillments/
+// get_for_order), which answered the same question about the same table from a
+// second URL; the order id is the key every caller holds, so the parent path
+// is the one that stays.
+// Owner-or-admin, checked by the service against the ORDER, because a
+// fulfillment carries no user of its own.
 export const getFulfillmentByOrder = asyncHandler(async (req, res) => {
-  const fulfillment = await orderRead.getOrderFulfillment(uuidParam(req, "orderId"));
-  if (!fulfillment) {
+  const order_id = uuidParam(req, "orderId");
+  const view = await fulfillmentService.getForOrder(order_id, {
+    userId: req.user?.id,
+    isAdmin: req.user?.role === "admin",
+  });
+  if (!view) {
     return res.status(404).json({
       error: "Not Found",
-      message: `order ${uuidParam(req, "orderId")} has no fulfillment`,
+      message: `order ${order_id} has no fulfillment`,
     });
   }
-  return res.json(fulfillment);
+  return res.json(view);
 });

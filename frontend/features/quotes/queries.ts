@@ -24,7 +24,7 @@ import { useApiQuery } from '@/shared/queries/base'
 import { queryKeys } from '@/shared/queries/keys'
 import { apiRequest } from '@/shared/queries/axios'
 import { usePaymentMethods } from '@/features/payments/queries'
-import { useSaleShippingServices } from '@/features/shipping/queries'
+import { useSaleShippingServices } from '@dorado/client'
 import type { CheckoutLine } from '@/features/checkout/items/types'
 import type { CatalogQuote, OrderQuote, ProfitBreakdown, PurchaseOrderQuote, PurchaseQuoteItem, SalesOrderQuote } from "@dorado/contracts";
 

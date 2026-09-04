@@ -2,6 +2,7 @@
 import query from "#shared/db/query.ts";
 import { buildUpdate } from "#shared/db/patch.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
+import { FulfillmentDirectPatch } from "@dorado/contracts";
 import type { FulfillmentDirect } from "@dorado/contracts";
 import type { Executor } from "#shared/db/executor.ts";
 
@@ -56,9 +57,12 @@ export async function create(row: DirectNew, executor?: Executor): Promise<Direc
   return rows[0];
 }
 
-export const PATCHABLE = [
-  "location_id", "assigned_employee_id", "is_appointment", "start_time", "end_time",
-] as const;
+// THE COLUMNS, FROM THE CONTRACT (ruling 64) - `fulfillment_id` dropped for
+// the same reason as pickups': it is this update's WHERE key.
+export type DirectPatchColumns = Omit<FulfillmentDirectPatch, "fulfillment_id">;
+export const PATCHABLE = Object.keys(
+  FulfillmentDirectPatch.omit({ fulfillment_id: true }).shape
+) as readonly (keyof DirectPatchColumns)[];
 export type DirectPatch = Partial<Record<(typeof PATCHABLE)[number], string | boolean | null>>;
 
 export async function update(

@@ -87,6 +87,8 @@
     "lint:domain-errors:self-test": "TZ=UTC node scripts/lint-domain-errors.ts --self-test",
     "lint:one-catch": "TZ=UTC node scripts/lint-one-catch.ts",
     "lint:one-catch:self-test": "TZ=UTC node scripts/lint-one-catch.ts --self-test",
+    "lint:no-throw-in-services": "TZ=UTC node scripts/lint-no-throw-in-services.ts",
+    "lint:no-throw-in-services:self-test": "TZ=UTC node scripts/lint-no-throw-in-services.ts --self-test",
     "lint:input-shapes": "node scripts/lint-input-shapes.ts",
     "lint:client-boundary": "node scripts/lint-client-boundary.ts",
     "lint:client-boundary:self-test": "node scripts/lint-client-boundary.ts --self-test",

@@ -92,7 +92,11 @@ beforeEach(() => {
         url: String(url),
         body: init?.body ? JSON.parse(String(init.body)) : undefined,
       });
-      return { ok: true, status: 200, text: async () => "{}" } as unknown as Response;
+      // A LIST where the endpoint answers rows. GET /orders/:id/shipments is
+      // the client package's now, so it comes through THIS seam rather than
+      // the axios mock above - and `outboundOf` filters an array.
+      const body = String(url).includes("/shipments") ? "[]" : "{}";
+      return { ok: true, status: 200, text: async () => body } as unknown as Response;
     })
   );
 });

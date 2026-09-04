@@ -12,6 +12,18 @@ import { UpdatePaymentIntentBody } from "@dorado/contracts";
 import type { CheckoutLine } from "@/features/checkout/items/types";
 
 vi.mock("@/shared/queries/axios", () => ({ apiRequest: vi.fn() }));
+// `useSaleShippingServices` moved to @dorado/client, which talks to the
+// platform's `fetch` rather than the axios wrapper this file stubs. The hook
+// is mocked with the same row the stub used to answer with, so the assertions
+// below are unchanged.
+vi.mock("@dorado/client", async (importOriginal) => ({
+  ...(await importOriginal<Record<string, unknown>>()),
+  useSaleShippingServices: () => ({
+    data: [{ id: "9f1c2b3a-0000-4000-8000-000000000022", code: "STANDARD" }],
+    isSuccess: true,
+  }),
+}));
+
 vi.mock("@/features/auth/queries", () => ({
   useGetSession: () => ({ user: { id: "u-customer", role: "customer" } }),
 }));

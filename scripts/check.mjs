@@ -77,6 +77,10 @@ const GROUPS = [
       { name: "api:lint:contracts-derived", cmd: pnpm("@dorado/api", "lint:contracts-derived") },
       { name: "api:lint:domain-errors", cmd: pnpm("@dorado/api", "lint:domain-errors") },
       { name: "api:lint:one-catch", cmd: pnpm("@dorado/api", "lint:one-catch") },
+      {
+        name: "api:lint:no-throw-in-services",
+        cmd: pnpm("@dorado/api", "lint:no-throw-in-services"),
+      },
       { name: "api:lint:input-shapes", cmd: pnpm("@dorado/api", "lint:input-shapes") },
       { name: "api:lint:client-boundary", cmd: pnpm("@dorado/api", "lint:client-boundary") },
       { name: "api:lint:test-locks", cmd: pnpm("@dorado/api", "lint:test-locks") },

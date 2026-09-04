@@ -3,6 +3,7 @@
 import query from "#shared/db/query.ts";
 import { buildUpdate } from "#shared/db/patch.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
+import { FulfillmentMethodPatch } from "@dorado/contracts";
 import type { FulfillmentMethod } from "@dorado/contracts";
 import type { Executor } from "#shared/db/executor.ts";
 
@@ -49,14 +50,12 @@ export async function getDefault(
 }
 
 // Every field is optional; an absent one is not written at all (shared/db/patch.ts) - none of these columns is nullable, so nothing is lost.
-export const PATCHABLE = ["label", "admin_label", "enabled", "hidden"] as const;
-
-export type MethodPatch = {
-  label?: string;
-  admin_label?: string;
-  enabled?: boolean;
-  hidden?: boolean;
-};
+// THE COLUMNS, FROM THE CONTRACT (ruling 64) - not a second list that happens
+// to agree with FulfillmentMethodPatch today.
+export type MethodPatch = FulfillmentMethodPatch;
+export const PATCHABLE = Object.keys(
+  FulfillmentMethodPatch.shape
+) as readonly (keyof MethodPatch)[];
 
 // No create, no remove: methods are code, not data - a method can be reworded and switched off, and nothing else.
 export async function update(

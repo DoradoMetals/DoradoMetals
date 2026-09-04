@@ -90,14 +90,32 @@ test("the shipment's own owner gets a real tracking refresh, not a guard's 403",
       res.status, 200,
       `expected 200, got ${res.status}: ${JSON.stringify(res.body)}`
     );
-    assert.ok(Array.isArray(res.body.scan_events), "the response carries no scan_events array");
-    assert.ok(res.body.scan_events.length > 0, "the recorded parcel has no recognised scans");
-    for (const event of res.body.scan_events) {
-      assert.equal(typeof event.status, "string", "a scan event carries no status string");
-      assert.notEqual(event.status, "Unknown", "a scan event mapped to nothing");
+    // THE RESPONSE IS THE ShipmentView now: the parcel with its progress
+    // already worked out, rather than a bag of scan rows a browser had to
+    // reason over.
+    assert.ok(Array.isArray(res.body.timeline), "the response carries no timeline array");
+    // THE WHOLE LADDER IS DRAWN, not only the climbed part. This parcel's one
+    // recorded scan is FedEx's `OC`, which the provider maps to "Label
+    // Created" - our own act, which trackingTimeline drops on purpose - so
+    // every stage is correctly still ahead. That the scan reached the database
+    // at all is asserted on the ROWS below, which is the stronger claim.
+    const stages = res.body.timeline.map((s: { stage: string }) => s.stage);
+    assert.deepEqual(
+      stages, ["Picked Up", "In Transit", "Out for Delivery", "Delivered"],
+      "the timeline does not draw the four stages in order"
+    );
+    const reached = res.body.timeline.filter((s: { reached: boolean }) => s.reached);
+    assert.equal(
+      reached.length, 0,
+      "the cassette carries only a Label Created scan, which is not a stage"
+    );
+    for (const step of reached) {
+      assert.equal(typeof step.stage, "string", "a reached step carries no stage string");
+      assert.notEqual(step.stage, "Unknown", "a scan event mapped to nothing");
+      assert.ok(step.scan_time, "a reached step carries no scan time");
     }
     assert.notEqual(
-      res.body.shipping_status, "Status Unknown",
+      res.body.tracking_status, "Status Unknown",
       "parseTracking recognised nothing - the status map no longer covers this response"
     );
 
@@ -110,11 +128,17 @@ test("the shipment's own owner gets a real tracking refresh, not a guard's 403",
       )
     ).rows;
     assert.ok(events.length > 0, "no shipping.tracking rows were written for this shipment");
-    assert.deepEqual(
-      events.map((e) => e.status),
-      res.body.scan_events.map((e: { status: string }) => e.status),
-      "the written events do not match what the response carried"
-    );
+    // Every rung the response drew as reached is a row that was actually
+    // written. Not a deepEqual: the timeline drops our own "Label Created" act
+    // and collapses a status repeated at one place, so it is a view of these
+    // rows rather than a copy of them.
+    const written = new Set(events.map((e) => e.status));
+    for (const step of reached) {
+      assert.ok(
+        written.has(step.stage),
+        `the response drew ${step.stage} as reached but no such row was written`
+      );
+    }
 
     const after = (
       await query<{ shipping_status: string | null }>(
@@ -122,7 +146,7 @@ test("the shipment's own owner gets a real tracking refresh, not a guard's 403",
       )
     ).rows[0];
     assert.equal(
-      after?.shipping_status, res.body.shipping_status,
+      after?.shipping_status, res.body.shipment.shipping_status,
       "the shipment row's status was not updated to match the poll"
     );
     // NOT asserted: that the status MOVED off "Label Created" - the recorded

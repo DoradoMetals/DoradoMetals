@@ -7,17 +7,9 @@ import * as organizations from "#db/organizations/repo.ts";
 import * as compose from "#domain/shipping/carriers/compose.ts";
 import type { ComposedCarrier } from "#domain/shipping/carriers/compose.ts";
 import type { Executor } from "#shared/db/executor.ts";
-
-// What a caller supplies, as req.body - every field optional.
-// organization's shape matches organizations.OrganizationPatch: name/enabled are NOT NULL columns, so stay non-nullable here; email/phone are the two that can be null.
-type CarrierInput = {
-  id?: string;
-  logo?: string | null;
-  organization?: {
-    name?: string; email?: string | null;
-    phone?: string | null; enabled?: boolean;
-  };
-};
+// The write shape is the contract's, parsed strictly at transport - the local
+// copy it replaces spelled the organization's four columns a second time.
+import type { CarrierPatch } from "@dorado/contracts";
 
 export async function getAllCarriers(): Promise<ComposedCarrier[]> {
   return await compose.all(await carriers.getAll());
@@ -42,7 +34,7 @@ export async function getCarrierName(id: string, executor?: Executor): Promise<s
 
 // Organization is inserted before the carrier (FK). Both in one transaction - existing in one table but not the other would be invisible to getAll while still holding its id.
 // A USE CASE (ruling 56): only the controller calls this, so it owns the transaction outright rather than taking one.
-export async function createCarrier(carrier: CarrierInput): Promise<ComposedCarrier | null> {
+export async function createCarrier(carrier: CarrierPatch): Promise<ComposedCarrier | null> {
   return await withTransaction(async (tx) => {
     const id = randomUUID();
     const organization_id = randomUUID();
@@ -55,7 +47,7 @@ export async function createCarrier(carrier: CarrierInput): Promise<ComposedCarr
 
 // Updates every field, including to null when absent - a partial update would be a behavior change, and the frontend always sends the whole carrier back.
 // A USE CASE, same reasoning as createCarrier.
-export async function updateCarrier(carrier: CarrierInput): Promise<ComposedCarrier | null> {
+export async function updateCarrier(carrier: CarrierPatch): Promise<ComposedCarrier | null> {
   const id = carrier.id;
   if (!id) return null;
 

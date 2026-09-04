@@ -13,7 +13,7 @@
 // spots editor (spots are not part of the view), and the lists.
 import { useQuery } from "@tanstack/react-query";
 import type {
-  Address, OrderItem, OrderRead, OrderSpot, OrderView, Payout, Shipment,
+  Address, OrderItem, OrderRead, OrderSpot, OrderView, Payout,
 } from "@dorado/contracts";
 
 import { apiRequest } from "../fetch";
@@ -73,14 +73,10 @@ export function useOrderAddress(order_id: string | null | undefined, enabled = t
   });
 }
 
-// Both directions in one array; the caller filters on `direction`.
-export function useOrderShipments(order_id: string | null | undefined, enabled = true) {
-  return useQuery<Shipment[]>({
-    queryKey: keys.orders.shipments(order_id ?? ""),
-    queryFn: () => apiRequest<Shipment[]>("GET", `/orders/${order_id}/shipments`),
-    enabled: enabled && !!order_id,
-  });
-}
+// The order's parcels live in ../shipping now: GET /orders/:orderId/shipments
+// answers the composed ShipmentView (the row plus its service, box, booking,
+// progress and actions), and a second hook returning the bare rows from the
+// same URL would be two answers to one question.
 
 // LAST FOUR ONLY - the full bank numbers have their own admin-only endpoint.
 export function useOrderPayouts(order_id: string | null | undefined, enabled = true) {

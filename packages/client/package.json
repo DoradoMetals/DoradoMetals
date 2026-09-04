@@ -16,6 +16,14 @@
     "./checkout": {
       "types": "./src/checkout/index.ts",
       "default": "./src/checkout/index.ts"
+    },
+    "./fulfillments": {
+      "types": "./src/fulfillments/index.ts",
+      "default": "./src/fulfillments/index.ts"
+    },
+    "./shipping": {
+      "types": "./src/shipping/index.ts",
+      "default": "./src/shipping/index.ts"
     }
   },
   "scripts": {

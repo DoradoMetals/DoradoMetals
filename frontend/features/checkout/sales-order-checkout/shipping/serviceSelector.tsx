@@ -5,7 +5,7 @@ import { RadioGroup, RadioOption } from '@dorado/components'
 import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
 import { usePatchCheckout } from '@/features/checkout/queries'
 import { saleServiceToOption } from '@/features/orders/salesOrders/types'
-import { useSaleShippingServices } from '@/features/shipping/queries'
+import { useSaleShippingServices } from '@dorado/client'
 import type { CheckoutView, SalesOrderQuote } from '@dorado/contracts'
 import { DetailRow } from '@/shared/ui/DetailRow'
 

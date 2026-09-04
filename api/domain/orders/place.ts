@@ -175,7 +175,7 @@ async function placePurchase(
       tx
     );
     const id = await newShipments.create(rules.shipmentFrom(checkout, parcel), tx);
-    await fulfillmentShipments.link({ fulfillment_id: draft.id, shipment_id: id }, tx);
+    await fulfillmentShipments.link({ fulfillment_id: draft.fulfillment.id, shipment_id: id }, tx);
     return id;
   });
 

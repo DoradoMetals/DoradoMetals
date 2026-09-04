@@ -245,7 +245,7 @@ export async function setFulfillmentMethod(
         { method_id: wanted, direction: direction }, client
       );
       if (!draft) throw new Invalid(`no such fulfillment method: ${wanted}`);
-      await checkouts.update(row.id, { fulfillment_id: draft.id }, client);
+      await checkouts.update(row.id, { fulfillment_id: draft.fulfillment.id }, client);
     }
 
     const fresh = await checkouts.getOne(row.id, client);

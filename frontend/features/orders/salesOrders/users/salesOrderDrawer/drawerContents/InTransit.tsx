@@ -1,34 +1,14 @@
 import TrackingEvents from '@/features/shipping/ui/TrackingEvents'
-import { useTracking, useShipmentDisplay, outboundOf } from '@/features/shipping/queries'
 import { SalesOrderDrawerContentProps } from '@/features/orders/salesOrders/types'
-import { useOrderShipments } from '@dorado/client'
+import { outboundOf, useOrderShipments } from '@dorado/client'
 
 export default function InTransitSalesOrder({ view }: SalesOrderDrawerContentProps) {
   const { order } = view
 
-  // A CONTAINER for its own parcel (ruling 14). The order document no longer
-  // carries a `shipment` slot - shipments are their own read, both directions
-  // in one array, filtered on the row's `direction` column. carrier_id is not
-  // a column of shipping.shipments at all: the SERVICE knows its carrier, and
-  // useShipmentDisplay resolves it off the cached carrier-services list.
-  const { data: shipments = [] } = useOrderShipments(order.id)
-  const shipment = outboundOf(shipments)
-  const { carrier_id } = useShipmentDisplay(shipment)
+  // ONE READ, and the parcel arrives with its progress already worked out. The
+  // carrier lookup that used to sit here (carrier_id is not a column of
+  // shipping.shipments - the SERVICE knows its carrier) is the server's.
+  const { data: shipments = [], isLoading } = useOrderShipments(order.id)
 
-  const { data: trackingInfo, isLoading } = useTracking({
-    shipment_id: shipment?.id ?? '',
-    tracking_number: shipment?.tracking_number ?? '',
-    carrier_id: carrier_id ?? '',
-  })
-
-  return (
-    <>
-      <TrackingEvents
-        isLoading={isLoading}
-        trackingInfo={trackingInfo}
-        delivery_date={shipment?.delivered_at ?? shipment?.est_delivery ?? undefined}
-        shipping_status={shipment?.shipping_status ?? ''}
-      />
-    </>
-  )
+  return <TrackingEvents isLoading={isLoading} shipment={outboundOf(shipments)} />
 }

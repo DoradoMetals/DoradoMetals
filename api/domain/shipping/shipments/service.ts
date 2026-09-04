@@ -3,44 +3,16 @@
 // getByOrder/getByOrders still walk fulfillments.shipments -> fulfillments.fulfillments to resolve an order's parcel - that's resolution, not shape.
 import { randomUUID } from "node:crypto";
 import * as shipments from "#db/shipping/shipments/repo.ts";
-import * as services from "#db/shipping/services/repo.ts";
-import * as packages from "#db/shipping/packages/repo.ts";
 import * as fulfillmentLinks from "#db/fulfillments/shipments/repo.ts";
 import * as fulfillmentsRepo from "#db/fulfillments/repo.ts";
 import * as fulfillmentService from "#domain/fulfillments/service.ts";
 // The LINK table is its own resource - reached directly, not through the fulfillments parent.
 import * as fulfillmentShipments from "#domain/fulfillments/shipments/service.ts";
 import * as orders from "#db/orders/repo.ts";
-import { Invalid, NotFound } from "#shared/errors.ts";
-import type { ShipmentBaseRow, ShipmentRecord } from "#db/shipping/shipments/repo.ts";
+import * as rules from "#domain/shipping/rules.ts";
+import type { ShipmentBaseRow, ShipmentPatchRow } from "#db/shipping/shipments/repo.ts";
 import type { Executor } from "#shared/db/executor.ts";
-
-// Order direction is read off the order row, never accepted as input.
-type ShipmentCreate = {
-  order_id?: string | null;
-  type?: string | null;
-};
-
-// package/service_type are NAMES (what the carrier integration produces) - resolved to ids here. Every timestamp is `Date | string`: call sites spread an already-read shipment, and pg has parsed those into Date objects going into a timestamptz.
-// shipping_label is `string | Buffer` too: FedEx returns a base64 buffer and one call site passes it through unconverted into a text column - worth a second look.
-type ShipmentUpdate = {
-  id: string;
-  tracking_number?: string | null;
-  shipping_status?: string | null;
-  carrier_id?: string | null;
-  estimated_delivery?: Date | string | null;
-  shipped_at?: Date | string | null;
-  delivered_at?: Date | string | null;
-  shipping_label?: string | Buffer | null;
-  label_type?: string | null;
-  pickup_type?: string | null;
-  package?: string | null;
-  service_type?: string | null;
-  net_charge?: number | null;
-  insured?: boolean | null;
-  declared_value?: number | null;
-  type?: string | null;
-};
+import type { ShipmentDirection } from "@dorado/contracts";
 
 // ------------------------------------------------------------------- reads
 
@@ -132,154 +104,66 @@ export async function getOrderLink(
 
 // ------------------------------------------------------------------ writes
 
+// A SHELL, and the fulfillment link that says which order it is for. Named
+// arguments rather than an input object: `direction` is shipping's own
+// (Inbound/Outbound/Return) and the ORDER's direction is read off the order
+// row, never accepted - the two share a word and nothing else.
 export async function create(
-  input: ShipmentCreate, tx: Executor
+  { order_id, direction }: { order_id?: string | null; direction: ShipmentDirection },
+  tx: Executor
 ): Promise<ShipmentBaseRow | null> {
-  const shipmentDirection = input.type ?? null;
-  if (!shipmentDirection) {
-    throw new Invalid("a shipment needs a type - shipping.shipments.direction is NOT NULL");
-  }
-
   const id = randomUUID();
-  await shipments.create({ id, direction: shipmentDirection }, tx);
+  await shipments.create({ id, direction }, tx);
 
-  if (input.order_id) {
-    const direction = await orders.directionOf(input.order_id, tx);
-    if (!direction) {
-      throw new NotFound(
-        `order ${input.order_id} does not exist - a shipment cannot attach to it`
-      );
-    }
+  if (order_id) {
+    const orderDirection = await orders.directionOf(order_id, tx);
+    rules.assertOrderForShipment(orderDirection, order_id);
     const fulfillment = await fulfillmentService.chooseDefault(
-      { order_id: input.order_id, direction, category: "SHIPMENT" }, tx
+      { order_id, direction: orderDirection, category: "SHIPMENT" }, tx
     );
-    if (!fulfillment) {
-      throw new Error(
-        `order ${input.order_id}: no fulfillment could be ensured for this shipment - ` +
-          `this transaction must not commit`
-      );
-    }
     await fulfillmentShipments.link(
-      { fulfillment_id: fulfillment.id, shipment_id: id }, tx
+      { fulfillment_id: fulfillment.fulfillment.id, shipment_id: id }, tx
     );
   }
 
   return await getById(id, tx);
 }
 
-// service_type/package arrive as NAMES (what the carrier integration produces), resolved here - a not-found is thrown, not silently written as null.
-// `tx` is REQUIRED - the caller (a use case, or a test's own transaction) opens it; this never does.
+// A COLUMN OR TWO, KEYED BY ID. Everything the caller does not name is left
+// alone by the statement itself (db/shipping/shipments/repo.ts), so nothing
+// here reads the row first to copy it back.
+//
+// It replaces two functions. `update()` took names - a carrier's service and
+// package spelled out - and resolved each against the catalogue before
+// writing; it had no production caller left, only tests, and its whole reason
+// for existing was that the repo's UPDATE was a full replace. `patch()` was the
+// read-modify-write that same full replace forced on every other caller.
+//
+// DELIVERED IS WHAT COMPLETES A FULFILLMENT, and that rule moved here with
+// them. It used to live in `update()`, which nothing called, so a parcel the
+// carrier reported as delivered left its fulfillment PENDING forever - the
+// tracking poll writes through this function.
+// `tx` is REQUIRED: the caller (a use case, or a test's own transaction) opens
+// it; this never does.
 export async function update(
-  input: ShipmentUpdate, tx: Executor
+  id: string, patch: ShipmentPatchRow, tx: Executor
 ): Promise<ShipmentBaseRow | null> {
-  if (!input.id) throw new Invalid("a shipment update needs an id");
-  const id = input.id;
-
-  // A service name with no carrier used to be silently dropped - now refused.
-  if (input.service_type && !input.carrier_id) {
-    throw new Invalid(
-      `a service name needs a carrier to resolve against - ` +
-        `${JSON.stringify(input.service_type)} was sent without one`
-    );
-  }
-  if (input.package && !input.carrier_id) {
-    throw new Invalid(
-      `a package label needs a carrier to resolve against - ` +
-        `${JSON.stringify(input.package)} was sent without one`
-    );
-  }
-
-  let carrier_service_id: string | null = null;
-  if (input.service_type && input.carrier_id) {
-    const all = await services.getByCarrier(input.carrier_id, tx);
-    carrier_service_id = all.find((s) => s.name === input.service_type)?.id ?? null;
-    if (!carrier_service_id) {
-      throw new NotFound(
-        `carrier ${input.carrier_id} offers no service called ${JSON.stringify(input.service_type)}`
-      );
-    }
-  }
-
-  let package_id: string | null = null;
-  if (input.package && input.carrier_id) {
-    const found = await packages.find(input.carrier_id, input.package, tx);
-    package_id = found?.id ?? null;
-    if (!package_id) {
-      throw new NotFound(
-        `carrier ${input.carrier_id} has no package called ${JSON.stringify(input.package)}`
-      );
-    }
-  }
-
-  const row: ShipmentRecord = {
-    tracking_number: input.tracking_number,
-    shipping_status: input.shipping_status,
-    est_delivery: input.estimated_delivery,
-    shipped_at: input.shipped_at,
-    delivered_at: input.delivered_at,
-    label: input.shipping_label,
-    label_type: input.label_type,
-    pickup_type: input.pickup_type,
-    package_id,
-    carrier_service_id,
-    cost: input.net_charge,
-    insured: input.insured === true,
-    declared_value: input.declared_value,
-    direction: input.type,
-  };
-
-  const written = await shipments.update(id, row, tx);
+  const written = await shipments.update(id, patch, tx);
   if (!written) return null;
 
-  // DELIVERED IS WHAT COMPLETES A FULFILLMENT.
-  if (input.shipping_status) {
+  if (patch.shipping_status) {
     const [link] = await fulfillmentLinks.getByShipment([id], tx);
     if (link) {
       await fulfillmentService.setStatus(
         {
           id: link.fulfillment_id,
-          status: input.shipping_status === "Delivered" ? "COMPLETED" : "PENDING",
+          status: patch.shipping_status === "Delivered" ? "COMPLETED" : "PENDING",
         },
         tx
       );
     }
   }
 
-  return await getById(id, tx);
-}
-
-// A read-modify-write for callers holding a shipment's own ids (carrier_service_id, package_id) that want to change a column or two without resolving anything by name.
-// Reads the row fresh and writes back every column verbatim except what changed - full-replace semantics without ever needing a name.
-// `tx` is REQUIRED, same reason as update().
-export async function patch(
-  id: string, changes: Partial<ShipmentRecord>, tx: Executor
-): Promise<ShipmentBaseRow | null> {
-  const existing = await shipments.getOne(id, tx);
-  if (!existing) return null;
-
-  // Assigned onto a plain record rather than spread into a copy - every
-  // column starts at its current value, and `changes` overrides only what
-  // it names, matching shipments.update's own full-replace contract.
-  const merged: ShipmentRecord = {
-    tracking_number: existing.tracking_number,
-    shipping_status: existing.shipping_status,
-    est_delivery: existing.est_delivery,
-    shipped_at: existing.shipped_at,
-    delivered_at: existing.delivered_at,
-    label: existing.label,
-    label_type: existing.label_type,
-    pickup_type: existing.pickup_type,
-    package_id: existing.package_id,
-    carrier_service_id: existing.carrier_service_id,
-    cost: existing.cost,
-    insured: existing.insured ?? undefined,
-    declared_value: existing.declared_value,
-    direction: existing.direction,
-  };
-  Object.assign(merged, changes);
-
-  const written = await shipments.update(id, merged, tx);
-  if (!written) return null;
   return await getById(id, tx);
 }
 

@@ -60,7 +60,7 @@ export async function recordPostage(
 ): Promise<void> {
   await withTransaction(async (tx) => {
     await orderTransactions.update(order_id, { shipping: postage.netCharge }, {}, tx);
-    await shipmentService.patch(
+    await shipmentService.update(
       shipment_id,
       {
         tracking_number: postage.tracking_number, label: postage.label,

@@ -41,9 +41,9 @@ async function anUnlabelledOrder(c: PoolClient) {
   const carrier_service_id = await carrierServiceId(c);
   const package_id = await packageId(c);
 
-  const shipment = await shipmentService.create({ order_id: order.id, type: "Inbound" }, c);
+  const shipment = await shipmentService.create({ order_id: order.id, direction: "Inbound" }, c);
   if (!shipment) throw new Error("fixture: the shipment shell was not created");
-  await shipmentService.patch(
+  await shipmentService.update(
     shipment.id,
     { package_id, carrier_service_id, pickup_type: "Store Dropoff" },
     c

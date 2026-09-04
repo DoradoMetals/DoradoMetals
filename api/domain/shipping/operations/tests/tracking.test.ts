@@ -80,7 +80,7 @@ test("a refresh that recognises nothing leaves the events and the status alone",
     assert.equal(before.events, 2, "the seeded shipment did not keep its events");
 
     // `async` because FetchTracking returns a Promise - awaiting a plain value works the same at runtime.
-    await service.getTracking(shipment.id, async () => recognisedNothing());
+    await service.getTracking(shipment.id, true, async () => recognisedNothing());
 
     assert.equal(
       await eventCount(shipment.id),
@@ -106,7 +106,7 @@ test("a refresh that recognises something still replaces what is stored", async 
       `SELECT '2026-09-01T12:00:00'::timestamptz AS expected`
     );
 
-    await service.getTracking(shipment.id, async () => ({
+    await service.getTracking(shipment.id, true, async () => ({
       estimatedDeliveryTime: "2026-09-01T12:00:00",
       // Two different locations on purpose: identical rows would let the
       // assertion below pass on ordering it never checked.

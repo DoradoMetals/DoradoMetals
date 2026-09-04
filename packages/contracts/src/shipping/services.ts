@@ -72,6 +72,17 @@ export const CarrierServicePatch = Fields.omit({
 }).partial().strict();
 export type CarrierServicePatch = z.infer<typeof CarrierServicePatch>;
 
+// GET /carrier_services/sale_options - PUBLIC. The business's own
+// carrier-agnostic priced rows: the customer picks the SERVICE at its fixed
+// price and the refinery picks the carrier later. `display=false` rows ride
+// along (FREE is the admin's grant), so which rows a surface shows is its own
+// branch. Exactly db/shipping/services/sql/get_sale_options.sql's projection.
+export const SaleShippingService = CarrierService.pick({
+  id: true, name: true, code: true, price: true, display: true, is_active: true,
+  min_transit_days: true, max_transit_days: true,
+});
+export type SaleShippingService = z.infer<typeof SaleShippingService>;
+
 export const CarrierServiceDeleteBody = z.object({ id: CarrierService.shape.id }).strict();
 export type CarrierServiceDeleteBody = z.infer<typeof CarrierServiceDeleteBody>;
 

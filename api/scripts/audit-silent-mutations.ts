@@ -341,7 +341,13 @@ if (FAIL_ON_FINDINGS && (discarded || unobservable)) process.exit(1);
 // mid-placement must not commit), setPrice became a guarded item update inside
 // finalizePricing, and updateScrap folded into the same one-patch write. What
 // remains under orders is the flair writes, which are cosmetic by D211.
-const CEILING = 16;
+// 16 -> 15 with the FULFILLMENTS lane, by deletion rather than observation.
+// `shipping/pickups/service.ts`'s `remove` helper - which discarded
+// `pickups.remove()`'s result and then returned a hard-coded `true`, so its
+// caller could not have told the difference either way - had no production
+// caller and its own header said so. It is gone; `cancelPickup` deletes a
+// booking through `shipping/operations/service.ts`, which reads the row first.
+const CEILING = 15;
 if (!FAIL_ON_FINDINGS) {
   const total = discarded + unobservable;
   if (total > CEILING) {

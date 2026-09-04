@@ -32,6 +32,50 @@ export const keys = {
     rates: (direction: string, address_id?: string | null, package_id?: string | null) =>
       ["checkout", "rates", direction, address_id ?? null, package_id ?? null] as const,
   },
+  // HOW AN ORDER IS HANDED OVER. The fulfillment is keyed by its ORDER, which
+  // is the id every caller holds - the fulfillment's own id is something they
+  // learn from the view, not something they arrive with.
+  fulfillments: {
+    all: () => ["fulfillments"] as const,
+    forOrder: (order_id: string) => ["fulfillments", "order", order_id] as const,
+    // Everyone due somewhere in a window. The window is part of the question,
+    // so it is part of the key.
+    schedule: (window: { from?: string; to?: string; employee_id?: string } = {}) =>
+      [
+        "fulfillments", "schedule",
+        window.from ?? null, window.to ?? null, window.employee_id ?? null,
+      ] as const,
+    // The reference menu, per direction.
+    methods: (direction: string) => ["fulfillments", "methods", direction] as const,
+    allMethods: () => ["fulfillments", "methods", "all"] as const,
+  },
+  shipping: {
+    all: () => ["shipping"] as const,
+    // ONE PARCEL, WHOLE - the ShipmentView, which carries its own timeline and
+    // actions.
+    shipment: (shipment_id: string) => ["shipping", "shipment", shipment_id] as const,
+    // The order's parcels. Same rows the order-scoped read serves, so it keeps
+    // that key: an order read and this one must not hold two answers.
+    forOrder: (order_id: string) => ["orders", order_id, "shipments"] as const,
+    // Reference data, cached hard - eleven rows and two, changing when the
+    // business changes carriers.
+    handoffs: () => ["shipping", "handoffs"] as const,
+    packages: () => ["shipping", "packages"] as const,
+    carriers: () => ["shipping", "carriers"] as const,
+    services: () => ["shipping", "services"] as const,
+    servicesByCarrier: (carrier_id: string) =>
+      ["shipping", "services", "carrier", carrier_id] as const,
+    offeredServices: (carrier_id?: string | null) =>
+      ["shipping", "services", "offered", carrier_id ?? null] as const,
+    saleOptions: () => ["shipping", "services", "sale_options"] as const,
+    // A carrier's answer about a specific address, so the address is the key.
+    locations: (address_id: string, radius_miles?: number) =>
+      ["shipping", "locations", address_id, radius_miles ?? null] as const,
+    pickupTimes: (address_id: string, code: string, readyDate: string) =>
+      ["shipping", "pickup_times", address_id, code, readyDate] as const,
+    validateAddress: (address_id: string) =>
+      ["shipping", "validate_address", address_id] as const,
+  },
   quotes: {
     purchase: (body: unknown) => ["quote", "purchase_order", JSON.stringify(body)] as const,
     sales: (body: unknown) => ["quote", "sales_order", JSON.stringify(body)] as const,

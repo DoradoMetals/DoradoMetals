@@ -38,6 +38,13 @@ import { Address } from "../places/addresses.js";
 export const OrderViewShipment = Shipment.extend({ direction: z.string() });
 export type OrderViewShipment = z.infer<typeof OrderViewShipment>;
 
+// THE PARCEL AS A READ SERVES IT - the row without its label. `label` is bytea
+// and the driver's JSON for it runs far larger than the whole row around it,
+// so it is served by the document endpoint and never inside a view; a caller
+// that needs to know whether one exists reads ShipmentView.actions instead.
+export const ShipmentRead = OrderViewShipment.omit({ label: true });
+export type ShipmentRead = z.infer<typeof ShipmentRead>;
+
 // PATCH /api/shipments/:id - the shipment's money and its tracking pair.
 //
 // `shipping_charge` IS NOT NULLABLE, and this is one of the five decisions
@@ -59,6 +66,21 @@ export type ShipmentPatch = z.infer<typeof ShipmentPatch>;
 
 // The provider calls. Every one names an ADDRESS BY ID (ruling 43); the
 // carrier is optional because one provider is configured by default.
+// THE COLUMNS A WRITE MAY TOUCH - not to be confused with `ShipmentPatch`
+// above, which is the PATCH /shipments/:id BODY (a charge, an actual cost and
+// a hand-entered tracking pair, two of which live on other tables entirely).
+// db/shipping/shipments/repo.ts derives its PATCHABLE from these keys rather
+// than spelling a second list (ruling 64). `id` is the WHERE key; the two
+// address ids are written once at creation and never patched; `created_at` is
+// the trigger's.
+export const ShipmentPatchColumns = Shipment.omit({
+  id: true,
+  recipient_address_id: true,
+  shipper_address_id: true,
+  created_at: true,
+}).partial();
+export type ShipmentPatchColumns = z.infer<typeof ShipmentPatchColumns>;
+
 export const ShippingValidateAddressBody = z.object({
   carrier_id: Carrier.shape.id.optional(),
   address_id: Address.shape.id,

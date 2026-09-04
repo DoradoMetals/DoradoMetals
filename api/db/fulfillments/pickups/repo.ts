@@ -2,6 +2,7 @@
 import query from "#shared/db/query.ts";
 import { buildUpdate } from "#shared/db/patch.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
+import { FulfillmentPickupPatch } from "@dorado/contracts";
 import type { FulfillmentPickup } from "@dorado/contracts";
 import type { Executor } from "#shared/db/executor.ts";
 
@@ -54,9 +55,13 @@ export async function create(row: PickupNew, executor?: Executor): Promise<Picku
   return rows[0];
 }
 
-export const PATCHABLE = [
-  "pickup_address_id", "assigned_employee_id", "start_time", "end_time",
-] as const;
+// THE COLUMNS, FROM THE CONTRACT (ruling 64). `fulfillment_id` is dropped
+// because it is this update's WHERE key, which is exactly what the schedule
+// body drops it for too.
+export type PickupPatchColumns = Omit<FulfillmentPickupPatch, "fulfillment_id">;
+export const PATCHABLE = Object.keys(
+  FulfillmentPickupPatch.omit({ fulfillment_id: true }).shape
+) as readonly (keyof PickupPatchColumns)[];
 export type PickupPatch = Partial<Record<(typeof PATCHABLE)[number], string | null>>;
 
 export async function update(

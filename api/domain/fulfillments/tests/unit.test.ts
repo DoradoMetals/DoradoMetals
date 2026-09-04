@@ -44,8 +44,9 @@ const builtLink = () =>
     patch: { recipient_location_id: "r" }, where: { shipment_id: "s1" },
   })!.text;
 import {
-  compose, composeAll, byFulfillment, byStartTimeThenId, toWire,
+  compose, composeAll, byFulfillment,
 } from "#domain/fulfillments/compose.ts";
+import { byStartTimeThenId } from "#domain/fulfillments/rules.ts";
 import type { Details } from "#domain/fulfillments/compose.ts";
 
 // The statements are in db/fulfillments; these tests stay in domain/ alongside compose.ts.
@@ -200,21 +201,14 @@ const details = (over: Partial<Details> = {}): Details => ({
   ...over,
 });
 
-test("a fulfillment carries its method nested INTERNALLY, and toWire strips to the bare row", () => {
+test("a fulfillment carries its bare row separately from its nested method", () => {
   const out = compose(base(), details());
   assert.ok(out);
   // Internal: the service's own logic branches on the category.
   assert.equal(out.method.category, "PICKUP");
-  assert.equal(out.method_id, "m1", "method_id is part of the verbatim row now");
-
-  // The wire is the bare fulfillments.fulfillments row and nothing else: no method object, no child rows.
-  const wire = toWire(out);
-  assert.ok(!("method" in wire), "the method object reached the wire");
-  assert.ok(!("pickup" in wire), "a child row reached the wire");
-  assert.ok(!("direct" in wire), "a child row reached the wire");
-  assert.ok(!("shipment" in wire), "a child row reached the wire");
-  assert.equal(wire.method_id, "m1");
-  assert.equal(wire.order_id, "o1");
+  assert.equal(out.fulfillment.method_id, "m1", "method_id is part of the verbatim row");
+  assert.equal(out.fulfillment.order_id, "o1");
+  assert.equal(out.fulfillment.id, "f1");
 });
 
 // THE METHOD JOIN WAS INNER. A fulfillment whose method row is gone is dropped
@@ -231,7 +225,7 @@ test("a fulfillment with no detail keeps three nulls", () => {
   assert.ok(out);
   assert.equal(out.pickup, null);
   assert.equal(out.direct, null);
-  assert.equal(out.shipment, null);
+  assert.deepEqual(out.shipments, []);
 });
 
 test("a booked pickup is nested under its own key and the others stay null", () => {
@@ -243,14 +237,14 @@ test("a booked pickup is nested under its own key and the others stay null", () 
   assert.ok(out);
   assert.equal(out.pickup?.pickup_address_id, "a1");
   assert.equal(out.direct, null);
-  assert.equal(out.shipment, null);
+  assert.deepEqual(out.shipments, []);
   // The child is the VERBATIM repo row, and it's INTERNAL - toWire strips it before anything reaches a response.
   assert.equal(out.pickup?.fulfillment_id, "f1");
 });
 
 test("composeAll drops what compose drops and keeps the rest", () => {
   const rows = [base({ id: "f1" }), base({ id: "f2", method_id: "gone" })];
-  assert.deepEqual(composeAll(rows, details()).map((f) => f.id), ["f1"]);
+  assert.deepEqual(composeAll(rows, details()).map((f) => f.fulfillment.id), ["f1"]);
 });
 
 // NULLS LAST kept deliberately: an unscheduled pickup is work to be BOOKED, not happening now, and a plain sort would put it first.
@@ -273,7 +267,7 @@ test("the schedule sorts by start time with unscheduled work last", () => {
   ].filter((r) => r !== null);
 
   assert.deepEqual(
-    [...rows].sort(byStartTimeThenId).map((r) => r.id),
+    [...rows].sort(byStartTimeThenId).map((r) => r.fulfillment.id),
     ["f1", "f2", "f0", "f3"],
     "unscheduled work did not sort last, or the id tiebreak was lost"
   );
@@ -296,7 +290,7 @@ test("the sort reads a direct's start time as well as a pickup's", () => {
   }));
   assert.ok(withDirect && withPickup);
   assert.deepEqual(
-    [withPickup, withDirect].sort(byStartTimeThenId).map((r) => r.id),
+    [withPickup, withDirect].sort(byStartTimeThenId).map((r) => r.fulfillment.id),
     ["d1", "p1"],
     "the direct's start time was ignored by the sort"
   );

@@ -6,6 +6,7 @@ import { PurchaseOrderDrawerContentProps } from '@/features/orders/purchaseOrder
 import { assignScrapItemNames } from '@/features/orders/display'
 import { useSpotPrices } from '@/features/spots/queries'
 import { usePatchShipment, outboundOf } from '@/features/shipping/queries'
+import { useOrderShipments } from '@dorado/client'
 import {
   usePatchRefinerItem,
   usePatchRefinerOrder,
@@ -35,7 +36,8 @@ export default function ActualsEditor({ view }: PurchaseOrderDrawerContentProps)
   const { data: refinerItems = [] } = useRefinerItems(order.id)
 
   const { data: spotPrices = [] } = useSpotPrices()
-  const shipment = outboundOf(view.shipments)
+  const { data: shipments = [] } = useOrderShipments(order.id)
+  const shipment = outboundOf(shipments)
 
   const scrapItems = assignScrapItemNames(
     items.filter((it) => it.bullion_id === null),
@@ -173,7 +175,7 @@ export default function ActualsEditor({ view }: PurchaseOrderDrawerContentProps)
             <div className="divide-y">
               <div className="flex items-center justify-between w-full items-center px-3 py-2">
                 <div className="truncate">
-                  <span>${shipment?.cost}</span>
+                  <span>${shipment?.shipment.cost}</span>
                 </div>
 
                 <div className="flex items-center gap-1">
@@ -185,12 +187,11 @@ export default function ActualsEditor({ view }: PurchaseOrderDrawerContentProps)
                     // THE PARCEL'S ACTUAL COST IS THE PARCEL'S. It rode on the
                     // order document as shipping_fee_actual, a column of
                     // orders.transactions; the row's own name is actual_cost.
-                    defaultValue={shipment?.actual_cost ?? 0}
+                    defaultValue={shipment?.shipment.actual_cost ?? 0}
                     onBlur={(e) => {
-                      if (!shipment?.id) return
+                      if (!shipment?.shipment.id) return
                       patchShipment.mutate({
-                        shipment_id: shipment.id,
-                        order_id: order.id,
+                        shipment_id: shipment.shipment.id,
                         patch: { shipping_actual: Number(e.target.value) },
                       })
                     }}

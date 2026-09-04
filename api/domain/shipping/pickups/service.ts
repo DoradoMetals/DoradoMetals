@@ -1,25 +1,20 @@
-// Carrier pickups: shipping.pickups, hangs off a SHIPMENT. No order/carrier reconstruction here - reach them through shipping/shipments, like this file does.
-// WHEN A WRITE CAN'T RESOLVE A SHIPMENT, THE ROW IS SKIPPED - the caller is still told what was asked, deliberately.
-// This has already thrown once after a real FedEx label was generated: the rollback discarded the order while FedEx kept the label.
+// Carrier pickups: shipping.pickups, hangs off a SHIPMENT. No order/carrier
+// reconstruction here - reach them through shipping/shipments, like this file
+// does.
+//
+// THE ORDER-SHAPED WRITE PATH IS GONE. `create()` took an order id, a carrier
+// NAME and a date and a time apart, resolved the order to a shipment, and -
+// when it could not - FABRICATED a row that had not been written and returned
+// it as though it had, because a real courier had already been booked. Nothing
+// but its own tests ever called it: the live booking path is
+// recordForShipment(), which is handed the shipment it hangs off. The
+// fabrication went with it, along with `PickupInput`, whose `carrier` and
+// `user_id` fields lint:input-shapes had already reported as read by nothing.
 import { randomUUID } from "node:crypto";
 import * as pickups from "#db/shipping/pickups/repo.ts";
 import * as shipmentService from "#domain/shipping/shipments/service.ts";
-import type { PickupBaseRow } from "#db/shipping/pickups/repo.ts";
+import type { PickupBaseRow, PickupWrite } from "#db/shipping/pickups/repo.ts";
 import type { Executor } from "#shared/db/executor.ts";
-
-// What a caller supplies: an order and a carrier NAME, date/time apart - the shipment lookup below resolves it to what this table actually keys on.
-export type PickupInput = {
-  id?: string;
-  user_id?: string | null;
-  order_id?: string | null;
-  carrier?: string | null;
-  pickup_requested_at?: Date | string | null;
-  date?: string | null;
-  time?: string | null;
-  pickup_status?: string | null;
-  confirmation_number?: string | number | null;
-  location?: string | null;
-};
 
 // ------------------------------------------------------------------- reads
 
@@ -72,67 +67,9 @@ export async function getByOrders(
 
 // ------------------------------------------------------------------ writes
 
-// The shipment an order's pickup hangs off, or null when there is not one yet.
-async function shipmentFor(
-  order_id: string | null | undefined, executor?: Executor
-): Promise<string | null> {
-  if (!order_id) return null;
-  return (await shipmentService.getByOrder(order_id, executor))?.id ?? null;
-}
-
-// What the row would have looked like, had a shipment been there to hang it off - used only when the write above was skipped.
-function pickupView(
-  id: string,
-  input: Pick<PickupInput, "pickup_status" | "confirmation_number" | "location">,
-  requested_at: Date | string | null
-): PickupBaseRow {
-  // NOT A REAL ROW: shipping.pickups.shipment_id is NOT NULL, so nothing was written - this fabricates what the row WOULD have held, for a caller that already booked a real courier.
-  // Cast rather than typed honestly - there is no honest PickupBaseRow for a row that doesn't exist.
-  return {
-    id,
-    shipment_id: null,
-    requested_at,
-    status: input.pickup_status ?? "scheduled",
-    confirmation_number:
-      input.confirmation_number === null || input.confirmation_number === undefined
-        ? null
-        : String(input.confirmation_number),
-    location: input.location ?? null,
-  } as unknown as PickupBaseRow;
-}
-
-// A HELPER (ruling 56): joins the caller's own transaction, never its own -
-// order placement is the reason (see the file header), even though today
-// only tests call this directly.
-export async function create(
-  input: PickupInput, tx: Executor
-): Promise<PickupBaseRow | null> {
-  const id = input.id ?? randomUUID();
-
-  // Date and time combine via Postgres's text cast, not a JS Date.
-  const requested_at =
-    input.pickup_requested_at ??
-    (input.date ? `${input.date} ${input.time || "00:00:00"}` : null);
-
-  const shipment_id = await shipmentFor(input.order_id, tx);
-  if (shipment_id) {
-    return await pickups.create({
-      id, shipment_id,
-      requested_at,
-      status: input.pickup_status ?? "scheduled",
-      confirmation_number:
-        input.confirmation_number === null || input.confirmation_number === undefined
-          ? null
-          : String(input.confirmation_number),
-      location: input.location ?? null,
-    }, tx);
-  }
-
-  // WHEN THE ROW WAS SKIPPED (no shipment yet), THE PICKUP IS STILL REAL.
-  return pickupView(id, input, requested_at);
-}
-
-// Booking when the shipment is already known - unlike create() above, which must resolve an order to one first.
+// Booking, when the shipment is already known - which it always is on the live
+// path: a courier is booked as part of buying the label for the parcel it will
+// collect.
 export async function recordForShipment(
   {
     shipment_id, date, time, confirmation_number = null, location = null,
@@ -159,39 +96,14 @@ export async function recordForShipment(
   );
 }
 
-// A HELPER: cancelPickup (shipping/operations/service.ts) is the one
-// production caller, and it opens its own transaction around this call
-// deliberately - see that file for why the write must not share a
-// transaction with the FedEx call before it.
+// A HELPER (ruling 56): cancelPickup (shipping/operations/service.ts) is the
+// one caller, and it opens its own transaction around this call deliberately -
+// see that file for why the write must not share a transaction with the FedEx
+// call before it.
+// The repo's UPDATE is a full replace, so the caller passes every column.
 export async function update(
-  input: PickupInput, tx: Executor
+  id: string, patch: PickupWrite, tx: Executor
 ): Promise<PickupBaseRow | null> {
-  const id = input.id;
-  if (!id) return null;
-
-  const requested_at =
-    input.pickup_requested_at ??
-    (input.date ? `${input.date} ${input.time || "00:00:00"}` : null);
-
-  const existing = await pickups.getOne(id, tx);
-  if (existing) {
-    await pickups.update(id, {
-      requested_at: requested_at ?? existing.requested_at,
-      status: input.pickup_status ?? existing.status,
-      confirmation_number:
-        input.confirmation_number === null || input.confirmation_number === undefined
-          ? existing.confirmation_number
-          : String(input.confirmation_number),
-      location: input.location ?? existing.location,
-    }, tx);
-  }
-
-  return (await getById(id, tx)) ?? pickupView(id, input, requested_at);
-}
-
-// A HELPER: no production caller today; required tx for the same reason as
-// create/update above rather than inventing a use case nothing calls.
-export async function remove(id: string, tx: Executor): Promise<boolean> {
-  await pickups.remove(id, tx);
-  return true;
+  await pickups.update(id, patch, tx);
+  return await getById(id, tx);
 }

@@ -48,6 +48,10 @@ const COMPUTED: Record<string, string> = {
   "computed/providers.ts": "the carrier catalogue the provider adapter assembles",
   "computed/orders.ts": "what an order may have done to it - booleans derived " +
     "from five tables and stored in none",
+  "computed/fulfillments.ts": "how an order is handed over, and what may be " +
+    "done about it - four tables composed and no table backing the answer",
+  "computed/shipping.ts": "a parcel's progress timeline, derived from scan " +
+    "rows, and what may be done to the parcel",
 };
 
 // A walk that opens nothing is a lint that passes on everything.

@@ -107,7 +107,7 @@ async function primeCheckout(
        fulfillment_id = $2, fulfillment_method_id = $3, shipper_address_id = $4,
        package_id = $5, carrier_service_id = $6, payment_details_id = $7
      WHERE id = $1`,
-    [co.id, draft?.id ?? null, dropoffMethodId, addressId, packageId, labelServiceId, details.id]
+    [co.id, draft?.fulfillment.id ?? null, dropoffMethodId, addressId, packageId, labelServiceId, details.id]
   );
 
   await c.query(`DELETE FROM checkout.items WHERE checkout_id = $1`, [co.id]);
