@@ -19,7 +19,7 @@ import { attempt } from "#shared/attempt.ts";
 import type { ShipmentBaseRow as ShipmentRow } from "#db/shipping/shipments/repo.ts";
 import type { ParsedTracking } from "#providers/shipments/utils/parsing.ts";
 import type { RatesInput } from "#domain/shipping/operations/handler.ts";
-import type { PickupBaseRow as PickupRow } from "#db/shipping/pickups/repo.ts";
+import type { PickupBaseRow } from "#db/shipping/pickups/repo.ts";
 import type { PoolClient } from "pg";
 import type { CheckoutRate, Direction, Shipment, ShipmentView, ShippingCancelLabelBody, ShippingCancelPickupBody, ShippingCheckPickupBody, ShippingGetLocationsBody, ShippingValidateAddressBody } from "@dorado/contracts";
 
@@ -250,7 +250,7 @@ export async function getLocations(
 // Same shape and reasoning as cancelLabel: cancelling a pickup is idempotent and runs outside any transaction - a rollback after it would leave a courier not coming and a row that says one is.
 export async function cancelPickup(
   { pickup_id, carrier_id }: ShippingCancelPickupBody
-): Promise<PickupRow | null> {
+): Promise<PickupBaseRow | null> {
   // Same guard as cancelLabel and getTracking: an unknown id used to read three fields off null after deciding to call the carrier.
   const pickup = await pickupRepo.getById(pickup_id);
   shippingRules.assertPickup(pickup, pickup_id);

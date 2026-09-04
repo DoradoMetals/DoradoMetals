@@ -30,9 +30,7 @@ import * as transactions from "#domain/orders/transactions/service.ts";
 import * as rules from "#domain/orders/rules.ts";
 import * as shipmentsRepo from "#db/shipping/shipments/repo.ts";
 import * as pickupService from "#domain/shipping/pickups/service.ts";
-import type { OrderRow } from "#db/orders/repo.ts";
-import type { OrderItemRow } from "#db/orders/items/repo.ts";
-import type { OrderTotalsRow } from "#domain/orders/transactions/service.ts";
+import type { Order, OrderItem, OrderTotals } from "@dorado/contracts";
 import type { BullionPublic, OrderView, OrderViewItem } from "@dorado/contracts";
 import type { PoolClient } from "pg";
 
@@ -40,13 +38,13 @@ type Executor = PoolClient | undefined;
 
 // `totals` is null for an order with no transactions row - a real state, and
 // the contract declares it nullable for exactly those.
-export type Order = OrderRow & { totals: OrderTotalsRow | null };
+export type OrderWithTotals = Order & { totals: OrderTotals | null };
 
 
 // Assigned onto the row rather than spread into a copy: the rows are this
 // read's own and a copy is a second object to keep in step.
-function attach(rows: OrderRow[], by: Map<string, OrderTotalsRow>): Order[] {
-  const out: Order[] = [];
+function attach(rows: Order[], by: Map<string, OrderTotals>): OrderWithTotals[] {
+  const out: OrderWithTotals[] = [];
   for (const row of rows) {
     out.push(Object.assign(row, { totals: by.get(row.id) ?? null }));
   }
@@ -74,7 +72,7 @@ export async function getOne(
 // columns, so it names none. The two derived figures come with it so no screen
 // multiplies a content by a premium ever again (rules.payableOf/lineTotalOf).
 function withProduct(
-  item: OrderItemRow, catalogue: Map<string, BullionPublic>
+  item: OrderItem, catalogue: Map<string, BullionPublic>
 ): OrderViewItem {
   return Object.assign(item, {
     product: item.bullion_id === null ? null : (catalogue.get(item.bullion_id) ?? null),

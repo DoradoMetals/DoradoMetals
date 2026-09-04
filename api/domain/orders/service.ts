@@ -45,13 +45,9 @@ import * as shippingRules from "#domain/shipping/rules.ts";
 import { calculateTotalPrice, fineContent, unitPrice } from "#domain/pricing/service.ts";
 
 import withTransaction from "#shared/db/withTransaction.ts";
-import { Conflict, Invalid, NotFound } from "#shared/errors.ts";
 import type { Transport } from "#providers/emails/nodemailer.ts";
 import type { Executor } from "#shared/db/executor.ts";
-import type { OrderItemRow } from "#db/orders/items/repo.ts";
-import type {
-  OrderCancelBody, OrderItemPatch, OrderPatch, OrderView,
-} from "@dorado/contracts";
+import type { OrderCancelBody, OrderItemPatch, OrderPatch, OrderView, OrderItem } from "@dorado/contracts";
 
 // ===========================================================================
 // THE ORDER ROW
@@ -62,17 +58,15 @@ import type {
 // cancel, supplier) are their own endpoints now, so there is no dispatcher, no
 // direction matrix and no per-field refusal message left here.
 export async function patch(order_id: string, changes: OrderPatch): Promise<OrderView> {
-  if (Object.keys(changes).length === 0) {
-    throw new Invalid("the document names no field to write");
-  }
+  rules.assertNamesAField(changes);
   const written = await withTransaction((tx) => ordersRepo.update(order_id, changes, {}, tx));
-  if (!written) throw new NotFound(`no order ${order_id}`);
+  rules.assertOrder(written || null, order_id);
   return await viewOf(order_id);
 }
 
 async function viewOf(order_id: string): Promise<OrderView> {
   const order = await orderRead.view(order_id);
-  if (!order) throw new NotFound(`no order ${order_id}`);
+  rules.assertOrder(order, order_id);
   return order;
 }
 
@@ -93,18 +87,12 @@ export async function retierPremiums(order_id: string, executor?: Executor): Pro
   const rates = await ratesService.listRates();
   const lines = await itemsRepo.pricedLinesFor(order_id, executor);
   for (const { id, premium } of rules.retierPlan(rates, lines)) {
-    const repriced = await itemsRepo.update(id, { premium }, {}, executor);
-    if (!repriced) {
-      throw new Error(
-        `order ${order_id}: line ${id} vanished mid-write - its premium was not ` +
-          `repriced and this transaction must not commit`
-      );
-    }
+    rules.assertRepriced(await itemsRepo.update(id, { premium }, {}, executor), order_id, id);
   }
 }
 
 // VERBATIM rows (rulings 9 + 12), both directions. No lines answers [].
-export async function linesFor(order_id: string): Promise<OrderItemRow[]> {
+export async function linesFor(order_id: string): Promise<OrderItem[]> {
   return await itemsRepo.getFor(order_id);
 }
 
@@ -114,7 +102,7 @@ export async function linesFor(order_id: string): Promise<OrderItemRow[]> {
 // and the server resolved it against metals.metals.
 export async function createLine(
   order_id: string, input: OrderItemPatch
-): Promise<OrderItemRow> {
+): Promise<OrderItem> {
   rules.assertDirection(
     await ordersRepo.directionOf(order_id), "purchase", "adding a line"
   );
@@ -137,7 +125,7 @@ export async function createLine(
 
 async function requireProduct(bullion_id: string) {
   const [product] = await productsRepo.listFor({ ids: [bullion_id] });
-  if (!product) throw new NotFound(`no product ${bullion_id} to put on the order`);
+  rules.assertCatalogueProduct(product, bullion_id);
   return product;
 }
 
@@ -151,12 +139,10 @@ async function requireProduct(bullion_id: string) {
 // because two definitions of what content means is the defect that costs money.
 export async function editLine(
   line_id: string, changes: OrderItemPatch
-): Promise<OrderItemRow> {
-  if (Object.keys(changes).length === 0) {
-    throw new Invalid("the document names no field to write");
-  }
+): Promise<OrderItem> {
+  rules.assertNamesAField(changes);
   const line = await itemsRepo.getOne(line_id);
-  if (!line) throw new NotFound(`no order item ${line_id}`);
+  rules.assertLine(line, line_id);
 
   // The weights the line will hold once this patch is applied - a key the
   // document does not carry keeps the stored value.
@@ -166,17 +152,21 @@ export async function editLine(
   const purity = changes.purity !== undefined ? changes.purity : line.purity;
 
   return await withTransaction(async (tx) => {
+    // The repo answers the written row (RETURNING), so nothing re-reads it to
+    // find out what it now holds.
     const written = await itemsRepo.update(
       line_id,
       Object.assign({ content: fineContent(weight ?? preMelt, unit, purity) }, changes),
       { order_id: line.order_id },
       tx
     );
-    if (!written) throw new NotFound(`no order item ${line_id}`);
+    rules.assertLine(written, line_id);
     // A weight change moves the order's total content, so every line re-tiers -
-    // unless the document named a premium, which is the admin's own.
-    if (rules.retiersAfterEdit(changes)) await retierPremiums(line.order_id, tx);
-    return (await itemsRepo.getOne(line_id, tx))!;
+    // unless the document named a premium, which is the admin's own. That
+    // rewrites this line too, so it is read back only on that path.
+    if (!rules.retiersAfterEdit(changes)) return written;
+    await retierPremiums(line.order_id, tx);
+    return (await itemsRepo.getOne(line_id, tx)) ?? written;
   });
 }
 
@@ -184,16 +174,11 @@ export async function editLine(
 // because the scrap IS the line, and refiners.items cascades.
 export async function removeLine(line_id: string): Promise<{ success: true }> {
   const line = await itemsRepo.getOne(line_id);
-  if (!line) throw new NotFound(`no order item ${line_id}`);
+  rules.assertLine(line, line_id);
 
   await withTransaction(async (tx) => {
     const removed = await itemsRepo.remove(line_id, line.order_id, tx);
-    if (!removed) {
-      throw new Error(
-        `order ${line.order_id}: line ${line_id} was not removed - this ` +
-          `transaction must not commit`
-      );
-    }
+    rules.assertRemoved(removed, line.order_id, line_id);
     // Removing a line changes the per-metal totals, so re-tier the survivors.
     await retierPremiums(line.order_id, tx);
   });
@@ -255,11 +240,7 @@ export async function addFunds(order_id: string): Promise<OrderView> {
   rules.assertDirection(order.order.direction, "purchase", "adding funds");
 
   const amount = order.totals?.total ?? null;
-  if (amount === null) {
-    throw new Invalid(
-      `order ${order.order.number} has no total, so there is nothing to credit`
-    );
-  }
+  rules.assertCreditable(amount, order.order.number);
 
   await withTransaction(async (tx) => {
     await usersService.addFunds(order.order.user_id, amount, tx);
@@ -321,7 +302,7 @@ export async function cancel(
   rules.assertDirection(order.order.direction, "purchase", "cancelling");
 
   const box = await packagesRepo.getOne(package_id);
-  if (!box) throw new Invalid("that package does not exist");
+  rules.assertPackage(box);
   const service = await carrierServices.labelServiceFor(carrier_service_id);
   const weight = shippingRules.parcelWeightLb(order.items, box);
   const declaredValue = await carrierServices.clampInsuredValue(
@@ -355,7 +336,7 @@ export async function cancel(
     let id = existing?.id;
     if (!id) {
       const shipment = await shipmentService.create({ order_id, direction: "Return" }, tx);
-      if (!shipment) throw new Error("the return shipment was not created");
+      rules.assertReturnShipment(shipment);
       id = shipment.id;
     }
     await shipmentService.update(
@@ -388,21 +369,15 @@ export async function buyLabel(
   rules.assertDirection(order.order.direction, "purchase", "buying a label");
 
   const shipment = order.shipments.find((s) => s.direction === "Inbound");
-  if (!shipment) throw new NotFound(`order ${order_id} has no shipment to label`);
-  if (shipment.tracking_number) {
-    throw new Conflict(`order ${order_id} already has a label`);
-  }
+  rules.assertShipmentToLabel(shipment, order_id);
+  rules.assertUnlabelled(shipment.tracking_number, order_id);
+  rules.assertParcelChosen(shipment, order_id);
   const { carrier_service_id, package_id, pickup_type } = shipment;
-  if (!carrier_service_id || !package_id) {
-    throw new Invalid(`order ${order_id}'s shipment has no service or package chosen yet`);
-  }
 
   const box = await packagesRepo.getOne(package_id);
   const service = await carrierServices.labelServiceFor(carrier_service_id);
   const handoff = (await handoffsService.getHandoffs()).find((h) => h.name === pickup_type);
-  if (!handoff) {
-    throw new Invalid(`shipment ${shipment.id} names a handoff the carrier no longer offers`);
-  }
+  rules.assertHandoff(handoff, shipment.id);
   const shipper = rules.requireAddress(order.address ?? undefined, "shipper");
   const weight = shippingRules.parcelWeightLb(order.items, box);
   const [scheduled] = await fulfillmentPickups.forOrder(order_id);
@@ -442,13 +417,9 @@ export async function sendToRefiner(
     await withTransaction(async (tx) => {
       // The engagement owns which refinery has the metal (refiners.orders, 093).
       const engagementId = await refinerService.engagementIdFor(order_id, tx);
-      const attached = await refinerOrders.update(engagementId, { refiner_id }, tx);
-      if (!attached) {
-        throw new Error(
-          `sales order ${order_id}: the refiner was not attached - this ` +
-            `transaction must not commit`
-        );
-      }
+      rules.assertRefinerAttached(
+        await refinerOrders.update(engagementId, { refiner_id }, tx), order_id
+      );
       await shipmentService.create({ order_id, direction: "Outbound" }, tx);
       await ordersRepo.update(order_id, { order_sent: true }, {}, tx);
     });
@@ -470,7 +441,7 @@ export async function updateTracking(
   order_id: string, tracking_number: string
 ): Promise<{ success: true }> {
   const shipment = await shipmentService.getByOrder(order_id);
-  if (!shipment) throw new NotFound(`order ${order_id} has no shipment to track`);
+  rules.assertShipmentToTrack(shipment, order_id);
 
   await withTransaction(async (tx) => {
     await shipmentService.update(shipment.id, { tracking_number }, tx);

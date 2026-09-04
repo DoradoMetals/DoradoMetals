@@ -7,22 +7,19 @@
 import * as refinerSpotsRepo from "#db/refiners/spots/repo.ts";
 import * as orderTransactions from "#domain/orders/transactions/service.ts";
 import * as refinerOrdersRepo from "#db/refiners/orders/repo.ts";
-import { Invalid, NotFound } from "#shared/errors.ts";
-import type { RefinerOrderPatch, RefinerSpotWrite } from "@dorado/contracts";
-import type { RefinerOrderRow } from "#db/refiners/orders/repo.ts";
+import * as rules from "#domain/refiners/orders/rules.ts";
+import type { RefinerOrderPatch, RefinerSpotWrite, RefinerOrder } from "@dorado/contracts";
 
 
 // The body is parsed strictly at transport; what is left is the RULE that a
 // patch must name at least one field, which an all-optional schema cannot say.
 export async function patchRefinerOrder(
   id: string, patch: RefinerOrderPatch
-): Promise<RefinerOrderRow> {
-  if (Object.keys(patch).length === 0) {
-    throw new Invalid("the document names no field to write");
-  }
+): Promise<RefinerOrder> {
+  rules.assertNamesAField(patch);
 
   const engagement = await refinerOrdersRepo.findById(id);
-  if (!engagement) throw new NotFound(`no refiner order ${id}`);
+  rules.assertRefinerOrder(engagement, id);
   const order_id = engagement.order_id;
 
   // The refinery's bid per metal, keyed by metal ID - refiners.spots is keyed
@@ -54,12 +51,12 @@ export async function patchRefinerOrder(
   }
 
   const written = await refinerOrdersRepo.findById(id);
-  if (!written) throw new NotFound(`no refiner order ${id}`);
+  rules.assertRefinerOrder(written, id);
   return written;
 }
 
 // The engagement, addressed by the customer order (GET /orders/:orderId/refiners):
 // order_id is the only edge between the two. Null when the order has none.
-export async function getByOrder(order_id: string): Promise<RefinerOrderRow | null> {
+export async function getByOrder(order_id: string): Promise<RefinerOrder | null> {
   return (await refinerOrdersRepo.findByOrder(order_id)) ?? null;
 }

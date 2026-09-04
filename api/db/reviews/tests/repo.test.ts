@@ -21,23 +21,21 @@ afterAll(async () => {
   await pool.end();
 });
 
-test("update writes a real review and answers true", async () => {
+test("update writes a real review and answers the written row", async () => {
   await inRollback(async (c: PoolClient) => {
     const review = await aReview(c);
 
-    const changed = await reviews.update(review.id, { rating: 3, hidden: false }, c);
-    assert.equal(changed, true, "update reported no row changed");
-
-    const after = await reviews.getOne(review.id, c);
-    assert.equal(after?.rating, 3);
-    assert.equal(after?.hidden, false);
+    const written = await reviews.update(review.id, { rating: 3, hidden: false }, c);
+    assert.equal(written?.rating, 3);
+    assert.equal(written?.hidden, false);
+    assert.deepEqual(written, await reviews.getOne(review.id, c));
   });
 });
 
-test("update answers false for an id with no review row", async () => {
+test("update answers undefined for an id with no review row", async () => {
   await inRollback(async (c: PoolClient) => {
-    const changed = await reviews.update(randomUUID(), { rating: 1 }, c);
-    assert.equal(changed, false, "update reported a change for a review that does not exist");
+    const written = await reviews.update(randomUUID(), { rating: 1 }, c);
+    assert.equal(written, undefined, "update answered a row for a review that does not exist");
   });
 });
 

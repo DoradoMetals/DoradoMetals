@@ -9,7 +9,7 @@ import type { PoolClient } from "pg";
 
 type Executor = PoolClient | undefined;
 
-export type { OrderAddressRow } from "#db/orders/addresses/repo.ts";
+export type { OrderAddressLink } from "@dorado/contracts";
 
 // Null when the order has no address link - a real state for most dev orders;
 // the controller turns it into a 404.

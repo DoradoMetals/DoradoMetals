@@ -7,7 +7,7 @@ import { isTestRun } from "#shared/testing/is-test-run.ts";
  * otherwise. Passing the client is how a repo call joins its caller's
  * transaction:
  *
- *   const { rows } = await query<LeadRow>(sql, [id], client);
+ *   const { rows } = await query<Lead>(sql, [id], client);
  */
 export default async function query<T extends QueryResultRow = QueryResultRow>(
   sql: string,

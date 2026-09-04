@@ -1,37 +1,33 @@
 // Leads: orchestration and the wire shape.
 //
-// update takes an id and a patch, never a round-tripped row; it refetches after so the response still carries fresh state.
+// update takes an id and a patch, never a round-tripped row; the repo answers
+// the written row itself (RETURNING), so there is no re-read that can find
+// nothing and no second refusal to spell.
 import withTransaction from "#shared/db/withTransaction.ts";
 import * as leads from "#db/leads/repo.ts";
-import type { LeadRow, LeadPatch } from "#db/leads/repo.ts";
-import { NotFound } from "#shared/errors.ts";
+import * as rules from "#domain/leads/rules.ts";
+import type { Lead, LeadPatch } from "@dorado/contracts";
 
-// The wire IS the row - no identity adapter.
-export type LeadWire = LeadRow;
-
-export async function getOne(id: string): Promise<LeadWire> {
+export async function getOne(id: string): Promise<Lead> {
   const row = await leads.getOne(id);
-  // A missing lead is a 404, not a 200 carrying undefined - the latter reaches the client as an empty body, indistinguishable from a lead with no fields.
-  if (!row) throw new NotFound(`no lead ${id}`);
+  rules.assertLead(row, id);
   return row;
 }
 
-export async function list(): Promise<LeadWire[]> {
+export async function list(): Promise<Lead[]> {
   return await leads.list();
 }
 
-export async function create(lead: LeadPatch): Promise<LeadWire> {
+export async function create(lead: LeadPatch): Promise<Lead> {
   return withTransaction(async (client) => {
     return await leads.create(lead, client);
   });
 }
 
-export async function update(id: string, patch: LeadPatch): Promise<LeadWire> {
+export async function update(id: string, patch: LeadPatch): Promise<Lead> {
   return withTransaction(async (client) => {
-    const changed = await leads.update(id, patch, client);
-    if (!changed) throw new NotFound(`no lead ${id}`);
-    const row = await leads.getOne(id, client);
-    if (!row) throw new NotFound(`no lead ${id}`);
+    const row = await leads.update(id, patch, client);
+    rules.assertLead(row, id);
     return row;
   });
 }

@@ -10,28 +10,27 @@ import type { Executor } from "#shared/db/executor.ts";
 
 const sql = sqlFrom(import.meta.dirname);
 
-export type ShipmentLinkRow = FulfillmentShipment;
 
 // Returns a LIST - the unique index is on shipment_id, so a fulfillment may have several parcels.
 export async function getFor(
   fulfillment_id: string, executor?: Executor
-): Promise<ShipmentLinkRow[]> {
-  const { rows } = await query<ShipmentLinkRow>(sql("get_for"), [fulfillment_id], executor);
+): Promise<FulfillmentShipment[]> {
+  const { rows } = await query<FulfillmentShipment>(sql("get_for"), [fulfillment_id], executor);
   return rows;
 }
 
-export async function getMany(ids: string[], executor?: Executor): Promise<ShipmentLinkRow[]> {
+export async function getMany(ids: string[], executor?: Executor): Promise<FulfillmentShipment[]> {
   if (ids.length === 0) return [];
-  const { rows } = await query<ShipmentLinkRow>(sql("get_many"), [ids], executor);
+  const { rows } = await query<FulfillmentShipment>(sql("get_many"), [ids], executor);
   return rows;
 }
 
 // From the parcel's side - the read the shipping feature needs to reconstruct an order id.
 export async function getByShipment(
   shipment_ids: string[], executor?: Executor
-): Promise<ShipmentLinkRow[]> {
+): Promise<FulfillmentShipment[]> {
   if (shipment_ids.length === 0) return [];
-  const { rows } = await query<ShipmentLinkRow>(
+  const { rows } = await query<FulfillmentShipment>(
     sql("get_by_shipment"), [shipment_ids], executor
   );
   return rows;
@@ -62,8 +61,8 @@ export type ShipmentLinkInput = {
 
 export type ShipmentLinkNew = ShipmentLinkInput & { id: string; fulfillment_id: string };
 
-export async function create(row: ShipmentLinkNew, executor?: Executor): Promise<ShipmentLinkRow> {
-  const { rows } = await query<ShipmentLinkRow>(
+export async function create(row: ShipmentLinkNew, executor?: Executor): Promise<FulfillmentShipment> {
+  const { rows } = await query<FulfillmentShipment>(
     sql("create"),
     [
       row.id, row.fulfillment_id, row.shipment_id,

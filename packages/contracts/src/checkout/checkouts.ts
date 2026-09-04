@@ -54,6 +54,25 @@ export type CheckoutPatch = z.infer<typeof CheckoutPatch>;
 export const CheckoutPatchBody = CheckoutPatch.extend({ direction: Direction }).strict();
 export type CheckoutPatchBody = z.infer<typeof CheckoutPatchBody>;
 
+// WHAT THE SERVER MAY WRITE on a checkout row, which is wider than what a
+// REQUEST may name and narrower than the row. The three extra columns are
+// pointers the services that create what they point at set for themselves -
+// the draft fulfillment (domain/checkout setFulfillmentMethod) and the sealed
+// payout details (saveCheckoutPayout); no body may carry one.
+//
+// It exists so that nothing hand-lists these columns (ruling 64): the repo's
+// patch whitelist is `columnsOf(CheckoutWrite)` and the sign-in merge rule's
+// CHOICE_COLUMNS is the same call, so the two cannot drift and a column added
+// here is carried by both without an edit.
+export const CheckoutWrite = CheckoutPatch.extend(
+  Checkout.pick({
+    payment_details_id: true,
+    fulfillment_id: true,
+    fulfillment_method_id: true,
+  }).partial().shape
+);
+export type CheckoutWrite = z.infer<typeof CheckoutWrite>;
+
 // The stepper picks a carrier HANDOFF and never spells a fulfillment method;
 // the server owns that vocabulary. Either names the step.
 export const CheckoutFulfillmentBody = z.object({ direction: Direction })

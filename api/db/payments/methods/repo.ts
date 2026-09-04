@@ -8,34 +8,40 @@
 import query from "#shared/db/query.ts";
 import { buildUpdate } from "#shared/db/patch.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
-import type { PaymentMethod } from "@dorado/contracts";
 import type { Executor } from "#shared/db/executor.ts";
+import { columnsOf } from "#shared/db/columns.ts";
+import { PaymentMethod } from "@dorado/contracts";
 
 const sql = sqlFrom(import.meta.dirname);
 
-export type MethodRow = PaymentMethod;
 
-export const PATCHABLE = [
-  "enabled", "display", "label", "surcharge_label", "flat_fee",
-  "surcharge_percent", "time_delay", "min_amount", "max_amount",
-  "short_description", "long_description", "fit_description", "fit_header",
-  "fit_bullets", "sort_order", "details", "image_id",
-] as const;
+// THE COLUMNS, FROM THE CONTRACT (ruling 64): the row without its identity
+// (id, direction, type, currency), without what the PROVIDER decides it can do
+// (supports_partial / supports_split / provider / provider_value) and without
+// the audit columns. What is left is the presentation and the money an admin
+// edits.
+const WRITABLE = PaymentMethod.omit({
+  id: true, direction: true, type: true, currency: true,
+  supports_partial: true, supports_split: true, provider: true, provider_value: true,
+  created_at: true, updated_at: true, created_by: true, updated_by: true,
+  created_by_id: true, updated_by_id: true,
+});
+export const PATCHABLE = columnsOf(WRITABLE);
 
-export type MethodPatch = Partial<Pick<MethodRow, (typeof PATCHABLE)[number]>>;
+export type MethodPatch = Partial<Pick<PaymentMethod, (typeof PATCHABLE)[number]>>;
 
-export async function getOne(id: string, executor?: Executor): Promise<MethodRow | undefined> {
-  const { rows } = await query<MethodRow>(sql("get_one"), [id], executor);
+export async function getOne(id: string, executor?: Executor): Promise<PaymentMethod | undefined> {
+  const { rows } = await query<PaymentMethod>(sql("get_one"), [id], executor);
   return rows[0];
 }
 
-export async function list(executor?: Executor): Promise<MethodRow[]> {
-  const { rows } = await query<MethodRow>(sql("list"), [], executor);
+export async function list(executor?: Executor): Promise<PaymentMethod[]> {
+  const { rows } = await query<PaymentMethod>(sql("list"), [], executor);
   return rows;
 }
 
-export async function listFor(direction: string, executor?: Executor): Promise<MethodRow[]> {
-  const { rows } = await query<MethodRow>(sql("list_for_direction"), [direction], executor);
+export async function listFor(direction: string, executor?: Executor): Promise<PaymentMethod[]> {
+  const { rows } = await query<PaymentMethod>(sql("list_for_direction"), [direction], executor);
   return rows;
 }
 
@@ -43,8 +49,8 @@ export async function listFor(direction: string, executor?: Executor): Promise<M
 // instrument each resolve to a method_id.
 export async function findByType(
   direction: string, type: string, executor?: Executor
-): Promise<MethodRow | undefined> {
-  const { rows } = await query<MethodRow>(sql("find_by_type"), [direction, type], executor);
+): Promise<PaymentMethod | undefined> {
+  const { rows } = await query<PaymentMethod>(sql("find_by_type"), [direction, type], executor);
   return rows[0];
 }
 

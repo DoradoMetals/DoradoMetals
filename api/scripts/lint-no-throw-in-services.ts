@@ -41,42 +41,31 @@ const API_ROOT = process.env.LINT_NO_THROW_ROOT
 
 const DOMAIN_ROOT = path.join(API_ROOT, "domain");
 
-// EVERY FILE UNDER domain/ THAT STILL THROWS, with the count as it stood when
-// ruling 65 landed and the lane that owns it. Each entry is a debt, not a
-// dispensation: the fulfillments lane converted its own two features and left
-// these exactly as it found them, because a lane that edits another lane's
-// service file to satisfy a lint it just introduced is how two lanes conflict.
+// EVERY FILE UNDER domain/ THAT STILL THROWS, with the count as it stands and
+// the lane that owns it. Each entry is a debt, not a dispensation: a lane that
+// edits another lane's service file to satisfy a lint it just introduced is
+// how two lanes conflict.
 //
 // TO CLEAR ONE: move its refusals into that feature's `rules.ts` as named
 // asserts and delete the entry. TO LOWER ONE: same, partly - and change the
 // number here in the same diff, which is the point of pinning it.
 //
-// THE PIN HAS ALREADY EARNED ITS KEEP ONCE. This list arrived from the
-// fulfillments lane with four payments entries on it (22 throws across
-// `payments/service.ts`, `payments/details/service.ts`, `payouts/service.ts`
-// and `users/service.ts`). The payments lane had cleared all four the same
-// night, each into a `rules.ts` of its own - so the merge failed here, on
-// "ACCEPTED entries matched nothing", rather than quietly carrying four
-// dispensations for debt that no longer existed.
+// THE PIN HAS EARNED ITS KEEP THREE TIMES, and every time on a MERGE. It
+// arrived from the fulfillments lane with four payments entries the payments
+// lane had already cleared, so the merge failed here on "ACCEPTED entries
+// matched nothing" rather than quietly carrying four dispensations for debt
+// that no longer existed. The products lane cleared rates the same way. And it
+// fired again when the cleanup lane cleared the rest (2026-09-04, rulings
+// 64-65): checkout, orders (service, place, spots), quotes (service, profit),
+// refiners (items, orders), media (images, three pdfs), pricing/bid, leads,
+// reviews and sales-tax each grew or gained a `rules.ts` and every throw moved
+// into it.
+//
+// ONE ENTRY LEFT, and it is somebody else's file: the places/users lane owns
+// `domain/places/**` for the whole of this pass. Its four refusals are exactly
+// as the cleanup lane found them, and its own merge is what removes this.
 const ACCEPTED: Record<string, { count: number; why: string }> = {
-  "domain/checkout/adopt.ts": { count: 3, why: "checkout lane" },
-  "domain/checkout/service.ts": { count: 15, why: "checkout lane" },
-  "domain/leads/service.ts": { count: 3, why: "leads - no lane assigned yet" },
-  "domain/media/images/service.ts": { count: 1, why: "media - no lane assigned yet" },
-  "domain/media/pdfs/order-inputs.ts": { count: 1, why: "media - no lane assigned yet" },
-  "domain/media/pdfs/render/assets.ts": { count: 1, why: "media - no lane assigned yet" },
-  "domain/media/pdfs/serve.ts": { count: 2, why: "media - no lane assigned yet" },
-  "domain/orders/place.ts": { count: 8, why: "orders lane" },
-  "domain/orders/service.ts": { count: 19, why: "orders lane" },
-  "domain/orders/spots/service.ts": { count: 1, why: "orders lane" },
-  "domain/places/addresses/service.ts": { count: 4, why: "places - no lane assigned yet" },
-  "domain/pricing/bid.ts": { count: 4, why: "pricing - no lane assigned yet" },
-  "domain/quotes/profit.ts": { count: 1, why: "quotes - no lane assigned yet" },
-  "domain/quotes/service.ts": { count: 7, why: "quotes - no lane assigned yet" },
-  "domain/refiners/items/service.ts": { count: 3, why: "refiners - no lane assigned yet" },
-  "domain/refiners/orders/service.ts": { count: 3, why: "refiners - no lane assigned yet" },
-  "domain/reviews/service.ts": { count: 3, why: "reviews - no lane assigned yet" },
-  "domain/sales-tax/service.ts": { count: 1, why: "sales-tax - no lane assigned yet" },
+  "domain/places/addresses/service.ts": { count: 4, why: "places/users lane" },
 };
 
 function walk(dir: string, out: string[] = []): string[] {

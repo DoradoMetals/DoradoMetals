@@ -4,25 +4,25 @@ import { randomUUID } from "node:crypto";
 import query from "#shared/db/query.ts";
 import { buildUpdate } from "#shared/db/patch.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
-import type { OrderTotals } from "@dorado/contracts";
 import type { Executor } from "#shared/db/executor.ts";
+import { columnsOf } from "#shared/db/columns.ts";
+import { OrderTotals } from "@dorado/contracts";
 
 const sql = sqlFrom(import.meta.dirname);
 
-export type OrderTotalsRow = OrderTotals;
 
 export async function getFor(
   order_id: string, executor?: Executor
-): Promise<OrderTotalsRow | undefined> {
-  const { rows } = await query<OrderTotalsRow>(sql("get_for"), [order_id], executor);
+): Promise<OrderTotals | undefined> {
+  const { rows } = await query<OrderTotals>(sql("get_for"), [order_id], executor);
   return rows[0];
 }
 
 export async function getMany(
   order_ids: string[], executor?: Executor
-): Promise<OrderTotalsRow[]> {
+): Promise<OrderTotals[]> {
   if (order_ids.length === 0) return [];
-  const { rows } = await query<OrderTotalsRow>(sql("get_many"), [order_ids], executor);
+  const { rows } = await query<OrderTotals>(sql("get_many"), [order_ids], executor);
   return rows;
 }
 
@@ -37,12 +37,17 @@ export async function getMany(
 // created with it NULL (the quote is bundled with the label purchase, and that
 // now happens AFTER the write - domain/orders/postage.ts), so the AFTER step
 // patches it in once the carrier has answered.
-const PATCHABLE = [
-  "total", "shipping", "shipping_fee_actual", "refiner_fee", "pool_oz_deducted",
-  "pool_remediation", "payout_fee", "waive_payout_fee", "payout_details_id",
-] as const;
-type TotalsColumn = (typeof PATCHABLE)[number];
-export type TotalsPatch = Partial<Record<TotalsColumn, string | number | boolean | null>>;
+// THE COLUMNS, FROM THE CONTRACT (ruling 64). A pick rather than an omit
+// because most of this table is NOT writable through here: the customer-facing
+// subtotals are derived at placement and rewritten by finalize-pricing, and
+// only these nine are ever patched afterwards.
+const WRITABLE = OrderTotals.pick({
+  total: true, shipping: true, shipping_fee_actual: true, refiner_fee: true,
+  pool_oz_deducted: true, pool_remediation: true, payout_fee: true,
+  waive_payout_fee: true, payout_details_id: true,
+});
+const PATCHABLE = columnsOf(WRITABLE);
+export type TotalsPatch = Partial<Record<(typeof PATCHABLE)[number], string | number | boolean | null>>;
 export type TotalsGuard = { direction?: "purchase" | "sale" };
 
 export async function update(

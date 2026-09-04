@@ -3,18 +3,17 @@
 // line, one cover per frozen spot. Pure - no database, no request.
 import type { NewRefinerItem } from "#db/refiners/items/repo.ts";
 import type { SpotNew } from "#db/refiners/spots/repo.ts";
-import type { OrderItemRow } from "#db/orders/items/repo.ts";
 import type { OrderSpotRawRow } from "#db/orders/spots/repo.ts";
-import type { RefinerItemRow } from "#db/refiners/items/repo.ts";
 import type { EngagementSpotRow } from "#db/refiners/spots/repo.ts";
+import type { OrderItem, RefinerItem } from "@dorado/contracts";
 
 // A counterpart for every customer line that has none yet. bullion_id, metal_id
 // and quantity ride over from the line; every assay column stays null until the
 // refinery reports.
 export function counterpartLines(
   refiner_order_id: string,
-  lines: readonly OrderItemRow[],
-  covered: readonly RefinerItemRow[]
+  lines: readonly OrderItem[],
+  covered: readonly RefinerItem[]
 ): NewRefinerItem[] {
   const alreadyMirrored = new Set(covered.map((row) => row.order_item_id));
   return lines

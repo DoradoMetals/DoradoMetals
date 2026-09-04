@@ -56,7 +56,10 @@ test("the update writes the keys the patch carries, and only those", () => {
   // sixth assignment.
   const sets = all.text.split(" WHERE")[0];
   const assignments = [...sets.matchAll(/(\w+) = \$\d+/g)].map(([, c]) => c);
-  assert.deepEqual(assignments, ["name", "review_text", "rating", "hidden"]);
+  // Compared as a SET: the SET list follows PATCHABLE, which is
+  // `columnsOf(ReviewPatch)` since ruling 64 - so the ORDER is the contract's
+  // and pinning it here would pin a fact about zod's pick, not about the write.
+  assert.deepEqual(assignments.slice().sort(), ["hidden", "name", "rating", "review_text"]);
 });
 
 // An explicit null clears; an absent key is not in the SET list at all.

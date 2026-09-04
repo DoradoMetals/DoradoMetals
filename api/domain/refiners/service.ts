@@ -7,9 +7,8 @@ import * as organizations from "#db/organizations/repo.ts";
 import * as orderItems from "#db/orders/items/repo.ts";
 import * as orderSpots from "#db/orders/spots/repo.ts";
 import { counterpartLines, counterpartSpots } from "#domain/refiners/rules.ts";
-import type { RefinerRow } from "#db/refiners/repo.ts";
 import type { Executor } from "#shared/db/executor.ts";
-import type { Organization } from "@dorado/contracts";
+import type { Organization, Refiner } from "@dorado/contracts";
 
 // A refiner IS its organization's name, email and phone plus a logo, so the two
 // rows travel as one. Inner-join semantics: a refiner with no organization is
@@ -25,7 +24,7 @@ export type ComposedRefiner = {
 };
 
 const composed = (
-  refiner: RefinerRow, organization: Organization
+  refiner: Refiner, organization: Organization
 ): ComposedRefiner => ({
   id: refiner.id,
   logo: refiner.logo,

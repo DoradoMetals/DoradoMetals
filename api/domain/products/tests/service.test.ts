@@ -234,7 +234,10 @@ test("updating a product nobody has is a refusal, not a silent no-op", async () 
 
 // metal_id/mint_id/supplier_id are ids (ruling 43): an unknown one is refused
 // by the database's own foreign key, not by a name lookup this service used to
-// run first.
+// run first. The MESSAGE is the shared pg-error translation's (ruling 64's
+// cleanup lane, shared/db/pg-error.ts): a 23503 raised by a write naming a row
+// that is not there becomes an Invalid naming the column, so the caller gets a
+// 422 saying which id was wrong instead of a 500 carrying a constraint name.
 const NOBODY = "00000000-0000-0000-0000-000000000000";
 for (const field of ["metal_id", "mint_id", "supplier_id"] as const) {
   test(`an unknown ${field} is refused by the database`, async () => {
@@ -242,7 +245,7 @@ for (const field of ["metal_id", "mint_id", "supplier_id"] as const) {
       const built = await aProduct(c);
       await assert.rejects(
         () => service.updateProduct(built.id, { [field]: NOBODY }),
-        /foreign key|violates/i,
+        new RegExp(`${field}: no such row`),
         `a bad ${field} was not refused`
       );
     }, { actor: TEST_ACTOR.id, lock: LOCKS.ORDERS });

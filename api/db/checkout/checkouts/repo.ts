@@ -11,67 +11,65 @@
 import query from "#shared/db/query.ts";
 import { buildUpdate } from "#shared/db/patch.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
-import type { Checkout } from "@dorado/contracts";
+import { columnsOf, returningOf } from "#shared/db/columns.ts";
+import { Checkout, CheckoutWrite } from "@dorado/contracts";
 import type { Executor } from "#shared/db/executor.ts";
 
 const sql = sqlFrom(import.meta.dirname);
 
-export type CheckoutRow = Checkout;
+// THE COLUMNS, FROM THE CONTRACT (ruling 64). `CheckoutWrite` is what the
+// SERVER may write - the customer's own choices plus the three pointers the
+// services that create what they point at set. Which of these a REQUEST may
+// name is a narrower question, answered at the transport boundary by
+// `CheckoutPatchBody`.
+export const PATCHABLE = columnsOf(CheckoutWrite);
+const RETURNING = returningOf(Checkout);
 
-// The two columns a session cannot be created without. Derived, not spelled:
-// widening either in the database widens this without an edit here.
-export type NewCheckout = Pick<Checkout, "user_id" | "direction">;
+export type CheckoutPatch = CheckoutWrite;
 
-// EVERY COLUMN A SESSION CARRIES except its own key and its owner. Which of
-// these a REQUEST may name is a narrower question, and it is answered at the
-// transport boundary by the body schema - not here, because the service also
-// writes fulfillment_id and the payout pointers, which no request may send.
-export const PATCHABLE = [
-  "payment_method_id", "payment_details_id", "fulfillment_id",
-  "fulfillment_method_id", "appointment_location_id", "pickup_address_id",
-  "shipper_address_id", "recipient_address_id", "carrier_service_id",
-  "package_id", "appointment_time", "pickup_date", "pickup_time",
-] as const;
-
-export type CheckoutPatch = Partial<Pick<CheckoutRow, (typeof PATCHABLE)[number]>>;
-
-export async function getOne(id: string, executor?: Executor): Promise<CheckoutRow | undefined> {
-  const { rows } = await query<CheckoutRow>(sql("get_one"), [id], executor);
+export async function getOne(id: string, executor?: Executor): Promise<Checkout | undefined> {
+  const { rows } = await query<Checkout>(sql("get_one"), [id], executor);
   return rows[0];
 }
 
 // The natural key: one session per customer per direction.
 export async function findFor(
   user_id: string, direction: string, executor?: Executor
-): Promise<CheckoutRow | undefined> {
-  const { rows } = await query<CheckoutRow>(sql("find_for"), [user_id, direction], executor);
+): Promise<Checkout | undefined> {
+  const { rows } = await query<Checkout>(sql("find_for"), [user_id, direction], executor);
   return rows[0];
 }
 
-export async function listFor(user_id: string, executor?: Executor): Promise<CheckoutRow[]> {
-  const { rows } = await query<CheckoutRow>(sql("list_for_user"), [user_id], executor);
+export async function listFor(user_id: string, executor?: Executor): Promise<Checkout[]> {
+  const { rows } = await query<Checkout>(sql("list_for_user"), [user_id], executor);
   return rows;
 }
 
 // Answers undefined when a concurrent request won the race - see sql/create.sql.
 export async function create(
-  row: NewCheckout, executor?: Executor
-): Promise<CheckoutRow | undefined> {
-  const { rows } = await query<CheckoutRow>(
+  // The two columns a session cannot be created without, from the contract -
+  // widening either in the database widens this without an edit here.
+  row: Pick<Checkout, "user_id" | "direction">, executor?: Executor
+): Promise<Checkout | undefined> {
+  const { rows } = await query<Checkout>(
     sql("create"), [row.user_id, row.direction], executor
   );
   return rows[0];
 }
 
+// Answers THE WRITTEN ROW. Every caller wanted the fresh row and re-read it
+// with a second SELECT that could come back empty, so each carried a "the
+// checkout session vanished mid-write" refusal for a state RETURNING makes
+// unreachable.
 export async function update(
   id: string, patch: CheckoutPatch, executor?: Executor
-): Promise<boolean> {
+): Promise<Checkout | undefined> {
   const built = buildUpdate({
-    table: "checkout.checkouts", allowed: PATCHABLE, patch, where: { id },
+    table: "checkout.checkouts", allowed: PATCHABLE, patch, where: { id }, returning: RETURNING,
   });
-  if (!built) return true;
-  const { rowCount } = await query(built.text, built.values, executor);
-  return rowCount === 1;
+  if (!built) return await getOne(id, executor);
+  const { rows } = await query<Checkout>(built.text, built.values, executor);
+  return rows[0];
 }
 
 // A VISITOR'S ROW CHANGES HANDS (ruling 63). Not part of the patch surface:
@@ -82,6 +80,30 @@ export async function reassign(
 ): Promise<boolean> {
   const { rowCount } = await query(sql("reassign"), [id, user_id], executor);
   return rowCount === 1;
+}
+
+// THE ONE PLACE THE OWNERSHIP KEYS ARE ALLOWED TO WAIT (migration 126).
+//
+// checkout.checkouts (user_id, <address column>) references
+// places.user_addresses (user_id, address_id), and signing in moves BOTH sides:
+// domain/checkout/adopt.ts re-keys the visitor's address book to the customer
+// and then re-keys the checkout rows that point at it. Neither order is valid
+// statement by statement - move the book first and the checkout points at a row
+// that changed hands; move the checkout first and it names a book entry the
+// visitor still owns - so this asks Postgres to check the three at COMMIT
+// instead, for THIS transaction only.
+//
+// The constraints are DEFERRABLE INITIALLY IMMEDIATE, so every other write in
+// the application is still refused at the statement that makes it. This is the
+// deliberate exception, not the default.
+export async function deferAddressOwnership(executor?: Executor): Promise<void> {
+  await query(
+    `SET CONSTRAINTS checkout.checkouts_recipient_address_theirs_fk,
+                     checkout.checkouts_shipper_address_theirs_fk,
+                     checkout.checkouts_pickup_address_theirs_fk DEFERRED`,
+    [],
+    executor
+  );
 }
 
 export async function remove(id: string, executor?: Executor): Promise<boolean> {

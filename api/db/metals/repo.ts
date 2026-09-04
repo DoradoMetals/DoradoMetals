@@ -8,15 +8,14 @@ import type { Executor } from "#shared/db/executor.ts";
 
 const sql = sqlFrom(import.meta.dirname);
 
-type MetalRow = Metal;
 
-export async function list(executor?: Executor): Promise<MetalRow[]> {
-  const { rows } = await query<MetalRow>(sql("get_all"), [], executor);
+export async function list(executor?: Executor): Promise<Metal[]> {
+  const { rows } = await query<Metal>(sql("get_all"), [], executor);
   return rows;
 }
 
-export async function getOne(id: string, executor?: Executor): Promise<MetalRow | undefined> {
-  const { rows } = await query<MetalRow>(sql("get_one"), [id], executor);
+export async function getOne(id: string, executor?: Executor): Promise<Metal | undefined> {
+  const { rows } = await query<Metal>(sql("get_one"), [id], executor);
   return rows[0];
 }
 

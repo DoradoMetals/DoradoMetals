@@ -5,7 +5,7 @@ import { getRatePct, sumContentByMetal } from "#domain/rates/utils/resolveRate.t
 import { calculateItemAsk } from "#domain/pricing/ask.ts";
 // Fine metal has ONE definition and it lives in pricing - see content.ts.
 import { fineContent } from "#domain/pricing/content.ts";
-import { Conflict, Invalid } from "#shared/errors.ts";
+import { Conflict, Invalid, NotFound } from "#shared/errors.ts";
 import {
   DORADO_ADDRESS, DORADO_CONTACT, FEDEX_STORE_ADDRESS,
 } from "#providers/shipments/constants.ts";
@@ -15,17 +15,14 @@ import type { PricedLine, NewOrderItem } from "#db/orders/items/repo.ts";
 import type { NewOrderSpot } from "#db/orders/spots/repo.ts";
 import type { NewOrderTotals } from "#db/orders/transactions/repo.ts";
 import type { ShipmentNew } from "#db/shipping/shipments/repo.ts";
-import type { CheckoutRow } from "#db/checkout/checkouts/repo.ts";
 import type { OrderLine as CheckoutLine } from "#db/checkout/items/repo.ts";
 import type { AddressRow } from "#db/places/addresses/repo.ts";
 import type { PackageRow } from "#db/shipping/packages/repo.ts";
-import type { MethodRow as PaymentMethodRow } from "#db/payments/methods/repo.ts";
 import type { LabelService } from "#domain/shipping/services/service.ts";
-
 import type { OrderPrices, Spots } from "#domain/pricing/ask.ts";
 import type {
-  BullionPublic, BullionStorefront, CarrierHandoff, Direction, FulfillmentView, OrderActions,
-  OrderItemPatch, OrderView,
+  BullionPublic, BullionStorefront, CarrierHandoff, Checkout, Direction, FulfillmentView,
+  OrderActions, OrderItemPatch, OrderView, PaymentMethod,
 } from "@dorado/contracts";
 
 // Type-only re-exports, erased at runtime: this file still needs no database.
@@ -78,7 +75,7 @@ export function chargesSalesTax(direction: Direction): boolean {
 }
 
 // The order's direction, from the checkout it came from.
-export function directionOf(checkout: CheckoutRow): Direction {
+export function directionOf(checkout: Checkout): Direction {
   return checkout.direction === "sale" ? "sale" : "purchase";
 }
 
@@ -140,13 +137,13 @@ export function spotsToFreeze(
 
 // The order row. The id is the caller's so every derivation below can name it
 // before the row exists; the number comes from the direction's own sequence.
-export function orderFrom(order_id: string, checkout: CheckoutRow, status: string): NewOrder {
+export function orderFrom(order_id: string, checkout: Checkout, status: string): NewOrder {
   return { id: order_id, user_id: checkout.user_id, direction: directionOf(checkout), status };
 }
 
 // WHO HANDS THE ORDER OVER, from the choices the stepper left on the row: the
 // draft it mutated, else the method it named, else the direction's default.
-export function handoverOf(order_id: string, checkout: CheckoutRow) {
+export function handoverOf(order_id: string, checkout: Checkout) {
   return {
     order_id, direction: directionOf(checkout),
     fulfillment_id: checkout.fulfillment_id, method_id: checkout.fulfillment_method_id,
@@ -246,7 +243,7 @@ export function catalogueWanted(cart: CheckoutLine[]): { id: string; quantity: n
 // commit, 2026-09-03), so `shipping` is left for postage.ts's recordPostage to
 // fill in once the carrier has actually quoted and charged it.
 export function totalsBought(
-  order_id: string, checkout: CheckoutRow, parcel: Parcel, payout_fee: number
+  order_id: string, checkout: Checkout, parcel: Parcel, payout_fee: number
 ): NewOrderTotals {
   return {
     order_id, shipping_service: parcel.serviceType,
@@ -273,7 +270,7 @@ export function totalsSold(
 // so they are left out (repo.create writes them null). postage.ts's
 // recordPostage fills tracking_number/label/label_type/shipping_status/cost
 // in once the label is actually bought.
-export function shipmentFrom(checkout: CheckoutRow, parcel: Parcel): ShipmentNew {
+export function shipmentFrom(checkout: Checkout, parcel: Parcel): ShipmentNew {
   return {
     id: randomUUID(), direction: "Inbound",
     pickup_type: parcel.handoff.name, package_id: checkout.package_id,
@@ -339,7 +336,7 @@ function assertHasItems(cart: CheckoutLine[]): void {
 // computed from the cart and the package once both are loaded - see
 // domain/shipping/rules.ts parcelWeightLb.
 export function assertPlaceableAsPurchase(
-  checkout: CheckoutRow, cart: CheckoutLine[]
+  checkout: Checkout, cart: CheckoutLine[]
 ): PurchaseCheckout {
   assertHasItems(cart);
   return {
@@ -354,7 +351,7 @@ export function assertPlaceableAsPurchase(
 // A sale is delivered, so it needs somewhere to go - and the state that address
 // names is what the sales tax is charged at.
 export function assertPlaceableAsSale(
-  checkout: CheckoutRow, cart: CheckoutLine[]
+  checkout: Checkout, cart: CheckoutLine[]
 ): SaleCheckout {
   assertHasItems(cart);
   return {
@@ -441,7 +438,7 @@ export function assertSendable(
 // Every value is the server's: the box and the service the customer chose by
 // id, the weight off the row, and the insured amount already clamped (D132).
 export function parcelFor(
-  checkout: CheckoutRow,
+  checkout: Checkout,
   placeable: PurchaseCheckout,
   service: LabelService,
   box: PackageRow | undefined,
@@ -651,7 +648,7 @@ export function repairAmountMatches(
 
 // THE PAYMENT METHOD'S OWN FLAT FEE - server money, never a client's.
 export function payoutFeeOf(
-  methods: PaymentMethodRow[], payment_method_id: string | null
+  methods: PaymentMethod[], payment_method_id: string | null
 ): number {
   return Number(methods.find((m) => m.id === payment_method_id)?.flat_fee ?? 0);
 }
@@ -757,4 +754,213 @@ export function actionsFor(facts: OrderFacts): OrderActions {
     edit_lines: purchase,
     statuses: statusesFor(facts),
   };
+}
+
+// -------------------- the refusals an order's use cases make (ruling 65)
+//
+// Every refusal this feature can make, named for what it protects, called as
+// one line from the use case. The KIND is the answer - NotFound for "that does
+// not exist", Conflict for "the current state forbids this", Invalid for "the
+// business does not allow this" - and a plain Error for a FAULT, which is a
+// write that did not land where nothing about the request explains why.
+
+// An all-optional schema cannot say "name at least one field", so the RULE
+// says it: an empty document is a write that would change nothing and report
+// success.
+export function assertNamesAField(patch: object): void {
+  if (Object.keys(patch).length === 0) {
+    throw new Invalid("the document names no field to write");
+  }
+}
+
+export function assertOrder<T>(
+  row: T | null | undefined, order_id: string
+): asserts row is T {
+  if (!row) throw new NotFound(`no order ${order_id}`);
+}
+
+// The spots PUT is two optional fields - `lock` pins the order at today's feed
+// and `set` adjusts a named metal's bid - so "names a field" is a question
+// about both rather than about the key count.
+export function assertNamesASpotField(
+  body: { lock?: boolean; set?: unknown[] }
+): void {
+  if (body.lock === undefined && !body.set) {
+    throw new Invalid("the document names no field to write");
+  }
+}
+
+export function assertLine<T>(
+  row: T | null | undefined, line_id: string
+): asserts row is T {
+  if (!row) throw new NotFound(`no order item ${line_id}`);
+}
+
+export function assertCatalogueProduct<T>(
+  row: T | null | undefined, bullion_id: string
+): asserts row is T {
+  if (!row) throw new NotFound(`no product ${bullion_id} to put on the order`);
+}
+
+// A FAULT, not a refusal. Re-tiering reads the lines and then writes each one
+// back inside the same transaction, so a line that is no longer there is a row
+// deleted underneath an open transaction - and a zero-row UPDATE does not
+// raise (audit:silent-mutations), so the only alternative is committing an
+// order whose premiums are half repriced.
+export function assertRepriced(
+  written: unknown, order_id: string, line_id: string
+): void {
+  if (!written) {
+    throw new Error(
+      `order ${order_id}: line ${line_id} vanished mid-write - its premium was not ` +
+        `repriced and this transaction must not commit`
+    );
+  }
+}
+
+// The same fault on the way out: the line was read a statement ago.
+export function assertRemoved(removed: boolean, order_id: string, line_id: string): void {
+  if (!removed) {
+    throw new Error(
+      `order ${order_id}: line ${line_id} was not removed - this ` +
+        `transaction must not commit`
+    );
+  }
+}
+
+// THE LEDGER MUST RECORD WHAT WAS ACTUALLY CREDITED, so an order with no total
+// credits nothing rather than crediting zero and logging it as a payment.
+export function assertCreditable(
+  amount: number | null, number: string | number | null
+): asserts amount is number {
+  if (amount === null) {
+    throw new Invalid(`order ${number} has no total, so there is nothing to credit`);
+  }
+}
+
+// The box the parcel goes in is named by id and must be a real row: the
+// carrier is told its dimensions.
+export function assertPackage<T>(box: T | null | undefined): asserts box is T {
+  if (!box) throw new Invalid("that package does not exist");
+}
+
+// A FAULT: the create ran in this transaction two statements ago.
+export function assertReturnShipment<T>(
+  shipment: T | null | undefined
+): asserts shipment is T {
+  if (!shipment) throw new Error("the return shipment was not created");
+}
+
+export function assertShipmentToLabel<T>(
+  shipment: T | null | undefined, order_id: string
+): asserts shipment is T {
+  if (!shipment) throw new NotFound(`order ${order_id} has no shipment to label`);
+}
+
+// The retry surface is for a label that was never bought. One that exists is
+// billed, and buying a second is a second charge.
+export function assertUnlabelled(
+  tracking_number: string | null | undefined, order_id: string
+): void {
+  if (tracking_number) throw new Conflict(`order ${order_id} already has a label`);
+}
+
+// A carrier cannot be asked for a label until somebody has chosen the service
+// and the box.
+export function assertParcelChosen(
+  shipment: { carrier_service_id: string | null; package_id: string | null },
+  order_id: string
+): asserts shipment is { carrier_service_id: string; package_id: string } {
+  if (!shipment.carrier_service_id || !shipment.package_id) {
+    throw new Invalid(`order ${order_id}'s shipment has no service or package chosen yet`);
+  }
+}
+
+// The stored handoff is a carrier's own vocabulary and the catalogue can move
+// underneath it.
+export function assertHandoff<T>(
+  handoff: T | null | undefined, shipment_id: string
+): asserts handoff is T {
+  if (!handoff) {
+    throw new Invalid(`shipment ${shipment_id} names a handoff the carrier no longer offers`);
+  }
+}
+
+// A FAULT: the engagement id was resolved one statement earlier in the same
+// transaction, and metal is about to be emailed to a refinery against it.
+export function assertRefinerAttached(attached: boolean, order_id: string): void {
+  if (!attached) {
+    throw new Error(
+      `sales order ${order_id}: the refiner was not attached - this ` +
+        `transaction must not commit`
+    );
+  }
+}
+
+export function assertShipmentToTrack<T>(
+  shipment: T | null | undefined, order_id: string
+): asserts shipment is T {
+  if (!shipment) throw new NotFound(`order ${order_id} has no shipment to track`);
+}
+
+// -------------------- the refusals a placement makes
+
+export function assertCheckout<T>(
+  checkout: T | null | undefined, checkout_id: string
+): asserts checkout is T {
+  if (!checkout) throw new NotFound(`no checkout ${checkout_id}`);
+}
+
+// A FAULT: the order committed a statement ago and cannot be read back.
+export function assertPlacedOrder<T>(
+  order: T | null | undefined, order_id: string
+): asserts order is T {
+  if (!order) throw new Error(`order ${order_id} was placed and cannot be read back`);
+}
+
+// A parcel with no weight is one FedEx prices at nothing, and the customer's
+// metal is inside it.
+export function assertWeight(weight: number): void {
+  if (!(weight > 0)) throw new Invalid("the parcel needs a weight");
+}
+
+export function assertAboveStripeMinimum(cents: number): void {
+  if (belowStripeMinimum(cents)) {
+    throw new Invalid("the amount left to charge is below Stripe's $0.50 minimum");
+  }
+}
+
+export function assertOpenIntent<T>(intent: T | null | undefined): asserts intent is T {
+  if (!intent) {
+    throw new Invalid(
+      "this order has a card charge and the customer has no open payment intent"
+    );
+  }
+}
+
+export function assertIntentLive(payment_status: string | null | undefined): void {
+  if (payment_status === "canceled") {
+    throw new Conflict("that payment intent was cancelled - start checkout again");
+  }
+}
+
+export function assertAttachable(verdict: ReturnType<typeof attachmentVerdict>): void {
+  if (verdict === "conflict") {
+    throw new Conflict("that payment intent already belongs to an order");
+  }
+}
+
+// A settled, unattached intent is D179 wreckage arriving to be repaired: the
+// money is real, so the order is born paid IF the amount still matches. When
+// it does not, a human has to look at it - the customer has been charged.
+export function assertRepairable(
+  intent: { amount: number | string | null | undefined; payment_intent_id: string },
+  cents: number
+): void {
+  if (!repairAmountMatches(intent.amount, cents)) {
+    throw new Conflict(
+      `payment ${intent.payment_intent_id} was taken at a different price than this ` +
+        `order totals now - contact support with that reference`
+    );
+  }
 }

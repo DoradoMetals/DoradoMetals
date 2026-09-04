@@ -6,14 +6,13 @@ import type { Executor } from "#shared/db/executor.ts";
 
 const sql = sqlFrom(import.meta.dirname);
 
-export type RefinerRow = Refiner;
 
-export async function list(executor?: Executor): Promise<RefinerRow[]> {
-  const { rows } = await query<RefinerRow>(sql("get_all"), [], executor);
+export async function list(executor?: Executor): Promise<Refiner[]> {
+  const { rows } = await query<Refiner>(sql("get_all"), [], executor);
   return rows;
 }
 
-export async function getOne(id: string, executor?: Executor): Promise<RefinerRow | undefined> {
-  const { rows } = await query<RefinerRow>(sql("get_one"), [id], executor);
+export async function getOne(id: string, executor?: Executor): Promise<Refiner | undefined> {
+  const { rows } = await query<Refiner>(sql("get_one"), [id], executor);
   return rows[0];
 }

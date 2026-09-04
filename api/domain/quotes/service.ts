@@ -27,10 +27,10 @@ import {
   bandableContent, bidPrice, declaredContent, estimatedPayout,
   requireBandPremium, requireSpot,
 } from "#domain/quotes/rules.ts";
+import * as rules from "#domain/quotes/rules.ts";
 import { calculateItemAsk, calculateSalesOrderTotal } from "#domain/pricing/service.ts";
 import { effectivePayoutFee, inboundShipment } from "#domain/pricing/service.ts";
 import { sumContentByMetal } from "#domain/rates/utils/resolveRate.ts";
-import { Forbidden, Invalid, NotFound } from "#shared/errors.ts";
 import type { CatalogQuote, CatalogQuoteBody, OrderQuote, OrderQuoteBody, OrderQuoteLine, PurchaseOrderQuote, PurchaseOrderQuoteBody, PurchaseOrderQuoteLine, SalesOrderQuote, SalesOrderQuoteBody } from "@dorado/contracts";
 
 
@@ -51,15 +51,7 @@ async function refuseProductsThatAreNotLive(
       ? rows.filter((r) => r.display === true).map((r) => r.id)
       : rows.map((r) => r.id)
   );
-  const refused = unique.filter((id) => !live.has(id));
-
-  if (refused.length > 0) {
-    throw new Invalid(
-      refused.length === 1
-        ? "That product is not available"
-        : `${refused.length} of those products are not available`
-    );
-  }
+  rules.assertProductsAreLive(unique.filter((id) => !live.has(id)));
 }
 
 // ------------------------------------------------------------------ catalog
@@ -87,7 +79,7 @@ export async function catalogQuote({ side, items }: CatalogQuoteBody): Promise<C
     // The liveness gate proved the id exists; a row can still drop out if its
     // metal or mint no longer resolves - refused rather than understated.
     const row = byId.get(id);
-    if (!row) throw new Invalid("That product is not available");
+    rules.assertProduct(row);
     const unit_price = side === "ask"
       ? calculateItemAsk(row, spots)
       : bidPrice(row.content, row.bid_premium, row.metal_type, spots);
@@ -117,11 +109,11 @@ export async function salesOrderQuote(
   // this quote would actually apply. A caller declaring their own balance would
   // be declaring their own discount.
   const balance = await usersService.getBalance(subject_user_id);
-  if (balance === undefined) throw new Forbidden("no user row for this session");
+  rules.assertBalance(balance);
   const dorado_funds = balance == null ? 0 : Number(balance);
 
   const address = address_id ? await addressService.getAddressFromId(address_id) : undefined;
-  if (address_id && !address) throw new NotFound(`no address ${address_id}`);
+  if (address_id) rules.assertAddress(address, address_id);
 
   const service = carrier_service_id
     ? await servicesRepo.getOne(carrier_service_id) : undefined;
@@ -229,7 +221,7 @@ export async function purchaseOrderQuote(
   const lines: PricedPurchaseLine[] = items.map((line, index) => {
     if (line.type === "product") {
       const row = byId.get(line.bullion_id);
-      if (!row) throw new Invalid("That product is not available");
+      rules.assertProduct(row);
       return {
         index, kind: "product", metal: row.metal_type,
         content: Number(row.content ?? 0), quantity: line.quantity ?? 1,
@@ -284,11 +276,7 @@ async function payoutChargeFor(payout_method_id: string | null | undefined): Pro
   if (!payout_method_id) return 0;
   const method = await methodsRepo.getOne(payout_method_id);
   const fee = method ? payoutFee(method.type) : null;
-  if (fee === null) {
-    throw new Invalid(
-      `that is not a payout method - expected one of ${Object.keys(PAYOUT_METHOD_FEES).join(", ")}`
-    );
-  }
+  rules.assertPayoutFee(fee, Object.keys(PAYOUT_METHOD_FEES));
   return fee;
 }
 
@@ -307,9 +295,7 @@ async function payoutChargeFor(payout_method_id: string | null | undefined): Pro
 // path keeps calculateTotalPrice's throw.
 export async function orderQuote({ order_id }: OrderQuoteBody): Promise<OrderQuote> {
   const order = await orderRead.view(order_id);
-  // requireOwnOrder answers 403 for a customer naming an order that is not
-  // theirs or does not exist; only an admin reaches this.
-  if (!order) throw new NotFound("no such purchase order");
+  rules.assertOrder(order);
 
   // Sequential - see catalogQuote's note above.
   const liveSpots = await spotsService.getSpotPrices();

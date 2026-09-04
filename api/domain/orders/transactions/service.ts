@@ -5,16 +5,18 @@
 // operation - the shipment's charge, the payout's fee, the refiner's fee.
 import { reportError } from "#shared/observability/report.ts";
 import * as transactionsRepo from "#db/orders/transactions/repo.ts";
-import type { OrderTotalsRow, TotalsPatch, TotalsGuard } from "#db/orders/transactions/repo.ts";
+import type { TotalsPatch, TotalsGuard } from "#db/orders/transactions/repo.ts";
 import type { PoolClient } from "pg";
+import type { OrderTotals } from "@dorado/contracts";
 
 type Executor = PoolClient | undefined;
 
-export type { OrderTotalsRow, TotalsPatch, TotalsGuard } from "#db/orders/transactions/repo.ts";
+export type { OrderTotals } from "@dorado/contracts";
+export type { TotalsPatch, TotalsGuard } from "#db/orders/transactions/repo.ts";
 
 export async function forOrder(
   orderId: string, executor?: Executor
-): Promise<OrderTotalsRow | undefined> {
+): Promise<OrderTotals | undefined> {
   return await transactionsRepo.getFor(orderId, executor);
 }
 
@@ -22,10 +24,10 @@ export async function forOrder(
 // trips rather than one per order.
 export async function byOrderId(
   orderIds: string[], executor?: Executor
-): Promise<Map<string, OrderTotalsRow>> {
+): Promise<Map<string, OrderTotals>> {
   const rows = await transactionsRepo.getMany(orderIds, executor);
   // order_id is nullable, and a row with no order can be keyed by nothing.
-  const by = new Map<string, OrderTotalsRow>();
+  const by = new Map<string, OrderTotals>();
   for (const t of rows) if (t.order_id) by.set(t.order_id, t);
   return by;
 }

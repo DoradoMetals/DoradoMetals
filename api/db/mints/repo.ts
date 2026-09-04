@@ -8,14 +8,13 @@ import type { Executor } from "#shared/db/executor.ts";
 
 const sql = sqlFrom(import.meta.dirname);
 
-export type MintRow = Mint;
 
-export async function list(executor?: Executor): Promise<MintRow[]> {
-  const { rows } = await query<MintRow>(sql("get_all"), [], executor);
+export async function list(executor?: Executor): Promise<Mint[]> {
+  const { rows } = await query<Mint>(sql("get_all"), [], executor);
   return rows;
 }
 
-export async function getOne(id: string, executor?: Executor): Promise<MintRow | undefined> {
-  const { rows } = await query<MintRow>(sql("get_one"), [id], executor);
+export async function getOne(id: string, executor?: Executor): Promise<Mint | undefined> {
+  const { rows } = await query<Mint>(sql("get_one"), [id], executor);
   return rows[0];
 }

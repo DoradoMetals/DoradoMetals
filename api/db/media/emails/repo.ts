@@ -6,11 +6,10 @@ import type { Executor } from "#shared/db/executor.ts";
 
 const sql = sqlFrom(import.meta.dirname);
 
-export type EmailRow = Email;
 
 export type NewEmail = {
-  kind: EmailRow["kind"];
-  status: EmailRow["status"];
+  kind: Email["kind"];
+  status: Email["status"];
   to_address: string;
   subject: string | null;
   order_id: string | null;

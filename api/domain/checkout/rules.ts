@@ -1,10 +1,12 @@
 // The basket's rules: rows in, complete rows out or a refusal thrown.
-import { Invalid } from "#shared/errors.ts";
+import { Forbidden, Invalid, NotFound } from "#shared/errors.ts";
+import { columnsOf } from "#shared/db/columns.ts";
+import { CheckoutItemPatch, CheckoutWrite } from "@dorado/contracts";
 import { fineContent } from "#domain/pricing/content.ts";
 import { getRatePct, sumContentByMetal } from "#domain/rates/utils/resolveRate.ts";
 import { lineContent, rateMaterialFor } from "#domain/orders/rules.ts";
 import type {
-  CarrierHandoff, Checkout, CheckoutItemPatch, CheckoutStep, Direction, RateRead,
+  CarrierHandoff, Checkout, CheckoutStep, Direction, RateRead,
 } from "@dorado/contracts";
 import type { NewItem } from "#db/checkout/items/repo.ts";
 import type { BullionLiveness, BullionStorefront } from "@dorado/contracts";
@@ -19,8 +21,14 @@ export type BasketFacts = {
   metalNames: Map<string, string>;
 };
 
-// A bullion line names an id and a quantity; the rest is the server's.
-const SERVER_OWNED = ["metal_id", "pre_melt", "post_melt", "purity", "unit"] as const;
+// A bullion line names an id and a quantity; the rest is the server's - which
+// is `CheckoutItemPatch` without those two, FROM THE CONTRACT (ruling 64).
+const SERVER_OWNED = columnsOf(CheckoutItemPatch.omit({ bullion_id: true, quantity: true }));
+
+// What a DECLARED LOT cannot be priced without.
+const DECLARED_LOT_REQUIRES = columnsOf(
+  CheckoutItemPatch.pick({ metal_id: true, pre_melt: true, purity: true, unit: true })
+);
 
 // Unknown and hidden are refused alike - the message cannot say which ids exist.
 function notAvailable(count: number): never {
@@ -83,8 +91,11 @@ function snapshot(
     throw new Invalid("a buy basket holds catalogue products - every line needs a bullion_id");
   }
 
-  // An absent weight or purity prices the customer's metal at nothing.
-  for (const column of ["metal_id", "pre_melt", "purity", "unit"] as const) {
+  // An absent weight or purity prices the customer's metal at nothing. The four
+  // are named as KEYS of the line's own contract (ruling 64), so a column
+  // renamed in a migration fails the typecheck here rather than silently
+  // stopping being checked.
+  for (const column of DECLARED_LOT_REQUIRES) {
     if (line[column] == null) {
       throw new Invalid(`a line with no product needs ${column}`);
     }
@@ -252,20 +263,15 @@ export function checkoutState(
 //
 // PURE, so the decision is testable without a database: the caller applies the
 // patch it answers.
+export const CHOICE_COLUMNS = columnsOf(CheckoutWrite);
 export type ChoiceColumns = Partial<Pick<Checkout, (typeof CHOICE_COLUMNS)[number]>>;
 
-// Every column a step writes. It is `checkouts.PATCHABLE` restated rather than
-// imported: this module is PURE - its tests run in the no-database lane, which
-// scripts/lib/test-layers.ts derives from what a file imports, and reaching for
-// the repo would drag the pool in and move them. The two lists are pinned equal
-// by tests/adopt.test.ts, so a column added to the repo fails a test here
-// rather than silently stopping being carried across a sign-in.
-export const CHOICE_COLUMNS = [
-  "payment_method_id", "payment_details_id", "fulfillment_id",
-  "fulfillment_method_id", "appointment_location_id", "pickup_address_id",
-  "shipper_address_id", "recipient_address_id", "carrier_service_id",
-  "package_id", "appointment_time", "pickup_date", "pickup_time",
-] as const;
+// Every column a step writes, FROM THE CONTRACT (ruling 64). It used to be
+// `checkouts.PATCHABLE` restated by hand, because this module is PURE - its
+// tests run in the no-database lane, which scripts/lib/test-layers.ts derives
+// from what a file imports, and reaching for the repo would drag the pool in
+// and move them. `CheckoutWrite` is a zod schema and imports nothing, so both
+// lists are now the same call on the same contract and cannot drift at all.
 
 // The patch to apply to the row that SURVIVES (the real user's), given the row
 // that is going away (the visitor's). Only columns that actually change are
@@ -280,4 +286,118 @@ export function mergeChoices(
     if (chosen !== (real[column] ?? null)) patch[column] = chosen;
   }
   return patch as ChoiceColumns;
+}
+
+// ----------------------------------------------------------------- refusals
+//
+// RULING 65: a use case states the happy path and calls one of these, so the
+// whole of what a checkout can refuse is readable in one place.
+
+// A FAULT, not a refusal: find() creates the row when it is missing and reads
+// it back when it lost the create race, so no row at this point means neither
+// happened.
+export function assertSession<T>(row: T | null | undefined): asserts row is T {
+  if (!row) throw new Error("the checkout session could not be created");
+}
+
+// ADMIN SCOPING: a customer only ever reaches their OWN row; an admin may name
+// a customer and reach theirs. Self-naming never gets here, so this fires only
+// when somebody named SOMEBODY ELSE.
+export function assertMaySubjectAnother(is_admin: boolean): void {
+  if (!is_admin) throw new Forbidden("user_id is admin-only");
+}
+
+// Naming a customer who does not exist is refused DISTINCTLY, so the accessor
+// answers 404 rather than minting a checkout row for an id nothing owns.
+export function assertSubject<T>(
+  target: T | null | undefined, named_user_id: string
+): asserts target is T {
+  if (!target) throw new NotFound(`no user ${named_user_id}`);
+}
+
+// WHAT A VISITOR MAY NOT DO (ruling 63). Two things need a real account -
+// placing an order and saving a payout account - and both for the same reason:
+// they create something that OUTLIVES the session and cannot be re-done. An
+// order owned by a throwaway identity the sweep deletes in seven days is a lost
+// order; bank numbers sealed against one are worse than refusing.
+//
+// FORBIDDEN, not 401: the caller has a perfectly good session, and the UI turns
+// this into the sign-in prompt rather than a logged-out state.
+//
+// PURE, and the read is the USE CASE'S (ruling 65): the caller loads the
+// identity and this decides.
+export function assertRealAccount(anonymous: boolean, action: string): void {
+  if (anonymous) throw new Forbidden(`sign in to ${action}`);
+}
+
+// The column is `timestamptz` and Postgres would refuse an unparseable literal
+// with 22007 - a fault, not a message anyone can act on. Refused here instead,
+// naming the field.
+export function assertTimestamp(value: unknown): void {
+  if (value != null && Number.isNaN(Date.parse(String(value)))) {
+    throw new Invalid(`appointment_time is not a timestamp`);
+  }
+}
+
+// The stepper picks a carrier HANDOFF and never spells a fulfillment method.
+export function assertHandoff<T>(
+  handoff: T | null | undefined, handoff_code: string
+): asserts handoff is T {
+  if (!handoff) throw new Invalid(`no such handoff: ${handoff_code}`);
+}
+
+// The menu has to mean something: a method type the direction does not offer
+// is a step the customer was never shown.
+export function assertOfferedMethod(
+  method_id: string | undefined, type: string, direction: string
+): asserts method_id is string {
+  if (!method_id) throw new Invalid(`no offered ${type} method for a ${direction}`);
+}
+
+export function assertMethodNamed(chosen: unknown): asserts chosen is string {
+  if (typeof chosen !== "string" || chosen.length === 0) {
+    throw new Invalid("method_id or handoff_code is required");
+  }
+}
+
+export function assertDraft<T>(
+  draft: T | null | undefined, method_id: string
+): asserts draft is T {
+  if (!draft) throw new Invalid(`no such fulfillment method: ${method_id}`);
+}
+
+// A sale is delivered and paid for; there is nothing to pay OUT.
+export function assertPayoutDirection(direction: Direction): void {
+  if (direction !== "purchase") {
+    throw new Invalid("the payout step belongs to the purchase checkout");
+  }
+}
+
+// ------------------------------------------------- adopting a visitor's basket
+//
+// All three are FAULTS. Each answer is a write's own row count inside a
+// transaction that read the row a statement earlier, and a zero-row UPDATE does
+// not raise (audit:silent-mutations) - so the alternative to throwing is a
+// customer signing in and silently losing the basket on their screen.
+
+export function assertRekeyed(rekeyed: boolean, checkout_id: string, user_id: string): void {
+  if (!rekeyed) {
+    throw new Error(`checkout ${checkout_id} could not be re-keyed to ${user_id}`);
+  }
+}
+
+export function assertLinesCarried(
+  carried: number, expected: number, checkout_id: string
+): void {
+  if (carried !== expected) {
+    throw new Error(`checkout ${checkout_id}: ${expected} line(s) to carry, ${carried} moved`);
+  }
+}
+
+export function assertVisitorRowGone(
+  removed: boolean, visitor_id: string, survivor_id: string
+): void {
+  if (!removed) {
+    throw new Error(`checkout ${visitor_id} survived the merge onto ${survivor_id}`);
+  }
 }

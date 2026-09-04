@@ -3,7 +3,9 @@ import { randomUUID } from "node:crypto";
 import minio from "#providers/s3/minio.ts";
 import withTransaction from "#shared/db/withTransaction.ts";
 import * as images from "#db/media/images/repo.ts";
-import type { ImageRow, NewImage } from "#db/media/images/repo.ts";
+import type { NewImage } from "#db/media/images/repo.ts";
+import * as rules from "#domain/media/images/rules.ts";
+import type { Image } from "@dorado/contracts";
 
 const PUT_TTL_SECONDS = 60 * 5;
 const GET_TTL_SECONDS = 60 * 10;
@@ -53,20 +55,20 @@ export async function uploadImage({
 }
 
 // Returns null rather than throwing so the controller decides the status - a missing image and someone else's image must answer the same, so as not to leak which.
-async function ownedBy(image_id: string, user_id?: string): Promise<ImageRow | null> {
+async function ownedBy(image_id: string, user_id?: string): Promise<Image | null> {
   const img = await images.getOne(image_id);
   if (!img) return null;
   if (!user_id || img.user_id !== user_id) return null;
   return img;
 }
 
-const presign = (img: ImageRow) =>
+const presign = (img: Image) =>
   minio.presignedGetObject(img.bucket, img.path + img.filename, GET_TTL_SECONDS);
 
 // Internal presigner for getTestImages, attaching a URL to rows it already decided the caller may see - NOT reachable from a route (the guarded entry point is getUrlFor below).
 export async function getUrl({ image_id }: { image_id: string }): Promise<string> {
   const img = await images.getOne(image_id);
-  if (!img) throw new Error(`no image ${image_id}`);
+  rules.assertImage(img, image_id);
   return await presign(img);
 }
 
@@ -79,7 +81,7 @@ export async function getUrlFor({
   return await presign(img);
 }
 
-export async function attachUrlToImage(image: ImageRow): Promise<ImageRow & { url: string }> {
+export async function attachUrlToImage(image: Image): Promise<Image & { url: string }> {
   const url = await presign(image);
   return {
     id: image.id,
@@ -98,12 +100,12 @@ export async function attachUrlToImage(image: ImageRow): Promise<ImageRow & { ur
   };
 }
 
-export async function getTestImages(): Promise<(ImageRow & { url: string })[]> {
+export async function getTestImages(): Promise<(Image & { url: string })[]> {
   const rows = await images.list();
   return Promise.all(rows.map(attachUrlToImage));
 }
 
-export async function listForUser(user_id: string): Promise<ImageRow[]> {
+export async function listForUser(user_id: string): Promise<Image[]> {
   return await images.listFor(user_id);
 }
 
