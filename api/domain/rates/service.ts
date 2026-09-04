@@ -1,46 +1,42 @@
-// Rates: orchestration and the composed shape.
+// Rates: the volume bands the business pays on, and the page that prints them.
 //
-// list is consumed by the pricing path as well as HTTP, and resolveRate keys on the metal NAME - so the composed shape is what the service returns, not the bare table row.
-// update takes an id and a patch, never a round-tripped row; it refetches after so the response still carries fresh state.
+// LOAD -> ASSERT -> WRITE -> AFTER. Refusals are rules.ts's (ruling 65); one
+// withTransaction per use case, and the writers take the tx (ruling 56).
 import withTransaction from "#shared/db/withTransaction.ts";
 import * as rates from "#db/rates/repo.ts";
-import * as compose from "#domain/rates/compose.ts";
-import type { RatePatch } from "#db/rates/repo.ts";
-import { NotFound } from "#shared/errors.ts";
+import * as rules from "#domain/rates/rules.ts";
+import type { AdminRate, RatePatch, RateRead, RateTier } from "@dorado/contracts";
 
-export async function getRate(id: string) {
+export async function listRates(): Promise<RateRead[]> {
+  return await rates.list();
+}
+
+export async function listAdminRates(): Promise<AdminRate[]> {
+  return await rates.listAdmin();
+}
+
+// The rates PAGE: one card per metal, one column per volume band.
+export async function listTiers(): Promise<RateTier[]> {
+  return rules.tiers(await rates.list());
+}
+
+export async function getRate(id: string): Promise<AdminRate> {
   const row = await rates.getOne(id);
-  if (!row) throw new NotFound(`no rate ${id}`);
-  return await compose.toAdminOne(row);
+  rules.assertRate(row, id);
+  return row;
 }
 
-export async function getAllRates() {
-  return await compose.toPublicList(await rates.list());
+export async function createRate(patch: RatePatch): Promise<AdminRate> {
+  const id = await withTransaction(async (tx) => await rates.create(patch, tx));
+  return await getRate(id);
 }
 
-export async function getAdminRates() {
-  return await compose.toAdminList(await rates.list());
+export async function updateRate(id: string, patch: RatePatch): Promise<AdminRate> {
+  const changed = await withTransaction(async (tx) => await rates.update(id, patch, tx));
+  rules.assertChanged(changed, id);
+  return await getRate(id);
 }
 
-export async function createRate(rate: RatePatch) {
-  const row = await withTransaction(async (c) => {
-    return await rates.create(rate, c);
-  });
-  return await compose.toAdminOne(row);
-}
-
-export async function updateRate(id: string, patch: RatePatch) {
-  const changed = await withTransaction(async (c) => {
-    return await rates.update(id, patch, c);
-  });
-  if (!changed) throw new NotFound(`no rate ${id}`);
-  const row = await rates.getOne(id);
-  if (!row) throw new NotFound(`no rate ${id}`);
-  return await compose.toAdminOne(row);
-}
-
-export async function deleteRate(id: string) {
-  return await withTransaction(async (c) => {
-    return await rates.remove(id, c);
-  });
+export async function deleteRate(id: string): Promise<boolean> {
+  return await withTransaction(async (tx) => await rates.remove(id, tx));
 }

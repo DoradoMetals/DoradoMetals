@@ -7,7 +7,7 @@ import { useSpotTypeStore } from '@/shared/store/spotStore'
 import { cn } from '@/shared/utils/cn'
 import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
 import MobileSpotTicker from '@/features/spots/ui/MobileSpots'
-import { useSpotPrices } from '@/features/spots/queries'
+import { useSpotPrices } from '@dorado/client'
 
 export default function Spots() {
   const { data: spots } = useSpotPrices()
@@ -40,9 +40,16 @@ export default function Spots() {
                   Show {type === 'Bid' ? 'Ask' : 'Bid'}
                 </Button>
                 {spots.map((spot) => {
-                  const trendUp = (spot.dollar_change ?? 0) >= 0
-                  const CaretIcon = trendUp ? CaretUpIcon : CaretDownIcon
-                  const colorClass = trendUp ? 'text-success' : 'text-destructive'
+                  // WHICH WAY IT MOVED IS THE SERVER'S ANSWER. This read
+                  // `(dollar_change ?? 0) >= 0`, which painted a flat day
+                  // green with an up caret.
+                  const CaretIcon = spot.direction === 'down' ? CaretDownIcon : CaretUpIcon
+                  const colorClass =
+                    spot.direction === 'flat'
+                      ? 'text-primary-foreground'
+                      : spot.direction === 'up'
+                        ? 'text-success'
+                        : 'text-destructive'
 
                   return (
                     <div key={spot.id} className="flex items-center gap-3">

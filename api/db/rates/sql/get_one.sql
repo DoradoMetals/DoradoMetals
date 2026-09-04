@@ -1,5 +1,7 @@
--- One row, by id. Columns are listed rather than *: created_by_id/updated_by_id must not reach the wire.
-SELECT id, metal_id, unit, min_qty, max_qty, scrap_pct, bullion_pct,
-       created_at, updated_at, created_by, updated_by
-  FROM rates.rates
- WHERE id = $1
+-- One band, by id, in the admin shape - what create and update answer with.
+SELECT r.id, m.name AS metal, r.unit, r.min_qty, r.max_qty,
+       r.scrap_pct, r.bullion_pct, r.metal_id,
+       r.created_at, r.updated_at, r.created_by, r.updated_by
+  FROM rates.rates r
+  JOIN metals.metals m ON m.id = r.metal_id
+ WHERE r.id = $1

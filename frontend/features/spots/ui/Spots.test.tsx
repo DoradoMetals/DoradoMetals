@@ -17,9 +17,24 @@ import { renderWithClient } from "@/shared/tests/renderWithClient";
 import userEvent from "@testing-library/user-event";
 import React from "react";
 
-// The network boundary, and nothing else.
-vi.mock("@/shared/queries/axios", () => ({
-  apiRequest: vi.fn(),
+// The wire's shape, one place. Distinct prices per metal and per side of the
+// market, so an assertion on a number can only match the field it means.
+// `direction` is the SERVER'S answer now - Silver and Palladium are down days
+// and the other two are up, which is what the trend-colour test reads.
+const wireSpots = () => [
+  { id: "m-au", name: "Gold", ask: 3400.1, bid: 3390.5, dollar_change: 12.34, percent_change: 0.36, direction: "up" },
+  { id: "m-ag", name: "Silver", ask: 41.2, bid: 40.9, dollar_change: -0.56, percent_change: -1.34, direction: "down" },
+  { id: "m-pt", name: "Platinum", ask: 1310.7, bid: 1298.2, dollar_change: 4.05, percent_change: 0.31, direction: "up" },
+  { id: "m-pd", name: "Palladium", ask: 955.3, bid: 941.8, dollar_change: -8.6, percent_change: -0.9, direction: "down" },
+];
+
+// THE NETWORK BOUNDARY, and nothing else. The spot hook lives in
+// @dorado/client now, which talks to the platform's `fetch` rather than the
+// axios wrapper this file used to stub - so the boundary is the hook, given
+// the same rows the stub answered with.
+vi.mock("@dorado/client", async (importOriginal) => ({
+  ...(await importOriginal<Record<string, unknown>>()),
+  useSpotPrices: () => ({ data: wireSpots(), isSuccess: true }),
 }));
 // The spot feed is public - the session hook returns no user at all, which
 // doubles as proof the components never need one.
@@ -34,23 +49,11 @@ vi.mock("@/shared/ui/PriceNumberFlow", () => ({
     React.createElement("span", { className }, String(value)),
 }));
 
-import { apiRequest } from "@/shared/queries/axios";
 import { useSpotTypeStore } from "@/shared/store/spotStore";
 import Spots from "@/features/spots/ui/Spots";
 import MobileSpotTicker from "@/features/spots/ui/MobileSpots";
 
-// The wire's shape, one place. Distinct prices per metal and per side of the
-// market, so an assertion on a number can only match the field it means.
-const wireSpots = () => [
-  { id: "m-au", name: "Gold", ask: 3400.1, bid: 3390.5, dollar_change: 12.34, percent_change: 0.36 },
-  { id: "m-ag", name: "Silver", ask: 41.2, bid: 40.9, dollar_change: -0.56, percent_change: -1.34 },
-  { id: "m-pt", name: "Platinum", ask: 1310.7, bid: 1298.2, dollar_change: 4.05, percent_change: 0.31 },
-  { id: "m-pd", name: "Palladium", ask: 955.3, bid: 941.8, dollar_change: -8.6, percent_change: -0.9 },
-];
-
 beforeEach(() => {
-  vi.mocked(apiRequest).mockReset();
-  vi.mocked(apiRequest).mockResolvedValue(wireSpots());
   // The type toggle persists via zustand; tests must not inherit each other's
   // choice of market side.
   useSpotTypeStore.setState({ type: "Ask" });

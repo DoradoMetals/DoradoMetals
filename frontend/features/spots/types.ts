@@ -1,18 +1,16 @@
 // Spot types, FROM THE CONTRACTS.
 //
-// SECOND CONVERTED FEATURE. SpotPrice used to be hand-written with the LEGACY
-// field names (`type` / `ask_spot` / `bid_spot`) plus optional order ids -
-// one type serving two different wires. It is now the live spot feed's shape
-// only, imported from @dorado/contracts so `tsc` sees a rename from both
-// sides; the schema's own names are `name` / `ask` / `bid`.
+// The live feed's shape is `SpotTicker` - the quote plus the SERVER'S answer
+// to which way the metal moved today (`direction`). Every ticker used to
+// derive that from `dollar_change` for itself.
 //
-// What used to share this file moved to where its wire lives:
-//   - the order-locked spot rows (embedded in order responses and mutation
-//     bodies) are the contracts' SpotOnOrder since the orders conversion
-//     (2026-08-28) - same names as the live feed, no edge mapping left;
-//   - AdminMetal is features/products/types.ts - it is served by
-//     /products/get_metals and converts with products.
-import type { SpotPrice } from "@dorado/contracts";
+// What used to share this file moved to where its wire lives: the
+// order-locked spot rows are the contracts' SpotOnOrder, and the admin metal
+// list is `Metal` (GET /metals), read through @dorado/client.
+import type { SpotTicker } from "@dorado/contracts";
 
+export type { SpotTicker }
+
+// *** NOT A CONTRACT. *** `metals.name` is plain text; these four names are
+// the metals a UI list renders, kept beside the UI that reads it.
 export type Metal = "Gold" | "Silver" | "Platinum" | "Palladium";
-

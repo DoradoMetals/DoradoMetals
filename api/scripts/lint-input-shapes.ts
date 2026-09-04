@@ -45,7 +45,6 @@ const ACCEPTED: Record<string, string> = {
   "Options:OrderOptions": "pre-existing (orders.ts) - not this lane's file.",
   "Options:BullionOptions": "pre-existing (orders.ts) - not this lane's file.",
   "Options:AddressOptions": "pre-existing (places.ts) - not this lane's file.",
-  "Options:ProductOptions": "pre-existing (products.ts) - not this lane's file.",
   "Options:EngagementOptions": "pre-existing (refiners.ts) - not this lane's file.",
   "Options:ReviewOptions": "pre-existing (reviews.ts) - not this lane's file.",
   "Options:ShipmentOptions": "pre-existing (shipping.ts) - not this lane's file.",

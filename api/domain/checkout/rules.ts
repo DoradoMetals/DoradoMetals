@@ -7,14 +7,14 @@ import type {
   CarrierHandoff, Checkout, CheckoutItemPatch, CheckoutStep, Direction, RateRead,
 } from "@dorado/contracts";
 import type { NewItem } from "#db/checkout/items/repo.ts";
-import type { Liveness, PublicProductRow } from "#db/products/repo.ts";
+import type { BullionLiveness, BullionStorefront } from "@dorado/contracts";
 
 export type BasketFacts = {
   checkout_id: string;
   direction: Direction;
   items: CheckoutItemPatch[];
-  products: PublicProductRow[];
-  liveness: Liveness[];
+  products: BullionStorefront[];
+  liveness: BullionLiveness[];
   rates: RateRead[];
   metalNames: Map<string, string>;
 };
@@ -32,7 +32,7 @@ function notAvailable(count: number): never {
 }
 
 function requireLiveProducts(
-  items: CheckoutItemPatch[], direction: Direction, byId: Map<string, PublicProductRow>,
+  items: CheckoutItemPatch[], direction: Direction, byId: Map<string, BullionStorefront>,
   live: Set<string>
 ): void {
   const refused = new Set<string>();
@@ -51,7 +51,7 @@ type Snapshot = { row: NewItem; metal: string | null };
 
 function snapshot(
   line: CheckoutItemPatch, direction: Direction, checkout_id: string,
-  byId: Map<string, PublicProductRow>, metalNames: Map<string, string>
+  byId: Map<string, BullionStorefront>, metalNames: Map<string, string>
 ): Snapshot {
   if (line.bullion_id != null) {
     for (const column of SERVER_OWNED) {
@@ -109,7 +109,7 @@ function snapshot(
 // is placement's own rule. Sale: the product's ask. No band leaves it null.
 function premiums(
   snapshots: Snapshot[], direction: Direction, rates: RateRead[],
-  byId: Map<string, PublicProductRow>
+  byId: Map<string, BullionStorefront>
 ): (number | null)[] {
   if (direction === "sale") {
     return snapshots.map(({ row }) =>

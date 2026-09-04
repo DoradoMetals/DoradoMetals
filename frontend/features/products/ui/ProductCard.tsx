@@ -24,7 +24,7 @@ import { cn } from '@/shared/utils/cn'
 import { AnimatePresence, motion } from 'framer-motion'
 import { useRouter } from 'next/navigation'
 import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
-import { useSpotPrices } from '@/features/spots/queries'
+import { useSpotPrices } from '@dorado/client'
 import { DetailRow } from '@/shared/ui/DetailRow'
 
 type ProductCardProps = {
@@ -38,10 +38,9 @@ type ProductCardProps = {
 
 export default function ProductCard({ product, variants, unitPrices }: ProductCardProps) {
   const router = useRouter()
-  const initialVariant =
-    variants.length > 0 ? [...variants].sort((a, b) => b.content - a.content)[0] : product
-
-  const [selectedProduct, setSelectedProduct] = useState<Product>(initialVariant)
+  // The server picks the family's headline row and orders the siblings
+  // (heaviest first), so there is nothing to sort here.
+  const [selectedProduct, setSelectedProduct] = useState<Product>(product)
   const [open, setOpen] = useState(false)
   const [variantsOpen, setVariantsOpen] = useState(false)
   const [isBeginning, setIsBeginning] = useState(true)
@@ -53,7 +52,9 @@ export default function ProductCard({ product, variants, unitPrices }: ProductCa
   const quantity = items.find((i) => i.bullion_id === selectedProduct.id)?.quantity ?? 0
   const { data: spotPrices = [] } = useSpotPrices()
 
-  const spot = spotPrices.find((s) => s.name === product.metal_type)
+  // Keyed by the metal's ID, which the row carries - matching on the NAME
+  // was a string comparison between two independent reads.
+  const spot = spotPrices.find((s) => s.id === selectedProduct.metal_id)
   const price = unitPrices[selectedProduct.id] ?? 0
 
   // The popover's premium line, DERIVED: quoted unit_price minus melt
@@ -186,9 +187,7 @@ export default function ProductCard({ product, variants, unitPrices }: ProductCa
                   </Button>
                 }
               >
-                {[...variants]
-                  .sort((a, b) => b.content - a.content)
-                  .map((option) => (
+                {variants.map((option) => (
                     <FloatingButtonItem key={option.id}>
                       <RadioOption
                         value={option.name}
@@ -200,8 +199,8 @@ export default function ProductCard({ product, variants, unitPrices }: ProductCa
                       >
                         {option.variant_label}
                       </RadioOption>
-                    </FloatingButtonItem>
-                  ))}
+                  </FloatingButtonItem>
+                ))}
               </FloatingButton>
             </RadioGroup>
           )}

@@ -31,12 +31,12 @@ const aRateRow = async (c: PoolClient) =>
 
 test("update writes a real rate band and answers true", async () => {
   await inRollback(async (c: PoolClient) => {
-    const row = await aRateRow(c);
+    const id = await aRateRow(c);
 
-    const changed = await rates.update(row.id, { scrap_pct: 0.88, max_qty: null }, c);
+    const changed = await rates.update(id, { scrap_pct: 0.88, max_qty: null }, c);
     assert.equal(changed, true, "update reported no row changed");
 
-    const after = await rates.getOne(row.id, c);
+    const after = await rates.getOne(id, c);
     assert.equal(Number(after?.scrap_pct), 0.88);
     assert.equal(after?.max_qty, null, "max_qty was not cleared to open-ended");
   });
@@ -51,13 +51,13 @@ test("update answers false for an id with no rate row", async () => {
 
 test("remove deletes a real rate band and answers false the second time", async () => {
   await inRollback(async (c: PoolClient) => {
-    const row = await aRateRow(c);
+    const id = await aRateRow(c);
 
-    const removed = await rates.remove(row.id, c);
+    const removed = await rates.remove(id, c);
     assert.equal(removed, true, "remove reported no row changed");
-    assert.equal(await rates.getOne(row.id, c), undefined);
+    assert.equal(await rates.getOne(id, c), undefined);
 
-    const removedAgain = await rates.remove(row.id, c);
+    const removedAgain = await rates.remove(id, c);
     assert.equal(removedAgain, false, "remove reported a change for a rate already gone");
   });
 });

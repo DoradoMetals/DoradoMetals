@@ -1,26 +1,24 @@
 import { create } from 'zustand'
 import type { ProductFilters } from '@/features/products/types'
 
+// WHICH FILTER THE CUSTOMER HAS SELECTED, and nothing else. The filtered list
+// itself comes from GET /products - this store's fields are that endpoint's
+// query params.
 type ProductFilterState = ProductFilters & {
-  setFilters: (filters: Partial<ProductFilters>) => void
+  setFilters: (filters: ProductFilters) => void
   clearFilters: () => void
 }
 
+const NONE: ProductFilters = {
+  metal: undefined,
+  category: undefined,
+  type: undefined,
+  search: undefined,
+  sort: undefined,
+}
+
 export const useProductFilterStore = create<ProductFilterState>((set) => ({
-  metal_type: undefined,
-  filter_category: undefined,
-  product_type: undefined,
-
-  setFilters: (filters) =>
-    set((state) => ({
-      ...state,
-      ...filters,
-    })),
-
-  clearFilters: () =>
-    set({
-      metal_type: undefined,
-      filter_category: undefined,
-      product_type: undefined,
-    }),
+  ...NONE,
+  setFilters: (filters) => set({ ...NONE, ...filters }),
+  clearFilters: () => set(NONE),
 }))

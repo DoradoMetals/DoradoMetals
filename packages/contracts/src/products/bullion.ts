@@ -42,6 +42,7 @@ export const Bullion = z.object({
 export type Bullion = z.infer<typeof Bullion>;
 // generated:end
 import { Metal } from "../metals/metals.js";
+import { Organization } from "../organizations/organizations.js";
 import { Mint } from "./mints.js";
 
 // THE CATALOGUE ROW BEHIND A BULLION LINE - the PUBLIC columns, which is
@@ -57,19 +58,19 @@ export const BullionPublic = Bullion.pick({
 });
 export type BullionPublic = z.infer<typeof BullionPublic>;
 
-// THE STOREFRONT ROW - the public projection plus the two labels the read
-// attaches in JS. get_storefront.sql projects exactly BullionPublic, carries
-// metal_id and mint_id only to resolve them, and drops both. The two extends
-// ARE the join, and are what a later products read pivot removes: a client
-// holding /metals and /mints maps the ids itself.
-export const BullionStorefront = BullionPublic.omit({ metal_id: true, mint_id: true }).extend({
+// THE STOREFRONT ROW - the public projection plus the metal's and the mint's
+// names, which db/products/sql/list.sql JOINS. The two ids STAY beside the two
+// names: a caller that wants to key a spot quote or a reference list off the
+// row needs the id, and matching on the NAME instead is how the ticker lookup
+// came to be a string comparison. The extends are the join made visible.
+export const BullionStorefront = BullionPublic.extend({
   metal_type: Metal.shape.name,
   mint_name: Mint.shape.name,
 });
 export type BullionStorefront = z.infer<typeof BullionStorefront>;
 
-// POST /products/save_product and /create_product - the writable columns, all
-// optional (a create sends the same patch). Audit columns are omitted:
+// POST /products and PATCH /products/:id - the writable columns, all optional
+// (a create sends the same patch). Audit columns are omitted:
 // public.audit_stamp writes them.
 //
 // metal_id/supplier_id/mint_id travel as IDS, not names (ruling 43). The body
@@ -86,3 +87,46 @@ export const BullionPatch = Bullion.omit({
 }).partial();
 export type BullionPatch = z.infer<typeof BullionPatch>;
 
+// THE COLUMNS AN UPDATE MAY TOUCH: the patch minus `id`, which is the
+// statement's WHERE key rather than a value it writes. A create still sends
+// the full patch - an explicit id there is honoured.
+export const BullionPatchColumns = BullionPatch.omit({ id: true });
+export type BullionPatchColumns = z.infer<typeof BullionPatchColumns>;
+
+// THE ADMIN ROW AS SQL PROJECTS IT - everything but the two actor ids, which
+// are the trigger's and never leave the API.
+export const BullionAdminRow = Bullion.omit({
+  created_by_id: true,
+  updated_by_id: true,
+});
+export type BullionAdminRow = z.infer<typeof BullionAdminRow>;
+
+// THE ADMIN ROW ON THE WIRE. The three foreign keys are resolved to names by
+// the query itself (db/products/sql/get_admin.sql joins metals, mints and the
+// supplier's organization), which is why there is no composer in between.
+export const BullionAdmin = BullionAdminRow.omit({
+  metal_id: true,
+  mint_id: true,
+  supplier_id: true,
+}).extend({
+  metal: Metal.shape.name,
+  mint: Mint.shape.name,
+  supplier: Organization.shape.name,
+});
+export type BullionAdmin = z.infer<typeof BullionAdmin>;
+
+// A PRODUCT AND ITS WEIGHTS, as the catalogue lists it. `variant_group` names
+// a family (four Gold American Eagles by `variant_label`); the server groups
+// them, picks the family's headline row - the heaviest, which is what four
+// screens each re-sorted for - and orders the rest heaviest first. A product
+// with no family is a group of one with no variants.
+export const BullionGroup = z.object({
+  default: BullionStorefront,
+  variants: z.array(BullionStorefront),
+});
+export type BullionGroup = z.infer<typeof BullionGroup>;
+
+// Whether an id may be BOUGHT. The sell side has no gate (ruling 49), so a
+// bid check only asks whether the row exists at all.
+export const BullionLiveness = Bullion.pick({ id: true, display: true });
+export type BullionLiveness = z.infer<typeof BullionLiveness>;

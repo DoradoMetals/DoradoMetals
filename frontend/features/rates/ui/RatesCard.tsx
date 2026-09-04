@@ -53,7 +53,7 @@ export default function RatesCard({
     const dirty = items.filter((r) => dirtyIds.has(r.id))
     for (const r of dirty) {
       update.mutate({
-        rate_id: r.id,
+        id: r.id,
         patch: {
           metal_id: r.metal_id,
           unit: r.unit,
@@ -93,7 +93,7 @@ export default function RatesCard({
           onRangeChange={(id, min_qty, max_qty) => patchLocal(id, { min_qty, max_qty })}
           onScrapChange={(id, v) => patchLocal(id, { scrap_pct: intToPct(v) })}
           onBullChange={(id, v) => patchLocal(id, { bullion_pct: intToPct(v) })}
-          onDelete={(row) => del.mutate(row)}
+          onDelete={(row) => del.mutate(row.id)}
           onAdd={() => {
             const last = items.at(-1)
             if (last && last.max_qty == null) {

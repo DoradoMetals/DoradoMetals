@@ -10,13 +10,6 @@ const ROOT = path.resolve(import.meta.dirname, "../../..");
 // side quotes a customer a number and the other side pays it.
 const PAIRS = [
   {
-    what: "the rate resolution",
-    api: "api/domain/rates/utils/resolveRate.ts",
-    web: "frontend/features/rates/utils/resolveRate.ts",
-    // formatRate is frontend-only and is display, not arithmetic.
-    shared: ["getRateBand", "getRatePct", "sumContentByMetal"],
-  },
-  {
     what: "weight conversion",
     api: "api/shared/utils/convertWeights.ts",
     web: "frontend/shared/utils/convertWeights.ts",
@@ -42,12 +35,10 @@ function extract(file: string, name: string): string {
   return src.slice(from, i + 1);
 }
 
-// One difference is real and allowed: the API tolerates a null list (`?? []`) where the frontend's typed input doesn't need to — normalised away by NAME here so a loose comparison doesn't also hide a difference that matters; the guard below pins the API's null tolerance itself so removing it fails instead of quietly 'agreeing'.
-// Tuples declared explicitly — a bare literal here widens to (RegExp | string)[][], so `.replace(re, to)` would match no overload.
-const ALLOWED_DIFFERENCES: readonly (readonly [RegExp | string, string])[] = [
-  [/\(rates \?\? \[\]\)/g, "rates"],
-  [/items \?\? \[\]/g, "items"],
-];
+// Kept for the pair that remains, which has no allowed difference today. The
+// rate-resolution pair had one (the API tolerated a null list); it is gone
+// with the pair - see the note below.
+const ALLOWED_DIFFERENCES: readonly (readonly [RegExp | string, string])[] = [];
 
 const normalise = (s: string): string => {
   let out = s
@@ -96,14 +87,24 @@ test("the comparison is reading real function bodies, not empty strings", () => 
       checked += 1;
     }
   }
-  assert.equal(checked, 4, "expected four shared functions across the two pairs");
+  assert.equal(checked, 1, "expected one shared function");
 });
 
-// The allowance above is only safe while the API really is the defensive one.
-// If someone removes these guards, the two files start agreeing for the wrong
-// reason and the API starts throwing on a null list off the wire.
-test("the API still tolerates a null list, which is why the difference is allowed", () => {
-  const src = fs.readFileSync(path.join(ROOT, PAIRS[0].api), "utf8");
-  assert.match(src, /\(rates \?\? \[\]\)/, "the API's null-rates guard is gone");
-  assert.match(src, /items \?\? \[\]/, "the API's null-items guard is gone");
+// THE RATE-RESOLUTION PAIR IS GONE, and by DELETION rather than by drift.
+// `frontend/features/rates/utils/resolveRate.ts` held `getRateBand`,
+// `getRatePct` and `sumContentByMetal` - the money half of this file's reason
+// to exist - and nothing in the browser called any of them: every rate a
+// customer is shown comes from a /quotes endpoint. One copy is not a mirror,
+// so the pair left with the file. `api/domain/rates/utils/resolveRate.ts`
+// stays, and is now the only one.
+test("the rate resolution has exactly one copy, and it is the API's", () => {
+  assert.ok(
+    fs.existsSync(path.join(ROOT, "api/domain/rates/utils/resolveRate.ts")),
+    "the API's rate resolution is gone"
+  );
+  assert.ok(
+    !fs.existsSync(path.join(ROOT, "frontend/features/rates/utils/resolveRate.ts")),
+    "a second copy of the rate resolution is back in the frontend - either " +
+      "delete it or put its functions back in this file's PAIRS"
+  );
 });

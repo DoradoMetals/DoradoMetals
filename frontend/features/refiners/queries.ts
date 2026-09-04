@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { apiRequest } from '@/shared/queries/axios'
 import { useGetSession } from '@/features/auth/queries'
 import { invalidateOrder } from '@dorado/client'
-import type { RefinerItem, RefinerItemPatch, RefinerOrder, RefinerOrderPatch, RefinerSpot, RefinerSpotWrite } from "@dorado/contracts";
+import type { RefinerItem, RefinerItemPatch, RefinerOrder, RefinerOrderPatch, RefinerRead, RefinerSpot, RefinerSpotWrite } from "@dorado/contracts";
 
 // REFINERS IS ITS OWN FEATURE, and the endpoint follows the feature that
 // owns the table (Jacob's rule, fourth D87 correction). The standing rule of
@@ -23,6 +23,19 @@ import type { RefinerItem, RefinerItemPatch, RefinerOrder, RefinerOrderPatch, Re
 // the path says so - the order wire serves refiner values by order line and
 // never exposes refiners.items' own row id, so the line's id is the only key
 // the client honestly holds.
+
+// EVERY REFINER, for the admin pickers that name one. It lived in
+// features/products/queries.ts because the product form has a supplier
+// dropdown; the endpoint belongs to the feature that owns the table.
+export const useAdminSuppliers = () => {
+  const { user } = useGetSession()
+
+  return useQuery<RefinerRead[]>({
+    queryKey: ['suppliers'],
+    queryFn: async () => await apiRequest<RefinerRead[]>('GET', '/suppliers/get_all'),
+    enabled: !!user,
+  })
+}
 
 // The bare engagement row for one customer order, VERBATIM (the
 // RefinerOrder contract re-exports refiners.orders' generated row). Its `id`

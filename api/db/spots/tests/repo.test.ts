@@ -33,7 +33,7 @@ test("update writes a real metal's quote and answers true", async () => {
     assert.equal(changed, true, "update reported no row changed - Gold should already have a row");
 
     const rows = await spots.list(c);
-    const row = rows.find((r) => r.metal_id === gold);
+    const row = rows.find((r) => r.id === gold);
     assert.equal(Number(row?.bid), 2401.5);
     assert.equal(Number(row?.ask), 2415.25);
   });
@@ -53,13 +53,13 @@ test("create writes the one row a metal was missing, honoring the one-per-metal 
     // untouched outside it - see repo.ts's header on when create is called.
     await query(`DELETE FROM spots.spots WHERE metal_id = $1`, [silver], c);
 
-    const created = await spots.create(
-      { metal_id: silver, ask: 30.5, bid: 30.1, dollar_change: 0.2, percent_change: 0.65 }, c
+    await spots.create(
+      silver, { ask: 30.5, bid: 30.1, dollar_change: 0.2, percent_change: 0.65 }, c
     );
-    assert.equal(created.metal_id, silver);
-    assert.equal(Number(created.ask), 30.5);
 
     const rows = await spots.list(c);
-    assert.equal(rows.filter((r) => r.metal_id === silver).length, 1);
+    const created = rows.filter((r) => r.id === silver);
+    assert.equal(created.length, 1);
+    assert.equal(Number(created[0]?.ask), 30.5);
   });
 });

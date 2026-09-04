@@ -64,7 +64,7 @@ async function refuseProductsThatAreNotLive(
 
 // ------------------------------------------------------------------ catalog
 
-// The catalogue, priced. PUBLIC (mirrors /spots/spot_prices): the storefront
+// The catalogue, priced. PUBLIC (mirrors GET /spots): the storefront
 // quotes anyone who visits, and this returns nothing a visitor cannot derive
 // from the public product list and spot feed.
 // quantity defaults to 1 - what does ONE cost.
@@ -220,7 +220,7 @@ export async function purchaseOrderQuote(
     Array.from(new Set(productIds)).map((id) => ({ id, quantity: 0 }))
   );
   const spots = await spotsService.getSpotPrices();
-  const rates = await ratesService.getAllRates();
+  const rates = await ratesService.listRates();
   const spots_at = new Date().toISOString();
   const byId = new Map(rows.map((row) => [row.id, row]));
 

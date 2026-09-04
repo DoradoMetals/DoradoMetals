@@ -225,10 +225,9 @@ add(
 
 // The catalogue. The other feature that had no contract, and one the frontend
 // leans on hardest - every price on the site is derived from these numbers.
-// getSellProducts has no gate (Jacob, 2026-09-03, ruling 49) and returns
-// EVERY row - MORE than getAllProducts, not fewer - so both are checked
-// rather than assuming one covers the other.
-// Two shapes now, and both are checked.
+// The sell side has no gate (Jacob, 2026-09-03, ruling 49) and returns EVERY
+// row - MORE than the buy side, not fewer - so both are checked rather than
+// assuming one covers the other.
 //
 // The repos return Bullion - products.bullion's own names - and since the
 // conversion (2026-08-27) that IS the wire: the adapter and its legacy check
@@ -238,8 +237,26 @@ add(
 // storefront row is no longer a projection, it is a projection plus two labels
 // attached in JS, so a field can now go missing in a place SQL never could.
 const productsService = await import("#domain/products/service.ts");
-add("GET /products", c.BullionStorefront, () => productsService.getAllProducts());
-add("GET /products (sell)", c.BullionStorefront, () => productsService.getSellProducts());
+// The buy side is gated by `display`; the sell side has no gate at all
+// (ruling 49) and returns MORE rows, not fewer - so both are checked rather
+// than assuming one covers the other. Both answer GROUPS now, so the group
+// shape and the row inside it are each parsed.
+add("GET /products", c.BullionGroup, () => productsService.listGroups({ display: true }));
+add("GET /products (sell)", c.BullionGroup, () => productsService.listGroups({}));
+add("GET /products (row)", c.BullionStorefront, async () =>
+  (await productsService.listGroups({})).flatMap((g) => [g.default, ...g.variants])
+);
+add("GET /products/admin", c.BullionAdmin, () => productsService.listAdminProducts());
+
+// Spots and rates: the two reference feeds every price is built from, and
+// neither had a wire check. The ticker's `direction` and the rates page's
+// bands are computed, so a field can go missing in a place SQL never could.
+const spotsService = await import("#domain/spots/service.ts");
+add("GET /spots", c.SpotTicker, () => spotsService.listTicker());
+const ratesService = await import("#domain/rates/service.ts");
+add("GET /rates", c.RateRead, () => ratesService.listRates());
+add("GET /rates/admin", c.AdminRate, () => ratesService.listAdminRates());
+add("GET /rates/tiers", c.RateTier, () => ratesService.listTiers());
 
 // Orders. ONE SHAPE, BOTH DIRECTIONS, since the wire slimmed (wave 3): an
 // order on the wire is its orders.orders row plus `totals`, and every other

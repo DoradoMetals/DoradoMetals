@@ -1,7 +1,9 @@
 // Strict body parsing at the transport boundary (D214 item 3): an unknown key
-// or a wrong-typed value is a 400 before the service runs. save_product also
-// proves the ids-not-names redesign: `metal`/`supplier`/`mint` (the old
-// name-resolution fields) are unknown keys now that the body carries ids.
+// or a wrong-typed value is a 400 before the service runs. The PATCH also
+// proves the ids-not-names redesign - `metal`/`supplier`/`mint` (the old
+// name-resolution fields) are unknown keys now that the body carries ids - and
+// the QUERY STRING is parsed the same way, so a filter nobody declared is a
+// 400 rather than a filter silently ignored.
 import { test, afterAll } from "vitest";
 import assert from "node:assert/strict";
 import request from "supertest";
@@ -34,38 +36,67 @@ const FULL_PRODUCT = {
   image_front: "/f.png", image_back: "/b.png", filter_category: null,
 };
 
-test("POST /products/save_product refuses the old metal/supplier/mint name fields", async () => {
+test("PATCH /products/:id refuses the old metal/supplier/mint name fields", async () => {
   await asAdmin(async () => {
     const res = await request(app)
-      .post("/api/products/save_product")
-      .send({ product: { ...FULL_PRODUCT, metal: "Silver" } });
+      .patch(`/api/products/${AN_ID}`)
+      .send({ ...FULL_PRODUCT, id: undefined, metal: "Silver" });
     assert.equal(res.status, 400, JSON.stringify(res.body));
     assert.match(res.body?.error?.message ?? "", /metal/);
   });
 });
 
-test("POST /products/save_product refuses a wrong type", async () => {
+// `id` is the path segment now, so naming it in the body is an unknown key -
+// the one place two spellings of the same fact could disagree.
+test("PATCH /products/:id refuses an id in the body", async () => {
+  await asAdmin(async () => {
+    const res = await request(app).patch(`/api/products/${AN_ID}`).send({ id: AN_ID });
+    assert.equal(res.status, 400, JSON.stringify(res.body));
+    assert.match(res.body?.error?.message ?? "", /id/);
+  });
+});
+
+test("PATCH /products/:id refuses a wrong type", async () => {
   await asAdmin(async () => {
     const res = await request(app)
-      .post("/api/products/save_product")
-      .send({ product: { ...FULL_PRODUCT, display: "true" } });
+      .patch(`/api/products/${AN_ID}`)
+      .send({ display: "true" });
     assert.equal(res.status, 400, JSON.stringify(res.body));
   });
 });
 
-test("POST /products/create_product refuses an unknown key (created_by)", async () => {
+test("PATCH /products/:id refuses a malformed id in the path", async () => {
+  await asAdmin(async () => {
+    const res = await request(app).patch("/api/products/not-a-uuid").send({ name: "X" });
+    assert.equal(res.status, 400, JSON.stringify(res.body));
+  });
+});
+
+test("POST /products refuses an unknown key (created_by)", async () => {
   await asAdmin(async () => {
     const res = await request(app)
-      .post("/api/products/create_product")
+      .post("/api/products")
       .send({ name: "New Product", created_by: "someone" });
     assert.equal(res.status, 400, JSON.stringify(res.body));
     assert.match(res.body?.error?.message ?? "", /created_by/);
   });
 });
 
-test("POST /products/create_product refuses a wrong type", async () => {
+test("POST /products refuses a wrong type", async () => {
   await asAdmin(async () => {
-    const res = await request(app).post("/api/products/create_product").send({ name: 12345 });
+    const res = await request(app).post("/api/products").send({ name: 12345 });
     assert.equal(res.status, 400, JSON.stringify(res.body));
   });
+});
+
+// The query string is parsed strictly too: a filter nobody declared is a 400
+// rather than a filter silently ignored.
+test("GET /products refuses an undeclared filter", async () => {
+  const res = await request(app).get("/api/products").query({ nonsense: "x" });
+  assert.equal(res.status, 400, JSON.stringify(res.body));
+});
+
+test("GET /products refuses a sort it does not offer", async () => {
+  const res = await request(app).get("/api/products").query({ sort: "price" });
+  assert.equal(res.status, 400, JSON.stringify(res.body));
 });

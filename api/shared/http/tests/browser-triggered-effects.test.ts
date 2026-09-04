@@ -23,9 +23,10 @@ const walk = (dir: string, out: string[] = []): string[] => {
 };
 
 // Committed rather than derived — a list read out of the file it checks would always agree with itself.
-const ALLOWED = [
-  // These are reads, not post-success effects — a failed read loses no user action (sitemap runs server-side; basket hydration runs post-login with its own catch, keeping the local copy).
-  "(top level) GET /products/get_all_products",
+const ALLOWED: string[] = [
+  // The sitemap's catalogue read used to sit here. It is GONE, not excused:
+  // the sitemap calls @dorado/client's fetchProducts now, so no `apiRequest`
+  // remains in frontend/ for this apiRequest-shaped scan to match.
   // The basket-hydration entry that sat here is GONE, not excused: the call
   // moved into @dorado/client as `fetchCheckoutItems`, so no `apiRequest`
   // remains in frontend/ for it to match. This scan is apiRequest-shaped and

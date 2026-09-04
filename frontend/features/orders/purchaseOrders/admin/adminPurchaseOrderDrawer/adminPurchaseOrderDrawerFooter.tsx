@@ -22,7 +22,7 @@ import { usePaymentMethods, useOrderShipments } from '@dorado/client'
 import { outboundOf, returnOf } from '@/features/shipping/queries'
 import { useProducts } from '@/features/products/queries'
 import { useSpotPrices } from '@/features/spots/queries'
-import { formatRate } from '@/features/rates/utils/resolveRate'
+import { formatRate } from '@/features/rates/types'
 // Every dollar figure below comes from the order quote - the server prices
 // the order's own items at its own spots, honouring a lock (Jacob's
 // no-previews ruling). The client keeps only weight/rate display math.

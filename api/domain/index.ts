@@ -15,6 +15,7 @@ export * as leads from "#domain/leads/service.ts";
 export * as emails from "#domain/media/emails/service.ts";
 export * as images from "#domain/media/images/service.ts";
 export * as pdfs from "#domain/media/pdfs/service.ts";
+export * as metals from "#domain/metals/service.ts";
 export * as mints from "#domain/mints/service.ts";
 export * as orders from "#domain/orders/service.ts";
 export * as orderAddresses from "#domain/orders/addresses/service.ts";

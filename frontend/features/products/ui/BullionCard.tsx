@@ -14,7 +14,7 @@ import { cn } from '@/shared/utils/cn'
 import { AnimatePresence, motion } from 'framer-motion'
 import { useBasket, useCheckoutItemActions } from '@/features/checkout/items/queries'
 import { lineFromProduct } from '@/features/checkout/items/types'
-import { useSpotPrices } from '@/features/spots/queries'
+import { useSpotPrices } from '@dorado/client'
 import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
 import { DetailRow } from '@/shared/ui/DetailRow'
 
@@ -28,10 +28,9 @@ type BullionCardProps = {
 }
 
 export default function BullionCard({ product, variants, unitPrices }: BullionCardProps) {
-  const initialVariant =
-    variants.length > 0 ? [...variants].sort((a, b) => b.content - a.content)[0] : product
-
-  const [selectedProduct, setSelectedProduct] = useState<Product>(initialVariant)
+  // The server picks the family's headline row and orders the siblings
+  // (heaviest first), so there is nothing to sort here.
+  const [selectedProduct, setSelectedProduct] = useState<Product>(product)
   const [open, setOpen] = useState(false)
   const [variantsOpen, setVariantsOpen] = useState(false)
 
@@ -42,7 +41,7 @@ export default function BullionCard({ product, variants, unitPrices }: BullionCa
 
   const { data: spotPrices = [] } = useSpotPrices()
 
-  const spot = spotPrices.find((s) => s.name === selectedProduct.metal_type)
+  const spot = spotPrices.find((s) => s.id === selectedProduct.metal_id)
   const price = unitPrices[selectedProduct.id] ?? 0
 
   // DERIVED, like ProductCard's ask popover: quoted unit_price minus melt
@@ -180,9 +179,7 @@ export default function BullionCard({ product, variants, unitPrices }: BullionCa
                     </Button>
                   }
                 >
-                  {[...variants]
-                    .sort((a, b) => b.content - a.content)
-                    .map((option) => (
+                  {variants.map((option) => (
                       <BullionFloatingButtonItem key={option.id}>
                         <RadioOption
                           value={option.name}
@@ -191,8 +188,8 @@ export default function BullionCard({ product, variants, unitPrices }: BullionCa
                         >
                           {option.variant_label}
                         </RadioOption>
-                      </BullionFloatingButtonItem>
-                    ))}
+                    </BullionFloatingButtonItem>
+                  ))}
                 </BullionFloatingButton>
               </RadioGroup>
             </div>

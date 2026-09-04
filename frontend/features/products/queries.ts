@@ -1,204 +1,72 @@
-import type { SpotPrice } from "@dorado/contracts";
-import { apiRequest } from '@/shared/queries/axios'
-import type { Product, ProductGroup, ProductFilters, AdminProduct, AdminTypes, Supplier, AdminMints } from '@/features/products/types'
-import { groupProducts } from '@/features/products/types'
-import { useApiMutation, useApiQuery } from '@/shared/queries/base'
-import { queryKeys } from '@/shared/queries/keys'
+'use client'
 
-export const useProducts = () => {
-  return useApiQuery<Product[]>({
-    key: queryKeys.productsRaw(),
-    method: 'GET',
-    url: '/products/get_all_products',
-    staleTime: 0,
-  })
+// WHAT IS LEFT OF THIS FILE, and why any of it is left.
+//
+// Every catalogue hook lives in @dorado/client (ruling 62). Two things are
+// kept here, and both call the client rather than the API:
+//
+//   `useProducts` - the WHOLE catalogue as a flat list, which is how the order
+//   drawers and the basket's flair map a bullion_id onto a picture and a name.
+//   The server answers GROUPS now, so the flattening happens once, here,
+//   instead of in each of the eight surfaces that read it. It asks the SELL
+//   side (`side: 'bid'`), which has no `display` gate at all (ruling 49): an
+//   order can name a product that has since been pulled from the storefront,
+//   and that id must still resolve to a name.
+//
+//   `useSaveProduct` - the admin drawer's save. Its dropdowns hold metal,
+//   mint and supplier NAMES and the API takes IDS (ruling 43), so the names
+//   are resolved here against the same reference lists the dropdowns render
+//   from. Admin-form glue; it dies when the interim admin drawer does.
+import { useMemo } from 'react'
+import {
+  useAdminProducts, useMetals, useMints, useProducts as useProductGroups,
+  useUpdateProduct,
+} from '@dorado/client'
+import { useAdminSuppliers } from '@/features/refiners/queries'
+import type { BullionAdmin, BullionStorefront } from '@dorado/contracts'
+
+export {
+  useAdminProducts,
+  useCreateProduct,
+  useMetals,
+  useMetals as useAdminMetals,
+  useMints,
+  useMints as useAdminMints,
+  useProductTypes,
+  useProductTypes as useAdminTypes,
+} from '@dorado/client'
+export { useAdminSuppliers } from '@/features/refiners/queries'
+
+export function useProducts() {
+  const query = useProductGroups({ side: 'bid' })
+  const groups = query.data
+  const data = useMemo<BullionStorefront[]>(
+    () => (groups ?? []).flatMap((g) => (g.variants.length ? g.variants : [g.default])),
+    [groups]
+  )
+  return { ...query, data }
 }
 
-export const useProductFromSlug = (slug: string) => {
-  return useApiQuery<ProductGroup[]>({
-    key: queryKeys.productFromSlug(slug),
-    enabled: !!slug,
-    staleTime: Infinity,
-    requireUser: false,
-    request: async () => {
-      const products = await apiRequest<Product[]>(
-        'GET',
-        '/products/get_product_from_slug',
-        undefined,
-        { slug }
-      )
-
-      return groupProducts(products)
-    },
-  })
-}
-
-export const useSellProducts = () => {
-  return useApiQuery<ProductGroup[]>({
-    key: queryKeys.sellProducts(),
-    staleTime: Infinity,
-    requireUser: false,
-    request: async () => {
-      const products = await apiRequest<Product[]>(
-        'GET',
-        '/products/get_sell_products',
-        undefined,
-        {}
-      )
-      return groupProducts(products)
-    },
-  })
-}
-
-export const useHomepageProducts = () => {
-  return useApiQuery<ProductGroup[]>({
-    key: queryKeys.homepageProducts(),
-    staleTime: Infinity,
-    requireUser: false,
-    request: async () => {
-      const products = await apiRequest<Product[]>(
-        'GET',
-        '/products/get_homepage_products',
-        undefined
-      )
-      return groupProducts(products)
-    },
-  })
-}
-
-export const useFilteredProducts = (filters: ProductFilters) => {
-  return useApiQuery<ProductGroup[]>({
-    key: queryKeys.filteredProducts(filters),
-    staleTime: 0,
-    requireUser: false,
-    request: async () => {
-      const products = await apiRequest<Product[]>(
-        'GET',
-        '/products/get_products',
-        undefined,
-        filters
-      )
-      return groupProducts(products)
-    },
-  })
-}
-
-export const useCreateProduct = () =>
-  useApiMutation<AdminProduct, { name: string }, AdminProduct[]>({
-    queryKey: queryKeys.adminProducts(),
-    method: 'POST',
-    url: '/products/create_product',
-    requireAdmin: true,
-    listAction: 'create',
-    listInsertPosition: 'start',
-    body: ({ name }) => ({
-      name,
-    }),
-  })
-
-// The admin read joins metal/supplier/mint down to NAMES (compose.ts's own
-// comment: "the admin form sends those names straight back" - true of the
-// old wire, not this one). save_product now takes metal_id/supplier_id/
-// mint_id (ruling 43 - ids for what the server holds), so the ids are
-// resolved here from the same cached reference reads the drawer's dropdowns
-// already use, and every field ProductPatch does not declare (the names
-// themselves, the audit columns, the two dead spec fields) is dropped
-// rather than sent for the strict body to 400 on.
-export const useSaveProduct = () => {
-  const { data: metals = [] } = useAdminMetals()
+export function useSaveProduct() {
+  const { data: metals = [] } = useMetals()
+  const { data: mints = [] } = useMints()
   const { data: suppliers = [] } = useAdminSuppliers()
-  const { data: mints = [] } = useAdminMints()
+  const update = useUpdateProduct()
 
-  return useApiMutation<void, AdminProduct, AdminProduct[]>({
-    queryKey: queryKeys.adminProducts(),
-    method: 'POST',
-    url: '/products/save_product',
-    requireAdmin: true,
-    listAction: 'upsert',
-    body: (product) => {
-      const {
-        metal,
-        supplier,
-        mint,
-        created_at,
-        updated_at,
-        created_by,
-        updated_by,
-        thickness,
-        diameter,
-        metal_type,
-        ...patch
-      } = product
-
-      return {
-        product: {
-          ...patch,
+  return {
+    ...update,
+    mutate: (product: BullionAdmin) => {
+      const { id, metal, mint, supplier, created_at, updated_at, created_by, updated_by, ...columns } =
+        product
+      update.mutate({
+        id,
+        patch: {
+          ...columns,
           metal_id: metals.find((m) => m.name === metal)?.id,
-          supplier_id: suppliers.find((s) => s.organization.name === supplier)?.id,
           mint_id: mints.find((m) => m.name === mint)?.id,
+          supplier_id: suppliers.find((s) => s.organization.name === supplier)?.id,
         },
-      }
+      })
     },
-  })
+  }
 }
-
-export const useAdminProducts = () =>
-  useApiQuery<AdminProduct[]>({
-    key: queryKeys.adminProducts(),
-    method: 'GET',
-    url: '/products/get_admin_products',
-    requireAdmin: true,
-    staleTime: 30000,
-    params: (user) => ({
-      user_id: user?.id,
-    }),
-  })
-
-export const useAdminTypes = () =>
-  useApiQuery<AdminTypes[]>({
-    key: queryKeys.adminTypes(),
-    url: '/products/get_product_types',
-    method: 'GET',
-    requireAdmin: true,
-    params: (user) => ({
-      user_id: user?.id,
-    }),
-  })
-
-// /products/get_metals serves the composed spot shape - the same
-// name/ask/bid the live feed serves - with no wire conversion on the route.
-// The old AdminMetal type (type/ask_spot as strings) described a response
-// this endpoint stopped sending at the products restructure; the drawer's
-// metal dropdown was reading `.type` off rows that no longer had one (D72).
-export const useAdminMetals = () =>
-  useApiQuery<SpotPrice[]>({
-    key: queryKeys.adminMetals(),
-    url: '/products/get_metals',
-    method: 'GET',
-    requireAdmin: true,
-    params: (user) => ({
-      user_id: user?.id,
-    }),
-  })
-
-export const useAdminSuppliers = () =>
-  useApiQuery<Supplier[]>({
-    key: queryKeys.adminSuppliers(),
-    url: '/suppliers/get_all',
-    method: 'GET',
-    requireAdmin: true,
-    params: (user) => ({
-      user_id: user?.id,
-    }),
-  })
-
-export const useAdminMints = () =>
-  useApiQuery<AdminMints[]>({
-    key: queryKeys.adminMints(),
-    url: '/products/get_mints',
-    method: 'GET',
-    requireAdmin: true,
-    params: (user) => ({
-      user_id: user?.id,
-    }),
-  })

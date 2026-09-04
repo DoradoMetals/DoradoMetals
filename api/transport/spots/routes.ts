@@ -1,12 +1,10 @@
-import express from 'express';
-import {
-  getSpotPrices,
-} from '#transport/spots/controller.ts';
+import express from "express";
+import { listSpots } from "#transport/spots/controller.ts";
 
 const router = express.Router();
 
-// No wire adapter - the frontend reads the schema's own names (`name` / `ask` / `bid`) directly.
-
-router.get('/spot_prices', getSpotPrices);
+// Public, like the catalogue itself: the live metal quotes, plus which way
+// each moved today.
+router.get("/", listSpots);
 
 export default router;

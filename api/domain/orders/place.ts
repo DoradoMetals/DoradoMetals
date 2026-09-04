@@ -45,8 +45,8 @@ import type { NewOrderItem } from "#db/orders/items/repo.ts";
 import type { NewOrderTotals } from "#db/orders/transactions/repo.ts";
 import type { CheckoutRow } from "#db/checkout/checkouts/repo.ts";
 import type { AddressRow } from "#db/places/addresses/repo.ts";
-import type { SpotWire } from "#domain/spots/compose.ts";
-import type { OrderView } from "@dorado/contracts";
+
+import type { OrderView, SpotPrice } from "@dorado/contracts";
 import type { Postage } from "#domain/orders/postage.ts";
 
 export type { Postage } from "#domain/orders/postage.ts";
@@ -96,7 +96,7 @@ export async function place(checkout_id: string, world: World = LIVE): Promise<O
 async function writeOrder(
   { order_id, checkout, status, lines, totals, spots }: {
     order_id: string; checkout: CheckoutRow; status: string;
-    lines: NewOrderItem[]; totals: NewOrderTotals; spots: SpotWire[];
+    lines: NewOrderItem[]; totals: NewOrderTotals; spots: SpotPrice[];
   },
   tx: PoolClient
 ): Promise<void> {

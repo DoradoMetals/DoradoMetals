@@ -105,7 +105,7 @@ function Details({ product }: { product: AdminProduct }) {
         <PickerField
           label="Product Type"
           value={product.type}
-          options={types?.map((item) => item.name) ?? []}
+          options={types ?? []}
           onChange={(val) => handleUpdate(product.id, { type: val })}
         />
       </div>

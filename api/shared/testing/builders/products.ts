@@ -7,6 +7,10 @@
 // more than an INSERT and it keeps the builder honest: no column is written
 // here that a service does not write through the same statement.
 //
+// THE OPTIONS ARE THE CONTRACT'S PATCH, not a local restatement of the
+// columns: a column added to BullionPatch is settable here the same day.
+// `metal` is the one addition - a metal by NAME, resolved to its id.
+//
 // THE DEFAULTS ARE LITERALS AND THEY ARE READABLE ON PURPOSE. A one-ounce
 // .9999 coin at $50 over bid is what most of these tests mean by "a product",
 // and a failure message that says 0.9999 is worth more than one that says
@@ -15,6 +19,7 @@ import type { PoolClient } from "pg";
 import { anId, aTag } from "#shared/testing/builders/ids.ts";
 import * as products from "#db/products/repo.ts";
 import { metalId, mintId, supplierId, type MetalName } from "#shared/testing/builders/reference.ts";
+import type { BullionPatch } from "@dorado/contracts";
 
 export type BuiltProduct = {
   id: string;
@@ -28,80 +33,54 @@ export type BuiltProduct = {
   ask_premium: number;
 };
 
-export type ProductOptions = {
-  id?: string;
-  name?: string;
-  metal?: MetalName;
-  metal_id?: string;
-  content?: number;
-  gross?: number;
-  purity?: number;
-  bid_premium?: number;
-  ask_premium?: number;
-  type?: string;
-  display?: boolean;
-  stock?: number;
-  quantity?: number;
-  slug?: string | null;
-  variant_group?: string;
-  variant_label?: string;
-  legal_tender?: boolean;
-  is_generic?: boolean;
-  filter_category?: string | null;
-};
-
 export async function aProduct(
-  c: PoolClient, options: ProductOptions = {}
+  c: PoolClient, options: BullionPatch & { metal?: MetalName } = {}
 ): Promise<BuiltProduct> {
   const tag = aTag();
-  const id = options.id ?? anId();
-  const name = options.name ?? `Test Bullion ${tag}`;
-  const metal_id = options.metal_id ?? (await metalId(c, options.metal ?? "Gold"));
-  const mint_id = await mintId(c);
-  const supplier_id = await supplierId(c);
+  const { metal, ...given } = options;
+  const patch: BullionPatch = {
+    id: anId(),
+    name: `Test Bullion ${tag}`,
+    metal_id: await metalId(c, metal ?? "Gold"),
+    mint_id: await mintId(c),
+    supplier_id: await supplierId(c),
+    description: `Built by a fixture (${tag})`,
+    slug: `test-bullion-${tag}`,
+    content: 1,
+    gross: 1,
+    purity: 0.9999,
+    bid_premium: 50,
+    ask_premium: 75,
+    type: "Coin",
+    display: true,
+    homepage_display: false,
+    legal_tender: false,
+    domestic_tender: false,
+    is_generic: false,
+    variant_group: "",
+    variant_label: "",
+    shadow_offset: 0,
+    stock: 10,
+    quantity: 1,
+    image_front: "test-front.png",
+    image_back: "test-back.png",
+    filter_category: null,
+    ...given,
+  };
 
-  await products.create(
-    {
-      id, name, metal_id, mint_id, supplier_id,
-      image_front: "test-front.png", image_back: "test-back.png",
-      stock: options.stock ?? 10,
-      quantity: options.quantity ?? 1,
-    },
-    c
-  );
+  const { id: _requested, ...columns } = patch;
+  const id = await products.create(patch, c);
+  await products.update(id, columns, c);
 
-  const slug = options.slug ?? `test-bullion-${tag}`;
-  const content = options.content ?? 1;
-  const gross = options.gross ?? 1;
-  const purity = options.purity ?? 0.9999;
-  const bid_premium = options.bid_premium ?? 50;
-  const ask_premium = options.ask_premium ?? 75;
-
-  await products.update(
+  return {
     id,
-    {
-      metal_id, supplier_id, mint_id, name,
-      description: `Built by a fixture (${tag})`,
-      bid_premium, ask_premium,
-      type: options.type ?? "Coin",
-      display: options.display ?? true,
-      content, gross, purity,
-      variant_group: options.variant_group ?? "",
-      shadow_offset: 0,
-      stock: options.stock ?? 10,
-      slug,
-      homepage_display: false,
-      legal_tender: options.legal_tender ?? false,
-      domestic_tender: false,
-      is_generic: options.is_generic ?? false,
-      variant_label: options.variant_label ?? "",
-      quantity: options.quantity ?? 1,
-      image_front: "test-front.png",
-      image_back: "test-back.png",
-      filter_category: options.filter_category ?? null,
-    },
-    c
-  );
-
-  return { id, name, slug, metal_id, content, gross, purity, bid_premium, ask_premium };
+    name: patch.name!,
+    slug: patch.slug ?? null,
+    metal_id: patch.metal_id!,
+    content: patch.content!,
+    gross: patch.gross!,
+    purity: patch.purity!,
+    bid_premium: patch.bid_premium!,
+    ask_premium: patch.ask_premium!,
+  };
 }

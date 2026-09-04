@@ -1,28 +1,28 @@
 'use client'
 
-import { useMemo } from 'react'
+import { useRateTiers } from '@dorado/client'
 import { pctLabel } from '@/features/rates/types'
 import { cn } from '@/shared/utils/cn'
 import { GoldIcon, PalladiumIcon, PlatinumIcon, SilverIcon } from '@/features/navigation/ui/Logo'
 import { CoinsIcon, IconProps, ScalesIcon } from '@phosphor-icons/react'
-import { useRates } from '@/features/rates/queries'
+import type { RateBand, RateTier } from '@dorado/contracts'
 
-type MetalName = 'Gold' | 'Silver' | 'Platinum' | 'Palladium'
-type RateRow = {
-  metal: MetalName
-  min_qty: number
-  max_qty: number | null
-  unit: string | null
-  scrap_pct: number | null
-  bullion_pct: number | null
-}
-
-const METAL_ICONS: Record<MetalName, (props: { size?: number }) => React.ReactNode> = {
+// THE TABLE IS THE SERVER'S. This page used to take the flat rate list and, in
+// the browser, group it by metal, dedupe bands by (min, max, unit), prettify
+// the unit, format each band's label, sort the columns and pad them to four -
+// about 90 lines deciding what a customer is told we pay. GET /rates/tiers
+// answers all of it (api/domain/rates/rules.ts).
+//
+// What is left here is the ICON per metal and the four-column grid, which are
+// the two things that genuinely are presentation.
+const METAL_ICONS: Record<string, (props: { size?: number }) => React.ReactNode> = {
   Gold: ({ size = 36 }) => <GoldIcon size={size} />,
   Silver: ({ size = 36 }) => <SilverIcon size={size} />,
   Platinum: ({ size = 36 }) => <PlatinumIcon size={size} />,
   Palladium: ({ size = 36 }) => <PalladiumIcon size={size} />,
 }
+
+const ORDER = ['Gold', 'Silver', 'Platinum', 'Palladium']
 
 function LabelWithIcon({
   Icon,
@@ -30,24 +30,24 @@ function LabelWithIcon({
   className = 'flex items-center gap-2',
   iconSize = 36,
 }: {
-  Icon?: React.ComponentType<IconProps> | (() => React.ReactNode)
+  Icon?: React.ComponentType<IconProps> | ((props: { size?: number }) => React.ReactNode)
   children: React.ReactNode
   className?: string
   iconSize?: number
 }) {
   return (
     <span className={className}>
-      {Icon && <Icon size={iconSize} />}
+      {Icon ? <Icon size={iconSize} /> : null}
       {children}
     </span>
   )
 }
 
-const ORDER: MetalName[] = ['Gold', 'Silver', 'Platinum', 'Palladium']
-
 export default function RatesPage() {
-  const { data: rates = [] } = useRates()
-  const grouped = useMemo(() => groupRates(rates as RateRow[]), [rates])
+  const { data: tiers = [] } = useRateTiers()
+  const ordered = [...tiers].sort(
+    (a, b) => ORDER.indexOf(a.metal) - ORDER.indexOf(b.metal)
+  )
 
   return (
     <main className="relative w-full flex flex-col items-center">
@@ -55,251 +55,129 @@ export default function RatesPage() {
         <div className="flex flex-col items-start gap-2 max-w-6xl mx-auto mb-4">
           <h1>Industry-Leading Rates</h1>
           <p className="mt-3 max-w-xl">
-            We're focused on delivering the best possible return for your metal, often 30-40% higher
-            than local shops. Pricing is by volume based on total metal content. Higher volume,
-            higher payout. Within each volume band, rates are set separately for bullion and scrap.
+            We&apos;re focused on delivering the best possible return for your metal, often 30-40%
+            higher than local shops. Pricing is by volume based on total metal content. Higher
+            volume, higher payout. Within each volume band, rates are set separately for bullion and
+            scrap.
           </p>
         </div>
       </section>
 
       <section className="relative w-full px-4 sm:px-6 lg:px-8 pb-10 sm:pb-14">
         <div className="max-w-6xl mx-auto flex flex-col gap-6">
-          {ORDER.filter((m) => grouped[m]).map((metal) => (
-            <MetalCard key={metal} metal={metal} data={grouped[metal]!} />
+          {ordered.map((tier) => (
+            <MetalCard key={tier.metal} tier={tier} />
           ))}
-          {!rates.length && (
-            <p className="text-center">Loading current rates…</p>
-          )}
+          {!tiers.length && <p className="text-center">Loading current rates…</p>}
         </div>
       </section>
     </main>
   )
 }
 
-function MetalCard({
-  metal,
-  data,
-}: {
-  metal: MetalName
-  data: {
-    unit: string
-    columns: Array<{
-      key: string
-      min: number
-      max: number | null
-      label: string
-      scrap_pct: number | null
-      bullion_pct: number | null
-    }>
-  }
-}) {
-  const cols = ensureAtLeastFour(data.columns)
-  return (
-    <article className="rounded-lg bg-card border border-border">
-      <MobileRates metal={metal} cols={cols} />
-      <DesktopRates metal={metal} cols={cols} />
-    </article>
-  )
+// Four columns is the grid this page is built on; a metal with fewer bands
+// gets blank cells rather than a narrower card.
+const PAD: RateBand = {
+  key: 'pad', label: '—', min_qty: 0, max_qty: null,
+  scrap_pct: Number.NaN, bullion_pct: Number.NaN,
 }
 
-function MobileRates({
-  metal,
-  cols,
-}: {
-  metal: MetalName
-  cols: Array<{ key: string; label: string; scrap_pct: number | null; bullion_pct: number | null }>
-}) {
+const columns = (bands: RateBand[]): RateBand[] =>
+  bands.length >= 4
+    ? bands.slice(0, 4)
+    : [...bands, ...Array.from({ length: 4 - bands.length }, (_, i) => ({ ...PAD, key: `pad-${i}` }))]
+
+function MetalCard({ tier }: { tier: RateTier }) {
+  const cols = columns(tier.bands)
+  const Icon = METAL_ICONS[tier.metal]
   return (
-    <>
+    <article className="rounded-lg bg-card border border-border">
       <div className="px-4 sm:px-6 pt-4 md:hidden">
         <h2>
-          <LabelWithIcon
-            Icon={() => METAL_ICONS[metal]({ size: 36 })}
-            className="flex items-center gap-2"
-          >
-            {metal}
+          <LabelWithIcon Icon={Icon} className="flex items-center gap-2">
+            {tier.metal}
           </LabelWithIcon>
         </h2>
       </div>
 
       <div className="px-3 sm:px-4 md:px-6 py-3 sm:py-4 md:hidden">
         <div className="grid grid-cols-1 gap-3">
-          {cols.map((c) => (
-            <MobileBandCard
-              key={c.key}
-              label={c.label}
-              scrapPct={c.scrap_pct}
-              bullionPct={c.bullion_pct}
-            />
+          {cols.map((band) => (
+            <MobileBandCard key={band.key} band={band} />
           ))}
         </div>
       </div>
-    </>
-  )
-}
 
-function DesktopRates({
-  metal,
-  cols,
-}: {
-  metal: MetalName
-  cols: Array<{ key: string; label: string; scrap_pct: number | null; bullion_pct: number | null }>
-}) {
-  return (
-    <div className="hidden md:grid px-4 sm:px-6 pt-4 pb-4 grid-cols-5">
-      <h2 className="col-span-1">
-        <LabelWithIcon
-          Icon={() => METAL_ICONS[metal]({ size: 36 })}
-          className="flex items-center gap-2"
-        >
-          {metal}
-        </LabelWithIcon>
-      </h2>
-      <div className="col-span-4">
-        <BandChips cols={cols} />
-      </div>
-
-      <div className="col-span-5 h-px bg-border my-3" />
-
-      <RatesRow
-        label="Scrap"
-        values={cols.map((c) => c.scrap_pct)}
-        icon={ScalesIcon}
-        className="col-span-5"
-      />
-      <RatesRow
-        label="Bullion"
-        values={cols.map((c) => c.bullion_pct)}
-        icon={CoinsIcon}
-        className="col-span-5"
-      />
-    </div>
-  )
-}
-
-function BandChips({
-  cols,
-  className,
-  chipClassName = 'rounded-full border border-border px-3 py-1',
-  gridClassName = 'grid grid-cols-4 gap-2',
-}: {
-  cols: Array<{ key: string; label: string }>
-  className?: string
-  chipClassName?: string
-  gridClassName?: string
-}) {
-  return (
-    <div className={cn(className)}>
-      <div className={gridClassName}>
-        {cols.map((c) => (
-          <div key={c.key} className="flex items-center justify-center">
-            <span className={chipClassName}>{c.label}</span>
+      <div className="hidden md:grid px-4 sm:px-6 pt-4 pb-4 grid-cols-5">
+        <h2 className="col-span-1">
+          <LabelWithIcon Icon={Icon} className="flex items-center gap-2">
+            {tier.metal}
+          </LabelWithIcon>
+        </h2>
+        <div className="col-span-4">
+          <div className="grid grid-cols-4 gap-2">
+            {cols.map((band) => (
+              <div key={band.key} className="flex items-center justify-center">
+                <span className="rounded-full border border-border px-3 py-1">{band.label}</span>
+              </div>
+            ))}
           </div>
-        ))}
+        </div>
+
+        <div className="col-span-5 h-px bg-border my-3" />
+
+        <RatesRow label="Scrap" icon={ScalesIcon} values={cols.map((c) => c.scrap_pct)} />
+        <RatesRow label="Bullion" icon={CoinsIcon} values={cols.map((c) => c.bullion_pct)} />
       </div>
-    </div>
+    </article>
   )
 }
+
+const cell = (value: number) => (Number.isFinite(value) ? pctLabel(value) : '—')
 
 function RatesRow({
   label,
   values,
-  className,
   icon,
-  labelClassName = '',
-  cellClassName = 'flex items-center justify-center px-3 py-3.5',
-  valueClassName = 'stat',
-  showDividers = true,
 }: {
   label: string
-  values: Array<number | null>
-  className?: string
-  icon?: React.ComponentType<IconProps>
-  labelClassName?: string
-  cellClassName?: string
-  valueClassName?: string
-  showDividers?: boolean
+  values: number[]
+  icon: React.ComponentType<IconProps>
 }) {
-  const Icon = icon
   return (
-    <div className={cn('contents md:grid md:grid-cols-5', className)}>
+    <div className="contents md:grid md:grid-cols-5 col-span-5">
       <div className="col-span-1 flex items-center py-3.5 rounded-l-xl">
-        <LabelWithIcon Icon={Icon} iconSize={24}>
-          <span className={labelClassName}>{label}</span>
+        <LabelWithIcon Icon={icon} iconSize={24}>
+          <span>{label}</span>
         </LabelWithIcon>
       </div>
-
-      {values.map((v, i) => (
-        <RateValueCell
+      {values.map((value, i) => (
+        <div
           key={`${label}-${i}`}
-          value={v}
-          className={cellClassName}
-          valueClassName={valueClassName}
-          withLeftBorder={showDividers && i > 0}
-        />
+          className={cn(
+            'flex items-center justify-center px-3 py-3.5',
+            i > 0 && 'border-l border-border'
+          )}
+        >
+          <strong className="stat">{cell(value)}</strong>
+        </div>
       ))}
     </div>
   )
 }
 
-function RateValueCell({
-  value,
-  className,
-  valueClassName,
-  withLeftBorder,
-}: {
-  value: number | null
-  className?: string
-  valueClassName?: string
-  withLeftBorder?: boolean
-}) {
+function MobileBandCard({ band }: { band: RateBand }) {
   return (
-    <div className={cn(className, withLeftBorder && 'border-l border-border')}>
-      <strong className={valueClassName}>{value == null ? '—' : pctLabel(value)}</strong>
-    </div>
-  )
-}
-
-function MobileBandCard({
-  label,
-  scrapPct,
-  bullionPct,
-  wrapperClassName = 'rounded-lg bg-highest p-4 border border-border',
-  chipClassName = 'inline-flex items-center rounded-full border border-border px-2.5 py-1 bg-primary text-primary-foreground',
-  pairLabelClassName = '',
-  pairValueClassName = 'stat-sm',
-}: {
-  label: string
-  scrapPct: number | null
-  bullionPct: number | null
-  wrapperClassName?: string
-  chipClassName?: string
-  pairLabelClassName?: string
-  pairValueClassName?: string
-}) {
-  return (
-    <div className={wrapperClassName}>
+    <div className="rounded-lg bg-highest p-4 border border-border">
       <div className="mb-2">
-        <span className={chipClassName}>{label}</span>
+        <span className="inline-flex items-center rounded-full border border-border px-2.5 py-1 bg-primary text-primary-foreground">
+          {band.label}
+        </span>
       </div>
 
       <dl className="grid grid-rows-2 gap-3">
-        <RatePair
-          label="Scrap"
-          value={scrapPct}
-          icon={ScalesIcon}
-          iconSize={20}
-          labelClassName={pairLabelClassName}
-          valueClassName={pairValueClassName}
-        />
-        <RatePair
-          label="Bullion"
-          value={bullionPct}
-          icon={CoinsIcon}
-          iconSize={20}
-          labelClassName={pairLabelClassName}
-          valueClassName={pairValueClassName}
-        />
+        <RatePair label="Scrap" value={band.scrap_pct} icon={ScalesIcon} />
+        <RatePair label="Bullion" value={band.bullion_pct} icon={CoinsIcon} />
       </dl>
     </div>
   )
@@ -308,128 +186,23 @@ function MobileBandCard({
 function RatePair({
   label,
   value,
-  labelClassName,
-  valueClassName,
-  icon,
-  iconSize = 16,
+  icon: Icon,
 }: {
   label: string
-  value: number | null
-  labelClassName: string
-  valueClassName: string
-  icon?: React.ComponentType<IconProps>
-  iconSize?: number
+  value: number
+  icon: React.ComponentType<IconProps>
 }) {
-  const Icon = icon
   return (
     <div className="flex items-center justify-between">
-      <dt className={labelClassName}>
+      <dt>
         <span className="inline-flex items-center gap-1.5">
-          {Icon && <Icon size={iconSize} />}
+          <Icon size={20} />
           {label}
         </span>
       </dt>
       <dd>
-        <strong className={valueClassName}>{value == null ? '—' : pctLabel(value)}</strong>
+        <strong className="stat-sm">{cell(value)}</strong>
       </dd>
     </div>
   )
-}
-
-function groupRates(rows: RateRow[]) {
-  const byMetal: Partial<
-    Record<
-      MetalName,
-      {
-        unit: string
-        columns: Array<{
-          key: string
-          min: number
-          max: number | null
-          label: string
-          scrap_pct: number | null
-          bullion_pct: number | null
-        }>
-      }
-    >
-  > = {}
-
-  for (const r of rows) {
-    const metal = r.metal
-    const unit = prettifyUnit(r.unit ?? 'oz')
-    const key = `${r.min_qty}-${r.max_qty ?? 'inf'}-${unit}`
-    const label = formatBandLabel(r.min_qty ?? 0, r.max_qty, unit)
-
-    if (!byMetal[metal]) byMetal[metal] = { unit, columns: [] }
-
-    const existing = byMetal[metal]!.columns.find((c) => c.key === key)
-    if (existing) {
-      if (r.scrap_pct != null) existing.scrap_pct = r.scrap_pct
-      if (r.bullion_pct != null) existing.bullion_pct = r.bullion_pct
-    } else {
-      byMetal[metal]!.columns.push({
-        key,
-        min: r.min_qty ?? 0,
-        max: r.max_qty ?? null,
-        label,
-        scrap_pct: r.scrap_pct ?? null,
-        bullion_pct: r.bullion_pct ?? null,
-      })
-    }
-  }
-
-  for (const m of Object.keys(byMetal) as MetalName[]) {
-    byMetal[m]!.columns.sort((a, b) => {
-      if (a.min !== b.min) return a.min - b.min
-      const ax = a.max ?? Number.POSITIVE_INFINITY
-      const bx = b.max ?? Number.POSITIVE_INFINITY
-      return ax - bx
-    })
-  }
-
-  return byMetal as Record<
-    MetalName,
-    {
-      unit: string
-      columns: Array<{
-        key: string
-        min: number
-        max: number | null
-        label: string
-        scrap_pct: number | null
-        bullion_pct: number | null
-      }>
-    }
-  >
-}
-
-function prettifyUnit(u: string) {
-  const v = u.toLowerCase().replace(/_/g, ' ')
-  if (v === 'troy oz' || v === 'troy ounce' || v === 'troy ounces') return 'oz'
-  if (v === 'oz' || v === 'ounce' || v === 'ounces') return 'oz'
-  return v
-}
-
-function formatBandLabel(min: number, max: number | null, unit: string) {
-  const nf = new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 })
-  const ndash = '–'
-  if (max == null) return `${nf.format(min)}+ ${unit}`
-  return `${nf.format(min)}${ndash}${nf.format(max)} ${unit}`
-}
-
-function ensureAtLeastFour<T extends { label: string }>(arr: T[]) {
-  if (arr.length >= 4) return arr.slice(0, 4)
-  const pads = 4 - arr.length
-  return [
-    ...arr,
-    ...(Array.from({ length: pads }).map((_, i) => ({
-      ...(arr[arr.length - 1] ?? ({} as T)),
-      label: '—',
-      scrap_pct: null,
-      bullion_pct: null,
-      key: `pad-${i}`,
-      min: 0,
-      max: null,
-    })) as unknown as T[]),
-  ]
 }

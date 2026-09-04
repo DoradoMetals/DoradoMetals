@@ -1,16 +1,16 @@
-// products.bullion, the CRUD floor, against real Postgres.
+// products.bullion, the CRUD floor and the one predicate builder, against real
+// Postgres.
 //
 // One test proves what every repo's update must: a missing id changes nothing
 // and says so (false), a real id changes exactly one row and says so (true).
+// The rest pin the FILTER, because six statements collapsed into one and a
+// predicate that stopped narrowing would still answer rows.
 import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
-import type { PoolClient } from "pg";
-import { randomUUID } from "node:crypto";
 import pool from "#pool";
 import { inRollback } from "#shared/testing/rollback.ts";
 import * as repo from "#db/products/repo.ts";
-import type { ProductPatch } from "#db/products/repo.ts";
-
+import { aProduct } from "#shared/testing/builders/products.ts";
 
 beforeAll(async () => {
   assert.equal(
@@ -25,54 +25,65 @@ afterAll(async () => {
 
 const NOBODY = "00000000-0000-0000-0000-000000000000";
 
-// Same shape saveProduct builds; metal_id/mint_id/supplier_id are read from a real product so the foreign keys resolve.
-function patchFor(existing: { metal_id: string; supplier_id: string; mint_id: string }, name: string): ProductPatch {
-  return {
-    metal_id: existing.metal_id,
-    supplier_id: existing.supplier_id,
-    mint_id: existing.mint_id,
-    name,
-    description: "Test Description",
-    bid_premium: 0,
-    ask_premium: 0,
-    type: "Coin",
-    display: true,
-    content: 1,
-    gross: 1,
-    purity: 0.999,
-    variant_group: "",
-    shadow_offset: 0,
-    stock: 0,
-    slug: null,
-    homepage_display: false,
-    legal_tender: false,
-    domestic_tender: false,
-    is_generic: false,
-    variant_label: "",
-    quantity: 0,
-    image_front: "/x/front.png",
-    image_back: "/x/back.png",
-    filter_category: null,
-  };
-}
-
 test("update returns false on a missing id", async () => {
   await inRollback(async (c) => {
-    const [existing] = await repo.getAdminAll(c);
-    assert.ok(existing, "dev has no product to read reference ids from");
-    const ok = await repo.update(NOBODY, patchFor(existing, "Test Product"), c);
-    assert.equal(ok, false);
+    assert.equal(await repo.update(NOBODY, { name: "Test Product" }, c), false);
   });
 });
 
 test("update returns true on a real id, and the row reflects the patch", async () => {
   await inRollback(async (c) => {
-    const [existing] = await repo.getAdminAll(c);
-    assert.ok(existing, "dev has no product to read reference ids from");
-    const ok = await repo.update(existing.id, patchFor(existing, "Renamed Product"), c);
-    assert.equal(ok, true);
+    const product = await aProduct(c);
+    assert.equal(await repo.update(product.id, { name: "Renamed Product" }, c), true);
+    assert.equal((await repo.getOne(product.id, c))?.name, "Renamed Product");
+  });
+});
 
-    const row = await repo.getAdminOne(existing.id, c);
-    assert.equal(row?.name, "Renamed Product");
+test("the id filter narrows, and an empty list asks for nothing", async () => {
+  await inRollback(async (c) => {
+    const product = await aProduct(c);
+    const rows = await repo.listFor({ ids: [product.id] }, c);
+    assert.deepEqual(rows.map((r) => r.id), [product.id]);
+    assert.deepEqual(await repo.listFor({ ids: [] }, c), []);
+  });
+});
+
+test("the buy gate is a filter, and omitting it is the sell side (ruling 49)", async () => {
+  await inRollback(async (c) => {
+    const hidden = await aProduct(c, { display: false });
+    const gated = await repo.listFor({ display: true, ids: [hidden.id] }, c);
+    assert.deepEqual(gated, []);
+    const ungated = await repo.listFor({ ids: [hidden.id] }, c);
+    assert.equal(ungated.length, 1);
+  });
+});
+
+test("the metal, the category and the search term all narrow", async () => {
+  await inRollback(async (c) => {
+    const gold = await aProduct(c, { metal: "Gold", filter_category: "American Eagle" });
+    const silver = await aProduct(c, { metal: "Silver", filter_category: "Maple" });
+
+    const byMetal = await repo.listFor({ metal: "Silver", ids: [gold.id, silver.id] }, c);
+    assert.deepEqual(byMetal.map((r) => r.id), [silver.id]);
+
+    const byCategory = await repo.listFor(
+      { filter_category: "American Eagle", ids: [gold.id, silver.id] }, c
+    );
+    assert.deepEqual(byCategory.map((r) => r.id), [gold.id]);
+
+    // The term matches the METAL as well as the name - which is what the
+    // browser's fuzzy match was reading before this moved server-side.
+    const bySearch = await repo.listFor({ search: "silver", ids: [gold.id, silver.id] }, c);
+    assert.deepEqual(bySearch.map((r) => r.id), [silver.id]);
+  });
+});
+
+test("the row carries the metal's and the mint's names, joined", async () => {
+  await inRollback(async (c) => {
+    const product = await aProduct(c, { metal: "Platinum" });
+    const [row] = await repo.listFor({ ids: [product.id] }, c);
+    assert.equal(row?.metal_type, "Platinum");
+    assert.ok(row?.mint_name);
+    assert.equal(row?.metal_id, product.metal_id);
   });
 });

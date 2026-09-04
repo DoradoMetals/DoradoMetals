@@ -21,11 +21,11 @@ import type { AddressRow } from "#db/places/addresses/repo.ts";
 import type { PackageRow } from "#db/shipping/packages/repo.ts";
 import type { MethodRow as PaymentMethodRow } from "#db/payments/methods/repo.ts";
 import type { LabelService } from "#domain/shipping/services/service.ts";
-import type { StorefrontProduct } from "#domain/products/compose.ts";
+
 import type { OrderPrices, Spots } from "#domain/pricing/ask.ts";
 import type {
-  BullionPublic, CarrierHandoff, Direction, FulfillmentView, OrderActions, OrderItemPatch,
-  OrderView,
+  BullionPublic, BullionStorefront, CarrierHandoff, Direction, FulfillmentView, OrderActions,
+  OrderItemPatch, OrderView,
 } from "@dorado/contracts";
 
 // Type-only re-exports, erased at runtime: this file still needs no database.
@@ -179,7 +179,7 @@ export function linesBought(order_id: string, cart: CheckoutLine[]): NewOrderIte
 
 // `metals` is metal id -> name; the ask is looked up under the ITEM's metal.
 export function saleLines(
-  cart: CheckoutLine[], catalogue: StorefrontProduct[], metals: Map<string, string>
+  cart: CheckoutLine[], catalogue: BullionStorefront[], metals: Map<string, string>
 ): SaleLine[] {
   const soldById = new Map(catalogue.map((product) => [product.id, product]));
   return cart.map((line) => {

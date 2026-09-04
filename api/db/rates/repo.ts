@@ -1,46 +1,52 @@
 // rates.rates, and nothing else.
 //
-// No join: the metal's name is composed in domain/rates/compose.ts from one cached lookup, rather than a join on every read.
-// update takes an id and a patch and answers whether a row changed; no per-column wrapper lives here.
-// max_qty is nullable (null means an open-ended band): the statement is built from the keys the patch carries, so omitting max_qty leaves it untouched but sending null clears it to open-ended.
-// created_by, updated_by, created_at and updated_at are the public.audit_stamp trigger's, from the actor on the connection (migration 116).
+// The metal's NAME is joined by the statements rather than attached in JS: it
+// is what every caller keys on and what both reads order by.
+// max_qty is nullable (null means an open-ended band): the UPDATE is built
+// from the keys the patch carries, so omitting max_qty leaves it untouched
+// but sending null clears it to open-ended.
+// created_by/updated_by/created_at/updated_at are the public.audit_stamp
+// trigger's, from the actor on the connection (migration 116).
 import query from "#shared/db/query.ts";
 import { buildUpdate } from "#shared/db/patch.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
-import type { Rate } from "@dorado/contracts";
+import { RatePatch, type AdminRate, type RateRead } from "@dorado/contracts";
 import type { Executor } from "#shared/db/executor.ts";
 
 const sql = sqlFrom(import.meta.dirname);
 
-export type RateRow = Rate;
+// Derived from the contract, never restated (ruling 64).
+export const PATCHABLE = Object.keys(RatePatch.shape) as (keyof RatePatch)[];
 
-export const PATCHABLE = [
-  "metal_id", "unit", "min_qty", "max_qty", "scrap_pct", "bullion_pct",
-] as const;
-
-// ONE WRITE TYPE, AND A CREATE SENDS IT TOO (Jacob, 2026-09-03: "For new, it
-// can just send the patch!!"). An explicit id wins on create; omitting one
-// lets create.sql generate one. A column the table needs and the patch does
-// not carry comes back as the shared pg-error translation naming it.
-export type RatePatch = Partial<Pick<RateRow, (typeof PATCHABLE)[number]>> & { id?: string | null };
-
-export async function getOne(id: string, executor?: Executor): Promise<RateRow | undefined> {
-  const { rows } = await query<RateRow>(sql("get_one"), [id], executor);
+export async function getOne(id: string, executor?: Executor): Promise<AdminRate | undefined> {
+  const { rows } = await query<AdminRate>(sql("get_one"), [id], executor);
   return rows[0];
 }
 
-export async function list(executor?: Executor): Promise<RateRow[]> {
-  const { rows } = await query<RateRow>(sql("get_all"), [], executor);
+export async function list(executor?: Executor): Promise<RateRead[]> {
+  const { rows } = await query<RateRead>(sql("get_all"), [], executor);
   return rows;
 }
 
-export async function create(row: RatePatch, executor?: Executor): Promise<RateRow> {
-  const { rows } = await query<RateRow>(
+export async function listAdmin(executor?: Executor): Promise<AdminRate[]> {
+  const { rows } = await query<AdminRate>(sql("get_admin_all"), [], executor);
+  return rows;
+}
+
+// ONE WRITE TYPE, AND A CREATE SENDS IT TOO (Jacob, 2026-09-03: "For new, it
+// can just send the patch!!"). An explicit id wins; omitting one lets the
+// statement generate it. A column the table needs and the patch does not
+// carry comes back as the shared pg-error translation naming it.
+export async function create(
+  patch: RatePatch & { id?: string | null }, executor?: Executor
+): Promise<string> {
+  const { rows } = await query<{ id: string }>(
     sql("create"),
-    [row.id, row.metal_id, row.unit, row.min_qty, row.max_qty, row.scrap_pct, row.bullion_pct],
+    [patch.id ?? null, patch.metal_id, patch.unit, patch.min_qty, patch.max_qty,
+     patch.scrap_pct, patch.bullion_pct],
     executor
   );
-  return rows[0];
+  return rows[0].id;
 }
 
 export async function update(

@@ -1,6 +1,6 @@
 // The rates endpoints, over real HTTP.
 //
-// `/get_all` has no guard at all while `/get_admin`, `/get_one`, `/create`, `/update` and `/delete` are requireAdmin - this file proves the public read can't leak what only admin should see.
+// `GET /rates` and `GET /rates/tiers` have no guard at all while `/admin`, `/:id` and the three writes are requireAdmin - this file proves the public read can't leak what only admin should see.
 // Nothing is committed: pinned-pool.ts rolls back every query; the last test checks from outside.
 import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
@@ -48,7 +48,7 @@ const asCustomer = <T>(fn: () => Promise<T> | T) =>
 test("the public rate list needs no session at all", async () => {
   await inPinnedTransaction(async () => {
     await anonymous(async () => {
-      const res = await request(app).get("/api/rates/get_all");
+      const res = await request(app).get("/api/rates");
       assert.equal(res.status, 200, "the public rates route stopped being public");
       assert.ok(Array.isArray(res.body), "the pricing page expects an array");
       assert.ok(res.body.length > 0, "dev has rates and none came back");
@@ -63,12 +63,12 @@ test("the public list does not carry anything only the admin list has", async ()
     let adminFields: Set<string> | undefined;
 
     await anonymous(async () => {
-      const res = await request(app).get("/api/rates/get_all");
+      const res = await request(app).get("/api/rates");
       publicFields = new Set(Object.keys(res.body[0] ?? {}));
     });
 
     await asAdmin(async () => {
-      const res = await request(app).get("/api/rates/get_admin");
+      const res = await request(app).get("/api/rates/admin");
       assert.equal(res.status, 200);
       assert.ok(res.body.length > 0, "the admin rates read returned nothing");
       adminFields = new Set(Object.keys(res.body[0] ?? {}));
@@ -100,10 +100,11 @@ test("every writing route refuses a signed-in non-admin", async () => {
   await inPinnedTransaction(async () => {
     await asCustomer(async () => {
       const calls = [
-        ["get_admin", request(app).get("/api/rates/get_admin")],
-        ["create", request(app).post("/api/rates/create").send({ rate: {} })],
-        ["update", request(app).post("/api/rates/update").send({ rate_id: randomUUID(), patch: {} })],
-        ["delete", request(app).delete("/api/rates/delete").send({ rate_id: randomUUID() })],
+        ["admin", request(app).get("/api/rates/admin")],
+        ["one", request(app).get(`/api/rates/${randomUUID()}`)],
+        ["create", request(app).post("/api/rates").send({})],
+        ["update", request(app).patch(`/api/rates/${randomUUID()}`).send({})],
+        ["delete", request(app).delete(`/api/rates/${randomUUID()}`)],
       ] as Array<[string, Promise<{ status: number }>]>;
       // Declared as a tuple list: inferred, the element type collapses to `string | Test` and neither half is usable.
       for (const [name, call] of calls) {
@@ -117,7 +118,7 @@ test("every writing route refuses a signed-in non-admin", async () => {
 test("an anonymous caller is refused the admin read", async () => {
   await inPinnedTransaction(async () => {
     await anonymous(async () => {
-      const res = await request(app).get("/api/rates/get_admin");
+      const res = await request(app).get("/api/rates/admin");
       assert.ok([401, 403].includes(res.status), `answered ${res.status}`);
     });
   }, { actor: TEST_ACTOR.id });
@@ -131,4 +132,22 @@ test("the refused writes wrote nothing", async () => {
     rateCountBefore,
     "a route that answered 401/403 still changed the table"
   );
+});
+
+// The rates PAGE is public too, and it is computed: a band label and a
+// cross-metal column key exist nowhere in the table.
+test("the tier table is public, labelled and banded", async () => {
+  await inPinnedTransaction(async () => {
+    await anonymous(async () => {
+      const res = await request(app).get("/api/rates/tiers");
+      assert.equal(res.status, 200, "the rates page read stopped being public");
+      assert.ok(Array.isArray(res.body) && res.body.length > 0, "dev has rates and none came back");
+      const [tier] = res.body;
+      assert.equal(typeof tier.metal, "string");
+      assert.ok(Array.isArray(tier.bands) && tier.bands.length > 0);
+      assert.ok(tier.bands[0].label, "a band came back with no label to print");
+      assert.ok(tier.bands[0].key, "a band came back with no column key");
+      assert.equal(typeof tier.top_pct, "number", "the landing strip has no 'up to' number");
+    });
+  }, { actor: TEST_ACTOR.id });
 });

@@ -310,7 +310,7 @@ export async function replaceItems(
       items: lines,
       products: await productService.getByIds(named, client),
       liveness: await productService.getLiveness(named, client),
-      rates: direction === "purchase" ? await ratesService.getAllRates() : [],
+      rates: direction === "purchase" ? await ratesService.listRates() : [],
       metalNames: await metals.namesById(client),
     });
 
