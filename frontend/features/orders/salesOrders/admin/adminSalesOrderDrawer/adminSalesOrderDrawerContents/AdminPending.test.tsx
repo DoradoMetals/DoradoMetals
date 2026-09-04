@@ -20,7 +20,6 @@ import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import React from "react";
 
-vi.mock("@/shared/queries/axios", () => ({ apiRequest: vi.fn() }));
 vi.mock("@/features/auth/queries", () => ({
   useGetSession: () => ({ user: { id: "u-admin", role: "admin", name: "Admin" } }),
 }));
@@ -32,7 +31,6 @@ vi.mock("@/shared/ui/PriceNumberFlow", () => ({
     React.createElement("span", { className }, String(value)),
 }));
 
-import { apiRequest } from "@/shared/queries/axios";
 import AdminPendingSalesOrder from "@/features/orders/salesOrders/admin/adminSalesOrderDrawer/adminSalesOrderDrawerContents/AdminPending";
 import type { OrderView } from "@dorado/contracts";
 
@@ -117,8 +115,6 @@ const fetchCalls = (): [string, RequestInit | undefined][] =>
   );
 
 beforeEach(() => {
-  vi.mocked(apiRequest).mockReset();
-  vi.mocked(apiRequest).mockResolvedValue({});
   stubApi(wireIntent());
 });
 

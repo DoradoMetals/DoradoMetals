@@ -4,8 +4,7 @@ import { Link } from '@dorado/components'
 import NextLink from 'next/link'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { Suspense, useEffect, useState } from 'react'
-import { useQueryClient } from '@tanstack/react-query'
-import { magicLink, useUser } from '@/features/auth/authClient'
+import { auth, magicLink, useUser } from '@/features/auth/authClient'
 import SetPasswordForm from '@/features/auth/ui/SetPasswordForm'
 import { Button } from '@dorado/components'
 
@@ -18,7 +17,6 @@ function VerifyLoginContent() {
   const token = searchParams.get('token')
   const router = useRouter()
   const { user } = useUser()
-  const queryClient = useQueryClient()
 
   const [status, setStatus] = useState<'verifying' | 'error' | 'success'>('verifying')
 
@@ -31,8 +29,10 @@ function VerifyLoginContent() {
     magicLink
       .verify({ query: { token } })
       .then(() => {
-        // Session cookie is now set — refresh the app's session state.
-        queryClient.invalidateQueries({ queryKey: ['session'], refetchType: 'active' })
+        // Session cookie is now set. Magic-link verify carries no built-in
+        // signal (unlike sign-in/sign-out/update-user), so the reactive
+        // session atom is nudged by hand - better-auth's own documented way.
+        auth.$store.notify('$sessionSignal')
         setStatus('success')
       })
       .catch(() => {

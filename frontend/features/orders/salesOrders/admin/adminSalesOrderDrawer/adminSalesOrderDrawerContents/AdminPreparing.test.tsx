@@ -13,7 +13,6 @@ import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import React from "react";
 
-vi.mock("@/shared/queries/axios", () => ({ apiRequest: vi.fn() }));
 vi.mock("@/features/auth/queries", () => ({
   useGetSession: () => ({ user: { id: "u-admin", role: "admin", name: "Admin" } }),
 }));
@@ -22,7 +21,6 @@ vi.mock("next/image", () => ({
     React.createElement("img", { src: props.src, alt: String(props.alt ?? "") }),
 }));
 
-import { apiRequest } from "@/shared/queries/axios";
 import AdminPreparingSalesOrder from "@/features/orders/salesOrders/admin/adminSalesOrderDrawer/adminSalesOrderDrawerContents/AdminPreparing";
 import type { OrderView } from "@dorado/contracts";
 
@@ -51,17 +49,6 @@ const view = (order: Record<string, unknown>) =>
       edit_lines: false, statuses: [] },
   } as unknown as OrderView);
 const order = () => view({ id: "so-1", status: "Preparing", order_sent: false });
-
-beforeEach(() => {
-  vi.mocked(apiRequest).mockReset();
-  vi.mocked(apiRequest).mockImplementation(async (_m, url) => {
-    if (url === "/carriers/get") return [];
-    if (url === "/carrier_services/get") return [];
-    // A LIST, not an object: every read this component makes now answers with
-    // rows, and a bare `{}` fallback made `services.find` throw.
-    return [];
-  });
-});
 
 // THE CLIENT PACKAGE TALKS TO `fetch`, NOT TO THIS APP'S AXIOS WRAPPER.
 // @dorado/client carries no runtime dependency of its own, so the seam a test
@@ -101,10 +88,10 @@ beforeEach(() => {
           text: async () => JSON.stringify({ id: "ro-1", order_id: "so-1", refiner_id: null }),
         } as unknown as Response;
       }
-      // A LIST where the endpoint answers rows. GET /orders/:id/shipments is
-      // the client package's now, so it comes through THIS seam rather than
-      // the axios mock above - and `outboundOf` filters an array.
-      const body = String(url).includes("/shipments") ? "[]" : "{}";
+      // A LIST where the endpoint answers rows - `useCarriers`/`.find()`
+      // and `outboundOf` both throw on a bare `{}` fallback.
+      const isList = /\/shipments|\/carriers\/get|\/carrier_services\/get/.test(String(url));
+      const body = isList ? "[]" : "{}";
       return { ok: true, status: 200, text: async () => body } as unknown as Response;
     })
   );

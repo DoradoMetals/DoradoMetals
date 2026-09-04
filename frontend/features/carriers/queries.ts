@@ -1,114 +1,92 @@
-import { useApiMutation, useApiQuery } from '@/shared/queries/base'
-import { queryKeys } from '@/shared/queries/keys'
-import { Carrier, CarrierService, NewCarrierService } from '@/features/carriers/types'
+// The carrier admin surface - the hooks live in @dorado/client's shipping
+// module (packages/client/src/shipping/queries.ts) now, typed on
+// CarrierPatch/CarrierServicePatch. What is left here is what that package
+// deliberately does not know: CarriersDrawer.tsx and CarrierServicesDrawer.tsx
+// edit the whole READ row in place, so the trim down to the write contract
+// (dropping organization.id/created_at/updated_at for a carrier,
+// created_by/updated_by/created_at/updated_at for a service) lives here, the
+// same shape adaptation `useReplaceCheckoutItems` does for a basket line.
+import {
+  useCarrierServicesFor,
+  useCarriers as useCarriersBase,
+  useCarrierServices as useCarrierServicesBase,
+  useCreateCarrier as useCreateCarrierBase,
+  useUpdateCarrier as useUpdateCarrierBase,
+  useCreateCarrierService as useCreateCarrierServiceBase,
+  useUpdateCarrierService as useUpdateCarrierServiceBase,
+  useDeleteCarrierService as useDeleteCarrierServiceBase,
+} from '@dorado/client'
+import type { CarrierPatch, CarrierServicePatch } from '@dorado/contracts'
+import type { Carrier, CarrierService } from '@/features/carriers/types'
 
-export const useCarriers = () => {
-  return useApiQuery<Carrier[]>({
-    key: queryKeys.carriers(),
-    url: '/carriers/get',
-    requireUser: false,
-  })
-}
+export const useCarriers = () => useCarriersBase()
+export const useCarrierServices = () => useCarrierServicesBase()
+export const useCarrierServicesByCarrier = (carrier_id: string) => useCarrierServicesFor(carrier_id)
 
-// Callers build (and the drawer edits) a whole Carrier - the READ shape,
-// carrying organization.id/created_at/updated_at. The write bodies never
-// took organization.id (the service resolves the organization through the
-// carrier's own organization_id, server-side) and CarrierCreate/CarrierPatch
-// are strict, so both are trimmed to exactly what the contract declares.
+// name/enabled are NOT NULL columns; the read widens both to nullable
+// because it composes through a join that can miss (OrganizationSummary).
+// null only arrives here on a carrier the join failed for, which a write is
+// never really about - coalesced to undefined so the patch leaves them alone
+// rather than writing null into a column that refuses it.
+const carrierPatch = (carrier: Carrier): CarrierPatch => ({
+  logo: carrier.logo,
+  organization: {
+    name: carrier.organization.name ?? undefined,
+    email: carrier.organization.email,
+    phone: carrier.organization.phone,
+    enabled: carrier.organization.enabled ?? undefined,
+  },
+})
+
 export const useCreateCarrier = () => {
-  return useApiMutation<Carrier, Carrier, Carrier[]>({
-    queryKey: queryKeys.carriers(),
-    url: '/carriers/create',
-    requireAdmin: true,
-    listAction: 'create',
-    listInsertPosition: 'start',
-    body: (carrier) => ({
-      carrier: {
-        logo: carrier.logo,
-        organization: {
-          name: carrier.organization.name,
-          email: carrier.organization.email,
-          phone: carrier.organization.phone,
-          enabled: carrier.organization.enabled,
-        },
-      },
-    }),
-  })
+  const mutation = useCreateCarrierBase()
+  return {
+    ...mutation,
+    mutate: (carrier: Carrier) => mutation.mutate({ carrier: carrierPatch(carrier) }),
+    mutateAsync: (carrier: Carrier) => mutation.mutateAsync({ carrier: carrierPatch(carrier) }),
+  }
 }
 
 export const useUpdateCarrier = () => {
-  return useApiMutation<Carrier, Carrier, Carrier[]>({
-    queryKey: queryKeys.carriers(),
-    url: '/carriers/update',
-    listAction: 'upsert',
-    body: (carrier) => ({
-      carrier: {
-        id: carrier.id,
-        logo: carrier.logo,
-        organization: {
-          name: carrier.organization.name,
-          email: carrier.organization.email,
-          phone: carrier.organization.phone,
-          enabled: carrier.organization.enabled,
-        },
-      },
-    }),
-  })
-}
-
-export const useCarrierServices = () => {
-  return useApiQuery<CarrierService[]>({
-    key: queryKeys.carrierServices(),
-    url: '/carrier_services/get',
-    requireUser: true,
-  })
-}
-
-export const useCarrierServicesByCarrier = (carrier_id: string) => {
-  return useApiQuery<CarrierService[]>({
-    key: queryKeys.carrierServicesByCarrier(carrier_id),
-    url: '/carrier_services/get_by_carrier',
-    requireUser: true,
-    params: () => ({ carrier_id }),
-    enabled: !!carrier_id,
-  })
+  const mutation = useUpdateCarrierBase()
+  const patch = (carrier: Carrier): CarrierPatch => ({ id: carrier.id, ...carrierPatch(carrier) })
+  return {
+    ...mutation,
+    mutate: (carrier: Carrier) => mutation.mutate({ carrier: patch(carrier) }),
+    mutateAsync: (carrier: Carrier) => mutation.mutateAsync({ carrier: patch(carrier) }),
+  }
 }
 
 export const useCreateCarrierService = () => {
-  return useApiMutation<CarrierService, NewCarrierService, CarrierService[]>({
-    queryKey: queryKeys.carrierServices(),
-    url: '/carrier_services/create',
-    requireAdmin: true,
-    listAction: 'create',
-    listInsertPosition: 'start',
-    body: (service) => ({ service }),
-  })
+  const mutation = useCreateCarrierServiceBase()
+  return {
+    ...mutation,
+    mutate: (service: { carrier_id: string; name: string }) => mutation.mutate({ service }),
+    mutateAsync: (service: { carrier_id: string; name: string }) => mutation.mutateAsync({ service }),
+  }
 }
 
-// Callers send the whole read row (CarrierService); the write contract keeps
-// every field name the wire has always used (the supports_pickup/
-// supports_dropoff/max_weight_lbs aliases included) but drops the four audit
-// columns `create()`/`update()` never wrote - strict, so carrying them 400s.
+// The three shared spellings stay - dropping them would silently render
+// every toggle off.
+const servicePatch = (service: CarrierService): CarrierServicePatch => {
+  const { created_by, updated_by, created_at, updated_at, ...patch } = service
+  return patch
+}
+
 export const useUpdateCarrierService = () => {
-  return useApiMutation<CarrierService, CarrierService, CarrierService[]>({
-    queryKey: queryKeys.carrierServices(),
-    url: '/carrier_services/update',
-    requireAdmin: true,
-    listAction: 'upsert',
-    body: (service) => {
-      const { created_by, updated_by, created_at, updated_at, ...patch } = service
-      return { service: patch }
-    },
-  })
+  const mutation = useUpdateCarrierServiceBase()
+  return {
+    ...mutation,
+    mutate: (service: CarrierService) => mutation.mutate({ service: servicePatch(service) }),
+    mutateAsync: (service: CarrierService) => mutation.mutateAsync({ service: servicePatch(service) }),
+  }
 }
 
 export const useDeleteCarrierService = () => {
-  return useApiMutation<void, CarrierService, CarrierService[]>({
-    queryKey: queryKeys.carrierServices(),
-    method: 'DELETE',
-    url: '/carrier_services/delete',
-    requireAdmin: true,
-    listAction: 'delete',
-    body: (service) => ({ id: service.id }),
-  })
+  const mutation = useDeleteCarrierServiceBase()
+  return {
+    ...mutation,
+    mutate: (service: CarrierService) => mutation.mutate({ id: service.id }),
+    mutateAsync: (service: CarrierService) => mutation.mutateAsync({ id: service.id }),
+  }
 }

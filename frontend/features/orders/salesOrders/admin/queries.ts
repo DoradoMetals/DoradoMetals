@@ -1,7 +1,4 @@
-import { useMutation } from '@tanstack/react-query'
-import { useAdminPlaceSalesOrder } from '@dorado/client'
-import { apiRequest } from '@/shared/queries/axios'
-import { usePaymentMethods } from '@dorado/client'
+import { useAdminPlaceSalesOrder, usePatchCheckout, usePaymentMethods } from '@dorado/client'
 import { useSaleShippingServices } from '@/features/shipping/queries'
 import { useReplaceCheckoutItems } from '@/features/checkout/items/queries'
 import type { AdminSaleCheckoutForm } from '@/features/orders/salesOrders/types'
@@ -23,36 +20,43 @@ import type { CheckoutLine } from '@/features/checkout/items/types'
 // Nothing else crosses the wire. `order_metals` and `using_funds` are not
 // sent: the server prices from its own live feed and applies credit whenever
 // the customer has a balance.
-export const useAdminCreateSalesOrder = () => {
+//
+// No `useMutation` here (ruling 62 - frontend/ imports the query library
+// nowhere but the provider now): each step is one of @dorado/client's own
+// mutations, composed in a plain async function the same way
+// useReplaceCheckoutItems wraps one.
+export const useAdminCreateSalesOrder = (user_id: string) => {
   const { data: saleMethods = [] } = usePaymentMethods('sale')
   const { data: saleServices = [] } = useSaleShippingServices()
   const syncItems = useReplaceCheckoutItems('sale')
+  const patchCheckout = usePatchCheckout('sale', { user_id })
   const place = useAdminPlaceSalesOrder()
 
-  return useMutation({
-    mutationFn: async (
-      { sales_order, items }: { sales_order: AdminSaleCheckoutForm; items: CheckoutLine[] }
+  const mutateAsync = async (
+    { sales_order, items }: { sales_order: AdminSaleCheckoutForm; items: CheckoutLine[] }
+  ) => {
+    await syncItems.mutateAsync({ lines: items, user_id })
+
+    const checkout = await patchCheckout.mutateAsync({
+      recipient_address_id: sales_order.address.id,
+      carrier_service_id:
+        saleServices.find((s) => s.code === sales_order.service.value)?.id ?? null,
+      payment_method_id:
+        saleMethods.find((m) => m.type === sales_order.payment_method)?.id ?? null,
+    })
+
+    return await place.mutateAsync({ checkout_id: checkout.id })
+  }
+
+  return {
+    mutateAsync,
+    mutate: (
+      vars: { sales_order: AdminSaleCheckoutForm; items: CheckoutLine[] },
+      options?: { onSuccess?: (view: Awaited<ReturnType<typeof mutateAsync>>) => void }
     ) => {
-      const user_id = sales_order.user.id
-      if (!user_id) throw new Error('No customer named for this order')
-
-      await syncItems.mutateAsync({ lines: items, user_id })
-
-      const { id: checkout_id } = await apiRequest<{ id: string }>(
-        'PATCH',
-        '/checkout',
-        {
-          direction: 'sale',
-          recipient_address_id: sales_order.address.id,
-          carrier_service_id:
-            saleServices.find((s) => s.code === sales_order.service.value)?.id ?? null,
-          payment_method_id:
-            saleMethods.find((m) => m.type === sales_order.payment_method)?.id ?? null,
-        },
-        { user_id }
-      )
-
-      return await place.mutateAsync({ checkout_id })
+      mutateAsync(vars).then((view) => options?.onSuccess?.(view)).catch(() => {})
     },
-  })
+    isPending: syncItems.isPending || patchCheckout.isPending || place.isPending,
+    error: syncItems.error ?? patchCheckout.error ?? place.error,
+  }
 }

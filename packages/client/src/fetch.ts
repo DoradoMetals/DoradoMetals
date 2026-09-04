@@ -64,3 +64,21 @@ export async function apiRequest<T>(
   }
   return body as T;
 }
+
+// The one BLOB response on the wire (PDF generation). Same request shape,
+// the body is never JSON so there is no message to recover on failure - the
+// status is all a caller gets.
+export async function apiRequestBlob(
+  method: ApiMethod, url: string, data?: unknown
+): Promise<Blob> {
+  const response = await fetch(`${baseUrl()}${url}`, {
+    method,
+    credentials: "include",
+    headers: data === undefined ? undefined : { "Content-Type": "application/json" },
+    body: data === undefined ? undefined : JSON.stringify(data),
+  });
+  if (!response.ok) {
+    throw new ApiError(response.status, `${method} ${url} failed with ${response.status}`, null);
+  }
+  return response.blob();
+}
