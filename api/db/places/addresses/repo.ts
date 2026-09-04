@@ -3,32 +3,17 @@
 import query from "#shared/db/query.ts";
 import { buildUpdate } from "#shared/db/patch.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
-import type { Address } from "@dorado/contracts";
+import { AddressWriteColumns } from "@dorado/contracts";
+import type { Address, AddressPatch } from "@dorado/contracts";
 import type { Executor } from "#shared/db/executor.ts";
 
 const sql = sqlFrom(import.meta.dirname);
 
 export type AddressRow = Address;
 
-// Optional, not just nullable: an omitted field binds as undefined, same as omitting it; an extra `id` is harmless, only these fields are read.
-export type NewAddress = {
-  line_1?: string | null;
-  line_2?: string | null;
-  city?: string | null;
-  state?: string | null;
-  country?: string | null;
-  zip?: string | null;
-  country_code?: string | null;
-  phone_number?: string | null;
-};
-
-// One dynamic UPDATE serving two callers with different columns: a key ABSENT from the patch is untouched, a key PRESENT as null clears it - COALESCE can't tell those apart.
-export const PATCHABLE = [
-  "line_1", "line_2", "city", "state", "country", "zip",
-  "country_code", "phone_number", "is_valid", "is_residential",
-] as const;
-type AddressPatchable = (typeof PATCHABLE)[number];
-export type AddressPatch = Partial<Record<AddressPatchable, string | boolean | null>>;
+// Ruling 64: the allowed list IS the contract's, so a column added to the table
+// becomes writable by naming it there and nowhere else.
+export const PATCHABLE = Object.keys(AddressWriteColumns.shape) as readonly string[];
 
 export async function getOne(id: string, executor?: Executor): Promise<AddressRow | undefined> {
   const { rows } = await query<AddressRow>(sql("get_one"), [id], executor);
@@ -41,30 +26,37 @@ export async function getMany(ids: string[], executor?: Executor): Promise<Addre
   return rows;
 }
 
-// is_valid TRUE and is_residential FALSE are literals, not caller-supplied; validation sets the real values afterwards through update().
+// is_valid TRUE and is_residential FALSE are literals, not caller-supplied; the carrier's validation sets the real values afterwards through update().
 export async function create(
-  id: string, row: NewAddress, executor?: Executor
+  id: string, patch: AddressPatch, executor?: Executor
 ): Promise<AddressRow> {
   const { rows } = await query<AddressRow>(
     sql("create"),
     [
-      id, row.line_1, row.line_2, row.city, row.state, row.country,
-      row.zip, row.country_code, row.phone_number, true, false,
+      id, patch.line_1, patch.line_2, patch.city, patch.state, patch.country,
+      patch.zip, patch.country_code, patch.phone_number, true, false,
     ],
     executor
   );
   return rows[0];
 }
 
+// One dynamic UPDATE serving two callers with different columns: a key ABSENT from the patch is untouched, a key PRESENT as null clears it - COALESCE can't tell those apart.
 export async function update(
-  id: string, patch: AddressPatch, executor?: Executor
-): Promise<boolean> {
+  id: string, patch: AddressWriteColumns, executor?: Executor
+): Promise<AddressRow | undefined> {
   const built = buildUpdate({
-    table: "places.addresses", allowed: PATCHABLE, patch, where: { id },
+    table: "places.addresses",
+    allowed: PATCHABLE,
+    patch,
+    where: { id },
+    returning:
+      "id, line_1, line_2, city, state, country, zip, country_code, " +
+      "phone_number, created_at, updated_at, is_valid, is_residential",
   });
-  if (!built) return true;
-  const { rowCount } = await query(built.text, built.values, executor);
-  return rowCount === 1;
+  if (!built) return await getOne(id, executor);
+  const { rows } = await query<AddressRow>(built.text, built.values, executor);
+  return rows[0];
 }
 
 // Whether anything still needs this address - a link, or an order snapshot.
@@ -85,6 +77,18 @@ export async function isActive(
     sql("is_active"), [address_id, user_id], executor
   );
   return rows[0]?.locked === true;
+}
+
+// The same question asked of a whole book at once, so a list of entries costs
+// one statement instead of one per address.
+export async function activeAmong(
+  ids: string[], user_id: string, executor?: Executor
+): Promise<string[]> {
+  if (ids.length === 0) return [];
+  const { rows } = await query<{ source_address_id: string }>(
+    sql("active_among"), [ids, user_id], executor
+  );
+  return rows.map((r) => r.source_address_id);
 }
 
 export async function remove(id: string, executor?: Executor): Promise<boolean> {

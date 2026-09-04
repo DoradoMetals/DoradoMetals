@@ -12,22 +12,34 @@ export const UserAddress = z.object({
   "label": z.string().nullable(),
   "default_shipping": z.boolean(),
   "default_billing": z.boolean(),
+  "recipient_name": z.string().nullable(),
 });
 export type UserAddress = z.infer<typeof UserAddress>;
 // generated:end
-// One person's relationship to one address - ITS OWN read, never nested
-// inside the address; the client joins the two lists by address_id.
-export const UserAddressRead = UserAddress.omit({ id: true, default_billing: true }).extend({
-  user_id: UserAddress.shape.user_id.nullable(),
-  default_shipping: UserAddress.shape.default_shipping.nullable(),
-});
+// One person's relationship to one address. `recipient_name` is WHO SIGNS FOR
+// THE PARCEL and `label` is the book nickname - two different facts that
+// migration 126 finally tells apart (`label` had been carrying the recipient
+// since 050's backfill mapped `exchange.addresses.name` onto it).
+export const UserAddressRead = UserAddress.omit({ id: true, default_billing: true });
 export type UserAddressRead = z.infer<typeof UserAddressRead>;
 
-// The relationship beside the address: genuinely new data (a label) plus one
-// flag, never an id the caller could instead have sent (ruling 43).
+// The relationship beside the address: genuinely new data (a recipient, a
+// nickname) plus one flag, never an id the caller could instead have sent
+// (ruling 43).
 export const UserAddressPatch = UserAddress.pick({
+  recipient_name: true,
   label: true,
   default_shipping: true,
 }).partial().strict();
 export type UserAddressPatch = z.infer<typeof UserAddressPatch>;
 
+// THE COLUMNS THE LINK TABLE MAY HAVE WRITTEN. `default_billing` is here and
+// absent from the patch above on purpose: it follows `default_shipping` until
+// somebody decides the two should differ, and that decision is the service's,
+// not a caller's.
+export const UserAddressWriteColumns = UserAddress.omit({
+  id: true,
+  address_id: true,
+  user_id: true,
+}).partial();
+export type UserAddressWriteColumns = z.infer<typeof UserAddressWriteColumns>;

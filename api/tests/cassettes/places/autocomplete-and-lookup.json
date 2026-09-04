@@ -1,0 +1,116 @@
+[
+    {
+        "scope": "https://places.googleapis.com:443",
+        "method": "POST",
+        "path": "/v1/places:autocomplete",
+        "body": {
+            "input": "6100 Main St Houston",
+            "includedRegionCodes": [
+                "us"
+            ],
+            "sessionToken": "SCRUBBED_SESSION_ID"
+        },
+        "status": 200,
+        "response": {
+            "suggestions": [
+                {
+                    "placePrediction": {
+                        "placeId": "SCRUBBED_PLACE_ID",
+                        "text": {
+                            "text": "6100 Main St, Houston, TX 77005, USA"
+                        },
+                        "structuredFormat": {
+                            "mainText": {
+                                "text": "6100 Main St"
+                            },
+                            "secondaryText": {
+                                "text": "Houston, TX, USA"
+                            }
+                        }
+                    }
+                },
+                {
+                    "placePrediction": {
+                        "placeId": "SCRUBBED_PLACE_ID_2",
+                        "text": {
+                            "text": "6100 Main Street, Houston, TX 77005, USA"
+                        }
+                    }
+                },
+                {
+                    "placePrediction": {
+                        "text": {
+                            "text": "a suggestion with no place id at all"
+                        }
+                    }
+                }
+            ]
+        },
+        "rawHeaders": {
+            "content-type": "application/json; charset=UTF-8"
+        }
+    },
+    {
+        "scope": "https://places.googleapis.com:443",
+        "method": "GET",
+        "path": "/v1/places/SCRUBBED_PLACE_ID",
+        "status": 200,
+        "response": {
+            "formattedAddress": "6100 Main St, Houston, TX 77005, USA",
+            "location": {
+                "latitude": 29.717,
+                "longitude": -95.4018
+            },
+            "addressComponents": [
+                {
+                    "longText": "6100",
+                    "shortText": "6100",
+                    "types": [
+                        "street_number"
+                    ]
+                },
+                {
+                    "longText": "Main Street",
+                    "shortText": "Main St",
+                    "types": [
+                        "route"
+                    ]
+                },
+                {
+                    "longText": "Houston",
+                    "shortText": "Houston",
+                    "types": [
+                        "locality",
+                        "political"
+                    ]
+                },
+                {
+                    "longText": "Texas",
+                    "shortText": "TX",
+                    "types": [
+                        "administrative_area_level_1",
+                        "political"
+                    ]
+                },
+                {
+                    "longText": "United States",
+                    "shortText": "US",
+                    "types": [
+                        "country",
+                        "political"
+                    ]
+                },
+                {
+                    "longText": "77005",
+                    "shortText": "77005",
+                    "types": [
+                        "postal_code"
+                    ]
+                }
+            ]
+        },
+        "rawHeaders": {
+            "content-type": "application/json; charset=UTF-8"
+        }
+    }
+]

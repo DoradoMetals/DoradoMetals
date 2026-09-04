@@ -1,4 +1,4 @@
-// The users endpoints, over real HTTP. /update_credit moves money -
+// The users endpoints, over real HTTP. POST /users/:id/credit moves money -
 // dorado_funds is a $66,999.32 ledger across eight customers - the smallest
 // endpoint with the largest consequence.
 // The CASE-with-no-ELSE hazard: an unrecognised mode used to assign NULL to
@@ -91,14 +91,14 @@ test("every route refuses an anonymous caller", async () => {
   await inPinned(async () => {
     await anonymous(async () => {
       const calls = [
-        ["get_user", request(app).get("/api/users/get_user").query({ user_id: customer.id })],
-        ["get_all_users", request(app).get("/api/users/get_all_users")],
-        ["get_admin_users", request(app).get("/api/users/get_admin_users")],
+        ["get_user", request(app).get(`/api/users/${customer.id}`)],
+        ["`GET /api/users`", request(app).get("/api/users")],
+        ["`GET /api/users/admins`", request(app).get("/api/users/admins")],
         [
-          "update_credit",
+          "POST /api/users/:id/credit",
           request(app)
-            .post("/api/users/update_credit")
-            .send({ user_id: customer.id, op: "add", amount: 1 }),
+            .post(`/api/users/${customer.id}/credit`)
+            .send({ op: "add", amount: 1 }),
         ],
       ];
       // Declared as a tuple list: inferred, the element type collapses to `string | Promise<Response>` and neither half is usable.
@@ -115,8 +115,8 @@ test("a signed-in customer cannot top up their own balance", async () => {
   await inPinned(async () => {
     await as({ ...customer, role: "user" }, async () => {
       const res = await request(app)
-        .post("/api/users/update_credit")
-        .send({ user_id: customer.id, op: "add", amount: 1000 });
+        .post(`/api/users/${customer.id}/credit`)
+        .send({ op: "add", amount: 1000 });
       assert.ok([401, 403].includes(res.status), `a customer got ${res.status} adjusting credit`);
     });
   });
@@ -125,7 +125,7 @@ test("a signed-in customer cannot top up their own balance", async () => {
 test("an admin reads the user list with balances", async () => {
   await inPinned(async () => {
     await as({ ...admin, role: "admin" }, async () => {
-      const res = await request(app).get("/api/users/get_all_users");
+      const res = await request(app).get("/api/users");
       assert.equal(res.status, 200);
       assert.ok(res.body.length > 0, "dev has users and none came back");
       assert.ok("dorado_funds" in res.body[0], "the admin list lost the balance column");
@@ -139,12 +139,12 @@ test("an admin reads the user list with balances", async () => {
 test("the single-user read carries the balance, like the list", async () => {
   await inPinned(async () => {
     await as({ ...admin, role: "admin" }, async () => {
-      const res = await request(app).get("/api/users/get_user").query({ user_id: customer.id });
+      const res = await request(app).get(`/api/users/${customer.id}`);
       assert.equal(res.status, 200);
       assert.equal(res.body.id, customer.id);
       assert.ok("dorado_funds" in res.body, "get_user stopped returning the balance");
 
-      const list = await request(app).get("/api/users/get_all_users");
+      const list = await request(app).get("/api/users");
       const fromList = list.body.find((u: { id: string }) => u.id === customer.id);
       assert.equal(
         Number(res.body.dorado_funds), Number(fromList.dorado_funds),
@@ -157,16 +157,16 @@ test("the single-user read carries the balance, like the list", async () => {
 test("the admin list is only admins, and the full list is more than that", async () => {
   await inPinned(async () => {
     await as({ ...admin, role: "admin" }, async () => {
-      const admins = await request(app).get("/api/users/get_admin_users");
+      const admins = await request(app).get("/api/users/admins");
       assert.equal(admins.status, 200);
-      assert.ok(admins.body.length > 0, "no admin came back from get_admin_users");
+      assert.ok(admins.body.length > 0, "no admin came back from GET /api/users/admins");
       assert.deepEqual(
         admins.body.filter((u: { id: string; role: string }) => u.role !== "admin"),
         [],
-        "get_admin_users returned a non-admin"
+        "GET /api/users/admins returned a non-admin"
       );
 
-      const all = await request(app).get("/api/users/get_all_users");
+      const all = await request(app).get("/api/users");
       assert.ok(
         all.body.length > admins.body.length,
         "every user is an admin, so this comparison proves nothing"
@@ -180,30 +180,30 @@ test("the three operations each move the balance the way they say", async () => 
     await fund(client);
     await as({ ...admin, role: "admin" }, async () => {
       const read = async () => {
-        const res = await request(app).get("/api/users/get_all_users");
+        const res = await request(app).get("/api/users");
         // GUARDED: an unguarded find() would TypeError on a missing customer instead of saying so.
         const row = res.body.find((u: { id: string; dorado_funds: unknown }) => u.id === customer.id);
-        assert.ok(row, `customer ${customer.id} is absent from get_all_users`);
+        assert.ok(row, `customer ${customer.id} is absent from GET /api/users`);
         return Number(row.dorado_funds);
       };
 
       const start = await read();
 
       let res = await request(app)
-        .post("/api/users/update_credit")
-        .send({ user_id: customer.id, op: "add", amount: 25 });
+        .post(`/api/users/${customer.id}/credit`)
+        .send({ op: "add", amount: 25 });
       assert.equal(res.status, 200, JSON.stringify(res.body));
       sameMoney(await read(), start + 25, "add did not add");
 
       res = await request(app)
-        .post("/api/users/update_credit")
-        .send({ user_id: customer.id, op: "subtract", amount: 10 });
+        .post(`/api/users/${customer.id}/credit`)
+        .send({ op: "subtract", amount: 10 });
       assert.equal(res.status, 200, JSON.stringify(res.body));
       sameMoney(await read(), start + 15, "subtract did not subtract");
 
       res = await request(app)
-        .post("/api/users/update_credit")
-        .send({ user_id: customer.id, op: "edit", amount: 7.5 });
+        .post(`/api/users/${customer.id}/credit`)
+        .send({ op: "edit", amount: 7.5 });
       assert.equal(res.status, 200, JSON.stringify(res.body));
       sameMoney(await read(), 7.5, "edit did not set the balance outright");
     });
@@ -222,18 +222,18 @@ test("an unrecognised operation is refused and the balance is untouched", async 
     await fund(client);
     await as({ ...admin, role: "admin" }, async () => {
       const read = async () => {
-        const res = await request(app).get("/api/users/get_all_users");
+        const res = await request(app).get("/api/users");
         // GUARDED: an unguarded find() would TypeError on a missing customer instead of saying so.
         const row = res.body.find((u: { id: string; dorado_funds: unknown }) => u.id === customer.id);
-        assert.ok(row, `customer ${customer.id} is absent from get_all_users`);
+        assert.ok(row, `customer ${customer.id} is absent from GET /api/users`);
         return row.dorado_funds;
       };
       const start = await read();
 
       for (const op of ["ADD", "Add", "increment", "", null, undefined, "delete"]) {
         const res = await request(app)
-          .post("/api/users/update_credit")
-          .send({ user_id: customer.id, op, amount: 50 });
+          .post(`/api/users/${customer.id}/credit`)
+          .send({ op, amount: 50 });
         assert.equal(
           res.status,
           400,
@@ -248,8 +248,8 @@ test("an unrecognised operation is refused and the balance is untouched", async 
 
       // The retired spelling, sent the way the browser used to send it.
       const retired = await request(app)
-        .post("/api/users/update_credit")
-        .send({ user_id: customer.id, mode: "add", amount: 50 });
+        .post(`/api/users/${customer.id}/credit`)
+        .send({ mode: "add", amount: 50 });
       assert.equal(retired.status, 400, "the retired `mode` spelling was honoured");
       sameMoney(await read(), start, "`mode` moved the balance");
     });
@@ -263,8 +263,8 @@ test("an amount that is not a number is refused rather than treated as zero", as
       // Each of these coerces to a finite 0 through Number(): "" -> 0, null -> 0, [] -> 0.
       for (const amount of ["", null, undefined, "abc", {}, [], NaN, "  "]) {
         const res = await request(app)
-          .post("/api/users/update_credit")
-          .send({ user_id: customer.id, op: "edit", amount });
+          .post(`/api/users/${customer.id}/credit`)
+          .send({ op: "edit", amount });
         assert.equal(
           res.status,
           400,

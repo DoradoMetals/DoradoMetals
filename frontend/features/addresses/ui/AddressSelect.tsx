@@ -7,7 +7,8 @@ import { UserAddress } from '@/features/addresses/types'
 import { cn } from '@/shared/utils/cn'
 import { Button, RadioGroup, RadioOption } from '@dorado/components'
 import { useEffect, useMemo, useState } from 'react'
-import { AddressCard } from '@/features/addresses/ui/AddressCard'
+import formatPhoneNumber from '@/shared/utils/formatPhoneNumber'
+import { Building2, House } from 'lucide-react'
 
 type Props = {
   addresses: Address[]
@@ -22,6 +23,35 @@ type Props = {
   onAddNew?: () => void
   addNewLabel?: string
   title?: string
+}
+
+// A ROW, NOT A CARD. AddressCard renders an AddressBookEntry and calls the
+// write hooks off its own `actions`; a picker shows a choice and does nothing
+// to it, so it draws its own two lines rather than passing an entry it does
+// not have. The props stay Address[] + UserAddress[] because the checkout and
+// order surfaces that call this hold those.
+function AddressRow({
+  address,
+  link,
+}: {
+  address: Address
+  link?: UserAddress
+}) {
+  const Icon = address.is_residential ? House : Building2
+  return (
+    <div className="flex flex-col w-full">
+      <div className="flex items-center gap-2">
+        <Icon size={24} className="text-primary" />
+        <h4>{link?.recipient_name ?? link?.label}</h4>
+      </div>
+      {!!address.phone_number && <p className="mt-3">{formatPhoneNumber(address.phone_number)}</p>}
+      <p className="mt-3">
+        {address.line_1}
+        {address.line_2 ? ` ${address.line_2}` : ''}
+        {`, ${address.city}, ${address.state} ${address.zip}`}
+      </p>
+    </div>
+  )
 }
 
 export function AddressSelect({
@@ -110,17 +140,7 @@ export function AddressSelect({
               ) : null}
 
               <div className="w-full">
-                <AddressCard
-                  variant="compact"
-                  address={selected}
-                  userAddress={linkOf.get(selected.id)}
-                  icon="auto"
-                  showDefaultBanner={false}
-                  showEdit={false}
-                  showRemove={false}
-                  showSetDefault={false}
-                  className="bg-transparent border-none p-0"
-                />
+                <AddressRow address={selected} link={linkOf.get(selected.id)} />
               </div>
             </div>
 
@@ -168,17 +188,7 @@ export function AddressSelect({
                       variant="card"
                       className="flex-row items-start justify-between gap-4 p-3"
                     >
-                      <AddressCard
-                        variant="compact"
-                        address={addr}
-                        userAddress={linkOf.get(addr.id)}
-                        icon="auto"
-                        showDefaultBanner={false}
-                        showEdit={false}
-                        showRemove={false}
-                        showSetDefault={false}
-                        className="bg-transparent border-0 p-0 pr-10"
-                      />
+                      <AddressRow address={addr} link={linkOf.get(addr.id)} />
                     </RadioOption>
                   </motion.div>
                 ))}

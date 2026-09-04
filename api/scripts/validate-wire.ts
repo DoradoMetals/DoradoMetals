@@ -85,8 +85,9 @@ add("GET /carrier_pickups", c.ShipmentPickup, () => pickupsService.getAll());
 
 // Addresses were not checked here at all, and they are one of the two features
 // whose migrated read renames columns: places.user_addresses calls them
-// `label` and `default_shipping`, and the wire calls them `name` and
-// `is_default`. Those aliases are the whole reason the address book renders.
+// `recipient_name` and `default_shipping` are the two fields the address book
+// renders every card from - who the parcel is for, and which one is the
+// default.
 //
 // list() is per user rather than global, so it needs a user with addresses -
 // taken from exchange, which both implementations key on.
@@ -95,21 +96,23 @@ const { rows: withAddresses } = await pool.query(
    GROUP BY user_id ORDER BY count(*) DESC LIMIT 1`
 );
 const addressUser = withAddresses[0]?.user_id;
-// Addresses is restructured - one implementation, so there is no "both ways"
-// to run. Kept as a DIRECT check rather than dropped, and this is the feature
-// where dropping it would cost the most: `label` and `default_shipping` become
-// `name` and `is_default` on the wire, and those two aliases are the whole
-// reason the address book renders a name at all.
+// ONE ENDPOINT NOW. The two reads the browser joined by address_id
+// (`/addresses` and `/addresses/user_addresses`) are one AddressBookEntry: the
+// postal row, the caller's link, and what may be done to it.
 const addressesService = await import("#domain/places/addresses/service.ts");
-const listAddresses = async () => (addressUser ? await addressesService.list(addressUser) : []);
-// The split wire (2026-08-27): the address rows and the caller's
-// relationships are separate endpoints, joined client-side by address_id.
-add("GET /addresses", c.Address, async () =>
-  (await listAddresses()).map(({ user_address, ...a }) => a)
-);
-add("GET /addresses/user_addresses", c.UserAddressRead, async () =>
-  (await listAddresses()).map((r) => ({ address_id: r.id, ...r.user_address }))
-);
+const addressBook = async () =>
+  addressUser ? await addressesService.list(addressUser) : [];
+add("GET /addresses", c.AddressBookEntry, addressBook);
+// The single-entry read is a DIFFERENT statement path - it asks isActive of one
+// address rather than activeAmong of a book - so it is registered separately
+// rather than assumed to answer the same shape.
+add("GET /addresses/:id", c.AddressBookEntry, async () => {
+  const book = await addressBook();
+  const first = book[0];
+  return first && addressUser
+    ? [await addressesService.getOne(first.address.id, addressUser)]
+    : [];
+});
 
 // The other renaming read: media.images stores `checksum` and the wire calls it
 // `checksum_sha`.

@@ -67,7 +67,7 @@ test("an admin credit writes one Credit row for exactly what moved", async () =>
     const customer = await aFundedCustomer(client);
     const before = await ledgerIds(client, customer.id);
 
-    await usersService.adjustDoradoCredit({ user_id: customer.id, op: "add", amount: 12.5 });
+    await usersService.adjustDoradoCredit(customer.id, { op: "add", amount: 12.5 });
 
     const added = await rowsAdded(client, customer.id, before);
     assert.equal(added.length, 1, "an adjustment wrote something other than one row");
@@ -85,7 +85,7 @@ test("a subtraction writes a Debit", async () => {
     const customer = await aFundedCustomer(client);
     const before = await ledgerIds(client, customer.id);
 
-    await usersService.adjustDoradoCredit({ user_id: customer.id, op: "subtract", amount: 4.25 });
+    await usersService.adjustDoradoCredit(customer.id, { op: "subtract", amount: 4.25 });
 
     const added = await rowsAdded(client, customer.id, before);
     assert.equal(added.length, 1);
@@ -102,17 +102,17 @@ test("an edit upwards is a Credit and an edit downwards is a Debit", async () =>
     const customer = await aFundedCustomer(client);
     // Normalised first, so the two edits below move a known amount rather than
     // whatever eighteen-decimal balance dev happens to hold.
-    await usersService.adjustDoradoCredit({ user_id: customer.id, op: "edit", amount: 500 });
+    await usersService.adjustDoradoCredit(customer.id, { op: "edit", amount: 500 });
 
     let before = await ledgerIds(client, customer.id);
-    await usersService.adjustDoradoCredit({ user_id: customer.id, op: "edit", amount: 600 });
+    await usersService.adjustDoradoCredit(customer.id, { op: "edit", amount: 600 });
     let added = await rowsAdded(client, customer.id, before);
     assert.equal(added.length, 1);
     assert.equal(added[0].type, "Credit");
     assert.equal(Number(added[0].amount), 100);
 
     before = await ledgerIds(client, customer.id);
-    await usersService.adjustDoradoCredit({ user_id: customer.id, op: "edit", amount: 500 });
+    await usersService.adjustDoradoCredit(customer.id, { op: "edit", amount: 500 });
     added = await rowsAdded(client, customer.id, before);
     assert.equal(added.length, 1);
     assert.equal(added[0].type, "Debit");
@@ -134,10 +134,10 @@ test("an edit upwards is a Credit and an edit downwards is a Debit", async () =>
 test("an edit that changes nothing writes no ledger row", async () => {
   await inPinned(async (client: PoolClient) => {
     const customer = await aFundedCustomer(client);
-    await usersService.adjustDoradoCredit({ user_id: customer.id, op: "edit", amount: 100 });
+    await usersService.adjustDoradoCredit(customer.id, { op: "edit", amount: 100 });
 
     const before = await ledgerIds(client, customer.id);
-    await usersService.adjustDoradoCredit({ user_id: customer.id, op: "edit", amount: 100 });
+    await usersService.adjustDoradoCredit(customer.id, { op: "edit", amount: 100 });
     assert.deepEqual(await rowsAdded(client, customer.id, before), []);
   });
 });
@@ -150,8 +150,7 @@ test("a refused adjustment writes no ledger row and moves no balance", async () 
     const customer = await aFundedCustomer(client);
     const before = await ledgerIds(client, customer.id);
 
-    await assert.rejects(() => usersService.adjustDoradoCredit({
-      user_id: customer.id, op: "subtract", amount: Number(customer.dorado_funds) + 1,
+    await assert.rejects(() => usersService.adjustDoradoCredit(customer.id, { op: "subtract", amount: Number(customer.dorado_funds) + 1,
     }));
 
     assert.deepEqual(await rowsAdded(client, customer.id, before), []);

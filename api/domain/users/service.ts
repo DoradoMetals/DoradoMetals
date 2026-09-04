@@ -30,7 +30,7 @@ export async function getAdminUsers(): Promise<UserRow[]> {
 // one should honour. The ledger row is written inside the same transaction, so
 // a movement and its record commit together or neither does.
 export async function adjustDoradoCredit(
-  { user_id, op, amount }: UpdateCreditBody
+  user_id: string, { op, amount }: UpdateCreditBody
 ): Promise<CreditRow> {
   return await withTransaction(async (tx) => {
     const current = assertCreditSubject(user_id, await users.balanceForUpdate(user_id, tx));

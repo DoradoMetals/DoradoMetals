@@ -8,3 +8,5 @@ export * from "./payouts";
 export * from "./users";
 export * from "./fulfillments";
 export * from "./shipping";
+export * from "./addresses";
+export * from "./auth";

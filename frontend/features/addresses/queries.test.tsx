@@ -1,26 +1,22 @@
-// What useCreateAddress and useUpdateAddress actually POST, checked against
-// @dorado/contracts' AddressCreateBody/AddressUpdateBody in strict mode. The
-// contracts lane dropped is_valid/is_residential from the address body (both
-// are server-controlled); splitFormValues used to spread whatever the form
-// carried, which also leaked created_at/updated_at into an UPDATE (the form's
-// initial values come from the read row, which has both). This file fails if
-// any of the four reappears.
-import { describe, expect, test, vi, beforeEach } from "vitest";
+// WHAT THE ADDRESS WRITES PUT ON THE WIRE, checked against @dorado/contracts'
+// AddressWriteBody in strict mode.
+//
+// The subject moved with the code. `splitFormValues` used to spread whatever
+// the form happened to carry, which leaked `created_at`/`updated_at` into an
+// UPDATE (the form's initial values came from the read row, which has both) -
+// and the address's id rode INSIDE the patch, where it read as a column being
+// written. The form names its columns now and the id is the path's, so what is
+// left to pin is the request itself: the method, the URL and a body that still
+// refuses every server-controlled field.
+import { describe, expect, test, vi, beforeEach, afterEach } from "vitest";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
-import { AddressCreateBody, AddressUpdateBody } from "@dorado/contracts";
+import { AddressWriteBody } from "@dorado/contracts";
 
-vi.mock("@/shared/queries/axios", () => ({ apiRequest: vi.fn() }));
-vi.mock("@/features/auth/queries", () => ({
-  useGetSession: () => ({
-    user: { id: "9f1c2b3a-0000-4000-8000-000000000099", role: "user" },
-  }),
-}));
-
-import { apiRequest } from "@/shared/queries/axios";
 import { useCreateAddress, useUpdateAddress } from "@/features/addresses/queries";
-import type { AddressFormValues } from "@/features/addresses/types";
+
+const ID = "9f1c2b3a-0000-4000-8000-000000000005";
 
 function wrapper({ children }: { children: ReactNode }) {
   const client = new QueryClient({
@@ -29,12 +25,9 @@ function wrapper({ children }: { children: ReactNode }) {
   return <QueryClientProvider client={client}>{children}</QueryClientProvider>;
 }
 
-// Shaped like the form AFTER editing an EXISTING address: initialValues in
-// AddressForm.tsx spreads the full read row, so created_at/updated_at ride
-// along as real strings, not undefined - the exact leak this test guards.
-const editedFormValues = (): AddressFormValues =>
-  ({
-    id: "9f1c2b3a-0000-4000-8000-000000000005",
+// Exactly what AddressForm builds: two patches, named field by field.
+const body = () => ({
+  address: {
     line_1: "1 Maple St",
     line_2: "",
     city: "Dallas",
@@ -43,66 +36,68 @@ const editedFormValues = (): AddressFormValues =>
     country_code: "US",
     zip: "75201",
     phone_number: "5551112222",
-    created_at: "2026-01-01T00:00:00.000Z",
-    updated_at: "2026-01-02T00:00:00.000Z",
-    label: "Home",
-    default_shipping: true,
-  } as AddressFormValues);
+  },
+  user_address: { recipient_name: "Ada Lovelace", label: "Home", default_shipping: true },
+});
+
+const calls = () =>
+  vi.mocked(globalThis.fetch as unknown as (...a: unknown[]) => unknown).mock.calls;
 
 beforeEach(() => {
-  vi.mocked(apiRequest).mockReset();
-  vi.mocked(apiRequest).mockResolvedValue({ address: {}, user_address: {} });
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async () => ({ ok: true, status: 200, text: async () => "{}" }))
+  );
 });
 
-describe("useCreateAddress sends exactly what /addresses/create accepts", () => {
-  test("parses clean and never carries is_valid/is_residential", async () => {
+afterEach(() => vi.unstubAllGlobals());
+
+describe("the address writes", () => {
+  test("a create POSTs /addresses with a body the contract accepts", async () => {
     const { result } = renderHook(() => useCreateAddress(), { wrapper });
-    const values = editedFormValues();
-    // A create has no id yet, matching the form's own empty state.
-    delete (values as { id?: string }).id;
-
     await act(async () => {
-      await result.current.mutateAsync(values);
+      await result.current.mutateAsync(body());
     });
+    await waitFor(() => expect(calls().length).toBeGreaterThan(0));
 
-    await waitFor(() => expect(apiRequest).toHaveBeenCalled());
-    const [, url, body] = vi.mocked(apiRequest).mock.calls[0];
-    expect(url).toBe("/addresses/create");
+    const [url, init] = calls()[0] as [string, RequestInit];
+    expect(url).toContain("/addresses");
+    expect(init.method).toBe("POST");
 
-    expect(AddressCreateBody.safeParse(body).success).toBe(true);
-
-    const b = body as { address: Record<string, unknown> };
-    expect(b.address).not.toHaveProperty("is_valid");
-    expect(b.address).not.toHaveProperty("is_residential");
-    expect(b.address).not.toHaveProperty("created_at");
-    expect(b.address).not.toHaveProperty("updated_at");
-
-    // Proven: naming either retired field would fail the same parse.
-    const withRetired = { ...b, address: { ...b.address, is_valid: true, is_residential: false } };
-    expect(AddressCreateBody.safeParse(withRetired).success).toBe(false);
-  });
-});
-
-describe("useUpdateAddress sends exactly what /addresses/update accepts", () => {
-  test("editing an EXISTING address never leaks created_at/updated_at/is_valid/is_residential", async () => {
-    const { result } = renderHook(() => useUpdateAddress(), { wrapper });
-    const values = { ...editedFormValues(), id: "9f1c2b3a-0000-4000-8000-000000000005" };
-
-    await act(async () => {
-      await result.current.mutateAsync(values);
-    });
-
-    await waitFor(() => expect(apiRequest).toHaveBeenCalled());
-    const [, url, body] = vi.mocked(apiRequest).mock.calls[0];
-    expect(url).toBe("/addresses/update");
-
-    const parsed = AddressUpdateBody.safeParse(body);
-    expect(parsed.success).toBe(true);
-
-    const b = body as { address: Record<string, unknown> };
-    for (const retired of ["is_valid", "is_residential", "created_at", "updated_at"]) {
-      expect(b.address).not.toHaveProperty(retired);
+    const sent = JSON.parse(String(init.body));
+    expect(AddressWriteBody.safeParse(sent).success).toBe(true);
+    for (const retired of ["is_valid", "is_residential", "created_at", "updated_at", "id"]) {
+      expect(sent.address).not.toHaveProperty(retired);
     }
-    expect(b.address.id).toBe("9f1c2b3a-0000-4000-8000-000000000005");
+  });
+
+  test("an update PATCHes /addresses/:id and never carries the id in the body", async () => {
+    const { result } = renderHook(() => useUpdateAddress(), { wrapper });
+    await act(async () => {
+      await result.current.mutateAsync({ address_id: ID, body: body() });
+    });
+    await waitFor(() => expect(calls().length).toBeGreaterThan(0));
+
+    const [url, init] = calls()[0] as [string, RequestInit];
+    expect(url).toContain(`/addresses/${ID}`);
+    expect(init.method).toBe("PATCH");
+
+    const sent = JSON.parse(String(init.body));
+    expect(AddressWriteBody.safeParse(sent).success).toBe(true);
+    for (const retired of ["is_valid", "is_residential", "created_at", "updated_at", "id"]) {
+      expect(sent.address).not.toHaveProperty(retired);
+    }
+  });
+
+  // Proven: naming a retired field would fail the same parse, so the two loops
+  // above are checking something a strict schema really refuses.
+  test("the contract refuses the fields the form no longer sends", () => {
+    const withRetired = {
+      address: { ...body().address, is_valid: true },
+      user_address: body().user_address,
+    };
+    expect(AddressWriteBody.safeParse(withRetired).success).toBe(false);
+    const withId = { address: { ...body().address, id: ID }, user_address: body().user_address };
+    expect(AddressWriteBody.safeParse(withId).success).toBe(false);
   });
 });

@@ -13,7 +13,7 @@ export function useAdminUser(user_id: string, options: { enabled?: boolean } = {
     queryKey: keys.users.one(user_id),
     enabled: (options.enabled ?? true) && !!user_id,
     staleTime: 0,
-    queryFn: () => apiRequest<AdminUser>("GET", "/users/get_user", undefined, { user_id }),
+    queryFn: () => apiRequest<AdminUser>("GET", `/users/${user_id}`),
   });
 }
 
@@ -22,7 +22,7 @@ export function useAdminUsers(options: { enabled?: boolean } = {}) {
     queryKey: keys.users.all(),
     enabled: options.enabled ?? true,
     staleTime: 0,
-    queryFn: () => apiRequest<AdminUser[]>("GET", "/users/get_all_users"),
+    queryFn: () => apiRequest<AdminUser[]>("GET", "/users"),
   });
 }
 
@@ -31,11 +31,13 @@ export function useAdminRoleUsers(options: { enabled?: boolean } = {}) {
     queryKey: keys.users.admins(),
     enabled: options.enabled ?? true,
     staleTime: 0,
-    queryFn: () => apiRequest<AdminUser[]>("GET", "/users/get_admin_users"),
+    queryFn: () => apiRequest<AdminUser[]>("GET", "/users/admins"),
   });
 }
 
 // THE OPERATION, NOT THE RESULT (ruling 10, D98).
+//
+// The SUBJECT is the path's now (ruling 43); the body is the operation alone.
 //
 // This used to send `amount: user.dorado_funds` - the balance the BROWSER had
 // computed - and the server stored it verbatim. Two problems on a ledger
@@ -48,13 +50,13 @@ export function useAdminRoleUsers(options: { enabled?: boolean } = {}) {
 export function useUpdateCredit() {
   const client = useQueryClient();
   return useMutation({
-    mutationFn: (body: UpdateCreditBody) =>
+    mutationFn: ({ user_id, body }: { user_id: string; body: UpdateCreditBody }) =>
       apiRequest<{ id: string; dorado_funds: number | null }>(
-        "POST", "/users/update_credit", body
+        "POST", `/users/${user_id}/credit`, body
       ),
-    onSettled: (_row, _err, body) => {
+    onSettled: (_row, _err, { user_id }) => {
       client.invalidateQueries({ queryKey: keys.users.all() });
-      client.invalidateQueries({ queryKey: keys.users.one(body.user_id) });
+      client.invalidateQueries({ queryKey: keys.users.one(user_id) });
       client.invalidateQueries({ queryKey: keys.users.ledger() });
     },
   });

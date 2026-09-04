@@ -20,6 +20,7 @@ export type BuiltAddress = {
   city: string;
   state: string;
   zip: string;
+  recipient_name: string;
   label: string;
 };
 
@@ -35,6 +36,7 @@ export type AddressOptions = {
   country?: string;
   country_code?: string;
   phone_number?: string | null;
+  recipient_name?: string;
   label?: string;
   default_shipping?: boolean;
 };
@@ -58,10 +60,17 @@ export async function anAddress(
     },
     c
   );
+  // WHO SIGNS FOR THE PARCEL and what the book calls it are two facts
+  // (migration 126); a fixture that sets only one leaves the other null.
+  const recipient_name = options.recipient_name ?? `Test Recipient ${tag}`;
   const label = options.label ?? `Test Address ${tag}`;
   await userAddresses.create(
     anId(), row.id, user.id,
-    { label, default_shipping: options.default_shipping ?? true },
+    {
+      recipient_name, label,
+      default_shipping: options.default_shipping ?? true,
+      default_billing: options.default_shipping ?? true,
+    },
     c
   );
   return {
@@ -71,6 +80,7 @@ export async function anAddress(
     city: row.city as string,
     state: row.state as string,
     zip: row.zip as string,
+    recipient_name,
     label,
   };
 }

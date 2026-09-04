@@ -7,8 +7,8 @@ import { sqlFrom } from "#shared/db/sql.ts";
 import { buildUpdate } from "#shared/db/patch.ts";
 import { PATCHABLE } from "#db/places/addresses/repo.ts";
 import { PATCHABLE as UA_PATCHABLE } from "#db/places/user-addresses/repo.ts";
-import { compose, byDefaultThenId, all } from "#domain/places/addresses/compose.ts";
-import type { ComposedAddress } from "#domain/places/addresses/compose.ts";
+import * as rules from "#domain/places/addresses/rules.ts";
+import type { Address, UserAddress } from "@dorado/contracts";
 
 // db/places/addresses/sql - the statements as text.
 const sql = sqlFrom(path.join(import.meta.dirname, "..", "..", "..", "..", "db", "places", "addresses"));
@@ -64,10 +64,10 @@ test("the writes to places.user_addresses are scoped to the person", () => {
   // The ownership guard rides in the WHERE - the point of this test, and why the builder takes a `where` map rather than an id.
   const uaUpdate = buildUpdate({
     table: "places.user_addresses", allowed: UA_PATCHABLE,
-    patch: { label: "Home", default_shipping: true, default_billing: true },
+    patch: { recipient_name: "Ada", label: "Home", default_shipping: true, default_billing: true },
     where: { address_id: "a", user_id: "u" },
   })!;
-  assert.match(uaUpdate.text, /WHERE address_id = \$4 AND user_id = \$5/i);
+  assert.match(uaUpdate.text, /WHERE address_id = \$5 AND user_id = \$6/i);
   assert.match(uaBody("delete"), /WHERE\s+address_id\s*=\s*\$1\s+AND\s+user_id\s*=\s*\$2/i);
   assert.match(uaBody("get_one"), /WHERE\s+address_id\s*=\s*\$1\s+AND\s+user_id\s*=\s*\$2/i);
   // set_default is two statements (a one-statement swap trips the partial unique index on row-visit order) - both halves must stay scoped to the person.
@@ -91,37 +91,75 @@ test("is_referenced asks about both of the order's address columns", () => {
   assert.match(body("is_referenced"), /places\.user_addresses/);
 });
 
-// ---------------------------------------------------------------- compose.ts
+// ------------------------------------------------------------------- rules.ts
 
-const address = (id: string) => ({ id }) as never;
-const link = (address_id: string, dflt: boolean) =>
-  ({ address_id, user_id: "u", label: "l", default_shipping: dflt, default_billing: dflt, id: "x" }) as never;
+const address = (id: string) => ({ id }) as Address;
+const link = (address_id: string, dflt: boolean, recipient = "l") =>
+  ({
+    id: "x", address_id, user_id: "u", recipient_name: recipient, label: "n",
+    default_shipping: dflt, default_billing: dflt,
+  }) as UserAddress;
 
-test("compose nests the person's side and leaves the address flat", () => {
-  const out = compose(address("a"), link("a", true));
-  assert.equal(out.id, "a");
+test("an entry keeps the two rows apart and never leaks default_billing", () => {
+  const out = rules.entry(address("a"), link("a", true), false);
+  assert.equal(out.address.id, "a");
   assert.deepEqual(Object.keys(out.user_address).sort(),
-    ["default_shipping", "label", "user_id"]);
-  // default_billing must NOT appear on the wire.
+    ["address_id", "default_shipping", "label", "recipient_name", "user_id"]);
   assert.ok(!("default_billing" in out.user_address));
 });
 
+// The button an entry OFFERS is the call the use case ACCEPTS.
+test("an address an unfinished order depends on offers neither edit nor remove", () => {
+  const locked = rules.entry(address("a"), link("a", false), true);
+  assert.deepEqual(locked.actions, { edit: false, remove: false, set_default: true });
+  const free = rules.entry(address("b"), link("b", true), false);
+  assert.deepEqual(free.actions, { edit: true, remove: true, set_default: false });
+});
+
+test("assertNotOnAnActiveOrder refuses exactly what actions.edit reports", () => {
+  assert.throws(() => rules.assertNotOnAnActiveOrder(true, "edited"), /active order/);
+  assert.doesNotThrow(() => rules.assertNotOnAnActiveOrder(false, "edited"));
+});
+
 // DESC on a boolean puts true first, which a naive `a - b` on booleans does not do.
-test("the sort puts the default first, then orders by id", () => {
+test("the sort puts the default first, then orders by recipient", () => {
   const rows = [
-    compose(address("c"), link("c", false)),
-    compose(address("a"), link("a", false)),
-    compose(address("b"), link("b", true)),
+    rules.entry(address("c"), link("c", false, "Zoe"), false),
+    rules.entry(address("a"), link("a", false, "Ada"), false),
+    rules.entry(address("b"), link("b", true, "Moe"), false),
   ];
   assert.deepEqual(
-    [...rows].sort(byDefaultThenId).map((r: ComposedAddress) => r.id),
+    [...rows].sort(rules.byDefaultThenRecipient).map((r) => r.address.id),
     ["b", "a", "c"]
   );
 });
 
-// An inner join by another name: a link whose address is missing is dropped,
-// not composed with undefined.
-test("a link with no address is dropped rather than composed with nothing", () => {
-  const out = all([link("a", false), link("gone", false)], [address("a")]);
-  assert.deepEqual(out.map((r) => r.id), ["a"]);
+// THE FIRST ADDRESS IS THE DEFAULT whatever the caller asked - the browser's
+// rule, and a book with no default is one checkout cannot preselect from.
+test("the first address in a book is the default however the caller asked", () => {
+  assert.equal(rules.defaultOnCreate(0, false), true);
+  assert.equal(rules.defaultOnCreate(0, undefined), true);
+  assert.equal(rules.defaultOnCreate(3, undefined), false);
+  assert.equal(rules.defaultOnCreate(3, true), true);
+});
+
+// EDITING AN ADDRESS UN-VALIDATES IT: the carrier's last answer is about
+// fields that just moved.
+test("an edit resets the carrier's answer about the address", () => {
+  const cols = rules.editedColumns({ line_1: "1 A" });
+  assert.equal(cols.is_valid, false);
+  assert.equal(cols.is_residential, false);
+});
+
+// Neither default flag is patchable through the link update - turning one on
+// goes through setDefault's clear-then-mark.
+test("the link patch carries the recipient and the nickname, never a default", () => {
+  const cols = rules.linkColumns({ recipient_name: "Ada", label: "Home", default_shipping: true });
+  assert.deepEqual(cols, { recipient_name: "Ada", label: "Home" });
+});
+
+// Google bills per request; a blank query is our refusal, and it is free.
+test("a place search shorter than three characters is refused before the provider", () => {
+  assert.throws(() => rules.assertSearchText("  a "), /three characters/);
+  assert.equal(rules.assertSearchText("  123 Main "), "123 Main");
 });

@@ -1,5 +1,4 @@
 import { ProductFilters } from '@/features/products/types'
-import { PlacesSuggestionsInput } from '@/features/addresses/types'
 
 export const queryKeys = {
   // Admin Products and Inventory
@@ -39,7 +38,6 @@ export const queryKeys = {
   // same inputs, so the same invalidations refresh it.
   profitBreakdown: (order_id: string) => ['quote', 'order', order_id, 'profit'] as const,
   userAddressLinksFor: (userId: string) => ['address', 'links', userId] as const,
-  places: (input: PlacesSuggestionsInput) => ['places', input] as const,
 
   // THE SHIPPING KEYS MOVED TO @dorado/client (src/keys.ts, `keys.shipping`
   // and `keys.fulfillments`) with the hooks that own them - a key and the read

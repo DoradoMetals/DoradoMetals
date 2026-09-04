@@ -50,7 +50,6 @@ const ACCEPTED: Record<string, string> = {
 // OFF this list rather than being edited around.
 const PENDING: Record<string, string> = {
   "frontend/app/sitemap.ts": "the sitemap builds at request time on the server, outside react-query entirely.",
-  "frontend/features/auth": "the auth surface - better-auth's own client plus two /users calls; not this lane's.",
   "frontend/features/media": "the media surface - not this lane's.",
   "frontend/features/orders": "the orders surface - the parallel orders lane owns it.",
   "frontend/features/pdfs": "the document surface - not this lane's.",

@@ -1,89 +1,80 @@
-// Addresses: the address row and one person's link to it, written together.
-// THE OWNERSHIP CHECK MOVED HERE: places.addresses has no user_id, so the write can't refuse a stranger's address by itself - this file must, by reading the caller's link first inside the same transaction as the write. Without it any signed-in customer could rewrite any address by id.
+// THE ADDRESS BOOK. An address row and one person's link to it, written
+// together, in one transaction, because half of either is not an address.
+//
+// LOAD -> ASSERT -> WRITE -> AFTER. Every refusal is a named assert in
+// rules.ts (ruling 65) and every write opens exactly one withTransaction
+// (ruling 56); nothing here catches, logs, or spreads.
+//
+// THE OWNERSHIP CHECK IS THIS FILE'S: places.addresses has no user_id, so the
+// write cannot refuse a stranger's address by itself. `rules.assertInBook` is
+// read INSIDE the write's transaction, so an address that leaves the caller's
+// book between the check and the write cannot slip through.
 import { randomUUID } from "node:crypto";
 import withTransaction from "#shared/db/withTransaction.ts";
 import * as addresses from "#db/places/addresses/repo.ts";
 import * as userAddresses from "#db/places/user-addresses/repo.ts";
-import * as compose from "#domain/places/addresses/compose.ts";
-import type { ComposedAddress } from "#domain/places/addresses/compose.ts";
-import type { AddressRow } from "#db/places/addresses/repo.ts";
-import type { UserAddressRow } from "#db/places/user-addresses/repo.ts";
+import * as rules from "#domain/places/addresses/rules.ts";
 import type { Executor } from "#shared/db/executor.ts";
-import { Conflict, NotFound } from "#shared/errors.ts";
+import type {
+  Address, AddressBookEntry, AddressPatch, UserAddressPatch,
+} from "@dorado/contracts";
 
-// req.body's two halves. The relationship arrives BESIDE the address, never inside it - one call, one transaction, but two things.
-export type AddressInput = {
-  id?: string;
-  line_1?: string | null;
-  line_2?: string | null;
-  city?: string | null;
-  state?: string | null;
-  country?: string | null;
-  zip?: string | null;
-  country_code?: string | null;
-  phone_number?: string | null;
-};
-
-type UserAddressInput = {
-  label?: string | null;
-  default_shipping?: boolean | null;
-};
-
-// The link row as compose() wants it, with default_shipping forced true for the response - setDefault already wrote the flag, this just avoids a second read.
-function asDefault(link: UserAddressRow): UserAddressRow {
-  return {
-    id: link.id,
-    address_id: link.address_id,
-    user_id: link.user_id,
-    label: link.label,
-    default_shipping: true,
-    default_billing: link.default_billing,
-  };
-}
-
-const labelOf = (ua?: UserAddressInput): string | null => ua?.label ?? null;
-const defaultOf = (ua?: UserAddressInput): boolean => ua?.default_shipping === true;
+export type Subject = { userId: string };
+export type Write = Subject & { address?: AddressPatch; user_address?: UserAddressPatch };
 
 // ---------------------------------------------------------------------- reads
 
-export async function list(userId: string, executor?: Executor): Promise<ComposedAddress[]> {
+// THE BOOK, WHOLE. Three statements for any number of entries: the links, the
+// addresses they point at, and which of them an unfinished order has locked.
+export async function list(
+  userId: string, executor?: Executor
+): Promise<AddressBookEntry[]> {
   const links = await userAddresses.listFor(userId, executor);
-  const rows = await addresses.getMany(links.map((l) => l.address_id), executor);
-  return compose.all(links, rows);
+  const ids = links.map((l) => l.address_id);
+  const rows = await addresses.getMany(ids, executor);
+  const locked = new Set(await addresses.activeAmong(ids, userId, executor));
+
+  const byId = new Map(rows.map((a) => [a.id, a]));
+  const out: AddressBookEntry[] = [];
+  for (const link of links) {
+    const address = byId.get(link.address_id);
+    // An address whose row has gone is dropped rather than composed with
+    // undefined - the link is the book, the row is what it points at.
+    if (address) out.push(rules.entry(address, link, locked.has(address.id)));
+  }
+  return out.sort(rules.byDefaultThenRecipient);
 }
 
-// Returns a list, not an oversight - an address can be in more than one person's book, so a list is the honest answer.
-export async function getFromId(
-  address_id: string, executor?: Executor
-): Promise<ComposedAddress[]> {
-  const row = await addresses.getOne(address_id, executor);
-  if (!row) return [];
-  const links = await userAddresses.getByAddress(address_id, executor);
-  return compose.all(links, [row]);
+// ONE ENTRY, WHOLE. 404 when the address is not in this person's book, which is
+// also what "no such address" answers - naming an address you cannot see must
+// not tell you it exists.
+export async function getOne(
+  addressId: string, userId: string, executor?: Executor
+): Promise<AddressBookEntry> {
+  const link = rules.assertInBook(addressId, await userAddresses.getOne(addressId, userId, executor));
+  const address = rules.assertAddress(addressId, await addresses.getOne(addressId, executor));
+  return rules.entry(address, link, await addresses.isActive(addressId, userId, executor));
 }
 
-// payments/service.ts calls this to find the state a sales order is taxed in.
-// `import * as` makes a missing name undefined rather than an import error - a deleted function here fails at the call, not at build time.
+// The postal row alone, for the callers that only want the state a quote is
+// taxed in. A list would be the honest answer to "whose book is this in"; this
+// question is about the place, so the place is the answer.
 export async function getAddressFromId(
   address_id: string, executor?: Executor
-): Promise<ComposedAddress | undefined> {
-  return (await getFromId(address_id, executor))[0];
+): Promise<Address | undefined> {
+  return await addresses.getOne(address_id, executor);
 }
 
+// Whether an unfinished order LOCKS the address. Read by checkout, which must
+// not let a parcel's destination be edited out from under it.
 export async function isActive(
   address_id: string, user_id: string, executor?: Executor
 ): Promise<boolean> {
   return await addresses.isActive(address_id, user_id, executor);
 }
 
-// The order-time freeze: copy the address as it stands and hand back the copy's id. Owned here because places.addresses is this feature's table.
-export async function snapshot(
-  address_id: string, executor?: Executor
-): Promise<string | null> {
-  return await addresses.snapshot(address_id, executor);
-}
-
-// The ownership question - different from isActive above (whether an unfinished order LOCKS the address). Checkout's address slots are gated on this.
+// The ownership question, which is a different one. Checkout's address slots
+// are gated on this.
 export async function inBook(
   address_id: string, user_id: string, executor?: Executor
 ): Promise<boolean> {
@@ -91,119 +82,91 @@ export async function inBook(
   return links.some((l) => l.user_id === user_id);
 }
 
+// The order-time freeze: copy the address as it stands and hand back the
+// copy's id. Owned here because places.addresses is this feature's table.
+export async function snapshot(
+  address_id: string, executor?: Executor
+): Promise<string | null> {
+  return await addresses.snapshot(address_id, executor);
+}
+
 // --------------------------------------------------------------------- writes
 
-export async function create(
-  { address, user_address, userId }:
-    { address: AddressInput; user_address?: UserAddressInput; userId: string },
-  executor?: Executor
-): Promise<ComposedAddress> {
-  const label = labelOf(user_address);
-  const isDefault = defaultOf(user_address);
-
-  const run = async (c: Executor): Promise<ComposedAddress> => {
+export async function create({ address, user_address, userId }: Write): Promise<AddressBookEntry> {
+  return await withTransaction(async (tx) => {
+    const size = (await userAddresses.listFor(userId, tx)).length;
     const id = randomUUID();
-    const row = await addresses.create(id, address, c);
-    // Creating AS the default must also un-default the others: insert off, then flip through the same clear-then-set both writes use.
-    const link = await userAddresses.create(randomUUID(), id, userId, { label, default_shipping: false }, c);
-    if (isDefault) {
-      await userAddresses.setDefault(userId, id, c);
-      return compose.compose(row, asDefault(link));
+    const row = await addresses.create(id, address ?? {}, tx);
+    const link = await userAddresses.create(
+      randomUUID(), id, userId, rules.linkColumns(user_address), tx
+    );
+
+    // THE FIRST ADDRESS IS THE DEFAULT whatever the caller asked for
+    // (rules.defaultOnCreate) - a book with no default is one checkout cannot
+    // preselect from. The flag is written through clear-then-mark rather than
+    // in the INSERT, so two defaults cannot exist even for one statement.
+    if (!rules.defaultOnCreate(size, user_address?.default_shipping)) {
+      return rules.entry(row, link, false);
     }
-    return compose.compose(row, link);
-  };
-  return executor ? await run(executor) : await withTransaction(run);
+    await userAddresses.setDefault(userId, id, tx);
+    return rules.entry(row, rules.assertInBook(id, await userAddresses.getOne(id, userId, tx)), false);
+  });
 }
 
 export async function update(
-  { address, user_address, userId }:
-    { address: AddressInput & { id: string }; user_address?: UserAddressInput; userId: string },
-  executor?: Executor
-): Promise<ComposedAddress> {
-  if (await addresses.isActive(address.id, userId, executor)) {
-    throw new Conflict(
-      "Address cannot be edited because it is associated with an active order."
-    );
-  }
+  addressId: string, { address, user_address, userId }: Write
+): Promise<AddressBookEntry> {
+  return await withTransaction(async (tx) => {
+    rules.assertInBook(addressId, await userAddresses.getOne(addressId, userId, tx));
+    rules.assertNotOnAnActiveOrder(await addresses.isActive(addressId, userId, tx), "edited");
 
-  const label = labelOf(user_address);
-  const isDefault = defaultOf(user_address);
-
-  const run = async (c: Executor): Promise<ComposedAddress> => {
-    // The ownership check (see header). Read inside the transaction, so an address that leaves the caller's book between this and the write can't slip through.
-    const owned = await userAddresses.getOne(address.id, userId, c);
-    if (!owned) throw new NotFound("Address not found.");
-
-    // The address, unchanged, plus is_residential reset to false - the one fact this write adds that the caller didn't send.
-    const ok = await addresses.update(address.id, {
-      line_1: address.line_1,
-      line_2: address.line_2,
-      city: address.city,
-      state: address.state,
-      country: address.country,
-      zip: address.zip,
-      country_code: address.country_code,
-      phone_number: address.phone_number,
-      is_residential: false,
-    }, c);
-    if (!ok) throw new NotFound("Address not found.");
-    const row = await addresses.getOne(address.id, c) as AddressRow;
-
-    // Same one-default rule as create: turning the flag ON goes through clear-then-set rather than writing a second default beside the existing one.
-    const link = await userAddresses.update(address.id, userId, { label, default_shipping: false }, c);
-    if (isDefault) {
-      await userAddresses.setDefault(userId, address.id, c);
-      return compose.compose(row, asDefault(link ?? owned));
+    const row = address
+      ? rules.assertAddress(addressId, await addresses.update(addressId, rules.editedColumns(address), tx))
+      : rules.assertAddress(addressId, await addresses.getOne(addressId, tx));
+    await userAddresses.update(addressId, userId, rules.linkColumns(user_address), tx);
+    if (user_address?.default_shipping === true) {
+      await userAddresses.setDefault(userId, addressId, tx);
     }
-    return compose.compose(row, link ?? owned);
-  };
-  return executor ? await run(executor) : await withTransaction(run);
+
+    const link = rules.assertInBook(addressId, await userAddresses.getOne(addressId, userId, tx));
+    return rules.entry(row, link, false);
+  });
 }
 
-export async function updateValidation(
-  { addressId, is_valid, is_residential }:
-    { addressId: string; is_valid: boolean; is_residential: boolean },
-  executor?: Executor
-): Promise<ComposedAddress | undefined> {
-  const run = async (c: Executor): Promise<ComposedAddress | undefined> => {
-    const ok = await addresses.update(addressId, { is_valid, is_residential }, c);
-    if (!ok) return undefined;
-    const row = await addresses.getOne(addressId, c) as AddressRow;
-    const links = await userAddresses.getByAddress(addressId, c);
-    return links[0] ? compose.compose(row, links[0]) : undefined;
-  };
-  return executor ? await run(executor) : await withTransaction(run);
+// THE CARRIER'S ANSWER ABOUT AN ADDRESS, written back onto it. Not a caller's
+// patch: `is_valid` and `is_residential` are outside the body's AddressPatch
+// for exactly this reason.
+export async function recordValidation(
+  addressId: string, { is_valid, is_residential }: { is_valid: boolean; is_residential: boolean }
+): Promise<Address> {
+  return await withTransaction(async (tx) =>
+    rules.assertAddress(addressId, await addresses.update(addressId, { is_valid, is_residential }, tx))
+  );
 }
 
-// Returns a message string, not the row or a boolean - that's what the controller sends back.
-export async function remove(
-  { addressId, userId }: { addressId: string; userId: string },
-  executor?: Executor
-): Promise<string> {
-  if (await addresses.isActive(addressId, userId, executor)) {
-    throw new Conflict(
-      "Address cannot be deleted because it is associated with an active order."
-    );
-  }
+export async function remove(addressId: string, userId: string): Promise<AddressBookEntry> {
+  return await withTransaction(async (tx) => {
+    const link = rules.assertInBook(addressId, await userAddresses.getOne(addressId, userId, tx));
+    rules.assertNotOnAnActiveOrder(await addresses.isActive(addressId, userId, tx), "deleted");
+    const row = rules.assertAddress(addressId, await addresses.getOne(addressId, tx));
 
-  const run = async (c: Executor): Promise<string> => {
-    // The LINK goes first - the address itself only goes when nothing at all points at it (an order snapshot may still reference it).
-    await userAddresses.remove(addressId, userId, c);
-    if (!(await addresses.isReferenced(addressId, c))) {
-      await addresses.remove(addressId, c);
-    }
-    return "Deleted address.";
-  };
-  return executor ? await run(executor) : await withTransaction(run);
+    // THE LINK GOES FIRST. The address itself only goes when nothing at all
+    // points at it - an order snapshot may still reference it, and a delivered
+    // order must not lose where it went.
+    await userAddresses.remove(addressId, userId, tx);
+    if (!(await addresses.isReferenced(addressId, tx))) await addresses.remove(addressId, tx);
+    return rules.entry(row, link, false);
+  });
 }
 
 export async function setDefault(
-  { userId, addressId }: { userId: string; addressId: string },
-  executor?: Executor
-): Promise<string> {
-  const run = async (c: Executor): Promise<string> => {
-    await userAddresses.setDefault(userId, addressId, c);
-    return "Set default address.";
-  };
-  return executor ? await run(executor) : await withTransaction(run);
+  addressId: string, userId: string
+): Promise<AddressBookEntry> {
+  return await withTransaction(async (tx) => {
+    rules.assertInBook(addressId, await userAddresses.getOne(addressId, userId, tx));
+    await userAddresses.setDefault(userId, addressId, tx);
+    const link = rules.assertInBook(addressId, await userAddresses.getOne(addressId, userId, tx));
+    const row = rules.assertAddress(addressId, await addresses.getOne(addressId, tx));
+    return rules.entry(row, link, await addresses.isActive(addressId, userId, tx));
+  });
 }

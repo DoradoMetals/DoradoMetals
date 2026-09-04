@@ -1,49 +1,35 @@
 'use client'
 
-// The app's face of @dorado/components' Autocomplete: the Places wiring stays
-// here (fetching, debouncing and parsing are the app's business), the anatomy,
-// the combobox semantics and the keyboard all moved into the library.
-//
-// The signature is unchanged so AddressForm does not move. Three of its props
-// are now vestigial and accepted for compatibility: `dropdownOpen`,
-// `activeIndex` and `onActiveIndex` - the library owns the open state and the
-// highlight (aria-activedescendant, arrows, Enter, Escape), which is exactly
-// the code this file used to hand-roll. `onOpen`/`onClose` still fire on
-// focus/blur because the hook listens.
+// The app's face of @dorado/components' Autocomplete. The library owns the
+// anatomy, the combobox semantics and the keyboard (aria-activedescendant,
+// arrows, Enter, Escape); this holds the wiring to the API's own suggestions.
 import { MapPinIcon, XIcon } from '@phosphor-icons/react'
 import { Autocomplete, Button } from '@dorado/components'
-import { ParsedPlaceSuggestion } from '@/features/addresses/types'
+import type { PlaceSuggestion } from '@dorado/contracts'
 
 export function AddressSearchInput({
-  placesReady,
   value,
   suggestions,
+  busy = false,
   onChangeValue,
-  onOpen,
-  onClose,
   onSelect,
   onClear,
 }: {
-  placesReady: boolean
   value: string
-  suggestions: ParsedPlaceSuggestion[]
-  dropdownOpen?: boolean
-  activeIndex?: number
+  suggestions: PlaceSuggestion[]
+  busy?: boolean
   onChangeValue: (v: string) => void
-  onOpen: () => void
-  onClose: () => void
-  onActiveIndex?: (updater: (i: number) => number) => void
-  onSelect: (s: ParsedPlaceSuggestion) => void | Promise<void>
+  onSelect: (s: PlaceSuggestion) => void
   onClear: () => void
 }) {
-  const byId = new Map(suggestions.map((s) => [s.placeId, s]))
+  const byId = new Map(suggestions.map((s) => [s.place_id, s]))
 
   return (
     <Autocomplete
       value={value}
       onValueChange={onChangeValue}
       items={suggestions.map((s) => ({
-        id: s.placeId,
+        id: s.place_id,
         textValue: s.main,
         label: (
           <span className="flex min-w-0 flex-col gap-0.5 py-1 leading-tight">
@@ -54,7 +40,7 @@ export function AddressSearchInput({
       }))}
       onSelect={(item) => {
         const s = byId.get(item.id)
-        if (s) void onSelect(s)
+        if (s) onSelect(s)
       }}
       leading={<MapPinIcon size={16} />}
       trailing={
@@ -64,9 +50,8 @@ export function AddressSearchInput({
           </Button>
         ) : undefined
       }
-      disabled={!placesReady}
-      placeholder={placesReady ? 'Search...' : 'Loading'}
-      inputProps={{ onFocus: onOpen, onBlur: onClose }}
+      disabled={busy}
+      placeholder={busy ? 'Loading' : 'Search...'}
     />
   )
 }

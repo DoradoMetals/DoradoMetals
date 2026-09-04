@@ -47,14 +47,14 @@ export const AdminUser = User.omit({
 });
 export type AdminUser = z.infer<typeof AdminUser>;
 
-// POST /users/update_credit - the admin balance edit. `amount` matches
+// POST /api/users/:id/credit - the admin balance edit. `amount` matches
 // auth.users.dorado_funds's own type: a magnitude, never a signed delta -
-// the sign is `op`.
+// the sign is `op`. The SUBJECT is the path's id (ruling 43: named once), so
+// the body carries only what the server could not have looked up.
 export const CreditOp = z.enum(["add", "subtract", "edit"]);
 export type CreditOp = z.infer<typeof CreditOp>;
 
 export const UpdateCreditBody = z.object({
-  user_id: User.shape.id,
   op: CreditOp,
   amount: User.shape.dorado_funds,
 }).strict();

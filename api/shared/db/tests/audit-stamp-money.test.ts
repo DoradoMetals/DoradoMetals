@@ -177,7 +177,7 @@ test("a credit adjustment writes a stamped ledger row, and the ledger names no a
     const customer = await aUser(c, { funds: 0 });
 
     await runWithActor(admin.id, () =>
-      usersService.adjustDoradoCredit({ user_id: customer.id, op: "add", amount: 500 })
+      usersService.adjustDoradoCredit(customer.id, { op: "add", amount: 500 })
     );
 
     const { rows } = await c.query(

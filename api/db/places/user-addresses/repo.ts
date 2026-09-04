@@ -1,7 +1,8 @@
-// places.user_addresses, and nothing else - a person's link to an address (label, default). Ownership lives here: places.addresses has no user_id, so getOne is the ownership check.
+// places.user_addresses, and nothing else - a person's link to an address (recipient, nickname, default). Ownership lives here: places.addresses has no user_id, so getOne is the ownership check.
 import query from "#shared/db/query.ts";
 import { buildUpdate } from "#shared/db/patch.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
+import { UserAddressWriteColumns } from "@dorado/contracts";
 import type { UserAddress } from "@dorado/contracts";
 import type { Executor } from "#shared/db/executor.ts";
 
@@ -9,9 +10,12 @@ const sql = sqlFrom(import.meta.dirname);
 
 export type UserAddressRow = UserAddress;
 
-// Both default flags follow the one legacy is_default; splitting them apart needs a product decision and a UI, not a repo.
-export type NewUserAddress = { label?: string | null; default_shipping: boolean };
-export type UserAddressPatch = { label?: string | null; default_shipping: boolean };
+const RETURNING =
+  "id, address_id, user_id, recipient_name, label, default_shipping, default_billing";
+
+// Ruling 64: derived from the contract, never a second spelling of it.
+export const PATCHABLE =
+  Object.keys(UserAddressWriteColumns.shape) as readonly string[];
 
 export async function listFor(
   user_id: string, executor?: Executor
@@ -36,36 +40,33 @@ export async function getOne(
 }
 
 export async function create(
-  id: string, address_id: string, user_id: string, row: NewUserAddress, executor?: Executor
+  id: string, address_id: string, user_id: string,
+  patch: UserAddressWriteColumns, executor?: Executor
 ): Promise<UserAddressRow> {
   const { rows } = await query<UserAddressRow>(
     sql("create"),
-    [id, address_id, user_id, row.label, row.default_shipping, row.default_shipping],
+    [
+      id, address_id, user_id, patch.recipient_name ?? null, patch.label ?? null,
+      patch.default_shipping ?? false, patch.default_billing ?? false,
+    ],
     executor
   );
   return rows[0];
 }
 
 // The ownership guard is an extra WHERE (user_id beside address_id), not a filter applied after reading - an address in someone else's book matches no row.
-// One patch field sets two columns (shipping and billing both follow the one legacy default) - telling them apart is a product change, not a migration one.
-export const PATCHABLE = ["label", "default_shipping", "default_billing"] as const;
-
 export async function update(
-  address_id: string, user_id: string, row: UserAddressPatch, executor?: Executor
+  address_id: string, user_id: string,
+  patch: UserAddressWriteColumns, executor?: Executor
 ): Promise<UserAddressRow | undefined> {
   const built = buildUpdate({
     table: "places.user_addresses",
     allowed: PATCHABLE,
-    patch: {
-      label: row.label ?? null,
-      default_shipping: row.default_shipping,
-      default_billing: row.default_shipping,
-    },
+    patch,
     where: { address_id, user_id },
-    returning:
-      "id, address_id, user_id, label, default_shipping, default_billing",
+    returning: RETURNING,
   });
-  if (!built) return undefined;
+  if (!built) return await getOne(address_id, user_id, executor);
   const { rows } = await query<UserAddressRow>(built.text, built.values, executor);
   return rows[0];
 }

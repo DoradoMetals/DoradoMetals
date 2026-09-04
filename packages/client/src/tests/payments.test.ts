@@ -72,13 +72,20 @@ describe("the write bodies are the contracts'", () => {
   // THE OPERATION, NOT THE RESULT (ruling 10, D98). `amount` is a magnitude and
   // the sign is `op`, so two admins editing at once cannot lose one edit.
   test("a credit adjustment sends an operation and a magnitude", () => {
-    const user_id = "9f1c2b3a-0000-4000-8000-000000000005";
-    expect(UpdateCreditBody.safeParse({ user_id, op: "add", amount: 25 }).success).toBe(true);
-    expect(UpdateCreditBody.safeParse({ user_id, op: "nudge", amount: 25 }).success).toBe(false);
+    expect(UpdateCreditBody.safeParse({ op: "add", amount: 25 }).success).toBe(true);
+    expect(UpdateCreditBody.safeParse({ op: "nudge", amount: 25 }).success).toBe(false);
     // The balance itself is never sent - that was the browser doing the
     // arithmetic against a row it had read some time ago.
     expect(
-      UpdateCreditBody.safeParse({ user_id, op: "add", amount: 25, dorado_funds: 100 }).success
+      UpdateCreditBody.safeParse({ op: "add", amount: 25, dorado_funds: 100 }).success
+    ).toBe(false);
+    // AND NEITHER IS THE SUBJECT. It is the path's now (POST
+    // /api/users/:id/credit), so a caller cannot name one person in the URL
+    // and a different one in the payload.
+    expect(
+      UpdateCreditBody.safeParse({
+        user_id: "9f1c2b3a-0000-4000-8000-000000000005", op: "add", amount: 25,
+      }).success
     ).toBe(false);
   });
 });

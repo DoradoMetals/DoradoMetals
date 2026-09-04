@@ -77,8 +77,7 @@ test("adjustDoradoCredit's row lock refuses a concurrent locker on the same row"
   const rival = await pool.connect();
   try {
     await inPinned(async () => {
-      await usersService.adjustDoradoCredit({
-        user_id: TEST_CUSTOMER.id, op: "add", amount: 1,
+      await usersService.adjustDoradoCredit(TEST_CUSTOMER.id, { op: "add", amount: 1,
       });
 
       // adjustDoradoCredit's own COMMIT became a RELEASE SAVEPOINT here (see
@@ -132,7 +131,7 @@ test("a concurrent adjustment waits for a rival's row lock rather than racing pa
     await inPinned(async () => {
       let settled = false;
       const attempt = usersService
-        .adjustDoradoCredit({ user_id: TEST_CUSTOMER.id, op: "add", amount: 5 })
+        .adjustDoradoCredit(TEST_CUSTOMER.id, { op: "add", amount: 5 })
         .then((row) => { settled = true; return row; });
 
       // Give it every chance to (wrongly) proceed before checking.
@@ -187,8 +186,7 @@ test("`op` is the spelling, and it adds a DELTA rather than setting a total - th
     const customer = await aFundedCustomer(client);
     const before = await fundsOf(client, customer.id);
 
-    const res = await usersService.adjustDoradoCredit({
-      user_id: customer.id, op: "add", amount: 25,
+    const res = await usersService.adjustDoradoCredit(customer.id, { op: "add", amount: 25,
     });
     assert.equal(Number(res.dorado_funds).toFixed(6), (before + 25).toFixed(6));
     assert.equal((await fundsOf(client, customer.id)).toFixed(6), (before + 25).toFixed(6));
@@ -210,7 +208,7 @@ test("a subtraction moves the balance down and writes a Debit", async () => {
     const customer = await aFundedCustomer(client);
     const before = await fundsOf(client, customer.id);
 
-    await usersService.adjustDoradoCredit({ user_id: customer.id, op: "subtract", amount: 4.25 });
+    await usersService.adjustDoradoCredit(customer.id, { op: "subtract", amount: 4.25 });
     assert.equal((await fundsOf(client, customer.id)).toFixed(6), (before - 4.25).toFixed(6));
 
     const rows = await ledgerRows(client, customer.id);
@@ -235,8 +233,8 @@ test("two adjustments in a row both apply, which an absolute total could not gua
     const customer = await aFundedCustomer(client);
     const before = await fundsOf(client, customer.id);
 
-    await usersService.adjustDoradoCredit({ user_id: customer.id, op: "add", amount: 30 });
-    await usersService.adjustDoradoCredit({ user_id: customer.id, op: "add", amount: 40 });
+    await usersService.adjustDoradoCredit(customer.id, { op: "add", amount: 30 });
+    await usersService.adjustDoradoCredit(customer.id, { op: "add", amount: 40 });
 
     assert.equal(
       (await fundsOf(client, customer.id)).toFixed(6),
@@ -255,8 +253,7 @@ test("the server refuses to drive a balance below zero, and writes no ledger row
     const before = await fundsOf(client, customer.id);
 
     await assert.rejects(
-      () => usersService.adjustDoradoCredit({
-        user_id: customer.id, op: "subtract", amount: before + 1,
+      () => usersService.adjustDoradoCredit(customer.id, { op: "subtract", amount: before + 1,
       }),
       (err: unknown) => {
         const e = err as { kind?: string; message?: string };
@@ -277,7 +274,7 @@ test("a negative `edit` is refused too", async () => {
     const before = await fundsOf(client, customer.id);
 
     await assert.rejects(
-      () => usersService.adjustDoradoCredit({ user_id: customer.id, op: "edit", amount: -1 }),
+      () => usersService.adjustDoradoCredit(customer.id, { op: "edit", amount: -1 }),
       (err: unknown) => {
         const e = err as { kind?: string };
         assert.equal(e.kind, "invalid");
@@ -294,8 +291,7 @@ test("subtracting the whole balance is allowed, and lands on zero", async () => 
     const customer = await aFundedCustomer(client);
     const before = await fundsOf(client, customer.id);
 
-    const res = await usersService.adjustDoradoCredit({
-      user_id: customer.id, op: "subtract", amount: before,
+    const res = await usersService.adjustDoradoCredit(customer.id, { op: "subtract", amount: before,
     });
     assert.equal(Number(res.dorado_funds), 0);
   });

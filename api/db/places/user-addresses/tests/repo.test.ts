@@ -1,5 +1,5 @@
 // places.user_addresses, against real Postgres - a person's link to an
-// address (label, default). update() here returns the row (or undefined),
+// address (recipient, nickname, default). update() here returns the row (or undefined),
 // not a boolean, so "true" and "false" become "a row came back" and
 // "undefined came back" - the same false-on-missing/true-on-real shape the
 // other 13 tables prove, in the shape this repo actually returns.
@@ -29,15 +29,31 @@ afterAll(async () => {
 test("update writes a real (address, user) link and returns the changed row", async () => {
   await inRollback(async (c: PoolClient) => {
     const user = await aUser(c);
-    const built = await anAddress(c, user, { label: "Home" });
+    const built = await anAddress(c, user, { recipient_name: "Ada", label: "Home" });
 
     const after = await userAddresses.update(
-      built.id, user.id, { label: "Work", default_shipping: false }, c
+      built.id, user.id, { recipient_name: "Grace", label: "Work" }, c
     );
     assert.ok(after, "update reported no row - the fixture's own link was not found");
+    assert.equal(after.recipient_name, "Grace");
     assert.equal(after.label, "Work");
-    assert.equal(after.default_shipping, false);
-    assert.equal(after.default_billing, false, "default_billing did not follow default_shipping");
+  });
+});
+
+// A KEY ABSENT FROM THE PATCH IS UNTOUCHED, and the default flags are the
+// case that matters: this update used to force `default_billing` to follow
+// whatever `default_shipping` was given, so editing a recipient silently
+// un-defaulted the address. The two flags move together in setDefault's own
+// SQL and nowhere else.
+test("a patch that names neither flag leaves the default alone", async () => {
+  await inRollback(async (c: PoolClient) => {
+    const user = await aUser(c);
+    const built = await anAddress(c, user, { default_shipping: true });
+
+    const after = await userAddresses.update(built.id, user.id, { recipient_name: "Ada" }, c);
+    assert.ok(after);
+    assert.equal(after.default_shipping, true, "editing the recipient cost the address its default");
+    assert.equal(after.default_billing, true);
   });
 });
 
@@ -50,12 +66,12 @@ test("update answers undefined for an address that is not in that person's book"
     // The right address, the wrong person - the ownership guard is the WHERE
     // clause, not a filter applied after reading.
     const asStranger = await userAddresses.update(
-      built.id, stranger.id, { label: "Not Mine", default_shipping: true }, c
+      built.id, stranger.id, { label: "Not Mine" }, c
     );
     assert.equal(asStranger, undefined, "a stranger's update reached another person's address");
 
     const missing = await userAddresses.update(
-      randomUUID(), owner.id, { label: "Nowhere", default_shipping: true }, c
+      randomUUID(), owner.id, { label: "Nowhere" }, c
     );
     assert.equal(missing, undefined, "update reported a row for an address link that does not exist");
   });

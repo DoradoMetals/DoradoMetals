@@ -75,11 +75,11 @@ async function ensure(
 
   const book = await addressService.list(user_id, client);
   const preferred =
-    book.find((a) => a.user_address.default_shipping && a.is_valid) ??
-    book.find((a) => a.is_valid);
+    book.find((e) => e.user_address.default_shipping && e.address.is_valid) ??
+    book.find((e) => e.address.is_valid);
   if (!preferred) return row;
 
-  await checkouts.update(row.id, { [column]: preferred.id }, client);
+  await checkouts.update(row.id, { [column]: preferred.address.id }, client);
   return (await checkouts.getOne(row.id, client)) ?? row;
 }
 

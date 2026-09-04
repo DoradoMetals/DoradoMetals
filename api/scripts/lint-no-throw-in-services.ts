@@ -69,7 +69,6 @@ const ACCEPTED: Record<string, { count: number; why: string }> = {
   "domain/orders/place.ts": { count: 8, why: "orders lane" },
   "domain/orders/service.ts": { count: 19, why: "orders lane" },
   "domain/orders/spots/service.ts": { count: 1, why: "orders lane" },
-  "domain/places/addresses/service.ts": { count: 4, why: "places - no lane assigned yet" },
   "domain/pricing/bid.ts": { count: 4, why: "pricing - no lane assigned yet" },
   "domain/quotes/profit.ts": { count: 1, why: "quotes - no lane assigned yet" },
   "domain/quotes/service.ts": { count: 7, why: "quotes - no lane assigned yet" },

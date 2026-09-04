@@ -52,6 +52,8 @@ const COMPUTED: Record<string, string> = {
     "done about it - four tables composed and no table backing the answer",
   "computed/shipping.ts": "a parcel's progress timeline, derived from scan " +
     "rows, and what may be done to the parcel",
+  "computed/places.ts": "what may be done to an address book entry, and the " +
+    "places provider's suggestions - no table holds either",
 };
 
 // A walk that opens nothing is a lint that passes on everything.

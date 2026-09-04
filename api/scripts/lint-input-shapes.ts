@@ -44,7 +44,9 @@ const ACCEPTED: Record<string, string> = {
   "Options:LeadOptions": "pre-existing (leads.ts) - not this lane's file.",
   "Options:OrderOptions": "pre-existing (orders.ts) - not this lane's file.",
   "Options:BullionOptions": "pre-existing (orders.ts) - not this lane's file.",
-  "Options:AddressOptions": "pre-existing (places.ts) - not this lane's file.",
+  "Options:AddressOptions":
+    "places.ts - the builder writes two tables through two repos, so its options " +
+    "are not one table's patch; the recipient and the nickname are the link's.",
   "Options:ProductOptions": "pre-existing (products.ts) - not this lane's file.",
   "Options:EngagementOptions": "pre-existing (refiners.ts) - not this lane's file.",
   "Options:ReviewOptions": "pre-existing (reviews.ts) - not this lane's file.",
@@ -359,7 +361,8 @@ const { findings: optionsFindings, scanned: buildersScanned } = checkBuilderOpti
 const findings = shapeFindings + optionsFindings;
 
 console.log(
-  `${domainScanned} domain file(s) scanned, ${inScope} write-facing input shape(s) checked; ` +
+  `${domainScanned} domain file(s) scanned, ${inScope} write-facing input shape(s) checked ` +
+    `(zero is the goal - domain takes its write shapes from @dorado/contracts); ` +
     `${buildersScanned} builder file(s) scanned`
 );
 for (const l of lines) console.log(l);
@@ -370,9 +373,28 @@ for (const [key, why] of Object.entries(ACCEPTED)) {
 
 // THE FLOOR. Skipped under a synthetic root: a self-test tree legitimately
 // scans zero in-scope shapes, and that is the case being proven.
-if ((domainScanned === 0 || inScope === 0) && !process.env.LINT_INPUT_SHAPES_ROOT) {
-  console.error("\nSCAN IS BROKEN: no domain files or no write-facing input shapes found");
-  process.exit(1);
+//
+// `inScope === 0` USED TO BE PART OF THIS, and it stopped being a floor the
+// day it became the goal. Every write shape under domain/ now comes from
+// @dorado/contracts, so there is nothing left for this half to check - and a
+// guard that fails when the codebase reaches the state it was written to push
+// it toward is a guard that has to be worked around. What still has to hold is
+// that the SCAN works, and the builder half proves that with a known-present
+// control: ten Options types it finds and accepts every run. A walk that opens
+// nothing, or one that stops recognising those, is still the failure this is
+// here for.
+if (!process.env.LINT_INPUT_SHAPES_ROOT) {
+  if (domainScanned === 0 || buildersScanned === 0) {
+    console.error("\nSCAN IS BROKEN: the walk opened no domain or builder files");
+    process.exit(1);
+  }
+  if (acceptedHit.size === 0) {
+    console.error(
+      "\nSCAN IS BROKEN: not one known shape was recognised - the detector, " +
+        "not the codebase, is what changed"
+    );
+    process.exit(1);
+  }
 }
 
 const stale = Object.keys(ACCEPTED).filter((k) => !acceptedHit.has(k));

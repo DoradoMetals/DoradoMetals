@@ -963,7 +963,8 @@ CREATE TABLE IF NOT EXISTS places.user_addresses (
   user_id uuid NOT NULL,
   label text,
   default_shipping boolean DEFAULT false NOT NULL,
-  default_billing boolean DEFAULT false NOT NULL
+  default_billing boolean DEFAULT false NOT NULL,
+  recipient_name text
 );
 ALTER TABLE places.user_addresses ADD COLUMN IF NOT EXISTS id uuid DEFAULT gen_random_uuid();
 ALTER TABLE places.user_addresses ADD COLUMN IF NOT EXISTS address_id uuid;
@@ -971,6 +972,7 @@ ALTER TABLE places.user_addresses ADD COLUMN IF NOT EXISTS user_id uuid;
 ALTER TABLE places.user_addresses ADD COLUMN IF NOT EXISTS label text;
 ALTER TABLE places.user_addresses ADD COLUMN IF NOT EXISTS default_shipping boolean DEFAULT false;
 ALTER TABLE places.user_addresses ADD COLUMN IF NOT EXISTS default_billing boolean DEFAULT false;
+ALTER TABLE places.user_addresses ADD COLUMN IF NOT EXISTS recipient_name text;
 
 CREATE TABLE IF NOT EXISTS products.bullion (
   id uuid DEFAULT gen_random_uuid() NOT NULL,
