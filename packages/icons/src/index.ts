@@ -130,3 +130,4 @@ export { Calendar as CalendarIcon } from "lucide-react";
 export { List as ListIcon } from "lucide-react";
 
 export { MenuIcon, type MenuIconProps } from "./MenuIcon";
+export { GoogleLogo, type GoogleLogoProps } from "./GoogleLogo";
