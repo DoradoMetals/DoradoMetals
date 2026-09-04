@@ -5,7 +5,7 @@ import AdminPurchaseOrderDrawerContent from './adminPurchaseOrderDrawerContent'
 import AdminPurchaseOrderDrawerFooter from './adminPurchaseOrderDrawerFooter'
 
 import { useDrawerStore } from '@/shared/store/drawerStore'
-import Drawer from '@/shared/ui/base/drawer'
+import { Drawer } from '@dorado/components'
 import { useMemo } from 'react'
 import { useAdminUser } from '@/features/users/queries'
 import { useAdminPurchaseOrders } from '@/features/orders/purchaseOrders/admin/queries'

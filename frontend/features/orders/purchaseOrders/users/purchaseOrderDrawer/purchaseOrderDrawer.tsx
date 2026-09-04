@@ -5,7 +5,7 @@ import PurchaseOrderDrawerHeader from './purchaseOrderDrawerHeader'
 import PurchaseOrderDrawerFooter from './purchaseOrderDrawerFooter'
 import { PurchaseOrderDrawerProps } from '@/features/orders/purchaseOrders/types'
 import { useDrawerStore } from '@/shared/store/drawerStore'
-import Drawer from '@/shared/ui/base/drawer'
+import { Drawer } from '@dorado/components'
 import { useMemo } from 'react'
 import { usePurchaseOrders } from '@/features/orders/purchaseOrders/users/queries'
 

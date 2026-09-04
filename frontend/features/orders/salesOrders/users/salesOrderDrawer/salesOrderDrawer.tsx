@@ -1,7 +1,7 @@
 'use client'
 
 import { useDrawerStore } from '@/shared/store/drawerStore'
-import Drawer from '@/shared/ui/base/drawer'
+import { Drawer } from '@dorado/components'
 import { useMemo } from 'react'
 import { SalesOrderDrawerProps } from '@/features/orders/salesOrders/types'
 import { useSalesOrders } from '@/features/orders/salesOrders/users/queries'

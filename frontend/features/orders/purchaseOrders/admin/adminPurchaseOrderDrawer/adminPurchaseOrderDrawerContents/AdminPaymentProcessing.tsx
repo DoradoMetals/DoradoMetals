@@ -1,6 +1,6 @@
 'use client'
 
-import { Separator } from '@/shared/ui/base/separator'
+import { Divider } from '@dorado/components'
 import { useOrderPayouts } from '@/features/payouts/queries'
 
 import { payoutMethodIcon, PayoutMethodType } from '@/features/payouts/types'
@@ -130,9 +130,9 @@ export default function AdminPaymentProcessingPurchaseOrder({
           </div>
         </div>
       </div>
-      <Separator />
+      <Divider />
       <RefinerValues order={order} />
-      <Separator />
+      <Divider />
       <ActualsEditor order={order} />
     </div>
   )

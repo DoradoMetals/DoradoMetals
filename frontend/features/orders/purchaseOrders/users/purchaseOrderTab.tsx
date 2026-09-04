@@ -1,10 +1,9 @@
 'use client'
 
 import { useState } from 'react'
-import { Button } from '@dorado/components'
+import { Button, Pagination, EmptyState } from '@dorado/components'
 import { ChevronDown } from 'lucide-react'
 import { AnimatePresence, motion } from 'framer-motion'
-import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from '@/shared/ui/base/pagination'
 import { useRouter } from 'next/navigation'
 import { CurrencyDollarIcon } from '@phosphor-icons/react'
 import PurchaseOrderCard from './purchaseOrderCard'
@@ -13,7 +12,6 @@ import { PurchaseOrderStatuses, statusConfig } from '@/features/orders/purchaseO
 import { useGetSession } from '@/features/auth/queries'
 import { usePurchaseOrders } from '@/features/orders/purchaseOrders/users/queries'
 import { OrderStatusSelector } from '@/features/orders/ui/OrderStatusShared'
-import { EmptyState } from '@/shared/ui/EmptyState'
 import { SearchX } from 'lucide-react'
 
 export function PurchaseOrdersContent() {
@@ -24,6 +22,7 @@ export function PurchaseOrdersContent() {
   const [selectedStatus, setSelectedStatus] = useState<string | null>(null)
   const [open, setOpen] = useState(false)
   const router = useRouter()
+  const StatusFilterIcon = selectedStatus ? statusConfig[selectedStatus].icon : CurrencyDollarIcon
 
   const [currentPage, setCurrentPage] = useState(1)
   const ordersPerPage = 5
@@ -55,16 +54,17 @@ export function PurchaseOrdersContent() {
   if (orders.length === 0) {
     return (
       <EmptyState
-        icon={CurrencyDollarIcon}
+        icon={<CurrencyDollarIcon className="text-primary" />}
         badge={0}
         title="No Orders Yet!"
         description="Create an order by adding your items and completing checkout."
+        action={
+          <Button size="xl" onClick={() => router.push('/sell')}>
+            Get a Price Estimate
+          </Button>
+        }
         className="flex-grow justify-center"
-      >
-        <Button size="xl" onClick={() => router.push('/sell')}>
-          Get a Price Estimate
-        </Button>
-      </EmptyState>
+      />
     )
   }
 
@@ -92,7 +92,7 @@ export function PurchaseOrdersContent() {
               className="py-2 flex flex-col gap-2"
             >
               <EmptyState
-                icon={selectedStatus ? statusConfig[selectedStatus].icon : CurrencyDollarIcon}
+                icon={<StatusFilterIcon className="text-primary" />}
                 badge={<SearchX size={18} />}
                 title={`No ${selectedStatus ?? 'Orders'} Orders Found`}
               />
@@ -154,48 +154,12 @@ export function PurchaseOrdersContent() {
             ))}
 
             {totalPages > 1 && (
-              <Pagination className="mt-4">
-                <PaginationContent>
-                  <PaginationItem>
-                    <PaginationPrevious
-                      href="#"
-                      onClick={(e) => {
-                        e.preventDefault()
-                        setCurrentPage((p) => Math.max(p - 1, 1))
-                      }}
-                      disabled={currentPage === 1}
-                      className="text-muted-foreground"
-                    />
-                  </PaginationItem>
-
-                  {[...Array(totalPages)].map((_, i) => (
-                    <PaginationItem key={i}>
-                      <PaginationLink
-                        href="#"
-                        isActive={currentPage === i + 1}
-                        onClick={(e) => {
-                          e.preventDefault()
-                          setCurrentPage(i + 1)
-                        }}
-                      >
-                        {i + 1}
-                      </PaginationLink>
-                    </PaginationItem>
-                  ))}
-
-                  <PaginationItem>
-                    <PaginationNext
-                      href="#"
-                      onClick={(e) => {
-                        e.preventDefault()
-                        setCurrentPage((p) => Math.min(p + 1, totalPages))
-                      }}
-                      disabled={currentPage === totalPages}
-                      className="text-muted-foreground"
-                    />
-                  </PaginationItem>
-                </PaginationContent>
-              </Pagination>
+              <Pagination
+                page={currentPage}
+                pageCount={totalPages}
+                onPageChange={setCurrentPage}
+                className="mt-4"
+              />
             )}
           </>
         )}
