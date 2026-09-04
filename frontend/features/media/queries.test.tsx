@@ -1,22 +1,24 @@
-// What useUploadImage and useDeleteImage actually PUT/DELETE on the wire,
-// checked against @dorado/contracts' MediaUploadBody/MediaDeleteBody in
-// strict mode. The contracts lane dropped `path` and `user_id` from the
-// upload body (both were already ignored server-side, now refused) and
-// renamed mimeType/size to mime_type/size_bytes; delete lost `user_id`
-// (the owner comes from the session). These tests fail if any of the four
-// retired fields reappears.
+// What useUploadImage and useDeleteImage actually send on the wire, checked
+// against @dorado/contracts' MediaUploadBody in strict mode.
+//
+// D214 item 4 made this REST: POST /images (was /images/upload) mints the
+// row, and DELETE /images/:id (was /images/delete with an { id } body) takes
+// no body at all - the id is in the path now, so MediaDeleteBody has nothing
+// left to check here.
+//
+// The hooks live in @dorado/client now and build their request with that
+// package's own `apiRequest` (a thin wrapper over the global `fetch`, not
+// axios), and the upload flow's SECOND call - the presigned PUT - is a raw
+// `fetch` by design (a direct write to cloud storage, not our API). Both
+// calls go through the global `fetch`, so this test stubs that directly
+// rather than mocking `@/shared/queries/axios`, which the new hooks never
+// call.
 import { describe, expect, test, vi, beforeEach } from "vitest";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
-import { MediaDeleteBody, MediaUploadBody } from "@dorado/contracts";
+import { MediaUploadBody } from "@dorado/contracts";
 
-vi.mock("@/shared/queries/axios", () => ({ apiRequest: vi.fn() }));
-vi.mock("@/features/auth/queries", () => ({
-  useGetSession: () => ({ user: { id: "u-1", role: "user" } }),
-}));
-
-import { apiRequest } from "@/shared/queries/axios";
 import { useUploadImage, useDeleteImage } from "@/features/media/queries";
 
 function wrapper({ children }: { children: ReactNode }) {
@@ -26,14 +28,26 @@ function wrapper({ children }: { children: ReactNode }) {
   return <QueryClientProvider client={client}>{children}</QueryClientProvider>;
 }
 
+function stubFetchForUpload() {
+  const fetchMock = vi
+    .fn()
+    // Call 1: POST /images, through @dorado/client's apiRequest - mints the row.
+    .mockResolvedValueOnce({
+      ok: true,
+      text: async () => JSON.stringify({ id: "img-1", uploadUrl: "https://bucket/put" }),
+    })
+    // Call 2: the raw PUT straight to the presigned URL.
+    .mockResolvedValueOnce({ ok: true, text: async () => "" });
+  vi.stubGlobal("fetch", fetchMock);
+  return fetchMock;
+}
+
 beforeEach(() => {
-  vi.mocked(apiRequest).mockReset();
-  vi.mocked(apiRequest).mockResolvedValue({ id: "img-1", uploadUrl: "https://bucket/put" });
-  vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true }));
+  stubFetchForUpload();
 });
 
-describe("useUploadImage sends exactly what /images/upload accepts", () => {
-  test("a real upload parses clean against the strict contract", async () => {
+describe("useUploadImage sends exactly what POST /images accepts", () => {
+  test("mints against a body that parses clean against the strict contract", async () => {
     const { result } = renderHook(() => useUploadImage(), { wrapper });
     const file = new File(["x"], "chain.jpg", { type: "image/jpeg" });
 
@@ -41,9 +55,12 @@ describe("useUploadImage sends exactly what /images/upload accepts", () => {
       await result.current.mutateAsync({ path: "/test/", file });
     });
 
-    await waitFor(() => expect(apiRequest).toHaveBeenCalled());
-    const [, url, body] = vi.mocked(apiRequest).mock.calls[0];
-    expect(url).toBe("/images/upload");
+    await waitFor(() => expect(fetch).toHaveBeenCalledTimes(2));
+    const [mintUrl, mintInit] = vi.mocked(fetch).mock.calls[0] as [string, RequestInit];
+    expect(mintUrl).toMatch(/\/images$/);
+    expect(mintInit.method).toBe("POST");
+
+    const body: unknown = JSON.parse(mintInit.body as string);
     expect(MediaUploadBody.strict().safeParse(body).success).toBe(true);
   });
 
@@ -55,9 +72,9 @@ describe("useUploadImage sends exactly what /images/upload accepts", () => {
       await result.current.mutateAsync({ path: "/test/", file });
     });
 
-    await waitFor(() => expect(apiRequest).toHaveBeenCalled());
-    const [, , body] = vi.mocked(apiRequest).mock.calls[0];
-    const b = body as Record<string, unknown>;
+    await waitFor(() => expect(fetch).toHaveBeenCalledTimes(2));
+    const [, mintInit] = vi.mocked(fetch).mock.calls[0] as [string, RequestInit];
+    const b = JSON.parse(mintInit.body as string) as Record<string, unknown>;
     expect(b).not.toHaveProperty("path");
     expect(b).not.toHaveProperty("user_id");
     expect(b).not.toHaveProperty("mimeType");
@@ -66,24 +83,39 @@ describe("useUploadImage sends exactly what /images/upload accepts", () => {
     const withRetired = { ...b, path: "/test/", user_id: "u-1" };
     expect(MediaUploadBody.strict().safeParse(withRetired).success).toBe(false);
   });
+
+  test("the second call PUTs the file straight to the presigned URL, not through the API", async () => {
+    const { result } = renderHook(() => useUploadImage(), { wrapper });
+    const file = new File(["x"], "chain.jpg", { type: "image/jpeg" });
+
+    await act(async () => {
+      await result.current.mutateAsync({ path: "/test/", file });
+    });
+
+    await waitFor(() => expect(fetch).toHaveBeenCalledTimes(2));
+    const [putUrl, putInit] = vi.mocked(fetch).mock.calls[1] as [string, RequestInit];
+    expect(putUrl).toBe("https://bucket/put");
+    expect(putInit.method).toBe("PUT");
+    expect(putInit.body).toBe(file);
+  });
 });
 
-describe("useDeleteImage sends exactly what /images/delete accepts", () => {
-  test("a real delete parses clean, and never carries user_id", async () => {
+describe("useDeleteImage sends exactly what DELETE /images/:id accepts", () => {
+  test("deletes by path segment, with no body at all", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({ ok: true, text: async () => "" })
+    );
     const { result } = renderHook(() => useDeleteImage(), { wrapper });
 
     await act(async () => {
       await result.current.mutateAsync("9f1c2b3a-0000-4000-8000-000000000010");
     });
 
-    await waitFor(() => expect(apiRequest).toHaveBeenCalled());
-    const [, url, body] = vi.mocked(apiRequest).mock.calls[0];
-    expect(url).toBe("/images/delete");
-    expect(MediaDeleteBody.strict().safeParse(body).success).toBe(true);
-
-    const b = body as Record<string, unknown>;
-    expect(b).not.toHaveProperty("user_id");
-    const withUserId = { ...b, user_id: "u-1" };
-    expect(MediaDeleteBody.strict().safeParse(withUserId).success).toBe(false);
+    await waitFor(() => expect(fetch).toHaveBeenCalled());
+    const [url, init] = vi.mocked(fetch).mock.calls[0] as [string, RequestInit];
+    expect(url).toMatch(/\/images\/9f1c2b3a-0000-4000-8000-000000000010$/);
+    expect(init.method).toBe("DELETE");
+    expect(init.body).toBeUndefined();
   });
 });

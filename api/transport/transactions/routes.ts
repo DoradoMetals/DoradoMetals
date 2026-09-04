@@ -6,6 +6,6 @@ import { requireUser } from "#shared/middleware/authMiddleware.ts";
 
 const router = express.Router();
 
-router.get("/get_transactions", requireUser, getTransactionHistory);
+router.get("/", requireUser, getTransactionHistory);
 
 export default router;

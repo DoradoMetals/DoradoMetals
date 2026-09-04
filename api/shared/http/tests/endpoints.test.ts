@@ -32,7 +32,7 @@ const PUBLIC = new Set([
   "GET /api/products/:slug",
   "GET /api/rates/",
   "GET /api/rates/tiers",
-  "GET /api/reviews/get_public",
+  "GET /api/reviews/public",
   "GET /api/spots/",
   "POST /api/recaptcha/verify-recaptcha",
   // Public because the catalogue's prices are public — takes product ids and a side, never a user; prices come from the server's own spots.
@@ -193,7 +193,7 @@ test("public reads return JSON", async () => {
     ["/api/spots", true],
     ["/api/rates", true],
     ["/api/rates/tiers", true],
-    ["/api/reviews/get_public", false],
+    ["/api/reviews/public", false],
   ];
 
   for (const [path, mustHaveRows] of reads) {

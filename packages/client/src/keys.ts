@@ -149,4 +149,22 @@ export const keys = {
     purchase: (body: unknown) => ["quote", "purchase_order", JSON.stringify(body)] as const,
     sales: (body: unknown) => ["quote", "sales_order", JSON.stringify(body)] as const,
   },
+  refiners: {
+    suppliers: () => ["suppliers"] as const,
+    order: (order_id: string) => ["refiner_order", order_id] as const,
+    metals: (order_id: string) => ["refiner_metals", order_id] as const,
+    items: (order_id: string) => ["refiner_items", order_id] as const,
+  },
+  leads: {
+    all: () => ["leads"] as const,
+  },
+  reviews: {
+    all: () => ["reviews"] as const,
+    public: () => ["reviews", "public"] as const,
+  },
+  media: {
+    images: {
+      all: () => ["media", "images"] as const,
+    },
+  },
 } as const;

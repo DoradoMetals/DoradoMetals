@@ -62,15 +62,15 @@ export function useUpdateCredit() {
   });
 }
 
-// GET /api/transactions/get_transactions - the CALLER'S OWN credit ledger,
-// newest first. The subject is the session's; there is no id to pass and
-// passing one changes nothing (it used to change everything - see the API
-// controller's own note).
+// GET /api/transactions - the CALLER'S OWN credit ledger, newest first. The
+// subject is the session's; there is no id to pass and passing one changes
+// nothing (it used to change everything - see the API controller's own
+// note).
 export function useCreditLedger(options: { enabled?: boolean } = {}) {
   return useQuery<AccountTransaction[]>({
     queryKey: keys.users.ledger(),
     enabled: options.enabled ?? true,
     queryFn: () =>
-      apiRequest<AccountTransaction[]>("GET", "/transactions/get_transactions"),
+      apiRequest<AccountTransaction[]>("GET", "/transactions"),
   });
 }

@@ -1,4 +1,4 @@
-// The reviews endpoints, over real HTTP. `/get_public` is unauthenticated and feeds the marketing site.
+// The reviews endpoints, over real HTTP. `/public` is unauthenticated and feeds the marketing site.
 // The public read differs from admin by exactly one clause, `WHERE hidden = false` - the only thing standing between what's published and every review ever left.
 // Dev holds 14 reviews, 13 hidden, so a regression that dropped the clause returns 14 instead of 1 rather than passing vacuously.
 // Nothing is committed: pinned-pool.ts rolls back every query; the last test checks from outside.
@@ -73,7 +73,7 @@ const asCustomer = <T>(fn: () => Promise<T> | T) =>
 test("the public review list needs no session at all", async () => {
   await inPinnedTransaction(async () => {
     await anonymous(async () => {
-      const res = await request(app).get("/api/reviews/get_public");
+      const res = await request(app).get("/api/reviews/public");
       assert.equal(res.status, 200, "the public reviews route stopped being public");
       assert.ok(Array.isArray(res.body), "the marketing site expects an array");
       assert.ok(res.body.length > 0, "dev has a visible review and none came back");
@@ -85,7 +85,7 @@ test("the public review list needs no session at all", async () => {
 test("no hidden review reaches the public list", async () => {
   await inPinnedTransaction(async () => {
     await anonymous(async () => {
-      const res = await request(app).get("/api/reviews/get_public");
+      const res = await request(app).get("/api/reviews/public");
       const leaked = res.body.filter((r: { id: string; hidden: boolean; name: string }) => r.hidden);
       assert.deepEqual(
         leaked.map((r: { id: string; hidden: boolean; name: string }) => r.id),
@@ -111,7 +111,7 @@ test("no hidden review reaches the public list", async () => {
 test("an admin sees the hidden reviews the public list withholds", async () => {
   await inPinnedTransaction(async () => {
     await asAdmin(async () => {
-      const res = await request(app).get("/api/reviews/get_all");
+      const res = await request(app).get("/api/reviews");
       assert.equal(res.status, 200);
       const hidden = res.body.filter((r: { id: string; hidden: boolean; name: string }) => r.hidden);
       assert.equal(
@@ -131,12 +131,12 @@ test("the public list carries no field the admin list lacks", async () => {
     let adminFields: Set<string> | undefined;
 
     await anonymous(async () => {
-      const res = await request(app).get("/api/reviews/get_public");
+      const res = await request(app).get("/api/reviews/public");
       publicFields = new Set(Object.keys(res.body[0] ?? {}));
     });
 
     await asAdmin(async () => {
-      const res = await request(app).get("/api/reviews/get_all");
+      const res = await request(app).get("/api/reviews");
       adminFields = new Set(Object.keys(res.body[0] ?? {}));
     });
 
@@ -161,11 +161,11 @@ test("every admin route refuses a signed-in non-admin", async () => {
   await inPinnedTransaction(async () => {
     await asCustomer(async () => {
       const calls = [
-        ["get_all", request(app).get("/api/reviews/get_all")],
-        ["get_one", request(app).get("/api/reviews/get_one").query({ review_id: randomUUID() })],
-        ["create", request(app).post("/api/reviews/create").send({ review: newReview() })],
-        ["update", request(app).post("/api/reviews/update").send({ review_id: randomUUID(), patch: newReview() })],
-        ["delete", request(app).delete("/api/reviews/delete").send({ review_id: randomUUID() })],
+        ["get_all", request(app).get("/api/reviews")],
+        ["get_one", request(app).get(`/api/reviews/${randomUUID()}`)],
+        ["create", request(app).post("/api/reviews").send(newReview())],
+        ["update", request(app).patch(`/api/reviews/${randomUUID()}`).send(newReview())],
+        ["delete", request(app).delete(`/api/reviews/${randomUUID()}`)],
       ] as Array<[string, Promise<{ status: number }>]>;
       // Declared as a tuple list: inferred, the element type collapses to `string | Test` and neither half is usable.
       for (const [name, call] of calls) {
@@ -179,7 +179,7 @@ test("every admin route refuses a signed-in non-admin", async () => {
 test("an anonymous caller is refused every route but the public one", async () => {
   await inPinnedTransaction(async () => {
     await anonymous(async () => {
-      const res = await request(app).get("/api/reviews/get_all");
+      const res = await request(app).get("/api/reviews");
       assert.ok([401, 403].includes(res.status), `get_all answered ${res.status}`);
     });
   }, { actor: TEST_ACTOR.id });
@@ -189,8 +189,8 @@ test("an admin creating a review round-trips, and a hidden one stays out of publ
   await inPinnedTransaction(async () => {
     const review = newReview({ hidden: true });
     await asAdmin(async () => {
-      const res = await request(app).post("/api/reviews/create").send({ review });
-      assert.equal(res.status, 200, JSON.stringify(res.body));
+      const res = await request(app).post("/api/reviews").send(review);
+      assert.equal(res.status, 201, JSON.stringify(res.body));
       created.push(review.name);
 
       const saved = Array.isArray(res.body) ? res.body[0] : res.body;
@@ -200,7 +200,7 @@ test("an admin creating a review round-trips, and a hidden one stays out of publ
 
     // The write is inside the pin, so the public read sees it too - an end-to-end check rather than a re-read of the same fixture.
     await anonymous(async () => {
-      const res = await request(app).get("/api/reviews/get_public");
+      const res = await request(app).get("/api/reviews/public");
       assert.ok(
         !res.body.some((r: { id: string; hidden: boolean; name: string }) => r.name === review.name),
         "a review created as hidden appeared on the public list"

@@ -57,9 +57,15 @@ test("only the two order emails are triggered after an operation already succeed
   // This check is apiRequest-shaped and frontend-scoped, so every feature that
   // moves its hooks into `@dorado/client` takes its calls out of the
   // denominator - which is what emptied ALLOWED (three entries, each gone
-  // rather than excused) and what took 16 to 13 when the places lane moved the
+  // rather than excused), what took 16 to 13 when the places lane moved the
   // auth surface's two calls (`/account/set_password`,
-  // `/recaptcha/verify-recaptcha`).
+  // `/recaptcha/verify-recaptcha`), and what took 13 to 7 when the
+  // small-features lane moved leads, reviews and media into @dorado/client
+  // (2026-09-04) - media's `POST /images/upload` (inside its mutationFn, so
+  // never a `found` entry) was the only one of the three that called
+  // apiRequest directly; leads and reviews went through the legacy
+  // useApiQuery/useApiMutation wrapper and were never in this scan's count at
+  // all.
   //
   // ADDING packages/client/src TO THE SCAN IS THE REAL FIX and it is somebody's
   // pass, not a floor edit: it was tried here and surfaces SEVEN findings in
@@ -68,7 +74,7 @@ test("only the two order emails are triggered after an operation already succeed
   // file exists to catch. Blessing those in an ACCEPTED list to keep a number
   // up would be the opposite of what the check is for.
   assert.ok(
-    total >= 13,
+    total >= 7,
     `only ${total} apiRequest call(s) found - the scan has stopped matching, ` +
       "and a check that reads nothing accepts everything"
   );

@@ -78,7 +78,7 @@ test("an anonymous caller is refused", async () => {
   await inPinnedTransaction(async (c: PoolClient) => {
     const { taxing, untaxed, product } = await fixtures(c);
     await anonymous(async () => {
-      const res = await request(app).post("/api/tax/get_sales_tax").send(body(taxing.id, product));
+      const res = await request(app).post("/api/tax").send(body(taxing.id, product));
       assert.ok([401, 403].includes(res.status), `answered ${res.status} anonymously`);
     });
   }, { actor: TEST_ACTOR.id, lock: LOCKS.ADDRESSES });
@@ -88,7 +88,7 @@ test("a signed-in customer gets a number back for a real state", async () => {
   await inPinnedTransaction(async (c: PoolClient) => {
     const { taxing, untaxed, product } = await fixtures(c);
     await as({ ...customer, role: "user" }, async () => {
-      const res = await request(app).post("/api/tax/get_sales_tax").send(body(taxing.id, product));
+      const res = await request(app).post("/api/tax").send(body(taxing.id, product));
       assert.equal(res.status, 200, JSON.stringify(res.body));
       assert.ok(
         Number.isFinite(taxOf(res)),
@@ -116,7 +116,7 @@ test("the body cannot carry spots, prices or product facts at all", async () => 
       ];
       for (const { name, extra } of poisons) {
         const res = await request(app)
-          .post("/api/tax/get_sales_tax")
+          .post("/api/tax")
           .send({ ...body(taxing.id, product), ...extra });
         assert.equal(res.status, 400, `${name} was accepted (${res.status})`);
       }
@@ -131,12 +131,12 @@ test("a body with no items is refused rather than answered with a tax figure", a
     const { taxing, untaxed, product } = await fixtures(c);
     await as({ ...customer, role: "user" }, async () => {
       const noItems = await request(app)
-        .post("/api/tax/get_sales_tax").send({ address_id: taxing.id, items: [] });
+        .post("/api/tax").send({ address_id: taxing.id, items: [] });
       assert.equal(noItems.status, 400, `no items answered ${noItems.status}`);
 
       // An address id that names nothing is a 404, not a silent tax-free quote.
       const noSuchAddress = await request(app)
-        .post("/api/tax/get_sales_tax")
+        .post("/api/tax")
         .send(body("00000000-0000-4000-8000-000000000000", product));
       assert.equal(noSuchAddress.status, 404, `an unknown address answered ${noSuchAddress.status}`);
     });
@@ -150,13 +150,13 @@ test("no address is answered with no tax, not an error", async () => {
   await inPinnedTransaction(async (c: PoolClient) => {
     const { taxing, untaxed, product } = await fixtures(c);
     await as({ ...customer, role: "user" }, async () => {
-      const res = await request(app).post("/api/tax/get_sales_tax").send(body(null, product));
+      const res = await request(app).post("/api/tax").send(body(null, product));
       assert.equal(res.status, 200, `a stateless quote answered ${res.status}`);
       assert.equal(taxOf(res), 0, "a quote with no address was charged tax");
 
       // And a state with no charging rule is likewise zero, through the same
       // door: a real address, no rule, no tax.
-      const noRule = await request(app).post("/api/tax/get_sales_tax").send(body(untaxed.id, product));
+      const noRule = await request(app).post("/api/tax").send(body(untaxed.id, product));
       assert.equal(noRule.status, 200, `${untaxed.state} answered ${noRule.status}`);
       assert.equal(taxOf(noRule), 0, `${untaxed.state} has no charging rule and was taxed`);
     });

@@ -153,7 +153,7 @@ if (!ledgerUser) {
   // Not a skip. An empty ledger means this check proves nothing, and a check
   // that silently proves nothing is what let the ledger go unnoticed for seven
   // months in the first place.
-  add("GET /transactions/get_transactions", c.AccountTransaction, () => {
+  add("GET /transactions", c.AccountTransaction, () => {
     throw new Error("dev has no payments.ledger rows - the ledger check would be vacuous");
   });
 } else {
@@ -162,7 +162,7 @@ if (!ledgerUser) {
   // checked directly rather than dropped.
   const transactionsService = await import("#domain/transactions/service.ts");
   add(
-    "GET /transactions/get_transactions",
+    "GET /transactions",
     c.AccountTransaction,
     () => transactionsService.history(ledgerUser)
   );

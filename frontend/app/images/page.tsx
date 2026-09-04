@@ -1,13 +1,13 @@
 'use client'
 
-import { useTestImage, useDeleteImage } from '@/features/media/queries'
+import { useImages, useDeleteImage } from '@/features/media/queries'
 import { ImageUpload } from '@/features/media/ui/ImageUpload'
 import ProtectedPage from '@/features/auth/hooks/useProtectedPage'
 import { Button } from '@dorado/components'
 import { protectedRoutes } from '@/features/routes/types'
 
 export default function Page() {
-  const { data: imgs = [], isLoading } = useTestImage()
+  const { data: imgs = [], isLoading } = useImages()
   const del = useDeleteImage()
 
   return (
