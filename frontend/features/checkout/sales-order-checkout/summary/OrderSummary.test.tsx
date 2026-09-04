@@ -83,6 +83,7 @@ const prices = (): SalesOrderQuote => ({
   charges_amount: 137.32,
   sales_tax: 52.25,
   order_total: 4714.57,
+  payment_surface: "card",
   items: [{ id: "p-1", quantity: 1, unit_ask: 4500, line_total: 4500, sales_tax_rate: 0.0116 }],
 });
 

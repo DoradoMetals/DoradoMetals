@@ -126,17 +126,15 @@ test("the payout account records the customer who entered it", async () => {
     // opens no transaction of its own - `actingAs`, not `runWithActor`.
     await actingAs(c, customer.id);
     const saved = await payoutDetails.saveCheckoutPayout(
+      customer.id,
+      null,
       {
-        user_id: customer.id,
-        existing_id: null,
-        form: {
-          method: "ACH",
-          account_holder_name: "Paying Customer",
-          bank_name: "Test Bank",
-          account_type: "Checking",
-          routing_number: TEST_ROUTING,
-          account_number: TEST_ACCOUNT,
-        },
+        method: "ACH",
+        account_holder_name: "Paying Customer",
+        bank_name: "Test Bank",
+        account_type: "Checking",
+        routing_number: TEST_ROUTING,
+        account_number: TEST_ACCOUNT,
       },
       c
     );

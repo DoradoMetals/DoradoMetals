@@ -47,15 +47,29 @@ const aProductItem = (): CheckoutLine =>
 const aScrapItem = (): CheckoutLine =>
   aLine({ id: "lot", metal_id: GOLD_ID, pre_melt: 10, purity: 0.585, unit: "g" });
 
+// THE METHOD ROWS COME THROUGH @dorado/client NOW, which owns its own `fetch`
+// and never touches the legacy axios wrapper - so the reference read is
+// stubbed at `fetch` and the quote POSTs stay on the mocked apiRequest. Both
+// halves have to be answered or the hook that resolves a code to an id has
+// nothing to resolve against.
+const json = (body: unknown): Response =>
+  ({ ok: true, status: 200, text: async () => JSON.stringify(body) }) as Response;
+
 beforeEach(() => {
+  vi.stubGlobal("fetch", vi.fn(async (input: string) => {
+    const url = new URL(String(input), "http://test.local");
+    if (url.pathname.endsWith("/payments/methods")) {
+      return json(
+        url.searchParams.get("direction") === "purchase"
+          ? [{ id: PURCHASE_METHOD_ID, type: "ACH" }]
+          : [{ id: SALE_METHOD_ID, type: "CARD" }]
+      );
+    }
+    return json({});
+  }));
+
   vi.mocked(apiRequest).mockReset();
   vi.mocked(apiRequest).mockImplementation(async (_method, url) => {
-    if (typeof url === "string" && url.includes("direction=sale")) {
-      return [{ id: SALE_METHOD_ID, type: "CARD" }];
-    }
-    if (typeof url === "string" && url.includes("direction=purchase")) {
-      return [{ id: PURCHASE_METHOD_ID, type: "ACH" }];
-    }
     if (url === "/carrier_services/sale_options") {
       return [{ id: SALE_SERVICE_ID, code: "STANDARD" }];
     }

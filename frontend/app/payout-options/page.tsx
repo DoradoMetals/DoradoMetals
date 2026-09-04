@@ -1,6 +1,6 @@
 'use client'
 
-import { usePaymentMethods } from '@/features/payments/queries'
+import { usePaymentMethods } from '@dorado/client'
 import { PayoutCard } from '@/features/payouts/ui/PayoutCard'
 
 export default function Page() {

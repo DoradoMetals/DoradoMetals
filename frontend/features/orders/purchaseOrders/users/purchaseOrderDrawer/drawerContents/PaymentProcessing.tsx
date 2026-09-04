@@ -1,5 +1,5 @@
 import { payoutMethodIcon, PayoutMethodType } from '@/features/payouts/types'
-import { usePaymentMethods } from '@/features/payments/queries'
+import { usePaymentMethods } from '@dorado/client'
 import { PurchaseOrderDrawerContentProps } from '@/features/orders/purchaseOrders/types'
 import { useOrderPayouts } from '@dorado/client'
 

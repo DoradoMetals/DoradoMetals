@@ -8,7 +8,7 @@ import { useBasket } from '@/features/checkout/items/queries'
 import { cn } from '@/shared/utils/cn'
 import { useDecoratedLines, type DecoratedLine } from '@/features/checkout/items/flair'
 import { formatRate } from '@/features/rates/utils/resolveRate'
-import { usePaymentMethods } from '@/features/payments/queries'
+import { usePaymentMethods } from '@dorado/client'
 import { usePurchaseOrderQuote } from '@/features/quotes/queries'
 import type { CheckoutRate, CheckoutView, PurchaseOrderQuoteLine } from "@dorado/contracts";
 import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'

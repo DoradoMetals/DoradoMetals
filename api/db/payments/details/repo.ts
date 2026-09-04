@@ -11,7 +11,7 @@
 import query from "#shared/db/query.ts";
 import { buildUpdate } from "#shared/db/patch.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
-import type { PaymentDetails } from "@dorado/contracts";
+import type { PaymentDetails, PaymentDetailsPatch } from "@dorado/contracts";
 import type { Executor } from "#shared/db/executor.ts";
 
 const sql = sqlFrom(import.meta.dirname);
@@ -42,8 +42,6 @@ export const PATCHABLE = [
   "last_four", "routing_last_four", "email_to", "provider", "provider_ref",
   "routing_number_encrypted", "account_number_encrypted", "encryption_key_id",
 ] as const;
-
-export type DetailValues = Partial<Pick<PaymentDetails, (typeof PATCHABLE)[number]>>;
 
 export async function getOne(id: string, executor?: Executor): Promise<DetailRow | undefined> {
   const { rows } = await query<DetailRow>(sql("get_one"), [id], executor);
@@ -78,31 +76,46 @@ export async function getSealed(
 // The id is the caller's: the checkout row keeps the same details row across
 // edits, so it is minted once and reused.
 export async function create(
-  id: string, user_id: string, values: DetailValues, executor?: Executor
+  id: string, user_id: string, values: PaymentDetailsPatch, executor?: Executor
 ): Promise<DetailRow> {
   const { rows } = await query<DetailRow>(
     sql("create"),
     [
-      id, user_id, values.method_id, values.account_holder, values.bank_name,
-      values.account_type, values.last_four, values.routing_last_four,
-      values.email_to, values.routing_number_encrypted,
-      values.account_number_encrypted, values.encryption_key_id,
-      values.card_brand, values.provider, values.provider_ref,
+      id, user_id, values.method_id ?? null, values.account_holder ?? null,
+      values.bank_name ?? null, values.account_type ?? null,
+      values.last_four ?? null, values.routing_last_four ?? null,
+      values.email_to ?? null, values.routing_number_encrypted ?? null,
+      values.account_number_encrypted ?? null, values.encryption_key_id ?? null,
+      values.card_brand ?? null, values.provider ?? null,
+      values.provider_ref ?? null,
     ],
     executor
   );
   return rows[0];
 }
 
+// THE SAFE PROJECTION, and it is the same one sql/get_one.sql spells: an
+// update answers the row it wrote, so nothing has to read the row back to
+// learn what it now says (ruling 65). Never an envelope and never a plaintext
+// number - a write path that returned one would be the leak this table's whole
+// shape exists to prevent.
+const RETURNING = `id, user_id, method_id, account_holder, bank_name, account_type,
+       last_four, routing_last_four, card_brand, email_to,
+       provider, provider_ref, created_at, updated_at`;
+
+// ANSWERS THE ROW, or undefined when the id matches nothing. A patch naming no
+// allowed column is not an error and not an empty UPDATE - it reads the row
+// back, so "nothing to change" still answers what the row says.
 export async function update(
-  id: string, patch: DetailValues, executor?: Executor
-): Promise<boolean> {
+  id: string, patch: PaymentDetailsPatch, executor?: Executor
+): Promise<DetailRow | undefined> {
   const built = buildUpdate({
     table: "payments.details", allowed: PATCHABLE, patch, where: { id },
+    returning: RETURNING,
   });
-  if (!built) return true;
-  const { rowCount } = await query(built.text, built.values, executor);
-  return rowCount === 1;
+  if (!built) return await getOne(id, executor);
+  const { rows } = await query<DetailRow>(built.text, built.values, executor);
+  return rows[0];
 }
 
 export async function remove(id: string, executor?: Executor): Promise<boolean> {

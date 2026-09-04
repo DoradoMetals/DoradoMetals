@@ -17,6 +17,7 @@ import { test } from "vitest";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
 import * as service from "#domain/payments/service.ts";
+import * as webhook from "#domain/payments/webhook.ts";
 import { inPinnedTransaction } from "#shared/testing/pinned-pool.ts";
 import { TEST_ACTOR } from "#shared/testing/actor.ts";
 import { LOCKS } from "#shared/testing/locks.ts";
@@ -109,7 +110,7 @@ test("the service refuses a webhook that matches no intent, so Stripe retries", 
   await inPinnedTransaction(async () => {
     await assert.rejects(
       () =>
-        service.updateIntentFromWebhook({
+        webhook.applyIntentEvent({
           id: `pi_test_absent_${Date.now()}`,
           status: "succeeded",
           amount: 11480,
@@ -138,7 +139,7 @@ test("the service accepts a webhook that matches an intent", async () => {
     const id = `pi_test_matched_${Date.now()}`;
     await seedSettledIntent(c, id);
 
-    await service.updateIntentFromWebhook({
+    await webhook.applyIntentEvent({
       id,
       status: "succeeded",
       amount: 11480,

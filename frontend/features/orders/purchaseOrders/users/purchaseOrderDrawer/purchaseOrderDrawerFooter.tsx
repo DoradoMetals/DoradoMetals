@@ -17,7 +17,7 @@ import {
 import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
 import formatPhoneNumber from '@/shared/utils/formatPhoneNumber'
 import { payoutMethodIcon, PayoutMethodType } from '@/features/payouts/types'
-import { usePaymentMethods } from '@/features/payments/queries'
+import { usePaymentMethods } from '@dorado/client'
 import { formatRate } from '@/features/rates/utils/resolveRate'
 import { useShipmentDisplay, outboundOf, returnOf } from '@/features/shipping/queries'
 import { useProducts } from '@/features/products/queries'

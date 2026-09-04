@@ -16,6 +16,18 @@
     "./checkout": {
       "types": "./src/checkout/index.ts",
       "default": "./src/checkout/index.ts"
+    },
+    "./payments": {
+      "types": "./src/payments/index.ts",
+      "default": "./src/payments/index.ts"
+    },
+    "./payouts": {
+      "types": "./src/payouts/index.ts",
+      "default": "./src/payouts/index.ts"
+    },
+    "./users": {
+      "types": "./src/users/index.ts",
+      "default": "./src/users/index.ts"
     }
   },
   "scripts": {

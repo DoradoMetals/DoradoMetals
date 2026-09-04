@@ -31,7 +31,7 @@ import {
 import { TrashIcon, UserPlusIcon } from '@phosphor-icons/react'
 import { isValidEmail } from '@/shared/utils/isValid'
 import { useDeleteLead, useUpdateLead } from '@/features/leads/queries'
-import { useAdminRoleUsers, useAdminUsers } from '@/features/users/queries'
+import { useAdminRoleUsers, useAdminUsers } from '@dorado/client'
 
 export default function LeadsDrawer({ leads, lead_id }: { leads: Lead[]; lead_id: string }) {
   const { activeDrawer, closeDrawer } = useDrawerStore()

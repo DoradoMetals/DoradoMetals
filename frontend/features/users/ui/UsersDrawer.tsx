@@ -16,7 +16,7 @@ import { Button, Divider, Drawer, Input, RadioGroup, RadioOption } from '@dorado
 import { cn } from '@/shared/utils/cn'
 import { MinusIcon, PenIcon, PlusIcon } from '@phosphor-icons/react'
 import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
-import { useUpdateCredit } from '@/features/users/queries'
+import { useUpdateCredit } from '@dorado/client'
 
 export default function AdminUsersDrawer({
   users,

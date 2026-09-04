@@ -23,7 +23,7 @@ import { useBasket, useCheckoutItemActions } from '@/features/checkout/items/que
 import { lineFromProduct } from '@/features/checkout/items/types'
 import { Lens } from '@/shared/ui/base/lens'
 import { paymentMethodIcon, transitLabel } from '@/features/orders/salesOrders/types'
-import { usePaymentMethods } from '@/features/payments/queries'
+import { usePaymentMethods } from '@dorado/client'
 import { useSaleShippingServices } from '@/features/shipping/queries'
 import { useSpotPrices } from '@/features/spots/queries'
 import { useCatalogQuote } from '@/features/quotes/queries'

@@ -12,6 +12,7 @@ SELECT u.id,
        u."emailVerified" AS email_verified,
        u.image,
        u.role,
-       u.dorado_funds
+       u.dorado_funds,
+       u."isAnonymous"
   FROM auth.users u
  WHERE u.id = $1

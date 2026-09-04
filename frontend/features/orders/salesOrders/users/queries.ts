@@ -2,7 +2,7 @@ import { useMutation } from '@tanstack/react-query'
 import { usePlaceOrder } from '@dorado/client'
 import { apiRequest } from '@/shared/queries/axios'
 import { useBasket, useReplaceCheckoutItems } from '@/features/checkout/items/queries'
-import { usePaymentMethods } from '@/features/payments/queries'
+import { usePaymentMethods } from '@dorado/client'
 import { useSaleShippingServices } from '@/features/shipping/queries'
 import type { SaleCheckoutForm } from '@/features/orders/salesOrders/types'
 

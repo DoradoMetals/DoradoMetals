@@ -8,6 +8,7 @@ import { parseStrict, uuidLike } from "#shared/http/validate.ts";
 import { refuseWith } from "#shared/http/refuse.ts";
 import * as stripe from "#providers/payment/stripe.ts";
 import * as stripeService from "#domain/payments/service.ts";
+import * as webhook from "#domain/payments/webhook.ts";
 import type { Request } from "express";
 import type { Caller } from "#domain/payments/service.ts";
 
@@ -23,20 +24,11 @@ function callerOf(req: Request): Caller {
   return { session_id, user_id };
 }
 
-// The webhook's own handling of an intent event: the update, and the
-// instrument when Stripe named one. NULL IS THE CASE THAT MATTERS - an intent
-// can succeed without a payment method, and looking up null would throw after
-// the intent update had already run, a 500 on an update Stripe would retry.
-async function applyIntentEvent(
-  paymentIntent: Parameters<typeof stripeService.updateIntentFromWebhook>[0],
-  methodId: unknown
-): Promise<void> {
-  await stripeService.updateIntentFromWebhook(paymentIntent);
-  if (typeof methodId === "string") {
-    await stripeService.updateMethod(await stripe.retrievePaymentMethod(methodId));
-  }
-}
-
+// SIGNATURE, EVENT TYPE, ONE USE CASE. What an event MEANS - which of them can
+// name an instrument, what a first sighting of one is worth, who it belongs to
+// - is domain/payments/webhook.ts. This file only says which door it goes
+// through; `applyIntentEvent` used to live here, and deciding what a webhook
+// means is not a transport's job.
 export const handleStripeWebhook = asyncHandler(async (req, res) => {
   const sig = req.headers["stripe-signature"];
   if (typeof sig !== "string") {
@@ -46,16 +38,17 @@ export const handleStripeWebhook = asyncHandler(async (req, res) => {
   const event = stripe.verifyWebhook(req.body, sig);
 
   switch (event.type) {
+    // The two that can name the instrument the money moved on.
     case "payment_intent.succeeded":
     case "payment_intent.processing":
-      await applyIntentEvent(event.data.object, event.data.object.payment_method);
+      await webhook.applyIntentEvent(event.data.object, event.data.object.payment_method);
       break;
 
     case "payment_intent.payment_failed":
     case "payment_intent.created":
     case "payment_intent.canceled":
     case "payment_intent.amount_capturable_updated":
-      await stripeService.updateIntentFromWebhook(event.data.object);
+      await webhook.applyIntentEvent(event.data.object);
       break;
 
     // charge.* carries a charge id, not an intent - ignored.
@@ -68,7 +61,7 @@ export const handleStripeWebhook = asyncHandler(async (req, res) => {
       break;
 
     case "payment_method.updated":
-      await stripeService.updateMethod(event.data.object);
+      await webhook.applyMethodEvent(event.data.object);
       break;
 
     default:

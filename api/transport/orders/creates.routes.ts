@@ -33,11 +33,21 @@ purchaseOrderRoutes.post("/create_review", requireUser, requireOwnOrder, createO
 // ---------------------------------------------------- /api/sales_orders
 export const salesOrderRoutes = express.Router();
 
-// ADMIN-ONLY WHILE SALES-ORDER CHECKOUT IS OFF. Jacob's call, 26 August: the
-// buy flow is not open to customers until the refactor lands, so the route that
-// creates a sales order takes requireAdmin rather than requireUser. Reopening
-// the flow is a one-word change here.
-salesOrderRoutes.post("/create_sales_order", requireAdmin, createOrderFromCheckout);
+// THE BUY FLOW IS OPEN TO CUSTOMERS AGAIN (Jacob, 2026-09-04). It had been
+// requireAdmin since 26 August "while sales-order checkout is off", and the
+// reopening is the one-word change that comment promised - but the effect was
+// larger than it read: the customer buy checkout runs all the way to Stripe
+// and then 403s on the last click, because THIS is the route it posts to.
+//
+// WHO MAY PLACE WHAT IS ALREADY DECIDED, one layer down and correctly, so
+// nothing else moves: createOrderFromCheckout refuses a checkout that is not
+// the caller's own unless they are an admin, and place() refuses an anonymous
+// subject through assertRealAccount (ruling 63 - a visitor may shop and may
+// not buy). requireUser is the guard that lets those two rules be reached.
+salesOrderRoutes.post("/create_sales_order", requireUser, createOrderFromCheckout);
+
+// The named-user path stays admin-only: it is the same handler, and what makes
+// it "admin" is that the checkout it names belongs to somebody else.
 salesOrderRoutes.post("/admin_create_sales_order", requireAdmin, createOrderFromCheckout);
 
 salesOrderRoutes.post("/create_review", requireUser, requireOwnOrder, createOrderReview);

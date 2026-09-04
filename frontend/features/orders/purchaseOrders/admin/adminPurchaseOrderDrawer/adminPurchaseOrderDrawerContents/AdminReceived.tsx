@@ -1,12 +1,12 @@
 import { Divider, Button, Input, Checkbox, Field } from '@dorado/components'
 import { outboundOf } from '@/features/shipping/queries'
 import { usePatchShipment } from '@/features/shipping/queries'
-import { usePatchPayout } from '@/features/payouts/queries'
+import { usePatchPayout } from '@dorado/client'
 import type { OrderItem, OrderItemPatch, SpotPrice } from "@dorado/contracts";
 import type { NamedScrapItem } from '@/features/orders/display'
 import { cn } from '@/shared/utils/cn'
 import { payoutMethodIcon, PayoutMethodType } from '@/features/payouts/types'
-import { usePaymentMethods } from '@/features/payments/queries'
+import { usePaymentMethods } from '@dorado/client'
 import { CaretDownIcon } from '@phosphor-icons/react'
 import {
   PurchaseOrderDrawerContentProps,

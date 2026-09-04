@@ -8,23 +8,21 @@
 // `balanceForUpdate`'s locked read.
 import query from "#shared/db/query.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
+import type { AdminUser, CreditOp } from "@dorado/contracts";
 import type { Executor } from "#shared/db/executor.ts";
 
 const sql = sqlFrom(import.meta.dirname);
 
-// ONE ROW SHAPE FOR ALL THREE READS. get_one used to omit dorado_funds and
-// phone_number while get_all carried the balance, so the type had to declare it
-// optional and every caller had to cope with a field that might not be there.
-// The three statements project the same columns now, so the shape is
-// unconditional.
-export type UserRow = {
-  id: string; email: string; name: string; phone_number: string | null;
-  created_at: Date; updated_at: Date; email_verified: boolean;
-  image: string | null; role: string | null;
-  dorado_funds: string | number | null;
-};
-
-export type CreditMode = "add" | "subtract" | "edit";
+// ONE ROW SHAPE FOR ALL THREE READS, AND IT IS THE CONTRACT'S. get_one used to
+// omit dorado_funds and phone_number while get_all carried the balance, so the
+// type had to declare it optional and every caller had to cope with a field
+// that might not be there. The three statements project the same columns now.
+//
+// `AdminUser` replaces the hand-written copy, which had drifted: the contract
+// declares `isAnonymous` (ruling 63's visitor flag) and none of the three
+// statements projected it, so the wire promised a column the reads did not
+// send. They project it now.
+export type UserRow = AdminUser;
 
 // ---- reads -----------------------------------------------------------------
 
@@ -52,7 +50,7 @@ export async function getAdmins(executor?: Executor): Promise<UserRow[]> {
 export type CreditRow = { id: string; dorado_funds: number | null };
 
 export async function adjustCredit(
-  user_id: string, mode: CreditMode, amount: number, executor?: Executor
+  user_id: string, mode: CreditOp, amount: number, executor?: Executor
 ): Promise<CreditRow | undefined> {
   const { rows } = await query<CreditRow>(
     sql("adjust_credit"), [amount, mode, user_id], executor

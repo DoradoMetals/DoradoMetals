@@ -2,8 +2,8 @@
 
 import { Divider } from '@dorado/components'
 import { payoutMethodIcon, PayoutMethodType } from '@/features/payouts/types'
-import { usePaymentMethods } from '@/features/payments/queries'
-import { usePayoutDetails } from '@/features/payouts/queries'
+import { usePaymentMethods } from '@dorado/client'
+import { usePayoutDetails } from '@dorado/client'
 import { PurchaseOrderDrawerContentProps, statusConfig } from '@/features/orders/purchaseOrders/types'
 import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
 import RefinerValues from '@/features/orders/purchaseOrders/admin/adminPurchaseOrderDrawer/adminPurchaseOrderDrawerContents/editRefinerValues'

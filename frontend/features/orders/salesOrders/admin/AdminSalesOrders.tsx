@@ -12,7 +12,7 @@ import { cn } from '@/shared/utils/cn'
 import { useFormatSalesOrderNumber } from '@/features/orders/utils/formatOrderNumbers'
 import { useOrders } from '@dorado/client'
 import AdminSalesOrderDrawer from '@/features/orders/salesOrders/admin/adminSalesOrderDrawer/adminSalesOrderDrawer'
-import { useAdminUsers } from '@/features/users/queries'
+import { useAdminUsers } from '@dorado/client'
 
 export default function SalesOrdersPage() {
   const { data: salesOrders = [] } = useOrders({ direction: 'sale' }, { refetchInterval: 10_000 })

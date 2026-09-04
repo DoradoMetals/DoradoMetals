@@ -88,17 +88,35 @@ test("the account write never stores routing or account numbers", async () => {
   });
 });
 
-test("update answers true for a real id and false for one with no account", async () => {
+// THE UPDATE ANSWERS THE ROW IT WROTE (ruling 65), not a boolean the caller
+// then has to go and read the row back to interpret. `undefined` is the id
+// matching nothing.
+test("update answers the written row, and undefined for an id with no account", async () => {
   await inRollback(async (c: PoolClient) => {
     const row = await anAccount(c);
     const wire = await methodId(c, "WIRE");
 
-    assert.equal(await details.update(row.id, { method_id: wire }, c), true);
-    const after = await details.getOne(row.id, c);
-    assert.equal(after?.method_id, wire);
-    assert.equal(after?.account_holder, "A Customer", "an unnamed column was overwritten");
+    const written = await details.update(row.id, { method_id: wire }, c);
+    assert.equal(written?.method_id, wire);
+    assert.equal(written?.account_holder, "A Customer", "an unnamed column was overwritten");
 
-    assert.equal(await details.update(randomUUID(), { method_id: wire }, c), false);
+    assert.equal(await details.update(randomUUID(), { method_id: wire }, c), undefined);
+  });
+});
+
+// NOTHING SEALED AND NOTHING PLAINTEXT COMES BACK OUT OF A WRITE. The RETURNING
+// list is the same safe projection every read uses, and this is what stops a
+// column added to the table from riding out through the write path.
+test("the row a write answers carries no bank number and no envelope", async () => {
+  await inRollback(async (c: PoolClient) => {
+    const row = await anAccount(c);
+    const written = await details.update(
+      row.id, { bank_name: "A Bank", last_four: "6789" }, c
+    );
+    const leaked = Object.keys(written ?? {}).filter((k) => /number|encrypt/.test(k));
+    assert.deepEqual(leaked, [], `a write answered with ${leaked.join(", ")}`);
+    assert.equal(written?.last_four, "6789", "the last four are not a secret and are the answer");
+    assert.equal(written?.bank_name, "A Bank");
   });
 });
 

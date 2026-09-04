@@ -32,6 +32,33 @@ export const keys = {
     rates: (direction: string, address_id?: string | null, package_id?: string | null) =>
       ["checkout", "rates", direction, address_id ?? null, package_id ?? null] as const,
   },
+  // ---------------------------------------------------------------- payments
+  payments: {
+    // The reference rows: how a customer pays us (sale) and how we pay them
+    // (purchase). The direction is the key, never a hook name.
+    methods: (direction?: string) => ["payments", "methods", direction ?? null] as const,
+    // ONE INTENT PER CALLER, resolved server-side from the session. `subject`
+    // is the customer an admin is ordering FOR - naming yourself is the same
+    // read, so it defaults to null rather than to your own id.
+    intent: (type: string, subject?: string | null) =>
+      ["payments", "intent", type, subject ?? null] as const,
+    // The intent attached to one order - the admin sales-order screen's read.
+    orderIntent: (order_id: string) => ["payments", "intent", "order", order_id] as const,
+  },
+  payouts: {
+    // RADIOACTIVE. Keyed so a details read is never confused with the
+    // last-four payout row that hangs off an order; the hook itself refuses to
+    // cache it (staleTime 0, gcTime 0).
+    details: (payout_id: string) => ["payouts", payout_id, "details"] as const,
+  },
+  users: {
+    one: (user_id: string) => ["users", user_id] as const,
+    all: () => ["users", "all"] as const,
+    admins: () => ["users", "admins"] as const,
+    // The CALLER'S OWN credit ledger. No id in the key: the server reads the
+    // subject off the session and a key naming one would imply otherwise.
+    ledger: () => ["users", "ledger"] as const,
+  },
   quotes: {
     purchase: (body: unknown) => ["quote", "purchase_order", JSON.stringify(body)] as const,
     sales: (body: unknown) => ["quote", "sales_order", JSON.stringify(body)] as const,

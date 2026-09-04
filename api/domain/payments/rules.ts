@@ -4,16 +4,23 @@
 // is the handful of facts that are easy to get wrong and expensive when they
 // are - money units, whose intent an admin opens, and which provider states
 // mean an intent is still live.
-import type { DetailValues } from "#db/payments/details/repo.ts";
+import { Forbidden, Invalid, NotFound } from "#shared/errors.ts";
+import type { PaymentDetailsPatch, PaymentSurface } from "@dorado/contracts";
 
 // The fields this application reads off a Stripe PaymentIntent. Deliberately
 // not Stripe's whole type: a wider one would be a claim about a shape we do not
 // own. `amount` is in CENTS.
+//
+// THIS IS THE ONLY SHAPE. service.ts carried a second, near-identical
+// `StripeIntent` for what its use cases hand back - the same four fields plus
+// `client_secret` - so the same object was described twice, one file apart.
+// `client_secret` joins this one and the duplicate is gone.
 export type StripeIntentLike = {
   id: string;
   status?: string | null;
   amount?: number | null;
   amount_received?: number | null;
+  client_secret?: string | null;
 };
 
 // The fields read off a Stripe PaymentMethod. Every one is optional because
@@ -88,7 +95,7 @@ export function methodTypeFor(stripe_type: string | null | undefined): string | 
 export function instrumentValues(
   paymentMethod: StripePaymentMethodLike | null | undefined,
   method_id: string | null
-): DetailValues {
+): PaymentDetailsPatch {
   const bank = paymentMethod?.us_bank_account;
   const card = paymentMethod?.card;
   return {
@@ -113,4 +120,60 @@ export function chargeCents(dollars: number): number {
 
 export function isChargeable(cents: number): boolean {
   return cents >= STRIPE_MINIMUM_CENTS;
+}
+
+// WHICH PAYMENT SURFACE THE CUSTOMER IS SHOWN, asked of the amount the card is
+// actually told. The browser used to answer it with `beginning_funds <
+// base_total`, one expression away from the two rules above; this is the same
+// question put to the same numbers the charge is built from, so a quote and
+// the intent that follows it cannot show one thing and charge another.
+export function paymentSurface(post_charges_amount: number): PaymentSurface {
+  return isChargeable(chargeCents(post_charges_amount)) ? "card" : "credit";
+}
+
+// THE REFUSALS. Ruling 65: a use case has no `throw` of its own - it asks one
+// of these, on one line, and the refusal is stated once here where it can be
+// read without the plumbing around it.
+
+// WHOSE STRIPE CUSTOMER AN INTENT BILLS, refused when there is nobody to bill.
+// The two kinds are different questions: on the customer path the SESSION has
+// no user row, which is the caller's own standing (403); on the admin path the
+// request NAMED somebody who is not there, which is the document (422).
+export function assertBillingIdentity<T extends { id?: string | null }>(
+  identity: T | null | undefined, type: string | undefined
+): T {
+  if (identity?.id) return identity;
+  if (type === "admin") {
+    throw new Invalid("an admin payment intent must name a customer that exists");
+  }
+  throw new Forbidden("no user row for this session");
+}
+
+// WHOSE ORDER AN UPDATE PRICES. Falling back to the session user on the admin
+// path would price a customer's order against the ADMIN's credit balance and
+// charge a number nobody can explain.
+export function assertIntentSubject(subject: string | undefined): string {
+  if (!subject) throw new Invalid("an admin payment intent must name the customer it is for");
+  return subject;
+}
+
+// THE BALANCE IS THE SERVER'S FACT. `undefined` is a subject with no user row
+// at all, which is not the same as a customer holding no credit - pricing that
+// as zero would charge the full total to somebody the row says does not exist.
+export function assertPriceableBalance(
+  subject: string, balance: number | null | undefined
+): number {
+  if (balance === undefined) throw new NotFound(`no user ${subject} to price this intent for`);
+  return Number(balance ?? 0);
+}
+
+// A WEBHOOK THAT MATCHES NO ROW IS REFUSED so Stripe retries it (D24). A plain
+// Error on purpose: it is a fault rather than a refusal of the caller's - the
+// caller is Stripe, and 500 is what makes it come back.
+export function assertWebhookMatched(provider_ref: string, matched: boolean): void {
+  if (!matched) {
+    throw new Error(
+      `stripe webhook: no payment intent row for ${provider_ref} - refusing so Stripe retries`
+    );
+  }
 }

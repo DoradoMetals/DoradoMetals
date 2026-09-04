@@ -137,9 +137,10 @@ add("GET /addresses/user_addresses", c.UserAddressRead, async () =>
 // so a contract pinned to the exchange row was asserting columns
 // (purchase_order_id, sales_order_id) the statement stopped returning.
 //
-// getTransactionHistory returns ONE row, not a list, in both implementations -
-// hence many=false. That it does so at all is a separate bug; see the note in
-// FOLLOWUPS.md. This check asserts the shape the code HAS.
+// `history()` answers the LIST now - hence many=true. It used to hand back
+// `rows[0]` of an unlimited ordered read, documented as deliberate and recorded
+// for Jacob; ruling 44 retired that caution and the endpoint answers the whole
+// ledger.
 const { rows: withLedger } = await pool.query(
   `SELECT user_id FROM payments.ledger
    GROUP BY user_id ORDER BY count(*) DESC LIMIT 1`
@@ -149,20 +150,18 @@ if (!ledgerUser) {
   // Not a skip. An empty ledger means this check proves nothing, and a check
   // that silently proves nothing is what let the ledger go unnoticed for seven
   // months in the first place.
-  add("GET /get_transactions", c.AccountTransaction, () => {
+  add("GET /transactions/get_transactions", c.AccountTransaction, () => {
     throw new Error("dev has no payments.ledger rows - the ledger check would be vacuous");
   });
 } else {
   // ONE IMPLEMENTATION AFTER THE RESTRUCTURE, so there is no both-ways to run -
   // but the shape is still worth checking, and this is the ledger, so it is
-  // checked directly rather than dropped. Still many=false: the endpoint hands
-  // back one row on purpose (see domain/transactions/service.ts).
+  // checked directly rather than dropped.
   const transactionsService = await import("#domain/transactions/service.ts");
   add(
-    "GET /get_transactions",
+    "GET /transactions/get_transactions",
     c.AccountTransaction,
-    () => transactionsService.getTransactionHistory(ledgerUser),
-    false
+    () => transactionsService.history(ledgerUser)
   );
 }
 

@@ -1,9 +1,9 @@
-import { useCancelPaymentIntent, useGetSalesOrderPaymentIntent } from '@/features/stripe/queries'
+import { useCancelPaymentIntent, useOrderPaymentIntent } from '@dorado/client'
 import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
 import { Button, Badge, Divider } from '@dorado/components'
 import { DetailRow } from '@/shared/ui/DetailRow'
 import { paymentMethodIcon, SalesOrderDrawerContentProps } from '@/features/orders/salesOrders/types'
-import { usePaymentMethods } from '@/features/payments/queries'
+import { usePaymentMethods } from '@dorado/client'
 
 const titleCase = (s: string) =>
   s
@@ -14,7 +14,7 @@ const titleCase = (s: string) =>
 export default function AdminPendingSalesOrder({ view }: SalesOrderDrawerContentProps) {
   const { order } = view
 
-  const { data: paymentIntent } = useGetSalesOrderPaymentIntent(order.id)
+  const { data: paymentIntent } = useOrderPaymentIntent(order.id)
   const cancelPaymentIntent = useCancelPaymentIntent(order.id)
 
   // details.type speaks the schema's vocabulary (CARD, ACH), not Stripe's -
