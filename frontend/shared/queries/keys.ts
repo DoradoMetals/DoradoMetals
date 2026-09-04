@@ -1,10 +1,4 @@
 import { ProductFilters } from '@/features/products/types'
-import {
-  ShipmentTrackingInput,
-  ShippingLocationsInput,
-  ShippingPickupTimesInput,
-  ShippingValidateAddressInput,
-} from '@/features/shipping/types'
 import { PlacesSuggestionsInput } from '@/features/addresses/types'
 
 export const queryKeys = {
@@ -47,22 +41,9 @@ export const queryKeys = {
   userAddressLinksFor: (userId: string) => ['address', 'links', userId] as const,
   places: (input: PlacesSuggestionsInput) => ['places', input] as const,
 
-  // Shipping
-  shippingPickupTimes: (input: ShippingPickupTimesInput) =>
-    ['shipping', 'pickup-times', input] as const,
-  shippingLocations: (input: ShippingLocationsInput) => ['shipping', 'locations', input] as const,
-  shippingValidateAddress: (input: ShippingValidateAddressInput) =>
-    ['shipping', 'validate-address', input] as const,
-  shippingCancelLabel: () => ['shipping', 'cancel-label'] as const,
-  shippingCancelPickup: () => ['shipping', 'cancel-pickup'] as const,
-
-  // THE CARRIER'S OWN VOCABULARY, WHICH THE FRONTEND NO LONGER SPELLS.
-  // Reference reads, cached like every other reference list: the components
-  // render `name` and map ids back. No carrier id in either key, because the
-  // server resolves which carrier it ships with.
-  carrierHandoffs: () => ['shipping', 'handoffs'] as const,
-  carrierServiceOptions: () => ['shipping', 'service-options'] as const,
-  saleShippingServices: () => ['shipping', 'sale-services'] as const,
+  // THE SHIPPING KEYS MOVED TO @dorado/client (src/keys.ts, `keys.shipping`
+  // and `keys.fulfillments`) with the hooks that own them - a key and the read
+  // it invalidates belong in one file.
   paymentMethods: (direction: string) => ['payments', 'methods', direction] as const,
 
   // Carriers
@@ -99,9 +80,6 @@ export const queryKeys = {
   salesOrders: () => ['salesOrders'] as const,
 
   // Sales Tax
-
-  // Shipments
-  shipmentTracking: (input: ShipmentTrackingInput) => ['shipmentTracking', input] as const,
 
   // Payment Intents
   paymentIntent: () => ['paymentIntent'] as const,

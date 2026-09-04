@@ -1,149 +1,109 @@
 import { cn } from '@/shared/utils/cn'
-import { ShipmentTracking } from '@/features/shipping/types'
 import { formatDateWithTimeInParens } from '@/shared/utils/formatDates'
 import { Skeleton } from '@dorado/components'
+import type { ShipmentView } from '@dorado/contracts'
 
-const MASTER_STAGES = ['Picked Up', 'In Transit', 'Out for Delivery', 'Delivered'] as const
+/* IT RENDERS THE TIMELINE, it no longer derives one. Forty lines of reasoning
+   about what a carrier's scans MEAN - which four stages a parcel passes
+   through, that "Label Created" is our own act and not the carrier's, that a
+   repeated status at a repeated place is one event, and which stages are still
+   ahead - lived in this component with no test. It is
+   api/domain/shipping/rules.ts `trackingTimeline` now, and it arrives on
+   ShipmentView.timeline already ordered, with `reached` saying which rungs are
+   solid.
 
-/* `background_color`, `borderColor` and `useStatusColor` are GONE. They were
+   `background_color`, `borderColor` and `useStatusColor` are GONE. They were
    appearance passed as props, which ruling 20 forbids, and all six call sites
-   resolved them to the same two values - four passed nothing, and the two admin
-   ones assigned `const baseBg = 'bg-primary'` a line above the call. Three
-   props, one appearance, zero callers disagreeing. */
+   resolved them to the same two values. */
+const STAGE_COUNT = 4
+
 export default function TrackingEvents({
   isLoading,
-  trackingInfo,
-  delivery_date,
-  shipping_status,
+  shipment,
 }: {
   isLoading: boolean
-  trackingInfo: ShipmentTracking | null | undefined
-  delivery_date?: string
-  shipping_status: string
+  shipment: ShipmentView | null | undefined
 }) {
-  const scanEvents = trackingInfo?.scan_events ?? []
+  const steps = shipment?.timeline ?? []
+  const delivery_date = shipment?.shipment.delivered_at ?? shipment?.shipment.est_delivery ?? null
 
-  const normalizedScanEvents = scanEvents
-    .filter((e) => e.status !== 'Label Created' && e.scan_time && e.status && e.location)
-    .sort((a, b) => new Date(b.scan_time).getTime() - new Date(a.scan_time).getTime())
-
-  const dedupedMap = new Map<string, (typeof normalizedScanEvents)[0]>()
-  for (const e of normalizedScanEvents) {
-    const key = `${e.status}-${e.location}`
-    if (!dedupedMap.has(key)) dedupedMap.set(key, e)
+  if (isLoading) {
+    return (
+      <div className="flex flex-col gap-5 w-full animate-pulse">
+        <div className="flex items-center justify-between w-full mb-4">
+          <Skeleton className="h-4 w-1/3 bg-card" />
+          <Skeleton className="h-4 w-1/6 bg-card" />
+        </div>
+        {/* A timeline, not prose - see the note in the order drawer's
+            InTransit: `flex` is what typography.css's layout-intent
+            exemption reads, and it is what this list actually is. */}
+        <ol className="relative ml-4 flex flex-col">
+          {Array.from({ length: STAGE_COUNT }, (_, i) => (
+            <li key={i} className="relative pl-6 pb-6 flex items-center">
+              <Skeleton className="absolute -left-[10px] h-5 w-5 rounded-full bg-card" />
+              <div className="flex-1 space-y-2">
+                <Skeleton className="h-3 w-1/4 bg-card" />
+                <Skeleton className="h-3 w-1/2 bg-card" />
+              </div>
+              <Skeleton className="h-3 w-16 ml-auto bg-card" />
+            </li>
+          ))}
+        </ol>
+      </div>
+    )
   }
-  const dedupedEvents = Array.from(dedupedMap.values())
-
-  const existingMasterStatuses = MASTER_STAGES.filter((stage) =>
-    dedupedEvents.some((e) => e.status === stage)
-  )
-
-  const missingStages = MASTER_STAGES.filter(
-    (stage, i) =>
-      !existingMasterStatuses.includes(stage) &&
-      !MASTER_STAGES.slice(i + 1).some((laterStage) => existingMasterStatuses.includes(laterStage))
-  ).map((stage, i) => ({
-    key: stage,
-    location: null,
-    date: null,
-    rawDate: new Date(Infinity),
-    active: false,
-    id: dedupedEvents.length + i,
-  }))
-
-  const steps = [
-    ...dedupedEvents.map((e, i) => ({
-      key: e.status,
-      location: e.location,
-      rawDate: new Date(e.scan_time),
-      date: formatDateWithTimeInParens(e.scan_time),
-      active: true,
-      id: i,
-    })),
-    ...missingStages.map((s) => ({
-      ...s,
-      rawDate: new Date(Infinity),
-    })),
-  ].sort((a, b) => {
-    const aTime = a.rawDate?.getTime() ?? 0
-    const bTime = b.rawDate?.getTime() ?? 0
-    return aTime - bTime
-  })
 
   return (
     <div className="flex flex-col gap-5 w-full">
-      {isLoading ? (
-        <div className="flex flex-col gap-5 w-full animate-pulse">
-          <div className="flex items-center justify-between w-full mb-4">
-            <Skeleton className="h-4 w-1/3 bg-card" />
-            <Skeleton className="h-4 w-1/6 bg-card" />
+      <div>
+        <div className="flex items-end justify-between w-full mb-8">
+          <div className="flex flex-col items-start">
+            <small>Tracking #:</small>
+            <strong className="stat-sm">{shipment?.shipment.tracking_number}</strong>
           </div>
-          {/* A timeline, not prose - see the note in the order drawer's
-              InTransit: `flex` is what typography.css's layout-intent
-              exemption reads, and it is what this list actually is. */}
-          <ol className="relative ml-4 flex flex-col">
-            {MASTER_STAGES.map((_, i) => (
-              <li key={i} className="relative pl-6 pb-6 flex items-center">
-                <Skeleton className="absolute -left-[10px] h-5 w-5 rounded-full bg-card" />
-                <div className="flex-1 space-y-2">
-                  <Skeleton className="h-3 w-1/4 bg-card" />
-                  <Skeleton className="h-3 w-1/2 bg-card" />
-                </div>
-                <Skeleton className="h-3 w-16 ml-auto bg-card" />
-              </li>
-            ))}
-          </ol>
+          <div className="flex flex-col items-end">
+            <small>
+              {delivery_date &&
+                `${shipment?.tracking_status === 'Delivered' ? 'Delivered' : 'ETA'}:`}
+            </small>
+            <strong className="stat-sm">
+              {delivery_date ? formatDateWithTimeInParens(delivery_date) : 'TBD'}
+            </strong>
+          </div>
         </div>
-      ) : (
-        <div>
-          <div className="flex items-end justify-between w-full mb-8">
-            <div className="flex flex-col items-start">
-              <small>Tracking #:</small>
-              <strong className="stat-sm">{trackingInfo?.tracking_number}</strong>
-            </div>
-            <div className="flex flex-col items-end">
-              <small>
-                {delivery_date && `${shipping_status === 'Delivered' ? 'Delivered' : 'ETA'}:`}
-              </small>
-              <strong className="stat-sm">
-                {delivery_date ? `${formatDateWithTimeInParens(delivery_date)}` : 'TBD'}
-              </strong>
-            </div>
-          </div>
 
-          {/* A timeline, not prose - see the note in the order drawer's
-              InTransit: `flex` is what typography.css's layout-intent
-              exemption reads, and it is what this list actually is. */}
-          <ol className="relative ml-4 flex flex-col">
-            {steps.map((step, i) => (
-              <li
-                key={step.id}
+        {/* A timeline, not prose - see above. */}
+        <ol className="relative ml-4 flex flex-col">
+          {steps.map((step, i) => (
+            <li
+              key={`${step.stage}-${step.location ?? i}`}
+              className={cn(
+                'relative pl-6 pb-6 flex justify-between items-start',
+                i < steps.length - 1 && 'border-l',
+                step.reached ? 'border-primary' : 'border-card'
+              )}
+            >
+              {/* The shadow is gone (ruling 27). A dot on a timeline needs no
+                  elevation; the fill is the whole signal. */}
+              <div
                 className={cn(
-                  'relative pl-6 pb-6 flex justify-between items-start',
-                  i < steps.length - 1 && 'border-l',
-                  step.active ? 'border-primary' : 'border-card'
+                  'absolute -left-[10px] w-5 h-5 rounded-full',
+                  step.reached ? 'bg-primary' : 'bg-card'
                 )}
-              >
-                {/* The shadow is gone (ruling 27). A dot on a timeline needs no
-                    elevation; the fill is the whole signal. */}
-                <div
-                  className={cn(
-                    'absolute -left-[10px] w-5 h-5 rounded-full',
-                    step.active ? 'bg-primary' : 'bg-card'
-                  )}
-                />
+              />
 
-                <div>
-                  <small>{step.key}</small>
-                  {step.location && <strong className="block">{step.location}</strong>}
-                </div>
+              <div>
+                <small>{step.stage}</small>
+                {step.location && <strong className="block">{step.location}</strong>}
+              </div>
 
-                <small className="ml-auto">{step.date}</small>
-              </li>
-            ))}
-          </ol>
-        </div>
-      )}
+              <small className="ml-auto">
+                {step.scan_time ? formatDateWithTimeInParens(step.scan_time) : null}
+              </small>
+            </li>
+          ))}
+        </ol>
+      </div>
     </div>
   )
 }

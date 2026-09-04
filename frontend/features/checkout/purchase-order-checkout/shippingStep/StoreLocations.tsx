@@ -2,13 +2,12 @@
 
 import { useEffect, useMemo, useState } from 'react'
 
-import { useShippingLocations } from '@/features/shipping/queries'
-import type { ShippingLocation, ShippingLocationsInput } from '@/features/shipping/types'
+import { useCarrierLocations } from '@dorado/client'
 
 import formatPhoneNumber from '@/shared/utils/formatPhoneNumber'
 import { formatPickupTime } from '@/shared/utils/formatDates'
 import { GoogleMapDisplay, MarkerType } from '@/shared/ui/GoogleMapDisplay'
-import type { Address } from '@dorado/contracts'
+import type { Address, CarrierLocation, ShippingGetLocationsBody } from '@dorado/contracts'
 
 export const StoreLocationsMap = ({ address }: { address?: Address }) => {
 
@@ -16,7 +15,7 @@ export const StoreLocationsMap = ({ address }: { address?: Address }) => {
   // 30179428-b311-4873-8d08-382901c581d8 with a `// TODO: source from store
   // when you add carrier selection` beside it; the API resolves the carrier it
   // ships with, which is where that decision belonged all along.
-  const input: ShippingLocationsInput | null = address
+  const input: ShippingGetLocationsBody | null = address
     ? {
         address_id: address.id,
         radius_miles: 50,
@@ -24,11 +23,12 @@ export const StoreLocationsMap = ({ address }: { address?: Address }) => {
       }
     : null
 
-  const { data } = useShippingLocations(input as any) // ideally update hook to accept null (see note below)
+  // null means "do not ask" - the hook's own `enabled` reads it.
+  const { data } = useCarrierLocations(input)
 
   const [selectedId, setSelectedId] = useState<string | null>(null)
 
-  const selected: ShippingLocation | null = useMemo(() => {
+  const selected: CarrierLocation | null = useMemo(() => {
     if (!data?.locations?.length) return null
     return data.locations.find((loc) => loc.locationId === selectedId) ?? data.locations[0]
   }, [data?.locations, selectedId])
@@ -102,15 +102,26 @@ export const StoreLocationsMap = ({ address }: { address?: Address }) => {
   }, [data?.matchedAddressGeoCoord, icons.userIcon])
 
   const markers: MarkerType[] = useMemo(() => {
-    return (data?.locations ?? []).map((loc) => ({
-      id: loc.locationId,
-      position: {
-        lat: loc.geoPositionalCoordinates.latitude,
-        lng: loc.geoPositionalCoordinates.longitude,
-      },
-      icon: selected?.locationId === loc.locationId ? icons.selectedIcon : icons.defaultIcon,
-      title: loc.contact?.companyName || 'FedEx Location',
-    }))
+    // A location the carrier gave no coordinates for cannot be a marker; the
+    // contract says the field is nullable and the map needs a point.
+    return (data?.locations ?? []).flatMap((loc) =>
+      loc.geoPositionalCoordinates
+        ? [
+            {
+              id: loc.locationId,
+              position: {
+                lat: loc.geoPositionalCoordinates.latitude,
+                lng: loc.geoPositionalCoordinates.longitude,
+              },
+              icon:
+                selected?.locationId === loc.locationId
+                  ? icons.selectedIcon
+                  : icons.defaultIcon,
+              title: loc.contact?.companyName || 'FedEx Location',
+            },
+          ]
+        : []
+    )
   }, [data?.locations, icons.defaultIcon, icons.selectedIcon, selected?.locationId])
 
   return (
@@ -140,7 +151,7 @@ export const StoreLocationsMap = ({ address }: { address?: Address }) => {
   )
 }
 
-function ShippingLocationDetailsCard({ selected }: { selected: ShippingLocation }) {
+function ShippingLocationDetailsCard({ selected }: { selected: CarrierLocation }) {
   const today = new Date().toLocaleDateString('en-US', { weekday: 'long' }).toUpperCase()
   const todayHours = selected.operatingHours?.[today]
 

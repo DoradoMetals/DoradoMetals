@@ -26,6 +26,17 @@ import { FulfillmentMethod } from "./methods.js";
 // client maps by method_id off GET /fulfillments/methods - and no resolved
 // children: the shipment, pickup and direct reads are their own parent-path
 // endpoints.
+// THE COLUMNS A WRITE MAY TOUCH, and the only list of them: db/fulfillments/
+// repo.ts derives its PATCHABLE from these keys rather than spelling a second
+// one (ruling 64). `id` is the WHERE key and the audit columns are the
+// trigger's, so neither is here.
+export const FulfillmentPatch = Fulfillment.pick({
+  method_id: true,
+  order_id: true,
+  status: true,
+}).partial();
+export type FulfillmentPatch = z.infer<typeof FulfillmentPatch>;
+
 export const FulfillmentSetMethodBody = z.object({
   fulfillment_id: Fulfillment.shape.id,
   method_id: FulfillmentMethod.shape.id,

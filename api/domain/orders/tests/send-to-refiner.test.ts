@@ -198,7 +198,7 @@ test("those three writes are visible to the assertion that says they did not hap
     const engagementId = await refinerService.engagementIdFor(withAddress.id, client);
     await refinerOrders.update(engagementId, { refiner_id: supplier.id }, client);
     await shipmentRepo.create(
-      { order_id: withAddress.id, type: "Outbound" },
+      { order_id: withAddress.id, direction: "Outbound" },
       client
     );
     await ordersRepo.update(withAddress.id, { order_sent: true }, {}, client);
@@ -232,7 +232,7 @@ test("nothing this file did survived the transaction", async () => {
     const supplier = { id: await refinerNamed(c, "Elemetal") };
     const engagementId = await refinerService.engagementIdFor(order.id, c);
     await refinerOrders.update(engagementId, { refiner_id: supplier.id }, c);
-    await shipmentRepo.create({ order_id: order.id, type: "Outbound" }, c);
+    await shipmentRepo.create({ order_id: order.id, direction: "Outbound" }, c);
     await ordersRepo.update(order.id, { order_sent: true }, {}, c);
   }, { actor: TEST_ACTOR.id, lock: LOCKS.ORDERS });
 

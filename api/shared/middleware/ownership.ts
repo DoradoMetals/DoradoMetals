@@ -104,7 +104,12 @@ export function requireOwnShipment(req: Request, res: Response, next: NextFuncti
   }
   if (req.user.role === "admin") return next();
 
-  const shipmentId = req.body?.shipment_id ?? req.query?.shipment_id ?? null;
+  // The id arrives three ways: in a body (POST /shipping/get_tracking), as a
+  // query string, or as the path segment of GET /api/shipments/:id.
+  const rawParam = req.params?.id;
+  const shipmentId =
+    req.body?.shipment_id ?? req.query?.shipment_id ??
+    (Array.isArray(rawParam) ? rawParam[0] : rawParam) ?? null;
   if (!shipmentId) {
     return res.status(400).json({
       error: "Bad Request",

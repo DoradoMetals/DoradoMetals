@@ -354,11 +354,11 @@ export async function cancel(
 
     let id = existing?.id;
     if (!id) {
-      const shipment = await shipmentService.create({ order_id, type: "Return" }, tx);
+      const shipment = await shipmentService.create({ order_id, direction: "Return" }, tx);
       if (!shipment) throw new Error("the return shipment was not created");
       id = shipment.id;
     }
-    await shipmentService.patch(
+    await shipmentService.update(
       id, { package_id, carrier_service_id, insured, declared_value: insured ? declaredValue : null }, tx
     );
     return id;
@@ -368,7 +368,7 @@ export async function cancel(
   // leaves it standing - never voided, because voiding a billed label does
   // not un-bill it.
   const { tracking_number, label } = await buy(service.carrier_id, request);
-  await withTransaction((tx) => shipmentService.patch(shipment_id, {
+  await withTransaction((tx) => shipmentService.update(shipment_id, {
     tracking_number, label, label_type: "Generated", shipping_status: "Label Created",
   }, tx));
 
@@ -449,7 +449,7 @@ export async function sendToRefiner(
             `transaction must not commit`
         );
       }
-      await shipmentService.create({ order_id, type: "Outbound" }, tx);
+      await shipmentService.create({ order_id, direction: "Outbound" }, tx);
       await ordersRepo.update(order_id, { order_sent: true }, {}, tx);
     });
   }
@@ -473,7 +473,7 @@ export async function updateTracking(
   if (!shipment) throw new NotFound(`order ${order_id} has no shipment to track`);
 
   await withTransaction(async (tx) => {
-    await shipmentService.patch(shipment.id, { tracking_number }, tx);
+    await shipmentService.update(shipment.id, { tracking_number }, tx);
     await ordersRepo.update(order_id, { tracking_updated: true }, {}, tx);
   });
   return { success: true };

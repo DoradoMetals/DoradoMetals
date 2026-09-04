@@ -1,18 +1,23 @@
 import express from "express";
 
-import { patchShipment, getPickupsByShipment } from "#transport/shipping/shipments/controller.ts";
-import { requireAdmin } from "#shared/middleware/authMiddleware.ts";
+import { getShipment, patchShipment } from "#transport/shipping/shipments/controller.ts";
+import { requireAdmin, requireUser } from "#shared/middleware/authMiddleware.ts";
+import { requireOwnShipment } from "#shared/middleware/ownership.ts";
 
 const router = express.Router();
 
+// ONE PARCEL, WHOLE. Owner-or-admin: a customer watching their own metal move
+// reads the same view the admin drawer does, minus the admin-only actions the
+// view itself withholds.
+router.get("/:id", requireUser, requireOwnShipment, getShipment);
+
 // A PARCEL's money and tracking, addressed by the shipment id the order wire
-// serves (order.shipment.id). Admin-only - these figures decide what the
-// business paid to move metal and what the customer is told about it.
+// serves. Admin-only - these figures decide what the business paid to move
+// metal and what the customer is told about it.
 router.patch("/:id", requireAdmin, patchShipment);
 
-// The carrier pickups booked against this parcel - the shipment is their
-// parent (shipping.pickups.shipment_id), so this is where they are
-// addressed. Admin-only: a pickup booking is operational.
-router.get("/:id/pickups", requireAdmin, getPickupsByShipment);
+// GET /:id/pickups is GONE: the carrier booking is a member of the view above
+// (`carrier_pickup`), which is the only thing every caller of that endpoint
+// ever read of it.
 
 export default router;

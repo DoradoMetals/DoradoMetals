@@ -4,7 +4,7 @@ import * as shipmentsService from "#domain/shipping/shipments/service.ts";
 import * as orderTransactions from "#domain/orders/transactions/service.ts";
 import { updateTracking } from "#domain/orders/service.ts";
 import withTransaction from "#shared/db/withTransaction.ts";
-import { Invalid, NotFound } from "#shared/errors.ts";
+import * as rules from "#domain/shipping/rules.ts";
 import type { ShipmentPatch } from "@dorado/contracts";
 
 // shipping_charge is `number`, not nullable - a cleared charge was never distinguishable from a zero one (every reader does `?? 0`), so a null capability was a second spelling of 0.
@@ -14,17 +14,11 @@ export async function patchShipment(
   shipmentId: string,
   body: ShipmentPatch
 ): Promise<{ success: true }> {
-  if (Object.keys(body).length === 0) {
-    throw new Invalid("the document names no field to write");
-  }
-  // The tracking pair travels together: a number with no carrier (or the
-  // reverse) is half a write.
-  if ((body.tracking_number === undefined) !== (body.carrier_id === undefined)) {
-    throw new Invalid(`"tracking_number" and "carrier_id" travel together`);
-  }
+  rules.assertPatchNamesAField(body);
+  rules.assertTrackingPair(body.tracking_number, body.carrier_id);
 
   const shipment = await shipmentsService.getById(shipmentId);
-  if (!shipment) throw new NotFound(`no shipment ${shipmentId}`);
+  rules.assertShipment(shipment, shipmentId);
 
   // The row carries no order id - which order this shipment belongs to, and its direction, is resolution rather than shape.
   const link = await shipmentsService.getOrderLink(shipmentId);
@@ -33,9 +27,7 @@ export async function patchShipment(
 
   if (body.shipping_charge !== undefined) {
     const orderId = purchaseOrderId ?? salesOrderId;
-    if (!orderId) {
-      throw new Invalid(`shipment ${shipmentId} belongs to no order, so it has no charge to edit`);
-    }
+    rules.assertChargeableOrder(orderId, shipmentId);
     const charge = body.shipping_charge;
     // shipping.shipments belongs to this feature, so the charge is written
     // through its own service rather than through orders.
@@ -43,17 +35,13 @@ export async function patchShipment(
   }
 
   if (body.shipping_actual !== undefined) {
-    if (!purchaseOrderId) {
-      throw new Invalid(`shipment ${shipmentId} has no purchase order to record an actual cost on`);
-    }
+    rules.assertPurchaseOrder(purchaseOrderId, shipmentId);
     // orders.transactions.shipping_fee_actual, through that table's one update.
     await orderTransactions.update(purchaseOrderId!, { shipping_fee_actual: body.shipping_actual });
   }
 
   if (body.tracking_number !== undefined) {
-    if (!salesOrderId) {
-      throw new Invalid(`shipment ${shipmentId} has no sales order - tracking is recorded on sales-order shipments`);
-    }
+    rules.assertSalesOrder(salesOrderId, shipmentId);
     // `carrier_id` names nothing this table stores directly - it always
     // resolved to carrier_service_id through a service NAME, which this write
     // does not change - so it is not passed on.

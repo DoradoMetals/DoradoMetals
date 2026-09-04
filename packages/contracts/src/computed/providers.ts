@@ -123,3 +123,60 @@ export const CheckoutRate = CarrierRateQuote.extend({
   selected: z.boolean(),
 });
 export type CheckoutRate = z.infer<typeof CheckoutRate>;
+
+// ============================================================================
+// WHAT A CARRIER SAYS WHEN ASKED ABOUT A PLACE OR A DATE.
+// ============================================================================
+//
+// Neither is stored and neither has a table: they are the provider adapter's
+// parse of somebody else's payload (api/providers/shipments/utils/parsing.ts),
+// which is exactly the computed exception. They were declared by hand in
+// `frontend/features/shipping/types.ts` - the browser's own copy of a shape it
+// does not control - and that file is gone.
+
+// One collection window the carrier will honour: a date, and the ready times
+// on it that have not already passed. A date with no times left is dropped by
+// the parser, so an entry here is always offerable.
+export const CarrierPickupWindow = z.object({
+  pickupDate: z.string(),
+  times: z.array(z.string()),
+});
+export type CarrierPickupWindow = z.infer<typeof CarrierPickupWindow>;
+
+// A drop-off point. `operatingHours` is keyed by upper-case day name with a
+// "begins - ends" string, or "Closed"; absent when the carrier sent no hours,
+// which is different from closed every day.
+export const CarrierLocation = z.object({
+  locationId: z.string(),
+  locationType: z.string(),
+  distance: z.object({
+    value: z.number().nullable(),
+    units: z.string(),
+  }),
+  address: z.object({
+    streetLines: z.array(z.string()),
+    city: z.string(),
+    stateOrProvinceCode: z.string(),
+    postalCode: z.string(),
+    countryCode: z.string(),
+  }),
+  contact: z.object({
+    companyName: z.string(),
+    phoneNumber: z.string(),
+  }),
+  operatingHours: z.record(z.string(), z.string()).optional(),
+  geoPositionalCoordinates: z
+    .object({ latitude: z.number(), longitude: z.number() })
+    .nullable(),
+});
+export type CarrierLocation = z.infer<typeof CarrierLocation>;
+
+// The answer to "where can I drop this off near here": the geocode the carrier
+// matched the address to, and the points around it.
+export const CarrierLocations = z.object({
+  matchedAddressGeoCoord: z
+    .object({ latitude: z.number(), longitude: z.number() })
+    .optional(),
+  locations: z.array(CarrierLocation),
+});
+export type CarrierLocations = z.infer<typeof CarrierLocations>;

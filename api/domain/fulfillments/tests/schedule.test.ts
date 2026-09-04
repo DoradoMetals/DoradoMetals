@@ -78,7 +78,7 @@ test("methods/update writes the method's flags", async () => {
 
       const res = await request(app)
         .post("/api/fulfillments/methods/update")
-        .send({ method: { id: pickupMethodId, hidden: flipped } });
+        .send({ id: pickupMethodId, method: { hidden: flipped } });
 
       assert.equal(res.status, 200, `answered ${res.status}: ${JSON.stringify(res.body)}`);
 
@@ -138,8 +138,8 @@ test("schedule_direct books the appointment", async () => {
       const res = await request(app)
         .post("/api/fulfillments/schedule_direct")
         .send({
+          fulfillment_id: directFulfilment.id,
           direct: {
-            fulfillment_id: directFulfilment.id,
             location_id: locationId,
             is_appointment: true,
             start_time: "2026-09-01T15:00:00.000Z",
@@ -168,11 +168,8 @@ test("cancel_schedule removes the booking", async () => {
       await request(app)
         .post("/api/fulfillments/schedule_direct")
         .send({
-          direct: {
-            fulfillment_id: directFulfilment.id,
-            location_id: locationId,
-            is_appointment: true,
-          },
+          fulfillment_id: directFulfilment.id,
+          direct: { location_id: locationId, is_appointment: true },
         });
 
       const booked = await client.query(
@@ -215,8 +212,8 @@ test("schedule_pickup books once the fulfillment is moved onto a PICKUP method",
       const res = await request(app)
         .post("/api/fulfillments/schedule_pickup")
         .send({
+          fulfillment_id: directFulfilment.id,
           pickup: {
-            fulfillment_id: directFulfilment.id,
             pickup_address_id: address.id,
             start_time: "2026-09-02T14:00:00.000Z",
             end_time: "2026-09-02T16:00:00.000Z",

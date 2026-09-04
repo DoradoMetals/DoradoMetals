@@ -1,7 +1,7 @@
 import { Divider, Button, Input, Checkbox, Field } from '@dorado/components'
 import { outboundOf } from '@/features/shipping/queries'
 import { usePatchShipment } from '@/features/shipping/queries'
-import { usePatchPayout } from '@dorado/client'
+import { useOrderShipments, usePatchPayout } from '@dorado/client'
 import type { OrderItem, OrderItemPatch, SpotPrice } from "@dorado/contracts";
 import type { NamedScrapItem } from '@/features/orders/display'
 import { cn } from '@/shared/utils/cn'
@@ -55,7 +55,8 @@ export default function AdminReceivedPurchaseOrder({ view }: PurchaseOrderDrawer
   // three, and each line carries its own `payable` and `line_total` besides.
   const { items } = view
   const { data: catalogue = [] } = useProducts()
-  const shipment = outboundOf(view.shipments)
+  const { data: shipments = [] } = useOrderShipments(order.id)
+  const shipment = outboundOf(shipments)
   const payout = view.payout
 
   // bullion_id is the discriminator - null means scrap.
@@ -171,12 +172,11 @@ export default function AdminReceivedPurchaseOrder({ view }: PurchaseOrderDrawer
                 type="number"
                 pattern="[0-9]*"
                 inputClassName={cn('text-right h-8')}
-                defaultValue={shipment?.cost ?? 0}
+                defaultValue={shipment?.shipment.cost ?? 0}
                 onBlur={(e) => {
-                  if (!shipment?.id) return
+                  if (!shipment?.shipment.id) return
                   patchShipment.mutate({
-                    shipment_id: shipment.id,
-                    order_id: order.id,
+                    shipment_id: shipment.shipment.id,
                     patch: { shipping_charge: Number(e.target.value) },
                   })
                 }}

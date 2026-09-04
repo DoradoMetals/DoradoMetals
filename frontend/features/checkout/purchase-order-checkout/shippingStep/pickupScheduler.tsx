@@ -1,8 +1,7 @@
 'use client'
 
 import { Calendar, ScrollArea, Button } from '@dorado/components'
-import type { CheckoutView } from '@dorado/contracts'
-import type { ShippingPickupTimes } from '@/features/shipping/types'
+import type { CarrierPickupWindow, CheckoutView } from '@dorado/contracts'
 import { parseISO } from 'date-fns'
 import { usePatchCheckout } from '@/features/checkout/queries'
 
@@ -25,7 +24,7 @@ export default function PickupScheduler({
   times,
   row,
 }: {
-  times: ShippingPickupTimes[]
+  times: CarrierPickupWindow[]
   row?: CheckoutView
 }) {
   const patchCheckout = usePatchCheckout('purchase')

@@ -1,5 +1,5 @@
 import { SalesOrderDrawerContentProps } from '@/features/orders/salesOrders/types'
-import { useSaleShippingServices } from '@/features/shipping/queries'
+import { useSaleShippingServices } from '@dorado/client'
 import { transitLabel } from '@/features/orders/salesOrders/types'
 import { AnimatedScroll } from '@/features/orders/ui/Animated'
 import { BlurredStagger } from '@/shared/ui/BlurredStagger'

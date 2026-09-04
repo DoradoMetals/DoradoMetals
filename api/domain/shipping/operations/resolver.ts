@@ -2,6 +2,7 @@ import * as carriersService from "#domain/shipping/carriers/service.ts";
 import { PROVIDERS } from "#domain/shipping/operations/registry.ts";
 import { BUILDERS } from "#domain/shipping/operations/builders.ts";
 import { CATALOGUES } from "#domain/shipping/operations/catalogues.ts";
+import * as rules from "#domain/shipping/rules.ts";
 import type { Executor } from "#shared/db/executor.ts";
 
 function normalizeCarrierCode(name: string | null | undefined): string {
@@ -30,9 +31,9 @@ export async function resolveCarrier(carrier_id: string, client?: Executor) {
   const builders = BUILDERS[code as ProviderCode];
   const catalogue = CATALOGUES[code as ProviderCode];
 
-  if (!provider) throw new Error(`Unsupported carrier: ${code}`);
-  if (!builders) throw new Error(`No builders registered for carrier: ${code}`);
-  if (!catalogue) throw new Error(`No catalogue registered for carrier: ${code}`);
+  rules.assertProvider(provider, code);
+  rules.assertBuilders(builders, code);
+  rules.assertCatalogue(catalogue, code);
 
   return { code, provider, builders, catalogue };
 }
@@ -45,16 +46,9 @@ export async function resolveShippingCarrierId(client?: Executor): Promise<strin
     (c) => normalizeCarrierCode(c.organization?.name) in PROVIDERS
   );
 
-  if (shippable.length === 0) {
-    throw new Error("No carrier has a shipping provider registered");
-  }
-  if (shippable.length > 1) {
-    const names = shippable.map((c) => c.organization?.name ?? c.id).join(", ");
-    throw new Error(
-      `More than one carrier has a shipping provider registered (${names}) - ` +
-        `the caller must say which one`
-    );
-  }
+  rules.assertOneShippableCarrier(
+    shippable.map((c) => ({ name: c.organization?.name ?? c.id }))
+  );
 
   return shippable[0].id;
 }

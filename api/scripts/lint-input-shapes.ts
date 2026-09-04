@@ -36,26 +36,6 @@ const CONTRACTS_ROOT = path.join(ROOT, "packages", "contracts", "src");
 // SIDES like lint-type-homes' ACCEPTED: an entry matching nothing is reported
 // and must be removed.
 const ACCEPTED: Record<string, string> = {
-  "ShipmentCreate.type": "the wire's shipment TYPE (Inbound/Outbound/Return), " +
-    "renamed to shipping.shipments.direction inside create().",
-  "ShipmentCreate.order_id": "resolved to the order's fulfillment " +
-    "(orders.directionOf + fulfillmentService.chooseDefault) - a shipment " +
-    "carries no order reference of its own.",
-
-  "CarrierInput.organization": "a nested form object, unpacked field-by-field " +
-    "into organizations.create/update - not itself a column.",
-
-  "PickupInput.order_id": "an id the service resolves - shipmentFor(order_id) " +
-    "finds the shipment_id the row is actually keyed on.",
-  "PickupInput.pickup_requested_at": "combined with date/time into requested_at.",
-  "PickupInput.date": "combined with time into requested_at.",
-  "PickupInput.time": "combined with date into requested_at.",
-  "PickupInput.pickup_status": "renamed to shipping.pickups.status.",
-  "PickupInput.carrier": "GENUINE DEAD FIELD, found by this lint: read by " +
-    "nothing in domain/shipping/pickups/service.ts. Pre-existing, outside " +
-    "this lane's mandate (FOLLOWUPS 2026-09-03) - tracked for removal.",
-  "PickupInput.user_id": "GENUINE DEAD FIELD, same as .carrier above.",
-
   // Every builder but transactions.ts predates this check and keeps a local
   // Options type - pre-existing, out of this lane's mandate (order-id,
   // 2026-09-03). Not touched here; fix each when its own lane is touched.

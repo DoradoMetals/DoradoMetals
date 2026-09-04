@@ -2,8 +2,7 @@ import { useMutation } from '@tanstack/react-query'
 import { usePlaceOrder } from '@dorado/client'
 import { apiRequest } from '@/shared/queries/axios'
 import { useBasket, useReplaceCheckoutItems } from '@/features/checkout/items/queries'
-import { usePaymentMethods } from '@dorado/client'
-import { useSaleShippingServices } from '@/features/shipping/queries'
+import { usePaymentMethods, useSaleShippingServices } from '@dorado/client'
 import type { SaleCheckoutForm } from '@/features/orders/salesOrders/types'
 
 // THE READS MOVED to @dorado/client - `useOrders({ direction: 'sale',

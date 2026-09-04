@@ -13,6 +13,18 @@ import type { ReactNode } from "react";
 import { PurchaseOrderQuoteBody, SalesOrderQuoteBody } from "@dorado/contracts";
 
 vi.mock("@/shared/queries/axios", () => ({ apiRequest: vi.fn() }));
+// `useSaleShippingServices` moved to @dorado/client, which talks to the
+// platform's `fetch` rather than the axios wrapper this file stubs. The hook
+// is mocked with the same row the stub used to answer with, so the assertions
+// below are unchanged.
+vi.mock("@dorado/client", async (importOriginal) => ({
+  ...(await importOriginal<Record<string, unknown>>()),
+  useSaleShippingServices: () => ({
+    data: [{ id: SALE_SERVICE_ID, code: "STANDARD" }],
+    isSuccess: true,
+  }),
+}));
+
 vi.mock("@/features/auth/queries", () => ({
   useGetSession: () => ({ user: { id: "u-customer", role: "customer" } }),
 }));

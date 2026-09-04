@@ -24,7 +24,7 @@ test("POST /fulfillments/methods/update refuses an unknown key", async () => {
   await asAdmin(async () => {
     const res = await request(app)
       .post("/api/fulfillments/methods/update")
-      .send({ method: { id: ID, label: "New", category: "SHIPMENT" } });
+      .send({ id: ID, method: { label: "New", category: "SHIPMENT" } });
     assert.equal(res.status, 400, JSON.stringify(res.body));
     assert.match(res.body?.error?.message ?? "", /category/);
   });
@@ -34,7 +34,7 @@ test("POST /fulfillments/methods/update refuses a wrong type", async () => {
   await asAdmin(async () => {
     const res = await request(app)
       .post("/api/fulfillments/methods/update")
-      .send({ method: { id: ID, enabled: "yes" } });
+      .send({ id: ID, method: { enabled: "yes" } });
     assert.equal(res.status, 400, JSON.stringify(res.body));
   });
 });
@@ -79,7 +79,7 @@ test("POST /fulfillments/schedule_pickup refuses an unknown key", async () => {
   await asAdmin(async () => {
     const res = await request(app)
       .post("/api/fulfillments/schedule_pickup")
-      .send({ pickup: { fulfillment_id: ID, pickup_address_id: ID, notes: "leave at door" } });
+      .send({ fulfillment_id: ID, pickup: { pickup_address_id: ID, notes: "leave at door" } });
     assert.equal(res.status, 400, JSON.stringify(res.body));
     assert.match(res.body?.error?.message ?? "", /notes/);
   });
@@ -89,7 +89,7 @@ test("POST /fulfillments/schedule_pickup refuses a wrong type", async () => {
   await asAdmin(async () => {
     const res = await request(app)
       .post("/api/fulfillments/schedule_pickup")
-      .send({ pickup: { fulfillment_id: ID, pickup_address_id: 12345 } });
+      .send({ fulfillment_id: ID, pickup: { pickup_address_id: 12345 } });
     assert.equal(res.status, 400, JSON.stringify(res.body));
   });
 });
@@ -98,7 +98,7 @@ test("POST /fulfillments/schedule_direct refuses an unknown key", async () => {
   await asAdmin(async () => {
     const res = await request(app)
       .post("/api/fulfillments/schedule_direct")
-      .send({ direct: { fulfillment_id: ID, location_id: ID, walk_in: true } });
+      .send({ fulfillment_id: ID, direct: { location_id: ID, walk_in: true } });
     assert.equal(res.status, 400, JSON.stringify(res.body));
     assert.match(res.body?.error?.message ?? "", /walk_in/);
   });
@@ -108,7 +108,7 @@ test("POST /fulfillments/schedule_direct refuses a wrong type", async () => {
   await asAdmin(async () => {
     const res = await request(app)
       .post("/api/fulfillments/schedule_direct")
-      .send({ direct: { fulfillment_id: ID, location_id: ID, is_appointment: "yes" } });
+      .send({ fulfillment_id: ID, direct: { location_id: ID, is_appointment: "yes" } });
     assert.equal(res.status, 400, JSON.stringify(res.body));
   });
 });

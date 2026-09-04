@@ -16,8 +16,15 @@ export const FulfillmentDirect = z.object({
 });
 export type FulfillmentDirect = z.infer<typeof FulfillmentDirect>;
 // generated:end
-// POST /fulfillments/schedule_direct - the booking's own columns, all
-// optional; the id is the service's to issue.
+// The booking's own columns, all optional; the id is the service's to issue.
 export const FulfillmentDirectPatch = FulfillmentDirect.omit({ id: true }).partial();
 export type FulfillmentDirectPatch = z.infer<typeof FulfillmentDirectPatch>;
+
+// POST /fulfillments/schedule_direct - the fulfillment named ONCE, at the top
+// level, and the appointment beside it (ruling 43).
+export const FulfillmentScheduleDirectBody = z.object({
+  fulfillment_id: FulfillmentDirect.shape.fulfillment_id,
+  direct: FulfillmentDirectPatch.omit({ fulfillment_id: true }).strict(),
+}).strict();
+export type FulfillmentScheduleDirectBody = z.infer<typeof FulfillmentScheduleDirectBody>;
 

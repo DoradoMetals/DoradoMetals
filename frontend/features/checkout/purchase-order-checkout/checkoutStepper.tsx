@@ -17,7 +17,7 @@ import {
 
 import { useGetSession } from '@/features/auth/queries'
 import { useBasket } from '@/features/checkout/items/queries'
-import { useCarrierHandoffs } from '@/features/shipping/queries'
+import { useCarrierHandoffs } from '@dorado/client'
 import {
   useCheckoutRates,
   usePurchaseCheckoutRow,

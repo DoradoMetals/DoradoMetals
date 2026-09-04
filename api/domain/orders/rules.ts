@@ -20,12 +20,12 @@ import type { OrderLine as CheckoutLine } from "#db/checkout/items/repo.ts";
 import type { AddressRow } from "#db/places/addresses/repo.ts";
 import type { PackageRow } from "#db/shipping/packages/repo.ts";
 import type { MethodRow as PaymentMethodRow } from "#db/payments/methods/repo.ts";
-import type { ComposedFulfillment } from "#domain/fulfillments/compose.ts";
 import type { LabelService } from "#domain/shipping/services/service.ts";
 import type { StorefrontProduct } from "#domain/products/compose.ts";
 import type { OrderPrices, Spots } from "#domain/pricing/ask.ts";
 import type {
-  BullionPublic, CarrierHandoff, Direction, OrderActions, OrderItemPatch, OrderView,
+  BullionPublic, CarrierHandoff, Direction, FulfillmentView, OrderActions, OrderItemPatch,
+  OrderView,
 } from "@dorado/contracts";
 
 // Type-only re-exports, erased at runtime: this file still needs no database.
@@ -370,9 +370,9 @@ export function requireAddress(row: AddressRow | undefined, what: string): Addre
 
 // THE DRAFT THE STEPPER MUTATED, and the two things that must still be true of
 // it: nobody else's order has taken it, and it is still a parcel.
-export function requireFreeShipmentDraft(draft: ComposedFulfillment | null): ComposedFulfillment {
+export function requireFreeShipmentDraft(draft: FulfillmentView | null): FulfillmentView {
   if (!draft) throw new Invalid("the checkout names a fulfillment that does not exist");
-  if (draft.order_id) {
+  if (draft.fulfillment.order_id) {
     throw new Conflict(
       "the checkout's fulfillment already belongs to an order - refresh and start again"
     );

@@ -55,3 +55,12 @@ export const FulfillmentMethodPatch = FulfillmentMethod.pick({
 }).partial();
 export type FulfillmentMethodPatch = z.infer<typeof FulfillmentMethodPatch>;
 
+// POST /fulfillments/methods/update - the row named ONCE by id, and the
+// columns beside it (ruling 43). The id used to be extended onto the patch
+// itself, where it read as a column being written.
+export const FulfillmentMethodUpdateBody = z.object({
+  id: FulfillmentMethod.shape.id,
+  method: FulfillmentMethodPatch.strict(),
+}).strict();
+export type FulfillmentMethodUpdateBody = z.infer<typeof FulfillmentMethodUpdateBody>;
+

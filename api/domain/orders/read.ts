@@ -28,7 +28,7 @@ import * as payoutsRepo from "#db/payouts/repo.ts";
 import * as usersRepo from "#db/users/repo.ts";
 import * as transactions from "#domain/orders/transactions/service.ts";
 import * as rules from "#domain/orders/rules.ts";
-import * as shipmentOrderRead from "#domain/shipping/shipments/order-read.ts";
+import * as shipmentsRepo from "#db/shipping/shipments/repo.ts";
 import * as pickupService from "#domain/shipping/pickups/service.ts";
 import type { OrderRow } from "#db/orders/repo.ts";
 import type { OrderItemRow } from "#db/orders/items/repo.ts";
@@ -105,7 +105,7 @@ export async function view(
   const address = addressLink
     ? ((await placeAddresses.getOne(addressLink.address_id, executor)) ?? null)
     : null;
-  const shipments = await shipmentOrderRead.getForOrder(order_id, executor);
+  const shipments = await shipmentsRepo.getForOrder(order_id, executor);
   const payout = (await payoutsRepo.getFor(order_id, executor)) ?? null;
 
   return {

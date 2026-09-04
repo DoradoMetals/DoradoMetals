@@ -169,10 +169,9 @@ if (!ledgerUser) {
 // feature is new capability rather than migrated data, and the only shape it
 // has ever had is the one below. That also means these are the endpoints where
 // a contract is worth the most: nothing else is checking them.
-// Fulfillments is restructured. The SERVICE, not the repos - through the
-// same toWire the controllers use, because since the wave-2 final form the
-// wire is the BARE fulfillments row: the composed shape (method + children)
-// is internal to the service and must never reach a response.
+// Fulfillments is restructured. The SERVICE, not the repos - and the wire is
+// the FulfillmentView: the row, its method, its children and what may be done
+// to it, which is what every caller now reads.
 const fulfillments = await import("#domain/fulfillments/service.ts");
 const fulfillmentMethods = await import("#db/fulfillments/methods/repo.ts");
 
@@ -186,23 +185,9 @@ add("GET /fulfillments/methods/all", c.FulfillmentMethodRead, () =>
   fulfillmentMethods.getAll()
 );
 
-// Every fulfillment dev holds, read the way the ROUTE reads one: through
-// toWire, which strips the internal composition (the method object the
-// service's own logic branches on, and the child rows) down to the BARE
-// fulfillments.fulfillments row the contract declares (wave-2 final form).
-const fulfillmentCompose = await import("#domain/fulfillments/compose.ts");
-add("GET /fulfillments/get_for_order", c.Fulfillment, async () => {
-  const { rows } = await pool.query(`SELECT order_id FROM fulfillments.fulfillments`);
-  const out = [];
-  for (const r of rows) out.push(await fulfillments.getForOrder(r.order_id, { isAdmin: true }));
-  // `filter(Boolean)` reads as a narrowing and is not one: TypeScript keeps the
-  // null in the element type, so `.map(toWire)` was destructuring a value the
-  // compiler knew could be null. The predicate makes the narrowing real.
-  return out.filter((f): f is NonNullable<typeof f> => f != null).map(fulfillmentCompose.toWire);
-});
-
-add("GET /fulfillments/schedule", c.Fulfillment, async () =>
-  (await fulfillments.getSchedule()).map(fulfillmentCompose.toWire)
+// Everyone due somewhere. The composed view, `actions` included.
+add("GET /fulfillments/schedule", c.FulfillmentView, async () =>
+  await fulfillments.getSchedule()
 );
 
 // The one payments response that is a repo row rather than a Stripe object or a
@@ -296,14 +281,15 @@ add("GET /orders/:orderId/refiners/spots", c.RefinerSpot, async () => {
   );
   return lists.filter(Boolean).flat();
 });
-const orderFulfillmentRead = await import("#domain/fulfillments/order-read.ts");
 // The two bookings are their own resources (ruling 26c) - each read lives with
 // the table it returns.
 const fulfillmentPickups = await import("#domain/fulfillments/pickups/service.ts");
 const fulfillmentDirects = await import("#domain/fulfillments/directs/service.ts");
-add("GET /orders/:orderId/fulfillments", c.Fulfillment, async () => {
+// THE ONE fulfillment read now: the query-string twin is gone and this answers
+// the whole view.
+add("GET /orders/:orderId/fulfillments", c.FulfillmentView, async () => {
   const reads = await Promise.all(
-    orders.map((o) => orderFulfillmentRead.getOrderFulfillment(o.id))
+    orders.map((o) => fulfillments.getForOrder(o.id, { isAdmin: true }))
   );
   return reads.filter(Boolean);
 });
@@ -317,9 +303,12 @@ add("GET /orders/:id/items", c.OrderItem, async () => {
   const lists = await Promise.all(orders.map((o) => orderItemsRepo.getFor(o.id)));
   return lists.flat();
 });
-const shipmentOrderRead = await import("#domain/shipping/shipments/order-read.ts");
-add("GET /orders/:orderId/shipments", c.Shipment, async () => {
-  const lists = await Promise.all(orders.map((o) => shipmentOrderRead.getForOrder(o.id)));
+// THE COMPOSED PARCEL: the row, its service and box, its carrier booking, its
+// progress timeline and its actions. `GET /shipments/:id` serves the same
+// shape one at a time.
+const shipmentView = await import("#domain/shipping/shipments/view.ts");
+add("GET /orders/:orderId/shipments", c.ShipmentView, async () => {
+  const lists = await Promise.all(orders.map((o) => shipmentView.forOrder(o.id, true)));
   return lists.flat();
 });
 add("GET /orders/:orderId/pickups", c.FulfillmentPickup, async () => {
@@ -359,12 +348,8 @@ add("GET /orders/:id/address", c.Address, async () => {
   );
   return rows.filter(Boolean);
 });
-// The CARRIER pickups, whose parent is the shipment rather than the order.
-const carrierPickupsRepo = await import("#db/shipping/pickups/repo.ts");
-add("GET /shipments/:id/pickups", c.ShipmentPickup, async () => {
-  const lists = await Promise.all(orders.map((o) => shipmentOrderRead.getForOrder(o.id)));
-  return await carrierPickupsRepo.getByShipments(lists.flat().map((s) => s.id));
-});
+// GET /shipments/:id/pickups is GONE - the carrier booking is a member of the
+// view above (`carrier_pickup`), which is all any caller of it ever read.
 
 // Quotes: the pricing surface with nothing stored underneath. COMPUTED
 // shapes, not table rows - there is no repo pair for bothWays to compare, so

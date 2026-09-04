@@ -1,68 +1,40 @@
 import { Button } from '@dorado/components'
 import { cn } from '@/shared/utils/cn'
-import { useOfferedPackages } from '@/features/checkout/queries'
-import { useShipmentPickups } from '@/features/shipping/queries'
-import type { Shipment } from "@dorado/contracts";
+import type { ShipmentView } from '@dorado/contracts'
 import { PurchaseOrderDrawerContentProps } from '@/features/orders/purchaseOrders/types'
 import { formatPickupDateTime } from '@/shared/utils/formatDates'
 import { Car, CheckCheck, PackageOpen, Printer } from 'lucide-react'
 import TrackingEvents from '@/features/shipping/ui/TrackingEvents'
-import { useTracking, useShipmentDisplay, outboundOf, returnOf } from '@/features/shipping/queries'
-import { useOrderShipments } from '@dorado/client'
+import { outboundOf, useOrderShipments } from '@dorado/client'
+
 export default function InTransitPurchaseOrder({ view }: PurchaseOrderDrawerContentProps) {
   const { order } = view
 
-  // A CONTAINER for its own parcels (ruling 14). `shipment` and
-  // `return_shipment` were two named slots for one table; shipments are one
-  // read now, filtered on the row's own `direction` column. carrier_id is not
-  // a column of shipping.shipments - the SERVICE knows its carrier - so
-  // useShipmentDisplay resolves it off the cached carrier-services list.
-  const { data: shipments = [] } = useOrderShipments(order.id)
+  // ONE READ (ruling 14). `shipment` and `return_shipment` were two named slots
+  // for one table; parcels are one read, filtered on the row's own `direction`.
+  // The parcel arrives COMPOSED - its service, its box, its carrier booking,
+  // its progress timeline and what may be done to it - so nothing here joins a
+  // cached reference list or decides which panel is earned.
+  const { data: shipments = [], isLoading } = useOrderShipments(order.id)
   const shipment = outboundOf(shipments)
-  const returnShipment = returnOf(shipments)
-  const { carrier_id } = useShipmentDisplay(shipment)
 
-  const { data: trackingInfo, isLoading } = useTracking({
-    shipment_id: shipment?.id ?? '',
-    tracking_number: shipment?.tracking_number ?? '',
-    carrier_id: carrier_id ?? '',
-  })
-
-  return (
-    <>
-      {shipment?.shipping_status === 'Label Created' ? (
-        <div className="flex flex-col w-full gap-5">
-          <DropoffInstructionsSection shipment={shipment} />
-        </div>
-      ) : (
-        <TrackingEvents
-          isLoading={isLoading}
-          trackingInfo={trackingInfo}
-          delivery_date={shipment?.delivered_at ?? shipment?.est_delivery ?? undefined}
-          shipping_status={shipment?.shipping_status ?? ''}
-        />
-      )}
-    </>
+  return shipment?.actions.show_instructions ? (
+    <div className="flex flex-col w-full gap-5">
+      <DropoffInstructionsSection shipment={shipment} />
+    </div>
+  ) : (
+    <TrackingEvents isLoading={isLoading} shipment={shipment} />
   )
 }
 
 // A SMALL CONTAINER, one hop from what it renders (ruling 14): it takes the
-// parcel as a prop and fetches only the parcel's OWN child - the carrier
-// pickup, whose parent is the shipment (shipping.pickups.shipment_id), not
-// the order.
-export function DropoffInstructionsSection({ shipment }: { shipment?: Shipment }) {
-  const { data: pickups = [] } = useShipmentPickups(shipment?.id)
-  const { data: offeredPackages = [] } = useOfferedPackages()
-  const carrierPickup = pickups[0] ?? null
-
-  if (shipment?.shipping_status !== 'Label Created') return null
-
-  // The box is named by ID on the row, resolved against the reference read
-  // (D208) - the client-side packageOptions list this used to placeholder
-  // against is gone. An old order may name a retired per-carrier row; the
-  // first offered box stands in for the packing copy either way.
-  const selectedPackage =
-    offeredPackages.find((p) => p.id === shipment?.package_id) ?? offeredPackages[0]
+// composed parcel as a prop and fetches nothing. The box and the courier
+// booking used to be two more reads and two more `find`s against cached
+// reference lists; they are members of the parcel now.
+export function DropoffInstructionsSection({ shipment }: { shipment: ShipmentView }) {
+  const box = shipment.package
+  const dimensions = box ? `${box.length} × ${box.width} × ${box.height} in` : null
+  const isCarrierPickup = shipment.shipment.pickup_type === 'Carrier Pickup'
 
   const steps = [
     {
@@ -74,33 +46,24 @@ export function DropoffInstructionsSection({ shipment }: { shipment?: Shipment }
     {
       icon: <PackageOpen size={18} className="text-primary" />,
       title: 'Pack Your Items',
-      description: `Pack up your items in a ${
-        selectedPackage?.label
-      } (${`${selectedPackage?.length} × ${selectedPackage?.width} × ${selectedPackage?.height}`} in). We recommend double
-      boxing using generic packaging to prevent theft or
-      damage while your shipment is in-transit. `,
+      description: `Pack up your items in a ${box?.label ?? 'box'}${
+        dimensions ? ` (${dimensions})` : ''
+      }. We recommend double boxing using generic packaging to prevent theft or
+      damage while your shipment is in-transit.`,
     },
     {
       icon: <Car size={18} className="text-primary" />,
-      title:
-        shipment.pickup_type === 'Carrier Pickup'
-          ? 'Wait for Pickup'
-          : 'Drop Off Your Package',
-      description:
-        shipment.pickup_type === 'Carrier Pickup'
-          ? `FedEx will pick up your items up around ${formatPickupDateTime(
-              carrierPickup?.requested_at ?? undefined
-            )}. Please have your shipment packed and ready to go by that time.`
-          : 'Take your package to a FedEx or affiliate location of your choosing.',
-      action:
-        shipment.pickup_type !== 'Carrier Pickup' ? (
-          <Button
-            variant="tertiary"
-            className="h-auto p-0"
-          >
-            Find Store
-          </Button>
-        ) : null,
+      title: isCarrierPickup ? 'Wait for Pickup' : 'Drop Off Your Package',
+      description: isCarrierPickup
+        ? `FedEx will pick up your items up around ${formatPickupDateTime(
+            shipment.handoff_at ?? undefined
+          )}. Please have your shipment packed and ready to go by that time.`
+        : 'Take your package to a FedEx or affiliate location of your choosing.',
+      action: isCarrierPickup ? null : (
+        <Button variant="tertiary" className="h-auto p-0">
+          Find Store
+        </Button>
+      ),
     },
     {
       icon: <CheckCheck size={18} className="text-primary" />,

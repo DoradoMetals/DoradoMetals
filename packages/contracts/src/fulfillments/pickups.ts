@@ -15,8 +15,17 @@ export const FulfillmentPickup = z.object({
 });
 export type FulfillmentPickup = z.infer<typeof FulfillmentPickup>;
 // generated:end
-// POST /fulfillments/schedule_pickup - the booking's own columns, all
-// optional; the id is the service's to issue.
+// The booking's own columns, all optional; the id is the service's to issue.
 export const FulfillmentPickupPatch = FulfillmentPickup.omit({ id: true }).partial();
 export type FulfillmentPickupPatch = z.infer<typeof FulfillmentPickupPatch>;
+
+// POST /fulfillments/schedule_pickup - the fulfillment named ONCE, at the top
+// level, and the booking beside it (ruling 43). It used to be nested inside
+// the patch, where it read as one of the columns being written and had to be
+// checked for by hand before the service could look the fulfillment up.
+export const FulfillmentSchedulePickupBody = z.object({
+  fulfillment_id: FulfillmentPickup.shape.fulfillment_id,
+  pickup: FulfillmentPickupPatch.omit({ fulfillment_id: true }).strict(),
+}).strict();
+export type FulfillmentSchedulePickupBody = z.infer<typeof FulfillmentSchedulePickupBody>;
 

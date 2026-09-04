@@ -5,6 +5,7 @@ import { buildUpdate } from "#shared/db/patch.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
 import type { Fulfillment } from "@dorado/contracts";
 import type { Executor } from "#shared/db/executor.ts";
+import { FulfillmentPatch } from "@dorado/contracts";
 
 const sql = sqlFrom(import.meta.dirname);
 
@@ -76,9 +77,13 @@ export async function createDraft(
   return rows[0];
 }
 
-export const PATCHABLE = ["status", "method_id", "order_id"] as const;
-
-export type FulfillmentPatch = Partial<Pick<FulfillmentBaseRow, (typeof PATCHABLE)[number]>>;
+// THE COLUMNS, FROM THE CONTRACT (ruling 64). One list, in
+// packages/contracts/src/fulfillments/fulfillments.ts; a column added to the
+// table and named in the contract's patch becomes writable here with no edit,
+// and one removed there stops being writable with no edit either.
+export const PATCHABLE = Object.keys(
+  FulfillmentPatch.shape
+) as readonly (keyof FulfillmentPatch)[];
 
 // order_id is ONE-WAY: a draft attaches to an order once, and a patch naming
 // it is only ever that first attach, so it guards itself with WHERE order_id

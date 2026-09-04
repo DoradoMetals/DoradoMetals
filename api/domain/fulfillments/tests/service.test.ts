@@ -96,14 +96,14 @@ test("a fulfillment can be created for an order and is found by it", async () =>
       c
     );
     assert.ok(created, "the fulfillment was not created");
-    assert.equal(created.order_id, order.id);
-    assert.equal(created.status, "PENDING");
+    assert.equal(created.fulfillment.order_id, order.id);
+    assert.equal(created.fulfillment.status, "PENDING");
     assert.equal(created.method.type, "PICKUP");
     assert.equal(created.pickup, null, "a new fulfillment is not scheduled yet");
 
     const found = await repo.getForOrder(order.id, { isAdmin: true }, c);
     assert.ok(found, "getForOrder could not read back the fulfillment it just created");
-    assert.equal(found.id, created.id);
+    assert.equal(found.fulfillment.id, created.fulfillment.id);
   });
 });
 
@@ -117,7 +117,7 @@ test("a second create returns the same fulfillment rather than a second one", as
     const again = await repo.chooseById({ order_id: order.id, method_id: method.id }, c);
     assert.ok(again, "the second create returned nothing");
 
-    assert.equal(again.id, first.id, "one fulfillment per order, and create is idempotent");
+    assert.equal(again.fulfillment.id, first.fulfillment.id, "one fulfillment per order, and create is idempotent");
     const { rows } = await c.query(
       `SELECT count(*)::int AS n FROM fulfillments.fulfillments WHERE order_id = $1`,
       [order.id]
@@ -156,7 +156,8 @@ test("a pickup is scheduled, rescheduled, and cancelled without touching the ful
     const start = "2026-09-01T15:00:00Z";
 
     const booked = await pickupService.schedule(
-      { fulfillment_id: f.id, pickup_address_id: addr[0].id, start_time: start },
+      f.fulfillment.id,
+      { pickup_address_id: addr[0].id, start_time: start },
       c
     );
     assert.ok(booked, "the schedule call returned no fulfillment");
@@ -176,7 +177,8 @@ test("a pickup is scheduled, rescheduled, and cancelled without touching the ful
 
     // Rescheduling reads first and updates: one pickup per fulfillment, not a second row.
     const moved = await pickupService.schedule(
-      { fulfillment_id: f.id, pickup_address_id: addr[0].id, start_time: "2026-09-02T15:00:00Z" },
+      f.fulfillment.id,
+      { pickup_address_id: addr[0].id, start_time: "2026-09-02T15:00:00Z" },
       c
     );
     assert.ok(moved, "rescheduling returned no fulfillment");
@@ -185,10 +187,10 @@ test("a pickup is scheduled, rescheduled, and cancelled without touching the ful
     assert.ok(moved.pickup.start_time, "the rescheduled pickup carries no start time");
     assert.equal(new Date(moved.pickup.start_time).getUTCDate(), 2);
 
-    const cancelled = await repo.cancelSchedule(f.id, c);
+    const cancelled = await repo.cancelSchedule(f.fulfillment.id, c);
     assert.ok(cancelled, "cancelling returned no fulfillment");
     assert.equal(cancelled.pickup, null);
-    assert.ok(cancelled.id, "cancelling a booking must not remove the fulfillment");
+    assert.ok(cancelled.fulfillment.id, "cancelling a booking must not remove the fulfillment");
   });
 });
 
@@ -203,8 +205,8 @@ test("an appointment is scheduled at a location", async () => {
       `SELECT id FROM places.locations WHERE type = 'DORADO_OFFICE' LIMIT 1`
     );
     const booked = await directService.schedule(
+      f.fulfillment.id,
       {
-        fulfillment_id: f.id,
         location_id: loc[0].id,
         start_time: "2026-09-01T15:00:00Z",
         end_time: "2026-09-01T15:30:00Z",
@@ -229,7 +231,7 @@ test("a pickup cannot be booked against a method that is not a pickup", async ()
     const addr = [{ id: await anAddressId(c, order.user_id) }];
 
     await assert.rejects(
-      () => pickupService.schedule({ fulfillment_id: f.id, pickup_address_id: addr[0].id }, c),
+      () => pickupService.schedule(f.fulfillment.id, { pickup_address_id: addr[0].id }, c),
       /is a SHIPMENT, not a PICKUP/
     );
   });
@@ -245,11 +247,12 @@ test("changing the method takes the booking with it", async () => {
 
     const addr = [{ id: await anAddressId(c, order.user_id) }];
     await pickupService.schedule(
-      { fulfillment_id: f.id, pickup_address_id: addr[0].id, start_time: "2026-09-01T15:00:00Z" },
+      f.fulfillment.id,
+      { pickup_address_id: addr[0].id, start_time: "2026-09-01T15:00:00Z" },
       c
     );
 
-    const moved = await repo.setMethod({ id: f.id, method_id: dropoff.id }, c);
+    const moved = await repo.setMethod({ id: f.fulfillment.id, method_id: dropoff.id }, c);
     assert.ok(moved, "the method move returned no fulfillment");
     assert.equal(moved.method.type, "CARRIER DROPOFF");
     assert.equal(
@@ -288,7 +291,8 @@ test("the schedule lists only what somebody is due to attend", async () => {
     assert.ok(f, "the fulfillment could not be read back");
     const addr = [{ id: await anAddressId(c, order.user_id) }];
     await pickupService.schedule(
-      { fulfillment_id: f.id, pickup_address_id: addr[0].id, start_time: "2026-09-01T15:00:00Z" },
+      f.fulfillment.id,
+      { pickup_address_id: addr[0].id, start_time: "2026-09-01T15:00:00Z" },
       c
     );
 
@@ -296,7 +300,7 @@ test("the schedule lists only what somebody is due to attend", async () => {
       { from: "2026-08-31T00:00:00Z", to: "2026-09-02T00:00:00Z" },
       c
     );
-    assert.ok(due.some((x) => x.id === f.id), "the pickup just booked is not on the schedule");
+    assert.ok(due.some((x) => x.fulfillment.id === f.fulfillment.id), "the pickup just booked is not on the schedule");
     assert.ok(
       due.every((x) => x.method.category === "PICKUP" || x.method.category === "DIRECT"),
       "a shipment appeared on a list of places to be"
@@ -306,7 +310,7 @@ test("the schedule lists only what somebody is due to attend", async () => {
       { from: "2026-08-01T00:00:00Z", to: "2026-08-31T00:00:00Z" },
       c
     );
-    assert.ok(!august.some((x) => x.id === f.id), "the window is not being applied");
+    assert.ok(!august.some((x) => x.fulfillment.id === f.fulfillment.id), "the window is not being applied");
   });
 });
 
@@ -395,10 +399,10 @@ test("the draft the stepper mutated becomes the order's own fulfillment", async 
     assert.ok(draft, "no draft was created");
 
     const attached = await service.attachForCheckout(
-      handover(order.id, { fulfillment_id: draft.id }), c
+      handover(order.id, { fulfillment_id: draft.fulfillment.id }), c
     );
-    assert.equal(attached.id, draft.id, "a second fulfillment was minted");
-    assert.equal(attached.order_id, order.id);
+    assert.equal(attached.fulfillment.id, draft.fulfillment.id, "a second fulfillment was minted");
+    assert.equal(attached.fulfillment.order_id, order.id);
   });
 });
 

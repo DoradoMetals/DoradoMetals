@@ -72,20 +72,15 @@ test("the method menu is refused to anonymous and filtered by direction", async 
 });
 
 // The one that matters. A stranger naming somebody else's order must not get
-// their pickup address and appointment time.
+// their pickup address and appointment time. GET /:orderId/fulfillments is
+// guarded by requireOwnOrderParam ahead of the controller now, so a stranger
+// is refused before the service ever runs - not answered 200 with a null body.
 test("a stranger cannot read the fulfillment of somebody else's order", async () => {
   await inPinnedTransaction(async (c: PoolClient) => {
-    const { order, owner } = await anOwnedOrderWithFulfillment(c);
+    const { order } = await anOwnedOrderWithFulfillment(c);
     await as(stranger, async () => {
-      const res = await request(app)
-        .get("/api/fulfillments/get_for_order")
-        .query({ order_id: order.id });
-      assert.equal(res.status, 200);
-      assert.equal(
-        res.body,
-        null,
-        "a signed-in stranger read somebody else's fulfillment"
-      );
+      const res = await request(app).get(`/api/orders/${order.id}/fulfillments`);
+      assert.equal(res.status, 403, JSON.stringify(res.body));
     });
   }, { actor: TEST_ACTOR.id, lock: FULFILLMENT_LOCK });
 });
@@ -95,15 +90,13 @@ test("the order's own customer and an admin can both read it", async () => {
     const { order, owner } = await anOwnedOrderWithFulfillment(c);
     for (const who of [owner, admin]) {
       await as(who, async () => {
-        const res = await request(app)
-          .get("/api/fulfillments/get_for_order")
-          .query({ order_id: order.id });
-        assert.equal(res.status, 200);
+        const res = await request(app).get(`/api/orders/${order.id}/fulfillments`);
+        assert.equal(res.status, 200, JSON.stringify(res.body));
         assert.ok(res.body, `${who.role} was refused a fulfillment they may see`);
-        assert.equal(res.body.order_id, order.id);
-        // The wire is the bare row: method_id, never the method object - the client maps it off GET /fulfillments/methods.
-        assert.ok(res.body.method_id, "the row lost its method_id");
-        assert.ok(!("method" in res.body), "the method object reached the wire");
+        assert.equal(res.body.fulfillment.order_id, order.id);
+        // The whole FulfillmentView now, method nested inside it - not the bare row.
+        assert.ok(res.body.fulfillment.method_id, "the row lost its method_id");
+        assert.ok(res.body.method, "the method object did not reach the wire");
       });
     }
   }, { actor: TEST_ACTOR.id, lock: FULFILLMENT_LOCK });

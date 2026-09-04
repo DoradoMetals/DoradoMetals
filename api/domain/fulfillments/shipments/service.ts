@@ -4,19 +4,15 @@
 import { randomUUID } from "node:crypto";
 import * as shipmentLinks from "#db/fulfillments/shipments/repo.ts";
 import * as fulfillmentService from "#domain/fulfillments/service.ts";
+import type { Executor } from "#shared/db/executor.ts";
+import type { FulfillmentView } from "@dorado/contracts";
 import type { ShipmentLinkInput } from "#db/fulfillments/shipments/repo.ts";
-import type { ComposedFulfillment } from "#domain/fulfillments/compose.ts";
-import type { PoolClient } from "pg";
-
-type Executor = PoolClient | undefined;
-
-export type { ShipmentLinkRow, ShipmentLinkInput } from "#db/fulfillments/shipments/repo.ts";
 
 // Linking a parcel to a fulfillment. Called by domain/shipping when a label is bought.
 // READ FIRST, by shipment_id - the table's unique key, since a fulfillment may hold several parcels but a parcel belongs to exactly one fulfillment.
 export async function link(
   input: { fulfillment_id: string } & ShipmentLinkInput, executor?: Executor
-): Promise<ComposedFulfillment | null> {
+): Promise<FulfillmentView | null> {
   await fulfillmentService.assertCategory(input.fulfillment_id, "SHIPMENT", executor);
   const [existing] = await shipmentLinks.getByShipment([input.shipment_id], executor);
   if (existing) {

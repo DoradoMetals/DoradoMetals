@@ -4,6 +4,7 @@
 import query from "#shared/db/query.ts";
 import { buildUpdate } from "#shared/db/patch.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
+import { FulfillmentShipmentPatch } from "@dorado/contracts";
 import type { FulfillmentShipment } from "@dorado/contracts";
 import type { Executor } from "#shared/db/executor.ts";
 
@@ -73,8 +74,11 @@ export async function create(row: ShipmentLinkNew, executor?: Executor): Promise
   return rows[0];
 }
 
-export const PATCHABLE = ["fulfillment_id", "recipient_location_id", "shipper_location_id"] as const;
-export type ShipmentLinkPatch = Partial<Record<(typeof PATCHABLE)[number], string | null>>;
+// THE COLUMNS, FROM THE CONTRACT (ruling 64). `shipment_id` is the WHERE key.
+export type ShipmentLinkPatch = FulfillmentShipmentPatch;
+export const PATCHABLE = Object.keys(
+  FulfillmentShipmentPatch.shape
+) as readonly (keyof ShipmentLinkPatch)[];
 
 export async function update(
   shipment_id: string, patch: ShipmentLinkPatch, executor?: Executor

@@ -2,7 +2,7 @@ import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
 import { Button } from '@dorado/components'
 import { cn } from '@/shared/utils/cn'
 import { PurchaseOrderDrawerContentProps, statusConfig } from '@/features/orders/purchaseOrders/types'
-import { useTracking, useShipmentDisplay, outboundOf, returnOf } from '@/features/shipping/queries'
+import { outboundOf, returnOf } from '@/features/shipping/queries'
 import TrackingEvents from '@/features/shipping/ui/TrackingEvents'
 import { useOrderShipments } from '@dorado/client'
 
@@ -11,21 +11,14 @@ export default function AdminCancelledPurchaseOrder({ view }: PurchaseOrderDrawe
 
   // A CONTAINER for its own parcels (ruling 14). `shipment` and
   // `return_shipment` were two named slots for one table; shipments are one
-  // read now, filtered on the row's own `direction` column. carrier_id is not
-  // a column of shipping.shipments - the SERVICE knows its carrier - so
-  // useShipmentDisplay resolves it off the cached carrier-services list.
-  const { data: shipments = [] } = useOrderShipments(order.id)
+  // read now, filtered on the row's own `direction` column. The view already
+  // carries the service's carrier and the progress timeline, so no client-side
+  // join is left to do.
+  const { data: shipments = [], isLoading } = useOrderShipments(order.id)
   const shipment = outboundOf(shipments)
   const returnShipment = returnOf(shipments)
-  const { carrier_id: returnCarrierId } = useShipmentDisplay(returnShipment)
 
   const config = statusConfig[order.status ?? '']
-
-  const { data: trackingInfo, isLoading } = useTracking({
-    shipment_id: returnShipment?.id ?? '',
-    tracking_number: returnShipment?.tracking_number ?? '',
-    carrier_id: returnCarrierId ?? '',
-  })
 
   const handleMarkShippingPaid = () => {}
 
@@ -44,7 +37,7 @@ export default function AdminCancelledPurchaseOrder({ view }: PurchaseOrderDrawe
               <strong className="stat-sm">Payment Due:</strong>
               <strong className="stat-sm">
                 <PriceNumberFlow
-                  value={(shipment?.cost ?? 0) + (returnShipment?.cost ?? 0)}
+                  value={(shipment?.shipment.cost ?? 0) + (returnShipment?.shipment.cost ?? 0)}
                 />
               </strong>
             </div>
@@ -59,12 +52,7 @@ export default function AdminCancelledPurchaseOrder({ view }: PurchaseOrderDrawe
             </Button>
           </div>
         ) : (
-          <TrackingEvents
-            isLoading={isLoading}
-            trackingInfo={trackingInfo}
-            delivery_date={shipment?.delivered_at ?? shipment?.est_delivery ?? undefined}
-            shipping_status={shipment?.shipping_status ?? ''}
-          />
+          <TrackingEvents isLoading={isLoading} shipment={returnShipment} />
         )}
       </div>
     </>

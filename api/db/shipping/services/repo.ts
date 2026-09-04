@@ -2,7 +2,8 @@
 import query from "#shared/db/query.ts";
 import { buildUpdate } from "#shared/db/patch.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
-import type { CarrierService } from "@dorado/contracts";
+import { CarrierServicePatch } from "@dorado/contracts";
+import type { CarrierService, SaleShippingService } from "@dorado/contracts";
 import type { Executor } from "#shared/db/executor.ts";
 
 const sql = sqlFrom(import.meta.dirname);
@@ -84,13 +85,19 @@ export async function create(row: ServiceNew, executor?: Executor): Promise<Serv
 export type ServicePatch = Partial<ServiceWrite>;
 
 // The columns a create or edit supplies; RETURNING below preserves the wire's aliased names.
-export const PATCHABLE = [
-  "carrier_id", "name", "description", "code", "provider_code",
-  "supports_pickups", "supports_dropoffs", "supports_returns", "supports_insurance",
-  "is_international", "is_residential", "is_active",
-  "max_weight_lb", "max_length_in", "max_width_in", "max_height_in",
-  "max_declared_value", "min_transit_days", "max_transit_days", "display_order",
-] as const;
+// THE COLUMNS, FROM THE CONTRACT (ruling 64) - through the ONE map of the
+// three legacy spellings this table keeps. `CarrierServicePatch` is the wire's
+// field list, so `supports_pickup` there is `supports_pickups` here; RETURNING
+// below aliases the same three back on the way out. The id is the WHERE key.
+const COLUMN_OF: Record<string, string> = {
+  supports_pickup: "supports_pickups",
+  supports_dropoff: "supports_dropoffs",
+  max_weight_lbs: "max_weight_lb",
+};
+
+export const PATCHABLE: readonly string[] = Object.keys(CarrierServicePatch.shape)
+  .filter((field) => field !== "id")
+  .map((field) => COLUMN_OF[field] ?? field);
 
 export const RETURNING = `id, carrier_id, name, description, code, provider_code,
           supports_pickups  AS supports_pickup,
@@ -119,16 +126,9 @@ export async function remove(id: string, executor?: Executor): Promise<boolean> 
 }
 
 // The sale delivery options: the business's carrier-agnostic priced rows - a projection, not ServiceRow, with no carrier flags or legacy aliases.
-export type SaleServiceOption = {
-  id: string;
-  name: string;
-  code: string;
-  price: number;
-  display: boolean;
-  is_active: boolean;
-  min_transit_days: number | null;
-  max_transit_days: number | null;
-};
+// The contract's, not a second column list - it IS get_sale_options.sql's
+// projection.
+export type SaleServiceOption = SaleShippingService;
 
 export async function getSaleOptions(executor?: Executor): Promise<SaleServiceOption[]> {
   const { rows } = await query<SaleServiceOption>(sql("get_sale_options"), [], executor);

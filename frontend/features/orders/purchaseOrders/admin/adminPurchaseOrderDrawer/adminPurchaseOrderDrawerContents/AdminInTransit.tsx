@@ -5,40 +5,30 @@ import {
   statusConfig,
 } from '@/features/orders/purchaseOrders/types'
 import TrackingEvents from '@/features/shipping/ui/TrackingEvents'
-import { useShippingCancelLabel, useShippingCancelPickup, useTracking, useShipmentPickups, useShipmentDisplay, outboundOf } from '@/features/shipping/queries'
-import type { Shipment } from "@dorado/contracts";
+import { useCancelLabel, useCancelCarrierPickup, outboundOf } from '@/features/shipping/queries'
+import type { ShipmentView } from "@dorado/contracts";
 import { useOrderShipments } from '@dorado/client'
 
 export default function AdminInTransitPurchaseOrder({ view }: PurchaseOrderDrawerContentProps) {
   const { order } = view
 
   // A CONTAINER for its own parcel (ruling 14) - see the same note in the
-  // customer drawer's InTransit.
-  const { data: shipments = [] } = useOrderShipments(order.id)
+  // customer drawer's InTransit. carrier_id is a member of the view now, not a
+  // client-side join against the cached service list.
+  const { data: shipments = [], isLoading } = useOrderShipments(order.id)
   const shipment = outboundOf(shipments)
-  const { carrier_id } = useShipmentDisplay(shipment)
-
-  const { data: trackingInfo, isLoading } = useTracking({
-    shipment_id: shipment?.id ?? '',
-    tracking_number: shipment?.tracking_number ?? '',
-    carrier_id: carrier_id ?? '',
-  })
+  const carrier_id = shipment?.carrier_id ?? null
 
   const color = 'text-primary'
   return (
     <>
-      {shipment?.shipping_status === 'Label Created' ||
-      shipment?.shipping_status === 'Cancelled' ? (
+      {shipment?.shipment.shipping_status === 'Label Created' ||
+      shipment?.shipment.shipping_status === 'Cancelled' ? (
         <div className="flex flex-col w-full gap-5">
           <PreTransit shipment={shipment} carrierId={carrier_id} color={color} />
         </div>
       ) : (
-        <TrackingEvents
-          isLoading={isLoading}
-          trackingInfo={trackingInfo}
-          delivery_date={shipment?.delivered_at ?? shipment?.est_delivery ?? undefined}
-          shipping_status={shipment?.shipping_status ?? ''}
-        />
+        <TrackingEvents isLoading={isLoading} shipment={shipment} />
       )}
     </>
   )
@@ -51,15 +41,16 @@ export function PreTransit({
   carrierId,
   color,
 }: {
-  shipment?: Shipment
+  shipment?: ShipmentView
   carrierId: string | null
   color?: string
 }) {
-  const { data: pickups = [] } = useShipmentPickups(shipment?.id)
-  const carrierPickup = pickups[0] ?? null
+  // The carrier booking is the view's own `carrier_pickup` now - the most
+  // recent one, which is what `pickups[0]` always meant.
+  const carrierPickup = shipment?.carrier_pickup ?? null
 
-  const cancelLabel = useShippingCancelLabel()
-  const cancelPickup = useShippingCancelPickup()
+  const cancelLabel = useCancelLabel()
+  const cancelPickup = useCancelCarrierPickup()
 
   return (
     <div className="flex flex-col w-full gap-5">
@@ -81,7 +72,7 @@ export function PreTransit({
       </div>
       <div className="flex w-full justify-between items-center">
         <div className="">Tracking Number:</div>
-        <div>{shipment?.tracking_number}</div>
+        <div>{shipment?.shipment.tracking_number}</div>
       </div>
       <div className=""></div>
 
@@ -90,18 +81,20 @@ export function PreTransit({
           variant="secondary"
           intent="danger"
           disabled={
-            !shipment?.label ||
-            shipment?.shipping_status === 'Cancelled' ||
+            // `edit_tracking` is true exactly where the parcel has no label of
+            // ours - the same question `!shipment?.label` used to ask client-side.
+            shipment?.actions.edit_tracking ||
+            shipment?.shipment.shipping_status === 'Cancelled' ||
             cancelLabel.isPending
           }
           onClick={() =>
             cancelLabel.mutate({
               carrier_id: carrierId ?? '',
-              shipment_id: shipment?.id ?? '',
+              shipment_id: shipment?.shipment.id ?? '',
             })
           }
         >
-          {shipment?.shipping_status === 'Cancelled'
+          {shipment?.shipment.shipping_status === 'Cancelled'
             ? 'Label Cancelled'
             : cancelLabel.isPending
             ? 'Cancelling'

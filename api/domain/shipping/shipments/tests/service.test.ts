@@ -6,7 +6,7 @@ import type { PoolClient } from "pg";
 import { randomUUID } from "node:crypto";
 import pool from "#pool";
 import { inRollback } from "#shared/testing/rollback.ts";
-import { aUser, anOrder, carrierId } from "#shared/testing/builders/index.ts";
+import { aUser, anOrder, carrierServiceId, packageId } from "#shared/testing/builders/index.ts";
 import * as dual from "#domain/shipping/shipments/service.ts";
 
 let client: PoolClient;
@@ -36,10 +36,8 @@ const anOrderWithoutShipment = async (c: PoolClient) => {
   return order.id;
 };
 
-const carrier = (c: PoolClient) => carrierId(c, "FedEx");
-
 const inbound = async (c: PoolClient, orderId: string) =>
-  dual.create({ order_id: orderId, type: "Inbound" }, c);
+  dual.create({ order_id: orderId, direction: "Inbound" }, c);
 
 test("creating a shipment writes the shipment, its fulfillment and the link", async () => {
   await inRollback(async (c: PoolClient) => {
@@ -87,7 +85,7 @@ test("a second shipment on an order reuses its fulfillment", async () => {
     const first = await inbound(c, orderId);
     assert.ok(first, "the first call returned nothing");
     const second = await dual.create(
-      { order_id: orderId, type: "Outbound" }, c
+      { order_id: orderId, direction: "Outbound" }, c
     );
     assert.ok(second, "the second call returned nothing");
 
@@ -106,25 +104,31 @@ test("a second shipment on an order reuses its fulfillment", async () => {
 test("creating a shipment for an order that does not exist refuses instead of shipping silently", async () => {
   await inRollback(async (c: PoolClient) => {
     await assert.rejects(
-      () => dual.create({ order_id: randomUUID(), type: "Inbound" }, c),
+      () => dual.create({ order_id: randomUUID(), direction: "Inbound" }, c),
       /does not exist/
     );
   });
 });
 
-test("an update resolves the service and package to references", async () => {
+// update() is a real partial patch now - the caller resolves a name to an id
+// itself (carrierServiceId/packageId) and writes the reference directly; there
+// is no name-resolving read-modify-write left in the service to test.
+test("an update writes the tracking number, status, service and package by id", async () => {
   await inRollback(async (c: PoolClient) => {
     const orderId = await anOrderWithoutShipment(c);
     assert.ok(orderId, "the fixture did not build an order");
     const created = await inbound(c, orderId);
     assert.ok(created, "the service returned nothing");
     const tracking = `probe-${randomUUID().slice(0, 8)}`;
+    const serviceId = await carrierServiceId(c, "Express Saver");
+    const pkgId = await packageId(c, "Small Box");
 
     await dual.update(
-      // carrier_id is passed explicitly, as the real call sites do - a shell shipment has no service yet, so there's nothing to resolve names against.
-      { ...created, carrier_id: await carrier(c), tracking_number: tracking,
-        shipping_status: "In Transit",
-        package: "Small Box", service_type: "Express Saver", type: "Inbound" },
+      created.id,
+      {
+        tracking_number: tracking, shipping_status: "In Transit",
+        package_id: pkgId, carrier_service_id: serviceId,
+      },
       c
     );
 
@@ -136,8 +140,8 @@ test("an update resolves the service and package to references", async () => {
        WHERE s.id = $1`, [created.id]
     );
     assert.equal(s.tracking_number, tracking);
-    assert.equal(s.service, "Express Saver", "the service name did not resolve to a reference");
-    assert.equal(s.package, "Small Box", "the package label did not resolve to a reference");
+    assert.equal(s.service, "Express Saver", "the service id was not written");
+    assert.equal(s.package, "Small Box", "the package id was not written");
   });
 });
 
@@ -148,7 +152,7 @@ test("marking a shipment delivered completes its fulfillment", async () => {
     assert.ok(orderId, "the fixture did not build an order");
     const created = await inbound(c, orderId);
     assert.ok(created, "the service returned nothing");
-    await dual.update({ ...created, shipping_status: "Delivered", type: "Inbound" }, c);
+    await dual.update(created.id, { shipping_status: "Delivered" }, c);
 
     const { rows: [f] } = await c.query(
       `SELECT f.status FROM fulfillments.fulfillments f

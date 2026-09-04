@@ -30,7 +30,7 @@ export const checkPickup = asyncHandler(async (req, res) => {
 
 export const getTracking = asyncHandler(async (req, res) => {
   const body = parseStrict(ShippingGetTrackingBody, req.body, "shipping/get_tracking body");
-  res.json(await operationsService.getTracking(body.shipment_id));
+  res.json(await operationsService.getTracking(body.shipment_id, req.user?.role === "admin"));
 });
 
 export const getLocations = asyncHandler(async (req, res) => {
