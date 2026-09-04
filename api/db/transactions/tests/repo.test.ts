@@ -1,9 +1,3 @@
-// payments.ledger, against real Postgres. A ledger has no update/remove -
-// entries are append-only facts, never edited or deleted (create, byUser and
-// hasCreditFor are the whole surface). The false-on-missing/true-on-real
-// shape this table offers instead is hasCreditFor: true once a real Credit
-// entry is logged against an order, false for an order with none - the exact
-// guard the abandonment refund reads so a refund can't happen twice.
 import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
@@ -14,8 +8,6 @@ import { rollbackIn } from "#shared/testing/rollback.ts";
 import { aUser, anOrder } from "#shared/testing/builders/index.ts";
 import * as ledger from "#db/transactions/repo.ts";
 
-// A ledger entry can name an order, which is orders.* - the same lock every
-// order-money fixture takes.
 const inRollback = rollbackIn({ lock: LOCKS.ORDERS });
 
 beforeAll(async () => {

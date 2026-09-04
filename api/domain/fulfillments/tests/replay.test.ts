@@ -1,6 +1,3 @@
-// The fulfillment endpoints, over real HTTP. get_for_order is the one worth aiming at: requireUser alone plus an order id from the query string is exactly the shape that turned out wrong in five other features - a fulfillment has no user of its own, so "is this yours" is a question about the order.
-// The ownership check was written alongside the feature, so this confirms it holds over HTTP rather than closing a hole - tested WITH A STRANGER, since the addresses replay tests passed for weeks over a live hole by only ever sending the caller's own id.
-// Admin routes are asserted to refuse a customer rather than exercised: schedule_pickup/schedule_direct write bookings, set_status moves an order's fulfillment.
 import { test, afterAll } from "vitest";
 import assert from "node:assert/strict";
 import request from "supertest";
@@ -17,7 +14,6 @@ const { default: app } = await import("#app");
 
 const FULFILLMENT_LOCK = [LOCKS.ORDERS, LOCKS.FULFILLMENTS];
 
-// The structural subset each fixture actually has - SELECT projections, not table rows.
 type UserFixture = { id: string; name: string | null; email: string | null };
 type Caller = UserFixture & { role: string };
 type OrderFixture = { id: string; user_id: string };
@@ -25,15 +21,6 @@ type OrderFixture = { id: string; user_id: string };
 const admin: Caller = { ...TEST_ACTOR, role: "admin" };
 const stranger: Caller = { ...TEST_CUSTOMER, role: "user" };
 
-// THE ORDER AND ITS OWNER ARE BUILT (lane 1). This took "the OLDEST order that
-// has a fulfillment, so nothing another file creates can move it" - a real
-// customer's order, and a fixture whose stability came from being old rather
-// than from being ours. A built order cannot be moved by another file at all,
-// and the owner is a person who exists only inside this transaction, which is
-// what makes "a stranger cannot read somebody else's fulfillment" a claim
-// about two people the test names.
-//
-// Built inside the pin, because that is where the request runs.
 const anOwnedOrderWithFulfillment = async (c: PoolClient) => {
   const user = await aUser(c);
   const built = await anOrder(c, user, { direction: "purchase" });
@@ -71,10 +58,6 @@ test("the method menu is refused to anonymous and filtered by direction", async 
   }, { actor: TEST_ACTOR.id, lock: FULFILLMENT_LOCK });
 });
 
-// The one that matters. A stranger naming somebody else's order must not get
-// their pickup address and appointment time. GET /:orderId/fulfillments is
-// guarded by requireOwnOrderParam ahead of the controller now, so a stranger
-// is refused before the service ever runs - not answered 200 with a null body.
 test("a stranger cannot read the fulfillment of somebody else's order", async () => {
   await inPinnedTransaction(async (c: PoolClient) => {
     const { order } = await anOwnedOrderWithFulfillment(c);
@@ -94,7 +77,6 @@ test("the order's own customer and an admin can both read it", async () => {
         assert.equal(res.status, 200, JSON.stringify(res.body));
         assert.ok(res.body, `${who.role} was refused a fulfillment they may see`);
         assert.equal(res.body.fulfillment.order_id, order.id);
-        // The whole FulfillmentView now, method nested inside it - not the bare row.
         assert.ok(res.body.fulfillment.method_id, "the row lost its method_id");
         assert.ok(res.body.method, "the method object did not reach the wire");
       });
@@ -102,8 +84,6 @@ test("the order's own customer and an admin can both read it", async () => {
   }, { actor: TEST_ACTOR.id, lock: FULFILLMENT_LOCK });
 });
 
-// Admin-only, and asserted by refusal rather than by exercising them: these
-// write bookings and move an order's state.
 test("a customer cannot reach any of the admin fulfillment routes", async () => {
   await inPinnedTransaction(async () => {
     await as(stranger, async () => {
@@ -117,7 +97,6 @@ test("a customer cannot reach any of the admin fulfillment routes", async () => 
         ["post", "/api/fulfillments/set_status", { fulfillment_id: null, status: "COMPLETED" }],
         ["post", "/api/fulfillments/methods/update", { method: {} }],
       ];
-      // Declared as a tuple list - inferred, the element type collapses to a union that `request(app)[verb]` can't index SuperTest with.
       for (const [verb, path, body] of calls as Array<
         ["get" | "post", string, Record<string, unknown>]
       >) {
@@ -133,8 +112,6 @@ test("nothing this file did survived the transaction", async () => {
     `SELECT count(*)::int AS n FROM fulfillments.pickups`
   );
   const [{ d }] = await outside(`SELECT count(*)::int AS d FROM fulfillments.directs`);
-  // Both are empty in dev and nothing here books one; a non-zero count means a
-  // schedule_pickup or schedule_direct got through a guard and committed.
   assert.equal(n, 0, "a pickup was booked in dev");
   assert.equal(d, 0, "an appointment was booked in dev");
 });

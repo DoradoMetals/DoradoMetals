@@ -293,7 +293,6 @@ function prettyPrint(safe: any) {
   console.error(chalk.gray("\n" + "—".repeat(Math.min(width, 120))));
 }
 
-// `err` is `unknown` because anything can be thrown — Express types it `any`, which is convenient and untrue (a route can throw a string, an object, or nothing). Matters most for `deliberate` below, which decides whether the caller sees the real message or a generic one.
 export default function errorHandler(
   err: unknown,
   req: Request,
@@ -311,9 +310,6 @@ export default function errorHandler(
 
   prettyPrint(safe);
 
-  // A DOMAIN ERROR CARRIES A KIND, NOT A STATUS (shared/errors.ts). It is asked
-  // first, and it is the only branch that can answer without the thrower ever
-  // having named an HTTP code.
   const domainStatus = statusOfDomainError(err);
 
   const status =
@@ -323,8 +319,6 @@ export default function errorHandler(
     raised.status ||
     500;
 
-  // What goes back to the client is not what goes to the log — safe.message is the underlying error verbatim (a Postgres error carries the column, type, constraint name and, on a unique violation, the conflicting value), and `where` used to add the absolute server path next to it, both returned to callers with only `where` gated on NODE_ENV.
-  // A deliberately-raised error is different — it was written to be read (its status says so) and keeps its message; everything else gets a generic one. The real message is still printed in full above.
   const deliberate =
     domainStatus !== null ||
     (Number.isInteger(raised.statusCode ?? raised.status) &&

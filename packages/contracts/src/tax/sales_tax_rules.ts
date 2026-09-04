@@ -27,5 +27,3 @@ export const SalesTaxRule = z.object({
 });
 export type SalesTaxRule = z.infer<typeof SalesTaxRule>;
 // generated:end
-
-// Hand-written derivations go here: New, Patch, named reads.

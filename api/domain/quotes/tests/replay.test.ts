@@ -1,5 +1,3 @@
-// The quote endpoints, over real HTTP — pins that every number is priced by the server from its own tables, and a body riding prices/spots changes NOTHING (the $26.81 regression stays dead). Math checks are hand-computed from the same tables the endpoints read, so a transposed spot or doubled quantity fails loudly.
-// Everything runs inside the pin — the endpoints only read, but so did tracking.test.js until it didn't; no lock, since quotes write nothing.
 import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import request from "supertest";
@@ -12,10 +10,9 @@ import { aUser, anOrder, anAddress } from "#shared/testing/builders/index.ts";
 await mockSessions();
 const { default: app } = await import("#app");
 
-const CENTS = 0.005; // money reconciliation tolerance: within half a cent
-const EXACT = 1e-9;  // same floats, same tables, same order of operations
+const CENTS = 0.005;
+const EXACT = 1e-9;
 
-// SELECT projections, not table rows.
 type SpotFixture = { name: string; ask: number; bid: number };
 type ProductFixture = {
   id: string;
@@ -32,21 +29,20 @@ type BuyerFixture = {
   dorado_funds: number | null;
 };
 
-let spots: SpotFixture[];      // per metal, from the tables the API reads
-let gold: SpotFixture; // the Gold spot row
-let product: ProductFixture;   // a Gold product live in BOTH directions
-let hiddenAsk: { id: string }; // display = false - the sell side has no gate (ruling 49) and quotes it anyway
-let buyer: BuyerFixture;       // a real user - the address it needs is built per-test
-let goldId: string;            // the Gold metal's id - a scrap line names it
-let standardId: string;        // shipping.services, code STANDARD
-let cardId: string;            // payments.methods, sale, type CARD
+let spots: SpotFixture[];
+let gold: SpotFixture;
+let product: ProductFixture;
+let hiddenAsk: { id: string };
+let buyer: BuyerFixture;
+let goldId: string;
+let standardId: string;
+let cardId: string;
 
 beforeAll(async () => {
   spots = await outside<SpotFixture>(
     `SELECT m.name, s.ask, s.bid
        FROM spots.spots s JOIN metals.metals m ON m.id = s.metal_id`
   );
-  // Two claims, separated — `gold?.ask > 0` conflated 'no Gold row' with 'Gold priced at zero' since `undefined > 0` is also false; now distinct failures.
   const found = spots.find((s) => s.name === "Gold");
   assert.ok(found, "dev has no Gold spot row - every check here would be vacuous");
   assert.ok(
@@ -78,14 +74,6 @@ beforeAll(async () => {
   hiddenAsk = hiddens[0];
   assert.ok(hiddenAsk, "dev has no display=false product");
 
-  // Identity only - auth.users, the live table. The address a sales-order
-  // quote needs is built fresh inside each test that needs one (see
-  // anAddress below): discovering an EXISTING places.addresses row here and
-  // using it later, across the gap to the test body, was flaky - other
-  // files in the suite build and (a few, deliberately) commit real rows
-  // there, so a row found in beforeAll could be gone by the time a test
-  // read it a moment later. Unlike exchange.addresses, places.addresses is
-  // not frozen.
   const buyers = await outside<BuyerFixture>(
     `SELECT id, name, email, dorado_funds FROM auth.users
       ORDER BY dorado_funds DESC NULLS LAST, id LIMIT 1`
@@ -93,8 +81,6 @@ beforeAll(async () => {
   buyer = buyers[0];
   assert.ok(buyer, "dev has no user to buy as");
 
-  // The delivery service and payment method are IDS in the body now (D214
-  // item 11); their rows' `code` and `type` are what price the order.
   const [standard] = await outside<{ id: string }>(
     `SELECT id FROM shipping.services WHERE code = 'STANDARD' ORDER BY id LIMIT 1`
   );
@@ -113,8 +99,6 @@ afterAll(async () => {
   await pool.end();
 });
 
-// ---------------------------------------------------------------- catalog
-
 test("the catalogue quote is public and prices both sides at the server's spot", async () => {
   await inPinnedTransaction(async () => {
     await anonymous(async () => {
@@ -125,7 +109,6 @@ test("the catalogue quote is public and prices both sides at the server's spot",
       assert.equal(ask.body.side, "ask");
       assert.ok(!Number.isNaN(Date.parse(ask.body.spots_at)), "spots_at is not a timestamp");
 
-      // content * (ask_spot * ask_premium), same tables, same association.
       const unit = product.content * (gold.ask * product.ask_premium);
       assert.ok(Math.abs(ask.body.items[0].unit_price - unit) < EXACT,
         `ask unit_price ${ask.body.items[0].unit_price} != hand-computed ${unit}`);
@@ -139,7 +122,6 @@ test("the catalogue quote is public and prices both sides at the server's spot",
       const bidUnit = product.content * (gold.bid * product.bid_premium);
       assert.ok(Math.abs(bid.body.items[0].unit_price - bidUnit) < EXACT,
         `bid unit_price ${bid.body.items[0].unit_price} != hand-computed ${bidUnit}`);
-      // No quantity asks what one costs.
       assert.equal(bid.body.items[0].quantity, 1);
     });
   }, { actor: TEST_ACTOR.id });
@@ -151,14 +133,9 @@ test("a display=false product is refused on the ask side and quoted on the bid s
       const refused = await request(app)
         .post("/api/quotes/catalog")
         .send({ items: [{ id: hiddenAsk.id }], side: "ask" });
-      // 422: the liveness gate is a RULE the service applies, and a domain
-      // refusal is Invalid (D214 item 11). A malformed body would be 400.
       assert.equal(refused.status, 422, `a hidden product priced on the ask side (${refused.status})`);
       assert.match(refused.body?.error?.message ?? "", /not available/);
 
-      // The same id on the bid side: the sell side has no gate at all
-      // (Jacob, 2026-09-03, ruling 49), so a product hidden from buying is
-      // still quoted for selling. The gate is per side, not per product.
       const quoted = await request(app)
         .post("/api/quotes/catalog")
         .send({ items: [{ id: hiddenAsk.id }], side: "bid" });
@@ -167,19 +144,14 @@ test("a display=false product is refused on the ask side and quoted on the bid s
   }, { actor: TEST_ACTOR.id });
 });
 
-// ------------------------------------------------------------- sales order
-
 test("the sales-order quote needs a session; the two goods quotes do not", async () => {
   await inPinnedTransaction(async () => {
     await anonymous(async () => {
-      // Funds-priced, so guarded.
       const res = await request(app)
         .post("/api/quotes/sales_order")
         .send({ items: [{ id: product.id, quantity: 1 }] });
       assert.ok([401, 403].includes(res.status), `sales_order answered ${res.status} with no session`);
 
-      // The purchase quote is public like the catalogue: an anonymous sell
-      // cart estimates what the business would pay.
       const pub = await request(app)
         .post("/api/quotes/purchase_order")
         .send({ items: [{ type: "product", bullion_id: product.id, quantity: 1 }] });
@@ -191,9 +163,6 @@ test("the sales-order quote needs a session; the two goods quotes do not", async
 
 test("the sales-order breakdown reconciles to the cent and funds come from the user's row", async () => {
   await inPinnedTransaction(async (c) => {
-    // buyer is a REAL, pre-existing user, who may already own a
-    // default-shipping address in dev - default_shipping: false avoids
-    // the one-default-per-user constraint against that real row.
     const address = await anAddress(c, buyer, { default_shipping: false });
     await as({ id: buyer.id, name: buyer.name, email: buyer.email }, async () => {
       const res = await request(app).post("/api/quotes/sales_order").send({
@@ -213,15 +182,12 @@ test("the sales-order breakdown reconciles to the cent and funds come from the u
         assert.ok(typeof b[field] === "number", `the breakdown is missing ${field}`);
       }
 
-      // The item math, from the same tables.
       const unit = product.content * (gold.ask * product.ask_premium);
       assert.ok(Math.abs(b.items[0].unit_ask - unit) < EXACT, `unit_ask ${b.items[0].unit_ask} != ${unit}`);
       assert.ok(Math.abs(b.item_total - unit * 2) < EXACT, "item_total is not the sum of the lines");
       const lineSum = b.items.reduce((acc: number, i: { line_total: number }) => acc + i.line_total, 0);
       assert.ok(Math.abs(lineSum - b.item_total) < CENTS, "the lines do not sum to item_total");
 
-      // The whole breakdown must reconcile: this is the arithmetic
-      // calculateSalesOrderTotal commits an order under.
       assert.ok(Math.abs(b.item_total + b.shipping_charge + b.sales_tax - b.base_total) < CENTS,
         "base_total != item_total + shipping + tax");
       assert.ok(Math.abs(b.base_total - b.pre_charges_amount - b.subject_to_charges_amount) < CENTS,
@@ -231,9 +197,6 @@ test("the sales-order breakdown reconciles to the cent and funds come from the u
       assert.ok(Math.abs(b.order_total - b.pre_charges_amount - b.post_charges_amount) < CENTS,
         "order_total != pre + post");
 
-      // Funds come from the SESSION user's auth.users row - never the
-      // body, and not from the mocked session object either (it carries no
-      // dorado_funds at all, which is the point).
       assert.ok(Math.abs(b.beginning_funds - Number(buyer.dorado_funds ?? 0)) < EXACT,
         `beginning_funds ${b.beginning_funds} is not the user's row balance ${buyer.dorado_funds}`);
       const applied = Math.min(b.beginning_funds, b.base_total);
@@ -242,22 +205,17 @@ test("the sales-order breakdown reconciles to the cent and funds come from the u
       assert.ok(Math.abs(b.pre_charges_amount - applied) < CENTS,
         "the customer's balance was not applied - credit applies whenever there is one");
 
-      // CARD surcharges at 2.9% of what is left to charge.
       if (b.subject_to_charges_amount > 0) {
         assert.ok(Math.abs(b.charges_amount - b.subject_to_charges_amount * 0.029) < CENTS,
           "the CARD surcharge is not 2.9% of the charged amount");
       }
-      // getShippingCharge: free over $1000, else STANDARD is $25.
       assert.equal(b.shipping_charge, b.item_total > 1000 ? 0 : 25);
     });
   }, { actor: TEST_ACTOR.id });
 });
 
-// Admin quotes price the named user's funds (subjectOf semantics); a customer naming somebody else just gets their OWN quote back — the guard is the session winning, never an error or somebody else's balance.
 test("an admin's sales-order quote prices the named user's funds; a customer's name is ignored", async () => {
   await inPinnedTransaction(async () => {
-    // A second user whose balance differs from the session user's - a
-    // same-balance fixture would make both assertions vacuous.
     const targets = await outside(
       `SELECT id, dorado_funds FROM auth.users
         WHERE id <> $1 AND dorado_funds IS NOT NULL
@@ -286,13 +244,9 @@ test("an admin's sales-order quote prices the named user's funds; a customer's n
   }, { actor: TEST_ACTOR.id });
 });
 
-// ---------------------------------------------------------- purchase order
-
 test("the purchase-order quote prices scrap and product lines from the rates band for the metal total", async () => {
   await inPinnedTransaction(async () => {
     await as({ id: buyer.id, name: buyer.name, email: buyer.email }, async () => {
-      // 124.414g at .500 purity = exactly 2 troy oz of content, derived by
-      // the SERVER - the body carries no content field at all.
       const scrap = {
         type: "scrap", metal_id: goldId, pre_melt: 124.414, purity: 0.5, unit: "g",
       };
@@ -310,9 +264,6 @@ test("the purchase-order quote prices scrap and product lines from the rates ban
       assert.equal(p.index, 1);
       assert.equal(p.metal, "Gold");
 
-      // The band is chosen on the metal's TOTAL content across the quote -
-      // per line, the way intake.ts sums it - and read back from the same
-      // table the endpoint read.
       const metalTotal = scrapContent + Number(product.content);
       const bands = await outside(
         `SELECT r.scrap_pct, r.bullion_pct
@@ -326,8 +277,6 @@ test("the purchase-order quote prices scrap and product lines from the rates ban
       assert.equal(s.premium, Number(bands[0].scrap_pct), "scrap premium is not the band's scrap_pct");
       assert.equal(p.premium, Number(bands[0].bullion_pct), "product premium is not the band's bullion_pct");
 
-      // content * (bid_spot * premium); scrap is never multiplied by
-      // quantity, products are.
       const scrapUnit = scrapContent * (gold.bid * Number(bands[0].scrap_pct));
       const productUnit = Number(product.content) * (gold.bid * Number(bands[0].bullion_pct));
       assert.ok(Math.abs(s.unit_price - scrapUnit) < EXACT, `scrap unit ${s.unit_price} != ${scrapUnit}`);
@@ -336,7 +285,6 @@ test("the purchase-order quote prices scrap and product lines from the rates ban
       assert.ok(Math.abs(p.line_total - productUnit * 2) < EXACT, "product line_total is not unit * quantity");
 
       assert.ok(Math.abs(res.body.total - (s.line_total + p.line_total)) < EXACT, "total is not the sum of the lines");
-      // Declared value is capped by the insurance ceiling — this fixture's total (~$15,900) exceeds the $10,000 ceiling, so the clamp is actually REACHED here, not asserted vacuously. Read from the same table the endpoint reads.
       const ceiling = await outside(
         `SELECT min(s.max_insured_value) AS ceiling
            FROM shipping.services s
@@ -350,10 +298,6 @@ test("the purchase-order quote prices scrap and product lines from the rates ban
       assert.equal(res.body.declared_value, Math.min(res.body.total, cap),
         "declared_value is the total capped at shipping.services.max_insured_value");
 
-      // THE NAME LOOKUP IS GONE (D214 item 11): a product line names its
-      // catalogue id, so the two spellings D73 had to resolve between - and the
-      // `SELECT id FROM products.bullion WHERE name = ...` behind them - do not
-      // exist. A body naming a product by name is refused by the contract.
       const byName = await request(app).post("/api/quotes/purchase_order").send({
         items: [{ type: "product", product_name: product.name, quantity: 2 }],
       });
@@ -362,16 +306,8 @@ test("the purchase-order quote prices scrap and product lines from the rates ban
   }, { actor: TEST_ACTOR.id });
 });
 
-// THE $26.81 REGRESSION, SHUT ONE STEP EARLIER. A body riding spots, prices or
-// premiums used to be IGNORED - the quote read only ids and answered the same
-// number either way. The contracts are strict now, so such a body is REFUSED
-// rather than silently discarded, which is the stronger property: a field the
-// schema has no place for cannot be read by accident later.
 test("no body-supplied price, spot or premium is accepted at all", async () => {
   await inPinnedTransaction(async (c) => {
-    // buyer is a REAL, pre-existing user, who may already own a
-    // default-shipping address in dev - default_shipping: false avoids
-    // the one-default-per-user constraint against that real row.
     const address = await anAddress(c, buyer, { default_shipping: false });
     const poison = {
       spots: [{ type: "Gold", name: "Gold", ask_spot: 1, bid_spot: 1, ask: 1, bid: 1 }],
@@ -387,7 +323,6 @@ test("no body-supplied price, spot or premium is accepted at all", async () => {
         .post("/api/quotes/catalog")
         .send({ items: [{ id: product.id, quantity: 2 }], side: "ask" });
       assert.equal(clean.status, 200, JSON.stringify(clean.body));
-      // The honest number is nowhere near the poisoned one it refuses.
       assert.ok(clean.body.items[0].unit_price > 1, "the clean quote itself is suspiciously tiny");
 
       const poisoned = await request(app).post("/api/quotes/catalog").send({
@@ -397,7 +332,6 @@ test("no body-supplied price, spot or premium is accepted at all", async () => {
       });
       assert.equal(poisoned.status, 400, "a catalogue quote accepted something price-shaped");
 
-      // Each field on its own, so the refusal is not an accident of one of them.
       for (const field of ["unit_price", "price", "ask_premium", "content"]) {
         const one = await request(app).post("/api/quotes/catalog").send({
           items: [{ id: product.id, quantity: 2, [field]: 0.01 }], side: "ask",
@@ -416,8 +350,6 @@ test("no body-supplied price, spot or premium is accepted at all", async () => {
       const clean = await request(app).post("/api/quotes/sales_order").send(base);
       assert.equal(clean.status, 200, JSON.stringify(clean.body));
 
-      // `dorado_funds` and `user` were the way a caller declared the credit
-      // balance they were discounted by. Neither is a field any more.
       for (const extra of [
         poison,
         { dorado_funds: 1000000 },
@@ -442,9 +374,6 @@ test("no body-supplied price, spot or premium is accepted at all", async () => {
       assert.equal(cleanSell.status, 200, JSON.stringify(cleanSell.body));
       assert.ok(cleanSell.body.total > 1, "the clean sell quote itself is suspiciously tiny");
 
-      // A scrap line carrying its own content is the customer declaring the
-      // quantity of fine metal they are paid for; a product line carrying a
-      // premium is the customer setting the rate.
       for (const items of [
         [{ type: "scrap", metal_id: goldId, pre_melt: 124.414, purity: 0.5, unit: "g", content: 9999 }],
         [{ type: "scrap", metal_id: goldId, pre_melt: 124.414, purity: 0.5, unit: "g", premium: 0.0001 }],
@@ -462,15 +391,6 @@ test("no body-supplied price, spot or premium is accepted at all", async () => {
   }, { actor: TEST_ACTOR.id });
 });
 
-
-// ------------------------------------------------- the profit breakdown
-
-// ADMIN ONLY, and asserted from both sides: the response is the business's
-// margins on a customer's order, so the customer being refused is as much the
-// contract as the admin being answered. Priced against a purchase order built
-// here - orderRead.view (what profitBreakdown reads) resolves from
-// orders.orders, so discovering the fixture from exchange.purchase_orders was
-// answering the question for a table the endpoint no longer queries.
 test("the profit breakdown answers an admin and refuses everyone else", async () => {
   await inPinnedTransaction(async (c) => {
     const seller = await aUser(c);
@@ -513,8 +433,6 @@ test("the profit breakdown answers an admin and refuses everyone else", async ()
   }, { actor: TEST_ACTOR.id });
 });
 
-// The margins are server-sourced like every other quote: a body riding spots,
-// premiums or an order object in is priced identically to a clean one.
 test("a poisoned profit-breakdown body changes nothing", async () => {
   await inPinnedTransaction(async (c) => {
     const seller = await aUser(c);
@@ -526,10 +444,6 @@ test("a poisoned profit-breakdown body changes nothing", async () => {
       const clean = await request(app).post("/api/quotes/profit_breakdown").send({ order_id });
       assert.equal(clean.status, 200, JSON.stringify(clean.body));
 
-      // The body is ONE id, strictly. Everything the old body could carry -
-      // the order itself, both spot sets, the rate bands, the fees - is a
-      // field the contract does not have, so it is refused rather than
-      // silently discarded.
       const poisoned = await request(app).post("/api/quotes/profit_breakdown").send({
         order_id,
         order: { id: order_id, totals: { refiner_fee: 1000000 }, order_items: [] },

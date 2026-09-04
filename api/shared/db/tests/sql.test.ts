@@ -1,5 +1,3 @@
-// The SQL loader — small, but everything reads its statements through it, so its failure modes matter more than its size.
-// The one worth having is the EMPTY file — `query("")` isn't an error to pg, it just does nothing, so a truncated .sql file would read as a working query that returned no rows: the failure that looks like data.
 import { test } from "vitest";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -28,7 +26,6 @@ test("a missing file names the path it looked for", () => {
   assert.throws(() => sql("nope"), /no SQL file at .*nope\.sql/);
 });
 
-// The important one.
 test("an empty file is refused rather than run", () => {
   assert.throws(() => sql("empty"), /contains no SQL/);
 });
@@ -41,7 +38,6 @@ test("the second read is served from cache and is identical", () => {
   const a = sql("ok");
   const b = sql("ok");
   assert.equal(a, b);
-  // and a change on disk after first read does not leak in mid-process
   fs.writeFileSync(path.join(tmp, "sql", "ok.sql"), "SELECT 999;\n");
   assert.equal(sql("ok"), a, "the cache was bypassed");
 });

@@ -14,7 +14,6 @@ export const getAll = asyncHandler(async (req, res) => {
 });
 
 export const getOne = asyncHandler(async (req, res) => {
-  // Answers 200 with null when no id is given, rather than 400 - a deliberate change to make later.
   const id = oneString(req.query.id);
   const result = id ? await carriersService.getCarrierById(id) : null;
   return res.status(200).json(result);
@@ -32,7 +31,6 @@ export const update = asyncHandler(async (req, res) => {
   return res.status(200).json(result);
 });
 
-// The frontend sends { carrier_id }, not { id } - the same mistake services/controller.ts had too.
 export const remove = asyncHandler(async (req, res) => {
   const body = parseStrict(CarrierDeleteBody, req.body, "carriers/delete body");
   await carriersService.removeCarrier(body.carrier_id);

@@ -21,9 +21,6 @@ export const Image = z.object({
 });
 export type Image = z.infer<typeof Image>;
 // generated:end
-// POST /media/images/upload - a presigned-PUT request. The server names the
-// object; `filename` survives only as a sanitised suffix and `path` is not
-// accepted at all - it was accepted and silently ignored.
 export const MediaUploadBody = Image.pick({
   mime_type: true,
   size_bytes: true,
@@ -34,7 +31,5 @@ export const MediaUploadBody = Image.pick({
 });
 export type MediaUploadBody = z.infer<typeof MediaUploadBody>;
 
-// DELETE /media/images/delete - the id alone; ownership is the session's.
 export const MediaDeleteBody = Image.pick({ id: true });
 export type MediaDeleteBody = z.infer<typeof MediaDeleteBody>;
-

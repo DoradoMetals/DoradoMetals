@@ -9,7 +9,6 @@ import {
 
 import { requireUser } from "#shared/middleware/authMiddleware.ts";
 
-
 const router = express.Router();
 
 router.post('/generate_packing_list', requireUser, generatePackingList);

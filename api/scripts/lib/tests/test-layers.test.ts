@@ -1,9 +1,3 @@
-// The runner conversion (lane 3) splits `test` into `test:unit`/`test:db`/
-// `test:http` by what a file ACTUALLY IMPORTS - see test-layers.ts's own
-// header for why that beats a directory-based split. This proves the WALK,
-// not just the regexes: a synthetic tree on real disk, nested directories,
-// an excluded directory that must not be descended into, and one file of
-// each signal plus one plain file with neither.
 import { test } from "vitest";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -49,9 +43,6 @@ test("a db-signal file (imports #db, no supertest) is classified db", () => {
 
 test("a file with neither signal is classified unit", () => {
   const root = tree({
-    // No `#`-prefixed import here on purpose: lint:imports walks api/ for
-    // every import statement it can find and resolves the specifier, and a
-    // fake path inside a fixture STRING reads to it exactly like a real one.
     "shared/utils/tests/format.test.ts":
       'const format = (n) => String(n);\ntest("x", () => { format(1); });\n',
   });

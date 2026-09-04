@@ -1,18 +1,3 @@
-// The writes on orders.items, against real Postgres.
-//
-// THE FIRST TEST IS THE REASON THIS FILE EXISTS. exchange deleted order lines
-// with `WHERE id = ANY($1)` and no order scoping, while both sibling statements
-// scoped on the order - and the service computed the order id one line above
-// the call, for something else, without passing it. The guard is now in the
-// statement AND required by the signature.
-//
-// A line is not a cheap thing to lose. It carries the scrap weights, the
-// purity, and the assay figures recording what was actually recovered from a
-// customer's parcel; the purchase-orders service says in its own comment that
-// what those rows record "exists nowhere else". So the guard is now in the
-// statement AND required by the signature, and this proves it.
-//
-// Each test runs inside a transaction that is rolled back.
 import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
@@ -20,7 +5,6 @@ import type { PoolClient } from "pg";
 import pool from "#pool";
 import { inRollback } from "#shared/testing/rollback.ts";
 import * as items from "#db/orders/items/repo.ts";
-
 
 beforeAll(async () => {
   assert.equal(
@@ -33,8 +17,6 @@ afterAll(async () => {
   await pool.end();
 });
 
-// Two DIFFERENT orders that each have at least one line. Without two, the
-// cross-order test cannot distinguish a scoped delete from an unscoped one.
 const twoOrdersWithItems = async (c: PoolClient) => {
   const { rows } = await c.query(
     `SELECT order_id, min(id::text) AS item_id, count(*)::int n
@@ -54,8 +36,6 @@ test("a delete cannot reach a line belonging to another order", async () => {
     );
     const [mine, theirs] = pair;
 
-    // The other order's line, named with MY order id. It must survive: that is
-    // the entire guard.
     const wrong = await items.remove(theirs.item_id, mine.order_id, c);
     assert.equal(wrong, false, "the delete reported removing a line it never matched");
 
@@ -73,10 +53,6 @@ test("a delete cannot reach a line belonging to another order", async () => {
   });
 });
 
-// The whole reason update answers the WRITTEN ROW rather than nothing:
-// Postgres does not raise on a zero-row UPDATE, so a WHERE that has stopped
-// resolving succeeds forever. undefined is that miss, and the row is the proof
-// it landed - no second read to disagree with it.
 test("update answers undefined for an id that names nothing and the row for a real one", async () => {
   await inRollback(async (c: PoolClient) => {
     assert.equal(
@@ -97,7 +73,6 @@ test("a price is scoped to its own order too", async () => {
     assert.ok(pair, "dev needs two orders with lines");
     const [mine, theirs] = pair;
 
-    // The right item, but the WRONG order: it must match nothing.
     const wrong = await items.update(
       theirs.item_id, { price: 123.45 }, { order_id: mine.order_id }, c
     );
@@ -121,7 +96,6 @@ test("quantity and premium are one patch, and a partial one leaves the rest alon
     assert.equal(Number(row!.quantity), 7);
     assert.equal(Number(row!.premium), 1.25);
 
-    // A key ABSENT from the patch is not in the SET list at all.
     await items.update(id, { premium: 0.9 }, {}, c);
     const after = await items.getOne(id, c);
     assert.equal(Number(after!.quantity), 7, "an absent key was written anyway");

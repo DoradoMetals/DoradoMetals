@@ -1,57 +1,3 @@
-// Every pinned test that writes a lock-ordered table must pass `locks.ts`'s
-// lock at that call.
-//
-// *** WHY THIS EXISTS. *** `shared/testing/locks.ts` documents the failure
-// mode itself: a missing lock is latent until test timing changes elsewhere,
-// and it just did. Of 269 `inPinnedTransaction` calls in 59 files, 190 passed
-// no lock option at all, and the second audit run of the redesign
-// (docs/waves/test-suite-redesign.md, 1.2) failed 997/998 -
-// `domain/orders/tests/refiner-edits.test.ts` raised `deadlock detected`
-// (40P01) because 3 of its 10 calls carried no lock while
-// `place-purchase.test.ts` placed whole purchase orders across 8 calls with
-// none at all. Both files are fixed by hand in the same pass that adds this
-// script; this is what stops the fix from rotting back to zero.
-//
-// *** THE SHAPE. *** Two graphs, built from the real tree every run rather
-// than hand-maintained:
-//   1. TABLE_LOCKS / WILDCARD_SCHEMA_LOCKS transcribe locks.ts's own
-//      documentation comments - which tables each of the five advisory locks
-//      protects. This is the one part that cannot be derived, because the
-//      association lives in prose, not in a type.
-//   2. Every `db/**/*.ts` and `domain/**/*.ts` file (excluding tests) is
-//      walked for what it WRITES - either a literal `INSERT INTO` / `UPDATE`
-//      / `DELETE FROM schema.table` inside a backtick SQL string (inline, or
-//      in a repo's sibling `sql/*.sql` file), or `buildUpdate({ table:
-//      "schema.table", ... })`, the one generic update the CRUD ruling left
-//      behind. Each file's own writes are unioned with every write reachable
-//      through its own imports (`import ... from` and `await import(...)`,
-//      both `#db/`/`#domain/`-rooted and relative), so a service that pulls in
-//      a dozen repos inherits every lock any of them needs - which is exactly
-//      how `place-purchase.test.ts` needs LOCKS.ORDERS despite importing
-//      `#domain/orders/place.ts`, not a repo, directly.
-//
-// A test FILE's required lock set is the union of what its own imports
-// resolve to. Every `inPinnedTransaction` call in a file with a non-empty
-// required set must carry a `lock:` option - presence, not which one; this
-// catches "passes no lock options at all", which is the defect that shipped.
-//
-// *** WHAT IT CANNOT SEE, on purpose - narrow beats wrong. ***
-//   - A test file that reaches a locked table ONLY through HTTP
-//     (`request(app)...`) without ever importing the domain module that owns
-//     the write. `refiner-edits.test.ts` is exactly this shape - it imports
-//     only `#app` and drives every write through supertest, so this script
-//     cannot derive a requirement for it at all. Its 10 calls are fixed by
-//     hand for that reason, not by this script's detection - see the file
-//     itself, and 1.2/1.3 of the redesign doc for why HTTP-layer detection was
-//     out of scope for lane 0.
-//   - Multiple `inPinnedTransaction` calls inside the SAME `test(...)` block
-//     share one ACCEPTED key (by occurrence index) - moving one without the
-//     other inside a test would not be caught here.
-//   - A cycle in the db/domain import graph returns an empty set for the
-//     edge that closes it rather than looping; none is known to exist today.
-//
-// Run: pnpm --filter @dorado/api lint:test-locks
-//      pnpm --filter @dorado/api lint:test-locks --self-test
 import { readFileSync, readdirSync, statSync, existsSync } from "node:fs";
 import path from "node:path";
 import { LOCKS } from "#shared/testing/locks.ts";
@@ -120,15 +66,6 @@ if (process.argv.includes("--self-test")) {
 
 const SELF_TEST_MODE = process.env.LINT_TEST_LOCKS_ROOT != null;
 
-// *** TABLE -> LOCK, TRANSCRIBED FROM locks.ts's OWN COMMENTS. *** Cannot be
-// derived - the association lives in prose next to each numeric id, not in a
-// type. Keep this in step with shared/testing/locks.ts by hand; a table this
-// map does not know about is simply unlocked as far as this script can tell,
-// which is the same "narrow beats wrong" trade-off SCRAP_SWEEP's own history
-// makes: exchange.scrap and (what locks.ts calls) checkout.sell_cart_items are
-// pre-D212 tables nothing currently writes, and are listed anyway because a
-// table growing a writer back is exactly the case a stale map would miss
-// silently.
 const EXACT_TABLE_LOCKS: Record<string, number> = {
   "checkout.sell_cart_items": LOCKS.SCRAP_SWEEP,
   "exchange.sell_cart_items": LOCKS.SCRAP_SWEEP,
@@ -145,8 +82,6 @@ const EXACT_TABLE_LOCKS: Record<string, number> = {
   "exchange.users": LOCKS.USERS,
   "auth.users": LOCKS.USERS,
 };
-// "orders.*, refiners.* (written by the order-placing paths), checkout.*" -
-// full-schema wildcards, unlike FULFILLMENTS' four named tables above.
 const WILDCARD_SCHEMA_LOCKS: Record<string, number> = {
   orders: LOCKS.ORDERS,
   refiners: LOCKS.ORDERS,
@@ -175,9 +110,6 @@ function walk(dir: string, out: string[] = []): string[] {
 
 const rel = (f: string) => path.relative(ROOT, f).split(path.sep).join("/");
 
-// Every backtick template literal's contents - deliberately crude (no
-// interpolation awareness) since the SQL keywords this looks for always sit
-// before the first `${`.
 function templateBodies(src: string): string[] {
   const out: string[] = [];
   const re = /`((?:\\.|[^`\\])*)`/g;
@@ -199,14 +131,12 @@ function tablesWrittenBy(text: string): Set<string> {
   return tables;
 }
 
-// This file's OWN writes - inline SQL, buildUpdate, and (for a repo.ts) its
-// sibling sql/*.sql directory.
 function ownLocks(absFile: string): Set<number> {
   const locks = new Set<number>();
   const src = readFileSync(absFile, "utf8");
   const inline = new Set<string>();
   for (const body of templateBodies(src)) for (const t of tablesWrittenBy(body)) inline.add(t);
-  for (const t of tablesWrittenBy(src)) inline.add(t); // buildUpdate's plain-quoted table:
+  for (const t of tablesWrittenBy(src)) inline.add(t);
 
   if (/\/repo(\.\w+)?\.ts$/.test(absFile)) {
     const sqlDir = path.join(path.dirname(absFile), "sql");
@@ -225,9 +155,6 @@ function ownLocks(absFile: string): Set<number> {
   return locks;
 }
 
-// "#db/x/repo.ts" / "./repo.ts" -> "db/x/repo.ts", relative to ROOT. Only
-// db/ and domain/ are graph territory - #shared, #providers and #transport
-// name no table and are not followed.
 function resolveSpecifier(fromRel: string, spec: string): string | null {
   if (spec.startsWith("#db/") || spec.startsWith("#domain/")) return spec.slice(1);
   if (spec.startsWith(".")) {
@@ -249,9 +176,6 @@ function importsOf(src: string): string[] {
   return specs;
 }
 
-// db/ and domain/ files, excluding tests - the module graph this script
-// reasons about. A repo/service outside this (transport/, shared/) writes no
-// table of its own as far as EXACT_TABLE_LOCKS/WILDCARD_SCHEMA_LOCKS know.
 const graphFiles = ["db", "domain"]
   .flatMap((d) => walk(path.join(ROOT, d)))
   .filter((f) => /\.ts$/.test(f) && !/\.test\.ts$/.test(f) && !/\/tests\//.test(f));
@@ -261,7 +185,7 @@ const locksMemo = new Map<string, Set<number>>();
 function computeLocks(fileRel: string, visiting: Set<string> = new Set()): Set<number> {
   const cached = locksMemo.get(fileRel);
   if (cached) return cached;
-  if (visiting.has(fileRel)) return new Set(); // cycle - contributes nothing at the closing edge
+  if (visiting.has(fileRel)) return new Set();
   const abs = graphByRel.get(fileRel);
   if (!abs) return new Set();
 
@@ -278,31 +202,15 @@ function computeLocks(fileRel: string, visiting: Set<string> = new Set()): Set<n
   return result;
 }
 
-// Every db/domain file's locks, computed once - this is also the source of
-// the known-present control below.
 for (const f of graphByRel.keys()) computeLocks(f);
-
-// -------------------------------------------------- the test files
 
 const testFiles = walk(ROOT)
   .filter((f) => /\.test\.ts$/.test(f))
   .map((f) => ({ abs: f, rel: rel(f) }));
 
-// A pinned call with no lock option that a genuinely read-only test needs -
-// keyed by `<file>::<enclosing test description>#<occurrence index within
-// it>`, NOT by line, so a reformat does not silently drop an acceptance (the
-// same reasoning audit-silent-mutations' ACCEPTED gives for its own keys).
 const ACCEPTED: Record<string, string> = {};
 const acceptedHit = new Set<string>();
 
-// COMMENTS MUST BE SKIPPED BEFORE QUOTES ARE EVEN CONSIDERED. An apostrophe in
-// a `//` line comment ("the CALLER'S book") is not a string delimiter, but a
-// naive scanner cannot tell - it opens a "string" there and does not close it
-// until the NEXT apostrophe, anywhere, however far away. That swallowed three
-// whole test bodies into one call's span on the first version of this
-// function, corrupting a mechanical rewrite of otherwise-correct code (caught
-// before it was applied - see the lane 0 report). `//` and `/* */` are
-// stripped from consideration first, in the same left-to-right pass.
 function balancedCall(src: string, openParenIdx: number): string {
   let i = openParenIdx + 1;
   let depth = 1;
@@ -353,7 +261,7 @@ for (const { abs, rel: fileRel } of testFiles) {
     if (!target) continue;
     for (const l of computeLocks(target)) requiredLocks.add(l);
   }
-  if (requiredLocks.size === 0) continue; // this script has no lock to require here
+  if (requiredLocks.size === 0) continue;
 
   const callRe = /inPinnedTransaction\s*\(/g;
   let m: RegExpExecArray | null;
@@ -399,19 +307,12 @@ if (SELF_TEST_MODE) {
   process.exit(findings > 0 ? 1 : 0);
 }
 
-// THE FLOOR. Fewer than 100 test files means the walk is broken, not the
-// suite clean - matching audit-query-paths' reasoning: a scan that finds
-// nothing must not report success.
 const FLOOR = Number(process.env.LINT_TEST_LOCKS_FLOOR ?? 100);
 if (testFiles.length < FLOOR) {
   console.error(`\nonly ${testFiles.length} test file(s) found - the walk is broken, not the suite clean`);
   process.exit(1);
 }
 
-// THE KNOWN-PRESENT CONTROL. db/orders/repo.ts writes orders.orders - if this
-// script cannot attribute LOCKS.ORDERS to that one real, unambiguous file, the
-// resolution pipeline (SQL scan, buildUpdate scan, or table->lock map) is
-// broken and every other finding here is meaningless.
 const CONTROL_FILE = "db/orders/repo.ts";
 const controlLocks = computeLocks(CONTROL_FILE);
 if (!controlLocks.has(LOCKS.ORDERS)) {

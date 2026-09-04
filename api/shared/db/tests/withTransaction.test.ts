@@ -1,8 +1,3 @@
-// withTransaction's own mechanics: commit on success, rollback-and-rethrow on
-// failure, and the actor that travels on the connection rather than through a
-// parameter. Run inside the pinned pool (docs at shared/testing/pinned-pool.ts)
-// so its real BEGIN/COMMIT/ROLLBACK become SAVEPOINTs against the real test
-// database and nothing here is ever actually committed.
 import { test } from "vitest";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
@@ -55,9 +50,6 @@ test("rolls back and rethrows the original error, unchanged, when fn throws", as
 });
 
 test("the rollback actually runs: the connection accepts a query right after the throw", async () => {
-  // If withTransaction's catch block failed to issue ROLLBACK, Postgres would
-  // leave the transaction aborted and refuse every further statement with
-  // "current transaction is aborted" - this query is the proof, not the point.
   await inPinnedTransaction(async (client) => {
     await assert.rejects(() => withTransaction(async (c) => { await c.query("SELECT 1/0"); }));
     const { rows } = await client.query("SELECT 1 AS ok");
@@ -100,11 +92,6 @@ test("actor: null resolves to an empty string outside any ambient context (the c
   });
 });
 
-// `actor ?? currentActor() ?? ""` chains through `??`, which treats `null` the
-// same as `undefined` - so an explicit `null` does NOT blank an ambient actor
-// already in scope, it falls through to it. Documented here as the real
-// behaviour rather than the intuitive one, so a future change to the chain is
-// a deliberate edit, not a silent one.
 test("actor: null does not override an ambient actor already in scope", async () => {
   const AMBIENT = "44444444-4444-4444-4444-444444444444";
   await inPinnedTransaction(async () => {

@@ -1,5 +1,3 @@
-// The rates repo itself, against real Postgres.
-// The one thing worth proving directly rather than through HTTP: `update` answers a boolean - false for an id nobody has, true for one that changed.
 import { test } from "vitest";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";

@@ -1,8 +1,3 @@
-// checkout.checkouts, against real Postgres, every test rolled back.
-//
-// Device-sync, not a ledger: what is checked is that the session WORKS - one
-// row per (user_id, direction), a partial write that leaves the rest alone,
-// and a clear that really clears.
 import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
@@ -13,7 +8,6 @@ import { aUser, anAddress } from "#shared/testing/builders/index.ts";
 import * as userAddresses from "#db/places/user-addresses/repo.ts";
 import * as checkouts from "#db/checkout/checkouts/repo.ts";
 
-
 beforeAll(async () => {
   assert.equal(
     new Date().getTimezoneOffset(), 0,
@@ -22,13 +16,6 @@ beforeAll(async () => {
 });
 afterAll(async () => { await pool.end(); });
 
-// THE CUSTOMER IS BUILT, SO THE SESSION IS ALWAYS NEW (lane 1). This used to
-// read a real person out of the frozen exchange.users table and then say "dev
-// already holds sessions for its users, so a test must not assume it is
-// creating one" - true, and the reason `session` had a found-or-create branch
-// that no assertion here ever wanted. A built customer has no sessions at all,
-// so `create` is the only path and the two directions are genuinely two new
-// rows.
 const session = async (c: PoolClient, user_id: string, direction: string) => {
   const created = await checkouts.create({ user_id, direction }, c);
   assert.ok(created, "the session was not created");
@@ -42,7 +29,6 @@ test("there is one session per user per direction", async () => {
     const sale = await session(c, user, "sale");
     assert.notEqual(purchase.id, sale.id, "the two directions shared a row");
 
-    // The second create loses the race by design and answers nothing.
     assert.equal(await checkouts.create({ user_id: user, direction: "purchase" }, c), undefined);
     assert.equal((await checkouts.findFor(user, "purchase", c))?.id, purchase.id);
     assert.ok((await checkouts.listFor(user, c)).length >= 2);
@@ -54,13 +40,11 @@ test("update writes the named columns, leaves the rest, and answers the row", as
     const customer = (await aUser(c)).id;
     const row = await session(c, customer, "purchase");
     const first = await anAddress(c, { id: customer });
-    // Two book entries for one person: only the first may be the default.
     const second = await anAddress(c, { id: customer }, { default_shipping: false });
     await checkouts.update(
       row.id, { recipient_address_id: first.id, payment_method_id: null }, c
     );
 
-    // RETURNING answers the fresh row, which is why no caller re-reads it.
     const written = await checkouts.update(row.id, { recipient_address_id: second.id }, c);
     assert.equal(written?.recipient_address_id, second.id);
     assert.equal(written?.payment_method_id, null, "an absent key overwrote a column");
@@ -99,16 +83,6 @@ test("remove answers true once and false the second time", async () => {
   });
 });
 
-// ------------------------------------------------- the address is the owner's
-//
-// Migration 123 replaced domain/checkout/service.ts's ADDRESS_COLUMNS loop -
-// three column names in an array and a book lookup per patch - with composite
-// foreign keys onto places.user_addresses (user_id, address_id). ONE is left:
-// 128 moved the shipper and pickup addresses onto the draft fulfillment's own
-// detail rows and their keys went with the columns. These pin what
-// the schema now promises, because the promise is only as good as the
-// constraint: the loop used to be the guarantee and the FK is now.
-
 test("an address id from somebody else's book cannot land on a checkout", async () => {
   await inRollback(async (c: PoolClient) => {
     const mine = (await aUser(c)).id;
@@ -131,8 +105,6 @@ test("deleting the book entry clears the checkout's column, and only that column
     const row = await session(c, customer, "purchase");
     await checkouts.update(row.id, { recipient_address_id: address.id }, c);
 
-    // What domain/places/addresses/service.ts `remove` does first: the LINK
-    // goes, and the address row itself only follows if nothing else needs it.
     await userAddresses.remove(address.id, customer, c);
 
     const after = await checkouts.getOne(row.id, c);

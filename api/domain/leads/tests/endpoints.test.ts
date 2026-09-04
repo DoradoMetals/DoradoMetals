@@ -1,6 +1,3 @@
-// Leads over real HTTP, through the router the app actually mounts.
-// Drives the stack end to end - route, guard, controller, service, repo - because nothing below the service can tell you the write happens inside one transaction.
-// Nothing is committed: pinned-pool.ts rolls back every query, including the service's own withTransaction as a savepoint inside it.
 import { test, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
@@ -22,7 +19,6 @@ beforeAll(async () => {
   customer = TEST_CUSTOMER;
 });
 
-// Named, not spread: the fixture is only ever id/name/email plus the role the call is exercising.
 const asAdmin = <T>(fn: () => Promise<T> | T) =>
   as({ id: admin.id, name: admin.name, email: admin.email, role: "admin" }, fn);
 const asCustomer = <T>(fn: () => Promise<T> | T) =>
@@ -90,7 +86,6 @@ test("update writes the row, and delete removes it", async () => {
   }, { actor: TEST_ACTOR.id });
 });
 
-// A 200 with an empty body for an id that names nothing is indistinguishable from a lead with no fields.
 test("an id that names no lead is 404, not an empty 200", async () => {
   await inPinnedTransaction(async () => {
     await asAdmin(async () => {

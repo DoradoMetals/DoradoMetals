@@ -1,5 +1,3 @@
-// Row id of the FedEx carrier in exchange.carriers. Referenced directly because
-// the purchase-order flows are FedEx-only until a second carrier is wired up.
 export const FEDEX_CARRIER_ID = "30179428-b311-4873-8d08-382901c581d8";
 
 export const DORADO_ADDRESS = {
@@ -13,9 +11,6 @@ export const DORADO_ADDRESS = {
   countryCode: process.env.FEDEX_RETURN_COUNTRY,
 };
 
-// WHO SIGNS FOR THE BUSINESS'S OWN PARCELS. Declared here, next to the address
-// it goes with, so a use case never reads `process.env` to fill in a carrier
-// request (D214 item 11).
 export const DORADO_CONTACT = {
   personName: process.env.FEDEX_DORADO_NAME,
   phoneNumber: process.env.FEDEX_DORADO_PHONE_NUMBER,

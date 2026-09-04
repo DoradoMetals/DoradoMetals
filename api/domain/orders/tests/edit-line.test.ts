@@ -1,14 +1,3 @@
-// Service-level atomicity for the two operations that delete or reprice.
-//
-// The executor problem has a mirror image at this layer: a service that makes
-// several repo calls without a transaction commits each one separately, so a
-// failure partway leaves half the work done.
-//
-// SINCE D212 the scrap IS the line: orders.items carries the declared weights
-// and refiners.items the assay actuals, so "delete the scrap with its line"
-// became one guarded statement plus a cascade. What still needs the
-// transaction is the RE-TIER that follows a delete - survivors repriced from
-// the changed per-metal totals - and the weights+premium pair on an edit.
 import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
@@ -25,13 +14,6 @@ beforeAll(async () => {
   );
   client = await pool.connect();
 
-  // THE ORDERS LOCK, HELD FOR THE WHOLE FILE - and a SESSION lock, not the
-  // transaction-scoped one every other file uses. takeLocks() cannot be used
-  // here: it takes pg_advisory_xact_lock, and THIS FILE HAS NO TRANSACTIONS.
-  // Every statement autocommits, so a transaction-scoped lock would be
-  // released before the next statement ran. A session lock contends in the
-  // same lock space, so it serialises correctly against every file that takes
-  // ORDERS the ordinary way.
   await client.query("SELECT pg_advisory_lock($1)", [LOCKS.ORDERS]);
 });
 
@@ -41,9 +23,6 @@ afterAll(async () => {
   await pool.end();
 });
 
-// Builds a NATIVE purchase order with one scrap line and its refiner
-// counterpart, on the given connection. A scrap line is a line whose
-// bullion_id is null (the one-table model).
 const anOrderWithScrap = async (c: PoolClient) => {
   const { rows: [metal] } = await c.query("SELECT id FROM metals.metals LIMIT 1");
   const { rows: [order] } = await c.query(
@@ -56,7 +35,6 @@ const anOrderWithScrap = async (c: PoolClient) => {
      VALUES (gen_random_uuid(), $1, $2, 10, 0.9, 9, 0.75, 1, false, 't oz') RETURNING id`,
     [order.id, metal.id]
   );
-  // The engagement and the refiner counterpart, as creation writes them.
   const { rows: [engagement] } = await c.query(
     `INSERT INTO refiners.orders (order_id) VALUES ($1) RETURNING id`, [order.id]
   );
@@ -68,10 +46,6 @@ const anOrderWithScrap = async (c: PoolClient) => {
   return { orderId: order.id, itemId: item.id };
 };
 
-// The services open their own transactions, so these tests cannot run inside
-// one - a rolled-back outer transaction would not see the service's commit.
-// They clean up after themselves instead, scoped strictly to the fixture's
-// ids.
 const cleanup = async (c: PoolClient, { orderId }: { orderId: string }) => {
   await c.query(
     "DELETE FROM refiners.items WHERE order_item_id IN (SELECT id FROM orders.items WHERE order_id = $1)",
@@ -85,17 +59,6 @@ const cleanup = async (c: PoolClient, { orderId }: { orderId: string }) => {
   await c.query("DELETE FROM orders.orders WHERE id = $1", [orderId]);
 };
 
-// ===========================================================================
-// A PURCHASE BULLION LINE PRICES FROM THE RATES TABLE (Jacob, 2026-09-03)
-// ===========================================================================
-//
-// "PURCHASE BULLION DOES NOT take its product bid premium. It comes from rates
-// as well." createLine used to write NULL and leave the sums to fall back to
-// the catalogue's own figure; it now writes the band's bullion_pct, and the
-// order's SCRAP is re-tiered by the same combined total in the same breath.
-
-// A purchase order with nothing on it, and the engagement row createLine needs
-// to mirror a new line to the refiner.
 const anEmptyGoldOrder = async (c: PoolClient) => {
   const { rows: [order] } = await c.query(
     `INSERT INTO orders.orders (direction, status, number)
@@ -106,8 +69,6 @@ const anEmptyGoldOrder = async (c: PoolClient) => {
   return { orderId: order.id };
 };
 
-// A gold product whose OWN bid_premium differs from the band its content
-// earns, so neither assertion below can pass by coincidence.
 const aGoldProductOffItsBand = async (c: PoolClient) => {
   const { rows } = await c.query(
     `SELECT b.id, b.content, b.bid_premium, band.bullion_pct
@@ -132,7 +93,6 @@ const aGoldProductOffItsBand = async (c: PoolClient) => {
   return rows[0];
 };
 
-// The band a given TOTAL of a metal earns, resolved the way getRateBand does.
 const bandFor = async (c: PoolClient, metal: string, total: number) => {
   const { rows } = await c.query(
     `SELECT r.scrap_pct, r.bullion_pct FROM rates.rates r
@@ -153,8 +113,6 @@ test("a new bullion line is born at its rate band, not at the product's bid prem
 
     const created = await orders.createLine(fixture.orderId, { bullion_id: product.id });
 
-    // The line CREATED carries it - createLine used to answer with the null it
-    // inserted, before the re-tier that follows had written the real premium.
     assert.equal(
       Number(created.premium), Number(product.bullion_pct),
       "the new bullion line did not come back at its band"
@@ -173,9 +131,6 @@ test("a new bullion line is born at its rate band, not at the product's bid prem
   }
 });
 
-// ONE PARCEL OF METAL, ONE TIER. The scrap already on the order and the
-// bullion being added are the same metal, so the band is read at their
-// COMBINED content - and each line then takes its own column of it.
 test("adding bullion re-tiers the order's scrap by their combined content", async () => {
   const { rows: [gold] } = await client.query(
     "SELECT id FROM metals.metals WHERE name = 'Gold'"
@@ -234,10 +189,6 @@ test("deleting a line removes it and its refiner counterpart together", async ()
   }
 });
 
-// THE ORDER IS THE ROW'S, NEVER THE REQUEST'S. The delete is guarded by the
-// order id, and the id comes from the line itself - so a caller cannot name a
-// line and an order that do not go together, and a line that names nothing is a
-// 404 rather than a delete on an id alone (the exchange behaviour this replaced).
 test("a line that does not exist is refused and nothing is deleted", async () => {
   const fixture = await anOrderWithScrap(client);
   try {
@@ -252,19 +203,12 @@ test("a line that does not exist is refused and nothing is deleted", async () =>
   }
 });
 
-// ONE ROW, ONE PATCH (D214 item 11). The body was `{scrap: {premium, scrap:
-// {...}}}` - the admin drawer's document for ONE table, read through casts,
-// with the REFINER's assay columns smuggled inside it. It is the line's own
-// columns now, and `content` is still derived here rather than sent: two
-// definitions of what content means is the defect that costs money.
 test("editing a scrap line writes the weights it names and derives the content", async () => {
   const fixture = await anOrderWithScrap(client);
   try {
     const edited = await orders.editLine(fixture.itemId, {
       pre_melt: 10, post_melt: 8, purity: 0.5, unit: "t oz", premium: 0.82,
     });
-    // THE PREMIUM IN THE DOCUMENT IS THE ADMIN'S OWN and survives: a re-tier
-    // after an override would answer 200 having thrown the override away.
 
     assert.equal(Number(edited.content), 4, "8 post-melt at 0.5 purity");
     assert.equal(Number(edited.pre_melt), 10);
@@ -280,8 +224,6 @@ test("editing a scrap line writes the weights it names and derives the content",
   }
 });
 
-// A WEIGHTS-ONLY EDIT RE-TIERS THE ORDER, because the band is read at the
-// order's TOTAL content of the metal and the weight just moved it.
 test("a weights-only edit re-tiers the order's lines", async () => {
   const fixture = await anOrderWithScrap(client);
   try {
@@ -302,9 +244,6 @@ test("a weights-only edit re-tiers the order's lines", async () => {
   }
 });
 
-// A KEY THE DOCUMENT DOES NOT CARRY IS LEFT ALONE. The old write was a full
-// replace defended by `?? null` on every field, so a partial edit CLEARED
-// whatever it omitted; buildUpdate names only the keys present.
 test("a partial edit leaves the columns it does not name alone", async () => {
   const fixture = await anOrderWithScrap(client);
   try {
@@ -327,8 +266,6 @@ test("a partial edit leaves the columns it does not name alone", async () => {
   }
 });
 
-// AN EXPLICIT NULL CLEARS, which is the other half of the same contract - and
-// the derived content follows the weight it was derived from.
 test("an explicit null clears the column it names", async () => {
   const fixture = await anOrderWithScrap(client);
   try {
@@ -342,8 +279,6 @@ test("an explicit null clears the column it names", async () => {
   }
 });
 
-// A DOCUMENT THAT NAMES NOTHING is a refusal: a no-op that reports success is
-// worse than a refusal.
 test("an empty patch is refused, and a line that does not exist is a 404", async () => {
   const fixture = await anOrderWithScrap(client);
   try {

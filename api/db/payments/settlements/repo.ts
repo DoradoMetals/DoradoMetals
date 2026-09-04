@@ -1,7 +1,3 @@
-// payments.settlements, and nothing else.
-//
-// WHAT ACTUALLY MOVED. An intent records what was asked for and an attempt what
-// was tried; a settlement only exists once money has changed hands. In DOLLARS.
 import query from "#shared/db/query.ts";
 import { buildUpdate } from "#shared/db/patch.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
@@ -11,9 +7,6 @@ import { PaymentSettlement, PaymentSettlementPatch } from "@dorado/contracts";
 
 const sql = sqlFrom(import.meta.dirname);
 
-// THE COLUMNS, FROM THE CONTRACT (ruling 64) - `PaymentSettlementPatch` is
-// already the row without its identity (id, attempt_id) and without
-// created_at, which the database stamps.
 export const PATCHABLE = columnsOf(PaymentSettlementPatch);
 
 export async function getOne(id: string, executor?: Executor): Promise<PaymentSettlement | undefined> {
@@ -28,13 +21,6 @@ export async function listFor(attempt_id: string, executor?: Executor): Promise<
   return rows;
 }
 
-// IDEMPOTENT: a Stripe webhook is retried, and a retry must rewrite the same
-// row rather than raise or mint a second one. See sql/create.sql.
-//
-// id AND attempt_id ARE SEPARATE PARAMETERS, not patch fields - the same
-// split payments/details' create makes, and for the same reason:
-// PaymentSettlementPatch omits both because they are the row's identity, not
-// something a caller patches.
 export async function create(
   id: string, attempt_id: string, patch: PaymentSettlementPatch, executor?: Executor
 ): Promise<PaymentSettlement> {

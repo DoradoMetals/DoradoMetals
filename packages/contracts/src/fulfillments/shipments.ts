@@ -15,10 +15,6 @@ export const FulfillmentShipment = z.object({
 export type FulfillmentShipment = z.infer<typeof FulfillmentShipment>;
 // generated:end
 
-// Hand-written derivations go here: New, Patch, named reads.
-
-// THE COLUMNS A WRITE MAY TOUCH (ruling 64): `shipment_id` is the link's WHERE
-// key and `id` its own, so a patch names neither.
 export const FulfillmentShipmentPatch = FulfillmentShipment.omit({
   id: true,
   shipment_id: true,

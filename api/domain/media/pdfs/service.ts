@@ -29,25 +29,15 @@ import type { OrderView } from "@dorado/contracts";
 
 export type { DocumentLabels, PackageDetails } from "#domain/media/pdfs/render/sections.ts";
 
-// THE INPUTS EACH DOCUMENT TAKES, and they are ids resolved to rows rather than
-// a body the browser sent (ruling 10).
-//
-// A purchase document prices the metal, so it needs the BIDS the order is
-// valued at; a sales-order invoice quotes the ASKS the customer was charged.
-// Both need the labels behind the ids the rows carry. Nothing here is a
-// composed order any more - `order` is the OrderView, straight from
-// domain/orders/read.ts.
 export type PurchaseDocument = {
   order: OrderView;
   bids: Bids;
   labels: DocumentLabels;
-  /** The box the parcel was booked with - only the packing list draws it. */
   package?: PackageDetails | null;
 };
 
 export type SalesDocument = {
   order: OrderView;
-  /** metal_id -> the ask the order was priced at. */
   asks: ReadonlyMap<string, number | null>;
   labels: DocumentLabels;
 };
@@ -58,12 +48,6 @@ export function buildPackingListHtml({
   labels,
   package: box = null,
 }: PurchaseDocument): string {
-  // The same sum the invoice uses, rather than a second copy of it.
-  //
-  // This had its own inline reduce, and the two drifted: it fell back to the
-  // scrap row's own premium where calculateTotalPrice did not, so purchase
-  // order 239 came out at $7,980.22 here and $4,744.11 on the invoice - both
-  // documents going to the same customer.
   const total = calculateTotalPrice(order, bids);
 
   const scrapRows = buildPackingScrapRows(scrapLines(order.items), bids, labels);
@@ -75,12 +59,6 @@ export function buildPackingListHtml({
     (shipment?.package_id ? (labels.packages.get(shipment.package_id) ?? null) : null);
   const selectedPackage = packageLabel || "Unknown Package";
 
-  // The fallback below is display text - "Length: - in" reads correctly on the
-  // page. The box is geometry, and `"-" * scale` is NaN, so passing the same
-  // fallback into generateBoxSVG produced an SVG whose width, height, viewBox
-  // and every polygon were the string NaN: 68 of them, on the packing list a
-  // customer receives, whenever a request arrived without a package. Found by
-  // giving generateBoxSVG a type.
   const boxDimensions = [box?.length, box?.width, box?.height].map(Number);
   const svgBox = boxDimensions.every(Number.isFinite)
     ? generateBoxSVG(boxDimensions[0], boxDimensions[1], boxDimensions[2], selectedPackage)
@@ -245,19 +223,11 @@ export function buildPackingListHtml({
   });
 }
 
-/* ------------------------------------------------------------------ */
-/* the return leg (reuses the same helpers)                            */
-/* ------------------------------------------------------------------ */
-
 export function buildReturnPackingListHtml({
   order,
   bids,
   labels,
 }: PurchaseDocument): string {
-  // GUARDED DEFENSIVELY. A return packing list is only produced for an order
-  // that has both legs, so in practice both shipments are present - but this
-  // summed them unguarded, and `undefined + undefined` is NaN, which would
-  // print "NaN" on a document going into a parcel.
   const outbound = returnShipment(order);
   const total = (inboundShipment(order)?.cost ?? 0) + (outbound?.cost ?? 0);
 
@@ -332,8 +302,6 @@ export function buildReturnPackingListHtml({
 }
 
 export function buildInvoiceHtml({ order, bids, labels }: PurchaseDocument): string {
-  // 'Accepted' left the status lifecycle (migration 092 remapped its rows to
-  // 'Payment Processing'), so the done set no longer names it.
   const doneStatus = ["Payment Processing", "Completed"];
   const isDone = doneStatus.includes(order.order.status ?? "");
 
@@ -457,11 +425,6 @@ export function buildInvoiceHtml({ order, bids, labels }: PurchaseDocument): str
   return renderShell({ title, subtitle, bodyHtml });
 }
 
-// A metal with no ask renders as a dash. The asks used to arrive in a request
-// body, so a missing one was a request away and `spots.find(...).ask.toFixed()`
-// threw - on the invoice attached to the refiner's copy of a sales order,
-// built AFTER the transaction that marks the order sent, so the throw was
-// silent. Render what is known and a dash for what is not.
 const money = (value: number | null | undefined): string =>
   value == null
     ? "&mdash;"
@@ -660,14 +623,6 @@ export function buildSalesOrderInvoiceHtml({
     bodyHtml,
   });
 }
-
-// Building the document and printing it are separate.
-//
-// Each generator used to end in `return renderPdf(htmlContent)`, so the only
-// way to exercise 746 lines of layout was to start Chromium and get back a
-// PDF - which meant checking that a document came out, never what was in it.
-// Rendering every order in dev took 65 seconds; building the same HTML takes
-// milliseconds, and the HTML is where all of the logic actually is.
 
 export async function generatePackingList(input: PurchaseDocument): Promise<Uint8Array> {
   return renderPdf(buildPackingListHtml(input));

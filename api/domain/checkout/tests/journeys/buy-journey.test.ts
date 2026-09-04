@@ -1,35 +1,3 @@
-// THE CUSTOMER BUY JOURNEY (a sales order), over real HTTP as far as an HTTP
-// seam and a committed cassette allow - the API-owned replacement for
-// frontend/shared/tests/authed/customer-checkout-sales.e2e.ts, extended past
-// the point that spec deliberately stopped at (a submitted sale creates a
-// real Stripe object even in test mode; ruling 55 retires Playwright, so the
-// API must own the rest of the walk, on its own recorded terms).
-//
-// basket (PUT /api/checkout/items?direction=sale) -> checkout row
-// (PATCH /api/checkout) -> payment intent
-// (POST /api/stripe/update_payment_intent, a REAL Stripe call replayed from
-// stripe/create-payment-intent.json) -> PLACE.
-//
-// THE INTENT CASSETTE PINS AN AMOUNT, AND THAT IS A NAMED GAP. nock matches a
-// cassette's request body verbatim and Stripe's `amount` field is never
-// normalised (shared/testing/cassettes.ts), so the only committed Stripe
-// cassette that fits ANY basket is the $0-priced, empty-items cold-start path
-// domain/payments/tests/update-intent.test.ts already uses (items: [] prices
-// under Stripe's minimum, so updatePaymentIntent falls into the $10.00
-// placeholder createIntent branch). There is no committed cassette for a
-// checkout priced from a real cart, so this journey's Stripe call opens the
-// placeholder intent rather than one carrying the basket's own total - see
-// docs/waves/api-journeys.md for the full account of the gap and what
-// recording the missing scenario would take.
-//
-// PLACE IS DOMAIN-LEVEL FOR THE SAME REASON THE SELL JOURNEY'S IS: no HTTP
-// seam takes a stub World, and placeSale's own `world.authorize` call is a
-// real Stripe confirm/capture that this suite must not reach. What IS real:
-// placeSale resolves the intent through intentsRepo.findOpenForUser exactly as
-// production does - it does not take the intent's id from this test, it finds
-// the row the HTTP call above actually wrote.
-//
-// NOTHING IS COMMITTED: pinned-pool.ts rolls back every query.
 import { test, afterAll } from "vitest";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
@@ -73,9 +41,6 @@ test("basket, row, a real intent and placement agree on one sales order", async 
     const service = await saleServiceId(c);
     const method = await paymentMethodId(c, "CARD", "sale");
 
-    // Closes createPaymentIntent's "open a Stripe customer" branch before the
-    // request (update-intent.test.ts's own pattern), so the ONLY Stripe call
-    // this request makes is the createIntent the cassette answers.
     await query(
       `UPDATE auth.users SET "stripeCustomerId" = $1 WHERE id = $2`,
       ["cus_cassette_buy_journey", built.id], c
@@ -98,8 +63,6 @@ test("basket, row, a real intent and placement agree on one sales order", async 
     );
     assert.equal(patched.status, 200, patched.text);
     const checkout_id: string = patched.body.id;
-    // THE DELIVERY SERVICE IS THE PARCEL'S (rulings 69/70, migration 128), and
-    // a sale needs a draft fulfillment like any other checkout.
     await aHandover(c, checkout_id, {
       direction: "sale",
       method: "DROPSHIP",
@@ -119,8 +82,6 @@ test("basket, row, a real intent and placement agree on one sales order", async 
       `no client_secret came back: ${JSON.stringify(intent.body)}`
     );
 
-    // ---- PLACE (domain-level - see header). placeSale finds the intent
-    // above through intentsRepo.findOpenForUser, exactly as production does.
     const placed = await place.place(checkout_id, stubWorld());
     assert.equal(placed.order.direction, "sale");
     assert.equal(placed.items.length, 1);
@@ -136,7 +97,6 @@ test("basket, row, a real intent and placement agree on one sales order", async 
       "placement did not attach the intent this HTTP call opened"
     );
 
-    // ---- admin lifecycle: labels only, driving no logic.
     for (const status of ["Preparing", "Shipped", "Cancelled"]) {
       const moved = await asAdmin(admin, () =>
         request(app).patch(`/api/orders/${placed.order.id}`).send({ status })

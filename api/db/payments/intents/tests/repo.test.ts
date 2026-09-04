@@ -1,9 +1,3 @@
-// payments.intents, against real Postgres, every test rolled back.
-//
-// There is no Stripe client here and no network call. What is checked is the
-// bookkeeping around a payment: which row an update lands on, and which intents
-// are considered reusable - because reusing a settled intent is how a customer
-// gets charged twice.
 import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
@@ -30,9 +24,6 @@ afterAll(async () => {
   await pool.end();
 });
 
-// Every fixture gets its own session id. payments.intents.session_id carries no
-// foreign key - the session is better-auth's fact, not this schema's - so a
-// fresh uuid is enough to keep one file's rows out of another's.
 const anIntent = async (
   c: PoolClient,
   over: Partial<PaymentIntentPatch> = {},
@@ -127,8 +118,6 @@ test("an open intent is found again for the same session, user and type", async 
     const session_id = randomUUID();
     const { provider_ref } = await anIntent(c, { user_id: user, session_id });
 
-    // The provider's id for the intent is on the ATTEMPT rather than at the top
-    // level, and that is the wire shape too.
     const found = await intents.findReusable(
       { session_id, user_id: user, type: "checkout" }, c
     );
@@ -141,7 +130,6 @@ test("an open intent is found again for the same session, user and type", async 
   });
 });
 
-// The filter that stops a customer being charged twice.
 for (const status of ["succeeded", "processing", "canceled"]) {
   test(`an intent that is ${status} is not offered for reuse`, async () => {
     await inRollback(async (c: PoolClient) => {
@@ -170,8 +158,6 @@ test("an intent for a different type is not reused", async () => {
   });
 });
 
-// The amount is in CENTS here and dollars everywhere else, because the caller
-// compares it against Math.round(dollars * 100).
 test("the payment facts resolve by the provider's reference, in cents", async () => {
   await inRollback(async (c: PoolClient) => {
     const user = (await aUser(c)).id;
@@ -189,8 +175,6 @@ test("the payment facts resolve by the provider's reference, in cents", async ()
   });
 });
 
-// One order_id, and its direction read off orders.orders - never two
-// nullable ids the caller has to infer a side from.
 test("the payment facts carry the attached order's own direction", async () => {
   await inRollback(async (c: PoolClient) => {
     const user = await aUser(c);

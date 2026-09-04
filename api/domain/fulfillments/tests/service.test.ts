@@ -1,5 +1,3 @@
-// Fulfillments against real Postgres, each test inside a rolled-back transaction.
-// The first feature with no exchange side to compare against, so these tests are the only thing proving PICKUP/DIRECT work - mostly, that the three categories can't be mixed up: nothing in the schema stops a pickups row hanging off a DROPSHIP fulfillment, and every read LEFT JOINs all three detail tables, so a mismatch comes back as a second answer to a one-answer question.
 import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import type { Checkout } from "@dorado/contracts";
@@ -10,13 +8,11 @@ import { rollbackIn } from "#shared/testing/rollback.ts";
 import {
   aUser, anOrder, anAddress, fulfillmentMethodId, anId,
 } from "#shared/testing/builders/index.ts";
-// Pointed at the SERVICE, not a repo: every function here asks about a table the fulfillments repo doesn't own (whether the order exists, the method's category, whether a parcel is attached), so after the per-table split they all live in the service.
 import * as methods from "#db/fulfillments/methods/repo.ts";
 import * as service from "#domain/fulfillments/service.ts";
 import * as pickupService from "#domain/fulfillments/pickups/service.ts";
 import * as directService from "#domain/fulfillments/directs/service.ts";
 const repo = service;
-
 
 beforeAll(async () => {
 });
@@ -25,23 +21,8 @@ afterAll(async () => {
   await pool.end();
 });
 
-// THE FILE'S LOCK, BOUND ONCE. A lock is a property of what this file
-// WRITES, not of one call, so it is named here and every inRollback below
-// inherits it - which is also what stops a new test being added without one.
-  // fulfillments_order_uniq means two tests borrowing the same order deadlock rather than fail - one lock, taken first, in the one file that writes these tables.
 const inRollback = rollbackIn({ lock: LOCKS.FULFILLMENTS });
 
-// An order with no fulfillment yet, so create() has something legal to attach
-// to. BUILT (lane 1), and this is the fixture whose old shape did the most
-// damage on paper: it looked for an order nothing had attached to yet and,
-// FAILING THAT, took the newest real order of that direction and DELETED its
-// fulfillment - which is why the header had to explain that the rolled-back
-// transaction was "the only reason that isn't a data-loss bug". It also
-// returned null when the table was empty, and every caller then guarded.
-//
-// A built order has no fulfillment by construction, so nothing is borrowed and
-// nothing is deleted. The lock stays: fulfillments_order_uniq is still one row
-// per order and this file still writes the three detail tables.
 async function freeOrder(c: PoolClient, direction: "purchase" | "sale") {
   const user = await aUser(c);
   const order = await anOrder(c, user, { direction });
@@ -68,7 +49,6 @@ test("the seed offers a customer only what is enabled and not hidden", async () 
       offered.every((m) => m.direction === "purchase"),
       "getAvailable returned a method for the other direction"
     );
-    // WALK IN and OWN LABEL are enabled and hidden - an admin can put an order on one, a customer cannot ask for it.
     assert.ok(
       !offered.some((m) => m.type === "OWN LABEL" || m.type === "WALK IN"),
       "a hidden admin-only method reached the customer menu"
@@ -130,12 +110,6 @@ test("a second create returns the same fulfillment rather than a second one", as
 test("creating a fulfillment for an order the new schema does not have says why", async () => {
   await inRollback(async (c: PoolClient) => {
     const method = await methodOf(c, "PICKUP", "purchase");
-    // AN ID THAT NAMES NO ORDER, WHICH IS THE WHOLE POINT. This looked for a
-    // real exchange.purchase_orders row with no orders.orders counterpart -
-    // dual-era residue - and fell back to an all-zero uuid when it found none,
-    // so the test's subject depended on frozen data that D212 stopped feeding.
-    // The claim is about a missing order, and a minted id is missing by
-    // construction.
     const orphan = anId();
 
     await assert.rejects(
@@ -166,9 +140,6 @@ test("a pickup is scheduled, rescheduled, and cancelled without touching the ful
     assert.equal(booked.pickup.pickup_address_id, addr[0].id);
     assert.equal(booked.direct, null);
 
-    // The detail is a real row now, with timestamps arriving as Date objects (node-postgres parses timestamptz) rather than strings from a jsonb_build_object.
-    // Over HTTP nothing changes: res.json() serializes a Date to an ISO string, and validate:wire compares the JSON either way - what changed is the internal value becoming stable rather than session-dependent.
-    // GUARDED: start_time is nullable, and `new Date(null)` is the epoch, not an error - unguarded, an unscheduled pickup compared 1970 to the requested time and failed with two dates instead of naming the null.
     assert.ok(booked.pickup.start_time, "the scheduled pickup carries no start time");
     assert.equal(
       new Date(booked.pickup.start_time).toISOString(),
@@ -176,7 +147,6 @@ test("a pickup is scheduled, rescheduled, and cancelled without touching the ful
     );
     assert.match(JSON.stringify(booked.pickup.start_time), /[+-]\d{2}:\d{2}"$|Z"$/);
 
-    // Rescheduling reads first and updates: one pickup per fulfillment, not a second row.
     const moved = await pickupService.schedule(
       f.fulfillment.id,
       { pickup_address_id: addr[0].id, start_time: "2026-09-02T15:00:00Z" },
@@ -222,7 +192,6 @@ test("an appointment is scheduled at a location", async () => {
   });
 });
 
-// The reason assertCategory exists: nothing in the schema stops a pickups row hanging off a DROPSHIP fulfillment, and a read that LEFT JOINs all three would answer with both a pickup and a shipment.
 test("a pickup cannot be booked against a method that is not a pickup", async () => {
   await inRollback(async (c: PoolClient) => {
     const order = await freeOrder(c, "sale");
@@ -264,8 +233,6 @@ test("changing the method takes the booking with it", async () => {
   });
 });
 
-// A shipment costs money and has a tracking number. Changing a dropdown must
-// not be the thing that orphans it.
 test("a fulfillment with a real shipment refuses to move off SHIPMENT", async () => {
   await inRollback(async (c: PoolClient) => {
     const { rows } = await c.query(
@@ -306,7 +273,6 @@ test("the schedule lists only what somebody is due to attend", async () => {
       due.every((x) => x.method.category === "PICKUP" || x.method.category === "DIRECT"),
       "a shipment appeared on a list of places to be"
     );
-    // The window is a window. A pickup in September is not on August's list.
     const august = await repo.getSchedule(
       { from: "2026-08-01T00:00:00Z", to: "2026-08-31T00:00:00Z" },
       c
@@ -315,8 +281,6 @@ test("the schedule lists only what somebody is due to attend", async () => {
   });
 });
 
-// The menu is only worth filtering if posting a method_id that was never on it
-// is refused. OWN LABEL is hidden on purpose.
 test("a customer cannot choose a method they were not offered", async () => {
   await inRollback(async (c: PoolClient) => {
     const order = await freeOrder(c, "purchase");
@@ -348,36 +312,16 @@ test("another customer's fulfillment is not readable by asking for its order", a
       "a signed-in stranger read somebody else's pickup address"
     );
     assert.ok(await service.getForOrder(id, { userId: user_id }));
-    // `userId: null` deliberately: an anonymous caller's req.user?.id is undefined, matching the signature's `userId?: string` - isAdmin short-circuits before userId is read either way.
     assert.ok(await service.getForOrder(id, { isAdmin: true }));
   });
 });
 
-// ============================================================ the hand-over
-//
-// `attachToOrder` is the whole of what placing an order asks of this feature
-// (rulings 69/70). It is one id now: a draft arrives already carrying its
-// choices, because the customer patched them onto ITS detail row rather than
-// onto the checkout's. A placement accepts all three categories.
-
-// An address of the order's own customer, BUILT - the pickup is booked at
-// their door, and `SELECT id FROM places.addresses LIMIT 1` booked it at
-// somebody else's.
 const anAddressId = async (c: PoolClient, user_id: string) =>
   (await anAddress(c, { id: user_id })).id;
 
-// The business's own address, by name: places.locations is seeded reference
-// data (three rows) and an appointment happens at the one a customer walks
-// into.
 const aLocation = async (c: PoolClient) =>
   (await c.query(`SELECT id FROM places.locations WHERE name = $1`,
     ["Dorado Return Address"])).rows[0].id;
-
-// THE ATTACH IS ONE ID NOW (rulings 69/70). `attachForCheckout` took the whole
-// checkout ROW and, from seven of its columns, decided the method and wrote the
-// booking. Those columns are the draft's own detail rows (migration 128), so a
-// draft arrives already carrying its choices and placement only has to claim
-// it - which is what `attachToOrder` does and all it does.
 
 test("the draft the stepper mutated becomes the order's own fulfillment", async () => {
   await inRollback(async (c: PoolClient) => {
@@ -393,11 +337,6 @@ test("the draft the stepper mutated becomes the order's own fulfillment", async 
     assert.equal(attached.fulfillment.order_id, order.id);
   });
 });
-
-// EVERY CATEGORY GETS ITS DETAIL ROW AT DRAFT TIME, empty, so the customer's
-// choices have somewhere to land one PATCH at a time. Before 128 the row only
-// appeared when a booking was made, which is why the columns had to live on the
-// checkout until then.
 
 test("a SHIPMENT draft is born with a parcel to fill in", async () => {
   await inRollback(async (c: PoolClient) => {
@@ -451,13 +390,10 @@ test("a DIRECT draft owes a location and a time", async () => {
       c
     );
     assert.deepEqual(patched.missing, []);
-    // A store visit has no address of its own to snapshot onto an order.
     assert.equal(await service.addressIdOf(draft.fulfillment.id, c), null);
   });
 });
 
-// A PATCH aimed at the wrong detail row would write a booking every read
-// attaches and none expects, and nothing in the schema would catch it.
 test("a patch for the wrong category is refused", async () => {
   await inRollback(async (c: PoolClient) => {
     const draft = await service.createDraft(
@@ -471,8 +407,6 @@ test("a patch for the wrong category is refused", async () => {
   });
 });
 
-// The customer changes their mind, which is the ordinary case and used to be
-// locked out the moment a shell existed.
 test("an unlabelled draft may still move between categories", async () => {
   await inRollback(async (c: PoolClient) => {
     const draft = await service.createDraft(

@@ -1,8 +1,3 @@
-// payments.attempts, and nothing else.
-//
-// An attempt is what was TRIED against an intent, and it is the only row
-// carrying a reference issued by a provider - a second processor would issue
-// its own. Amounts are in DOLLARS; the caller divides Stripe's cents.
 import query from "#shared/db/query.ts";
 import { buildUpdate } from "#shared/db/patch.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
@@ -13,12 +8,6 @@ import { PaymentAttemptPatch } from "@dorado/contracts";
 
 const sql = sqlFrom(import.meta.dirname);
 
-
-// THE WRITE SHAPE IS THE CONTRACT'S - `PaymentAttemptPatch`, taken by create
-// and update alike. An explicit id wins; every caller passes the intent's own
-// id, so an intent and its first attempt share one.
-// THE COLUMNS, FROM THE CONTRACT (ruling 64). The id and the intent it belongs
-// to are the row's identity, so the patch is everything else it carries.
 export const PATCHABLE = columnsOf(PaymentAttemptPatch.omit({ id: true, intent_id: true }));
 
 export async function getOne(id: string, executor?: Executor): Promise<PaymentAttempt | undefined> {
@@ -31,8 +20,6 @@ export async function listFor(intent_id: string, executor?: Executor): Promise<P
   return rows;
 }
 
-// By the provider's reference. UNIQUE on the column, so at most one row - and
-// it is how a webhook, which knows only that reference, finds what to write.
 export async function findByProviderRef(
   provider_ref: string, executor?: Executor
 ): Promise<PaymentAttempt | undefined> {

@@ -1,79 +1,7 @@
-// EVERY NOT NULL IN `exchange` WHOSE COUNTERPART IN THE NEW SCHEMA IS NULLABLE.
-//
-// WHY THIS EXISTS. A database constraint is sometimes the only thing standing
-// between working code and a data-loss bug, and when it is, nobody knows -
-// because nothing ever fails.
-//
-// The one that prompted this: features/users/repo.js updates dorado_funds with
-// a CASE that has no ELSE, so an unrecognised mode evaluates to NULL. On a
-// customer credit ledger - $66,999.32 across eight customers - that is a wiped
-// balance. It has never happened, and the reason is not the code. It is that
-// exchange.users.dorado_funds is NOT NULL, so Postgres raises 23502 and writes
-// nothing. The service also refuses an unknown mode, but the constraint is the
-// backstop underneath it.
-//
-// Now consider promotion. If the column that replaces it is nullable, that
-// backstop is gone the day a *_SOURCE switch moves - and the failure mode is
-// not an error, it is a NULL where a balance used to be. Nothing in the suite
-// would notice, because the suite runs against a schema that still has the
-// constraint.
-//
-// So this asks one question of every mapped column pair: is the source NOT NULL
-// while the target is not? It reads the same FEATURES/RENAMES map audit:precision
-// uses, so a rename is followed rather than reported as a loss.
-//
-// The other direction - target NOT NULL where the source is nullable and holds
-// NULLs - is verify:backfill's, and it fails loudly there because the insert
-// cannot complete. This one is the silent direction.
-//
-// Shape comes from dev, where both schemas exist. `--prod` is not offered:
-// production has no new schema to compare against.
-
 import "#env";
 import pool from "#pool";
 import { FEATURES, RENAMES } from "./lib/feature-map.ts";
 
-// ---------------------------------------------------------------------------
-// THE ACCEPT MAPS, AND WHY THIS SCRIPT NOW EXITS NON-ZERO WITHOUT THEM.
-//
-// This audit's own closing line was "each one should be a decision rather than
-// an accident", and for several waves there was nowhere to record the decision:
-// 27 dropped NOT NULLs, 7 unmatched uniques, 3 unmatched CHECKs and 2 unmatched
-// foreign keys, re-read from scratch by whoever looked next, with nothing
-// noticing when the list changed. Its two siblings - audit:indexes and
-// audit:query-paths - had both an ACCEPTED map and a place in `pnpm check`, and
-// those two guard LATENCY. This one guards whether an order can exist without a
-// total.
-//
-// PINNED FROM BOTH SIDES, exactly like audit:indexes. A finding that is not
-// named here fails the run; a name here that no longer reports a finding fails
-// it too, so a constraint that gets fixed cannot leave a stale excuse behind to
-// suppress the next real one that lands on the same key.
-//
-// THE TEST THAT SEPARATES AN ACCEPT FROM A FIX, and it is not "is the column
-// full today":
-//
-//   ACCEPT when the target CANNOT hold the guard. Almost every entry below is
-//   one merged table taking the intersection of two parents' guarantees - the
-//   nulls belong to the parent that never had the column, and asserting NOT
-//   NULL would refuse a row that is correct. D63 measured this the wrong way
-//   round once and nearly reported 14 missing order totals: every one of them
-//   was a purchase order, and exchange.purchase_orders has no order_total
-//   column at all.
-//
-//   FIX when the target simply lost a guard the source had, and every write
-//   path already supplies the value. Those are migrations 101-103, not entries
-//   here.
-//
-// Each entry states the measurement, because "it looks structural" is what the
-// D63 aggregate looked like too.
-// ---------------------------------------------------------------------------
-
-// The merged sales/purchase order transaction row. exchange.purchase_orders has
-// NONE of these columns - verified by column list, not inferred - so every one
-// of them is NULL for the 48 purchase-order rows in dev and the 62 in
-// production, and NOT NULL cannot be asserted for a table that serves both
-// directions. This is D63's finding, written down.
 const MERGED_ORDER_MONEY =
   "orders.transactions merges purchase and sales orders. exchange.purchase_orders " +
   "has no order_total / item_total / base_total / sales_tax / shipping_cost / " +
@@ -95,11 +23,6 @@ const ACCEPTED_NOT_NULL = {
     MERGED_ORDER_MONEY,
   "exchange.sales_orders.used_funds -> orders.transactions.used_funds": MERGED_ORDER_MONEY,
 
-  // The same merge, one step weaker: the other parent HAS the column and it is
-  // nullable there, so NOT NULL would be stronger than either parent rather
-  // than a restoration. Left as a measurement rather than a constraint because
-  // the price of being wrong is a REFUSED ORDER WRITE, and a status is a pure
-  // customer-facing label driving no logic (Jacob's standing ruling).
   "exchange.sales_orders.sales_order_status -> orders.orders.status":
     "orders.orders merges both directions and exchange.purchase_orders." +
     "purchase_order_status is NULLABLE, so this would tighten the purchase side " +
@@ -109,9 +32,6 @@ const ACCEPTED_NOT_NULL = {
     "whole order transaction. A status drives no logic; an unwritten order is " +
     "unrecoverable.",
 
-  // payments.details is two things in one table: a customer's payout bank
-  // account (from exchange.payouts) and the instrument Stripe says was used
-  // (from exchange.payment_intents). Neither half has the other's columns.
   "exchange.payouts.method -> payments.details.method_id":
     "payments.details merges payout ACCOUNTS with Stripe INSTRUMENTS. The " +
     "instrument half resolves method_id through a LEFT JOIN on payments.methods " +
@@ -130,21 +50,12 @@ const ACCEPTED_NOT_NULL = {
     "unique index there (103), which is the table that actually holds one row " +
     "per Stripe intent.",
 
-  // 110 made carrier_id nullable ON PURPOSE (D208): the business's own sale
-  // delivery services are CARRIER-AGNOSTIC - the customer picks the service
-  // at its fixed price and THE REFINERY picks the carrier later, recorded on
-  // the shipment. The carrier-catalogue rows keep their carrier_id; only the
-  // three agnostic rows carry NULL, and get_sale_options selects exactly
-  // those. Exchange's guard described a world where every service belonged
-  // to a carrier, and that world ended with the tiers correction.
   "exchange.carrier_services.carrier_id -> shipping.services.carrier_id":
     "nullable on purpose since 110 (D208): the sale delivery services are " +
     "carrier-agnostic - the customer picks the service, the refinery picks " +
     "the carrier, and the shipment records that choice on its own row. Only " +
     "the three business rows are NULL; the carrier catalogue keeps its ids.",
 
-  // checkout is device-sync, not a ledger (CLAUDE.md). The merged parents
-  // disagree and the request body is unvalidated.
   "exchange.sell_cart_items.quantity -> checkout.items.quantity":
     "checkout.items merges cart_items and sell_cart_items, and exchange." +
     "cart_items.quantity is NULLABLE - only the sell side carried the guard. " +
@@ -155,8 +66,6 @@ const ACCEPTED_NOT_NULL = {
     "cart_items and 26/26 sell_cart_items rows populated.",
 };
 
-// Keyed by the SOURCE INDEX NAME, like audit:indexes' map, because two source
-// tables can carry the same column list and a "table(cols)" key collides.
 const ACCEPTED_UNIQUE = {
   unique_user_cart:
     "exchange keeps a buy cart and a sell cart in two tables, each unique on " +
@@ -247,7 +156,7 @@ for (const [feature, sources] of Object.entries(features)) {
       for (const target of targets) {
         const dst = await shapeOf(target);
         const t = dst.get(targetName);
-        if (!t) continue; // absent is audit:coverage's business, not this one's
+        if (!t) continue;
         checked += 1;
         if (t.not_null) continue;
         lost.push({
@@ -256,8 +165,6 @@ for (const [feature, sources] of Object.entries(features)) {
           from: `${source}.${column}`,
           to: `${target}.${targetName}`,
           type: s.type,
-          // A default does not restore the guard - it only fills an INSERT that
-          // omits the column. An explicit NULL still lands.
           target_default: t.default_expr ?? null,
         });
       }
@@ -265,19 +172,11 @@ for (const [feature, sources] of Object.entries(features)) {
   }
 }
 
-
 console.log(
   `${sourceNotNull} NOT NULL column(s) in the source schema, ` +
     `${checked} with a counterpart in the new schema`
 );
 
-// A check that finds nothing accepts everything - but ONLY on a full run. The
-// first version applied this floor unconditionally, so `audit:constraints leads`
-// compared its 8 pairs correctly and then exited 1 for having found only 8.
-// That run is also what proved the floor fires.
-// NAMED, so the meta-guard can see it. It was the literal `50`, which is a
-// floor in every sense except the one that lets `lint:script-guards` verify
-// that this file's excuse ("carries a floor") is true rather than claimed.
 const CONSTRAINT_FLOOR = Number(process.env.AUDIT_CONSTRAINTS_FLOOR ?? 50);
 if (!only && checked < CONSTRAINT_FLOOR) {
   console.error(
@@ -287,10 +186,6 @@ if (!only && checked < CONSTRAINT_FLOOR) {
   process.exit(1);
 }
 
-
-// Every finding is either NAMED in ACCEPTED_NOT_NULL with its reasoning, or it
-// is a gap that fails the run. `stale` is the other side of the pin: an entry
-// that no longer reports is an excuse without a subject.
 const notNullAccepted = lost.filter((l) => ACCEPTED_NOT_NULL[l.key]);
 const notNullOpen = lost.filter((l) => !ACCEPTED_NOT_NULL[l.key]);
 const staleNotNull = Object.keys(ACCEPTED_NOT_NULL).filter(
@@ -334,31 +229,6 @@ if (notNullOpen.length) {
   );
 }
 
-// ---------------------------------------------------------------------------
-// UNIQUENESS, which is the other kind of guard a promotion can drop.
-//
-// READ FROM pg_index, NOT pg_constraint. A bare `CREATE UNIQUE INDEX` is not a
-// constraint row, and exchange has plenty. My first two attempts at this
-// queried pg_constraint and both reported ZERO single-column uniques outside
-// primary keys - which is absurd for a schema with a users table, and it took
-// counting the indexes directly to notice. Two wrong answers that agreed with
-// each other.
-//
-// Reported rather than judged. A source unique on (number) whose target is
-// unique on (direction, number) is WEAKER in the strict sense - the composite
-// does not enforce uniqueness of number alone - but for a table that merged
-// purchase and sales orders it is the correct meaning. So this prints what each
-// side has and leaves the reading to whoever is promoting that feature.
-// The ::text[] cast below matters. array_agg of a `name` column yields a
-// name[], for which node-postgres has no array parser - it arrives as the raw
-// string "{a,b}" and every array method on it throws. (Written here rather
-// than in the SQL because a backtick inside a template literal ends it, which
-// is how the first attempt at this comment broke the file.)
-//
-// THE INDEX NAME IS SELECTED, not just the column list, because the ACCEPTED
-// map is keyed on it - the same way audit:indexes keys its own. Two source
-// tables can carry the same column list, and "table(cols)" collides where a
-// name does not.
 const uniquesOf = async (table) => {
   const [schema, name] = table.split(".");
   const { rows } = await pool.query(
@@ -393,19 +263,10 @@ for (const [feature, sources] of Object.entries(features)) {
   for (const [source, targets] of Object.entries(sources)) {
     const renames = RENAMES[source] ?? {};
     for (const u of await uniquesOf(source)) {
-      // A surrogate primary key is not the guard anybody relies on.
       if (u.expression || !u.cols.length || (u.cols.length === 1 && u.cols[0] === "id")) continue;
       const mapped = u.cols.map((c) => renames[c] ?? c);
       if (mapped.includes("-")) continue;
 
-      // WHICH TARGETS COULD EVEN HOLD THIS INDEX. Only one that has every
-      // mapped column - the same filter audit:indexes has always applied, and
-      // its absence here produced a finding that was simply not true:
-      // exchange.purchase_orders(order_number) was reported as unmatched
-      // against refiners.orders, which has no `number` column at all. A target
-      // that does not carry the column cannot be missing an index on it.
-      // Reported as `?` when NO target carries them, never as present - a scan
-      // that cannot see something must not call it clean.
       const candidates = [];
       for (const target of targets) {
         const cols = await shapeOf(target);
@@ -489,21 +350,6 @@ if (uniqueOpen.length) {
   }
 }
 
-// ---------------------------------------------------------------------------
-// CHECK CONSTRAINTS, and the three ways one can legitimately disappear.
-//
-// A CHECK is not always replaced by a CHECK. exchange guards a metal type with
-// `type = ANY (ARRAY['Gold', ...])`; the new schema makes it a uuid referencing
-// metals.metals, which is STRONGER. Same for payouts.method, which becomes a
-// foreign key into payments.methods. A naive comparison would report both as
-// losses and be wrong twice.
-//
-// So a source CHECK is only reported when the column it protects has NONE of:
-//   - a CHECK of its own
-//   - an enum type (which encodes the allowlist in the type system)
-//   - a foreign key (which moves the allowlist into a table)
-//
-// That is a sound test of "nothing replaces this" rather than a guess.
 const guardsOn = async (table) => {
   const [schema, name] = table.split(".");
   const { rows } = await pool.query(
@@ -553,18 +399,12 @@ for (const [feature, sources] of Object.entries(features)) {
       if (!mapped.length || mapped.includes("-")) continue;
       checksChecked += 1;
 
-      // ONE VERDICT PER CHECK, NOT ONE PER TARGET. A source table often maps to
-      // several, and a column name can mean different things in two of them -
-      // exchange.mints(type) is Private/Sovereign, and organizations(type) is
-      // REFINER. The first version reported the mints check as lost because
-      // organizations.type has no allowlist, while products.mints carries it
-      // exactly. If ANY target covers the column, the guard survives.
       const uncovered = [];
       let coveredSomewhere = false;
       for (const target of targets) {
         const guards = await guardsOn(target);
         const present = mapped.filter((c) => guards.has(c));
-        if (present.length !== mapped.length) continue; // target lacks the column
+        if (present.length !== mapped.length) continue;
         const covered = present.every((c) => {
           const g = guards.get(c);
           return g.has_check || g.is_enum || g.has_fkey;
@@ -619,24 +459,6 @@ if (checksOpen.length) {
   }
 }
 
-// ---------------------------------------------------------------------------
-// FOREIGN KEYS, and why this section is narrower than it looks like it should be.
-//
-// A naive comparison - "the source has an FK on these columns, does the target"
-// - reports FOUR losses here, and TWO of them are wrong. A relationship
-// legitimately MOVES TABLE:
-//
-//   exchange.addresses(user_id)      -> places.user_addresses(user_id), which
-//                                       is a join table and keeps the FK
-//   exchange.carrier_pickups(user_id)-> reachable through
-//                                       fulfillments.pickups(fulfillment_id)
-//                                       -> fulfillment -> order -> user
-//
-// Both of those targets do not have a user_id column AT ALL, which is the tell.
-// So this only judges a target that HAS the mapped column and has no foreign
-// key on it - the case where the column was carried over and the guard was not.
-// Checked by hand against all four before narrowing it, rather than tuning the
-// rule until the output looked nice.
 const fkColumnsOf = async (table) => {
   const [schema, name] = table.split(".");
   const { rows } = await pool.query(
@@ -687,7 +509,7 @@ for (const [feature, sources] of Object.entries(features)) {
       for (const target of targets) {
         const fks = await fkColumnsOf(target);
         const present = mapped.filter((c) => fks.has(c));
-        if (present.length !== mapped.length) continue; // moved table; not this check's business
+        if (present.length !== mapped.length) continue;
         fkChecked += 1;
         if (mapped.every((c) => fks.get(c))) { covered = true; break; }
         carriedButUnguarded.push(`${target}(${mapped.join(", ")})`);
@@ -738,17 +560,6 @@ if (fkOpen.length) {
 
 await pool.end();
 
-// ---------------------------------------------------------------------------
-// THE VERDICT, and the second half of the pin.
-//
-// An unaccepted finding fails. So does an ACCEPTED entry that no longer reports
-// one: audit:indexes learned this the hard way with `unique_payment_intent_id`,
-// an entry whose reasoning was wrong and which sat there suppressing a real gap
-// on the Stripe webhook path until migration 082 removed both. An allowlist that
-// can only be added to is a way of forgetting.
-//
-// `--only <feature>` narrows the walk, so the stale half is suppressed there:
-// an entry for another feature has not gone stale, it simply was not looked at.
 const stale = only
   ? []
   : [

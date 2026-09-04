@@ -1,13 +1,3 @@
-// The writes on orders.transactions, against real Postgres.
-//
-// WHAT ONE ORDER CAME TO. Two things this pins that a straight translation
-// would lose: the update is KEYED BY ORDER (one row per order, so an order with
-// no row must answer false rather than silently succeed - D202 measured five of
-// twenty-one purchase orders in that state), and the DIRECTION GUARD is
-// evaluated in the statement, because a payout-fee waiver is a purchase fact and
-// a sale must answer "not written".
-//
-// Each test runs inside a transaction that is rolled back.
 import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
@@ -18,10 +8,7 @@ import { rollbackIn } from "#shared/testing/rollback.ts";
 import { aUser, anOrder } from "#shared/testing/builders/index.ts";
 import * as totals from "#db/orders/transactions/repo.ts";
 
-// LOCKS.ORDERS: this file BUILDS its orders now rather than borrowing them,
-// which means it writes orders.orders and orders.transactions.
 const inRollback = rollbackIn({ lock: LOCKS.ORDERS });
-
 
 beforeAll(async () => {
   assert.equal(
@@ -34,11 +21,6 @@ afterAll(async () => {
   await pool.end();
 });
 
-// BUILT WITH ITS MONEY ROW. The direction was already spelled out - the guard
-// under test is a direction guard - and building it removes the other half of
-// the fixture question: D202 measured five of twenty-one purchase orders with
-// NO transactions row at all, so "the first purchase order that has one" was a
-// narrower set than the test's own comment claimed.
 const anOrderWithTotals = async (c: PoolClient, direction: "purchase" | "sale") =>
   (await anOrder(c, await aUser(c), { direction }).withTotals({ total: 0 })).id;
 

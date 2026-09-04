@@ -1,18 +1,3 @@
-// The writes on orders.spots, against real Postgres.
-//
-// exchange.order_metals named the metal as TEXT and had a column per kind of
-// order; orders.spots has one order id and a foreign key. Three things this
-// pins that a straight translation would lose:
-//
-//   - THE PATCH TOUCHES THE BID ONLY. We bid to buy from the customer; the ask
-//     is what the same metal sells for. Writing both would lose a number this
-//     write never owned, so `bid` is the only patchable column.
-//   - CREATE IS IDEMPOTENT. (order_id, metal_id) is UNIQUE and exchange's
-//     insert had no conflict handling, so a re-run raised.
-//   - ONE UPDATE, KEYED ON (order_id, metal_id). The per-row loop is the
-//     caller's job; a pair the order does not carry answers false.
-//
-// Each test runs inside a transaction that is rolled back.
 import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
@@ -22,9 +7,7 @@ import { rollbackIn } from "#shared/testing/rollback.ts";
 import { aUser, anOrder, metalId } from "#shared/testing/builders/index.ts";
 import * as spots from "#db/orders/spots/repo.ts";
 
-// LOCKS.ORDERS: the order and its quote are built here rather than borrowed.
 const inRollback = rollbackIn({ lock: LOCKS.ORDERS });
-
 
 beforeAll(async () => {
   assert.equal(
@@ -37,10 +20,6 @@ afterAll(async () => {
   await pool.end();
 });
 
-// AN ORDER QUOTED FOR EVERY METAL, BUILT. `.withSpots()` writes all four,
-// which is what placement does - so "another metal on the same order" is a
-// guarantee here rather than something the previous version had to look for
-// and assert it had found.
 const anOrderWithSpots = async (c: PoolClient) => {
   const order = await anOrder(c, await aUser(c), { direction: "purchase" }).withSpots();
   return { order_id: order.id, metal_id: await metalId(c, "Gold") };
@@ -49,7 +28,6 @@ const anOrderWithSpots = async (c: PoolClient) => {
 test("clearing a bid leaves the ask alone", async () => {
   await inRollback(async (c: PoolClient) => {
     const s = await anOrderWithSpots(c);
-    // Both set, so the assertion can tell them apart.
     await c.query(
       "UPDATE orders.spots SET bid = 100, ask = 200 WHERE order_id = $1", [s.order_id]
     );
@@ -75,7 +53,6 @@ test("clearing a bid leaves the ask alone", async () => {
 test("a bid lands on one metal of one order", async () => {
   await inRollback(async (c: PoolClient) => {
     const s = await anOrderWithSpots(c);
-    // Another metal on the same order, so we can prove the update is narrow.
     const { rows: others } = await c.query(
       `SELECT metal_id FROM orders.spots WHERE order_id = $1 AND metal_id <> $2`,
       [s.order_id, s.metal_id]
@@ -104,19 +81,10 @@ test("a bid lands on one metal of one order", async () => {
   });
 });
 
-// EVERY ORDER CARRIES EVERY METAL, so this condition has to be created rather
-// than found: there are four metals and insertOrderMetals quotes all four, so
-// no existing order is missing one. The delete happens inside the transaction
-// this test rolls back.
-//
-// The first version of this test looked for an unquoted metal and returned
-// early when it found none - which was ALWAYS, so it asserted nothing and
-// passed for its whole life. audit:vacuous-tests caught it.
 test("a bid for a metal the order does not carry changes nothing", async () => {
   await inRollback(async (c: PoolClient) => {
     const s = await anOrderWithSpots(c);
 
-    // Remove one metal's quote, so the order genuinely does not carry it.
     await c.query(
       "DELETE FROM orders.spots WHERE order_id = $1 AND metal_id = $2",
       [s.order_id, s.metal_id]
@@ -134,10 +102,6 @@ test("a bid for a metal the order does not carry changes nothing", async () => {
   });
 });
 
-// `create`/`createMany` are gone - freezeForOrder is the one write left, an
-// `INSERT ... SELECT` off spots.spots keyed by the order's OWN lines rather
-// than a caller-supplied metal, so this pins the same idempotency against the
-// replacement: freezing twice must be a no-op, not a 23505.
 test("freezing the same order twice does not raise", async () => {
   await inRollback(async (c: PoolClient) => {
     const order = await anOrder(c, await aUser(c), { direction: "purchase" })

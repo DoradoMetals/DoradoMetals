@@ -1,6 +1,3 @@
--- LABEL REPAIR (D211): sales whose intent HAS settled - the payment fact -
--- but whose flair still says Pending. The status is read here only to find
--- labels that contradict the fact; nothing decides anything from it.
 SELECT o.id AS order_id, a.provider_ref AS payment_intent_id
   FROM orders.orders o
   JOIN payments.intents i ON i.order_id = o.id

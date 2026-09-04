@@ -1,15 +1,3 @@
-// aReview - a customer review.
-//
-// THE ORDER AND THE AUTHOR ARE COLUMNS THE REPO DOES NOT WRITE. `create` takes
-// name/text/rating/hidden only, because a review arrives from a form; user_id
-// and order_id are set by whatever links it to an order. A builder that wants
-// a review OF an order therefore writes them afterwards, and does so through
-// the same client so the row stays inside the caller's transaction.
-//
-// `user` is NOT a table column - it is how a caller says whose review this is,
-// and it is not accepted through the patch (which is exactly the columns
-// reviews.reviews lets a create/update touch): it is its own parameter, so
-// the patch type can stay the contract's own shape.
 import type { PoolClient } from "pg";
 import type { ReviewPatch } from "@dorado/contracts";
 import { anId, aTag } from "#shared/testing/builders/ids.ts";
@@ -29,8 +17,6 @@ export async function aReview(
       name: patch.name ?? `Test Reviewer ${tag}`,
       review_text: patch.review_text ?? `Built by a fixture (${tag})`,
       rating: patch.rating ?? 5,
-      // HIDDEN BY DEFAULT. reviews.getPublic is a security-critical read and a
-      // fixture must not add itself to what the public sees.
       hidden: patch.hidden ?? true,
     },
     c

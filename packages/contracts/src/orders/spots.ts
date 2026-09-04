@@ -18,31 +18,20 @@ export const OrderSpot = z.object({
 });
 export type OrderSpot = z.infer<typeof OrderSpot>;
 // generated:end
-// PUT /orders/:id/spots - pin or unpin the order's spots, and adjust one.
-// `set` names a metal by ID and not by name: a display string used to decide
-// which money row an edit landed on.
 export const OrderSpotWrite = z.object({
   metal_id: OrderSpot.shape.metal_id,
   bid: OrderSpot.shape.bid.unwrap(),
 }).strict();
 export type OrderSpotWrite = z.infer<typeof OrderSpotWrite>;
 
-// `lock: true` freezes every metal on the order at today's feed;
-// `lock: false` clears the bids it pinned.
 export const OrderSpotsPutBody = z.object({ set: z.array(OrderSpotWrite).optional() })
   .extend({ lock: z.boolean().optional() })
   .strict();
 export type OrderSpotsPutBody = z.infer<typeof OrderSpotsPutBody>;
 
-
-// THE ONE COLUMN A WRITE MAY TOUCH: the BID. The ask is what the same metal
-// sells for and this table never quotes it, so writing it here would lose a
-// number the row never owned.
 export const OrderSpotPatch = OrderSpot.pick({ bid: true }).partial();
 export type OrderSpotPatch = z.infer<typeof OrderSpotPatch>;
 
-// The metal's NAME joined on - what the PDFs, the emails and the refiner
-// surfaces read. `percent_change` and `dollar_change` are projected NULL.
 export const OrderSpotNamed = OrderSpot
   .omit({ metal_id: true, scrap_percentage: true, bullion_percentage: true })
   .extend({

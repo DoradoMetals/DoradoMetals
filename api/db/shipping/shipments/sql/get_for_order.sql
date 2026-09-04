@@ -1,11 +1,3 @@
--- Every parcel on one order, both directions, in one array (not two named
--- slots - an order can have two outbound parcels). No order id on this table;
--- resolved via fulfillments.shipments/fulfillments in the WHERE clause.
--- THE LABEL IS INCLUDED HERE, base64-encoded, because the ONE consumer is the
--- order view the PDF renderer draws a label page from. Every other read serves
--- get_read_for_order.sql instead, which omits it: the driver's raw Buffer JSON
--- runs far larger than the row around it (measured: half a megabyte against
--- 13KB across 23 rows), and a screen never wants the bytes.
 SELECT s.id, s.carrier_service_id, s.package_id,
        s.recipient_address_id, s.shipper_address_id,
        s.tracking_number, s.delivered_at, s.shipped_at, s.est_delivery,

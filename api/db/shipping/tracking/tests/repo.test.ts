@@ -1,10 +1,3 @@
-// shipping.tracking, against real Postgres. No getOne/update - repo.ts's own
-// header: immutable facts, replaced wholesale each poll. So the
-// false-on-missing/true-on-real shape here is remove's own return value (a
-// row count, not a boolean) - zero for a shipment with no events, the real
-// count for one that has them - which is exactly the guard
-// audit:test-leaks exists because of: this DELETE once destroyed real FedEx
-// history (see the file's own comment on sql/delete.sql).
 import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
@@ -15,8 +8,6 @@ import { rollbackIn } from "#shared/testing/rollback.ts";
 import { aUser, anOrder, aShipment } from "#shared/testing/builders/index.ts";
 import * as tracking from "#db/shipping/tracking/repo.ts";
 
-// aShipment writes orders.* and fulfillments.* alongside shipping.* - both
-// locks, the way every other shipment fixture takes them.
 const inRollback = rollbackIn({ lock: [LOCKS.ORDERS, LOCKS.FULFILLMENTS] });
 
 beforeAll(async () => {

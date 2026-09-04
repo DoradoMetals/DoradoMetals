@@ -26,8 +26,6 @@ export const FulfillmentMethod = z.object({
 });
 export type FulfillmentMethod = z.infer<typeof FulfillmentMethod>;
 // generated:end
-// The customer-facing menu and the admin list are the same row, minus the
-// audit columns nobody outside the API needs.
 export const FulfillmentMethodRead = FulfillmentMethod.pick({
   id: true,
   type: true,
@@ -43,8 +41,6 @@ export const FulfillmentMethodRead = FulfillmentMethod.pick({
 });
 export type FulfillmentMethodRead = z.infer<typeof FulfillmentMethodRead>;
 
-// The four columns an admin may change. `admin_label` refuses null: an empty
-// admin label is the empty string, not an absent one.
 export const FulfillmentMethodPatch = FulfillmentMethod.pick({
   label: true,
   admin_label: true,
@@ -55,12 +51,8 @@ export const FulfillmentMethodPatch = FulfillmentMethod.pick({
 }).partial();
 export type FulfillmentMethodPatch = z.infer<typeof FulfillmentMethodPatch>;
 
-// POST /fulfillments/methods/update - the row named ONCE by id, and the
-// columns beside it (ruling 43). The id used to be extended onto the patch
-// itself, where it read as a column being written.
 export const FulfillmentMethodUpdateBody = z.object({
   id: FulfillmentMethod.shape.id,
   method: FulfillmentMethodPatch.strict(),
 }).strict();
 export type FulfillmentMethodUpdateBody = z.infer<typeof FulfillmentMethodUpdateBody>;
-

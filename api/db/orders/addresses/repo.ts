@@ -1,11 +1,3 @@
-// orders.addresses - CRUD only. The order's link to the address SNAPSHOT.
-//
-// TWO IDS: `address_id` is the frozen places.addresses row, `source_address_id`
-// the BOOK entry it was copied from. The wire returns the SOURCE id, because
-// checkout posts it back and the API resolves it against the book.
-//
-// NO update AND NO remove, deliberately: the snapshot is immutable (Jacob, D84)
-// and re-recording is a CORRECTION, so `create` upserts on order_id.
 import { randomUUID } from "node:crypto";
 import query from "#shared/db/query.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
@@ -13,7 +5,6 @@ import type { OrderAddressLink } from "@dorado/contracts";
 import type { Executor } from "#shared/db/executor.ts";
 
 const sql = sqlFrom(import.meta.dirname);
-
 
 export async function getFor(
   order_id: string, executor?: Executor

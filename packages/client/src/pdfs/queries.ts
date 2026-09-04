@@ -1,9 +1,5 @@
 "use client";
 
-// THE FOUR DOCUMENT ENDPOINTS. Every one takes `{ order_id }` and answers a
-// blob - the server serves the STORED document when one exists and otherwise
-// renders live (api/features/media/pdfs/order-inputs.ts). Filenames and
-// saving the blob to disk are the caller's UI concern, not this package's.
 import { useMutation, type UseMutationResult } from "@tanstack/react-query";
 import { apiRequestBlob } from "../fetch";
 

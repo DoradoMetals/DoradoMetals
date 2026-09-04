@@ -1,14 +1,9 @@
-// places.addresses, the CRUD floor, against real Postgres.
-//
-// One test proves what every repo's update must: a missing id changes nothing
-// and says so (undefined), a real id changes exactly one row and answers it.
 import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
 import pool from "#pool";
 import { inRollback } from "#shared/testing/rollback.ts";
 import * as repo from "#db/places/addresses/repo.ts";
-
 
 beforeAll(async () => {
   assert.equal(

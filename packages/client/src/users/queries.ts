@@ -1,7 +1,5 @@
 "use client";
 
-// PEOPLE AND THEIR CREDIT. The three admin reads, the one admin write, and the
-// caller's own ledger.
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { AccountTransaction, AdminUser, UpdateCreditBody } from "@dorado/contracts";
 
@@ -35,18 +33,6 @@ export function useAdminRoleUsers(options: { enabled?: boolean } = {}) {
   });
 }
 
-// THE OPERATION, NOT THE RESULT (ruling 10, D98).
-//
-// The SUBJECT is the path's now (ruling 43); the body is the operation alone.
-//
-// This used to send `amount: user.dorado_funds` - the balance the BROWSER had
-// computed - and the server stored it verbatim. Two problems on a ledger
-// holding $66,999.32 across eight customers: the client was doing the
-// arithmetic, and two admins with the drawer open both read the same starting
-// balance, so the second write silently discarded the first. `{op, amount}`
-// lets the server apply a DELTA under a row lock, where the outcome does not
-// depend on what a browser last saw - and the row it answers with is the
-// balance, so nothing has to be recomputed here either.
 export function useUpdateCredit() {
   const client = useQueryClient();
   return useMutation({
@@ -62,10 +48,6 @@ export function useUpdateCredit() {
   });
 }
 
-// GET /api/transactions - the CALLER'S OWN credit ledger, newest first. The
-// subject is the session's; there is no id to pass and passing one changes
-// nothing (it used to change everything - see the API controller's own
-// note).
 export function useCreditLedger(options: { enabled?: boolean } = {}) {
   return useQuery<AccountTransaction[]>({
     queryKey: keys.users.ledger(),

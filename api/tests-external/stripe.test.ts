@@ -1,26 +1,3 @@
-// Stripe, LIVE, against the real test-mode API - no cassette, no nock, no
-// no-network guard. This directory is excluded from every guarded lane (see
-// `./lane.ts` and the `test` script's own header); this file's name DOES
-// match `*.test.ts`, so `pnpm --filter @dorado/api test:external` picks it up
-// on purpose.
-//
-// WHY THIS EXISTS. Lane 5's cassettes (tests/cassettes/, replayed by
-// providers/payment/tests/stripe-cassettes.test.ts) prove OUR half of every
-// call: the payload built, the mapping made of the answer, the idempotency
-// key sent. They prove nothing about Stripe ITSELF - a recorded response is
-// what Stripe said on the day it was recorded, not what Stripe says today.
-// This lane is the other half: the identical scenarios, live, so a drift in
-// Stripe's own shapes (an SDK major, a renamed field, a newly required
-// parameter) is caught here instead of in production - which is exactly why
-// it must run before the deferred Stripe 18->22 upgrade lands
-// (docs/waves/test-suite-redesign.md 2.4e).
-//
-// NOT IN ANY GATE. Slow, needs network, fails when Stripe has a bad morning -
-// a fact about Stripe, not about this codebase. Run it by hand:
-//
-//   pnpm --filter @dorado/api test:external
-//
-// documented as nightly.
 import test, { before, after } from "node:test";
 import assert from "node:assert/strict";
 import "#env";
@@ -33,13 +10,6 @@ before(() => {
   const key = process.env.STRIPE_SECRET_KEY ?? "";
   assert.ok(key, "STRIPE_SECRET_KEY is not set - this lane cannot run");
 
-  // THE REFUSAL THIS LANE EXISTS TO PROVE STAYS ARMED.
-  // providers/payment/stripe-client.ts refuses to construct a client from an
-  // sk_live key whenever isTestRun() is true - and this script's own
-  // NODE_ENV=test makes it true, live sandbox traffic included. Asserted here
-  // too so a change to that guard fails loudly in the one lane built to reach
-  // Stripe for real, rather than silently the first time someone runs this
-  // file with a live key in their environment.
   assert.ok(
     key.startsWith("sk_test"),
     "STRIPE_SECRET_KEY is not a test key. Refusing to run test:external " +
@@ -48,10 +18,6 @@ before(() => {
 });
 
 after(async () => {
-  // Cancel every intent this file made. A test account fills up with
-  // abandoned intents otherwise, and an intent left `requires_payment_method`
-  // is indistinguishable from the production ones `audit:payments` complains
-  // about.
   for (const id of created) {
     try {
       const intent = await stripe.retrieveIntent(id);
@@ -59,8 +25,6 @@ after(async () => {
         await stripe.cancelIntent(id);
       }
     } catch {
-      // Already gone, or Stripe is unreachable. Best-effort; a failure here
-      // must not mask a real test result.
     }
   }
 });
@@ -121,9 +85,6 @@ test("cancelling an intent is final and readable", async () => {
   assert.equal(fetched.status, "canceled", "the cancellation did not stick");
 });
 
-// The branch the abandonment sweep runs on (domain/payments/sweeps.ts,
-// domain/payments/tests/sweeps.test.ts). This is the message the real Stripe
-// API sends today, live - the cassette version pins the recorded copy of it.
 test("cancelling and retrieving an id Stripe never issued both throw the resource_missing shape", async () => {
   const bogus = `pi_external_no_such_${Date.now()}`;
   await assert.rejects(
@@ -139,11 +100,6 @@ test("cancelling and retrieving an id Stripe never issued both throw the resourc
   );
 });
 
-// Signature verification, live: prefers the SECRET ACTUALLY CONFIGURED
-// (STRIPE_WEBHOOK_SECRET), so a pass here proves the deployed secret really
-// verifies what Stripe would send it - falling back to the SDK's own
-// generateTestHeaderString (still real signature arithmetic, not a stub) only
-// when no secret is configured to test against.
 test("webhook signature verification against the configured secret", async () => {
   const payload = JSON.stringify({
     id: "evt_external_suite",

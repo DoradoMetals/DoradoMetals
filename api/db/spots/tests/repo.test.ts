@@ -1,9 +1,3 @@
-// spots.spots, against real Postgres. One row per metal, seeded by
-// migration - so every metal already HAS a row, and create() (repo.ts's own
-// header) exists only for the metal that does not. No remove() to prove
-// false-on-missing/true-on-real against - a spot is never deleted, only
-// updated - so that shape is proved on update() alone, and create() is
-// proved separately against a metal whose row was cleared for the test.
 import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
@@ -49,8 +43,6 @@ test("update answers false for a metal_id with no spots row", async () => {
 test("create writes the one row a metal was missing, honoring the one-per-metal constraint", async () => {
   await inRollback(async (c: PoolClient) => {
     const silver = await metalId(c, "Silver");
-    // Cleared inside this rolled-back transaction, so the seed's own row is
-    // untouched outside it - see repo.ts's header on when create is called.
     await query(`DELETE FROM spots.spots WHERE metal_id = $1`, [silver], c);
 
     await spots.create(

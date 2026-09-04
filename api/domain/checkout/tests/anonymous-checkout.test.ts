@@ -1,25 +1,3 @@
-// THE VISITOR'S JOURNEY, OVER REAL HTTP (ruling 63: "Fuck it, go for it. We'll
-// need it anyway." / "Frontend stores should be for UI elements, not data.").
-//
-// A signed-out visitor is a better-auth ANONYMOUS user with an ordinary
-// auth.users row, so the whole checkout is ordinary rows under an ordinary id.
-// What this file pins is that the API cannot tell the difference until it
-// matters: the same basket endpoints, the same refusals from the rate surface,
-// the same readiness - and then two deliberate walls (the payout step and the
-// placement), and a sign-up that carries everything onto the real account.
-//
-// THE SESSION IS MOCKED, THE ANONYMITY IS NOT. shared/testing/session.ts
-// replaces what auth.api.getSession answers, exactly as every other guarded
-// test does - better-auth builds its own Pool and a real sign-in would have to
-// COMMIT. The `isAnonymous` fact the guards read is a COLUMN, read from the
-// database inside the transaction, so the walls below are the real ones.
-//
-// THE LIVE CARRIER CALL IS NOT MADE, for the reason
-// domain/shipping/operations/tests/checkout-rates.test.ts's header gives: no
-// cassette matches this endpoint's own request shape. What is pinned here is
-// that a visitor reaches the SAME refusals a customer does and that the row
-// says `ready_for_rates` when it is ready - the endpoint does not branch on who
-// is asking, so there is nothing anonymous-specific left in the carrier call.
 import { test, afterAll } from "vitest";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
@@ -52,8 +30,6 @@ test("a visitor builds a basket, is refused the two things that need an account,
     const address = await anAddress(c, visitor);
     const box = await packageId(c, "Small Box");
 
-    // ---- 1. THE BASKET. The same endpoint a customer uses; no local store,
-    // no merge on sign-in, no second code path.
     const put = await as(visitor, () =>
       request(app)
         .put("/api/checkout/items")
@@ -67,15 +43,9 @@ test("a visitor builds a basket, is refused the two things that need an account,
       request(app).get("/api/checkout").query({ direction: "purchase" })
     );
     assert.equal(row.status, 200, row.text);
-    // THE ONE LIST (Jacob, 2026-09-04): a basket with lines no longer owes
-    // `items`, and the row is not placeable while it owes anything else.
     assert.ok(!row.body.missing.includes("items"), "a basket with lines still owes items");
     assert.ok(row.body.missing.length > 0, "an unfinished checkout claims to be placeable");
 
-    // ---- 2. THE HANDOVER. A visitor asks fulfillments for a draft on the
-    // same endpoint a customer does (rulings 69/70) - and the RATE SURFACE
-    // answers them the way it answers anyone: with its own refusal about the
-    // parcel, not about who is asking.
     const draft = await as(visitor, () =>
       request(app).post("/api/fulfillments").send({ checkout_id: row.body.id })
     );
@@ -88,18 +58,12 @@ test("a visitor builds a basket, is refused the two things that need an account,
     assert.equal(tooEarly.status, 422, tooEarly.text);
     assert.match(tooEarly.body?.error?.message ?? "", /choose a package/);
 
-    // ---- 3. READINESS. An address the visitor entered and a box, both onto
-    // the parcel: the draft itself says the carrier can now be asked.
     const patched = await as(visitor, () =>
       request(app).patch(`/api/fulfillments/${fulfillment_id}`).send({
         shipment: { package_id: box, shipper_address_id: address.id },
       })
     );
     assert.equal(patched.status, 200, patched.text);
-    // Items + a package + an address is the whole of what a rate quote needs,
-    // and a visitor reaches it on the same three writes a customer does. The
-    // draft says so by not OWING either of its two, and the checkout row by
-    // not owing `items`.
     for (const step of ["package_id", "shipper_address_id"]) {
       assert.ok(
         !patched.body.missing.includes(step),
@@ -107,8 +71,6 @@ test("a visitor builds a basket, is refused the two things that need an account,
       );
     }
 
-    // ---- 4. THE FIRST WALL: bank details are sealed against a user id, and a
-    // visitor's id is about to be swept.
     const payout = await as(visitor, () =>
       request(app).post("/api/checkout/payout").send({
         direction: "purchase",
@@ -122,7 +84,6 @@ test("a visitor builds a basket, is refused the two things that need an account,
     assert.equal(payout.status, 403, payout.text);
     assert.match(payout.body?.error?.message ?? "", /sign in to save a payout account/);
 
-    // ---- 5. THE SECOND WALL: placing takes money and buys a label.
     const placed = await as(visitor, () =>
       request(app)
         .post("/api/purchase_orders/create_from_checkout")
@@ -131,9 +92,6 @@ test("a visitor builds a basket, is refused the two things that need an account,
     assert.equal(placed.status, 403, placed.text);
     assert.match(placed.body?.error?.message ?? "", /sign in to place an order/);
 
-    // ---- 6. THE SIGN-UP. better-auth mints the real user and calls
-    // onLinkAccount, which is this call (domain/auth/client.ts). Everything the
-    // visitor did is the customer's afterwards.
     const customer = await aUser(c);
     await adoptAnonymousCheckout(
       { anonymousUserId: visitor.id, userId: customer.id }, c
@@ -153,9 +111,6 @@ test("a visitor builds a basket, is refused the two things that need an account,
     assert.equal(myRow.status, 200, myRow.text);
     assert.equal(myRow.body.id, row.body.id, "the same checkout row, re-keyed");
     assert.equal(myRow.body.fulfillment_id, fulfillment_id, "the draft did not follow");
-    // The PARCEL followed too - the box and the origin the visitor chose are
-    // its columns (128), and the draft never changed hands because it never
-    // belonged to a user in the first place.
     const kept = await as(customer, () =>
       request(app).get(`/api/fulfillments/${fulfillment_id}`)
     );
@@ -163,13 +118,8 @@ test("a visitor builds a basket, is refused the two things that need an account,
     assert.equal(kept.body.parcel.package_id, box);
     assert.equal(kept.body.parcel.shipper_address_id, address.id);
 
-    // And now the wall is down. THE CONTROL, asserted at the guard rather
-    // than by placing: a real placement buys a FedEx label and sends an email
-    // (sell-journey.test.ts's header explains why the HTTP create has no stub
-    // world), and what is in question here is only who is asking.
     await checkoutService.assertRealAccount(customer.id, "place an order");
 
-    // The visitor is left owning nothing at all.
     const { rows: left } = await c.query(
       `SELECT 1 FROM checkout.checkouts WHERE user_id = $1
         UNION ALL
@@ -181,11 +131,6 @@ test("a visitor builds a basket, is refused the two things that need an account,
 });
 
 test("a visitor's writes are attributed to nobody", async () => {
-  // Migration 122: every *_by_id column is a foreign key onto auth.users, so a
-  // row stamped with a visitor's id would pin that visitor's row in place for
-  // the life of the row it stamped, and the sweep would raise 23503 forever
-  // after. It is also the truth - nobody learns anything from "created by
-  // Anonymous".
   await inPinnedTransaction(async (c: PoolClient) => {
     const visitor = await aVisitor(c);
     const product = await aProduct(c);
@@ -211,8 +156,6 @@ test("a visitor's writes are attributed to nobody", async () => {
 });
 
 test("a real customer is still stamped", async () => {
-  // The control. Without it the assertion above passes just as well against an
-  // audit trigger that has stopped stamping anybody.
   await inPinnedTransaction(async (c: PoolClient) => {
     const customer = await aUser(c, { name: "Stamped Person" });
     const product = await aProduct(c);

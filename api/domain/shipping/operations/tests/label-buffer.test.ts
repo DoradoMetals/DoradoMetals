@@ -1,31 +1,7 @@
-// A carrier response with a tracking number and no label file.
-//
-// WHY THIS MATTERS. parseCreateShipment reads the label document off
-// `shipment?.pieceResponses?.[0]?.packageDocuments?.[0]?.encodedLabel ?? null`,
-// while the tracking number comes from a different field entirely. So FedEx can
-// answer with a real, billable tracking number and no label - and
-// `Buffer.from(null, "base64")` throws.
-//
-// Both label paths built that buffer AFTER the label existed but BEFORE the try
-// that compensates, so the TypeError escaped with the label left behind: no
-// shipment row, no order, and no "ORPHANED SHIPPING LABEL" line either, because
-// undoLabel was never reached. Silent, which is the part that mattered.
-//
-// 456da9f2 fixed it. This is the assertion that holds it, and it is the last of
-// the money paths that had none.
-//
-// NO DATABASE AND NO CARRIER. labelBufferOrVoid takes `cancel` as a separate
-// parameter - not a field on labelData, because labelData is what the carrier
-// said - so the test passes a recorder. That is the whole reason the seam
-// exists: the request that demonstrates this bug is the one that buys a label.
 import { test } from "vitest";
 import assert from "node:assert/strict";
 import { labelBufferOrVoid, voidLabel } from "#domain/shipping/operations/service.ts";
 
-// The recorder IS the cancel seam with a `calls` array bolted on, and saying so
-// is what lets the assertions below read `cancel.calls` without a cast. The
-// seam's type is derived from `voidLabel` itself now - the exported alias went
-// with the rest of the type sweep.
 type Recorder = typeof voidLabel & { calls: (string | null | undefined)[] };
 
 const recorder = (): Recorder => {
@@ -67,10 +43,6 @@ test("a real label is decoded and nothing is cancelled", async () => {
   assert.deepEqual(cancel.calls, [], "a good label must not be cancelled");
 });
 
-// The case where the carrier gave us nothing at all. There is no label to
-// cancel, so cancel is still called and the real undoLabel returns early on a
-// falsy tracking number - what matters is that it still refuses rather than
-// returning an empty buffer that would be written to a shipment row as a label.
 test("a response with neither a file nor a tracking number still refuses", async () => {
   const cancel = recorder();
 

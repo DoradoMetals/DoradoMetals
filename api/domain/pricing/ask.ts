@@ -1,22 +1,6 @@
-// What the business CHARGES for metal (ask side) — mirrors bid.ts (what it PAYS), and they share no code: different defaults, most visibly that a metal absent from spots throws on the purchase side and prices at zero here (pinned on both).
-// TWO KNOWN DIVERGENCES from the frontend's own copy of this sum, deliberately left alone (fixing either changes money already stored, not a type conversion's job — full account in FOLLOWUPS.md):
-//   1. calculateCardCharge surcharges everything but ACH at 2.9%, but the checkout UI labels CREDIT and WIRE 'No Fee' too. Not yet hit: every funded order so far was covered in full, so no surcharge was taken.
-//   2. The surcharge rate is set by the client-declared payment_method, but Stripe's automatic_payment_methods means the method actually used is never reconciled against it — declaring ACH and paying by card would undercharge by 2.4%. Not yet hit: production's one collected sale used the card rate.
-// AND ONE ASYMMETRY WITHIN THIS FILE: calculateItemTotals defaults a missing quantity to 1, calculateSalesTax does not — cannot currently happen, since every caller but /tax/get_sales_tax passes items through getItemsFromServer, which sets quantity ?? 0.
-// Declared once, in @dorado/contracts (ruling 57/60/61: PricingSpot and Spots
-// are exported across features, so a re-export here rather than a copy).
 import type { OrderPrices, PricingSpot, Spots } from "@dorado/contracts";
 export type { OrderPrices, PricingSpot, Spots } from "@dorado/contracts";
 
-// NOT SalesOrderItem — that's a line on a *saved* order; this runs BEFORE the
-// order exists, over catalogue rows with quantity overlaid from the request.
-// Every field is optional because /tax/get_sales_tax prices the raw request
-// body, unread and unjoined — required fields here would describe one caller
-// and lie about the other. Genuinely internal (ruling 57/60/61): the two
-// real shapes this spans - a catalogue row and an unvalidated request body -
-// are not one entity, so there is no single contract to derive it from
-// rather than inline it; sales-tax/service.ts keeps its own copy for the
-// same reason (its own comment names this one as the original).
 export function calculateItemAsk(
   item: {
     metal_type?: string | null;
@@ -43,7 +27,6 @@ export function calculateCardCharge(
   }
 }
 
-// Calls calculateItemAsk rather than duplicating its expression — two copies drifting apart is the exact bug bid.ts's header describes.
 export function calculateItemTotals(
   items: {
     metal_type?: string | null;
@@ -76,11 +59,6 @@ export function getShippingCharge(
     : 0;
 }
 
-// `item.quantity!` preserves existing arithmetic (null multiplies to 0) rather than asserting a fact — no caller can currently produce a null, so this is unproven, not verified safe.
-// Changing it to `?? 1` (matching calculateItemTotals) would alter stored tax amounts — a real money change that needs its own commit and Jacob's call on which is right.
-// The same line once taxService.attachSalesTaxToItems has run: a priceable
-// item plus the rate that function always sets, from a query that COALESCEs
-// to 0 - so it is never optional here.
 export function calculateSalesTax(
   items: ({
     metal_type?: string | null;
@@ -97,9 +75,6 @@ export function calculateSalesTax(
   }, 0);
 }
 
-// CREDIT IS NOT A CHOICE (Jacob, 2026-09-03: "No reason to let them make a
-// choice"). A balance is applied whenever one exists, capped at the order's
-// own total; the old `using_funds` flag is gone from the wire and from here.
 export function calculateSalesOrderTotal(
   items: ({
     metal_type?: string | null;
@@ -108,9 +83,6 @@ export function calculateSalesOrderTotal(
     quantity?: number | null;
   } & { sales_tax_rate: number })[],
   spots: Spots,
-  // Only dorado_funds is read — checkout passes a better-auth session user,
-  // admin passes an exchange.users row; naming either type would reject the
-  // other, which is why this stays a structural shape rather than a name.
   user: { dorado_funds?: number | null },
   shipping_service: string | null | undefined,
   payment_method: string | null | undefined
@@ -124,8 +96,6 @@ export function calculateSalesOrderTotal(
   const beginning_funds = user.dorado_funds ?? 0;
   let appliedFunds = Math.min(beginning_funds, base_total);
 
-  // The card remainder is either $0 or chargeable — retired the old $10 floor (which billed a $3 balance as $10). When applied credit would leave a sliver between $0.00 and $0.50 (below Stripe's minimum), apply slightly LESS credit so the card pays exactly $0.50; the customer keeps the sliver as credit instead of being overcharged.
-  // A base_total under $0.50 with insufficient credit can't be fixed here (no credit to hold back) — refused downstream at intent time; no product costs 49 cents.
   const STRIPE_MINIMUM_CHARGE = 0.5;
   const cardRemainder = base_total - appliedFunds;
   if (cardRemainder > 0 && cardRemainder < STRIPE_MINIMUM_CHARGE) {

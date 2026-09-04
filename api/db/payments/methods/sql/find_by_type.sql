@@ -1,7 +1,3 @@
--- The method a direction spells with this type - how a payout account and a
--- Stripe instrument both resolve to a method_id. (direction, type) is the
--- natural key; 109 reconciled the rows to the vocabulary the stored payouts
--- speak, so there is no rename to bridge any more.
 SELECT id, image_id, direction, type, currency, min_amount, max_amount,
        enabled, supports_partial, supports_split, provider, provider_value,
        flat_fee, surcharge_percent, time_delay, label, surcharge_label,

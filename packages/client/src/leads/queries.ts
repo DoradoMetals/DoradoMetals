@@ -1,15 +1,11 @@
 "use client";
 
-// THE LEADS SURFACE. Sales contacts, admin-only throughout - see
-// api/transport/leads/routes.ts for why (a lead belongs to the business,
-// not a customer, so there is no non-admin read to gate here at all).
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { Lead, LeadPatch } from "@dorado/contracts";
 
 import { apiRequest } from "../fetch";
 import { keys } from "../keys";
 
-// GET /api/leads
 export function useLeads() {
   return useQuery<Lead[]>({
     queryKey: keys.leads.all(),
@@ -17,10 +13,6 @@ export function useLeads() {
   });
 }
 
-// POST /api/leads -> 201. Prepended to the cached list from the row the
-// server actually wrote (real id included) rather than invalidating and
-// refetching the whole list - the create still lands on screen in one round
-// trip instead of two.
 export function useCreateLead() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -33,7 +25,6 @@ export function useCreateLead() {
   });
 }
 
-// PATCH /api/leads/:id
 export function useUpdateLead() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -47,10 +38,6 @@ export function useUpdateLead() {
   });
 }
 
-// DELETE /api/leads/:id. Removed from the cached list the moment the
-// request is sent (onMutate), not after the round trip - restored if it
-// fails, which is what "delete feels instant" actually bought under the old
-// optimistic-mutation wrapper.
 export function useDeleteLead() {
   const queryClient = useQueryClient();
   return useMutation({

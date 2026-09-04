@@ -11,5 +11,3 @@ export const Metal = z.object({
 });
 export type Metal = z.infer<typeof Metal>;
 // generated:end
-
-// Hand-written derivations go here: New, Patch, named reads.

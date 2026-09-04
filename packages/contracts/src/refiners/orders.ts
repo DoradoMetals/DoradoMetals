@@ -19,17 +19,6 @@ export type RefinerOrder = z.infer<typeof RefinerOrder>;
 // generated:end
 import { RefinerSpotWrite } from "./spots.js";
 
-// PATCH /api/refiners/orders/:id - the ENGAGEMENT's writable facts, and the
-// file where the null question splits. Four of these five fields refuse null
-// and the fifth keeps it, because they are not the same kind of value.
-//
-// THE THREE NUMBERS AND THE FEE REFUSE NULL: every reader defaults them to 0,
-// so clearing a pool deduction and setting it to 0 are the same order.
-//
-// `refiner_id` KEEPS NULL, and it is a different kind of field: a nullable
-// foreign key, not a fee. Every engagement starts with it null, so null is the
-// column's own "no refinery yet". Detaching an engagement from a refinery is a
-// real operation - the metal went to the wrong one.
 export const RefinerOrderPatch = RefinerOrder.pick({
   pool_oz_deducted: true,
   pool_remediation: true,
@@ -45,4 +34,3 @@ export const RefinerOrderPatch = RefinerOrder.pick({
   })
   .strict();
 export type RefinerOrderPatch = z.infer<typeof RefinerOrderPatch>;
-

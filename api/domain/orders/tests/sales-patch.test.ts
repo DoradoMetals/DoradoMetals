@@ -1,26 +1,3 @@
-// POST /api/orders/:id/send_to_refiner (D214 item 11) - the supplier-send
-// guard stack, over real HTTP.
-//
-// The dispatches themselves are covered where they always were: replay.test.js
-// (status, refusals to a customer), update-tracking.test.js (the tracking
-// write landing). This file owns what the consolidation must NOT have lost:
-// the guards inside sendOrderToSupplier. That pipeline attaches a supplier,
-// creates an outbound shipment, and emails a refiner their copy of the order -
-// so its refusals are the difference between declining and starting that
-// sequence against nothing. Each was written against a real defect
-// (service.ts's own comments tell the stories); a consolidation that dropped
-// one would keep every other test green.
-//
-// All three refusals fire BEFORE the transaction and BEFORE any email, which
-// is what makes them safe to drive over HTTP: a refused send writes nothing
-// and mails nothing. The successful send is deliberately NOT driven here - it
-// emails a refiner, and the shared transport refuses to exist during a test
-// run - and stays covered at the service level with a recorder transport
-// (service.test.js).
-//
-// NOTHING IS COMMITTED - the pool is pinned to a rolled-back transaction, and
-// the fixture edits (a nulled refiner email, a cleared order_sent) live inside
-// it too.
 import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
@@ -36,24 +13,17 @@ const ORDER_LOCK = LOCKS.ORDERS;
 await mockSessions();
 const { default: app } = await import("#app");
 
-// THE STRUCTURAL SUBSET EACH FIXTURE ACTUALLY HAS. These are SELECT
-// projections, not table rows - naming a row type would claim columns the
-// query never asked for.
 type UserFixture = { id: string; name: string | null; email: string | null };
 type SalesOrderFixture = { id: string; order_sent: boolean | null; supplier_id: string | null };
 type RefinerFixture = { id: string; organization_id: string };
 
 let admin: UserFixture;
-let order: SalesOrderFixture; // a sales order WITH an address - the pipeline refuses one without
-let refiners: RefinerFixture[]; // dev holds two
+let order: SalesOrderFixture;
+let refiners: RefinerFixture[];
 
 beforeAll(async () => {
   admin = TEST_ACTOR;
 
-  // orders.orders and refiners.orders - what send_to_refiner's own guards
-  // read (see afterNext below). exchange.sales_orders stopped receiving
-  // writes at D212/D214; discovering from it here was answering the fixture
-  // question for a table the pipeline no longer touches.
   order = (
     await outside<SalesOrderFixture>(
       `SELECT o.id, o.order_sent, ro.refiner_id AS supplier_id
@@ -92,9 +62,6 @@ test("an order that does not exist is refused before anything runs", async () =>
 test("a refiner with no email is refused, and nothing is written", async () => {
   await inPinnedTransaction(async (client: PoolClient) => {
     await asAdmin(admin, async () => {
-      // The Dillion Gage shape, made deterministic: inside the rolled-back
-      // transaction this refiner has no email, whatever dev holds today. The
-      // order is unsent, so the 409 guard cannot answer first.
       await client.query(
         `UPDATE organizations.organizations SET email = NULL WHERE id = $1`,
         [refiners[0].organization_id]
@@ -124,8 +91,6 @@ test("a refiner with no email is refused, and nothing is written", async () => {
 
       assert.equal(res.status, 422, `answered ${res.status}: ${JSON.stringify(res.body)}`);
 
-      // Refused means refused: no supplier attached, not marked sent, no
-      // outbound shipment created - the schema the guards actually read.
       const afterNext = (
         await client.query(
           `SELECT o.order_sent, ro.refiner_id
@@ -159,7 +124,6 @@ test("a sent order cannot be moved to a different refiner", async (t) => {
   }
   await inPinnedTransaction(async (client: PoolClient) => {
     await asAdmin(admin, async () => {
-      // Already sent to refiner A, inside the rolled-back transaction.
       await client.query(
         `UPDATE orders.orders SET order_sent = true WHERE id = $1`,
         [order.id]
@@ -183,10 +147,6 @@ test("a sent order cannot be moved to a different refiner", async (t) => {
   }, { actor: TEST_ACTOR.id, lock: ORDER_LOCK });
 });
 
-// `send: true` USED TO BE REQUIRED because the field was a flag in a PATCH
-// body and attaching-without-sending was not an operation this endpoint had.
-// The endpoint IS the operation now, so the body is the refiner's id and
-// nothing else: a document that names anything more is refused.
 test("the send body is one id, and nothing else is a field of it", async () => {
   await inPinnedTransaction(async () => {
     await asAdmin(admin, async () => {
@@ -208,17 +168,12 @@ test("the send body is one id, and nothing else is a field of it", async () => {
 test("a field the PATCH does not have - and a wrong-direction field - refuse by name", async () => {
   await inPinnedTransaction(async () => {
     await asAdmin(admin, async () => {
-      // tracking left for the shipments endpoint; it is not a field at all.
       const tracked = await request(app)
         .patch(`/api/orders/${order.id}`)
         .send({ tracking: { shipment_id: "x", tracking_number: "y", carrier_id: "z" } });
       assert.equal(tracked.status, 400, `answered ${tracked.status}`);
       assert.match(tracked.body?.error?.message ?? "", /"tracking"/);
 
-      // finalize_pricing is a purchase-direction operation; direction is
-      // data, and the refusal says which direction this order is. It is an
-      // ACTION now, so the refusal comes from the use case (422) rather than
-      // from a field table in the PATCH body (400).
       const finalized = await request(app)
         .post(`/api/orders/${order.id}/finalize_pricing`)
         .send({});
@@ -232,9 +187,6 @@ test("a field the PATCH does not have - and a wrong-direction field - refuse by 
 });
 
 test("nothing this file did survived the transaction", async () => {
-  // orders.orders and refiners.orders - the tables this file's tests actually
-  // write inside the pin. exchange.sales_orders receives nothing any more, so
-  // checking it here would prove the rollback held for a table nothing wrote to.
   const [row] = await outside(
     `SELECT o.order_sent, ro.refiner_id AS supplier_id
        FROM orders.orders o

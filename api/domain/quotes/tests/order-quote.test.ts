@@ -1,18 +1,3 @@
-// POST /quotes/order — prices an EXISTING purchase order, the drawer estimate the frontend used to compute client-side. Pins: ownership (owner/admin get an answer, a stranger 403, anonymous 401); stored-vs-estimate (a frozen item.price returns verbatim as 'stored', an unpriced line is estimated from the same tables, hand-computed here); locked spots (a pinned orders.spots.bid prices the estimate, a null one falls back to the live spot — the same choice orderQuote's bidFor makes); and the $26.81 pin (a body riding spots/prices/an order object in changes nothing).
-//
-// THE FIXTURE IS BUILT, not discovered (exchange-fixtures lane, D214 item 10).
-// It used to be "the oldest owned purchase order with items", read out of
-// exchange.purchase_orders / exchange.purchase_order_items / exchange.scrap /
-// exchange.products / exchange.metals / exchange.payouts / exchange.shipments
-// — every one of those frozen since the Great Purge (D212), while orderQuote
-// reads orders.orders, orders.items, orders.spots, payments.details (via
-// db/payouts/repo.ts) and shipping.shipments (via the shipments order-read).
-// The live spot feed (spots.spots/metals.metals) is still read here, but
-// NON-DESTRUCTIVELY and by name — a reference row, the same way
-// domain/quotes/tests/replay.test.ts reads it, not a fixture discovery.
-//
-// Everything runs inside the pin; the locked-spots test WRITES (a bid pinned,
-// then cleared) and the rollback discards it.
 import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
@@ -27,12 +12,8 @@ import { aUser, aProduct, anOrder, aPayout, aShipment } from "#shared/testing/bu
 await mockSessions();
 const { default: app } = await import("#app");
 
-// This file writes order rows (inside the pin), so it takes the same lock the
-// other order suites take.
 const ORDER_LOCK = LOCKS.ORDERS;
 
-// The quote line shape these assertions read. The response is `any` through
-// supertest, so naming it is what lets the compiler check the reads.
 type QuoteLine = {
   id: string;
   kind: string;
@@ -41,12 +22,10 @@ type QuoteLine = {
   source: string;
 };
 
-const EXACT = 1e-9; // same floats, same tables, same order of operations
+const EXACT = 1e-9;
 
 type SpotFixture = { id: string; name: string; bid: number };
 
-// The live Gold spot — read once, never written by this file. Every estimate
-// below hand-checks against this value, the same row getSpotPrices reads.
 let gold: SpotFixture;
 
 beforeAll(async () => {
@@ -63,9 +42,6 @@ afterAll(async () => {
   await pool.end();
 });
 
-// One scrap line and one bullion line, each with a STORED price and each with
-// an ESTIMATE (price null) - four lines, and `expected` carries the same
-// formula orderQuote uses so the test hand-checks rather than repeats itself.
 async function aQuotableOrder(c: PoolClient) {
   const owner = await aUser(c);
   const product = await aProduct(c, { metal: "Gold", content: 1 });
@@ -82,8 +58,6 @@ async function aQuotableOrder(c: PoolClient) {
       bullion_id: s.bullion_id, metal_id: s.metal_id, content: s.content,
       premium: s.premium, quantity: s.quantity, price: s.price,
     })))
-    // Not yet locked (every bid null) - estimates below price at the LIVE
-    // spot, matching bidFor's fallback.
     .withSpots({ bid: null })
     .withTotals({ total: 1 });
 
@@ -103,8 +77,6 @@ async function aQuotableOrder(c: PoolClient) {
     payoutCost: 12.5, shippingCharge: 24.5,
   };
 }
-
-// ---------------------------------------------------------------- ownership
 
 test("the order quote is the owner's and the admins', and nobody else's", async () => {
   await inPinnedTransaction(async (c: PoolClient) => {
@@ -128,20 +100,16 @@ test("the order quote is the owner's and the admins', and nobody else's", async 
       assert.equal(res.status, 200, `the owner was answered ${res.status}: ${JSON.stringify(res.body)}`);
       assert.equal(res.body.order_id, order.id);
 
-      // A body naming no order is refused by the guard, not waved through.
       const unnamed = await request(app).post("/api/quotes/order").send({});
       assert.equal(unnamed.status, 400, `an unnamed order answered ${unnamed.status}`);
     });
 
-    // The stranger's own row, re-badged: admins administer every order.
     await as({ ...stranger, role: "admin" }, async () => {
       const res = await request(app).post("/api/quotes/order").send({ order_id: order.id });
       assert.equal(res.status, 200, `an admin was answered ${res.status}: ${JSON.stringify(res.body)}`);
     });
   }, { actor: TEST_ACTOR.id, lock: ORDER_LOCK });
 });
-
-// ---------------------------------------------------- stored versus estimate
 
 test("stored prices come back verbatim and estimates come from the tables", async () => {
   await inPinnedTransaction(async (c: PoolClient) => {
@@ -173,7 +141,6 @@ test("stored prices come back verbatim and estimates come from the tables", asyn
 
       assert.ok(Math.abs(res.body.scrap_total - scrapTotal) < EXACT, "scrap_total is not the sum of its lines");
       assert.ok(Math.abs(res.body.bullion_total - bullionTotal) < EXACT, "bullion_total is not the sum of its lines");
-      // purchaseOrderTotal's bottom line: items minus shipping minus payout.
       assert.ok(
         Math.abs(res.body.total - (scrapTotal + bullionTotal - shippingCharge - payoutCost)) < EXACT,
         `total ${res.body.total} != items ${scrapTotal + bullionTotal} - shipping ${shippingCharge} - payout ${payoutCost}`
@@ -181,8 +148,6 @@ test("stored prices come back verbatim and estimates come from the tables", asyn
     });
   }, { actor: TEST_ACTOR.id, lock: ORDER_LOCK });
 });
-
-// ------------------------------------------------------------- locked spots
 
 test("a locked order estimates at its locked spots, an unlocked one at live", async () => {
   await inPinnedTransaction(async (c: PoolClient) => {
@@ -193,8 +158,6 @@ test("a locked order estimates at its locked spots, an unlocked one at live", as
     const target = order.items[0]!;
 
     await as({ ...owner, role: "user" }, async () => {
-      // Pin the metal's own spot row - the same write PUT /orders/:id/spots
-      // makes when an admin locks an order - and price again.
       await c.query(
         `UPDATE orders.spots SET bid = $1 WHERE order_id = $2 AND metal_id = $3`,
         [1234.56, order.id, gold.id]
@@ -209,8 +172,6 @@ test("a locked order estimates at its locked spots, an unlocked one at live", as
       assert.ok(Math.abs(lockedLine.unit_price - atPin) < EXACT,
         `locked estimate ${lockedLine.unit_price} != ${atPin} at the pinned spot`);
 
-      // Unlock the way unlockSpots does - the frozen bid cleared - and the
-      // same line prices at the live spot.
       await c.query(
         `UPDATE orders.spots SET bid = NULL WHERE order_id = $1 AND metal_id = $2`,
         [order.id, gold.id]
@@ -226,8 +187,6 @@ test("a locked order estimates at its locked spots, an unlocked one at live", as
     });
   }, { actor: TEST_ACTOR.id, lock: ORDER_LOCK });
 });
-
-// ------------------------------------------------- the $26.81 regression pin
 
 test("no body-supplied price, spot or order object is accepted at all", async () => {
   await inPinnedTransaction(async (c: PoolClient) => {
@@ -249,15 +208,8 @@ test("no body-supplied price, spot or order object is accepted at all", async ()
         price: 0.01,
         total: 0.01,
         items: [{ id: order.id, price: 0.01 }],
-        // A whole order riding along, its id matching so the ownership guard
-        // resolves the same order either way - and every field of it ignored.
         order: { id: order.id, total_price: 0.01, order_items: [] },
       });
-      // 400: the body is ONE id, strictly (D214 item 11). These fields used
-      // to be IGNORED - the quote read only the order id and answered the same
-      // number either way - and are REFUSED now, which is the stronger
-      // property: a field the schema has no place for cannot be read by
-      // accident later.
       assert.equal(poisoned.status, 400, "the order quote accepted something price-shaped");
       assert.ok(clean.body.total !== 0.01, "the clean quote itself came back at the poison value");
     });

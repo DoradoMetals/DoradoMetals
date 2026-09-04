@@ -1,10 +1,3 @@
-// One flat module per WORKFLOW, so a use case that spans several of them names
-// each once instead of carrying nine deep paths. Same idea as `#db`'s table
-// barrel, one layer up: `import { rates, spots, products } from "#domain"`.
-//
-// A service that needs ONE sibling still imports it by path - the barrel earns
-// its keep only where a file reaches for several, which is what a use case
-// does and a repo never does.
 export * as checkout from "#domain/checkout/service.ts";
 export * as fulfillments from "#domain/fulfillments/service.ts";
 export * as fulfillmentDrafts from "#domain/fulfillments/drafts.ts";

@@ -1,6 +1,3 @@
-// The options better-auth actually reads — a misspelled option is not an error or a warning, it's a key nobody reads. Two real cases: sendChangeEmailVerification was never a real option (the real name is sendChangeEmailConfirmation), so the approval mail was never sent and better-auth fell through to mailing the NEW address instead; canImpersonate was never an AdminOption either, read like a security control, and enforced nothing (the impersonate route's own adminMiddleware + hasPermission check does the real work).
-// The last test generalizes: it doesn't know which options are real, it asks better-auth's own build whether it's heard of each one — what would have caught both of these on day one.
-
 import { test } from "vitest";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -21,7 +18,6 @@ test("the email-change approval goes out under the name better-auth reads", () =
       "update-user.mjs falls through to the emailVerification branch and mails " +
       "the NEW address rather than asking the old one to approve"
   );
-  // `in`, not `=== undefined` — converting to TypeScript turned this into a compile error naming the typo directly; asking whether the KEY is present says the same thing at runtime, a stronger claim than 'reads undefined'.
   assert.ok(
     !("sendChangeEmailVerification" in changeEmail),
     "sendChangeEmailVerification is not an option and never was - if it is " +
@@ -33,9 +29,6 @@ test("no inert security option pretends to guard impersonation", () => {
   const admin = options.plugins.find((p) => p.id === "admin");
   assert.ok(admin, "the admin plugin is mounted");
 
-  // canImpersonate is not an AdminOption. If somebody adds it back it will look
-  // like the guard and do nothing, which is worse than the default that works.
-  // Comments stripped first — the first version searched the raw file and failed on the comment naming the dead option to explain the fix; a check that can't tell code from prose about code fails the moment someone documents it.
   const source = fs
     .readFileSync(new URL("../client.ts", import.meta.url), "utf8")
     .replace(/\/\*[\s\S]*?\*\//g, "")
@@ -52,7 +45,6 @@ test("no inert security option pretends to guard impersonation", () => {
       "to [\"admin\"]"
   );
 });
-
 
 const betterAuthSource = (() => {
   const root = path.join(process.cwd(), "node_modules", "better-auth", "dist");
@@ -77,9 +69,6 @@ test("every option this codebase sets is one better-auth has heard of", () => {
       "and a check that reads nothing accepts everything"
   );
 
-  // The option objects this codebase hands to betterAuth(), by the path they
-  // sit at. Nested deliberately rather than walked wholesale: `additionalFields`
-  // holds OUR column names, which better-auth has correctly never heard of.
   const anonymousPlugin = options.plugins.find((p) => p.id === "anonymous");
   assert.ok(anonymousPlugin, "the anonymous plugin is mounted (ruling 63)");
 
@@ -89,12 +78,6 @@ test("every option this codebase sets is one better-auth has heard of", () => {
     emailAndPassword: options.emailAndPassword,
     emailVerification: options.emailVerification,
     advanced: options.advanced,
-    // A PLUGIN'S OPTIONS ARE OPTIONS TOO, and are exactly as easy to misspell -
-    // better-auth reads them off the object it was handed and a key it has
-    // never heard of is a key nobody reads. `emailDomainName`,
-    // `onLinkAccount` and `disableDeleteAnonymousUser` are the three ruling 63
-    // depends on; a typo in the last one would silently put the visitor's
-    // deletion back inside a customer's sign-in.
     "plugins.anonymous": anonymousPlugin.options,
   };
 

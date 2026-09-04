@@ -1,6 +1,3 @@
-// Writes on leads.leads, against real Postgres. Self-contained: a lead has no
-// foreign keys, so every row here is built and rolled back in its own
-// transaction with no lock required.
 import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
@@ -28,7 +25,6 @@ test("update writes a real lead and answers the written row", async () => {
     const written = await leads.update(lead.id, { name: "Renamed Lead", contacted: true }, c);
     assert.equal(written?.name, "Renamed Lead");
     assert.equal(written?.contacted, true);
-    // RETURNING answers the row itself, so there is no second read to disagree.
     assert.deepEqual(written, await leads.getOne(lead.id, c));
   });
 });

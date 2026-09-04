@@ -1,14 +1,3 @@
-// THE BUILDERS BUILD, AND THE DATABASE AGREES.
-//
-// A fixture library is the one piece of test infrastructure that can pass
-// every test it serves while being wrong: a builder that quietly writes NULL
-// where a service writes a number produces green assertions about a row
-// production never has. So each builder is asserted here against the ROW, not
-// against its own return value.
-//
-// It also pins the two properties lane 1 and lane 2 exist for:
-//   - nothing a builder writes escapes the transaction (assertNothingEscaped),
-//   - every audited row it writes is STAMPED with the actor (migration 116).
 import { test, afterAll } from "vitest";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
@@ -36,13 +25,6 @@ test("a built user is a real person on both sides of the identity mirror", async
     assert.equal(auth[0].email, user.email);
     assert.equal(Number(auth[0].dorado_funds), 250, "the starting balance was not set");
 
-    // Migration 107's identity mirror, narrowed by 118 - the row exists on the
-    // exchange side too, which is what every feature still JOINing it needs.
-    // KEPT (exchange-fixtures lane, D214 item 10): this asserts on the
-    // MIRRORED CONSEQUENCE of aUser's own write, proving the auth->exchange
-    // trigger fires - not a fixture read of pre-existing frozen data, and a
-    // builder cannot make this row any other way (aUser IS the write being
-    // mirrored).
     const { rows: mirrored } = await c.query(
       `SELECT email, name FROM exchange.users WHERE id = $1`, [user.id]
     );
@@ -80,9 +62,6 @@ test("a built product carries the purity and premiums it was asked for", async (
          FROM products.bullion WHERE id = $1`, [product.id]
     );
     assert.equal(rows.length, 1);
-    // .9995 SURVIVES. The column was numeric(4,3) once and rounded it UP to
-    // 1.000 (D61/D200); a fixture that cannot express a real purity cannot
-    // test the code that prices one.
     assert.equal(Number(rows[0].purity), 0.9995);
     assert.equal(Number(rows[0].bid_premium), 12.5);
     assert.equal(Number(rows[0].content), 0.5);
@@ -116,8 +95,6 @@ test("an order builds with its lines, its money row and its address snapshot", a
     );
     assert.equal(Number(totals[0].total), 1234.56);
 
-    // The snapshot is a COPY: editing the address book must not rewrite where
-    // a parcel went, so the two ids differ and the source is recorded.
     const { rows: snap } = await c.query(
       `SELECT address_id, source_address_id FROM orders.addresses WHERE order_id = $1`,
       [order.id]
@@ -216,8 +193,6 @@ test("an intent, an engagement, a lead and a review all land", async () => {
   }, { lock: LOCKS.ORDERS });
 });
 
-// ---------------------------------------------------------------- lane 2
-
 test("every audited row a builder writes is stamped with the actor", async () => {
   await inRollback(async (c: PoolClient) => {
     const user = await aUser(c);
@@ -258,7 +233,7 @@ test("actingAs re-attributes the writes that follow it", async () => {
 test("an unknown actor leaves the row unattributed rather than refusing it", async () => {
   await inRollback(async (c: PoolClient) => {
     const user = await aUser(c);
-    await actingAs(c, anId());     // a uuid no auth.users row carries
+    await actingAs(c, anId());
     const order = await anOrder(c, user).withLots(1);
     const { rows } = await c.query(
       `SELECT created_by_id FROM orders.orders WHERE id = $1`, [order.id]
@@ -269,8 +244,6 @@ test("an unknown actor leaves the row unattributed rather than refusing it", asy
     );
   }, { lock: [LOCKS.ORDERS, LOCKS.USERS] });
 });
-
-// ---------------------------------------------------------------- the pin
 
 test("nothing a builder writes survives the rollback", async () => {
   let userId = "";

@@ -19,8 +19,6 @@ export type LedgerEntry = z.infer<typeof LedgerEntry>;
 // generated:end
 import { Direction } from "../orders/enums.js";
 
-// A payments.ledger write: ids plus the fact, no audit or default columns.
-// `id` is the caller's to supply (ruling 43) and the repo issues one if not.
 export const LedgerEntryPatch = LedgerEntry.pick({
   id: true,
   user_id: true,
@@ -33,13 +31,8 @@ export const LedgerEntryPatch = LedgerEntry.pick({
 }).partial({ id: true });
 export type LedgerEntryPatch = z.infer<typeof LedgerEntryPatch>;
 
-// GET /get_transactions - the customer credit ledger as it crosses the wire.
-// The column is `type` and the wire has always called it `transaction_type`;
-// `direction` is the ORDER's, resolved through order_id (one order id now,
-// not exchange's purchase/sale column pair).
 export const AccountTransaction = LedgerEntry.omit({ type: true }).extend({
   transaction_type: LedgerEntry.shape.type,
   direction: Direction.nullable(),
 });
 export type AccountTransaction = z.infer<typeof AccountTransaction>;
-

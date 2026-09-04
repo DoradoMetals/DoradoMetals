@@ -1,11 +1,3 @@
--- THE ONE READ THAT CAN CHARGE A CUSTOMER TWICE. An intent is offered back for
--- reuse only while it has not resolved; succeeded, processing and canceled are
--- excluded here and nowhere else.
---
--- amount_received comes off the SETTLEMENT, because that is what settlements
--- are for: an intent records what was asked for, a settlement what moved.
--- amount_capturable has no column - it is Stripe's fact about an
--- uncaptured authorisation and nothing reads it.
 SELECT i.id,
        i.session_id,
        i.user_id,

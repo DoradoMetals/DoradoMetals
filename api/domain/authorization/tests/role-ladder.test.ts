@@ -1,12 +1,9 @@
-// The role ladder, and the rung nobody stands on. requireVerifiedUser is exported and mounted on NOTHING — and that's for good reason: it checks a ROLE (`role >= verified_user`) that no user holds (production: 73 user, 2 admin, zero verified_user) and never reads emailVerified, a separate column 53 of 75 production users lack.
-// So mounting it would refuse EVERY customer while every admin sails through, and the name would make that look intentional. This test pins it unmounted so using it becomes a deliberate act, not a reasonable-looking import.
 import { test } from "vitest";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 
 const HERE = import.meta.dirname;
-// Reaches one level deeper than before ruling 31 moved this file into tests/ — both a missing middleware file and an empty route walk would fail loudly (the floor's job).
 const API = path.resolve(HERE, "../../..");
 const MIDDLEWARE = path.join(API, "shared/middleware/authMiddleware.ts");
 
@@ -28,7 +25,6 @@ const mounts = (guard: string) =>
   routeFiles.filter((f: string) => new RegExp(`\\b${guard}\\b`).test(fs.readFileSync(f, "utf8")));
 
 test("the scan reaches the route files at all", () => {
-  // Without this the checks below pass by reading nothing.
   assert.ok(routeFiles.length >= 20, `only ${routeFiles.length} route file(s) found`);
   assert.ok(mounts("requireAdmin").length > 0, "requireAdmin appears in no route file");
   assert.ok(mounts("requireUser").length > 0, "requireUser appears in no route file");
@@ -69,8 +65,6 @@ test("the guard does not consult emailVerified, whatever its name suggests", () 
 });
 
 test("an unrecognised role is refused rather than trusted", () => {
-  // The comparison resolves an unknown role to 0, which is below every rung.
-  // Stated here because the safe direction is not the obvious one to write.
   const src = fs.readFileSync(MIDDLEWARE, "utf8");
   assert.match(src, /userRole && userRole in roleLevels \? roleLevels\[userRole as Role\] : 0/);
   assert.match(src, /userLevel < requiredLevel/);

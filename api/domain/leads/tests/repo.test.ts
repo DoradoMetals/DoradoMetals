@@ -1,5 +1,3 @@
-// The leads repo itself, against real Postgres.
-// The one thing worth proving directly rather than through HTTP: `update` answers THE WRITTEN ROW - undefined for an id nobody has, the fresh row for one that changed.
 import { test } from "vitest";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
@@ -28,7 +26,6 @@ test("update answers the written row for a real id, with the change on it", asyn
     const written = await leads.update(
       created.id, { notes: "touched by repo.test.ts" }, client
     );
-    // The answer IS the fresh row - no second read to disagree with it.
     assert.equal(written?.notes, "touched by repo.test.ts");
     assert.deepEqual(written, await leads.getOne(created.id, client));
   }, { actor: TEST_ACTOR.id });

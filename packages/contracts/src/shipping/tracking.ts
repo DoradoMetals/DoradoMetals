@@ -16,10 +16,7 @@ export type TrackingRecord = z.infer<typeof TrackingRecord>;
 // generated:end
 import { Shipment } from "./shipments.js";
 
-// POST /shipping/get_tracking - the shipment id alone; the carrier and the
-// tracking number are the shipment's own columns.
 export const ShippingGetTrackingBody = z.object({
   shipment_id: Shipment.shape.id,
 }).strict();
 export type ShippingGetTrackingBody = z.infer<typeof ShippingGetTrackingBody>;
-

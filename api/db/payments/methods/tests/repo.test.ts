@@ -1,8 +1,3 @@
-// payments.methods - reference data, so read paths and one write.
-//
-// No create and no remove (see repo.ts's own header): a method is a capability
-// of the business, seeded by migration, and only its fees, labels and copy are
-// edited.
 import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
@@ -34,9 +29,6 @@ test("listFor answers one direction, list answers both", async () => {
   });
 });
 
-// (direction, type) is the natural key: it is how a payout account and a
-// Stripe instrument each resolve to a method_id. If this stops matching,
-// payouts silently stop resolving a method.
 test("findByType resolves a method by its direction and type", async () => {
   await inRollback(async (c: PoolClient) => {
     const found = await methods.findByType("purchase", "DORADO_ACCOUNT", c);

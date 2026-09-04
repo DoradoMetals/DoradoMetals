@@ -1,60 +1,3 @@
-// EVERY DOMAIN STAYS IN ITS OWN LANE. Rulings 69 and 70 (Jacob, 2026-09-04):
-// *"Checkout/Orders shouldn't care about what's going on over in fulfillment
-// world."* *"Everything needs to stay in its own lane. The only thing that
-// should be deciding if fulfillments is 'ready' is fulfillments."*
-//
-// *** THE SHAPE. *** `domain/checkout` reading
-//
-//     if (!row.shipper_address_id) missing.push("shipper_address");
-//     if (!row.package_id) missing.push("package");
-//
-// is checkout deciding whether a FULFILLMENT is complete. It was possible only
-// because those columns sat on `checkout.checkouts`; migration 128 moved them
-// to the detail row of the draft fulfillment, and this scan is what keeps them
-// from coming back. `fulfillments.missing(fulfillment_id)` is the one call
-// checkout makes, and its answer is an opaque list checkout splices and never
-// inspects.
-//
-// *** HOW IT KNOWS WHAT A COLUMN IS. *** From @dorado/contracts, which
-// generates one zod schema per table from information_schema, grouped by the
-// SCHEMA the table lives in (`packages/contracts/src/<schema>/*.ts` carries a
-// `// Postgres table: <schema>.<table>` header). So the map is derived, never
-// hand-listed - a column added by a migration is guarded the moment the
-// contracts are regenerated.
-//
-// *** THREE KINDS OF NAME ARE DROPPED, AND THAT IS THE WHOLE ACCURACY STORY. ***
-// Each is excluded by CONSTRUCTION rather than by an ACCEPTED entry, because an
-// ACCEPTED entry claims a finding is safe and none of these is a finding at all.
-//
-//   1. AMBIGUOUS. A column owned by two schemas identifies nothing:
-//      `recipient_address_id` is a column of `checkout.checkouts` AND of
-//      `shipping.shipments`, so seeing it in `domain/orders` says nothing about
-//      which is meant. So are `fulfillment_id`, `shipment_id`, `order_id`,
-//      `user_id` and every audit column.
-//
-//   2. SINGLE WORDS. `length`, `code`, `name`, `type`, `category`, `amount` and
-//      `status` are all real columns and all ordinary English; `.length` alone
-//      appears in every file that counts anything. A column name that carries
-//      no underscore is a WORD, and a word cannot identify a lane crossing.
-//
-//   3. THE OTHER DOMAIN'S OWN ROW ID - `<schema singular>_id`, so `checkout_id`
-//      for `checkout` and `payment_id` for `payments`. Holding the other
-//      resource's id and handing it over IS the boundary (ruling 43: "the
-//      client sends ids for what the server holds"); `fulfillments.missing(
-//      fulfillment_id)` and `createForCheckout({ checkout_id })` are the shape
-//      this lint exists to protect, not to refuse.
-//
-// *** WHAT IT DOES NOT CLAIM. *** A text scan, not a type checker. It sees an
-// identifier or a string literal, not what it was read off - so a local
-// variable that happens to be called `package_id` is a finding, and that is
-// deliberate: naming another domain's column is the smell, whatever holds it.
-//
-//   node scripts/lint-domain-boundaries.ts
-//   node scripts/lint-domain-boundaries.ts --self-test
-//
-// Exits non-zero on any unaccepted finding, on an ACCEPTED count that has moved
-// in EITHER direction, and on an ACCEPTED entry naming a file that is clean or
-// gone - pinned from both sides like lint-no-column-arrays' ACCEPTED.
 import { readFileSync, readdirSync, statSync, existsSync } from "node:fs";
 import path from "node:path";
 
@@ -66,21 +9,6 @@ const CONTRACTS = existsSync(path.join(ROOT, "contracts"))
   ? path.join(ROOT, "contracts")
   : path.join(ROOT, "..", "packages", "contracts", "src");
 
-// THE LANES, AND EACH ONE'S REASON.
-//
-// The pairs are asymmetric on purpose. Checkout and orders must not name a
-// fulfillment's, a parcel's or a payment row's columns - they hold ids and ask
-// the owner. Fulfillments must not name a checkout's, because the draft belongs
-// to a checkout and the temptation runs that way: it would be one line to read
-// `payment_details_id` off the row it is attached to and decide the whole
-// checkout is ready, which is ruling 70 backwards.
-// `payments` IS DELIBERATELY NOT IN EITHER LANE, and this is the one judgement
-// call in the file. Checkout OWNS `payment_method_id` and `payment_details_id`
-// as columns of its own row, and `CheckoutPayoutForm` is a `PaymentDetails`
-// pick by design (D210) - so the payments boundary is already expressed as a
-// contract derivation rather than as a rule about names, and adding it here
-// would report the design as a defect. Orders' payment-intent handling is
-// D179's subject, not rulings 69/70's.
 const LANES: { dir: string; forbidden: string[]; why: string }[] = [
   {
     dir: "domain/checkout",
@@ -99,15 +27,6 @@ const LANES: { dir: string; forbidden: string[]; why: string }[] = [
   },
 ];
 
-// EVERY ENTRY CARRIES A REASON AND A COUNT, and both sides are pinned: a new
-// name in an accepted file fails, and removing one fails until the count comes
-// down in the same diff.
-//
-// BOTH ENTRIES ARE THE ADMIN ORDER SURFACE, AND NEITHER IS THE CUSTOMER PATH
-// rulings 69/70 are about. They are recorded rather than fixed because fixing
-// them is a different wave's subject - the admin drawers are interim UI
-// (FOLLOWUPS D87) and the cancel body is a shape ruling 44 says the frontend
-// pass may change.
 const ACCEPTED: Record<string, { count: number; why: string }> = {
   "domain/orders/service.ts": {
     count: 10,
@@ -145,18 +64,12 @@ function walk(dir: string, out: string[] = []): string[] {
   return out;
 }
 
-// Comments say what a rule USED to be and cite the columns that moved; this
-// file's own header does it four times. Only code is scanned.
 function withoutComments(src: string): string {
   return src
     .replace(/\/\*[\s\S]*?\*\//g, (m) => m.replace(/[^\n]/g, " "))
     .replace(/(^|[^:])\/\/[^\n]*/g, (_m, lead: string) => lead);
 }
 
-// ------------------------------------------------------------- the contracts
-
-// schema -> the column names its tables declare. Read from the GENERATED block
-// of each entity file, which carries the table's own `<schema>.<table>` name.
 const columnsBySchema = new Map<string, Set<string>>();
 let tablesRead = 0;
 
@@ -175,9 +88,6 @@ for (const file of walk(CONTRACTS)) {
   tablesRead += 1;
 }
 
-// A NAME OWNED BY MORE THAN ONE SCHEMA IDENTIFIES NOTHING. Counted across every
-// schema the contracts declare, not just the mapped ones - `id`, `created_at`
-// and `user_id` are everywhere, and so are the join keys.
 const owners = new Map<string, Set<string>>();
 for (const [schema, columns] of columnsBySchema) {
   for (const column of columns) {
@@ -186,8 +96,6 @@ for (const [schema, columns] of columnsBySchema) {
     owners.set(column, set);
   }
 }
-// `checkout` -> `checkout_id`, `payments` -> `payment_id`: the id of a row of
-// that schema, which is what a caller HANDS OVER rather than reads.
 const rowPointerFor = (schema: string): string =>
   `${schema.endsWith("s") ? schema.slice(0, -1) : schema}_id`;
 
@@ -206,14 +114,10 @@ for (const lane of LANES) {
   }
 }
 
-// ---------------------------------------------------------------- the checks
-
 type Finding = { file: string; line: number; what: string };
 
 const lineOf = (src: string, index: number): number => src.slice(0, index).split("\n").length;
 
-// An identifier or a string literal. `\b` on both sides, so `shipper_address_id`
-// matches and `my_shipper_address_id_thing` does not.
 function findingsIn(rel: string, raw: string, forbidden: string[], why: string): Finding[] {
   const src = withoutComments(raw);
   const out: Finding[] = [];
@@ -231,8 +135,6 @@ function findingsIn(rel: string, raw: string, forbidden: string[], why: string):
   }
   return out.sort((a, b) => a.line - b.line);
 }
-
-// ------------------------------------------------------------------ self-test
 
 if (process.argv.includes("--self-test")) {
   const { selfTest } = await import("./lib/self-test-harness.ts");
@@ -401,12 +303,8 @@ if (process.argv.includes("--self-test")) {
   });
 }
 
-// ----------------------------------------------------------------- the run
-
 const SYNTHETIC = Boolean(process.env.LINT_DOMAIN_BOUNDARIES_ROOT);
 
-// A scan that read no schemas cannot tell a column name from any other word,
-// and would call every lane clean.
 const TABLES_FLOOR = Number(process.env.LINT_DOMAIN_BOUNDARIES_TABLES ?? 40);
 if (tablesRead < TABLES_FLOOR) {
   console.error(
@@ -417,9 +315,6 @@ if (tablesRead < TABLES_FLOOR) {
   process.exit(1);
 }
 
-// THE KNOWN-PRESENT CONTROL. The floor above proves schemas were READ; this
-// proves the ambiguity filter did not eat the guarded set. Three names that
-// are each owned by exactly one of the mapped schemas today.
 if (!SYNTHETIC) {
   const control: [string, string][] = [
     ["shipping", "package_id"],

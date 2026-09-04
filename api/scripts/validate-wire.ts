@@ -1,22 +1,3 @@
-// Parses real API responses through the wire contracts.
-//
-// The generated table schemas are true by construction. The wire schemas are
-// not: they are hand-composed to describe what each endpoint actually returns,
-// and that claim is only worth something if it is checked against the real
-// thing. This calls the repo functions the routes call and parses their output.
-//
-// Both implementations are checked, not just the one currently serving.
-//
-// The repos are reached through repo.js, which resolves a *_SOURCE switch. Every
-// switch defaults to exchange, so for as long as that is true this validated the
-// exchange implementation and nothing else - and the whole point of a wire
-// contract is that it survives promotion. `bothWays` therefore loads
-// repo.exchange and repo.next directly and parses each against the same schema,
-// so the shape promotion will actually serve is proven before it serves it.
-//
-// Read-only.
-//
-//   pnpm --filter @dorado/api validate:wire
 import "#env";
 import fs from "node:fs";
 import path from "node:path";
@@ -24,13 +5,6 @@ import pool from "#pool";
 import * as c from "@dorado/contracts";
 import type { ZodType } from "zod/v4";
 
-// A registered shape: the label printed, the contract it is parsed through, and
-// the thunk that produces a real response. `load` returns whatever the route
-// returns, so `unknown` is the honest type - the contract is what narrows it.
-// THE REAL ZOD TYPE, not a hand-rolled stand-in. `safeParse` returns a
-// discriminated union, so `result.data` and `result.error.issues` below are
-// checked rather than assumed - and a contract that stops being a zod schema
-// fails here instead of at the first row.
 type WireSchema = ZodType<unknown>;
 type Case = {
   name: string;
@@ -43,69 +17,22 @@ const cases: Case[] = [];
 const add = (name: string, schema: WireSchema, load: () => unknown, many = true) =>
   cases.push({ name, schema, load, many });
 
-// `bothWays` IS RETIRED (D212): there is one implementation per feature now,
-// so every endpoint is a direct check. The two-way machinery lived here from
-// the switch era; git has it.
-
-
-// The public list was checked ONE WAY while the admin list right below it was
-// checked both. Same table, same contract, and repo.next exports
-// getPublicReviews too - so the one-way check proved the shape only for
-// whichever schema REVIEWS_SOURCE currently names, which is exchange. The
-// public list is the one an anonymous visitor sees.
-// Carriers is restructured - one implementation, so there is no "both ways" to
-// run. Kept as a DIRECT check rather than dropped: the composed shape is now
-// assembled in JS from two repos instead of by a JOIN, which is a new way for a
-// field to go missing, and BOTH shapes are still checked - the internal one and
-// what the adapter flattens it to.
 const carriersService = await import("#domain/shipping/carriers/service.ts");
 add("GET /carriers", c.CarrierRead, () => carriersService.getAllCarriers());
-// Carrier services is restructured - one implementation. Kept as a DIRECT
-// check: it is the feature whose projection renames three columns back, so a
-// contract that stopped being exercised would stop noticing a rename escaping.
 const servicesService = await import("#domain/shipping/services/service.ts");
 add("GET /carrier_services", c.CarrierServiceRead, () => servicesService.getAllServices());
-// Spots: one implementation after the restructure.
-// Rates: one implementation after the restructure.
-// Reviews: one implementation after the restructure, so no both-ways to run.
-// Leads is checked by domain/leads/tests/endpoints.test.ts instead:
-// after the restructure it has one implementation, so there is no "both ways"
-// to run. Its wire shape is the table's own row type.
-// Both shapes. The repos return the nested one; the adapter flattens it to what
-// the frontend reads, and checking the adapter's OUTPUT is what proves the
-// frontend still gets exactly what it got before.
-// Refiners: one implementation after the restructure.
-// Carrier pickups is restructured - one implementation. THE ROW IS THE SHAPE
-// now (ruling 12, D214): compose.ts, which reconstructed order_id, user_id and
-// carrier through the shipment, is deleted - a caller who needs those reaches
-// them through shipping/shipments instead, same as GET /shipments/:id/pickups
-// below. Checked against ShipmentPickup, the same contract that route uses.
 const pickupsService = await import("#domain/shipping/pickups/service.ts");
 add("GET /carrier_pickups", c.ShipmentPickup, () => pickupsService.getAll());
 
-// Addresses were not checked here at all, and they are one of the two features
-// whose migrated read renames columns: places.user_addresses calls them
-// `recipient_name` and `default_shipping` are the two fields the address book
-// renders every card from - who the parcel is for, and which one is the
-// default.
-//
-// list() is per user rather than global, so it needs a user with addresses -
-// taken from exchange, which both implementations key on.
 const { rows: withAddresses } = await pool.query(
   `SELECT user_id FROM exchange.addresses WHERE user_id IS NOT NULL
    GROUP BY user_id ORDER BY count(*) DESC LIMIT 1`
 );
 const addressUser = withAddresses[0]?.user_id;
-// ONE ENDPOINT NOW. The two reads the browser joined by address_id
-// (`/addresses` and `/addresses/user_addresses`) are one AddressBookEntry: the
-// postal row, the caller's link, and what may be done to it.
 const addressesService = await import("#domain/places/addresses/service.ts");
 const addressBook = async () =>
   addressUser ? await addressesService.list(addressUser) : [];
 add("GET /addresses", c.AddressBookEntry, addressBook);
-// The single-entry read is a DIFFERENT statement path - it asks isActive of one
-// address rather than activeAmong of a book - so it is registered separately
-// rather than assumed to answer the same shape.
 add("GET /addresses/:id", c.AddressBookEntry, async () => {
   const book = await addressBook();
   const first = book[0];
@@ -114,52 +41,16 @@ add("GET /addresses/:id", c.AddressBookEntry, async () => {
     : [];
 });
 
-// The other renaming read: media.images stores `checksum` and the wire calls it
-// `checksum_sha`.
-// Both shapes, as with products: the repos return media.images' own name and
-// the adapter converts down to what the frontend reads.
-// Media: one implementation after the restructure, so no both-ways to run.
-// Its wire rename is covered by domain/media/tests/unit.test.ts.
-// Users was the last one-way check with a next implementation to compare
-// against. auth.users is where exchange.users lands, repo.next.ts projects the
-// same columns back, and nothing was proving that until now.
-// Users: one implementation after the restructure.
-
-// THE CREDIT LEDGER HAD A CONTRACT AND NOTHING VALIDATED IT.
-//
-// c.AccountTransaction has existed since the transactions split and was
-// referenced by no check in this file - the one feature holding real customer
-// money ($66,999.32 across 17 production rows) and the reshaping is the
-// awkward kind: `type` becomes `transaction_type`, and exchange's two order
-// columns collapse into payments.ledger.order_id, resolved back through
-// orders.orders.direction. That projection is exactly the sort of thing that
-// is right until it is not.
-//
-// THE READ IS payments.ledger NOW, and so is this check: db/transactions/repo.ts
-// selects from it and nothing selects exchange.account_transactions any more,
-// so a contract pinned to the exchange row was asserting columns
-// (purchase_order_id, sales_order_id) the statement stopped returning.
-//
-// `history()` answers the LIST now - hence many=true. It used to hand back
-// `rows[0]` of an unlimited ordered read, documented as deliberate and recorded
-// for Jacob; ruling 44 retired that caution and the endpoint answers the whole
-// ledger.
 const { rows: withLedger } = await pool.query(
   `SELECT user_id FROM payments.ledger
    GROUP BY user_id ORDER BY count(*) DESC LIMIT 1`
 );
 const ledgerUser = withLedger[0]?.user_id;
 if (!ledgerUser) {
-  // Not a skip. An empty ledger means this check proves nothing, and a check
-  // that silently proves nothing is what let the ledger go unnoticed for seven
-  // months in the first place.
   add("GET /transactions", c.AccountTransaction, () => {
     throw new Error("dev has no payments.ledger rows - the ledger check would be vacuous");
   });
 } else {
-  // ONE IMPLEMENTATION AFTER THE RESTRUCTURE, so there is no both-ways to run -
-  // but the shape is still worth checking, and this is the ledger, so it is
-  // checked directly rather than dropped.
   const transactionsService = await import("#domain/transactions/service.ts");
   add(
     "GET /transactions",
@@ -168,13 +59,6 @@ if (!ledgerUser) {
   );
 }
 
-// Fulfillments have no repo.exchange, so bothWays has nothing to compare - the
-// feature is new capability rather than migrated data, and the only shape it
-// has ever had is the one below. That also means these are the endpoints where
-// a contract is worth the most: nothing else is checking them.
-// Fulfillments is restructured. The SERVICE, not the repos - and the wire is
-// the FulfillmentView: the row, its method, its children and what may be done
-// to it, which is what every caller now reads.
 const fulfillments = await import("#domain/fulfillments/service.ts");
 const fulfillmentMethods = await import("#db/fulfillments/methods/repo.ts");
 
@@ -188,15 +72,10 @@ add("GET /fulfillments/methods/all", c.FulfillmentMethodRead, () =>
   fulfillmentMethods.getAll()
 );
 
-// Everyone due somewhere. The composed view, `actions` included.
 add("GET /fulfillments/schedule", c.FulfillmentView, async () =>
   await fulfillments.getSchedule()
 );
 
-// The one payments response that is a repo row rather than a Stripe object or a
-// client_secret. Both implementations, ONE shape: the adapter died with the
-// frontend conversion (2026-08-27), so the nested contract IS the wire, and a
-// legacy flat check would be validating a shape nothing can produce.
 const salesOrderIds = async () => {
   const { rows } = await pool.query(
     `SELECT sales_order_id FROM exchange.payment_intents WHERE sales_order_id IS NOT NULL`
@@ -218,32 +97,13 @@ const intents = async (m: Record<string, unknown>) => {
   }
   return out;
 };
-// Payments promoted (D212): one implementation, checked directly like every
-// other restructured feature.
 add(
   "GET /stripe/get_sales_order_payment_intent [payments]",
   c.PaymentIntentView,
   async () => intents(await import("#db/payments/intents/repo.ts"))
 );
 
-// The catalogue. The other feature that had no contract, and one the frontend
-// leans on hardest - every price on the site is derived from these numbers.
-// The sell side has no gate (Jacob, 2026-09-03, ruling 49) and returns EVERY
-// row - MORE than the buy side, not fewer - so both are checked rather than
-// assuming one covers the other.
-//
-// The repos return Bullion - products.bullion's own names - and since the
-// conversion (2026-08-27) that IS the wire: the adapter and its legacy check
-// were deleted together when the frontend switched to the contracts' names.
-// Products is restructured - one implementation, so there is no "both ways" to
-// run. Kept as a DIRECT check, and this is the one to keep hardest: the
-// storefront row is no longer a projection, it is a projection plus two labels
-// attached in JS, so a field can now go missing in a place SQL never could.
 const productsService = await import("#domain/products/service.ts");
-// The buy side is gated by `display`; the sell side has no gate at all
-// (ruling 49) and returns MORE rows, not fewer - so both are checked rather
-// than assuming one covers the other. Both answer GROUPS now, so the group
-// shape and the row inside it are each parsed.
 add("GET /products", c.BullionGroup, () => productsService.listGroups({ display: true }));
 add("GET /products (sell)", c.BullionGroup, () => productsService.listGroups({}));
 add("GET /products (row)", c.BullionStorefront, async () =>
@@ -251,9 +111,6 @@ add("GET /products (row)", c.BullionStorefront, async () =>
 );
 add("GET /products/admin", c.BullionAdmin, () => productsService.listAdminProducts());
 
-// Spots and rates: the two reference feeds every price is built from, and
-// neither had a wire check. The ticker's `direction` and the rates page's
-// bands are computed, so a field can go missing in a place SQL never could.
 const spotsService = await import("#domain/spots/service.ts");
 add("GET /spots", c.SpotTicker, () => spotsService.listTicker());
 const ratesService = await import("#domain/rates/service.ts");
@@ -261,30 +118,16 @@ add("GET /rates", c.RateRead, () => ratesService.listRates());
 add("GET /rates/admin", c.AdminRate, () => ratesService.listAdminRates());
 add("GET /rates/tiers", c.RateTier, () => ratesService.listTiers());
 
-// Orders. ONE SHAPE, BOTH DIRECTIONS, since the wire slimmed (wave 3): an
-// order on the wire is its orders.orders row plus `totals`, and every other
-// piece of it is a parent-path read checked on its own below. The composed
-// PurchaseOrder / SalesOrder contracts died with the slot family they
-// described; domain/orders/read.service.ts still assembles an order for the
-// API's own pricing and email work, and `diff` plus the decomposition
-// verifiers are what check THAT.
 const orderRead = await import("#domain/orders/read.ts");
 const orders = await orderRead.list({ direction: "purchase" });
 add("GET /orders", c.OrderRead, () => orderRead.list({}));
 
-// The bare-resource reads the flip landed - VERBATIM table rows (ruling 12),
-// parsed through the generated-row re-exports. Payout DETAILS are
-// deliberately NOT parsed here: a zod failure prints the offending value,
-// and that shape's values are full bank numbers - the one thing this project
-// never logs. Its shape is pinned by refiner-edits.test.js on keys.
 const orderSpotsRepo = await import("#db/orders/spots/repo.ts");
 add("GET /orders/:id/spots", c.OrderSpot, async () => {
   const lists = await Promise.all(orders.map((o) => orderSpotsRepo.getRowsFor(o.id)));
   return lists.flat();
 });
 const refinerOrdersService = await import("#domain/refiners/orders/service.ts");
-// The engagement's SPOTS moved to their own resource when refiners/spots was
-// given its own stack (ruling 26c) - the URL is unchanged, the owner is not.
 const refinerSpotsService = await import("#domain/refiners/spots/service.ts");
 add("GET /orders/:orderId/refiners", c.RefinerOrder, async () => {
   const reads = await Promise.all(orders.map((o) => refinerOrdersService.getByOrder(o.id)));
@@ -301,12 +144,8 @@ add("GET /orders/:orderId/refiners/spots", c.RefinerSpot, async () => {
   );
   return lists.filter(Boolean).flat();
 });
-// The two bookings are their own resources (ruling 26c) - each read lives with
-// the table it returns.
 const fulfillmentPickups = await import("#domain/fulfillments/pickups/service.ts");
 const fulfillmentDirects = await import("#domain/fulfillments/directs/service.ts");
-// THE ONE fulfillment read now: the query-string twin is gone and this answers
-// the whole view.
 add("GET /orders/:orderId/fulfillments", c.FulfillmentView, async () => {
   const reads = await Promise.all(
     orders.map((o) => fulfillments.getForOrder(o.id, { isAdmin: true }))
@@ -314,18 +153,11 @@ add("GET /orders/:orderId/fulfillments", c.FulfillmentView, async () => {
   return reads.filter(Boolean);
 });
 
-// The rest of the order-scoped read family, each one its own table's rows.
-// They were "nested shapes, taken off a real order" until wave 3; the reads
-// are the shapes now, and checking them here is checking what the drawers
-// actually receive.
 const orderItemsRepo = await import("#db/orders/items/repo.ts");
 add("GET /orders/:id/items", c.OrderItem, async () => {
   const lists = await Promise.all(orders.map((o) => orderItemsRepo.getFor(o.id)));
   return lists.flat();
 });
-// THE COMPOSED PARCEL: the row, its service and box, its carrier booking, its
-// progress timeline and its actions. `GET /shipments/:id` serves the same
-// shape one at a time.
 const shipmentView = await import("#domain/shipping/shipments/view.ts");
 add("GET /orders/:orderId/shipments", c.ShipmentView, async () => {
   const lists = await Promise.all(orders.map((o) => shipmentView.forOrder(o.id, true)));
@@ -339,14 +171,6 @@ add("GET /orders/:orderId/directs", c.FulfillmentDirect, async () => {
   const lists = await Promise.all(orders.map((o) => fulfillmentDirects.forOrder(o.id)));
   return lists.flat();
 });
-// ONE ORDER, WHOLE - GET /orders/:id, the OrderView every drawer renders.
-// It is the one shape carrying a member no table backs (`actions`), so a rule
-// that stops answering - or answers a key the contract does not declare -
-// shows up here rather than as a button that quietly disappears.
-//
-// THE PAYOUT MEMBER IS DROPPED BEFORE PARSING, for the reason the note below
-// gives: a zod failure prints the offending value, and that member is payout
-// data. Everything else, `actions` included, is compared.
 const orderReadDomain = await import("#domain/orders/read.ts");
 add("GET /orders/:id", c.OrderView.omit({ payout: true }), async () => {
   const views = await Promise.all(orders.map((o) => orderReadDomain.view(o.id)));
@@ -354,9 +178,6 @@ add("GET /orders/:id", c.OrderView.omit({ payout: true }), async () => {
     .map(({ payout, ...rest }) => rest);
 });
 
-// PAYOUTS ARE NOT PARSED HERE, and the reason is the same one that keeps
-// PayoutDetails out: a zod failure prints the offending value, and these rows
-// are bank data. The shape is pinned on keys by refiner-edits.test.js.
 const orderAddressesRepo = await import("#db/orders/addresses/repo.ts");
 const placeAddressesRepo = await import("#db/places/addresses/repo.ts");
 add("GET /orders/:id/address", c.Address, async () => {
@@ -368,18 +189,7 @@ add("GET /orders/:id/address", c.Address, async () => {
   );
   return rows.filter(Boolean);
 });
-// GET /shipments/:id/pickups is GONE - the carrier booking is a member of the
-// view above (`carrier_pickup`), which is all any caller of it ever read.
 
-// Quotes: the pricing surface with nothing stored underneath. COMPUTED
-// shapes, not table rows - there is no repo pair for bothWays to compare, so
-// the service, the only implementation, is called directly like carriers.
-// These are the shapes Jacob's no-client-money-math ruling makes the frontend
-// read every customer-visible number from, so a divergence here is a broken
-// checkout, not a cosmetic one. Priced against real dev rows: two live
-// products, the addresses user resolved above, and a gram-denominated scrap
-// line, so the parse exercises the tax, funds and weight-derivation paths and
-// not just the happy shape.
 const quotesService = await import("#domain/quotes/service.ts");
 const { rows: quotable } = await pool.query(
   `SELECT id, name FROM products.bullion
@@ -396,9 +206,6 @@ const { rows: quoteAddresses } = await pool.query(
   `SELECT id FROM exchange.addresses WHERE user_id = $1 LIMIT 1`,
   [addressUser]
 );
-// The quote bodies name a delivery service and a payment method by ID now
-// (D214 item 11), so the fixture resolves one of each rather than spelling
-// "STANDARD"/"CARD".
 const { rows: quoteServices } = await pool.query(
   `SELECT id FROM shipping.services ORDER BY id LIMIT 1`
 );
@@ -435,10 +242,6 @@ add("POST /quotes/purchase_order", c.PurchaseOrderQuote, () =>
   false
 );
 
-// The order quote prices a REAL stored order - the drawers' read behind one
-// id - so it is parsed against the oldest dev purchase order, the same stable
-// fixture the ownership tests pick. Checked one way like the other quotes:
-// computed shape, one implementation, nothing stored underneath the response.
 const { rows: quotableOrders } = await pool.query(
   `SELECT id FROM exchange.purchase_orders ORDER BY created_at ASC, id ASC LIMIT 1`
 );
@@ -447,28 +250,12 @@ add("POST /quotes/order", c.OrderQuote, () =>
   false
 );
 
-// The profit breakdown (D83): ADMIN-ONLY on the route, checked here the same
-// way the other computed shapes are - the service is the only implementation.
-// Priced against the same stable fixture the order quote uses.
 const profitService = await import("#domain/quotes/profit.ts");
 add("POST /quotes/profit_breakdown", c.ProfitBreakdown, () =>
   quotableOrders.length ? profitService.profitBreakdown({ order_id: quotableOrders[0].id }) : [],
   false
 );
 
-// THE REGISTRATION FLOOR, checked BEFORE anything is parsed.
-//
-// D110: this file called `refinerOrdersService.getSpotsByOrder`, which a
-// factoring pass had moved to `domain/refiners/spots/service.ts` as
-// `forOrder()`. `lint:imports` could not see it - the specifier still RESOLVES,
-// the named export does not exist, and that is a runtime failure by
-// construction. It failed loudly THAT time because the call is on the critical
-// path. The quiet version is a `bothWays` whose implementation cannot be found:
-// it is skipped, `pass` comes back smaller, and "N endpoint shape(s) match, 0
-// diverge" reads exactly like success.
-//
-// So the subject is counted before it is examined. 32 cases are registered
-// today (27 with rows, 5 skipped for want of a fixture).
 const CASE_FLOOR = Number(process.env.WIRE_CASE_FLOOR ?? 30);
 if (cases.length < CASE_FLOOR) {
   console.error(
@@ -504,16 +291,9 @@ for (const { name, schema, load } of cases) {
   const issues = new Map();
   const undeclared = new Set();
   for (const row of list) {
-    // Contracts describe the wire, so compare what JSON serialisation produces.
     const wire = JSON.parse(JSON.stringify(row));
     const result = schema.safeParse(wire);
-    // zod STRIPS keys the contract does not declare rather than rejecting them,
-    // so a parse can succeed on a response carrying fields nobody declared.
-    // Recover them by diffing what went in against what came out.
     if (result.success && wire && typeof wire === "object" && !Array.isArray(wire)) {
-      // `result.data` is the PARSED value - typed `unknown` because the schemas
-      // are heterogeneous - so the object check has to happen on it too rather
-      // than being inherited from the check on `wire`.
       const parsed = result.data;
       if (parsed && typeof parsed === "object") {
         for (const k of Object.keys(wire)) if (!(k in parsed)) undeclared.add(k);
@@ -546,12 +326,6 @@ if (failures.length) {
 }
 
 console.log();
-// A field nobody declared is the failure this check could not previously see.
-// zod strips unknown keys rather than rejecting them, so a response carrying an
-// extra column parsed clean - and domain/products named exactly that hazard in
-// its own comment: "a projection that silently grew is how columns start leaking
-// onto the wire". Zero endpoints have one today, so refusing is free.
-// If this fires after a deliberate addition, regenerate the contracts.
 if (undeclaredTotal.size) {
   console.log(`${undeclaredTotal.size} endpoint(s) RETURN FIELDS NO CONTRACT DECLARES:`);
   for (const [name, keys] of undeclaredTotal) console.log(`        ${name}: ${keys.join(", ")}`);
@@ -559,16 +333,11 @@ if (undeclaredTotal.size) {
   console.log();
   process.exitCode = 1;
 }
-// A SKIP IS NOT A PASS, and it used to be invisible in the summary. A case with
-// no rows proves nothing about its contract; a run where half the fixtures went
-// missing would print a smaller "match" count and still say "0 diverge".
 console.log(
   `${pass} endpoint shape(s) match, ${failures.length} diverge, ${skipped.length} skipped for want of a fixture` +
     (skipped.length ? `: ${skipped.join(", ")}` : "")
 );
 
-// THE PARSE FLOOR. 27 shapes are actually parsed today. This is the number that
-// says the run did work, as opposed to registering cases and skipping them all.
 const PASS_FLOOR = Number(process.env.WIRE_PASS_FLOOR ?? 25);
 if (pass + failures.length < PASS_FLOOR) {
   console.error(

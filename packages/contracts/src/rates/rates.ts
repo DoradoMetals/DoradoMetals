@@ -24,8 +24,6 @@ export type Rate = z.infer<typeof Rate>;
 // generated:end
 import { Metal } from "../metals/metals.js";
 
-// GET /rates. The query joins metals and returns the metal's NAME in
-// place of its id, and drops the audit columns.
 export const RateRead = Rate.omit({
   metal_id: true,
   created_at: true,
@@ -37,11 +35,6 @@ export const RateRead = Rate.omit({
 }).extend({ metal: Metal.shape.name });
 export type RateRead = z.infer<typeof RateRead>;
 
-// GET /rates/admin, and what create/update answer with - THE SECOND SHAPE
-// THIS ENDPOINT HAS ALWAYS SERVED. The frontend used to cover the gap with one
-// hand-written type carrying the union of both, metal_id and unit optional, so
-// the admin card read metal_id off a value whose type said it might not be
-// there.
 export const AdminRate = RateRead.extend({
   metal_id: Rate.shape.metal_id,
   created_at: Rate.shape.created_at,
@@ -51,11 +44,6 @@ export const AdminRate = RateRead.extend({
 });
 export type AdminRate = z.infer<typeof AdminRate>;
 
-// POST /rates and PATCH /rates/:id - the six writable columns and nothing
-// else, all optional (a create sends the same patch). created_by/updated_by
-// are NOT fields here: public.audit_stamp writes both from the connection's
-// actor. The METAL travels as `metal_id` here and as `metal` on the way
-// back, which is this feature's one asymmetry.
 export const RatePatch = Rate.pick({
   metal_id: true,
   unit: true,
@@ -65,4 +53,3 @@ export const RatePatch = Rate.pick({
   bullion_pct: true,
 }).partial();
 export type RatePatch = z.infer<typeof RatePatch>;
-

@@ -1,11 +1,9 @@
-// refiners.refiners, and nothing else — READ ONLY, deliberately: no create/update/remove. A refiner is (id, logo, organization_id); name/email/phone belong to the organization and are composed in compose.ts.
 import query from "#shared/db/query.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
 import type { Refiner } from "@dorado/contracts";
 import type { Executor } from "#shared/db/executor.ts";
 
 const sql = sqlFrom(import.meta.dirname);
-
 
 export async function list(executor?: Executor): Promise<Refiner[]> {
   const { rows } = await query<Refiner>(sql("get_all"), [], executor);

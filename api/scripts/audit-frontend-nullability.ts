@@ -1,24 +1,3 @@
-// WHERE THE FRONTEND IS STRICTER THAN THE DATABASE.
-//
-// The frontend does not import @dorado/contracts (see D33). It keeps its own
-// zod schemas instead, and three of them are actually run - checkout payloads
-// go through .parse() before being sent. Those payloads are built partly from
-// API responses, so a frontend schema can reject the API's own data.
-//
-// That is not hypothetical. spotPriceSchema requires bid_spot, percent_change
-// and dollar_change as z.number() while all three columns permit NULL. Nothing
-// fails today only because production happens to hold no nulls in them.
-//
-// This reports every field a frontend schema REQUIRES whose column PERMITS
-// NULL. Each one is a row away from throwing a ZodError in the browser, with
-// no server-side fault to find.
-//
-// Reads information_schema only. It never selects a value, which also keeps it
-// clear of exchange.payouts.
-//
-// --prod reads production (read-only) and is authoritative: migration 033 has
-// not been applied there, so dev's column set is not production's.
-
 import fs from "node:fs";
 import path from "node:path";
 import pg from "pg";
@@ -28,12 +7,6 @@ const ROOT = path.resolve(new URL("..", import.meta.url).pathname, "..");
 const FRONTEND = process.env.FE_NULL_FRONTEND_DIR ?? path.join(ROOT, "frontend");
 const useProd = process.argv.includes("--prod");
 
-// Only schemas whose table is certain. A guessed mapping would invent findings,
-// so anything not here is reported as unmapped rather than assumed clean.
-// Keyed by whatever schema name the walk finds in the frontend, so the index
-// signature is the honest type: a lookup here is a QUESTION ("is this one of
-// the certain ones?"), and its answer being undefined is the `unmapped` branch
-// below rather than an error.
 const TABLE_OF: Record<string, string | undefined> = {
   addressSchema: "addresses",
   productSchema: "products",
@@ -56,8 +29,6 @@ const walk = (dir: string, match: RegExp, out: string[] = []): string[] => {
   return out;
 };
 
-// Pull `field: <zod expr>` pairs from the top level of a z.object({...}) only -
-// nested objects belong to a different table and must not be attributed here.
 function topLevelFields(body: string): [string, string][] {
   const fields: [string, string][] = [];
   let depth = 0, i = 0, keyStart = 0;
@@ -126,10 +97,6 @@ await pool.end();
 const nullableOf = new Map();
 for (const r of cols) nullableOf.set(`${r.table_name}.${r.column_name}`, r.is_nullable === "YES");
 
-// A mismatch only THROWS if the schema is actually run. A schema used for
-// type inference alone can disagree with the database forever in silence.
-// So: find the schemas that reach a .parse()/.safeParse() call, directly or by
-// being composed into one.
 const parsed = new Set<string>();
 for (const f of files) {
   const src = fs.readFileSync(f, "utf8");
@@ -162,7 +129,7 @@ for (const s of schemas.sort((a, b) => a.name.localeCompare(b.name))) {
   let matched = 0;
   for (const [field, expr] of all) {
     const key = `${table}.${field}`;
-    if (!nullableOf.has(key)) continue;      // not a column of this table
+    if (!nullableOf.has(key)) continue;
     matched += 1;
     compared += 1;
     const optional = /\.(optional|nullable|nullish)\(\)/.test(expr);
@@ -200,19 +167,6 @@ if (suspect.length) {
   );
 }
 if (unmapped.length) {
-  // WHAT AN UNMAPPED SCHEMA IS COVERED BY, WHICH IS NOT NOTHING.
-  //
-  // A payload schema - salesOrderCheckoutSchema and friends - has no single
-  // table, so it cannot be compared against columns directly. But it EMBEDS
-  // schemas that do, and this audit already follows composition when deciding
-  // what is parsed at runtime. Printing "unmapped, NOT checked" on its own
-  // reads as a coverage hole and hides that its parts were checked - which
-  // matters, because those parts are exactly where a checkout payload throws.
-  //
-  // Written after D49: three checkout schemas parse a payload built from
-  // productSchema, spotPriceSchema, userSchema and addressSchema, and two of
-  // the three do it AFTER the Stripe charge has succeeded. Knowing which
-  // component carries the risk is the whole question there.
   console.log(`unmapped, no table of their own: ${unmapped.join(", ")}`);
   for (const name of unmapped) {
     const parts = [...new Set(
@@ -231,27 +185,8 @@ if (unmapped.length) {
     );
   }
 }
-// --self-test: the detector must still report findings known to be true.
-//
-// IT WAS PINNED TO A SINGLE SCHEMA AND THAT SCHEMA IS GONE. The control was
-// `spotPriceSchema` requiring `bid_spot` against a nullable `exchange.metals`
-// column (D33) - and the 2026-08-28 conversion deleted it, because the frontend
-// now imports its spot shapes from @dorado/contracts rather than declaring its
-// own. So this self-test FAILED on a codebase that was working perfectly: the
-// finding was not missed, the subject was retired.
-//
-// That is the right failure - an assertion that cannot see its subject fails
-// (D135) - and it is also why a self-test needs MORE THAN ONE control. A single
-// control makes the guard exactly as durable as the most deletable thing it
-// points at, and this one was pointing at a schema the conversion was always
-// going to remove. Two survive today; if one goes, the other still proves the
-// parser works while the failure names the one that left.
 const CONTROLS = [
-  // The address form is the longest-lived hand-written schema in the frontend,
-  // and exchange.addresses.line_1 has permitted NULL since the table was made.
   ["addressSchema", "line_1"],
-  // A payout schema requiring a bank field the column permits to be absent.
-  // These are the plaintext bank details; whatever else changes, they stay.
   ["achSchema", "routing_number"],
 ];
 if (process.argv.includes("--self-test")) {

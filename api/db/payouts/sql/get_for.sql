@@ -1,6 +1,3 @@
--- The payout on one order: the account it goes to, and the fee charged for it.
--- Only the last four travel with an order; full numbers live in payments.details envelopes or behind GET /payouts/:id/details, never here.
--- The fee is native: orders.transactions.payout_fee is the only place it's read from. The id is the details id, equal to the old payout id on any database built by migration 073.
 SELECT d.id,
        d.user_id,
        t.order_id,

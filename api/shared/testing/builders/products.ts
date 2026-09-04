@@ -1,20 +1,3 @@
-// aProduct - a catalogue row, built.
-//
-// `create` writes the nine columns products.bullion declares NOT NULL with no
-// default and nothing else, so everything a test actually cares about -
-// content, purity, the two premiums, whether it is offered for sale - is set
-// by the repo's own `update` immediately afterwards. That is one round trip
-// more than an INSERT and it keeps the builder honest: no column is written
-// here that a service does not write through the same statement.
-//
-// THE OPTIONS ARE THE CONTRACT'S PATCH, not a local restatement of the
-// columns: a column added to BullionPatch is settable here the same day.
-// `metal` is the one addition - a metal by NAME, resolved to its id.
-//
-// THE DEFAULTS ARE LITERALS AND THEY ARE READABLE ON PURPOSE. A one-ounce
-// .9999 coin at $50 over bid is what most of these tests mean by "a product",
-// and a failure message that says 0.9999 is worth more than one that says
-// whatever row 047 happened to seed first.
 import type { PoolClient } from "pg";
 import { anId, aTag } from "#shared/testing/builders/ids.ts";
 import * as products from "#db/products/repo.ts";

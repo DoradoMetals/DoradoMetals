@@ -1,6 +1,5 @@
 import { convertTroyOz } from "#shared/utils/convertWeights.ts";
 
-// Fine metal: weight in troy ounces times purity. Null means "not measured".
 export function fineContent(
   weight: number | null | undefined,
   unit: string | null | undefined,

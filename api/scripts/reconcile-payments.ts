@@ -1,21 +1,3 @@
-// The operator's tool for the create-then-charge safety net.
-//
-//   node scripts/reconcile-payments.ts                  report - writes nothing
-//   node scripts/reconcile-payments.ts --commit         both sweeps, for real
-//   node scripts/reconcile-payments.ts --ttl-hours 48   override the default 24
-//
-// Sweep (a) - orders awaiting a payment that already settled (the missed
-// webhook; production has had three). Advancing moves no money and also runs
-// on the cron, so this script's version of it mostly confirms the cron is
-// keeping up.
-//
-// Sweep (b) - orders that awaited payment past the TTL with an intent never
-// confirmed: cancelled, and the credit reserved at creation put back with a
-// ledger entry. THIS MOVES MONEY, which is why it lives only here, behind
-// --commit, and is not scheduled by anything.
-//
-// Report mode prints ids and amounts only - never bank details, never a
-// customer's name (the standing constraint; ids are what an operator needs).
 import "#env";
 import pool from "#pool";
 import * as orders from "#db/orders/repo.ts";

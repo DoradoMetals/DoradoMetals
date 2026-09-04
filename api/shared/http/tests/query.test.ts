@@ -1,5 +1,3 @@
-// oneString stands between req.query.x and a repo — Express really does hand over an array for ?id=a&id=b and an object for ?id[k]=v, and pg receiving either where a uuid was expected is a 500 on malformed input rather than a clean refusal.
-// Deliberately does NOT coerce — an array is not joined into "a,b", which would invent an id nobody sent; pinned from the value side so a future 'helpful' change can't quietly break it.
 import { test } from "vitest";
 import assert from "node:assert/strict";
 import { oneString } from "#shared/http/query.ts";
@@ -9,9 +7,6 @@ test("a string passes through unchanged", () => {
   assert.equal(oneString("a b"), "a b");
 });
 
-// Subtle and worth stating: "" IS a string, so it survives. Callers testing
-// truthiness treat it as missing; callers testing `=== undefined` do not. The
-// function's job is narrowing the TYPE, not deciding what empty means.
 test("an empty string is still a string and survives", () => {
   assert.equal(oneString(""), "");
 });
@@ -33,7 +28,6 @@ test("everything else that can arrive becomes undefined", () => {
   }
 });
 
-// A String object is not a string primitive, and pg would receive an object.
 test("a boxed String is not treated as a string", () => {
   assert.equal(oneString(new String("abc")), undefined);
 });

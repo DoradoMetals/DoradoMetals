@@ -7,8 +7,6 @@ import { requireAdmin } from "#shared/middleware/authMiddleware.ts";
 
 const router = express.Router();
 
-// The literal segments are declared before `/:slug`, which would otherwise
-// match them. Filters are query params, never path variants (rest-routes.md).
 router.get("/types", requireAdmin, listTypes);
 router.get("/admin", requireAdmin, listAdminProducts);
 router.get("/", listProducts);

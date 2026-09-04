@@ -1,9 +1,3 @@
-// Strict body parsing at the transport boundary (D214 item 3): an unknown key
-// or a wrong-typed value is a 400 before the service runs. The PATCH also
-// proves the ids-not-names redesign - `metal`/`supplier`/`mint` (the old
-// name-resolution fields) are unknown keys now that the body carries ids - and
-// the QUERY STRING is parsed the same way, so a filter nobody declared is a
-// 400 rather than a filter silently ignored.
 import { test, afterAll } from "vitest";
 import assert from "node:assert/strict";
 import request from "supertest";
@@ -17,10 +11,6 @@ afterAll(() => restoreSessions());
 const admin = { id: "11111111-1111-1111-1111-111111111111", role: "admin", name: "Admin", email: "admin@x.test" };
 const asAdmin = <T>(fn: () => Promise<T> | T) => as(admin, fn);
 
-// products.bullion's id columns are validated by the generated row schema's
-// own z.string().uuid() (RFC4122-strict), not the shared uuidLike regex -
-// unlike the all-ones "well-formed but names nothing" id this suite uses
-// everywhere else, it must be a real-shaped v4 uuid to pass that check.
 const AN_ID = "12345678-1234-4234-8234-123456789abc";
 
 const FULL_PRODUCT = {
@@ -46,8 +36,6 @@ test("PATCH /products/:id refuses the old metal/supplier/mint name fields", asyn
   });
 });
 
-// `id` is the path segment now, so naming it in the body is an unknown key -
-// the one place two spellings of the same fact could disagree.
 test("PATCH /products/:id refuses an id in the body", async () => {
   await asAdmin(async () => {
     const res = await request(app).patch(`/api/products/${AN_ID}`).send({ id: AN_ID });
@@ -89,8 +77,6 @@ test("POST /products refuses a wrong type", async () => {
   });
 });
 
-// The query string is parsed strictly too: a filter nobody declared is a 400
-// rather than a filter silently ignored.
 test("GET /products refuses an undeclared filter", async () => {
   const res = await request(app).get("/api/products").query({ nonsense: "x" });
   assert.equal(res.status, 400, JSON.stringify(res.body));

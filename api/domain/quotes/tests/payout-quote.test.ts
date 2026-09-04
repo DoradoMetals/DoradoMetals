@@ -1,15 +1,3 @@
-// D97: the estimated payout comes from the server. The checkout's headline
-// figure used to be `(quote?.total ?? 0) - (shippingCost ?? 0 + paymentCost)` -
-// `+` binds tighter than `??`, so ONE deduction was always silently discarded
-// (with a service selected, the payout fee vanished and the number read high
-// while the rows beneath it said otherwise).
-// These pin the server's answer, not the component's - the frontend computes no
-// money, so getting the arithmetic right here is the whole fix.
-//
-// THE BODY IS IDS AND A DECLARATION NOW (D214 item 11): a scrap line names its
-// metal by id and states the weight, purity and unit it was declared at, and
-// the server derives the content. `content` was a field a customer could send,
-// which is the quantity of fine metal they are paid for.
 import { test, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import * as quotes from "#domain/quotes/service.ts";
@@ -22,7 +10,6 @@ import { LOCKS } from "#shared/testing/locks.ts";
 const ORDER_LOCKS = [LOCKS.FULFILLMENTS, LOCKS.ORDERS, LOCKS.ADDRESSES];
 
 let goldId: string;
-// The payout methods this file prices against, by the type each one is.
 const methodIdOf = new Map<string, string>();
 
 beforeAll(async () => {
@@ -41,8 +28,6 @@ beforeAll(async () => {
   }
 });
 
-// One troy ounce of fine gold, declared: 1 t oz at purity 1. No product row and
-// no fixture, which is what makes it safe to assert exact money against.
 const goldOunce = () => ({
   type: "scrap" as const, metal_id: goldId, pre_melt: 1, purity: 1, unit: "t oz",
 });
@@ -70,8 +55,6 @@ test("both deductions apply, and neither cancels the other", async () => {
     assert.equal(both.shipping_charge, 12.5);
     assert.equal(both.payout_charge, 20, "WIRE costs $20");
 
-    // THE ASSERTION THE BUG WOULD FAIL. The broken expression produced
-    // total - 12.5 (payment cost discarded); this is total - 12.5 - 20.
     assert.equal(
       Number(both.estimated_payout.toFixed(4)),
       Number((both.total - 32.5).toFixed(4)),
@@ -105,9 +88,6 @@ test("a free payout method deducts nothing, and says so rather than omitting it"
   }, { actor: TEST_ACTOR.id, lock: ORDER_LOCKS });
 });
 
-// Ruling 43 - ids in, data out. The fee is resolved from the METHOD's own row;
-// a caller cannot send a number and be believed, and the contract has no field
-// for one to arrive in.
 test("the payout fee is not taken from the body", () => {
   const withAFee = PurchaseOrderQuoteBody.safeParse({
     items: [{ type: "scrap", metal_id: "00000000-0000-4000-8000-000000000000",
@@ -118,9 +98,6 @@ test("the payout fee is not taken from the body", () => {
   assert.equal(withAFee.success, false, "a fee sent in the body was accepted");
 });
 
-// A line cannot declare its own content either: that is the quantity of fine
-// metal the customer is paid for, and the server derives it from the weight,
-// the purity and the unit.
 test("a scrap line cannot declare its own content", () => {
   const stated = PurchaseOrderQuoteBody.safeParse({
     items: [{ type: "scrap", metal_id: "00000000-0000-4000-8000-000000000000",
@@ -145,9 +122,6 @@ test("a payout method the business does not pay by is refused, not priced as fre
   }, { actor: TEST_ACTOR.id, lock: ORDER_LOCKS });
 });
 
-// The shipping charge is the one number this body carries, so what it will not
-// take matters: a missing charge accepted as a legitimate zero quotes a payout
-// that is TOO HIGH, which is the exact class of bug this surface exists to end.
 test("a shipping charge that is not a charge is refused rather than coerced to zero", () => {
   const line = {
     type: "scrap", metal_id: "00000000-0000-4000-8000-000000000000",
@@ -167,8 +141,6 @@ test("a shipping charge that is not a charge is refused rather than coerced to z
   );
 });
 
-// A small order whose fees exceed it does not owe the business money, and a
-// negative figure above the Confirm button is not a number to show anybody.
 test("the payout never goes below zero", async () => {
   await inPinnedTransaction(async () => {
     const bid = await goldBid();

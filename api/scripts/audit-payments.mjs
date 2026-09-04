@@ -1,28 +1,7 @@
-// Compares what the database believes about payments against what Stripe says.
-//
-// exchange.payment_intents is written at intent creation and updated from
-// Stripe's response. When that update does not land - a webhook missed, a
-// browser closed mid-checkout, a payment completed somewhere other than the
-// app - the row keeps whatever status it had, and nothing ever notices, because
-// the order lifecycle does not consult this table.
-//
-// So the two records drift, and until there was something to compare against
-// there was no way to see it. payments.stripe_charges is that something.
-//
-// Reads production's intents (read-only) and the reconciliation table seeded by
-// 055. The reconciliation is production's Stripe export regardless of which
-// database currently holds it, which is why the two halves can come from
-// different places while the comparison still means something.
-//
-//   node scripts/audit-payments.mjs
-//
-// Read-only everywhere. Exits non-zero if the two disagree about any settled
-// payment, because that is money the application cannot account for.
 import "#env";
 import pg from "pg";
 import pool from "#pool";
 
-// Stripe statuses that mean money actually moved.
 const SETTLED = new Set(["Paid", "Refunded", "Partially Refunded"]);
 
 const prodUrl = process.env.PROD_READONLY_DATABASE_URL;
@@ -67,7 +46,6 @@ try {
     const agrees = db === "succeeded";
     if (!agrees) disagreements++;
 
-    // exchange stores cents, the export dollars.
     const dbAmount = row?.amount == null ? null : Number(row.amount) / 100;
     const amountNote =
       dbAmount == null ? "no amount recorded"
@@ -84,18 +62,6 @@ try {
     if (!agrees) console.log(`          ${amountNote}`);
   }
 
-  // -------------------------------------------------- money nothing recorded
-  //
-  // The status comparison above asks whether exchange agrees with Stripe about
-  // what happened. This asks the sharper question: whether exchange records
-  // that the money ARRIVED. amount_received is written by the webhook, and a
-  // stale status and a blank amount_received are the same failure seen twice.
-  //
-  // Worth being precise about what this is and is not. Stripe has the money;
-  // nothing is lost. What is wrong is that production's own records do not say
-  // so, which is why an intent that has already been paid is still offered back
-  // to a customer to pay again - Stripe refuses to confirm it, so the customer
-  // gets a checkout that fails at the last step rather than a double charge.
   console.log("\nmoney Stripe captured that exchange has no record of receiving:\n");
 
   let unrecorded = 0;
@@ -126,15 +92,6 @@ try {
     );
   }
 
-  // ------------------------------------------------------------------ who paid
-  //
-  // A settled payment nobody can name is not actionable. exchange.users carries
-  // the Stripe customer id, so the charge can be walked back to a user, and
-  // from there to their orders - which is as far as the data goes, because only
-  // 2 of 25 intents carry an order id at all.
-  //
-  // Only user ids and order numbers are printed. Names, emails and addresses
-  // are all reachable from here and none of them is needed to act on this.
   const customerIds = [...new Set(charges.map((c) => c.stripe_customer_id).filter(Boolean))];
   const { rows: users } = await prod.query(
     `SELECT id, "stripeCustomerId" AS cus FROM exchange.users WHERE "stripeCustomerId" = ANY($1)`,
@@ -162,17 +119,6 @@ try {
       [userId]
     );
 
-    // Two tiers, because the amounts do not line up exactly and pretending
-    // otherwise would either miss real matches or invent them.
-    //
-    // Stripe rounds to the cent; an order total does not. Order #58 is
-    // $1248.58 against a $1248.37 charge - 21 cents apart on twelve hundred
-    // dollars, which is a partial refund or a fee, not a different order. A
-    // flat one-cent tolerance calls that unmatched. Meanwhile $51.78 against a
-    // $3534.53 order is 98% off and is genuinely unrelated.
-    //
-    // So: within a cent is a match, within one percent is a likely match said
-    // out loud as likely, and anything else is not a match.
     const near = (o) =>
       o.order_total == null ? Infinity
       : Math.abs(Number(o.order_total) - Number(c.amount)) / Math.max(Number(c.amount), 0.01);
@@ -206,14 +152,12 @@ try {
     `\`->\` is an exact amount match, \`~~>\` is within one percent and wants a human to confirm it.`
   );
 
-  // Orders are what a payment is *for*, and most intents are not attached to one.
   const linked = intents.filter((r) => r.sales_order_id || r.purchase_order_id).length;
   console.log(`of production's ${intents.length} intents, ${linked} link to an order`);
 
   const unknown = charges.filter((c) => !byId.has(c.payment_intent_id)).length;
   console.log(`${unknown} intent(s) in the Stripe export have no row in exchange at all`);
 
-  // The customer link exists and is usable: exchange.users carries the Stripe id.
   const { rows: [cust] } = await prod.query(
     `SELECT count(*)::int total, count("stripeCustomerId")::int linked FROM exchange.users`
   );

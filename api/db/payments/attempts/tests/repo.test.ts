@@ -1,7 +1,3 @@
-// payments.attempts, against real Postgres, every test rolled back.
-//
-// An attempt is the only row carrying a reference issued by a provider, so
-// findByProviderRef is what every webhook resolves through.
 import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
@@ -23,9 +19,6 @@ beforeAll(async () => {
 });
 afterAll(async () => { client.release(); await pool.end(); });
 
-// THE CUSTOMER IS BUILT (lane 1). This read a user out of the frozen
-// exchange.users table, so the fixture was a real person and the test's
-// meaning depended on that table still holding one.
 const anIntent = async (c: PoolClient) =>
   aPaymentIntent(c, await aUser(c), { type: "checkout", amount_expected: 100 });
 

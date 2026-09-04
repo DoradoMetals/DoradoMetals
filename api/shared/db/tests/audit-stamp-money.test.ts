@@ -1,35 +1,3 @@
-// THE MONEY ROWS RECORD WHO MOVED THE MONEY.
-//
-// *** WHY THIS FILE IS SEPARATE FROM audit-stamp.test.ts. *** That file proves
-// the MECHANISM - `shared/http/actor.ts` -> `withTransaction`'s set_config ->
-// `public.audit_stamp` - using reviews, the smallest table carrying all six
-// columns, and says out loud that it is not a fact about reviews. This one asks
-// the same question of the four tables where being wrong costs money: the
-// order, its totals, the payout account, and the credit ledger.
-//
-// *** WHY IT IS WORTH ASKING TWICE. *** Migration 116's trigger asks
-// pg_attribute which of the six columns each table actually HAS, and the 26
-// tables carry six different combinations - `checkout.items` has the text pair
-// with no _id sibling, `shipping.packages` types created_by as uuid rather than
-// text. So "the trigger works" is a claim per column-shape, not one claim.
-// These four are the shapes that matter most, and before lane 2 every one of
-// them was exercised by tests that named no actor at all.
-//
-// The actors are BUILT users rather than invented uuids, for the reason
-// audit-stamp.test.ts gives: every *_by_id column is a foreign key to
-// auth.users and the trigger resolves the setting against that table first, so
-// an unknown id leaves the row unattributed instead of raising - which means a
-// broken actor would look like a passing test with NULL columns.
-//
-// *** TWO WAYS THE ACTOR ARRIVES, AND THE TESTS USE BOTH ON PURPOSE. ***
-// `runWithActor` puts an id in an AsyncLocalStorage that only
-// `withTransaction` reads - so it reaches the database exactly when a service
-// opens its OWN transaction. A write made directly on the pinned client
-// (a repo call, or a service handed an executor) never passes through
-// withTransaction, so for those the actor is set on the connection with
-// `actingAs`. Getting this backwards produces a green-looking test whose rows
-// are all stamped by the harness default, which is what the first draft of
-// this file did.
 import { test, afterAll } from "vitest";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
@@ -61,8 +29,6 @@ test("the order and its totals record the admin who placed them", async () => {
     const admin = await anAdmin(c, { name: "Placing Admin" });
     const customer = await aUser(c);
 
-    // The builders write on the pinned client, so the actor goes on the
-    // connection rather than into the AsyncLocalStorage.
     await actingAs(c, admin.id);
     const order = await anOrder(c, customer, { direction: "purchase" })
       .withLots(1)
@@ -84,9 +50,6 @@ test("the order and its totals record the admin who placed them", async () => {
   }, { actor: TEST_ACTOR.id, lock: MONEY_LOCKS });
 });
 
-// A MONEY EDIT IS A DIFFERENT PERSON FROM THE AUTHOR, and that is the whole
-// value of updated_by_id: an order placed by one admin and repriced by another
-// must name both.
 test("a money edit re-attributes the totals without rewriting their author", async () => {
   await inPinnedTransaction(async (c: PoolClient) => {
     const author = await anAdmin(c, { name: "First Admin" });
@@ -115,15 +78,10 @@ test("a money edit re-attributes the totals without rewriting their author", asy
   }, { actor: TEST_ACTOR.id, lock: MONEY_LOCKS });
 });
 
-// payments.details holds the bank account. The row is written by the customer
-// at the payout step, so THE CUSTOMER is who it must name - not whichever
-// admin last touched the order.
 test("the payout account records the customer who entered it", async () => {
   await inPinnedTransaction(async (c: PoolClient) => {
     const customer = await aUser(c, { name: "Paying Customer" });
 
-    // The service is HANDED THE EXECUTOR, so it writes on this connection and
-    // opens no transaction of its own - `actingAs`, not `runWithActor`.
     await actingAs(c, customer.id);
     const saved = await payoutDetails.saveCheckoutPayout(
       customer.id,
@@ -146,9 +104,6 @@ test("the payout account records the customer who entered it", async () => {
     );
     assert.equal(stamp.created_by, "Paying Customer");
 
-    // AND THE NUMBERS ARE STILL SEALED. Asserted beside the stamp because the
-    // two are properties of the same write, and an audit column is not worth
-    // trading a plaintext column for.
     const { rows } = await c.query(
       `SELECT routing_number, account_number, routing_number_encrypted
          FROM payments.details WHERE id = $1`, [saved.id]
@@ -159,18 +114,6 @@ test("the payout account records the customer who entered it", async () => {
   }, { actor: TEST_ACTOR.id, lock: MONEY_LOCKS });
 });
 
-// payments.ledger is the record of WHY a balance moved, and it is where the
-// stamp goes THROUGH A SERVICE'S OWN TRANSACTION: adjustDoradoCredit takes no
-// executor (the row lock is the point), so its withTransaction reads the
-// AsyncLocalStorage and `runWithActor` is the right half of the seam here.
-//
-// *** AND payments.ledger CARRIES NO AUTHOR COLUMNS, WHICH IS A FINDING. ***
-// Migration 116 stamps it, but the table has only created_at and updated_at -
-// no created_by / created_by_id pair - so the trigger fills the timestamps and
-// there is nowhere to record WHO. That is the one money table where an
-// adjustment cannot be attributed, and this test pins the fact rather than
-// asserting a column that does not exist. Widening it is a migration and
-// Jacob's call; asserting it here would just be red.
 test("a credit adjustment writes a stamped ledger row, and the ledger names no author", async () => {
   await inPinnedTransaction(async (c: PoolClient) => {
     const admin = await anAdmin(c, { name: "Crediting Admin" });
@@ -209,9 +152,6 @@ test("a credit adjustment writes a stamped ledger row, and the ledger names no a
   }, { actor: TEST_ACTOR.id, lock: MONEY_LOCKS });
 });
 
-// The builder's own payout goes through the repo, so it is stamped by whoever
-// the transaction says is acting - which is what makes every OTHER test's
-// fixtures attributable too.
 test("a builder-made payout is stamped by the transaction's actor", async () => {
   await inPinnedTransaction(async (c: PoolClient) => {
     const customer = await aUser(c);

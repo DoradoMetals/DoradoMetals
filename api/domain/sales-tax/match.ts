@@ -1,5 +1,3 @@
-// Which sales-tax rule applies, and at what rate — ported EXACTLY from an ORDER BY that filtered and ranked 88 rules in SQL per line item (same rules, same order, now testable without a database).
-// Every predicate and tiebreaker below corresponds one-to-one with a line of that statement, sentinel comparisons (1e12, 1 meaning 'this rule doesn't constrain price/purity') included. tests/match.test.ts differentially checks both implementations agree on every rule — changing behavior here is a separate, deliberate act.
 import type { TaxRule } from "#db/sales-tax/repo.ts";
 
 export type TaxableFacts = {
@@ -16,8 +14,6 @@ export type TaxableFacts = {
 
 const between = (v: number, lo: number, hi: number) => v >= lo && v <= hi;
 
-// SQL's `x IN ($n, 'All')` with a null $n matches only 'All' - NULL = anything
-// is unknown, never true. Reproduced rather than relied on.
 const matchesCategory = (ruleValue: string, given: string | null) =>
   ruleValue === "All" || (given !== null && ruleValue === given);
 
@@ -37,8 +33,6 @@ export function applicable(rules: TaxRule[], f: TaxableFacts): TaxRule[] {
   );
 }
 
-// The seven tiebreakers, in the statement's order. Each is "is this rule more
-// specific on this axis", and SQL sorted them DESC - true first.
 const specificity = (r: TaxRule): boolean[] => [
   r.metal_category !== "All",
   r.product_type !== "All",
@@ -49,7 +43,6 @@ const specificity = (r: TaxRule): boolean[] => [
   r.aggregate_min !== 0 || r.aggregate_max !== 1e12,
 ];
 
-// A tie on all seven axes is unspecified — a property of the DATA, not either implementation. match.test.ts asserts no such tie exists in the seeded rules, so a new rule creating one fails the build rather than silently picking a side.
 export function rateFor(rules: TaxRule[], f: TaxableFacts): number {
   const candidates = applicable(rules, f);
   if (candidates.length === 0) return 0;

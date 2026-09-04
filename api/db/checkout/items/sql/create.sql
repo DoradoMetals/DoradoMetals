@@ -1,6 +1,3 @@
--- One basket line. `bullion_id IS NULL` is what makes it a declared lot.
--- Every value arrives resolved by domain/checkout/rules.ts; a request names none.
--- No audit columns: public.audit_stamp writes them (migration 116).
 INSERT INTO checkout.items
        (checkout_id, bullion_id, metal_id, pre_melt, post_melt, purity,
         content, unit, premium, quantity)

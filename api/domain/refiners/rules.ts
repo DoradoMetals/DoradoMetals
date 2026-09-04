@@ -1,15 +1,9 @@
-// The refiner counterparts a customer order is born with (093's invariant),
-// derived as COMPLETE rows: one engagement per order, one line per customer
-// line, one cover per frozen spot. Pure - no database, no request.
 import type { NewRefinerItem } from "#db/refiners/items/repo.ts";
 import type { SpotNew } from "#db/refiners/spots/repo.ts";
 import type { OrderSpot as OrderSpotRawRow } from "@dorado/contracts";
 import type { EngagementSpotRow } from "#db/refiners/spots/repo.ts";
 import type { OrderItem, RefinerItem } from "@dorado/contracts";
 
-// A counterpart for every customer line that has none yet. bullion_id, metal_id
-// and quantity ride over from the line; every assay column stays null until the
-// refinery reports.
 export function counterpartLines(
   refiner_order_id: string,
   lines: readonly OrderItem[],
@@ -27,8 +21,6 @@ export function counterpartLines(
     }));
 }
 
-// A cover for every metal the order froze a spot on and the refinery has not
-// been asked about yet. Unquoted (ask/bid null) until the refinery speaks.
 export function counterpartSpots(
   refiner_order_id: string,
   frozen: readonly OrderSpotRawRow[],

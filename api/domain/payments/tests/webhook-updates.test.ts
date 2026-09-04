@@ -1,18 +1,3 @@
-// What the Stripe webhook actually writes to payments.intents / attempts /
-// settlements - the native record since the D212 flip.
-//
-// WHY THIS FILE EXISTS. FOLLOWUPS records that three production intents were
-// captured by Stripe while the local row still said `requires_payment_method`
-// - $126.48 - and the cause the code alone makes visible is THE HANDLER RUNS,
-// WRITES NOTHING, AND ANSWERS 200: updatePaymentIntent is an UPDATE keyed on
-// the provider's reference, and a webhook for an intent with no row is a
-// silent no-op Stripe records as a successful delivery. D24 turned that into
-// a refusal at the service so Stripe retries; the repo REPORTS (returns
-// false) rather than throwing, so a backfill that legitimately does not care
-// can still use it.
-//
-// NOTHING IS COMMITTED: every statement takes the pinned client, so it is
-// inside the transaction shared/testing/pinned-pool.js rolls back.
 import { test } from "vitest";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
@@ -55,11 +40,6 @@ test("a charge.* webhook updates nothing, because a charge is not an intent", as
     const id = `pi_test_charge_${Date.now()}`;
     await seedSettledIntent(c, id);
 
-    // This is exactly what controller.js passes for charge.succeeded,
-    // charge.captured, charge.updated, charge.pending and charge.failed:
-    // `event.data.object`, which for those five events is a CHARGE. A charge's
-    // id is `ch_...`, and the UPDATE keys on the attempt's provider_ref, so it
-    // matches no row.
     const charge = {
       id: `ch_test_${Date.now()}`,
       status: "succeeded",
@@ -73,7 +53,6 @@ test("a charge.* webhook updates nothing, because a charge is not an intent", as
     assert.equal(rows[0].status, "succeeded", "unchanged");
     assert.equal(Number(rows[0].settled_amount), 51.78, "unchanged");
 
-    // And the charge's own id did not become a row either.
     const { rows: byChargeId } = await query(READ, [charge.id], c);
     assert.equal(byChargeId.length, 0, "no row is created for a charge id");
   }, { actor: TEST_ACTOR.id, lock: [LOCKS.FULFILLMENTS, LOCKS.ORDERS, LOCKS.ADDRESSES, LOCKS.USERS] });
@@ -96,16 +75,10 @@ test("a webhook for an intent with no row writes nothing, and says so", async ()
     const after = await query(`SELECT count(*)::int AS n FROM payments.intents`, [], c);
     assert.equal(after.rows[0].n, before.rows[0].n, "no row inserted - it is an UPDATE");
 
-    // D24. updateFromProvider REPORTS rather than throwing; the webhook entry
-    // turns that into a refusal so Stripe retries.
     assert.equal(matched, false, "nothing reported that no row matched");
   }, { actor: TEST_ACTOR.id, lock: [LOCKS.FULFILLMENTS, LOCKS.ORDERS, LOCKS.ADDRESSES, LOCKS.USERS] });
 });
 
-// D24, the half that changes what Stripe sees. Before this, an intent with no
-// row was accepted with `{received:true}` and the money event was lost while
-// the delivery log said it went fine - which is why the delivery log could
-// never show the missing $126.48.
 test("the service refuses a webhook that matches no intent, so Stripe retries", async () => {
   await inPinnedTransaction(async () => {
     await assert.rejects(
@@ -117,11 +90,6 @@ test("the service refuses a webhook that matches no intent, so Stripe retries", 
           amount_received: 11480,
         }),
       (err: unknown) => {
-        // A PLAIN Error, WHICH IS WHAT MAKES IT A 500 (D214 item 11). The
-        // domain's own refusals carry a `kind` and map to 4xx; a webhook that
-        // matches no row is a FAULT, not a refusal, so it carries no kind and
-        // no status - and shared/middleware/errorHandler.ts answers 500 for
-        // exactly that, which is what makes Stripe retry.
         const e = err as { statusCode?: number; kind?: string; message?: string; code?: string };
         assert.equal(e.statusCode, undefined, "a fault must not carry a deliberate status");
         assert.equal(e.kind, undefined, "a fault is not a domain refusal");
@@ -132,8 +100,6 @@ test("the service refuses a webhook that matches no intent, so Stripe retries", 
   }, { actor: TEST_ACTOR.id, lock: [LOCKS.FULFILLMENTS, LOCKS.ORDERS, LOCKS.ADDRESSES, LOCKS.USERS] });
 });
 
-// The other side of it: a webhook that DOES match must still be accepted, or
-// every delivery would retry for days.
 test("the service accepts a webhook that matches an intent", async () => {
   await inPinnedTransaction(async (c: PoolClient) => {
     const id = `pi_test_matched_${Date.now()}`;
@@ -156,14 +122,6 @@ test("a late payment_failed overwrites a settled intent, and Stripe does not gua
     const id = `pi_test_order_${Date.now()}`;
     await seedSettledIntent(c, id);
 
-    // A customer whose first attempt failed and whose second succeeded produces
-    // payment_failed THEN succeeded. Stripe delivers webhooks without an
-    // ordering guarantee, and this UPDATE has no guard - no status precedence,
-    // no event timestamp. Delivered in the wrong order, the failure wins, and
-    // the intent's status ends up saying exactly what the three production
-    // rows said. The SETTLEMENT survives, because a settlement records money
-    // that moved and nothing un-moves it - the improvement over exchange,
-    // where amount_received was stomped back to 0.
     await service.updateFromProvider(
       {
         id,

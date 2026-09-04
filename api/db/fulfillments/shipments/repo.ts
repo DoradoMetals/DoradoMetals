@@ -1,6 +1,3 @@
-// fulfillments.shipments: THE LINK, not the parcel - joins a fulfillment to its shipping.shipments row, plus where it went from/to. Tracking, label, cost belong to the shipping feature.
-// Also the first hop back to an order id: shipping.shipments carries no order id; the fulfillment does.
-// The unique key is shipment_id, not fulfillment_id: a parcel belongs to exactly one fulfillment, but a fulfillment may have several parcels. The service reads by shipment_id first and calls create or update (D214 item 11).
 import query from "#shared/db/query.ts";
 import { buildUpdate } from "#shared/db/patch.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
@@ -10,8 +7,6 @@ import type { Executor } from "#shared/db/executor.ts";
 
 const sql = sqlFrom(import.meta.dirname);
 
-
-// Returns a LIST - the unique index is on shipment_id, so a fulfillment may have several parcels.
 export async function getFor(
   fulfillment_id: string, executor?: Executor
 ): Promise<FulfillmentShipment[]> {
@@ -25,7 +20,6 @@ export async function getMany(ids: string[], executor?: Executor): Promise<Fulfi
   return rows;
 }
 
-// From the parcel's side - the read the shipping feature needs to reconstruct an order id.
 export async function getByShipment(
   shipment_ids: string[], executor?: Executor
 ): Promise<FulfillmentShipment[]> {
@@ -45,7 +39,6 @@ export async function existsFor(
   return rows[0]?.present === true;
 }
 
-// Unlinking a parcel, for when the shipment itself is deleted - the fulfillment survives.
 export async function removeByShipment(
   shipment_id: string, executor?: Executor
 ): Promise<boolean> {
@@ -68,7 +61,6 @@ export async function create(
   return rows[0];
 }
 
-// THE COLUMNS, FROM THE CONTRACT (ruling 64). `shipment_id` is the WHERE key.
 export const PATCHABLE = Object.keys(
   FulfillmentShipmentPatch.shape
 ) as readonly (keyof FulfillmentShipmentPatch)[];

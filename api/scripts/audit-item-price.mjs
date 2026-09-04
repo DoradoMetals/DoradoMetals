@@ -1,44 +1,3 @@
-// Is `price` on an order line DERIVED, or is it AUTHORITATIVE?
-//
-// Ruling 34 says the pricing API returns prices and `orders.items.price` is
-// "dropped later because it's derived". The trap Jacob flagged in the same
-// breath is that every pricing function reads `item.price ?? computed`, so a
-// STORED price WINS - and if any row's stored price differs from what the
-// calculation would produce, that row is not derived at all and dropping the
-// column silently reprices a historical order.
-//
-// So this counts, against PRODUCTION, the rows where
-//
-//   price IS NOT NULL AND price <> the computed value
-//
-// with "computed" spelled exactly as features/pricing/bid.ts
-// calculations.ts calculateItemPrice spells it:
-//
-//   product: content * (bid * (premium ?? product.bid_premium ?? 0))
-//   scrap:   content * (bid * (premium ?? scrap.bid_premium  ?? 0))
-//
-// and the bid taken from the order's OWN frozen spot (exchange.order_metals),
-// which is what the accept flow prices against. Sales lines are the ask side:
-//   content * (ask * (premium ?? product.ask_premium ?? 0)).
-//
-// IT READS exchange, NOT orders.items, and that is not a shortcut. Production
-// has never been migrated - its `orders.items` is the abandoned January
-// snapshot and has no `price` column at all. exchange.purchase_order_items.price
-// and exchange.sales_order_items.price are where the business's real prices are.
-//
-// THREE BUCKETS, because "differs" is not one finding:
-//   exact      - reproduces to the cent; genuinely derived.
-//   rounding   - differs by less than half a cent. Arithmetic noise.
-//   divergent  - differs by more. THESE ARE THE ROWS THE COLUMN PROTECTS, and
-//                the report says WHY for each, because the cause decides what
-//                to do about it: a value the source column can no longer hold
-//                (D61's numeric(20,3) content) is not the same finding as an
-//                admin having typed a different number.
-//
-// Read-only. Safe against production, which is the only place worth running it.
-//
-//   node scripts/audit-item-price.mjs           against dev
-//   node scripts/audit-item-price.mjs --prod    against production
 import "#env";
 import pg from "pg";
 import pool from "#pool";
@@ -54,10 +13,6 @@ if (useProd) await db.connect();
 
 const q = async (sql, params = []) => (await db.query(sql, params)).rows;
 
-// exchange.scrap.content is numeric(20,3), so a stored price computed from the
-// real content can only ever imply a content within half of the last digit.
-// That is D61's rounding, seen from the other side, and it is what tells a
-// precision artefact apart from an override.
 const SCALE_HALF = 0.0005;
 
 const PURCHASE = `
@@ -92,10 +47,6 @@ SELECT soi.id, soi.sales_order_id AS order_id, soi.price, soi.premium AS line_pr
   LEFT JOIN exchange.order_metals om
          ON om.sales_order_id = soi.sales_order_id AND om.type = m.type`;
 
-// What the stored price says the inputs must have been. Only one of the three
-// can be solved for at a time, so this asks the question that has an answer:
-// holding the premium and the spot, what content would produce this price - and
-// is that content the stored one, rounded?
 function explain(row) {
   const price = Number(row.price);
   const premium = Number(row.premium);
@@ -188,8 +139,6 @@ if (divergent.length === 0) {
   }
 }
 
-// Non-zero while the column cannot be safely dropped, like audit:enum-domains:
-// this is a standing answer to a question, not a gate on a commit.
 if (useProd) await db.end();
 else await pool.end();
 process.exit(divergent.length === 0 ? 0 : 1);

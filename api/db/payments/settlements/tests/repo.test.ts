@@ -1,7 +1,3 @@
-// payments.settlements, against real Postgres, every test rolled back.
-//
-// A settlement is money that MOVED. Its create is idempotent because a Stripe
-// webhook is retried, and a retry must rewrite the row rather than raise.
 import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
@@ -25,7 +21,6 @@ beforeAll(async () => {
 afterAll(async () => { client.release(); await pool.end(); });
 
 const anAttempt = async (c: PoolClient) => {
-  // Built, not discovered - see shared/testing/builders/index.ts.
   const intent = await aPaymentIntent(c, await aUser(c), {
     type: "checkout", status: "succeeded", amount_expected: 100,
   });
@@ -48,7 +43,6 @@ test("a settlement is created and re-created without raising", async () => {
     );
     assert.equal(Number(first.settled_amount), 100);
 
-    // The retry: same id, a corrected amount, no second row.
     const again = await settlements.create(
       attempt.id, attempt.id,
       { settled_amount: 114.8, provider: "stripe", provider_ref: attempt.provider_ref },

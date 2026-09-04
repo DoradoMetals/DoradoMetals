@@ -1,8 +1,3 @@
-// Leads: orchestration and the wire shape.
-//
-// update takes an id and a patch, never a round-tripped row; the repo answers
-// the written row itself (RETURNING), so there is no re-read that can find
-// nothing and no second refusal to spell.
 import withTransaction from "#shared/db/withTransaction.ts";
 import * as leads from "#db/leads/repo.ts";
 import * as rules from "#domain/leads/rules.ts";
@@ -32,7 +27,6 @@ export async function update(id: string, patch: LeadPatch): Promise<Lead> {
   });
 }
 
-// Answers whether a row went, so the controller can 404 rather than report success for an id that was never there.
 export async function remove(id: string): Promise<boolean> {
   return withTransaction(async (client) => {
     return await leads.remove(id, client);

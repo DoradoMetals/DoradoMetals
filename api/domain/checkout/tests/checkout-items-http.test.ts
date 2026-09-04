@@ -1,4 +1,3 @@
-// The basket over real HTTP. Nothing commits: every query is rolled back.
 import { test, afterAll } from "vitest";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
@@ -53,8 +52,6 @@ const rowsOf = async (c: PoolClient, user_id: string, direction: string) => {
   );
   return rows;
 };
-
-// -------------------------------------------------------------- it works
 
 test("PUT replaces the basket and answers what is now in it", async () => {
   await inPinnedTransaction(async (c: PoolClient) => {
@@ -141,8 +138,6 @@ test("GET answers an empty list for a customer with no session", async () => {
   }, { actor: TEST_ACTOR.id, lock: CART_LOCK });
 });
 
-// --------------------------------------------------- ruling 51: the snapshot
-
 test("a bullion line inherits the product's metal, weights, purity and content", async () => {
   await inPinnedTransaction(async (c: PoolClient) => {
     const customer = asCaller(await aUser(c));
@@ -175,7 +170,6 @@ test("editing the product afterwards does not change the line already in the bas
       await put("sale", [{ bullion_id: product.id, quantity: 1 }]);
       const before = (await rowsOf(c, customer.id, "sale"))[0];
 
-      // products.update is a full replace; this is the three columns.
       await c.query(
         `UPDATE products.bullion SET content = 500, gross = 500, purity = 0.5 WHERE id = $1`,
         [product.id]
@@ -192,7 +186,6 @@ test("editing the product afterwards does not change the line already in the bas
   }, { actor: TEST_ACTOR.id, lock: CART_LOCK });
 });
 
-// The band is whatever rates.rates holds, so this asserts the source.
 test("a purchase bullion line's premium is not the product's bid premium", async () => {
   await inPinnedTransaction(async (c: PoolClient) => {
     const customer = asCaller(await aUser(c));
@@ -227,9 +220,6 @@ test("a line with no product carries its own values and a derived content", asyn
   }, { actor: TEST_ACTOR.id, lock: CART_LOCK });
 });
 
-// -------------------------------------------------------------- refusals
-
-// 422 not 400: a domain refusal is Invalid.
 test("the buy basket refuses a product that is not displayed", async () => {
   await inPinnedTransaction(async (c: PoolClient) => {
     const customer = asCaller(await aUser(c));
@@ -267,7 +257,6 @@ test("one bad line refuses the whole sync, and nothing is written", async () => 
   }, { actor: TEST_ACTOR.id, lock: CART_LOCK });
 });
 
-// Refused like a hidden one: the answer cannot say which ids exist.
 test("an id that names no product is refused in either direction", async () => {
   await inPinnedTransaction(async (c: PoolClient) => {
     const customer = asCaller(await aUser(c));
@@ -341,7 +330,6 @@ test("a bullion line carrying a server-owned value is refused", async () => {
   }, { actor: TEST_ACTOR.id, lock: CART_LOCK });
 });
 
-// A direction is a shape, not a rule: a bad one is a 400.
 test("a direction that is not one of the two labels is a 400", async () => {
   await inPinnedTransaction(async (c: PoolClient) => {
     const customer = asCaller(await aUser(c));
@@ -368,9 +356,6 @@ test("an unknown field in a line is a 400", async () => {
   }, { actor: TEST_ACTOR.id, lock: CART_LOCK });
 });
 
-// ---------------------------------------------------------- the admin subject
-
-// The refusal half is replay.test.ts's.
 test("an admin may read and replace a named customer's basket", async () => {
   await inPinnedTransaction(async (c: PoolClient) => {
     const customer = await aUser(c);

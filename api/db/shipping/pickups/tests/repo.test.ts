@@ -1,4 +1,3 @@
-// Writes on shipping.pickups, against real Postgres. Self-contained: the shipment each pickup hangs off is created in the same rolled-back transaction, so no lock applies.
 import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
@@ -7,7 +6,6 @@ import pool from "#pool";
 import { inRollback } from "#shared/testing/rollback.ts";
 import * as pickups from "#db/shipping/pickups/repo.ts";
 import * as shipments from "#db/shipping/shipments/repo.ts";
-
 
 beforeAll(async () => {
   assert.equal(

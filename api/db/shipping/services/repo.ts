@@ -1,4 +1,3 @@
-// shipping.services. Three columns alias back to exchange's names (see sql/get_all.sql) - the wire shape must not change.
 import query from "#shared/db/query.ts";
 import { buildUpdate } from "#shared/db/patch.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
@@ -21,7 +20,6 @@ export async function getOne(id: string, executor?: Executor): Promise<CarrierSe
   return rows[0];
 }
 
-// The insurance ceiling per service, for one carrier - read on its own, not folded into the row reads.
 export async function getInsuranceCeilings(
   carrier_id: string, executor?: Executor
 ): Promise<InsuranceCeiling[]> {
@@ -38,7 +36,6 @@ export async function getByCarrier(
   return rows;
 }
 
-// created_by/updated_by are NOT fields here - public.audit_stamp writes both from the connection's actor.
 export async function create(
   row: CarrierServiceWrite & Pick<CarrierService, "id">, executor?: Executor
 ): Promise<CarrierServiceRead> {
@@ -56,13 +53,6 @@ export async function create(
   return rows[0];
 }
 
-// created_by/updated_by are NOT part of the patch - audit_stamp writes both from the connection's actor.
-// A key PRESENT is written, a key ABSENT is left alone - the same contract every other update() in this codebase keeps.
-// The columns a create or edit supplies; RETURNING below preserves the wire's aliased names.
-// THE COLUMNS, FROM THE CONTRACT (ruling 64) - through the ONE map of the
-// three legacy spellings this table keeps. `CarrierServicePatch` is the wire's
-// field list, so `supports_pickup` there is `supports_pickups` here; RETURNING
-// below aliases the same three back on the way out. The id is the WHERE key.
 const COLUMN_OF: Record<string, string> = {
   supports_pickup: "supports_pickups",
   supports_dropoff: "supports_dropoffs",
@@ -99,9 +89,6 @@ export async function remove(id: string, executor?: Executor): Promise<boolean> 
   return rowCount === 1;
 }
 
-// The sale delivery options: the business's carrier-agnostic priced rows - a
-// projection with no carrier flags or legacy aliases. `SaleShippingService` IS
-// get_sale_options.sql's projection.
 export async function getSaleOptions(executor?: Executor): Promise<SaleShippingService[]> {
   const { rows } = await query<SaleShippingService>(sql("get_sale_options"), [], executor);
   return rows;

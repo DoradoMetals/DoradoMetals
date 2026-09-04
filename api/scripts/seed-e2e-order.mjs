@@ -1,26 +1,3 @@
-// Seeds ONE disposable purchase order for the Playwright admin drawer spec.
-//
-// WHY NOT THE REAL ENDPOINT. `place()` calls world.buyPostage unconditionally,
-// and the LIVE world buys a real FedEx label - an outside-world side effect a
-// test suite must never mint. `place(checkout_id, world)` takes the World as
-// an injectable seam precisely so a caller can run the same row-writing with
-// no provider reachable; this script primes the SAME checkout row the stepper
-// primes and calls `place` with a fake World, for the E2E customer.
-//
-// WRITES COMMIT, NATIVE SCHEMA ONLY (D210/D212) - the same rows the live path
-// writes, so the seeded order is real-shaped everywhere the admin drawer
-// looks. The order belongs to e2e-customer@example.invalid, carries an
-// e2e-labelled address, and the spec that consumes it CANCELS it as its final
-// act, so what accumulates in dev is legible, terminal, and owned by the E2E
-// account. (The native purge for cancelled orders is the standing
-// purgeCancelled port - these rows are more fuel for doing it.)
-//
-// NO BANK NUMBERS, deliberately: the payout step is primed as ECHECK to the
-// e2e address's own email, so nothing is sealed and nothing plaintext ever
-// enters a seed.
-//
-// Prints one JSON line: {"order_id": "...", "number": N}. Everything else goes
-// to stderr so a consumer can parse stdout whole.
 process.env.NODE_ENV = "test";
 
 import "#env";
@@ -32,12 +9,6 @@ import * as fulfillmentService from "#domain/fulfillments/service.ts";
 import * as addressService from "#domain/places/addresses/service.ts";
 import { place } from "#domain/orders/place.ts";
 
-// THE FAKE WORLD: buyPostage answers a null-tracking, null-label postage with
-// an unconfirmed FRONT pickup - the same fixture the old recordPlacedPurchase
-// call built by hand - and confirm/authorize are no-ops, so nothing outside
-// the database is ever touched. `place`'s purchase path never calls
-// `authorize` (that is the sale side); it stays here only because World
-// requires all three.
 const world = {
   async buyPostage() {
     return {
@@ -50,10 +21,6 @@ const world = {
   async authorize() {},
   async confirm() {},
 };
-// NOT imported from seed-e2e-users.mjs: that file is a script, not a module -
-// importing it for the constant RUNS it, and it ends the shared pool on its
-// way out, which killed this script's own queries. The values mirror its
-// E2E_USERS.customer and must stay in step with it.
 const E2E_CUSTOMER = { email: "e2e-customer@example.invalid", name: "E2E Customer" };
 
 const { rows: users } = await query(`SELECT id FROM exchange.users WHERE email = $1`, [
@@ -65,10 +32,6 @@ if (!users.length) {
 }
 const user_id = users[0].id;
 
-// Any product will do as the order's one line - the sell side has no gate
-// (ruling 49) - the drawer prices it from live spots either way. The basket is
-// keyed by ID (ruling 50/43): the server copies the product's metal, weights,
-// purity and content onto the line itself.
 const { rows: products } = await query(
   `SELECT id FROM products.bullion ORDER BY name LIMIT 1`
 );
@@ -77,9 +40,6 @@ if (!products.length) {
   process.exit(1);
 }
 
-// A real LABEL service (a carrier's own row, not a carrier-agnostic sale
-// row), so the shipment resolves carrier_service_id and pickup composition
-// can reconstruct the carrier.
 const { rows: services } = await query(
   `SELECT id FROM shipping.services WHERE carrier_id IS NOT NULL ORDER BY name LIMIT 1`
 );
@@ -88,7 +48,6 @@ if (!services.length) {
   process.exit(1);
 }
 
-// A carrier-agnostic package the checkout offers.
 const { rows: packages } = await query(
   `SELECT id FROM shipping.packages WHERE carrier_id IS NULL ORDER BY min_weight_lb NULLS FIRST LIMIT 1`
 );
@@ -97,8 +56,6 @@ if (!packages.length) {
   process.exit(1);
 }
 
-// The schedulable purchase handoff - a CARRIER PICKUP, so the seeded order
-// carries the pickup fixture validate:wire parses GET /carrier_pickups with.
 const { rows: methods } = await query(
   `SELECT id FROM fulfillments.methods
     WHERE direction = 'purchase' AND category = 'SHIPMENT' AND type = 'CARRIER PICKUP'
@@ -109,9 +66,6 @@ if (!methods.length) {
   process.exit(1);
 }
 
-// Find-or-create: one stable address for every seeded order. Minting one per
-// run grew the e2e customer's address list until an unrelated account-page
-// assertion drowned in them.
 const { rows: existingAddr } = await query(
   `SELECT id FROM exchange.addresses
    WHERE user_id = $1 AND name = 'e2e-order-seed' LIMIT 1`,
@@ -134,12 +88,6 @@ const address = existingAddr.length
   user_address: { label: 'e2e-order-seed' },
 });
 
-// Prime the checkout exactly as the stepper does: the draft fulfillment, its
-// PARCEL's choices (rulings 69/70, migration 128 - the box, the service, the
-// origin and the courier slot are its columns, not the checkout row's), the
-// payout account, the basket line. The parcel's weight and declared value are
-// the server's (ruling 58) - `place` computes both from the basket and the
-// package chosen above.
 const { id: checkout_row_id } = await checkoutService.getRowFor(user_id, "purchase");
 const draft = await fulfillmentDrafts.createForCheckout(
   { checkout_id: checkout_row_id, method_id: methods[0].id }, user_id, false
@@ -162,13 +110,8 @@ await checkoutService.replaceItems(user_id, "purchase", [
   { bullion_id: products[0].id, quantity: 1 },
 ]);
 
-// The checkout row the priming above just wrote. `place` reads it by id.
 const { id: checkout_id } = await checkoutService.getRowFor(user_id, "purchase");
 
-// The one door orders are placed through, with the fake World: rows only, no
-// FedEx call reachable. A null label is a real state (labels are voided and
-// reissued); the pickup is recorded unconfirmed, which is also real
-// (bookings confirm asynchronously).
 const order = await place(checkout_id, world);
 
 console.log(JSON.stringify({ order_id: order.order.id, number: order.order.number ?? null }));

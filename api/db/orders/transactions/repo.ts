@@ -1,5 +1,3 @@
-// orders.transactions - CRUD only. WHAT ONE ORDER CAME TO; not the customer's
-// credit BALANCE, which is payments/transactions. Two things, one word.
 import { randomUUID } from "node:crypto";
 import query from "#shared/db/query.ts";
 import { buildUpdate } from "#shared/db/patch.ts";
@@ -10,7 +8,6 @@ import { OrderTotals, OrderTotalsWrite } from "@dorado/contracts";
 import type { Direction, OrderTotalsPatch } from "@dorado/contracts";
 
 const sql = sqlFrom(import.meta.dirname);
-
 
 export async function getFor(
   order_id: string, executor?: Executor
@@ -27,21 +24,6 @@ export async function getMany(
   return rows;
 }
 
-// ONE UPDATE, KEYED BY ORDER. Every amount is NULLABLE AND NULL IS MEANINGFUL -
-// "no longer priced" is what clearing pricing writes - so buildUpdate's
-// absent/null/value distinction is load-bearing.
-//
-// The direction guard is evaluated IN THE STATEMENT: a payout-fee waiver is a
-// purchase fact and a sale must answer "not written". It is a cross-table
-// EXISTS, which buildUpdate's WHERE cannot spell, so it is appended.
-// "shipping" joined this list for the label-after-commit rewrite: the row is
-// created with it NULL (the quote is bundled with the label purchase, and that
-// now happens AFTER the write - domain/shipping/labels.ts), so the AFTER step
-// patches it in once the carrier has answered.
-// THE COLUMNS, FROM THE CONTRACT (ruling 64) - `OrderTotalsWrite`. A pick
-// rather than an omit because most of this table is NOT writable through here:
-// the customer-facing subtotals are derived at placement and rewritten by
-// finalize-pricing.
 const PATCHABLE = columnsOf(OrderTotalsWrite);
 
 export async function update(
@@ -59,8 +41,6 @@ export async function update(
   });
   if (!built) return true;
 
-  // buildUpdate hands back a fresh array each call, so the guard's parameter is
-  // pushed onto it rather than onto a copy of it.
   let { text } = built;
   const { values } = built;
   if (guard.direction) {
@@ -76,9 +56,6 @@ export async function update(
   return rowCount === 1;
 }
 
-// WHAT A PURCHASE COMES TO AT PLACEMENT: the payout ACCOUNT is the checkout
-// row's, so the statement copies it (ruling 66); the payout method's flat fee
-// is a figure the server looked up, so it is a parameter.
 export async function createForCheckout(
   { order_id, checkout_id, payout_fee }:
     { order_id: string; checkout_id: string; payout_fee: number },
@@ -90,8 +67,6 @@ export async function createForCheckout(
   return rows[0];
 }
 
-// A SALE'S TOTALS, every figure of which the pricing service decided - there
-// is nothing to copy, so this is the one create that still binds values.
 export async function create(row: OrderTotalsPatch, executor?: Executor): Promise<void> {
   await query(
     sql("create"),

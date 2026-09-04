@@ -1,45 +1,3 @@
-// NO HAND-LISTED COLUMN ARRAYS, AND NO ROW ALIASES. Ruling 64 (Jacob,
-// 2026-09-04): *"Why do we have to reference arrays of columns so much? That
-// shouldn't be a thing."*
-//
-// *** THE SHAPE. *** A repo that writes
-//
-//     export const PATCHABLE = ["name", "phone", "email", ...] as const;
-//
-// has declared the table a second time. The first declaration is the database,
-// and @dorado/contracts generates one zod schema per table FROM
-// information_schema - so the second one is a copy that nothing compares
-// against the original. It goes stale silently: a column renamed in a migration
-// leaves a whitelist entry naming a column that no longer exists, and every
-// patch through it keeps passing because the key is simply never present.
-//
-// The derivation says the same thing and cannot drift:
-//
-//     export const PATCHABLE = columnsOf(LeadPatch);
-//     export const PATCHABLE = columnsOf(Order.omit({ id: true, user_id: true, ... }));
-//
-// A `.pick()` / `.omit()` names the columns too - but as KEYS OF A SCHEMA,
-// which zod types against the shape, so naming a column the table does not
-// have is a typecheck failure rather than a string nobody reads.
-//
-// *** AND THE ALIASES. *** `export type LeadRow = Lead;` is the same defect in
-// miniature (rulings 60-61: the row IS `Lead`). It gives one type two names,
-// so half the code imports the row from a repo and half from the contracts
-// package, and a reader has to check they are still the same thing.
-//
-// *** WHAT IT DOES NOT CLAIM. *** This is a text scan, not a type checker. An
-// array is a finding only when EVERY member is a column of ONE contract row -
-// two or more members, so `["id"]`, `["purchase", "sale"]` and a list of
-// statuses are not findings. It cannot see a column list built by a helper, and
-// it does not try: the point is the shape a reader meets in the file.
-//
-//   node scripts/lint-no-column-arrays.ts
-//   node scripts/lint-no-column-arrays.ts --self-test
-//
-// Exits non-zero on any unaccepted finding, on an ACCEPTED count that has moved
-// in EITHER direction, and on an ACCEPTED entry naming a file that is clean or
-// gone. Pinned from both sides like lint-no-throw-in-services' ACCEPTED: a new
-// column array fails, and fixing one fails until the number comes down with it.
 import { readFileSync, readdirSync, statSync, existsSync } from "node:fs";
 import path from "node:path";
 
@@ -47,23 +5,10 @@ const ROOT = process.env.LINT_NO_COLUMN_ARRAYS_ROOT
   ? path.resolve(process.env.LINT_NO_COLUMN_ARRAYS_ROOT)
   : path.join(import.meta.dirname, "..");
 
-// The contracts live beside the API in the workspace. A synthetic tree may
-// carry its own `contracts/` instead, which is what the self-test does - the
-// scan has to READ a schema to know what a column name is, and a run that
-// found no schemas would call every array clean.
 const CONTRACTS = existsSync(path.join(ROOT, "contracts"))
   ? path.join(ROOT, "contracts")
   : path.join(ROOT, "..", "packages", "contracts", "src");
 
-// THE LIST IS EMPTY, AND THAT IS THE FINISHED STATE. It held three files the
-// cleanup lane did not own - `db/places/addresses`, `db/places/user-addresses`
-// and `db/users` - and the places merge (2026-09-04) cleared all three: the two
-// hand-listed PATCHABLE arrays derive from `AddressWriteColumns` /
-// `UserAddressWriteColumns` now, and the three row aliases (`AddressRow`,
-// `UserAddressRow`, `UserRow`) are gone - the row is `Address`, `UserAddress`
-// and `AdminUser`, which is what rulings 60-61 say it is. The FLOOR below is
-// what proves the walk still opens files and still reads schemas; an empty map
-// proves nothing on its own.
 const ACCEPTED: Record<string, { count: number; why: string }> = {};
 
 function walk(dir: string, out: string[] = []): string[] {
@@ -86,11 +31,6 @@ function withoutComments(src: string): string {
     .replace(/(^|[^:])\/\/[^\n]*/g, (_m, lead: string) => lead);
 }
 
-// ------------------------------------------------------------- the contracts
-
-// Every generated entity's column set, and every exported schema NAME (the
-// entities plus the hand-written picks below them - both are legitimate
-// right-hand sides of a row alias).
 const columnsByEntity = new Map<string, Set<string>>();
 const schemaNames = new Set<string>();
 
@@ -108,8 +48,6 @@ for (const file of walk(CONTRACTS)) {
   for (const m of generated.matchAll(/^\s*"([A-Za-z_][A-Za-z0-9_]*)":/gm)) columns.add(m[1]);
   if (columns.size) columnsByEntity.set(entity[1], columns);
 }
-
-// ---------------------------------------------------------------- the checks
 
 const STRING_ARRAY = /\[\s*(?:"[^"\n]*"|'[^'\n]*')(?:\s*,\s*(?:"[^"\n]*"|'[^'\n]*'))*\s*,?\s*\]/g;
 const ROW_ALIAS = /(?:export\s+)?type\s+(\w*Row)\s*=\s*(\w+)\s*;/g;
@@ -151,13 +89,9 @@ function findingsIn(rel: string, raw: string): Finding[] {
   return out;
 }
 
-// ------------------------------------------------------------------ self-test
-
 if (process.argv.includes("--self-test")) {
   const { selfTest } = await import("./lib/self-test-harness.ts");
   const LOW = { LINT_NO_COLUMN_ARRAYS_FLOOR: "1", LINT_NO_COLUMN_ARRAYS_TABLES: "1" };
-  // A synthetic contracts package: one generated entity, so the scan has real
-  // column names to compare against.
   const contract =
     "// generated:start\n" +
     "export const Widget = z.object({\n" +
@@ -168,9 +102,6 @@ if (process.argv.includes("--self-test")) {
     "});\n" +
     "// generated:end\n" +
     "export const WidgetPatch = Widget.pick({ name: true, colour: true });\n";
-  // No import in the fixture on purpose: lint:imports reads every specifier in
-  // every scripts/ file, this one included, so a path written here would be an
-  // unresolved import in real source.
   const clean = "export const PATCHABLE = columnsOf(WidgetPatch);\n";
 
   await selfTest({
@@ -272,13 +203,9 @@ if (process.argv.includes("--self-test")) {
   });
 }
 
-// ----------------------------------------------------------------- the run
-
 const SYNTHETIC = Boolean(process.env.LINT_NO_COLUMN_ARRAYS_ROOT);
 const files = [...walk(path.join(ROOT, "db")), ...walk(path.join(ROOT, "domain"))];
 
-// A scan that read no schemas cannot tell a column name from any other string,
-// and would call the whole tree clean.
 const TABLES_FLOOR = Number(process.env.LINT_NO_COLUMN_ARRAYS_TABLES ?? 40);
 if (columnsByEntity.size < TABLES_FLOOR) {
   console.error(

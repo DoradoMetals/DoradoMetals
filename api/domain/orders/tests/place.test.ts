@@ -1,12 +1,3 @@
-// A checkout ROW becomes an order, through the ONE DOOR (D214 item 11).
-//
-// The three seams are gone - createFromCheckout, resolvePurchase and
-// recordPurchase were exported so the row flow could be asserted with no
-// provider reachable, and a use case does not owe its tests a private entrance.
-// These drive `place(checkout_id, world)` instead, with the two calls that
-// leave the building stubbed AT THE PROVIDER BOUNDARY: shared/testing/
-// no-network.ts refuses a real one loudly, so the stub says what the carrier
-// answered rather than asking it.
 import { test, afterAll } from "vitest";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
@@ -21,14 +12,6 @@ import {
   packageId as builtPackageId, carrierServiceId, fulfillmentMethodId,
 } from "#shared/testing/builders/index.ts";
 
-// THE CUSTOMER AND THEIR ADDRESS ARE BUILT (lane 1); the three seeded
-// reference rows are NAMED. This joined auth.users to places.user_addresses
-// for "a non-admin with an address" - a real person, whose address the
-// placement then snapshots and whose parcel it books - and took the package,
-// the service and the method by LIMIT 1 on tables whose rows are literals of
-// migration 047.
-//
-// Resolved inside the pin, per test, because that is where the placement runs.
 let customer: string;
 let addressId: string;
 let packageId: string;
@@ -50,10 +33,6 @@ afterAll(async () => {
   await pool.end();
 });
 
-// THE SEAM IS THE PARCEL'S ID NOW (ruling 67): buying a label is
-// domain/shipping/labels.ts' job and placement only asks it to, by shipment
-// id, once its own transaction has committed. A stub that records what it was
-// asked about is all this file needs.
 const carrierAnswers = (): typeof place.LIVE & { labelled: string[] } => {
   const labelled: string[] = [];
   return Object.assign(
@@ -77,14 +56,10 @@ const GOLD: ScrapItem = {
   purity: 0.9999, content: 9.4991, unit: "g", premium: 0.8,
 };
 
-// Prime the checkout ROW the way the stepper does: every choice an id on the
-// row, every line a checkout.items row, the draft a real fulfillment.
 async function primeCheckout(
   c: PoolClient,
   {
     items = [GOLD] as ScrapItem[],
-    // Bullion lines, by catalogue id - a purchase cart carries the product's
-    // own bid premium and the placement must NOT honour it.
     products = [] as { id: string; quantity?: number; premium?: number | null }[],
     withFulfillment = true,
   } = {}
@@ -94,9 +69,6 @@ async function primeCheckout(
      VALUES ($1, 'Row Flow Test', '6789') RETURNING id`,
     [customer]
   );
-  // THE CHOICES ARE THE DRAFT'S NOW (rulings 69/70, migration 128): a draft is
-  // born with its parcel shell and the stepper patches the box, the service and
-  // the origin address onto that, never onto the checkout row.
   const draft = withFulfillment
     ? await fulfillmentService.createDraft(
         { method_id: dropoffMethodId, direction: "purchase" }, c
@@ -155,8 +127,6 @@ async function primeCheckout(
   return co.id;
 }
 
-// Placing an order writes orders.*, checkout.*, fulfillments.* AND snapshots
-// into places.addresses, so this file takes both lock groups.
 const inPinned = <T,>(fn: (c: PoolClient) => Promise<T>): Promise<T> =>
   inPinnedTransaction(fn, { actor: TEST_ACTOR.id, lock: [LOCKS.ORDERS, LOCKS.ADDRESSES] });
 
@@ -178,8 +148,6 @@ test("a checkout becomes an order with its items and its fulfillment", async () 
     assert.equal(items.length, 1);
     assert.equal(Number(items[0].purity), 0.9999, "the rounding 058 fixed must not come back");
     assert.equal(Number(items[0].content), 9.4991);
-    // NOT the 0.8 the row carried. The premium a customer is paid comes from
-    // the rates table, not from their browser.
     assert.notEqual(Number(items[0].premium), 0.8, "the browser's premium survived");
     assert.ok(Number(items[0].premium) > 0, "the line was left with no premium at all");
     assert.ok(items[0].metal_id, "orders.items.metal_id is NOT NULL");
@@ -193,9 +161,6 @@ test("a checkout becomes an order with its items and its fulfillment", async () 
     assert.equal(f[0].type, "CARRIER DROPOFF");
     assert.equal(f[0].category, "SHIPMENT");
 
-    // Born with its engagement and the refiner counterparts (093's invariants):
-    // one refiners.orders row, one refiners.items row per line, a refiners.spots
-    // row per frozen spot.
     const { rows: eng } = await c.query(
       `SELECT id FROM refiners.orders WHERE order_id = $1`, [order.order.id]
     );
@@ -217,10 +182,6 @@ test("a checkout becomes an order with its items and its fulfillment", async () 
   });
 });
 
-// THE NUMBER IS NATIVE SINCE D213. What has to hold is that the counter
-// advances and never hands out a number a customer has already seen - on EITHER
-// side, because exchange's numbers are frozen history that appears in old
-// emails and PDFs. 115 seeded past all of them; this proves it stayed past.
 test("the order number comes from the native sequence and collides with nothing", async () => {
   await inPinned(async (c: PoolClient) => {
     await aWorld(c);
@@ -232,14 +193,10 @@ test("the order number comes from the native sequence and collides with nothing"
       Number(after[0].last_value) > Number(before[0].last_value),
       "the sequence did not advance - two orders could take the same number"
     );
-    // Not `number === last_value`: a sequence is non-transactional and other
-    // tests draw from it concurrently.
     assert.ok(
       Number(order.order.number) > Number(before[0].last_value),
       "the number drawn is not above where the sequence started"
     );
-    // orders.orders alone: the exchange half of this check counted rows in a
-    // table D212 stopped writing, so it could only ever have been zero.
     const { rows: clash } = await c.query(
       `SELECT count(*) AS n FROM orders.orders
         WHERE direction = 'purchase' AND number = $1 AND id <> $2`,
@@ -249,8 +206,6 @@ test("the order number comes from the native sequence and collides with nothing"
   });
 });
 
-// A snapshot, not a reference. Editing an address afterwards must not rewrite
-// where a parcel was sent.
 test("the order takes a copy of the address, not a pointer to it", async () => {
   await inPinned(async (c: PoolClient) => {
     await aWorld(c);
@@ -296,13 +251,6 @@ test("spots are frozen per metal the order actually contains", async () => {
   });
 });
 
-// THE PARCEL IS THE DRAFT'S OWN ROW (rulings 69/70, migration 128), already
-// holding the box, the service and the origin the customer chose; what
-// placement adds is what only an order can decide - the handoff and the insured
-// amount. The label columns are what the carrier has not been asked for yet:
-// buying one is domain/shipping/labels.ts' job, AFTER this commit (ruling 67),
-// so a stubbed placement leaves them null by design - which is exactly what
-// makes the retry surface a real one.
 test("the parcel is sealed at placement holding what the customer chose", async () => {
   await inPinned(async (c: PoolClient) => {
     await aWorld(c);
@@ -323,23 +271,16 @@ test("the parcel is sealed at placement holding what the customer chose", async 
     assert.equal(shipment.shipping_status, null);
     assert.equal(shipment.cost, null);
     assert.equal(shipment.insured, true);
-    // Computed from the checkout's own priced lines now (ruling 58), not a
-    // fixed row value - a live spot and rate band, not a number this test
-    // controls.
     assert.ok(Number(shipment.declared_value) > 0, "the parcel carries no declared value");
     assert.equal(shipment.package_id, packageId);
     assert.equal(shipment.carrier_service_id, labelServiceId);
     assert.equal(shipment.pickup_type, "Store Dropoff");
     assert.equal(shipment.direction, "Inbound");
 
-    // And THAT is the parcel shipping was asked to label, once the order had
-    // committed - the whole point of label-after-commit.
     assert.deepEqual(world.labelled, [shipment.id]);
   });
 });
 
-// An order silently missing a line is worse than an order that failed: the
-// customer's metal arrives and nothing recorded that it was coming.
 test("an item whose metal cannot be resolved fails the order rather than being dropped", async () => {
   await inPinned(async (c: PoolClient) => {
     await aWorld(c);
@@ -350,19 +291,9 @@ test("an item whose metal cannot be resolved fails the order rather than being d
   });
 });
 
-// JACOB, 2026-09-03: "PURCHASE BULLION DOES NOT take its product bid premium.
-// It comes from rates as well." The cart line carries the catalogue figure and
-// placement overwrites it with the band, exactly as it always has for scrap.
 test("a placed bullion line takes the rate band, not the premium the cart carried", async () => {
   await inPinned(async (c: PoolClient) => {
     await aWorld(c);
-    // A GOLD PRODUCT WHOSE OWN PREMIUM IS NOT ITS BAND, BUILT (lane 1). This
-    // hunted the catalogue with a lateral join for one that happened to differ
-    // and then said "no gold product is off its band - this check would be
-    // vacuous" if it found none. The band is read for ONE product's content
-    // rather than searched across all of them, and the fixture's own premium
-    // is then set deliberately away from it - so the assertion can never be
-    // vacuous, on any database.
     const built = await aProduct(c, { metal: "Gold", content: 1, bid_premium: 1.5 });
     const { rows: [band] } = await c.query<{ bullion_pct: string }>(
       `SELECT r.bullion_pct FROM rates.rates r
@@ -413,9 +344,6 @@ test("an empty checkout cannot become an order", async () => {
   });
 });
 
-// Placing an order touches six tables. Any one of them surviving a rollback is
-// a row nothing points at and nobody would ever look for - and reading it from
-// inside the transaction proves nothing, since a test reads its own writes.
 test("an order, its fulfillment and its parcel roll back together", async () => {
   let order_id = "";
   await inPinned(async (c: PoolClient) => {

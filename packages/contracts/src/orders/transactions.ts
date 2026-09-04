@@ -38,11 +38,6 @@ export const OrderTotals = z.object({
 export type OrderTotals = z.infer<typeof OrderTotals>;
 // generated:end
 
-// Hand-written derivations go here: Patch, named reads.
-
-// WHAT ONE ORDER CAME TO, as a write. The audit columns are the `audit_stamp`
-// trigger's and the id is the key, so everything else is nameable - a create
-// and an update take the same document (there is no `New<Entity>`).
 export const OrderTotalsPatch = OrderTotals.omit({
   id: true,
   created_by: true, updated_by: true, created_at: true, updated_at: true,
@@ -50,12 +45,6 @@ export const OrderTotalsPatch = OrderTotals.omit({
 }).partial();
 export type OrderTotalsPatch = z.infer<typeof OrderTotalsPatch>;
 
-// The nine columns an UPDATE may touch after placement. Most of this table is
-// not patchable through there: the customer-facing subtotals are derived at
-// placement and rewritten by finalize-pricing. `shipping` and
-// `shipping_service` are on the list because the label is bought AFTER the
-// placement commits (label-after-commit, 2026-09-03), so the carrier's answer
-// arrives as a patch.
 export const OrderTotalsWrite = OrderTotals.pick({
   total: true, shipping: true, shipping_service: true, shipping_fee_actual: true,
   refiner_fee: true, pool_oz_deducted: true, pool_remediation: true,

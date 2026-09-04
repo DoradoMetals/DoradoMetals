@@ -1,7 +1,3 @@
-// refiners.refiners, against real Postgres. READ ONLY - repo.ts's own
-// header: deliberately no create/update/remove, since name/email/phone belong
-// to the organization. What this proves: a real seeded refiner resolves, and
-// an id nothing seeded does not.
 import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";

@@ -1,9 +1,6 @@
 import axios from 'axios';
 import { requiredEnv } from '#shared/env/required.ts';
 
-// The score a v3 token must beat. Not `parseFloat(x || '0.5')` any more — that only defaults for UNSET; a present-but-unreadable value fails silently two ways: "high" -> NaN (every comparison false, every human refused, no reason logged) or "0,7" -> 0 (parseFloat stops at the comma, threshold becomes zero, captcha effectively OFF).
-// The second case is the one that matters — a locked-out sign-in gets reported within the hour; a captcha that passes everything looks exactly like one that works.
-// So: parse the WHOLE string or reject it (Number() refuses "0,7" but reads ""/" " as 0, hence trim-and-reject-empty first), and reject anything outside 0..1 (v3 scores only ever fall there). Falls back rather than throwing — locking out the site is worse than ignoring a typo — but warns first, naming the variable, never its value.
 export function scoreThreshold(): number {
   const raw = process.env.RECAPTCHA_THRESHOLD;
   if (raw === undefined) return DEFAULT_THRESHOLD;

@@ -1,5 +1,3 @@
-// Strict body parsing at the transport boundary (D214 item 3): an unknown key
-// or a wrong-typed value is a 400 before the service runs.
 import { test, afterAll } from "vitest";
 import assert from "node:assert/strict";
 import request from "supertest";

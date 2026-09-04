@@ -1,6 +1,3 @@
-// The API's structured logger, one instance, imported everywhere a console.log used to be typed.
-// Never logs bank details or session cookies, by construction — the http middleware serializes only method/url/status/duration, and the redact list scrubs credential-bearing headers if anything ever logs a raw req. CLAUDE.md's 'never log bank details' rule is enforced structurally here, not by every call site remembering.
-// LOG_LEVEL wins; tests are silent; production defaults to info; dev pretty-prints.
 import pino from "pino";
 
 const level =

@@ -22,15 +22,6 @@ export const RefinerItem = z.object({
 });
 export type RefinerItem = z.infer<typeof RefinerItem>;
 // generated:end
-// PATCH /api/refiners/items/by-order-item/:orderItemId - the refinery's
-// report on one customer line. EVERY FIELD IS NULLABLE HERE and that is not
-// an oversight: an assay figure that is not yet known is null, the admin
-// drawer clears an input to exactly that, and the service reads the current
-// row and merges the document over it - so a null means "not measured" rather
-// than "leave alone".
-//
-// `content` is DELIBERATELY not a field: it is derived from post_melt (or
-// pre_melt) and purity, and the service refuses a raw override by name.
 export const RefinerItemPatch = RefinerItem.pick({
   premium: true,
   pre_melt: true,
@@ -39,4 +30,3 @@ export const RefinerItemPatch = RefinerItem.pick({
   unit: true,
 }).partial().strict();
 export type RefinerItemPatch = z.infer<typeof RefinerItemPatch>;
-

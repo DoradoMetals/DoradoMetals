@@ -1,5 +1,3 @@
-// The reviews repo itself, against real Postgres.
-// The one thing worth proving directly rather than through HTTP: `update` answers THE WRITTEN ROW - undefined for an id nobody has, the fresh row for one that changed.
 import { test } from "vitest";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";

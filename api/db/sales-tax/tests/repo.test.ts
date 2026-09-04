@@ -1,16 +1,3 @@
-// db/sales-tax/repo.ts, against real Postgres. No create/update/remove of its
-// own to prove false-on-missing/true-on-real against - tax.sales_tax is one
-// row per US state, seeded once and never created or deleted at runtime (see
-// repo.ts's own header). What it DOES write is `accrue`, an UPDATE scoped to
-// `reached_nexus = true` - a state below its threshold matches no row on
-// purpose (repo.ts: "the correct outcome, not an error"), so THIS is the
-// false-on-missing/true-on-real shape for this table: accrue changes the row
-// when nexus is reached and silently changes nothing when it is not.
-//
-// A real state is TOGGLED here rather than discovered: which of the fifty
-// happens to have reached_nexus true today is data, not a fact this test
-// should depend on (see shared/testing/builders/reference.ts's own rule about
-// discovery vs a fixture's own literal).
 import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";

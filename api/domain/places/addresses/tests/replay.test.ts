@@ -1,6 +1,3 @@
-// The addresses endpoints, over real HTTP - route, guard, controller and service together, since that's where this migration's bugs actually lived.
-// REST since the places lane: the verb is the method, the address is named once in the path, and ONE read answers the book (the postal row, the caller's link and what may be done to it) where two used to be joined in the browser.
-// NOTHING IS COMMITTED: pinned-pool.ts rolls back every query; the last test asserts that from outside the transaction.
 import { test, afterAll } from "vitest";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
@@ -11,11 +8,9 @@ import { TEST_ACTOR } from "#shared/testing/actor.ts";
 import { inPinnedTransaction, assertNothingEscaped } from "#shared/testing/pinned-pool.ts";
 import { anId, aUser, anAdmin, anAddress, type BuiltUser } from "#shared/testing/builders/index.ts";
 
-// The patch replaces a property the middleware looks up per request, so order relative to importing #app doesn't matter - done first for legibility.
 await mockSessions();
 const { default: app } = await import("#app");
 
-// The one wire shape this file reads.
 type WireEntry = {
   address: { id: string };
   user_address: { address_id: string; recipient_name: string | null; default_shipping: boolean };
@@ -24,12 +19,9 @@ type WireEntry = {
 
 const created: string[] = [];
 
-// Addresses have their own lock group - sharing one with the orders tests made this wait behind whole order placements for nothing.
 import { LOCKS } from "#shared/testing/locks.ts";
 const ADDRESS_LOCK = LOCKS.ADDRESSES;
 
-// `as()` wants a session shape - named rather than spread, same reasoning
-// session.ts gives for asAdmin/asUser.
 const sessionOf = (u: BuiltUser, role = "user") => ({ id: u.id, name: u.name, email: u.email, role });
 
 afterAll(async () => {
@@ -37,10 +29,6 @@ afterAll(async () => {
   await pool.end();
 });
 
-// The exact body frontend/features/addresses/queries.ts sends on create: the postal address and the caller's relationship travel as siblings, one call, never nested.
-// is_valid/is_residential are NOT fields of the write body any more (they
-// are server-controlled - create.sql hard-codes them, validation sets the
-// real values through a different write entirely): naming either is now a 400.
 const newAddress = (over = {}) => ({
   address: {
     line_1: "1 Replay Street",
@@ -60,8 +48,6 @@ const newAddress = (over = {}) => ({
   },
 });
 
-// Nothing here reaches a repo (the guard refuses before any lookup), so the
-// named id needs only to be shaped like one.
 test("an anonymous request is refused before it reaches a controller", async () => {
   await inPinnedTransaction(async () => {
     await anonymous(async () => {
@@ -83,8 +69,6 @@ test("a signed-in customer gets their book as entries, each carrying its own act
       assert.ok(Array.isArray(res.body), "the book is a list");
       assert.ok(res.body.length > 0, "the built user has an address and none came back");
 
-      // THE TWO ROWS STAY APART, and the third key is the decision neither of
-      // them holds.
       const entry: WireEntry = res.body[0];
       assert.deepEqual(Object.keys(entry).sort(), ["actions", "address", "user_address"]);
       for (const field of ["id", "line_1", "city", "state", "zip", "country_code"]) {
@@ -118,7 +102,6 @@ test("creating an address answers 201 and the entry it made", async () => {
         "the recipient was lost");
       assert.equal(saved.user_address.address_id, saved.address.id, "the halves do not join");
       assert.ok(saved.address.id, "no id came back, so the frontend cannot select it");
-      // THE FIRST ADDRESS IN A BOOK IS THE DEFAULT, whatever the body asked.
       assert.equal(saved.user_address.default_shipping, true);
 
       const back = await request(app).get("/api/addresses");
@@ -133,9 +116,6 @@ test("creating an address answers 201 and the entry it made", async () => {
 test("setting a default clears the others, as one request", async () => {
   await inPinnedTransaction(async (c) => {
     const owner = await aUser(c);
-    // Two addresses, one already NOT the default - otherwise the fallback
-    // below would target the sole (already-default) row and the request
-    // would be a no-op that still reports success.
     await anAddress(c, owner, { default_shipping: true });
     await anAddress(c, owner, { default_shipping: false });
     const customer = sessionOf(owner);
@@ -144,7 +124,6 @@ test("setting a default clears the others, as one request", async () => {
       const list = await request(app).get("/api/addresses");
       const target: WireEntry =
         list.body.find((e: WireEntry) => !e.user_address.default_shipping) ?? list.body[0];
-      // The action and the refusal are the same fact.
       assert.equal(target.actions.set_default, true, "the entry did not offer to become the default");
 
       const res = await request(app).post(`/api/addresses/${target.address.id}/default`);
@@ -159,7 +138,6 @@ test("setting a default clears the others, as one request", async () => {
   }, { actor: TEST_ACTOR.id, lock: ADDRESS_LOCK });
 });
 
-// Every test above passed the same user_id as the session, so none could tell whether the endpoint used the session or obeyed the request. It obeyed the request: a customer naming somebody else could read their address book.
 test("a signed-in customer naming somebody else gets their own addresses", async () => {
   await inPinnedTransaction(async (c) => {
     const caller = await aUser(c);
@@ -175,8 +153,6 @@ test("a signed-in customer naming somebody else gets their own addresses", async
         res.body.every((e: WireEntry) => !("user_address" in e.address)),
         "sanity - the split holds on this path too"
       );
-      // Their own (one address), not the victim's (two) - compared by count,
-      // since an empty array would pass either way if the caller had none.
       assert.equal(
         res.body.length,
         1,
@@ -186,7 +162,6 @@ test("a signed-in customer naming somebody else gets their own addresses", async
   }, { actor: TEST_ACTOR.id, lock: ADDRESS_LOCK });
 });
 
-// An admin naming a user is legitimate (the customer drawer does it) - the rule is "your own unless you are an admin", and this half has to keep working too.
 test("an admin may still read another user's addresses", async () => {
   await inPinnedTransaction(async (c) => {
     const admin = await anAdmin(c);
@@ -202,7 +177,6 @@ test("an admin may still read another user's addresses", async () => {
   }, { actor: TEST_ACTOR.id, lock: ADDRESS_LOCK });
 });
 
-// The property the whole harness exists for: if the pin ever stops working, every test above still passes - they read their own writes either way.
 test("nothing this file created survived the transaction", async () => {
   assert.ok(created.length > 0, "no address was created, so this proves nothing");
   for (const name of created) {

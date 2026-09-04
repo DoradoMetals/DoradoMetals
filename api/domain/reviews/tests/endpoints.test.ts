@@ -1,6 +1,3 @@
-// Reviews over real HTTP, through the router the app mounts.
-// Drives the whole stack - route, guard, controller, service, repo - because nothing below the service can tell you the write happens inside one transaction.
-// Nothing is committed: pinned-pool holds every query in one transaction that is rolled back, including the service's own, as a savepoint.
 import { test, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
@@ -22,7 +19,6 @@ beforeAll(async () => {
   assert.ok(admin && customer, "dev needs an admin and a non-admin user");
 });
 
-// Named, not spread: the fixture is only ever id/name/email plus the role the call is exercising.
 const asAdmin = <T>(fn: () => Promise<T> | T) =>
   as({ id: admin.id, name: admin.name, email: admin.email, role: "admin" }, fn);
 const asCustomer = <T>(fn: () => Promise<T> | T) =>
@@ -54,15 +50,6 @@ test("create writes the row the id names", async () => {
   }, { actor: TEST_ACTOR.id });
 });
 
-// Proves the read is LIVE, not a stale or cached copy.
-//
-// This used to also write exchange.reviews with a different sentinel, to
-// prove the read came from the new schema rather than the old one - a real
-// question while reviews dual-wrote both. Since D212 nothing writes
-// exchange.reviews any more (a freshly created review's id never exists
-// there at all), so that second write was a no-op affecting zero rows, not a
-// live oracle (exchange-fixtures lane, D214 item 10). What remains is still
-// worth asserting: get_one reflects a direct write to the table it owns.
 test("the read comes from reviews.reviews, not a stale copy", async () => {
   await inPinnedTransaction(async (client: PoolClient) => {
     await asAdmin(async () => {
@@ -97,7 +84,6 @@ test("update writes the row, and delete removes it", async () => {
   }, { actor: TEST_ACTOR.id });
 });
 
-// /public has no guard in front of it, so the statement is the only thing standing between an anonymous visitor and a hidden review.
 test("an anonymous visitor sees public reviews and never a hidden one", async () => {
   await inPinnedTransaction(async (client: PoolClient) => {
     let hiddenId: string;
@@ -107,7 +93,6 @@ test("an anonymous visitor sees public reviews and never a hidden one", async ()
           name: "HIDDEN FIXTURE", review_text: NEW.review_text, rating: NEW.rating, hidden: true,
         })).body.id;
     });
-    // it really is hidden in the table the public read uses
     const { rows } = await client.query(`SELECT hidden FROM reviews.reviews WHERE id = $1`, [hiddenId!]);
     assert.equal(rows[0]?.hidden, true, "the fixture is not hidden - this test would prove nothing");
 

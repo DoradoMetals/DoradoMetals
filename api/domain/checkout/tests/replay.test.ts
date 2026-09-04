@@ -1,5 +1,3 @@
-// The basket endpoints' guards. Anonymous is refused; a foreign user_id is
-// admin-only. Fixtures are self-seeded over the same HTTP surface.
 import { test, afterAll } from "vitest";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
@@ -14,8 +12,6 @@ import { anId, aUser, metalId, type BuiltUser } from "#shared/testing/builders/i
 await mockSessions();
 const { default: app } = await import("#app");
 
-// checkout.checkouts and checkout.items are written by the checkout repo
-// tests too, so this shares their group.
 const CART_LOCK = LOCKS.ORDERS;
 
 type Caller = { id: string; name: string | null; email: string | null; role: string };
@@ -25,11 +21,6 @@ afterAll(async () => {
   await pool.end();
 });
 
-// checkout.checkouts.user_id has an FK to auth.users, so the caller must be a
-// REAL row there - built fresh per test rather than discovered from
-// exchange.users, since `aUser` writes auth.users directly (and the identity
-// mirror keeps exchange.users in step, which is what the old discovery relied
-// on without saying so).
 const asCaller = (u: BuiltUser): Caller => ({ id: u.id, name: u.name, email: u.email, role: "user" });
 
 async function seedOwnerCart(client: PoolClient, owner: Caller): Promise<number> {
@@ -98,7 +89,6 @@ test("an anonymous caller cannot replace or empty a cart", async () => {
   }, { actor: TEST_ACTOR.id, lock: CART_LOCK });
 });
 
-// The read REFUSES a foreign user_id now, where it used to answer your own.
 test("a signed-in caller naming somebody else is refused, and still gets their own", async () => {
   await inPinnedTransaction(async (client: PoolClient) => {
     const owner = asCaller(await aUser(client));
@@ -117,7 +107,6 @@ test("a signed-in caller naming somebody else is refused, and still gets their o
     });
 
     await as(owner, async () => {
-      // Naming yourself is a no-op.
       const own = await request(app)
         .get("/api/checkout/items")
         .query({ direction: "purchase", user_id: owner.id });
@@ -149,7 +138,6 @@ test("a stranger cannot replace somebody else's cart by naming them", async () =
       assert.equal(res.status, 403, "a non-admin naming somebody else's basket was not refused");
     });
 
-    // The owner's cart is untouched: the sync never ran, admin-only refused it.
     assert.equal(
       await ownerCartCount(client, owner),
       seeded,

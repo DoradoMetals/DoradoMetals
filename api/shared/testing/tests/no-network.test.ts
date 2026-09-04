@@ -1,8 +1,3 @@
-// Proves shared/testing/no-network.ts, preloaded via `node --import` for
-// every lane but `test:external` (see package.json's `test` script and
-// `test:external`'s own header). Two directions, same as every guard in this
-// codebase: the block must actually block, and it must not take Postgres
-// with it.
 import { test } from "vitest";
 import assert from "node:assert/strict";
 import https from "node:https";

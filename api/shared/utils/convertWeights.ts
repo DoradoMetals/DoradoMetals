@@ -1,6 +1,3 @@
-// Mirrored — the same conversion exists in frontend/shared/utils/convertWeights.ts and as the SQL function metals.convert_to_troy_oz; mirror.test.ts and convertWeights.test.ts hold all three in step.
-// Every price here is per troy ounce, so this is where a customer's grams or pennyweight become the unit the business trades in.
-// Zero returns (unparseable number, unrecognised unit) are deliberate — a scrap line with a junk weight should price at nothing rather than take the order down; `unit` stays a plain string rather than a union so a caller's typo doesn't become a compile error far from here.
 export function convertTroyOz(num: number, unit: string): number {
   if (isNaN(num)) return 0;
   switch (unit.toLowerCase()) {
@@ -17,9 +14,6 @@ export function convertTroyOz(num: number, unit: string): number {
   }
 }
 
-// Pounds, not troy ounces - what a carrier bills a parcel by. Frontend-only
-// until ruling 58 moved parcel sizing server-side too; not in mirror.test.ts's
-// shared list because it is a unit conversion, not a price.
 export function convertToPounds(value: number, unit: string): number {
   if (isNaN(value) || value <= 0) return 0;
   return convertTroyOz(value, unit) / (453.592 / 31.1035);

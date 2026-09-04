@@ -1,35 +1,3 @@
-// Hourly backup of production, with a retention ladder.
-//
-// Designed to run as a Railway cron service, on the private network, so the
-// dump never crosses the public proxy and costs no egress.
-//
-// WHY A LADDER RATHER THAN ONE ROLLING FILE. The first spec was "hourly, delete
-// the previous one", which leaves exactly one backup at any moment. Damage that
-// goes unnoticed for an hour is then permanent, because the only backup already
-// contains it - and "nobody noticed for a few hours" is the normal case, not the
-// unlucky one. The reason to delete would be storage, and storage is not real
-// here: production is 19 MB and its custom-format dump is 1.7 MB, so the whole
-// ladder below is about 60 MB.
-//
-//   24 hourly   same-day mistakes
-//    7 daily    the week
-//    4 weekly   the month
-//
-// A file is promoted rather than re-dumped: the daily slot keeps the first
-// backup of each day, the weekly slot the first of each ISO week. So an hourly
-// file that is also the day's first is hard-linked into the daily set and
-// survives the hourly prune.
-//
-// WHAT IS IN THESE FILES. Everything, including the fourteen plaintext routing
-// and account numbers in exchange.payouts. Wherever BACKUP_DIR points inherits
-// that exposure - it is not a neutral directory.
-//
-//   node scripts/backup.mjs              take one, then prune
-//   node scripts/backup.mjs --prune-only prune without dumping
-//   node scripts/backup.mjs --list       show what is held
-//
-// Exits non-zero if the dump fails, if it looks too small to be real, or if
-// pg_dump is older than the server.
 import "#env";
 import fs from "node:fs";
 import path from "node:path";
@@ -45,10 +13,6 @@ const url = process.env[SOURCE_VAR] ?? process.env.DUMP_SOURCE_DATABASE_URL;
 
 const KEEP = { hourly: 24, daily: 7, weekly: 4 };
 
-// A dump smaller than this is a schema-only dump or a failure that still exited
-// 0. Production compresses to ~1.7 MB; 200 KB is far below anything real and
-// far above an empty archive, so it catches the failure without tripping on
-// growth in either direction.
 const MIN_PLAUSIBLE_BYTES = 200 * 1024;
 
 if (!url) {
@@ -67,8 +31,6 @@ const dbName = (() => {
   }
 })();
 
-// pg_dump must be at least the server's version - it refuses to dump a newer
-// server. Checked here rather than discovered in a cron log at 3am.
 async function pgDumpBinary() {
   const explicit = process.env.PG_DUMP;
   const candidates = explicit
@@ -81,7 +43,6 @@ async function pgDumpBinary() {
       const major = Number(/(\d+)/.exec(stdout)?.[1] ?? 0);
       if (major) return { bin, major };
     } catch {
-      // try the next one
     }
   }
   throw new Error(
@@ -125,7 +86,6 @@ function held(slot) {
 function prune() {
   for (const [slot, keep] of Object.entries(KEEP)) {
     const files = held(slot);
-    // Oldest first, so the tail is the newest `keep` of them.
     const doomed = files.slice(0, Math.max(0, files.length - keep));
     for (const f of doomed) {
       fs.unlinkSync(f.full);
@@ -173,9 +133,6 @@ async function backup() {
   }
   console.log(`wrote ${(size / 1048576).toFixed(2)} MB`);
 
-  // Promote into the daily and weekly slots when this is the first of its
-  // period. Hard-linked, so the ladder costs one copy on disk rather than three
-  // and the hourly prune cannot take the daily's file with it.
   const day = now.toISOString().slice(0, 10);
   const week = isoWeek(now);
 

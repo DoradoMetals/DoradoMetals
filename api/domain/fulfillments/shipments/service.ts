@@ -1,14 +1,9 @@
-// THE LINK between a fulfillment and a parcel: fulfillments.shipments.
-// No routes.ts/controller.ts, deliberately: this resource has exactly one consumer, another service (domain/shipping/shipments calls link() when a label is bought) - no HTTP surface needed.
-// The parcel itself belongs to domain/shipping; what lives here is that THIS fulfillment is being handed over as THAT shipment.
 import { randomUUID } from "node:crypto";
 import * as shipmentLinks from "#db/fulfillments/shipments/repo.ts";
 import * as fulfillmentService from "#domain/fulfillments/service.ts";
 import type { Executor } from "#shared/db/executor.ts";
 import type { FulfillmentShipment, FulfillmentShipmentPatch, FulfillmentView } from "@dorado/contracts";
 
-// Linking a parcel to a fulfillment. Called by domain/shipping when a label is bought.
-// READ FIRST, by shipment_id - the table's unique key, since a fulfillment may hold several parcels but a parcel belongs to exactly one fulfillment.
 export async function link(
   input:
     { fulfillment_id: string } & Pick<FulfillmentShipment, "shipment_id"> & FulfillmentShipmentPatch,

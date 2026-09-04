@@ -1,9 +1,3 @@
-// products.bullion, and nothing else.
-//
-// ONE public statement and ONE admin statement. There were eight, six of them
-// the same projection under a different WHERE; the WHERE is now a filter this
-// file builds from a closed set of keys, and the metal, mint and supplier
-// names are JOINED rather than attached by a composer afterwards.
 import query from "#shared/db/query.ts";
 import { buildUpdate } from "#shared/db/patch.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
@@ -20,24 +14,14 @@ import {
 
 const sql = sqlFrom(import.meta.dirname);
 
-// Derived from the contract, never restated (ruling 64): a column becomes
-// writable by being named in BullionPatch and nowhere else.
 export const PATCHABLE = Object.keys(BullionPatchColumns.shape) as (keyof BullionPatchColumns)[];
 
-// EVERY QUESTION THE CATALOGUE IS ASKED - BullionFilter, from the contract.
-// Absent means "do not filter"; the buy-side gate is `display: true` and the
-// sell side simply omits it (ruling 49).
-//
-// Closed set, keyed by a name the transport parses against it - no caller
-// string ever reaches the statement.
 const ORDERINGS: Record<BullionSort, string> = {
   name: "b.name ASC, b.id ASC",
   content: "b.content DESC, b.name ASC, b.id ASC",
   newest: "b.created_at DESC, b.id DESC",
 };
 
-// The predicate, built from the keys the filter carries. Only placeholder
-// numbers are interpolated; every value is bound.
 function where(f: BullionFilter): { text: string; values: unknown[] } {
   const conditions: string[] = [];
   const values: unknown[] = [];
@@ -49,15 +33,12 @@ function where(f: BullionFilter): { text: string; values: unknown[] } {
   if (f.homepage_display !== undefined) {
     conditions.push(`b.homepage_display = ${bind(f.homepage_display)}`);
   }
-  // The metal arrives as a NAME - it is joined, so there is no id to resolve.
   if (f.metal !== undefined) conditions.push(`m.name = ${bind(f.metal)}`);
   if (f.filter_category !== undefined) {
     conditions.push(`b.filter_category = ${bind(f.filter_category)}`);
   }
   if (f.type !== undefined) conditions.push(`b.type = ${bind(f.type)}`);
   if (f.is_generic !== undefined) conditions.push(`b.is_generic = ${bind(f.is_generic)}`);
-  // The search box, server-side. A term matches the product, its variant, its
-  // shape or its metal - which is what the browser's fuzzy match was reading.
   if (f.search) {
     const term = bind(`%${f.search.trim()}%`);
     conditions.push(
@@ -69,8 +50,6 @@ function where(f: BullionFilter): { text: string; values: unknown[] } {
   return { text: conditions.length ? conditions.join(" AND ") : "true", values };
 }
 
-// replaceAll, not replace - a comment naming a token verbatim would itself be
-// the first match and get substituted (this happened).
 const build = (name: string, predicate: string, ordering?: string): string => {
   const text = sql(name).replaceAll("__PREDICATE__", predicate);
   return ordering === undefined ? text : text.replaceAll("__ORDERING__", ordering);
@@ -79,8 +58,6 @@ const build = (name: string, predicate: string, ordering?: string): string => {
 export async function listFor(
   filter: BullionFilter = {}, executor?: Executor
 ): Promise<BullionStorefront[]> {
-  // An explicitly empty id list asks for nothing, and `= ANY('{}')` is a scan
-  // that answers nothing - so it is answered here instead.
   if (filter.ids?.length === 0) return [];
   const { text, values } = where(filter);
   const { rows } = await query<BullionStorefront>(
@@ -110,8 +87,6 @@ export async function getLiveness(
   return rows;
 }
 
-// The distinct shapes, for the admin dropdown. A bare list of names
-// (ruling 12), not rows.
 export async function listTypes(executor?: Executor): Promise<string[]> {
   const { rows } = await query<{ type: string }>(sql("get_types"), [], executor);
   return rows.map((row) => row.type);

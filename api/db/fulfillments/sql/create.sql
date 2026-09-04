@@ -1,4 +1,3 @@
--- Creates the fulfillment, or does nothing if the order already has one - the normal case for a retry, not an error; the service reads it back either way.
 INSERT INTO fulfillments.fulfillments (id, order_id, method_id, status)
 VALUES ($1, $2, $3, $4)
 ON CONFLICT (order_id) DO NOTHING

@@ -34,28 +34,12 @@ export type Shipment = z.infer<typeof Shipment>;
 import { Carrier } from "./carriers.js";
 import { Address } from "../places/addresses.js";
 
-// The order's parcels as ONE order's view carries them. `direction` widens to
-// text because the read casts it - it is an enum in the table and a string on
-// every wire it has ever reached.
 export const OrderViewShipment = Shipment.extend({ direction: z.string() });
 export type OrderViewShipment = z.infer<typeof OrderViewShipment>;
 
-// THE PARCEL AS A READ SERVES IT - the row without its label. `label` is bytea
-// and the driver's JSON for it runs far larger than the whole row around it,
-// so it is served by the document endpoint and never inside a view; a caller
-// that needs to know whether one exists reads ShipmentView.actions instead.
 export const ShipmentRead = OrderViewShipment.omit({ label: true });
 export type ShipmentRead = z.infer<typeof ShipmentRead>;
 
-// PATCH /api/shipments/:id - the shipment's money and its tracking pair.
-//
-// `shipping_charge` IS NOT NULLABLE, and this is one of the five decisions
-// the API/frontend drift forced. A cleared charge would be indistinguishable
-// from a zero one: every consumer reads `?? 0`. A stored fee is a record
-// (D117) - "free" is 0, and there is no third state to express.
-//
-// `tracking_number` and `carrier_id` travel together; the service refuses
-// half a pair by name.
 export const ShipmentPatch = Shipment.pick({ tracking_number: true })
   .extend({
     shipping_charge: z.number().optional(),
@@ -66,20 +50,6 @@ export const ShipmentPatch = Shipment.pick({ tracking_number: true })
   .strict();
 export type ShipmentPatch = z.infer<typeof ShipmentPatch>;
 
-// The provider calls. Every one names an ADDRESS BY ID (ruling 43); the
-// carrier is optional because one provider is configured by default.
-// THE COLUMNS A WRITE MAY TOUCH - not to be confused with `ShipmentPatch`
-// above, which is the PATCH /shipments/:id BODY (a charge, an actual cost and
-// a hand-entered tracking pair, two of which live on other tables entirely).
-// db/shipping/shipments/repo.ts derives its PATCHABLE from these keys rather
-// than spelling a second list (ruling 64). `id` is the WHERE key and
-// `created_at` is the trigger's; everything else is writable.
-//
-// THE TWO ADDRESS IDS ARE PATCHABLE NOW (rulings 69/70, migration 128). They
-// used to be "written once at creation and never patched" because a parcel
-// only existed at placement, copied whole off a checkout row. The shell is
-// created when the customer picks a SHIPMENT, before they have chosen where it
-// leaves from, so `shipper_address_id` is one of the choices a PATCH sets.
 export const ShipmentPatchColumns = Shipment.omit({
   id: true,
   created_at: true,
@@ -91,12 +61,6 @@ export const ShippingValidateAddressBody = z.object({
   address_id: Address.shape.id,
 }).strict();
 export type ShippingValidateAddressBody = z.infer<typeof ShippingValidateAddressBody>;
-
-// POST /shipping/get_rates is GONE, replaced by GET /checkout/rates?direction=
-// (Jacob, 2026-09-03: "all the stuff that feeds into it can live directly on
-// the server"). The address, the package, the weight and the declared value
-// are read off the caller's own checkout row and items, so there is no body
-// left to declare. What comes back is CarrierRateQuote.
 
 export const ShippingGetLocationsBody = z.object({
   carrier_id: Carrier.shape.id.optional(),
@@ -113,14 +77,6 @@ export const ShippingCancelLabelBody = z.object({
 }).strict();
 export type ShippingCancelLabelBody = z.infer<typeof ShippingCancelLabelBody>;
 
-
-// THE SAME COLUMNS AS A DATABASE WRITE ACTUALLY TAKES THEM. `label` is bytea,
-// so a write hands the driver bytes rather than the base64 string a READ
-// serves; the three timestamps arrive as a Date from the carrier's own parse
-// as often as a string. Declared once here so no repo has to restate the
-// table to widen four columns.
-// `z.custom` for the bytes: this schema is a WRITE shape, never parsed off a
-// wire, and `z.instanceof` would pin the buffer's own ArrayBuffer variant.
 export const ShipmentWrite = ShipmentPatchColumns.extend({
   label: z.union([z.string(), z.custom<Uint8Array>()]).nullable().optional(),
   est_delivery: z.union([z.string(), z.date()]).nullable().optional(),

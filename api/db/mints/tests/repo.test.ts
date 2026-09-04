@@ -1,7 +1,3 @@
-// products.mints, against real Postgres. READ ONLY - repo.ts's own header:
-// mints are reference data (the admin product form picks one), nothing writes
-// them at runtime. Same shape as metals' repo test: a real seeded id
-// resolves, an id nothing seeded does not.
 import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";

@@ -1,7 +1,3 @@
-// shipping.packages, against real Postgres. READ ONLY - repo.ts's own
-// header: reference data, no create/update/remove. What this proves: a real
-// seeded package resolves by id and by (carrier, label), an id nothing seeded
-// does not, and the offered/labelsById reads agree with the seed.
 import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";

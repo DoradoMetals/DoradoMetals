@@ -1,10 +1,3 @@
-// No try/catch, no logger call, in domain/ or transport/. Ruling 52.
-// Second check (ruling 56): no `? withTransaction(` / `: withTransaction(`
-// ternary, and no withTransaction( call inside a function that also declares
-// an optional executor?/tx? parameter - only a use case opens one.
-//
-//   pnpm --filter @dorado/api lint:one-catch
-//   pnpm --filter @dorado/api lint:one-catch --self-test
 import fs from "node:fs";
 import path from "node:path";
 
@@ -183,9 +176,6 @@ function walk(dir: string, out: string[] = []): string[] {
   return out;
 }
 
-// Every top-level `function` block in the file, as {signature, body, startLine}
-// - brace-depth counted from the signature's own `{`, so a nested arrow's
-// braces never end the walk early.
 function functionBlocks(
   src: string
 ): { signature: string; body: string; startLine: number }[] {

@@ -1,41 +1,3 @@
-// TEXT VALUES THAT ARE COMPARED AGAINST AN ENUM, AND ARE NOT LABELS OF IT.
-//
-// WHY THIS EXISTS. `exchange.products.product_type` is text. So is its successor
-// `products.bullion.type`. But the sales-tax rule match compares that value
-// against `sales_tax_rules.product_type`, which is an ENUM:
-//
-//     AND r.product_type IN ($3, 'All')          -- $3 = item.product_type
-//
-// Postgres has to coerce $3 to the enum to run that comparison, and a value
-// that is not a label does not simply fail to match - it raises
-// 22P02 invalid input value for enum. The whole tax calculation throws.
-//
-// Nothing was checking the coupling, because it is not a foreign key and not a
-// constraint. It is two columns in different tables that must agree by VALUE,
-// with the type declared on only one of them. audit:constraints compares
-// constraints; audit:precision casts a source value into its own target's type,
-// and here the source column's own target is text, so the cast is clean. The
-// value only becomes invalid somewhere else entirely.
-//
-// WHAT IT FOUND. Two production products carry
-//
-//     product_type = E'\n\tBar'
-//
-// - a newline and a tab in front of "Bar", five characters where "Bar" is
-// three. Note that `btrim()` does NOT report them: btrim's default character
-// set is spaces only, so the obvious data-quality check says clean.
-//
-// Not currently reachable: both rows are display = false with stock 0, and no
-// production sales-order line references either. But `GET /get_product_types`
-// is `SELECT DISTINCT product_type` with no filter, so the admin product-type
-// dropdown offers the corrupt value as a fourth option beside the real "Bar" -
-// which is the most likely way the two rows got it, and the way more would.
-//
-// Exits non-zero while any value is outside its enum, deliberately, in the way
-// audit:payments does: this reports an outstanding data problem rather than a
-// regression, and fixing it means writing to production, which is not this
-// repo's to do. It is D39.
-
 import "#env";
 import { Pool } from "pg";
 
@@ -47,9 +9,6 @@ if (!url) {
 }
 const pool = new Pool({ connectionString: url, ssl: { rejectUnauthorized: false } });
 
-// Two columns in different tables that must agree by value, with the type
-// declared on only one of them. Each entry names the query that couples them,
-// so a reader can check the claim rather than trust the map.
 const COUPLINGS = [
   {
     table: "exchange.products", column: "product_type",
@@ -73,10 +32,6 @@ const COUPLINGS = [
   },
 ];
 
-// Qualified by SCHEMA as well as name. Three schemas define an enum called
-// sales_tax_product_type, and matching on typname alone returns every label
-// three times - the same shared-name mistake that has produced false findings
-// on this project before.
 const labelsOf = async (schema, type) => {
   const { rows } = await pool.query(
     `SELECT e.enumlabel::text AS label
@@ -116,11 +71,6 @@ for (const c of COUPLINGS) {
   for (const r of rows) bad.push({ ...c, value: r.value, n: r.n, labels });
 }
 
-// THE FLOOR (D135). Four couplings on 2026-08-29, measured on the run that
-// added this. The couplings are declared in this file, so a count below four
-// means one stopped RESOLVING - the column was renamed, the enum moved, the
-// catalogue query changed - not that a coupling was removed. Removing one is a
-// deliberate edit here, on the same commit that lowers this.
 const COUPLING_FLOOR = Number(process.env.AUDIT_ENUM_FLOOR ?? 4);
 if (checked < COUPLING_FLOOR) {
   console.error(
@@ -139,7 +89,6 @@ if (bad.length === 0) {
 } else {
   console.log(`\n${bad.length} value(s) that would raise 22P02 rather than simply not match:\n`);
   for (const b of bad) {
-    // JSON.stringify so a newline or a tab is visible rather than printed.
     console.log(`  ${b.table}.${b.column} = ${JSON.stringify(b.value)}  (${b.n} row(s))`);
     console.log(`      valid labels: ${b.labels.join(", ")}`);
     console.log(`      coupled at:   ${b.site}`);

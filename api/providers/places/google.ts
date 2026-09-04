@@ -1,24 +1,8 @@
-// THE PLACES PROVIDER, SERVER-SIDE.
-//
-// It ran in the browser: `google.maps.places.AutocompleteSuggestion` and
-// `place.fetchFields`, driven by a key shipped to every visitor as
-// NEXT_PUBLIC_GOOGLE_MAPS_API_KEY. Two things were wrong with that beyond the
-// exposed key - the parse of Google's answer (four spellings of the same
-// string, a components array searched by type) was 90 lines of business rule
-// in `features/addresses/utils/places.ts`, and Google bills per keystroke with
-// nothing server-side able to see, cap or cache the spend.
-//
-// This is the Places API (New) REST surface, which is what the JS SDK calls
-// anyway. Nothing here decides anything: it asks, and it maps the answer onto
-// the shapes the contracts declare.
 import { requiredEnv } from "#shared/env/required.ts";
 import type { PlaceLookup, PlaceSuggestion } from "@dorado/contracts";
 
 const HOST = "https://places.googleapis.com";
 
-// The autocomplete answer, as much of it as the field mask asks for. Declared
-// structurally rather than imported: this is another service's JSON, and a
-// type that claims more than the mask requests is a lie about what arrives.
 type Prediction = {
   placeId?: string;
   text?: { text?: string };
@@ -55,9 +39,6 @@ async function ask<T>(path: string, body: unknown, mask: string): Promise<T> {
   return parsed as T;
 }
 
-// ONE STRING SURVIVES PER HALF. Google returns the same text under four keys
-// depending on which surface asked; the browser's parser tried all of them in
-// order and this keeps the two the mask actually requests.
 const suggestionOf = (p: Prediction): PlaceSuggestion | null => {
   const place_id = p.placeId ?? "";
   const main = (p.structuredFormat?.mainText?.text ?? p.text?.text ?? "").trim();
@@ -74,8 +55,6 @@ export async function suggest(
 ): Promise<PlaceSuggestion[]> {
   const body = await ask<{ suggestions?: { placePrediction?: Prediction }[] }>(
     "/v1/places:autocomplete",
-    // sessionToken is what makes a burst of keystrokes and the lookup that
-    // follows ONE billed session rather than N.
     { input, includedRegionCodes: ["us"], sessionToken: sessionToken ?? undefined },
     "suggestions.placePrediction.placeId,suggestions.placePrediction.text," +
       "suggestions.placePrediction.structuredFormat"
@@ -96,10 +75,6 @@ const component = (
   return (kind === "short" ? c.shortText : c.longText) || null;
 };
 
-// The components array flattened into the postal patch a create would send.
-// Google returns a street number and a route as separate rows and no line_1 at
-// all, which is why this mapping has to exist somewhere - it may as well be
-// beside the request that produced it.
 export async function lookup(place_id: string): Promise<PlaceLookup> {
   const place = await ask<{
     formattedAddress?: string; addressComponents?: Component[]; location?: LatLng;

@@ -1,6 +1,3 @@
-// Writes on reviews.reviews, against real Postgres. Self-contained: a review
-// has no foreign key of its own (order_id/user_id are set afterward by
-// whoever links it), so no lock is required.
 import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
@@ -52,10 +49,6 @@ test("remove deletes a real review and answers false the second time", async () 
   });
 });
 
-// getPublic is a separate statement, not list() with a filter (see
-// sql/get_public.sql) - aReview defaults hidden to true precisely so a
-// fixture never adds itself to what the public sees, so this proves both
-// halves of that at once.
 test("getPublic excludes a hidden review and includes a visible one", async () => {
   await inRollback(async (c: PoolClient) => {
     const hidden = await aReview(c);

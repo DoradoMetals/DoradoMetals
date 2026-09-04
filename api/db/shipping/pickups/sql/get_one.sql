@@ -1,4 +1,3 @@
--- One pickup, by id.
 SELECT
        id, shipment_id, requested_at, status,
        confirmation_number, location

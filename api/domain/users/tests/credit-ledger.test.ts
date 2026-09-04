@@ -1,18 +1,3 @@
-// AN ADMIN CREDIT ADJUSTMENT IS A MOVEMENT, AND MOVEMENTS ARE LEDGERED.
-//
-// Every other way a balance moves already wrote a payments.ledger row at its
-// call site, with the order id that explains it: a purchase order crediting its
-// total, a sale reserving credit at placement, the abandonment sweep putting it
-// back. The admin edit - the one an operator makes by hand, with no order
-// behind it - wrote nothing at all, so the single class of movement with no
-// paper trail was the one a human performed. That is what these pin.
-//
-// INSIDE A PINNED TRANSACTION, WHICH ROLLS BACK. credit-delta.test.ts commits
-// and restores the balance it moved; that shape cannot work here, because a
-// ledger row is an append-only record and "restoring" it would mean deleting
-// rows from a money table on dev to make a test tidy. Pinning the pool lets
-// adjustDoradoCredit open its own transaction as a savepoint and lose it on
-// rollback, so nothing survives the file.
 import { test } from "vitest";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
@@ -24,28 +9,11 @@ import * as usersService from "#domain/users/service.ts";
 import { aUser } from "#shared/testing/builders/index.ts";
 import query from "#shared/db/query.ts";
 
-// The balance lock, like every other file that moves one - see LOCKS.USERS.
 const inPinned = <T,>(fn: (c: PoolClient) => Promise<T> | T): Promise<T> =>
   inPinnedTransaction(fn, { actor: TEST_ACTOR.id, lock: LOCKS.USERS });
 
-// A customer with a balance: against zero, "subtract" has nothing to work with
-// and the floor check refuses before the ledger is ever reached.
-//
-// BUILT, WITH THE BALANCE AS AN ARGUMENT (lane 1). This took the richest
-// customer on the database and moved their credit; the balance being positive
-// was something the test had to hope for and assert, and "these tests would be
-// vacuous" was the honest note about what happened when it was not.
 const aFundedCustomer = (client: PoolClient) => aUser(client, { funds: 5000 });
 
-// THE ROWS THAT WERE NOT THERE BEFORE, FOUND BY ID RATHER THAN BY TIME.
-//
-// "the newest row" is the obvious way to write this and it does not work here.
-// occurred_at and created_at both default to now(), which is the TRANSACTION's
-// start time and constant within it - and inPinnedTransaction issues its BEGIN
-// before waiting for the advisory lock, so a row written inside this
-// transaction can carry a timestamp EARLIER than one another file committed
-// while this one was queued. Ordering by time then returns the other file's
-// row, and the test fails claiming a subtraction wrote a Credit.
 async function ledgerIds(client: PoolClient, user_id: string): Promise<string[]> {
   const { rows } = await query<{ id: string }>(
     `SELECT id FROM payments.ledger WHERE user_id = $1`, [user_id], client
@@ -73,9 +41,6 @@ test("an admin credit writes one Credit row for exactly what moved", async () =>
     assert.equal(added.length, 1, "an adjustment wrote something other than one row");
     assert.equal(added[0].type, "Credit");
     assert.equal(Number(added[0].amount), 12.5);
-    // No order explains an admin edit, and the row says so rather than guessing
-    // one. order_id is a FK to orders.orders, so inventing a value would fail
-    // loudly - which is the right failure, but the honest answer is null.
     assert.equal(added[0].order_id, null);
   });
 });
@@ -94,14 +59,9 @@ test("a subtraction writes a Debit", async () => {
   });
 });
 
-// `edit` NAMES NO DIRECTION, and that is why the direction is read off the two
-// balances rather than off the request. An edit downwards is a debit; an edit
-// upwards is a credit; the same request field produces either.
 test("an edit upwards is a Credit and an edit downwards is a Debit", async () => {
   await inPinned(async (client: PoolClient) => {
     const customer = await aFundedCustomer(client);
-    // Normalised first, so the two edits below move a known amount rather than
-    // whatever eighteen-decimal balance dev happens to hold.
     await usersService.adjustDoradoCredit(customer.id, { op: "edit", amount: 500 });
 
     let before = await ledgerIds(client, customer.id);
@@ -120,17 +80,6 @@ test("an edit upwards is a Credit and an edit downwards is a Debit", async () =>
   });
 });
 
-// A no-op edit moves no money, so it is not a movement. payments.ledger's CHECK
-// allows amount = 0, so a zero row would be stored happily and be
-// indistinguishable from a real movement of nothing.
-//
-// THE BALANCE IS NORMALISED FIRST, and that is not incidental. Dev balances
-// carry eighteen decimal places (numeric is exact; a JavaScript number is not),
-// so "edit to the balance you already have" read out of the row and sent back
-// through a float is NOT the same number - it is the same number to about six
-// places, which the movement check correctly reports as a movement. Setting a
-// clean value first makes the second edit a genuine no-op rather than a test of
-// float round-tripping.
 test("an edit that changes nothing writes no ledger row", async () => {
   await inPinned(async (client: PoolClient) => {
     const customer = await aFundedCustomer(client);
@@ -142,9 +91,6 @@ test("an edit that changes nothing writes no ledger row", async () => {
   });
 });
 
-// THE ROW AND THE MOVEMENT COMMIT TOGETHER OR NEITHER DOES. A refusal that left
-// a ledger row behind would be a record of money that never moved, which is
-// worse than no record at all.
 test("a refused adjustment writes no ledger row and moves no balance", async () => {
   await inPinned(async (client: PoolClient) => {
     const customer = await aFundedCustomer(client);

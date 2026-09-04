@@ -25,16 +25,6 @@ export type OrderItem = z.infer<typeof OrderItem>;
 // generated:end
 import { BullionPublic } from "../products/bullion.js";
 
-// The line as ONE order's view carries it: the row plus the catalogue product
-// behind a bullion line. Null on a scrap line, where the weights and the
-// purity are columns of the line itself.
-// TWO DERIVED FIGURES TRAVEL WITH IT, and both were client arithmetic until
-// the orders pass: `payable` is the fine ounces the business pays for
-// (content x premium - the drawer's "Payable (toz)" column) and `line_total`
-// is what the line comes to. A scrap line's total is the whole lot; a bullion
-// line's is per unit, so quantity counts - the two definitions that drifted
-// apart between the purchase footer and the sale footer. Null when the line
-// is not priced yet, which is a real state.
 export const OrderViewItem = OrderItem.extend({
   product: BullionPublic.nullable(),
   payable: OrderItem.shape.content,
@@ -42,20 +32,6 @@ export const OrderViewItem = OrderItem.extend({
 });
 export type OrderViewItem = z.infer<typeof OrderViewItem>;
 
-// PATCH /api/orders/items/:id, and POST /orders/:id/items - ONE ROW, ONE PATCH
-// (Jacob, 2026-09-03: the scrap / bullion split "is the old drawer document",
-// and "For new, it can just send the patch!!"). A new line is a bullion_id or
-// a metal_id with its weights; which one it is is a rule, not a type.
-//
-//   ABSENT   leave the column alone
-//   null     clear it
-//   a value  write it
-//
-// which is buildUpdate's contract. THREE COLUMNS ARE DELIBERATELY NOT HERE.
-// `content` is DERIVED by rules.lineContent - two definitions of what content
-// means is the defect that costs money. `price` is written by
-// finalize-pricing from the frozen spots. `order_id` is the line's identity.
-// The refiner's assay numbers are refiners.items and have their own patch.
 export const OrderItemPatch = OrderItem.pick({
   bullion_id: true,
   metal_id: true,
@@ -69,23 +45,11 @@ export const OrderItemPatch = OrderItem.pick({
 }).partial().strict();
 export type OrderItemPatch = z.infer<typeof OrderItemPatch>;
 
-
-// WHAT THE SERVER MAY WRITE on a line, which is wider than `OrderItemPatch`
-// (the request's) because three columns are the server's own: `content` is
-// derived from the weight, the unit and the purity, `price` is written by
-// finalize-pricing from the frozen spots, and `sales_tax_charged` is the rate
-// the sale was placed at. The row's identity - its id, its order and the two
-// ids that say which kind of line it is - is not writable.
-// db/orders/items/repo.ts derives its PATCHABLE from these keys (ruling 64).
 export const OrderItemWrite = OrderItem.omit({
   id: true, order_id: true, bullion_id: true, metal_id: true,
 }).partial();
 export type OrderItemWrite = z.infer<typeof OrderItemWrite>;
 
-// EVERY LINE WITH ITS METAL'S NAME - what premium re-tiering prices from. A
-// purchase tiers bullion as well as scrap (Jacob, 2026-09-03), so `bullion_id`
-// and `quantity` come too: the first picks the band's percentage column, the
-// second turns a bullion line's per-unit content into the metal it holds.
 export const PricedLine = OrderItem
   .pick({ id: true, content: true, quantity: true, bullion_id: true })
   .extend({ metal: z.string().nullable() });

@@ -1,4 +1,3 @@
-// Writes on fulfillments.methods, against real Postgres. No create/remove - update is the only write, keyed on id.
 import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
@@ -7,7 +6,6 @@ import pool from "#pool";
 import { inRollback } from "#shared/testing/rollback.ts";
 import { fulfillmentMethodId } from "#shared/testing/builders/index.ts";
 import * as methods from "#db/fulfillments/methods/repo.ts";
-
 
 beforeAll(async () => {
   assert.equal(
@@ -22,9 +20,6 @@ afterAll(async () => {
 
 test("update writes label, leaving admin_label alone when absent", async () => {
   await inRollback(async (c: PoolClient) => {
-    // fulfillments.methods IS the subject here - a reference table with no
-    // create verb, so the row is named rather than built (see
-    // shared/testing/builders/reference.ts). The rename rolls back.
     const id = await fulfillmentMethodId(c, "CARRIER DROPOFF", "purchase");
     const row = (await methods.getOne(id, c))!;
 

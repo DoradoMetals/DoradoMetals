@@ -23,14 +23,9 @@ export const Package = z.object({
 export type Package = z.infer<typeof Package>;
 // generated:end
 
-// The box as every read serves it - db/shipping/packages/sql/get_one.sql's
-// projection. `created_by`/`updated_by` are the audit columns no client needs.
 export const PackageRead = Package.omit({ created_by: true, updated_by: true });
 export type PackageRead = z.infer<typeof PackageRead>;
 
-// THE CHECKOUT'S BOX MENU - the offered rows, without the carrier's own
-// packaging flags a customer never sees. See db/shipping/packages/sql/
-// get_offered.sql for which rows.
 export const OfferedPackage = Package.pick({
   id: true, label: true, length: true, width: true, height: true,
   is_carrier_packaging: true, min_weight_lb: true,

@@ -1,13 +1,3 @@
-// LABEL-AFTER-COMMIT (2026-09-03), orders.cancel's own oracle. The finding:
-// a return label was bought BEFORE the transaction that recorded it, and a
-// try/catch voided it if that transaction failed - a voided label is still a
-// billed one. Now the return shipment commits as a SHELL first, and the label
-// is bought only after - so a carrier failure must leave that shell standing,
-// and calling cancel again must find it rather than minting a second one.
-//
-// buyReturnLabel is stubbed via cancel's own injection seam ((shipment_id: string) => Promise<void>) -
-// the same shape sendToRefiner already has for email and place.ts has for
-// postage - so no cassette or network guard is needed to prove either claim.
 import { test, afterAll } from "vitest";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
@@ -26,9 +16,6 @@ afterAll(async () => {
   await pool.end();
 });
 
-// declared_value and weight are COMPUTED now (ruling 58) - order.totals.total
-// and order.items/package - so the input carries only the two ids OrderCancel
-// still takes.
 async function aCancellableOrder(c: PoolClient) {
   const seller = await aUser(c, { name: "Cancel Test Seller" });
   const address = await anAddress(c, seller);
@@ -87,10 +74,6 @@ test("calling cancel again reuses the same shell instead of minting a second ret
     };
     await assert.rejects(() => orders.cancel(order_id, input, failing), /FEDEX IS DOWN/);
 
-    // THE STUB RECORDS WHAT IT WAS ASKED TO LABEL. Buying it is shipping's
-    // (ruling 67), so the tracking number is written by domain/shipping/
-    // labels.ts and a stub never reaches it - the shell's IDENTITY is what
-    // this test is about.
     const asked: string[] = [];
     const succeeding = async (shipment_id: string) => {
       asked.push(shipment_id);
@@ -119,7 +102,6 @@ test("a clean cancel buys the label against the row it already committed", async
     assert.equal(view.order.spots_locked, false);
     const returns = view.shipments.filter((s) => s.direction === "Return");
     assert.equal(returns.length, 1);
-    // The row it committed is the row it asked shipping to label.
     assert.deepEqual(asked, [returns[0].id]);
     assert.equal(returns[0].carrier_service_id, input.carrier_service_id);
     assert.equal(returns[0].package_id, input.package_id);

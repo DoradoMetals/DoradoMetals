@@ -1,20 +1,3 @@
-// Proves 000_genesis_schema.sql actually builds the schema it claims to.
-//
-// The genesis migration is a no-op against dev, which is exactly what makes it
-// hard to trust: every statement is guarded, so running it here tells you
-// nothing about whether it would work on an empty database. The only real test
-// is to run it where the schemas do not exist.
-//
-// Which is what this does, without needing a second database. It regenerates
-// the DDL with every schema renamed - orders becomes zz_orders and so on -
-// runs that inside a transaction, compares the tables it built against the
-// real ones column by column, and rolls back. DDL in Postgres is transactional,
-// so nothing survives: the schemas exist for the length of the check and are
-// gone at the end of it. exchange is never written to at all.
-//
-//   node scripts/verify-genesis.mjs
-//
-// Exits non-zero on any difference.
 import "#env";
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
@@ -28,8 +11,6 @@ const SCHEMAS = [
   "refiners", "reviews", "shipping", "spots", "tax",
 ];
 
-// Strips the prefix wherever it appears so a definition built under zz_orders
-// can be compared against the one under orders.
 const unprefix = (s) => (s == null ? s : String(s).split(PREFIX).join(""));
 
 const client = await pool.connect();
@@ -48,8 +29,6 @@ try {
 
   await client.query("BEGIN");
 
-  // If any of these already exist the comparison would be meaningless, so
-  // check before building rather than discovering it afterwards.
   const { rows: existing } = await client.query(
     `SELECT nspname FROM pg_namespace WHERE nspname LIKE $1`,
     [`${PREFIX}%`]
@@ -62,8 +41,6 @@ try {
   console.log(`building ${SCHEMAS.length} schemas from nothing...`);
   await client.query(sql);
 
-  // Running it twice proves the guards work - the second pass must change
-  // nothing rather than failing on an object that already exists.
   console.log("re-running to confirm it is idempotent...");
   await client.query(sql);
 
@@ -146,7 +123,6 @@ try {
     }
   }
 
-  // Enums and functions are schema-level rather than per-table.
   const enums = async () =>
     (await client.query(
       `SELECT n.nspname AS schema, t.typname AS name,
@@ -191,15 +167,6 @@ try {
     `\nbuilt ${counts.rows[0].tables} tables and ${counts.rows[0].views} views from an empty schema`
   );
 
-  // Everything above proves the *generator* reproduces dev, because that is
-  // what it built from. It says nothing about the file, and the file is what
-  // builds production.
-  //
-  // They drifted apart the moment 058 widened orders.items: dev was correct,
-  // dump-schema.mjs emitted the correct types, this check said "identical to
-  // dev", and 000_genesis_schema.sql still declared purity numeric(4,3). A
-  // production built from it would have rounded .9999 to 1.000 exactly as
-  // before, with every check green.
   const committed = fs.readFileSync(
     path.join(import.meta.dirname, "..", "migrations", "000_genesis_schema.sql"),
     "utf8"
@@ -209,27 +176,6 @@ try {
     [path.join(import.meta.dirname, "dump-schema.mjs"), "--stdout"],
     { encoding: "utf8", maxBuffer: 64 * 1024 * 1024 }
   );
-  // THE DRIFT REPORT IS QUALIFIED BY TABLE, and that is not cosmetic.
-  //
-  // This compared the two files as unordered sets of BARE LINES: a line counted
-  // as drift only if its exact text appeared nowhere in the other file. Column
-  // declarations are not unique across a 47-table schema, so a real change was
-  // invisible whenever an identical declaration existed under some other table.
-  //
-  // It happened. 077a relaxed payments.details.method_id, and the report said
-  // nothing about it, because fulfillments.fulfillments ALSO declares
-  //
-  //   method_id uuid NOT NULL,
-  //
-  // so the removed line still "existed" and was filtered out. The check itself
-  // was never wrong - `committed !== regenerated` is a whole-string comparison
-  // and it fired - but it named one of the two drifted columns, and a person
-  // acting on that report would have fixed one and been baffled by the next run.
-  //
-  // Lines like `id uuid DEFAULT gen_random_uuid() NOT NULL,`, `user_id uuid NOT
-  // NULL,` and `created_at timestamptz` appear in dozens of tables, so most of
-  // the schema was maskable this way. Qualifying each line with the table it sits
-  // in makes every one of them distinguishable.
   const qualify = (text) => {
     let table = "(top level)";
     return text.split("\n").map((line) => {
@@ -263,7 +209,6 @@ try {
 
   console.log(failures ? `\n${failures} difference(s)` : "\nidentical to dev, and the committed genesis matches");
 } finally {
-  // Nothing this script did survives, whether it passed, failed or threw.
   await client.query("ROLLBACK");
   client.release();
   await pool.end();

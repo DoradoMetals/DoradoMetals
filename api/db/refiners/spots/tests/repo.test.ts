@@ -1,4 +1,3 @@
-// The writes on refiners.spots, against real Postgres. Two things pinned: both directions use this table (one order id, not a column per kind of order), and there is no UNIQUE (order_id, metal_id) here — why create has no ON CONFLICT (42P10 at runtime otherwise).
 import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
@@ -11,7 +10,6 @@ import {
 } from "#shared/testing/builders/index.ts";
 import * as refinerSpots from "#db/refiners/spots/repo.ts";
 
-
 beforeAll(async () => {
   assert.equal(
     new Date().getTimezoneOffset(), 0,
@@ -23,17 +21,8 @@ afterAll(async () => {
   await pool.end();
 });
 
-// Takes the orders lock: this table hangs off an order and is written by the order-placing paths too, so it can deadlock against them when interleaved.
-// THE FILE'S LOCK, BOUND ONCE. A lock is a property of what this file
-// WRITES, not of one call, so it is named here and every inRollback below
-// inherits it - which is also what stops a new test being added without one.
 const inRollback = rollbackIn({ lock: LOCKS.ORDERS });
 
-// A REFINER SPOT ON AN ORDER OF THE GIVEN DIRECTION, BUILT. The direction was
-// always the point - "a write keyed on the single order id must work for a
-// sales order too" - and it stays; what changes is that TWO metals are quoted
-// on purpose, because the narrowness assertion needs a second one and the
-// previous version had to look for one and assert it had found it.
 const aRefinerSpot = async (c: PoolClient, direction: "purchase" | "sale") => {
   const order = await anOrder(c, await aUser(c), { direction })
     .withLots(1, { metal: "Gold" })
@@ -76,7 +65,6 @@ test("a refiner bid lands on one metal of one order", async () => {
   });
 });
 
-// A write keyed on the single order id must work for a sales order too — not hypothetical, dev has 60 sales rows.
 test("a sales order's refiner spot can be written the same way", async () => {
   await inRollback(async (c: PoolClient) => {
     const s = await aRefinerSpot(c, "sale");
@@ -123,12 +111,10 @@ test("the ask is left alone when the bid is written", async () => {
   });
 });
 
-// The condition is CREATED, not found: every order already has all four metals' refiner spots, so the earlier version returned early and asserted nothing — audit:vacuous-tests caught it.
 test("a new refiner spot can be created for an order", async () => {
   await inRollback(async (c: PoolClient) => {
     const s = await aRefinerSpot(c, "purchase");
 
-    // Free the pair up inside the transaction this test rolls back.
     await c.query(
       "DELETE FROM refiners.spots WHERE order_id = $1 AND metal_id = $2",
       [s.order_id, s.metal_id]

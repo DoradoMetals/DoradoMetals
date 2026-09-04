@@ -1,14 +1,10 @@
-// A carrier and the organization it is, joined in memory.
-// A carrier with no organization is dropped, not composed with nulls - resolveCarrier reads the org's NAME to pick a shipping provider, and a blank name would fail every label far from the cause.
 import * as organizations from "#db/organizations/repo.ts";
-// Row type comes from the contract, not the other feature's repo - avoids a type edge between features that don't otherwise depend on each other.
 import type { ComposedCarrier, Organization, Carrier } from "@dorado/contracts";
 import type { Executor } from "#shared/db/executor.ts";
 
 const compose = (c: Carrier, o: Organization): ComposedCarrier => ({
   id: c.id,
   logo: c.logo,
-  // From the ORGANIZATION - shipping.carriers has no timestamps of its own.
   created_at: o.created_at,
   updated_at: o.updated_at,
   organization: {
@@ -16,7 +12,6 @@ const compose = (c: Carrier, o: Organization): ComposedCarrier => ({
   },
 });
 
-// Sorts by o.name then id - moved here from SQL since the name only exists after the join.
 const byName = (a: ComposedCarrier, b: ComposedCarrier) =>
   (a.organization.name ?? "").localeCompare(b.organization.name ?? "") ||
   a.id.localeCompare(b.id);

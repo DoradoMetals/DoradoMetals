@@ -1,27 +1,3 @@
-// The admin purchase-order screen, over real HTTP.
-//
-// These are the operations Jacob asked for by name, and they are the ones with
-// the least test coverage relative to what they can do: moving an order's
-// status, changing a frozen spot price, locking and unlocking spots. Each one
-// is a request an admin makes with a real order in front of them, and each one
-// has a way of going wrong that only shows up at this level - the controller
-// destructuring a body shape the frontend does not send, a guard that lets the
-// wrong role through, a response the drawer cannot render.
-//
-// THE SURFACE IS THE UNIFIED /api/orders NAMESPACE NOW (Jacob's rulings, 28
-// August: one endpoint per resource, direction is data). The status label is
-// PATCH /api/orders/:id; the frozen spots are PUT /api/orders/:id/spots.
-// Locking no longer sends the browser's copy of the live spot feed: the
-// server pins its own, which is what the spots_locked assertion below now
-// proves.
-//
-// NOTHING IS COMMITTED - the pool is pinned to a rolled-back transaction. The
-// last test proves it from outside.
-//
-// DELIBERATELY NOT COVERED: create_purchase_order and cancel_order. Both call
-// FedEx before the transaction opens, so replaying them would create a real,
-// billable label. Their database halves are covered by
-// features/orders/parity.test.js, which calls recordPurchaseOrder directly.
 import { test, afterAll } from "vitest";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
@@ -37,12 +13,8 @@ await mockSessions();
 const { default: app } = await import("#app");
 
 import { LOCKS } from "#shared/testing/locks.ts";
-// Orders only - this file writes no address.
 const ORDER_LOCK = LOCKS.ORDERS;
 
-// THE STRUCTURAL SUBSET EACH FIXTURE ACTUALLY HAS. These are SELECT
-// projections, not table rows - naming a row type would claim columns the
-// query never asked for.
 type UserFixture = { id: string; name: string | null; email: string | null };
 type Caller = UserFixture & { role: string };
 
@@ -54,20 +26,8 @@ afterAll(async () => {
   await pool.end();
 });
 
-// An order that is NOT already in the status the move test targets, or the
-// assertion afterwards cannot tell a successful move from a no-op - and neither
-// can the escape check. Dev's newest open order happens to be Received already,
-// which is exactly the vacuous-test trap this codebase has hit before.
 const MOVE_TO = "Payment Processing";
 
-// THE ORDER IS BUILT (lane 1), and it was read out of FROZEN TABLES: the WHERE
-// walked `exchange.purchase_orders` and `exchange.order_metals`, which D212
-// stopped writing, while the endpoints under test read `orders.orders` and
-// `orders.spots`. The fixture and the subject had drifted apart.
-//
-// The two conditions the old query expressed stay, as arguments: the order is
-// NOT already in MOVE_TO (or a successful move is indistinguishable from a
-// no-op), and it HAS spot rows (the spot-change test needs one to change).
 const aBuiltOrder = async (c: PoolClient) => {
   const owner = await aUser(c);
   const order = await anOrder(c, owner, { direction: "purchase", status: "Pending" })
@@ -81,8 +41,6 @@ const aBuiltOrder = async (c: PoolClient) => {
 
 test("a customer sees only their own rows, and the admin list is served whole", async () => {
   await inPinnedTransaction(async () => {
-    // The unified list is not refused to a customer - it SCOPES: the
-    // session's own orders, never the business's.
     await as(customer, async () => {
       const res = await request(app).get("/api/orders?direction=purchase");
       assert.equal(res.status, 200, `answered ${res.status}`);
@@ -97,11 +55,6 @@ test("a customer sees only their own rows, and the admin list is served whole", 
       assert.equal(res.status, 200);
       assert.ok(Array.isArray(res.body) && res.body.length > 0);
 
-      // THE SLIM WIRE (wave 3): the orders.orders row plus `totals`, and
-      // nothing else. order_items, address, user and payout left this
-      // response - each is its own parent-path read, checked by
-      // validate:wire - so what is asserted here is the row, and that the
-      // slots have genuinely GONE rather than gone quietly nullable.
       const order = res.body[0];
       for (const field of [
         "id", "number", "status", "created_at", "direction", "user_id",
@@ -116,14 +69,6 @@ test("a customer sees only their own rows, and the admin list is served whole", 
   }, { actor: TEST_ACTOR.id, lock: ORDER_LOCK });
 });
 
-// The one that carries real money. An order response must never contain a full
-// routing or account number - only the last four.
-//
-// BUILT, not discovered (exchange-fixtures lane, D214 item 10): a payout with
-// a KNOWN routing/account number, so "the real value is absent" is checked
-// against a number this file put in the database, not against whichever
-// exchange.payouts row happens to hold one - a frozen table nothing in this
-// path reads any more (payments.details is the account's native home, D213).
 test("no admin order response carries a full bank number", async () => {
   await inPinnedTransaction(async (c: PoolClient) => {
     const owner = await aUser(c);
@@ -142,8 +87,6 @@ test("no admin order response carries a full bank number", async () => {
         "a full account number is on the wire"
       );
 
-      // The real values from the row this file just built are absent, not
-      // merely unmatched by a regex.
       assert.ok(
         !body.includes(payout.routing_number),
         "a real routing number appears in the response body"
@@ -161,8 +104,6 @@ test("moving an order's status takes the body the drawer sends", async () => {
     const order = await aBuiltOrder(c);
 
     await as(admin, async () => {
-      // The document form of useMovePurchaseOrderStatus: the id in the path,
-      // the label in the body, the audit name from the session.
       const res = await request(app)
         .patch(`/api/orders/${order.id}`)
         .send({ status: MOVE_TO });
@@ -198,9 +139,6 @@ test("locking spots freezes them and unlocking releases them", async () => {
     const order = await aBuiltOrder(c);
 
     await as(admin, async () => {
-      // { spots: { lock: true } } and nothing else: the server resolves the
-      // live spots itself (getCurrentSpotPrices, the auto-accept cron's own
-      // source) where the old route took the browser's copy of the feed.
       const locked = await request(app)
         .put(`/api/orders/${order.id}/spots`)
         .send({ lock: true });
@@ -219,9 +157,6 @@ test("locking spots freezes them and unlocking releases them", async () => {
       assert.equal(unlocked.status, 200, JSON.stringify(unlocked.body));
 
       const after = await request(app).get("/api/orders?direction=purchase");
-      // GUARDED: this dereferenced find() straight through, so an order
-      // missing from the list produced a TypeError rather than saying the
-      // order was missing. Surfaced by the TypeScript conversion.
       const listed = after.body.find((o: { id: string; spots_locked: boolean }) => o.id === order.id);
       assert.ok(listed, `order ${order.id} is absent from the list after unlocking`);
       assert.equal(listed.spots_locked, false);
@@ -242,9 +177,6 @@ test("changing a spot price lands on that order and no other", async () => {
       const sentinel = 1234.56;
       assert.ok("bid" in spot, "the metals response no longer carries bid");
       assert.ok(!("bid_spot" in spot), "the metals response still carries the legacy bid_spot");
-      // VERBATIM rows (ruling 12): the read serves metal_id, never a joined
-      // name - and the PUT speaks the same id (D214 item 11), where it used to
-      // take the metal's display NAME and resolve it against metals.metals.
       assert.ok(!("name" in spot), "the spots read is smearing a joined name onto the row");
 
       const res = await request(app)
@@ -256,7 +188,6 @@ test("changing a spot price lands on that order and no other", async () => {
       const changed = after.body.find((s: { id: string; bid: string }) => s.id === spot.id);
       assert.equal(Number(changed.bid), sentinel, "the new price did not stick");
 
-      // Every other metal on the order is untouched.
       for (const other of after.body.filter((s: { id: string; bid: string }) => s.id !== spot.id)) {
         assert.notEqual(
           Number(other.bid),
@@ -269,12 +200,6 @@ test("changing a spot price lands on that order and no other", async () => {
 });
 
 test("nothing this file did survived the transaction", async () => {
-  // THE ORDER CHECK IS GONE AND ITS ABSENCE IS STRONGER: the fixture is built
-  // inside each transaction now, so there is no committed order for this file
-  // to have moved - where before it re-ran the discovery query and asked
-  // whether THAT order had drifted. The exchange.order_metals sentinel check
-  // goes with it: D212 stopped writing that table, so a sentinel could not
-  // have reached it either way.
   assert.equal(
     await assertNothingEscaped("orders.spots", "bid = 1234.56"),
     0,

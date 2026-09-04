@@ -1,4 +1,3 @@
-// Writes on shipping.carriers, against real Postgres. Self-contained: every row is created and rolled back in the same transaction, so no shared/testing/locks.ts lock applies.
 import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
@@ -6,7 +5,6 @@ import { randomUUID } from "node:crypto";
 import pool from "#pool";
 import { inRollback } from "#shared/testing/rollback.ts";
 import * as carriers from "#db/shipping/carriers/repo.ts";
-
 
 beforeAll(async () => {
   assert.equal(

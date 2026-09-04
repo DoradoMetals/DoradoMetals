@@ -1,9 +1,3 @@
-// THE UPSTREAM QUOTE FEED, and the only place its wire shape is known.
-// Reduced to the four numbers spots.spots stores; everything else the feed
-// sends is discarded here rather than carried into the domain.
-//
-// A quote missing its symbol or either side of the market is SKIPPED, not
-// defaulted - a metal priced at zero would flow straight into an order total.
 import axios from "axios";
 import type { SpotPatch } from "@dorado/contracts";
 

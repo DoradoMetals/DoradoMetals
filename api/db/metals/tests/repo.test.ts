@@ -1,9 +1,3 @@
-// metals.metals, against real Postgres. READ ONLY - repo.ts's own header says
-// so: the four metals are seeded reference data, nothing writes them at
-// runtime. So there is no update/remove to prove false-on-missing/true-on-
-// real against; what this proves instead is the same shape - a real id
-// resolves, an id nothing seeded does not - across every read this repo
-// offers.
 import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";

@@ -1,21 +1,3 @@
-// PLACING AN ORDER: one checkout id in (ruling 43), the order out.
-//
-//   LOAD -> ASSERT -> WRITE -> OUTSIDE WORLD
-//
-// THE WRITE IS SQL THAT COPIES (ruling 66, Jacob: "I also hate all those
-// returns"). The order, its lines, its frozen spots and a purchase's totals
-// are `INSERT … SELECT`s off checkout.checkouts, checkout.items and
-// spots.spots - the columns share names, so nothing here maps one row shape
-// into another. What is still passed is what was DECIDED: the status, the
-// payout fee, and a sale's three per-line figures.
-//
-// THE CARRIER IS NOT THIS FILE'S BUSINESS (ruling 67), AND NEITHER IS THE
-// HANDOVER (rulings 69/70). Every choice about how the order is handed over
-// already sits on the draft fulfillment's own detail row (migration 128), so
-// this file names none of those columns: it attaches the draft, asks
-// fulfillments where the parcel leaves from, and asks shipping to seal and
-// then buy the label. A purchase that Dorado COLLECTS, or that the customer
-// brings in, buys nothing.
 import type { PoolClient } from "pg";
 
 import * as ordersRepo from "#db/orders/repo.ts";
@@ -51,30 +33,18 @@ import withTransaction from "#shared/db/withTransaction.ts";
 import { attempt } from "#shared/attempt.ts";
 import type { Checkout, OrderItem, OrderLine, OrderView } from "@dorado/contracts";
 
-// -------------------- the outside world
-
-// THE THREE CALLS A PLACEMENT CANNOT ROLL BACK, injected as sendToRefiner's
-// transport is: a test drives the real row flow with no provider reachable.
 export const LIVE = {
   buyLabel: shippingLabels.buyLabel,
   authorize,
   confirm: (order_id: string) => emailService.sendOrderPlacedConfirmation(order_id),
 };
 
-// -------------------- the one door
-
 export async function place(
   checkout_id: string, world: typeof LIVE = LIVE
 ): Promise<OrderView> {
   const checkout = await checkoutService.getRowById(checkout_id);
   rules.assertCheckout(checkout, checkout_id);
-  // A VISITOR MAY SHOP AND MAY NOT BUY (ruling 63). The subject is the
-  // CHECKOUT ROW's owner rather than the request's caller, because that is who
-  // the order would belong to - an admin placing a customer's checkout is
-  // asking about the customer. checkout/service.ts carries the reasoning.
   await checkoutService.assertRealAccount(checkout.user_id, "place an order");
-  // THE ONE READINESS QUESTION: `missing` is the checkout's own list, already
-  // narrowed to the chosen method's category.
   rules.assertPlaceable(await checkoutService.missingFor(checkout));
   const cart = await checkoutService.getItemsForOrder(checkout_id);
 
@@ -88,12 +58,6 @@ export async function place(
   return order;
 }
 
-// -------------------- the rows an order is
-
-// ONE TRANSACTION, BOTH DIRECTIONS, and every statement is a copy. The lines
-// are the caller's because they are the one thing the two directions write
-// differently: a purchase copies the basket, a sale copies it joined to what
-// the pricing decided.
 async function writeOrder(
   { checkout, status, lines, cart }: {
     checkout: Checkout;
@@ -112,12 +76,8 @@ async function writeOrder(
   const written = await lines(order_id, tx);
   rules.assertEveryLineCopied(written.length, cart.length, order_id);
 
-  // A purchase's premiums are the rate bands', read at the order's own metal
-  // totals; retierPremiums reads the direction and leaves a sale alone.
   await retierPremiums(order_id, tx);
 
-  // THE SPOTS THE ORDER IS QUOTED AT, copied off the live feed. A metal with
-  // no quote does not join, and the rule refuses the short answer.
   rules.assertEveryMetalQuoted(written, await orderSpots.freezeForOrder(order_id, tx));
 
   await snapshotAddress(order_id, checkout, tx);
@@ -126,26 +86,15 @@ async function writeOrder(
   return order_id;
 }
 
-// THE CHECKOUT GOES BACK TO EMPTY, AND IT GOES LAST (D208): the choices are
-// the ORDER's now. It is the caller's final statement rather than writeOrder's
-// because every `INSERT … SELECT` above reads `checkout.checkouts` LIVE -
-// clearing the row first would copy nulls into the totals' payout account and
-// the parcel's box and service.
 async function clearChoices(checkout: Checkout, tx: PoolClient): Promise<void> {
   await checkoutService.resetAfterOrder(
     checkout.user_id, rules.directionOf(checkout), tx
   );
 }
 
-// COPYING IS THE WHOLE POINT: editing a book entry afterwards must not rewrite
-// where a parcel was sent, and deleting one must not take the record away.
 async function snapshotAddress(
   order_id: string, checkout: Checkout, tx: PoolClient
 ): Promise<void> {
-  // WHERE THE HANDOVER HAPPENS IS FULFILLMENT'S ANSWER (ruling 70): the
-  // parcel's origin for a SHIPMENT, the collection address for a PICKUP,
-  // nothing for a store visit. A sale's delivery address is the checkout's own
-  // and comes first - it is the row's tax key, not a handover choice.
   const source_address_id =
     checkout.recipient_address_id
       ?? await fulfillmentService.addressIdOf(checkout.fulfillment_id!, tx);
@@ -155,23 +104,12 @@ async function snapshotAddress(
   await orderAddresses.create({ order_id, address_id, source_address_id }, tx);
 }
 
-// -------------------- the purchase side: the business buys metal
-
-// LOAD -> ASSERT -> WRITE -> AFTER (label-after-commit, 2026-09-03). The order
-// and, when it ships, its parcel SHELL commit with every label column NULL;
-// the label is bought only once that commit has happened, so a carrier failure
-// leaves a real order behind - not a rolled-back one with a label FedEx has
-// already billed for. Nothing here catches: a failure in the AFTER step
-// propagates as this request's error, and POST /api/shipments/:id/label is the
-// retry surface for the parcel it left behind.
 async function placePurchase(
   checkout: Checkout, cart: OrderLine[], world: typeof LIVE
 ): Promise<string> {
   const draft = rules.requireFreeFulfillmentDraft(
     await fulfillmentService.getById(checkout.fulfillment_id!)
   );
-  // A parcel is the only handover that costs money, and the fulfillment says
-  // whether there is one. Nothing here reads a box, a service or a slot.
   const shipment_id = draft.method.category === "SHIPMENT"
     ? await fulfillmentService.shipmentIdOf(draft.fulfillment.id)
     : null;
@@ -204,8 +142,6 @@ async function placePurchase(
     return { order_id, shipment_id };
   });
 
-  // OUTSIDE WORLD, AFTER: the order and its parcel already exist, and the
-  // courier slot is a column of that parcel.
   if (placed.shipment_id) await world.buyLabel(placed.shipment_id);
 
   await attempt("clear the purchase basket", () =>
@@ -215,10 +151,6 @@ async function placePurchase(
   return placed.order_id;
 }
 
-// -------------------- the sale side: the customer buys metal, so is charged
-
-// CREATE-THEN-CHARGE: the order exists before money moves - the old ordering
-// left a paid customer with no order (D179).
 async function placeSale(
   checkout: Checkout, cart: OrderLine[], world: typeof LIVE
 ): Promise<string> {
@@ -235,14 +167,10 @@ async function placeSale(
     ),
     spots
   );
-  // THE SHIPPING SERVICE IS THE PARCEL'S (ruling 70): the draft fulfillment
-  // holds it, and shipping resolves the row from the parcel's own id.
   const service = await shippingLabels.serviceForFulfillment(checkout.fulfillment_id!);
   const method = (await paymentMethods.listFor("sale"))
     .find((m) => m.id === checkout.payment_method_id);
 
-  // CREDIT IS THE SERVER'S FACT, NOT A CHECKBOX: the balance is a row this API
-  // owns, and pricing caps what is applied at the order's own total.
   const balance = (await usersRepo.balanceForUpdate(checkout.user_id)) ?? 0;
   const prices = calculateSalesOrderTotal(
     priced, spots, { dorado_funds: balance }, service?.code, method?.type
@@ -261,9 +189,6 @@ async function placeSale(
       },
       tx
     );
-    // EVERY FIGURE IS THE PRICING SERVICE'S ANSWER, so this is the one create
-    // with nothing to copy. The five renames are the table's own - see
-    // db/orders/transactions/sql/create.sql.
     await orderTransactions.create(
       {
         order_id: id, total: prices.order_total, shipping: prices.shipping_charge,
@@ -278,8 +203,6 @@ async function placeSale(
     );
 
     if (prices.pre_charges_amount > 0) {
-      // Credit is RESERVED at creation so the same dollars cannot be spent
-      // twice; the abandonment sweep puts it back if payment never arrives.
       await usersService.removeFunds(checkout.user_id, prices.pre_charges_amount, tx);
       await transactionsService.addTransactionLog(
         {
@@ -295,14 +218,10 @@ async function placeSale(
     return id;
   });
 
-  // OUTSIDE WORLD, AFTER: the order exists, so the card is set to exactly what
-  // the server priced and the customer confirms that.
   if (intent && !intent.settled) await world.authorize(intent.payment_intent_id, cents);
   return order_id;
 }
 
-// THE CUSTOMER'S OWN OPEN INTENT, resolved server-side. The id used to arrive
-// in the body, and whatever it named was attached on trust.
 async function openIntentFor(
   user_id: string, cents: number
 ): Promise<{ payment_intent_id: string; settled: boolean }> {
@@ -315,8 +234,6 @@ async function openIntentFor(
   rules.assertAttachable(verdict);
   const superseded = verdict === "supersede" ? intent.order_id : null;
   if (superseded) {
-    // An abandoned checkout is SUPERSEDED, not refused: the intent is reused
-    // until it settles, and refusing strands the customer paying.
     await withTransaction(async (tx) => {
       await sweeps.cancelPendingSale(superseded, tx);
       await paymentsService.attachOrder(intent.payment_intent_id, null, tx);
@@ -326,14 +243,11 @@ async function openIntentFor(
   if (!rules.isSettled(intent.payment_status)) {
     return { payment_intent_id: intent.payment_intent_id, settled: false };
   }
-  // A settled, unattached intent is D179 wreckage arriving to be repaired: the
-  // money is real, so the order is born paid IF the amount still matches.
   rules.assertRepairable(intent, cents);
   const settled = intent.payment_status === "succeeded";
   return { payment_intent_id: intent.payment_intent_id, settled };
 }
 
-// The server sets the authoritative amount, and records what Stripe answered.
 async function authorize(payment_intent_id: string, cents: number): Promise<void> {
   const updated = await stripeProvider.updateIntent(payment_intent_id, { amount: cents });
   await withTransaction((tx) => paymentsService.updateFromProvider(updated, tx));

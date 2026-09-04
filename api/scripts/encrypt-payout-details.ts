@@ -1,46 +1,3 @@
-// Seals the bank details into payments.details, and is the script that migration
-// 073 and verify-backfill.mjs have both cited since the day they were written.
-//
-// *** IT DID NOT EXIST. *** 073's header says routing and account numbers "are
-// written separately, and encrypted, by scripts/encrypt-payout-details.mjs,
-// which refuses to run without PAYOUT_ENCRYPTION_KEY". verify-backfill.mjs
-// excludes the two columns from its comparison on the same understanding. Both
-// were describing a design, in the present tense, that nobody had built - so the
-// plaintext stayed plaintext on 18 production payouts (10 ACH, 8 WIRE) and the
-// documentation read as though the problem were solved. This is that script.
-//
-// *** NAMED .ts, NOT .mjs. *** The two citations say `.mjs`. They are updated to
-// point here rather than this file being misnamed to match them: scripts/ is
-// mid-conversion to TypeScript (D157) and a new script arriving in the old
-// extension would be work to undo. Writing the file the citation named, when the
-// citation was itself the thing that was wrong, is how the original defect got in.
-//
-//   node scripts/encrypt-payout-details.ts               report only, writes nothing
-//   node scripts/encrypt-payout-details.ts --commit      seal and write
-//   node scripts/encrypt-payout-details.ts --verify      decrypt and compare
-//   node scripts/encrypt-payout-details.ts --rotate      re-seal under a new key
-//   node scripts/encrypt-payout-details.ts --check-key   validate the key, no database
-//   node scripts/encrypt-payout-details.ts --self-test   attack the refusals
-//
-// *** NOTHING HERE PRINTS A BANK NUMBER. *** Not on success, not on failure, not
-// in a count, not in a sample row. Every line of output is an id, a count or a
-// verdict. `shared/crypto/tests/envelope.test.ts` pins the same property on the
-// cipher's error paths. CLAUDE.md's oldest standing constraint is "never log or
-// return bank details", and a script written to fix the exposure is the worst
-// possible place to create a new one.
-//
-// *** IT REFUSES TO CALL AN EMPTY RUN A SUCCESS. *** Dev holds sixteen payouts
-// and not one bank number - every one is ECHECK or DORADO_ACCOUNT - so the
-// happy path here processes zero rows on the only database it will ever be
-// tested against. That is exactly the shape this codebase has shipped six times
-// (D95, D99, D108, D115, D157, D176): a script that walks nothing, reports
-// success, and is believed. Zero candidates is a NON-ZERO exit unless
-// --allow-empty says the operator meant it.
-//
-// *** IT DOES NOT CLEAR THE PLAINTEXT. *** Write, verify, and only then a
-// separate migration clears exchange.payouts - a destructive change to
-// `exchange`, needing the `allow-destructive:` marker, a stated backup and
-// Jacob. This script only ever adds ciphertext.
 import "#env";
 import pool from "#pool";
 import type { PoolClient } from "pg";
@@ -58,7 +15,6 @@ function die(message: string): never {
   process.exit(1);
 }
 
-// --- self-test, before anything opens a connection ------------------------
 if (process.argv.includes("--self-test")) {
   const { selfTest } = await import("./lib/self-test-harness.ts");
   const good = Buffer.alloc(32, 7).toString("base64");
@@ -87,7 +43,6 @@ if (process.argv.includes("--self-test")) {
   });
 }
 
-// --- mode and key validation, still before any connection -----------------
 const modes = [COMMIT, VERIFY, ROTATE].filter(Boolean).length;
 if (modes > 1) {
   die("one mode at a time: --commit, --verify and --rotate are mutually exclusive");
@@ -110,10 +65,6 @@ try {
   die(String((e as Error).message));
 }
 
-// Rotation needs both keys: the one rows are sealed under now, and the one they
-// are moving to. Without the previous key the ciphertext cannot be opened, and
-// re-sealing from exchange plaintext instead would silently succeed on rows
-// whose plaintext has since been cleared.
 let previous: Key | null = null;
 if (ROTATE) {
   const prevRaw = process.env.PAYOUT_ENCRYPTION_KEY_PREVIOUS;
@@ -139,7 +90,6 @@ if (CHECK_KEY) {
   process.exit(0);
 }
 
-// --- from here on there is a database -------------------------------------
 type Row = {
   id: string;
   routing_number: string | null;
@@ -154,9 +104,6 @@ const COLUMNS = [
   { plain: "account_number", sealed: "account_number_encrypted" },
 ] as const;
 
-// Which database this is, printed the way migrate.mjs prints it. An operator
-// running this holds the key to real customer bank details; they should never
-// have to infer which database they are pointed at.
 {
   const u = process.env.DATABASE_URL ?? "";
   const m = u.match(/@([^/]+)\/([^?]+)/);
@@ -169,9 +116,6 @@ const client: PoolClient = await pool.connect();
 let exitCode = 0;
 
 try {
-  // The join is on id, which 073 established: a details row KEEPS its payout's
-  // id. If that ever changes this returns zero rows, which is why zero is an
-  // error rather than a shrug.
   const { rows } = await client.query<Row>(`
     SELECT d.id,
            p.routing_number,
@@ -193,9 +137,6 @@ try {
   console.log(`  ${needsSealing.length} with plaintext and no ciphertext`);
   console.log(`  ${alreadySealed.length} already sealed`);
 
-  // A row whose sealed column holds something that is not an envelope is the
-  // one state no mode should touch: it is not plaintext to seal and not
-  // ciphertext to open. Report and refuse.
   const corrupt = rows.filter((r) =>
     COLUMNS.some((c) => r[c.sealed] != null && !isEnvelope(r[c.sealed])));
   if (corrupt.length) {
@@ -219,8 +160,6 @@ try {
           console.error(`  ${r.id} ${c.sealed}: ${(e as Error).message}`);
           continue;
         }
-        // Compared, never printed - not the plaintext, not the decrypted value,
-        // not a diff of the two. The row id and the verdict are the whole report.
         if (r[c.plain] != null && opened !== r[c.plain]) {
           mismatched += 1;
           console.error(`  ${r.id} ${c.sealed}: decrypts to something other than the exchange plaintext`);
@@ -264,9 +203,6 @@ try {
       die("\nNOTHING WAS ROTATED. Pass --allow-empty if that is expected.");
     }
   } else {
-    // report and commit share this branch: the same work, with the UPDATE
-    // skipped. A dry run that takes a different code path proves nothing about
-    // the real one.
     let sealedCount = 0;
     for (const r of needsSealing) {
       const next: Record<string, string | null> = {};

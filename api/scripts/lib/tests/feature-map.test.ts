@@ -1,18 +1,3 @@
-// The map two audits believe.
-//
-// audit:coverage asks "does this column have anywhere to go" and
-// audit:precision asks "can what it lands in hold the value" - both from
-// feature-map.mjs. Neither validates the map itself, so a table or column
-// named here that does not exist makes a mapping quietly inert: the audit
-// walks past the column and reports nothing wrong.
-//
-// That is not hypothetical. The map's own comment records
-// exchange.carrier_services being migrated and never declared, so "neither
-// audit had been looking at it" - and exchange.account_transactions went
-// unnoticed the same way, seventeen production rows of customer credit.
-//
-// A misspelling fails the same way as an omission, and is harder to see. This
-// checks every name in the map against the database.
 import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import pool from "#pool";
@@ -20,7 +5,6 @@ import type { PoolClient } from "pg";
 import { FEATURES, RENAMES, DELIBERATE, FLOWS } from "../feature-map.ts";
 import type { FeatureMap } from "../feature-map.ts";
 
-/** "schema.table" -> the set of its column names, read from the catalogue. */
 let columns: Map<string, Set<string>>;
 let client: PoolClient;
 
@@ -74,9 +58,6 @@ test("every column a rename comes FROM exists on its source table", () => {
   assert.deepEqual(missing.sort(), [], "a rename names a source column that is not there");
 });
 
-// The one most likely to be wrong, and the one that matters: if a rename's
-// target does not exist, coverage believes a column landed somewhere it did
-// not, and reports the feature clean.
 test("every column a rename goes TO exists on one of that table's declared targets", () => {
   const targetsOf = (src: string): string[] => {
     const out = new Set<string>();
@@ -91,7 +72,7 @@ test("every column a rename goes TO exists on one of that table's declared targe
     const targets = targetsOf(table);
     if (!targets.length) { missing.push(`${table} has renames but no declared target`); continue; }
     for (const [from, to] of Object.entries(map)) {
-      if (to === "-") continue; // deliberately dropped, checked elsewhere
+      if (to === "-") continue;
       checked += 1;
       const found = targets.some((t) => columns.get(t)?.has(to));
       if (!found) missing.push(`${table}.${from} -> "${to}" is on none of ${targets.join(", ")}`);
@@ -121,9 +102,6 @@ test("every table and column in a value FLOW exists on both sides", () => {
       for (const [target, map] of Object.entries(targets)) {
         if (!columns.has(target)) { missing.push(`${target} (flow target)`); continue; }
         for (const [from, to] of Object.entries(map)) {
-          // A source column may flow into MORE THAN ONE target column -
-          // exchange.products.content lands in both orders.items.post_melt and
-          // orders.items.content - so the target is a string or an array.
           for (const one of Array.isArray(to) ? to : [to]) {
             checked += 1;
             if (!columns.get(src)!.has(from)) missing.push(`${src}.${from}`);

@@ -33,13 +33,8 @@ import { Bullion } from "../products/bullion.js";
 import { User } from "../auth/users.js";
 import { Direction } from "../orders/enums.js";
 
-// Stripe reports money as a number in process and as a string over its own
-// wire, and the intent read passes whichever it was handed straight through.
 const money = z.union([z.number(), z.string()]).nullable();
 
-// The intent as the checkout surface reads it: the row's own columns plus the
-// latest attempt and the instrument. amount_received / amount_capturable are
-// the provider's, not columns.
 export const PaymentIntentView = PaymentIntent.pick({
   id: true,
   session_id: true,
@@ -61,10 +56,6 @@ export const PaymentIntentView = PaymentIntent.pick({
 });
 export type PaymentIntentView = z.infer<typeof PaymentIntentView>;
 
-// A payments.intents WRITE - ids plus the facts, no audit or default columns.
-// `id` is the caller's to supply (ruling 43) and create.sql issues one if not.
-// The same patch serves create and update: NOT NULL columns and defaults are
-// the database's decision, so there is no separate New shape.
 export const PaymentIntentPatch = PaymentIntent.pick({
   id: true,
   session_id: true,
@@ -81,7 +72,6 @@ export const PaymentIntentPatch = PaymentIntent.pick({
 }).partial();
 export type PaymentIntentPatch = z.infer<typeof PaymentIntentPatch>;
 
-// POST /payments/update_intent - the cart and the four ids that price it.
 export const PaymentIntentLine = Bullion.pick({ id: true })
   .extend({ quantity: z.number() })
   .strict();
@@ -97,38 +87,22 @@ export const UpdatePaymentIntentBody = z.object({
 }).strict();
 export type UpdatePaymentIntentBody = z.infer<typeof UpdatePaymentIntentBody>;
 
-// The PROVIDER's id, not ours: a Stripe intent reference, which is the same
-// kind of value payments.attempts stores as provider_ref.
 export const CancelPaymentIntentBody = z.object({
   payment_intent_id: PaymentAttempt.shape.provider_ref,
 }).strict();
 export type CancelPaymentIntentBody = z.infer<typeof CancelPaymentIntentBody>;
 
-// THE CUSTOMER AN INTENT BILLS - auth.users' own columns, not a payments
-// table. payments/customers/repo.ts is the one reader (name and email are
-// what opening a Stripe customer needs); it lives here because the intent is
-// the payments entity that bills against it.
 export const BillingIdentity = User.pick({
   id: true, name: true, email: true, stripeCustomerId: true,
 });
 export type BillingIdentity = z.infer<typeof BillingIdentity>;
 
-// WHO IS ASKING. An intent is keyed on (session_id, user_id, type), so the
-// caller's own ids travel as one document instead of two loose arguments -
-// `.unwrap()` because a CALLER is always signed in, unlike the intent row
-// itself, whose session_id/user_id are nullable (an admin-opened intent has
-// no session of its own).
 export const PaymentCaller = z.object({
   session_id: PaymentIntent.shape.session_id.unwrap(),
   user_id: PaymentIntent.shape.user_id.unwrap(),
 });
 export type PaymentCaller = z.infer<typeof PaymentCaller>;
 
-// THE PAYMENT FACTS a caller derives a verdict from - order creation (D211)
-// and the abandonment sweep both read this shape rather than the row. One
-// order_id + the order's own direction, not two nullable ids; the amount is
-// in CENTS - see sql/find_facts_by_ref.sql, which this matches column for
-// column.
 export const PaymentIntentFacts = PaymentIntent.pick({
   user_id: true,
   session_id: true,
@@ -143,4 +117,3 @@ export const PaymentIntentFacts = PaymentIntent.pick({
   direction: Direction.nullable(),
 });
 export type PaymentIntentFacts = z.infer<typeof PaymentIntentFacts>;
-

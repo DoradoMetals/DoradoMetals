@@ -1,5 +1,3 @@
-// Which provider a carrier id resolves to: resolveCarrier reads the carrier's *name*, lower-cased, into a PROVIDERS key ('FedEx' -> 'fedex'). Every label, rate and pickup goes through it, which makes the name load-bearing - a compose step that dropped it would fail every label with "Unsupported carrier".
-// exchange.carriers no longer receives writes, but its rows are the frozen historical record - the comparison below checks the new schema still agrees with it, not that a dual write kept them in sync.
 import { test, afterAll, beforeAll, describe } from "vitest";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
@@ -25,23 +23,13 @@ afterAll(async () => {
 
 const normalize = (name: unknown): string => String(name || "").trim().toLowerCase();
 
-// KEPT (exchange-fixtures lane, D214 item 10): the two exchange.carriers
-// reads below are not fixture discovery - they verify that the SCHEMA
-// MIGRATION preserved carrier identity, comparing every frozen exchange row
-// against its counterpart in the new schema. A builder cannot stand in for
-// this: it would create a NEW carrier, not prove that the OLD, real FedEx
-// row and the new one still agree on name.
 describe("the carrier name every provider lookup depends on", () => {
-  // FEDEX_CARRIER_ID has to keep naming FedEx - this asserts it rather than trusting it.
   test("FEDEX_CARRIER_ID names FedEx in the schema the resolver reads", async () => {
     const carrier = await carriers.getCarrierById(FEDEX_CARRIER_ID, client);
     assert.ok(carrier, "FEDEX_CARRIER_ID resolves to no carrier at all");
-    // A carrier's name is its organization's now - see the comment in
-    // resolver.ts.
     assert.equal(normalize(carrier.organization?.name), "fedex",
       `the name is "${carrier.organization?.name}"`);
 
-    // And in exchange, the frozen historical record.
     const { rows } = await client.query(
       "SELECT name FROM exchange.carriers WHERE id = $1", [FEDEX_CARRIER_ID]
     );
@@ -67,17 +55,14 @@ describe("the carrier name every provider lookup depends on", () => {
     }
   });
 
-  // A carrier whose name does not resolve is not a bad request - it is a shipment that cannot be created at all. Every carrier either has a provider, or is a known gap.
   test("every carrier either resolves to a provider or is one we have not built", async () => {
     const unimplemented = new Set(["ups", "usps"]);
     const all = await carriers.getAllCarriers();
-    // The floor the tests below lean on without saying so: with no carriers to loop over, all three pass having checked nothing.
     assert.ok(all.length, "no carriers, so this test asserts nothing");
     for (const carrier of all) {
       const name = carrier.organization?.name;
       const code = normalize(name);
       if (unimplemented.has(code)) continue;
-      // PROVIDERS/BUILDERS are keyed by carrier code, and the code here comes from the database - a string index by construction, named as such rather than left an implicit any.
       assert.ok((PROVIDERS as Record<string, unknown>)[code], `carrier "${name}" has no provider registered`);
       assert.ok((BUILDERS as Record<string, unknown>)[code], `carrier "${name}" has no builders registered`);
     }
@@ -89,8 +74,6 @@ describe("resolveCarrier", () => {
     const { code, provider, builders } = await resolveCarrier(FEDEX_CARRIER_ID, client);
     assert.equal(code, "fedex");
     assert.ok(provider);
-    // Every operation the handler dispatches needs a builder; a missing one is
-    // "builders.createLabel is not a function" at the moment of shipping.
     for (const op of [
       "validateAddress", "getRates", "createLabel", "cancelLabel",
       "checkPickup", "createPickup", "cancelPickup", "getTracking", "getLocations",
@@ -99,7 +82,6 @@ describe("resolveCarrier", () => {
     }
   });
 
-  // resolveCarrier used to read carrier.name off an undefined carrier and throw a bare TypeError, telling the caller nothing. Reading the name off the organization made it optional-chained instead, so an unknown id now produces the "Unsupported carrier" message the code always meant to - accidentally fixed by the reshape, and worth keeping.
   test("an unknown carrier id throws a message that says what went wrong", async () => {
     await assert.rejects(
       () => resolveCarrier("00000000-0000-4000-8000-000000000000", client),
@@ -109,22 +91,14 @@ describe("resolveCarrier", () => {
 });
 
 describe("every registered provider is usable", () => {
-  // A provider without builders, or builders without a provider, resolves
-  // halfway and fails at the call site.
   test("PROVIDERS and BUILDERS cover the same carriers", () => {
     assert.deepEqual(Object.keys(PROVIDERS).sort(), Object.keys(BUILDERS).sort());
   });
 });
 
-// Every method the handler dispatches has to exist on the provider it reaches - this is what `provider.schedulePickup(...)` was: fedex.ts never exported that name, so booking a pickup threw before any FedEx request was built. Eight of nine dispatch lines named their export correctly; the ninth didn't.
-// TypeScript can't catch it either - `provider` is a namespace import resolved at runtime, so there's nothing to check the property against. Reading the dispatch lines back out of the file is the only way to tie the two halves together.
 describe("the handler dispatches only methods its providers have", () => {
-  // Read lazily, inside the tests, by extension-agnostic lookup - not readFileSync("handler.js") in the describe body. Converting the handler to TypeScript renamed the file, the read threw ENOENT inside describe, and the three tests below silently stopped existing while the suite stayed GREEN.
-  // That's a hole in the gate this whole project leans on: `node --test` prints the ENOENT for a describe whose body throws, then reports `fail 0` and EXITS 0 - `pnpm check` passed, and the only symptom was the total dropping from 500 to 497.
-  // So the read happens inside a test, where a failure is counted, and looks for either extension - this test is about what the handler dispatches, not what it's written in.
   const readHandler = () => {
     for (const name of ["handler.ts", "handler.js"]) {
-      // ".." because the handler sits in operations/ and this test sits in operations/tests/.
       const full = path.join(import.meta.dirname, "..", name);
       if (fs.existsSync(full)) return fs.readFileSync(full, "utf8");
     }
@@ -139,8 +113,6 @@ describe("the handler dispatches only methods its providers have", () => {
       .map((m) => m[1]);
 
   test("the dispatch lines were found at all", () => {
-    // If this file is ever restructured, the regex above stops matching and
-    // every assertion below passes vacuously.
     assert.ok(dispatched("provider").length >= 9, "found no provider dispatch lines to check");
     assert.ok(dispatched("builders").length >= 9, "found no builder dispatch lines to check");
   });

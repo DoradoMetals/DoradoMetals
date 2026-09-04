@@ -1,41 +1,3 @@
-// EVERY QUERY AGAINST THE NEW SCHEMAS THAT HAS NO INDEX TO ENTER BY.
-//
-// WHY THIS EXISTS, GIVEN audit:indexes ALREADY RUNS. That one is SOURCE-driven:
-// it walks exchange's indexes and asks whether each survived into the schema
-// replacing it. It is blind by construction to a lookup that exchange never
-// had - a WHERE clause written fresh in a repo.next.ts has no exchange index to
-// be compared against, so no comparison happens and nothing is reported.
-//
-// This is the other direction: start from the queries. For every parameterised
-// equality filter in code that touches the eighteen new schemas, ask whether
-// any index on that table LEADS with one of the columns the query filters on.
-// If none does, Postgres has nothing to seek to and must scan.
-//
-// It earned its keep immediately, and against audit:indexes' own conclusion.
-// The pair (exchange.payment_intents.provider_ref -> payments.attempts) was
-// reported by audit:indexes and I declined it, because provider_ref is always
-// written next to intent_id and intent_id is indexed. But the live query is
-//
-//     UPDATE payments.intents i SET ... FROM payments.attempts a
-//      WHERE a.intent_id = i.id AND a.provider_ref = $3
-//
-// and `a.intent_id = i.id` is a JOIN CONDITION, not a narrowing filter. It says
-// how two tables line up; it does not say which row to find. Nothing else
-// constrains either side, so there was no seek at all - exchange sought in
-// O(log n) through UNIQUE(provider_ref) and the new schema scanned every attempt
-// ever made, on the Stripe webhook path. Migration 082 fixed it.
-//
-// THE UNIT IS THE QUERY, NOT THE COLUMN. A WHERE that filters
-// `user_id = $1 AND direction = $2` is fully served by an index leading with
-// user_id: btree is entered once and the remaining predicate applies to very
-// few rows. Asking per column calls that query unindexed twice over. Getting
-// this wrong turned 4 findings into 8 and buried the real one.
-//
-// WHAT IT REFUSES TO GUESS. A filter whose column does not exist on the table
-// it was attributed to means the alias resolution was wrong, not that the schema
-// is missing something - it reports `?`. Views are excluded: they cannot carry
-// an index and what matters is the indexes on the tables underneath.
-
 import "#env";
 import fs from "node:fs";
 import path from "node:path";
@@ -51,11 +13,6 @@ const SCHEMAS = [
 ];
 const S = SCHEMAS.join("|");
 
-// THE EXEMPLAR OWED ITSELF ONE. This file is the reason `lint:script-guards`
-// can point at "a floor AND a known-present control" as the shape to copy, and
-// it had neither a --self-test nor any proof its own two guards fire. Both are
-// attacked here: the literal floor without a database (it is checked before the
-// first query, deliberately), and the control against the real tree.
 if (process.argv.includes("--self-test")) {
   const { selfTest } = await import("./lib/self-test-harness.ts");
   await selfTest({
@@ -80,52 +37,19 @@ if (process.argv.includes("--self-test")) {
   });
 }
 
-// Queries that legitimately have no index to enter by. Pinned from both sides:
-// an unnamed one fails, and a name that no longer reports fails too.
-// EMPTY, AND THE ONE ENTRY IT HELD WAS PINNED TO A PHANTOM. It excused
-// `metals.metals|name` on the grounds that "the product save resolves a metal
-// by name inside the statement that writes everything else" - and that
-// statement had already stopped doing so: the CRUD pass moved the resolution
-// into products/service.ts and the UPDATE took ids. The only remaining text
-// matching `metals.metals WHERE name = $n` was the COMMENT in
-// db/products/sql/update.sql explaining what the statement no longer did, and
-// this scan reads a .sql file whole. Deleting that file with the audit-stamp
-// pass (the statement is built by shared/db/patch.ts now) removed the comment,
-// and the entry went stale - which is the both-sides pin working exactly as
-// its own header says. There is no live query here to excuse.
 const ACCEPTED = {};
 
-// shared/testing/ IS EXCLUDED, and the exclusion is about what this audit
-// MEANS. It asks "does a query the application runs have an index to enter
-// by", because the symptom of a missing one is production latency. The fixture
-// library (shared/testing/builders/) resolves seeded reference rows BY NAME -
-// `organizations.organizations WHERE name = $1`, `shipping.services WHERE
-// name = $1` - against tables holding sixteen and a few dozen rows, inside a
-// transaction that is rolled back, on a local database. A sequential scan
-// there is the correct plan and adding a production index to satisfy this scan
-// would be a schema change made for a test. Test FILES were already excluded
-// by the `.test.` filter; the builders are not test files, so they need
-// naming.
 const walk = (d, out = []) => {
   for (const e of fs.readdirSync(d, { withFileTypes: true })) {
     const p = path.join(d, e.name);
     if (e.isDirectory()) {
       if (!/node_modules|\.git|dist|migrations|shared\/testing/.test(p)) walk(p, out);
     }
-    // .sql TOO. Statements moved out of template literals and into .sql files
-    // with the per-table feature restructure, and this scan could no longer see
-    // them - which the known-present control below caught immediately rather
-    // than reporting a blind run as clean.
     else if (/\.(ts|js|sql)$/.test(e.name) && !/\.test\.|\.d\.ts$/.test(e.name)) out.push(p);
   }
   return out;
 };
 
-// A subquery is its own scope: its WHERE belongs to ITS FROM, and its closing
-// paren ends the enclosing statement's SET list. Without this, a
-// `SET col = (SELECT id FROM x WHERE name = $2), other = $3, ...` leaks the
-// whole remaining SET list into the WHERE region and attributes `name` to the
-// outer table. That produced 40-odd findings that were all assignments.
 const scopes = (sql) => {
   let depth = 0, own = "", start = 0;
   const groups = [];
@@ -180,13 +104,10 @@ const scan = (sql, file, line) => {
   for (const g of groups) if (/\b(FROM|UPDATE|JOIN|WHERE)\b/i.test(g)) scan(g, file, line);
 };
 
-// Three layer roots instead of one `features/` tree (Phase 0c restructure);
-// a self-test's synthetic tree legitimately supplies only some of them.
 for (const f of ["db", "domain", "transport", "shared"]
   .filter((l) => fs.existsSync(path.join(ROOT, l)))
   .flatMap((l) => walk(path.join(ROOT, l)))) {
   const src = fs.readFileSync(f, "utf8");
-  // A .sql file IS the statement; a .ts file carries them in backticks.
   const blobs = f.endsWith(".sql")
     ? [{ 1: src, index: 0 }]
     : [...src.matchAll(/`([^`]*)`/gs)];
@@ -198,11 +119,6 @@ for (const f of ["db", "domain", "transport", "shared"]
   }
 }
 
-// A scan that walked nothing must not report clean. The floor alone is too weak
-// to notice PARTIAL breakage - dropping three of the eighteen schemas still left
-// 113 literals and the run reported clean - so a known-present control has to be
-// found as well. getUserImages is the query migration 081 was written for; if
-// this scan cannot see it, it cannot see anything and must say so.
 const LITERAL_FLOOR = Number(process.env.AUDIT_QP_LITERAL_FLOOR ?? 100);
 if (literals < LITERAL_FLOOR) {
   console.error(`only ${literals} SQL literals found against the new schemas - the walk is broken, not the schema`);
@@ -261,7 +177,6 @@ if (![...seen.keys()].includes(CONTROL)) {
 const unindexed = [], accepted = [], unresolved = [];
 let checked = 0, views = 0;
 for (const v of seen.values()) {
-  // A view carries no index of its own; what matters is the tables underneath.
   if (kindOf.get(v.table) === "VIEW") { views += 1; continue; }
   if (!columnsOf.has(v.table)) { unresolved.push({ ...v, why: "table not found" }); continue; }
   const unknown = v.cols.filter((c) => !columnsOf.get(v.table).has(c));

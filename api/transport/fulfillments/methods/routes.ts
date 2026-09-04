@@ -8,7 +8,6 @@ import {
 
 import { requireAdmin, requireUser } from "#shared/middleware/authMiddleware.ts";
 
-// Mounted at /methods by transport/fulfillments/routes.ts, so the live paths are unchanged: GET /api/fulfillments/methods, GET .../methods/all, POST .../methods/update.
 const router = express.Router();
 
 router.get("/", requireUser, getMethods);

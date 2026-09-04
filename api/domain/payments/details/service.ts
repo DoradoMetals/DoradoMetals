@@ -1,11 +1,3 @@
-// The payout account: recorded at the payout STEP (D210), linked at order
-// creation, opened only by the admin bank-details read.
-//
-// ROUTING AND ACCOUNT NUMBERS ARE SEALED HERE - AES-256-GCM envelopes bound to
-// the row id and the column name (shared/crypto/envelope.ts), so a copied
-// envelope fails authentication anywhere but its own cell. Plaintext exists
-// only inside this module's two functions and never reaches a log, an error or
-// a return value except from decryptFor, the admin read's single door.
 import { randomUUID } from "node:crypto";
 import { paymentDetails as details, paymentMethods as methods } from "#db";
 import {
@@ -17,12 +9,6 @@ import { payoutKeyFromEnv } from "#shared/crypto/payoutKey.ts";
 import type { Executor } from "#shared/db/executor.ts";
 import type { CheckoutPayoutForm, PaymentDetailsPatch, PaymentDetailsView } from "@dorado/contracts";
 
-// Save, or rewrite in place - the details id is stable per checkout, so a
-// customer correcting a digit does not litter rows.
-//
-// LOAD (the method row the form names) -> ASSERT (rules.ts) -> WRITE. `tx` is
-// REQUIRED and the caller's: the account is written inside the checkout's own
-// transaction, so a payout step that fails writes no half-account.
 export async function saveCheckoutPayout(
   user_id: string,
   existing_id: string | null,
@@ -57,22 +43,10 @@ export async function saveCheckoutPayout(
     encryption_key_id: isBankMethod(method) ? key.id : null,
   };
 
-  // THE UPDATE ANSWERS THE ROW IT WROTE (ruling 65). It used to write, ask
-  // whether one row changed, then read the row back - three statements to
-  // learn what the first one already knew, and a window in which the answer
-  // could disagree with the write it followed.
   const rewritten = existing_id ? await details.update(existing_id, values, tx) : undefined;
   return rewritten ?? (await details.create(id, user_id, values, tx));
 }
 
-// THE ADMIN READ'S SINGLE DOOR, and it answers the two numbers and nothing
-// else. It used to hand back the account facts beside them - method, holder,
-// bank, type, email - which its one caller already had from the payout
-// projection and discarded, so every field but these two was plaintext-adjacent
-// surface with no reader at all.
-//
-// Nulls rather than a throw when a row carries no envelopes: an email method
-// and a pre-D210 row both legitimately have none.
 export async function decryptFor(
   details_id: string, executor?: Executor
 ): Promise<{ routing_number: string | null; account_number: string | null }> {
@@ -89,11 +63,6 @@ export async function decryptFor(
   };
 }
 
-// Change the method on one payout account. The account is reached by ITS OWN
-// id: the walk from an order used to run through payments.intents, which is
-// money coming IN, so it matched no rows for every payout it existed to serve
-// (D168). `tx` is REQUIRED - the payout patch writes two tables and they
-// commit together or not at all.
 export async function setMethod(
   details_id: string, method: string, tx: Executor
 ): Promise<void> {

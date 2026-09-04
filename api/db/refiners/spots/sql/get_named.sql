@@ -1,5 +1,3 @@
--- The refiner's spots for an order in the CONVERTED spellings (`name`/`ask`/`bid`) — get_for.sql keeps the legacy spellings its own wire still serves; this is the same rows for callers on the converted names.
--- percent_change/dollar_change have no column in the new schema; projected as NULL to keep the shape.
 SELECT
        sp.id,
        sp.order_id,

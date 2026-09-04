@@ -1,5 +1,3 @@
-// REST (D214 item 4). `/admins` is declared before `/:id` so the word is never
-// read as a user id.
 import express from "express";
 
 import { list, listAdmins, getOne, updateCredit } from "#transport/users/controller.ts";

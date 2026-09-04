@@ -45,10 +45,6 @@ import { Metal } from "../metals/metals.js";
 import { Organization } from "../organizations/organizations.js";
 import { Mint } from "./mints.js";
 
-// THE CATALOGUE ROW BEHIND A BULLION LINE - the PUBLIC columns, which is
-// exactly what db/products/sql/get_by_ids.sql projects. Stock, display flags,
-// the supplier and the audit columns are not facts about an order line and do
-// not travel with one.
 export const BullionPublic = Bullion.pick({
   id: true, name: true, description: true, content: true, purity: true,
   gross: true, bid_premium: true, ask_premium: true, type: true,
@@ -58,25 +54,12 @@ export const BullionPublic = Bullion.pick({
 });
 export type BullionPublic = z.infer<typeof BullionPublic>;
 
-// THE STOREFRONT ROW - the public projection plus the metal's and the mint's
-// names, which db/products/sql/list.sql JOINS. The two ids STAY beside the two
-// names: a caller that wants to key a spot quote or a reference list off the
-// row needs the id, and matching on the NAME instead is how the ticker lookup
-// came to be a string comparison. The extends are the join made visible.
 export const BullionStorefront = BullionPublic.extend({
   metal_type: Metal.shape.name,
   mint_name: Mint.shape.name,
 });
 export type BullionStorefront = z.infer<typeof BullionStorefront>;
 
-// POST /products and PATCH /products/:id - the writable columns, all optional
-// (a create sends the same patch). Audit columns are omitted:
-// public.audit_stamp writes them.
-//
-// metal_id/supplier_id/mint_id travel as IDS, not names (ruling 43). The body
-// used to carry "Silver"/"APMEX"/"U.S. Mint" and the service resolved each
-// with an in-memory name lookup. Booleans are real booleans - zod refuses the
-// string "true" the old bespoke flag() coercion accepted.
 export const BullionPatch = Bullion.omit({
   created_by: true,
   updated_by: true,
@@ -87,23 +70,15 @@ export const BullionPatch = Bullion.omit({
 }).partial();
 export type BullionPatch = z.infer<typeof BullionPatch>;
 
-// THE COLUMNS AN UPDATE MAY TOUCH: the patch minus `id`, which is the
-// statement's WHERE key rather than a value it writes. A create still sends
-// the full patch - an explicit id there is honoured.
 export const BullionPatchColumns = BullionPatch.omit({ id: true });
 export type BullionPatchColumns = z.infer<typeof BullionPatchColumns>;
 
-// THE ADMIN ROW AS SQL PROJECTS IT - everything but the two actor ids, which
-// are the trigger's and never leave the API.
 export const BullionAdminRow = Bullion.omit({
   created_by_id: true,
   updated_by_id: true,
 });
 export type BullionAdminRow = z.infer<typeof BullionAdminRow>;
 
-// THE ADMIN ROW ON THE WIRE. The three foreign keys are resolved to names by
-// the query itself (db/products/sql/get_admin.sql joins metals, mints and the
-// supplier's organization), which is why there is no composer in between.
 export const BullionAdmin = BullionAdminRow.omit({
   metal_id: true,
   mint_id: true,
@@ -115,31 +90,15 @@ export const BullionAdmin = BullionAdminRow.omit({
 });
 export type BullionAdmin = z.infer<typeof BullionAdmin>;
 
-// A PRODUCT AND ITS WEIGHTS, as the catalogue lists it. `variant_group` names
-// a family (four Gold American Eagles by `variant_label`); the server groups
-// them, picks the family's headline row - the heaviest, which is what four
-// screens each re-sorted for - and orders the rest heaviest first. A product
-// with no family is a group of one with no variants.
 export const BullionGroup = z.object({
   default: BullionStorefront,
   variants: z.array(BullionStorefront),
 });
 export type BullionGroup = z.infer<typeof BullionGroup>;
 
-// Whether an id may be BOUGHT. The sell side has no gate (ruling 49), so a
-// bid check only asks whether the row exists at all.
 export const BullionLiveness = Bullion.pick({ id: true, display: true });
 export type BullionLiveness = z.infer<typeof BullionLiveness>;
 
-// EVERY QUESTION THE CATALOGUE IS ASKED, as keys (ruling 57/60/61 - the shape
-// db/products/repo.ts builds its WHERE from lives here, not as a hand-rolled
-// object type in the repo). Absent means "do not filter". `ids` replaces a
-// single id because a filter may name many; `metal` is the metal's NAME, not
-// its id - a JOIN column the query filters by string; `search` and `sort`
-// name no column at all, so they arrive through .extend() rather than
-// .pick(). The picked columns stay nullable/optional exactly as the row
-// declares them - a filter that cannot express "no such row" for a nullable
-// column would be stricter than the table it questions.
 export const BullionFilter = Bullion.pick({
   slug: true, display: true, homepage_display: true, filter_category: true,
   type: true, is_generic: true,
@@ -151,7 +110,5 @@ export const BullionFilter = Bullion.pick({
 });
 export type BullionFilter = z.infer<typeof BullionFilter>;
 
-// THE ORDERING KEYS db/products/repo.ts's closed ORDERINGS map answers for -
-// no caller string ever reaches the statement itself.
 export const BullionSort = BullionFilter.shape.sort.unwrap();
 export type BullionSort = z.infer<typeof BullionSort>;

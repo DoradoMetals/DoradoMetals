@@ -1,14 +1,3 @@
-// The ciphertext columns 104 added, exercised against real Postgres.
-//
-// shared/crypto/tests/envelope.test.ts proves the CIPHER. This proves the
-// column: that a sealed value survives a round trip through `text`, that the
-// AAD really is bound to the row id Postgres assigned rather than one invented
-// in JavaScript, and that the key id written beside it is the one that can find
-// the row again.
-//
-// EVERY VALUE HERE IS SYNTHETIC. Dev holds sixteen payouts and not one bank
-// number - all sixteen are ECHECK or DORADO_ACCOUNT - so there is nothing real
-// to reach for even by accident, and these rows are rolled back regardless.
 import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
@@ -28,14 +17,6 @@ beforeAll(async () => {
 });
 afterAll(async () => { client.release(); await pool.end(); });
 
-// LOCKS.ORDERS, AND THERE IS NO `PAYMENTS` LOCK ON PURPOSE. This file writes
-// payments.details and nothing else, so a lock of its own looks right - but
-// `features/payments/details/tests/repo.test.ts` ALSO writes payments.details
-// and takes ORDERS (it writes orders.transactions too, since 099 put the payout
-// link there). Two files writing one table under two different locks is exactly
-// the deadlock shared/testing/locks.ts exists to prevent: neither would wait for
-// the other, and both would pass in isolation. The lock follows the TABLE, not
-// the feature name.
 const inRollback = async (fn: (c: PoolClient) => Promise<void>) => {
   await client.query("BEGIN");
   await takeLocks(client, [LOCKS.ORDERS]);
@@ -44,8 +25,6 @@ const inRollback = async (fn: (c: PoolClient) => Promise<void>) => {
 
 const KEY = parseKey("test1", randomBytes(32).toString("base64"));
 
-// Synthetic, and deliberately shaped like the real thing so that a projection
-// which leaked one would be recognisable in a diff.
 const ROUTING = "021000021";
 const ACCOUNT = "000123456789";
 
@@ -82,7 +61,6 @@ test("a sealed routing number round-trips through the column", async () => {
     assert.equal(rows[0].encryption_key_id, KEY.id);
     assert.equal(keyIdOf(rows[0].routing_number_encrypted), KEY.id);
 
-    // The value survives the text column byte for byte.
     assert.equal(open(rows[0].routing_number_encrypted, KEY, aadFor(id, "routing_number")), ROUTING);
   });
 });
@@ -94,8 +72,6 @@ test("the stored ciphertext does not contain the plaintext", async () => {
       `UPDATE payments.details SET account_number_encrypted = $2 WHERE id = $1`,
       [id, seal(ACCOUNT, KEY, aadFor(id, "account_number"))]
     );
-    // Asked of POSTGRES, not of the JavaScript string - a LIKE against the
-    // stored value is what an attacker with a database dump actually has.
     const { rows } = await c.query(
       `SELECT account_number_encrypted LIKE '%' || $2 || '%' AS leaks
          FROM payments.details WHERE id = $1`, [id, ACCOUNT]
@@ -112,8 +88,6 @@ test("the AAD binds to the row id Postgres assigned, not one we chose", async ()
 
     const sealedForA = seal(ACCOUNT, KEY, aadFor(a, "account_number"));
 
-    // Moving A's ciphertext onto B's row is exactly the copy-paste an operator
-    // might make during a botched rotation. It must not decrypt.
     await c.query(
       `UPDATE payments.details SET account_number_encrypted = $2 WHERE id = $1`,
       [b, sealedForA]
@@ -145,13 +119,6 @@ test("encryption_key_id finds the rows a rotation would have to touch", async ()
   });
 });
 
-// The join the script depends on. 073 established that a details row KEEPS its
-// payout's id; if that ever stops being true the script silently processes zero
-// rows, which is the failure mode its --allow-empty refusal exists to catch.
-// KEPT (exchange-fixtures lane, D214 item 10): this is a migration-fidelity
-// check on real backfilled data, not a fixture - a builder-made details row
-// has no exchange.payouts counterpart to join, so it cannot prove the thing
-// encrypt-payout-details.ts actually depends on.
 test("payments.details still joins exchange.payouts on id", async () => {
   const { rows } = await client.query(
     `SELECT count(*)::int n

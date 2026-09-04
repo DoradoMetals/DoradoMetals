@@ -51,9 +51,7 @@ function renderHeader(): string {
 
 interface ShellInput {
   title: string;
-  /** Optional - a falsy value omits the subtitle element rather than rendering an empty one. */
   subtitle?: string | null;
-  /** Already-rendered HTML for the body. Interpolated as-is. */
   bodyHtml: string;
 }
 
@@ -149,7 +147,6 @@ const baseStyles = `
     height: 2px;
     background: #debb59;
   }
-
 
   .packing-title {
     font-size: 20px;
@@ -331,4 +328,3 @@ const baseStyles = `
     font-weight: 600;
   }
 `;
-

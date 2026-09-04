@@ -1,6 +1,3 @@
-// callerId and requiredParam/param — the two "absent input becomes a named
-// status code" helpers transport code leans on instead of a `!` or a
-// hand-rolled 400/401 at every call site.
 import { test } from "vitest";
 import assert from "node:assert/strict";
 import type { Request } from "express";
@@ -48,9 +45,6 @@ test("param answers 400 naming the missing param, not a generic message", () => 
 });
 
 test("requiredParam refuses a non-string value rather than coercing it", () => {
-  // express 5 types a repeatable param as string | string[] — an array must be
-  // refused, not silently joined or truncated into a query that matches
-  // something the caller never asked for.
   assert.throws(
     () => requiredParam(["a", "b"], "tag"),
     (err: any) => {

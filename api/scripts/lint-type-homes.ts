@@ -1,71 +1,10 @@
-// A TYPE HAS EXACTLY ONE HOME, AND IT IS @dorado/contracts.
-//
-// Jacob, on api/domain/orders/rules.ts after four passes had already been over
-// it: *"Well I'm still seeing a lot of types in here so"*. Rulings 57/60/61
-// say it outright - every type that crosses a boundary lives in the contracts
-// package, the row IS `Order`, a write takes `OrderPatch`, and there is no
-// `New*`. This lint is that sentence, enforced.
-//
-// *** WHAT REPLACED WHAT, AND WHY THE OLD QUESTION WAS TOO WEAK. *** The
-// previous version asked "is the same type NAME declared in two files with the
-// SAME BODY?" - duplication only. It was true and it was nearly useless: 192
-// declarations lived under db/ and domain/ and it reported two of them,
-// because a type declared ONCE in the wrong place is not a duplicate. The rule
-// is not "declare it once", it is "declare it THERE", so the question this
-// asks now is simply: is anything declared here at all?
-//
-// *** THE TWO ALLOWED FORMS. *** Neither is a declaration of a new shape:
-//
-//   (a) A TYPE-ONLY RE-EXPORT of a contract -
-//         export type { Order } from "@dorado/contracts";
-//       which is a pointer, not a second declaration.
-//
-//   (b) A DERIVATION OF A CONTRACT, IN THE SAME STATEMENT, NOT EXPORTED -
-//         type Facts = Pick<OrderView["order"], "direction" | "status">;
-//       for a shape genuinely internal to one computation in one file. It must
-//       name a contract-derived construct (Pick/Omit/Parameters/ReturnType/
-//       z.infer/typeof …) so it MOVES when the contract moves, and it must not
-//       be exported - the moment two files need it, it is crossing a boundary
-//       and belongs in the package.
-//
-// Anything else fails: a hand-written object type, an interface, an exported
-// alias, a `New<Entity>`, a `*Row`. Function PARAMETERS keep their inline
-// structural types - an inline type in a signature is not a declaration and is
-// not scanned.
-//
-// TESTS ARE EXCLUDED, and that is the same scoping decision the old version
-// made: this is about where a type LIVES IN THE PRODUCT, and a fixture
-// declaring its own `{ id: string }` is scaffolding that deliberately stands
-// alone. Including them turned a 2-finding report into a 12-finding one whose
-// bulk was fixtures - the false-positive rate that gets a check suppressed
-// (shared/testing/locks.ts records that outcome costing a shipped feature).
-//
-//   node scripts/lint-type-homes.ts
-//   node scripts/lint-type-homes.ts --self-test
-//
-// Exits non-zero on any unaccepted declaration.
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import path from "node:path";
 
 const ROOT = process.env.LINT_TYPE_HOMES_ROOT ?? path.resolve(import.meta.dirname, "..");
 
-// THE SCANNED ROOTS. `providers/` is deliberately NOT one of them: a provider
-// adapter describes somebody else's payload, which is not a column of ours and
-// has no business in a package whose whole premise is that every field traces
-// to one (packages/contracts/README.md). `shared/` and `transport/` are out for
-// the same kind of reason - an Executor alias and an Express-shaped helper are
-// plumbing, not a boundary shape.
 const ROOTS = ["db", "domain"];
 
-// DECLARATIONS THAT STAY, with a COUNT each, PINNED FROM BOTH SIDES: a file
-// listed here with the wrong count fails, and a file that stops having any
-// fails too. So the map can only shrink, and it cannot go stale quietly.
-//
-// EVERY ENTRY BELONGS TO ONE PARALLEL LANE, and this pass deliberately did not
-// touch its files: two lanes editing one file is how a merge loses a change.
-// Each is the same kind of declaration this pass removed everywhere else - a
-// `New<Entity>`, a `*Row`, a projection with no contract behind it - and the
-// count is what was there on 2026-09-04.
 const SMALL_FEATURES =
   "the small-features lane owns this file (refiners, leads, reviews, media, " +
   "sales-tax, transactions); its declarations are its own pass to remove";
@@ -111,25 +50,15 @@ function walk(dir: string, out: string[] = []): string[] {
   return out;
 }
 
-// The constructs that make a type a DERIVATION of something else rather than a
-// new shape. `typeof` covers `z.infer<typeof Schema>` and
-// `Parameters<typeof fn>[0]`; the mapped-type helpers cover the rest.
 const DERIVING =
   /\b(?:Pick|Omit|Partial|Required|Readonly|Record|Parameters|ReturnType|Awaited|NonNullable|Extract|Exclude|InstanceType|keyof|typeof)\b/;
 
 type Finding = { file: string; line: number; text: string; why: string };
 
-// `type X = …;` up to the semicolon that ends it, and `interface X { … }` by
-// its name alone. Deliberately not a TypeScript parse: this runs in the gate
-// and must not need the compiler API to say something this simple.
 function findingsIn(src: string, file: string): Finding[] {
   const out: Finding[] = [];
   const lineOf = (i: number) => src.slice(0, i).split("\n").length;
 
-  // FORM (a) FIRST, and it is recognised by the whole statement rather than by
-  // the word `export`: `export type { X } from "@dorado/contracts"` is a
-  // re-export, `export type { X } from "#db/…"` is a repo publishing a type of
-  // its own through one more hop, which is exactly what these rulings ended.
   const reexport = /(?:^|\n)\s*export\s+type\s*\{[^}]*\}\s*from\s*["']([^"']+)["']/g;
   const reexported = new Set<number>();
   let m: RegExpExecArray | null;
@@ -273,11 +202,6 @@ for (const [name, entry] of Object.entries(ACCEPTED)) {
   );
 }
 
-// THE FLOOR. A walk that opens nothing calls the whole tree clean, which is
-// what `audit-wire-readiness`' first version did for weeks (it resolved
-// `api/frontend` and walked zero files). The self-test lowers it for its
-// synthetic trees and keeps ONE case at the real value, so the floor itself is
-// proved to fire rather than merely declared.
 const FILE_FLOOR = Number(process.env.LINT_TYPE_HOMES_FLOOR ?? 100);
 if (files.length < FILE_FLOOR) {
   console.error(
@@ -288,9 +212,6 @@ if (files.length < FILE_FLOOR) {
 }
 
 if (!process.env.LINT_TYPE_HOMES_ROOT) {
-  // PINNED FROM BOTH SIDES. An entry whose file is clean now is stale and is
-  // reported; an entry whose count has grown is a lane adding declarations
-  // under cover of somebody else's excuse.
   const wrong = Object.entries(ACCEPTED).filter(
     ([name, entry]) => (acceptedHit.get(name) ?? 0) !== entry.count
   );

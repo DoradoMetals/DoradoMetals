@@ -1,4 +1,3 @@
-// HTTP in, HTTP out. Bodies are parsed strictly against the contract.
 import { CheckoutItemsBody, CheckoutPatch, CheckoutPatchBody, CheckoutPayoutBody, CheckoutPayoutForm, Direction } from "@dorado/contracts";
 import type { Request } from "express";
 import { callerId } from "#shared/http/caller.ts";
@@ -7,15 +6,12 @@ import { parseStrict } from "#shared/http/validate.ts";
 import { asyncHandler } from "#shared/middleware/asyncHandler.ts";
 import * as cartService from "#domain/checkout/service.ts";
 
-// The caller's own row, unless an admin names somebody else's (?user_id=).
 function subjectOf(req: Request): Promise<string> {
   const named = req.query?.user_id ?? req.body?.user_id;
   return cartService.resolveSubject(
     callerId(req), req.user?.role === "admin", oneString(named)
   );
 }
-
-// ---------------------------------------------------------------- the basket
 
 export const getCheckoutItems = asyncHandler(async (req, res) => {
   const direction = parseStrict(Direction, oneString(req.query.direction), "direction");
@@ -24,7 +20,6 @@ export const getCheckoutItems = asyncHandler(async (req, res) => {
   );
 });
 
-// The sync: replaces the basket, answers what is now in it.
 export const putCheckoutItems = asyncHandler(async (req, res) => {
   const direction = parseStrict(Direction, oneString(req.query.direction), "direction");
   const body = parseStrict(CheckoutItemsBody, req.body, "checkout/items body");
@@ -39,25 +34,14 @@ export const deleteCheckoutItems = asyncHandler(async (req, res) => {
   return res.status(200).json({ removed });
 });
 
-// ----------------------------------------------------------- the row (D208)
-
-// GET /api/checkout?direction=sale|purchase(&user_id= admin-only) - the
-// customer's checkout row, created on first read, with its draft fulfillment
-// composed on.
 export const getCheckout = asyncHandler(async (req, res) => {
   const direction = parseStrict(Direction, oneString(req.query.direction), "direction");
   const subject = await subjectOf(req);
   return res.status(200).json(await cartService.getCheckout(subject, direction));
 });
 
-// PATCH /api/checkout(?user_id= admin-only) - the id columns a customer may
-// write. The schema is the whitelist: fulfillment_id, user_id and the payout
-// pointers are not in it, so a BODY cannot name them - naming a different
-// customer is a query param, checked the same way the GET is.
 export const patchCheckout = asyncHandler(async (req, res) => {
   const body = parseStrict(CheckoutPatchBody, req.body, "checkout PATCH body");
-  // The columns, parsed out of the body: a plain object schema strips
-  // `direction`, which names the session rather than a column of it.
   const patch = CheckoutPatch.parse(body);
   const subject = await subjectOf(req);
   return res.status(200).json(
@@ -65,8 +49,6 @@ export const patchCheckout = asyncHandler(async (req, res) => {
   );
 });
 
-// POST /api/checkout/payout - the payout step's write (D210). The numbers are
-// sealed at rest by payments/details; the response carries only last_four.
 export const saveCheckoutPayout = asyncHandler(async (req, res) => {
   const body = parseStrict(CheckoutPayoutBody, req.body, "checkout/payout body");
   const form = CheckoutPayoutForm.parse(body);

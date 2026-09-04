@@ -1,6 +1,3 @@
-// The leads endpoints, over real HTTP, with the payloads the frontend sends. Drives the whole path: route, guard, controller, service, repo.
-// Every route here is requireAdmin - a lead belongs to the business rather than a customer, so the admin boundary is the first thing worth asserting.
-// Nothing is committed: pinned-pool.ts rolls back every query, including the writes the service makes through its own connection. The last test checks from outside.
 import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
@@ -14,21 +11,16 @@ import { anId } from "#shared/testing/builders/index.ts";
 await mockSessions();
 const { default: app } = await import("#app");
 
-// SELECT projections, not table rows.
 type UserFixture = { id: string; name: string | null; email: string | null };
 
 let admin: UserFixture;
 let customer: UserFixture;
-// `requireAdmin` runs before any lookup on get_one/update/delete, so the
-// non-admin refusal test below never reaches the repo - a minted id is
-// enough, and it means this file needs no committed lead of its own.
 const someLeadId = anId();
 const created: string[] = [];
 
 beforeAll(async () => {
   admin = TEST_ACTOR;
 
-  // A non-admin, to prove the guard refuses rather than merely existing.
   customer = TEST_CUSTOMER;
 });
 
@@ -37,7 +29,6 @@ afterAll(async () => {
   await pool.end();
 });
 
-// `contact` is deliberately absent: a real leads.leads column create.sql does not accept, so naming it is now a 400 under strict parsing rather than a value silently dropped.
 const newLead = () => ({
   name: `replay-${randomUUID().slice(0, 8)}`,
   phone: "5550000000",
@@ -46,7 +37,6 @@ const newLead = () => ({
   notes: "created by the leads replay suite",
 });
 
-// Named, not spread: the fixture is only ever id/name/email plus the role the call is exercising.
 const asAdmin = <T>(fn: () => Promise<T> | T) =>
   as({ id: admin.id, name: admin.name, email: admin.email, role: "admin" }, fn);
 const asCustomer = <T>(fn: () => Promise<T> | T) =>
@@ -61,7 +51,6 @@ test("an anonymous request is refused before it reaches a controller", async () 
   }, { actor: TEST_ACTOR.id });
 });
 
-// The guard is requireAdmin, not requireUser: "signed in" is not "allowed".
 test("a signed-in customer is refused every route", async () => {
   await inPinnedTransaction(async () => {
     await asCustomer(async () => {
@@ -140,7 +129,6 @@ test("updating a lead changes it and leaves the others alone", async () => {
   }, { actor: TEST_ACTOR.id });
 });
 
-// Asserted by refusal rather than by outcome: a delete a non-admin can reach is the failure that matters.
 test("deleting removes exactly one lead, and only for an admin", async () => {
   await inPinnedTransaction(async () => {
     const lead = newLead();
@@ -171,7 +159,6 @@ test("deleting removes exactly one lead, and only for an admin", async () => {
   }, { actor: TEST_ACTOR.id });
 });
 
-// The property the pin exists for: every assertion above reads its own writes and passes either way if the pin stops working.
 test("nothing this file created survived the transaction", async () => {
   assert.ok(created.length > 0, "no lead was created, so this proves nothing");
   for (const name of created) {

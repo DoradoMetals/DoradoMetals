@@ -1,6 +1,3 @@
-// checkout.items, against real Postgres, every test rolled back.
-//
-// Scrap and bullion are one table; `bullion_id IS NULL` tells them apart.
 import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
@@ -11,7 +8,6 @@ import { aUser, aProduct, metalId } from "#shared/testing/builders/index.ts";
 import * as checkouts from "#db/checkout/checkouts/repo.ts";
 import * as items from "#db/checkout/items/repo.ts";
 
-
 beforeAll(async () => {
   assert.equal(
     new Date().getTimezoneOffset(), 0,
@@ -20,16 +16,12 @@ beforeAll(async () => {
 });
 afterAll(async () => { await pool.end(); });
 
-// A BUILT CUSTOMER HAS NO CART, so this is a create every time - no
-// found-or-empty branch, and no dependence on what dev happens to hold.
 const aSession = async (c: PoolClient, direction: string) => {
   const user = await aUser(c);
   const created = await checkouts.create({ user_id: user.id, direction }, c);
   return created!;
 };
 
-// Gold, by name. metals.metals holds exactly four rows and one of them IS
-// Gold - naming it is the literal this test means, not a discovery.
 const aMetal = (c: PoolClient) => metalId(c, "Gold");
 
 test("a line with no product carries its own values", async () => {

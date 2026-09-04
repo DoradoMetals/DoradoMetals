@@ -15,5 +15,3 @@ export const Verification = z.object({
 });
 export type Verification = z.infer<typeof Verification>;
 // generated:end
-
-// Hand-written derivations go here: New, Patch, named reads.

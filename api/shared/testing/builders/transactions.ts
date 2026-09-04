@@ -1,4 +1,3 @@
-// aLedgerEntry - payments.ledger, the customer credit ledger.
 import type { PoolClient } from "pg";
 import { anId } from "#shared/testing/builders/ids.ts";
 import * as ledger from "#db/transactions/repo.ts";

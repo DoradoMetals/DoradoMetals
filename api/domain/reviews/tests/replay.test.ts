@@ -1,7 +1,3 @@
-// The reviews endpoints, over real HTTP. `/public` is unauthenticated and feeds the marketing site.
-// The public read differs from admin by exactly one clause, `WHERE hidden = false` - the only thing standing between what's published and every review ever left.
-// Dev holds 14 reviews, 13 hidden, so a regression that dropped the clause returns 14 instead of 1 rather than passing vacuously.
-// Nothing is committed: pinned-pool.ts rolls back every query; the last test checks from outside.
 import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
@@ -18,7 +14,6 @@ import {
 await mockSessions();
 const { default: app } = await import("#app");
 
-// SELECT projections, not table rows.
 type UserFixture = { id: string; name: string | null; email: string | null };
 let admin: UserFixture;
 let customer: UserFixture;
@@ -39,7 +34,6 @@ beforeAll(async () => {
   visibleCount = counts[0].visible;
   hiddenCount = counts[0].hidden;
 
-  // Both halves must be non-empty: with no hidden rows, a read that ignored `hidden` would return the same list.
   assert.ok(visibleCount > 0, "dev has no visible review - the public read is untestable");
   assert.ok(hiddenCount > 0, "dev has no hidden review - the filter test would be vacuous");
 });
@@ -49,10 +43,6 @@ afterAll(async () => {
   await pool.end();
 });
 
-// Object.assign, not a spread: an override lands on top of the defaults without copying either object's props by hand.
-// created_by/updated_by are NOT fields of the create body any more (item 4):
-// public.audit_stamp writes both from the connection's actor, and naming
-// either here would now be a 400.
 const newReview = (over: Partial<{ hidden: boolean }> = {}) =>
   Object.assign(
     {
@@ -64,7 +54,6 @@ const newReview = (over: Partial<{ hidden: boolean }> = {}) =>
     over
   );
 
-// Named, not spread: the fixture is only ever id/name/email plus the role the call is exercising.
 const asAdmin = <T>(fn: () => Promise<T> | T) =>
   as({ id: admin.id, name: admin.name, email: admin.email, role: "admin" }, fn);
 const asCustomer = <T>(fn: () => Promise<T> | T) =>
@@ -81,7 +70,6 @@ test("the public review list needs no session at all", async () => {
   }, { actor: TEST_ACTOR.id });
 });
 
-// Not "the counts differ" - that would pass if the public read returned a hidden review and dropped a visible one. Every row is checked individually.
 test("no hidden review reaches the public list", async () => {
   await inPinnedTransaction(async () => {
     await anonymous(async () => {
@@ -93,7 +81,6 @@ test("no hidden review reaches the public list", async () => {
         `the public read returned ${leaked.length} review(s) the business hid`
       );
 
-      // The public read also carries LIMIT 10, so this is <=, not ==.
       assert.ok(
         res.body.length <= visibleCount,
         `the public read returned ${res.body.length} of ${visibleCount} visible reviews`
@@ -107,7 +94,6 @@ test("no hidden review reaches the public list", async () => {
   }, { actor: TEST_ACTOR.id });
 });
 
-// The counterpart: an admin DOES see the hidden ones. If this ever returns the same rows as the public read, the two have converged and the previous test proves nothing.
 test("an admin sees the hidden reviews the public list withholds", async () => {
   await inPinnedTransaction(async () => {
     await asAdmin(async () => {
@@ -124,7 +110,6 @@ test("an admin sees the hidden reviews the public list withholds", async () => {
   }, { actor: TEST_ACTOR.id });
 });
 
-// Recorded, not fixed: the public read returns created_by/updated_by (an admin's real name) to anyone on the internet - a real leak, left alone because removing a field is a wire change and wire shapes don't move during a schema migration.
 test("the public list carries no field the admin list lacks", async () => {
   await inPinnedTransaction(async () => {
     let publicFields: Set<string> | undefined;
@@ -140,7 +125,6 @@ test("the public list carries no field the admin list lacks", async () => {
       adminFields = new Set(Object.keys(res.body[0] ?? {}));
     });
 
-    // Guarded: both sets are assigned inside callbacks, so a request that never ran left them undefined and the spread TypeError'd instead of saying which read produced nothing.
     assert.ok(publicFields, "the public read produced no fields");
     assert.ok(adminFields, "the admin read produced no fields");
     const adminSet = adminFields;
@@ -167,7 +151,6 @@ test("every admin route refuses a signed-in non-admin", async () => {
         ["update", request(app).patch(`/api/reviews/${randomUUID()}`).send(newReview())],
         ["delete", request(app).delete(`/api/reviews/${randomUUID()}`)],
       ] as Array<[string, Promise<{ status: number }>]>;
-      // Declared as a tuple list: inferred, the element type collapses to `string | Test` and neither half is usable.
       for (const [name, call] of calls) {
         const res = await call;
         assert.ok([401, 403].includes(res.status), `${name} answered ${res.status} to a non-admin`);
@@ -198,7 +181,6 @@ test("an admin creating a review round-trips, and a hidden one stays out of publ
       assert.equal(saved.hidden, true, "hidden was not stored as sent");
     });
 
-    // The write is inside the pin, so the public read sees it too - an end-to-end check rather than a re-read of the same fixture.
     await anonymous(async () => {
       const res = await request(app).get("/api/reviews/public");
       assert.ok(
@@ -209,7 +191,6 @@ test("an admin creating a review round-trips, and a hidden one stays out of publ
   }, { actor: TEST_ACTOR.id });
 });
 
-// The property the pin exists for.
 test("nothing this file created survived the transaction", async () => {
   assert.ok(created.length > 0, "no review was created, so this proves nothing");
   for (const name of created) {

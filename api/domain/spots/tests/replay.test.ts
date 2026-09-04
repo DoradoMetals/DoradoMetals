@@ -1,5 +1,3 @@
-// The spot price endpoint, over real HTTP. No guard, correctly - the pricing page quotes metal to anyone - so what matters here is the SHAPE and that no admin-only field rides along.
-// NOTHING IS COMMITTED - this file only reads, but runs inside the pin like the rest so a future write cannot escape.
 import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import request from "supertest";
@@ -11,12 +9,10 @@ import { inPinnedTransaction, outside } from "#shared/testing/pinned-pool.ts";
 await mockSessions();
 const { default: app } = await import("#app");
 
-// The structural subset the fixture query asks for.
 type MetalFixture = { name: string; ask: number; bid: number };
 
 let metals: MetalFixture[];
 
-// The fixture reads spots.spots (what the endpoint serves), not exchange.metals - whether the two SCHEMAS agree is `verify:parity`'s question, not this file's.
 beforeAll(async () => {
   metals = await outside(
     `SELECT m.name, s.ask, s.bid
@@ -46,12 +42,10 @@ test("the spot feed needs no session at all", async () => {
   }, { actor: TEST_ACTOR.id });
 });
 
-// The fields the frontend reads, named individually so ADDING a field is not a failure and LOSING one is.
 test("every metal carries the fields a quote is built from", async () => {
   await inPinnedTransaction(async () => {
     await anonymous(async () => {
       const res = await request(app).get("/api/spots");
-      // An empty feed would run none of the assertions below and report success - and an empty spot feed is exactly the failure that prices every order at nothing.
       assert.ok(res.body.length > 0, "the spot feed came back empty");
       for (const spot of res.body) {
         for (const field of ["name", "ask", "bid"]) {
@@ -70,7 +64,6 @@ test("every metal carries the fields a quote is built from", async () => {
   }, { actor: TEST_ACTOR.id });
 });
 
-// The asks must be the asks - a feed with the right shape but stale or transposed numbers passes every structural assertion.
 test("the asks and bids are the ones in the table, not a transposition of them", async () => {
   await inPinnedTransaction(async () => {
     await anonymous(async () => {
@@ -93,7 +86,6 @@ test("the asks and bids are the ones in the table, not a transposition of them",
   }, { actor: TEST_ACTOR.id });
 });
 
-// A public endpoint is the wrong place for anything internal - asserted as an allowlist, so a field appearing here that nobody vetted is the failure.
 test("the public feed carries nothing beyond the quote fields", async () => {
   await inPinnedTransaction(async () => {
     await anonymous(async () => {
@@ -105,8 +97,6 @@ test("the public feed carries nothing beyond the quote fields", async () => {
         "bid",
         "dollar_change",
         "percent_change",
-        // Computed, not stored: which way the metal moved today, said once
-        // here instead of derived by every ticker.
         "direction",
       ]);
       const unexpected = Object.keys(res.body[0] ?? {}).filter((k) => !allowed.has(k));
@@ -119,8 +109,6 @@ test("the public feed carries nothing beyond the quote fields", async () => {
   }, { actor: TEST_ACTOR.id });
 });
 
-// Every ticker used to ask `(dollar_change ?? 0) >= 0` for itself, which
-// painted a flat day green on two screens.
 test("the feed says which way each metal moved, and a flat day is flat", async () => {
   await inPinnedTransaction(async () => {
     await anonymous(async () => {

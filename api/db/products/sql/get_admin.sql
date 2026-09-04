@@ -1,9 +1,3 @@
--- THE ADMIN CATALOGUE: the public columns plus display, stock, quantity, the
--- filter category and the audit trail, with all three foreign keys resolved to
--- names by the join. A supplier's name lives on its ORGANIZATION, which is why
--- that side is two joins.
--- created_by_id/updated_by_id are not projected: they are the trigger's.
--- The predicate is substituted by repo.ts from a closed set; values are bound.
 SELECT b.id, b.name, b.description, b.bid_premium, b.ask_premium, b.type,
        b.created_at, b.updated_at, b.image_front, b.image_back, b.display,
        b.content, b.gross, b.purity, b.variant_group, b.shadow_offset, b.stock,

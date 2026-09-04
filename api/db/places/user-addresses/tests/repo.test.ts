@@ -1,8 +1,3 @@
-// places.user_addresses, against real Postgres - a person's link to an
-// address (recipient, nickname, default). update() here returns the row (or undefined),
-// not a boolean, so "true" and "false" become "a row came back" and
-// "undefined came back" - the same false-on-missing/true-on-real shape the
-// other 13 tables prove, in the shape this repo actually returns.
 import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
@@ -40,11 +35,6 @@ test("update writes a real (address, user) link and returns the changed row", as
   });
 });
 
-// A KEY ABSENT FROM THE PATCH IS UNTOUCHED, and the default flags are the
-// case that matters: this update used to force `default_billing` to follow
-// whatever `default_shipping` was given, so editing a recipient silently
-// un-defaulted the address. The two flags move together in setDefault's own
-// SQL and nowhere else.
 test("a patch that names neither flag leaves the default alone", async () => {
   await inRollback(async (c: PoolClient) => {
     const user = await aUser(c);
@@ -63,8 +53,6 @@ test("update answers undefined for an address that is not in that person's book"
     const stranger = await aUser(c);
     const built = await anAddress(c, owner);
 
-    // The right address, the wrong person - the ownership guard is the WHERE
-    // clause, not a filter applied after reading.
     const asStranger = await userAddresses.update(
       built.id, stranger.id, { label: "Not Mine" }, c
     );

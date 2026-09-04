@@ -7,8 +7,6 @@ import * as inputs from "#domain/media/pdfs/order-inputs.ts";
 import * as orderRead from "#domain/orders/read.ts";
 import { Forbidden, Invalid, NotFound } from "#shared/errors.ts";
 
-// Who the email goes to is decided HERE, from the database - both routes used to take the recipient from the request body, an open mail relay on the business's domain.
-// The address now comes from the stored order, gated by entitlement (owner or admin only) - naming someone else's order id no longer mails them.
 async function recipientFor(
   order_id: string,
   caller: Request["user"]

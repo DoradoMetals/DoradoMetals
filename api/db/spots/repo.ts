@@ -1,4 +1,3 @@
-// spots.spots, and nothing else - one row per metal, written by the feed cron.
 import query from "#shared/db/query.ts";
 import { buildUpdate } from "#shared/db/patch.ts";
 import { sqlFrom } from "#shared/db/sql.ts";

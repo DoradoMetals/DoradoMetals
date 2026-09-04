@@ -17,10 +17,6 @@ export const PaymentSettlement = z.object({
 export type PaymentSettlement = z.infer<typeof PaymentSettlement>;
 // generated:end
 
-// A payments.settlements WRITE. `id` and `attempt_id` are the row's identity
-// - an attempt's settlement never repoints - and created_at is the
-// database's. The same patch serves create and update, which is what lets
-// the repo build one document and pass it to either.
 export const PaymentSettlementPatch = PaymentSettlement.omit({
   id: true, attempt_id: true, created_at: true,
 }).partial();

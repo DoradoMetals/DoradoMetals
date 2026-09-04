@@ -22,11 +22,6 @@ export const Review = z.object({
 });
 export type Review = z.infer<typeof Review>;
 // generated:end
-// POST /reviews/create and PATCH - THE FOUR COLUMNS THE SERVICE WRITES.
-// created_by/updated_by are NOT fields here: public.audit_stamp writes both
-// from the connection's actor, and neither was ever a column create() took -
-// carrying them just meant a caller's claimed author was silently discarded
-// rather than refused.
 export const ReviewPatch = Review.pick({
   review_text: true,
   rating: true,
@@ -34,4 +29,3 @@ export const ReviewPatch = Review.pick({
   hidden: true,
 }).partial();
 export type ReviewPatch = z.infer<typeof ReviewPatch>;
-

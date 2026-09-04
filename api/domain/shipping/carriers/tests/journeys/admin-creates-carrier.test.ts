@@ -1,9 +1,3 @@
-// ADMIN CREATES A CARRIER, over real HTTP - the API-owned replacement for the
-// carrier half of frontend/shared/tests/authed/admin-creates.e2e.ts
-// (Playwright is going, ruling 55): create -> appears in the admin list ->
-// delete.
-//
-// NOTHING IS COMMITTED: pinned-pool.ts rolls back every query.
 import { test, afterAll } from "vitest";
 import assert from "node:assert/strict";
 import request from "supertest";
@@ -67,8 +61,6 @@ test("creating and deleting a carrier is admin-only; reading the list is not", a
     );
     assert.equal(created.status, 403, created.text);
 
-    // GET /carriers/get is requireUser, not requireAdmin - the checkout
-    // shipping-method menu reads it as any signed-in customer.
     const all = await as(customer, () => request(app).get("/api/carriers/get"));
     assert.equal(all.status, 200, all.text);
   });

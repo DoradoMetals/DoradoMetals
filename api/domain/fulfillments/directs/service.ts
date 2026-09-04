@@ -1,5 +1,3 @@
-// A direct: the customer comes to one of our locations - the third fulfillment method, alongside pickups (we collect) and shipments (a parcel).
-// This resource orchestrates for itself: a drawer reading an order's appointment, and an admin booking one, reach here rather than through transport/fulfillments/controller.ts.
 import { randomUUID } from "node:crypto";
 import * as directs from "#db/fulfillments/directs/repo.ts";
 import * as fulfillments from "#db/fulfillments/repo.ts";
@@ -7,7 +5,6 @@ import * as fulfillmentService from "#domain/fulfillments/service.ts";
 import type { Executor } from "#shared/db/executor.ts";
 import type { FulfillmentDirect, FulfillmentDirectPatch, FulfillmentView } from "@dorado/contracts";
 
-// GET /api/orders/:orderId/directs - VERBATIM rows, at most one (fulfillments.directs holds one row per fulfillment). [] rather than 404 when the order has no fulfillment.
 export async function forOrder(
   order_id: string, executor?: Executor
 ): Promise<FulfillmentDirect[]> {
@@ -17,7 +14,6 @@ export async function forOrder(
   return row ? [row] : [];
 }
 
-// READ FIRST: a fulfillment holds at most one appointment, so booking it a second time is a PATCH of the row already there, not a second insert.
 export async function schedule(
   fulfillment_id: string, patch: FulfillmentDirectPatch, executor?: Executor
 ): Promise<FulfillmentView | null> {

@@ -1,25 +1,3 @@
-// THE PURCHASE-ORDER ADMIN LIFECYCLE, over real HTTP - the API-owned
-// replacement for frontend/features/orders/tests/authed/
-// admin-purchase-order-work.e2e.ts (Playwright is going, ruling 55). That
-// spec minted its order with api/scripts/seed-e2e-order.mjs, a rows-only
-// script with no FedEx call; this uses the BUILDER instead (the prompt's own
-// instruction), which is the same "rows written through the repos, no
-// provider reachable" shape.
-//
-// PROVIDER-FREE ON PURPOSE. finalize_pricing and add_funds touch no outside
-// world; the status transitions (In Transit -> Received -> back -> Cancelled)
-// are pure label writes (ruling 2 - statuses drive no logic). The real
-// POST /:id/cancel endpoint buys a FedEx return label and is deliberately not
-// exercised here - see docs/waves/api-journeys.md for why no committed
-// cassette matches its request shape.
-//
-// MONEY FACTS: finalize_pricing's total is asserted against a live spot this
-// test controls (via anOrder().withSpots), and add_funds is asserted against
-// both halves it must move together - the customer's balance AND the ledger
-// row that explains it (CLAUDE.md: "the ledger must record what was actually
-// credited").
-//
-// NOTHING IS COMMITTED: pinned-pool.ts rolls back every query.
 import { test, afterAll } from "vitest";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
@@ -48,19 +26,9 @@ test("a purchase order walks pricing, funds and status, and the money facts agre
       .withLots(2, { metal: "Gold", pre_melt: 10, purity: 0.925 })
       .withSpots({ bid: 2400, ask: 2450 })
       .withTotals({});
-    // LOCKED, so finalize_pricing prices off the frozen bid this test set
-    // rather than re-fetching whatever the live spot feed holds in this
-    // database - CLAUDE.md's own finalizePricing comment: "a locked order
-    // keeps the spots it was locked at".
     await c.query(`UPDATE orders.orders SET spots_locked = true WHERE id = $1`, [order.id]);
-    // withLots leaves the premium unset - a real premium arrives at placement
-    // through the rate band, so this repeats that step rather than hand-writing
-    // one, keeping the total honest against the same source production uses.
     await orders.retierPremiums(order.id, c);
 
-    // WHAT THE DRAWER MAY OFFER, asked of the server. The lines are
-    // unconfirmed here, which is the gate that used to live in a `disabled:`
-    // prop - so pricing is not offered even though the endpoint would take it.
     const before = await asAdmin(admin, () => request(app).get(`/api/orders/${order.id}/items`));
     assert.equal(before.status, 200, before.text);
     for (const line of before.body) {
@@ -78,22 +46,16 @@ test("a purchase order walks pricing, funds and status, and the money facts agre
     const total = Number(priced.body.totals?.total);
     assert.ok(total > 0, "finalize_pricing wrote no positive total");
 
-    // EVERY LINE CARRIES ITS OWN ARITHMETIC now, so no screen multiplies a
-    // content by a premium (or a price by a quantity) for itself.
     for (const line of priced.body.items) {
       assert.equal(line.payable, Number(line.content) * Number(line.premium));
       assert.equal(line.line_total, Number(line.price));
     }
 
-    // The gates, both directions of them: confirmed lines make pricing
-    // available, a purchase never offers the sale-side action, and crediting
-    // an account is a payout fact - this order has no DORADO_ACCOUNT payout.
     const actions = priced.body.actions;
     assert.equal(actions.finalize_pricing, true);
     assert.equal(actions.edit_lines, true);
     assert.equal(actions.send_to_refiner, false);
     assert.equal(actions.add_funds, false);
-    // The ladder is the order's OWN status's rung, not every label there is.
     assert.deepEqual(actions.statuses, ["Received", "Cancelled"]);
 
     const funded = await asAdmin(admin, () =>
@@ -123,7 +85,6 @@ test("a purchase order walks pricing, funds and status, and the money facts agre
       );
       assert.equal(moved.status, 200, moved.text);
       assert.equal(moved.body.order.status, status);
-      // AT 'Received' THE GATED RUNG OPENS, because every line is confirmed.
       if (status === "Received") {
         assert.deepEqual(moved.body.actions.statuses, [
           "Payment Processing", "In Transit", "Cancelled",

@@ -1,18 +1,11 @@
-// The pure decisions behind a credit adjustment: what the balance becomes, and
-// what the ledger calls the movement.
 import { Invalid, NotFound } from "#shared/errors.ts";
 import type { CreditOp } from "@dorado/contracts";
 
-// Mirrors the repo's SQL CASE so the floor below can be checked before the
-// write. Rounded to 6 places: NUMERIC is exact and JS floats are not, so a
-// balance minus itself lands on -1e-16 and wrongly refuses a full withdrawal.
 export function balanceAfter(op: CreditOp, current: number, amount: number): number {
   const raw = op === "add" ? current + amount : op === "subtract" ? current - amount : amount;
   return Number(raw.toFixed(6));
 }
 
-// THE FLOOR WAS ONLY EVER CHECKED IN THE BROWSER. The column is NOT NULL with
-// no CHECK, so the database would have taken a negative balance.
 export function refuseNegativeBalance(next: number): void {
   if (next < 0) {
     throw new Invalid(
@@ -21,9 +14,6 @@ export function refuseNegativeBalance(next: number): void {
   }
 }
 
-// WHAT THE LEDGER RECORDS, derived from the two balances rather than the
-// request: `edit` does not name its own direction, and payments.ledger.amount
-// carries a CHECK (amount >= 0), so a signed delta could not be stored.
 export function movementBetween(
   before: number, after: number
 ): { type: "Credit" | "Debit"; amount: number } | null {
@@ -32,10 +22,6 @@ export function movementBetween(
   return delta > 0 ? { type: "Credit", amount: delta } : { type: "Debit", amount: -delta };
 }
 
-// THE SUBJECT OF A CREDIT ADJUSTMENT HAS TO EXIST. Asked twice on purpose: of
-// the locked read that the floor check is made against, and of the write's own
-// answer, which closes the window between them. A credit nobody received must
-// never answer 200.
 export function assertCreditSubject<T>(user_id: string, row: T | undefined): T {
   if (row === undefined) {
     throw new NotFound(`no user ${user_id} - the credit adjustment was not applied to anybody`);

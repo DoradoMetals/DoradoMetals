@@ -1,21 +1,3 @@
-// THE ORDER'S USE CASES, one function each, all of them small (D214 item 11).
-//
-// Every one reads the same way:
-//
-//   LOAD    the records, by id
-//   ASSERT  one call into rules.ts, which throws a domain error
-//   WRITE   inside withTransaction, a few lines
-//   AFTER   the label, the email, the charge - outside it, because none of
-//           those can be rolled back
-//
-// They live together because each is a screen or less. `place` is the one that
-// outgrew a file and kept its own (place.ts).
-//
-// WHAT LEFT WITH THEM: add-funds.ts, cancel.ts, finalize-pricing.ts, patch.ts,
-// edit-line.ts, send-to-refiner.ts and update-tracking.ts - seven files whose
-// combined 855 lines were mostly the PATCH dispatcher that multiplexed four
-// actions through one body, the `{scrap, bullion}` drawer document, and the
-// `Record<string, unknown>` casts each of those needed.
 import * as ordersRepo from "#db/orders/repo.ts";
 import * as itemsRepo from "#db/orders/items/repo.ts";
 import * as orderSpots from "#db/orders/spots/repo.ts";
@@ -44,14 +26,6 @@ import type { Transport } from "#providers/emails/nodemailer.ts";
 import type { Executor } from "#shared/db/executor.ts";
 import type { OrderCancelBody, OrderItemPatch, OrderPatch, OrderView, OrderItem } from "@dorado/contracts";
 
-// ===========================================================================
-// THE ORDER ROW
-// ===========================================================================
-
-// PATCH /api/orders/:id - the order's own writable columns and nothing else.
-// The four ACTIONS that used to ride in this body (add_funds, finalize_pricing,
-// cancel, supplier) are their own endpoints now, so there is no dispatcher, no
-// direction matrix and no per-field refusal message left here.
 export async function patch(order_id: string, changes: OrderPatch): Promise<OrderView> {
   rules.assertNamesAField(changes);
   const written = await withTransaction((tx) => ordersRepo.update(order_id, changes, {}, tx));
@@ -65,18 +39,6 @@ async function viewOf(order_id: string): Promise<OrderView> {
   return order;
 }
 
-// ===========================================================================
-// THE ORDER'S LINES
-// ===========================================================================
-
-// THE PREMIUM IS THE BUSINESS'S, NOT THE BROWSER'S: EVERY line's premium is
-// re-resolved from the rates table, tiered by the order's TOTAL content of each
-// metal - scrap from the band's scrap_pct, bullion from its bullion_pct (Jacob,
-// 2026-09-03). rules.retierPlan decides; this applies.
-//
-// PURCHASE ONLY, and the direction is read here rather than passed: a sale's
-// premium is the product's ASK, and tiering it from the bid-side rates table
-// would pay the customer's price into what they are charged.
 export async function retierPremiums(order_id: string, executor?: Executor): Promise<void> {
   if ((await ordersRepo.directionOf(order_id, executor)) !== "purchase") return;
   const rates = await ratesService.listRates();
@@ -86,15 +48,10 @@ export async function retierPremiums(order_id: string, executor?: Executor): Pro
   }
 }
 
-// VERBATIM rows (rulings 9 + 12), both directions. No lines answers [].
 export async function linesFor(order_id: string): Promise<OrderItem[]> {
   return await itemsRepo.getFor(order_id);
 }
 
-// A NEW LINE, from ids the client already holds. The body is a union of two
-// members and two pure rules turn either into a row: a catalogue product, or a
-// declared lot of scrap. No metal NAMES cross the wire - the old body sent one
-// and the server resolved it against metals.metals.
 export async function createLine(
   order_id: string, input: OrderItemPatch
 ): Promise<OrderItem> {
@@ -103,16 +60,9 @@ export async function createLine(
   );
 
   return await withTransaction(async (tx) => {
-    // A CATALOGUE LINE IS A COPY (ruling 66): the weights, the purity and the
-    // metal are the product's own columns, so the statement takes them. A
-    // DECLARED LOT is not - its content is derived from what the admin typed.
     const created = input.bullion_id
       ? await createFromCatalogue(order_id, input.bullion_id, tx)
       : await itemsRepo.create(order_id, rules.declaredLot(input), tx);
-    // The refiner counterpart (093), then the whole order re-tiered so an
-    // admin-added line matches customer checkout - and so the new line is BORN
-    // at its tier rather than at null. The line is re-read because the re-tier
-    // writes it.
     await refinerService.mirrorLinesForOrder(order_id, tx);
     await retierPremiums(order_id, tx);
     return (await itemsRepo.getOne(created.id, tx)) ?? created;
@@ -125,14 +75,6 @@ async function createFromCatalogue(order_id: string, bullion_id: string, tx: Exe
   return created;
 }
 
-// ONE ROW, ONE PATCH. The body used to be `{scrap: {premium, scrap: {...}},
-// bullion: {quantity, premium}, confirmed, reset}` - two nested documents for
-// one table, read through casts, every field re-spelled with `?? null`.
-//
-// It is the line's own columns now: a key present is written, an explicit null
-// clears, an absent key is left alone (shared/db/patch.ts). `content` is not
-// one of them - it is DERIVED here from the weight, the unit and the purity,
-// because two definitions of what content means is the defect that costs money.
 export async function editLine(
   line_id: string, changes: OrderItemPatch
 ): Promise<OrderItem> {
@@ -140,16 +82,12 @@ export async function editLine(
   const line = await itemsRepo.getOne(line_id);
   rules.assertLine(line, line_id);
 
-  // The weights the line will hold once this patch is applied - a key the
-  // document does not carry keeps the stored value.
   const weight = changes.post_melt !== undefined ? changes.post_melt : line.post_melt;
   const preMelt = changes.pre_melt !== undefined ? changes.pre_melt : line.pre_melt;
   const unit = changes.unit !== undefined ? changes.unit : line.unit;
   const purity = changes.purity !== undefined ? changes.purity : line.purity;
 
   return await withTransaction(async (tx) => {
-    // The repo answers the written row (RETURNING), so nothing re-reads it to
-    // find out what it now holds.
     const written = await itemsRepo.update(
       line_id,
       Object.assign({ content: fineContent(weight ?? preMelt, unit, purity) }, changes),
@@ -157,17 +95,12 @@ export async function editLine(
       tx
     );
     rules.assertLine(written, line_id);
-    // A weight change moves the order's total content, so every line re-tiers -
-    // unless the document named a premium, which is the admin's own. That
-    // rewrites this line too, so it is read back only on that path.
     if (!rules.retiersAfterEdit(changes)) return written;
     await retierPremiums(line.order_id, tx);
     return (await itemsRepo.getOne(line_id, tx)) ?? written;
   });
 }
 
-// The line, and the re-tier its removal forces. The scrap goes with the line
-// because the scrap IS the line, and refiners.items cascades.
 export async function removeLine(line_id: string): Promise<{ success: true }> {
   const line = await itemsRepo.getOne(line_id);
   rules.assertLine(line, line_id);
@@ -175,29 +108,17 @@ export async function removeLine(line_id: string): Promise<{ success: true }> {
   await withTransaction(async (tx) => {
     const removed = await itemsRepo.remove(line_id, line.order_id, tx);
     rules.assertRemoved(removed, line.order_id, line_id);
-    // Removing a line changes the per-metal totals, so re-tier the survivors.
     await retierPremiums(line.order_id, tx);
   });
 
   return { success: true };
 }
 
-// ===========================================================================
-// THE MONEY
-// ===========================================================================
-
-// POST /api/orders/:id/finalize_pricing - what the business will pay.
-//
-// EVERY NUMBER IS THE SERVER'S. It used to take the order, its spots and the
-// live feed as arguments assembled by the PATCH dispatcher; all three are read
-// here, from the order's own id.
 export async function finalizePricing(order_id: string): Promise<OrderView> {
   const order = await viewOf(order_id);
   rules.assertDirection(order.order.direction, "purchase", "finalizing pricing");
 
   await withTransaction(async (tx) => {
-    // A LOCKED ORDER KEEPS THE SPOTS IT WAS LOCKED AT; an unlocked one takes
-    // today's, which is what locking is for.
     if (!order.order.spots_locked) {
       const live = new Map((await spotsFeed.getSpotPrices(tx)).map((s) => [s.id, s.bid]));
       for (const spot of await orderSpots.getRowsFor(order_id, tx)) {
@@ -207,7 +128,6 @@ export async function finalizePricing(order_id: string): Promise<OrderView> {
     const frozen = await orderSpots.getRowsFor(order_id, tx);
     const bids = new Map(frozen.map((s) => [s.metal_id, s.bid]));
 
-    // The refiner's copies, keyed the same way.
     for (const spot of frozen) {
       await refinerSpots.update(order_id, spot.metal_id, { bid: spot.bid }, tx);
     }
@@ -216,7 +136,6 @@ export async function finalizePricing(order_id: string): Promise<OrderView> {
       await itemsRepo.update(line.id, { price: unitPrice(line, bids) }, { order_id }, tx);
     }
 
-    // The total, and the PIN: pricing an order freezes the spots it priced at.
     await orderTransactions.update(
       order_id, { total: calculateTotalPrice(order, bids) }, {}, tx
     );
@@ -226,11 +145,6 @@ export async function finalizePricing(order_id: string): Promise<OrderView> {
   return await viewOf(order_id);
 }
 
-// POST /api/orders/:id/add_funds - credit the order's total to the customer.
-//
-// THE LEDGER MUST RECORD WHAT WAS ACTUALLY CREDITED. One figure, read once:
-// logging a separately computed number is how nine production Credit entries
-// came to disagree with the orders they explain.
 export async function addFunds(order_id: string): Promise<OrderView> {
   const order = await viewOf(order_id);
   rules.assertDirection(order.order.direction, "purchase", "adding funds");
@@ -248,28 +162,6 @@ export async function addFunds(order_id: string): Promise<OrderView> {
   return await viewOf(order_id);
 }
 
-// ===========================================================================
-// THE OUTSIDE WORLD
-// ===========================================================================
-
-// POST /api/orders/:id/cancel - the customer's metal goes back.
-//
-// LOAD -> ASSERT -> WRITE -> AFTER (label-after-commit, 2026-09-03): the
-// return shipment commits as a SHELL - unpinned spots, no label - whether or
-// not the label is ever bought, and the label is bought only after that
-// commit. A carrier failure propagates with the shell standing rather than
-// voiding a label FedEx has already billed for either way; calling this
-// route again finds the SAME shell (by its still-null tracking_number)
-// instead of minting a second return shipment, which makes cancel its own
-// retry surface.
-//
-// NO STATUS WRITE: statuses are labels, never side effects (Jacob). The
-// 'Cancelled' label is a PATCH of its own.
-//
-// THE CARRIER CALL IS SHIPPING'S (ruling 67). This decides that the metal goes
-// back, unpins the order's spots and records which box and service on the
-// parcel; `shipping.buyReturnLabel` reads all three off the shipment, works out
-// the weight and the insured value from the ORDER, and asks the carrier.
 export async function cancel(
   order_id: string,
   { carrier_service_id, package_id }: OrderCancelBody,
@@ -287,15 +179,11 @@ export async function cancel(
   );
   const insured = declaredValue > 0;
 
-  // A prior call's shell, if one is sitting there unlabelled - reused rather
-  // than duplicated.
   const existing = order.shipments.find((s) => s.direction === "Return" && !s.tracking_number);
 
   const shipment_id = await withTransaction(async (tx) => {
     await ordersRepo.update(order_id, { spots_locked: false }, {}, tx);
 
-    // THE BID ONLY: the ask is what the same metal sells for, and clearing it
-    // would lose a number this unpin never owned.
     for (const spot of await orderSpots.getRowsFor(order_id, tx)) {
       await orderSpots.update(order_id, spot.metal_id, { bid: null }, tx);
     }
@@ -317,22 +205,11 @@ export async function cancel(
     return id;
   });
 
-  // OUTSIDE WORLD, AFTER: the shell already exists, so a failed carrier call
-  // leaves it standing - never voided, because voiding a billed label does
-  // not un-bill it.
   await buy(shipment_id);
 
   return await viewOf(order_id);
 }
 
-// POST /api/orders/:id/send_to_refiner - they ship the metal to the customer.
-//
-// THE RECORD FIRST, THE EMAIL SECOND. The other order lets metal leave the
-// building against a transaction that then rolls back; this one's worst case is
-// an order marked sent whose email did not arrive, which an admin can resend.
-//
-// THE SPOTS THE MESSAGE QUOTES ARE THE ORDER'S OWN, read here. They used to
-// arrive in the request body - the $26.81-an-ounce hazard.
 export async function sendToRefiner(
   order_id: string, refiner_id: string, transport?: Transport
 ): Promise<OrderView> {
@@ -347,10 +224,8 @@ export async function sendToRefiner(
     refinerEmail: refiner?.organization?.email,
   });
 
-  // Skipped on a resend: running it again is what created a second shipment.
   if (order.order.order_sent !== true) {
     await withTransaction(async (tx) => {
-      // The engagement owns which refinery has the metal (refiners.orders, 093).
       const engagementId = await refinerService.engagementIdFor(order_id, tx);
       rules.assertRefinerAttached(
         await refinerOrders.update(engagementId, { refiner_id }, tx), order_id
@@ -369,9 +244,6 @@ export async function sendToRefiner(
   return await viewOf(order_id);
 }
 
-// A tracking number an admin was given by hand, recorded against the order's
-// parcel. `patch`, not `update`: the shipment row carries no service NAME to
-// resolve against, so this preserves carrier_service_id / package_id verbatim.
 export async function updateTracking(
   order_id: string, tracking_number: string
 ): Promise<{ success: true }> {

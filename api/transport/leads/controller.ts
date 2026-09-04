@@ -1,6 +1,3 @@
-// HTTP in, HTTP out. No database, no composition, no business rules.
-// Every body is parsed against the contract in strict mode: unknown keys and wrong types are a 400 before the service runs.
-// created_by/updated_by/user_name are not fields of either body: public.audit_stamp writes the audit columns from the connection's actor, so a request naming any of the three is a 400, not a silently-ignored field.
 import { LeadPatch } from "@dorado/contracts";
 import { requiredParam } from "#shared/http/caller.ts";
 import { parseStrict } from "#shared/http/validate.ts";
@@ -23,7 +20,6 @@ export const create = asyncHandler(async (req, res) => {
   return res.status(201).json(lead);
 });
 
-// Takes the id from the path and a patch body - only the changed fields, not the whole row.
 export const update = asyncHandler(async (req, res) => {
   const id = requiredParam(req.params.id, "id");
   const body = parseStrict(LeadPatch.strict(), req.body, "leads/update body");
@@ -31,7 +27,6 @@ export const update = asyncHandler(async (req, res) => {
   return res.status(200).json(lead);
 });
 
-// 404 rather than 200 when the id matched nothing.
 export const remove = asyncHandler(async (req, res) => {
   const id = requiredParam(req.params.id, "id");
   const removed = await service.remove(id);

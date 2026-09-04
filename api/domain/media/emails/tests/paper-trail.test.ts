@@ -1,5 +1,3 @@
-// The paper trail: every send becomes a row (both outcomes), and the document it carried is a row the record points at.
-// Runs the REAL senders with only the transport replaced; writes join this file's transaction via the executor seam and roll back - without one, a test-run send writes nothing (the isTestRun guard, pinned here).
 import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
@@ -18,16 +16,8 @@ import type { OrderView } from "@dorado/contracts";
 let client: PoolClient;
 type Message = Parameters<Transport["sendMail"]>[0];
 
-// EVERY SENDER TAKES THE DOCUMENT'S INPUTS (D214 item 12), resolved from the
-// order's id - the composed order they used to take is gone.
 let orders: OrderView[];
 
-// SESSION-scoped LOCKS.ORDERS, held for the whole file (lane 3, the runner
-// conversion): `orders` is captured here, before any per-test transaction
-// exists, and domain/orders/tests/edit-line.test.ts writes real,
-// autocommitting rows to orders.orders under the SAME lock - see
-// domain/media/pdfs/tests/documents-agree.test.ts's own comment for the full
-// mechanism.
 beforeAll(async () => {
   client = await pool.connect();
   await client.query("SELECT pg_advisory_lock($1)", [LOCKS.ORDERS]);
@@ -46,7 +36,6 @@ afterAll(async () => {
   await pool.end();
 });
 
-// Satisfies the transport rather than restating its shape.
 const recorder = (): Transport & { sent: Message[] } => {
   const sent: Message[] = [];
   return {
@@ -64,7 +53,6 @@ const failing = () => ({
   },
 });
 
-// Returns the order AND its email address, so callers get a string rather than reaching through two optional levels each time.
 const anOrderWithAUser = () => {
   const order =
     orders.find((o) => o.user?.email && o.items.length > 0) ?? orders[0];
@@ -123,7 +111,6 @@ test("a failed send throws and records no row", async () => {
   });
 });
 
-// An order with no orders.orders row still gets its record - the refused link is dropped, not the row.
 test("a record for an order the new schema does not know keeps everything but the link", async () => {
   await inRollback(async (c: PoolClient) => {
     await recordEmail(
@@ -145,14 +132,12 @@ test("a record for an order the new schema does not know keeps everything but th
   });
 });
 
-// The guard the whole file leans on: no executor in a test run means no rows, ever - the alternative is a leak into dev on every suite run.
 test("without a transaction, a test-run send records nothing", async () => {
   const { order, email, user } = anOrderWithAUser();
   await emails.sendCreatedEmail(
     await inputs.packingListInputs(order.order.id),
     email,
     recorder()
-    // no executor, deliberately
   );
   const { rows } = await client.query(
     `SELECT count(*)::int AS n FROM media.emails WHERE kind = 'purchase_order_created'`
@@ -160,7 +145,6 @@ test("without a transaction, a test-run send records nothing", async () => {
   assert.equal(rows[0].n, 0, "an executor-less test send committed a real row - the guard rotted");
 });
 
-// The verification mail was the one send with no row: better-auth's callback (features/auth/client.ts) now goes through sendAuthVerificationEmail, so both outcomes are rows like every other sender's.
 test("a verification mail leaves an auth_verification row with its user", async () => {
   await inRollback(async (c: PoolClient) => {
     const { order, email, user } = anOrderWithAUser();
@@ -178,7 +162,6 @@ test("a verification mail leaves an auth_verification row with its user", async 
     assert.equal(t.sent.length, 1, "nothing left the recorder");
     assert.equal(t.sent[0].subject, "Welcome to Dorado Metals Exchange");
 
-    // Scoped to this send's address, not table-wide - dev holds other real committed auth_verification rows, which a table-wide count would double-count.
     const { rows } = await c.query(
       `SELECT status, to_address, user_id, order_id, pdf_id, provider_message_id
          FROM media.emails WHERE kind = 'auth_verification' AND to_address = $1`,
@@ -209,7 +192,6 @@ test("a failed verification mail throws and reaches better-auth unchanged", asyn
       /535 Authentication failed/
     );
 
-    // Scoped by address, same reason as above: the table holds other real committed verification rows.
     const { rows } = await c.query(
       `SELECT status, error, user_id FROM media.emails
         WHERE kind = 'auth_verification' AND to_address = 'new-signup@example.test'`

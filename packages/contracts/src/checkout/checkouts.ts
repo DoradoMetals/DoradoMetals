@@ -20,27 +20,6 @@ import { Direction } from "../orders/enums.js";
 import { FulfillmentStep } from "../fulfillments/fulfillments.js";
 import { PaymentDetails } from "../payments/details.js";
 
-// THE CHECKOUT ROW IS FOUR POINTERS AND A DIRECTION (rulings 69/70, migration
-// 128). It used to carry nine handover columns as well - a shipper address, a
-// box, a carrier service, a courier slot, a collection address, a store, an
-// appointment time and a fulfillment method. They live on the draft
-// fulfillment's own detail row now, and nothing in domain/checkout names one.
-//
-// The columns a CUSTOMER may write are narrower still: `fulfillment_id` and
-// `payment_details_id` are written by the services that create what they point
-// at, never by a request.
-//
-// `recipient_address_id` STAYED, deliberately. It is a sale's delivery
-// address, and it is read to price the order - domain/orders/place.ts hands its
-// state to the sales-tax service before any fulfillment is consulted - so it
-// is the CHECKOUT's tax key rather than a handover choice. Migration 123's
-// composite foreign key (user_id, recipient_address_id) -> places.user_addresses
-// says "this address is in THIS row's owner's book", which is a statement about
-// the checkout's owner that no fulfillment row carries a user to make.
-//
-// SPLIT IN TWO ON PURPOSE. `direction` names WHICH session is being written
-// and is not a column of the patch, so the columns get their own schema: the
-// controller parses the body strictly, then parses the columns out of it.
 export const CheckoutPatch = Checkout.pick({
   payment_method_id: true,
   recipient_address_id: true,
@@ -50,16 +29,6 @@ export type CheckoutPatch = z.infer<typeof CheckoutPatch>;
 export const CheckoutPatchBody = CheckoutPatch.extend({ direction: Direction }).strict();
 export type CheckoutPatchBody = z.infer<typeof CheckoutPatchBody>;
 
-// WHAT THE SERVER MAY WRITE on a checkout row, which is wider than what a
-// REQUEST may name and narrower than the row. The two extra columns are
-// pointers the services that create what they point at set for themselves -
-// the draft fulfillment (domain/fulfillments/drafts.ts) and the sealed payout
-// details (saveCheckoutPayout); no body may carry one.
-//
-// It exists so that nothing hand-lists these columns (ruling 64): the repo's
-// patch whitelist is `columnsOf(CheckoutWrite)` and the sign-in merge rule's
-// CHOICE_COLUMNS is the same call, so the two cannot drift and a column added
-// here is carried by both without an edit.
 export const CheckoutWrite = CheckoutPatch.extend(
   Checkout.pick({
     payment_details_id: true,
@@ -68,8 +37,6 @@ export const CheckoutWrite = CheckoutPatch.extend(
 );
 export type CheckoutWrite = z.infer<typeof CheckoutWrite>;
 
-// The payout step's form (D210). THE TWO NUMBERS NEVER COME BACK: they are
-// sealed at rest and the response carries only the last four digits.
 export const CheckoutPayoutForm = PaymentDetails.pick({
   bank_name: true,
   account_type: true,
@@ -87,22 +54,6 @@ export type CheckoutPayoutForm = z.infer<typeof CheckoutPayoutForm>;
 export const CheckoutPayoutBody = CheckoutPayoutForm.extend({ direction: Direction }).strict();
 export type CheckoutPayoutBody = z.infer<typeof CheckoutPayoutBody>;
 
-
-// WHAT THE CHECKOUT ITSELF STILL OWES - four entries, and every one is a
-// column of `checkout.checkouts` or its basket.
-//
-// It was twelve until rulings 69/70. Eight of those were fulfillment's
-// business, decided here by branching on the chosen method's category, which
-// is precisely what 70 forbids: "The only thing that should be deciding if
-// fulfillments is 'ready' is fulfillments." Those eight are `FulfillmentStep`
-// now, answered by `fulfillments.missing(fulfillment_id)`, and this list keeps
-// only what checkout owns:
-//
-//   items                 the basket is empty
-//   fulfillment_id        no draft fulfillment yet, so nobody can say how the
-//                         order would be handed over
-//   payment_details_id    a purchase has no payout account
-//   recipient_address_id  a sale has nowhere to be delivered
 export const CheckoutStep = z.enum([
   "items",
   "fulfillment_id",
@@ -111,47 +62,22 @@ export const CheckoutStep = z.enum([
 ]);
 export type CheckoutStep = z.infer<typeof CheckoutStep>;
 
-// THE COMPOSED LIST: checkout's own steps, then whatever the fulfillment says
-// it still owes. The union is the composition, spelled once - checkout never
-// re-declares a fulfillment column name and `lint:domain-boundaries` fails the
-// build if `domain/checkout` does.
 export const CheckoutMissing = z.union([CheckoutStep, FulfillmentStep]);
 export type CheckoutMissing = z.infer<typeof CheckoutMissing>;
 
-// THE COMPOSED ROW, and the only checkout shape that crosses the wire: the
-// customer's recorded choices, plus ONE derived field.
-//
-// `missing` is what `place` would refuse over, in step order. It is the one
-// list because every other field this carried was a second reading of it
-// (Jacob, 2026-09-04: "Why does it need ready_for_rates? Why does it need
-// ready_for_payment?").
 export const CheckoutView = Checkout.extend({ missing: z.array(CheckoutMissing) });
 export type CheckoutView = z.infer<typeof CheckoutView>;
 
-// ADOPTING A VISITOR'S BASKET (ruling 63) - what one direction's adoption did,
-// and what the whole sign-in hook did. No table backs either: they are the
-// hook's own report, read by the log and by its tests.
 export const CheckoutAdoption = z
   .object({ direction: Checkout.shape.direction, checkout_id: Checkout.shape.id })
-  // Through .extend, because neither is a column: which way the adoption went,
-  // and how many lines of the customer's OWN basket the visitor's replaced.
-  // Zero on a "moved" adoption (there was no basket to replace) and usually
-  // zero on a merge; a non-zero number is a customer who had a basket on this
-  // account and is now looking at the visitor's - the merge rule working.
   .extend({ outcome: z.enum(["moved", "merged"]), replaced: z.number().int() });
 export type CheckoutAdoption = z.infer<typeof CheckoutAdoption>;
 
-// `adopted` rather than `checkouts` on purpose: `result.checkouts.map` reads to
-// lint:namespace-calls as a call on the `checkouts` REPO, which exports no
-// `map`. A field name that makes a linter lie about a caller is the field
-// name's problem.
 export const CheckoutAdoptionResult = z
   .object({ adopted: z.array(CheckoutAdoption) })
   .extend({ addresses: z.number().int() });
 export type CheckoutAdoptionResult = z.infer<typeof CheckoutAdoptionResult>;
 
-// One tick of the stale-visitor sweep: how many identities it looked at, and
-// which it deleted.
 export const VisitorSweepResult = z
   .object({ deleted: z.array(Checkout.shape.user_id) })
   .extend({ considered: z.number().int() });

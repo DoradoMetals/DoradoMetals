@@ -1,27 +1,3 @@
-// Does any numeric column hold a value that is not a number?
-//
-// Postgres NUMERIC accepts 'NaN' as a legitimate value, and node-postgres
-// serialises a JavaScript NaN straight into it. So `10 * undefined` in a
-// service becomes a stored NaN with no error, no constraint violation and no
-// log line. Float columns accept Infinity as well.
-//
-// THIS EXISTS BECAUSE IT ALREADY HAPPENED. features/scrap/repo.js computes
-//
-//     convertTroyOz(post_melt_actual ?? pre_melt, unit) * purity_actual
-//       ?? item.scrap.content
-//
-// where the `??` was meant to catch a missing purity and cannot: the product is
-// NaN (undefined operand) or 0 (null operand), never null or undefined. Two
-// refiners.items rows in dev hold NaN because of it - the recorded weight of
-// metal recovered from a customer's parcel. See D47.
-//
-// A NaN is not merely wrong, it is CONTAGIOUS: every sum, every average and
-// every total that touches it becomes NaN, and no comparison against it is ever
-// true, so a threshold test silently takes the wrong branch.
-//
-// Read-only. Checks dev by default, production with --prod (read-only URL).
-//
-//   pnpm --filter @dorado/api audit:non-finite [--prod] [--strict] [--self-test]
 import "#env";
 import pg from "pg";
 
@@ -35,7 +11,6 @@ const pool = new pg.Pool(
   wantProd ? { connectionString: url, ssl: { rejectUnauthorized: false } } : { connectionString: url }
 );
 
-// Every schema this project writes, old and new.
 const SCHEMAS = [
   "exchange", "orders", "payments", "fulfillments", "shipping", "refiners",
   "tax", "places", "auth", "products", "organizations", "metals", "spots",
@@ -54,8 +29,6 @@ const { rows: columns } = await pool.query(
 );
 
 if (process.argv.includes("--self-test")) {
-  // Prove the detector recognises a NaN, without writing one anywhere: ask
-  // Postgres the same question about a literal.
   const { rows } = await pool.query(
     `SELECT count(*) FILTER (WHERE v = 'NaN'::numeric)::int AS found
        FROM (VALUES ('NaN'::numeric), (1::numeric)) AS t(v)`
@@ -69,26 +42,11 @@ if (process.argv.includes("--self-test")) {
   process.exit(rows[0].found === 1 ? 0 : 1);
 }
 
-// THE SCHEMA DENOMINATOR. The list above is hardcoded, and a schema that is not
-// in it is not "clean" - it is unlooked at. Production has THIRTEEN schemas and
-// this list names ten of them: `core` is the January-refactor ancestor that 013
-// splits into the feature schemas, and it is absent here. Worse, the read-only
-// audit role has no USAGE on it, so `core` appears in pg_tables and contributes
-// ZERO rows to information_schema.columns - a catalogue walk sees it and a
-// column walk cannot, and zero columns from a schema is indistinguishable from
-// a schema holding no numeric columns.
-//
-// That is how "PRODUCTION: 151 columns / 38 tables, every value finite" came to
-// be reported over ten of production's thirteen schemas. The column floor below
-// could not catch it: 151 clears 100 whether or not a schema is missing. D57.
 const { rows: present } = await pool.query(
   `SELECT DISTINCT schemaname AS s FROM pg_tables
     WHERE schemaname NOT IN ('pg_catalog', 'information_schema', 'public')`
 );
 const unlookedAt = present.map((r) => r.s).filter((s) => !SCHEMAS.includes(s)).sort();
-// Readability is asked with an UNFILTERED column query. `columns` above is
-// already narrowed to numeric types, so a schema legitimately holding none
-// contributes zero rows there - which is not the same as being unreadable.
 const { rows: readable } = await pool.query(
   `SELECT DISTINCT table_schema AS s FROM information_schema.columns
     WHERE table_schema = ANY($1)`,
@@ -110,8 +68,6 @@ if (unlookedAt.length || unreadable.length) {
   process.exit(1);
 }
 
-// A floor, so a query that silently stopped returning columns cannot report
-// clean - the failure this project keeps hitting from the other direction.
 if (columns.length < 100) {
   console.error(
     `only ${columns.length} numeric column(s) found across ${SCHEMAS.length} schemas - ` +
@@ -125,8 +81,6 @@ const findings = [];
 let scanned = 0;
 
 for (const { s, t, c, dt } of columns) {
-  // NUMERIC has NaN but no infinities before PG14; float types have both. Ask
-  // only what the type can answer, so a cast error never masks a real result.
   const test =
     dt === "numeric"
       ? `"${c}" = 'NaN'::numeric`

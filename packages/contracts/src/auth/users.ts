@@ -24,14 +24,9 @@ export const User = z.object({
 });
 export type User = z.infer<typeof User>;
 // generated:end
-// WHO AN ORDER IS FOR: three columns of auth.users, the authoritative
-// identity row since the 2026-09-01 cutover.
 export const UserSummary = User.pick({ id: true, name: true, email: true });
 export type UserSummary = z.infer<typeof UserSummary>;
 
-// The admin users list. better-auth's camelCase columns are aliased to
-// snake_case and the Stripe and ban columns are dropped - one of the few
-// places where the wire genuinely differs from the table.
 export const AdminUser = User.omit({
   createdAt: true,
   updatedAt: true,
@@ -47,15 +42,9 @@ export const AdminUser = User.omit({
 });
 export type AdminUser = z.infer<typeof AdminUser>;
 
-// A credit write's answer: id and the balance it produced, nothing else
-// (rulings 60-61 - no hand-written CreditRow beside this).
 export const UserCredit = User.pick({ id: true, dorado_funds: true });
 export type UserCredit = z.infer<typeof UserCredit>;
 
-// POST /api/users/:id/credit - the admin balance edit. `amount` matches
-// auth.users.dorado_funds's own type: a magnitude, never a signed delta -
-// the sign is `op`. The SUBJECT is the path's id (ruling 43: named once), so
-// the body carries only what the server could not have looked up.
 export const CreditOp = z.enum(["add", "subtract", "edit"]);
 export type CreditOp = z.infer<typeof CreditOp>;
 
@@ -64,4 +53,3 @@ export const UpdateCreditBody = z.object({
   amount: User.shape.dorado_funds,
 }).strict();
 export type UpdateCreditBody = z.infer<typeof UpdateCreditBody>;
-

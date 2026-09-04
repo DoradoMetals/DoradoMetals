@@ -1,5 +1,3 @@
--- Pickups falling in a window, optionally for one employee. A NULL bound means "unbounded", not "matches nothing".
--- Unscheduled rows (no start_time) ARE returned - that's work to be booked, sorted last by the caller, not hidden here.
 SELECT id, fulfillment_id, pickup_address_id, assigned_employee_id,
        start_time, end_time
   FROM fulfillments.pickups

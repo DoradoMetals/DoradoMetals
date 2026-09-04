@@ -1,7 +1,3 @@
-// Strict body parsing at the transport boundary (D214 item 3): an unknown key
-// or a wrong-typed value is a 400 before the service runs. `mode` is a
-// deliberate case - the retired spelling `op` replaced (D214: no shape is
-// preserved on this branch).
 import { test, afterAll } from "vitest";
 import assert from "node:assert/strict";
 import request from "supertest";
@@ -44,9 +40,6 @@ test("POST /users/:id/credit refuses a wrong type", async () => {
   });
 });
 
-// THE SUBJECT IS THE PATH'S (ruling 43). It used to ride in the body beside
-// the operation, where a caller could name one person in the URL and another
-// in the payload.
 test("POST /users/:id/credit refuses a user_id in the body", async () => {
   await asAdmin(async () => {
     const res = await request(app)

@@ -14,9 +14,6 @@ export type Carrier = z.infer<typeof Carrier>;
 // generated:end
 import { Organization, OrganizationSummary, OrganizationPatch } from "../organizations/organizations.js";
 
-// A carrier and the organization it is, KEPT APART - the same split refiners
-// gets. An organization exists independently and can be a refiner or a
-// carrier, so it stays its own object.
 export const CarrierRead = Carrier.omit({ organization_id: true }).extend({
   created_at: Organization.shape.created_at.nullable(),
   updated_at: Organization.shape.updated_at.nullable(),
@@ -24,7 +21,6 @@ export const CarrierRead = Carrier.omit({ organization_id: true }).extend({
 });
 export type CarrierRead = z.infer<typeof CarrierRead>;
 
-// Create and update take the same patch; the id names an existing carrier.
 export const CarrierPatch = Carrier.pick({ logo: true })
   .extend({
     id: Carrier.shape.id.optional(),
@@ -37,12 +33,6 @@ export type CarrierPatch = z.infer<typeof CarrierPatch>;
 export const CarrierDeleteBody = z.object({ carrier_id: Carrier.shape.id }).strict();
 export type CarrierDeleteBody = z.infer<typeof CarrierDeleteBody>;
 
-
-// A CARRIER AND THE ORGANIZATION IT IS, joined in memory. `shipping.carriers`
-// has no timestamps of its own, so those are the organization's; a carrier with
-// no organization is DROPPED rather than composed with nulls, because
-// resolveCarrier picks a shipping provider by that name and a blank one would
-// fail every label far from the cause.
 export const ComposedCarrier = Carrier.pick({ id: true, logo: true }).extend({
   created_at: Organization.shape.created_at,
   updated_at: Organization.shape.updated_at,

@@ -39,10 +39,6 @@ export const CarrierService = z.object({
 });
 export type CarrierService = z.infer<typeof CarrierService>;
 // generated:end
-// THE THREE LEGACY SPELLINGS ARE THE WIRE'S, KEPT ON PURPOSE: the column is
-// `supports_pickups` and the field is `supports_pickup`; likewise
-// `supports_dropoffs` and `max_weight_lb`. Both the read and the write use
-// them, and get_all.sql aliases in the SELECT to match.
 const Fields = CarrierService.omit({
   created_by_id: true,
   updated_by_id: true,
@@ -58,12 +54,9 @@ const Fields = CarrierService.omit({
   max_weight_lbs: CarrierService.shape.max_weight_lb,
 });
 
-// GET /carrier_services - the admin per-carrier list, exactly what
-// db/shipping/services/sql/get_all.sql projects.
 export const CarrierServiceRead = Fields;
 export type CarrierServiceRead = z.infer<typeof CarrierServiceRead>;
 
-// Create and update take the same patch; the id names an existing service.
 export const CarrierServicePatch = Fields.omit({
   created_at: true,
   updated_at: true,
@@ -72,11 +65,6 @@ export const CarrierServicePatch = Fields.omit({
 }).partial().strict();
 export type CarrierServicePatch = z.infer<typeof CarrierServicePatch>;
 
-// GET /carrier_services/sale_options - PUBLIC. The business's own
-// carrier-agnostic priced rows: the customer picks the SERVICE at its fixed
-// price and the refinery picks the carrier later. `display=false` rows ride
-// along (FREE is the admin's grant), so which rows a surface shows is its own
-// branch. Exactly db/shipping/services/sql/get_sale_options.sql's projection.
 export const SaleShippingService = CarrierService.pick({
   id: true, name: true, code: true, price: true, display: true, is_active: true,
   min_transit_days: true, max_transit_days: true,
@@ -86,12 +74,6 @@ export type SaleShippingService = z.infer<typeof SaleShippingService>;
 export const CarrierServiceDeleteBody = z.object({ id: CarrierService.shape.id }).strict();
 export type CarrierServiceDeleteBody = z.infer<typeof CarrierServiceDeleteBody>;
 
-
-// EVERY COLUMN A CREATE OR AN UPDATE SUPPLIES, in the TABLE's spelling. Three
-// of them alias on the wire (supports_pickup(s), supports_dropoff(s),
-// max_weight_lb(s)) and `CarrierServicePatch` above is the wire's list; this is
-// the column list the statements bind, so the one map between them lives in
-// db/shipping/services/repo.ts and nowhere else.
 export const CarrierServiceWrite = CarrierService.pick({
   carrier_id: true, name: true, description: true, code: true, provider_code: true,
   supports_pickups: true, supports_dropoffs: true, supports_returns: true,
@@ -102,9 +84,6 @@ export const CarrierServiceWrite = CarrierService.pick({
 });
 export type CarrierServiceWrite = z.infer<typeof CarrierServiceWrite>;
 
-// WHAT DORADO WILL INSURE A PARCEL FOR on one service, read on its own rather
-// than folded into the row reads - it is the one column the checkout catalogue
-// joins on (migration 097).
 export const InsuranceCeiling = CarrierService.pick({
   id: true, name: true, max_insured_value: true,
 });

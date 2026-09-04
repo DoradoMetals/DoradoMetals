@@ -1,6 +1,3 @@
-// The parts of products that need no database: the statements as text, the
-// UPDATE the shared patch builder produces, and the grouping that moved out of
-// the browser.
 import { test } from "vitest";
 import assert from "node:assert/strict";
 import path from "node:path";
@@ -33,7 +30,6 @@ test("every statement loads and is not empty", () => {
   for (const n of STATEMENTS) assert.ok(sql(n).trim().length > 0, `${n} is empty`);
 });
 
-// RULING 64: the writable set is the contract's, never a second list here.
 test("the patchable columns are BullionPatch minus its id", () => {
   const declared = Object.keys(BullionPatch.shape).filter((k) => k !== "id");
   assert.deepEqual([...PATCHABLE].sort(), declared.sort());
@@ -42,8 +38,6 @@ test("the patchable columns are BullionPatch minus its id", () => {
   assert.deepEqual(updateColumns(fullPatch), PATCHABLE.map(String));
 });
 
-// updated_at is asserted ABSENT: the trigger keeps it fresh, and a second
-// writer would be a fight over one column.
 test("the update writes no audit column at all", () => {
   const sets = builtUpdate(fullPatch).text.split(" WHERE")[0];
   for (const col of ["updated_at", "updated_by", "updated_by_id", "created_at", "created_by"]) {
@@ -55,9 +49,6 @@ test("the update writes no audit column at all", () => {
   );
 });
 
-// The reference columns are IDS in the statement - resolving NAMES through
-// scalar subqueries let an unmatched name become NULL and fail on a NOT NULL
-// column without saying which was wrong.
 test("the update takes ids, not names resolved by a subquery", () => {
   const text = builtUpdate(fullPatch).text;
   for (const table of ["metals.metals", "products.mints", "refiners."]) {
@@ -82,8 +73,6 @@ test("no statement reaches into exchange", () => {
   assert.doesNotMatch(builtUpdate(fullPatch).text, /exchange\./);
 });
 
-// The public statement must not project an admin fact. `display` is the one
-// that matters: it is the buy gate, and it has its own read.
 test("the public statement projects no admin column", () => {
   const projection = body("list").split("FROM")[0];
   for (const col of [
@@ -95,14 +84,10 @@ test("the public statement projects no admin column", () => {
   }
 });
 
-// The public read must stay gate-able rather than gated: the sell side has no
-// gate at all (ruling 49), so `display` is a filter the caller passes.
 test("the public statement carries no WHERE of its own", () => {
   assert.match(body("list"), /WHERE __PREDICATE__/);
   assert.match(body("get_admin"), /WHERE __PREDICATE__/);
 });
-
-// -------------------------------------------------------------- the grouping
 
 const aRow = (over: Partial<BullionStorefront>): BullionStorefront =>
   ({ id: "p", name: "n", variant_group: "", content: 1, ...over }) as BullionStorefront;
@@ -130,9 +115,6 @@ test("a family of one carries no variants either", () => {
   assert.deepEqual(g.variants, []);
 });
 
-// The group order is the order the rows arrived in, which is the sort the
-// caller asked the database for - not families-after-singles, which is what
-// the browser's version did and what silently overrode every sort.
 test("group order follows row order", () => {
   const groups = group([
     aRow({ id: "single-1" }),

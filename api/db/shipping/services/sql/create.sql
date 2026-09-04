@@ -1,4 +1,3 @@
--- A new service. The id is supplied by the caller, not generated here.
 INSERT INTO shipping.services
        (id, carrier_id, name, description, code, provider_code,
         supports_pickups, supports_dropoffs, supports_returns, supports_insurance,

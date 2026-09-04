@@ -1,7 +1,3 @@
--- Every row for one direction, display=false and enabled=false INCLUDED:
--- which rows a surface shows is the CLIENT's branch (the sale WIRE row is
--- disabled but the admin still lists it; APPLE PAY hides from the picker but
--- the Stripe element still maps its type through the row).
 SELECT id, image_id, direction, type, currency, min_amount, max_amount,
        enabled, supports_partial, supports_split, provider, provider_value,
        flat_fee, surcharge_percent, time_delay, label, surcharge_label,

@@ -1,5 +1,3 @@
--- Metal is a foreign key here (text in exchange), so the name is joined in — the one place a join stays in SQL rather than a compose step, since metals.metals is four rows.
--- percent_change/dollar_change have no column in the new schema; projected as NULL to keep the shape (100% NULL in exchange too, still referenced by live code — see CLAUDE.md).
 SELECT
        sp.id,
        sp.order_id,

@@ -1,5 +1,3 @@
-// requiredEnv is what three secrets (reCAPTCHA, Stripe webhook, FedEx) are read through, so its discipline is a security property: the message names the variable, never its value.
-// Also refuses an EMPTY string, not just unset — an operator setting a Railway variable to "" has still set it, and this treats that as missing (the right call, since "" fails the same way undefined did, but a decision worth pinning rather than leaving to `!value`).
 import { test } from "vitest";
 import assert from "node:assert/strict";
 import { requiredEnv } from "#shared/env/required.ts";
@@ -39,17 +37,11 @@ test("an empty string counts as missing, not as a value", () => {
   });
 });
 
-// The security property, asserted rather than assumed. A secret that reaches an
-// exception reaches every log and error reporter downstream of it - so this
-// checks the message against the value that was actually set, including the
-// case where the value is only whitespace and the throw fires anyway.
 test("the message never carries the value", () => {
   const secret = "sk_live_THIS_MUST_NEVER_APPEAR";
   withEnv(NAME, secret, () => {
     assert.equal(requiredEnv(NAME), secret);
   });
-  // and on the failing path there is nothing to leak, because the only values
-  // that throw are the ones with no content
   for (const empty of ["", undefined]) {
     withEnv(NAME, empty, () => {
       try { requiredEnv(NAME); assert.fail("should have thrown"); }

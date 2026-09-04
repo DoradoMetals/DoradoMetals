@@ -1,10 +1,3 @@
-// A product update cannot quietly lose a product: products.bullion declares
-// metal_id/supplier_id/mint_id NOT NULL with a foreign key, so an id naming no
-// row is refused by the database rather than silently nulled.
-//
-// The three reference columns travel as IDS (ruling 43): the old version sent
-// NAMES and the service resolved them with an in-memory lookup. That lookup is
-// gone, and the body is a PATCH - so an id is the whole message.
 import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
@@ -39,10 +32,6 @@ const patchMetal = (metal_id: string) =>
   request(app).patch(`/api/products/${product.id}`).send({ metal_id });
 
 test("a metal id that does not exist is refused, and nothing is written", async () => {
-  // Read through a separate connection, not the pinned one: a foreign-key
-  // violation aborts that transaction (Postgres 25P02), so a read-back on the
-  // pinned client after the failed save cannot run at all - outside() sees
-  // committed data instead.
   const [before] = await outside(
     `SELECT metal_id FROM products.bullion WHERE id = $1`, [product.id]
   );
@@ -61,8 +50,6 @@ test("a metal id that does not exist is refused, and nothing is written", async 
   assert.ok(afterRow.metal_id, "the product lost its metal");
 });
 
-// The other half - without it this suite would pass against an endpoint that
-// refuses EVERYTHING: secure, broken, and unusable for admins.
 test("a patch naming the product's own metal id succeeds and keeps the link", async () => {
   await inPinnedTransaction(async (client: PoolClient) => {
     await as({ ...TEST_ACTOR, role: "admin" }, async () => {
