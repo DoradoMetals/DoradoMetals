@@ -71,6 +71,7 @@ export {
   Rows3,
   Save,
   Scale,
+  Scroll,
   Search,
   SearchX,
   ShieldCheck,
@@ -98,3 +99,5 @@ export {
 // The prop and component types, for anything that takes an icon as a prop.
 export type { LucideIcon, LucideProps } from "lucide-react";
 export type { LucideIcon as IconComponent, LucideProps as IconProps } from "lucide-react";
+
+export { MenuIcon, type MenuIconProps } from "./MenuIcon";

@@ -7,7 +7,7 @@ import { useDrawerStore } from '@/shared/store/drawerStore'
 import { useBasket } from '@/features/checkout/items/queries'
 
 import { Badge, Button } from '@dorado/components'
-import { MenuIcon } from '@/features/navigation/ui/NavIcon'
+import { MenuIcon } from '@dorado/icons'
 import { CheckoutIcon } from '@/features/checkout/items/ui/CheckoutIcon'
 
 import { motion } from 'framer-motion'
@@ -136,7 +136,7 @@ export default function Shell() {
               }
             }}
           >
-            <MenuIcon size={28} isOpen={isAnyDrawerOpen} className="mt-1" />
+            <MenuIcon size={28} open={isAnyDrawerOpen} className="mt-1" />
           </Button>
         </div>
       </div>

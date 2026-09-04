@@ -1,6 +1,5 @@
 import { SalesOrderDrawerContentProps } from '@/features/orders/salesOrders/types'
 import DisplaySalesOrderProducts from './displayProducts'
-import { ShineBorder } from '@/features/orders/ui/ShineBorder'
 import { useSalesOrderLines } from './useSalesOrderLines'
 
 export default function PendingSalesOrder({ view }: SalesOrderDrawerContentProps) {
@@ -17,11 +16,6 @@ export default function PendingSalesOrder({ view }: SalesOrderDrawerContentProps
         </small>
       </div>
       <div className="relative flex flex-col border border-border p-4 rounded-lg w-full">
-        <ShineBorder
-          shineColor={['#ae8625', '#f5d67d', '#d2ac47', '#edc967', '#ae8625']}
-          borderWidth={2}
-          className="z-1"
-        />
         <DisplaySalesOrderProducts items={lines} />
       </div>
     </div>
