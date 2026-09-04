@@ -90,7 +90,7 @@ export default function LayoutProvider({ children }: { children: React.ReactNode
           <div className="z-50 sticky top-24 bg-destructive w-full">
             <div className="flex w-full items-center justify-between px-3 lg:px-20 py-1">
               <div className="flex flex-col gap-1 items-start">
-                <strong className="lg:tracking-widest text-destructive-foreground stat-sm">
+                <strong className="lg:tracking-widest text-destructive-foreground">
                   Impersonating {user?.name}
                 </strong>
                 <small className="hidden lg:block text-destructive-foreground">

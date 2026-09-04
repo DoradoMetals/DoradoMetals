@@ -24,7 +24,7 @@ export function InsuranceSelector() {
 
   return (
     <div className="space-y-2">
-      <h2 className="eyebrow mb-4">Insurance</h2>
+      <h3 className="eyebrow mb-4">Insurance</h3>
       <RadioGroup
         value={insured ? 'insured' : 'uninsured'}
         onValueChange={handleChange}

@@ -65,16 +65,16 @@ function PopoverHeader({ className, ...props }: React.ComponentProps<'div'>) {
 
 function PopoverTitle({ className, ...props }: React.ComponentProps<'p'>) {
   return (
-    <p className={cn('text-foreground font-medium', className)} {...props} />
+    <p data-emphasis="default" className={cn('font-medium', className)} {...props} />
   );
 }
 
 function PopoverDescription({
   className,
   ...props
-}: React.ComponentProps<'p'>) {
+}: React.ComponentProps<'small'>) {
   return (
-    <p className={cn('text-muted-foreground text-small', className)} {...props} />
+    <small className={cn('block', className)} {...props} />
   );
 }
 

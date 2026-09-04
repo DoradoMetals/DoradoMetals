@@ -55,7 +55,7 @@ export function PackageSelector() {
 
   return (
     <div className="space-y-2">
-      <h2 className="eyebrow mb-4">Package Selection</h2>
+      <h3 className="eyebrow mb-4">Package Selection</h3>
 
       <div className="flex items-center justify-end gap-2 mb-4">
         <p>Use FedEx Packaging?</p>

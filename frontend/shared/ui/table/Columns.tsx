@@ -189,11 +189,7 @@ type TextColumnOptions<TData> = BaseColumnOptions<TData> & {
 
 export function TextColumn<TData>({
   header,
-  /* Size comes from `TableCell` (`text-micro md:text-small`); only the
-     BRIGHTNESS is this column's own decision - a value reads one step above the
-     cell default. Was `text-xs sm:text-sm`, a second, disagreeing responsive
-     step layered on top of the cell's. */
-  textClassName = 'text-foreground block truncate whitespace-nowrap',
+  textClassName = 'block truncate whitespace-nowrap',
   formatValue,
   ...base
 }: TextColumnOptions<TData>): ColumnDef<TData> {
@@ -229,7 +225,7 @@ export function DateColumn<TData>({
     renderCellContent: ({ value }) => {
       const raw = value as string | number | Date | null
       if (!raw) {
-        return <span className="text-foreground">-</span>
+        return '-'
       }
 
       const date = raw instanceof Date ? raw : new Date(raw)
@@ -241,7 +237,7 @@ export function DateColumn<TData>({
           day: 'numeric',
         })
 
-      return <span className="text-foreground">{formatted}</span>
+      return formatted
     },
   })
 }
@@ -372,7 +368,7 @@ function OrderNumberCellComponent({
   const raw = value as number | null | undefined
   const formatted = format(raw)
 
-  return <span className="text-foreground">{formatted}</span>
+  return formatted
 }
 
 export function OrderNumberColumn<TData>({

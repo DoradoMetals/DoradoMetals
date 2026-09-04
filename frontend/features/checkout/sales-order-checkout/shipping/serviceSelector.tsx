@@ -58,7 +58,10 @@ export default function ServiceSelector({ orderPrices }: { orderPrices?: SalesOr
                   options' display keys the free-shipping threshold off the
                   quote's item_total - the same rule getShippingCharge
                   applies server-side. */}
-              <PriceNumberFlow value={(orderPrices?.item_total ?? 0) > 1000 ? 0 : option.cost} />
+              <PriceNumberFlow
+                value={(orderPrices?.item_total ?? 0) > 1000 ? 0 : option.cost}
+                className="tabular-nums"
+              />
             </DetailRow>
           </RadioOption>
         ))}

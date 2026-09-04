@@ -42,7 +42,7 @@ export default function Page() {
             <UserRoundX size={96} strokeWidth={1} />
           </div>
           <div className="flex-col items-center gap-1 mb-8">
-            <h2>You're not signed in!</h2>
+            <h1>You're not signed in!</h1>
             <p>Please sign in to view your account.</p>
           </div>
           <Button

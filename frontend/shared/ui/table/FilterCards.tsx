@@ -36,8 +36,8 @@ export function FilterCards({ cards, activeKey, onChangeActive }: FilterCardsStr
   const defaultButtonActiveClass = 'bg-primary/15 border border-primary text-primary'
   const defaultIconBaseClass = 'text-primary'
   const defaultIconActiveClass = 'text-primary'
-  const defaultHeaderActiveClass = 'text-foreground'
-  const defaultLabelActiveClass = 'text-foreground'
+  const defaultHeaderActiveClass = ''
+  const defaultLabelActiveClass = ''
 
   return (
     <div className="flex flex-col gap-2 items-center justify-center md:flex-row w-full md:justify-between md:gap-4">
@@ -74,13 +74,13 @@ export function FilterCards({ cards, activeKey, onChangeActive }: FilterCardsStr
         const iconClass = cn(isActive ? effectiveIconActive : effectiveIconBase)
 
         const headerClass = cn(
-          'text-body sm:text-h4 text-foreground',
+          'text-body sm:text-h4',
           headerBaseClassName,
           isActive && effectiveHeaderActive
         )
 
         const labelClass = cn(
-          'text-micro sm:text-small text-muted-foreground font-normal',
+          'text-micro sm:text-small font-normal',
           labelBaseClassName,
           isActive && effectiveLabelActive
         )
@@ -101,8 +101,8 @@ export function FilterCards({ cards, activeKey, onChangeActive }: FilterCardsStr
               </div>
 
               <div className="flex flex-col items-end">
-                <div className={headerClass}>{header}</div>
-                <div className={labelClass}>{label}</div>
+                <div data-emphasis="default" className={headerClass}>{header}</div>
+                <div data-emphasis={isActive ? 'default' : 'subtlest'} className={labelClass}>{label}</div>
               </div>
             </div>
           </button>

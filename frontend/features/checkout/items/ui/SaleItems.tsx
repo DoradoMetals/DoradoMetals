@@ -98,6 +98,7 @@ export default function SaleItems() {
                     transformTiming={{ duration: 750, easing: 'ease-in' }}
                     spinTiming={{ duration: 150, easing: 'ease-out' }}
                     trend={0}
+                    className="tabular-nums"
                   />
                   <Button
                     variant="tertiary"
@@ -108,7 +109,10 @@ export default function SaleItems() {
                   </Button>
                 </div>
                 <strong>
-                  <PriceNumberFlow value={lineTotals.get(line.bullion_id ?? '') ?? 0} />
+                  <PriceNumberFlow
+                    value={lineTotals.get(line.bullion_id ?? '') ?? 0}
+                    className="tabular-nums"
+                  />
                 </strong>
               </div>
             </div>
@@ -123,7 +127,7 @@ export default function SaleItems() {
       <div className="flex justify-between items-end sm:mb-2">
         <h3>Total:</h3>
         <h3>
-          <PriceNumberFlow value={quote?.total ?? 0} />
+          <PriceNumberFlow value={quote?.total ?? 0} className="tabular-nums" />
         </h3>
       </div>
       <Button

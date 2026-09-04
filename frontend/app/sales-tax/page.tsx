@@ -47,7 +47,7 @@ export default function Page() {
           {selected && (
             <div className="bg-card border border-border rounded-lg p-4 w-full flex flex-col gap-3">
               <div className="flex items-center w-full justify-between border-b border-border py-2">
-                <h2>{selected?.name}</h2>
+                <h1>{selected?.name}</h1>
                 <Image
                   src={`/icons/flags/${selected.name}.svg`}
                   height={40}

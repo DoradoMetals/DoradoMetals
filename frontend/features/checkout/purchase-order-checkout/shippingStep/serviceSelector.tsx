@@ -100,7 +100,11 @@ export const ServiceSelector: React.FC<ServiceSelectorProps> = ({ services, rate
                   : 'Getting estimated delivery...'}
               </small>
               <strong>
-                {rate?.netCharge != null ? <PriceNumberFlow value={rate.netCharge} /> : <>&nbsp;</>}
+                {rate?.netCharge != null ? (
+                  <PriceNumberFlow value={rate.netCharge} className="tabular-nums" />
+                ) : (
+                  <>&nbsp;</>
+                )}
               </strong>
             </div>
           </RadioOption>

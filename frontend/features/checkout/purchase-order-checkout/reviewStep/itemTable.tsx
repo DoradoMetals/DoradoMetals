@@ -89,9 +89,9 @@ export default function ReviewItemTables() {
   return (
     <div className="rounded-lg border border-border overflow-hidden bg-card">
       <div className="flex items-center justify-between p-4 border-b border-border">
-        <h2>Estimated Payout</h2>
+        <h3>Estimated Payout</h3>
         <strong>
-          <PriceNumberFlow value={total ?? 0} />
+          <PriceNumberFlow value={total ?? 0} className="tabular-nums" />
         </strong>
       </div>
 
@@ -100,7 +100,7 @@ export default function ReviewItemTables() {
           label="Scrap"
           trailing={
             <strong>
-              <PriceNumberFlow value={scrapTotal} />
+              <PriceNumberFlow value={scrapTotal} className="tabular-nums" />
             </strong>
           }
           open={open.scrap}
@@ -116,7 +116,7 @@ export default function ReviewItemTables() {
           label="Bullion"
           trailing={
             <strong>
-              <PriceNumberFlow value={bullionTotal} />
+              <PriceNumberFlow value={bullionTotal} className="tabular-nums" />
             </strong>
           }
           open={open.bullion}
@@ -131,7 +131,7 @@ export default function ReviewItemTables() {
           label="Shipping"
           trailing={
             <strong>
-              -<PriceNumberFlow value={shippingCost ?? 0} />
+              -<PriceNumberFlow value={shippingCost ?? 0} className="tabular-nums" />
             </strong>
           }
           open={open.shipping}
@@ -147,7 +147,7 @@ export default function ReviewItemTables() {
           label="Payout Method Fee"
           trailing={
             <strong>
-              -<PriceNumberFlow value={payoutRow[0].cost} />
+              -<PriceNumberFlow value={payoutRow[0].cost} className="tabular-nums" />
             </strong>
           }
           open={open.payout}
@@ -212,7 +212,7 @@ const scrapColumns: ColumnDef<QuotedRow>[] = [
     header: 'Est. Value',
     cell: ({ row }) => (
       <span className="text-right block w-full">
-        <PriceNumberFlow value={row.original.quoted?.line_total ?? 0} />
+        <PriceNumberFlow value={row.original.quoted?.line_total ?? 0} className="tabular-nums" />
       </span>
     ),
   },
@@ -231,7 +231,7 @@ const bullionColumns: ColumnDef<QuotedRow>[] = [
     header: 'Est. Value',
     cell: ({ row }) => (
       <span className="text-right block w-full">
-        <PriceNumberFlow value={row.original.quoted?.line_total ?? 0} />
+        <PriceNumberFlow value={row.original.quoted?.line_total ?? 0} className="tabular-nums" />
       </span>
     ),
   },
@@ -250,7 +250,7 @@ const costSummaryColumns: ColumnDef<{ label: string; cost: number }>[] = [
       const value = getValue<number>()
       return (
         <span className="text-right block w-full">
-          -<PriceNumberFlow value={value} />
+          -<PriceNumberFlow value={value} className="tabular-nums" />
         </span>
       )
     },

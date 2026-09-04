@@ -180,11 +180,11 @@ function ShippingLocationDetailsCard({ selected }: { selected: ShippingLocation 
         <small>
           {isOpen ? (
             <span className="text-success">
-              Open<span className="text-muted-foreground"> until {openUntil}</span>
+              Open<span data-emphasis="subtlest"> until {openUntil}</span>
             </span>
           ) : nextOpenTime ? (
             <span className="text-destructive">
-              Closed<span className="text-muted-foreground"> until {nextOpenTime}</span>
+              Closed<span data-emphasis="subtlest"> until {nextOpenTime}</span>
             </span>
           ) : (
             <span className="text-destructive">Closed</span>

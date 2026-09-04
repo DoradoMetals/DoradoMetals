@@ -89,7 +89,7 @@ export default function PurchaseItems() {
             <Button variant="tertiary" size="iconSm" onClick={() => removeOne('purchase', line)}>
               <Minus size={16} />
             </Button>
-            <NumberFlow value={line.quantity ?? 1} trend={0} />
+            <NumberFlow value={line.quantity ?? 1} trend={0} className="tabular-nums" />
             <Button
               variant="tertiary"
               size="iconSm"
@@ -99,7 +99,7 @@ export default function PurchaseItems() {
             </Button>
           </div>
           <strong>
-            <PriceNumberFlow value={lineAt(index)?.line_total ?? 0} />
+            <PriceNumberFlow value={lineAt(index)?.line_total ?? 0} className="tabular-nums" />
           </strong>
         </div>
       </div>
@@ -132,7 +132,7 @@ export default function PurchaseItems() {
             </div>
 
             <strong className="ml-auto">
-              <PriceNumberFlow value={quoted?.line_total ?? 0} />
+              <PriceNumberFlow value={quoted?.line_total ?? 0} className="tabular-nums" />
             </strong>
           </div>
         </div>
@@ -151,7 +151,7 @@ export default function PurchaseItems() {
       <div className="flex justify-between items-end sm:mb-2">
         <h3>Price Estimate:</h3>
         <h3>
-          <PriceNumberFlow value={quote?.total ?? 0} />
+          <PriceNumberFlow value={quote?.total ?? 0} className="tabular-nums" />
         </h3>
       </div>
       <Button

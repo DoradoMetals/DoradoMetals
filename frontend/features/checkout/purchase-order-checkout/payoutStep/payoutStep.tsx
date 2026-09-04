@@ -186,7 +186,11 @@ export default function PayoutStep({ user }: { user?: User }) {
                       <small>{option.time_delay}</small>
                       <CircleIcon size={6} weight="fill" className="text-placeholder" />
                       <small>
-                        {Number(option.flat_fee ?? 0) === 0 ? 'Free' : <PriceNumberFlow value={Number(option.flat_fee)} />}
+                        {Number(option.flat_fee ?? 0) === 0 ? (
+                          'Free'
+                        ) : (
+                          <PriceNumberFlow value={Number(option.flat_fee)} className="tabular-nums" />
+                        )}
                       </small>
                     </div>
                   </div>
