@@ -13,12 +13,10 @@ import { renderWithClient } from "@/shared/tests/renderWithClient";
 import userEvent from "@testing-library/user-event";
 import React from "react";
 
-vi.mock("@/shared/queries/axios", () => ({ apiRequest: vi.fn() }));
 vi.mock("@/features/auth/queries", () => ({
   useGetSession: () => ({ user: { id: "u-admin", role: "admin" } }),
 }));
 
-import { apiRequest } from "@/shared/queries/axios";
 import { useDrawerStore } from "@/shared/store/drawerStore";
 import CarriersDrawer from "@/features/carriers/ui/CarriersDrawer";
 import type { Carrier } from "@/features/carriers/types";
@@ -36,9 +34,13 @@ const fedex = (): Carrier => ({
   },
 });
 
+// The hooks live in @dorado/client now, which talks to the platform's `fetch`
+// rather than the axios wrapper this file used to stub.
 beforeEach(() => {
-  vi.mocked(apiRequest).mockReset();
-  vi.mocked(apiRequest).mockResolvedValue([]); // the services table fetch
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async () => ({ ok: true, status: 200, text: async () => "[]" }) as unknown as Response)
+  );
   useDrawerStore.setState({ activeDrawer: "carriers" } as never);
 });
 
@@ -58,12 +60,11 @@ describe("the carrier drawer", () => {
     await userEvent.tab(); // blur commits
 
     await waitFor(() => {
-      const call = vi
-        .mocked(apiRequest)
-        .mock.calls.find(([, url]) => url === "/carriers/update");
+      const call = vi.mocked(fetch).mock.calls.find(([u]) => String(u).endsWith("/carriers/update"));
       expect(call).toBeTruthy();
       // The value must arrive wherever the wire shape puts it.
-      expect(JSON.stringify(call![2])).toContain("FedEx Freight");
+      const [, init] = call! as [string, RequestInit];
+      expect(String(init.body)).toContain("FedEx Freight");
     });
   });
 
@@ -73,11 +74,10 @@ describe("the carrier drawer", () => {
     await userEvent.click(screen.getByRole("radio", { name: /no/i }));
 
     await waitFor(() => {
-      const call = vi
-        .mocked(apiRequest)
-        .mock.calls.find(([, url]) => url === "/carriers/update");
+      const call = vi.mocked(fetch).mock.calls.find(([u]) => String(u).endsWith("/carriers/update"));
       expect(call).toBeTruthy();
-      expect(JSON.stringify(call![2])).toMatch(/false/);
+      const [, init] = call! as [string, RequestInit];
+      expect(String(init.body)).toMatch(/false/);
     });
   });
 });

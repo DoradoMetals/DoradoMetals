@@ -12,7 +12,6 @@ import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import React from "react";
 
-vi.mock("@/shared/queries/axios", () => ({ apiRequest: vi.fn() }));
 // The catalogue and the spot feed moved into @dorado/client (see
 // OrderSummary.test.tsx) - mocked with the same rows the URL branch answered.
 vi.mock("@dorado/client", async (importOriginal) => ({
@@ -30,7 +29,6 @@ vi.mock("@/shared/ui/PriceNumberFlow", () => ({
   default: ({ value }: { value: number }) => React.createElement("span", null, String(value)),
 }));
 
-import { apiRequest } from "@/shared/queries/axios";
 import PurchaseOrderDrawerFooter from "@/features/orders/purchaseOrders/users/purchaseOrderDrawer/purchaseOrderDrawerFooter";
 import type { OrderView } from "@dorado/contracts";
 import type { OrderQuote } from "@dorado/contracts";
@@ -90,17 +88,21 @@ const quote = (): OrderQuote => ({
   total: 10295.9,
 });
 
+// THE CLIENT PACKAGE TALKS TO `fetch`, NOT TO THIS APP'S AXIOS WRAPPER (the
+// quote and shipments reads both moved into @dorado/client). Routed by URL,
+// because the container issues one read per resource now - which is the
+// shape of the whole wave: a drawer section asks for the table it renders,
+// and nothing arrives nested.
 beforeEach(() => {
-  vi.mocked(apiRequest).mockReset();
-  // Routed by URL, because the container issues one read per resource now -
-  // which is the shape of the whole wave: a drawer section asks for the table
-  // it renders, and nothing arrives nested.
-  vi.mocked(apiRequest).mockImplementation(async (_m, url) => {
-    const u = String(url);
-    if (u === "/quotes/order") return quote() as never;
-    if (u.startsWith("/carrier_services")) return [{ id: "cs-1", name: "Ground", carrier_id: "c-1" }] as never;
-    return [] as never;
-  });
+  vi.stubGlobal("fetch", vi.fn(async (input: string) => {
+    const url = new URL(String(input), "http://test.local");
+    const json = (body: unknown) => ({ ok: true, status: 200, text: async () => JSON.stringify(body) });
+    if (url.pathname.endsWith("/quotes/order")) return json(quote()) as unknown as Response;
+    if (url.pathname.startsWith("/carrier_services")) {
+      return json([{ id: "cs-1", name: "Ground", carrier_id: "c-1" }]) as unknown as Response;
+    }
+    return json([]) as unknown as Response;
+  }));
 });
 
 describe("the purchase-order drawer footer", () => {

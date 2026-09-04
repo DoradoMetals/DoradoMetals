@@ -1,13 +1,15 @@
 'use client'
 
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useCallback, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { useQueryCache } from '@dorado/client'
+import { useAsyncAction } from '@/shared/hooks/useAsyncAction'
 
 import {
   admin,
+  auth,
   changeEmail,
   changePassword,
-  getSession,
   listSessions,
   requestPasswordReset,
   resetPassword,
@@ -17,6 +19,7 @@ import {
   signOut,
   signUp,
   updateUser,
+  useUser,
   verifyEmail,
 } from './authClient'
 import { forgetSession, useSetPassword as useSetPasswordHook, useVerifyRecaptcha as useVerifyRecaptchaHook } from '@dorado/client'
@@ -34,249 +37,132 @@ const clearClientState = () => {
   localStorage.removeItem('sales-order-checkout')
 }
 
+// better-auth's own `useSession()` (via `useUser`) is REACTIVE - a nanostore
+// atom, not a react-query cache - so this is a name, not a network call any
+// more (ruling 62: no useQuery/useMutation left outside @dorado/client). No
+// consumer here ever reads `.refetch`.
 export const useGetSession = () => {
-  const {
-    data: session,
-    error,
-    isPending,
-    refetch,
-  } = useQuery({
-    queryKey: ['session'],
-    queryFn: async () => {
-      const { data, error } = await getSession()
-      if (error) throw new Error(error.message)
-      return data
-    },
-    refetchInterval: 60000,
-    refetchOnMount: true,
-    refetchOnWindowFocus: true,
-  })
-
-  return {
-    user: session?.user,
-    session: session?.session,
-    error,
-    isPending,
-    refetch,
-  }
+  const { user, session, error, isPending } = useUser()
+  return { user, session, error, isPending }
 }
 
-export const useUpdateUser = () => {
-  const queryClient = useQueryClient()
+export const useUpdateUser = () =>
+  useAsyncAction((userData: { name?: string; image?: string }) => updateUser(userData))
 
-  return useMutation({
-    mutationFn: async (userData: { name?: string; image?: string }) => updateUser(userData),
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ['session'], refetchType: 'active' })
-    },
-  })
-}
+export const useChangeEmail = () =>
+  useAsyncAction((newEmail: string) =>
+    changeEmail({ newEmail, callbackURL: `${process.env.NEXT_PUBLIC_FRONTEND_URL}/change-email` })
+  )
 
-export const useChangeEmail = () => {
-  const queryClient = useQueryClient()
-  return useMutation({
-    mutationFn: async (newEmail: string) =>
-      changeEmail({
-        newEmail,
-        callbackURL: `${process.env.NEXT_PUBLIC_FRONTEND_URL}/change-email`,
-      }),
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ['session'], refetchType: 'active' })
-    },
-  })
-}
-
-export const useSignUp = () => {
-  const queryClient = useQueryClient()
-  return useMutation({
-    mutationFn: async (userData: { email: string; password: string; name: string }) =>
-      signUp.email(
-        {
-          email: userData.email,
-          password: userData.password,
-          name: userData.name,
-          callbackURL: `${process.env.NEXT_PUBLIC_FRONTEND_URL}/verify-email`,
-          role: 'user',
-        },
-        {
-          onError(ctx) {
-            throw ctx.error
-          },
-        }
-      ),
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ['session'], refetchType: 'active' })
-    },
-  })
-}
+export const useSignUp = () =>
+  useAsyncAction((userData: { email: string; password: string; name: string }) =>
+    signUp.email(
+      {
+        email: userData.email,
+        password: userData.password,
+        name: userData.name,
+        callbackURL: `${process.env.NEXT_PUBLIC_FRONTEND_URL}/verify-email`,
+        role: 'user',
+      },
+      { onError(ctx) { throw ctx.error } }
+    )
+  )
 
 export const useSignIn = () => {
-  const queryClient = useQueryClient()
   const router = useRouter()
+  const { clear } = useQueryCache()
 
-  return useMutation({
-    mutationFn: async ({
-      email,
-      password,
-      rememberMe,
-    }: {
-      email: string
-      password: string
-      rememberMe: boolean
-    }) =>
-      signIn.email(
-        { email, password, rememberMe },
-        {
-          onError(ctx) {
-            throw ctx.error
-          },
-        }
-      ),
-    onSettled: async () => {
-      // NOTHING MERGES HERE ANY MORE. The visitor's basket is moved onto the
-      // real account by the SERVER, in better-auth's onLinkAccount hook
-      // (api domain/checkout/adopt.ts), before this response is written - so
-      // signing in only has to forget who it used to be and re-read.
-      forgetSession()
-      queryClient.clear()
-      queryClient.invalidateQueries({ queryKey: ['session'], refetchType: 'active' })
+  return useAsyncAction(
+    async (vars: { email: string; password: string; rememberMe: boolean }) => {
+      try {
+        return await signIn.email(vars, { onError(ctx) { throw ctx.error } })
+      } finally {
+        // NOTHING MERGES HERE ANY MORE. The visitor's basket is moved onto the
+        // real account by the SERVER, in better-auth's onLinkAccount hook
+        // (api domain/checkout/adopt.ts), before this response is written - so
+        // signing in only has to forget who it used to be and drop every
+        // other cached read.
+        forgetSession()
+        clear()
+      }
     },
-    onSuccess: async () => {
-      router.replace('/')
-    },
-  })
+    { onSuccess: () => router.replace('/') }
+  )
 }
 
 export const useSignOut = () => {
-  const queryClient = useQueryClient()
   const router = useRouter()
+  const { removeAll } = useQueryCache()
 
-  return useMutation({
+  return useAsyncAction(
     // THE TWO PRE-LOGOUT SYNCS ARE GONE. They existed to push the browser's
     // basket to the server before the session went; the browser has no basket,
     // and the rows are already the server's. Signing out leaves them on the
     // account they belong to.
-    mutationFn: async () => {
-      await signOut()
-    },
-    onSuccess: async () => {
-      clearClientState()
-      queryClient.removeQueries()
-      router.replace('/')
-    },
-  })
+    async () => { await signOut() },
+    {
+      onSuccess: () => {
+        clearClientState()
+        removeAll()
+        router.replace('/')
+      },
+    }
+  )
 }
 
 export const useGoogleSignIn = () => {
-  const queryClient = useQueryClient()
   const router = useRouter()
+  const { clear } = useQueryCache()
 
-  return useMutation({
-    mutationFn: async () =>
-      signIn.social({
-        provider: 'google',
-        callbackURL: process.env.NEXT_PUBLIC_FRONTEND_URL,
-      }),
-    onSettled: async () => {
-      // NOTHING MERGES HERE ANY MORE. The visitor's basket is moved onto the
-      // real account by the SERVER, in better-auth's onLinkAccount hook
-      // (api domain/checkout/adopt.ts), before this response is written - so
-      // signing in only has to forget who it used to be and re-read.
-      forgetSession()
-      queryClient.clear()
-      queryClient.invalidateQueries({ queryKey: ['session'], refetchType: 'active' })
+  return useAsyncAction(
+    async () => {
+      try {
+        return await signIn.social({
+          provider: 'google',
+          callbackURL: process.env.NEXT_PUBLIC_FRONTEND_URL,
+        })
+      } finally {
+        forgetSession()
+        clear()
+      }
     },
-    onSuccess: async () => {
-      router.replace('/')
-    },
-  })
+    { onSuccess: () => router.replace('/') }
+  )
 }
 
-export const useRequestPasswordReset = () => {
-  const queryClient = useQueryClient()
-  return useMutation({
-    mutationFn: async (email: string) =>
-      requestPasswordReset({ email, redirectTo: '/reset-password' }),
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ['session'], refetchType: 'active' })
-    },
+export const useRequestPasswordReset = () =>
+  useAsyncAction((email: string) => requestPasswordReset({ email, redirectTo: '/reset-password' }))
+
+export const useResetPassword = () =>
+  useAsyncAction(({ newPassword, token }: { newPassword: string; token: string }) =>
+    resetPassword({ newPassword, token })
+  )
+
+export const useChangePassword = () =>
+  useAsyncAction(
+    ({ newPassword, currentPassword }: { newPassword: string; currentPassword: string }) =>
+      changePassword({ newPassword, currentPassword, revokeOtherSessions: true })
+  )
+
+export const useVerifyEmail = () =>
+  useAsyncAction((token: string) => verifyEmail({ query: { token } }))
+
+export const useSendVerifyEmail = () =>
+  useAsyncAction((email: string) => sendVerificationEmail({ email }))
+
+export const useCreateUser = () =>
+  useAsyncAction(async ({ email, name }: { email: string; name: string }) => {
+    // Create the account passwordless (omit password) so the user can set
+    // their own password after signing in via the magic link on
+    // /verify-login. better-auth's setPassword rejects accounts that already
+    // have a password, so giving one here would block that flow.
+    const newUser = await admin.createUser({ email, name, role: 'user' })
+    await signIn.magicLink({
+      email,
+      callbackURL: `${process.env.NEXT_PUBLIC_FRONTEND_URL}/verify-login`,
+    })
+    return newUser
   })
-}
-
-export const useResetPassword = () => {
-  const queryClient = useQueryClient()
-  return useMutation({
-    mutationFn: async ({ newPassword, token }: { newPassword: string; token: string }) =>
-      resetPassword({ newPassword, token }),
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ['session'], refetchType: 'active' })
-    },
-  })
-}
-
-export const useChangePassword = () => {
-  const queryClient = useQueryClient()
-  return useMutation({
-    mutationFn: async ({
-      newPassword,
-      currentPassword,
-    }: {
-      newPassword: string
-      currentPassword: string
-    }) =>
-      changePassword({
-        newPassword: newPassword,
-        currentPassword: currentPassword,
-        revokeOtherSessions: true,
-      }),
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ['session'], refetchType: 'active' })
-    },
-  })
-}
-
-export const useVerifyEmail = () => {
-  const queryClient = useQueryClient()
-  return useMutation({
-    mutationFn: async (token: string) => verifyEmail({ query: { token } }),
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ['session'], refetchType: 'active' })
-    },
-  })
-}
-
-export const useSendVerifyEmail = () => {
-  const queryClient = useQueryClient()
-  return useMutation({
-    mutationFn: async (email: string) => sendVerificationEmail({ email }),
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ['session'], refetchType: 'active' })
-    },
-  })
-}
-
-export const useCreateUser = () => {
-  return useMutation({
-    mutationFn: async ({ email, name }: { email: string; name: string }) => {
-      // Create the account passwordless (omit password) so the user can set
-      // their own password after signing in via the magic link on
-      // /verify-login. better-auth's setPassword rejects accounts that already
-      // have a password, so giving one here would block that flow.
-      const newUser = await admin.createUser({
-        email: email,
-        name: name,
-        role: 'user',
-      })
-
-      await signIn.magicLink({
-        email,
-        callbackURL: `${process.env.NEXT_PUBLIC_FRONTEND_URL}/verify-login`,
-      })
-
-      return newUser
-    },
-  })
-}
 
 // OUR TWO ENDPOINTS ARE @dorado/client'S NOW (ruling 62). They were the last
 // two `apiRequest` calls under frontend/ outside the legacy transport, which
@@ -284,78 +170,90 @@ export const useCreateUser = () => {
 // under their old names because the auth UI imports them from here.
 export const useSetPassword = useSetPasswordHook
 
+// admin.* has no atomListener of its own (unlike sign-in/sign-out/
+// update-user), so nothing refreshes the reactive session for an impersonated
+// identity without asking - `auth.$store.notify` is better-auth's own,
+// documented way to do that (the same signal signIn/signOut trigger for you).
 export const useImpersonateUser = () => {
-  const queryClient = useQueryClient()
   const router = useRouter()
+  const { removeAll } = useQueryCache()
 
-  return useMutation({
-    mutationFn: async ({ user_id }: { user_id: string }) => {
+  return useAsyncAction(
+    async ({ user_id }: { user_id: string }) => {
       clearClientState()
-      queryClient.removeQueries()
-      const user_impersonating = await admin.impersonateUser({
-        userId: user_id,
-      })
-      return user_impersonating
+      removeAll()
+      return admin.impersonateUser({ userId: user_id })
     },
-    onSettled: async () => {
-      forgetSession()
-    },
-    onSuccess: async () => {
-      queryClient.invalidateQueries({ queryKey: ['session'], refetchType: 'active' })
-      router.replace('/')
-    },
-  })
+    {
+      onSuccess: () => {
+        auth.$store.notify('$sessionSignal')
+        router.replace('/')
+      },
+    }
+  )
 }
 
 export const useStopImpersonation = () => {
-  const queryClient = useQueryClient()
   const router = useRouter()
+  const { removeAll } = useQueryCache()
 
-  return useMutation({
-    mutationFn: async () => {
+  return useAsyncAction(
+    async () => {
       clearClientState()
-      queryClient.removeQueries()
+      removeAll()
       await admin.stopImpersonating()
     },
-    onSettled: async () => {
-      forgetSession()
-    },
-    onSuccess: async () => {
-      queryClient.invalidateQueries({ queryKey: ['session'], refetchType: 'active' })
-      router.replace('/admin')
-    },
-  })
+    {
+      onSuccess: () => {
+        auth.$store.notify('$sessionSignal')
+        router.replace('/admin')
+      },
+    }
+  )
+}
+
+// better-auth's dynamic client proxy types `listSessions()` too loosely for
+// TS to carry the row shape through - named here instead, for the fields
+// ActiveDevices.tsx actually reads.
+type ListedSession = {
+  id: string
+  token: string
+  userAgent?: string | null
+  ipAddress?: string | null
+  expiresAt: string | Date
 }
 
 export const useListSessions = () => {
-  const { data, error, isPending, refetch } = useQuery({
-    queryKey: ['sessions'],
-    queryFn: async () => {
+  const [data, setData] = useState<ListedSession[]>([])
+  const [isPending, setIsPending] = useState(true)
+  const [error, setError] = useState<Error | null>(null)
+
+  const refetch = useCallback(async () => {
+    setIsPending(true)
+    try {
       const { data, error } = await listSessions()
       if (error) throw new Error(error.message)
-      return data
-    },
-    refetchInterval: 30000,
-    refetchOnMount: true,
-    refetchOnWindowFocus: true,
-  })
+      setData((data ?? []) as ListedSession[])
+      setError(null)
+    } catch (err) {
+      setError(err instanceof Error ? err : new Error(String(err)))
+    } finally {
+      setIsPending(false)
+    }
+  }, [])
 
-  return {
-    data,
-    error,
-    isPending,
-    refetch,
-  }
+  useEffect(() => {
+    refetch()
+  }, [refetch])
+
+  return { data, error, isPending, refetch }
 }
 
-export const useRevokeSession = () => {
-  const queryClient = useQueryClient()
-  return useMutation({
-    mutationFn: async (token: string) => revokeSession({ token }),
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ['sessions'], refetchType: 'active' })
-    },
-  })
-}
+// Revoking a session does not refresh `useListSessions` itself - two
+// independent calls to that hook do not share state. The caller passes its
+// own `refetch` in as a per-call option (`revokeSession.mutate(token, {
+// onSuccess: refetch })`), same as any other write settling a read it does
+// not own outright.
+export const useRevokeSession = () => useAsyncAction((token: string) => revokeSession({ token }))
 
 export const useVerifyRecaptcha = useVerifyRecaptchaHook

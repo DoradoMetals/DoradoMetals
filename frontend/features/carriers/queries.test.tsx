@@ -11,12 +11,10 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 import { CarrierPatch, CarrierServicePatch } from "@dorado/contracts";
 
-vi.mock("@/shared/queries/axios", () => ({ apiRequest: vi.fn() }));
 vi.mock("@/features/auth/queries", () => ({
   useGetSession: () => ({ user: { id: "u-admin", role: "admin" } }),
 }));
 
-import { apiRequest } from "@/shared/queries/axios";
 import {
   useCreateCarrier,
   useUpdateCarrier,
@@ -73,9 +71,13 @@ const aService = (): CarrierService => ({
   updated_at: "2025-12-31T17:21:41.140Z",
 });
 
+// The hooks live in @dorado/client now, which talks to the platform's `fetch`
+// rather than the axios wrapper this file used to stub.
 beforeEach(() => {
-  vi.mocked(apiRequest).mockReset();
-  vi.mocked(apiRequest).mockResolvedValue({});
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async () => ({ ok: true, status: 200, text: async () => "{}" }) as unknown as Response)
+  );
 });
 
 describe("useCreateCarrier sends exactly what /carriers/create accepts", () => {
@@ -86,11 +88,11 @@ describe("useCreateCarrier sends exactly what /carriers/create accepts", () => {
       await result.current.mutateAsync(aCarrier());
     });
 
-    await waitFor(() => expect(apiRequest).toHaveBeenCalled());
-    const [, url, body] = vi.mocked(apiRequest).mock.calls[0];
-    expect(url).toBe("/carriers/create");
+    await waitFor(() => expect(fetch).toHaveBeenCalled());
+    const [url, init] = vi.mocked(fetch).mock.calls[0] as [string, RequestInit];
+    expect(url).toMatch(/\/carriers\/create$/);
 
-    const b = body as { carrier: Record<string, unknown> };
+    const b = JSON.parse(String(init.body)) as { carrier: Record<string, unknown> };
     expect(CarrierPatch.strict().safeParse(b.carrier).success).toBe(true);
     expect(b.carrier).not.toHaveProperty("id");
     expect(b.carrier).not.toHaveProperty("created_at");
@@ -107,11 +109,11 @@ describe("useUpdateCarrier sends exactly what /carriers/update accepts", () => {
       await result.current.mutateAsync(aCarrier());
     });
 
-    await waitFor(() => expect(apiRequest).toHaveBeenCalled());
-    const [, url, body] = vi.mocked(apiRequest).mock.calls[0];
-    expect(url).toBe("/carriers/update");
+    await waitFor(() => expect(fetch).toHaveBeenCalled());
+    const [url, init] = vi.mocked(fetch).mock.calls[0] as [string, RequestInit];
+    expect(url).toMatch(/\/carriers\/update$/);
 
-    const b = body as { carrier: Record<string, unknown> };
+    const b = JSON.parse(String(init.body)) as { carrier: Record<string, unknown> };
     const parsed = CarrierPatch.strict().safeParse(b.carrier);
     expect(parsed.success).toBe(true);
     expect(b.carrier).not.toHaveProperty("created_at");
@@ -135,11 +137,11 @@ describe("useUpdateCarrierService sends exactly what /carrier_services/update ac
       await result.current.mutateAsync(aService());
     });
 
-    await waitFor(() => expect(apiRequest).toHaveBeenCalled());
-    const [, url, body] = vi.mocked(apiRequest).mock.calls[0];
-    expect(url).toBe("/carrier_services/update");
+    await waitFor(() => expect(fetch).toHaveBeenCalled());
+    const [url, init] = vi.mocked(fetch).mock.calls[0] as [string, RequestInit];
+    expect(url).toMatch(/\/carrier_services\/update$/);
 
-    const b = body as { service: Record<string, unknown> };
+    const b = JSON.parse(String(init.body)) as { service: Record<string, unknown> };
     const parsed = CarrierServicePatch.strict().safeParse(b.service);
     expect(parsed.success).toBe(true);
 

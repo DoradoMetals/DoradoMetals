@@ -12,11 +12,10 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 import { PurchaseOrderQuoteBody, SalesOrderQuoteBody } from "@dorado/contracts";
 
-vi.mock("@/shared/queries/axios", () => ({ apiRequest: vi.fn() }));
 // `useSaleShippingServices` moved to @dorado/client, which talks to the
-// platform's `fetch` rather than the axios wrapper this file stubs. The hook
-// is mocked with the same row the stub used to answer with, so the assertions
-// below are unchanged.
+// platform's `fetch` rather than the axios wrapper this file used to stub.
+// The hook is mocked with the same row the stub used to answer with, so the
+// assertions below are unchanged.
 vi.mock("@dorado/client", async (importOriginal) => ({
   ...(await importOriginal<Record<string, unknown>>()),
   useSaleShippingServices: () => ({
@@ -29,7 +28,6 @@ vi.mock("@/features/auth/queries", () => ({
   useGetSession: () => ({ user: { id: "u-customer", role: "customer" } }),
 }));
 
-import { apiRequest } from "@/shared/queries/axios";
 import { useSalesOrderQuote, usePurchaseOrderQuote } from "@/features/quotes/queries";
 import type { CheckoutLine } from "@/features/checkout/items/types";
 
@@ -59,11 +57,10 @@ const aProductItem = (): CheckoutLine =>
 const aScrapItem = (): CheckoutLine =>
   aLine({ id: "lot", metal_id: GOLD_ID, pre_melt: 10, purity: 0.585, unit: "g" });
 
-// THE METHOD ROWS COME THROUGH @dorado/client NOW, which owns its own `fetch`
-// and never touches the legacy axios wrapper - so the reference read is
-// stubbed at `fetch` and the quote POSTs stay on the mocked apiRequest. Both
-// halves have to be answered or the hook that resolves a code to an id has
-// nothing to resolve against.
+// THE METHOD ROWS AND THE QUOTES BOTH COME THROUGH @dorado/client NOW, which
+// owns its own `fetch` and never touches the legacy axios wrapper - so the
+// whole network boundary is one `fetch` stub, URL-discriminated the same way
+// the old axios mock was.
 const json = (body: unknown): Response =>
   ({ ok: true, status: 200, text: async () => JSON.stringify(body) }) as Response;
 
@@ -79,17 +76,6 @@ beforeEach(() => {
     }
     return json({});
   }));
-
-  vi.mocked(apiRequest).mockReset();
-  vi.mocked(apiRequest).mockImplementation(async (_method, url) => {
-    if (url === "/carrier_services/sale_options") {
-      return [{ id: SALE_SERVICE_ID, code: "STANDARD" }];
-    }
-    if (url === "/spots/spot_prices") {
-      return [{ id: GOLD_ID, name: "Gold", ask: 2000, bid: 1990 }];
-    }
-    return {};
-  });
 });
 
 describe("useSalesOrderQuote sends exactly what /quotes/sales_order accepts", () => {
@@ -106,14 +92,14 @@ describe("useSalesOrderQuote sends exactly what /quotes/sales_order accepts", ()
     );
 
     await waitFor(() => {
-      const call = vi.mocked(apiRequest).mock.calls.find(([, url]) => url === "/quotes/sales_order");
+      const call = vi.mocked(fetch).mock.calls.find(([u]) => String(u).includes("/quotes/sales_order"));
       expect(call).toBeTruthy();
     });
 
     const call = vi
-      .mocked(apiRequest)
-      .mock.calls.find(([, url]) => url === "/quotes/sales_order")!;
-    const body = call[2] as Record<string, unknown>;
+      .mocked(fetch)
+      .mock.calls.find(([u]) => String(u).includes("/quotes/sales_order"))! as [string, RequestInit];
+    const body = JSON.parse(String(call[1].body)) as Record<string, unknown>;
 
     expect(SalesOrderQuoteBody.strict().safeParse(body).success).toBe(true);
     expect(body.carrier_service_id).toBe(SALE_SERVICE_ID);
@@ -143,15 +129,15 @@ describe("usePurchaseOrderQuote sends exactly what /quotes/purchase_order accept
 
     await waitFor(() => {
       const call = vi
-        .mocked(apiRequest)
-        .mock.calls.find(([, url]) => url === "/quotes/purchase_order");
+        .mocked(fetch)
+        .mock.calls.find(([u]) => String(u).includes("/quotes/purchase_order"));
       expect(call).toBeTruthy();
     });
 
     const call = vi
-      .mocked(apiRequest)
-      .mock.calls.find(([, url]) => url === "/quotes/purchase_order")!;
-    const body = call[2] as {
+      .mocked(fetch)
+      .mock.calls.find(([u]) => String(u).includes("/quotes/purchase_order"))! as [string, RequestInit];
+    const body = JSON.parse(String(call[1].body)) as {
       items: Record<string, unknown>[];
       payout_method_id?: string;
       shipping_charge?: number;

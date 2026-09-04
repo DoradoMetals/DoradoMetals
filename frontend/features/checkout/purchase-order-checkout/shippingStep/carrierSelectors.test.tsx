@@ -19,7 +19,6 @@ import React from "react";
 const patched: Record<string, unknown>[] = [];
 const fulfilled: Record<string, unknown>[] = [];
 
-vi.mock("@/shared/queries/axios", () => ({ apiRequest: vi.fn() }));
 vi.mock("@/features/auth/queries", () => ({
   useGetSession: () => ({ user: { id: "u-1", role: "user", name: "Cust" } }),
 }));

@@ -148,6 +148,12 @@ export const keys = {
   quotes: {
     purchase: (body: unknown) => ["quote", "purchase_order", JSON.stringify(body)] as const,
     sales: (body: unknown) => ["quote", "sales_order", JSON.stringify(body)] as const,
+    catalog: (items: unknown, side: string) =>
+      ["quote", "catalog", side, JSON.stringify(items)] as const,
+    // ONE EXISTING order's estimate; `order` is the prefix profit invalidates
+    // alongside, since both reprice off the same inputs.
+    order: (order_id: string) => ["quote", "order", order_id] as const,
+    profit: (order_id: string) => ["quote", "order", order_id, "profit"] as const,
   },
   refiners: {
     suppliers: () => ["suppliers"] as const,

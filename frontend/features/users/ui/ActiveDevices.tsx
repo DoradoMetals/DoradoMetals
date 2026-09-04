@@ -12,7 +12,7 @@ import { useListSessions, useRevokeSession } from '@/features/auth/queries'
 import { parseUserAgent, ParsedUA, getDeviceIcon } from '@/features/users/types'
 
 export function ActiveDevices() {
-  const { data: sessions = [], isPending } = useListSessions()
+  const { data: sessions = [], isPending, refetch } = useListSessions()
   const revokeSession = useRevokeSession()
 
   if (isPending) {
@@ -75,7 +75,7 @@ export function ActiveDevices() {
                     variant="tertiary"
                     intent="danger"
                     size="xs"
-                    onClick={() => revokeSession.mutate(s.token)}
+                    onClick={() => revokeSession.mutate(s.token, { onSuccess: refetch })}
                     disabled={revokeSession.isPending}
                   >
                     {revokeSession.isPending ? 'Signing Out...' : 'Sign Out'}

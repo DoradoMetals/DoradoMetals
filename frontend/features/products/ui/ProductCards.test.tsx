@@ -18,7 +18,6 @@ import { renderWithClient } from "@/shared/tests/renderWithClient";
 import userEvent from "@testing-library/user-event";
 import React from "react";
 
-vi.mock("@/shared/queries/axios", () => ({ apiRequest: vi.fn() }));
 // The spot feed moved into @dorado/client, which talks to the platform's
 // `fetch` rather than the axios wrapper this file stubs. Mocked with the same
 // row the URL branch answered, so the cards' popover still has a spot to read
@@ -49,7 +48,6 @@ vi.mock("@/shared/ui/PriceNumberFlow", () => ({
     React.createElement("span", { className }, String(value)),
 }));
 
-import { apiRequest } from "@/shared/queries/axios";
 import { stubCheckoutServer, type CheckoutServer } from "@/shared/tests/checkoutServer";
 import { useCatalogQuote } from "@/features/quotes/queries";
 import { catalogQuoteItems, unitPricesById } from "@/features/quotes/catalogPrices";
@@ -103,25 +101,33 @@ const quotedLine = (id: string, side: "ask" | "bid") => {
   return { id, quantity: 1, unit_price, line_total: unit_price };
 };
 
+// THE CLIENT PACKAGE TALKS TO `fetch`, NOT TO THIS APP'S AXIOS WRAPPER - the
+// quote hook moved into @dorado/client. `stubCheckoutServer` already owns
+// `fetch` for the basket; this layers the quote branch on top of it and
+// forwards everything else, the same URL-discrimination the old axios mock
+// did (the spot ticker and the quote surface are different endpoints
+// answering different questions, and the quote answers by side).
 beforeEach(() => {
-  vi.mocked(apiRequest).mockReset();
-  // URL-discriminated: the spot ticker and the quote surface are different
-  // endpoints answering different questions, and the quote answers by side.
-  vi.mocked(apiRequest).mockImplementation(async (_m, url, body) => {
-    if (url === "/quotes/catalog") {
-      const { items, side } = body as { items: { id: string }[]; side: "ask" | "bid" };
-      const lines = items.map((i) => quotedLine(i.id, side));
-      return {
-        side,
-        spots_at: "2026-08-27T00:00:00.000Z",
-        items: lines,
-        total: lines.reduce((acc, l) => acc + l.line_total, 0),
-      };
-    }
-    return {};
-  });
   localStorage.clear();
   checkout = stubCheckoutServer();
+  const checkoutFetch = globalThis.fetch;
+  vi.stubGlobal("fetch", vi.fn(async (input: string, init?: RequestInit) => {
+    const url = new URL(String(input), "http://test.local");
+    if (url.pathname.endsWith("/quotes/catalog")) {
+      const { items, side } = JSON.parse(String(init?.body ?? "{}")) as {
+        items: { id: string }[]; side: "ask" | "bid";
+      };
+      const lines = items.map((i) => quotedLine(i.id, side));
+      return {
+        ok: true, status: 200,
+        text: async () => JSON.stringify({
+          side, spots_at: "2026-08-27T00:00:00.000Z", items: lines,
+          total: lines.reduce((acc, l) => acc + l.line_total, 0),
+        }),
+      } as unknown as Response;
+    }
+    return checkoutFetch(input as unknown as RequestInfo, init);
+  }));
 });
 
 let checkout: CheckoutServer;

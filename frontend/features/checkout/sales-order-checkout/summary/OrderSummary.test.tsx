@@ -15,7 +15,6 @@ import { renderWithClient } from "@/shared/tests/renderWithClient";
 import userEvent from "@testing-library/user-event";
 import React from "react";
 
-vi.mock("@/shared/queries/axios", () => ({ apiRequest: vi.fn() }));
 // The catalogue and the spot feed moved into @dorado/client, which talks to
 // the platform's `fetch` rather than the axios wrapper this file stubs - so
 // both hooks are mocked with the rows the stub used to answer with. The
@@ -51,7 +50,6 @@ vi.mock("@/shared/ui/PriceNumberFlow", () => ({
     React.createElement("span", { className }, String(value)),
 }));
 
-import { apiRequest } from "@/shared/queries/axios";
 import { stubCheckoutServer, type CheckoutServer } from "@/shared/tests/checkoutServer";
 import OrderSummary from "@/features/checkout/sales-order-checkout/summary/orderSummary";
 import type { SalesOrderQuote } from "@dorado/contracts";
@@ -104,17 +102,6 @@ const prices = (): SalesOrderQuote => ({
 });
 
 beforeEach(() => {
-  vi.mocked(apiRequest).mockReset();
-  // Branched by URL: the summary's totals arrive as a prop, but anything in
-  // the tree that fetches the quote or the catalogue gets its own fixture -
-  // the catalogue read is what supplies the name and picture by bullion_id.
-  vi.mocked(apiRequest).mockImplementation(async (_method, url) => {
-    const u = String(url);
-    if (u.startsWith("/quotes/sales_order")) return prices() as never;
-    return [
-      { id: "m-au", name: "Gold", ask: 3000, bid: 2900, dollar_change: 1, percent_change: 0.1 },
-    ] as never;
-  });
   localStorage.clear();
   checkout = stubCheckoutServer();
   checkout.seed("sale", [{ bullion_id: "p-1", quantity: 1 }]);

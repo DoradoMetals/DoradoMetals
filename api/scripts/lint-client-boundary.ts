@@ -1,7 +1,7 @@
 // THE CLIENT BOUNDARY (ruling 62): `frontend/` talks to the API through
 // `@dorado/client` and through nothing else.
 //
-// Two checks, one gate, both pinned by floors so a walk that opens nothing
+// THREE checks, one gate, all pinned by floors so a walk that opens nothing
 // cannot pass by scanning nothing.
 //
 // (1) NOTHING UNDER frontend/ CALLS THE API DIRECTLY. No `fetch(`, no
@@ -10,7 +10,14 @@
 //     URL, the credentials mode and the error shape are spelled, which is how
 //     `/api/cart` outlived its own deletion in three files.
 //
-// (2) packages/client IMPORTS NOTHING BUT @dorado/contracts, react and
+// (2) NOTHING UNDER frontend/ IMPORTS @tanstack/react-query, PENDING LIST
+//     NOW EMPTY (the client lane, 2026-09-04). Every useQuery/useMutation/
+//     useInfiniteQuery/useQueryClient/queryOptions call and every query key
+//     lives in packages/client now; the one exception is `PROVIDER_FILE`,
+//     which needs the bare `QueryClientProvider` class at the app root, not a
+//     hook.
+//
+// (3) packages/client IMPORTS NOTHING BUT @dorado/contracts, react and
 //     react-query. It is the layer both sides agree on: a dependency on the
 //     frontend's stores, its auth client or an HTTP library would make it the
 //     frontend again, one directory over.
@@ -33,44 +40,35 @@ const ROOT = process.env.LINT_CLIENT_BOUNDARY_ROOT
 // A file that legitimately reaches the network without a hook, with the
 // reason. PINNED FROM BOTH SIDES: an entry matching nothing is reported, so a
 // file that stops needing the excuse cannot leave it here describing nothing.
-const ACCEPTED: Record<string, string> = {
-  "frontend/shared/queries/axios.ts":
-    "the legacy transport, kept while the features other lanes own still " +
-    "import it. Every checkout surface is off it (this lane); the file dies " +
-    "with the last of the others.",
-};
+// EMPTY (the client lane, 2026-09-04): `shared/queries/axios.ts` - the last
+// entry this ever held - is deleted, and every feature that named it as its
+// excuse (orders, pdfs, quotes, carriers) is off it.
+const ACCEPTED: Record<string, string> = {};
 
-// SURFACES WHOSE OWN LANE HAS NOT CONVERTED YET. Prefixes, not files, because
+// SURFACES WHOSE OWN LANE HAD NOT CONVERTED YET. Prefixes, not files, because
 // a feature converts whole - and PINNED FROM BOTH SIDES like ACCEPTED: a
 // prefix under which nothing calls the API any more is reported, so this list
-// can only shrink. `frontend/features/checkout` is deliberately absent: it is
-// converted, and that is what makes the gate mean something today. So are
-// `payments`, `payouts`, `stripe` and `users` - the payments lane moved their
-// hooks into packages/client and deleted the originals, and `payouts` came
-// OFF this list rather than being edited around.
+// can only shrink.
 //
-// `frontend/features/products` and `frontend/app/sitemap.ts` came off the same
-// way (products lane): every catalogue, spot and rate hook is in
-// packages/client, `features/spots/queries.ts` and `features/rates/queries.ts`
-// are re-exports of it, `features/products/queries.ts` is two hooks built ON
-// those, and the sitemap calls the package's plain `fetchProducts` rather than
-// reaching for the axios wrapper on the server.
-//
-// `frontend/features/auth` came off with the places lane. Its two OWN endpoints
-// (`/account/set_password`, `/recaptcha/verify-recaptcha`) are hooks in
-// packages/client now; better-auth keeps its own client, which is that
-// library's transport and not an API call this package should wrap.
-// `frontend/features/addresses` was never on the list and is converted too -
-// its file is a re-export plus four projections of `useAddressBook`.
-// `frontend/features/leads` and `frontend/features/reviews` were never on the
-// list either (small-features lane, 2026-09-04); `frontend/features/media`
-// came OFF it the same pass - all three are re-exports of @dorado/client now.
-const PENDING: Record<string, string> = {
-  "frontend/features/orders": "the orders surface - the parallel orders lane owns it.",
-  "frontend/features/pdfs": "the document surface - not this lane's.",
-  "frontend/features/quotes": "the remaining quote hooks (order + profit) - not this lane's; the two checkout quotes moved.",
-  "frontend/shared/queries": "the legacy transport and its useApiQuery/useApiMutation wrappers, kept while the surfaces above still import them.",
-};
+// EMPTY (the client lane, 2026-09-04): `orders` (the admin sales-order
+// create orchestration composes @dorado/client mutations now, no
+// `useMutation` of its own), `pdfs` (the four document endpoints are
+// `packages/client/src/pdfs/`, this app saves the blob), `quotes` (the
+// catalogue/order/profit reads moved whole; the sales/purchase quotes
+// resolve a code to an id and hand it to `usePurchaseQuote`/`useSalesQuote`)
+// and `shared/queries` (axios.ts, base.ts and keys.ts are deleted - carriers
+// was the last feature on the legacy `useApiQuery`/`useApiMutation` wrapper)
+// all came off it. `frontend/features/checkout` was the first to go, and
+// `payments`, `payouts`, `stripe`, `users`, `products`, `auth`, `addresses`,
+// `leads`, `reviews` and `media` followed - see git history for each lane's
+// note; there is nothing left to explain here once the map is empty.
+const PENDING: Record<string, string> = {};
+
+// THE ONE FILE THAT LEGITIMATELY IMPORTS @tanstack/react-query FROM
+// frontend/ - the app root wiring up `<QueryClientProvider>`, which needs the
+// class itself rather than a hook. PINNED, not a pattern: there is exactly
+// one, and a second one appearing is a finding, not a naming convention.
+const PROVIDER_FILE = "frontend/shared/providers/QueryProvider.tsx";
 
 const acceptedHit = new Set<string>();
 const pendingHit = new Set<string>();
@@ -132,15 +130,20 @@ const rel = (file: string) => path.relative(ROOT, file).split(path.sep).join("/"
 
 type Finding = { file: string; line: number; message: string };
 
+// A TEST may stub the network - that is what a test is for - an e2e spec
+// drives a browser rather than the API, and a file under a `tests/`
+// directory (ruling 31 - tests live with their feature, grouped under
+// `tests/`) is support code FOR one, same as `shared/tests/renderWithClient`
+// needing the real `<QueryClientProvider>` to wrap what it renders.
+const isTestFile = (name: string): boolean =>
+  /\.test\.tsx?$/.test(name) || /\.e2e\.ts$/.test(name) ||
+  /[\\/]e2e[\\/]/.test(name) || /[\\/]tests[\\/]/.test(name);
+
 function checkFrontend(files: string[]): Finding[] {
   const findings: Finding[] = [];
   for (const file of files) {
     const name = rel(file);
-    // A TEST may stub the network - that is what a test is for - and an e2e
-    // spec drives a browser rather than the API.
-    if (/\.test\.tsx?$/.test(name) || /\.e2e\.ts$/.test(name) || /[\\/]e2e[\\/]/.test(name)) {
-      continue;
-    }
+    if (isTestFile(name)) continue;
     const lines = stripComments(readFileSync(file, "utf8")).split("\n");
     const hits: Finding[] = [];
     lines.forEach((line, i) => {
@@ -166,6 +169,29 @@ function checkFrontend(files: string[]): Finding[] {
       continue;
     }
     findings.push(...hits);
+  }
+  return findings;
+}
+
+// Check (2): no frontend file but PROVIDER_FILE names @tanstack/react-query,
+// by import specifier rather than by usage - a `queryOptions(` call or a bare
+// `useQueryClient` import is still the library, whether or not it is called
+// on the same line.
+function checkReactQueryImports(files: string[]): Finding[] {
+  const findings: Finding[] = [];
+  for (const file of files) {
+    const name = rel(file);
+    if (name === PROVIDER_FILE) continue;
+    if (isTestFile(name)) continue;
+    const source = readFileSync(file, "utf8");
+    for (const specifier of importsOf(source)) {
+      if (specifier !== "@tanstack/react-query") continue;
+      findings.push({
+        file: name, line: 0,
+        message: "imports @tanstack/react-query - every hook and query key belongs in " +
+          `@dorado/client now (the one exception is ${PROVIDER_FILE})`,
+      });
+    }
   }
   return findings;
 }
@@ -254,6 +280,28 @@ if (process.argv.includes("--self-test")) {
         mustPrint: "0 findings",
       },
       {
+        name: "a component importing @tanstack/react-query directly is seen",
+        rootEnv: "LINT_CLIENT_BOUNDARY_ROOT", env: LOW,
+        files: {
+          ...filler, ...clientFiller,
+          "frontend/features/x/ui.tsx":
+            `import { useQueryClient } from ${Q}@tanstack/react-query${Q}\nexport const go = () => useQueryClient()\n`,
+        },
+        expect: "fail",
+        mustPrint: "imports @tanstack/react-query",
+      },
+      {
+        name: "the provider file importing @tanstack/react-query passes",
+        rootEnv: "LINT_CLIENT_BOUNDARY_ROOT", env: LOW,
+        files: {
+          ...filler, ...clientFiller,
+          [PROVIDER_FILE]:
+            `import { QueryClientProvider } from ${Q}@tanstack/react-query${Q}\nexport default QueryClientProvider\n`,
+        },
+        expect: "pass",
+        mustPrint: "0 findings",
+      },
+      {
         name: "a type import from the contracts is not a call",
         rootEnv: "LINT_CLIENT_BOUNDARY_ROOT", env: LOW,
         files: {
@@ -316,7 +364,11 @@ if (frontendFiles.length < FRONTEND_FLOOR || clientFiles.length < CLIENT_FLOOR) 
   process.exit(1);
 }
 
-const findings = [...checkFrontend(frontendFiles), ...checkClientPackage(clientFiles)];
+const findings = [
+  ...checkFrontend(frontendFiles),
+  ...checkReactQueryImports(frontendFiles),
+  ...checkClientPackage(clientFiles),
+];
 const stale = [
   ...Object.keys(ACCEPTED).filter((name) => !acceptedHit.has(name)),
   ...Object.keys(PENDING).filter((prefix) => !pendingHit.has(prefix)),

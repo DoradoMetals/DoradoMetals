@@ -39,7 +39,6 @@ import NumberFlow from '@number-flow/react'
 import { useEffect, useMemo, useState, useTransition } from 'react'
 import { LockIcon, LockOpenIcon, QuestionIcon } from '@phosphor-icons/react'
 import { useRouter } from 'next/navigation'
-import { useMutationState } from '@tanstack/react-query'
 import { loadStripe } from '@stripe/stripe-js'
 import { AddressSelect } from '@/features/addresses/ui/AddressSelect'
 import { useUserAddress, useUserAddressLinks } from '@/features/addresses/queries'
@@ -552,7 +551,7 @@ function PaymentSelect(
   const [isPending, startTransition] = useTransition()
 
   const { data, setData, items } = useAdminSalesOrderCheckoutStore()
-  const createOrder = useAdminCreateSalesOrder()
+  const createOrder = useAdminCreateSalesOrder(user.id!)
   const updatePaymentIntent = useUpdatePaymentIntent()
   const { data: clientSecret } = usePaymentIntentSecret('admin', user.id!)
   // IDS, NOT CODES (ruling 43). The hook moved to @dorado/client and takes the
@@ -560,14 +559,7 @@ function PaymentSelect(
   // to do internally is these two lines, against rows this drawer already has.
   const { data: saleServices = [] } = useSaleShippingServices()
   const { data: saleMethods = [] } = usePaymentMethods('sale')
-  const isOrderCreating =
-    useMutationState({
-      filters: {
-        mutationKey: ['createSalesOrder'],
-        status: 'pending',
-      },
-      select: () => true,
-    }).length > 0
+  const isOrderCreating = createOrder.isPending
 
   const cardNeeded = useMemo(() => {
     if (data.payment_method === 'CREDIT') {
