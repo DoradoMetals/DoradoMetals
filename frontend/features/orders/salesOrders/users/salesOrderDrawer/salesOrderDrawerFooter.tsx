@@ -10,10 +10,12 @@ import { DetailRow } from '@/shared/ui/DetailRow'
 import { SalesOrderDrawerFooterProps } from '@/features/orders/salesOrders/types'
 import { useSalesOrderLines } from '@/features/orders/salesOrders/users/salesOrderDrawer/drawerContents/useSalesOrderLines'
 
-export default function SalesOrderDrawerFooter({ order }: SalesOrderDrawerFooterProps) {
+export default function SalesOrderDrawerFooter({ view }: SalesOrderDrawerFooterProps) {
+  const { order } = view
+
   // A CONTAINER (ruling 14): the lines are their own read, named against the
   // cached catalogue - the order document carries neither.
-  const lines = useSalesOrderLines(order.id)
+  const lines = useSalesOrderLines(view)
 
   const [open, setOpen] = useState({
     items: false,
@@ -27,7 +29,7 @@ export default function SalesOrderDrawerFooter({ order }: SalesOrderDrawerFooter
           label="Item Prices"
           open={open.items}
           onToggle={() => setOpen((prev) => ({ ...prev, items: !prev.items }))}
-          total={order.totals?.items ?? 0}
+          total={view.totals?.items ?? 0}
         >
           <Table>
             <TableBody>
@@ -36,7 +38,7 @@ export default function SalesOrderDrawerFooter({ order }: SalesOrderDrawerFooter
                   <TableCell>{item.quantity}</TableCell>
                   <TableCell>{item.name}</TableCell>
                   <TableCell className="text-right p-0">
-                    <PriceNumberFlow value={(item.quantity ?? 0) * (item.price ?? 0)} />
+                    <PriceNumberFlow value={item.line_total ?? 0} />
                   </TableCell>
                 </TableRow>
               ))}
@@ -49,30 +51,30 @@ export default function SalesOrderDrawerFooter({ order }: SalesOrderDrawerFooter
         label="Total Price"
         open={open.total}
         onToggle={() => setOpen((prev) => ({ ...prev, total: !prev.total }))}
-        total={order.totals?.total ?? 0}
+        total={view.totals?.total ?? 0}
       >
         <div className="flex flex-col gap-2 pr-2">
-          {order.totals?.used_funds && (
+          {view.totals?.used_funds && (
             <DetailRow label="Dorado Funds Applied:">
-              <PriceNumberFlow value={order.totals?.funds ?? 0} />
+              <PriceNumberFlow value={view.totals?.funds ?? 0} />
             </DetailRow>
           )}
 
-          {(order.totals?.subject_to_charges_amount ?? 0) > 0 && (
-            <DetailRow label={order.totals?.used_funds ? 'Amount Remaining:' : 'Before Fees:'}>
-              <PriceNumberFlow value={order.totals?.subject_to_charges_amount ?? 0} />
+          {(view.totals?.subject_to_charges_amount ?? 0) > 0 && (
+            <DetailRow label={view.totals?.used_funds ? 'Amount Remaining:' : 'Before Fees:'}>
+              <PriceNumberFlow value={view.totals?.subject_to_charges_amount ?? 0} />
             </DetailRow>
           )}
 
-          {(order.totals?.shipping ?? 0) > 0 && (
+          {(view.totals?.shipping ?? 0) > 0 && (
             <DetailRow label="Shipping Fee:">
-              <PriceNumberFlow value={order.totals?.shipping ?? 0} />
+              <PriceNumberFlow value={view.totals?.shipping ?? 0} />
             </DetailRow>
           )}
 
-          {(order.totals?.subject_to_charges_amount ?? 0) > 0 && (
+          {(view.totals?.subject_to_charges_amount ?? 0) > 0 && (
             <DetailRow label="Payment Fee:">
-              <PriceNumberFlow value={order.totals?.surcharge ?? 0} />
+              <PriceNumberFlow value={view.totals?.surcharge ?? 0} />
             </DetailRow>
           )}
         </div>

@@ -11,14 +11,17 @@ import PurchaseOrderCard from './purchaseOrderCard'
 import PurchaseOrderDrawer from './purchaseOrderDrawer/purchaseOrderDrawer'
 import { PurchaseOrderStatuses, statusConfig } from '@/features/orders/purchaseOrders/types'
 import { useGetSession } from '@/features/auth/queries'
-import { usePurchaseOrders } from '@/features/orders/purchaseOrders/users/queries'
+import { useOrders } from '@dorado/client'
 import { OrderStatusSelector } from '@/features/orders/ui/OrderStatusShared'
 import { EmptyState } from '@/shared/ui/EmptyState'
 import { SearchX } from 'lucide-react'
 
 export function PurchaseOrdersContent() {
   const { user } = useGetSession()
-  const { data: orders = [], isLoading } = usePurchaseOrders()
+  const { data: orders = [], isLoading } = useOrders(
+    { direction: 'purchase', user_id: user?.id },
+    { enabled: !!user?.id, refetchInterval: 10_000 }
+  )
   const [activePurchaseOrder, setActivePurchaseOrder] = useState<string | null>(null)
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
   const [selectedStatus, setSelectedStatus] = useState<string | null>(null)

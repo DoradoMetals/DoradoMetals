@@ -4,16 +4,18 @@ import AdminPendingSalesOrder from '@/features/orders/salesOrders/admin/adminSal
 import AdminPreparingSalesOrder from '@/features/orders/salesOrders/admin/adminSalesOrderDrawer/adminSalesOrderDrawerContents/AdminPreparing'
 import { SalesOrderDrawerContentProps } from '@/features/orders/salesOrders/types'
 
-export default function AdminSalesOrderDrawerContent({ order }: SalesOrderDrawerContentProps) {
+export default function AdminSalesOrderDrawerContent({ view }: SalesOrderDrawerContentProps) {
+  const { order } = view
+
   switch (order.status) {
     case 'Pending':
-      return <AdminPendingSalesOrder order={order} />
+      return <AdminPendingSalesOrder view={view} />
     case 'Preparing':
-      return <AdminPreparingSalesOrder order={order} />
+      return <AdminPreparingSalesOrder view={view} />
     case 'In Transit':
-      return <AdminInTransitSalesOrder order={order} />
+      return <AdminInTransitSalesOrder view={view} />
     case 'Completed':
-      return <AdminCompletedSalesOrder order={order} />
+      return <AdminCompletedSalesOrder view={view} />
     default:
       return (
         <strong className="p-4">No content available for this status.</strong>

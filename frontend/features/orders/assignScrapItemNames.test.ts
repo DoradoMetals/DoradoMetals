@@ -13,7 +13,7 @@
 // It also filters, so what it drops matters as much as what it names: a line
 // whose metal does not resolve is silently removed from the table.
 import { describe, expect, test } from "vitest";
-import { assignScrapItemNames } from "@/features/orders/purchaseOrders/types";
+import { assignScrapItemNames } from '@/features/orders/display'
 import type { OrderItem } from "@dorado/contracts";
 
 // A line, and the metal its metal_id resolves to. The id doubles as the

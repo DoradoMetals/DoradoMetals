@@ -28,7 +28,18 @@ import { BullionPublic } from "../products/bullion.js";
 // The line as ONE order's view carries it: the row plus the catalogue product
 // behind a bullion line. Null on a scrap line, where the weights and the
 // purity are columns of the line itself.
-export const OrderViewItem = OrderItem.extend({ product: BullionPublic.nullable() });
+// TWO DERIVED FIGURES TRAVEL WITH IT, and both were client arithmetic until
+// the orders pass: `payable` is the fine ounces the business pays for
+// (content x premium - the drawer's "Payable (toz)" column) and `line_total`
+// is what the line comes to. A scrap line's total is the whole lot; a bullion
+// line's is per unit, so quantity counts - the two definitions that drifted
+// apart between the purchase footer and the sale footer. Null when the line
+// is not priced yet, which is a real state.
+export const OrderViewItem = OrderItem.extend({
+  product: BullionPublic.nullable(),
+  payable: OrderItem.shape.content,
+  line_total: OrderItem.shape.price,
+});
 export type OrderViewItem = z.infer<typeof OrderViewItem>;
 
 // PATCH /api/orders/items/:id, and POST /orders/:id/items - ONE ROW, ONE PATCH

@@ -1,11 +1,8 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import {
-  assignScrapItemNames,
-  PurchaseOrderDrawerFooterProps,
-  statusConfig,
-} from '@/features/orders/purchaseOrders/types'
+import { PurchaseOrderDrawerFooterProps, statusConfig } from '@/features/orders/purchaseOrders/types'
+import { assignScrapItemNames } from '@/features/orders/display'
 import AccordionSection from '@/shared/ui/AccordionSection'
 import { DetailRow } from '@/shared/ui/DetailRow'
 
@@ -22,31 +19,25 @@ import formatPhoneNumber from '@/shared/utils/formatPhoneNumber'
 import { payoutMethodIcon, PayoutMethodType } from '@/features/payouts/types'
 import { usePaymentMethods } from '@/features/payments/queries'
 import { formatRate } from '@/features/rates/utils/resolveRate'
-import { useOrderItems, nameOf } from '@/features/orders/reads'
-import { useOrderPayouts } from '@/features/payouts/queries'
-import {
-  useOrderShipments,
-  useShipmentDisplay,
-  outboundOf,
-  returnOf,
-} from '@/features/shipping/queries'
+import { useShipmentDisplay, outboundOf, returnOf } from '@/features/shipping/queries'
 import { useProducts } from '@/features/products/queries'
 import { useSpotPrices } from '@/features/spots/queries'
 // Every dollar figure below comes from the order quote - the server prices
 // the order's own items at its own spots (Jacob's no-previews ruling). The
 // client keeps only weight/rate display math.
 import { useOrderQuote } from '@/features/quotes/queries'
+import { nameOf } from '@/features/orders/display'
 
 // A CONTAINER (ruling 14): it holds the order id and calls each read itself,
 // one hop from what it renders. The composed order that used to carry all of
 // this - order_items, shipment, return_shipment, payout - is gone; each is
 // its own hook keyed by the id this component already has.
-export default function PurchaseOrderDrawerFooter({ order }: PurchaseOrderDrawerFooterProps) {
+export default function PurchaseOrderDrawerFooter({ view }: PurchaseOrderDrawerFooterProps) {
+  const { order } = view
+
   const valueLabel = statusConfig[order.status ?? '']?.value_label ?? ''
 
-  const { data: items = [] } = useOrderItems(order.id)
-  const { data: shipments = [] } = useOrderShipments(order.id)
-  const { data: payouts = [] } = useOrderPayouts(order.id)
+  const { items } = view
   const { data: catalogue = [] } = useProducts()
   // The spots reference list: its `id` IS the metal's id, which is how a
   // scrap line's metal_id becomes "Gold".
@@ -54,11 +45,11 @@ export default function PurchaseOrderDrawerFooter({ order }: PurchaseOrderDrawer
 
   // ONE ARRAY, FILTERED ON `direction` - shipment / return_shipment were two
   // names for one table that carries the column.
-  const shipment = outboundOf(shipments)
-  const returnShipment = returnOf(shipments)
+  const shipment = outboundOf(view.shipments)
+  const returnShipment = returnOf(view.shipments)
   const { service_name: shipmentService } = useShipmentDisplay(shipment)
   const { service_name: returnService } = useShipmentDisplay(returnShipment)
-  const payout = payouts[0] ?? null
+  const payout = view.payout
 
   const { data: quote } = useOrderQuote(order.id)
   // Quote lines pair to order items BY ID - these are stored rows, unlike the
@@ -79,7 +70,7 @@ export default function PurchaseOrderDrawerFooter({ order }: PurchaseOrderDrawer
   // derived in the compose layer and has no column.
   const scrapItems = assignScrapItemNames(
     items.filter((item) => item.bullion_id === null),
-    (metal_id) => nameOf(spotPrices, metal_id)
+    (metal_id: string) => nameOf(spotPrices, metal_id)
   )
   const bullionItems = items.filter((item) => item.bullion_id !== null)
   const { data: payoutMethods = [] } = usePaymentMethods('purchase')

@@ -24,7 +24,7 @@ vi.mock("next/image", () => ({
 
 import { apiRequest } from "@/shared/queries/axios";
 import AdminPreparingSalesOrder from "@/features/orders/salesOrders/admin/adminSalesOrderDrawer/adminSalesOrderDrawerContents/AdminPreparing";
-import type { SalesOrder } from "@/features/orders/salesOrders/types";
+import type { OrderView } from "@dorado/contracts";
 
 const renderWithClient = (ui: React.ReactElement) => {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
@@ -35,8 +35,22 @@ const renderWithClient = (ui: React.ReactElement) => {
 // column of the order: `supplier_id` was refiners.orders.refiner_id aliased
 // on, and the shipment was a nested slot. Both are their own reads now, and
 // the mock below answers them.
-const order = () =>
-  ({ id: "so-1", status: "Preparing", order_sent: false } as unknown as SalesOrder);
+// THE VIEW, not the row - a drawer child renders one OrderView.
+const view = (order: Record<string, unknown>) =>
+  ({
+    order,
+    totals: null,
+    items: [],
+    address: null,
+    shipments: [],
+    pickup: null,
+    payout: null,
+    user: null,
+    actions: { cancel: false, finalize_pricing: false, add_funds: false,
+      send_to_refiner: true, buy_label: false, update_tracking: true,
+      edit_lines: false, statuses: [] },
+  } as unknown as OrderView);
+const order = () => view({ id: "so-1", status: "Preparing", order_sent: false });
 
 beforeEach(() => {
   vi.mocked(apiRequest).mockReset();
@@ -62,14 +76,35 @@ beforeEach(() => {
   });
 });
 
+// THE CLIENT PACKAGE TALKS TO `fetch`, NOT TO THIS APP'S AXIOS WRAPPER.
+// @dorado/client carries no runtime dependency of its own, so the seam a test
+// stubs for an order action is the platform one. Recorded, so the assertion
+// below can read the URL and the body it sent.
+const sent: { method: string; url: string; body: unknown }[] = [];
+
+beforeEach(() => {
+  sent.length = 0;
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string, init?: RequestInit) => {
+      sent.push({
+        method: init?.method ?? "GET",
+        url: String(url),
+        body: init?.body ? JSON.parse(String(init.body)) : undefined,
+      });
+      return { ok: true, status: 200, text: async () => "{}" } as unknown as Response;
+    })
+  );
+});
+
 describe("sending a sales order to a supplier", () => {
   test("the refiners are offered by name", async () => {
-    renderWithClient(<AdminPreparingSalesOrder order={order()} />);
+    renderWithClient(<AdminPreparingSalesOrder view={order()} />);
     await waitFor(() => expect(screen.getAllByText("Elemetal").length).toBeGreaterThan(0));
   });
 
   test("the send POSTs the refiner id to send_to_refiner", async () => {
-    renderWithClient(<AdminPreparingSalesOrder order={order()} />);
+    renderWithClient(<AdminPreparingSalesOrder view={order()} />);
     await waitFor(() => expect(screen.getAllByText("Elemetal").length).toBeGreaterThan(0));
 
     await userEvent.click(screen.getByRole("radio"));
@@ -78,16 +113,14 @@ describe("sending a sales order to a supplier", () => {
     );
 
     await waitFor(() => {
-      const call = vi
-        .mocked(apiRequest)
-        .mock.calls.find(
-          ([method, url]) => method === "POST" && url === "/orders/so-1/send_to_refiner"
-        );
+      const call = sent.find(
+        (c) => c.method === "POST" && c.url.endsWith("/orders/so-1/send_to_refiner")
+      );
       expect(call).toBeTruthy();
       // The WHOLE document: the refiner id and nothing else - no spots, no
       // order copy. toEqual is exact in both directions, so a stray field
       // fails here before the API refuses it by name.
-      expect(call![2]).toEqual({ refiner_id: "s-1" });
+      expect(call!.body).toEqual({ refiner_id: "s-1" });
     });
   });
 });

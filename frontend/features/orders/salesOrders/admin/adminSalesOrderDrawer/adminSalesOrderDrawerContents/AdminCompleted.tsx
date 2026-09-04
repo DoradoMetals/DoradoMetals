@@ -1,7 +1,9 @@
 import { cn } from '@/shared/utils/cn'
 import { SalesOrderDrawerContentProps, statusConfig } from '@/features/orders/salesOrders/types'
 
-export default function AdminCompletedSalesOrder({ order }: SalesOrderDrawerContentProps) {
+export default function AdminCompletedSalesOrder({ view }: SalesOrderDrawerContentProps) {
+  const { order } = view
+
   const config = statusConfig[order.status ?? '']
 
   return (

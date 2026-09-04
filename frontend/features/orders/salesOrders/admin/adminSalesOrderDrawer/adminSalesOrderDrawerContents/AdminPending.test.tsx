@@ -34,18 +34,29 @@ vi.mock("@/shared/ui/PriceNumberFlow", () => ({
 
 import { apiRequest } from "@/shared/queries/axios";
 import AdminPendingSalesOrder from "@/features/orders/salesOrders/admin/adminSalesOrderDrawer/adminSalesOrderDrawerContents/AdminPending";
-import type { SalesOrder } from "@/features/orders/salesOrders/types";
+import type { OrderView } from "@dorado/contracts";
 
 const renderWithClient = (ui: React.ReactElement) => {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
   return render(<QueryClientProvider client={client}>{ui}</QueryClientProvider>);
 };
 
-const order = () =>
+// THE VIEW, not the row: a drawer child renders one OrderView, and `actions`
+// is what it may offer rather than what it works out for itself.
+const view = () =>
   ({
-    id: "so-1",
-    status: "Pending",
-  } as unknown as SalesOrder);
+    order: { id: "so-1", status: "Pending", direction: "sale" },
+    totals: null,
+    items: [],
+    address: null,
+    shipments: [],
+    pickup: null,
+    payout: null,
+    user: null,
+    actions: { cancel: false, finalize_pricing: false, add_funds: false,
+      send_to_refiner: false, buy_label: false, update_tracking: false,
+      edit_lines: false, statuses: [] },
+  } as unknown as OrderView);
 
 // The wire's shape, one place. A card payment mid-confirmation: not yet
 // succeeded, so the cancel button is live. $434.00, none of it received.
@@ -95,7 +106,7 @@ beforeEach(() => {
 
 describe("an admin watching a sales order's payment", () => {
   test("the payment's status and instrument render", async () => {
-    renderWithClient(<AdminPendingSalesOrder order={order()} />);
+    renderWithClient(<AdminPendingSalesOrder view={view()} />);
 
     // The status pill, title-cased out of Stripe's snake_case.
     expect(await screen.findByText("Requires Confirmation")).toBeTruthy();
@@ -104,7 +115,7 @@ describe("an admin watching a sales order's payment", () => {
   });
 
   test("the amounts land in dollars, converted exactly once", async () => {
-    renderWithClient(<AdminPendingSalesOrder order={order()} />);
+    renderWithClient(<AdminPendingSalesOrder view={view()} />);
     await screen.findByText("Requires Confirmation");
 
     // Total due and remaining balance are both $434; nothing shows the cents
@@ -115,7 +126,7 @@ describe("an admin watching a sales order's payment", () => {
   });
 
   test("the cancel carries the provider's intent reference", async () => {
-    renderWithClient(<AdminPendingSalesOrder order={order()} />);
+    renderWithClient(<AdminPendingSalesOrder view={view()} />);
     await screen.findByText("Requires Confirmation");
 
     await userEvent.click(screen.getByRole("button", { name: /cancel payment/i }));
@@ -139,7 +150,7 @@ describe("an admin watching a sales order's payment", () => {
       return {};
     });
 
-    renderWithClient(<AdminPendingSalesOrder order={order()} />);
+    renderWithClient(<AdminPendingSalesOrder view={view()} />);
     await screen.findByText("Succeeded");
 
     const cancel = screen.getByRole("button", { name: /cancel payment/i });

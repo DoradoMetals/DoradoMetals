@@ -17,7 +17,7 @@ import { pickupSchema } from '@/features/handoff/types'
 import { serviceSchema } from '@/features/service/types'
 import { insuranceSchema } from '@/features/insurance/types'
 import { User } from '@/features/users/types'
-import { Address, AdminUser, SpotPrice, UserAddressRead } from "@dorado/contracts";
+import { Address, AdminUser, UserAddressRead } from "@dorado/contracts";
 
 // THE SHARED HALF LIVES IN ../types.ts - the order type, the return-shipment
 // schema, the status-config types and the drawer prop interfaces, declared once
@@ -39,9 +39,9 @@ export type {
   StatusConfig,
   OrderDrawerProps as SalesOrderDrawerProps,
   OrderDrawerHeaderProps as SalesOrderDrawerHeaderProps,
-  OrderDrawerContentProps as SalesOrderDrawerContentProps,
-  OrderDrawerFooterProps as SalesOrderDrawerFooterProps,
-  OrderActionButtonsProps as SalesOrderActionButtonsProps,
+  OrderViewProps as SalesOrderDrawerContentProps,
+  OrderViewProps as SalesOrderDrawerFooterProps,
+  OrderViewProps as SalesOrderActionButtonsProps,
 } from '@/features/orders/types'
 
 import type { StatusConfig } from '@/features/orders/types'
@@ -166,11 +166,11 @@ export type SaleCheckoutForm = {
   payment_method?: PaymentMethodType
 }
 
-// The admin create adds two things a customer never picks: WHOSE order it is,
-// and the spots the drawer displays it at. Both create endpoints price
-// server-side and ignore what is sent; `order_metals` is display state.
+// The admin create adds ONE thing a customer never picks: WHOSE order it is.
+// `order_metals` used to sit here too - the spots the drawer let an admin
+// type over - and nothing ever sent them: both create endpoints price from
+// the server's own live feed, and the placement is one checkout_id.
 export type AdminSaleCheckoutForm = SaleCheckoutForm & {
-  order_metals: SpotPrice[]
   user: AdminUser
 }
 

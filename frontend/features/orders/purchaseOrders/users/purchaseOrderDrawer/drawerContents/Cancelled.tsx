@@ -3,15 +3,11 @@ import { Button } from '@dorado/components'
 import { PurchaseOrderDrawerContentProps } from '@/features/orders/purchaseOrders/types'
 import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
 import TrackingEvents from '@/features/shipping/ui/TrackingEvents'
-import {
-  useTracking,
-  useOrderShipments,
-  useShipmentDisplay,
-  outboundOf,
-  returnOf,
-} from '@/features/shipping/queries'
+import { useTracking, useShipmentDisplay, outboundOf, returnOf } from '@/features/shipping/queries'
+import { useOrderShipments } from '@dorado/client'
+export default function CancelledPurchaseOrder({ view }: PurchaseOrderDrawerContentProps) {
+  const { order } = view
 
-export default function CancelledPurchaseOrder({ order }: PurchaseOrderDrawerContentProps) {
   // A CONTAINER for its own parcels (ruling 14). `shipment` and
   // `return_shipment` were two named slots for one table; shipments are one
   // read now, filtered on the row's own `direction` column. carrier_id is not
@@ -34,7 +30,7 @@ export default function CancelledPurchaseOrder({ order }: PurchaseOrderDrawerCon
   return (
     <>
       <div className="flex flex-col w-full h-full">
-        {!order.totals?.shipping_paid ? (
+        {!view.totals?.shipping_paid ? (
           <div className="flex flex-col h-full w-full mb-4 gap-6">
             <div className="flex flex-col w-full">
               <div className="flex w-full justify-between items-center mb-1">

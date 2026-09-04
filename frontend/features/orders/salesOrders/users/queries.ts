@@ -1,105 +1,41 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMutation } from '@tanstack/react-query'
+import { usePlaceOrder } from '@dorado/client'
 import { apiRequest } from '@/shared/queries/axios'
-import { useGetSession } from '@/features/auth/queries'
 import { useCheckoutItems } from '@/shared/store/checkoutItemsStore'
 import { useReplaceCheckoutItems } from '@/features/checkout/items/queries'
 import { usePaymentMethods } from '@/features/payments/queries'
 import { useSaleShippingServices } from '@/features/shipping/queries'
-import { SalesOrder, SaleCheckoutForm } from '@/features/orders/salesOrders/types'
-import { toAddressSnapshot } from '@/features/orders/addressSnapshot'
-import { useApiMutation, useApiQuery } from '@/shared/queries/base'
-import { queryKeys } from '@/shared/queries/keys'
-import type { OrderView } from "@dorado/contracts";
+import type { SaleCheckoutForm } from '@/features/orders/salesOrders/types'
 
-// toAddressSnapshot moved to features/orders/addressSnapshot.ts - one copy
-// for both directions and the cancel op, which had three.
-export { toAddressSnapshot }
-
-export const useSalesOrders = () => {
-  return useApiQuery<SalesOrder[]>({
-    key: queryKeys.salesOrders(),
-    url: '/orders',
-    requireUser: true,
-    enabled: (user) => !!user?.id,
-    // Self-scoped even for an admin caller - see usePurchaseOrders.
-    params: (user) => ({
-      direction: 'sale',
-      user_id: user!.id,
-    }),
-    refetchInterval: 10_000,
-  })
-}
-
-// THE CREATE IS ONE ID NOW (D214 item 11): the composed body - address,
-// items, service, payment method, spot prices, the intent id - is gone. Every
-// one of those is a column of the customer's OWN checkout row or its items,
-// so this hook's job changed from "send the document" to "write the row,
-// then name it":
-//
-//   1. freeze the live buy basket onto checkout.items (every add/remove
-//      already PUT its own change - features/checkout/items/queries.ts - so
-//      this is a re-send of what the row should already hold, not a catch-up);
-//   2. resolve the two ids the checkout row wants from what the stepper
-//      already picked - the service's CODE against the cached shipping.services
-//      rows, the payment method's TYPE against the cached payments.methods
-//      rows - and PATCH the row, which answers with its own id;
-//   3. POST the checkout_id.
+// THE READS MOVED to @dorado/client - `useOrders({ direction: 'sale',
+// user_id })`, `useOrder(id)`, `useCreateOrderReview`. What is left is the
+// customer's own placement, which is an ORCHESTRATION for the same reason the
+// admin one is: an order is placed from a CHECKOUT ROW, so the row is written
+// and then named.
 //
 // using_funds and the spot feed are not sent at all: credit applies whenever
-// the customer has a balance now (a behaviour change, flagged in
-// docs/waves/orders-shape-changes.md §1), and the server prices from its own
-// feed regardless of what the browser last saw.
+// the customer has a balance, and the server prices from its own feed
+// regardless of what the browser last saw.
 export const useCreateSalesOrder = () => {
-  const { user } = useGetSession()
-  const queryClient = useQueryClient()
   const { data: saleMethods = [] } = usePaymentMethods('sale')
   const { data: saleServices = [] } = useSaleShippingServices()
   const syncItems = useReplaceCheckoutItems('sale')
+  const place = usePlaceOrder()
 
   return useMutation({
     mutationFn: async ({ sales_order }: { sales_order: SaleCheckoutForm }) => {
-      if (!user?.id) throw new Error('User is not authenticated')
-
       await syncItems.mutateAsync({ lines: useCheckoutItems.getState().sale })
-
-      const carrier_service_id =
-        saleServices.find((s) => s.code === sales_order.service.value)?.id ?? null
-      const payment_method_id =
-        saleMethods.find((m) => m.type === sales_order.payment_method)?.id ?? null
 
       const { id: checkout_id } = await apiRequest<{ id: string }>('PATCH', '/checkout', {
         direction: 'sale',
         recipient_address_id: sales_order.address.id,
-        carrier_service_id,
-        payment_method_id,
+        carrier_service_id:
+          saleServices.find((s) => s.code === sales_order.service.value)?.id ?? null,
+        payment_method_id:
+          saleMethods.find((m) => m.type === sales_order.payment_method)?.id ?? null,
       })
 
-      return await apiRequest<OrderView>('POST', '/sales_orders/create_sales_order', {
-        checkout_id,
-      })
+      return await place.mutateAsync({ checkout_id, direction: 'sale' })
     },
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.salesOrders(), refetchType: 'active' })
-    },
-  })
-}
-
-export const useSetReviewCreated = () => {
-  return useApiMutation<SalesOrder, { sales_order: SalesOrder }, SalesOrder[]>({
-    queryKey: queryKeys.salesOrders(),
-    url: '/sales_orders/create_review',
-    method: 'POST',
-    requireUser: true,
-    listAction: 'upsert',
-    optimisticUpdater: (list, { sales_order }) => {
-      const orders = list ?? []
-      return orders.map((order) =>
-        order.id !== sales_order.id ? order : { ...order, review_created: true }
-      )
-    },
-    body: (vars, user) => ({
-      user_id: user!.id,
-      order: vars.sales_order,
-    }),
   })
 }

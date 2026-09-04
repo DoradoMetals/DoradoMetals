@@ -10,16 +10,15 @@ import { DataTable } from '@/shared/ui/table/Table'
 import { TextColumn, DateColumn, IconColumn, OrderNumberColumn } from '@/shared/ui/table/Columns'
 import { cn } from '@/shared/utils/cn'
 import { useFormatSalesOrderNumber } from '@/features/orders/utils/formatOrderNumbers'
-import { useAdminSalesOrders } from '@/features/orders/salesOrders/admin/queries'
+import { useOrders } from '@dorado/client'
 import AdminSalesOrderDrawer from '@/features/orders/salesOrders/admin/adminSalesOrderDrawer/adminSalesOrderDrawer'
 import { useAdminUsers } from '@/features/users/queries'
 
 export default function SalesOrdersPage() {
-  const { data: salesOrders = [] } = useAdminSalesOrders()
+  const { data: salesOrders = [] } = useOrders({ direction: 'sale' }, { refetchInterval: 10_000 })
   const { openDrawer } = useDrawerStore()
 
   const [activeOrder, setActiveOrder] = React.useState<string | null>(null)
-  const [activeUser, setActiveUser] = React.useState<string | null>(null)
 
   // The list wire carries user_id and nothing joined on (orders/sql/list.sql);
   // names come from the admin users list, matched by id.
@@ -104,7 +103,6 @@ export default function SalesOrdersPage() {
 
   const handleRowClick = (row: Row<SalesOrder>) => {
     setActiveOrder(row.original.id)
-    setActiveUser(row.original.user_id)
     openDrawer('salesOrder')
   }
 
@@ -125,7 +123,7 @@ export default function SalesOrdersPage() {
       />
 
       {activeOrder && (
-        <AdminSalesOrderDrawer order_id={activeOrder ?? ''} user_id={activeUser ?? ''} />
+        <AdminSalesOrderDrawer order_id={activeOrder ?? ''} />
       )}
     </>
   )

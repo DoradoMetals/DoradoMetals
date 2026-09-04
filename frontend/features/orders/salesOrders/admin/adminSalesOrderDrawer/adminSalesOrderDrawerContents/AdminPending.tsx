@@ -13,7 +13,9 @@ const titleCase = (s: string) =>
     .replace(/_/g, ' ')
     .replace(/\b\w/g, (c) => c.toUpperCase())
 
-export default function AdminPendingSalesOrder({ order }: SalesOrderDrawerContentProps) {
+export default function AdminPendingSalesOrder({ view }: SalesOrderDrawerContentProps) {
+  const { order } = view
+
   const { data: paymentIntent } = useGetSalesOrderPaymentIntent(order.id)
   const cancelPaymentIntent = useCancelPaymentIntent(order.id)
 

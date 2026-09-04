@@ -22,7 +22,7 @@ vi.mock("@/shared/ui/PriceNumberFlow", () => ({
 
 import { apiRequest } from "@/shared/queries/axios";
 import PurchaseOrderDrawerFooter from "@/features/orders/purchaseOrders/users/purchaseOrderDrawer/purchaseOrderDrawerFooter";
-import type { PurchaseOrder } from "@/features/orders/purchaseOrders/types";
+import type { OrderView } from "@dorado/contracts";
 import type { OrderQuote } from "@dorado/contracts";
 
 const renderWithClient = (ui: React.ReactElement) => {
@@ -30,18 +30,32 @@ const renderWithClient = (ui: React.ReactElement) => {
   return render(<QueryClientProvider client={client}>{ui}</QueryClientProvider>);
 };
 
-// THE SLIM WIRE (wave 3): the orders.orders row plus totals, and nothing
-// else. The footer is a CONTAINER - it reads its own lines, parcels and
-// payout - so the fixtures below are what those reads answer.
+// ONE OrderView, which is the whole prop now. The footer used to be a
+// CONTAINER issuing three more reads for its lines, parcels and payout; all
+// three ride on the view, and each line carries its own `payable`.
 const order = () =>
-  ({ id: "po-1", status: "Received" } as unknown as PurchaseOrder);
+  ({
+    order: { id: "po-1", status: "Received", direction: "purchase" },
+    totals: null,
+    items: items(),
+    address: null,
+    shipments: shipments(),
+    pickup: null,
+    payout: { id: "pay-1", method: "ACH", cost: 0 },
+    user: null,
+    actions: { cancel: true, finalize_pricing: false, add_funds: false,
+      send_to_refiner: false, buy_label: false, update_tracking: true,
+      edit_lines: true, statuses: [] },
+  } as unknown as OrderView);
 
 // orders.items rows, VERBATIM: bullion_id is the discriminator (null means
 // scrap), the weights live on the line, and metal_id resolves to a name
 // against the spots reference list.
 const items = () => [
-  { id: "i-scrap", bullion_id: null, metal_id: "m-gold", content: 2, premium: 0.75, unit: "t oz" },
-  { id: "i-bullion", bullion_id: "p-1", metal_id: "m-gold", quantity: 2, premium: 0.98 },
+  { id: "i-scrap", bullion_id: null, metal_id: "m-gold", content: 2, premium: 0.75,
+    unit: "t oz", payable: 1.5, line_total: null, product: null },
+  { id: "i-bullion", bullion_id: "p-1", metal_id: "m-gold", quantity: 2, premium: 0.98,
+    payable: null, line_total: null, product: { id: "p-1", name: "Gold American Eagle" } },
 ];
 const spots = () => [{ id: "m-gold", name: "Gold" }];
 const catalogue = () => [{ id: "p-1", name: "Gold American Eagle" }];
@@ -51,7 +65,6 @@ const catalogue = () => [{ id: "p-1", name: "Gold American Eagle" }];
 const shipments = () => [
   { id: "sh-1", direction: "Inbound", cost: 25, insured: true, carrier_service_id: "cs-1" },
 ];
-const payouts = () => [{ id: "pay-1", method: "ACH", cost: 0 }];
 
 // Distinct values so an assertion can only match the field it means; line ids
 // pair to the order's items BY ID, the way the drawer joins them.
@@ -75,9 +88,6 @@ beforeEach(() => {
   vi.mocked(apiRequest).mockImplementation(async (_m, url) => {
     const u = String(url);
     if (u === "/quotes/order") return quote() as never;
-    if (u === "/orders/po-1/items") return items() as never;
-    if (u === "/orders/po-1/shipments") return shipments() as never;
-    if (u === "/orders/po-1/payouts") return payouts() as never;
     if (u.startsWith("/spots")) return spots() as never;
     if (u.startsWith("/products")) return catalogue() as never;
     if (u.startsWith("/carrier_services")) return [{ id: "cs-1", name: "Ground", carrier_id: "c-1" }] as never;
@@ -87,7 +97,7 @@ beforeEach(() => {
 
 describe("the purchase-order drawer footer", () => {
   test("line names render and the quote's totals reach the screen", async () => {
-    renderWithClient(<PurchaseOrderDrawerFooter order={order()} />);
+    renderWithClient(<PurchaseOrderDrawerFooter view={order()} />);
 
     // The quote is the only price source: the accordion headers carry its
     // section totals and grand total even while collapsed.

@@ -3,8 +3,10 @@ import DisplaySalesOrderProducts from './displayProducts'
 import { ShineBorder } from '@/features/orders/ui/ShineBorder'
 import { useSalesOrderLines } from './useSalesOrderLines'
 
-export default function PendingSalesOrder({ order }: SalesOrderDrawerContentProps) {
-  const lines = useSalesOrderLines(order.id)
+export default function PendingSalesOrder({ view }: SalesOrderDrawerContentProps) {
+  const { order } = view
+
+  const lines = useSalesOrderLines(view)
 
   return (
     <div className="relative flex flex-col items-center gap-4 h-full w-full">

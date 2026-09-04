@@ -14,8 +14,8 @@ import { formatFullDate } from '@/shared/utils/formatDates'
 import { useOrderQuote } from '@/features/quotes/queries'
 import { DownloadIcon } from '@phosphor-icons/react'
 import { useFormatPurchaseOrderNumber } from '@/features/orders/utils/formatOrderNumbers'
-import { useOrderItems } from '@/features/orders/reads'
 import { OrderCardShell } from '@/features/orders/ui/OrderCardShell'
+import { useOrderItems } from '@dorado/client'
 
 export default function PurchaseOrderCard({
   order,

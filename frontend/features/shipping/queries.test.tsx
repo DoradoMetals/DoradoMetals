@@ -24,18 +24,10 @@ vi.mock("@/shared/queries/axios", () => ({ apiRequest: vi.fn() }));
 vi.mock("@/features/auth/queries", () => ({
   useGetSession: () => ({ user: { id: "u-admin", role: "admin" } }),
 }));
-vi.mock("@/features/orders/invalidation", () => ({ invalidateOrderReads: vi.fn() }));
+vi.mock("@dorado/client", () => ({ invalidateOrder: vi.fn() }));
 
 import { apiRequest } from "@/shared/queries/axios";
-import {
-  useShippingPickupTimes,
-  useShippingLocations,
-  useShippingValidateAddress,
-  useTracking,
-  useShippingCancelLabel,
-  useShippingCancelPickup,
-  usePatchShipment,
-} from "@/features/shipping/queries";
+import { useShippingPickupTimes, useShippingLocations, useShippingValidateAddress, useTracking, useShippingCancelLabel, useShippingCancelPickup, usePatchShipment } from '@/features/shipping/queries'
 
 function wrapper({ children }: { children: ReactNode }) {
   const client = new QueryClient({

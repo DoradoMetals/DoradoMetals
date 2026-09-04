@@ -1,28 +1,21 @@
 import { Separator } from '@/shared/ui/base/separator'
 import { Button } from '@dorado/components'
 import { Input } from '@/shared/ui/base/input'
-import { useSetOrderSpots } from '@/features/orders/spots'
-import {
-  useCreateOrderItem,
-  useDeleteOrderItem,
-  usePatchOrderItem,
-} from '@/features/orders/items'
-import { usePatchShipment, useOrderShipments, outboundOf } from '@/features/shipping/queries'
-import { usePatchPayout, useOrderPayouts } from '@/features/payouts/queries'
-import { useOrderItems, nameOf, byId } from '@/features/orders/reads'
+import { outboundOf } from '@/features/shipping/queries'
+import { usePatchShipment } from '@/features/shipping/queries'
+import { usePatchPayout } from '@/features/payouts/queries'
 import type { OrderItem, OrderItemPatch, SpotPrice } from "@dorado/contracts";
-import type { NamedScrapItem } from '@/features/orders/purchaseOrders/types'
-
+import type { NamedScrapItem } from '@/features/orders/display'
 import { cn } from '@/shared/utils/cn'
 import { payoutMethodIcon, PayoutMethodType } from '@/features/payouts/types'
 import { usePaymentMethods } from '@/features/payments/queries'
 import { CaretDownIcon } from '@phosphor-icons/react'
 import {
-  assignScrapItemNames,
   PurchaseOrderDrawerContentProps,
   statusConfig,
   StatusConfigEntry,
 } from '@/features/orders/purchaseOrders/types'
+import { assignScrapItemNames } from '@/features/orders/display'
 import { Lock, Plus, RotateCcw, Unlock } from 'lucide-react'
 import { useState } from 'react'
 import {
@@ -39,14 +32,16 @@ import { Field } from '@/shared/ui/Field'
 import { Product } from '@/features/products/types'
 import { useSpotPrices } from '@/features/spots/queries'
 import { useProducts } from '@/features/products/queries'
-import { useOrderSpots, nameSpots, type NamedOrderSpot } from '@/features/orders/spots'
-
+import { useCreateOrderItem, useDeleteOrderItem, useOrderSpots, usePatchOrderItem, useSetOrderSpots } from '@dorado/client'
+import { byId, nameOf, nameSpots, type NamedOrderSpot } from '@/features/orders/display'
 const METAL_ITEMS = ['Gold', 'Silver', 'Platinum', 'Palladium'].map((metal) => ({
   label: metal,
   value: metal,
 }))
 
-export default function AdminReceivedPurchaseOrder({ order }: PurchaseOrderDrawerContentProps) {
+export default function AdminReceivedPurchaseOrder({ view }: PurchaseOrderDrawerContentProps) {
+  const { order } = view
+
   const { data: spotPrices = [] } = useSpotPrices()
   const { data: orderSpotRows = [] } = useOrderSpots(order.id)
   // Display composition, client-side: the rows carry metal_id; the reference
@@ -59,18 +54,18 @@ export default function AdminReceivedPurchaseOrder({ order }: PurchaseOrderDrawe
   const [payoutOpen, setPayoutOpen] = useState(false)
   const { data: payoutMethods = [] } = usePaymentMethods('purchase')
 
-  // A CONTAINER (ruling 14). bullion_id is the discriminator - null means
-  // scrap - and the parcel and payout are their own reads.
-  const { data: items = [] } = useOrderItems(order.id)
+  // THE LINES, THE PARCEL AND THE PAYOUT ARE ALREADY HERE. This screen used
+  // to call three more order-scoped reads for them; the view carries all
+  // three, and each line carries its own `payable` and `line_total` besides.
+  const { items } = view
   const { data: catalogue = [] } = useProducts()
-  const { data: shipments = [] } = useOrderShipments(order.id)
-  const { data: payouts = [] } = useOrderPayouts(order.id)
-  const shipment = outboundOf(shipments)
-  const payout = payouts[0] ?? null
+  const shipment = outboundOf(view.shipments)
+  const payout = view.payout
 
+  // bullion_id is the discriminator - null means scrap.
   const scrapItems = assignScrapItemNames(
     items.filter((item) => item.bullion_id === null),
-    (metal_id) => nameOf(spotPrices, metal_id)
+    (metal_id: string) => nameOf(spotPrices, metal_id)
   )
   const bullionItems = items.filter((item) => item.bullion_id !== null)
 
@@ -235,7 +230,7 @@ export default function AdminReceivedPurchaseOrder({ order }: PurchaseOrderDrawe
               payout, like the two controls above it. */}
           <label className="flex items-center gap-2 w-full cursor-pointer">
             <Checkbox
-              checked={order.totals?.waive_payout_fee === true}
+              checked={view.totals?.waive_payout_fee === true}
               disabled={!payout?.id}
               onCheckedChange={(checked) => {
                 if (!payout?.id) return
@@ -321,23 +316,23 @@ function ScrapTable({
   // the full scrap object on every edit because the API's op SET every
   // column it knew; this sends only the field that changed.
   const handleUpdateItem = (item: NamedScrapItem, changes: OrderItemPatch) => {
-    patchItem.mutate({ order_item_id: item.id, order_id, patch: changes })
+    patchItem.mutate({ item_id: item.id, order_id, patch: changes })
   }
 
   // Per-resource means one DELETE per line; the selection is small by
   // construction (checked rows in one drawer).
   const handleDeleteItems = (ids: string[]) => {
-    for (const id of ids) deleteItem.mutate({ order_item_id: id, order_id })
+    for (const id of ids) deleteItem.mutate({ item_id: id, order_id })
   }
 
   const handleSavedItems = (ids: string[]) => {
     for (const id of ids) {
-      patchItem.mutate({ order_item_id: id, order_id, patch: { confirmed: true } })
+      patchItem.mutate({ item_id: id, order_id, patch: { confirmed: true } })
     }
   }
 
   const handleResetItem = (item: { id: string }) => {
-    patchItem.mutate({ order_item_id: item.id, order_id, patch: { confirmed: false } })
+    patchItem.mutate({ item_id: item.id, order_id, patch: { confirmed: false } })
   }
 
   const handleAddNew = (metal: string) => {
@@ -345,7 +340,7 @@ function ScrapTable({
     if (!metal_id) return
     createItem.mutate({
       order_id,
-      item: { metal_id, pre_melt: 1, purity: 1, unit: 't oz' },
+      patch: { metal_id, pre_melt: 1, purity: 1, unit: 't oz' },
     })
   }
 
@@ -607,21 +602,21 @@ function BullionTable({
   // wire now - an absent key is left alone, so a quantity edit no longer has
   // to resend the current premium and vice versa.
   const handleUpdateItem = (item: OrderItem, changes: OrderItemPatch) => {
-    patchItem.mutate({ order_item_id: item.id, order_id, patch: changes })
+    patchItem.mutate({ item_id: item.id, order_id, patch: changes })
   }
 
   const handleDeleteItems = (ids: string[]) => {
-    for (const id of ids) deleteItem.mutate({ order_item_id: id, order_id })
+    for (const id of ids) deleteItem.mutate({ item_id: id, order_id })
   }
 
   const handleSavedItems = (ids: string[]) => {
     for (const id of ids) {
-      patchItem.mutate({ order_item_id: id, order_id, patch: { confirmed: true } })
+      patchItem.mutate({ item_id: id, order_id, patch: { confirmed: true } })
     }
   }
 
   const handleResetItem = (item: { id: string }) => {
-    patchItem.mutate({ order_item_id: item.id, order_id, patch: { confirmed: false } })
+    patchItem.mutate({ item_id: item.id, order_id, patch: { confirmed: false } })
   }
 
   // A bullion line is created from the catalogue row itself - its id is what
@@ -635,7 +630,7 @@ function BullionTable({
 
   const handleAddNewById = (id: string) => {
     const item = products.find((product) => product.id === id)
-    if (item) createItem.mutate({ order_id, item: { bullion_id: item.id } })
+    if (item) createItem.mutate({ order_id, patch: { bullion_id: item.id } })
   }
 
   return (

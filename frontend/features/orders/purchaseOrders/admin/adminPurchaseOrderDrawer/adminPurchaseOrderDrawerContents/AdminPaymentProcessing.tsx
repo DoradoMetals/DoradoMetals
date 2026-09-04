@@ -1,8 +1,6 @@
 'use client'
 
 import { Separator } from '@/shared/ui/base/separator'
-import { useOrderPayouts } from '@/features/payouts/queries'
-
 import { payoutMethodIcon, PayoutMethodType } from '@/features/payouts/types'
 import { usePaymentMethods } from '@/features/payments/queries'
 import { usePayoutDetails } from '@/features/payouts/queries'
@@ -10,10 +8,11 @@ import { PurchaseOrderDrawerContentProps, statusConfig } from '@/features/orders
 import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
 import RefinerValues from '@/features/orders/purchaseOrders/admin/adminPurchaseOrderDrawer/adminPurchaseOrderDrawerContents/editRefinerValues'
 import ActualsEditor from '@/features/orders/purchaseOrders/admin/adminPurchaseOrderDrawer/adminPurchaseOrderDrawerContents/editActualValues'
+import { useOrderPayouts } from '@dorado/client'
 
-export default function AdminPaymentProcessingPurchaseOrder({
-  order,
-}: PurchaseOrderDrawerContentProps) {
+export default function AdminPaymentProcessingPurchaseOrder({ view }: PurchaseOrderDrawerContentProps) {
+  const { order } = view
+
   // A CONTAINER for the order's payout (ruling 14). The composed wire carried
   // a `payout` member that was an OBJECT OF NULLS when the order had none - a
   // LEFT JOIN feeding jsonb_build_object - so `payout?.method` read
@@ -51,7 +50,7 @@ export default function AdminPaymentProcessingPurchaseOrder({
               {payoutOption?.label}
             </strong>
             <strong className="stat-sm">
-              <PriceNumberFlow value={order.totals?.total ?? 0} />
+              <PriceNumberFlow value={view.totals?.total ?? 0} />
             </strong>
           </div>
 
@@ -131,9 +130,9 @@ export default function AdminPaymentProcessingPurchaseOrder({
         </div>
       </div>
       <Separator />
-      <RefinerValues order={order} />
+      <RefinerValues view={view} />
       <Separator />
-      <ActualsEditor order={order} />
+      <ActualsEditor view={view} />
     </div>
   )
 }

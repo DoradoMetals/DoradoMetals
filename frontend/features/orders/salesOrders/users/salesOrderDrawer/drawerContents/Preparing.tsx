@@ -10,15 +10,17 @@ import { useEffect, useRef } from 'react'
 import DisplaySalesOrderProducts from '@/features/orders/salesOrders/users/salesOrderDrawer/drawerContents/displayProducts'
 import { useSalesOrderLines } from '@/features/orders/salesOrders/users/salesOrderDrawer/drawerContents/useSalesOrderLines'
 
-export default function PreparingSalesOrder({ order }: SalesOrderDrawerContentProps) {
+export default function PreparingSalesOrder({ view }: SalesOrderDrawerContentProps) {
+  const { order } = view
+
   const confettiRef = useRef<ConfettiRef>(null)
-  const lines = useSalesOrderLines(order.id)
+  const lines = useSalesOrderLines(view)
 
   const { data: saleServices = [] } = useSaleShippingServices()
   const arrivalService = saleServices
     // shipping_service is a column of orders.transactions, so it reads off
     // `totals` - the order row never had it. It stores the service's NAME.
-    .find((s) => s.name === order.totals?.shipping_service)
+    .find((s) => s.name === view.totals?.shipping_service)
   const arrival = arrivalService
     ? transitLabel(arrivalService.min_transit_days, arrivalService.max_transit_days).toLowerCase()
     : undefined

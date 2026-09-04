@@ -1,6 +1,6 @@
 import { z } from 'zod/v4'
 
-import type { Address, OrderItem, UserAddressRead } from "@dorado/contracts";
+import type { Address, UserAddressRead } from "@dorado/contracts";
 
 import {
   Truck,
@@ -33,9 +33,9 @@ export type {
   StatusConfig,
   OrderDrawerProps as PurchaseOrderDrawerProps,
   OrderDrawerHeaderProps as PurchaseOrderDrawerHeaderProps,
-  OrderDrawerContentProps as PurchaseOrderDrawerContentProps,
-  OrderDrawerFooterProps as PurchaseOrderDrawerFooterProps,
-  OrderActionButtonsProps as PurchaseOrderActionButtonsProps,
+  OrderViewProps as PurchaseOrderDrawerContentProps,
+  OrderViewProps as PurchaseOrderDrawerFooterProps,
+  OrderViewProps as PurchaseOrderActionButtonsProps,
 } from '@/features/orders/types'
 
 import type { StatusConfig } from '@/features/orders/types'
@@ -89,42 +89,6 @@ export const statusConfig: StatusConfig = {
     icon: ShieldCheck,
     value_label: 'Payout',
   },
-}
-
-// "Gold Item 1", "Silver Item 2" - a DISPLAY label for a scrap line, which
-// has no name of its own because a scrap line is a weight and a purity.
-//
-// IT TAKES THE METAL NAME AS DATA NOW. The composed wire carried
-// item.scrap.metal, a joined string; an orders.items row carries metal_id,
-// and the caller maps it against the spots reference list it already caches
-// (features/orders/spots.ts does the same for spot rows). So this is handed
-// `[row, metalName]` pairs and stays a pure function of them - which is why
-// it is the one thing in this file with a unit test.
-export type NamedScrapItem = OrderItem & { metal: string; name: string }
-
-export function assignScrapItemNames(
-  scrapItems: OrderItem[],
-  metalNameOf: (metal_id: string) => string | null
-): NamedScrapItem[] {
-  const metalOrder = ['Gold', 'Silver', 'Platinum', 'Palladium']
-
-  const named = scrapItems
-    .map((item) => ({ item, metal: metalNameOf(item.metal_id) }))
-    .filter((n): n is { item: OrderItem; metal: string } => !!n.metal)
-
-  named.sort((a, b) => metalOrder.indexOf(a.metal) - metalOrder.indexOf(b.metal))
-
-  const grouped: Record<string, typeof named> = {}
-  named.forEach((n) => {
-    if (!grouped[n.metal]) grouped[n.metal] = []
-    grouped[n.metal].push(n)
-  })
-
-  return named.map((n) => ({
-    ...n.item,
-    metal: n.metal,
-    name: `${n.metal} Item ${grouped[n.metal].indexOf(n) + 1}`,
-  }))
 }
 
 // ProfitMetalsDict / ProfitCategoriesDict / PurchaseOrderTotals lived here

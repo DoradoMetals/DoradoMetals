@@ -46,6 +46,8 @@ const END = "// generated:end";
 const COMPUTED: Record<string, string> = {
   "computed/quotes.ts": "priced arithmetic, returned and never stored",
   "computed/providers.ts": "the carrier catalogue the provider adapter assembles",
+  "computed/orders.ts": "what an order may have done to it - booleans derived " +
+    "from five tables and stored in none",
 };
 
 // A walk that opens nothing is a lint that passes on everything.

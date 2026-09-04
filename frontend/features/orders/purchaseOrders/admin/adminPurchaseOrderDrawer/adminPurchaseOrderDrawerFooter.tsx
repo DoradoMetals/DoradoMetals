@@ -1,11 +1,8 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import {
-  assignScrapItemNames,
-  PurchaseOrderDrawerFooterProps,
-  statusConfig,
-} from '@/features/orders/purchaseOrders/types'
+import { PurchaseOrderDrawerFooterProps, statusConfig } from '@/features/orders/purchaseOrders/types'
+import { assignScrapItemNames } from '@/features/orders/display'
 import AccordionSection from '@/shared/ui/AccordionSection'
 import { DetailRow } from '@/shared/ui/DetailRow'
 
@@ -22,14 +19,7 @@ import formatPhoneNumber from '@/shared/utils/formatPhoneNumber'
 import { PurchaseOrderActionButtons } from './adminPurchaseOrderDrawerContents/adminPurchaseOrderActionButtons'
 import { payoutMethodIcon, PayoutMethodType } from '@/features/payouts/types'
 import { usePaymentMethods } from '@/features/payments/queries'
-import { useOrderPayouts } from '@/features/payouts/queries'
-import { useOrderItems, useOrderAddress, nameOf } from '@/features/orders/reads'
-import {
-  useOrderShipments,
-  useShipmentDisplay,
-  outboundOf,
-  returnOf,
-} from '@/features/shipping/queries'
+import { useShipmentDisplay, outboundOf, returnOf } from '@/features/shipping/queries'
 import { useProducts } from '@/features/products/queries'
 import { useSpotPrices } from '@/features/spots/queries'
 import { formatRate } from '@/features/rates/utils/resolveRate'
@@ -37,8 +27,11 @@ import { formatRate } from '@/features/rates/utils/resolveRate'
 // the order's own items at its own spots, honouring a lock (Jacob's
 // no-previews ruling). The client keeps only weight/rate display math.
 import { useOrderQuote } from '@/features/quotes/queries'
+import { nameOf } from '@/features/orders/display'
 
-export default function AdminPurchaseOrderDrawerFooter({ order }: PurchaseOrderDrawerFooterProps) {
+export default function AdminPurchaseOrderDrawerFooter({ view }: PurchaseOrderDrawerFooterProps) {
+  const { order } = view
+
   const valueLabel = statusConfig[order.status ?? '']?.value_label ?? ''
 
   const { data: quote } = useOrderQuote(order.id)
@@ -59,24 +52,22 @@ export default function AdminPurchaseOrderDrawerFooter({ order }: PurchaseOrderD
   // A CONTAINER (ruling 14): every piece the composed order used to carry -
   // lines, parcels, the payout, the address - is its own read keyed by the id
   // this component already holds.
-  const { data: items = [] } = useOrderItems(order.id)
-  const { data: shipments = [] } = useOrderShipments(order.id)
-  const { data: payouts = [] } = useOrderPayouts(order.id)
-  const { data: address } = useOrderAddress(order.id)
+  const { items } = view
+  const address = view.address
   const { data: catalogue = [] } = useProducts()
   const { data: spotPrices = [] } = useSpotPrices()
 
-  const shipment = outboundOf(shipments)
-  const returnShipment = returnOf(shipments)
+  const shipment = outboundOf(view.shipments)
+  const returnShipment = returnOf(view.shipments)
   const { service_name: shipmentService } = useShipmentDisplay(shipment)
   const { service_name: returnService } = useShipmentDisplay(returnShipment)
-  const payout = payouts[0] ?? null
+  const payout = view.payout
 
   // bullion_id IS the discriminator - null means scrap; `item_type` was
   // derived in the compose layer and has no column.
   const scrapItems = assignScrapItemNames(
     items.filter((item) => item.bullion_id === null),
-    (metal_id) => nameOf(spotPrices, metal_id)
+    (metal_id: string) => nameOf(spotPrices, metal_id)
   )
   const bullionItems = items.filter((item) => item.bullion_id !== null)
   const { data: payoutMethods = [] } = usePaymentMethods('purchase')
@@ -121,8 +112,10 @@ export default function AdminPurchaseOrderDrawerFooter({ order }: PurchaseOrderD
                           items table, and the composed wire's
                           scrap.bid_premium was served FROM item.premium. */}
                       <TableCell className="text-center">{formatRate(item.premium)}</TableCell>
+                      {/* THE PAYABLE OUNCES ARE THE SERVER'S (rules.payableOf).
+                          This cell multiplied a content by a premium itself. */}
                       <TableCell className="text-right">
-                        {((item.content ?? 0) * (item.premium ?? 0)).toFixed(3)}{' '}
+                        {(item.payable ?? 0).toFixed(3)}{' '}
                       </TableCell>
                       <TableCell className="text-right">
                         {/* Scrap line_total is the whole line - content is not
@@ -253,7 +246,7 @@ export default function AdminPurchaseOrderDrawerFooter({ order }: PurchaseOrderD
         </div>
       )}
 
-      <PurchaseOrderActionButtons order={order} />
+      <PurchaseOrderActionButtons view={view} />
       <div className="flex w-full justify-between items-center mt-3">
         <p>Call Customer:</p>
 

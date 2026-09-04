@@ -79,6 +79,9 @@ const viewsOf = async (ids: string[]) => {
 // external schema that would notice.
 const VIEW_MEMBERS = [
   "order", "totals", "items", "address", "shipments", "pickup", "payout", "user",
+  // The one member no table backs: what may be DONE to this order, decided in
+  // rules.ts so no drawer decides it in a switch (the orders pass).
+  "actions",
 ];
 
 test("the order view carries exactly the members it declares", async () => {

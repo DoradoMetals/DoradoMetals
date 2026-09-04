@@ -37,6 +37,7 @@ import { Checkout } from "../checkout/checkouts.js";
 import { CarrierService } from "../shipping/services.js";
 import { Package } from "../shipping/packages.js";
 import { Refiner } from "../refiners/refiners.js";
+import { OrderActions } from "../computed/orders.js";
 
 // THE ORDER ON THE WIRE IS THE ROW (Jacob, wave 3): "We only need the
 // bullion_id for production information. We don't need to send all that shit
@@ -66,6 +67,12 @@ export const OrderView = z.object({
   pickup: ShipmentPickup.nullable(),
   payout: OrderViewPayout.nullable(),
   user: UserSummary.nullable(),
+  // WHAT MAY BE DONE TO IT (computed/orders.ts). The one member no table
+  // backs, and the reason it is here: a drawer that decides for itself which
+  // buttons an order earns is holding the business's rules in a switch
+  // statement, which is where the "all lines confirmed" and "sent AND tracked"
+  // gates lived until the orders pass.
+  actions: OrderActions,
 });
 export type OrderView = z.infer<typeof OrderView>;
 

@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { apiRequest } from '@/shared/queries/axios'
 import { useGetSession } from '@/features/auth/queries'
-import { invalidateOrderReads } from '@/features/orders/invalidation'
+import { invalidateOrder } from '@dorado/client'
 import type { RefinerItem, RefinerItemPatch, RefinerOrder, RefinerOrderPatch, RefinerSpot, RefinerSpotWrite } from "@dorado/contracts";
 
 // REFINERS IS ITS OWN FEATURE, and the endpoint follows the feature that
@@ -117,7 +117,7 @@ export const usePatchRefinerItem = () => {
       return await apiRequest<unknown>('PATCH', `/refiners/items/by-order-item/${order_item_id}`, patch)
     },
     onSettled: (_data, _err, { order_id }) => {
-      invalidateOrderReads(queryClient, order_id)
+      invalidateOrder(queryClient, order_id)
     },
   })
 }
@@ -141,7 +141,7 @@ export const usePatchRefinerOrder = () => {
       return await apiRequest<unknown>('PATCH', `/refiners/orders/${refiner_order_id}`, patch)
     },
     onSettled: (_data, _err, { order_id }) => {
-      invalidateOrderReads(queryClient, order_id)
+      invalidateOrder(queryClient, order_id)
     },
   })
 }

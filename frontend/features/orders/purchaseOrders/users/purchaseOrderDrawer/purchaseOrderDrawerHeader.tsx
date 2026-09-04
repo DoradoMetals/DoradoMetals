@@ -7,10 +7,13 @@ import { PurchaseOrderDrawerHeaderProps, statusConfig } from '@/features/orders/
 import { formatFullDate } from '@/shared/utils/formatDates'
 import { useFormatPurchaseOrderNumber } from '@/features/orders/utils/formatOrderNumbers'
 import { useSpotPrices } from '@/features/spots/queries'
-import { useOrderSpots, nameSpots } from '@/features/orders/spots'
 import { OrderDrawerHeader } from '@/features/orders/ui/OrderDrawerHeader'
+import { useOrderSpots } from '@dorado/client'
+import { nameSpots } from '@/features/orders/display'
 
-export default function PurchaseOrderDrawerHeader({ order }: PurchaseOrderDrawerHeaderProps) {
+export default function PurchaseOrderDrawerHeader({ view }: PurchaseOrderDrawerHeaderProps) {
+  const { order } = view
+
   const downloadPackingList = useDownloadPackingList()
   const downloadReturnPackingList = useDownloadReturnPackingList()
   const downloadInvoice = useDownloadInvoice()

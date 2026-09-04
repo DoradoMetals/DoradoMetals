@@ -5,18 +5,13 @@ import {
   statusConfig,
 } from '@/features/orders/purchaseOrders/types'
 import TrackingEvents from '@/features/shipping/ui/TrackingEvents'
-import {
-  useShippingCancelLabel,
-  useShippingCancelPickup,
-  useTracking,
-  useOrderShipments,
-  useShipmentPickups,
-  useShipmentDisplay,
-  outboundOf,
-} from '@/features/shipping/queries'
+import { useShippingCancelLabel, useShippingCancelPickup, useTracking, useShipmentPickups, useShipmentDisplay, outboundOf } from '@/features/shipping/queries'
 import type { Shipment } from "@dorado/contracts";
+import { useOrderShipments } from '@dorado/client'
 
-export default function AdminInTransitPurchaseOrder({ order }: PurchaseOrderDrawerContentProps) {
+export default function AdminInTransitPurchaseOrder({ view }: PurchaseOrderDrawerContentProps) {
+  const { order } = view
+
   // A CONTAINER for its own parcel (ruling 14) - see the same note in the
   // customer drawer's InTransit.
   const { data: shipments = [] } = useOrderShipments(order.id)
