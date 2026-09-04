@@ -3,6 +3,7 @@
 import { test } from "vitest";
 import assert from "node:assert/strict";
 import errorHandler from "#shared/middleware/errorHandler.ts";
+import { NotFound, Forbidden, Conflict, Invalid } from "#shared/errors.ts";
 import type { NextFunction, Request, Response } from "express";
 
 // The body every response in this file carries. Declared as the subset the
@@ -164,4 +165,94 @@ test("the source path is returned in development and never in production", () =>
     !JSON.stringify(prod.body).includes("/home/"),
     "an absolute server path reached the client"
   );
+});
+
+// A DOMAIN ERROR CARRIES A KIND, NOT A STATUS. statusOfDomainError is asked
+// first, before any statusCode/status the thrower might also have set - these
+// four are the whole kind-to-status table in shared/errors.ts.
+test("a NotFound domain error answers 404 and keeps its message", () => {
+  const { status, body } = respond(new NotFound("Purchase order 123 not found"));
+  assert.equal(status, 404);
+  assert.equal(body.error.message, "Purchase order 123 not found");
+});
+
+test("a Forbidden domain error answers 403 and keeps its message", () => {
+  const { status, body } = respond(new Forbidden("this order is not yours"));
+  assert.equal(status, 403);
+  assert.equal(body.error.message, "this order is not yours");
+});
+
+test("a Conflict domain error answers 409 and keeps its message", () => {
+  const { status, body } = respond(new Conflict("intent already captured"));
+  assert.equal(status, 409);
+  assert.equal(body.error.message, "intent already captured");
+});
+
+test("an Invalid domain error answers 422 and keeps its message", () => {
+  const { status, body } = respond(new Invalid("this metal is not traded"));
+  assert.equal(status, 422);
+  assert.equal(body.error.message, "this metal is not traded");
+});
+
+// A domain error wins over a stray statusCode a thrower also happened to set -
+// the kind is asked first and answers without falling through to raised.*.
+test("a domain error's kind outranks a statusCode also present on the error", () => {
+  const err = new NotFound("gone") as NotFound & { statusCode?: number };
+  err.statusCode = 418;
+  const { status } = respond(err);
+  assert.equal(status, 404);
+});
+
+// A non-integer statusCode is not "raised deliberately" - Number.isInteger
+// guards the deliberate check, so a fractional or NaN status must fall back to
+// a generic message even though it lands in the 4xx range.
+test("a non-integer statusCode in the 4xx range is not treated as deliberate", () => {
+  const err: Error & { statusCode?: number } = new Error("Bad Request, sort of");
+  err.statusCode = 400.5;
+  const { status, body } = respond(err);
+  assert.equal(status, 400.5);
+  assert.equal(body.error.message, "Server error");
+});
+
+// axios errors get their own branch: the message is always the generic
+// carrier one (never the upstream carrier's own text), and the carrier's
+// status/transaction id ride along as separate fields instead.
+function axiosError(opts: {
+  status?: number;
+  transactionId?: string;
+  errors?: unknown;
+  message?: string;
+} = {}): unknown {
+  return {
+    isAxiosError: true,
+    message: opts.message ?? "Request failed with status code 502",
+    config: { url: "https://api.fedex.com/ship", method: "post", headers: {} },
+    response: opts.status
+      ? {
+          status: opts.status,
+          headers: {},
+          data: { transactionId: opts.transactionId, errors: opts.errors },
+        }
+      : undefined,
+  };
+}
+
+test("an axios error never returns the upstream's own message to the caller", () => {
+  const { status, body } = respond(
+    axiosError({ status: 502, transactionId: "carrier-tx-1" })
+  );
+  assert.equal(status, 502);
+  assert.equal(body.error.message, "Upstream carrier request failed");
+  assert.equal((body.error as any).carrier_status, 502);
+  assert.equal((body.error as any).carrier_transaction_id, "carrier-tx-1");
+  assert.ok(
+    !JSON.stringify(body).includes("Request failed with status code"),
+    "the raw axios message reached the client"
+  );
+});
+
+test("an axios error with no response (network failure) still answers 500 with the generic message", () => {
+  const { status, body } = respond(axiosError());
+  assert.equal(status, 500);
+  assert.equal(body.error.message, "Upstream carrier request failed");
 });
