@@ -1,9 +1,11 @@
-import { useOrderPayouts } from '@/features/payouts/queries'
 import { payoutMethodIcon, PayoutMethodType } from '@/features/payouts/types'
 import { usePaymentMethods } from '@/features/payments/queries'
 import { PurchaseOrderDrawerContentProps } from '@/features/orders/purchaseOrders/types'
+import { useOrderPayouts } from '@dorado/client'
 
-export default function PaymentProcessingPurchaseOrder({ order }: PurchaseOrderDrawerContentProps) {
+export default function PaymentProcessingPurchaseOrder({ view }: PurchaseOrderDrawerContentProps) {
+  const { order } = view
+
   // A CONTAINER for the order's payout (ruling 14). The composed wire carried
   // a `payout` member that was an OBJECT OF NULLS when the order had none - a
   // LEFT JOIN feeding jsonb_build_object - so `payout?.method` read

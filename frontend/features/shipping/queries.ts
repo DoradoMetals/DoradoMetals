@@ -5,30 +5,13 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { apiRequest } from '@/shared/queries/axios'
 import { useGetSession } from '@/features/auth/queries'
 import { useCarrierServices } from '@/features/carriers/queries'
-import { invalidateOrderReads } from '@/features/orders/invalidation'
 import type { CarrierHandoff, CarrierService, CarrierServiceOption, Shipment, ShipmentPatch, ShipmentPickup } from "@dorado/contracts";
+import { invalidateOrder } from '@dorado/client'
 
-// THE ORDER'S PARCELS, BOTH DIRECTIONS IN ONE ARRAY (wave 3):
-// GET /orders/:orderId/shipments, verbatim shipping.shipments rows. This is
-// what replaced order.shipment and order.return_shipment - two named slots
-// for one table that carries its own `direction` column (Inbound / Outbound /
-// Return). Filter on it; do not go looking for the slots.
-//
-// The renames went with the slots. `est_delivery` not estimated_delivery,
-// `cost` not shipping_charge, `label` not shipping_label, `direction` not
-// type; the package and the service are ids the client maps against the
-// cached /shipping package and /carrier_services lists. Owner-or-admin
-// server-side - a customer tracks their own parcel.
-
-export const useOrderShipments = (order_id: string) => {
-  const { user } = useGetSession()
-
-  return useQuery<Shipment[]>({
-    queryKey: ['order_shipments', order_id],
-    queryFn: async () => await apiRequest<Shipment[]>('GET', `/orders/${order_id}/shipments`),
-    enabled: !!user && !!order_id,
-  })
-}
+// THE ORDER'S PARCELS ARE AN ORDER READ: useOrderShipments moved to
+// @dorado/client, beside the rest of the order family, and OrderView carries
+// the same rows under `shipments`. What stays here is what belongs to the
+// SHIPMENT - its display mapping, its pickups and its own writes.
 
 // THE SHIPMENT'S DISPLAY FIELDS, MAPPED CLIENT-SIDE (ruling 12). A
 // shipping.shipments row names its service and its box by ID; the composed
@@ -40,7 +23,9 @@ export const useOrderShipments = (order_id: string) => {
 // carrier_id is the same kind of thing: it is not a column of the shipment
 // at all in the new schema - the SERVICE knows its carrier - and useTracking
 // and the two cancel mutations need it, so it is resolved here too.
-export const useShipmentDisplay = (shipment: Shipment | null | undefined) => {
+export const useShipmentDisplay = (
+  shipment: { carrier_service_id: string | null } | null | undefined
+) => {
   const { data: services = [] } = useCarrierServices()
   const service = services.find((s) => s.id === shipment?.carrier_service_id) ?? null
 
@@ -52,9 +37,9 @@ export const useShipmentDisplay = (shipment: Shipment | null | undefined) => {
 
 // The parcel a customer sent us (or that we sent out) as against the one
 // coming BACK - the two halves the old slot names encoded, now a filter.
-export const outboundOf = (shipments: Shipment[] = []) =>
+export const outboundOf = <T extends { direction: string | null }>(shipments: T[] = []) =>
   shipments.find((s) => s.direction !== 'Return')
-export const returnOf = (shipments: Shipment[] = []) =>
+export const returnOf = <T extends { direction: string | null }>(shipments: T[] = []) =>
   shipments.find((s) => s.direction === 'Return')
 
 // The CARRIER pickups booked against one parcel - GET /shipments/:id/pickups.
@@ -237,7 +222,7 @@ export const usePatchShipment = () => {
       return await apiRequest<unknown>('PATCH', `/shipments/${shipment_id}`, patch)
     },
     onSettled: (_data, _err, { order_id }) => {
-      invalidateOrderReads(queryClient, order_id)
+      invalidateOrder(queryClient, order_id)
     },
   })
 }

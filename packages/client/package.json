@@ -1,0 +1,33 @@
+{
+  "name": "@dorado/client",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "The API client - one hook per endpoint, typed only from @dorado/contracts. Ships SOURCE like @dorado/components: the frontend transpiles it and typechecks it inside its own program, so there is no dist to drift from the contracts it reads.",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    },
+    "./orders": {
+      "types": "./src/orders/index.ts",
+      "default": "./src/orders/index.ts"
+    }
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "peerDependencies": {
+    "@tanstack/react-query": "*",
+    "react": "*"
+  },
+  "dependencies": {
+    "@dorado/contracts": "workspace:*"
+  },
+  "devDependencies": {
+    "@tanstack/react-query": "^5.102.8",
+    "@types/react": "^19.2.18",
+    "react": "^19.2.8",
+    "typescript": "^7.0.2"
+  }
+}

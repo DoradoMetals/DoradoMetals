@@ -58,6 +58,18 @@ test("a purchase order walks pricing, funds and status, and the money facts agre
     // one, keeping the total honest against the same source production uses.
     await orders.retierPremiums(order.id, c);
 
+    // WHAT THE DRAWER MAY OFFER, asked of the server. The lines are
+    // unconfirmed here, which is the gate that used to live in a `disabled:`
+    // prop - so pricing is not offered even though the endpoint would take it.
+    const before = await asAdmin(admin, () => request(app).get(`/api/orders/${order.id}/items`));
+    assert.equal(before.status, 200, before.text);
+    for (const line of before.body) {
+      const confirmed = await asAdmin(admin, () =>
+        request(app).patch(`/api/orders/items/${line.id}`).send({ confirmed: true })
+      );
+      assert.equal(confirmed.status, 200, confirmed.text);
+    }
+
     const priced = await asAdmin(admin, () =>
       request(app).post(`/api/orders/${order.id}/finalize_pricing`)
     );
@@ -65,6 +77,24 @@ test("a purchase order walks pricing, funds and status, and the money facts agre
     assert.ok(priced.body.order.spots_locked, "finalize_pricing did not lock the spots");
     const total = Number(priced.body.totals?.total);
     assert.ok(total > 0, "finalize_pricing wrote no positive total");
+
+    // EVERY LINE CARRIES ITS OWN ARITHMETIC now, so no screen multiplies a
+    // content by a premium (or a price by a quantity) for itself.
+    for (const line of priced.body.items) {
+      assert.equal(line.payable, Number(line.content) * Number(line.premium));
+      assert.equal(line.line_total, Number(line.price));
+    }
+
+    // The gates, both directions of them: confirmed lines make pricing
+    // available, a purchase never offers the sale-side action, and crediting
+    // an account is a payout fact - this order has no DORADO_ACCOUNT payout.
+    const actions = priced.body.actions;
+    assert.equal(actions.finalize_pricing, true);
+    assert.equal(actions.edit_lines, true);
+    assert.equal(actions.send_to_refiner, false);
+    assert.equal(actions.add_funds, false);
+    // The ladder is the order's OWN status's rung, not every label there is.
+    assert.deepEqual(actions.statuses, ["Received", "Cancelled"]);
 
     const funded = await asAdmin(admin, () =>
       request(app).post(`/api/orders/${order.id}/add_funds`)
@@ -93,6 +123,12 @@ test("a purchase order walks pricing, funds and status, and the money facts agre
       );
       assert.equal(moved.status, 200, moved.text);
       assert.equal(moved.body.order.status, status);
+      // AT 'Received' THE GATED RUNG OPENS, because every line is confirmed.
+      if (status === "Received") {
+        assert.deepEqual(moved.body.actions.statuses, [
+          "Payment Processing", "In Transit", "Cancelled",
+        ]);
+      }
     }
 
     const cancelled = await asAdmin(admin, () =>

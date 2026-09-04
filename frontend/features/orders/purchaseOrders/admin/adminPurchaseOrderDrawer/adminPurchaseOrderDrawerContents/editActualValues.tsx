@@ -3,10 +3,10 @@
 import { Separator } from '@/shared/ui/base/separator'
 import { Input } from '@/shared/ui/base/input'
 import { cn } from '@/shared/utils/cn'
-import { assignScrapItemNames, PurchaseOrder } from '@/features/orders/purchaseOrders/types'
-import { useOrderItems, nameOf } from '@/features/orders/reads'
+import { PurchaseOrderDrawerContentProps } from '@/features/orders/purchaseOrders/types'
+import { assignScrapItemNames } from '@/features/orders/display'
 import { useSpotPrices } from '@/features/spots/queries'
-import { usePatchShipment, useOrderShipments, outboundOf } from '@/features/shipping/queries'
+import { usePatchShipment, outboundOf } from '@/features/shipping/queries'
 import {
   usePatchRefinerItem,
   usePatchRefinerOrder,
@@ -21,8 +21,10 @@ import {
   TableHeader,
   TableRow,
 } from '@/shared/ui/base/table'
+import { nameOf } from '@/features/orders/display'
 
-export default function ActualsEditor({ order }: { order: PurchaseOrder }) {
+export default function ActualsEditor({ view }: PurchaseOrderDrawerContentProps) {
+  const { order, items } = view
   // Assay actuals are per-line refiner data; the pool figures are ENGAGEMENT
   // facts on refiners.orders; the shipping actual is the SHIPMENT row's.
   const patchShipment = usePatchShipment()
@@ -33,18 +35,15 @@ export default function ActualsEditor({ order }: { order: PurchaseOrder }) {
   const { data: refinerOrder } = useRefinerOrder(order.id)
   const { data: refinerItems = [] } = useRefinerItems(order.id)
 
-  // A CONTAINER (ruling 14): lines and the parcel are their own reads.
-  const { data: items = [] } = useOrderItems(order.id)
   const { data: spotPrices = [] } = useSpotPrices()
-  const { data: shipments = [] } = useOrderShipments(order.id)
-  const shipment = outboundOf(shipments)
+  const shipment = outboundOf(view.shipments)
 
   const scrapItems = assignScrapItemNames(
     items.filter((it) => it.bullion_id === null),
-    (metal_id) => nameOf(spotPrices, metal_id)
+    (metal_id: string) => nameOf(spotPrices, metal_id)
   )
-  const refinerOf = (order_item_id: string) =>
-    refinerItems.find((r) => r.order_item_id === order_item_id) ?? null
+  const refinerOf = (item_id: string) =>
+    refinerItems.find((r) => r.order_item_id === item_id) ?? null
 
   const parseNumber = (raw: string): number | null => {
     const s = raw.replace(/\s+/g, '')
@@ -72,7 +71,7 @@ export default function ActualsEditor({ order }: { order: PurchaseOrder }) {
   // THE ASSAY FIGURES ARE THE REFINER'S ROW, not the customer's line. They
   // rode on the composed order as scrap.purity_actual / post_melt_actual /
   // content_actual - three fields of refiners.items wearing customer-facing
-  // names - and are their own read now, keyed by order_item_id.
+  // names - and are their own read now, keyed by item_id.
   const mutateActuals = (
     item: { id: string },
     fields: Partial<{

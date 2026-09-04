@@ -2,12 +2,14 @@ import { PurchaseOrderDrawerContentProps } from '@/features/orders/purchaseOrder
 import { useUser } from '@/features/auth/authClient'
 import { ReviewBlock } from '@/shared/ui/ReviewInput'
 import { useCreateReview } from '@/features/reviews/queries'
-import { useSetReviewCreated } from '@/features/orders/purchaseOrders/users/queries'
+import { useCreateOrderReview } from '@dorado/client'
 
-export default function CompletedPurchaseOrder({ order }: PurchaseOrderDrawerContentProps) {
+export default function CompletedPurchaseOrder({ view }: PurchaseOrderDrawerContentProps) {
+  const { order } = view
+
   const { user } = useUser()
   const createReview = useCreateReview()
-  const setCreated = useSetReviewCreated()
+  const setCreated = useCreateOrderReview()
 
   return (
     <>
@@ -30,9 +32,7 @@ export default function CompletedPurchaseOrder({ order }: PurchaseOrderDrawerCon
                   hidden: false,
                 })
 
-                await setCreated.mutateAsync({
-                  purchase_order: order,
-                })
+                await setCreated.mutateAsync({ id: order.id, direction: 'purchase' })
               }}
             />
           </div>

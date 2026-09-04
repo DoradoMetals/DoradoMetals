@@ -7,15 +7,11 @@ import { PurchaseOrderDrawerContentProps } from '@/features/orders/purchaseOrder
 import { formatPickupDateTime } from '@/shared/utils/formatDates'
 import { Car, CheckCheck, PackageOpen, Printer } from 'lucide-react'
 import TrackingEvents from '@/features/shipping/ui/TrackingEvents'
-import {
-  useTracking,
-  useOrderShipments,
-  useShipmentDisplay,
-  outboundOf,
-  returnOf,
-} from '@/features/shipping/queries'
+import { useTracking, useShipmentDisplay, outboundOf, returnOf } from '@/features/shipping/queries'
+import { useOrderShipments } from '@dorado/client'
+export default function InTransitPurchaseOrder({ view }: PurchaseOrderDrawerContentProps) {
+  const { order } = view
 
-export default function InTransitPurchaseOrder({ order }: PurchaseOrderDrawerContentProps) {
   // A CONTAINER for its own parcels (ruling 14). `shipment` and
   // `return_shipment` were two named slots for one table; shipments are one
   // read now, filtered on the row's own `direction` column. carrier_id is not

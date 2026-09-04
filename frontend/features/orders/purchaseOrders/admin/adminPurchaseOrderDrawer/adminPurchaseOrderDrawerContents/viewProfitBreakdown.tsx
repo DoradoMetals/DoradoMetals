@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@dorado/components'
 import {
   Table,
@@ -18,7 +18,7 @@ import AccordionSection from '@/shared/ui/AccordionSection'
 // profit_breakdown) - the last client money math (computePurchaseOrderTotals)
 // died here 2026-08-28.
 import { useProfitBreakdown } from '@/features/quotes/queries'
-import { PurchaseOrder } from '@/features/orders/purchaseOrders/types'
+import { PurchaseOrderDrawerContentProps } from '@/features/orders/purchaseOrders/types'
 
 type Party = 'customer' | 'refiner' | 'dorado'
 type Bucket = 'scrap' | 'bullion' | 'total'
@@ -26,8 +26,8 @@ type MetalLabel = 'Gold' | 'Silver' | 'Platinum' | 'Palladium'
 const METALS: MetalLabel[] = ['Gold', 'Silver', 'Platinum', 'Palladium']
 
 
-export default function ProfitBreakdown({ order }: { order: PurchaseOrder }) {
-  const { data: totals } = useProfitBreakdown(order.id)
+export default function ProfitBreakdown({ view }: PurchaseOrderDrawerContentProps) {
+  const { data: totals } = useProfitBreakdown(view.order.id)
 
   const bucketHasAnyContent = (b: Bucket) => {
     if (!totals) return false
@@ -47,12 +47,11 @@ export default function ProfitBreakdown({ order }: { order: PurchaseOrder }) {
 
   const availableBuckets = (['scrap', 'bullion', 'total'] as Bucket[]).filter(bucketHasAnyContent)
 
-  const [tab, setTab] = useState<Bucket>('total')
-  useEffect(() => {
-    if (!availableBuckets.includes(tab) && availableBuckets.length > 0) {
-      setTab(availableBuckets[0])
-    }
-  }, [availableBuckets, tab])
+  // WHICH TAB IS OPEN IS DERIVED, NOT CORRECTED AFTER THE FACT. An effect used
+  // to notice the chosen tab had no content and set a different one, so the
+  // first render showed an empty table and the second showed the right one.
+  const [picked, setPicked] = useState<Bucket>('total')
+  const tab = availableBuckets.includes(picked) ? picked : (availableBuckets[0] ?? 'total')
 
   type OpenMap = Record<Bucket, Party | null>
   const [openByBucket, setOpenByBucket] = useState<OpenMap>({
@@ -230,7 +229,7 @@ export default function ProfitBreakdown({ order }: { order: PurchaseOrder }) {
       <div className="flex flex-col gap-4 w-full">
         <h2>Profit Breakdown</h2>
 
-        <Tabs value={tab} onValueChange={(v) => setTab(v as Bucket)} className="w-full">
+        <Tabs value={tab} onValueChange={(v) => setPicked(v as Bucket)} className="w-full">
           {/* ⚠ D99 — NO TAB LOOKED ACTIVE. Rest was `primary-on-glass`
               (bg-primary/15, border-primary, text-primary); active added
               `text-white`, which is #ffffff against text-primary's #fafafa

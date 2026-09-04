@@ -460,3 +460,103 @@ test("the return label goes from the business to the order's own address", () =>
     (err: unknown) => err instanceof Invalid && /no address snapshot/.test((err as Error).message)
   );
 });
+
+// -------------------- what a screen may offer
+//
+// These are the rules an admin drawer held in a `switch (order.status)` until
+// the orders pass, and they are here rather than in a component test because
+// "which buttons an order earns" is a business decision - the gate that stops
+// a half-confirmed purchase being priced, and the one that stops a sale being
+// marked in transit before a refiner has it.
+
+const facts = (over: Partial<rules.OrderFacts> = {}): rules.OrderFacts => ({
+  direction: "purchase", status: "Received", order_sent: null, tracking_updated: null,
+  hasAddress: true, hasTotal: true, items: [{ confirmed: true }],
+  shipments: [], payoutMethod: null, ...over,
+});
+
+test("an order with no lines is not confirmed, which the drawer's every() called true", () => {
+  assert.equal(rules.allLinesConfirmed([]), false);
+  assert.equal(rules.allLinesConfirmed([{ confirmed: true }, { confirmed: false }]), false);
+  assert.equal(rules.allLinesConfirmed([{ confirmed: true }]), true);
+});
+
+test("a purchase reaches Payment Processing only once every line is confirmed", () => {
+  assert.deepEqual(rules.statusesFor(facts()), [
+    "Payment Processing", "In Transit", "Cancelled",
+  ]);
+  assert.deepEqual(rules.statusesFor(facts({ items: [{ confirmed: false }] })), [
+    "In Transit", "Cancelled",
+  ]);
+});
+
+test("a sale reaches In Transit only once the refiner has it and it is tracked", () => {
+  const preparing = { direction: "sale" as const, status: "Preparing" };
+  assert.deepEqual(rules.statusesFor(facts({ ...preparing })), ["Pending"]);
+  assert.deepEqual(
+    rules.statusesFor(facts({ ...preparing, order_sent: true, tracking_updated: null })),
+    ["Pending"]
+  );
+  assert.deepEqual(
+    rules.statusesFor(facts({ ...preparing, order_sent: true, tracking_updated: true })),
+    ["In Transit", "Pending"]
+  );
+});
+
+test("crediting an account is a payout fact, not a status", () => {
+  assert.equal(rules.actionsFor(facts({ payoutMethod: "DORADO_ACCOUNT" })).add_funds, true);
+  assert.equal(rules.actionsFor(facts({ payoutMethod: "ACH" })).add_funds, false);
+  assert.equal(
+    rules.actionsFor(facts({ payoutMethod: "DORADO_ACCOUNT", hasTotal: false })).add_funds,
+    false
+  );
+});
+
+test("the direction decides which half of the action surface exists", () => {
+  const bought = rules.actionsFor(facts());
+  assert.equal(bought.finalize_pricing, true);
+  assert.equal(bought.edit_lines, true);
+  assert.equal(bought.send_to_refiner, false);
+
+  const sold = rules.actionsFor(facts({ direction: "sale", status: "Preparing" }));
+  assert.equal(sold.send_to_refiner, true);
+  assert.equal(sold.finalize_pricing, false);
+  assert.equal(sold.edit_lines, false);
+  assert.equal(sold.cancel, false);
+});
+
+test("a label is offered only while the inbound parcel has none", () => {
+  const unlabelled = [{ direction: "Inbound", tracking_number: null }];
+  const labelled = [{ direction: "Inbound", tracking_number: "794..." }];
+  assert.equal(rules.actionsFor(facts({ shipments: unlabelled })).buy_label, true);
+  assert.equal(rules.actionsFor(facts({ shipments: labelled })).buy_label, false);
+  assert.equal(rules.actionsFor(facts()).buy_label, false);
+  // A return leg is not the one a purchase labels.
+  assert.equal(
+    rules.actionsFor(facts({ shipments: [{ direction: "Return", tracking_number: null }] }))
+      .buy_label,
+    false
+  );
+});
+
+test("cancelling needs somewhere to send the metal back to", () => {
+  assert.equal(rules.actionsFor(facts()).cancel, true);
+  assert.equal(rules.actionsFor(facts({ hasAddress: false })).cancel, false);
+  assert.equal(rules.actionsFor(facts({ direction: "sale", hasAddress: false })).send_to_refiner, false);
+});
+
+// THE TWO FIGURES THE DRAWERS MULTIPLIED THEMSELVES, and the second is where
+// they disagreed: the purchase footer read a scrap line total as the whole lot
+// and the sale footer multiplied every line by its quantity.
+test("payable is the fine ounces the business pays for", () => {
+  assert.equal(rules.payableOf({ content: 2, premium: 0.9 }), 1.8);
+  assert.equal(rules.payableOf({ content: null, premium: 0.9 }), null);
+  assert.equal(rules.payableOf({ content: 2, premium: null }), null);
+});
+
+test("a scrap line total is the whole lot; a bullion line total counts units", () => {
+  assert.equal(rules.lineTotalOf({ price: 100, quantity: 3, bullion_id: null }), 100);
+  assert.equal(rules.lineTotalOf({ price: 100, quantity: 3, bullion_id: "p" }), 300);
+  assert.equal(rules.lineTotalOf({ price: 100, quantity: null, bullion_id: "p" }), 100);
+  assert.equal(rules.lineTotalOf({ price: null, quantity: 3, bullion_id: "p" }), null);
+});

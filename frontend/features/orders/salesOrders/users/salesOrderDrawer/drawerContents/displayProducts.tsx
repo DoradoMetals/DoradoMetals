@@ -13,6 +13,10 @@ export type SalesOrderLine = {
   image_front: string | null
   quantity: number | null
   price: number | null
+  // WHAT THE LINE COMES TO, from the server (rules.lineTotalOf). Two footers
+  // multiplied price by quantity themselves, and the purchase side had a
+  // different answer for the same question.
+  line_total: number | null
 }
 
 export default function DisplaySalesOrderProducts({ items }: { items: SalesOrderLine[] }) {

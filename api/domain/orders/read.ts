@@ -27,6 +27,7 @@ import * as placeAddresses from "#db/places/addresses/repo.ts";
 import * as payoutsRepo from "#db/payouts/repo.ts";
 import * as usersRepo from "#db/users/repo.ts";
 import * as transactions from "#domain/orders/transactions/service.ts";
+import * as rules from "#domain/orders/rules.ts";
 import * as shipmentOrderRead from "#domain/shipping/shipments/order-read.ts";
 import * as pickupService from "#domain/shipping/pickups/service.ts";
 import type { OrderRow } from "#db/orders/repo.ts";
@@ -70,12 +71,15 @@ export async function getOne(
 }
 
 // A bullion line names its catalogue row; a scrap line's weights ARE its
-// columns, so it names none.
+// columns, so it names none. The two derived figures come with it so no screen
+// multiplies a content by a premium ever again (rules.payableOf/lineTotalOf).
 function withProduct(
   item: OrderItemRow, catalogue: Map<string, BullionPublic>
 ): OrderViewItem {
   return Object.assign(item, {
     product: item.bullion_id === null ? null : (catalogue.get(item.bullion_id) ?? null),
+    payable: rules.payableOf(item),
+    line_total: rules.lineTotalOf(item),
   });
 }
 
@@ -96,21 +100,39 @@ export async function view(
   const addressLink = await orderAddresses.getFor(order_id, executor);
   const pickups = await pickupService.getByOrder(order_id, executor);
 
+  const totals = (await transactions.forOrder(order_id, executor)) ?? null;
+  // The SNAPSHOT, not the book row: where the parcel actually went.
+  const address = addressLink
+    ? ((await placeAddresses.getOne(addressLink.address_id, executor)) ?? null)
+    : null;
+  const shipments = await shipmentOrderRead.getForOrder(order_id, executor);
+  const payout = (await payoutsRepo.getFor(order_id, executor)) ?? null;
+
   return {
     order,
-    totals: (await transactions.forOrder(order_id, executor)) ?? null,
+    totals,
     items: items.map((item) => withProduct(item, catalogue)),
-    // The SNAPSHOT, not the book row: where the parcel actually went.
-    address: addressLink
-      ? ((await placeAddresses.getOne(addressLink.address_id, executor)) ?? null)
-      : null,
-    shipments: await shipmentOrderRead.getForOrder(order_id, executor),
+    address,
+    shipments,
     // An order can be collected more than once (a first attempt, then a
     // rebooking); the document prints the one that was booked.
     pickup: pickups[0] ?? null,
-    payout: (await payoutsRepo.getFor(order_id, executor)) ?? null,
+    payout,
     user: order.user_id === null
       ? null
       : ((await usersRepo.getOne(order.user_id, executor)) ?? null),
+    // WHAT MAY BE DONE TO IT, decided here and rendered there. Every input is
+    // a row this read already holds, so it costs no extra statement.
+    actions: rules.actionsFor({
+      direction: order.direction,
+      status: order.status,
+      order_sent: order.order_sent,
+      tracking_updated: order.tracking_updated,
+      hasAddress: address !== null,
+      hasTotal: totals?.total != null,
+      items,
+      shipments,
+      payoutMethod: payout?.method ?? null,
+    }),
   };
 }

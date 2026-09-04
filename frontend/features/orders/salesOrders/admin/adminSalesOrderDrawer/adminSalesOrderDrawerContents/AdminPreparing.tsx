@@ -1,5 +1,5 @@
 import { Separator } from '@/shared/ui/base/separator'
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { cn } from '@/shared/utils/cn'
 import { SalesOrderDrawerContentProps, statusConfig } from '@/features/orders/salesOrders/types'
 import { Button } from '@dorado/components'
@@ -7,61 +7,42 @@ import { FloatingLabelInput } from '@/shared/ui/inputs/FloatingLabelInput'
 import { RadioGroup } from '@/shared/ui/RadioGroup'
 import Image from 'next/image'
 import { useAdminSuppliers } from '@/features/products/queries'
-import { useSendOrderToRefiner } from '@/features/orders/patch'
-import {
-  usePatchShipment,
-  useOrderShipments,
-  useShipmentDisplay,
-  outboundOf,
-} from '@/features/shipping/queries'
+import { usePatchShipment, useShipmentDisplay, outboundOf } from '@/features/shipping/queries'
 import { useRefinerOrder } from '@/features/refiners/queries'
 import { Supplier } from '@/features/products/types'
 import { useCarriers } from '@/features/carriers/queries'
 import { Carrier } from '@/features/carriers/types'
+import { useSendToRefiner } from '@dorado/client'
+export default function AdminPreparingSalesOrder({ view }: SalesOrderDrawerContentProps) {
+  const { order } = view
 
-export default function AdminPreparingSalesOrder({ order }: SalesOrderDrawerContentProps) {
   const { data: suppliers = [] } = useAdminSuppliers()
   // WHICH REFINERY HAS THE METAL IS THE ENGAGEMENT'S (ruling 6): the composed
   // wire aliased refiners.orders.refiner_id onto the order as supplier_id, and
   // orders.orders.refinery_id was dropped in 094.
   const { data: engagement } = useRefinerOrder(order.id)
-  const { data: shipments = [] } = useOrderShipments(order.id)
-  const shipment = outboundOf(shipments)
+  const shipment = outboundOf(view.shipments)
   const { carrier_id: shipmentCarrierId } = useShipmentDisplay(shipment)
   const { data: carriers = [] } = useCarriers()
 
   // Tracking writes to the SHIPMENT resource; sending to the refiner is its
-  // own action route now (D214 item 11), not a flag in the order's PATCH.
+  // own action route, not a flag in the order's PATCH.
   const updateTracking = usePatchShipment()
-  const sendOrder = useSendOrderToRefiner()
+  const sendOrder = useSendToRefiner()
 
-  const [selectedSupplier, setSelectedSupplier] = useState<Supplier | null>(null)
-  const [selectedCarrier, setSelectedCarrier] = useState<Carrier | null>(null)
+  // WHAT IS SELECTED IS DERIVED, NOT SYNCED. Two useEffects used to copy the
+  // server's answers into state once the reads landed - so the screen held a
+  // stale duplicate of a row it was already looking at, and rendered once with
+  // nothing chosen before the copy ran. The admin's own pick wins; absent one,
+  // the stored value IS the selection.
+  const [pickedSupplier, setPickedSupplier] = useState<string | null>(null)
+  const [pickedCarrier, setPickedCarrier] = useState<string | null>(null)
   const [trackingNumber, setTrackingNumber] = useState('')
 
-  const handleSupplierChange = (supplierId: string) => {
-    const supplier = suppliers.find((s) => s.id === supplierId) ?? null
-    setSelectedSupplier(supplier)
-  }
-
-  const handleCarrierChange = (carrierId: string) => {
-    const carrier = carriers.find((c) => c.id === carrierId) ?? null
-    setSelectedCarrier(carrier)
-  }
-
-  useEffect(() => {
-    if (suppliers.length && engagement?.refiner_id) {
-      handleSupplierChange(engagement.refiner_id)
-    }
-  }, [suppliers, engagement?.refiner_id])
-
-  useEffect(() => {
-    if (carriers.length && shipmentCarrierId) {
-      handleCarrierChange(shipmentCarrierId)
-    }
-  }, [carriers, shipmentCarrierId])
-
-  const config = statusConfig[order.status ?? '']
+  const supplierId = pickedSupplier ?? engagement?.refiner_id ?? ''
+  const carrierId = pickedCarrier ?? shipmentCarrierId ?? ''
+  const selectedSupplier: Supplier | null = suppliers.find((s) => s.id === supplierId) ?? null
+  const selectedCarrier: Carrier | null = carriers.find((c) => c.id === carrierId) ?? null
 
   return (
     <div className="flex flex-col w-full gap-5">
@@ -71,8 +52,8 @@ export default function AdminPreparingSalesOrder({ order }: SalesOrderDrawerCont
       </p>
       {suppliers && (
         <RadioGroup
-          value={selectedSupplier?.id ?? ''}
-          onValueChange={handleSupplierChange}
+          value={supplierId}
+          onValueChange={setPickedSupplier}
           options={suppliers}
           getValue={(s) => s.id}
           isOptionDisabled={(s) => !s.organization.enabled}
@@ -112,7 +93,7 @@ export default function AdminPreparingSalesOrder({ order }: SalesOrderDrawerCont
           // SERVER-side - the browser no longer reads them back and posts them.
           sendOrder.mutate({ id: order.id, refiner_id: selectedSupplier?.id ?? '' })
         }}
-        disabled={!selectedSupplier || sendOrder.isPending || !!order.order_sent}
+        disabled={!selectedSupplier || sendOrder.isPending || !view.actions.send_to_refiner}
       >
         {sendOrder.isPending
           ? `Sending to ${selectedSupplier?.organization.name}...`
@@ -127,8 +108,8 @@ export default function AdminPreparingSalesOrder({ order }: SalesOrderDrawerCont
 
       {carriers && (
         <RadioGroup
-          value={selectedCarrier?.id ?? ''}
-          onValueChange={handleCarrierChange}
+          value={carrierId}
+          onValueChange={setPickedCarrier}
           options={carriers}
           getValue={(c) => c.id}
           isOptionDisabled={(c) => !c.organization.enabled}

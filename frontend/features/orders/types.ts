@@ -17,7 +17,7 @@
 import { z } from 'zod/v4'
 import type { LucideIcon } from 'lucide-react'
 
-import { Address, OrderRead, UserAddressRead } from "@dorado/contracts";
+import { Address, OrderRead, OrderView, UserAddressRead } from "@dorado/contracts";
 import { pickupSchema } from '@/features/handoff/types'
 import { packageSchema } from '@/features/packaging/types'
 import { serviceSchema } from '@/features/service/types'
@@ -65,29 +65,26 @@ export type StatusConfigEntry = {
 
 export type StatusConfig = Record<string, StatusConfigEntry>
 
-// The drawer props. `order_id` not `order`: a drawer is a CONTAINER (ruling
-// 14) - it holds the id and the hooks, and hands rows to presentational
-// children.
+// THE DRAWER PROPS. A drawer holds the ORDER ID and one read; everything
+// below it takes the `OrderView` that read answered (ruling 14, container /
+// presentational). That is the change this pass makes: a drawer used to find
+// its order inside a LIST cache and then call six order-scoped reads to put
+// the rest back together, which is the fan-out the view exists to end.
+//
+// `view.order` is the row, `view.totals` its money, `view.items` its lines
+// with their own arithmetic, and `view.actions` what may be done to it - the
+// switch statements two of these components used to hold.
 export interface OrderDrawerProps {
   user_id?: string
   order_id: string
   user?: User
 }
 
-export interface OrderDrawerHeaderProps {
-  order: Order
+export interface OrderViewProps {
+  view: OrderView
+}
+
+export interface OrderDrawerHeaderProps extends OrderViewProps {
   username: string
   setIsOrderActive: (open: boolean) => void
-}
-
-export interface OrderDrawerContentProps {
-  order: Order
-}
-
-export interface OrderDrawerFooterProps {
-  order: Order
-}
-
-export interface OrderActionButtonsProps {
-  order: Order
 }

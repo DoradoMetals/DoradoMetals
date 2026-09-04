@@ -1,13 +1,10 @@
 import TrackingEvents from '@/features/shipping/ui/TrackingEvents'
 import { SalesOrderDrawerContentProps, statusConfig } from '@/features/orders/salesOrders/types'
-import {
-  useTracking,
-  useOrderShipments,
-  useShipmentDisplay,
-  outboundOf,
-} from '@/features/shipping/queries'
+import { useTracking, useShipmentDisplay, outboundOf } from '@/features/shipping/queries'
+import { useOrderShipments } from '@dorado/client'
+export default function AdminInTransitSalesOrder({ view }: SalesOrderDrawerContentProps) {
+  const { order } = view
 
-export default function AdminInTransitSalesOrder({ order }: SalesOrderDrawerContentProps) {
   // A CONTAINER for its own parcel (ruling 14). The order document no longer
   // carries a `shipment` slot - shipments are their own read, both directions
   // in one array, filtered on the row's `direction` column. carrier_id is not

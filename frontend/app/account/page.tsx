@@ -24,8 +24,7 @@ import { useDrawerStore } from '@/shared/store/drawerStore'
 import AddressList from '@/features/addresses/ui/AddressList'
 import UserForm from '@/features/users/ui/UserForm'
 import { PasswordAndSecurity } from '@/features/users/ui/PasswordAndSecurity'
-import { usePurchaseOrders } from '@/features/orders/purchaseOrders/users/queries'
-import { useSalesOrders } from '@/features/orders/salesOrders/users/queries'
+import { useOrders } from '@dorado/client'
 import { PurchaseOrdersContent } from '@/features/orders/purchaseOrders/users/purchaseOrderTab'
 import { SalesOrdersContent } from '@/features/orders/salesOrders/users/salesOrderTab'
 
@@ -62,9 +61,12 @@ export default function Page() {
 }
 
 function AccountShell() {
-  const { data: purchaseOrders = [] } = usePurchaseOrders()
-  const { data: salesOrders = [] } = useSalesOrders()
   const { user } = useGetSession()
+  // Self-scoped even for an admin caller: `user_id` pins the rows to the
+  // session's own, which is what an account page shows.
+  const scope = { user_id: user?.id }
+  const { data: purchaseOrders = [] } = useOrders({ direction: 'purchase', ...scope }, { enabled: !!user?.id })
+  const { data: salesOrders = [] } = useOrders({ direction: 'sale', ...scope }, { enabled: !!user?.id })
 
   const currentRole = user?.role ?? 'User'
   const roleMeta = userRoleOptions.find((r) => r.value === currentRole) ?? userRoleOptions[0]

@@ -3,11 +3,14 @@ import { useDownloadSalesOrderInvoice } from '@/features/pdfs/queries'
 import { SalesOrderDrawerHeaderProps, statusConfig } from '@/features/orders/salesOrders/types'
 import { formatFullDate } from '@/shared/utils/formatDates'
 import { useFormatSalesOrderNumber } from '@/features/orders/utils/formatOrderNumbers'
-import { useOrderSpots, nameSpots } from '@/features/orders/spots'
 import { useSpotPrices } from '@/features/spots/queries'
 import { OrderDrawerHeader } from '@/features/orders/ui/OrderDrawerHeader'
+import { useOrderSpots } from '@dorado/client'
+import { nameSpots } from '@/features/orders/display'
 
-export default function AdminSalesOrderDrawerHeader({ order }: SalesOrderDrawerHeaderProps) {
+export default function AdminSalesOrderDrawerHeader({ view }: SalesOrderDrawerHeaderProps) {
+  const { order } = view
+
   const downloadInvoice = useDownloadSalesOrderInvoice()
 
   const { formatSalesOrderNumber } = useFormatSalesOrderNumber()

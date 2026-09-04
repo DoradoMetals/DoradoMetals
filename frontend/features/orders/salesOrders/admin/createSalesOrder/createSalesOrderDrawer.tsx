@@ -53,7 +53,6 @@ export function CreateSalesOrderDrawer() {
   const { data, setData, items: draft } = useAdminSalesOrderCheckoutStore()
   const { activeDrawer, closeDrawer, createSalesOrderUser } = useDrawerStore()
 
-  const [spotsLocked, setSpotsLocked] = useState(false)
 
   const { data: addresses = [], isLoading } = useUserAddress(createSalesOrderUser?.id ?? '')
   // The TARGET user's links (label / default), not the admin's own book.
@@ -61,12 +60,22 @@ export function CreateSalesOrderDrawer() {
   const linkOf = useMemo(() => new Map(links.map((l) => [l.address_id, l])), [links])
 
   const isDrawerOpen = activeDrawer === 'createSalesOrder'
-  const { data: spotPrices = [] } = useSpotPrices()
+
+  const defaultAddress: Address | undefined =
+    addresses.find((a) => linkOf.get(a.id)?.default_shipping) ?? addresses[0]
+
+  // THE ADDRESS IS DERIVED, NOT SYNCED. An effect used to copy the default
+  // out of the book into the store as soon as the read landed, so the first
+  // render had none and the store held a second copy of a row already on
+  // screen. The admin's own pick wins; absent one, the default IS the choice.
+  const address = data.address ?? defaultAddress ?? null
+  const userAddress = address ? linkOf.get(address.id) : undefined
+
 
   // The preview is the server's sales-order quote (Jacob's no-previews
   // ruling; calculateSalesOrderPrices died here 2026-08-28). It prices at
-  // LIVE server spots: the drawer's locked-spot overrides feed the CREATE -
-  // order_metals rides the body as spot_prices - never this preview.
+  // LIVE server spots, and so does the placement - the drawer no longer
+  // overrides them, because nothing ever carried the override.
   // user_id names the TARGET customer, honored because this caller is an
   // admin: funds price against that customer's row, not the admin's own.
   // No using_funds (D214 item 11): credit applies whenever the customer has
@@ -77,32 +86,11 @@ export function CreateSalesOrderDrawer() {
     ),
     shipping_service: data.service?.value ?? null,
     payment_method: data.payment_method ?? null,
-    address_id: data.address?.id ?? null,
+    address_id: address?.id ?? null,
     user_id: createSalesOrderUser?.id ?? null,
   })
 
-  useEffect(() => {
-    if (spotPrices.length > 0 && !spotsLocked) {
-      setData({
-        order_metals: spotPrices,
-      })
-    }
-  }, [spotPrices, spotsLocked])
 
-  useEffect(() => {
-    setData({
-      user: createSalesOrderUser!,
-    })
-  }, [createSalesOrderUser])
-
-  const defaultAddress: Address | undefined =
-    addresses.find((a) => linkOf.get(a.id)?.default_shipping) ?? addresses[0]
-
-  useEffect(() => {
-    if (addresses.length > 0 && defaultAddress && data.address?.id !== defaultAddress.id) {
-      setData({ address: defaultAddress, user_address: linkOf.get(defaultAddress.id) })
-    }
-  }, [defaultAddress, addresses.length, data.address?.id, setData, linkOf])
 
   return (
     <Drawer label="New sales order" open={isDrawerOpen} setOpen={closeDrawer} anchor="left">
@@ -111,25 +99,7 @@ export function CreateSalesOrderDrawer() {
       <Separator />
 
       <div className="flex flex-col gap-2 items-start">
-        <Button
-          variant="tertiary"
-          className="ml-auto"
-          onClick={() => setSpotsLocked((prev) => !prev)}
-        >
-          {spotsLocked ? (
-            <div className="flex gap-1 items-center">
-              Unlock Spots
-              <LockOpenIcon size={16} className="text-primary" />
-            </div>
-          ) : (
-            <div className="flex gap-1 items-center">
-              Lock Spots
-              <LockIcon size={16} className="text-primary" />
-            </div>
-          )}
-        </Button>
-
-        <SpotSelector spotsLocked={spotsLocked} />
+        <SpotSelector />
         <ProductSelector />
       </div>
 
@@ -137,6 +107,7 @@ export function CreateSalesOrderDrawer() {
       <div className="flex flex-col gap-3">
         <AddressSelector
           user={createSalesOrderUser}
+          address={address}
           addresses={addresses}
           userAddresses={links}
           isLoading={isLoading}
@@ -151,20 +122,18 @@ export function CreateSalesOrderDrawer() {
           orderPrices={orderPrices}
           funds={orderPrices?.beginning_funds ?? createSalesOrderUser?.dorado_funds ?? 0}
         />
-        <PaymentSelect orderPrices={orderPrices} user={createSalesOrderUser!} />
+        <PaymentSelect orderPrices={orderPrices} user={createSalesOrderUser!} address={address} />
       </div>
     </Drawer>
   )
 }
 
-function SpotSelector({ spotsLocked }: { spotsLocked: boolean }) {
-  const { data, setData } = useAdminSalesOrderCheckoutStore()
-  const spots = data.order_metals ?? []
-
-  const updateSpot = (spot: SpotPrice, new_spot: number) => {
-    const updated = spots.map((s) => (s.id === spot.id ? { ...s, ask: new_spot } : s))
-    setData({ order_metals: updated })
-  }
+// THE SPOTS ARE THE SERVER'S, AND SO IS THE PRICE. This let an admin type
+// over the feed and lock it, and none of it went anywhere: the create is one
+// checkout_id and the order is priced from the business's own quotes at
+// placement. It shows what the order will price at, and nothing more.
+function SpotSelector() {
+  const { data: spots = [] } = useSpotPrices()
 
   return (
     <div className="grid grid-cols-2 w-full gap-4 sm:flex sm:items-center sm:justify-between sm:gap-4">
@@ -177,13 +146,9 @@ function SpotSelector({ spotsLocked }: { spotsLocked: boolean }) {
               type="number"
               pattern="[0-9]*"
               inputMode="decimal"
-              readOnly={!spotsLocked}
-              className={cn(
-                'no-spinner text-center w-full h-8',
-                !spotsLocked && 'cursor-not-allowed'
-              )}
+              className={cn('no-spinner text-center w-full h-8')}
+              readOnly
               value={spot?.ask ?? ''}
-              onChange={(e) => updateSpot(spot, Number(e.target.value))}
             />
           </div>
         </div>
@@ -321,12 +286,16 @@ function ProductSelector() {
 
 interface AddressSelectProps {
   user: AdminUser | null
+  // THE RESOLVED CHOICE, from the parent: the admin's own pick if they made
+  // one, else the customer's default. It is a prop rather than a second copy
+  // in the store, which is what the deleted sync effect kept in step.
+  address: Address | null
   addresses: Address[]
   userAddresses: UserAddress[]
   isLoading: boolean
 }
 
-function AddressSelector({ user, addresses, userAddresses, isLoading }: AddressSelectProps) {
+function AddressSelector({ user, address, addresses, userAddresses, isLoading }: AddressSelectProps) {
   const { data, setData } = useAdminSalesOrderCheckoutStore()
 
   return (
@@ -352,7 +321,7 @@ function AddressSelector({ user, addresses, userAddresses, isLoading }: AddressS
               <AddressSelect
                 addresses={addresses}
                 userAddresses={userAddresses}
-                value={data.address?.id ?? null}
+                value={address?.id ?? null}
                 onChange={(addr) =>
                   setData({
                     address: addr,
@@ -562,7 +531,10 @@ function CreditSelect({
   )
 }
 
-function PaymentSelect({ orderPrices, user }: { orderPrices?: SalesOrderQuote; user: AdminUser }) {
+function PaymentSelect(
+  { orderPrices, user, address }:
+  { orderPrices?: SalesOrderQuote; user: AdminUser; address: Address | null }
+) {
   const [isLoading, setIsLoading] = useState<boolean>(false)
   const { closeDrawer } = useDrawerStore()
   const [isPending, startTransition] = useTransition()
@@ -591,7 +563,7 @@ function PaymentSelect({ orderPrices, user }: { orderPrices?: SalesOrderQuote; u
 
   const disabled =
     itemsMissing ||
-    !data.address?.is_valid ||
+    !address?.is_valid ||
     isOrderCreating ||
     isLoading ||
     isPending ||
@@ -607,7 +579,7 @@ function PaymentSelect({ orderPrices, user }: { orderPrices?: SalesOrderQuote; u
         shipping_service: data.service?.value ?? 'STANDARD',
         payment_method: data.payment_method ?? 'CARD',
         type: 'admin',
-        address_id: data?.address?.id ?? '',
+        address_id: address?.id ?? '',
         user_id: user.id!,
       })
     }
@@ -636,20 +608,17 @@ function PaymentSelect({ orderPrices, user }: { orderPrices?: SalesOrderQuote; u
   // order is created awaiting payment first, and a failed charge just
   // retries against the saved order.
   const form = () => {
-    if (!data.address || !data.service || !data.user) {
+    if (!address || !data.service) {
       throw new Error('The order is not complete')
     }
-    return {
-      ...data,
-      address: data.address,
-      service: data.service,
-      user: data.user,
-      order_metals: data.order_metals ?? [],
-    }
+    return { ...data, address, service: data.service, user }
   }
 
-  const createOrderForIntent = async (paymentIntentId: string) => {
-    await createOrder.mutateAsync({ paymentIntentId, sales_order: form(), items })
+  // THE INTENT IS THE SERVER'S TO FIND (ruling 43): the customer's own open
+  // intent is selected by user_id, because an id in the body could name
+  // somebody else's. The card flow calls this once Stripe has confirmed.
+  const createOrderForIntent = async () => {
+    await createOrder.mutateAsync({ sales_order: form(), items })
   }
 
   const handleSubmit = () => {
@@ -658,14 +627,14 @@ function PaymentSelect({ orderPrices, user }: { orderPrices?: SalesOrderQuote; u
 
   return (
     <>
-      {clientSecret && data.address && (
+      {clientSecret && address && (
         <div className="flex flex-col items-center w-full gap-3">
           <div className="flex flex-col gap-6 w-full">
             {cardNeeded && (
               <StripeWrapper
                 clientSecret={clientSecret}
                 stripePromise={stripePromise}
-                address={data.address}
+                address={address}
                 formId="admin-payment-form"
                 // The TARGET customer's identity on the billing details - the
                 // old admin form stamped the ADMIN's session name and email
@@ -689,7 +658,7 @@ function PaymentSelect({ orderPrices, user }: { orderPrices?: SalesOrderQuote; u
                 disabled={disabled}
                 onClick={handleSubmit}
               >
-                {!data.address?.is_valid
+                {!address?.is_valid
                   ? 'Please provide a valid address.'
                   : itemsMissing
                   ? 'Please add items.'
@@ -704,7 +673,7 @@ function PaymentSelect({ orderPrices, user }: { orderPrices?: SalesOrderQuote; u
                 type="submit"
                 form="admin-payment-form"
               >
-                {!data.address?.is_valid
+                {!address?.is_valid
                   ? 'Please provide a valid address.'
                   : itemsMissing
                   ? 'Please add items.'

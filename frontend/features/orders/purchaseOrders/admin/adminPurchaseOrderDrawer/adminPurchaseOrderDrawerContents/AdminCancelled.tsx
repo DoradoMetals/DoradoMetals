@@ -2,16 +2,13 @@ import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
 import { Button } from '@dorado/components'
 import { cn } from '@/shared/utils/cn'
 import { PurchaseOrderDrawerContentProps, statusConfig } from '@/features/orders/purchaseOrders/types'
-import {
-  useTracking,
-  useOrderShipments,
-  useShipmentDisplay,
-  outboundOf,
-  returnOf,
-} from '@/features/shipping/queries'
+import { useTracking, useShipmentDisplay, outboundOf, returnOf } from '@/features/shipping/queries'
 import TrackingEvents from '@/features/shipping/ui/TrackingEvents'
+import { useOrderShipments } from '@dorado/client'
 
-export default function AdminCancelledPurchaseOrder({ order }: PurchaseOrderDrawerContentProps) {
+export default function AdminCancelledPurchaseOrder({ view }: PurchaseOrderDrawerContentProps) {
+  const { order } = view
+
   // A CONTAINER for its own parcels (ruling 14). `shipment` and
   // `return_shipment` were two named slots for one table; shipments are one
   // read now, filtered on the row's own `direction` column. carrier_id is not
@@ -35,12 +32,12 @@ export default function AdminCancelledPurchaseOrder({ order }: PurchaseOrderDraw
   return (
     <>
       <div className="flex flex-col w-full h-full">
-        {!order.totals?.shipping_paid ? (
+        {!view.totals?.shipping_paid ? (
           <div className="flex flex-col w-full h-auto border border-border p-4 rounded-lg">
             <div className="flex w-full justify-between items-center mb-1">
               <strong className="stat-sm">Customer Payment:</strong>
               <strong className="stat-sm">
-                {order.totals?.shipping_paid ? 'Complete' : 'Incomplete'}
+                {view.totals?.shipping_paid ? 'Complete' : 'Incomplete'}
               </strong>
             </div>
             <div className="flex w-full justify-between items-center mb-3">

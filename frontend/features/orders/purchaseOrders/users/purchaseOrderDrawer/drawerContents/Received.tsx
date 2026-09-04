@@ -2,9 +2,10 @@
 
 import { PurchaseOrderDrawerContentProps, statusConfig } from '@/features/orders/purchaseOrders/types'
 import { cn } from '@/shared/utils/cn'
-import { useOrderItems } from '@/features/orders/reads'
+import { useOrderItems } from '@dorado/client'
+export default function ReceivedPurchaseOrder({ view }: PurchaseOrderDrawerContentProps) {
+  const { order } = view
 
-export default function ReceivedPurchaseOrder({ order }: PurchaseOrderDrawerContentProps) {
   const config = statusConfig[order.status ?? '']
 
   // A CONTAINER for the one thing it shows: how many lines are assayed.

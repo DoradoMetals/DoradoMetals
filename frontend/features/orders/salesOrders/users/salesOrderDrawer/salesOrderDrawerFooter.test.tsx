@@ -35,14 +35,21 @@ vi.mock(
 );
 
 import SalesOrderDrawerFooter from "@/features/orders/salesOrders/users/salesOrderDrawer/salesOrderDrawerFooter";
-import type { SalesOrder } from "@/features/orders/salesOrders/types";
+import type { OrderView } from "@dorado/contracts";
 
 // THE SLIM WIRE: the orders.orders row plus `totals`, and nothing else. The
 // order document no longer carries order_items - and `used_funds` is a column
 // of orders.transactions, so it sits on totals where it always came from.
 const order = () =>
   ({
-    id: "so-1",
+    order: { id: "so-1" },
+    items: [],
+    address: null,
+    shipments: [],
+    pickup: null,
+    payout: null,
+    user: null,
+    actions: { statuses: [] },
     totals: {
       used_funds: true,
       total: 3369.39,
@@ -56,11 +63,11 @@ const order = () =>
       subject_to_charges_amount: 3177.25,
       post_charges_amount: 3269.39,
     },
-  } as unknown as SalesOrder);
+  } as unknown as OrderView);
 
 describe("the sales-order drawer footer", () => {
   test("line names render and the order's totals reach the screen", async () => {
-    render(<SalesOrderDrawerFooter order={order()} />);
+    render(<SalesOrderDrawerFooter view={order()} />);
 
     // Accordion headers carry the section totals even while collapsed.
     expect(screen.getAllByText("3200").length).toBeGreaterThan(0);

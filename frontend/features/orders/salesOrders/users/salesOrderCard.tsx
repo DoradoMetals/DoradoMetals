@@ -10,8 +10,8 @@ import { DownloadIcon } from '@phosphor-icons/react'
 import { useDownloadSalesOrderInvoice } from '@/features/pdfs/queries'
 import { useFormatSalesOrderNumber } from '@/features/orders/utils/formatOrderNumbers'
 import { OrderCardShell } from '@/features/orders/ui/OrderCardShell'
-import { useOrderItems } from '@/features/orders/reads'
 import { useProducts } from '@/features/products/queries'
+import { useOrderItems } from '@dorado/client'
 
 export default function SalesOrderCard({
   order,

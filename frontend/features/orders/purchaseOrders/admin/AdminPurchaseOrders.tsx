@@ -4,7 +4,7 @@ import * as React from 'react'
 import type { ColumnDef, Row } from '@tanstack/react-table'
 
 import { PurchaseOrder, statusConfig } from '@/features/orders/purchaseOrders/types'
-import { useAdminPurchaseOrders } from '@/features/orders/purchaseOrders/admin/queries'
+import { useOrders } from '@dorado/client'
 import { useDrawerStore } from '@/shared/store/drawerStore'
 import AdminPurchaseOrderDrawer from './adminPurchaseOrderDrawer/adminPurchaseOrderDrawer'
 import { DataTable } from '@/shared/ui/table/Table'
@@ -16,11 +16,10 @@ import { useAdminUsers } from '@/features/users/queries'
 const STATUS_FILTERS = ['In Transit', 'Received', 'Payment Processing', 'Completed'] as const
 
 export default function PurchaseOrdersPage() {
-  const { data: purchaseOrders = [] } = useAdminPurchaseOrders()
+  const { data: purchaseOrders = [] } = useOrders({ direction: 'purchase' }, { refetchInterval: 10_000 })
   const { openDrawer } = useDrawerStore()
 
   const [activeOrder, setActiveOrder] = React.useState<string | null>(null)
-  const [activeUser, setActiveUser] = React.useState<string | null>(null)
 
   // The list wire carries user_id and nothing joined on (orders/sql/list.sql);
   // names come from the admin users list, matched by id.
@@ -106,7 +105,6 @@ export default function PurchaseOrdersPage() {
 
   const handleRowClick = (row: Row<PurchaseOrder>) => {
     setActiveOrder(row.original.id)
-    setActiveUser(row.original.user_id)
     openDrawer('purchaseOrder')
   }
 
@@ -128,7 +126,7 @@ export default function PurchaseOrdersPage() {
       />
 
       {activeOrder && (
-        <AdminPurchaseOrderDrawer order_id={activeOrder} user_id={activeUser ?? ''} />
+        <AdminPurchaseOrderDrawer order_id={activeOrder} />
       )}
     </>
   )

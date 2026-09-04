@@ -25,7 +25,7 @@ import type { LabelService } from "#domain/shipping/services/service.ts";
 import type { StorefrontProduct } from "#domain/products/compose.ts";
 import type { OrderPrices, Spots } from "#domain/pricing/ask.ts";
 import type {
-  BullionPublic, CarrierHandoff, Direction, OrderItemPatch, OrderView,
+  BullionPublic, CarrierHandoff, Direction, OrderActions, OrderItemPatch, OrderView,
 } from "@dorado/contracts";
 
 // Type-only re-exports, erased at runtime: this file still needs no database.
@@ -654,4 +654,107 @@ export function payoutFeeOf(
   methods: PaymentMethodRow[], payment_method_id: string | null
 ): number {
   return Number(methods.find((m) => m.id === payment_method_id)?.flat_fee ?? 0);
+}
+
+// -------------------- what a screen may offer (the drawer switch, moved)
+
+// THE LINE'S TWO DERIVED FIGURES. `payable` is the fine ounces the business
+// pays for; `line_total` is what the line comes to - the whole lot for scrap,
+// per unit for bullion, which is the definition the purchase footer and the
+// sale footer had drifted apart on.
+export function payableOf(
+  line: { content?: number | null; premium?: number | null }
+): number | null {
+  if (line.content == null || line.premium == null) return null;
+  return Number(line.content) * Number(line.premium);
+}
+
+export function lineTotalOf(
+  line: { price?: number | null; quantity?: number | null; bullion_id?: string | null }
+): number | null {
+  if (line.price == null) return null;
+  if (line.bullion_id == null) return Number(line.price);
+  return Number(line.price) * Number(line.quantity ?? 1);
+}
+
+// THE STATUS LADDERS, one per direction. A status is a pure customer-facing
+// label (ruling 2) and this list says which are OFFERED next, never what any
+// of them does. Two rungs are GATED, and both gates were `disabled:` props in
+// an admin drawer: a purchase reaches 'Payment Processing' only once every
+// line is confirmed, and a sale reaches 'In Transit' only once the refiner has
+// it and it carries a tracking number.
+const PURCHASE_LADDER: Record<string, string[]> = {
+  "In Transit": ["Received", "Cancelled"],
+  Received: ["Payment Processing", "In Transit", "Cancelled"],
+  "Payment Processing": ["Completed", "Received", "Cancelled"],
+  Cancelled: ["Received"],
+  Completed: ["Payment Processing"],
+};
+
+const SALE_LADDER: Record<string, string[]> = {
+  Pending: ["Preparing"],
+  Preparing: ["In Transit", "Pending"],
+  "In Transit": ["Completed", "Preparing"],
+  Completed: ["In Transit"],
+};
+
+export type OrderFacts = {
+  direction: Direction | null;
+  status: string | null;
+  order_sent: boolean | null;
+  tracking_updated: boolean | null;
+  hasAddress: boolean;
+  hasTotal: boolean;
+  items: { confirmed: boolean }[];
+  shipments: { direction: string | null; tracking_number: string | null }[];
+  payoutMethod: string | null;
+};
+
+// EVERY LINE CONFIRMED, and an order with NO lines is not confirmed: an empty
+// order priced at nothing is the one case the drawer's `items.every(...)`
+// answered `true` for.
+export function allLinesConfirmed(items: { confirmed: boolean }[]): boolean {
+  return items.length > 0 && items.every((item) => item.confirmed === true);
+}
+
+// A CUSTOMER'S CREDIT BALANCE IS ONE PAYOUT METHOD AMONG SEVERAL. Crediting an
+// order the business is about to pay by ACH would pay it twice, which is why
+// this asks the payout row rather than the status.
+export function creditsToAccount(payoutMethod: string | null): boolean {
+  return payoutMethod === "DORADO_ACCOUNT";
+}
+
+export function statusesFor(facts: OrderFacts): string[] {
+  const ladder = facts.direction === "sale" ? SALE_LADDER : PURCHASE_LADDER;
+  const offered = ladder[facts.status ?? ""] ?? [];
+  return offered.filter((next) => {
+    if (next === "Payment Processing" && facts.direction === "purchase") {
+      return allLinesConfirmed(facts.items);
+    }
+    if (next === "In Transit" && facts.direction === "sale") {
+      return facts.order_sent === true && facts.tracking_updated === true;
+    }
+    return true;
+  });
+}
+
+// WHICH OF THE ORDER'S ENDPOINTS THIS ORDER CAN ACTUALLY ANSWER. Each mirrors
+// the refusal the use case throws, so a button that is offered is a call that
+// is accepted - and a screen holds none of it.
+export function actionsFor(facts: OrderFacts): OrderActions {
+  const purchase = facts.direction === "purchase";
+  const sale = facts.direction === "sale";
+  const inbound = facts.shipments.find((s) => s.direction === "Inbound");
+  return {
+    cancel: purchase && facts.hasAddress,
+    finalize_pricing: purchase && allLinesConfirmed(facts.items),
+    add_funds: purchase && facts.hasTotal && creditsToAccount(facts.payoutMethod),
+    // A resend to the SAME refiner is allowed; a different one is refused by
+    // assertSendable, which is a conflict rather than an availability rule.
+    send_to_refiner: sale && facts.hasAddress,
+    buy_label: purchase && !!inbound && !inbound.tracking_number,
+    update_tracking: facts.shipments.length > 0,
+    edit_lines: purchase,
+    statuses: statusesFor(facts),
+  };
 }

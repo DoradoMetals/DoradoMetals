@@ -331,6 +331,21 @@ add("GET /orders/:orderId/directs", c.FulfillmentDirect, async () => {
   const lists = await Promise.all(orders.map((o) => fulfillmentDirects.forOrder(o.id)));
   return lists.flat();
 });
+// ONE ORDER, WHOLE - GET /orders/:id, the OrderView every drawer renders.
+// It is the one shape carrying a member no table backs (`actions`), so a rule
+// that stops answering - or answers a key the contract does not declare -
+// shows up here rather than as a button that quietly disappears.
+//
+// THE PAYOUT MEMBER IS DROPPED BEFORE PARSING, for the reason the note below
+// gives: a zod failure prints the offending value, and that member is payout
+// data. Everything else, `actions` included, is compared.
+const orderReadDomain = await import("#domain/orders/read.ts");
+add("GET /orders/:id", c.OrderView.omit({ payout: true }), async () => {
+  const views = await Promise.all(orders.map((o) => orderReadDomain.view(o.id)));
+  return views.filter((v): v is NonNullable<typeof v> => v != null)
+    .map(({ payout, ...rest }) => rest);
+});
+
 // PAYOUTS ARE NOT PARSED HERE, and the reason is the same one that keeps
 // PayoutDetails out: a zod failure prints the offending value, and these rows
 // are bank data. The shape is pinned on keys by refiner-edits.test.js.

@@ -39,6 +39,20 @@ export const listOrders = asyncHandler(async (req, res) => {
   return res.json(await orderRead.list({ direction, user_id }));
 });
 
+// GET /api/orders/:id - ONE ORDER, WHOLE: the OrderView, which is the order
+// put back together from the tables it is spread over PLUS the `actions` it
+// may be offered. Owner-or-admin, because a customer's own drawer reads it.
+//
+// It is the read every screen wants and the API did not have: OrderView was
+// only ever the ANSWER to a mutation, so a drawer had to assemble one out of
+// six order-scoped reads and then decide for itself which buttons it earned.
+export const getOrder = asyncHandler(async (req, res) => {
+  const id = uuidParam(req, "id");
+  const view = await orderRead.view(id);
+  if (!view) throw new NotFound(`no order ${id}`);
+  return res.json(view);
+});
+
 // PATCH /api/orders/:id - the order row's own fields. `status` and `notes`; the
 // four actions that used to ride in this body are the routes below.
 export const patchOrder = asyncHandler(async (req, res) => {

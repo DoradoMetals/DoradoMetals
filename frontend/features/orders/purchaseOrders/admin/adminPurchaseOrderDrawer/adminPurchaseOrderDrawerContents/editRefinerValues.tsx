@@ -6,18 +6,19 @@ import { cn } from '@/shared/utils/cn'
 import { useRefinerMetals, useRefinerOrder } from '@/features/refiners/queries'
 import { usePatchRefinerItem, usePatchRefinerOrder } from '@/features/refiners/queries'
 
-import { assignScrapItemNames, PurchaseOrder } from '@/features/orders/purchaseOrders/types'
-import { useOrderItems, nameOf } from '@/features/orders/reads'
+import { PurchaseOrderDrawerContentProps } from '@/features/orders/purchaseOrders/types'
+import { assignScrapItemNames } from '@/features/orders/display'
 import { useProducts } from '@/features/products/queries'
 import { useRefinerItems } from '@/features/refiners/queries'
-import { useOrderSpots, nameSpots } from '@/features/orders/spots'
 import { useSpotPrices } from '@/features/spots/queries'
+import { useOrderSpots } from '@dorado/client'
+import { nameOf, nameSpots } from '@/features/orders/display'
 
-export default function RefinerValues({ order }: { order: PurchaseOrder }) {
-  const { data: items = [] } = useOrderItems(order.id)
+export default function RefinerValues({ view }: PurchaseOrderDrawerContentProps) {
+  const { order, items } = view
   const { data: catalogue = [] } = useProducts()
   // THE REFINER'S PREMIUM IS refiners.items' (ruling 6), keyed by
-  // order_item_id. The composed wire smeared it onto the customer's line as
+  // item_id. The composed wire smeared it onto the customer's line as
   // `refiner_premium`.
   const { data: refinerItems = [] } = useRefinerItems(order.id)
   const { data: orderSpotRows = [] } = useOrderSpots(order.id)
@@ -53,15 +54,15 @@ export default function RefinerValues({ order }: { order: PurchaseOrder }) {
   // a bullion line's comes from the catalogue.
   const scrapItems = assignScrapItemNames(
     items.filter((it) => it.bullion_id === null),
-    (metal_id) => nameOf(spotPrices, metal_id)
+    (metal_id: string) => nameOf(spotPrices, metal_id)
   )
   const bullionItems = items.filter((it) => it.bullion_id !== null)
   const rows = [
     ...scrapItems.map((it) => ({ id: it.id, label: it.name })),
     ...bullionItems.map((it) => ({ id: it.id, label: nameOf(catalogue, it.bullion_id) ?? 'Bullion' })),
   ]
-  const refinerPremiumOf = (order_item_id: string) =>
-    refinerItems.find((r) => r.order_item_id === order_item_id)?.premium ?? null
+  const refinerPremiumOf = (item_id: string) =>
+    refinerItems.find((r) => r.order_item_id === item_id)?.premium ?? null
 
   return (
     <div className="flex w-full flex-col gap-6">
@@ -168,7 +169,7 @@ export default function RefinerValues({ order }: { order: PurchaseOrder }) {
               pattern="[0-9]*"
               inputMode="decimal"
               className={cn('no-spinner text-right w-full h-8')}
-              defaultValue={order.totals?.refiner_fee ?? ''}
+              defaultValue={view.totals?.refiner_fee ?? ''}
               disabled={updateFee.isPending}
               onBlur={(e) => {
                 if (!refinerOrder?.id) return

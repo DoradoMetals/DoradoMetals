@@ -6,34 +6,29 @@ import PurchaseOrderDrawerFooter from './purchaseOrderDrawerFooter'
 import { PurchaseOrderDrawerProps } from '@/features/orders/purchaseOrders/types'
 import { useDrawerStore } from '@/shared/store/drawerStore'
 import Drawer from '@/shared/ui/base/drawer'
-import { useMemo } from 'react'
-import { usePurchaseOrders } from '@/features/orders/purchaseOrders/users/queries'
+import { useOrder } from '@dorado/client'
 
 export default function PurchaseOrderDrawer({ order_id, user }: PurchaseOrderDrawerProps) {
-  const { data: orders = [] } = usePurchaseOrders()
-  const order = useMemo(() => orders.find((o) => o.id === order_id), [orders, order_id])
-
   const { activeDrawer, closeDrawer } = useDrawerStore()
-
   const isDrawerOpen = activeDrawer === 'purchaseOrder'
 
-  if (!order) {
-    return null
-  }
+  const { data: view } = useOrder(order_id, isDrawerOpen)
+
+  if (!view) return null
 
   return (
     <Drawer label="Purchase order" open={isDrawerOpen} setOpen={closeDrawer}>
       <PurchaseOrderDrawerHeader
-        order={order}
-        username={user?.name ?? ''}
+        view={view}
+        username={user?.name ?? view.user?.name ?? ''}
         setIsOrderActive={() => {}}
       />
       <div className="mb-8">
-        <PurchaseOrderDrawerContent order={order} />
+        <PurchaseOrderDrawerContent view={view} />
       </div>
 
       <div className="mt-auto">
-        <PurchaseOrderDrawerFooter order={order} />
+        <PurchaseOrderDrawerFooter view={view} />
       </div>
     </Drawer>
   )

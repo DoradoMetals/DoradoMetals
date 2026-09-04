@@ -5,6 +5,7 @@ import {
   buyOrderLabel,
   cancelOrder,
   finalizeOrderPricing,
+  getOrder,
   listOrders,
   patchOrder,
   sendOrderToRefiner,
@@ -50,6 +51,11 @@ router.get("/", requireUser, listOrders);
 router.use("/", itemRoutes);
 router.use("/", spotRoutes);
 router.use("/", addressRoutes);
+
+// ONE ORDER, WHOLE - the OrderView. Declared after the sub-resources so their
+// literal segments are matched first. Owner-or-admin: a customer's own drawer
+// reads their own order.
+router.get("/:id", requireUser, requireOwnOrderParam, getOrder);
 
 //   /:orderId/fulfillments    the fulfillments.fulfillments row, verbatim
 //   /:orderId/shipments       shipping.shipments rows, BOTH directions in one

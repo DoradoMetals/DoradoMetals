@@ -37,8 +37,7 @@ import ProductsPage from '@/features/products/ui/AdminProductsTable'
 import ReviewsPage from '@/features/reviews/ui/ReviewsAdminTable'
 
 import { Suspense } from 'react'
-import { useAdminPurchaseOrders } from '@/features/orders/purchaseOrders/admin/queries'
-import { useAdminSalesOrders } from '@/features/orders/salesOrders/admin/queries'
+import { useOrders } from '@dorado/client'
 import PurchaseOrdersPage from '@/features/orders/purchaseOrders/admin/AdminPurchaseOrders'
 import SalesOrdersPage from '@/features/orders/salesOrders/admin/AdminSalesOrders'
 import RatesPage from '@/features/rates/ui/RatesAdminTable'
@@ -58,8 +57,9 @@ export default function Page() {
 }
 
 function AdminShell() {
-  const { data: purchaseOrders = [] } = useAdminPurchaseOrders()
-  const { data: salesOrders = [] } = useAdminSalesOrders()
+  // Every customer's, both directions - an admin's list is not scoped.
+  const { data: purchaseOrders = [] } = useOrders({ direction: 'purchase' })
+  const { data: salesOrders = [] } = useOrders({ direction: 'sale' })
   const { user } = useGetSession()
 
   const currentRole = user?.role ?? 'Admin'

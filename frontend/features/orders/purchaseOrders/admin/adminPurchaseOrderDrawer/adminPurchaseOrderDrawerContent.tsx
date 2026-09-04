@@ -5,20 +5,20 @@ import AdminPaymentProcessingPurchaseOrder from '@/features/orders/purchaseOrder
 import AdminReceivedPurchaseOrder from '@/features/orders/purchaseOrders/admin/adminPurchaseOrderDrawer/adminPurchaseOrderDrawerContents/AdminReceived'
 import { PurchaseOrderDrawerContentProps } from '@/features/orders/purchaseOrders/types'
 
-export default function AdminPurchaseOrderDrawerContent({
-  order,
-}: PurchaseOrderDrawerContentProps) {
+export default function AdminPurchaseOrderDrawerContent({ view }: PurchaseOrderDrawerContentProps) {
+  const { order } = view
+
   switch (order.status) {
     case 'In Transit':
-      return <AdminInTransitPurchaseOrder order={order} />
+      return <AdminInTransitPurchaseOrder view={view} />
     case 'Received':
-      return <AdminReceivedPurchaseOrder order={order} />
+      return <AdminReceivedPurchaseOrder view={view} />
     case 'Payment Processing':
-      return <AdminPaymentProcessingPurchaseOrder order={order} />
+      return <AdminPaymentProcessingPurchaseOrder view={view} />
     case 'Cancelled':
-      return <AdminCancelledPurchaseOrder order={order} />
+      return <AdminCancelledPurchaseOrder view={view} />
     case 'Completed':
-      return <AdminCompletedPurchaseOrder order={order} />
+      return <AdminCompletedPurchaseOrder view={view} />
     default:
       return (
         <strong className="p-4">No content available for this status.</strong>
