@@ -91,17 +91,35 @@ const wireIntent = () => ({
   },
 });
 
-beforeEach(() => {
-  vi.mocked(apiRequest).mockReset();
-  vi.mocked(apiRequest).mockImplementation(async (_m, url) => {
-    if (url === "/stripe/get_sales_order_payment_intent") return wireIntent();
+// THE PAYMENT READS MOVED TO @dorado/client, which owns its own `fetch` and
+// never goes through the legacy axios wrapper - so the network is stubbed at
+// `fetch` now. Same idea, one layer down: answered by URL, and anything
+// unrecognised comes back empty rather than throwing.
+const json = (body: unknown): Response =>
+  ({ ok: true, status: 200, text: async () => JSON.stringify(body) }) as Response;
+
+const stubApi = (intent: Record<string, unknown>) =>
+  vi.stubGlobal("fetch", vi.fn(async (input: string) => {
+    const url = new URL(String(input), "http://test.local");
+    if (url.pathname.endsWith("/stripe/get_sales_order_payment_intent")) return json(intent);
     // The method rows the instrument label resolves through (D207) - the
     // component reads them instead of a hardcoded array now.
-    if (String(url).startsWith("/payments/methods")) {
-      return [{ type: "CARD", label: "Card", direction: "sale" }];
+    if (url.pathname.endsWith("/payments/methods")) {
+      return json([{ type: "CARD", label: "Card", direction: "sale" }]);
     }
-    return {};
-  });
+    return json({});
+  }));
+
+// Every request `fetch` was given, as [url, init] pairs.
+const fetchCalls = (): [string, RequestInit | undefined][] =>
+  vi.mocked(globalThis.fetch as unknown as (...a: unknown[]) => unknown).mock.calls.map(
+    (c) => [String(c[0]), c[1] as RequestInit | undefined]
+  );
+
+beforeEach(() => {
+  vi.mocked(apiRequest).mockReset();
+  vi.mocked(apiRequest).mockResolvedValue({});
+  stubApi(wireIntent());
 });
 
 describe("an admin watching a sales order's payment", () => {
@@ -132,23 +150,14 @@ describe("an admin watching a sales order's payment", () => {
     await userEvent.click(screen.getByRole("button", { name: /cancel payment/i }));
 
     await waitFor(() => {
-      const call = vi
-        .mocked(apiRequest)
-        .mock.calls.find(([, url]) => url === "/stripe/cancel_payment_intent");
+      const call = fetchCalls().find(([url]) => url.includes("/stripe/cancel_payment_intent"));
       expect(call).toBeTruthy();
-      expect(JSON.stringify(call![2])).toContain("pi_test_123");
+      expect(String(call![1]?.body)).toContain("pi_test_123");
     });
   });
 
   test("a settled payment cannot be cancelled again", async () => {
-    vi.mocked(apiRequest).mockImplementation(async (_m, url) => {
-      if (url === "/stripe/get_sales_order_payment_intent")
-        return { ...wireIntent(), status: "succeeded" };
-      if (String(url).startsWith("/payments/methods")) {
-        return [{ type: "CARD", label: "Card", direction: "sale" }];
-      }
-      return {};
-    });
+    stubApi({ ...wireIntent(), status: "succeeded" });
 
     renderWithClient(<AdminPendingSalesOrder view={view()} />);
     await screen.findByText("Succeeded");

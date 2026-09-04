@@ -7,74 +7,43 @@
 // only inside this module's two functions and never reaches a log, an error or
 // a return value except from decryptFor, the admin read's single door.
 import { randomUUID } from "node:crypto";
-import * as details from "#db/payments/details/repo.ts";
-import * as methods from "#db/payments/methods/repo.ts";
+import { paymentDetails as details, paymentMethods as methods } from "#db";
+import {
+  assertPayableForm, assertResolvedMethod, assertWrittenDetails, cleared,
+  isBankMethod, lastFour,
+} from "#domain/payments/details/rules.ts";
 import { seal, open, aadFor } from "#shared/crypto/envelope.ts";
 import { payoutKeyFromEnv } from "#shared/crypto/payoutKey.ts";
-import { Invalid } from "#shared/errors.ts";
-import type { DetailRow, DetailValues } from "#db/payments/details/repo.ts";
+import type { DetailRow } from "#db/payments/details/repo.ts";
 import type { Executor } from "#shared/db/executor.ts";
-import type { CheckoutPayoutForm } from "@dorado/contracts";
+import type { CheckoutPayoutForm, PaymentDetailsPatch } from "@dorado/contracts";
 
 export type { DetailRow } from "#db/payments/details/repo.ts";
 
-// THE FORM IS THE CONTRACT'S, not a second declaration of it: the checkout
-// controller parses a body against CheckoutPayoutForm and hands the result
-// straight here, so a field added there and not here cannot happen.
-export type PayoutForm = CheckoutPayoutForm;
-
-const BANK_METHODS = new Set(["ACH", "WIRE"]);
-const EMAIL_METHODS = new Set(["ECHECK", "DORADO_ACCOUNT"]);
-
-// THE PAYOUT FORM IS A COMPLETE DOCUMENT, NOT A PATCH. A field the customer
-// left empty must CLEAR its column, and shared/db/patch.ts reads `undefined` as
-// "not named" - so absence has to arrive as an explicit null or switching from
-// a bank method to an email one would leave the old bank name behind.
-const cleared = <T>(value: T | null | undefined): T | null => value ?? null;
-
-// The last four digits are NOT a secret: they are what every order payload and
-// the admin panel render, and the full numbers only ever go in sealed.
-const lastFour = (value: string): string | null => (value.length >= 4 ? value.slice(-4) : null);
-
 // Save, or rewrite in place - the details id is stable per checkout, so a
 // customer correcting a digit does not litter rows.
+//
+// LOAD (the method row the form names) -> ASSERT (rules.ts) -> WRITE. `tx` is
+// REQUIRED and the caller's: the account is written inside the checkout's own
+// transaction, so a payout step that fails writes no half-account.
 export async function saveCheckoutPayout(
-  {
-    user_id, existing_id, form,
-  }: { user_id: string; existing_id: string | null; form: PayoutForm },
-  executor?: Executor
+  user_id: string,
+  existing_id: string | null,
+  form: CheckoutPayoutForm,
+  tx: Executor
 ): Promise<DetailRow> {
-  const { method } = form;
-  if (!method || !form.account_holder_name) {
-    throw new Invalid("the payout needs a method and an account holder name");
-  }
-  if (BANK_METHODS.has(method)) {
-    if (!form.routing_number || !form.account_number || !form.bank_name) {
-      throw new Invalid(`${method} needs a bank name, a routing number and an account number`);
-    }
-    if (!/^\d{9}$/.test(form.routing_number)) {
-      throw new Invalid("the routing number must be 9 digits");
-    }
-    if (!/^\d+$/.test(form.account_number)) {
-      throw new Invalid("the account number must be digits");
-    }
-  } else if (EMAIL_METHODS.has(method)) {
-    if (!form.payout_email) throw new Invalid(`${method} needs an email address`);
-  } else {
-    throw new Invalid(`no such payout method: ${method}`);
-  }
+  const method = assertPayableForm(form);
 
-  // A method that resolves to nothing writes nothing: an account with no
-  // method is a payout with nowhere to go.
-  const resolved = await methods.findByType("purchase", method, executor);
-  if (!resolved) throw new Invalid(`no such payout method: ${method}`);
+  const resolved = assertResolvedMethod(
+    method, await methods.findByType("purchase", method, tx)
+  );
 
   const id = existing_id ?? randomUUID();
   const key = payoutKeyFromEnv();
   const account = form.account_number ?? "";
   const routing = form.routing_number ?? "";
 
-  const values: DetailValues = {
+  const values: PaymentDetailsPatch = {
     method_id: resolved.id,
     account_holder: cleared(form.account_holder_name),
     bank_name: cleared(form.bank_name),
@@ -88,40 +57,32 @@ export async function saveCheckoutPayout(
     account_number_encrypted: account
       ? seal(account, key, aadFor(id, "account_number"))
       : null,
-    encryption_key_id: BANK_METHODS.has(method) ? key.id : null,
+    encryption_key_id: isBankMethod(method) ? key.id : null,
   };
 
-  if (existing_id) {
-    const rewritten = await details.update(existing_id, values, executor);
-    if (rewritten) {
-      const row = await details.getOne(existing_id, executor);
-      if (row) return row;
-    }
-  }
-  return await details.create(id, user_id, values, executor);
+  // THE UPDATE ANSWERS THE ROW IT WROTE (ruling 65). It used to write, ask
+  // whether one row changed, then read the row back - three statements to
+  // learn what the first one already knew, and a window in which the answer
+  // could disagree with the write it followed.
+  const rewritten = existing_id ? await details.update(existing_id, values, tx) : undefined;
+  return rewritten ?? (await details.create(id, user_id, values, tx));
 }
 
-// THE ADMIN READ'S SINGLE DOOR. Opens the envelopes for one details row, and
-// answers null fields rather than throwing when a row carries none (an email
-// method, or a pre-D210 row).
+// THE ADMIN READ'S SINGLE DOOR, and it answers the two numbers and nothing
+// else. It used to hand back the account facts beside them - method, holder,
+// bank, type, email - which its one caller already had from the payout
+// projection and discarded, so every field but these two was plaintext-adjacent
+// surface with no reader at all.
+//
+// Nulls rather than a throw when a row carries no envelopes: an email method
+// and a pre-D210 row both legitimately have none.
 export async function decryptFor(
   details_id: string, executor?: Executor
-): Promise<{
-  method: string | null; account_holder: string | null; bank_name: string | null;
-  account_type: string | null; email_to: string | null;
-  routing_number: string | null; account_number: string | null;
-} | null> {
+): Promise<{ routing_number: string | null; account_number: string | null }> {
   const row = await details.getSealed(details_id, executor);
-  if (!row) return null;
-  const method = row.method_id ? await methods.getOne(row.method_id, executor) : undefined;
+  if (!row) return { routing_number: null, account_number: null };
   const key = payoutKeyFromEnv();
-  const { account_holder, bank_name, account_type, email_to } = row;
   return {
-    method: method?.type ?? null,
-    account_holder,
-    bank_name,
-    account_type,
-    email_to,
     routing_number: row.routing_number_encrypted
       ? open(row.routing_number_encrypted, key, aadFor(row.id, "routing_number"))
       : null,
@@ -134,11 +95,15 @@ export async function decryptFor(
 // Change the method on one payout account. The account is reached by ITS OWN
 // id: the walk from an order used to run through payments.intents, which is
 // money coming IN, so it matched no rows for every payout it existed to serve
-// (D168).
+// (D168). `tx` is REQUIRED - the payout patch writes two tables and they
+// commit together or not at all.
 export async function setMethod(
-  details_id: string, method: string, executor?: Executor
-): Promise<boolean> {
-  const resolved = await methods.findByType("purchase", method, executor);
-  if (!resolved) throw new Invalid(`no such payout method: ${method}`);
-  return await details.update(details_id, { method_id: resolved.id }, executor);
+  details_id: string, method: string, tx: Executor
+): Promise<void> {
+  const resolved = assertResolvedMethod(
+    method, await methods.findByType("purchase", method, tx)
+  );
+  assertWrittenDetails(
+    details_id, await details.update(details_id, { method_id: resolved.id }, tx)
+  );
 }

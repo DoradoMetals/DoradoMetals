@@ -22,6 +22,7 @@ import { payoutKeyFromEnv } from "#shared/crypto/payoutKey.ts";
 import { paymentMethodId } from "#shared/testing/builders/reference.ts";
 import type { BuiltUser } from "#shared/testing/builders/users.ts";
 import type { BuiltOrder } from "#shared/testing/builders/orders.ts";
+import type { PaymentDetailsPatch, PaymentIntentPatch } from "@dorado/contracts";
 
 // A test routing number and a test account number. Constant on purpose.
 export const TEST_ROUTING = "021000021";
@@ -37,22 +38,31 @@ export type BuiltPayout = {
   account_number: string;
 };
 
-export type PayoutOptions = {
-  id?: string;
+// THE COLUMNS COME FROM THE CONTRACT, and the four things that are not columns
+// of payments.details are visible as exactly that. `PayoutOptions` used to
+// restate every column here - the drift lint:input-shapes exists to catch.
+//
+//   method        the method TYPE ('ACH'), resolved to a method_id below
+//   routing_number / account_number
+//                 PLAINTEXT DIGITS, sealed on the way in exactly as the
+//                 service seals them. They are deliberately absent from
+//                 PaymentDetailsPatch - the frozen plaintext columns are never
+//                 written - so a builder that seals them has to name them.
+//   order / payout_fee
+//                 orders.transactions, which is where a payout's order link
+//                 and its fee live (073 split them off the account).
+type PayoutExtras = {
   method?: string;
-  account_holder?: string;
-  bank_name?: string;
-  account_type?: string;
   routing_number?: string;
   account_number?: string;
-  email_to?: string | null;
-  // Link it to an order's money row, the way the placement does.
   order?: BuiltOrder | { id: string } | null;
   payout_fee?: number;
 };
 
 export async function aPayout(
-  c: PoolClient, user: BuiltUser | { id: string }, options: PayoutOptions = {}
+  c: PoolClient,
+  user: BuiltUser | { id: string },
+  options: Partial<PaymentDetailsPatch> & PayoutExtras = {}
 ): Promise<BuiltPayout> {
   const id = options.id ?? anId();
   const method = options.method ?? "ACH";
@@ -107,19 +117,12 @@ export async function aPayout(
   };
 }
 
-export type IntentOptions = {
-  id?: string;
-  type?: string;
-  status?: string;
-  amount_expected?: number | null;
-  session_id?: string | null;
-  order?: BuiltOrder | { id: string } | null;
-  details_id?: string | null;
-  method_id?: string | null;
-};
-
+// Same rule: the columns are `PaymentIntentPatch`'s, and `order` is the built
+// order whose id becomes order_id.
 export async function aPaymentIntent(
-  c: PoolClient, user: BuiltUser | { id: string } | null, options: IntentOptions = {}
+  c: PoolClient,
+  user: BuiltUser | { id: string } | null,
+  options: Partial<PaymentIntentPatch> & { order?: BuiltOrder | { id: string } | null } = {}
 ) {
   return intents.create(
     {

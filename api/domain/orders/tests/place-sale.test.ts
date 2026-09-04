@@ -28,7 +28,7 @@ import { inPinnedTransaction } from "#shared/testing/pinned-pool.ts";
 import { mockSessions, restoreSessions, as } from "#shared/testing/session.ts";
 import * as ordersRepo from "#db/orders/repo.ts";
 import * as place from "#domain/orders/place.ts";
-import * as paymentsService from "#domain/payments/service.ts";
+import * as paymentsWebhook from "#domain/payments/webhook.ts";
 import * as sweeps from "#domain/payments/sweeps.ts";
 import { calculateSalesOrderTotal } from "#domain/pricing/ask.ts";
 import * as productService from "#domain/products/service.ts";
@@ -113,7 +113,7 @@ test("a webhook RETRY does not stomp an admin's later label - by payment fact, n
 
     // The real settlement: the stored intent was not succeeded -> the label
     // refreshes.
-    await paymentsService.updateIntentFromWebhook({ id: pi, status: "succeeded", amount: 5178, amount_received: 5178 });
+    await paymentsWebhook.applyIntentEvent({ id: pi, status: "succeeded", amount: 5178, amount_received: 5178 });
     assert.deepEqual(await statusOf(c, orderId), { native: "Preparing" });
 
     // The admin works the order on...
@@ -122,7 +122,7 @@ test("a webhook RETRY does not stomp an admin's later label - by payment fact, n
 
     // ...and Stripe redelivers. The stored intent is ALREADY succeeded - no
     // transition, no label write. The admin's label survives by fact.
-    await paymentsService.updateIntentFromWebhook({ id: pi, status: "succeeded", amount: 5178, amount_received: 5178 });
+    await paymentsWebhook.applyIntentEvent({ id: pi, status: "succeeded", amount: 5178, amount_received: 5178 });
     assert.deepEqual(await statusOf(c, orderId), { native: "Completed" });
   });
 });
@@ -135,7 +135,7 @@ test("payment_intent.succeeded advances the order the intent is attached to", as
     const pi = `pi_p9_webhook_${Date.now()}`;
     await seedIntent(c, pi, { order_id: orderId });
 
-    await paymentsService.updateIntentFromWebhook({ id: pi, status: "succeeded", amount: 5178, amount_received: 5178 });
+    await paymentsWebhook.applyIntentEvent({ id: pi, status: "succeeded", amount: 5178, amount_received: 5178 });
 
     assert.deepEqual(await statusOf(c, orderId), { native: "Preparing" });
   });
@@ -147,7 +147,7 @@ test("payment_intent.processing does NOT advance the order", async () => {
     const pi = `pi_p9_processing_${Date.now()}`;
     await seedIntent(c, pi, { order_id: orderId });
 
-    await paymentsService.updateIntentFromWebhook({ id: pi, status: "processing", amount: 5178, amount_received: 0 });
+    await paymentsWebhook.applyIntentEvent({ id: pi, status: "processing", amount: 5178, amount_received: 0 });
 
     assert.deepEqual(await statusOf(c, orderId), { native: "Pending" });
   });

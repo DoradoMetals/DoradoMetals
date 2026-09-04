@@ -65,7 +65,6 @@
   "POST /api/reviews/create",
   "POST /api/reviews/update",
   "POST /api/sales_orders/admin_create_sales_order",
-  "POST /api/sales_orders/create_sales_order",
   "POST /api/shipping/cancel_label",
   "POST /api/shipping/cancel_pickup",
   "POST /api/stripe/cancel_payment_intent",

@@ -49,6 +49,33 @@ export const IntentDetails = PaymentDetails.pick({
 });
 export type IntentDetails = z.infer<typeof IntentDetails>;
 
+// A payments.details WRITE. The same patch serves create and update, which is
+// what lets the payout step build one document and pass it to either.
+//
+// *** THE TWO PLAINTEXT COLUMNS ARE NOT IN IT, DELIBERATELY. ***
+// `routing_number` and `account_number` are the frozen legacy columns; a bank
+// number is written SEALED (routing_number_encrypted / account_number_encrypted,
+// AES-256-GCM, D210) and nothing else. A patch that could name the plaintext
+// pair would be one edit away from storing one.
+export const PaymentDetailsPatch = PaymentDetails.pick({
+  id: true,
+  user_id: true,
+  method_id: true,
+  account_holder: true,
+  bank_name: true,
+  account_type: true,
+  card_brand: true,
+  last_four: true,
+  routing_last_four: true,
+  email_to: true,
+  provider: true,
+  provider_ref: true,
+  routing_number_encrypted: true,
+  account_number_encrypted: true,
+  encryption_key_id: true,
+}).partial();
+export type PaymentDetailsPatch = z.infer<typeof PaymentDetailsPatch>;
+
 // GET /orders/:orderId/payouts - the payout on one order, composed from
 // payments.details, the order's transactions row and payments.methods
 // (db/payouts/sql/get_for.sql). It is NOT exchange.payouts: the last-four

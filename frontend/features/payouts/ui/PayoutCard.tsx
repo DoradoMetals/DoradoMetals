@@ -1,11 +1,11 @@
 import * as React from 'react'
 import { payoutMethodIcon, PayoutMethodType } from '@/features/payouts/types'
-import type { PaymentMethodRow } from '@/features/payments/queries'
+import type { PaymentMethod } from '@dorado/contracts'
 import type { IconProps } from '@phosphor-icons/react'
 
 // The card renders a payments.methods row verbatim (D207); the icon is the
 // client's, keyed by the row's type.
-export function PayoutCard({ method }: { method: PaymentMethodRow }) {
+export function PayoutCard({ method }: { method: PaymentMethod }) {
   const Icon = payoutMethodIcon[method.type as PayoutMethodType] as React.ComponentType<IconProps>
 
   const fee = Number(method.flat_fee ?? 0)

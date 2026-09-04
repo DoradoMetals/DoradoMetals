@@ -36,7 +36,9 @@ import { Forbidden, Invalid, NotFound } from "#shared/errors.ts";
 import * as rules from "#domain/checkout/rules.ts";
 import { bidPrice } from "#domain/quotes/rules.ts";
 import { lineContent } from "#domain/orders/rules.ts";
-import type { CheckoutItemPatch, CheckoutView, Direction } from "@dorado/contracts";
+import type {
+  CheckoutItemPatch, CheckoutPayoutForm, CheckoutView, Direction,
+} from "@dorado/contracts";
 import type { CheckoutRow, CheckoutPatch } from "#db/checkout/checkouts/repo.ts";
 import type { ItemRow } from "#db/checkout/items/repo.ts";
 import type { Executor } from "#shared/db/executor.ts";
@@ -259,7 +261,7 @@ export async function setFulfillmentMethod(
 // LINKS the row. The details id is stable per checkout, so edits rewrite in
 // place.
 export async function saveCheckoutPayout(
-  user_id: string, direction: Direction, form: payoutDetails.PayoutForm
+  user_id: string, direction: Direction, form: CheckoutPayoutForm
 ): Promise<CheckoutView> {
   if (direction !== "purchase") {
     throw new Invalid("the payout step belongs to the purchase checkout");
@@ -268,7 +270,7 @@ export async function saveCheckoutPayout(
   return await withTransaction(async (client) => {
     const row = await ensure(user_id, direction, client);
     const saved = await payoutDetails.saveCheckoutPayout(
-      { user_id, existing_id: row.payment_details_id, form }, client
+      user_id, row.payment_details_id, form, client
     );
     await checkouts.update(
       row.id,

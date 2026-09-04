@@ -11,7 +11,7 @@ import { DataTable } from '@/shared/ui/table/Table'
 import { TextColumn, DateColumn, IconColumn, OrderNumberColumn } from '@/shared/ui/table/Columns'
 import { cn } from '@/shared/utils/cn'
 import { useFormatPurchaseOrderNumber } from '@/features/orders/utils/formatOrderNumbers'
-import { useAdminUsers } from '@/features/users/queries'
+import { useAdminUsers } from '@dorado/client'
 
 const STATUS_FILTERS = ['In Transit', 'Received', 'Payment Processing', 'Completed'] as const
 

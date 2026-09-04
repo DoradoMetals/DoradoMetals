@@ -12,6 +12,7 @@ import pool from "#pool";
 import { inRollback } from "#shared/testing/rollback.ts";
 import { aUser, anOrder } from "#shared/testing/builders/index.ts";
 import * as intents from "#db/payments/intents/repo.ts";
+import type { PaymentIntentPatch } from "@dorado/contracts";
 import * as attempts from "#db/payments/attempts/repo.ts";
 
 let client: PoolClient;
@@ -34,7 +35,7 @@ afterAll(async () => {
 // fresh uuid is enough to keep one file's rows out of another's.
 const anIntent = async (
   c: PoolClient,
-  over: Partial<intents.NewIntent> = {},
+  over: Partial<PaymentIntentPatch> = {},
   provider_ref = `pi_${randomUUID().slice(0, 12)}`
 ) => {
   const intent = await intents.create(

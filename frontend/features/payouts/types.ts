@@ -8,30 +8,20 @@ import {
   CoinsIcon,
 } from '@phosphor-icons/react'
 
-// The payout as it arrives on an order. Full routing and account numbers are
-// deliberately absent - see @dorado/contracts' PayoutDetails, re-exported
-// from features/payouts/queries.ts, for the admin-only endpoint that returns
-// them one order at a time.
-export interface Payout {
-  id: string
-  user_id: string
-  order_id: string
-  method: string
-  account_holder_name: string
-  bank_name?: string
-  account_type?: string
-  routing_last4?: string | null
-  account_last4?: string | null
-  created_at: Date
-  email_to?: string
-  cost: number
-  time_delay: string
-}
+// The payout as it arrives on an order is `Payout` in @dorado/contracts, and
+// the admin-only full-number read is `PayoutDetails` beside it. A local
+// interface restating the first used to sit here with nothing importing it -
+// and it carried `time_delay`, which is a column of payments.methods and has
+// never been part of that shape.
+//
+// WHAT STAYS IN THIS FILE IS THE FORM AND THE PICTURES. The four payout forms
+// are genuinely new data being typed by a customer (ruling 43's one
+// exception), so their schemas are the frontend's; the icons are a client
+// concern that has no business on the wire.
 
 export const echeckSchema = z.object({
   account_holder_name: z.string().min(1, 'Addressed to name required'),
   payout_email: z.string().email('Valid email required'),
-  cost: z.number(),
 })
 
 export const achSchema = z.object({
@@ -49,7 +39,6 @@ export const achSchema = z.object({
   confirmation: z
     .boolean()
     .refine((val) => val === true, { message: 'You must confirm your bank information.' }),
-  cost: z.number(),
 })
 
 export const wireSchema = z.object({
@@ -66,14 +55,18 @@ export const wireSchema = z.object({
   confirmation: z
     .boolean()
     .refine((val) => val === true, { message: 'You must confirm your bank information.' }),
-  cost: z.number(),
 })
 
 export const doradoAccountSchema = z.object({
   account_holder_name: z.string().min(1, 'Addressed to name required'),
   payout_email: z.string().email('Valid email required'),
-  cost: z.number(),
 })
+
+// NO `cost` FIELD. All four schemas carried one, filled in the step from a
+// payments.methods row with a hardcoded `?? 20` fallback for WIRE - a fee
+// written into the browser - and it was neither rendered from the form (the
+// step shows the ROW's flat_fee) nor sent (toPayoutForm drops it, and the
+// strict body would refuse it). A fee is the server's number.
 
 export type EcheckPayout = z.infer<typeof echeckSchema>
 export type AchPayout = z.infer<typeof achSchema>

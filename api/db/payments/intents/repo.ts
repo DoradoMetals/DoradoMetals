@@ -11,7 +11,9 @@
 import query from "#shared/db/query.ts";
 import { buildUpdate } from "#shared/db/patch.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
-import type { Direction, PaymentIntent, PaymentIntentView } from "@dorado/contracts";
+import type {
+  Direction, PaymentIntent, PaymentIntentPatch, PaymentIntentView,
+} from "@dorado/contracts";
 import type { Executor } from "#shared/db/executor.ts";
 
 const sql = sqlFrom(import.meta.dirname);
@@ -42,24 +44,13 @@ export type IntentFacts = {
   direction: Direction | null;
 };
 
+// THE WRITE SHAPE IS THE CONTRACT'S - `PaymentIntentPatch`, which create and
+// update both take. The two local ones this replaced (`NewIntent` for the
+// insert, `IntentPatch` for the update) were the same columns listed twice.
 // An explicit id wins; omitting one lets create.sql generate it.
-export type NewIntent = {
-  id?: string | null;
-  session_id: string | null;
-  user_id: string | null;
-  type: string | null;
-  status: string | null;
-  amount_expected: number | null;
-  order_id?: string | null;
-  details_id?: string | null;
-  method_id?: string | null;
-};
-
 export const PATCHABLE = [
   "status", "amount_expected", "order_id", "details_id", "method_id",
 ] as const;
-
-export type IntentPatch = Partial<Pick<IntentRow, (typeof PATCHABLE)[number]>>;
 
 export async function getOne(id: string, executor?: Executor): Promise<IntentRow | undefined> {
   const { rows } = await query<IntentRow>(sql("get_one"), [id], executor);
@@ -72,12 +63,15 @@ export async function getOne(id: string, executor?: Executor): Promise<IntentRow
 // to enter by. The read and the index belong in the same change; adding the
 // read alone would be a sequential scan on the money table.
 
-export async function create(row: NewIntent, executor?: Executor): Promise<IntentRow> {
+export async function create(
+  row: PaymentIntentPatch, executor?: Executor
+): Promise<IntentRow> {
   const { rows } = await query<IntentRow>(
     sql("create"),
     [
-      row.id, row.session_id, row.user_id, row.type, row.status,
-      row.amount_expected, row.order_id, row.details_id, row.method_id,
+      row.id ?? null, row.session_id ?? null, row.user_id ?? null,
+      row.type ?? null, row.status ?? null, row.amount_expected ?? null,
+      row.order_id ?? null, row.details_id ?? null, row.method_id ?? null,
     ],
     executor
   );
@@ -85,7 +79,7 @@ export async function create(row: NewIntent, executor?: Executor): Promise<Inten
 }
 
 export async function update(
-  id: string, patch: IntentPatch, executor?: Executor
+  id: string, patch: PaymentIntentPatch, executor?: Executor
 ): Promise<boolean> {
   const built = buildUpdate({
     table: "payments.intents", allowed: PATCHABLE, patch, where: { id },

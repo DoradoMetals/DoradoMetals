@@ -52,6 +52,22 @@ export const SalesOrderQuoteLine = z.object({
 });
 export type SalesOrderQuoteLine = z.infer<typeof SalesOrderQuoteLine>;
 
+// WHICH PAYMENT SURFACE THE CUSTOMER IS SHOWN. A server field, not a browser
+// derivation: the checkout used to compute `beginning_funds < base_total`
+// itself and decide whether to mount Stripe's element on the answer, which is
+// the last piece of money reasoning left in the browser (D81-D84) and the one
+// most expensive to get wrong - a customer shown a card form for an order the
+// card is not charged for, or none for an order it is.
+//
+// "credit" means the balance covers the whole thing and there is nothing for a
+// card to do. "card" means something is left to charge. It is derived from
+// `post_charges_amount`, which is the amount Stripe is actually told, so it
+// cannot disagree with what gets charged - and it accounts for the sliver
+// held back below Stripe's minimum, which `beginning_funds < base_total`
+// could not see.
+export const PaymentSurface = z.enum(["card", "credit"]);
+export type PaymentSurface = z.infer<typeof PaymentSurface>;
+
 // POST /quotes/sales_order. The full OrderPrices breakdown createSalesOrder
 // records, computed without the insert - the field names are calculations.ts's
 // own, because a quote that renames what the order will store is a quote for a
@@ -69,6 +85,7 @@ export const SalesOrderQuote = z.object({
   charges_amount: z.number(),
   sales_tax: z.number(),
   order_total: z.number(),
+  payment_surface: PaymentSurface,
   items: z.array(SalesOrderQuoteLine),
 });
 export type SalesOrderQuote = z.infer<typeof SalesOrderQuote>;

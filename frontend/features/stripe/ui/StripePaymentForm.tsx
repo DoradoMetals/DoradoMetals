@@ -6,7 +6,7 @@ import React, { useRef, useState, FormEvent } from 'react'
 import { PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js'
 import type { StripePaymentElementOptions } from '@stripe/stripe-js'
 import { PaymentMethodTypeValues } from '@/features/orders/salesOrders/types'
-import { usePaymentMethods } from '@/features/payments/queries'
+import { usePaymentMethods } from '@dorado/client'
 import { orderAwaitingPayment } from '@/features/stripe/orderAwaitingPayment'
 
 type PaymentMethod = (typeof PaymentMethodTypeValues)[number]

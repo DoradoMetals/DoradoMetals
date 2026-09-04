@@ -9,7 +9,7 @@ import { ShoppingCartIcon } from '@phosphor-icons/react'
 import { useBasket, useClearCheckoutItems } from '@/features/checkout/items/queries'
 import ShippingSelect from './shipping/shippingSelect'
 import { useGetSession } from '@/features/auth/queries'
-import { useRetrievePaymentIntent } from '@/features/stripe/queries'
+import { usePaymentIntentSecret } from '@dorado/client'
 import PaymentSelect from '@/features/checkout/sales-order-checkout/payment/paymentSelect'
 import StripeWrapper from '@/features/stripe/ui/StripeWrapper'
 import OrderSummary from '@/features/checkout/sales-order-checkout/summary/orderSummary'
@@ -38,15 +38,21 @@ export default function SalesOrderCheckout() {
   const items = useBasket('sale')
   const { data: row } = useSaleCheckoutRow()
   const { data: addresses = [], isPending: isAddressesPending } = useAddress()
-  const { data: clientSecret } = useRetrievePaymentIntent('sales_order_checkout')
+  const { data: clientSecret } = usePaymentIntentSecret('sales_order_checkout')
   const quote = useSaleQuoteFor(row, items)
   const placeOrder = usePlaceOrderFromCheckout('sale')
 
   const address = addresses.find((a) => a.id === row?.recipient_address_id)
-  // DISPLAY LOGIC, NOT MONEY (ruling 47): credit applies whenever a balance
-  // exists, and a balance that covers the base total means there is nothing
-  // for a card to do.
-  const cardNeeded = !quote || quote.beginning_funds < quote.base_total
+
+  // WHICH SURFACE TO SHOW IS THE SERVER'S ANSWER, not an expression here. This
+  // was `!quote || quote.beginning_funds < quote.base_total` - the browser
+  // comparing a balance to a total and mounting (or not mounting) Stripe's
+  // element on the result, which is the last piece of money reasoning left in
+  // the browser and the one most expensive to get wrong. `payment_surface` is
+  // a field of the quote, derived from the amount Stripe is actually told
+  // (domain/payments/rules.ts), so it also sees the sliver held back below
+  // Stripe's minimum that the old comparison could not.
+  const cardNeeded = quote?.payment_surface !== 'credit'
 
   // The basket the order was built from is emptied SERVER-side - there is no
   // browser copy to clear (ruling 63). The purchase side does this in the use

@@ -26,7 +26,7 @@ export async function directionOf(
   return rows[0]?.direction ?? null;
 }
 
-// The direction of several orders at once (domain/transactions/compose.ts).
+// The direction of several orders at once.
 export async function directionsById(
   ids: string[], executor?: Executor
 ): Promise<Map<string, Direction>> {

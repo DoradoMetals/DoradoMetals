@@ -25,7 +25,7 @@ import {
   SalesOrderServiceUIOption,
 } from '@/features/orders/salesOrders/types'
 import { useSaleShippingServices } from '@/features/shipping/queries'
-import { usePaymentMethods } from '@/features/payments/queries'
+import { usePaymentMethods } from '@dorado/client'
 import type { Address, AdminUser, SalesOrderQuote, SpotPrice } from "@dorado/contracts";
 import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
 import { useAdminSalesOrderCheckoutStore } from '@/shared/store/adminSalesOrderCheckoutStore'
@@ -47,7 +47,7 @@ import { useSpotPrices } from '@/features/spots/queries'
 import { useCatalogQuote, useSalesOrderQuote } from '@/features/quotes/queries'
 import { useProducts } from '@/features/products/queries'
 import { useAdminCreateSalesOrder } from '@/features/orders/salesOrders/admin/queries'
-import { useRetrievePaymentIntent, useUpdatePaymentIntent } from '@/features/stripe/queries'
+import { usePaymentIntentSecret, useUpdatePaymentIntent } from '@dorado/client'
 import StripeWrapper from '@/features/stripe/ui/StripeWrapper'
 
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!)
@@ -554,7 +554,12 @@ function PaymentSelect(
   const { data, setData, items } = useAdminSalesOrderCheckoutStore()
   const createOrder = useAdminCreateSalesOrder()
   const updatePaymentIntent = useUpdatePaymentIntent()
-  const { data: clientSecret } = useRetrievePaymentIntent('admin', user.id!)
+  const { data: clientSecret } = usePaymentIntentSecret('admin', user.id!)
+  // IDS, NOT CODES (ruling 43). The hook moved to @dorado/client and takes the
+  // contract's own UpdatePaymentIntentBody; the code -> id resolution it used
+  // to do internally is these two lines, against rows this drawer already has.
+  const { data: saleServices = [] } = useSaleShippingServices()
+  const { data: saleMethods = [] } = usePaymentMethods('sale')
   const isOrderCreating =
     useMutationState({
       filters: {
@@ -587,11 +592,17 @@ function PaymentSelect(
   useEffect(() => {
     if (clientSecret && (orderPrices?.post_charges_amount ?? 0) > 0 && cardNeeded && !itemsMissing) {
       updatePaymentIntent.mutate({
-        items,
-        shipping_service: data.service?.value ?? 'STANDARD',
-        payment_method: data.payment_method ?? 'CARD',
+        items: items.flatMap((i) =>
+          i.bullion_id ? [{ id: i.bullion_id, quantity: i.quantity ?? 1 }] : []
+        ),
+        carrier_service_id: saleServices.find(
+          (s) => s.code === (data.service?.value ?? 'STANDARD')
+        )?.id,
+        payment_method_id: saleMethods.find(
+          (m) => m.type === (data.payment_method ?? 'CARD')
+        )?.id,
         type: 'admin',
-        address_id: address?.id ?? '',
+        address_id: address?.id || undefined,
         user_id: user.id!,
       })
     }

@@ -30,3 +30,21 @@ export const IntentAttempt = PaymentAttempt.pick({
 });
 export type IntentAttempt = z.infer<typeof IntentAttempt>;
 
+
+// A payments.attempts WRITE. The same patch serves create and update - the
+// two local shapes it replaced (`NewAttempt`, `AttemptPatch`) listed the same
+// columns twice, one file over from the entity that declares them.
+export const PaymentAttemptPatch = PaymentAttempt.pick({
+  id: true,
+  intent_id: true,
+  method_id: true,
+  provider: true,
+  provider_ref: true,
+  amount: true,
+  status: true,
+  error_code: true,
+  error_message: true,
+}).extend({
+  status: PaymentAttempt.shape.status.nullable(),
+}).partial();
+export type PaymentAttemptPatch = z.infer<typeof PaymentAttemptPatch>;

@@ -61,6 +61,26 @@ export const PaymentIntentView = PaymentIntent.pick({
 });
 export type PaymentIntentView = z.infer<typeof PaymentIntentView>;
 
+// A payments.intents WRITE - ids plus the facts, no audit or default columns.
+// `id` is the caller's to supply (ruling 43) and create.sql issues one if not.
+// The same patch serves create and update: NOT NULL columns and defaults are
+// the database's decision, so there is no separate New shape.
+export const PaymentIntentPatch = PaymentIntent.pick({
+  id: true,
+  session_id: true,
+  user_id: true,
+  type: true,
+  status: true,
+  amount_expected: true,
+  order_id: true,
+  details_id: true,
+  method_id: true,
+}).extend({
+  type: PaymentIntent.shape.type.nullable(),
+  status: PaymentIntent.shape.status.nullable(),
+}).partial();
+export type PaymentIntentPatch = z.infer<typeof PaymentIntentPatch>;
+
 // POST /payments/update_intent - the cart and the four ids that price it.
 export const PaymentIntentLine = Bullion.pick({ id: true })
   .extend({ quantity: z.number() })

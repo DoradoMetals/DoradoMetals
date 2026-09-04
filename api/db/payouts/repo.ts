@@ -14,32 +14,34 @@ import type { Executor } from "#shared/db/executor.ts";
 
 const sql = sqlFrom(import.meta.dirname);
 
-// account_last4 and routing_last4 only, never account_number or routing_number. `id` is the payments.details id, equal to the old payout id on any database built by migration 073.
-// THE CONTRACT OWNS THE SHAPE. This was a hand-written twelve-field copy of
-// what get_for.sql projects; `Payout` is the same projection derived from
-// payments.details, orders.transactions and payments.methods, so a column
-// that moves moves here too.
-export type PayoutRow = Payout;
+// account_last4 and routing_last4 only, never account_number or routing_number.
+// `id` is the payments.details id, equal to the old payout id on any database
+// built by migration 073.
+//
+// THE CONTRACT OWNS THE SHAPE, and it is used by its own name. This carried a
+// `PayoutRow = Payout` alias so callers could say "row" - a second name for
+// one type, which is the drift lint:type-homes exists to catch, spelled as an
+// alias so it never showed up as one.
 
 export async function getFor(
   order_id: string, executor?: Executor
-): Promise<PayoutRow | undefined> {
-  const { rows } = await query<PayoutRow>(sql("get_for"), [order_id], executor);
+): Promise<Payout | undefined> {
+  const { rows } = await query<Payout>(sql("get_for"), [order_id], executor);
   return rows[0];
 }
 
 export async function getMany(
   order_ids: string[], executor?: Executor
-): Promise<PayoutRow[]> {
+): Promise<Payout[]> {
   if (order_ids.length === 0) return [];
-  const { rows } = await query<PayoutRow>(sql("get_many"), [order_ids], executor);
+  const { rows } = await query<Payout>(sql("get_many"), [order_ids], executor);
   return rows;
 }
 
 // One payout by its own id - what PATCH /api/payouts/:id resolves before dispatching its order-keyed writes.
 export async function getById(
   id: string, executor?: Executor
-): Promise<PayoutRow | undefined> {
-  const { rows } = await query<PayoutRow>(sql("get_by_id"), [id], executor);
+): Promise<Payout | undefined> {
+  const { rows } = await query<Payout>(sql("get_by_id"), [id], executor);
   return rows[0];
 }

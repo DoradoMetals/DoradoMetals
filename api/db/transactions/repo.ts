@@ -2,15 +2,21 @@
 import { randomUUID } from "node:crypto";
 import query from "#shared/db/query.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
-import type { LedgerEntry, LedgerEntryPatch } from "@dorado/contracts";
+import type { AccountTransaction, LedgerEntry, LedgerEntryPatch } from "@dorado/contracts";
 import type { Executor } from "#shared/db/executor.ts";
 
 const sql = sqlFrom(import.meta.dirname);
 
 export type LedgerRow = LedgerEntry;
 
-export async function byUser(user_id: string, executor?: Executor): Promise<LedgerRow[]> {
-  const { rows } = await query<LedgerRow>(sql("by_user"), [user_id], executor);
+// THE HISTORY, ALREADY IN THE WIRE'S OWN NAMES. by_user.sql joins the order for
+// its direction and aliases `type` to `transaction_type`, so there is nothing
+// left to compose - domain/transactions/compose.ts, which did both in JS over a
+// second round trip, is deleted.
+export async function byUser(
+  user_id: string, executor?: Executor
+): Promise<AccountTransaction[]> {
+  const { rows } = await query<AccountTransaction>(sql("by_user"), [user_id], executor);
   return rows;
 }
 

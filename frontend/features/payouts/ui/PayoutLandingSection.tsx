@@ -1,7 +1,7 @@
 import { Link } from '@dorado/components'
 import NextLink from 'next/link'
 import { payoutMethodIcon, PayoutMethodType } from '@/features/payouts/types'
-import { usePaymentMethods } from '@/features/payments/queries'
+import { usePaymentMethods } from '@dorado/client'
 import { Button } from '@dorado/components'
 import { ArrowUpRightIcon } from '@phosphor-icons/react'
 import { useRouter } from 'next/navigation'

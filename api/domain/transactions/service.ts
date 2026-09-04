@@ -1,18 +1,20 @@
-// Transactions: the customer credit ledger. Reads and writes both go through payments.ledger.
+// Transactions: the customer credit ledger. Reads and writes both go through
+// payments.ledger, and the read arrives in the wire's own names (by_user.sql
+// joins the order for its direction), so there is no compose step.
 import * as ledger from "#db/transactions/repo.ts";
-import { toWire, type TransactionWire } from "#domain/transactions/compose.ts";
-import type { LedgerEntryPatch } from "@dorado/contracts";
+import type { AccountTransaction, LedgerEntryPatch } from "@dorado/contracts";
 import type { Executor } from "#shared/db/executor.ts";
 
-// One row, not the history — deliberately, though it's wrong. get_transactions is unlimited and ordered but both prior implementations ended in rows[0], so a customer with 11 ledger rows gets one. Pinned by replay.test.ts as a response SHAPE that must not move during a schema migration, even though nothing in the frontend currently calls this endpoint — a deliberate prior decision isn't this session's to reverse. Recorded for Jacob.
-// history() below already returns the full list, so fixing this is a one-line change when he decides.
-export async function getTransactionHistory(user_id: string): Promise<TransactionWire | undefined> {
-  return (await history(user_id))[0];
-}
-
-// The whole history, which is what get_transactions ought to return.
-export async function history(user_id: string): Promise<TransactionWire[]> {
-  return await toWire(await ledger.byUser(user_id));
+// THE WHOLE HISTORY, NEWEST FIRST.
+//
+// GET /transactions used to answer ONE ROW - `rows[0]` of an unlimited ordered
+// read - so a customer with eleven ledger entries was told about one of them.
+// It was documented as deliberate ("a response SHAPE that must not move during
+// a schema migration") and recorded for Jacob; ruling 44 retires that caution,
+// the endpoint has no frontend consumer to break, and a ledger that reports one
+// entry is not a ledger. It answers the list.
+export async function history(user_id: string): Promise<AccountTransaction[]> {
+  return await ledger.byUser(user_id);
 }
 
 // The refund FACT (D211): whether a Credit was ever logged against this

@@ -1,9 +1,7 @@
 // The pure decisions behind a credit adjustment: what the balance becomes, and
 // what the ledger calls the movement.
-import { Invalid } from "#shared/errors.ts";
-import type { UpdateCreditBody } from "@dorado/contracts";
-
-export type CreditOp = UpdateCreditBody["op"];
+import { Invalid, NotFound } from "#shared/errors.ts";
+import type { CreditOp } from "@dorado/contracts";
 
 // Mirrors the repo's SQL CASE so the floor below can be checked before the
 // write. Rounded to 6 places: NUMERIC is exact and JS floats are not, so a
@@ -32,4 +30,15 @@ export function movementBetween(before: number, after: number): CreditMovement |
   const delta = Number((after - before).toFixed(6));
   if (delta === 0) return null;
   return delta > 0 ? { type: "Credit", amount: delta } : { type: "Debit", amount: -delta };
+}
+
+// THE SUBJECT OF A CREDIT ADJUSTMENT HAS TO EXIST. Asked twice on purpose: of
+// the locked read that the floor check is made against, and of the write's own
+// answer, which closes the window between them. A credit nobody received must
+// never answer 200.
+export function assertCreditSubject<T>(user_id: string, row: T | undefined): T {
+  if (row === undefined) {
+    throw new NotFound(`no user ${user_id} - the credit adjustment was not applied to anybody`);
+  }
+  return row;
 }

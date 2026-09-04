@@ -21,6 +21,7 @@ import * as methodsRepo from "#db/payments/methods/repo.ts";
 import * as orderRead from "#domain/orders/read.ts";
 import * as orderSpotsService from "#domain/orders/spots/service.ts";
 import * as usersService from "#domain/users/service.ts";
+import { paymentSurface } from "#domain/payments/rules.ts";
 import { payoutFee, PAYOUT_METHOD_FEES } from "#domain/payouts/constants.ts";
 import {
   bandableContent, bidPrice, declaredContent, estimatedPayout,
@@ -167,6 +168,10 @@ export async function salesOrderQuote(
     charges_amount: prices.charges_amount,
     sales_tax: prices.sales_tax,
     order_total: prices.order_total,
+    // WHICH SURFACE THE CUSTOMER IS SHOWN, decided here rather than in the
+    // browser. The checkout used to compute `beginning_funds < base_total`
+    // itself and mount (or not mount) Stripe's element on the answer.
+    payment_surface: paymentSurface(prices.post_charges_amount),
     items: lines,
   };
 }

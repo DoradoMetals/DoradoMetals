@@ -26,14 +26,15 @@ import { User } from '@/features/users/types'
 import PriceNumberFlow from '../../../../shared/ui/PriceNumberFlow'
 import { CircleIcon } from '@phosphor-icons/react'
 import DoradoAccountForm from './doradoAccountForm'
-import { usePaymentMethods } from '@/features/payments/queries'
+import { usePaymentMethods } from '@dorado/client'
 
 export default function PayoutStep({ user }: { user?: User }) {
   const setPayout = usePayoutDraft((state) => state.setPayout)
 
-  // The method rows (D207). The old array lookups here keyed on LABEL
-  // ('ACH' against 'ACH Transfer'), so they never matched and every cost fell
-  // through to its ?? fallback; the rows are keyed by type, which does.
+  // The method rows (D207) - the accordion, the delay and the fee, all of them
+  // the server's. Each form used to seed a `cost` default off these rows with
+  // a hardcoded `?? 20` for WIRE; the fee is rendered from the row directly
+  // and the form never carried it anywhere, so the field is gone.
   const { data: payoutMethods = [] } = usePaymentMethods('purchase')
 
   const storeData = usePayoutDraft((state) => state.payout)
@@ -50,7 +51,6 @@ export default function PayoutStep({ user }: { user?: User }) {
       account_number: storeData?.method === 'ACH' ? storeData.account_number ?? '' : '',
       account_type: storeData?.method === 'ACH' ? storeData.account_type ?? 'Checking' : 'Checking',
       confirmation: storeData?.method === 'ACH' ? storeData.confirmation ?? false : false,
-      cost: Number(payoutMethods.find((option) => option.type === 'ACH')?.flat_fee ?? 0),
     },
   })
 
@@ -64,7 +64,6 @@ export default function PayoutStep({ user }: { user?: User }) {
       routing_number: storeData?.method === 'WIRE' ? storeData.routing_number ?? '' : '',
       account_number: storeData?.method === 'WIRE' ? storeData.account_number ?? '' : '',
       confirmation: storeData?.method === 'WIRE' ? storeData.confirmation ?? false : false,
-      cost: Number(payoutMethods.find((option) => option.type === 'WIRE')?.flat_fee ?? 20),
     },
   })
 
@@ -76,7 +75,6 @@ export default function PayoutStep({ user }: { user?: User }) {
       account_holder_name:
         storeData?.method === 'ECHECK' ? storeData.account_holder_name ?? '' : user?.name ?? '',
       payout_email: storeData?.method === 'ECHECK' ? storeData.payout_email ?? '' : user?.email ?? '',
-      cost: Number(payoutMethods.find((option) => option.type === 'ECHECK')?.flat_fee ?? 0),
     },
   })
 
@@ -89,7 +87,6 @@ export default function PayoutStep({ user }: { user?: User }) {
         storeData?.method === 'DORADO_ACCOUNT' ? storeData.account_holder_name ?? '' : user?.name ?? '',
       payout_email:
         storeData?.method === 'DORADO_ACCOUNT' ? storeData.payout_email ?? '' : user?.email ?? '',
-      cost: Number(payoutMethods.find((option) => option.type === 'DORADO_ACCOUNT')?.flat_fee ?? 0),
     },
   })
 

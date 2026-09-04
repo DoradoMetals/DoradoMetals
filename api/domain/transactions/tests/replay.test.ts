@@ -62,10 +62,13 @@ test("a body naming another customer does not return their ledger", async () => 
         !body.includes(victim.id),
         "the response carried the other customer's user_id - the ledger leaked"
       );
-      // NOT 'the response is empty' — the attacker has their own row, so the correct behavior is getting THEIRS; the first version asserted no row at all and failed against the fix, which was the assertion being wrong.
-      if (res.body && typeof res.body === "object") {
+      // NOT 'the response is empty' — the attacker has their own row, so the
+      // correct behavior is getting THEIRS; the first version asserted no row
+      // at all and failed against the fix, which was the assertion being wrong.
+      assert.ok(Array.isArray(res.body), "the ledger answers a list");
+      for (const row of res.body) {
         assert.equal(
-          res.body.user_id,
+          row.user_id,
           attacker.id,
           "the response belongs to someone other than the caller"
         );
@@ -99,26 +102,33 @@ test("a customer gets their own ledger without naming anyone", async () => {
     await as(victim, async () => {
       const res = await request(app).get("/api/transactions/get_transactions");
       assert.equal(res.status, 200);
-      assert.ok(res.body, "the owner got nothing back - the endpoint is inert, not fixed");
-      assert.equal(
-        res.body.user_id,
-        victim.id,
-        "the owner's own read did not return the owner's row"
+      assert.ok(
+        Array.isArray(res.body) && res.body.length > 0,
+        "the owner got nothing back - the endpoint is inert, not fixed"
       );
+      for (const row of res.body) {
+        assert.equal(
+          row.user_id,
+          victim.id,
+          "the owner's own read did not return the owner's rows"
+        );
+      }
     });
   }, { actor: TEST_ACTOR.id });
 });
 
-// Recorded, not fixed — the repo returns rows[0] despite the endpoint being called 'history', so a customer with 2 rows gets one. Wrong, written up in FOLLOWUPS, but a response SHAPE, and shapes don't move during a schema migration.
-test("the response is a single row, not a history", async () => {
+// FIXED, and this is the assertion the old one told you to update. It used to
+// pin `!Array.isArray(res.body)` under a comment calling the single row wrong
+// but frozen ("shapes don't move during a schema migration"); ruling 44 retired
+// that, so the endpoint answers the whole ledger and the victim's TWO rows are
+// what proves it. The fixture always builds two for exactly this test.
+test("the response is the whole history, not one row", async () => {
   await inPinnedTransaction(async (c: PoolClient) => {
     const { victim } = await aVictimAndAttacker(c);
     await as(victim, async () => {
       const res = await request(app).get("/api/transactions/get_transactions");
-      assert.ok(
-        !Array.isArray(res.body),
-        "it returns an array now - if that was deliberate, this is the assertion to update"
-      );
+      assert.ok(Array.isArray(res.body), "the ledger must answer a list");
+      assert.equal(res.body.length, 2, "a customer with two ledger rows got a different number");
     });
   }, { actor: TEST_ACTOR.id });
 });

@@ -17,7 +17,7 @@ import { isValidEmail } from '@/shared/utils/isValid'
 import { PlusIcon } from '@phosphor-icons/react'
 import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
 import AdminUsersDrawer from '@/features/users/ui/UsersDrawer'
-import { useAdminUsers } from '@/features/users/queries'
+import { useAdminUsers } from '@dorado/client'
 import { CreateSalesOrderDrawer } from '@/features/orders/salesOrders/admin/createSalesOrder/createSalesOrderDrawer'
 import { CreateConfig } from '@/shared/ui/table/CreateDialog'
 
