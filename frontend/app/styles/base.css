@@ -26,7 +26,8 @@
     line-height: var(--text-body--line-height);
     letter-spacing: var(--text-body--letter-spacing);
     font-weight: var(--text-body--font-weight);
-    @apply bg-background text-foreground;
+    @apply bg-background;
+    color: var(--text, var(--foreground));
   }
 
 }
