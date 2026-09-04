@@ -1,13 +1,13 @@
 'use client'
 
-import type { Address, CarrierHandoff, CheckoutRate, CheckoutView } from '@dorado/contracts'
+import type { CarrierHandoff, CheckoutRate, CheckoutView, FulfillmentView } from '@dorado/contracts'
 import type { UserAddress } from '@/features/addresses/types'
 import { Button, Divider } from '@dorado/components'
 import { Plus } from 'lucide-react'
 import { useMemo } from 'react'
 
 import { useCarrierPickupTimes } from '@dorado/client'
-import { usePatchCheckout } from '@/features/checkout/queries'
+import { useCreateFulfillment, usePatchFulfillment } from '@/features/checkout/queries'
 import { useDrawerStore } from '@/shared/store/drawerStore'
 import { useAddress, useUserAddresses } from '@/features/addresses/queries'
 
@@ -19,28 +19,46 @@ import PickupScheduler from '@/features/checkout/purchase-order-checkout/shippin
 import { AddressDrawer } from '@/features/addresses/ui/AddressDrawer'
 import { StoreLocationsMap } from '@/features/checkout/purchase-order-checkout/shippingStep/StoreLocations'
 
-// EVERY GATE HERE IS A COLUMN OF THE ROW, or the one join `row.missing` cannot
-// name. `row.package_id` still is; `handoff_code` and `requires_schedule` are
-// gone from the row (2026-09-04 shrink) - the caller resolves the row's
-// `fulfillment_method_id` against the fulfillment-method and carrier-handoff
-// lists (gates.ts `resolveHandoff`) and hands the result down as `handoff`.
-// `requires_schedule` is the server's answer to "does this handoff need a
-// date and a time", read off that handoff now rather than off the row.
+// EVERY GATE HERE IS A COLUMN OF THE PARCEL (rulings 69/70, migration 128).
+// The box, the service, where the parcel leaves from and the courier slot are
+// `fulfillment.parcel`'s columns, so every write on this step is a PATCH of the
+// draft fulfillment and the checkout row is not touched at all.
+//
+// `handoff` is resolved by the caller (gates.ts `resolveHandoff`) from the
+// draft's own method type; `requires_schedule` is the server's answer to "does
+// this handoff need a date and a time", read off that handoff.
 export default function ShippingStep({
   row,
+  fulfillment,
   rates,
   handoffs,
   handoff,
   isLoading,
 }: {
   row?: CheckoutView
+  fulfillment?: FulfillmentView
   rates: CheckoutRate[]
   handoffs: CarrierHandoff[]
   handoff: CarrierHandoff | null
   isLoading: boolean
 }) {
   const { openDrawer } = useDrawerStore()
-  const patchCheckout = usePatchCheckout('purchase')
+  const createFulfillment = useCreateFulfillment()
+  const patchFulfillment = usePatchFulfillment()
+
+  // The origin address is the parcel's, so writing it needs a draft. Until the
+  // customer has picked a handoff there is none, and the default one the server
+  // mints on the first POST carries their default address anyway.
+  const setOrigin = (address_id: string) => {
+    if (fulfillment) {
+      patchFulfillment.mutate({
+        fulfillment_id: fulfillment.fulfillment.id,
+        shipment: { shipper_address_id: address_id },
+      })
+    } else if (row) {
+      createFulfillment.mutate({ checkout_id: row.id })
+    }
+  }
 
   const { data: addresses = [] } = useAddress()
   const { data: links = [] } = useUserAddresses()
@@ -56,7 +74,7 @@ export default function ShippingStep({
     [addresses, linkOf]
   )
 
-  const address = addresses.find((a) => a.id === row?.shipper_address_id)
+  const address = addresses.find((a) => a.id === fulfillment?.parcel?.shipper_address_id)
   const selectedRate = rates.find((r) => r.selected)
 
   // The carrier needs a service family and an address to answer "when could we
@@ -76,9 +94,7 @@ export default function ShippingStep({
     <div className="space-y-6 w-full">
       <AddressDrawer
         onSuccess={(saved) => {
-          if (saved.address.is_valid) {
-            patchCheckout.mutate({ shipper_address_id: saved.address.id })
-          }
+          if (saved.address.is_valid) setOrigin(saved.address.id)
         }}
       />
 
@@ -103,9 +119,9 @@ export default function ShippingStep({
             <AddressSelect
               addresses={sortedAddresses}
               userAddresses={links}
-              value={row?.shipper_address_id ?? null}
+              value={fulfillment?.parcel?.shipper_address_id ?? null}
               onChange={(addr) => {
-                if (addr.is_valid) patchCheckout.mutate({ shipper_address_id: addr.id })
+                if (addr.is_valid) setOrigin(addr.id)
               }}
               onAddNew={() => openDrawer('address')}
             />
@@ -123,24 +139,28 @@ export default function ShippingStep({
 
       {address?.is_valid && (
         <>
-          <PackageSelector row={row} />
+          <PackageSelector fulfillment={fulfillment} />
           <Divider />
         </>
       )}
 
       {/* Handoff FIRST (only needs address + package) */}
-      {address?.is_valid && row?.package_id && (
+      {address?.is_valid && fulfillment?.parcel?.package_id && (
         <>
-          <PickupSelector handoffs={handoffs} selected={handoff?.code ?? null} />
+          <PickupSelector
+            handoffs={handoffs}
+            selected={handoff?.code ?? null}
+            checkout_id={row?.id}
+          />
           <Divider />
         </>
       )}
 
       {/* Service AFTER the handoff: the rates are the parcel's, and the parcel
           is only described once a box is chosen. */}
-      {address?.is_valid && row?.package_id && (
+      {address?.is_valid && fulfillment?.parcel?.package_id && (
         <>
-          <ServiceSelector rates={rates} isLoading={isLoading} />
+          <ServiceSelector rates={rates} isLoading={isLoading} fulfillment={fulfillment} />
           <Divider />
         </>
       )}
@@ -149,7 +169,7 @@ export default function ShippingStep({
         <div>
           {handoff.requires_schedule ? (
             times.length > 0 ? (
-              <PickupScheduler times={times} row={row} />
+              <PickupScheduler times={times} fulfillment={fulfillment} />
             ) : (
               <p className="py-4">No pickup times available.</p>
             )

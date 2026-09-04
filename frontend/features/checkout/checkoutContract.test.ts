@@ -3,20 +3,18 @@
 // This file used to pin `data?.address?.id` - the one field both checkout
 // screens dug out of an order response and posted back as `address_id`, and
 // the tightest coupling between the two halves of the codebase. That coupling
-// is gone: the surface reads `shipper_address_id` / `recipient_address_id` off
-// the checkout row and PATCHes an id into the same column.
+// is gone: the surface reads `recipient_address_id` off the checkout row, and
+// the parcel's own origin off the draft fulfillment, and PATCHes an id into
+// whichever owns it.
 //
-// CheckoutView SHRANK to `Checkout & { missing: CheckoutStep[] }`
-// (Jacob, 2026-09-04: "Why does it need ready_for_rates? Why does it need
-// ready_for_payment?") - `ready_for_rates`, `ready_for_payment`,
-// `ready_to_place`, `item_count`, `fulfillment_method_type` and `handoff_code`
-// are gone: the three readiness flags were readings of `missing` a component
-// can do itself now (frontend/features/checkout/gates.ts, pinned in its own
-// test file), and the handoff fields were a join the row's own
-// `fulfillment_method_id` already lets a caller make (gates.ts
-// `resolveHandoff`). What is worth pinning here now is just the shrunk shape.
+// THE ROW SHRANK AGAIN (rulings 69/70, migration 128): nine handover columns
+// left `checkout.checkouts` for the draft fulfillment's own detail row, so what
+// crosses the wire is four pointers, a direction and ONE list. That list is
+// COMPOSED - checkout's own four steps plus whatever the fulfillment says its
+// handover still owes - and both halves are closed enums, which is what this
+// file pins.
 import { describe, expect, test } from "vitest";
-import { CheckoutStep, CheckoutView } from "@dorado/contracts";
+import { CheckoutMissing, CheckoutView } from "@dorado/contracts";
 import { isPayoutComplete, toPayoutForm } from "@/features/checkout/purchase-order-checkout/payoutStep/payoutDraft";
 
 const serverRow = (over: Record<string, unknown> = {}) => ({
@@ -25,18 +23,15 @@ const serverRow = (over: Record<string, unknown> = {}) => ({
   direction: "purchase",
   payment_method_id: null,
   payment_details_id: null,
-  fulfillment_method_id: null,
-  appointment_location_id: null,
-  pickup_address_id: null,
-  shipper_address_id: null,
   recipient_address_id: null,
-  carrier_service_id: null,
-  package_id: null,
-  appointment_time: null,
   fulfillment_id: null,
-  pickup_date: null,
-  pickup_time: null,
-  missing: ["items", "shipper_address", "package", "carrier_service", "payout_account"],
+  missing: [
+    "items",
+    "shipper_address_id",
+    "package_id",
+    "carrier_service_id",
+    "payment_details_id",
+  ],
   ...over,
 });
 
@@ -46,14 +41,17 @@ describe("the composed checkout row", () => {
     expect(parsed.success).toBe(true);
   });
 
-  // `missing` is a closed enum, so a step the server invents cannot arrive as
-  // an unrendered string.
+  // `missing` is the union of two closed enums - the checkout's own steps and
+  // the fulfillment's - so a step the server invents cannot arrive as an
+  // unrendered string, and the composition is what makes both halves legal in
+  // one list.
   test("missing is a list of known steps, in the order the stepper walks", () => {
     const row = CheckoutView.parse(serverRow());
     for (const step of row.missing) {
-      expect(CheckoutStep.safeParse(step).success).toBe(true);
+      expect(CheckoutMissing.safeParse(step).success).toBe(true);
     }
     expect(row.missing[0]).toBe("items");
+    expect(row.missing).toContain("package_id");
   });
 
   test("a step the server does not know about is refused, not rendered", () => {

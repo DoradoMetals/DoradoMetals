@@ -1,16 +1,16 @@
 'use client'
 
 import { RadioGroup, RadioOption } from '@dorado/components'
-import { usePatchCheckout } from '@/features/checkout/queries'
+import { usePatchFulfillment } from '@/features/checkout/queries'
 import { formatTimeDiff } from '@/shared/utils/formatDates'
 import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
 import { serviceIcon } from '@/features/service/types'
-import type { CheckoutRate } from '@dorado/contracts'
+import type { CheckoutRate, FulfillmentView } from '@dorado/contracts'
 
-// ONE LIST, ALREADY JOINED. `GET /checkout/rates` answers one entry per
-// OFFERED service, carrying both the carrier's quote and the
-// `shipping.services` id the row stores - so the browser no longer holds two
-// lists and pairs them by `code`, and `selected` is the row's own answer to
+// ONE LIST, ALREADY JOINED. `GET /fulfillments/:id/rates` answers one entry
+// per OFFERED service, carrying both the carrier's quote and the
+// `shipping.services` id the PARCEL stores - so the browser no longer holds two
+// lists and pairs them by `code`, and `selected` is the parcel's own answer to
 // which one is chosen.
 //
 // NO ARITHMETIC ON A PRICE HERE, and there never was: netCharge is the
@@ -18,11 +18,13 @@ import type { CheckoutRate } from '@dorado/contracts'
 export function ServiceSelector({
   rates,
   isLoading,
+  fulfillment,
 }: {
   rates: CheckoutRate[]
   isLoading: boolean
+  fulfillment?: FulfillmentView
 }) {
-  const patchCheckout = usePatchCheckout('purchase')
+  const patchFulfillment = usePatchFulfillment()
   const selected = rates.find((rate) => rate.selected)
 
   return (
@@ -30,8 +32,11 @@ export function ServiceSelector({
       value={selected?.serviceType ?? ''}
       onValueChange={(code) => {
         const rate = rates.find((r) => r.serviceType === code)
-        if (rate?.carrier_service_id) {
-          patchCheckout.mutate({ carrier_service_id: rate.carrier_service_id })
+        if (rate?.carrier_service_id && fulfillment) {
+          patchFulfillment.mutate({
+            fulfillment_id: fulfillment.fulfillment.id,
+            shipment: { carrier_service_id: rate.carrier_service_id },
+          })
         }
       }}
       className="flex w-full flex-col gap-3"

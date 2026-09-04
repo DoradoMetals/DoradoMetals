@@ -28,7 +28,7 @@ import { fineContent } from "#domain/pricing/content.ts";
 import { Conflict, Invalid, NotFound } from "#shared/errors.ts";
 
 import type {
-  BullionStorefront, CheckoutStep, Direction, OrderActions, OrderItem, OrderItemPatch,
+  BullionStorefront, CheckoutMissing, Direction, OrderActions, OrderItem, OrderItemPatch,
   OrderLine, OrderTotals, OrderView, PaymentIntentFacts, PaymentMethod, PricedLine,
   SaleLine, TaxedSaleLine,
 } from "@dorado/contracts";
@@ -501,7 +501,7 @@ export function assertCheckout<T>(
 // stepper walks it, and it follows the chosen method's CATEGORY - so a pickup
 // is never refused for having no box. Placement states the refusal once
 // instead of re-listing five ids per direction.
-export function assertPlaceable(missing: CheckoutStep[]): void {
+export function assertPlaceable(missing: CheckoutMissing[]): void {
   if (missing.length > 0) {
     throw new Invalid(`the checkout is not complete - missing ${missing.join(", ")}`);
   }

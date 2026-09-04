@@ -20,6 +20,9 @@ export const Fulfillment = z.object({
 export type Fulfillment = z.infer<typeof Fulfillment>;
 // generated:end
 import { FulfillmentMethod } from "./methods.js";
+import { FulfillmentDirect } from "./directs.js";
+import { FulfillmentPickup } from "./pickups.js";
+import { Shipment } from "../shipping/shipments.js";
 
 // GET /orders/:orderId/fulfillments - THE BARE ROW, verbatim, and nothing
 // else (rulings 9 + 12). No method embed - methods are reference data the
@@ -54,3 +57,77 @@ export const FulfillmentCancelScheduleBody = z.object({
 }).strict();
 export type FulfillmentCancelScheduleBody = z.infer<typeof FulfillmentCancelScheduleBody>;
 
+
+
+// ------------------------------------------------- the handover, as a draft
+//
+// RULINGS 69/70 (Jacob, 2026-09-04). The customer's handover choices used to be
+// nine columns of `checkout.checkouts`; migration 128 moved them onto the
+// detail row of the draft fulfillment, which is where the same value already
+// lived once an order existed.
+
+// ONE STRICT PATCH PER CATEGORY, and the body carries exactly one of them.
+// The key names which detail row is being written; the service refuses a key
+// that is not the fulfillment's own category, so a caller cannot write a
+// pickup's address onto a parcel.
+
+export const FulfillmentShipmentChoices = Shipment.pick({
+  shipper_address_id: true,
+  recipient_address_id: true,
+  package_id: true,
+  carrier_service_id: true,
+  pickup_date: true,
+  pickup_time: true,
+}).partial().strict();
+export type FulfillmentShipmentChoices = z.infer<typeof FulfillmentShipmentChoices>;
+
+export const FulfillmentPickupChoices = FulfillmentPickup.pick({
+  pickup_address_id: true,
+  start_time: true,
+}).partial().strict();
+export type FulfillmentPickupChoices = z.infer<typeof FulfillmentPickupChoices>;
+
+export const FulfillmentDirectChoices = FulfillmentDirect.pick({
+  location_id: true,
+  start_time: true,
+}).partial().strict();
+export type FulfillmentDirectChoices = z.infer<typeof FulfillmentDirectChoices>;
+
+// PATCH /api/fulfillments/:id
+export const FulfillmentPatchBody = z.union([
+  z.object({ shipment: FulfillmentShipmentChoices }).strict(),
+  z.object({ pickup: FulfillmentPickupChoices }).strict(),
+  z.object({ direct: FulfillmentDirectChoices }).strict(),
+]);
+export type FulfillmentPatchBody = z.infer<typeof FulfillmentPatchBody>;
+
+// WHAT THE HANDOVER STILL OWES, and the ONLY list that answers it (ruling 70:
+// "The only thing that should be deciding if fulfillments is 'ready' is
+// fulfillments").
+//
+// COLUMN NAMES, not step labels, because each entry IS the column of the
+// detail row that is still null - `shipper_address_id` on the parcel,
+// `pickup_address_id` on the collection, `location_id` on the store visit.
+// A caller that renders a step reads the name; a caller that patches the row
+// sends that same name back.
+//
+// checkout.checkouts held every one of these until 128 and the checkout
+// service decided, by category, which were required. That decision is here now,
+// keyed off the fulfillment's OWN method and the carrier handoff's
+// `requires_schedule`, and `domain/checkout` never names one of these columns
+// again - `lint:domain-boundaries` fails the build if it does.
+export const FulfillmentStep = z.enum([
+  // SHIPMENT - the customer's parcel
+  "shipper_address_id",
+  "package_id",
+  "carrier_service_id",
+  "pickup_date",
+  "pickup_time",
+  // PICKUP - Dorado collects
+  "pickup_address_id",
+  // DIRECT - the customer visits
+  "location_id",
+  // both bookings
+  "start_time",
+]);
+export type FulfillmentStep = z.infer<typeof FulfillmentStep>;

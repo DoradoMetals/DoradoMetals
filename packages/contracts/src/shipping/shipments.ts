@@ -26,6 +26,8 @@ export const Shipment = z.object({
   "shipping_status": z.string().nullable(),
   "pickup_type": z.string().nullable(),
   "created_at": z.string().nullable(),
+  "pickup_date": z.string().nullable(),
+  "pickup_time": z.string().nullable(),
 });
 export type Shipment = z.infer<typeof Shipment>;
 // generated:end
@@ -70,13 +72,16 @@ export type ShipmentPatch = z.infer<typeof ShipmentPatch>;
 // above, which is the PATCH /shipments/:id BODY (a charge, an actual cost and
 // a hand-entered tracking pair, two of which live on other tables entirely).
 // db/shipping/shipments/repo.ts derives its PATCHABLE from these keys rather
-// than spelling a second list (ruling 64). `id` is the WHERE key; the two
-// address ids are written once at creation and never patched; `created_at` is
-// the trigger's.
+// than spelling a second list (ruling 64). `id` is the WHERE key and
+// `created_at` is the trigger's; everything else is writable.
+//
+// THE TWO ADDRESS IDS ARE PATCHABLE NOW (rulings 69/70, migration 128). They
+// used to be "written once at creation and never patched" because a parcel
+// only existed at placement, copied whole off a checkout row. The shell is
+// created when the customer picks a SHIPMENT, before they have chosen where it
+// leaves from, so `shipper_address_id` is one of the choices a PATCH sets.
 export const ShipmentPatchColumns = Shipment.omit({
   id: true,
-  recipient_address_id: true,
-  shipper_address_id: true,
   created_at: true,
 }).partial();
 export type ShipmentPatchColumns = z.infer<typeof ShipmentPatchColumns>;

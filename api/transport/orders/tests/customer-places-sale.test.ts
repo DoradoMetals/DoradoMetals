@@ -32,7 +32,7 @@ import { TEST_ACTOR } from "#shared/testing/actor.ts";
 import { inPinnedTransaction } from "#shared/testing/pinned-pool.ts";
 import { LOCKS } from "#shared/testing/locks.ts";
 import {
-  aProduct, aUser, aVisitor, anAddress, paymentMethodId, saleServiceId,
+  aHandover, aProduct, aUser, aVisitor, anAddress, paymentMethodId, saleServiceId,
 } from "#shared/testing/builders/index.ts";
 
 await mockSessions();
@@ -68,11 +68,18 @@ async function aReadySaleCheckout(
     request(app).patch("/api/checkout").send({
       direction: "sale",
       recipient_address_id: address.id,
-      carrier_service_id,
       payment_method_id,
     })
   );
   assert.equal(patched.status, 200, patched.text);
+  // THE DELIVERY SERVICE IS THE PARCEL'S (rulings 69/70, migration 128), and a
+  // sale needs a draft fulfillment like any other checkout - placement attaches
+  // one rather than minting it.
+  await aHandover(c, patched.body.id, {
+    direction: "sale",
+    method: "DROPSHIP",
+    choices: { shipment: { carrier_service_id } },
+  });
   return patched.body.id as string;
 }
 

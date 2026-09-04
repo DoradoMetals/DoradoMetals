@@ -1,7 +1,7 @@
 'use client'
 
 import { Button, Divider, EmptyState } from '@dorado/components'
-import { useState, useTransition } from 'react'
+import { useEffect, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { loadStripe } from '@stripe/stripe-js'
 import { ShoppingCartIcon } from '@phosphor-icons/react'
@@ -14,7 +14,12 @@ import PaymentSelect from '@/features/checkout/sales-order-checkout/payment/paym
 import StripeWrapper from '@/features/stripe/ui/StripeWrapper'
 import OrderSummary from '@/features/checkout/sales-order-checkout/summary/orderSummary'
 import { useAddress } from '@/features/addresses/queries'
-import { useSaleCheckoutRow, usePlaceOrderFromCheckout } from '@/features/checkout/queries'
+import {
+  useCreateFulfillment,
+  useFulfillment,
+  useSaleCheckoutRow,
+  usePlaceOrderFromCheckout,
+} from '@/features/checkout/queries'
 import { useSaleQuoteFor } from '@/features/checkout/sales-order-checkout/saleQuote'
 import { readyForPayment, readyToPlace } from '@/features/checkout/gates'
 
@@ -40,7 +45,19 @@ export default function SalesOrderCheckout() {
   const { data: row } = useSaleCheckoutRow()
   const { data: addresses = [], isPending: isAddressesPending } = useAddress()
   const { data: clientSecret } = usePaymentIntentSecret('sales_order_checkout')
-  const quote = useSaleQuoteFor(row, items)
+  // EVERY CHECKOUT NEEDS A DRAFT FULFILLMENT to be placeable (rulings 69/70) -
+  // the buy side has no handover step, so it asks for the direction's default
+  // the moment the row says it has none, and never asks twice.
+  const { data: fulfillment } = useFulfillment(row?.fulfillment_id)
+  const createFulfillment = useCreateFulfillment()
+  const needsDraft = !!row && row.missing.includes('fulfillment_id')
+  useEffect(() => {
+    if (needsDraft && !createFulfillment.isPending) {
+      createFulfillment.mutate({ checkout_id: row!.id })
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [needsDraft, row?.id])
+  const quote = useSaleQuoteFor(row, items, fulfillment)
   const placeOrder = usePlaceOrderFromCheckout('sale')
 
   const address = addresses.find((a) => a.id === row?.recipient_address_id)
@@ -92,7 +109,12 @@ export default function SalesOrderCheckout() {
       {!isAddressesPending && (
         <div className="flex flex-col lg:flex-row items-center lg:items-start w-full lg:max-w-7xl justify-between gap-6">
           <div className="flex flex-col gap-6 w-full">
-            <ShippingSelect addresses={addresses} row={row} orderPrices={quote} />
+            <ShippingSelect
+              addresses={addresses}
+              row={row}
+              fulfillment={fulfillment}
+              orderPrices={quote}
+            />
             <Divider />
             <PaymentSelect orderPrices={quote} />
             {clientSecret && address && cardNeeded && (
@@ -114,9 +136,9 @@ export default function SalesOrderCheckout() {
             {!cardNeeded ? (
               <Button
                 className="w-full"
-                // `missing` is the row's own answer: an address, a service and
-                // a payment method, all landed - `readyToPlace` is that list
-                // empty.
+                // `missing` is the composed answer (rulings 69/70): the
+                // checkout's own steps plus whatever the draft fulfillment
+                // still owes - `readyToPlace` is that list empty.
                 disabled={
                   placeOrder.isPending ||
                   isLoading ||

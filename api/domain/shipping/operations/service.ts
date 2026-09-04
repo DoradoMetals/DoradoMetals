@@ -10,6 +10,7 @@ import * as servicesRepo from "#db/shipping/services/repo.ts";
 import * as addressesRepo from "#db/places/addresses/repo.ts";
 import * as packagesRepo from "#db/shipping/packages/repo.ts";
 import * as checkoutService from "#domain/checkout/service.ts";
+import * as fulfillmentService from "#domain/fulfillments/service.ts";
 import * as carrierServices from "#domain/shipping/services/service.ts";
 import * as shippingRules from "#domain/shipping/rules.ts";
 import * as shippingHandler from "#domain/shipping/operations/handler.ts";
@@ -158,39 +159,48 @@ export async function quoteRate({
   });
 }
 
-// GET /checkout/rates?direction= replaced the old body-fed rate endpoint
-// (Jacob, 2026-09-03: "all the stuff that feeds into it can live directly on
-// the server"). The client sends only its direction; everything else -
-// address, package, weight, declared value - is read off the caller's own
-// checkout row and items. Nobody has picked a service yet, which is the whole
-// point of the call, so this asks the carrier about every one it offers.
-export async function getCheckoutRates(
-  user_id: string, direction: Direction
-): Promise<CheckoutRate[]> {
-  const checkout = await checkoutService.getRowFor(user_id, direction);
+// GET /api/fulfillments/:id/rates - THE PARCEL'S OWN RATES (rulings 69/70).
+//
+// It was GET /checkout/rates?direction=, reading the address, the box and the
+// chosen service off the checkout row. Those are the PARCEL's columns now
+// (migration 128), so fulfillments owns the parcel facts and shipping does what
+// it always did: ask the carrier and join the answer to the catalogue. The
+// basket is still the checkout's - it is what the parcel weighs and what it is
+// insured for - and it is reached through the checkout that points at this
+// draft, never through a column of it.
+//
+// Nobody has picked a service yet, which is the whole point of the call, so
+// this asks the carrier about every one it offers.
+export async function getFulfillmentRates(fulfillment_id: string): Promise<CheckoutRate[]> {
+  const view = await fulfillmentService.getById(fulfillment_id);
+  shippingRules.assertRatableFulfillment(view, fulfillment_id);
+  const parcel = view.parcel;
+  shippingRules.assertRatableParcel(parcel, fulfillment_id);
+
+  const checkout = await checkoutService.ownerOfFulfillment(fulfillment_id);
+  shippingRules.assertRatableCheckout(checkout, fulfillment_id);
   const cart = await checkoutService.getItemsForOrder(checkout.id);
   shippingRules.assertRatableCart(cart.length);
 
-  shippingRules.assertPackageChosen(checkout.package_id);
-  const box = await packagesRepo.getOne(checkout.package_id);
-  shippingRules.assertPackage(box, checkout.package_id);
+  shippingRules.assertPackageChosen(parcel.package_id);
+  const box = await packagesRepo.getOne(parcel.package_id);
+  shippingRules.assertPackage(box, parcel.package_id);
   const weight = shippingRules.parcelWeightLb(cart, box);
 
-  const shippingType = direction === "purchase" ? "Inbound" : "Outbound";
-  const address_id =
-    direction === "purchase" ? checkout.shipper_address_id : checkout.recipient_address_id;
+  const inbound = parcel.direction === "Inbound";
+  const address_id = inbound ? parcel.shipper_address_id : parcel.recipient_address_id;
   shippingRules.assertAddressChosen(address_id);
   const address = await requireAddress(address_id);
 
   // Service-agnostic clamp - the same lowest-ceiling answer
   // quotes/service.ts's purchaseOrderQuote applies before a service exists.
-  const total = direction === "purchase" ? await checkoutService.purchaseTotal(checkout.id) : 0;
+  const total = inbound ? await checkoutService.purchaseTotal(checkout.id) : 0;
   const declaredValue = await carrierServices.clampInsuredValue(
     shippingRules.declaredValue(total)
   );
 
   const quoted = await quoteRate({
-    shippingType,
+    shippingType: inbound ? "Inbound" : "Outbound",
     address,
     pkg: {
       weight: { units: "LB", value: weight },
@@ -207,7 +217,7 @@ export async function getCheckoutRates(
   // client-side join in the stepper's ServiceSelector - it is the server's,
   // and it is what lets a selector render a list and send back one id.
   return shippingRules.offeredRates(
-    quoted, await carrierServices.getOfferedServices(null), checkout.carrier_service_id
+    quoted, await carrierServices.getOfferedServices(null), parcel.carrier_service_id
   );
 }
 

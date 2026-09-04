@@ -43,7 +43,7 @@ import { LOCKS } from "#shared/testing/locks.ts";
 import { withCassette } from "#shared/testing/cassettes.ts";
 import * as place from "#domain/orders/place.ts";
 import {
-  aUser, anAdmin, anAddress, aProduct, saleServiceId, paymentMethodId,
+  aHandover, aUser, anAdmin, anAddress, aProduct, saleServiceId, paymentMethodId,
 } from "#shared/testing/builders/index.ts";
 
 await mockSessions();
@@ -93,12 +93,18 @@ test("basket, row, a real intent and placement agree on one sales order", async 
       request(app).patch("/api/checkout").send({
         direction: "sale",
         recipient_address_id: address.id,
-        carrier_service_id: service,
         payment_method_id: method,
       })
     );
     assert.equal(patched.status, 200, patched.text);
     const checkout_id: string = patched.body.id;
+    // THE DELIVERY SERVICE IS THE PARCEL'S (rulings 69/70, migration 128), and
+    // a sale needs a draft fulfillment like any other checkout.
+    await aHandover(c, checkout_id, {
+      direction: "sale",
+      method: "DROPSHIP",
+      choices: { shipment: { carrier_service_id: service } },
+    });
 
     const intent = await withCassette("stripe/create-payment-intent.json", () =>
       as(customer, () =>

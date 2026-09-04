@@ -2,12 +2,11 @@
 //
 // Every mutation answers the row the server now holds, and writes it straight
 // into the cache - so a step re-renders from the SERVER's answer rather than
-// from a local copy the browser guessed at. `missing` is the one derived
-// field CheckoutView carries (domain/checkout/rules.ts); `ready_for_rates`,
-// `ready_for_payment` and `ready_to_place` were three readings of it and are
-// gone (2026-09-04 shrink) - a caller reads `missing` itself
-// (frontend/features/checkout/gates.ts for the stepper's buttons; this file's
-// own `useCheckoutRates` below for its query gate).
+// from a local copy the browser guessed at. `missing` is the one derived field
+// CheckoutView carries, and it is COMPOSED (rulings 69/70): the checkout's own
+// four steps plus whatever the draft fulfillment says its handover still owes.
+// A caller reads that one list (frontend/features/checkout/gates.ts for the
+// stepper's buttons).
 import {
   useMutation,
   useQuery,
@@ -22,7 +21,6 @@ import type {
   CheckoutItemPatch,
   CheckoutPatch,
   CheckoutPayoutForm,
-  CheckoutRate,
   CheckoutView,
   Direction,
   PurchaseOrderQuote,
@@ -78,23 +76,6 @@ export function usePatchCheckout(
         "PATCH", "/checkout",
         { direction, ...patch },
         subject?.user_id ? { user_id: subject.user_id } : undefined
-      );
-    },
-    onSuccess: (row) => client.setQueryData(keys.checkout.row(direction), row),
-  });
-}
-
-// The draft fulfillment's own write: the stepper picks a carrier HANDOFF and
-// the server owns the fulfillment-method vocabulary behind it.
-export function useSetCheckoutFulfillment(
-  direction: Direction
-): UseMutationResult<CheckoutView, Error, { method_id?: string; handoff_code?: string }> {
-  const client = useQueryClient();
-  return useMutation({
-    mutationFn: async (choice: { method_id?: string; handoff_code?: string }) => {
-      await ensureSession();
-      return await apiRequest<CheckoutView>(
-        "POST", "/checkout/fulfillment", { direction, ...choice }
       );
     },
     onSuccess: (row) => client.setQueryData(keys.checkout.row(direction), row),
@@ -189,36 +170,15 @@ export function useClearCheckoutItems(
 }
 
 // ---------------------------------------------------------------- the rates
-
-// GET /checkout/rates: the address, the box, the weight and the declared value
-// are read off the caller's own row server-side, and the answer arrives
-// already joined to the service catalogue - one entry per offered service,
-// `carrier_service_id` being the id a PATCH sends back.
 //
-// GATED ON THE ROW, not on a local pick: the server refuses until the cart,
-// the package and the address are actually stored, which only a landed PATCH
-// does. Mirrors `readyForRates` in frontend/features/checkout/gates.ts and the
-// three refusals GET /checkout/rates raises server-side (getCheckoutRates) -
-// duplicated rather than imported because this package sits below the
-// frontend feature, never above it.
-export function useCheckoutRates(
-  direction: Direction, row: CheckoutView | undefined
-): UseQueryResult<CheckoutRate[], Error> {
-  const address_id = direction === "purchase" ? row?.shipper_address_id : row?.recipient_address_id;
-  const missing = row?.missing ?? [];
-  const ready = !!row
-    && !missing.includes("items")
-    && !missing.includes("package")
-    && !missing.includes("shipper_address")
-    && !missing.includes("recipient_address");
-  return useQuery({
-    queryKey: keys.checkout.rates(direction, address_id, row?.package_id),
-    enabled: ready,
-    staleTime: 5 * 60 * 1000,
-    retry: false,
-    queryFn: () => apiRequest<CheckoutRate[]>("GET", "/checkout/rates", undefined, { direction }),
-  });
-}
+// GONE, with the parcel facts they were quoted from (rulings 69/70, migration
+// 128). `useCheckoutRates` read the address, the box and the chosen service off
+// the checkout row; those are the draft fulfillment's columns now, so the hook
+// is `useFulfillmentRates` in ../fulfillments/queries.ts and it takes the
+// FulfillmentView rather than the checkout one.
+//
+// `useSetCheckoutFulfillment` went the same way: POST /api/checkout/fulfillment
+// is POST /api/fulfillments, and the hook is `useCreateFulfillment`.
 
 // --------------------------------------------------------------- the quotes
 

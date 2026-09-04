@@ -25,6 +25,7 @@ const inPinned = <T,>(fn: (c: import("pg").PoolClient) => Promise<T> | T): Promi
   inPinnedTransaction(fn, { actor: TEST_ACTOR.id, lock: [LOCKS.USERS, LOCKS.ORDERS] });
 
 import { inPinnedTransaction } from "#shared/testing/pinned-pool.ts";
+import { aHandover } from "#shared/testing/builders/index.ts";
 import { mockSessions, restoreSessions, as } from "#shared/testing/session.ts";
 import * as ordersRepo from "#db/orders/repo.ts";
 import * as place from "#domain/orders/place.ts";
@@ -203,13 +204,23 @@ async function primeSaleCheckout(c: PoolClient, f: Fixtures): Promise<string> {
   await query(
     `UPDATE checkout.checkouts SET
        recipient_address_id = $2,
-       carrier_service_id = (SELECT id FROM shipping.services
-                              WHERE carrier_id IS NULL AND code = 'STANDARD' LIMIT 1),
        payment_method_id  = (SELECT id FROM payments.methods
                               WHERE direction = 'sale' AND type = 'CARD' LIMIT 1)
      WHERE id = $1`,
     [co!.id, f.address_id], c
   );
+  // THE DELIVERY SERVICE IS THE PARCEL'S (rulings 69/70, migration 128): the
+  // sale's draft fulfillment holds it, and placement reads it back through
+  // domain/shipping rather than off the checkout row.
+  const { rows: [svc] } = await query<{ id: string }>(
+    `SELECT id FROM shipping.services WHERE carrier_id IS NULL AND code = 'STANDARD' LIMIT 1`,
+    [], c
+  );
+  await aHandover(c, co!.id, {
+    direction: "sale",
+    method: "DROPSHIP",
+    choices: { shipment: { carrier_service_id: svc!.id } },
+  });
   // THE BALANCE IS PART OF THE PRICE NOW. Credit is applied whenever the
   // customer has any (D214 item 11), so a fixture that does not say what the
   // balance is prices differently from `pricedCents` below. Zeroed here; the

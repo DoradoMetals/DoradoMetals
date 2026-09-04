@@ -271,10 +271,10 @@ test("a complete checkout places, and a short one names every step it owes", () 
   assert.doesNotThrow(() => rules.assertPlaceable([]));
 
   assert.throws(
-    () => rules.assertPlaceable(["package", "payout_account"]),
+    () => rules.assertPlaceable(["package_id", "payment_details_id"]),
     (err: unknown) =>
       err instanceof Invalid &&
-      /missing package, payout_account/.test((err as Error).message)
+      /missing package_id, payment_details_id/.test((err as Error).message)
   );
   // A checkout with nothing in it is refused by the same one line, in either
   // direction: `items` is the first entry of the list the checkout answers.

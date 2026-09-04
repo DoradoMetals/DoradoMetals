@@ -94,11 +94,27 @@ async function primeCheckout(
      VALUES ($1, 'Row Flow Test', '6789') RETURNING id`,
     [customer]
   );
+  // THE CHOICES ARE THE DRAFT'S NOW (rulings 69/70, migration 128): a draft is
+  // born with its parcel shell and the stepper patches the box, the service and
+  // the origin address onto that, never onto the checkout row.
   const draft = withFulfillment
     ? await fulfillmentService.createDraft(
         { method_id: dropoffMethodId, direction: "purchase" }, c
       )
     : null;
+  if (draft) {
+    await fulfillmentService.patchChoices(
+      draft.fulfillment.id,
+      {
+        shipment: {
+          shipper_address_id: addressId,
+          package_id: packageId,
+          carrier_service_id: labelServiceId,
+        },
+      },
+      c
+    );
+  }
 
   const { rows: [co] } = await c.query(
     `INSERT INTO checkout.checkouts (user_id, direction) VALUES ($1, 'purchase')
@@ -107,11 +123,9 @@ async function primeCheckout(
     [customer]
   );
   await c.query(
-    `UPDATE checkout.checkouts SET
-       fulfillment_id = $2, fulfillment_method_id = $3, shipper_address_id = $4,
-       package_id = $5, carrier_service_id = $6, payment_details_id = $7
+    `UPDATE checkout.checkouts SET fulfillment_id = $2, payment_details_id = $3
      WHERE id = $1`,
-    [co.id, draft?.fulfillment.id ?? null, dropoffMethodId, addressId, packageId, labelServiceId, details.id]
+    [co.id, draft?.fulfillment.id ?? null, details.id]
   );
 
   await c.query(`DELETE FROM checkout.items WHERE checkout_id = $1`, [co.id]);
@@ -282,13 +296,14 @@ test("spots are frozen per metal the order actually contains", async () => {
   });
 });
 
-// THE PARCEL IS A SHELL, and every carrier column on it is COPIED from the
-// checkout row by db/shipping/shipments/sql/create_from_checkout.sql (ruling
-// 66). The label columns are what the carrier has not been asked for yet:
+// THE PARCEL IS THE DRAFT'S OWN ROW (rulings 69/70, migration 128), already
+// holding the box, the service and the origin the customer chose; what
+// placement adds is what only an order can decide - the handoff and the insured
+// amount. The label columns are what the carrier has not been asked for yet:
 // buying one is domain/shipping/labels.ts' job, AFTER this commit (ruling 67),
 // so a stubbed placement leaves them null by design - which is exactly what
 // makes the retry surface a real one.
-test("the parcel is committed as a shell holding what the checkout chose", async () => {
+test("the parcel is sealed at placement holding what the customer chose", async () => {
   await inPinned(async (c: PoolClient) => {
     await aWorld(c);
     const world = carrierAnswers();

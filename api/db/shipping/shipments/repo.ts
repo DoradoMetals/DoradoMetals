@@ -1,6 +1,5 @@
 // shipping.shipments: no order link here - a fulfillment knows the order; compose.ts puts it back.
 // carrier_service_id/package_id are projected for compose.ts to resolve, then dropped again.
-import { randomUUID } from "node:crypto";
 import query from "#shared/db/query.ts";
 import { buildUpdate } from "#shared/db/patch.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
@@ -62,26 +61,6 @@ export async function getMany(
   if (ids.length === 0) return [];
   const { rows } = await query<OrderViewShipment>(sql("get_many"), [ids], executor);
   return rows;
-}
-
-// THE SHELL A PURCHASE PLACEMENT COMMITS, copied from the checkout row by the
-// statement (ruling 66) - see sql/create_from_checkout.sql.
-export async function createForCheckout(
-  { checkout_id, direction, pickup_type, insured, declared_value }: {
-    checkout_id: string;
-    direction: ShipmentDirection;
-    pickup_type: string | null;
-    insured: boolean;
-    declared_value: number | null;
-  },
-  executor?: Executor
-): Promise<string> {
-  const { rows } = await query<{ id: string }>(
-    sql("create_from_checkout"),
-    [randomUUID(), direction, pickup_type, insured, declared_value, checkout_id],
-    executor
-  );
-  return rows[0].id;
 }
 
 // A shipment exists before its label is bought, so only id and direction are

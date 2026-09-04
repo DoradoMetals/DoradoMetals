@@ -18,9 +18,10 @@ import { readyForPayment, resolveHandoff } from '@/features/checkout/gates'
 
 import { useGetSession } from '@/features/auth/queries'
 import { useBasket } from '@/features/checkout/items/queries'
-import { useCarrierHandoffs, useFulfillmentMethods } from '@dorado/client'
+import { useCarrierHandoffs } from '@dorado/client'
 import {
-  useCheckoutRates,
+  useFulfillment,
+  useFulfillmentRates,
   usePurchaseCheckoutRow,
   useSaveCheckoutPayout,
 } from '@/features/checkout/queries'
@@ -31,7 +32,8 @@ import {
 //   - the default-address effect. `GET /checkout` sets the customer's default
 //     shipping address on a row that has none, so the row arrives with it.
 //   - the `isShippingStepComplete` expression over five store fields.
-//     `row.missing` names whichever step is still outstanding, and
+//     `row.missing` names whichever step is still outstanding - composed from
+//     the checkout's own list and the draft fulfillment's (rulings 69/70) - and
 //     `readyForPayment(row.missing)` (frontend/features/checkout/gates.ts) is
 //     that same rule read off the list.
 //   - the rate-refresh effect that copied a moved netCharge back into a store.
@@ -56,14 +58,16 @@ export default function CheckoutStepper() {
   const { user } = useGetSession()
 
   const { data: row } = usePurchaseCheckoutRow()
-  const { data: rates = [], isLoading: ratesLoading } = useCheckoutRates('purchase', row)
+  // THE DRAFT FULFILLMENT IS THE SHIPPING STEP'S SUBJECT (rulings 69/70): the
+  // row names it, and every handover choice is a column of ITS detail row.
+  const { data: fulfillment } = useFulfillment(row?.fulfillment_id)
+  const { data: rates = [], isLoading: ratesLoading } = useFulfillmentRates(fulfillment)
   const { data: handoffs = [] } = useCarrierHandoffs()
-  const { data: methods = [] } = useFulfillmentMethods('purchase')
-  // The one place the carrier's vocabulary and the row's `fulfillment_method_id`
+  // The one place the carrier's vocabulary and the draft's own method type
   // meet - resolved once here and handed down, rather than in each selector.
   const handoff = useMemo(
-    () => resolveHandoff(methods, handoffs, row?.fulfillment_method_id),
-    [methods, handoffs, row?.fulfillment_method_id]
+    () => resolveHandoff(handoffs, fulfillment?.method.type),
+    [handoffs, fulfillment?.method.type]
   )
   const items = useBasket('purchase')
 
@@ -138,6 +142,7 @@ export default function CheckoutStepper() {
             shipping: () => (
               <ShippingStep
                 row={row}
+                fulfillment={fulfillment}
                 rates={rates}
                 handoffs={handoffs}
                 handoff={handoff}
@@ -145,7 +150,14 @@ export default function CheckoutStepper() {
               />
             ),
             payout: () => <PayoutStep user={user} />,
-            review: () => <ReviewStep row={row} rates={rates} handoff={handoff} />,
+            review: () => (
+              <ReviewStep
+                row={row}
+                fulfillment={fulfillment}
+                rates={rates}
+                handoff={handoff}
+              />
+            ),
           })}
 
           {payoutError && <p className="text-destructive mt-2">{payoutError}</p>}

@@ -8,7 +8,7 @@ import { z } from "zod/v4";
 export const FulfillmentDirect = z.object({
   "id": z.string().uuid(),
   "fulfillment_id": z.string().uuid(),
-  "location_id": z.string().uuid(),
+  "location_id": z.string().uuid().nullable(),
   "assigned_employee_id": z.string().uuid().nullable(),
   "is_appointment": z.boolean(),
   "start_time": z.string().nullable(),

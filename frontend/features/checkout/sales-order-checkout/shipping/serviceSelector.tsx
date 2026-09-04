@@ -3,32 +3,33 @@
 import { useMemo } from 'react'
 import { RadioGroup, RadioOption } from '@dorado/components'
 import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
-import { usePatchCheckout } from '@/features/checkout/queries'
+import { usePatchFulfillment } from '@/features/checkout/queries'
 import { saleServiceToOption } from '@/features/orders/salesOrders/types'
 import { useSaleShippingServices } from '@dorado/client'
-import type { CheckoutView, SalesOrderQuote } from '@dorado/contracts'
+import type { FulfillmentView, SalesOrderQuote } from '@dorado/contracts'
 import { DetailRow } from '@/shared/ui/DetailRow'
 
-// THE SELECTION IS THE ROW'S `carrier_service_id`, so the "heal the store's
-// seed" effect is gone with the seed: the store used to default to a static
-// Standard service and then an effect copied the live row's numbers over it
-// once the catalogue loaded. There is nothing to heal - the row holds an id or
-// it holds null, and the catalogue supplies the label and the price beside it.
+// THE SELECTION IS THE PARCEL'S `carrier_service_id` (rulings 69/70, migration
+// 128), so the "heal the store's seed" effect is gone with the seed: the store
+// used to default to a static Standard service and then an effect copied the
+// live row's numbers over it once the catalogue loaded. There is nothing to
+// heal - the parcel holds an id or it holds null, and the catalogue supplies
+// the label and the price beside it.
 export default function ServiceSelector({
-  row,
+  fulfillment,
   orderPrices,
 }: {
-  row?: CheckoutView
+  fulfillment?: FulfillmentView
   orderPrices?: SalesOrderQuote
 }) {
-  const patchCheckout = usePatchCheckout('sale')
+  const patchFulfillment = usePatchFulfillment()
   const { data: services = [] } = useSaleShippingServices()
 
   const options = useMemo(
     () => services.filter((svc) => svc.display && svc.code),
     [services]
   )
-  const selected = options.find((svc) => svc.id === row?.carrier_service_id)
+  const selected = options.find((svc) => svc.id === fulfillment?.parcel?.carrier_service_id)
 
   return (
     <div className="space-y-2">
@@ -38,7 +39,12 @@ export default function ServiceSelector({
         value={selected?.code ?? ''}
         onValueChange={(code) => {
           const svc = options.find((s) => s.code === code)
-          if (svc?.id) patchCheckout.mutate({ carrier_service_id: svc.id })
+          if (svc?.id && fulfillment) {
+            patchFulfillment.mutate({
+              fulfillment_id: fulfillment.fulfillment.id,
+              shipment: { carrier_service_id: svc.id },
+            })
+          }
         }}
         className="flex w-full flex-col gap-3"
       >

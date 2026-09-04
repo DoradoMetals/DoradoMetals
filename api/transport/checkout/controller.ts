@@ -1,5 +1,5 @@
 // HTTP in, HTTP out. Bodies are parsed strictly against the contract.
-import { CheckoutFulfillmentBody, CheckoutItemsBody, CheckoutPatch, CheckoutPatchBody, CheckoutPayoutBody, CheckoutPayoutForm, Direction } from "@dorado/contracts";
+import { CheckoutItemsBody, CheckoutPatch, CheckoutPatchBody, CheckoutPayoutBody, CheckoutPayoutForm, Direction } from "@dorado/contracts";
 import type { Request } from "express";
 import { callerId } from "#shared/http/caller.ts";
 import { oneString } from "#shared/http/query.ts";
@@ -63,18 +63,6 @@ export const patchCheckout = asyncHandler(async (req, res) => {
   return res.status(200).json(
     await cartService.patchCheckout(subject, body.direction, patch)
   );
-});
-
-// POST /api/checkout/fulfillment - ensure the draft fulfillment and set its
-// method; the row keeps the draft's id.
-export const setCheckoutFulfillment = asyncHandler(async (req, res) => {
-  const body = parseStrict(
-    CheckoutFulfillmentBody, req.body, "checkout/fulfillment body"
-  );
-  const result = await cartService.setFulfillmentMethod(
-    callerId(req), body.direction, body.method_id, body.handoff_code
-  );
-  return res.status(200).json(result);
 });
 
 // POST /api/checkout/payout - the payout step's write (D210). The numbers are

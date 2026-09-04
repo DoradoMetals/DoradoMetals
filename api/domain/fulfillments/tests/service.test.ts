@@ -355,11 +355,10 @@ test("another customer's fulfillment is not readable by asking for its order", a
 
 // ============================================================ the hand-over
 //
-// attachForCheckout is the whole of what placing an order asks of this feature
-// (D214 item 11). It moved out of orders/place.ts, so its tests moved with it -
-// including the two bookings, which a shipping checkout cannot reach at all
-// (a shipping checkout mutates a SHIPMENT draft) and an admin door will.
-// A placement accepts all three categories now (Jacob, 2026-09-04).
+// `attachToOrder` is the whole of what placing an order asks of this feature
+// (rulings 69/70). It is one id now: a draft arrives already carrying its
+// choices, because the customer patched them onto ITS detail row rather than
+// onto the checkout's. A placement accepts all three categories.
 
 // An address of the order's own customer, BUILT - the pickup is booked at
 // their door, and `SELECT id FROM places.addresses LIMIT 1` booked it at
@@ -374,33 +373,11 @@ const aLocation = async (c: PoolClient) =>
   (await c.query(`SELECT id FROM places.locations WHERE name = $1`,
     ["Dorado Return Address"])).rows[0].id;
 
-// `attachForCheckout` takes the CHECKOUT ROW now (ruling 66 - the seven-field
-// object it used to take was `handoverOf` copying columns off exactly this
-// row), so the helper builds one rather than a hand-picked slice of it.
-const handover = (
-  over: {
-    fulfillment_id?: string | null; method_id?: string | null;
-    pickup_address_id?: string | null; location_id?: string | null;
-    start_time?: string | null;
-  } = {}
-): Checkout => ({
-  id: anId(),
-  user_id: anId(),
-  direction: "purchase",
-  payment_method_id: null,
-  payment_details_id: null,
-  fulfillment_method_id: over.method_id ?? null,
-  appointment_location_id: over.location_id ?? null,
-  pickup_address_id: over.pickup_address_id ?? null,
-  shipper_address_id: null,
-  recipient_address_id: null,
-  carrier_service_id: null,
-  package_id: null,
-  appointment_time: over.start_time ?? null,
-  fulfillment_id: over.fulfillment_id ?? null,
-  pickup_date: null,
-  pickup_time: null,
-});
+// THE ATTACH IS ONE ID NOW (rulings 69/70). `attachForCheckout` took the whole
+// checkout ROW and, from seven of its columns, decided the method and wrote the
+// booking. Those columns are the draft's own detail rows (migration 128), so a
+// draft arrives already carrying its choices and placement only has to claim
+// it - which is what `attachToOrder` does and all it does.
 
 test("the draft the stepper mutated becomes the order's own fulfillment", async () => {
   await inRollback(async (c: PoolClient) => {
@@ -411,68 +388,102 @@ test("the draft the stepper mutated becomes the order's own fulfillment", async 
     );
     assert.ok(draft, "no draft was created");
 
-    const attached = await service.attachForCheckout(order.id, handover({ fulfillment_id: draft.fulfillment.id }), c
-    );
+    const attached = await service.attachToOrder(draft.fulfillment.id, order.id, c);
     assert.equal(attached.fulfillment.id, draft.fulfillment.id, "a second fulfillment was minted");
     assert.equal(attached.fulfillment.order_id, order.id);
   });
 });
 
-test("a checkout with no draft falls back to the method it named", async () => {
-  await inRollback(async (c: PoolClient) => {
-    const order = await freeOrder(c, "purchase");
-    const method = await methodOf(c, "CARRIER PICKUP", "purchase");
-    const attached = await service.attachForCheckout(order.id, handover({ method_id: method.id }), c
-    );
-    assert.equal(attached.method.type, "CARRIER PICKUP");
-  });
-});
+// EVERY CATEGORY GETS ITS DETAIL ROW AT DRAFT TIME, empty, so the customer's
+// choices have somewhere to land one PATCH at a time. Before 128 the row only
+// appeared when a booking was made, which is why the columns had to live on the
+// checkout until then.
 
-// Defaulting is the seed's job, not a constant in the code - and a parcel in
-// the post is not somewhere to be, whatever address the checkout carries.
-test("a checkout that named nothing falls back to the direction's default", async () => {
+test("a SHIPMENT draft is born with a parcel to fill in", async () => {
   await inRollback(async (c: PoolClient) => {
-    const order = await freeOrder(c, "purchase");
-    const attached = await service.attachForCheckout(order.id, handover({ pickup_address_id: await anAddressId(c, order.user_id) }), c
-    );
-    assert.equal(attached.method.type, "CARRIER DROPOFF");
-    assert.equal(attached.method.category, "SHIPMENT");
-    assert.equal(attached.pickup, null, "a posted parcel was booked as a collection");
-  });
-});
-
-test("a PICKUP method books the pickup", async () => {
-  await inRollback(async (c: PoolClient) => {
-    const order = await freeOrder(c, "purchase");
-    const address = await anAddressId(c, order.user_id);
-    const collected = await service.attachForCheckout(order.id, handover({
-        method_id: (await methodOf(c, "PICKUP", "purchase")).id,
-        pickup_address_id: address,
-        start_time: "2026-09-05T15:00:00Z",
-      }),
+    const draft = await service.createDraft(
+      { method_id: (await methodOf(c, "CARRIER DROPOFF", "purchase")).id, direction: "purchase" },
       c
     );
-    assert.ok(collected.pickup, "a PICKUP order was not scheduled");
-    assert.equal(collected.pickup.pickup_address_id, address);
+    assert.ok(draft.parcel, "a SHIPMENT draft has no parcel row");
+    assert.equal(draft.parcel.direction, "Inbound", "the customer's parcel is not inbound");
+    assert.equal(draft.parcel.package_id, null, "the shell was born with choices in it");
+    assert.deepEqual(
+      draft.missing,
+      ["shipper_address_id", "package_id", "carrier_service_id"]
+    );
   });
 });
 
-test("an APPOINTMENT books the location and the time", async () => {
+test("a PICKUP draft owes its address and a time, and a patch clears them", async () => {
   await inRollback(async (c: PoolClient) => {
-    const attached = await service.attachForCheckout(
-        (await freeOrder(c, "purchase")).id,
-        handover({
-        method_id: (await methodOf(c, "APPOINTMENT", "purchase")).id,
-        location_id: await aLocation(c),
+    const user = await aUser(c);
+    const draft = await service.createDraft(
+      { method_id: (await methodOf(c, "PICKUP", "purchase")).id, direction: "purchase" }, c
+    );
+    assert.ok(draft.pickup, "a PICKUP draft has no collection row");
+    assert.deepEqual(draft.missing, ["pickup_address_id", "start_time"]);
+
+    const patched = await service.patchChoices(
+      draft.fulfillment.id,
+      { pickup: {
+        pickup_address_id: await anAddressId(c, user.id),
         start_time: "2026-09-05T15:00:00Z",
-      }),
+      } },
       c
     );
-    assert.ok(attached.direct, "an APPOINTMENT was not booked");
-    assert.equal(attached.direct.is_appointment, true);
-    assert.equal(
-      new Date(attached.direct.start_time as unknown as string).toISOString(),
-      new Date("2026-09-05T15:00:00Z").toISOString()
+    assert.deepEqual(patched.missing, []);
+    assert.equal(await service.addressIdOf(draft.fulfillment.id, c), patched.pickup?.pickup_address_id);
+  });
+});
+
+test("a DIRECT draft owes a location and a time", async () => {
+  await inRollback(async (c: PoolClient) => {
+    const draft = await service.createDraft(
+      { method_id: (await methodOf(c, "APPOINTMENT", "purchase")).id, direction: "purchase" }, c
     );
+    assert.ok(draft.direct, "a DIRECT draft has no store-visit row");
+    assert.deepEqual(draft.missing, ["location_id", "start_time"]);
+
+    const patched = await service.patchChoices(
+      draft.fulfillment.id,
+      { direct: { location_id: await aLocation(c), start_time: "2026-09-05T15:00:00Z" } },
+      c
+    );
+    assert.deepEqual(patched.missing, []);
+    // A store visit has no address of its own to snapshot onto an order.
+    assert.equal(await service.addressIdOf(draft.fulfillment.id, c), null);
+  });
+});
+
+// A PATCH aimed at the wrong detail row would write a booking every read
+// attaches and none expects, and nothing in the schema would catch it.
+test("a patch for the wrong category is refused", async () => {
+  await inRollback(async (c: PoolClient) => {
+    const draft = await service.createDraft(
+      { method_id: (await methodOf(c, "PICKUP", "purchase")).id, direction: "purchase" }, c
+    );
+    const location_id = await aLocation(c);
+    await assert.rejects(
+      () => service.patchChoices(draft.fulfillment.id, { direct: { location_id } }, c),
+      /is a PICKUP, not a DIRECT/
+    );
+  });
+});
+
+// The customer changes their mind, which is the ordinary case and used to be
+// locked out the moment a shell existed.
+test("an unlabelled draft may still move between categories", async () => {
+  await inRollback(async (c: PoolClient) => {
+    const draft = await service.createDraft(
+      { method_id: (await methodOf(c, "CARRIER DROPOFF", "purchase")).id, direction: "purchase" },
+      c
+    );
+    const moved = await service.setMethod(
+      { id: draft.fulfillment.id, method_id: (await methodOf(c, "PICKUP", "purchase")).id }, c
+    );
+    assert.equal(moved.method.category, "PICKUP");
+    assert.ok(moved.pickup, "the new category has no detail row to fill in");
+    assert.deepEqual(moved.missing, ["pickup_address_id", "start_time"]);
   });
 });

@@ -9,11 +9,13 @@
 // into another. What is still passed is what was DECIDED: the status, the
 // payout fee, and a sale's three per-line figures.
 //
-// THE CARRIER IS NOT THIS FILE'S BUSINESS (ruling 67). A purchase that SHIPS
-// asks domain/shipping to commit the parcel shell and, after the commit, to
-// buy its label. A purchase that Dorado COLLECTS, or that the customer brings
-// in, writes its booking and buys nothing (Jacob, 2026-09-04: "If it's a
-// direct or pickup, why would it need shipper_address_id or package_id?").
+// THE CARRIER IS NOT THIS FILE'S BUSINESS (ruling 67), AND NEITHER IS THE
+// HANDOVER (rulings 69/70). Every choice about how the order is handed over
+// already sits on the draft fulfillment's own detail row (migration 128), so
+// this file names none of those columns: it attaches the draft, asks
+// fulfillments where the parcel leaves from, and asks shipping to seal and
+// then buy the label. A purchase that Dorado COLLECTS, or that the customer
+// brings in, buys nothing.
 import type { PoolClient } from "pg";
 
 import * as ordersRepo from "#db/orders/repo.ts";
@@ -25,12 +27,9 @@ import * as paymentMethods from "#db/payments/methods/repo.ts";
 import * as intentsRepo from "#db/payments/intents/repo.ts";
 import * as placeAddresses from "#db/places/addresses/repo.ts";
 import * as usersRepo from "#db/users/repo.ts";
-import * as servicesRepo from "#db/shipping/services/repo.ts";
-import * as packagesRepo from "#db/shipping/packages/repo.ts";
 
 import * as addressService from "#domain/places/addresses/service.ts";
 import * as fulfillmentService from "#domain/fulfillments/service.ts";
-import * as fulfillmentShipments from "#domain/fulfillments/shipments/service.ts";
 import * as checkoutService from "#domain/checkout/service.ts";
 import * as emailService from "#domain/media/emails/service.ts";
 import * as spotsService from "#domain/spots/service.ts";
@@ -45,7 +44,6 @@ import * as stripeProvider from "#providers/payment/stripe.ts";
 import * as orderRead from "#domain/orders/read.ts";
 import * as rules from "#domain/orders/rules.ts";
 import * as shippingLabels from "#domain/shipping/labels.ts";
-import * as shippingRules from "#domain/shipping/rules.ts";
 import { calculateItemAsk, calculateSalesOrderTotal } from "#domain/pricing/ask.ts";
 import { retierPremiums } from "#domain/orders/service.ts";
 
@@ -123,7 +121,7 @@ async function writeOrder(
   rules.assertEveryMetalQuoted(written, await orderSpots.freezeForOrder(order_id, tx));
 
   await snapshotAddress(order_id, checkout, tx);
-  await fulfillmentService.attachForCheckout(order_id, checkout, tx);
+  await fulfillmentService.attachToOrder(checkout.fulfillment_id!, order_id, tx);
   await refinerService.mirrorForOrder(order_id, tx);
   return order_id;
 }
@@ -144,8 +142,13 @@ async function clearChoices(checkout: Checkout, tx: PoolClient): Promise<void> {
 async function snapshotAddress(
   order_id: string, checkout: Checkout, tx: PoolClient
 ): Promise<void> {
+  // WHERE THE HANDOVER HAPPENS IS FULFILLMENT'S ANSWER (ruling 70): the
+  // parcel's origin for a SHIPMENT, the collection address for a PICKUP,
+  // nothing for a store visit. A sale's delivery address is the checkout's own
+  // and comes first - it is the row's tax key, not a handover choice.
   const source_address_id =
-    checkout.shipper_address_id ?? checkout.recipient_address_id ?? checkout.pickup_address_id;
+    checkout.recipient_address_id
+      ?? await fulfillmentService.addressIdOf(checkout.fulfillment_id!, tx);
   if (!source_address_id) return;
   const address_id = await addressService.snapshot(source_address_id, tx);
   if (!address_id) return;
@@ -164,18 +167,14 @@ async function snapshotAddress(
 async function placePurchase(
   checkout: Checkout, cart: OrderLine[], world: typeof LIVE
 ): Promise<string> {
-  const draft = checkout.fulfillment_id
-    ? rules.requireFreeFulfillmentDraft(
-        await fulfillmentService.getById(checkout.fulfillment_id)
-      )
+  const draft = rules.requireFreeFulfillmentDraft(
+    await fulfillmentService.getById(checkout.fulfillment_id!)
+  );
+  // A parcel is the only handover that costs money, and the fulfillment says
+  // whether there is one. Nothing here reads a box, a service or a slot.
+  const shipment_id = draft.method.category === "SHIPMENT"
+    ? await fulfillmentService.shipmentIdOf(draft.fulfillment.id)
     : null;
-  const method = await checkoutService.chosenMethod(checkout);
-  const ships = method?.category === "SHIPMENT";
-
-  // THE PARCEL'S WEIGHT IS THE SERVER'S (ruling 58), and only a parcel has one.
-  const weight = ships
-    ? shippingRules.parcelWeightLb(cart, await packagesRepo.getOne(checkout.package_id!))
-    : 0;
 
   const payout_fee = rules.payoutFeeOf(
     await paymentMethods.listFor("purchase"), checkout.payment_method_id
@@ -196,30 +195,18 @@ async function placePurchase(
       order_id
     );
 
-    if (!ships) {
-      await clearChoices(checkout, tx);
-      return { order_id, shipment_id: null };
-    }
-
-    const shipment_id = await shippingLabels.createForCheckout(
-      checkout, weight, method?.type ?? null, tx
-    );
-    if (draft) {
-      await fulfillmentShipments.link(
-        { fulfillment_id: draft.fulfillment.id, shipment_id }, tx
+    if (shipment_id) {
+      await shippingLabels.sealForPlacement(
+        shipment_id, checkout.id, draft.method.type, tx
       );
     }
     await clearChoices(checkout, tx);
     return { order_id, shipment_id };
   });
 
-  // OUTSIDE WORLD, AFTER: the order and its shell already exist.
-  if (placed.shipment_id) {
-    await world.buyLabel(
-      placed.shipment_id,
-      shippingRules.scheduleOf(checkout.pickup_date, checkout.pickup_time)
-    );
-  }
+  // OUTSIDE WORLD, AFTER: the order and its parcel already exist, and the
+  // courier slot is a column of that parcel.
+  if (placed.shipment_id) await world.buyLabel(placed.shipment_id);
 
   await attempt("clear the purchase basket", () =>
     checkoutService.clearItems(checkout.user_id, "purchase")
@@ -248,9 +235,9 @@ async function placeSale(
     ),
     spots
   );
-  const service = checkout.carrier_service_id
-    ? await servicesRepo.getOne(checkout.carrier_service_id)
-    : undefined;
+  // THE SHIPPING SERVICE IS THE PARCEL'S (ruling 70): the draft fulfillment
+  // holds it, and shipping resolves the row from the parcel's own id.
+  const service = await shippingLabels.serviceForFulfillment(checkout.fulfillment_id!);
   const method = (await paymentMethods.listFor("sale"))
     .find((m) => m.id === checkout.payment_method_id);
 

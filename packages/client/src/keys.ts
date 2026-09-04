@@ -21,16 +21,17 @@ export const keys = {
     scoped: (order_id: string) => ["orders", order_id] as const,
   },
   checkout: {
+    // Every checkout cache entry, for the invalidation a handover patch does:
+    // `missing` is composed from the draft fulfillment's own list, so a change
+    // there is a change to the row's answer.
+    all: () => ["checkout"] as const,
     // ONE ROW PER DIRECTION. The direction is a segment, never baked into a
     // hook name, so one basket's cache entry can never be served for the
     // other.
     row: (direction: string) => ["checkout", direction] as const,
     items: (direction: string) => ["checkout", "items", direction] as const,
-    // Rates are the carrier's answer about a specific parcel, so the parcel's
-    // facts are the key: a new address or box is a different question, not a
-    // refetch of the old one.
-    rates: (direction: string, address_id?: string | null, package_id?: string | null) =>
-      ["checkout", "rates", direction, address_id ?? null, package_id ?? null] as const,
+    // Rates moved to `fulfillments.rates` with the parcel facts they are
+    // quoted from (rulings 69/70, migration 128).
   },
   // ---------------------------------------------------------------- payments
   payments: {
@@ -79,6 +80,19 @@ export const keys = {
   fulfillments: {
     all: () => ["fulfillments"] as const,
     forOrder: (order_id: string) => ["fulfillments", "order", order_id] as const,
+    // THE DRAFT, by its own id - what a checkout stepper holds while the
+    // customer is still deciding, before there is an order to key on.
+    one: (fulfillment_id: string) => ["fulfillments", "one", fulfillment_id] as const,
+    // Rates are the carrier's answer about a specific parcel, so the parcel's
+    // facts are the key: a new address or box is a different question, not a
+    // refetch of the old one.
+    rates: (
+      fulfillment_id: string, address_id?: string | null, package_id?: string | null
+    ) =>
+      [
+        "fulfillments", "rates", fulfillment_id,
+        address_id ?? null, package_id ?? null,
+      ] as const,
     // Everyone due somewhere in a window. The window is part of the question,
     // so it is part of the key.
     schedule: (window: { from?: string; to?: string; employee_id?: string } = {}) =>

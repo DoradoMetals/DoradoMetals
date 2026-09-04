@@ -51,25 +51,33 @@ test("there is one session per user per direction", async () => {
 
 test("update writes the named columns, leaves the rest, and answers the row", async () => {
   await inRollback(async (c: PoolClient) => {
-    const row = await session(c, (await aUser(c)).id, "purchase");
-    await checkouts.update(row.id, { pickup_date: "2026-09-04", pickup_time: "10:30:00" }, c);
+    const customer = (await aUser(c)).id;
+    const row = await session(c, customer, "purchase");
+    const first = await anAddress(c, { id: customer });
+    // Two book entries for one person: only the first may be the default.
+    const second = await anAddress(c, { id: customer }, { default_shipping: false });
+    await checkouts.update(
+      row.id, { recipient_address_id: first.id, payment_method_id: null }, c
+    );
 
     // RETURNING answers the fresh row, which is why no caller re-reads it.
-    const written = await checkouts.update(row.id, { pickup_date: "2026-09-05" }, c);
-    assert.equal(written?.pickup_date, "2026-09-05");
-    assert.equal(written?.pickup_time, "10:30:00", "an absent key overwrote a column");
+    const written = await checkouts.update(row.id, { recipient_address_id: second.id }, c);
+    assert.equal(written?.recipient_address_id, second.id);
+    assert.equal(written?.payment_method_id, null, "an absent key overwrote a column");
     assert.deepEqual(written, await checkouts.getOne(row.id, c));
   });
 });
 
 test("an explicit null clears a column - the reset a placed order performs", async () => {
   await inRollback(async (c: PoolClient) => {
-    const row = await session(c, (await aUser(c)).id, "purchase");
-    await checkouts.update(row.id, { pickup_date: "2026-09-04" }, c);
+    const customer = (await aUser(c)).id;
+    const row = await session(c, customer, "purchase");
+    const address = await anAddress(c, { id: customer });
+    await checkouts.update(row.id, { recipient_address_id: address.id }, c);
 
     const cleared = Object.fromEntries(checkouts.PATCHABLE.map((col) => [col, null]));
     const after = await checkouts.update(row.id, cleared, c);
-    assert.equal(after?.pickup_date, null);
+    assert.equal(after?.recipient_address_id, null);
     assert.equal(after?.fulfillment_id, null);
     assert.equal(after?.payment_details_id, null);
   });
@@ -78,7 +86,7 @@ test("an explicit null clears a column - the reset a placed order performs", asy
 test("update answers undefined for an id with no session", async () => {
   await inRollback(async (c: PoolClient) => {
     assert.equal(
-      await checkouts.update(randomUUID(), { pickup_date: "2026-09-04" }, c), undefined
+      await checkouts.update(randomUUID(), { payment_method_id: null }, c), undefined
     );
   });
 });
@@ -95,7 +103,9 @@ test("remove answers true once and false the second time", async () => {
 //
 // Migration 123 replaced domain/checkout/service.ts's ADDRESS_COLUMNS loop -
 // three column names in an array and a book lookup per patch - with composite
-// foreign keys onto places.user_addresses (user_id, address_id). These pin what
+// foreign keys onto places.user_addresses (user_id, address_id). ONE is left:
+// 128 moved the shipper and pickup addresses onto the draft fulfillment's own
+// detail rows and their keys went with the columns. These pin what
 // the schema now promises, because the promise is only as good as the
 // constraint: the loop used to be the guarantee and the FK is now.
 
@@ -107,7 +117,7 @@ test("an address id from somebody else's book cannot land on a checkout", async 
     const row = await session(c, mine, "purchase");
 
     await assert.rejects(
-      () => checkouts.update(row.id, { shipper_address_id: theirs.id }, c),
+      () => checkouts.update(row.id, { recipient_address_id: theirs.id }, c),
       /violates foreign key constraint/i,
       "somebody else's address id was written to a checkout"
     );
@@ -119,17 +129,15 @@ test("deleting the book entry clears the checkout's column, and only that column
     const customer = (await aUser(c)).id;
     const address = await anAddress(c, { id: customer });
     const row = await session(c, customer, "purchase");
-    await checkouts.update(
-      row.id, { shipper_address_id: address.id, pickup_date: "2026-09-04" }, c
-    );
+    await checkouts.update(row.id, { recipient_address_id: address.id }, c);
 
     // What domain/places/addresses/service.ts `remove` does first: the LINK
     // goes, and the address row itself only follows if nothing else needs it.
     await userAddresses.remove(address.id, customer, c);
 
     const after = await checkouts.getOne(row.id, c);
-    assert.equal(after?.shipper_address_id, null, "ON DELETE SET NULL did not fire");
+    assert.equal(after?.recipient_address_id, null, "ON DELETE SET NULL did not fire");
     assert.equal(after?.user_id, customer, "the composite key nulled the OWNER as well");
-    assert.equal(after?.pickup_date, "2026-09-04", "an unrelated column was cleared");
+    assert.equal(after?.direction, "purchase", "an unrelated column was cleared");
   });
 });

@@ -5,14 +5,21 @@
 // deliberately does not know about - who is signed in, and which direction a
 // purchase surface is looking at. A hook here is a session-gated re-export,
 // never a request.
+//
+// THE HANDOVER HOOKS ARE FULFILLMENTS' (rulings 69/70). The stepper's shipping
+// step patches `useCreateFulfillment` / `usePatchFulfillment` and reads its
+// rates from `useFulfillmentRates`; `useSetCheckoutFulfillment` and
+// `useCheckoutRates` are gone with the columns they wrote.
 import {
   useCheckout,
-  useCheckoutRates,
+  useCreateFulfillment,
+  useFulfillment,
+  useFulfillmentRates,
   usePackages,
   usePatchCheckout,
+  usePatchFulfillment,
   usePlaceOrderFromCheckout,
   useSaveCheckoutPayout,
-  useSetCheckoutFulfillment,
 } from '@dorado/client'
 import { useGetSession } from '@/features/auth/queries'
 
@@ -32,9 +39,11 @@ export const useOfferedPackages = () => {
 }
 
 export {
-  useCheckoutRates,
+  useCreateFulfillment,
+  useFulfillment,
+  useFulfillmentRates,
   usePatchCheckout,
+  usePatchFulfillment,
   usePlaceOrderFromCheckout,
   useSaveCheckoutPayout,
-  useSetCheckoutFulfillment,
 }

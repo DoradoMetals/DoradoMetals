@@ -119,13 +119,23 @@ test.beforeAll(async ({ playwright }) => {
     data: {
       direction: "sale",
       recipient_address_id: seedAddress.id,
-      carrier_service_id: service.id,
       payment_method_id: method.id,
     },
   });
   expect(patched.ok(), `admin checkout PATCH failed: ${await patched.text()}`).toBeTruthy();
   const { id: checkout_id } = await patched.json();
   expect(checkout_id, "the admin checkout PATCH answered no id").toBeTruthy();
+
+  // THE HANDOVER IS THE FULFILLMENT'S (rulings 69/70, migration 128): every
+  // checkout needs a draft to be placeable, and the delivery service is a
+  // column of that draft's parcel rather than of the checkout row.
+  const draft = await admin.post(`${API}/fulfillments`, { data: { checkout_id } });
+  expect(draft.ok(), `draft fulfillment failed: ${await draft.text()}`).toBeTruthy();
+  const { fulfillment } = await draft.json();
+  const parcel = await admin.patch(`${API}/fulfillments/${fulfillment.id}`, {
+    data: { shipment: { carrier_service_id: service.id } },
+  });
+  expect(parcel.ok(), `fulfillment PATCH failed: ${await parcel.text()}`).toBeTruthy();
 
   // admin_create_sales_order, NOT create_sales_order: the latter is the
   // mothballed customer flow (admin-gated but ownership-checked against the

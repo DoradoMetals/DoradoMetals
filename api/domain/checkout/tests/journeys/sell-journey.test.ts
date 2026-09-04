@@ -89,52 +89,52 @@ test("basket, row, fulfillment, payout and placement agree on one order's money"
     assert.equal(basket.status, 200, basket.text);
     assert.equal(basket.body.length, 2, "the basket did not keep both lines");
 
-    // ---- WHAT THE STEPPER RENDERS. `missing` is the ONE list now
-    // (CheckoutView shrank, Jacob 2026-09-04) and it is CATEGORY-AWARE: until
-    // a fulfillment method is chosen, `fulfillment_method` is the only step
-    // besides items - the package/carrier_service/address columns this test
-    // sets below do not count against `missing` yet, because no category has
-    // adopted them. The address is already on the row: GET /checkout takes
-    // the customer's default one when the column is null.
+    // ---- WHAT THE STEPPER RENDERS. `missing` is the ONE list, composed
+    // (rulings 69/70): checkout's own steps, then whatever the draft
+    // fulfillment says it still owes. There is no draft yet, so the only thing
+    // the customer can act on is choosing HOW the metal gets to us.
     const opened = await as(customer, () =>
       request(app).get("/api/checkout").query({ direction: "purchase" })
     );
     assert.equal(opened.status, 200, opened.text);
-    assert.equal(opened.body.shipper_address_id, address.id, "the default address was not taken");
+    const checkout_id: string = opened.body.id;
     assert.deepEqual(
       opened.body.missing,
-      ["fulfillment_method", "payout_account"],
+      ["fulfillment_id", "payment_details_id"],
       "missing is not the outstanding steps, in stepper order"
     );
 
-    // ---- the row: package, carrier service, shipper address.
-    const patched = await as(customer, () =>
-      request(app).patch("/api/checkout").send({
-        direction: "purchase",
-        package_id: pkg,
-        carrier_service_id: service,
-        shipper_address_id: address.id,
-      })
-    );
-    assert.equal(patched.status, 200, patched.text);
-    const checkout_id: string = patched.body.id;
-    // Still no category chosen, so `missing` is unmoved by any of the three
-    // columns just written - they only count once a SHIPMENT method adopts
-    // them, which is the next step.
-    assert.deepEqual(patched.body.missing, ["fulfillment_method", "payout_account"]);
-
-    // ---- the fulfillment: a live draft, attached to the row.
+    // ---- the fulfillment: a live draft, attached to the row, and the parcel
+    // choices patched onto ITS row (rulings 69/70).
     const fulfillment = await as(customer, () =>
-      request(app).post("/api/checkout/fulfillment").send({
-        direction: "purchase", method_id: dropoffMethod,
+      request(app).post("/api/fulfillments").send({
+        checkout_id, method_id: dropoffMethod,
       })
     );
     assert.equal(fulfillment.status, 200, fulfillment.text);
-    assert.ok(fulfillment.body.fulfillment_id, "no draft fulfillment was minted");
+    const fulfillment_id: string = fulfillment.body.fulfillment.id;
+    assert.ok(fulfillment_id, "no draft fulfillment was minted");
+
+    const parcel = await as(customer, () =>
+      request(app).patch(`/api/fulfillments/${fulfillment_id}`).send({
+        shipment: {
+          package_id: pkg,
+          carrier_service_id: service,
+          shipper_address_id: address.id,
+        },
+      })
+    );
+    assert.equal(parcel.status, 200, parcel.text);
     // CARRIER DROPOFF is a SHIPMENT category that needs no date and no time,
-    // and the address/box/service chosen above now count against it - only
-    // the payout account is outstanding.
-    assert.deepEqual(fulfillment.body.missing, ["payout_account"]);
+    // so the draft owes nothing once the three are set.
+    assert.deepEqual(parcel.body.missing, []);
+
+    const withDraft = await as(customer, () =>
+      request(app).get("/api/checkout").query({ direction: "purchase" })
+    );
+    // The composed list: checkout's own steps plus the draft's, and the draft
+    // has none left.
+    assert.deepEqual(withDraft.body.missing, ["payment_details_id"]);
 
     // ---- the payout: sealed at rest, last-four answered, never the number.
     const payout = await as(customer, () =>
