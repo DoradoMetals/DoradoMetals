@@ -1,112 +1,13 @@
-import { createPortal } from 'react-dom'
-import { FC, ReactNode, useEffect } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
-import { cn } from '@/shared/utils/cn'
+import type { FC } from 'react'
+import { Drawer as LibraryDrawer, type DrawerProps } from '@dorado/components'
 
-type Anchor = 'left' | 'right'
-
-interface Props {
-  open: boolean
-  setOpen: (open: boolean) => void
-  children: ReactNode
-  anchor?: Anchor
-  /** The drawer's surface. `highest` is the top of the stack (modals, drawers)
-   *  and carries its own hairline; `card` is a fill only, for a sheet that
-   *  draws its own edges; `none` paints nothing. */
-  surface?: 'highest' | 'card' | 'none'
-  /** LAYOUT ONLY - width, position, padding. It MERGES with `surface` now;
-   *  it used to REPLACE the whole surface, so a caller adding `max-w-full`
-   *  silently un-painted the drawer. */
-  className?: string
-  /**
-   * What this drawer is showing, e.g. "User". Becomes its accessible name.
-   * Optional so no existing caller breaks, but every caller should pass one.
-   */
-  label?: string
-}
-
-// A DRAWER IS A DIALOG, AND HAD NONE OF THE SEMANTICS OF ONE.
-//
-// This rendered two bare motion.divs into a portal: no role, no aria-modal, no
-// accessible name, and no way to close it from the keyboard. To assistive
-// technology it was an anonymous region that appeared somewhere in the document
-// - not announced as a dialog, and the content behind it still reachable.
-//
-// It is also every drawer in the admin area. Twelve of them - users, leads,
-// products, reviews, carriers, carrier services, purchase orders, sales orders,
-// addresses, cart - all mount through this one component, which is where every
-// record in the business is opened and edited.
-//
-// Found while writing a test that waits for a drawer to appear and could not
-// name one, which is exactly the difficulty a screen reader has.
-//
-// THE SURFACE IS A PROP, AND `className` NOW MERGES. It used to be
-// `className = 'bg-highest border border-border'` - a default PARAMETER, so
-// any caller passing a class replaced the drawer's entire surface with it. Four
-// call sites therefore re-spelled the surface just to add a width, and one
-// (CartTabs) spelled a different one. Same defect as ValidatedField and
-// SelectMenu, and the same fix: name the surfaces, merge the layout.
-const Drawer: FC<Props> = ({
-  open,
-  setOpen,
-  children,
-  anchor = 'right',
-  surface = 'highest',
-  className,
-  label,
-}) => {
-  // Escape closes it. A modal that can only be dismissed by clicking a specific
-  // region is unusable without a mouse.
-  useEffect(() => {
-    if (!open) return
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setOpen(false)
-    }
-    document.addEventListener('keydown', onKey)
-    return () => document.removeEventListener('keydown', onKey)
-  }, [open, setOpen])
-
-  if (typeof document === 'undefined') return null
-
-  return createPortal(
-    <AnimatePresence>
-      {open && (
-        <>
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.3 }}
-            className="fixed inset-0 z-50"
-            onClick={() => setOpen(false)}
-            // Decorative: the dialog below carries the semantics, and a
-            // screen reader announcing the backdrop would be noise.
-            aria-hidden="true"
-          />
-
-          <motion.div
-            role="dialog"
-            aria-modal="true"
-            aria-label={label ? `${label} details` : 'Details'}
-            initial={{ x: anchor === 'right' ? '100%' : '-100%' }}
-            animate={{ x: 0 }}
-            exit={{ x: anchor === 'right' ? '100%' : '-100%' }}
-            transition={{ duration: 0.3, ease: 'easeInOut' }}
-            className={cn(
-              'drawer-layout custom-scrollbar',
-              anchor === 'right' ? 'right-0' : 'left-0',
-              surface === 'highest' && 'bg-highest border border-border',
-              surface === 'card' && 'bg-card',
-              className
-            )}
-          >
-            {children}
-          </motion.div>
-        </>
-      )}
-    </AnimatePresence>,
-    document.body as HTMLElement
-  )
-}
+// THIS WAS A HAND-ROLLED DIALOG (role, aria-modal, Escape-to-close, the
+// surface/className merge fix) and the library now ships the same drawer with
+// a focus trap and reduced-motion support on top. Sitting on it here fixes
+// every default-import call site without touching them; the library exports
+// it as a NAMED export, so a call site importing directly from
+// `@dorado/components` gets `{ Drawer }` instead of this default.
+const Drawer: FC<DrawerProps> = (props) => <LibraryDrawer {...props} />
 
 export default Drawer
+export type { DrawerProps }

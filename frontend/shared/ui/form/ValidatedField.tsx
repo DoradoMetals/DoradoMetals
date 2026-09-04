@@ -2,8 +2,7 @@
 
 import { FormField, FormItem, FormControl, FormMessage } from '@/shared/ui/base/form'
 import { FloatingLabelInput, FloatingLabelInputProps } from '@/shared/ui/inputs/FloatingLabelInput'
-import { Input } from '@/shared/ui/base/input'
-import { Label } from '@/shared/ui/base/label'
+import { Input } from '@dorado/components'
 import { InvalidXIcon, ValidCheckIcon } from '@/shared/ui/form/ValidCheckIcon'
 import { Control, FieldPath, FieldValues } from 'react-hook-form'
 import { Dispatch, SetStateAction } from 'react'
@@ -123,21 +122,19 @@ export function ValidatedField<T extends FieldValues>({
                       disabled={disabled}
                     />
                   ) : (
-                    <div className="space-y-1">
-                      <Label >{label}</Label>
-                      <Input
-                        {...field}
-                        {...(inputProps as React.InputHTMLAttributes<HTMLInputElement>)}
-                        onChange={mergedOnChange}
-                        type={type}
-                        disabled={disabled}
-                        className={cn(
-                          rightAligned ? 'text-right' : 'text-left',
-                          'pr-12',
-                          className
-                        )}
-                      />
-                    </div>
+                    <Input
+                      {...field}
+                      {...(inputProps as React.InputHTMLAttributes<HTMLInputElement>)}
+                      onChange={mergedOnChange}
+                      type={type}
+                      disabled={disabled}
+                      label={label}
+                      inputClassName={cn(
+                        rightAligned ? 'text-right' : 'text-left',
+                        'pr-12',
+                        className
+                      )}
+                    />
                   )}
                 </div>
               </FormControl>

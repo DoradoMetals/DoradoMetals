@@ -2,8 +2,7 @@
 
 import { useId, type ReactNode } from 'react'
 import { Field } from '@/shared/ui/Field'
-import { RadioGroup } from '@/shared/ui/RadioGroup'
-import type { RadioGroupProps } from '@/shared/ui/RadioGroup'
+import { RadioGroup, RadioOption } from '@dorado/components'
 import { cn } from '@/shared/utils/cn'
 
 /* ============================================================================
@@ -42,7 +41,7 @@ import { cn } from '@/shared/utils/cn'
        (DisplayToggle) or a hand-rolled arrow-key handler on the group
        (DotSelect). Radix already does this, correctly, in `RadioGroup`.
 
-   SO THIS FILE HAS NO APPEARANCE OF ITS OWN. It is `Field` + `RadioGroup`
+   SO THIS FILE HAS NO APPEARANCE OF ITS OWN. It is `Field` + `RadioOption`
    with `variant="segment"`, and every pixel comes from those two. The only
    thing it adds is the binding: a segmented control's value is usually a
    boolean or a small number, and radix's is a string, so options are addressed
@@ -78,8 +77,6 @@ export type SegmentedFieldProps<V> = {
   onChange: (next: V) => void
   /** Omit for a boolean Yes/No. */
   options?: SegmentedOptions<V>
-  /** RadioOption's own axis (ruling 25). Neutral fills; a hue washes. */
-  intent?: RadioGroupProps<string>['intent']
   disabled?: boolean
   /** LAYOUT ONLY — the field's own box: width, grid placement in a form. */
   className?: string
@@ -93,7 +90,6 @@ export function SegmentedField<V>({
   value,
   onChange,
   options = YES_NO as unknown as SegmentedOptions<V>,
-  intent,
   disabled,
   className,
   rowClassName,
@@ -106,31 +102,26 @@ export function SegmentedField<V>({
      `display_order` can be when a column is null and a caller forgets the
      `?? 0` — does not silently select the first cell. */
   const selected = entries.findIndex((e) => Object.is(e.value, value))
-  /* KEYS ARE PREFIXED PER FIELD, AND THAT IS NOT COSMETIC. `RadioOption`
-     defaults its `id` to the option's value and points the `<label htmlFor>` at
-     it, so two segmented fields on one page keyed `0`/`1` would emit duplicate
-     ids and every label would resolve to the FIRST field's cells. Three of
-     these sit side by side in the leads drawer and three more in the product
-     drawer. `useId` makes the group's values unique across the document. */
+  /* KEYS ARE PREFIXED PER FIELD, AND THAT IS NOT COSMETIC. Two segmented
+     fields on one page keyed `0`/`1` would collide, so `useId` makes the
+     group's values unique across the document. */
   const uid = useId()
   const keys = entries.map((_, i) => `${uid}-${i}`)
-  const indexOf = (key: string) => Number(key.slice(key.lastIndexOf('-') + 1))
 
   return (
     <Field label={label} className={className}>
       <RadioGroup
-        variant="segment"
-        intent={intent}
         disabled={disabled}
         aria-label={typeof label === 'string' ? label : undefined}
         value={selected === -1 ? undefined : keys[selected]}
-        onValueChange={(key) => onChange(entries[indexOf(key)].value)}
-        options={keys}
-        getValue={(key) => key}
+        onValueChange={(key) => onChange(entries[keys.indexOf(key)].value)}
         className={cn('flex w-full gap-2', rowClassName)}
-        optionClassName="flex-1"
       >
-        {(key) => entries[indexOf(key)].label}
+        {entries.map((entry, i) => (
+          <RadioOption key={keys[i]} value={keys[i]} variant="segment" className="flex-1">
+            {entry.label}
+          </RadioOption>
+        ))}
       </RadioGroup>
     </Field>
   )
