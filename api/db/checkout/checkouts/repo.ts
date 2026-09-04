@@ -74,6 +74,16 @@ export async function update(
   return rowCount === 1;
 }
 
+// A VISITOR'S ROW CHANGES HANDS (ruling 63). Not part of the patch surface:
+// user_id is the row's OWNER, not one of the customer's choices, and putting it
+// in PATCHABLE would let a request body name somebody else's id.
+export async function reassign(
+  id: string, user_id: string, executor?: Executor
+): Promise<boolean> {
+  const { rowCount } = await query(sql("reassign"), [id, user_id], executor);
+  return rowCount === 1;
+}
+
 export async function remove(id: string, executor?: Executor): Promise<boolean> {
   const { rowCount } = await query(sql("delete"), [id], executor);
   return rowCount === 1;

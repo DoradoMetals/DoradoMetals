@@ -80,6 +80,16 @@ export async function setDefault(
   return r.rowCount === 1;
 }
 
+// A VISITOR'S BOOK CHANGES HANDS on sign-in (ruling 63). Answers how many
+// links moved. The ADDRESSES are not re-keyed - they are shared, and this table
+// is the join that makes them so.
+export async function reassign(
+  from_user_id: string, to_user_id: string, executor?: Executor
+): Promise<number> {
+  const { rowCount } = await query(sql("reassign"), [from_user_id, to_user_id], executor);
+  return rowCount ?? 0;
+}
+
 export async function remove(
   address_id: string, user_id: string, executor?: Executor
 ): Promise<boolean> {

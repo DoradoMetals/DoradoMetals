@@ -2,7 +2,6 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useRouter } from 'next/navigation'
-import { useCheckoutItems } from '@/shared/store/checkoutItemsStore'
 
 import { apiRequest } from '@/shared/queries/axios'
 import {
@@ -21,10 +20,16 @@ import {
   updateUser,
   verifyEmail,
 } from './authClient'
-import { hydrateCheckoutItems, useReplaceCheckoutItems } from '@/features/checkout/items/queries'
+import { forgetSession } from '@dorado/client'
 
+// WHAT IS LEFT TO CLEAR IS UI STATE (ruling 63: "Frontend stores should be for
+// UI elements, not data"). The basket is not here any more - it is server rows
+// under the session's own user id, and changing identity changes which rows the
+// queries answer with. `forgetSession` is the one thing this must do: it makes
+// @dorado/client ask again who is signed in before the next basket write,
+// rather than writing against a session that has gone.
 const clearClientState = () => {
-  useCheckoutItems.getState().clearAll()
+  forgetSession()
   localStorage.removeItem('dorado_checkout_items')
   localStorage.removeItem('purchase-order-checkout')
   localStorage.removeItem('sales-order-checkout')
@@ -129,11 +134,12 @@ export const useSignIn = () => {
         }
       ),
     onSettled: async () => {
+      // NOTHING MERGES HERE ANY MORE. The visitor's basket is moved onto the
+      // real account by the SERVER, in better-auth's onLinkAccount hook
+      // (api domain/checkout/adopt.ts), before this response is written - so
+      // signing in only has to forget who it used to be and re-read.
+      forgetSession()
       queryClient.clear()
-      const session = (await getSession()).data
-      if (session?.user?.id) {
-        await hydrateCheckoutItems()
-      }
       queryClient.invalidateQueries({ queryKey: ['session'], refetchType: 'active' })
     },
     onSuccess: async () => {
@@ -145,22 +151,13 @@ export const useSignIn = () => {
 export const useSignOut = () => {
   const queryClient = useQueryClient()
   const router = useRouter()
-  const syncSale = useReplaceCheckoutItems('sale')
-  const syncPurchase = useReplaceCheckoutItems('purchase')
 
   return useMutation({
+    // THE TWO PRE-LOGOUT SYNCS ARE GONE. They existed to push the browser's
+    // basket to the server before the session went; the browser has no basket,
+    // and the rows are already the server's. Signing out leaves them on the
+    // account they belong to.
     mutationFn: async () => {
-      try {
-        await syncSale.mutateAsync({ lines: useCheckoutItems.getState().sale })
-      } catch (err) {
-        console.warn('checkout items did not sync, continuing logout:', err)
-      }
-      try {
-        await syncPurchase.mutateAsync({ lines: useCheckoutItems.getState().purchase })
-      } catch (err) {
-        console.warn('checkout items did not sync, continuing logout:', err)
-      }
-
       await signOut()
     },
     onSuccess: async () => {
@@ -182,11 +179,12 @@ export const useGoogleSignIn = () => {
         callbackURL: process.env.NEXT_PUBLIC_FRONTEND_URL,
       }),
     onSettled: async () => {
+      // NOTHING MERGES HERE ANY MORE. The visitor's basket is moved onto the
+      // real account by the SERVER, in better-auth's onLinkAccount hook
+      // (api domain/checkout/adopt.ts), before this response is written - so
+      // signing in only has to forget who it used to be and re-read.
+      forgetSession()
       queryClient.clear()
-      const session = (await getSession()).data
-      if (session?.user?.id) {
-        await hydrateCheckoutItems()
-      }
       queryClient.invalidateQueries({ queryKey: ['session'], refetchType: 'active' })
     },
     onSuccess: async () => {
@@ -306,10 +304,7 @@ export const useImpersonateUser = () => {
       return user_impersonating
     },
     onSettled: async () => {
-      const session = (await getSession()).data
-      if (session?.user?.id) {
-        await hydrateCheckoutItems()
-      }
+      forgetSession()
     },
     onSuccess: async () => {
       queryClient.invalidateQueries({ queryKey: ['session'], refetchType: 'active' })
@@ -329,10 +324,7 @@ export const useStopImpersonation = () => {
       await admin.stopImpersonating()
     },
     onSettled: async () => {
-      const session = (await getSession()).data
-      if (session?.user?.id) {
-        await hydrateCheckoutItems()
-      }
+      forgetSession()
     },
     onSuccess: async () => {
       queryClient.invalidateQueries({ queryKey: ['session'], refetchType: 'active' })

@@ -72,6 +72,11 @@ export const LIVE: World = {
 export async function place(checkout_id: string, world: World = LIVE): Promise<OrderView> {
   const checkout = await checkoutService.getRowById(checkout_id);
   if (!checkout) throw new NotFound(`no checkout ${checkout_id}`);
+  // A VISITOR MAY SHOP AND MAY NOT BUY (ruling 63). The subject is the
+  // CHECKOUT ROW's owner rather than the request's caller, because that is who
+  // the order would belong to - an admin placing a customer's checkout is
+  // asking about the customer. checkout/service.ts carries the reasoning.
+  await checkoutService.assertRealAccount(checkout.user_id, "place an order");
   const cart = await checkoutService.getItemsForOrder(checkout_id);
 
   const order_id =

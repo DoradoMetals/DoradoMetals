@@ -1,13 +1,17 @@
 // The two catalogue cards, rendered - the buy side and the sell side.
 //
-// Same rules as media and spots: jsdom, real component tree, real zustand
-// stores, real quote hook, with the network boundary and the heavy
-// presentation libraries (swiper, next/image, NumberFlow) shimmed. What is
-// pinned survives the quotes conversion: the card shows the product's name,
-// its price is the SERVER'S QUOTED unit_price for the side it is for (ask to
-// buy, bid to sell) and never a client computation, and add-to-cart puts the
-// product in the right store keyed so a second add increments rather than
-// duplicates.
+// Same rules as media and spots: jsdom, real component tree, real query cache,
+// real quote hook, with the network boundary and the heavy presentation
+// libraries (swiper, next/image, NumberFlow) shimmed. What is pinned survives
+// the quotes conversion: the card shows the product's name, its price is the
+// SERVER'S QUOTED unit_price for the side it is for (ask to buy, bid to sell)
+// and never a client computation, and add-to-cart puts the product in the right
+// BASKET keyed so a second add increments rather than duplicates.
+//
+// THE BASKET IS THE SERVER'S NOW (ruling 63). There is no zustand store to read
+// after a click: `stubCheckoutServer` stands in for /checkout/items, so the
+// hooks, the cache and the line arithmetic under the button are all the real
+// ones and the assertion is about the rows the API was told to hold.
 import { describe, expect, test, vi, beforeEach } from "vitest";
 import { screen, waitFor } from "@testing-library/react";
 import { renderWithClient } from "@/shared/tests/renderWithClient";
@@ -16,6 +20,11 @@ import React from "react";
 
 vi.mock("@/shared/queries/axios", () => ({ apiRequest: vi.fn() }));
 vi.mock("@/features/auth/queries", () => ({ useGetSession: () => ({ user: null }) }));
+// A visitor has a session too - an anonymous one (ruling 63) - so the basket
+// reads are enabled exactly as they are for a customer.
+vi.mock("@/features/auth/authClient", () => ({
+  useUser: () => ({ user: { id: "visitor-1" }, session: null, error: null, isPending: false }),
+}));
 vi.mock("next/image", () => ({
   default: (props: Record<string, unknown>) =>
     React.createElement("img", { src: props.src, alt: String(props.alt ?? "") }),
@@ -42,7 +51,7 @@ vi.mock("@/shared/ui/PriceNumberFlow", () => ({
 }));
 
 import { apiRequest } from "@/shared/queries/axios";
-import { useCheckoutItems } from "@/shared/store/checkoutItemsStore";
+import { stubCheckoutServer, type CheckoutServer } from "@/shared/tests/checkoutServer";
 import { useCatalogQuote } from "@/features/quotes/queries";
 import { catalogQuoteItems, unitPricesById } from "@/features/quotes/catalogPrices";
 import ProductCard from "@/features/products/ui/ProductCard";
@@ -108,8 +117,10 @@ beforeEach(() => {
     return {};
   });
   localStorage.clear();
-  useCheckoutItems.setState({ sale: [], purchase: [] });
+  checkout = stubCheckoutServer();
 });
+
+let checkout: CheckoutServer;
 
 // The cards take their prices as a map the PAGE quotes once for the whole
 // grid (app/buy/page.tsx, BullionTab). These harnesses are that page logic at
@@ -139,8 +150,8 @@ describe("the buy card", () => {
     // The whole card is role="button" and its accessible name contains every
     // word on it - anchor the match so it can only be the real control.
     await userEvent.click(screen.getByRole("button", { name: /^add to checkout$/i }));
-    expect(useCheckoutItems.getState().sale).toHaveLength(1);
-    expect(useCheckoutItems.getState().sale[0].quantity).toBe(1);
+    await waitFor(() => expect(checkout.lines("sale")).toHaveLength(1));
+    expect(checkout.lines("sale")[0].quantity).toBe(1);
 
     // With one in the basket the labelled button becomes -/+ steppers; the
     // plus is icon-only, so it is found by its lucide class.
@@ -149,8 +160,8 @@ describe("the buy card", () => {
     );
     expect(plus).toBeTruthy();
     await userEvent.click(plus as HTMLElement);
-    expect(useCheckoutItems.getState().sale).toHaveLength(1);
-    expect(useCheckoutItems.getState().sale[0].quantity).toBe(2);
+    await waitFor(() => expect(checkout.lines("sale")[0].quantity).toBe(2));
+    expect(checkout.lines("sale")).toHaveLength(1);
   });
 });
 
@@ -165,15 +176,13 @@ describe("the sell card", () => {
   test("add to the purchase basket stores a line naming the product", async () => {
     renderWithClient(<BullionCard product={eagle()} variants={[]} unitPrices={{}} />);
     await userEvent.click(screen.getByRole("button", { name: /^sell to us$/i }));
-    const items = useCheckoutItems.getState().purchase;
-    expect(items).toHaveLength(1);
+    await waitFor(() => expect(checkout.lines("purchase")).toHaveLength(1));
+    const items = checkout.lines("purchase");
     expect(items[0].bullion_id).toBe(eagle().id);
-    // A coin snapshots the product's own gross weight locally (ruling 51's
-    // FLOWS), the same way the server does on create - so a parcel weighs
-    // correctly before the basket has round-tripped. It carries no purity:
-    // that is the product's, never the line's, for a coin.
-    expect(items[0].pre_melt).toBe(eagle().gross);
-    expect(items[0].unit).toBe("t oz");
+    // A bullion line names an id and a quantity and nothing else: the API
+    // refuses one that spells its own weights (ruling 43), so toNewCheckoutItem
+    // strips the snapshot the card carries for its own rendering.
+    expect(items[0].pre_melt).toBeUndefined();
     expect(items[0].purity).toBeUndefined();
   });
 });

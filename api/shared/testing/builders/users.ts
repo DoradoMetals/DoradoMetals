@@ -26,6 +26,7 @@ export type BuiltUser = {
   name: string;
   role: string | null;
   dorado_funds: number;
+  isAnonymous: boolean;
 };
 
 export type UserOptions = {
@@ -35,6 +36,11 @@ export type UserOptions = {
   role?: string | null;
   funds?: number;
   phone_number?: string | null;
+  /** A VISITOR (ruling 63) - better-auth's anonymous plugin mints one of these
+   *  on the first basket touch. The row is otherwise ordinary, which is the
+   *  point; what differs is the column, and migration 122 hangs three guards
+   *  off it (the two exchange mirrors and the audit stamp). */
+  anonymous?: boolean;
 };
 
 export async function aUser(c: PoolClient, options: UserOptions = {}): Promise<BuiltUser> {
@@ -46,10 +52,11 @@ export async function aUser(c: PoolClient, options: UserOptions = {}): Promise<B
   const funds = options.funds ?? 0;
 
   const { rows } = await c.query<BuiltUser>(
-    `INSERT INTO auth.users (id, email, name, role, "emailVerified", dorado_funds, phone_number)
-     VALUES ($1, $2, $3, $4, true, $5, $6)
-     RETURNING id, email, name, role, dorado_funds`,
-    [id, email, name, role, funds, options.phone_number ?? null]
+    `INSERT INTO auth.users (id, email, name, role, "emailVerified", dorado_funds,
+                             phone_number, "isAnonymous")
+     VALUES ($1, $2, $3, $4, true, $5, $6, $7)
+     RETURNING id, email, name, role, dorado_funds, "isAnonymous"`,
+    [id, email, name, role, funds, options.phone_number ?? null, options.anonymous === true]
   );
   const row = rows[0]!;
   return { ...row, dorado_funds: Number(row.dorado_funds ?? 0) };
@@ -57,3 +64,15 @@ export async function aUser(c: PoolClient, options: UserOptions = {}): Promise<B
 
 export const anAdmin = (c: PoolClient, options: UserOptions = {}): Promise<BuiltUser> =>
   aUser(c, { ...options, role: "admin" });
+
+// A VISITOR. Their role is still `user` - that is what makes every checkout
+// route answer them, and domain/auth/anonymous.ts is what puts it there on the
+// real path. The email mirrors what the plugin generates
+// (temp-<id>@anonymous.dorado.invalid), so a test reads like production.
+export const aVisitor = (c: PoolClient, options: UserOptions = {}): Promise<BuiltUser> =>
+  aUser(c, {
+    ...options,
+    anonymous: true,
+    email: options.email ?? `temp-${anId()}@anonymous.dorado.invalid`,
+    name: options.name ?? "Anonymous",
+  });

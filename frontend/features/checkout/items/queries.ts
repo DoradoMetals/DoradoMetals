@@ -1,97 +1,88 @@
 'use client'
 
-// THE BASKET, WHICH IS SERVER STATE THE MOMENT SOMEBODY SIGNS IN.
+// THE BASKET IS SERVER STATE, ALWAYS (ruling 63: "Fuck it, go for it. We'll
+// need it anyway." / "Frontend stores should be for UI elements, not data.").
 //
-// `@dorado/client` owns every call; this file owns the ONE thing it cannot:
-// a signed-out visitor has no `checkout.items` row, because the endpoint is
-// `requireUser`. So the zustand store below is the ANONYMOUS basket and
-// nothing else - a signed-in surface reads `useBasket`, which answers the
-// server's rows, and every add/remove is a PUT from the handler that made it.
+// *** WHAT THIS FILE USED TO BE. *** A signed-out visitor had no
+// `checkout.items` row - the endpoint is `requireUser` - so the browser kept a
+// persisted zustand basket, `useBasket` answered the server's rows OR the local
+// ones depending on who was signed in, and `hydrateCheckoutItems` merged the
+// two on sign-in. Two copies of the same rows, a branch at every read, and a
+// merge nobody could watch happen.
 //
-// No effect syncs the two. Sign-in merges once (`hydrateCheckoutItems`, called
-// from the auth flow's own success handler), and after that the server is the
-// only copy a checkout surface renders.
+// *** WHAT IT IS NOW. *** A visitor gets an ANONYMOUS better-auth user on their
+// first basket touch (`ensureSession` in `@dorado/client`), so the rows exist
+// from the first line, for everyone. There is one copy, it is the server's, and
+// signing in moves it on the SERVER (better-auth's `onLinkAccount` ->
+// `domain/checkout/adopt.ts`) - so nothing here merges, hydrates or branches on
+// a session.
+//
+// What is left is the two things `@dorado/client` deliberately does not know:
+// which direction a surface is looking at, and the shape a component wants
+// (`CheckoutLine` rather than the wire row).
 import type { Direction } from '@dorado/contracts'
 import {
-  fetchCheckoutItems,
   useCheckoutItems as useServerCheckoutItems,
   useClearCheckoutItems as useClearServerItems,
   useReplaceCheckoutItems as useReplaceServerItems,
 } from '@dorado/client'
 import { useUser } from '@/features/auth/authClient'
-import { useCheckoutItems as useLocalBasket } from '@/shared/store/checkoutItemsStore'
+import { addLine, removeAll, removeOne } from '@/features/checkout/items/basket'
 import { lineFromRow, toNewCheckoutItem, type CheckoutLine } from '@/features/checkout/items/types'
 
-// Sign-in: the server's copy wins, browser-only lines survive. A top-level
-// read, not a post-success effect - the auth flow calls it from its own
-// handler, and a basket that will not hydrate keeps the local copy.
-export const hydrateCheckoutItems = async () => {
-  for (const direction of ['sale', 'purchase'] as const) {
-    const rows = await fetchCheckoutItems(direction).catch(() => null)
-    if (rows) useLocalBasket.getState().merge(direction, rows.map(lineFromRow))
-  }
-}
-
-// WHAT A CHECKOUT SURFACE RENDERS. Signed in: the server's rows, which carry
-// the content, the premium and the snapshot the API took at PUT time. Signed
-// out: the local basket, which is all there is.
+// WHAT A CHECKOUT SURFACE RENDERS: the server's rows, which carry the content,
+// the premium and the snapshot the API took at PUT time.
+//
+// A READ NEVER MINTS AN IDENTITY - `enabled` on a session that already exists -
+// so opening a page does not create a visitor; the first WRITE does. Somebody
+// who has touched nothing has an empty basket, which is what this answers.
 export const useBasket = (direction: Direction): CheckoutLine[] => {
   const { user } = useUser()
-  const local = useLocalBasket((state) => state[direction])
   const { data: rows } = useServerCheckoutItems(direction, { enabled: !!user?.id })
-  return user?.id ? (rows ?? []).map(lineFromRow) : local
+  return (rows ?? []).map(lineFromRow)
 }
 
 export const useReplaceCheckoutItems = (direction: Direction) => {
-  const { user } = useUser()
   const mutation = useReplaceServerItems(direction)
   return {
     ...mutation,
-    mutate: (vars: { lines: CheckoutLine[]; user_id?: string }) => {
-      if (!user?.id) return
-      mutation.mutate({ items: vars.lines.map(toNewCheckoutItem), user_id: vars.user_id })
-    },
-    mutateAsync: async (vars: { lines: CheckoutLine[]; user_id?: string }) => {
-      if (!user?.id) throw new Error('User is not authenticated')
-      return await mutation.mutateAsync({
+    mutate: (vars: { lines: CheckoutLine[]; user_id?: string }) =>
+      mutation.mutate({ items: vars.lines.map(toNewCheckoutItem), user_id: vars.user_id }),
+    mutateAsync: async (vars: { lines: CheckoutLine[]; user_id?: string }) =>
+      await mutation.mutateAsync({
         items: vars.lines.map(toNewCheckoutItem),
         user_id: vars.user_id,
-      })
-    },
+      }),
   }
 }
 
 export const useClearCheckoutItems = (direction: Direction) => useClearServerItems(direction)
 
-// ONE HOOK, BOTH DIRECTIONS, called from the click that changed the basket -
-// a product card's add button, a scrap declaration's remove. The local copy
-// moves first so an anonymous visitor sees the change; a signed-in one PUTs
-// the whole basket, and the answer replaces the query cache.
+// ONE HOOK, BOTH DIRECTIONS, called from the click that changed the basket - a
+// product card's add button, a scrap declaration's remove.
+//
+// THE PUT IS THE WHOLE BASKET, because that endpoint replaces rather than
+// merges: the new list is composed from the rows the server last answered with
+// (items/basket.ts) and sent. The answer replaces the cache, so the count a
+// card renders is the server's own, never a local guess that could drift.
 export const useCheckoutItemActions = () => {
-  const { user } = useUser()
-  const syncSale = useReplaceServerItems('sale')
-  const syncPurchase = useReplaceServerItems('purchase')
+  const sale = useBasket('sale')
+  const purchase = useBasket('purchase')
+  const syncSale = useReplaceCheckoutItems('sale')
+  const syncPurchase = useReplaceCheckoutItems('purchase')
+
+  const linesFor = (direction: Direction) => (direction === 'sale' ? sale : purchase)
   const syncFor = (direction: Direction) => (direction === 'sale' ? syncSale : syncPurchase)
 
-  const push = (direction: Direction) => {
-    if (!user?.id) return
-    syncFor(direction).mutate({
-      items: useLocalBasket.getState()[direction].map(toNewCheckoutItem),
-    })
-  }
+  const push = (direction: Direction, lines: CheckoutLine[]) =>
+    syncFor(direction).mutate({ lines })
 
   return {
-    addItem: (direction: Direction, line: CheckoutLine) => {
-      useLocalBasket.getState().addItem(direction, line)
-      push(direction)
-    },
-    removeOne: (direction: Direction, line: CheckoutLine) => {
-      useLocalBasket.getState().removeOne(direction, line)
-      push(direction)
-    },
-    removeAll: (direction: Direction, line: CheckoutLine) => {
-      useLocalBasket.getState().removeAll(direction, line)
-      push(direction)
-    },
+    addItem: (direction: Direction, line: CheckoutLine) =>
+      push(direction, addLine(linesFor(direction), line)),
+    removeOne: (direction: Direction, line: CheckoutLine) =>
+      push(direction, removeOne(linesFor(direction), line)),
+    removeAll: (direction: Direction, line: CheckoutLine) =>
+      push(direction, removeAll(linesFor(direction), line)),
   }
 }

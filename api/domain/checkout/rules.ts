@@ -225,3 +225,59 @@ export function checkoutState(
     ready_to_place: missing.length === 0,
   };
 }
+
+// ------------------------------------------------ adopting a visitor's basket
+//
+// THE MERGE RULE (ruling 63). A visitor builds a checkout under an anonymous
+// user id; signing in or signing up links that visitor to a real account and
+// the checkout follows. When the real account ALREADY has a row for that
+// direction there are two of everything, and this is the one place that says
+// which wins:
+//
+//   THE VISITOR'S CHOICES WIN WHERE THEY MADE ONE. They are the choices made
+//   seconds ago, in the session the customer is looking at, and the row they
+//   are looking at is the one that must survive the sign-in - anything else
+//   silently discards work the customer can see on screen.
+//
+//   THE REAL ROW'S CHOICES WIN WHERE THE VISITOR HAS NONE. A saved address or
+//   package from a previous visit is not in the visitor's way; it is the
+//   customer's own earlier answer, and dropping it would make signing in a
+//   RESET rather than a merge.
+//
+// Which is column-by-column `anonymous ?? real`, and the items are the same
+// rule at basket scale: the visitor's basket replaces the real one outright
+// (adopt.ts moves the lines), because a basket is a SET the customer is
+// looking at, not a bag of independent choices - merging two of them produces
+// a basket nobody assembled.
+//
+// PURE, so the decision is testable without a database: the caller applies the
+// patch it answers.
+export type ChoiceColumns = Partial<Pick<Checkout, (typeof CHOICE_COLUMNS)[number]>>;
+
+// Every column a step writes. It is `checkouts.PATCHABLE` restated rather than
+// imported: this module is PURE - its tests run in the no-database lane, which
+// scripts/lib/test-layers.ts derives from what a file imports, and reaching for
+// the repo would drag the pool in and move them. The two lists are pinned equal
+// by tests/adopt.test.ts, so a column added to the repo fails a test here
+// rather than silently stopping being carried across a sign-in.
+export const CHOICE_COLUMNS = [
+  "payment_method_id", "payment_details_id", "fulfillment_id",
+  "fulfillment_method_id", "appointment_location_id", "pickup_address_id",
+  "shipper_address_id", "recipient_address_id", "carrier_service_id",
+  "package_id", "appointment_time", "pickup_date", "pickup_time",
+] as const;
+
+// The patch to apply to the row that SURVIVES (the real user's), given the row
+// that is going away (the visitor's). Only columns that actually change are
+// named, so a merge with nothing to say answers an empty patch and writes
+// nothing.
+export function mergeChoices(
+  anonymous: ChoiceColumns, real: ChoiceColumns
+): ChoiceColumns {
+  const patch: Record<string, unknown> = {};
+  for (const column of CHOICE_COLUMNS) {
+    const chosen = anonymous[column] ?? real[column] ?? null;
+    if (chosen !== (real[column] ?? null)) patch[column] = chosen;
+  }
+  return patch as ChoiceColumns;
+}

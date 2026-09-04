@@ -10,6 +10,11 @@ import { test, expect } from "@playwright/test";
 // - without confirming anything.
 //
 // The sale basket is cleared through the API afterwards.
+//
+// THE BASKET IS SERVER STATE FOR EVERYONE NOW (ruling 63), signed in or not -
+// so `Add to Checkout` is a round trip rather than a zustand write, and every
+// basket assertion below polls rather than reading synchronously. The
+// signed-out half of this journey is shared/tests/anonymous-basket.e2e.ts.
 const API = (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5000/api").replace(/\/$/, "");
 
 test.afterEach(async ({ request }) => {

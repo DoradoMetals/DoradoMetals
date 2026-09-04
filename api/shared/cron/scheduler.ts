@@ -1,4 +1,5 @@
 import { sweepSettledIntents } from "#domain/payments/sweeps.ts";
+import { sweepAnonymousVisitors } from "#domain/checkout/sweep.ts";
 import { reportError } from "#shared/observability/report.ts";
 import cron from "node-cron";
 import { logger } from "#shared/logging/logger.ts";
@@ -18,6 +19,15 @@ export const jobs = (): Job[] => [
     name: "spot prices",
     schedule: process.env.SPOT_UPDATE_SCHEDULE,
     run: updateSpotPrices,
+  },
+  {
+    // Ruling 63 mints an auth.users row for every visitor who touches a basket,
+    // and nothing else ever deletes one - the anonymous plugin is configured
+    // not to. Idempotent, moves no money, and everything it can reach is
+    // device-sync, which is the same test the settled sweep above passes.
+    name: "anonymous visitors",
+    schedule: process.env.ANONYMOUS_SWEEP_SCHEDULE,
+    run: async () => { await sweepAnonymousVisitors(); },
   },
   {
     // Idempotent and moves NO money — the whole reason it's allowed on a timer while the abandonment sweep (cancel + refund) lives only behind reconcile:payments --commit and a human.

@@ -20,8 +20,7 @@ import {
   ShieldCheckIcon,
   TagIcon,
 } from '@phosphor-icons/react'
-import { useCheckoutItems } from '@/shared/store/checkoutItemsStore'
-import { useCheckoutItemActions } from '@/features/checkout/items/queries'
+import { useBasket, useCheckoutItemActions } from '@/features/checkout/items/queries'
 import { lineFromProduct } from '@/features/checkout/items/types'
 import { Lens } from '@/shared/ui/base/lens'
 import { paymentMethodIcon, transitLabel } from '@/features/orders/salesOrders/types'
@@ -61,8 +60,8 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
     specs: false,
   })
 
-  const buyItems = useCheckoutItems((state) => state.sale)
-  const sellItems = useCheckoutItems((state) => state.purchase)
+  const buyItems = useBasket('sale')
+  const sellItems = useBasket('purchase')
   const { addItem, removeOne } = useCheckoutItemActions()
 
   const quantity = buyItems.find((i) => i.bullion_id === selectedProduct.id)?.quantity ?? 0

@@ -30,10 +30,14 @@ import type {
 } from "@dorado/contracts";
 import { apiRequest } from "../fetch";
 import { keys } from "../keys";
+import { ensureSession } from "../session";
 
-// A caller says whether it has a session; this package knows nothing about
-// auth. `enabled: false` keeps a hook mounted and idle, which is what a signed
-// -out surface wants.
+// A caller says whether a session already EXISTS; this package knows nothing
+// about auth. `enabled: false` keeps a read mounted and idle, which is what a
+// surface with nobody signed in wants - a READ never mints an identity, so
+// opening the home page does not create a visitor. The WRITES below do:
+// `ensureSession` is awaited first, and that is the "first basket touch" of
+// ruling 63.
 export type ReadOptions = { enabled?: boolean };
 
 // `user_id` is admin-only server-side and names the customer an admin is
@@ -66,12 +70,14 @@ export function usePatchCheckout(
 ): UseMutationResult<CheckoutView, Error, CheckoutPatch> {
   const client = useQueryClient();
   return useMutation({
-    mutationFn: (patch: CheckoutPatch) =>
-      apiRequest<CheckoutView>(
+    mutationFn: async (patch: CheckoutPatch) => {
+      await ensureSession();
+      return await apiRequest<CheckoutView>(
         "PATCH", "/checkout",
         { direction, ...patch },
         subject?.user_id ? { user_id: subject.user_id } : undefined
-      ),
+      );
+    },
     onSuccess: (row) => client.setQueryData(keys.checkout.row(direction), row),
   });
 }
@@ -83,8 +89,12 @@ export function useSetCheckoutFulfillment(
 ): UseMutationResult<CheckoutView, Error, { method_id?: string; handoff_code?: string }> {
   const client = useQueryClient();
   return useMutation({
-    mutationFn: (choice: { method_id?: string; handoff_code?: string }) =>
-      apiRequest<CheckoutView>("POST", "/checkout/fulfillment", { direction, ...choice }),
+    mutationFn: async (choice: { method_id?: string; handoff_code?: string }) => {
+      await ensureSession();
+      return await apiRequest<CheckoutView>(
+        "POST", "/checkout/fulfillment", { direction, ...choice }
+      );
+    },
     onSuccess: (row) => client.setQueryData(keys.checkout.row(direction), row),
   });
 }
@@ -97,8 +107,16 @@ export function useSaveCheckoutPayout(
 ): UseMutationResult<CheckoutView, Error, CheckoutPayoutForm> {
   const client = useQueryClient();
   return useMutation({
-    mutationFn: (form: CheckoutPayoutForm) =>
-      apiRequest<CheckoutView>("POST", "/checkout/payout", { direction, ...form }),
+    // The one write a VISITOR is refused: bank numbers are sealed at rest
+    // against a user id and a visitor's is swept (api domain/checkout/service.ts
+    // `assertRealAccount`). ensureSession is still awaited - the refusal has to
+    // come from the server, about the account, rather than from a 401.
+    mutationFn: async (form: CheckoutPayoutForm) => {
+      await ensureSession();
+      return await apiRequest<CheckoutView>(
+        "POST", "/checkout/payout", { direction, ...form }
+      );
+    },
     onSuccess: (row) => client.setQueryData(keys.checkout.row(direction), row),
   });
 }
@@ -132,10 +150,15 @@ export function useReplaceCheckoutItems(
 ): UseMutationResult<CheckoutItem[], Error, { items: CheckoutItemPatch[] } & Subject> {
   const client = useQueryClient();
   return useMutation({
-    mutationFn: ({ items, user_id }: { items: CheckoutItemPatch[] } & Subject) =>
-      apiRequest<CheckoutItem[]>(
+    // THE FIRST BASKET TOUCH. A signed-out visitor becomes an anonymous
+    // better-auth user here, before the PUT, and the basket is server rows from
+    // its very first line.
+    mutationFn: async ({ items, user_id }: { items: CheckoutItemPatch[] } & Subject) => {
+      await ensureSession();
+      return await apiRequest<CheckoutItem[]>(
         "PUT", "/checkout/items", { items }, scope(direction, { user_id })
-      ),
+      );
+    },
     onSuccess: (rows, { user_id }) => {
       // An admin syncing a NAMED customer's basket must not overwrite the
       // caller's own cached copy with somebody else's rows.
@@ -151,8 +174,12 @@ export function useClearCheckoutItems(
 ): UseMutationResult<{ removed: number }, Error, void> {
   const client = useQueryClient();
   return useMutation({
-    mutationFn: () =>
-      apiRequest<{ removed: number }>("DELETE", "/checkout/items", undefined, { direction }),
+    mutationFn: async () => {
+      await ensureSession();
+      return await apiRequest<{ removed: number }>(
+        "DELETE", "/checkout/items", undefined, { direction }
+      );
+    },
     onSuccess: () => {
       client.setQueryData(keys.checkout.items(direction), []);
       client.invalidateQueries({ queryKey: keys.checkout.row(direction) });
@@ -240,7 +267,10 @@ export function usePlaceOrderFromCheckout(
     : "/sales_orders/create_sales_order";
   return useMutation({
     mutationFn: async () => {
+      await ensureSession();
       const row = await apiRequest<CheckoutView>("GET", "/checkout", undefined, { direction });
+      // A VISITOR IS REFUSED HERE, by the server, with a domain message the UI
+      // turns into the sign-in prompt (api domain/orders/place.ts).
       return await apiRequest<OrderView>("POST", path, { checkout_id: row.id });
     },
     onSettled: () => {

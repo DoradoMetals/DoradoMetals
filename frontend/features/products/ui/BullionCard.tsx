@@ -12,8 +12,7 @@ import { PopoverContent, PopoverTrigger } from '@/shared/ui/base/popover'
 import { Popover } from '@radix-ui/react-popover'
 import { cn } from '@/shared/utils/cn'
 import { AnimatePresence, motion } from 'framer-motion'
-import { useCheckoutItems } from '@/shared/store/checkoutItemsStore'
-import { useCheckoutItemActions } from '@/features/checkout/items/queries'
+import { useBasket, useCheckoutItemActions } from '@/features/checkout/items/queries'
 import { lineFromProduct } from '@/features/checkout/items/types'
 import { useSpotPrices } from '@/features/spots/queries'
 import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
@@ -36,7 +35,7 @@ export default function BullionCard({ product, variants, unitPrices }: BullionCa
   const [open, setOpen] = useState(false)
   const [variantsOpen, setVariantsOpen] = useState(false)
 
-  const items = useCheckoutItems((state) => state.purchase)
+  const items = useBasket('purchase')
   const { addItem, removeOne } = useCheckoutItemActions()
 
   const quantity = items.find((i) => i.bullion_id === selectedProduct.id)?.quantity ?? 0

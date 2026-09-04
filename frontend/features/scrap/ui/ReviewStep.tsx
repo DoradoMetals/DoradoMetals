@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { CoinsIcon, PercentIcon, ScalesIcon } from '@phosphor-icons/react'
 import { usePurchaseOrderQuote } from '@/features/quotes/queries'
 import { formatRate } from '@/features/rates/utils/resolveRate'
-import { useCheckoutItems } from '@/shared/store/checkoutItemsStore'
+import { useBasket } from '@/features/checkout/items/queries'
 import { useSpotPrices } from '@/features/spots/queries'
 import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
 import StatusChip from '@/shared/ui/StatusChip'
@@ -19,7 +19,7 @@ export default function ReviewStep({ showBanner }: { showBanner: boolean }) {
   const pre_melt = form.watch('pre_melt') ?? 0
   const purity = form.watch('purity') ?? 0
 
-  const items = useCheckoutItems((s) => s.purchase)
+  const items = useBasket('purchase')
   const { data: metals = [] } = useSpotPrices()
   const metal_id = metals.find((m) => m.name === metal)?.id
 

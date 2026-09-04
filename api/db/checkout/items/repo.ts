@@ -88,6 +88,18 @@ export async function remove(id: string, executor?: Executor): Promise<boolean> 
   return rowCount === 1;
 }
 
+// A VISITOR'S BASKET CHANGES HANDS with the customer's surviving row (ruling
+// 63). Answers how many lines moved. Not a patch: checkout_id is the line's
+// PARENT, and PATCHABLE is what a request may name.
+export async function reassign(
+  from_checkout_id: string, to_checkout_id: string, executor?: Executor
+): Promise<number> {
+  const { rowCount } = await query(
+    sql("reassign"), [from_checkout_id, to_checkout_id], executor
+  );
+  return rowCount ?? 0;
+}
+
 // The sync REPLACES a basket rather than merging it, so every write empties the
 // session first. Answers how many lines went.
 export async function removeFor(checkout_id: string, executor?: Executor): Promise<number> {
