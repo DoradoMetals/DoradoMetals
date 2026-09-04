@@ -58,3 +58,4 @@ export { RadioGroup, Radio, RadioOption, radioOptionVariants, type RadioOptionPr
 export { Drawer, type DrawerProps } from "./drawer/Drawer";
 export { Rating, RatingButton, type RatingProps, type RatingButtonProps } from "./rating/Rating";
 export { useFocusTrap } from "./hooks/useFocusTrap";
+export { Amount, type AmountProps } from "./amount/Amount";
