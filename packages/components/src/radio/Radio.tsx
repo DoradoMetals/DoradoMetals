@@ -48,6 +48,8 @@ export const radioOptionVariants = cva(
         tile: "flex-col items-center justify-center gap-2xs p-sm text-center",
         card: "items-start justify-between gap-sm p-md",
         chip: "h-10 items-center justify-center px-sm text-small font-medium text-muted-foreground data-[state=checked]:text-foreground",
+        segment:
+          "items-center justify-center gap-2xs rounded-md border-transparent bg-muted px-sm py-xs text-small font-medium text-muted-foreground data-[state=checked]:border data-[state=checked]:border-border data-[state=checked]:bg-card data-[state=checked]:text-foreground",
       },
     },
     defaultVariants: { variant: "card" },
@@ -69,6 +71,7 @@ const indicatorPosition: Record<RadioOptionVariant, string> = {
   tile: "absolute right-2xs top-2xs",
   card: "shrink-0 self-start",
   chip: "absolute right-xs top-1/2 -translate-y-1/2",
+  segment: "absolute right-xs top-1/2 -translate-y-1/2",
 };
 
 export function RadioOption({

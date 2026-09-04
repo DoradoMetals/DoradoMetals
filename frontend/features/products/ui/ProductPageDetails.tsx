@@ -2,7 +2,7 @@
 
 import Image from 'next/image'
 import { Product } from '@/features/products/types'
-import { Button } from '@dorado/components'
+import { Accordion, Button } from '@dorado/components'
 import { Equal, Minus, Plus, X } from 'lucide-react'
 import NumberFlow from '@number-flow/react'
 import { RadioGroup } from '@/shared/ui/RadioGroup'
@@ -14,12 +14,7 @@ import 'swiper/css/navigation'
 import 'swiper/css/pagination'
 import { cn } from '@/shared/utils/cn'
 import { AnimatePresence, motion } from 'framer-motion'
-import {
-  CircleIcon,
-  ClockIcon,
-  ShieldCheckIcon,
-  TagIcon,
-} from '@phosphor-icons/react'
+import { CircleIcon, ClockIcon, ShieldCheckIcon, TagIcon } from '@phosphor-icons/react'
 import { useCheckoutItems } from '@/shared/store/checkoutItemsStore'
 import { useCheckoutItemActions } from '@/features/checkout/items/queries'
 import { lineFromProduct } from '@/features/checkout/items/types'
@@ -30,7 +25,6 @@ import { useSaleShippingServices } from '@/features/shipping/queries'
 import { useSpotPrices } from '@/features/spots/queries'
 import { useCatalogQuote } from '@/features/quotes/queries'
 import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
-import AccordionSection from '@/shared/ui/AccordionSection'
 import { DetailRow } from '@/shared/ui/DetailRow'
 
 type ProductPageProps = {
@@ -87,8 +81,7 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
   // (content * spot * (premium - 1)) whenever the quote and the ticker read
   // the same spot tick; between their 10s refreshes they can differ by
   // content * the spot's movement. Zero until a quote lands.
-  const askOverOrUnder =
-    price === 0 ? 0 : price - selectedProduct.content * (spot?.ask ?? 0)
+  const askOverOrUnder = price === 0 ? 0 : price - selectedProduct.content * (spot?.ask ?? 0)
   const bidOverOrUnder =
     buybackPrice === 0 ? 0 : buybackPrice - selectedProduct.content * (spot?.bid ?? 0)
 
@@ -204,9 +197,7 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
             {sellQuantity === 0 ? (
               <Button
                 className="w-full"
-                onClick={() =>
-                  addItem('purchase', lineFromProduct(selectedProduct))
-                }
+                onClick={() => addItem('purchase', lineFromProduct(selectedProduct))}
               >
                 Sell to Us
               </Button>
@@ -221,9 +212,7 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
                 <NumberFlow value={sellQuantity} trend={0} />
                 <Button
                   size="icon"
-                  onClick={() =>
-                    addItem('purchase', lineFromProduct(selectedProduct))
-                  }
+                  onClick={() => addItem('purchase', lineFromProduct(selectedProduct))}
                 >
                   <Plus size={20} />
                 </Button>
@@ -254,16 +243,16 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
           </div>
 
           <div className="flex flex-col gap-2 w-full">
-            <AccordionSection
-              variant="card"
+            <Accordion
+              surface="card"
               label={`Description`}
               open={open.description}
               onToggle={() => setOpen((prev) => ({ ...prev, description: !prev.description }))}
             >
               <p className="text-left whitespace-pre-line">{selectedProduct.description}</p>
-            </AccordionSection>
-            <AccordionSection
-              variant="card"
+            </Accordion>
+            <Accordion
+              surface="card"
               label={`Price Breakdown`}
               open={open.price}
               onToggle={() => setOpen((prev) => ({ ...prev, price: !prev.price }))}
@@ -271,13 +260,19 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
               <div className="text-left">
                 <div className="flex flex-col gap-2">
                   <div className="flex flex-col gap-2 border-b-1 border-border pb-2">
-                    <DetailRow label={<>{spot?.name} Ask Spot</>} variant="detail" className="items-start pl-8">
+                    <DetailRow
+                      label={<>{spot?.name} Ask Spot</>}
+                      variant="detail"
+                      className="items-start pl-8"
+                    >
                       <PriceNumberFlow value={spot?.ask ?? 0} />
                     </DetailRow>
 
                     <div className="flex w-full items-start">
                       <X size={16} className="text-subtle" />
-                      <DetailRow label="Content (oz)" variant="detail" className="items-start pl-4">{selectedProduct.content}</DetailRow>
+                      <DetailRow label="Content (oz)" variant="detail" className="items-start pl-4">
+                        {selectedProduct.content}
+                      </DetailRow>
                     </div>
 
                     <div className="flex w-full items-start">
@@ -301,9 +296,9 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
                   </div>
                 </div>
               </div>
-            </AccordionSection>
-            <AccordionSection
-              variant="card"
+            </Accordion>
+            <Accordion
+              surface="card"
               label={`Buyback Breakdown`}
               open={open.buyback}
               onToggle={() => setOpen((prev) => ({ ...prev, buyback: !prev.buyback }))}
@@ -311,13 +306,19 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
               <div className="text-left">
                 <div className="flex flex-col gap-2">
                   <div className="flex flex-col gap-2 border-b-1 border-border pb-2">
-                    <DetailRow label={<>{spot?.name} Bid Spot</>} variant="detail" className="items-start pl-8">
+                    <DetailRow
+                      label={<>{spot?.name} Bid Spot</>}
+                      variant="detail"
+                      className="items-start pl-8"
+                    >
                       <PriceNumberFlow value={spot?.bid ?? 0} />
                     </DetailRow>
 
                     <div className="flex w-full items-start">
                       <X size={16} className="text-subtle" />
-                      <DetailRow label="Content (oz)" variant="detail" className="items-start pl-4">{selectedProduct.content}</DetailRow>
+                      <DetailRow label="Content (oz)" variant="detail" className="items-start pl-4">
+                        {selectedProduct.content}
+                      </DetailRow>
                     </div>
 
                     <div className="flex w-full items-start">
@@ -341,16 +342,19 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
                   </div>
                 </div>
               </div>
-            </AccordionSection>
-            <AccordionSection
-              variant="card"
+            </Accordion>
+            <Accordion
+              surface="card"
               label={`Shipping`}
               open={open.shipping}
               onToggle={() => setOpen((prev) => ({ ...prev, shipping: !prev.shipping }))}
             >
               <div className="flex flex-col w-full gap-3">
                 {displayServices.map((svc) => (
-                  <div key={svc.code ?? svc.id} className="flex items-center justify-between w-full">
+                  <div
+                    key={svc.code ?? svc.id}
+                    className="flex items-center justify-between w-full"
+                  >
                     <p>
                       {svc.name} {`(${transitLabel(svc.min_transit_days, svc.max_transit_days)})`}
                     </p>
@@ -375,43 +379,43 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
                   </p>
                 </div>
               </div>
-            </AccordionSection>
-            <AccordionSection
-              variant="card"
+            </Accordion>
+            <Accordion
+              surface="card"
               label={`Payment Options`}
               open={open.payment}
               onToggle={() => setOpen((prev) => ({ ...prev, payment: !prev.payment }))}
             >
               <div className="flex flex-col">
                 {displayMethods.map((payment, index) => {
-                    const Icon = paymentMethodIcon[payment.type as keyof typeof paymentMethodIcon]
-                    return (
-                      <div
-                        key={index}
-                        className={cn(
-                          'flex flex-col items-start gap-1 py-2',
-                          index !== 0 && 'border-t border-border'
-                        )}
-                      >
-                        <div className="flex w-full gap-2 items-center">
-                          <div className="flex items-center gap-1">
-                            {Icon && <Icon className='text-primary' size={20} />}
-                            <h5>{payment.label}</h5>
-                          </div>
-                          <small className="flex items-center gap-2 pt-1 pl-4">
-                            <span className="text-left">{payment.time_delay}</span>
-                            <CircleIcon size={6} weight="fill" className="text-placeholder" />
-                            <span className="text-right">{payment.surcharge_label}</span>
-                          </small>
+                  const Icon = paymentMethodIcon[payment.type as keyof typeof paymentMethodIcon]
+                  return (
+                    <div
+                      key={index}
+                      className={cn(
+                        'flex flex-col items-start gap-1 py-2',
+                        index !== 0 && 'border-t border-border'
+                      )}
+                    >
+                      <div className="flex w-full gap-2 items-center">
+                        <div className="flex items-center gap-1">
+                          {Icon && <Icon className="text-primary" size={20} />}
+                          <h5>{payment.label}</h5>
                         </div>
-                        <p>{payment.short_description}</p>
+                        <small className="flex items-center gap-2 pt-1 pl-4">
+                          <span className="text-left">{payment.time_delay}</span>
+                          <CircleIcon size={6} weight="fill" className="text-placeholder" />
+                          <span className="text-right">{payment.surcharge_label}</span>
+                        </small>
                       </div>
-                    )
-                  })}
+                      <p>{payment.short_description}</p>
+                    </div>
+                  )
+                })}
               </div>
-            </AccordionSection>
-            <AccordionSection
-              variant="card"
+            </Accordion>
+            <Accordion
+              surface="card"
               label={`Product Specifications`}
               open={open.specs}
               onToggle={() => setOpen((prev) => ({ ...prev, specs: !prev.specs }))}
@@ -430,7 +434,7 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
                   <p>{selectedProduct.content.toFixed(4)}</p>
                 </div>
               </div>
-            </AccordionSection>
+            </Accordion>
           </div>
         </div>
       </div>
@@ -571,9 +575,7 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
             {sellQuantity === 0 ? (
               <Button
                 className="w-full"
-                onClick={() =>
-                  addItem('purchase', lineFromProduct(selectedProduct))
-                }
+                onClick={() => addItem('purchase', lineFromProduct(selectedProduct))}
               >
                 Sell to Us
               </Button>
@@ -588,9 +590,7 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
                 <NumberFlow value={sellQuantity} trend={0} />
                 <Button
                   size="icon"
-                  onClick={() =>
-                    addItem('purchase', lineFromProduct(selectedProduct))
-                  }
+                  onClick={() => addItem('purchase', lineFromProduct(selectedProduct))}
                 >
                   <Plus size={20} />
                 </Button>
@@ -602,16 +602,16 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
         {/* accordions */}
         <div className="flex flex-col gap-2 w-full">
           <div className="flex flex-col gap-2 w-full">
-            <AccordionSection
-              variant="card"
+            <Accordion
+              surface="card"
               label={`Description`}
               open={open.description}
               onToggle={() => setOpen((prev) => ({ ...prev, description: !prev.description }))}
             >
               <p className="text-left whitespace-pre-line">{selectedProduct.description}</p>
-            </AccordionSection>
-            <AccordionSection
-              variant="card"
+            </Accordion>
+            <Accordion
+              surface="card"
               label={`Price Breakdown`}
               open={open.price}
               onToggle={() => setOpen((prev) => ({ ...prev, price: !prev.price }))}
@@ -619,13 +619,19 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
               <div className="text-left">
                 <div className="flex flex-col gap-2">
                   <div className="flex flex-col gap-2 border-b-1 border-border pb-2">
-                    <DetailRow label={<>{spot?.name} Ask Spot</>} variant="detail" className="items-start pl-8">
+                    <DetailRow
+                      label={<>{spot?.name} Ask Spot</>}
+                      variant="detail"
+                      className="items-start pl-8"
+                    >
                       <PriceNumberFlow value={spot?.ask ?? 0} />
                     </DetailRow>
 
                     <div className="flex w-full items-start">
                       <X size={16} className="text-subtle" />
-                      <DetailRow label="Content (oz)" variant="detail" className="items-start pl-4">{selectedProduct.content}</DetailRow>
+                      <DetailRow label="Content (oz)" variant="detail" className="items-start pl-4">
+                        {selectedProduct.content}
+                      </DetailRow>
                     </div>
 
                     <div className="flex w-full items-start">
@@ -649,9 +655,9 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
                   </div>
                 </div>
               </div>
-            </AccordionSection>
-            <AccordionSection
-              variant="card"
+            </Accordion>
+            <Accordion
+              surface="card"
               label={`Buyback Breakdown`}
               open={open.buyback}
               onToggle={() => setOpen((prev) => ({ ...prev, buyback: !prev.buyback }))}
@@ -659,13 +665,19 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
               <div className="text-left">
                 <div className="flex flex-col gap-2">
                   <div className="flex flex-col gap-2 border-b-1 border-border pb-2">
-                    <DetailRow label={<>{spot?.name} Bid Spot</>} variant="detail" className="items-start pl-8">
+                    <DetailRow
+                      label={<>{spot?.name} Bid Spot</>}
+                      variant="detail"
+                      className="items-start pl-8"
+                    >
                       <PriceNumberFlow value={spot?.bid ?? 0} />
                     </DetailRow>
 
                     <div className="flex w-full items-start">
                       <X size={16} className="text-subtle" />
-                      <DetailRow label="Content (oz)" variant="detail" className="items-start pl-4">{selectedProduct.content}</DetailRow>
+                      <DetailRow label="Content (oz)" variant="detail" className="items-start pl-4">
+                        {selectedProduct.content}
+                      </DetailRow>
                     </div>
 
                     <div className="flex w-full items-start">
@@ -689,16 +701,19 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
                   </div>
                 </div>
               </div>
-            </AccordionSection>
-            <AccordionSection
-              variant="card"
+            </Accordion>
+            <Accordion
+              surface="card"
               label={`Shipping`}
               open={open.shipping}
               onToggle={() => setOpen((prev) => ({ ...prev, shipping: !prev.shipping }))}
             >
               <div className="flex flex-col w-full gap-3">
                 {displayServices.map((svc) => (
-                  <div key={svc.code ?? svc.id} className="flex items-center justify-between w-full">
+                  <div
+                    key={svc.code ?? svc.id}
+                    className="flex items-center justify-between w-full"
+                  >
                     <p>
                       {svc.name} {`(${transitLabel(svc.min_transit_days, svc.max_transit_days)})`}
                     </p>
@@ -723,45 +738,43 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
                   </p>
                 </div>
               </div>
-            </AccordionSection>
-            <AccordionSection
-              variant="card"
+            </Accordion>
+            <Accordion
+              surface="card"
               label={`Payment Options`}
               open={open.payment}
               onToggle={() => setOpen((prev) => ({ ...prev, payment: !prev.payment }))}
             >
               <div className="flex flex-col">
                 {displayMethods.map((payment, index) => {
-                    const Icon = paymentMethodIcon[payment.type as keyof typeof paymentMethodIcon]
-                    return (
-                      <div
-                        key={index}
-                        className={cn(
-                          'flex flex-col items-start gap-1 py-2',
-                          index !== displayMethods.length - 1
-                            ? 'border-b border-border pt-0'
-                            : 'pb-0'
-                        )}
-                      >
-                        <div className="flex w-full gap-2 items-center">
-                          <div className="flex items-center gap-1">
-                            {Icon && <Icon className='text-primary' size={20} />}
-                            <h5>{payment.label}</h5>
-                          </div>
-                          <small className="flex items-center gap-2 pt-1 pl-4">
-                            <span className="text-left">{payment.time_delay}</span>
-                            <CircleIcon size={6} weight="fill" className="text-placeholder" />
-                            <span className="text-right">{payment.surcharge_label}</span>
-                          </small>
+                  const Icon = paymentMethodIcon[payment.type as keyof typeof paymentMethodIcon]
+                  return (
+                    <div
+                      key={index}
+                      className={cn(
+                        'flex flex-col items-start gap-1 py-2',
+                        index !== displayMethods.length - 1 ? 'border-b border-border pt-0' : 'pb-0'
+                      )}
+                    >
+                      <div className="flex w-full gap-2 items-center">
+                        <div className="flex items-center gap-1">
+                          {Icon && <Icon className="text-primary" size={20} />}
+                          <h5>{payment.label}</h5>
                         </div>
-                        <p>{payment.short_description}</p>
+                        <small className="flex items-center gap-2 pt-1 pl-4">
+                          <span className="text-left">{payment.time_delay}</span>
+                          <CircleIcon size={6} weight="fill" className="text-placeholder" />
+                          <span className="text-right">{payment.surcharge_label}</span>
+                        </small>
                       </div>
-                    )
-                  })}
+                      <p>{payment.short_description}</p>
+                    </div>
+                  )
+                })}
               </div>
-            </AccordionSection>
-            <AccordionSection
-              variant="card"
+            </Accordion>
+            <Accordion
+              surface="card"
               label={`Product Specifications`}
               open={open.specs}
               onToggle={() => setOpen((prev) => ({ ...prev, specs: !prev.specs }))}
@@ -780,7 +793,7 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
                   <p>{selectedProduct.content.toFixed(4)}</p>
                 </div>
               </div>
-            </AccordionSection>
+            </Accordion>
           </div>
         </div>
       </div>

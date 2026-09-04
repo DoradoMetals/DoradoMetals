@@ -85,7 +85,7 @@ describe("RadioOption", () => {
     expect(await axeViolations(container)).toEqual([]);
   });
 
-  it("card shows its indicator by default; tile and chip do not", () => {
+  it("card shows its indicator by default; tile, chip and segment do not", () => {
     const { container: cardContainer } = render(
       <RadioGroup aria-label="x">
         <RadioOption value="a" variant="card">
@@ -112,6 +112,15 @@ describe("RadioOption", () => {
       </RadioGroup>,
     );
     expect(chipContainer.querySelectorAll("[aria-hidden]").length).toBe(0);
+
+    const { container: segmentContainer } = render(
+      <RadioGroup aria-label="x">
+        <RadioOption value="a" variant="segment">
+          Segment
+        </RadioOption>
+      </RadioGroup>,
+    );
+    expect(segmentContainer.querySelectorAll("[aria-hidden]").length).toBe(0);
   });
 
   it("showRadio overrides the per-variant default", () => {
@@ -136,5 +145,52 @@ describe("RadioOption", () => {
     const option = getByRole("radio") as HTMLButtonElement;
     expect(option.disabled).toBe(true);
     expect(option.className).toMatch(/disabled:opacity-50/);
+  });
+
+  it("segment rest state is a flat muted fill, not a bordered card", () => {
+    const { getByRole } = render(
+      <RadioGroup aria-label="x">
+        <RadioOption value="a" variant="segment">
+          Segment
+        </RadioOption>
+      </RadioGroup>,
+    );
+    const option = getByRole("radio");
+    expect(option.className).toMatch(/\bbg-muted\b/);
+    expect(option.className).toMatch(/\bborder-transparent\b/);
+  });
+
+  it("segment reads selection like Tabs' boxed trigger — fill and a neutral border, never a primary ring", () => {
+    const { getByRole } = render(
+      <RadioGroup value="a" aria-label="x">
+        <RadioOption value="a" variant="segment">
+          Segment
+        </RadioOption>
+      </RadioGroup>,
+    );
+    const option = getByRole("radio");
+    expect(option.className).toMatch(/data-\[state=checked\]:bg-card/);
+    expect(option.className).toMatch(/data-\[state=checked\]:border-border\b/);
+    expect(option.className).toMatch(/data-\[state=checked\]:text-foreground/);
+    expect(option.className).not.toMatch(/data-\[state=checked\]:border-primary/);
+    expect(option.className).not.toMatch(/data-\[state=checked\]:border-\[1\.5px\]/);
+  });
+
+  it("segment selects on click and axe finds nothing", async () => {
+    const onValueChange = vi.fn();
+    const { getByText, getByRole, container } = render(
+      <RadioGroup onValueChange={onValueChange} aria-label="View" className="flex gap-1">
+        <RadioOption value="grid" variant="segment">
+          Grid
+        </RadioOption>
+        <RadioOption value="list" variant="segment">
+          List
+        </RadioOption>
+      </RadioGroup>,
+    );
+    fireEvent.click(getByText("List"));
+    expect(onValueChange).toHaveBeenCalledWith("list");
+    expect(getByRole("radio", { name: "List" }).getAttribute("aria-checked")).toBe("true");
+    expect(await axeViolations(container)).toEqual([]);
   });
 });

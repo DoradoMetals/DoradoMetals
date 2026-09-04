@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@dorado/components'
+import { Accordion, Tabs, TabsContent, TabsList, TabsTrigger } from '@dorado/components'
 import {
   Table,
   TableBody,
@@ -12,7 +12,6 @@ import {
 } from '@/shared/ui/base/table'
 import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
 import { cn } from '@/shared/utils/cn'
-import AccordionSection from '@/shared/ui/AccordionSection'
 
 // The breakdown is the server's admin-only quote (POST /quotes/
 // profit_breakdown) - the last client money math (computePurchaseOrderTotals)
@@ -24,7 +23,6 @@ type Party = 'customer' | 'refiner' | 'dorado'
 type Bucket = 'scrap' | 'bullion' | 'total'
 type MetalLabel = 'Gold' | 'Silver' | 'Platinum' | 'Palladium'
 const METALS: MetalLabel[] = ['Gold', 'Silver', 'Platinum', 'Palladium']
-
 
 export default function ProfitBreakdown({ order }: { order: PurchaseOrder }) {
   const { data: totals } = useProfitBreakdown(order.id)
@@ -125,7 +123,9 @@ export default function ProfitBreakdown({ order }: { order: PurchaseOrder }) {
             const v = pick(label)!
             return (
               <TableRow key={label}>
-                <TableCell className="text-left">{bucket === 'total' ? `${label} Net` : label}</TableCell>
+                <TableCell className="text-left">
+                  {bucket === 'total' ? `${label} Net` : label}
+                </TableCell>
                 <TableCell className="text-center">{v.content.toFixed(3)} toz</TableCell>
                 <TableCell className="text-center">{v.percentage.toFixed(2)}%</TableCell>
                 <TableCell className="text-right">
@@ -170,7 +170,9 @@ export default function ProfitBreakdown({ order }: { order: PurchaseOrder }) {
 
           {showNetRow && (
             <TableRow>
-              <TableCell className="text-left"><strong>Total Net</strong></TableCell>
+              <TableCell className="text-left">
+                <strong>Total Net</strong>
+              </TableCell>
               <TableCell className="text-center">—</TableCell>
               <TableCell className="text-center">—</TableCell>
               <TableCell className="text-right">
@@ -196,32 +198,35 @@ export default function ProfitBreakdown({ order }: { order: PurchaseOrder }) {
 
   const renderBucket = (bucket: Bucket) => (
     <div className="flex flex-col gap-2">
-      <AccordionSection
+      <Accordion
+        surface="bare"
         label="Dorado"
-        total={accordionValue('dorado', bucket)}
+        trailing={<PriceNumberFlow value={accordionValue('dorado', bucket)} />}
         open={isOpen(bucket, 'dorado')}
         onToggle={() => toggle(bucket, 'dorado')}
       >
         {renderTableBody('dorado', bucket)}
-      </AccordionSection>
+      </Accordion>
 
-      <AccordionSection
+      <Accordion
+        surface="bare"
         label="Customer"
-        total={accordionValue('customer', bucket)}
+        trailing={<PriceNumberFlow value={accordionValue('customer', bucket)} />}
         open={isOpen(bucket, 'customer')}
         onToggle={() => toggle(bucket, 'customer')}
       >
         {renderTableBody('customer', bucket)}
-      </AccordionSection>
+      </Accordion>
 
-      <AccordionSection
+      <Accordion
+        surface="bare"
         label="Refiner"
-        total={accordionValue('refiner', bucket)}
+        trailing={<PriceNumberFlow value={accordionValue('refiner', bucket)} />}
         open={isOpen(bucket, 'refiner')}
         onToggle={() => toggle(bucket, 'refiner')}
       >
         {renderTableBody('refiner', bucket)}
-      </AccordionSection>
+      </Accordion>
     </div>
   )
 
@@ -240,26 +245,10 @@ export default function ProfitBreakdown({ order }: { order: PurchaseOrder }) {
               So all three triggers rendered the identical pill whichever one
               was selected. `underline` is the variant that exists for this. */}
           <TabsList className="w-full justify-start gap-2">
-            {availableBuckets.includes('total') && (
-              <TabsTrigger
-                value="total"
-              >
-                Total
-              </TabsTrigger>
-            )}
-            {availableBuckets.includes('scrap') && (
-              <TabsTrigger
-                value="scrap"
-              >
-                Scrap
-              </TabsTrigger>
-            )}
+            {availableBuckets.includes('total') && <TabsTrigger value="total">Total</TabsTrigger>}
+            {availableBuckets.includes('scrap') && <TabsTrigger value="scrap">Scrap</TabsTrigger>}
             {availableBuckets.includes('bullion') && (
-              <TabsTrigger
-                value="bullion"
-              >
-                Bullion
-              </TabsTrigger>
+              <TabsTrigger value="bullion">Bullion</TabsTrigger>
             )}
           </TabsList>
 

@@ -1,4 +1,5 @@
 'use client'
+import { Accordion } from '@dorado/components'
 
 import { useMemo, useState } from 'react'
 import {
@@ -6,7 +7,6 @@ import {
   PurchaseOrderDrawerFooterProps,
   statusConfig,
 } from '@/features/orders/purchaseOrders/types'
-import AccordionSection from '@/shared/ui/AccordionSection'
 import { DetailRow } from '@/shared/ui/DetailRow'
 
 import {
@@ -95,11 +95,12 @@ export default function PurchaseOrderDrawerFooter({ order }: PurchaseOrderDrawer
   return (
     <div className="flex flex-col w-full gap-2">
       {scrapItems.length > 0 && (
-        <AccordionSection
+        <Accordion
+          surface="bare"
           label={`Scrap ${valueLabel}`}
           open={open.scrap}
           onToggle={() => setOpen((prev) => ({ ...prev, scrap: !prev.scrap }))}
-          total={scrapTotal}
+          trailing={<PriceNumberFlow value={scrapTotal} />}
         >
           <Table className="overflow-hidden">
             <TableHeader>
@@ -134,15 +135,16 @@ export default function PurchaseOrderDrawerFooter({ order }: PurchaseOrderDrawer
               ))}
             </TableBody>
           </Table>
-        </AccordionSection>
+        </Accordion>
       )}
 
       {bullionItems.length > 0 && (
-        <AccordionSection
+        <Accordion
+          surface="bare"
           label={`Bullion ${valueLabel}`}
           open={open.bullion}
           onToggle={() => setOpen((prev) => ({ ...prev, bullion: !prev.bullion }))}
-          total={bullionTotal}
+          trailing={<PriceNumberFlow value={bullionTotal} />}
         >
           <Table className="overflow-hidden">
             <TableBody>
@@ -158,16 +160,20 @@ export default function PurchaseOrderDrawerFooter({ order }: PurchaseOrderDrawer
               ))}
             </TableBody>
           </Table>
-        </AccordionSection>
+        </Accordion>
       )}
 
       {shipment && (
-        <AccordionSection
+        <Accordion
+          surface="bare"
           label="Shipping Charges"
-          negative
           open={open.shipment ?? false}
           onToggle={() => setOpen((prev) => ({ ...prev, shipment: !prev.shipment }))}
-          total={shipment.cost ?? 0}
+          trailing={
+            <>
+              -<PriceNumberFlow value={shipment.cost ?? 0} />
+            </>
+          }
         >
           <Table className="overflow-hidden">
             <TableBody>
@@ -189,16 +195,20 @@ export default function PurchaseOrderDrawerFooter({ order }: PurchaseOrderDrawer
               )}
             </TableBody>
           </Table>
-        </AccordionSection>
+        </Accordion>
       )}
 
       {payoutFee > 0 && (
-        <AccordionSection
+        <Accordion
+          surface="bare"
           label="Payout Fee"
-          negative
           open={open.payout ?? false}
           onToggle={() => setOpen((prev) => ({ ...prev, payout: !prev.payout }))}
-          total={payoutFee}
+          trailing={
+            <>
+              -<PriceNumberFlow value={payoutFee} />
+            </>
+          }
         >
           <Table className="overflow-hidden">
             <TableBody>
@@ -210,14 +220,15 @@ export default function PurchaseOrderDrawerFooter({ order }: PurchaseOrderDrawer
               </TableRow>
             </TableBody>
           </Table>
-        </AccordionSection>
+        </Accordion>
       )}
 
-      <AccordionSection
+      <Accordion
+        surface="bare"
         label={`Total ${valueLabel}`}
         open={open.total}
         onToggle={() => setOpen((prev) => ({ ...prev, total: !prev.total }))}
-        total={total}
+        trailing={<PriceNumberFlow value={total} />}
       >
         <div className="flex flex-col gap-2">
           {scrapItems.length > 0 && (
@@ -248,7 +259,7 @@ export default function PurchaseOrderDrawerFooter({ order }: PurchaseOrderDrawer
             <PriceNumberFlow value={total} />
           </DetailRow>
         </div>
-      </AccordionSection>
+      </Accordion>
 
       <div className="flex w-full justify-between items-center mt-3">
         <p>Questions? Give us a call.</p>
