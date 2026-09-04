@@ -1,8 +1,6 @@
 import { useCancelPaymentIntent, useGetSalesOrderPaymentIntent } from '@/features/stripe/queries'
 import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
-import { Button } from '@dorado/components'
-import StatusChip from '@/shared/ui/StatusChip'
-import { Separator } from '@/shared/ui/base/separator'
+import { Button, Badge, Divider } from '@dorado/components'
 import { DetailRow } from '@/shared/ui/DetailRow'
 import { paymentMethodIcon, SalesOrderDrawerContentProps } from '@/features/orders/salesOrders/types'
 import { usePaymentMethods } from '@/features/payments/queries'
@@ -39,8 +37,8 @@ export default function AdminPendingSalesOrder({ view }: SalesOrderDrawerContent
         </strong>
         {/* The three hand-rolled `*-on-glass` pills were a StatusChip all
             along - same tint, same hairline, one vocabulary (ruling 25). */}
-        <StatusChip
-          tone={
+        <Badge
+          intent={
             paymentIntent.status === 'succeeded'
               ? 'success'
               : paymentIntent.status === 'processing'
@@ -51,10 +49,10 @@ export default function AdminPendingSalesOrder({ view }: SalesOrderDrawerContent
           {paymentIntent.status === 'requires_payment_method'
             ? 'Failed'
             : titleCase(paymentIntent.status ?? '')}
-        </StatusChip>
+        </Badge>
       </div>
 
-      <Separator />
+      <Divider />
 
       {paymentIntent.details?.card_brand && (
         <DetailRow label="Card Brand:">{titleCase(paymentIntent.details.card_brand)}</DetailRow>
@@ -76,7 +74,7 @@ export default function AdminPendingSalesOrder({ view }: SalesOrderDrawerContent
       {/* No routing number, ever. The legacy wire carried one only because
           the exchange read was SELECT *; the contract has no such field,
           and bank details never render outside the admin payout screen. */}
-      <Separator />
+      <Divider />
 
       {/* DOLLARS on the wire, not cents - the /100 died with the adapter,
           and putting one back here is a hundredfold error on money. */}
@@ -96,7 +94,7 @@ export default function AdminPendingSalesOrder({ view }: SalesOrderDrawerContent
           }
         />
       </DetailRow>
-      <Separator />
+      <Divider />
       <Button
         variant="secondary"
         onClick={() => intentRef && cancelPaymentIntent.mutate(intentRef)}

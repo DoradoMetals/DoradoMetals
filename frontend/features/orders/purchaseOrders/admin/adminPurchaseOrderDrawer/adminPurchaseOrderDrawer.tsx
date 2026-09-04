@@ -5,7 +5,7 @@ import AdminPurchaseOrderDrawerContent from './adminPurchaseOrderDrawerContent'
 import AdminPurchaseOrderDrawerFooter from './adminPurchaseOrderDrawerFooter'
 
 import { useDrawerStore } from '@/shared/store/drawerStore'
-import Drawer from '@/shared/ui/base/drawer'
+import { Drawer } from '@dorado/components'
 import { useOrder } from '@dorado/client'
 
 // ONE READ. The drawer used to reach into the admin LIST cache, find its own

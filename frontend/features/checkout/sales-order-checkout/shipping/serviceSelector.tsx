@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo } from 'react'
-import { RadioGroup } from '@/shared/ui/RadioGroup'
+import { RadioGroup, RadioOption } from '@dorado/components'
 import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
 import { usePatchCheckout } from '@/features/checkout/queries'
 import { saleServiceToOption } from '@/features/orders/salesOrders/types'
@@ -40,14 +40,16 @@ export default function ServiceSelector({
           const svc = options.find((s) => s.code === code)
           if (svc?.id) patchCheckout.mutate({ carrier_service_id: svc.id })
         }}
-        options={options}
-        getValue={(svc) => svc.code ?? ''}
         className="flex w-full flex-col gap-3"
       >
-        {(svc) => {
+        {options.map((svc) => {
           const option = saleServiceToOption(svc)
           return (
-            <>
+            <RadioOption
+              key={svc.code ?? svc.id}
+              value={svc.code ?? ''}
+              className="w-full flex-col items-start gap-1"
+            >
               <div className="flex items-center gap-2">
                 {option.icon && <option.icon size={24} />}
                 <strong>{option.label}</strong>
@@ -59,11 +61,12 @@ export default function ServiceSelector({
                     applies server-side. */}
                 <PriceNumberFlow
                   value={(orderPrices?.item_total ?? 0) > 1000 ? 0 : option.cost}
+                  className="tabular-nums"
                 />
               </DetailRow>
-            </>
+            </RadioOption>
           )
-        }}
+        })}
       </RadioGroup>
     </div>
   )

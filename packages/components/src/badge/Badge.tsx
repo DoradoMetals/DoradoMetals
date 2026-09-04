@@ -3,11 +3,16 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "../cn";
 
 const badgeVariants = cva(
-  "inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-micro font-medium whitespace-nowrap [&_svg]:size-3 [&_svg]:shrink-0",
+  "inline-flex items-center rounded-md font-medium whitespace-nowrap [&_svg]:shrink-0",
   {
     variants: {
       variant: { solid: "", soft: "", outline: "border" },
       intent: { neutral: "", success: "", danger: "", warning: "", info: "" },
+      size: {
+        sm: "gap-1 px-1.5 py-0.5 text-micro [&_svg]:size-2.5",
+        default: "gap-1 px-2 py-0.5 text-micro [&_svg]:size-3",
+        lg: "gap-1.5 px-2.5 py-1 text-small [&_svg]:size-3.5",
+      },
     },
     compoundVariants: [
       { variant: "solid", intent: "neutral", className: "bg-secondary text-foreground" },
@@ -30,7 +35,7 @@ const badgeVariants = cva(
       { variant: "soft", intent: "info", className: "bg-info/15 text-info" },
       { variant: "outline", intent: "info", className: "border-info text-info" },
     ],
-    defaultVariants: { variant: "soft", intent: "neutral" },
+    defaultVariants: { variant: "soft", intent: "neutral", size: "default" },
   }
 );
 
@@ -39,9 +44,9 @@ export type BadgeProps = React.HTMLAttributes<HTMLSpanElement> &
     icon?: React.ReactNode;
   };
 
-export function Badge({ className, variant, intent, icon, children, ...props }: BadgeProps) {
+export function Badge({ className, variant, intent, size, icon, children, ...props }: BadgeProps) {
   return (
-    <span className={cn(badgeVariants({ variant, intent }), className)} {...props}>
+    <span className={cn(badgeVariants({ variant, intent, size }), className)} {...props}>
       {icon}
       {children}
     </span>

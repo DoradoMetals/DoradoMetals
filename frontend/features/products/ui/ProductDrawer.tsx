@@ -1,14 +1,9 @@
 'use client'
 
 import { useDrawerStore } from '@/shared/store/drawerStore'
-import Drawer from '@/shared/ui/base/drawer'
-import { useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { formatFullDate } from '@/shared/utils/formatDates'
-import StatusChip from '@/shared/ui/StatusChip'
 import UpdatedByline from '@/shared/ui/UpdatedByline'
-import { PopoverSelect } from '@/shared/ui/table/PopoverSelect'
-import { Textarea } from '@/shared/ui/base/textarea'
-import { Input } from '@/shared/ui/base/input'
 import { useSpotPrices } from '@/features/spots/queries'
 import PremiumControl from '@/features/products/ui/PremiumControl'
 import QuantityBar from '@/features/products/ui/QuantityInput'
@@ -21,8 +16,7 @@ import {
   useAdminSuppliers,
 } from '@/features/products/queries'
 import { AdminProduct } from '@/features/products/types'
-import { Separator } from '@/shared/ui/base/separator'
-import { Field } from '@/shared/ui/Field'
+import { Autocomplete, Badge, Divider, Drawer, Input, Textarea } from '@dorado/components'
 
 export default function ProductDrawer({
   products,
@@ -43,17 +37,17 @@ export default function ProductDrawer({
   return (
     <Drawer label="Product" open={isDrawerOpen} setOpen={closeDrawer}>
       <Header product={product} />
-      <Separator />
+      <Divider />
       <Details product={product} />
-      <Separator />
+      <Divider />
       <Inventory product={product} />
-      <Separator />
+      <Divider />
       <Specifications product={product} />
-      <Separator />
+      <Divider />
       <Displays product={product} />
-      <Separator />
+      <Divider />
       <Dev product={product} />
-      <Separator />
+      <Divider />
       <Images product={product} />
     </Drawer>
   )
@@ -69,9 +63,9 @@ function Header({ product }: { product: AdminProduct }) {
           <img src={product.image_front ?? ''} alt={`product image`} height={50} width={50} />
           <h3>{product.name}</h3>
         </div>
-        <StatusChip positive={activeProduct} size="lg">
+        <Badge variant="soft" intent={activeProduct ? 'success' : 'danger'} size="lg">
           {activeProduct ? 'Active' : 'Inactive'}
-        </StatusChip>
+        </Badge>
       </div>
       <UpdatedByline name={product.updated_by} date={formatFullDate(product.updated_at)} />
     </div>
@@ -93,59 +87,93 @@ function Details({ product }: { product: AdminProduct }) {
   return (
     <div className="flex flex-col w-full gap-4">
       <p className="eyebrow mb-4">Details</p>
-      <Field label="Product Name" htmlFor="name">
-        <Input
-          id="name"
-          placeholder="Enter name..."
-          type="text"
-          defaultValue={product.name ?? ''}
-          onBlur={(e) => handleUpdate(product.id, { name: e.target.value })}
-        />
-      </Field>
+      <Input
+        id="name"
+        label="Product Name"
+        placeholder="Enter name..."
+        type="text"
+        defaultValue={product.name ?? ''}
+        onBlur={(e) => handleUpdate(product.id, { name: e.target.value })}
+      />
       <div className="flex w-full justify-between items-center gap-4">
-        <PopoverSelect
+        <PickerField
           label="Metal"
           value={product.metal}
-          options={metals?.map((m) => m.name)}
+          options={metals?.map((m) => m.name) ?? []}
           onChange={(val) => handleUpdate(product.id, { metal: val })}
-          variant="secondary"
-          includeSearch={false}
         />
-        <PopoverSelect
+        <PickerField
           label="Product Type"
           value={product.type}
-          options={types?.map((item) => item.name)}
+          options={types?.map((item) => item.name) ?? []}
           onChange={(val) => handleUpdate(product.id, { type: val })}
-          variant="secondary"
-          includeSearch={false}
         />
       </div>
-      <PopoverSelect
+      <PickerField
         label="Supplier"
         value={product.supplier}
-        options={suppliers?.map((item) => item.organization.name ?? '')}
+        options={suppliers?.map((item) => item.organization.name ?? '') ?? []}
         onChange={(val) => handleUpdate(product.id, { supplier: val })}
-        variant="secondary"
       />
-      <PopoverSelect
+      <PickerField
         label="Mint"
         value={product.mint}
-        options={mints?.map((item) => item.name)}
+        options={mints?.map((item) => item.name) ?? []}
         onChange={(val) => handleUpdate(product.id, { mint: val })}
-        variant="secondary"
       />
 
-      <Field label="Description" htmlFor="description" className="w-full">
-        <Textarea
-          rows={20}
-          id="description"
-          placeholder="Enter product description..."
-          className="min-w-70"
-          defaultValue={product.description}
-          onBlur={(e) => handleUpdate(product.id, { description: e.target.value })}
-        />
-      </Field>
+      <Textarea
+        rows={20}
+        id="description"
+        label="Description"
+        placeholder="Enter product description..."
+        className="min-w-70"
+        defaultValue={product.description}
+        onBlur={(e) => handleUpdate(product.id, { description: e.target.value })}
+      />
     </div>
+  )
+}
+
+/* PopoverSelect (button trigger -> popover list) becomes an Autocomplete
+   (type-to-filter text field): the library ships no click-to-open,
+   pick-from-a-fixed-list control, so this admin picker now filters `options`
+   as the text is typed and only commits `onChange` when an item is chosen -
+   typed text that matches nothing simply never commits. */
+function PickerField({
+  label,
+  value,
+  options,
+  onChange,
+}: {
+  label: string
+  value: string | null
+  options: string[]
+  onChange: (value: string) => void
+}) {
+  const [text, setText] = useState(value ?? '')
+
+  useEffect(() => {
+    setText(value ?? '')
+  }, [value])
+
+  const items = options
+    .filter((o) => o.toLowerCase().includes(text.trim().toLowerCase()))
+    .map((o) => ({ id: o, textValue: o }))
+
+  return (
+    <Autocomplete
+      label={label}
+      placeholder="Select..."
+      value={text}
+      onValueChange={setText}
+      items={items}
+      onSelect={(item) => {
+        setText(item.textValue)
+        onChange(item.textValue)
+      }}
+      className="w-full"
+    />
   )
 }
 
@@ -200,56 +228,53 @@ function Specifications({ product }: { product: AdminProduct }) {
     <div className="flex flex-col gap-4">
       <p className="eyebrow">Specifications</p>
 
-      <Field label="Content" htmlFor="content">
+      <Input
+        id="content"
+        label="Content"
+        inputMode="decimal"
+        placeholder="Enter content..."
+        type="number"
+        inputClassName="text-left"
+        defaultValue={product.content ?? ''}
+        onBlur={(e) => {
+          const n = e.currentTarget.valueAsNumber
+          if (Number.isFinite(n)) {
+            handleUpdate(product.id, { content: n })
+          }
+        }}
+      />
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <Input
-          id="content"
+          id="purity"
+          label="Purity"
+          placeholder="Enter purity..."
           inputMode="decimal"
-          placeholder="Enter content..."
           type="number"
-          className="text-left no-spinner"
-          defaultValue={product.content ?? ''}
+          inputClassName="text-left"
+          defaultValue={product.purity ?? ''}
           onBlur={(e) => {
             const n = e.currentTarget.valueAsNumber
             if (Number.isFinite(n)) {
-              handleUpdate(product.id, { content: n })
+              handleUpdate(product.id, { purity: n })
             }
           }}
         />
-      </Field>
-
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <Field label="Purity" htmlFor="purity">
-          <Input
-            id="purity"
-            placeholder="Enter purity..."
-            inputMode="decimal"
-            type="number"
-            className="text-left no-spinner"
-            defaultValue={product.purity ?? ''}
-            onBlur={(e) => {
-              const n = e.currentTarget.valueAsNumber
-              if (Number.isFinite(n)) {
-                handleUpdate(product.id, { purity: n })
-              }
-            }}
-          />
-        </Field>
-        <Field label="Gross" htmlFor="gross">
-          <Input
-            id="gross"
-            placeholder="Enter gross..."
-            inputMode="decimal"
-            type="number"
-            className="text-left no-spinner"
-            defaultValue={product.gross ?? ''}
-            onBlur={(e) => {
-              const n = e.currentTarget.valueAsNumber
-              if (Number.isFinite(n)) {
-                handleUpdate(product.id, { gross: n })
-              }
-            }}
-          />
-        </Field>
+        <Input
+          id="gross"
+          label="Gross"
+          placeholder="Enter gross..."
+          inputMode="decimal"
+          type="number"
+          inputClassName="text-left"
+          defaultValue={product.gross ?? ''}
+          onBlur={(e) => {
+            const n = e.currentTarget.valueAsNumber
+            if (Number.isFinite(n)) {
+              handleUpdate(product.id, { gross: n })
+            }
+          }}
+        />
       </div>
     </div>
   )
@@ -300,45 +325,41 @@ function Dev({ product }: { product: AdminProduct }) {
         rowClassName="grid grid-cols-5 gap-2"
       />
 
-      <Field label="Variant Group" htmlFor="variant_group">
-        <Input
-          id="variant_group"
-          placeholder="Enter variant group..."
-          type="text"
-          defaultValue={product.variant_group ?? ''}
-          onBlur={(e) => handleUpdate({ variant_group: e.target.value })}
-        />
-      </Field>
+      <Input
+        id="variant_group"
+        label="Variant Group"
+        placeholder="Enter variant group..."
+        type="text"
+        defaultValue={product.variant_group ?? ''}
+        onBlur={(e) => handleUpdate({ variant_group: e.target.value })}
+      />
 
-      <Field label="Variant Label" htmlFor="variant_label">
-        <Input
-          id="variant_label"
-          placeholder="Enter variant label..."
-          type="text"
-          defaultValue={product.variant_label ?? ''}
-          onBlur={(e) => handleUpdate({ variant_label: e.target.value })}
-        />
-      </Field>
+      <Input
+        id="variant_label"
+        label="Variant Label"
+        placeholder="Enter variant label..."
+        type="text"
+        defaultValue={product.variant_label ?? ''}
+        onBlur={(e) => handleUpdate({ variant_label: e.target.value })}
+      />
 
-      <Field label="Filter Category" htmlFor="filter_category">
-        <Input
-          id="filter_category"
-          placeholder="Enter category..."
-          type="text"
-          defaultValue={product.filter_category ?? ''}
-          onBlur={(e) => handleUpdate({ filter_category: e.target.value })}
-        />
-      </Field>
+      <Input
+        id="filter_category"
+        label="Filter Category"
+        placeholder="Enter category..."
+        type="text"
+        defaultValue={product.filter_category ?? ''}
+        onBlur={(e) => handleUpdate({ filter_category: e.target.value })}
+      />
 
-      <Field label="Slug" htmlFor="slug">
-        <Input
-          id="slug"
-          placeholder="Enter slug..."
-          type="text"
-          defaultValue={product.slug ?? ''}
-          onBlur={(e) => handleUpdate({ slug: e.target.value })}
-        />
-      </Field>
+      <Input
+        id="slug"
+        label="Slug"
+        placeholder="Enter slug..."
+        type="text"
+        defaultValue={product.slug ?? ''}
+        onBlur={(e) => handleUpdate({ slug: e.target.value })}
+      />
     </div>
   )
 }
@@ -354,22 +375,20 @@ function Images({ product }: { product: AdminProduct }) {
     <div className="flex flex-col gap-4">
       <p className="eyebrow">Images</p>
 
-      <Field label="Image Front" htmlFor="image_front">
-        <Input
-          id="image_front"
-          type="text"
-          defaultValue={product.image_front ?? ''}
-          onBlur={(e) => handleUpdate({ image_front: e.target.value })}
-        />
-      </Field>
-      <Field label="Image Back" htmlFor="image_back">
-        <Input
-          id="image_back"
-          type="text"
-          defaultValue={product.image_back ?? ''}
-          onBlur={(e) => handleUpdate({ image_back: e.target.value })}
-        />
-      </Field>
+      <Input
+        id="image_front"
+        label="Image Front"
+        type="text"
+        defaultValue={product.image_front ?? ''}
+        onBlur={(e) => handleUpdate({ image_front: e.target.value })}
+      />
+      <Input
+        id="image_back"
+        label="Image Back"
+        type="text"
+        defaultValue={product.image_back ?? ''}
+        onBlur={(e) => handleUpdate({ image_back: e.target.value })}
+      />
     </div>
   )
 }

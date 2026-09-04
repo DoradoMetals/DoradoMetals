@@ -35,7 +35,7 @@ export default function Page() {
             become a heading because BlurredStagger hard-rendered a
             `motion.div`. It takes an `as` now, so the staggered text IS the
             heading and the last type utility in the tree goes with it. */}
-        <BlurredStagger as="h2" className="mb-2" text="Your order has been placed!" delay={2000} />
+        <BlurredStagger as="h1" className="mb-2" text="Your order has been placed!" delay={2000} />
 
         <div className="flex w-full justify-center">
           <AnimatedScroll size={128} className="mb-6 z-1" />

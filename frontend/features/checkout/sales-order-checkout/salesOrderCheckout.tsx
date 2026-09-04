@@ -1,6 +1,6 @@
 'use client'
 
-import { Button } from '@dorado/components'
+import { Button, Divider, EmptyState } from '@dorado/components'
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { loadStripe } from '@stripe/stripe-js'
@@ -16,8 +16,6 @@ import OrderSummary from '@/features/checkout/sales-order-checkout/summary/order
 import { useAddress } from '@/features/addresses/queries'
 import { useSaleCheckoutRow, usePlaceOrderFromCheckout } from '@/features/checkout/queries'
 import { useSaleQuoteFor } from '@/features/checkout/sales-order-checkout/saleQuote'
-import { Separator } from '@/shared/ui/base/separator'
-import { EmptyState } from '@/shared/ui/EmptyState'
 
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!)
 
@@ -68,17 +66,17 @@ export default function SalesOrderCheckout() {
   if (items.length === 0) {
     return (
       <EmptyState
-        icon={ShoppingCartIcon}
-        iconSize={80}
+        icon={<ShoppingCartIcon />}
         badge={0}
         title="You have nothing to buy yet!"
         description="Please add items before checking out."
         className="h-full justify-center pb-10 mt-10 lg:mt-30"
-      >
-        <Button size="xl" onClick={() => router.push('/buy')}>
-          Start Shopping
-        </Button>
-      </EmptyState>
+        action={
+          <Button size="xl" onClick={() => router.push('/buy')}>
+            Start Shopping
+          </Button>
+        }
+      />
     )
   }
 
@@ -88,7 +86,7 @@ export default function SalesOrderCheckout() {
         <div className="flex flex-col lg:flex-row items-center lg:items-start w-full lg:max-w-7xl justify-between gap-6">
           <div className="flex flex-col gap-6 w-full">
             <ShippingSelect addresses={addresses} row={row} orderPrices={quote} />
-            <Separator />
+            <Divider />
             <PaymentSelect orderPrices={quote} />
             {clientSecret && address && cardNeeded && (
               <StripeWrapper

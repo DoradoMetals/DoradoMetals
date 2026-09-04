@@ -5,7 +5,7 @@ import { Product } from '@/features/products/types'
 import { Button } from '@dorado/components'
 import { ChevronLeft, ChevronRight, CircleHelp, Equal, Minus, Plus, Scale, X } from 'lucide-react'
 import NumberFlow from '@number-flow/react'
-import { RadioGroupRoot, RadioOption } from '@/shared/ui/RadioGroup'
+import { RadioGroup, RadioOption } from '@dorado/components'
 import { FloatingButton, FloatingButtonItem } from '@/features/products/ui/FloatingButton'
 
 import { useState } from 'react'
@@ -163,7 +163,7 @@ export default function ProductCard({ product, variants, unitPrices }: ProductCa
       <div className="relative h-4/5 bg-card rounded-lg rounded-b-xl -mt-10 flex flex-col justify-end border border-border">
         <div className="flex items-end justify-between w-full px-3 pr-5 pb-2">
           {variants.length > 0 && (
-            <RadioGroupRoot
+            <RadioGroup
               value={selectedProduct.name}
               onValueChange={(val) => {
                 const variant = variants.find((v) => v.name === val)
@@ -190,10 +190,6 @@ export default function ProductCard({ product, variants, unitPrices }: ProductCa
                   .sort((a, b) => b.content - a.content)
                   .map((option) => (
                     <FloatingButtonItem key={option.id}>
-                      {/* Composed from `RadioOption` rather than
-                          `<RadioGroup options>` because each option is wrapped
-                          in a FloatingButtonItem, and a render prop cannot wrap
-                          the label it is rendered inside. */}
                       <RadioOption
                         value={option.name}
                         variant="segment"
@@ -207,7 +203,7 @@ export default function ProductCard({ product, variants, unitPrices }: ProductCa
                     </FloatingButtonItem>
                   ))}
               </FloatingButton>
-            </RadioGroupRoot>
+            </RadioGroup>
           )}
 
           <AnimatePresence>
@@ -300,7 +296,7 @@ export default function ProductCard({ product, variants, unitPrices }: ProductCa
               </div>
 
               <div className="flex flex-col items-end gap-1 ml-auto my-0">
-                <strong>
+                <strong className="stat-sm">
                   <PriceNumberFlow value={price} />
                 </strong>
               </div>

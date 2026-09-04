@@ -1,6 +1,6 @@
 'use client'
 
-import { Input } from '@/shared/ui/base/input'
+import { Input } from '@dorado/components'
 import { cn } from '@/shared/utils/cn'
 
 import { useRefinerMetals, useRefinerOrder } from '@/features/refiners/queries'
@@ -80,10 +80,7 @@ export default function RefinerValues({ view }: PurchaseOrderDrawerContentProps)
                   <Input
                     type="number"
                     pattern="[0-9]*"
-                    inputMode="decimal"
-                    className={cn(
-                      'no-spinner text-center w-full h-8'
-                    )}
+                    inputClassName={cn('text-center h-8')}
                     defaultValue={
                       spot?.bid ??
                       orderSpotPrices?.find((s) => s.metal_id === spot.metal_id)?.bid ??
@@ -121,16 +118,15 @@ export default function RefinerValues({ view }: PurchaseOrderDrawerContentProps)
                 className="flex items-center justify-between w-full items-center px-3 py-2"
               >
                 <div className="truncate">
-                  <span className="text-foreground">{label}</span>
+                  <span>{label}</span>
                 </div>
 
                 <div className="flex items-center gap-1">
                   <Input
                     type="number"
-                    inputMode="decimal"
                     step="0.01"
                     min="-9999"
-                    className={cn('no-spinner text-right h-8')}
+                    inputClassName={cn('text-right h-8')}
                     defaultValue={
                       refinerPremiumOf(item.id) != null
                         ? (refinerPremiumOf(item.id)! * 100).toString()
@@ -167,8 +163,7 @@ export default function RefinerValues({ view }: PurchaseOrderDrawerContentProps)
             <Input
               type="number"
               pattern="[0-9]*"
-              inputMode="decimal"
-              className={cn('no-spinner text-right w-full h-8')}
+              inputClassName={cn('text-right h-8')}
               defaultValue={view.totals?.refiner_fee ?? ''}
               disabled={updateFee.isPending}
               onBlur={(e) => {

@@ -122,20 +122,20 @@ function FormControl({ ...props }: React.ComponentProps<typeof Slot>) {
   )
 }
 
-function FormDescription({ className, ...props }: React.ComponentProps<"p">) {
+function FormDescription({ className, ...props }: React.ComponentProps<"small">) {
   const { formDescriptionId } = useFormField()
 
   return (
-    <p
+    <small
       data-slot="form-description"
       id={formDescriptionId}
-      className={cn("text-muted-foreground text-small", className)}
+      className={cn("block", className)}
       {...props}
     />
   )
 }
 
-function FormMessage({ className, ...props }: React.ComponentProps<"p">) {
+function FormMessage({ className, ...props }: React.ComponentProps<"small">) {
   const { error, formMessageId } = useFormField()
   const body = error ? String(error?.message ?? "") : props.children
 
@@ -144,14 +144,14 @@ function FormMessage({ className, ...props }: React.ComponentProps<"p">) {
   }
 
   return (
-    <p
+    <small
       data-slot="form-message"
       id={formMessageId}
-      className={cn("text-destructive text-small", className)}
+      className={cn("block text-destructive", className)}
       {...props}
     >
       {body}
-    </p>
+    </small>
   )
 }
 

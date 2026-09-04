@@ -1,4 +1,4 @@
-import { Button } from '@dorado/components'
+import { Button, Divider } from '@dorado/components'
 import { useBasket } from '@/features/checkout/items/queries'
 import { useCheckoutItemActions } from '@/features/checkout/items/queries'
 import { useDecoratedLines } from '@/features/checkout/items/flair'
@@ -10,7 +10,6 @@ import { QuestionIcon } from '@phosphor-icons/react'
 import { useRouter } from 'next/navigation'
 import type { CheckoutView, SalesOrderQuote } from "@dorado/contracts";
 import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
-import { Separator } from '@/shared/ui/base/separator'
 import { DetailRow } from '@/shared/ui/DetailRow'
 
 // orderPrices is the server's quote, absent until the first one lands - the
@@ -87,6 +86,7 @@ export default function OrderSummary({
                       spinTiming={{ duration: 150, easing: 'ease-out' }}
                       opacityTiming={{ duration: 350, easing: 'ease-out' }}
                       trend={0}
+                      className="tabular-nums"
                     />
                     <Button
                       variant="tertiary"
@@ -97,7 +97,7 @@ export default function OrderSummary({
                     </Button>
                   </div>
                   <strong>
-                    <PriceNumberFlow value={quoted?.line_total ?? 0} />
+                    <PriceNumberFlow value={quoted?.line_total ?? 0} className="tabular-nums" />
                   </strong>
                 </div>
               </div>
@@ -110,21 +110,21 @@ export default function OrderSummary({
 
   const paymentContent = (
     <div className="w-full flex-col">
-      <Separator />
+      <Divider />
       <p className="eyebrow my-4">Payment Details</p>
 
       <DetailRow label="Shipping">
-        <PriceNumberFlow value={shipping_charge} />
+        <PriceNumberFlow value={shipping_charge} className="tabular-nums" />
       </DetailRow>
 
       {pre_charges_amount > 0 && (
         <DetailRow label="Dorado Funds Applied">
-          <PriceNumberFlow value={pre_charges_amount} />
+          <PriceNumberFlow value={pre_charges_amount} className="tabular-nums" />
         </DetailRow>
       )}
       {subject_to_charges_amount > 0 && (
         <DetailRow label={pre_charges_amount > 0 ? 'Amount Remaining' : 'Items'}>
-          -<PriceNumberFlow value={subject_to_charges_amount} />
+          -<PriceNumberFlow value={subject_to_charges_amount} className="tabular-nums" />
         </DetailRow>
       )}
 
@@ -137,7 +137,7 @@ export default function OrderSummary({
             {`(${saleMethods.find((m) => m.id === row?.payment_method_id)?.surcharge_label ?? ''})`}
           </p>
           <strong>
-            <PriceNumberFlow value={charges_amount} />
+            <PriceNumberFlow value={charges_amount} className="tabular-nums" />
           </strong>
         </div>
       )}
@@ -156,16 +156,16 @@ export default function OrderSummary({
             </Button>
           </div>
           <strong>
-            <PriceNumberFlow value={sales_tax} />
+            <PriceNumberFlow value={sales_tax} className="tabular-nums" />
           </strong>
         </div>
       )}
 
       <div className="pt-2">
-        <Separator />
+        <Divider />
 
         <DetailRow label="Order Total" variant="total" className="pt-2">
-          <PriceNumberFlow value={post_charges_amount} />
+          <PriceNumberFlow value={post_charges_amount} className="tabular-nums" />
         </DetailRow>
       </div>
     </div>

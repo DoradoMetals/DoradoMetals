@@ -1,8 +1,7 @@
 'use client'
 
 import { Table, TableBody, TableCell, TableRow } from '@/shared/ui/base/table'
-import { ChevronDown } from 'lucide-react'
-import { AnimatePresence, motion } from 'framer-motion'
+import { Accordion } from '@dorado/components'
 import { useMemo, useState } from 'react'
 import { useReactTable, getCoreRowModel, flexRender, ColumnDef } from '@tanstack/react-table'
 import { useBasket } from '@/features/checkout/items/queries'
@@ -95,73 +94,79 @@ export default function ReviewItemTables({
   return (
     <div className="rounded-lg border border-border overflow-hidden bg-card">
       <div className="flex items-center justify-between p-4 border-b border-border">
-        <h2>Estimated Payout</h2>
+        <h3>Estimated Payout</h3>
         <strong>
-          <PriceNumberFlow value={total ?? 0} />
+          <PriceNumberFlow value={total ?? 0} className="tabular-nums" />
         </strong>
       </div>
 
       {scrapRows.length > 0 && (
-        <ItemAccordion
+        <Accordion
           label="Scrap"
-          total={scrapTotal}
+          trailing={
+            <strong>
+              <PriceNumberFlow value={scrapTotal} className="tabular-nums" />
+            </strong>
+          }
           open={open.scrap}
-          toggle={() => setOpen((prev) => ({ ...prev, scrap: !prev.scrap }))}
-          rows={scrapRows}
-          columns={scrapColumns}
-        />
+          onToggle={() => setOpen((prev) => ({ ...prev, scrap: !prev.scrap }))}
+          surface="bare"
+        >
+          <AccordionTable rows={scrapRows} columns={scrapColumns} />
+        </Accordion>
       )}
 
       {bullionRows.length > 0 && (
-        <ItemAccordion
+        <Accordion
           label="Bullion"
-          total={bullionTotal}
+          trailing={
+            <strong>
+              <PriceNumberFlow value={bullionTotal} className="tabular-nums" />
+            </strong>
+          }
           open={open.bullion}
-          toggle={() => setOpen((prev) => ({ ...prev, bullion: !prev.bullion }))}
-          rows={bullionRows}
-          columns={bullionColumns}
-        />
+          onToggle={() => setOpen((prev) => ({ ...prev, bullion: !prev.bullion }))}
+          surface="bare"
+        >
+          <AccordionTable rows={bullionRows} columns={bullionColumns} />
+        </Accordion>
       )}
       {shippingRow.length > 0 && (
-        <ItemAccordion
+        <Accordion
           label="Shipping"
-          total={shippingCost ?? 0}
+          trailing={
+            <strong>
+              -<PriceNumberFlow value={shippingCost ?? 0} className="tabular-nums" />
+            </strong>
+          }
           open={open.shipping}
-          toggle={() => setOpen((prev) => ({ ...prev, shipping: !prev.shipping }))}
-          rows={shippingRow}
-          columns={costSummaryColumns}
-        />
+          onToggle={() => setOpen((prev) => ({ ...prev, shipping: !prev.shipping }))}
+          surface="bare"
+        >
+          <AccordionTable rows={shippingRow} columns={costSummaryColumns} />
+        </Accordion>
       )}
 
       {payoutRow.length > 0 && payoutRow[0].cost > 0 && (
-        <ItemAccordion
+        <Accordion
           label="Payout Method Fee"
-          total={payoutRow[0].cost}
+          trailing={
+            <strong>
+              -<PriceNumberFlow value={payoutRow[0].cost} className="tabular-nums" />
+            </strong>
+          }
           open={open.payout}
-          toggle={() => setOpen((prev) => ({ ...prev, payout: !prev.payout }))}
-          rows={payoutRow}
-          columns={costSummaryColumns}
-        />
+          onToggle={() => setOpen((prev) => ({ ...prev, payout: !prev.payout }))}
+          surface="bare"
+        >
+          <AccordionTable rows={payoutRow} columns={costSummaryColumns} />
+        </Accordion>
       )}
     </div>
   )
 }
 
-function ItemAccordion<T>({
-  label,
-  total,
-  open,
-  toggle,
-  rows,
-  columns,
-}: {
-  label: string
-  total: number
-  open: boolean
-  toggle: () => void
-  rows: T[]
-  columns: ColumnDef<T>[]
-}) {
+function AccordionTable<T>({ rows, columns }: { rows: T[]; columns: ColumnDef<T>[] }) {
   const table = useReactTable({
     data: rows,
     columns,
@@ -169,60 +174,20 @@ function ItemAccordion<T>({
   })
 
   return (
-    <div>
-      <button
-        type="button"
-        onClick={toggle}
-        className={cn(
-          'cursor-pointer w-full p-4 flex items-center justify-between',
-          label === 'Bullion' && 'border-t-1 border-border'
-        )}
-      >
-        <div className="flex items-center gap-2">
-          <ChevronDown
-            size={20}
-            className={cn('transition-transform text-placeholder', open && 'rotate-180')}
-          />
-          <span>{label}</span>
-        </div>
-        <strong>
-          {label === 'Shipping' || label === 'Payout Method Fee' ? (
-            <>
-              -<PriceNumberFlow value={total} />
-            </>
-          ) : (
-            <PriceNumberFlow value={total} />
-          )}
-        </strong>
-      </button>
-
-      <AnimatePresence initial={false}>
-        {open && (
-          <motion.div
-            key={label}
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            className="overflow-hidden will-change-transform"
-          >
-            <div className="px-2">
-              <Table className="w-full">
-                <TableBody>
-                  {table.getRowModel().rows.map((row) => (
-                    <TableRow key={row.id} borderless>
-                      {row.getVisibleCells().map((cell) => (
-                        <TableCell className="text-left" key={cell.id}>
-                          {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                        </TableCell>
-                      ))}
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+    <div className="px-2">
+      <Table className="w-full">
+        <TableBody>
+          {table.getRowModel().rows.map((row) => (
+            <TableRow key={row.id} borderless>
+              {row.getVisibleCells().map((cell) => (
+                <TableCell className="text-left" key={cell.id}>
+                  {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                </TableCell>
+              ))}
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
     </div>
   )
 }
@@ -252,7 +217,7 @@ const scrapColumns: ColumnDef<QuotedRow>[] = [
     header: 'Est. Value',
     cell: ({ row }) => (
       <span className="text-right block w-full">
-        <PriceNumberFlow value={row.original.quoted?.line_total ?? 0} />
+        <PriceNumberFlow value={row.original.quoted?.line_total ?? 0} className="tabular-nums" />
       </span>
     ),
   },
@@ -271,7 +236,7 @@ const bullionColumns: ColumnDef<QuotedRow>[] = [
     header: 'Est. Value',
     cell: ({ row }) => (
       <span className="text-right block w-full">
-        <PriceNumberFlow value={row.original.quoted?.line_total ?? 0} />
+        <PriceNumberFlow value={row.original.quoted?.line_total ?? 0} className="tabular-nums" />
       </span>
     ),
   },
@@ -290,7 +255,7 @@ const costSummaryColumns: ColumnDef<{ label: string; cost: number }>[] = [
       const value = getValue<number>()
       return (
         <span className="text-right block w-full">
-          -<PriceNumberFlow value={value} />
+          -<PriceNumberFlow value={value} className="tabular-nums" />
         </span>
       )
     },

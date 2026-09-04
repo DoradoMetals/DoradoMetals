@@ -1,7 +1,6 @@
 import { useSearchParams, useRouter, usePathname } from 'next/navigation'
 
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@dorado/components'
-import { Separator } from '@/shared/ui/base/separator'
+import { Tabs, TabsContent, TabsList, TabsTrigger, Divider } from '@dorado/components'
 import SignInForm from './SignInForm'
 import SignUpForm from './SignUpForm'
 
@@ -27,7 +26,7 @@ export function SignInAndUpTabs() {
           Sign Up
         </TabsTrigger>
       </TabsList>
-      <Separator className="-mt-[11px] mb-8" />
+      <Divider className="-mt-[11px] mb-8" />
 
       <TabsContent value="sign-in">
         <SignInForm />

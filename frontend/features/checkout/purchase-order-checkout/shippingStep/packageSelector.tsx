@@ -1,8 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { RadioGroup } from '@/shared/ui/RadioGroup'
-import { Switch } from '@dorado/components'
+import { RadioGroup, RadioOption, Switch } from '@dorado/components'
 import { Inbox, Package2, Package as PackageIcon } from 'lucide-react'
 import type { CheckoutView, Package } from '@dorado/contracts'
 import { useOfferedPackages, usePatchCheckout } from '@/features/checkout/queries'
@@ -28,7 +27,7 @@ export function PackageSelector({ row }: { row?: CheckoutView }) {
 
   return (
     <div className="space-y-2">
-      <h2 className="eyebrow mb-4">Package Selection</h2>
+      <h3 className="eyebrow mb-4">Package Selection</h3>
 
       <div className="flex items-center justify-end gap-2 mb-4">
         <p>Use FedEx Packaging?</p>
@@ -42,21 +41,17 @@ export function PackageSelector({ row }: { row?: CheckoutView }) {
           // D208: the row takes the id the moment it is picked.
           if (pkg) patchCheckout.mutate({ package_id: pkg.id })
         }}
-        options={options}
-        getValue={(pkg) => pkg.label}
-        variant="tile"
         className="flex w-full items-stretch justify-between gap-2"
-        optionClassName="flex-1"
       >
-        {(pkg) => {
+        {options.map((pkg) => {
           const Icon = iconFor(pkg)
           return (
-            <>
+            <RadioOption key={pkg.label} value={pkg.label} variant="tile" className="flex-1">
               <Icon size={20} />
               <strong>{pkg.label}</strong>
-            </>
+            </RadioOption>
           )
-        }}
+        })}
       </RadioGroup>
     </div>
   )

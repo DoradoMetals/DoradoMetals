@@ -2,8 +2,7 @@
 
 import type { AdminRate } from "@dorado/contracts";
 import * as React from 'react'
-import { Button } from '@dorado/components'
-import { Input } from '@/shared/ui/base/input'
+import { Button, Input } from '@dorado/components'
 import { cn } from '@/shared/utils/cn'
 import { PencilSimpleIcon, FloppyDiskIcon, XIcon } from '@phosphor-icons/react'
 import { getBoundsForMetal, sortRatesByMin, pctToInt, intToPct, labelFor } from '@/features/rates/types'
@@ -171,15 +170,12 @@ function ReadView({ unit, rows }: { unit: string; rows: AdminRate[] }) {
             <p className="basis-0 grow-[2] tabular-nums">
               {r.max_qty == null ? `${r.min_qty}+ ${u}` : `${r.min_qty}–${r.max_qty} ${u}`}
             </p>
-            {/* Display figures. The scale has no `.metric` utility, so the
-                heading tag is the only way to reach this size without a
-                type utility at the call site - see the report. */}
-            <h3 className="basis-0 grow text-center">
+            <strong className="stat-sm basis-0 grow text-center">
               {Math.round((r.scrap_pct ?? 0) * 100)}%
-            </h3>
-            <h3 className="basis-0 grow text-center">
+            </strong>
+            <strong className="stat-sm basis-0 grow text-center">
               {Math.round((r.bullion_pct ?? 0) * 100)}%
-            </h3>
+            </strong>
           </div>
         ))}
       </div>
@@ -300,7 +296,8 @@ function PercentBox({
        a shared component's call site. Reported as a missing Input state. */
     <div className={cn('flex items-center gap-1 rounded-md', isDirty && 'ring-2 ring-primary/60')}>
       <Input
-        className="h-10 w-16 text-center no-spinner"
+        className="w-16"
+        inputClassName="text-center"
         inputMode="decimal"
         type="number"
         value={value}

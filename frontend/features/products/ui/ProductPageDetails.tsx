@@ -2,10 +2,9 @@
 
 import Image from 'next/image'
 import { Product } from '@/features/products/types'
-import { Button } from '@dorado/components'
+import { Accordion, Button, RadioGroup, RadioOption } from '@dorado/components'
 import { Equal, Minus, Plus, X } from 'lucide-react'
 import NumberFlow from '@number-flow/react'
-import { RadioGroup } from '@/shared/ui/RadioGroup'
 
 import { useState } from 'react'
 
@@ -29,7 +28,6 @@ import { useSaleShippingServices } from '@/features/shipping/queries'
 import { useSpotPrices } from '@/features/spots/queries'
 import { useCatalogQuote } from '@/features/quotes/queries'
 import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
-import AccordionSection from '@/shared/ui/AccordionSection'
 import { DetailRow } from '@/shared/ui/DetailRow'
 
 type ProductPageProps = {
@@ -86,44 +84,30 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
   // (content * spot * (premium - 1)) whenever the quote and the ticker read
   // the same spot tick; between their 10s refreshes they can differ by
   // content * the spot's movement. Zero until a quote lands.
-  const askOverOrUnder =
-    price === 0 ? 0 : price - selectedProduct.content * (spot?.ask ?? 0)
+  const askOverOrUnder = price === 0 ? 0 : price - selectedProduct.content * (spot?.ask ?? 0)
   const bidOverOrUnder =
     buybackPrice === 0 ? 0 : buybackPrice - selectedProduct.content * (spot?.bid ?? 0)
 
   return (
     <div>
       <div className="hidden lg:flex items-start w-5xl flex-1 gap-4">
-        {/* THE PRODUCT-IMAGE PICKER IS A RADIO GROUP, and this is the exact case
-            ruling 30 deleted `RadioGroupImage` for: "it was this control with an
-            <Image> in the option, which is CONTENT, and content is children."
-            It was hand-rolled TWICE in this file, once for each breakpoint, with
-            the checked appearance spelled as a string at four call sites.
-            `` rather than the neutral fill: neutral FILLS with
-            --primary, which is near-white, and a white ground behind a product
-            photograph is not a selection cue, it is a different photograph.
-            Gold is ruling 19's one permitted hue and this is the business's own
-            catalogue - FLAGGED for Jacob as the one colour judgement in this pass. */}
         <RadioGroup
           value={selectedImage}
           onValueChange={setSelectedImage}
-          options={[selectedProduct.image_front, selectedProduct.image_back]}
-          getValue={(src) => src}
-          variant="tile"
-
           aria-label="Product images"
           className="flex flex-col gap-3"
-          optionClassName="h-20 w-20 p-0"
         >
-          {(src) => (
-            <Image
-              src={src}
-              height={500}
-              width={500}
-              className="pointer-events-none h-full w-full object-contain"
-              alt={src === selectedProduct.image_front ? 'Front thumbnail' : 'Back thumbnail'}
-            />
-          )}
+          {[selectedProduct.image_front, selectedProduct.image_back].map((src) => (
+            <RadioOption key={src} value={src} variant="tile" className="h-20 w-20 p-0">
+              <Image
+                src={src}
+                height={500}
+                width={500}
+                className="pointer-events-none h-full w-full object-contain"
+                alt={src === selectedProduct.image_front ? 'Front thumbnail' : 'Back thumbnail'}
+              />
+            </RadioOption>
+          ))}
         </RadioGroup>
         <div className="flex flex-col gap-3 w-full h-full">
           <div className="flex relative aspect-square bg-card border border-border rounded-lg h-full w-full">
@@ -158,13 +142,15 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
                 const variant = variants.find((v) => v.name === val)
                 if (variant) setSelectedProduct(variant)
               }}
-              options={[...variants].sort((a, b) => b.content - a.content)}
-              getValue={(option) => option.name}
-              variant="segment"
               className="flex w-full gap-3"
-              optionClassName="w-full"
             >
-              {(option) => option.variant_label}
+              {[...variants]
+                .sort((a, b) => b.content - a.content)
+                .map((option) => (
+                  <RadioOption key={option.id} value={option.name} variant="segment" className="w-full">
+                    {option.variant_label}
+                  </RadioOption>
+                ))}
             </RadioGroup>
           )}
           <div className="w-full">
@@ -203,9 +189,7 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
             {sellQuantity === 0 ? (
               <Button
                 className="w-full"
-                onClick={() =>
-                  addItem('purchase', lineFromProduct(selectedProduct))
-                }
+                onClick={() => addItem('purchase', lineFromProduct(selectedProduct))}
               >
                 Sell to Us
               </Button>
@@ -220,9 +204,7 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
                 <NumberFlow value={sellQuantity} trend={0} />
                 <Button
                   size="icon"
-                  onClick={() =>
-                    addItem('purchase', lineFromProduct(selectedProduct))
-                  }
+                  onClick={() => addItem('purchase', lineFromProduct(selectedProduct))}
                 >
                   <Plus size={20} />
                 </Button>
@@ -239,30 +221,30 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
             <div className="flex w-full justify-between items-center">
               <div className="flex flex-col items-start gap-0">
                 <small>Price:</small>
-                <h3>
+                <strong className="stat-sm">
                   <PriceNumberFlow value={price} />
-                </h3>
+                </strong>
               </div>
               <div className="flex flex-col items-start gap-0">
                 <small>Buyback:</small>
-                <h3>
+                <strong className="stat-sm">
                   <PriceNumberFlow value={buybackPrice} />
-                </h3>
+                </strong>
               </div>
             </div>
           </div>
 
           <div className="flex flex-col gap-2 w-full">
-            <AccordionSection
-              variant="card"
+            <Accordion
+              surface="card"
               label={`Description`}
               open={open.description}
               onToggle={() => setOpen((prev) => ({ ...prev, description: !prev.description }))}
             >
               <p className="text-left whitespace-pre-line">{selectedProduct.description}</p>
-            </AccordionSection>
-            <AccordionSection
-              variant="card"
+            </Accordion>
+            <Accordion
+              surface="card"
               label={`Price Breakdown`}
               open={open.price}
               onToggle={() => setOpen((prev) => ({ ...prev, price: !prev.price }))}
@@ -270,13 +252,19 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
               <div className="text-left">
                 <div className="flex flex-col gap-2">
                   <div className="flex flex-col gap-2 border-b-1 border-border pb-2">
-                    <DetailRow label={<>{spot?.name} Ask Spot</>} variant="detail" className="items-start pl-8">
+                    <DetailRow
+                      label={<>{spot?.name} Ask Spot</>}
+                      variant="detail"
+                      className="items-start pl-8"
+                    >
                       <PriceNumberFlow value={spot?.ask ?? 0} />
                     </DetailRow>
 
                     <div className="flex w-full items-start">
                       <X size={16} className="text-subtle" />
-                      <DetailRow label="Content (oz)" variant="detail" className="items-start pl-4">{selectedProduct.content}</DetailRow>
+                      <DetailRow label="Content (oz)" variant="detail" className="items-start pl-4">
+                        {selectedProduct.content}
+                      </DetailRow>
                     </div>
 
                     <div className="flex w-full items-start">
@@ -300,9 +288,9 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
                   </div>
                 </div>
               </div>
-            </AccordionSection>
-            <AccordionSection
-              variant="card"
+            </Accordion>
+            <Accordion
+              surface="card"
               label={`Buyback Breakdown`}
               open={open.buyback}
               onToggle={() => setOpen((prev) => ({ ...prev, buyback: !prev.buyback }))}
@@ -310,13 +298,19 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
               <div className="text-left">
                 <div className="flex flex-col gap-2">
                   <div className="flex flex-col gap-2 border-b-1 border-border pb-2">
-                    <DetailRow label={<>{spot?.name} Bid Spot</>} variant="detail" className="items-start pl-8">
+                    <DetailRow
+                      label={<>{spot?.name} Bid Spot</>}
+                      variant="detail"
+                      className="items-start pl-8"
+                    >
                       <PriceNumberFlow value={spot?.bid ?? 0} />
                     </DetailRow>
 
                     <div className="flex w-full items-start">
                       <X size={16} className="text-subtle" />
-                      <DetailRow label="Content (oz)" variant="detail" className="items-start pl-4">{selectedProduct.content}</DetailRow>
+                      <DetailRow label="Content (oz)" variant="detail" className="items-start pl-4">
+                        {selectedProduct.content}
+                      </DetailRow>
                     </div>
 
                     <div className="flex w-full items-start">
@@ -340,16 +334,19 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
                   </div>
                 </div>
               </div>
-            </AccordionSection>
-            <AccordionSection
-              variant="card"
+            </Accordion>
+            <Accordion
+              surface="card"
               label={`Shipping`}
               open={open.shipping}
               onToggle={() => setOpen((prev) => ({ ...prev, shipping: !prev.shipping }))}
             >
               <div className="flex flex-col w-full gap-3">
                 {displayServices.map((svc) => (
-                  <div key={svc.code ?? svc.id} className="flex items-center justify-between w-full">
+                  <div
+                    key={svc.code ?? svc.id}
+                    className="flex items-center justify-between w-full"
+                  >
                     <p>
                       {svc.name} {`(${transitLabel(svc.min_transit_days, svc.max_transit_days)})`}
                     </p>
@@ -374,43 +371,43 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
                   </p>
                 </div>
               </div>
-            </AccordionSection>
-            <AccordionSection
-              variant="card"
+            </Accordion>
+            <Accordion
+              surface="card"
               label={`Payment Options`}
               open={open.payment}
               onToggle={() => setOpen((prev) => ({ ...prev, payment: !prev.payment }))}
             >
               <div className="flex flex-col">
                 {displayMethods.map((payment, index) => {
-                    const Icon = paymentMethodIcon[payment.type as keyof typeof paymentMethodIcon]
-                    return (
-                      <div
-                        key={index}
-                        className={cn(
-                          'flex flex-col items-start gap-1 py-2',
-                          index !== 0 && 'border-t border-border'
-                        )}
-                      >
-                        <div className="flex w-full gap-2 items-center">
-                          <div className="flex items-center gap-1">
-                            {Icon && <Icon className='text-primary' size={20} />}
-                            <h5>{payment.label}</h5>
-                          </div>
-                          <small className="flex items-center gap-2 pt-1 pl-4">
-                            <span className="text-left">{payment.time_delay}</span>
-                            <CircleIcon size={6} weight="fill" className="text-placeholder" />
-                            <span className="text-right">{payment.surcharge_label}</span>
-                          </small>
+                  const Icon = paymentMethodIcon[payment.type as keyof typeof paymentMethodIcon]
+                  return (
+                    <div
+                      key={index}
+                      className={cn(
+                        'flex flex-col items-start gap-1 py-2',
+                        index !== 0 && 'border-t border-border'
+                      )}
+                    >
+                      <div className="flex w-full gap-2 items-center">
+                        <div className="flex items-center gap-1">
+                          {Icon && <Icon className="text-primary" size={20} />}
+                          <h5>{payment.label}</h5>
                         </div>
-                        <p>{payment.short_description}</p>
+                        <small className="flex items-center gap-2 pt-1 pl-4">
+                          <span className="text-left">{payment.time_delay}</span>
+                          <CircleIcon size={6} weight="fill" className="text-placeholder" />
+                          <span className="text-right">{payment.surcharge_label}</span>
+                        </small>
                       </div>
-                    )
-                  })}
+                      <p>{payment.short_description}</p>
+                    </div>
+                  )
+                })}
               </div>
-            </AccordionSection>
-            <AccordionSection
-              variant="card"
+            </Accordion>
+            <Accordion
+              surface="card"
               label={`Product Specifications`}
               open={open.specs}
               onToggle={() => setOpen((prev) => ({ ...prev, specs: !prev.specs }))}
@@ -429,7 +426,7 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
                   <p>{selectedProduct.content.toFixed(4)}</p>
                 </div>
               </div>
-            </AccordionSection>
+            </Accordion>
           </div>
         </div>
       </div>
@@ -444,15 +441,15 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
           <div className="flex w-full justify-between items-center">
             <div className="flex flex-col items-start gap-0">
               <small>Price:</small>
-              <h3>
+              <strong className="stat-sm">
                 <PriceNumberFlow value={price} />
-              </h3>
+              </strong>
             </div>
             <div className="flex flex-col items-start gap-0">
               <small>Buyback:</small>
-              <h3>
+              <strong className="stat-sm">
                 <PriceNumberFlow value={buybackPrice} />
-              </h3>
+              </strong>
             </div>
           </div>
         </div>
@@ -482,36 +479,23 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
               </motion.div>
             </AnimatePresence>
           </div>
-          {/* THE PRODUCT-IMAGE PICKER IS A RADIO GROUP, and this is the exact case
-              ruling 30 deleted `RadioGroupImage` for: "it was this control with an
-              <Image> in the option, which is CONTENT, and content is children."
-              It was hand-rolled TWICE in this file, once for each breakpoint, with
-              the checked appearance spelled as a string at four call sites.
-              `` rather than the neutral fill: neutral FILLS with
-              --primary, which is near-white, and a white ground behind a product
-              photograph is not a selection cue, it is a different photograph.
-              Gold is ruling 19's one permitted hue and this is the business's own
-              catalogue - FLAGGED for Jacob as the one colour judgement in this pass. */}
           <RadioGroup
             value={selectedImage}
             onValueChange={setSelectedImage}
-            options={[selectedProduct.image_front, selectedProduct.image_back]}
-            getValue={(src) => src}
-            variant="tile"
-
             aria-label="Product images"
             className="flex items-center w-full gap-3 flex-1"
-            optionClassName="h-20 w-20 p-0"
           >
-            {(src) => (
-              <Image
-                src={src}
-                height={500}
-                width={500}
-                className="pointer-events-none h-full w-full object-contain"
-                alt={src === selectedProduct.image_front ? 'Front thumbnail' : 'Back thumbnail'}
-              />
-            )}
+            {[selectedProduct.image_front, selectedProduct.image_back].map((src) => (
+              <RadioOption key={src} value={src} variant="tile" className="h-20 w-20 p-0">
+                <Image
+                  src={src}
+                  height={500}
+                  width={500}
+                  className="pointer-events-none h-full w-full object-contain"
+                  alt={src === selectedProduct.image_front ? 'Front thumbnail' : 'Back thumbnail'}
+                />
+              </RadioOption>
+            ))}
           </RadioGroup>
         </div>
 
@@ -522,13 +506,15 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
               const variant = variants.find((v) => v.name === val)
               if (variant) setSelectedProduct(variant)
             }}
-            options={[...variants].sort((a, b) => b.content - a.content)}
-            getValue={(option) => option.name}
-            variant="segment"
             className="flex w-full gap-3"
-            optionClassName="w-full"
           >
-            {(option) => option.variant_label}
+            {[...variants]
+              .sort((a, b) => b.content - a.content)
+              .map((option) => (
+                <RadioOption key={option.id} value={option.name} variant="segment" className="w-full">
+                  {option.variant_label}
+                </RadioOption>
+              ))}
           </RadioGroup>
         )}
 
@@ -570,9 +556,7 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
             {sellQuantity === 0 ? (
               <Button
                 className="w-full"
-                onClick={() =>
-                  addItem('purchase', lineFromProduct(selectedProduct))
-                }
+                onClick={() => addItem('purchase', lineFromProduct(selectedProduct))}
               >
                 Sell to Us
               </Button>
@@ -587,9 +571,7 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
                 <NumberFlow value={sellQuantity} trend={0} />
                 <Button
                   size="icon"
-                  onClick={() =>
-                    addItem('purchase', lineFromProduct(selectedProduct))
-                  }
+                  onClick={() => addItem('purchase', lineFromProduct(selectedProduct))}
                 >
                   <Plus size={20} />
                 </Button>
@@ -601,16 +583,16 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
         {/* accordions */}
         <div className="flex flex-col gap-2 w-full">
           <div className="flex flex-col gap-2 w-full">
-            <AccordionSection
-              variant="card"
+            <Accordion
+              surface="card"
               label={`Description`}
               open={open.description}
               onToggle={() => setOpen((prev) => ({ ...prev, description: !prev.description }))}
             >
               <p className="text-left whitespace-pre-line">{selectedProduct.description}</p>
-            </AccordionSection>
-            <AccordionSection
-              variant="card"
+            </Accordion>
+            <Accordion
+              surface="card"
               label={`Price Breakdown`}
               open={open.price}
               onToggle={() => setOpen((prev) => ({ ...prev, price: !prev.price }))}
@@ -618,13 +600,19 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
               <div className="text-left">
                 <div className="flex flex-col gap-2">
                   <div className="flex flex-col gap-2 border-b-1 border-border pb-2">
-                    <DetailRow label={<>{spot?.name} Ask Spot</>} variant="detail" className="items-start pl-8">
+                    <DetailRow
+                      label={<>{spot?.name} Ask Spot</>}
+                      variant="detail"
+                      className="items-start pl-8"
+                    >
                       <PriceNumberFlow value={spot?.ask ?? 0} />
                     </DetailRow>
 
                     <div className="flex w-full items-start">
                       <X size={16} className="text-subtle" />
-                      <DetailRow label="Content (oz)" variant="detail" className="items-start pl-4">{selectedProduct.content}</DetailRow>
+                      <DetailRow label="Content (oz)" variant="detail" className="items-start pl-4">
+                        {selectedProduct.content}
+                      </DetailRow>
                     </div>
 
                     <div className="flex w-full items-start">
@@ -648,9 +636,9 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
                   </div>
                 </div>
               </div>
-            </AccordionSection>
-            <AccordionSection
-              variant="card"
+            </Accordion>
+            <Accordion
+              surface="card"
               label={`Buyback Breakdown`}
               open={open.buyback}
               onToggle={() => setOpen((prev) => ({ ...prev, buyback: !prev.buyback }))}
@@ -658,13 +646,19 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
               <div className="text-left">
                 <div className="flex flex-col gap-2">
                   <div className="flex flex-col gap-2 border-b-1 border-border pb-2">
-                    <DetailRow label={<>{spot?.name} Bid Spot</>} variant="detail" className="items-start pl-8">
+                    <DetailRow
+                      label={<>{spot?.name} Bid Spot</>}
+                      variant="detail"
+                      className="items-start pl-8"
+                    >
                       <PriceNumberFlow value={spot?.bid ?? 0} />
                     </DetailRow>
 
                     <div className="flex w-full items-start">
                       <X size={16} className="text-subtle" />
-                      <DetailRow label="Content (oz)" variant="detail" className="items-start pl-4">{selectedProduct.content}</DetailRow>
+                      <DetailRow label="Content (oz)" variant="detail" className="items-start pl-4">
+                        {selectedProduct.content}
+                      </DetailRow>
                     </div>
 
                     <div className="flex w-full items-start">
@@ -688,16 +682,19 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
                   </div>
                 </div>
               </div>
-            </AccordionSection>
-            <AccordionSection
-              variant="card"
+            </Accordion>
+            <Accordion
+              surface="card"
               label={`Shipping`}
               open={open.shipping}
               onToggle={() => setOpen((prev) => ({ ...prev, shipping: !prev.shipping }))}
             >
               <div className="flex flex-col w-full gap-3">
                 {displayServices.map((svc) => (
-                  <div key={svc.code ?? svc.id} className="flex items-center justify-between w-full">
+                  <div
+                    key={svc.code ?? svc.id}
+                    className="flex items-center justify-between w-full"
+                  >
                     <p>
                       {svc.name} {`(${transitLabel(svc.min_transit_days, svc.max_transit_days)})`}
                     </p>
@@ -722,45 +719,43 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
                   </p>
                 </div>
               </div>
-            </AccordionSection>
-            <AccordionSection
-              variant="card"
+            </Accordion>
+            <Accordion
+              surface="card"
               label={`Payment Options`}
               open={open.payment}
               onToggle={() => setOpen((prev) => ({ ...prev, payment: !prev.payment }))}
             >
               <div className="flex flex-col">
                 {displayMethods.map((payment, index) => {
-                    const Icon = paymentMethodIcon[payment.type as keyof typeof paymentMethodIcon]
-                    return (
-                      <div
-                        key={index}
-                        className={cn(
-                          'flex flex-col items-start gap-1 py-2',
-                          index !== displayMethods.length - 1
-                            ? 'border-b border-border pt-0'
-                            : 'pb-0'
-                        )}
-                      >
-                        <div className="flex w-full gap-2 items-center">
-                          <div className="flex items-center gap-1">
-                            {Icon && <Icon className='text-primary' size={20} />}
-                            <h5>{payment.label}</h5>
-                          </div>
-                          <small className="flex items-center gap-2 pt-1 pl-4">
-                            <span className="text-left">{payment.time_delay}</span>
-                            <CircleIcon size={6} weight="fill" className="text-placeholder" />
-                            <span className="text-right">{payment.surcharge_label}</span>
-                          </small>
+                  const Icon = paymentMethodIcon[payment.type as keyof typeof paymentMethodIcon]
+                  return (
+                    <div
+                      key={index}
+                      className={cn(
+                        'flex flex-col items-start gap-1 py-2',
+                        index !== displayMethods.length - 1 ? 'border-b border-border pt-0' : 'pb-0'
+                      )}
+                    >
+                      <div className="flex w-full gap-2 items-center">
+                        <div className="flex items-center gap-1">
+                          {Icon && <Icon className="text-primary" size={20} />}
+                          <h5>{payment.label}</h5>
                         </div>
-                        <p>{payment.short_description}</p>
+                        <small className="flex items-center gap-2 pt-1 pl-4">
+                          <span className="text-left">{payment.time_delay}</span>
+                          <CircleIcon size={6} weight="fill" className="text-placeholder" />
+                          <span className="text-right">{payment.surcharge_label}</span>
+                        </small>
                       </div>
-                    )
-                  })}
+                      <p>{payment.short_description}</p>
+                    </div>
+                  )
+                })}
               </div>
-            </AccordionSection>
-            <AccordionSection
-              variant="card"
+            </Accordion>
+            <Accordion
+              surface="card"
               label={`Product Specifications`}
               open={open.specs}
               onToggle={() => setOpen((prev) => ({ ...prev, specs: !prev.specs }))}
@@ -779,7 +774,7 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
                   <p>{selectedProduct.content.toFixed(4)}</p>
                 </div>
               </div>
-            </AccordionSection>
+            </Accordion>
           </div>
         </div>
       </div>

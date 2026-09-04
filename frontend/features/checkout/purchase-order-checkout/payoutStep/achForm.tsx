@@ -7,10 +7,9 @@ import { UseFormReturn } from 'react-hook-form'
 import { usePayoutDraft } from '@/features/checkout/purchase-order-checkout/payoutStep/payoutDraft'
 import { ValidatedField } from '@/shared/ui/form/ValidatedField'
 import { FormField, FormItem } from '@/shared/ui/base/form'
-import { RadioGroup } from '@/shared/ui/RadioGroup'
 import { accountTypeOptions } from '@/features/payouts/types'
 import { cn } from '@/shared/utils/cn'
-import { Checkbox } from '@dorado/components'
+import { Checkbox, RadioGroup, RadioOption } from '@dorado/components'
 
 export default function ACHForm({
   form,
@@ -64,17 +63,19 @@ export default function ACHForm({
                         field.onChange(val)
                         syncToStore()
                       }}
-                      options={accountTypeOptions}
-                      variant="tile"
                       className="flex w-full justify-between gap-3"
-                      optionClassName="grow-1"
                     >
-                      {(option) => (
-                        <>
+                      {accountTypeOptions.map((option) => (
+                        <RadioOption
+                          key={option.value}
+                          value={option.value}
+                          variant="tile"
+                          className="grow-1"
+                        >
                           {option.icon && <option.icon size={24} />}
                           <strong>{option.label}</strong>
-                        </>
-                      )}
+                        </RadioOption>
+                      ))}
                     </RadioGroup>
                   </FormItem>
                 )}

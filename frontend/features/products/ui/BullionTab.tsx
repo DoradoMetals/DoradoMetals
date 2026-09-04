@@ -1,9 +1,8 @@
 import { useState } from 'react'
 import { FloatingLabelInput } from '@/shared/ui/inputs/FloatingLabelInput'
 import fuzzysort from 'fuzzysort'
-import { Button, FieldLabel, Switch } from '@dorado/components'
+import { Button, FieldLabel, RadioGroup, RadioOption, Switch } from '@dorado/components'
 import { X } from 'lucide-react'
-import { RadioGroupRoot, RadioOption } from '@/shared/ui/RadioGroup'
 import { cn } from '@/shared/utils/cn'
 import { useSellProducts } from '@/features/products/queries'
 import BullionCard from '@/features/products/ui/BullionCard'
@@ -70,12 +69,7 @@ export default function BullionTab() {
         />
       </div>
 
-      {/* Composed from `RadioOption` rather than `<RadioGroup options>` for one
-          reason: clicking the SELECTED metal clears the filter back to "All",
-          which needs the click event and not the value change - radix does not
-          fire onValueChange when the value has not changed, so there would
-          otherwise be no way back to "All". */}
-      <RadioGroupRoot
+      <RadioGroup
         value={selectedMetal}
         onValueChange={setSelectedMetal}
         className="grid grid-cols-4 gap-2"
@@ -96,7 +90,7 @@ export default function BullionTab() {
             {label}
           </RadioOption>
         ))}
-      </RadioGroupRoot>
+      </RadioGroup>
 
       <div className="relative w-full mt-4">
         <FloatingLabelInput

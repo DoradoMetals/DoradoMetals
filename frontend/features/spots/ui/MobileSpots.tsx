@@ -6,6 +6,7 @@ import { wrap } from '@motionone/utils'
 import { CaretUpIcon, CaretDownIcon } from '@phosphor-icons/react'
 import { NumberFlowGroup } from '@number-flow/react'
 import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
+import { cn } from '@/shared/utils/cn'
 import { useSpotPrices } from '@/features/spots/queries'
 
 export default function MobileSpotTicker({ type }: { type: 'Bid' | 'Ask' }) {
@@ -49,12 +50,18 @@ export default function MobileSpotTicker({ type }: { type: 'Bid' | 'Ask' }) {
               <span className="uppercase">{spot.name}:</span>
               <NumberFlowGroup>
                 <div className="flex items-center">
-                  <PriceNumberFlow value={(type === 'Bid' ? spot.bid : spot.ask) ?? 0} />
+                  <PriceNumberFlow
+                    value={(type === 'Bid' ? spot.bid : spot.ask) ?? 0}
+                    className="tabular-nums"
+                  />
                 </div>
 
                 <div className="flex items-center gap-1">
                   <CaretIcon size={16} className={colorClass} />
-                  <PriceNumberFlow value={spot.dollar_change ?? 0} className={colorClass} />
+                  <PriceNumberFlow
+                    value={spot.dollar_change ?? 0}
+                    className={cn(colorClass, 'tabular-nums')}
+                  />
                 </div>
               </NumberFlowGroup>
             </div>

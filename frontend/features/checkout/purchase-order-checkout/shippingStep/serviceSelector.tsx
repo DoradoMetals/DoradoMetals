@@ -1,6 +1,6 @@
 'use client'
 
-import { RadioGroup } from '@/shared/ui/RadioGroup'
+import { RadioGroup, RadioOption } from '@dorado/components'
 import { usePatchCheckout } from '@/features/checkout/queries'
 import { formatTimeDiff } from '@/shared/utils/formatDates'
 import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
@@ -34,15 +34,17 @@ export function ServiceSelector({
           patchCheckout.mutate({ carrier_service_id: rate.carrier_service_id })
         }
       }}
-      options={rates}
-      getValue={(rate) => rate.serviceType ?? ''}
-      isOptionDisabled={(rate) => rate.netCharge == null || rate.carrier_service_id == null}
       className="flex w-full flex-col gap-3"
     >
-      {(rate) => {
+      {rates.map((rate) => {
         const Icon = serviceIcon(rate.display_order)
         return (
-          <>
+          <RadioOption
+            key={rate.serviceType ?? rate.carrier_service_id ?? rate.name}
+            value={rate.serviceType ?? ''}
+            disabled={rate.netCharge == null || rate.carrier_service_id == null}
+            className="w-full flex-col items-start gap-1"
+          >
             <div className="flex items-center gap-2">
               <Icon size={24} />
               <strong>{rate.name}</strong>
@@ -58,12 +60,16 @@ export function ServiceSelector({
                   : 'Not available for this parcel'}
               </small>
               <strong>
-                {rate.netCharge != null ? <PriceNumberFlow value={rate.netCharge} /> : <>&nbsp;</>}
+                {rate.netCharge != null ? (
+                  <PriceNumberFlow value={rate.netCharge} className="tabular-nums" />
+                ) : (
+                  <>&nbsp;</>
+                )}
               </strong>
             </div>
-          </>
+          </RadioOption>
         )
-      }}
+      })}
     </RadioGroup>
   )
 }

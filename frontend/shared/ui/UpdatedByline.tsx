@@ -13,17 +13,17 @@ export default function UpdatedByline({ name, date }: UpdatedBylineProps) {
     <small className="flex w-full justify-start gap-1">
       {name !== undefined ? (
         <>
-          <span className="text-muted-foreground">Updated by</span>
-          <span className="text-foreground">{name}</span>
-          <span className="text-muted-foreground">on</span>
+          <span>Updated by</span>
+          <span data-emphasis="default">{name}</span>
+          <span>on</span>
         </>
       ) : (
         <>
-          <span className="text-muted-foreground">Updated</span>
-          <span className="text-muted-foreground">on</span>
+          <span>Updated</span>
+          <span>on</span>
         </>
       )}
-      <span className="text-foreground">{date}</span>
+      <span data-emphasis="default">{date}</span>
     </small>
   )
 }

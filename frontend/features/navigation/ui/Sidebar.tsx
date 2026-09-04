@@ -1,6 +1,6 @@
 'use client'
 
-import Drawer from '@/shared/ui/base/drawer'
+import { Drawer } from '@dorado/components'
 import IconTile from '@/shared/ui/IconTile'
 import NavLink from '@/shared/ui/NavLink'
 import { UserIcon, ListIcon, SignOutIcon, SignInIcon, SwapIcon } from '@phosphor-icons/react'

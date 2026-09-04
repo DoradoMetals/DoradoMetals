@@ -1,6 +1,4 @@
-import { Separator } from '@/shared/ui/base/separator'
-import { Button } from '@dorado/components'
-import { Input } from '@/shared/ui/base/input'
+import { Divider, Button, Input, Checkbox, Field } from '@dorado/components'
 import { outboundOf } from '@/features/shipping/queries'
 import { usePatchShipment } from '@/features/shipping/queries'
 import { usePatchPayout } from '@/features/payouts/queries'
@@ -26,9 +24,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/shared/ui/base/table'
-import { Checkbox } from '@dorado/components'
 import SelectMenu from '@/shared/ui/SelectMenu'
-import { Field } from '@/shared/ui/Field'
 import { Product } from '@/features/products/types'
 import { useSpotPrices } from '@/features/spots/queries'
 import { useProducts } from '@/features/products/queries'
@@ -124,10 +120,9 @@ export default function AdminReceivedPurchaseOrder({ view }: PurchaseOrderDrawer
                     <Input
                       type="number"
                       pattern="[0-9]*"
-                      inputMode="decimal"
                       readOnly={!order.spots_locked}
-                      className={cn(
-                        'no-spinner text-center w-full h-8',
+                      inputClassName={cn(
+                        'text-center h-8',
                         !order?.spots_locked && 'cursor-not-allowed'
                       )}
                       defaultValue={
@@ -157,7 +152,7 @@ export default function AdminReceivedPurchaseOrder({ view }: PurchaseOrderDrawer
               />
             </div>
           )}
-          <Separator />
+          <Divider />
 
           {bullionItems && (
             <div className="flex flex-col w-full gap-3">
@@ -167,7 +162,7 @@ export default function AdminReceivedPurchaseOrder({ view }: PurchaseOrderDrawer
               <BullionTable bullionItems={bullionItems} catalogue={catalogue} config={config} order_id={order.id} />
             </div>
           )}
-          <Separator />
+          <Divider />
 
           <div className="flex items-center justify-between w-full gap-3">
             <div className="flex-col items-start">
@@ -175,10 +170,7 @@ export default function AdminReceivedPurchaseOrder({ view }: PurchaseOrderDrawer
               <Input
                 type="number"
                 pattern="[0-9]*"
-                inputMode="decimal"
-                className={cn(
-                  'no-spinner text-right w-full h-8'
-                )}
+                inputClassName={cn('text-right h-8')}
                 defaultValue={shipment?.cost ?? 0}
                 onBlur={(e) => {
                   if (!shipment?.id) return
@@ -195,10 +187,7 @@ export default function AdminReceivedPurchaseOrder({ view }: PurchaseOrderDrawer
               <Input
                 type="number"
                 pattern="[0-9]*"
-                inputMode="decimal"
-                className={cn(
-                  'no-spinner text-right w-full h-8'
-                )}
+                inputClassName={cn('text-right h-8')}
                 defaultValue={payout?.cost ?? 0}
                 onBlur={(e) => {
                   if (!payout?.id) return
@@ -243,7 +232,7 @@ export default function AdminReceivedPurchaseOrder({ view }: PurchaseOrderDrawer
             />
             <small>Waive Payout Fee</small>
           </label>
-          <Separator />
+          <Divider />
 
           {/* 'Accepted' left the lifecycle, and the change-payout affordance
               that keyed on it shows here at Received instead (Jacob's lean) -
@@ -282,7 +271,7 @@ export default function AdminReceivedPurchaseOrder({ view }: PurchaseOrderDrawer
               }
             />
           </Field>
-          <Separator />
+          <Divider />
         </div>
       </div>
     </>
@@ -397,9 +386,8 @@ function ScrapTable({
                         <Input
                           type="number"
                           pattern="[0-9]*"
-                          inputMode="decimal"
-                          className={cn(
-                            'no-spinner text-left h-6'
+                          inputClassName={cn(
+                            'text-left h-6'
                           )}
                           defaultValue={item.pre_melt ?? ''}
                           onBlur={(e) => {
@@ -426,9 +414,8 @@ function ScrapTable({
                         <Input
                           type="number"
                           pattern="[0-9]*"
-                          inputMode="decimal"
-                          className={cn(
-                            'no-spinner text-left h-6'
+                          inputClassName={cn(
+                            'text-left h-6'
                           )}
                           defaultValue={item.post_melt ?? ''}
                           onBlur={(e) => {
@@ -455,9 +442,8 @@ function ScrapTable({
                         <Input
                           type="number"
                           pattern="[0-9]*"
-                          inputMode="decimal"
-                          className={cn(
-                            'no-spinner text-center h-6'
+                          inputClassName={cn(
+                            'text-center h-6'
                           )}
                           defaultValue={item.purity ?? ''}
                           onBlur={(e) => {
@@ -479,9 +465,8 @@ function ScrapTable({
                         <Input
                           type="number"
                           pattern="[0-9]*"
-                          inputMode="decimal"
-                          className={cn(
-                            'no-spinner text-center h-6'
+                          inputClassName={cn(
+                            'text-center h-6'
                           )}
                           defaultValue={item.premium ?? ''}
                           onBlur={(e) => {
@@ -684,9 +669,8 @@ function BullionTable({
                         <Input
                           type="number"
                           pattern="[0-9]*"
-                          inputMode="decimal"
-                          className={cn(
-                            'no-spinner text-center h-6'
+                          inputClassName={cn(
+                            'text-center h-6'
                           )}
                           defaultValue={item.quantity ?? ''}
                           onBlur={(e) => {
@@ -709,9 +693,8 @@ function BullionTable({
                         <Input
                           type="number"
                           pattern="[0-9]*"
-                          inputMode="decimal"
-                          className={cn(
-                            'no-spinner text-right h-6'
+                          inputClassName={cn(
+                            'text-right h-6'
                           )}
                           defaultValue={item.premium ?? byId(catalogue, item.bullion_id)?.bid_premium ?? ''}
                           onBlur={(e) => {

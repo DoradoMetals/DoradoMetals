@@ -114,7 +114,7 @@ export function DropoffInstructionsSection({ shipment }: { shipment?: Shipment }
 
   return (
     <div className="flex flex-col w-full gap-5">
-      <h3 className="eyebrow">Shipping Instructions</h3>
+      <h2 className="eyebrow">Shipping Instructions</h2>
       {/* A TIMELINE, NOT PROSE. typography.css gives every ul/ol markers and
           an indent, and exempts structural lists two ways - by role, and by
           LAYOUT INTENT (`ol[class*='flex']` and friends). This is the second

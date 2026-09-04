@@ -1,10 +1,8 @@
-import { Separator } from '@/shared/ui/base/separator'
+import { Divider, Button, RadioGroup, RadioOption } from '@dorado/components'
 import { useState } from 'react'
 import { cn } from '@/shared/utils/cn'
 import { SalesOrderDrawerContentProps, statusConfig } from '@/features/orders/salesOrders/types'
-import { Button } from '@dorado/components'
 import { FloatingLabelInput } from '@/shared/ui/inputs/FloatingLabelInput'
-import { RadioGroup } from '@/shared/ui/RadioGroup'
 import Image from 'next/image'
 import { useAdminSuppliers } from '@/features/products/queries'
 import { usePatchShipment, useShipmentDisplay, outboundOf } from '@/features/shipping/queries'
@@ -54,14 +52,10 @@ export default function AdminPreparingSalesOrder({ view }: SalesOrderDrawerConte
         <RadioGroup
           value={supplierId}
           onValueChange={setPickedSupplier}
-          options={suppliers}
-          getValue={(s) => s.id}
-          isOptionDisabled={(s) => !s.organization.enabled}
-          variant="tile"
           className="grid w-full grid-cols-1 gap-4 sm:grid-cols-2"
         >
-          {(s) => (
-            <>
+          {suppliers.map((s) => (
+            <RadioOption key={s.id} value={s.id} variant="tile" disabled={!s.organization.enabled}>
               <div className="relative flex h-20 w-full items-center justify-center">
                 <Image
                   src={s.logo ?? ''}
@@ -71,8 +65,8 @@ export default function AdminPreparingSalesOrder({ view }: SalesOrderDrawerConte
                 />
               </div>
               <strong>{s.organization.name}</strong>
-            </>
-          )}
+            </RadioOption>
+          ))}
         </RadioGroup>
       )}
 
@@ -104,21 +98,17 @@ export default function AdminPreparingSalesOrder({ view }: SalesOrderDrawerConte
           : 'Select Supplier'}
       </Button>
 
-      <Separator />
+      <Divider />
 
       {carriers && (
         <RadioGroup
           value={carrierId}
           onValueChange={setPickedCarrier}
-          options={carriers}
-          getValue={(c) => c.id}
-          isOptionDisabled={(c) => !c.organization.enabled}
           disabled={!order.order_sent}
-          variant="tile"
           className="grid w-full grid-cols-1 gap-4 sm:grid-cols-2"
         >
-          {(c) => (
-            <>
+          {carriers.map((c) => (
+            <RadioOption key={c.id} value={c.id} variant="tile" disabled={!c.organization.enabled}>
               <div className="relative flex h-20 w-full items-center justify-center">
                 <Image
                   src={c.logo ?? ''}
@@ -128,8 +118,8 @@ export default function AdminPreparingSalesOrder({ view }: SalesOrderDrawerConte
                 />
               </div>
               <strong>{c.organization.name}</strong>
-            </>
-          )}
+            </RadioOption>
+          ))}
         </RadioGroup>
       )}
 

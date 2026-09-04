@@ -5,7 +5,7 @@ import { Product } from '@/features/products/types'
 import { Button } from '@dorado/components'
 import { CircleHelp, Equal, Minus, Plus, Scale, X } from 'lucide-react'
 import NumberFlow from '@number-flow/react'
-import { RadioGroupRoot, RadioOption } from '@/shared/ui/RadioGroup'
+import { RadioGroup, RadioOption } from '@dorado/components'
 import { BullionFloatingButton, BullionFloatingButtonItem } from '@/features/products/ui/FloatingButton'
 import { useState } from 'react'
 import { PopoverContent, PopoverTrigger } from '@/shared/ui/base/popover'
@@ -78,9 +78,9 @@ export default function BullionCard({ product, variants, unitPrices }: BullionCa
             </div>
             <div className="flex items-end h-full mt-auto">
               <div className="flex items-baseline gap-1">
-                <h3>
+                <strong className="stat-sm">
                   <PriceNumberFlow value={price} />
-                </h3>
+                </strong>
                 <small>per unit</small>
               </div>
             </div>
@@ -164,7 +164,7 @@ export default function BullionCard({ product, variants, unitPrices }: BullionCa
 
           {variants.length > 0 && (
             <div className="mt-auto">
-              <RadioGroupRoot
+              <RadioGroup
                 value={selectedProduct.name}
                 onValueChange={(val) => {
                   const variant = variants.find((v) => v.name === val)
@@ -184,10 +184,6 @@ export default function BullionCard({ product, variants, unitPrices }: BullionCa
                     .sort((a, b) => b.content - a.content)
                     .map((option) => (
                       <BullionFloatingButtonItem key={option.id}>
-                        {/* Composed from `RadioOption` rather than
-                            `<RadioGroup options>` because each option is
-                            wrapped in a BullionFloatingButtonItem, and a render
-                            prop cannot wrap the label it is rendered inside. */}
                         <RadioOption
                           value={option.name}
                           variant="segment"
@@ -198,7 +194,7 @@ export default function BullionCard({ product, variants, unitPrices }: BullionCa
                       </BullionFloatingButtonItem>
                     ))}
                 </BullionFloatingButton>
-              </RadioGroupRoot>
+              </RadioGroup>
             </div>
           )}
         </div>

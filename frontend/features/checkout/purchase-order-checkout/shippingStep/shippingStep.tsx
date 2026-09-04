@@ -2,7 +2,7 @@
 
 import type { Address, CarrierHandoff, CheckoutRate, CheckoutView } from '@dorado/contracts'
 import type { UserAddress } from '@/features/addresses/types'
-import { Button } from '@dorado/components'
+import { Button, Divider } from '@dorado/components'
 import { Plus } from 'lucide-react'
 import { useMemo } from 'react'
 
@@ -18,7 +18,6 @@ import { PickupSelector } from '@/features/checkout/purchase-order-checkout/ship
 import PickupScheduler from '@/features/checkout/purchase-order-checkout/shippingStep/pickupScheduler'
 import { AddressDrawer } from '@/features/addresses/ui/AddressDrawer'
 import { StoreLocationsMap } from '@/features/checkout/purchase-order-checkout/shippingStep/StoreLocations'
-import { Separator } from '@/shared/ui/base/separator'
 
 // EVERY GATE HERE IS A COLUMN OF THE ROW. `row.package_id`, `row.handoff_code`
 // and `row.requires_schedule` replaced the store fields this file used to
@@ -117,12 +116,12 @@ export default function ShippingStep({
         </div>
       )}
 
-      <Separator />
+      <Divider />
 
       {address?.is_valid && (
         <>
           <PackageSelector row={row} />
-          <Separator />
+          <Divider />
         </>
       )}
 
@@ -130,7 +129,7 @@ export default function ShippingStep({
       {address?.is_valid && row?.package_id && (
         <>
           <PickupSelector handoffs={handoffs} row={row} />
-          <Separator />
+          <Divider />
         </>
       )}
 
@@ -139,7 +138,7 @@ export default function ShippingStep({
       {address?.is_valid && row?.package_id && (
         <>
           <ServiceSelector rates={rates} isLoading={isLoading} />
-          <Separator />
+          <Divider />
         </>
       )}
 

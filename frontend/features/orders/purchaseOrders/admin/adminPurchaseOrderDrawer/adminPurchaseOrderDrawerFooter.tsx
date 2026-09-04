@@ -1,9 +1,9 @@
 'use client'
+import { Accordion } from '@dorado/components'
 
 import { useMemo, useState } from 'react'
 import { PurchaseOrderDrawerFooterProps, statusConfig } from '@/features/orders/purchaseOrders/types'
 import { assignScrapItemNames } from '@/features/orders/display'
-import AccordionSection from '@/shared/ui/AccordionSection'
 import { DetailRow } from '@/shared/ui/DetailRow'
 
 import {
@@ -83,13 +83,14 @@ export default function AdminPurchaseOrderDrawerFooter({ view }: PurchaseOrderDr
   return (
     <div className="flex flex-col w-full gap-2">
       {order.status !== 'Completed' && order.status !== 'Payment Processing' && (
-        <div className='flex flex-col w-full gap-2'>
+        <div className="flex flex-col w-full gap-2">
           {scrapItems.length > 0 && (
-            <AccordionSection
+            <Accordion
+              surface="bare"
               label={`Scrap ${valueLabel}`}
               open={open.scrap}
               onToggle={() => setOpen((prev) => ({ ...prev, scrap: !prev.scrap }))}
-              total={scrapTotal}
+              trailing={<PriceNumberFlow value={scrapTotal} />}
             >
               <Table className="overflow-hidden">
                 <TableHeader>
@@ -105,9 +106,7 @@ export default function AdminPurchaseOrderDrawerFooter({ view }: PurchaseOrderDr
                   {scrapItems.map((item, i) => (
                     <TableRow key={i}>
                       <TableCell className="text-left">{item.name}</TableCell>
-                      <TableCell className="text-right">
-                        {item.content?.toFixed(3)}
-                      </TableCell>
+                      <TableCell className="text-right">{item.content?.toFixed(3)}</TableCell>
                       {/* One premium, read once: 085 folded scrap into the
                           items table, and the composed wire's
                           scrap.bid_premium was served FROM item.premium. */}
@@ -126,15 +125,16 @@ export default function AdminPurchaseOrderDrawerFooter({ view }: PurchaseOrderDr
                   ))}
                 </TableBody>
               </Table>
-            </AccordionSection>
+            </Accordion>
           )}
 
           {bullionItems.length > 0 && (
-            <AccordionSection
+            <Accordion
+              surface="bare"
               label={`Bullion ${valueLabel}`}
               open={open.bullion}
               onToggle={() => setOpen((prev) => ({ ...prev, bullion: !prev.bullion }))}
-              total={bullionTotal}
+              trailing={<PriceNumberFlow value={bullionTotal} />}
             >
               <Table className="overflow-hidden">
                 <TableBody>
@@ -150,16 +150,20 @@ export default function AdminPurchaseOrderDrawerFooter({ view }: PurchaseOrderDr
                   ))}
                 </TableBody>
               </Table>
-            </AccordionSection>
+            </Accordion>
           )}
 
           {shipment && (
-            <AccordionSection
+            <Accordion
+              surface="bare"
               label="Shipping Charges"
-              negative
               open={open.shipment ?? false}
               onToggle={() => setOpen((prev) => ({ ...prev, shipment: !prev.shipment }))}
-              total={shipment.cost ?? 0}
+              trailing={
+                <>
+                  -<PriceNumberFlow value={shipment.cost ?? 0} />
+                </>
+              }
             >
               <Table className="overflow-hidden">
                 <TableBody>
@@ -173,9 +177,7 @@ export default function AdminPurchaseOrderDrawerFooter({ view }: PurchaseOrderDr
                   {order.status === 'Cancelled' && returnShipment && (
                     <TableRow>
                       <TableCell>{returnService} (Return)</TableCell>
-                      <TableCell>
-                        {returnShipment.insured ? 'Insured' : 'Uninsured'}
-                      </TableCell>
+                      <TableCell>{returnShipment.insured ? 'Insured' : 'Uninsured'}</TableCell>
                       <TableCell className="text-right p-0">
                         -<PriceNumberFlow value={returnShipment.cost ?? 0} />
                       </TableCell>
@@ -183,16 +185,20 @@ export default function AdminPurchaseOrderDrawerFooter({ view }: PurchaseOrderDr
                   )}
                 </TableBody>
               </Table>
-            </AccordionSection>
+            </Accordion>
           )}
 
           {payoutFee > 0 && (
-            <AccordionSection
+            <Accordion
+              surface="bare"
               label="Payout Fee"
-              negative
               open={open.payout ?? false}
               onToggle={() => setOpen((prev) => ({ ...prev, payout: !prev.payout }))}
-              total={payoutFee}
+              trailing={
+                <>
+                  -<PriceNumberFlow value={payoutFee} />
+                </>
+              }
             >
               <Table className="overflow-hidden">
                 <TableBody>
@@ -204,14 +210,15 @@ export default function AdminPurchaseOrderDrawerFooter({ view }: PurchaseOrderDr
                   </TableRow>
                 </TableBody>
               </Table>
-            </AccordionSection>
+            </Accordion>
           )}
 
-          <AccordionSection
+          <Accordion
+            surface="bare"
             label={`Total ${valueLabel}`}
             open={open.total}
             onToggle={() => setOpen((prev) => ({ ...prev, total: !prev.total }))}
-            total={total}
+            trailing={<PriceNumberFlow value={total} />}
           >
             <div className="flex flex-col gap-2">
               {scrapItems.length > 0 && (
@@ -242,7 +249,7 @@ export default function AdminPurchaseOrderDrawerFooter({ view }: PurchaseOrderDr
                 <PriceNumberFlow value={total} />
               </DetailRow>
             </div>
-          </AccordionSection>
+          </Accordion>
         </div>
       )}
 

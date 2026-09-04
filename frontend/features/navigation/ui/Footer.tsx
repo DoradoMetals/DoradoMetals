@@ -40,10 +40,7 @@ export default function Footer() {
               <Link href="/">
                 <small>Facebook</small>
               </Link>
-              <Link
-                target="_blank"
-                href="https://www.instagram.com/doradometals/?utm_source=qr#"
-              >
+              <Link target="_blank" href="https://www.instagram.com/doradometals/?utm_source=qr#">
                 <small>Instagram</small>
               </Link>
             </nav>
@@ -68,7 +65,9 @@ export default function Footer() {
             <nav aria-label="Contact Us" className="flex flex-col gap-2">
               <h4 className="mb-1">Contact Us</h4>
               <a href={`tel:+${process.env.NEXT_PUBLIC_DORADO_PHONE_NUMBER}`}>
-                <small>{formatPhoneNumber(process.env.NEXT_PUBLIC_DORADO_PHONE_NUMBER ?? '')}</small>
+                <small>
+                  {formatPhoneNumber(process.env.NEXT_PUBLIC_DORADO_PHONE_NUMBER ?? '')}
+                </small>
               </a>
               <Link href="mailto:support@doradometals.com">
                 <small>support@doradometals.com</small>
@@ -97,15 +96,9 @@ export default function Footer() {
             <p>
               <small>
                 This site is protected by reCAPTCHA and the Google
-                <Link href="https://policies.google.com/privacy">
-                  {' '}
-                  Privacy Policy{' '}
-                </Link>
+                <Link href="https://policies.google.com/privacy"> Privacy Policy </Link>
                 and
-                <Link href="https://policies.google.com/terms">
-                  {' '}
-                  Terms of Service{' '}
-                </Link>
+                <Link href="https://policies.google.com/terms"> Terms of Service </Link>
                 apply.
               </small>
             </p>
@@ -165,7 +158,11 @@ export default function Footer() {
                 already were, recorded in phase10-design-system.md for Jacob to
                 supply URLs or delete. */}
             <DoradoLink asChild className="inline-flex size-8 items-center justify-center">
-              <Link target="_blank" rel="noopener" href="https://www.instagram.com/doradometals/?utm_source=qr#">
+              <Link
+                target="_blank"
+                rel="noopener"
+                href="https://www.instagram.com/doradometals/?utm_source=qr#"
+              >
                 <InstagramIcon size={20} />
               </Link>
             </DoradoLink>

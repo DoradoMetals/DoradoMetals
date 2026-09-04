@@ -2,18 +2,15 @@
 
 import type { Review } from "@dorado/contracts";
 import { useMemo } from 'react'
-import Drawer from '@/shared/ui/base/drawer'
 import { useDrawerStore } from '@/shared/store/drawerStore'
 
 import { FloatingLabelInput } from '@/shared/ui/inputs/FloatingLabelInput'
 import { FloatingLabelTextarea } from '@/shared/ui/inputs/FloatingLabelTextarea'
 import { SegmentedField } from '@/shared/ui/SegmentedField'
-import StatusChip from '@/shared/ui/StatusChip'
-import { Rating, RatingButton } from '@/shared/ui/base/rating'
 import { EyeIcon, EyeSlashIcon } from '@phosphor-icons/react'
 
 import { formatFullDate } from '@/shared/utils/formatDates'
-import { Calendar } from '@dorado/components'
+import { Badge, Calendar, Drawer, Rating, RatingButton } from '@dorado/components'
 import { useUpdateReview } from '@/features/reviews/queries'
 
 // <time dateTime> must be machine-readable; the wire hands these back as
@@ -55,10 +52,10 @@ function Header({ review }: { review: Review }) {
     <div className="flex flex-col gap-3">
       <div className="flex items-end justify-between w-full">
         <h2>{review.name || 'Unnamed Reviewer'}</h2>
-        <StatusChip positive={!review.hidden} size="lg">
+        <Badge intent={review.hidden ? 'danger' : 'success'} size="lg">
           {review.hidden ? <EyeSlashIcon size={16} /> : <EyeIcon size={16} />}
           {review.hidden ? 'Hidden' : 'Public'}
-        </StatusChip>
+        </Badge>
       </div>
 
       <div className="flex items-center gap-2">

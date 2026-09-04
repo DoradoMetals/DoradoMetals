@@ -25,6 +25,33 @@ export const fieldOption = cva(
   )
 );
 
+export type FieldProps = {
+  label: React.ReactNode;
+  htmlFor?: string;
+  message?: React.ReactNode;
+  invalid?: boolean;
+  children: React.ReactNode;
+  className?: string;
+};
+
+export function Field({ label, htmlFor, message, invalid, children, className }: FieldProps) {
+  const autoId = React.useId();
+  const messageId = `${htmlFor ?? autoId}-message`;
+  return (
+    <div className={cn("flex w-full flex-col gap-0.5", className)}>
+      <FieldLabel htmlFor={htmlFor} className={cn(invalid && "text-destructive")}>
+        {label}
+      </FieldLabel>
+      {children}
+      {message != null && (
+        <p id={messageId} className={cn("text-micro", invalid ? "text-destructive" : "text-muted-foreground")}>
+          {message}
+        </p>
+      )}
+    </div>
+  );
+}
+
 export function FieldLabel({
   className,
   ...props

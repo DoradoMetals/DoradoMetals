@@ -1,5 +1,5 @@
 import { FormField, FormItem } from '@/shared/ui/base/form'
-import { RadioGroup } from '@/shared/ui/RadioGroup'
+import { RadioGroup, RadioOption } from '@dorado/components'
 import { metalOptions, purityOptions, Scrap } from '@/features/scrap/types'
 import { useFormContext } from 'react-hook-form'
 
@@ -21,20 +21,22 @@ export default function MetalStep() {
                 form.setValue('purity', defaultPurity)
               }
             }}
-            options={metalOptions}
-            getValue={(metal) => metal.label}
             className="flex w-full flex-col items-stretch gap-3"
-            optionClassName="flex-row items-center gap-4"
           >
-            {(metal) => (
-              <>
+            {metalOptions.map((metal) => (
+              <RadioOption
+                key={metal.label}
+                value={metal.label}
+                variant="card"
+                className="flex-row items-center gap-4"
+              >
                 <div className="flex items-center">{metal.logo}</div>
                 <div className="flex flex-col gap-1">
                   <strong>{metal.label}</strong>
                   <small>{metal.blurb}</small>
                 </div>
-              </>
-            )}
+              </RadioOption>
+            ))}
           </RadioGroup>
         </FormItem>
       )}

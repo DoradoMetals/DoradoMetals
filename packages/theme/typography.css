@@ -208,14 +208,17 @@
 @layer utilities {
   [data-emphasis='default'] {
     --text: var(--foreground);
+    color: var(--text);
   }
 
   [data-emphasis='subtle'] {
     --text: var(--subtle);
+    color: var(--text);
   }
 
   [data-emphasis='subtlest'] {
     --text: var(--muted-foreground);
+    color: var(--text);
   }
 
   .display {

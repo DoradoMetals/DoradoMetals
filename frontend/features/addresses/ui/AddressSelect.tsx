@@ -5,8 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { ChevronDown, Plus } from 'lucide-react'
 import { UserAddress } from '@/features/addresses/types'
 import { cn } from '@/shared/utils/cn'
-import { RadioGroupRoot, RadioOption } from '@/shared/ui/RadioGroup'
-import { Button } from '@dorado/components'
+import { Button, RadioGroup, RadioOption } from '@dorado/components'
 import { useEffect, useMemo, useState } from 'react'
 import { AddressCard } from '@/features/addresses/ui/AddressCard'
 
@@ -147,46 +146,43 @@ export function AddressSelect({
               transition={{ duration: 0.25, ease: 'easeInOut' }}
               className="overflow-hidden will-change-transform"
             >
-              {/* ⚠ D99 — THE SELECTED ADDRESS AND A HOVERED ONE WERE THE SAME.
-                  Checked was `bg-card border-neutral-900`; hover was
-                  `hover:bg-card hover:border-neutral-900`, the identical pair.
-                  Hovering any row made it look like the chosen one, and moving
-                  the pointer off the chosen one left nothing else marking it.
-                  The group now fills a checked option and only lifts the
-                  border on hover.
-                  Composed from `RadioOption` because each row animates in on a
-                  staggered delay, which is per-option props a render prop over
-                  an options array cannot carry. */}
-              <RadioGroupRoot
+              {/* The library's RadioOption has no `as` prop, so it cannot be
+                  the motion element itself - each row's entrance animation
+                  now lives on a wrapping motion.div instead of on the option
+                  (label) it used to be. */}
+              <RadioGroup
                 value={selected.id ?? ''}
                 onValueChange={handleValueChange}
                 className="flex flex-col gap-2 px-4 py-3"
               >
                 {addresses.map((addr, index) => (
-                  <RadioOption
+                  <motion.div
                     key={addr.id ?? index}
-                    as={motion.label}
-                    value={addr.id ?? ''}
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: 10 }}
                     transition={{ duration: 0.2, delay: index * 0.05 }}
-                    className="flex-row items-start justify-between gap-4 p-3"
                   >
-                    <AddressCard
-                      variant="compact"
-                      address={addr}
-                      userAddress={linkOf.get(addr.id)}
-                      icon="auto"
-                      showDefaultBanner={false}
-                      showEdit={false}
-                      showRemove={false}
-                      showSetDefault={false}
-                      className="bg-transparent border-0 p-0 pr-10"
-                    />
-                  </RadioOption>
+                    <RadioOption
+                      value={addr.id ?? ''}
+                      variant="card"
+                      className="flex-row items-start justify-between gap-4 p-3"
+                    >
+                      <AddressCard
+                        variant="compact"
+                        address={addr}
+                        userAddress={linkOf.get(addr.id)}
+                        icon="auto"
+                        showDefaultBanner={false}
+                        showEdit={false}
+                        showRemove={false}
+                        showSetDefault={false}
+                        className="bg-transparent border-0 p-0 pr-10"
+                      />
+                    </RadioOption>
+                  </motion.div>
                 ))}
-              </RadioGroupRoot>
+              </RadioGroup>
             </motion.div>
           )}
         </AnimatePresence>

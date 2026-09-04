@@ -1,10 +1,10 @@
 'use client'
+import { Accordion } from '@dorado/components'
 
 import { useState } from 'react'
 import { Table, TableBody, TableCell, TableRow } from '@/shared/ui/base/table'
 import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
 import formatPhoneNumber from '@/shared/utils/formatPhoneNumber'
-import AccordionSection from '@/shared/ui/AccordionSection'
 import { DetailRow } from '@/shared/ui/DetailRow'
 
 import { SalesOrderDrawerFooterProps } from '@/features/orders/salesOrders/types'
@@ -25,11 +25,12 @@ export default function SalesOrderDrawerFooter({ view }: SalesOrderDrawerFooterP
   return (
     <div className="flex flex-col w-full gap-2">
       {lines.length > 0 && (
-        <AccordionSection
+        <Accordion
+          surface="bare"
           label="Item Prices"
           open={open.items}
           onToggle={() => setOpen((prev) => ({ ...prev, items: !prev.items }))}
-          total={view.totals?.items ?? 0}
+          trailing={<PriceNumberFlow value={view.totals?.items ?? 0} />}
         >
           <Table>
             <TableBody>
@@ -44,14 +45,15 @@ export default function SalesOrderDrawerFooter({ view }: SalesOrderDrawerFooterP
               ))}
             </TableBody>
           </Table>
-        </AccordionSection>
+        </Accordion>
       )}
 
-      <AccordionSection
+      <Accordion
+        surface="bare"
         label="Total Price"
         open={open.total}
         onToggle={() => setOpen((prev) => ({ ...prev, total: !prev.total }))}
-        total={view.totals?.total ?? 0}
+        trailing={<PriceNumberFlow value={view.totals?.total ?? 0} />}
       >
         <div className="flex flex-col gap-2 pr-2">
           {view.totals?.used_funds && (
@@ -78,7 +80,7 @@ export default function SalesOrderDrawerFooter({ view }: SalesOrderDrawerFooterP
             </DetailRow>
           )}
         </div>
-      </AccordionSection>
+      </Accordion>
 
       <div className="flex w-full justify-between items-center mt-3">
         <p>Questions? Give us a call.</p>

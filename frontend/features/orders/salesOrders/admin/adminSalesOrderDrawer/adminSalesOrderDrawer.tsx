@@ -1,7 +1,7 @@
 'use client'
 
 import { useDrawerStore } from '@/shared/store/drawerStore'
-import Drawer from '@/shared/ui/base/drawer'
+import { Drawer } from '@dorado/components'
 import { useOrder } from '@dorado/client'
 import AdminSalesOrderDrawerHeader from '@/features/orders/salesOrders/admin/adminSalesOrderDrawer/adminSalesOrderDrawerHeader'
 import AdminSalesOrderDrawerContent from '@/features/orders/salesOrders/admin/adminSalesOrderDrawer/adminSalesOrderDrawerContent'

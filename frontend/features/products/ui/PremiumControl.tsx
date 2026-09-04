@@ -1,15 +1,13 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { RadioGroup, RadioGroupRoot, RadioOption } from '@/shared/ui/RadioGroup'
+import { Field, Input, RadioGroup, RadioOption } from '@dorado/components'
 import {
   CurrencyDollarIcon,
   PercentIcon,
   ArrowUpIcon,
   ArrowDownIcon,
 } from '@phosphor-icons/react'
-import { Input } from '@/shared/ui/base/input'
-import { Field } from '@/shared/ui/Field'
 
 type Unit = 'dollar' | 'percent'
 const UNITS: Unit[] = ['dollar', 'percent']
@@ -96,36 +94,23 @@ export default function PremiumControl({
   return (
     <Field label={label} className={className}>
       <div className="flex items-center gap-2">
-        {/* The `rounded-l-lg` / `rounded-r-lg` end caps are GONE rather than
-            given a fourth `joined` variant for one control. Two adjacent
-            `segment` cells with a small gap is what every other segmented
-            control in the app is (BullionTab, UsersDrawer, the product variant
-            pills), and uniformity is the ruling.
-            `intent="neutral"` FILLS rather than washing: the old
-            `bg-primary/15` was a 15% white wash on a near-black ground, i.e. a
-            selected state nobody could see. */}
-        {/* The unit pair is a plain two-option group, so it is the mapping
-            form. The DIRECTION pair below stays hand-placed, and the reason is
-            real rather than habitual: its two cells carry DIFFERENT intents
-            (success up, danger down), and `intent` is a property of the group.
-            That is the case `RadioOption` is exported for. */}
         <RadioGroup
-          variant="segment"
           value={unit}
           onValueChange={(v) => setUnit(v as Unit)}
-          options={UNITS}
-          getValue={(u) => u}
           className="flex items-center gap-1"
-          optionClassName="h-10 min-w-10 px-2"
         >
-          {(u) => (u === 'dollar' ? <CurrencyDollarIcon size={18} /> : <PercentIcon size={18} />)}
+          {UNITS.map((u) => (
+            <RadioOption key={u} value={u} variant="segment" className="h-10 min-w-10 px-2">
+              {u === 'dollar' ? <CurrencyDollarIcon size={18} /> : <PercentIcon size={18} />}
+            </RadioOption>
+          ))}
         </RadioGroup>
 
         <div className="relative flex-1">
           <Input
             inputMode="decimal"
             type="text"
-            className="h-10 text-center"
+            inputClassName="h-10 text-center"
             value={display}
             onChange={(e) => {
               const cleaned = e.target.value
@@ -159,7 +144,7 @@ export default function PremiumControl({
           />
         </div>
 
-        <RadioGroupRoot
+        <RadioGroup
           value={direction}
           onValueChange={(v) => {
             const next = v as Direction
@@ -172,7 +157,6 @@ export default function PremiumControl({
             id={`${label}-dir-over`}
             value="over"
             variant="segment"
-            intent="success"
             className="h-10 min-w-10 px-2"
           >
             <ArrowUpIcon size={18} />
@@ -182,12 +166,11 @@ export default function PremiumControl({
             id={`${label}-dir-under`}
             value="under"
             variant="segment"
-            intent="danger"
             className="h-10 min-w-10 px-2"
           >
             <ArrowDownIcon size={18} />
           </RadioOption>
-        </RadioGroupRoot>
+        </RadioGroup>
       </div>
     </Field>
   )

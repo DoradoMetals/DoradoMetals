@@ -20,13 +20,13 @@ export default function PaymentSelect({ orderPrices }: { orderPrices?: SalesOrde
         <div className="flex flex-col gap-1 items-start">
           <p>Credit Applied:</p>
           <strong>
-            <PriceNumberFlow value={orderPrices.pre_charges_amount} />
+            <PriceNumberFlow value={orderPrices.pre_charges_amount} className="tabular-nums" />
           </strong>
         </div>
         <div className="flex flex-col gap-1 items-end">
           <p>Credit Remaining:</p>
           <strong>
-            <PriceNumberFlow value={orderPrices.ending_funds} />
+            <PriceNumberFlow value={orderPrices.ending_funds} className="tabular-nums" />
           </strong>
         </div>
       </div>

@@ -1,6 +1,6 @@
 'use client'
 
-import { Button } from '@dorado/components'
+import { Button, Drawer } from '@dorado/components'
 import { UserRoundX } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { useMemo } from 'react'
@@ -19,7 +19,6 @@ import {
 } from '@/shared/ui/SidebarLayout'
 import { userRoleOptions } from '@/features/users/types'
 import { useGetSession } from '@/features/auth/queries'
-import Drawer from '@/shared/ui/base/drawer'
 import { useDrawerStore } from '@/shared/store/drawerStore'
 import AddressList from '@/features/addresses/ui/AddressList'
 import UserForm from '@/features/users/ui/UserForm'
@@ -42,7 +41,7 @@ export default function Page() {
             <UserRoundX size={96} strokeWidth={1} />
           </div>
           <div className="flex-col items-center gap-1 mb-8">
-            <h2>You're not signed in!</h2>
+            <h1>You're not signed in!</h1>
             <p>Please sign in to view your account.</p>
           </div>
           <Button

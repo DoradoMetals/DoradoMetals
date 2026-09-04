@@ -1,7 +1,6 @@
 'use client'
 
-import { Separator } from '@/shared/ui/base/separator'
-import { Input } from '@/shared/ui/base/input'
+import { Divider, Input } from '@dorado/components'
 import { cn } from '@/shared/utils/cn'
 import { PurchaseOrderDrawerContentProps } from '@/features/orders/purchaseOrders/types'
 import { assignScrapItemNames } from '@/features/orders/display'
@@ -120,7 +119,7 @@ export default function ActualsEditor({ view }: PurchaseOrderDrawerContentProps)
                             <Input
                               type="text"
                               inputMode="decimal"
-                              className={cn('no-spinner text-right h-8')}
+                              inputClassName={cn('text-right h-8')}
                               defaultValue={
                                 s?.purity != null ? (s.purity * 100).toFixed(1).toString() : ''
                               }
@@ -139,9 +138,8 @@ export default function ActualsEditor({ view }: PurchaseOrderDrawerContentProps)
                         <TableCell className="inline-flex items-center gap-1 whitespace-nowrap text-right">
                           <Input
                             type="number"
-                            inputMode="decimal"
                             step="0.0001"
-                            className={cn('no-spinner text-right h-8')}
+                            inputClassName={cn('text-right h-8')}
                             defaultValue={s?.post_melt ?? ''}
                             placeholder="Enter Actual Post-Melt"
                             onBlur={(e) => {
@@ -162,7 +160,7 @@ export default function ActualsEditor({ view }: PurchaseOrderDrawerContentProps)
           </div>
         )}
 
-        <Separator />
+        <Divider />
         <div className="flex flex-col gap-4 w-full">
           <div className="w-full eyebrow">Shipping Actual</div>
 
@@ -175,16 +173,15 @@ export default function ActualsEditor({ view }: PurchaseOrderDrawerContentProps)
             <div className="divide-y">
               <div className="flex items-center justify-between w-full items-center px-3 py-2">
                 <div className="truncate">
-                  <span className="text-foreground">${shipment?.cost}</span>
+                  <span>${shipment?.cost}</span>
                 </div>
 
                 <div className="flex items-center gap-1">
                   <Input
                     type="number"
-                    inputMode="decimal"
                     step="0.01"
                     min="-9999"
-                    className={cn('no-spinner text-right h-8')}
+                    inputClassName={cn('text-right h-8')}
                     // THE PARCEL'S ACTUAL COST IS THE PARCEL'S. It rode on the
                     // order document as shipping_fee_actual, a column of
                     // orders.transactions; the row's own name is actual_cost.
@@ -203,7 +200,7 @@ export default function ActualsEditor({ view }: PurchaseOrderDrawerContentProps)
             </div>
           </div>
         </div>
-        <Separator />
+        <Divider />
         <div className="flex flex-col gap-4 w-full">
           <div className="w-full eyebrow">Pool</div>
 
@@ -218,10 +215,9 @@ export default function ActualsEditor({ view }: PurchaseOrderDrawerContentProps)
                 <div className="truncate">
                   <Input
                     type="number"
-                    inputMode="decimal"
                     step="0.01"
                     min="-9999"
-                    className={cn('no-spinner text-right h-8')}
+                    inputClassName={cn('text-right h-8')}
                     defaultValue={Number(refinerOrder?.pool_oz_deducted ?? 0).toFixed(3)}
                     onBlur={(e) => {
                       if (!refinerOrder?.id) return
@@ -237,10 +233,9 @@ export default function ActualsEditor({ view }: PurchaseOrderDrawerContentProps)
                 <div className="flex items-center gap-1">
                   <Input
                     type="number"
-                    inputMode="decimal"
                     step="0.01"
                     min="-9999"
-                    className={cn('no-spinner text-right h-8')}
+                    inputClassName={cn('text-right h-8')}
                     defaultValue={Number(refinerOrder?.pool_remediation ?? 0).toFixed(2)}
                     onBlur={(e) => {
                       if (!refinerOrder?.id) return

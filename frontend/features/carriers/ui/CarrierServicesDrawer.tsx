@@ -3,13 +3,9 @@
 import { useMemo } from 'react'
 
 import { useDrawerStore } from '@/shared/store/drawerStore'
-import Drawer from '@/shared/ui/base/drawer'
 import { formatFullDate } from '@/shared/utils/formatDates'
-import StatusChip from '@/shared/ui/StatusChip'
 import UpdatedByline from '@/shared/ui/UpdatedByline'
 
-import { Input } from '@/shared/ui/base/input'
-import { Textarea } from '@/shared/ui/base/textarea'
 import { SegmentedField } from '@/shared/ui/SegmentedField'
 
 import type { Carrier, CarrierService } from '@/features/carriers/types'
@@ -18,9 +14,7 @@ import {
   useDeleteCarrierService,
   useCarrierServicesByCarrier,
 } from '@/features/carriers/queries'
-import { RadioGroup } from '@/shared/ui/RadioGroup'
-import { Button } from '@dorado/components'
-import { Field } from '@/shared/ui/Field'
+import { Badge, Button, Drawer, Input, RadioGroup, RadioOption, Textarea } from '@dorado/components'
 import Image from 'next/image'
 
 // <time dateTime> must be machine-readable; the wire hands these back as
@@ -109,9 +103,9 @@ function Header({ service, carrier }: { service: CarrierService; carrier: Carrie
           </div>
         </div>
 
-        <StatusChip positive={active} size="lg">
+        <Badge intent={active ? 'success' : 'danger'} size="lg">
           {active ? 'Active' : 'Inactive'}
-        </StatusChip>
+        </Badge>
       </div>
 
       <UpdatedByline name={service.updated_by} date={formatFullDate(service.updated_at)} />
@@ -134,67 +128,66 @@ function Details({ service, carriers }: { service: CarrierService; carriers: Car
         <RadioGroup
           value={service.carrier_id ?? undefined}
           onValueChange={(id) => handlePatch({ carrier_id: id })}
-          options={carriers}
-          getValue={(c) => c.id}
-          isOptionDisabled={(c) => !c.organization.enabled}
-          variant="tile"
           className="flex w-full items-center gap-4"
-          optionClassName="flex-1"
         >
-          {(c) => (
-            <div className="relative flex h-12 w-full items-center justify-center">
-              <Image
-                src={c.logo ?? ''}
-                fill
-                alt={`${c.organization.name ?? ''} logo`}
-                className="object-contain p-1"
-              />
-            </div>
-          )}
+          {carriers.map((c) => (
+            <RadioOption
+              key={c.id}
+              value={c.id}
+              variant="tile"
+              disabled={!c.organization.enabled}
+              className="flex-1"
+            >
+              <div className="relative flex h-12 w-full items-center justify-center">
+                <Image
+                  src={c.logo ?? ''}
+                  fill
+                  alt={`${c.organization.name ?? ''} logo`}
+                  className="object-contain p-1"
+                />
+              </div>
+            </RadioOption>
+          ))}
         </RadioGroup>
       </div>
-      <Field label="Service Name" htmlFor="name">
-        <Input
-          id="name"
-          placeholder="Enter service name..."
-          type="text"
-          defaultValue={service.name ?? ''}
-          onBlur={(e) => handlePatch({ name: e.target.value })}
-        />
-      </Field>
+      <Input
+        id="name"
+        label="Service Name"
+        placeholder="Enter service name..."
+        type="text"
+        defaultValue={service.name ?? ''}
+        onBlur={(e) => handlePatch({ name: e.target.value })}
+      />
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-        <Field label="Code" htmlFor="code">
-          <Input
-            id="code"
-            placeholder="UI code (e.g. Express Saver)"
-            type="text"
-            defaultValue={service.code ?? ''}
-            onBlur={(e) => handlePatch({ code: e.target.value })}
-          />
-        </Field>
+        <Input
+          id="code"
+          label="Code"
+          placeholder="UI code (e.g. Express Saver)"
+          type="text"
+          defaultValue={service.code ?? ''}
+          onBlur={(e) => handlePatch({ code: e.target.value })}
+        />
 
-        <Field label="Provider Code" htmlFor="provider_code">
-          <Input
-            id="provider_code"
-            placeholder="FedEx/UPS internal code..."
-            type="text"
-            defaultValue={service.provider_code ?? ''}
-            onBlur={(e) => handlePatch({ provider_code: e.target.value })}
-          />
-        </Field>
+        <Input
+          id="provider_code"
+          label="Provider Code"
+          placeholder="FedEx/UPS internal code..."
+          type="text"
+          defaultValue={service.provider_code ?? ''}
+          onBlur={(e) => handlePatch({ provider_code: e.target.value })}
+        />
       </div>
 
-      <Field label="Description" htmlFor="description" className="w-full">
-        <Textarea
-          rows={10}
-          id="description"
-          placeholder="Enter service description..."
-          className="min-w-70"
-          defaultValue={service.description ?? ''}
-          onBlur={(e) => handlePatch({ description: e.target.value || null })}
-        />
-      </Field>
+      <Textarea
+        rows={10}
+        id="description"
+        label="Description"
+        placeholder="Enter service description..."
+        className="w-full min-w-70"
+        defaultValue={service.description ?? ''}
+        onBlur={(e) => handlePatch({ description: e.target.value || null })}
+      />
     </div>
   )
 }
@@ -240,33 +233,31 @@ function TransitTime({ service }: { service: CarrierService }) {
       <p className="eyebrow">Transit Time</p>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-        <Field label="Min Transit Days" htmlFor="min_transit_days">
-          <Input
-            id="min_transit_days"
-            type="number"
-            inputMode="numeric"
-            placeholder="1 day..."
-            className="text-left no-spinner"
-            defaultValue={service.min_transit_days ?? ''}
-            onBlur={(e) => {
-              handlePatch({ min_transit_days: Number(e.target.value) ?? null })
-            }}
-          />
-        </Field>
+        <Input
+          id="min_transit_days"
+          label="Min Transit Days"
+          type="number"
+          inputMode="numeric"
+          placeholder="1 day..."
+          inputClassName="text-left"
+          defaultValue={service.min_transit_days ?? ''}
+          onBlur={(e) => {
+            handlePatch({ min_transit_days: Number(e.target.value) ?? null })
+          }}
+        />
 
-        <Field label="Max Transit Days" htmlFor="max_transit_days">
-          <Input
-            id="max_transit_days"
-            type="number"
-            inputMode="numeric"
-            placeholder="3 days..."
-            className="text-left no-spinner"
-            defaultValue={service.max_transit_days ?? ''}
-            onBlur={(e) => {
-              handlePatch({ max_transit_days: Number(e.target.value) ?? null })
-            }}
-          />
-        </Field>
+        <Input
+          id="max_transit_days"
+          label="Max Transit Days"
+          type="number"
+          inputMode="numeric"
+          placeholder="3 days..."
+          inputClassName="text-left"
+          defaultValue={service.max_transit_days ?? ''}
+          onBlur={(e) => {
+            handlePatch({ max_transit_days: Number(e.target.value) ?? null })
+          }}
+        />
       </div>
     </div>
   )
@@ -288,19 +279,18 @@ function Insurance({ service }: { service: CarrierService }) {
           onChange={(v) => handlePatch({ supports_insurance: v })}
         />
 
-        <Field label="Max Declared Value ($)" htmlFor="max_declared_value">
-          <Input
-            id="max_declared_value"
-            type="number"
-            inputMode="decimal"
-            placeholder="$50,000..."
-            className="text-left no-spinner"
-            defaultValue={service.max_declared_value ?? ''}
-            onBlur={(e) => {
-              handlePatch({ max_declared_value: Number(e.target.value) ?? null })
-            }}
-          />
-        </Field>
+        <Input
+          id="max_declared_value"
+          label="Max Declared Value ($)"
+          type="number"
+          inputMode="decimal"
+          placeholder="$50,000..."
+          inputClassName="text-left"
+          defaultValue={service.max_declared_value ?? ''}
+          onBlur={(e) => {
+            handlePatch({ max_declared_value: Number(e.target.value) ?? null })
+          }}
+        />
       </div>
     </div>
   )
@@ -316,65 +306,62 @@ function Packaging({ service }: { service: CarrierService }) {
       <p className="eyebrow">Packaging</p>
 
       <div className="flex items-center items-stretch justify-center w-full">
-        <Field label="Max Weight (lbs)" htmlFor="max_weight_lbs" className="w-full">
-          <Input
-            id="max_weight_lbs"
-            type="number"
-            inputMode="decimal"
-            placeholder="25 lb..."
-            className="text-left no-spinner"
-            defaultValue={service.max_weight_lbs ?? ''}
-            onBlur={(e) => {
-              handlePatch({ max_weight_lbs: Number(e.target.value) ?? null })
-            }}
-          />
-        </Field>
+        <Input
+          id="max_weight_lbs"
+          label="Max Weight (lbs)"
+          className="w-full"
+          type="number"
+          inputMode="decimal"
+          placeholder="25 lb..."
+          inputClassName="text-left"
+          defaultValue={service.max_weight_lbs ?? ''}
+          onBlur={(e) => {
+            handlePatch({ max_weight_lbs: Number(e.target.value) ?? null })
+          }}
+        />
 
         <div className="hidden sm:block" />
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-        <Field label="Max Length (in)" htmlFor="max_length_in">
-          <Input
-            id="max_length_in"
-            type="number"
-            inputMode="decimal"
-            placeholder="24 in..."
-            className="text-left no-spinner"
-            defaultValue={service.max_length_in ?? ''}
-            onBlur={(e) => {
-              handlePatch({ max_length_in: Number(e.target.value) ?? null })
-            }}
-          />
-        </Field>
+        <Input
+          id="max_length_in"
+          label="Max Length (in)"
+          type="number"
+          inputMode="decimal"
+          placeholder="24 in..."
+          inputClassName="text-left"
+          defaultValue={service.max_length_in ?? ''}
+          onBlur={(e) => {
+            handlePatch({ max_length_in: Number(e.target.value) ?? null })
+          }}
+        />
 
-        <Field label="Max Width (in)" htmlFor="max_width_in">
-          <Input
-            id="max_width_in"
-            type="number"
-            inputMode="decimal"
-            placeholder="10 in..."
-            className="text-left no-spinner"
-            defaultValue={service.max_width_in ?? ''}
-            onBlur={(e) => {
-              handlePatch({ max_width_in: Number(e.target.value) ?? null })
-            }}
-          />
-        </Field>
+        <Input
+          id="max_width_in"
+          label="Max Width (in)"
+          type="number"
+          inputMode="decimal"
+          placeholder="10 in..."
+          inputClassName="text-left"
+          defaultValue={service.max_width_in ?? ''}
+          onBlur={(e) => {
+            handlePatch({ max_width_in: Number(e.target.value) ?? null })
+          }}
+        />
 
-        <Field label="Max Height (in)" htmlFor="max_height_in">
-          <Input
-            id="max_height_in"
-            type="number"
-            inputMode="decimal"
-            placeholder="8 in..."
-            className="text-left no-spinner"
-            defaultValue={service.max_height_in ?? ''}
-            onBlur={(e) => {
-              handlePatch({ max_height_in: Number(e.target.value) ?? null })
-            }}
-          />
-        </Field>
+        <Input
+          id="max_height_in"
+          label="Max Height (in)"
+          type="number"
+          inputMode="decimal"
+          placeholder="8 in..."
+          inputClassName="text-left"
+          defaultValue={service.max_height_in ?? ''}
+          onBlur={(e) => {
+            handlePatch({ max_height_in: Number(e.target.value) ?? null })
+          }}
+        />
       </div>
     </div>
   )

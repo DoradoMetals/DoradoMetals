@@ -3,14 +3,20 @@
 // THE CUSTOMER THE ADMIN IS ORDERING FOR, off GET /users/get_all - the
 // contracts' user wire, snake_case. NOT better-auth's session user, which is
 // the admin themselves and is a different shape under the same word.
-import { Link } from '@dorado/components'
+import {
+  Link,
+  Skeleton,
+  Drawer,
+  RadioGroup,
+  RadioOption,
+  Divider,
+  Button,
+  Input,
+  Autocomplete,
+} from '@dorado/components'
 import NextLink from 'next/link'
 import { UserAddress, makeEmptyWireAddress } from '@/features/addresses/types'
-import { Skeleton } from '@dorado/components'
 import { useDrawerStore } from '@/shared/store/drawerStore'
-import Drawer from '@/shared/ui/base/drawer'
-import { RadioGroup } from '@/shared/ui/RadioGroup'
-import { Separator } from '@/shared/ui/base/separator'
 import { DetailRow } from '@/shared/ui/DetailRow'
 import { cn } from '@/shared/utils/cn'
 
@@ -23,16 +29,14 @@ import { usePaymentMethods } from '@/features/payments/queries'
 import type { Address, AdminUser, SalesOrderQuote, SpotPrice } from "@dorado/contracts";
 import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
 import { useAdminSalesOrderCheckoutStore } from '@/shared/store/adminSalesOrderCheckoutStore'
-import { SearchableDropdown } from '@/shared/ui/inputs/InputDropdownSearch'
+import fuzzysort from 'fuzzysort'
 import { Product } from '@/features/products/types'
 import { lineFromProduct } from '@/features/checkout/items/types'
 import { useDecoratedLines } from '@/features/checkout/items/flair'
 import Image from 'next/image'
 import { Minus, Plus, Trash2 } from 'lucide-react'
-import { Button } from '@dorado/components'
 import NumberFlow from '@number-flow/react'
 import { useEffect, useMemo, useState, useTransition } from 'react'
-import { Input } from '@/shared/ui/base/input'
 import { LockIcon, LockOpenIcon, QuestionIcon } from '@phosphor-icons/react'
 import { useRouter } from 'next/navigation'
 import { useMutationState } from '@tanstack/react-query'
@@ -95,14 +99,14 @@ export function CreateSalesOrderDrawer() {
     <Drawer label="New sales order" open={isDrawerOpen} setOpen={closeDrawer} anchor="left">
       <strong>{createSalesOrderUser?.name}</strong>
 
-      <Separator />
+      <Divider />
 
       <div className="flex flex-col gap-2 items-start">
         <SpotSelector />
         <ProductSelector />
       </div>
 
-      <Separator />
+      <Divider />
       <div className="flex flex-col gap-3">
         <AddressSelector
           user={createSalesOrderUser}
@@ -114,7 +118,7 @@ export function CreateSalesOrderDrawer() {
         <ServiceSelector />
       </div>
 
-      <Separator />
+      <Divider />
       <div className="flex flex-col gap-3">
         <OrderSummary orderPrices={orderPrices} />
         <CreditSelect
@@ -144,9 +148,8 @@ function SpotSelector() {
             <Input
               type="number"
               pattern="[0-9]*"
-              inputMode="decimal"
-              className={cn('no-spinner text-center w-full h-8')}
               readOnly
+              inputClassName={cn('text-center w-full h-8')}
               value={spot?.ask ?? ''}
             />
           </div>
@@ -160,6 +163,14 @@ function ProductSelector() {
   const { data: products = [] } = useProducts()
   const { items, setItems } = useAdminSalesOrderCheckoutStore()
   const rows = useDecoratedLines(items)
+  const [productQuery, setProductQuery] = useState('')
+
+  const productMatches = useMemo(() => {
+    if (!productQuery) return []
+    return fuzzysort
+      .go(productQuery, products, { key: 'name', threshold: -10000, limit: 50 })
+      .map((r) => r.obj)
+  }, [productQuery, products])
 
   // The per-line preview is the server's ask quote, batched over the picked
   // items. It prices from LIVE server spots: the drawer's locked spot
@@ -195,13 +206,16 @@ function ProductSelector() {
 
   return (
     <div className="flex flex-col items-center w-full">
-      <SearchableDropdown
-        items={products}
-        getLabel={(p) => p.name}
-        selected={null}
-        onSelect={addItem}
+      <Autocomplete
+        value={productQuery}
+        onValueChange={setProductQuery}
+        items={productMatches.map((p) => ({ id: p.id, textValue: p.name }))}
+        onSelect={(item) => {
+          const product = products.find((p) => p.id === item.id)
+          if (product) addItem(product)
+          setProductQuery(item.textValue)
+        }}
         placeholder="Search products…"
-        limit={50}
       />
       <div className="w-full flex-col">
         <div className="flex-col gap-5">
@@ -373,11 +387,10 @@ function ServiceSelector() {
       <RadioGroup
         value={data.service?.value ?? ''}
         onValueChange={handleServiceChange}
-        options={options}
         className="flex w-full flex-col gap-3"
       >
-        {(option) => (
-          <>
+        {Object.entries(options).map(([key, option]) => (
+          <RadioOption key={key} value={key} variant="card">
             <div className="flex items-center gap-2">
               {option.icon && <option.icon size={24} />}
               <strong>{option.label}</strong>
@@ -385,8 +398,8 @@ function ServiceSelector() {
             <DetailRow label={option.time} variant="subtotal">
               <PriceNumberFlow value={option.cost} />
             </DetailRow>
-          </>
-        )}
+          </RadioOption>
+        ))}
       </RadioGroup>
     </div>
   )
@@ -453,7 +466,7 @@ function OrderSummary({ orderPrices }: { orderPrices?: SalesOrderQuote }) {
       )}
 
       <div className="pt-2">
-        <Separator />
+        <Divider />
 
         <DetailRow label="Order Total" variant="total" className="pt-2">
           <PriceNumberFlow value={orderPrices?.post_charges_amount ?? 0} />

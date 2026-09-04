@@ -1,6 +1,6 @@
 'use client'
 
-import { Button } from '@dorado/components'
+import { Button, EmptyState } from '@dorado/components'
 import { Minus, Plus, Trash2 } from 'lucide-react'
 import Image from 'next/image'
 import NumberFlow from '@number-flow/react'
@@ -15,7 +15,6 @@ import { useUser } from '@/features/auth/authClient'
 import { usePurchaseOrderQuote } from '@/features/quotes/queries'
 import type { PurchaseOrderQuoteLine } from "@dorado/contracts";
 import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
-import { EmptyState } from '@/shared/ui/EmptyState'
 
 // The SELL basket: direction 'purchase' - the business buys.
 export default function PurchaseItems() {
@@ -34,23 +33,23 @@ export default function PurchaseItems() {
 
   const empty = (
     <EmptyState
-      icon={ShoppingCartSimpleIcon}
-      iconSize={80}
+      icon={<ShoppingCartSimpleIcon />}
       badge={0}
       title="You have nothing to sell yet!"
       description="Add items to get a price estimate."
       className="h-full justify-center pb-10"
-    >
-      <Button
-        size="xl"
-        onClick={() => {
-          router.push('/sell')
-          closeDrawer()
-        }}
-      >
-        Start Selling
-      </Button>
-    </EmptyState>
+      action={
+        <Button
+          size="xl"
+          onClick={() => {
+            router.push('/sell')
+            closeDrawer()
+          }}
+        >
+          Start Selling
+        </Button>
+      }
+    />
   )
 
   const border = (index: number) =>
@@ -89,7 +88,7 @@ export default function PurchaseItems() {
             <Button variant="tertiary" size="iconSm" onClick={() => removeOne('purchase', line)}>
               <Minus size={16} />
             </Button>
-            <NumberFlow value={line.quantity ?? 1} trend={0} />
+            <NumberFlow value={line.quantity ?? 1} trend={0} className="tabular-nums" />
             <Button
               variant="tertiary"
               size="iconSm"
@@ -99,7 +98,7 @@ export default function PurchaseItems() {
             </Button>
           </div>
           <strong>
-            <PriceNumberFlow value={lineAt(index)?.line_total ?? 0} />
+            <PriceNumberFlow value={lineAt(index)?.line_total ?? 0} className="tabular-nums" />
           </strong>
         </div>
       </div>
@@ -132,7 +131,7 @@ export default function PurchaseItems() {
             </div>
 
             <strong className="ml-auto">
-              <PriceNumberFlow value={quoted?.line_total ?? 0} />
+              <PriceNumberFlow value={quoted?.line_total ?? 0} className="tabular-nums" />
             </strong>
           </div>
         </div>
@@ -151,7 +150,7 @@ export default function PurchaseItems() {
       <div className="flex justify-between items-end sm:mb-2">
         <h3>Price Estimate:</h3>
         <h3>
-          <PriceNumberFlow value={quote?.total ?? 0} />
+          <PriceNumberFlow value={quote?.total ?? 0} className="tabular-nums" />
         </h3>
       </div>
       <Button

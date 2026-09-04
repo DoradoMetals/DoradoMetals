@@ -17,7 +17,8 @@ import { describe, expect, test } from "vitest";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { radioOptionVariants } from "@/shared/ui/RadioGroup";
-import { statusChipVariants } from "@/shared/ui/StatusChip";
+import { badgeVariants } from "@dorado/components";
+import { TONE_INTENT } from "@/shared/ui/StatusChip";
 
 // The tokens moved to packages/theme (the design system's CSS half); this
 // file keeps reading the REAL file the app imports, wherever it lives.
@@ -170,7 +171,7 @@ describe("a selected state is visibly different from an unselected one (D99)", (
 
   for (const tone of ["neutral", "brand", "success", "danger", "warning", "info"] as const) {
     test(`StatusChip ${tone} is distinguishable from the page ground`, () => {
-      const chip = bg(statusChipVariants({ tone }));
+      const chip = bg(badgeVariants({ variant: "soft", intent: TONE_INTENT[tone] }));
       expect(chip).not.toBeNull();
       expect(ratio(chip!, token("background"))).toBeGreaterThan(1.15);
     });

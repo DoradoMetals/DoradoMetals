@@ -1,6 +1,6 @@
 'use client'
 
-import { Button } from '@dorado/components'
+import { Button, EmptyState } from '@dorado/components'
 import { Minus, Plus, ShoppingCart, Trash2 } from 'lucide-react'
 import Image from 'next/image'
 import NumberFlow from '@number-flow/react'
@@ -11,7 +11,6 @@ import { useDrawerStore } from '@/shared/store/drawerStore'
 import { useUser } from '@/features/auth/authClient'
 import { useCatalogQuote } from '@/features/quotes/queries'
 import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
-import { EmptyState } from '@/shared/ui/EmptyState'
 
 // The BUY basket: direction 'sale' - the business sells.
 export default function SaleItems() {
@@ -36,23 +35,23 @@ export default function SaleItems() {
 
   const empty = (
     <EmptyState
-      icon={ShoppingCart}
-      iconSize={80}
+      icon={<ShoppingCart />}
       badge={0}
       title="You have nothing to buy yet!"
       description="Add items to get started."
       className="h-full justify-center pb-10"
-    >
-      <Button
-        size="xl"
-        onClick={() => {
-          router.push('/buy')
-          closeDrawer()
-        }}
-      >
-        Start Shopping
-      </Button>
-    </EmptyState>
+      action={
+        <Button
+          size="xl"
+          onClick={() => {
+            router.push('/buy')
+            closeDrawer()
+          }}
+        >
+          Start Shopping
+        </Button>
+      }
+    />
   )
 
   const content = (
@@ -98,6 +97,7 @@ export default function SaleItems() {
                     transformTiming={{ duration: 750, easing: 'ease-in' }}
                     spinTiming={{ duration: 150, easing: 'ease-out' }}
                     trend={0}
+                    className="tabular-nums"
                   />
                   <Button
                     variant="tertiary"
@@ -108,7 +108,10 @@ export default function SaleItems() {
                   </Button>
                 </div>
                 <strong>
-                  <PriceNumberFlow value={lineTotals.get(line.bullion_id ?? '') ?? 0} />
+                  <PriceNumberFlow
+                    value={lineTotals.get(line.bullion_id ?? '') ?? 0}
+                    className="tabular-nums"
+                  />
                 </strong>
               </div>
             </div>
@@ -123,7 +126,7 @@ export default function SaleItems() {
       <div className="flex justify-between items-end sm:mb-2">
         <h3>Total:</h3>
         <h3>
-          <PriceNumberFlow value={quote?.total ?? 0} />
+          <PriceNumberFlow value={quote?.total ?? 0} className="tabular-nums" />
         </h3>
       </div>
       <Button

@@ -2,22 +2,20 @@
 
 import type { Lead, LeadPatch } from "@dorado/contracts";
 import { useDrawerStore } from '@/shared/store/drawerStore'
-import Drawer from '@/shared/ui/base/drawer'
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 
 import { formatFullDate } from '@/shared/utils/formatDates'
-import StatusChip from '@/shared/ui/StatusChip'
 import UpdatedByline from '@/shared/ui/UpdatedByline'
 
 import { LeadPriority } from '@/features/leads/types'
 import { PrioritySelect } from '@/features/leads/ui/PrioritySelect'
-import { Input } from '@/shared/ui/base/input'
-import { Textarea } from '@/shared/ui/base/textarea'
 import { useCreateUser } from '@/features/auth/queries'
 import { SegmentedField } from '@/shared/ui/SegmentedField'
 import formatPhoneNumber, { normalizePhone } from '@/shared/utils/formatPhoneNumber'
 import SchedulePicker from '@/shared/ui/SchedulePicker'
 import {
+  Autocomplete,
+  Badge,
   Button,
   Dialog,
   DialogContent,
@@ -25,10 +23,12 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
+  Drawer,
+  Field,
+  Input,
+  Textarea,
 } from '@dorado/components'
 import { TrashIcon, UserPlusIcon } from '@phosphor-icons/react'
-import { PopoverSelect } from '@/shared/ui/table/PopoverSelect'
-import { Field } from '@/shared/ui/Field'
 import { isValidEmail } from '@/shared/utils/isValid'
 import { useDeleteLead, useUpdateLead } from '@/features/leads/queries'
 import { useAdminRoleUsers, useAdminUsers } from '@/features/users/queries'
@@ -66,9 +66,9 @@ function Header({ lead }: { lead: Lead }) {
     <div className="flex flex-col w-full gap-8">
       <div className="flex w-full items-end justify-between">
         <h2>{lead.name}</h2>
-        <StatusChip positive={lead.converted} size="lg">
+        <Badge intent={lead.converted ? 'success' : 'danger'} size="lg">
           {lead.converted ? 'Converted' : 'Not Converted'}
-        </StatusChip>
+        </Badge>
       </div>
       <UpdatedByline name={lead.updated_by} date={formatFullDate(lead.updated_at)} />
     </div>
@@ -95,56 +95,52 @@ function Details({ lead }: { lead: Lead }) {
         />
       </Field>
 
-      <Field label="Name" htmlFor="name">
-        <Input
-          id="name"
-          placeholder="Enter name..."
-          type="text"
-          defaultValue={lead.name ?? ''}
-          onBlur={(e) => handleUpdate({ name: e.target.value })}
-        />
-      </Field>
+      <Input
+        id="name"
+        label="Name"
+        placeholder="Enter name..."
+        type="text"
+        defaultValue={lead.name ?? ''}
+        onBlur={(e) => handleUpdate({ name: e.target.value })}
+      />
 
-      <Field label="Phone Number" htmlFor="phone">
-        <Input
-          ref={inputRef}
-          id="phone"
-          type="text"
-          inputMode="tel"
-          autoComplete="tel"
-          defaultValue={formatPhoneNumber(normalizePhone(lead.phone))}
-          maxLength={17}
-          onChange={(e) => {
-            const digits = normalizePhone(e.target.value)
-            e.currentTarget.value = formatPhoneNumber(digits)
-          }}
-          onBlur={(e) => {
-            const digits = normalizePhone(e.target.value)
-            handleUpdate({ phone: digits })
-          }}
-        />
-      </Field>
+      <Input
+        ref={inputRef}
+        id="phone"
+        label="Phone Number"
+        type="text"
+        inputMode="tel"
+        autoComplete="tel"
+        defaultValue={formatPhoneNumber(normalizePhone(lead.phone))}
+        maxLength={17}
+        onChange={(e) => {
+          const digits = normalizePhone(e.target.value)
+          e.currentTarget.value = formatPhoneNumber(digits)
+        }}
+        onBlur={(e) => {
+          const digits = normalizePhone(e.target.value)
+          handleUpdate({ phone: digits })
+        }}
+      />
 
-      <Field label="Email" htmlFor="email">
-        <Input
-          id="email"
-          placeholder="Enter email..."
-          type="text"
-          defaultValue={lead.email ?? ''}
-          onBlur={(e) => handleUpdate({ email: e.target.value })}
-        />
-      </Field>
+      <Input
+        id="email"
+        label="Email"
+        placeholder="Enter email..."
+        type="text"
+        defaultValue={lead.email ?? ''}
+        onBlur={(e) => handleUpdate({ email: e.target.value })}
+      />
 
-      <Field label="Notes" htmlFor="notes" className="w-full">
-        <Textarea
-          rows={20}
-          id="Notes"
-          placeholder="Enter lead notes..."
-          className="min-w-70"
-          defaultValue={lead.notes ?? ''}
-          onBlur={(e) => handleUpdate({ notes: e.target.value })}
-        />
-      </Field>
+      <Textarea
+        rows={20}
+        id="Notes"
+        label="Notes"
+        className="w-full min-w-70"
+        placeholder="Enter lead notes..."
+        defaultValue={lead.notes ?? ''}
+        onBlur={(e) => handleUpdate({ notes: e.target.value })}
+      />
     </div>
   )
 }
@@ -187,6 +183,13 @@ function Booleans({ lead }: { lead: Lead }) {
 function Contacted({ lead }: { lead: Lead }) {
   const updateLead = useUpdateLead()
   const { data: admins = [] } = useAdminRoleUsers()
+  const [contactQuery, setContactQuery] = useState(lead.contact ?? '')
+
+  // The drawer instance persists across records, so the typed query has to
+  // resync when a different lead's contact replaces it underneath.
+  useEffect(() => {
+    setContactQuery(lead.contact ?? '')
+  }, [lead.id, lead.contact])
 
   const handleUpdate = (patch: LeadPatch) => {
     updateLead.mutate({ lead_id: lead.id, patch })
@@ -199,17 +202,24 @@ function Contacted({ lead }: { lead: Lead }) {
 
   const lastContacted = lead.last_contacted ? new Date(lead.last_contacted).toISOString() : null
 
+  const contactItems = admins
+    .filter((a) => (a.name ?? '').toLowerCase().includes(contactQuery.trim().toLowerCase()))
+    .map((a) => ({ id: a.id, textValue: a.name ?? '', label: a.name ?? '' }))
+
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-col w-full gap-4 items-start">
-        <Field label="Point of Contact" className="w-full">
-          <PopoverSelect
-            value={lead.contact}
-            options={admins?.map((a) => a.name ?? '')}
-            onChange={(val) => handleUpdate({ contact: val })}
-            variant="secondary"
-          />
-        </Field>
+        <Autocomplete
+          label="Point of Contact"
+          className="w-full"
+          value={contactQuery}
+          onValueChange={setContactQuery}
+          items={contactItems}
+          onSelect={(item) => {
+            setContactQuery(item.textValue)
+            handleUpdate({ contact: item.textValue })
+          }}
+        />
 
         <Field label="Last Contacted" className="w-full">
           <SchedulePicker

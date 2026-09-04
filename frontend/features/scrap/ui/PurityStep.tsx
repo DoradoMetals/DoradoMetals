@@ -1,9 +1,8 @@
 import { FormField, FormItem } from '@/shared/ui/base/form'
-import { RadioGroup } from '@/shared/ui/RadioGroup'
 import { metalOptions, purityOptions, Scrap } from '@/features/scrap/types'
 import { useFormContext } from 'react-hook-form'
 import NumberFlow from '@number-flow/react'
-import { Slider } from '@dorado/components'
+import { RadioGroup, RadioOption, Slider } from '@dorado/components'
 
 export default function PurityStep() {
   const form = useFormContext<Scrap>()
@@ -40,12 +39,13 @@ export default function PurityStep() {
           <RadioGroup
             value={selectedLabel}
             onValueChange={handleRadioChange}
-            options={options}
-            getValue={(option) => option.label}
-            variant="segment"
             className="grid grid-cols-3 gap-3"
           >
-            {(option) => option.label}
+            {options.map((option) => (
+              <RadioOption key={option.label} value={option.label} variant="segment">
+                {option.label}
+              </RadioOption>
+            ))}
           </RadioGroup>
 
           <div className="relative mt-6 mb-12 w-full">

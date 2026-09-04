@@ -5,7 +5,7 @@ import PurchaseOrderDrawerHeader from './purchaseOrderDrawerHeader'
 import PurchaseOrderDrawerFooter from './purchaseOrderDrawerFooter'
 import { PurchaseOrderDrawerProps } from '@/features/orders/purchaseOrders/types'
 import { useDrawerStore } from '@/shared/store/drawerStore'
-import Drawer from '@/shared/ui/base/drawer'
+import { Drawer } from '@dorado/components'
 import { useOrder } from '@dorado/client'
 
 export default function PurchaseOrderDrawer({ order_id, user }: PurchaseOrderDrawerProps) {
