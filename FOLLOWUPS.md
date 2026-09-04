@@ -14640,3 +14640,52 @@ that dead-ends, or motion that ignores a preference.
 shape the others should follow. Candidates named in passing: a reduced-motion
 hook so components stop each solving it differently, and a roving-focus helper
 for the composites Radix does not cover.
+
+## D216 — The design-system queue after done/ds-update (2026-09-04)
+
+Four items, agreed with Jacob and not started.
+
+**1. Our own Table, on TanStack Table v9.** The one component deliberately
+skipped by every pass. The library's `Table` always draws its own card and has
+none of the app's row vocabulary (`surface`, `borderless`, `interactive`,
+`intent`, `disabled`), and `DataTable` is a 113-line wrapper against an app
+grid that carries filter cards, search, row click and column visibility. 20
+import sites wait on it. Jacob: "we're gonna throw basically all the old code
+out here."
+
+**2. Our own Swiper.** Same shape of problem.
+
+**3. Every style in the app moves to the theme or is deleted.** The end state
+of passes D and E, extended to what is left.
+
+**4. `Amount`, and `Stat` composed on top of it.** Named 2026-09-04.
+
+`PriceNumberFlow` (38 call sites) and `Stat` (0) are the same component wearing
+different clothes: both format a number and animate it through NumberFlow. What
+blocks a straight swap is that `Stat` requires a label, bakes its own display
+size, and wraps everything in a flex column, so no table row or drawer footer
+can use it.
+
+THE SPLIT IS A PRIMITIVE AND A COMPOSITE, not two siblings.
+
+- **`Amount`** owns the number: the format, the animation config, and
+  `tabular-nums` baked in so it cannot be forgotten - it was forgotten in 21
+  checkout call sites and the digits shifted on every update. It renders one
+  inline element, sets no size and no colour, and therefore inherits its
+  typography from context. USD at two decimals is the default; `format`
+  overrides. The long easing curve `PriceNumberFlow` carries moves here once.
+- **`Stat`** composes `Amount` with a label and an optional trend, and KEEPS
+  its label required. Jacob had asked for an optional label; the split removes
+  the need, because the unlabelled case is `Amount`. It also keeps `.stat` and
+  `.stat-sm`, the one place a size enum is defensible, since the component IS
+  the display decision rather than duplicating the ramp.
+
+Named `Amount` rather than `Price` or `Money` because the same treatment is
+wanted on weights, purities and percentages; `Figure` collides with the HTML
+element.
+
+STILL OPEN: whether `Amount` gets a Figma drawing. Its whole axis space there is
+the type style it inherits, which `Text` already models, and what it really owns
+is behaviour Figma cannot express. Either draw a one-variant component whose
+description carries the contract, or map it in `scripts/figma/map.mjs` as the
+behavioural half of `Text`, the way `Icon Button` maps onto `Button`.
