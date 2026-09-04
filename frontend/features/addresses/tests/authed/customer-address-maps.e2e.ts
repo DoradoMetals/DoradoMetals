@@ -1,13 +1,24 @@
 import { test, expect } from "@playwright/test";
 
 // The Google Places lookup inside the address drawer - the path most real
-// customers take, and the one the CRUD spec deliberately avoids.
+// customers take.
 //
 // @maps, AND EXCLUDED BY DEFAULT. Every keystroke in the autocomplete is a
 // billed Places request, so `pnpm e2e` runs with --grep-invert @maps and this
 // only executes under `pnpm e2e:maps`, on purpose, occasionally - after
-// touching the drawer, the autocomplete, or the Maps loader, not on every
+// touching the drawer, the autocomplete, or the lookup endpoints, not on every
 // change to everything else.
+//
+// THE BILLED CALL IS THE SERVER'S NOW (places lane). The browser holds no key
+// and no SDK: typing hits GET /api/addresses/suggestions and choosing hits
+// /suggestions/:place_id. So this spec needs GOOGLE_PLACES_API_KEY set on the
+// API, not NEXT_PUBLIC_GOOGLE_MAPS_API_KEY in the page - the page still loads
+// the Maps SDK, but only to draw the map.
+//
+// The two specs that used to sit beside this one - customer-address-crud and
+// customer-addresses - are DELETED: their claims are made against the API
+// itself in domain/places/addresses/tests/journeys/address-crud.test.ts, which
+// says so in its own header.
 test("@maps the Places lookup offers suggestions and fills the form", async ({ page }) => {
   test.setTimeout(120_000);
 
@@ -19,9 +30,7 @@ test("@maps the Places lookup offers suggestions and fills the form", async ({ p
   await expect(dialog).toBeVisible({ timeout: 20_000 });
 
   // The lookup input is the drawer's opening state.
-  const search = dialog
-    .locator('input[placeholder*="ddress" i], input[aria-label*="ddress" i]')
-    .first();
+  const search = dialog.getByRole("combobox", { name: /find address/i }).first();
   await expect(search, "the drawer offers no address lookup input").toBeVisible({
     timeout: 15_000,
   });

@@ -1,7 +1,7 @@
 // places.addresses, the CRUD floor, against real Postgres.
 //
 // One test proves what every repo's update must: a missing id changes nothing
-// and says so (false), a real id changes exactly one row and says so (true).
+// and says so (undefined), a real id changes exactly one row and answers it.
 import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
@@ -23,20 +23,19 @@ afterAll(async () => {
 
 const NOBODY = "00000000-0000-0000-0000-000000000000";
 
-test("update returns false on a missing id", async () => {
+test("update answers undefined on a missing id", async () => {
   await inRollback(async (c) => {
-    const ok = await repo.update(NOBODY, { city: "Nowhere" }, c);
-    assert.equal(ok, false);
+    assert.equal(await repo.update(NOBODY, { city: "Nowhere" }, c), undefined);
   });
 });
 
-test("update returns true on a real id, and only touches the columns in the patch", async () => {
+test("update answers the row on a real id, and only touches the columns in the patch", async () => {
   await inRollback(async (c) => {
     const created = await repo.create("11111111-1111-1111-1111-111111111111", {
       line_1: "1 Test St", city: "Austin", state: "TX", zip: "78701",
     }, c);
-    const ok = await repo.update(created.id, { city: "Dallas" }, c);
-    assert.equal(ok, true);
+    const back = await repo.update(created.id, { city: "Dallas" }, c);
+    assert.equal(back?.city, "Dallas", "the update did not answer the row it wrote");
 
     const row = await repo.getOne(created.id, c);
     assert.equal(row?.city, "Dallas");
@@ -49,8 +48,8 @@ test("a patch key present with value null clears that column", async () => {
     const created = await repo.create("22222222-2222-2222-2222-222222222222", {
       line_1: "1 Test St", line_2: "Apt 4", city: "Austin",
     }, c);
-    const ok = await repo.update(created.id, { line_2: null }, c);
-    assert.equal(ok, true);
+    const back = await repo.update(created.id, { line_2: null }, c);
+    assert.equal(back?.line_2, null);
 
     const row = await repo.getOne(created.id, c);
     assert.equal(row?.line_2, null);

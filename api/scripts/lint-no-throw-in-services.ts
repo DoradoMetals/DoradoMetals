@@ -61,12 +61,15 @@ const DOMAIN_ROOT = path.join(API_ROOT, "domain");
 // reviews and sales-tax each grew or gained a `rules.ts` and every throw moved
 // into it.
 //
-// ONE ENTRY LEFT, and it is somebody else's file: the places/users lane owns
-// `domain/places/**` for the whole of this pass. Its four refusals are exactly
-// as the cleanup lane found them, and its own merge is what removes this.
-const ACCEPTED: Record<string, { count: number; why: string }> = {
-  "domain/places/addresses/service.ts": { count: 4, why: "places/users lane" },
-};
+// THE LIST IS EMPTY, AND THAT IS THE FINISHED STATE, not a broken scan. The
+// last entry was `domain/places/addresses/service.ts` - four refusals the
+// cleanup lane left exactly as it found them because the places/users lane
+// owned that folder - and the places merge (2026-09-04) moved them into
+// `domain/places/addresses/rules.ts` and took the entry with them. Nothing
+// under `domain/` throws outside a `rules.ts` any more. The FLOOR below is
+// what proves the walk still opens files; an empty map proves nothing on its
+// own, which is why the two guards are separate.
+const ACCEPTED: Record<string, { count: number; why: string }> = {};
 
 function walk(dir: string, out: string[] = []): string[] {
   let entries: string[];

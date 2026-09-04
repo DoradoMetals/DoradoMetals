@@ -1,4 +1,5 @@
-// The addresses endpoints, over real HTTP, with payloads lifted from frontend/features/addresses/queries.ts - exercises route, guard, controller and service together, since that's where this migration's bugs actually lived.
+// The addresses endpoints, over real HTTP - route, guard, controller and service together, since that's where this migration's bugs actually lived.
+// REST since the places lane: the verb is the method, the address is named once in the path, and ONE read answers the book (the postal row, the caller's link and what may be done to it) where two used to be joined in the browser.
 // NOTHING IS COMMITTED: pinned-pool.ts rolls back every query; the last test asserts that from outside the transaction.
 import { test, afterAll } from "vitest";
 import assert from "node:assert/strict";
@@ -14,9 +15,12 @@ import { anId, aUser, anAdmin, anAddress, type BuiltUser } from "#shared/testing
 await mockSessions();
 const { default: app } = await import("#app");
 
-// The two wire shapes this file reads: a postal row on /addresses/get, the relationship on /addresses/get_user_addresses.
-type WireAddress = { id: string };
-type WireLink = { address_id: string; label: string | null; default_shipping: boolean };
+// The one wire shape this file reads.
+type WireEntry = {
+  address: { id: string };
+  user_address: { address_id: string; recipient_name: string | null; default_shipping: boolean };
+  actions: { edit: boolean; remove: boolean; set_default: boolean };
+};
 
 const created: string[] = [];
 
@@ -50,7 +54,8 @@ const newAddress = (over = {}) => ({
     ...over,
   },
   user_address: {
-    label: `replay-${randomUUID().slice(0, 8)}`,
+    recipient_name: `replay-${randomUUID().slice(0, 8)}`,
+    label: "Home",
     default_shipping: false,
   },
 });
@@ -60,77 +65,65 @@ const newAddress = (over = {}) => ({
 test("an anonymous request is refused before it reaches a controller", async () => {
   await inPinnedTransaction(async () => {
     await anonymous(async () => {
-      const res = await request(app).get("/api/addresses/get").query({ user_id: anId() });
+      const res = await request(app).get("/api/addresses").query({ user_id: anId() });
       assert.ok([401, 403].includes(res.status), `answered with ${res.status}`);
     });
   }, { actor: TEST_ACTOR.id, lock: ADDRESS_LOCK });
 });
 
-test("a signed-in customer gets their addresses in the shape the hook destructures", async () => {
+test("a signed-in customer gets their book as entries, each carrying its own actions", async () => {
   await inPinnedTransaction(async (c) => {
     const owner = await aUser(c);
     await anAddress(c, owner);
     const customer = sessionOf(owner);
 
     await as(customer, async () => {
-      const res = await request(app).get("/api/addresses/get").query({ user_id: customer.id });
+      const res = await request(app).get("/api/addresses").query({ user_id: customer.id });
       assert.equal(res.status, 200);
-      assert.ok(Array.isArray(res.body), "useAddress expects an array");
+      assert.ok(Array.isArray(res.body), "the book is a list");
       assert.ok(res.body.length > 0, "the built user has an address and none came back");
 
-      // /get serves the postal address alone - the caller's relationship travels on its own endpoint below.
-      const a = res.body[0];
+      // THE TWO ROWS STAY APART, and the third key is the decision neither of
+      // them holds.
+      const entry: WireEntry = res.body[0];
+      assert.deepEqual(Object.keys(entry).sort(), ["actions", "address", "user_address"]);
       for (const field of ["id", "line_1", "city", "state", "zip", "country_code"]) {
-        assert.ok(field in a, `the response is missing ${field}`);
+        assert.ok(field in entry.address, `the address is missing ${field}`);
       }
-      assert.ok(!("user_address" in a), "the relationship is nested inside the address again");
-      assert.ok(!("is_default" in a), "the flat legacy shape came back");
-      assert.ok(!("name" in a), "the owner's label is smeared across the address again");
-
-      // The other half, joined by address_id.
-      const links = await request(app)
-        .get("/api/addresses/get_user_addresses")
-        .query({ user_id: customer.id });
-      assert.equal(links.status, 200);
-      assert.equal(links.body.length, res.body.length, "one relationship per book entry");
-      for (const field of ["address_id", "user_id", "label", "default_shipping"]) {
-        assert.ok(field in links.body[0], `the relationship is missing ${field}`);
+      assert.ok(!("name" in entry.address), "the recipient is smeared across the address again");
+      assert.ok(!("user_address" in entry.address), "the link is nested inside the address again");
+      for (const field of ["address_id", "user_id", "recipient_name", "label", "default_shipping"]) {
+        assert.ok(field in entry.user_address, `the link is missing ${field}`);
       }
-      const ids = new Set(res.body.map((x: WireAddress) => x.id));
-      assert.ok(
-        links.body.every((l: WireLink) => ids.has(l.address_id)),
-        "a relationship points at an address the list did not return"
-      );
+      assert.deepEqual(Object.keys(entry.actions).sort(), ["edit", "remove", "set_default"]);
+      assert.equal(entry.user_address.address_id, entry.address.id, "the halves do not join");
     });
   }, { actor: TEST_ACTOR.id, lock: ADDRESS_LOCK });
 });
 
-test("creating an address round-trips in the split shape", async () => {
+test("creating an address answers 201 and the entry it made", async () => {
   await inPinnedTransaction(async (c) => {
     const customer = sessionOf(await aUser(c));
     await as(customer, async () => {
       const address = newAddress();
-      const res = await request(app)
-        .post("/api/addresses/create")
-        .send({ user_id: customer.id, ...address });
+      const res = await request(app).post("/api/addresses").send(address);
 
-      assert.equal(res.status, 200, JSON.stringify(res.body));
-      created.push(address.user_address.label);
+      assert.equal(res.status, 201, JSON.stringify(res.body));
+      created.push(address.user_address.recipient_name);
 
-      // The response is the same split: the row and the relationship, apart.
-      const saved = res.body;
+      const saved: WireEntry & { address: { line_1: string; city: string } } = res.body;
       assert.equal(saved.address.line_1, "1 Replay Street");
       assert.equal(saved.address.city, "Dallas");
-      assert.equal(saved.user_address.label, address.user_address.label, "the label was lost");
+      assert.equal(saved.user_address.recipient_name, address.user_address.recipient_name,
+        "the recipient was lost");
       assert.equal(saved.user_address.address_id, saved.address.id, "the halves do not join");
       assert.ok(saved.address.id, "no id came back, so the frontend cannot select it");
+      // THE FIRST ADDRESS IN A BOOK IS THE DEFAULT, whatever the body asked.
+      assert.equal(saved.user_address.default_shipping, true);
 
-      // And it is really there, inside the transaction - via the links list, where a label lives now.
-      const back = await request(app)
-        .get("/api/addresses/get_user_addresses")
-        .query({ user_id: customer.id });
+      const back = await request(app).get("/api/addresses");
       assert.ok(
-        back.body.some((l: WireLink) => l.label === address.user_address.label),
+        back.body.some((e: WireEntry) => e.user_address.recipient_name === address.user_address.recipient_name),
         "the address created a moment ago is not in the book"
       );
     });
@@ -148,22 +141,20 @@ test("setting a default clears the others, as one request", async () => {
     const customer = sessionOf(owner);
 
     await as(customer, async () => {
-      const list = await request(app)
-        .get("/api/addresses/get_user_addresses")
-        .query({ user_id: customer.id });
-      const target: WireLink = list.body.find((l: WireLink) => !l.default_shipping) ?? list.body[0];
+      const list = await request(app).get("/api/addresses");
+      const target: WireEntry =
+        list.body.find((e: WireEntry) => !e.user_address.default_shipping) ?? list.body[0];
+      // The action and the refusal are the same fact.
+      assert.equal(target.actions.set_default, true, "the entry did not offer to become the default");
 
-      const res = await request(app)
-        .post("/api/addresses/set_default")
-        .send({ user_id: customer.id, address_id: target.address_id });
+      const res = await request(app).post(`/api/addresses/${target.address.id}/default`);
       assert.equal(res.status, 200, JSON.stringify(res.body));
 
-      const after = await request(app)
-        .get("/api/addresses/get_user_addresses")
-        .query({ user_id: customer.id });
-      const defaults = after.body.filter((l: WireLink) => l.default_shipping);
+      const after = await request(app).get("/api/addresses");
+      const defaults = after.body.filter((e: WireEntry) => e.user_address.default_shipping);
       assert.equal(defaults.length, 1, "more than one address is the default");
-      assert.equal(defaults[0].address_id, target.address_id);
+      assert.equal(defaults[0].address.id, target.address.id);
+      assert.equal(defaults[0].actions.set_default, false, "the default still offers to become one");
     });
   }, { actor: TEST_ACTOR.id, lock: ADDRESS_LOCK });
 });
@@ -178,10 +169,10 @@ test("a signed-in customer naming somebody else gets their own addresses", async
     await anAddress(c, victim, { default_shipping: false });
 
     await as(sessionOf(caller), async () => {
-      const res = await request(app).get("/api/addresses/get").query({ user_id: victim.id });
+      const res = await request(app).get("/api/addresses").query({ user_id: victim.id });
       assert.equal(res.status, 200);
       assert.ok(
-        res.body.every((a: WireAddress) => !("user_address" in a)),
+        res.body.every((e: WireEntry) => !("user_address" in e.address)),
         "sanity - the split holds on this path too"
       );
       // Their own (one address), not the victim's (two) - compared by count,
@@ -204,7 +195,7 @@ test("an admin may still read another user's addresses", async () => {
     await anAddress(c, customer, { default_shipping: false });
 
     await as(sessionOf(admin, "admin"), async () => {
-      const res = await request(app).get("/api/addresses/get").query({ user_id: customer.id });
+      const res = await request(app).get("/api/addresses").query({ user_id: customer.id });
       assert.equal(res.status, 200);
       assert.equal(res.body.length, 2, "an admin was refused a customer's addresses");
     });

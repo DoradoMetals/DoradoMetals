@@ -11,3 +11,5 @@ export * from "./shipping";
 export * from "./products";
 export * from "./spots";
 export * from "./rates";
+export * from "./addresses";
+export * from "./auth";

@@ -1,27 +1,29 @@
 'use client'
 
-import type { Address } from "@dorado/contracts";
+// THE ADDRESS FORM. It renders and it submits; every decision in it moved to
+// the API.
+//
+// WHAT LEFT. The "first address in a book is the default" rule (it was
+// `mustBeDefault = isNewAddress && addresses.length === 0`, with a disabled
+// switch enforcing it - the server applies it now whatever a client sends);
+// the Google Places SDK and its 90-line parser; a second Google surface, the
+// geocoder, called to re-find an address the picker had just resolved; and the
+// hand-rolled `applyAddressFieldsToForm` / `verifyAddress` writers, which are
+// `form.reset` over the patch the server hands back.
 import { useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Form, FormField, FormItem } from '@/shared/ui/base/form'
 import { Button, Field, Switch } from '@dorado/components'
+import type { AddressBookEntry, PlaceLookup } from '@dorado/contracts'
+import { useCreateAddress, useUpdateAddress } from '@dorado/client'
 
-import { AddressFormValues, UserAddress, addressSchema, makeEmptyAddress } from '@/features/addresses/types'
-
+import { AddressFormValues, addressSchema, makeEmptyAddress } from '@/features/addresses/types'
 import { useDrawerStore } from '@/shared/store/drawerStore'
-import { useGetSession } from '@/features/auth/queries'
-
 import { ValidatedField } from '@/shared/ui/form/ValidatedField'
 import formatPhoneNumber, { normalizePhone } from '@/shared/utils/formatPhoneNumber'
-
-
-import { formatAddressSearchText, placeToAddressFields } from '../utils/places'
-import { applyAddressFieldsToForm, clearAddressFields, verifyAddress } from '../utils/form'
 import { GoogleMapDisplay } from '@/shared/ui/GoogleMapDisplay'
 import { StateComboboxField } from './StateSelect'
-import { useAddress, useCreateAddress, useUpdateAddress , type SavedAddress } from '@/features/addresses/queries'
-import { useGeocodeAddress } from '@/features/addresses/hooks/useGeocoder'
 import { usePlacesAutocompleteController } from '@/features/addresses/hooks/useAutocomplete'
 import { AddressSearchInput } from '@/features/addresses/ui/AutocompleteInput'
 
@@ -31,49 +33,42 @@ const ADDRESS_ZOOM = 15
 
 type EntryMode = 'auto' | 'manual'
 
+// The entry as the form reads it. A new address has no entry at all.
+const valuesOf = (entry: AddressBookEntry | null): AddressFormValues =>
+  entry
+    ? ({
+        recipient_name: entry.user_address.recipient_name ?? '',
+        label: entry.user_address.label ?? '',
+        line_1: entry.address.line_1 ?? '',
+        line_2: entry.address.line_2 ?? '',
+        city: entry.address.city ?? '',
+        state: entry.address.state ?? '',
+        country: entry.address.country ?? 'United States',
+        country_code: entry.address.country_code ?? 'US',
+        zip: entry.address.zip ?? '',
+        phone_number: entry.address.phone_number ?? '',
+        default_shipping: entry.user_address.default_shipping,
+      } as AddressFormValues)
+    : makeEmptyAddress()
+
 export default function AddressForm({
-  address,
-  userAddress,
+  entry,
   onSuccess,
 }: {
-  address: Address | null
-  // The caller's relationship to it - label and default flag - which is its
-  // own entity now and arrives beside the address, never inside it.
-  userAddress?: UserAddress | null
-  // Both halves of the save, so a caller storing the pick keeps the pair
-  // coherent (the label rides the link now, not the address).
-  onSuccess?: (address: Address, userAddress?: UserAddress) => void
+  entry: AddressBookEntry | null
+  onSuccess?: (entry: AddressBookEntry) => void
 }) {
-  const { user } = useGetSession()
   const { closeDrawer } = useDrawerStore()
-  const { data: addresses = [] } = useAddress()
 
-  const empty = useMemo(() => makeEmptyAddress(), [])
+  const initialValues = useMemo(() => valuesOf(entry), [entry])
 
-  // The pair, flattened into one set of form fields for the UX; submit
-  // splits it back into the two body halves.
-  const initialValues = useMemo<AddressFormValues>(
-    () =>
-      address
-        ? ({
-            ...Object.fromEntries(
-              Object.entries(address).map(([k, v]) => [k, v ?? ''])
-            ),
-            id: address.id,
-            label: userAddress?.label ?? '',
-            default_shipping: userAddress?.default_shipping ?? false,
-          } as AddressFormValues)
-        : empty,
-    [address, userAddress, empty]
-  )
-
-  const createAddressMutation = useCreateAddress()
-  const updateAddressMutation = useUpdateAddress()
-  const isSaving = createAddressMutation.isPending || updateAddressMutation.isPending
+  const create = useCreateAddress()
+  const update = useUpdateAddress()
+  const isSaving = create.isPending || update.isPending
 
   const [formError, setFormError] = useState<string | null>(null)
-
-  const initialMode: EntryMode = address?.id ? 'manual' : 'auto'
+  const [mode, setMode] = useState<EntryMode>(entry ? 'manual' : 'auto')
+  const [center, setCenter] = useState<{ lat: number; lng: number } | null>(null)
 
   const form = useForm<AddressFormValues>({
     resolver: zodResolver(addressSchema),
@@ -81,65 +76,68 @@ export default function AddressForm({
     defaultValues: initialValues,
   })
 
-  const [mode, setMode] = useState<EntryMode>(initialMode)
-  const [mapQuery, setMapQuery] = useState<string>(formatAddressSearchText(address ?? empty))
-
-  const shouldGeocode = mode === 'auto' && !!mapQuery.trim()
-
-  const { center } = useGeocodeAddress({
-    enabled: shouldGeocode,
-    query: mapQuery,
-    debounceMs: 250,
-  })
+  // ONE WRITE PER PICK. The server resolved the components, so the form takes
+  // the patch it was handed rather than reading a components array itself.
+  const applyPlace = (place: PlaceLookup) => {
+    form.setValue('line_1', place.line_1 ?? '', { shouldDirty: true, shouldValidate: true })
+    form.setValue('line_2', place.line_2 ?? '', { shouldDirty: true, shouldValidate: true })
+    form.setValue('city', place.city ?? '', { shouldDirty: true, shouldValidate: true })
+    form.setValue('state', place.state ?? '', { shouldDirty: true, shouldValidate: true })
+    form.setValue('zip', place.zip ?? '', { shouldDirty: true, shouldValidate: true })
+    setCenter(
+      place.latitude != null && place.longitude != null
+        ? { lat: place.latitude, lng: place.longitude }
+        : null
+    )
+  }
 
   const ac = usePlacesAutocompleteController({
-    userId: user?.id,
-    initialValue: formatAddressSearchText(address ?? empty),
-    onPlaceSelected: ({ place }) => {
-      const fields = placeToAddressFields(place)
-      if (!fields) return
-
-      applyAddressFieldsToForm(form, fields)
-      verifyAddress(form, true)
-      setMode('auto')
-
-      const addressText = `${fields.line_1}, ${fields.city}, ${fields.state} ${fields.zip}, United States`
-      setMapQuery(addressText)
-    },
+    initialValue: entry?.address.line_1 ?? '',
+    onPlaceSelected: applyPlace,
   })
-
-  const isNewAddress = !address?.id
-  const mustBeDefault = isNewAddress && addresses.length === 0
-
-  const handleSubmit = (values: AddressFormValues) => {
-    setFormError(null)
-
-    const submitValues = mustBeDefault ? { ...values, default_shipping: true } : values
-
-    const editingId = address?.id
-    const mutation = editingId ? updateAddressMutation : createAddressMutation
-    const fallbackMsg = editingId ? 'Failed to update address.' : 'Failed to create address.'
-
-    // The update mutation needs the id alongside the form values; the split
-    // into { address, user_address } happens inside the mutation's body().
-    const payload = editingId ? { ...submitValues, id: editingId } : submitValues
-    mutation.mutate(payload as AddressFormValues & { id: string }, {
-      onError: (error: any) => {
-        const message = error?.response?.data?.message || error?.message || fallbackMsg
-        setFormError(message)
-        setTimeout(() => setFormError(null), 5000)
-      },
-      onSuccess: (saved: SavedAddress) => {
-        onSuccess?.(saved.address, saved.user_address)
-        closeDrawer()
-      },
-    })
-  }
 
   const clearAutoSelected = () => {
     ac.clear()
-    clearAddressFields(form)
-    setMapQuery('')
+    applyPlace({
+      line_1: null, line_2: null, city: null, state: null, zip: null,
+      country: 'United States', country_code: 'US', phone_number: null,
+      formatted_address: null, latitude: null, longitude: null,
+    })
+  }
+
+  const handleSubmit = (values: AddressFormValues) => {
+    setFormError(null)
+    const body = {
+      address: {
+        line_1: values.line_1,
+        line_2: values.line_2 ?? null,
+        city: values.city,
+        state: values.state,
+        country: values.country,
+        zip: values.zip,
+        country_code: values.country_code,
+        phone_number: values.phone_number,
+      },
+      user_address: {
+        recipient_name: values.recipient_name,
+        label: values.label ?? null,
+        default_shipping: values.default_shipping ?? false,
+      },
+    }
+
+    const settle = {
+      onError: (error: Error) => {
+        setFormError(error.message)
+        setTimeout(() => setFormError(null), 5000)
+      },
+      onSuccess: (saved: AddressBookEntry) => {
+        onSuccess?.(saved)
+        closeDrawer()
+      },
+    }
+
+    if (entry) update.mutate({ address_id: entry.address.id, body }, settle)
+    else create.mutate(body, settle)
   }
 
   return (
@@ -147,17 +145,31 @@ export default function AddressForm({
       <Form {...form}>
         <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
           <div className="flex items-center justify-between">
-            <p className="eyebrow">{!!address?.id ? 'Edit Address' : 'Add New Address'}</p>
+            <p className="eyebrow">{entry ? 'Edit Address' : 'Add New Address'}</p>
           </div>
 
           <ValidatedField
             control={form.control}
-            name="label"
-            label="Address Name"
+            name="recipient_name"
+            label="Recipient"
             type="text"
             inputProps={{
               inputMode: 'text',
               autoComplete: 'name',
+              placeholder: 'Who receives the parcel',
+            }}
+            showIcon={false}
+            floating={false}
+          />
+
+          <ValidatedField
+            control={form.control}
+            name="label"
+            label="Nickname"
+            type="text"
+            inputProps={{
+              inputMode: 'text',
+              autoComplete: 'off',
               placeholder: 'Home',
             }}
             showIcon={false}
@@ -191,18 +203,10 @@ export default function AddressForm({
             <>
               <Field label="Find Address" className="w-full">
                 <AddressSearchInput
-                  placesReady={ac.placesReady}
                   value={ac.searchText}
                   suggestions={ac.suggestions}
-                  dropdownOpen={ac.dropdownOpen}
-                  activeIndex={ac.activeIndex}
-                  onChangeValue={(v) => {
-                    ac.onChangeValue(v)
-                    setMapQuery(v)
-                  }}
-                  onOpen={ac.open}
-                  onClose={ac.close}
-                  onActiveIndex={ac.setActiveIndex}
+                  busy={ac.isResolving}
+                  onChangeValue={ac.onChangeValue}
                   onSelect={ac.selectSuggestion}
                   onClear={clearAutoSelected}
                 />
@@ -216,8 +220,6 @@ export default function AddressForm({
                     center ? [{ id: 'selected', position: center, title: 'Selected Address' }] : []
                   }
                 />
-
-                {/* address verification goes here, maybe have like 'input address/address verified/address not verified idk' */}
               </div>
             </>
           ) : (
@@ -264,17 +266,11 @@ export default function AddressForm({
                   floating={false}
                 />
 
-                <FormField
+                <StateComboboxField
                   control={form.control}
                   name="state"
-                  render={({ field }) => (
-                    <StateComboboxField
-                      control={form.control}
-                      name="state"
-                      label="State"
-                      placeholder="Select a state…"
-                    />
-                  )}
+                  label="State"
+                  placeholder="Select a state…"
                 />
               </div>
 
@@ -311,6 +307,9 @@ export default function AddressForm({
           )}
 
           <div className="flex items-end justify-between w-full">
+            {/* THE DEFAULT SWITCH ONLY EVER TURNS ONE ON. `actions.set_default`
+                is the server's answer to "may this become the default", and an
+                address stops being one by another becoming it. */}
             <FormField
               control={form.control}
               name="default_shipping"
@@ -318,13 +317,10 @@ export default function AddressForm({
                 <FormItem className="w-full">
                   <Field label="Default Address">
                     <Switch
-                      checked={mustBeDefault ? true : !!field.value}
-                      disabled={mustBeDefault}
-                      onCheckedChange={(v) => {
-                        if (mustBeDefault) return
-                        field.onChange(v)
-                      }}
-                    />{' '}
+                      checked={!!field.value}
+                      disabled={!!entry && !entry.actions.set_default}
+                      onCheckedChange={field.onChange}
+                    />
                   </Field>
                 </FormItem>
               )}
@@ -339,16 +335,10 @@ export default function AddressForm({
             </Button>
           </div>
 
-          {formError && (
-            <p className="mb-1 text-left text-destructive">{formError}</p>
-          )}
+          {formError && <p className="mb-1 text-left text-destructive">{formError}</p>}
 
-          <Button
-            type="submit"
-            className="w-full"
-            disabled={isSaving}
-          >
-            {isSaving ? 'Saving...' : !!address?.id ? 'Save Address' : 'Save New Address'}
+          <Button type="submit" className="w-full" disabled={isSaving}>
+            {isSaving ? 'Saving...' : entry ? 'Save Address' : 'Save New Address'}
           </Button>
         </form>
       </Form>

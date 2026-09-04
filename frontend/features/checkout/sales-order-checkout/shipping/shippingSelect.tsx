@@ -41,8 +41,8 @@ export default function ShippingSelect({
   return (
     <div className="flex flex-col w-full">
       <AddressDrawer
-        onSuccess={(saved: Address) => {
-          if (saved.is_valid) patchCheckout.mutate({ recipient_address_id: saved.id })
+        onSuccess={(saved) => {
+          if (saved.address.is_valid) patchCheckout.mutate({ recipient_address_id: saved.address.id })
         }}
       />
 

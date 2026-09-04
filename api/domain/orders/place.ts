@@ -42,7 +42,7 @@ import withTransaction from "#shared/db/withTransaction.ts";
 import { attempt } from "#shared/attempt.ts";
 import type { NewOrderItem } from "#db/orders/items/repo.ts";
 import type { NewOrderTotals } from "#db/orders/transactions/repo.ts";
-import type { AddressRow } from "#db/places/addresses/repo.ts";
+import type { Address } from "@dorado/contracts";
 import type { Checkout, OrderView, SpotPrice } from "@dorado/contracts";
 import type { Postage } from "#domain/orders/postage.ts";
 
@@ -53,7 +53,7 @@ export type { Postage } from "#domain/orders/postage.ts";
 // THE THREE CALLS A PLACEMENT CANNOT ROLL BACK, injected as sendToRefiner's
 // transport is: a test drives the real row flow with no provider reachable.
 export type World = {
-  buyPostage: (shipper: AddressRow, personName: string, parcel: rules.Parcel) => Promise<Postage>;
+  buyPostage: (shipper: Address, personName: string, parcel: rules.Parcel) => Promise<Postage>;
   authorize: (payment_intent_id: string, cents: number) => Promise<void>;
   confirm: (order_id: string) => Promise<void>;
 };

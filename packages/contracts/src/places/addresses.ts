@@ -23,12 +23,11 @@ export const Address = z.object({
 export type Address = z.infer<typeof Address>;
 // generated:end
 import { UserAddressPatch } from "./user_addresses.js";
-import { User } from "../auth/users.js";
 
 // The postal fields a caller may write. is_valid/is_residential are NOT here:
-// create.sql hard-codes them and validation sets the real values through its
-// own write, so a body naming either is a 400 rather than a value quietly
-// overwritten server-side.
+// create.sql hard-codes them and the carrier's validation sets the real values
+// through its own write, so a body naming either is a 400 rather than a value
+// quietly overwritten server-side.
 //
 // A CREATE TAKES THE SAME PATCH (Jacob, 2026-09-03: "For new, it can just send
 // the patch!!"). There is no second type: the database's NOT NULL columns and
@@ -46,27 +45,24 @@ export const AddressPatch = Address.pick({
 }).partial();
 export type AddressPatch = z.infer<typeof AddressPatch>;
 
-// `user_id` is an ID for what the server holds (ruling 43): an admin naming
-// another customer's book. A non-admin caller sending one is overridden by
-// the session.
-export const AddressCreateBody = z.object({
-  address: AddressPatch.strict(),
+// POST /api/addresses and PATCH /api/addresses/:id take the SAME body: two
+// patches, siblings, written in one transaction. No id inside it - the address
+// is named once, in the path (ruling 43) - and no user_id: whose book this is
+// comes from the session, or, for an admin, from ?user_id=.
+export const AddressWriteBody = z.object({
+  address: AddressPatch.strict().optional(),
   user_address: UserAddressPatch.optional(),
-  user_id: User.shape.id.optional(),
 }).strict();
-export type AddressCreateBody = z.infer<typeof AddressCreateBody>;
+export type AddressWriteBody = z.infer<typeof AddressWriteBody>;
 
-export const AddressUpdateBody = z.object({
-  address: AddressPatch.extend({ id: Address.shape.id }).strict(),
-  user_address: UserAddressPatch.optional(),
-  user_id: User.shape.id.optional(),
-}).strict();
-export type AddressUpdateBody = z.infer<typeof AddressUpdateBody>;
-
-// DELETE /places/addresses/delete and POST /set_default - the id alone.
-export const AddressIdBody = z.object({
-  address_id: Address.shape.id,
-  user_id: User.shape.id.optional(),
-}).strict();
-export type AddressIdBody = z.infer<typeof AddressIdBody>;
-
+// THE COLUMNS THE TABLE MAY HAVE WRITTEN, which is not the same set as the
+// body's `AddressPatch`: `is_valid` and `is_residential` are the carrier's
+// answer about the address, written by the validation pass and never by a
+// caller. Ruling 64 - the repo derives its allowed list from this rather than
+// spelling one of its own.
+export const AddressWriteColumns = Address.omit({
+  id: true,
+  created_at: true,
+  updated_at: true,
+}).partial();
+export type AddressWriteColumns = z.infer<typeof AddressWriteColumns>;

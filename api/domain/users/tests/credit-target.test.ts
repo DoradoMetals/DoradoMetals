@@ -30,7 +30,7 @@ const NOBODY = "00000000-0000-0000-0000-000000000000";
 test("a credit adjustment that matches no user is refused, not reported as done", async () => {
   await inPinned(async () => {
     await assert.rejects(
-      () => usersService.adjustDoradoCredit({ user_id: NOBODY, op: "add", amount: 500 }),
+      () => usersService.adjustDoradoCredit(NOBODY, { op: "add", amount: 500 }),
       (err: unknown) => {
         const e = err as { kind?: string; message?: string };
         assert.equal(e.kind, "not_found", "a credit that reached nobody is not a success");

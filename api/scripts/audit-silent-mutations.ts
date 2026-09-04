@@ -347,7 +347,12 @@ if (FAIL_ON_FINDINGS && (discarded || unobservable)) process.exit(1);
 // caller could not have told the difference either way - had no production
 // caller and its own header said so. It is gone; `cancelPickup` deletes a
 // booking through `shipping/operations/service.ts`, which reads the row first.
-const CEILING = 15;
+// 15 -> 14 with the places lane: addresses' `remove` used to answer
+// "Deleted address." whatever happened, because it only ever touched the
+// caller's own link - a stranger's delete and a real one were the same 200.
+// The use case asserts the link exists first now, so the DELETE that follows
+// cannot be the silent half of anything.
+const CEILING = 14;
 if (!FAIL_ON_FINDINGS) {
   const total = discarded + unobservable;
   if (total > CEILING) {

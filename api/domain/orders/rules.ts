@@ -16,7 +16,7 @@ import type { NewOrderSpot } from "#db/orders/spots/repo.ts";
 import type { NewOrderTotals } from "#db/orders/transactions/repo.ts";
 import type { ShipmentNew } from "#db/shipping/shipments/repo.ts";
 import type { OrderLine as CheckoutLine } from "#db/checkout/items/repo.ts";
-import type { AddressRow } from "#db/places/addresses/repo.ts";
+import type { Address } from "@dorado/contracts";
 import type { PackageRow } from "#db/shipping/packages/repo.ts";
 import type { LabelService } from "#domain/shipping/services/service.ts";
 import type { OrderPrices, Spots } from "#domain/pricing/ask.ts";
@@ -360,7 +360,7 @@ export function assertPlaceableAsSale(
 }
 
 // A row the checkout names by id must actually be there.
-export function requireAddress(row: AddressRow | undefined, what: string): AddressRow {
+export function requireAddress(row: Address | undefined, what: string): Address {
   if (!row) throw new Invalid(`the checkout's ${what} address does not exist`);
   return row;
 }
@@ -531,7 +531,7 @@ export function quotedCharge(rates: CarrierRate[], serviceType: string): number 
 
 // A PURCHASE COMES TO THE STORE: the customer's own address ships it, and the
 // business receives it.
-export function rateRequest(shipper: AddressRow, parcel: Parcel) {
+export function rateRequest(shipper: Address, parcel: Parcel) {
   return {
     shippingType: "Inbound", address: shipper, pickupType: parcel.handoff.code,
     pkg: { weight: parcel.weight, dimensions: parcel.dimensions },
@@ -540,7 +540,7 @@ export function rateRequest(shipper: AddressRow, parcel: Parcel) {
   };
 }
 
-export function labelRequest(shipper: AddressRow, personName: string, parcel: Parcel) {
+export function labelRequest(shipper: Address, personName: string, parcel: Parcel) {
   return {
     shipper: {
       contact: { personName, phoneNumber: shipper.phone_number ?? "" }, address: shipper,
@@ -555,7 +555,7 @@ export function labelRequest(shipper: AddressRow, personName: string, parcel: Pa
 // The courier comes for the label that was just bought, which is why the
 // tracking number is an argument rather than a field of the parcel.
 export function pickupRequest(
-  shipper: AddressRow, personName: string, parcel: Parcel,
+  shipper: Address, personName: string, parcel: Parcel,
   schedule: { date: string; time: string }, trackingNumber: string | null
 ) {
   return {

@@ -22,23 +22,25 @@ const sql = sqlFrom(import.meta.dirname);
 // declares `isAnonymous` (ruling 63's visitor flag) and none of the three
 // statements projected it, so the wire promised a column the reads did not
 // send. They project it now.
-export type UserRow = AdminUser;
+//
+// THE ROW IS `AdminUser` (rulings 60-61) - there is no `UserRow` alias any
+// more; one type with two names is one a reader has to check.
 
 // ---- reads -----------------------------------------------------------------
 
-export async function getOne(id: string, executor?: Executor): Promise<UserRow | undefined> {
-  const { rows } = await query<UserRow>(sql("get_one"), [id], executor);
+export async function getOne(id: string, executor?: Executor): Promise<AdminUser | undefined> {
+  const { rows } = await query<AdminUser>(sql("get_one"), [id], executor);
   return rows[0];
 }
 
 // Every user, ordered by role then id. getAdmins() sorts differently (name DESC, id DESC) so is kept separate rather than folded in as a filter.
-export async function list(executor?: Executor): Promise<UserRow[]> {
-  const { rows } = await query<UserRow>(sql("get_all"), [], executor);
+export async function list(executor?: Executor): Promise<AdminUser[]> {
+  const { rows } = await query<AdminUser>(sql("get_all"), [], executor);
   return rows;
 }
 
-export async function getAdmins(executor?: Executor): Promise<UserRow[]> {
-  const { rows } = await query<UserRow>(sql("get_admins"), [], executor);
+export async function getAdmins(executor?: Executor): Promise<AdminUser[]> {
+  const { rows } = await query<AdminUser>(sql("get_admins"), [], executor);
   return rows;
 }
 

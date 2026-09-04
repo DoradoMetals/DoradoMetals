@@ -54,6 +54,8 @@ const COMPUTED: Record<string, string> = {
     "rows, and what may be done to the parcel",
   "computed/rates.ts": "the rates page's bands - a volume label and a " +
     "cross-metal column key, neither of them a column",
+  "computed/places.ts": "what may be done to an address book entry, and the " +
+    "places provider's suggestions - no table holds either",
 };
 
 // A walk that opens nothing is a lint that passes on everything.

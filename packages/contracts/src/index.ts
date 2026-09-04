@@ -33,3 +33,4 @@ export * from "./computed/orders.js";
 export * from "./computed/fulfillments.js";
 export * from "./computed/shipping.js";
 export * from "./computed/rates.js";
+export * from "./computed/places.js";

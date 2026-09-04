@@ -16,7 +16,7 @@ import * as pickupService from "#domain/shipping/pickups/service.ts";
 import * as shippingOps from "#domain/shipping/operations/handler.ts";
 import * as shippingOperations from "#domain/shipping/operations/service.ts";
 import * as rules from "#domain/orders/rules.ts";
-import type { AddressRow } from "#db/places/addresses/repo.ts";
+import type { Address } from "@dorado/contracts";
 
 // A stub answers the same shape with no tracking number, and voiding nothing
 // is what labelBufferOrVoid already does for a genuinely empty response.
@@ -30,7 +30,7 @@ export type Postage = {
 // THE CARRIER, ASKED IN ORDER: the postage price, the label that costs it, the
 // courier if one is coming.
 export async function buyPostage(
-  shipper: AddressRow, personName: string, parcel: rules.Parcel
+  shipper: Address, personName: string, parcel: rules.Parcel
 ): Promise<Postage> {
   const netCharge = rules.quotedCharge(
     await shippingOperations.quoteRate(rules.rateRequest(shipper, parcel)), parcel.serviceType

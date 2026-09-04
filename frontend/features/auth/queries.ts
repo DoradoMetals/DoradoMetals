@@ -3,7 +3,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useRouter } from 'next/navigation'
 
-import { apiRequest } from '@/shared/queries/axios'
 import {
   admin,
   changeEmail,
@@ -20,7 +19,7 @@ import {
   updateUser,
   verifyEmail,
 } from './authClient'
-import { forgetSession } from '@dorado/client'
+import { forgetSession, useSetPassword as useSetPasswordHook, useVerifyRecaptcha as useVerifyRecaptchaHook } from '@dorado/client'
 
 // WHAT IS LEFT TO CLEAR IS UI STATE (ruling 63: "Frontend stores should be for
 // UI elements, not data"). The basket is not here any more - it is server rows
@@ -279,16 +278,11 @@ export const useCreateUser = () => {
   })
 }
 
-export const useSetPassword = () => {
-  const queryClient = useQueryClient()
-  return useMutation({
-    mutationFn: async (newPassword: string) =>
-      apiRequest('POST', '/account/set_password', { newPassword }),
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ['session'], refetchType: 'active' })
-    },
-  })
-}
+// OUR TWO ENDPOINTS ARE @dorado/client'S NOW (ruling 62). They were the last
+// two `apiRequest` calls under frontend/ outside the legacy transport, which
+// is what kept this surface on lint:client-boundary's PENDING list. Re-exported
+// under their old names because the auth UI imports them from here.
+export const useSetPassword = useSetPasswordHook
 
 export const useImpersonateUser = () => {
   const queryClient = useQueryClient()
@@ -364,10 +358,4 @@ export const useRevokeSession = () => {
   })
 }
 
-export function useVerifyRecaptcha() {
-  return useMutation({
-    mutationFn: async (token: string) => {
-      return await apiRequest('POST', 'recaptcha/verify-recaptcha', { token })
-    },
-  })
-}
+export const useVerifyRecaptcha = useVerifyRecaptchaHook

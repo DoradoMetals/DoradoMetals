@@ -63,11 +63,11 @@ async function ensure(
 
   const book = await addressService.list(user_id, client);
   const preferred =
-    book.find((a) => a.user_address.default_shipping && a.is_valid) ??
-    book.find((a) => a.is_valid);
+    book.find((e) => e.user_address.default_shipping && e.address.is_valid) ??
+    book.find((e) => e.address.is_valid);
   if (!preferred) return row;
 
-  return (await checkouts.update(row.id, { [column]: preferred.id }, client)) ?? row;
+  return (await checkouts.update(row.id, { [column]: preferred.address.id }, client)) ?? row;
 }
 
 // The row plus what the stepper needs to render itself. The draft

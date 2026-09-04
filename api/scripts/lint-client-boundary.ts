@@ -55,8 +55,14 @@ const ACCEPTED: Record<string, string> = {
 // are re-exports of it, `features/products/queries.ts` is two hooks built ON
 // those, and the sitemap calls the package's plain `fetchProducts` rather than
 // reaching for the axios wrapper on the server.
+//
+// `frontend/features/auth` came off with the places lane. Its two OWN endpoints
+// (`/account/set_password`, `/recaptcha/verify-recaptcha`) are hooks in
+// packages/client now; better-auth keeps its own client, which is that
+// library's transport and not an API call this package should wrap.
+// `frontend/features/addresses` was never on the list and is converted too -
+// its file is a re-export plus four projections of `useAddressBook`.
 const PENDING: Record<string, string> = {
-  "frontend/features/auth": "the auth surface - better-auth's own client plus two /users calls; not this lane's.",
   "frontend/features/media": "the media surface - not this lane's.",
   "frontend/features/orders": "the orders surface - the parallel orders lane owns it.",
   "frontend/features/pdfs": "the document surface - not this lane's.",

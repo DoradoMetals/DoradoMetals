@@ -55,16 +55,16 @@ const CONTRACTS = existsSync(path.join(ROOT, "contracts"))
   ? path.join(ROOT, "contracts")
   : path.join(ROOT, "..", "packages", "contracts", "src");
 
-// THE FILES THIS LANE DOES NOT OWN. Same rules as
-// lint-no-throw-in-services' ACCEPTED: a debt with a name on it, pinned from
-// both sides. The places/users lane owns `db/places/**` and `db/users/**` for
-// the whole of this pass, so their arrays and aliases are left exactly as the
-// cleanup lane found them.
-const ACCEPTED: Record<string, { count: number; why: string }> = {
-  "db/places/addresses/repo.ts": { count: 2, why: "places/users lane" },
-  "db/places/user-addresses/repo.ts": { count: 2, why: "places/users lane" },
-  "db/users/repo.ts": { count: 1, why: "places/users lane" },
-};
+// THE LIST IS EMPTY, AND THAT IS THE FINISHED STATE. It held three files the
+// cleanup lane did not own - `db/places/addresses`, `db/places/user-addresses`
+// and `db/users` - and the places merge (2026-09-04) cleared all three: the two
+// hand-listed PATCHABLE arrays derive from `AddressWriteColumns` /
+// `UserAddressWriteColumns` now, and the three row aliases (`AddressRow`,
+// `UserAddressRow`, `UserRow`) are gone - the row is `Address`, `UserAddress`
+// and `AdminUser`, which is what rulings 60-61 say it is. The FLOOR below is
+// what proves the walk still opens files and still reads schemas; an empty map
+// proves nothing on its own.
+const ACCEPTED: Record<string, { count: number; why: string }> = {};
 
 function walk(dir: string, out: string[] = []): string[] {
   let entries: string[];

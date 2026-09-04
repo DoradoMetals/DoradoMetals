@@ -1,86 +1,61 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+// THE ADDRESS SEARCH, DRIVEN BY OUR OWN SERVER.
+//
+// It used to hold `google.maps.places.AutocompleteSuggestion` and
+// `place.fetchFields` directly: a Google key shipped to every visitor, billed
+// per keystroke, with the parse of Google's answer sitting in
+// `utils/places.ts`. Both calls are API endpoints now
+// (`GET /api/addresses/suggestions` and `/suggestions/:place_id`); what is left
+// here is the typing experience - a debounce, and the session token that makes
+// a burst of keystrokes and the pick that follows one billed session.
+import { useMemo, useState } from 'react'
+import type { PlaceLookup, PlaceSuggestion } from '@dorado/contracts'
+import { useLookupPlace, usePlaceSuggestions } from '@dorado/client'
 import { useDebouncedValue } from '@/shared/hooks/useDebounce'
-import { ParsedPlaceSuggestion } from '@/features/addresses/types'
-import { usePlacesSuggestions } from '@/features/addresses/queries'
+
+// A token is an opaque string to everybody but Google, so the browser can mint
+// one without the SDK. New per mounted form, which is what a "session" means.
+const newSessionToken = () =>
+  typeof crypto !== 'undefined' && 'randomUUID' in crypto
+    ? crypto.randomUUID()
+    : `${Date.now()}-${Math.random().toString(36).slice(2)}`
 
 export function usePlacesAutocompleteController({
-  userId,
   initialValue = '',
   debounceMs = 250,
   onPlaceSelected,
 }: {
-  userId?: string
   initialValue?: string
   debounceMs?: number
-  onPlaceSelected: (args: {
-    place: google.maps.places.Place
-    formatted?: string
-    suggestion: ParsedPlaceSuggestion
-  }) => void | Promise<void>
+  onPlaceSelected: (place: PlaceLookup) => void
 }) {
   const [searchText, setSearchText] = useState(initialValue)
   const debouncedSearch = useDebouncedValue(searchText, debounceMs)
+  const sessionToken = useMemo(newSessionToken, [])
 
-  const sessionToken = useMemo(() => new google.maps.places.AutocompleteSessionToken(), [])
-  const { data: suggestions = [] } = usePlacesSuggestions({
-    userId,
-    sessionToken,
-    searchText: debouncedSearch,
-  })
+  const { data: suggestions = [] } = usePlaceSuggestions(debouncedSearch, sessionToken)
+  const lookup = useLookupPlace()
 
-  const [dropdownOpen, setDropdownOpen] = useState(false)
-  const [activeIndex, setActiveIndex] = useState(-1)
-
-  const placesReady =
-    !!window.google?.maps?.places?.AutocompleteSuggestion && !!window.google?.maps?.places?.Place
-
-  const open = () => setDropdownOpen(true)
-  const close = () => setDropdownOpen(false)
-
-  const clear = () => {
-    setSearchText('')
-    setDropdownOpen(false)
-    setActiveIndex(-1)
+  const selectSuggestion = (s: PlaceSuggestion) => {
+    setSearchText(s.main)
+    lookup.mutate(
+      { place_id: s.place_id, session_token: sessionToken },
+      {
+        onSuccess: (place) => {
+          if (place.formatted_address) setSearchText(place.formatted_address)
+          onPlaceSelected(place)
+        },
+      }
+    )
   }
-
-  const onChangeValue = (v: string) => {
-    setSearchText(v)
-    setDropdownOpen(true)
-  }
-
-  const selectSuggestion = async (s: ParsedPlaceSuggestion) => {
-    const p = s.raw
-    if (!p?.toPlace) return
-
-    const place = p.toPlace()
-    await place.fetchFields({ fields: ['formattedAddress', 'addressComponents'] } as any)
-
-    const formatted = (place.formattedAddress as string) || s.fullText || s.main || undefined
-    if (formatted) setSearchText(formatted)
-
-    await onPlaceSelected({ place, formatted, suggestion: s })
-
-    setDropdownOpen(false)
-    setActiveIndex(-1)
-  }
-
-  useEffect(() => {
-    if (activeIndex >= suggestions.length) setActiveIndex(suggestions.length - 1)
-  }, [suggestions.length, activeIndex])
 
   return {
-    placesReady,
     searchText,
     suggestions,
-    dropdownOpen,
-    activeIndex,
-    onChangeValue,
-    open,
-    close,
-    setActiveIndex,
+    isResolving: lookup.isPending,
+    onChangeValue: setSearchText,
     selectSuggestion,
-    clear,
+    clear: () => setSearchText(''),
   }
 }

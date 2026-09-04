@@ -20,6 +20,12 @@ import { aUser, anAdmin } from "#shared/testing/builders/index.ts";
 await mockSessions();
 const { default: app } = await import("#app");
 
+type Entry = {
+  address: { id: string };
+  user_address: { default_shipping: boolean };
+  actions: { edit: boolean; remove: boolean; set_default: boolean };
+};
+
 afterAll(async () => {
   restoreSessions();
   await pool.end();
@@ -37,7 +43,7 @@ const newAddressBody = (over: Record<string, unknown> = {}) => ({
     phone_number: "7135550100",
     ...over,
   },
-  user_address: { label: `journey-${randomUUID().slice(0, 8)}`, default_shipping: true },
+  user_address: { recipient_name: `journey-${randomUUID().slice(0, 8)}`, label: "Home", default_shipping: true },
 });
 
 test("a customer creates an address, sees it in their book, edits it, and deletes it", async () => {
@@ -45,49 +51,38 @@ test("a customer creates an address, sees it in their book, edits it, and delete
     const customer = await aUser(c);
 
     const created = await as(customer, () =>
-      request(app).post("/api/addresses/create").send(newAddressBody())
+      request(app).post("/api/addresses").send(newAddressBody())
     );
-    assert.equal(created.status, 200, created.text);
+    assert.equal(created.status, 201, created.text);
     const addressId = created.body.address.id;
     assert.ok(addressId, "the create answered no address id");
     assert.equal(created.body.address.city, "Houston");
     assert.equal(created.body.user_address.default_shipping, true);
 
-    const book = await as(customer, () => request(app).get("/api/addresses/get"));
+    const book = await as(customer, () => request(app).get("/api/addresses"));
     assert.equal(book.status, 200);
-    assert.ok(
-      book.body.some((a: { id: string }) => a.id === addressId),
-      "the created address is not in the customer's book"
-    );
-
-    const links = await as(customer, () =>
-      request(app).get("/api/addresses/get_user_addresses")
-    );
-    assert.equal(links.status, 200);
-    const link = links.body.find((l: { address_id: string }) => l.address_id === addressId);
-    assert.ok(link, "the created relationship is not in get_user_addresses");
-    assert.equal(link.default_shipping, true);
+    const entry = book.body.find((e: Entry) => e.address.id === addressId);
+    assert.ok(entry, "the created address is not in the customer's book");
+    assert.equal(entry.user_address.default_shipping, true);
+    assert.equal(entry.actions.edit, true, "a free address does not offer to be edited");
 
     const edited = await as(customer, () =>
-      request(app).post("/api/addresses/update").send({
-        address: {
-          ...newAddressBody().address, id: addressId,
-          line_1: "6100 Main St Suite 200",
-        },
-        user_address: { label: link.label, default_shipping: true },
+      request(app).patch(`/api/addresses/${addressId}`).send({
+        address: { ...newAddressBody().address, line_1: "6100 Main St Suite 200" },
       })
     );
     assert.equal(edited.status, 200, edited.text);
     assert.equal(edited.body.address.line_1, "6100 Main St Suite 200");
+    assert.equal(edited.body.user_address.default_shipping, true,
+      "editing the address cost it its default");
 
-    const removed = await as(customer, () =>
-      request(app).delete("/api/addresses/delete").send({ address_id: addressId })
-    );
+    const removed = await as(customer, () => request(app).delete(`/api/addresses/${addressId}`));
     assert.equal(removed.status, 200, removed.text);
+    assert.equal(removed.body.address.id, addressId, "the delete did not answer what it removed");
 
-    const after = await as(customer, () => request(app).get("/api/addresses/get"));
+    const after = await as(customer, () => request(app).get("/api/addresses"));
     assert.ok(
-      !after.body.some((a: { id: string }) => a.id === addressId),
+      !after.body.some((e: Entry) => e.address.id === addressId),
       "the deleted address is still in the book"
     );
   }, { actor: TEST_ACTOR.id, lock: LOCKS.ADDRESSES });
@@ -100,46 +95,44 @@ test("the ownership rule: a stranger cannot read, edit or delete it; an admin na
     const admin = await anAdmin(c);
 
     const created = await as(owner, () =>
-      request(app).post("/api/addresses/create").send(newAddressBody())
+      request(app).post("/api/addresses").send(newAddressBody())
     );
-    assert.equal(created.status, 200, created.text);
+    assert.equal(created.status, 201, created.text);
     const addressId = created.body.address.id;
 
     // A stranger's OWN book never contains it.
-    const strangersBook = await as(stranger, () => request(app).get("/api/addresses/get"));
+    const strangersBook = await as(stranger, () => request(app).get("/api/addresses"));
     assert.ok(
-      !strangersBook.body.some((a: { id: string }) => a.id === addressId),
+      !strangersBook.body.some((e: Entry) => e.address.id === addressId),
       "a stranger's book contains somebody else's address"
     );
 
     const strangerEdit = await as(stranger, () =>
-      request(app).post("/api/addresses/update").send({
-        address: { ...newAddressBody().address, id: addressId, line_1: "Stolen St" },
-        user_address: { label: "mine now", default_shipping: false },
-      })
+      request(app).patch(`/api/addresses/${addressId}`)
+        .send({ address: { ...newAddressBody().address, line_1: "Stolen St" } })
     );
     assert.equal(strangerEdit.status, 404, "a stranger edited an address that is not theirs");
 
-    // remove() only ever removes the CALLER's own link, so a stranger's delete
-    // answers 200 (it removed nothing, itself included) rather than 404 - the
-    // real ownership assertion is that the owner's book is untouched.
+    // A REFUSAL, NOT A SILENT NO-OP. The delete used to answer 200 having
+    // removed nothing, because it only ever touched the caller's own link -
+    // so nothing anywhere could tell "deleted" from "did not exist for you".
     const strangerDelete = await as(stranger, () =>
-      request(app).delete("/api/addresses/delete").send({ address_id: addressId })
+      request(app).delete(`/api/addresses/${addressId}`)
     );
-    assert.equal(strangerDelete.status, 200, strangerDelete.text);
-    const ownersBookAfter = await as(owner, () => request(app).get("/api/addresses/get"));
+    assert.equal(strangerDelete.status, 404, strangerDelete.text);
+    const ownersBookAfter = await as(owner, () => request(app).get("/api/addresses"));
     assert.ok(
-      ownersBookAfter.body.some((a: { id: string }) => a.id === addressId),
+      ownersBookAfter.body.some((e: Entry) => e.address.id === addressId),
       "a stranger's delete call removed the owner's address"
     );
 
     // An admin naming the OWNER's id (?user_id=) reaches it correctly.
     const adminRead = await asAdmin(admin, () =>
-      request(app).get(`/api/addresses/get?user_id=${owner.id}`)
+      request(app).get(`/api/addresses?user_id=${owner.id}`)
     );
     assert.equal(adminRead.status, 200);
     assert.ok(
-      adminRead.body.some((a: { id: string }) => a.id === addressId),
+      adminRead.body.some((e: Entry) => e.address.id === addressId),
       "an admin naming the owner's id did not see the address"
     );
   }, { actor: TEST_ACTOR.id, lock: LOCKS.ADDRESSES });

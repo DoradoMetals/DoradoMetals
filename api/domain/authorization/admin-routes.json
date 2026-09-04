@@ -28,9 +28,9 @@
   "GET /api/reviews/get_one",
   "GET /api/stripe/get_sales_order_payment_intent",
   "GET /api/suppliers/get_all",
-  "GET /api/users/get_admin_users",
-  "GET /api/users/get_all_users",
-  "GET /api/users/get_user",
+  "GET /api/users",
+  "GET /api/users/:id",
+  "GET /api/users/admins",
   "PATCH /api/orders/:id",
   "PATCH /api/orders/items/:id",
   "PATCH /api/payouts/:id",
@@ -66,6 +66,6 @@
   "POST /api/shipping/cancel_label",
   "POST /api/shipping/cancel_pickup",
   "POST /api/stripe/cancel_payment_intent",
-  "POST /api/users/update_credit",
+  "POST /api/users/:id/credit",
   "PUT /api/orders/:id/spots"
 ]

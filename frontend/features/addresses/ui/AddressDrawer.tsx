@@ -1,26 +1,24 @@
 'use client'
 
-import type { Address } from "@dorado/contracts";
+import type { AddressBookEntry } from '@dorado/contracts'
 import { X } from 'lucide-react'
 import { Button, Drawer } from '@dorado/components'
 import { useDrawerStore } from '@/shared/store/drawerStore'
 import { usePathname } from 'next/navigation'
 import { useEffect } from 'react'
-import { UserAddress } from '@/features/addresses/types'
 import AddressForm from '@/features/addresses/ui/AddressForm'
 
-
-interface AddressDrawerProps {
-  onSuccess?: (address: Address, userAddress?: UserAddress) => void
-}
-
-export function AddressDrawer({ onSuccess }: AddressDrawerProps) {
+export function AddressDrawer({
+  onSuccess,
+}: {
+  onSuccess?: (entry: AddressBookEntry) => void
+}) {
   const activeDrawer = useDrawerStore((s) => s.activeDrawer)
   const closeDrawer = useDrawerStore((s) => s.closeDrawer)
-  const address = useDrawerStore((s) => s.payload.address) ?? null
-  const userAddress = useDrawerStore((s) => s.payload.userAddress) ?? null
+  // ONE PAYLOAD, NOT TWO. The drawer used to carry an address and its link as
+  // separate slots, which is the join the browser is out of now.
+  const entry = useDrawerStore((s) => s.payload.addressEntry) ?? null
 
-  const isAddressOpen = activeDrawer === 'address'
   const pathname = usePathname()
 
   useEffect(() => {
@@ -28,7 +26,7 @@ export function AddressDrawer({ onSuccess }: AddressDrawerProps) {
   }, [pathname, closeDrawer])
 
   return (
-    <Drawer label="Address" open={isAddressOpen} setOpen={closeDrawer}>
+    <Drawer label="Address" open={activeDrawer === 'address'} setOpen={closeDrawer}>
       <Button
         variant="tertiary"
         size="icon"
@@ -38,12 +36,7 @@ export function AddressDrawer({ onSuccess }: AddressDrawerProps) {
         <X size={24} />
       </Button>
 
-      <AddressForm
-        key={address?.id ?? 'new'}
-        address={address}
-        userAddress={userAddress}
-        onSuccess={onSuccess}
-      />
+      <AddressForm key={entry?.address.id ?? 'new'} entry={entry} onSuccess={onSuccess} />
     </Drawer>
   )
 }

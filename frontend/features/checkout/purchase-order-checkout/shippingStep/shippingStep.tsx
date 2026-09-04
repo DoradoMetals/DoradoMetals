@@ -71,9 +71,9 @@ export default function ShippingStep({
   return (
     <div className="space-y-6 w-full">
       <AddressDrawer
-        onSuccess={(savedAddress: Address, _savedLink?: UserAddress) => {
-          if (savedAddress.is_valid) {
-            patchCheckout.mutate({ shipper_address_id: savedAddress.id })
+        onSuccess={(saved) => {
+          if (saved.address.is_valid) {
+            patchCheckout.mutate({ shipper_address_id: saved.address.id })
           }
         }}
       />

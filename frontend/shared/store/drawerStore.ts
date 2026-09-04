@@ -1,4 +1,4 @@
-import type { Address, AdminUser } from "@dorado/contracts";
+import type { AddressBookEntry, AdminUser } from "@dorado/contracts";
 import { create } from 'zustand'
 // THE ADMIN USERS WIRE, not better-auth's session user. `setCreateSalesOrderUser`
 // has exactly one caller - features/users/ui/UsersDrawer.tsx's "Create Sales
@@ -6,7 +6,6 @@ import { create } from 'zustand'
 // was typed as the session user, which is camelCase and a DIFFERENT SHAPE; it
 // compiled only because every field of that type is optional, so a snake_case
 // object satisfied it vacuously.
-import { UserAddress } from '@/features/addresses/types'
 
 type DrawerName =
   | 'checkout'
@@ -26,10 +25,10 @@ type DrawerName =
   | null
 
 type DrawerPayloads = {
-  address?: Address | null
-  // The caller's relationship to it - travels beside the address, never
-  // inside it, since the split (2026-08-27).
-  userAddress?: UserAddress | null
+  // ONE PAYLOAD. The address and the caller's link travelled as two slots that
+  // a caller had to keep in step; an AddressBookEntry is both, plus what may
+  // be done to it.
+  addressEntry?: AddressBookEntry | null
 }
 
 interface DrawerState {

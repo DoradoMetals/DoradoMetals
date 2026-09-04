@@ -1,53 +1,46 @@
 'use client'
 
-import type { Address } from "@dorado/contracts";
+// ONE ENTRY IN THE BOOK. It renders what the server sent and calls what the
+// server says it may.
+//
+// It used to decide for itself: Edit and Remove were offered on every card
+// including the ones the API refuses with a 409, and the refusal was then
+// rendered as red text under the button that should not have been there.
+// `entry.actions` is the same rule the use case asserts on, so a button that
+// is shown is a call that is accepted.
+import type { AddressBookEntry } from '@dorado/contracts'
 import * as React from 'react'
 import { Building2, House } from 'lucide-react'
 
-import { UserAddress } from '@/features/addresses/types'
 import formatPhoneNumber from '@/shared/utils/formatPhoneNumber'
 import { Button } from '@dorado/components'
 import { cn } from '@/shared/utils/cn'
-import { useDeleteAddress, useSetDefaultAddress } from '@/features/addresses/queries'
+import { useDeleteAddress, useSetDefaultAddress } from '@dorado/client'
 
 type AddressCardVariant = 'default' | 'compact'
-type IconKind = 'auto' | 'home' | 'office' | 'none'
 
-interface AddressCardProps {
-  address: Address
+export const AddressCard: React.FC<{
+  entry: AddressBookEntry
   variant?: AddressCardVariant
   className?: string
   onClick?: () => void
-  // The caller's relationship - label and default flag - joined by the
-  // parent from its own endpoint. Optional: a card can render a bare
-  // address (an order snapshot has no relationship).
-  userAddress?: UserAddress | null
-  onEdit?: (address: Address, userAddress?: UserAddress | null) => void
-  icon?: IconKind
+  onEdit?: (entry: AddressBookEntry) => void
   showDefaultBanner?: boolean
-  showEdit?: boolean
-  showRemove?: boolean
-  showSetDefault?: boolean
-}
-
-export const AddressCard: React.FC<AddressCardProps> = ({
-  address,
-  userAddress,
+  showActions?: boolean
+}> = ({
+  entry,
   variant = 'default',
   className,
   onClick,
   onEdit,
-  icon = 'auto',
   showDefaultBanner = true,
-  showEdit = true,
-  showRemove = true,
-  showSetDefault = true,
+  showActions = true,
 }) => {
+  const { address, user_address, actions } = entry
   const clickable = Boolean(onClick)
-  const showActions = showEdit || showRemove || showSetDefault
 
-  const deleteAddressMutation = useDeleteAddress()
-  const setDefaultAddressMutation = useSetDefaultAddress()
+  const remove = useDeleteAddress()
+  const setDefault = useSetDefaultAddress()
 
   const [error, setError] = React.useState<string | null>(null)
   const timerRef = React.useRef<number | null>(null)
@@ -56,23 +49,19 @@ export const AddressCard: React.FC<AddressCardProps> = ({
     if (timerRef.current) window.clearTimeout(timerRef.current)
     timerRef.current = window.setTimeout(() => setError(null), 5000)
   }
+  const settle = (fallback: string) => ({
+    onError: (err: Error) => setTimedError(err.message || fallback),
+    onSuccess: () => setError(null),
+  })
 
-  const busy = deleteAddressMutation.isPending || setDefaultAddressMutation.isPending
+  const busy = remove.isPending || setDefault.isPending
 
-  // The card title's LEVEL carries its size, per ruling 17 — a compact card
+  // The card title's LEVEL carries its size, per ruling 17 - a compact card
   // is an h4, a full one an h3. No type utility, no runtime-conditional class.
   const Title = variant === 'default' ? 'h3' : 'h4'
-
   const size = variant === 'default' ? 28 : 24
-  const renderIcon = () => {
-    if (icon === 'none') return null
-    const useHome = icon === 'home' || (icon === 'auto' && !!address.is_residential)
-    return useHome ? (
-      <House size={size} className="text-primary" />
-    ) : (
-      <Building2 size={size} className="text-primary" />
-    )
-  }
+  const Icon = address.is_residential ? House : Building2
+  const spacing = variant === 'default' ? 'mt-4' : 'mt-3'
 
   return (
     <div className={cn('w-full')}>
@@ -94,43 +83,33 @@ export const AddressCard: React.FC<AddressCardProps> = ({
           className
         )}
       >
-        {showDefaultBanner && userAddress?.default_shipping && (
-          <>
-            <small className="pointer-events-none absolute -right-14 top-3 rotate-45 bg-primary text-primary-foreground px-15 py-1">
-              Default
-            </small>
-          </>
+        {showDefaultBanner && user_address.default_shipping && (
+          <small className="pointer-events-none absolute -right-14 top-3 rotate-45 bg-primary text-primary-foreground px-15 py-1">
+            Default
+          </small>
         )}
 
         <div className="flex flex-col w-full">
-          <div className="flex items-start justify-between w-full">
-            <div className="flex items-center gap-2">
-              {renderIcon()}
-              <Title>{userAddress?.label}</Title>
-            </div>
+          <div className="flex items-center gap-2">
+            <Icon size={size} className="text-primary" />
+            <Title>{user_address.recipient_name}</Title>
+            {!!user_address.label && <small>{user_address.label}</small>}
           </div>
 
           {!!address.phone_number && (
-            <p className={variant === 'default' ? 'mt-4' : 'mt-3'}>
-              {formatPhoneNumber(address.phone_number)}
-            </p>
+            <p className={spacing}>{formatPhoneNumber(address.phone_number)}</p>
           )}
 
-          <p className={variant === 'default' ? 'mt-4' : 'mt-3'}>
+          <p className={spacing}>
             {address.line_1}
             {address.line_2 ? ` ${address.line_2}` : ''}
             {`, ${address.city}, ${address.state} ${address.zip}`}
           </p>
 
           {showActions && (
-            <div
-              className={cn(
-                'flex items-center gap-4 justify-between',
-                variant === 'default' ? 'mt-4' : 'mt-3'
-              )}
-            >
+            <div className={cn('flex items-center gap-4 justify-between', spacing)}>
               <div className="flex items-center gap-2">
-                {showEdit && (
+                {actions.edit && (
                   <Button
                     type="button"
                     variant="secondary"
@@ -139,17 +118,13 @@ export const AddressCard: React.FC<AddressCardProps> = ({
                     disabled={busy || !onEdit}
                     onClick={(e) => {
                       e.stopPropagation()
-                      // BOTH halves. The label and the default flag live on
-                      // userAddress (the places split); passing only the
-                      // address opened every edit with a blank name, and
-                      // saving then failed validation silently.
-                      onEdit?.(address, userAddress)
+                      onEdit?.(entry)
                     }}
                   >
                     Edit
                   </Button>
                 )}
-                {showRemove && (
+                {actions.remove && (
                   <Button
                     type="button"
                     variant="secondary"
@@ -158,16 +133,7 @@ export const AddressCard: React.FC<AddressCardProps> = ({
                     disabled={busy}
                     onClick={(e) => {
                       e.stopPropagation()
-                      deleteAddressMutation.mutate(address, {
-                        onError: (err: any) => {
-                          const msg =
-                            err?.response?.data?.error ||
-                            err?.message ||
-                            'Failed to remove address.'
-                          setTimedError(msg)
-                        },
-                        onSuccess: () => setError(null),
-                      })
+                      remove.mutate(address.id, settle('Failed to remove address.'))
                     }}
                   >
                     Remove
@@ -175,7 +141,7 @@ export const AddressCard: React.FC<AddressCardProps> = ({
                 )}
               </div>
 
-              {showSetDefault && !userAddress?.default_shipping && (
+              {actions.set_default && (
                 <Button
                   type="button"
                   variant="tertiary"
@@ -183,19 +149,7 @@ export const AddressCard: React.FC<AddressCardProps> = ({
                   disabled={busy}
                   onClick={(e) => {
                     e.stopPropagation()
-                    setDefaultAddressMutation.mutate(
-                      userAddress ?? { address_id: address.id, user_id: null, label: null, default_shipping: false },
-                      {
-                      onError: (err: any) => {
-                        const msg =
-                          err?.response?.data?.error ||
-                          err?.message ||
-                          'Failed to set default address.'
-                        setTimedError(msg)
-                      },
-                      onSuccess: () => setError(null),
-                    }
-                    )
+                    setDefault.mutate(address.id, settle('Failed to set default address.'))
                   }}
                 >
                   Set Default
@@ -206,6 +160,11 @@ export const AddressCard: React.FC<AddressCardProps> = ({
         </div>
       </div>
 
+      {/* An address an unfinished order depends on offers neither button; this
+          says why, instead of a 409 arriving after a click. */}
+      {showActions && !actions.edit && !actions.remove && (
+        <small className="mt-1 block">In use by an order in progress</small>
+      )}
       {error && <p className="mt-1 text-destructive">{error}</p>}
     </div>
   )

@@ -51,6 +51,20 @@ export const keys = {
     // cache it (staleTime 0, gcTime 0).
     details: (payout_id: string) => ["payouts", payout_id, "details"] as const,
   },
+  // THE ADDRESS BOOK. One key, because there is one read: an entry carries the
+  // postal row, the caller's link and its actions together, so the two lists
+  // the browser used to join by address_id cannot drift apart in a cache.
+  // `subject` is the customer an admin is reading FOR - naming yourself is the
+  // same read, so it defaults to null rather than to your own id.
+  addresses: {
+    book: (subject?: string | null) => ["addresses", subject ?? null] as const,
+    one: (address_id: string) => ["addresses", "one", address_id] as const,
+    // The provider's answers are keyed by the question. `session_token` is
+    // deliberately NOT in the key: it is what makes a burst of keystrokes one
+    // billed session, not part of what is being asked.
+    suggestions: (q: string) => ["addresses", "suggestions", q] as const,
+    place: (place_id: string) => ["addresses", "place", place_id] as const,
+  },
   users: {
     one: (user_id: string) => ["users", user_id] as const,
     all: () => ["users", "all"] as const,

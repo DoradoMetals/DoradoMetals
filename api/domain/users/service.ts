@@ -6,19 +6,20 @@ import withTransaction from "#shared/db/withTransaction.ts";
 import {
   assertCreditSubject, balanceAfter, movementBetween, refuseNegativeBalance,
 } from "#domain/users/rules.ts";
-import type { CreditRow, UserRow } from "#db/users/repo.ts";
+import type { CreditRow } from "#db/users/repo.ts";
+import type { AdminUser } from "@dorado/contracts";
 import type { Executor } from "#shared/db/executor.ts";
 import type { UpdateCreditBody } from "@dorado/contracts";
 
-export async function getUser(id: string): Promise<UserRow | undefined> {
+export async function getUser(id: string): Promise<AdminUser | undefined> {
   return await users.getOne(id);
 }
 
-export async function getAllUsers(): Promise<UserRow[]> {
+export async function getAllUsers(): Promise<AdminUser[]> {
   return await users.list();
 }
 
-export async function getAdminUsers(): Promise<UserRow[]> {
+export async function getAdminUsers(): Promise<AdminUser[]> {
   return await users.getAdmins();
 }
 
@@ -30,7 +31,7 @@ export async function getAdminUsers(): Promise<UserRow[]> {
 // one should honour. The ledger row is written inside the same transaction, so
 // a movement and its record commit together or neither does.
 export async function adjustDoradoCredit(
-  { user_id, op, amount }: UpdateCreditBody
+  user_id: string, { op, amount }: UpdateCreditBody
 ): Promise<CreditRow> {
   return await withTransaction(async (tx) => {
     const current = assertCreditSubject(user_id, await users.balanceForUpdate(user_id, tx));

@@ -126,7 +126,7 @@ function DoradoCredit({ user }: { user: AdminUser }) {
     // Send what the admin DID, not what we think the balance becomes. The
     // server applies the delta under a row lock; `newAmount` above stays as the
     // PREVIEW rendered below, which is fine - previewing is not writing.
-    updateCredit.mutate({ user_id: user.id, op: mode, amount })
+    updateCredit.mutate({ user_id: user.id, body: { op: mode, amount } })
 
     setAmount(0)
     setDisplayAmount('0.00')

@@ -115,27 +115,12 @@ afterAll(async () => {
   await pool.end();
 });
 
-test("getFromId returns a list, so reading .state off it is undefined", async () => {
-  await inPinnedTransaction(async (c: PoolClient) => {
-    const owner = await aUser(c);
-    const built = await anAddress(c, owner, { state: ruleState });
-    const address = await addressService.getFromId(built.id);
-
-    assert.ok(Array.isArray(address), "getFromId returns rows, not a row");
-    // `address.state` is what the defective call sites wrote, and TypeScript
-    // REFUSES it on a ComposedAddress[] - which is the finding, not an
-    // obstacle: had those call sites ever been typechecked against this
-    // list-returning signature, the bug could not have been written. Spelled
-    // as the own-property lookup the runtime actually performs, so the claim
-    // is unchanged and it compiles.
-    assert.equal(
-      Object.getOwnPropertyDescriptor(address, "state")?.value,
-      undefined,
-      "this is the value both sales-order paths pass as the taxing state"
-    );
-    assert.equal(address[0].state, ruleState, "the state is one level down");
-  }, { actor: TEST_ACTOR.id, lock: LOCKS.ADDRESSES });
-});
+// `getFromId` IS GONE (places lane, 2026-09-04). It answered a LIST because an
+// address can be in more than one person's book, and the two sales-order paths
+// read `.state` off that list - undefined, every time, which is the defect the
+// rest of this file pins. There is now one read of a postal row by id
+// (`getAddressFromId`) and it answers the row, so the shape that made the
+// defect writable no longer exists to test.
 
 test("a real state and an undefined one are answered differently", async () => {
   await inPinnedTransaction(async (c: PoolClient) => {
