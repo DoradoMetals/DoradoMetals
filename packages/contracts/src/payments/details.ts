@@ -35,8 +35,6 @@ export type PaymentDetails = z.infer<typeof PaymentDetails>;
 import { OrderTotals } from "../orders/transactions.js";
 import { PaymentMethod } from "./methods.js";
 
-// The payment instrument behind an intent. NEVER the two bank numbers: those
-// are sealed at rest (AES-256-GCM, D210) and open in exactly one place.
 export const IntentDetails = PaymentDetails.pick({
   provider: true,
   provider_ref: true,
@@ -49,14 +47,6 @@ export const IntentDetails = PaymentDetails.pick({
 });
 export type IntentDetails = z.infer<typeof IntentDetails>;
 
-// A payments.details WRITE. The same patch serves create and update, which is
-// what lets the payout step build one document and pass it to either.
-//
-// *** THE TWO PLAINTEXT COLUMNS ARE NOT IN IT, DELIBERATELY. ***
-// `routing_number` and `account_number` are the frozen legacy columns; a bank
-// number is written SEALED (routing_number_encrypted / account_number_encrypted,
-// AES-256-GCM, D210) and nothing else. A patch that could name the plaintext
-// pair would be one edit away from storing one.
 export const PaymentDetailsPatch = PaymentDetails.pick({
   id: true,
   user_id: true,
@@ -76,8 +66,6 @@ export const PaymentDetailsPatch = PaymentDetails.pick({
 }).partial();
 export type PaymentDetailsPatch = z.infer<typeof PaymentDetailsPatch>;
 
-// THE SAFE READ - last four digits and nothing else of the bank. Every read
-// but the sealed envelope door below projects to this.
 export const PaymentDetailsView = PaymentDetails.pick({
   id: true, user_id: true, method_id: true, account_holder: true, bank_name: true,
   account_type: true, last_four: true, routing_last_four: true, card_brand: true,
@@ -85,9 +73,6 @@ export const PaymentDetailsView = PaymentDetails.pick({
 });
 export type PaymentDetailsView = z.infer<typeof PaymentDetailsView>;
 
-// THE ENVELOPES, plus what identifies the row they belong to. Read by the
-// admin bank-details door alone (payments/details' getSealed) - never the
-// legacy plaintext columns, which stay NULL on every row this flow writes.
 export const PaymentDetailsSealed = PaymentDetails.pick({
   id: true, account_holder: true, bank_name: true, account_type: true,
   last_four: true, email_to: true, method_id: true,
@@ -96,15 +81,6 @@ export const PaymentDetailsSealed = PaymentDetails.pick({
 });
 export type PaymentDetailsSealed = z.infer<typeof PaymentDetailsSealed>;
 
-// GET /orders/:orderId/payouts - the payout on one order, composed from
-// payments.details, the order's transactions row and payments.methods
-// (db/payouts/sql/get_for.sql). It is NOT exchange.payouts: the last-four
-// reads left that table in D213.
-//
-// RULING 12'S ONE DEVIATION CLASS IS SECURITY, and this is it: routing and
-// account numbers are absent by design and only the last four travel. They
-// are not columns of the statement behind this shape at all, so nothing on
-// this path can leak one.
 export const Payout = PaymentDetails.pick({
   id: true,
   user_id: true,
@@ -122,31 +98,18 @@ export const Payout = PaymentDetails.pick({
 });
 export type Payout = z.infer<typeof Payout>;
 
-// GET /payouts/:id/details, admin only - the ONE read allowed to carry the
-// full bank numbers, fetched one payout at a time by someone about to execute
-// a transfer. It is the payout read plus the two sealed values opened onto it.
 export const PayoutDetails = Payout.extend({
   routing_number: PaymentDetails.shape.routing_number,
   account_number: PaymentDetails.shape.account_number,
 });
 export type PayoutDetails = z.infer<typeof PayoutDetails>;
 
-// The payout as it hangs off ONE order's view. `created_at` is dropped: when
-// a customer saved their bank account is not a fact about this order.
 export const OrderViewPayout = Payout.omit({ created_at: true });
 export type OrderViewPayout = z.infer<typeof OrderViewPayout>;
 
-// PATCH /api/payouts/:id - the payout's own writable facts, never the bank
-// details, which have their own admin-only read and no write surface at all.
-//
-// `cost` IS THE PER-ORDER FEE. `waive_payout_fee` is the other half and
-// does NOT overwrite it (D117: a stored fee is a record and must never be
-// re-derived) - waiving sets the flag on orders.transactions and the stored
-// fee keeps what it would have been.
 export const PayoutPatch = z.object({
   cost: OrderTotals.shape.payout_fee.unwrap().optional(),
   method: PaymentMethod.shape.type.optional(),
   waive_payout_fee: OrderTotals.shape.waive_payout_fee.unwrap().optional(),
 }).strict();
 export type PayoutPatch = z.infer<typeof PayoutPatch>;
-

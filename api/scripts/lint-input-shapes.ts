@@ -1,21 +1,3 @@
-// Two checks, one gate.
-//
-// (1) Every write-facing input shape in api/domain/** (type/interface ending
-// Create/New/Patch/Input/Body) names only columns its repo call can reach.
-// Finds e.g. ShipmentCreate carrying purchase_order_id/sales_order_id for a
-// table that never had either column, or carrying an accepted-never-read
-// field like carrier_id - both invisible to `tsc`, which only checks that a
-// value HAS the fields a function reads, never that a field a type OFFERS is
-// read by anything.
-//
-// (2) Every builder in api/shared/testing/builders/*.ts takes its options as
-// a contract's New/Patch type (or a Partial of it), never a local `type
-// XOptions`. A local options type is itself the finding.
-//
-//   node scripts/lint-input-shapes.ts
-//   node scripts/lint-input-shapes.ts --self-test
-//
-// Exits non-zero on any unaccepted finding, or a stale ACCEPTED entry.
 import { readFileSync, readdirSync, statSync, existsSync } from "node:fs";
 import path from "node:path";
 
@@ -24,21 +6,9 @@ const ROOT = process.env.LINT_INPUT_SHAPES_ROOT
 const DOMAIN_ROOT = path.join(ROOT, "api", "domain");
 const DB_ROOT = path.join(ROOT, "api", "db");
 const BUILDERS_ROOT = path.join(ROOT, "api", "shared", "testing", "builders");
-// ONE FILE PER ENTITY since the contracts restructure: src/<schema>/<table>.ts,
-// each with a generated region whose only `export const Row = z.object({...})`
-// is the table. The old src/generated/<schema>.ts held every table of a schema
-// under a PascalRow name; when it went, this resolved nothing, every lookup
-// returned null, and the "SCAN IS BROKEN" floor is what said so.
 const CONTRACTS_ROOT = path.join(ROOT, "packages", "contracts", "src");
 
-// Genuine non-column inputs ("Type.field") and genuine local builder options
-// types ("Options:Type") this lint would otherwise flag. PINNED FROM BOTH
-// SIDES like lint-type-homes' ACCEPTED: an entry matching nothing is reported
-// and must be removed.
 const ACCEPTED: Record<string, string> = {
-  // Every builder but transactions.ts predates this check and keeps a local
-  // Options type - pre-existing, out of this lane's mandate (order-id,
-  // 2026-09-03). Not touched here; fix each when its own lane is touched.
   "Options:CartOptions": "pre-existing (checkout.ts) - not this lane's file.",
   "Options:LotOptions": "pre-existing (checkout.ts/orders.ts) - not this lane's file.",
   "Options:OrderOptions": "pre-existing (orders.ts) - not this lane's file.",
@@ -71,9 +41,6 @@ type Candidate = { name: string; file: string; line: number; keys: string[] };
 
 const lineOf = (src: string, i: number) => src.slice(0, i).split("\n").length;
 
-// The top-level keys of an object-literal type/interface body (braces
-// included). Depth-tracked so a nested object's own keys are not attributed
-// to the outer type.
 function topLevelKeys(body: string): string[] {
   const inner = body.slice(1, -1);
   const keys: string[] = [];
@@ -88,7 +55,6 @@ function topLevelKeys(body: string): string[] {
     if (/\s/.test(c)) continue;
     if (atMemberStart) {
       const rest = inner.slice(i);
-      // String-built: a raw-quote regex literal confuses lint-imports.mjs.
       const keyRe = new RegExp("^(?:readonly\\s+)?(?:\"([^\"]+)\"|'([^']+)'|(\\w+))\\s*\\??\\s*:");
       const m = keyRe.exec(rest);
       if (m) {
@@ -103,8 +69,6 @@ function topLevelKeys(body: string): string[] {
   return keys;
 }
 
-// `type X = { ... };` (object literal only) or `interface X { ... }`, filtered
-// to names matching `suffixRe`.
 function declarationsIn(src: string, file: string, suffixRe: RegExp): Candidate[] {
   const out: Candidate[] = [];
 
@@ -136,7 +100,6 @@ function declarationsIn(src: string, file: string, suffixRe: RegExp): Candidate[
   return out;
 }
 
-// `import * as alias from "#db/<feature>/repo.ts"` -> alias -> feature path.
 function repoImports(src: string): Map<string, string> {
   const out = new Map<string, string>();
   const re = new RegExp(
@@ -156,10 +119,6 @@ function columnsOfTable(table: string): string[] | null {
   const file = path.join(CONTRACTS_ROOT, schema, `${tableName}.ts`);
   if (!existsSync(file)) { tableColumnsCache.set(table, null); return null; }
   const src = readFileSync(file, "utf8");
-  // THE ENTITY'S NAME IS ITS EXPORT, so match the region's own object rather
-  // than a fixed identifier: it was `Row` for a day and is `Rate`/`Order`/...
-  // now, and a fixed name silently matched nothing - which this script's
-  // "SCAN IS BROKEN" floor is what caught.
   const a = src.indexOf("// generated:start");
   const b = src.indexOf("// generated:end");
   const region = a === -1 || b === -1 ? src : src.slice(a, b);
@@ -172,8 +131,6 @@ function columnsOfTable(table: string): string[] | null {
 
 const tableOfRepoCache = new Map<string, string | null>();
 
-// A repo's own `buildUpdate({table: ...})` and its `sql/create.sql`'s
-// `INSERT INTO` should name the same table - either answers the question.
 function tableOfRepo(featurePath: string): string | null {
   if (tableOfRepoCache.has(featurePath)) return tableOfRepoCache.get(featurePath)!;
   const dir = path.join(DB_ROOT, featurePath);
@@ -194,8 +151,6 @@ function tableOfRepo(featurePath: string): string | null {
   return table;
 }
 
-// Every function in `src` whose parameter list names `typeName`, as
-// `[bodyStart, bodyEnd)` spans. Not a TypeScript parse, deliberately.
 function functionBodiesTaking(src: string, typeName: string): Array<[number, number]> {
   const spans: Array<[number, number]> = [];
   const sig = /function\s+\w*\s*\(([^)]*)\)/g;
@@ -215,8 +170,6 @@ function functionBodiesTaking(src: string, typeName: string): Array<[number, num
   return spans;
 }
 
-// The union of columns every repo.create/update/createMany call inside these
-// spans can reach.
 function reachableColumns(
   spans: Array<[number, number]>, src: string, aliases: Map<string, string>
 ): Set<string> {
@@ -250,7 +203,7 @@ function checkInputShapes(lines: string[]): { findings: number; inScope: number;
     for (const cand of candidates) {
       const spans = functionBodiesTaking(src, cand.name);
       const reachable = reachableColumns(spans, src, aliases);
-      if (reachable.size === 0) continue; // no db write reached - out of scope
+      if (reachable.size === 0) continue;
       inScope += 1;
 
       for (const key of cand.keys) {
@@ -265,8 +218,6 @@ function checkInputShapes(lines: string[]): { findings: number; inScope: number;
   return { findings, inScope, scanned: files.length };
 }
 
-// A builder's options are a contract's New/Patch type (or Partial<> of it) -
-// a local `type XOptions` existing at all is the violation.
 function checkBuilderOptions(lines: string[]): { findings: number; scanned: number } {
   const files = walk(BUILDERS_ROOT);
   const suffix = /Options$/;
@@ -301,9 +252,6 @@ if (process.argv.includes("--self-test")) {
     '}\n';
   const createSql = 'INSERT INTO shipping.shipments (id, direction)\nVALUES ($1, $2)\n' +
     'RETURNING id, direction\n';
-  // A name distinct from the real ACCEPTED entries (which excuse the real
-  // ShipmentCreate.order_id/.type) - otherwise this would plant a violation
-  // the live map already forgives, proving nothing.
   const badService =
     'type TestingShipmentCreate = { smuggled_id?: string | null; type?: string | null };\n' +
     'export async function create(input: TestingShipmentCreate, executor?: unknown) {\n' +
@@ -367,18 +315,6 @@ for (const [key, why] of Object.entries(ACCEPTED)) {
   if (acceptedHit.has(key)) console.log(`  accepted  ${key}\n            ${why}`);
 }
 
-// THE FLOOR. Skipped under a synthetic root: a self-test tree legitimately
-// scans zero in-scope shapes, and that is the case being proven.
-//
-// `inScope === 0` USED TO BE PART OF THIS, and it stopped being a floor the
-// day it became the goal. Every write shape under domain/ now comes from
-// @dorado/contracts, so there is nothing left for this half to check - and a
-// guard that fails when the codebase reaches the state it was written to push
-// it toward is a guard that has to be worked around. What still has to hold is
-// that the SCAN works, and the builder half proves that with a known-present
-// control: ten Options types it finds and accepts every run. A walk that opens
-// nothing, or one that stops recognising those, is still the failure this is
-// here for.
 if (!process.env.LINT_INPUT_SHAPES_ROOT) {
   if (domainScanned === 0 || buildersScanned === 0) {
     console.error("\nSCAN IS BROKEN: the walk opened no domain or builder files");

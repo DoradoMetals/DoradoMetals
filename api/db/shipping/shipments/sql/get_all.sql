@@ -1,5 +1,3 @@
--- Every shipment's own row. No order link here - compose.ts walks fulfillments.shipments -> fulfillments.fulfillments -> orders.orders to find it.
--- carrier_service_id/package_id are projected for compose.ts to resolve to names, then dropped.
 SELECT
        id, carrier_service_id, package_id,
        recipient_address_id, shipper_address_id,

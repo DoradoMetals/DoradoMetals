@@ -1,6 +1,3 @@
-// An after-commit side effect that must not fail the request: it logs once
-// and swallows, rather than propagating a failure the caller can no longer
-// undo (the database work already committed by the time this runs).
 import { test } from "vitest";
 import assert from "node:assert/strict";
 import { attempt } from "#shared/attempt.ts";
@@ -53,4 +50,3 @@ test("logs the failure exactly once, naming what failed", async () => {
     restore();
   }
 });
-

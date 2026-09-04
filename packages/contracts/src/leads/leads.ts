@@ -26,17 +26,6 @@ export const Lead = z.object({
 });
 export type Lead = z.infer<typeof Lead>;
 // generated:end
-// The ten columns leads.leads allows to change, all optional - and a create
-// sends exactly this (Jacob: "For new, it can just send the patch!!").
-//
-// created_by/updated_by are NOT fields here: public.audit_stamp writes both
-// from the connection's actor, and a body naming either is a caller claiming
-// to be somebody else.
-//
-// PRIORITY IS PLAIN TEXT AND STAYS THAT WAY. `leads.leads.priority` is
-// `text DEFAULT 'Medium'` with no constraint, so a three-value union here
-// would be a constraint the database does not have. The frontend's
-// High/Medium/Low list is the set its SELECTOR offers.
 export const LeadPatch = Lead.pick({
   name: true,
   phone: true,
@@ -50,4 +39,3 @@ export const LeadPatch = Lead.pick({
   priority: true,
 }).partial();
 export type LeadPatch = z.infer<typeof LeadPatch>;
-

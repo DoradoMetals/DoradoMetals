@@ -1,4 +1,3 @@
-// The pin between pure pricing and the reference rows (D207). getShippingCharge/calculateCardCharge are pure constants in code, but 109 gave the same numbers a second home (shipping.tiers, payments.methods) for the frontend to read as rows — two homes for one number is the drift bug this project keeps finding, so this test holds them together: change one side and it fails until the other moves too.
 import { test, afterAll } from "vitest";
 import assert from "node:assert/strict";
 import "#env";
@@ -23,8 +22,6 @@ test("every sale service prices exactly what getShippingCharge charges", async (
       `service ${option.code}: the row says ${option.price}, getShippingCharge says ` +
         `${getShippingCharge(500, option.code)}`
     );
-    // The free-over-$1000 rule is order-level in getShippingCharge; every
-    // priced service ships free above it.
     assert.equal(
       getShippingCharge(1001, option.code),
       0,
@@ -48,7 +45,6 @@ test("the sale surcharges the rows advertise are the ones calculateCardCharge ta
         `calculateCardCharge takes ${calculateCardCharge(100, row.type) / 100}`
     );
   }
-  // CREDIT and WIRE deliberately NOT pinned — their rows say 'No Fee' but calculateCardCharge surcharges at 2.9% (the open money question FOLLOWUPS item 1 records); pinning would bless one side of a question Jacob hasn't answered.
 });
 
 afterAll(async () => {

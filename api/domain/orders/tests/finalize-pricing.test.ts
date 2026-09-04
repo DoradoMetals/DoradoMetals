@@ -1,33 +1,3 @@
-// What the business records that it owes, when an order is accepted.
-//
-// THIS FILE USED TO PIN THE BUG IT NOW REFUSES. accept_order took the whole
-// order out of req.body, calculateTotalPrice read `item.price` verbatim, and
-// the two tests here MEASURED that: two requests identical except for the
-// prices in the body, and the recorded total followed the body both times -
-// $1 per line or $100,000 per line, whichever the request claimed. The header
-// said fixing it was a wire-shape question and Jacob's call.
-//
-// The call came in stages on 28 August: the PATCH consolidation put accepting
-// behind one endpoint; the pure-label ruling then split the pricing OUT of
-// the status entirely - `finalize_pricing: true` on PATCH /api/orders/:id
-// prices the order and touches no label ('Accepted' itself left the
-// lifecycle, migration 092). The pricing inputs are resolved SERVER-side -
-// the order from the database, its frozen spots from order_metals, the live
-// spots from exchange.metals. The body's arrays are not merely ignored, they
-// are refused by name: `purchase_order`, `order_spots` and `spot_prices` are
-// not fields of the document, and a silently-dropped field is the
-// admin-mutation-urls bug wearing a new route.
-//
-// So the two claims worth measuring are now:
-//   a poisoned document is refused, and the order's money does not move
-//   a clean accept records a total derived from the database's own rows
-//
-// The second is asserted as a property rather than a number: total_price must
-// equal calculateTotalPrice over the order AS THE API NOW SERVES IT and the
-// spot rows AS THE DATABASE NOW HOLDS THEM - every input a row, none of them
-// the request's. The fixture can drift and the property holds.
-//
-// NOTHING IS COMMITTED - the pool is pinned to a rolled-back transaction.
 import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
@@ -45,9 +15,6 @@ const ORDER_LOCK = LOCKS.ORDERS;
 await mockSessions();
 const { default: app } = await import("#app");
 
-// THE STRUCTURAL SUBSET EACH FIXTURE ACTUALLY HAS. These are SELECT
-// projections, not table rows - naming a row type would claim columns the
-// query never asked for.
 type UserFixture = { id: string; name: string | null; email: string | null };
 type OrderFixture = { id: string; user_id: string; total_price: string | null };
 type ItemFixture = { id: string; quantity: string | number | null };
@@ -85,9 +52,6 @@ afterAll(async () => {
   await pool.end();
 });
 
-// The exact attack the old tests demonstrated worked: the caller names the
-// price. Every vector it used - the order with its priced items, the spot
-// arrays, the zeroed charges - is an unknown field of the document now.
 const poisonedClaiming = (pricePerItem: number) => ({
   finalize_pricing: true,
   purchase_order: {
@@ -107,9 +71,6 @@ const poisonedClaiming = (pricePerItem: number) => ({
   spot_prices: [],
 });
 
-// THE ACTION TAKES NO BODY AT ALL NOW (D214 item 11): POST
-// /api/orders/:id/finalize_pricing. A poisoned document cannot reach it -
-// there is no field to poison - and the route refuses anything sent.
 test("a document claiming its own prices is refused by name, and the money does not move", async () => {
   await inPinnedTransaction(async (client: PoolClient) => {
     await asAdmin(admin, async () => {
@@ -126,8 +87,6 @@ test("a document claiming its own prices is refused by name, and the money does 
         );
       }
 
-      // Refused means REFUSED: no op ran, so the stored total is exactly what
-      // dev held before either request.
       const { rows } = await client.query(
         `SELECT total AS total_price FROM orders.transactions WHERE order_id = $1`,
         [order.id]
@@ -165,8 +124,6 @@ test("a clean finalize prices the order from the database's own rows", async () 
           [order.id]
         )
       ).rows[0];
-      // THE PURE-LABEL RULING, asserted: pricing moved money and the pin,
-      // and did NOT touch the status.
       assert.equal(
         row.status,
         before.status,
@@ -174,10 +131,6 @@ test("a clean finalize prices the order from the database's own rows", async () 
       );
       assert.equal(row.spots_locked, true, "finalizing pins the spots");
 
-      // The property: the stored total is calculateTotalPrice over the ORDER
-      // VIEW the API now serves and the spot rows the database now HOLDS.
-      // Every input is a row; the request contributed nothing at all - the
-      // action has no body.
       const priced = await orderRead.view(order.id);
       assert.ok(priced, `the API could not read order ${order.id} back after pricing it`);
 
@@ -189,9 +142,6 @@ test("a clean finalize prices the order from the database's own rows", async () 
       ).rows;
       const bids = new Map(frozen.map((r) => [r.metal_id, r.bid === null ? null : Number(r.bid)]));
 
-      // AND THE PAYOUT IS ESTABLISHED RATHER THAN ASSUMED. The total is
-      // metal - shipping - payout fee, and an absent fee used to make the
-      // whole total NaN rather than throwing.
       assert.equal(
         typeof priced!.payout?.cost,
         "number",

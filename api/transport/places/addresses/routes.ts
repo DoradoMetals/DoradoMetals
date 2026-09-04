@@ -1,6 +1,3 @@
-// REST (D214 item 4): the verb is the METHOD and the address is named once, in
-// the path. `/get`, `/create`, `/update`, `/delete` and `/set_default` are
-// gone; `?user_id=` is how an admin says whose book, on every one of them.
 import express from "express";
 
 import {
@@ -10,7 +7,6 @@ import { requireUser } from "#shared/middleware/authMiddleware.ts";
 
 const router = express.Router();
 
-// Declared before /:id so "suggestions" is never read as an address id.
 router.get("/suggestions", requireUser, suggest);
 router.get("/suggestions/:place_id", requireUser, lookup);
 

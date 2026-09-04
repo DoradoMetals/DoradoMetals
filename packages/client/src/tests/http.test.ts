@@ -32,8 +32,6 @@ describe("apiRequest", () => {
     await expect(apiRequest("DELETE", "/checkout/items")).resolves.toBeNull();
   });
 
-  // The server's own refusal has to reach a form, or a step shows "Something
-  // went wrong" for a message that named the field.
   test("a refusal throws ApiError carrying the server's message and status", async () => {
     answers(422, JSON.stringify({ message: "a line with no product needs purity" }));
     await expect(apiRequest("PUT", "/checkout/items")).rejects.toMatchObject({
@@ -53,15 +51,11 @@ describe("apiRequest", () => {
 });
 
 describe("keys", () => {
-  // The direction is a segment, so one basket's cache entry can never be
-  // served for the other - the defect a `['checkout']` key would allow.
   test("the two directions never share an entry", () => {
     expect(keys.checkout.row("sale")).not.toEqual(keys.checkout.row("purchase"));
     expect(keys.checkout.items("sale")).not.toEqual(keys.checkout.items("purchase"));
   });
 
-  // The rates key moved to the fulfillment with the parcel facts it is built
-  // from (rulings 69/70, migration 128).
   test("a rates key carries the parcel's facts, so a new box is a new question", () => {
     expect(keys.fulfillments.rates("f1", "a", "b")).not.toEqual(
       keys.fulfillments.rates("f1", "a", "c")
@@ -71,8 +65,6 @@ describe("keys", () => {
     );
   });
 
-  // The checkout row and the order reads live under different prefixes, so a
-  // write to one cannot invalidate the other by accident.
   test("checkout keys do not collide with the orders prefix", () => {
     expect(keys.checkout.row("sale")[0]).toBe("checkout");
     expect(keys.orders.all()[0]).toBe("orders");

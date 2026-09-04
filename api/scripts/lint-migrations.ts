@@ -1,49 +1,6 @@
-// Refuses migrations that could destroy data in the `exchange` schema.
-//
-// The invariant that makes this whole migration safe: exchange holds every row
-// the business has, and nothing in the migration path may overwrite, truncate
-// or delete any of it. New schemas are written to; exchange is only ever read
-// from, or added to.
-//
-// Additive changes to exchange are fine - CREATE INDEX, ADD COLUMN, SET DEFAULT
-// cannot lose a row. Destructive ones are refused:
-//
-//   DROP TABLE / SCHEMA / COLUMN     removes data outright
-//   TRUNCATE                         removes every row
-//   DELETE FROM                      removes rows
-//   UPDATE                           overwrites values in place
-//   ALTER COLUMN ... TYPE            can silently truncate or fail
-//
-// There will eventually be a legitimate reason to drop an exchange table: once
-// a feature has been serving from the new schema long enough to trust. That is
-// a deliberate decision, so it needs a deliberate marker on the line before:
-//
-//   -- allow-destructive: leads has served from core since 2026-09, backed up
-//
-// Static only - reads the .sql files, needs no database, runs in CI.
-//
-// *** WHAT IT CANNOT SEE. This is the guard on "do not lose data", so its gaps
-// matter more than most: ***
-//   - A STATEMENT SPLIT ACROSS LINES: CLOSED 2026-08-29. The scan now also
-//     matches whitespace-normalised three-line windows, so
-//     `DROP\n  TABLE exchange.payouts;` is seen. It was NOT seen before, and
-//     the run said "no destructive writes to exchange" - found by planting it.
-//   - DYNAMIC SQL. A `DO $$ ... EXECUTE format('DROP TABLE %I', t) ... $$` names
-//     no table this can read.
-//   - A DESTRUCTIVE CHANGE SPELLED ANOTHER WAY: `ALTER TABLE exchange.x RENAME`,
-//     `DROP CONSTRAINT`, a `CREATE OR REPLACE VIEW` that narrows a projection,
-//     or a trigger that deletes. The list below is the seven shapes that have
-//     been reasoned about, not every shape that can lose a row.
-//   - ANYTHING NOT IN migrations/*.sql. A destructive statement run from a
-//     script, or by hand, is outside this entirely.
-//
-//   pnpm --filter @dorado/api lint:migrations
-//   pnpm --filter @dorado/api lint:migrations:self-test
 import fs from "node:fs";
 import path from "node:path";
 
-// Overridable ONLY for the self-test, which points the whole script at a
-// synthetic migrations directory and confirms it still sees a planted DROP.
 const DIR = process.env.LINT_MIGRATIONS_DIR
   ? path.resolve(process.env.LINT_MIGRATIONS_DIR)
   : path.join(import.meta.dirname, "..", "migrations");
@@ -60,9 +17,6 @@ if (process.argv.includes("--self-test")) {
     script: import.meta.filename,
     cases: [
       {
-        // The pair that matters most, because they are one keystroke apart and
-        // mean opposite things. numeric(4,3) rounds .9999 gold to 1.000 (D200);
-        // bare `numeric` cannot lose a value at all.
         name: "NARROWING a column type against exchange is seen",
         rootEnv: "LINT_MIGRATIONS_DIR", env: LOW,
         files: files({ "003_bad.sql": "ALTER TABLE exchange.scrap ALTER COLUMN purity TYPE numeric(4,3);\n" }),
@@ -122,11 +76,6 @@ if (process.argv.includes("--self-test")) {
   });
 }
 
-// TUPLES, DECLARED. As a bare array literal TypeScript widens this to
-// `(RegExp | string)[][]`, so `pattern.test(line)` below does not typecheck at
-// all - the destructuring silently produced `string | RegExp` on both halves.
-// It ran correctly because JavaScript does not care; the point of D157 is that
-// nothing was ever in a position to say so.
 const DESTRUCTIVE: readonly (readonly [RegExp, string])[] = [
   [/\bDROP\s+TABLE\s+(IF\s+EXISTS\s+)?(ONLY\s+)?"?exchange"?\./i, "DROP TABLE"],
   [/\bDROP\s+SCHEMA\s+(IF\s+EXISTS\s+)?"?exchange"?\b/i, "DROP SCHEMA"],
@@ -134,25 +83,9 @@ const DESTRUCTIVE: readonly (readonly [RegExp, string])[] = [
   [/\bDELETE\s+FROM\s+(ONLY\s+)?"?exchange"?\./i, "DELETE FROM"],
   [/\bUPDATE\s+(ONLY\s+)?"?exchange"?\./i, "UPDATE"],
   [/\bALTER\s+TABLE\s+(ONLY\s+)?"?exchange"?\.[^\n]*\bDROP\s+COLUMN\b/i, "DROP COLUMN"],
-  // WIDENING TO UNCONSTRAINED `numeric` IS EXEMPT, and only that.
-  //
-  // A type change is flagged because it CAN round or truncate - numeric(4,3)
-  // silently turns .9999 into 1.000, which is D200 and is why exchange.scrap
-  // needed 105. But `TYPE numeric` with no precision and no scale is the
-  // opposite operation: there is no numeric value that unconstrained numeric
-  // cannot hold, so every stored value survives byte for byte. A conversion
-  // INTO it from a non-numeric type either succeeds exactly or raises - it
-  // cannot lose quietly, which is the property this lint actually protects.
-  //
-  // Narrowly written on purpose: `TYPE numeric(...)` with ANY precision is
-  // still flagged, because that is the direction that rounds.
   [/\bALTER\s+TABLE\s+(ONLY\s+)?"?exchange"?\.[^\n]*\bALTER\s+COLUMN\b[^\n]*\bTYPE\s+(?!numeric\s*;|numeric\s*$)/i, "ALTER COLUMN TYPE"],
 ];
 
-// A DIRECTORY THAT IS NOT THERE IS A BROKEN RUN, NOT A CLEAN ONE. The previous
-// version returned [] for a missing directory and printed
-// "migration check passed (0 files)" - the exact shape of D135: a report that
-// cannot see its subject prints a smaller number and exits 0.
 const files = fs.existsSync(DIR)
   ? fs.readdirSync(DIR).filter((f) => f.endsWith(".sql")).sort()
   : [];
@@ -166,9 +99,6 @@ if (files.length === 0) {
   process.exit(1);
 }
 
-// FLOOR. 102 migrations exist at the time of writing and the number only ever
-// grows - migrations are append-only. A count below this means the directory
-// resolved somewhere else, not that migrations were deleted.
 const FLOOR = process.env.LINT_MIGRATIONS_DIR
   ? Number(process.env.LINT_MIGRATIONS_FLOOR ?? 90)
   : 90;
@@ -183,26 +113,10 @@ if (files.length < FLOOR) {
 
 const problems: string[] = [];
 
-// A LINE IS NOT A STATEMENT, and this guard used to pretend it was.
-//
-// The header below the imports still lists the gaps this cannot see; ONE OF
-// THEM IS NOW CLOSED. `DROP\n  TABLE exchange.payouts;` used to match nothing
-// and the run printed "no destructive writes to exchange" - verified by
-// planting exactly that on 2026-08-29, on the guard for the one rule that
-// outranks every other rule here.
-//
-// So the scan now runs over WHITESPACE-NORMALISED WINDOWS as well as raw
-// lines: each line is joined with the two that follow it and internal runs of
-// whitespace collapse to one space, which is enough to reunite a statement a
-// formatter split. It is still not a SQL parser and still cannot see dynamic
-// SQL - but a wrapped DROP is no longer invisible, and a formatter run over
-// migrations/ can no longer open the hole silently.
 const windowsOf = (lines: string[]) =>
   lines.map((line: string, i: number) => ({
     i,
     raw: line,
-    // three lines is enough for `DROP`/`TABLE`/`exchange.x;` and cheap enough
-    // to do for every line of every migration.
     joined: lines.slice(i, i + 3).join(" ").replace(/\s+/g, " ").trim(),
   }));
 
@@ -216,13 +130,6 @@ for (const file of files) {
     for (const [pattern, label] of DESTRUCTIVE) {
       if (!pattern.test(line)) continue;
 
-      // An explicit marker on any preceding comment line waives this statement.
-      // Look back far enough for a marker that EXPLAINS ITSELF. Six lines was
-      // enough when a marker was a sentence; a marker that says why the change
-      // is safe and what backup exists is a paragraph, and 086's runs twelve.
-      // A waiver window shorter than the waivers people actually write means
-      // the guard rejects the well-documented changes and accepts the terse
-      // ones, which is precisely backwards.
       const waived = lines
         .slice(Math.max(0, i - 20), i)
         .some((l) => /--\s*allow-destructive:/i.test(l));

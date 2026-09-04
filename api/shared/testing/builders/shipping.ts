@@ -1,10 +1,3 @@
-// aShipment - a parcel, and the link that attaches it to an order.
-//
-// FOUR TABLES AGAIN, and for the same reason anAddress is two: a shipment is
-// `shipping.shipments` (the parcel and its carrier facts), reached from an
-// order through `fulfillments.fulfillments` and `fulfillments.shipments`. A
-// shipment with no fulfillment link belongs to nobody, which is a state the
-// production code cannot produce and a fixture should not either.
 import type { PoolClient } from "pg";
 import { anId } from "#shared/testing/builders/ids.ts";
 import * as shipments from "#db/shipping/shipments/repo.ts";
@@ -28,8 +21,6 @@ export type ShipmentOptions = {
   id?: string;
   tracking_number?: string;
   shipping_status?: string | null;
-  // The fulfillment METHOD, by type - "CARRIER DROPOFF" unless a test is about
-  // a courier pickup.
   method?: string;
   fulfillment_status?: string;
   cost?: number | null;
@@ -48,8 +39,6 @@ export async function aShipment(
   const carrier_service_id = await carrierServiceId(c);
   const package_id = await packageId(c);
   const id = options.id ?? anId();
-  // 12 digits, the shape FedEx uses - a test that parses one gets something
-  // parseable.
   const tracking_number = options.tracking_number ?? `7941${id.slice(0, 8)}`.slice(0, 12);
 
   await shipments.create(

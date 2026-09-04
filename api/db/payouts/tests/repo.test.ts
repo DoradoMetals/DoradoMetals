@@ -1,9 +1,3 @@
-// db/payouts/repo.ts, against real Postgres. READ ONLY - the file's own
-// header: a payout account is written by features/payments/details (sealed,
-// D210) and the fee by orders.transactions, and there is no write path here
-// on purpose. So what this proves is the three reads (by order, by several
-// orders, by the payout's own id), that only the last-four digits travel, and
-// that the join answers nothing for an order with no payout account.
 import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
@@ -14,8 +8,6 @@ import { rollbackIn } from "#shared/testing/rollback.ts";
 import { aUser, anOrder, aPayout } from "#shared/testing/builders/index.ts";
 import * as payouts from "#db/payouts/repo.ts";
 
-// aPayout links through orders.transactions - the ORDERS lock the same way
-// every other order-money fixture does.
 const inRollback = rollbackIn({ lock: LOCKS.ORDERS });
 
 beforeAll(async () => {

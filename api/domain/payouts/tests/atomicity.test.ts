@@ -1,18 +1,3 @@
-// PATCH /api/payouts/:id WRITES TWO TABLES, AND THEY COMMIT TOGETHER.
-//
-// *** WHAT THIS FILE EXISTS FOR. *** The patch used to open a transaction PER
-// FIELD: `cost` and `waive_payout_fee` each opened one on orders.transactions
-// and `method` a third on payments.details. A document naming the fee and a
-// method that does not exist therefore COMMITTED THE FEE and then refused -
-// leaving a payout whose recorded charge belonged to an account it no longer
-// paid, and an admin who was told the write failed.
-//
-// One `withTransaction` owns all three writes now (ruling 56: the writers take
-// `tx`, only the use case opens one), so a refusal anywhere leaves every
-// column as it was.
-//
-// NOTHING IS COMMITTED: the fixtures are built inside the pinned transaction,
-// which is rolled back.
 import { test, afterAll } from "vitest";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
@@ -63,14 +48,10 @@ test("a document naming every field lands all of it", async () => {
 
     assert.equal(Number(written.cost), 20);
     assert.equal(written.method, "WIRE");
-    // Waiving does NOT rewrite the stored fee (D117) - it sets a flag the
-    // pricing reads, so the record of what the fee would have been survives.
     assert.equal(Number(await feeOf(c, order.id)), 20);
   }, { actor: TEST_ACTOR.id, lock: [LOCKS.ORDERS, LOCKS.USERS] });
 });
 
-// The two refusals are different questions and answer differently: 404 for an
-// account that is not there, 422 for one that is but pays for nothing.
 test("a payout attached to no order refuses without writing", async () => {
   await inPinnedTransaction(async (c: PoolClient) => {
     const customer = await aUser(c);

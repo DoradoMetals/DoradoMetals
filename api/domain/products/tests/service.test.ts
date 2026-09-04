@@ -1,11 +1,3 @@
-// Products through the service, against real Postgres - bid_premium and
-// ask_premium feed every price quote (unit price = content * spot * premium),
-// so a divergence here misprices orders rather than just displaying oddly.
-//
-// The composition that used to attach metal/mint/supplier names in JS is gone:
-// db/products' two statements JOIN them. What is asserted here is what the
-// join must keep answering, plus the grouping and filtering that moved out of
-// the browser.
 import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
@@ -44,7 +36,6 @@ test("the storefront carries the metal and mint names", async () => {
   }
 });
 
-// The disclosure boundary, asked of the real response rather than the statement.
 test("the storefront returns no admin-only field", async () => {
   const [row] = rowsOf(await service.listGroups({ display: true }));
   for (const field of [
@@ -68,8 +59,6 @@ test("the admin list carries all three names and neither actor id", async () => 
   }
 });
 
-// `display` is what a customer may BUY. THE SELL SIDE HAS NO GATE (ruling 49):
-// omitting the filter returns every row, hidden ones included.
 test("the buy gate is a filter; omitting it is the sell side", async () => {
   const [buy, sell] = await Promise.all([
     service.listGroups({ display: true }), service.listGroups({}),
@@ -102,8 +91,6 @@ test("the homepage filter also keeps the buy gate", async () => {
   }
 });
 
-// A slug names a variant SET, and the server now decides which member is the
-// headline row - the heaviest. Four screens each re-sorted for this.
 test("a slug answers one group, heaviest first", async () => {
   await inPinnedTransaction(async (c: PoolClient) => {
     const slug = `variant-set-${randomUUID().slice(0, 8)}`;
@@ -128,8 +115,6 @@ test("a product with no family is a group of one, carrying no variants", async (
   }, { actor: TEST_ACTOR.id, lock: LOCKS.ORDERS });
 });
 
-// A slug is a public URL; without the gate an unpublished product would be
-// readable by anyone who guessed it.
 test("an undisplayed product is not reachable by its slug", async () => {
   await inPinnedTransaction(async (c: PoolClient) => {
     const hidden = await aProduct(c, {
@@ -151,13 +136,10 @@ test("filtering by metal name returns that metal's products and no others", asyn
   );
 });
 
-// An unknown metal used to be an inner join matching nothing. It must stay an
-// empty list rather than becoming "no filter" and returning the whole shop.
 test("an unknown metal name returns nothing, not everything", async () => {
   assert.deepEqual(await service.listGroups({ display: true, metal: "Unobtainium" }), []);
 });
 
-// THE CART CANNOT SET A PRICE. Only the quantity survives from the request.
 test("items from the server keep the server's premium and the client's quantity", async () => {
   const [product] = rowsOf(await service.listGroups({ display: true }));
   const items = await service.getItemsFromServer([{ id: product.id, quantity: 7 }]);
@@ -168,9 +150,6 @@ test("items from the server keep the server's premium and the client's quantity"
   assert.equal(Number(items[0].ask_premium), Number(product.ask_premium));
 });
 
-// Liveness answers per id. Folding it into the storefront read would turn "you
-// may not buy that" into "that does not exist", and put `display` on a public
-// projection.
 test("liveness answers display, the buy-side gate", async () => {
   const { rows } = await client.query("SELECT id, display FROM products.bullion LIMIT 5");
   const live = await service.getLiveness(rows.map((r) => r.id));
@@ -183,8 +162,6 @@ test("liveness answers display, the buy-side gate", async () => {
   }
 });
 
-// products.bullion declares seven columns NOT NULL that exchange.products
-// defaulted; a create that names only a product name must still supply them.
 test("creating a product supplies what the columns require", async () => {
   await inPinnedTransaction(async (c: PoolClient) => {
     const name = `probe-${randomUUID().slice(0, 8)}`;
@@ -204,8 +181,6 @@ test("creating a product supplies what the columns require", async () => {
   }, { actor: TEST_ACTOR.id, lock: LOCKS.ORDERS });
 });
 
-// The editor is not an argument: migration 116 moved the write to the
-// public.audit_stamp trigger, which reads app.actor_id off the connection.
 test("updating a product writes the row, and records who saved it", async () => {
   await inPinnedTransaction(async (c: PoolClient) => {
     const built = await aProduct(c);
@@ -218,8 +193,6 @@ test("updating a product writes the row, and records who saved it", async () => 
       [built.id]
     );
     assert.equal(rows[0].name, renamed);
-    // The use case opens its OWN transaction, which stamps the actor the
-    // pinned transaction is running as - not one set on this client.
     assert.equal(rows[0].updated_by_id, TEST_ACTOR.id, "the trigger did not stamp the actor");
     assert.equal(rows[0].updated_by, TEST_ACTOR.name);
   }, { actor: TEST_ACTOR.id, lock: LOCKS.ORDERS });
@@ -232,12 +205,6 @@ test("updating a product nobody has is a refusal, not a silent no-op", async () 
   );
 });
 
-// metal_id/mint_id/supplier_id are ids (ruling 43): an unknown one is refused
-// by the database's own foreign key, not by a name lookup this service used to
-// run first. The MESSAGE is the shared pg-error translation's (ruling 64's
-// cleanup lane, shared/db/pg-error.ts): a 23503 raised by a write naming a row
-// that is not there becomes an Invalid naming the column, so the caller gets a
-// 422 saying which id was wrong instead of a 500 carrying a constraint name.
 const NOBODY = "00000000-0000-0000-0000-000000000000";
 for (const field of ["metal_id", "mint_id", "supplier_id"] as const) {
   test(`an unknown ${field} is refused by the database`, async () => {

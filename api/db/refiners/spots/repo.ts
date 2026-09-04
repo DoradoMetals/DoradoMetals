@@ -1,7 +1,3 @@
-// refiners.spots, and nothing else - what the REFINER quoted, mirroring
-// orders.spots' shape.
-// update is keyed on (order_id, metal_id), not this table's own id: every
-// caller holds that pair. `bid` is the only writable column; ask is set at create.
 import { randomUUID } from "node:crypto";
 import query from "#shared/db/query.ts";
 import { buildUpdate } from "#shared/db/patch.ts";
@@ -12,8 +8,6 @@ import { RefinerSpot } from "@dorado/contracts";
 
 const sql = sqlFrom(import.meta.dirname);
 
-// The per-metal spot row an order carries. No contract: never returned by a route on its own, only alongside an order.
-// percent_change and dollar_change are projected as NULL — see sql/get_for.sql.
 type OrderSpotRow = {
   id: string;
   order_id: string | null;
@@ -41,13 +35,11 @@ export async function getMany(
   return rows;
 }
 
-// The same two operations orders/spots has, against the refiner's own quote.
 export type RefinerSpotRow = {
   id: string; order_id: string; metal_id: string; refiner_id: string | null;
   ask: number | null; bid: number | null;
 };
 
-// The same rows as getFor, in the CONVERTED spellings (`name`/`ask`/`bid`) — what the order pipelines and quote read speak. See sql/get_named.sql.
 export type NamedSpotRow = {
   id: string;
   order_id: string | null;
@@ -67,9 +59,6 @@ export async function getNamed(
   return rows;
 }
 
-// NOT idempotent: this table has no unique constraint on (order_id, metal_id)
-// where orders.spots does, so there is no conflict target to name. The rule
-// that builds these rows filters out the metals already covered.
 export type SpotNew = Pick<RefinerSpot, "order_id" | "metal_id" | "refiner_order_id"> &
   Partial<Pick<RefinerSpot, "id" | "refiner_id" | "ask" | "bid">>;
 
@@ -85,7 +74,6 @@ export async function create(row: SpotNew, executor?: Executor): Promise<Refiner
   return rows[0];
 }
 
-// The verbatim refiners.spots row — what the by-order spots read serves. Every column, no join products.
 export type EngagementSpotRow = {
   id: string;
   metal_id: string;
@@ -101,7 +89,6 @@ export type EngagementSpotRow = {
   refiner_order_id: string | null;
 };
 
-// By the ENGAGEMENT's id (refiners.orders). The route addresses the CUSTOMER order (GET /orders/:orderId/refiners/spots); the service resolves the engagement and hands its id here.
 export async function getForEngagement(
   refiner_order_id: string, executor?: Executor
 ): Promise<EngagementSpotRow[]> {
@@ -111,8 +98,6 @@ export async function getForEngagement(
   return rows;
 }
 
-// THE SIXTH VERB (D214 item 11): a derivation that yields N rows writes them in
-// one call, so the use case carries no loop of its own.
 export async function createMany(
   rows: SpotNew[], executor?: Executor
 ): Promise<number> {
@@ -120,9 +105,6 @@ export async function createMany(
   return rows.length;
 }
 
-// Keyed on (order_id, metal_id): every caller holds that pair, never this table's own id — which is why buildUpdate takes a `where` map, a spot being one metal on one order.
-// THE COLUMN, FROM THE CONTRACT (ruling 64) - the refinery's bid, and nothing
-// else on the cover row.
 export const PATCHABLE = columnsOf(RefinerSpot.pick({ bid: true }));
 
 export type SpotPatch = Partial<Pick<RefinerSpot, (typeof PATCHABLE)[number]>>;

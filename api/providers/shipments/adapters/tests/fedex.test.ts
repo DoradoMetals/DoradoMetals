@@ -1,15 +1,10 @@
-// The FedEx input builders - the last thing that runs before a real request reaches FedEx. Everything they get wrong becomes a label/booking/cancellation FedEx interprets differently than intended; the pickup path alone has produced four bugs.
-// Pure functions, no network - what's asserted is the mapping: what the handler is given, and what the provider receives.
 import { test, describe } from "vitest";
 import assert from "node:assert/strict";
 import * as fedex from "#providers/shipments/adapters/fedex.ts";
 
-// The shape formatAddressForFedEx produces, so a pre-formatted address can be
-// told apart from one still needing conversion.
 const formatted = { streetLines: ["1255 Stanhope Ct."], city: "Southlake", stateOrProvinceCode: "TX" };
 
 describe("cancelPickupInput", () => {
-  // The regression: this builder read the database's names while its caller passes the provider's, so FedEx was asked to cancel a pickup without being told which one, and without a date.
   test("reads the names its caller actually sends", () => {
     const fromService = {
       confirmationCode: "APK1234567",
@@ -23,8 +18,6 @@ describe("cancelPickupInput", () => {
     });
   });
 
-  // The database's names still work, because a pickup row could reasonably be
-  // handed straight in and cancelLabelInput sets that precedent.
   test("also reads the names a pickup row carries", () => {
     const fromRow = {
       confirmation_number: "APK7654321",
@@ -38,7 +31,6 @@ describe("cancelPickupInput", () => {
     });
   });
 
-  // What the bug looked like: everything undefined except location (spelled the same either way) - a cancellation naming no pickup fails quietly at the far end.
   test("does not silently drop the confirmation code", () => {
     const built = fedex.cancelPickupInput({ confirmationCode: "APK1", pickupDate: "2026-08-22" });
     assert.notEqual(built.confirmationCode, undefined, "the pickup being cancelled was not identified");
@@ -69,9 +61,6 @@ describe("createPickupInput", () => {
     assert.equal(built.carrierCode, "FDXE");
   });
 
-  // The address shape the checkout flow holds uses name/phone, not
-  // personName/phoneNumber. Both are accepted, and the alternative is a pickup
-  // booked against an empty contact.
   test("accepts name and phone as well as personName and phoneNumber", () => {
     const built = fedex.createPickupInput({
       pickupContact: { name: "Jacob Johnson", phone: "8175551234" },
@@ -80,8 +69,6 @@ describe("createPickupInput", () => {
     assert.equal(built.pickupContact.phoneNumber, "8175551234");
   });
 
-  // FedEx will take an empty contact and book the pickup anyway, so an absent
-  // one has to be visible here rather than at the depot.
   test("produces empty strings, never the string 'undefined'", () => {
     const built = fedex.createPickupInput({ pickupContact: {} });
     assert.equal(built.pickupContact.personName, "");
@@ -106,7 +93,6 @@ describe("checkPickupInput", () => {
     assert.equal(built.readyDate.toISOString(), "2026-08-22T15:00:00.000Z");
   });
 
-  // Pinning what currently happens, not asserting it's right: a missing readyDate becomes an Invalid Date, serialised to null and sent to FedEx as a pickup with no ready time.
   test("a missing readyDate becomes an Invalid Date rather than being refused", () => {
     const built = fedex.checkPickupInput({});
     assert.ok(built.readyDate instanceof Date);
@@ -130,8 +116,6 @@ describe("createLabelInput", () => {
     assert.deepEqual(built.packageDetails.declaredValue, input.insurance.declaredValue);
   });
 
-  // An uninsured shipment must not declare a value of null - FedEx reads that
-  // differently from the field being absent, and this is a real amount of money.
   test("omits the declared value entirely when there is no insurance", () => {
     const built = fedex.createLabelInput({ ...input, insurance: undefined });
     assert.equal(built.totalDeclaredValue, null);
@@ -163,16 +147,12 @@ describe("getRatesInput", () => {
     assert.deepEqual(fedex.getRatesInput({ carrierCodes: ["FDXG"] }).carrierCodes, ["FDXG"]);
   });
 
-  // Rates are quoted per package group. Sending a count other than "1" would
-  // quote for a shipment we are not making.
   test("always quotes one package group", () => {
     assert.equal(fedex.getRatesInput({}).packageDetails.groupPackageCount, "1");
   });
 });
 
 describe("address handling", () => {
-  // formatAddressForFedEx is not idempotent in any guaranteed way, so an
-  // already-formatted address has to be recognised rather than reformatted.
   test("an already-formatted address is passed through unchanged", () => {
     assert.equal(fedex.getRatesInput({ shipperAddress: formatted }).shipperAddress, formatted);
   });

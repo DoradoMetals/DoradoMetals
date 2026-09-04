@@ -1,12 +1,3 @@
--- THE LINES THE BUSINESS SELLS. The same copy as create_bought.sql, joined to
--- the three figures the SALE PRICING decided for each line - the premium it
--- was asked at, the tax rate it was charged and the price it came to. Those
--- are the only values a rule computes; everything else is the basket's, so the
--- statement copies it (ruling 66).
---
--- The decided figures arrive as parallel arrays keyed by the CHECKOUT line's
--- id, so a line the pricing did not answer for simply does not join - which is
--- a short insert the caller counts, not a line quietly priced at zero.
 INSERT INTO orders.items
        (id, order_id, bullion_id, metal_id, pre_melt, post_melt, purity,
         content, quantity, confirmed, unit, premium, sales_tax_charged, price)

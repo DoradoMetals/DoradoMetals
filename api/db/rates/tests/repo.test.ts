@@ -1,5 +1,3 @@
-// Writes on rates.rates, against real Postgres. Self-contained: metal_id is
-// the only foreign key, resolved by name from the seed - no lock required.
 import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";

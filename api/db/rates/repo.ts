@@ -1,12 +1,3 @@
-// rates.rates, and nothing else.
-//
-// The metal's NAME is joined by the statements rather than attached in JS: it
-// is what every caller keys on and what both reads order by.
-// max_qty is nullable (null means an open-ended band): the UPDATE is built
-// from the keys the patch carries, so omitting max_qty leaves it untouched
-// but sending null clears it to open-ended.
-// created_by/updated_by/created_at/updated_at are the public.audit_stamp
-// trigger's, from the actor on the connection (migration 116).
 import query from "#shared/db/query.ts";
 import { buildUpdate } from "#shared/db/patch.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
@@ -15,7 +6,6 @@ import type { Executor } from "#shared/db/executor.ts";
 
 const sql = sqlFrom(import.meta.dirname);
 
-// Derived from the contract, never restated (ruling 64).
 export const PATCHABLE = Object.keys(RatePatch.shape) as (keyof RatePatch)[];
 
 export async function getOne(id: string, executor?: Executor): Promise<AdminRate | undefined> {
@@ -33,10 +23,6 @@ export async function listAdmin(executor?: Executor): Promise<AdminRate[]> {
   return rows;
 }
 
-// ONE WRITE TYPE, AND A CREATE SENDS IT TOO (Jacob, 2026-09-03: "For new, it
-// can just send the patch!!"). An explicit id wins; omitting one lets the
-// statement generate it. A column the table needs and the patch does not
-// carry comes back as the shared pg-error translation naming it.
 export async function create(
   patch: RatePatch & { id?: string | null }, executor?: Executor
 ): Promise<string> {

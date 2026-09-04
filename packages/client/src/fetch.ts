@@ -1,19 +1,5 @@
-// THE ONE PLACE A REQUEST IS MADE.
-//
-// The frontend had this twice - `shared/queries/axios.ts` and the ad-hoc
-// `fetch` calls beside it - and every feature folder then wrapped it again.
-// It is one function here, and it is `fetch` rather than axios so the package
-// carries no runtime dependency at all: a hook is a query key, a URL and a
-// contract type.
-//
-// The base URL is the app's, read once at module load; `credentials: include`
-// is what carries the session cookie, which every authenticated read needs.
-
 export type ApiMethod = "GET" | "POST" | "PATCH" | "PUT" | "DELETE";
 
-// The API answers a domain refusal as `{ message }` with a status the kind
-// decides (404/403/409/422 - api/shared/errors.ts). A caller that wants to
-// branch reads `status`; one that only shows the message reads `message`.
 export class ApiError extends Error {
   readonly status: number;
   readonly body: unknown;
@@ -65,9 +51,6 @@ export async function apiRequest<T>(
   return body as T;
 }
 
-// The one BLOB response on the wire (PDF generation). Same request shape,
-// the body is never JSON so there is no message to recover on failure - the
-// status is all a caller gets.
 export async function apiRequestBlob(
   method: ApiMethod, url: string, data?: unknown
 ): Promise<Blob> {

@@ -1,4 +1,3 @@
-// Writes on fulfillments.directs, against real Postgres. Self-contained: the fulfillment each direct hangs off is a draft (no order).
 import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
@@ -8,7 +7,6 @@ import { inRollback } from "#shared/testing/rollback.ts";
 import { fulfillmentMethodId } from "#shared/testing/builders/index.ts";
 import * as directs from "#db/fulfillments/directs/repo.ts";
 import * as fulfillments from "#db/fulfillments/repo.ts";
-
 
 beforeAll(async () => {
   assert.equal(
@@ -27,9 +25,6 @@ async function aDraftFulfillment(c: PoolClient): Promise<string> {
   return draft.id;
 }
 
-// THE BUSINESS'S OWN ADDRESS, by name. places.locations is seeded reference
-// data (migration 047) - three rows, and this appointment is at the one a
-// customer walks into.
 async function aLocationId(c: PoolClient): Promise<string> {
   const { rows: [l] } = await c.query(
     `SELECT id FROM places.locations WHERE name = $1`, ["Dorado Return Address"]

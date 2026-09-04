@@ -1,37 +1,3 @@
-// Proves 000_genesis_schema.sql can build PRODUCTION, not just an empty database.
-//
-// verify-genesis.mjs builds every schema from nothing and compares it against
-// dev. That is the right check for a fresh database and it is the wrong check
-// for the only database that matters, because production is not fresh.
-//
-// Production holds nine of the sixteen schemas already. They were built
-// directly in January and no migration has ever run against them, so they sit
-// in January's shape - measured 2026-08-22, fifty columns and two tables behind
-// dev. Genesis creates everything with CREATE TABLE IF NOT EXISTS and declares
-// `-- baseline: 002-049`, so against production it would skip every table that
-// already exists and then stamp forty-eight migrations as applied without
-// running them. The columns those migrations added would never appear, and the
-// backfills would write into a shape that cannot hold them.
-//
-// `IF NOT EXISTS` is invisible when there is nothing there, which is precisely
-// why building from empty could never catch this.
-//
-// So this check starts from production's real shape:
-//
-//   1. read production's tables and columns, read-only
-//   2. in dev, inside a transaction: build genesis into prefixed schemas
-//   3. reshape those copies to match production - drop what production lacks
-//   4. run genesis again, which is what a production run would do
-//   5. compare against dev, and report anything genesis failed to restore
-//   6. roll back
-//
-// Everything happens in throwaway `zz_prodshape_` schemas inside a transaction
-// that is rolled back. Production is only ever read from, and `exchange` is
-// never touched at all.
-//
-//   node scripts/verify-genesis-production.mjs
-//
-// Exits non-zero if genesis would leave production short of dev.
 import "#env";
 import { execFileSync } from "node:child_process";
 import path from "node:path";
@@ -40,9 +6,6 @@ import pool from "#pool";
 
 const PREFIX = "zz_prodshape_";
 
-// The nine production already has. The other seven it does not have at all,
-// and genesis creates those the same way it creates them on an empty database -
-// which verify-genesis.mjs already covers.
 const SCHEMAS = [
   "auth", "fulfillments", "orders", "payments",
   "places", "refiners", "shipping", "tax",
@@ -55,8 +18,6 @@ if (!process.env.PROD_READONLY_DATABASE_URL) {
   process.exit(1);
 }
 
-// Nothing here may ever address a real schema. Every generated statement is
-// checked against the prefix before it is sent.
 const guard = (sql) => {
   const targets = [...sql.matchAll(/\b(?:TABLE|SCHEMA)\s+(?:IF EXISTS\s+)?([a-z_]+)\./gi)];
   for (const [, nsp] of targets) {
@@ -81,7 +42,6 @@ const note = (msg) => {
 };
 
 try {
-  // What production actually has.
   const { rows: prodCols } = await prod.query(
     `SELECT table_schema AS s, table_name AS t, column_name AS c
      FROM information_schema.columns WHERE table_schema = ANY($1)`,
@@ -115,9 +75,6 @@ try {
   console.log("building genesis into scratch schemas...");
   await client.query(sql);
 
-  // Now wind those copies back to production's shape. This is the step that
-  // makes the check mean something: after it, the scratch schemas are what
-  // genesis would actually find on production.
   console.log("reshaping them to match production...");
   let droppedTables = 0;
   let droppedColumns = 0;
@@ -154,22 +111,10 @@ try {
   }
   console.log(`  production is behind by ${droppedTables} table(s) and ${droppedColumns} column(s)`);
 
-  // This is the production run.
   console.log("running genesis again, as a production migration would...");
   try {
     await client.query(sql);
   } catch (err) {
-    // Genesis does not merely skip what it cannot build - it stops.
-    //
-    // CREATE TABLE IF NOT EXISTS leaves an older table alone, and the ALTER
-    // TABLE ADD CONSTRAINT that follows then names a column that table does not
-    // have. Postgres has no IF NOT EXISTS for ADD CONSTRAINT, so the statement
-    // is an error and the whole migration aborts.
-    //
-    // That is the safest way for this to be wrong: the runner wraps each
-    // migration in a transaction, so production would roll back untouched
-    // rather than end up half-built. But it does mean the production migration
-    // cannot run at all as things stand.
     console.log("\n  ABORTED  genesis stopped against production's shape:");
     console.log(`           ${err.message}`);
     if (err.where) console.log(`           ${err.where.split("\n")[0].replace(/^SQL statement "/, "").replace(/"$/, "")}`);
@@ -186,7 +131,6 @@ try {
     process.exit(1);
   }
 
-  // Anything still missing is something production would never get.
   console.log("comparing against dev...\n");
   for (const schema of SCHEMAS) {
     const built = `${PREFIX}${schema}`;

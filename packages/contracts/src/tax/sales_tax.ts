@@ -17,10 +17,6 @@ export type SalesTax = z.infer<typeof SalesTax>;
 import { Bullion } from "../products/bullion.js";
 import { Address } from "../places/addresses.js";
 
-// POST /api/tax/get_sales_tax - what a cart of catalogue lines owes in one
-// state. IDS IN (ruling 43): the endpoint used to take the lines themselves,
-// so a caller could declare the purity, weight and legal-tender flags a tax
-// rule matches on - exactly the way to choose the rate you are charged.
 export const SalesTaxQuoteLine = Bullion.pick({ id: true }).extend({
   quantity: z.number(),
 }).strict();
@@ -31,4 +27,3 @@ export const GetSalesTaxBody = z.object({
   items: z.array(SalesTaxQuoteLine).min(1),
 }).strict();
 export type GetSalesTaxBody = z.infer<typeof GetSalesTaxBody>;
-

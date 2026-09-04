@@ -1,5 +1,3 @@
-// The transport boundary's strict-parse-and-refuse core, and the uuid-shaped
-// checks that share it — pure, no database, no HTTP server.
 import { test } from "vitest";
 import assert from "node:assert/strict";
 import { z } from "zod/v4";
@@ -40,8 +38,6 @@ test("parseStrict names the subject and the failing path in a 400", () => {
 });
 
 test("parseStrict falls back to the bare issue message when the issue has no path", () => {
-  // A top-level type mismatch (schema expects an object, gets a string) has no
-  // field path — the message must not read '"" is invalid' or similar.
   assert.throws(
     () => parseStrict(person, "not an object", "subject"),
     (err: any) => {
@@ -62,8 +58,6 @@ test("strictBody refuses a malformed body with no subject prefix", () => {
     () => strictBody(person, { name: "Alice" }),
     (err: any) => {
       assert.equal(err.statusCode, 400);
-      // No subject means the message starts with the quoted field path itself,
-      // not a "subject: " prefix in front of it.
       assert.match(
         err.message,
         /^"age"/,

@@ -1,5 +1,3 @@
-// The one place the live path loads the payout key from the environment.
-// Pure: no database, and no plaintext value is ever asserted into a message.
 import { describe, it } from "vitest";
 import assert from "node:assert/strict";
 import { randomBytes } from "node:crypto";

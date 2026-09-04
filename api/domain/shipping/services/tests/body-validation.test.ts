@@ -1,8 +1,3 @@
-// Strict body parsing at the transport boundary (D214 item 3): an unknown key
-// or a wrong-typed value is a 400 before the service runs. The wire's own
-// legacy aliases (supports_pickup/supports_dropoff/max_weight_lbs) are the
-// accepted names; the column names underneath (supports_pickups/
-// supports_dropoffs/max_weight_lb) are refused as unknown.
 import { test, afterAll } from "vitest";
 import assert from "node:assert/strict";
 import request from "supertest";
@@ -37,9 +32,6 @@ test("POST /carrier_services/create refuses a wrong type", async () => {
 
 test("POST /carrier_services/update refuses an unknown key (price)", async () => {
   await asAdmin(async () => {
-    // shipping.services' id is validated by the generated row schema's own
-    // z.string().uuid() (RFC4122-strict) - a real-shaped v4 uuid, not the
-    // all-ones one this suite uses elsewhere.
     const res = await request(app)
       .post("/api/carrier_services/update")
       .send({ service: { id: "12345678-1234-4234-8234-123456789abc", name: "Ground", price: 12.5 } });

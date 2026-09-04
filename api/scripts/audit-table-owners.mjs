@@ -1,48 +1,10 @@
-// Which feature writes which table, and does any table have more than one?
-//
-// THE QUESTION NO OTHER CHECK ASKS. Every review on this project is
-// per-feature: you open features/purchase-orders, read its repos, and its
-// writes look fine. What that cannot show you is that the table it is writing
-// belongs to somebody else - because the other writer is in a directory you
-// are not looking at.
-//
-// Found by hand, three times, before this existed:
-//
-//   D41  purchase-orders ran `UPDATE exchange.shipments SET net_charge` while
-//        shipping/shipments owned that table and dual-wrote it. After the
-//        purchase-orders pivot it would have been the ONE writer still writing
-//        exchange alone, and the column would have drifted between the schemas
-//        with nothing to report it - verify:parity does not cover shipments.
-//   D42  sales-orders carried its own copies of three orders.orders statements.
-//   and purchase-orders' own fifteen, which is what started the search.
-//
-// INLINE SQL COUNTS. D41 was a template literal inside repo.exchange.js, not a
-// .sql file, so a scan of sql/ alone would have missed the one that mattered.
-//
-// Report-only by default; --strict exits non-zero on an undeclared finding, so
-// it can go in CI once the migration settles. Not in `pnpm check` yet: the
-// legacy repos are mid-deletion and their writes are expected duplicates.
-//
-//   pnpm --filter @dorado/api audit:table-owners [--strict] [--self-test]
 import fs from "node:fs";
 import path from "node:path";
 
 const ROOT = path.join(import.meta.dirname, "..");
-// Three layer roots instead of one `features/` tree (Phase 0c restructure): a
-// feature's repo, service and routes now live in different roots, so the
-// "feature" a file belongs to is computed relative to whichever of the three
-// contains it, with the layer name itself stripped same as sql/ and legacy/.
 const LAYER_ROOTS = ["db", "domain", "transport"].map((l) => path.join(ROOT, l));
 
-// A table with more than one writing feature, where that is correct and why.
-// Pinned from BOTH sides like audit:indexes: an entry that stops being true
-// has to be removed, or the audit starts lying in the quiet direction.
 const ACCEPTED = [
-  // MID-PIVOT DUPLICATION. A feature being restructured holds its old repo
-  // files (repo.exchange.js, repo.next.ts, repo.dual.js) beside the new
-  // per-table repos, so both appear as writers. These entries go when the
-  // pivot deletes those files - which is exactly why they are pinned here: a
-  // table that stays on this list after its feature is done is a real finding.
   { table: "orders.items", features: ["orders", "orders/items"],
     why: "orders/items owns it; features/orders/repo.mirror.ts re-derives the whole line set from exchange on every dual write, and that mirror goes at promotion" },
   { table: "orders.addresses", features: ["orders"],
@@ -64,15 +26,6 @@ const ACCEPTED = [
   { table: "checkout.items", features: ["checkout", "orders"],
     why: "the checkout feature owns the row and its items now (D208); orders/create.ts consumes them" },
 
-  // VERIFIED SAFE, for a reason that is not "it goes away".
-  //
-  // payments sets "stripeCustomerId" on the user row, which is a payments fact
-  // stored on a users table. Checked rather than assumed: migration 056
-  // installs mirror_users_to_auth, an AFTER INSERT OR UPDATE trigger on
-  // exchange.users that copies the row into auth.users INCLUDING
-  // "stripeCustomerId". Both halves therefore write the same value and the
-  // trigger reconciles from below, which is what makes the second writer
-  // harmless here and not a split.
   { table: "exchange.users", features: ["payments", "users"],
     why: "payments sets stripeCustomerId; 056's mirror_users_to_auth trigger reconciles into auth.users" },
   { table: "auth.users", features: ["payments", "users"],
@@ -80,26 +33,17 @@ const ACCEPTED = [
 
   { table: "payments.details", features: ["payments", "payments/details"],
     why: "payments/details owns the payout account rows; the parent's updateMethod upserts the STRIPE instrument row (provider_ref-keyed), a different population of the same table" },
-  // refiners.orders LEFT THIS LIST with the CRUD-batch-5 orders collapse:
-  // orders' set_refinery.sql is deleted and send-to-refiner.ts attaches the
-  // refinery through refiners/orders' own ensureForOrder + update. It was the
-  // last real multi-writer, which is why the self-test below stopped being able
-  // to borrow one and had to grow a synthetic control instead.
 ];
 
 const walk = (dir, out = []) => {
   for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
     const full = path.join(dir, e.name);
     if (e.isDirectory()) walk(full, out);
-    // .sql AND source: D41 was a template literal, not a file.
     else if (/\.(sql|ts|js)$/.test(e.name) && !e.name.includes(".test.")) out.push(full);
   }
   return out;
 };
 
-// The feature a file belongs to: the path under its layer root with the layer
-// name, any sql/ segment, and the filename removed.
-// db/shipping/shipments/sql/x.sql -> shipping/shipments
 const featureOf = (file) => {
   const root = LAYER_ROOTS.find((r) => file.startsWith(r + path.sep));
   const rel = path.relative(root, file);
@@ -107,15 +51,13 @@ const featureOf = (file) => {
   return parts.join("/") || "(root)";
 };
 
-// Comment-stripped, because a statement quoted in a comment is not a write -
-// several files describe the statement they mirror.
 const strip = (src) =>
   src.replace(/--[^\n]*/g, " ").replace(/\/\*[\s\S]*?\*\//g, " ").replace(/\/\/[^\n]*/g, " ");
 
 const WRITE = /\b(?:INSERT\s+INTO|UPDATE|DELETE\s+FROM)\s+(?:ONLY\s+)?([a-z_]+)\.([a-z_]+)/gi;
 
 const files = LAYER_ROOTS.flatMap((r) => walk(r));
-const writers = new Map();   // "schema.table" -> Map(feature -> Set(file))
+const writers = new Map();
 let statements = 0;
 
 for (const file of files) {
@@ -131,17 +73,6 @@ for (const file of files) {
 }
 
 if (process.argv.includes("--self-test")) {
-  // THE CONTROL IS SYNTHETIC, AND IT HAD TO BECOME SYNTHETIC. This used to
-  // assert that the real scan found at least one multi-writer table, which
-  // borrowed its control from a FINDING - so the day the last split was fixed
-  // (CRUD-batch-5, refiners.orders) the self-test failed for the one reason
-  // that is not a defect. A detector must be provable against input it
-  // controls: two fabricated files writing one table must be reported, and the
-  // same pair split across one feature must not.
-  //
-  // It still walks the real tree first, so a scan that parsed NOTHING is caught
-  // too - audit:wire-readiness once walked zero files and called every switch
-  // ready.
   const fabricate = (pairs) => {
     const byFeature = new Map();
     for (const [feature, file] of pairs) {
@@ -200,8 +131,6 @@ for (const [table, byFeature] of shared) {
   }
 }
 
-// An accepted entry that no longer describes a real finding is a lie the other
-// way round, so it has to go.
 for (const a of ACCEPTED) {
   if (!writers.has(a.table)) {
     undeclared++;

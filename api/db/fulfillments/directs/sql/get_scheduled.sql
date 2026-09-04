@@ -1,6 +1,3 @@
--- Directs falling in a window, optionally for one employee. Same shape as the
--- pickups query - see its header for why a NULL bound is unbounded and why
--- unscheduled rows are kept.
 SELECT id, fulfillment_id, location_id, assigned_employee_id, is_appointment,
        start_time, end_time
   FROM fulfillments.directs

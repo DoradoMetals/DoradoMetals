@@ -1,13 +1,3 @@
-// aRefinerEngagement - the refinery's side of a purchase order.
-//
-// AN ENGAGEMENT IS THE PARENT OF THE MIRROR. `refiners.orders` is one row per
-// order sent to a refinery; `refiners.items` mirrors each customer line, and
-// `refiners.spots` mirrors each metal's locked price. The invariant every test
-// about this area asserts is that the three stay in step, so the builder
-// always creates all three from an order that already has lines - a bare
-// engagement with no mirror is a state the send path cannot produce, and no
-// call site has ever asked for one (verified 2026-09-04: every call is bare
-// `aRefinerEngagement(c, order)`).
 import type { PoolClient } from "pg";
 import { anId } from "#shared/testing/builders/ids.ts";
 import * as engagements from "#db/refiners/orders/repo.ts";

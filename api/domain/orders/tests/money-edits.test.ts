@@ -1,26 +1,3 @@
-// The admin money edits around a purchase order, over real HTTP - on the
-// resources that own them since the per-resource re-slice (28 August).
-//
-// WHY THIS FILE EXISTS. These edits were among the 46 routes that no test had
-// ever driven, and that list produced four defects: two routes dead since
-// December, a credit ledger recording a different number from the credit it
-// explained, and this batch is the rest of the same seam. They are the
-// figures that decide what the business pays a customer and what it keeps.
-//
-// The surface now: a parcel's money is PATCH /api/shipments/:id (addressed by
-// the shipment id the order wire serves), a payout's cost is
-// PATCH /api/payouts/:id (the payout id, same wire). The pool values and the
-// refiner fee are refiner-ENGAGEMENT facts and live with the refiners feature
-// - see refiner-edits.test.js. Every dispatch is the same service the old
-// route called.
-//
-// EACH TEST ASSERTS THE VALUE LANDS, not that the route answered 200. A
-// handler that returns early and writes nothing answers 200 too - which is
-// precisely how the add_funds test passed against broken code until it
-// counted rows.
-//
-// NOTHING IS COMMITTED. shared/testing/pinned-pool.js holds every query in one
-// transaction that is rolled back.
 import { test, afterAll } from "vitest";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
@@ -35,25 +12,12 @@ import { aUser, anOrder, aShipment, aPayout } from "#shared/testing/builders/ind
 await mockSessions();
 const { default: app } = await import("#app");
 
-// THE STRUCTURAL SUBSET EACH FIXTURE ACTUALLY HAS. These are SELECT
-// projections, not table rows - naming a row type would claim columns the
-// query never asked for.
 type UserFixture = { id: string; name: string | null; email: string | null };
 type ShipmentFixture = { id: string; order_id: string };
 type PayoutFixture = { id: string; order_id: string };
 
 const admin: UserFixture = TEST_ACTOR;
 
-// THE SHIPMENT AND THE PAYOUT ARE BUILT (lane 1). Both were the first row dev
-// held of their kind - a real parcel on a real purchase order, and a real
-// customer's bank account linked to a real order - and every test below writes
-// a MONEY column onto them: a shipping charge, an actual cost, a payout fee, a
-// payout method. The rollback is what made that survivable rather than the
-// fixture being ours.
-//
-// One order carries both, because that is what the endpoints assume: a parcel
-// addresses its order's money row, and a payout account is linked from the same
-// row.
 const money = async (c: PoolClient) => {
   const customer = await aUser(c);
   const order = await anOrder(c, customer, { direction: "purchase", status: "Pending" })
@@ -72,9 +36,6 @@ afterAll(async () => {
   await pool.end();
 });
 
-// Writes shipping.shipments.cost. The write is ORDER-scoped by design - every
-// parcel on the order - and the shipment id ADDRESSES the resource, as the
-// endpoint's header states.
 test("shipping_charge writes net_charge on the order's shipment", async () => {
   await inPinnedTransaction(async (client: PoolClient) => {
     const { shipment } = await money(client);
@@ -94,8 +55,6 @@ test("shipping_charge writes net_charge on the order's shipment", async () => {
   }, { actor: TEST_ACTOR.id, lock: [LOCKS.ORDERS, LOCKS.FULFILLMENTS] });
 });
 
-// Writes orders.transactions.shipping_fee_actual - an ORDER column reached
-// through the parcel, which the endpoint's keying note owns up to.
 test("shipping_actual lands on the shipment's order", async () => {
   await inPinnedTransaction(async (client: PoolClient) => {
     const { shipment } = await money(client);
@@ -115,8 +74,6 @@ test("shipping_actual lands on the shipment's order", async () => {
   }, { actor: TEST_ACTOR.id, lock: [LOCKS.ORDERS, LOCKS.FULFILLMENTS] });
 });
 
-// Writes orders.transactions.payout_fee - exchange kept this on the payout
-// row as `cost`, and 073 split the per-order fee off the bank account.
 test("cost writes the payout's cost", async () => {
   await inPinnedTransaction(async (client: PoolClient) => {
     const { payout } = await money(client);
@@ -146,11 +103,6 @@ test("method writes the payout's method, and the response is the payout row", as
         .send({ method: "ACH" });
 
       assert.equal(res.status, 200, `answered ${res.status}: ${JSON.stringify(res.body)}`);
-      // IT ANSWERS THE ROW NOW, not `{success: true}`: a bare success made the
-      // caller re-fetch to see what it had done. THE RADIOACTIVE RULE still
-      // holds and is asserted rather than assumed - the row is the last-four
-      // projection every payout read serves, and the two full numbers are not
-      // fields of it at all.
       assert.equal(res.body.id, payout.id);
       assert.equal(res.body.method, "ACH");
       assert.ok(!("routing_number" in res.body), "the payout PATCH answered a routing number");
@@ -168,8 +120,6 @@ test("method writes the payout's method, and the response is the payout row", as
   }, { actor: TEST_ACTOR.id, lock: [LOCKS.ORDERS, LOCKS.FULFILLMENTS] });
 });
 
-// The unknown-field refusal, on both endpoints - never a silent drop, and
-// nothing beside a refused field executes.
 test("an unknown field refuses by name on both endpoints", async () => {
   await inPinnedTransaction(async (client: PoolClient) => {
     const { shipment, payout } = await money(client);
@@ -180,9 +130,6 @@ test("an unknown field refuses by name on both endpoints", async () => {
       assert.equal(ship.status, 400, `answered ${ship.status}`);
       assert.match(ship.body?.error?.message ?? "", /"pool_oz_deducted"/);
 
-      // shipping.shipments, not the frozen exchange copy: D212 stopped the
-      // dual write, so `exchange.shipments` never sees this at all and the
-      // assertion was true of a table nothing had written either way.
       const charge = await client.query(
         `SELECT cost FROM shipping.shipments WHERE id = $1`,
         [shipment.id]
@@ -196,9 +143,6 @@ test("an unknown field refuses by name on both endpoints", async () => {
       const pay = await request(app)
         .patch(`/api/payouts/${payout.id}`)
         .send({ account_number: "12345678" });
-      // 400: the payout PATCH body is strict-parsed against PayoutPatch at
-      // transport now (D214 item 3), like the shipment PATCH above - an
-      // unknown field is a shape fact, refused before the service runs.
       assert.equal(pay.status, 400, `answered ${pay.status}`);
       assert.match(pay.body?.error?.message ?? "", /"account_number"/);
     });

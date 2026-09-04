@@ -1,8 +1,3 @@
-// SIGNING IN KEEPS THE BASKET (ruling 63), against the real tables.
-//
-// rules.test.ts pins the merge DECISION without a database; this pins what the
-// decision does to rows - which row survives, where the lines end up, and that
-// the visitor leaves nothing behind for the sweep to find.
 import { test, afterAll } from "vitest";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
@@ -24,10 +19,6 @@ afterAll(async () => { await pool.end(); });
 const LOCKS_HERE = [LOCKS.ORDERS, LOCKS.ADDRESSES];
 
 test("the merge's subject is exactly the repo's patch surface", () => {
-  // rules.ts restates checkouts.PATCHABLE rather than importing it, so that the
-  // rules module stays out of the database test lane. This is the pin that
-  // makes the copy honest: a column added to PATCHABLE and forgotten in
-  // CHOICE_COLUMNS would silently stop being carried across a sign-in.
   const patchable: readonly string[] = checkouts.PATCHABLE;
   assert.deepEqual([...CHOICE_COLUMNS].sort(), [...patchable].sort());
 });
@@ -46,8 +37,6 @@ test("a visitor's only checkout changes hands, id and lines and all", async () =
     assert.deepEqual(result.adopted, [
       { direction: "purchase", outcome: "moved", checkout_id: cart.id, replaced: 0 },
     ]);
-    // RE-KEYED, NOT COPIED: the same row id is now the customer's, so anything
-    // already holding that id (the open page's own cache) still resolves.
     const mine = await checkouts.findFor(customer.id, "purchase", c);
     assert.equal(mine?.id, cart.id);
     assert.equal(await checkouts.findFor(visitor.id, "purchase", c), undefined);
@@ -84,18 +73,11 @@ test("when the customer already has a row, theirs survives and takes the visitor
     const customer = await aUser(c);
     const product = await aProduct(c);
     const payout = await paymentMethodId(c, "ACH", "purchase");
-    // The visitor typed an address, so it is in THEIR book - the composite key
-    // (user_id, recipient_address_id) would refuse it otherwise. The address
-    // half of the hook re-keys it to the customer before the choices merge.
     const address = await anAddress(c, visitor);
 
-    // The customer's own row, from a previous visit, with a saved payout
-    // method.
     const mine = await aCart(c, customer, { direction: "purchase" })
       .withLots(2)
       .withRow({ payment_method_id: payout });
-    // The visitor's row: a different basket and an address the customer never
-    // chose.
     const theirs = await aCart(c, visitor, { direction: "purchase" })
       .withBullion(product, 1);
     await checkouts.update(theirs.id, { recipient_address_id: address.id }, c);
@@ -110,17 +92,13 @@ test("when the customer already has a row, theirs survives and takes the visitor
 
     const survivor = await checkouts.findFor(customer.id, "purchase", c);
     assert.equal(survivor?.id, mine.id, "the customer's row is the one that survives");
-    // The visitor's choice landed; the customer's saved one was not blanked.
     assert.equal(survivor?.recipient_address_id, address.id);
     assert.equal(survivor?.payment_method_id, payout);
 
-    // THE BASKET REPLACES rather than merges - it is the set the customer is
-    // looking at. Two lots gone, one bullion line in their place.
     const lines = await checkoutItems.listFor(mine.id, c);
     assert.equal(lines.length, 1);
     assert.equal(lines[0].bullion_id, product.id);
 
-    // Nothing is left for the sweep.
     assert.equal(await checkouts.findFor(visitor.id, "purchase", c), undefined);
     assert.equal((await checkouts.getOne(theirs.id, c)), undefined);
   }, { actor: TEST_ACTOR.id, lock: LOCKS_HERE });

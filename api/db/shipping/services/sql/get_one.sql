@@ -1,5 +1,3 @@
--- One service, by id. Same projection as get_all - see its header for why
--- three columns are aliased.
 SELECT
        id, carrier_id, name, description, code, provider_code,
        supports_pickups  AS supports_pickup,

@@ -1,35 +1,3 @@
-// anOrder - an order and everything a test usually means by one.
-//
-// *** THE CHAIN IS AWAITED, NOT BUILT AND THEN RUN. *** `anOrder(c, user)`
-// returns a thenable; `.withLots(2)` and friends only record intent, and the
-// whole plan executes at the first `await`. That is what lets a fixture read
-// as one sentence -
-//
-//     const order = await anOrder(c, seller, { direction: "purchase" })
-//       .withLots(2, { metal: "Gold" }).withTotals({ total: 1200 });
-//
-// - while still being ONE ordered sequence of repo calls underneath, in the
-// caller's transaction, with the audit trigger stamping each row.
-//
-// *** THE ORDER IS BORN FROM A CHECKOUT NOW (ruling 66). *** orders.orders no
-// longer takes a row literal - createForCheckout COPIES the owner and the
-// direction off a checkout.checkouts row, the same way domain/orders/place.ts
-// creates one. So `run()` builds a bare checkout first and hands its id to
-// the repo, exactly like a real placement would, instead of assembling a row
-// this feature no longer accepts.
-//
-// *** EVERY WRITE GOES THROUGH A REPO, WITH ONE NAMED EXCEPTION. *** `create`
-// on orders.items now only writes DECLARED LOTS (bullion_id forced NULL) and
-// `createFromProduct` copies a catalogue product's own rigid columns with no
-// override - neither can produce the arbitrary bullion_id/content/premium/
-// price combinations `withLines` exists for, and no repo does any more. That
-// escape hatch inserts directly, the same statement orders.items/sql/create.sql
-// still carries, exactly as `withAddress` already does for its own snapshot.
-//
-// *** LINES ARE THE ONLY THING WITH TWO SHAPES. *** A scrap lot has a metal, a
-// pre-melt weight and a purity and no product; a bullion line has a product and
-// a quantity. `withLots` and `withBullion` are those two, named, so no call
-// site has to remember which columns go null.
 import type { PoolClient } from "pg";
 import { anId, aTag } from "#shared/testing/builders/ids.ts";
 import * as ordersRepo from "#db/orders/repo.ts";
@@ -78,8 +46,6 @@ type BullionOptions = {
   unit?: string;
 };
 
-// The escape hatch's own shape: every column but the identity ones, with only
-// `metal_id` required - the rest defaults the way the table itself would.
 type LineSpec = Partial<Omit<OrderItem, "id" | "order_id" | "metal_id">> &
   Pick<OrderItem, "metal_id">;
 
@@ -96,8 +62,6 @@ class OrderPlan implements PromiseLike<BuiltOrder> {
     private readonly options: OrderOptions
   ) {}
 
-  // N scrap lots of the same metal - the commonest purchase fixture. Each lot
-  // gets its own weight so a test summing them cannot pass by symmetry.
   withLots(n: number, options: LotOptions = {}): this {
     this.steps.push(async (c, order) => {
       const metal_id = await metalId(c, options.metal ?? "Gold");
@@ -125,11 +89,6 @@ class OrderPlan implements PromiseLike<BuiltOrder> {
     return this;
   }
 
-  // One bullion line for a product a test already built. `create` no longer
-  // takes a bullion_id at all (declared lots only) - the copy is
-  // `createFromProduct`'s, and everything it does not set (quantity, premium,
-  // confirmed, price) is patched on afterward, the same two-step a real admin
-  // add-then-edit takes.
   withBullion(product: BuiltProduct, quantity = 1, options: BullionOptions = {}): this {
     this.steps.push(async (c, order) => {
       const created = await itemsRepo.createFromProduct(order.id, product.id, c);
@@ -144,9 +103,6 @@ class OrderPlan implements PromiseLike<BuiltOrder> {
           confirmed: options.confirmed ?? false,
           sales_tax_charged: options.sales_tax_charged ?? 0,
           price: options.price ?? null,
-          // ALWAYS SET, AND ALWAYS "t oz". Bullion is quoted per troy ounce -
-          // every one of the 21 bullion lines on dev carries it - and a null
-          // unit reaches convertTroyOz, which calls .toLowerCase() on it.
           unit: options.unit ?? "t oz",
         },
         { order_id: order.id },
@@ -157,10 +113,6 @@ class OrderPlan implements PromiseLike<BuiltOrder> {
     return this;
   }
 
-  // The escape hatch for a line whose exact columns are the subject - the one
-  // place a test may name a bullion_id AND an arbitrary content/premium/price,
-  // which no repo will write any more. A direct INSERT, the same shape
-  // orders/items/sql/create.sql still carries.
   withLines(...lines: LineSpec[]): this {
     this.steps.push(async (c, order) => {
       for (const line of lines) {
@@ -185,15 +137,6 @@ class OrderPlan implements PromiseLike<BuiltOrder> {
     return this;
   }
 
-  // EVERY ORDER CARRIES EVERY METAL. The quote written at placement covers all
-  // four, not only the metals the order holds - which is why a test looking for
-  // "an order missing a metal" once found none, asserted nothing and passed for
-  // its whole life (audit:vacuous-tests, orders/spots).
-  //
-  // freezeForOrder only COPIES today's live spots.spots row, so a fixture that
-  // needs a KNOWN bid/ask (most of them) cannot go through it - this inserts
-  // directly, the same statement orders/spots/sql/create.sql carried before it
-  // freezeForOrder replaced it.
   withSpots({ bid = 100, ask = 200 }: { bid?: number | null; ask?: number | null } = {}): this {
     this.steps.push(async (c, order) => {
       for (const metal_id of (await metalIds(c)).values()) {
@@ -208,8 +151,6 @@ class OrderPlan implements PromiseLike<BuiltOrder> {
     return this;
   }
 
-  // The money row. Absent by default, because "an order with no totals yet" is
-  // a real state and several tests are about reaching it.
   withTotals(totals: Totals = {}): this {
     this.steps.push(async (c, order) => {
       await totalsRepo.create({ order_id: order.id, ...totals }, c);
@@ -217,8 +158,6 @@ class OrderPlan implements PromiseLike<BuiltOrder> {
     return this;
   }
 
-  // The frozen copy of where the parcel went. Takes an address id, since the
-  // address itself is anAddress's job.
   withAddress(address: { id: string }): this {
     this.steps.push(async (c, order) => {
       const snapshot = await c.query<{ id: string }>(
@@ -252,12 +191,6 @@ class OrderPlan implements PromiseLike<BuiltOrder> {
       );
     }
 
-    // THE CHECKOUT THE ORDER BECAME (ruling 66) - a bare one, built only so
-    // createForCheckout has a row to copy the owner and the direction from,
-    // the same shape a real placement names by id.
-    // ONE ROW PER (user_id, direction), so create() answers nothing when the
-    // fixture (or the test itself) already opened that session - which is the
-    // normal case for a second order in one transaction, not an error.
     const checkout =
       (await checkoutsRepo.create({ user_id: this.user.id, direction }, this.c)) ??
       (await checkoutsRepo.findFor(this.user.id, direction, this.c));
@@ -298,6 +231,4 @@ export function anOrder(
   return new OrderPlan(c, user, options);
 }
 
-// A status nothing else in the suite can be holding - for the tests whose
-// whole claim is "the value I wrote is the value that came back".
 export const aStatus = (): string => `probe-${aTag()}`;

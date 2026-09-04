@@ -1,4 +1,3 @@
-// orders.orders - CRUD only. One table, both directions; direction is a column.
 import query from "#shared/db/query.ts";
 import { buildUpdate } from "#shared/db/patch.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
@@ -11,15 +10,11 @@ import { Order, OrderGuard as Guard, OrderWrite as Write } from "@dorado/contrac
 
 const sql = sqlFrom(import.meta.dirname);
 
-
 export async function exists(id: string, executor?: Executor): Promise<boolean> {
   const { rows } = await query<{ present: boolean }>(sql("exists"), [id], executor);
   return rows[0]?.present === true;
 }
 
-// THE COLUMN'S OWN TYPE, not `string`: the contract's `orders.enums.Direction` IS the
-// orders.direction enum, which is what lets a caller pass the answer straight
-// into a rule without a cast.
 export async function directionOf(
   id: string, executor?: Executor
 ): Promise<Direction | null> {
@@ -29,7 +24,6 @@ export async function directionOf(
   return rows[0]?.direction ?? null;
 }
 
-// The direction of several orders at once.
 export async function directionsById(
   ids: string[], executor?: Executor
 ): Promise<Map<string, Direction>> {
@@ -40,8 +34,6 @@ export async function directionsById(
   return new Map(rows.map((r) => [r.id, r.direction]));
 }
 
-// Both narrowings are optional and null means "every one": an admin asking for
-// everything passes neither.
 export async function list(
   { direction = null, user_id = null }: { direction?: string | null; user_id?: string | null },
   executor?: Executor
@@ -72,13 +64,6 @@ export async function ownersById(
   return new Map(rows.map((r) => [r.id, r.user_id]));
 }
 
-// THE ONE WRITE. The guard is a row-state precondition evaluated IN THE
-// STATEMENT, which makes the Pending-only transitions atomic under webhook
-// retries: false means "nothing needed doing", never a stomped later status.
-// THE COLUMNS, FROM THE CONTRACT (ruling 64): `OrderWrite` is the row without
-// its identity and without the audit columns the audit_stamp trigger writes.
-// What a REQUEST may name is the narrower `OrderPatch`, parsed strictly at the
-// transport.
 export const PATCHABLE = columnsOf(Write);
 const GUARDABLE = columnsOf(Guard);
 
@@ -100,9 +85,6 @@ export async function update(
   return rowCount === 1;
 }
 
-// The sweeps' candidate reads and the reserved-credit read the cancel guards
-// on. Each is a WHERE no other statement has; the shapes are contracts
-// (computed/orders.ts) because no single table backs a three-way join.
 export async function findSalesAwaitingSettledIntent(
   executor?: Executor
 ): Promise<SettledAwaiting[]> {
@@ -126,10 +108,6 @@ export async function findReservedFunds(
   return rows[0];
 }
 
-// THE ORDER A CHECKOUT BECAME. The owner and the direction are COPIED from
-// the checkout row by the statement (ruling 66), so nothing assembles a row
-// literal out of them first; `number` comes from that direction's own
-// sequence, inside the same statement.
 export async function createForCheckout(
   { id, checkout_id, status }: { id?: string | null; checkout_id: string; status: string },
   executor?: Executor

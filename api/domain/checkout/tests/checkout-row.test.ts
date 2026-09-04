@@ -1,12 +1,3 @@
-// THE CHECKOUT ROW SURFACE (D208), over real HTTP, nothing committed.
-//
-// Jacob's design for the checkout conversion: the stepper writes IDS into the
-// customer's checkout row, the fulfillment is a live DRAFT the same steps
-// mutate, and order creation consumes what the server holds. This is the
-// maximum-coverage suite that design was ordered with ("this needs maximum
-// amount of testing btw - these are core to our app"): every surface, every
-// refusal, and the invariants that make the draft safe - a draft is invisible
-// to order reads, the attach is one-way, and the whitelist holds.
 import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
@@ -27,27 +18,13 @@ const { default: app } = await import("#app");
 
 type UserFixture = { id: string; name: string | null; email: string | null };
 
-let purchaseMethodId: string; // an offered purchase-direction fulfillment method
-let saleMethodId: string;     // an offered sale-direction one
-let hiddenMethodId: string;   // a hidden method the menu never offered
+let purchaseMethodId: string;
+let saleMethodId: string;
+let hiddenMethodId: string;
 
-// THE TWO NAMED PEOPLE AND THE SEEDED METHODS (lane 1). The customer and the
-// stranger were the first two non-admin rows of the frozen exchange.users
-// table, joined to auth.users to avoid picking one that existed in only one
-// place - a join 118 made pointless. They are named now, and anything they
-// need to OWN (a cart, an address) is built inside the transaction.
-//
-// The methods stay a read: `fulfillments.methods` is seeded reference data and
-// what these tests mean is "an offered purchase method", "an offered sale
-// method" and "a hidden one" - three named facts about the seed, resolved once
-// rather than by three LIMIT 1 queries.
 const customer: UserFixture = TEST_CUSTOMER;
 const admin: UserFixture = TEST_ACTOR;
 
-// THE HANDOVER IS A FULFILLMENT CALL NOW (rulings 69/70). POST
-// /api/checkout/fulfillment is POST /api/fulfillments, and the checkout row is
-// named by id rather than by direction - so these two helpers stand in for what
-// the stepper does: read the row, then ask fulfillments for a draft on it.
 const checkoutIdFor = async (
   who: UserFixture, direction: "purchase" | "sale" = "purchase"
 ): Promise<string> =>
@@ -68,8 +45,6 @@ beforeAll(async () => {
   const methods = await outside<{ id: string; type: string; direction: string; hidden: boolean }>(
     `SELECT id, type, direction, hidden FROM fulfillments.methods WHERE enabled`
   );
-  // NAMED, not "the first one that matches": which method sorts first is not a
-  // fact any test here means, and `other` below has to be a DIFFERENT one.
   purchaseMethodId = methods.find(
     (m) => m.direction === "purchase" && m.type === "CARRIER DROPOFF")!.id;
   saleMethodId = methods.find((m) => m.direction === "sale" && !m.hidden)!.id;
@@ -82,8 +57,6 @@ afterAll(async () => {
   await pool.end();
 });
 
-// ------------------------------------------------------------------- reads
-
 test("GET /api/checkout mints the row on first read, one per direction", async () => {
   await inPinnedTransaction(async () => {
     const first = await as(customer, () =>
@@ -93,23 +66,14 @@ test("GET /api/checkout mints the row on first read, one per direction", async (
     assert.equal(first.body.direction, "purchase");
     assert.equal(first.body.user_id, customer.id);
     assert.equal(first.body.fulfillment_id, null);
-    // THE ROW PLUS ONE LIST (Jacob, 2026-09-04). `fulfillment_method_type`,
-    // `handoff_code` and `requires_schedule` were scalar joins onto lists the
-    // stepper already renders (ruling 12); `item_count` and the three
-    // `ready_*` booleans were second readings of `missing`.
     assert.equal(first.body.fulfillment_method_type, undefined);
     assert.equal(first.body.handoff_code, undefined);
     assert.equal(first.body.requires_schedule, undefined);
     assert.equal(first.body.item_count, undefined);
     assert.equal(first.body.ready_to_place, undefined);
-    // A purchase with no method chosen owes its items, the method itself and
-    // the payout account - and nothing about a box it may never need.
     assert.deepEqual(
       first.body.missing, ["items", "fulfillment_id", "payment_details_id"]
     );
-    // AND NOTHING ABOUT A BOX: the handover's own list is spliced in only once
-    // a draft exists, and fulfillments is the only thing that writes it
-    // (ruling 70).
     assert.ok(!first.body.missing.includes("package_id"));
 
     const again = await as(customer, () =>
@@ -124,10 +88,6 @@ test("GET /api/checkout mints the row on first read, one per direction", async (
   }, { actor: TEST_ACTOR.id, lock: [LOCKS.FULFILLMENTS, LOCKS.ORDERS] });
 });
 
-// 400, NOT 422 (ruling 48, 2026-09-03): a direction is parsed against the
-// contract's `Direction` at the transport, like every other field, so a
-// value that is not one of the two labels never reaches the domain. The
-// earlier 422 came from a domain function that only re-typed its input.
 test("an anonymous caller gets nothing, and a bad direction is refused", async () => {
   await inPinnedTransaction(async () => {
     const anon = await request(app).get("/api/checkout?direction=purchase");
@@ -140,13 +100,8 @@ test("an anonymous caller gets nothing, and a bad direction is refused", async (
   }, { actor: TEST_ACTOR.id, lock: [LOCKS.FULFILLMENTS, LOCKS.ORDERS] });
 });
 
-// ------------------------------------------------------------------- patch
-
 test("PATCH writes the whitelisted id columns and answers the fresh row", async (t) => {
   await inPinnedTransaction(async (c: PoolClient) => {
-    // TWO COLUMNS LEFT (rulings 69/70, migration 128): where a sale is
-    // delivered and how it is paid for. The eight handover ids that used to
-    // arrive here are PATCH /api/fulfillments/:id's.
     const address = { id: (await anAddress(c, customer)).id };
     const pm = { id: await paymentMethodId(c, "ACH", "purchase") };
 
@@ -161,7 +116,6 @@ test("PATCH writes the whitelisted id columns and answers the fresh row", async 
     assert.equal(res.body.recipient_address_id, address.id);
     assert.equal(res.body.payment_method_id, pm.id);
 
-    // Clearing is a write too - a customer un-picking an option.
     const cleared = await as(customer, () =>
       request(app).patch("/api/checkout").send({
         direction: "purchase",
@@ -178,10 +132,6 @@ test("PATCH writes the whitelisted id columns and answers the fresh row", async 
 
 test("an address lands only if it is in the CALLER'S book", async () => {
   await inPinnedTransaction(async (c: PoolClient) => {
-    // TWO BOOKS, BUILT (lane 1). Book membership is the check the service runs
-    // (places.user_addresses) and nothing else, so the claim needs one address
-    // in the caller's book and one in somebody else's - which this hunted for
-    // with a NOT EXISTS and then asserted it had found. Both are stated now.
     const own = { address_id: (await anAddress(c, customer)).id };
     const someoneElse = await aUser(c);
     const foreign = { address_id: (await anAddress(c, someoneElse)).id };
@@ -205,11 +155,6 @@ test("an address lands only if it is in the CALLER'S book", async () => {
   }, { actor: TEST_ACTOR.id, lock: [LOCKS.FULFILLMENTS, LOCKS.ORDERS] });
 });
 
-// THE WHITELIST HOLDS, AND IT NOW REFUSES OUT LOUD. The contract schema is
-// the whitelist and it is parsed in STRICT mode, so a column the customer may
-// not write is a 400 naming it rather than a silently ignored key. Ignoring
-// them was the older behaviour; a request that thinks it set fulfillment_id
-// and got a 200 is worse than one that is told no.
 test("the whitelist holds: fulfillment_id, user_id and id cannot be patched in", async () => {
   await inPinnedTransaction(async (c: PoolClient) => {
     const somebodyElse = await aUser(c);
@@ -263,8 +208,6 @@ test("a malformed start_time is refused before it reaches the database", async (
   }, { actor: TEST_ACTOR.id, lock: [LOCKS.FULFILLMENTS, LOCKS.ORDERS] });
 });
 
-// ------------------------------------------------------- the draft fulfillment
-
 test("the draft is minted ONCE, linked, and later calls move its method in place", async () => {
   await inPinnedTransaction(async (c: PoolClient) => {
     const first = await chooseHandover(customer, { method_id: purchaseMethodId });
@@ -277,11 +220,6 @@ test("the draft is minted ONCE, linked, and later calls move its method in place
       draftId,
       "the row did not keep the draft's id"
     );
-    // The method type left the wire too (Jacob, 2026-09-04): the row names its
-    // fulfillment, and the stepper selects the handoff by that id against the
-    // list it already renders. What the row still says is what it OWES - and a
-    // dropoff owes no courier slot, which is the only thing the type was read
-    // for here.
     assert.ok(
       !first.body.missing.includes("pickup_date"),
       "a dropoff was asked for a courier slot"
@@ -292,19 +230,11 @@ test("the draft is minted ONCE, linked, and later calls move its method in place
     assert.equal(draft[0].method_id, purchaseMethodId);
     assert.equal(draft[0].order_id, null, "a draft must have no order");
 
-    // Change the option: same draft, new method - Jacob's "each time an
-    // option is changed, the server-side fulfillment gets updated".
-    // The OTHER offered purchase method, named: the seed has CARRIER DROPOFF,
-    // CARRIER PICKUP, PICKUP and APPOINTMENT, and what matters is that it is
-    // not the one already on the row.
     const other = { id: await fulfillmentMethodId(c, "CARRIER PICKUP", "purchase") };
     assert.notEqual(other.id, purchaseMethodId, "the fixture named the same method twice");
     const second = await chooseHandover(customer, { method_id: other.id });
     assert.equal(second.status, 200, second.text);
     assert.equal(second.body.fulfillment.id, draftId, "a second call minted a second draft");
-    // A carrier pickup is the schedulable handoff, so the courier slot becomes
-    // a pair of steps the customer still owes - and `missing` says so without
-    // anybody reading a method type.
     assert.ok(second.body.missing.includes("pickup_date"));
     assert.ok(second.body.missing.includes("pickup_time"));
 
@@ -334,9 +264,6 @@ test("a sale method cannot land on a purchase checkout", async () => {
 test("a draft is INVISIBLE to order-facing reads", async () => {
   await inPinnedTransaction(async (c: PoolClient) => {
     await chooseHandover(customer, { method_id: purchaseMethodId });
-    // Every order-facing read joins through order_id; a draft has none. The
-    // schedule is the read that would leak an appointment to an employee
-    // screen if a draft ever surfaced.
     const { rows } = await c.query(
       `SELECT f.id FROM fulfillments.fulfillments f
         JOIN orders.orders o ON o.id = f.order_id
@@ -356,10 +283,6 @@ test("the attach is one-way: once an order holds the draft, a second attach refu
     const res = await chooseHandover(customer, { method_id: purchaseMethodId });
     const draftId = res.body.fulfillment.id;
 
-    // THE ATTACH TARGET IS BUILT (lane 1). "Any order in both schemas will do;
-    // the transaction rolls back" was true and still meant the fixture was a
-    // real order, found by NOT EXISTS - and a built order has no fulfillment
-    // by construction, so the search and its guard both go.
     const order = await anOrder(c, customer, { direction: "purchase" });
 
     const attached = await fulfillmentService.attachToOrder(draftId, order.id, c);
@@ -375,9 +298,6 @@ test("the attach is one-way: once an order holds the draft, a second attach refu
 
 test("two customers' rows never touch: the stranger sees their own empty checkout", async () => {
   await inPinnedTransaction(async (c: PoolClient) => {
-    // THE STRANGER IS BUILT, per test: the checkout service resolves the
-    // user_id it is given, so this person has to exist - and a built one has no
-    // checkout at all, which is exactly what "their own empty checkout" needs.
     const stranger = await aUser(c, { name: "A Stranger" });
     await chooseHandover(customer, { method_id: purchaseMethodId });
     const theirs = await as(stranger, () =>
@@ -389,13 +309,6 @@ test("two customers' rows never touch: the stranger sees their own empty checkou
   }, { actor: TEST_ACTOR.id, lock: [LOCKS.FULFILLMENTS, LOCKS.ORDERS] });
 });
 
-// -------------------------------------------------- admin-scoped access
-
-// THE NARROW THING (D214 item 2): createOrderFromCheckout already lets an
-// admin name any checkout_id; this is the other half - reading and writing a
-// NAMED customer's row, the piece the admin sales-order create needed and did
-// not have (see the comment this closes in
-// features/orders/salesOrders/admin/queries.ts).
 test("an admin reads and writes a NAMED customer's checkout by ?user_id=", async () => {
   await inPinnedTransaction(async (c: PoolClient) => {
     const stranger = await aUser(c, { name: "A Stranger" });
@@ -420,9 +333,6 @@ test("an admin reads and writes a NAMED customer's checkout by ?user_id=", async
 
 test("a non-admin naming somebody else's user_id is refused, not answered", async () => {
   await inPinnedTransaction(async (c: PoolClient) => {
-    // The refusal happens before any user is resolved, so this stranger need
-    // not own anything - but it must be a DIFFERENT person from the caller,
-    // which is the whole claim.
     const stranger = await aUser(c, { name: "A Stranger" });
     const read = await as(customer, () =>
       request(app).get(`/api/checkout?direction=purchase&user_id=${stranger.id}`)
@@ -436,8 +346,6 @@ test("a non-admin naming somebody else's user_id is refused, not answered", asyn
     );
     assert.equal(write.status, 403, write.text);
 
-    // Naming YOURSELF is not "somebody else" - a deployed client sending its
-    // own id (the cart auto-sync does) must never be refused.
     const own = await as(customer, () =>
       request(app).get(`/api/checkout?direction=purchase&user_id=${customer.id}`)
     );

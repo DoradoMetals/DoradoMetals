@@ -1,11 +1,3 @@
-// Carrier services through the service, against real Postgres. Each test runs inside a rolled-back transaction.
-// exchange.carrier_services is checked in a few places only to prove it stays untouched - service.ts writes shipping.services alone now.
-// createService/updateService/removeService are USE CASES (ruling 56): no
-// executor parameter, each opens its own transaction. inPinnedTransaction
-// patches the pool so that transaction lands on this test's own connection
-// and rolls back with it; runWithActor puts the actor where withTransaction
-// reads it from (shared/http/actor.ts), since these calls no longer take a
-// client actingAs can set app.actor_id on directly.
 import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
@@ -33,15 +25,8 @@ afterAll(async () => {
   await pool.end();
 });
 
-// FedEx BY NAME, out of shipping.carriers - the table the service writes
-// against. This read exchange.carriers, a frozen table, for an id it then
-// used as a foreign key in the NEW schema; the two agree today (the resolver
-// test next door is what proves it) but the fixture had no business depending
-// on that.
 const fedex = (c: PoolClient) => carrierId(c, "FedEx");
 
-// A name nothing else uses, so assertions can be scoped to it rather than to a
-// table count - vitest runs files in parallel.
 const aName = () => `test-service-${randomUUID().slice(0, 8)}`;
 
 const draft = async (c: PoolClient, over = {}) => ({
@@ -51,10 +36,6 @@ const draft = async (c: PoolClient, over = {}) => ({
   ...over,
 });
 
-// TWO NAMED PEOPLE, BUILT (lane 1). These were the first two named rows of
-// auth.users, so "the maker" and "the editor" were whichever two customers
-// sorted first - and a database with fewer made the attribution assertions
-// vacuous rather than red.
 const twoPeople = async (c: PoolClient) => [
   await aUser(c, { name: "Fixture Maker" }),
   await aUser(c, { name: "Fixture Editor" }),
@@ -68,13 +49,11 @@ test("the list keeps the three renamed columns under the names the frontend read
   for (const field of ["supports_pickups", "supports_dropoffs", "max_weight_lb"]) {
     assert.ok(!(field in row), `${field} reached the wire under its new name`);
   }
-  // These exist only in the new schema and must not appear.
   for (const field of ["created_by_id", "updated_by_id"]) {
     assert.ok(!(field in row), `${field} has no equivalent in exchange and reached the wire`);
   }
 });
 
-// Both carriers offer a 'Free', 'Overnight' and 'Standard' - without the id tiebreak, the same rows could come back in a different order run to run.
 test("the list is ordered by name, with a stable tiebreak", async () => {
   const rows = await service.getAllServices();
   const keys = rows.map((r) => `${r.name} ${r.id}`);
@@ -97,7 +76,6 @@ test("create writes the row the id names", async () => {
   }, { actor: TEST_ACTOR.id });
 });
 
-// Defaults are service.ts's, not the table's: the column defaults to false, but the business's answer is true, and the statement lists every column so service.ts decides.
 test("a service created with nothing but a name and carrier gets the business's defaults", async () => {
   await inPinnedTransaction(async (c: PoolClient) => {
     const [maker] = await twoPeople(c);
@@ -116,7 +94,6 @@ test("a service created with nothing but a name and carrier gets the business's 
     assert.equal(made.is_international, false);
     assert.equal(Number(made.min_transit_days), 0);
     assert.equal(Number(made.display_order), 0);
-    // "Dorado Metals" was the old placeholder when nobody was named - the row records the real actor now.
     assert.equal(made.created_by, maker.name);
 
     const { rows: nx } = await c.query(
@@ -134,8 +111,6 @@ test("a service created with nothing but a name and carrier gets the business's 
   }, { actor: TEST_ACTOR.id });
 });
 
-// `false` is a value, not an absence. A `??` here would have turned every
-// explicit false back into the default.
 test("an explicit false is kept, not replaced by the default", async () => {
   await inPinnedTransaction(async (c: PoolClient) => {
     const made = await service.createService(
@@ -182,8 +157,6 @@ test("update changes the row, including a renamed column", async () => {
   }, { actor: TEST_ACTOR.id });
 });
 
-// The three renames are the one thing a misaligned parameter array would
-// scramble silently: two are booleans and one a numeric, so a swap type-checks.
 test("the renamed wire fields land in the right columns", async () => {
   await inPinnedTransaction(async (c: PoolClient) => {
     const made = await service.createService(
@@ -203,7 +176,6 @@ test("the renamed wire fields land in the right columns", async () => {
   }, { actor: TEST_ACTOR.id });
 });
 
-// created_by records who made the row; an edit must not overwrite it - the audit trigger never touches created_* on UPDATE.
 test("an update does not reassign created_by", async () => {
   await inPinnedTransaction(async (c: PoolClient) => {
     const [maker, editor] = await twoPeople(c);
@@ -226,23 +198,17 @@ test("delete removes the row", async () => {
     assert.ok(made, "the service returned nothing");
     await service.removeService(made.id);
 
-    // The exchange.carrier_services check that used to sit here
-    // (exchange-fixtures lane, D214 item 10, removed) was vacuous: made.id
-    // is a freshly minted shipping.services id nothing ever writes to
-    // exchange, so it could never have found a row there - and this already
-    // proves the live table lost it.
     assert.equal(await service.getServiceById(made.id), null);
   }, { actor: TEST_ACTOR.id });
 });
 
-// shipping.shipments.carrier_service_id / checkout.checkouts.carrier_service_id reference this table with no ON DELETE - a referenced service can't be removed.
 test("deleting a referenced service is refused, and exchange keeps its row", async () => {
   await inPinnedTransaction(async (c: PoolClient) => {
     const { rows: referenced } = await c.query(
       `SELECT carrier_service_id AS id FROM shipping.shipments
         WHERE carrier_service_id IS NOT NULL LIMIT 1`
     );
-    if (!referenced[0]) return; // dev has no shipment naming a service
+    if (!referenced[0]) return;
 
     const id = referenced[0].id;
     await assert.rejects(() => service.removeService(id), /violates foreign key/i);
@@ -256,13 +222,8 @@ test("getServicesByCarrierId returns that carrier's services and no others", asy
   for (const row of rows) assert.equal(row.carrier_id, id);
 });
 
-// `id` is required on CarrierServicePatch now (the contract, parsed strictly
-// at transport) - a request naming none is a 400 before this ever runs. What
-// this proves is the reachable case: an id nothing names changes nothing.
 test("an update naming an id nothing has changes nothing", async () => {
   await inPinnedTransaction(async (c: PoolClient) => {
-    // shipping.services, not exchange.carrier_services (exchange-fixtures
-    // lane, D214 item 10) - the table this service actually writes.
     const { rows: before } = await c.query("SELECT count(*)::int n FROM shipping.services");
     assert.equal(await service.updateService({ id: randomUUID(), name: "nobody" }), null);
     const { rows: after } = await c.query("SELECT count(*)::int n FROM shipping.services");

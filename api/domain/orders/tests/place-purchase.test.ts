@@ -1,15 +1,3 @@
-// THE ZERO-BODY PURCHASE CREATE (D210), tested to the hilt without a FedEx
-// call ever being reachable. By Confirm, everything is a server-side resource:
-// the row's ids, the parcel's weight and declared value COMPUTED (ruling 58,
-// not columns any more), the draft fulfillment, and the payout account
-// SEALED in payments.details at the payout step.
-//
-// THE SEAMS ARE GONE (D214 item 11). `resolvePurchase` and `recordPurchase`
-// were exported halves of one use case, so the row flow could be asserted with
-// no provider reachable. `place(checkout_id, world)` takes the outside world as
-// an argument instead - the seam sendToRefiner already had for email - and the
-// stub RECORDS what the carrier was asked for, which is what the resolution
-// used to be asserted on.
 import { test, afterAll } from "vitest";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
@@ -33,19 +21,6 @@ const checkoutService = await import("#domain/checkout/service.ts");
 
 type UserFixture = { id: string };
 
-// THE WHOLE WORLD IS BUILT (lane 1), and it is threaded through primeCheckout
-// rather than held in module-scope `let`s.
-//
-// What it replaces: a non-admin customer WITH AN ADDRESS, found by joining the
-// FROZEN `exchange.users` to `places.user_addresses` and back to `auth.users`
-// for the name (three tables to answer "a person and where they live"), plus a
-// product name out of `exchange.products` - a table D212 stopped writing.
-// The basket names the product by id now.
-//
-// The seeded reference rows stay named: "Small Box", "Express Saver", a
-// carrier-agnostic sale service, and the three purchase fulfillment methods.
-// Those are literals of the seed, not fixtures - see
-// shared/testing/builders/reference.ts.
 type Fixtures = {
   customer: UserFixture;
   customerName: string | null;
@@ -72,15 +47,11 @@ const aWorld = async (c: PoolClient): Promise<Fixtures> => {
     saleServiceId: await saleServiceId(c),
     dropoffMethodId: await fulfillmentMethodId(c, "CARRIER DROPOFF", "purchase"),
     pickupMethodId: await fulfillmentMethodId(c, "CARRIER PICKUP", "purchase"),
-    // A non-SHIPMENT purchase method - the shipping checkout must refuse it.
     directMethodId: await fulfillmentMethodId(c, "PICKUP", "purchase"),
     productId: product.id,
   };
 };
 
-
-// A BUILDER, not a base object to spread over: the two fields a variant changes
-// are arguments, so no call site copies the other five.
 const payoutForm = (routing_number = "021000021", account_number = "000123456789") => ({
   direction: "purchase",
   method: "ACH",
@@ -92,15 +63,6 @@ const payoutForm = (routing_number = "021000021", account_number = "000123456789
 });
 const PAYOUT = payoutForm();
 
-// THE PROVIDER BOUNDARY, STUBBED AND RECORDED. no-network.ts refuses a real
-// carrier call loudly.
-//
-// PLACEMENT ASKS FOR A LABEL BY SHIPMENT ID, AND BY NOTHING ELSE (ruling 67,
-// then 69/70): buying one is domain/shipping/labels.ts' job and everything it
-// needs - the service, the box, the handoff, the insured amount and now the
-// courier slot the customer asked for - is a column of the parcel. So the stub
-// records one id, and every assertion reads the row, which is the stronger
-// question anyway: what got WRITTEN, not what was passed.
 function carrier() {
   const asked: string[] = [];
   const world: typeof place.LIVE = {
@@ -113,7 +75,6 @@ function carrier() {
   return { world, asked };
 }
 
-// The parcel the placement committed, by order.
 async function shellFor(c: PoolClient, order_id: string) {
   const { rows: [shell] } = await c.query(
     `SELECT s.id, s.carrier_service_id, s.package_id, s.pickup_type, s.insured,
@@ -133,12 +94,6 @@ afterAll(async () => {
   await pool.end();
 });
 
-// Drive the same surfaces the stepper drives: POST the fulfillment, PATCH its
-// parcel, POST the payout, PUT the basket.
-//
-// THE PARCEL FACTS ARE A FULFILLMENT PATCH NOW (rulings 69/70, migration 128).
-// They used to be a PATCH /api/checkout naming five handover columns, which is
-// exactly the arrangement ruling 70 forbids.
 async function primeCheckout(
   fixtures: Fixtures,
   methodId: string,
@@ -192,8 +147,6 @@ async function primeCheckout(
   };
 }
 
-// ------------------------------------------------------- the payout step
-
 test("the payout step SEALS the numbers and the plaintext columns stay NULL", async () => {
   await inPinnedTransaction(async (c: PoolClient) => {
     const fixtures = await aWorld(c);
@@ -223,7 +176,6 @@ test("the payout step SEALS the numbers and the plaintext columns stay NULL", as
       "the envelope does not open back to the number"
     );
 
-    // Editing rewrites IN PLACE - the checkout keeps one details row.
     const again = await as(customer, () =>
       request(app).post("/api/checkout/payout").send(
         payoutForm(PAYOUT.routing_number, "000999999999")
@@ -252,15 +204,11 @@ test("an incomplete or nonsense payout form refuses", async () => {
       const res = await as(customer, () =>
         request(app).post("/api/checkout/payout").send(form)
       );
-      // 422, NOT 400 (D214 item 11): the payout form's rules are the domain's,
-      // and a domain refusal is Invalid.
       assert.equal(res.status, 422, `accepted: ${JSON.stringify(form)}`);
       assert.match(res.body?.error?.message ?? res.text, why);
     }
   }, { actor: TEST_ACTOR.id, lock: LOCKS.ORDERS });
 });
-
-// ------------------------------------------------------- what the carrier is asked
 
 test("the parcel is the draft's own row - no body exists any more", async () => {
   await inPinnedTransaction(async (c: PoolClient) => {
@@ -270,9 +218,6 @@ test("the parcel is the draft's own row - no body exists any more", async () => 
     const { checkout_id } = await primeCheckout(fixtures, dropoffMethodId);
     const order = await place.place(checkout_id, world);
 
-    // The box, the service and the origin are the parcel's own columns, patched
-    // there by the stepper (128); the handoff and the insured amount are what
-    // the server DECIDED at placement.
     const shell = await shellFor(c, order.order.id);
     assert.equal(shell.direction, "Inbound");
     assert.equal(shell.pickup_type, "Store Dropoff");
@@ -296,8 +241,6 @@ test("a pickup needs its slot ON THE PARCEL, and carries it when set", async () 
     const unscheduled = await primeCheckout(fixtures, pickupMethodId);
     await assert.rejects(
       () => place.place(unscheduled.checkout_id, carrier().world),
-      // The refusal is the composed list now - checkout's own steps plus
-      // whatever fulfillments says its parcel still owes.
       /missing pickup_date, pickup_time/
     );
 
@@ -307,7 +250,6 @@ test("a pickup needs its slot ON THE PARCEL, and carries it when set", async () 
 
     const shell = await shellFor(c, order.order.id);
     assert.equal(shell.pickup_type, "Carrier Pickup");
-    // THE SLOT IS A COLUMN (128), so the label call needs no argument for it.
     assert.equal(shell.pickup_date, "2026-09-15");
     assert.equal(shell.pickup_time, "10:30:00");
     assert.deepEqual(asked, [shell.id]);
@@ -353,21 +295,12 @@ test("a sale delivery service buys no labels, and a collected order owes its own
         checkout_id, method_id: directMethodId,
       })
     );
-    // THE CATEGORY REFUSAL IS GONE (Jacob, 2026-09-04: "If it's a direct or
-    // pickup, why would it need shipper_address_id or package_id?"). A
-    // non-SHIPMENT fulfillment is placeable; what it owes is its OWN steps -
-    // and only the TIME is left, because a new draft takes the customer's
-    // default address the way the checkout row used to (domain/fulfillments/
-    // drafts.ts). It is refused for that rather than for being the wrong kind
-    // of thing.
     await assert.rejects(
       () => place.place(checkout_id, carrier().world),
       /missing start_time/
     );
   }, { actor: TEST_ACTOR.id, lock: LOCKS.ORDERS });
 });
-
-// ------------------------------------------------------- the rows it writes
 
 test("the placement links ids and writes NO exchange rows at all", async () => {
   await inPinnedTransaction(async (c: PoolClient) => {
@@ -380,7 +313,6 @@ test("the placement links ids and writes NO exchange rows at all", async () => {
     const placed = await place.place(checkout_id, world);
     const order_id = placed.order.id;
 
-    // The order core, with the DRAFT as its one fulfillment.
     const { rows: fulfillments } = await c.query(
       `SELECT f.id, m.type FROM fulfillments.fulfillments f
         JOIN fulfillments.methods m ON m.id = f.method_id
@@ -390,37 +322,23 @@ test("the placement links ids and writes NO exchange rows at all", async () => {
     assert.equal(fulfillments[0].id, fulfillment_id);
     assert.equal(fulfillments[0].type, "CARRIER PICKUP");
 
-    // The money row LINKS the sealed account and records the method's fee.
     const { rows: [totals] } = await c.query(
       `SELECT shipping, shipping_service, payout_fee, payout_details_id
          FROM orders.transactions WHERE order_id = $1`, [order_id]
     );
-    // `shipping` and `shipping_service` are NOT here: the label is bought
-    // after this commit (label-after-commit) and domain/shipping/labels.ts
-    // patches both in once the carrier has answered, so a placement whose
-    // label purchase is stubbed leaves them null BY DESIGN - which is what
-    // makes POST /api/shipments/:id/label a real retry surface.
     assert.equal(totals.shipping, null);
     assert.equal(totals.shipping_service, null);
     assert.equal(totals.payout_details_id, payment_details_id, "the account was not linked");
     assert.equal(Number(totals.payout_fee), 0, "ACH carries no flat fee");
 
-    // The parcel and its NATIVE booking.
     const { rows: [shipment] } = await c.query(
       `SELECT s.id, s.carrier_service_id, s.package_id FROM shipping.shipments s
         JOIN fulfillments.shipments fs ON fs.shipment_id = s.id
        WHERE fs.fulfillment_id = $1`, [fulfillment_id]
     );
     assert.equal(shipment.carrier_service_id, labelServiceId);
-    // The courier booking is the carrier's answer too, so it is recorded by
-    // the same AFTER step: what the placement itself hands over is the slot.
     assert.deepEqual(asked, [shipment.id]);
 
-    // *** ZERO EXCHANGE ROWS - the write pivot for this path, executed. ***
-    // KEPT (exchange-fixtures lane, D214 item 10): this reads exchange to
-    // prove its ABSENCE for the order this test itself just placed, not as a
-    // fixture source - a builder-made row could not prove a negative about
-    // the write path the way asserting on the live app's own output does.
     const { rows: [exchange] } = await c.query(
       `SELECT
          (SELECT count(*)::int FROM exchange.purchase_orders WHERE id = $1) AS orders,
@@ -435,8 +353,6 @@ test("the placement links ids and writes NO exchange rows at all", async () => {
       "a new-flow order wrote an exchange row"
     );
 
-    // The admin surfaces still work: the order-keyed payout read composes from
-    // the new tables, and the details endpoint OPENS the envelopes.
     const wire = await as(
       { id: customer.id, role: "admin" },
       () => request(app).get(`/api/orders/${order_id}/payouts`)
@@ -457,7 +373,6 @@ test("the placement links ids and writes NO exchange rows at all", async () => {
     assert.equal(details.body.account_number, PAYOUT.account_number);
     assert.equal(details.body.order_id, order_id);
 
-    // THE CHECKOUT IS CONSUMED: its ids belong to the order now.
     const fresh = await checkoutService.getRowFor(customer.id, "purchase", c);
     assert.equal(fresh.payment_details_id, null);
     assert.equal(fresh.fulfillment_id, null);
@@ -483,12 +398,6 @@ test("a spent draft refuses the SECOND order", async () => {
   }, { actor: TEST_ACTOR.id, lock: LOCKS.ORDERS });
 });
 
-// ------------------------------------------------- label-after-commit (2026-09-03)
-
-// THE ORACLE FOR THE FINDING THIS FILE'S SIBLING WAVE FIXED: a carrier failure
-// used to leave a voided-but-billed label and a rolled-back order. Now the
-// order and its shell shipment commit BEFORE the carrier is ever asked, so a
-// failure here must leave them standing rather than undoing them.
 test("a carrier failure buying the label leaves the order and its shell shipment behind", async () => {
   await inPinnedTransaction(async (c: PoolClient) => {
     const fixtures = await aWorld(c);
@@ -505,9 +414,6 @@ test("a carrier failure buying the label leaves the order and its shell shipment
 
     await assert.rejects(() => place.place(checkout_id, failing), /FEDEX IS DOWN/);
 
-    // The rejected promise never handed back an order id, so it is found the
-    // way the DATABASE links it - through the fulfillment id the checkout
-    // already named.
     const { rows: [fulfillment] } = await c.query(
       `SELECT order_id FROM fulfillments.fulfillments WHERE id = $1`, [fulfillment_id]
     );

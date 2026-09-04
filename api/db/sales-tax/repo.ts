@@ -1,4 +1,3 @@
-// tax.sales_tax and tax.sales_tax_rules — two tables in one file, deliberately: rules is read whole and never written, so it has no CRUD of its own; if it becomes writable, it gets its own file.
 import query from "#shared/db/query.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
 import type { Executor } from "#shared/db/executor.ts";

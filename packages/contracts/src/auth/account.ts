@@ -22,5 +22,3 @@ export const AuthAccount = z.object({
 });
 export type AuthAccount = z.infer<typeof AuthAccount>;
 // generated:end
-
-// Hand-written derivations go here: New, Patch, named reads.

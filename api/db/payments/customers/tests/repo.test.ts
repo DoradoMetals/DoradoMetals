@@ -1,5 +1,3 @@
-// auth.users."stripeCustomerId" - the one column payments owns on somebody
-// else's row. Real Postgres, every test rolled back.
 import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
@@ -32,9 +30,6 @@ test("the billing identity comes back with the provider's id for the customer", 
 
 test("update sets the customer id on that user alone, and answers true", async () => {
   await inRollback(async (c: PoolClient) => {
-    // TWO BUILT PEOPLE. The claim is that one person's billing id does not
-    // land on another's row, and reading two arbitrary users made that a claim
-    // about whichever two the database happened to hold.
     const target = (await aUser(c)).id;
     const bystander = (await aUser(c)).id;
     const before = (await customers.getOne(bystander, c))?.stripeCustomerId ?? null;

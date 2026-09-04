@@ -1,22 +1,6 @@
-// Reports, for every nullable column in the exchange schema, how many rows
-// actually hold NULL. That is what decides which NOT NULL constraints can be
-// added for free and which need a data decision first.
-//
-// Aggregate counts only - this never reads a row value, so it is safe to run
-// against production and paste the output.
-//
-//   DATABASE_URL='<prod url>' node api/scripts/audit-nullability.mjs
 import "#env";
 import pg from "pg";
 
-// This audit exists because dev row counts prove nothing - dev holds tens of
-// rows where production holds thousands, and a column that is 100% null in dev
-// is routinely populated in production. Defaulting to DATABASE_URL therefore
-// had it answering the question it was built to avoid, and printing a report
-// that looks authoritative either way.
-//
-// It reads the read-only production role now, and says which database it used.
-// Override with DATABASE_URL only if you mean it.
 const connectionString =
   process.env.AUDIT_DATABASE_URL ??
   process.env.PROD_READONLY_DATABASE_URL ??
@@ -34,13 +18,6 @@ console.log(`# nullability audit: ${target.pathname.slice(1)} @ ${target.hostnam
 console.log(`# generated ${new Date().toISOString()}`);
 console.log();
 
-// THE DENOMINATOR. information_schema is privilege-filtered: a table this role
-// cannot touch does not appear here at all, and a shorter list is
-// indistinguishable from a smaller schema. That is not hypothetical - on
-// production this same role sees ZERO of the 9 tables in `core` and zero of the
-// 2 in `auctions`, and an audit that walked those would have called them clean
-// (D57). This one is the authority for adding NOT NULL against real data, so it
-// states what it saw and refuses if the catalogue holds a table it cannot.
 const { rows: [seen] } = await client.query(`
   SELECT count(*)::int AS in_catalogue,
          count(*) FILTER (WHERE i.table_name IS NOT NULL)::int AS visible

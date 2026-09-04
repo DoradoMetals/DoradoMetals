@@ -1,54 +1,3 @@
-// Every `ns.member` reached through an `import * as ns` must actually exist on
-// that module.
-//
-// WHY THIS EXISTS. domain/payments/service.ts awaited
-// addressService.getAddressFromId for EIGHT MONTHS. Nothing defined it - it was
-// lost in be03eed3, the December 2025 feature slicing - and
-// POST /api/stripe/update_payment_intent answered 500 on every call as a
-// result. That is the route that prices the cart and tells Stripe what to
-// charge.
-//
-// `import * as ns` binds a namespace object. Reading a name that is not
-// exported gives `undefined` rather than an error, in JavaScript AND in
-// TypeScript when the target is untyped JavaScript. So nothing failed until the
-// line ran, and only the route's own success path ran it.
-//
-// lint:imports proves a module PATH resolves. This proves the MEMBER does.
-//
-// SCOPE, deliberately narrow so it can be trusted:
-//   - only `import * as ns from "..."` namespaces, because a named import is
-//     already an error at load time if it does not exist
-//   - only internal specifiers (relative and `#subpath`), because a package's
-//     exports are its own business
-//   - only members that are CALLED - `ns.fn(` - since a bare `ns.thing`
-//     reference may legitimately be a re-export probe or a type position
-//
-// *** WHAT IT CANNOT SEE, and D110 could recur through any of these: ***
-//   - A DESTRUCTURED NAMESPACE: `const { forOrder } = spotsService`. That IS an
-//     error at load time for a static named import, but not for a destructure of
-//     a namespace object - it yields undefined exactly like the case this
-//     catches.
-//   - A MEMBER PASSED RATHER THAN CALLED: `router.get("/x", spots.forOrder)`.
-//     The scope note above says only called members are checked, deliberately -
-//     but a route handler that does not exist 404s at request time.
-//   - A COMPUTED MEMBER: `impl[name]()`. This is what every repo.js facade does
-//     with `SOURCES[SOURCE]`, so a switch selecting an implementation missing a
-//     function is invisible here. shared/db/switch-surface.test.js is what
-//     covers that axis.
-//   - A MODULE WHOSE EXPORTS DO NOT PARSE. `exportsOf` returning an empty set is
-//     SKIPPED rather than reported - saying nothing about a file it could not
-//     read is right, but it means a parser regression shows up as a lower
-//     `checked` count and nothing else. That is what the floor below is for.
-//
-// Run: pnpm --filter @dorado/api lint:namespace-calls
-//      pnpm --filter @dorado/api lint:namespace-calls:self-test
-//
-// THIS IS THE D110 GUARD, and it is worth naming: the factoring pass that moved
-// `getSpotsByOrder` to `domain/refiners/spots/service.ts` left the caller in
-// scripts/ pointing at a namespace that no longer had it, and validate:wire
-// died at runtime with "is not a function". lint:imports could not see it - the
-// specifier still RESOLVED. This walks api/ ENTIRELY, scripts/ included, which
-// is the only reason a script's stale namespace call is visible to anything.
 import fs from "node:fs";
 import path from "node:path";
 
@@ -58,8 +7,6 @@ const ROOT = process.env.LINT_NS_ROOT
 
 if (process.argv.includes("--self-test")) {
   const { selfTest } = await import("./lib/self-test-harness.ts");
-  // Specifiers assembled at runtime, not written out: this file is itself
-  // inside the walk, and a literal one here becomes a finding in the real run.
   const Q = String.fromCharCode(34);
   const base = {
     "package.json": JSON.stringify({ imports: { "#shared/*": "./shared/*", "#example/*": "./example/*" } }),
@@ -112,19 +59,6 @@ function sourceFiles(dir) {
   return out;
 }
 
-// The same scanner lint-imports.mjs uses, and for the same reason: `//` appears
-// inside every https:// string in the repo, so a regex strip would truncate the
-// line and hide real code after it. Commented-out calls are not calls.
-// TWO passes over the source, because the two questions need different views.
-//
-// stripComments keeps string CONTENTS, and is what finds `import * as ns from
-// "#example/x"` - the specifier is inside a string, so blanking it leaves
-// nothing to resolve. That was the first version of this and it reported "no
-// namespace calls at all", which the guard at the bottom caught rather than
-// letting it pass clean.
-//
-// blankStrings additionally empties string contents, and is what finds the
-// CALLS - see the note inside it.
 function stripComments(src) {
   let out = "";
   let i = 0;
@@ -151,15 +85,6 @@ function stripComments(src) {
   return out;
 }
 
-// The call view. Same scanner, but string contents become spaces so that SQL
-// cannot look like code.
-//
-// The first run reported three failures and all three were SQL:
-// `INSERT INTO exchange.payment_intents (` inside a template literal, matching a
-// namespace imported as `exchange`. A schema-qualified table followed by a paren
-// is indistinguishable from a call unless the scanner knows it is in a string.
-//
-// `${...}` interpolations are KEPT, because real calls live in them.
 function blankStrings(src) {
   let out = "";
   let i = 0;
@@ -209,13 +134,6 @@ function resolveSubpath(spec) {
   return null;
 }
 
-// What a module exports, read from its source rather than by importing it -
-// importing would run module-level code, open a pool and need an env.
-//
-// Covers: `export function f`, `export async function f`, `export const f`,
-// `export class C`, `export { a, b as c }`, and `export * from "./x"` followed
-// transitively. A default export is not a namespace member anyone calls as
-// `ns.default(` here, so it is ignored.
 const exportsCache = new Map();
 
 function exportsOf(file, seen = new Set()) {
@@ -235,7 +153,6 @@ function exportsOf(file, seen = new Set()) {
     /\bexport\s+(?:async\s+)?(?:function\*?|class|const|let|var)\s+([A-Za-z_$][\w$]*)/g
   )) names.add(m[1]);
 
-  // `export { a, b as c }` - the EXPORTED name is what a caller reads, so `c`.
   for (const m of src.matchAll(/\bexport\s*\{([^}]*)\}/g)) {
     for (const part of m[1].split(",")) {
       const piece = part.trim();
@@ -245,13 +162,10 @@ function exportsOf(file, seen = new Set()) {
     }
   }
 
-  // `export type X` / `export interface X` are type-only and cannot be called.
   for (const m of src.matchAll(/\bexport\s+(?:type|interface)\s+([A-Za-z_$][\w$]*)/g)) {
     names.delete(m[1]);
   }
 
-  // `export * from "./sibling"` - follow it, or this reports a false positive
-  // for a barrel.
   for (const m of src.matchAll(/\bexport\s*\*\s*from\s*["']([^"']+)["']/g)) {
     const target = m[1].startsWith("#")
       ? resolveSubpath(m[1])
@@ -276,8 +190,8 @@ let checked = 0;
 
 for (const file of sourceFiles(ROOT)) {
   const raw = fs.readFileSync(file, "utf8");
-  const src = stripComments(raw);   // specifiers live inside strings
-  const calls = blankStrings(raw);  // SQL must not look like a call
+  const src = stripComments(raw);
+  const calls = blankStrings(raw);
 
   for (const imp of src.matchAll(NAMESPACE_IMPORT)) {
     const [, alias, spec] = imp;
@@ -288,18 +202,16 @@ for (const file of sourceFiles(ROOT)) {
       : path.resolve(path.dirname(file), spec);
     if (!resolved) continue;
 
-    // A declaration file is the authority on a JavaScript module's surface, so
-    // prefer it where one exists.
     const target = [
       resolved.replace(/\.(js|ts)$/, ".d.ts"),
       resolved,
       resolved.replace(/\.js$/, ".ts"),
       resolved.replace(/\.ts$/, ".js"),
     ].find((c) => fs.existsSync(c));
-    if (!target) continue; // lint:imports owns unresolved paths
+    if (!target) continue;
 
     const available = exportsOf(target);
-    if (available.size === 0) continue; // nothing parsed - say nothing
+    if (available.size === 0) continue;
 
     const CALL = new RegExp(`\\b${alias}\\s*\\.\\s*([A-Za-z_$][\\w$]*)\\s*\\(`, "g");
     for (const call of calls.matchAll(CALL)) {
@@ -312,9 +224,6 @@ for (const file of sourceFiles(ROOT)) {
   }
 }
 
-// A LITERAL FLOOR rather than a zero-check, for D120's reason: a walk that
-// found a fraction of the tree reports a smaller number and exits 0. 1269
-// namespace calls resolve today across api/ including scripts/.
 const FLOOR = process.env.LINT_NS_ROOT ? Number(process.env.LINT_NS_FLOOR ?? 900) : 900;
 if (checked < FLOOR) {
   console.error(

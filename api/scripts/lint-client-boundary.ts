@@ -1,73 +1,13 @@
-// THE CLIENT BOUNDARY (ruling 62): `frontend/` talks to the API through
-// `@dorado/client` and through nothing else.
-//
-// THREE checks, one gate, all pinned by floors so a walk that opens nothing
-// cannot pass by scanning nothing.
-//
-// (1) NOTHING UNDER frontend/ CALLS THE API DIRECTLY. No `fetch(`, no
-//     `apiRequest`, no axios instance. Every endpoint has a hook in
-//     packages/client; a component that reaches past it is a second place the
-//     URL, the credentials mode and the error shape are spelled, which is how
-//     `/api/cart` outlived its own deletion in three files.
-//
-// (2) NOTHING UNDER frontend/ IMPORTS @tanstack/react-query, PENDING LIST
-//     NOW EMPTY (the client lane, 2026-09-04). Every useQuery/useMutation/
-//     useInfiniteQuery/useQueryClient/queryOptions call and every query key
-//     lives in packages/client now; the one exception is `PROVIDER_FILE`,
-//     which needs the bare `QueryClientProvider` class at the app root, not a
-//     hook.
-//
-// (3) packages/client IMPORTS NOTHING BUT @dorado/contracts, react and
-//     react-query. It is the layer both sides agree on: a dependency on the
-//     frontend's stores, its auth client or an HTTP library would make it the
-//     frontend again, one directory over.
-//
-// WHAT IS DELIBERATELY ALLOWED. Types: `import type { … } from
-// "@dorado/contracts"` anywhere in frontend/ is fine and always was - the
-// contracts are the shared vocabulary, and re-exporting 163 names through the
-// client to satisfy a lint would be ceremony. What is refused is the CALL.
-//
-//   node scripts/lint-client-boundary.ts
-//   node scripts/lint-client-boundary.ts --self-test
-//
-// Exits non-zero on any unaccepted finding, or a stale ACCEPTED entry.
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import path from "node:path";
 
 const ROOT = process.env.LINT_CLIENT_BOUNDARY_ROOT
   ?? path.resolve(import.meta.dirname, "..", "..");
 
-// A file that legitimately reaches the network without a hook, with the
-// reason. PINNED FROM BOTH SIDES: an entry matching nothing is reported, so a
-// file that stops needing the excuse cannot leave it here describing nothing.
-// EMPTY (the client lane, 2026-09-04): `shared/queries/axios.ts` - the last
-// entry this ever held - is deleted, and every feature that named it as its
-// excuse (orders, pdfs, quotes, carriers) is off it.
 const ACCEPTED: Record<string, string> = {};
 
-// SURFACES WHOSE OWN LANE HAD NOT CONVERTED YET. Prefixes, not files, because
-// a feature converts whole - and PINNED FROM BOTH SIDES like ACCEPTED: a
-// prefix under which nothing calls the API any more is reported, so this list
-// can only shrink.
-//
-// EMPTY (the client lane, 2026-09-04): `orders` (the admin sales-order
-// create orchestration composes @dorado/client mutations now, no
-// `useMutation` of its own), `pdfs` (the four document endpoints are
-// `packages/client/src/pdfs/`, this app saves the blob), `quotes` (the
-// catalogue/order/profit reads moved whole; the sales/purchase quotes
-// resolve a code to an id and hand it to `usePurchaseQuote`/`useSalesQuote`)
-// and `shared/queries` (axios.ts, base.ts and keys.ts are deleted - carriers
-// was the last feature on the legacy `useApiQuery`/`useApiMutation` wrapper)
-// all came off it. `frontend/features/checkout` was the first to go, and
-// `payments`, `payouts`, `stripe`, `users`, `products`, `auth`, `addresses`,
-// `leads`, `reviews` and `media` followed - see git history for each lane's
-// note; there is nothing left to explain here once the map is empty.
 const PENDING: Record<string, string> = {};
 
-// THE ONE FILE THAT LEGITIMATELY IMPORTS @tanstack/react-query FROM
-// frontend/ - the app root wiring up `<QueryClientProvider>`, which needs the
-// class itself rather than a hook. PINNED, not a pattern: there is exactly
-// one, and a second one appearing is a finding, not a naming convention.
 const PROVIDER_FILE = "frontend/shared/providers/QueryProvider.tsx";
 
 const acceptedHit = new Set<string>();
@@ -76,8 +16,6 @@ const pendingHit = new Set<string>();
 const pendingPrefix = (name: string): string | null =>
   Object.keys(PENDING).find((prefix) => name === prefix || name.startsWith(`${prefix}/`)) ?? null;
 
-// The API calls a component must not make. `apiRequest`/`pdfRequest` are the
-// legacy axios wrappers; `fetch(` is the raw one.
 const CALLS = [
   { pattern: /\bapiRequest\s*[(<]/, what: "apiRequest" },
   { pattern: /\bpdfRequest\s*[(<]/, what: "pdfRequest" },
@@ -85,8 +23,6 @@ const CALLS = [
   { pattern: /\baxios\b/, what: "axios" },
 ];
 
-// What packages/client may import. Anything else - a store, a util, an HTTP
-// library - is the finding.
 const CLIENT_ALLOWED = new Set(["@dorado/contracts", "react", "react-dom", "@tanstack/react-query"]);
 
 const SKIP_DIRS = new Set([
@@ -108,9 +44,6 @@ function walk(dir: string, out: string[] = []): string[] {
   return out;
 }
 
-// Comments carry prose that names `fetch` and `apiRequest` constantly - this
-// file's own header does - so they are stripped before matching. String
-// literals are kept: a URL in one is still a call being assembled.
 function stripComments(source: string): string {
   return source
     .replace(/\/\*[\s\S]*?\*\//g, "")
@@ -130,11 +63,6 @@ const rel = (file: string) => path.relative(ROOT, file).split(path.sep).join("/"
 
 type Finding = { file: string; line: number; message: string };
 
-// A TEST may stub the network - that is what a test is for - an e2e spec
-// drives a browser rather than the API, and a file under a `tests/`
-// directory (ruling 31 - tests live with their feature, grouped under
-// `tests/`) is support code FOR one, same as `shared/tests/renderWithClient`
-// needing the real `<QueryClientProvider>` to wrap what it renders.
 const isTestFile = (name: string): boolean =>
   /\.test\.tsx?$/.test(name) || /\.e2e\.ts$/.test(name) ||
   /[\\/]e2e[\\/]/.test(name) || /[\\/]tests[\\/]/.test(name);
@@ -156,9 +84,6 @@ function checkFrontend(files: string[]): Finding[] {
         }
       }
     });
-    // PINNED FROM BOTH SIDES: an excuse counts as used only when the file it
-    // names still makes the call. A file that stops calling forces its entry
-    // out of the map instead of leaving it here describing nothing.
     if (ACCEPTED[name]) {
       if (hits.length > 0) acceptedHit.add(name);
       continue;
@@ -173,10 +98,6 @@ function checkFrontend(files: string[]): Finding[] {
   return findings;
 }
 
-// Check (2): no frontend file but PROVIDER_FILE names @tanstack/react-query,
-// by import specifier rather than by usage - a `queryOptions(` call or a bare
-// `useQueryClient` import is still the library, whether or not it is called
-// on the same line.
 function checkReactQueryImports(files: string[]): Finding[] {
   const findings: Finding[] = [];
   for (const file of files) {
@@ -201,13 +122,11 @@ function checkClientPackage(files: string[]): Finding[] {
   for (const file of files) {
     const source = readFileSync(file, "utf8");
     for (const specifier of importsOf(source)) {
-      // Its own modules.
       if (specifier.startsWith(".")) continue;
       const bare = specifier.startsWith("@")
         ? specifier.split("/").slice(0, 2).join("/")
         : specifier.split("/")[0];
       if (CLIENT_ALLOWED.has(bare)) continue;
-      // A test may reach for the runner.
       if (/\.test\.tsx?$/.test(file) && bare === "vitest") continue;
       findings.push({
         file: rel(file), line: 0,
@@ -219,8 +138,6 @@ function checkClientPackage(files: string[]): Finding[] {
   return findings;
 }
 
-// A scan that opens nothing looks exactly like a clean repo. Both floors are
-// literal counts of what the real tree holds today, well under it.
 const FRONTEND_FLOOR = Number(process.env.LINT_CLIENT_BOUNDARY_FRONTEND_FLOOR ?? 100);
 const CLIENT_FLOOR = Number(process.env.LINT_CLIENT_BOUNDARY_CLIENT_FLOOR ?? 4);
 
@@ -231,8 +148,6 @@ if (process.argv.includes("--self-test")) {
   for (let i = 0; i < 6; i++) {
     filler[`frontend/features/f${i}/ui.tsx`] = "export const A = () => null\n";
   }
-  // The ACCEPTED map is pinned from both sides, so every synthetic tree ships
-  // its members STILL MAKING THE CALL - which is the other side of the pin.
   for (const rel of [...Object.keys(ACCEPTED), ...Object.keys(PENDING)]) {
     filler[rel.endsWith(".ts") ? rel : `${rel}/queries.ts`] =
       `export const go = () => fetch(${Q0}/x${Q0})\n`;
@@ -240,9 +155,6 @@ if (process.argv.includes("--self-test")) {
   const clientFiller: Record<string, string> = {
     "packages/client/src/http.ts": "export const request = async () => null\n",
     "packages/client/src/keys.ts": "export const keys = {}\n",
-    // ASSEMBLED, NOT WRITTEN: lint:imports walks scripts/ too, and a literal
-    // relative specifier inside a fixture string is indistinguishable from a
-    // real broken import - the exact trap that file's own header records.
     "packages/client/src/index.ts": `export * from ${Q0}./http.js${Q0}\n`,
     "packages/client/src/checkout/queries.ts":
       "import { useQuery } from '@tanstack/react-query'\nexport const use = useQuery\n",

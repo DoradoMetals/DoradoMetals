@@ -1,4 +1,3 @@
-// Pure rules, no database (ruling 58).
 import { test } from "vitest";
 import assert from "node:assert/strict";
 import {
@@ -9,8 +8,6 @@ import { Invalid } from "#shared/errors.ts";
 import type { CarrierHandoff, LabelService, Package } from "@dorado/contracts";
 
 test("the parcel weighs what its items weigh, converted to pounds", () => {
-  // 453.592 g is one pound - a single item at that weight, quantity 1, with a
-  // box whose own minimum is lower, is governed by the item.
   const weight = parcelWeightLb(
     [{ pre_melt: 453.592, unit: "g", quantity: 1 }], { min_weight_lb: 0.5 }
   );
@@ -18,7 +15,6 @@ test("the parcel weighs what its items weigh, converted to pounds", () => {
 });
 
 test("a bullion line's weight scales with quantity", () => {
-  // 1 troy oz is far under a pound; six of them still are.
   const weight = parcelWeightLb(
     [{ pre_melt: 1, unit: "t oz", quantity: 6 }], { min_weight_lb: 0 }
   );
@@ -47,13 +43,6 @@ test("declaredValue floors at zero rather than going negative or NaN", () => {
   assert.equal(declaredValue(0), 0);
 });
 
-// ============================================================================
-// THE PARCEL (ruling 67 - it arrived from api/domain/orders/rules.ts, where a
-// purchase order was resolving a service, a box and a courier slot for itself)
-// ============================================================================
-
-// The slot is the carrier HANDOFF's, not the checkout's: the schedulable
-// handoff is what makes a date and a time compulsory.
 const DROPOFF: CarrierHandoff = {
   code: "DROPOFF", name: "Store Dropoff", requires_schedule: false,
   has_dropoff_locations: true, display_order: 1,
@@ -74,7 +63,6 @@ test("a carrier pickup needs a date and a time, and a dropoff carries no slot", 
   assert.deepEqual(collected.schedule, { date: "2026-09-04", time: "14:00" });
   assert.equal(collected.weight.value, 2);
   assert.equal(collected.declaredValue, 2500);
-  // The carrier's own spellings survive the resolve, unrenamed.
   assert.equal(collected.serviceType, "SAVER");
   assert.equal(collected.carrierCode, "FDXE");
 
@@ -82,14 +70,11 @@ test("a carrier pickup needs a date and a time, and a dropoff carries no slot", 
   assert.throws(() => parcelFor(A_SERVICE, A_BOX, COLLECTION, 0, 2, null), Invalid);
 });
 
-// Both were their own asserts in orders until the move, and both are things a
-// carrier would otherwise be asked to price at nothing.
 test("a parcel needs a real box and a weight above zero", () => {
   assert.throws(() => parcelFor(A_SERVICE, undefined, DROPOFF, 0, 2, null), Invalid);
   assert.throws(() => parcelFor(A_SERVICE, A_BOX, DROPOFF, 0, 0, null), Invalid);
 });
 
-// BY CAPABILITY, not by name: no carrier enum is spelled in the rule.
 test("the handoff a method means is the one whose schedulability matches", () => {
   const handoffs = [DROPOFF, COLLECTION];
   assert.equal(handoffFor(handoffs, "CARRIER PICKUP"), COLLECTION);
@@ -98,8 +83,6 @@ test("the handoff a method means is the one whose schedulability matches", () =>
   assert.throws(() => handoffFor([], "CARRIER PICKUP"), Error);
 });
 
-// The slot a RE-BUY uses: the order's own booked pickup, never asked for
-// again, because no column remembers a courier's requested slot.
 test("the courier slot comes off the order's own pickup row", () => {
   assert.deepEqual(
     scheduleFromPickup({ start_time: "2026-09-04T14:30:00.000Z" }),
@@ -110,8 +93,6 @@ test("the courier slot comes off the order's own pickup row", () => {
   assert.equal(scheduleOf("2026-09-04", null), null);
 });
 
-// A carrier that quoted nothing for the chosen service is a refusal, never a
-// zero the business then eats.
 test("postage with no quote is refused rather than priced at nothing", () => {
   assert.equal(
     quotedCharge(

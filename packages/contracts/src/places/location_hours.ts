@@ -16,5 +16,3 @@ export const LocationHours = z.object({
 });
 export type LocationHours = z.infer<typeof LocationHours>;
 // generated:end
-
-// Hand-written derivations go here: New, Patch, named reads.

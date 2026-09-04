@@ -1,5 +1,3 @@
--- Admin projection: everything the public one has, plus display, stock, timestamps, who touched it, filter_category and quantity.
--- metal_id/mint_id/supplier_id are projected for compose.ts to turn into names.
 SELECT
        id, name, description, bid_premium, ask_premium, type,
        created_at, updated_at, image_front, image_back, display,

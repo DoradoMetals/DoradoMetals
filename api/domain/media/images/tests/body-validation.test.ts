@@ -1,9 +1,3 @@
-// Strict body parsing at the transport boundary (D214 item 3): an unknown key
-// or a wrong-typed value is a 400 before the service runs. `path` is a
-// deliberate case - it used to be an accepted-and-silently-ignored field
-// (the server always chooses the object key); now it is an unknown key.
-// DELETE /images/:id takes no body at all (D214 item 4), so the two body
-// checks that used to live here went with it.
 import { test, afterAll } from "vitest";
 import assert from "node:assert/strict";
 import request from "supertest";

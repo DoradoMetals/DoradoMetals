@@ -24,15 +24,6 @@ export type Address = z.infer<typeof Address>;
 // generated:end
 import { UserAddressPatch } from "./user_addresses.js";
 
-// The postal fields a caller may write. is_valid/is_residential are NOT here:
-// create.sql hard-codes them and the carrier's validation sets the real values
-// through its own write, so a body naming either is a 400 rather than a value
-// quietly overwritten server-side.
-//
-// A CREATE TAKES THE SAME PATCH (Jacob, 2026-09-03: "For new, it can just send
-// the patch!!"). There is no second type: the database's NOT NULL columns and
-// defaults decide what a create needs, and a missing one surfaces as the shared
-// pg-error translation naming the column.
 export const AddressPatch = Address.pick({
   line_1: true,
   line_2: true,
@@ -45,21 +36,12 @@ export const AddressPatch = Address.pick({
 }).partial();
 export type AddressPatch = z.infer<typeof AddressPatch>;
 
-// POST /api/addresses and PATCH /api/addresses/:id take the SAME body: two
-// patches, siblings, written in one transaction. No id inside it - the address
-// is named once, in the path (ruling 43) - and no user_id: whose book this is
-// comes from the session, or, for an admin, from ?user_id=.
 export const AddressWriteBody = z.object({
   address: AddressPatch.strict().optional(),
   user_address: UserAddressPatch.optional(),
 }).strict();
 export type AddressWriteBody = z.infer<typeof AddressWriteBody>;
 
-// THE COLUMNS THE TABLE MAY HAVE WRITTEN, which is not the same set as the
-// body's `AddressPatch`: `is_valid` and `is_residential` are the carrier's
-// answer about the address, written by the validation pass and never by a
-// caller. Ruling 64 - the repo derives its allowed list from this rather than
-// spelling one of its own.
 export const AddressWriteColumns = Address.omit({
   id: true,
   created_at: true,

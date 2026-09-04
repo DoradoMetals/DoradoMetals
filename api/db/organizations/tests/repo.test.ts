@@ -1,7 +1,3 @@
-// organizations.organizations, the CRUD floor, against real Postgres.
-//
-// One test proves what every repo's update must: a missing id changes nothing
-// and says so (false), a real id changes exactly one row and says so (true).
 import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
@@ -9,7 +5,6 @@ import { randomUUID } from "node:crypto";
 import pool from "#pool";
 import { inRollback } from "#shared/testing/rollback.ts";
 import * as repo from "#db/organizations/repo.ts";
-
 
 beforeAll(async () => {
   assert.equal(

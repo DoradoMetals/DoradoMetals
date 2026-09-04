@@ -18,7 +18,6 @@ import {
 
 const router = express.Router();
 
-// Public: the product page prints these prices to signed-out visitors.
 router.get("/sale_options", getSaleOptions);
 
 router.get("/get", requireUser, getAll);

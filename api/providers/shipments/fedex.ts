@@ -57,7 +57,6 @@ export async function createLabel(input: any) {
 export async function cancelLabel({
   tracking_number,
 }: {
-  // Nullable — a shipment may have no tracking number yet; cancelling "undefined" isn't a cancellation, and this refuses loudly rather than silently no-op-ing.
   tracking_number: string | null | undefined;
 }) {
   if (!tracking_number) {
@@ -84,12 +83,8 @@ export async function checkPickup({
   code,
   readyDate,
 }: {
-  // Nullable for the same reason as the rest: the caller builds this from rows
-  // that may not carry an address yet.
   pickupAddress: Record<string, unknown> | null | undefined;
   code?: string;
-  // A Date, not a string: formatFedexTime reads getHours() and
-  // parsePickupAvailability reads getTime(). The controller converts.
   readyDate: Date;
 }) {
   if (!pickupAddress) {
@@ -134,8 +129,6 @@ export async function cancelPickup({
   pickupDate,
   location,
 }: {
-  // A pickup that was never confirmed has no code, and cancelling "undefined"
-  // is not a cancellation - FedEx would answer about a pickup nobody named.
   confirmationCode: string | number | null | undefined;
   pickupDate?: unknown;
   location?: unknown;
@@ -168,7 +161,6 @@ export async function getLocations({
   radiusMiles = 25,
   maxResults = 10,
 }: {
-  // Same as the rest: built from rows that may not carry one.
   address: Record<string, unknown> | null | undefined;
   radiusMiles?: number;
   maxResults?: number;

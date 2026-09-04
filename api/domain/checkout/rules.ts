@@ -1,4 +1,3 @@
-// The basket's rules: rows in, complete rows out or a refusal thrown.
 import { Forbidden, Invalid, NotFound } from "#shared/errors.ts";
 import { columnsOf } from "#shared/db/columns.ts";
 import { CheckoutItemPatch, CheckoutWrite } from "@dorado/contracts";
@@ -10,16 +9,12 @@ import type {
   Direction, FulfillmentStep, RateRead,
 } from "@dorado/contracts";
 
-// A bullion line names an id and a quantity; the rest is the server's - which
-// is `CheckoutItemPatch` without those two, FROM THE CONTRACT (ruling 64).
 const SERVER_OWNED = columnsOf(CheckoutItemPatch.omit({ bullion_id: true, quantity: true }));
 
-// What a DECLARED LOT cannot be priced without.
 const DECLARED_LOT_REQUIRES = columnsOf(
   CheckoutItemPatch.pick({ metal_id: true, pre_melt: true, purity: true, unit: true })
 );
 
-// Unknown and hidden are refused alike - the message cannot say which ids exist.
 function notAvailable(count: number): never {
   throw new Invalid(
     count === 1
@@ -43,7 +38,6 @@ function requireLiveProducts(
   if (refused.size > 0) notAvailable(refused.size);
 }
 
-// A row before its premium: a purchase band reads the whole basket's totals.
 function snapshot(
   line: CheckoutItemPatch, direction: Direction, checkout_id: string,
   byId: Map<string, BullionStorefront>, metalNames: Map<string, string>
@@ -58,7 +52,6 @@ function snapshot(
     }
     const product = byId.get(line.bullion_id)!;
     return {
-      // feature-map FLOWS: gross -> pre_melt, content -> post_melt and content.
       row: {
         checkout_id,
         bullion_id: product.id,
@@ -78,10 +71,6 @@ function snapshot(
     throw new Invalid("a buy basket holds catalogue products - every line needs a bullion_id");
   }
 
-  // An absent weight or purity prices the customer's metal at nothing. The four
-  // are named as KEYS of the line's own contract (ruling 64), so a column
-  // renamed in a migration fails the typecheck here rather than silently
-  // stopping being checked.
   for (const column of DECLARED_LOT_REQUIRES) {
     if (line[column] == null) {
       throw new Invalid(`a line with no product needs ${column}`);
@@ -103,8 +92,6 @@ function snapshot(
   };
 }
 
-// Purchase: the rates band at the basket's total content of that metal, which
-// is placement's own rule. Sale: the product's ask. No band leaves it null.
 function premiums(
   snapshots: ReturnType<typeof snapshot>[], direction: Direction, rates: RateRead[],
   byId: Map<string, BullionStorefront>
@@ -127,7 +114,6 @@ function premiums(
   });
 }
 
-// A line the rules cannot resolve refuses the write; nothing is skipped.
 export function basketRows(
   { checkout_id, direction, items, products, liveness, rates, metalNames }: {
     checkout_id: string;
@@ -150,22 +136,6 @@ export function basketRows(
   return snapshots.map(({ row }, i) => Object.assign(row, { premium: resolved[i] }));
 }
 
-// ------------------------------------------------------- the stepper's rules
-
-// WHAT THE CHECKOUT ITSELF HAS NOT DONE YET, SPLICED WITH WHAT THE FULFILLMENT
-// SAYS IT OWES - the ONE list, ordered the way the stepper walks it, so the
-// first entry is the next thing to do. It is exactly what `place` would refuse
-// over, which is what lets an empty list mean placeable.
-//
-// RULING 70 (Jacob, 2026-09-04): "The only thing that should be deciding if
-// fulfillments is 'ready' is fulfillments." This function used to branch on the
-// chosen method's CATEGORY and read eight handover columns off the checkout
-// row to decide which steps a SHIPMENT, a PICKUP or a DIRECT still owed. Those
-// columns are the detail rows' now (migration 128) and that decision is
-// `domain/fulfillments/rules.ts` `missingFor`. What arrives here is its
-// ANSWER, an opaque list this file splices into position and never inspects -
-// which is why nothing in domain/checkout names a fulfillment column, and why
-// `lint:domain-boundaries` can prove it.
 export function checkoutState(
   { row, direction, item_count, handover }: {
     row: Checkout;
@@ -177,12 +147,9 @@ export function checkoutState(
   const missing: CheckoutMissing[] = [];
   if (item_count === 0) missing.push("items");
 
-  // No draft means nobody can say how the order would be handed over, so the
-  // handover list is empty for a reason the customer can act on: pick a method.
   if (!row.fulfillment_id) missing.push("fulfillment_id");
   else missing.push(...handover);
 
-  // A sale is delivered; a purchase is paid out. Exactly one of the two.
   if (direction === "purchase") {
     if (!row.payment_details_id) missing.push("payment_details_id");
   } else if (!row.recipient_address_id) {
@@ -192,47 +159,10 @@ export function checkoutState(
   return { missing };
 }
 
-// ------------------------------------------------ adopting a visitor's basket
-//
-// THE MERGE RULE (ruling 63). A visitor builds a checkout under an anonymous
-// user id; signing in or signing up links that visitor to a real account and
-// the checkout follows. When the real account ALREADY has a row for that
-// direction there are two of everything, and this is the one place that says
-// which wins:
-//
-//   THE VISITOR'S CHOICES WIN WHERE THEY MADE ONE. They are the choices made
-//   seconds ago, in the session the customer is looking at, and the row they
-//   are looking at is the one that must survive the sign-in - anything else
-//   silently discards work the customer can see on screen.
-//
-//   THE REAL ROW'S CHOICES WIN WHERE THE VISITOR HAS NONE. A saved address or
-//   package from a previous visit is not in the visitor's way; it is the
-//   customer's own earlier answer, and dropping it would make signing in a
-//   RESET rather than a merge.
-//
-// Which is column-by-column `anonymous ?? real`, and the items are the same
-// rule at basket scale: the visitor's basket replaces the real one outright
-// (adopt.ts moves the lines), because a basket is a SET the customer is
-// looking at, not a bag of independent choices - merging two of them produces
-// a basket nobody assembled.
-//
-// PURE, so the decision is testable without a database: the caller applies the
-// patch it answers.
 export const CHOICE_COLUMNS = columnsOf(CheckoutWrite);
-
-// Every column a step writes, FROM THE CONTRACT (ruling 64). It used to be
-// `checkouts.PATCHABLE` restated by hand, because this module is PURE - its
-// tests run in the no-database lane, which scripts/lib/test-layers.ts derives
-// from what a file imports, and reaching for the repo would drag the pool in
-// and move them. `CheckoutWrite` is a zod schema and imports nothing, so both
-// lists are now the same call on the same contract and cannot drift at all.
 
 type CheckoutWriteColumns = Partial<Pick<Checkout, (typeof CHOICE_COLUMNS)[number]>>;
 
-// The patch to apply to the row that SURVIVES (the real user's), given the row
-// that is going away (the visitor's). Only columns that actually change are
-// named, so a merge with nothing to say answers an empty patch and writes
-// nothing.
 export function mergeChoices(
   anonymous: CheckoutWriteColumns, real: CheckoutWriteColumns
 ): CheckoutWriteColumns {
@@ -244,61 +174,29 @@ export function mergeChoices(
   return patch as CheckoutWriteColumns;
 }
 
-// ----------------------------------------------------------------- refusals
-//
-// RULING 65: a use case states the happy path and calls one of these, so the
-// whole of what a checkout can refuse is readable in one place.
-
-// A FAULT, not a refusal: find() creates the row when it is missing and reads
-// it back when it lost the create race, so no row at this point means neither
-// happened.
 export function assertSession<T>(row: T | null | undefined): asserts row is T {
   if (!row) throw new Error("the checkout session could not be created");
 }
 
-// ADMIN SCOPING: a customer only ever reaches their OWN row; an admin may name
-// a customer and reach theirs. Self-naming never gets here, so this fires only
-// when somebody named SOMEBODY ELSE.
 export function assertMaySubjectAnother(is_admin: boolean): void {
   if (!is_admin) throw new Forbidden("user_id is admin-only");
 }
 
-// Naming a customer who does not exist is refused DISTINCTLY, so the accessor
-// answers 404 rather than minting a checkout row for an id nothing owns.
 export function assertSubject<T>(
   target: T | null | undefined, named_user_id: string
 ): asserts target is T {
   if (!target) throw new NotFound(`no user ${named_user_id}`);
 }
 
-// WHAT A VISITOR MAY NOT DO (ruling 63). Two things need a real account -
-// placing an order and saving a payout account - and both for the same reason:
-// they create something that OUTLIVES the session and cannot be re-done. An
-// order owned by a throwaway identity the sweep deletes in seven days is a lost
-// order; bank numbers sealed against one are worse than refusing.
-//
-// FORBIDDEN, not 401: the caller has a perfectly good session, and the UI turns
-// this into the sign-in prompt rather than a logged-out state.
-//
-// PURE, and the read is the USE CASE'S (ruling 65): the caller loads the
-// identity and this decides.
 export function assertRealAccount(anonymous: boolean, action: string): void {
   if (anonymous) throw new Forbidden(`sign in to ${action}`);
 }
 
-// A sale is delivered and paid for; there is nothing to pay OUT.
 export function assertPayoutDirection(direction: Direction): void {
   if (direction !== "purchase") {
     throw new Invalid("the payout step belongs to the purchase checkout");
   }
 }
-
-// ------------------------------------------------- adopting a visitor's basket
-//
-// All three are FAULTS. Each answer is a write's own row count inside a
-// transaction that read the row a statement earlier, and a zero-row UPDATE does
-// not raise (audit:silent-mutations) - so the alternative to throwing is a
-// customer signing in and silently losing the basket on their screen.
 
 export function assertRekeyed(rekeyed: boolean, checkout_id: string, user_id: string): void {
   if (!rekeyed) {

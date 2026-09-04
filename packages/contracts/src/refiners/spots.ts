@@ -21,14 +21,8 @@ export const RefinerSpot = z.object({
 });
 export type RefinerSpot = z.infer<typeof RefinerSpot>;
 // generated:end
-// A refiner spot write: which metal, at what bid. THE METAL IS AN ID, not a
-// display name (D214 item 11): refiners.spots is keyed on
-// (order_id, metal_id), the client already holds the id, and a name the
-// server had to resolve turned an unrecognised spelling into a silently
-// skipped bid.
 export const RefinerSpotWrite = z.object({
   metal_id: RefinerSpot.shape.metal_id,
   bid: RefinerSpot.shape.bid.unwrap(),
 }).strict();
 export type RefinerSpotWrite = z.infer<typeof RefinerSpotWrite>;
-

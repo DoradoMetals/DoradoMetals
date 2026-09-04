@@ -1,8 +1,3 @@
-// Ruling 48: `direction` is parsed ONCE at the transport boundary against the
-// contract's Direction enum (parseStrict), never re-checked by the service.
-// GET /api/fulfillments/methods requires a signed-in user (requireUser) and
-// `direction` is REQUIRED here - missing or not one of the two labels is a
-// 400 naming "direction".
 import { test, afterAll } from "vitest";
 import assert from "node:assert/strict";
 import request from "supertest";

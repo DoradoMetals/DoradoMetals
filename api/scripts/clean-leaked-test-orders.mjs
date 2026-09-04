@@ -1,32 +1,3 @@
-// Removes the leaked test orders from DEV. RUN, 2026-08-29, approved by Jacob
-// ("Yes but don't need a backup to delete from dev. It's just dev.").
-//
-// WHAT IT REMOVED: 27 orders.orders rows, with 16 orders.items, 24
-// orders.transactions, 27 refiners.orders and 16 refiners.items. Nothing in
-// `exchange` - by construction, since the set is DEFINED as the orders that
-// have no exchange row.
-//
-// WHY THEY WERE THERE: the audit:test-leaks hazard. A test calls a service,
-// the service opens its own transaction on its own connection and commits,
-// and the test's rollback does not reach it. All 27 were Pending purchases
-// arriving in bursts of three - one per fixture-building test - across eight
-// runs on 2026-08-27 and 2026-08-28. clean-dual-run-orphans.mjs describes the
-// same shape and covered six of them; it was written on the 27th and the
-// leaking kept going after it.
-//
-// They could not have come from the app: features/orders/write.service.ts:62
-// calls legacyPurchase.createOrder unconditionally, so a real order lands in
-// exchange.purchase_orders too. No exchange row means no app.
-//
-// WHY IT MATTERED: verify:backfill rebuilds from `exchange` and compares
-// against dev, so rows exchange cannot produce read as a permanent failure -
-// 63 orders in dev against 36 from a rebuild. After this, orders.orders and
-// orders.items compare clean and the run is down from 52 differences to 46.
-//
-// Dry by default; --commit to apply. Deletes by NAMED IDS only, never a
-// predicate, so it cannot widen. Refuses if any orphan is not a Pending
-// purchase, and refuses if any survive the delete. Safe to re-run: it now
-// finds nothing.
 import "#env";
 import pool from "#pool";
 import fs from "node:fs";
@@ -48,7 +19,6 @@ try {
   const ids = found.map((r) => r.id);
   console.log(`orphans found: ${ids.length}`);
 
-  // Refuse anything that is not the shape we diagnosed.
   const odd = found.filter((r) => r.direction !== "purchase" || r.status !== "Pending");
   if (odd.length) {
     console.table(odd);
@@ -56,7 +26,6 @@ try {
   }
   if (ids.length === 0) throw new Error("nothing to do");
 
-  // Free insurance: the full rows, before anything is written.
   if (DUMP) {
     const tables = {
       "orders.orders": `SELECT * FROM orders.orders WHERE id = ANY($1::uuid[])`,
@@ -91,7 +60,6 @@ try {
   );
   if (left.n !== 0) throw new Error(`REFUSING: ${left.n} orphans remain after the delete`);
 
-  // exchange must be untouched: it was never referenced above, assert it anyway.
   const { rows: [ex] } = await c.query(
     `SELECT (SELECT count(*)::int FROM exchange.purchase_orders) po,
             (SELECT count(*)::int FROM exchange.sales_orders) so`

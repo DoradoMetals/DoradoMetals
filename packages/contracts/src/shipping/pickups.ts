@@ -18,8 +18,6 @@ export type ShipmentPickup = z.infer<typeof ShipmentPickup>;
 import { Carrier } from "./carriers.js";
 import { Address } from "../places/addresses.js";
 
-// POST /shipping/check_pickup_availability - can this address be collected on
-// that day, under that handoff code.
 export const ShippingCheckPickupBody = z.object({
   carrier_id: Carrier.shape.id.optional(),
   address_id: Address.shape.id,
@@ -35,11 +33,6 @@ export const ShippingCancelPickupBody = z.object({
 }).strict();
 export type ShippingCancelPickupBody = z.infer<typeof ShippingCancelPickupBody>;
 
-
-// A CARRIER BOOKING AS A WRITE TAKES IT. A FULL REPLACE, not a patch - the
-// service merges the whole row before calling, which is why every field is
-// required. `requested_at` widens to admit a JS Date: the carrier's own answer
-// arrives as one and pg accepts either.
 export const ShipmentPickupWrite = ShipmentPickup.pick({
   status: true, confirmation_number: true, location: true,
 }).extend({

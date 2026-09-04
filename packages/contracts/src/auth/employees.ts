@@ -17,5 +17,3 @@ export const Employee = z.object({
 });
 export type Employee = z.infer<typeof Employee>;
 // generated:end
-
-// Hand-written derivations go here: New, Patch, named reads.

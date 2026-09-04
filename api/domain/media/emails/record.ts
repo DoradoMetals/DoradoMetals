@@ -1,4 +1,3 @@
-// Written AFTER the send, never inside a transaction that could roll back while the mail stays sent. Best-effort - a failed record must not break the send.
 import query from "#shared/db/query.ts";
 import { isTestRun } from "#shared/testing/is-test-run.ts";
 import * as emails from "#db/media/emails/repo.ts";
@@ -11,10 +10,8 @@ export type EmailKind =
   | "purchase_order_created"
   | "purchase_order_priced"
   | "sales_order_to_supplier"
-  // better-auth's verification mail is sent by a callback this codebase owns, so it joins the trail like every other send.
   | "auth_verification";
 
-// Base and outcome are separate params so a caller can attach either outcome to the same base object without re-spelling its fields.
 type EmailBase = {
   kind: EmailKind;
   to: string;
@@ -56,7 +53,6 @@ export async function linkableOrderId(
   return rows.length ? order_id : null;
 }
 
-// nodemailer's result carries messageId; a recorder transport may return anything - read it, never assert it.
 export const messageIdOf = (result: unknown): string | null => {
   const id = (result as { messageId?: unknown } | null | undefined)?.messageId;
   return typeof id === "string" ? id : null;

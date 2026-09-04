@@ -1,28 +1,3 @@
-// Generates 055_seed_stripe_reconciliation.sql from a Stripe payments export.
-//
-// The export is a CSV Jacob downloads from the Stripe dashboard and drops at
-// the repo root. It is gitignored, because it carries cardholder names, billing
-// addresses and card last4. This script reads it and emits a migration holding
-// only what reconciling a payment actually needs - amounts, statuses, fees and
-// Stripe's own opaque ids - so the reconciliation is reproducible from the repo
-// without the personal data ever entering it.
-//
-//   node scripts/dump-stripe-reconciliation.mjs [path-to-unified_payments.csv]
-//
-// Defaults to ../unified_payments.csv relative to the api package. Re-run when
-// a fresher export is taken; the seed is keyed on the payment intent id and is
-// idempotent, so re-running it updates rather than duplicates.
-//
-// The export's timestamps are UTC - its columns say so - and they arrive naive.
-// Casting a naive string straight to timestamptz makes Postgres read it in the
-// SESSION timezone, so the same migration would land different instants
-// depending on who ran it. Every timestamp is therefore emitted as
-// `::timestamp AT TIME ZONE 'UTC'`, which pins the interpretation to the file
-// rather than to the connection.
-//
-// Deliberately NOT a loader that writes to the database directly. A migration
-// can be applied to production by the normal path, reviewed in a diff, and
-// replayed by verify:backfill; a script that talks to a database cannot.
 import fs from "node:fs";
 import path from "node:path";
 
@@ -30,9 +5,6 @@ const SRC = process.argv[2]
   ?? path.join(import.meta.dirname, "..", "..", "unified_payments.csv");
 const OUT = path.join(import.meta.dirname, "..", "migrations", "055_seed_stripe_reconciliation.sql");
 
-// Columns carried across. Everything absent from this list is dropped on the
-// floor, which is the point - the export has 80 columns and most of them are
-// personal data or Stripe plumbing.
 const KEEP = {
   charge_id: "id",
   created_at: "Created date (UTC)",
@@ -49,9 +21,6 @@ const KEEP = {
   livemode: "Mode",
 };
 
-// A CSV parser that understands quoted fields containing commas and escaped
-// quotes. The export has both - `"" ` empty-quoted address lines, and
-// descriptions with commas in them.
 function parseCsv(text) {
   const rows = [];
   let row = [];
@@ -108,11 +77,7 @@ let skipped = 0;
 
 for (const r of rows.slice(1)) {
   const pi = r[idx.payment_intent_id];
-  // The payment intent id is the key, and a row without one cannot be
-  // reconciled against exchange.payment_intents at all.
   if (!pi) { skipped++; continue; }
-  // Stripe exports can repeat an intent across several charge attempts. The
-  // settled one wins; otherwise the first seen does.
   if (seen.has(pi)) { skipped++; continue; }
   seen.add(pi);
 

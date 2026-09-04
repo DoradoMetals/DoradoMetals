@@ -1,11 +1,3 @@
-// THE ADDRESS BOOK JOURNEY, over real HTTP - the API-owned replacement for
-// frontend/features/addresses/tests/authed/customer-address-crud.e2e.ts and
-// customer-addresses.e2e.ts (Playwright is going, ruling 55). A customer
-// creates an address, sees it in their book, edits it, and deletes it; a
-// stranger cannot do any of those three to it, and an admin naming the
-// customer's own id can.
-//
-// NOTHING IS COMMITTED: pinned-pool.ts rolls back every query.
 import { test, afterAll } from "vitest";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
@@ -100,7 +92,6 @@ test("the ownership rule: a stranger cannot read, edit or delete it; an admin na
     assert.equal(created.status, 201, created.text);
     const addressId = created.body.address.id;
 
-    // A stranger's OWN book never contains it.
     const strangersBook = await as(stranger, () => request(app).get("/api/addresses"));
     assert.ok(
       !strangersBook.body.some((e: Entry) => e.address.id === addressId),
@@ -113,9 +104,6 @@ test("the ownership rule: a stranger cannot read, edit or delete it; an admin na
     );
     assert.equal(strangerEdit.status, 404, "a stranger edited an address that is not theirs");
 
-    // A REFUSAL, NOT A SILENT NO-OP. The delete used to answer 200 having
-    // removed nothing, because it only ever touched the caller's own link -
-    // so nothing anywhere could tell "deleted" from "did not exist for you".
     const strangerDelete = await as(stranger, () =>
       request(app).delete(`/api/addresses/${addressId}`)
     );
@@ -126,7 +114,6 @@ test("the ownership rule: a stranger cannot read, edit or delete it; an admin na
       "a stranger's delete call removed the owner's address"
     );
 
-    // An admin naming the OWNER's id (?user_id=) reaches it correctly.
     const adminRead = await asAdmin(admin, () =>
       request(app).get(`/api/addresses?user_id=${owner.id}`)
     );

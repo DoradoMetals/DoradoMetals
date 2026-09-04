@@ -17,5 +17,3 @@ export const Mint = z.object({
 });
 export type Mint = z.infer<typeof Mint>;
 // generated:end
-
-// Hand-written derivations go here: New, Patch, named reads.

@@ -9,8 +9,6 @@ import {
   calculateSalesOrderTotal,
 } from "#domain/pricing/service.ts";
 
-// The composed spot shape (`name` / `ask`) - what getSpotPrices serves and
-// what the calculations read since D84.
 const spots = [
   { name: "Gold", ask: 4000 },
   { name: "Silver", ask: 30 },
@@ -29,9 +27,6 @@ test("an item's ask is content x ask spot x ask premium", () => {
   assert.equal(calculateItemAsk(item(), spots), 33);
 });
 
-// Unlike the purchase-order side, these default a missing spot to zero rather
-// than throwing. That turns an unpriced metal into a free item instead of an
-// error, so it is pinned here deliberately.
 test("an item whose metal is absent from spots asks zero", () => {
   assert.equal(calculateItemAsk(item({ metal_type: "Platinum" }), spots), 0);
   assert.equal(calculateItemAsk(item(), []), 0);
@@ -54,19 +49,17 @@ test("shipping is free over 1000, otherwise by service", () => {
   assert.equal(getShippingCharge(1000, "PIGEON"), 0);
 });
 
-// Exactly 1000 is not free - the threshold is strictly greater than.
 test("an order of exactly 1000 still pays shipping", () => {
   assert.equal(getShippingCharge(1000, "STANDARD"), 25);
 });
 
 test("sales tax is per item ask x quantity x rate", () => {
   const items = [item({ quantity: 2, sales_tax_rate: 0.1 })];
-  // 33 x 2 x 0.1
   assert.equal(calculateSalesTax(items, spots), 6.6000000000000005);
 });
 
 test("an order total with no balance charges the card on everything", () => {
-  const items = [item({ content: 1, ask_premium: 1 })]; // 30
+  const items = [item({ content: 1, ask_premium: 1 })];
   const t = calculateSalesOrderTotal(items, spots, { dorado_funds: 0 }, "STANDARD", "CARD");
   assert.equal(t.item_total, 30);
   assert.equal(t.shipping_charge, 25);
@@ -78,7 +71,7 @@ test("an order total with no balance charges the card on everything", () => {
 });
 
 test("account funds cover the order and no card charge is taken", () => {
-  const items = [item({ content: 1, ask_premium: 1 })]; // 30, +25 shipping
+  const items = [item({ content: 1, ask_premium: 1 })];
   const t = calculateSalesOrderTotal(items, spots, { dorado_funds: 500 }, "STANDARD", "CARD");
   assert.equal(t.base_total, 55);
   assert.equal(t.pre_charges_amount, 55);

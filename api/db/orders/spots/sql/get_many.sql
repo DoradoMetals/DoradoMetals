@@ -1,4 +1,3 @@
--- The spots of several orders at once. Same projection as get_for.
 SELECT
        sp.id,
        sp.order_id,

@@ -2,9 +2,6 @@ import {
   DEFAULT_EMAIL_NOTIFICATION_DETAIL,
   DEFAULT_HOLD_AT_LOCATION_DETAIL,
 } from "#providers/shipments/constants.ts";
-// The account number follows FEDEX_ENV: the sandbox is a different FedEx
-// account, so a payload built for it has to name that one or every request is
-// refused with a permissions error rather than anything that says "wrong env".
 import { accountNumber } from "#providers/shipments/endpoints.ts";
 import {
   formatFedexTime,
@@ -13,8 +10,6 @@ import {
   addHours,
 } from "#providers/shipments/utils/formatting.ts";
 
-
-// Deliberately structural and loose, not a full model of FedEx's API — these builders pass most of what they're given straight through; a stricter type would be a second, drifting copy of somebody else's schema. Named only enough that a caller can't omit an address or misspell packageDetails.
 type FedexAddress = Record<string, unknown>;
 type PackageDetails = Record<string, unknown>;
 
@@ -165,7 +160,6 @@ export function createShipmentPayload({
     },
   };
 }
-
 
 export function cancelShipmentPayload(trackingNumber: string) {
   return {

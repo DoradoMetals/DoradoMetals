@@ -1,5 +1,3 @@
--- The intent that paid for one order, composed exactly as find_reusable.sql
--- composes it - this is the shape the wire carries.
 SELECT i.id,
        i.session_id,
        i.user_id,

@@ -1,6 +1,3 @@
-// RECAPTCHA_THRESHOLD, and the silent lockout it used to be able to cause. The old expression, `parseFloat(process.env.RECAPTCHA_THRESHOLD || '0.5')`, defaults only for UNSET — a present-but-unreadable value parses to NaN, and every score fails `>= NaN`, so every human gets refused with an ordinary `false` and no explanation anywhere.
-// The first test below is the control — it demonstrates the old expression really did that, rather than asserting it did.
-
 import { test } from "vitest";
 import assert from "node:assert/strict";
 
@@ -19,8 +16,6 @@ const withThreshold = <T>(value: string | undefined, fn: () => T): T => {
   }
 };
 
-// Warnings are expected in one of these tests. Capturing rather than silencing,
-// because what the warning says is itself asserted.
 const capturingWarnings = (fn: () => void): string[] => {
   const lines: string[] = [];
   const original = console.warn;
@@ -39,13 +34,11 @@ test("THE CONTROL: the old expression failed in both directions, silently", () =
   assert.equal(old(undefined), 0.5, "unset was fine - that is why this looked safe");
   assert.equal(old("0.7"), 0.7, "a good value was fine too");
 
-  // Direction one: unreadable -> NaN -> nobody gets in.
   const nan = old("high");
   assert.ok(Number.isNaN(nan), "a malformed value parsed to NaN");
   assert.equal(1.0 >= nan, false, "a score of 1.0 - a certain human - did not clear NaN");
   assert.equal(0.0 >= nan, false);
 
-  // Direction two, the worse one — a decimal comma parses to a finite ZERO, so no NaN check catches it, and a threshold of zero passes every score: the captcha looked like it worked while being off.
   const zero = old("0,7");
   assert.equal(zero, 0, "parseFloat stopped at the comma and kept the 0");
   assert.ok(Number.isFinite(zero), "which means no NaN check would have caught it");
@@ -68,9 +61,6 @@ const thresholdFor = (raw: string | undefined): number =>
     capturingWarnings(() => {
       result = scoreThreshold();
     });
-    // The compiler cannot see that `capturingWarnings` calls its argument
-    // synchronously, and neither could a reader. Stating it as a refusal costs
-    // one line and turns "compared against undefined" into a named failure.
     if (result === undefined) throw new Error("capturingWarnings did not run its callback");
     return result;
   });
@@ -84,7 +74,6 @@ test("an unreadable value falls back instead of refusing every human", () => {
 });
 
 test("a PARTIALLY readable value falls back too - this is the one that was live", () => {
-  // parseFloat read "0,7" as 0 and disabled the captcha. Number() refuses it.
   for (const bad of ["0,7", "0.7abc", "1,0", "0.5 0.9"]) {
     assert.equal(thresholdFor(bad), 0.5, `"${bad}" must not be read as a partial number`);
   }
@@ -94,7 +83,6 @@ test("a value outside 0..1 falls back - no v3 score can be in that range", () =>
   for (const bad of ["5", "-1", "100", "1.5"]) {
     assert.equal(thresholdFor(bad), 0.5, `"${bad}" is not a reachable score`);
   }
-  // The ends of the range are legitimate, however.
   assert.equal(thresholdFor("0"), 0, "0 accepts everything, but it is a choice someone can make");
   assert.equal(thresholdFor("1"), 1, "1 accepts only a certain human, but it is a choice too");
 });

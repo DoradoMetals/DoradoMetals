@@ -1,20 +1,3 @@
-// REFERENCE DATA IS RESOLVED BY NAME, NEVER BY "whatever row is first".
-//
-// *** THE DISTINCTION THIS FILE EXISTS TO DRAW. *** Lane 1 deletes 200-odd
-// `SELECT ... LIMIT 1` FIXTURE discoveries, because a test whose subject is
-// "an order" must build the order it means. Reference rows are the other
-// thing: `metals.metals` holds exactly four rows and one of them IS Gold,
-// `fulfillments.methods` holds one CARRIER DROPOFF per direction, and
-// migration 047 seeds all of them. Naming Gold is not discovery - it is the
-// literal the test means, and building a second Gold would be wrong.
-//
-// So the rule is: a reference row is looked up BY ITS OWN NAME, in ONE place
-// (here), and the lookup says out loud when the seed is missing rather than
-// returning undefined into an assertion. Nothing in a test file does this by
-// hand any more.
-//
-// The reads take the caller's client so they see the caller's transaction -
-// a test that has just created a mint must be able to resolve it.
 import type { PoolClient } from "pg";
 
 async function one<T>(c: PoolClient, what: string, sql: string, params: unknown[]): Promise<T> {
@@ -44,8 +27,6 @@ export async function metalIds(c: PoolClient): Promise<Map<string, string>> {
   return new Map(rows.map((r) => [r.name, r.id]));
 }
 
-// The mint and the supplier a built product hangs off. Both are organisations
-// in the seed; a product needs one of each and cares about neither.
 export async function mintId(c: PoolClient): Promise<string> {
   const row = await one<{ id: string }>(
     c, "a mint", `SELECT id FROM products.mints ORDER BY name`, []
@@ -53,9 +34,6 @@ export async function mintId(c: PoolClient): Promise<string> {
   return row.id;
 }
 
-// A PRODUCT'S SUPPLIER IS A REFINERY, not an organisation - products.bullion.
-// supplier_id is a foreign key to refiners.refiners, which is easy to get
-// wrong because a refiner IS an organisation one join further out.
 export async function supplierId(c: PoolClient): Promise<string> {
   const row = await one<{ id: string }>(
     c, "a supplier (refiners.refiners)",
@@ -70,9 +48,6 @@ export async function refinerId(c: PoolClient): Promise<string> {
   return supplierId(c);
 }
 
-// A refinery BY NAME. Two rows, seeded, and they differ in exactly the way the
-// send path cares about: "Elemetal" has an email address and "Dillion Gage"
-// does not - which is also true in production, and is why the refusal exists.
 export async function refinerNamed(c: PoolClient, name: string): Promise<string> {
   const row = await one<{ id: string }>(
     c, `the refinery "${name}"`,
@@ -83,9 +58,6 @@ export async function refinerNamed(c: PoolClient, name: string): Promise<string>
   return row.id;
 }
 
-// The two the send path distinguishes, asserted to still differ - a seed change
-// that gave Dillion Gage an email would otherwise make the refusal test pass
-// for the wrong reason.
 export async function refinersByEmail(
   c: PoolClient
 ): Promise<{ withEmail: string; withoutEmail: string }> {
@@ -105,8 +77,6 @@ export async function refinersByEmail(
   return { withEmail: withEmail.id, withoutEmail: withoutEmail.id };
 }
 
-// fulfillments.methods, by the two columns that identify one: its TYPE and its
-// direction. "CARRIER DROPOFF"/purchase is one row and always the same one.
 export async function fulfillmentMethodId(
   c: PoolClient, type: string, direction: "purchase" | "sale"
 ): Promise<string> {
@@ -118,7 +88,6 @@ export async function fulfillmentMethodId(
   return row.id;
 }
 
-// payments.methods, same shape: ACH/purchase, CARD/sale.
 export async function paymentMethodId(
   c: PoolClient, type: string, direction: "purchase" | "sale"
 ): Promise<string> {
@@ -130,8 +99,6 @@ export async function paymentMethodId(
   return row.id;
 }
 
-// A real carrier service the catalogue offers - `carrier_id IS NOT NULL` is
-// what makes it a LABEL service rather than a priced sale-delivery row.
 export async function carrierServiceId(
   c: PoolClient, name = "Express Saver"
 ): Promise<string> {
@@ -142,7 +109,6 @@ export async function carrierServiceId(
   return row.id;
 }
 
-// The other kind: carrier-agnostic, priced, what a sale is delivered on.
 export async function saleServiceId(c: PoolClient): Promise<string> {
   const row = await one<{ id: string }>(
     c, "a sale delivery service",
@@ -152,9 +118,6 @@ export async function saleServiceId(c: PoolClient): Promise<string> {
   return row.id;
 }
 
-// A CARRIER BY NAME. shipping.carriers has no name column of its own - the
-// name is its organisation's - so this is the join that a test naming "FedEx"
-// actually means. Reference data: two carriers, seeded by 047.
 export async function carrierId(c: PoolClient, name = "FedEx"): Promise<string> {
   const row = await one<{ id: string }>(
     c, `the carrier "${name}"`,
@@ -174,9 +137,6 @@ export async function packageId(c: PoolClient, label = "Small Box"): Promise<str
   return row.id;
 }
 
-// shipping.shipments.direction is its OWN enum and does not share the orders
-// one: a purchase arrives (Inbound), a sale leaves (Outbound). Getting this
-// wrong raises 22P02 rather than writing a wrong row, which is the good case.
 export function shipmentDirection(direction: "purchase" | "sale"): "Inbound" | "Outbound" {
   return direction === "purchase" ? "Inbound" : "Outbound";
 }

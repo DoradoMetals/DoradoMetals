@@ -1,19 +1,3 @@
-// THE INSTRUMENT A WEBHOOK NAMES, and who it belongs to.
-//
-// *** WHAT THIS FILE EXISTS FOR. *** `updateMethod` used to THROW on a first
-// sighting - `payments.details.user_id` is NOT NULL and a Stripe payload names
-// no customer, so an instrument nothing had recorded raised Invalid. It threw
-// AFTER the intent update had already committed, so a succeeded payment on a
-// card we had never seen answered non-2xx, Stripe retried for up to three
-// days, and every retry re-threw at the same line while changing nothing.
-//
-// The payload names no customer; the INTENT does. The attempt the event
-// carries resolves to an intent row whose user_id is who paid, so that is the
-// attribution - taken from the money rather than guessed.
-//
-// NO NETWORK. `applyIntentEvent` takes its `Instruments` seam the way
-// place.ts takes its `World`, so the Stripe retrieve is a function this file
-// supplies. NOTHING IS COMMITTED: every statement takes the pinned client.
 import { test } from "vitest";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
@@ -27,7 +11,6 @@ import { LOCKS } from "#shared/testing/locks.ts";
 import { aUser } from "#shared/testing/builders/index.ts";
 import query from "#shared/db/query.ts";
 
-// A card, as Stripe reports one.
 const aCard = (provider_ref: string) => ({
   id: provider_ref,
   type: "card",
@@ -37,7 +20,6 @@ const aCard = (provider_ref: string) => ({
 const instruments = (pm: { id: string }): Instruments =>
   ({ retrieve: async () => aCard(pm.id) });
 
-// An intent and its attempt, sharing an id the way recordIntent writes them.
 async function anIntentFor(
   c: PoolClient, user_id: string, provider_ref: string
 ): Promise<string> {
@@ -102,9 +84,6 @@ test("a second delivery of the same instrument rewrites the row rather than mint
   }, { actor: TEST_ACTOR.id, lock: [LOCKS.ORDERS, LOCKS.USERS] });
 });
 
-// `payment_method.updated` carries no intent, so there is nobody to attribute
-// a first sighting to. It must be a no-op, NOT a refusal: throwing here is
-// what made Stripe retry an event nothing could ever do anything with.
 test("a payment_method event for an unknown instrument writes nothing and does not throw", async () => {
   await inPinnedTransaction(async (c: PoolClient) => {
     const pm = { id: `pm_orphan_${Date.now()}` };
@@ -115,8 +94,6 @@ test("a payment_method event for an unknown instrument writes nothing and does n
   }, { actor: TEST_ACTOR.id, lock: [LOCKS.ORDERS, LOCKS.USERS] });
 });
 
-// The same event for an instrument we DO hold updates it - that is the case
-// the old code handled, and it still works.
 test("a payment_method event updates an instrument already on file", async () => {
   await inPinnedTransaction(async (c: PoolClient) => {
     const customer = await aUser(c);

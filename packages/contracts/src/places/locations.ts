@@ -18,5 +18,3 @@ export const Location = z.object({
 });
 export type Location = z.infer<typeof Location>;
 // generated:end
-
-// Hand-written derivations go here: New, Patch, named reads.

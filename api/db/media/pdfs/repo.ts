@@ -1,5 +1,3 @@
-// media.pdfs, append-only - regeneration INSERTS a new row since the row is what was actually sent. NO update(), NO remove().
-// No plain getOne()/list() either: the only read this feature makes is the latest document of a kind for an order.
 import query from "#shared/db/query.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
 import type { Pdf } from "@dorado/contracts";

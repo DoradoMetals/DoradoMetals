@@ -1,34 +1,6 @@
-// A domain file names the KIND of refusal, never the HTTP status.
-//
-// FOLLOWUPS D214 item 11 and shared/errors.ts's own header say this already:
-// a use case says what is wrong in the language of the business - not found,
-// forbidden, conflict, invalid - and `shared/middleware/errorHandler.ts` is
-// the only place that turns a kind into a status. `shared/http/refuse.ts`
-// survives for TRANSPORT, where a status IS the subject.
-//
-// THE FINDING THIS GUARDS (Jacob, 2026-09-03, on shipping/shipments/service.ts
-// lines 18-27, a local `interface HttpError` + `badRequest()` helper): "Why
-// are things like this sitting in this file? That should at minimum be a
-// shared type lmfao". Six domain files did it, nine sites - each one a domain
-// file reaching through the layer below it to spell a number a second caller
-// (a job, a script, another service) would have had to decode.
-//
-// So this fails any non-test file under domain/ that:
-//   - assigns `.statusCode` on a thrown error,
-//   - calls `refuse(` or `refuseWith(`,
-//   - imports from `#shared/http/refuse`, or
-//   - declares its own `HttpError` type instead of importing shared/errors.ts.
-//
-// Static only - reads the .ts files, needs no database, runs in the gate.
-//
-//   pnpm --filter @dorado/api lint:domain-errors
-//   pnpm --filter @dorado/api lint:domain-errors --self-test
 import fs from "node:fs";
 import path from "node:path";
 
-// Overridable ONLY for the self-test, which points the whole script at a
-// synthetic tree standing in for domain/ and confirms it still sees a planted
-// violation.
 const ROOT = process.env.LINT_DOMAIN_ERRORS_ROOT
   ? path.resolve(process.env.LINT_DOMAIN_ERRORS_ROOT)
   : path.join(import.meta.dirname, "..", "domain");
@@ -94,9 +66,6 @@ if (process.argv.includes("--self-test")) {
         name: "a violation in a test file is not a finding",
         rootEnv: "LINT_DOMAIN_ERRORS_ROOT", env: LOW,
         files: {
-          // A real domain file must exist too - a tree holding only the
-          // excluded test file scans zero files, which is the WALK-IS-BROKEN
-          // branch, not evidence the exclusion works.
           "widgets/service.ts": clean,
           "widgets/tests/service.test.ts":
             "const err: Error & { statusCode?: number } = new Error(\"x\");\n" +
@@ -126,18 +95,11 @@ if (process.argv.includes("--self-test")) {
   });
 }
 
-// PATTERNS, matched per file. `statusCode\s*=` (an assignment) rather than the
-// bare word - `err.statusCode` read off a caught axios/Stripe error is not
-// this violation, and nothing in domain/ does that today, but the narrower
-// pattern is the one that will not flag it if something ever does.
 const PATTERNS: readonly (readonly [RegExp, string])[] = [
   [/\bstatusCode\s*=/, "statusCode"],
   [/\brefuse\s*\(/, "refuse("],
   [/\brefuseWith\s*\(/, "refuseWith("],
   [/#shared\/http\/refuse/, "#shared/http/refuse"],
-  // A DECLARATION, not a reference - importing the shared refuse.ts's own
-  // HttpError is already caught by the pattern above. This is the local
-  // `interface HttpError` / `type HttpError` copy Jacob's finding named.
   [/\b(?:interface|type)\s+\w*HttpError\b/, "HttpError"],
 ];
 
@@ -150,10 +112,6 @@ function walk(dir: string, out: string[] = []): string[] {
     let s;
     try { s = fs.statSync(full); } catch { continue; }
     if (s.isDirectory()) walk(full, out);
-    // TESTS ARE EXCLUDED by directory name above and by filename here - the
-    // rule is about where a domain file's OWN code lives, and a test asserting
-    // a mapped status (`assert.equal(res.status, 404, ...)`) is not the
-    // service reaching for one.
     else if (/\.ts$/.test(full) && !/\.d\.ts$/.test(full) && !/\.test\.ts$/.test(full)) {
       out.push(full);
     }
@@ -161,9 +119,6 @@ function walk(dir: string, out: string[] = []): string[] {
   return out;
 }
 
-// A MISSING ROOT IS A BROKEN WALK, NOT A CLEAN ONE. `--root-must-exist` is
-// only ever passed by the self-test's "missing root" case, which points
-// LINT_DOMAIN_ERRORS_ROOT at a directory the harness never created.
 const exists = fs.existsSync(ROOT);
 const files = exists ? walk(ROOT) : [];
 
@@ -175,9 +130,6 @@ if (!exists || files.length === 0) {
   process.exit(1);
 }
 
-// FLOOR. 86 non-test files exist under domain/ at the time of writing and the
-// number only grows as the restructure continues. A count below this means
-// the walk resolved somewhere else, not that domain/ shrank.
 const FLOOR = Number(process.env.LINT_DOMAIN_ERRORS_FLOOR ?? 70);
 if (files.length < FLOOR) {
   console.error(

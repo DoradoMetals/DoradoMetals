@@ -1,5 +1,3 @@
--- One payout account by its own id - what PATCH /api/payouts/:id resolves before its order-keyed writes.
--- The join to orders.transactions is LEFT, deliberately: a details row need not pay an order, and the caller distinguishes "no such account" (404) from "attached to no order" (422).
 SELECT d.id,
        d.user_id,
        t.order_id,

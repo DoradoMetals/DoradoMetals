@@ -1,7 +1,3 @@
-// refiners.orders, and nothing else - the refiner-side ENGAGEMENT attached to
-// a customer order: which refinery has the metal, pool ounces deducted,
-// remediation, and fee. One row per order (UNIQUE(order_id)), own uuid pk so a
-// multi-lot future is a constraint change rather than a rekeying.
 import query from "#shared/db/query.ts";
 import { buildUpdate } from "#shared/db/patch.ts";
 import type { Executor } from "#shared/db/executor.ts";
@@ -9,11 +5,6 @@ import type { RefinerOrder } from "@dorado/contracts";
 import { columnsOf } from "#shared/db/columns.ts";
 import { RefinerOrderPatch } from "@dorado/contracts";
 
-// The verbatim table row (ruling 12) - the generated contract is its home.
-
-// The engagement row for an order. The caller reads first and creates only
-// when there is none (D214 item 11: repos are the five verbs, the service asks
-// the question), so this is a plain INSERT.
 export type NewRefinerOrder = Pick<RefinerOrder, "order_id">;
 
 export async function create(
@@ -57,15 +48,10 @@ export async function findById(
   return rows[0];
 }
 
-// refiner_id is nullable and clearing it is a real operation, so it is carried
-// by "was this field named" rather than by COALESCE.
 export type OrderPatch = Partial<Pick<RefinerOrder, "pool_oz_deducted" | "pool_remediation" | "fee">> & {
   refiner_id?: string | null;
 };
 
-// THE COLUMNS, FROM THE CONTRACT (ruling 64). `spots` is on the patch and is
-// not a column of this table - the refinery's bid per metal is refiners.spots,
-// written by its own repo - so it is the one field dropped.
 export const PATCHABLE = columnsOf(RefinerOrderPatch.omit({ spots: true }));
 
 export async function update(

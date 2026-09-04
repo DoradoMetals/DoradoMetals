@@ -24,9 +24,6 @@ export const Organization = z.object({
 });
 export type Organization = z.infer<typeof Organization>;
 // generated:end
-// The organization BESIDE a carrier or a refiner, never smeared across it.
-// name and enabled widen to nullable: both are composed through a join that
-// can miss.
 export const OrganizationSummary = Organization.pick({
   id: true,
   name: true,
@@ -41,7 +38,6 @@ export const OrganizationSummary = Organization.pick({
   });
 export type OrganizationSummary = z.infer<typeof OrganizationSummary>;
 
-// What a carrier or refiner write may set on its organization.
 export const OrganizationPatch = Organization.pick({
   name: true,
   email: true,
@@ -49,4 +45,3 @@ export const OrganizationPatch = Organization.pick({
   enabled: true,
 }).partial();
 export type OrganizationPatch = z.infer<typeof OrganizationPatch>;
-

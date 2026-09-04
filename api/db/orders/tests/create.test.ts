@@ -1,15 +1,3 @@
-// The CREATE on orders.orders, against real Postgres, each test rolled back.
-//
-// One statement for both directions. What it has to get right: the owner and
-// direction are COPIED from the checkout row it names (ruling 66) rather than
-// passed, a number drawn from THAT direction's own sequence, the columns
-// nobody passes (spots_locked starts false - 086 removed orders.offers and
-// this is the one column of it worth keeping), and joining the caller's
-// transaction, because an order is created alongside its lines, its spots and
-// its money.
-//
-// The composition around it - the refiner engagement, the mirrors, the address
-// snapshot - is domain/orders/place.ts's and is pinned by place.test.ts.
 import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
@@ -22,8 +10,6 @@ import * as orders from "#db/orders/repo.ts";
 import * as checkouts from "#db/checkout/checkouts/repo.ts";
 import type { Direction } from "@dorado/contracts";
 
-// A checkout row for the order to copy its owner and direction from - the
-// same shape a real placement names by id.
 async function aCheckoutId(
   c: PoolClient, user_id: string, direction: Direction = "purchase"
 ): Promise<string> {
@@ -31,7 +17,6 @@ async function aCheckoutId(
   if (!created) throw new Error("checkout.checkouts refused a new session");
   return created.id;
 }
-
 
 beforeAll(async () => {
   assert.equal(
@@ -44,17 +29,6 @@ afterAll(async () => {
   await pool.end();
 });
 
-// LOCKS.ORDERS, transaction-scoped (lane 3, the runner conversion): this
-// file's own INSERTs on orders.orders roll back, but a concurrent reader
-// that also reads orders.orders inside a query started before this test's
-// own rows exist and finished after ROLLBACK would just see nothing - what
-// this lock guards against is domain/orders/tests/edit-line.test.ts, which
-// writes real, autocommitting rows to the same table under LOCKS.ORDERS; see
-// domain/orders/tests/purchase-read.test.ts's own comment for the full
-// mechanism.
-// THE FILE'S LOCK, BOUND ONCE. A lock is a property of what this file
-// WRITES, not of one call, so it is named here and every inRollback below
-// inherits it - which is also what stops a new test being added without one.
 const inRollback = rollbackIn({ lock: LOCKS.ORDERS });
 
 test("a new order lands with its direction, status and number, copied from its checkout", async () => {
@@ -83,8 +57,6 @@ test("each direction draws from its own sequence, and each draw advances it", as
     const user_id = (await aUser(c)).id;
     const purchase_checkout_id = await aCheckoutId(c, user_id, "purchase");
 
-    // ONE checkout, named by TWO creates: the copy reads the checkout row
-    // fresh each time, so nothing stops two orders naming the same one.
     const first = await orders.createForCheckout(
       { checkout_id: purchase_checkout_id, status: "Pending" }, c
     );
@@ -116,9 +88,6 @@ test("a new order starts with its spots unpinned", async () => {
       { checkout_id, status: "Pending" }, c
     );
 
-    // 086 removed orders.offers. spots_locked moved onto the order itself,
-    // because whether an order's metal prices are pinned is a property of the
-    // order rather than of a negotiation that no longer exists.
     const { rows } = await c.query(
       "SELECT spots_locked FROM orders.orders WHERE id = $1", [created!.id]
     );
@@ -126,17 +95,7 @@ test("a new order starts with its spots unpinned", async () => {
   });
 });
 
-// The write must join the caller's transaction, or a rolled-back creation
-// would leave rows behind.
 test("rolling back undoes the order", async () => {
-  // TWO CONNECTIONS, DELIBERATELY: the id is written inside a transaction that
-  // is rolled back and then looked for from OUTSIDE it, which is the only way
-  // to tell "the write joined my transaction" from "the write committed".
-  //
-  // THE CUSTOMER IS THE SEEDED TEST ACTOR rather than a built one, and that is
-  // the point of the seed: user_id is a foreign key, so the row it names has
-  // to be COMMITTED - and a builder's user is not, by design. Committing one
-  // here would mean deleting it afterwards, from a frozen table.
   const outside = await pool.connect();
   const writer = await pool.connect();
   try {

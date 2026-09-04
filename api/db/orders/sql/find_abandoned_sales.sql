@@ -1,13 +1,3 @@
--- Sales orders past the TTL that the PAYMENT FACTS say were abandoned (D211
--- - no status drives this): money still owed (post_charges above zero, or no
--- money row at all), an intent that never settled and is not already
--- cancelled - cancellation IS the durable swept-fact, written by the sweep
--- itself - and no refund Credit logged. 'processing' is excluded because
--- ACH-style settlement legitimately takes days.
---
--- An order with NO intent and NO reserved funds re-lists until an admin
--- deals with it - there is no payment fact left to record a sweep on, and
--- inventing one is worse than a noisy report.
 SELECT o.id AS order_id,
        o.user_id,
        t.used_funds,

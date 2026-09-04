@@ -1,19 +1,3 @@
-// THE PROFIT SPLIT ON ONE PURCHASE ORDER - what the business, the refinery and
-// the customer each make on it.
-//
-// ADMIN ONLY as a property of the DATA, not just the route.
-//
-// PORTED BYTE-FOR-BYTE from the frontend's own calculatePurchaseOrderTotals
-// (the numbers are the business's margins, and the frontend copy died with the
-// orders wire conversion) - kept faithful rather than improved; anything that
-// looks odd here looked exactly as odd in the original.
-//
-// Server-sourced throughout: the order, its frozen spots, the refiner's spots
-// and the rate bands. The body supplies only the order id, and a replay test
-// pins that a poisoned body changes nothing.
-//
-// ITS OWN FILE (D214 item 11): a use case gets one when it outgrows a screen,
-// and this is three hundred lines of arithmetic beside four quote reads.
 import * as ratesService from "#domain/rates/service.ts";
 import * as orderRead from "#domain/orders/read.ts";
 import * as orderSpotsService from "#domain/orders/spots/service.ts";
@@ -25,20 +9,6 @@ import { getRatePct, sumContentByMetal } from "#domain/rates/utils/resolveRate.t
 import * as rules from "#domain/quotes/rules.ts";
 import type { OrderQuoteBody, OrderView, OrderViewItem, ProfitBreakdown, ProfitMetalsDict, RefinerItem } from "@dorado/contracts";
 
-
-// metal_id -> the metal's name, and order_item_id -> what the refinery
-// reported. Two lookups the COMPOSED order used to smear onto every line
-// (`scrap.metal`, `scrap.content_actual`, `item.refiner_premium`); the composer
-// died with D214 item 12 and they are reads of their own tables now.
-// Inline everywhere they are read (ruling 57/60/61): a bare ReadonlyMap
-// derives from no contract, so it has no home to move to.
-
-// The four metals the split is reported for, AS THE RUNTIME LIST rather than
-// a hand-rolled literal-union type: ruling 57/60/61 leaves no contract for a
-// union like that to derive from, so `(typeof PROFIT_METALS)[number]` is the
-// type wherever "one of these four" is asked for. A metal outside them has no
-// slot in the dictionary, so a line naming one is skipped rather than cast
-// into a key that does not exist.
 const PROFIT_METALS = ["Gold", "Silver", "Platinum", "Palladium"] as const;
 
 const KEY_OF: Readonly<Record<(typeof PROFIT_METALS)[number], keyof ProfitMetalsDict>> = {
@@ -62,15 +32,11 @@ const getItemMetal = (
   return isProfitMetal(name) ? name : null;
 };
 
-// A scrap line's content covers the whole lot; a bullion line's is per coin.
 const getItemContent = (item: OrderViewItem): number => {
   if (item.bullion_id === null) return item.content ?? 0;
   return Number(recordedContent(item) ?? 0) * Number(item.quantity ?? 1);
 };
 
-// WHAT THE REFINERY ACTUALLY REPORTED for a scrap line - refiners.items, its
-// own table, keyed by the order line. The composed wire served these three as
-// scrap.content_actual / post_melt_actual / purity_actual.
 const getScrapActualContent = (
   item: OrderViewItem, assay: ReadonlyMap<string, RefinerItem>
 ): number | null => {
@@ -84,9 +50,6 @@ const getScrapActualContent = (
   return null;
 };
 
-// The spot as this math reads it - the metal it prices and the bid. Inline
-// (ruling 57/60/61): not a derivation of any one contract, so it stays
-// structural at each of its call sites rather than taking a name.
 const getProfitSpot = (
   spots: { metal_id: string; bid: number | null }[], metal_id: string
 ): { metal_id: string; bid: number | null } | null =>
@@ -152,9 +115,6 @@ function getSharesForItem(
   const orderSpot = getProfitSpot(orderSpots, item.metal_id);
   const refSpot = getProfitSpot(refinerSpots, item.metal_id);
 
-  // For scrap, the default dorado premium comes from the rates table, tiered by
-  // total scrap of this metal in the order. An explicit item.premium (admin
-  // override) always wins.
   const ratePremium =
     item.bullion_id === null
       ? getRatePct(rates, metal, scrapTotalsByMetal[metal.toLowerCase()] ?? 0, "scrap")
@@ -212,8 +172,6 @@ function computeMetalsForAllParties(
       scrapTotalsByMetal,
       assay
     );
-    // doradoShare is derived and never read below - the dorado slice is what
-    // remains after the other two, exactly as the frontend computed it.
     void doradoShare;
 
     const actualScrap = isScrap ? getScrapActualContent(item, assay) : null;
@@ -306,17 +264,9 @@ function getTotalProfit(
 }
 
 export async function profitBreakdown({ order_id }: OrderQuoteBody): Promise<ProfitBreakdown> {
-  // ONE ORDER, READ BY ID. It used to read EVERY purchase order and find this
-  // one in the array, because the assay actuals rode only on the admin list's
-  // projection. They are refiners.items rows now, read below by the same id.
   const order = await orderRead.view(order_id);
   rules.assertOrder(order);
 
-  // Sequential, not Promise.all: none of these five calls takes a client of
-  // its own, so they default to the shared pool - genuinely concurrent when
-  // unpinned, but the same client under a pinned test transaction. See
-  // domain/products/compose.ts's labels() for the fuller version of this
-  // note.
   const frozenSpots = await orderSpotsService.rowsFor(order_id);
   const refinerNamed = await refinerSpotsService.namedFor(order_id);
   const rates = await ratesService.listRates();
@@ -324,8 +274,6 @@ export async function profitBreakdown({ order_id }: OrderQuoteBody): Promise<Pro
   const assayRows = await refinerItemsRepo.getForOrder(order_id);
   const spots_at = new Date().toISOString();
 
-  // Both spot sets keyed by the metal they price. The refiner's are named
-  // rather than keyed, so the name is resolved back to its id once.
   const idOfMetal = new Map(Array.from(metals, ([id, name]) => [name.toLowerCase(), id]));
   const orderSpots: { metal_id: string; bid: number | null }[] =
     frozenSpots.map((s) => ({ metal_id: s.metal_id, bid: s.bid }));
@@ -335,7 +283,6 @@ export async function profitBreakdown({ order_id }: OrderQuoteBody): Promise<Pro
   });
   const assay: ReadonlyMap<string, RefinerItem> = new Map(assayRows.map((r) => [r.order_item_id, r]));
 
-  // Total scrap content per metal for rate tiering (per-metal, order total).
   const scrapTotalsByMetal = sumContentByMetal(
     order.items.filter((i) => i.bullion_id === null),
     (i) => getItemMetal(i, metals),
@@ -353,7 +300,6 @@ export async function profitBreakdown({ order_id }: OrderQuoteBody): Promise<Pro
   const shipping = getShippingFees(order);
   const spotNet = getSpotNet(total.customer, orderSpots, refinerSpots, metals);
 
-  // The money nested as totals since D84; the refiner fee lives there.
   const refinerFee = order.totals?.refiner_fee ?? 0;
 
   return {
@@ -387,8 +333,6 @@ export async function profitBreakdown({ order_id }: OrderQuoteBody): Promise<Pro
       bullion: bullion.customer,
       total: total.customer,
       shipping_net: shipping.dorado - shipping.customer,
-      // Same effective fee the order total and the drawer estimate use: a
-      // waived fee is not deducted from what the customer nets.
       refiner_fee_net: -Math.abs(effectivePayoutFee(order)),
       spot_net: spotNet.customer,
       total_profit: getTotalProfit(

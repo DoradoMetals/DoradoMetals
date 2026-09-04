@@ -1,8 +1,3 @@
--- Every parcel on one order, both directions, in one array (not two named
--- slots - an order can have two outbound parcels). No order id on this table;
--- resolved via fulfillments.shipments/fulfillments in the WHERE clause.
--- Same projection as get_read.sql, and the label is excluded for the same
--- reason.
 SELECT s.id, s.carrier_service_id, s.package_id,
        s.recipient_address_id, s.shipper_address_id,
        s.tracking_number, s.delivered_at, s.shipped_at, s.est_delivery,

@@ -1,38 +1,3 @@
-// Finds a repo function that returns a LIST being read as if it were a ROW.
-//
-// WHY THIS EXISTS. what is now domain/orders/service.ts did
-//
-//     const address = await addressRepo.getFromId(id);
-//     ... address.state ...
-//
-// and getFromId returns `rows`. `.state` on an array is undefined, so every
-// sales order was taxed in no state at all from 6 January 2026 (4e5b97e0).
-// Nothing caught it: a repo.js facade resolves its implementation with
-// SOURCES[SOURCE], and a dynamic index erases every export to `any`.
-//
-// So this is a syntactic check rather than a type one. It reads each
-// repo.exchange.js to learn which exported functions end in `return rows` (a
-// list) versus `return rows[0]` (a row), then looks for callers that assign one
-// of the list-returning ones to a name and read a property off that name.
-//
-// Property reads only. `x.length`, `x[0]`, `x.map(...)`, `x.filter(...)` and
-// the rest of the array surface are all legitimate uses of a list.
-//
-// *** WHAT IT CANNOT SEE. The pattern it matches is narrow on purpose, and the
-// narrowness is the blind spot: ***
-//   - A DESTRUCTURED RESULT: `const { state } = await repo.getFromId(id)`. That
-//     is the same bug and yields undefined the same way.
-//   - A RESULT CHAINED IMMEDIATELY: `(await repo.getFromId(id)).state`.
-//   - A RESULT PASSED ON and read by the callee - there is no name here to
-//     misread, which is the stated scope, but the bug survives the journey.
-//   - A REPO FUNCTION WHOSE RETURN IS NOT LITERALLY `return rows;` - a mapped
-//     list (`return rows.map(...)`) is a list and is not classified as one.
-//   - ANY FEATURE WITHOUT a repo.exchange/repo.next pair. Most features are
-//     restructured now, so this knows about very few functions - which is what
-//     the known-present control below exists to keep honest.
-//
-// Run: pnpm --filter @dorado/api lint:row-vs-list
-//      pnpm --filter @dorado/api lint:row-vs-list:self-test
 import { readFileSync, readdirSync, statSync, existsSync } from "node:fs";
 import { join, relative } from "node:path";
 
@@ -77,8 +42,6 @@ export async function getOne(id) {
       {
         name: "a row-returning function read as a row passes",
         rootEnv: "LINT_ROW_ROOT", env: LOW,
-        // The list call is present too, and used correctly - without it the
-        // zero-call floor fires and the case would pass for the wrong reason.
         files: { ...base, "domain/orders/service.ts": caller(
           "  const all = await addressRepo.getAll(id);\n" +
           "  const address = await addressRepo.getOne(id);\n" +
@@ -111,8 +74,6 @@ function walk(dir: string, out: string[] = []): string[] {
   return out;
 }
 
-// Strip comments so a commented-out example is not evidence. Character scanner,
-// not a regex - `//` appears inside every https:// string.
 function stripComments(src: string): string {
   let out = "", i = 0, s = null;
   while (i < src.length) {
@@ -138,11 +99,7 @@ const ARRAY_OK = new Set([
   "shift", "unshift", "splice",
 ]);
 
-// 1. Which exported repo functions return a list?
-//
-// EVERY repo file since D212 - the exchange/next split is gone and each
-// resource has one plain repo.ts, so the subject is all of them.
-const listReturning = new Map(); // feature -> Set(fnName)
+const listReturning = new Map();
 for (const file of walk(join(ROOT, "db"))) {
   if (!/(^|[\/])repo(\.\w+)?\.(js|ts)$/.test(file)) continue;
   const feature = relative(join(ROOT, "db"), file).split("/").slice(0, -1).join("/");
@@ -162,14 +119,11 @@ for (const file of walk(join(ROOT, "db"))) {
   }
 }
 
-// 2. Which namespaces point at which feature's repo?
 const findings = [];
 let callsChecked = 0;
 for (const file of ["domain", "transport"].flatMap((layer) =>
   existsSync(join(ROOT, layer)) ? walk(join(ROOT, layer)) : []
 )) {
-  // The repo files themselves are the DEFINITIONS scanned above; a repo
-  // reading its own rows is not a caller misreading a list.
   if (/(^|[\/])repo(\.\w+)?\.(js|ts)$/.test(file)) continue;
   const src = stripComments(readFileSync(file, "utf8"));
   const nsRe = /import\s+\*\s+as\s+(\w+)\s+from\s+["']#db\/([^"']+?)\/repo(?:\.\w+)?\.(?:js|ts)["']/g;
@@ -202,23 +156,11 @@ for (const file of ["domain", "transport"].flatMap((layer) =>
   }
 }
 
-// Reach, printed always. A zero-finding run means nothing without it: this
-// check only sees `const x = await ns.fn(...)`, so a caller that passes the
-// result straight on, or destructures it, is invisible - and those cannot carry
-// this bug anyway, since there is no name to misread.
 const fnCount = [...listReturning.values()].reduce((n, s) => n + s.size, 0);
 console.log(
   `${listReturning.size} feature(s) with ${fnCount} list-returning repo function(s) known`
 );
 
-// A KNOWN-PRESENT CONTROL, not just a zero-check. audit:query-paths' lesson
-// (D142's neighbour): a bare floor is blind to PARTIAL breakage, and this
-// script's numbers are small enough that "some" and "all" look alike.
-// `checkout/items` is a repo with list-returning exports today; if the repo
-// parser stops seeing them, this reports zero findings and exits 0 while
-// auditing nothing. It was plain `checkout` until the CRUD split gave each
-// checkout TABLE its own repo - the feature key is the repo's directory, so
-// the control moved with the file rather than the check being loosened.
 const CONTROL = process.env.LINT_ROW_CONTROL ?? "checkout/items";
 if (!listReturning.has(CONTROL)) {
   console.error(

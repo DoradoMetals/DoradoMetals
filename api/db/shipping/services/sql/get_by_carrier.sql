@@ -1,4 +1,3 @@
--- Every service one carrier offers. Same projection and tiebreak as get_all.
 SELECT
        id, carrier_id, name, description, code, provider_code,
        supports_pickups  AS supports_pickup,

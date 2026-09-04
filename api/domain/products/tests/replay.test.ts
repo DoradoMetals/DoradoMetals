@@ -1,5 +1,3 @@
-// The product endpoints, over real HTTP — checks the RENAME adapter doesn't leak new names to a frontend expecting the old ones. Five routes are public, deliberately (audited when the cart hole was found: they name a product, never a person).
-// No advisory lock: nothing else in the suite writes products.bullion or exchange.products outside its own rolled-back transaction.
 import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import request from "supertest";
@@ -11,7 +9,6 @@ import { inPinnedTransaction, assertNothingEscaped, outside } from "#shared/test
 await mockSessions();
 const { default: app } = await import("#app");
 
-// SELECT projections, not table rows.
 type UserFixture = { id: string; name: string | null; email: string | null };
 type Caller = UserFixture & { role: string };
 
@@ -29,7 +26,6 @@ afterAll(async () => {
   await pool.end();
 });
 
-// The catalogue is genuinely public - a signed-out visitor browses it.
 test("the catalogue answers a signed-out visitor in the schema's own shape", async () => {
   await inPinnedTransaction(async () => {
     await anonymous(async () => {
@@ -37,8 +33,6 @@ test("the catalogue answers a signed-out visitor in the schema's own shape", asy
       assert.equal(res.status, 200);
       assert.ok(Array.isArray(res.body) && res.body.length > 0);
 
-      // GROUPS, not rows: the family and its variants are the server's answer
-      // now (the browser grouped by variant_group on four screens).
       const group = res.body[0];
       assert.ok("default" in group && Array.isArray(group.variants),
         "the catalogue answered rows, not groups");
@@ -76,7 +70,6 @@ test("the admin catalogue and the admin writes are refused to a customer", async
         ["patch", "/api/products/12345678-1234-4234-8234-123456789abc", { name: "replay" }],
         ["post", "/api/products", { name: "replay", created_by: "x" }],
       ];
-      // Declared as a tuple list — inferred, the array's element type collapses to a union, and `request(app)[verb]` then indexes SuperTest with something that isn't one of its methods.
       for (const [verb, path, body] of calls as Array<
         ["get" | "post" | "patch", string, Record<string, unknown>]
       >) {
@@ -87,16 +80,12 @@ test("the admin catalogue and the admin writes are refused to a customer", async
   }, { actor: TEST_ACTOR.id });
 });
 
-// The write path: creating is the only product write that makes a row (done inside the pinned transaction). No adapter — the body arrives in the schema's own names and comes back the same way.
 test("creating a product round-trips in the schema's own names", async () => {
   await inPinnedTransaction(async () => {
     await as(admin, async () => {
       const name = `replay-product-${Date.now()}`;
-      // created_by is not a field of this body: public.audit_stamp writes it
-      // from the connection's actor.
       const res = await request(app).post("/api/products").send({ name });
 
-      // 201, not 200 — checked against the route rather than assumed, after asserting the wrong one here first.
       assert.equal(res.status, 201, JSON.stringify(res.body));
       const made = Array.isArray(res.body) ? res.body[0] : res.body;
       assert.ok(made?.id, "no id came back");
@@ -107,7 +96,6 @@ test("creating a product round-trips in the schema's own names", async () => {
       );
       assert.ok(!("product_name" in made), "the legacy spelling came back after the conversion");
 
-      // created_by comes from the request body, not the session — admin-only, and the frontend sends the real user. Noted because it's the same "trust the request" shape as five real bugs.
       assert.equal(made.created_by, admin.name);
     });
   }, { actor: TEST_ACTOR.id });

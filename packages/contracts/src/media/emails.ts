@@ -23,8 +23,5 @@ export type Email = z.infer<typeof Email>;
 // generated:end
 import { Order } from "../orders/orders.js";
 
-// POST /media/emails/send_created and /send_priced - the order id alone
-// (ruling 10). Everything else is resolved server-side from it.
 export const SendOrderEmailBody = z.object({ order_id: Order.shape.id }).strict();
 export type SendOrderEmailBody = z.infer<typeof SendOrderEmailBody>;
-

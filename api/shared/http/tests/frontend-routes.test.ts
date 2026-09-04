@@ -1,7 +1,3 @@
-// Every API call the frontend makes names a route the API has. Found: the frontend posted to the wrong feature prefix for an offer-accepted email, so it 404s silently — the call sits in a mutation's onSuccess (the customer sees success; only the follow-up dies) and apiRequest throws the response body, which becomes an unhandled rejection there.
-// The other half of admin-mutation-urls.test.ts — that one asks whether a call sends the key its route reads; this asks whether the route exists at all. Neither check sees the other's case.
-// Template-literal paths can't be resolved statically and are skipped, not guessed at — the skip count is printed so it can't grow unnoticed.
-
 import { test } from "vitest";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -9,10 +5,6 @@ import path from "node:path";
 
 import { allRoutes } from "../../../scripts/route-guards.ts";
 
-// THE CLIENT PACKAGE IS PART OF THE FRONTEND for this question. The order
-// hooks moved out of `frontend/features/orders/**` into `@dorado/client`, and
-// a guard that walks only one of the two would have read the move as seven
-// calls disappearing - which is exactly what its own floor caught.
 const ROOTS = [
   path.resolve(process.cwd(), "..", "frontend"),
   path.resolve(process.cwd(), "..", "packages", "client", "src"),
@@ -28,10 +20,6 @@ const walk = (dir: string, out: string[] = []): string[] => {
   return out;
 };
 
-// The three shapes this codebase uses to name an endpoint — most PATCH calls carry the order id as a template literal and land in the skip count, but a static one must not be invisible.
-// `apiRequest<SomeRow>(...)` is as static as `apiRequest(...)` - the optional generic (same allowance browser-triggered-effects.test.ts's own apiRequest pattern already makes) must not make a call invisible to both the found and the skipped counts.
-// Either quote style: the app writes single, the client package writes double,
-// and a pattern that knows only one silently stops counting half the calls.
 const PATTERNS = [
   /apiRequest(?:<[^>]*>)?\(\s*['"](GET|POST|PUT|PATCH|DELETE)['"],\s*['"]([^'"]+)['"]/g,
   /url:\s*['"]([^'"]+)['"],\s*\n?\s*method:\s*['"](GET|POST|PUT|PATCH|DELETE)['"]/g,
@@ -50,20 +38,13 @@ const collect = () => {
         calls.push({ file: path.relative(path.resolve(process.cwd(), ".."), file), verb, url });
       }
     }
-    // A template-literal endpoint is a skip, not a pass.
     for (const m of src.matchAll(/apiRequest(?:<[^>]*>)?\(\s*['"](?:GET|POST|PUT|PATCH|DELETE)['"],\s*`/g)) skipped += 1;
   }
   return { calls, skipped };
 };
 
-// Calls KNOWN to hit nothing on purpose, each needing a reason — a 404 here defaults to a defect, which is the whole point. Pinned from both sides: an unlisted 404 fails, and a listed call that starts resolving also fails, so this can't quietly become a stale suppression list.
-// Ruling 58 (2026-09-03) removed the last entry this list held - POST
-// /api/shipping/get_rates, superseded by GET /api/checkout/rates?direction= -
-// features/shipping/queries.ts no longer calls it, so the frontend cleanup
-// this comment used to wait for is already done; the entry was pure staleness.
 const DELIBERATE_404: Record<string, string | undefined> = {};
 
-// The frontend writes paths without the /api the server mounts them under.
 const toRoute = (url: string) => (url.startsWith("/api/") ? url : `/api${url.startsWith("/") ? "" : "/"}${url}`);
 
 test("every frontend API call names a route the API actually has", () => {
@@ -71,13 +52,6 @@ test("every frontend API call names a route the API actually has", () => {
   assert.ok(known.size > 100, `only ${known.size} routes known - the route walk is wrong`);
 
   const { calls, skipped } = collect();
-  // Floor was 40 before the order-mutation consolidation turned ~20 single-field POSTs into PATCH documents whose paths carry the order id (and land in the skip count instead), then 30 once that left 29 visible.
-  // Raised to 50 (measured 54) once PATTERNS learned `apiRequest<SomeRow>(...)` - the checkout rewrite typed several calls with a generic (features/checkout/queries.ts, features/checkout/items/queries.ts) and the untyped-only pattern had been silently skipping them, not counting them: a floor of 30 would not have noticed dropping back to 29 that way.
-  // Lowered to 45 (measured 49) by the orders pass: the order hooks moved into
-  // @dorado/client, where several calls that were one static URL each became a
-  // direction ternary inside the call - two real URLs the regex can see
-  // neither of. The floor is a "the patterns still match" guard, not a
-  // coverage target; 49 static calls still resolve.
   assert.ok(
     calls.length >= 45,
     `only ${calls.length} frontend call(s) found - the patterns have stopped ` +
@@ -96,9 +70,6 @@ test("every frontend API call names a route the API actually has", () => {
       "call sits in an onSuccess the user sees success anyway"
   );
 
-  // The other direction of the pin. An entry that now resolves is stale, and a
-  // stale entry is how a real 404 gets waved through by a name that used to
-  // mean something else.
   const stale = Object.keys(DELIBERATE_404).filter(
     (k) => !unresolved.some((c) => `${c.verb} ${toRoute(c.url)}` === k)
   );

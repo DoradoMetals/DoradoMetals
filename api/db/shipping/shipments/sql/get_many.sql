@@ -1,4 +1,3 @@
--- Several shipments by id, for composing a list without a query per row.
 SELECT
        id, carrier_service_id, package_id,
        recipient_address_id, shipper_address_id,

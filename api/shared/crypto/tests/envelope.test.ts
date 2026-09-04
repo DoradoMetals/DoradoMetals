@@ -1,5 +1,3 @@
-// The cipher half of phase 7, tested against synthetic values only — dev holds no bank details, so every value here is invented; no database is touched, which is what makes this exhaustively testable.
-// The suite that matters most is the last: no error this module throws may ever carry the plaintext it was handed — a stack trace in a log aggregator is a worse exposure than the at-rest plaintext this phase exists to remove.
 import { describe, it } from "vitest";
 import assert from "node:assert/strict";
 import { randomBytes } from "node:crypto";
@@ -46,7 +44,7 @@ describe("seal / open", () => {
     const aad = aadFor(ROW, "routing_number");
     const a = seal(ROUTING, KEY_A, aad);
     const b = seal(ROUTING, KEY_A, aad);
-    assert.notEqual(a, b);                       // fresh IV per value
+    assert.notEqual(a, b);
     assert.equal(open(a, KEY_A, aad), open(b, KEY_A, aad));
   });
 
@@ -108,15 +106,14 @@ describe("the bindings that make a stolen ciphertext useless", () => {
 describe("isEnvelope", () => {
   it("recognises what seal produces and rejects everything else", () => {
     assert.equal(isEnvelope(seal(ROUTING, KEY_A, aadFor(ROW, "routing_number"))), true);
-    assert.equal(isEnvelope("021000021"), false);   // a bare routing number
-    assert.equal(isEnvelope("v2.k1.a.b.c"), false); // a future version
+    assert.equal(isEnvelope("021000021"), false);
+    assert.equal(isEnvelope("v2.k1.a.b.c"), false);
     assert.equal(isEnvelope(null), false);
     assert.equal(isEnvelope(undefined), false);
     assert.equal(isEnvelope(""), false);
   });
 });
 
-// The one that matters most — CLAUDE.md: 'never log or return bank details', and a throw IS a return path (error.message reaches Sentry, a terminal, a ticket). Every failure mode is exercised here with a recognisable plaintext, searched for in the message, stack and serialised error.
 describe("no error path carries the plaintext", () => {
   const SECRET = "987654321098765";
 

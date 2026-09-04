@@ -1,28 +1,6 @@
-// Asks every backfill guard whether it would refuse to run on production.
-//
-// The backfills each open with a guard: if the new schema already holds a row
-// that exchange does not, exchange is no longer authoritative and re-running a
-// backfill would overwrite live data with stale values. The guard raises rather
-// than risk it.
-//
-// That was written against dev, where it has never once fired outside its own
-// test. Production is a different situation - its new schemas were built in
-// January and have been holding rows ever since, some of which exchange has
-// never seen. So the guards are not theoretical there, and finding out which
-// would refuse is something to do before the migration rather than during it.
-//
-// Read-only. Runs each guard's condition as a SELECT against production and
-// reports what it finds. Nothing is written and no migration is applied.
-//
-//   node scripts/audit-guards.mjs
-//
-// Exits non-zero if any guard would refuse, because that is a decision for a
-// person: either the rows are real and the backfill must not overwrite them, or
-// they are artifacts and someone has to say so.
 import "#env";
 import pg from "pg";
 
-// Each guard as it appears in the migration, as a countable query.
 const GUARDS = [
   {
     migration: "031/034/036/038/040/042_backfill_orders*",

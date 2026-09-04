@@ -1,4 +1,3 @@
--- A frozen copy of an address as it is now, so editing or deleting the book row later can't rewrite where a parcel went.
 INSERT INTO places.addresses (
   line_1, line_2, city, state, country, zip,
   country_code, phone_number, created_at, updated_at, is_valid, is_residential

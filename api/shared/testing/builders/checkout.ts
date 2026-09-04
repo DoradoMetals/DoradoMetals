@@ -1,16 +1,3 @@
-// aCart - a checkout session and its basket.
-//
-// *** THE ONE AGGREGATE THE COVENANT DOES NOT COVER, AND IT MATTERS HERE. ***
-// `checkout.*` is device-sync, not a ledger: a cart exists so a customer sees
-// the same basket on their phone as on their laptop, and CLAUDE.md says
-// losing one is fine. So this builder is free to create, replace and empty
-// sessions in a way none of the order builders would be - and a test that
-// finds a cart already there is entitled to overwrite its lines, which is
-// exactly what the sync itself does.
-//
-// One session per customer per direction is the natural key, so the builder
-// reuses an existing session rather than minting a second one that the repo
-// would then refuse.
 import type { PoolClient } from "pg";
 import { anId } from "#shared/testing/builders/ids.ts";
 import * as checkouts from "#db/checkout/checkouts/repo.ts";
@@ -74,7 +61,6 @@ class CartPlan implements PromiseLike<BuiltCart> {
     return this;
   }
 
-  // The snapshot the service writes: gross -> pre_melt, content -> post_melt.
   withBullion(product: BuiltProduct, quantity = 1): this {
     this.steps.push(async (c, cart) => {
       const row = await items.create(
@@ -97,7 +83,6 @@ class CartPlan implements PromiseLike<BuiltCart> {
     return this;
   }
 
-  // The session's own columns - what the stepper PATCHes onto the row.
   withRow(patch: Parameters<typeof checkouts.update>[1]): this {
     this.steps.push(async (c, cart) => {
       await checkouts.update(cart.id, patch, c);
@@ -110,7 +95,6 @@ class CartPlan implements PromiseLike<BuiltCart> {
     const existing = await checkouts.findFor(this.user.id, direction, this.c);
     let id: string;
     if (existing) {
-      // A basket is replaced, never merged - the sync's own rule.
       await items.removeFor(existing.id, this.c);
       id = existing.id;
     } else {
@@ -139,6 +123,4 @@ export function aCart(
   return new CartPlan(c, user, options);
 }
 
-// A cart id for a session nothing owns - used where the subject is the guard,
-// not the basket.
 export const anAbsentCartId = (): string => anId();

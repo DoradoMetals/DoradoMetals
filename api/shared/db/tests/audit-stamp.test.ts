@@ -1,26 +1,3 @@
-// The audit stamp, end to end: a request's actor becomes a row's author.
-//
-// WHAT THIS PROVES, AND WHY IT NEEDS THE WHOLE CHAIN. Migration 116 moved
-// created_by / created_by_id / updated_by / updated_by_id / created_at /
-// updated_at out of every INSERT and UPDATE and into one trigger. Nothing in
-// TypeScript mentions those columns any more, so nothing in TypeScript can be
-// tested for them - the only honest assertion is against a row that a real
-// service wrote. Each link is separately plausible and the chain is what
-// matters:
-//
-//   shared/http/actor.ts       holds the actor for the async call chain
-//   shared/db/withTransaction  puts it on the connection (set_config, LOCAL)
-//   public.audit_stamp         reads it back and writes the six columns
-//
-// reviews is the subject because it is the smallest table carrying all six and
-// its service does nothing but open a transaction and call the repo. Any of
-// the twenty-six tables in 116 would do; this is not a fact about reviews.
-//
-// THE ACTORS ARE REAL USERS, NOT INVENTED UUIDS, and that is not incidental:
-// every *_by_id column is a foreign key to auth.users, and the trigger resolves
-// the setting against that table before stamping precisely so an unknown id
-// leaves the row unattributed instead of raising 23503 and refusing a customer's
-// order over an audit field.
 import { test } from "vitest";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
@@ -34,10 +11,6 @@ import * as reviewsRepo from "#db/reviews/repo.ts";
 
 type Person = { id: string; name: string };
 
-// TWO NAMED PEOPLE, BUILT (lane 1). This read the first two named rows of
-// auth.users and asserted it had found two - "this test proves nothing" was
-// the honest note about a database with fewer. Building them makes "alice" and
-// "bob" mean alice and bob, and a failure message names them.
 const twoPeople = async (c: PoolClient): Promise<[Person, Person]> => {
   const alice = await aUser(c, { name: "Alice Author" });
   const bob = await aUser(c, { name: "Bob Editor" });
@@ -86,11 +59,6 @@ test("the actor who creates and the actor who edits are both recorded, by the da
   }, { actor: TEST_ACTOR.id });
 });
 
-// THE CLOCK, NOT THE TRANSACTION. now() is the transaction's START time and is
-// constant within it, so a create and an edit in one transaction would come out
-// with identical timestamps and the trail would say the edit never happened.
-// The assertion above depends on clock_timestamp() and this says so out loud,
-// because "use now()" is the obvious change for someone tidying 116 later.
 test("a row created and edited in one transaction still records two different times", async () => {
   await inPinnedTransaction(async (c: PoolClient) => {
     const [alice] = await twoPeople(c);
@@ -107,10 +75,6 @@ test("a row created and edited in one transaction still records two different ti
   }, { actor: TEST_ACTOR.id });
 });
 
-// NOBODY IS A REAL ANSWER. A cron sweep and a Stripe webhook run with no
-// session, and their writes are unattributed rather than attributed to whoever
-// happened to be served last on that pooled connection - which is the failure
-// the transaction-local set_config exists to prevent.
 test("a write with no actor leaves the author alone rather than inventing one", async () => {
   await inPinnedTransaction(async (c: PoolClient) => {
     const [alice] = await twoPeople(c);
@@ -124,16 +88,9 @@ test("a write with no actor leaves the author alone rather than inventing one", 
     const row = await auditOf(c, created.id);
     assert.equal(row.updated_by_id, alice.id, "an unattributed write erased the author");
     assert.equal(row.updated_by, alice.name);
-    // `actor: null` DELIBERATELY, and the whole test turns on it: the pinned
-    // harness defaults to TEST_ACTOR so no test stamps nobody by accident
-    // (lane 2), which would make "with no actor" quietly false here. The
-    // service still opens its own transaction and writes '' from
-    // currentActor(), so this pins the behaviour rather than the default.
   }, { actor: null });
 });
 
-// The explicit override, for scripts and seeds - anything with no request
-// around it. Same claim as the first test, asked of the other entry point.
 test("withTransaction takes an actor directly, for callers with no request", async () => {
   await inPinnedTransaction(async (c: PoolClient) => {
     const [alice, bob] = await twoPeople(c);

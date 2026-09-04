@@ -1,4 +1,3 @@
--- Every user, with their credit balance.
 SELECT u.id,
        u.email,
        u.name,

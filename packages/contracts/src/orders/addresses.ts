@@ -13,5 +13,3 @@ export const OrderAddressLink = z.object({
 });
 export type OrderAddressLink = z.infer<typeof OrderAddressLink>;
 // generated:end
-
-// Hand-written derivations go here: New, Patch, named reads.

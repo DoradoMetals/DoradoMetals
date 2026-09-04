@@ -1,6 +1,3 @@
-// A customer may only ask about their own shipment. POST /api/shipping/get_tracking took shipment_id from the body behind requireUser alone - previously recorded as harmless, wrongly: it deletes and reinserts the shipment's tracking events and rewrites its status/estimate/delivered_at (the same unconditional removeEvents that has already emptied seven production shipments' histories), so a signed-in customer holding somebody else's shipment id could overwrite their tracking and spend a FedEx call doing it.
-// requireAdmin wasn't the answer: this is called from the CUSTOMER order drawers too, not just admin's.
-// Only refusals are exercised over HTTP - the allowed path calls FedEx and rewrites rows for real, so its success branch is tested directly against the guard function instead.
 import { test, afterAll } from "vitest";
 import assert from "node:assert/strict";
 import request from "supertest";
@@ -19,11 +16,6 @@ afterAll(async () => {
   await pool.end();
 });
 
-// Nothing here needs a REAL shipment to exist: the guard refuses before any
-// lookup for these three, so a shaped id is enough. (requireOwnShipment reads
-// fulfillments.shipments/fulfillments.fulfillments/orders.orders - a fixture
-// discovered from the frozen exchange.shipments/purchase_orders/sales_orders
-// was answering the question for a table this guard no longer queries.)
 test("a customer cannot ask about another customer's shipment", async () => {
   await inPinnedTransaction(async () => {
     await as({ id: anId(), name: "Stranger", email: "stranger@dorado.test", role: "user" }, async () => {
@@ -57,8 +49,6 @@ test("a request naming no shipment is refused rather than waved through", async 
   }, { actor: TEST_ACTOR.id });
 });
 
-// Proving this can fail usually means removing the guard and running the negative control - not here: that would be the exact bug that emptied five dev shipments' tracking histories (documented in CLAUDE.md), run for real against dev data.
-// What holds instead: NOTHING ELSE on this path answers 403 (the handler has no such branch, errorHandler defaults to 500), so a passing test proves the guard is mounted and firing - grepped, not assumed. And the allowed branch is tested against the guard directly, not the route, so the suite can't quietly pass against a guard that refuses EVERYONE (secure, but broken, and it would take the customer drawers down too).
 type GuardResult = { refused: boolean; code?: number };
 
 const runGuard = (user: { id: string; role: string } | null, body: Record<string, unknown>): Promise<GuardResult> =>
@@ -66,7 +56,6 @@ const runGuard = (user: { id: string; role: string } | null, body: Record<string
     let code: number | undefined;
     const res = {
       status(status: number) {
-        // Held in a closure variable, not `this.code = code`: that property was never declared on the literal, so tsc had nothing to check.
         code = status;
         return res;
       },
@@ -81,12 +70,6 @@ const runGuard = (user: { id: string; role: string } | null, body: Record<string
     );
   });
 
-// The only test that needs a REAL shipment: requireOwnShipment is called
-// directly here, bypassing supertest/inPinnedTransaction's usual HTTP path,
-// so its database read reaches the pool for real - which is why the fixture
-// is built INSIDE a pinned transaction rather than passed in from outside: the
-// pin patches the pool for exactly this call's duration, and the built rows
-// disappear with it either way.
 test("the owner is allowed through, and an admin is allowed through", async () => {
   await inPinnedTransaction(async (c) => {
     const owner = await aUser(c);

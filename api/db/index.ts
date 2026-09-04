@@ -1,6 +1,3 @@
-// One flat module per table, named the way the contracts name the entity, so a
-// service writes `import { checkouts, checkoutItems } from "#pool"` instead of
-// eight deep paths. The pool moved to `#pool` when this took the specifier.
 export * as checkouts from "#db/checkout/checkouts/repo.ts";
 export * as checkoutItems from "#db/checkout/items/repo.ts";
 export * as fulfillments from "#db/fulfillments/repo.ts";

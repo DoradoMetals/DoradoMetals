@@ -1,5 +1,3 @@
--- The admin users. ORDER BY name DESC, id DESC, which looks like a mistake
--- and is what the admin list has always shown.
 SELECT u.id,
        u.email,
        u.name,

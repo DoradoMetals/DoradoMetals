@@ -1,5 +1,3 @@
-// The order's frozen spots. The PUT document parses strictly against the
-// contract before the use case runs.
 import { asyncHandler } from "#shared/middleware/asyncHandler.ts";
 import { strictBody, uuidParam } from "#shared/http/validate.ts";
 import * as orderSpotsService from "#domain/orders/spots/service.ts";

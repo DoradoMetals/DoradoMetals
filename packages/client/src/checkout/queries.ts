@@ -1,12 +1,3 @@
-// THE CHECKOUT SURFACE, ONE HOOK PER ENDPOINT.
-//
-// Every mutation answers the row the server now holds, and writes it straight
-// into the cache - so a step re-renders from the SERVER's answer rather than
-// from a local copy the browser guessed at. `missing` is the one derived field
-// CheckoutView carries, and it is COMPOSED (rulings 69/70): the checkout's own
-// four steps plus whatever the draft fulfillment says its handover still owes.
-// A caller reads that one list (frontend/features/checkout/gates.ts for the
-// stepper's buttons).
 import {
   useMutation,
   useQuery,
@@ -32,24 +23,14 @@ import { apiRequest } from "../fetch";
 import { keys } from "../keys";
 import { ensureSession } from "../session";
 
-// A caller says whether a session already EXISTS; this package knows nothing
-// about auth. `enabled: false` keeps a read mounted and idle, which is what a
-// surface with nobody signed in wants - a READ never mints an identity, so
-// opening the home page does not create a visitor. The WRITES below do:
-// `ensureSession` is awaited first, and that is the "first basket touch" of
-// ruling 63.
 export type ReadOptions = { enabled?: boolean };
 
-// `user_id` is admin-only server-side and names the customer an admin is
-// ordering for; naming yourself is a no-op.
 export type Subject = { user_id?: string };
 
 const scope = (direction: Direction, subject?: Subject) => ({
   direction,
   ...(subject?.user_id ? { user_id: subject.user_id } : {}),
 });
-
-// ------------------------------------------------------------------ the row
 
 export function useCheckout(
   direction: Direction, options: ReadOptions & Subject = {}
@@ -62,9 +43,6 @@ export function useCheckout(
   });
 }
 
-// One PATCH per choice, fired from the handler that made it. The row comes
-// back composed, so the cache entry every step reads is replaced rather than
-// refetched.
 export function usePatchCheckout(
   direction: Direction, subject?: Subject
 ): UseMutationResult<CheckoutView, Error, CheckoutPatch> {
@@ -82,18 +60,11 @@ export function usePatchCheckout(
   });
 }
 
-// The payout step. The two bank numbers are sealed at rest server-side and
-// never come back; the row answers with payment_details_id set, which is what
-// takes "payout_account" out of `missing`.
 export function useSaveCheckoutPayout(
   direction: Direction
 ): UseMutationResult<CheckoutView, Error, CheckoutPayoutForm> {
   const client = useQueryClient();
   return useMutation({
-    // The one write a VISITOR is refused: bank numbers are sealed at rest
-    // against a user id and a visitor's is swept (api domain/checkout/service.ts
-    // `assertRealAccount`). ensureSession is still awaited - the refusal has to
-    // come from the server, about the account, rather than from a 401.
     mutationFn: async (form: CheckoutPayoutForm) => {
       await ensureSession();
       return await apiRequest<CheckoutView>(
@@ -103,16 +74,6 @@ export function useSaveCheckoutPayout(
     onSuccess: (row) => client.setQueryData(keys.checkout.row(direction), row),
   });
 }
-
-// --------------------------------------------------------------- the basket
-
-// `fetchCheckoutItems` used to live here as a one-shot read for a sign-in
-// merge. Ruling 63 removed that merge entirely - a visitor gets an anonymous
-// better-auth user on the first basket touch, so there is one copy of the
-// basket, the server's, and signing in moves it server-side
-// (`domain/checkout/adopt.ts`). Nothing ever called this export; deleted
-// rather than kept "just in case" (frontend/features/checkout/items/queries.ts
-// carries the same before/after note).
 
 export function useCheckoutItems(
   direction: Direction, options: ReadOptions & Subject = {}
@@ -125,16 +86,11 @@ export function useCheckoutItems(
   });
 }
 
-// PUT REPLACES - it IS the sync. The row is invalidated with it because
-// `missing` is an answer about the basket.
 export function useReplaceCheckoutItems(
   direction: Direction
 ): UseMutationResult<CheckoutItem[], Error, { items: CheckoutItemPatch[] } & Subject> {
   const client = useQueryClient();
   return useMutation({
-    // THE FIRST BASKET TOUCH. A signed-out visitor becomes an anonymous
-    // better-auth user here, before the PUT, and the basket is server rows from
-    // its very first line.
     mutationFn: async ({ items, user_id }: { items: CheckoutItemPatch[] } & Subject) => {
       await ensureSession();
       return await apiRequest<CheckoutItem[]>(
@@ -142,8 +98,6 @@ export function useReplaceCheckoutItems(
       );
     },
     onSuccess: (rows, { user_id }) => {
-      // An admin syncing a NAMED customer's basket must not overwrite the
-      // caller's own cached copy with somebody else's rows.
       if (user_id) return;
       client.setQueryData(keys.checkout.items(direction), rows);
       client.invalidateQueries({ queryKey: keys.checkout.row(direction) });
@@ -169,22 +123,6 @@ export function useClearCheckoutItems(
   });
 }
 
-// ---------------------------------------------------------------- the rates
-//
-// GONE, with the parcel facts they were quoted from (rulings 69/70, migration
-// 128). `useCheckoutRates` read the address, the box and the chosen service off
-// the checkout row; those are the draft fulfillment's columns now, so the hook
-// is `useFulfillmentRates` in ../fulfillments/queries.ts and it takes the
-// FulfillmentView rather than the checkout one.
-//
-// `useSetCheckoutFulfillment` went the same way: POST /api/checkout/fulfillment
-// is POST /api/fulfillments, and the hook is `useCreateFulfillment`.
-
-// --------------------------------------------------------------- the quotes
-
-// Every customer-visible number comes from these (D81-D84). Both reprice on
-// the spot ticker's own 10s rhythm, and the previous answer is kept so a total
-// does not flicker to undefined between ticks.
 export function usePurchaseQuote(
   body: PurchaseOrderQuoteBody, options: ReadOptions = {}
 ): UseQueryResult<PurchaseOrderQuote, Error> {
@@ -209,10 +147,6 @@ export function useSalesQuote(
   });
 }
 
-// -------------------------------------------------------------- the packages
-
-// The boxes a checkout offers - `shipping.packages` rows. Reference data: it
-// changes when the business adds a box, not while a customer is choosing one.
 export function usePackages(options: ReadOptions = {}): UseQueryResult<Package[], Error> {
   return useQuery({
     queryKey: ["shipping", "packages"],
@@ -222,12 +156,6 @@ export function usePackages(options: ReadOptions = {}): UseQueryResult<Package[]
   });
 }
 
-// ------------------------------------------------------------------ placing
-
-// THE CREATE IS ONE ID (D210/D214). Every choice is already a server-side
-// resource by the time Confirm is pressed, so the click carries the checkout's
-// own id and nothing else; the server pulls the rest. The two directions land
-// on different legacy namespaces, which is a URL fact rather than a shape one.
 export function usePlaceOrderFromCheckout(
   direction: Direction
 ): UseMutationResult<OrderView, Error, void> {
@@ -239,8 +167,6 @@ export function usePlaceOrderFromCheckout(
     mutationFn: async () => {
       await ensureSession();
       const row = await apiRequest<CheckoutView>("GET", "/checkout", undefined, { direction });
-      // A VISITOR IS REFUSED HERE, by the server, with a domain message the UI
-      // turns into the sign-in prompt (api domain/orders/place.ts).
       return await apiRequest<OrderView>("POST", path, { checkout_id: row.id });
     },
     onSettled: () => {

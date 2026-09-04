@@ -1,31 +1,3 @@
-// Proves one database is a faithful copy of another.
-//
-// Written for the step in PROMOTION.md where `test` is restored from a
-// production dump. A restore that "looked fine" is not evidence: pg_restore
-// reports errors it recovered from, skips objects the role could not create,
-// and can exit 0 having quietly dropped a table's data. The only way to know is
-// to compare the two afterwards.
-//
-// CONTENT, NOT COUNTS. Two tables can hold the same number of rows and
-// different rows - a restore that lost a column's values, or a dump taken as a
-// read-only role that could read the row but not every column. So each table is
-// reduced to an md5 over its rows, ordered by their own text so the result does
-// not depend on physical order. Counts are still reported, because when a hash
-// differs the count is the first thing you want to know.
-//
-// SEQUENCES TOO. They are not tables and nothing else here looks at them, which
-// matters more since migration 079: an order number comes from a sequence, and
-// a restore that reproduced every row but reset a sequence would hand out
-// numbers that are already taken.
-//
-// READ-ONLY ON BOTH SIDES. It opens both connections, runs SELECTs, and writes
-// nothing anywhere. Safe to point at production, which is the expected source.
-//
-//   node scripts/compare-databases.mjs
-//   node scripts/compare-databases.mjs --source PROD_READONLY_DATABASE_URL --target TEST_DATABASE_URL
-//
-// Exits non-zero if anything differs, or if it could not compare enough to be
-// worth trusting.
 import "#env";
 import pg from "pg";
 
@@ -66,9 +38,6 @@ const hostOf = (url) => {
   }
 };
 
-// A COMPARISON OF SOMETHING WITH ITSELF PASSES PERFECTLY AND PROVES NOTHING.
-// If both variables point at the same database every table matches, the script
-// prints success, and the restore was never checked. Refuse.
 if (nameOf(sourceUrl) === nameOf(targetUrl) && hostOf(sourceUrl) === hostOf(targetUrl)) {
   console.error(
     `${SOURCE_VAR} and ${TARGET_VAR} both point at ${nameOf(sourceUrl)} on ` +
@@ -112,10 +81,6 @@ async function fingerprint(db, qualified) {
 
 const differences = [];
 
-// Kept apart from `differences` deliberately. A table that could not be READ is
-// a setup problem - a role without privileges, usually - and a table whose rows
-// differ is a restore problem. Reporting them in one list made the first look
-// like the second.
 const unreadable = [];
 let compared = 0;
 
@@ -139,9 +104,6 @@ try {
       continue;
     }
 
-    // A table that cannot be read must fail rather than be skipped. A
-    // permission error here usually means the dump was taken as a role that
-    // could not read it either, which is exactly what this is looking for.
     let a, b;
     try {
       [a, b] = await Promise.all([fingerprint(source, t), fingerprint(target, t)]);
@@ -170,9 +132,6 @@ try {
     if (!t) {
       differences.push(`sequence ${seqKey(s)} is MISSING from the target`);
     } else if (String(s.last_value) !== String(t.last_value)) {
-      // A null on either side usually means the reading role lacks privileges
-      // on the sequence rather than a real difference - say which it is, since
-      // that is a confusing five minutes otherwise.
       const looksLikePermissions = s.last_value === null || t.last_value === null;
       differences.push(
         `sequence ${seqKey(s)}: source ${s.last_value}, target ${t.last_value}` +
@@ -183,18 +142,11 @@ try {
     }
   }
 
-  // THE EVIDENCE COMES OUT FIRST, ALWAYS. The first version of this printed
-  // "compared 0 tables" and nothing else when every table failed to read -
-  // which is precisely the run where the reason matters and precisely the run
-  // where it was withheld. A check that fires correctly and hides why is only
-  // half a check.
   if (unreadable.length) {
     console.error(`${unreadable.length} table(s) could not be read:\n`);
     for (const u of unreadable.slice(0, 20)) console.error(`  ${u}`);
     if (unreadable.length > 20) console.error(`  ... and ${unreadable.length - 20} more`);
 
-    // Every failure being a permission error has one overwhelmingly likely
-    // cause, and saying so beats making someone work it out.
     if (unreadable.every((u) => /permission denied/i.test(u))) {
       console.error(
         `\nEvery one is a permission error, so this is about roles rather than data.\n` +
@@ -220,19 +172,6 @@ try {
     console.error("");
   }
 
-  // NON-VACUITY, AND IT IS A FLOOR RATHER THAN A ZERO-CHECK (D135). `=== 0` is
-  // blind to PARTIAL breakage, which is the failure that actually happens: a
-  // role with USAGE on two schemas out of twenty compares four tables, finds
-  // them identical and prints success. This script exists for the step where
-  // `test` is restored from a production dump, and `pg_restore` can exit 0
-  // having dropped a table's data - so "it compared something" is not evidence.
-  // MEASURED, NOT GUESSED. The first version of this line said "both databases
-  // hold well over a hundred tables" and set the floor at 100. A real run
-  // compares SEVENTY-SIX - the two share 76 comparable tables, and nine more
-  // cannot be read at all under the read-only role - so the floor would have
-  // fired on every clean run. That is D160 committed while writing the guard
-  // against it: a number taken from a sentence instead of from a run.
-  // 70, from `compare:databases` on 2026-08-29: 76 compared, 9 unreadable.
   const TABLE_FLOOR = Number(process.env.COMPARE_DB_FLOOR ?? 70);
   if (compared < TABLE_FLOOR) {
     console.error(

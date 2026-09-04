@@ -1,4 +1,3 @@
--- One row, by id.
 SELECT id, image_id, type, name, email, phone, website, description,
        enabled, created_at, updated_at, created_by, updated_by,
        created_by_id, updated_by_id

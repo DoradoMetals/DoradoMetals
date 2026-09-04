@@ -1,8 +1,3 @@
-// Ruling 48: `direction` is parsed ONCE at the transport boundary against the
-// contract's Direction enum (parseStrict), never re-checked by the service.
-// GET /api/payments/methods is public and `direction` is OPTIONAL there -
-// absent means both directions; present must be one of the two labels or the
-// controller's parseStrict refuses with a 400 naming "direction".
 import { test, afterAll } from "vitest";
 import assert from "node:assert/strict";
 import request from "supertest";

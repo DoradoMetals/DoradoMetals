@@ -1,34 +1,3 @@
-// Generates the boilerplate for a per-table CRUD feature, from the database.
-//
-//   node scripts/generate-feature.mjs media.images --legacy exchange.images --dir db/media/images
-//
-// WHAT MAKES THIS SAFE TO RUN. Three things, in order of how much they matter:
-//
-//   1. IT NEVER OVERWRITES. Every target path is checked before anything is
-//      written, and the whole run refuses if any of them exists. A generator
-//      that clobbers a hand-finished file is worse than no generator.
-//
-//   2. IT VALIDATES ITS OWN SQL AGAINST THE DATABASE BEFORE WRITING. Every
-//      generated statement is PREPAREd inside a transaction that is rolled
-//      back - which parses it, plans it and type-checks its parameters without
-//      executing it. A statement that would fail at runtime fails here instead,
-//      and nothing is written.
-//
-//   3. IT REFUSES TO GUESS A MAPPING. Given a legacy table it uses the
-//      INTERSECTION of column names and reports the rest. media.images calls a
-//      column `checksum` where exchange calls it `checksum_sha256`; that is a
-//      rename a human knows about and a generator cannot infer. Reported, never
-//      invented.
-//
-// WHAT IT DELIBERATELY DOES NOT DO. It does not touch app.ts, diff-source.mjs,
-// validate-wire.mjs or audit-switches.mjs. Those are the edits that decide what
-// is mounted and what is compared, and they are small, consequential, and worth
-// a human making them.
-//
-// The projection is the intersection too, and for a real reason rather than
-// tidiness: while both schemas serve, a column the new one has and the old does
-// not must not reach the wire, or the response shape depends on which schema
-// answered.
 import "#env";
 import fs from "node:fs";
 import path from "node:path";
@@ -69,8 +38,6 @@ const legacyCols = legacy ? await columnsOf(legacy) : null;
 const names = cols.map((c) => c.name);
 const legacyNames = legacyCols ? legacyCols.map((c) => c.name) : null;
 
-// The projection: what both schemas can answer with. Without a legacy table
-// that is simply every column.
 const projected = legacyNames ? names.filter((n) => legacyNames.includes(n)) : names;
 const onlyNew = legacyNames ? names.filter((n) => !legacyNames.includes(n)) : [];
 const onlyOld = legacyNames ? legacyNames.filter((n) => !names.includes(n)) : [];
@@ -80,18 +47,11 @@ if (!projected.includes("id")) {
   process.exit(1);
 }
 
-// Writable: everything a caller supplies. id is supplied by the service so both
-// schemas agree on it; the timestamps are the database's.
 const MANAGED = new Set(["id", "created_at", "updated_at"]);
 const writable = projected.filter((n) => !MANAGED.has(n));
 const hasUpdatedAt = names.includes("updated_at");
 const hasCreatedAt = names.includes("created_at");
 
-// QUOTED IF NOT ALL-LOWERCASE. Postgres folds an unquoted identifier to lower
-// case, so auth.users' camelCase columns - createdAt, emailVerified,
-// stripeCustomerId - become createdat and do not exist. The generator PREPAREd
-// the statement, got "column does not exist" and wrote nothing, which is the
-// right failure; this makes it emit correct SQL instead.
 const q = (name) => (/[A-Z]/.test(name) ? `"${name}"` : name);
 
 const list = (ns, indent = "       ") => {
@@ -106,8 +66,8 @@ const list = (ns, indent = "       ") => {
   return out.join(`,\n${indent}`);
 };
 
-const RETURNING = list(projected, "          ");   // aligns under "RETURNING "
-const SELECTED  = list(projected, "       ");      // aligns under "SELECT "
+const RETURNING = list(projected, "          ");
+const SELECTED  = list(projected, "       ");
 const placeholders = (n, from = 1) => Array.from({ length: n }, (_, i) => `$${i + from}`).join(", ");
 
 const files = {};
@@ -173,8 +133,6 @@ DELETE FROM ${legacy} WHERE id = $1
 `;
 }
 
-// ---------------------------------------------------------------- validation
-
 const client = await pool.connect();
 let prepared = 0;
 try {
@@ -198,8 +156,6 @@ try {
 } finally {
   client.release();
 }
-
-// ------------------------------------------------------------------- writing
 
 const targets = Object.keys(files).map((f) => path.join(dir, f));
 const existing = targets.filter((f) => fs.existsSync(f));

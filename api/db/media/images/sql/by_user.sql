@@ -1,4 +1,3 @@
--- One user's images, newest first - served by media.images(user_id, created_at); without it this is a sequential scan.
 SELECT id, user_id, bucket, mime_type, size_bytes, width, height,
        checksum, metadata, created_at, path, filename
   FROM media.images

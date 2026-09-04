@@ -1,5 +1,3 @@
-// The matcher, against the statement it replaces — moving the rule match out of SQL is the largest behavior-preserving change in this restructure, and it decides what a customer is charged, so the old statement is carried here VERBATIM as reference and both must agree over the same facts.
-// Not a test of the matcher's opinions (it has none) — just that two implementations of the same seven-way ranking pick the same rule.
 import { test, afterAll } from "vitest";
 import assert from "node:assert/strict";
 import pool from "#pool";
@@ -7,7 +5,6 @@ import query from "#shared/db/query.ts";
 import * as repo from "#db/sales-tax/repo.ts";
 import { rateFor, type TaxableFacts } from "#domain/sales-tax/match.ts";
 
-// Verbatim from features/sales-tax/repo.next.ts before the restructure.
 const REFERENCE = `
     SELECT COALESCE((
       SELECT r.tax_rate
@@ -34,7 +31,6 @@ const REFERENCE = `
 
 const reference = async (f: TaxableFacts): Promise<number> => {
   const { rows } = await query(REFERENCE, [
-    // Order from the statement, not the type — reading $7/$8/$9 off TaxableFacts in declaration order put weight into a boolean column and pg refused it.
     f.state_code, f.metal_category, f.product_type, f.price,
     f.purity, f.aggregate, f.is_domestic, f.is_legal_tender, f.weight,
   ]);
@@ -49,9 +45,6 @@ test("the rules really were loaded - a matcher over nothing agrees with everythi
   assert.ok(rules.length > 50, `only ${rules.length} rules loaded`);
 });
 
-// Facts drawn from the rules themselves, so every branch of the ranking is
-// exercised rather than a handful of invented cases: for each rule, a set of
-// facts that sits inside its own ranges.
 const factsFromRule = (r: repo.TaxRule): TaxableFacts => ({
   state_code: r.state_code,
   metal_category: r.metal_category === "All" ? "Gold" : r.metal_category,
@@ -81,8 +74,6 @@ test("both implementations pick the same rate, for facts drawn from every rule",
   assert.deepEqual(disagreements, [], "the two implementations disagree");
 });
 
-// The cases the grid above cannot reach: no rule at all, and a state that has
-// none. Both must be 0 rather than undefined or a throw.
 test("both agree when nothing matches", async () => {
   for (const f of [
     { state_code: "ZZ", metal_category: "Gold", product_type: "Coin", price: 1,
@@ -94,9 +85,7 @@ test("both agree when nothing matches", async () => {
   }
 });
 
-// LIMIT 1 after a seven-way ORDER BY is only determinate if no two applicable rules tie on all seven — a property of the DATA, so a new rule creating a tie must fail here rather than silently pick a side.
 test("no two rules for a state tie on every specificity axis", () => {
-  // Key deliberately excludes tax_rate — two rules ranking identically with the SAME rate are harmless; what matters is identical ranking with DIFFERENT rates, which is where LIMIT 1 silently chooses.
   const key = (r: repo.TaxRule) => [
     r.state_code, r.metal_category !== "All", r.product_type !== "All",
     r.is_domestic !== null, r.is_legal_tender !== null,
@@ -117,21 +106,12 @@ test("no two rules for a state tie on every specificity axis", () => {
   assert.deepEqual(ambiguous, [], "rules rank identically but carry different rates - LIMIT 1 picks arbitrarily");
 });
 
-// THE PRODUCT TYPE HAS ONE SPELLING NOW: products.bullion's own `type`, which
-// is what getItemsFromServer composes. It used to also accept a request-body
-// `product_type` beside it, because /tax/get_sales_tax priced the raw body -
-// that endpoint takes ids now, so every line reaching here is a catalogue row.
-// Reading the wrong spelling made every server-fetched item NULL here and a
-// rule keyed on a product type fell through to its 'All' fallback: the rate
-// was still a number, just the wrong rule's (D71).
 test("factsFrom reads the product type off the catalogue row's own column", async () => {
   const { factsFrom } = await import("#domain/sales-tax/service.ts");
   const row = factsFrom("TX", { metal_type: "Gold", type: "Coin" }, 100, 100);
   assert.equal(row.product_type, "Coin", "a server-fetched item's type was dropped - D71 is back");
   assert.equal(row.metal_category, "Gold");
 
-  // A line with no type at all matches only the 'All' rules, rather than
-  // throwing or matching a rule it should not.
   const untyped = factsFrom("TX", { metal_type: "Gold" }, 100, 100);
   assert.equal(untyped.product_type, null);
 });

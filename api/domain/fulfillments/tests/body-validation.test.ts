@@ -1,8 +1,3 @@
-// Strict body parsing at the transport boundary (D214 item 3): an unknown key
-// or a wrong-typed value is a 400 before the service runs, on every
-// body-accepting fulfillments endpoint (the parent's own five, plus
-// methods/update, schedule_pickup and schedule_direct - each owned by a
-// different sub-resource but reached through this feature's routes).
 import { test, afterAll } from "vitest";
 import assert from "node:assert/strict";
 import request from "supertest";
@@ -15,9 +10,6 @@ afterAll(() => restoreSessions());
 
 const admin = { id: "11111111-1111-1111-1111-111111111111", role: "admin", name: "Admin", email: "admin@x.test" };
 const asAdmin = <T>(fn: () => Promise<T> | T) => as(admin, fn);
-// fulfillments' generated row schemas validate ids with z.string().uuid()
-// (RFC4122-strict) - the all-ones id fails that check before the field this
-// test targets is ever reached, so a real-shaped v4 uuid is used instead.
 const ID = "12345678-1234-4234-8234-123456789abc";
 
 test("POST /fulfillments/methods/update refuses an unknown key", async () => {

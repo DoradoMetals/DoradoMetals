@@ -1,16 +1,5 @@
 "use client";
 
-// THE CATALOGUE. One hook per endpoint, typed only from @dorado/contracts.
-//
-// GET /products answers GROUPS, not rows: a family (`variant_group`), its
-// headline row and its siblings, ordered heaviest first. Four screens used to
-// do that grouping and that sort for themselves, and two of them disagreed
-// with each other about which member was the default.
-//
-// THE FILTER IS THE SERVER'S TOO. Metal, category, shape, the search box and
-// the buy/sell side are query params; what stays in the browser is only which
-// filter the customer has SELECTED. `side: "bid"` is the sell listing and has
-// no `display` gate at all (ruling 49).
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type {
   BullionAdmin, BullionGroup, BullionPatch, Metal, Mint,
@@ -30,8 +19,6 @@ export type ProductQuery = {
   sort?: "name" | "content" | "newest";
 };
 
-// Not a hook: the sitemap builds at request time, on the server, outside
-// react-query entirely.
 export const fetchProducts = (query: ProductQuery = {}) =>
   apiRequest<BullionGroup[]>("GET", "/products", undefined, query);
 
@@ -43,7 +30,6 @@ export function useProducts(query: ProductQuery = {}, enabled = true) {
   });
 }
 
-// ONE PRODUCT PAGE. A slug names the whole family, so this is one group.
 export function useProduct(slug: string | null | undefined) {
   return useQuery<BullionGroup>({
     queryKey: keys.products.bySlug(slug ?? ""),
@@ -61,8 +47,6 @@ export function useAdminProducts(enabled = true) {
   });
 }
 
-// A bare list of the shapes in the catalogue (ruling 12), for the admin
-// dropdown.
 export function useProductTypes(enabled = true) {
   return useQuery<string[]>({
     queryKey: keys.products.types(),
@@ -71,8 +55,6 @@ export function useProductTypes(enabled = true) {
   });
 }
 
-// Reference data, cached hard: four metals and ten mints, changing when the
-// business starts stocking something new.
 const REFERENCE_STALE_TIME = 60 * 60 * 1000;
 
 export function useMetals(enabled = true) {
@@ -93,9 +75,6 @@ export function useMints(enabled = true) {
   });
 }
 
-// Every write answers the composed admin row, so the cache is written FROM THE
-// RESPONSE rather than invalidated and re-fetched. The public lists still go,
-// because a catalogue edit changes what a visitor sees.
 function absorb(
   client: ReturnType<typeof useQueryClient>, row: BullionAdmin
 ): BullionAdmin {

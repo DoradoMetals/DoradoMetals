@@ -1,50 +1,3 @@
-// Every pinned test that WRITES an audited table must name the actor.
-//
-// *** WHY THIS EXISTS. *** Migration 116 moved created_by / created_by_id /
-// updated_by / updated_by_id / created_at / updated_at off every INSERT and
-// UPDATE and onto one trigger that reads `app.actor_id` from the connection.
-// `withTransaction` sets it for a real request; a test that holds the
-// transaction itself does not, and `inPinnedTransaction` used to default it to
-// the empty string. Of 276 pinned calls in the suite, exactly ONE named an
-// actor - so twenty-six tables' audit stamping was exercised entirely as
-// "written by nobody", and asserted nowhere. The redesign doc calls this out as
-// finding 2 of 1.2.
-//
-// The harness now defaults to shared/testing/actor.ts's TEST_ACTOR, so the
-// stamp is never null. This script is what stops the DEFAULT from being the
-// only answer: a test whose subject is an audited write must say who is
-// writing, because "somebody" and "this particular admin" are different claims
-// and only the second one can catch an attribution bug.
-//
-// *** THE SHAPE, WHICH IS lint-test-locks.ts's. *** That script asks the same
-// question about advisory locks and the derivation is identical, so the two are
-// deliberately parallel:
-//
-//   1. AUDITED transcribes migration 116's own trigger list - the 26 tables
-//      that carry the stamp. It is read FROM THE MIGRATION FILE rather than
-//      copied, so a 27th table added there is covered without an edit here.
-//   2. Every `db/**` and `domain/**` non-test file is walked for what it
-//      WRITES - `INSERT INTO`/`UPDATE`/`DELETE FROM schema.table` inside a
-//      backtick SQL string or a sibling `sql/*.sql`, plus `buildUpdate({
-//      table: ... })` - and each file's own writes are unioned with everything
-//      reachable through its imports.
-//   3. A test file REQUIRES an actor if any module it imports writes an
-//      audited table. Every `inPinnedTransaction` call in such a file must
-//      carry `actor:` - presence, not which one.
-//
-// *** WHAT IT CANNOT SEE, on purpose - narrow beats wrong. ***
-//   - A test that reaches an audited table ONLY over HTTP (`request(app)`)
-//     without importing the domain module. Those are correct WITHOUT an actor
-//     option: the request carries its own, through shared/http/actor.ts, and
-//     forcing `actor:` there would be a lie about where the value comes from.
-//     lint-test-locks has the same blind spot for the same reason.
-//   - `actor: undefined`, which reads as present here and defaults in the
-//     harness. Nothing writes that today.
-//   - A cycle in the db/domain import graph contributes nothing at the closing
-//     edge; none is known to exist.
-//
-// Run: pnpm --filter @dorado/api lint:test-actor
-//      pnpm --filter @dorado/api lint:test-actor --self-test
 import { readFileSync, readdirSync, statSync, existsSync } from "node:fs";
 import path from "node:path";
 
@@ -111,12 +64,6 @@ if (process.argv.includes("--self-test")) {
 
 const SELF_TEST_MODE = process.env.LINT_TEST_ACTOR_ROOT != null;
 
-// ---------------------------------------------------------------- the tables
-
-// READ FROM MIGRATION 116, not retyped. The trigger list IS the definition of
-// "audited", and a hand-copied set would go stale the first time a 27th table
-// joined it - silently, because a table this script does not know about simply
-// requires nothing.
 function auditedTables(): Set<string> {
   const dir = path.join(ROOT, "migrations");
   const files = existsSync(dir)
@@ -134,8 +81,6 @@ function auditedTables(): Set<string> {
 }
 
 const AUDITED = auditedTables();
-
-// ---------------------------------------------------------------- the graph
 
 function walk(dir: string, out: string[] = []): string[] {
   let entries: string[];
@@ -242,11 +187,6 @@ function auditedFor(fileRel: string, visiting: Set<string> = new Set()): Set<str
 }
 for (const f of graphByRel.keys()) auditedFor(f);
 
-// ---------------------------------------------------------------- the tests
-
-// A pinned call with no actor that is genuinely correct without one - keyed by
-// `<file>::<enclosing test description>#<occurrence index within it>`, NOT by
-// line, so a reformat cannot silently drop an acceptance.
 const ACCEPTED: Record<string, string> = {};
 const acceptedHit = new Set<string>();
 
@@ -351,8 +291,6 @@ if (stale.length && !SELF_TEST_MODE) {
 
 if (SELF_TEST_MODE) process.exit(findings > 0 ? 1 : 0);
 
-// THE FLOORS. A scan that finds nothing must not report success - the same
-// reasoning lint-test-locks and audit-query-paths both carry.
 const TABLE_FLOOR = Number(process.env.LINT_TEST_ACTOR_TABLE_FLOOR ?? 20);
 if (AUDITED.size < TABLE_FLOOR) {
   console.error(
@@ -367,10 +305,6 @@ if (testFiles.length < FILE_FLOOR) {
   process.exit(1);
 }
 
-// THE KNOWN-PRESENT CONTROL. db/reviews/repo.ts writes reviews.reviews, which
-// migration 116 stamps - if this script cannot attribute that one real,
-// unambiguous file, the resolution pipeline is broken and every other finding
-// here means nothing.
 const CONTROL = "db/reviews/repo.ts";
 if (!auditedFor(CONTROL).has("reviews.reviews")) {
   console.error(

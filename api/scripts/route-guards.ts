@@ -1,50 +1,3 @@
-// Every route the API mounts, and the middleware standing in front of it.
-//
-// Written because the authorization question is "who can reach this", and that
-// is answered by the route table rather than by any single test. A route with
-// only a happy-path test proves the handler works and says nothing about the
-// guard - which is how get_payout_details, the endpoint that returns plaintext
-// bank details, came to have no assertion that it was admin-only (00a0853b).
-//
-// AND IT SILENTLY DROPPED SIX ROUTES WHILE EXITING 0 (D120). Three hardcoded
-// assumptions, each true of the shape the code happened to have: the exact
-// filename `routes.ts`, DEFAULT imports only, and a router variable literally
-// named `router`. Any ONE of them made six routes vanish from an AUTHORIZATION
-// audit - `DELETE /api/purchase_orders/purge_cancelled` and both
-// `create_review` paths among them - while the run reported success.
-//
-// A test with the IDENTICAL bug (`shared/http/endpoints.test.js`, same
-// hardcoded filename) FAILED LOUDLY. Same defect, opposite consequence, because
-// one is an ASSERTION and the other is a REPORT: an assertion that cannot see
-// its subject fails; a report that cannot see its subject prints a smaller
-// number and exits 0 (D135).
-//
-// So this file now asserts about its own coverage. There is a literal floor,
-// and - because a floor alone is blind to PARTIAL breakage - a set of
-// KNOWN_ROUTES that must each be present by URL. They are deliberately the very
-// routes D120 lost, plus the endpoint that returns plaintext bank details:
-// if the census cannot see those, it cannot see anything and must say so.
-//
-// *** WHAT IT CANNOT SEE. Four assumptions have already been found in this file
-// (three by D120, one - the router's NAME - by the guard-hardening pass), so the
-// remaining ones are written down rather than waited for: ***
-//   - BLANKET MIDDLEWARE. `router.use(requireUser)` with no path guards every
-//     route on that router, and this attributes guards PER ROUTE from the
-//     handler's own argument list. Such a route would be reported UNGUARDED.
-//     Checked at the time of writing: no file does this. The failure would be a
-//     false alarm rather than a false clean, which is the safe direction.
-//   - A GUARD BEHIND A HELPER: `router.get("/x", ...adminOnly, handler)` or a
-//     middleware array built elsewhere. The names in the census are the text at
-//     the call site.
-//   - A ROUTE REGISTERED IN A LOOP or from a table of paths.
-//   - A ROUTE WHOSE PATH IS NOT A LITERAL. The regex requires a quoted path.
-//   - WHAT A GUARD ACTUALLY DOES. This is a census of NAMES. That `requireAdmin`
-//     is in front of an endpoint is not proof that it checks admin - that is
-//     domain/authorization/admin-routes.test.js's job, and it consumes this
-//     table, which is why a route missing from here is missing from that too.
-//
-//   pnpm --filter @dorado/api audit:routes
-//   node scripts/route-guards.mjs --self-test
 import { readFileSync, readdirSync, statSync, existsSync } from "node:fs";
 import { join, relative } from "node:path";
 
@@ -55,10 +8,6 @@ const ROOT = process.env.ROUTE_GUARDS_ROOT
 if (process.argv.includes("--self-test")) {
   const { selfTest } = await import("./lib/self-test-harness.ts");
   const Q = String.fromCharCode(34);
-  // THE FIXTURE IS D120'S OWN SHAPE: a `<x>.routes.ts` file, imported by NAME,
-  // declaring TWO routers, one of them named nothing like "router". Each of the
-  // four assumptions this file has held at one time or another is exercised by
-  // it, and each case below breaks exactly one.
   const app = (mounts: string) =>
     `import ordersRoutes from ${Q}#transport/orders/routes.ts${Q};\n` +
     `import { purchaseOrderRoutes, api } from ${Q}#transport/orders/creates.routes.ts${Q};\n` +
@@ -96,10 +45,6 @@ api.post("/create_review", requireUser, requireOwnOrder, createReview);
       },
       {
         name: "a `<x>.routes.ts` file going unscanned is caught by the controls (D120 assumption 1)",
-        // Floor deliberately at 1 so the CONTROLS are the only thing that can
-        // fire. With the floor at 4 this case passed on the floor instead, and
-        // would have proved nothing about partial breakage - which is the exact
-        // failure a floor alone cannot see.
         rootEnv: "ROUTE_GUARDS_ROOT",
         env: { ROUTE_GUARDS_FLOOR: "1", ROUTE_GUARDS_CONTROLS: CONTROLS },
         files: (() => { const f = base(); f["transport/orders/creates.ts"] = f["transport/orders/creates.routes.ts"]; delete f["transport/orders/creates.routes.ts"]; return f; })(),
@@ -144,23 +89,11 @@ function walk(dir: string, out: string[] = []): string[] {
     if (name === "node_modules" || name.startsWith(".")) continue;
     const p = join(dir, name);
     if (statSync(p).isDirectory()) walk(p, out);
-    // `routes.ts` AND `<something>.routes.ts`. Wave 5A dissolved
-    // features/purchase-orders and features/sales-orders into features/orders,
-    // and the two legacy create namespaces they mounted became
-    // transport/orders/creates.routes.ts - one file declaring TWO routers,
-    // because /api/purchase_orders and /api/sales_orders are two mounts and
-    // ruling 13 says a URL does not move when a file does. This walk matched
-    // the exact filename `routes.ts` only, so that file was not scanned at
-    // all: six routes left the security census and the exit code stayed 0.
-    // Third time this class of silence has been recorded here.
     else if (/(^|\.)routes\.(js|ts)$/.test(name)) out.push(p);
   }
   return out;
 }
 
-// Where each routes module is mounted, read from app.ts rather than assumed -
-// the prefix is not derivable from the folder name (transport/refiners mounts at
-// /api/suppliers, transport/media at /api/images, transport/checkout at /api/cart).
 if (!existsSync(join(ROOT, "app.ts")) || !existsSync(join(ROOT, "transport"))) {
   console.error(
     `route-guards cannot read ${join(ROOT, "app.ts")} or ${join(ROOT, "transport")} - ` +
@@ -169,26 +102,12 @@ if (!existsSync(join(ROOT, "app.ts")) || !existsSync(join(ROOT, "transport"))) {
   process.exit(2);
 }
 const appSrc = readFileSync(join(ROOT, "app.ts"), "utf8");
-//
-// KEYED WITHOUT THE EXTENSION, on both sides. This once hardcoded `.js`, so
-// the moment routes.js became routes.ts every mount resolved to null and every
-// url with it - silently, because the guard counts read only the middleware
-// names and would have stayed at 132.
-//
-// A key is `<file-without-extension>` for a DEFAULT export and
-// `<file-without-extension>::<name>` for a NAMED one. A file may declare more
-// than one router - see creates.routes.ts - so the file alone is not the unit.
 const importedAs = new Map<string, string>();
 const routerImports = (src: string): Map<string, string> => {
   const out = new Map<string, string>();
   const def = /import\s+(\w+)\s+from\s+["']#transport\/([^"']+?)\.(?:js|ts)["']/g;
   let m;
   while ((m = def.exec(src))) {
-    // `/routes` AND `.routes` - a file may carry a dotted router name
-    // (checkout.routes.ts) exactly as the walk above already accepts; the
-    // default-import branch anchored on the slash form only, so a dotted
-    // default export left the census silently. Same class of silence as the
-    // creates.routes.ts note on the walk.
     if (/(^|[\/.])routes$/.test(m[2])) out.set(m[1], `transport/${m[2]}`);
   }
   const named = /import\s+\{([^}]+)\}\s+from\s+["']#transport\/([^"']+?)\.(?:js|ts)["']/g;
@@ -204,9 +123,6 @@ const routerImports = (src: string): Map<string, string> => {
   return out;
 };
 for (const [local, key] of routerImports(appSrc)) importedAs.set(local, key);
-// Which key a router VARIABLE in a file answers to. A file with one router
-// exports it as default and answers to the file key; a file with several
-// exports them by name and each answers to `<file>::<name>`.
 const exportedRouterNames = (src: string): Set<string> => {
   const out = new Set<string>();
   for (const m of src.matchAll(/export\s+const\s+(\w+)\s*=\s*express\.Router\(/g)) {
@@ -215,12 +131,6 @@ const exportedRouterNames = (src: string): Set<string> => {
   return out;
 };
 
-// EVERY identifier in a file that IS a router, declared or exported. The route
-// scan below used to decide this by NAME - `/[Rr]out/.test(varName)` - which is
-// the same class of hardcoded assumption as the three D120 found, just one
-// nobody had tripped yet: a router called `api`, or `r`, contributes nothing and
-// says nothing. Read it from the assignment instead, so the census depends on
-// what the code IS rather than on what it happens to be called.
 const routerVarsIn = (src: string): Set<string> => {
   const out = new Set<string>();
   for (const m of src.matchAll(/(?:export\s+)?(?:const|let|var)\s+(\w+)\s*=\s*express\.Router\(/g)) {
@@ -238,30 +148,13 @@ const unresolvedMounts: string[] = [];
   let m;
   while ((m = re.exec(appSrc))) {
     const file = importedAs.get(m[2]);
-    // A MOUNT THAT CANNOT BE RESOLVED IS A FAILURE, NOT A SKIP. This used to
-    // be `if (file)` and nothing else: an app.use whose identifier did not
-    // match the import regex simply vanished, taking its routes out of the
-    // census with no message and no non-zero exit. That is how a named-export
-    // router removed six routes from a security audit unnoticed.
     if (file) mountOf.set(file, m[1]);
     else unresolvedMounts.push(`${m[1]} -> ${m[2]}`);
   }
 }
 
-// NESTED MOUNTS, resolved transitively (ruling 26c). A parent's routes.ts now
-// MOUNTS its children rather than declaring their paths -
-// transport/orders/routes.ts does `router.use("/", itemRoutes)` and
-// transport/fulfillments/routes.ts does `router.use("/methods", methodRoutes)` -
-// so a child's prefix is the parent's mount plus the segment the parent mounted
-// it at, and it is not in app.ts at all.
-//
-// WITHOUT THIS every child router resolved to `mount: null` and `url: null`,
-// exactly the silent-null failure this file already records once (the .js/.ts
-// rename). The guards were still reported, so the count stayed right and the
-// URLs quietly went missing - which is the failure mode worth naming twice.
 {
   const routeFiles = walk(join(ROOT, "transport"));
-  // file key -> [{ at, childKey }]
   const nested = new Map<string, { at: string; childKey: string }[]>();
   for (const file of routeFiles) {
     const src = readFileSync(file, "utf8");
@@ -276,8 +169,6 @@ const unresolvedMounts: string[] = [];
       nested.get(key)!.push({ at: m[2], childKey });
     }
   }
-  // Fixpoint, so a child of a child resolves too. Bounded by the number of
-  // edges: nothing can gain a mount twice, so this terminates.
   let changed = true;
   let guard = 0;
   while (changed && guard++ < 20) {
@@ -297,12 +188,6 @@ const unresolvedMounts: string[] = [];
   }
 }
 
-// THE CENSUS ROW. Declared, because `routes` is exported and consumed by
-// domain/authorization/tests/admin-routes.test.ts - and because every
-// downstream filter and every `[["ADMIN", admin], ...]` grouping below was
-// inferring its element type from this literal, which is how `group[1]`
-// widened to `string | Route[]` and `r.verb` became an error the moment
-// anything was allowed to look (D157).
 export type Route = {
   file: string;
   mount: string | null;
@@ -316,11 +201,6 @@ export type Route = {
 const routes: Route[] = [];
 for (const file of walk(join(ROOT, "transport"))) {
   const src = readFileSync(file, "utf8");
-  // <router>.<verb>( "<path>" , <middleware list> , <handler> )
-  //
-  // The router variable used to be hardcoded as the literal name `router`,
-  // which is fine while every file declares exactly one - and silently drops
-  // every route in a file that declares two, which creates.routes.ts does.
   const routerVars = routerVarsIn(src);
   const re =
     /(\w+)\s*\.\s*(get|post|put|patch|delete)\s*\(\s*(['"`])([^'"`]+)\3\s*,([^)]*)\)/g;
@@ -336,9 +216,6 @@ for (const file of walk(join(ROOT, "transport"))) {
     routes.push({
       file: rel,
       mount: mountOf.get(key) ?? null,
-      // The trailing-slash trim exists for root-path routes: GET "/" on a
-      // router mounted at /api/orders is /api/orders, not /api/orders/ -
-      // Express treats them alike, and the frontend spells the former.
       url: mountOf.has(key)
         ? (mountOf.get(key) + path).replace(/\/+/g, "/").replace(/(.)\/$/, "$1")
         : null,
@@ -359,8 +236,6 @@ const open = routes.filter((r) => !r.guards.length);
 export const allRoutes = routes;
 export const adminRoutes = admin;
 
-// Quiet when imported - domain/authorization/admin-routes.test.js consumes
-// the table, and a test suite should not have a scanner's output in it.
 const isMain =
   process.argv[1] !== undefined &&
   import.meta.url.endsWith(process.argv[1].split("/").pop() ?? "\0");
@@ -370,9 +245,6 @@ if (isMain) {
     process.exit(2);
   }
 
-  // THE FLOOR. 125 routes today. A census is a security instrument; a smaller
-  // number is a broken walk until proven otherwise, and proving otherwise means
-  // lowering this on the same commit that deletes the routes.
   const ROUTE_FLOOR = Number(process.env.ROUTE_GUARDS_FLOOR ?? 115);
   if (routes.length < ROUTE_FLOOR) {
     console.error(
@@ -383,11 +255,6 @@ if (isMain) {
     process.exit(2);
   }
 
-  // KNOWN-PRESENT CONTROLS, because a floor is blind to partial breakage - and
-  // the breakage that happened WAS partial. These are the routes D120 actually
-  // lost, plus the bank-details endpoint this file was written for. Each is
-  // pinned by URL AND by the guard it must carry, so a route surviving the
-  // census with its middleware unparsed is caught too.
   const KNOWN_ROUTES: Record<string, string> = process.env.ROUTE_GUARDS_CONTROLS
     ? JSON.parse(process.env.ROUTE_GUARDS_CONTROLS)
     : {

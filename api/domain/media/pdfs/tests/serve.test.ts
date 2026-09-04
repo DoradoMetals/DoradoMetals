@@ -1,5 +1,3 @@
-// The download service: which truth answers (stored file vs live render) and for whom. No Chromium here - the render is a stub; these tests are about SELECTION (which row, when the fallback fires, that a broken store never breaks the download).
-// The storage read is the StoredReader parameter - putObject is skipped under isTestRun, so the stub is what lets the stored path be exercised at all. Rows are written inside this file's transaction and rolled back, like paper-trail.test.ts.
 import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
@@ -11,29 +9,17 @@ import { LOCKS } from "#shared/testing/locks.ts";
 import { inRollback } from "#shared/testing/rollback.ts";
 
 let client: PoolClient;
-// getAllPurchases declares Record<string, unknown>[], so the subset this file reads is named here.
 type OrderFixture = { id: string };
 
-let order: OrderFixture; // a real dev purchase order that orders.orders knows
-let owner: { id: string; role: string }; // the order's real owner
+let order: OrderFixture;
+let owner: { id: string; role: string };
 
-// SESSION-scoped LOCKS.ORDERS, held for the whole file (lane 3, the runner
-// conversion): `order` is picked once here and referenced by every test's
-// own INSERTs after, and domain/orders/tests/edit-line.test.ts writes real,
-// autocommitting rows to orders.orders under the SAME lock - see
-// domain/media/pdfs/tests/documents-agree.test.ts's own comment for the full
-// mechanism.
 beforeAll(async () => {
   client = await pool.connect();
   await client.query("SELECT pg_advisory_lock($1)", [LOCKS.ORDERS]);
   const orders = (await orderRead.list({ direction: "purchase" })) as unknown as OrderFixture[];
   assert.ok(orders.length > 0, "dev has no purchase orders");
 
-  // media.pdfs.order_id references orders.orders, so the fixtures need an order the schema knows - asserted rather than assumed, so a dev database whose orders were never backfilled fails here, loudly, not in an INSERT three tests down.
-  // Needs an OWNER too, not merely a row: a guest/anonymous purchase order is
-  // a valid `orders.orders` state (user_id IS NULL) and a `LIMIT`-less first
-  // match can land on one when other files run concurrently, so this keeps
-  // searching rather than taking the first row that merely exists.
   for (const o of orders) {
     const { rows } = await client.query(
       "SELECT user_id FROM orders.orders WHERE id = $1",
@@ -60,7 +46,6 @@ const sha256 = (bytes: Buffer | Uint8Array | string) => createHash("sha256").upd
 const STORED = Buffer.from("%PDF-1.4 the bytes the customer was actually sent");
 const RENDERED = Buffer.from("%PDF-1.4 a fresh render of the request body");
 
-// A render stub that counts, so a test can assert the renderer was - or was not - consulted.
 const renderer = () => {
   const calls: number[] = [];
   return {
@@ -72,7 +57,6 @@ const renderer = () => {
   };
 };
 
-// A reader stub that records which path was asked for.
 const reader = (bytes: Buffer | null) => {
   const paths: string[] = [];
   return {
@@ -106,7 +90,6 @@ const pdfRowCount = async (c: PoolClient) => {
 
 test("the LATEST stored row of the kind is the one served", async () => {
   await inRollback(async (c: PoolClient) => {
-    // Regeneration inserts, never updates, so two rows of one kind is the normal shape of a re-sent document - created_at decides.
     await insertRow(c, { path: "pdfs/x/old.pdf", checksum: sha256("stale"), hoursAgo: 2 });
     await insertRow(c, { path: "pdfs/x/new.pdf", checksum: sha256(STORED), hoursAgo: 1 });
 
@@ -157,7 +140,6 @@ test("no stored row: the fallback renders live AND persists, so the second downl
     assert.equal(r.calls.length, 1);
     assert.deepEqual(storage.paths, [], "there was nothing stored to read");
 
-    // The migration path for pre-trail orders: the render just served is now the stored truth.
     const { rows } = await c.query(
       "SELECT kind, checksum, size_bytes FROM media.pdfs WHERE order_id = $1",
       [order.id]
@@ -167,7 +149,6 @@ test("no stored row: the fallback renders live AND persists, so the second downl
     assert.equal(rows[0].checksum, sha256(RENDERED));
     assert.equal(Number(rows[0].size_bytes), RENDERED.length);
 
-    // And the second download is a stored read, no render.
     const second = renderer();
     const secondStorage = reader(RENDERED);
     const again = await serveOrderDocument(
@@ -187,14 +168,13 @@ test("a storage miss falls back to a live render, never a 500", async () => {
     const r = renderer();
     const served = await serveOrderDocument(
       { kind: "invoice", order_id: order.id, caller: owner, render: r.render },
-      reader(null).read, // the object was deleted out-of-band
+      reader(null).read,
       c
     );
 
     assert.equal(served.source, "rendered", "the download must not break over bookkeeping");
     assert.deepEqual(Buffer.from(served.bytes), RENDERED);
     assert.equal(r.calls.length, 1);
-    // The trail records what was SENT; a fresh render is not that, so the miss must not insert a row claiming it is.
     assert.equal(await pdfRowCount(c), 1);
   });
 });
@@ -205,15 +185,13 @@ test("stored bytes that no longer match their checksum are a miss, not a serve",
 
     const served = await serveOrderDocument(
       { kind: "invoice", order_id: order.id, caller: owner, render: renderer().render },
-      reader(STORED).read, // returns bytes, but not the recorded ones
+      reader(STORED).read,
       c
     );
     assert.equal(served.source, "rendered", "corrupt bytes must not be served as the stored truth");
   });
 });
 
-// The non-widening pin: these routes are requireUser only (never requireOwnOrder) - survivable before the store existed because a caller only got a render of data they already possessed.
-// The stored path must keep that survivable: a signed-in stranger naming somebody else's order id gets exactly yesterday's behavior (a render of their own body), and the store is never consulted for them.
 test("a caller who does not own the order never touches the store and persists nothing", async () => {
   await inRollback(async (c: PoolClient) => {
     await insertRow(c, { path: "pdfs/x/new.pdf", checksum: sha256(STORED), hoursAgo: 1 });
@@ -233,14 +211,13 @@ test("a caller who does not own the order never touches the store and persists n
   });
 });
 
-// The seam's own guard, pinned like the transport's: a test that forgets to pass a reader must not reach live MinIO - the default reader refuses under isTestRun, and the refusal is swallowed into a live render, so even then the download answers.
 test("the default reader refuses in a test run, and the download still answers", async () => {
   await inRollback(async (c: PoolClient) => {
     await insertRow(c, { path: "pdfs/x/new.pdf", checksum: sha256(STORED), hoursAgo: 1 });
 
     const served = await serveOrderDocument(
       { kind: "invoice", order_id: order.id, caller: owner, render: renderer().render },
-      undefined, // no reader passed - the default must refuse, not read
+      undefined,
       c
     );
     assert.equal(served.source, "rendered");

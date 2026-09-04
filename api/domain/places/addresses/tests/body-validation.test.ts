@@ -1,9 +1,3 @@
-// Strict body parsing at the transport boundary (D214 item 3): an unknown key
-// or a wrong-typed value is a 400 before the service runs, on every
-// body-accepting addresses endpoint. is_valid/is_residential are a deliberate
-// case - server-controlled facts that used to be accepted in the body and
-// are now refused by name, and so is `id`: the address is named once, in the
-// path (ruling 43).
 import { test, afterAll } from "vitest";
 import assert from "node:assert/strict";
 import request from "supertest";
@@ -37,9 +31,6 @@ test("POST /addresses refuses a wrong type", async () => {
   });
 });
 
-// The id used to ride INSIDE the patch, where it read as a column being
-// written and had to be hand-checked. It is the path now, and the body refuses
-// it by name.
 test("PATCH /addresses/:id refuses an id in the body", async () => {
   await asUser(async () => {
     const res = await request(app).patch(`/api/addresses/${ID}`).send({ address: { id: ID, ...ADDRESS } });
@@ -65,8 +56,6 @@ test("PATCH /addresses/:id refuses a wrong-typed recipient", async () => {
   });
 });
 
-// Google bills per request, so a query too short to be a search is refused
-// here rather than there.
 test("GET /addresses/suggestions refuses a query with nothing in it", async () => {
   await asUser(async () => {
     const res = await request(app).get("/api/addresses/suggestions").query({ q: "ab" });

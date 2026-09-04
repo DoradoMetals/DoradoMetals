@@ -1,6 +1,3 @@
-// The four PDF routes, over real HTTP - service.test.ts already renders every document and checks the bytes; what it can't check is the HTTP boundary (guards, and the headers a browser needs to receive a file).
-// One test renders for real (Content-Length can only be asserted against a real document) - closeBrowser() runs in afterAll(), or Chromium outlives the run and node never exits (has happened, cost an hour and eleven orphaned processes). Every other test stops at a guard.
-// What these routes serve: for the order's OWNER (or an admin), they look up the latest media.pdfs row and serve the stored file, falling back to a live render (persisted for a linkable order) when none exists; everyone else gets a render of the body they posted, same as always - selection logic and ownership gate are pinned in serve.test.ts. In a test run the stored branch always falls back, so every render assertion below exercises the same path it always did.
 import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import request from "supertest";
@@ -32,19 +29,6 @@ type Spot = Awaited<ReturnType<typeof spotsService.getSpotPrices>>[number];
 
 const customer: UserFixture = TEST_CUSTOMER;
 
-// THE ORDERS ARE BUILT INSIDE THE PIN (lane 1), AND THAT FIXED A REAL FLAKE.
-// They used to be read through the API in `beforeAll`, on the pool, as
-// "whichever order of this direction has lines" - so this file rendered
-// documents for real customers' real orders, AND raced
-// domain/orders/tests/edit-line.test.ts, which commits an order, runs, and
-// deletes it again: a list taken between those two points named an order that
-// no longer existed by the time the renderer looked it up, and the run failed
-// four tests with `NotFound: no order <uuid>`. Nothing in the file could see
-// the cause, because the fixture was correct when it was read.
-//
-// A built order cannot be deleted by another file, and both documents get an
-// order that genuinely carries a line, an address and a parcel - which is what
-// a packing list and an invoice actually render from.
 const anOrderToRender = async (c: PoolClient, direction: "purchase" | "sale") => {
   const user = await aUser(c, { name: "Document Owner" });
   const address = await anAddress(c, user);
@@ -67,30 +51,22 @@ beforeAll(async () => {
     0,
     "these tests require TZ=UTC - run them with `pnpm --filter @dorado/api test`"
   );
-  // The composed shape (name/ask/bid), the way the frontend sends them and the
-  // calculations read them. spots.spots is reference data - a live feed, not a
-  // fixture - so it stays a read.
   spots = await spotsService.getSpotPrices();
   assert.ok(spots.length > 0, "dev has no spot prices");
 });
 
 afterAll(async () => {
-  // Otherwise Chromium outlives the test run and node never exits.
   await closeBrowser();
   restoreSessions();
   await pool.end();
 });
 
-// The other three, which only had the refusal until now: a return packing list, a purchase-order invoice and a sales-order invoice - the documents a customer and a refiner are sent.
-// Each renders LIVE here from the server's own read: `customer` is generally not the order's owner, so serve.ts keeps the store shut and falls back to a render. Nothing else would notice the renderer breaking, which is what makes rendering them worth asserting rather than assuming.
-// A PDF is checked by its magic bytes and a floor on its length - an empty or error page is still a 200 with content-type application/pdf, so the status alone proves nothing.
 const RENDERS = [
   ["generate_return_packing_list", "return-packing-list.pdf", "purchase"],
   ["generate_invoice", "invoice.pdf", "purchase"],
   ["generate_sales_order_invoice", "invoice.pdf", "sale"],
 ];
 
-// Declared as a tuple list - inferred, the element type collapses to `string` and the direction is not usable as one.
 for (const [route, filename, direction] of RENDERS as Array<
   [string, string, "purchase" | "sale"]
 >) {
@@ -140,7 +116,6 @@ test("every PDF route refuses an anonymous caller", async () => {
   }, { actor: TEST_ACTOR.id, lock: [LOCKS.FULFILLMENTS, LOCKS.ORDERS] });
 });
 
-// A guard that let an unauthenticated caller through would launch a browser per request - a denial-of-service surface as well as a leak, which is why the refusal above is asserted for all four.
 test("no PDF route launches a renderer for an anonymous caller", async () => {
   await inPinnedTransaction(async () => {
     await anonymous(async () => {
@@ -156,7 +131,6 @@ test("no PDF route launches a renderer for an anonymous caller", async () => {
   }, { actor: TEST_ACTOR.id, lock: [LOCKS.FULFILLMENTS, LOCKS.ORDERS] });
 });
 
-// The one that renders: proves a signed-in caller receives a real file with the headers a browser needs to save it.
 test("a signed-in caller gets a real PDF with the headers to download it", async () => {
   await inPinnedTransaction(async (c: PoolClient) => {
     const { order } = await anOrderToRender(c, "purchase");
@@ -194,18 +168,10 @@ test("a signed-in caller gets a real PDF with the headers to download it", async
   }, { actor: TEST_ACTOR.id, lock: [LOCKS.FULFILLMENTS, LOCKS.ORDERS] });
 });
 
-// The stored branch, over HTTP: serve.test.ts proves the selection logic with a stubbed reader; what it can't prove is the wiring (that the controller hands serve.ts the right order id and caller, and that a stored row can never turn a customer's download into a 500).
-// In a test run the stored read always fails (like a deleted object would), so this drives the OWNER through a route whose order HAS a stored row and asserts the fallback still delivers a real PDF - "download must not break over bookkeeping", end to end.
 test("an owner's download with a stored row still answers with a PDF when the store cannot", async () => {
   await inPinnedTransaction(async (c: PoolClient) => {
-    // THE OWNER COMES BACK FROM THE BUILDER. This used to read the order's
-    // user_id out of orders.orders and then look that person up in
-    // exchange.users, with two guards saying what to do if either read came
-    // back empty - both of which the builder makes unnecessary: the order has
-    // an owner because the fixture gave it one.
     const { order, owner } = await anOrderToRender(c, "purchase");
 
-    // Through the shared executor: while pinned, this joins the transaction that gets rolled back, so the row never outlives the test.
     await query(
       `INSERT INTO media.pdfs (kind, order_id, path, size_bytes, checksum)
        VALUES ('return_packing_list', $1, 'pdfs/replay/never-uploaded.pdf', 5, 'feed')`,

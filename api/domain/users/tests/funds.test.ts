@@ -1,15 +1,9 @@
-// The customer balance path, against real Postgres. addFunds/removeFunds move the balance, addTransactionLog records why - a write escaping its transaction would take money with it, so the tests are mostly about the two staying together.
-// Each runs inside a transaction that is rolled back, so no real balance moves.
 import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
 import { randomUUID } from "node:crypto";
 import pool from "#pool";
-// MOVED FROM features/transactions: addFunds and removeFunds write
-// auth.users.dorado_funds, and features/users owns that table - two services
-// writing one table is the thing the structure forbids.
 import * as usersService from "#domain/users/service.ts";
-// The ledger entry that records WHY a balance moved lives in its own feature: the balance is users', the log is transactions'.
 import * as transactions from "#domain/transactions/service.ts";
 import { takeLocks, LOCKS } from "#shared/testing/locks.ts";
 import { rollbackIn } from "#shared/testing/rollback.ts";
@@ -31,21 +25,8 @@ afterAll(async () => {
   await pool.end();
 });
 
-// THE FILE'S LOCK, BOUND ONCE. A lock is a property of what this file
-// WRITES, not of one call, so it is named here and every inRollback below
-// inherits it - which is also what stops a new test being added without one.
-  // A locked read held across a ledger insert - see LOCKS.USERS.
 const inRollback = rollbackIn({ lock: LOCKS.USERS });
 
-// auth.users, WHICH IS BOTH THE WRITE TARGET AND THE READ SOURCE since
-// migration 118. It used to be exchange.users on both lines, back when the
-// balance was written there and mirrored across by a trigger.
-//
-// THE CUSTOMER IS BUILT (lane 1) AND STARTS AT ZERO. This read whichever
-// auth.users row sorted first, so every test below moved a real customer's
-// credit and then compared against "before" - correct arithmetic about the
-// wrong person's money, saved only by the rollback. A known starting balance
-// also lets the assertions state absolute figures.
 const aUser = async (c: PoolClient) => buildUser(c, { funds: 0 });
 
 const balance = async (c: PoolClient, id: string) =>
@@ -69,7 +50,6 @@ test("removing funds decreases it by exactly the amount", async () => {
   });
 });
 
-// Money is NUMERIC - without the type parsers registered in db.js it arrives as a string and `balance + amount` concatenates rather than adds.
 test("a balance is a number, not a string", async () => {
   await inRollback(async (c: PoolClient) => {
     const user = await aUser(c);
@@ -79,7 +59,6 @@ test("a balance is a number, not a string", async () => {
   });
 });
 
-// Adding and removing the same amount must leave the balance where it started - floating point makes that worth asserting.
 test("adding then removing the same amount is a round trip", async () => {
   await inRollback(async (c: PoolClient) => {
     const user = await aUser(c);
@@ -90,7 +69,6 @@ test("adding then removing the same amount is a round trip", async () => {
   });
 });
 
-// removeFunds does not check the balance first - nothing stops it going negative if two checkouts race. Pinned as behaviour, not fixed.
 test("removing more than the balance goes negative rather than refusing", async () => {
   await inRollback(async (c: PoolClient) => {
     const user = await aUser(c);
@@ -118,12 +96,6 @@ test("a transaction log records the movement", async () => {
   });
 });
 
-// The property that matters most: the balance change and its log entry are one transaction.
-// THE SEEDED TEST ACTOR, NOT A BUILT CUSTOMER, and that is forced: the claim
-// is that one connection cannot see the other's uncommitted movement, so the
-// row has to exist on BOTH connections before either writes - which means
-// committed, and a builder's customer deliberately is not. See
-// shared/testing/actor.ts.
 test("a rolled-back movement leaves neither the balance nor the log changed", async () => {
   const other = await pool.connect();
   try {
@@ -140,7 +112,6 @@ test("a rolled-back movement leaves neither the balance nor the log changed", as
       client
     );
 
-    // Visible inside, invisible outside.
     assert.equal(await balance(client, user.id), before + 999.99);
     assert.equal(await balance(other, user.id), before, "the balance change escaped the transaction");
 

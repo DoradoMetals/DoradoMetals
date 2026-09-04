@@ -1,17 +1,3 @@
-// aPayout and aPaymentIntent - the money rows.
-//
-// *** aPayout IS payments.details, NOT exchange.payouts. *** The old table
-// still HOLDS 24 plaintext bank numbers and is read by the admin surfaces, but
-// it receives nothing new (D210): a new-flow payout account is an AES-256-GCM
-// envelope in `payments.details`, linked from `orders.transactions.
-// payout_details_id`. A builder that wrote the old table would be building a
-// row the live code cannot produce.
-//
-// *** THE NUMBERS ARE SEALED THE SAME WAY THE SERVICE SEALS THEM. *** Same
-// cipher, same additional-authenticated-data (the row id and the column name),
-// so a test that opens one is testing the real envelope and not a fixture's
-// imitation of one. The digits are obviously fake and constant, because a
-// failure message naming 021000021 is readable and a random one is not.
 import type { PoolClient } from "pg";
 import { anId, aTag } from "#shared/testing/builders/ids.ts";
 import * as details from "#db/payments/details/repo.ts";
@@ -24,7 +10,6 @@ import type { BuiltUser } from "#shared/testing/builders/users.ts";
 import type { BuiltOrder } from "#shared/testing/builders/orders.ts";
 import type { PaymentDetailsPatch, PaymentIntentPatch } from "@dorado/contracts";
 
-// A test routing number and a test account number. Constant on purpose.
 export const TEST_ROUTING = "021000021";
 export const TEST_ACCOUNT = "000123456789";
 
@@ -38,19 +23,6 @@ export type BuiltPayout = {
   account_number: string;
 };
 
-// THE COLUMNS COME FROM THE CONTRACT, and the four things that are not columns
-// of payments.details are visible as exactly that. `PayoutOptions` used to
-// restate every column here - the drift lint:input-shapes exists to catch.
-//
-//   method        the method TYPE ('ACH'), resolved to a method_id below
-//   routing_number / account_number
-//                 PLAINTEXT DIGITS, sealed on the way in exactly as the
-//                 service seals them. They are deliberately absent from
-//                 PaymentDetailsPatch - the frozen plaintext columns are never
-//                 written - so a builder that seals them has to name them.
-//   order / payout_fee
-//                 orders.transactions, which is where a payout's order link
-//                 and its fee live (073 split them off the account).
 type PayoutExtras = {
   method?: string;
   routing_number?: string;
@@ -90,8 +62,6 @@ export async function aPayout(
   );
 
   if (options.order) {
-    // The link lives on the ORDER's money row, so it is written there - and
-    // through the same update the placement uses.
     const existing = await totals.getFor(options.order.id, c);
     if (existing) {
       await totals.update(
@@ -117,8 +87,6 @@ export async function aPayout(
   };
 }
 
-// Same rule: the columns are `PaymentIntentPatch`'s, and `order` is the built
-// order whose id becomes order_id.
 export async function aPaymentIntent(
   c: PoolClient,
   user: BuiltUser | { id: string } | null,

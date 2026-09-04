@@ -1,9 +1,3 @@
-// Addresses through the service, against real Postgres. An address is two rows: places.addresses (somewhere on earth) and places.user_addresses (one person's relationship to it).
-// Ownership is the one to get right: places.addresses has no user_id, so the check moved into service.ts. Several tests below exist only to prove it's still there.
-//
-// PINNED, NOT ROLLED BACK (ruling 56): every write here opens its own
-// withTransaction and takes its own connection, so the pool is pinned to this
-// test's client and the service's BEGIN/COMMIT become savepoints inside it.
 import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
@@ -26,19 +20,14 @@ afterAll(async () => {
   await pool.end();
 });
 
-// TWO PEOPLE, BUILT PER TEST.
 const twoPeople = async (c: PoolClient) => ({
   owner: (await aUser(c, { name: "Address Owner" })).id,
   stranger: (await aUser(c, { name: "A Stranger" })).id,
 });
 
-// LOCKS.ORDERS: one test here reads orders.orders/orders.addresses to find an
-// "unfinished order", and domain/orders/tests/edit-line.test.ts writes real,
-// autocommitting rows to the same tables under the same lock.
 const pinned = <T>(fn: (c: PoolClient) => Promise<T>) =>
   inPinnedTransaction(fn, { actor: TEST_ACTOR.id, lock: LOCKS.ORDERS });
 
-// The two halves as the service takes them: the postal address and the caller's relationship, siblings, one call.
 const address = (over: Record<string, unknown> = {}) => ({
   line_1: "1 Test Street",
   line_2: null,
@@ -83,7 +72,6 @@ test("create writes the address and its link under one id", async () => {
   });
 });
 
-// A new address is born valid and non-residential as literals, not from the caller; the carrier's validation sets the real ones afterwards.
 test("a new address is valid and non-residential until validation says otherwise", async () => {
   await pinned(async (c) => {
     const { owner } = await twoPeople(c);
@@ -99,9 +87,6 @@ test("a new address is valid and non-residential until validation says otherwise
   });
 });
 
-// THE FIRST ADDRESS IS THE DEFAULT, whatever the caller asked for - the rule
-// the browser used to hold, and a book with no default is one checkout cannot
-// preselect from.
 test("the first address in a book is the default even when the caller says no", async () => {
   await pinned(async (c) => {
     const { owner } = await twoPeople(c);
@@ -135,7 +120,6 @@ test("the list is that person's entries, defaults first", async () => {
     assert.equal(rows[0].address.id, marked.address.id,
       "the address just marked default did not sort first");
 
-    // Every row is this user's, and every one carries its own actions.
     for (const row of rows) {
       assert.equal(row.user_address.user_id, owner);
       assert.deepEqual(Object.keys(row.user_address).sort(),
@@ -145,7 +129,6 @@ test("the list is that person's entries, defaults first", async () => {
   });
 });
 
-// An address with no user_addresses row is a snapshot taken for an order, not something in anyone's book - an inner join by another name.
 test("an address with no link is not in anybody's list", async () => {
   await pinned(async (c) => {
     const { owner } = await twoPeople(c);
@@ -160,7 +143,6 @@ test("an address with no link is not in anybody's list", async () => {
   });
 });
 
-// getAddressFromId is the postal row alone - what the tax and quote surfaces read for its state.
 test("getAddressFromId answers the row, not an entry", async () => {
   await pinned(async (c) => {
     const { owner } = await twoPeople(c);
@@ -199,8 +181,6 @@ test("update changes the address and its link", async () => {
   });
 });
 
-// The old update wrote `default_shipping: false` before deciding, so editing
-// the recipient of the default address quietly un-defaulted it.
 test("editing an address does not cost it its default", async () => {
   await pinned(async (c) => {
     const { owner } = await twoPeople(c);
@@ -212,7 +192,6 @@ test("editing an address does not cost it its default", async () => {
   });
 });
 
-// A stranger must not be able to rewrite an address by id - places.addresses has no user_id to scope on, so the service's ownership check is the only guard.
 test("a stranger cannot update somebody else's address", async () => {
   await pinned(async (c) => {
     const { owner, stranger } = await twoPeople(c);
@@ -230,9 +209,6 @@ test("a stranger cannot update somebody else's address", async () => {
   });
 });
 
-// A REFUSAL, NOT A SILENT NO-OP. `remove` used to answer "Deleted address." to
-// a stranger's call and delete nothing, so nothing anywhere could tell the two
-// apart - audit:silent-mutations' whole subject.
 test("a stranger's delete is refused rather than answered", async () => {
   await pinned(async (c) => {
     const { owner, stranger } = await twoPeople(c);
@@ -265,15 +241,11 @@ test("deleting removes the link and the address, and answers the entry it remove
   });
 });
 
-// An address an order snapshotted must survive leaving somebody's book, or the order loses where it went.
 test("an address an order points at survives being removed from a book", async () => {
   await pinned(async (c) => {
     const { owner } = await twoPeople(c);
     const made = await service.create({ address: address(), user_address: link(), userId: owner });
 
-    // COMPLETED, deliberately: an unfinished order LOCKS its address (the very
-    // next test), so the claim here - that the address outlives leaving the
-    // book - can only be made about a finished one.
     const order = await anOrder(c, { id: owner }, { direction: "purchase", status: "Completed" })
       .withAddress({ id: made.address.id });
     const { rows: [orderLink] } = await c.query(
@@ -314,8 +286,6 @@ test("setting a default clears the others", async () => {
     for (const row of nx) {
       const expected = row.address_id === second.address.id;
       assert.equal(row.default_shipping, expected, "default_shipping is wrong somewhere");
-      // One gesture sets both flags; the split into two columns is for a
-      // future the UI does not have yet.
       assert.equal(row.default_billing, expected, "default_billing did not follow");
     }
     assert.ok(nx.some((r) => r.address_id === first.address.id && r.default_shipping === false),
@@ -323,8 +293,6 @@ test("setting a default clears the others", async () => {
   });
 });
 
-// THE ACTIONS AND THE REFUSALS ARE THE SAME FACT. What the entry stops
-// offering is exactly what the use case stops accepting.
 test("an address on an unfinished order can be neither edited nor deleted, and says so", async () => {
   await pinned(async (c) => {
     const { owner } = await twoPeople(c);

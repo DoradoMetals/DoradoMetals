@@ -1,4 +1,3 @@
--- The payouts of several orders at once. Same last-four-only projection as get_for.sql - the composed order read batches through this.
 SELECT d.id,
        d.user_id,
        t.order_id,

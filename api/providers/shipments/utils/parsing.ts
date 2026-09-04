@@ -1,4 +1,3 @@
-// FedEx's responses, reduced to what this application uses — types here describe FedEx, not a generated contract, so each shape states only the fields read, all optional (an external payload is a promise, not a guarantee).
 import { FEDEX_TRACKING_STATUS_MAP } from "#providers/shipments/constants.ts";
 
 type FedexScanEvent = {
@@ -33,9 +32,6 @@ export type ParsedTracking = {
   deliveredAt: string | null;
 };
 
-// `trackingOutput!` is DELIBERATE and must stay — an empty or error response throws a TypeError here rather than returning an empty result.
-// Load-bearing: the caller runs this inside a transaction that used to delete every tracking event and re-insert whatever came back; the throw, landing before that delete, was the only thing stopping an empty response from wiping a shipment's history (production lost seven that way). The caller now guards this properly, so it COULD be softened safely — deliberately not: a FedEx outage should be loud, not look like a quiet parcel.
-
 export function parseTracking(data: FedexTrackingResponse): ParsedTracking {
   const trackingOutput =
     data?.output?.completeTrackResults?.[0]?.trackResults?.[0];
@@ -53,7 +49,6 @@ export function parseTracking(data: FedexTrackingResponse): ParsedTracking {
     ? fromDateTimes
     : "TBD";
 
-  // Indexed by FedEx's own string codes, which is also why `|| "Unknown"` stays even though the filter above guarantees a hit.
   const statusMap: Record<string, string> = FEDEX_TRACKING_STATUS_MAP;
   const relevantStatusCodes = Object.keys(statusMap);
 
@@ -86,7 +81,6 @@ export function parseTracking(data: FedexTrackingResponse): ParsedTracking {
     deliveredAt,
   };
 }
-
 
 type FedexAddressValidationResponse = {
   output?: {

@@ -1,7 +1,3 @@
-// The fulfillment write routes, over real HTTP - six routes no test had ever driven, from the list that has produced four production defects. These are how an admin books a customer in: which method fulfills an order, its status, and the appointment itself.
-// All pure database work - checked each service/repo function before driving it: no email, FedEx or Stripe. fulfillments has no exchange side and never will, so there's no second implementation these could disagree with.
-// The pickup test builds its own fixture, and that's the point: dev holds no PICKUP fulfillment at all, so it sets the method first through set_method and then books, proving the category guard is reached rather than skipped.
-// NOTHING IS COMMITTED - shared/testing/pinned-pool.ts holds every query in one rolled-back transaction.
 import { test, afterAll } from "vitest";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
@@ -18,20 +14,11 @@ import {
 await mockSessions();
 const { default: app } = await import("#app");
 
-// The structural subset each fixture actually has - SELECT projections, not table rows.
 type UserFixture = { id: string; name: string | null; email: string | null };
 type IdRow = { id: string };
 
 const admin: UserFixture = TEST_ACTOR;
 
-// THE FULFILLMENTS ARE BUILT PER TEST (lane 1), and this file's own `beforeAll`
-// comment was the argument for it: "every SHIPMENT fulfillment in dev has a
-// shipment (one exists because the other does)", so the test that needed one
-// WITHOUT a shipment could not be written, and an earlier version failed in
-// `before` when its query came back empty. Both shapes are now stated rather
-// than searched for.
-//
-// They are built inside the pin, which is where the request runs.
 const aShipmentFulfilment = async (c: PoolClient) => {
   const order = await anOrder(c, await aUser(c), { direction: "purchase" });
   const shipment = await aShipment(c, order, { method: "CARRIER DROPOFF" });
@@ -52,7 +39,6 @@ const aDirectFulfilment = async (c: PoolClient) => {
 
 const aPickupMethodId = (c: PoolClient) => fulfillmentMethodId(c, "PICKUP", "purchase");
 
-// The business's own address, by name - seeded reference data.
 const aLocationId = async (c: PoolClient) => {
   const { rows } = await c.query<IdRow>(
     `SELECT id FROM places.locations WHERE name = $1`, ["Dorado Return Address"]
@@ -193,8 +179,6 @@ test("cancel_schedule removes the booking", async () => {
   }, { actor: TEST_ACTOR.id, lock: [LOCKS.ORDERS, LOCKS.FULFILLMENTS] });
 });
 
-// Two routes in one, because the category guard makes them inseparable: dev has
-// no PICKUP fulfillment, so the method has to move first.
 test("schedule_pickup books once the fulfillment is moved onto a PICKUP method", async () => {
   await inPinnedTransaction(async (client: PoolClient) => {
     const directFulfilment = await aDirectFulfilment(client);
@@ -232,8 +216,6 @@ test("schedule_pickup books once the fulfillment is moved onto a PICKUP method",
   }, { actor: TEST_ACTOR.id, lock: [LOCKS.ORDERS, LOCKS.FULFILLMENTS] });
 });
 
-// The guard, which is the more important half: moving an order off SHIPMENT while a shipment exists would leave a live FedEx label attached to a fulfillment that no longer claims to be one.
-// Until this fix it refused with a bare Error (a generic 500, explanation lost to the log) - it now carries 409, which is what makes errorHandler pass the message through. Asserted here because a repo test can't see what the caller gets.
 test("set_method refuses to move a fulfillment that already has a shipment, and says why", async () => {
   await inPinnedTransaction(async (client: PoolClient) => {
     const shipmentFulfilment = await aShipmentFulfilment(client);

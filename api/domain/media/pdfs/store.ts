@@ -1,4 +1,3 @@
-// A generated document: bytes to object storage, one immutable row to media.pdfs. Best-effort - persistPdf returns null on failure, never throws.
 import { createHash, randomUUID } from "node:crypto";
 import minio from "#providers/s3/minio.ts";
 import { isTestRun } from "#shared/testing/is-test-run.ts";
@@ -16,7 +15,6 @@ export type PdfKind =
   | "invoice"
   | "sales_order_invoice";
 
-/** The latest stored document of a kind for an order, or null if the order predates the paper trail (media.pdfs.order_id references orders.orders, so an order with no row there can never have one). */
 export async function latestPdf(
   { kind, order_id }: { kind: PdfKind; order_id: string },
   executor?: Executor

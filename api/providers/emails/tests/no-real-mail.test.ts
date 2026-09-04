@@ -1,5 +1,3 @@
-// The guard that makes it impossible for a test to email a real customer. .env carries live SMTP credentials, and "every test remembers to pass a transport" is a convention that holds until someone forgets — the one that forgets would post a fabricated order to Elemetal.
-// So sendEmail refuses to build the real transport at all during a test run. This proves that refusal, the only reason to trust the rest of the email tests.
 import { test } from "vitest";
 import assert from "node:assert/strict";
 import { sendEmail } from "#providers/emails/nodemailer.ts";
@@ -10,7 +8,6 @@ import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 const execFileAsync = promisify(execFile);
 
-
 test("sending with no transport is refused during a test run", async () => {
   await assert.rejects(
     () => sendEmail({ to: "someone@example.com", subject: "s", html: "<p>x</p>" }),
@@ -19,8 +16,6 @@ test("sending with no transport is refused during a test run", async () => {
   );
 });
 
-// The guard must not be so broad that it breaks the legitimate path, or the
-// email tests would be passing for the wrong reason.
 test("a caller's own transport still works", async () => {
   const sent = [];
   const result = await sendEmail(
@@ -31,7 +26,6 @@ test("a caller's own transport still works", async () => {
   assert.deepEqual(result, { messageId: "recorded" });
 });
 
-// The case that defeated the first guard: a module-level const captured NODE_ENV before a script's own `process.env.NODE_ENV = "test"` (set after imports, which are hoisted) took effect — scripts/seed-e2e-users.mjs reached Gmail that way. Run in a child process since the parent already has NODE_ENV=test and can't reproduce the condition.
 test("a script that sets NODE_ENV after its imports is still refused", async () => {
   const source = `
     process.env.NODE_ENV = "test";
@@ -60,4 +54,3 @@ test("a script that sets NODE_ENV after its imports is still refused", async () 
     await fs.unlink(file).catch(() => {});
   }
 });
-

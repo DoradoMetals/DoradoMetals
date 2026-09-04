@@ -1,4 +1,3 @@
--- One method, by id.
 SELECT id, image_id, direction, type, currency, min_amount, max_amount,
        enabled, supports_partial, supports_split, provider, provider_value,
        flat_fee, surcharge_percent, time_delay, label, surcharge_label,

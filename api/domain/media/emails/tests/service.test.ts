@@ -1,5 +1,3 @@
-// What goes out when the app sends mail - each message (order confirmation, pricing notice, refiner's copy) must carry the right PDF attachment, built from the order.
-// sendEmail takes an optional transport (like a repo call takes an executor) so this can record instead of send. Orders come from the repo, not a fixture, so the input stays the real wire shape. Read-only: nothing is sent or written.
 import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import pool from "#pool";
@@ -15,10 +13,6 @@ import type { OrderView } from "@dorado/contracts";
 
 type Message = Parameters<Transport["sendMail"]>[0];
 
-// EVERY SENDER TAKES THE DOCUMENT'S INPUTS NOW (D214 item 12), resolved from
-// the order's id by domain/media/pdfs/order-inputs.ts - the composed order the
-// senders used to take is gone, and so is the `Record<string, unknown>` its
-// service boundary handed over.
 let orders: OrderView[];
 let salesOrders: OrderView[];
 let lockClient: PoolClient;
@@ -32,11 +26,6 @@ const viewsOf = async (direction: "purchase" | "sale") => {
   return out;
 };
 
-// SESSION-scoped LOCKS.ORDERS, held for the whole file (lane 3, the runner
-// conversion): `orders`/`salesOrders` are captured here, and
-// domain/orders/tests/edit-line.test.ts writes real, autocommitting rows to
-// orders.orders under the SAME lock - see domain/media/pdfs/tests/
-// documents-agree.test.ts's own comment for the full mechanism.
 beforeAll(async () => {
   assert.equal(
     new Date().getTimezoneOffset(), 0,
@@ -55,7 +44,6 @@ afterAll(async () => {
   await pool.end();
 });
 
-// Records what it was asked to send; returns a result because nodemailer does, and undefined would hide a caller depending on it.
 function recorder(): Transport & { sent: Message[] } {
   const sent: Message[] = [];
   return {
@@ -67,7 +55,6 @@ function recorder(): Transport & { sent: Message[] } {
   };
 }
 
-// Fails the way a real transport does on bad credentials, so a caller swallowing the failure would show up.
 function failing() {
   return {
     sendMail: async () => {
@@ -76,8 +63,6 @@ function failing() {
   };
 }
 
-// Returns the order AND its email address, guarded once here rather than at every call site - the composed user is optional, so an order without one TypeErrors at the send.
-// Attachment.content is string | Buffer | Uint8Array (a text part is legal too), so this asserts which kind is expected rather than assuming.
 const startsPdf = (content: string | Buffer | Uint8Array, what: string) => {
   assert.ok(typeof content !== "string", `${what} arrived as text, not bytes`);
   assert.equal(Buffer.from(content.subarray(0, 5)).toString(), "%PDF-", `${what} is not a PDF`);
@@ -95,7 +80,6 @@ test("the order confirmation goes to the customer with its packing list attached
   const { order, email } = anOrderWithAUser();
   const t = recorder();
 
-  // `to` is a parameter, resolved and authorised by the controller from the stored order - it used to be read off the body, which made the endpoint an open relay.
   await emails.sendCreatedEmail(
     await inputs.packingListInputs(order.order.id),
     email,
@@ -159,7 +143,6 @@ test("the refiner's copy goes to the address it was given, not the customer's", 
   );
 });
 
-// A send that fails must fail the caller - swallowing it would mean an order marked sent to a refiner who never received it.
 test("a transport failure propagates rather than being swallowed", async () => {
   const { order, email } = anOrderWithAUser();
 
@@ -174,10 +157,6 @@ test("a transport failure propagates rather than being swallowed", async () => {
   );
 });
 
-// The PDF is built before the send - a document that cannot be built must stop the message rather than send one with nothing attached.
-// The PDF is built before the send, so a document that cannot be built must
-// stop the message rather than send one with nothing attached. An order view
-// with a line whose metal has no quote is exactly that: pricing throws.
 test("nothing is sent when the document cannot be built", async () => {
   const t = recorder();
   const { order, email } = anOrderWithAUser();

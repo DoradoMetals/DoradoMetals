@@ -1,74 +1,12 @@
-// WHAT THE BUSINESS PAYS FOR METAL (bid side) - the mirror of ask.ts, which is
-// what it charges. The two share no code: a metal missing from the quote feed
-// THROWS here and prices at zero there, and that asymmetry is deliberate and
-// pinned by tests.
-//
-// ONE EXPRESSION, NOT FOUR. This file used to carry the same reduce four times
-// - calculateTotalPrice, calculateReturnDeclaredValue, getBullionTotal and
-// getScrapTotal - each with a `product` branch and a `scrap` branch, each
-// finding its spot by a METAL NAME that lived on a different nested object in
-// each branch (`item.product.metal_type` for bullion, `item.scrap.metal` for
-// scrap). That is where the $3,236.11 divergence between an invoice and a
-// packing list came from: two copies of one sum, drifting.
-//
-// The composed order died with D214 item 12, and the split went with it. A line
-// is an `orders.items` row: `metal_id` is on it for BOTH kinds, `bullion_id`
-// says which kind it is (ruling 34c), and the CONTENT is the only thing that
-// differs - a scrap line carries its own, a bullion line takes its product's
-// and multiplies by how many. So there is one price expression, asked once.
-//
-// TWO BEHAVIOURS THAT LOOK WRONG AND ARE LOAD-BEARING:
-//
-//   A METAL WITH NO QUOTE THROWS. `bids.get(metal_id)` answering undefined
-//   used to be `spot!.bid`, a deliberate TypeError. `?? 0` would turn a loud
-//   failure into an ounce of gold valued at nothing, travelling all the way to
-//   a payout. A quote that EXISTS and is null is different and prices at 0:
-//   an order nobody has quoted yet correctly has no price, and five production
-//   scrap lines are in exactly that state, every one on an In Transit or
-//   Cancelled order.
-//
-//   A STORED PRICE WINS. `item.price` is what the business committed to when
-//   the order was finalised; recomputing it from today's spot would reprice a
-//   settled order. Only a line with no stored price is computed.
-//
-// EVERY FIGURE THIS MODULE RETURNS IS A NUMBER OR AN EXCEPTION, NEVER NaN.
-// Migration 087 had to clean up rows where content reached the wire as the
-// string "NaN"; a total that cannot be computed must stop here, not print on a
-// document a customer is paid against.
 import * as rules from "#domain/pricing/rules.ts";
 import type { Bids, OrderView, OrderViewItem } from "@dorado/contracts";
 
-
-// THE QUOTE FEED, KEYED BY THE METAL IT PRICES. A map rather than an array of
-// `{name, ask, bid}` because a line names a metal by ID and always has: the
-// name lookup was a join the composed order carried, and matching on a display
-// string is how "Gold" and "gold" become two metals.
-//
-// The caller builds it from whichever quote is right for the question - the
-// order's FROZEN spots for a placed order, the live feed for an estimate.
-//
-// FROM @dorado/contracts (ruling 57/60/61): exported across features
-// (domain/media/pdfs renders the same figures), so it has one home there
-// rather than a copy per file. Re-exported so every existing import path
-// keeps resolving unchanged.
 export type { Bids } from "@dorado/contracts";
 
-// THE PARCEL THE CUSTOMER SENT, not the one going back. A return leg's cost is
-// the business's to bear and must never be deducted from what a customer is
-// paid.
 export function inboundShipment(view: OrderView): OrderView["shipments"][number] | null {
   return view.shipments.find((s) => s.direction !== "Return") ?? null;
 }
 
-// THE WAIVER IS A FLAG AND THE FEE IS A RECORD (D117): waiving does not
-// overwrite `cost`, so un-waiving does not have to guess what it was.
-//
-// The parameter names what the rule reads and nothing else, because three
-// surfaces price a payout - the stored total, the drawer estimate and the
-// customer's profit breakdown - and they hold an order in two shapes: an
-// OrderView carries the flag on `totals`, the quote surface's own assembled
-// order carries it at the top level. One condition, both spellings, rather
-// than three copies that can disagree.
 export function effectivePayoutFee(order: {
   payout?: { cost?: number | null } | null;
   waive_payout_fee?: boolean | null;
@@ -79,9 +17,6 @@ export function effectivePayoutFee(order: {
   return rules.feeOf(order.payout?.cost, "the payout fee");
 }
 
-// The line's own content, and only the line's. Migration 120 backfilled the
-// rows that used to need a catalogue fallback; a bullion line with none left
-// is corrupt data, not a case this function papers over.
 export function recordedContent(line: OrderViewItem): number | null {
   return line.content ?? null;
 }
@@ -92,30 +27,21 @@ export function unitContent(line: OrderViewItem): number {
     rules.assertRecordedContent(line);
     return 0;
   }
-  // UNREADABLE IS NaN, deliberately. Migration 087 had to clean up rows whose
-  // content reached the wire as the STRING "NaN"; `|| 0` here would turn that
-  // into a free line on an invoice instead of stopping the total, which is
-  // what `finite` below exists to do.
   return Number(content);
 }
 
-// How many of the line there are. A scrap lot is one lot however many pieces
-// were in the bag - multiplying its content by a quantity double-counts.
 export function unitsOf(line: OrderViewItem): number {
   if (line.bullion_id === null) return 1;
   const quantity = Number(line.quantity ?? 1);
   return Number.isFinite(quantity) ? quantity : 1;
 }
 
-// WHAT ONE OF THIS LINE IS WORTH. The stored price wins; otherwise it is fine
-// metal times the quote times the premium the line carries.
 export function unitPrice(line: OrderViewItem, bids: Bids): number {
   if (line.price != null) return line.price;
   rules.assertQuoted(bids, line);
   return unitContent(line) * ((bids.get(line.metal_id) ?? 0) * (line.premium ?? 0));
 }
 
-// WHAT THE LINE IS WORTH: one unit times how many.
 export function linePrice(line: OrderViewItem, bids: Bids): number {
   return unitPrice(line, bids) * unitsOf(line);
 }
@@ -124,7 +50,6 @@ export function itemsTotal(lines: OrderViewItem[], bids: Bids): number {
   return lines.reduce((sum, line) => sum + linePrice(line, bids), 0);
 }
 
-// The scrap lines and the bullion lines, when a document prints them apart.
 export function scrapLines(lines: OrderViewItem[]): OrderViewItem[] {
   return lines.filter((line) => line.bullion_id === null);
 }
@@ -133,9 +58,6 @@ export function bullionLines(lines: OrderViewItem[]): OrderViewItem[] {
   return lines.filter((line) => line.bullion_id !== null);
 }
 
-// WHAT THE CUSTOMER IS PAID: the metal, less the postage they were charged and
-// the fee for moving the money. Both subtrahends go through `fee`, which is the
-// point - the asymmetry between them is how the NaN got in.
 export function calculateTotalPrice(view: OrderView, bids: Bids): number {
   const metal = itemsTotal(view.items, bids);
   const shipping = rules.feeOf(inboundShipment(view)?.cost, "the shipping charge");
@@ -144,9 +66,6 @@ export function calculateTotalPrice(view: OrderView, bids: Bids): number {
   return total;
 }
 
-// WHAT THE RETURN PARCEL IS INSURED FOR: the metal, and neither fee. A return
-// is insured for what the metal is worth, and a NaN here posts a customer's
-// metal back uninsured.
 export function calculateReturnDeclaredValue(view: OrderView, bids: Bids): number {
   const total = itemsTotal(view.items, bids);
   rules.assertFinite(total, "the return declared value");

@@ -1,37 +1,3 @@
-// NO `throw` IN A SERVICE. Ruling 65 (Jacob, 2026-09-04).
-//
-// *** THE SHAPE. *** A use case reads, decides and writes. When it also
-// carries its own refusals, the decision and the reason for refusing it are
-// interleaved line by line, and the file stops reading as the thing it does.
-// `fulfillments/service.ts`'s setMethod was six statements of work and four
-// throws; `shipping/operations/service.ts`'s getCheckoutRates was five.
-//
-// So a refusal lives in the feature's `rules.ts` as a named one-liner the use
-// case CALLS - `rules.assertSchedulable(f)`, `rules.assertVoidable(s)` - and
-// nothing under `domain/` throws anywhere else. That puts every refusal a
-// feature can make in one file, testable without Postgres, next to the
-// decisions they mirror: an action a view OFFERS and an assert that REFUSES it
-// are then two lines apart rather than two files apart.
-//
-// *** WHY A `rules.ts` CARVE-OUT AND NOT A LIST OF BLESSED FUNCTIONS. *** The
-// file is the unit because the file is what a reader opens. A blessed-name
-// list would let a throw sit anywhere as long as the function was called
-// `assertX`, which is the rule restated as a naming convention and enforces
-// nothing about where the reasoning lives.
-//
-// *** WHAT IT DOES NOT CLAIM. *** This is a text scan, not a type system. It
-// sees the keyword `throw` outside comments; it cannot see a refusal expressed
-// as `Promise.reject`, and it does not try. The point is the shape of the
-// file, and the keyword is what makes that shape visible.
-//
-//   node scripts/lint-no-throw-in-services.ts
-//   node scripts/lint-no-throw-in-services.ts --self-test
-//
-// Exits non-zero on any unaccepted finding, on an ACCEPTED count that has
-// moved in EITHER direction, and on an ACCEPTED entry naming a file that is
-// gone. Pinned from both sides like lint-input-shapes' ACCEPTED and
-// audit-silent-mutations' CEILING: a new throw fails, and fixing one fails
-// until the number comes down with it.
 import { readFileSync, readdirSync, statSync, existsSync } from "node:fs";
 import path from "node:path";
 
@@ -41,42 +7,12 @@ const API_ROOT = process.env.LINT_NO_THROW_ROOT
 
 const DOMAIN_ROOT = path.join(API_ROOT, "domain");
 
-// EVERY FILE UNDER domain/ THAT STILL THROWS, with the count as it stands and
-// the lane that owns it. Each entry is a debt, not a dispensation: a lane that
-// edits another lane's service file to satisfy a lint it just introduced is
-// how two lanes conflict.
-//
-// TO CLEAR ONE: move its refusals into that feature's `rules.ts` as named
-// asserts and delete the entry. TO LOWER ONE: same, partly - and change the
-// number here in the same diff, which is the point of pinning it.
-//
-// THE PIN HAS EARNED ITS KEEP THREE TIMES, and every time on a MERGE. It
-// arrived from the fulfillments lane with four payments entries the payments
-// lane had already cleared, so the merge failed here on "ACCEPTED entries
-// matched nothing" rather than quietly carrying four dispensations for debt
-// that no longer existed. The products lane cleared rates the same way. And it
-// fired again when the cleanup lane cleared the rest (2026-09-04, rulings
-// 64-65): checkout, orders (service, place, spots), quotes (service, profit),
-// refiners (items, orders), media (images, three pdfs), pricing/bid, leads,
-// reviews and sales-tax each grew or gained a `rules.ts` and every throw moved
-// into it.
-//
-// THE LIST IS EMPTY, AND THAT IS THE FINISHED STATE, not a broken scan. The
-// last entry was `domain/places/addresses/service.ts` - four refusals the
-// cleanup lane left exactly as it found them because the places/users lane
-// owned that folder - and the places merge (2026-09-04) moved them into
-// `domain/places/addresses/rules.ts` and took the entry with them. Nothing
-// under `domain/` throws outside a `rules.ts` any more. The FLOOR below is
-// what proves the walk still opens files; an empty map proves nothing on its
-// own, which is why the two guards are separate.
 const ACCEPTED: Record<string, { count: number; why: string }> = {};
 
 function walk(dir: string, out: string[] = []): string[] {
   let entries: string[];
   try { entries = readdirSync(dir); } catch { return out; }
   for (const e of entries) {
-    // `tests` is where a throw is the SUBJECT - assert.rejects needs one to
-    // exist, and a fixture that throws on purpose is not a service.
     if (e === "node_modules" || e === "dist" || e === "tests") continue;
     const full = path.join(dir, e);
     let s;
@@ -84,16 +20,12 @@ function walk(dir: string, out: string[] = []): string[] {
     if (s.isDirectory()) walk(full, out);
     else if (
       e.endsWith(".ts") && !e.endsWith(".d.ts") && !e.endsWith(".test.ts") &&
-      // THE CARVE-OUT, and the only one. A refusal lives here.
       e !== "rules.ts"
     ) out.push(full);
   }
   return out;
 }
 
-// Comments are stripped before the keyword is looked for: this file's own
-// header says "no `throw` in a service" and would otherwise report itself, and
-// every rules.ts reference in a service's comments would be a finding.
 function throwLines(src: string): number[] {
   const withoutBlocks = src.replace(/\/\*[\s\S]*?\*\//g, (m) => m.replace(/[^\n]/g, " "));
   const out: number[] = [];
@@ -111,10 +43,6 @@ if (process.argv.includes("--self-test")) {
     "export function assertWidget<T>(row: T | null, id: string): asserts row is T {\n" +
     "  if (!row) throw new NotFound(`no widget ${id}`);\n" +
     "}\n";
-  // No `#`-rooted import in these fixtures on purpose: lint:imports reads
-  // every specifier in every scripts/ file, this one included, and a
-  // synthetic `#domain/widgets/rules.ts` would be an unresolved import in
-  // real source.
   const service =
     "import * as rules from \"../rules.ts\";\n" +
     "export async function getOne(id: string) {\n" +
@@ -260,9 +188,6 @@ for (const [file, entry] of Object.entries(ACCEPTED)) {
 }
 if (acceptedHit.size) console.log(`  ${total} accepted throw(s) outstanding`);
 
-// An entry naming a file that no longer throws (or no longer exists) is a
-// stale dispensation, and a stale dispensation is how an accepted list becomes
-// a list nobody reads.
 const stale = SYNTHETIC ? [] : Object.keys(ACCEPTED).filter((f) => !acceptedHit.has(f));
 if (stale.length) {
   console.error(

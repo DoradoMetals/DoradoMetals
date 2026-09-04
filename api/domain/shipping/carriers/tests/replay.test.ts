@@ -1,5 +1,3 @@
-// The carrier admin endpoints, over real HTTP - checks the wire shape end to end (nested organization) and that delete takes an id, not the whole body.
-// NOTHING IS COMMITTED - the pool is pinned to a rolled-back transaction; the last test proves it from outside.
 import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
@@ -16,8 +14,6 @@ import {
 await mockSessions();
 const { default: app } = await import("#app");
 
-// No lock needed: carriers share no tables with the order/address test groups.
-// UserFixture/Caller are the SELECT projection actually returned, not the full table row.
 type UserFixture = { id: string; name: string | null; email: string | null };
 type Caller = UserFixture & { role: string };
 
@@ -36,7 +32,6 @@ afterAll(async () => {
   await pool.end();
 });
 
-// The shape frontend/features/carriers/queries.ts posts - the organization is its own nested object.
 const newCarrier = () => ({
   logo: "/carriers/replay.png",
   organization: {
@@ -59,7 +54,6 @@ test("the carrier list is served to a user and refused to nobody", async () => {
       assert.equal(res.status, 200);
       assert.ok(Array.isArray(res.body) && res.body.length > 0);
 
-      // A flat row would render undefined for every identity field - the frontend reads the nested shape.
       const c = res.body[0];
       for (const field of ["id", "logo", "organization"]) {
         assert.ok(field in c, `the carrier list is missing ${field}`);
@@ -84,7 +78,6 @@ test("only an admin may create a carrier", async () => {
   }, { actor: TEST_ACTOR.id });
 });
 
-// The addresses bug, asked of carriers: the write must return the nested row exactly as stored.
 test("creating a carrier returns it nested, with its name intact", async () => {
   await inPinnedTransaction(async () => {
     await as(admin, async () => {
@@ -118,10 +111,6 @@ test("updating a carrier returns the updated row, still nested", async () => {
 
       const saved = Array.isArray(made.body) ? made.body[0] : made.body;
       const renamed = `${carrier.organization.name}-renamed`;
-      // A clean patch, not the whole response spread back: the organization's
-      // own id is not a field of this body (the service resolves it from the
-      // carrier's own organization_id, read server-side) - the frontend
-      // adapts (ruling 44).
       const res = await request(app)
         .post("/api/carriers/update")
         .send({
@@ -146,7 +135,6 @@ test("updating a carrier returns the updated row, still nested", async () => {
   }, { actor: TEST_ACTOR.id });
 });
 
-// This endpoint had never once succeeded: the controller passed the whole body where the repo wanted an id.
 test("deleting a carrier takes the carrier_id the frontend sends", async () => {
   await inPinnedTransaction(async () => {
     await as(admin, async () => {

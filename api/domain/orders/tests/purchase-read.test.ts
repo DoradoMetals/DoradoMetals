@@ -1,19 +1,3 @@
-// THE ORDER VIEW, purchase direction, against real Postgres.
-//
-// `read.service.ts` and `compose.ts` are gone (D214 item 12) and `view()` is
-// what replaced them: generated row schemas nested by table, absent is null,
-// no renames and no all-null objects. So the properties this file used to pin
-// about the COMPOSED order are pinned about the view instead, and three of
-// them changed on purpose:
-//
-//   a bullion line's all-null `scrap` object  ->  scrap columns ARE the line
-//   a scrap line's all-null `product` object  ->  product is null
-//   `scrap.purity_actual` on the admin read   ->  refiners.items, its own read
-//
-// The one that did NOT change is the one that matters most: only the last four
-// digits of a bank account travel with an order.
-//
-// Each test runs inside a transaction that is rolled back.
 import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
@@ -38,25 +22,8 @@ afterAll(async () => {
   await pool.end();
 });
 
-// LOCKS.ORDERS, transaction-scoped (lane 3, the runner conversion): this file
-// reads `orders.orders`/`orders.spots` without ever writing them, which is why
-// it never needed a lock under `node --test`'s scheduling - but
-// `domain/orders/tests/edit-line.test.ts` writes real, autocommitting rows to
-// the same table under a SESSION-scoped ORDERS lock (it has no transaction of
-// its own to take a transaction-scoped one in), and vitest's own scheduling
-// overlapped the two, so a row `edit-line` created and then deleted could be
-// caught mid-life by a "before" snapshot here and gone by "after" -
-// `locks.ts`'s own warning that a missing lock is latent until timing changes
-// elsewhere. Postgres advisory locks contend across the xact/session split, so
-// taking the same id here, transaction-scoped, serializes against both kinds.
-// THE FILE'S LOCK, BOUND ONCE. A lock is a property of what this file
-// WRITES, not of one call, so it is named here and every inRollback below
-// inherits it - which is also what stops a new test being added without one.
 const inRollback = rollbackIn({ lock: LOCKS.ORDERS });
 
-// Every purchase order in the database, as the view assembles it. The view is
-// per-order by design - the composed read used to fetch them all so the admin
-// list could carry the assay figures, and those are their own read now.
 const purchaseIds = async (c: PoolClient): Promise<string[]> =>
   (
     await c.query<{ id: string }>(
@@ -74,13 +41,8 @@ const viewsOf = async (ids: string[]) => {
   return out;
 };
 
-// THE MEMBERS THE VIEW HAS, pinned against itself: a member silently
-// disappearing from the assembly is what this catches, and there is no
-// external schema that would notice.
 const VIEW_MEMBERS = [
   "order", "totals", "items", "address", "shipments", "pickup", "payout", "user",
-  // The one member no table backs: what may be DONE to this order, decided in
-  // rules.ts so no drawer decides it in a switch (the orders pass).
   "actions",
 ];
 
@@ -94,10 +56,6 @@ test("the order view carries exactly the members it declares", async () => {
   });
 });
 
-// AN ORDER'S ADDRESS IS THE SNAPSHOT IT TOOK, not the book row it was copied
-// from. The composed read served the BOOK row (through the last exchange read
-// on a live path); the view resolves the link's `address_id` and answers the
-// places.addresses row the parcel actually went to.
 test("the address is the snapshot the order took, not the book entry", async () => {
   await inRollback(async (c: PoolClient) => {
     const { rows: links } = await c.query<{ order_id: string; address_id: string; source_address_id: string | null }>(
@@ -123,9 +81,6 @@ test("the address is the snapshot the order took, not the book entry", async () 
   });
 });
 
-// THE SCRAP IS THE LINE (085), and the view says so: a scrap line's weights
-// are its own columns and it names no product. The composed read gave every
-// line BOTH objects, each full of nulls on the side it was not.
 test("a line is a product line or a scrap line, and never both", async () => {
   await inRollback(async (c: PoolClient) => {
     const views = await viewsOf(await purchaseIds(c));
@@ -148,11 +103,6 @@ test("a line is a product line or a scrap line, and never both", async () => {
   });
 });
 
-// THE ASSAY FIGURES ARE NOT ON THE ORDER AT ALL any more. They were
-// `scrap.purity_actual` and friends - four values of refiners.items, under
-// different names, on a customer-shaped object, present on the admin read and
-// absent on the customer's. They are their own rows now, keyed by the line,
-// which is what makes the admin/customer split a ROUTE rather than a flag.
 test("the refiner's assay figures are not members of an order line", async () => {
   await inRollback(async (c: PoolClient) => {
     const views = await viewsOf(await purchaseIds(c));
@@ -166,12 +116,6 @@ test("the refiner's assay figures are not members of an order line", async () =>
   });
 });
 
-// Only the last four digits of a bank account may travel with an order.
-//
-// THE FLOOR IS THE POINT OF THIS TEST, NOT DECORATION. Without it the whole
-// assertion is `for (const o of []) {}` the moment no order in dev carries a
-// payout - and it would report success while checking the single constraint
-// this project puts above every other one.
 test("no order view carries a full account or routing number", async () => {
   await inRollback(async (c: PoolClient) => {
     const views = await viewsOf(await purchaseIds(c));
@@ -191,8 +135,6 @@ test("no order view carries a full account or routing number", async () => {
   });
 });
 
-// BOTH LEGS IN ONE ARRAY. An inbound label and a return label are two rows of
-// one table that differ by `direction`, not two named slots.
 test("the shipments are rows of one table, told apart by direction", async () => {
   await inRollback(async (c: PoolClient) => {
     const views = await viewsOf(await purchaseIds(c));
@@ -206,8 +148,6 @@ test("the shipments are rows of one table, told apart by direction", async () =>
   });
 });
 
-// direction is the whole point of the unified table. A sales order appearing in
-// a purchase order read would be a serious leak between two customers' orders.
 test("no sales order leaks into a purchase order list", async () => {
   await inRollback(async (c: PoolClient) => {
     const ids = (await orderRead.list({ direction: "purchase" }, c)).map((o) => o.id);
@@ -219,8 +159,6 @@ test("no sales order leaks into a purchase order list", async () => {
 });
 
 test("spot rows come back per metal with the shape the API returns", async () => {
-  // The first order with spots, not merely the first order - and a floor so an
-  // empty search cannot pass vacuously.
   let spots: Awaited<ReturnType<typeof spotsRepo.getFor>> = [];
   for (const id of await purchaseIds(client)) {
     spots = await spotsRepo.getFor(id);
@@ -236,10 +174,6 @@ test("spot rows come back per metal with the shape the API returns", async () =>
 
 test("reads do not write", async () => {
   await inRollback(async (c: PoolClient) => {
-    // Fingerprints the rows THAT EXIST BEFORE THE READ and proves none of them
-    // changed or vanished. Concurrent inserts by other files are invisible to
-    // it by construction, so it cannot flake - and it is stronger than a count,
-    // because a count cannot see an in-place UPDATE.
     const snapshot = async () =>
       (await c.query(
         `SELECT id, md5(o::text) AS sum FROM orders.orders o ORDER BY id`

@@ -1,16 +1,3 @@
-// The checkout session: the basket, the row the stepper fills in, and the
-// draft fulfillment those steps mutate (D208).
-//
-// ONE FUNCTION PER OPERATION, WITH `direction` AS DATA. Purchase and sale
-// differ by one column, and every difference that follows from it is a
-// comparison at the point of use - never a pair of near-identical functions.
-// The direction arrives already parsed (the transport checks it against the
-// contract's `Direction`), so nothing here re-checks it.
-//
-// EVERY WRITE ANSWERS THE COMPOSED ROW (`CheckoutView`), and that row carries
-// the server's answer to every question the stepper used to answer for itself:
-// what is still missing, whether rates can be quoted, whether the order may be
-// placed. The browser renders those fields; it does not compute them.
 import withTransaction from "#shared/db/withTransaction.ts";
 import { anonymousUsers, checkouts, checkoutItems, metals } from "#db";
 import {
@@ -31,11 +18,6 @@ import type {
 } from "@dorado/contracts";
 import type { Executor } from "#shared/db/executor.ts";
 
-
-// ------------------------------------------------------------------ the row
-
-// A session exists the moment anyone asks for one. Losing the create race is
-// not an error - the winner's row is the answer.
 async function find(
   user_id: string, direction: Direction, client?: Executor
 ): Promise<Checkout> {
@@ -48,16 +30,6 @@ async function find(
   return raced;
 }
 
-// A SALE WITH NO ADDRESS TAKES THE CUSTOMER'S DEFAULT ONE. The stepper used to
-// do this from an effect on first render, so a checkout opened on a second
-// device started blank and a re-render could re-pick. It is the server's now,
-// and it runs only while the column is null - which is before the customer has
-// chosen anything and after an order reset the row, never over a choice.
-//
-// A PURCHASE'S default address is the FULFILLMENT's business now (rulings
-// 69/70): where the parcel leaves from, or where we collect, are columns of
-// the draft's detail row, and domain/fulfillments/drafts.ts fills them the
-// same way when it creates one.
 async function ensure(
   user_id: string, direction: Direction, client?: Executor
 ): Promise<Checkout> {
@@ -75,10 +47,6 @@ async function ensure(
   ) ?? row;
 }
 
-// The row plus what the stepper needs to render itself: ONE list, its own
-// steps spliced with whatever the draft fulfillment says it still owes.
-// `fulfillments.missing` is the only thing this feature asks about a handover
-// (ruling 70) and its answer is passed through untouched.
 async function compose(row: Checkout, client?: Executor): Promise<CheckoutView> {
   const item_count = (await checkoutItems.listFor(row.id, client)).length;
   const handover = row.fulfillment_id
@@ -96,18 +64,12 @@ async function compose(row: Checkout, client?: Executor): Promise<CheckoutView> 
   );
 }
 
-// WHAT THE CHECKOUT STILL OWES, for a caller that holds the row rather than
-// the composed view - placement's one readiness question (ruling 66).
 export async function missingFor(
   row: Checkout, client?: Executor
 ): Promise<CheckoutView["missing"]> {
   return (await compose(row, client)).missing;
 }
 
-// THE DRAFT FULFILLMENT'S ID, WRITTEN BY THE FEATURE THAT OWNS THE COLUMN.
-// domain/fulfillments/drafts.ts creates the draft and hands the id here; the
-// statement that writes `checkout.checkouts.fulfillment_id` is this one, so
-// fulfillments never names a column of this table either.
 export async function attachFulfillment(
   checkout_id: string, fulfillment_id: string, client?: Executor
 ): Promise<Checkout> {
@@ -116,25 +78,12 @@ export async function attachFulfillment(
   return fresh;
 }
 
-// WHOSE CHECKOUT A DRAFT BELONGS TO. A fulfillment carries no user of its own
-// and a draft has no order either, so this is the only answer to "is this
-// yours" while the customer is still deciding - read by the fulfillments
-// transport before it serves or patches one.
 export async function ownerOfFulfillment(
   fulfillment_id: string, client?: Executor
 ): Promise<Checkout | undefined> {
   return await checkouts.findByFulfillment(fulfillment_id, client);
 }
 
-// ADMIN SCOPING (D214 item 11's "narrow thing"): a customer only ever reaches
-// their OWN checkout row; an admin may name a customer and reach theirs - the
-// same shape createOrderFromCheckout already grants for the order create
-// itself. `named` is whatever a request's own `user_id` said, and self-naming
-// is a no-op so a deployed client that always sends its own id (the cart
-// auto-sync does) never trips the admin check. Naming somebody ELSE without
-// being an admin is refused; naming somebody who does not exist is refused
-// distinctly, so the accessor answers 404 rather than minting a checkout row
-// for an id nothing owns.
 export async function resolveSubject(
   caller_id: string, is_admin: boolean, named_user_id?: string
 ): Promise<string> {
@@ -145,12 +94,6 @@ export async function resolveSubject(
   return target.id;
 }
 
-// WHAT A VISITOR MAY NOT DO (ruling 63). An anonymous better-auth user is an
-// ordinary subject everywhere above: they build a basket, save an address,
-// choose a box, get live rates and see priced quotes, all on the same rows and
-// the same code as a customer. The two things that need a real account, and why,
-// are in rules.assertRealAccount - which is PURE, so this reads the identity and
-// the rule decides (ruling 65).
 export async function assertRealAccount(user_id: string, action: string): Promise<void> {
   rules.assertRealAccount(await anonymousUsers.isAnonymous(user_id), action);
 }
@@ -161,19 +104,6 @@ export async function getCheckout(
   return await compose(await ensure(user_id, direction));
 }
 
-// EVERY REFERENCE ID IS THE SCHEMA'S TO REFUSE (ruling 64, migration 123).
-// This carried ADDRESS_COLUMNS and a `references` array - two hand-written
-// lists of column names and six round trips per patch - asking, per id,
-// whether the address was in the caller's book and whether the package,
-// service and method rows existed. Every one of those questions is a foreign
-// key: (user_id, recipient_address_id) references places.user_addresses, and
-// the payment method already referenced its own table. Postgres raises 23503
-// and shared/db/pg-error.ts turns it into the same Invalid naming the column,
-// from every caller rather than from the ones that remembered the loop.
-//
-// TWO COLUMNS ARE LEFT (rulings 69/70, migration 128): where a sale is
-// delivered, and how it is paid for. The eight handover ids that used to
-// arrive here are PATCH /api/fulfillments/:id's now.
 export async function patchCheckout(
   user_id: string, direction: Direction, patch: CheckoutWrite
 ): Promise<CheckoutView> {
@@ -185,10 +115,6 @@ export async function patchCheckout(
   });
 }
 
-// THE PAYOUT STEP (D210): the bank form is recorded here, at step time - the
-// numbers sealed at rest by the payments/details service - and creation later
-// LINKS the row. The details id is stable per checkout, so edits rewrite in
-// place.
 export async function saveCheckoutPayout(
   user_id: string, direction: Direction, form: CheckoutPayoutForm
 ): Promise<CheckoutView> {
@@ -209,9 +135,6 @@ export async function saveCheckoutPayout(
   });
 }
 
-// --------------------------------------------------------------- the basket
-
-// No session is an empty basket, not an error.
 export async function listItems(
   user_id: string, direction: Direction, client?: Executor
 ): Promise<CheckoutItem[]> {
@@ -220,7 +143,6 @@ export async function listItems(
   return await checkoutItems.listFor(session.id, client);
 }
 
-// Replaces, never merges; one refused line refuses the whole write.
 export async function replaceItems(
   user_id: string, direction: Direction, lines: CheckoutItemPatch[]
 ): Promise<CheckoutItem[]> {
@@ -246,7 +168,6 @@ export async function replaceItems(
   });
 }
 
-// Answers how many lines went: a DELETE that matched nothing does not raise.
 export async function clearItems(
   user_id: string, direction: Direction, client?: Executor
 ): Promise<number> {
@@ -258,11 +179,6 @@ export async function clearItems(
   return client ? await write(client) : await withTransaction(write);
 }
 
-// ------------------------------------------------- what order creation reads
-//
-// domain/orders/place.ts consumes a checkout THROUGH this service, never the
-// repos.
-
 export async function getRowById(checkout_id: string, client?: Executor) {
   return await checkouts.getOne(checkout_id, client);
 }
@@ -271,11 +187,6 @@ export async function getItemsForOrder(checkout_id: string, client?: Executor) {
   return await checkoutItems.listForOrder(checkout_id, client);
 }
 
-// THE BASKET, PRICED - a purchase checkout's current worth, from the items
-// and premiums already on the row (rules.ts's basketRows sets premium at
-// write time). What a live carrier is told the parcel is worth reads this
-// (domain/shipping/rules.ts declaredValue) - an estimate, the same one
-// orders/read.ts makes for an order line with no stored price.
 export async function purchaseTotal(checkout_id: string, client?: Executor): Promise<number> {
   const rows = await checkoutItems.listFor(checkout_id, client);
   if (!rows.length) return 0;
@@ -293,9 +204,6 @@ export async function getRowFor(user_id: string, direction: Direction, client?: 
   return await ensure(user_id, direction, client);
 }
 
-// After an order consumes the checkout (D208) the choices are the ORDER's, so
-// the row goes back to empty and the next checkout starts clean. Built from the
-// repo's own whitelist, so a column added there cannot be left behind here.
 const CLEARED: CheckoutWrite = Object.fromEntries(
   checkouts.PATCHABLE.map((column) => [column, null])
 );

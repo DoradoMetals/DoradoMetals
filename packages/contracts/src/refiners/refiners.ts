@@ -14,13 +14,9 @@ export type Refiner = z.infer<typeof Refiner>;
 // generated:end
 import { Organization, OrganizationSummary } from "../organizations/organizations.js";
 
-// A refiner and the organization it is, KEPT APART. A supplier is two rows in
-// the new schema and the response says so rather than smearing the
-// organization's fields across the top level.
 export const RefinerRead = Refiner.omit({ organization_id: true }).extend({
   created_at: Organization.shape.created_at.nullable(),
   updated_at: Organization.shape.updated_at.nullable(),
   organization: OrganizationSummary,
 });
 export type RefinerRead = z.infer<typeof RefinerRead>;
-

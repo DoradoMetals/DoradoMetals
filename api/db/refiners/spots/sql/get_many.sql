@@ -1,4 +1,3 @@
--- The refiner spots of several orders at once.
 SELECT
        sp.id,
        sp.order_id,

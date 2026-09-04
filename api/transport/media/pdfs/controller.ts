@@ -8,7 +8,6 @@ import * as inputs from "#domain/media/pdfs/order-inputs.ts";
 
 const OrderIdBody = z.object({ order_id: uuidLike }).strict();
 
-// The headers are the same whichever truth answered - stored or fresh render, both are "a PDF the browser must save under this name", and the filenames are the ones the frontend has always received.
 const sendPdf = (res: Response, pdf: Uint8Array, filename: string) => {
   res.set({
     "Content-Type": "application/pdf",
@@ -17,9 +16,6 @@ const sendPdf = (res: Response, pdf: Uint8Array, filename: string) => {
   });
   res.end(pdf);
 };
-
-// Each route serves the STORED document when one exists and the caller owns the order (or is an admin) - "one render, one truth", see serve.ts - falling back to a LIVE RENDER FROM THE SERVER'S OWN READ.
-// The body is `{ order_id }` - order-inputs.ts loads what each template needs; serve.ts still treats the id as untrusted until orderOwnedBy has answered, which is what guards these routes (requireUser only).
 
 export const generatePackingList = asyncHandler(async (req, res) => {
   const { order_id } = parseStrict(OrderIdBody, req.body, "media/pdfs/generate_packing_list body");

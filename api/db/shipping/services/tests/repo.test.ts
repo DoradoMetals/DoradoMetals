@@ -1,4 +1,3 @@
-// Writes on shipping.services, against real Postgres. Self-contained: the carrier used already exists (seeded FedEx), read-only; the service rows here are its own.
 import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
@@ -9,7 +8,6 @@ import { inRollback } from "#shared/testing/rollback.ts";
 import { actingAs } from "#shared/testing/actor.ts";
 import { aUser } from "#shared/testing/builders/index.ts";
 import * as services from "#db/shipping/services/repo.ts";
-
 
 beforeAll(async () => {
   assert.equal(
@@ -48,10 +46,6 @@ const write = (over: Partial<CarrierServiceWrite> = {}): CarrierServiceWrite => 
   ...over,
 });
 
-// Author fields aren't arguments any more - audit_stamp records them from the
-// actor now; this checks an edit never rewrites the creator. `actingAs` is
-// shared/testing/actor.ts's, and the two people are BUILT rather than being
-// whichever two named rows auth.users happened to hold.
 const twoPeople = async (c: PoolClient) => [
   await aUser(c, { name: "Fixture Maker" }),
   await aUser(c, { name: "Fixture Editor" }),

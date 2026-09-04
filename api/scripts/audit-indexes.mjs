@@ -1,42 +1,3 @@
-// EVERY INDEX IN `exchange` WHOSE COUNTERPART IN THE NEW SCHEMA DOES NOT EXIST.
-//
-// WHY THIS EXISTS. audit:constraints already compares NOT NULL, CHECK, foreign
-// keys and UNIQUE indexes. It reads pg_index deliberately - a bare
-// `CREATE UNIQUE INDEX` is not a pg_constraint row - but it filters on
-// `i.indisunique`, so the plain ones have never been looked at at all.
-//
-// A plain index is not a correctness constraint, which is exactly why it is
-// dangerous here. Drop a UNIQUE and something eventually raises 23505. Drop a
-// plain index and nothing raises anything: the query returns the same rows in
-// the same order and takes a sequential scan to do it. The suite stays green.
-//
-// And it cannot be caught downstream either. `diff` compares the two
-// implementations' output, not their plans. verify:parity compares rows.
-// validate:wire compares shapes. Every one of them passes on a table with no
-// indexes at all. The only signal is latency, and dev holds tens of rows where
-// a seq scan is genuinely faster - so dev will never produce the signal. The
-// day a *_SOURCE switch moves, production's row counts arrive at a schema
-// nobody measured.
-//
-// Postgres does not index a foreign key automatically, so "the FK is there"
-// is not an answer either - audit:constraints passing on FKs says nothing
-// about whether the column is indexed.
-//
-// WHAT COUNTS AS A COUNTERPART. Leading-prefix semantics, not set equality:
-// a source index on (a, b) is served by a target index on (a, b, c), because
-// btree can use any leading prefix. It is NOT served by one on (b, a). Any
-// target index kind satisfies a source index - a UNIQUE or a primary key on
-// the same leading columns indexes it just as well as a plain one.
-//
-// WHAT IT REFUSES TO GUESS. An expression index has no column list to map, and
-// a source index whose columns do not all land in one target table cannot be
-// checked against that table. Both report `?` and are counted separately.
-// Neither is ever reported as present. A scan that cannot see something must
-// not call it clean.
-//
-// Shape comes from dev, where both schemas exist. `--prod` is not offered:
-// production has no new schema to compare against.
-
 import "#env";
 import pool from "#pool";
 import { FEATURES, RENAMES } from "./lib/feature-map.ts";
@@ -79,35 +40,6 @@ const columnsOf = async (table) => {
   return new Set(rows.map((r) => r.column));
 };
 
-// TWO DIFFERENT QUESTIONS, AND ONLY ONE OF THEM IS THIS AUDIT'S.
-//
-// Whether uniqueness survives is audit:constraints'. It already reports eight
-// source uniques with no exact counterpart and exits 0 while doing it, because
-// a source unique on (number) against a target unique on (direction, number) is
-// the correct meaning for a table that merged purchase and sales orders. Do not
-// re-report those here.
-//
-// What survives is the ACCESS PATH, which nothing else asks about. btree can
-// only be entered on a leading prefix, so the question that separates a
-// degradation from a sequential scan is whether ANY target index - unique,
-// primary or plain - LEADS with the column the source index leads with. If one
-// does, the path is indexed and a narrower target index is at worst a partial
-// loss. If none does, the lookup has no index at all.
-// Three source indexes have no leading-column counterpart and are deliberately
-// not indexed in the new schema. Each was checked against the queries that
-// actually run, not waved through: an index nothing reads still costs every
-// write, so speculation is the wrong default in both directions.
-//
-// Pinned from BOTH sides. A gap that is not named here fails the audit; a name
-// here that no longer reports a gap fails it too, so the list cannot rot into a
-// blanket suppression of something that was since fixed - or of something that
-// changed meaning underneath it.
-// `unique_payment_intent_id` was here and was WRONG. I declined it because
-// provider_ref is always paired with intent_id - but `a.intent_id = i.id` is a
-// join condition, not a narrowing filter, so it gives the planner no row to
-// seek to. Migration 082 indexes provider_ref and the entry is gone. Reading
-// the queries is what makes a shape finding real; reading them CARELESSLY is
-// what makes a real one disappear.
 const ACCEPTED = {
   purchase_orders_order_number_key:
     "nothing looks an order up by number alone - orders.orders merged purchase " +
@@ -151,8 +83,6 @@ for (const [feature, tables] of Object.entries(features)) {
     const sourceIndexes = await cachedIndexes(source);
 
     for (const idx of sourceIndexes) {
-      // A primary key travels with the row identity, not with a query pattern,
-      // and every target defines its own. Not this audit's question.
       if (idx.is_primary) continue;
 
       if (idx.has_expression || !idx.cols) {
@@ -162,15 +92,9 @@ for (const [feature, tables] of Object.entries(features)) {
       }
 
       const want = idx.cols.map((c) => renames[c] ?? c);
-      // "-" is the feature map's mark for a column the new schema deliberately
-      // does not carry. There is no target column, so there is no index to
-      // miss. audit:constraints skips these the same way.
       if (want.includes("-")) { dropped += 1; continue; }
       checked += 1;
 
-      // Which targets could even hold this index? Only one that has every
-      // mapped column. A target missing a column is not evidence of a gap -
-      // the index simply does not belong to it.
       const candidates = [];
       for (const target of targets) {
         const cols = await cachedColumns(target);
@@ -210,12 +134,6 @@ for (const [feature, tables] of Object.entries(features)) {
   }
 }
 
-// THE FLOOR (D135). This is a REPORT, and a report that cannot see its subject
-// prints a smaller number and exits 0 - which for an index audit means "every
-// access path survived" when the truth is that none was looked at. 50 indexes
-// across 18 features on 2026-08-29, re-measured on the run that added this. It
-// only ever grows as the new schema does; a count that falls means the walk or
-// the catalogue query broke, not that exchange lost indexes.
 const INDEX_FLOOR = Number(process.env.AUDIT_INDEXES_FLOOR ?? (only ? 1 : 40));
 if (checked < INDEX_FLOOR) {
   console.error(
@@ -253,9 +171,6 @@ if (accepted.length) {
   }
 }
 
-// The other direction of the pin. An accepted entry that no longer reports a
-// gap is stale, and a stale allowlist is how a real finding gets suppressed by
-// a name that used to mean something else.
 const seen = new Set(accepted.map((m) => m.index));
 const stale = Object.keys(ACCEPTED).filter((k) => !seen.has(k));
 if (stale.length) {

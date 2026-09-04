@@ -1,10 +1,3 @@
-// THE VISITORS NOBODY CAME BACK FOR.
-//
-// Ruling 63 mints an auth.users row for anyone who touches a basket, and the
-// anonymous plugin is configured NOT to delete them on sign-in
-// (domain/auth/client.ts says why), so this sweep is the only thing that ever
-// removes one. Two properties matter and both are pinned below: it takes every
-// trace of a stale visitor, and it cannot touch a customer.
 import { test, afterAll } from "vitest";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
@@ -19,11 +12,6 @@ afterAll(async () => { await pool.end(); });
 
 const HERE = [LOCKS.ORDERS, LOCKS.ADDRESSES, LOCKS.USERS];
 
-// TIME MOVES FORWARD, NOT BACKWARD. Backdating the fixtures is not available:
-// migration 116's audit trigger rewrites `updated_at` on every UPDATE, so a
-// statement that tried to age a basket line would stamp it with the moment it
-// ran. Moving `now` instead is the same arithmetic and needs no fighting with
-// the trigger.
 const daysLater = (n: number) => new Date(Date.now() + n * 24 * 60 * 60 * 1000);
 
 const exists = async (c: PoolClient, sql: string, id: string): Promise<boolean> =>
@@ -54,8 +42,6 @@ test("a stale visitor goes, and takes their checkout, basket and address book", 
       await exists(c, `SELECT 1 FROM places.user_addresses WHERE user_id = $1`, visitor.id),
       false
     );
-    // The ADDRESS itself stays: places.addresses rows are shared, and this
-    // sweep deletes the visitor's claim on one, not the row.
     assert.equal(
       await exists(c, `SELECT 1 FROM places.addresses WHERE id = $1`, address.id), true
     );
@@ -77,10 +63,6 @@ test("a visitor who is still shopping is left alone", async () => {
 });
 
 test("a customer is never a candidate, however old their account", async () => {
-  // THE ONE THAT MATTERS. This is the only DELETE of a user row in the
-  // codebase; the `isAnonymous` clause in both the listing and the delete is
-  // what makes it incapable of reaching a customer. A cutoff far in the future
-  // makes EVERY row stale by date, so only that clause is left doing the work.
   await inPinnedTransaction(async (c: PoolClient) => {
     const customer = await aUser(c);
     await aCart(c, customer, { direction: "purchase" }).withLots(1);
@@ -98,9 +80,6 @@ test("a customer is never a candidate, however old their account", async () => {
 });
 
 test("naming a customer's id directly still deletes nothing", async () => {
-  // The repo's own guard, past the listing: the statement filters on
-  // isAnonymous itself, so a caller that somehow assembled the wrong batch
-  // removes nobody rather than removing a customer.
   const { anonymousUsers } = await import("#db");
   await inPinnedTransaction(async (c: PoolClient) => {
     const customer = await aUser(c);
@@ -114,7 +93,6 @@ test("naming a customer's id directly still deletes nothing", async () => {
 
 test("an empty sweep is not an error and writes nothing", async () => {
   await inPinnedTransaction(async (c: PoolClient) => {
-    // A cutoff before any row in the database exists.
     const result = await sweepAnonymousVisitors({ now: new Date(0) }, c);
     assert.deepEqual(result, { considered: 0, deleted: [] });
   }, { actor: TEST_ACTOR.id, lock: HERE });

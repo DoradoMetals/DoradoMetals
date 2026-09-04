@@ -1,4 +1,3 @@
-// Writes on fulfillments.shipments (the LINK, not the parcel), against real Postgres. Self-contained: the fulfillment is a draft (no order) and the shipment is created fresh.
 import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
@@ -9,7 +8,6 @@ import { fulfillmentMethodId } from "#shared/testing/builders/index.ts";
 import * as shipmentLinks from "#db/fulfillments/shipments/repo.ts";
 import * as fulfillments from "#db/fulfillments/repo.ts";
 import * as shippingShipments from "#db/shipping/shipments/repo.ts";
-
 
 beforeAll(async () => {
   assert.equal(

@@ -1,4 +1,3 @@
-// shipping.pickups: a CARRIER collecting a parcel - not fulfillments.pickups (us collecting from the customer). Order/user/carrier aren't columns; compose.ts reconstructs them from the shipment.
 import query from "#shared/db/query.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
 import type { ShipmentPickup, ShipmentPickupWrite } from "@dorado/contracts";
@@ -28,8 +27,6 @@ export async function getByShipments(
   return rows;
 }
 
-// FULL REPLACE, not a COALESCE patch - the service merges the whole row before
-// calling this (`ShipmentPickupWrite`).
 export async function create(
   row: ShipmentPickupWrite & Pick<ShipmentPickup, "id" | "shipment_id">,
   executor?: Executor

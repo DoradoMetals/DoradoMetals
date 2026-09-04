@@ -1,12 +1,5 @@
 "use client";
 
-// THE VOLUME BANDS the business pays on, and the page that prints them.
-//
-// `useRateTiers` is the one that matters: GET /rates/tiers answers a card per
-// metal, already grouped, deduped, labelled ("1-10 oz", "50+ oz") and ordered,
-// with the "up to" percentage the landing strip prints. The rates page did all
-// of that in the browser from the flat list, and so did the landing section,
-// separately.
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { AdminRate, RatePatch, RateRead, RateTier } from "@dorado/contracts";
 
@@ -37,7 +30,6 @@ export function useAdminRates(enabled = true) {
   });
 }
 
-// A rate change moves what every customer is quoted, so every rate read goes.
 function invalidate(client: ReturnType<typeof useQueryClient>) {
   client.invalidateQueries({ queryKey: keys.rates.scoped() });
 }

@@ -1,40 +1,3 @@
-// Rebuilds a non-production database from the most recent backup.
-//
-// WHY FROM THE BACKUP AND NOT FROM A FRESH pg_dump. Dumping production each
-// time would prove pg_dump works. Restoring the actual backup proves the
-// BACKUP works - so this doubles as a daily restore drill, and an untested
-// restore is not a backup. If backup.mjs ever starts writing something
-// unrestorable, this is what says so, the next morning, rather than on the
-// worst day of the year.
-//
-// THIS DROPS A DATABASE. That is the most destructive thing in this repo, so
-// the guards are worth reading before the code:
-//
-//   - The target must be named explicitly with --target. Nothing is refreshed
-//     by default and there is no "all".
-//   - It must be on REFRESHABLE below. An allowlist, so a name nobody has
-//     taught it about is refused rather than accepted - the same rule as the
-//     migrate runner and audit:test-leaks.
-//   - It re-checks, against the server, that the target is not the database
-//     the backup was taken FROM. Name-matching alone would not survive another
-//     rename.
-//   - It refuses a backup that fails a pg_restore --list, so a corrupt archive
-//     cannot destroy a working database.
-//
-// ENABLING dev LATER IS A SCHEDULING DECISION, NOT A CODE CHANGE. `dev` is
-// already on REFRESHABLE; adding it means adding one cron entry. It is
-// deliberately not scheduled yet: dev holds every migration and all five
-// per-feature schemas, production holds none of them, so refreshing dev reverts
-// it to production's January shape - and the API test suite runs against dev.
-// That wants the baseline question answered first. See FOLLOWUPS.md.
-//
-//   node scripts/refresh-from-backup.mjs --target test
-//   node scripts/refresh-from-backup.mjs --target test --migrate
-//   node scripts/refresh-from-backup.mjs --target test --dry-run
-//
-// --migrate applies the migration chain afterwards. Off by default, because
-// what the chain currently produces on a production copy is nine empty table
-// pairs, and that is a finding rather than a desired state.
 import "#env";
 import fs from "node:fs";
 import path from "node:path";
@@ -75,9 +38,6 @@ if (!REFRESHABLE.has(target)) {
   process.exit(1);
 }
 
-// The admin connection: any database other than the one being dropped. The
-// maintenance database is the conventional choice and the one that is never a
-// target.
 const adminUrl = process.env.REFRESH_ADMIN_DATABASE_URL;
 const sourceUrl = process.env.BACKUP_SOURCE_DATABASE_URL ?? process.env.DUMP_SOURCE_DATABASE_URL;
 
@@ -97,9 +57,6 @@ const nameOf = (url) => {
   }
 };
 
-// THE CHECK THAT SURVIVES A RENAME. The allowlist is names; this asks the
-// server which database the backup actually came from and refuses to overwrite
-// it, whatever it happens to be called today.
 if (sourceUrl && nameOf(sourceUrl) === target) {
   console.error(
     `refusing: "${target}" is the database the backups are taken FROM. ` +
@@ -110,8 +67,6 @@ if (sourceUrl && nameOf(sourceUrl) === target) {
 }
 
 function newestBackup() {
-  // Hourly first - it is the most recent by construction. Fall back through
-  // the ladder so a refresh still works if the hourly cron has been down.
   for (const slot of ["hourly", "daily", "weekly"]) {
     const dir = path.join(BACKUP_DIR, slot);
     if (!fs.existsSync(dir)) continue;
@@ -135,7 +90,6 @@ async function pgBinary(name) {
       await run(bin, ["--version"]);
       return bin;
     } catch {
-      // next
     }
   }
   throw new Error(`no usable ${name} found (tried ${candidates.join(", ")})`);
@@ -159,8 +113,6 @@ try {
 
   const pgRestore = await pgBinary("pg_restore");
 
-  // A corrupt archive must not be allowed to destroy a working database. Read
-  // its table of contents before dropping anything.
   const { stdout: toc } = await run(pgRestore, ["--list", backup.full], {
     maxBuffer: 1024 * 1024 * 64,
   });
@@ -174,8 +126,6 @@ try {
   }
   console.log(`archive lists ${tableData} table-data entries`);
 
-  // The owner has to match production's, or the migrations cannot ALTER what
-  // they need to. Read it rather than assume it.
   const { rows: own } = await admin.query(
     `SELECT pg_get_userbyid(datdba) AS owner FROM pg_database WHERE datname = $1`,
     [target]
@@ -192,8 +142,6 @@ try {
     process.exit(0);
   }
 
-  // DROP needs zero connections, and something reconnecting mid-drop is the
-  // usual reason this fails. Terminate, then drop immediately.
   const { rows: killed } = await admin.query(
     `SELECT count(pg_terminate_backend(pid))::int AS n
        FROM pg_stat_activity WHERE datname = $1 AND pid <> pg_backend_pid()`,
@@ -211,8 +159,6 @@ try {
     return u.toString();
   })();
 
-  // No --no-owner: the archive records production's ownership and reproducing
-  // it is what lets the migrations ALTER the tables they need to.
   await run(pgRestore, ["-d", targetUrl, backup.full], { maxBuffer: 1024 * 1024 * 64 });
   console.log("restored");
 

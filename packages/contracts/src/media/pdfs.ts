@@ -17,5 +17,3 @@ export const Pdf = z.object({
 });
 export type Pdf = z.infer<typeof Pdf>;
 // generated:end
-
-// Hand-written derivations go here: New, Patch, named reads.

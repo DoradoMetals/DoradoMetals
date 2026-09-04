@@ -1,32 +1,3 @@
-// The HTML sections a rendered document is assembled from.
-//
-// THE TYPES ARE THE CONTRACT'S NOW (D214 item 12). This file used to declare
-// its own `RenderableOrder`, `OrderItem`, `ScrapPart`, `ProductPart`,
-// `AddressPart` and `ShipmentPart` - six hand-written shapes describing what
-// the COMPOSED order looked like, because no generated row described that tree.
-// The composer is gone and `OrderView` is a generated-row shape, so the
-// templates read the tables directly:
-//
-//   item.scrap.pre_melt      ->  item.pre_melt        (the scrap IS the line)
-//   item.scrap.gross_unit    ->  item.unit
-//   item.scrap.metal         ->  labels.metals.get(item.metal_id)
-//   item.product.metal_type  ->  labels.metals.get(item.metal_id)
-//   item.item_type           ->  item.bullion_id === null
-//   order.shipment           ->  inboundShipment(order)
-//   shipment.shipping_charge ->  shipment.cost
-//   shipment.shipping_service ->  labels.services.get(s.carrier_service_id)
-//   shipment.package         ->  labels.packages.get(s.package_id)
-//   order.user.user_name     ->  order.user.name
-//   order.carrier_pickup     ->  order.pickup
-//
-// TWO THINGS THE CALLER SUPPLIES BESIDES THE ORDER, and both are reference
-// data rather than order data:
-//
-//   bids     metal_id -> the price the order is being valued at. The FROZEN
-//            spots for a locked order, the live feed otherwise; the caller
-//            decides which, because that decision belongs to the document.
-//   labels   the names behind the three ids an order's rows carry - the
-//            metal, the carrier service and the box.
 import { formatPhoneNumber } from "#shared/utils/formatPhoneNumber.ts";
 import {
   inboundShipment, recordedContent, unitPrice, type Bids,
@@ -37,20 +8,12 @@ import {
 } from "#domain/media/pdfs/render/format.ts";
 import type { OrderView, OrderViewItem } from "@dorado/contracts";
 
-// THE LABELS A DOCUMENT PRINTS FOR THE IDS AN ORDER CARRIES. Three lookups,
-// one per reference table, resolved once by the caller: a row names its metal,
-// its carrier service and its box by id, and a name is a label rather than a
-// column of the order.
 export type DocumentLabels = {
-  /** metal_id -> the metal's name. */
   metals: ReadonlyMap<string, string>;
-  /** carrier_service_id -> the service's name. */
   services: ReadonlyMap<string, string>;
-  /** package_id -> the box's label. */
   packages: ReadonlyMap<string, string>;
 };
 
-// The box a parcel ships in, as the packing list prints it.
 export type PackageDetails = {
   label: string | null;
   length: number | null;
@@ -68,9 +31,6 @@ const packageOf = (
 ): string =>
   (shipment?.package_id ? labels.packages.get(shipment.package_id) : null) || "-";
 
-// THE DISPLAY ORDER OF THE METALS, which is not alphabetical. Same list
-// domain/spots/compose.ts sorts by, for the same reason: a customer reads gold
-// first.
 const METAL_ORDER = ["Gold", "Silver", "Platinum", "Palladium"];
 
 const rank = (name: string): number => {
@@ -78,14 +38,6 @@ const rank = (name: string): number => {
   return at === -1 ? METAL_ORDER.length : at;
 };
 
-// "Gold Item 1", "Gold Item 2", "Silver Item 1" - the labels a customer reads
-// on their packing list and invoice.
-//
-// A PURE LOOKUP NOW, NOT A MUTATION. It used to walk the composed lines and
-// write `item.scrap.name` onto each one, which needed a `name` field on a
-// database-derived object that no column supplies. There is no such field on
-// an `orders.items` row and there should not be: the label is a document's
-// idea, so it is a map the document reads.
 export function scrapItemNames(
   lines: OrderViewItem[], metals: ReadonlyMap<string, string>
 ): Map<string, string> {
@@ -104,7 +56,6 @@ export function scrapItemNames(
   return names;
 }
 
-// The parcel going BACK, when there is one - the leg a cancelled order adds.
 export function returnShipment(order: OrderView): OrderView["shipments"][number] | null {
   return order.shipments.find((s) => s.direction === "Return") ?? null;
 }
@@ -272,15 +223,6 @@ export function renderInvoiceShippingAndPayout(
   `;
 }
 
-// An order with no address still has to render. Every one of these was `purchaseOrder.address.name`, throwing on a null address - the packing list was a 500 rather than a document (5 of dev's 16 purchase orders have no address_id, and it's not junk data).
-// A blank line on a document is recoverable; a 500 when an admin asks for a packing list is not, and it gives no hint of what's wrong.
-//
-// WHO THE PARCEL IS FOR IS THE CUSTOMER'S NAME. It used to be
-// `address.recipient_name`, which the composer read from `exchange.addresses`'
-// own `name` column - the last exchange read on a live path. places.addresses,
-// which is where the snapshot actually lives, has no such column, so the
-// recipient is the order's customer: auth.users' name, which is the same
-// person and a row this API owns.
 export function renderPackingShippingSection(
   order: OrderView,
   {
@@ -315,7 +257,6 @@ export function renderPackingShippingSection(
     phone: process.env.FEDEX_DORADO_PHONE_NUMBER ?? "",
   };
 
-  // The inbound leg goes customer -> Dorado; the return leg goes back.
   const from = isReturn ? dorado : customer;
   const to = isReturn ? customer : dorado;
 
@@ -457,10 +398,6 @@ export function buildPackingBullionRows(
 ): string {
   return lines
     .map((line) => {
-      // THE LINE'S PREMIUM, NOT THE PRODUCT'S (Jacob, 2026-09-03). A purchase
-      // bullion line is priced at the rate band's bullion_pct, written onto
-      // the line; falling back to the catalogue's bid_premium printed a rate
-      // on a packing list that the rates table never agreed to.
       const total = unitPrice(line, bids) * (line.quantity ?? 1);
       return `
         <tr>

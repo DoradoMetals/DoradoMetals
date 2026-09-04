@@ -1,16 +1,3 @@
-// The sales tax endpoint, over real HTTP - one route, requireUser, and it
-// computes money from an address and some products.
-//
-// IDS IN (D214 item 11). The body used to BE the items: a caller sent a
-// product's purity, weight, tender flags and price, which are exactly the facts
-// a tax rule matches on, and so exactly the way to choose the rate you are
-// charged. It names an address and product ids now, and every fact is read
-// from their own rows.
-//
-// A SILENT ZERO IS THE FAILURE THAT MATTERS - it looks identical whether a bad
-// request undercharges an order or a state genuinely does not collect. So the
-// malformed cases must be REFUSED, not answered with 0.
-// NOTHING IS COMMITTED (pinned-pool.ts).
 import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import request from "supertest";
@@ -26,21 +13,11 @@ import type { PoolClient } from "pg";
 await mockSessions();
 const { default: app } = await import("#app");
 
-// SELECT projections, not table rows.
 type UserFixture = { id: string; name: string | null; email: string | null };
 type AddressFixture = { id: string; state: string };
 type ProductFixture = { id: string };
 
 const customer: UserFixture = TEST_CUSTOMER;
-// TWO STATES AND A COIN, NAMED AND BUILT (lane 1). The addresses used to be
-// found by joining places.addresses to tax.sales_tax_rules - a taxing one and
-// an untaxed one - which made every assertion here a fact about which
-// customers happen to live where, and the version before it took the first
-// state_code it saw (AK, which taxes nothing), so both sides of the comparison
-// were 0.
-//
-// California charges 7.25% on Coin and ALASKA CHARGES NOTHING; both are
-// literals of the tax seed, not of the address book.
 const TAXING_STATE = "CA";
 const UNTAXED_STATE = "AK";
 
@@ -63,9 +40,6 @@ afterAll(async () => {
   await pool.end();
 });
 
-// The product is an ARGUMENT now, not a module-scope fixture: it is built
-// inside each transaction, so a request body naming it has to be built there
-// too.
 const body = (address_id: string | null, product: { id: string }) => ({
   address_id,
   items: [{ id: product.id, quantity: 1 }],
@@ -100,9 +74,6 @@ test("a signed-in customer gets a number back for a real state", async () => {
   }, { actor: TEST_ACTOR.id, lock: LOCKS.ADDRESSES });
 });
 
-// THE ASSERTION THIS FILE'S OLD "RECORDED: no spots is zero tax" TEST SAID TO
-// INVERT once the server sourced its own spots. It does: there is no `spots`
-// field to omit, and a body carrying one is refused rather than believed.
 test("the body cannot carry spots, prices or product facts at all", async () => {
   await inPinnedTransaction(async (c: PoolClient) => {
     const { taxing, untaxed, product } = await fixtures(c);
@@ -124,8 +95,6 @@ test("the body cannot carry spots, prices or product facts at all", async () => 
   }, { actor: TEST_ACTOR.id, lock: LOCKS.ADDRESSES });
 });
 
-// The genuinely malformed cases, where there is no coherent answer at all. A
-// zero would be indistinguishable from a state that does not collect.
 test("a body with no items is refused rather than answered with a tax figure", async () => {
   await inPinnedTransaction(async (c: PoolClient) => {
     const { taxing, untaxed, product } = await fixtures(c);
@@ -134,7 +103,6 @@ test("a body with no items is refused rather than answered with a tax figure", a
         .post("/api/tax").send({ address_id: taxing.id, items: [] });
       assert.equal(noItems.status, 400, `no items answered ${noItems.status}`);
 
-      // An address id that names nothing is a 404, not a silent tax-free quote.
       const noSuchAddress = await request(app)
         .post("/api/tax")
         .send(body("00000000-0000-4000-8000-000000000000", product));
@@ -143,9 +111,6 @@ test("a body with no items is refused rather than answered with a tax figure", a
   }, { actor: TEST_ACTOR.id, lock: LOCKS.ADDRESSES });
 });
 
-// No address at all is a real question - a quote asked before one is chosen -
-// and the answer is no tax, which is CORRECT. That is exactly why the refusals
-// above exist to distinguish it from a malformed request.
 test("no address is answered with no tax, not an error", async () => {
   await inPinnedTransaction(async (c: PoolClient) => {
     const { taxing, untaxed, product } = await fixtures(c);
@@ -154,8 +119,6 @@ test("no address is answered with no tax, not an error", async () => {
       assert.equal(res.status, 200, `a stateless quote answered ${res.status}`);
       assert.equal(taxOf(res), 0, "a quote with no address was charged tax");
 
-      // And a state with no charging rule is likewise zero, through the same
-      // door: a real address, no rule, no tax.
       const noRule = await request(app).post("/api/tax").send(body(untaxed.id, product));
       assert.equal(noRule.status, 200, `${untaxed.state} answered ${noRule.status}`);
       assert.equal(taxOf(noRule), 0, `${untaxed.state} has no charging rule and was taxed`);

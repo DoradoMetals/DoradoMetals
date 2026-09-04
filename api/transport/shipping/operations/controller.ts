@@ -4,21 +4,11 @@ import { parseStrict, uuidParam } from "#shared/http/validate.ts";
 import { requireFulfillmentOwner } from "#transport/fulfillments/owner.ts";
 import * as operationsService from "#domain/shipping/operations/service.ts";
 
-// Every body below is ids for what the server holds plus genuinely new
-// numbers (D214 item 11) - parsed strictly here, once, before the use case
-// runs. carrier_id is optional on every operation: a caller that names one
-// still gets that one; the server resolves a default otherwise.
-
 export const validateAddress = asyncHandler(async (req, res) => {
   const body = parseStrict(ShippingValidateAddressBody, req.body, "shipping/validate_address body");
   res.json(await operationsService.validateAddress(body));
 });
 
-// GET /api/fulfillments/:id/rates - declared on the FULFILLMENTS router
-// (rulings 69/70: it owns the parcel facts), handled here because shipping owns
-// the carrier call. The caller sends one id; the box, the address and the
-// insured value are read from the parcel and the basket behind it.
-// Owner-or-admin, checked before the carrier is asked.
 export const getFulfillmentRates = asyncHandler(async (req, res) => {
   const fulfillment_id = uuidParam(req, "id");
   await requireFulfillmentOwner(req, fulfillment_id);

@@ -1,4 +1,3 @@
--- One shipment's own row. Same projection as get_all.
 SELECT
        id, carrier_service_id, package_id,
        recipient_address_id, shipper_address_id,

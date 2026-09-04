@@ -1,19 +1,6 @@
-// Compares a table in the live `exchange` schema against its counterpart in the
-// domain-namespaced schema it is moving to.
-//
-// Reports the three things that decide how much work a feature's migration is:
-// which columns differ, which defaults differ, and how far the data has drifted
-// since the January copy. Column defaults are included because a response diff
-// caught leads diverging on exactly that, and nothing else would have.
-//
-// Read-only.
-//
-//   node scripts/compare-tables.mjs exchange.leads leads.leads
-//   node scripts/compare-tables.mjs            (compares a built-in list)
 import "#env";
 import pool from "#pool";
 
-// The mapping as far as it is known. Extend as features are moved.
 const PAIRS = [
   ["exchange.leads", "leads.leads"],
   ["exchange.reviews", "reviews.reviews"],

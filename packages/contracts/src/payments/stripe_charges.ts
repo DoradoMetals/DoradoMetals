@@ -23,5 +23,3 @@ export const StripeCharge = z.object({
 });
 export type StripeCharge = z.infer<typeof StripeCharge>;
 // generated:end
-
-// Hand-written derivations go here: New, Patch, named reads.

@@ -1,18 +1,3 @@
-// THE ORDER VIEW, sale direction, against real Postgres.
-//
-// A sales order shares orders.orders with purchase orders and is told apart by
-// direction alone, so the tests that matter most are the ones about the two not
-// bleeding into each other.
-//
-// `read.service.ts` is gone (D214 item 12): `view()` reads ONE order by id and
-// `list()` reads the slim wire, so the assertions that used to run over
-// `getAllSales()` run over the list plus a view per order. Two members moved
-// with the composer and are asserted where they now live:
-//
-//   order.used_funds        ->  totals.used_funds (the column it always was)
-//   order.address_id        ->  address, the places.addresses snapshot itself
-//
-// Each test runs inside a transaction that is rolled back.
 import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
@@ -49,8 +34,6 @@ const viewsOf = async (ids: string[]) => {
   return out;
 };
 
-// The two kinds of order share a table now. A purchase order surfacing in a
-// customer's sales order list would show them someone else's business.
 test("purchase orders and sales orders do not bleed into each other", async () => {
   const sales = await saleIds();
   const purchases = (await orderRead.list({ direction: "purchase" })).map((o) => o.id);
@@ -76,8 +59,6 @@ test("the money comes back off the transaction, not the order", async () => {
         [o.order.id]
       );
       assert.ok(t, `sales order ${o.order.number} has no transaction row`);
-      // The money is orders.transactions VERBATIM, under that table's own
-      // names - no renames survived the composer.
       assert.equal(Number(o.totals!.total), Number(t.total));
       assert.equal(Number(o.totals!.items), Number(t.items));
       assert.equal(Number(o.totals!.shipping), Number(t.shipping));
@@ -87,10 +68,6 @@ test("the money comes back off the transaction, not the order", async () => {
   });
 });
 
-// used_funds is a boolean and funds is an amount. They were nearly conflated
-// during the backfill - a zero balance applied and no balance applied are
-// different things. Both are columns of orders.transactions, and the view
-// serves that row rather than lifting one of them onto the order.
 test("used_funds stays a boolean beside the funds amount", async () => {
   const all = await viewsOf(await saleIds());
   assert.ok(all.length, "no sales orders, so this test asserts nothing");
@@ -100,10 +77,6 @@ test("used_funds stays a boolean beside the funds amount", async () => {
   }
 });
 
-// THE ADDRESS IS A ROW, NOT AN ID (D214 item 12). The composed order served
-// `address_id` - the BOOK entry, read from exchange.addresses - beside a
-// projection of it; the view answers the places.addresses snapshot the parcel
-// went to, and the link is resolved in the WHERE clause.
 test("the address is the snapshot the order links to", async () => {
   await inRollback(async (c: PoolClient) => {
     const { rows: links } = await c.query<{ order_id: string; address_id: string }>(
@@ -130,14 +103,10 @@ test("every line resolves to a product", async () => {
       assert.ok(item.bullion_id, `line ${item.id} of a sale is not a bullion line`);
       assert.ok(item.product?.id, `line ${item.id} has no product`);
       assert.equal(typeof item.product!.name, "string");
-      // THE METAL IS AN ID ON BOTH SIDES. `product.metal_type` was a joined
-      // display name the composer added; the client maps it from /spots.
       assert.ok(item.product!.metal_id, "the product names no metal");
       assert.equal(item.metal_id, item.product!.metal_id, "the line and its product disagree");
     }
   }
-  // An individual order may legitimately have no lines - that is the itemless
-  // case - so the floor is the total across all of them, not one per order.
   assert.ok(lines, "no sales order had a single line, so this test asserts nothing");
 });
 
@@ -148,10 +117,6 @@ test("orders come back newest first", async () => {
   assert.deepEqual(dates, [...dates].sort((a, b) => b - a));
 });
 
-// COUNTED UNDER THE ORDERS LOCK, and that is not caution - it is the fix for a
-// real flake. This file declared no lock, so it counted orders.transactions
-// across a read while the order-PLACING files were committing rows on their own
-// connections: the gate reported 55 !== 56 and the same test passed alone.
 test("reads do not write", async () => {
   await inRollback(async (c: PoolClient) => {
     await takeLocks(c, [LOCKS.ORDERS]);

@@ -1,8 +1,3 @@
-// Writes on media.images, against real Postgres. NO update() to test - see
-// repo.ts's own header: an upload record is written once and never edited.
-// What this proves is create's owner-scoped upsert and remove's owner-scoped
-// delete (the ownership check is the WHERE clause, not a filter applied
-// after reading - see sql/delete.sql).
 import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
@@ -37,7 +32,6 @@ test("create writes a real image, and the same (path, filename, user_id) again r
     const created = await images.create(id, image, c);
     assert.equal(created.id, id);
 
-    // A retried upload - same conflict key, a second id it must not use.
     const again = await images.create(randomUUID(), image, c);
     assert.equal(again.id, created.id, "a retried upload created a second row");
 

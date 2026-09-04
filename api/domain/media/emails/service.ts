@@ -21,7 +21,6 @@ import {
   formatSalesOrderNumber,
 } from "#shared/utils/formatOrderNumbers.ts";
 
-// Best-effort: an order is placed either way.
 export async function sendOrderPlacedConfirmation(
   order_id: string,
   transport?: Transport,
@@ -73,7 +72,6 @@ export async function sendCreatedEmail(
   );
 }
 
-// The customer's copy of a finalised price, with the invoice attached.
 export async function sendPricedEmail(
   input: PurchaseDocument,
   to: string,
@@ -111,7 +109,6 @@ export async function sendPricedEmail(
   );
 }
 
-// The refiner's copy of a sales order. `email` is the refiner's own address, not from a request body.
 export async function sendSalesOrderToSupplier(
   input: SalesDocument,
   email: string,
@@ -153,7 +150,6 @@ export async function sendSalesOrderToSupplier(
   );
 }
 
-// better-auth's own verification callback (features/auth/client.ts) sends through this.
 export async function sendAuthVerificationEmail(
   {
     user,

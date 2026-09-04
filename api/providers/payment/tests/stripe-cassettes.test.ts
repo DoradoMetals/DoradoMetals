@@ -1,46 +1,15 @@
-// THE STRIPE CALLS, AGAINST RECORDED TEST-MODE RESPONSES.
-//
-// *** EVERY ONE OF THESE WAS UNTESTED. *** docs/waves/test-suite-redesign.md
-// 1.3: "every Stripe success path is untested - three of the five payments
-// routes end at Stripe, and payments/replay.test.ts says in its header that it
-// asserts refusals only". There was no seam and no mock library, so the only
-// two possibilities were "call Stripe for real from the suite" and "assert
-// nothing". Lane 4 closed the first one; this file is the third possibility.
-//
-// WHAT IS PINNED HERE AND WHY IT MATTERS ELSEWHERE. These are the requests
-// `domain/payments/service.ts` makes. Two service tests replay the same
-// cassettes (`create-intent-cassette.test.ts` and the un-skipped tail of
-// `update-intent.test.ts`), so recording them here keeps the recording pass
-// off the database entirely - `pnpm test:record` re-records every cassette
-// from ONE file per provider.
-//
-// *** IDEMPOTENCY KEYS ARE FIXED PER SCENARIO, NOT PER RUN. *** A key built
-// from Date.now() would make every recording a different request and every
-// replay a mismatch. Stripe sends the key as a HEADER, and nock records no
-// request headers (see shared/testing/cassettes.ts), so the key is not what a
-// cassette matches on - what it pins is that two calls with the SAME key
-// return the SAME intent, which is recorded as two responses and asserted
-// below. Test CLOCKS are deliberately absent: a clock is a server-side object
-// and has no meaning in a replayed response, so it belongs to `test:external`.
 import { test } from "vitest";
 import assert from "node:assert/strict";
 import { withCassette } from "#shared/testing/cassettes.ts";
 import * as stripe from "#providers/payment/stripe.ts";
 import stripeClient from "#providers/payment/stripe-client.ts";
 
-// The metadata `createPaymentIntent` attaches (D25 - a webhook payload carries
-// no session, user or type, so they ride on the intent). Fixed strings here;
-// the harness normalises user_id and session_id on both sides, so a service
-// test replaying this cassette matches with its own fixture row's ids.
 const METADATA = {
   type: "customer",
   user_id: "cassette-user",
   session_id: "cassette-session",
 };
 
-// An id Stripe has never issued. Shared with `domain/payments/tests/
-// sweeps.test.ts`, which seeds it as a provider_ref so the abandonment sweep
-// walks its "no such payment_intent" branch.
 export const NO_SUCH_INTENT = "pi_cassette_no_such_intent";
 
 test("the same idempotency key returns the same intent, not a second one", async () => {
@@ -77,9 +46,6 @@ test("an intent opened for a customer carries the reconciliation metadata", asyn
     });
   });
 
-  // The placeholder amount createPaymentIntent opens with, before the cart is
-  // priced (D199 - there is no $10 FLOOR any more, but there is still a $10
-  // start).
   assert.equal(intent.amount, 1000, "the opening amount is not what the service sends");
   assert.equal(intent.metadata?.type, METADATA.type, "the intent carries no type");
   assert.ok(intent.metadata?.user_id, "the intent carries no user_id - D25's lifeline is cut");
@@ -102,8 +68,6 @@ test("updating an amount is what Stripe then holds, and the intent stays updatab
   assert.equal(updated.amount, 367353, "Stripe did not take the new amount");
   assert.equal(fetched.amount, 367353, "the amount did not persist");
   assert.equal(fetched.id, updated.id, "updating created a different intent");
-  // `domain/payments/service.ts` only updates an intent in one of these three,
-  // so a status change here would silently start minting an intent per revision.
   assert.ok(
     ["requires_payment_method", "requires_confirmation", "requires_action"].includes(
       String(updated.status)
@@ -125,11 +89,6 @@ test("cancelling an intent is final and readable", async () => {
   assert.equal(fetched.status, "canceled", "the cancellation did not stick");
 });
 
-// THE BRANCH THE ABANDONMENT SWEEP RUNS ON. "No such payment_intent" and
-// "already canceled" are STATES Stripe reports as SDK errors, translated
-// here rather than in the domain (domain/payments/service.ts's
-// cancelIntentByRef has no catch of its own): stripe.cancelIntent resolves to
-// a synthetic `{id, status: "canceled"}` instead of throwing.
 test("cancelling an intent Stripe never issued resolves as already canceled", async () => {
   await withCassette("stripe/cancel-unknown-intent.json", async () => {
     const result = await stripe.cancelIntent(NO_SUCH_INTENT);
@@ -138,8 +97,6 @@ test("cancelling an intent Stripe never issued resolves as already canceled", as
   });
 });
 
-// EVERYTHING ELSE PROPAGATES. A transient Stripe failure must not be written
-// off as canceled - the sweep needs to retry it, not exclude it forever.
 test("a Stripe error that is not 'unknown' or 'already canceled' propagates", async () => {
   await withCassette("stripe/cancel-intent-transient-error.json", async () => {
     await assert.rejects(
@@ -149,9 +106,6 @@ test("a Stripe error that is not 'unknown' or 'already canceled' propagates", as
   });
 });
 
-// Retrieving something that does not exist must THROW rather than resolve to
-// nothing: the service branches on `retrieved_intent?.attempt?.provider_ref`,
-// and a silent null would read as "no intent yet" and open a second one.
 test("retrieving an unknown intent throws rather than returning nothing", async () => {
   await withCassette("stripe/retrieve-unknown-intent.json", async () => {
     await assert.rejects(
@@ -161,18 +115,6 @@ test("retrieving an unknown intent throws rather than returning nothing", async 
   });
 });
 
-// ---------------------------------------------------------------------------
-// THE WEBHOOK DOOR. No cassette and no network: `constructEvent` is signature
-// arithmetic over a payload and a secret, and Stripe's own
-// `generateTestHeaderString` is the tool for signing one. It was untested in
-// EVERY lane (design doc 1.4: "webhook signature verification - no, no").
-//
-// The secret is a fixed literal set for the duration, not the one in
-// `api/.env`: a default-lane test must not depend on a real credential being
-// present, and `verifyWebhook` reads STRIPE_WEBHOOK_SECRET at CALL time
-// (requiredEnv), so setting it here is enough. `tests-external/stripe.test.ts`
-// runs the same assertion against the real secret.
-// ---------------------------------------------------------------------------
 const FIXED_WEBHOOK_SECRET = "whsec_cassette_0000000000000000000000000000000000";
 
 function signed(payload: string, secret = FIXED_WEBHOOK_SECRET) {

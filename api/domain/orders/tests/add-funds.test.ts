@@ -1,31 +1,3 @@
-// Crediting a customer's account from a purchase order, over real HTTP.
-//
-// WHY THIS FILE EXISTS. add_funds_to_account was one of the 46 mounted routes
-// never driven by any test, and reading it showed the balance and the ledger
-// entry explaining it were computed two different ways:
-//
-//   addFunds(user, order.total_price)                    <- the movement
-//   addTransactionLog(..., calculateTotalPrice(order, spots))  <- the record
-//
-// with `spots` arriving in the request body. In production all NINE Credit
-// entries differ from the total_price of the order they name, three materially.
-//
-// The operation is POST /api/orders/:id/add_funds now (D214 item 11) - a real
-// action rather than a flag in a PATCH body - and it carries NO body at all:
-// the
-// service re-fetches the order and credits totals.total, the order's own
-// stored figure. The old poison vector - spots in the body deciding the
-// ledger amount - is structurally gone; spots have their OWN endpoint, and
-// the second test drives a spot write right before the credit to prove even
-// that changes nothing.
-//
-// The assertion below is that they agree - the balance moved by exactly what the
-// ledger says. That is the property, not a particular number, so it survives the
-// order fixture changing.
-//
-// NOTHING IS COMMITTED. shared/testing/pinned-pool.js holds every query in one
-// transaction that is rolled back, and this suite writes to a customer's credit
-// balance, so that matters more here than usual.
 import { test, afterAll } from "vitest";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
@@ -37,34 +9,16 @@ import { inPinnedTransaction } from "#shared/testing/pinned-pool.ts";
 import { aUser, anOrder } from "#shared/testing/builders/index.ts";
 import { LOCKS } from "#shared/testing/locks.ts";
 
-// BOTH LOCKS, NOT JUST ORDERS. This file's earlier comment said funds and the
-// ledger "did not need a lock" - wrong, and found by lane 0's sweep
-// (docs/waves/test-suite-redesign.md): add_funds moves exchange.users -
-// dorado_funds, and that write is two row locks (exchange.users and, through
-// 107's mirror trigger, auth.users - see LOCKS.USERS) racing against every
-// other file that moves a balance, `db/users/tests/repo.test.ts` included.
-// The second test also writes an order's frozen spot through the PATCH
-// document, which is what ORDERS serialises - so this file needs both.
 const FUNDS_LOCKS = [LOCKS.USERS, LOCKS.ORDERS];
 
 await mockSessions();
 const { default: app } = await import("#app");
 
-// THE STRUCTURAL SUBSET EACH FIXTURE ACTUALLY HAS. These are SELECT
-// projections, not table rows - naming a row type would claim columns the
-// query never asked for.
 type UserFixture = { id: string; name: string | null; email: string | null };
 type OrderFixture = { id: string; user_id: string; total_price: string | null };
 
 const admin: UserFixture = TEST_ACTOR;
 
-// A PURCHASE ORDER WITH A TOTAL, BUILT (lane 1). This used to take the first
-// one dev held with a non-null total and then CREDIT ITS OWNER - real money on
-// a real customer's balance, recoverable only because the pin rolls it back.
-//
-// THE TOTAL IS A LITERAL, which is the other half of the gain: the assertions
-// below compare what the balance moved by against what the ledger recorded, and
-// both are now known figures rather than whatever the borrowed order came to.
 const TOTAL = 1234.56;
 
 const anOrderWorthSomething = async (c: PoolClient): Promise<OrderFixture> => {
@@ -85,9 +39,6 @@ test("the balance moves by exactly what the ledger records", async () => {
   await inPinnedTransaction(async (client: PoolClient) => {
     const order = await anOrderWorthSomething(client);
     await asAdmin(admin, async () => {
-      // auth.users, WHERE THE BALANCE LIVES SINCE MIGRATION 118. Reading the
-      // frozen exchange copy measured a number that no longer moves, so this
-      // assertion would have compared a real ledger entry against zero.
       const before = await client.query(
         `SELECT coalesce(dorado_funds, 0) AS funds FROM auth.users WHERE id = $1`,
         [order.user_id]
@@ -113,8 +64,6 @@ test("the balance moves by exactly what the ledger records", async () => {
       );
       assert.ok(logged.rows[0], "no ledger entry was written for the credit");
 
-      // The property: the record explains the movement. Compared to the cent,
-      // because dorado_funds carries more precision than money does.
       assert.equal(
         Number(logged.rows[0].amount).toFixed(2),
         moved.toFixed(2),
@@ -124,16 +73,6 @@ test("the balance moves by exactly what the ledger records", async () => {
   }, { actor: TEST_ACTOR.id, lock: FUNDS_LOCKS });
 });
 
-// The nearest thing an admin can still do with spots must change nothing:
-// rewrite the order's frozen Gold spot to zero through the spots endpoint,
-// then credit the funds - and the ledger must follow the order's stored
-// total, untouched by the spot write that ran first.
-//
-// THIS COUNTS THE ROWS FIRST, and that is not belt-and-braces. The first version
-// only read the newest Credit row for the order and compared it - and it PASSED
-// against the broken code, because the broken code throws on an order with no
-// order_items, writes nothing, and leaves the newest row being one dev already
-// had. A test that reads a row it did not cause is not testing anything.
 test("a spot write just before the credit does not reach the ledger", async () => {
   await inPinnedTransaction(async (client: PoolClient) => {
     const order = await anOrderWorthSomething(client);
@@ -151,8 +90,6 @@ test("a spot write just before the credit does not reach the ledger", async () =
 
       const before = await countOf();
 
-      // THE METAL IS AN ID (D214 item 11): `set` used to name it by its
-      // display string, which is what decided which money row an edit landed on.
       const { rows: [gold] } = await client.query(
         `SELECT id FROM metals.metals WHERE name = 'Gold'`
       );

@@ -1,5 +1,3 @@
-// The recaptcha verification endpoint, over real HTTP — deliberately unguarded (it runs before anyone has a session), so the missing-token path is the only thing worth asserting.
-// Doesn't test a real token against Google (rate-limited, fails for reasons unrelated to this codebase — belongs in the sandbox suite). So: nothing here proves a BAD token is rejected, only that a request with NO token is refused before the provider is reached at all.
 import { test, afterAll } from "vitest";
 import assert from "node:assert/strict";
 import request from "supertest";
@@ -16,8 +14,6 @@ afterAll(async () => {
   await pool.end();
 });
 
-// THE ASSERTION THIS FILE EXISTS FOR. Omitting the token must be a 400, not a
-// pass. A guard that treats "absent" as "fine" is not a guard.
 test("a request with no token is refused, not waved through", async () => {
   await inPinnedTransaction(async () => {
     await anonymous(async () => {
@@ -38,8 +34,6 @@ test("a request with no token is refused, not waved through", async () => {
   }, { actor: TEST_ACTOR.id });
 });
 
-// It must stay reachable without a session. This runs in front of the signup
-// and contact forms, so putting a guard on it would break the thing it protects.
 test("the endpoint is reachable without a session", async () => {
   await inPinnedTransaction(async () => {
     await anonymous(async () => {

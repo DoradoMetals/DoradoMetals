@@ -1,6 +1,3 @@
-// Defaults are applied here explicitly, not by the columns: shipping.services' column defaults disagree with what exchange's always meant (supports_dropoff/is_residential defaulted true there, false here), so every write states every value.
-// A minimal (carrier_id, name) insert - what exchange's create did - would be refused here: several columns are NOT NULL with no default.
-// Inputs are the CONTRACT'S types now, parsed strictly at transport - CarrierServicePatch/CarrierServicePatch, not a hand-typed "arrives as req.body" shape.
 import { randomUUID } from "node:crypto";
 import withTransaction from "#shared/db/withTransaction.ts";
 import * as services from "#db/shipping/services/repo.ts";
@@ -11,15 +8,11 @@ import {
 } from "#domain/shipping/operations/resolver.ts";
 
 import type { Executor } from "#shared/db/executor.ts";
-// From the contracts, not the adapter (which merely re-exports it) - contracts is where the shape is declared.
 import type {
   CarrierService, CarrierServiceOption, CarrierServicePatch, CarrierServiceRead,
   CarrierServiceWrite, LabelService, SaleShippingService,
 } from "@dorado/contracts";
 
-
-// Every field spelled explicitly, by name - no prop-spreading, so the repo
-// call never receives a field it wasn't written to expect.
 function toNewRow(body: CarrierServicePatch, id: string): CarrierServiceWrite & Pick<CarrierService, "id"> {
   return {
     id,
@@ -46,9 +39,6 @@ function toNewRow(body: CarrierServicePatch, id: string): CarrierServiceWrite & 
   };
 }
 
-// A key PRESENT is written, a key ABSENT is left alone (shared/db/patch.ts) -
-// the admin form sends every field today, but the patch itself no longer
-// forces that.
 function toPatchRow(body: CarrierServicePatch): Partial<CarrierServiceWrite> {
   return {
     carrier_id: body.carrier_id, name: body.name, description: body.description,
@@ -69,15 +59,10 @@ export async function getAllServices(): Promise<CarrierServiceRead[]> {
   return await services.getAll();
 }
 
-// The sale delivery options: business-created, carrier-agnostic, priced - the customer picks the service at its fixed price, the REFINERY picks the carrier. Not getOfferedServices (the purchase side's carrier catalogue).
-// Prices here are DISPLAY - getShippingCharge (domain/pricing/ask.ts) remains the pricing authority, pinned by pricing's own reference-drift test.
 export async function getSaleOptions(): Promise<SaleShippingService[]> {
   return await services.getSaleOptions();
 }
 
-// The services checkout offers, not the same list as shipping.services' rows (eight rows across two carriers; checkout offers two).
-// Read from the carrier's catalogue, not this table: code/provider_code are NULL on every row (an UPDATE against production, Jacob's to run) - the read lives here so the URL doesn't move once they're filled.
-// `code` on the way out is the carrier's SERVICE type (matches a rate quote's serviceType); `carrier_code` is the service family FedEx wants for pickup availability.
 export async function getOfferedServices(
   carrier_id?: string | null, client?: Executor
 ): Promise<CarrierServiceOption[]> {
@@ -87,7 +72,6 @@ export async function getOfferedServices(
 
   return [...catalogue.services]
     .sort((a, b) => a.display_order - b.display_order)
-    // `id` is the shipping.services row for this catalogue entry, joined by name like the ceiling - checkout stores it, and create resolves the entry back from it.
     .map((s) => ({
       code: s.code, name: s.name, carrier_code: s.carrier_code, display_order: s.display_order,
       id: ceilings.get(s.name)?.id ?? null,
@@ -95,11 +79,6 @@ export async function getOfferedServices(
     }));
 }
 
-// ---------------------------------------------------------- insurance ceiling
-//
-// What a parcel may be insured for is a row now, not a literal in the browser - set to 10,000 for every row today, which is Dorado's policy, not FedEx's limit.
-// Two callers, different questions: insuranceCeiling() is service-agnostic (used before a service is chosen, so answers the LOWEST ceiling among what we offer); insuranceCeilingFor(code) narrows to one, resolved by name since code is NULL on every row today.
-// Neither returns Infinity on a miss - a missing ceiling is a misconfiguration, and the safe reading is the most conservative number we know.
 async function ceilingsByName(
   carrier_id: string, executor?: Executor
 ): Promise<Map<string, { id: string; ceiling: number }>> {
@@ -107,7 +86,6 @@ async function ceilingsByName(
   return new Map(rows.map((r) => [r.name, { id: r.id, ceiling: Number(r.max_insured_value) }]));
 }
 
-// The lowest ceiling we know about - the agnostic answer and the fallback for an unrecognized service. Zero rows means nothing can be shipped or insured.
 function lowestCeiling(ceilings: Map<string, { id: string; ceiling: number }>): number {
   const values = [...ceilings.values()].map((v) => v.ceiling).filter((v) => Number.isFinite(v));
   return values.length ? Math.min(...values) : 0;
@@ -125,8 +103,6 @@ export async function insuranceCeiling(
   return lowestCeiling(await ceilingsByName(id, client));
 }
 
-// `code` is the carrier's service type - CarrierServiceOption.code, which is
-// what the browser round-trips back as `service.serviceType`.
 export async function insuranceCeilingFor(
   code: string | null | undefined, carrier_id?: string | null, client?: Executor
 ): Promise<number> {
@@ -135,16 +111,11 @@ export async function insuranceCeilingFor(
   if (!code) return lowestCeiling(ceilings);
 
   const { catalogue } = await resolveCarrier(id, client);
-  // Bound to a local first: `catalogue.services.find(...)` reads as a call on
-  // the `services` repo namespace imported at the top of this file, and
-  // lint:namespace-calls says so.
   const offeredServices = catalogue.services;
   const offered = offeredServices.find((s) => s.code === code);
   return offered ? ceilingOr(ceilings, offered.name) : lowestCeiling(ceilings);
 }
 
-// The clamp itself, in one place so the two call sites cannot disagree. A
-// non-finite or absent amount insures nothing rather than everything.
 export async function clampInsuredValue(
   amount: unknown, code?: string | null, carrier_id?: string | null, client?: Executor
 ): Promise<number> {
@@ -154,19 +125,6 @@ export async function clampInsuredValue(
   return Math.min(n, ceiling);
 }
 
-// THE CARRIER FACTS BEHIND ONE shipping.services ROW, resolved from its id.
-//
-// A label needs three things this table does not hold: which carrier buys it,
-// the carrier's own service TYPE (what a rate quote's serviceType is) and the
-// service FAMILY it belongs to. All three live in the carrier's catalogue,
-// joined to the row by name - see getOfferedServices' header for why the
-// catalogue is the source rather than the columns.
-//
-// It lives here because carriers belong to shipping: orders used to spell a
-// FedEx carrier id as a constant and re-resolve the catalogue itself, once in
-// placement and once in cancellation. THE SHAPE IS THE CONTRACT'S
-// (`LabelService`, computed/providers.ts), so the carrier's own spellings -
-// `code`, `carrier_code` - survive instead of being renamed here.
 export async function labelServiceFor(
   carrier_service_id: string, executor?: Executor
 ): Promise<LabelService> {
@@ -190,7 +148,6 @@ export async function getServicesByCarrierId(
   return await services.getByCarrier(carrier_id, executor);
 }
 
-// A USE CASE (ruling 56): only the controller calls this.
 export async function createService(body: CarrierServicePatch): Promise<CarrierServiceRead | null> {
   return await withTransaction(async (tx) => {
     const id = randomUUID();
@@ -198,10 +155,7 @@ export async function createService(body: CarrierServicePatch): Promise<CarrierS
   });
 }
 
-// A USE CASE, same reasoning as createService.
 export async function updateService(body: CarrierServicePatch): Promise<CarrierServiceRead | null> {
-  // The id is the message on an update; every column beside it is optional
-  // because a create sends this same patch.
   const id = body.id;
   rules.assertServiceId(id);
   return await withTransaction(async (tx) => {
@@ -211,9 +165,6 @@ export async function updateService(body: CarrierServicePatch): Promise<CarrierS
   });
 }
 
-// Deleting is stricter than it was, and that's the database's doing: shipping.shipments.carrier_service_id and checkout.checkouts.carrier_service_id reference this table with no ON DELETE, so removing a service something points at raises 23503 - exchange had no such reference.
-// Not a regression in practice: this endpoint had never once succeeded, since the controller passed the whole body where an id was wanted.
-// A USE CASE, same reasoning as createService.
 export async function removeService(id: string): Promise<boolean> {
   return await withTransaction(async (tx) => {
     await services.remove(id, tx);

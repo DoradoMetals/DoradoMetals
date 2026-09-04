@@ -39,25 +39,9 @@ import { Package } from "../shipping/packages.js";
 import { Refiner } from "../refiners/refiners.js";
 import { OrderActions } from "../computed/orders.js";
 
-// THE ORDER ON THE WIRE IS THE ROW (Jacob, wave 3): "We only need the
-// bullion_id for production information. We don't need to send all that shit
-// back in the body with it."
-//
-// So an order read returns the row VERBATIM plus `totals`, and nothing else.
-// Every other piece of an order is its own parent-path read of its own table:
-// /orders/:id/items, /spots, /address, /payouts, /fulfillments, /shipments,
-// /pickups, /directs, /refiners. Display names are the CLIENT's job, mapped by
-// id against reference reads it already caches.
 export const OrderRead = Order.extend({ totals: OrderTotals.nullable() });
 export type OrderRead = z.infer<typeof OrderRead>;
 
-// THE ORDER VIEW - one order, assembled from its tables (D214 item 12).
-//
-// ROWS, NOT PROJECTIONS: every member is a generated entity, so a column added
-// to a table appears here for free and one removed fails the build. NESTED BY
-// TABLE, NOT BY SLOT: `shipments` is the rows with their own `direction`
-// column, not a shipment/return_shipment pair. ABSENT IS null, never an object
-// whose every key is null. NO RENAMES and NO DERIVED SCALARS.
 export const OrderView = z.object({
   order: Order,
   totals: OrderTotals.nullable(),
@@ -67,66 +51,33 @@ export const OrderView = z.object({
   pickup: ShipmentPickup.nullable(),
   payout: OrderViewPayout.nullable(),
   user: UserSummary.nullable(),
-  // WHAT MAY BE DONE TO IT (computed/orders.ts). The one member no table
-  // backs, and the reason it is here: a drawer that decides for itself which
-  // buttons an order earns is holding the business's rules in a switch
-  // statement, which is where the "all lines confirmed" and "sent AND tracked"
-  // gates lived until the orders pass.
   actions: OrderActions,
 });
 export type OrderView = z.infer<typeof OrderView>;
 
-// PATCH /api/orders/:id - THE ORDER ROW'S OWN FIELDS, AND ONLY THOSE.
-//
-// Four operations left this document on 2026-09-03 (D214 item 11): add_funds,
-// finalize_pricing, cancel and supplier were ACTIONS multiplexed through a
-// PATCH body, and each is now POST /api/orders/:id/<action>. `status` is a
-// pure customer-facing label driving no logic (ruling 2); `notes` is free
-// text. Both are nullable, so an explicit null CLEARS and an absent key
-// leaves the column alone - exactly what buildUpdate does with it.
 export const OrderPatch = Order.pick({ status: true, notes: true }).partial().strict();
 export type OrderPatch = z.infer<typeof OrderPatch>;
 
-// POST /{purchase,sales}_orders/create_* - THE WHOLE BODY IS ONE ID, and it is
-// not an order patch: every fact the old body carried is a column of
-// checkout.checkouts or checkout.items, which the server already holds.
 export const OrderCreateBody = z.object({ checkout_id: Checkout.shape.id }).strict();
 export type OrderCreateBody = z.infer<typeof OrderCreateBody>;
 
-// POST /{purchase,sales}_orders/create_review - the review flag. The order is
-// sent whole because requireOwnOrder reads its id out of the body.
 export const OrderReviewBody = z.object({
   order: z.looseObject({ id: Order.shape.id }),
   user_id: User.shape.id.optional(),
 }).strict();
 export type OrderReviewBody = z.infer<typeof OrderReviewBody>;
 
-// POST /orders/:id/cancel - the customer's metal goes back. Where the parcel
-// goes is the ORDER's own address snapshot; who signs for it is the
-// provider's configured contact; what it is worth and what it WEIGHS are both
-// computed from the order's own lines (ruling 58, domain/shipping/rules.ts).
-// What is genuinely new is the box and the service.
 export const OrderCancelBody = z.object({
   carrier_service_id: CarrierService.shape.id,
   package_id: Package.shape.id,
 }).strict();
 export type OrderCancelBody = z.infer<typeof OrderCancelBody>;
 
-// POST /orders/:id/send_to_refiner - which refinery gets the metal. The spots
-// the message quotes are the ORDER's frozen ones, read server-side: they used
-// to arrive in the body, which is the $26.81-an-ounce hazard.
 export const OrderSendToRefinerBody = z.object({
   refiner_id: Refiner.shape.id,
 }).strict();
 export type OrderSendToRefinerBody = z.infer<typeof OrderSendToRefinerBody>;
 
-
-// WHAT THE SERVER MAY WRITE on an order row - wider than `OrderPatch`, which
-// is what a REQUEST may name, and narrower than the row. The identity columns
-// (id, user_id, direction, number) are set once at creation and the audit
-// columns are the `audit_stamp` trigger's, so what is left is the state a use
-// case moves: the label, the notes, the two flags and the spot pin.
-// db/orders/repo.ts derives its PATCHABLE from these keys (ruling 64).
 export const OrderWrite = Order.omit({
   id: true, user_id: true, direction: true, number: true,
   created_by: true, updated_by: true, created_at: true, updated_at: true,
@@ -134,8 +85,5 @@ export const OrderWrite = Order.omit({
 }).partial();
 export type OrderWrite = z.infer<typeof OrderWrite>;
 
-// The two columns a caller may bind as a row-state PRECONDITION on that write
-// - evaluated in the statement, which is what makes the Pending-only
-// transitions atomic under webhook retries.
 export const OrderGuard = Order.pick({ status: true, direction: true }).partial();
 export type OrderGuard = z.infer<typeof OrderGuard>;

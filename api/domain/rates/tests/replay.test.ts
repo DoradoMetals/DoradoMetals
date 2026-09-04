@@ -1,7 +1,3 @@
-// The rates endpoints, over real HTTP.
-//
-// `GET /rates` and `GET /rates/tiers` have no guard at all while `/admin`, `/:id` and the three writes are requireAdmin - this file proves the public read can't leak what only admin should see.
-// Nothing is committed: pinned-pool.ts rolls back every query; the last test checks from outside.
 import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
@@ -14,7 +10,6 @@ import { inPinnedTransaction, outside } from "#shared/testing/pinned-pool.ts";
 await mockSessions();
 const { default: app } = await import("#app");
 
-// SELECT projections, not table rows.
 type UserFixture = { id: string; name: string | null; email: string | null };
 
 let admin: UserFixture;
@@ -26,9 +21,6 @@ beforeAll(async () => {
 
   customer = TEST_CUSTOMER;
 
-  // rates.rates - the table this feature actually reads and writes now.
-  // exchange.rates is frozen and stopped moving at the pivot, so counting it
-  // here would never catch a write that landed on the live table.
   const rates = await outside(`SELECT count(*)::int AS n FROM rates.rates`);
   assert.ok(rates[0].n > 0, "dev has no rates to read");
   rateCountBefore = rates[0].n;
@@ -39,7 +31,6 @@ afterAll(async () => {
   await pool.end();
 });
 
-// Named, not spread: the fixture is only ever id/name/email plus the role the call is exercising.
 const asAdmin = <T>(fn: () => Promise<T> | T) =>
   as({ id: admin.id, name: admin.name, email: admin.email, role: "admin" }, fn);
 const asCustomer = <T>(fn: () => Promise<T> | T) =>
@@ -56,7 +47,6 @@ test("the public rate list needs no session at all", async () => {
   }, { actor: TEST_ACTOR.id });
 });
 
-// The admin read may carry more than the public one; the public one must not carry what only an admin should see. Compared field by field.
 test("the public list does not carry anything only the admin list has", async () => {
   await inPinnedTransaction(async () => {
     let publicFields: Set<string> | undefined;
@@ -74,7 +64,6 @@ test("the public list does not carry anything only the admin list has", async ()
       adminFields = new Set(Object.keys(res.body[0] ?? {}));
     });
 
-    // Guarded and bound to consts: a request that never ran left these undefined and the spread TypeError'd instead of naming which read produced nothing.
     assert.ok(publicFields, "the public rates read produced no fields");
     assert.ok(adminFields, "the admin rates read produced no fields");
     const publicSet = publicFields;
@@ -88,7 +77,6 @@ test("the public list does not carry anything only the admin list has", async ()
       `the public read returns fields the admin read does not: ${publicExtras.join(", ")}`
     );
 
-    // Not an assertion that they must differ - records what the difference IS so a change to either is visible in a diff.
     console.log(
       `      public rate fields: ${publicSet.size}; admin-only: ` +
         (onlyAdmin.length ? onlyAdmin.join(", ") : "(none - the two reads are the same shape)")
@@ -106,7 +94,6 @@ test("every writing route refuses a signed-in non-admin", async () => {
         ["update", request(app).patch(`/api/rates/${randomUUID()}`).send({})],
         ["delete", request(app).delete(`/api/rates/${randomUUID()}`)],
       ] as Array<[string, Promise<{ status: number }>]>;
-      // Declared as a tuple list: inferred, the element type collapses to `string | Test` and neither half is usable.
       for (const [name, call] of calls) {
         const res = await call;
         assert.ok([401, 403].includes(res.status), `${name} answered ${res.status} to a non-admin`);
@@ -124,7 +111,6 @@ test("an anonymous caller is refused the admin read", async () => {
   }, { actor: TEST_ACTOR.id });
 });
 
-// A 403 says the response was refused, not that nothing was written - a guard placed after the write would answer the same. Counting the table from outside the transaction is what distinguishes them.
 test("the refused writes wrote nothing", async () => {
   const after = await outside(`SELECT count(*)::int AS n FROM rates.rates`);
   assert.equal(
@@ -134,8 +120,6 @@ test("the refused writes wrote nothing", async () => {
   );
 });
 
-// The rates PAGE is public too, and it is computed: a band label and a
-// cross-metal column key exist nowhere in the table.
 test("the tier table is public, labelled and banded", async () => {
   await inPinnedTransaction(async () => {
     await anonymous(async () => {

@@ -1,5 +1,3 @@
-// The write on refiners.items, against real Postgres — keyed on order_item_id, the only key every caller holds.
-// Takes the orders lock for the reason spots/tests/repo.test.ts does: this table hangs off an order line and is written by the order-placing paths too.
 import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
@@ -9,7 +7,6 @@ import { LOCKS, takeLocks } from "#shared/testing/locks.ts";
 import { rollbackIn } from "#shared/testing/rollback.ts";
 import { aUser, anOrder, aRefinerEngagement } from "#shared/testing/builders/index.ts";
 import * as refinerItems from "#db/refiners/items/repo.ts";
-
 
 beforeAll(async () => {
   assert.equal(
@@ -22,15 +19,8 @@ afterAll(async () => {
   await pool.end();
 });
 
-// THE FILE'S LOCK, BOUND ONCE. A lock is a property of what this file
-// WRITES, not of one call, so it is named here and every inRollback below
-// inherits it - which is also what stops a new test being added without one.
 const inRollback = rollbackIn({ lock: LOCKS.ORDERS });
 
-// A REAL LINE, BUILT: an order with one lot, mirrored into refiners.items by
-// the engagement builder - which is the only way that row is ever created.
-// This used to overwrite the assay numbers of whatever refined line dev held
-// first, and those are the weights a customer is paid on.
 const aMirroredLine = async (c: PoolClient) => {
   const order = await anOrder(c, await aUser(c), { direction: "purchase" }).withLots(1);
   await aRefinerEngagement(c, order);

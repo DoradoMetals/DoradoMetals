@@ -1,23 +1,3 @@
-// The refiner-side edits and the payout-details read, over real HTTP - on the
-// refiners feature's own endpoints since the resource-ownership ruling (28
-// August): a fact about the refiner engagement lands on refiners.orders, a
-// fact about a line's assay on refiners.items.
-//
-// Three of these routes' ancestors no test had ever driven - the list that
-// produced four production defects. These are the figures that decide what
-// the REFINER is paid against what the customer was offered.
-//
-// THE ENGAGEMENT TESTS APPLY MIGRATION 093 INSIDE THEIR PINNED TRANSACTION.
-// refiners.orders does not exist in dev until the user applies 092+093, and
-// the endpoint honestly 500s without it. Executing the migration file inside
-// the rolled-back transaction gives the tests the real schema - the same
-// trick verify:genesis has always used - and stays a no-op once the
-// migration is really applied (CREATE IF NOT EXISTS + guarded backfill).
-// This is also where the MIRROR INVARIANT is pinned: one engagement per
-// order, items matched one-to-one, spots covered.
-//
-// NOTHING IS COMMITTED. shared/testing/pinned-pool.js holds every query in
-// one transaction that is rolled back.
 import { test, afterAll } from "vitest";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -32,37 +12,23 @@ import {
 import { LOCKS } from "#shared/testing/locks.ts";
 import type { PoolClient } from "pg";
 
-// The engagement tests ALTER refiners.items/spots on the way through 093, and
-// order-writing files touch those tables through the dual mirror - the ORDERS
-// lock serialises against every one of them.
 const ORDER_LOCK = LOCKS.ORDERS;
 
 await mockSessions();
 const { default: app } = await import("#app");
 
 const MIGRATION = fs.readFileSync(
-  // ../../../ - this file lives under features/orders/tests/ since ruling 31
-  // grouped the tests. It was features/purchase-orders/ and two levels was
-  // right then.
   new URL("../../../migrations/093_the_refiner_engagement_gets_its_own_orders.sql", import.meta.url),
   "utf8"
 );
 
-// THE STRUCTURAL SUBSET EACH FIXTURE ACTUALLY HAS. These are SELECT
-// projections, not table rows - naming a row type would claim columns the
-// query never asked for.
 type UserFixture = { id: string; name: string | null; email: string | null };
 type RefinerMetalFixture = { order_id: string; metal_id: string; type: string };
 type ScrapItemFixture = { id: string; order_id: string };
 
-let refinerMetal: RefinerMetalFixture; // an order with refiner spots
-let scrapItem: ScrapItemFixture; // a scrap-backed purchase line
+let refinerMetal: RefinerMetalFixture;
+let scrapItem: ScrapItemFixture;
 
-// EVERY FIXTURE IS BUILT (lane 1), and one order carries all three. The
-// refiner spot, the scrap line with a refiner counterpart, and the payout
-// account were three separate discoveries against three tables - the last two
-// with EXISTS clauses hunting for a row that had a mirror - and the tests below
-// write assay weights and payout figures onto them.
 const admin = TEST_ACTOR;
 const customer = TEST_CUSTOMER;
 
@@ -91,7 +57,6 @@ afterAll(async () => {
   await pool.end();
 });
 
-// 093 inside the pinned transaction, and the engagement row for one order.
 const withEngagement = async (client: PoolClient, orderId: string): Promise<string> => {
   await client.query(MIGRATION);
   const { rows } = await client.query(
@@ -119,10 +84,6 @@ test("the mirror invariant: one engagement per order, items matched, spots cover
     const c = rows[0];
     assert.equal(c.oo, c.ro, `${c.oo} orders but ${c.ro} engagements`);
     assert.equal(c.oi, c.ri, `${c.oi} customer lines but ${c.ri} refiner lines`);
-    // Spots CANNOT equal by addition - unlocking clears the customer rows
-    // while the refiner's stay - so the pinned invariant is coverage: no
-    // customer spot without its refiner counterpart, and every refiner row
-    // linked to its engagement.
     assert.equal(c.spots_uncovered, 0, "a customer spot has no refiner counterpart");
     assert.equal(c.items_unlinked, 0, "a refiner line is not linked to an engagement");
     assert.equal(c.spots_unlinked, 0, "a refiner spot is not linked to an engagement");
@@ -173,8 +134,6 @@ test("the engagement PATCH lands pool and fee on the engagement AND the order's 
       assert.equal(Number(engagement.pool_remediation), 34.56);
       assert.equal(Number(engagement.fee), 23.45);
 
-      // The order's money row stays level: the same figures land on
-      // orders.transactions through its one update.
       const money = (
         await client.query(
           `SELECT pool_oz_deducted, pool_remediation, refiner_fee
@@ -224,15 +183,11 @@ test("the item PATCH writes the assay report to the actual columns", async () =>
       );
       assert.equal(Number(rows[0].purity), 0.9, "purity_actual did not land");
       assert.equal(Number(rows[0].post_melt), 3.0, "post_melt_actual did not land");
-      // content is DERIVED by the same service the drawer always used.
       assert.ok(rows[0].content !== null, "content_actual was not derived");
     });
   }, { actor: TEST_ACTOR.id, lock: ORDER_LOCK });
 });
 
-// The poisoned-body rule on both endpoints: refused by name, nothing written.
-// `content` gets its own message - it is derived, and silently recomputing
-// over a sent value is the admin-mutation-urls bug.
 test("poisoned bodies refuse by name on both refiners endpoints", async () => {
   await inPinnedTransaction(async (client: PoolClient) => {
     const { refinerMetal, scrapItem } = await world(client);
@@ -248,8 +203,6 @@ test("poisoned bodies refuse by name on both refiners endpoints", async () => {
         .patch(`/api/refiners/items/by-order-item/${scrapItem.id}`)
         .send({ content: 1.5 });
       assert.equal(derived.status, 400, `answered ${derived.status}`);
-      // `content` is not a field of RefinerItemPatch (it is derived from
-      // post_melt and purity), so the strict parse refuses it by name.
       assert.match(derived.body?.error?.message ?? "", /content/);
 
       const engagement = await request(app)
@@ -271,8 +224,6 @@ test("both refiners endpoints refuse a customer and an anonymous caller", async 
   await inPinnedTransaction(async (client: PoolClient) => {
     const { refinerMetal, scrapItem } = await world(client);
     const engagementId = await withEngagement(client, refinerMetal.order_id);
-    // Declared as a tuple list: inferred, the array's element type collapses
-    // to `string | ((fn) => ...)` and neither half is usable.
     const callers: Array<[string, (fn: () => Promise<void>) => Promise<void>]> = [
       ["customer", (fn) => asUser(customer, fn)],
       ["anonymous", (fn) => anonymous(fn)],
@@ -293,12 +244,6 @@ test("both refiners endpoints refuse a customer and an anonymous caller", async 
   }, { actor: TEST_ACTOR.id, lock: ORDER_LOCK });
 });
 
-// THE ONE ENDPOINT ALLOWED TO RETURN FULL BANK DETAILS - payout-keyed now:
-// GET /payouts/:id/details replaced the order-keyed legacy route in the
-// read-flip wave, and the radioactive rule is unchanged.
-//
-// NOTHING FROM THE BODY IS PRINTED OR INTERPOLATED INTO AN ASSERTION MESSAGE,
-// including on failure. The assertions are on KEYS and on status.
 test("GET /payouts/:id/details answers with the payout's fields", async () => {
   await inPinnedTransaction(async (c: PoolClient) => {
     const { payoutId } = await world(c);
@@ -310,7 +255,6 @@ test("GET /payouts/:id/details answers with the payout's fields", async () => {
       const payout = Array.isArray(res.body) ? res.body[0] : res.body;
       assert.ok(payout && typeof payout === "object", "no payout object came back");
 
-      // Key presence only. Never the values.
       for (const key of ["method", "account_holder_name"]) {
         assert.ok(key in payout, `the payout is missing ${key}`);
       }

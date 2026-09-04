@@ -24,8 +24,6 @@ export const CheckoutItem = z.object({
 });
 export type CheckoutItem = z.infer<typeof CheckoutItem>;
 // generated:end
-// One basket line. Every column is optional - a create sends the same patch,
-// and the table decides what it needs.
 export const CheckoutItemPatch = CheckoutItem.pick({
   bullion_id: true,
   metal_id: true,
@@ -37,34 +35,23 @@ export const CheckoutItemPatch = CheckoutItem.pick({
 }).partial().strict();
 export type CheckoutItemPatch = z.infer<typeof CheckoutItemPatch>;
 
-// The whole basket; the sync replaces rather than merges.
 export const CheckoutItemsBody = z.object({ items: z.array(CheckoutItemPatch) }).strict();
 export type CheckoutItemsBody = z.infer<typeof CheckoutItemsBody>;
 
 import { BullionStorefront } from "../products/bullion.js";
 
-// WHAT THE SERVER MAY WRITE on a basket line - wider than `CheckoutItemPatch`,
-// which is what a REQUEST may name, because `content` and `premium` are the
-// server's own: snapshotted from the product, or derived from the declared lot
-// (ruling 51). The audit columns are the trigger's and the id is the key.
 export const CheckoutItemWrite = CheckoutItem.omit({
   id: true,
   created_by: true, updated_by: true, created_at: true, updated_at: true,
 }).partial().extend({ checkout_id: CheckoutItem.shape.checkout_id });
 export type CheckoutItemWrite = z.infer<typeof CheckoutItemWrite>;
 
-// THE LINES AS AN ORDER NEEDS THEM: the metal resolved through the product
-// where the line does not carry one (orders.items.metal_id is NOT NULL).
 export const OrderLine = CheckoutItem.pick({
   id: true, bullion_id: true, metal_id: true, pre_melt: true, post_melt: true,
   purity: true, content: true, unit: true, premium: true, quantity: true,
 });
 export type OrderLine = z.infer<typeof OrderLine>;
 
-// ONE SALE LINE, priced from the ITEM. The product supplies only the ask
-// premium and the three product facts a tax rule matches on, so this is the
-// basket line's own measurements joined to the catalogue's pricing fields -
-// one per cart line, in the basket's order.
 export const SaleLine = CheckoutItem.pick({ content: true, purity: true }).extend({
   id: BullionStorefront.shape.id,
   quantity: z.number(),
@@ -77,6 +64,5 @@ export const SaleLine = CheckoutItem.pick({ content: true, purity: true }).exten
 });
 export type SaleLine = z.infer<typeof SaleLine>;
 
-// The same line once the tax rules have answered for it.
 export const TaxedSaleLine = SaleLine.extend({ sales_tax_rate: z.number() });
 export type TaxedSaleLine = z.infer<typeof TaxedSaleLine>;

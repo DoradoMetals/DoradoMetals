@@ -1,6 +1,3 @@
-// Request logging: one line per request - method, path, status, duration,
-// request id - and deliberately nothing else. Bodies and headers are excluded
-// by the serializers, not by trust; see logger.ts for why.
 import { pinoHttp } from "pino-http";
 import { randomUUID } from "node:crypto";
 import { logger } from "#shared/logging/logger.ts";
@@ -17,8 +14,6 @@ export const httpLogger = pinoHttp({
     req: (req) => ({ method: req.method, url: req.url }),
     res: (res) => ({ status: res.statusCode }),
   },
-  // The error handler already prints the incident-formatted report; the
-  // request line here records that it happened, not what it was.
   customErrorMessage: (_req, res) => `request errored ${res.statusCode}`,
   customSuccessMessage: (req, res) => `${req.method} ${req.url} ${res.statusCode}`,
 });

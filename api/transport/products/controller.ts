@@ -1,9 +1,3 @@
-// HTTP in, HTTP out. No database, no composition, no business rules.
-// Every body is parsed against the contract in strict mode; the query string
-// is parsed against a schema of its own, so an unknown filter is a 400 rather
-// than a filter silently ignored.
-// created_by/updated_by are not fields of BullionPatch at all - naming one is
-// a 400. public.audit_stamp is the only writer of those columns.
 import { z } from "zod/v4";
 import { BullionPatch } from "@dorado/contracts";
 import { param } from "#shared/http/caller.ts";
@@ -11,8 +5,6 @@ import { parseStrict, strictBody, uuidParam } from "#shared/http/validate.ts";
 import { asyncHandler } from "#shared/middleware/asyncHandler.ts";
 import * as productService from "#domain/products/service.ts";
 
-// ASK IS GATED, BID IS NOT (ruling 49): the buy storefront shows `display`
-// rows only; every product may be sold back to the business.
 const Query = z.object({
   side: z.enum(["ask", "bid"]).default("ask"),
   placement: z.enum(["storefront", "homepage"]).default("storefront"),

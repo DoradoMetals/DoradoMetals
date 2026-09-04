@@ -1,8 +1,3 @@
-// ADMIN CREATES A LEAD, over real HTTP - the API-owned replacement for the
-// lead half of frontend/shared/tests/authed/admin-creates.e2e.ts (Playwright
-// is going, ruling 55): create -> appears in the admin list -> delete.
-//
-// NOTHING IS COMMITTED: pinned-pool.ts rolls back every query.
 import { test, afterAll } from "vitest";
 import assert from "node:assert/strict";
 import request from "supertest";
@@ -59,8 +54,6 @@ test("a lead is created, appears in the admin list, and is deleted", async () =>
       "the deleted lead is still in the admin list"
     );
 
-    // Deleting an id already gone is a 404, not a silent 200 - leads.remove()
-    // reports whether a row actually went.
     const twice = await asAdmin(admin, () =>
       request(app).delete(`/api/leads/${leadId}`)
     );

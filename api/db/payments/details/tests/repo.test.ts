@@ -1,16 +1,3 @@
-// payments.details - the payout account write, against real Postgres, each
-// test rolled back.
-//
-// THE METHOD NAME NO LONGER RESOLVES HERE. It used to be a SELECT driving the
-// INSERT, so an unknown method wrote nothing; the service resolves it against
-// payments.methods now and refuses before this is reached. What is left in
-// this file is the account itself.
-//
-// THE LINK IS orders.transactions.payout_details_id, and the two tests that
-// walk it stay: before 099 the link ran order -> payments.intents -> details,
-// and an intent is money coming IN, so it resolved for zero of the sixteen
-// payouts on dev while every test passed (D168). They pick a PURCHASE order
-// deliberately - that is the only kind with a payout.
 import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
@@ -23,7 +10,6 @@ import { LOCKS } from "#shared/testing/locks.ts";
 import { rollbackIn } from "#shared/testing/rollback.ts";
 import { aUser, anOrder } from "#shared/testing/builders/index.ts";
 
-
 beforeAll(async () => {
   assert.equal(
     new Date().getTimezoneOffset(), 0,
@@ -32,7 +18,6 @@ beforeAll(async () => {
 });
 afterAll(async () => { await pool.end(); });
 
-// LOCKS.ORDERS because this file writes orders.transactions.
 const inRollback = rollbackIn({ lock: LOCKS.ORDERS });
 
 const methodId = async (c: PoolClient, type: string) => {
@@ -62,9 +47,6 @@ test("an account is created with the method the caller resolved", async () => {
   });
 });
 
-// The standing constraint, asserted rather than assumed. These are the only
-// plaintext bank details the business holds and they must stay in exactly one
-// place while encryption at rest is outstanding.
 test("the account write never stores routing or account numbers", async () => {
   await inRollback(async (c: PoolClient) => {
     const row = await details.create(
@@ -88,9 +70,6 @@ test("the account write never stores routing or account numbers", async () => {
   });
 });
 
-// THE UPDATE ANSWERS THE ROW IT WROTE (ruling 65), not a boolean the caller
-// then has to go and read the row back to interpret. `undefined` is the id
-// matching nothing.
 test("update answers the written row, and undefined for an id with no account", async () => {
   await inRollback(async (c: PoolClient) => {
     const row = await anAccount(c);
@@ -104,9 +83,6 @@ test("update answers the written row, and undefined for an id with no account", 
   });
 });
 
-// NOTHING SEALED AND NOTHING PLAINTEXT COMES BACK OUT OF A WRITE. The RETURNING
-// list is the same safe projection every read uses, and this is what stops a
-// column added to the table from riding out through the write path.
 test("the row a write answers carries no bank number and no envelope", async () => {
   await inRollback(async (c: PoolClient) => {
     const row = await anAccount(c);
@@ -138,12 +114,6 @@ test("remove answers true once and false the second time", async () => {
   });
 });
 
-// TWO PURCHASE ORDERS, EACH WITH ITS OWN MONEY ROW, BUILT. The direction was
-// already spelled out here because `LIMIT 1` on a table holding both is how an
-// earlier version of this file came to assert nothing (D168) - and building
-// them removes the other half of that problem: the pair is now guaranteed to
-// exist and guaranteed to be two DIFFERENT orders, which is what "only that
-// order" needs to mean anything.
 const twoPurchaseOrdersWithTotals = async (c: PoolClient) => {
   const user = await aUser(c);
   const first = await anOrder(c, user, { direction: "purchase" }).withTotals({ total: 100 });
@@ -176,8 +146,6 @@ test("linking points the ORDER at the account, and only that order", async () =>
   });
 });
 
-// An UPDATE that matches nothing does not raise, so the link reports rather
-// than pretending.
 test("linking an order with no transactions row reports it rather than passing", async () => {
   await inRollback(async (c: PoolClient) => {
     const row = await anAccount(c);

@@ -1,4 +1,3 @@
-// fulfillments.directs: the customer comes to a location, by appointment or walking in - `is_appointment` tells them apart. One row per fulfillment; the service reads first and calls create or update (D214 item 11).
 import query from "#shared/db/query.ts";
 import { buildUpdate } from "#shared/db/patch.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
@@ -7,7 +6,6 @@ import type { FulfillmentDirect } from "@dorado/contracts";
 import type { Executor } from "#shared/db/executor.ts";
 
 const sql = sqlFrom(import.meta.dirname);
-
 
 export async function getFor(
   fulfillment_id: string, executor?: Executor
@@ -33,7 +31,6 @@ export async function getScheduled(
   return rows;
 }
 
-// is_appointment defaults true when the caller names none - walking in is the exception, so the column's own default would otherwise only apply to a bare INSERT.
 export async function create(
   row: Pick<FulfillmentDirect, "id" | "fulfillment_id"> & FulfillmentDirectPatchColumns,
   executor?: Executor
@@ -49,8 +46,6 @@ export async function create(
   return rows[0];
 }
 
-// THE COLUMNS, FROM THE CONTRACT (ruling 64) - `fulfillment_id` dropped for
-// the same reason pickups' is: it is this update's WHERE key.
 export const PATCHABLE = Object.keys(
   FulfillmentDirectPatchColumns.shape
 ) as readonly (keyof FulfillmentDirectPatchColumns)[];

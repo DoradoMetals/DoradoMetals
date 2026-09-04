@@ -1,24 +1,3 @@
-// Plans a feature's migration by starting from the target schema.
-//
-// The wrong way round - and how the first few migrations were done - is to take
-// an exchange table and look for its counterpart. That only ever finds copies,
-// and every remaining feature is a transformation: columns that move to a
-// different table, tables that split, data that has no source at all.
-//
-// This starts from the new schema and works backwards, reporting everything
-// that has to be true before the feature can move:
-//
-//   - the tables in the target schema, and what they need from other schemas
-//   - the exchange tables that appear to feed them, matched by name and shape
-//   - target columns with no obvious source, which are the transformations
-//   - source columns with no obvious home, which are the data-loss risks
-//   - which API features currently read the source tables, so the blast radius
-//     is known before any code is written
-//
-// Read-only.
-//
-//   node scripts/plan-migration.mjs products
-//   node scripts/plan-migration.mjs orders shipping
 import "#env";
 import fs from "node:fs";
 import path from "node:path";
@@ -43,7 +22,6 @@ async function columnsOf(schema, table) {
   );
 }
 
-// Which API features contain SQL naming this table.
 function featuresReading(table) {
   const hits = [];
   for (const feature of fs.readdirSync(FEATURES_DIR)) {
@@ -86,7 +64,6 @@ for (const schema of targets) {
     const target = await columnsOf(schema, table_name);
     const targetNames = target.map((c) => c.column_name);
 
-    // What this table needs from elsewhere.
     const deps = await q(
       `SELECT DISTINCT ccu.table_schema s, ccu.table_name t
        FROM information_schema.table_constraints tc
@@ -99,8 +76,6 @@ for (const schema of targets) {
       [schema, table_name]
     );
 
-    // The likeliest source: same name in exchange, else a table sharing most
-    // column names. Named as a guess, because it is one.
     const sameName = await columnsOf("exchange", table_name);
     let source = sameName.length ? table_name : null;
     if (!source) {

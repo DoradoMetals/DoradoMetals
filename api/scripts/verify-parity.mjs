@@ -1,33 +1,8 @@
-// Proves a schema migration has not lost data.
-//
-// Run before and after any migration that touches a table pair, and before
-// promoting a feature's *_SOURCE switch. It answers one question in three
-// parts, over every shared column rather than a sample:
-//
-//   1. is every source row present in the target        (nothing dropped)
-//   2. does every shared column agree, row by row       (nothing corrupted)
-//   3. does the target hold rows the source does not    (nothing about to be
-//                                                        overwritten by a
-//                                                        backfill re-run)
-//
-// Part 3 is the one that matters after a switch has been promoted. Once a
-// feature reads and writes the new schema, the old one stops being updated, and
-// re-running a backfill would overwrite the new schema's rows with stale
-// values. If this reports target-only rows, DO NOT run a backfill.
-//
-// Read-only. Safe against production.
-//
-//   node scripts/verify-parity.mjs                     all known pairs
-//   node scripts/verify-parity.mjs exchange.leads leads.leads
 import "#env";
 import pool from "#pool";
 
 const PAIRS = [
   ["exchange.leads", "leads.leads"],
-  // transaction_type becomes type, and the two order columns collapse into one
-  // order_id resolved through orders.orders.direction - the same reshaping
-  // orders.spots got. repo.next.ts projects all three back, so the wire shape
-  // is unchanged, and the transactions diff compares the values row by row.
   [
     "exchange.account_transactions",
     "payments.ledger",
@@ -39,28 +14,8 @@ const PAIRS = [
   ["exchange.rates", "rates.rates"],
   ["exchange.reviews", "reviews.reviews"],
   ["exchange.sales_tax_rules", "tax.sales_tax_rules"],
-  // exchange.metals is split across metals.metals and spots.spots, so it is
-  // compared against a view that reassembles the original shape. Comparing it
-  // to metals.metals alone would report the quote columns as lost, which would
-  // be a true statement about that table and a false one about the migration.
-  // scrap_percentage and bullion_percentage are dropped on purpose: nothing in
-  // the API or the frontend reads them, and rate tiering comes from rates.rates.
-  // Recorded here rather than hidden, so the check still fails if anything else
-  // goes missing.
-  // checksum_sha256 is called checksum in the new schema. Declared as dropped so
-  // the check does not report a rename as a loss; the value is verified by the
-  // media diff, which aliases it back and compares the rows.
-  // A supplier becomes an organization of type REFINER plus a refiners row that
-  // carries the original supplier id. Compared against a view reassembling the
-  // exchange shape, since no single table holds it.
   ["exchange.suppliers", "refiners.exchange_compat"],
-  // A carrier becomes an organization of type CARRIER plus a shipping.carriers
-  // row keeping the original id, so it is compared against a view reassembling
-  // the exchange shape.
   ["exchange.carriers", "shipping.carriers_exchange_compat"],
-  // A mint keeps its own row but its description and website move to the
-  // organization it is, so it is compared against a view reassembling the
-  // exchange shape. The view also converts timestamptz back to naive UTC.
   ["exchange.mints", "products.mints_exchange_compat"],
   [
     "exchange.images",
@@ -70,10 +25,6 @@ const PAIRS = [
       reason: "renamed to checksum; value compared by the media diff",
     },
   ],
-  // Three columns are renamed rather than lost: exchange qualified them with a
-  // `product_` prefix that is redundant once the table is called bullion. The
-  // repo aliases them back, so the wire shape is unchanged and the values are
-  // compared row by row by the products diff.
   [
     "exchange.products",
     "products.bullion",
@@ -90,43 +41,6 @@ const PAIRS = [
       reason: "dead columns; rate tiering moved to rates.rates",
     },
   ],
-  // ---------------------------------------------------------------------
-  // CHECKOUT. Added by wave 5C because the covenant names this script as its
-  // instrument and this script had never looked at the feature: none of
-  // carts, cart_items, sell_carts, sell_cart_items or scrap appeared in the
-  // eleven pairs above, so "verify:parity is clean" said nothing whatever
-  // about checkout. It says something now.
-  //
-  // READ THE LIMITATION BEFORE READING THE NUMBERS. The comparison below
-  // joins on `id`, and A CHECKOUT ROW DOES NOT KEEP THE EXCHANGE ROW'S ID.
-  // repo.next.ts inserts into checkout.checkouts and checkout.items without
-  // an id, so each gets a fresh gen_random_uuid(), and repo.dual.js says so
-  // in its header: "The ids differ between the two - a checkout.checkouts
-  // row is not an exchange.carts row". Nothing in the checkout schema points
-  // back at the exchange row it came from - no source_cart_id, no
-  // source_scrap_id, nothing (checked: zero such columns).
-  //
-  // So while the target is EMPTY, as it is in dev and in production today,
-  // these entries are exact: every source row is missing from the target and
-  // the script says NOT SAFE, which is the truth. The moment anything lands
-  // in the target they stop being able to go green - `missing_from_target`
-  // will still count every source row, because there is no id to match on -
-  // and `differing values: 0` will still mean "no rows joined", never "the
-  // values agree". A reader who takes that as evidence has been misled.
-  //
-  // MAKING THIS PERMANENTLY ANSWERABLE IS A SCHEMA CHANGE, NOT A SCRIPT ONE.
-  // The project already has the shape for it: orders.addresses carries
-  // source_address_id for exactly this reason. checkout.checkouts and
-  // checkout.items want the same, plus a backfill. That is a migration and
-  // Jacob's call, so wave 5C did not write one.
-  //
-  // exchange.scrap IS DELIBERATELY NOT A PAIR. It fans out three ways - to
-  // orders.items when a purchase order line points at it, to refiners.items
-  // for the assay, to checkout.items when a sell cart line does - so no
-  // single target holds it. Run ad hoc and it reports "20 missing, 57 only in
-  // target, DO NOT BACKFILL" against orders.items, all three of which are
-  // artefacts of comparing a merge to a pair. This is the same reason
-  // CLAUDE.md gives for parity never having looked at orders.
   [
     "exchange.carts",
     "checkout.checkouts",
@@ -177,10 +91,6 @@ async function columnsOf(schema, table) {
      WHERE table_schema = $1 AND table_name = $2 ORDER BY ordinal_position`,
     [schema, table]
   );
-  // information_schema reports every enum as USER-DEFINED, so data_type alone
-  // cannot tell two different enums apart. The real identity is the qualified
-  // udt name - exchange.sales_tax_metal_category and tax.sales_tax_metal_category
-  // are distinct types that Postgres refuses to compare.
   return rows.map((r) => ({
     column_name: r.column_name,
     type:
@@ -188,22 +98,6 @@ async function columnsOf(schema, table) {
   }));
 }
 
-// Builds the pair of expressions used to compare one column across the two
-// schemas. The same column is not always the same *type* on both sides, and
-// the comparison has to account for that without becoming so loose that it
-// stops catching real differences:
-//
-//   identical types      compare directly - exact, including numeric scale
-//   naive vs aware time  read the naive side as UTC, then compare instants.
-//                        exchange stores naive timestamps that are UTC in fact,
-//                        so this compares the moments rather than the rendering
-//   anything else        compare as text. Two enums of different types cannot
-//                        be compared at all in Postgres, which is the case for
-//                        exchange.sales_tax_rules and tax.sales_tax_rules
-//
-// Casting everything to text unconditionally would be wrong: timestamp and
-// timestamptz render differently for the same instant, and numeric renders its
-// stored scale, so it would report differences that are not there.
 function comparison(name, fromType, toType) {
   const l = `e."${name}"`;
   const r = `t."${name}"`;
@@ -225,17 +119,9 @@ async function verify(from, to, options = {}) {
   const [ca, cb] = [await columnsOf(a.schema, a.table), await columnsOf(b.schema, b.table)];
   if (!ca.length || !cb.length) {
     console.log(`${from} -> ${to}\n   MISSING TABLE\n`);
-    // NULL, NOT FALSE. A pair whose table is absent was not compared, and the
-    // floor below counts comparisons - folding it in as a `false` would let a
-    // run where every table had vanished satisfy a floor on pair COUNT while
-    // comparing nothing at all. It still makes the run unclean.
     return null;
   }
 
-  // Columns a migration deliberately does not carry. Declaring one is a
-  // reviewed decision, not a way to quieten the check: anything not declared
-  // still reports as data loss, and a declared column that IS present is
-  // compared normally.
   const dropped = new Set(options.intentionallyDropped ?? []);
 
   const targetTypes = new Map(cb.map((c) => [c.column_name, c.type]));
@@ -309,13 +195,6 @@ for (const [a, b, options] of pairs) {
   if (!clean) allClean = false;
 }
 
-// THE FLOOR (D135). "all pairs identical" is what this prints when it compared
-// nothing, and this is the instrument the covenant names before any migration
-// touches a table pair. 15 pairs resolved on 2026-08-29, re-measured here - the
-// eleven recorded in D130 predate the four checkout pairs wave 5C added. A pair
-// whose TABLE has gone prints MISSING TABLE and does not count towards this, so
-// the floor is on what was really compared rather than on the length of a list
-// declared in this same file (which could never fall for the reason that matters).
 const PAIR_FLOOR = Number(process.env.VERIFY_PARITY_FLOOR ?? (from && to ? 1 : 12));
 if (comparedPairs < PAIR_FLOOR) {
   console.error(

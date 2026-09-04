@@ -1,16 +1,3 @@
-// Forward-only SQL migrations.
-//
-// Migrations are plain .sql files in api/migrations, applied in filename order.
-// Plain SQL rather than a DSL so they stay readable, reviewable in a PR, and
-// runnable by hand through psql if something needs doing in an emergency.
-//
-//   pnpm --filter @dorado/api migrate:status   list applied and pending
-//   pnpm --filter @dorado/api migrate          apply everything pending
-//
-// Each migration runs inside its own transaction, so a failure leaves the
-// database exactly as it was. A session advisory lock stops two processes
-// (or two deploys) applying concurrently. Applied files are checksummed, so
-// editing one after it has run is reported rather than silently ignored.
 import "#env";
 import fs from "node:fs";
 import path from "node:path";
@@ -19,32 +6,12 @@ import pg from "pg";
 import { parseBaseline, coveredBy } from "./lib/baseline.ts";
 
 const MIGRATIONS_DIR = path.join(import.meta.dirname, "..", "migrations");
-const LOCK_KEY = 8451723; // arbitrary, just has to be stable
+const LOCK_KEY = 8451723;
 
-// The only database this runner will write to without being told otherwise.
-//
-// An allowlist, not a denylist. It asks "is this a database I know" rather than
-// "is this production", so a database nobody has taught it about is refused
-// rather than silently accepted - which is what kept `test` safe during the
-// migration rehearsal, and what survives a rename.
-//
-// It briefly held both `dorado_db_dev` and `dev` while the rename was in
-// flight. The rename has landed, so the old name is gone: an allowlist entry
-// for a database that no longer exists is only a way to be surprised later.
 const DEFAULT_DBS = ["dev"];
 
 const sha = (s) => crypto.createHash("sha256").update(s).digest("hex").slice(0, 16);
 
-// Splits a migration into individual statements.
-//
-// Needed only for no-transaction migrations: node-postgres sends a
-// multi-statement string as a single simple query, and Postgres wraps those in
-// an implicit transaction block - which is exactly what CREATE INDEX
-// CONCURRENTLY refuses to run inside. Sending one statement per round trip
-// avoids the implicit block.
-//
-// Aware of line comments, single-quoted strings and dollar-quoted bodies, so a
-// semicolon inside any of those does not split a statement.
 function splitStatements(sql) {
   const out = [];
   let cur = "";
@@ -138,20 +105,10 @@ async function main() {
     process.exit(1);
   }
 
-  // Print where we are pointed. Applying to the wrong database is the one
-  // mistake this tool must never make quietly.
   const target = new URL(process.env.DATABASE_URL);
   const database = target.pathname.slice(1);
   console.log(`database: ${database} @ ${target.hostname}`);
 
-  // Naming the database out loud is not the same as refusing to touch the wrong
-  // one. Anything other than dev has to be asked for by name:
-  //
-  //   MIGRATE_ALLOW_DB=prod pnpm --filter @dorado/api migrate
-  //
-  // Applying to production is a deliberate act that happens once the pg_dump
-  // has been taken, not something a stray shell should be able to do. `status`
-  // is read-only and runs anywhere.
   const allowed = process.env.MIGRATE_ALLOW_DB
     ? [process.env.MIGRATE_ALLOW_DB]
     : DEFAULT_DBS;
@@ -187,19 +144,6 @@ async function main() {
 
     const pending = files.filter((f) => !done.has(f.name));
 
-    // Re-records the checksum of an already-applied migration.
-    //
-    // Migrations are immutable, and the checksum is what enforces that. But
-    // editing a comment in one leaves a warning that is permanent and, being
-    // permanent, gets ignored - which is worse than the mistake it reports. So
-    // there is a way to clear it, deliberately, one file at a time, that says
-    // out loud what it is doing.
-    //
-    // It does not verify that the SQL is unchanged - it cannot; that is the
-    // point of the checksum. Reconciling is a statement by whoever runs it that
-    // they have compared the applied object against the file and found them to
-    // match. Use it for comment edits, not for anything that would change what
-    // the migration builds. If the SQL changed, write a new migration.
     if (mode === "reconcile") {
       const f = files.find((x) => x.name === reconcileTarget);
       if (!f) {
@@ -250,15 +194,6 @@ async function main() {
     }
 
     try {
-      // A baseline migration reproduces the schema as of some later migration,
-      // so the ones it subsumes must be recorded rather than run. 000 creates
-      // every table in the shape dev has now, which is the shape it reached
-      // after 028 - re-running 002 through 028 on top of that would fail on the
-      // first ALTER TABLE ADD CONSTRAINT, which has no IF NOT EXISTS.
-      //
-      // Declared in the file itself as `-- baseline: 028`. On a database that
-      // has already applied those migrations - dev - the stamp is a no-op and
-      // nothing is skipped, because there is nothing left pending to skip.
       const skip = new Set();
 
       for (const f of pending) {
@@ -266,11 +201,6 @@ async function main() {
           console.log(`skipping ${f.name} (covered by a baseline)`);
           continue;
         }
-        // CREATE INDEX CONCURRENTLY cannot run inside a transaction, and it is
-        // how indexes get added to a live table without blocking writes. Such a
-        // migration opts out with a leading `-- no-transaction` line, and gives
-        // up all-or-nothing: if it fails partway, re-running skips what already
-        // exists (hence IF NOT EXISTS in those files).
         const noTx = /^\s*--\s*no-transaction\b/m.test(f.sql);
         process.stdout.write(`applying ${f.name}${noTx ? " (no transaction)" : ""} ... `);
 

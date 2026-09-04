@@ -1,4 +1,3 @@
-// Writes on fulfillments.pickups, against real Postgres. Self-contained: the fulfillment each pickup hangs off is a draft (no order).
 import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
@@ -8,7 +7,6 @@ import { inRollback } from "#shared/testing/rollback.ts";
 import { aUser, anAddress, fulfillmentMethodId } from "#shared/testing/builders/index.ts";
 import * as pickups from "#db/fulfillments/pickups/repo.ts";
 import * as fulfillments from "#db/fulfillments/repo.ts";
-
 
 beforeAll(async () => {
   assert.equal(
@@ -27,9 +25,6 @@ async function aDraftFulfillment(c: PoolClient): Promise<string> {
   return draft.id;
 }
 
-// AN ADDRESS IS A FIXTURE, NOT REFERENCE DATA, so it is built. The pickup
-// this books is a real row pointing at a real customer address either way -
-// it just no longer points at somebody's actual house.
 async function anAddressId(c: PoolClient): Promise<string> {
   const user = await aUser(c);
   return (await anAddress(c, user)).id;

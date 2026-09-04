@@ -1,38 +1,6 @@
-// Every column in the database that holds a bank number in the clear.
-//
-// *** WHY A DETECTOR AND NOT A ONE-OFF CHECK. *** CLAUDE.md's oldest standing
-// constraint is "never log or return bank details", and the exposure it names
-// has been described in three places with three different numbers, none of them
-// measured recently. The count is not the point - the point is that nothing
-// watched the columns, so a new one could appear and no gate would notice. This
-// asks the database directly, on every run.
-//
-// *** IT NAMES NO VALUES, EVER. *** Output is schema.table.column, a count and a
-// verdict. Not a sample, not a prefix, not a last-4. A script that prints what
-// it found would put the secret in a terminal, a CI log and a scrollback buffer
-// - three more places than it started in.
-//
-//   node scripts/audit-plaintext-secrets.ts            dev
-//   node scripts/audit-plaintext-secrets.ts --prod     production, read-only
-//   node scripts/audit-plaintext-secrets.ts --self-test
-//
-// *** EXITS NON-ZERO WHILE ANY PLAINTEXT REMAINS, BY DESIGN *** - the same
-// contract as audit:payments and audit:enum-domains, and for the same reason:
-// this is outstanding work, not a passing test. It is therefore NOT in
-// `pnpm check`. It goes green the day the clearing migration runs against
-// production, which is Jacob's to run.
-//
-// *** THE FLOOR. *** A scan that matches nothing looks exactly like a database
-// with no secrets in it - the defect this codebase has shipped six times. So the
-// column scan asserts it found the columns it already knows about, and fails
-// loudly if it did not. Discovering zero candidate columns is a broken scan, not
-// a clean bill of health.
 import "#env";
 import pg from "pg";
 
-// Identifiers come from information_schema rather than from a user, but they are
-// still interpolated into SQL, and "it cannot be hostile here" is how the next
-// one gets in. Quote them.
 const quote = (ident: string) => `"${ident.replace(/"/g, '""')}"`;
 
 if (process.argv.includes("--self-test")) {
@@ -54,9 +22,6 @@ if (process.argv.includes("--self-test")) {
 }
 
 const PROD = process.argv.includes("--prod");
-// The self-test needs one `pass` case, and on a database that still holds
-// plaintext the honest exit is non-zero. This lets the harness assert the SCAN
-// works without asserting the database is clean.
 const TOLERATE = process.env.AUDIT_PLAINTEXT_TOLERATE_FINDINGS === "1";
 
 const url = PROD ? process.env.PROD_READONLY_DATABASE_URL : process.env.DATABASE_URL;
@@ -67,17 +32,11 @@ if (!url) {
   process.exit(1);
 }
 
-// Column NAMES that would hold a secret. Matched against every table in every
-// schema, so a new table inherits the check for free - which is the whole
-// reason this is a pattern match rather than a hand-listed set of locations.
 const SECRET_NAME = `(
      c.column_name ~ '(^|_)(routing|account)_number$'
   OR c.column_name ~ '(^|_)(ssn|tax_id|iban|swift)$'
 )`;
 
-// Columns that hold the SEALED form are expected to be populated and are not
-// findings. They are recognised by name so that renaming one to something
-// unrecognised makes it a finding again rather than silently exempt.
 const IS_SEALED = `c.column_name LIKE '%_encrypted'`;
 
 const client = new pg.Client({
@@ -115,9 +74,6 @@ try {
 
   console.log(`${columns.length} candidate column(s) found by name`);
 
-  // THE FLOOR. exchange.payouts has held these two columns since before the
-  // migration began; if the scan cannot see them it is not working, and a
-  // report of "no plaintext anywhere" would be a lie.
   const KNOWN = ["exchange.payouts.routing_number", "exchange.payouts.account_number"];
   const seen = new Set(columns.map((c) => `${c.table_schema}.${c.table_name}.${c.column_name}`));
   const missing = KNOWN.filter((k) => !seen.has(k));
@@ -129,8 +85,6 @@ try {
     process.exit(1);
   }
 
-  // Which of those tables carry a user_id, so the report can say how many
-  // customers are exposed rather than only how many rows. Asked once.
   const { rows: withUser } = await client.query<{ k: string }>(`
     SELECT table_schema || '.' || table_name AS k
       FROM information_schema.columns
@@ -147,8 +101,6 @@ try {
       ? "count(DISTINCT user_id)::int"
       : "0";
 
-    // COUNTED, NEVER SELECTED. The value does not enter this process, so it
-    // cannot reach a log, a crash dump or an error message from here.
     const { rows } = await client.query<{ n: number; users: number }>(
       `SELECT count(${col})::int AS n, ${users} AS users
          FROM ${table} WHERE ${col} IS NOT NULL`

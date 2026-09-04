@@ -18,5 +18,3 @@ export const Session = z.object({
 });
 export type Session = z.infer<typeof Session>;
 // generated:end
-
-// Hand-written derivations go here: New, Patch, named reads.

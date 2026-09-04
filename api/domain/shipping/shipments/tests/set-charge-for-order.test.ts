@@ -1,4 +1,3 @@
-// The shipping cost of an order's parcels - the ORDER-scoped write must reach every parcel of that order and no other's. Each test rolls back.
 import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
@@ -21,7 +20,6 @@ afterAll(async () => {
   await pool.end();
 });
 
-// An order that has a shipment linked through its fulfillment.
 const anOrderWithShipment = async (c: PoolClient) => {
   const { rows } = await c.query(`
     SELECT f.order_id
@@ -39,7 +37,6 @@ test("a charge lands on every parcel of the order", async () => {
     const orderId = await anOrderWithShipment(c);
     assert.ok(orderId, "no purchase order has a linked shipment");
 
-    // A value nothing already holds, so this cannot pass by coincidence.
     const charge = 41.37;
     await shipmentService.setChargeForOrder(orderId, charge, c);
 
@@ -55,7 +52,6 @@ test("a charge lands on every parcel of the order", async () => {
   });
 });
 
-// The write must reach exactly one order's parcels and not cross into another's.
 test("the charge lands on that order and no other", async () => {
   await inRollback(async (c: PoolClient) => {
     const orderId = await anOrderWithShipment(c);
@@ -87,8 +83,6 @@ test("the charge lands on that order and no other", async () => {
   });
 });
 
-// The write must join the caller's transaction. A write that opened its own
-// connection would commit while the caller rolled back.
 test("rolling back undoes the write", async () => {
   const other = await pool.connect();
   try {

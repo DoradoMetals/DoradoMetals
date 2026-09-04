@@ -1,10 +1,3 @@
-// products.bullion, the CRUD floor and the one predicate builder, against real
-// Postgres.
-//
-// One test proves what every repo's update must: a missing id changes nothing
-// and says so (false), a real id changes exactly one row and says so (true).
-// The rest pin the FILTER, because six statements collapsed into one and a
-// predicate that stopped narrowing would still answer rows.
 import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import pool from "#pool";
@@ -71,8 +64,6 @@ test("the metal, the category and the search term all narrow", async () => {
     );
     assert.deepEqual(byCategory.map((r) => r.id), [gold.id]);
 
-    // The term matches the METAL as well as the name - which is what the
-    // browser's fuzzy match was reading before this moved server-side.
     const bySearch = await repo.listFor({ search: "silver", ids: [gold.id, silver.id] }, c);
     assert.deepEqual(bySearch.map((r) => r.id), [silver.id]);
   });

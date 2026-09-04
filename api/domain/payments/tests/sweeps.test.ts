@@ -1,27 +1,3 @@
-// The create-then-charge safety net, exercised for real: seeded orders and
-// intents (payments.intents/attempts - the native record since D212), both
-// sweeps, inside the pinned transaction so nothing survives.
-//
-// THE ABANDONMENT-CANCEL TEST WAS SKIPPED (lane 4, docs/waves/
-// test-suite-redesign.md 1.3 and 2.4). sweepAbandoned's cancel path calls
-// `paymentsService.cancelIntentByRef`, which calls `stripe.cancelIntent` for
-// real - the seeded provider_ref was synthetic, so Stripe used to answer
-// "No such payment_intent" quickly and the catch block treated that as
-// already-abandoned. `shared/testing/no-network.ts` (preloaded by the `test`
-// script) blocked that call with nock before it reached Stripe at all, and
-// the Stripe SDK's retry logic did not resolve against nock's synthetic
-// NetConnectNotAllowedError the way it resolved against a real 404 - so the
-// call that used to fail fast hung, taking every OTHER test queued behind the
-// same [FULFILLMENTS, ORDERS, ADDRESSES, USERS] lock set down with it.
-//
-// LANE 5 REPLACES THIS WITH A CASSETTE. `pi_cassette_no_such_intent`
-// (`NO_SUCH_INTENT`, exported from providers/payment/tests/
-// stripe-cassettes.test.ts) is an id Stripe has never issued; seeding it as
-// the provider_ref and wrapping the sweep in the SAME cassette that file
-// records (`stripe/cancel-unknown-intent.json`) answers `cancelIntentByRef`'s
-// call without a real network request and without the nock hang - the
-// cassette is a fast, synchronous "No such payment_intent" response, exactly
-// what the un-guarded suite used to get from Stripe itself.
 import { test } from "vitest";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
@@ -32,11 +8,6 @@ import { LOCKS } from "#shared/testing/locks.ts";
 import { sweepSettledIntents, sweepAbandoned } from "#domain/payments/sweeps.ts";
 import { withCassette } from "#shared/testing/cassettes.ts";
 
-// Kept as a literal rather than imported from stripe-cassettes.test.ts -
-// importing one .test.ts file's module scope from another risks vitest
-// registering its `test()` calls twice. Must match that file's own
-// `NO_SUCH_INTENT` and the request path baked into
-// tests/cassettes/stripe/cancel-unknown-intent.json.
 const NO_SUCH_INTENT = "pi_cassette_no_such_intent";
 
 async function seedSale(
@@ -86,11 +57,6 @@ test("the settled sweep advances an order whose webhook went missing", async () 
   }, { actor: TEST_ACTOR.id, lock: [LOCKS.FULFILLMENTS, LOCKS.ORDERS, LOCKS.ADDRESSES, LOCKS.USERS] });
 });
 
-// UN-SKIPPED (lane 5). sweepAbandoned's cancel path reaches Stripe through
-// cancelIntentByRef, which has no DI seam - `withCassette` answers that one
-// call from `stripe/cancel-unknown-intent.json`, the same cassette
-// providers/payment/tests/stripe-cassettes.test.ts records against the real
-// sandbox for the identical scenario (cancelling an id Stripe never issued).
 test("the abandonment sweep cancels a stale unpaid order and refunds its credit", async () => {
   await inPinnedTransaction(async (c: PoolClient) => {
     const { rows: users } = await query<{ id: string; dorado_funds: number | null }>(
@@ -100,14 +66,10 @@ test("the abandonment sweep cancels a stale unpaid order and refunds its credit"
     const before = Number(user.dorado_funds ?? 0);
 
     const id = await seedSale(c, { user_id: user.id, ageHours: 48 });
-    // The money row, as creation writes it: 125.50 of credit was reserved.
     await query(
       `INSERT INTO orders.transactions (order_id, funds, used_funds) VALUES ($1, 125.50, true)`,
       [id], c
     );
-    // An intent that was never confirmed - NO_SUCH_INTENT rather than a
-    // Date.now()-suffixed id, because the cassette answering this call was
-    // recorded against this exact literal path.
     await seedIntent(c, NO_SUCH_INTENT, "requires_payment_method", id);
 
     const results = await withCassette("stripe/cancel-unknown-intent.json", () =>

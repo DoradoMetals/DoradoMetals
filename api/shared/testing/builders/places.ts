@@ -1,12 +1,3 @@
-// anAddress - a postal address and the link that gives it an owner.
-//
-// TWO TABLES, because that is what an address IS here: `places.addresses`
-// holds the postal facts and has no user_id at all, and
-// `places.user_addresses` holds the ownership, the label and the default
-// flag. A test that wants "this customer's address" needs both, and forgetting
-// the second is how a fixture ends up owned by nobody.
-//
-// Both go through their repos, so migration 116's trigger stamps them.
 import type { PoolClient } from "pg";
 import { anId, aTag } from "#shared/testing/builders/ids.ts";
 import * as addresses from "#db/places/addresses/repo.ts";
@@ -29,8 +20,6 @@ export type AddressOptions = {
   line_1?: string;
   line_2?: string | null;
   city?: string;
-  // A REAL two-letter code, not a placeholder: the sales-tax rules match on
-  // state, so "XX" silently prices at zero.
   state?: string;
   zip?: string;
   country?: string;
@@ -60,8 +49,6 @@ export async function anAddress(
     },
     c
   );
-  // WHO SIGNS FOR THE PARCEL and what the book calls it are two facts
-  // (migration 127); a fixture that sets only one leaves the other null.
   const recipient_name = options.recipient_name ?? `Test Recipient ${tag}`;
   const label = options.label ?? `Test Address ${tag}`;
   await userAddresses.create(

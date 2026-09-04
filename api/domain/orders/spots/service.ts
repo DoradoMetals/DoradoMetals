@@ -1,9 +1,3 @@
-// The order's frozen spots, its own resource (ruling 26c): GET and PUT
-// /orders/:id/spots. It KEEPS its own service because the refiner surfaces, the
-// PDFs and the emails all read these with the metal name resolved.
-//
-// PURCHASE DIRECTION ONLY for the writes: a sale's spots are frozen at checkout.
-// lock runs before set, so one document can pin and then adjust.
 import * as ordersRepo from "#db/orders/repo.ts";
 import * as spotsRepo from "#db/orders/spots/repo.ts";
 import * as spotsFeed from "#domain/spots/service.ts";
@@ -12,36 +6,24 @@ import withTransaction from "#shared/db/withTransaction.ts";
 import type { OrderSpot, OrderSpotNamed, OrderSpotsPutBody } from "@dorado/contracts";
 import type { Executor } from "#shared/db/executor.ts";
 
-// VERBATIM rows (rulings 9 + 12). The metal is its id; a display name is the
-// client's to map. No spots answers [] rather than 404.
 export async function rowsFor(
   orderId: string, executor?: Executor
 ): Promise<OrderSpot[]> {
   return await spotsRepo.getRowsFor(orderId, executor);
 }
 
-// The same rows with the metal's NAME joined on. Not a wire shape.
 export async function namedFor(
   orderId: string, executor?: Executor
 ): Promise<OrderSpotNamed[]> {
   return await spotsRepo.getFor(orderId, executor);
 }
 
-// THE WRITE. `lock` pins the order at today's feed (or unpins it), and `set`
-// adjusts a named metal's bid afterwards - one document can do both, in that
-// order.
-//
-// THE METAL IS AN ID (ruling 43). `set` used to carry a metal NAME the server
-// resolved against metals.metals, which meant a display string decided which
-// row a money edit landed on.
 export async function setSpots(
   orderId: string, body: OrderSpotsPutBody
 ): Promise<OrderSpotNamed[]> {
   rules.assertDirection(await ordersRepo.directionOf(orderId), "purchase", "the spots PUT");
   rules.assertNamesASpotField(body);
 
-  // SERVER-RESOLVED, never the body: the route this replaced took the browser's
-  // copy of the feed, which decides what the business pays.
   const live = body.lock === true ? await spotsFeed.getSpotPrices() : [];
   const bidByMetal = new Map(live.map((quote) => [quote.id, quote.bid]));
 

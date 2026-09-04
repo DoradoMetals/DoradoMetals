@@ -1,5 +1,3 @@
-// Metals: reference data, read only. Four rows, seeded by migration; nothing
-// writes them at runtime.
 import * as metals from "#db/metals/repo.ts";
 import type { Metal } from "@dorado/contracts";
 

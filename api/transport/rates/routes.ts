@@ -7,8 +7,6 @@ import { requireAdmin } from "#shared/middleware/authMiddleware.ts";
 
 const router = express.Router();
 
-// The literal segments are declared before `/:id`, which would otherwise
-// match them.
 router.get("/tiers", listTiers);
 router.get("/admin", requireAdmin, listAdminRates);
 router.get("/", listRates);

@@ -3,8 +3,6 @@ import { asyncHandler } from "#shared/middleware/asyncHandler.ts";
 import { parseStrict } from "#shared/http/validate.ts";
 import * as recaptcha from "#providers/captcha/recaptcha.ts"
 
-// No generated row backs this body - a captcha token names nothing this
-// database holds - so the schema is declared here rather than derived.
 const VerifyBody = z.object({ token: z.string().min(1) }).strict();
 
 export const verifyRecaptcha = asyncHandler(async (req, res) => {

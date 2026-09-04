@@ -1,24 +1,3 @@
-// Classifies every `*.test.ts` file into one of three lanes by what it
-// ACTUALLY IMPORTS - not a hand-maintained list, and not by directory (the
-// tree does not cleanly split that way: HTTP tests for orders, checkout,
-// payments and friends live under `domain/<feature>/tests/`, not a mirrored
-// `transport/` tree - `transport/` today holds zero test files of its own).
-// Same idea as lint-test-locks.ts's own graph: derived from the real tree
-// every run, so the split cannot rot out of sync with the source it splits.
-//
-//   http  - imports `supertest` to drive the real app (`#app`). The
-//           heaviest lane: exercising the app also exercises the database
-//           underneath it, so a file matching this check is HTTP regardless
-//           of what else it imports.
-//   db    - touches the database directly without going through HTTP - a
-//           repo test, a service test, anything importing `#db`/`#db/*`,
-//           the pinned-pool harness, or calling `withTransaction`.
-//   unit  - neither. Pure functions, rules, and the static-source checks
-//           (docs/waves/test-suite-redesign.md 2.2 calls these L1/L2).
-//
-// Exported as absolute FILE PATHS (not glob patterns), so vitest.config.ts's
-// three projects can point `include` at an exact, derived set rather than a
-// pattern that would have to be kept in sync by hand.
 import fs from "node:fs";
 import path from "node:path";
 
