@@ -1,7 +1,7 @@
 'use client'
 
 import * as React from 'react'
-import { Minus, Plus } from 'lucide-react'
+import { Minus, Plus } from '../icons'
 
 import { cn } from '../cn'
 

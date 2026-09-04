@@ -1,4 +1,4 @@
-import { Divider, Button, Input, Checkbox, Field } from '@dorado/components'
+import { Divider, Button, Input, Checkbox, Field, ChevronDown, Lock, Plus, RotateCcw, Unlock } from '@dorado/components'
 import { outboundOf } from '@/features/shipping/queries'
 import { usePatchShipment } from '@/features/shipping/queries'
 import { useOrderShipments, usePatchPayout } from '@dorado/client'
@@ -7,14 +7,12 @@ import type { NamedScrapItem } from '@/features/orders/display'
 import { cn } from '@/shared/utils/cn'
 import { payoutMethodIcon, PayoutMethodType } from '@/features/payouts/types'
 import { usePaymentMethods } from '@dorado/client'
-import { CaretDownIcon } from '@phosphor-icons/react'
 import {
   PurchaseOrderDrawerContentProps,
   statusConfig,
   StatusConfigEntry,
 } from '@/features/orders/purchaseOrders/types'
 import { assignScrapItemNames } from '@/features/orders/display'
-import { Lock, Plus, RotateCcw, Unlock } from 'lucide-react'
 import { useState } from 'react'
 import {
   Table,
@@ -266,7 +264,7 @@ export default function AdminReceivedPurchaseOrder({ view }: PurchaseOrderDrawer
                   className="flex items-center justify-between gap-1 h-9 w-full"
                 >
                   {payoutMethods.find((m) => m.type === payout?.method)?.label}
-                  <CaretDownIcon size={20} />
+                  <ChevronDown size={20} />
                 </Button>
               }
             />

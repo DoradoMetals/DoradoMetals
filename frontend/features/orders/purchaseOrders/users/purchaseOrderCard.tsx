@@ -1,7 +1,7 @@
 'use client'
 
 import { MouseEvent } from 'react'
-import { Button } from '@dorado/components'
+import { Button, Download } from '@dorado/components'
 import {
   useDownloadInvoice,
   useDownloadPackingList,
@@ -12,7 +12,6 @@ import { PurchaseOrder, statusConfig } from '@/features/orders/purchaseOrders/ty
 import { formatFullDate } from '@/shared/utils/formatDates'
 // The card's total is the server's order quote (Jacob's no-previews ruling).
 import { useOrderQuote } from '@/features/quotes/queries'
-import { DownloadIcon } from '@phosphor-icons/react'
 import { useFormatPurchaseOrderNumber } from '@/features/orders/utils/formatOrderNumbers'
 import { OrderCardShell } from '@/features/orders/ui/OrderCardShell'
 import { useOrderItems } from '@dorado/client'
@@ -112,7 +111,7 @@ export default function PurchaseOrderCard({
                 onClick={mkClick(onClick, isPending)}
                 disabled={isPending}
               >
-                <DownloadIcon size={20} className="text-primary" />
+                <Download size={20} className="text-primary" />
                 <span>{isPending ? 'Loading...' : label}</span>
               </Button>
             ) : null

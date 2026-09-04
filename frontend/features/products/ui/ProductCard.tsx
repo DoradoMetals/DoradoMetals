@@ -2,10 +2,8 @@
 
 import Image from 'next/image'
 import { Product } from '@/features/products/types'
-import { Button, Carousel } from '@dorado/components'
-import { CircleHelp, Equal, Minus, Plus, Scale, X } from 'lucide-react'
+import { Button, Carousel, CircleHelp, Equal, Minus, Plus, RadioGroup, RadioOption, Scale, X } from '@dorado/components'
 import NumberFlow from '@number-flow/react'
-import { RadioGroup, RadioOption } from '@dorado/components'
 import { FloatingButton, FloatingButtonItem } from '@/features/products/ui/FloatingButton'
 
 import { useState } from 'react'

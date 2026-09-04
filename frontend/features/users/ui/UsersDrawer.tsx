@@ -12,9 +12,8 @@ import {
   useRequestPasswordReset,
   useUpdateUser,
 } from '@/features/auth/queries'
-import { Button, Divider, Drawer, Input, RadioGroup, RadioOption } from '@dorado/components'
+import { Button, Divider, Drawer, Input, Minus, Pen, Plus, RadioGroup, RadioOption } from '@dorado/components'
 import { cn } from '@/shared/utils/cn'
-import { MinusIcon, PenIcon, PlusIcon } from '@phosphor-icons/react'
 import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
 import { useUpdateCredit } from '@dorado/client'
 
@@ -85,9 +84,9 @@ function UserInfo({ user }: { user: AdminUser }) {
 }
 
 const modes = [
-  { label: 'Add', value: 'add', icon: PlusIcon },
-  { label: 'Subtract', value: 'subtract', icon: MinusIcon },
-  { label: 'Edit', value: 'edit', icon: PenIcon },
+  { label: 'Add', value: 'add', icon: Plus },
+  { label: 'Subtract', value: 'subtract', icon: Minus },
+  { label: 'Edit', value: 'edit', icon: Pen },
 ]
 
 function DoradoCredit({ user }: { user: AdminUser }) {

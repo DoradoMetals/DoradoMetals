@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { motion, useAnimationFrame, useMotionValue, useTransform } from 'framer-motion'
 import { wrap } from '@motionone/utils'
-import { CaretUpIcon, CaretDownIcon } from '@phosphor-icons/react'
+import { ChevronUp, ChevronDown } from '@dorado/components'
 import { NumberFlowGroup } from '@number-flow/react'
 import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
 import { cn } from '@/shared/utils/cn'
@@ -39,7 +39,7 @@ export default function MobileSpotTicker({ type }: { type: 'Bid' | 'Ask' }) {
       >
         {[...spots, ...spots, ...spots].map((spot, i) => {
           // The server says which way it moved (see Spots.tsx).
-          const CaretIcon = spot.direction === 'down' ? CaretDownIcon : CaretUpIcon
+          const CaretIcon = spot.direction === 'down' ? ChevronDown : ChevronUp
           const colorClass =
             spot.direction === 'flat'
               ? 'text-primary-foreground'

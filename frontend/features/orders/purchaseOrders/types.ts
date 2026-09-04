@@ -8,7 +8,7 @@ import {
   CreditCard,
   Ban,
   ShieldCheck,
-} from 'lucide-react'
+} from '@dorado/components'
 
 import { pickupSchema } from '@/features/handoff/types'
 import { payoutSchema } from '@/features/payouts/types'

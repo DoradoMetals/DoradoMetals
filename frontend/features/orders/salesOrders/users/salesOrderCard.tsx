@@ -1,12 +1,11 @@
 'use client'
 
 import { MouseEvent } from 'react'
-import { Button } from '@dorado/components'
+import { Button, Download } from '@dorado/components'
 import { useDrawerStore } from '@/shared/store/drawerStore'
 import { formatFullDate } from '@/shared/utils/formatDates'
 import { SalesOrder, statusConfig } from '@/features/orders/salesOrders/types'
 import { AvatarCircles } from '@/features/orders/ui/ImageCirclesOverlapped'
-import { DownloadIcon } from '@phosphor-icons/react'
 import { useDownloadSalesOrderInvoice } from '@/features/pdfs/queries'
 import { useFormatSalesOrderNumber } from '@/features/orders/utils/formatOrderNumbers'
 import { OrderCardShell } from '@/features/orders/ui/OrderCardShell'
@@ -99,7 +98,7 @@ export default function SalesOrderCard({
                 onClick={stopAnd(onClick, isPending)}
                 disabled={isPending}
               >
-                <DownloadIcon size={20} className="text-primary" />
+                <Download size={20} className="text-primary" />
                 <span>{isPending ? 'Loading...' : label}</span>
               </Button>
             ) : null

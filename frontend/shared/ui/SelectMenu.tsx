@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { CheckIcon } from '@phosphor-icons/react'
+import { Check } from '@dorado/components'
 import { Popover, PopoverContent, PopoverTrigger } from '@/shared/ui/base/popover'
 import {
   Command,
@@ -135,7 +135,7 @@ export default function SelectMenu({
                     )}
                     <span>{item.label}</span>
                   </span>
-                  {chosen && <CheckIcon size={16} />}
+                  {chosen && <Check size={16} />}
                 </CommandItem>
               )
             })}

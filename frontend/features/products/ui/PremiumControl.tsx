@@ -1,13 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { Field, Input, RadioGroup, RadioOption } from '@dorado/components'
-import {
-  CurrencyDollarIcon,
-  PercentIcon,
-  ArrowUpIcon,
-  ArrowDownIcon,
-} from '@phosphor-icons/react'
+import { ArrowDown, ArrowUp, DollarSign, Field, Input, Percent, RadioGroup, RadioOption } from '@dorado/components'
 
 type Unit = 'dollar' | 'percent'
 const UNITS: Unit[] = ['dollar', 'percent']
@@ -101,7 +95,7 @@ export default function PremiumControl({
         >
           {UNITS.map((u) => (
             <RadioOption key={u} value={u} variant="segment" className="h-10 min-w-10 px-2">
-              {u === 'dollar' ? <CurrencyDollarIcon size={18} /> : <PercentIcon size={18} />}
+              {u === 'dollar' ? <DollarSign size={18} /> : <Percent size={18} />}
             </RadioOption>
           ))}
         </RadioGroup>
@@ -159,7 +153,7 @@ export default function PremiumControl({
             variant="segment"
             className="h-10 min-w-10 px-2"
           >
-            <ArrowUpIcon size={18} />
+            <ArrowUp size={18} />
           </RadioOption>
 
           <RadioOption
@@ -168,7 +162,7 @@ export default function PremiumControl({
             variant="segment"
             className="h-10 min-w-10 px-2"
           >
-            <ArrowDownIcon size={18} />
+            <ArrowDown size={18} />
           </RadioOption>
         </RadioGroup>
       </div>

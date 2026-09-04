@@ -1,5 +1,5 @@
 import { z } from 'zod/v4'
-import { TruckIcon, StorefrontIcon, IconProps } from '@phosphor-icons/react'
+import { Truck, Store, type IconProps } from '@dorado/components'
 
 // HOW A PARCEL REACHES THE CARRIER - the customer drops it at the carrier's
 // location, or the carrier comes and collects it.
@@ -63,4 +63,4 @@ export const pickupSchema = z.object({
 // answered by flags the API already sends.
 export const handoffIcon = (handoff: {
   requires_schedule?: boolean
-}): React.ComponentType<IconProps> => (handoff.requires_schedule ? TruckIcon : StorefrontIcon)
+}): React.ComponentType<IconProps> => (handoff.requires_schedule ? Truck : Store)

@@ -1,8 +1,7 @@
 'use client'
 
 import { NumberFlowGroup } from '@number-flow/react'
-import { CaretUpIcon, CaretDownIcon, SwapIcon } from '@phosphor-icons/react'
-import { Button } from '@dorado/components'
+import { Button, ChevronUp, ChevronDown, ArrowLeftRight } from '@dorado/components'
 import { useSpotTypeStore } from '@/shared/store/spotStore'
 import { cn } from '@/shared/utils/cn'
 import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
@@ -36,14 +35,14 @@ export default function Spots() {
                   className="flex items-center gap-1 p-0 m-0 h-4"
                   onClick={() => toggleType()}
                 >
-                  <SwapIcon size={20} />
+                  <ArrowLeftRight size={20} />
                   Show {type === 'Bid' ? 'Ask' : 'Bid'}
                 </Button>
                 {spots.map((spot) => {
                   // WHICH WAY IT MOVED IS THE SERVER'S ANSWER. This read
                   // `(dollar_change ?? 0) >= 0`, which painted a flat day
                   // green with an up caret.
-                  const CaretIcon = spot.direction === 'down' ? CaretDownIcon : CaretUpIcon
+                  const CaretIcon = spot.direction === 'down' ? ChevronDown : ChevronUp
                   const colorClass =
                     spot.direction === 'flat'
                       ? 'text-primary-foreground'

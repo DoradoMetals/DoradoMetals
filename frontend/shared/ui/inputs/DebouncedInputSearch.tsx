@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
 
-import { MagnifyingGlassIcon, XIcon } from '@phosphor-icons/react'
-import { Button } from '@dorado/components'
+import { Button, Search, X } from '@dorado/components'
 import { Input } from '../base/input'
 import { cn } from '@/shared/utils/cn'
 
@@ -47,7 +46,7 @@ export function DebouncedInputSearch({
       />
       {showSearchIcon && (
         <div className="absolute left-2 lg:left-3 top-1/2 -translate-y-1/2 hover:bg-transparent">
-          <MagnifyingGlassIcon className="text-muted-foreground" size={18} />
+          <Search className="text-muted-foreground" size={18} />
         </div>
       )}
 
@@ -58,7 +57,7 @@ export function DebouncedInputSearch({
           className="absolute right-1 top-1/2 -translate-y-1/2 text-muted-foreground hover:bg-transparent"
           tabIndex={-1}
         >
-          <XIcon size={16} />
+          <X size={16} />
         </Button>
       )}
     </div>

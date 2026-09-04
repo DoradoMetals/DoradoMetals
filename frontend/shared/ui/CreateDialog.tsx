@@ -1,9 +1,8 @@
 'use client'
 
 import { InputHTMLAttributes, ReactNode, useEffect, useMemo, useState } from 'react'
-import { XIcon } from '@phosphor-icons/react'
 
-import { Button } from '@dorado/components'
+import { Button, X } from '@dorado/components'
 import {
   Dialog,
   DialogContent,
@@ -185,7 +184,7 @@ export function AddNewDialog({
                             tabIndex={-1}
                             aria-label={`Clear ${field.label}`}
                           >
-                            <XIcon size={16} />
+                            <X size={16} />
                           </Button>
                         )}
                       </div>
@@ -222,7 +221,7 @@ export function AddNewDialog({
                           tabIndex={-1}
                           aria-label={`Clear ${field.label}`}
                         >
-                          <XIcon size={16} />
+                          <X size={16} />
                         </Button>
                       )}
                     </div>

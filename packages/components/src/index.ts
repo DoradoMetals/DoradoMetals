@@ -60,3 +60,4 @@ export { Rating, RatingButton, type RatingProps, type RatingButtonProps } from "
 export { useFocusTrap } from "./hooks/useFocusTrap";
 export { Amount, type AmountProps } from "./amount/Amount";
 export { Carousel, type CarouselProps } from "./carousel/Carousel";
+export * from "./icons";

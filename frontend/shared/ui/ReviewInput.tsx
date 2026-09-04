@@ -1,10 +1,9 @@
 'use client'
 
 import * as React from 'react'
-import { Button } from '@dorado/components'
+import { Button, Smile } from '@dorado/components'
 import { Textarea } from '@/shared/ui/base/textarea'
 import { Rating, RatingButton } from '@/shared/ui/base/rating'
-import { SmileyIcon } from '@phosphor-icons/react'
 
 /* ============================================================================
    D95 — THE INVISIBLE PAIR WAS IN THE DEFAULT PROPS.
@@ -99,7 +98,7 @@ export function ReviewBlock({
             <h4>Rate Your Experience</h4>
             <div className="bg-highest rounded-lg w-full border border-border flex flex-col gap-4 p-2">
               <div className="flex items-start gap-2">
-                <SmileyIcon size={28} className="text-primary" />
+                <Smile size={28} className="text-primary" />
                 <div className="flex flex-col">
                   <h5>Overall Satisfaction</h5>
                   <p className="mb-3">How was your experience overall?</p>
@@ -163,7 +162,7 @@ export function ReviewBlock({
         </>
       ) : (
         <div className="flex items-center gap-2 p-4">
-          <SmileyIcon size={28} className="text-primary" />
+          <Smile size={28} className="text-primary" />
           <h4>Thanks for submitting a review!</h4>
         </div>
       )}

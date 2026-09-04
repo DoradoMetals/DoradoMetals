@@ -1,9 +1,8 @@
-import { Button } from '@dorado/components'
+import { Button, Car, CheckCheck, PackageOpen, Printer } from '@dorado/components'
 import { cn } from '@/shared/utils/cn'
 import type { ShipmentView } from '@dorado/contracts'
 import { PurchaseOrderDrawerContentProps } from '@/features/orders/purchaseOrders/types'
 import { formatPickupDateTime } from '@/shared/utils/formatDates'
-import { Car, CheckCheck, PackageOpen, Printer } from 'lucide-react'
 import TrackingEvents from '@/features/shipping/ui/TrackingEvents'
 import { outboundOf, useOrderShipments } from '@dorado/client'
 

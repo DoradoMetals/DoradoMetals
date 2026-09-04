@@ -1,12 +1,10 @@
-import { Button, Divider } from '@dorado/components'
+import { Button, CircleHelp, Divider, Minus, Plus, Trash2 } from '@dorado/components'
 import { useBasket } from '@/features/checkout/items/queries'
 import { useCheckoutItemActions } from '@/features/checkout/items/queries'
 import { useDecoratedLines } from '@/features/checkout/items/flair'
 import { usePaymentMethods } from '@dorado/client'
-import { Minus, Plus, Trash2 } from 'lucide-react'
 import Image from 'next/image'
 import NumberFlow from '@number-flow/react'
-import { QuestionIcon } from '@phosphor-icons/react'
 import { useRouter } from 'next/navigation'
 import type { CheckoutView, SalesOrderQuote } from "@dorado/contracts";
 import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
@@ -152,7 +150,7 @@ export default function OrderSummary({
               className="size-4"
               onClick={() => router.push('/sales-tax')}
             >
-              <QuestionIcon size={16} />
+              <CircleHelp size={16} />
             </Button>
           </div>
           <strong>

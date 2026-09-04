@@ -1,7 +1,6 @@
 'use client'
 
-import { Button, Divider } from '@dorado/components'
-import { Plus } from 'lucide-react'
+import { Button, Divider, Plus } from '@dorado/components'
 import { useMemo } from 'react'
 import { useDrawerStore } from '@/shared/store/drawerStore'
 import { useUserAddresses } from '@/features/addresses/queries'

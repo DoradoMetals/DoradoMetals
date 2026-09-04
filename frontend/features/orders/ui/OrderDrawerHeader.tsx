@@ -1,8 +1,7 @@
 'use client'
 
 import type { ComponentType, ReactNode } from 'react'
-import { Button } from '@dorado/components'
-import { DownloadIcon } from '@phosphor-icons/react'
+import { Button, Download } from '@dorado/components'
 
 /* ============================================================================
    ORDER DRAWER HEADER — the same 34 lines, four times.
@@ -80,7 +79,7 @@ export function OrderDrawerHeader({
               onClick={onClick}
               disabled={isPending}
             >
-              <DownloadIcon size={20} />
+              <Download size={20} />
               {isPending ? 'Loading...' : label}
             </Button>
           ))}

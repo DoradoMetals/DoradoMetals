@@ -1,4 +1,4 @@
-import { Scroll } from '@dorado/icons'
+import { Scroll } from '@dorado/components'
 import { SalesOrderDrawerContentProps } from '@/features/orders/salesOrders/types'
 import { useSaleShippingServices } from '@dorado/client'
 import { transitLabel } from '@/features/orders/salesOrders/types'

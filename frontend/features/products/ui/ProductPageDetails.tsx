@@ -2,20 +2,13 @@
 
 import Image from 'next/image'
 import { Product } from '@/features/products/types'
-import { Accordion, Button, RadioGroup, RadioOption } from '@dorado/components'
-import { Equal, Minus, Plus, X } from 'lucide-react'
+import { Accordion, Button, Circle, Clock, Equal, Minus, Plus, RadioGroup, RadioOption, ShieldCheck, Tag, X } from '@dorado/components'
 import NumberFlow from '@number-flow/react'
 
 import { useState } from 'react'
 
 import { cn } from '@/shared/utils/cn'
 import { AnimatePresence, motion } from 'framer-motion'
-import {
-  CircleIcon,
-  ClockIcon,
-  ShieldCheckIcon,
-  TagIcon,
-} from '@phosphor-icons/react'
 import { useBasket, useCheckoutItemActions } from '@/features/checkout/items/queries'
 import { lineFromProduct } from '@/features/checkout/items/types'
 import { Lens } from '@/shared/ui/base/lens'
@@ -351,15 +344,15 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
                 <div className="h-px w-full bg-border" />
                 <div className="flex flex-col gap-3">
                   <p className="flex items-center gap-1">
-                    <ShieldCheckIcon className="text-primary" size={20} />
+                    <ShieldCheck className="text-primary" size={20} />
                     Every shipment is fully insured.
                   </p>
                   <p className="flex items-center gap-1">
-                    <ClockIcon className="text-primary" size={20} />
+                    <Clock className="text-primary" size={20} />
                     Ships the same day we receive your payment.
                   </p>
                   <p className="flex items-center gap-1">
-                    <TagIcon className="text-primary" size={20} />
+                    <Tag className="text-primary" size={20} />
                     Free shipping for orders over $1000.
                   </p>
                 </div>
@@ -389,7 +382,7 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
                         </div>
                         <small className="flex items-center gap-2 pt-1 pl-4">
                           <span className="text-left">{payment.time_delay}</span>
-                          <CircleIcon size={6} weight="fill" className="text-placeholder" />
+                          <Circle size={6} className="text-placeholder" />
                           <span className="text-right">{payment.surcharge_label}</span>
                         </small>
                       </div>
@@ -697,15 +690,15 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
                 <div className="h-px w-full bg-border" />
                 <div className="flex flex-col gap-3">
                   <p className="flex items-center gap-1">
-                    <ShieldCheckIcon className="text-primary" size={20} />
+                    <ShieldCheck className="text-primary" size={20} />
                     Every shipment is fully insured.
                   </p>
                   <p className="flex items-center gap-1">
-                    <ClockIcon className="text-primary" size={20} />
+                    <Clock className="text-primary" size={20} />
                     Ships the same day we receive your payment.
                   </p>
                   <p className="flex items-center gap-1">
-                    <TagIcon className="text-primary" size={20} />
+                    <Tag className="text-primary" size={20} />
                     Free shipping for orders over $1000.
                   </p>
                 </div>
@@ -735,7 +728,7 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
                         </div>
                         <small className="flex items-center gap-2 pt-1 pl-4">
                           <span className="text-left">{payment.time_delay}</span>
-                          <CircleIcon size={6} weight="fill" className="text-placeholder" />
+                          <Circle size={6} className="text-placeholder" />
                           <span className="text-right">{payment.surcharge_label}</span>
                         </small>
                       </div>

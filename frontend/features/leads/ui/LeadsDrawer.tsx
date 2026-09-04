@@ -27,8 +27,9 @@ import {
   Field,
   Input,
   Textarea,
+  Trash2,
+  UserPlus,
 } from '@dorado/components'
-import { TrashIcon, UserPlusIcon } from '@phosphor-icons/react'
 import { isValidEmail } from '@/shared/utils/isValid'
 import { useDeleteLead, useUpdateLead } from '@/features/leads/queries'
 import { useAdminRoleUsers, useAdminUsers } from '@dorado/client'
@@ -278,7 +279,7 @@ function Actions({ lead }: { lead: Lead }) {
             onClick={handleCreateNewUser}
             disabled={!canCreate}
           >
-            <UserPlusIcon size={18} />
+            <UserPlus size={18} />
             {!emailValid
               ? 'Invalid Email'
               : userExists
@@ -297,7 +298,7 @@ function Actions({ lead }: { lead: Lead }) {
                 intent="danger"
                 className="flex items-center w-full gap-3 justify-center"
               >
-                <TrashIcon size={18} />
+                <Trash2 size={18} />
                 Delete Lead
               </Button>
             </div>

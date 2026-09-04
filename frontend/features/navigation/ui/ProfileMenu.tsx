@@ -15,12 +15,12 @@ import { Button } from '@dorado/components'
 import { Avatar } from '@dorado/components'
 import {
   ListIcon,
-  LockIcon,
-  SignInIcon,
-  UserCircleIcon,
-  UserIcon,
-  UserPlusIcon,
-} from '@phosphor-icons/react'
+  Lock,
+  LogIn,
+  CircleUser,
+  User,
+  UserPlus,
+} from '@dorado/components'
 import { useGetSession, useSignOut } from '@/features/auth/queries'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
@@ -40,7 +40,7 @@ export default function AccountMenu() {
       <PopoverTrigger asChild>
         <Button variant="tertiary" size="icon" aria-label="Account menu">
           <Avatar className="flex items-center">
-            <UserIcon size={28} />
+            <User size={28} />
           </Avatar>
         </Button>
       </PopoverTrigger>
@@ -57,7 +57,7 @@ export default function AccountMenu() {
             <div className="flex flex-col items-start gap-1 w-full">
               <DoradoLink asChild className="flex w-full items-center gap-2 py-1.5">
                 <Link href="/account?tab=details" onClick={() => setOpen(false)}>
-                  <UserCircleIcon size={24} />
+                  <CircleUser size={24} />
                   <span className="text-left">View Account</span>
                 </Link>
               </DoradoLink>
@@ -71,7 +71,7 @@ export default function AccountMenu() {
 
               <DoradoLink asChild className="flex w-full items-center gap-2 py-1.5">
                 <Link href="/account?tab=security" onClick={() => setOpen(false)}>
-                  <LockIcon size={24} />
+                  <Lock size={24} />
                   <span className="text-left">Security</span>
                 </Link>
               </DoradoLink>
@@ -101,11 +101,11 @@ export default function AccountMenu() {
         <PopoverContent className="w-fit z-90">
           <PopoverBody className="space-y-3 p-4">
             <Link className="flex gap-3 items-center" href={'/authentication?tab=sign-in'}>
-              <SignInIcon size={24} />
+              <LogIn size={24} />
               Sign In
             </Link>
             <Link className="flex gap-3 items-center" href={'/authentication?tab=sign-up'}>
-              <UserPlusIcon size={24} />
+              <UserPlus size={24} />
               Register
             </Link>
           </PopoverBody>

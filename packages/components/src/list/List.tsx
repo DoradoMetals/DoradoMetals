@@ -1,7 +1,7 @@
 'use client'
 
 import * as React from "react";
-import { Check } from "lucide-react";
+import { Check } from "../icons";
 import { cn } from "../cn";
 
 export type ListProps = {

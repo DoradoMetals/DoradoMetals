@@ -2,8 +2,7 @@
 
 import { useMemo, useState, type InputHTMLAttributes } from 'react'
 import * as fuzzysort from 'fuzzysort'
-import { Autocomplete, Button, type AutocompleteItem } from '@dorado/components'
-import { XIcon } from '@phosphor-icons/react'
+import { Autocomplete, Button, X, type AutocompleteItem } from '@dorado/components'
 
 export interface SearchableDropdownProps<T> {
   items: T[]
@@ -77,7 +76,7 @@ export function SearchableDropdown<T>({
             tabIndex={-1}
             aria-label="Clear"
           >
-            <XIcon size={16} />
+            <X size={16} />
           </Button>
         ) : undefined
       }

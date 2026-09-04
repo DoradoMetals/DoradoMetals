@@ -7,8 +7,7 @@ import { LeadPriority } from '@/features/leads/types'
 import { PrioritySelect } from '@/features/leads/ui/PrioritySelect'
 import { normalizePhone } from '@/shared/utils/formatPhoneNumber'
 import { useDrawerStore } from '@/shared/store/drawerStore'
-import { PlusIcon } from '@phosphor-icons/react'
-import { DataTable, type DataTableColumn, Badge, Button } from '@dorado/components'
+import { DataTable, type DataTableColumn, Badge, Button, Plus } from '@dorado/components'
 import { isValidEmail } from '@/shared/utils/isValid'
 import LeadsDrawer from '@/features/leads/ui/LeadsDrawer'
 import { useCreateLead, useLeads } from '@/features/leads/queries'
@@ -136,7 +135,7 @@ export default function LeadsPage() {
             aria-label="Create Lead"
             title="Create Lead"
           >
-            <PlusIcon size={20} />
+            <Plus size={20} />
           </Button>
         }
       />

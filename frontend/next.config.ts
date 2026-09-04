@@ -4,7 +4,7 @@ import { withSentryConfig } from '@sentry/nextjs'
 const nextConfig: NextConfig = {
   // @dorado/components ships SOURCE (no dist to drift); Next transpiles it.
   // @dorado/theme is plain CSS and needs nothing.
-  transpilePackages: ['@dorado/client', '@dorado/components', '@dorado/icons'],
+  transpilePackages: ['@dorado/client', '@dorado/components'],
 }
 
 export default withSentryConfig(nextConfig, {

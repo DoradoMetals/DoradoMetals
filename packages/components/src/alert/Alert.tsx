@@ -1,7 +1,7 @@
 'use client'
 
 import * as React from "react";
-import { CheckCircle2, CircleAlert, Info, TriangleAlert, X } from "lucide-react";
+import { CheckCircle2, CircleAlert, Info, TriangleAlert, X } from "../icons";
 
 import { Button } from "../button/Button";
 import { cva } from "class-variance-authority";

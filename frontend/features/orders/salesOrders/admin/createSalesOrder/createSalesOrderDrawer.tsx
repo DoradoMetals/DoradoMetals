@@ -13,6 +13,12 @@ import {
   Button,
   Input,
   Autocomplete,
+  CircleHelp,
+  Lock,
+  LockOpen,
+  Minus,
+  Plus,
+  Trash2,
 } from '@dorado/components'
 import NextLink from 'next/link'
 import { UserAddress, makeEmptyWireAddress } from '@/features/addresses/types'
@@ -34,10 +40,8 @@ import { Product } from '@/features/products/types'
 import { lineFromProduct } from '@/features/checkout/items/types'
 import { useDecoratedLines } from '@/features/checkout/items/flair'
 import Image from 'next/image'
-import { Minus, Plus, Trash2 } from 'lucide-react'
 import NumberFlow from '@number-flow/react'
 import { useEffect, useMemo, useState, useTransition } from 'react'
-import { LockIcon, LockOpenIcon, QuestionIcon } from '@phosphor-icons/react'
 import { useRouter } from 'next/navigation'
 import { useMutationState } from '@tanstack/react-query'
 import { loadStripe } from '@stripe/stripe-js'
@@ -455,7 +459,7 @@ function OrderSummary({ orderPrices }: { orderPrices?: SalesOrderQuote }) {
               Sales Tax
               <Link asChild className="inline-flex size-4 items-center justify-center">
                 <NextLink href="/sales-tax" aria-label="About sales tax">
-                  <QuestionIcon size={16} />
+                  <CircleHelp size={16} />
                 </NextLink>
               </Link>
             </span>

@@ -4,7 +4,7 @@ import * as React from 'react'
 import { Controller, type Control, type FieldPath, type FieldValues } from 'react-hook-form'
 
 import { cn } from '@/shared/utils/cn'
-import { Button, Field } from '@dorado/components'
+import { Button, Check, ChevronDown, Field } from '@dorado/components'
 import { Popover, PopoverContent, PopoverTrigger } from '@/shared/ui/base/popover'
 import {
   Command,
@@ -14,8 +14,6 @@ import {
   CommandItem,
   CommandList,
 } from '@/shared/ui/base/command'
-
-import { CaretDownIcon, CheckIcon } from '@phosphor-icons/react'
 import { reverseStateMap, stateMap, states } from '@/features/addresses/types'
 
 type StateItem = { code: string; name: string }
@@ -94,7 +92,7 @@ export function StateComboboxField<TFieldValues extends FieldValues>({
                   className="w-full justify-between"
                 >
                   <span className="truncate">{selectedName ? selectedName : placeholder}</span>
-                  <CaretDownIcon size={16} />
+                  <ChevronDown size={16} />
                 </Button>
               </PopoverTrigger>
 
@@ -126,7 +124,7 @@ export function StateComboboxField<TFieldValues extends FieldValues>({
                             }}
                             className="cursor-pointer"
                           >
-                            <CheckIcon
+                            <Check
                               className={cn(isSelected ? 'opacity-100' : 'opacity-0')}
                               size={16}
                             />

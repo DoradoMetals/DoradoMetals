@@ -1,18 +1,15 @@
 'use client'
 
 import { useState } from 'react'
-import { Button, Pagination, EmptyState } from '@dorado/components'
-import { ChevronDown } from 'lucide-react'
+import { Button, Pagination, EmptyState, DollarSign, ChevronDown, SearchX } from '@dorado/components'
 import { AnimatePresence, motion } from 'framer-motion'
 import { useRouter } from 'next/navigation'
-import { CurrencyDollarIcon } from '@phosphor-icons/react'
 import PurchaseOrderCard from './purchaseOrderCard'
 import PurchaseOrderDrawer from './purchaseOrderDrawer/purchaseOrderDrawer'
 import { PurchaseOrderStatuses, statusConfig } from '@/features/orders/purchaseOrders/types'
 import { useGetSession } from '@/features/auth/queries'
 import { useOrders } from '@dorado/client'
 import { OrderStatusSelector } from '@/features/orders/ui/OrderStatusShared'
-import { SearchX } from 'lucide-react'
 
 export function PurchaseOrdersContent() {
   const { user } = useGetSession()
@@ -25,7 +22,7 @@ export function PurchaseOrdersContent() {
   const [selectedStatus, setSelectedStatus] = useState<string | null>(null)
   const [open, setOpen] = useState(false)
   const router = useRouter()
-  const StatusFilterIcon = selectedStatus ? statusConfig[selectedStatus].icon : CurrencyDollarIcon
+  const StatusFilterIcon = selectedStatus ? statusConfig[selectedStatus].icon : DollarSign
 
   const [currentPage, setCurrentPage] = useState(1)
   const ordersPerPage = 5
@@ -57,7 +54,7 @@ export function PurchaseOrdersContent() {
   if (orders.length === 0) {
     return (
       <EmptyState
-        icon={<CurrencyDollarIcon className="text-primary" />}
+        icon={<DollarSign className="text-primary" />}
         badge={0}
         title="No Orders Yet!"
         description="Create an order by adding your items and completing checkout."

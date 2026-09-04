@@ -10,10 +10,9 @@
 // is shown is a call that is accepted.
 import type { AddressBookEntry } from '@dorado/contracts'
 import * as React from 'react'
-import { Building2, House } from 'lucide-react'
 
 import formatPhoneNumber from '@/shared/utils/formatPhoneNumber'
-import { Button } from '@dorado/components'
+import { Building2, Button, House } from '@dorado/components'
 import { cn } from '@/shared/utils/cn'
 import { useDeleteAddress, useSetDefaultAddress } from '@dorado/client'
 

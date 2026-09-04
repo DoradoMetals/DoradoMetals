@@ -1,5 +1,4 @@
-import { Button } from '@dorado/components'
-import { Eye, EyeOff } from 'lucide-react'
+import { Button, Eye, EyeOff } from '@dorado/components'
 
 export default function ShowPasswordButton({
   showPassword,

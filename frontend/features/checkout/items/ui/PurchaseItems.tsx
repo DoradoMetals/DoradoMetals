@@ -1,11 +1,9 @@
 'use client'
 
-import { Button, EmptyState } from '@dorado/components'
-import { Minus, Plus, Trash2 } from 'lucide-react'
+import { Button, EmptyState, Minus, Plus, ShoppingCart, Trash2 } from '@dorado/components'
 import Image from 'next/image'
 import NumberFlow from '@number-flow/react'
 import { useRouter } from 'next/navigation'
-import { ShoppingCartSimpleIcon } from '@phosphor-icons/react'
 import { useBasket, useCheckoutItemActions } from '@/features/checkout/items/queries'
 import { useDecoratedLines, type DecoratedLine } from '@/features/checkout/items/flair'
 import { formatRate } from '@/features/rates/types'
@@ -33,7 +31,7 @@ export default function PurchaseItems() {
 
   const empty = (
     <EmptyState
-      icon={<ShoppingCartSimpleIcon />}
+      icon={<ShoppingCart />}
       badge={0}
       title="You have nothing to sell yet!"
       description="Add items to get a price estimate."

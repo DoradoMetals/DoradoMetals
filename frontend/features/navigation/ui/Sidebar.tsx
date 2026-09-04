@@ -1,9 +1,8 @@
 'use client'
 
-import { Drawer } from '@dorado/components'
+import { Drawer, User, ListIcon, LogOut, LogIn, ArrowLeftRight } from '@dorado/components'
 import IconTile from '@/shared/ui/IconTile'
 import NavLink from '@/shared/ui/NavLink'
-import { UserIcon, ListIcon, SignOutIcon, SignInIcon, SwapIcon } from '@phosphor-icons/react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { useEffect } from 'react'
@@ -42,7 +41,7 @@ export default function Sidebar() {
         <div className="flex items-center gap-5 justify-center">
           <div className="flex flex-col items-center">
             <IconTile
-              icon={UserIcon}
+              icon={User}
               label="Account"
               onClick={() => {
                 router.push('/account?tab=details')
@@ -65,7 +64,7 @@ export default function Sidebar() {
           {user ? (
             <div className="flex flex-col items-center">
               <IconTile
-                icon={SignOutIcon}
+                icon={LogOut}
                 label="Sign Out"
                 onClick={async () => {
                   try {
@@ -81,7 +80,7 @@ export default function Sidebar() {
           ) : (
             <div className="flex flex-col items-center">
               <IconTile
-                icon={SignInIcon}
+                icon={LogIn}
                 label="Sign In"
                 onClick={() => {
                   router.push('/authentication?tab=sign-in')
@@ -95,7 +94,7 @@ export default function Sidebar() {
         <div className="flex items-center gap-5 justify-center">
           <div className="flex flex-col items-center">
             <IconTile
-              icon={SwapIcon}
+              icon={ArrowLeftRight}
               label={`${type === 'Bid' ? 'Ask' : 'Bid'} Spots`}
               onClick={() => {
                 toggleType()

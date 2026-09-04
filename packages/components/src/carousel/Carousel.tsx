@@ -1,7 +1,7 @@
 'use client'
 
 import * as React from "react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "../icons";
 import { Button } from "../button/Button";
 import { cn } from "../cn";
 import { useDragScroll } from "../hooks/useDragScroll";

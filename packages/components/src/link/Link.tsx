@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { Slot, Slottable } from "@radix-ui/react-slot";
-import { ExternalLink } from "lucide-react";
+import { ExternalLink } from "../icons";
 import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "../cn";
 

@@ -1,14 +1,12 @@
 import { getGrossLabel, getPurityLabel, Scrap } from '@/features/scrap/types'
-import { CheckCircle} from 'lucide-react'
 import { useFormContext } from 'react-hook-form'
 import { motion, AnimatePresence } from 'framer-motion'
-import { CoinsIcon, PercentIcon, ScalesIcon } from '@phosphor-icons/react'
 import { usePurchaseOrderQuote } from '@/features/quotes/queries'
 import { formatRate } from '@/features/rates/types'
 import { useBasket } from '@/features/checkout/items/queries'
 import { useSpotPrices } from '@/features/spots/queries'
 import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
-import { Badge, Divider } from '@dorado/components'
+import { Badge, CheckCircle, Coins, Divider, Percent, Scale } from '@dorado/components'
 import { DetailRow } from '@/shared/ui/DetailRow'
 
 export default function ReviewStep({ showBanner }: { showBanner: boolean }) {
@@ -47,7 +45,7 @@ export default function ReviewStep({ showBanner }: { showBanner: boolean }) {
         <div className="space-y-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <CoinsIcon className="text-primary" size={24} />
+              <Coins className="text-primary" size={24} />
               <p>Metal:</p>
             </div>
             <strong>{metal}</strong>
@@ -55,7 +53,7 @@ export default function ReviewStep({ showBanner }: { showBanner: boolean }) {
 
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <ScalesIcon className="text-primary" size={24} />
+              <Scale className="text-primary" size={24} />
               <p>Pre Melt:</p>
             </div>
             {getGrossLabel(pre_melt, unit)}
@@ -63,7 +61,7 @@ export default function ReviewStep({ showBanner }: { showBanner: boolean }) {
 
           <div className="flex items-start justify-between">
             <div className="flex items-center gap-2">
-              <PercentIcon className="text-primary" size={24} />
+              <Percent className="text-primary" size={24} />
               <p>Purity:</p>
             </div>
             {getPurityLabel(purity, metal)}
@@ -71,7 +69,7 @@ export default function ReviewStep({ showBanner }: { showBanner: boolean }) {
 
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <PercentIcon className="text-primary" size={24} />
+              <Percent className="text-primary" size={24} />
               <p>Rate:</p>
             </div>
             <strong>{formatRate(bid_premium)}</strong>

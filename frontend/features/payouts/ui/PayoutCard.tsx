@@ -1,7 +1,7 @@
 import * as React from 'react'
 import { payoutMethodIcon, PayoutMethodType } from '@/features/payouts/types'
 import type { PaymentMethod } from '@dorado/contracts'
-import type { IconProps } from '@phosphor-icons/react'
+import type { IconProps } from '@dorado/components'
 
 // The card renders a payments.methods row verbatim (D207); the icon is the
 // client's, keyed by the row's type.

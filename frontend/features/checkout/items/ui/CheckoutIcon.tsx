@@ -4,7 +4,7 @@ import { motion, useAnimation } from 'framer-motion';
 import type { HTMLAttributes } from 'react';
 import { forwardRef, useEffect } from 'react';
 import { cn } from '@/shared/utils/cn';
-import { ShoppingCartIcon } from '@phosphor-icons/react';
+import { ShoppingCart } from '@dorado/components';
 
 interface CheckoutIconProps extends HTMLAttributes<HTMLDivElement> {
   size?: number;
@@ -45,7 +45,7 @@ const CheckoutIcon = forwardRef<HTMLDivElement, CheckoutIconProps>(
         {...props}
       >
         <motion.div animate={controls} variants={iconVariants} className='will-change-transform'>
-          <ShoppingCartIcon size={size} />
+          <ShoppingCart size={size} />
         </motion.div>
       </div>
     );

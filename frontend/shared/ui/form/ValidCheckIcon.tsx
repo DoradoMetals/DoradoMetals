@@ -1,4 +1,4 @@
-import { CheckIcon, XIcon, } from '@phosphor-icons/react'
+import { Check, X } from '@dorado/components'
 
 interface IconProps {
   size?: number
@@ -11,7 +11,7 @@ export function ValidCheckIcon({  size = 16, className = '' }: IconProps) {
     <div
       className={`absolute right-3 top-1/2 -translate-y-1/2 text-success pointer-events-none ${className}`}
     >
-      <CheckIcon size={size} />
+      <Check size={size} />
     </div>
   )
 }
@@ -22,7 +22,7 @@ export function InvalidXIcon({ size = 16, className = '' }: IconProps) {
     <div
       className={`absolute right-3 top-1/2 -translate-y-1/2 text-destructive pointer-events-none ${className}`}
     >
-      <XIcon size={size} />
+      <X size={size} />
     </div>
   )
 }

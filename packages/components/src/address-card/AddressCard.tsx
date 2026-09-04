@@ -1,7 +1,7 @@
 'use client'
 
 import * as React from "react";
-import { Pencil, Trash2 } from "lucide-react";
+import { Pencil, Trash2 } from "../icons";
 
 import { Badge } from "../badge/Badge";
 import { Button } from "../button/Button";

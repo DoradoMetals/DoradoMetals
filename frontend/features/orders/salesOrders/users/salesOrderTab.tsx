@@ -1,16 +1,13 @@
 'use client'
 
 import { useState } from 'react'
-import { Button, Pagination, EmptyState } from '@dorado/components'
-import { ChevronDown } from 'lucide-react'
+import { Button, Pagination, EmptyState, ClipboardList, ChevronDown, SearchX } from '@dorado/components'
 import { AnimatePresence, motion } from 'framer-motion'
 import { useRouter } from 'next/navigation'
-import { ClipboardTextIcon } from '@phosphor-icons/react'
 
 import { SalesOrderStatuses, statusConfig } from '@/features/orders/salesOrders/types'
 import { useGetSession } from '@/features/auth/queries'
 import { OrderStatusSelector } from '@/features/orders/ui/OrderStatusShared'
-import { SearchX } from 'lucide-react'
 import { useOrders } from '@dorado/client'
 import SalesOrderCard from '@/features/orders/salesOrders/users/salesOrderCard'
 import SalesOrderDrawer from '@/features/orders/salesOrders/users/salesOrderDrawer/salesOrderDrawer'
@@ -26,7 +23,7 @@ export function SalesOrdersContent() {
   const [selectedStatus, setSelectedStatus] = useState<string | null>(null)
   const [open, setOpen] = useState(false)
   const router = useRouter()
-  const StatusFilterIcon = selectedStatus ? statusConfig[selectedStatus].icon : ClipboardTextIcon
+  const StatusFilterIcon = selectedStatus ? statusConfig[selectedStatus].icon : ClipboardList
 
   const [currentPage, setCurrentPage] = useState(1)
   const ordersPerPage = 5
@@ -58,7 +55,7 @@ export function SalesOrdersContent() {
   if (orders.length === 0) {
     return (
       <EmptyState
-        icon={<ClipboardTextIcon className="text-primary" />}
+        icon={<ClipboardList className="text-primary" />}
         badge={0}
         title="No Orders Yet!"
         description="Create an order by adding your items and completing checkout."

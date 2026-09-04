@@ -1,10 +1,9 @@
 'use client'
 
-import { Button, Divider, EmptyState } from '@dorado/components'
+import { Button, Divider, EmptyState, ShoppingCart } from '@dorado/components'
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { loadStripe } from '@stripe/stripe-js'
-import { ShoppingCartIcon } from '@phosphor-icons/react'
 
 import { useBasket, useClearCheckoutItems } from '@/features/checkout/items/queries'
 import ShippingSelect from './shipping/shippingSelect'
@@ -72,7 +71,7 @@ export default function SalesOrderCheckout() {
   if (items.length === 0) {
     return (
       <EmptyState
-        icon={<ShoppingCartIcon />}
+        icon={<ShoppingCart />}
         badge={0}
         title="You have nothing to buy yet!"
         description="Please add items before checking out."

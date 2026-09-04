@@ -5,8 +5,7 @@ import * as React from 'react'
 
 import { useDrawerStore } from '@/shared/store/drawerStore'
 
-import { DataTable, type DataTableColumn, Rating, RatingButton, Button } from '@dorado/components'
-import { EyeSlashIcon, EyeIcon, PlusIcon } from '@phosphor-icons/react'
+import { DataTable, type DataTableColumn, Rating, RatingButton, Button, EyeOff, Eye, Plus } from '@dorado/components'
 import { useCreateReview, useReviews } from '@/features/reviews/queries'
 import ReviewsDrawer from '@/features/reviews/ui/ReviewsDrawer'
 import { AddNewDialog, type CreateConfig } from '@/shared/ui/CreateDialog'
@@ -51,9 +50,9 @@ export default function ReviewsPage() {
         header: 'Visibility',
         cell: ({ row }) =>
           row.original.hidden ? (
-            <EyeSlashIcon size={24} className="text-destructive" />
+            <EyeOff size={24} className="text-destructive" />
           ) : (
-            <EyeIcon size={24} className="text-success" />
+            <Eye size={24} className="text-success" />
           ),
       },
 
@@ -142,7 +141,7 @@ export default function ReviewsPage() {
             aria-label="Create Review"
             title="Create Review"
           >
-            <PlusIcon size={20} />
+            <Plus size={20} />
           </Button>
         }
       />

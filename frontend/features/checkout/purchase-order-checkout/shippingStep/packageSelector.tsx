@@ -1,8 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { RadioGroup, RadioOption, Switch } from '@dorado/components'
-import { Inbox, Package2, Package as PackageIcon } from 'lucide-react'
+import { Inbox, Package2, Package as PackageIcon, RadioGroup, RadioOption, Switch } from '@dorado/components'
 import type { CheckoutView, Package } from '@dorado/contracts'
 import { useOfferedPackages, usePatchCheckout } from '@/features/checkout/queries'
 

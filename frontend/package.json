@@ -31,7 +31,6 @@
     "@dorado/client": "workspace:*",
     "@dorado/components": "workspace:*",
     "@dorado/contracts": "workspace:*",
-    "@dorado/icons": "workspace:*",
     "@dorado/theme": "workspace:*",
     "@hookform/resolvers": "^5.9.1",
     "@motionone/utils": "^10.18.0",

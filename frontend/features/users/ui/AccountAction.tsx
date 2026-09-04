@@ -1,8 +1,7 @@
 'use client'
 
 import * as React from 'react'
-import { Button } from '@dorado/components'
-import { Check } from 'lucide-react'
+import { Button, Check } from '@dorado/components'
 import { cn } from '@/shared/utils/cn'
 
 type IconComponent = React.ComponentType<React.SVGProps<SVGSVGElement>>

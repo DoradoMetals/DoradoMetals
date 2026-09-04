@@ -8,11 +8,10 @@ import { userRoleOptions } from '@/features/users/types'
 
 import { useDrawerStore } from '@/shared/store/drawerStore'
 
-import { DataTable, type DataTableColumn, Amount, Button } from '@dorado/components'
+import { DataTable, type DataTableColumn, Amount, Button, Plus } from '@dorado/components'
 
 import { cn } from '@/shared/utils/cn'
 import { isValidEmail } from '@/shared/utils/isValid'
-import { PlusIcon } from '@phosphor-icons/react'
 import AdminUsersDrawer from '@/features/users/ui/UsersDrawer'
 import { useAdminUsers } from '@dorado/client'
 import { CreateSalesOrderDrawer } from '@/features/orders/salesOrders/admin/createSalesOrder/createSalesOrderDrawer'
@@ -132,7 +131,7 @@ export function UsersPage() {
             aria-label="Create User"
             title="Create User"
           >
-            <PlusIcon size={20} />
+            <Plus size={20} />
           </Button>
         }
       />

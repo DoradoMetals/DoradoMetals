@@ -1,7 +1,6 @@
 'use client'
 
-import { Button, EmptyState } from '@dorado/components'
-import { Minus, Plus, ShoppingCart, Trash2 } from 'lucide-react'
+import { Button, EmptyState, Minus, Plus, ShoppingCart, Trash2 } from '@dorado/components'
 import Image from 'next/image'
 import NumberFlow from '@number-flow/react'
 import { useRouter } from 'next/navigation'

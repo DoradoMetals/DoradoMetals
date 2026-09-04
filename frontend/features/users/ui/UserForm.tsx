@@ -4,10 +4,8 @@ import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Form } from '@/shared/ui/base/form'
-import { Button } from '@dorado/components'
-import { MailCheck, MailWarning, MailX, UserX2 } from 'lucide-react'
+import { Button, MailCheck, MailWarning, MailX, Skeleton, UserX2 } from '@dorado/components'
 import { User, userSchema } from '@/features/users/types'
-import { Skeleton } from '@dorado/components'
 import {
   useUpdateUser,
   useChangeEmail,

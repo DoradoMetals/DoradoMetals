@@ -1,9 +1,8 @@
 'use client'
 
 import SelectMenu from '@/shared/ui/SelectMenu'
-import { Button, Swiper } from '@dorado/components'
+import { Button, ChevronDown, ListIcon, Swiper } from '@dorado/components'
 import { cn } from '@/shared/utils/cn'
-import { CaretDownIcon, ListIcon } from '@phosphor-icons/react'
 
 /* The "no filter" row needs a value because `SelectMenu` is keyed by string,
    and the state it drives is `string | null`. One sentinel, converted at the
@@ -101,7 +100,7 @@ export function OrderStatusSelector({
                 )}
                 <span>{selectedStatus ?? 'All Orders'}</span>
               </span>
-              <CaretDownIcon size={14} className="ml-1" />
+              <ChevronDown size={14} className="ml-1" />
             </Button>
           }
         />

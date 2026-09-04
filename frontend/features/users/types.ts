@@ -1,15 +1,15 @@
 import type { AdminUser } from "@dorado/contracts";
 import {
-  CrownIcon,
-  Icon,
+  Crown as CrownIcon,
+  IconComponent as Icon,
   IconProps,
-  UserCheckIcon,
-  UserIcon,
-  DeviceMobileIcon,
-  DeviceTabletIcon,
-  LaptopIcon,
-  DesktopIcon,
-} from '@phosphor-icons/react'
+  UserCheck as UserCheckIcon,
+  User as UserIcon,
+  Smartphone as DeviceMobileIcon,
+  Tablet as DeviceTabletIcon,
+  Laptop as LaptopIcon,
+  Monitor as DesktopIcon,
+} from '@dorado/components'
 import { z } from 'zod/v4'
 import { UAParser } from 'ua-parser-js'
 

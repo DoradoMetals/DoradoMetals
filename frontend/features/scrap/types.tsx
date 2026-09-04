@@ -1,6 +1,7 @@
 import { z } from 'zod/v4'
 import { ReactNode } from 'react'
-import { ScalesIcon, SketchLogoIcon, BarbellIcon, IconProps, CoinsIcon } from '@phosphor-icons/react'
+import { BarbellIcon, IconProps } from '@phosphor-icons/react'
+import { Coins, Gem, Scale } from '@dorado/components'
 import { GoldIcon, SilverIcon, PlatinumIcon, PalladiumIcon } from '@/features/navigation/ui/Logo'
 
 export const scrapSchema = z.object({
@@ -138,19 +139,19 @@ export function getGrossLabel(gross: number, unit: string) {
 export const weightOptions: WeightOption[] = [
   {
     label: 'Grams',
-    icon: ScalesIcon,
+    icon: Scale,
     unit: 'g',
     id: '1',
   },
   {
     label: 'Troy Oz.',
-    icon: CoinsIcon,
+    icon: Coins,
     unit: 't oz',
     id: '2',
   },
   {
     label: 'DWT',
-    icon: SketchLogoIcon,
+    icon: Gem,
     unit: 'dwt',
     id: '3',
   },

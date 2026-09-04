@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Check, Clock, Ellipsis, TriangleAlert } from "lucide-react";
+import { Check, Clock, Ellipsis, TriangleAlert } from "../icons";
 import { cn } from "../cn";
 
 export type TrackerStepState = "complete" | "current" | "upcoming" | "exception";

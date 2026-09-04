@@ -2,13 +2,11 @@
 
 import type { Address } from "@dorado/contracts";
 import { motion, AnimatePresence } from 'framer-motion'
-import { ChevronDown, Plus } from 'lucide-react'
 import { UserAddress } from '@/features/addresses/types'
 import { cn } from '@/shared/utils/cn'
-import { Button, RadioGroup, RadioOption } from '@dorado/components'
+import { Building2, Button, ChevronDown, House, Plus, RadioGroup, RadioOption } from '@dorado/components'
 import { useEffect, useMemo, useState } from 'react'
 import formatPhoneNumber from '@/shared/utils/formatPhoneNumber'
-import { Building2, House } from 'lucide-react'
 
 type Props = {
   addresses: Address[]

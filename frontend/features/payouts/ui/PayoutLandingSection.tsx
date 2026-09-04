@@ -2,8 +2,7 @@ import { Link } from '@dorado/components'
 import NextLink from 'next/link'
 import { payoutMethodIcon, PayoutMethodType } from '@/features/payouts/types'
 import { usePaymentMethods } from '@dorado/client'
-import { Button } from '@dorado/components'
-import { ArrowUpRightIcon } from '@phosphor-icons/react'
+import { Button, ArrowUpRight } from '@dorado/components'
 import { useRouter } from 'next/navigation'
 
 export function Payout() {
@@ -53,8 +52,8 @@ export function Payout() {
                       brightens it, middle-click works. */}
                   <Link asChild className="arrow inline-flex size-8 items-center justify-center">
                     <NextLink href="/payout-options" aria-label={`${opt.label} payout details`}>
-                    <ArrowUpRightIcon className="hidden md:block" size={20} />
-                    <ArrowUpRightIcon className="md:hidden" size={16} />
+                    <ArrowUpRight className="hidden md:block" size={20} />
+                    <ArrowUpRight className="md:hidden" size={16} />
                   </NextLink>
                   </Link>
                 </div>

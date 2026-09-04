@@ -1,5 +1,5 @@
 'use client'
-import { Scroll } from '@dorado/icons'
+import { Scroll } from '@dorado/components'
 
 import { Button } from '@dorado/components'
 import { useRouter } from 'next/navigation'

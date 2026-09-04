@@ -11,7 +11,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/shared/ui/base/dialog"
-import { MagnifyingGlassIcon } from "@phosphor-icons/react"
+import { Search } from "@dorado/components"
 
 /* The call-site rule is stated in full in base/button.tsx. Short form:
    a call site's className is LAYOUT ONLY. Appearance is this file's job.
@@ -75,7 +75,7 @@ function CommandInput({
       data-slot="command-input-wrapper"
       className="flex h-9 items-center gap-2 px-3"
     >
-      <MagnifyingGlassIcon size={16} className="text-muted-foreground" />
+      <Search size={16} className="text-muted-foreground" />
       <CommandPrimitive.Input
         data-slot="command-input"
         className={cn(

@@ -1,8 +1,7 @@
 'use client'
 
 import type { ReactNode } from 'react'
-import { EmptyState as LibraryEmptyState } from '@dorado/components'
-import type { Icon } from '@phosphor-icons/react'
+import { EmptyState as LibraryEmptyState, type IconComponent as Icon } from '@dorado/components'
 
 export type EmptyStateProps = {
   icon: Icon

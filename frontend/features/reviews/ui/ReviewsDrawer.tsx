@@ -7,10 +7,9 @@ import { useDrawerStore } from '@/shared/store/drawerStore'
 import { FloatingLabelInput } from '@/shared/ui/inputs/FloatingLabelInput'
 import { FloatingLabelTextarea } from '@/shared/ui/inputs/FloatingLabelTextarea'
 import { SegmentedField } from '@/shared/ui/SegmentedField'
-import { EyeIcon, EyeSlashIcon } from '@phosphor-icons/react'
 
 import { formatFullDate } from '@/shared/utils/formatDates'
-import { Badge, Calendar, Drawer, Rating, RatingButton } from '@dorado/components'
+import { Badge, Calendar, Drawer, Rating, RatingButton, Eye, EyeOff } from '@dorado/components'
 import { useUpdateReview } from '@/features/reviews/queries'
 
 // <time dateTime> must be machine-readable; the wire hands these back as
@@ -53,7 +52,7 @@ function Header({ review }: { review: Review }) {
       <div className="flex items-end justify-between w-full">
         <h2>{review.name || 'Unnamed Reviewer'}</h2>
         <Badge intent={review.hidden ? 'danger' : 'success'} size="lg">
-          {review.hidden ? <EyeSlashIcon size={16} /> : <EyeIcon size={16} />}
+          {review.hidden ? <EyeOff size={16} /> : <Eye size={16} />}
           {review.hidden ? 'Hidden' : 'Public'}
         </Badge>
       </div>

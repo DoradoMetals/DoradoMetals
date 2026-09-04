@@ -1,17 +1,9 @@
 'use client'
 
-import { Button, Drawer } from '@dorado/components'
-import { UserRoundX } from 'lucide-react'
+import { Banknote, Button, ChevronLeft, CircleUser, ContactRound, Drawer, Lock, UserRoundX } from '@dorado/components'
 import { useRouter } from 'next/navigation'
 import { useMemo } from 'react'
-import {
-  CaretLeftIcon,
-  UserCircleIcon,
-  LockIcon,
-  MoneyIcon,
-  CashRegisterIcon,
-  AddressBookIcon,
-} from '@phosphor-icons/react'
+import { CashRegisterIcon } from '@phosphor-icons/react'
 import {
   SidebarLayout,
   SidebarSection,
@@ -76,9 +68,9 @@ function AccountShell() {
       {
         label: 'Profile',
         items: [
-          { key: 'details', label: 'Account Details', icon: UserCircleIcon },
-          { key: 'security', label: 'Security', icon: LockIcon },
-          { key: 'addresses', label: 'Addresses', icon: AddressBookIcon },
+          { key: 'details', label: 'Account Details', icon: CircleUser },
+          { key: 'security', label: 'Security', icon: Lock },
+          { key: 'addresses', label: 'Addresses', icon: ContactRound },
         ],
       },
       {
@@ -87,7 +79,7 @@ function AccountShell() {
           {
             key: 'sold',
             label: 'Sold',
-            icon: MoneyIcon,
+            icon: Banknote,
             badge: purchaseOrders.length,
           },
           {
@@ -145,7 +137,7 @@ function AccountShell() {
             onClick={() => openDrawer('accountSidebar')}
             className="flex items-center gap-2"
           >
-            <CaretLeftIcon size={24} />
+            <ChevronLeft size={24} />
             <span>{currentLabel}</span>
           </Button>
         </div>

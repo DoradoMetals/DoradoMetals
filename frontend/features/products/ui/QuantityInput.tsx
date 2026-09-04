@@ -1,5 +1,4 @@
-import { Button, Field, Input } from '@dorado/components'
-import { MinusIcon, PlusIcon } from '@phosphor-icons/react'
+import { Button, Field, Input, Minus, Plus } from '@dorado/components'
 import { useEffect, useState } from 'react'
 
 /* EIGHT className PROPS, ONE CALL SITE, AND IT PASSED NONE OF THEM.
@@ -59,7 +58,7 @@ export default function QuantityBar({
           disabled={!canDec}
           aria-label="Decrease quantity"
         >
-          <MinusIcon size={16} />
+          <Minus size={16} />
         </Button>
 
         <Input
@@ -96,7 +95,7 @@ export default function QuantityBar({
           onClick={inc}
           aria-label="Increase quantity"
         >
-          <PlusIcon size={16} />
+          <Plus size={16} />
         </Button>
       </div>
     </Field>
