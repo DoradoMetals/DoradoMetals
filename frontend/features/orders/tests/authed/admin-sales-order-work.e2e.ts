@@ -46,9 +46,12 @@ test.beforeAll(async ({ playwright }) => {
   const customerId = (await sessionRes.json())?.user?.id;
   expect(customerId, "the session names no user").toBeTruthy();
 
-  const products = await customer.get(`${API}/products/get_products`);
+  // GET /products answers GROUPS now - a family and its variants.
+  const products = await customer.get(`${API}/products`);
   expect(products.ok(), `products failed: ${products.status()}`).toBeTruthy();
-  const product = (await products.json()).find((p: { id?: string }) => p?.id);
+  const product = (await products.json())
+    .map((g: { default?: { id?: string } }) => g?.default)
+    .find((p: { id?: string } | undefined) => p?.id);
   expect(product?.id, "no product to put on the order").toBeTruthy();
 
   // The admin-flavoured intent for THIS customer. The endpoint creates one if

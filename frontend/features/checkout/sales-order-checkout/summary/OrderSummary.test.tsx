@@ -16,6 +16,20 @@ import userEvent from "@testing-library/user-event";
 import React from "react";
 
 vi.mock("@/shared/queries/axios", () => ({ apiRequest: vi.fn() }));
+// The catalogue and the spot feed moved into @dorado/client, which talks to
+// the platform's `fetch` rather than the axios wrapper this file stubs - so
+// both hooks are mocked with the rows the stub used to answer with. The
+// catalogue answers GROUPS now; the flair read flattens them.
+vi.mock("@dorado/client", async (importOriginal) => ({
+  ...(await importOriginal<Record<string, unknown>>()),
+  useProducts: () => ({ data: [{ default: eagle(), variants: [] }], isSuccess: true }),
+  useSpotPrices: () => ({
+    data: [
+      { id: "m-au", name: "Gold", ask: 3000, bid: 2900, dollar_change: 1, percent_change: 0.1, direction: "up" },
+    ],
+    isSuccess: true,
+  }),
+}));
 vi.mock("@/features/auth/queries", () => ({
   useGetSession: () => ({ user: { id: "u-1", role: "user", name: "Cust" } }),
 }));
@@ -58,6 +72,8 @@ const eagle = (): Product =>
     image_back: "https://img/back.png",
     mint_name: "US Mint",
     metal_type: "Gold",
+  metal_id: "00000000-0000-4000-8000-000000000010",
+  mint_id: "00000000-0000-4000-8000-000000000011",
     variant_group: "",
     shadow_offset: 0,
     slug: "gold-american-eagle",
@@ -95,7 +111,6 @@ beforeEach(() => {
   vi.mocked(apiRequest).mockImplementation(async (_method, url) => {
     const u = String(url);
     if (u.startsWith("/quotes/sales_order")) return prices() as never;
-    if (u.startsWith("/products/get_all_products")) return [eagle()] as never;
     return [
       { id: "m-au", name: "Gold", ask: 3000, bid: 2900, dollar_change: 1, percent_change: 0.1 },
     ] as never;

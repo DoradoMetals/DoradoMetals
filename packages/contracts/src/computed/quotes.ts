@@ -30,7 +30,7 @@ export const CatalogQuoteLine = z.object({
 });
 export type CatalogQuoteLine = z.infer<typeof CatalogQuoteLine>;
 
-// POST /quotes/catalog. Public, like /spots/spot_prices: the catalogue quotes
+// POST /quotes/catalog. Public, like GET /spots: the catalogue quotes
 // to anyone who visits. `side` echoes the request so a response cached or
 // logged out of context still says which price it is.
 export const CatalogQuote = z.object({
@@ -228,7 +228,7 @@ export const QuoteItem = z.object({
 }).strict();
 export type QuoteItem = z.infer<typeof QuoteItem>;
 
-// POST /quotes/catalog. Public, like /spots/spot_prices.
+// POST /quotes/catalog. Public, like GET /spots.
 export const CatalogQuoteBody = z.object({
   side: z.enum(["ask", "bid"]),
   items: z.array(QuoteItem).min(1),

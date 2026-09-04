@@ -56,7 +56,7 @@ test("spot prices answer a signed-out visitor and take nothing from the request"
   await inPinnedTransaction(async () => {
     await anonymous(async () => {
       const res = await request(app)
-        .get("/api/spots/spot_prices")
+        .get("/api/spots")
         // A user id it must ignore, because it never reads one. If this ever
         // starts mattering, the public-endpoint check in
         // shared/http/endpoints.test.js fails first.
@@ -109,7 +109,7 @@ test("public reviews are filtered, and the admin ones are refused", async () => 
 test("the public rate bands omit what the admin ones return", async () => {
   await inPinnedTransaction(async () => {
     await anonymous(async () => {
-      const res = await request(app).get("/api/rates/get_all");
+      const res = await request(app).get("/api/rates");
       assert.equal(res.status, 200);
       assert.ok(Array.isArray(res.body) && res.body.length > 0);
 

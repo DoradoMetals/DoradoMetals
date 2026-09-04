@@ -24,7 +24,7 @@ export type Rate = z.infer<typeof Rate>;
 // generated:end
 import { Metal } from "../metals/metals.js";
 
-// GET /rates/get_all. The query joins metals and returns the metal's NAME in
+// GET /rates. The query joins metals and returns the metal's NAME in
 // place of its id, and drops the audit columns.
 export const RateRead = Rate.omit({
   metal_id: true,
@@ -37,7 +37,7 @@ export const RateRead = Rate.omit({
 }).extend({ metal: Metal.shape.name });
 export type RateRead = z.infer<typeof RateRead>;
 
-// GET /rates/get_admin, and what create/update answer with - THE SECOND SHAPE
+// GET /rates/admin, and what create/update answer with - THE SECOND SHAPE
 // THIS ENDPOINT HAS ALWAYS SERVED. The frontend used to cover the gap with one
 // hand-written type carrying the union of both, metal_id and unit optional, so
 // the admin card read metal_id off a value whose type said it might not be
@@ -51,7 +51,7 @@ export const AdminRate = RateRead.extend({
 });
 export type AdminRate = z.infer<typeof AdminRate>;
 
-// POST /rates/create and /rates/update - the six writable columns and nothing
+// POST /rates and PATCH /rates/:id - the six writable columns and nothing
 // else, all optional (a create sends the same patch). created_by/updated_by
 // are NOT fields here: public.audit_stamp writes both from the connection's
 // actor. The METAL travels as `metal_id` here and as `metal` on the way

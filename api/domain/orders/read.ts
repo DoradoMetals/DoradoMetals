@@ -94,7 +94,7 @@ export async function view(
   const items = await itemsRepo.getFor(order_id, executor);
   const bullionIds = items.flatMap((i) => (i.bullion_id === null ? [] : [i.bullion_id]));
   const catalogue = new Map(
-    (await productsRepo.getByIds(bullionIds, executor)).map((p) => [p.id, p])
+    (await productsRepo.listFor({ ids: bullionIds }, executor)).map((p) => [p.id, p])
   );
 
   const addressLink = await orderAddresses.getFor(order_id, executor);

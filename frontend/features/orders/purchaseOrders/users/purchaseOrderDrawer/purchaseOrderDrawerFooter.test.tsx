@@ -13,6 +13,16 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import React from "react";
 
 vi.mock("@/shared/queries/axios", () => ({ apiRequest: vi.fn() }));
+// The catalogue and the spot feed moved into @dorado/client (see
+// OrderSummary.test.tsx) - mocked with the same rows the URL branch answered.
+vi.mock("@dorado/client", async (importOriginal) => ({
+  ...(await importOriginal<Record<string, unknown>>()),
+  useProducts: () => ({
+    data: catalogue().map((p) => ({ default: p, variants: [] })),
+    isSuccess: true,
+  }),
+  useSpotPrices: () => ({ data: spots(), isSuccess: true }),
+}));
 vi.mock("@/features/auth/queries", () => ({
   useGetSession: () => ({ user: { id: "u-1", role: "user", name: "Cust" } }),
 }));
@@ -88,8 +98,6 @@ beforeEach(() => {
   vi.mocked(apiRequest).mockImplementation(async (_m, url) => {
     const u = String(url);
     if (u === "/quotes/order") return quote() as never;
-    if (u.startsWith("/spots")) return spots() as never;
-    if (u.startsWith("/products")) return catalogue() as never;
     if (u.startsWith("/carrier_services")) return [{ id: "cs-1", name: "Ground", carrier_id: "c-1" }] as never;
     return [] as never;
   });

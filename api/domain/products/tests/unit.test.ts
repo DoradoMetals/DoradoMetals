@@ -1,22 +1,22 @@
-// The parts of products that need no database: the write statements as text, and the in-memory join that replaced three SQL ones.
-// Projections have their own file (tests/constants.test.ts) since they're also compared against the exchange field lists checkout still uses.
+// The parts of products that need no database: the statements as text, the
+// UPDATE the shared patch builder produces, and the grouping that moved out of
+// the browser.
 import { test } from "vitest";
 import assert from "node:assert/strict";
 import path from "node:path";
 import { sqlFrom } from "#shared/db/sql.ts";
 import { buildUpdate } from "#shared/db/patch.ts";
 import { PATCHABLE } from "#db/products/repo.ts";
-import { storefront, admin } from "#domain/products/compose.ts";
-import type { Labels } from "#domain/products/compose.ts";
+import { group } from "#domain/products/rules.ts";
+import { BullionPatch, type BullionStorefront } from "@dorado/contracts";
 
-// features/products/sql - the statements as text.
 const sql = sqlFrom(path.join(import.meta.dirname, "..", "..", "..", "db", "products"));
 
 const body = (name: string): string =>
   sql(name).split("\n").filter((l) => !l.trim().startsWith("--")).join("\n");
 
-// The SET assignments, ordered by parameter number — sql/update.sql is gone; the one UPDATE is built by shared/db/patch.ts from repo.ts's column list, so the same claims are asserted against the builder's output instead.
-// The WHERE binds `id` and matches the same pattern as an assignment, so only the SET list is scanned.
+const STATEMENTS = ["list", "get_admin", "get_liveness", "get_types", "create"];
+
 const builtUpdate = (patch: Record<string, unknown>) =>
   buildUpdate({
     table: "products.bullion", allowed: PATCHABLE, patch, where: { id: "x" },
@@ -26,40 +26,24 @@ const updateColumns = (patch: Record<string, unknown>): string[] =>
   [...builtUpdate(patch).text.split(" WHERE")[0].matchAll(/(\w+) = \$\d+/g)]
     .map(([, col]) => col);
 
-// What the admin form sends back: every patchable column, present.
 const fullPatch: Record<string, unknown> =
   Object.fromEntries(PATCHABLE.map((c) => [c as string, null]));
 
 test("every statement loads and is not empty", () => {
-  for (const n of [
-    "get_storefront", "get_sell", "get_homepage", "get_by_slug", "get_by_ids",
-    "get_filtered", "get_admin_all", "get_admin_one", "get_liveness",
-    "get_types", "create",
-  ]) {
-    assert.ok(sql(n).trim().length > 0, `${n} is empty`);
-  }
+  for (const n of STATEMENTS) assert.ok(sql(n).trim().length > 0, `${n} is empty`);
 });
 
-// The three renames exchange used to carry (product_name and friends); the table's own spellings are what the statement must keep writing.
-const RENAMES: Record<string, string> = {
-  name: "product_name",
-  description: "product_description",
-  type: "product_type",
-};
-
-test("the UPDATE assigns the 25 values ProductPatch carries, in order", () => {
-  const next = updateColumns(fullPatch);
-  // 27 before migration 116 (updated_by moved to the audit_stamp trigger,
-  // leaving 26); 25 since migration 119 dropped sell_display (ruling 49).
-  assert.equal(next.length, 25, "the update column count changed - ProductPatch has 25 entries");
-  assert.deepEqual(next, PATCHABLE.map(String), "the SET list no longer follows repo.ts's PATCHABLE");
-  // The three renamed columns write under the table's own names.
-  for (const newName of Object.keys(RENAMES)) {
-    assert.ok(next.includes(newName), `the built UPDATE no longer writes ${newName}`);
-  }
+// RULING 64: the writable set is the contract's, never a second list here.
+test("the patchable columns are BullionPatch minus its id", () => {
+  const declared = Object.keys(BullionPatch.shape).filter((k) => k !== "id");
+  assert.deepEqual([...PATCHABLE].sort(), declared.sort());
+  assert.ok(!(PATCHABLE as string[]).includes("id"),
+    "id is the UPDATE's WHERE key, not a value it writes");
+  assert.deepEqual(updateColumns(fullPatch), PATCHABLE.map(String));
 });
 
-// updated_at used to be asserted present here, now asserted ABSENT: the trigger keeps it fresh now, and a second writer would be a fight over one column.
+// updated_at is asserted ABSENT: the trigger keeps it fresh, and a second
+// writer would be a fight over one column.
 test("the update writes no audit column at all", () => {
   const sets = builtUpdate(fullPatch).text.split(" WHERE")[0];
   for (const col of ["updated_at", "updated_by", "updated_by_id", "created_at", "created_by"]) {
@@ -71,7 +55,9 @@ test("the update writes no audit column at all", () => {
   );
 });
 
-// The reference columns are IDS in the statement — resolving NAMES via scalar subqueries let an unmatched name become NULL and fail on a NOT NULL column without saying which was wrong.
+// The reference columns are IDS in the statement - resolving NAMES through
+// scalar subqueries let an unmatched name become NULL and fail on a NOT NULL
+// column without saying which was wrong.
 test("the update takes ids, not names resolved by a subquery", () => {
   const text = builtUpdate(fullPatch).text;
   for (const table of ["metals.metals", "products.mints", "refiners."]) {
@@ -80,11 +66,9 @@ test("the update takes ids, not names resolved by a subquery", () => {
   assert.doesNotMatch(text, /SELECT/i, "the built UPDATE contains a subquery");
 });
 
-// The seven columns exchange defaults and products.bullion does not — if create ever stops naming one, the insert raises 23502.
 test("create names every column bullion declares NOT NULL without a default", () => {
   for (const col of [
-    "metal_id", "mint_id", "supplier_id", "image_front", "image_back",
-    "stock", "quantity",
+    "metal_id", "mint_id", "supplier_id", "image_front", "image_back", "stock", "quantity",
   ]) {
     assert.match(body("create"), new RegExp(`\\b${col}\\b`),
       `sql/create.sql does not supply ${col}, which products.bullion requires`);
@@ -92,59 +76,69 @@ test("create names every column bullion declares NOT NULL without a default", ()
 });
 
 test("no statement reaches into exchange", () => {
-  for (const n of ["get_storefront", "get_sell", "get_homepage", "get_by_slug",
-                   "get_by_ids", "get_filtered", "get_admin_all", "get_admin_one",
-                   "get_liveness", "get_types", "create"]) {
+  for (const n of STATEMENTS) {
     assert.doesNotMatch(body(n), /exchange\./, `${n} reaches into exchange`);
   }
   assert.doesNotMatch(builtUpdate(fullPatch).text, /exchange\./);
 });
 
-// One join, not three — a statement that grew one back would work while quietly reintroducing the per-query cost the composition removed.
-test("no read joins a reference table", () => {
-  for (const n of ["get_storefront", "get_admin_all"]) {
-    assert.doesNotMatch(body(n), /\bJOIN\b/i, `${n} joins - the labels come from compose.ts`);
+// The public statement must not project an admin fact. `display` is the one
+// that matters: it is the buy gate, and it has its own read.
+test("the public statement projects no admin column", () => {
+  const projection = body("list").split("FROM")[0];
+  for (const col of [
+    "display", "stock", "quantity", "filter_category", "created_by", "updated_by",
+    "created_at", "updated_at", "supplier_id",
+  ]) {
+    assert.doesNotMatch(projection, new RegExp(`\\b${col}\\b`),
+      `sql/list.sql projects ${col}, which anyone on the internet would then read`);
   }
 });
 
-// ---------------------------------------------------------------- compose.ts
-
-const labels: Labels = {
-  metalNames: new Map([["m1", "Gold"]]),
-  mintNames: new Map([["mi1", "US Mint"]]),
-  refinerNames: new Map([["r1", "Elemetal"]]),
-};
-
-const publicRow = (over = {}) =>
-  ({ id: "p1", name: "a product", metal_id: "m1", mint_id: "mi1", ...over }) as never;
-const adminRow = (over = {}) =>
-  ({ id: "p1", name: "a product", metal_id: "m1", mint_id: "mi1", supplier_id: "r1", ...over }) as never;
-
-test("the storefront composition attaches two labels and drops both ids", () => {
-  const [row] = storefront([publicRow()], labels);
-  assert.equal(row.metal_type, "Gold");
-  assert.equal(row.mint_name, "US Mint");
-  assert.ok(!("metal_id" in row));
-  assert.ok(!("mint_id" in row));
+// The public read must stay gate-able rather than gated: the sell side has no
+// gate at all (ruling 49), so `display` is a filter the caller passes.
+test("the public statement carries no WHERE of its own", () => {
+  assert.match(body("list"), /WHERE __PREDICATE__/);
+  assert.match(body("get_admin"), /WHERE __PREDICATE__/);
 });
 
-test("the admin composition attaches three labels and drops all three ids", () => {
-  const [row] = admin([adminRow()], labels);
-  assert.equal(row.metal, "Gold");
-  assert.equal(row.mint, "US Mint");
-  assert.equal(row.supplier, "Elemetal");
-  for (const id of ["metal_id", "mint_id", "supplier_id"]) {
-    assert.ok(!(id in row), `${id} survived composition`);
-  }
+// -------------------------------------------------------------- the grouping
+
+const aRow = (over: Partial<BullionStorefront>): BullionStorefront =>
+  ({ id: "p", name: "n", variant_group: "", content: 1, ...over }) as BullionStorefront;
+
+test("a product with no family is its own group and carries no variants", () => {
+  const groups = group([aRow({ id: "a" }), aRow({ id: "b" })]);
+  assert.equal(groups.length, 2);
+  assert.deepEqual(groups.map((g) => g.default.id), ["a", "b"]);
+  for (const g of groups) assert.deepEqual(g.variants, []);
 });
 
-// The joins were inner: a product with a gone metal/mint/supplier is dropped, not composed with a nameless entry.
-test("a product with an unknown reference is dropped, not composed with nothing", () => {
-  assert.deepEqual(storefront([publicRow({ metal_id: "gone" })], labels), []);
-  assert.deepEqual(storefront([publicRow({ mint_id: "gone" })], labels), []);
-  assert.deepEqual(admin([adminRow({ supplier_id: "gone" })], labels), []);
-  // And the control: with all three present it is kept, so the three above are
-  // not passing because composition never keeps anything.
-  assert.equal(storefront([publicRow()], labels).length, 1);
-  assert.equal(admin([adminRow()], labels).length, 1);
+test("a family's headline row is its heaviest, and the siblings follow it", () => {
+  const [g] = group([
+    aRow({ id: "half", variant_group: "eagle", content: 0.5 }),
+    aRow({ id: "tenth", variant_group: "eagle", content: 0.1 }),
+    aRow({ id: "whole", variant_group: "eagle", content: 1 }),
+  ]);
+  assert.equal(g.default.id, "whole");
+  assert.deepEqual(g.variants.map((v) => v.id), ["whole", "half", "tenth"]);
+});
+
+test("a family of one carries no variants either", () => {
+  const [g] = group([aRow({ id: "lonely", variant_group: "eagle" })]);
+  assert.equal(g.default.id, "lonely");
+  assert.deepEqual(g.variants, []);
+});
+
+// The group order is the order the rows arrived in, which is the sort the
+// caller asked the database for - not families-after-singles, which is what
+// the browser's version did and what silently overrode every sort.
+test("group order follows row order", () => {
+  const groups = group([
+    aRow({ id: "single-1" }),
+    aRow({ id: "fam-a", variant_group: "f", content: 1 }),
+    aRow({ id: "single-2" }),
+    aRow({ id: "fam-b", variant_group: "f", content: 2 }),
+  ]);
+  assert.deepEqual(groups.map((g) => g.default.id), ["single-1", "fam-b", "single-2"]);
 });

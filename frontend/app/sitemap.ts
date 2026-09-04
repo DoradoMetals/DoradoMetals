@@ -1,7 +1,7 @@
 import type { MetadataRoute } from 'next'
 import { protectedRoutes } from '@/features/routes/types'
-import { apiRequest } from '@/shared/queries/axios'
-import { Product } from '@/features/products/types'
+import { fetchProducts } from '@dorado/client'
+import type { BullionGroup } from '@dorado/contracts'
 
 export const revalidate = 21600
 
@@ -39,9 +39,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ),
   ]
 
-  let products: Product[] = []
+  // Runs on the server at request time, outside react-query, so it calls the
+  // client package's plain fetcher rather than a hook. GROUPS, not rows: one
+  // slug per family is exactly one sitemap entry, which is what the dedupe
+  // below used to do after the fact.
+  let groups: BullionGroup[] = []
   try {
-    products = await apiRequest<Product[]>('GET', '/products/get_all_products', {})
+    groups = await fetchProducts()
   } catch (e) {
     console.error('sitemap products fetch failed:', e)
   }
@@ -49,7 +53,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const toAbs = (src?: string) =>
     src ? (src.startsWith('http') ? src : new URL(src, base).toString()) : undefined
 
-  const productEntries: MetadataRoute.Sitemap = products
+  const productEntries: MetadataRoute.Sitemap = groups
+    .map((g) => g.default)
     .filter((p) => p.slug)
     .map(
       (p) =>

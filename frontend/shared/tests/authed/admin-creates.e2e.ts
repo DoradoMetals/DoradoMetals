@@ -7,7 +7,7 @@ import { test, expect, type Page } from "@playwright/test";
 // TWO TIERS, BY WHETHER A DELETE EXISTS:
 //   - Leads and carriers have real DELETE endpoints, so they get the full
 //     create -> appears -> cleaned cycle, e2e- prefixed with an API afterEach.
-//   - Products and users have NO delete path (create_product/save_product
+//   - Products and users have NO delete path (POST/PATCH /products
 //     only; users are auth accounts), so a submitted create would accumulate
 //     forever in dev AND in the catalogue the customer pages read. Those two
 //     get the dialog-opens-with-its-fields assertion and nothing more, and

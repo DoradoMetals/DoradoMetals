@@ -20,7 +20,7 @@ test("update returns true for a real id, and the row actually changed", async ()
     const [metal] = await metals.list(client);
     assert.ok(metal, "dev has no metal to band a rate against");
 
-    const created = await rates.create(
+    const id = await rates.create(
       {
         metal_id: metal.id, unit: "oz", min_qty: 0, max_qty: null,
         scrap_pct: 0.9, bullion_pct: 0.95,
@@ -28,10 +28,10 @@ test("update returns true for a real id, and the row actually changed", async ()
       client
     );
 
-    const changed = await rates.update(created.id, { scrap_pct: 0.5 }, client);
+    const changed = await rates.update(id, { scrap_pct: 0.5 }, client);
     assert.equal(changed, true, "an update against a real id reported no change");
 
-    const row = await rates.getOne(created.id, client);
+    const row = await rates.getOne(id, client);
     assert.equal(Number(row?.scrap_pct), 0.5);
   }, { actor: TEST_ACTOR.id });
 });

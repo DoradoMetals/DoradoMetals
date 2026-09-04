@@ -33,12 +33,16 @@ afterAll(async () => {
 test("the catalogue answers a signed-out visitor in the schema's own shape", async () => {
   await inPinnedTransaction(async () => {
     await anonymous(async () => {
-      const res = await request(app).get("/api/products/get_all_products");
+      const res = await request(app).get("/api/products");
       assert.equal(res.status, 200);
       assert.ok(Array.isArray(res.body) && res.body.length > 0);
 
-      // Products is CONVERTED: the frontend reads `name` now, and the legacy spelling reaching it would render blank cards — the e2e catalogue spec's price-count floor is the browser-level canary for that.
-      const p = res.body[0];
+      // GROUPS, not rows: the family and its variants are the server's answer
+      // now (the browser grouped by variant_group on four screens).
+      const group = res.body[0];
+      assert.ok("default" in group && Array.isArray(group.variants),
+        "the catalogue answered rows, not groups");
+      const p = group.default;
       assert.ok("name" in p, "the legacy spelling came back - the frontend reads name now");
       assert.ok(!("product_name" in p), "both spellings came back at once");
       assert.ok(p.name, "a product came back with no name");
@@ -49,14 +53,14 @@ test("the catalogue answers a signed-out visitor in the schema's own shape", asy
 test("a slug names a product, not a person", async () => {
   await inPinnedTransaction(async () => {
     const [{ slug }] = await outside(
-      `SELECT slug FROM products.bullion WHERE slug IS NOT NULL ORDER BY id ASC LIMIT 1`
+      `SELECT slug FROM products.bullion
+        WHERE slug IS NOT NULL AND display = true ORDER BY id ASC LIMIT 1`
     );
     await anonymous(async () => {
-      const res = await request(app).get("/api/products/get_product_from_slug").query({ slug });
+      const res = await request(app).get(`/api/products/${slug}`);
       assert.equal(res.status, 200);
-      const rows = Array.isArray(res.body) ? res.body : [res.body];
-      assert.ok(rows.length > 0 && rows[0], "a real slug returned nothing");
-      assert.ok("name" in rows[0]);
+      assert.ok(res.body?.default, "a real slug returned nothing");
+      assert.ok("name" in res.body.default);
     });
   }, { actor: TEST_ACTOR.id });
 });
@@ -65,16 +69,16 @@ test("the admin catalogue and the admin writes are refused to a customer", async
   await inPinnedTransaction(async () => {
     await as(customer, async () => {
       const calls = [
-        ["get", "/api/products/get_admin_products", {}],
-        ["get", "/api/products/get_metals", {}],
-        ["get", "/api/products/get_mints", {}],
-        ["get", "/api/products/get_product_types", {}],
-        ["post", "/api/products/save_product", { product: {}, user: {} }],
-        ["post", "/api/products/create_product", { name: "replay", created_by: "x" }],
+        ["get", "/api/products/admin", {}],
+        ["get", "/api/metals", {}],
+        ["get", "/api/mints", {}],
+        ["get", "/api/products/types", {}],
+        ["patch", "/api/products/12345678-1234-4234-8234-123456789abc", { name: "replay" }],
+        ["post", "/api/products", { name: "replay", created_by: "x" }],
       ];
       // Declared as a tuple list — inferred, the array's element type collapses to a union, and `request(app)[verb]` then indexes SuperTest with something that isn't one of its methods.
       for (const [verb, path, body] of calls as Array<
-        ["get" | "post", string, Record<string, unknown>]
+        ["get" | "post" | "patch", string, Record<string, unknown>]
       >) {
         const res = await request(app)[verb](path).send(body);
         assert.equal(res.status, 403, `${path} answered ${res.status} to a customer`);
@@ -90,9 +94,7 @@ test("creating a product round-trips in the schema's own names", async () => {
       const name = `replay-product-${Date.now()}`;
       // created_by is not a field of this body: public.audit_stamp writes it
       // from the connection's actor.
-      const res = await request(app)
-        .post("/api/products/create_product")
-        .send({ name });
+      const res = await request(app).post("/api/products").send({ name });
 
       // 201, not 200 — checked against the route rather than assumed, after asserting the wrong one here first.
       assert.equal(res.status, 201, JSON.stringify(res.body));

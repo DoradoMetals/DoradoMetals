@@ -1,49 +1,31 @@
-// spots.spots, and nothing else - one row per metal, seeded by migration.
+// spots.spots, and nothing else - one row per metal, written by the feed cron.
 import query from "#shared/db/query.ts";
 import { buildUpdate } from "#shared/db/patch.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
 import type { Executor } from "#shared/db/executor.ts";
-import type { Spot } from "@dorado/contracts";
+import { SpotPatch, type SpotPrice } from "@dorado/contracts";
 
 const sql = sqlFrom(import.meta.dirname);
 
-// Derived from the table, not restated. Two deliberate differences: `id` is not projected (a spot is identified by its metal), and `updated_at` is a Date, not the wire's string - this is what node-postgres hands back before serialisation.
-export type SpotRow = Omit<Spot, "id" | "updated_at"> & {
-  updated_at: Date;
-};
+export const PATCHABLE = Object.keys(SpotPatch.shape) as (keyof SpotPatch)[];
 
-export type Quote = {
-  ask?: number | null; bid?: number | null;
-  dollarChange?: number | null; percentChange?: number | null;
-};
-
-export async function list(executor?: Executor): Promise<SpotRow[]> {
-  const { rows } = await query<SpotRow>(sql("get_all"), [], executor);
+export async function list(executor?: Executor): Promise<SpotPrice[]> {
+  const { rows } = await query<SpotPrice>(sql("get_all"), [], executor);
   return rows;
 }
 
-export type NewSpot = {
-  metal_id: string;
-  ask: number | null;
-  bid: number | null;
-  dollar_change: number | null;
-  percent_change: number | null;
-};
-
-export async function create(row: NewSpot, executor?: Executor): Promise<SpotRow> {
-  const { rows } = await query<SpotRow>(
+export async function create(
+  metal_id: string, patch: SpotPatch, executor?: Executor
+): Promise<void> {
+  await query(
     sql("create"),
-    [row.metal_id, row.ask, row.bid, row.dollar_change, row.percent_change],
+    [metal_id, patch.ask, patch.bid, patch.dollar_change, patch.percent_change],
     executor
   );
-  return rows[0];
 }
 
-export const PATCHABLE = ["ask", "bid", "dollar_change", "percent_change"] as const;
-export type SpotQuotePatch = Partial<Record<(typeof PATCHABLE)[number], number | null>>;
-
 export async function update(
-  metal_id: string, patch: SpotQuotePatch, executor?: Executor
+  metal_id: string, patch: SpotPatch, executor?: Executor
 ): Promise<boolean> {
   const built = buildUpdate({
     table: "spots.spots", allowed: PATCHABLE, patch, where: { metal_id },

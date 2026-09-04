@@ -48,13 +48,18 @@ const ACCEPTED: Record<string, string> = {
 // `payments`, `payouts`, `stripe` and `users` - the payments lane moved their
 // hooks into packages/client and deleted the originals, and `payouts` came
 // OFF this list rather than being edited around.
+//
+// `frontend/features/products` and `frontend/app/sitemap.ts` came off the same
+// way (products lane): every catalogue, spot and rate hook is in
+// packages/client, `features/spots/queries.ts` and `features/rates/queries.ts`
+// are re-exports of it, `features/products/queries.ts` is two hooks built ON
+// those, and the sitemap calls the package's plain `fetchProducts` rather than
+// reaching for the axios wrapper on the server.
 const PENDING: Record<string, string> = {
-  "frontend/app/sitemap.ts": "the sitemap builds at request time on the server, outside react-query entirely.",
   "frontend/features/auth": "the auth surface - better-auth's own client plus two /users calls; not this lane's.",
   "frontend/features/media": "the media surface - not this lane's.",
   "frontend/features/orders": "the orders surface - the parallel orders lane owns it.",
   "frontend/features/pdfs": "the document surface - not this lane's.",
-  "frontend/features/products": "the catalogue surface - not this lane's.",
   "frontend/features/quotes": "the remaining quote hooks (order + profit) - not this lane's; the two checkout quotes moved.",
   "frontend/features/refiners": "the refiner surface - not this lane's.",
   "frontend/shared/queries": "the legacy transport and its useApiQuery/useApiMutation wrappers, kept while the surfaces above still import them.",

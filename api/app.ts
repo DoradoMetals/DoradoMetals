@@ -5,6 +5,8 @@ import express from "express";
 import cors from "cors";
 
 import productRoutes from "#transport/products/routes.ts";
+import mintRoutes from "#transport/mints/routes.ts";
+import metalRoutes from "#transport/metals/routes.ts";
 import addressRoutes from "#transport/places/addresses/routes.ts";
 import { purchaseOrderRoutes, salesOrderRoutes } from "#transport/orders/creates.routes.ts";
 import checkoutRowRoutes from "#transport/checkout/checkout.routes.ts";
@@ -76,6 +78,8 @@ app.use((req, _res, next) => {
 app.use("/api/stripe", paymentRoutes);
 app.use("/api/payments/methods", paymentMethodRoutes);
 app.use("/api/products", productRoutes);
+app.use("/api/mints", mintRoutes);
+app.use("/api/metals", metalRoutes);
 app.use("/api/addresses", addressRoutes);
 // /api/cart is GONE (ruling 50): the basket is /api/checkout/items.
 app.use("/api/checkout", checkoutRowRoutes);

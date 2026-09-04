@@ -7,7 +7,7 @@ import { CaretUpIcon, CaretDownIcon } from '@phosphor-icons/react'
 import { NumberFlowGroup } from '@number-flow/react'
 import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
 import { cn } from '@/shared/utils/cn'
-import { useSpotPrices } from '@/features/spots/queries'
+import { useSpotPrices } from '@dorado/client'
 
 export default function MobileSpotTicker({ type }: { type: 'Bid' | 'Ask' }) {
   const { data: spots } = useSpotPrices()
@@ -38,9 +38,14 @@ export default function MobileSpotTicker({ type }: { type: 'Bid' | 'Ask' }) {
         style={{ x }}
       >
         {[...spots, ...spots, ...spots].map((spot, i) => {
-          const trendUp = (spot.dollar_change ?? 0) >= 0
-          const CaretIcon = trendUp ? CaretUpIcon : CaretDownIcon
-          const colorClass = trendUp ? 'text-success' : 'text-destructive'
+          // The server says which way it moved (see Spots.tsx).
+          const CaretIcon = spot.direction === 'down' ? CaretDownIcon : CaretUpIcon
+          const colorClass =
+            spot.direction === 'flat'
+              ? 'text-primary-foreground'
+              : spot.direction === 'up'
+                ? 'text-success'
+                : 'text-destructive'
 
           // Rides inside the --brand ticker bar (see Spots.tsx), so it carries
           // the on-brand foreground and its leaves stay bare spans rather than

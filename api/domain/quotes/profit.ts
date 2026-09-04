@@ -314,7 +314,7 @@ export async function profitBreakdown({ order_id }: OrderQuoteBody): Promise<Pro
   // note.
   const frozenSpots = await orderSpotsService.rowsFor(order_id);
   const refinerNamed = await refinerSpotsService.namedFor(order_id);
-  const rates = await ratesService.getAllRates();
+  const rates = await ratesService.listRates();
   const metals = await metalsRepo.namesById();
   const assayRows = await refinerItemsRepo.getForOrder(order_id);
   const spots_at = new Date().toISOString();

@@ -3,14 +3,13 @@ import { test, expect } from "@playwright/test";
 // The product catalogue, over a real browser.
 //
 // /buy is public (roles: []) and exercises the two features with the most
-// migration surface left: products and spots. A card's price is not stored - it
-// is computed in the browser from the product and the live spot, so this is the
-// only test in the repo where a wrong spot shape shows up as a wrong price
-// rather than as a failed assertion about a field name.
+// migration surface left: products and spots. A card's price comes from the
+// catalog quote, so this is the only test in the repo where a wrong shape shows
+// up as a wrong PRICE rather than as a failed assertion about a field name.
 //
-// THAT MATTERS RIGHT NOW because PRODUCTS_WIRE and SPOTS_WIRE are both still on
-// `legacy` and both have a `next` shape waiting behind them. When either flips,
-// this is what says the customer still sees prices.
+// It is also what says the server-side grouping arrived: the page renders one
+// card per FAMILY (GET /products answers groups), and a grouping that stopped
+// resolving would render an empty grid perfectly happily.
 //
 // Like rates.spec.ts, every assertion turns on data having arrived: the page
 // renders an empty grid perfectly happily, so counting cards is the only honest

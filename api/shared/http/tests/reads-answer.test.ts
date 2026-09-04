@@ -35,13 +35,13 @@ afterAll(async () => {
 // route accepts, so a guard that is stricter than declared shows up as a 403
 // rather than passing silently.
 const READS = [
-  ["public", "/api/products/get_sell_products"],
-  ["public", "/api/products/get_homepage_products"],
-  ["public", "/api/products/get_products"],
-  ["admin", "/api/products/get_admin_products"],
-  ["admin", "/api/products/get_metals"],
-  ["admin", "/api/products/get_mints"],
-  ["admin", "/api/products/get_product_types"],
+  ["public", "/api/products?side=bid"],
+  ["public", "/api/products?placement=homepage"],
+  ["public", "/api/products?metal=Gold&sort=content"],
+  ["admin", "/api/products/admin"],
+  ["admin", "/api/metals"],
+  ["admin", "/api/mints"],
+  ["admin", "/api/products/types"],
   ["user", "/api/checkout/items?direction=sale"],
   ["admin", "/api/fulfillments/methods/all"],
   ["admin", "/api/fulfillments/schedule"],

@@ -7,7 +7,7 @@ import { useReactTable, getCoreRowModel, flexRender, ColumnDef } from '@tanstack
 import { useBasket } from '@/features/checkout/items/queries'
 import { cn } from '@/shared/utils/cn'
 import { useDecoratedLines, type DecoratedLine } from '@/features/checkout/items/flair'
-import { formatRate } from '@/features/rates/utils/resolveRate'
+import { formatRate } from '@/features/rates/types'
 import { usePaymentMethods } from '@dorado/client'
 import { usePurchaseOrderQuote } from '@/features/quotes/queries'
 import type { CheckoutRate, CheckoutView, PurchaseOrderQuoteLine } from "@dorado/contracts";

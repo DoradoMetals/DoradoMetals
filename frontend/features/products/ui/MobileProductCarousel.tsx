@@ -31,27 +31,29 @@ const categories = [
 export default function MobileProductCarousel() {
   const router = useRouter()
   const pathname = usePathname()
-  const { metal_type, filter_category, product_type, setFilters } = useProductFilterStore()
+  const { metal, category: filterCategory, type, setFilters } = useProductFilterStore()
 
   const handleClick = (category: string) => {
     switch (category) {
+      // setFilters REPLACES the selection - each tile is one filter, and the
+      // old calls each had to spell the other two as undefined to say so.
       case 'Gold':
       case 'Silver':
       case 'Platinum':
       case 'Palladium':
-        setFilters({ metal_type: category, product_type: undefined, filter_category: undefined })
+        setFilters({ metal: category })
         break
       case 'Eagles':
-        setFilters({ filter_category: 'American Eagle', metal_type: undefined, product_type: undefined })
+        setFilters({ category: 'American Eagle' })
         break
       case 'Maples':
-        setFilters({ filter_category: 'Canadian Maple', metal_type: undefined, product_type: undefined })
+        setFilters({ category: 'Canadian Maple' })
         break
       case 'Collectibles':
-        setFilters({ product_type: 'Collectible', metal_type: undefined, filter_category: undefined })
+        setFilters({ type: 'Collectible' })
         break
       case 'President':
-        setFilters({ filter_category: 'President', metal_type: undefined, product_type: undefined })
+        setFilters({ category: 'President' })
         break
     }
 
@@ -62,11 +64,11 @@ export default function MobileProductCarousel() {
     if (pathname === '/') return false
   
     return (
-      metal_type === category ||
-      (product_type === 'Collectible' && category === 'Collectibles') ||
-      (filter_category === 'American Eagle' && category === 'Eagles') ||
-      (filter_category === 'Canadian Maple' && category === 'Maples') ||
-      (filter_category === 'President' && category === 'President')
+      metal === category ||
+      (type === 'Collectible' && category === 'Collectibles') ||
+      (filterCategory === 'American Eagle' && category === 'Eagles') ||
+      (filterCategory === 'Canadian Maple' && category === 'Maples') ||
+      (filterCategory === 'President' && category === 'President')
     )
   }
 

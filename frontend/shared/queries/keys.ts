@@ -1,14 +1,9 @@
-import { ProductFilters } from '@/features/products/types'
 import { PlacesSuggestionsInput } from '@/features/addresses/types'
 
 export const queryKeys = {
-  // Admin Products and Inventory
-  adminProducts: () => ['adminProducts'] as const,
-  adminMetals: () => ['adminMetals'] as const,
+  // Admin Inventory
   adminSuppliers: () => ['adminSuppliers'] as const,
   adminCarriers: () => ['adminCarriers'] as const,
-  adminMints: () => ['adminMints'] as const,
-  adminTypes: () => ['adminTypes'] as const,
 
   // Admin Users
   adminUser: (id: string) => ['adminUser', id] as const,
@@ -55,21 +50,6 @@ export const queryKeys = {
   // Images
   images: () => ['images'] as const,
   testImage: () => ['testImage'] as const,
-
-  // Spots
-  spotPrices: () => ['spotPrices'] as const,
-
-  // Products
-  productsRaw: () => ['products'] as const,
-  productFromSlug: (slug: string) => ['productFromSlug', slug] as const,
-  allProducts: () => ['allProducts'] as const,
-  sellProducts: () => ['sellProducts'] as const,
-  homepageProducts: () => ['homepage_products'] as const,
-  filteredProducts: (filters: ProductFilters) => ['products', filters] as const,
-
-  // Rates
-  rates: () => ['rates'] as const,
-  adminRates: () => ['adminRates'] as const,
 
   // Reviews
   reviews: () => ['reviews'] as const,

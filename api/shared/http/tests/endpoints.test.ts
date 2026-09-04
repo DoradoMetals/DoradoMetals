@@ -28,14 +28,12 @@ const { default: app } = await import("#app");
 // Endpoints that are meant to answer an anonymous request. Anything not on this
 // list must be guarded; add to it deliberately, not to make a test pass.
 const PUBLIC = new Set([
-  "GET /api/products/get_all_products",
-  "GET /api/products/get_homepage_products",
-  "GET /api/products/get_product_from_slug",
-  "GET /api/products/get_products",
-  "GET /api/products/get_sell_products",
-  "GET /api/rates/get_all",
+  "GET /api/products/",
+  "GET /api/products/:slug",
+  "GET /api/rates/",
+  "GET /api/rates/tiers",
   "GET /api/reviews/get_public",
-  "GET /api/spots/spot_prices",
+  "GET /api/spots/",
   "POST /api/recaptcha/verify-recaptcha",
   // Public because the catalogue's prices are public — takes product ids and a side, never a user; prices come from the server's own spots.
   "POST /api/quotes/catalog",
@@ -191,9 +189,10 @@ test("an unknown route returns JSON, not an HTML error page", async () => {
 // worth asserting return something rather than merely not erroring.
 test("public reads return JSON", async () => {
   const reads: [path: string, mustHaveRows: boolean][] = [
-    ["/api/products/get_all_products", true],
-    ["/api/spots/spot_prices", true],
-    ["/api/rates/get_all", true],
+    ["/api/products", true],
+    ["/api/spots", true],
+    ["/api/rates", true],
+    ["/api/rates/tiers", true],
     ["/api/reviews/get_public", false],
   ];
 
@@ -208,7 +207,7 @@ test("public reads return JSON", async () => {
 });
 
 // Every handler a controller exports is either routed or declared dead — harmless until somebody assumes an orphan is reachable, or a deleted route leaves its handler looking live. A handler with no route isn't automatically wrong (a mounted-directly webhook, a reasonable helper), so unrouted exports go on UNROUTED with a reason, and the list failing when it's stale keeps it honest.
-// Searches EVERY routes file, not just the sibling one — a convention-only check once reported a legitimately cross-routed handler (getAllMints, routed from products' own router) as unrouted.
+// Searches EVERY routes file, not just the sibling one — a convention-only check once reported a legitimately cross-routed handler (mints' listMints, when it was routed from products' own router) as unrouted.
 //
 // Static - reads the files, and compares against the routes the walk above
 // found in the real app.
@@ -320,7 +319,13 @@ test("no public endpoint reads a user id from the request", () => {
   const handlerFor = (key: string): { name: string; dir: string } | null => {
     const [method, full] = key.split(" ");
     const tail = full.replace(/^\/api\/[^/]+/, "");
-    for (const file of routeFiles(FEATURES)) {
+    // A ROUTE DECLARED AS "/" CARRIES ITS PATH IN ITS MOUNT, so the literal
+    // scan below - which reads every routes.ts in turn - matches whichever
+    // feature happens to declare `router.get("/")` first, and attributes the
+    // handler to the wrong file. It reported `GET /api/products/` as
+    // checkout's `getCheckout`. The directory resolution underneath is the
+    // one that can answer this case, so it goes first rather than last.
+    if (tail !== "/") for (const file of routeFiles(FEATURES)) {
       const src = fs.readFileSync(file, "utf8");
       const line = src
         .split("\n")

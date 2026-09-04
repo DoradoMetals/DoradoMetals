@@ -34,7 +34,7 @@ afterAll(async () => {
 test("the spot feed needs no session at all", async () => {
   await inPinnedTransaction(async () => {
     await anonymous(async () => {
-      const res = await request(app).get("/api/spots/spot_prices");
+      const res = await request(app).get("/api/spots");
       assert.equal(res.status, 200, "the public spot feed stopped being public");
       assert.ok(Array.isArray(res.body), "the pricing page expects an array");
       assert.equal(
@@ -50,7 +50,7 @@ test("the spot feed needs no session at all", async () => {
 test("every metal carries the fields a quote is built from", async () => {
   await inPinnedTransaction(async () => {
     await anonymous(async () => {
-      const res = await request(app).get("/api/spots/spot_prices");
+      const res = await request(app).get("/api/spots");
       // An empty feed would run none of the assertions below and report success - and an empty spot feed is exactly the failure that prices every order at nothing.
       assert.ok(res.body.length > 0, "the spot feed came back empty");
       for (const spot of res.body) {
@@ -74,7 +74,7 @@ test("every metal carries the fields a quote is built from", async () => {
 test("the asks and bids are the ones in the table, not a transposition of them", async () => {
   await inPinnedTransaction(async () => {
     await anonymous(async () => {
-      const res = await request(app).get("/api/spots/spot_prices");
+      const res = await request(app).get("/api/spots");
       for (const row of metals) {
         const served = res.body.find((s: MetalFixture) => s.name === row.name);
         assert.ok(served, `${row.name} is in the table and not in the feed`);
@@ -97,7 +97,7 @@ test("the asks and bids are the ones in the table, not a transposition of them",
 test("the public feed carries nothing beyond the quote fields", async () => {
   await inPinnedTransaction(async () => {
     await anonymous(async () => {
-      const res = await request(app).get("/api/spots/spot_prices");
+      const res = await request(app).get("/api/spots");
       const allowed = new Set([
         "id",
         "name",
@@ -105,6 +105,9 @@ test("the public feed carries nothing beyond the quote fields", async () => {
         "bid",
         "dollar_change",
         "percent_change",
+        // Computed, not stored: which way the metal moved today, said once
+        // here instead of derived by every ticker.
+        "direction",
       ]);
       const unexpected = Object.keys(res.body[0] ?? {}).filter((k) => !allowed.has(k));
       assert.deepEqual(
@@ -112,6 +115,23 @@ test("the public feed carries nothing beyond the quote fields", async () => {
         [],
         `the public spot feed grew fields nobody vetted: ${unexpected.join(", ")}`
       );
+    });
+  }, { actor: TEST_ACTOR.id });
+});
+
+// Every ticker used to ask `(dollar_change ?? 0) >= 0` for itself, which
+// painted a flat day green on two screens.
+test("the feed says which way each metal moved, and a flat day is flat", async () => {
+  await inPinnedTransaction(async () => {
+    await anonymous(async () => {
+      const res = await request(app).get("/api/spots");
+      assert.ok(res.body.length > 0, "the spot feed came back empty");
+      for (const spot of res.body) {
+        const change = spot.dollar_change;
+        const expected = change === null || Number(change) === 0
+          ? "flat" : Number(change) > 0 ? "up" : "down";
+        assert.equal(spot.direction, expected, `${spot.name} moved ${change} and reads ${spot.direction}`);
+      }
     });
   }, { actor: TEST_ACTOR.id });
 });

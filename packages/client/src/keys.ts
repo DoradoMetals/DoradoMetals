@@ -103,6 +103,34 @@ export const keys = {
     validateAddress: (address_id: string) =>
       ["shipping", "validate_address", address_id] as const,
   },
+  // ---------------------------------------------------------------- catalogue
+  products: {
+    all: () => ["products"] as const,
+    // THE FILTER IS PART OF THE QUESTION. Serialized whole rather than
+    // spelled field by field: a filter added to the query type is in the key
+    // the same day, and a key that silently ignored one would serve a Gold
+    // list for a Silver request.
+    list: (query: Record<string, unknown> = {}) =>
+      ["products", "list", JSON.stringify(query)] as const,
+    // A slug names a FAMILY, not a row - four Gold American Eagles share one.
+    bySlug: (slug: string) => ["products", "slug", slug] as const,
+    admin: () => ["products", "admin"] as const,
+    types: () => ["products", "types"] as const,
+    // Reference rows, cached hard.
+    metals: () => ["metals"] as const,
+    mints: () => ["mints"] as const,
+  },
+  // The live quotes. One key: the feed is four rows and every screen wants all
+  // of them.
+  spots: {
+    all: () => ["spots"] as const,
+  },
+  rates: {
+    scoped: () => ["rates"] as const,
+    all: () => ["rates", "public"] as const,
+    tiers: () => ["rates", "tiers"] as const,
+    admin: () => ["rates", "admin"] as const,
+  },
   quotes: {
     purchase: (body: unknown) => ["quote", "purchase_order", JSON.stringify(body)] as const,
     sales: (body: unknown) => ["quote", "sales_order", JSON.stringify(body)] as const,

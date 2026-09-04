@@ -16,7 +16,7 @@ import { requireOwnOrder } from "#shared/middleware/ownership.ts";
 const router = express.Router();
 
 // All POST, all pure reads — a quote takes items/choices, never prices or spots, and stores nothing.
-// /catalog is UNGUARDED like /spots/spot_prices — public product list + public spot feed, derivable by anyone. sales_order is per-caller (prices against a funds row: the session user's, or an admin-named customer's) so it requires a session.
+// /catalog is UNGUARDED like GET /spots — public product list + public spot feed, derivable by anyone. sales_order is per-caller (prices against a funds row: the session user's, or an admin-named customer's) so it requires a session.
 router.post("/catalog", catalogQuote);
 router.post("/sales_order", requireUser, salesOrderQuote);
 // Public like the catalogue's bid side — prices goods for a visitor, reads nothing about a user. The sales-order quote stays guarded since it prices against the caller's funds.

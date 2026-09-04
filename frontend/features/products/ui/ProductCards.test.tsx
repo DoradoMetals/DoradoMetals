@@ -19,6 +19,15 @@ import userEvent from "@testing-library/user-event";
 import React from "react";
 
 vi.mock("@/shared/queries/axios", () => ({ apiRequest: vi.fn() }));
+// The spot feed moved into @dorado/client, which talks to the platform's
+// `fetch` rather than the axios wrapper this file stubs. Mocked with the same
+// row the URL branch answered, so the cards' popover still has a spot to read
+// - without this the branch would simply stop firing and the file would keep
+// passing while exercising less.
+vi.mock("@dorado/client", async (importOriginal) => ({
+  ...(await importOriginal<Record<string, unknown>>()),
+  useSpotPrices: () => ({ data: liveSpots(), isSuccess: true }),
+}));
 vi.mock("@/features/auth/queries", () => ({ useGetSession: () => ({ user: null }) }));
 // A visitor has a session too - an anonymous one (ruling 63) - so the basket
 // reads are enabled exactly as they are for a customer.
@@ -76,6 +85,8 @@ const eagle = (): Product =>
     image_back: "https://img/back.png",
     mint_name: "US Mint",
     metal_type: "Gold",
+    metal_id: "00000000-0000-4000-8000-00000000000a",
+    mint_id: "00000000-0000-4000-8000-00000000000b",
     variant_group: "",
     shadow_offset: 0,
     slug: "gold-american-eagle",
@@ -85,8 +96,12 @@ const eagle = (): Product =>
     domestic_tender: true,
   } as Product);
 
+// The spot the card keys by METAL ID off the product row.
 const liveSpots = () => [
-  { id: "m-au", name: "Gold", ask: 3000, bid: 2900, dollar_change: 1, percent_change: 0.1 },
+  {
+    id: "00000000-0000-4000-8000-00000000000a", name: "Gold",
+    ask: 3000, bid: 2900, dollar_change: 1, percent_change: 0.1, direction: "up",
+  },
 ];
 
 // The quoted unit prices are DELIBERATELY not what the client math would
@@ -103,7 +118,6 @@ beforeEach(() => {
   // URL-discriminated: the spot ticker and the quote surface are different
   // endpoints answering different questions, and the quote answers by side.
   vi.mocked(apiRequest).mockImplementation(async (_m, url, body) => {
-    if (url === "/spots/spot_prices") return liveSpots();
     if (url === "/quotes/catalog") {
       const { items, side } = body as { items: { id: string }[]; side: "ask" | "bid" };
       const lines = items.map((i) => quotedLine(i.id, side));

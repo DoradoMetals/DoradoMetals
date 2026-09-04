@@ -32,3 +32,25 @@ export const SpotPrice = Spot.pick({
 });
 export type SpotPrice = z.infer<typeof SpotPrice>;
 
+// POST-less: the feed cron is the only writer. The four quote columns and
+// nothing else - `metal_id` is the WHERE key and `updated_at` is the
+// database's.
+export const SpotPatch = Spot.pick({
+  ask: true,
+  bid: true,
+  percent_change: true,
+  dollar_change: true,
+}).partial();
+export type SpotPatch = z.infer<typeof SpotPatch>;
+
+// WHICH WAY THE METAL MOVED TODAY. `spots.spots` stores the day's move as a
+// number; every ticker then asked `(dollar_change ?? 0) >= 0` for itself and
+// picked a caret and a colour from the answer - which called a metal that had
+// not moved an UP day, in green, on two screens. The server says which of the
+// three it is, once.
+export const SpotTrend = z.enum(["up", "down", "flat"]);
+export type SpotTrend = z.infer<typeof SpotTrend>;
+
+// GET /spots - the quote plus that answer.
+export const SpotTicker = SpotPrice.extend({ direction: SpotTrend });
+export type SpotTicker = z.infer<typeof SpotTicker>;

@@ -90,7 +90,7 @@ async function viewOf(order_id: string): Promise<OrderView> {
 // would pay the customer's price into what they are charged.
 export async function retierPremiums(order_id: string, executor?: Executor): Promise<void> {
   if ((await ordersRepo.directionOf(order_id, executor)) !== "purchase") return;
-  const rates = await ratesService.getAllRates();
+  const rates = await ratesService.listRates();
   const lines = await itemsRepo.pricedLinesFor(order_id, executor);
   for (const { id, premium } of rules.retierPlan(rates, lines)) {
     const repriced = await itemsRepo.update(id, { premium }, {}, executor);
@@ -136,7 +136,7 @@ export async function createLine(
 }
 
 async function requireProduct(bullion_id: string) {
-  const [product] = await productsRepo.getByIds([bullion_id]);
+  const [product] = await productsRepo.listFor({ ids: [bullion_id] });
   if (!product) throw new NotFound(`no product ${bullion_id} to put on the order`);
   return product;
 }

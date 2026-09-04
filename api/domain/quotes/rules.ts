@@ -7,8 +7,8 @@ import { Invalid } from "#shared/errors.ts";
 import { getRatePct } from "#domain/rates/utils/resolveRate.ts";
 import { fineContent } from "#domain/pricing/content.ts";
 import type { PricingSpot } from "#domain/pricing/service.ts";
-import type { RateRead } from "@dorado/contracts";
-import type { SpotWire } from "#domain/spots/compose.ts";
+import type { RateRead, SpotPrice } from "@dorado/contracts";
+
 
 // Bid-side mirror of calculateItemAsk, stated here rather than imported:
 // pricing/bid.ts's calculateTotalPrice prices SAVED order lines (frozen price,
@@ -27,7 +27,7 @@ export function bidPrice(
 // The metal a spot prices, by the id the caller holds. A quote for a metal
 // with no live spot would price at nothing, so it REFUSES rather than freezing
 // a zero (D214 item 11: a missing input that would price at nothing throws).
-export function requireSpot(spots: SpotWire[], metal_id: string): SpotWire {
+export function requireSpot(spots: SpotPrice[], metal_id: string): SpotPrice {
   const spot = spots.find((s) => s.id === metal_id);
   if (!spot) throw new Invalid("that metal has no spot price today");
   return spot;

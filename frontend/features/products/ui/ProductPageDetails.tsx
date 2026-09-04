@@ -24,7 +24,7 @@ import { lineFromProduct } from '@/features/checkout/items/types'
 import { Lens } from '@/shared/ui/base/lens'
 import { paymentMethodIcon, transitLabel } from '@/features/orders/salesOrders/types'
 import { usePaymentMethods, useSaleShippingServices } from '@dorado/client'
-import { useSpotPrices } from '@/features/spots/queries'
+import { useSpotPrices } from '@dorado/client'
 import { useCatalogQuote } from '@/features/quotes/queries'
 import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
 import { DetailRow } from '@/shared/ui/DetailRow'
@@ -41,10 +41,9 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
   const displayServices = saleServices.filter((s) => s.display)
   const { data: saleMethods = [] } = usePaymentMethods('sale')
   const displayMethods = saleMethods.filter((m) => m.enabled && m.display)
-  const initialVariant =
-    variants.length > 0 ? [...variants].sort((a, b) => b.content - a.content)[0] : product
-
-  const [selectedProduct, setSelectedProduct] = useState<Product>(initialVariant)
+  // The server picks the family's headline row and orders the siblings
+  // (heaviest first), so there is nothing to sort here.
+  const [selectedProduct, setSelectedProduct] = useState<Product>(product)
   const [selectedImage, setSelectedImage] = useState<string>(product.image_front)
   const [hovering, setHovering] = useState(false)
 
@@ -66,7 +65,7 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
 
   const { data: spotPrices = [] } = useSpotPrices()
 
-  const spot = spotPrices.find((s) => s.name === product.metal_type)
+  const spot = spotPrices.find((s) => s.id === selectedProduct.metal_id)
 
   // The page's own single-item quotes, one per side, re-quoted when the
   // selected variant changes. Ask is gated on `display` (already true - the
@@ -143,13 +142,11 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
               }}
               className="flex w-full gap-3"
             >
-              {[...variants]
-                .sort((a, b) => b.content - a.content)
-                .map((option) => (
-                  <RadioOption key={option.id} value={option.name} variant="segment" className="w-full">
-                    {option.variant_label}
-                  </RadioOption>
-                ))}
+              {variants.map((option) => (
+                <RadioOption key={option.id} value={option.name} variant="segment" className="w-full">
+                  {option.variant_label}
+                </RadioOption>
+              ))}
             </RadioGroup>
           )}
           <div className="w-full">
@@ -507,13 +504,11 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
             }}
             className="flex w-full gap-3"
           >
-            {[...variants]
-              .sort((a, b) => b.content - a.content)
-              .map((option) => (
-                <RadioOption key={option.id} value={option.name} variant="segment" className="w-full">
-                  {option.variant_label}
-                </RadioOption>
-              ))}
+            {variants.map((option) => (
+              <RadioOption key={option.id} value={option.name} variant="segment" className="w-full">
+                {option.variant_label}
+              </RadioOption>
+            ))}
           </RadioGroup>
         )}
 

@@ -32,3 +32,4 @@ export * from "./computed/providers.js";
 export * from "./computed/orders.js";
 export * from "./computed/fulfillments.js";
 export * from "./computed/shipping.js";
+export * from "./computed/rates.js";

@@ -5,7 +5,7 @@ import { test, expect } from "@playwright/test";
 //
 // /rates is public - roles: [] - so it needs no session, no fixture user and no
 // seeded cart. What it does need is everything underneath: Next renders the
-// page, React Query calls /api/rates/get_all, Express answers it from the
+// page, React Query calls /api/rates/tiers, Express answers it from the
 // database. Nothing else in this repo tests that chain. The API replay suite
 // proves the endpoint answers; the vitest units prove the pure functions; only
 // this proves a browser gets prices.

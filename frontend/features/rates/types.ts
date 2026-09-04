@@ -1,56 +1,42 @@
-// Rate shapes, FROM THE CONTRACTS (phase 3, ruling 39). What stays here is
-// the RATE CARD'S OWN CONFIGURATION - slider bounds, percentage labels, sort
-// order - which is UI and has no column behind it.
+// Rate shapes, FROM THE CONTRACTS. What is left here is FORMATTING and the
+// admin card's own slider configuration - the two things with no column behind
+// them.
 //
-// ONE HAND-WRITTEN TYPE WAS STANDING IN FOR TWO WIRE SHAPES. /rates/get_all
-// omits the audit columns and /rates/get_admin includes them
-// (api/features/rates/wire.ts, RateWire and AdminRateWire), and the type here
-// carried the union of both with `metal_id` and `unit` marked optional so it
-// could pass for either. RatesCard reads `metal_id` off it. It also typed
-// `created_at` / `updated_at` as `Date` against a wire that sends strings.
+// WHAT LEFT. `topRatesByMetal`, `sortRatesByMin`, `METALS` and `METAL_BOUNDS`'
+// grouping partner all decided what a customer is told we pay; the server
+// answers that as `RateTier` now (GET /rates/tiers), already grouped,
+// deduped, labelled and ordered, with `top_pct` for the landing strip.
+//
+// AND `utils/resolveRate.ts` IS GONE. It carried `getRateBand`, `getRatePct`
+// and `sumContentByMetal` - three functions duplicated from the API and held
+// in step by `api/shared/tests/mirror.test.ts`, because one side quoted a
+// customer a payout rate and the other paid it. NOTHING in the browser called
+// them: every rate a customer sees comes from a /quotes endpoint. Deleting the
+// copy retires the drift risk rather than policing it.
 import type { AdminRate, RateRead } from "@dorado/contracts";
 
 export type Rate = RateRead
 
-// The update body's `patch`: the six writable columns (api/db/rates/repo.ts
-// PATCHABLE), same set RateInput carries minus the two audit names.
-export type RatePatch = Partial<
-  Pick<AdminRate, 'metal_id' | 'unit' | 'min_qty' | 'max_qty' | 'scrap_pct' | 'bullion_pct'>
->
-
-// *** NOT A CONTRACT - D103's second arm, same as leads' LeadPriority. ***
-// `metals.name` is plain text; these four names are the metals THE RATE CARD
-// RENDERS, and METAL_BOUNDS below keys its sliders by them. A UI list, kept
-// beside the UI that reads it.
-export type Metal = 'Gold' | 'Silver' | 'Platinum' | 'Palladium'
-export const METALS: Metal[] = ['Gold', 'Silver', 'Platinum', 'Palladium']
-
-const bandTopPct = (r?: Rate | null) =>
-  r ? Math.max(r.scrap_pct ?? -Infinity, r.bullion_pct ?? -Infinity) : -Infinity
-
-export function topRatesByMetal(rates: Rate[]) {
-  const best = new Map<Metal, Rate>()
-  const bestPct = new Map<Metal, number>()
-
-  for (const r of rates) {
-    const m = r.metal as Metal
-    if (!METALS.includes(m)) continue
-
-    const pct = bandTopPct(r)
-    const prev = bestPct.get(m) ?? -Infinity
-    if (pct > prev) {
-      best.set(m, r)
-      bestPct.set(m, pct)
-    }
-  }
-  return METALS.map((m) => best.get(m) ?? null)
-}
-
+// A premium fraction (0-1) as a percentage. `pctLabel` rounds to a whole
+// number for a headline; `formatRate` keeps two decimals where the exact rate
+// matters (an order's payout line). Both accept an already-percent value.
 export const pctLabel = (v: number | undefined | null) => {
   if (!v && v !== 0) return '—'
   const pct = v <= 1 ? v * 100 : v
   return `${Math.round(pct)}%`
 }
+
+export const formatRate = (v: number | null | undefined): string => {
+  if (v == null) return '—'
+  const pct = v <= 1 ? v * 100 : v
+  return `${Number(pct.toFixed(2))}%`
+}
+
+// *** NOT A CONTRACT - D103's second arm, same as leads' LeadPriority. ***
+// `metals.name` is plain text; these four names are the metals THE ADMIN RATE
+// CARD renders sliders for, and METAL_BOUNDS keys its ranges by them. A UI
+// list, kept beside the UI that reads it.
+export type Metal = 'Gold' | 'Silver' | 'Platinum' | 'Palladium'
 
 export const labelFor = (v: number | undefined, cap: number) =>
   v == null || v >= cap ? '∞' : String(v)
@@ -76,3 +62,5 @@ export const intToPct = (n: number) => Math.max(0, Math.min(100, n)) / 100
 // card holds, which is how `metal_id` went missing from a value that has one.
 export const sortRatesByMin = <T extends { min_qty: number }>(rates: T[]): T[] =>
   [...rates].sort((a, b) => a.min_qty - b.min_qty)
+
+export type { AdminRate }
