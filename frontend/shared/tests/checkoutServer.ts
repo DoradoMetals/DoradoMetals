@@ -57,7 +57,7 @@ export function stubCheckoutServer(): CheckoutServer {
       }
     }
     if (url.pathname.endsWith("/checkout") && method === "GET") {
-      return json({ id: "checkout-1", direction, item_count: baskets[direction].length });
+      return json({ id: "checkout-1", direction, missing: [] });
     }
     return json({ message: `no stub for ${method} ${url.pathname}` }, 404);
   }));

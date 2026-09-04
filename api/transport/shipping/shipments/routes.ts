@@ -1,6 +1,8 @@
 import express from "express";
 
-import { getShipment, patchShipment } from "#transport/shipping/shipments/controller.ts";
+import {
+  buyShipmentLabel, getShipment, patchShipment,
+} from "#transport/shipping/shipments/controller.ts";
 import { requireAdmin, requireUser } from "#shared/middleware/authMiddleware.ts";
 import { requireOwnShipment } from "#shared/middleware/ownership.ts";
 
@@ -15,6 +17,11 @@ router.get("/:id", requireUser, requireOwnShipment, getShipment);
 // serves. Admin-only - these figures decide what the business paid to move
 // metal and what the customer is told about it.
 router.patch("/:id", requireAdmin, patchShipment);
+
+// THE LABEL, BOUGHT AGAINST THE PARCEL (ruling 67 - it was
+// POST /api/orders/:id/label). Admin-only, and the retry surface for a
+// purchase whose own label purchase failed after the order committed.
+router.post("/:id/label", requireAdmin, buyShipmentLabel);
 
 // GET /:id/pickups is GONE: the carrier booking is a member of the view above
 // (`carrier_pickup`), which is the only thing every caller of that endpoint

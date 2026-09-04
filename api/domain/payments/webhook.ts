@@ -19,15 +19,12 @@ import {
 import { findIntentByRef, updateFromProvider } from "#domain/payments/service.ts";
 import withTransaction from "#shared/db/withTransaction.ts";
 import { randomUUID } from "node:crypto";
-import type { StripeIntentLike, StripePaymentMethodLike } from "#domain/payments/rules.ts";
-
-// THE ONE CALL THIS FILE CANNOT ROLL BACK, injected the way place.ts injects
-// its `World` and sendToRefiner its `Transport`: a webhook payload names an
-// instrument by REFERENCE, so Stripe has to be asked what it is. A test drives
-// the real row flow with no provider reachable and no cassette to record.
-export type Instruments = {
-  retrieve: (payment_method_ref: string) => Promise<StripePaymentMethodLike>;
-};
+// StripeIntentLike, StripePaymentMethodLike and Instruments are the
+// provider's shapes - #providers/payment/stripe.ts is their one home (ruling
+// 60/61); `Instruments` is the seam this file's own applyIntentEvent takes,
+// the way place.ts takes its `World`, and it lives beside the Stripe shape it
+// wraps rather than being declared here a second time.
+import type { StripeIntentLike, StripePaymentMethodLike, Instruments } from "#providers/payment/stripe.ts";
 
 export const LIVE: Instruments = { retrieve: stripe.retrievePaymentMethod };
 

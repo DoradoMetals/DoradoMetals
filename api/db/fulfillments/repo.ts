@@ -9,41 +9,34 @@ import { FulfillmentPatch } from "@dorado/contracts";
 
 const sql = sqlFrom(import.meta.dirname);
 
-export type FulfillmentBaseRow = Pick<
-  Fulfillment,
-  | "id" | "order_id" | "method_id" | "status" | "created_at" | "updated_at"
-  | "created_by" | "updated_by"
-  | "created_by_id" | "updated_by_id"
->;
-
 export async function getOne(
   id: string, executor?: Executor
-): Promise<FulfillmentBaseRow | undefined> {
-  const { rows } = await query<FulfillmentBaseRow>(sql("get_one"), [id], executor);
+): Promise<Fulfillment | undefined> {
+  const { rows } = await query<Fulfillment>(sql("get_one"), [id], executor);
   return rows[0];
 }
 
 export async function getByOrder(
   order_id: string, executor?: Executor
-): Promise<FulfillmentBaseRow | undefined> {
-  const { rows } = await query<FulfillmentBaseRow>(sql("get_by_order"), [order_id], executor);
+): Promise<Fulfillment | undefined> {
+  const { rows } = await query<Fulfillment>(sql("get_by_order"), [order_id], executor);
   return rows[0];
 }
 
 export async function getMany(
   ids: string[], executor?: Executor
-): Promise<FulfillmentBaseRow[]> {
+): Promise<Fulfillment[]> {
   if (ids.length === 0) return [];
-  const { rows } = await query<FulfillmentBaseRow>(sql("get_many"), [ids], executor);
+  const { rows } = await query<Fulfillment>(sql("get_many"), [ids], executor);
   return rows;
 }
 
 // getByOrder, batched - one row per order (fulfillments_order_uniq), so the caller can key results by order_id.
 export async function getByOrders(
   order_ids: string[], executor?: Executor
-): Promise<FulfillmentBaseRow[]> {
+): Promise<Fulfillment[]> {
   if (order_ids.length === 0) return [];
-  const { rows } = await query<FulfillmentBaseRow>(
+  const { rows } = await query<Fulfillment>(
     sql("get_by_orders"), [order_ids], executor
   );
   return rows;
@@ -51,14 +44,10 @@ export async function getByOrders(
 
 // Returns undefined when the order already has one - ON CONFLICT DO NOTHING, the normal case for a retry, not an error.
 // created_by_id is not a field here - the audit trigger writes it.
-export type FulfillmentNew = {
-  id: string; order_id: string; method_id: string; status: string;
-};
-
 export async function create(
-  row: FulfillmentNew, executor?: Executor
-): Promise<FulfillmentBaseRow | undefined> {
-  const { rows } = await query<FulfillmentBaseRow>(
+  row: { id: string; order_id: string; method_id: string; status: string }, executor?: Executor
+): Promise<Fulfillment | undefined> {
+  const { rows } = await query<Fulfillment>(
     sql("create"), [row.id, row.order_id, row.method_id, row.status], executor
   );
   return rows[0];
@@ -66,12 +55,10 @@ export async function create(
 
 // A draft: a fulfillment with no order yet, mutated by checkout and attached at order creation.
 // created_by_id is not a field here - the audit trigger writes it.
-export type FulfillmentDraftNew = { id: string; method_id: string };
-
 export async function createDraft(
-  row: FulfillmentDraftNew, executor?: Executor
-): Promise<FulfillmentBaseRow> {
-  const { rows } = await query<FulfillmentBaseRow>(
+  row: { id: string; method_id: string }, executor?: Executor
+): Promise<Fulfillment> {
+  const { rows } = await query<Fulfillment>(
     sql("create_draft"), [row.id, row.method_id], executor
   );
   return rows[0];

@@ -86,3 +86,26 @@ export type SaleShippingService = z.infer<typeof SaleShippingService>;
 export const CarrierServiceDeleteBody = z.object({ id: CarrierService.shape.id }).strict();
 export type CarrierServiceDeleteBody = z.infer<typeof CarrierServiceDeleteBody>;
 
+
+// EVERY COLUMN A CREATE OR AN UPDATE SUPPLIES, in the TABLE's spelling. Three
+// of them alias on the wire (supports_pickup(s), supports_dropoff(s),
+// max_weight_lb(s)) and `CarrierServicePatch` above is the wire's list; this is
+// the column list the statements bind, so the one map between them lives in
+// db/shipping/services/repo.ts and nowhere else.
+export const CarrierServiceWrite = CarrierService.pick({
+  carrier_id: true, name: true, description: true, code: true, provider_code: true,
+  supports_pickups: true, supports_dropoffs: true, supports_returns: true,
+  supports_insurance: true, is_international: true, is_residential: true,
+  is_active: true, max_weight_lb: true, max_length_in: true, max_width_in: true,
+  max_height_in: true, max_declared_value: true, min_transit_days: true,
+  max_transit_days: true, display_order: true,
+});
+export type CarrierServiceWrite = z.infer<typeof CarrierServiceWrite>;
+
+// WHAT DORADO WILL INSURE A PARCEL FOR on one service, read on its own rather
+// than folded into the row reads - it is the one column the checkout catalogue
+// joins on (migration 097).
+export const InsuranceCeiling = CarrierService.pick({
+  id: true, name: true, max_insured_value: true,
+});
+export type InsuranceCeiling = z.infer<typeof InsuranceCeiling>;

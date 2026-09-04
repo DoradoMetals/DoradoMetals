@@ -35,3 +35,35 @@ export const OrderActions = z.object({
   statuses: z.array(z.string()),
 });
 export type OrderActions = z.infer<typeof OrderActions>;
+
+// ============================================================================
+// THE SWEEPS' CANDIDATE READS - a join's projection, not a table.
+// ============================================================================
+//
+// Each is one statement's answer in db/orders/repo.ts, spanning orders.orders,
+// orders.transactions and payments.intents. No single table backs any of them,
+// which is why they are here rather than derived from a row.
+
+// A sale whose intent has settled while the order still waits for it.
+export const SettledAwaiting = z.object({
+  order_id: z.string().uuid(),
+  payment_intent_id: z.string(),
+});
+export type SettledAwaiting = z.infer<typeof SettledAwaiting>;
+
+// A sale nobody finished paying for, with the credit it reserved.
+export const AbandonedSale = z.object({
+  order_id: z.string().uuid(),
+  user_id: z.string().uuid().nullable(),
+  used_funds: z.boolean().nullable(),
+  reserved_funds: z.number().nullable(),
+  payment_intent_id: z.string().nullable(),
+  payment_status: z.string().nullable(),
+});
+export type AbandonedSale = z.infer<typeof AbandonedSale>;
+
+// The credit one order is holding - what a cancellation gives back.
+export const ReservedFunds = AbandonedSale.pick({
+  user_id: true, used_funds: true, reserved_funds: true,
+});
+export type ReservedFunds = z.infer<typeof ReservedFunds>;

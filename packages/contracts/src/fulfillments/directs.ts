@@ -20,6 +20,12 @@ export type FulfillmentDirect = z.infer<typeof FulfillmentDirect>;
 export const FulfillmentDirectPatch = FulfillmentDirect.omit({ id: true }).partial();
 export type FulfillmentDirectPatch = z.infer<typeof FulfillmentDirectPatch>;
 
+// THE COLUMNS db/fulfillments/directs/repo.ts's update() MAY TOUCH (ruling 64) -
+// `fulfillment_id` is the WHERE key, dropped for the same reason the schedule
+// body drops it too.
+export const FulfillmentDirectPatchColumns = FulfillmentDirectPatch.omit({ fulfillment_id: true });
+export type FulfillmentDirectPatchColumns = z.infer<typeof FulfillmentDirectPatchColumns>;
+
 // POST /fulfillments/schedule_direct - the fulfillment named ONCE, at the top
 // level, and the appointment beside it (ruling 43).
 export const FulfillmentScheduleDirectBody = z.object({

@@ -49,12 +49,14 @@ afterAll(async () => {
 });
 
 // The stub world every domain-level placement test in this suite uses
-// (place.test.ts) - the two calls that leave the building, answered rather
-// than reached.
-const stubWorld = (): place.World => ({
-  buyPostage: async () => ({
-    netCharge: 18.25, tracking_number: "794555000111", label: null, pickup: null,
-  }),
+// (place.test.ts) - the calls that leave the building, answered rather than
+// reached. `buyLabel` used to be `buyPostage` and answered a canned
+// netCharge/tracking pair postage.ts wrote onto the order; that write moved
+// to domain/shipping/labels.ts's own `record()`, called only from the real
+// `buyLabel`, so a stub that never reaches a carrier now leaves the shipment
+// a labelless shell - nothing here asserts against its tracking number.
+const stubWorld = (): typeof place.LIVE => ({
+  buyLabel: async () => {},
   authorize: async () => {},
   confirm: async () => {},
 });
@@ -87,25 +89,23 @@ test("basket, row, fulfillment, payout and placement agree on one order's money"
     assert.equal(basket.status, 200, basket.text);
     assert.equal(basket.body.length, 2, "the basket did not keep both lines");
 
-    // ---- WHAT THE STEPPER RENDERS. `missing` walks the steps in order and
-    // the three readiness flags are the server's answer to the three
-    // questions the browser used to answer with a boolean expression over a
-    // zustand store. The address is already on the row: GET /checkout takes
+    // ---- WHAT THE STEPPER RENDERS. `missing` is the ONE list now
+    // (CheckoutView shrank, Jacob 2026-09-04) and it is CATEGORY-AWARE: until
+    // a fulfillment method is chosen, `fulfillment_method` is the only step
+    // besides items - the package/carrier_service/address columns this test
+    // sets below do not count against `missing` yet, because no category has
+    // adopted them. The address is already on the row: GET /checkout takes
     // the customer's default one when the column is null.
     const opened = await as(customer, () =>
       request(app).get("/api/checkout").query({ direction: "purchase" })
     );
     assert.equal(opened.status, 200, opened.text);
-    assert.equal(opened.body.item_count, 2);
     assert.equal(opened.body.shipper_address_id, address.id, "the default address was not taken");
     assert.deepEqual(
       opened.body.missing,
-      ["package", "handoff", "carrier_service", "payout_account"],
+      ["fulfillment_method", "payout_account"],
       "missing is not the outstanding steps, in stepper order"
     );
-    assert.equal(opened.body.ready_for_rates, false, "rates were offered with no package");
-    assert.equal(opened.body.ready_for_payment, false);
-    assert.equal(opened.body.ready_to_place, false);
 
     // ---- the row: package, carrier service, shipper address.
     const patched = await as(customer, () =>
@@ -118,10 +118,10 @@ test("basket, row, fulfillment, payout and placement agree on one order's money"
     );
     assert.equal(patched.status, 200, patched.text);
     const checkout_id: string = patched.body.id;
-    // A package and an address is exactly what the carrier needs to be asked
-    // what the parcel costs - the same three refusals getCheckoutRates raises.
-    assert.equal(patched.body.ready_for_rates, true);
-    assert.deepEqual(patched.body.missing, ["handoff", "payout_account"]);
+    // Still no category chosen, so `missing` is unmoved by any of the three
+    // columns just written - they only count once a SHIPMENT method adopts
+    // them, which is the next step.
+    assert.deepEqual(patched.body.missing, ["fulfillment_method", "payout_account"]);
 
     // ---- the fulfillment: a live draft, attached to the row.
     const fulfillment = await as(customer, () =>
@@ -131,13 +131,10 @@ test("basket, row, fulfillment, payout and placement agree on one order's money"
     );
     assert.equal(fulfillment.status, 200, fulfillment.text);
     assert.ok(fulfillment.body.fulfillment_id, "no draft fulfillment was minted");
-    // A DROPOFF needs no date and no time, so the shipping step is complete
-    // and only the payout account is outstanding.
-    assert.equal(fulfillment.body.requires_schedule, false);
-    assert.equal(fulfillment.body.fulfillment_method_type, "CARRIER DROPOFF");
+    // CARRIER DROPOFF is a SHIPMENT category that needs no date and no time,
+    // and the address/box/service chosen above now count against it - only
+    // the payout account is outstanding.
     assert.deepEqual(fulfillment.body.missing, ["payout_account"]);
-    assert.equal(fulfillment.body.ready_for_payment, true, "the shipping step never completed");
-    assert.equal(fulfillment.body.ready_to_place, false, "placeable with no payout account");
 
     // ---- the payout: sealed at rest, last-four answered, never the number.
     const payout = await as(customer, () =>
@@ -156,9 +153,8 @@ test("basket, row, fulfillment, payout and placement agree on one order's money"
       JSON.stringify(payout.body).includes("000123456789"), false,
       "the full account number reached the wire"
     );
-    // The last step: the row now answers the question Confirm is disabled on.
+    // The last step: an empty list is what Confirm being enabled means now.
     assert.deepEqual(payout.body.missing, []);
-    assert.equal(payout.body.ready_to_place, true);
 
     // ---- PLACE (domain-level - see header).
     const placed = await place.place(checkout_id, stubWorld());

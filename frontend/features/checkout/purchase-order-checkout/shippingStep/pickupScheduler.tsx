@@ -18,8 +18,9 @@ import {
 // render rather than a click, which also meant the row said "scheduled" before
 // the customer had scheduled anything. The calendar now SHOWS the first
 // available day while `row.pickup_date` is null and writes only when a day or
-// a slot is actually clicked; `row.requires_schedule` plus the two columns are
-// what `missing` keys on, so an unscheduled pickup blocks the step honestly.
+// a slot is actually clicked; `missing` names `pickup_schedule` exactly when
+// the chosen handoff needs a date and time and the two columns are unset, so
+// an unscheduled pickup blocks the step honestly.
 export default function PickupScheduler({
   times,
   row,

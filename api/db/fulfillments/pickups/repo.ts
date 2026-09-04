@@ -2,14 +2,12 @@
 import query from "#shared/db/query.ts";
 import { buildUpdate } from "#shared/db/patch.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
-import { FulfillmentPickupPatch } from "@dorado/contracts";
+import { FulfillmentPickupPatchColumns } from "@dorado/contracts";
 import type { FulfillmentPickup } from "@dorado/contracts";
 import type { Executor } from "#shared/db/executor.ts";
 
 const sql = sqlFrom(import.meta.dirname);
 
-
-type Window = { from?: string | null; to?: string | null; employee_id?: string | null };
 
 export async function getFor(
   fulfillment_id: string, executor?: Executor
@@ -25,7 +23,9 @@ export async function getMany(ids: string[], executor?: Executor): Promise<Fulfi
 }
 
 export async function getScheduled(
-  { from = null, to = null, employee_id = null }: Window = {}, executor?: Executor
+  { from = null, to = null, employee_id = null }:
+    { from?: string | null; to?: string | null; employee_id?: string | null } = {},
+  executor?: Executor
 ): Promise<FulfillmentPickup[]> {
   const { rows } = await query<FulfillmentPickup>(
     sql("get_scheduled"), [from, to, employee_id], executor
@@ -33,16 +33,10 @@ export async function getScheduled(
   return rows;
 }
 
-export type PickupInput = {
-  pickup_address_id?: string;
-  assigned_employee_id?: string | null;
-  start_time?: string | null;
-  end_time?: string | null;
-};
-
-export type PickupNew = PickupInput & { id: string; fulfillment_id: string };
-
-export async function create(row: PickupNew, executor?: Executor): Promise<FulfillmentPickup> {
+export async function create(
+  row: Pick<FulfillmentPickup, "id" | "fulfillment_id"> & FulfillmentPickupPatchColumns,
+  executor?: Executor
+): Promise<FulfillmentPickup> {
   const { rows } = await query<FulfillmentPickup>(
     sql("create"),
     [
@@ -57,14 +51,12 @@ export async function create(row: PickupNew, executor?: Executor): Promise<Fulfi
 // THE COLUMNS, FROM THE CONTRACT (ruling 64). `fulfillment_id` is dropped
 // because it is this update's WHERE key, which is exactly what the schedule
 // body drops it for too.
-export type PickupPatchColumns = Omit<FulfillmentPickupPatch, "fulfillment_id">;
 export const PATCHABLE = Object.keys(
-  FulfillmentPickupPatch.omit({ fulfillment_id: true }).shape
-) as readonly (keyof PickupPatchColumns)[];
-export type PickupPatch = Partial<Record<(typeof PATCHABLE)[number], string | null>>;
+  FulfillmentPickupPatchColumns.shape
+) as readonly (keyof FulfillmentPickupPatchColumns)[];
 
 export async function update(
-  fulfillment_id: string, patch: PickupPatch, executor?: Executor
+  fulfillment_id: string, patch: FulfillmentPickupPatchColumns, executor?: Executor
 ): Promise<boolean> {
   const built = buildUpdate({
     table: "fulfillments.pickups", allowed: PATCHABLE, patch, where: { fulfillment_id },

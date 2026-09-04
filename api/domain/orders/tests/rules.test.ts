@@ -6,6 +6,7 @@ import { test } from "vitest";
 import assert from "node:assert/strict";
 import * as rules from "#domain/orders/rules.ts";
 import { Conflict, Invalid } from "#shared/errors.ts";
+import type { OrderView, PricedLine, RateRead } from "@dorado/contracts";
 
 // `spotSideFor` and `premiumSourceFor` LEFT WITH THIS FILE'S SUBJECT (D214
 // item 11): both were pure commentary - nothing but this test ever called
@@ -27,14 +28,14 @@ test("sales tax is charged, never paid", () => {
 const BANDS = [
   { metal: "Gold", min_qty: 0, max_qty: 1, scrap_pct: 0.8, bullion_pct: 0.9 },
   { metal: "Gold", min_qty: 1, max_qty: null, scrap_pct: 0.87, bullion_pct: 0.95 },
-] as unknown as rules.RateBand[];
+] as unknown as RateRead[];
 
 // The lines retierPlan is handed are orders.items rows: `bullion_id` says
 // which kind, and null is scrap.
-const scrapLine = (over: Partial<rules.PricedLine> = {}): rules.PricedLine => ({
+const scrapLine = (over: Partial<PricedLine> = {}): PricedLine => ({
   id: "s", metal: "Gold", content: 1, quantity: 1, bullion_id: null, ...over,
 });
-const bullionLine = (over: Partial<rules.PricedLine> = {}): rules.PricedLine => ({
+const bullionLine = (over: Partial<PricedLine> = {}): PricedLine => ({
   id: "b", metal: "Gold", content: 1, quantity: 1, bullion_id: "a-product", ...over,
 });
 
@@ -117,37 +118,43 @@ test("no rate bands means no plan - an order keeps what it was given", () => {
 // ONE QUOTE PER METAL THE ORDER ACTUALLY CONTAINS. exchange wrote a row per
 // metal whether or not the order held any of it.
 //
-// THE ROWS ARE COMPLETE (D214 item 11): the rule answers `NewOrderSpot[]` with
-// the order_id on every row, so the use case is one line -
-// `orderSpots.createMany(rules.spotsToFreeze(order_id, lines, live), tx)`.
-test("freezing quotes each distinct metal on the order once, at the live spot", () => {
-  const live = [
-    { id: "gold", ask: 3400, bid: 3300 },
-    { id: "silver", ask: 40, bid: 39 },
-  ];
-  assert.deepEqual(
-    rules.spotsToFreeze(
-      "order-1",
-      [{ metal_id: "gold" }, { metal_id: "gold" }, { metal_id: "silver" }],
-      live
-    ),
-    [
-      { order_id: "order-1", metal_id: "gold", ask: 3400, bid: 3300 },
-      { order_id: "order-1", metal_id: "silver", ask: 40, bid: 39 },
-    ]
+// THE FREEZE IS A STATEMENT NOW (ruling 66): `orders/spots/sql/freeze.sql`
+// copies spots.spots for every distinct metal on the order's lines, so a metal
+// the feed has not quoted simply does not JOIN. What is left to decide is what
+// a SHORT answer means, and that is this rule - the db test in
+// db/orders/spots/tests/ pins the statement itself.
+const line = (metal_id: string) => ({ metal_id });
+
+test("every metal the order holds must have been quoted", () => {
+  assert.doesNotThrow(() =>
+    rules.assertEveryMetalQuoted(
+      [line("gold"), line("gold"), line("silver")],
+      [{ metal_id: "gold" }, { metal_id: "silver" }]
+    )
   );
-  // A metal nobody sold gets no row.
-  assert.deepEqual(rules.spotsToFreeze("order-1", [], live), []);
+  // An order with no lines asks for nothing.
+  assert.doesNotThrow(() => rules.assertEveryMetalQuoted([], []));
 });
 
 // A METAL WITH NO LIVE QUOTE IS REFUSED, WHERE IT USED TO BE FROZEN AT NULL.
 // Every money figure on the order is content * (spot * premium), so a null spot
 // prices that metal at nothing - silently, on an order the business pays out.
 test("a metal the feed has not quoted refuses the placement", () => {
-  const live = [{ id: "gold", ask: 3400, bid: 3300 }];
   assert.throws(
-    () => rules.spotsToFreeze("order-1", [{ metal_id: "platinum" }], live),
-    (err: unknown) => err instanceof Invalid && /no live quote for metal platinum/.test((err as Error).message)
+    () => rules.assertEveryMetalQuoted([line("platinum")], [{ metal_id: "gold" }]),
+    (err: unknown) =>
+      err instanceof Invalid && /no live quote for metal platinum/.test((err as Error).message)
+  );
+});
+
+// A LINE THE COPY DROPPED IS A FAULT, not a refusal: the statement ran two
+// statements ago in this transaction, and committing would leave an order
+// missing metal the customer is about to post.
+test("a short line copy refuses to commit", () => {
+  assert.doesNotThrow(() => rules.assertEveryLineCopied(3, 3, "order-1"));
+  assert.throws(
+    () => rules.assertEveryLineCopied(2, 3, "order-1"),
+    (err: unknown) => /3 basket line\(s\) to copy, 2 written/.test((err as Error).message)
   );
 });
 
@@ -225,32 +232,14 @@ test("a repair is honoured only at the price that was actually taken", () => {
 // ASSERT or the derivation step of a use case that used to do the same work
 // inline, through a cast, over a document the browser sent.
 
-test("a catalogue line takes its weights from the product and no premium", () => {
-  const product = {
-    id: "prod-1", metal_id: "gold", gross: 1.1, content: 1, purity: 0.9999,
-  } as unknown as Parameters<typeof rules.lineFromProduct>[1];
-
-  assert.deepEqual(rules.lineFromProduct("order-1", product), {
-    order_id: "order-1",
-    bullion_id: "prod-1",
-    metal_id: "gold",
-    pre_melt: 1.1,
-    post_melt: 1,
-    purity: 0.9999,
-    content: 1,
-    quantity: 1,
-    confirmed: false,
-    unit: "t oz",
-  });
-});
-
-test("a scrap line derives its content from the weight, the unit and the purity", () => {
+// A CATALOGUE LINE IS A STATEMENT NOW (ruling 66) -
+// `orders/items/sql/create_from_product.sql` copies the product's own rigid
+// columns, so there is no rule left to test here; db/orders/items/tests pins
+// the copy. A DECLARED LOT still has a decision in it, and this is it.
+test("a declared lot derives its content from the weight, the unit and the purity", () => {
   assert.deepEqual(
-    rules.lineFromScrap("order-1", {
-      metal_id: "gold", pre_melt: 160, purity: 0.5, unit: "dwt",
-    }),
+    rules.declaredLot({ metal_id: "gold", pre_melt: 160, purity: 0.5, unit: "dwt" }),
     {
-      order_id: "order-1",
       metal_id: "gold",
       pre_melt: 160,
       purity: 0.5,
@@ -263,109 +252,60 @@ test("a scrap line derives its content from the weight, the unit and the purity"
   );
 });
 
-// The five ids a shipping checkout must hold, NAMED in the refusal - a caller
-// that is one field short is told which one, and gets the values back NARROWED
-// rather than as `string | null` it would have to assert away.
-const completeCheckout = {
-  shipper_address_id: "a", package_id: "b", carrier_service_id: "c",
-  fulfillment_id: "d", payment_details_id: "e",
-  recipient_address_id: "f",
-  pickup_date: "2026-09-04", pickup_time: "14:00",
-} as unknown as Parameters<typeof rules.assertPlaceableAsPurchase>[0];
-
-const aCart = [{ id: "line", metal_id: "m" }] as unknown as rules.CheckoutLine[];
-
-test("a complete shipping checkout passes, and a short one names what is missing", () => {
-  assert.deepEqual(rules.assertPlaceableAsPurchase(completeCheckout, aCart), {
-    shipper_address_id: "a", package_id: "b", carrier_service_id: "c",
-    fulfillment_id: "d", payment_details_id: "e",
-  });
-
+// orders.items.metal_id is NOT NULL: the alternative to refusing is a 23502
+// that says nothing about the form the admin filled in.
+test("a declared lot with no metal is refused by name", () => {
   assert.throws(
-    () =>
-      rules.assertPlaceableAsPurchase(
-        Object.assign({}, completeCheckout, { package_id: null }), aCart
-      ),
-    (err: unknown) => err instanceof Invalid && /missing package_id/.test((err as Error).message)
-  );
-});
-
-// A checkout with nothing in it cannot become an order in either direction.
-test("an empty cart is refused before any id is looked at", () => {
-  for (const assertPlaceable of [
-    rules.assertPlaceableAsPurchase, rules.assertPlaceableAsSale,
-  ]) {
-    assert.throws(
-      () => assertPlaceable(completeCheckout, []),
-      (err: unknown) => err instanceof Invalid && /no items/.test((err as Error).message)
-    );
-  }
-});
-
-test("a sale needs somewhere to be delivered", () => {
-  assert.deepEqual(rules.assertPlaceableAsSale(completeCheckout, aCart), {
-    recipient_address_id: "f",
-  });
-  assert.throws(
-    () =>
-      rules.assertPlaceableAsSale(
-        Object.assign({}, completeCheckout, { recipient_address_id: null }), aCart
-      ),
+    () => rules.declaredLot({ pre_melt: 160, purity: 0.5, unit: "dwt" }),
     (err: unknown) =>
-      err instanceof Invalid && /missing recipient_address_id/.test((err as Error).message)
+      err instanceof Invalid && /declared lot needs a metal/.test((err as Error).message)
   );
 });
 
-// The slot is the carrier pickup handoff's, not the checkout's: the schedulable
-// handoff is what makes a date and a time compulsory.
-const DROPOFF = {
-  code: "DROPOFF", name: "Store Dropoff", requires_schedule: false,
-  has_dropoff_locations: true, display_order: 1,
-};
-const COLLECTION = {
-  code: "PICKUP", name: "Carrier Pickup", requires_schedule: true,
-  has_dropoff_locations: false, display_order: 2,
-};
-const A_SERVICE = { carrier_id: "c", name: "Express Saver", serviceType: "SAVER", carrierCode: "FDXE" };
-const A_BOX = { length: 10, width: 8, height: 6 } as unknown as Parameters<typeof rules.parcelFor>[3];
+// ONE READINESS ASSERT (rulings 64/66). `missing` is the CHECKOUT's own
+// answer, ordered the way the stepper walks it and already narrowed to the
+// chosen method's CATEGORY - so a pickup is never refused for having no box.
+// Placement states the refusal once instead of re-listing five ids per
+// direction, which is what assertPlaceableAsPurchase/AsSale did.
+test("a complete checkout places, and a short one names every step it owes", () => {
+  assert.doesNotThrow(() => rules.assertPlaceable([]));
 
-test("a carrier pickup needs a date and a time, and a dropoff carries no slot", () => {
-  const placeable = rules.assertPlaceableAsPurchase(completeCheckout, aCart);
-  const collected = rules.parcelFor(
-    completeCheckout, placeable, A_SERVICE, A_BOX, COLLECTION, 2500, 2
+  assert.throws(
+    () => rules.assertPlaceable(["package", "payout_account"]),
+    (err: unknown) =>
+      err instanceof Invalid &&
+      /missing package, payout_account/.test((err as Error).message)
   );
-  assert.deepEqual(collected.schedule, { date: "2026-09-04", time: "14:00" });
-  assert.equal(collected.weight.value, 2);
-  assert.equal(collected.declaredValue, 2500);
+  // A checkout with nothing in it is refused by the same one line, in either
+  // direction: `items` is the first entry of the list the checkout answers.
+  assert.throws(
+    () => rules.assertPlaceable(["items"]),
+    (err: unknown) => err instanceof Invalid && /missing items/.test((err as Error).message)
+  );
+});
 
-  assert.equal(
-    rules.parcelFor(completeCheckout, placeable, A_SERVICE, A_BOX, DROPOFF, 0, 2).schedule,
-    null
-  );
+// THE CATEGORY REFUSAL IS GONE (Jacob, 2026-09-04): a placement accepts all
+// three, so a DIRECT or PICKUP draft is attached like any other and simply
+// buys no label. What is left of the draft rule is the one thing that must
+// still be true - nobody else's order has taken it.
+test("a draft another order already owns is refused, whatever its category", () => {
+  const free = { fulfillment: { order_id: null }, method: { category: "DIRECT" } };
+  assert.equal(rules.requireFreeFulfillmentDraft(free), free);
 
   assert.throws(
     () =>
-      rules.parcelFor(
-        Object.assign({}, completeCheckout, { pickup_time: null }),
-        placeable, A_SERVICE, A_BOX, COLLECTION, 0, 2
-      ),
-    Invalid
+      rules.requireFreeFulfillmentDraft({
+        fulfillment: { order_id: "another-order" }, method: { category: "SHIPMENT" },
+      }),
+    Conflict
   );
+  assert.throws(() => rules.requireFreeFulfillmentDraft(null), Invalid);
 });
 
-// A carrier that quoted nothing for the chosen service is a refusal, never a
-// zero the business then eats.
-test("postage with no quote is refused rather than priced at nothing", () => {
-  assert.equal(
-    rules.quotedCharge(
-      [{ serviceType: "SAVER", netCharge: 24.5 }, { serviceType: "OTHER", netCharge: 9 }],
-      "SAVER"
-    ),
-    24.5
-  );
-  assert.throws(() => rules.quotedCharge([{ serviceType: "OTHER", netCharge: 9 }], "SAVER"), Invalid);
-  assert.throws(() => rules.quotedCharge([{ serviceType: "SAVER", netCharge: null }], "SAVER"), Invalid);
-});
+// THE PARCEL LEFT WITH THE CARRIER (ruling 67). `parcelFor`, `quotedCharge`,
+// `handoffFor` and `scheduleFromPickup` are domain/shipping/rules.ts now, and
+// their tests moved with them (ruling 31) - orders knows nothing about
+// carriers, which is the whole point of the move.
 
 test("an operation of the wrong direction is refused, naming both", () => {
   assert.doesNotThrow(() => rules.assertDirection("purchase", "purchase", "cancelling"));
@@ -432,34 +372,9 @@ test("an order reaches a refiner only with an address, an email and no other ref
   );
 });
 
-// THE RETURN LABEL'S REQUEST. Where the parcel goes is the order's own
-// snapshot and who signs for the business is the provider's configured
-// contact - neither is ever a field of the request body.
-test("the return label goes from the business to the order's own address", () => {
-  const request = rules.returnLabelRequest(sendable, {
-    serviceType: "FEDEX_2_DAY",
-    weight: { units: "LB", value: 3 },
-    dimensions: { length: 10, width: 8, height: 6, units: "IN" },
-    declaredValue: 5000,
-  });
-
-  assert.equal(request.recipient.address, sendable.address);
-  assert.equal(request.recipient.contact.personName, "Ada");
-  assert.equal(request.serviceType, "FEDEX_2_DAY");
-  assert.deepEqual(request.insurance.declaredValue, { amount: 5000, currency: "USD" });
-  assert.ok(request.shipper.address, "the business's own address is the shipper");
-
-  assert.throws(
-    () =>
-      rules.returnLabelRequest(Object.assign({}, sendable, { address: null }), {
-        serviceType: "FEDEX_2_DAY",
-        weight: { units: "LB", value: 3 },
-        dimensions: { length: 10, width: 8, height: 6, units: "IN" },
-        declaredValue: 0,
-      }),
-    (err: unknown) => err instanceof Invalid && /no address snapshot/.test((err as Error).message)
-  );
-});
+// THE RETURN LABEL'S REQUEST left too (ruling 66): building a carrier's JSON
+// is `providers/shipments/requests.ts`' job, so what an order still decides
+// about a return is only that its metal goes back at all.
 
 // -------------------- what a screen may offer
 //
@@ -469,7 +384,11 @@ test("the return label goes from the business to the order's own address", () =>
 // a half-confirmed purchase being priced, and the one that stops a sale being
 // marked in transit before a refiner has it.
 
-const facts = (over: Partial<rules.OrderFacts> = {}): rules.OrderFacts => ({
+// The facts both answers read. Named here rather than exported by rules.ts:
+// it is one call's argument shape and no table stores it (rulings 57/60/61).
+type Facts = Parameters<typeof rules.actionsFor>[0];
+
+const facts = (over: Partial<Facts> = {}): Facts => ({
   direction: "purchase", status: "Received", order_sent: null, tracking_updated: null,
   hasAddress: true, hasTotal: true, items: [{ confirmed: true }],
   shipments: [], payoutMethod: null, ...over,

@@ -172,14 +172,12 @@ export async function salesOrderQuote(
 
 // What a line is, once the ids in the body have been resolved to rows. An
 // internal computation shape: it exists between the load and the pricing and
-// never crosses a boundary.
-type PricedPurchaseLine = {
-  index: number;
-  kind: "product" | "scrap";
-  metal: string;
-  content: number;
-  quantity: number;
-};
+// never crosses a boundary - so it derives the four fields it shares with
+// the wire's own PurchaseOrderQuoteLine (ruling 57/60/61) rather than
+// restating them, and adds the one PurchaseOrderQuoteLine does not have yet:
+// the premium is resolved AFTER this shape exists, not before.
+type PricedPurchaseLine =
+  Pick<PurchaseOrderQuoteLine, "index" | "kind" | "metal" | "content"> & { quantity: number };
 
 // The sell cart, priced the way placement prices a purchase: the premium comes
 // ONLY from the rate band for the metal, chosen on that metal's TOTAL content

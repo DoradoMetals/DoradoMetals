@@ -6,8 +6,7 @@
 // string "NaN"; a total that cannot be computed must stop at these, not print
 // on a document a customer is paid against.
 import { Invalid } from "#shared/errors.ts";
-import type { Bids } from "#domain/pricing/bid.ts";
-import type { OrderViewItem } from "@dorado/contracts";
+import type { Bids, OrderViewItem } from "@dorado/contracts";
 
 // Split by MEANING, not by nullishness: an ABSENT fee is 0 (no payout row means
 // no fee - that is data, not a waiver), and a value that arrived and cannot

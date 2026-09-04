@@ -103,7 +103,7 @@ export async function aPayout(
     } else {
       await totals.create(
         {
-          id: anId(), order_id: options.order.id,
+          order_id: options.order.id,
           payout_details_id: id, payout_fee: options.payout_fee ?? 0,
         },
         c

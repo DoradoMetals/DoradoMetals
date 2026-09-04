@@ -53,15 +53,10 @@ export async function removeByShipment(
   return rowCount === 1;
 }
 
-export type ShipmentLinkInput = {
-  shipment_id: string;
-  recipient_location_id?: string | null;
-  shipper_location_id?: string | null;
-};
-
-export type ShipmentLinkNew = ShipmentLinkInput & { id: string; fulfillment_id: string };
-
-export async function create(row: ShipmentLinkNew, executor?: Executor): Promise<FulfillmentShipment> {
+export async function create(
+  row: Pick<FulfillmentShipment, "id" | "fulfillment_id" | "shipment_id"> & FulfillmentShipmentPatch,
+  executor?: Executor
+): Promise<FulfillmentShipment> {
   const { rows } = await query<FulfillmentShipment>(
     sql("create"),
     [
@@ -74,13 +69,12 @@ export async function create(row: ShipmentLinkNew, executor?: Executor): Promise
 }
 
 // THE COLUMNS, FROM THE CONTRACT (ruling 64). `shipment_id` is the WHERE key.
-export type ShipmentLinkPatch = FulfillmentShipmentPatch;
 export const PATCHABLE = Object.keys(
   FulfillmentShipmentPatch.shape
-) as readonly (keyof ShipmentLinkPatch)[];
+) as readonly (keyof FulfillmentShipmentPatch)[];
 
 export async function update(
-  shipment_id: string, patch: ShipmentLinkPatch, executor?: Executor
+  shipment_id: string, patch: FulfillmentShipmentPatch, executor?: Executor
 ): Promise<boolean> {
   const built = buildUpdate({
     table: "fulfillments.shipments", allowed: PATCHABLE, patch, where: { shipment_id },

@@ -8,7 +8,7 @@
 // `balanceForUpdate`'s locked read.
 import query from "#shared/db/query.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
-import type { AdminUser, CreditOp } from "@dorado/contracts";
+import type { AdminUser, CreditOp, UserCredit } from "@dorado/contracts";
 import type { Executor } from "#shared/db/executor.ts";
 
 const sql = sqlFrom(import.meta.dirname);
@@ -49,12 +49,10 @@ export async function getAdmins(executor?: Executor): Promise<AdminUser[]> {
 // table. RETURNS THE ROW, not a row count: `undefined` is what tells "no such
 // user" apart from "applied", and the balance in it is what the caller
 // displays instead of computing it.
-export type CreditRow = { id: string; dorado_funds: number | null };
-
 export async function adjustCredit(
   user_id: string, mode: CreditOp, amount: number, executor?: Executor
-): Promise<CreditRow | undefined> {
-  const { rows } = await query<CreditRow>(
+): Promise<UserCredit | undefined> {
+  const { rows } = await query<UserCredit>(
     sql("adjust_credit"), [amount, mode, user_id], executor
   );
   return rows[0];

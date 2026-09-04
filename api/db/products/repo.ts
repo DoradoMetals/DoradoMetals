@@ -12,7 +12,9 @@ import {
   BullionPatch,
   BullionPatchColumns,
   type BullionAdmin,
+  type BullionFilter,
   type BullionLiveness,
+  type BullionSort,
   type BullionStorefront,
 } from "@dorado/contracts";
 
@@ -22,27 +24,13 @@ const sql = sqlFrom(import.meta.dirname);
 // writable by being named in BullionPatch and nowhere else.
 export const PATCHABLE = Object.keys(BullionPatchColumns.shape) as (keyof BullionPatchColumns)[];
 
-// EVERY QUESTION THE CATALOGUE IS ASKED, as keys. Absent means "do not
-// filter"; the buy-side gate is `display: true` and the sell side simply omits
-// it (ruling 49).
-export type ProductFilter = {
-  ids?: string[];
-  slug?: string;
-  display?: boolean;
-  homepage_display?: boolean;
-  metal?: string;
-  filter_category?: string;
-  type?: string;
-  is_generic?: boolean;
-  search?: string;
-  sort?: ProductSort;
-};
-
-export type ProductSort = "name" | "content" | "newest";
-
+// EVERY QUESTION THE CATALOGUE IS ASKED - BullionFilter, from the contract.
+// Absent means "do not filter"; the buy-side gate is `display: true` and the
+// sell side simply omits it (ruling 49).
+//
 // Closed set, keyed by a name the transport parses against it - no caller
 // string ever reaches the statement.
-const ORDERINGS: Record<ProductSort, string> = {
+const ORDERINGS: Record<BullionSort, string> = {
   name: "b.name ASC, b.id ASC",
   content: "b.content DESC, b.name ASC, b.id ASC",
   newest: "b.created_at DESC, b.id DESC",
@@ -50,7 +38,7 @@ const ORDERINGS: Record<ProductSort, string> = {
 
 // The predicate, built from the keys the filter carries. Only placeholder
 // numbers are interpolated; every value is bound.
-function where(f: ProductFilter): { text: string; values: unknown[] } {
+function where(f: BullionFilter): { text: string; values: unknown[] } {
   const conditions: string[] = [];
   const values: unknown[] = [];
   const bind = (value: unknown) => `$${values.push(value)}`;
@@ -89,7 +77,7 @@ const build = (name: string, predicate: string, ordering?: string): string => {
 };
 
 export async function listFor(
-  filter: ProductFilter = {}, executor?: Executor
+  filter: BullionFilter = {}, executor?: Executor
 ): Promise<BullionStorefront[]> {
   // An explicitly empty id list asks for nothing, and `= ANY('{}')` is a scan
   // that answers nothing - so it is answered here instead.
@@ -102,7 +90,7 @@ export async function listFor(
 }
 
 export async function listAdmin(
-  filter: ProductFilter = {}, executor?: Executor
+  filter: BullionFilter = {}, executor?: Executor
 ): Promise<BullionAdmin[]> {
   const { text, values } = where(filter);
   const { rows } = await query<BullionAdmin>(build("get_admin", text), values, executor);

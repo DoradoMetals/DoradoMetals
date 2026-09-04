@@ -13,25 +13,25 @@
 import { randomUUID } from "node:crypto";
 import * as pickups from "#db/shipping/pickups/repo.ts";
 import * as shipmentService from "#domain/shipping/shipments/service.ts";
-import type { PickupBaseRow, PickupWrite } from "#db/shipping/pickups/repo.ts";
+import type { ShipmentPickup, ShipmentPickupWrite } from "@dorado/contracts";
 import type { Executor } from "#shared/db/executor.ts";
 
 // ------------------------------------------------------------------- reads
 
-export async function getAll(executor?: Executor): Promise<PickupBaseRow[]> {
+export async function getAll(executor?: Executor): Promise<ShipmentPickup[]> {
   return await pickups.getAll(executor);
 }
 
 export async function getById(
   id: string, executor?: Executor
-): Promise<PickupBaseRow | null> {
+): Promise<ShipmentPickup | null> {
   return (await pickups.getOne(id, executor)) ?? null;
 }
 
 // Returns a LIST: an order can be collected more than once (a first attempt, then a rebooking) - the caller filters. Resolved through the order's shipment, not a column.
 export async function getByOrder(
   order_id: string, executor?: Executor
-): Promise<PickupBaseRow[]> {
+): Promise<ShipmentPickup[]> {
   const shipment = await shipmentService.getByOrder(order_id, executor);
   if (!shipment) return [];
   return await pickups.getByShipments([shipment.id], executor);
@@ -40,8 +40,8 @@ export async function getByOrder(
 // Same read, batched - grouping one statement's rows by shipment reproduces what a per-order query would give. An order with no shipment gets [].
 export async function getByOrders(
   order_ids: string[], executor?: Executor
-): Promise<Map<string, PickupBaseRow[]>> {
-  const out = new Map<string, PickupBaseRow[]>();
+): Promise<Map<string, ShipmentPickup[]>> {
+  const out = new Map<string, ShipmentPickup[]>();
   if (order_ids.length === 0) return out;
 
   const shipmentOf = await shipmentService.getByOrders(order_ids, executor);
@@ -52,7 +52,7 @@ export async function getByOrders(
   const rows = await pickups.getByShipments(shipments.map((s) => s.id), executor);
   if (rows.length === 0) return out;
 
-  const byShipment = new Map<string, PickupBaseRow[]>();
+  const byShipment = new Map<string, ShipmentPickup[]>();
   for (const row of rows) {
     if (row.shipment_id === null) continue;
     if (!byShipment.has(row.shipment_id)) byShipment.set(row.shipment_id, []);
@@ -81,7 +81,7 @@ export async function recordForShipment(
     location?: string | null;
   },
   executor?: Executor
-): Promise<PickupBaseRow> {
+): Promise<ShipmentPickup> {
   return await pickups.create(
     {
       id: randomUUID(),
@@ -102,8 +102,8 @@ export async function recordForShipment(
 // call before it.
 // The repo's UPDATE is a full replace, so the caller passes every column.
 export async function update(
-  id: string, patch: PickupWrite, tx: Executor
-): Promise<PickupBaseRow | null> {
+  id: string, patch: ShipmentPickupWrite, tx: Executor
+): Promise<ShipmentPickup | null> {
   await pickups.update(id, patch, tx);
   return await getById(id, tx);
 }

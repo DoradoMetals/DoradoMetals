@@ -11,37 +11,21 @@
 import query from "#shared/db/query.ts";
 import { buildUpdate } from "#shared/db/patch.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
-import type { Direction, PaymentIntent, PaymentIntentView } from "@dorado/contracts";
+import type { PaymentIntent, PaymentIntentView, PaymentIntentFacts } from "@dorado/contracts";
 import type { Executor } from "#shared/db/executor.ts";
 import { columnsOf } from "#shared/db/columns.ts";
 import { PaymentIntentPatch } from "@dorado/contracts";
 
 const sql = sqlFrom(import.meta.dirname);
 
-
-// The COMPOSED intent - the wire shape, joined across the attempt, the
-// settlement and the instrument. The two timestamps are the exception to
-// taking the contract unchanged: a contract describes the WIRE, where JSON
-// made a timestamp a string, and pg hands back a Date.
-export type ComposedIntentRow = Omit<PaymentIntentView, "created_at" | "updated_at"> & {
-  created_at: Date;
-  updated_at: Date;
-};
-
-// The payment FACTS order creation decides on (D211). The amount is in CENTS -
-// see sql/find_facts_by_ref.sql.
-export type IntentFacts = {
-  payment_intent_id: string;
-  intent_id: string;
-  attempt_id: string;
-  user_id: string | null;
-  session_id: string | null;
-  type: string | null;
-  payment_status: string | null;
-  amount: number | null;
-  order_id: string | null;
-  direction: Direction | null;
-};
+// THE COMPOSED INTENT IS `PaymentIntentView` ITSELF - the wire shape, joined
+// across the attempt, the settlement and the instrument. This used to carry a
+// local `ComposedIntentRow`, an `Omit<>&{}` that widened created_at/updated_at
+// to `Date` on the theory that pg hands back a Date where the contract says
+// string; nothing here ever calls a Date method on either column, and every
+// other read in this file already returns the contract's own (string-typed)
+// entity the same way, so the override bought nothing but a second name for
+// one shape.
 
 // THE WRITE SHAPE IS THE CONTRACT'S - `PaymentIntentPatch`, which create and
 // update both take. The two local ones this replaced (`NewIntent` for the
@@ -102,8 +86,8 @@ export async function remove(id: string, executor?: Executor): Promise<boolean> 
 export async function findReusable(
   key: { session_id: string; user_id: string | null; type: string | null },
   executor?: Executor
-): Promise<ComposedIntentRow | undefined> {
-  const { rows } = await query<ComposedIntentRow>(
+): Promise<PaymentIntentView | undefined> {
+  const { rows } = await query<PaymentIntentView>(
     sql("find_reusable"), [key.session_id, key.user_id, key.type], executor
   );
   return rows[0];
@@ -111,8 +95,8 @@ export async function findReusable(
 
 export async function findForOrder(
   order_id: string, executor?: Executor
-): Promise<ComposedIntentRow | undefined> {
-  const { rows } = await query<ComposedIntentRow>(
+): Promise<PaymentIntentView | undefined> {
+  const { rows } = await query<PaymentIntentView>(
     sql("find_for_order"), [order_id], executor
   );
   return rows[0];
@@ -122,8 +106,8 @@ export async function findForOrder(
 // than on an id from a request body - see sql/find_open_for_user.sql.
 export async function findOpenForUser(
   user_id: string, executor?: Executor
-): Promise<IntentFacts | undefined> {
-  const { rows } = await query<IntentFacts>(
+): Promise<PaymentIntentFacts | undefined> {
+  const { rows } = await query<PaymentIntentFacts>(
     sql("find_open_for_user"), [user_id], executor
   );
   return rows[0];
@@ -134,8 +118,8 @@ export async function findOpenForUser(
 // to write keys by that.
 export async function findFactsByRef(
   provider_ref: string, executor?: Executor
-): Promise<IntentFacts | undefined> {
-  const { rows } = await query<IntentFacts>(
+): Promise<PaymentIntentFacts | undefined> {
+  const { rows } = await query<PaymentIntentFacts>(
     sql("find_facts_by_ref"), [provider_ref], executor
   );
   return rows[0];

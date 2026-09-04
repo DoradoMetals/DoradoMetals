@@ -4,9 +4,18 @@
 // complete", "can the carrier be asked for rates", "may this be placed". They
 // are pure now, so they are tested as arithmetic - and a rule that only ever
 // ran behind a live checkout row is a rule nobody could see change.
+//
+// CheckoutView SHRANK (Jacob, 2026-09-04): `ready_for_rates`,
+// `ready_for_payment`, `ready_to_place`, `item_count`,
+// `fulfillment_method_type` and `handoff_code` are all gone - each was a
+// second reading of `missing` itself, and a stepper can derive every one of
+// them off the one list (empty means placeable, "shipper_address"/"package"
+// absent means rates can be asked for). `checkoutState` answers `{ missing }`
+// alone now, and it is CATEGORY-AWARE: a PICKUP or DIRECT draft is never
+// asked for a shipper address or a box.
 import { test } from "vitest";
 import assert from "node:assert/strict";
-import type { Checkout } from "@dorado/contracts";
+import type { Checkout, FulfillmentCategory } from "@dorado/contracts";
 import {
   addressColumnFor, checkoutState, handoffFor, methodTypeFor,
   CHOICE_COLUMNS, mergeChoices,
@@ -23,107 +32,127 @@ const row = (over: Partial<Checkout> = {}): Checkout =>
   });
 
 const purchase = (over: Partial<Checkout>, extra: Partial<{
-  item_count: number; requires_schedule: boolean; has_fulfillment: boolean;
+  item_count: number; category: FulfillmentCategory | null; requires_schedule: boolean;
 }> = {}) =>
   checkoutState({
     row: row(over), direction: "purchase",
     item_count: extra.item_count ?? 1,
+    category: extra.category ?? null,
     requires_schedule: extra.requires_schedule ?? false,
-    has_fulfillment: extra.has_fulfillment ?? false,
   });
 
-test("an empty purchase checkout is missing every step, in stepper order", () => {
-  const state = purchase({}, { item_count: 0 });
-  assert.deepEqual(state.missing, [
-    "items", "shipper_address", "package", "handoff", "carrier_service", "payout_account",
-  ]);
-  assert.equal(state.ready_for_rates, false);
-  assert.equal(state.ready_for_payment, false);
-  assert.equal(state.ready_to_place, false);
+test("until a method is chosen, the category-specific steps do not apply yet", () => {
+  assert.deepEqual(
+    purchase({}, { item_count: 0 }).missing,
+    ["items", "fulfillment_method", "payout_account"]
+  );
+  assert.deepEqual(purchase({}).missing, ["fulfillment_method", "payout_account"]);
+  assert.deepEqual(
+    purchase({ payment_details_id: "d" }).missing, ["fulfillment_method"]
+  );
 });
 
-// The carrier is asked what a parcel costs, so it needs the parcel: lines to
-// weigh, a box to weigh them in, somewhere to collect from. Exactly the three
-// refusals shipping/operations' getCheckoutRates raises, and nothing more -
-// a service is what the call is FOR.
-test("rates need items, a box and an address, and nothing else", () => {
-  assert.equal(purchase({ shipper_address_id: "a" }).ready_for_rates, false);
-  assert.equal(purchase({ package_id: "p" }).ready_for_rates, false);
-  assert.equal(
-    purchase({ shipper_address_id: "a", package_id: "p" }, { item_count: 0 }).ready_for_rates,
-    false
+// A parcel needs a box and somewhere to collect from, and nothing a PICKUP or
+// DIRECT draft would ever carry - the CATEGORY REFUSAL that used to gate this
+// is gone (Jacob, 2026-09-04: "If it's a direct or pickup, why would it need
+// shipper_address_id or package_id?").
+test("a SHIPMENT checkout owes an address, a box and a service", () => {
+  assert.deepEqual(
+    purchase({}, { category: "SHIPMENT" }).missing,
+    ["shipper_address", "package", "carrier_service", "payout_account"]
   );
-  assert.equal(purchase({ shipper_address_id: "a", package_id: "p" }).ready_for_rates, true);
+  assert.deepEqual(
+    purchase({ shipper_address_id: "a" }, { category: "SHIPMENT" }).missing,
+    ["package", "carrier_service", "payout_account"]
+  );
+  assert.deepEqual(
+    purchase({ shipper_address_id: "a", package_id: "p" }, { category: "SHIPMENT" }).missing,
+    ["carrier_service", "payout_account"]
+  );
 });
 
 const shipped = {
   shipper_address_id: "a", package_id: "p", carrier_service_id: "s",
 };
 
-test("the shipping step completes when only the payout account is left", () => {
-  const state = purchase(shipped, { has_fulfillment: true });
+test("the SHIPMENT step completes when only the payout account is left", () => {
+  const state = purchase(shipped, { category: "SHIPMENT" });
   assert.deepEqual(state.missing, ["payout_account"]);
-  assert.equal(state.ready_for_payment, true);
-  assert.equal(state.ready_to_place, false);
 });
 
 // A carrier PICKUP is the schedulable handoff, and a schedule half-made is no
 // schedule: a date with no time books nothing.
 test("a schedulable handoff owes a date AND a time", () => {
-  const noSchedule = purchase(shipped, { has_fulfillment: true, requires_schedule: true });
+  const noSchedule = purchase(shipped, { category: "SHIPMENT", requires_schedule: true });
   assert.ok(noSchedule.missing.includes("pickup_schedule"));
-  assert.equal(noSchedule.ready_for_payment, false);
 
   const dateOnly = purchase(
     { ...shipped, pickup_date: "2026-09-10" },
-    { has_fulfillment: true, requires_schedule: true }
+    { category: "SHIPMENT", requires_schedule: true }
   );
   assert.ok(dateOnly.missing.includes("pickup_schedule"));
 
   const both = purchase(
     { ...shipped, pickup_date: "2026-09-10", pickup_time: "10:00" },
-    { has_fulfillment: true, requires_schedule: true }
+    { category: "SHIPMENT", requires_schedule: true }
   );
   assert.deepEqual(both.missing, ["payout_account"]);
 });
 
-test("a purchase is placeable only once the payout account is sealed", () => {
+test("a SHIPMENT purchase is placeable only once the payout account is sealed", () => {
   const state = purchase(
-    { ...shipped, payment_details_id: "d" }, { has_fulfillment: true }
+    { ...shipped, payment_details_id: "d" }, { category: "SHIPMENT" }
   );
   assert.deepEqual(state.missing, []);
-  assert.equal(state.ready_to_place, true);
 });
 
-// The sale has no parcel of the customer's and no payout: an address, a
-// service and a way to pay.
-test("a sale asks for a recipient address, a service and a payment method", () => {
+// PICKUP - Dorado collects from the customer's own address.
+test("a PICKUP checkout owes its own address and an appointment time", () => {
+  assert.deepEqual(
+    purchase({}, { category: "PICKUP" }).missing,
+    ["pickup_address", "appointment_time", "payout_account"]
+  );
+  assert.deepEqual(
+    purchase(
+      { pickup_address_id: "pa", appointment_time: "2026-09-10T15:00:00Z", payment_details_id: "d" },
+      { category: "PICKUP" }
+    ).missing,
+    []
+  );
+});
+
+// DIRECT - the customer walks in.
+test("a DIRECT checkout owes a location and an appointment time", () => {
+  assert.deepEqual(
+    purchase({}, { category: "DIRECT" }).missing,
+    ["appointment_location", "appointment_time", "payout_account"]
+  );
+  assert.deepEqual(
+    purchase(
+      { appointment_location_id: "l", appointment_time: "2026-09-10T15:00:00Z", payment_details_id: "d" },
+      { category: "DIRECT" }
+    ).missing,
+    []
+  );
+});
+
+// The sale has no parcel of the customer's, no method to choose and no payout:
+// only its items and where the metal is delivered. `carrier_service` and
+// `payment_method` used to be on this list too - CheckoutView's shrink
+// dropped them, along with the ready_for_payment/ready_to_place booleans that
+// read them.
+test("a sale asks only for its items and a recipient address", () => {
   const empty = checkoutState({
     row: row({ direction: "sale" }), direction: "sale",
-    item_count: 1, requires_schedule: false, has_fulfillment: false,
+    item_count: 0, category: null, requires_schedule: false,
   });
-  assert.deepEqual(empty.missing, ["recipient_address", "carrier_service", "payment_method"]);
+  assert.deepEqual(empty.missing, ["items", "recipient_address"]);
 
   const ready = checkoutState({
-    row: row({
-      direction: "sale", recipient_address_id: "a",
-      carrier_service_id: "s", payment_method_id: "m",
-    }),
-    direction: "sale", item_count: 1, requires_schedule: false, has_fulfillment: false,
+    row: row({ direction: "sale", recipient_address_id: "a" }),
+    direction: "sale", item_count: 1, category: null, requires_schedule: false,
   });
   assert.deepEqual(ready.missing, []);
-  assert.equal(ready.ready_for_payment, true);
-  assert.equal(ready.ready_to_place, true);
-});
-
-test("a sale with only the card outstanding is still ready for payment", () => {
-  const state = checkoutState({
-    row: row({ direction: "sale", recipient_address_id: "a", carrier_service_id: "s" }),
-    direction: "sale", item_count: 1, requires_schedule: false, has_fulfillment: false,
-  });
-  assert.deepEqual(state.missing, ["payment_method"]);
-  assert.equal(state.ready_for_payment, true);
-  assert.equal(state.ready_to_place, false);
 });
 
 test("a parcel leaves the customer on a purchase and arrives on a sale", () => {

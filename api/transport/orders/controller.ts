@@ -105,13 +105,6 @@ export const cancelOrder = asyncHandler(async (req, res) => {
   return res.status(200).json(await orders.cancel(uuidParam(req, "id"), input));
 });
 
-// RETRY SURFACE for a purchase order whose own label purchase failed after
-// the order committed (label-after-commit, 2026-09-03) - see orders.buyLabel.
-// NO BODY (ruling 58): the use case computes everything it needs.
-export const buyOrderLabel = asyncHandler(async (req, res) => {
-  return res.status(200).json(await orders.buyLabel(uuidParam(req, "id")));
-});
-
 export const sendOrderToRefiner = asyncHandler(async (req, res) => {
   const { refiner_id } = strictBody(OrderSendToRefinerBody, req.body);
   return res.status(200).json(await orders.sendToRefiner(uuidParam(req, "id"), refiner_id));

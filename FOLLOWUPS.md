@@ -14816,3 +14816,140 @@ have it, and a contract requiring it raised 42703 in 61 tests. Running
 `pnpm --filter @dorado/contracts generate` will re-add it; it belongs with the
 places lane's migration, not before it. Same lesson as D214 item 9's shared test
 database, one layer up: two lanes, one dev database.
+
+### Types live in contracts, everywhere (2026-09-04)
+
+Jacob, on `api/domain/orders/rules.ts` after four earlier passes had already
+been over it: *"Well I'm still seeing a lot of types in here so"*. Rulings
+57/60/61 already said it - every type crossing a boundary lives in
+`@dorado/contracts`, the row IS `Order`, a write takes `OrderPatch`, there is
+no `New*` - and 192 declarations under `api/db/` and `api/domain/` said
+otherwise. **192 -> 55**, and of the 55 only the two ALLOWED forms remain
+outside one parallel lane's files: a type-only re-export of a contract, or an
+unexported derivation of one in the same statement.
+
+**THE GATE IS `lint:type-homes`, REWRITTEN AROUND A STRONGER QUESTION.** The
+old one asked "is the same NAME declared in two files with the same BODY?" -
+duplication only - and reported **2** of those 192, because a type declared
+ONCE in the wrong place is not a duplicate. The rule was never "declare it
+once", it is "declare it THERE". It now fails any `type`/`interface`
+declaration or type export under `db/` and `domain/` outside the two forms;
+`providers/` is deliberately out of scope, because a provider adapter
+describes somebody else's payload and a package whose premise is that every
+field traces to one of our columns is the wrong home for it. Eleven self-test
+cases, both directions, including one that plants an empty tree and requires
+the FILE FLOOR to fire - the floor is env-overridable purely so the other ten
+can use synthetic trees, and one case keeps it at the real value so it is
+proved rather than declared. `lint:no-column-arrays`' ACCEPTED map is EMPTY
+now (it was four); `lint:input-shapes` was already clean of this lane's files.
+
+**Rulings 66 and 67, taken together, are why `orders/rules.ts` fell from 966
+lines to 623 - and what is left is decisions and named refusals, nothing else.**
+
+- **66, the copies:** *"I also hate all those returns. I thought this was
+  supposed to be made way simpler to understand??"* Nine functions that only
+  copied fields into a row literal - `orderFrom`, `handoverOf`, `linesBought`,
+  `linesSold`, `totalsBought`, `totalsSold`, `shipmentFrom`, `lineFromProduct`,
+  `lineFromScrap` - are SIX `INSERT … SELECT` statements now:
+  `db/orders/sql/create_from_checkout.sql`,
+  `db/orders/items/sql/{create_bought,create_sold,create_from_product}.sql`,
+  `db/orders/spots/sql/freeze.sql`,
+  `db/orders/transactions/sql/create_for_purchase.sql`, plus
+  `db/shipping/shipments/sql/create_from_checkout.sql`. The columns share
+  names; the few that differ are named in the SELECT. A SALE's three decided
+  per-line figures (premium, tax rate, price) arrive as parallel arrays and
+  JOIN the copy on the CHECKOUT line's id, so a line the pricing did not
+  answer for does not join - a SHORT insert the caller refuses
+  (`assertEveryLineCopied`) rather than a line quietly priced at zero. The
+  same shape guards the spot freeze: a metal with no live quote does not join,
+  and `assertEveryMetalQuoted` reads the short answer. `handoverOf` died by
+  giving `fulfillments.attachForCheckout` the CHECKOUT ROW instead of seven
+  fields lifted off it.
+- **67, the carrier:** *"I don't understand why any carrier or shipping stuff
+  is living in orders."* `Parcel` is a contract (`computed/shipping.ts`);
+  `parcelFor`, `quotedCharge`, `handoffFor`, `scheduleFromPickup` and six
+  asserts are `domain/shipping/rules.ts`; `postage.ts` is deleted and its work
+  is the new `domain/shipping/labels.ts` (`createForCheckout`, `buyLabel`,
+  `buyReturnLabel`, and the one `record` that writes a bought label down).
+  The four carrier request builders are `providers/shipments/requests.ts`, and
+  **the FedEx adapter itself moved out of the domain** -
+  `domain/shipping/operations/adapters/` is `providers/shipments/adapters/`,
+  which took eight declarations with it. `parcelFor` and `rebuyParcel` became
+  ONE builder: they differed only in where the weight and the declared value
+  came from, and both are arguments.
+  **`POST /api/orders/:id/label` is `POST /api/shipments/:id/label`** (declared
+  in `transport/shipping/shipments/routes.ts`, admin-only, `admin-routes.json`
+  updated); the client hook is `useBuyShipmentLabel` under
+  `packages/client/src/shipping/`. `OrderView.actions.buy_label` stays and is
+  answered from the parcel's own state, which is what it always read.
+
+**`CheckoutView` IS THE ROW PLUS ONE LIST.** Jacob: *"Why does CheckoutView
+need a fulfillment_method_type and handoff_code?"*, then *"Why does it need
+ready_for_rates? Why does it need ready_for_payment?"*, then *"Why does it
+need requires_schedule"*. It is `Checkout.extend({ missing })` and nothing
+else. Every deleted field was either a second reading of `missing`
+(`ready_for_rates`, `ready_for_payment`, `ready_to_place`, `item_count`) or a
+scalar join onto a list the stepper already renders (`fulfillment_method_type`,
+`handoff_code`, `requires_schedule` - ruling 12). The stepper derives its gates
+from `missing` in a pure, tested function of its own.
+
+**AND `missing` FOLLOWS THE CHOSEN METHOD'S CATEGORY** (Jacob: *"If it's a
+direct or pickup, why would it need shipper_address_id or package_id?"*).
+SHIPMENT owes an address, a box, a service and - only when the handoff needs
+one - a courier slot; PICKUP owes a collection address and a time; DIRECT owes
+a store and a time; every purchase owes items and a payout account; a sale
+owes items and somewhere to deliver. Placement accepts all three: the draft
+fulfillment is attached whatever its category, and the parcel shell and the
+label happen ONLY for SHIPMENT, so `requireFreeShipmentDraft`'s category
+refusal is deleted and `assertPlaceableAsPurchase`/`AsSale` collapse into one
+`assertPlaceable(missing)`.
+
+**What the ACCEPTED map holds, and it is the only thing it holds:** twenty
+files of the parallel small-features lane (`refiners`, `leads`, `reviews`,
+`media`, `sales-tax`, `transactions`), **39 declarations**, pinned with a count
+each from both sides - a file that stops having any fails, and a count that
+grows fails. This pass did not open one of them: two lanes editing one file is
+how a merge loses a change.
+
+**Contracts added, all derivations:** `Parcel`/`ParcelWeight`/
+`ParcelDimensions`/`ParcelSchedule` and `LabelService` (the carrier's own
+spellings, `code` and `carrier_code`, instead of the rename the domain was
+doing); `OrderWrite`, `OrderGuard`, `OrderItemWrite`, `PricedLine`,
+`OrderTotalsPatch`/`OrderTotalsWrite`, `OrderSpotPatch`, `OrderSpotNamed`,
+`SettledAwaiting`/`AbandonedSale`/`ReservedFunds`; `CheckoutItemWrite`,
+`OrderLine`, `SaleLine`/`TaxedSaleLine`, `CheckoutAdoption`/
+`CheckoutAdoptionResult`, `VisitorSweepResult`; `ShipmentWrite`,
+`ShipmentPickupWrite`, `CarrierServiceWrite`, `InsuranceCeiling`,
+`OfferedPackage`, `ComposedCarrier`. The other lanes added their own
+(`UserCredit`, `PaymentIntentFacts`, `PaymentCaller`, `BillingIdentity`,
+`PaymentDetailsView`/`Sealed`, `BullionFilter`/`BullionSort`, `PricingSpot`/
+`Spots`/`Bids`/`OrderPrices`, `FulfillmentDirectPatchColumns`/
+`FulfillmentPickupPatchColumns`).
+
+**A third-party shape is NOT a contract, and three lanes reached the same
+answer independently.** better-auth's plugin types, Stripe's intent and
+payment-method shapes, and FedEx's `AddressLike`/`ContactLike`/`ScanEvent`
+describe payloads we do not control; they were inlined at their single use
+sites or moved under `api/providers/**`, which the lint deliberately does not
+scan. Putting them in a package whose whole premise is that every field traces
+to a column would have been a lie about all of them.
+
+**Verified 2026-09-04**, with the local Postgres the preflight provisions:
+`pnpm --filter @dorado/api test` 1316 passed / 1 skipped across 221 files,
+exit 0; `tsc -p api/tsconfig.json --noEmit` 0 errors; every static lint exit 0
+(`lint:type-homes`, `input-shapes`, `no-column-arrays`, `contracts-derived`,
+`db`, `row-vs-list`, `no-throw-in-services`, `test-locks`, `test-actor`,
+`imports`, `namespace-calls`, `script-guards`); `lint:type-homes --self-test`
+11 cases, both directions; `@dorado/client` typecheck 0 / 24 tests;
+`@dorado/frontend` typecheck 0 / 190 tests; `validate:wire` 32 shapes match, 0
+diverge. `pnpm check:fast` fails on ONE member, `figma:inventory`, with seven
+design-system findings this lane did not touch (five PENDING entries in
+`scripts/figma/map.mjs` for components that are now built, and two undrawn
+directories) - `packages/components` and `scripts/` are untouched here.
+
+**Shape changes for the one frontend pass (ruling 44):** `CheckoutView` loses
+seven fields and gains none; `CheckoutStep`'s `handoff` is `fulfillment_method`
+and it gains `pickup_address`, `appointment_location`, `appointment_time`;
+`POST /orders/:id/label` moves to `POST /shipments/:id/label` and answers a
+`ShipmentView` rather than an `OrderView`; `GET /shipments/:id` and the order
+view's parcels now carry `actual_cost`, which the table always had.

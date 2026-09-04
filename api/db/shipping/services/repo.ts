@@ -3,49 +3,25 @@ import query from "#shared/db/query.ts";
 import { buildUpdate } from "#shared/db/patch.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
 import { CarrierServicePatch } from "@dorado/contracts";
-import type { CarrierService, SaleShippingService } from "@dorado/contracts";
+import type {
+  CarrierService, CarrierServiceRead, CarrierServiceWrite, InsuranceCeiling,
+  SaleShippingService,
+} from "@dorado/contracts";
 import type { Executor } from "#shared/db/executor.ts";
 
 const sql = sqlFrom(import.meta.dirname);
 
-export type ServiceRow = Omit<
-  CarrierService,
-  | "supports_pickups"
-  | "supports_dropoffs"
-  | "max_weight_lb"
-  | "created_by_id"
-  | "updated_by_id"
-  // max_insured_value is not on this wire - getInsuranceCeilings reads it instead.
-  | "max_insured_value"
-> & {
-  supports_pickup: CarrierService["supports_pickups"];
-  supports_dropoff: CarrierService["supports_dropoffs"];
-  max_weight_lbs: CarrierService["max_weight_lb"];
-};
-
-// Every column a create or update supplies, by name - spelled onto each statement's parameter list in one place, not a shared positional array.
-export type ServiceWrite = Pick<
-  CarrierService,
-  | "carrier_id" | "name" | "description" | "code" | "provider_code"
-  | "supports_pickups" | "supports_dropoffs" | "supports_returns" | "supports_insurance"
-  | "is_international" | "is_residential" | "is_active"
-  | "max_weight_lb" | "max_length_in" | "max_width_in" | "max_height_in"
-  | "max_declared_value" | "min_transit_days" | "max_transit_days" | "display_order"
->;
-
-export async function getAll(executor?: Executor): Promise<ServiceRow[]> {
-  const { rows } = await query<ServiceRow>(sql("get_all"), [], executor);
+export async function getAll(executor?: Executor): Promise<CarrierServiceRead[]> {
+  const { rows } = await query<CarrierServiceRead>(sql("get_all"), [], executor);
   return rows;
 }
 
-export async function getOne(id: string, executor?: Executor): Promise<ServiceRow | undefined> {
-  const { rows } = await query<ServiceRow>(sql("get_one"), [id], executor);
+export async function getOne(id: string, executor?: Executor): Promise<CarrierServiceRead | undefined> {
+  const { rows } = await query<CarrierServiceRead>(sql("get_one"), [id], executor);
   return rows[0];
 }
 
 // The insurance ceiling per service, for one carrier - read on its own, not folded into the row reads.
-export type InsuranceCeiling = { id: string; name: string; max_insured_value: number };
-
 export async function getInsuranceCeilings(
   carrier_id: string, executor?: Executor
 ): Promise<InsuranceCeiling[]> {
@@ -57,16 +33,16 @@ export async function getInsuranceCeilings(
 
 export async function getByCarrier(
   carrier_id: string, executor?: Executor
-): Promise<ServiceRow[]> {
-  const { rows } = await query<ServiceRow>(sql("get_by_carrier"), [carrier_id], executor);
+): Promise<CarrierServiceRead[]> {
+  const { rows } = await query<CarrierServiceRead>(sql("get_by_carrier"), [carrier_id], executor);
   return rows;
 }
 
 // created_by/updated_by are NOT fields here - public.audit_stamp writes both from the connection's actor.
-export type ServiceNew = ServiceWrite & Pick<CarrierService, "id">;
-
-export async function create(row: ServiceNew, executor?: Executor): Promise<ServiceRow> {
-  const { rows } = await query<ServiceRow>(
+export async function create(
+  row: CarrierServiceWrite & Pick<CarrierService, "id">, executor?: Executor
+): Promise<CarrierServiceRead> {
+  const { rows } = await query<CarrierServiceRead>(
     sql("create"),
     [
       row.id, row.carrier_id, row.name, row.description, row.code, row.provider_code,
@@ -82,8 +58,6 @@ export async function create(row: ServiceNew, executor?: Executor): Promise<Serv
 
 // created_by/updated_by are NOT part of the patch - audit_stamp writes both from the connection's actor.
 // A key PRESENT is written, a key ABSENT is left alone - the same contract every other update() in this codebase keeps.
-export type ServicePatch = Partial<ServiceWrite>;
-
 // The columns a create or edit supplies; RETURNING below preserves the wire's aliased names.
 // THE COLUMNS, FROM THE CONTRACT (ruling 64) - through the ONE map of the
 // three legacy spellings this table keeps. `CarrierServicePatch` is the wire's
@@ -110,7 +84,7 @@ export const RETURNING = `id, carrier_id, name, description, code, provider_code
           created_by, updated_by, created_at, updated_at`;
 
 export async function update(
-  id: string, patch: ServicePatch, executor?: Executor
+  id: string, patch: Partial<CarrierServiceWrite>, executor?: Executor
 ): Promise<boolean> {
   const built = buildUpdate({
     table: "shipping.services", allowed: PATCHABLE, patch, where: { id }, returning: RETURNING,
@@ -125,12 +99,10 @@ export async function remove(id: string, executor?: Executor): Promise<boolean> 
   return rowCount === 1;
 }
 
-// The sale delivery options: the business's carrier-agnostic priced rows - a projection, not ServiceRow, with no carrier flags or legacy aliases.
-// The contract's, not a second column list - it IS get_sale_options.sql's
-// projection.
-export type SaleServiceOption = SaleShippingService;
-
-export async function getSaleOptions(executor?: Executor): Promise<SaleServiceOption[]> {
-  const { rows } = await query<SaleServiceOption>(sql("get_sale_options"), [], executor);
+// The sale delivery options: the business's carrier-agnostic priced rows - a
+// projection with no carrier flags or legacy aliases. `SaleShippingService` IS
+// get_sale_options.sql's projection.
+export async function getSaleOptions(executor?: Executor): Promise<SaleShippingService[]> {
+  const { rows } = await query<SaleShippingService>(sql("get_sale_options"), [], executor);
   return rows;
 }

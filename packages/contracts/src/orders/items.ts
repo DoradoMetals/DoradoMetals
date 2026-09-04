@@ -69,3 +69,24 @@ export const OrderItemPatch = OrderItem.pick({
 }).partial().strict();
 export type OrderItemPatch = z.infer<typeof OrderItemPatch>;
 
+
+// WHAT THE SERVER MAY WRITE on a line, which is wider than `OrderItemPatch`
+// (the request's) because three columns are the server's own: `content` is
+// derived from the weight, the unit and the purity, `price` is written by
+// finalize-pricing from the frozen spots, and `sales_tax_charged` is the rate
+// the sale was placed at. The row's identity - its id, its order and the two
+// ids that say which kind of line it is - is not writable.
+// db/orders/items/repo.ts derives its PATCHABLE from these keys (ruling 64).
+export const OrderItemWrite = OrderItem.omit({
+  id: true, order_id: true, bullion_id: true, metal_id: true,
+}).partial();
+export type OrderItemWrite = z.infer<typeof OrderItemWrite>;
+
+// EVERY LINE WITH ITS METAL'S NAME - what premium re-tiering prices from. A
+// purchase tiers bullion as well as scrap (Jacob, 2026-09-03), so `bullion_id`
+// and `quantity` come too: the first picks the band's percentage column, the
+// second turns a bullion line's per-unit content into the metal it holds.
+export const PricedLine = OrderItem
+  .pick({ id: true, content: true, quantity: true, bullion_id: true })
+  .extend({ metal: z.string().nullable() });
+export type PricedLine = z.infer<typeof PricedLine>;

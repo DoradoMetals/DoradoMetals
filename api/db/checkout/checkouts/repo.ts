@@ -25,7 +25,7 @@ const sql = sqlFrom(import.meta.dirname);
 export const PATCHABLE = columnsOf(CheckoutWrite);
 const RETURNING = returningOf(Checkout);
 
-export type CheckoutPatch = CheckoutWrite;
+export type { CheckoutWrite } from "@dorado/contracts";
 
 export async function getOne(id: string, executor?: Executor): Promise<Checkout | undefined> {
   const { rows } = await query<Checkout>(sql("get_one"), [id], executor);
@@ -62,7 +62,7 @@ export async function create(
 // checkout session vanished mid-write" refusal for a state RETURNING makes
 // unreachable.
 export async function update(
-  id: string, patch: CheckoutPatch, executor?: Executor
+  id: string, patch: CheckoutWrite, executor?: Executor
 ): Promise<Checkout | undefined> {
   const built = buildUpdate({
     table: "checkout.checkouts", allowed: PATCHABLE, patch, where: { id }, returning: RETURNING,

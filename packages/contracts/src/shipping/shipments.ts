@@ -108,3 +108,18 @@ export const ShippingCancelLabelBody = z.object({
 }).strict();
 export type ShippingCancelLabelBody = z.infer<typeof ShippingCancelLabelBody>;
 
+
+// THE SAME COLUMNS AS A DATABASE WRITE ACTUALLY TAKES THEM. `label` is bytea,
+// so a write hands the driver bytes rather than the base64 string a READ
+// serves; the three timestamps arrive as a Date from the carrier's own parse
+// as often as a string. Declared once here so no repo has to restate the
+// table to widen four columns.
+// `z.custom` for the bytes: this schema is a WRITE shape, never parsed off a
+// wire, and `z.instanceof` would pin the buffer's own ArrayBuffer variant.
+export const ShipmentWrite = ShipmentPatchColumns.extend({
+  label: z.union([z.string(), z.custom<Uint8Array>()]).nullable().optional(),
+  est_delivery: z.union([z.string(), z.date()]).nullable().optional(),
+  shipped_at: z.union([z.string(), z.date()]).nullable().optional(),
+  delivered_at: z.union([z.string(), z.date()]).nullable().optional(),
+});
+export type ShipmentWrite = z.infer<typeof ShipmentWrite>;

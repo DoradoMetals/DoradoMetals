@@ -37,3 +37,17 @@ export type CarrierPatch = z.infer<typeof CarrierPatch>;
 export const CarrierDeleteBody = z.object({ carrier_id: Carrier.shape.id }).strict();
 export type CarrierDeleteBody = z.infer<typeof CarrierDeleteBody>;
 
+
+// A CARRIER AND THE ORGANIZATION IT IS, joined in memory. `shipping.carriers`
+// has no timestamps of its own, so those are the organization's; a carrier with
+// no organization is DROPPED rather than composed with nulls, because
+// resolveCarrier picks a shipping provider by that name and a blank one would
+// fail every label far from the cause.
+export const ComposedCarrier = Carrier.pick({ id: true, logo: true }).extend({
+  created_at: Organization.shape.created_at,
+  updated_at: Organization.shape.updated_at,
+  organization: Organization.pick({
+    id: true, name: true, email: true, phone: true, enabled: true,
+  }),
+});
+export type ComposedCarrier = z.infer<typeof ComposedCarrier>;

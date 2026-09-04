@@ -4,22 +4,18 @@
 import { convertToPounds } from "#shared/utils/convertWeights.ts";
 import { Conflict, Invalid, NotFound } from "#shared/errors.ts";
 import type {
-  CarrierRateQuote, CarrierServiceOption, CheckoutRate, Shipment, ShipmentActions,
-  ShipmentDirection, TrackingStep,
+  CarrierHandoff, CarrierRateQuote, CarrierServiceOption, CheckoutRate, LabelService,
+  OrderItem, Package, Parcel, ParcelSchedule, Shipment, ShipmentActions,
+  ShipmentDirection, TrackingRecord, TrackingStep,
 } from "@dorado/contracts";
-
-export type WeighableLine = {
-  pre_melt: number | null;
-  unit: string | null;
-  quantity: number | null;
-};
-
-export type WeighableBox = { min_weight_lb: number | null } | null | undefined;
 
 // The carrier bills whichever is larger: what the metal itself weighs, or the
 // box's own minimum. A bullion line's weight is PER UNIT, so quantity scales
 // it - six one-ounce coins weigh six ounces, not one.
-export function parcelWeightLb(items: WeighableLine[], pkg: WeighableBox): number {
+export function parcelWeightLb(
+  items: Pick<OrderItem, "pre_melt" | "unit" | "quantity">[],
+  pkg: Pick<Package, "min_weight_lb"> | null | undefined
+): number {
   const itemsWeight = items.reduce((sum, item) => {
     const lb = convertToPounds(Number(item.pre_melt) || 0, item.unit ?? "g");
     return sum + lb * Number(item.quantity ?? 1);
@@ -67,6 +63,142 @@ export function offeredRates(
   });
 }
 
+// ----------------------------------------------------------------- the parcel
+//
+// RULING 67: orders knows nothing about carriers. Everything below arrived
+// from api/domain/orders/rules.ts, where a purchase order was resolving a
+// service, a box, a handoff and a courier slot for itself.
+
+// EVERYTHING THE CARRIER IS ASKED ABOUT, from rows named by id - so the label,
+// the booking and the rate quote read the same values. ONE builder, not the
+// placement/re-buy pair orders carried: the two differed only in where the
+// weight and the declared value came from, and both are arguments here.
+export function parcelFor(
+  service: LabelService,
+  box: Pick<Package, "length" | "width" | "height"> | null | undefined,
+  handoff: CarrierHandoff,
+  declaredValue: number,
+  weight: number,
+  schedule: ParcelSchedule | null
+): Parcel {
+  assertParcelPackage(box);
+  assertWeight(weight);
+  if (handoff.requires_schedule && !schedule) {
+    throw new Invalid("a carrier pickup needs a date and a time");
+  }
+  return {
+    carrier_id: service.carrier_id, serviceType: service.code,
+    carrierCode: service.carrier_code, handoff, declaredValue,
+    weight: { units: "LB", value: weight },
+    dimensions: {
+      length: Number(box.length), width: Number(box.width),
+      height: Number(box.height), units: "IN",
+    },
+    schedule: handoff.requires_schedule ? schedule : null,
+  };
+}
+
+// WHICH HANDOFF THE CHOSEN METHOD MEANS, by CAPABILITY: the schedulable one is
+// the carrier pickup. No carrier enum is spelled here.
+export function handoffFor(
+  handoffs: CarrierHandoff[], method_type: string | null
+): CarrierHandoff {
+  const handoff = handoffs.find((h) => h.requires_schedule === (method_type === "CARRIER PICKUP"));
+  if (!handoff) throw new Error("the carrier's handoff catalogue is missing an option");
+  return handoff;
+}
+
+// THE COURIER SLOT, from the order's OWN fulfillment pickup row when one is
+// scheduled - never asked for again on a re-buy.
+export function scheduleFromPickup(
+  pickup: { start_time?: string | null } | undefined
+): ParcelSchedule | null {
+  if (!pickup?.start_time) return null;
+  const start = new Date(pickup.start_time);
+  return {
+    date: start.toISOString().slice(0, 10),
+    time: start.toISOString().slice(11, 16),
+  };
+}
+
+// The pair a checkout collected, as a schedule or nothing.
+export function scheduleOf(
+  date: string | null | undefined, time: string | null | undefined
+): ParcelSchedule | null {
+  return date && time ? { date, time } : null;
+}
+
+// POSTAGE IS THE SERVER'S PRICE. A carrier that quoted nothing for the chosen
+// service is a refusal, never a zero the business then eats.
+export function quotedCharge(
+  rates: Pick<CarrierRateQuote, "serviceType" | "netCharge">[], serviceType: string
+): number {
+  const quoted = rates.find((rate) => rate.serviceType === serviceType);
+  if (quoted?.netCharge == null) {
+    throw new Invalid(
+      `the carrier quoted no rate for ${serviceType} - try a different service`
+    );
+  }
+  return quoted.netCharge;
+}
+
+// The box the parcel goes in is named by id and must be a real row: the
+// carrier is told its dimensions.
+export function assertParcelPackage<T>(box: T | null | undefined): asserts box is T {
+  if (!box) throw new Invalid("that package does not exist");
+}
+
+// A parcel with no weight is one the carrier prices at nothing, and the
+// customer's metal is inside it.
+export function assertWeight(weight: number): void {
+  if (!(weight > 0)) throw new Invalid("the parcel needs a weight");
+}
+
+// The retry surface is for a label that was never bought. One that exists is
+// billed, and buying a second is a second charge.
+export function assertUnlabelled(
+  tracking_number: string | null | undefined, shipment_id: string
+): void {
+  if (tracking_number) throw new Conflict(`shipment ${shipment_id} already has a label`);
+}
+
+// A carrier cannot be asked for a label until somebody has chosen the service
+// and the box.
+export function assertParcelChosen(
+  shipment: Pick<Shipment, "carrier_service_id" | "package_id">, shipment_id: string
+): asserts shipment is { carrier_service_id: string; package_id: string } {
+  if (!shipment.carrier_service_id || !shipment.package_id) {
+    throw new Invalid(`shipment ${shipment_id} has no service or package chosen yet`);
+  }
+}
+
+// The stored handoff is a carrier's own vocabulary and the catalogue can move
+// underneath it.
+export function assertHandoff<T>(
+  handoff: T | null | undefined, shipment_id: string
+): asserts handoff is T {
+  if (!handoff) {
+    throw new Invalid(`shipment ${shipment_id} names a handoff the carrier no longer offers`);
+  }
+}
+
+// A FAULT: the create ran in this transaction two statements ago.
+export function assertReturnShipment<T>(
+  shipment: T | null | undefined
+): asserts shipment is T {
+  if (!shipment) throw new Error("the return shipment was not created");
+}
+
+// A parcel is bought against an ORDER: the address it ships from, the metal
+// that sets its weight and the total it is insured for are all the order's.
+export function assertLabelledOrder<T>(
+  order: T | null | undefined, shipment_id: string
+): asserts order is T {
+  if (!order) {
+    throw new NotFound(`shipment ${shipment_id} belongs to no order, so it has no parcel`);
+  }
+}
+
 // ---------------------------------------------------------------- tracking
 //
 // WHAT A CARRIER'S SCANS MEAN was the browser's until this pass:
@@ -83,12 +215,6 @@ export const TRACKING_STAGES = [
   "Picked Up", "In Transit", "Out for Delivery", "Delivered",
 ] as const;
 
-export type ScanRow = {
-  status: string | null;
-  location: string | null;
-  scan_time: Date | string | null;
-};
-
 const asIso = (t: Date | string | null): string | null =>
   t === null ? null : t instanceof Date ? t.toISOString() : t;
 
@@ -101,7 +227,11 @@ const asIso = (t: Date | string | null): string | null =>
 // A stage is only appended if NO LATER stage has been reached: a parcel that
 // is already "Out for Delivery" was picked up, whatever the scan feed says, so
 // showing "Picked Up" as still-to-come would be a lie about the past.
-export function trackingTimeline(events: ScanRow[]): TrackingStep[] {
+export function trackingTimeline(
+  events: (Pick<TrackingRecord, "status" | "location"> & {
+    scan_time: Date | string | null;
+  })[]
+): TrackingStep[] {
   const seen = new Set<string>();
   const scanned: TrackingStep[] = [];
   for (const e of events) {

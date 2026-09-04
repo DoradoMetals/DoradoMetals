@@ -1,33 +1,26 @@
 // shipping.packages: reference data, read-only - no create/update/remove. `find` resolves a carrier+label pair to its row.
 import query from "#shared/db/query.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
-import type { Package } from "@dorado/contracts";
+import type { OfferedPackage, Package } from "@dorado/contracts";
 import type { Executor } from "#shared/db/executor.ts";
 
 const sql = sqlFrom(import.meta.dirname);
 
-export type PackageRow = Pick<
-  Package,
-  | "id" | "carrier_id" | "label" | "length" | "width" | "height"
-  | "is_carrier_packaging" | "image_id" | "created_at" | "updated_at"
-  | "min_weight_lb"
->;
-
-export async function getAll(executor?: Executor): Promise<PackageRow[]> {
-  const { rows } = await query<PackageRow>(sql("get_all"), [], executor);
+export async function getAll(executor?: Executor): Promise<Package[]> {
+  const { rows } = await query<Package>(sql("get_all"), [], executor);
   return rows;
 }
 
-export async function getOne(id: string, executor?: Executor): Promise<PackageRow | undefined> {
-  const { rows } = await query<PackageRow>(sql("get_one"), [id], executor);
+export async function getOne(id: string, executor?: Executor): Promise<Package | undefined> {
+  const { rows } = await query<Package>(sql("get_one"), [id], executor);
   return rows[0];
 }
 
 // The pair is the identity: two carriers may both offer a "Small Box".
 export async function find(
   carrier_id: string, label: string, executor?: Executor
-): Promise<PackageRow | undefined> {
-  const { rows } = await query<PackageRow>(sql("find"), [carrier_id, label], executor);
+): Promise<Package | undefined> {
+  const { rows } = await query<Package>(sql("find"), [carrier_id, label], executor);
   return rows[0];
 }
 
@@ -38,16 +31,6 @@ export async function labelsById(executor?: Executor): Promise<Map<string, strin
 }
 
 // The checkout's box menu; see sql/get_offered.sql for which rows.
-export type OfferedPackage = {
-  id: string;
-  label: string;
-  length: number | null;
-  width: number | null;
-  height: number | null;
-  is_carrier_packaging: boolean;
-  min_weight_lb: number | null;
-};
-
 export async function getOffered(executor?: Executor): Promise<OfferedPackage[]> {
   const { rows } = await query<OfferedPackage>(sql("get_offered"), [], executor);
   return rows;

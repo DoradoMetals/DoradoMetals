@@ -9,8 +9,12 @@ import type { Executor } from "#shared/db/executor.ts";
 type Builders = (typeof BUILDERS)[keyof typeof BUILDERS];
 type InputFor<K extends keyof Builders> = Parameters<Builders[K]>[0];
 
-// Exported for callers that assemble this input themselves rather than receiving it whole - domain/shipping/operations/service.ts builds the two addresses for a rate quote from one address plus a direction. Derived here so it can't drift from the builder's own shape.
-export type RatesInput = NonNullable<InputFor<"getRates">>;
+// The rate-quote input, derived from the BUILDER so it cannot drift from the
+// carrier's own shape. A caller that assembles it itself (operations/service.ts
+// builds the two addresses from one address plus a direction) reads it back as
+// `Parameters<typeof getRates>[2]` rather than importing a name from here -
+// there is no type home outside @dorado/contracts (rulings 57/60/61), and this
+// one describes a PROVIDER's request, which is not one of our columns.
 
 export async function validateAddress(
   carrier_id: string,
@@ -24,7 +28,7 @@ export async function validateAddress(
 export async function getRates(
   carrier_id: string,
   client: Executor,
-  input: InputFor<"getRates">
+  input: NonNullable<InputFor<"getRates">>
 ) {
   const { provider, builders } = await resolveCarrier(carrier_id, client);
   return await provider.getRates(builders.getRates(input));

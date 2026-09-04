@@ -126,16 +126,10 @@ export function useCancelOrder() {
   });
 }
 
-// The retry surface for a purchase whose own label purchase failed after the
-// order committed. NO BODY: the server computes the parcel from the order.
-export function useBuyLabel() {
-  const client = useQueryClient();
-  return useMutation({
-    mutationFn: async ({ id }: { id: string }) =>
-      await apiRequest<OrderView>("POST", `/orders/${id}/label`),
-    onSuccess: (view) => absorb(client, view),
-  });
-}
+// BUYING A LABEL IS THE PARCEL'S OWN CALL (ruling 67): `useBuyShipmentLabel`
+// in ../shipping, keyed by the shipment id `OrderView.shipments` already
+// carries. `OrderView.actions.buy_label` still says whether it will be
+// accepted - answered from that parcel's own state.
 
 export function useSendToRefiner() {
   const client = useQueryClient();

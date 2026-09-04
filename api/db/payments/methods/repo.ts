@@ -10,25 +10,16 @@ import { buildUpdate } from "#shared/db/patch.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
 import type { Executor } from "#shared/db/executor.ts";
 import { columnsOf } from "#shared/db/columns.ts";
-import { PaymentMethod } from "@dorado/contracts";
+import { PaymentMethod, PaymentMethodPatch } from "@dorado/contracts";
 
 const sql = sqlFrom(import.meta.dirname);
 
-
-// THE COLUMNS, FROM THE CONTRACT (ruling 64): the row without its identity
-// (id, direction, type, currency), without what the PROVIDER decides it can do
-// (supports_partial / supports_split / provider / provider_value) and without
-// the audit columns. What is left is the presentation and the money an admin
-// edits.
-const WRITABLE = PaymentMethod.omit({
-  id: true, direction: true, type: true, currency: true,
-  supports_partial: true, supports_split: true, provider: true, provider_value: true,
-  created_at: true, updated_at: true, created_by: true, updated_by: true,
-  created_by_id: true, updated_by_id: true,
-});
-export const PATCHABLE = columnsOf(WRITABLE);
-
-export type MethodPatch = Partial<Pick<PaymentMethod, (typeof PATCHABLE)[number]>>;
+// THE COLUMNS, FROM THE CONTRACT (ruling 64) - `PaymentMethodPatch` is
+// already the row without its identity (id, direction, type, currency),
+// without what the PROVIDER decides it can do (supports_partial /
+// supports_split / provider / provider_value) and without the audit columns.
+// What is left is the presentation and the money an admin edits.
+export const PATCHABLE = columnsOf(PaymentMethodPatch);
 
 export async function getOne(id: string, executor?: Executor): Promise<PaymentMethod | undefined> {
   const { rows } = await query<PaymentMethod>(sql("get_one"), [id], executor);
@@ -55,7 +46,7 @@ export async function findByType(
 }
 
 export async function update(
-  id: string, patch: MethodPatch, executor?: Executor
+  id: string, patch: PaymentMethodPatch, executor?: Executor
 ): Promise<boolean> {
   const built = buildUpdate({
     table: "payments.methods", allowed: PATCHABLE, patch, where: { id },

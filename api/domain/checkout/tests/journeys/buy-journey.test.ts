@@ -54,8 +54,8 @@ afterAll(async () => {
   await pool.end();
 });
 
-const stubWorld = (): place.World => ({
-  buyPostage: async () => ({ netCharge: 0, tracking_number: null, label: null, pickup: null }),
+const stubWorld = (): typeof place.LIVE => ({
+  buyLabel: async () => {},
   authorize: async () => {},
   confirm: async () => {},
 });

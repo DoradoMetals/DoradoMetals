@@ -20,6 +20,7 @@ import type { PoolClient } from "pg";
 import { randomUUID } from "node:crypto";
 import * as webhook from "#domain/payments/webhook.ts";
 import * as details from "#db/payments/details/repo.ts";
+import type { Instruments } from "#providers/payment/stripe.ts";
 import { inPinnedTransaction } from "#shared/testing/pinned-pool.ts";
 import { TEST_ACTOR } from "#shared/testing/actor.ts";
 import { LOCKS } from "#shared/testing/locks.ts";
@@ -33,7 +34,7 @@ const aCard = (provider_ref: string) => ({
   card: { last4: "4242", brand: "visa" },
 });
 
-const instruments = (pm: { id: string }): webhook.Instruments =>
+const instruments = (pm: { id: string }): Instruments =>
   ({ retrieve: async () => aCard(pm.id) });
 
 // An intent and its attempt, sharing an id the way recordIntent writes them.

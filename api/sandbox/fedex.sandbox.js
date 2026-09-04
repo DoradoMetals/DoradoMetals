@@ -94,7 +94,7 @@ test("the provider refuses the live API during a test run", async () => {
 // uses, so what is exercised is this codebase's request-building - a payload
 // field FedEx rejects fails here, not in a customer's checkout.
 const fedex = await import("#providers/shipments/fedex.ts");
-const adapters = await import("#domain/shipping/operations/adapters/fedex.ts");
+const adapters = await import("#providers/shipments/adapters/fedex.ts");
 
 const CUSTOMER_ADDRESS = {
   line_1: "6100 Main St", city: "Houston", state: "TX",

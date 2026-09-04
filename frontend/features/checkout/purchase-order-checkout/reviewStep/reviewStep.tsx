@@ -3,7 +3,7 @@
 import { useRouter } from 'next/navigation'
 import { useState, useTransition } from 'react'
 import { Button } from '@dorado/components'
-import type { CheckoutRate, CheckoutView } from '@dorado/contracts'
+import type { CarrierHandoff, CheckoutRate, CheckoutView } from '@dorado/contracts'
 
 import formatPhoneNumber from '@/shared/utils/formatPhoneNumber'
 import { formatPickupDateShort, formatPickupTime, formatTimeDiff } from '@/shared/utils/formatDates'
@@ -11,6 +11,7 @@ import ItemTables from './itemTable'
 import { useAddress, useUserAddresses } from '@/features/addresses/queries'
 import { useOfferedPackages, usePlaceOrderFromCheckout } from '@/features/checkout/queries'
 import { usePayoutDraft } from '@/features/checkout/purchase-order-checkout/payoutStep/payoutDraft'
+import { readyToPlace } from '@/features/checkout/gates'
 import { DetailRow } from '@/shared/ui/DetailRow'
 
 const PAYOUT_LABEL: Record<string, string> = {
@@ -23,12 +24,18 @@ const PAYOUT_LABEL: Record<string, string> = {
 // EVERYTHING ON THIS SCREEN IS THE ROW'S, except the bank form - which the
 // server sealed at the payout step and deliberately never returns, so the
 // unsent draft is the only place the last four digits can be read from.
+// `handoff` is the one thing that is not: the row's `fulfillment_method_id`
+// only names a fulfillment method, so the caller resolves it against the
+// carrier's own vocabulary (gates.ts `resolveHandoff`) and hands the result
+// down - `requires_schedule` reads off THAT, not off the row.
 export default function ReviewStep({
   row,
   rates,
+  handoff,
 }: {
   row?: CheckoutView
   rates: CheckoutRate[]
+  handoff: CarrierHandoff | null
 }) {
   const placeOrder = usePlaceOrderFromCheckout('purchase')
   const router = useRouter()
@@ -73,12 +80,12 @@ export default function ReviewStep({
         </div>
 
         <div className="mt-1 flex justify-between items-center">
-          {row?.requires_schedule ? (
+          {handoff?.requires_schedule ? (
             <>
               <strong>Carrier Pickup</strong>
               <small>
-                {formatPickupTime(row.pickup_time ?? undefined)} on{' '}
-                {formatPickupDateShort(row.pickup_date ?? undefined)}
+                {formatPickupTime(row?.pickup_time ?? undefined)} on{' '}
+                {formatPickupDateShort(row?.pickup_date ?? undefined)}
               </small>
             </>
           ) : (
@@ -125,9 +132,10 @@ export default function ReviewStep({
       {message && <p className="text-destructive">{message}</p>}
       <Button
         className="w-full mt-2"
-        // The server's own answer to "is this order placeable" - every column
-        // it needs, including the sealed payout account.
-        disabled={placeOrder.isPending || row?.ready_to_place !== true}
+        // The server's own answer to "is this order placeable" - `missing`
+        // names every column it still needs, including the sealed payout
+        // account, and `readyToPlace` is that list being empty.
+        disabled={placeOrder.isPending || !row || !readyToPlace(row.missing)}
         onClick={() => {
           // ONE ID (D210). Every choice is already a server-side resource; the
           // click carries the checkout's id and nothing else.

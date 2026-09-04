@@ -5,7 +5,7 @@
 // is bought only after - so a carrier failure must leave that shell standing,
 // and calling cancel again must find it rather than minting a second one.
 //
-// buyReturnLabel is stubbed via cancel's own injection seam (BuyReturnLabel) -
+// buyReturnLabel is stubbed via cancel's own injection seam ((shipment_id: string) => Promise<void>) -
 // the same shape sendToRefiner already has for email and place.ts has for
 // postage - so no cassette or network guard is needed to prove either claim.
 import { test, afterAll } from "vitest";
@@ -17,7 +17,6 @@ import { TEST_ACTOR } from "#shared/testing/actor.ts";
 import { inPinnedTransaction } from "#shared/testing/pinned-pool.ts";
 import { LOCKS } from "#shared/testing/locks.ts";
 import { aUser, anAddress, anOrder, packageId, carrierServiceId } from "#shared/testing/builders/index.ts";
-import type { BuyReturnLabel } from "#domain/orders/service.ts";
 
 await mockSessions();
 const orders = await import("#domain/orders/service.ts");
@@ -61,7 +60,7 @@ test("the return shipment commits before the carrier is asked, and a failure lea
   await inPinnedTransaction(async (c: PoolClient) => {
     const { order_id, input } = await aCancellableOrder(c);
 
-    const failing: BuyReturnLabel = async () => {
+    const failing = async () => {
       throw new Error("FEDEX IS DOWN");
     };
 
@@ -83,19 +82,24 @@ test("calling cancel again reuses the same shell instead of minting a second ret
   await inPinnedTransaction(async (c: PoolClient) => {
     const { order_id, input } = await aCancellableOrder(c);
 
-    const failing: BuyReturnLabel = async () => {
+    const failing = async () => {
       throw new Error("FEDEX IS DOWN");
     };
     await assert.rejects(() => orders.cancel(order_id, input, failing), /FEDEX IS DOWN/);
 
-    const succeeding: BuyReturnLabel = async () => ({
-      tracking_number: "794000000001", label: Buffer.from("a label"),
-    });
+    // THE STUB RECORDS WHAT IT WAS ASKED TO LABEL. Buying it is shipping's
+    // (ruling 67), so the tracking number is written by domain/shipping/
+    // labels.ts and a stub never reaches it - the shell's IDENTITY is what
+    // this test is about.
+    const asked: string[] = [];
+    const succeeding = async (shipment_id: string) => {
+      asked.push(shipment_id);
+    };
     const view = await orders.cancel(order_id, input, succeeding);
 
     const returns = view.shipments.filter((s) => s.direction === "Return");
     assert.equal(returns.length, 1, "a retry minted a second return shipment");
-    assert.equal(returns[0].tracking_number, "794000000001");
+    assert.deepEqual(asked, [returns[0].id], "the retry labelled a different parcel");
 
     const shipments = await returnShipmentsFor(c, order_id);
     assert.equal(shipments.length, 1, "a second return shipment row exists in the database");
@@ -106,15 +110,17 @@ test("a clean cancel buys the label against the row it already committed", async
   await inPinnedTransaction(async (c: PoolClient) => {
     const { order_id, input } = await aCancellableOrder(c);
 
-    const succeeding: BuyReturnLabel = async () => ({
-      tracking_number: "794000000002", label: Buffer.from("a label"),
-    });
+    const asked: string[] = [];
+    const succeeding = async (shipment_id: string) => {
+      asked.push(shipment_id);
+    };
     const view = await orders.cancel(order_id, input, succeeding);
 
     assert.equal(view.order.spots_locked, false);
     const returns = view.shipments.filter((s) => s.direction === "Return");
     assert.equal(returns.length, 1);
-    assert.equal(returns[0].tracking_number, "794000000002");
+    // The row it committed is the row it asked shipping to label.
+    assert.deepEqual(asked, [returns[0].id]);
     assert.equal(returns[0].carrier_service_id, input.carrier_service_id);
     assert.equal(returns[0].package_id, input.package_id);
   }, { actor: TEST_ACTOR.id, lock: LOCKS.ORDERS });

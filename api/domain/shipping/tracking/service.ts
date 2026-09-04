@@ -7,10 +7,9 @@
 // domain/shipping/rules.ts trackingTimeline, composed into the ShipmentView -
 // so a caller asks for the parcel and gets its progress with it.
 import * as tracking from "#db/shipping/tracking/repo.ts";
-import type { ScanEvent, TrackingInfo } from "#db/shipping/tracking/repo.ts";
+import type { ParsedTracking, TrackingEvent } from "#providers/shipments/utils/parsing.ts";
 import type { Executor } from "#shared/db/executor.ts";
 
-export type { ScanEvent, TrackingInfo } from "#db/shipping/tracking/repo.ts";
 
 // There is no replaceEvents wrapper: the live carrier poll (operations/service.ts) does both writes itself, behind the guard that stops an unrecognised response from emptying a real parcel's history.
 // An unguarded second implementation of a write that once deleted five dev shipments' FedEx history is not caution - it's a loaded gun in a drawer.
@@ -24,11 +23,11 @@ export async function removeEvents(shipment_id: string, tx: Executor): Promise<b
 
 // A HELPER, same reasoning as removeEvents.
 export async function insertEvents(
-  trackingInfo: TrackingInfo | null | undefined,
+  trackingInfo: Pick<ParsedTracking, "scanEvents"> | null | undefined,
   shipment_id: string,
   tx: Executor
 ): Promise<number> {
-  const events: ScanEvent[] = trackingInfo?.scanEvents ?? [];
+  const events: TrackingEvent[] = trackingInfo?.scanEvents ?? [];
   if (!events.length) return 0;
 
   return await tracking.insert(events, shipment_id, tx);

@@ -35,3 +35,14 @@ export const ShippingCancelPickupBody = z.object({
 }).strict();
 export type ShippingCancelPickupBody = z.infer<typeof ShippingCancelPickupBody>;
 
+
+// A CARRIER BOOKING AS A WRITE TAKES IT. A FULL REPLACE, not a patch - the
+// service merges the whole row before calling, which is why every field is
+// required. `requested_at` widens to admit a JS Date: the carrier's own answer
+// arrives as one and pg accepts either.
+export const ShipmentPickupWrite = ShipmentPickup.pick({
+  status: true, confirmation_number: true, location: true,
+}).extend({
+  requested_at: z.union([z.string(), z.date()]).nullable(),
+});
+export type ShipmentPickupWrite = z.infer<typeof ShipmentPickupWrite>;

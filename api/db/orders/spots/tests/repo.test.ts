@@ -134,20 +134,28 @@ test("a bid for a metal the order does not carry changes nothing", async () => {
   });
 });
 
-test("creating the same order and metal twice does not raise", async () => {
+// `create`/`createMany` are gone - freezeForOrder is the one write left, an
+// `INSERT ... SELECT` off spots.spots keyed by the order's OWN lines rather
+// than a caller-supplied metal, so this pins the same idempotency against the
+// replacement: freezing twice must be a no-op, not a 23505.
+test("freezing the same order twice does not raise", async () => {
   await inRollback(async (c: PoolClient) => {
-    const s = await anOrderWithSpots(c);
+    const order = await anOrder(c, await aUser(c), { direction: "purchase" })
+      .withLots(1, { metal: "Gold" });
+
+    const first = await spots.freezeForOrder(order.id, c);
+    assert.ok(first.length > 0, "the first freeze wrote no rows");
+
     const before = (await c.query(
-      "SELECT count(*)::int n FROM orders.spots WHERE order_id = $1", [s.order_id]
+      "SELECT count(*)::int n FROM orders.spots WHERE order_id = $1", [order.id]
     )).rows[0].n;
 
-    // The pair already exists, so this must be a no-op rather than a 23505.
-    const again = await spots.create({ order_id: s.order_id, metal_id: s.metal_id, ask: 10, bid: 20 }, c);
-    assert.equal(again, undefined, "a duplicate pair reported a row as written");
+    const again = await spots.freezeForOrder(order.id, c);
+    assert.equal(again.length, 0, "freezing an already-frozen order wrote rows again");
 
     const after = (await c.query(
-      "SELECT count(*)::int n FROM orders.spots WHERE order_id = $1", [s.order_id]
+      "SELECT count(*)::int n FROM orders.spots WHERE order_id = $1", [order.id]
     )).rows[0].n;
-    assert.equal(after, before, "a duplicate insert added a row");
+    assert.equal(after, before, "a duplicate freeze added a row");
   });
 });

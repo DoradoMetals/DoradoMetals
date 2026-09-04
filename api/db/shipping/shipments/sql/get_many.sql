@@ -4,6 +4,6 @@ SELECT
        recipient_address_id, shipper_address_id,
        tracking_number, shipping_status, est_delivery, shipped_at, delivered_at,
        created_at, label, label_type, pickup_type, cost, insured,
-       declared_value, direction::text AS direction
+       declared_value, actual_cost, direction::text AS direction
   FROM shipping.shipments
  WHERE id = ANY($1::uuid[])

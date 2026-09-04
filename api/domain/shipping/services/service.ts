@@ -9,15 +9,18 @@ import {
   carrierIdOr,
   resolveCarrier,
 } from "#domain/shipping/operations/resolver.ts";
-import type { ServiceRow } from "#db/shipping/services/repo.ts";
+
 import type { Executor } from "#shared/db/executor.ts";
 // From the contracts, not the adapter (which merely re-exports it) - contracts is where the shape is declared.
-import type { CarrierServiceOption, CarrierServicePatch } from "@dorado/contracts";
+import type {
+  CarrierService, CarrierServiceOption, CarrierServicePatch, CarrierServiceRead,
+  CarrierServiceWrite, LabelService, SaleShippingService,
+} from "@dorado/contracts";
 
 
 // Every field spelled explicitly, by name - no prop-spreading, so the repo
 // call never receives a field it wasn't written to expect.
-function toNewRow(body: CarrierServicePatch, id: string): services.ServiceNew {
+function toNewRow(body: CarrierServicePatch, id: string): CarrierServiceWrite & Pick<CarrierService, "id"> {
   return {
     id,
     carrier_id: body.carrier_id ?? null,
@@ -46,7 +49,7 @@ function toNewRow(body: CarrierServicePatch, id: string): services.ServiceNew {
 // A key PRESENT is written, a key ABSENT is left alone (shared/db/patch.ts) -
 // the admin form sends every field today, but the patch itself no longer
 // forces that.
-function toPatchRow(body: CarrierServicePatch): services.ServicePatch {
+function toPatchRow(body: CarrierServicePatch): Partial<CarrierServiceWrite> {
   return {
     carrier_id: body.carrier_id, name: body.name, description: body.description,
     code: body.code, provider_code: body.provider_code,
@@ -62,13 +65,13 @@ function toPatchRow(body: CarrierServicePatch): services.ServicePatch {
   };
 }
 
-export async function getAllServices(): Promise<ServiceRow[]> {
+export async function getAllServices(): Promise<CarrierServiceRead[]> {
   return await services.getAll();
 }
 
 // The sale delivery options: business-created, carrier-agnostic, priced - the customer picks the service at its fixed price, the REFINERY picks the carrier. Not getOfferedServices (the purchase side's carrier catalogue).
 // Prices here are DISPLAY - getShippingCharge (domain/pricing/ask.ts) remains the pricing authority, pinned by pricing's own reference-drift test.
-export async function getSaleOptions(): Promise<services.SaleServiceOption[]> {
+export async function getSaleOptions(): Promise<SaleShippingService[]> {
   return await services.getSaleOptions();
 }
 
@@ -161,14 +164,9 @@ export async function clampInsuredValue(
 //
 // It lives here because carriers belong to shipping: orders used to spell a
 // FedEx carrier id as a constant and re-resolve the catalogue itself, once in
-// placement and once in cancellation.
-export type LabelService = {
-  carrier_id: string;
-  name: string;
-  serviceType: string;
-  carrierCode: string;
-};
-
+// placement and once in cancellation. THE SHAPE IS THE CONTRACT'S
+// (`LabelService`, computed/providers.ts), so the carrier's own spellings -
+// `code`, `carrier_code` - survive instead of being renamed here.
 export async function labelServiceFor(
   carrier_service_id: string, executor?: Executor
 ): Promise<LabelService> {
@@ -177,28 +175,23 @@ export async function labelServiceFor(
   const offered = await getOfferedServices(row.carrier_id, executor);
   const entry = offered.find((o) => o.name.toLowerCase() === row.name.toLowerCase());
   rules.assertCatalogueEntry(entry, row.name);
-  return {
-    carrier_id: row.carrier_id,
-    name: row.name,
-    serviceType: entry.code,
-    carrierCode: entry.carrier_code,
-  };
+  return { ...entry, carrier_id: row.carrier_id };
 }
 
 export async function getServiceById(
   id: string, executor?: Executor
-): Promise<ServiceRow | null> {
+): Promise<CarrierServiceRead | null> {
   return (await services.getOne(id, executor)) ?? null;
 }
 
 export async function getServicesByCarrierId(
   carrier_id: string, executor?: Executor
-): Promise<ServiceRow[]> {
+): Promise<CarrierServiceRead[]> {
   return await services.getByCarrier(carrier_id, executor);
 }
 
 // A USE CASE (ruling 56): only the controller calls this.
-export async function createService(body: CarrierServicePatch): Promise<ServiceRow | null> {
+export async function createService(body: CarrierServicePatch): Promise<CarrierServiceRead | null> {
   return await withTransaction(async (tx) => {
     const id = randomUUID();
     return await services.create(toNewRow(body, id), tx);
@@ -206,7 +199,7 @@ export async function createService(body: CarrierServicePatch): Promise<ServiceR
 }
 
 // A USE CASE, same reasoning as createService.
-export async function updateService(body: CarrierServicePatch): Promise<ServiceRow | null> {
+export async function updateService(body: CarrierServicePatch): Promise<CarrierServiceRead | null> {
   // The id is the message on an update; every column beside it is optional
   // because a create sends this same patch.
   const id = body.id;

@@ -55,7 +55,7 @@
   "POST /api/orders/:id/cancel",
   "POST /api/orders/:id/finalize_pricing",
   "POST /api/orders/:id/items",
-  "POST /api/orders/:id/label",
+  "POST /api/shipments/:id/label",
   "POST /api/orders/:id/send_to_refiner",
   "POST /api/products",
   "POST /api/quotes/profit_breakdown",

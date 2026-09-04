@@ -6,7 +6,8 @@ import { buildUpdate } from "#shared/db/patch.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
 import type { Executor } from "#shared/db/executor.ts";
 import { columnsOf } from "#shared/db/columns.ts";
-import { OrderTotals } from "@dorado/contracts";
+import { OrderTotals, OrderTotalsWrite } from "@dorado/contracts";
+import type { Direction, OrderTotalsPatch } from "@dorado/contracts";
 
 const sql = sqlFrom(import.meta.dirname);
 
@@ -35,23 +36,19 @@ export async function getMany(
 // EXISTS, which buildUpdate's WHERE cannot spell, so it is appended.
 // "shipping" joined this list for the label-after-commit rewrite: the row is
 // created with it NULL (the quote is bundled with the label purchase, and that
-// now happens AFTER the write - domain/orders/postage.ts), so the AFTER step
+// now happens AFTER the write - domain/shipping/labels.ts), so the AFTER step
 // patches it in once the carrier has answered.
-// THE COLUMNS, FROM THE CONTRACT (ruling 64). A pick rather than an omit
-// because most of this table is NOT writable through here: the customer-facing
-// subtotals are derived at placement and rewritten by finalize-pricing, and
-// only these nine are ever patched afterwards.
-const WRITABLE = OrderTotals.pick({
-  total: true, shipping: true, shipping_fee_actual: true, refiner_fee: true,
-  pool_oz_deducted: true, pool_remediation: true, payout_fee: true,
-  waive_payout_fee: true, payout_details_id: true,
-});
-const PATCHABLE = columnsOf(WRITABLE);
-export type TotalsPatch = Partial<Record<(typeof PATCHABLE)[number], string | number | boolean | null>>;
-export type TotalsGuard = { direction?: "purchase" | "sale" };
+// THE COLUMNS, FROM THE CONTRACT (ruling 64) - `OrderTotalsWrite`. A pick
+// rather than an omit because most of this table is NOT writable through here:
+// the customer-facing subtotals are derived at placement and rewritten by
+// finalize-pricing.
+const PATCHABLE = columnsOf(OrderTotalsWrite);
 
 export async function update(
-  order_id: string, patch: TotalsPatch, guard: TotalsGuard = {}, executor?: Executor
+  order_id: string,
+  patch: OrderTotalsWrite,
+  guard: { direction?: Direction } = {},
+  executor?: Executor
 ): Promise<boolean> {
   const built = buildUpdate({
     table: "orders.transactions",
@@ -79,21 +76,27 @@ export async function update(
   return rowCount === 1;
 }
 
-export type NewOrderTotals = {
-  id?: string; order_id: string;
-  total?: number | null; shipping?: number | null; shipping_service?: string | null;
-  funds?: number | null; post_charges_amount?: number | null;
-  subject_to_charges_amount?: number | null; used_funds?: boolean | null;
-  items?: number | null; base_total?: number | null; surcharge?: number | null;
-  sales_tax?: number | null; payout_fee?: number | null;
-  payout_details_id?: string | null;
-};
+// WHAT A PURCHASE COMES TO AT PLACEMENT: the payout ACCOUNT is the checkout
+// row's, so the statement copies it (ruling 66); the payout method's flat fee
+// is a figure the server looked up, so it is a parameter.
+export async function createForCheckout(
+  { order_id, checkout_id, payout_fee }:
+    { order_id: string; checkout_id: string; payout_fee: number },
+  executor?: Executor
+): Promise<OrderTotals | undefined> {
+  const { rows } = await query<OrderTotals>(
+    sql("create_for_purchase"), [order_id, payout_fee, checkout_id], executor
+  );
+  return rows[0];
+}
 
-export async function create(row: NewOrderTotals, executor?: Executor): Promise<void> {
+// A SALE'S TOTALS, every figure of which the pricing service decided - there
+// is nothing to copy, so this is the one create that still binds values.
+export async function create(row: OrderTotalsPatch, executor?: Executor): Promise<void> {
   await query(
     sql("create"),
     [
-      row.id ?? randomUUID(), row.order_id,
+      randomUUID(), row.order_id,
       row.total ?? null, row.shipping ?? null, row.shipping_service ?? null,
       row.funds ?? null, row.post_charges_amount ?? null,
       row.subject_to_charges_amount ?? null, row.used_funds ?? null,

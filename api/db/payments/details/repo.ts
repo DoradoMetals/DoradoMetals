@@ -11,29 +11,12 @@
 import query from "#shared/db/query.ts";
 import { buildUpdate } from "#shared/db/patch.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
-import type { PaymentDetails } from "@dorado/contracts";
+import type { PaymentDetailsView, PaymentDetailsSealed } from "@dorado/contracts";
 import type { Executor } from "#shared/db/executor.ts";
 import { columnsOf } from "#shared/db/columns.ts";
 import { PaymentDetailsPatch } from "@dorado/contracts";
 
 const sql = sqlFrom(import.meta.dirname);
-
-// The safe projection: last four digits and nothing else of the bank.
-export type DetailRow = Pick<
-  PaymentDetails,
-  | "id" | "user_id" | "method_id" | "account_holder" | "bank_name"
-  | "account_type" | "last_four" | "routing_last_four" | "card_brand"
-  | "email_to" | "provider" | "provider_ref" | "created_at" | "updated_at"
->;
-
-// The envelopes plus what identifies the row they belong to. Read by the admin
-// bank-details door alone.
-export type SealedDetailRow = Pick<
-  PaymentDetails,
-  | "id" | "account_holder" | "bank_name" | "account_type" | "last_four"
-  | "email_to" | "method_id" | "routing_number_encrypted"
-  | "account_number_encrypted" | "encryption_key_id"
->;
 
 // EVERY WRITABLE COLUMN, and the same object serves create and update - which
 // is what lets the service build one payload and pass it through to either.
@@ -45,21 +28,21 @@ export type SealedDetailRow = Pick<
 // all, which is the point: only the sealed envelopes are writable.
 export const PATCHABLE = columnsOf(PaymentDetailsPatch.omit({ id: true, user_id: true }));
 
-export async function getOne(id: string, executor?: Executor): Promise<DetailRow | undefined> {
-  const { rows } = await query<DetailRow>(sql("get_one"), [id], executor);
+export async function getOne(id: string, executor?: Executor): Promise<PaymentDetailsView | undefined> {
+  const { rows } = await query<PaymentDetailsView>(sql("get_one"), [id], executor);
   return rows[0];
 }
 
-export async function listFor(user_id: string, executor?: Executor): Promise<DetailRow[]> {
-  const { rows } = await query<DetailRow>(sql("list_for_user"), [user_id], executor);
+export async function listFor(user_id: string, executor?: Executor): Promise<PaymentDetailsView[]> {
+  const { rows } = await query<PaymentDetailsView>(sql("list_for_user"), [user_id], executor);
   return rows;
 }
 
 // By the provider's reference for the instrument - a Stripe pm_... id.
 export async function findByProviderRef(
   provider: string | null, provider_ref: string, executor?: Executor
-): Promise<DetailRow | undefined> {
-  const { rows } = await query<DetailRow>(
+): Promise<PaymentDetailsView | undefined> {
+  const { rows } = await query<PaymentDetailsView>(
     sql("find_by_provider_ref"), [provider, provider_ref], executor
   );
   return rows[0];
@@ -70,8 +53,8 @@ export async function findByProviderRef(
 // leak by accident.
 export async function getSealed(
   id: string, executor?: Executor
-): Promise<SealedDetailRow | undefined> {
-  const { rows } = await query<SealedDetailRow>(sql("get_sealed"), [id], executor);
+): Promise<PaymentDetailsSealed | undefined> {
+  const { rows } = await query<PaymentDetailsSealed>(sql("get_sealed"), [id], executor);
   return rows[0];
 }
 
@@ -79,8 +62,8 @@ export async function getSealed(
 // edits, so it is minted once and reused.
 export async function create(
   id: string, user_id: string, values: PaymentDetailsPatch, executor?: Executor
-): Promise<DetailRow> {
-  const { rows } = await query<DetailRow>(
+): Promise<PaymentDetailsView> {
+  const { rows } = await query<PaymentDetailsView>(
     sql("create"),
     [
       id, user_id, values.method_id ?? null, values.account_holder ?? null,
@@ -110,13 +93,13 @@ const RETURNING = `id, user_id, method_id, account_holder, bank_name, account_ty
 // back, so "nothing to change" still answers what the row says.
 export async function update(
   id: string, patch: PaymentDetailsPatch, executor?: Executor
-): Promise<DetailRow | undefined> {
+): Promise<PaymentDetailsView | undefined> {
   const built = buildUpdate({
     table: "payments.details", allowed: PATCHABLE, patch, where: { id },
     returning: RETURNING,
   });
   if (!built) return await getOne(id, executor);
-  const { rows } = await query<DetailRow>(built.text, built.values, executor);
+  const { rows } = await query<PaymentDetailsView>(built.text, built.values, executor);
   return rows[0];
 }
 

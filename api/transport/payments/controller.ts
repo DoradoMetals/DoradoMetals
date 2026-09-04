@@ -10,12 +10,12 @@ import * as stripe from "#providers/payment/stripe.ts";
 import * as stripeService from "#domain/payments/service.ts";
 import * as webhook from "#domain/payments/webhook.ts";
 import type { Request } from "express";
-import type { Caller } from "#domain/payments/service.ts";
+import type { PaymentCaller } from "@dorado/contracts";
 
 // WHO IS ASKING, as the two ids an intent is keyed on. requireUser has already
 // run and set both; this is the one place that says so instead of a `!` in
 // every handler.
-function callerOf(req: Request): Caller {
+function callerOf(req: Request): PaymentCaller {
   const user_id = req.user?.id;
   const session_id = req.sessionId;
   if (!user_id || !session_id) {

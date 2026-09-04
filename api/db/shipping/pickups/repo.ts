@@ -1,49 +1,40 @@
 // shipping.pickups: a CARRIER collecting a parcel - not fulfillments.pickups (us collecting from the customer). Order/user/carrier aren't columns; compose.ts reconstructs them from the shipment.
 import query from "#shared/db/query.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
-import type { ShipmentPickup } from "@dorado/contracts";
+import type { ShipmentPickup, ShipmentPickupWrite } from "@dorado/contracts";
 import type { Executor } from "#shared/db/executor.ts";
 
 const sql = sqlFrom(import.meta.dirname);
 
-export type PickupBaseRow = Pick<
-  ShipmentPickup,
-  "id" | "shipment_id" | "requested_at" | "status" | "confirmation_number" | "location"
->;
-
-export async function getAll(executor?: Executor): Promise<PickupBaseRow[]> {
-  const { rows } = await query<PickupBaseRow>(sql("get_all"), [], executor);
+export async function getAll(executor?: Executor): Promise<ShipmentPickup[]> {
+  const { rows } = await query<ShipmentPickup>(sql("get_all"), [], executor);
   return rows;
 }
 
 export async function getOne(
   id: string, executor?: Executor
-): Promise<PickupBaseRow | undefined> {
-  const { rows } = await query<PickupBaseRow>(sql("get_one"), [id], executor);
+): Promise<ShipmentPickup | undefined> {
+  const { rows } = await query<ShipmentPickup>(sql("get_one"), [id], executor);
   return rows[0];
 }
 
 export async function getByShipments(
   shipment_ids: string[], executor?: Executor
-): Promise<PickupBaseRow[]> {
+): Promise<ShipmentPickup[]> {
   if (shipment_ids.length === 0) return [];
-  const { rows } = await query<PickupBaseRow>(
+  const { rows } = await query<ShipmentPickup>(
     sql("get_by_shipments"), [shipment_ids], executor
   );
   return rows;
 }
 
-// FULL REPLACE, not a COALESCE patch - the service merges the whole row before calling this.
-// requested_at widens to admit a JS Date too; pg accepts either.
-export type PickupWrite = Omit<
-  Pick<ShipmentPickup, "requested_at" | "status" | "confirmation_number" | "location">,
-  "requested_at"
-> & { requested_at: Date | string | null };
-
-export type PickupNew = PickupWrite & Pick<ShipmentPickup, "id" | "shipment_id">;
-
-export async function create(row: PickupNew, executor?: Executor): Promise<PickupBaseRow> {
-  const { rows } = await query<PickupBaseRow>(
+// FULL REPLACE, not a COALESCE patch - the service merges the whole row before
+// calling this (`ShipmentPickupWrite`).
+export async function create(
+  row: ShipmentPickupWrite & Pick<ShipmentPickup, "id" | "shipment_id">,
+  executor?: Executor
+): Promise<ShipmentPickup> {
+  const { rows } = await query<ShipmentPickup>(
     sql("create"),
     [row.id, row.shipment_id, row.requested_at, row.status, row.confirmation_number, row.location],
     executor
@@ -52,7 +43,7 @@ export async function create(row: PickupNew, executor?: Executor): Promise<Picku
 }
 
 export async function update(
-  id: string, patch: PickupWrite, executor?: Executor
+  id: string, patch: ShipmentPickupWrite, executor?: Executor
 ): Promise<boolean> {
   const { rowCount } = await query(
     sql("update"),

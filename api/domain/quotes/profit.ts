@@ -30,24 +30,22 @@ import type { OrderQuoteBody, OrderView, OrderViewItem, ProfitBreakdown, ProfitM
 // reported. Two lookups the COMPOSED order used to smear onto every line
 // (`scrap.metal`, `scrap.content_actual`, `item.refiner_premium`); the composer
 // died with D214 item 12 and they are reads of their own tables now.
-type MetalNames = ReadonlyMap<string, string>;
-type AssayRows = ReadonlyMap<string, RefinerItem>;
+// Inline everywhere they are read (ruling 57/60/61): a bare ReadonlyMap
+// derives from no contract, so it has no home to move to.
 
-type ProfitMetalName = "Gold" | "Silver" | "Platinum" | "Palladium";
-type MetalKey = "gold" | "silver" | "platinum" | "palladium";
-// The spot as this math reads it - the metal it prices and the bid.
-type ProfitSpot = { metal_id: string; bid: number | null };
+// The four metals the split is reported for, AS THE RUNTIME LIST rather than
+// a hand-rolled literal-union type: ruling 57/60/61 leaves no contract for a
+// union like that to derive from, so `(typeof PROFIT_METALS)[number]` is the
+// type wherever "one of these four" is asked for. A metal outside them has no
+// slot in the dictionary, so a line naming one is skipped rather than cast
+// into a key that does not exist.
+const PROFIT_METALS = ["Gold", "Silver", "Platinum", "Palladium"] as const;
 
-const PROFIT_METALS: ProfitMetalName[] = ["Gold", "Silver", "Platinum", "Palladium"];
-
-// The four the split is reported for. A metal outside them has no slot in the
-// dictionary, so a line naming one is skipped rather than cast into a key that
-// does not exist.
-const KEY_OF: Readonly<Record<ProfitMetalName, MetalKey>> = {
+const KEY_OF: Readonly<Record<(typeof PROFIT_METALS)[number], keyof ProfitMetalsDict>> = {
   Gold: "gold", Silver: "silver", Platinum: "platinum", Palladium: "palladium",
 };
-const toKey = (m: ProfitMetalName): MetalKey => KEY_OF[m];
-const isProfitMetal = (name: string | undefined): name is ProfitMetalName =>
+const toKey = (m: (typeof PROFIT_METALS)[number]): keyof ProfitMetalsDict => KEY_OF[m];
+const isProfitMetal = (name: string | undefined): name is (typeof PROFIT_METALS)[number] =>
   name !== undefined && name in KEY_OF;
 
 const emptyMetalsDict = (): ProfitMetalsDict => ({
@@ -57,7 +55,9 @@ const emptyMetalsDict = (): ProfitMetalsDict => ({
   palladium: { content: 0, percentage: 0, profit: 0 },
 });
 
-const getItemMetal = (item: OrderViewItem, metals: MetalNames): ProfitMetalName | null => {
+const getItemMetal = (
+  item: OrderViewItem, metals: ReadonlyMap<string, string>
+): (typeof PROFIT_METALS)[number] | null => {
   const name = metals.get(item.metal_id);
   return isProfitMetal(name) ? name : null;
 };
@@ -71,7 +71,9 @@ const getItemContent = (item: OrderViewItem): number => {
 // WHAT THE REFINERY ACTUALLY REPORTED for a scrap line - refiners.items, its
 // own table, keyed by the order line. The composed wire served these three as
 // scrap.content_actual / post_melt_actual / purity_actual.
-const getScrapActualContent = (item: OrderViewItem, assay: AssayRows): number | null => {
+const getScrapActualContent = (
+  item: OrderViewItem, assay: ReadonlyMap<string, RefinerItem>
+): number | null => {
   if (item.bullion_id !== null) return null;
   const reported = assay.get(item.id);
   if (!reported) return null;
@@ -82,17 +84,21 @@ const getScrapActualContent = (item: OrderViewItem, assay: AssayRows): number | 
   return null;
 };
 
-const getProfitSpot = (spots: ProfitSpot[], metal_id: string): ProfitSpot | null =>
+// The spot as this math reads it - the metal it prices and the bid. Inline
+// (ruling 57/60/61): not a derivation of any one contract, so it stays
+// structural at each of its call sites rather than taking a name.
+const getProfitSpot = (
+  spots: { metal_id: string; bid: number | null }[], metal_id: string
+): { metal_id: string; bid: number | null } | null =>
   spots.find((s) => s.metal_id === metal_id) ?? null;
 
-type Shares = { customerShare: number; doradoShare: number; refinerShare: number };
 const clamp01 = (n: number): number => Math.max(0, Math.min(1, n));
 
 function premiumsToShares(
   category: "scrap" | "bullion" | "total",
   doradoPremium?: number | null,
   refinerPremium?: number | null
-): Shares {
+): { customerShare: number; doradoShare: number; refinerShare: number } {
   let d = doradoPremium ?? undefined;
   let r = refinerPremium ?? undefined;
 
@@ -135,13 +141,13 @@ function premiumsToShares(
 
 function getSharesForItem(
   item: OrderViewItem,
-  metal: ProfitMetalName,
-  orderSpots: ProfitSpot[],
-  refinerSpots: ProfitSpot[],
+  metal: (typeof PROFIT_METALS)[number],
+  orderSpots: { metal_id: string; bid: number | null }[],
+  refinerSpots: { metal_id: string; bid: number | null }[],
   category: "scrap" | "bullion" | "total",
   rates: Parameters<typeof getRatePct>[0],
   scrapTotalsByMetal: Record<string, number>,
-  assay: AssayRows
+  assay: ReadonlyMap<string, RefinerItem>
 ) {
   const orderSpot = getProfitSpot(orderSpots, item.metal_id);
   const refSpot = getProfitSpot(refinerSpots, item.metal_id);
@@ -173,12 +179,12 @@ function getSharesForItem(
 function computeMetalsForAllParties(
   order: OrderView,
   category: "scrap" | "bullion" | "total",
-  orderSpots: ProfitSpot[],
-  refinerSpots: ProfitSpot[],
+  orderSpots: { metal_id: string; bid: number | null }[],
+  refinerSpots: { metal_id: string; bid: number | null }[],
   rates: Parameters<typeof getRatePct>[0],
   scrapTotalsByMetal: Record<string, number>,
-  metals: MetalNames,
-  assay: AssayRows
+  metals: ReadonlyMap<string, string>,
+  assay: ReadonlyMap<string, RefinerItem>
 ) {
   const customer = emptyMetalsDict();
   const refiner = emptyMetalsDict();
@@ -256,9 +262,9 @@ function getShippingFees(order: OrderView) {
 
 function getSpotNet(
   customerTotals: ProfitMetalsDict,
-  orderSpots: ProfitSpot[],
-  refinerSpots: ProfitSpot[],
-  metals: MetalNames
+  orderSpots: { metal_id: string; bid: number | null }[],
+  refinerSpots: { metal_id: string; bid: number | null }[],
+  metals: ReadonlyMap<string, string>
 ) {
   let sum = 0;
   const idOf = new Map(Array.from(metals, ([id, name]) => [name.toLowerCase(), id]));
@@ -321,12 +327,13 @@ export async function profitBreakdown({ order_id }: OrderQuoteBody): Promise<Pro
   // Both spot sets keyed by the metal they price. The refiner's are named
   // rather than keyed, so the name is resolved back to its id once.
   const idOfMetal = new Map(Array.from(metals, ([id, name]) => [name.toLowerCase(), id]));
-  const orderSpots: ProfitSpot[] = frozenSpots.map((s) => ({ metal_id: s.metal_id, bid: s.bid }));
-  const refinerSpots: ProfitSpot[] = refinerNamed.flatMap((s) => {
+  const orderSpots: { metal_id: string; bid: number | null }[] =
+    frozenSpots.map((s) => ({ metal_id: s.metal_id, bid: s.bid }));
+  const refinerSpots: { metal_id: string; bid: number | null }[] = refinerNamed.flatMap((s) => {
     const metal_id = idOfMetal.get(String(s.name ?? "").toLowerCase());
     return metal_id ? [{ metal_id, bid: s.bid }] : [];
   });
-  const assay: AssayRows = new Map(assayRows.map((r) => [r.order_item_id, r]));
+  const assay: ReadonlyMap<string, RefinerItem> = new Map(assayRows.map((r) => [r.order_item_id, r]));
 
   // Total scrap content per metal for rate tiering (per-metal, order total).
   const scrapTotalsByMetal = sumContentByMetal(

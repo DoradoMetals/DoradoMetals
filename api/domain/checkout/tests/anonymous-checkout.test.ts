@@ -67,8 +67,10 @@ test("a visitor builds a basket, is refused the two things that need an account,
       request(app).get("/api/checkout").query({ direction: "purchase" })
     );
     assert.equal(row.status, 200, row.text);
-    assert.equal(row.body.item_count, 1);
-    assert.equal(row.body.ready_to_place, false);
+    // THE ONE LIST (Jacob, 2026-09-04): a basket with lines no longer owes
+    // `items`, and the row is not placeable while it owes anything else.
+    assert.ok(!row.body.missing.includes("items"), "a basket with lines still owes items");
+    assert.ok(row.body.missing.length > 0, "an unfinished checkout claims to be placeable");
 
     // ---- 2. THE RATE SURFACE answers a visitor the way it answers anyone:
     // with its own refusal about the checkout, not about who is asking.
@@ -86,11 +88,16 @@ test("a visitor builds a basket, is refused the two things that need an account,
       })
     );
     assert.equal(patched.status, 200, patched.text);
-    assert.equal(
-      patched.body.ready_for_rates, true,
-      "items + a package + an address is the whole of ready_for_rates, and a " +
-        "visitor reaches it on the same three writes a customer does"
-    );
+    // Items + a package + an address is the whole of what a rate quote needs,
+    // and a visitor reaches it on the same three writes a customer does. The
+    // row says so by not OWING any of the three (Jacob, 2026-09-04: the three
+    // `ready_*` booleans were second readings of `missing`).
+    for (const step of ["items", "package", "shipper_address"]) {
+      assert.ok(
+        !patched.body.missing.includes(step),
+        `a visitor who wrote every rate input still owes ${step}`
+      );
+    }
 
     // ---- 4. THE FIRST WALL: bank details are sealed against a user id, and a
     // visitor's id is about to be swept.

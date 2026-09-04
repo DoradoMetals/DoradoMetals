@@ -9,27 +9,21 @@ import * as spotsRepo from "#db/orders/spots/repo.ts";
 import * as spotsFeed from "#domain/spots/service.ts";
 import * as rules from "#domain/orders/rules.ts";
 import withTransaction from "#shared/db/withTransaction.ts";
-import type { OrderSpotsPutBody } from "@dorado/contracts";
-import type { OrderSpotRow, OrderSpotRawRow } from "#db/orders/spots/repo.ts";
-import type { PoolClient } from "pg";
-
-type Executor = PoolClient | undefined;
-
-export type OrderSpotsPut = OrderSpotsPutBody;
-export type { OrderSpotRow, OrderSpotRawRow } from "#db/orders/spots/repo.ts";
+import type { OrderSpot, OrderSpotNamed, OrderSpotsPutBody } from "@dorado/contracts";
+import type { Executor } from "#shared/db/executor.ts";
 
 // VERBATIM rows (rulings 9 + 12). The metal is its id; a display name is the
 // client's to map. No spots answers [] rather than 404.
 export async function rowsFor(
   orderId: string, executor?: Executor
-): Promise<OrderSpotRawRow[]> {
+): Promise<OrderSpot[]> {
   return await spotsRepo.getRowsFor(orderId, executor);
 }
 
 // The same rows with the metal's NAME joined on. Not a wire shape.
 export async function namedFor(
   orderId: string, executor?: Executor
-): Promise<OrderSpotRow[]> {
+): Promise<OrderSpotNamed[]> {
   return await spotsRepo.getFor(orderId, executor);
 }
 
@@ -42,7 +36,7 @@ export async function namedFor(
 // row a money edit landed on.
 export async function setSpots(
   orderId: string, body: OrderSpotsPutBody
-): Promise<OrderSpotRow[]> {
+): Promise<OrderSpotNamed[]> {
   rules.assertDirection(await ordersRepo.directionOf(orderId), "purchase", "the spots PUT");
   rules.assertNamesASpotField(body);
 

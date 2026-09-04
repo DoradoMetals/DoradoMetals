@@ -2,10 +2,12 @@
 //
 // Every mutation answers the row the server now holds, and writes it straight
 // into the cache - so a step re-renders from the SERVER's answer rather than
-// from a local copy the browser guessed at. Nothing here derives anything:
-// `missing`, `ready_for_rates`, `ready_for_payment` and `ready_to_place` are
-// fields of that row (domain/checkout/rules.ts), not expressions in a
-// component.
+// from a local copy the browser guessed at. `missing` is the one derived
+// field CheckoutView carries (domain/checkout/rules.ts); `ready_for_rates`,
+// `ready_for_payment` and `ready_to_place` were three readings of it and are
+// gone (2026-09-04 shrink) - a caller reads `missing` itself
+// (frontend/features/checkout/gates.ts for the stepper's buttons; this file's
+// own `useCheckoutRates` below for its query gate).
 import {
   useMutation,
   useQuery,
@@ -143,7 +145,7 @@ export function useCheckoutItems(
 }
 
 // PUT REPLACES - it IS the sync. The row is invalidated with it because
-// `item_count` and `missing` are answers about the basket.
+// `missing` is an answer about the basket.
 export function useReplaceCheckoutItems(
   direction: Direction
 ): UseMutationResult<CheckoutItem[], Error, { items: CheckoutItemPatch[] } & Subject> {
@@ -193,16 +195,25 @@ export function useClearCheckoutItems(
 // already joined to the service catalogue - one entry per offered service,
 // `carrier_service_id` being the id a PATCH sends back.
 //
-// GATED ON THE ROW, not on a local pick: the server refuses until the address
-// and the package are actually stored, which only a landed PATCH does, and
-// `ready_for_rates` is the row's own answer to that.
+// GATED ON THE ROW, not on a local pick: the server refuses until the cart,
+// the package and the address are actually stored, which only a landed PATCH
+// does. Mirrors `readyForRates` in frontend/features/checkout/gates.ts and the
+// three refusals GET /checkout/rates raises server-side (getCheckoutRates) -
+// duplicated rather than imported because this package sits below the
+// frontend feature, never above it.
 export function useCheckoutRates(
   direction: Direction, row: CheckoutView | undefined
 ): UseQueryResult<CheckoutRate[], Error> {
   const address_id = direction === "purchase" ? row?.shipper_address_id : row?.recipient_address_id;
+  const missing = row?.missing ?? [];
+  const ready = !!row
+    && !missing.includes("items")
+    && !missing.includes("package")
+    && !missing.includes("shipper_address")
+    && !missing.includes("recipient_address");
   return useQuery({
     queryKey: keys.checkout.rates(direction, address_id, row?.package_id),
-    enabled: row?.ready_for_rates === true,
+    enabled: ready,
     staleTime: 5 * 60 * 1000,
     retry: false,
     queryFn: () => apiRequest<CheckoutRate[]>("GET", "/checkout/rates", undefined, { direction }),

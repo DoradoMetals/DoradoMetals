@@ -21,12 +21,12 @@ export function refuseNegativeBalance(next: number): void {
   }
 }
 
-export type CreditMovement = { type: "Credit" | "Debit"; amount: number };
-
 // WHAT THE LEDGER RECORDS, derived from the two balances rather than the
 // request: `edit` does not name its own direction, and payments.ledger.amount
 // carries a CHECK (amount >= 0), so a signed delta could not be stored.
-export function movementBetween(before: number, after: number): CreditMovement | null {
+export function movementBetween(
+  before: number, after: number
+): { type: "Credit" | "Debit"; amount: number } | null {
   const delta = Number((after - before).toFixed(6));
   if (delta === 0) return null;
   return delta > 0 ? { type: "Credit", amount: delta } : { type: "Debit", amount: -delta };

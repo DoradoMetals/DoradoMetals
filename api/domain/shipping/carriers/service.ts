@@ -5,7 +5,7 @@ import withTransaction from "#shared/db/withTransaction.ts";
 import * as carriers from "#db/shipping/carriers/repo.ts";
 import * as organizations from "#db/organizations/repo.ts";
 import * as compose from "#domain/shipping/carriers/compose.ts";
-import type { ComposedCarrier } from "#domain/shipping/carriers/compose.ts";
+import type { ComposedCarrier } from "@dorado/contracts";
 import type { Executor } from "#shared/db/executor.ts";
 // The write shape is the contract's, parsed strictly at transport - the local
 // copy it replaces spelled the organization's four columns a second time.

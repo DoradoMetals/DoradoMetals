@@ -22,7 +22,6 @@ import * as orderSpots from "#db/orders/spots/repo.ts";
 import * as orderTransactions from "#db/orders/transactions/repo.ts";
 import * as refinerSpots from "#db/refiners/spots/repo.ts";
 import * as refinerOrders from "#db/refiners/orders/repo.ts";
-import * as productsRepo from "#db/products/repo.ts";
 import * as packagesRepo from "#db/shipping/packages/repo.ts";
 
 import * as ratesService from "#domain/rates/service.ts";
@@ -30,17 +29,13 @@ import * as spotsFeed from "#domain/spots/service.ts";
 import * as refinerService from "#domain/refiners/service.ts";
 import * as shipmentService from "#domain/shipping/shipments/service.ts";
 import * as carrierServices from "#domain/shipping/services/service.ts";
-import * as handoffsService from "#domain/shipping/handoffs/service.ts";
-import * as fulfillmentPickups from "#domain/fulfillments/pickups/service.ts";
-import * as shippingOperations from "#domain/shipping/operations/service.ts";
-import * as shippingOps from "#domain/shipping/operations/handler.ts";
+import * as shippingLabels from "#domain/shipping/labels.ts";
 import * as emailService from "#domain/media/emails/service.ts";
 import * as documentInputs from "#domain/media/pdfs/order-inputs.ts";
 import * as usersService from "#domain/users/service.ts";
 import * as ledger from "#domain/transactions/service.ts";
 import * as orderRead from "#domain/orders/read.ts";
 import * as rules from "#domain/orders/rules.ts";
-import { buyPostage as buyPostageLive, recordPostage } from "#domain/orders/postage.ts";
 import * as shippingRules from "#domain/shipping/rules.ts";
 import { calculateTotalPrice, fineContent, unitPrice } from "#domain/pricing/service.ts";
 
@@ -107,12 +102,13 @@ export async function createLine(
     await ordersRepo.directionOf(order_id), "purchase", "adding a line"
   );
 
-  const row = input.bullion_id
-    ? rules.lineFromProduct(order_id, await requireProduct(input.bullion_id))
-    : rules.lineFromScrap(order_id, input);
-
   return await withTransaction(async (tx) => {
-    const created = await itemsRepo.create(row, tx);
+    // A CATALOGUE LINE IS A COPY (ruling 66): the weights, the purity and the
+    // metal are the product's own columns, so the statement takes them. A
+    // DECLARED LOT is not - its content is derived from what the admin typed.
+    const created = input.bullion_id
+      ? await createFromCatalogue(order_id, input.bullion_id, tx)
+      : await itemsRepo.create(order_id, rules.declaredLot(input), tx);
     // The refiner counterpart (093), then the whole order re-tiered so an
     // admin-added line matches customer checkout - and so the new line is BORN
     // at its tier rather than at null. The line is re-read because the re-tier
@@ -123,10 +119,10 @@ export async function createLine(
   });
 }
 
-async function requireProduct(bullion_id: string) {
-  const [product] = await productsRepo.listFor({ ids: [bullion_id] });
-  rules.assertCatalogueProduct(product, bullion_id);
-  return product;
+async function createFromCatalogue(order_id: string, bullion_id: string, tx: Executor) {
+  const created = await itemsRepo.createFromProduct(order_id, bullion_id, tx);
+  rules.assertCatalogueProduct(created, bullion_id);
+  return created;
 }
 
 // ONE ROW, ONE PATCH. The body used to be `{scrap: {premium, scrap: {...}},
@@ -256,23 +252,6 @@ export async function addFunds(order_id: string): Promise<OrderView> {
 // THE OUTSIDE WORLD
 // ===========================================================================
 
-// A RETURN LABEL, asked for. Its own function so a test can inject a stub
-// that fails without a network call - the seam sendToRefiner already has for
-// email (Transport) and place.ts has for postage (World).
-export type BuyReturnLabel = (
-  carrier_id: string, request: ReturnType<typeof rules.returnLabelRequest>
-) => Promise<{ tracking_number: string | null; label: Buffer }>;
-
-async function buyReturnLabel(
-  carrier_id: string, request: ReturnType<typeof rules.returnLabelRequest>
-): Promise<{ tracking_number: string | null; label: Buffer }> {
-  const labelData = await shippingOps.createLabel(carrier_id, undefined, request);
-  return {
-    tracking_number: labelData.tracking_number,
-    label: await shippingOperations.labelBufferOrVoid(labelData),
-  };
-}
-
 // POST /api/orders/:id/cancel - the customer's metal goes back.
 //
 // LOAD -> ASSERT -> WRITE -> AFTER (label-after-commit, 2026-09-03): the
@@ -287,38 +266,26 @@ async function buyReturnLabel(
 // NO STATUS WRITE: statuses are labels, never side effects (Jacob). The
 // 'Cancelled' label is a PATCH of its own.
 //
-// THE ADDRESS IS THE ORDER'S SNAPSHOT and the contact is the provider's
-// configured one. This took the admin drawer's whole form as
-// `Record<string, any>` and hand-mapped fifteen fields out of it.
-//
-// THE WEIGHT AND THE VALUE ARE THE ORDER'S OWN NOW (ruling 58): computed from
-// its lines and its total rather than taken from the admin's form.
+// THE CARRIER CALL IS SHIPPING'S (ruling 67). This decides that the metal goes
+// back, unpins the order's spots and records which box and service on the
+// parcel; `shipping.buyReturnLabel` reads all three off the shipment, works out
+// the weight and the insured value from the ORDER, and asks the carrier.
 export async function cancel(
   order_id: string,
   { carrier_service_id, package_id }: OrderCancelBody,
-  buy: BuyReturnLabel = buyReturnLabel
+  buy: (shipment_id: string) => Promise<void> = shippingLabels.buyReturnLabel
 ): Promise<OrderView> {
   const order = await viewOf(order_id);
   rules.assertDirection(order.order.direction, "purchase", "cancelling");
+  rules.assertReturnable(order);
 
   const box = await packagesRepo.getOne(package_id);
-  rules.assertPackage(box);
+  shippingRules.assertParcelPackage(box);
   const service = await carrierServices.labelServiceFor(carrier_service_id);
-  const weight = shippingRules.parcelWeightLb(order.items, box);
   const declaredValue = await carrierServices.clampInsuredValue(
-    shippingRules.declaredValue(order.totals?.total ?? 0), service.serviceType
+    shippingRules.declaredValue(order.totals?.total ?? 0), service.code
   );
   const insured = declaredValue > 0;
-
-  const request = rules.returnLabelRequest(order, {
-    serviceType: service.serviceType,
-    weight: { units: "LB", value: weight },
-    dimensions: {
-      length: Number(box.length), width: Number(box.width),
-      height: Number(box.height), units: "IN",
-    },
-    declaredValue,
-  });
 
   // A prior call's shell, if one is sitting there unlabelled - reused rather
   // than duplicated.
@@ -336,11 +303,16 @@ export async function cancel(
     let id = existing?.id;
     if (!id) {
       const shipment = await shipmentService.create({ order_id, direction: "Return" }, tx);
-      rules.assertReturnShipment(shipment);
+      shippingRules.assertReturnShipment(shipment);
       id = shipment.id;
     }
     await shipmentService.update(
-      id, { package_id, carrier_service_id, insured, declared_value: insured ? declaredValue : null }, tx
+      id,
+      {
+        package_id, carrier_service_id, insured,
+        declared_value: insured ? declaredValue : null,
+      },
+      tx
     );
     return id;
   });
@@ -348,45 +320,8 @@ export async function cancel(
   // OUTSIDE WORLD, AFTER: the shell already exists, so a failed carrier call
   // leaves it standing - never voided, because voiding a billed label does
   // not un-bill it.
-  const { tracking_number, label } = await buy(service.carrier_id, request);
-  await withTransaction((tx) => shipmentService.update(shipment_id, {
-    tracking_number, label, label_type: "Generated", shipping_status: "Label Created",
-  }, tx));
+  await buy(shipment_id);
 
-  return await viewOf(order_id);
-}
-
-// POST /api/orders/:id/label - RETRY SURFACE for a purchase order whose own
-// label purchase failed after the order committed (place.ts's own AFTER
-// step). NO BODY (ruling 58): the weight is computed from its lines and the
-// shipment's own package, and the pickup slot, if the shipment's handoff
-// needs one, comes from the order's own fulfillment pickup row when one is
-// scheduled.
-export async function buyLabel(
-  order_id: string, buy: typeof buyPostageLive = buyPostageLive
-): Promise<OrderView> {
-  const order = await viewOf(order_id);
-  rules.assertDirection(order.order.direction, "purchase", "buying a label");
-
-  const shipment = order.shipments.find((s) => s.direction === "Inbound");
-  rules.assertShipmentToLabel(shipment, order_id);
-  rules.assertUnlabelled(shipment.tracking_number, order_id);
-  rules.assertParcelChosen(shipment, order_id);
-  const { carrier_service_id, package_id, pickup_type } = shipment;
-
-  const box = await packagesRepo.getOne(package_id);
-  const service = await carrierServices.labelServiceFor(carrier_service_id);
-  const handoff = (await handoffsService.getHandoffs()).find((h) => h.name === pickup_type);
-  rules.assertHandoff(handoff, shipment.id);
-  const shipper = rules.requireAddress(order.address ?? undefined, "shipper");
-  const weight = shippingRules.parcelWeightLb(order.items, box);
-  const [scheduled] = await fulfillmentPickups.forOrder(order_id);
-  const parcel = rules.rebuyParcel(
-    shipment, service, box, handoff, weight, rules.scheduleFromPickup(scheduled)
-  );
-
-  const postage = await buy(shipper, order.user?.name ?? "", parcel);
-  await recordPostage(order_id, shipment.id, postage, parcel.schedule);
   return await viewOf(order_id);
 }
 

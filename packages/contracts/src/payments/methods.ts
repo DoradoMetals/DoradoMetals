@@ -42,4 +42,15 @@ export const PaymentMethod = z.object({
 export type PaymentMethod = z.infer<typeof PaymentMethod>;
 // generated:end
 
-// Hand-written derivations go here: New, Patch, named reads.
+// A payments.methods WRITE - the presentation and money an admin edits.
+// Excludes identity (id, direction, type, currency), what the PROVIDER
+// decides (supports_partial, supports_split, provider, provider_value), and
+// the audit columns - a method is reference data seeded by migration
+// (047/109), not created here.
+export const PaymentMethodPatch = PaymentMethod.omit({
+  id: true, direction: true, type: true, currency: true,
+  supports_partial: true, supports_split: true, provider: true, provider_value: true,
+  created_at: true, updated_at: true, created_by: true, updated_by: true,
+  created_by_id: true, updated_by_id: true,
+}).partial();
+export type PaymentMethodPatch = z.infer<typeof PaymentMethodPatch>;

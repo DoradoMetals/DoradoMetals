@@ -1,6 +1,7 @@
 import { parseStrict, uuidParam } from "#shared/http/validate.ts";
 import { asyncHandler } from "#shared/middleware/asyncHandler.ts";
 import * as shipmentPatch from "#domain/shipping/shipments/patch.service.ts";
+import * as labels from "#domain/shipping/labels.ts";
 import * as shipmentView from "#domain/shipping/shipments/view.ts";
 import { ShipmentPatch } from "@dorado/contracts";
 import type { Request } from "express";
@@ -38,4 +39,17 @@ export const getShipment = asyncHandler(async (req, res) => {
 // yet" is an answer about a real order.
 export const getShipmentsByOrder = asyncHandler(async (req, res) => {
   return res.json(await shipmentView.forOrder(uuidParam(req, "orderId"), isAdmin(req)));
+});
+
+// POST /api/shipments/:id/label - BUY (OR RETRY BUYING) THIS PARCEL'S LABEL.
+//
+// It was POST /api/orders/:id/label until ruling 67: a label belongs to the
+// PARCEL, and the order it is for is resolved from the shipment rather than
+// the other way round. NO BODY (ruling 58) - the weight, the declared value,
+// the box, the service and the courier slot are all read from the shipment and
+// its order. Answers the parcel's own view, refreshed.
+export const buyShipmentLabel = asyncHandler(async (req, res) => {
+  const id = uuidParam(req, "id");
+  await labels.buyLabel(id);
+  return res.status(200).json(await shipmentView.getById(id, isAdmin(req)));
 });

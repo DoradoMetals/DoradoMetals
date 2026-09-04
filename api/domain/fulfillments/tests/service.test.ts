@@ -2,6 +2,7 @@
 // The first feature with no exchange side to compare against, so these tests are the only thing proving PICKUP/DIRECT work - mostly, that the three categories can't be mixed up: nothing in the schema stops a pickups row hanging off a DROPSHIP fulfillment, and every read LEFT JOINs all three detail tables, so a mismatch comes back as a second answer to a one-answer question.
 import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
+import type { Checkout } from "@dorado/contracts";
 import type { PoolClient } from "pg";
 import pool from "#pool";
 import { LOCKS, takeLocks } from "#shared/testing/locks.ts";
@@ -357,7 +358,8 @@ test("another customer's fulfillment is not readable by asking for its order", a
 // attachForCheckout is the whole of what placing an order asks of this feature
 // (D214 item 11). It moved out of orders/place.ts, so its tests moved with it -
 // including the two bookings, which a shipping checkout cannot reach at all
-// (place() refuses a non-SHIPMENT draft) and an admin door will.
+// (a shipping checkout mutates a SHIPMENT draft) and an admin door will.
+// A placement accepts all three categories now (Jacob, 2026-09-04).
 
 // An address of the order's own customer, BUILT - the pickup is booked at
 // their door, and `SELECT id FROM places.addresses LIMIT 1` booked it at
@@ -372,21 +374,32 @@ const aLocation = async (c: PoolClient) =>
   (await c.query(`SELECT id FROM places.locations WHERE name = $1`,
     ["Dorado Return Address"])).rows[0].id;
 
+// `attachForCheckout` takes the CHECKOUT ROW now (ruling 66 - the seven-field
+// object it used to take was `handoverOf` copying columns off exactly this
+// row), so the helper builds one rather than a hand-picked slice of it.
 const handover = (
-  order_id: string,
   over: {
     fulfillment_id?: string | null; method_id?: string | null;
     pickup_address_id?: string | null; location_id?: string | null;
     start_time?: string | null;
   } = {}
-) => ({
-  order_id,
-  direction: "purchase" as const,
-  fulfillment_id: over.fulfillment_id ?? null,
-  method_id: over.method_id ?? null,
+): Checkout => ({
+  id: anId(),
+  user_id: anId(),
+  direction: "purchase",
+  payment_method_id: null,
+  payment_details_id: null,
+  fulfillment_method_id: over.method_id ?? null,
+  appointment_location_id: over.location_id ?? null,
   pickup_address_id: over.pickup_address_id ?? null,
-  location_id: over.location_id ?? null,
-  start_time: over.start_time ?? null,
+  shipper_address_id: null,
+  recipient_address_id: null,
+  carrier_service_id: null,
+  package_id: null,
+  appointment_time: over.start_time ?? null,
+  fulfillment_id: over.fulfillment_id ?? null,
+  pickup_date: null,
+  pickup_time: null,
 });
 
 test("the draft the stepper mutated becomes the order's own fulfillment", async () => {
@@ -398,8 +411,7 @@ test("the draft the stepper mutated becomes the order's own fulfillment", async 
     );
     assert.ok(draft, "no draft was created");
 
-    const attached = await service.attachForCheckout(
-      handover(order.id, { fulfillment_id: draft.fulfillment.id }), c
+    const attached = await service.attachForCheckout(order.id, handover({ fulfillment_id: draft.fulfillment.id }), c
     );
     assert.equal(attached.fulfillment.id, draft.fulfillment.id, "a second fulfillment was minted");
     assert.equal(attached.fulfillment.order_id, order.id);
@@ -410,8 +422,7 @@ test("a checkout with no draft falls back to the method it named", async () => {
   await inRollback(async (c: PoolClient) => {
     const order = await freeOrder(c, "purchase");
     const method = await methodOf(c, "CARRIER PICKUP", "purchase");
-    const attached = await service.attachForCheckout(
-      handover(order.id, { method_id: method.id }), c
+    const attached = await service.attachForCheckout(order.id, handover({ method_id: method.id }), c
     );
     assert.equal(attached.method.type, "CARRIER PICKUP");
   });
@@ -422,8 +433,7 @@ test("a checkout with no draft falls back to the method it named", async () => {
 test("a checkout that named nothing falls back to the direction's default", async () => {
   await inRollback(async (c: PoolClient) => {
     const order = await freeOrder(c, "purchase");
-    const attached = await service.attachForCheckout(
-      handover(order.id, { pickup_address_id: await anAddressId(c, order.user_id) }), c
+    const attached = await service.attachForCheckout(order.id, handover({ pickup_address_id: await anAddressId(c, order.user_id) }), c
     );
     assert.equal(attached.method.type, "CARRIER DROPOFF");
     assert.equal(attached.method.category, "SHIPMENT");
@@ -435,8 +445,7 @@ test("a PICKUP method books the pickup", async () => {
   await inRollback(async (c: PoolClient) => {
     const order = await freeOrder(c, "purchase");
     const address = await anAddressId(c, order.user_id);
-    const collected = await service.attachForCheckout(
-      handover(order.id, {
+    const collected = await service.attachForCheckout(order.id, handover({
         method_id: (await methodOf(c, "PICKUP", "purchase")).id,
         pickup_address_id: address,
         start_time: "2026-09-05T15:00:00Z",
@@ -451,7 +460,8 @@ test("a PICKUP method books the pickup", async () => {
 test("an APPOINTMENT books the location and the time", async () => {
   await inRollback(async (c: PoolClient) => {
     const attached = await service.attachForCheckout(
-      handover((await freeOrder(c, "purchase")).id, {
+        (await freeOrder(c, "purchase")).id,
+        handover({
         method_id: (await methodOf(c, "APPOINTMENT", "purchase")).id,
         location_id: await aLocation(c),
         start_time: "2026-09-05T15:00:00Z",

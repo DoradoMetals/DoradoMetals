@@ -6,20 +6,9 @@ import { fineContent } from "#domain/pricing/content.ts";
 import { getRatePct, sumContentByMetal } from "#domain/rates/utils/resolveRate.ts";
 import { lineContent, rateMaterialFor } from "#domain/orders/rules.ts";
 import type {
-  CarrierHandoff, Checkout, CheckoutStep, Direction, RateRead,
+  BullionLiveness, BullionStorefront, CarrierHandoff, Checkout, CheckoutItemWrite,
+  CheckoutStep, Direction, FulfillmentCategory, RateRead,
 } from "@dorado/contracts";
-import type { NewItem } from "#db/checkout/items/repo.ts";
-import type { BullionLiveness, BullionStorefront } from "@dorado/contracts";
-
-export type BasketFacts = {
-  checkout_id: string;
-  direction: Direction;
-  items: CheckoutItemPatch[];
-  products: BullionStorefront[];
-  liveness: BullionLiveness[];
-  rates: RateRead[];
-  metalNames: Map<string, string>;
-};
 
 // A bullion line names an id and a quantity; the rest is the server's - which
 // is `CheckoutItemPatch` without those two, FROM THE CONTRACT (ruling 64).
@@ -55,12 +44,10 @@ function requireLiveProducts(
 }
 
 // A row before its premium: a purchase band reads the whole basket's totals.
-type Snapshot = { row: NewItem; metal: string | null };
-
 function snapshot(
   line: CheckoutItemPatch, direction: Direction, checkout_id: string,
   byId: Map<string, BullionStorefront>, metalNames: Map<string, string>
-): Snapshot {
+): { row: CheckoutItemWrite; metal: string | null } {
   if (line.bullion_id != null) {
     for (const column of SERVER_OWNED) {
       if (line[column] != null) {
@@ -119,7 +106,7 @@ function snapshot(
 // Purchase: the rates band at the basket's total content of that metal, which
 // is placement's own rule. Sale: the product's ask. No band leaves it null.
 function premiums(
-  snapshots: Snapshot[], direction: Direction, rates: RateRead[],
+  snapshots: ReturnType<typeof snapshot>[], direction: Direction, rates: RateRead[],
   byId: Map<string, BullionStorefront>
 ): (number | null)[] {
   if (direction === "sale") {
@@ -142,8 +129,16 @@ function premiums(
 
 // A line the rules cannot resolve refuses the write; nothing is skipped.
 export function basketRows(
-  { checkout_id, direction, items, products, liveness, rates, metalNames }: BasketFacts
-): NewItem[] {
+  { checkout_id, direction, items, products, liveness, rates, metalNames }: {
+    checkout_id: string;
+    direction: Direction;
+    items: CheckoutItemPatch[];
+    products: BullionStorefront[];
+    liveness: BullionLiveness[];
+    rates: RateRead[];
+    metalNames: Map<string, string>;
+  }
+): CheckoutItemWrite[] {
   const byId = new Map(products.map((product) => [product.id, product]));
   const live = new Set(liveness.filter((p) => p.display === true).map((p) => p.id));
   requireLiveProducts(items, direction, byId, live);
@@ -174,67 +169,55 @@ export const handoffFor = (
     ? null
     : handoffs.find((h) => methodTypeFor(h) === method_type) ?? null;
 
-export type CheckoutFacts = {
-  row: Checkout;
-  direction: Direction;
-  item_count: number;
-  requires_schedule: boolean;
-  has_fulfillment: boolean;
-};
-
-export type CheckoutState = {
-  missing: CheckoutStep[];
-  ready_for_rates: boolean;
-  ready_for_payment: boolean;
-  ready_to_place: boolean;
-};
-
 // The address slot a direction ships from or to. Purchase parcels leave the
 // customer; sale parcels arrive at them.
 export const addressColumnFor = (direction: Direction) =>
   direction === "purchase" ? "shipper_address_id" : "recipient_address_id";
 
-// `missing` is ordered the way the stepper walks it, so the first entry is the
-// next thing to do.
+// WHAT THE CUSTOMER HAS NOT CHOSEN YET - the ONE list, ordered the way the
+// stepper walks it, so the first entry is the next thing to do. It is exactly
+// what `place` would refuse over, which is what lets an empty list mean
+// placeable and stops the answer being three booleans that read it again.
+//
+// IT FOLLOWS THE CHOSEN METHOD'S CATEGORY (Jacob, 2026-09-04: "If it's a
+// direct or pickup, why would it need shipper_address_id or package_id?").
+// Until a method is chosen the only purchase step is the method itself.
 export function checkoutState(
-  { row, direction, item_count, requires_schedule, has_fulfillment }: CheckoutFacts
-): CheckoutState {
+  { row, direction, item_count, category, requires_schedule }: {
+    row: Checkout;
+    direction: Direction;
+    item_count: number;
+    category: FulfillmentCategory | null;
+    requires_schedule: boolean;
+  }
+): { missing: CheckoutStep[] } {
   const missing: CheckoutStep[] = [];
   if (item_count === 0) missing.push("items");
 
-  if (direction === "purchase") {
+  if (direction !== "purchase") {
+    if (!row.recipient_address_id) missing.push("recipient_address");
+    return { missing };
+  }
+
+  if (!category) {
+    missing.push("fulfillment_method");
+  } else if (category === "SHIPMENT") {
     if (!row.shipper_address_id) missing.push("shipper_address");
     if (!row.package_id) missing.push("package");
-    if (!has_fulfillment) missing.push("handoff");
     if (!row.carrier_service_id) missing.push("carrier_service");
     if (requires_schedule && !(row.pickup_date && row.pickup_time)) {
       missing.push("pickup_schedule");
     }
-    if (!row.payment_details_id) missing.push("payout_account");
+  } else if (category === "PICKUP") {
+    if (!row.pickup_address_id) missing.push("pickup_address");
+    if (!row.appointment_time) missing.push("appointment_time");
   } else {
-    if (!row.recipient_address_id) missing.push("recipient_address");
-    if (!row.carrier_service_id) missing.push("carrier_service");
-    if (!row.payment_method_id) missing.push("payment_method");
+    if (!row.appointment_location_id) missing.push("appointment_location");
+    if (!row.appointment_time) missing.push("appointment_time");
   }
 
-  // The carrier is asked what a parcel costs, so it needs the parcel: lines to
-  // weigh, a box to weigh them in, and somewhere to collect them from. Exactly
-  // the three refusals shipping/operations' getCheckoutRates raises.
-  const address = direction === "purchase" ? row.shipper_address_id : row.recipient_address_id;
-  const ready_for_rates = item_count > 0 && !!row.package_id && !!address;
-
-  // The money step is reached once everything BEFORE it is chosen: for a
-  // purchase that is the whole shipping step, for a sale everything but the
-  // card.
-  const paymentStep: CheckoutStep = direction === "purchase" ? "payout_account" : "payment_method";
-  const ready_for_payment = missing.every((step) => step === paymentStep);
-
-  return {
-    missing,
-    ready_for_rates,
-    ready_for_payment,
-    ready_to_place: missing.length === 0,
-  };
+  if (!row.payment_details_id) missing.push("payout_account");
+  return { missing };
 }
 
 // ------------------------------------------------ adopting a visitor's basket
@@ -264,7 +247,6 @@ export function checkoutState(
 // PURE, so the decision is testable without a database: the caller applies the
 // patch it answers.
 export const CHOICE_COLUMNS = columnsOf(CheckoutWrite);
-export type ChoiceColumns = Partial<Pick<Checkout, (typeof CHOICE_COLUMNS)[number]>>;
 
 // Every column a step writes, FROM THE CONTRACT (ruling 64). It used to be
 // `checkouts.PATCHABLE` restated by hand, because this module is PURE - its
@@ -273,19 +255,21 @@ export type ChoiceColumns = Partial<Pick<Checkout, (typeof CHOICE_COLUMNS)[numbe
 // and move them. `CheckoutWrite` is a zod schema and imports nothing, so both
 // lists are now the same call on the same contract and cannot drift at all.
 
+type CheckoutWriteColumns = Partial<Pick<Checkout, (typeof CHOICE_COLUMNS)[number]>>;
+
 // The patch to apply to the row that SURVIVES (the real user's), given the row
 // that is going away (the visitor's). Only columns that actually change are
 // named, so a merge with nothing to say answers an empty patch and writes
 // nothing.
 export function mergeChoices(
-  anonymous: ChoiceColumns, real: ChoiceColumns
-): ChoiceColumns {
+  anonymous: CheckoutWriteColumns, real: CheckoutWriteColumns
+): CheckoutWriteColumns {
   const patch: Record<string, unknown> = {};
   for (const column of CHOICE_COLUMNS) {
     const chosen = anonymous[column] ?? real[column] ?? null;
     if (chosen !== (real[column] ?? null)) patch[column] = chosen;
   }
-  return patch as ChoiceColumns;
+  return patch as CheckoutWriteColumns;
 }
 
 // ----------------------------------------------------------------- refusals

@@ -2,7 +2,6 @@ import express from "express";
 
 import {
   addFundsToOrder,
-  buyOrderLabel,
   cancelOrder,
   finalizeOrderPricing,
   getOrder,
@@ -80,22 +79,21 @@ router.get("/:orderId/refiners", requireAdmin, getRefinerOrderByOrder);
 router.get("/:orderId/refiners/spots", requireAdmin, getRefinerSpotsByOrder);
 router.get("/:orderId/refiners/items", requireAdmin, getRefinerItemsByOrder);
 
-// THE FIVE ACTIONS. Each was a flag in the PATCH body until D214 item 11 (or,
-// for /label, is the retry surface label-after-commit needed once buying one
-// stopped happening inside the placement transaction) - each is a real
-// operation rather than a field change: two move money, two buy a carrier
-// label, one sends a refiner their copy of an order. Direction is DATA - the
-// use case checks the order's direction, not the URL.
+// THE FOUR ACTIONS. Each was a flag in the PATCH body until D214 item 11 -
+// each is a real operation rather than a field change: two move money, one
+// sends the metal back, one sends a refiner their copy of an order. Direction
+// is DATA - the use case checks the order's direction, not the URL.
 //
 //   POST /:id/add_funds         credit the order's total to the customer
 //   POST /:id/finalize_pricing  price every line at the order's spots
-//   POST /:id/cancel            buy the return label, unpin the spots
-//   POST /:id/label             buy (or retry buying) the inbound label
+//   POST /:id/cancel            unpin the spots, send the metal back
 //   POST /:id/send_to_refiner   attach a refiner and send them the order
+//
+// BUYING A LABEL IS THE PARCEL'S OWN ENDPOINT (ruling 67): it moved to
+// POST /api/shipments/:id/label, declared in transport/shipping/shipments.
 router.post("/:id/add_funds", requireAdmin, addFundsToOrder);
 router.post("/:id/finalize_pricing", requireAdmin, finalizeOrderPricing);
 router.post("/:id/cancel", requireAdmin, cancelOrder);
-router.post("/:id/label", requireAdmin, buyOrderLabel);
 router.post("/:id/send_to_refiner", requireAdmin, sendOrderToRefiner);
 
 // THE ORDER ROW ITSELF, and only it (Jacob, 28 August): the status label and

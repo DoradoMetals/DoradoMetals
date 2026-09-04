@@ -104,3 +104,43 @@ export const CancelPaymentIntentBody = z.object({
 }).strict();
 export type CancelPaymentIntentBody = z.infer<typeof CancelPaymentIntentBody>;
 
+// THE CUSTOMER AN INTENT BILLS - auth.users' own columns, not a payments
+// table. payments/customers/repo.ts is the one reader (name and email are
+// what opening a Stripe customer needs); it lives here because the intent is
+// the payments entity that bills against it.
+export const BillingIdentity = User.pick({
+  id: true, name: true, email: true, stripeCustomerId: true,
+});
+export type BillingIdentity = z.infer<typeof BillingIdentity>;
+
+// WHO IS ASKING. An intent is keyed on (session_id, user_id, type), so the
+// caller's own ids travel as one document instead of two loose arguments -
+// `.unwrap()` because a CALLER is always signed in, unlike the intent row
+// itself, whose session_id/user_id are nullable (an admin-opened intent has
+// no session of its own).
+export const PaymentCaller = z.object({
+  session_id: PaymentIntent.shape.session_id.unwrap(),
+  user_id: PaymentIntent.shape.user_id.unwrap(),
+});
+export type PaymentCaller = z.infer<typeof PaymentCaller>;
+
+// THE PAYMENT FACTS a caller derives a verdict from - order creation (D211)
+// and the abandonment sweep both read this shape rather than the row. One
+// order_id + the order's own direction, not two nullable ids; the amount is
+// in CENTS - see sql/find_facts_by_ref.sql, which this matches column for
+// column.
+export const PaymentIntentFacts = PaymentIntent.pick({
+  user_id: true,
+  session_id: true,
+  order_id: true,
+}).extend({
+  payment_intent_id: PaymentAttempt.shape.provider_ref,
+  intent_id: PaymentIntent.shape.id,
+  attempt_id: PaymentAttempt.shape.id,
+  type: PaymentIntent.shape.type.nullable(),
+  payment_status: PaymentIntent.shape.status.nullable(),
+  amount: z.number().nullable(),
+  direction: Direction.nullable(),
+});
+export type PaymentIntentFacts = z.infer<typeof PaymentIntentFacts>;
+

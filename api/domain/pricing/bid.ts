@@ -36,7 +36,7 @@
 // string "NaN"; a total that cannot be computed must stop here, not print on a
 // document a customer is paid against.
 import * as rules from "#domain/pricing/rules.ts";
-import type { OrderView, OrderViewItem } from "@dorado/contracts";
+import type { Bids, OrderView, OrderViewItem } from "@dorado/contracts";
 
 
 // THE QUOTE FEED, KEYED BY THE METAL IT PRICES. A map rather than an array of
@@ -46,7 +46,12 @@ import type { OrderView, OrderViewItem } from "@dorado/contracts";
 //
 // The caller builds it from whichever quote is right for the question - the
 // order's FROZEN spots for a placed order, the live feed for an estimate.
-export type Bids = ReadonlyMap<string, number | null>;
+//
+// FROM @dorado/contracts (ruling 57/60/61): exported across features
+// (domain/media/pdfs renders the same figures), so it has one home there
+// rather than a copy per file. Re-exported so every existing import path
+// keeps resolving unchanged.
+export type { Bids } from "@dorado/contracts";
 
 // THE PARCEL THE CUSTOMER SENT, not the one going back. A return leg's cost is
 // the business's to bear and must never be deducted from what a customer is

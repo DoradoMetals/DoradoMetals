@@ -2,10 +2,12 @@
 import query from "#shared/db/query.ts";
 import { buildUpdate } from "#shared/db/patch.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
-import type { Direction } from "@dorado/contracts";
+import type {
+  AbandonedSale, Direction, OrderGuard, OrderWrite, ReservedFunds, SettledAwaiting,
+} from "@dorado/contracts";
 import type { Executor } from "#shared/db/executor.ts";
 import { columnsOf } from "#shared/db/columns.ts";
-import { Order } from "@dorado/contracts";
+import { Order, OrderGuard as Guard, OrderWrite as Write } from "@dorado/contracts";
 
 const sql = sqlFrom(import.meta.dirname);
 
@@ -73,24 +75,15 @@ export async function ownersById(
 // THE ONE WRITE. The guard is a row-state precondition evaluated IN THE
 // STATEMENT, which makes the Pending-only transitions atomic under webhook
 // retries: false means "nothing needed doing", never a stomped later status.
-// THE COLUMNS, FROM THE CONTRACT (ruling 64): the row without its identity
-// (id, user_id, direction, number) and without the audit columns the
-// audit_stamp trigger writes. What a REQUEST may name is the narrower
-// `OrderPatch` in @dorado/contracts, parsed strictly at the transport.
-const WRITABLE = Order.omit({
-  id: true, user_id: true, direction: true, number: true,
-  created_by: true, updated_by: true, created_at: true, updated_at: true,
-  created_by_id: true, updated_by_id: true,
-});
-export const PATCHABLE = columnsOf(WRITABLE);
-export type OrderPatch = Partial<Record<(typeof PATCHABLE)[number], string | boolean | null>>;
-
-// The two columns a caller may bind as a row-state precondition.
-const GUARDABLE = columnsOf(Order.pick({ status: true, direction: true }));
-export type OrderGuard = Partial<Record<(typeof GUARDABLE)[number], string>>;
+// THE COLUMNS, FROM THE CONTRACT (ruling 64): `OrderWrite` is the row without
+// its identity and without the audit columns the audit_stamp trigger writes.
+// What a REQUEST may name is the narrower `OrderPatch`, parsed strictly at the
+// transport.
+export const PATCHABLE = columnsOf(Write);
+const GUARDABLE = columnsOf(Guard);
 
 export async function update(
-  id: string, patch: OrderPatch, guard: OrderGuard = {}, executor?: Executor
+  id: string, patch: OrderWrite, guard: OrderGuard = {}, executor?: Executor
 ): Promise<boolean> {
   const where: Record<string, unknown> = { id };
   for (const g of GUARDABLE) if (g in guard) where[g] = guard[g];
@@ -108,8 +101,8 @@ export async function update(
 }
 
 // The sweeps' candidate reads and the reserved-credit read the cancel guards
-// on. Each is a WHERE no other statement has.
-export type SettledAwaiting = { order_id: string; payment_intent_id: string };
+// on. Each is a WHERE no other statement has; the shapes are contracts
+// (computed/orders.ts) because no single table backs a three-way join.
 export async function findSalesAwaitingSettledIntent(
   executor?: Executor
 ): Promise<SettledAwaiting[]> {
@@ -118,11 +111,6 @@ export async function findSalesAwaitingSettledIntent(
   return rows;
 }
 
-export type AbandonedSale = {
-  order_id: string; user_id: string | null;
-  used_funds: boolean | null; reserved_funds: number | null;
-  payment_intent_id: string | null; payment_status: string | null;
-};
 export async function findAbandonedSales(
   ttl_hours: number, executor?: Executor
 ): Promise<AbandonedSale[]> {
@@ -131,9 +119,6 @@ export async function findAbandonedSales(
   return rows;
 }
 
-export type ReservedFunds = {
-  user_id: string | null; used_funds: boolean | null; reserved_funds: number | null;
-};
 export async function findReservedFunds(
   order_id: string, executor?: Executor
 ): Promise<ReservedFunds | undefined> {
@@ -141,22 +126,16 @@ export async function findReservedFunds(
   return rows[0];
 }
 
-// `number` comes from the direction's own sequence inside the statement.
-export type NewOrder = {
-  id?: string | null;
-  user_id: string | null;
-  direction: "purchase" | "sale";
-  status: string;
-  notes?: string | null;
-};
-
-export async function create(
-  row: NewOrder, executor?: Executor
-): Promise<{ id: string; number: number }> {
-  const { rows } = await query<{ id: string; number: number }>(
-    sql("create"),
-    [row.id ?? null, row.user_id, row.direction, row.status, row.notes ?? null],
-    executor
+// THE ORDER A CHECKOUT BECAME. The owner and the direction are COPIED from
+// the checkout row by the statement (ruling 66), so nothing assembles a row
+// literal out of them first; `number` comes from that direction's own
+// sequence, inside the same statement.
+export async function createForCheckout(
+  { id, checkout_id, status }: { id?: string | null; checkout_id: string; status: string },
+  executor?: Executor
+): Promise<Order | undefined> {
+  const { rows } = await query<Order>(
+    sql("create_from_checkout"), [id ?? null, status, checkout_id], executor
   );
   return rows[0];
 }

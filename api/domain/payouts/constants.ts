@@ -9,7 +9,12 @@ export const PAYOUT_METHOD_FEES: Readonly<Record<string, number>> = Object.freez
   DORADO_ACCOUNT: 0,
 });
 
-export type PayoutMethod = keyof typeof PAYOUT_METHOD_FEES;
+// NOT a contract derivation and NOT exported: this is a fee lookup this
+// application chose, not a database column (see the file header - it is a
+// DEFAULT, and 4 of 62 production rows override it). `keyof` names its own
+// keys, so there is nothing to duplicate by giving it a name only this file
+// uses.
+type PayoutMethod = keyof typeof PAYOUT_METHOD_FEES;
 
 export function isPayoutMethod(value: unknown): value is PayoutMethod {
   return typeof value === "string" && value in PAYOUT_METHOD_FEES;

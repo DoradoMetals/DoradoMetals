@@ -30,21 +30,15 @@ import * as transactions from "#domain/orders/transactions/service.ts";
 import * as rules from "#domain/orders/rules.ts";
 import * as shipmentsRepo from "#db/shipping/shipments/repo.ts";
 import * as pickupService from "#domain/shipping/pickups/service.ts";
-import type { Order, OrderItem, OrderTotals } from "@dorado/contracts";
+import type { Order, OrderItem, OrderRead, OrderTotals } from "@dorado/contracts";
 import type { BullionPublic, OrderView, OrderViewItem } from "@dorado/contracts";
-import type { PoolClient } from "pg";
-
-type Executor = PoolClient | undefined;
-
-// `totals` is null for an order with no transactions row - a real state, and
-// the contract declares it nullable for exactly those.
-export type OrderWithTotals = Order & { totals: OrderTotals | null };
+import type { Executor } from "#shared/db/executor.ts";
 
 
 // Assigned onto the row rather than spread into a copy: the rows are this
 // read's own and a copy is a second object to keep in step.
-function attach(rows: Order[], by: Map<string, OrderTotals>): OrderWithTotals[] {
-  const out: OrderWithTotals[] = [];
+function attach(rows: Order[], by: Map<string, OrderTotals>): OrderRead[] {
+  const out: OrderRead[] = [];
   for (const row of rows) {
     out.push(Object.assign(row, { totals: by.get(row.id) ?? null }));
   }
