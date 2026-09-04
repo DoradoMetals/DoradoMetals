@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { fireEvent, render } from "@testing-library/react";
+import { fireEvent, render, within } from "@testing-library/react";
 import * as React from "react";
 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./Table";
@@ -120,41 +120,21 @@ describe("Table", () => {
     expect(container.querySelector("svg.lucide-arrow-down-wide-narrow")).toBeTruthy();
   });
 
-  it("a filterable column's funnel carries aria-pressed and flips it on click", () => {
-    const onFilter = vi.fn();
-    const { container, getByRole, rerender } = render(
+  it("renders the caller's filter slot in the funnel's position", () => {
+    const { getByRole } = render(
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead filtered={false} onFilter={onFilter}>
-              Item
-            </TableHead>
+            <TableHead filter={<button aria-label="Filter column">Filter</button>}>Item</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody />
       </Table>,
     );
-    const button = getByRole("button", { name: /filter column/i });
-    expect(button.getAttribute("aria-pressed")).toBe("false");
-    fireEvent.click(button);
-    expect(onFilter).toHaveBeenCalled();
-
-    rerender(
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead filtered onFilter={onFilter}>
-              Item
-            </TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody />
-      </Table>,
-    );
-    expect(container.querySelector('button[aria-pressed="true"]')).toBeTruthy();
+    expect(getByRole("button", { name: /filter column/i })).toBeTruthy();
   });
 
-  it("a column with no onFilter renders no filter button", () => {
+  it("a column with no filter slot renders nothing in its place", () => {
     const { queryByRole } = render(
       <Table>
         <TableHeader>
@@ -166,6 +146,25 @@ describe("Table", () => {
       </Table>,
     );
     expect(queryByRole("button", { name: /filter column/i })).toBeNull();
+  });
+
+  it("the filter slot sits alongside the sort button, both inside the same th", () => {
+    const { container, getByRole } = render(
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead sorted={null} onSort={() => {}} filter={<button aria-label="Filter column">Filter</button>}>
+              Item
+            </TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody />
+      </Table>,
+    );
+    const th = container.querySelector("th")!;
+    expect(within(th).getByRole("button", { name: /Item/ })).toBeTruthy();
+    expect(within(th).getByRole("button", { name: /filter column/i })).toBeTruthy();
+    expect(getByRole("button", { name: /filter column/i }).closest("th")).toBe(th);
   });
 
   it("a selected row is expressed in a way assistive tech can read, and axe finds nothing", async () => {

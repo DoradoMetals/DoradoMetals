@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { fireEvent, render, within } from "@testing-library/react";
+import { fireEvent, render } from "@testing-library/react";
 import * as React from "react";
 
 import { DataTable, type DataTableColumn } from "./DataTable";
@@ -8,7 +8,7 @@ import { axeViolations } from "../test/axe";
 type Row = { id: string; item: string; purity: string; weight: number };
 
 const columns: DataTableColumn<Row>[] = [
-  { accessorKey: "item", header: "Item", enableColumnFilter: true },
+  { accessorKey: "item", header: "Item" },
   { accessorKey: "purity", header: "Purity" },
   { accessorKey: "weight", header: "Weight", enableSorting: true, meta: { numeric: true } },
 ];
@@ -63,23 +63,6 @@ describe("DataTable", () => {
     const purityHeader = getByText("Purity").closest("th")!;
     expect(purityHeader.hasAttribute("aria-sort")).toBe(false);
     expect(purityHeader.querySelector("button")).toBeNull();
-  });
-
-  it("an active column filter surfaces as a dismissible Chip", () => {
-    const { getByRole } = render(
-      <DataTable columns={columns} data={data} label="Scrap" />,
-    );
-    const filterButton = getByRole("button", { name: /filter column/i });
-    expect(filterButton.getAttribute("aria-pressed")).toBe("false");
-
-    fireEvent.click(filterButton);
-    expect(filterButton.getAttribute("aria-pressed")).toBe("true");
-    const chip = getByRole("button", { name: "Item" });
-    expect(chip).toBeTruthy();
-
-    const dismiss = within(chip).getByRole("button", { name: /remove/i });
-    fireEvent.click(dismiss);
-    expect(filterButton.getAttribute("aria-pressed")).toBe("false");
   });
 
   it("selection supports an indeterminate header checkbox", () => {

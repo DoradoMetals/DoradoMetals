@@ -1,5 +1,5 @@
 import * as React from "react";
-import { ArrowDownWideNarrow, ArrowUpDown, ArrowUpNarrowWide, Funnel } from "lucide-react";
+import { ArrowDownWideNarrow, ArrowUpDown, ArrowUpNarrowWide } from "lucide-react";
 import { cn } from "../cn";
 
 export function Table({ className, ...props }: React.TableHTMLAttributes<HTMLTableElement>) {
@@ -43,19 +43,16 @@ export function TableHead({
   numeric,
   sorted,
   onSort,
-  filtered,
-  onFilter,
+  filter,
   children,
   ...props
 }: React.ThHTMLAttributes<HTMLTableCellElement> & {
   numeric?: boolean;
   sorted?: SortDirection;
   onSort?: () => void;
-  filtered?: boolean;
-  onFilter?: () => void;
+  filter?: React.ReactNode;
 }) {
   const sortable = onSort != null;
-  const filterable = onFilter != null;
   const SortIcon = sorted === "asc" ? ArrowUpNarrowWide : sorted === "desc" ? ArrowDownWideNarrow : ArrowUpDown;
 
   return (
@@ -82,20 +79,7 @@ export function TableHead({
         ) : (
           children
         )}
-        {filterable && (
-          <button
-            type="button"
-            aria-label="Filter column"
-            aria-pressed={filtered ?? false}
-            onClick={onFilter}
-            className={cn(
-              "inline-flex cursor-pointer items-center hover:text-foreground",
-              filtered && "text-foreground"
-            )}
-          >
-            <Funnel aria-hidden className={cn("size-3", filtered && "fill-current")} />
-          </button>
-        )}
+        {filter}
       </span>
     </th>
   );

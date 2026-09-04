@@ -17,7 +17,6 @@ import {
   createPaginatedRowModel,
   createSortedRowModel,
   filterFn_includesString,
-  filterFn_notEmpty,
   globalFilteringFeature,
   rowPaginationFeature,
   rowSelectionFeature,
@@ -30,7 +29,6 @@ import {
 } from "@tanstack/react-table";
 
 import { Checkbox } from "../checkbox/Checkbox";
-import { Chip } from "../chip/Chip";
 import { cn } from "../cn";
 import { Input } from "../input/Input";
 import { Pagination } from "../pagination/Pagination";
@@ -48,7 +46,7 @@ const features = tableFeatures({
   columnFilteringFeature,
   globalFilteringFeature,
   filteredRowModel: createFilteredRowModel(),
-  filterFns: { notEmpty: filterFn_notEmpty, includesString: filterFn_includesString },
+  filterFns: { includesString: filterFn_includesString },
   rowSelectionFeature,
   columnVisibilityFeature,
   rowPaginationFeature,
@@ -132,7 +130,7 @@ export function DataTable<T extends RowData>({
     columns: tableColumns,
     data,
     getRowId,
-    defaultColumn: { enableSorting: false, enableColumnFilter: false, filterFn: "notEmpty" },
+    defaultColumn: { enableSorting: false, enableColumnFilter: false },
     sortDescFirst: false,
     enableRowSelection: selectable,
     globalFilterFn: "includesString",
@@ -170,30 +168,12 @@ export function DataTable<T extends RowData>({
           {actions != null && <div className="ml-auto flex items-center gap-xs">{actions}</div>}
         </div>
       )}
-      {columnFilters.length > 0 && (
-        <div className="flex flex-wrap items-center gap-xs">
-          {columnFilters.map((filter) => {
-            const column = table.getColumn(filter.id);
-            const header = column?.columnDef.header;
-            const filterLabel = typeof header === "string" ? header : filter.id;
-            return (
-              <Chip
-                key={filter.id}
-                label={filterLabel}
-                selected
-                onDismiss={() => column?.setFilterValue(false)}
-              />
-            );
-          })}
-        </div>
-      )}
       <Table aria-label={label}>
         <TableHeader>
           {table.getHeaderGroups().map((headerGroup) => (
             <TableRow key={headerGroup.id}>
               {headerGroup.headers.map((header) => {
                 const canSort = header.column.getCanSort();
-                const canFilter = header.column.getCanFilter();
                 const sortDirection = header.column.getIsSorted();
                 const numeric = header.column.columnDef.meta?.numeric;
                 return (
@@ -202,12 +182,6 @@ export function DataTable<T extends RowData>({
                     numeric={numeric}
                     sorted={canSort ? (sortDirection === false ? null : sortDirection) : undefined}
                     onSort={canSort ? () => header.column.toggleSorting() : undefined}
-                    filtered={canFilter ? header.column.getIsFiltered() : undefined}
-                    onFilter={
-                      canFilter
-                        ? () => header.column.setFilterValue(header.column.getIsFiltered() ? false : true)
-                        : undefined
-                    }
                   >
                     {header.isPlaceholder ? null : <table.FlexRender header={header} />}
                   </TableHead>
