@@ -55,3 +55,5 @@ export { Divider, type DividerProps } from "./divider/Divider";
 export { Pagination, getPaginationItems, type PaginationProps, type PaginationItemToken } from "./pagination/Pagination";
 export { Banner, type BannerProps } from "./banner/Banner";
 export { RadioGroup, Radio, RadioOption, radioOptionVariants, type RadioOptionProps } from "./radio/Radio";
+export { Drawer, type DrawerProps } from "./drawer/Drawer";
+export { Rating, RatingButton, type RatingProps, type RatingButtonProps } from "./rating/Rating";
