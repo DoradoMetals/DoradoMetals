@@ -1,4 +1,4 @@
-import { Button } from '@dorado/components'
+import { Button, Divider } from '@dorado/components'
 import { useCheckoutItems } from '@/shared/store/checkoutItemsStore'
 import { useCheckoutItemActions } from '@/features/checkout/items/queries'
 import { useDecoratedLines } from '@/features/checkout/items/flair'
@@ -11,7 +11,6 @@ import { QuestionIcon } from '@phosphor-icons/react'
 import { useRouter } from 'next/navigation'
 import type { SalesOrderQuote } from "@dorado/contracts";
 import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
-import { Separator } from '@/shared/ui/base/separator'
 import { DetailRow } from '@/shared/ui/DetailRow'
 
 // orderPrices is the server's quote, absent until the first one lands - the
@@ -106,7 +105,7 @@ export default function OrderSummary({ orderPrices }: { orderPrices?: SalesOrder
 
   const paymentContent = (
     <div className="w-full flex-col">
-      <Separator />
+      <Divider />
       <p className="eyebrow my-4">Payment Details</p>
 
       <DetailRow label="Shipping">
@@ -160,7 +159,7 @@ export default function OrderSummary({ orderPrices }: { orderPrices?: SalesOrder
       )}
 
       <div className="pt-2">
-        <Separator />
+        <Divider />
 
         <DetailRow label="Order Total" variant="total" className="pt-2">
           <PriceNumberFlow value={post_charges_amount} />

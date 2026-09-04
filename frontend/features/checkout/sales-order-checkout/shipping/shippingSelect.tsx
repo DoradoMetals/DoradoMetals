@@ -1,7 +1,7 @@
 'use client'
 
 import { UserAddress } from '@/features/addresses/types'
-import { Button } from '@dorado/components'
+import { Button, Divider } from '@dorado/components'
 import { Plus } from 'lucide-react'
 import { useMemo } from 'react'
 import { useDrawerStore } from '@/shared/store/drawerStore'
@@ -11,7 +11,6 @@ import ServiceSelector from './serviceSelector'
 import type { Address, SalesOrderQuote } from "@dorado/contracts";
 import { AddressSelect } from '@/features/addresses/ui/AddressSelect'
 import { AddressDrawer } from '@/features/addresses/ui/AddressDrawer'
-import { Separator } from '@/shared/ui/base/separator'
 
 interface ShippingSelectProps {
   addresses: Address[]
@@ -89,7 +88,7 @@ export default function ShippingSelect({ addresses, orderPrices }: ShippingSelec
       )}
 
       <div className="flex flex-col gap-6">
-        <Separator />
+        <Divider />
         <ServiceSelector orderPrices={orderPrices} />
       </div>
     </div>

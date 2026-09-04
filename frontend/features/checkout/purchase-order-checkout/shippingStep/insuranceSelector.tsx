@@ -1,6 +1,6 @@
 'use client'
 
-import { RadioGroup } from '@/shared/ui/RadioGroup'
+import { RadioGroup, RadioOption } from '@dorado/components'
 import { usePurchaseOrderCheckoutStore } from '@/shared/store/purchaseOrderCheckoutStore'
 import { ShieldCheckIcon, ShieldSlashIcon } from '@phosphor-icons/react'
 
@@ -28,17 +28,14 @@ export function InsuranceSelector() {
       <RadioGroup
         value={insured ? 'insured' : 'uninsured'}
         onValueChange={handleChange}
-        options={insuranceOptions}
-        variant="tile"
         className="flex w-full items-stretch justify-between gap-3"
-        optionClassName="flex-1"
       >
-        {(option) => (
-          <>
+        {insuranceOptions.map((option) => (
+          <RadioOption key={option.value} value={option.value} variant="tile" className="flex-1">
             <option.icon size={28} />
             <strong>{option.label}</strong>
-          </>
-        )}
+          </RadioOption>
+        ))}
       </RadioGroup>
     </div>
   )

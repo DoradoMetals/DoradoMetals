@@ -1,7 +1,6 @@
 'use client'
 
-import { RadioGroup } from '@/shared/ui/RadioGroup'
-import { Switch } from '@dorado/components'
+import { RadioGroup, RadioOption, Switch } from '@dorado/components'
 
 import { usePurchaseOrderCheckoutStore } from '@/shared/store/purchaseOrderCheckoutStore'
 import { useMemo } from 'react'
@@ -66,21 +65,17 @@ export function PackageSelector() {
       <RadioGroup
         value={selectedPackage?.label ?? ''}
         onValueChange={handleChange}
-        options={filteredOptions}
-        getValue={(pkg) => pkg.label}
-        variant="tile"
         className="flex w-full items-stretch justify-between gap-2"
-        optionClassName="flex-1"
       >
-        {(pkg) => {
+        {filteredOptions.map((pkg) => {
           const Icon = iconFor(pkg)
           return (
-            <>
+            <RadioOption key={pkg.label} value={pkg.label} variant="tile" className="flex-1">
               <Icon size={20} />
               <strong>{pkg.label}</strong>
-            </>
+            </RadioOption>
           )
-        }}
+        })}
       </RadioGroup>
     </div>
   )

@@ -2,13 +2,21 @@
 
 import USMap from '@/features/sales-tax/ui/USMap'
 import Image from 'next/image'
-import { useState } from 'react'
-import { SearchableDropdown } from '@/shared/ui/inputs/InputDropdownSearch'
+import { useMemo, useState } from 'react'
+import { Autocomplete } from '@dorado/components'
 import { stateTaxData, StateTaxDetail } from '@/features/sales-tax/types'
 
 export default function Page() {
   const [selected, setSelected] = useState<StateTaxDetail | null>(null)
+  const [query, setQuery] = useState('')
   const allStates = Object.values(stateTaxData)
+  const stateItems = useMemo(
+    () =>
+      allStates
+        .filter((s) => s.name.toLowerCase().includes(query.toLowerCase()))
+        .map((s) => ({ id: s.fips, textValue: s.name })),
+    [allStates, query]
+  )
 
   return (
     <main className="flex flex-col items-center">
@@ -21,13 +29,18 @@ export default function Page() {
               breakdown.
             </p>
             <div className="w-full">
-              <SearchableDropdown
-                items={allStates}
-                getLabel={(s) => s.name}
-                selected={selected}
-                onSelect={setSelected}
+              <Autocomplete
+                value={query}
+                onValueChange={setQuery}
+                items={stateItems}
+                onSelect={(item) => {
+                  const state = allStates.find((s) => s.fips === item.id)
+                  if (state) {
+                    setSelected(state)
+                    setQuery(state.name)
+                  }
+                }}
                 placeholder="Search states…"
-                limit={50}
               />
             </div>
           </div>

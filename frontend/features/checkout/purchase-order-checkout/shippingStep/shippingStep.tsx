@@ -2,7 +2,7 @@
 
 import type { Address, CarrierHandoff } from "@dorado/contracts";
 import type { AddressFormValues, UserAddress } from '@/features/addresses/types'
-import { Button } from '@dorado/components'
+import { Button, Divider } from '@dorado/components'
 import { Plus } from 'lucide-react'
 import { useMemo, useState } from 'react'
 
@@ -24,7 +24,6 @@ import { PickupSelector } from '@/features/checkout/purchase-order-checkout/ship
 import PickupScheduler from '@/features/checkout/purchase-order-checkout/shippingStep/pickupScheduler'
 import { AddressDrawer } from '@/features/addresses/ui/AddressDrawer'
 import { StoreLocationsMap } from '@/features/checkout/purchase-order-checkout/shippingStep/StoreLocations'
-import { Separator } from '@/shared/ui/base/separator'
 
 interface ShippingStepProps {
   addresses: Address[]
@@ -149,15 +148,15 @@ export default function ShippingStep({
         </div>
       )}
 
-      <Separator />
+      <Divider />
 
       {address?.is_valid && (
         <>
           <InsuranceSelector />
-          <Separator />
+          <Divider />
 
           <PackageSelector />
-          <Separator />
+          <Divider />
         </>
       )}
 
@@ -165,7 +164,7 @@ export default function ShippingStep({
       {address?.is_valid && pkg?.id && (
         <>
           <PickupSelector handoffs={handoffs} />
-          <Separator />
+          <Divider />
         </>
       )}
 
@@ -173,7 +172,7 @@ export default function ShippingStep({
       {address?.is_valid && pkg?.id && (
         <>
           <ServiceSelector services={services} rates={rates} isLoading={isLoading} />
-          <Separator />
+          <Divider />
         </>
       )}
 

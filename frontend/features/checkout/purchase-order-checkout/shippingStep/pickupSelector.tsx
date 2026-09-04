@@ -3,7 +3,7 @@
 import type { CarrierHandoff } from "@dorado/contracts";
 import { format } from 'date-fns'
 
-import { RadioGroup } from '@/shared/ui/RadioGroup'
+import { RadioGroup, RadioOption } from '@dorado/components'
 import { usePurchaseOrderCheckoutStore } from '@/shared/store/purchaseOrderCheckoutStore'
 import { useSetPurchaseHandoff } from '@/features/checkout/queries'
 import { handoffIcon } from '@/features/handoff/types'
@@ -48,21 +48,17 @@ export function PickupSelector({ handoffs }: { handoffs: CarrierHandoff[] }) {
     <RadioGroup
       value={selectedPickup?.label}
       onValueChange={handleSelect}
-      options={handoffs}
-      getValue={(handoff) => handoff.code}
-      variant="tile"
       className="mt-4 flex w-full items-stretch justify-between gap-3"
-      optionClassName="flex-1"
     >
-      {(handoff) => {
+      {handoffs.map((handoff) => {
         const Icon = handoffIcon(handoff)
         return (
-          <>
+          <RadioOption key={handoff.code} value={handoff.code} variant="tile" className="flex-1">
             <Icon size={24} />
             <strong>{handoff.name}</strong>
-          </>
+          </RadioOption>
         )
-      }}
+      })}
     </RadioGroup>
   )
 }

@@ -1,6 +1,6 @@
 'use client'
 
-import { RadioGroup } from '@/shared/ui/RadioGroup'
+import { RadioGroup, RadioOption } from '@dorado/components'
 import { usePurchaseOrderCheckoutStore } from '@/shared/store/purchaseOrderCheckoutStore'
 import { usePatchPurchaseCheckout } from '@/features/checkout/queries'
 import { formatTimeDiff } from '@/shared/utils/formatDates'
@@ -75,16 +75,18 @@ export const ServiceSelector: React.FC<ServiceSelectorProps> = ({ services, rate
     <RadioGroup
       value={selected?.serviceType ?? ''}
       onValueChange={handleSelect}
-      options={services}
-      getValue={(option) => option.code}
-      isOptionDisabled={(option) => rateMap.get(option.code)?.netCharge == null}
       className="flex w-full flex-col gap-3"
     >
-      {(option) => {
+      {services.map((option) => {
         const rate = rateMap.get(option.code)
         const Icon = serviceIcon(option.display_order)
         return (
-          <>
+          <RadioOption
+            key={option.code}
+            value={option.code}
+            disabled={rate?.netCharge == null}
+            className="w-full flex-col items-start gap-1"
+          >
             <div className="flex items-center gap-2">
               <Icon size={24} />
               <strong>{option.name}</strong>
@@ -101,9 +103,9 @@ export const ServiceSelector: React.FC<ServiceSelectorProps> = ({ services, rate
                 {rate?.netCharge != null ? <PriceNumberFlow value={rate.netCharge} /> : <>&nbsp;</>}
               </strong>
             </div>
-          </>
+          </RadioOption>
         )
-      }}
+      })}
     </RadioGroup>
   )
 }

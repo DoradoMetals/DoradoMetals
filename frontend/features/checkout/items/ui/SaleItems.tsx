@@ -1,6 +1,6 @@
 'use client'
 
-import { Button } from '@dorado/components'
+import { Button, EmptyState } from '@dorado/components'
 import { Minus, Plus, ShoppingCart, Trash2 } from 'lucide-react'
 import Image from 'next/image'
 import NumberFlow from '@number-flow/react'
@@ -12,7 +12,6 @@ import { useDrawerStore } from '@/shared/store/drawerStore'
 import { useUser } from '@/features/auth/authClient'
 import { useCatalogQuote } from '@/features/quotes/queries'
 import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
-import { EmptyState } from '@/shared/ui/EmptyState'
 
 // The BUY basket: direction 'sale' - the business sells.
 export default function SaleItems() {
@@ -37,23 +36,23 @@ export default function SaleItems() {
 
   const empty = (
     <EmptyState
-      icon={ShoppingCart}
-      iconSize={80}
+      icon={<ShoppingCart />}
       badge={0}
       title="You have nothing to buy yet!"
       description="Add items to get started."
       className="h-full justify-center pb-10"
-    >
-      <Button
-        size="xl"
-        onClick={() => {
-          router.push('/buy')
-          closeDrawer()
-        }}
-      >
-        Start Shopping
-      </Button>
-    </EmptyState>
+      action={
+        <Button
+          size="xl"
+          onClick={() => {
+            router.push('/buy')
+            closeDrawer()
+          }}
+        >
+          Start Shopping
+        </Button>
+      }
+    />
   )
 
   const content = (

@@ -1,6 +1,6 @@
 'use client'
 
-import { Button } from '@dorado/components'
+import { Button, Divider, EmptyState } from '@dorado/components'
 import { useEffect, useMemo, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { useCheckoutItems } from '@/shared/store/checkoutItemsStore'
@@ -19,8 +19,6 @@ import PaymentSelect from '@/features/checkout/sales-order-checkout/payment/paym
 import StripeWrapper from '@/features/stripe/ui/StripeWrapper'
 import OrderSummary from '@/features/checkout/sales-order-checkout/summary/orderSummary'
 import { useCreateSalesOrder } from '@/features/orders/salesOrders/users/queries'
-import { Separator } from '@/shared/ui/base/separator'
-import { EmptyState } from '@/shared/ui/EmptyState'
 
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!)
 
@@ -131,17 +129,17 @@ export default function SalesOrderCheckout() {
   if (items.length === 0) {
     return (
       <EmptyState
-        icon={ShoppingCartIcon}
-        iconSize={80}
+        icon={<ShoppingCartIcon />}
         badge={0}
         title="You have nothing to buy yet!"
         description="Please add items before checking out."
         className="h-full justify-center pb-10 mt-10 lg:mt-30"
-      >
-        <Button size="xl" onClick={() => router.push('/buy')}>
-          Start Shopping
-        </Button>
-      </EmptyState>
+        action={
+          <Button size="xl" onClick={() => router.push('/buy')}>
+            Start Shopping
+          </Button>
+        }
+      />
     )
   }
 
@@ -155,7 +153,7 @@ export default function SalesOrderCheckout() {
               isLoading={isAddressesPending}
               orderPrices={orderPrices}
             />
-            <Separator />
+            <Divider />
             <PaymentSelect orderPrices={orderPrices} />
             {clientSecret && data.address && cardNeeded && (
               <StripeWrapper

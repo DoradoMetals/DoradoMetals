@@ -1,7 +1,6 @@
 'use client'
 
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@dorado/components'
-import { Button } from '@dorado/components'
+import { Tabs, TabsContent, TabsList, TabsTrigger, Button, Drawer } from '@dorado/components'
 import { X } from 'lucide-react'
 import { usePathname } from 'next/navigation'
 import { useEffect } from 'react'
@@ -11,7 +10,6 @@ import PurchaseItems from './PurchaseItems'
 import { useCheckoutItems } from '@/shared/store/checkoutItemsStore'
 import { useCheckoutTab } from '@/shared/store/checkoutTabStore'
 import { useDrawerStore } from '@/shared/store/drawerStore'
-import Drawer from '@/shared/ui/base/drawer'
 
 export function CheckoutDrawer() {
   const { direction, setDirection } = useCheckoutTab()

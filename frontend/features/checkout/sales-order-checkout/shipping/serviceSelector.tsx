@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo } from 'react'
-import { RadioGroup } from '@/shared/ui/RadioGroup'
+import { RadioGroup, RadioOption } from '@dorado/components'
 import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
 import { useSalesOrderCheckoutStore } from '@/shared/store/salesOrderCheckoutStore'
 import {
@@ -45,11 +45,10 @@ export default function ServiceSelector({ orderPrices }: { orderPrices?: SalesOr
       <RadioGroup
         value={selected?.value ?? ''}
         onValueChange={(key) => setData({ service: { ...options[key] } })}
-        options={options}
         className="flex w-full flex-col gap-3"
       >
-        {(option) => (
-          <>
+        {Object.entries(options).map(([key, option]) => (
+          <RadioOption key={key} value={key} className="w-full flex-col items-start gap-1">
             <div className="flex items-center gap-2">
               {option.icon && <option.icon size={24} />}
               <strong>{option.label}</strong>
@@ -61,8 +60,8 @@ export default function ServiceSelector({ orderPrices }: { orderPrices?: SalesOr
                   applies server-side. */}
               <PriceNumberFlow value={(orderPrices?.item_total ?? 0) > 1000 ? 0 : option.cost} />
             </DetailRow>
-          </>
-        )}
+          </RadioOption>
+        ))}
       </RadioGroup>
     </div>
   )
