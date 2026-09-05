@@ -15939,3 +15939,69 @@ and verifies 28 values with no mismatches; `audit:coverage` passes; the API test
 suite runs against a production-shaped database and **leaves zero rows behind**;
 and the only `exchange` change in the whole chain is `086`'s sanctioned
 `allow-destructive:` column drop - for which the dump becomes the only copy.
+## verify:backfill is honest (2026-09-06)
+
+**112 differences and exit 1 on every run, recorded three times in this file as
+"the known dev-drift baseline", is now 0 undeclared differences and exit 0.**
+Full detail in `docs/waves/backfill-honesty.md`; what matters here:
+
+**Red was hiding a production-day break.** The pricing lane's 131 dropped
+`stock` and `quantity` from `products.bullion` and `029_genesis_backfill.sql`
+still named both, so a build from nothing aborted at the FIRST backfill with
+42703. Nobody saw it because the script was expected to exit 1. Fixed in 029.
+
+**A second real defect: `orders.orders.spots_locked` had a source nothing
+read.** 086 carried it from `orders.offers`, a table a from-nothing build never
+creates, while `exchange.purchase_orders.spots_locked` sat there uncopied - so
+a rebuild landed every purchase order `false` and eight of dev's are `true`.
+031 now carries `coalesce(p.spots_locked, false)` on the purchase branch.
+Additive; sales orders have no such column and keep the default.
+
+**A finding NOT fixed, and it blocks the production migration: 094 aborts on
+`exchange.carrier_pickups`.** Its guard raises unconditionally while any row
+exists ("write that backfill before this migration runs"), its header says
+"both databases hold zero today", and `exchange` now holds **six**. Nothing
+sees it: 094 is not named `backfill`/`seed`, so `verify:backfill` never runs
+it, and `verify:genesis` runs no migrations. Mapping an order-keyed pickup onto
+a shipment-keyed table is a modelling decision, and production's count is not
+knowable from a dev worktree, so `shipping.pickups` is declared in
+`NOT_REBUILT` with that reason and a **pinned exchange row count of 6** - if it
+moves, the script fails and forces the entry to be re-read.
+
+**How the comparison changed.** Per column instead of per row-text, with every
+value cast to text and reported as `table key column` (values only under
+`--values`, so no customer data reaches the default output). Each table may
+declare a `population`: SQL over `exchange` ALONE returning the key columns.
+A live row outside it was written natively and is out of scope; a live row
+INSIDE it that the rebuild missed is a defect and fails. A table with no
+population is compared whole, so the declaration buys the leniency and never
+its absence. Five kinds of exclusion - `population`, `native`,
+`rebuildDiffers`, `mintedByRebuild`, `absentInDev` - and every one needs a
+reason string or the script refuses to start; `NOT_REBUILT` is held to the same
+bar, which is how five `"same"`/`"seed data"` shorthands got written out. The
+`native` lists are pruned to drift actually observed today, so a column that
+could drift but currently matches stays in the comparison catching mapping
+bugs; a new legitimate drift turns the gate red until someone writes its
+one-line reason, which is the check working rather than failing.
+
+**The refusal check still stands and does not contradict the scoping.** The
+scoping says DEV legitimately holds rows `exchange` does not; the refusal says
+the BACKFILL still refuses to run into a schema in that state. Different
+databases, opposite directions - the refusal is tested on the scratch
+`zz_backfill_` copy, where a stray row is the `built row outside the
+population` case and fails. It still runs last, because it dirties the scratch.
+
+**It has a `--self-test` now** (16 cases, no database) that runs at the top of
+every normal run as well, so a broken detector cannot report a clean backfill.
+`lint:script-guards` caught its own stale `EXCUSED` entry the moment the
+self-test landed; the entry is deleted. Proved red is reachable against the
+real database: deleting the `orders.items.confirmed` declaration reports three
+rows and exits 1.
+
+**It gates commits now.** ~40s, so it joined the serial `dev-db` group in
+`scripts/check.mjs` after `verify:genesis` (D196 - that group stays serial) and
+the literal `check:serial` chain. Compared 32 tables and 1299 rows; out of
+scope 495 written natively, 81 that `exchange` holds and dev no longer does, 50
+minted by the rebuild with a generated id; declared 453 values on native-owned
+columns and 2 the rebuild declines to reproduce. No `exchange` table or row was
+written.

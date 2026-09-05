@@ -182,7 +182,7 @@ INSERT INTO products.bullion (
   bid_premium, ask_premium, display, homepage_display,
   legal_tender, domestic_tender, is_generic, content, gross, purity,
   variant_group, variant_label, shadow_offset, slug, filter_category,
-  image_front, image_back, stock, quantity,
+  image_front, image_back,
   created_by, updated_by, created_by_id, updated_by_id, created_at, updated_at
 )
 SELECT
@@ -191,7 +191,7 @@ SELECT
   e.bid_premium, e.ask_premium, e.display, e.homepage_display,
   e.legal_tender, e.domestic_tender, e.is_generic, e.content, e.gross, e.purity,
   e.variant_group, e.variant_label, e.shadow_offset, e.slug, e.filter_category,
-  e.image_front, e.image_back, e.stock, e.quantity,
+  e.image_front, e.image_back,
   e.created_by, e.updated_by,
   (SELECT u.id FROM auth.users u WHERE u.id = CASE WHEN e.created_by IS NULL THEN NULL
      WHEN e.created_by = 'Pedro Gonzalez' THEN '3a4fffbb-448b-4940-ba6f-640db4c75213'::uuid

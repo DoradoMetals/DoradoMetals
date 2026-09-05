@@ -155,11 +155,6 @@ const REAL_EXCUSED = {
     why:"builds the whole schema into renamed schemas inside a rolled-back " +
     "transaction. The build either succeeds or it does not.",
   },
-  "api/scripts/verify-backfill.mjs": {
-    kind: "assertion",
-    why:"runs every backfill into empty tables, re-runs for idempotency, then checks " +
-    "the guard refuses. It is already three assertions deep.",
-  },
   "api/scripts/validate-wire.ts": {
     kind: "report",
     why:"parses real responses through the contracts. It now carries a REGISTRATION " +
