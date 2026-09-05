@@ -1,4 +1,3 @@
-import { randomUUID } from "node:crypto";
 import * as pickups from "#db/shipping/pickups/repo.ts";
 import * as shipmentService from "#domain/shipping/shipments/service.ts";
 import type { ShipmentPickup, ShipmentPickupWrite } from "@dorado/contracts";
@@ -63,7 +62,6 @@ export async function recordForShipment(
 ): Promise<ShipmentPickup> {
   return await pickups.create(
     {
-      id: randomUUID(),
       shipment_id,
       requested_at: `${date} ${time || "00:00:00"}`,
       status: "scheduled",

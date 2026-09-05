@@ -44,9 +44,9 @@ const RENAMES: Record<string, string> = {
 };
 const RENAMED = Object.keys(RENAMES);
 
-test("the INSERT takes the 21 values repo.ts builds, renames included", () => {
+test("the INSERT takes the 20 values repo.ts builds, renames included", () => {
   const next = insertColumns("create");
-  assert.equal(next.length, 21, "the column count changed - repo.ts builds 20 values plus the id");
+  assert.equal(next.length, 20, "the column count changed - repo.ts builds 20 values, no id");
   for (const name of RENAMED) {
     assert.ok(next.includes(name), `sql/create.sql no longer writes ${name}`);
   }

@@ -1,7 +1,6 @@
 import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
-import { randomUUID } from "node:crypto";
 import pool from "#pool";
 import { LOCKS, takeLocks } from "#shared/testing/locks.ts";
 import { rollbackIn } from "#shared/testing/rollback.ts";
@@ -122,7 +121,7 @@ test("a new refiner spot can be created for an order", async () => {
 
     const row = await refinerSpots.create(
       {
-        id: randomUUID(), order_id: s.order_id, refiner_order_id: s.refiner_order_id,
+        order_id: s.order_id, refiner_order_id: s.refiner_order_id,
         metal_id: s.metal_id, refiner_id: s.refiner_id, ask: 100, bid: 90,
       },
       c

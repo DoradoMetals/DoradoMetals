@@ -51,13 +51,13 @@ export async function getMany(
 }
 
 export async function create(
-  row: ShipmentWrite & { id: string; direction: ShipmentDirection },
+  row: ShipmentWrite & { direction: ShipmentDirection },
   executor?: Executor
 ): Promise<string> {
   const { rows } = await query<{ id: string }>(
     sql("create"),
     [
-      row.id, row.direction, row.tracking_number ?? null, row.shipping_status ?? null,
+      row.direction, row.tracking_number ?? null, row.shipping_status ?? null,
       row.label ?? null, row.label_type ?? null, row.pickup_type ?? null,
       row.package_id ?? null, row.carrier_service_id ?? null, row.cost ?? null,
       row.insured ?? null, row.declared_value ?? null,

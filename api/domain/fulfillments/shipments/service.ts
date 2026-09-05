@@ -1,4 +1,3 @@
-import { randomUUID } from "node:crypto";
 import * as shipmentLinks from "#db/fulfillments/shipments/repo.ts";
 import * as fulfillmentService from "#domain/fulfillments/service.ts";
 import type { Executor } from "#shared/db/executor.ts";
@@ -24,7 +23,7 @@ export async function link(
   } else {
     await shipmentLinks.create(
       {
-        id: randomUUID(), fulfillment_id: input.fulfillment_id,
+        fulfillment_id: input.fulfillment_id,
         shipment_id: input.shipment_id,
         recipient_location_id: input.recipient_location_id,
         shipper_location_id: input.shipper_location_id,

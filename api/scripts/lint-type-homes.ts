@@ -10,14 +10,12 @@ const SMALL_FEATURES =
   "sales-tax, transactions); its declarations are its own pass to remove";
 
 const ACCEPTED: Record<string, { count: number; why: string }> = {
-  "db/leads/repo.ts": { count: 1, why: SMALL_FEATURES },
   "db/media/emails/repo.ts": { count: 1, why: SMALL_FEATURES },
   "db/media/images/repo.ts": { count: 1, why: SMALL_FEATURES },
   "db/media/pdfs/repo.ts": { count: 2, why: SMALL_FEATURES },
   "db/refiners/items/repo.ts": { count: 2, why: SMALL_FEATURES },
   "db/refiners/orders/repo.ts": { count: 2, why: SMALL_FEATURES },
   "db/refiners/spots/repo.ts": { count: 6, why: SMALL_FEATURES },
-  "db/reviews/repo.ts": { count: 1, why: SMALL_FEATURES },
   "db/sales-tax/repo.ts": { count: 1, why: SMALL_FEATURES },
   "domain/media/emails/record.ts": { count: 4, why: SMALL_FEATURES },
   "domain/media/emails/utils/renderEmail.ts": { count: 2, why: SMALL_FEATURES },

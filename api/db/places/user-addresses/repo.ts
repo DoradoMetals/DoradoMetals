@@ -35,13 +35,13 @@ export async function getOne(
 }
 
 export async function create(
-  id: string, address_id: string, user_id: string,
+  address_id: string, user_id: string,
   patch: UserAddressWriteColumns, executor?: Executor
 ): Promise<UserAddress> {
   const { rows } = await query<UserAddress>(
     sql("create"),
     [
-      id, address_id, user_id, patch.recipient_name ?? null, patch.label ?? null,
+      address_id, user_id, patch.recipient_name ?? null, patch.label ?? null,
       patch.default_shipping ?? false, patch.default_billing ?? false,
     ],
     executor

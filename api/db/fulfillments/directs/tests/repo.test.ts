@@ -1,7 +1,6 @@
 import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
-import { randomUUID } from "node:crypto";
 import pool from "#pool";
 import { inRollback } from "#shared/testing/rollback.ts";
 import { fulfillmentMethodId } from "#shared/testing/builders/index.ts";
@@ -21,7 +20,7 @@ afterAll(async () => {
 
 async function aDraftFulfillment(c: PoolClient): Promise<string> {
   const method_id = await fulfillmentMethodId(c, "CARRIER DROPOFF", "purchase");
-  const draft = await fulfillments.createDraft({ id: randomUUID(), method_id }, c);
+  const draft = await fulfillments.createDraft({ method_id }, c);
   return draft.id;
 }
 
@@ -38,7 +37,7 @@ test("create books an appointment, defaulting is_appointment to true; update res
     const fulfillment_id = await aDraftFulfillment(c);
     const location_id = await aLocationId(c);
 
-    const row = await directs.create({ id: randomUUID(), fulfillment_id, location_id }, c);
+    const row = await directs.create({ fulfillment_id, location_id }, c);
     assert.equal(row.is_appointment, true, "is_appointment did not default to true");
 
     const changed = await directs.update(fulfillment_id, { is_appointment: false }, c);
@@ -54,7 +53,7 @@ test("remove deletes the direct and answers false the second time", async () => 
   await inRollback(async (c: PoolClient) => {
     const fulfillment_id = await aDraftFulfillment(c);
     const location_id = await aLocationId(c);
-    await directs.create({ id: randomUUID(), fulfillment_id, location_id }, c);
+    await directs.create({ fulfillment_id, location_id }, c);
 
     const removed = await directs.remove(fulfillment_id, c);
     assert.equal(removed, true, "remove reported no row changed");

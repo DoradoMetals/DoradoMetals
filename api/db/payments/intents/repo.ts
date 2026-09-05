@@ -9,7 +9,7 @@ import { PaymentIntentPatch } from "@dorado/contracts";
 const sql = sqlFrom(import.meta.dirname);
 
 export const PATCHABLE = columnsOf(
-  PaymentIntentPatch.omit({ id: true, session_id: true, user_id: true, type: true })
+  PaymentIntentPatch.omit({ session_id: true, user_id: true, type: true })
 );
 
 export async function getOne(id: string, executor?: Executor): Promise<PaymentIntent | undefined> {
@@ -23,7 +23,7 @@ export async function create(
   const { rows } = await query<PaymentIntent>(
     sql("create"),
     [
-      row.id ?? null, row.session_id ?? null, row.user_id ?? null,
+      row.session_id ?? null, row.user_id ?? null,
       row.type ?? null, row.status ?? null, row.amount_expected ?? null,
       row.order_id ?? null, row.details_id ?? null, row.method_id ?? null,
     ],

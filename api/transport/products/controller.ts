@@ -1,5 +1,5 @@
 import { z } from "zod/v4";
-import { BullionPatch } from "@dorado/contracts";
+import { BullionPatchColumns } from "@dorado/contracts";
 import { param } from "#shared/http/caller.ts";
 import { parseStrict, strictBody, uuidParam } from "#shared/http/validate.ts";
 import { asyncHandler } from "#shared/middleware/asyncHandler.ts";
@@ -45,11 +45,11 @@ export const listTypes = asyncHandler(async (_req, res) => {
 });
 
 export const createProduct = asyncHandler(async (req, res) => {
-  const patch = strictBody(BullionPatch.strict(), req.body);
+  const patch = strictBody(BullionPatchColumns.strict(), req.body);
   res.status(201).json(await productService.createProduct(patch));
 });
 
 export const updateProduct = asyncHandler(async (req, res) => {
-  const patch = strictBody(BullionPatch.omit({ id: true }).strict(), req.body);
+  const patch = strictBody(BullionPatchColumns.strict(), req.body);
   res.status(200).json(await productService.updateProduct(uuidParam(req, "id"), patch));
 });

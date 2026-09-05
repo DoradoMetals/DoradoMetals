@@ -57,7 +57,7 @@ test("update writes a real service and leaves created_by alone", async () => {
     assert.ok(editor, "auth.users has fewer than two named users - this proves nothing");
 
     await actingAs(c, maker.id);
-    const row = await services.create({ ...write(), id: randomUUID() }, c);
+    const row = await services.create(write(), c);
 
     await actingAs(c, editor.id);
     const changed = await services.update(
@@ -81,7 +81,7 @@ test("update answers false for an id with no service row", async () => {
 
 test("remove deletes a real service and answers false the second time", async () => {
   await inRollback(async (c: PoolClient) => {
-    const row = await services.create({ ...write(), id: randomUUID() }, c);
+    const row = await services.create(write(), c);
 
     const removed = await services.remove(row.id, c);
     assert.equal(removed, true, "remove reported no row changed");

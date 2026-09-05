@@ -11,11 +11,11 @@ const sql = sqlFrom(import.meta.dirname);
 export const PATCHABLE = columnsOf(OrganizationPatch);
 
 export async function create(
-  row: Partial<OrganizationPatch> | undefined, id: string, type: string, executor?: Executor
+  row: Partial<OrganizationPatch> | undefined, type: string, executor?: Executor
 ): Promise<Organization> {
   const { rows } = await query<Organization>(
     sql("create"),
-    [id, type, row?.name, row?.email, row?.phone, row?.enabled],
+    [type, row?.name, row?.email, row?.phone, row?.enabled],
     executor
   );
   return rows[0];

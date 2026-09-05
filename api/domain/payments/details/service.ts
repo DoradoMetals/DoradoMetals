@@ -1,4 +1,3 @@
-import { randomUUID } from "node:crypto";
 import { paymentDetails as details, paymentMethods as methods } from "#db";
 import {
   assertPayableForm, assertResolvedMethod, assertWrittenDetails, cleared,
@@ -21,12 +20,11 @@ export async function saveCheckoutPayout(
     method, await methods.findByType("purchase", method, tx)
   );
 
-  const id = existing_id ?? randomUUID();
   const key = payoutKeyFromEnv();
   const account = form.account_number ?? "";
   const routing = form.routing_number ?? "";
 
-  const values: PaymentDetailsPatch = {
+  const base: PaymentDetailsPatch = {
     method_id: resolved.id,
     account_holder: cleared(form.account_holder_name),
     bank_name: cleared(form.bank_name),
@@ -34,17 +32,22 @@ export async function saveCheckoutPayout(
     last_four: lastFour(account),
     routing_last_four: lastFour(routing),
     email_to: cleared(form.payout_email),
+    encryption_key_id: isBankMethod(method) ? key.id : null,
+  };
+
+  const id = existing_id ?? (await details.create(user_id, base, tx)).id;
+
+  const values: PaymentDetailsPatch = {
+    ...base,
     routing_number_encrypted: routing
       ? seal(routing, key, aadFor(id, "routing_number"))
       : null,
     account_number_encrypted: account
       ? seal(account, key, aadFor(id, "account_number"))
       : null,
-    encryption_key_id: isBankMethod(method) ? key.id : null,
   };
 
-  const rewritten = existing_id ? await details.update(existing_id, values, tx) : undefined;
-  return rewritten ?? (await details.create(id, user_id, values, tx));
+  return assertWrittenDetails(id, await details.update(id, values, tx));
 }
 
 export async function decryptFor(

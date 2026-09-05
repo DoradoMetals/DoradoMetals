@@ -6,7 +6,7 @@ import pool from "#pool";
 import { LOCKS, takeLocks } from "#shared/testing/locks.ts";
 import { rollbackIn } from "#shared/testing/rollback.ts";
 import {
-  aUser, anOrder, anAddress, fulfillmentMethodId, anId,
+  aUser, anOrder, anAddress, fulfillmentMethodId, anUnknownId,
 } from "#shared/testing/builders/index.ts";
 import * as methods from "#db/fulfillments/methods/repo.ts";
 import * as service from "#domain/fulfillments/service.ts";
@@ -110,7 +110,7 @@ test("a second create returns the same fulfillment rather than a second one", as
 test("creating a fulfillment for an order the new schema does not have says why", async () => {
   await inRollback(async (c: PoolClient) => {
     const method = await methodOf(c, "PICKUP", "purchase");
-    const orphan = anId();
+    const orphan = anUnknownId();
 
     await assert.rejects(
       () => repo.chooseById({ order_id: orphan, method_id: method.id }, c),

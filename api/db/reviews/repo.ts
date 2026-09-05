@@ -13,8 +13,6 @@ const RETURNING = returningOf(
   Review.omit(Object.assign({ user_id: true, order_id: true } as const, ACTOR_IDS))
 );
 
-type ReviewCreate = ReviewPatch & { id?: string | null };
-
 export async function getOne(id: string, executor?: Executor): Promise<Review | undefined> {
   const { rows } = await query<Review>(sql("get_one"), [id], executor);
   return rows[0];
@@ -30,10 +28,10 @@ export async function getPublic(executor?: Executor): Promise<Review[]> {
   return rows;
 }
 
-export async function create(row: ReviewCreate, executor?: Executor): Promise<Review> {
+export async function create(row: ReviewPatch, executor?: Executor): Promise<Review> {
   const { rows } = await query<Review>(
     sql("create"),
-    [row.id, row.name, row.review_text, row.rating, row.hidden],
+    [row.name, row.review_text, row.rating, row.hidden],
     executor
   );
   return rows[0];

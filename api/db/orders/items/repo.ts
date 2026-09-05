@@ -1,4 +1,3 @@
-import { randomUUID } from "node:crypto";
 import query from "#shared/db/query.ts";
 import { buildUpdate } from "#shared/db/patch.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
@@ -54,7 +53,7 @@ export async function create(
   const { rows } = await query<OrderItem>(
     sql("create"),
     [
-      randomUUID(), order_id, null, row.metal_id,
+      order_id, null, row.metal_id,
       row.pre_melt ?? null, row.post_melt ?? null, row.purity ?? null,
       row.content ?? null, row.premium ?? null, row.quantity ?? 1,
       row.confirmed ?? false, row.sales_tax_charged ?? 0,

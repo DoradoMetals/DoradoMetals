@@ -22,7 +22,7 @@ function prefix(): string {
   return filePrefix;
 }
 
-export function anId(): string {
+export function anUnknownId(): string {
   counter += 1;
   const n = counter.toString(16).padStart(3, "0");
   return `${prefix()}-0${n}-4${n}-8${n}-${RUN}`;

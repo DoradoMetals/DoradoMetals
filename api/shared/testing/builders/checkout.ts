@@ -1,5 +1,5 @@
 import type { PoolClient } from "pg";
-import { anId } from "#shared/testing/builders/ids.ts";
+import { anUnknownId } from "#shared/testing/builders/ids.ts";
 import * as checkouts from "#db/checkout/checkouts/repo.ts";
 import * as items from "#db/checkout/items/repo.ts";
 import { metalId, type MetalName } from "#shared/testing/builders/reference.ts";
@@ -123,4 +123,4 @@ export function aCart(
   return new CartPlan(c, user, options);
 }
 
-export const anAbsentCartId = (): string => anId();
+export const anAbsentCartId = (): string => anUnknownId();

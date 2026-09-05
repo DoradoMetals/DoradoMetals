@@ -1,4 +1,3 @@
-import { randomUUID } from "node:crypto";
 import * as shipments from "#db/shipping/shipments/repo.ts";
 import type { Executor } from "#shared/db/executor.ts";
 import type {
@@ -8,7 +7,7 @@ import type {
 export async function createShell(
   direction: ShipmentDirection, executor?: Executor
 ): Promise<string> {
-  return await shipments.create({ id: randomUUID(), direction }, executor);
+  return await shipments.create({ direction }, executor);
 }
 
 export async function getMany(

@@ -6,7 +6,7 @@ import pool from "#pool";
 import { mockSessions, restoreSessions, as, anonymous } from "#shared/testing/session.ts";
 import { TEST_ACTOR } from "#shared/testing/actor.ts";
 import { inPinnedTransaction, outside } from "#shared/testing/pinned-pool.ts";
-import { anId, aUser, anOrder } from "#shared/testing/builders/index.ts";
+import { anUnknownId, aUser, anOrder } from "#shared/testing/builders/index.ts";
 import * as paymentsService from "#domain/payments/service.ts";
 import { LOCKS } from "#shared/testing/locks.ts";
 import { PaymentIntentView } from "@dorado/contracts";
@@ -19,8 +19,8 @@ const PAYMENTS_LOCKS = [LOCKS.ORDERS, LOCKS.ADDRESSES, LOCKS.USERS];
 type UserFixture = { id: string; name: string | null; email: string | null };
 
 let admin: UserFixture;
-const customer: UserFixture = { id: anId(), name: "Replay Customer", email: "replay-customer@dorado.test" };
-const victim: UserFixture = { id: anId(), name: "Replay Victim", email: "replay-victim@dorado.test" };
+const customer: UserFixture = { id: anUnknownId(), name: "Replay Customer", email: "replay-customer@dorado.test" };
+const victim: UserFixture = { id: anUnknownId(), name: "Replay Victim", email: "replay-victim@dorado.test" };
 let intentsBefore: number;
 
 beforeAll(async () => {
@@ -134,10 +134,10 @@ test("an admin reading a sales order's payment intent gets it, in the nested wir
   await inPinnedTransaction(async (c) => {
     const buyer = await aUser(c);
     const order = await anOrder(c, buyer, { direction: "sale" });
-    const providerRef = `pi_${anId().slice(0, 24)}`;
+    const providerRef = `pi_${anUnknownId().slice(0, 24)}`;
     await paymentsService.recordIntent(
       { id: providerRef, status: "succeeded", amount: 25000, amount_received: 25000 },
-      { session_id: anId(), user_id: buyer.id },
+      { session_id: anUnknownId(), user_id: buyer.id },
       "checkout",
       undefined,
       c

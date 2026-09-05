@@ -1,7 +1,6 @@
 import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
-import { randomUUID } from "node:crypto";
 import pool from "#pool";
 import { LOCKS, takeLocks } from "#shared/testing/locks.ts";
 import { rollbackIn } from "#shared/testing/rollback.ts";
@@ -28,7 +27,6 @@ test("create writes a row and returns its id", async () => {
   await inRollback(async (c) => {
     const orderId = await anOrderId(c);
     const written = await repo.create({
-      id: randomUUID(),
       kind: "packing_list",
       order_id: orderId,
       path: `pdfs/${orderId}/packing_list-test.pdf`,
@@ -43,7 +41,6 @@ test("latestOfKind reads back a row this transaction just wrote", async () => {
   await inRollback(async (c) => {
     const orderId = await anOrderId(c);
     const written = await repo.create({
-      id: randomUUID(),
       kind: "invoice",
       order_id: orderId,
       path: `pdfs/${orderId}/invoice-1.pdf`,

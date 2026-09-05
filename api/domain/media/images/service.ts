@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+import { randomBytes } from "node:crypto";
 import minio from "#providers/s3/minio.ts";
 import withTransaction from "#shared/db/withTransaction.ts";
 import * as images from "#db/media/images/repo.ts";
@@ -26,13 +26,13 @@ export async function uploadImage({
     user_id,
     bucket,
     path: `${user_id}/`,
-    filename: `${randomUUID()}-${originalName}`,
+    filename: `${randomBytes(16).toString("hex")}-${originalName}`,
     mime_type,
     size_bytes,
   };
 
   const row = await withTransaction(async (client) => {
-    const written = await images.create(randomUUID(), image, client);
+    const written = await images.create(image, client);
     return written;
   });
 

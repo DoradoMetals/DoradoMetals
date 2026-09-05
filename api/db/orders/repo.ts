@@ -109,11 +109,11 @@ export async function findReservedFunds(
 }
 
 export async function createForCheckout(
-  { id, checkout_id, status }: { id?: string | null; checkout_id: string; status: string },
+  { checkout_id, status }: { checkout_id: string; status: string },
   executor?: Executor
 ): Promise<Order | undefined> {
   const { rows } = await query<Order>(
-    sql("create_from_checkout"), [id ?? null, status, checkout_id], executor
+    sql("create_from_checkout"), [status, checkout_id], executor
   );
   return rows[0];
 }

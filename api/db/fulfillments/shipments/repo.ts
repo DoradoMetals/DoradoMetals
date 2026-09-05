@@ -47,13 +47,13 @@ export async function removeByShipment(
 }
 
 export async function create(
-  row: Pick<FulfillmentShipment, "id" | "fulfillment_id" | "shipment_id"> & FulfillmentShipmentPatch,
+  row: Pick<FulfillmentShipment, "fulfillment_id" | "shipment_id"> & FulfillmentShipmentPatch,
   executor?: Executor
 ): Promise<FulfillmentShipment> {
   const { rows } = await query<FulfillmentShipment>(
     sql("create"),
     [
-      row.id, row.fulfillment_id, row.shipment_id,
+      row.fulfillment_id, row.shipment_id,
       row.recipient_location_id ?? null, row.shipper_location_id ?? null,
     ],
     executor

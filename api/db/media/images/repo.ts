@@ -14,8 +14,8 @@ export type NewImage = {
   size_bytes?: number | null;
 };
 
-const values = (id: string, i: NewImage) => [
-  id, i.user_id, i.bucket, i.path, i.filename, i.mime_type ?? null, i.size_bytes ?? null,
+const values = (i: NewImage) => [
+  i.user_id, i.bucket, i.path, i.filename, i.mime_type ?? null, i.size_bytes ?? null,
 ];
 
 export async function getOne(id: string, executor?: Executor): Promise<Image | undefined> {
@@ -33,8 +33,8 @@ export async function listFor(userId: string, executor?: Executor): Promise<Imag
   return rows;
 }
 
-export async function create(id: string, image: NewImage, executor?: Executor): Promise<Image> {
-  const { rows } = await query<Image>(sql("create"), values(id, image), executor);
+export async function create(image: NewImage, executor?: Executor): Promise<Image> {
+  const { rows } = await query<Image>(sql("create"), values(image), executor);
   return rows[0];
 }
 

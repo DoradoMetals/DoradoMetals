@@ -28,7 +28,6 @@ const methodId = async (c: PoolClient, type: string) => {
 
 const anAccount = async (c: PoolClient, type = "ECHECK") =>
   await details.create(
-    randomUUID(),
     (await aUser(c)).id,
     { method_id: await methodId(c, type), account_holder: "A Customer", email_to: "a@b.co" },
     c
@@ -50,7 +49,6 @@ test("an account is created with the method the caller resolved", async () => {
 test("the account write never stores routing or account numbers", async () => {
   await inRollback(async (c: PoolClient) => {
     const row = await details.create(
-      randomUUID(),
       (await aUser(c)).id,
       {
         method_id: await methodId(c, "ACH"),

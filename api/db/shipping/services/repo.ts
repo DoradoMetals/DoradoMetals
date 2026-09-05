@@ -3,7 +3,7 @@ import { buildUpdate } from "#shared/db/patch.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
 import { CarrierServicePatch } from "@dorado/contracts";
 import type {
-  CarrierService, CarrierServiceRead, CarrierServiceWrite, InsuranceCeiling,
+  CarrierServiceRead, CarrierServiceWrite, InsuranceCeiling,
   SaleShippingService,
 } from "@dorado/contracts";
 import type { Executor } from "#shared/db/executor.ts";
@@ -37,12 +37,12 @@ export async function getByCarrier(
 }
 
 export async function create(
-  row: CarrierServiceWrite & Pick<CarrierService, "id">, executor?: Executor
+  row: CarrierServiceWrite, executor?: Executor
 ): Promise<CarrierServiceRead> {
   const { rows } = await query<CarrierServiceRead>(
     sql("create"),
     [
-      row.id, row.carrier_id, row.name, row.description, row.code, row.provider_code,
+      row.carrier_id, row.name, row.description, row.code, row.provider_code,
       row.supports_pickups, row.supports_dropoffs, row.supports_returns, row.supports_insurance,
       row.is_international, row.is_residential, row.is_active,
       row.max_weight_lb, row.max_length_in, row.max_width_in, row.max_height_in,

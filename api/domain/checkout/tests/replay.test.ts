@@ -7,7 +7,7 @@ import { mockSessions, restoreSessions, as, anonymous } from "#shared/testing/se
 import { TEST_ACTOR } from "#shared/testing/actor.ts";
 import { inPinnedTransaction } from "#shared/testing/pinned-pool.ts";
 import { LOCKS } from "#shared/testing/locks.ts";
-import { anId, aUser, metalId, type BuiltUser } from "#shared/testing/builders/index.ts";
+import { anUnknownId, aUser, metalId, type BuiltUser } from "#shared/testing/builders/index.ts";
 
 await mockSessions();
 const { default: app } = await import("#app");
@@ -55,7 +55,7 @@ test("an anonymous caller cannot read a cart, whoever they name", async () => {
       for (const direction of ["purchase", "sale"]) {
         const res = await request(app)
           .get("/api/checkout/items")
-          .query({ direction, user_id: anId() });
+          .query({ direction, user_id: anUnknownId() });
         assert.ok(
           [401, 403].includes(res.status),
           `the ${direction} basket answered ${res.status} to a request with no session`
@@ -71,7 +71,7 @@ test("an anonymous caller cannot replace or empty a cart", async () => {
       for (const direction of ["purchase", "sale"]) {
         const put = await request(app)
           .put("/api/checkout/items")
-          .query({ direction, user_id: anId() })
+          .query({ direction, user_id: anUnknownId() })
           .send({ items: [] });
         assert.ok(
           [401, 403].includes(put.status),
@@ -79,7 +79,7 @@ test("an anonymous caller cannot replace or empty a cart", async () => {
         );
         const del = await request(app)
           .delete("/api/checkout/items")
-          .query({ direction, user_id: anId() });
+          .query({ direction, user_id: anUnknownId() });
         assert.ok(
           [401, 403].includes(del.status),
           `DELETE ${direction} answered ${del.status} to a request with no session`

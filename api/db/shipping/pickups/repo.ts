@@ -28,12 +28,12 @@ export async function getByShipments(
 }
 
 export async function create(
-  row: ShipmentPickupWrite & Pick<ShipmentPickup, "id" | "shipment_id">,
+  row: ShipmentPickupWrite & Pick<ShipmentPickup, "shipment_id">,
   executor?: Executor
 ): Promise<ShipmentPickup> {
   const { rows } = await query<ShipmentPickup>(
     sql("create"),
-    [row.id, row.shipment_id, row.requested_at, row.status, row.confirmation_number, row.location],
+    [row.shipment_id, row.requested_at, row.status, row.confirmation_number, row.location],
     executor
   );
   return rows[0];

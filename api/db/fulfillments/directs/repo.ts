@@ -32,13 +32,13 @@ export async function getScheduled(
 }
 
 export async function create(
-  row: Pick<FulfillmentDirect, "id" | "fulfillment_id"> & FulfillmentDirectPatchColumns,
+  row: Pick<FulfillmentDirect, "fulfillment_id"> & FulfillmentDirectPatchColumns,
   executor?: Executor
 ): Promise<FulfillmentDirect> {
   const { rows } = await query<FulfillmentDirect>(
     sql("create"),
     [
-      row.id, row.fulfillment_id, row.location_id, row.assigned_employee_id ?? null,
+      row.fulfillment_id, row.location_id, row.assigned_employee_id ?? null,
       row.is_appointment ?? true, row.start_time ?? null, row.end_time ?? null,
     ],
     executor

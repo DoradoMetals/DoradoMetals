@@ -1,5 +1,5 @@
 import type { PoolClient } from "pg";
-import { anId } from "#shared/testing/builders/ids.ts";
+import { aTag } from "#shared/testing/builders/ids.ts";
 import * as shipments from "#db/shipping/shipments/repo.ts";
 import * as fulfillments from "#db/fulfillments/repo.ts";
 import * as fulfillmentShipments from "#db/fulfillments/shipments/repo.ts";
@@ -18,7 +18,6 @@ export type BuiltShipment = {
 };
 
 export type ShipmentOptions = {
-  id?: string;
   tracking_number?: string;
   shipping_status?: string | null;
   method?: string;
@@ -38,12 +37,10 @@ export async function aShipment(
 ): Promise<BuiltShipment> {
   const carrier_service_id = await carrierServiceId(c);
   const package_id = await packageId(c);
-  const id = options.id ?? anId();
-  const tracking_number = options.tracking_number ?? `7941${id.slice(0, 8)}`.slice(0, 12);
+  const tracking_number = options.tracking_number ?? `7941${aTag()}`.slice(0, 12);
 
-  await shipments.create(
+  const id = await shipments.create(
     {
-      id,
       direction: shipmentDirection(order.direction),
       tracking_number,
       shipping_status: options.shipping_status ?? "Label Created",
@@ -62,16 +59,16 @@ export async function aShipment(
   const method_id = await fulfillmentMethodId(
     c, options.method ?? "CARRIER DROPOFF", order.direction
   );
-  const fulfillment_id = anId();
-  await fulfillments.create(
+  const fulfillment = await fulfillments.create(
     {
-      id: fulfillment_id, order_id: order.id, method_id,
+      order_id: order.id, method_id,
       status: options.fulfillment_status ?? "Pending",
     },
     c
   );
+  const fulfillment_id = fulfillment!.id;
   await fulfillmentShipments.create(
-    { id: anId(), fulfillment_id, shipment_id: id },
+    { fulfillment_id, shipment_id: id },
     c
   );
 

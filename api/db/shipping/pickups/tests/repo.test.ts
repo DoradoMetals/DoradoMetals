@@ -20,9 +20,9 @@ afterAll(async () => {
 
 test("update writes a real pickup", async () => {
   await inRollback(async (c: PoolClient) => {
-    const shipment_id = await shipments.create({ id: randomUUID(), direction: "Inbound" }, c);
+    const shipment_id = await shipments.create({ direction: "Inbound" }, c);
     const row = await pickups.create(
-      { id: randomUUID(), shipment_id, requested_at: null, status: "scheduled", confirmation_number: null, location: null },
+      { shipment_id, requested_at: null, status: "scheduled", confirmation_number: null, location: null },
       c
     );
 
@@ -53,9 +53,9 @@ test("update answers false for an id with no pickup row", async () => {
 
 test("remove deletes a real pickup and answers false the second time", async () => {
   await inRollback(async (c: PoolClient) => {
-    const shipment_id = await shipments.create({ id: randomUUID(), direction: "Inbound" }, c);
+    const shipment_id = await shipments.create({ direction: "Inbound" }, c);
     const row = await pickups.create(
-      { id: randomUUID(), shipment_id, requested_at: null, status: "scheduled", confirmation_number: null, location: null },
+      { shipment_id, requested_at: null, status: "scheduled", confirmation_number: null, location: null },
       c
     );
 

@@ -1,5 +1,5 @@
 import type { PoolClient } from "pg";
-import { anId, aTag } from "#shared/testing/builders/ids.ts";
+import { aTag } from "#shared/testing/builders/ids.ts";
 import * as ordersRepo from "#db/orders/repo.ts";
 import * as itemsRepo from "#db/orders/items/repo.ts";
 import * as totalsRepo from "#db/orders/transactions/repo.ts";
@@ -21,7 +21,6 @@ export type BuiltOrder = {
 };
 
 export type OrderOptions = {
-  id?: string;
   direction?: Direction;
   status?: string;
   notes?: string | null;
@@ -118,12 +117,12 @@ class OrderPlan implements PromiseLike<BuiltOrder> {
       for (const line of lines) {
         const { rows } = await c.query<{ id: string; bullion_id: string | null; metal_id: string }>(
           `INSERT INTO orders.items
-             (id, order_id, bullion_id, metal_id, pre_melt, post_melt, purity, content,
+             (order_id, bullion_id, metal_id, pre_melt, post_melt, purity, content,
               premium, quantity, confirmed, sales_tax_charged, unit, price)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
            RETURNING id, bullion_id, metal_id`,
           [
-            anId(), order.id, line.bullion_id ?? null, line.metal_id,
+            order.id, line.bullion_id ?? null, line.metal_id,
             line.pre_melt ?? null, line.post_melt ?? null, line.purity ?? null,
             line.content ?? null, line.premium ?? null, line.quantity ?? 1,
             line.confirmed ?? false, line.sales_tax_charged ?? 0,
@@ -141,10 +140,10 @@ class OrderPlan implements PromiseLike<BuiltOrder> {
     this.steps.push(async (c, order) => {
       for (const metal_id of (await metalIds(c)).values()) {
         await c.query(
-          `INSERT INTO orders.spots (id, order_id, metal_id, ask, bid)
-           VALUES ($1, $2, $3, $4, $5)
+          `INSERT INTO orders.spots (order_id, metal_id, ask, bid)
+           VALUES ($1, $2, $3, $4)
            ON CONFLICT (order_id, metal_id) DO NOTHING`,
-          [anId(), order.id, metal_id, ask, bid]
+          [order.id, metal_id, ask, bid]
         );
       }
     });
@@ -162,17 +161,17 @@ class OrderPlan implements PromiseLike<BuiltOrder> {
     this.steps.push(async (c, order) => {
       const snapshot = await c.query<{ id: string }>(
         `INSERT INTO places.addresses
-           (id, line_1, line_2, city, state, country, zip, country_code, phone_number,
+           (line_1, line_2, city, state, country, zip, country_code, phone_number,
             is_valid, is_residential)
-         SELECT $1, line_1, line_2, city, state, country, zip, country_code,
+         SELECT line_1, line_2, city, state, country, zip, country_code,
                 phone_number, is_valid, is_residential
-           FROM places.addresses WHERE id = $2
+           FROM places.addresses WHERE id = $1
          RETURNING id`,
-        [anId(), address.id]
+        [address.id]
       );
       await orderAddresses.create(
         {
-          id: anId(), order_id: order.id,
+          order_id: order.id,
           address_id: snapshot.rows[0]!.id, source_address_id: address.id,
         },
         c
@@ -197,7 +196,7 @@ class OrderPlan implements PromiseLike<BuiltOrder> {
     if (!checkout) throw new Error("checkout.checkouts refused a new session");
 
     const created = await ordersRepo.createForCheckout(
-      { id: this.options.id, checkout_id: checkout.id, status }, this.c
+      { checkout_id: checkout.id, status }, this.c
     );
     if (!created) throw new Error("orders.orders refused a new order");
 

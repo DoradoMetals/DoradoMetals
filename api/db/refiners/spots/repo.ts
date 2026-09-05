@@ -1,4 +1,3 @@
-import { randomUUID } from "node:crypto";
 import query from "#shared/db/query.ts";
 import { buildUpdate } from "#shared/db/patch.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
@@ -60,13 +59,13 @@ export async function getNamed(
 }
 
 export type SpotNew = Pick<RefinerSpot, "order_id" | "metal_id" | "refiner_order_id"> &
-  Partial<Pick<RefinerSpot, "id" | "refiner_id" | "ask" | "bid">>;
+  Partial<Pick<RefinerSpot, "refiner_id" | "ask" | "bid">>;
 
 export async function create(row: SpotNew, executor?: Executor): Promise<RefinerSpotRow | undefined> {
   const { rows } = await query<RefinerSpotRow>(
     sql("create"),
     [
-      row.id ?? randomUUID(), row.order_id, row.refiner_order_id, row.metal_id,
+      row.order_id, row.refiner_order_id, row.metal_id,
       row.refiner_id ?? null, row.ask ?? null, row.bid ?? null,
     ],
     executor

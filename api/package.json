@@ -33,6 +33,8 @@
     "typecheck:sweep": "tsc -p tsconfig.json --noEmit --checkJs --noImplicitAny false",
     "verify:parity": "TZ=UTC node scripts/verify-parity.mjs",
     "lint:migrations": "node scripts/lint-migrations.ts",
+    "lint:no-minted-ids": "node scripts/lint-no-minted-ids.ts",
+    "lint:no-minted-ids:self-test": "node scripts/lint-no-minted-ids.ts --self-test",
     "lint:domain-boundaries": "node scripts/lint-domain-boundaries.ts",
     "lint:domain-boundaries:self-test": "node scripts/lint-domain-boundaries.ts --self-test",
     "plan": "node scripts/plan-migration.mjs",

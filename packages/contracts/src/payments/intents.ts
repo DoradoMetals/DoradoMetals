@@ -57,7 +57,6 @@ export const PaymentIntentView = PaymentIntent.pick({
 export type PaymentIntentView = z.infer<typeof PaymentIntentView>;
 
 export const PaymentIntentPatch = PaymentIntent.pick({
-  id: true,
   session_id: true,
   user_id: true,
   type: true,

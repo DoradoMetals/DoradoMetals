@@ -8,7 +8,6 @@ const sql = sqlFrom(import.meta.dirname);
 export type PdfRow = Pick<Pdf, "id" | "path" | "size_bytes" | "checksum" | "created_at">;
 
 export type NewPdf = {
-  id: string;
   kind: Pdf["kind"];
   order_id: string | null;
   path: string;
@@ -27,7 +26,7 @@ export async function latestOfKind(
 export async function create(row: NewPdf, executor?: Executor): Promise<{ id: string }> {
   const { rows } = await query<{ id: string }>(
     sql("create"),
-    [row.id, row.kind, row.order_id, row.path, row.size_bytes, row.checksum],
+    [row.kind, row.order_id, row.path, row.size_bytes, row.checksum],
     executor
   );
   return rows[0];

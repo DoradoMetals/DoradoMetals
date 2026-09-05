@@ -1,5 +1,4 @@
 import type { PoolClient } from "pg";
-import { anId } from "#shared/testing/builders/ids.ts";
 import * as engagements from "#db/refiners/orders/repo.ts";
 import * as refinerItems from "#db/refiners/items/repo.ts";
 import * as refinerSpots from "#db/refiners/spots/repo.ts";
@@ -36,7 +35,7 @@ export async function aRefinerEngagement(
   for (const metal_id of new Set(order.items.map((i) => i.metal_id))) {
     await refinerSpots.create(
       {
-        id: anId(), order_id: order.id, refiner_order_id: engagement.id,
+        order_id: order.id, refiner_order_id: engagement.id,
         metal_id, bid: spotOverrides.bid ?? 2400, ask: spotOverrides.ask ?? 2450,
       },
       c

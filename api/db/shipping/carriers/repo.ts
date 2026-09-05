@@ -16,10 +16,10 @@ export async function getOne(id: string, executor?: Executor): Promise<Carrier |
 }
 
 export async function create(
-  row: Pick<Carrier, "id" | "organization_id" | "logo">, executor?: Executor
+  row: Pick<Carrier, "organization_id" | "logo">, executor?: Executor
 ): Promise<Carrier> {
   const { rows } = await query<Carrier>(
-    sql("create"), [row.id, row.organization_id, row.logo], executor
+    sql("create"), [row.organization_id, row.logo], executor
   );
   return rows[0];
 }

@@ -21,12 +21,12 @@ export async function getMany(ids: string[], executor?: Executor): Promise<Addre
 }
 
 export async function create(
-  id: string, patch: AddressPatch, executor?: Executor
+  patch: AddressPatch, executor?: Executor
 ): Promise<Address> {
   const { rows } = await query<Address>(
     sql("create"),
     [
-      id, patch.line_1, patch.line_2, patch.city, patch.state, patch.country,
+      patch.line_1, patch.line_2, patch.city, patch.state, patch.country,
       patch.zip, patch.country_code, patch.phone_number, true, false,
     ],
     executor

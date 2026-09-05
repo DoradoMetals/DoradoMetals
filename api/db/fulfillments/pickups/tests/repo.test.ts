@@ -1,7 +1,6 @@
 import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
-import { randomUUID } from "node:crypto";
 import pool from "#pool";
 import { inRollback } from "#shared/testing/rollback.ts";
 import { aUser, anAddress, fulfillmentMethodId } from "#shared/testing/builders/index.ts";
@@ -21,7 +20,7 @@ afterAll(async () => {
 
 async function aDraftFulfillment(c: PoolClient): Promise<string> {
   const method_id = await fulfillmentMethodId(c, "CARRIER DROPOFF", "purchase");
-  const draft = await fulfillments.createDraft({ id: randomUUID(), method_id }, c);
+  const draft = await fulfillments.createDraft({ method_id }, c);
   return draft.id;
 }
 
@@ -36,7 +35,7 @@ test("create books a pickup, and update reschedules the same row", async () => {
     const pickup_address_id = await anAddressId(c);
 
     const first = await pickups.create(
-      { id: randomUUID(), fulfillment_id, pickup_address_id, start_time: "2026-01-05 09:00:00" },
+      { fulfillment_id, pickup_address_id, start_time: "2026-01-05 09:00:00" },
       c
     );
     assert.equal(first.fulfillment_id, fulfillment_id);
@@ -59,7 +58,7 @@ test("remove deletes the pickup and answers false the second time", async () => 
   await inRollback(async (c: PoolClient) => {
     const fulfillment_id = await aDraftFulfillment(c);
     const pickup_address_id = await anAddressId(c);
-    await pickups.create({ id: randomUUID(), fulfillment_id, pickup_address_id }, c);
+    await pickups.create({ fulfillment_id, pickup_address_id }, c);
 
     const removed = await pickups.remove(fulfillment_id, c);
     assert.equal(removed, true, "remove reported no row changed");

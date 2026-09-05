@@ -8,7 +8,7 @@ import { PaymentDetailsPatch } from "@dorado/contracts";
 
 const sql = sqlFrom(import.meta.dirname);
 
-export const PATCHABLE = columnsOf(PaymentDetailsPatch.omit({ id: true, user_id: true }));
+export const PATCHABLE = columnsOf(PaymentDetailsPatch.omit({ user_id: true }));
 
 export async function getOne(id: string, executor?: Executor): Promise<PaymentDetailsView | undefined> {
   const { rows } = await query<PaymentDetailsView>(sql("get_one"), [id], executor);
@@ -37,12 +37,12 @@ export async function getSealed(
 }
 
 export async function create(
-  id: string, user_id: string, values: PaymentDetailsPatch, executor?: Executor
+  user_id: string, values: PaymentDetailsPatch, executor?: Executor
 ): Promise<PaymentDetailsView> {
   const { rows } = await query<PaymentDetailsView>(
     sql("create"),
     [
-      id, user_id, values.method_id ?? null, values.account_holder ?? null,
+      user_id, values.method_id ?? null, values.account_holder ?? null,
       values.bank_name ?? null, values.account_type ?? null,
       values.last_four ?? null, values.routing_last_four ?? null,
       values.email_to ?? null, values.routing_number_encrypted ?? null,

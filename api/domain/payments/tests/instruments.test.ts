@@ -1,7 +1,6 @@
 import { test } from "vitest";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
-import { randomUUID } from "node:crypto";
 import * as webhook from "#domain/payments/webhook.ts";
 import * as details from "#db/payments/details/repo.ts";
 import type { Instruments } from "#providers/payment/stripe.ts";
@@ -99,7 +98,7 @@ test("a payment_method event updates an instrument already on file", async () =>
     const customer = await aUser(c);
     const pm = { id: `pm_known_${Date.now()}` };
     await details.create(
-      randomUUID(), customer.id,
+      customer.id,
       { provider: "stripe", provider_ref: pm.id, last_four: "0000", card_brand: "unknown" },
       c
     );

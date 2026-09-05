@@ -1,4 +1,4 @@
-export { anId, aTag } from "#shared/testing/builders/ids.ts";
+export { anUnknownId, aTag } from "#shared/testing/builders/ids.ts";
 export * from "#shared/testing/builders/reference.ts";
 export { aUser, anAdmin, aVisitor, type BuiltUser } from "#shared/testing/builders/users.ts";
 export { anAddress, type BuiltAddress } from "#shared/testing/builders/places.ts";

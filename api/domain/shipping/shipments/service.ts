@@ -1,4 +1,3 @@
-import { randomUUID } from "node:crypto";
 import * as shipments from "#db/shipping/shipments/repo.ts";
 import * as fulfillmentLinks from "#db/fulfillments/shipments/repo.ts";
 import * as fulfillmentsRepo from "#db/fulfillments/repo.ts";
@@ -90,8 +89,7 @@ export async function create(
   { order_id, direction }: { order_id?: string | null; direction: ShipmentDirection },
   tx: Executor
 ): Promise<OrderViewShipment | null> {
-  const id = randomUUID();
-  await shipments.create({ id, direction }, tx);
+  const id = await shipments.create({ direction }, tx);
 
   if (order_id) {
     const orderDirection = await orders.directionOf(order_id, tx);
