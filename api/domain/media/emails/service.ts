@@ -6,6 +6,7 @@ import type { Transport } from "#providers/emails/nodemailer.ts";
 
 import {
   renderPurchaseOrderPlacedEmail,
+  renderSalesOrderPlacedEmail,
   renderOrderPricedEmail,
   renderSalesOrderToSupplierEmail,
   renderAccountCreatedEmail,
@@ -45,19 +46,21 @@ export async function sendCreatedEmail(
   const order_id = input.order.order.id;
   const pdfId = await persistPdf("packing_list", order_id, pdfBuffer, executor);
 
+  const isSale = input.order.order.direction === "sale";
+  const renderPlaced = isSale ? renderSalesOrderPlacedEmail : renderPurchaseOrderPlacedEmail;
+  const formatOrderNumber = isSale ? formatSalesOrderNumber : formatPurchaseOrderNumber;
+
   const subject = "Your Order Has Been Placed!";
   const result = await sendEmail({
     to,
     subject,
-    html: renderPurchaseOrderPlacedEmail({
+    html: renderPlaced({
       firstName: input.order.user?.name ?? "",
-      url: `${requiredEnv("FRONTEND_URL")}/account?tab=sold`,
+      url: `${requiredEnv("FRONTEND_URL")}/account?tab=${isSale ? "bought" : "sold"}`,
     }),
     attachments: [
       {
-        filename: `${formatPurchaseOrderNumber(
-          input.order.order.number
-        )}_packing_list.pdf`,
+        filename: `${formatOrderNumber(input.order.order.number)}_packing_list.pdf`,
         content: pdfBuffer,
         contentType: "application/pdf",
       },

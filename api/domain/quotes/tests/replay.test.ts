@@ -5,7 +5,7 @@ import pool from "#pool";
 import { mockSessions, restoreSessions, as, anonymous } from "#shared/testing/session.ts";
 import { TEST_ACTOR } from "#shared/testing/actor.ts";
 import { inPinnedTransaction, outside } from "#shared/testing/pinned-pool.ts";
-import { aUser, anOrder, anAddress } from "#shared/testing/builders/index.ts";
+import { aUser, anOrder, anAddress, aHandover } from "#shared/testing/builders/index.ts";
 
 await mockSessions();
 const { default: app } = await import("#app");
@@ -144,18 +144,25 @@ test("a display=false product is refused on the ask side and quoted on the bid s
   }, { actor: TEST_ACTOR.id });
 });
 
-test("the sales-order quote needs a session; the two goods quotes do not", async () => {
+test("the checkout quote needs a session for either direction; the catalogue quote does not", async () => {
   await inPinnedTransaction(async () => {
     await anonymous(async () => {
-      const res = await request(app)
-        .post("/api/quotes/sales_order")
-        .send({ items: [{ id: product.id, quantity: 1 }] });
-      assert.ok([401, 403].includes(res.status), `sales_order answered ${res.status} with no session`);
+      const sale = await request(app).get("/api/quotes/checkout").query({ direction: "sale" });
+      assert.ok(
+        [401, 403].includes(sale.status), `sale checkout quote answered ${sale.status} with no session`
+      );
+
+      const purchase = await request(app)
+        .get("/api/quotes/checkout").query({ direction: "purchase" });
+      assert.ok(
+        [401, 403].includes(purchase.status),
+        `purchase checkout quote answered ${purchase.status} with no session`
+      );
 
       const pub = await request(app)
-        .post("/api/quotes/purchase_order")
-        .send({ items: [{ type: "product", bullion_id: product.id, quantity: 1 }] });
-      assert.equal(pub.status, 200, `purchase_order answered ${pub.status} anonymously`);
+        .post("/api/quotes/catalog")
+        .send({ items: [{ id: product.id, quantity: 1 }], side: "ask" });
+      assert.equal(pub.status, 200, `the catalogue quote answered ${pub.status} anonymously`);
       assert.ok(pub.body.total > 0, "the anonymous estimate priced at nothing");
     });
   }, { actor: TEST_ACTOR.id });
@@ -165,12 +172,24 @@ test("the sales-order breakdown reconciles to the cent and funds come from the u
   await inPinnedTransaction(async (c) => {
     const address = await anAddress(c, buyer, { default_shipping: false });
     await as({ id: buyer.id, name: buyer.name, email: buyer.email }, async () => {
-      const res = await request(app).post("/api/quotes/sales_order").send({
-        items: [{ id: product.id, quantity: 2 }],
-        address_id: address.id,
-        carrier_service_id: standardId,
+      const basket = await request(app)
+        .put("/api/checkout/items").query({ direction: "sale" })
+        .send({ items: [{ bullion_id: product.id, quantity: 2 }] });
+      assert.equal(basket.status, 200, basket.text);
+
+      const patched = await request(app).patch("/api/checkout").send({
+        direction: "sale",
+        recipient_address_id: address.id,
         payment_method_id: cardId,
       });
+      assert.equal(patched.status, 200, patched.text);
+      await aHandover(c, patched.body.id, {
+        direction: "sale",
+        method: "DROPSHIP",
+        choices: { shipment: { carrier_service_id: standardId } },
+      });
+
+      const res = await request(app).get("/api/quotes/checkout").query({ direction: "sale" });
       assert.equal(res.status, 200, `the sales-order quote answered ${res.status}: ${JSON.stringify(res.body)}`);
       const b = res.body;
 
@@ -214,7 +233,7 @@ test("the sales-order breakdown reconciles to the cent and funds come from the u
   }, { actor: TEST_ACTOR.id });
 });
 
-test("an admin's sales-order quote prices the named user's funds; a customer's name is ignored", async () => {
+test("an admin's sales-order quote prices the named user's funds; a customer naming one is refused", async () => {
   await inPinnedTransaction(async () => {
     const targets = await outside(
       `SELECT id, dorado_funds FROM auth.users
@@ -226,20 +245,18 @@ test("an admin's sales-order quote prices the named user's funds; a customer's n
     const target = targets[0];
     assert.ok(target, "dev has no second user with a different balance - the subject check would be vacuous");
 
-    const body = { items: [{ id: product.id, quantity: 1 }], user_id: target.id };
+    const query = { direction: "sale", user_id: target.id };
 
     await as({ id: buyer.id, name: buyer.name, email: buyer.email, role: "admin" }, async () => {
-      const res = await request(app).post("/api/quotes/sales_order").send(body);
+      const res = await request(app).get("/api/quotes/checkout").query(query);
       assert.equal(res.status, 200, `the admin quote answered ${res.status}: ${JSON.stringify(res.body)}`);
       assert.ok(Math.abs(res.body.beginning_funds - Number(target.dorado_funds)) < EXACT,
         `an admin naming a user got beginning_funds ${res.body.beginning_funds}, not that user's row balance ${target.dorado_funds}`);
     });
 
     await as({ id: buyer.id, name: buyer.name, email: buyer.email, role: "user" }, async () => {
-      const res = await request(app).post("/api/quotes/sales_order").send(body);
-      assert.equal(res.status, 200, "the guard is the session winning, not an error");
-      assert.ok(Math.abs(res.body.beginning_funds - Number(buyer.dorado_funds ?? 0)) < EXACT,
-        `a customer naming somebody else got beginning_funds ${res.body.beginning_funds}, not their own ${buyer.dorado_funds}`);
+      const res = await request(app).get("/api/quotes/checkout").query(query);
+      assert.equal(res.status, 403, "a customer naming somebody else should be refused, not substituted");
     });
   }, { actor: TEST_ACTOR.id });
 });
@@ -248,20 +265,23 @@ test("the purchase-order quote prices scrap and product lines from the rates ban
   await inPinnedTransaction(async () => {
     await as({ id: buyer.id, name: buyer.name, email: buyer.email }, async () => {
       const scrap = {
-        type: "scrap", metal_id: goldId, pre_melt: 124.414, purity: 0.5, unit: "g",
+        metal_id: goldId, pre_melt: 124.414, purity: 0.5, unit: "g", quantity: 1,
       };
-      const line = { type: "product", bullion_id: product.id, quantity: 2 };
+      const line = { bullion_id: product.id, quantity: 2 };
 
-      const res = await request(app).post("/api/quotes/purchase_order").send({ items: [scrap, line] });
+      const basket = await request(app)
+        .put("/api/checkout/items").query({ direction: "purchase" })
+        .send({ items: [scrap, line] });
+      assert.equal(basket.status, 200, basket.text);
+
+      const res = await request(app).get("/api/quotes/checkout").query({ direction: "purchase" });
       assert.equal(res.status, 200, `the purchase-order quote answered ${res.status}: ${JSON.stringify(res.body)}`);
-      const [s, p] = res.body.items;
+      const s = res.body.items.find((i: { kind: string }) => i.kind === "scrap");
+      const p = res.body.items.find((i: { kind: string }) => i.kind === "product");
+      assert.ok(s && p, "both lines should be in the quote");
 
       const scrapContent = (124.414 / 31.1035) * 0.5;
       assert.ok(Math.abs(s.content - scrapContent) < EXACT, `derived scrap content ${s.content} != ${scrapContent}`);
-      assert.equal(s.kind, "scrap");
-      assert.equal(s.index, 0);
-      assert.equal(p.kind, "product");
-      assert.equal(p.index, 1);
       assert.equal(p.metal, "Gold");
 
       const metalTotal = scrapContent + Number(product.content);
@@ -297,11 +317,6 @@ test("the purchase-order quote prices scrap and product lines from the rates ban
       assert.ok(Number.isFinite(cap) && cap > 0, "no insurance ceiling is configured - the cap check would be vacuous");
       assert.equal(res.body.declared_value, Math.min(res.body.total, cap),
         "declared_value is the total capped at shipping.services.max_insured_value");
-
-      const byName = await request(app).post("/api/quotes/purchase_order").send({
-        items: [{ type: "product", product_name: product.name, quantity: 2 }],
-      });
-      assert.equal(byName.status, 400, "a product named by name was accepted");
     });
   }, { actor: TEST_ACTOR.id });
 });
@@ -341,50 +356,69 @@ test("no body-supplied price, spot or premium is accepted at all", async () => {
     });
 
     await as({ id: buyer.id, name: buyer.name, email: buyer.email }, async () => {
-      const base = {
-        items: [{ id: product.id, quantity: 2 }],
-        address_id: address.id,
-        carrier_service_id: standardId,
-        payment_method_id: cardId,
-      };
-      const clean = await request(app).post("/api/quotes/sales_order").send(base);
-      assert.equal(clean.status, 200, JSON.stringify(clean.body));
+      const patched = await request(app).patch("/api/checkout").send({
+        direction: "sale", recipient_address_id: address.id, payment_method_id: cardId,
+      });
+      assert.equal(patched.status, 200, patched.text);
+      await aHandover(c, patched.body.id, {
+        direction: "sale", method: "DROPSHIP",
+        choices: { shipment: { carrier_service_id: standardId } },
+      });
 
-      for (const extra of [
-        poison,
-        { dorado_funds: 1000000 },
-        { user: { dorado_funds: 1000000 } },
-        { items: [{ id: product.id, quantity: 2, ask_premium: 0, price: 0.01 }] },
+      const clean = await request(app)
+        .put("/api/checkout/items").query({ direction: "sale" })
+        .send({ items: [{ bullion_id: product.id, quantity: 2 }] });
+      assert.equal(clean.status, 200, clean.text);
+
+      for (const poisonedLine of [
+        { bullion_id: product.id, quantity: 2, unit_price: 0.01 },
+        { bullion_id: product.id, quantity: 2, price: 0.01 },
+        { bullion_id: product.id, quantity: 2, content: 9999 },
+        { bullion_id: product.id, quantity: 2, purity: 0.9999 },
       ]) {
         const poisoned = await request(app)
-          .post("/api/quotes/sales_order").send({ ...base, ...extra });
-        assert.equal(
-          poisoned.status, 400,
-          `a sales-order quote accepted ${JSON.stringify(Object.keys(extra))}`
+          .put("/api/checkout/items").query({ direction: "sale" })
+          .send({ items: [poisonedLine] });
+        assert.ok(
+          poisoned.status >= 400 && poisoned.status < 500,
+          `a sale basket line accepted ${JSON.stringify(Object.keys(poisonedLine))}: ${poisoned.status}`
         );
       }
 
-      const sellBase = {
-        items: [
-          { type: "scrap", metal_id: goldId, pre_melt: 124.414, purity: 0.5, unit: "g" },
-          { type: "product", bullion_id: product.id, quantity: 1 },
-        ],
-      };
-      const cleanSell = await request(app).post("/api/quotes/purchase_order").send(sellBase);
+      const cleanQuote = await request(app)
+        .get("/api/quotes/checkout").query({ direction: "sale", ...poison });
+      assert.equal(cleanQuote.status, 200, JSON.stringify(cleanQuote.body));
+      assert.ok(
+        Math.abs(cleanQuote.body.beginning_funds - Number(buyer.dorado_funds ?? 0)) < EXACT,
+        "a poisoned querystring changed the priced funds"
+      );
+
+      const sellBasket = await request(app)
+        .put("/api/checkout/items").query({ direction: "purchase" })
+        .send({
+          items: [
+            { metal_id: goldId, pre_melt: 124.414, purity: 0.5, unit: "g", quantity: 1 },
+            { bullion_id: product.id, quantity: 1 },
+          ],
+        });
+      assert.equal(sellBasket.status, 200, sellBasket.text);
+      const cleanSell = await request(app)
+        .get("/api/quotes/checkout").query({ direction: "purchase" });
       assert.equal(cleanSell.status, 200, JSON.stringify(cleanSell.body));
       assert.ok(cleanSell.body.total > 1, "the clean sell quote itself is suspiciously tiny");
 
-      for (const items of [
-        [{ type: "scrap", metal_id: goldId, pre_melt: 124.414, purity: 0.5, unit: "g", content: 9999 }],
-        [{ type: "scrap", metal_id: goldId, pre_melt: 124.414, purity: 0.5, unit: "g", premium: 0.0001 }],
-        [{ type: "product", bullion_id: product.id, quantity: 1, bid_premium: 0.0001 }],
-        [{ type: "product", bullion_id: product.id, quantity: 1, content: 9999 }],
+      for (const poisonedLine of [
+        { metal_id: goldId, pre_melt: 124.414, purity: 0.5, unit: "g", quantity: 1, content: 9999 },
+        { metal_id: goldId, pre_melt: 124.414, purity: 0.5, unit: "g", quantity: 1, premium: 0.0001 },
+        { bullion_id: product.id, quantity: 1, bid_premium: 0.0001 },
+        { bullion_id: product.id, quantity: 1, content: 9999 },
       ]) {
         const poisonedSell = await request(app)
-          .post("/api/quotes/purchase_order").send({ ...poison, items });
-        assert.equal(
-          poisonedSell.status, 400,
-          `a purchase-order quote accepted ${JSON.stringify(Object.keys(items[0]))}`
+          .put("/api/checkout/items").query({ direction: "purchase" })
+          .send({ items: [poisonedLine] });
+        assert.ok(
+          poisonedSell.status >= 400 && poisonedSell.status < 500,
+          `a purchase basket line accepted ${JSON.stringify(Object.keys(poisonedLine))}: ${poisonedSell.status}`
         );
       }
     });

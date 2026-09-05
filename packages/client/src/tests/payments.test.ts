@@ -25,17 +25,14 @@ describe("the query keys", () => {
 });
 
 describe("the write bodies are the contracts'", () => {
-  test("a priced intent update is IDS AND QUANTITIES, never a price", () => {
-    const body = {
-      items: [{ id: "9f1c2b3a-0000-4000-8000-000000000001", quantity: 2 }],
-      address_id: "9f1c2b3a-0000-4000-8000-000000000002",
-      carrier_service_id: "9f1c2b3a-0000-4000-8000-000000000003",
-      payment_method_id: "9f1c2b3a-0000-4000-8000-000000000004",
-      type: "admin",
-    };
+  test("an intent update names a type and, for admin, a subject - never items or ids", () => {
+    const body = { type: "admin", user_id: "9f1c2b3a-0000-4000-8000-000000000005" };
     expect(UpdatePaymentIntentBody.safeParse(body).success).toBe(true);
 
-    for (const retired of ["spots", "using_funds", "user"]) {
+    for (const retired of [
+      "items", "address_id", "carrier_service_id", "payment_method_id",
+      "spots", "using_funds", "user",
+    ]) {
       expect(
         UpdatePaymentIntentBody.safeParse({ ...body, [retired]: true }).success
       ).toBe(false);

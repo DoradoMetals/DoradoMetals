@@ -1,11 +1,29 @@
 "use client";
 
 import { useQuery, type UseQueryResult } from "@tanstack/react-query";
-import type { CatalogQuote, OrderQuote, ProfitBreakdown } from "@dorado/contracts";
+import type {
+  CatalogQuote, Direction, OrderQuote, ProfitBreakdown, PurchaseOrderQuote, SalesOrderQuote,
+} from "@dorado/contracts";
 import { apiRequest } from "../fetch";
 import { keys } from "../keys";
 
 export type CatalogQuoteItem = { id: string; quantity?: number };
+
+export function useCheckoutQuote(
+  direction: Direction, options: { enabled?: boolean; user_id?: string } = {}
+): UseQueryResult<PurchaseOrderQuote | SalesOrderQuote, Error> {
+  return useQuery({
+    queryKey: keys.quotes.checkout(direction, options.user_id),
+    enabled: options.enabled ?? true,
+    refetchInterval: 10_000,
+    placeholderData: (previous) => previous,
+    queryFn: () =>
+      apiRequest<PurchaseOrderQuote | SalesOrderQuote>(
+        "GET", "/quotes/checkout", undefined,
+        { direction, user_id: options.user_id }
+      ),
+  });
+}
 
 export function useCatalogQuote(
   items: CatalogQuoteItem[], side: "ask" | "bid"

@@ -202,42 +202,35 @@ add("POST /quotes/catalog", c.CatalogQuote, () =>
   false
 );
 
-const { rows: quoteAddresses } = await pool.query(
-  `SELECT id FROM exchange.addresses WHERE user_id = $1 LIMIT 1`,
-  [addressUser]
-);
-const { rows: quoteServices } = await pool.query(
-  `SELECT id FROM shipping.services ORDER BY id LIMIT 1`
-);
-const { rows: quoteMethods } = await pool.query(
-  `SELECT id FROM payments.methods WHERE direction = 'sale' ORDER BY id LIMIT 1`
-);
 const { rows: quoteMetals } = await pool.query(
   `SELECT id FROM metals.metals WHERE name = 'Gold' LIMIT 1`
 );
-add("POST /quotes/sales_order", c.SalesOrderQuote, () =>
+const checkoutService = await import("#domain/checkout/service.ts");
+
+if (addressUser && quoteItems.length) {
+  await checkoutService.replaceItems(
+    addressUser, "sale", [{ bullion_id: quotable[0].id, quantity: 1 }]
+  );
+}
+add("GET /quotes/checkout (sale)", c.SalesOrderQuote, () =>
   addressUser && quoteItems.length
-    ? quotesService.salesOrderQuote(addressUser, {
-        items: quoteItems,
-        carrier_service_id: quoteServices[0]?.id ?? null,
-        payment_method_id: quoteMethods[0]?.id ?? null,
-        address_id: quoteAddresses[0]?.id,
-      })
+    ? quotesService.checkoutQuote(addressUser, "sale")
     : [],
   false
 );
 
-add("POST /quotes/purchase_order", c.PurchaseOrderQuote, () =>
-  quotable.length && quoteMetals.length
-    ? quotesService.purchaseOrderQuote({
-        items: [
-          {
-            type: "scrap", metal_id: quoteMetals[0].id,
-            pre_melt: 31.1035, purity: 0.9, unit: "g",
-          },
-          { type: "product", bullion_id: quotable[0].id, quantity: 2 },
-        ],
-      })
+if (addressUser && quotable.length && quoteMetals.length) {
+  await checkoutService.replaceItems(
+    addressUser, "purchase",
+    [
+      { metal_id: quoteMetals[0].id, pre_melt: 31.1035, purity: 0.9, unit: "g", quantity: 1 },
+      { bullion_id: quotable[0].id, quantity: 2 },
+    ]
+  );
+}
+add("GET /quotes/checkout (purchase)", c.PurchaseOrderQuote, () =>
+  addressUser && quotable.length && quoteMetals.length
+    ? quotesService.checkoutQuote(addressUser, "purchase")
     : [],
   false
 );

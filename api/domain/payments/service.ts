@@ -2,14 +2,10 @@ import withTransaction from "#shared/db/withTransaction.ts";
 import * as stripe from "#providers/payment/stripe.ts";
 import {
   paymentIntents as intents, paymentAttempts as attempts,
-  paymentSettlements as settlements, paymentMethods as methods,
-  paymentCustomers as customers, carrierServices as servicesRepo,
+  paymentSettlements as settlements, paymentCustomers as customers,
 } from "#db";
-import {
-  products as productService, addresses as addressService,
-  salesTax as taxService, spots as spotsService, users as usersService,
-  pricing,
-} from "#domain";
+import { users as usersService } from "#domain";
+import * as quotesService from "#domain/quotes/service.ts";
 import {
   toDollars, intentOwner, isOpen, isResolved, chargeCents, isChargeable,
   assertBillingIdentity, assertIntentSubject, assertPriceableBalance,
@@ -159,28 +155,15 @@ export async function attachOrder(
 
 export async function updatePaymentIntent(
   caller: PaymentCaller,
-  { items, address_id, carrier_service_id, payment_method_id, user_id, type }: UpdatePaymentIntentBody
+  { user_id, type }: UpdatePaymentIntentBody
 ): Promise<StripeIntentLike> {
   const subject = assertIntentSubject(type === "admin" ? user_id : caller.user_id);
 
-  const dorado_funds = assertPriceableBalance(subject, await usersService.getBalance(subject));
+  assertPriceableBalance(subject, await usersService.getBalance(subject));
 
   const retrieved_intent = await findReusableIntent(caller, type, user_id);
 
-  const address = address_id ? await addressService.getAddressFromId(address_id) : undefined;
-  const service = carrier_service_id ? await servicesRepo.getOne(carrier_service_id) : undefined;
-  const method = payment_method_id ? await methods.getOne(payment_method_id) : undefined;
-
-  const spots = await spotsService.getSpotPrices();
-  const items_with_tax = await taxService.attachSalesTaxToItems(
-    address?.state ?? "TX",
-    await productService.getItemsFromServer(items),
-    spots
-  );
-
-  const prices = pricing.calculateSalesOrderTotal(
-    items_with_tax, spots, { dorado_funds }, service?.code, method?.type
-  );
+  const { prices } = await quotesService.priceSaleCheckout(subject);
   const amount = chargeCents(prices.post_charges_amount);
 
   if (!isChargeable(amount)) {

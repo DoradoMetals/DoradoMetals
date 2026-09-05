@@ -27,7 +27,7 @@ const ACCEPTED: Record<string, { count: number; why: string }> = {
   "domain/payments/sweeps.ts": { count: 2, why: RESULT },
   "domain/pricing/ask.ts": { count: 1, why: COMPUTED },
   "domain/quotes/profit.ts": { count: 7, why: COMPUTED },
-  "domain/quotes/service.ts": { count: 9, why: COMPUTED },
+  "domain/quotes/service.ts": { count: 8, why: COMPUTED },
   "domain/sales-tax/service.ts": { count: 1, why: COMPUTED },
   "domain/shipping/operations/resolver.ts": { count: 1, why: RESULT },
   "domain/shipping/services/service.ts": { count: 3, why: CRUD },
