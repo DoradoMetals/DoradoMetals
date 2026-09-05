@@ -24,15 +24,36 @@ export const CheckoutItem = z.object({
 });
 export type CheckoutItem = z.infer<typeof CheckoutItem>;
 // generated:end
-export const CheckoutItemPatch = CheckoutItem.pick({
+// A basket line is one of two shapes, and the boundary decides which (ruling
+// 80): a bullion line names a product and a quantity, a scrap line declares
+// its own metal and weights. Neither accepts the other's columns.
+export const CheckoutBullionLine = CheckoutItem.pick({
   bullion_id: true,
+  quantity: true,
+}).extend({
+  bullion_id: CheckoutItem.shape.bullion_id.unwrap(),
+  quantity: CheckoutItem.shape.quantity.optional(),
+}).strict();
+export type CheckoutBullionLine = z.infer<typeof CheckoutBullionLine>;
+
+export const CheckoutScrapLine = CheckoutItem.pick({
   metal_id: true,
   pre_melt: true,
   post_melt: true,
   purity: true,
   unit: true,
   quantity: true,
-}).partial().strict();
+}).extend({
+  metal_id: CheckoutItem.shape.metal_id.unwrap(),
+  pre_melt: CheckoutItem.shape.pre_melt.unwrap(),
+  post_melt: CheckoutItem.shape.post_melt.optional(),
+  purity: CheckoutItem.shape.purity.unwrap(),
+  unit: CheckoutItem.shape.unit.unwrap(),
+  quantity: CheckoutItem.shape.quantity.optional(),
+}).strict();
+export type CheckoutScrapLine = z.infer<typeof CheckoutScrapLine>;
+
+export const CheckoutItemPatch = z.union([CheckoutBullionLine, CheckoutScrapLine]);
 export type CheckoutItemPatch = z.infer<typeof CheckoutItemPatch>;
 
 export const CheckoutItemsBody = z.object({ items: z.array(CheckoutItemPatch) }).strict();

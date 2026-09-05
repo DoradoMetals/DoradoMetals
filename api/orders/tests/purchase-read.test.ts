@@ -93,11 +93,11 @@ test("a line is a product line or a scrap line, and never both", async () => {
     assert.ok(scrap.length, "no scrap lines, so half of this proves nothing");
 
     for (const line of bullion) {
-      assert.ok(line.product, "a bullion line came back with no product row");
-      assert.equal(typeof line.product!.content, "number");
+      assert.ok(!("product" in line), "a bullion line still embeds the catalogue row");
+      assert.ok(line.metal_id, "orders.items.metal_id is NOT NULL");
     }
     for (const line of scrap) {
-      assert.equal(line.product, null, "a scrap line carries a product object");
+      assert.ok(!("product" in line), "a scrap line still embeds the catalogue row");
       assert.ok(line.metal_id, "orders.items.metal_id is NOT NULL");
     }
   });

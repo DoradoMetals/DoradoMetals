@@ -93,7 +93,7 @@ test("the address is the snapshot the order links to", async () => {
   });
 });
 
-test("every line resolves to a product", async () => {
+test("every line names a product and carries its own metal", async () => {
   const all = await viewsOf(await saleIds());
   assert.ok(all.length, "no sales orders, so this test asserts nothing");
   let lines = 0;
@@ -101,10 +101,8 @@ test("every line resolves to a product", async () => {
     for (const item of o.items) {
       lines += 1;
       assert.ok(item.bullion_id, `line ${item.id} of a sale is not a bullion line`);
-      assert.ok(item.product?.id, `line ${item.id} has no product`);
-      assert.equal(typeof item.product!.name, "string");
-      assert.ok(item.product!.metal_id, "the product names no metal");
-      assert.equal(item.metal_id, item.product!.metal_id, "the line and its product disagree");
+      assert.ok(!("product" in item), `line ${item.id} still embeds the catalogue row`);
+      assert.ok(item.metal_id, `line ${item.id} carries no metal of its own`);
     }
   }
   assert.ok(lines, "no sales order had a single line, so this test asserts nothing");

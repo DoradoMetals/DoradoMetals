@@ -393,7 +393,7 @@ export function buildPackingBullionRows(
       const total = priceOf.get(line.id)?.line_total;
       return `
         <tr>
-          <td>${line.product?.name || "Bullion Product"}</td>
+          <td>${line.product_name || "Bullion Product"}</td>
           <td>${line.metal_id}</td>
           <td>${line.quantity}</td>
           <td>${line.content ?? "-"}</td>
@@ -433,7 +433,7 @@ export function buildInvoiceBullionRows(
       const total = priceOf.get(line.id)?.line_total;
       return `
         <tr>
-          <td class="text-left">${line.product?.name || "Bullion Product"}</td>
+          <td class="text-left">${line.product_name || "Bullion Product"}</td>
           <td>${line.quantity}</td>
           <td>${
             line.content != null

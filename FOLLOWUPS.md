@@ -16049,3 +16049,31 @@ production's.
 identity map now); `OrderSpotNamed`, `PricedLine` and five SQL reads are
 deleted. Wire changes and the 34 frontend files that break are listed in
 `docs/waves/metal-name.md`; the frontend is not updated here (ruling 44).
+
+## Ruling 80 executed (2026-09-06)
+
+Products are flair; the item carries its facts. `OrderView.items[]` lost its
+embedded `bullion` object and the checkout item reads lost their
+`products.bullion` join and their `coalesce` on the metal - **five joins died**,
+in `db/orders/sql/view.sql`, `checkout/items/sql/list_for_order.sql` and
+`orders/items/sql/create_bought.sql` + `create_sold.sql`, with
+`products/sql/get_liveness.sql` deleted outright. `sale_quote.sql` KEEPS its
+join: ruling 51 prices a sale line from the product's `ask_premium` at the
+moment it is priced, and the tax rule matches on the product's own type and
+tender flags - that is load-bearing, not decoration.
+
+`CheckoutItemPatch` is now a union of two strict shapes picked from
+`CheckoutItem`, so a bullion line carrying weights and a scrap line with no
+metal are refused by `parseStrict` (400, where `rules.ts` used to answer 422).
+The snapshot is SQL: `checkout/items/sql/create_from_product.sql` reads the
+checkout's own `direction` to decide the sale premium and the buy-side liveness
+gate, so `snapshot()`, `SERVER_OWNED`, `requireLiveProducts`, `basketRows`, the
+`byId` map and the `{ row, product }` return are all gone, along with three
+functions left with no callers. **The API's own invoices and emails were
+reading `line.product?.name`**: a document is one SQL read (71/73) and the name
+is load-bearing for it, so `view.sql` carries `product_name` per line - one
+scalar subselect - and the renderers read it directly. A first pass stitched a
+`products` map onto `DocumentLabels` in TypeScript; that is the result
+dictionary ruling 78 forbids, and it is gone. 74 frontend type
+errors across 16 files, listed with their two roots in
+`docs/waves/products-are-flair.md`; the frontend is not updated here (ruling 44).

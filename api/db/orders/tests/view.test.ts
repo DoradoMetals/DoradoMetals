@@ -47,7 +47,7 @@ test("the order view is one read that parses through OrderViewFacts", async () =
   });
 });
 
-test("a bullion line carries its product, its payable and its line total from SQL", async () => {
+test("a bullion line carries its payable and its line total from SQL, and no product", async () => {
   await inRollback(async (c: PoolClient) => {
     const user = await aUser(c);
     const product = await aProduct(c);
@@ -58,7 +58,7 @@ test("a bullion line carries its product, its payable and its line total from SQ
     assert.ok(view);
     const line = view.items.find((i) => i.bullion_id === product.id);
     assert.ok(line, "the bullion line is missing");
-    assert.equal(line.product?.id, product.id, "the product did not nest");
+    assert.ok(!("product" in line), "the view still embeds the catalogue row");
     assert.equal(line.line_total, 100, "line_total is not price x quantity");
     assert.equal(
       line.payable,
