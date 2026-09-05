@@ -6,7 +6,9 @@ import { inPinnedTransaction } from "#shared/testing/pinned-pool.ts";
 import { LOCKS } from "#shared/testing/locks.ts";
 import { TEST_ACTOR } from "#shared/testing/actor.ts";
 import { aCart, aUser, aVisitor, anAddress } from "#shared/testing/builders/index.ts";
-import { sweepAnonymousVisitors, STALE_AFTER_DAYS } from "#domain/checkout/sweep.ts";
+import {
+  sweepAnonymousVisitors, sweepAnonymousVisitorsNow, STALE_AFTER_DAYS,
+} from "#domain/checkout/sweep.ts";
 
 afterAll(async () => { await pool.end(); });
 
@@ -95,5 +97,22 @@ test("an empty sweep is not an error and writes nothing", async () => {
   await inPinnedTransaction(async (c: PoolClient) => {
     const result = await sweepAnonymousVisitors(null, null, new Date(0), c);
     assert.deepEqual(result, { considered: 0, deleted: [] });
+  }, { actor: TEST_ACTOR.id, lock: HERE });
+});
+
+test("sweepAnonymousVisitorsNow runs the real sweep in its own transaction", async () => {
+  await inPinnedTransaction(async (c: PoolClient) => {
+    const visitor = await aVisitor(c);
+    await c.query(
+      `UPDATE auth.users SET "updatedAt" = now() - interval '30 days' WHERE id = $1`,
+      [visitor.id]
+    );
+
+    const result = await sweepAnonymousVisitorsNow();
+
+    assert.ok(result.deleted.includes(visitor.id), "sweepAnonymousVisitorsNow left a stale visitor behind");
+    assert.equal(
+      await exists(c, `SELECT 1 FROM auth.users WHERE id = $1`, visitor.id), false
+    );
   }, { actor: TEST_ACTOR.id, lock: HERE });
 });

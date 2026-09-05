@@ -11,7 +11,7 @@ import {
 import * as checkouts from "#db/checkout/checkouts/repo.ts";
 import * as checkoutItems from "#db/checkout/items/repo.ts";
 import * as userAddresses from "#db/places/user-addresses/repo.ts";
-import { adoptAnonymousCheckout } from "#domain/checkout/adopt.ts";
+import { adoptAnonymousCheckout, adoptAnonymousCheckoutQuietly } from "#domain/checkout/adopt.ts";
 import { CHOICE_COLUMNS } from "#domain/checkout/rules.ts";
 
 afterAll(async () => { await pool.end(); });
@@ -133,5 +133,28 @@ test("a visitor with nothing to carry is not an error", async () => {
     const customer = await aUser(c);
     const result = await adoptAnonymousCheckout(visitor.id, customer.id, c);
     assert.deepEqual(result, { adopted: [], addresses: 0 });
+  }, { actor: TEST_ACTOR.id, lock: LOCKS_HERE });
+});
+
+test("adoptAnonymousCheckoutQuietly runs the real adoption in its own transaction", async () => {
+  await inPinnedTransaction(async (c: PoolClient) => {
+    const visitor = await aVisitor(c);
+    const customer = await aUser(c);
+    const cart = await aCart(c, visitor, { direction: "purchase" }).withLots(1);
+
+    const result = await adoptAnonymousCheckoutQuietly(visitor.id, customer.id);
+
+    assert.ok(result, "adoptAnonymousCheckoutQuietly reported failure for a normal adoption");
+    assert.deepEqual(result.adopted, [
+      { direction: "purchase", outcome: "moved", checkout_id: cart.id, replaced: 0 },
+    ]);
+    assert.ok(await checkouts.findFor(customer.id, "purchase", c));
+  }, { actor: TEST_ACTOR.id, lock: LOCKS_HERE });
+});
+
+test("adoptAnonymousCheckoutQuietly swallows a failure and answers undefined", async () => {
+  await inPinnedTransaction(async () => {
+    const result = await adoptAnonymousCheckoutQuietly("not-a-uuid", "also-not-a-uuid");
+    assert.equal(result, undefined);
   }, { actor: TEST_ACTOR.id, lock: LOCKS_HERE });
 });

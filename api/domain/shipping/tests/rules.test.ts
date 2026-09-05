@@ -1,12 +1,14 @@
 import { test } from "vitest";
 import assert from "node:assert/strict";
 import {
-  declaredValue, handoffFor, parcelFor, parcelWeightLb, quotedCharge,
-  scheduleFromPickup, scheduleOf,
+  assertHandoff, assertOneShippableCarrier, assertPickup, assertShippingType,
+  declaredValue, handoffFor, offeredRates, parcelFor, parcelWeightLb, quotedCharge,
+  scheduleFromPickup, scheduleOf, trackingStatus,
 } from "#domain/shipping/rules.ts";
 import { Invalid } from "#shared/errors.ts";
 import type {
-  CarrierHandoff, FulfillmentPickup, LabelService, Package,
+  CarrierHandoff, CarrierRateQuote, CarrierServiceOption, FulfillmentPickup, LabelService,
+  Package, TrackingStep,
 } from "@dorado/contracts";
 
 test("the parcel weighs what its items weigh, converted to pounds", () => {
@@ -107,4 +109,74 @@ test("postage with no quote is refused rather than priced at nothing", () => {
   );
   assert.throws(() => quotedCharge([{ serviceType: "OTHER", netCharge: 9 }], "SAVER"), Invalid);
   assert.throws(() => quotedCharge([{ serviceType: "SAVER", netCharge: null }], "SAVER"), Invalid);
+});
+
+test("offeredRates matches a quote to its offered service and marks the chosen one", () => {
+  const quoted: CarrierRateQuote[] = [
+    {
+      serviceType: "FEDEX_GROUND", packagingType: "YOUR_PACKAGING", netCharge: 12.34,
+      currency: "USD", deliveryDay: "2026-09-10", transitTime: "TWO_DAYS",
+      serviceDescription: "Ground",
+    },
+    {
+      serviceType: null, packagingType: null, netCharge: null, currency: "USD",
+      deliveryDay: null, transitTime: null, serviceDescription: null,
+    },
+  ];
+  const offered: CarrierServiceOption[] = [
+    {
+      id: "svc-1", code: "FEDEX_GROUND", name: "Ground",
+      carrier_code: "FDXG", display_order: 0, max_insured_value: 1000,
+    },
+    {
+      id: "svc-2", code: "FEDEX_EXPRESS", name: "Express",
+      carrier_code: "FDXE", display_order: 1, max_insured_value: 2000,
+    },
+  ];
+
+  const rates = offeredRates(quoted, offered, "svc-2");
+
+  assert.equal(rates.length, 2);
+  const ground = rates.find((r) => r.carrier_service_id === "svc-1")!;
+  assert.equal(ground.netCharge, 12.34);
+  assert.equal(ground.selected, false);
+  const express = rates.find((r) => r.carrier_service_id === "svc-2")!;
+  assert.equal(express.netCharge, null, "an offered service with no matching quote prices at nothing");
+  assert.equal(express.selected, true);
+});
+
+test("assertHandoff refuses a handoff the carrier no longer offers", () => {
+  assert.throws(() => assertHandoff(null, "ship-1"), /no longer offers/);
+  assert.doesNotThrow(() => assertHandoff({ code: "x" } as CarrierHandoff, "ship-1"));
+});
+
+test("assertPickup refuses an id nothing names", () => {
+  assert.throws(() => assertPickup(undefined, "pk-1"), /no pickup pk-1/);
+  assert.doesNotThrow(() => assertPickup({ id: "pk-1" }, "pk-1"));
+});
+
+test("assertShippingType accepts only the three real directions", () => {
+  for (const ok of ["Inbound", "Outbound", "Return"]) {
+    assert.doesNotThrow(() => assertShippingType(ok));
+  }
+  assert.throws(() => assertShippingType("Sideways"), /invalid shippingType/);
+});
+
+test("trackingStatus falls back to the last reached stage once the carrier stops reporting one", () => {
+  const timeline: TrackingStep[] = [
+    { stage: "Label Created", location: null, scan_time: null, reached: true },
+    { stage: "In Transit", location: "Memphis, TN", scan_time: "2026-09-01T00:00:00Z", reached: true },
+    { stage: "Delivered", location: null, scan_time: null, reached: false },
+  ];
+  assert.equal(trackingStatus(null, timeline), "In Transit");
+  assert.equal(trackingStatus(null, []), null, "an empty timeline has no last reached stage");
+});
+
+test("assertOneShippableCarrier refuses ambiguity as loudly as absence", () => {
+  assert.throws(() => assertOneShippableCarrier([]), /No carrier/);
+  assert.doesNotThrow(() => assertOneShippableCarrier([{ name: "FedEx" }]));
+  assert.throws(
+    () => assertOneShippableCarrier([{ name: "FedEx" }, { name: "UPS" }]),
+    /More than one carrier.*FedEx, UPS/
+  );
 });
