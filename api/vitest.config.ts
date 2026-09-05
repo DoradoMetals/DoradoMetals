@@ -2,6 +2,7 @@ import { defineConfig } from "vitest/config";
 import path from "node:path";
 import "./env.ts";
 import { classifyTestFiles } from "./scripts/lib/test-layers.ts";
+import { domainDirs, importMap } from "./scripts/lib/layout.ts";
 
 const ROOT = import.meta.dirname;
 
@@ -23,18 +24,13 @@ const wildcard = (prefix: string, dir: string) => ({
   replacement: path.resolve(ROOT, dir) + "/",
 });
 
-const alias = [
-  exact("#env", "env.ts"),
-  exact("#db", "db/index.ts"),
-  exact("#pool", "db.ts"),
-  exact("#app", "app.ts"),
-  exact("#domain", "domain/index.ts"),
-  wildcard("#shared", "shared"),
-  wildcard("#providers", "providers"),
-  wildcard("#db", "db"),
-  wildcard("#domain", "domain"),
-  wildcard("#transport", "transport"),
-];
+const alias = Object.entries(importMap(ROOT)).map(([specifier, target]) =>
+  specifier.endsWith("/*")
+    ? wildcard(specifier.slice(0, -2), target.replace(/^\.\//, "").replace(/\/\*$/, ""))
+    : exact(specifier, target.replace(/^\.\//, ""))
+);
+
+const DOMAIN_GLOB = `{${domainDirs(ROOT).join(",")}}/**`;
 
 const layers = classifyTestFiles(ROOT);
 const rel = (files: string[]) => files.map((f) => path.relative(ROOT, f));
@@ -79,8 +75,7 @@ export default defineConfig({
       ],
       thresholds: {
         "db/**": { statements: 88, branches: 74, functions: 94, lines: 94 },
-        "domain/**": { statements: 80, branches: 67, functions: 86, lines: 83 },
-        "transport/**": { statements: 82, branches: 48, functions: 75, lines: 82 },
+        [DOMAIN_GLOB]: { statements: 86, branches: 73, functions: 90, lines: 88 },
         "shared/**": { statements: 80, branches: 74, functions: 86, lines: 83 },
       },
     },

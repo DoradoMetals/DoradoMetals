@@ -9,9 +9,9 @@ import { runWithActor } from "#shared/http/actor.ts";
 import {
   aUser, anAdmin, anOrder, aPayout, TEST_ROUTING, TEST_ACCOUNT,
 } from "#shared/testing/builders/index.ts";
-import * as usersService from "#domain/users/service.ts";
-import * as ordersService from "#domain/orders/service.ts";
-import * as paymentDetails from "#domain/payments/details/service.ts";
+import * as usersService from "#identity/users/service.ts";
+import * as ordersService from "#orders/service.ts";
+import * as paymentDetails from "#payments/details/service.ts";
 import * as totalsRepo from "#db/orders/transactions/repo.ts";
 
 afterAll(async () => { await pool.end(); });

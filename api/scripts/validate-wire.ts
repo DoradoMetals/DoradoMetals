@@ -17,11 +17,11 @@ const cases: Case[] = [];
 const add = (name: string, schema: WireSchema, load: () => unknown, many = true) =>
   cases.push({ name, schema, load, many });
 
-const carriersService = await import("#domain/shipping/carriers/service.ts");
+const carriersService = await import("#logistics/shipping/carriers/service.ts");
 add("GET /carriers", c.CarrierRead, () => carriersService.getAllCarriers());
-const servicesService = await import("#domain/shipping/services/service.ts");
+const servicesService = await import("#logistics/shipping/services/service.ts");
 add("GET /carrier_services", c.CarrierServiceRead, () => servicesService.getAllServices());
-const pickupsService = await import("#domain/shipping/pickups/service.ts");
+const pickupsService = await import("#logistics/shipping/pickups/service.ts");
 add("GET /carrier_pickups", c.ShipmentPickup, () => pickupsService.getAll());
 
 const { rows: withAddresses } = await pool.query(
@@ -29,7 +29,7 @@ const { rows: withAddresses } = await pool.query(
    GROUP BY user_id ORDER BY count(*) DESC LIMIT 1`
 );
 const addressUser = withAddresses[0]?.user_id;
-const addressesService = await import("#domain/places/addresses/service.ts");
+const addressesService = await import("#identity/places/addresses/service.ts");
 const addressBook = async () =>
   addressUser ? await addressesService.list(addressUser) : [];
 add("GET /addresses", c.AddressBookEntry, addressBook);
@@ -51,7 +51,7 @@ if (!ledgerUser) {
     throw new Error("dev has no payments.ledger rows - the ledger check would be vacuous");
   });
 } else {
-  const transactionsService = await import("#domain/transactions/service.ts");
+  const transactionsService = await import("#payments/transactions/service.ts");
   add(
     "GET /transactions",
     c.AccountTransaction,
@@ -59,7 +59,7 @@ if (!ledgerUser) {
   );
 }
 
-const fulfillments = await import("#domain/fulfillments/service.ts");
+const fulfillments = await import("#logistics/fulfillments/service.ts");
 const fulfillmentMethods = await import("#db/fulfillments/methods/repo.ts");
 
 add("GET /fulfillments/methods (purchase)", c.FulfillmentMethodRead, () =>
@@ -103,7 +103,7 @@ add(
   async () => intents(await import("#db/payments/intents/repo.ts"))
 );
 
-const productsService = await import("#domain/products/service.ts");
+const productsService = await import("#catalog/products/service.ts");
 add("GET /products", c.BullionGroup, () => productsService.listGroups({ display: true }));
 add("GET /products (sell)", c.BullionGroup, () => productsService.listGroups({}));
 add("GET /products (row)", c.BullionStorefront, async () =>
@@ -111,14 +111,14 @@ add("GET /products (row)", c.BullionStorefront, async () =>
 );
 add("GET /products/admin", c.BullionAdmin, () => productsService.listAdminProducts());
 
-const spotsService = await import("#domain/spots/service.ts");
+const spotsService = await import("#pricing/spots/service.ts");
 add("GET /spots", c.SpotTicker, () => spotsService.listTicker());
-const ratesService = await import("#domain/rates/service.ts");
+const ratesService = await import("#pricing/rates/service.ts");
 add("GET /rates", c.RateRead, () => ratesService.listRates());
 add("GET /rates/admin", c.AdminRate, () => ratesService.listAdminRates());
 add("GET /rates/tiers", c.RateTier, () => ratesService.listTiers());
 
-const orderRead = await import("#domain/orders/read.ts");
+const orderRead = await import("#orders/read.ts");
 const orders = await orderRead.list("purchase", null);
 add("GET /orders", c.OrderRead, () => orderRead.list(null, null));
 
@@ -127,8 +127,8 @@ add("GET /orders/:id/spots", c.OrderSpot, async () => {
   const lists = await Promise.all(orders.map((o) => orderSpotsRepo.getRowsFor(o.id)));
   return lists.flat();
 });
-const refinerOrdersService = await import("#domain/refiners/orders/service.ts");
-const refinerSpotsService = await import("#domain/refiners/spots/service.ts");
+const refinerOrdersService = await import("#orders/refiners/orders/service.ts");
+const refinerSpotsService = await import("#orders/refiners/spots/service.ts");
 add("GET /orders/:orderId/refiners", c.RefinerOrder, async () => {
   const reads = await Promise.all(orders.map((o) => refinerOrdersService.getByOrder(o.id)));
   return reads.filter(Boolean);
@@ -144,8 +144,8 @@ add("GET /orders/:orderId/refiners/spots", c.RefinerSpot, async () => {
   );
   return lists.filter(Boolean).flat();
 });
-const fulfillmentPickups = await import("#domain/fulfillments/pickups/service.ts");
-const fulfillmentDirects = await import("#domain/fulfillments/directs/service.ts");
+const fulfillmentPickups = await import("#logistics/fulfillments/pickups/service.ts");
+const fulfillmentDirects = await import("#logistics/fulfillments/directs/service.ts");
 add("GET /orders/:orderId/fulfillments", c.FulfillmentView, async () => {
   const reads = await Promise.all(
     orders.map((o) => fulfillments.getForOrder(o.id, null, true))
@@ -158,7 +158,7 @@ add("GET /orders/:id/items", c.OrderItem, async () => {
   const lists = await Promise.all(orders.map((o) => orderItemsRepo.getFor(o.id)));
   return lists.flat();
 });
-const shipmentView = await import("#domain/shipping/shipments/view.ts");
+const shipmentView = await import("#logistics/shipping/shipments/view.ts");
 add("GET /orders/:orderId/shipments", c.ShipmentView, async () => {
   const lists = await Promise.all(orders.map((o) => shipmentView.forOrder(o.id, true)));
   return lists.flat();
@@ -171,7 +171,7 @@ add("GET /orders/:orderId/directs", c.FulfillmentDirect, async () => {
   const lists = await Promise.all(orders.map((o) => fulfillmentDirects.forOrder(o.id)));
   return lists.flat();
 });
-const orderReadDomain = await import("#domain/orders/read.ts");
+const orderReadDomain = await import("#orders/read.ts");
 add("GET /orders/:id", c.OrderView.omit({ payout: true }), async () => {
   const views = await Promise.all(orders.map((o) => orderReadDomain.view(o.id)));
   return views.filter((v): v is NonNullable<typeof v> => v != null)
@@ -190,7 +190,7 @@ add("GET /orders/:id/address", c.Address, async () => {
   return rows.filter(Boolean);
 });
 
-const pricing = await import("#domain/pricing/index.ts");
+const pricing = await import("#pricing/index.ts");
 const { rows: quotable } = await pool.query(
   `SELECT id, name FROM products.bullion
     WHERE display AND content IS NOT NULL
@@ -204,7 +204,7 @@ add("POST /quotes/catalog", c.ProductQuote, () =>
 const { rows: quoteMetals } = await pool.query(
   `SELECT id FROM metals.metals WHERE name = 'Gold' LIMIT 1`
 );
-const checkoutService = await import("#domain/checkout/service.ts");
+const checkoutService = await import("#checkout/service.ts");
 
 const saleBasket = addressUser && quotable.length
   ? await checkoutService.getRowFor(addressUser, "sale")

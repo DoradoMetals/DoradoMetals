@@ -3,7 +3,7 @@ process.env.NODE_ENV = "test";
 import "#env";
 import pool from "#pool";
 import query from "#shared/db/query.ts";
-import { auth } from "#domain/auth/client.ts";
+import { auth } from "#identity/auth/client.ts";
 
 export const E2E_USERS = {
   admin: {

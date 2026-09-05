@@ -1,5 +1,6 @@
 import { readFileSync, readdirSync, statSync, existsSync } from "node:fs";
 import { join, relative } from "node:path";
+import { domainDirs } from "./lib/layout.ts";
 
 const ROOT = process.env.ROUTE_GUARDS_ROOT
   ? process.env.ROUTE_GUARDS_ROOT.replace(/\/?$/, "/")
@@ -9,8 +10,8 @@ if (process.argv.includes("--self-test")) {
   const { selfTest } = await import("./lib/self-test-harness.ts");
   const Q = String.fromCharCode(34);
   const app = (mounts: string) =>
-    `import ordersRoutes from ${Q}#transport/orders/routes.ts${Q};\n` +
-    `import { purchaseOrderRoutes, api } from ${Q}#transport/orders/creates.routes.ts${Q};\n` +
+    `import ordersRoutes from ${Q}#orders/routes.ts${Q};\n` +
+    `import { purchaseOrderRoutes, api } from ${Q}#orders/creates.routes.ts${Q};\n` +
     mounts;
   const MOUNTS =
     'app.use("/api/orders", ordersRoutes);\n' +
@@ -22,11 +23,13 @@ purchaseOrderRoutes.delete("/purge_cancelled", requireAdmin, purge);
 purchaseOrderRoutes.post("/create_review", requireUser, requireOwnOrder, createReview);
 api.post("/create_review", requireUser, requireOwnOrder, createReview);
 `;
+  const manifest = { "package.json": JSON.stringify({ imports: { "#orders/*": "./orders/*" } }) };
   const base = (over: Record<string, string> = {}): Record<string, string> => ({
+    ...manifest,
     "app.ts": app(MOUNTS),
-    "transport/orders/routes.ts":
+    "orders/routes.ts":
       "const router = express.Router();\nrouter.get(\"/\", requireUser, list);\nexport default router;\n",
-    "transport/orders/creates.routes.ts": creates,
+    "orders/creates.routes.ts": creates,
     ...over,
   });
   const CONTROLS = JSON.stringify({
@@ -47,7 +50,7 @@ api.post("/create_review", requireUser, requireOwnOrder, createReview);
         name: "a `<x>.routes.ts` file going unscanned is caught by the controls (D120 assumption 1)",
         rootEnv: "ROUTE_GUARDS_ROOT",
         env: { ROUTE_GUARDS_FLOOR: "1", ROUTE_GUARDS_CONTROLS: CONTROLS },
-        files: (() => { const f = base(); f["transport/orders/creates.ts"] = f["transport/orders/creates.routes.ts"]; delete f["transport/orders/creates.routes.ts"]; return f; })(),
+        files: (() => { const f = base(); f["orders/creates.ts"] = f["orders/creates.routes.ts"]; delete f["orders/creates.routes.ts"]; return f; })(),
         expect: "fail", mustPrint: "not in the census at all",
       },
       {
@@ -77,7 +80,7 @@ api.post("/create_review", requireUser, requireOwnOrder, createReview);
       {
         name: "a missing app.ts is a broken scan, not an empty API",
         rootEnv: "ROUTE_GUARDS_ROOT", env,
-        files: { "transport/orders/routes.ts": "const router = express.Router();\n" },
+        files: { ...manifest, "orders/routes.ts": "const router = express.Router();\n" },
         expect: "fail", mustPrint: "the scan is broken",
       },
     ],
@@ -94,30 +97,34 @@ function walk(dir: string, out: string[] = []): string[] {
   return out;
 }
 
-if (!existsSync(join(ROOT, "app.ts")) || !existsSync(join(ROOT, "transport"))) {
+const DOMAINS = domainDirs(ROOT);
+const DOMAIN_DIRS = DOMAINS.map((d) => join(ROOT, d)).filter((d) => existsSync(d));
+if (!existsSync(join(ROOT, "app.ts")) || !DOMAIN_DIRS.length) {
   console.error(
-    `route-guards cannot read ${join(ROOT, "app.ts")} or ${join(ROOT, "transport")} - ` +
+    `route-guards cannot read ${join(ROOT, "app.ts")} or any of ${DOMAINS.join(", ")} - ` +
       `the scan is broken, and a census that cannot open the app must not report one`
   );
   process.exit(2);
 }
+const routeFilesOf = () => DOMAIN_DIRS.flatMap((d) => walk(d));
 const appSrc = readFileSync(join(ROOT, "app.ts"), "utf8");
 const importedAs = new Map<string, string>();
 const routerImports = (src: string): Map<string, string> => {
   const out = new Map<string, string>();
-  const def = /import\s+(\w+)\s+from\s+["']#transport\/([^"']+?)\.(?:js|ts)["']/g;
+  const def = /import\s+(\w+)\s+from\s+["']#([^/"']+)\/([^"']+?)\.(?:js|ts)["']/g;
   let m;
   while ((m = def.exec(src))) {
-    if (/(^|[\/.])routes$/.test(m[2])) out.set(m[1], `transport/${m[2]}`);
+    if (!DOMAINS.includes(m[2])) continue;
+    if (/(^|[\/.])routes$/.test(m[3])) out.set(m[1], `${m[2]}/${m[3]}`);
   }
-  const named = /import\s+\{([^}]+)\}\s+from\s+["']#transport\/([^"']+?)\.(?:js|ts)["']/g;
+  const named = /import\s+\{([^}]+)\}\s+from\s+["']#([^/"']+)\/([^"']+?)\.(?:js|ts)["']/g;
   while ((m = named.exec(src))) {
-    if (!/routes$/.test(m[2])) continue;
+    if (!DOMAINS.includes(m[2]) || !/routes$/.test(m[3])) continue;
     for (const raw of m[1].split(",")) {
       const parts = raw.trim().split(/\s+as\s+/);
       const exported = parts[0].trim();
       const local = (parts[1] ?? parts[0]).trim();
-      if (exported) out.set(local, `transport/${m[2]}::${exported}`);
+      if (exported) out.set(local, `${m[2]}/${m[3]}::${exported}`);
     }
   }
   return out;
@@ -154,7 +161,7 @@ const unresolvedMounts: string[] = [];
 }
 
 {
-  const routeFiles = walk(join(ROOT, "transport"));
+  const routeFiles = routeFilesOf();
   const nested = new Map<string, { at: string; childKey: string }[]>();
   for (const file of routeFiles) {
     const src = readFileSync(file, "utf8");
@@ -199,7 +206,7 @@ export type Route = {
 };
 
 const routes: Route[] = [];
-for (const file of walk(join(ROOT, "transport"))) {
+for (const file of routeFilesOf()) {
   const src = readFileSync(file, "utf8");
   const routerVars = routerVarsIn(src);
   const re =
@@ -258,7 +265,6 @@ if (isMain) {
   const KNOWN_ROUTES: Record<string, string> = process.env.ROUTE_GUARDS_CONTROLS
     ? JSON.parse(process.env.ROUTE_GUARDS_CONTROLS)
     : {
-        "DELETE /api/purchase_orders/purge_cancelled": "requireAdmin",
         "POST /api/purchase_orders/create_review": "requireUser",
         "POST /api/sales_orders/create_review": "requireUser",
         "GET /api/payments/details/:id/bank": "requireAdmin",

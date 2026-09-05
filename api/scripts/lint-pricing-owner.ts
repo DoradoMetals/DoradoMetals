@@ -1,16 +1,17 @@
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import path from "node:path";
+import { domainDirs, isTransportFile } from "./lib/layout.ts";
 
 const ROOT = process.env.LINT_PRICING_OWNER_ROOT
   ? path.resolve(process.env.LINT_PRICING_OWNER_ROOT)
   : path.join(import.meta.dirname, "..");
 
-const OWNER = "domain/pricing";
-const PUBLIC_ENTRY = "#domain/pricing/index.ts";
+const OWNER = "pricing";
+const PUBLIC_ENTRY = "#pricing/index.ts";
 
 const MONEY = ["price", "premium", "content", "spot", "ask", "bid", "fee", "tax"];
 
-const SCANNED = ["db", "domain", "transport", "shared", "providers", "scripts"];
+const SCANNED = ["db", "shared", "providers", "scripts", ...domainDirs(ROOT)];
 
 const ACCEPTED: Record<string, { count: number; why: string }> = {};
 
@@ -57,8 +58,12 @@ function isMoney(reference: string): boolean {
 
 const REFERENCE = "[A-Za-z_$][A-Za-z0-9_$]*(?:\\??\\.[A-Za-z_$][A-Za-z0-9_$]*)*";
 const PRODUCT = new RegExp(`(${REFERENCE})?\\s*\\*(?!\\*)\\s*(${REFERENCE})?`, "g");
-const IMPORT =
-  /^\s*(?:import|export)\b[^\n;]*?from\s+["'](#domain\/pricing\/[^"']+)["']|\bimport\(\s*["'](#domain\/pricing\/[^"']+)["']\s*\)/gm;
+const INSIDE = `#${OWNER}/`;
+const IMPORT = new RegExp(
+  `^\\s*(?:import|export)\\b[^\\n;]*?from\\s+["'](${INSIDE}[^"']+)["']` +
+    `|\\bimport\\(\\s*["'](${INSIDE}[^"']+)["']\\s*\\)`,
+  "gm"
+);
 
 const lineOf = (src: string, index: number): number => src.slice(0, index).split("\n").length;
 
@@ -81,6 +86,8 @@ function findingsIn(raw: string): Finding[] {
   for (const match of raw.matchAll(IMPORT)) {
     const target = match[1] ?? match[2];
     if (!target || target === PUBLIC_ENTRY) continue;
+    const inner = target.slice(INSIDE.length);
+    if (inner.includes("/") || isTransportFile(inner)) continue;
     found.push({
       line: lineOf(raw, match.index ?? 0),
       what: `imports \`${target}\` - the only way in is ${PUBLIC_ENTRY}`,
@@ -93,6 +100,16 @@ function findingsIn(raw: string): Finding[] {
 if (process.argv.includes("--self-test")) {
   const { selfTest } = await import("./lib/self-test-harness.ts");
   const LOW = { LINT_PRICING_OWNER_FLOOR: "1" };
+  const manifest = {
+    "package.json": JSON.stringify({
+      imports: Object.fromEntries(
+        ["checkout", "logistics", "orders", "payments", "pricing"].map((d) => [
+          `#${d}/*`,
+          `./${d}/*`,
+        ])
+      ),
+    }),
+  };
 
   await selfTest({
     script: new URL(import.meta.url).pathname,
@@ -100,27 +117,27 @@ if (process.argv.includes("--self-test")) {
       {
         name: "a service multiplying a price is a finding",
         rootEnv: "LINT_PRICING_OWNER_ROOT", env: LOW,
-        files: { "domain/orders/service.ts": "const total = unit_price * quantity;\n" },
+        files: { ...manifest, "orders/service.ts": "const total = unit_price * quantity;\n" },
         expect: "fail", mustPrint: "unit_price",
       },
       {
         name: "the spot on the right-hand side is seen too",
         rootEnv: "LINT_PRICING_OWNER_ROOT", env: LOW,
-        files: { "domain/checkout/service.ts": "const v = content * (spot.bid ?? 0);\n" },
-        expect: "fail", mustPrint: "domain/checkout/service.ts",
+        files: { ...manifest, "checkout/service.ts": "const v = content * (spot.bid ?? 0);\n" },
+        expect: "fail", mustPrint: "checkout/service.ts",
       },
       {
         name: "a camelCase money name counts",
         rootEnv: "LINT_PRICING_OWNER_ROOT", env: LOW,
-        files: { "domain/payments/service.ts": "const c = subjectTo * cardFee;\n" },
+        files: { ...manifest, "payments/service.ts": "const c = subjectTo * cardFee;\n" },
         expect: "fail", mustPrint: "cardFee",
       },
       {
         name: "reaching past the public index is a finding",
         rootEnv: "LINT_PRICING_OWNER_ROOT", env: LOW,
         files: {
-          "domain/orders/place.ts":
-            'import { priceOrder } from "#domain/pricing/service.ts";\n',
+          ...manifest,
+          "orders/place.ts": 'import { priceOrder } from "#pricing/service.ts";\n',
         },
         expect: "fail", mustPrint: "the only way in",
       },
@@ -128,8 +145,9 @@ if (process.argv.includes("--self-test")) {
         name: "the pricing domain may do its own arithmetic",
         rootEnv: "LINT_PRICING_OWNER_ROOT", env: LOW,
         files: {
-          "domain/pricing/rules.ts": "const v = content * (spot.bid * premium);\n",
-          "domain/orders/service.ts": "const n = rows.length;\n",
+          ...manifest,
+          "pricing/rules.ts": "const v = content * (spot.bid * premium);\n",
+          "orders/service.ts": "const n = rows.length;\n",
         },
         expect: "pass", mustPrint: "0 unaccepted",
       },
@@ -137,48 +155,49 @@ if (process.argv.includes("--self-test")) {
         name: "the public index is the allowed import",
         rootEnv: "LINT_PRICING_OWNER_ROOT", env: LOW,
         files: {
-          "domain/orders/service.ts":
-            'import * as pricing from "#domain/pricing/index.ts";\n',
+          ...manifest,
+          "orders/service.ts": 'import * as pricing from "#pricing/index.ts";\n',
         },
         expect: "pass", mustPrint: "0 unaccepted",
       },
       {
         name: "a multiplication of things that are not money is fine",
         rootEnv: "LINT_PRICING_OWNER_ROOT", env: LOW,
-        files: { "domain/shipping/rules.ts": "const area = width * height;\n" },
+        files: { ...manifest, "logistics/shipping/rules.ts": "const area = width * height;\n" },
         expect: "pass", mustPrint: "0 unaccepted",
       },
       {
         name: "a money word inside a comment is not a finding",
         rootEnv: "LINT_PRICING_OWNER_ROOT", env: LOW,
-        files: { "domain/orders/service.ts": "// unit_price * quantity used to live here\nconst n = 1;\n" },
+        files: { ...manifest, "orders/service.ts": "// unit_price * quantity used to live here\nconst n = 1;\n" },
         expect: "pass", mustPrint: "0 unaccepted",
       },
       {
         name: "a money word inside a string is not a finding",
         rootEnv: "LINT_PRICING_OWNER_ROOT", env: LOW,
-        files: { "domain/orders/rules.ts": 'const m = "price * quantity";\n' },
+        files: { ...manifest, "orders/rules.ts": 'const m = "price * quantity";\n' },
         expect: "pass", mustPrint: "0 unaccepted",
       },
       {
-        name: "a namespace import is not a multiplication",
+        name: "a namespace import of a pricing sub-resource is not a multiplication",
         rootEnv: "LINT_PRICING_OWNER_ROOT", env: LOW,
-        files: { "domain/orders/service.ts": 'import * as tax from "#domain/sales-tax/service.ts";\n' },
+        files: { ...manifest, "orders/service.ts": 'import * as tax from "#pricing/sales-tax/service.ts";\n' },
         expect: "pass", mustPrint: "0 unaccepted",
       },
       {
         name: "a test file is not a finding",
         rootEnv: "LINT_PRICING_OWNER_ROOT", env: LOW,
         files: {
-          "domain/orders/service.ts": "const n = 1;\n",
-          "domain/orders/tests/x.test.ts": "const t = unit_price * quantity;\n",
+          ...manifest,
+          "orders/service.ts": "const n = 1;\n",
+          "orders/tests/x.test.ts": "const t = unit_price * quantity;\n",
         },
         expect: "pass", mustPrint: "0 unaccepted",
       },
       {
         name: "an empty tree is broken, not clean",
         rootEnv: "LINT_PRICING_OWNER_ROOT",
-        files: { "domain/orders/service.ts": "const n = 1;\n" },
+        files: { ...manifest, "orders/service.ts": "const n = 1;\n" },
         expect: "fail", mustPrint: "fewer files",
       },
     ],
@@ -201,7 +220,7 @@ for (const dir of SCANNED) {
   }
 }
 
-const FLOOR = Number(process.env.LINT_PRICING_OWNER_FLOOR ?? 300);
+const FLOOR = Number(process.env.LINT_PRICING_OWNER_FLOOR ?? 302);
 if (scanned < FLOOR) {
   console.error(
     `lint:pricing-owner scanned ${scanned} file(s), fewer files than the api actually ` +
@@ -213,7 +232,7 @@ if (scanned < FLOOR) {
 if (!SYNTHETIC) {
   const control = findingsIn(
     "const unit = content * (spot.bid * premium);\n" +
-      ["im", "port { priceOrder } from ", '"#domain/pricing/service.ts";'].join("") + "\n"
+      ["im", "port { priceOrder } from ", '"#pricing/service.ts";'].join("") + "\n"
   );
   if (control.length !== 4) {
     console.error(

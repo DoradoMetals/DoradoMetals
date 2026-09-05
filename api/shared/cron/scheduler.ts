@@ -1,10 +1,10 @@
-import { sweepSettledIntents } from "#domain/payments/sweeps.ts";
-import { sweepAnonymousVisitorsNow } from "#domain/checkout/sweep.ts";
+import { sweepSettledIntents } from "#payments/sweeps.ts";
+import { sweepAnonymousVisitorsNow } from "#checkout/sweep.ts";
 import { reportError } from "#shared/observability/report.ts";
 import cron from "node-cron";
 import { logger } from "#shared/logging/logger.ts";
 
-import { updateSpotPrices } from "#domain/spots/service.ts";
+import { updateSpotPrices } from "#pricing/spots/service.ts";
 
 type Job = {
   name: string;

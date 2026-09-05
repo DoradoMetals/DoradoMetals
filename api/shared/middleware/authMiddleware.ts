@@ -1,5 +1,5 @@
 import type { NextFunction, Request, RequestHandler, Response } from "express";
-import { auth } from "#domain/auth/client.ts";
+import { auth } from "#identity/auth/client.ts";
 import { fromNodeHeaders } from "better-auth/node";
 import { runWithActor } from "#shared/http/actor.ts";
 

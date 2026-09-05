@@ -1,13 +1,20 @@
 import fs from "node:fs";
 import path from "node:path";
+import { domainDirs, isTransportFile } from "./lib/layout.ts";
 
 const ROOT = process.env.LINT_DOMAIN_ERRORS_ROOT
   ? path.resolve(process.env.LINT_DOMAIN_ERRORS_ROOT)
-  : path.join(import.meta.dirname, "..", "domain");
+  : path.join(import.meta.dirname, "..");
+
+const ROOTS = domainDirs(ROOT).map((d) => path.join(ROOT, d));
+const rel = (f: string) => path.relative(ROOT, f).split(path.sep).join("/");
 
 if (process.argv.includes("--self-test")) {
   const { selfTest } = await import("./lib/self-test-harness.ts");
   const LOW = { LINT_DOMAIN_ERRORS_FLOOR: "1" };
+  const manifest = {
+    "package.json": JSON.stringify({ imports: { "#widgets/*": "./widgets/*" } }),
+  };
   const clean =
     'import { NotFound } from "#shared/errors.ts";\n' +
     "export async function getOne(id: string) {\n" +
@@ -23,6 +30,7 @@ if (process.argv.includes("--self-test")) {
         name: "a statusCode assignment is seen",
         rootEnv: "LINT_DOMAIN_ERRORS_ROOT", env: LOW,
         files: {
+          ...manifest,
           "widgets/service.ts":
             "function notFound(id: string) {\n" +
             "  const err: Error & { statusCode?: number } = new Error(`no widget ${id}`);\n" +
@@ -36,6 +44,7 @@ if (process.argv.includes("--self-test")) {
         name: "refuse( is seen",
         rootEnv: "LINT_DOMAIN_ERRORS_ROOT", env: LOW,
         files: {
+          ...manifest,
           "widgets/service.ts":
             'import { refuse } from "#shared/http/refuse.ts";\n' +
             "export function bad() { throw refuse(400, \"nope\"); }\n",
@@ -46,6 +55,7 @@ if (process.argv.includes("--self-test")) {
         name: "refuseWith( is seen",
         rootEnv: "LINT_DOMAIN_ERRORS_ROOT", env: LOW,
         files: {
+          ...manifest,
           "widgets/service.ts":
             'import { refuseWith } from "#shared/http/refuse.ts";\n' +
             "export function bad() { refuseWith(409, \"nope\"); }\n",
@@ -56,6 +66,7 @@ if (process.argv.includes("--self-test")) {
         name: "a local HttpError type is seen even with no statusCode write",
         rootEnv: "LINT_DOMAIN_ERRORS_ROOT", env: LOW,
         files: {
+          ...manifest,
           "widgets/service.ts":
             "interface HttpError extends Error { statusCode?: number }\n" +
             "export function make(): HttpError { return new Error(\"x\"); }\n",
@@ -66,6 +77,7 @@ if (process.argv.includes("--self-test")) {
         name: "a violation in a test file is not a finding",
         rootEnv: "LINT_DOMAIN_ERRORS_ROOT", env: LOW,
         files: {
+          ...manifest,
           "widgets/service.ts": clean,
           "widgets/tests/service.test.ts":
             "const err: Error & { statusCode?: number } = new Error(\"x\");\n" +
@@ -76,19 +88,19 @@ if (process.argv.includes("--self-test")) {
       {
         name: "shared/errors.ts kinds are not a finding",
         rootEnv: "LINT_DOMAIN_ERRORS_ROOT", env: LOW,
-        files: { "widgets/service.ts": clean },
+        files: { ...manifest, "widgets/service.ts": clean },
         expect: "pass", mustPrint: "0 finding",
       },
       {
         name: "the floor fires on a tree far below it",
         rootEnv: "LINT_DOMAIN_ERRORS_ROOT",
-        files: { "widgets/service.ts": clean },
+        files: { ...manifest, "widgets/service.ts": clean },
         expect: "fail", mustPrint: "fewer domain files",
       },
       {
         name: "a missing root is a broken walk, not an empty one",
         rootEnv: "LINT_DOMAIN_ERRORS_ROOT", env: LOW,
-        files: {}, args: ["--root-must-exist"],
+        files: { ...manifest }, args: ["--root-must-exist"],
         expect: "fail", mustPrint: "no .ts files",
       },
     ],
@@ -119,28 +131,27 @@ function walk(dir: string, out: string[] = []): string[] {
   return out;
 }
 
-const exists = fs.existsSync(ROOT);
-const files = exists ? walk(ROOT) : [];
+const exists = ROOTS.some((d) => fs.existsSync(d));
+const files = ROOTS.flatMap((d) => walk(d)).filter((f) => !isTransportFile(rel(f)));
 
 if (!exists || files.length === 0) {
   console.error(
-    `lint:domain-errors found no .ts files in ${ROOT} - the walk is broken, ` +
-      `not the domain empty.`
+    `lint:domain-errors found no .ts files in ${ROOTS.join(", ")} - the walk is ` +
+      `broken, not the domains empty.`
   );
   process.exit(1);
 }
 
-const FLOOR = Number(process.env.LINT_DOMAIN_ERRORS_FLOOR ?? 70);
+const FLOOR = Number(process.env.LINT_DOMAIN_ERRORS_FLOOR ?? 92);
 if (files.length < FLOOR) {
   console.error(
-    `lint:domain-errors scanned ${files.length} file(s) under ${ROOT}, which is ` +
+    `lint:domain-errors scanned ${files.length} file(s) under ${ROOTS.join(", ")}, which is ` +
       `fewer domain files than exist (at least ${FLOOR}). A scan this small means ` +
-      `the walk broke, not that domain/ got smaller.`
+      `the walk broke, not that the domains got smaller.`
   );
   process.exit(1);
 }
 
-const rel = (f: string) => path.relative(ROOT, f);
 const problems: string[] = [];
 
 for (const file of files) {
@@ -160,7 +171,7 @@ if (problems.length) {
     `domain-errors check failed (${problems.length} finding(s)):\n\n` +
       `  A domain file names the KIND of refusal - Invalid, NotFound, Conflict,\n` +
       `  Forbidden from #shared/errors.ts - and shared/middleware/errorHandler.ts\n` +
-      `  maps it to a status. No file under domain/ spells an HTTP status, builds\n` +
+      `  maps it to a status. No domain file spells an HTTP status, builds\n` +
       `  an error with statusCode, or calls refuse/refuseWith from\n` +
       `  #shared/http/refuse.ts.\n`
   );

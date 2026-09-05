@@ -1,13 +1,22 @@
 import { readFileSync, readdirSync, statSync, existsSync } from "node:fs";
 import path from "node:path";
+import { domainDirs, isTransportFile } from "./lib/layout.ts";
 
 const API_ROOT = process.env.LINT_NO_THROW_ROOT
   ? path.resolve(process.env.LINT_NO_THROW_ROOT)
   : path.join(import.meta.dirname, "..");
 
-const DOMAIN_ROOT = path.join(API_ROOT, "domain");
+const DOMAIN_ROOTS = domainDirs(API_ROOT).map((d) => path.join(API_ROOT, d));
 
-const ACCEPTED: Record<string, { count: number; why: string }> = {};
+const ACCEPTED: Record<string, { count: number; why: string }> = {
+  "logistics/fulfillments/owner.ts": {
+    count: 1,
+    why:
+      "a transport helper, not a domain file - it takes an express Request and " +
+      "raises the 404 its controllers surface. Ruling 77 landed it beside the " +
+      "service it guards; its role did not change.",
+  },
+};
 
 function walk(dir: string, out: string[] = []): string[] {
   let entries: string[];
@@ -38,6 +47,9 @@ function throwLines(src: string): number[] {
 if (process.argv.includes("--self-test")) {
   const { selfTest } = await import("./lib/self-test-harness.ts");
   const LOW = { LINT_NO_THROW_FLOOR: "1" };
+  const manifest = {
+    "package.json": JSON.stringify({ imports: { "#widgets/*": "./widgets/*" } }),
+  };
   const rules =
     'import { NotFound } from "#shared/errors.ts";\n' +
     "export function assertWidget<T>(row: T | null, id: string): asserts row is T {\n" +
@@ -58,38 +70,41 @@ if (process.argv.includes("--self-test")) {
         name: "a throw in a service is seen",
         rootEnv: "LINT_NO_THROW_ROOT", env: LOW,
         files: {
-          "domain/widgets/rules.ts": rules,
-          "domain/widgets/service.ts":
+          ...manifest,
+          "widgets/rules.ts": rules,
+          "widgets/service.ts":
             "export async function getOne(id: string) {\n" +
             "  const row = await repo.getOne(id);\n" +
             "  if (!row) throw new NotFound(`no widget ${id}`);\n" +
             "  return row;\n" +
             "}\n",
         },
-        expect: "fail", mustPrint: "domain/widgets/service.ts:3",
+        expect: "fail", mustPrint: "widgets/service.ts:3",
       },
       {
-        name: "a throw in a non-service file under domain/ is seen too",
+        name: "a throw in a non-service file under a domain is seen too",
         rootEnv: "LINT_NO_THROW_ROOT", env: LOW,
         files: {
-          "domain/widgets/rules.ts": rules,
-          "domain/widgets/compose.ts": "export function f() { throw new Error('x'); }\n",
+          ...manifest,
+          "widgets/rules.ts": rules,
+          "widgets/compose.ts": "export function f() { throw new Error('x'); }\n",
         },
-        expect: "fail", mustPrint: "domain/widgets/compose.ts",
+        expect: "fail", mustPrint: "widgets/compose.ts",
       },
       {
         name: "the same refusal, moved into rules.ts, passes",
         rootEnv: "LINT_NO_THROW_ROOT", env: LOW,
-        files: { "domain/widgets/rules.ts": rules, "domain/widgets/service.ts": service },
+        files: { ...manifest, "widgets/rules.ts": rules, "widgets/service.ts": service },
         expect: "pass", mustPrint: "0 unaccepted",
       },
       {
         name: "a throw in a test file is not a finding",
         rootEnv: "LINT_NO_THROW_ROOT", env: LOW,
         files: {
-          "domain/widgets/rules.ts": rules,
-          "domain/widgets/service.ts": service,
-          "domain/widgets/tests/service.test.ts":
+          ...manifest,
+          "widgets/rules.ts": rules,
+          "widgets/service.ts": service,
+          "widgets/tests/service.test.ts":
             "test('refuses', () => { throw new Error('boom'); });\n",
         },
         expect: "pass", mustPrint: "0 unaccepted",
@@ -98,8 +113,9 @@ if (process.argv.includes("--self-test")) {
         name: "the word throw inside a comment is not a finding",
         rootEnv: "LINT_NO_THROW_ROOT", env: LOW,
         files: {
-          "domain/widgets/rules.ts": rules,
-          "domain/widgets/service.ts":
+          ...manifest,
+          "widgets/rules.ts": rules,
+          "widgets/service.ts":
             "// rules.assertWidget will throw when the row is gone.\n" +
             "/* and this block comment mentions throw as well */\n" + service,
         },
@@ -108,13 +124,13 @@ if (process.argv.includes("--self-test")) {
       {
         name: "the floor fires on a tree far below it",
         rootEnv: "LINT_NO_THROW_ROOT",
-        files: { "domain/widgets/service.ts": service },
+        files: { ...manifest, "widgets/service.ts": service },
         expect: "fail", mustPrint: "fewer files",
       },
       {
-        name: "a missing domain/ is a broken walk, not a clean one",
+        name: "a missing domain dir is a broken walk, not a clean one",
         rootEnv: "LINT_NO_THROW_ROOT", env: LOW,
-        files: { "shared/errors.ts": "export class NotFound extends Error {}\n" },
+        files: { ...manifest, "shared/errors.ts": "export class NotFound extends Error {}\n" },
         expect: "fail", mustPrint: "no .ts files",
       },
     ],
@@ -122,26 +138,26 @@ if (process.argv.includes("--self-test")) {
 }
 
 const SYNTHETIC = Boolean(process.env.LINT_NO_THROW_ROOT);
-const files = walk(DOMAIN_ROOT);
+const rel = (f: string) => path.relative(API_ROOT, f).split(path.sep).join("/");
+const files = DOMAIN_ROOTS.flatMap((d) => walk(d)).filter((f) => !isTransportFile(rel(f)));
 
-if (!existsSync(DOMAIN_ROOT) || files.length === 0) {
+if (!DOMAIN_ROOTS.some((d) => existsSync(d)) || files.length === 0) {
   console.error(
-    `lint:no-throw-in-services found no .ts files under ${DOMAIN_ROOT} - the walk is ` +
-      `broken, not domain/ empty.`
+    `lint:no-throw-in-services found no .ts files under ${DOMAIN_ROOTS.join(", ")} - ` +
+      `the walk is broken, not the domains empty.`
   );
   process.exit(1);
 }
 
-const FLOOR = Number(process.env.LINT_NO_THROW_FLOOR ?? 72);
+const FLOOR = Number(process.env.LINT_NO_THROW_FLOOR ?? 73);
 if (files.length < FLOOR) {
   console.error(
     `lint:no-throw-in-services scanned ${files.length} file(s), fewer files than ` +
-      `domain/ actually holds (at least ${FLOOR}). The walk broke, not the tree shrank.`
+      `the domains actually hold (at least ${FLOOR}). The walk broke, not the tree shrank.`
   );
   process.exit(1);
 }
 
-const rel = (f: string) => path.relative(API_ROOT, f).split(path.sep).join("/");
 const found = new Map<string, number[]>();
 for (const file of files) {
   const lines = throwLines(readFileSync(file, "utf8"));

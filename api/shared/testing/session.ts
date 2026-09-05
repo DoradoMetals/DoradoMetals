@@ -1,4 +1,4 @@
-import { auth } from "#domain/auth/client.ts";
+import { auth } from "#identity/auth/client.ts";
 
 type TestUser = {
   id: string; role?: string | null; email?: string | null; name?: string | null;

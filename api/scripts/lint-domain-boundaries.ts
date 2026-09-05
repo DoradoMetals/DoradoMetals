@@ -11,24 +11,24 @@ const CONTRACTS = existsSync(path.join(ROOT, "contracts"))
 
 const LANES: { dir: string; forbidden: string[]; why: string }[] = [
   {
-    dir: "domain/checkout",
+    dir: "checkout",
     forbidden: ["fulfillments", "shipping"],
     why: "checkout holds a fulfillment_id and asks fulfillments.missing (ruling 70)",
   },
   {
-    dir: "domain/orders",
+    dir: "orders",
     forbidden: ["fulfillments", "shipping"],
     why: "an order attaches a fulfillment and asks shipping for a label (rulings 67/69)",
   },
   {
-    dir: "domain/fulfillments",
+    dir: "logistics/fulfillments",
     forbidden: ["checkout"],
     why: "a draft belongs to a checkout; the checkout's own columns are its own",
   },
 ];
 
 const ACCEPTED: Record<string, { count: number; why: string }> = {
-  "domain/orders/service.ts": {
+  "orders/service.ts": {
     count: 10,
     why:
       "the ADMIN cancel and the hand-entered tracking number. `cancel` takes " +
@@ -36,10 +36,10 @@ const ACCEPTED: Record<string, { count: number; why: string }> = {
       "RETURN parcel's box and service, which no fulfillment draft describes " +
       "because a return leg is not a handover the customer made; updateTracking " +
       "records a number an admin was given by phone. Both write through " +
-      "domain/shipping's own service, so the parcel's columns are still " +
+      "logistics/shipping's own service, so the parcel's columns are still " +
       "shipping's to write - what is named here is the admin's INPUT.",
   },
-  "domain/orders/rules.ts": {
+  "orders/rules.ts": {
     count: 1,
     why:
       "`OrderActions.buy_label` and `update_tracking` are answered from the " +
@@ -165,9 +165,9 @@ if (process.argv.includes("--self-test")) {
         files: {
           "contracts/checkout.ts": checkoutEntity,
           "contracts/shipping.ts": shipmentEntity,
-          "domain/checkout/rules.ts": "const owed = row.package_id ? [] : ['package'];\n",
+          "checkout/rules.ts": "const owed = row.package_id ? [] : ['package'];\n",
         },
-        expect: "fail", mustPrint: "domain/checkout/rules.ts",
+        expect: "fail", mustPrint: "checkout/rules.ts",
       },
       {
         name: "the column is named in the message, so the fix is obvious",
@@ -175,7 +175,7 @@ if (process.argv.includes("--self-test")) {
         files: {
           "contracts/checkout.ts": checkoutEntity,
           "contracts/shipping.ts": shipmentEntity,
-          "domain/checkout/service.ts": "const x = 'carrier_service_id';\n",
+          "checkout/service.ts": "const x = 'carrier_service_id';\n",
         },
         expect: "fail", mustPrint: "carrier_service_id",
       },
@@ -185,9 +185,9 @@ if (process.argv.includes("--self-test")) {
         files: {
           "contracts/checkout.ts": checkoutEntity,
           "contracts/shipping.ts": shipmentEntity,
-          "domain/orders/place.ts": "const box = checkout.package_id;\n",
+          "orders/place.ts": "const box = checkout.package_id;\n",
         },
-        expect: "fail", mustPrint: "domain/orders/place.ts",
+        expect: "fail", mustPrint: "orders/place.ts",
       },
       {
         name: "the rule is symmetric: fulfillments may not name a checkout column",
@@ -195,7 +195,7 @@ if (process.argv.includes("--self-test")) {
         files: {
           "contracts/checkout.ts": checkoutEntity,
           "contracts/shipping.ts": shipmentEntity,
-          "domain/fulfillments/rules.ts": "const paid = row.payment_details_id != null;\n",
+          "logistics/fulfillments/rules.ts": "const paid = row.payment_details_id != null;\n",
         },
         expect: "fail", mustPrint: "payment_details_id",
       },
@@ -205,7 +205,7 @@ if (process.argv.includes("--self-test")) {
         files: {
           "contracts/checkout.ts": checkoutEntity,
           "contracts/shipping.ts": shipmentEntity,
-          "domain/checkout/service.ts": "const paid = row.payment_details_id != null;\n",
+          "checkout/service.ts": "const paid = row.payment_details_id != null;\n",
         },
         expect: "pass", mustPrint: "0 unaccepted",
       },
@@ -215,7 +215,7 @@ if (process.argv.includes("--self-test")) {
         files: {
           "contracts/checkout.ts": checkoutEntity,
           "contracts/shipping.ts": shipmentEntity,
-          "domain/fulfillments/drafts.ts": "const draft = (checkout_id) => checkout_id;\n",
+          "logistics/fulfillments/drafts.ts": "const draft = (checkout_id) => checkout_id;\n",
         },
         expect: "pass", mustPrint: "0 unaccepted",
       },
@@ -225,7 +225,7 @@ if (process.argv.includes("--self-test")) {
         files: {
           "contracts/checkout.ts": checkoutEntity,
           "contracts/shipping.ts": shipmentEntity,
-          "domain/checkout/service.ts": "const n = rows.length;\n",
+          "checkout/service.ts": "const n = rows.length;\n",
         },
         expect: "pass", mustPrint: "0 unaccepted",
       },
@@ -235,7 +235,7 @@ if (process.argv.includes("--self-test")) {
         files: {
           "contracts/checkout.ts": checkoutEntity,
           "contracts/shipping.ts": shipmentEntity,
-          "domain/checkout/service.ts": "const who = row.user_id;\n",
+          "checkout/service.ts": "const who = row.user_id;\n",
         },
         expect: "pass", mustPrint: "0 unaccepted",
       },
@@ -245,7 +245,7 @@ if (process.argv.includes("--self-test")) {
         files: {
           "contracts/checkout.ts": checkoutEntity,
           "contracts/shipping.ts": shipmentEntity,
-          "domain/checkout/service.ts": "// package_id used to live here\n" + clean,
+          "checkout/service.ts": "// package_id used to live here\n" + clean,
         },
         expect: "pass", mustPrint: "0 unaccepted",
       },
@@ -255,7 +255,7 @@ if (process.argv.includes("--self-test")) {
         files: {
           "contracts/checkout.ts": checkoutEntity,
           "contracts/shipping.ts": shipmentEntity,
-          "domain/checkout/service.ts": "const legacy_package_id_note = 1;\n",
+          "checkout/service.ts": "const legacy_package_id_note = 1;\n",
         },
         expect: "pass", mustPrint: "0 unaccepted",
       },
@@ -265,8 +265,8 @@ if (process.argv.includes("--self-test")) {
         files: {
           "contracts/checkout.ts": checkoutEntity,
           "contracts/shipping.ts": shipmentEntity,
-          "domain/checkout/service.ts": clean,
-          "domain/quotes/service.ts": "const box = row.package_id;\n",
+          "checkout/service.ts": clean,
+          "quotes/service.ts": "const box = row.package_id;\n",
         },
         expect: "pass", mustPrint: "0 unaccepted",
       },
@@ -276,8 +276,8 @@ if (process.argv.includes("--self-test")) {
         files: {
           "contracts/checkout.ts": checkoutEntity,
           "contracts/shipping.ts": shipmentEntity,
-          "domain/checkout/service.ts": clean,
-          "domain/checkout/tests/x.test.ts": "const box = row.package_id;\n",
+          "checkout/service.ts": clean,
+          "checkout/tests/x.test.ts": "const box = row.package_id;\n",
         },
         expect: "pass", mustPrint: "0 unaccepted",
       },
@@ -285,7 +285,7 @@ if (process.argv.includes("--self-test")) {
         name: "a tree with no contracts to read is broken, not clean",
         rootEnv: "LINT_DOMAIN_BOUNDARIES_ROOT",
         env: { LINT_DOMAIN_BOUNDARIES_FLOOR: "1" },
-        files: { "domain/checkout/service.ts": "const box = row.package_id;\n" },
+        files: { "checkout/service.ts": "const box = row.package_id;\n" },
         expect: "fail", mustPrint: "no contract",
       },
       {
@@ -295,7 +295,7 @@ if (process.argv.includes("--self-test")) {
         files: {
           "contracts/checkout.ts": checkoutEntity,
           "contracts/shipping.ts": shipmentEntity,
-          "domain/checkout/service.ts": clean,
+          "checkout/service.ts": clean,
         },
         expect: "fail", mustPrint: "fewer files",
       },
@@ -344,7 +344,7 @@ for (const lane of LANES) {
   }
 }
 
-const FLOOR = Number(process.env.LINT_DOMAIN_BOUNDARIES_FLOOR ?? 18);
+const FLOOR = Number(process.env.LINT_DOMAIN_BOUNDARIES_FLOOR ?? 52);
 if (scanned < FLOOR) {
   console.error(
     `lint:domain-boundaries scanned ${scanned} file(s), fewer files than the lanes ` +

@@ -72,7 +72,7 @@ test("updating an amount is what Stripe then holds, and the intent stays updatab
     ["requires_payment_method", "requires_confirmation", "requires_action"].includes(
       String(updated.status)
     ),
-    `intent moved to ${updated.status}, which domain/payments will not update`
+    `intent moved to ${updated.status}, which payments will not update`
   );
 });
 

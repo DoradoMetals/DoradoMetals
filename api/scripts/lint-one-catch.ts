@@ -1,15 +1,19 @@
 import fs from "node:fs";
 import path from "node:path";
+import { domainDirs } from "./lib/layout.ts";
 
 const API_ROOT = process.env.LINT_ONE_CATCH_ROOT
   ? path.resolve(process.env.LINT_ONE_CATCH_ROOT)
   : path.join(import.meta.dirname, "..");
 
-const WALK_ROOTS = ["domain", "transport"].map((d) => path.join(API_ROOT, d));
+const WALK_ROOTS = domainDirs(API_ROOT).map((d) => path.join(API_ROOT, d));
 
 if (process.argv.includes("--self-test")) {
   const { selfTest } = await import("./lib/self-test-harness.ts");
   const LOW = { LINT_ONE_CATCH_FLOOR: "1" };
+  const manifest = {
+    "package.json": JSON.stringify({ imports: { "#widgets/*": "./widgets/*" } }),
+  };
   const clean =
     'import { NotFound } from "#shared/errors.ts";\n' +
     "export async function getOne(id: string) {\n" +
@@ -25,7 +29,8 @@ if (process.argv.includes("--self-test")) {
         name: "a try block is seen",
         rootEnv: "LINT_ONE_CATCH_ROOT", env: LOW,
         files: {
-          "domain/widgets/service.ts":
+          ...manifest,
+          "widgets/service.ts":
             "export async function f() {\n  try {\n    await g();\n  } catch (err) {\n    throw err;\n  }\n}\n",
         },
         expect: "fail", mustPrint: "try {",
@@ -34,7 +39,8 @@ if (process.argv.includes("--self-test")) {
         name: "a catch with no binding is seen",
         rootEnv: "LINT_ONE_CATCH_ROOT", env: LOW,
         files: {
-          "domain/widgets/service.ts":
+          ...manifest,
+          "widgets/service.ts":
             "export async function f() {\n  try {\n    await g();\n  } catch {\n    return null;\n  }\n}\n",
         },
         expect: "fail", mustPrint: "catch",
@@ -43,17 +49,19 @@ if (process.argv.includes("--self-test")) {
         name: "a logger call is seen",
         rootEnv: "LINT_ONE_CATCH_ROOT", env: LOW,
         files: {
-          "domain/widgets/service.ts":
+          ...manifest,
+          "widgets/service.ts":
             'import { logger } from "#shared/logging/logger.ts";\n' +
             "export function f() { logger.error(\"nope\"); }\n",
         },
         expect: "fail", mustPrint: "logger.",
       },
       {
-        name: "a console call is seen, in transport too",
+        name: "a console call is seen, in a controller too",
         rootEnv: "LINT_ONE_CATCH_ROOT", env: LOW,
         files: {
-          "transport/widgets/controller.ts":
+          ...manifest,
+          "widgets/controller.ts":
             "export function f() { console.error(\"nope\"); }\n",
         },
         expect: "fail", mustPrint: "console.",
@@ -62,7 +70,8 @@ if (process.argv.includes("--self-test")) {
         name: "a ternary opening withTransaction on the truthy side is seen",
         rootEnv: "LINT_ONE_CATCH_ROOT", env: LOW,
         files: {
-          "domain/widgets/service.ts":
+          ...manifest,
+          "widgets/service.ts":
             "export async function f(tx?: Executor) {\n" +
             "  return tx ? withTransaction(write) : write(tx);\n" +
             "}\n",
@@ -73,7 +82,8 @@ if (process.argv.includes("--self-test")) {
         name: "a ternary opening withTransaction on the falsy side is seen",
         rootEnv: "LINT_ONE_CATCH_ROOT", env: LOW,
         files: {
-          "domain/widgets/service.ts":
+          ...manifest,
+          "widgets/service.ts":
             "export async function f(executor?: Executor) {\n" +
             "  return executor ? write(executor) : withTransaction(write);\n" +
             "}\n",
@@ -84,7 +94,8 @@ if (process.argv.includes("--self-test")) {
         name: "withTransaction inside a function that also takes an optional tx is seen",
         rootEnv: "LINT_ONE_CATCH_ROOT", env: LOW,
         files: {
-          "domain/widgets/service.ts":
+          ...manifest,
+          "widgets/service.ts":
             "export async function f(x: number, executor?: Executor) {\n" +
             "  return withTransaction(async (tx) => {\n" +
             "    await write(x, tx);\n" +
@@ -97,7 +108,8 @@ if (process.argv.includes("--self-test")) {
         name: "withTransaction in a use case with no optional executor/tx is not a finding",
         rootEnv: "LINT_ONE_CATCH_ROOT", env: LOW,
         files: {
-          "domain/widgets/service.ts":
+          ...manifest,
+          "widgets/service.ts":
             "export async function f(x: number) {\n" +
             "  return withTransaction(async (tx) => {\n" +
             "    await write(x, tx);\n" +
@@ -110,7 +122,8 @@ if (process.argv.includes("--self-test")) {
         name: "a write function taking a required tx is not a finding",
         rootEnv: "LINT_ONE_CATCH_ROOT", env: LOW,
         files: {
-          "domain/widgets/service.ts":
+          ...manifest,
+          "widgets/service.ts":
             "export async function f(x: number, tx: Executor) {\n" +
             "  await write(x, tx);\n" +
             "}\n",
@@ -121,8 +134,9 @@ if (process.argv.includes("--self-test")) {
         name: "a violation in a test file is not a finding",
         rootEnv: "LINT_ONE_CATCH_ROOT", env: LOW,
         files: {
-          "domain/widgets/service.ts": clean,
-          "domain/widgets/tests/service.test.ts":
+          ...manifest,
+          "widgets/service.ts": clean,
+          "widgets/tests/service.test.ts":
             "try {\n  f();\n} catch (err) {\n  console.error(err);\n}\n",
         },
         expect: "pass", mustPrint: "0 finding",
@@ -130,19 +144,19 @@ if (process.argv.includes("--self-test")) {
       {
         name: "a clean tree passes",
         rootEnv: "LINT_ONE_CATCH_ROOT", env: LOW,
-        files: { "domain/widgets/service.ts": clean, "transport/widgets/controller.ts": clean },
+        files: { ...manifest, "widgets/service.ts": clean, "widgets/controller.ts": clean },
         expect: "pass", mustPrint: "0 finding",
       },
       {
         name: "the floor fires on a tree far below it",
         rootEnv: "LINT_ONE_CATCH_ROOT",
-        files: { "domain/widgets/service.ts": clean },
+        files: { ...manifest, "widgets/service.ts": clean },
         expect: "fail", mustPrint: "fewer files",
       },
       {
         name: "a missing root is a broken walk, not an empty one",
         rootEnv: "LINT_ONE_CATCH_ROOT", env: LOW,
-        files: {}, args: ["--root-must-exist"],
+        files: { ...manifest }, args: ["--root-must-exist"],
         expect: "fail", mustPrint: "no .ts files",
       },
     ],
@@ -213,16 +227,16 @@ const files = exists ? WALK_ROOTS.flatMap((r) => walk(r)) : [];
 if (!exists || files.length === 0) {
   console.error(
     `lint:one-catch found no .ts files under ${WALK_ROOTS.join(", ")} - the walk is ` +
-      `broken, not domain/transport empty.`
+      `broken, not the domains empty.`
   );
   process.exit(1);
 }
 
-const FLOOR = Number(process.env.LINT_ONE_CATCH_FLOOR ?? 140);
+const FLOOR = Number(process.env.LINT_ONE_CATCH_FLOOR ?? 169);
 if (files.length < FLOOR) {
   console.error(
-    `lint:one-catch scanned ${files.length} file(s), fewer files than domain/ + ` +
-      `transport/ actually hold (at least ${FLOOR}). The walk broke, not the tree shrank.`
+    `lint:one-catch scanned ${files.length} file(s), fewer files than the domains ` +
+      `actually hold (at least ${FLOOR}). The walk broke, not the tree shrank.`
   );
   process.exit(1);
 }
@@ -255,7 +269,7 @@ for (const file of files) {
 if (problems.length) {
   console.error(
     `one-catch check failed (${problems.length} finding(s)):\n\n` +
-      `  domain/ and transport/ carry no try/catch and no logger/console call -\n` +
+      `  the domains carry no try/catch and no logger/console call -\n` +
       `  a refusal throws, withTransaction rolls back and rethrows, and\n` +
       `  shared/middleware/errorHandler.ts logs once. The one exception is\n` +
       `  shared/attempt.ts, for a best-effort side effect.\n\n` +

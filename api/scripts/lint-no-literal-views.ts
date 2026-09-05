@@ -1,5 +1,15 @@
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import path from "node:path";
+import { domainDirs, isTransportFile } from "./lib/layout.ts";
+
+const DOMAINS = domainDirs(
+  process.env.LINT_NO_LITERAL_VIEWS_ROOT
+    ? path.resolve(process.env.LINT_NO_LITERAL_VIEWS_ROOT)
+    : path.resolve(import.meta.dirname, "..")
+);
+const ROOTS = ["db", "shared", ...DOMAINS];
+const underDomain = (rel: string): boolean =>
+  DOMAINS.some((d) => rel === d || rel.startsWith(`${d}/`));
 
 const ROOT = process.env.LINT_NO_LITERAL_VIEWS_ROOT
   ? path.resolve(process.env.LINT_NO_LITERAL_VIEWS_ROOT)
@@ -17,18 +27,18 @@ const RESULT =
   "a small result record (counts, ids) a caller reads once - it names no table row";
 
 const ACCEPTED: Record<string, { count: number; why: string }> = {
-  "domain/checkout/adopt.ts": { count: 2, why: RESULT },
-  "domain/checkout/sweep.ts": { count: 2, why: RESULT },
-  "domain/media/images/service.ts": { count: 1, why: RESULT },
-  "domain/media/pdfs/order-inputs.ts": { count: 6, why: RESULT },
-  "domain/media/pdfs/serve.ts": { count: 4, why: RESULT },
-  "domain/orders/place.ts": { count: 3, why: RESULT },
-  "domain/payments/details/service.ts": { count: 2, why: CRUD },
-  "domain/payments/sweeps.ts": { count: 2, why: RESULT },
-  "domain/pricing/profit.ts": { count: 7, why: COMPUTED },
-  "domain/shipping/operations/resolver.ts": { count: 1, why: RESULT },
-  "domain/shipping/services/service.ts": { count: 3, why: CRUD },
-  "domain/shipping/shipments/service.ts": { count: 1, why: RESULT },
+  "checkout/adopt.ts": { count: 2, why: RESULT },
+  "checkout/sweep.ts": { count: 2, why: RESULT },
+  "media/images/service.ts": { count: 1, why: RESULT },
+  "media/pdfs/order-inputs.ts": { count: 6, why: RESULT },
+  "media/pdfs/serve.ts": { count: 4, why: RESULT },
+  "orders/place.ts": { count: 3, why: RESULT },
+  "payments/details/service.ts": { count: 2, why: CRUD },
+  "payments/sweeps.ts": { count: 2, why: RESULT },
+  "pricing/profit.ts": { count: 7, why: COMPUTED },
+  "logistics/shipping/operations/resolver.ts": { count: 1, why: RESULT },
+  "logistics/shipping/services/service.ts": { count: 3, why: CRUD },
+  "logistics/shipping/shipments/service.ts": { count: 1, why: RESULT },
 };
 
 const acceptedHit = new Map<string, number>();
@@ -96,7 +106,7 @@ function findingsIn(rel: string, raw: string): Finding[] {
     }
   }
 
-  if (!rel.startsWith("domain/") || path.basename(rel) === "rules.ts") return out;
+  if (!underDomain(rel) || isTransportFile(rel) || path.basename(rel) === "rules.ts") return out;
 
   for (const m of src.matchAll(/\breturn\s*\{/g)) {
     const open = (m.index ?? 0) + m[0].length - 1;
@@ -118,6 +128,9 @@ function findingsIn(rel: string, raw: string): Finding[] {
 if (process.argv.includes("--self-test")) {
   const { selfTest } = await import("./lib/self-test-harness.ts");
   const LOW = { LINT_NO_LITERAL_VIEWS_FLOOR: "1" };
+  const manifest = {
+    "package.json": JSON.stringify({ imports: { "#widgets/*": "./widgets/*" } }),
+  };
   await selfTest({
     script: new URL(import.meta.url).pathname,
     cases: [
@@ -125,7 +138,8 @@ if (process.argv.includes("--self-test")) {
         name: "a two-key literal returned from a service is seen",
         rootEnv: "LINT_NO_LITERAL_VIEWS_ROOT", env: LOW,
         files: {
-          "domain/widgets/service.ts":
+          ...manifest,
+          "widgets/service.ts":
             "export function view() {\n  return { widget: row, actions: acts };\n}\n",
         },
         expect: "fail", mustPrint: "2 entries",
@@ -134,7 +148,8 @@ if (process.argv.includes("--self-test")) {
         name: "the same literal in rules.ts is a decision and passes",
         rootEnv: "LINT_NO_LITERAL_VIEWS_ROOT", env: LOW,
         files: {
-          "domain/widgets/rules.ts":
+          ...manifest,
+          "widgets/rules.ts":
             "export function decide() {\n  return { missing: [], actions: acts };\n}\n",
         },
         expect: "pass", mustPrint: "0 finding",
@@ -143,7 +158,8 @@ if (process.argv.includes("--self-test")) {
         name: "a one-key literal is not a view",
         rootEnv: "LINT_NO_LITERAL_VIEWS_ROOT", env: LOW,
         files: {
-          "domain/widgets/service.ts": "export function f() {\n  return { ok: true };\n}\n",
+          ...manifest,
+          "widgets/service.ts": "export function f() {\n  return { ok: true };\n}\n",
         },
         expect: "pass", mustPrint: "0 finding",
       },
@@ -151,6 +167,7 @@ if (process.argv.includes("--self-test")) {
         name: "Object.assign anywhere but shared/views.ts is seen",
         rootEnv: "LINT_NO_LITERAL_VIEWS_ROOT", env: LOW,
         files: {
+          ...manifest,
           "db/widgets/repo.ts": "export const f = (a, b) => Object.assign(a, b);\n",
         },
         expect: "fail", mustPrint: "Object.assign lives in",
@@ -159,6 +176,7 @@ if (process.argv.includes("--self-test")) {
         name: "Object.assign inside shared/views.ts is the one home and passes",
         rootEnv: "LINT_NO_LITERAL_VIEWS_ROOT", env: LOW,
         files: {
+          ...manifest,
           "shared/views.ts": "export const f = (a, b) => Object.assign(a, b);\n",
         },
         expect: "pass", mustPrint: "0 finding",
@@ -167,7 +185,8 @@ if (process.argv.includes("--self-test")) {
         name: "a literal in a comment is not code",
         rootEnv: "LINT_NO_LITERAL_VIEWS_ROOT", env: LOW,
         files: {
-          "domain/widgets/service.ts":
+          ...manifest,
+          "widgets/service.ts":
             "// return { a: 1, b: 2 };\nexport function f() {\n  return null;\n}\n",
         },
         expect: "pass", mustPrint: "0 finding",
@@ -175,14 +194,13 @@ if (process.argv.includes("--self-test")) {
       {
         name: "a walk that finds nothing is BROKEN, not clean",
         rootEnv: "LINT_NO_LITERAL_VIEWS_ROOT",
-        files: { "README.md": "no typescript here\n" },
+        files: { ...manifest, "README.md": "no typescript here\n" },
         expect: "fail", mustPrint: "SCAN IS BROKEN",
       },
     ],
   });
 }
 
-const ROOTS = ["db", "domain", "shared", "transport"];
 const files = ROOTS.flatMap((r) => walk(path.join(ROOT, r)));
 const rel = (f: string) => path.relative(ROOT, f);
 
@@ -207,7 +225,7 @@ for (const [name, entry] of Object.entries(ACCEPTED)) {
   );
 }
 
-const FLOOR = Number(process.env.LINT_NO_LITERAL_VIEWS_FLOOR ?? 150);
+const FLOOR = Number(process.env.LINT_NO_LITERAL_VIEWS_FLOOR ?? 269);
 if (files.length < FLOOR) {
   console.error(
     `\nSCAN IS BROKEN: ${files.length} file(s) under ${ROOTS.join(", ")}, ` +

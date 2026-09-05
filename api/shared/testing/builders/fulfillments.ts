@@ -1,6 +1,6 @@
 import type { PoolClient } from "pg";
 import * as checkouts from "#db/checkout/checkouts/repo.ts";
-import * as fulfillmentService from "#domain/fulfillments/service.ts";
+import * as fulfillmentService from "#logistics/fulfillments/service.ts";
 import { fulfillmentMethodId } from "#shared/testing/builders/reference.ts";
 import type { Direction, FulfillmentPatchBody, FulfillmentView } from "@dorado/contracts";
 

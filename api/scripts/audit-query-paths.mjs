@@ -1,6 +1,7 @@
 import "#env";
 import fs from "node:fs";
 import path from "node:path";
+import { domainDirs } from "./lib/layout.ts";
 import pool from "#pool";
 import { NATIVE_SCHEMAS as SCHEMAS } from "./lib/schemas.ts";
 
@@ -17,7 +18,7 @@ if (process.argv.includes("--self-test")) {
       {
         name: "the literal floor fires on a tree with no statements in it",
         rootEnv: "AUDIT_QP_ROOT",
-        files: { "domain/x/service.ts": "export const noop = () => 1;\n", "shared/keep.ts": "export const k = 1;\n", },
+        files: { "package.json": JSON.stringify({ imports: { "#x/*": "./x/*" } }), "x/service.ts": "export const noop = () => 1;\n", "shared/keep.ts": "export const k = 1;\n", },
         expect: "fail", mustPrint: "the walk is broken, not the schema",
       },
       {
@@ -100,7 +101,7 @@ const scan = (sql, file, line) => {
   for (const g of groups) if (/\b(FROM|UPDATE|JOIN|WHERE)\b/i.test(g)) scan(g, file, line);
 };
 
-for (const f of ["db", "domain", "transport", "shared"]
+for (const f of ["db", "shared", ...domainDirs(ROOT)]
   .filter((l) => fs.existsSync(path.join(ROOT, l)))
   .flatMap((l) => walk(path.join(ROOT, l)))) {
   const src = fs.readFileSync(f, "utf8");

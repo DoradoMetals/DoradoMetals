@@ -1,9 +1,10 @@
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import path from "node:path";
+import { domainDirs, isTransportFile } from "./lib/layout.ts";
 
 const ROOT = process.env.LINT_TYPE_HOMES_ROOT ?? path.resolve(import.meta.dirname, "..");
 
-const ROOTS = ["db", "domain"];
+const ROOTS = ["db", ...domainDirs(ROOT)];
 
 const SMALL_FEATURES =
   "the small-features lane owns this file (refiners, leads, reviews, media, " +
@@ -17,15 +18,15 @@ const ACCEPTED: Record<string, { count: number; why: string }> = {
   "db/refiners/orders/repo.ts": { count: 2, why: SMALL_FEATURES },
   "db/refiners/spots/repo.ts": { count: 6, why: SMALL_FEATURES },
   "db/sales-tax/repo.ts": { count: 1, why: SMALL_FEATURES },
-  "domain/media/emails/record.ts": { count: 4, why: SMALL_FEATURES },
-  "domain/media/emails/utils/renderEmail.ts": { count: 2, why: SMALL_FEATURES },
-  "domain/media/pdfs/render/layout.ts": { count: 1, why: SMALL_FEATURES },
-  "domain/media/pdfs/render/sections.ts": { count: 2, why: SMALL_FEATURES },
-  "domain/media/pdfs/serve.ts": { count: 3, why: SMALL_FEATURES },
-  "domain/media/pdfs/service.ts": { count: 3, why: SMALL_FEATURES },
-  "domain/media/pdfs/store.ts": { count: 2, why: SMALL_FEATURES },
-  "domain/refiners/service.ts": { count: 1, why: SMALL_FEATURES },
-  "domain/refiners/spots/service.ts": { count: 1, why: SMALL_FEATURES },
+  "media/emails/record.ts": { count: 4, why: SMALL_FEATURES },
+  "media/emails/utils/renderEmail.ts": { count: 2, why: SMALL_FEATURES },
+  "media/pdfs/render/layout.ts": { count: 1, why: SMALL_FEATURES },
+  "media/pdfs/render/sections.ts": { count: 2, why: SMALL_FEATURES },
+  "media/pdfs/serve.ts": { count: 3, why: SMALL_FEATURES },
+  "media/pdfs/service.ts": { count: 3, why: SMALL_FEATURES },
+  "media/pdfs/store.ts": { count: 2, why: SMALL_FEATURES },
+  "orders/refiners/service.ts": { count: 1, why: SMALL_FEATURES },
+  "orders/refiners/spots/service.ts": { count: 1, why: SMALL_FEATURES },
 };
 
 const acceptedHit = new Map<string, number>();
@@ -175,79 +176,92 @@ function findingsIn(src: string, file: string): Finding[] {
 
 if (process.argv.includes("--self-test")) {
   const { selfTest } = await import("./lib/self-test-harness.ts");
+  const manifest = {
+    "package.json": JSON.stringify({
+      imports: Object.fromEntries(
+        ["logistics", "orders", "pricing"].map((d) => [`#${d}/*`, `./${d}/*`])
+      ),
+    }),
+  };
   await selfTest({
     script: new URL(import.meta.url).pathname,
     cases: [
       { name: "an exported type in a repo is seen", expect: "fail",
         rootEnv: "LINT_TYPE_HOMES_ROOT", env: { LINT_TYPE_HOMES_FLOOR: "0" },
-        files: { "db/orders/repo.ts": "export type NewOrder = { id: string };\n" },
+        files: { ...manifest, "db/orders/repo.ts": "export type NewOrder = { id: string };\n" },
         mustPrint: "NewOrder" },
       { name: "an interface is seen", expect: "fail",
         rootEnv: "LINT_TYPE_HOMES_ROOT", env: { LINT_TYPE_HOMES_FLOOR: "0" },
-        files: { "domain/shipping/tracking.ts": "interface ScanEvent { id: string }\n" },
+        files: { ...manifest, "logistics/shipping/tracking.ts": "interface ScanEvent { id: string }\n" },
         mustPrint: "ScanEvent" },
       { name: "a hand-written local object type is seen", expect: "fail",
         rootEnv: "LINT_TYPE_HOMES_ROOT", env: { LINT_TYPE_HOMES_FLOOR: "0" },
-        files: { "domain/orders/rules.ts": "type SaleLine = { id: string; gross: number };\n" },
+        files: { ...manifest, "orders/rules.ts": "type SaleLine = { id: string; gross: number };\n" },
         mustPrint: "SaleLine" },
       { name: "a re-export from a repo is seen", expect: "fail",
         rootEnv: "LINT_TYPE_HOMES_ROOT", env: { LINT_TYPE_HOMES_FLOOR: "0" },
         files: {
-          "domain/orders/read.ts":
+          ...manifest,
+          "orders/read.ts":
             'export type { PricedLine } from "#db/orders/items/repo.ts";\n',
         },
         mustPrint: "PricedLine" },
       { name: "a type-only re-export of a contract passes", expect: "pass",
         rootEnv: "LINT_TYPE_HOMES_ROOT", env: { LINT_TYPE_HOMES_FLOOR: "0" },
-        files: { "domain/orders/read.ts": 'export type { Order } from "@dorado/contracts";\n' },
+        files: { ...manifest, "orders/read.ts": 'export type { Order } from "@dorado/contracts";\n' },
         mustPrint: "0 misplaced" },
       { name: "an unexported derivation of a contract passes", expect: "pass",
         rootEnv: "LINT_TYPE_HOMES_ROOT", env: { LINT_TYPE_HOMES_FLOOR: "0" },
-        files: { "domain/orders/rules.ts": 'type Facts = Pick<OrderView, "order" | "items">;\n' },
+        files: { ...manifest, "orders/rules.ts": 'type Facts = Pick<OrderView, "order" | "items">;\n' },
         mustPrint: "0 misplaced" },
       { name: "a z.infer derivation passes", expect: "pass",
         rootEnv: "LINT_TYPE_HOMES_ROOT", env: { LINT_TYPE_HOMES_FLOOR: "0" },
-        files: { "db/rates/repo.ts": "type Row = z.infer<typeof Rate>;\n" },
+        files: { ...manifest, "db/rates/repo.ts": "type Row = z.infer<typeof Rate>;\n" },
         mustPrint: "0 misplaced" },
       { name: "an inline parameter type is a finding (ruling 73)", expect: "fail",
         rootEnv: "LINT_TYPE_HOMES_ROOT", env: { LINT_TYPE_HOMES_FLOOR: "0" },
         files: {
-          "domain/orders/service.ts":
+          ...manifest,
+          "orders/service.ts":
             "export function f(x: { a: string; b: number }): void {}\n",
         },
         mustPrint: "parameter spells out a shape" },
       { name: "a destructured inline parameter is the same finding", expect: "fail",
         rootEnv: "LINT_TYPE_HOMES_ROOT", env: { LINT_TYPE_HOMES_FLOOR: "0" },
         files: {
-          "domain/orders/service.ts":
+          ...manifest,
+          "orders/service.ts":
             "export function f({ a, b }: { a: string; b: number }): void {}\n",
         },
         mustPrint: "parameter spells out a shape" },
       { name: "a contract-typed parameter passes", expect: "pass",
         rootEnv: "LINT_TYPE_HOMES_ROOT", env: { LINT_TYPE_HOMES_FLOOR: "0" },
         files: {
-          "domain/orders/service.ts":
+          ...manifest,
+          "orders/service.ts":
             "export function f(view: OrderView, id: string): void {}\n",
         },
         mustPrint: "0 misplaced" },
       { name: "an object VALUE argument is not a parameter type", expect: "pass",
         rootEnv: "LINT_TYPE_HOMES_ROOT", env: { LINT_TYPE_HOMES_FLOOR: "0" },
         files: {
-          "domain/orders/service.ts":
+          ...manifest,
+          "orders/service.ts":
             "export const r = call(id, { a: 1, b: 2 });\n",
         },
         mustPrint: "0 misplaced" },
       { name: "a test file is out of scope", expect: "pass",
         rootEnv: "LINT_TYPE_HOMES_ROOT", env: { LINT_TYPE_HOMES_FLOOR: "0" },
-        files: { "db/orders/repo.test.ts": "export type Row = { id: string };\n" },
+        files: { ...manifest, "db/orders/repo.test.ts": "export type Row = { id: string };\n" },
         mustPrint: "0 misplaced" },
       { name: "a walk that finds nothing is BROKEN, not clean", expect: "fail",
         rootEnv: "LINT_TYPE_HOMES_ROOT",
-        files: { "shared/errors.ts": "export class Invalid extends Error {}\n" },
+        files: { ...manifest, "shared/errors.ts": "export class Invalid extends Error {}\n" },
         mustPrint: "SCAN IS BROKEN" },
       { name: "providers are out of scope", expect: "pass",
         rootEnv: "LINT_TYPE_HOMES_ROOT", env: { LINT_TYPE_HOMES_FLOOR: "0" },
         files: {
+          ...manifest,
           "providers/shipments/adapters/fedex.ts": "type AddressLike = { city?: string };\n",
           "db/orders/repo.ts": 'export type { Order } from "@dorado/contracts";\n',
         },
@@ -256,8 +270,10 @@ if (process.argv.includes("--self-test")) {
   });
 }
 
-const files = ROOTS.flatMap((root) => walk(path.join(ROOT, root)));
 const rel = (f: string) => path.relative(ROOT, f);
+const files = ROOTS.flatMap((root) => walk(path.join(ROOT, root))).filter(
+  (f) => !isTransportFile(rel(f))
+);
 
 const findings: Finding[] = [];
 for (const f of files) {
@@ -285,7 +301,7 @@ for (const [name, entry] of Object.entries(ACCEPTED)) {
   );
 }
 
-const FILE_FLOOR = Number(process.env.LINT_TYPE_HOMES_FLOOR ?? 100);
+const FILE_FLOOR = Number(process.env.LINT_TYPE_HOMES_FLOOR ?? 139);
 if (files.length < FILE_FLOOR) {
   console.error(
     `\nSCAN IS BROKEN: ${files.length} file(s) under ${ROOTS.join(", ")}, ` +

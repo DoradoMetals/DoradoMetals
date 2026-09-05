@@ -2,9 +2,10 @@ import { test } from "vitest";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
+import { domainDirs } from "../../../scripts/lib/layout.ts";
 
 const FEATURES = path.join(import.meta.dirname, "..", "..", "..");
-const LAYER_ROOTS = ["db", "domain", "transport"].map((l) => path.join(FEATURES, l));
+const LAYER_ROOTS = ["db", ...domainDirs(FEATURES)].map((l) => path.join(FEATURES, l));
 const walkAll = (): string[] => LAYER_ROOTS.flatMap((r) => walk(r));
 
 const EXTERNAL = [

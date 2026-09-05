@@ -1,5 +1,6 @@
 import { readFileSync, readdirSync, statSync, existsSync } from "node:fs";
 import { join, relative } from "node:path";
+import { domainDirs } from "./lib/layout.ts";
 
 const ROOT = process.env.LINT_ROW_ROOT
   ? process.env.LINT_ROW_ROOT.replace(/\/?$/, "/")
@@ -21,28 +22,31 @@ export async function getOne(id) {
     `import * as addressRepo from ${Q}#db/addresses/repo.exchange.js${Q};\n` +
     `export async function run(id) {\n${body}\n}\n`;
   const LOW = { LINT_ROW_CONTROL: "addresses" };
-  const base = { "db/addresses/repo.exchange.js": repo };
+  const base = {
+    "package.json": JSON.stringify({ imports: { "#orders/*": "./orders/*" } }),
+    "db/addresses/repo.exchange.js": repo,
+  };
   await selfTest({
     script: import.meta.filename,
     cases: [
       {
         name: "a list read as a row is seen - the sales-tax bug itself",
         rootEnv: "LINT_ROW_ROOT", env: LOW,
-        files: { ...base, "domain/orders/service.ts": caller(
+        files: { ...base, "orders/service.ts": caller(
           "  const address = await addressRepo.getAll(id);\n  return address.state;") },
         expect: "fail", mustPrint: "returns a list, but",
       },
       {
         name: "the array surface on a list is legitimate and not reported",
         rootEnv: "LINT_ROW_ROOT", env: LOW,
-        files: { ...base, "domain/orders/service.ts": caller(
+        files: { ...base, "orders/service.ts": caller(
           "  const rowsOut = await addressRepo.getAll(id);\n  return rowsOut.map((r) => r.state);") },
         expect: "pass", mustPrint: "0 read as a row",
       },
       {
         name: "a row-returning function read as a row passes",
         rootEnv: "LINT_ROW_ROOT", env: LOW,
-        files: { ...base, "domain/orders/service.ts": caller(
+        files: { ...base, "orders/service.ts": caller(
           "  const all = await addressRepo.getAll(id);\n" +
           "  const address = await addressRepo.getOne(id);\n" +
           "  return all.length + address.state;") },
@@ -51,7 +55,7 @@ export async function getOne(id) {
       {
         name: "the known-present control fires when the repo parser stops seeing lists",
         rootEnv: "LINT_ROW_ROOT",
-        files: { ...base, "domain/orders/service.ts": caller(
+        files: { ...base, "orders/service.ts": caller(
           "  const address = await addressRepo.getOne(id);\n  return address.state;") },
         expect: "fail", mustPrint: "known-present control",
       },
@@ -59,8 +63,12 @@ export async function getOne(id) {
   });
 }
 
-if (!existsSync(join(ROOT, "db")) || !existsSync(join(ROOT, "domain"))) {
-  console.error(`lint:row-vs-list cannot read ${join(ROOT, "db")} or ${join(ROOT, "domain")} - the walk is broken`);
+const DOMAINS = domainDirs(ROOT);
+if (!existsSync(join(ROOT, "db")) || !DOMAINS.some((d) => existsSync(join(ROOT, d)))) {
+  console.error(
+    `lint:row-vs-list cannot read ${join(ROOT, "db")} or any of ${DOMAINS.join(", ")} - ` +
+      `the walk is broken`
+  );
   process.exit(2);
 }
 
@@ -121,8 +129,8 @@ for (const file of walk(join(ROOT, "db"))) {
 
 const findings = [];
 let callsChecked = 0;
-for (const file of ["domain", "transport"].flatMap((layer) =>
-  existsSync(join(ROOT, layer)) ? walk(join(ROOT, layer)) : []
+for (const file of DOMAINS.flatMap((d) =>
+  existsSync(join(ROOT, d)) ? walk(join(ROOT, d)) : []
 )) {
   if (/(^|[\/])repo(\.\w+)?\.(js|ts)$/.test(file)) continue;
   const src = stripComments(readFileSync(file, "utf8"));
