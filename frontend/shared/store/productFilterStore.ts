@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { ProductFilters } from '@/features/products/types'
+import type { ProductFilters } from '@/shared/types/products'
 
 // WHICH FILTER THE CUSTOMER HAS SELECTED, and nothing else. The filtered list
 // itself comes from GET /products - this store's fields are that endpoint's

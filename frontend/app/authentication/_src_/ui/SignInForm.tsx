@@ -1,0 +1,102 @@
+'use client'
+
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { Button, Form, FormControl, FormField, FormItem, FormLabel, ValidatedField } from '@dorado/components'
+import { ForgotPasswordDialog } from './ForgotPasswordForm'
+import { Checkbox } from '@dorado/components'
+import { useSignIn } from '@/shared/hooks/auth/queries'
+
+import orSeparator from './OrSeparator'
+import { SignIn, signInSchema } from '@/shared/types/auth'
+import GoogleButton from './GoogleSignInButton'
+import { verifyRecaptcha } from './VerifyRecaptcha'
+
+export default function SignInForm() {
+
+  const { run: checkCaptcha, isPending: recaptchaPending } = verifyRecaptcha('sign_in')
+  const { mutate: signInMutation, error, isPending: signInPending } = useSignIn()
+
+  const form = useForm<SignIn>({
+    resolver: zodResolver(signInSchema),
+    defaultValues: { email: '', password: '', rememberMe: true },
+  })
+
+  const onSubmit = async (values: SignIn) => {
+    const human = await checkCaptcha()
+    if (!human) {
+      console.warn('Bot detected')
+      return
+    }
+    signInMutation(values)
+  }
+
+  return (
+    <div className="grid place-items-center pb-20">
+      <div className="flex flex-col w-full">
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+            <ValidatedField
+              control={form.control}
+              name="email"
+              label="Email"
+              type="email"
+            />
+
+            <div className="mb-2">
+              <ValidatedField
+                control={form.control}
+                name="password"
+                label="Password"
+                type="password"
+                showPasswordButton
+                showFormError={false}
+              />
+            </div>
+
+            <div className="flex justify-between items-center w-full">
+              <FormField
+                control={form.control}
+                name="rememberMe"
+                render={({ field }) => (
+                  <FormItem className="flex items-end gap-2">
+                    <FormControl>
+                      <Checkbox
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                        id="remember-me"
+                      />
+                    </FormControl>
+                    <FormLabel
+                      htmlFor="remember-me"
+                      className="cursor-pointer"
+                    >
+                      Remember Me
+                    </FormLabel>
+                  </FormItem>
+                )}
+              />
+              <ForgotPasswordDialog />
+            </div>
+
+            <div className="flex ml-auto">
+              <p className="ml-auto text-destructive">{error ? error.message : null}</p>
+            </div>
+
+            <Button
+              type="submit"
+              disabled={recaptchaPending || signInPending}
+              className="w-full mb-8"
+            >
+              {recaptchaPending ? 'Verifying…' : signInPending ? 'Signing In…' : 'Sign In'}
+            </Button>
+          </form>
+        </Form>
+
+        {orSeparator()}
+
+        <GoogleButton buttonLabel={'Sign In with Google'} />
+      </div>
+    </div>
+  )
+}

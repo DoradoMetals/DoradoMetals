@@ -295,7 +295,7 @@ api/                 @dorado/api        Express, ESM, TypeScript (Node runs .ts 
                        the nine domains: service, rules, routes, controller, tests together
   domains.ts           the service barrel (`#domains`)
   shared/ providers/ scripts/ migrations/ types/
-frontend/            @dorado/frontend   Next.js, TypeScript, strict
+frontend/            @dorado/frontend   Next.js app router, TypeScript, strict. NO `features/` dir: a route's own code is `app/<route>/_src_/`, cross-route code is `shared/<kind>/` (ui, hooks, types, utils, store, providers, tests)
 packages/contracts/  @dorado/contracts  zod schemas, imported by api only
 ```
 

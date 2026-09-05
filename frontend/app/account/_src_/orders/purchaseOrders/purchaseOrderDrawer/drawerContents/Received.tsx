@@ -1,0 +1,53 @@
+'use client'
+
+import { PurchaseOrderDrawerContentProps, statusConfig } from '@/shared/types/purchaseOrders'
+import { cn } from '@/shared/utils/cn'
+import { useOrderItems } from '@dorado/client'
+export default function ReceivedPurchaseOrder({ view }: PurchaseOrderDrawerContentProps) {
+  const { order } = view
+
+  const config = statusConfig[order.status ?? '']
+
+  // A CONTAINER for the one thing it shows: how many lines are assayed.
+  const { data: items = [] } = useOrderItems(order.id)
+  const totalItems = items.length
+  const confirmedItems = items.filter((item) => item.confirmed).length
+  const percent = totalItems > 0 ? Math.round((confirmedItems / totalItems) * 100) : 0
+
+  return (
+    <div className="flex flex-col items-center justify-center sm:px-6 w-full h-full rounded-lg">
+      <h2 className="mb-2">Your package has arrived!</h2>
+      <config.icon className='mb-6 text-primary' size={128} strokeWidth={1.5} />
+
+      <p className="mb-6 lg:px-14 text-left">
+        We have received your package and are now in the process of evaluating and assaying your
+        items.
+      </p>
+
+      <div className="flex flex-col items-center w-full gap-1 mt-4">
+        <div className="w-full flex justify-between">
+          <span>
+            {percent === 100 ? 'Evaluation Complete!' : 'Assaying metals...'}
+          </span>
+          <span>{percent}%</span>
+        </div>
+
+        <div className="w-full h-3 bg-card rounded-lg border border-border">
+          <div
+            className={cn(
+              'h-full transition-all duration-300 bg-linear-to-r from-primary/50 via-primary/75 to-primary',
+              percent === 100 ? 'rounded-full' : 'rounded-l-full',
+              
+            )}
+            style={{ width: `${percent}%` }}
+          />
+        </div>
+        <div className="w-full flex justify-between">
+          <span>
+            {confirmedItems} of {totalItems} {totalItems === 1 ? 'item' : 'items'} processed
+          </span>
+        </div>
+      </div>
+    </div>
+  )
+}

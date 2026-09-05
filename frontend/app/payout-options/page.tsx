@@ -1,7 +1,7 @@
 'use client'
 
 import { usePaymentMethods } from '@dorado/client'
-import { PayoutCard } from '@/features/payouts/ui/PayoutCard'
+import { PayoutCard } from './_src_/ui/PayoutCard'
 
 export default function Page() {
   const { data: payoutMethods = [] } = usePaymentMethods('purchase')

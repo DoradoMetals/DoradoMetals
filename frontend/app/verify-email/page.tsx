@@ -1,6 +1,6 @@
 'use client';
 
-import VerifyEmail from '@/features/auth/ui/VerifyEmail'
+import VerifyEmail from './_src_/ui/VerifyEmail'
 import { Suspense } from 'react'
 
 // This page is reached from the account-creation / verification email. The

@@ -1,6 +1,6 @@
 'use client'
 
-import ProductCard from '@/features/products/ui/ProductCard'
+import ProductCard from './_src_/products/ui/ProductCard'
 import { useProducts } from '@dorado/client'
 import { useProductFilterStore } from '@/shared/store/productFilterStore'
 

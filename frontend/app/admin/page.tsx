@@ -1,7 +1,7 @@
 'use client'
 
-import ProtectedPage from '@/features/auth/hooks/useProtectedPage'
-import { protectedRoutes } from '@/features/routes/types'
+import ProtectedPage from '@/shared/hooks/useProtectedPage'
+import { protectedRoutes } from '@/shared/types/routes'
 import { useMemo } from 'react'
 
 import {
@@ -9,24 +9,24 @@ import {
   SidebarSection,
   useSidebarQueryParamSelection,
 } from '@/shared/ui/SidebarLayout'
-import { userRoleOptions } from '@/features/users/types'
-import { useGetSession } from '@/features/auth/queries'
+import { userRoleOptions } from '@/shared/types/users'
+import { useGetSession } from '@/shared/hooks/auth/queries'
 import { Button, Drawer } from '@dorado/components'
 import { Calculator, CalendarIcon, ChevronLeft, Coins, Container, DollarSign, Lasso, MessagesSquare, Percent, TrendingUp, Truck, Users, ClipboardList, Wallet } from '@dorado/icons'
 import { useDrawerStore } from '@/shared/store/drawerStore'
 
-import { UsersPage } from '@/features/users/ui/UsersAdminTable'
-import LeadsPage from '@/features/leads/ui/LeadsAdminTable'
-import ProductsPage from '@/features/products/ui/AdminProductsTable'
-import ReviewsPage from '@/features/reviews/ui/ReviewsAdminTable'
+import { UsersPage } from './_src_/users/ui/UsersAdminTable'
+import LeadsPage from './_src_/leads/ui/LeadsAdminTable'
+import ProductsPage from './_src_/products/ui/AdminProductsTable'
+import ReviewsPage from './_src_/reviews/ui/ReviewsAdminTable'
 
 import { Suspense } from 'react'
 import { useOrders } from '@dorado/client'
-import PurchaseOrdersPage from '@/features/orders/purchaseOrders/admin/AdminPurchaseOrders'
-import SalesOrdersPage from '@/features/orders/salesOrders/admin/AdminSalesOrders'
-import RatesPage from '@/features/rates/ui/RatesAdminTable'
-import CarriersPage from '@/features/carriers/ui/CarriersAdminTable'
-import CarrierServicesPage from '@/features/carriers/ui/CarrierServicesAdminTable'
+import PurchaseOrdersPage from './_src_/orders/purchaseOrders/AdminPurchaseOrders'
+import SalesOrdersPage from './_src_/orders/salesOrders/AdminSalesOrders'
+import RatesPage from './_src_/rates/ui/RatesAdminTable'
+import CarriersPage from './_src_/carriers/ui/CarriersAdminTable'
+import CarrierServicesPage from './_src_/carriers/ui/CarrierServicesAdminTable'
 
 export default function Page() {
   return (

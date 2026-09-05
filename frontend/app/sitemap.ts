@@ -1,5 +1,5 @@
 import type { MetadataRoute } from 'next'
-import { indexablePaths } from '@/features/routes/types'
+import { indexablePaths } from '@/shared/types/routes'
 import type { BullionGroup } from '@dorado/contracts'
 import { fetchProducts } from '@dorado/client'
 

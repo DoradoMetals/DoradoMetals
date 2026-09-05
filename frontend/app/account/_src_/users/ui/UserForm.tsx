@@ -1,0 +1,180 @@
+'use client'
+
+import { useState } from 'react'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { Amount, Button, Form, Skeleton, ValidatedField } from '@dorado/components'
+import { MailCheck, MailWarning, MailX, UserX2 } from '@dorado/icons'
+import { User, userSchema } from '@/shared/types/users'
+import {
+  useUpdateUser,
+  useChangeEmail,
+  useSendVerifyEmail,
+  useGetSession,
+} from '@/shared/hooks/auth/queries'
+import { AccountAction } from './AccountAction'
+import { cn } from '@/shared/utils/cn'
+
+export default function UserForm() {
+  const { user, isPending } = useGetSession()
+  const updateUserMutation = useUpdateUser()
+  const changeEmailMutation = useChangeEmail()
+  const sendEmailVerificationMutation = useSendVerifyEmail()
+  const [emailSent, setEmailSent] = useState(false)
+
+  const defaultValues: User = {
+    id: user?.id ?? '',
+    email: user?.email ?? '',
+    name: user?.name ?? '',
+    createdAt: user?.createdAt ?? new Date(),
+    updatedAt: user?.updatedAt ?? new Date(),
+    emailVerified: user?.emailVerified ?? false,
+    role: user?.role ?? '',
+    stripeCustomerId: user?.stripeCustomerId ?? '',
+    dorado_funds: user?.dorado_funds ?? 0,
+  }
+
+  const userForm = useForm<User>({
+    resolver: zodResolver(userSchema),
+    mode: 'onSubmit',
+    defaultValues,
+  })
+
+  const handleUserSubmit = async (values: User) => {
+    if (user?.email !== values.email) {
+      changeEmailMutation.mutate(values.email)
+    }
+
+    if (user?.name !== values.name) {
+      updateUserMutation.mutate({ name: values.name })
+    }
+  }
+
+  const handleEmailVerification = () => {
+    if (!user) return
+    sendEmailVerificationMutation.mutate(user.email, {
+      onSettled: () => {
+        setEmailSent(true)
+        setTimeout(() => setEmailSent(false), 20000)
+      },
+    })
+  }
+
+  if (isPending) {
+    return (
+      <section className="w-full bg-card p-4 rounded-lg">
+        <div className="space-y-4">
+          <Skeleton className="h-4 w-32" />
+          <Skeleton className="h-8 w-40" />
+          <div className="h-px w-full bg-border my-4" />
+          <Skeleton className="h-9 w-full" />
+          <Skeleton className="h-9 w-full" />
+          <Skeleton className="h-10 w-full" />
+        </div>
+      </section>
+    )
+  }
+
+  const emailVerified = !!user?.emailVerified
+
+  let EmailIcon = MailX
+
+  if (emailVerified) {
+    EmailIcon = MailCheck
+  } else if (emailSent) {
+    EmailIcon = MailWarning
+  }
+
+  const emailDescription = emailVerified
+    ? 'Email verified.'
+    : emailSent
+    ? 'Check your email inbox for the verification link.'
+    : 'Verify your email to keep your account secure.'
+
+  const emailButtonLabel = emailVerified ? 'Verified' : emailSent ? 'Link Sent' : 'Verify'
+
+  const emailButtonDisabled =
+    emailVerified || emailSent || sendEmailVerificationMutation.isPending
+
+  const emailButtonOnClick =
+    !emailVerified && !emailSent ? handleEmailVerification : undefined
+
+  return (
+    <section className="w-full bg-card p-4 rounded-lg">
+      <div className="border-b border-border pb-6 mb-6">
+        <p className="eyebrow mb-6">Details</p>
+
+        <Form {...userForm}>
+          <form onSubmit={userForm.handleSubmit(handleUserSubmit)} className="space-y-5">
+            <ValidatedField
+              control={userForm.control}
+              name="name"
+              label="Name"
+              type="text"
+            />
+
+            <div className="space-y-1">
+              <ValidatedField
+                control={userForm.control}
+                name="email"
+                label="Email"
+                type="email"
+              />
+              {changeEmailMutation.isSuccess && user?.emailVerified === true && (
+                <p className="mt-1">
+                  An email has been sent to confirm the change. Follow that link before making
+                  further changes.
+                </p>
+              )}
+            </div>
+
+            <Button
+              type="submit"
+              variant="secondary"
+              className="w-full mb-8"
+              disabled={updateUserMutation.isPending || changeEmailMutation.isPending}
+            >
+              {updateUserMutation.isPending || changeEmailMutation.isPending
+                ? 'Saving...'
+                : 'Save Changes'}
+            </Button>
+          </form>
+        </Form>
+      </div>
+
+      <div className="border-b border-border pb-6 mb-6">
+        <p className="eyebrow mb-4">Verification</p>
+
+        <div className="space-y-4">
+          <AccountAction
+            icon={EmailIcon}
+            label="Email"
+            description={emailDescription}
+            buttonLabel={emailButtonLabel}
+            onClick={emailButtonOnClick}
+            disabled={emailButtonDisabled}
+            showCheckOnComplete={emailVerified}
+          />
+
+          <AccountAction
+            icon={UserX2}
+            label="Identity"
+            description="Coming soon"
+            buttonLabel="Verify"
+          />
+        </div>
+      </div>
+
+      <div>
+        <p className="eyebrow mb-2">Dorado Credit</p>
+
+        <div className={cn('flex w-full items-center justify-between gap-2', 'items-baseline')}>
+          <small>Current balance</small>
+          <strong>
+            <Amount value={user?.dorado_funds ?? 0} />
+          </strong>
+        </div>
+      </div>
+    </section>
+  )
+}

@@ -4,8 +4,8 @@ import { Link } from '@dorado/components'
 import NextLink from 'next/link'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { Suspense, useEffect, useState } from 'react'
-import { auth, magicLink, useUser } from '@/features/auth/authClient'
-import SetPasswordForm from '@/features/auth/ui/SetPasswordForm'
+import { auth, magicLink, useUser } from '@/shared/hooks/auth/authClient'
+import SetPasswordForm from './_src_/ui/SetPasswordForm'
 import { Button } from '@dorado/components'
 
 // Reached from the magic-link email (admin-created accounts, "your account is
