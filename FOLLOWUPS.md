@@ -15878,3 +15878,64 @@ table; no `exchange` table or row was touched.
 
 The create is four columns now - `(name, metal_id, mint_id, supplier_id)` - and
 everything else comes from a column default.
+
+## UAT rehearsal 2026-09-06
+
+The `pg_dump → migrate → backfill → verify` sequence was run end to end against
+a local restore of production (`docs/waves/uat-rehearsal.md` has the commands,
+the verbatim errors and the runbook). Open findings, in the order they bite:
+
+1. **`PROD_READONLY_DATABASE_URL` cannot dump production.** No SELECT on schemas
+   `core`/`auctions` or on any of the four sequences; the sequences are
+   table-owned so `-T` cannot exclude them. Step 1 needs the owner role.
+2. **`orders.orders.id` and `orders.transactions.id` have no
+   `DEFAULT gen_random_uuid()` after migration** — genesis's
+   `ADD COLUMN IF NOT EXISTS` cannot repair an existing column, and ruling 72
+   removed every `randomUUID()` from code. Production could not create an order.
+   156 test failures reproduce it. `129` correctly refuses to pass.
+3. **Seven live tables stay foreign-keyed to `core`** (14 constraints, e.g.
+   `orders.items.bullion_id -> core.bullion`, 66 rows against
+   `exchange.products`' 95). Genesis matches `ADD CONSTRAINT` by name, and the
+   January names are dev's names, so it accepted keys pointing at the wrong
+   tables. No existing check sees this. `core` also survives the chain entirely
+   (013 is inside the baseline) and makes `verify:genesis` refuse.
+4. **`-- baseline: 002-049` is wrong for production.** It stamps 48 migrations
+   that would have repaired the ten schemas production already holds. Result:
+   25 columns are `timestamp without time zone` where dev has `timestamptz`
+   (all of `auth.*`, the pickup windows, order timestamps), 20 columns lack
+   `NOT NULL`, 18 lack their default. Findings 2, 3 and 5-7 are all this.
+5. **`029_genesis_backfill.sql` fails on one statement** (`products.bullion.stock`,
+   dropped by 131) and that statement is the product catalogue. Unrepaired, the
+   migration leaves `products.bullion` empty and every quote endpoint returns
+   nothing.
+6. **`047_seed_reference_data.sql` is not idempotent against January residue** —
+   it duplicated `places.locations` 3 -> 6 and collided on
+   `shipping.services`.
+7. **`049_backfill_shipping.sql` writes zero shipments**: the
+   `shipments_addresses_required` check that `048` removes survives the
+   baseline. 30 of production's 71 shipments never migrate.
+8. **The chain stops six times** (088, 090, 092, 101, 102, 129) because genesis
+   is the post-131 shape while 050-131 are written against their own day's.
+   Five are provable no-ops; 129 is a real guard.
+9. **`verify:backfill` is broken and is not in `pnpm check`.** It models exactly
+   the production scenario - genesis into empty schemas, then the backfills -
+   and 131 broke it unnoticed.
+10. **`verify:genesis:production` gives a false green.** It models production
+    being *behind*, never production being *different*, so it is blind to every
+    finding above and still prints "genesis reproduces dev from production's
+    shape". Its schema list was also stale (8 schemas, no `checkout`) and its
+    `DROP COLUMN` was unquoted so it died on better-auth's camelCase columns -
+    both fixed in this pass; the false green is not.
+11. **`compare:databases` reports false differences across time zones.** It
+    fingerprints `t::text`, so a UTC server against a local `America/Chicago`
+    one showed 17 phantom differences out of 34. It should pin `TimeZone` and
+    `DateStyle` on both connections.
+12. **`audit:precision`'s floor is dev-calibrated** and fires on production's
+    shape (30 type differences examined, 45 required).
+
+Good news, measured: the restore is provably whole; `encrypt:payouts` joins
+**62 of 62** payouts once 071 and 073 have run (0 of 62 before them), seals 14
+and verifies 28 values with no mismatches; `audit:coverage` passes; the API test
+suite runs against a production-shaped database and **leaves zero rows behind**;
+and the only `exchange` change in the whole chain is `086`'s sanctioned
+`allow-destructive:` column drop - for which the dump becomes the only copy.

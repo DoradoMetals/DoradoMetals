@@ -3,13 +3,18 @@ import { execFileSync } from "node:child_process";
 import path from "node:path";
 import pg from "pg";
 import pool from "#pool";
+import { NATIVE_SCHEMAS as SCHEMAS } from "./lib/schemas.ts";
 
 const PREFIX = "zz_prodshape_";
 
-const SCHEMAS = [
-  "auth", "fulfillments", "orders", "payments",
-  "places", "refiners", "shipping", "tax",
-];
+// SCHEMAS is derived from scripts/lib/schemas.ts - the same list verify:genesis
+// reads - rather than kept by hand here. The hand-written copy had gone stale:
+// it named eight schemas and omitted checkout, which production has held since
+// January, so this check was blind to a schema it was meant to cover.
+//
+// A schema production does not have costs nothing: the loop below drops every
+// scratch table with no counterpart in production's information_schema, which
+// is already how it models production being behind.
 
 const unprefix = (s) => (s == null ? s : String(s).split(PREFIX).join(""));
 
@@ -104,7 +109,12 @@ try {
       );
       for (const { name: col } of cols) {
         if (prodShape.get(key).has(col)) continue;
-        await client.query(guard(`ALTER TABLE ${built}.${name} DROP COLUMN ${col} CASCADE`));
+        // The column name is quoted: better-auth's tables carry camelCase
+        // columns ("isAnonymous", "createdAt"), and unquoted Postgres folds
+        // them to lower case and reports the column as not existing.
+        await client.query(
+          guard(`ALTER TABLE ${built}.${name} DROP COLUMN "${col}" CASCADE`)
+        );
         droppedColumns++;
       }
     }
