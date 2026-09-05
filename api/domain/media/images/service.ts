@@ -91,10 +91,6 @@ export async function getTestImages(): Promise<(Image & { url: string })[]> {
   return Promise.all(rows.map(attachUrlToImage));
 }
 
-export async function listForUser(user_id: string): Promise<Image[]> {
-  return await images.listFor(user_id);
-}
-
 export async function deleteImage({
   user_id, id,
 }: { user_id?: string; id: string }): Promise<{ success: true } | null> {

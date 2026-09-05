@@ -20,13 +20,6 @@ export async function listFor(
   return rows;
 }
 
-export async function getByAddress(
-  address_id: string, executor?: Executor
-): Promise<UserAddress[]> {
-  const { rows } = await query<UserAddress>(sql("get_by_address"), [address_id], executor);
-  return rows;
-}
-
 export async function getOne(
   address_id: string, user_id: string, executor?: Executor
 ): Promise<UserAddress | undefined> {

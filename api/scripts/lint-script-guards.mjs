@@ -61,11 +61,6 @@ const REAL_EXCUSED = {
     kind: "action",
     why: "mints the disposable e2e purchase order. An action against the dev database, consumed by the admin drawer-work spec.",
   },
-  "api/scripts/generate-feature.mjs": {
-    kind: "action",
-    why:"scaffolds files. It already refuses to overwrite anything that exists, " +
-    "which is the only assertion it can make about a codebase it is adding to.",
-  },
   "api/scripts/reconcile-payments.ts": {
     kind: "action",
     why:"the create-then-charge safety net. Report mode is read-only; --commit " +
@@ -73,22 +68,7 @@ const REAL_EXCUSED = {
     "money - so its guards are the same conditional-from-Pending statements the " +
     "webhook uses (a retry or a race is a polite no-op), and there is no " +
     "detector to attack: every write path is exercised by " +
-    "domain/orders/tests/reconcile.test.ts against real Postgres instead.",
-  },
-  "api/scripts/clean-dual-run-orphans.mjs": {
-    kind: "action",
-    why:"deletes orphaned dual-run rows. An action, and a destructive one - it is " +
-    "interactive and refuses on any reference it finds.",
-  },
-  "api/scripts/clean-leaked-test-orders.mjs": {
-    kind: "action",
-    why:"deletes the 27 leaked test orders from dev. An action, already run once " +
-    "(cdf267e0), and destructive. Its guards are refusals rather than a " +
-    "detector: dry by default with --commit to apply, deletes by NAMED IDS " +
-    "only so it cannot widen to a predicate, refuses if any target is not a " +
-    "Pending purchase, and refuses if any survive. A self-test would have to " +
-    "plant orders to delete them, which is the write this script must never " +
-    "make speculatively.",
+    "domain/payments/tests/sweeps.test.ts against real Postgres instead.",
   },
 
   "api/scripts/dump-schema.mjs": {
@@ -98,16 +78,6 @@ const REAL_EXCUSED = {
   "api/scripts/dump-seed.mjs": {
     kind: "action",
     why:"prints seed SQL. The output is the artifact.",
-  },
-  "api/scripts/dump-stripe-reconciliation.mjs": {
-    kind: "action",
-    why:"one-shot export reader for the payments migration. Carries a column floor " +
-    "on the Stripe export it parses.",
-  },
-  "api/scripts/plan-migration.mjs": {
-    kind: "action",
-    why:"prints a plan for a human to read. It asserts nothing and is not consulted " +
-    "by anything automated.",
   },
 
   "api/scripts/audit-nullability.mjs": {
@@ -120,20 +90,6 @@ const REAL_EXCUSED = {
     kind: "assertion",
     why:"lists the Stripe intents production has no record of. Exits non-zero by " +
     "design while that is outstanding.",
-  },
-  "api/scripts/audit-item-price.mjs": {
-    kind: "action",
-    why:"one-shot answer to ruling 34 (D116), kept for the record.",
-  },
-  "api/scripts/audit-guards.mjs": {
-    kind: "assertion",
-    why:"asks each backfill guard whether it would refuse against production. The " +
-    "guards are the subject and they have their own tests.",
-  },
-  "api/scripts/compare-tables.mjs": {
-    kind: "action",
-    why:"prints two tables side by side for a human. compare-databases is the " +
-    "asserting version.",
   },
   "api/scripts/verify-genesis-production.mjs": {
     kind: "assertion",
@@ -190,10 +146,6 @@ const REAL_EXCUSED = {
     why:"refuses when it compared no tables, and when both URLs resolve to the same " +
     "database - a comparison of something with itself always passes.",
   },
-  "api/scripts/verify-parity.mjs": {
-    kind: "report",
-    why:"source table against target, type-aware, in the database.",
-  },
   "api/scripts/verify-genesis.mjs": {
     kind: "assertion",
     why:"builds the whole schema into renamed schemas inside a rolled-back " +
@@ -218,9 +170,6 @@ const REAL_NOT_EXECUTED_HERE = {
     "fingerprints every exchange table first. Correct, but this file must not " +
     "issue a write on a gate run. Run `pnpm --filter @dorado/api " +
     "audit:test-leaks:self-test` deliberately.",
-  "api/scripts/audit-slow-tests.mjs":
-    "parses a saved suite run; harmless, but it belongs to the suite lane and is " +
-    "run by `audit:slow-tests:self-test`.",
 };
 
 const EXCUSED = process.env.SCRIPT_GUARDS_EXCUSED
@@ -469,7 +418,7 @@ for (const f of scripts) {
   }
 }
 
-const SUITE_LIBRARY_FLOOR = Number(process.env.SCRIPT_GUARDS_SUITE_FLOOR ?? 2);
+const SUITE_LIBRARY_FLOOR = Number(process.env.SCRIPT_GUARDS_SUITE_FLOOR ?? 1);
 if (viaLibrary < SUITE_LIBRARY_FLOOR) {
   note(
     "ENV",

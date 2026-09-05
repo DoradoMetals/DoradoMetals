@@ -59,7 +59,7 @@ export default defineConfig({
     testTimeout: 20_000,
     hookTimeout: 20_000,
     maxWorkers: 12,
-    exclude: ["node_modules/**", "tests-external/**", "sandbox/**"],
+    exclude: ["node_modules/**", "tests-external/**"],
     projects: [
       project("unit", layers.unit),
       project("db", layers.db),
@@ -75,7 +75,6 @@ export default defineConfig({
         "**/*.test.ts",
         "scripts/**",
         "tests-external/**",
-        "sandbox/**",
         "migrations/**",
       ],
       thresholds: {

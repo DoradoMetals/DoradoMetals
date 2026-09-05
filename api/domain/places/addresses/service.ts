@@ -43,13 +43,6 @@ export async function isActive(
   return await addresses.isActive(address_id, user_id, executor);
 }
 
-export async function inBook(
-  address_id: string, user_id: string, executor?: Executor
-): Promise<boolean> {
-  const links = await userAddresses.getByAddress(address_id, executor);
-  return links.some((l) => l.user_id === user_id);
-}
-
 export async function snapshot(
   address_id: string, executor?: Executor
 ): Promise<string | null> {
@@ -93,14 +86,6 @@ export async function update(
     const link = rules.assertInBook(addressId, await userAddresses.getOne(addressId, userId, tx));
     return rules.entry(row, link, false);
   });
-}
-
-export async function recordValidation(
-  addressId: string, { is_valid, is_residential }: { is_valid: boolean; is_residential: boolean }
-): Promise<Address> {
-  return await withTransaction(async (tx) =>
-    rules.assertAddress(addressId, await addresses.update(addressId, { is_valid, is_residential }, tx))
-  );
 }
 
 export async function remove(addressId: string, userId: string): Promise<AddressBookEntry> {

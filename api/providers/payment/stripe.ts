@@ -59,10 +59,6 @@ export function updateIntent(paymentIntentId: string, changes: Record<string, un
   return stripeClient.paymentIntents.update(paymentIntentId, changes);
 }
 
-export function captureIntent(paymentIntentId: string) {
-  return stripeClient.paymentIntents.capture(paymentIntentId);
-}
-
 export async function cancelIntent(paymentIntentId: string): Promise<Stripe.PaymentIntent> {
   try {
     return await stripeClient.paymentIntents.cancel(paymentIntentId);
