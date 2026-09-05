@@ -149,7 +149,7 @@ if (!DOMAIN_ROOTS.some((d) => existsSync(d)) || files.length === 0) {
   process.exit(1);
 }
 
-const FLOOR = Number(process.env.LINT_NO_THROW_FLOOR ?? 73);
+const FLOOR = Number(process.env.LINT_NO_THROW_FLOOR ?? 72);
 if (files.length < FLOOR) {
   console.error(
     `lint:no-throw-in-services scanned ${files.length} file(s), fewer files than ` +

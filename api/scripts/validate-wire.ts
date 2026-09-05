@@ -245,7 +245,7 @@ add("POST /quotes/order", c.OrderPricing, () =>
 );
 
 add("POST /quotes/profit_breakdown", c.ProfitBreakdown, () =>
-  quotableOrders.length ? pricing.profitBreakdown({ order_id: quotableOrders[0].id }) : [],
+  quotableOrders.length ? pricing.profitBreakdown(quotableOrders[0].id) : [],
   false
 );
 

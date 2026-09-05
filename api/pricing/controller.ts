@@ -29,5 +29,5 @@ export const orderQuote = asyncHandler(async (req, res) => {
 
 export const profitBreakdown = asyncHandler(async (req, res) => {
   const body = parseStrict(OrderQuoteBody, req.body, "quotes/profit_breakdown body");
-  res.status(200).json(await pricing.profitBreakdown(body));
+  res.status(200).json(await pricing.profitBreakdown(body.order_id));
 });

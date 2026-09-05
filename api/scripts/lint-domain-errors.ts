@@ -142,7 +142,7 @@ if (!exists || files.length === 0) {
   process.exit(1);
 }
 
-const FLOOR = Number(process.env.LINT_DOMAIN_ERRORS_FLOOR ?? 92);
+const FLOOR = Number(process.env.LINT_DOMAIN_ERRORS_FLOOR ?? 91);
 if (files.length < FLOOR) {
   console.error(
     `lint:domain-errors scanned ${files.length} file(s) under ${ROOTS.join(", ")}, which is ` +

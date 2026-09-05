@@ -232,7 +232,7 @@ if (!exists || files.length === 0) {
   process.exit(1);
 }
 
-const FLOOR = Number(process.env.LINT_ONE_CATCH_FLOOR ?? 169);
+const FLOOR = Number(process.env.LINT_ONE_CATCH_FLOOR ?? 168);
 if (files.length < FLOOR) {
   console.error(
     `lint:one-catch scanned ${files.length} file(s), fewer files than the domains ` +

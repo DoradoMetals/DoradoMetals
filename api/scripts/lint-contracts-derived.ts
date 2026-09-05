@@ -12,7 +12,8 @@ const COMPUTED: Record<string, string> = {
   "pricing/quotes.ts": "the priced views the pricing SQL returns - a quote is " +
     "computed from five tables and stored in none",
   "pricing/profit.ts": "the margin split three ways across an order, its refiner's " +
-    "assay and two spot feeds - no table holds it",
+    "assay and two spot feeds - rows now, not a per-metal dictionary, but still " +
+    "a shape no table holds",
   "computed/providers.ts": "the carrier catalogue the provider adapter assembles",
   "computed/orders.ts": "what an order may have done to it - booleans derived " +
     "from five tables and stored in none",
