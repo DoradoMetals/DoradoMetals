@@ -62,3 +62,4 @@ export { Amount, type AmountProps } from "./amount/Amount";
 export { Carousel, type CarouselProps } from "./carousel/Carousel";
 export { useDebounce } from "./hooks/useDebounce";
 export { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage, useFormField } from "./form/Form";
+export { ValidatedField, type ValidatedFieldProps } from "./form/ValidatedField";

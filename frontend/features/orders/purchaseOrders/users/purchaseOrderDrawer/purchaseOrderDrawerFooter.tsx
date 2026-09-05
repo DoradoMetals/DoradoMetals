@@ -4,7 +4,6 @@ import { Accordion, Amount, Table, TableBody, TableCell, TableHead, TableHeader,
 import { useMemo, useState } from 'react'
 import { PurchaseOrderDrawerFooterProps, statusConfig } from '@/features/orders/purchaseOrders/types'
 import { assignScrapItemNames } from '@/features/orders/display'
-import { DetailRow } from '@/shared/ui/DetailRow'
 
 import formatPhoneNumber from '@/shared/utils/formatPhoneNumber'
 import { payoutMethodIcon, PayoutMethodType } from '@/features/payouts/types'
@@ -218,32 +217,47 @@ export default function PurchaseOrderDrawerFooter({ view }: PurchaseOrderDrawerF
       >
         <div className="flex flex-col gap-2">
           {scrapItems.length > 0 && (
-            <DetailRow label="Scrap:">
-              <Amount value={scrapTotal} />
-            </DetailRow>
+            <div className="flex w-full items-center justify-between gap-2">
+              <p>Scrap:</p>
+              <strong>
+                <Amount value={scrapTotal} />
+              </strong>
+            </div>
           )}
 
           {bullionItems.length > 0 && (
-            <DetailRow label="Bullion:">
-              <Amount value={bullionTotal} />
-            </DetailRow>
+            <div className="flex w-full items-center justify-between gap-2">
+              <p>Bullion:</p>
+              <strong>
+                <Amount value={bullionTotal} />
+              </strong>
+            </div>
           )}
 
           {(shipment?.shipment.cost ?? 0) > 0 && (
-            <DetailRow label="Shipping:">
-              -<Amount value={shipment?.shipment.cost ?? 0} />
-            </DetailRow>
+            <div className="flex w-full items-center justify-between gap-2">
+              <p>Shipping:</p>
+              <strong>
+                -<Amount value={shipment?.shipment.cost ?? 0} />
+              </strong>
+            </div>
           )}
 
           {payoutFee > 0 && (
-            <DetailRow label="Payout Fee:">
-              -<Amount value={payoutFee} />
-            </DetailRow>
+            <div className="flex w-full items-center justify-between gap-2">
+              <p>Payout Fee:</p>
+              <strong>
+                -<Amount value={payoutFee} />
+              </strong>
+            </div>
           )}
 
-          <DetailRow label="Total:" variant="total">
-            <Amount value={total} />
-          </DetailRow>
+          <div className="flex w-full items-center justify-between gap-2">
+            <strong>Total:</strong>
+            <strong className="stat-sm">
+              <Amount value={total} />
+            </strong>
+          </div>
         </div>
       </Accordion>
 

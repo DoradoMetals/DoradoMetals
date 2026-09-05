@@ -8,7 +8,6 @@ import { CircleHelp, Lock, LockOpen, Minus, Plus, Trash2 } from '@dorado/icons'
 import NextLink from 'next/link'
 import { UserAddress, makeEmptyWireAddress } from '@/features/addresses/types'
 import { useDrawerStore } from '@/shared/store/drawerStore'
-import { DetailRow } from '@/shared/ui/DetailRow'
 import { cn } from '@/shared/utils/cn'
 
 import {
@@ -383,9 +382,12 @@ function ServiceSelector() {
               {option.icon && <option.icon size={24} />}
               <strong>{option.label}</strong>
             </div>
-            <DetailRow label={option.time} variant="subtotal">
-              <Amount value={option.cost} />
-            </DetailRow>
+            <div className="flex w-full items-center justify-between gap-2">
+              <small>{option.time}</small>
+              <strong>
+                <Amount value={option.cost} />
+              </strong>
+            </div>
           </RadioOption>
         ))}
       </RadioGroup>
@@ -409,36 +411,46 @@ function OrderSummary({ orderPrices }: { orderPrices?: SalesOrderQuote }) {
     <div className="w-full flex-col">
       <h2 className="eyebrow my-4">Payment Details</h2>
 
-      <DetailRow label="Shipping">
-        <Amount value={orderPrices?.shipping_charge ?? 0} />
-      </DetailRow>
+      <div className="flex w-full items-center justify-between gap-2">
+        <p>Shipping</p>
+        <strong>
+          <Amount value={orderPrices?.shipping_charge ?? 0} />
+        </strong>
+      </div>
 
       {appliedFunds > 0 && (
-        <DetailRow label="Dorado Funds Applied">
-          -<Amount value={appliedFunds} />
-        </DetailRow>
+        <div className="flex w-full items-center justify-between gap-2">
+          <p>Dorado Funds Applied</p>
+          <strong>
+            -<Amount value={appliedFunds} />
+          </strong>
+        </div>
       )}
       {subjectToCharges > 0 && (
-        <DetailRow label={appliedFunds > 0 ? 'Amount Remaining' : 'Items'}>
-          <Amount value={subjectToCharges} />
-        </DetailRow>
+        <div className="flex w-full items-center justify-between gap-2">
+          <p>{appliedFunds > 0 ? 'Amount Remaining' : 'Items'}</p>
+          <strong>
+            <Amount value={subjectToCharges} />
+          </strong>
+        </div>
       )}
 
       {surcharge > 0 && (
-        <DetailRow
-          label={`${
+        <div className="flex w-full items-center justify-between gap-2">
+          <p>{`${
             saleMethods.find((m) => m.type === data.payment_method)?.label
           } Surcharge (${
             saleMethods.find((m) => m.type === data.payment_method)?.surcharge_label
-          })`}
-        >
-          <Amount value={surcharge} />
-        </DetailRow>
+          })`}</p>
+          <strong>
+            <Amount value={surcharge} />
+          </strong>
+        </div>
       )}
 
       {salesTax > 0 && (
-        <DetailRow
-          label={
+        <div className="flex w-full items-center justify-between gap-2">
+          <p>
             <span className="flex items-center gap-1">
               Sales Tax
               <Link asChild className="inline-flex size-4 items-center justify-center">
@@ -447,18 +459,22 @@ function OrderSummary({ orderPrices }: { orderPrices?: SalesOrderQuote }) {
                 </NextLink>
               </Link>
             </span>
-          }
-        >
-          <Amount value={salesTax} />
-        </DetailRow>
+          </p>
+          <strong>
+            <Amount value={salesTax} />
+          </strong>
+        </div>
       )}
 
       <div className="pt-2">
         <Divider />
 
-        <DetailRow label="Order Total" variant="total" className="pt-2">
-          <Amount value={orderPrices?.post_charges_amount ?? 0} />
-        </DetailRow>
+        <div className="flex w-full items-center justify-between gap-2 pt-2">
+          <strong>Order Total</strong>
+          <strong className="stat-sm">
+            <Amount value={orderPrices?.post_charges_amount ?? 0} />
+          </strong>
+        </div>
       </div>
     </div>
   )

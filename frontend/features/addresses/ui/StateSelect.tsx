@@ -1,20 +1,18 @@
 'use client'
 
 import * as React from 'react'
-import { Controller, type Control, type FieldPath, type FieldValues } from 'react-hook-form'
+import {
+  Controller,
+  type Control,
+  type ControllerFieldState,
+  type ControllerRenderProps,
+  type FieldPath,
+  type FieldValues,
+} from 'react-hook-form'
 
 import { cn } from '@/shared/utils/cn'
-import { Button, Field } from '@dorado/components'
-import { Check, ChevronDown } from '@dorado/icons'
-import { Popover, PopoverContent, PopoverTrigger } from '@/shared/ui/base/popover'
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from '@/shared/ui/base/command'
+import { Autocomplete, type AutocompleteItem } from '@dorado/components'
+import { Check } from '@dorado/icons'
 import { reverseStateMap, stateMap, states } from '@/features/addresses/types'
 
 type StateItem = { code: string; name: string }
@@ -52,6 +50,64 @@ function getStateNameFromCode(code?: string | null): string {
   return stateMap[upper] ?? ''
 }
 
+function StateAutocompleteRow<TFieldValues extends FieldValues>({
+  field,
+  fieldState,
+  label,
+  placeholder,
+  disabled,
+}: {
+  field: ControllerRenderProps<TFieldValues, FieldPath<TFieldValues>>
+  fieldState: ControllerFieldState
+  label?: string
+  placeholder?: string
+  disabled?: boolean
+}) {
+  const code = normalizeToStateCode(field.value as any)
+  const selectedName = getStateNameFromCode(code)
+  const [query, setQuery] = React.useState(selectedName)
+
+  React.useEffect(() => {
+    setQuery(selectedName)
+  }, [selectedName])
+
+  const trimmed = query.trim().toLowerCase()
+  const filtered = trimmed
+    ? STATE_ITEMS.filter((s) => `${s.name} ${s.code}`.toLowerCase().includes(trimmed))
+    : STATE_ITEMS
+
+  const items: AutocompleteItem[] = filtered.map((s) => ({
+    id: s.code,
+    textValue: s.name,
+    label: (
+      <span className="flex w-full items-center gap-2">
+        <Check className={cn(s.code === code ? 'opacity-100' : 'opacity-0')} size={16} />
+        <span className="flex-1">{s.name}</span>
+        <small>{s.code}</small>
+      </span>
+    ),
+  }))
+
+  return (
+    <>
+      <Autocomplete
+        label={label}
+        value={query}
+        onValueChange={setQuery}
+        items={items}
+        onSelect={(item) => {
+          field.onChange(item.id)
+          setQuery(item.textValue)
+        }}
+        placeholder={placeholder}
+        disabled={disabled}
+        empty="No states found."
+      />
+      {fieldState.error?.message ? <p className="text-destructive">{fieldState.error.message}</p> : null}
+    </>
+  )
+}
+
 export function StateComboboxField<TFieldValues extends FieldValues>({
   control,
   name,
@@ -69,83 +125,21 @@ export function StateComboboxField<TFieldValues extends FieldValues>({
   disabled?: boolean
   className?: string
 }) {
-  const [open, setOpen] = React.useState(false)
-
   return (
     <Controller
       control={control}
       name={name}
-      render={({ field, fieldState }) => {
-        const code = normalizeToStateCode(field.value as any)
-        const selectedName = getStateNameFromCode(code)
-
-        return (
-          <Field label={label} className={cn('py-1', className)}>
-            <Popover open={open} onOpenChange={setOpen}>
-              <PopoverTrigger asChild>
-                <Button
-                  type="button"
-                  variant="secondary"
-                  size="sm"
-                  role="combobox"
-                  aria-expanded={open}
-                  disabled={disabled}
-                  className="w-full justify-between"
-                >
-                  <span className="truncate">{selectedName ? selectedName : placeholder}</span>
-                  <ChevronDown size={16} />
-                </Button>
-              </PopoverTrigger>
-
-              <PopoverContent
-                align="start"
-                className={cn(
-                  'p-0 z-80',
-                  'w-[var(--radix-popover-trigger-width)]',
-
-                  'max-w-none'
-                )}
-              >
-                <Command surface="highest" className="w-full">
-                  <CommandInput placeholder={searchPlaceholder} className="w-full" />
-
-                  <CommandList className="w-full">
-                    <CommandEmpty>No states found.</CommandEmpty>
-
-                    <CommandGroup className="max-h-60 overflow-auto">
-                      {STATE_ITEMS.map((s) => {
-                        const isSelected = s.code === code
-                        return (
-                          <CommandItem
-                            key={s.code}
-                            value={`${s.name} ${s.code}`}
-                            onSelect={() => {
-                              field.onChange(s.code)
-                              setOpen(false)
-                            }}
-                            className="cursor-pointer"
-                          >
-                            <Check
-                              className={cn(isSelected ? 'opacity-100' : 'opacity-0')}
-                              size={16}
-                            />
-                            <span className="flex-1">{s.name}</span>
-                            <small>{s.code}</small>
-                          </CommandItem>
-                        )
-                      })}
-                    </CommandGroup>
-                  </CommandList>
-                </Command>
-              </PopoverContent>
-            </Popover>
-
-            {fieldState.error?.message ? (
-              <p className="text-destructive">{fieldState.error.message}</p>
-            ) : null}
-          </Field>
-        )
-      }}
+      render={({ field, fieldState }) => (
+        <div className={cn('py-1', className)}>
+          <StateAutocompleteRow
+            field={field}
+            fieldState={fieldState}
+            label={label}
+            placeholder={placeholder}
+            disabled={disabled}
+          />
+        </div>
+      )}
     />
   )
 }

@@ -1,13 +1,9 @@
 'use client'
 
-import SelectMenu from '@/shared/ui/SelectMenu'
-import { Button, Swiper } from '@dorado/components'
-import { ChevronDown, ListIcon } from '@dorado/icons'
+import { Button, Select, Swiper } from '@dorado/components'
+import { ListIcon } from '@dorado/icons'
 import { cn } from '@/shared/utils/cn'
 
-/* The "no filter" row needs a value because `SelectMenu` is keyed by string,
-   and the state it drives is `string | null`. One sentinel, converted at the
-   single boundary, rather than a nullable value type on the shared menu. */
 const ALL = '__all__'
 
 type StatusConfigEntry = {
@@ -34,9 +30,6 @@ export function OrderStatusSelector({
   setOpen,
   mobileSwiperClassName,
 }: StatusSelectorProps) {
-  const selectedConfig = selectedStatus ? statusConfig[selectedStatus] : null
-  const SelectedIcon = selectedConfig?.icon
-
   return (
     <div className="flex flex-col lg:flex-row lg:justify-between lg:items-end gap-2 w-full">
       <div className="flex lg:hidden w-full">
@@ -67,43 +60,33 @@ export function OrderStatusSelector({
       </div>
 
       <div className="hidden lg:flex">
-        {/* SIX hand-rolled Popover+Command menus existed in the tree while
-            `shared/ui/SelectMenu` had zero importers. This was one of them, and
-            it carried two D99 collapses of its own (the chosen row and the
-            tick both pinned `text-white` on a near-white fill). The chosen
-            row's appearance is the component's now. */}
-        <SelectMenu
-          open={open}
-          onOpenChange={setOpen}
-          align="start"
-          side="bottom"
-          contentClassName="w-60"
+        <Select
+          className="w-60"
           value={selectedStatus ?? ALL}
+          onValueChange={(value) => setSelectedStatus(value === ALL ? null : value)}
           items={[
-            { label: 'All Orders', value: ALL, icon: ListIcon },
-            ...statuses.map((status) => ({
-              label: status,
-              value: status,
-              icon: statusConfig[status].icon,
-            })),
-          ]}
-          onSelect={(value) => setSelectedStatus(value === ALL ? null : value)}
-          trigger={
-            <Button
-              variant="secondary"
-              className="px-2 w-60 flex items-center justify-between h-8"
-            >
-              <span className="flex items-center gap-3">
-                {selectedStatus === null ? (
+            {
+              value: ALL,
+              label: (
+                <span className="flex items-center gap-2">
                   <ListIcon size={14} />
-                ) : (
-                  SelectedIcon && <SelectedIcon size={14} />
-                )}
-                <span>{selectedStatus ?? 'All Orders'}</span>
-              </span>
-              <ChevronDown size={14} className="ml-1" />
-            </Button>
-          }
+                  All Orders
+                </span>
+              ),
+            },
+            ...statuses.map((status) => {
+              const Icon = statusConfig[status].icon
+              return {
+                value: status,
+                label: (
+                  <span className="flex items-center gap-2">
+                    <Icon size={14} />
+                    {status}
+                  </span>
+                ),
+              }
+            }),
+          ]}
         />
       </div>
     </div>

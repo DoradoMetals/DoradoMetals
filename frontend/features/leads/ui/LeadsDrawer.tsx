@@ -3,20 +3,76 @@
 import type { Lead, LeadPatch } from "@dorado/contracts";
 import { useDrawerStore } from '@/shared/store/drawerStore'
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { format, isValid, parse, parseISO } from 'date-fns'
 
-import { formatFullDate } from '@/shared/utils/formatDates'
+import { formatFullDate, formatPickupDateShort, formatPickupTime } from '@/shared/utils/formatDates'
 
 import { LeadPriority } from '@/features/leads/types'
 import { PrioritySelect } from '@/features/leads/ui/PrioritySelect'
 import { useCreateUser } from '@/features/auth/queries'
-import { SegmentedField } from '@/shared/ui/SegmentedField'
 import formatPhoneNumber, { normalizePhone } from '@/shared/utils/formatPhoneNumber'
-import SchedulePicker from '@/shared/ui/SchedulePicker'
-import { Autocomplete, Badge, Button, Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, Drawer, Field, Input, Textarea } from '@dorado/components'
+import {
+  Autocomplete,
+  Badge,
+  Button,
+  DatePicker,
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  Drawer,
+  Field,
+  Input,
+  RadioGroup,
+  RadioOption,
+  Textarea,
+  type TimeGroup,
+} from '@dorado/components'
 import { Trash2, UserPlus } from '@dorado/icons'
 import { isValidEmail } from '@/shared/utils/isValid'
 import { useDeleteLead, useUpdateLead } from '@/features/leads/queries'
 import { useAdminRoleUsers, useAdminUsers } from '@dorado/client'
+
+function toLocalDateISO(d: Date) {
+  return format(d, 'yyyy-MM-dd')
+}
+
+function buildLocalDateTime(dateISO: string, time: string) {
+  const [y, mo, da] = dateISO.split('-').map(Number)
+  const [hh, mm] = time.split(':').map(Number)
+  return new Date(y, mo - 1, da, hh, mm, 0, 0)
+}
+
+function hasTimezoneSuffix(v: string) {
+  return /([zZ]|[+\-]\d{2}:\d{2})$/.test(v)
+}
+
+function parseScheduled(value: string) {
+  const d = hasTimezoneSuffix(value)
+    ? parseISO(value)
+    : parse(value, "yyyy-MM-dd'T'HH:mm:ss", new Date())
+
+  return isValid(d) ? d : null
+}
+
+function toOffsetISO(d: Date) {
+  return format(d, "yyyy-MM-dd'T'HH:mm:ssxxx")
+}
+
+function buildTimeGroups(): TimeGroup[] {
+  const slots: TimeGroup['slots'] = []
+  for (let h = 0; h < 24; h++) {
+    for (let m = 0; m < 60; m += 30) {
+      const value = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:00`
+      slots.push({ value, label: formatPickupTime(value) })
+    }
+  }
+  return [{ label: 'Time', slots }]
+}
+
+const CONTACTED_TIME_GROUPS = buildTimeGroups()
 
 export default function LeadsDrawer({ leads, lead_id }: { leads: Lead[]; lead_id: string }) {
   const { activeDrawer, closeDrawer } = useDrawerStore()
@@ -141,24 +197,48 @@ function Booleans({ lead }: { lead: Lead }) {
       <p className="eyebrow">Booleans</p>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 2xl:grid-cols-3 gap-4 items-stretch justify-items-stretch">
-        <SegmentedField
-          label="Contacted"
-          value={!!lead.contacted}
-          onChange={(v) => handleUpdate({ contacted: v })}
-          className="w-full"
-        />
-        <SegmentedField
-          label="Responded"
-          value={!!lead.responded}
-          onChange={(v) => handleUpdate({ responded: v })}
-          className="w-full"
-        />
-        <SegmentedField
-          label="Converted"
-          value={!!lead.converted}
-          onChange={(v) => handleUpdate({ converted: v })}
-          className="w-full"
-        />
+        <Field label="Contacted" className="w-full">
+          <RadioGroup
+            value={String(!!lead.contacted)}
+            onValueChange={(v) => handleUpdate({ contacted: v === 'true' })}
+            className="flex w-full gap-2"
+          >
+            <RadioOption value="true" variant="segment" className="flex-1">
+              Yes
+            </RadioOption>
+            <RadioOption value="false" variant="segment" className="flex-1">
+              No
+            </RadioOption>
+          </RadioGroup>
+        </Field>
+        <Field label="Responded" className="w-full">
+          <RadioGroup
+            value={String(!!lead.responded)}
+            onValueChange={(v) => handleUpdate({ responded: v === 'true' })}
+            className="flex w-full gap-2"
+          >
+            <RadioOption value="true" variant="segment" className="flex-1">
+              Yes
+            </RadioOption>
+            <RadioOption value="false" variant="segment" className="flex-1">
+              No
+            </RadioOption>
+          </RadioGroup>
+        </Field>
+        <Field label="Converted" className="w-full">
+          <RadioGroup
+            value={String(!!lead.converted)}
+            onValueChange={(v) => handleUpdate({ converted: v === 'true' })}
+            className="flex w-full gap-2"
+          >
+            <RadioOption value="true" variant="segment" className="flex-1">
+              Yes
+            </RadioOption>
+            <RadioOption value="false" variant="segment" className="flex-1">
+              No
+            </RadioOption>
+          </RadioGroup>
+        </Field>
       </div>
     </div>
   )
@@ -186,6 +266,31 @@ function Contacted({ lead }: { lead: Lead }) {
 
   const lastContacted = lead.last_contacted ? new Date(lead.last_contacted).toISOString() : null
 
+  const selectedDateTime = useMemo(
+    () => (lastContacted ? parseScheduled(lastContacted) : null),
+    [lastContacted]
+  )
+  const selectedDateISO = selectedDateTime ? toLocalDateISO(selectedDateTime) : null
+  const selectedTime = selectedDateTime
+    ? `${String(selectedDateTime.getHours()).padStart(2, '0')}:${String(
+        selectedDateTime.getMinutes()
+      ).padStart(2, '0')}:00`
+    : null
+
+  const emitDateTime = (d: Date) =>
+    handleUpdate({ last_contacted: new Date(toOffsetISO(d)).toISOString() })
+
+  const selectDate = (newDate: Date | undefined) => {
+    if (!newDate) return
+    const dateISO = toLocalDateISO(newDate)
+    emitDateTime(buildLocalDateTime(dateISO, selectedTime ?? '12:00:00'))
+  }
+
+  const selectTime = (t: string) => {
+    const baseDateISO = selectedDateISO ?? toLocalDateISO(new Date())
+    emitDateTime(buildLocalDateTime(baseDateISO, t))
+  }
+
   const contactItems = admins
     .filter((a) => (a.name ?? '').toLowerCase().includes(contactQuery.trim().toLowerCase()))
     .map((a) => ({ id: a.id, textValue: a.name ?? '', label: a.name ?? '' }))
@@ -206,14 +311,15 @@ function Contacted({ lead }: { lead: Lead }) {
         />
 
         <Field label="Last Contacted" className="w-full">
-          <SchedulePicker
-            value={lastContacted}
-            // The column is a timestamp and the wire carries it as a string. A Date
-            // was built here and serialised on the way out, so the ISO string is the
-            // same value sent one step earlier.
-            onChange={(iso) => handleUpdate({ last_contacted: iso ? new Date(iso).toISOString() : null })}
-            minDate={minDate}
-            maxDate={maxDate}
+          <DatePicker
+            mode="single"
+            selected={selectedDateTime ?? undefined}
+            onSelect={selectDate}
+            disabled={[{ before: minDate }, { after: maxDate }]}
+            timeGroups={CONTACTED_TIME_GROUPS}
+            timeValue={selectedTime}
+            onTimeChange={selectTime}
+            timeHeading={selectedDateISO ? formatPickupDateShort(selectedDateISO) : 'Select date'}
           />
         </Field>
       </div>

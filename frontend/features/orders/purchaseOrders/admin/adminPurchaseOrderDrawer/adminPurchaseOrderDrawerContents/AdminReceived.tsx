@@ -1,5 +1,5 @@
-import { Button, Checkbox, Divider, Field, Input, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@dorado/components'
-import { ChevronDown, Lock, Plus, RotateCcw, Unlock } from '@dorado/icons'
+import { Button, Checkbox, Divider, Input, Select, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@dorado/components'
+import { Lock, RotateCcw, Unlock } from '@dorado/icons'
 import { outboundOf } from '@/features/shipping/queries'
 import { usePatchShipment } from '@/features/shipping/queries'
 import { useOrderShipments, usePatchPayout } from '@dorado/client'
@@ -15,7 +15,6 @@ import {
 } from '@/features/orders/purchaseOrders/types'
 import { assignScrapItemNames } from '@/features/orders/display'
 import { useState } from 'react'
-import SelectMenu from '@/shared/ui/SelectMenu'
 import { Product } from '@/features/products/types'
 import { useSpotPrices } from '@/features/spots/queries'
 import { useProducts } from '@/features/products/queries'
@@ -38,7 +37,6 @@ export default function AdminReceivedPurchaseOrder({ view }: PurchaseOrderDrawer
   const setSpots = useSetOrderSpots()
   const patchShipment = usePatchShipment()
   const patchPayout = usePatchPayout()
-  const [payoutOpen, setPayoutOpen] = useState(false)
   const { data: payoutMethods = [] } = usePaymentMethods('purchase')
 
   // THE LINES, THE PARCEL AND THE PAYOUT ARE ALREADY HERE. This screen used
@@ -228,40 +226,32 @@ export default function AdminReceivedPurchaseOrder({ view }: PurchaseOrderDrawer
           {/* 'Accepted' left the lifecycle, and the change-payout affordance
               that keyed on it shows here at Received instead (Jacob's lean) -
               beside the payout charge it prices. */}
-          {/* One of FIVE hand-rolled Popover+Command menus in this file, every
-              one of them `text-primary` over `hover:bg-primary` - two
-              near-white tokens, so the label vanished under the cursor (D95).
-              `shared/ui/SelectMenu` was written for exactly this and had zero
-              importers. */}
-          <Field label="Change Payout Method" className="w-full items-start">
-            <SelectMenu
-              open={payoutOpen}
-              onOpenChange={setPayoutOpen}
-              value={payout?.method ?? undefined}
-              items={payoutMethods.map(({ label, type }) => ({
-                label,
+          <Select
+            label="Change Payout Method"
+            className="w-full"
+            placeholder="Select a payout method"
+            value={payout?.method ?? undefined}
+            items={payoutMethods.map(({ label, type }) => {
+              const Icon = payoutMethodIcon[type as PayoutMethodType]
+              return {
                 value: type,
-                icon: payoutMethodIcon[type as PayoutMethodType],
-              }))}
-              onSelect={(method) => {
-                if (!payout?.id) return
-                patchPayout.mutate({
-                  payout_id: payout.id,
-                  order_id: order.id,
-                  patch: { method },
-                })
-              }}
-              trigger={
-                <Button
-                  variant="secondary"
-                  className="flex items-center justify-between gap-1 h-9 w-full"
-                >
-                  {payoutMethods.find((m) => m.type === payout?.method)?.label}
-                  <ChevronDown size={20} />
-                </Button>
+                label: (
+                  <span className="flex items-center gap-2">
+                    {Icon && <Icon size={16} />}
+                    {label}
+                  </span>
+                ),
               }
-            />
-          </Field>
+            })}
+            onValueChange={(method) => {
+              if (!payout?.id) return
+              patchPayout.mutate({
+                payout_id: payout.id,
+                order_id: order.id,
+                patch: { method },
+              })
+            }}
+          />
           <Divider />
         </div>
       </div>
@@ -283,7 +273,7 @@ function ScrapTable({
   // METAL_ITEMS, so the id is resolved against the cached spots reference.
   spotPrices: SpotPrice[]
 }) {
-  const [open, setOpen] = useState(false)
+  const [addMetal, setAddMetal] = useState('')
   const [editMode, setEditMode] = useState(false)
   const [selectedIds, setSelectedIds] = useState<string[]>([])
 
@@ -512,39 +502,31 @@ function ScrapTable({
                 Remove
               </Button>
             </div>
-            <SelectMenu
-              open={open}
-              onOpenChange={setOpen}
+            <Select
+              className="w-40"
+              placeholder="Add New"
+              disabled={editMode}
+              value={addMetal}
               items={METAL_ITEMS}
-              onSelect={handleAddNew}
-              contentClassName="w-20"
-              trigger={
-                <Button
-                  disabled={editMode}
-                  variant="tertiary"
-                  className="flex items-center gap-1 p-0 h-4"
-                >
-                  <Plus size={16} />
-                  Add New
-                </Button>
-              }
+              onValueChange={(metal) => {
+                handleAddNew(metal)
+                setAddMetal('')
+              }}
             />
           </div>
         </div>
       ) : (
         <div className="flex justify-center items-center">
-          <SelectMenu
-            open={open}
-            onOpenChange={setOpen}
+          <Select
+            className="max-w-42"
+            placeholder="Add Scrap to Order"
+            disabled={editMode}
+            value={addMetal}
             items={METAL_ITEMS}
-            onSelect={handleAddNew}
-            align="center"
-            contentClassName="max-w-42"
-            trigger={
-              <Button disabled={editMode} size="lg">
-                Add Scrap to Order
-              </Button>
-            }
+            onValueChange={(metal) => {
+              handleAddNew(metal)
+              setAddMetal('')
+            }}
           />
         </div>
       )}
@@ -565,7 +547,7 @@ function BullionTable({
   config: StatusConfigEntry
   order_id: string
 }) {
-  const [open, setOpen] = useState(false)
+  const [addBullionId, setAddBullionId] = useState('')
   const [editMode, setEditMode] = useState(false)
   const [selectedIds, setSelectedIds] = useState<string[]>([])
   const { data: products = [] } = useProducts()
@@ -742,42 +724,31 @@ function BullionTable({
                 Remove
               </Button>
             </div>
-            <SelectMenu
-              open={open}
-              onOpenChange={setOpen}
+            <Select
+              className="w-48"
+              placeholder="Add New"
+              disabled={editMode}
+              value={addBullionId}
               items={productItems}
-              onSelect={handleAddNewById}
-              searchPlaceholder="Search products..."
-              listClassName="h-50"
-              trigger={
-                <Button
-                  disabled={editMode}
-                  variant="tertiary"
-                  className="flex items-center gap-1 p-0 h-4"
-                >
-                  <Plus size={16} />
-                  Add New
-                </Button>
-              }
+              onValueChange={(id) => {
+                handleAddNewById(id)
+                setAddBullionId('')
+              }}
             />
           </div>
         </div>
       ) : (
         <div className="flex items-center justify-center">
-          <SelectMenu
-            open={open}
-            onOpenChange={setOpen}
+          <Select
+            className="max-w-70"
+            placeholder="Add Bullion to Order"
+            disabled={editMode}
+            value={addBullionId}
             items={productItems}
-            onSelect={handleAddNewById}
-            searchPlaceholder="Search products..."
-            align="center"
-            contentClassName="max-w-70"
-            listClassName="h-50"
-            trigger={
-              <Button disabled={editMode} size="lg">
-                Add Bullion to Order
-              </Button>
-            }
+            onValueChange={(id) => {
+              handleAddNewById(id)
+              setAddBullionId('')
+            }}
           />
         </div>
       )}

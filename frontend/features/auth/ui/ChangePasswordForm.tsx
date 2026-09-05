@@ -4,10 +4,9 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Button, Form } from '@dorado/components'
+import { Button, Form, ValidatedField } from '@dorado/components'
 import { useChangePassword } from '@/features/auth/queries'
 import { ChangePassword, changePasswordSchema } from '@/features/auth/types'
-import { ValidatedField } from '@/shared/ui/form/ValidatedField'
 import { PasswordRequirements } from './PasswordRequirements'
 
 type ChangePasswordFormProps = {
@@ -21,8 +20,6 @@ export default function ChangePasswordForm({
 }: ChangePasswordFormProps) {
   const router = useRouter()
 
-  const [showNewPassword, setShowNewPassword] = useState(false)
-  const [showCurrentPassword, setShowCurrentPassword] = useState(false)
   const [showRequirements, setShowRequirements] = useState(false)
 
   const changePassword = useChangePassword()
@@ -63,12 +60,8 @@ export default function ChangePasswordForm({
                 control={form.control}
                 name="currentPassword"
                 label="Current Password"
-                type={showCurrentPassword ? 'text' : 'password'}
+                type="password"
                 showPasswordButton
-                showPassword={showCurrentPassword}
-                setShowPassword={setShowCurrentPassword}
-                showOnTouch
-                showIcon={false}
               />
 
               <div className="flex flex-col gap-1 mb-4">
@@ -76,13 +69,9 @@ export default function ChangePasswordForm({
                   control={form.control}
                   name="newPassword"
                   label="New Password"
-                  type={showNewPassword ? 'text' : 'password'}
+                  type="password"
                   showPasswordButton
-                  showPassword={showNewPassword}
-                  setShowPassword={setShowNewPassword}
-                  showOnTouch
                   showFormError={false}
-                  showIcon={false}
                   inputProps={{
                     onFocus: () => setShowRequirements(true),
                   }}

@@ -2,11 +2,20 @@
 
 import { useMemo, useState } from 'react'
 
-import { Badge, Button, DataTable, Drawer, Input, type DataTableColumn } from '@dorado/components'
+import {
+  Badge,
+  Button,
+  DataTable,
+  Drawer,
+  Field,
+  Input,
+  RadioGroup,
+  RadioOption,
+  type DataTableColumn,
+} from '@dorado/components'
 
 import { useDrawerStore } from '@/shared/store/drawerStore'
 import { formatFullDate } from '@/shared/utils/formatDates'
-import { SegmentedField } from '@/shared/ui/SegmentedField'
 import formatPhoneNumber, { normalizePhone } from '@/shared/utils/formatPhoneNumber'
 
 import type { Carrier, CarrierService } from '@/features/carriers/types'
@@ -149,11 +158,20 @@ function Status({ carrier }: { carrier: Carrier }) {
       <div className="flex flex-col gap-4 w-full">
         <p className="eyebrow">Active</p>
 
-        <SegmentedField
-          label="Accepting shipments"
-          value={!!carrier.organization.enabled}
-          onChange={(v) => handleOrgUpdate({ enabled: v })}
-        />
+        <Field label="Accepting shipments" className="w-full">
+          <RadioGroup
+            value={String(!!carrier.organization.enabled)}
+            onValueChange={(v) => handleOrgUpdate({ enabled: v === 'true' })}
+            className="flex w-full gap-2"
+          >
+            <RadioOption value="true" variant="segment" className="flex-1">
+              Yes
+            </RadioOption>
+            <RadioOption value="false" variant="segment" className="flex-1">
+              No
+            </RadioOption>
+          </RadioGroup>
+        </Field>
       </div>
     </div>
   )

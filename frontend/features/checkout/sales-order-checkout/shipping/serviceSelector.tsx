@@ -6,7 +6,6 @@ import { usePatchCheckout } from '@/features/checkout/queries'
 import { saleServiceToOption } from '@/features/orders/salesOrders/types'
 import { useSaleShippingServices } from '@dorado/client'
 import type { CheckoutView, SalesOrderQuote } from '@dorado/contracts'
-import { DetailRow } from '@/shared/ui/DetailRow'
 
 // THE SELECTION IS THE ROW'S `carrier_service_id`, so the "heal the store's
 // seed" effect is gone with the seed: the store used to default to a static
@@ -53,13 +52,16 @@ export default function ServiceSelector({
                 {option.icon && <option.icon size={24} />}
                 <strong>{option.label}</strong>
               </div>
-              <DetailRow label={option.time} variant="subtotal">
+              <div className="flex w-full items-center justify-between gap-2">
+                <small>{option.time}</small>
                 {/* Only the selected service is quoted, so the unselected
                     options' display keys the free-shipping threshold off the
                     quote's item_total - the same rule getShippingCharge
                     applies server-side. */}
-                <Amount value={(orderPrices?.item_total ?? 0) > 1000 ? 0 : option.cost} />
-              </DetailRow>
+                <strong>
+                  <Amount value={(orderPrices?.item_total ?? 0) > 1000 ? 0 : option.cost} />
+                </strong>
+              </div>
             </RadioOption>
           )
         })}

@@ -3,7 +3,6 @@ import { Accordion, Amount, Table, TableBody, TableCell, TableRow } from '@dorad
 
 import { useState } from 'react'
 import formatPhoneNumber from '@/shared/utils/formatPhoneNumber'
-import { DetailRow } from '@/shared/ui/DetailRow'
 
 import { SalesOrderDrawerFooterProps } from '@/features/orders/salesOrders/types'
 import { useSalesOrderLines } from '@/features/orders/salesOrders/users/salesOrderDrawer/drawerContents/useSalesOrderLines'
@@ -55,27 +54,39 @@ export default function SalesOrderDrawerFooter({ view }: SalesOrderDrawerFooterP
       >
         <div className="flex flex-col gap-2 pr-2">
           {view.totals?.used_funds && (
-            <DetailRow label="Dorado Funds Applied:">
-              <Amount value={view.totals?.funds ?? 0} />
-            </DetailRow>
+            <div className="flex w-full items-center justify-between gap-2">
+              <p>Dorado Funds Applied:</p>
+              <strong>
+                <Amount value={view.totals?.funds ?? 0} />
+              </strong>
+            </div>
           )}
 
           {(view.totals?.subject_to_charges_amount ?? 0) > 0 && (
-            <DetailRow label={view.totals?.used_funds ? 'Amount Remaining:' : 'Before Fees:'}>
-              <Amount value={view.totals?.subject_to_charges_amount ?? 0} />
-            </DetailRow>
+            <div className="flex w-full items-center justify-between gap-2">
+              <p>{view.totals?.used_funds ? 'Amount Remaining:' : 'Before Fees:'}</p>
+              <strong>
+                <Amount value={view.totals?.subject_to_charges_amount ?? 0} />
+              </strong>
+            </div>
           )}
 
           {(view.totals?.shipping ?? 0) > 0 && (
-            <DetailRow label="Shipping Fee:">
-              <Amount value={view.totals?.shipping ?? 0} />
-            </DetailRow>
+            <div className="flex w-full items-center justify-between gap-2">
+              <p>Shipping Fee:</p>
+              <strong>
+                <Amount value={view.totals?.shipping ?? 0} />
+              </strong>
+            </div>
           )}
 
           {(view.totals?.subject_to_charges_amount ?? 0) > 0 && (
-            <DetailRow label="Payment Fee:">
-              <Amount value={view.totals?.surcharge ?? 0} />
-            </DetailRow>
+            <div className="flex w-full items-center justify-between gap-2">
+              <p>Payment Fee:</p>
+              <strong>
+                <Amount value={view.totals?.surcharge ?? 0} />
+              </strong>
+            </div>
           )}
         </div>
       </Accordion>

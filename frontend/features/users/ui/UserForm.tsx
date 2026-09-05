@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Amount, Button, Form, Skeleton } from '@dorado/components'
+import { Amount, Button, Form, Skeleton, ValidatedField } from '@dorado/components'
 import { MailCheck, MailWarning, MailX, UserX2 } from '@dorado/icons'
 import { User, userSchema } from '@/features/users/types'
 import {
@@ -12,9 +12,8 @@ import {
   useSendVerifyEmail,
   useGetSession,
 } from '@/features/auth/queries'
-import { ValidatedField } from '@/shared/ui/form/ValidatedField'
 import { AccountAction } from '@/features/users/ui/AccountAction'
-import { DetailRow } from '@/shared/ui/DetailRow'
+import { cn } from '@/shared/utils/cn'
 
 export default function UserForm() {
   const { user, isPending } = useGetSession()
@@ -112,7 +111,6 @@ export default function UserForm() {
               name="name"
               label="Name"
               type="text"
-              showIcon={false}
             />
 
             <div className="space-y-1">
@@ -121,7 +119,6 @@ export default function UserForm() {
                 name="email"
                 label="Email"
                 type="email"
-                showIcon={false}
               />
               {changeEmailMutation.isSuccess && user?.emailVerified === true && (
                 <p className="mt-1">
@@ -171,9 +168,12 @@ export default function UserForm() {
       <div>
         <p className="eyebrow mb-2">Dorado Credit</p>
 
-        <DetailRow label="Current balance" variant="subtotal" className="items-baseline">
-          <Amount value={user?.dorado_funds ?? 0} />
-        </DetailRow>
+        <div className={cn('flex w-full items-center justify-between gap-2', 'items-baseline')}>
+          <small>Current balance</small>
+          <strong>
+            <Amount value={user?.dorado_funds ?? 0} />
+          </strong>
+        </div>
       </div>
     </section>
   )

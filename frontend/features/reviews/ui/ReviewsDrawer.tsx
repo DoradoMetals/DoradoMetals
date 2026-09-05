@@ -4,17 +4,11 @@ import type { Review } from "@dorado/contracts";
 import { useMemo } from 'react'
 import { useDrawerStore } from '@/shared/store/drawerStore'
 
-import { FloatingLabelInput } from '@/shared/ui/inputs/FloatingLabelInput'
-import { FloatingLabelTextarea } from '@/shared/ui/inputs/FloatingLabelTextarea'
-import { SegmentedField } from '@/shared/ui/SegmentedField'
-
 import { formatFullDate } from '@/shared/utils/formatDates'
-import { Badge, Drawer, Rating, RatingButton, Calendar } from '@dorado/components'
+import { Badge, Drawer, Rating, RatingButton, Calendar, Field, Input, RadioGroup, RadioOption, Textarea } from '@dorado/components'
 import { Eye, EyeOff } from '@dorado/icons'
 import { useUpdateReview } from '@/features/reviews/queries'
 
-// <time dateTime> must be machine-readable; the wire hands these back as
-// either a Date or an ISO string depending on the source switch.
 const machineDate = (d: Date | string | null | undefined) =>
   d ? new Date(d).toISOString() : undefined
 
@@ -81,27 +75,20 @@ function EditFields({ review }: { review: Review }) {
     <div className="flex flex-col gap-6">
       <p className="eyebrow">Details</p>
 
-      <div className="relative w-full">
-        <FloatingLabelInput
-          label="Reviewer Name"
-          type="text"
-          size="sm"
-          className="h-10"
-          defaultValue={review.name ?? ''}
-          onBlur={(e) => handleUpdate({ name: e.target.value })}
-        />
-      </div>
+      <Input
+        label="Reviewer Name"
+        type="text"
+        defaultValue={review.name ?? ''}
+        onBlur={(e) => handleUpdate({ name: e.target.value })}
+      />
 
-      <div className="relative w-full">
-        <FloatingLabelTextarea
-          label="Review Text"
-          size="sm"
-          className="min-h-40"
-          defaultValue={review.review_text ?? ''}
-          onBlur={(e) => handleUpdate({ review_text: e.target.value })}
-          placeholder="Input review here..."
-        />
-      </div>
+      <Textarea
+        label="Review Text"
+        rows={6}
+        defaultValue={review.review_text ?? ''}
+        onBlur={(e) => handleUpdate({ review_text: e.target.value })}
+        placeholder="Input review here..."
+      />
 
       <div className="flex flex-col gap-2 items-center justify-center">
         <p>Rating</p>
@@ -126,15 +113,20 @@ function Visibility({ review }: { review: Review }) {
   return (
     <div className="flex flex-col gap-4">
       <p className="eyebrow">Visibility</p>
-      <SegmentedField
-        label="Visibility"
-        value={!review.hidden}
-        onChange={(v) => handleUpdate(!v)}
-        options={[
-          { value: true, label: 'Public' },
-          { value: false, label: 'Hidden' },
-        ]}
-      />
+      <Field label="Visibility">
+        <RadioGroup
+          value={review.hidden ? 'hidden' : 'public'}
+          onValueChange={(v) => handleUpdate(v === 'hidden')}
+          className="flex w-full gap-2"
+        >
+          <RadioOption value="public" variant="segment" className="flex-1">
+            Public
+          </RadioOption>
+          <RadioOption value="hidden" variant="segment" className="flex-1">
+            Hidden
+          </RadioOption>
+        </RadioGroup>
+      </Field>
 
       <p>Toggle to hide/show this review on your site.</p>
     </div>

@@ -6,7 +6,6 @@ import { formatFullDate } from '@/shared/utils/formatDates'
 import { useSpotPrices } from '@/features/spots/queries'
 import PremiumControl from '@/features/products/ui/PremiumControl'
 import QuantityBar from '@/features/products/ui/QuantityInput'
-import { SegmentedField } from '@/shared/ui/SegmentedField'
 import {
   useAdminTypes,
   useSaveProduct,
@@ -15,7 +14,17 @@ import {
   useAdminSuppliers,
 } from '@/features/products/queries'
 import { AdminProduct } from '@/features/products/types'
-import { Autocomplete, Badge, Divider, Drawer, Input, Textarea } from '@dorado/components'
+import {
+  Autocomplete,
+  Badge,
+  Divider,
+  Drawer,
+  Field,
+  Input,
+  RadioGroup,
+  RadioOption,
+  Textarea,
+} from '@dorado/components'
 
 export default function ProductDrawer({
   products,
@@ -289,16 +298,34 @@ function Displays({ product }: { product: AdminProduct }) {
       <p className="eyebrow">Displays</p>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 2xl:grid-cols-3 gap-4 items-stretch justify-items-stretch">
-        <SegmentedField
-          label="Buy"
-          value={!!product.display}
-          onChange={(v) => handleUpdate({ display: v })}
-        />
-        <SegmentedField
-          label="Featured"
-          value={!!product.homepage_display}
-          onChange={(v) => handleUpdate({ homepage_display: v })}
-        />
+        <Field label="Buy" className="w-full">
+          <RadioGroup
+            value={String(!!product.display)}
+            onValueChange={(v) => handleUpdate({ display: v === 'true' })}
+            className="flex w-full gap-2"
+          >
+            <RadioOption value="true" variant="segment" className="flex-1">
+              Yes
+            </RadioOption>
+            <RadioOption value="false" variant="segment" className="flex-1">
+              No
+            </RadioOption>
+          </RadioGroup>
+        </Field>
+        <Field label="Featured" className="w-full">
+          <RadioGroup
+            value={String(!!product.homepage_display)}
+            onValueChange={(v) => handleUpdate({ homepage_display: v === 'true' })}
+            className="flex w-full gap-2"
+          >
+            <RadioOption value="true" variant="segment" className="flex-1">
+              Yes
+            </RadioOption>
+            <RadioOption value="false" variant="segment" className="flex-1">
+              No
+            </RadioOption>
+          </RadioGroup>
+        </Field>
       </div>
     </div>
   )
@@ -315,13 +342,19 @@ function Dev({ product }: { product: AdminProduct }) {
     <div className="flex flex-col gap-4">
       <p className="eyebrow">Dev</p>
 
-      <SegmentedField
-        label="Shadow Offset"
-        value={product.shadow_offset ?? 0}
-        onChange={(n) => handleUpdate({ shadow_offset: n })}
-        options={[0, 1, 2, 3, 4, 5, 6, 7, 8, 9]}
-        rowClassName="grid grid-cols-5 gap-2"
-      />
+      <Field label="Shadow Offset">
+        <RadioGroup
+          value={String(product.shadow_offset ?? 0)}
+          onValueChange={(v) => handleUpdate({ shadow_offset: Number(v) })}
+          className="grid grid-cols-5 gap-2"
+        >
+          {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => (
+            <RadioOption key={n} value={String(n)} variant="segment">
+              {n}
+            </RadioOption>
+          ))}
+        </RadioGroup>
+      </Field>
 
       <Input
         id="variant_group"

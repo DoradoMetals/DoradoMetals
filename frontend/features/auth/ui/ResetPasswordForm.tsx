@@ -4,10 +4,9 @@ import { useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Button, Form } from '@dorado/components'
+import { Button, Form, ValidatedField } from '@dorado/components'
 import { useResetPassword } from '@/features/auth/queries'
 import { ResetPassword, resetPasswordSchema } from '@/features/auth/types'
-import { ValidatedField } from '@/shared/ui/form/ValidatedField'
 import { PasswordRequirements } from './PasswordRequirements'
 
 export default function ResetPasswordForm() {
@@ -15,8 +14,6 @@ export default function ResetPasswordForm() {
   const searchParams = useSearchParams()
   const token = searchParams.get('token')
 
-  const [showPassword, setShowPassword] = useState(false)
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [showRequirements, setShowRequirements] = useState(false)
 
   const resetPasswordMutation = useResetPassword()
@@ -54,13 +51,9 @@ export default function ResetPasswordForm() {
                   control={form.control}
                   name="password"
                   label="New Password"
-                  type={showPassword ? 'text' : 'password'}
+                  type="password"
                   showPasswordButton
-                  showPassword={showPassword}
-                  setShowPassword={setShowPassword}
-                  showOnTouch={true}
                   showFormError={false}
-                  showIcon={false}
                   inputProps={{
                     onFocus: () => setShowRequirements(true),
                   }}
@@ -74,12 +67,8 @@ export default function ResetPasswordForm() {
                 control={form.control}
                 name="confirmPassword"
                 label="Confirm New Password"
-                type={showConfirmPassword ? 'text' : 'password'}
+                type="password"
                 showPasswordButton
-                showPassword={showConfirmPassword}
-                setShowPassword={setShowConfirmPassword}
-                showOnTouch={true}
-                showIcon={false}
               />
             </div>
 

@@ -5,7 +5,6 @@ import { useDrawerStore } from '@/shared/store/drawerStore'
 import { useMemo, useState } from 'react'
 
 import { formatFullDate } from '@/shared/utils/formatDates'
-import { FloatingLabelInput } from '@/shared/ui/inputs/FloatingLabelInput'
 import {
   useChangeEmail,
   useImpersonateUser,
@@ -60,19 +59,17 @@ function UserInfo({ user }: { user: AdminUser }) {
   return (
     <div className="flex flex-col gap-6 w-full items-start items-stretch">
       <p className="eyebrow mb-2">User Information</p>
-      <FloatingLabelInput
+      <Input
         label="Name"
         type="name"
         autoComplete="name"
-        className="w-full"
         defaultValue={user.name ?? ''}
         onBlur={(e) => updateName.mutate({ name: e.target.value })}
       />
-      <FloatingLabelInput
+      <Input
         label="Email"
         type="email"
         autoComplete="email"
-        className="w-full"
         defaultValue={user.email}
         onBlur={(e) => changeEmail.mutate(e.target.value)}
       />

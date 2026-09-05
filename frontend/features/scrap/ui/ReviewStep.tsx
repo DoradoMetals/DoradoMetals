@@ -7,7 +7,7 @@ import { useBasket } from '@/features/checkout/items/queries'
 import { useSpotPrices } from '@/features/spots/queries'
 import { Amount, Badge, Divider } from '@dorado/components'
 import { CheckCircle, Coins, Percent, Scale } from '@dorado/icons'
-import { DetailRow } from '@/shared/ui/DetailRow'
+import { cn } from '@/shared/utils/cn'
 
 export default function ReviewStep({ showBanner }: { showBanner: boolean }) {
   const form = useFormContext<Scrap>()
@@ -78,9 +78,12 @@ export default function ReviewStep({ showBanner }: { showBanner: boolean }) {
 
         <Divider />
 
-        <DetailRow label="Price Estimate:" className="items-end">
-          <Amount value={price} />
-        </DetailRow>
+        <div className={cn('flex w-full items-center justify-between gap-2', 'items-end')}>
+          <p>Price Estimate:</p>
+          <strong>
+            <Amount value={price} />
+          </strong>
+        </div>
 
         {showBanner && (
           <motion.div

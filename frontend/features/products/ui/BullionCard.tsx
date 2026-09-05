@@ -7,14 +7,12 @@ import { CircleHelp, Equal, Minus, Plus, Scale, X } from '@dorado/icons'
 import NumberFlow from '@number-flow/react'
 import { BullionFloatingButton, BullionFloatingButtonItem } from '@/features/products/ui/FloatingButton'
 import { useState } from 'react'
-import { PopoverContent, PopoverTrigger } from '@/shared/ui/base/popover'
-import { Popover } from '@radix-ui/react-popover'
+import { Tooltip, TooltipProvider } from '@dorado/components'
 import { cn } from '@/shared/utils/cn'
 import { AnimatePresence, motion } from 'framer-motion'
 import { useBasket, useCheckoutItemActions } from '@/features/checkout/items/queries'
 import { lineFromProduct } from '@/features/checkout/items/types'
 import { useSpotPrices } from '@dorado/client'
-import { DetailRow } from '@/shared/ui/DetailRow'
 
 type BullionCardProps = {
   product: Product
@@ -29,7 +27,6 @@ export default function BullionCard({ product, variants, unitPrices }: BullionCa
   // The server picks the family's headline row and orders the siblings
   // (heaviest first), so there is nothing to sort here.
   const [selectedProduct, setSelectedProduct] = useState<Product>(product)
-  const [open, setOpen] = useState(false)
   const [variantsOpen, setVariantsOpen] = useState(false)
 
   const items = useBasket('purchase')
@@ -98,39 +95,26 @@ export default function BullionCard({ product, variants, unitPrices }: BullionCa
                   delay: 0.2,
                 }}
               >
-                <Popover open={open} onOpenChange={setOpen}>
-                  <PopoverTrigger asChild>
-                    <Button variant="tertiary" size="iconXs" onClick={() => setOpen(true)}>
-                      <CircleHelp size={20} />
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent
-                    align="end"
+                <TooltipProvider>
+                  <Tooltip
                     side="bottom"
-                    className="p-2 w-56"
-                    onOpenAutoFocus={(e) => e.preventDefault()}
-                    forceMount
-                  >
-                    <motion.div
-                      initial={{ opacity: 0, scale: 0.95 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      exit={{ opacity: 0, scale: 0.95 }}
-                      transition={{
-                        duration: 0.2,
-                        ease: 'easeInOut',
-                        delay: 0.2,
-                      }}
-                    >
-                      <div className="flex flex-col gap-2">
+                    content={
+                      <div className="flex w-56 flex-col gap-2">
                         <div className="flex flex-col gap-2 border-b-1 border-border pb-2">
-                          <DetailRow label={<>{spot?.name} Bid Price</>} variant="detail" className="items-start pl-8">
-                            <Amount value={spot?.bid ?? 0} />
-                          </DetailRow>
+                          <div className={cn('flex w-full items-center justify-between gap-2', 'items-start pl-8')}>
+                            <small>{spot?.name} Bid Price</small>
+                            <p>
+                              <Amount value={spot?.bid ?? 0} />
+                            </p>
+                          </div>
 
                           <div className="flex w-full items-start">
                             <X size={16} className="text-subtle" />
 
-                            <DetailRow label="Content (oz)" variant="detail" className="items-start pl-4">{selectedProduct.content}</DetailRow>
+                            <div className={cn('flex w-full items-center justify-between gap-2', 'items-start pl-4')}>
+                              <small>Content (oz)</small>
+                              <p>{selectedProduct.content}</p>
+                            </div>
                           </div>
 
                           <div className="flex w-full items-start">
@@ -140,21 +124,31 @@ export default function BullionCard({ product, variants, unitPrices }: BullionCa
                               <Minus size={16} className="text-subtle" />
                             )}
 
-                            <DetailRow label="Premium" variant="detail" className="items-start pl-4">
-                              <Amount value={Math.abs(overOrUnder)} />
-                            </DetailRow>
+                            <div className={cn('flex w-full items-center justify-between gap-2', 'items-start pl-4')}>
+                              <small>Premium</small>
+                              <p>
+                                <Amount value={Math.abs(overOrUnder)} />
+                              </p>
+                            </div>
                           </div>
                         </div>
                         <div className="flex w-full items-start">
                           <Equal size={16} className="text-subtle" />
-                          <DetailRow label="Total" variant="subtotal" className="items-start pl-4">
-                            <Amount value={price} />
-                          </DetailRow>
+                          <div className={cn('flex w-full items-center justify-between gap-2', 'items-start pl-4')}>
+                            <small>Total</small>
+                            <strong>
+                              <Amount value={price} />
+                            </strong>
+                          </div>
                         </div>
                       </div>
-                    </motion.div>
-                  </PopoverContent>
-                </Popover>
+                    }
+                  >
+                    <Button variant="tertiary" size="iconXs">
+                      <CircleHelp size={20} />
+                    </Button>
+                  </Tooltip>
+                </TooltipProvider>
               </motion.div>
             )}
           </AnimatePresence>

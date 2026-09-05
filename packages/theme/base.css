@@ -105,17 +105,6 @@ input:-webkit-autofill:active {
   visibility: hidden !important;
 }
 
-@layer components {
-  .floating-label {
-    @apply relative transition-colors;
-  }
-
-  .peer:focus ~ .floating-label,
-  .peer:not(:placeholder-shown) ~ .floating-label {
-    @apply text-primary;
-  }
-}
-
 number-flow-react::part(left),
 number-flow-react::part(right),
 number-flow-react::part(left)::after,

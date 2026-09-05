@@ -8,7 +8,6 @@ import Image from 'next/image'
 import NumberFlow from '@number-flow/react'
 import { useRouter } from 'next/navigation'
 import type { CheckoutView, SalesOrderQuote } from "@dorado/contracts";
-import { DetailRow } from '@/shared/ui/DetailRow'
 
 // orderPrices is the server's quote, absent until the first one lands - the
 // summary renders zeros in the meantime, never a client-computed price.
@@ -111,19 +110,28 @@ export default function OrderSummary({
       <Divider />
       <p className="eyebrow my-4">Payment Details</p>
 
-      <DetailRow label="Shipping">
-        <Amount value={shipping_charge} />
-      </DetailRow>
+      <div className="flex w-full items-center justify-between gap-2">
+        <p>Shipping</p>
+        <strong>
+          <Amount value={shipping_charge} />
+        </strong>
+      </div>
 
       {pre_charges_amount > 0 && (
-        <DetailRow label="Dorado Funds Applied">
-          <Amount value={pre_charges_amount} />
-        </DetailRow>
+        <div className="flex w-full items-center justify-between gap-2">
+          <p>Dorado Funds Applied</p>
+          <strong>
+            <Amount value={pre_charges_amount} />
+          </strong>
+        </div>
       )}
       {subject_to_charges_amount > 0 && (
-        <DetailRow label={pre_charges_amount > 0 ? 'Amount Remaining' : 'Items'}>
-          -<Amount value={subject_to_charges_amount} />
-        </DetailRow>
+        <div className="flex w-full items-center justify-between gap-2">
+          <p>{pre_charges_amount > 0 ? 'Amount Remaining' : 'Items'}</p>
+          <strong>
+            -<Amount value={subject_to_charges_amount} />
+          </strong>
+        </div>
       )}
 
       {charges_amount > 0 && (
@@ -162,9 +170,12 @@ export default function OrderSummary({
       <div className="pt-2">
         <Divider />
 
-        <DetailRow label="Order Total" variant="total" className="pt-2">
-          <Amount value={post_charges_amount} />
-        </DetailRow>
+        <div className="flex w-full items-center justify-between gap-2 pt-2">
+          <strong>Order Total</strong>
+          <strong className="stat-sm">
+            <Amount value={post_charges_amount} />
+          </strong>
+        </div>
       </div>
     </div>
   )

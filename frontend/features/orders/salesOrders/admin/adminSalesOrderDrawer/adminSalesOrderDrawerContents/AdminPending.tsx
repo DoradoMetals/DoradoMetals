@@ -1,6 +1,5 @@
 import { useCancelPaymentIntent, useOrderPaymentIntent } from '@dorado/client'
 import { Amount, Button, Badge, Divider } from '@dorado/components'
-import { DetailRow } from '@/shared/ui/DetailRow'
 import { paymentMethodIcon, SalesOrderDrawerContentProps } from '@/features/orders/salesOrders/types'
 import { usePaymentMethods } from '@dorado/client'
 
@@ -54,21 +53,31 @@ export default function AdminPendingSalesOrder({ view }: SalesOrderDrawerContent
       <Divider />
 
       {paymentIntent.details?.card_brand && (
-        <DetailRow label="Card Brand:">{titleCase(paymentIntent.details.card_brand)}</DetailRow>
+        <div className="flex w-full items-center justify-between gap-2">
+          <p>Card Brand:</p>
+          <strong>{titleCase(paymentIntent.details.card_brand)}</strong>
+        </div>
       )}
 
       {paymentIntent.details?.bank_name && (
-        <DetailRow label="Bank Name:">{titleCase(paymentIntent.details.bank_name)}</DetailRow>
+        <div className="flex w-full items-center justify-between gap-2">
+          <p>Bank Name:</p>
+          <strong>{titleCase(paymentIntent.details.bank_name)}</strong>
+        </div>
       )}
 
       {paymentIntent.details?.account_type && (
-        <DetailRow label="Account Type:">{titleCase(paymentIntent.details.account_type)}</DetailRow>
+        <div className="flex w-full items-center justify-between gap-2">
+          <p>Account Type:</p>
+          <strong>{titleCase(paymentIntent.details.account_type)}</strong>
+        </div>
       )}
 
       {paymentIntent.details?.last_four && (
-        <DetailRow label={paymentType?.type !== 'ACH' ? 'Card Number:' : 'Account Number'}>
-          *******{paymentIntent.details.last_four}
-        </DetailRow>
+        <div className="flex w-full items-center justify-between gap-2">
+          <p>{paymentType?.type !== 'ACH' ? 'Card Number:' : 'Account Number'}</p>
+          <strong>*******{paymentIntent.details.last_four}</strong>
+        </div>
       )}
       {/* No routing number, ever. The legacy wire carried one only because
           the exchange read was SELECT *; the contract has no such field,
@@ -77,22 +86,31 @@ export default function AdminPendingSalesOrder({ view }: SalesOrderDrawerContent
 
       {/* DOLLARS on the wire, not cents - the /100 died with the adapter,
           and putting one back here is a hundredfold error on money. */}
-      <DetailRow label="Total Due:" variant="total">
-        <Amount value={Number(paymentIntent.amount_expected ?? 0)} />
-      </DetailRow>
+      <div className="flex w-full items-center justify-between gap-2">
+        <strong>Total Due:</strong>
+        <strong className="stat-sm">
+          <Amount value={Number(paymentIntent.amount_expected ?? 0)} />
+        </strong>
+      </div>
 
-      <DetailRow label="Amount Paid:" variant="total">
-        <Amount value={Number(paymentIntent.amount_received ?? 0)} />
-      </DetailRow>
+      <div className="flex w-full items-center justify-between gap-2">
+        <strong>Amount Paid:</strong>
+        <strong className="stat-sm">
+          <Amount value={Number(paymentIntent.amount_received ?? 0)} />
+        </strong>
+      </div>
 
-      <DetailRow label="Remaining Balance:" variant="total">
-        <Amount
-          value={
-            Number(paymentIntent.amount_expected ?? 0) -
-            Number(paymentIntent.amount_received ?? 0)
-          }
-        />
-      </DetailRow>
+      <div className="flex w-full items-center justify-between gap-2">
+        <strong>Remaining Balance:</strong>
+        <strong className="stat-sm">
+          <Amount
+            value={
+              Number(paymentIntent.amount_expected ?? 0) -
+              Number(paymentIntent.amount_received ?? 0)
+            }
+          />
+        </strong>
+      </div>
       <Divider />
       <Button
         variant="secondary"

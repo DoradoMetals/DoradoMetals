@@ -11,7 +11,6 @@ import ItemTables from './itemTable'
 import { useAddress, useUserAddresses } from '@/features/addresses/queries'
 import { useOfferedPackages, usePlaceOrderFromCheckout } from '@/features/checkout/queries'
 import { usePayoutDraft } from '@/features/checkout/purchase-order-checkout/payoutStep/payoutDraft'
-import { DetailRow } from '@/shared/ui/DetailRow'
 
 const PAYOUT_LABEL: Record<string, string> = {
   ACH: 'ACH',
@@ -106,16 +105,31 @@ export default function ReviewStep({
 
         {(payout?.method === 'ACH' || payout?.method === 'WIRE') && (
           <div className="flex flex-col gap-1">
-            <DetailRow label="Account Holder:">{payout.account_holder_name}</DetailRow>
-            <DetailRow label="Routing Number:">{payout.routing_number}</DetailRow>
-            <DetailRow label="Account Number:">{payout.account_number}</DetailRow>
+            <div className="flex w-full items-center justify-between gap-2">
+              <p>Account Holder:</p>
+              <strong>{payout.account_holder_name}</strong>
+            </div>
+            <div className="flex w-full items-center justify-between gap-2">
+              <p>Routing Number:</p>
+              <strong>{payout.routing_number}</strong>
+            </div>
+            <div className="flex w-full items-center justify-between gap-2">
+              <p>Account Number:</p>
+              <strong>{payout.account_number}</strong>
+            </div>
           </div>
         )}
 
         {(payout?.method === 'ECHECK' || payout?.method === 'DORADO_ACCOUNT') && (
           <div className="flex flex-col gap-1 mt-3">
-            <DetailRow label="Name:">{payout.account_holder_name}</DetailRow>
-            <DetailRow label="Email:">{payout.payout_email}</DetailRow>
+            <div className="flex w-full items-center justify-between gap-2">
+              <p>Name:</p>
+              <strong>{payout.account_holder_name}</strong>
+            </div>
+            <div className="flex w-full items-center justify-between gap-2">
+              <p>Email:</p>
+              <strong>{payout.payout_email}</strong>
+            </div>
           </div>
         )}
       </div>

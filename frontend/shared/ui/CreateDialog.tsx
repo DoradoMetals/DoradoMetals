@@ -10,9 +10,9 @@ import {
   DialogHeader,
   DialogOverlay,
   DialogTitle,
+  Input,
+  Textarea,
 } from '@dorado/components'
-import { Input } from '@/shared/ui/base/input'
-import { Textarea } from '@/shared/ui/base/textarea'
 import { Rating, RatingButton } from '@dorado/components'
 import formatPhoneNumber from '@/shared/utils/formatPhoneNumber'
 import { cn } from '@/shared/utils/cn'
@@ -65,15 +65,10 @@ export function AddNewDialog({
   className,
   resetOnClose = true,
 }: AddNewDialogProps) {
-  // Parents build `createConfig` as a fresh object literal every render, so
-  // `createConfig.fields` is a new reference each time. Key the memo on the
-  // field names (a stable string) so `initialValues` stays referentially
-  // stable across parent re-renders and doesn't wipe in-progress input.
   const fieldsKey = createConfig.fields.map((f) => f.name).join('|')
   const initialValues = useMemo(() => buildInitialValues(createConfig.fields), [fieldsKey])
   const [values, setValues] = useState<Record<string, string>>(initialValues)
 
-  // reset when closing (optional)
   useEffect(() => {
     if (!open && resetOnClose) setValues(initialValues)
   }, [open, resetOnClose, initialValues])
@@ -112,19 +107,6 @@ export function AddNewDialog({
               {createConfig.fields.map((field) => {
                 const value = values[field.name] ?? ''
 
-                // EVERY FIELD NEEDS A LABEL THE BROWSER CAN ASSOCIATE.
-                //
-                // These rendered a bare <label> next to an <input> with no id,
-                // no name, no placeholder and no aria-label - so nothing tied
-                // the two together. A sighted user reads the text above the
-                // box; a screen reader announces "edit text" five times and
-                // gives no way to tell Name from Email.
-                //
-                // This is the dialog EVERY admin create form uses - leads,
-                // users, products, reviews - so it was every create form in the
-                // admin area. Found while writing a test that could not select
-                // a field by its label, which is the same problem a screen
-                // reader has.
                 const fieldId = `create-${field.name}`
 
                 const isPhoneField =
@@ -164,69 +146,62 @@ export function AddNewDialog({
 
                 if (field.multiline) {
                   return (
-                    <div key={field.name} className="w-full">
-                      <label htmlFor={fieldId} className="block mb-1">
-                        {field.label}
-                      </label>
-                      <div className="relative w-full">
-                        <Textarea
-                          id={fieldId}
-                          name={field.name}
-                          className="min-h-20"
-                          value={value}
-                          onChange={(e) => setValue(field.name, e.target.value)}
-                          maxLength={field.maxLength}
-                        />
-                        {value !== '' && (
-                          <Button
-                            variant="tertiary"
-                            onClick={() => setValue(field.name, '')}
-                            className="absolute right-1 top-1 text-muted-foreground hover:bg-transparent"
-                            tabIndex={-1}
-                            aria-label={`Clear ${field.label}`}
-                          >
-                            <X size={16} />
-                          </Button>
-                        )}
-                      </div>
+                    <div key={field.name} className="w-full flex flex-col gap-1">
+                      <Textarea
+                        id={fieldId}
+                        name={field.name}
+                        label={field.label}
+                        className="min-h-20"
+                        value={value}
+                        onChange={(e) => setValue(field.name, e.target.value)}
+                        maxLength={field.maxLength}
+                      />
+                      {value !== '' && (
+                        <Button
+                          type="button"
+                          variant="tertiary"
+                          size="xs"
+                          onClick={() => setValue(field.name, '')}
+                          className="self-end"
+                          aria-label={`Clear ${field.label}`}
+                        >
+                          Clear
+                        </Button>
+                      )}
                     </div>
                   )
                 }
 
                 return (
-                  <div key={field.name} className="w-full">
-                    <label htmlFor={fieldId} className="block mb-1">
-                      {field.label}
-                    </label>
-                    <div className="relative w-full">
-                      <Input
-                        id={fieldId}
-                        name={field.name}
-                        type={field.inputType ?? 'text'}
-                        inputMode={field.inputMode}
-                        autoComplete={field.autoComplete}
-                        className="h-10"
-                        maxLength={field.maxLength}
-                        value={value}
-                        onChange={(e) => {
-                          const raw = e.target.value
-                          const next = isPhoneField ? formatPhoneNumber(raw) : raw
-                          setValue(field.name, next)
-                        }}
-                      />
-                      {value !== '' && (
+                  <Input
+                    key={field.name}
+                    id={fieldId}
+                    name={field.name}
+                    label={field.label}
+                    type={field.inputType ?? 'text'}
+                    inputMode={field.inputMode}
+                    autoComplete={field.autoComplete}
+                    maxLength={field.maxLength}
+                    value={value}
+                    onChange={(e) => {
+                      const raw = e.target.value
+                      const next = isPhoneField ? formatPhoneNumber(raw) : raw
+                      setValue(field.name, next)
+                    }}
+                    trailing={
+                      value !== '' ? (
                         <Button
+                          type="button"
                           variant="tertiary"
+                          size="iconXs"
                           onClick={() => setValue(field.name, '')}
-                          className="absolute right-1 top-1/2 -translate-y-1/2 text-muted-foreground hover:bg-transparent"
-                          tabIndex={-1}
                           aria-label={`Clear ${field.label}`}
                         >
-                          <X size={16} />
+                          <X size={14} />
                         </Button>
-                      )}
-                    </div>
-                  </div>
+                      ) : undefined
+                    }
+                  />
                 )
               })}
 

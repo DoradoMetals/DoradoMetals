@@ -1,8 +1,7 @@
-import { Divider, Button, RadioGroup, RadioOption } from '@dorado/components'
+import { Divider, Button, Input, RadioGroup, RadioOption } from '@dorado/components'
 import { useState } from 'react'
 import { cn } from '@/shared/utils/cn'
 import { SalesOrderDrawerContentProps, statusConfig } from '@/features/orders/salesOrders/types'
-import { FloatingLabelInput } from '@/shared/ui/inputs/FloatingLabelInput'
 import Image from 'next/image'
 import { useAdminSuppliers } from '@/features/refiners/queries'
 import { usePatchShipment, outboundOf } from '@/features/shipping/queries'
@@ -125,7 +124,7 @@ export default function AdminPreparingSalesOrder({ view }: SalesOrderDrawerConte
         </RadioGroup>
       )}
 
-      <FloatingLabelInput
+      <Input
         type="text"
         className="min-w-48"
         label="Tracking Number"

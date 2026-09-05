@@ -5,15 +5,13 @@ import { useMemo } from 'react'
 import { useDrawerStore } from '@/shared/store/drawerStore'
 import { formatFullDate } from '@/shared/utils/formatDates'
 
-import { SegmentedField } from '@/shared/ui/SegmentedField'
-
 import type { Carrier, CarrierService } from '@/features/carriers/types'
 import {
   useUpdateCarrierService,
   useDeleteCarrierService,
   useCarrierServicesByCarrier,
 } from '@/features/carriers/queries'
-import { Badge, Button, Drawer, Input, RadioGroup, RadioOption, Textarea } from '@dorado/components'
+import { Badge, Button, Drawer, Field, Input, RadioGroup, RadioOption, Textarea } from '@dorado/components'
 import Image from 'next/image'
 
 // <time dateTime> must be machine-readable; the wire hands these back as
@@ -201,21 +199,48 @@ function Handoffs({ service }: { service: CarrierService }) {
       <p className="eyebrow">Handoffs</p>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 2xl:grid-cols-3 gap-6 items-stretch">
-        <SegmentedField
-          label="Supports Pickup"
-          value={!!service.supports_pickup}
-          onChange={(v) => handlePatch({ supports_pickup: v })}
-        />
-        <SegmentedField
-          label="Supports Dropoff"
-          value={!!service.supports_dropoff}
-          onChange={(v) => handlePatch({ supports_dropoff: v })}
-        />
-        <SegmentedField
-          label="Supports Returns"
-          value={!!service.supports_returns}
-          onChange={(v) => handlePatch({ supports_returns: v })}
-        />
+        <Field label="Supports Pickup" className="w-full">
+          <RadioGroup
+            value={String(!!service.supports_pickup)}
+            onValueChange={(v) => handlePatch({ supports_pickup: v === 'true' })}
+            className="flex w-full gap-2"
+          >
+            <RadioOption value="true" variant="segment" className="flex-1">
+              Yes
+            </RadioOption>
+            <RadioOption value="false" variant="segment" className="flex-1">
+              No
+            </RadioOption>
+          </RadioGroup>
+        </Field>
+        <Field label="Supports Dropoff" className="w-full">
+          <RadioGroup
+            value={String(!!service.supports_dropoff)}
+            onValueChange={(v) => handlePatch({ supports_dropoff: v === 'true' })}
+            className="flex w-full gap-2"
+          >
+            <RadioOption value="true" variant="segment" className="flex-1">
+              Yes
+            </RadioOption>
+            <RadioOption value="false" variant="segment" className="flex-1">
+              No
+            </RadioOption>
+          </RadioGroup>
+        </Field>
+        <Field label="Supports Returns" className="w-full">
+          <RadioGroup
+            value={String(!!service.supports_returns)}
+            onValueChange={(v) => handlePatch({ supports_returns: v === 'true' })}
+            className="flex w-full gap-2"
+          >
+            <RadioOption value="true" variant="segment" className="flex-1">
+              Yes
+            </RadioOption>
+            <RadioOption value="false" variant="segment" className="flex-1">
+              No
+            </RadioOption>
+          </RadioGroup>
+        </Field>
       </div>
     </div>
   )
@@ -271,11 +296,20 @@ function Insurance({ service }: { service: CarrierService }) {
       <p className="eyebrow">Insurance</p>
 
       <div className="flex flex-col gap-6 w-full items-stretch">
-        <SegmentedField
-          label="Supports Insurance"
-          value={!!service.supports_insurance}
-          onChange={(v) => handlePatch({ supports_insurance: v })}
-        />
+        <Field label="Supports Insurance" className="w-full">
+          <RadioGroup
+            value={String(!!service.supports_insurance)}
+            onValueChange={(v) => handlePatch({ supports_insurance: v === 'true' })}
+            className="flex w-full gap-2"
+          >
+            <RadioOption value="true" variant="segment" className="flex-1">
+              Yes
+            </RadioOption>
+            <RadioOption value="false" variant="segment" className="flex-1">
+              No
+            </RadioOption>
+          </RadioGroup>
+        </Field>
 
         <Input
           id="max_declared_value"
@@ -375,21 +409,48 @@ function Flags({ service }: { service: CarrierService }) {
       <p className="eyebrow">Flags</p>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 2xl:grid-cols-3 gap-6 items-stretch">
-        <SegmentedField
-          label="International"
-          value={!!service.is_international}
-          onChange={(v) => handlePatch({ is_international: v })}
-        />
-        <SegmentedField
-          label="Residential"
-          value={!!service.is_residential}
-          onChange={(v) => handlePatch({ is_residential: v })}
-        />
-        <SegmentedField
-          label="Active"
-          value={!!service.is_active}
-          onChange={(v) => handlePatch({ is_active: v })}
-        />
+        <Field label="International" className="w-full">
+          <RadioGroup
+            value={String(!!service.is_international)}
+            onValueChange={(v) => handlePatch({ is_international: v === 'true' })}
+            className="flex w-full gap-2"
+          >
+            <RadioOption value="true" variant="segment" className="flex-1">
+              Yes
+            </RadioOption>
+            <RadioOption value="false" variant="segment" className="flex-1">
+              No
+            </RadioOption>
+          </RadioGroup>
+        </Field>
+        <Field label="Residential" className="w-full">
+          <RadioGroup
+            value={String(!!service.is_residential)}
+            onValueChange={(v) => handlePatch({ is_residential: v === 'true' })}
+            className="flex w-full gap-2"
+          >
+            <RadioOption value="true" variant="segment" className="flex-1">
+              Yes
+            </RadioOption>
+            <RadioOption value="false" variant="segment" className="flex-1">
+              No
+            </RadioOption>
+          </RadioGroup>
+        </Field>
+        <Field label="Active" className="w-full">
+          <RadioGroup
+            value={String(!!service.is_active)}
+            onValueChange={(v) => handlePatch({ is_active: v === 'true' })}
+            className="flex w-full gap-2"
+          >
+            <RadioOption value="true" variant="segment" className="flex-1">
+              Yes
+            </RadioOption>
+            <RadioOption value="false" variant="segment" className="flex-1">
+              No
+            </RadioOption>
+          </RadioGroup>
+        </Field>
       </div>
     </div>
   )
@@ -406,13 +467,19 @@ function Dev({ service }: { service: CarrierService }) {
     <div className="flex flex-col gap-6">
       <p className="eyebrow">Dev</p>
 
-      <SegmentedField
-        label="Display Order"
-        value={service.display_order ?? 0}
-        onChange={(n) => handlePatch({ display_order: n })}
-        options={services.map((_, i) => i)}
-        rowClassName="grid grid-cols-5 gap-2"
-      />
+      <Field label="Display Order">
+        <RadioGroup
+          value={String(service.display_order ?? 0)}
+          onValueChange={(v) => handlePatch({ display_order: Number(v) })}
+          className="grid grid-cols-5 gap-2"
+        >
+          {services.map((_, i) => (
+            <RadioOption key={i} value={String(i)} variant="segment">
+              {i}
+            </RadioOption>
+          ))}
+        </RadioGroup>
+      </Field>
     </div>
   )
 }
