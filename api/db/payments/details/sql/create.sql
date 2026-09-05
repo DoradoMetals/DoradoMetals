@@ -6,4 +6,6 @@ INSERT INTO payments.details
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
 RETURNING id, user_id, method_id, account_holder, bank_name, account_type,
        last_four, routing_last_four, card_brand, email_to,
-       provider, provider_ref, created_at, updated_at
+       provider, provider_ref,
+       to_char(created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS created_at,
+       to_char(updated_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS updated_at

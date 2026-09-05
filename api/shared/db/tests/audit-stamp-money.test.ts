@@ -11,7 +11,7 @@ import {
 } from "#shared/testing/builders/index.ts";
 import * as usersService from "#domain/users/service.ts";
 import * as ordersService from "#domain/orders/service.ts";
-import * as payoutDetails from "#domain/payments/details/service.ts";
+import * as paymentDetails from "#domain/payments/details/service.ts";
 import * as totalsRepo from "#db/orders/transactions/repo.ts";
 
 afterAll(async () => { await pool.end(); });
@@ -83,7 +83,7 @@ test("the payout account records the customer who entered it", async () => {
     const customer = await aUser(c, { name: "Paying Customer" });
 
     await actingAs(c, customer.id);
-    const saved = await payoutDetails.saveCheckoutPayout(
+    const saved = await paymentDetails.saveCheckoutPayout(
       customer.id,
       null,
       {

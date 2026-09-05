@@ -1,5 +1,5 @@
 import { Invalid, NotFound } from "#shared/errors.ts";
-import type { CheckoutPayoutForm } from "@dorado/contracts";
+import type { CheckoutPayoutForm, PaymentDetailsPatch, PaymentDetailsView } from "@dorado/contracts";
 
 const BANK_METHODS = new Set(["ACH", "WIRE"]);
 const EMAIL_METHODS = new Set(["ECHECK", "DORADO_ACCOUNT"]);
@@ -48,4 +48,38 @@ export function assertResolvedMethod<T extends { id: string }>(
 export function assertWrittenDetails<T>(details_id: string, row: T | undefined): T {
   if (!row) throw new NotFound(`no payout ${details_id}`);
   return row;
+}
+
+export function assertWritablePayout(
+  payout_id: string, payout: PaymentDetailsView | undefined
+): string {
+  const { order } = assertPayout(payout_id, payout);
+  if (!order?.order_id) {
+    throw new Invalid(
+      `payout ${payout_id} is attached to no order, so its writes have no subject`
+    );
+  }
+  return order.order_id;
+}
+
+export function assertPayout(
+  payout_id: string, payout: PaymentDetailsView | undefined
+): PaymentDetailsView {
+  if (!payout) throw new NotFound(`no payout ${payout_id}`);
+  return payout;
+}
+
+export function assertNamesAField(patch: PaymentDetailsPatch): PaymentDetailsPatch {
+  if (Object.keys(patch).length === 0) {
+    throw new Invalid("the document names no field to write");
+  }
+  return patch;
+}
+
+export function assertWaivable(payout_id: string, written: boolean): void {
+  if (!written) {
+    throw new Invalid(
+      `payout ${payout_id} is not on a purchase order, so its fee cannot be waived`
+    );
+  }
 }

@@ -8,7 +8,7 @@ export const keys = {
     spots: (order_id: string) => ["orders", order_id, "spots"] as const,
     address: (order_id: string) => ["orders", order_id, "address"] as const,
     shipments: (order_id: string) => ["orders", order_id, "shipments"] as const,
-    payouts: (order_id: string) => ["orders", order_id, "payouts"] as const,
+    paymentDetails: (order_id: string) => ["orders", order_id, "payment_details"] as const,
     scoped: (order_id: string) => ["orders", order_id] as const,
   },
   checkout: {
@@ -21,9 +21,8 @@ export const keys = {
     intent: (type: string, subject?: string | null) =>
       ["payments", "intent", type, subject ?? null] as const,
     orderIntent: (order_id: string) => ["payments", "intent", "order", order_id] as const,
-  },
-  payouts: {
-    details: (payout_id: string) => ["payouts", payout_id, "details"] as const,
+    details: (id: string) => ["payments", "details", id] as const,
+    detailsBank: (id: string) => ["payments", "details", id, "bank"] as const,
   },
   addresses: {
     book: (subject?: string | null) => ["addresses", subject ?? null] as const,

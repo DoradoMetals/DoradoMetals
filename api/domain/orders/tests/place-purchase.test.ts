@@ -13,6 +13,7 @@ import {
 import { LOCKS } from "#shared/testing/locks.ts";
 import { open, aadFor } from "#shared/crypto/envelope.ts";
 import { payoutKeyFromEnv } from "#shared/crypto/payoutKey.ts";
+import { paymentMethodId } from "#shared/testing/builders/reference.ts";
 
 await mockSessions();
 const { default: app } = await import("#app");
@@ -353,25 +354,27 @@ test("the placement links ids and writes NO exchange rows at all", async () => {
       "a new-flow order wrote an exchange row"
     );
 
+    const ach = await paymentMethodId(c, "ACH", "purchase");
+
     const wire = await as(
       { id: customer.id, role: "admin" },
-      () => request(app).get(`/api/orders/${order_id}/payouts`)
+      () => request(app).get(`/api/orders/${order_id}/payment-details`)
     );
     assert.equal(wire.status, 200, wire.text);
     assert.equal(wire.body.length, 1);
     assert.equal(wire.body[0].id, payment_details_id);
-    assert.equal(wire.body[0].method, "ACH");
-    assert.equal(wire.body[0].account_last4, "6789");
+    assert.equal(wire.body[0].method_id, ach);
+    assert.equal(wire.body[0].last_four, "6789");
     assert.equal(wire.body[0].routing_number, undefined, "the wire carried a full number");
 
     const details = await as(
       { id: customer.id, role: "admin" },
-      () => request(app).get(`/api/payouts/${payment_details_id}/details`)
+      () => request(app).get(`/api/payments/details/${payment_details_id}/bank`)
     );
     assert.equal(details.status, 200, details.text);
     assert.equal(details.body.routing_number, PAYOUT.routing_number);
     assert.equal(details.body.account_number, PAYOUT.account_number);
-    assert.equal(details.body.order_id, order_id);
+    assert.equal(details.body.order?.order_id, order_id);
 
     const fresh = await checkoutService.getRowFor(customer.id, "purchase", c);
     assert.equal(fresh.payment_details_id, null);

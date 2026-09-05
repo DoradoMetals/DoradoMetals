@@ -8,7 +8,7 @@ import * as methods from "#db/payments/methods/repo.ts";
 import * as transactions from "#db/orders/transactions/repo.ts";
 import { LOCKS } from "#shared/testing/locks.ts";
 import { rollbackIn } from "#shared/testing/rollback.ts";
-import { aUser, anOrder } from "#shared/testing/builders/index.ts";
+import { aPayout, aUser, anOrder } from "#shared/testing/builders/index.ts";
 
 beforeAll(async () => {
   assert.equal(
@@ -151,5 +151,53 @@ test("linking an order with no transactions row reports it rather than passing",
       "00000000-0000-0000-0000-000000000000", { payout_details_id: row.id }, {}, c
     );
     assert.equal(touched, false, "a link that reached nobody was reported as done");
+  });
+});
+
+test("getOne nests the linked order's payout fee and waiver", async () => {
+  await inRollback(async (c: PoolClient) => {
+    const user = await aUser(c);
+    const order = await anOrder(c, user, { direction: "purchase" });
+    const built = await aPayout(c, user, { order, method: "ACH", payout_fee: 12.5 });
+
+    const row = await details.getOne(built.id, c);
+    assert.equal(row?.id, built.id);
+    assert.equal(row?.order?.order_id, order.id);
+    assert.equal(Number(row?.order?.payout_fee), 12.5);
+
+    assert.ok(!("account_number" in (row as object)), "the full account number reached the row");
+    assert.ok(!("routing_number" in (row as object)), "the full routing number reached the row");
+  });
+});
+
+test("getOne answers no order for an account attached to nothing", async () => {
+  await inRollback(async (c: PoolClient) => {
+    const row = await anAccount(c);
+    const read = await details.getOne(row.id, c);
+    assert.equal(read?.order, null);
+  });
+});
+
+test("getMany batches several orders' details in one read, and answers empty for an empty list", async () => {
+  await inRollback(async (c: PoolClient) => {
+    const user = await aUser(c);
+    const first = await anOrder(c, user, { direction: "purchase" });
+    const second = await anOrder(c, user, { direction: "purchase" });
+    const firstPayout = await aPayout(c, user, { order: first });
+    const secondPayout = await aPayout(c, user, { order: second });
+
+    const rows = await details.getMany([first.id, second.id], c);
+    const ids = rows.map((r) => r.id).sort();
+    assert.deepEqual(ids, [firstPayout.id, secondPayout.id].sort());
+
+    assert.deepEqual(await details.getMany([], c), []);
+  });
+});
+
+test("getMany answers empty for an order with no linked details", async () => {
+  await inRollback(async (c: PoolClient) => {
+    const user = await aUser(c);
+    const order = await anOrder(c, user, { direction: "purchase" });
+    assert.deepEqual(await details.getMany([order.id], c), []);
   });
 });

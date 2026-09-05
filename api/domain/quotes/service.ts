@@ -10,7 +10,7 @@ import * as orderRead from "#domain/orders/read.ts";
 import * as orderSpotsService from "#domain/orders/spots/service.ts";
 import * as usersService from "#domain/users/service.ts";
 import { paymentSurface } from "#domain/payments/rules.ts";
-import { payoutFee, PAYOUT_METHOD_FEES } from "#domain/payouts/constants.ts";
+import { payoutFee, PAYOUT_METHOD_FEES } from "#domain/payments/details/constants.ts";
 import {
   bandableContent, bidPrice, declaredContent, estimatedPayout,
   requireBandPremium, requireSpot,

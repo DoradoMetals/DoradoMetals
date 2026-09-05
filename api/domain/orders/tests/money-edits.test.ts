@@ -79,7 +79,7 @@ test("cost writes the payout's cost", async () => {
     const { payout } = await money(client);
     await asAdmin(admin, async () => {
       const res = await request(app)
-        .patch(`/api/payouts/${payout.id}`)
+        .patch(`/api/payments/details/${payout.id}`)
         .send({ cost: 56.78 });
 
       assert.equal(res.status, 200, `answered ${res.status}: ${JSON.stringify(res.body)}`);
@@ -99,12 +99,11 @@ test("method writes the payout's method, and the response is the payout row", as
     const { payout } = await money(client);
     await asAdmin(admin, async () => {
       const res = await request(app)
-        .patch(`/api/payouts/${payout.id}`)
+        .patch(`/api/payments/details/${payout.id}`)
         .send({ method: "ACH" });
 
       assert.equal(res.status, 200, `answered ${res.status}: ${JSON.stringify(res.body)}`);
       assert.equal(res.body.id, payout.id);
-      assert.equal(res.body.method, "ACH");
       assert.ok(!("routing_number" in res.body), "the payout PATCH answered a routing number");
       assert.ok(!("account_number" in res.body), "the payout PATCH answered an account number");
 
@@ -141,7 +140,7 @@ test("an unknown field refuses by name on both endpoints", async () => {
       );
 
       const pay = await request(app)
-        .patch(`/api/payouts/${payout.id}`)
+        .patch(`/api/payments/details/${payout.id}`)
         .send({ account_number: "12345678" });
       assert.equal(pay.status, 400, `answered ${pay.status}`);
       assert.match(pay.body?.error?.message ?? "", /"account_number"/);

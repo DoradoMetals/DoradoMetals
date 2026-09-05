@@ -120,7 +120,7 @@ test("basket, row, fulfillment, payout and placement agree on one order's money"
     );
 
     const payoutsOnOrder = await as(customer, () =>
-      request(app).get(`/api/orders/${placed.order.id}/payouts`)
+      request(app).get(`/api/orders/${placed.order.id}/payment-details`)
     );
     assert.equal(payoutsOnOrder.status, 200, payoutsOnOrder.text);
     assert.ok(Array.isArray(payoutsOnOrder.body) && payoutsOnOrder.body.length > 0,

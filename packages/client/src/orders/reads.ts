@@ -2,7 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import type {
-  Address, OrderItem, OrderRead, OrderSpot, OrderView, Payout,
+  Address, OrderItem, OrderRead, OrderSpot, OrderView,
 } from "@dorado/contracts";
 
 import { apiRequest } from "../fetch";
@@ -51,13 +51,5 @@ export function useOrderAddress(order_id: string | null | undefined, enabled = t
     queryFn: () => apiRequest<Address>("GET", `/orders/${order_id}/address`),
     enabled: enabled && !!order_id,
     retry: false,
-  });
-}
-
-export function useOrderPayouts(order_id: string | null | undefined, enabled = true) {
-  return useQuery<Payout[]>({
-    queryKey: keys.orders.payouts(order_id ?? ""),
-    queryFn: () => apiRequest<Payout[]>("GET", `/orders/${order_id}/payouts`),
-    enabled: enabled && !!order_id,
   });
 }

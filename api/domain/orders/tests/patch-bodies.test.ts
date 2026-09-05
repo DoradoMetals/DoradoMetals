@@ -1,7 +1,7 @@
 import { test, afterAll } from "vitest";
 import assert from "node:assert/strict";
 import pool from "#pool";
-import { OrderItemPatch, OrderPatch, PayoutPatch, RefinerItemPatch, RefinerOrderPatch, ShipmentPatch } from "@dorado/contracts";
+import { OrderItemPatch, OrderPatch, PaymentDetailsPatch, RefinerItemPatch, RefinerOrderPatch, ShipmentPatch } from "@dorado/contracts";
 
 afterAll(async () => {
   await pool.end();
@@ -90,10 +90,10 @@ test("an order item PATCH is flat - the scrap and bullion documents are gone", (
 });
 
 test("a payout PATCH takes the waive flag both ways, and refuses a non-boolean", () => {
-  assert.equal(PayoutPatch.safeParse({ waive_payout_fee: true }).success, true);
-  assert.equal(PayoutPatch.safeParse({ waive_payout_fee: false }).success, true);
-  refusesField(PayoutPatch, { waive_payout_fee: "yes" }, "waive_payout_fee");
-  assert.equal(PayoutPatch.safeParse({ cost: 125 }).success, true);
+  assert.equal(PaymentDetailsPatch.safeParse({ waive_payout_fee: true }).success, true);
+  assert.equal(PaymentDetailsPatch.safeParse({ waive_payout_fee: false }).success, true);
+  refusesField(PaymentDetailsPatch, { waive_payout_fee: "yes" }, "waive_payout_fee");
+  assert.equal(PaymentDetailsPatch.safeParse({ cost: 125 }).success, true);
 });
 
 test("an unknown field is refused by name on every one of the six", () => {
@@ -102,7 +102,7 @@ test("an unknown field is refused by name on every one of the six", () => {
   refusesField(ShipmentPatch, { nope: 1 }, "nope");
   refusesField(RefinerOrderPatch, { nope: 1 }, "nope");
   refusesField(RefinerItemPatch, { nope: 1 }, "nope");
-  refusesField(PayoutPatch, { nope: 1 }, "nope");
+  refusesField(PaymentDetailsPatch, { nope: 1 }, "nope");
 
   refusesField(RefinerItemPatch, { content: 1 }, "content");
 });

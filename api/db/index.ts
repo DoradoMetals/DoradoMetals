@@ -23,7 +23,6 @@ export * as paymentDetails from "#db/payments/details/repo.ts";
 export * as paymentIntents from "#db/payments/intents/repo.ts";
 export * as paymentMethods from "#db/payments/methods/repo.ts";
 export * as paymentSettlements from "#db/payments/settlements/repo.ts";
-export * as payouts from "#db/payouts/repo.ts";
 export * as addresses from "#db/places/addresses/repo.ts";
 export * as userAddresses from "#db/places/user-addresses/repo.ts";
 export * as products from "#db/products/repo.ts";

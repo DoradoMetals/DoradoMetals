@@ -261,7 +261,7 @@ if (isMain) {
         "DELETE /api/purchase_orders/purge_cancelled": "requireAdmin",
         "POST /api/purchase_orders/create_review": "requireUser",
         "POST /api/sales_orders/create_review": "requireUser",
-        "GET /api/payouts/:id/details": "requireAdmin",
+        "GET /api/payments/details/:id/bank": "requireAdmin",
       };
   const byUrl = new Map(routes.filter((r) => r.url).map((r) => [`${r.verb} ${r.url}`, r]));
   const missing: string[] = [];

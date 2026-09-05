@@ -18,7 +18,6 @@ export * as orderTransactions from "#domain/orders/transactions/service.ts";
 export * as payments from "#domain/payments/service.ts";
 export * as paymentDetails from "#domain/payments/details/service.ts";
 export * as paymentMethods from "#domain/payments/methods/service.ts";
-export * as payouts from "#domain/payouts/service.ts";
 export * as addresses from "#domain/places/addresses/service.ts";
 export * as pricing from "#domain/pricing/service.ts";
 export * as products from "#domain/products/service.ts";
