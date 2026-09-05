@@ -9,7 +9,7 @@ export const OrderItem = z.object({
   "id": z.string().uuid(),
   "order_id": z.string().uuid(),
   "bullion_id": z.string().uuid().nullable(),
-  "metal_id": z.string().uuid(),
+  "metal_id": z.string(),
   "pre_melt": z.number().nullable(),
   "post_melt": z.number().nullable(),
   "purity": z.number().nullable(),
@@ -49,11 +49,6 @@ export const OrderItemWrite = OrderItem.omit({
   id: true, order_id: true, bullion_id: true, metal_id: true,
 }).partial();
 export type OrderItemWrite = z.infer<typeof OrderItemWrite>;
-
-export const PricedLine = OrderItem
-  .pick({ id: true, content: true, quantity: true, bullion_id: true })
-  .extend({ metal: z.string().nullable() });
-export type PricedLine = z.infer<typeof PricedLine>;
 
 export const SoldLinePrice = z.object({
   line_id: OrderItem.shape.id,

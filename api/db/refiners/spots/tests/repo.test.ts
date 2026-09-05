@@ -5,7 +5,7 @@ import pool from "#pool";
 import { LOCKS, takeLocks } from "#shared/testing/locks.ts";
 import { rollbackIn } from "#shared/testing/rollback.ts";
 import {
-  aUser, anOrder, aRefinerEngagement, metalId,
+  aUser, anOrder, aRefinerEngagement,
 } from "#shared/testing/builders/index.ts";
 import * as refinerSpots from "#db/refiners/spots/repo.ts";
 
@@ -24,12 +24,12 @@ const inRollback = rollbackIn({ lock: LOCKS.ORDERS });
 
 const aRefinerSpot = async (c: PoolClient, direction: "purchase" | "sale") => {
   const order = await anOrder(c, await aUser(c), { direction })
-    .withLots(1, { metal: "Gold" })
-    .withLots(1, { metal: "Silver" });
+    .withLots(1, { metal_id: "Gold" })
+    .withLots(1, { metal_id: "Silver" });
   const engagement = await aRefinerEngagement(c, order);
   return {
     order_id: order.id,
-    metal_id: await metalId(c, "Gold"),
+    metal_id: "Gold",
     refiner_order_id: engagement.id,
     refiner_id: null as string | null,
   };

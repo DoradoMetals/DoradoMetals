@@ -39,7 +39,7 @@ beforeAll(async () => {
   salesOrders = await viewsOf("sale");
   assert.ok(orders.length > 0, "dev has no purchase orders to render");
   ({ labels } = await inputsFor(orders[0]));
-  assert.ok(labels.metals.size > 0, "dev has no metals to label a document with");
+  assert.ok(labels.metals.length > 0, "dev has no metals to label a document with");
 });
 
 afterAll(async () => {
@@ -152,11 +152,11 @@ test("a sales order invoice builds with no spot prices at all", async () => {
   assert.ok(!html.includes("NaN"), "the invoice contains NaN");
   assert.ok(html.includes("&mdash;"), "a missing spot rendered as nothing at all");
 
-  const [gold] = [...labels.metals].find(([, name]) => name === "Gold") ?? [];
+  const gold = labels.metals.find((metal) => metal === "Gold");
   assert.ok(gold, "dev has no metal called Gold");
   const partial = pdf.buildSalesOrderInvoiceHtml({
     order,
-    asks: new Map([[gold!, 4000]]),
+    asks: new Map([[gold, 4000]]),
     pricing: salePricing,
     labels,
   });

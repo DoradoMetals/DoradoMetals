@@ -159,17 +159,17 @@ test("no sales order leaks into a purchase order list", async () => {
 });
 
 test("spot rows come back per metal with the shape the API returns", async () => {
-  let spots: Awaited<ReturnType<typeof spotsRepo.getFor>> = [];
+  let spots: Awaited<ReturnType<typeof spotsRepo.getRowsFor>> = [];
   for (const id of await purchaseIds(client)) {
-    spots = await spotsRepo.getFor(id);
+    spots = await spotsRepo.getRowsFor(id);
     if (spots.length) break;
   }
   assert.ok(spots.length, "no purchase order has spot rows, so this asserts nothing");
-  assert.deepEqual(Object.keys(spots[0]).sort(), [
-    "ask", "bid", "created_at", "dollar_change", "id",
-    "name", "order_id", "percent_change", "updated_at",
+  assert.deepEqual(Object.keys(spots[0]!).sort(), [
+    "ask", "bid", "bullion_percentage", "created_at", "id",
+    "metal_id", "order_id", "scrap_percentage", "updated_at",
   ]);
-  assert.deepEqual(spots.map((s) => s.name), [...spots.map((s) => s.name)].sort());
+  assert.deepEqual(spots.map((s) => s.metal_id), [...spots.map((s) => s.metal_id)].sort());
 });
 
 test("reads do not write", async () => {

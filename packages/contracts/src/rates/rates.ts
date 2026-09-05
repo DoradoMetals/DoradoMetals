@@ -7,7 +7,7 @@ import { z } from "zod/v4";
 
 export const Rate = z.object({
   "id": z.string().uuid(),
-  "metal_id": z.string().uuid(),
+  "metal_id": z.string(),
   "unit": z.string(),
   "min_qty": z.number(),
   "max_qty": z.number().nullable(),
@@ -22,21 +22,17 @@ export const Rate = z.object({
 });
 export type Rate = z.infer<typeof Rate>;
 // generated:end
-import { Metal } from "../metals/metals.js";
-
 export const RateRead = Rate.omit({
-  metal_id: true,
   created_at: true,
   updated_at: true,
   created_by: true,
   updated_by: true,
   created_by_id: true,
   updated_by_id: true,
-}).extend({ metal: Metal.shape.name });
+});
 export type RateRead = z.infer<typeof RateRead>;
 
 export const AdminRate = RateRead.extend({
-  metal_id: Rate.shape.metal_id,
   created_at: Rate.shape.created_at,
   updated_at: Rate.shape.updated_at,
   created_by: Rate.shape.created_by,

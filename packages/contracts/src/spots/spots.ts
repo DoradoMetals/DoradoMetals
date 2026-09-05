@@ -7,7 +7,7 @@ import { z } from "zod/v4";
 
 export const Spot = z.object({
   "id": z.string().uuid(),
-  "metal_id": z.string().uuid(),
+  "metal_id": z.string(),
   "ask": z.number(),
   "bid": z.number().nullable(),
   "percent_change": z.number().nullable(),
@@ -25,7 +25,6 @@ export const SpotPrice = Spot.pick({
   dollar_change: true,
 }).extend({
   id: Metal.shape.id,
-  name: Metal.shape.name,
   ask: Spot.shape.ask.nullable(),
 });
 export type SpotPrice = z.infer<typeof SpotPrice>;

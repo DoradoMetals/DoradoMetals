@@ -35,7 +35,7 @@ const customer = TEST_CUSTOMER;
 const world = async (c: PoolClient) => {
   const owner = await aUser(c, { name: "The Customer" });
   const order = await anOrder(c, owner, { direction: "purchase", status: "Pending" })
-    .withLots(1, { metal: "Gold", pre_melt: 10, purity: 0.585 })
+    .withLots(1, { metal_id: "Gold", pre_melt: 10, purity: 0.585 })
     .withSpots()
     .withTotals({ total: 1000 });
   await aRefinerEngagement(c, order);
@@ -103,8 +103,7 @@ test("the engagement PATCH writes the refiner's spot for that metal on that orde
 
       const { rows } = await client.query(
         `SELECT sp.bid FROM refiners.spots sp
-          JOIN metals.metals m ON m.id = sp.metal_id
-         WHERE sp.order_id = $1 AND m.name = $2`,
+         WHERE sp.order_id = $1 AND sp.metal_id = $2`,
         [refinerMetal.order_id, refinerMetal.type]
       );
       assert.ok(rows.length, "no refiners.spots row matched");

@@ -4,24 +4,8 @@ import { sqlFrom } from "#shared/db/sql.ts";
 import type { Executor } from "#shared/db/executor.ts";
 import { columnsOf } from "#shared/db/columns.ts";
 import { OrderSpot, OrderSpotPatch } from "@dorado/contracts";
-import type { OrderSpotNamed } from "@dorado/contracts";
 
 const sql = sqlFrom(import.meta.dirname);
-
-export async function getFor(
-  order_id: string, executor?: Executor
-): Promise<OrderSpotNamed[]> {
-  const { rows } = await query<OrderSpotNamed>(sql("get_for"), [order_id], executor);
-  return rows;
-}
-
-export async function getMany(
-  order_ids: string[], executor?: Executor
-): Promise<OrderSpotNamed[]> {
-  if (order_ids.length === 0) return [];
-  const { rows } = await query<OrderSpotNamed>(sql("get_many"), [order_ids], executor);
-  return rows;
-}
 
 export async function getRowsFor(
   order_id: string, executor?: Executor

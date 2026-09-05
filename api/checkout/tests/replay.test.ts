@@ -7,7 +7,7 @@ import { mockSessions, restoreSessions, as, anonymous } from "#shared/testing/se
 import { TEST_ACTOR } from "#shared/testing/actor.ts";
 import { inPinnedTransaction } from "#shared/testing/pinned-pool.ts";
 import { LOCKS } from "#shared/testing/locks.ts";
-import { anUnknownId, aUser, metalId, type BuiltUser } from "#shared/testing/builders/index.ts";
+import { anUnknownId, aUser, type BuiltUser } from "#shared/testing/builders/index.ts";
 
 await mockSessions();
 const { default: app } = await import("#app");
@@ -24,7 +24,7 @@ afterAll(async () => {
 const asCaller = (u: BuiltUser): Caller => ({ id: u.id, name: u.name, email: u.email, role: "user" });
 
 async function seedOwnerCart(client: PoolClient, owner: Caller): Promise<number> {
-  const metal_id = await metalId(client, "Gold");
+  const metal_id = "Gold";
   const res = await as(owner, () =>
     request(app)
       .put("/api/checkout/items")

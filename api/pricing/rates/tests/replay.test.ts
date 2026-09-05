@@ -127,7 +127,7 @@ test("the tier table is public, labelled and banded", async () => {
       assert.equal(res.status, 200, "the rates page read stopped being public");
       assert.ok(Array.isArray(res.body) && res.body.length > 0, "dev has rates and none came back");
       const [tier] = res.body;
-      assert.equal(typeof tier.metal, "string");
+      assert.equal(typeof tier.metal_id, "string");
       assert.ok(Array.isArray(tier.bands) && tier.bands.length > 0);
       assert.ok(tier.bands[0].label, "a band came back with no label to print");
       assert.ok(tier.bands[0].key, "a band came back with no column key");

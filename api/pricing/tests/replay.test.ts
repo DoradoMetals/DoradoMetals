@@ -26,9 +26,9 @@ let buyer: BuyerFixture;
 
 beforeAll(async () => {
   const spots = await outside<SpotFixture>(
-    `SELECT m.name, s.ask, s.bid
-       FROM spots.spots s JOIN metals.metals m ON m.id = s.metal_id
-      WHERE m.name = 'Gold'`
+    `SELECT s.metal_id, s.ask, s.bid
+       FROM spots.spots s
+      WHERE s.metal_id = 'Gold'`
   );
   gold = spots[0];
   assert.ok(gold, "dev has no Gold spot row - every check here would be vacuous");
@@ -36,8 +36,8 @@ beforeAll(async () => {
 
   const products = await outside<ProductFixture>(
     `SELECT b.id, b.name, b.content, b.ask_premium, b.bid_premium
-       FROM products.bullion b JOIN metals.metals m ON m.id = b.metal_id
-      WHERE b.display AND b.content IS NOT NULL AND m.name = 'Gold'
+       FROM products.bullion b
+      WHERE b.display AND b.content IS NOT NULL AND b.metal_id = 'Gold'
       ORDER BY b.name LIMIT 1`
   );
   product = products[0];

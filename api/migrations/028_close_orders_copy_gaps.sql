@@ -26,11 +26,12 @@ INSERT INTO orders.items (
   premium, quantity, confirmed, sales_tax_charged, unit
 )
 SELECT
-  poi.id, poi.purchase_order_id, poi.product_id, s.metal_id,
+  poi.id, poi.purchase_order_id, poi.product_id, sm.type,
   s.pre_melt, s.post_melt, s.purity, s.content,
   poi.premium, poi.quantity, poi.confirmed, 0, s.gross_unit
 FROM exchange.purchase_order_items poi
 JOIN exchange.scrap s ON s.id = poi.scrap_id
+LEFT JOIN exchange.metals sm ON sm.id = s.metal_id
 LEFT JOIN orders.items i ON i.id = poi.id
 WHERE i.id IS NULL
   AND EXISTS (SELECT 1 FROM orders.orders o WHERE o.id = poi.purchase_order_id);

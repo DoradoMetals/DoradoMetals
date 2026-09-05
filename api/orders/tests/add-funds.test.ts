@@ -91,7 +91,7 @@ test("a spot write just before the credit does not reach the ledger", async () =
       const before = await countOf();
 
       const { rows: [gold] } = await client.query(
-        `SELECT id FROM metals.metals WHERE name = 'Gold'`
+        `SELECT id FROM metals.metals WHERE id = 'Gold'`
       );
       const zeroed = await request(app)
         .put(`/api/orders/${order.id}/spots`)

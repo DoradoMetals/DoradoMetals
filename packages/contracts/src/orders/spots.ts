@@ -7,7 +7,7 @@ import { z } from "zod/v4";
 
 export const OrderSpot = z.object({
   "id": z.string().uuid(),
-  "metal_id": z.string().uuid(),
+  "metal_id": z.string(),
   "order_id": z.string().uuid(),
   "ask": z.number().nullable(),
   "bid": z.number().nullable(),
@@ -31,12 +31,3 @@ export type OrderSpotsPutBody = z.infer<typeof OrderSpotsPutBody>;
 
 export const OrderSpotPatch = OrderSpot.pick({ bid: true }).partial();
 export type OrderSpotPatch = z.infer<typeof OrderSpotPatch>;
-
-export const OrderSpotNamed = OrderSpot
-  .omit({ metal_id: true, scrap_percentage: true, bullion_percentage: true })
-  .extend({
-    name: z.string(),
-    percent_change: OrderSpot.shape.ask,
-    dollar_change: OrderSpot.shape.ask,
-  });
-export type OrderSpotNamed = z.infer<typeof OrderSpotNamed>;

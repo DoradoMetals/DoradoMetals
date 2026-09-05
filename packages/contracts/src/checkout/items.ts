@@ -8,7 +8,7 @@ import { z } from "zod/v4";
 export const CheckoutItem = z.object({
   "id": z.string().uuid(),
   "bullion_id": z.string().uuid().nullable(),
-  "metal_id": z.string().uuid().nullable(),
+  "metal_id": z.string().nullable(),
   "checkout_id": z.string().uuid(),
   "pre_melt": z.number().nullable(),
   "post_melt": z.number().nullable(),

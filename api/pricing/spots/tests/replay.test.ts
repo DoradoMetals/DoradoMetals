@@ -9,15 +9,15 @@ import { inPinnedTransaction, outside } from "#shared/testing/pinned-pool.ts";
 await mockSessions();
 const { default: app } = await import("#app");
 
-type MetalFixture = { name: string; ask: number; bid: number };
+type MetalFixture = { metal_id: string; ask: number; bid: number };
 
 let metals: MetalFixture[];
 
 beforeAll(async () => {
   metals = await outside(
-    `SELECT m.name, s.ask, s.bid
-       FROM spots.spots s JOIN metals.metals m ON m.id = s.metal_id
-      ORDER BY m.name`
+    `SELECT s.metal_id, s.ask, s.bid
+       FROM spots.spots s
+      ORDER BY s.metal_id`
   );
   assert.ok(metals.length > 0, "dev has no metals - every assertion here would be vacuous");
 });
@@ -48,16 +48,16 @@ test("every metal carries the fields a quote is built from", async () => {
       const res = await request(app).get("/api/spots");
       assert.ok(res.body.length > 0, "the spot feed came back empty");
       for (const spot of res.body) {
-        for (const field of ["name", "ask", "bid"]) {
+        for (const field of ["id", "ask", "bid"]) {
           assert.ok(field in spot, `a spot is missing ${field}`);
         }
         assert.ok(
           Number.isFinite(Number(spot.ask)),
-          `${spot.name} has a non-numeric ask (${spot.ask}) - every quote built on it is wrong`
+          `${spot.id} has a non-numeric ask (${spot.ask}) - every quote built on it is wrong`
         );
         assert.ok(
           Number(spot.ask) > 0,
-          `${spot.name} has an ask of ${spot.ask}; a zero ask values metal at nothing`
+          `${spot.id} has an ask of ${spot.ask}; a zero ask values metal at nothing`
         );
       }
     });
@@ -69,17 +69,17 @@ test("the asks and bids are the ones in the table, not a transposition of them",
     await anonymous(async () => {
       const res = await request(app).get("/api/spots");
       for (const row of metals) {
-        const served = res.body.find((s: MetalFixture) => s.name === row.name);
-        assert.ok(served, `${row.name} is in the table and not in the feed`);
+        const served = res.body.find((s: { id: string }) => s.id === row.metal_id);
+        assert.ok(served, `${row.metal_id} is in the table and not in the feed`);
         assert.equal(
           Number(served.ask).toFixed(6),
           Number(row.ask).toFixed(6),
-          `${row.name} was served an ask that is not the stored one`
+          `${row.metal_id} was served an ask that is not the stored one`
         );
         assert.equal(
           Number(served.bid).toFixed(6),
           Number(row.bid).toFixed(6),
-          `${row.name} was served a bid that is not the stored one`
+          `${row.metal_id} was served a bid that is not the stored one`
         );
       }
     });
@@ -118,7 +118,7 @@ test("the feed says which way each metal moved, and a flat day is flat", async (
         const change = spot.dollar_change;
         const expected = change === null || Number(change) === 0
           ? "flat" : Number(change) > 0 ? "up" : "down";
-        assert.equal(spot.direction, expected, `${spot.name} moved ${change} and reads ${spot.direction}`);
+        assert.equal(spot.direction, expected, `${spot.id} moved ${change} and reads ${spot.direction}`);
       }
     });
   }, { actor: TEST_ACTOR.id });

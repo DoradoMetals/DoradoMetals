@@ -56,7 +56,7 @@ test("spot prices answer a signed-out visitor and take nothing from the request"
       assert.ok(Array.isArray(res.body) && res.body.length > 0);
 
       const s = res.body[0];
-      for (const field of ["name", "bid", "ask"]) {
+      for (const field of ["id", "bid", "ask"]) {
         assert.ok(field in s, `the spot response is missing ${field}`);
       }
       assert.equal(typeof s.bid, "number", "a price came back as a string");
@@ -101,7 +101,7 @@ test("the public rate bands omit what the admin ones return", async () => {
       assert.ok(Array.isArray(res.body) && res.body.length > 0);
 
       const r = res.body[0];
-      for (const field of ["metal", "min_qty", "max_qty", "scrap_pct", "bullion_pct"]) {
+      for (const field of ["metal_id", "min_qty", "max_qty", "scrap_pct", "bullion_pct"]) {
         assert.ok(field in r, `the public rate response is missing ${field}`);
       }
       for (const audit of ["created_by", "updated_by", "created_at", "updated_at"]) {

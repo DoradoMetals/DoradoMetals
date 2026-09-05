@@ -37,7 +37,7 @@ test("basket, row, a real intent and placement agree on one sales order", async 
     const customer = asCaller(built);
     const admin = await anAdmin(c);
     const address = await anAddress(c, customer);
-    const product = await aProduct(c, { metal: "Gold", content: 1, ask_premium: 60 });
+    const product = await aProduct(c, { metal_id: "Gold", content: 1, ask_premium: 60 });
     const service = await saleServiceId(c);
     const method = await paymentMethodId(c, "CARD", "sale");
 

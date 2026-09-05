@@ -24,7 +24,7 @@ afterAll(async () => {
 });
 
 const anOrderWithScrap = async (c: PoolClient) => {
-  const { rows: [metal] } = await c.query("SELECT id FROM metals.metals LIMIT 1");
+  const { rows: [metal] } = await c.query("SELECT id FROM metals.metals ORDER BY id LIMIT 1");
   const { rows: [order] } = await c.query(
     `INSERT INTO orders.orders (direction, status, number)
      VALUES ('purchase', 'Pending', nextval('orders.purchase_number_seq'))
@@ -73,7 +73,6 @@ const aGoldProductOffItsBand = async (c: PoolClient) => {
   const { rows } = await c.query(
     `SELECT b.id, b.content, b.bid_premium, band.bullion_pct
        FROM products.bullion b
-       JOIN metals.metals m ON m.id = b.metal_id
        CROSS JOIN LATERAL (
          SELECT r.bullion_pct FROM rates.rates r
           WHERE r.metal_id = b.metal_id
@@ -81,7 +80,7 @@ const aGoldProductOffItsBand = async (c: PoolClient) => {
             AND (r.max_qty IS NULL OR b.content <= r.max_qty)
           ORDER BY r.min_qty LIMIT 1
        ) band
-      WHERE m.name = 'Gold' AND b.content IS NOT NULL
+      WHERE b.metal_id = 'Gold' AND b.content IS NOT NULL
         AND b.bid_premium IS DISTINCT FROM band.bullion_pct
       ORDER BY b.content
       LIMIT 1`
@@ -96,8 +95,7 @@ const aGoldProductOffItsBand = async (c: PoolClient) => {
 const bandFor = async (c: PoolClient, metal: string, total: number) => {
   const { rows } = await c.query(
     `SELECT r.scrap_pct, r.bullion_pct FROM rates.rates r
-       JOIN metals.metals m ON m.id = r.metal_id
-      WHERE m.name = $1 AND $2::numeric >= r.min_qty
+      WHERE r.metal_id = $1 AND $2::numeric >= r.min_qty
         AND (r.max_qty IS NULL OR $2::numeric <= r.max_qty)
       ORDER BY r.min_qty LIMIT 1`,
     [metal, total]
@@ -133,7 +131,7 @@ test("a new bullion line is born at its rate band, not at the product's bid prem
 
 test("adding bullion re-tiers the order's scrap by their combined content", async () => {
   const { rows: [gold] } = await client.query(
-    "SELECT id FROM metals.metals WHERE name = 'Gold'"
+    "SELECT id FROM metals.metals WHERE id = 'Gold'"
   );
   const { rows: [order] } = await client.query(
     `INSERT INTO orders.orders (direction, status, number)

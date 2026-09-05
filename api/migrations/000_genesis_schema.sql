@@ -270,7 +270,7 @@ ALTER TABLE checkout.checkouts ADD COLUMN IF NOT EXISTS fulfillment_id uuid;
 CREATE TABLE IF NOT EXISTS checkout.items (
   id uuid DEFAULT gen_random_uuid() NOT NULL,
   bullion_id uuid,
-  metal_id uuid,
+  metal_id text,
   checkout_id uuid NOT NULL,
   pre_melt numeric,
   post_melt numeric,
@@ -286,7 +286,7 @@ CREATE TABLE IF NOT EXISTS checkout.items (
 );
 ALTER TABLE checkout.items ADD COLUMN IF NOT EXISTS id uuid DEFAULT gen_random_uuid();
 ALTER TABLE checkout.items ADD COLUMN IF NOT EXISTS bullion_id uuid;
-ALTER TABLE checkout.items ADD COLUMN IF NOT EXISTS metal_id uuid;
+ALTER TABLE checkout.items ADD COLUMN IF NOT EXISTS metal_id text;
 ALTER TABLE checkout.items ADD COLUMN IF NOT EXISTS checkout_id uuid;
 ALTER TABLE checkout.items ADD COLUMN IF NOT EXISTS pre_melt numeric;
 ALTER TABLE checkout.items ADD COLUMN IF NOT EXISTS post_melt numeric;
@@ -508,11 +508,9 @@ ALTER TABLE media.pdfs ADD COLUMN IF NOT EXISTS checksum text;
 ALTER TABLE media.pdfs ADD COLUMN IF NOT EXISTS created_at timestamp with time zone DEFAULT now();
 
 CREATE TABLE IF NOT EXISTS metals.metals (
-  id uuid DEFAULT gen_random_uuid() NOT NULL,
-  name text NOT NULL
+  id text NOT NULL
 );
-ALTER TABLE metals.metals ADD COLUMN IF NOT EXISTS id uuid DEFAULT gen_random_uuid();
-ALTER TABLE metals.metals ADD COLUMN IF NOT EXISTS name text;
+ALTER TABLE metals.metals ADD COLUMN IF NOT EXISTS id text;
 
 CREATE TABLE IF NOT EXISTS orders.addresses (
   id uuid DEFAULT gen_random_uuid() NOT NULL,
@@ -529,7 +527,7 @@ CREATE TABLE IF NOT EXISTS orders.items (
   id uuid DEFAULT gen_random_uuid() NOT NULL,
   order_id uuid NOT NULL,
   bullion_id uuid,
-  metal_id uuid NOT NULL,
+  metal_id text NOT NULL,
   pre_melt numeric,
   post_melt numeric,
   purity numeric,
@@ -544,7 +542,7 @@ CREATE TABLE IF NOT EXISTS orders.items (
 ALTER TABLE orders.items ADD COLUMN IF NOT EXISTS id uuid DEFAULT gen_random_uuid();
 ALTER TABLE orders.items ADD COLUMN IF NOT EXISTS order_id uuid;
 ALTER TABLE orders.items ADD COLUMN IF NOT EXISTS bullion_id uuid;
-ALTER TABLE orders.items ADD COLUMN IF NOT EXISTS metal_id uuid;
+ALTER TABLE orders.items ADD COLUMN IF NOT EXISTS metal_id text;
 ALTER TABLE orders.items ADD COLUMN IF NOT EXISTS pre_melt numeric;
 ALTER TABLE orders.items ADD COLUMN IF NOT EXISTS post_melt numeric;
 ALTER TABLE orders.items ADD COLUMN IF NOT EXISTS purity numeric;
@@ -593,7 +591,7 @@ ALTER TABLE orders.orders ADD COLUMN IF NOT EXISTS spots_locked boolean DEFAULT 
 
 CREATE TABLE IF NOT EXISTS orders.spots (
   id uuid DEFAULT gen_random_uuid() NOT NULL,
-  metal_id uuid NOT NULL,
+  metal_id text NOT NULL,
   order_id uuid NOT NULL,
   ask numeric,
   bid numeric,
@@ -603,7 +601,7 @@ CREATE TABLE IF NOT EXISTS orders.spots (
   updated_at timestamp with time zone
 );
 ALTER TABLE orders.spots ADD COLUMN IF NOT EXISTS id uuid DEFAULT gen_random_uuid();
-ALTER TABLE orders.spots ADD COLUMN IF NOT EXISTS metal_id uuid;
+ALTER TABLE orders.spots ADD COLUMN IF NOT EXISTS metal_id text;
 ALTER TABLE orders.spots ADD COLUMN IF NOT EXISTS order_id uuid;
 ALTER TABLE orders.spots ADD COLUMN IF NOT EXISTS ask numeric;
 ALTER TABLE orders.spots ADD COLUMN IF NOT EXISTS bid numeric;
@@ -1027,7 +1025,7 @@ ALTER TABLE places.user_addresses ADD COLUMN IF NOT EXISTS recipient_name text;
 
 CREATE TABLE IF NOT EXISTS products.bullion (
   id uuid DEFAULT gen_random_uuid() NOT NULL,
-  metal_id uuid NOT NULL,
+  metal_id text NOT NULL,
   mint_id uuid NOT NULL,
   name text DEFAULT ''::text NOT NULL,
   description text DEFAULT 'Product Description'::text NOT NULL,
@@ -1058,7 +1056,7 @@ CREATE TABLE IF NOT EXISTS products.bullion (
   supplier_id uuid NOT NULL
 );
 ALTER TABLE products.bullion ADD COLUMN IF NOT EXISTS id uuid DEFAULT gen_random_uuid();
-ALTER TABLE products.bullion ADD COLUMN IF NOT EXISTS metal_id uuid;
+ALTER TABLE products.bullion ADD COLUMN IF NOT EXISTS metal_id text;
 ALTER TABLE products.bullion ADD COLUMN IF NOT EXISTS mint_id uuid;
 ALTER TABLE products.bullion ADD COLUMN IF NOT EXISTS name text DEFAULT ''::text;
 ALTER TABLE products.bullion ADD COLUMN IF NOT EXISTS description text DEFAULT 'Product Description'::text;
@@ -1109,7 +1107,7 @@ ALTER TABLE products.mints ADD COLUMN IF NOT EXISTS organization_id uuid;
 
 CREATE TABLE IF NOT EXISTS rates.rates (
   id uuid DEFAULT gen_random_uuid() NOT NULL,
-  metal_id uuid NOT NULL,
+  metal_id text NOT NULL,
   unit text DEFAULT 'troy_oz'::text NOT NULL,
   min_qty numeric NOT NULL,
   max_qty numeric,
@@ -1123,7 +1121,7 @@ CREATE TABLE IF NOT EXISTS rates.rates (
   updated_by_id uuid
 );
 ALTER TABLE rates.rates ADD COLUMN IF NOT EXISTS id uuid DEFAULT gen_random_uuid();
-ALTER TABLE rates.rates ADD COLUMN IF NOT EXISTS metal_id uuid;
+ALTER TABLE rates.rates ADD COLUMN IF NOT EXISTS metal_id text;
 ALTER TABLE rates.rates ADD COLUMN IF NOT EXISTS unit text DEFAULT 'troy_oz'::text;
 ALTER TABLE rates.rates ADD COLUMN IF NOT EXISTS min_qty numeric;
 ALTER TABLE rates.rates ADD COLUMN IF NOT EXISTS max_qty numeric;
@@ -1141,7 +1139,7 @@ CREATE TABLE IF NOT EXISTS refiners.items (
   order_item_id uuid NOT NULL,
   refiner_id uuid,
   bullion_id uuid,
-  metal_id uuid NOT NULL,
+  metal_id text NOT NULL,
   pre_melt numeric,
   post_melt numeric,
   purity numeric,
@@ -1155,7 +1153,7 @@ ALTER TABLE refiners.items ADD COLUMN IF NOT EXISTS id uuid DEFAULT gen_random_u
 ALTER TABLE refiners.items ADD COLUMN IF NOT EXISTS order_item_id uuid;
 ALTER TABLE refiners.items ADD COLUMN IF NOT EXISTS refiner_id uuid;
 ALTER TABLE refiners.items ADD COLUMN IF NOT EXISTS bullion_id uuid;
-ALTER TABLE refiners.items ADD COLUMN IF NOT EXISTS metal_id uuid;
+ALTER TABLE refiners.items ADD COLUMN IF NOT EXISTS metal_id text;
 ALTER TABLE refiners.items ADD COLUMN IF NOT EXISTS pre_melt numeric;
 ALTER TABLE refiners.items ADD COLUMN IF NOT EXISTS post_melt numeric;
 ALTER TABLE refiners.items ADD COLUMN IF NOT EXISTS purity numeric;
@@ -1195,7 +1193,7 @@ ALTER TABLE refiners.refiners ADD COLUMN IF NOT EXISTS organization_id uuid;
 
 CREATE TABLE IF NOT EXISTS refiners.spots (
   id uuid DEFAULT gen_random_uuid() NOT NULL,
-  metal_id uuid NOT NULL,
+  metal_id text NOT NULL,
   refiner_id uuid,
   order_id uuid NOT NULL,
   pool_oz_deducted numeric,
@@ -1208,7 +1206,7 @@ CREATE TABLE IF NOT EXISTS refiners.spots (
   refiner_order_id uuid
 );
 ALTER TABLE refiners.spots ADD COLUMN IF NOT EXISTS id uuid DEFAULT gen_random_uuid();
-ALTER TABLE refiners.spots ADD COLUMN IF NOT EXISTS metal_id uuid;
+ALTER TABLE refiners.spots ADD COLUMN IF NOT EXISTS metal_id text;
 ALTER TABLE refiners.spots ADD COLUMN IF NOT EXISTS refiner_id uuid;
 ALTER TABLE refiners.spots ADD COLUMN IF NOT EXISTS order_id uuid;
 ALTER TABLE refiners.spots ADD COLUMN IF NOT EXISTS pool_oz_deducted numeric;
@@ -1425,7 +1423,7 @@ ALTER TABLE shipping.tracking ADD COLUMN IF NOT EXISTS time timestamp with time 
 
 CREATE TABLE IF NOT EXISTS spots.spots (
   id uuid DEFAULT gen_random_uuid() NOT NULL,
-  metal_id uuid NOT NULL,
+  metal_id text NOT NULL,
   ask numeric NOT NULL,
   bid numeric,
   percent_change numeric,
@@ -1433,7 +1431,7 @@ CREATE TABLE IF NOT EXISTS spots.spots (
   updated_at timestamp with time zone DEFAULT now() NOT NULL
 );
 ALTER TABLE spots.spots ADD COLUMN IF NOT EXISTS id uuid DEFAULT gen_random_uuid();
-ALTER TABLE spots.spots ADD COLUMN IF NOT EXISTS metal_id uuid;
+ALTER TABLE spots.spots ADD COLUMN IF NOT EXISTS metal_id text;
 ALTER TABLE spots.spots ADD COLUMN IF NOT EXISTS ask numeric;
 ALTER TABLE spots.spots ADD COLUMN IF NOT EXISTS bid numeric;
 ALTER TABLE spots.spots ADD COLUMN IF NOT EXISTS percent_change numeric;
@@ -1734,16 +1732,6 @@ DO $$ BEGIN
     WHERE con.conname = 'pdfs_pkey' AND c.relname = 'pdfs' AND n.nspname = 'media'
   ) THEN
     ALTER TABLE media.pdfs ADD CONSTRAINT pdfs_pkey PRIMARY KEY (id);
-  END IF;
-END $$;
-DO $$ BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_constraint con
-    JOIN pg_class c ON c.oid = con.conrelid
-    JOIN pg_namespace n ON n.oid = c.relnamespace
-    WHERE con.conname = 'metals_name_key' AND c.relname = 'metals' AND n.nspname = 'metals'
-  ) THEN
-    ALTER TABLE metals.metals ADD CONSTRAINT metals_name_key UNIQUE (name);
   END IF;
 END $$;
 DO $$ BEGIN
@@ -2413,7 +2401,7 @@ DO $$ BEGIN
     JOIN pg_namespace n ON n.oid = c.relnamespace
     WHERE con.conname = 'checkout_items_metal_fk' AND c.relname = 'items' AND n.nspname = 'checkout'
   ) THEN
-    ALTER TABLE checkout.items ADD CONSTRAINT checkout_items_metal_fk FOREIGN KEY (metal_id) REFERENCES metals.metals(id);
+    ALTER TABLE checkout.items ADD CONSTRAINT checkout_items_metal_fk FOREIGN KEY (metal_id) REFERENCES metals.metals(id) ON UPDATE CASCADE;
   END IF;
 END $$;
 DO $$ BEGIN
@@ -2693,7 +2681,7 @@ DO $$ BEGIN
     JOIN pg_namespace n ON n.oid = c.relnamespace
     WHERE con.conname = 'order_items_metal_id_fkey' AND c.relname = 'items' AND n.nspname = 'orders'
   ) THEN
-    ALTER TABLE orders.items ADD CONSTRAINT order_items_metal_id_fkey FOREIGN KEY (metal_id) REFERENCES metals.metals(id);
+    ALTER TABLE orders.items ADD CONSTRAINT order_items_metal_id_fkey FOREIGN KEY (metal_id) REFERENCES metals.metals(id) ON UPDATE CASCADE;
   END IF;
 END $$;
 DO $$ BEGIN
@@ -2743,7 +2731,7 @@ DO $$ BEGIN
     JOIN pg_namespace n ON n.oid = c.relnamespace
     WHERE con.conname = 'order_spots_metal_id_fkey' AND c.relname = 'spots' AND n.nspname = 'orders'
   ) THEN
-    ALTER TABLE orders.spots ADD CONSTRAINT order_spots_metal_id_fkey FOREIGN KEY (metal_id) REFERENCES metals.metals(id);
+    ALTER TABLE orders.spots ADD CONSTRAINT order_spots_metal_id_fkey FOREIGN KEY (metal_id) REFERENCES metals.metals(id) ON UPDATE CASCADE;
   END IF;
 END $$;
 DO $$ BEGIN
@@ -3143,7 +3131,7 @@ DO $$ BEGIN
     JOIN pg_namespace n ON n.oid = c.relnamespace
     WHERE con.conname = 'migration_rates_metal_fk' AND c.relname = 'rates' AND n.nspname = 'rates'
   ) THEN
-    ALTER TABLE rates.rates ADD CONSTRAINT migration_rates_metal_fk FOREIGN KEY (metal_id) REFERENCES metals.metals(id);
+    ALTER TABLE rates.rates ADD CONSTRAINT migration_rates_metal_fk FOREIGN KEY (metal_id) REFERENCES metals.metals(id) ON UPDATE CASCADE;
   END IF;
 END $$;
 DO $$ BEGIN
@@ -3193,7 +3181,7 @@ DO $$ BEGIN
     JOIN pg_namespace n ON n.oid = c.relnamespace
     WHERE con.conname = 'refiner_items_metal_id_fkey' AND c.relname = 'items' AND n.nspname = 'refiners'
   ) THEN
-    ALTER TABLE refiners.items ADD CONSTRAINT refiner_items_metal_id_fkey FOREIGN KEY (metal_id) REFERENCES metals.metals(id);
+    ALTER TABLE refiners.items ADD CONSTRAINT refiner_items_metal_id_fkey FOREIGN KEY (metal_id) REFERENCES metals.metals(id) ON UPDATE CASCADE;
   END IF;
 END $$;
 DO $$ BEGIN
@@ -3253,7 +3241,7 @@ DO $$ BEGIN
     JOIN pg_namespace n ON n.oid = c.relnamespace
     WHERE con.conname = 'refiner_spots_metal_id_fkey' AND c.relname = 'spots' AND n.nspname = 'refiners'
   ) THEN
-    ALTER TABLE refiners.spots ADD CONSTRAINT refiner_spots_metal_id_fkey FOREIGN KEY (metal_id) REFERENCES metals.metals(id);
+    ALTER TABLE refiners.spots ADD CONSTRAINT refiner_spots_metal_id_fkey FOREIGN KEY (metal_id) REFERENCES metals.metals(id) ON UPDATE CASCADE;
   END IF;
 END $$;
 DO $$ BEGIN
@@ -3453,7 +3441,7 @@ DO $$ BEGIN
     JOIN pg_namespace n ON n.oid = c.relnamespace
     WHERE con.conname = 'current_spots_metal_id_fkey' AND c.relname = 'spots' AND n.nspname = 'spots'
   ) THEN
-    ALTER TABLE spots.spots ADD CONSTRAINT current_spots_metal_id_fkey FOREIGN KEY (metal_id) REFERENCES metals.metals(id);
+    ALTER TABLE spots.spots ADD CONSTRAINT current_spots_metal_id_fkey FOREIGN KEY (metal_id) REFERENCES metals.metals(id) ON UPDATE CASCADE;
   END IF;
 END $$;
 
@@ -3715,7 +3703,7 @@ $function$;
 
 CREATE OR REPLACE VIEW metals.exchange_compat AS
  SELECT m.id,
-    m.name AS type,
+    m.id AS type,
     s.ask AS ask_spot,
     s.bid AS bid_spot,
     s.percent_change,

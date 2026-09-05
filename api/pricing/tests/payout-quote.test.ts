@@ -25,8 +25,7 @@ beforeAll(async () => {
 async function goldBid(): Promise<number> {
   const { rows } = await query<{ bid: number }>(
     `SELECT s.bid FROM spots.spots s
-       JOIN metals.metals m ON m.id = s.metal_id
-      WHERE m.name = 'Gold'`
+      WHERE s.metal_id = 'Gold'`
   );
   return Number(rows[0]?.bid ?? 0);
 }
@@ -40,11 +39,11 @@ async function purchaseQuote(checkout_id: string): Promise<PurchaseQuote> {
 test("both deductions apply, and neither cancels the other", async () => {
   await inPinnedTransaction(async (c) => {
     const bare = await aCart(c, await aUser(c), { direction: "purchase" })
-      .withLots(1, { metal: "Gold", pre_melt: 1, purity: 1, unit: "t oz" });
+      .withLots(1, { metal_id: "Gold", pre_melt: 1, purity: 1, unit: "t oz" });
     const bareQuote = await purchaseQuote(bare.id);
 
     const paid = await aCart(c, await aUser(c), { direction: "purchase" })
-      .withLots(1, { metal: "Gold", pre_melt: 1, purity: 1, unit: "t oz" })
+      .withLots(1, { metal_id: "Gold", pre_melt: 1, purity: 1, unit: "t oz" })
       .withRow({ payment_method_id: methodIdOf.get("WIRE") });
     const both = await purchaseQuote(paid.id);
 
@@ -63,7 +62,7 @@ test("both deductions apply, and neither cancels the other", async () => {
 test("a quote with no choices made yet deducts nothing", async () => {
   await inPinnedTransaction(async (c) => {
     const cart = await aCart(c, await aUser(c), { direction: "purchase" })
-      .withLots(1, { metal: "Gold", pre_melt: 1, purity: 1, unit: "t oz" });
+      .withLots(1, { metal_id: "Gold", pre_melt: 1, purity: 1, unit: "t oz" });
     const q = await purchaseQuote(cart.id);
     assert.equal(q.shipping_charge, 0);
     assert.equal(q.payout_charge, 0);
@@ -75,7 +74,7 @@ test("a free payout method deducts nothing, and says so rather than omitting it"
   await inPinnedTransaction(async (c) => {
     for (const type of ["ACH", "ECHECK", "DORADO_ACCOUNT"]) {
       const cart = await aCart(c, await aUser(c), { direction: "purchase" })
-        .withLots(1, { metal: "Gold", pre_melt: 1, purity: 1, unit: "t oz" })
+        .withLots(1, { metal_id: "Gold", pre_melt: 1, purity: 1, unit: "t oz" })
         .withRow({ payment_method_id: methodIdOf.get(type) });
       const q = await purchaseQuote(cart.id);
       assert.equal(q.payout_charge, 0, `${type} is free`);
@@ -89,7 +88,7 @@ test("the payout never goes below zero", async () => {
     const bid = await goldBid();
     assert.ok(bid > 0, "dev has a gold spot to price against");
     const cart = await aCart(c, await aUser(c), { direction: "purchase" })
-      .withLots(1, { metal: "Gold", pre_melt: 0.0001, purity: 1, unit: "t oz" })
+      .withLots(1, { metal_id: "Gold", pre_melt: 0.0001, purity: 1, unit: "t oz" })
       .withRow({ payment_method_id: methodIdOf.get("WIRE") });
     const q = await purchaseQuote(cart.id);
     assert.ok(q.total < 70, "the fixture is meant to be smaller than its fees");
@@ -101,7 +100,7 @@ test("a line's price is its content x the bid x the premium the band earns", asy
   await inPinnedTransaction(async (c) => {
     const bid = await goldBid();
     const cart = await aCart(c, await aUser(c), { direction: "purchase" })
-      .withLots(1, { metal: "Gold", pre_melt: 1, purity: 1, unit: "t oz" });
+      .withLots(1, { metal_id: "Gold", pre_melt: 1, purity: 1, unit: "t oz" });
     const q = await purchaseQuote(cart.id);
     const line = q.items[0]!;
 

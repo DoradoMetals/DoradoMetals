@@ -6,7 +6,7 @@ import pool from "#pool";
 import { inPinnedTransaction } from "#shared/testing/pinned-pool.ts";
 import { TEST_ACTOR } from "#shared/testing/actor.ts";
 import { LOCKS } from "#shared/testing/locks.ts";
-import { aProduct, metalId, mintId, supplierId } from "#shared/testing/builders/index.ts";
+import { aProduct, mintId, supplierId } from "#shared/testing/builders/index.ts";
 import * as service from "#catalog/products/service.ts";
 
 let client: PoolClient;
@@ -31,7 +31,7 @@ test("the storefront carries the metal and mint names", async () => {
   const rows = rowsOf(await service.listGroups({ display: true }));
   assert.ok(rows.length > 0, "dev has no displayed products");
   for (const row of rows) {
-    assert.equal(typeof row.metal_type, "string", `${row.name} has no metal_type`);
+    assert.equal(typeof row.metal_id, "string", `${row.name} has no metal_id`);
     assert.equal(typeof row.mint_name, "string", `${row.name} has no mint_name`);
   }
 });
@@ -50,7 +50,7 @@ test("the admin list carries all three names and neither actor id", async () => 
   const rows = await service.listAdminProducts();
   assert.ok(rows.length > 0, "dev has no products");
   for (const row of rows) {
-    assert.equal(typeof row.metal, "string");
+    assert.equal(typeof row.metal_id, "string");
     assert.equal(typeof row.mint, "string");
     assert.equal(typeof row.supplier, "string");
     for (const id of ["created_by_id", "updated_by_id"]) {
@@ -126,18 +126,18 @@ test("an undisplayed product is not reachable by its slug", async () => {
 
 test("filtering by metal name returns that metal's products and no others", async () => {
   const all = rowsOf(await service.listGroups({ display: true }));
-  const metal = all[0].metal_type;
-  const filtered = rowsOf(await service.listGroups({ display: true, metal }));
-  assert.ok(filtered.length > 0, `no products came back for ${metal}`);
-  for (const row of filtered) assert.equal(row.metal_type, metal);
+  const metal_id = all[0]!.metal_id;
+  const filtered = rowsOf(await service.listGroups({ display: true, metal_id }));
+  assert.ok(filtered.length > 0, `no products came back for ${metal_id}`);
+  for (const row of filtered) assert.equal(row.metal_id, metal_id);
   assert.equal(
-    filtered.length, all.filter((p) => p.metal_type === metal).length,
+    filtered.length, all.filter((p) => p.metal_id === metal_id).length,
     "the filter and the full list disagree about how many that metal has"
   );
 });
 
 test("an unknown metal name returns nothing, not everything", async () => {
-  assert.deepEqual(await service.listGroups({ display: true, metal: "Unobtainium" }), []);
+  assert.deepEqual(await service.listGroups({ display: true, metal_id: "Unobtainium" }), []);
 });
 
 test("liveness answers display, the buy-side gate", async () => {
@@ -157,12 +157,12 @@ test("creating a product supplies what the columns require", async () => {
     const name = `probe-${randomUUID().slice(0, 8)}`;
     const made = await service.createProduct({
       name,
-      metal_id: await metalId(c, "Gold"),
+      metal_id: "Gold",
       mint_id: await mintId(c),
       supplier_id: await supplierId(c),
     });
     assert.equal(made.name, name);
-    assert.equal(typeof made.metal, "string");
+    assert.equal(made.metal_id, "Gold");
     assert.equal(typeof made.mint, "string");
     assert.equal(typeof made.supplier, "string");
 

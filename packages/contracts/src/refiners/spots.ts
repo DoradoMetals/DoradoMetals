@@ -7,7 +7,7 @@ import { z } from "zod/v4";
 
 export const RefinerSpot = z.object({
   "id": z.string().uuid(),
-  "metal_id": z.string().uuid(),
+  "metal_id": z.string(),
   "refiner_id": z.string().uuid().nullable(),
   "order_id": z.string().uuid(),
   "pool_oz_deducted": z.number().nullable(),

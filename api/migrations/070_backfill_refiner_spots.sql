@@ -71,7 +71,7 @@ INSERT INTO refiners.spots (
 SELECT
   m.id,
   coalesce(m.purchase_order_id, m.sales_order_id),
-  mt.id,
+  m.type,
   m.ask_spot,
   m.bid_spot,
   m.scrap_percentage,
@@ -79,7 +79,7 @@ SELECT
   m.created_at,
   m.updated_at
 FROM exchange.refiner_metals m
-JOIN metals.metals mt ON mt.name = m.type
+JOIN exchange.metals mt ON mt.type = m.type
 WHERE coalesce(m.purchase_order_id, m.sales_order_id) IS NOT NULL
   AND EXISTS (
     SELECT 1 FROM orders.orders o

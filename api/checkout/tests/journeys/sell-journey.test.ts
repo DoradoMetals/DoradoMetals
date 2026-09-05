@@ -9,7 +9,7 @@ import { inPinnedTransaction } from "#shared/testing/pinned-pool.ts";
 import { LOCKS } from "#shared/testing/locks.ts";
 import * as place from "#orders/place.ts";
 import {
-  aUser, anAdmin, anAddress, aProduct, metalId,
+  aUser, anAdmin, anAddress, aProduct,
   packageId, carrierServiceId, fulfillmentMethodId,
 } from "#shared/testing/builders/index.ts";
 
@@ -35,8 +35,8 @@ test("basket, row, fulfillment, payout and placement agree on one order's money"
     const customer = asCaller(await aUser(c));
     const admin = await anAdmin(c);
     const address = await anAddress(c, customer);
-    const product = await aProduct(c, { metal: "Silver", content: 10, bid_premium: 0.4 });
-    const gold = await metalId(c, "Gold");
+    const product = await aProduct(c, { metal_id: "Silver", content: 10, bid_premium: 0.4 });
+    const gold = "Gold";
     const pkg = await packageId(c, "Small Box");
     const service = await carrierServiceId(c, "Express Saver");
     const dropoffMethod = await fulfillmentMethodId(c, "CARRIER DROPOFF", "purchase");

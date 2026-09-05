@@ -112,9 +112,9 @@ export function renderSalesOrderToSupplierEmail({
 
   const spotsHtml = [...labels.metals]
     .map(
-      ([metal_id, name]) => `
+      (metal_id) => `
     <tr>
-      <td style="padding:4px 8px;">${name}</td>
+      <td style="padding:4px 8px;">${metal_id}</td>
       <td style="padding:4px 8px;text-align:right;">
         ${money(asks.get(metal_id))}
       </td>

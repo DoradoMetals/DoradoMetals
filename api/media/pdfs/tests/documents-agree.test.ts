@@ -73,7 +73,7 @@ test("every order's packing list and invoice quote the same premiums", async () 
 });
 
 test("a line with no premium renders unpriced on both documents, not differently", () => {
-  const GOLD = "11111111-1111-4111-8111-111111111111";
+  const GOLD = "Gold";
   const line = {
     id: "line-1",
     order_id: "order-1",
@@ -92,7 +92,7 @@ test("a line with no premium renders unpriced on both documents, not differently
 
   const priceOf = new Map<string, OrderPricingLine>();
   const labels = {
-    metals: new Map([[GOLD, "Gold"]]),
+    metals: [GOLD],
     services: new Map<string, string>(),
     packages: new Map<string, string>(),
   };

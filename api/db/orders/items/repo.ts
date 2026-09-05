@@ -3,7 +3,7 @@ import { buildUpdate } from "#shared/db/patch.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
 import { columnsOf, returningOf } from "#shared/db/columns.ts";
 import { OrderItem, OrderItemWrite } from "@dorado/contracts";
-import type { PricedLine, SoldLinePrice } from "@dorado/contracts";
+import type { SoldLinePrice } from "@dorado/contracts";
 import type { Executor } from "#shared/db/executor.ts";
 
 const sql = sqlFrom(import.meta.dirname);
@@ -35,13 +35,6 @@ export async function getByIds(
 ): Promise<OrderItem[]> {
   if (ids.length === 0) return [];
   const { rows } = await query<OrderItem>(sql("get_by_ids"), [ids], executor);
-  return rows;
-}
-
-export async function pricedLinesFor(
-  order_id: string, executor?: Executor
-): Promise<PricedLine[]> {
-  const { rows } = await query<PricedLine>(sql("priced_lines"), [order_id], executor);
   return rows;
 }
 

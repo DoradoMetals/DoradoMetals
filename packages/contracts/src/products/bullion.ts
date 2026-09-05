@@ -7,7 +7,7 @@ import { z } from "zod/v4";
 
 export const Bullion = z.object({
   "id": z.string().uuid(),
-  "metal_id": z.string().uuid(),
+  "metal_id": z.string(),
   "mint_id": z.string().uuid(),
   "name": z.string(),
   "description": z.string(),
@@ -39,7 +39,6 @@ export const Bullion = z.object({
 });
 export type Bullion = z.infer<typeof Bullion>;
 // generated:end
-import { Metal } from "../metals/metals.js";
 import { Organization } from "../organizations/organizations.js";
 import { Mint } from "./mints.js";
 
@@ -53,7 +52,6 @@ export const BullionPublic = Bullion.pick({
 export type BullionPublic = z.infer<typeof BullionPublic>;
 
 export const BullionStorefront = BullionPublic.extend({
-  metal_type: Metal.shape.name,
   mint_name: Mint.shape.name,
 });
 export type BullionStorefront = z.infer<typeof BullionStorefront>;
@@ -83,11 +81,9 @@ export const BullionAdminRow = Bullion.omit({
 export type BullionAdminRow = z.infer<typeof BullionAdminRow>;
 
 export const BullionAdmin = BullionAdminRow.omit({
-  metal_id: true,
   mint_id: true,
   supplier_id: true,
 }).extend({
-  metal: Metal.shape.name,
   mint: Mint.shape.name,
   supplier: Organization.shape.name,
 });
@@ -107,7 +103,7 @@ export const BullionFilter = Bullion.pick({
   type: true, is_generic: true,
 }).partial().extend({
   ids: z.array(Bullion.shape.id).optional(),
-  metal: Metal.shape.name.optional(),
+  metal_id: Bullion.shape.metal_id.optional(),
   search: z.string().optional(),
   sort: z.enum(["name", "content", "newest"]).optional(),
 });

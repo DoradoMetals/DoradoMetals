@@ -31,7 +31,7 @@ async function saleQuote(checkout_id: string): Promise<SaleQuote> {
 async function aBasket(
   c: PoolClient, funds: number, method: string
 ): Promise<SaleQuote> {
-  const product = await aProduct(c, { metal: "Gold", content: 1, ask_premium: 1 });
+  const product = await aProduct(c, { metal_id: "Gold", content: 1, ask_premium: 1 });
   const cart = await aCart(c, await aUser(c, { funds }), { direction: "sale" })
     .withBullion(product, 1)
     .withRow({ payment_method_id: methodIdOf.get(method) });
@@ -129,12 +129,11 @@ test("a sale line prices at content x ask x ask premium, and totals by quantity"
   await inPinnedTransaction(async (c: PoolClient) => {
     const [spot] = await outside<{ ask: number }>(
       `SELECT s.ask FROM spots.spots s
-         JOIN metals.metals m ON m.id = s.metal_id
-        WHERE m.name = 'Gold'`
+        WHERE s.metal_id = 'Gold'`
     );
     assert.ok(spot, "dev has a gold spot to price against");
 
-    const product = await aProduct(c, { metal: "Gold", content: 2, ask_premium: 1.1 });
+    const product = await aProduct(c, { metal_id: "Gold", content: 2, ask_premium: 1.1 });
     const cart = await aCart(c, await aUser(c), { direction: "sale" })
       .withBullion(product, 3);
     const q = await saleQuote(cart.id);

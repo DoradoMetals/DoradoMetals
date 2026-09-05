@@ -83,9 +83,8 @@
 --     total. Full list is the CREATE INDEX statements below; orders.addresses
 --     .source_address_id, orders.transactions.order_id and every other FK
 --     touched by item 2 already had a leading index and needed none.
---  8. metals.metals gains UNIQUE (name): 0 duplicate names on dev. reviews.
---     reviews gains CHECK (rating BETWEEN 1 AND 5): dev's min/max is 1/5, 0
---     rows null, 0 out of range.
+--  8. reviews.reviews gains CHECK (rating BETWEEN 1 AND 5): dev's min/max is
+--     1/5, 0 rows null, 0 out of range.
 --  9. shipping.services.provider_code and .max_declared_value are NOT
 --     dropped: both are read and written by domain/shipping/services/
 --     service.ts, db/shipping/services/repo.ts and every services/sql/*.sql
@@ -393,14 +392,7 @@ CREATE INDEX IF NOT EXISTS idx_reviews_reviews_updated_by_id ON reviews.reviews 
 CREATE INDEX IF NOT EXISTS idx_shipping_services_created_by_id ON shipping.services (created_by_id);
 CREATE INDEX IF NOT EXISTS idx_shipping_services_updated_by_id ON shipping.services (updated_by_id);
 
--- ======================================== 8. metals uniqueness, review range
-
-DO $$
-BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'metals_name_key') THEN
-    ALTER TABLE metals.metals ADD CONSTRAINT metals_name_key UNIQUE (name);
-  END IF;
-END $$;
+-- ======================================== 8. review range
 
 DO $$
 BEGIN

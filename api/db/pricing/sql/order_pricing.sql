@@ -7,7 +7,6 @@ lines AS (
   SELECT oi.id,
          oi.bullion_id,
          oi.metal_id,
-         m.name AS metal,
          COALESCE(oi.content, 0) AS content,
          COALESCE(oi.quantity, 1) AS quantity,
          oi.premium AS stored_premium,
@@ -18,7 +17,6 @@ lines AS (
               ELSE COALESCE(oi.content, 0) * COALESCE(oi.quantity, 1) END AS weighed
     FROM orders.items oi
     JOIN ord ON ord.id = oi.order_id
-    LEFT JOIN metals.metals m ON m.id = oi.metal_id
     LEFT JOIN orders.spots os ON os.order_id = oi.order_id AND os.metal_id = oi.metal_id
     LEFT JOIN spots.spots s ON s.metal_id = oi.metal_id
 ),
@@ -57,7 +55,6 @@ priced AS (
          CASE WHEN t.stored_price IS NULL THEN 'quoted' ELSE 'stored' END AS source,
          t.bullion_id,
          t.metal_id,
-         t.metal,
          t.content,
          t.quantity,
          COALESCE(t.stored_premium, t.retier_premium, 0) AS premium,
@@ -111,7 +108,6 @@ SELECT jsonb_build_object(
                        'kind', l.kind,
                        'source', l.source,
                        'metal_id', l.metal_id,
-                       'metal', l.metal,
                        'content', l.content,
                        'quantity', l.quantity,
                        'premium', l.premium,

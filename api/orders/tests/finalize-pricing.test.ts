@@ -62,7 +62,7 @@ const poisonedClaiming = (pricePerItem: number) => ({
       item_type: "scrap",
       price: pricePerItem,
       quantity: Number(i.quantity) || 1,
-      scrap: { metal: "Gold", content: 0, bid_premium: 0 },
+      scrap: { metal_id: "Gold", content: 0, bid_premium: 0 },
     })),
     shipment: { shipping_charge: 0 },
     payout: { cost: 0 },

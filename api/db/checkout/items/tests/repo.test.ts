@@ -5,7 +5,7 @@ import type { Direction } from "@dorado/contracts";
 import { randomUUID } from "node:crypto";
 import pool from "#pool";
 import { inRollback } from "#shared/testing/rollback.ts";
-import { aUser, aProduct, metalId } from "#shared/testing/builders/index.ts";
+import { aUser, aProduct } from "#shared/testing/builders/index.ts";
 import * as checkouts from "#db/checkout/checkouts/repo.ts";
 import * as items from "#db/checkout/items/repo.ts";
 
@@ -23,14 +23,14 @@ const aSession = async (c: PoolClient, direction: Direction) => {
   return created!;
 };
 
-const aMetal = (c: PoolClient) => metalId(c, "Gold");
+const aMetal = () => "Gold";
 
 test("a line with no product carries its own values", async () => {
   await inRollback(async (c: PoolClient) => {
     const session = await aSession(c, "purchase");
     const line = await items.create(
       {
-        checkout_id: session.id, bullion_id: null, metal_id: await aMetal(c),
+        checkout_id: session.id, bullion_id: null, metal_id: aMetal(),
         pre_melt: 2.5, post_melt: 2.4, purity: 0.75, content: 1.8,
         unit: "t oz", premium: 0.9, quantity: 1,
       },
@@ -51,7 +51,7 @@ test("createMany writes every line and listFor answers them all", async () => {
   await inRollback(async (c: PoolClient) => {
     const session = await aSession(c, "sale");
     const product = await aProduct(c);
-    const metal_id = await aMetal(c);
+    const metal_id = aMetal();
 
     const written = await items.createMany(
       [
@@ -85,7 +85,7 @@ test("update writes the named column and answers true; a missing id answers fals
     const session = await aSession(c, "purchase");
     const line = await items.create(
       {
-        checkout_id: session.id, bullion_id: null, metal_id: await aMetal(c),
+        checkout_id: session.id, bullion_id: null, metal_id: aMetal(),
         pre_melt: 2.5, purity: 0.75, quantity: 1,
       },
       c
@@ -107,7 +107,7 @@ test("update writes the named column and answers true; a missing id answers fals
 test("removeFor empties one session, and remove answers true once", async () => {
   await inRollback(async (c: PoolClient) => {
     const session = await aSession(c, "purchase");
-    const metal_id = await aMetal(c);
+    const metal_id = aMetal();
     const first = await items.create(
       { checkout_id: session.id, bullion_id: null, metal_id, quantity: 1 }, c
     );

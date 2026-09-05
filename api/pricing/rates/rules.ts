@@ -31,7 +31,8 @@ export function tiers(rows: RateRead[]): RateTier[] {
   const byMetal = new Map<string, RateTier>();
   for (const row of rows) {
     const unit = prettyUnit(row.unit);
-    const tier = byMetal.get(row.metal) ?? { metal: row.metal, unit, bands: [], top_pct: null };
+    const tier =
+      byMetal.get(row.metal_id) ?? { metal_id: row.metal_id, unit, bands: [], top_pct: null };
     const key = keyOf(row.min_qty, row.max_qty, unit);
     const seen = tier.bands.find((b) => b.key === key);
     if (seen) {
@@ -47,7 +48,7 @@ export function tiers(rows: RateRead[]): RateTier[] {
         bullion_pct: row.bullion_pct,
       });
     }
-    byMetal.set(row.metal, tier);
+    byMetal.set(row.metal_id, tier);
   }
   for (const tier of byMetal.values()) tier.top_pct = topOf(tier.bands);
   return [...byMetal.values()];

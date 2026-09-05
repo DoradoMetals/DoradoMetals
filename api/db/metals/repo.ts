@@ -14,13 +14,3 @@ export async function getOne(id: string, executor?: Executor): Promise<Metal | u
   const { rows } = await query<Metal>(sql("get_one"), [id], executor);
   return rows[0];
 }
-
-export async function namesById(executor?: Executor): Promise<Map<string, string>> {
-  const rows = await list(executor);
-  return new Map(rows.map((m) => [m.id, m.name]));
-}
-
-export async function idsByName(executor?: Executor): Promise<Map<string, string>> {
-  const rows = await list(executor);
-  return new Map(rows.map((m) => [m.name, m.id]));
-}

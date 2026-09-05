@@ -13,18 +13,9 @@ async function one<T>(c: PoolClient, what: string, sql: string, params: unknown[
 
 export type MetalName = "Gold" | "Silver" | "Platinum" | "Palladium";
 
-export async function metalId(c: PoolClient, name: MetalName = "Gold"): Promise<string> {
-  const row = await one<{ id: string }>(
-    c, `the metal "${name}"`, `SELECT id FROM metals.metals WHERE name = $1`, [name]
-  );
-  return row.id;
-}
-
-export async function metalIds(c: PoolClient): Promise<Map<string, string>> {
-  const { rows } = await c.query<{ id: string; name: string }>(
-    `SELECT id, name FROM metals.metals`
-  );
-  return new Map(rows.map((r) => [r.name, r.id]));
+export async function metalIds(c: PoolClient): Promise<string[]> {
+  const { rows } = await c.query<{ id: string }>(`SELECT id FROM metals.metals ORDER BY id`);
+  return rows.map((r) => r.id);
 }
 
 export async function mintId(c: PoolClient): Promise<string> {

@@ -6,8 +6,7 @@
 import { z } from "zod/v4";
 
 export const Metal = z.object({
-  "id": z.string().uuid(),
-  "name": z.string(),
+  "id": z.string(),
 });
 export type Metal = z.infer<typeof Metal>;
 // generated:end

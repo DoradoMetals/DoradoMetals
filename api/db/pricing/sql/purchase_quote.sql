@@ -8,7 +8,6 @@ lines AS (
   SELECT ci.id,
          ci.bullion_id,
          ci.metal_id,
-         m.name AS metal,
          COALESCE(ci.content, 0) AS content,
          COALESCE(ci.quantity, 1) AS quantity,
          ci.premium AS stored_premium,
@@ -18,7 +17,6 @@ lines AS (
               ELSE COALESCE(ci.content, 0) * COALESCE(ci.quantity, 1) END AS weighed
     FROM checkout.items ci
     JOIN checkout ON checkout.id = ci.checkout_id
-    LEFT JOIN metals.metals m ON m.id = ci.metal_id
     LEFT JOIN spots.spots s ON s.metal_id = ci.metal_id
 ),
 by_metal AS (
@@ -54,7 +52,6 @@ priced AS (
   SELECT t.id,
          CASE WHEN t.bullion_id IS NULL THEN 'scrap' ELSE 'product' END AS kind,
          t.metal_id,
-         t.metal,
          t.content,
          t.quantity,
          COALESCE(t.band_pct, t.stored_premium, 0) AS premium,
@@ -88,7 +85,6 @@ SELECT jsonb_build_object(
                        'id', p.id,
                        'kind', p.kind,
                        'metal_id', p.metal_id,
-                       'metal', p.metal,
                        'content', p.content,
                        'quantity', p.quantity,
                        'premium', p.premium,

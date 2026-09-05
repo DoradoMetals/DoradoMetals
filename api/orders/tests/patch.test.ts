@@ -28,7 +28,7 @@ const anOpenPurchaseOrder = async (c: PoolClient) => {
   const product = await aProduct(c);
   const built = await anOrder(c, owner, { direction: "purchase", status: "Pending" })
     .withBullion(product, 1)
-    .withLots(1, { metal: "Gold" })
+    .withLots(1, { metal_id: "Gold" })
     .withSpots()
     .withAddress(address)
     .withTotals({ total: 1000, payout_fee: 0 });
@@ -296,7 +296,7 @@ const pinMetals = async (client: PoolClient) => {
   for (const [metal, bid] of Object.entries(PINNED_BIDS)) {
     await client.query(
       `UPDATE spots.spots SET bid = $1
-        WHERE metal_id = (SELECT id FROM metals.metals WHERE name = $2)`,
+        WHERE metal_id = $2`,
       [bid, metal]
     );
   }
@@ -313,9 +313,8 @@ const snapshot = async (client: PoolClient, id: string) => ({
   ).rows[0],
   metals: (
     await client.query(
-      `SELECT m.name, sp.bid FROM orders.spots sp
-         JOIN metals.metals m ON m.id = sp.metal_id
-        WHERE sp.order_id = $1 ORDER BY m.name`,
+      `SELECT sp.metal_id, sp.bid FROM orders.spots sp
+        WHERE sp.order_id = $1 ORDER BY sp.metal_id`,
       [id]
     )
   ).rows,
@@ -391,8 +390,7 @@ test("notes is written and an explicit null clears it", async () => {
 
 test("nothing this file did survived the transactions", async () => {
   const metalsNow = await outside<{ name: string; bid: string }>(
-    `SELECT m.name, sp.bid FROM spots.spots sp
-       JOIN metals.metals m ON m.id = sp.metal_id ORDER BY m.name`
+    `SELECT sp.metal_id, sp.bid FROM spots.spots sp ORDER BY sp.metal_id`
   );
   for (const row of metalsNow) {
     assert.notEqual(

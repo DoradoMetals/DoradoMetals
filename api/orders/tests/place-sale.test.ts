@@ -155,7 +155,6 @@ async function fixtures(c: PoolClient) {
   if (!pair.length) return null;
   const { rows: product } = await query<{ id: string }>(
     `SELECT b.id FROM products.bullion b
-       JOIN metals.metals m ON m.id = b.metal_id
       WHERE b.display = true LIMIT 1`, [], c
   );
   if (!product.length) return null;

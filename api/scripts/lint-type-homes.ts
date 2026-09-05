@@ -16,7 +16,7 @@ const ACCEPTED: Record<string, { count: number; why: string }> = {
   "db/media/pdfs/repo.ts": { count: 2, why: SMALL_FEATURES },
   "db/refiners/items/repo.ts": { count: 2, why: SMALL_FEATURES },
   "db/refiners/orders/repo.ts": { count: 2, why: SMALL_FEATURES },
-  "db/refiners/spots/repo.ts": { count: 6, why: SMALL_FEATURES },
+  "db/refiners/spots/repo.ts": { count: 5, why: SMALL_FEATURES },
   "db/sales-tax/repo.ts": { count: 1, why: SMALL_FEATURES },
   "media/emails/record.ts": { count: 4, why: SMALL_FEATURES },
   "media/emails/utils/renderEmail.ts": { count: 2, why: SMALL_FEATURES },

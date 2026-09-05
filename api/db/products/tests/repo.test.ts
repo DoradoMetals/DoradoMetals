@@ -53,10 +53,10 @@ test("the buy gate is a filter, and omitting it is the sell side (ruling 49)", a
 
 test("the metal, the category and the search term all narrow", async () => {
   await inRollback(async (c) => {
-    const gold = await aProduct(c, { metal: "Gold", filter_category: "American Eagle" });
-    const silver = await aProduct(c, { metal: "Silver", filter_category: "Maple" });
+    const gold = await aProduct(c, { metal_id: "Gold", filter_category: "American Eagle" });
+    const silver = await aProduct(c, { metal_id: "Silver", filter_category: "Maple" });
 
-    const byMetal = await repo.listFor({ metal: "Silver", ids: [gold.id, silver.id] }, c);
+    const byMetal = await repo.listFor({ metal_id: "Silver", ids: [gold.id, silver.id] }, c);
     assert.deepEqual(byMetal.map((r) => r.id), [silver.id]);
 
     const byCategory = await repo.listFor(
@@ -71,9 +71,9 @@ test("the metal, the category and the search term all narrow", async () => {
 
 test("the row carries the metal's and the mint's names, joined", async () => {
   await inRollback(async (c) => {
-    const product = await aProduct(c, { metal: "Platinum" });
+    const product = await aProduct(c, { metal_id: "Platinum" });
     const [row] = await repo.listFor({ ids: [product.id] }, c);
-    assert.equal(row?.metal_type, "Platinum");
+    assert.equal(row?.metal_id, "Platinum");
     assert.ok(row?.mint_name);
     assert.equal(row?.metal_id, product.metal_id);
   });

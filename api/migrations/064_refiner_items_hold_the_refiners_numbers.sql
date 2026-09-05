@@ -31,7 +31,7 @@ ALTER TABLE refiners.items ALTER COLUMN refiner_id DROP NOT NULL;
 -- What the refiner reported, for lines that already have a row.
 UPDATE refiners.items ri
 SET bullion_id = poi.product_id,
-    metal_id   = coalesce(s.metal_id, pr.metal_id),
+    metal_id   = em.type,
     pre_melt   = s.pre_melt,
     post_melt  = s.post_melt_actual,
     purity     = s.purity_actual,
@@ -42,6 +42,7 @@ SET bullion_id = poi.product_id,
 FROM exchange.purchase_order_items poi
 LEFT JOIN exchange.scrap s     ON s.id  = poi.scrap_id
 LEFT JOIN exchange.products pr ON pr.id = poi.product_id
+LEFT JOIN exchange.metals em ON em.id = coalesce(s.metal_id, pr.metal_id)
 WHERE ri.order_item_id = poi.id;
 
 -- And a row for every purchase-order line that has none.

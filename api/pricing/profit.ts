@@ -3,7 +3,6 @@ import * as orderRead from "#orders/read.ts";
 import * as orderSpotsService from "#orders/spots/service.ts";
 import * as refinerSpotsService from "#orders/refiners/spots/service.ts";
 import * as refinerItemsRepo from "#db/refiners/items/repo.ts";
-import * as metalsRepo from "#db/metals/repo.ts";
 import * as rules from "#pricing/rules.ts";
 import type {
   OrderQuoteBody, OrderSpot, OrderView, OrderViewItem, ProfitBreakdown, ProfitMetalsDict,
@@ -19,7 +18,7 @@ function getRatePct(
   material: "scrap" | "bullion"
 ): number | undefined {
   const bands = (rates ?? [])
-    .filter((r) => normMetal(r.metal) === normMetal(metal))
+    .filter((r) => normMetal(r.metal_id) === normMetal(metal))
     .sort((a, b) => a.min_qty - b.min_qty);
   if (bands.length === 0) return undefined;
 
@@ -71,11 +70,9 @@ const emptyMetalsDict = (): ProfitMetalsDict => ({
 });
 
 const getItemMetal = (
-  item: OrderViewItem, metals: ReadonlyMap<string, string>
-): (typeof PROFIT_METALS)[number] | null => {
-  const name = metals.get(item.metal_id);
-  return isProfitMetal(name) ? name : null;
-};
+  item: OrderViewItem
+): (typeof PROFIT_METALS)[number] | null =>
+  isProfitMetal(item.metal_id) ? item.metal_id : null;
 
 const getItemContent = (item: OrderViewItem): number => {
   if (item.bullion_id === null) return item.content ?? 0;
@@ -188,7 +185,6 @@ function computeMetalsForAllParties(
   refinerSpots: Pick<OrderSpot, "metal_id" | "bid">[],
   rates: Parameters<typeof getRatePct>[0],
   scrapTotalsByMetal: Record<string, number>,
-  metals: ReadonlyMap<string, string>,
   assay: ReadonlyMap<string, RefinerItem>
 ) {
   const customer = emptyMetalsDict();
@@ -196,7 +192,7 @@ function computeMetalsForAllParties(
   const dorado = emptyMetalsDict();
 
   for (const item of order.items) {
-    const metal = getItemMetal(item, metals);
+    const metal = getItemMetal(item);
     if (!metal) continue;
 
     const isScrap = item.bullion_id === null;
@@ -266,21 +262,17 @@ function getShippingFees(order: OrderView) {
 function getSpotNet(
   customerTotals: ProfitMetalsDict,
   orderSpots: Pick<OrderSpot, "metal_id" | "bid">[],
-  refinerSpots: Pick<OrderSpot, "metal_id" | "bid">[],
-  metals: ReadonlyMap<string, string>
+  refinerSpots: Pick<OrderSpot, "metal_id" | "bid">[]
 ) {
   let sum = 0;
-  const idOf = new Map(Array.from(metals, ([id, name]) => [name.toLowerCase(), id]));
 
   for (const metal of PROFIT_METALS) {
     const key = toKey(metal);
     const qty = customerTotals[key]?.content ?? 0;
     if (!qty) continue;
 
-    const metal_id = idOf.get(metal.toLowerCase());
-    if (!metal_id) continue;
-    const orderBid = getProfitSpot(orderSpots, metal_id)?.bid;
-    const refBid = getProfitSpot(refinerSpots, metal_id)?.bid;
+    const orderBid = getProfitSpot(orderSpots, metal)?.bid;
+    const refBid = getProfitSpot(refinerSpots, metal)?.bid;
     if (orderBid == null || refBid == null) continue;
 
     sum += qty * (refBid - orderBid);
@@ -313,37 +305,31 @@ export async function profitBreakdown({ order_id }: OrderQuoteBody): Promise<Pro
   rules.assertPriced(order, `order ${order_id}`);
 
   const frozenSpots = await orderSpotsService.rowsFor(order_id);
-  const refinerNamed = await refinerSpotsService.namedFor(order_id);
+  const refinerBids = await refinerSpotsService.bidsFor(order_id);
   const rates = await ratesService.listRates();
-  const metals = await metalsRepo.namesById();
   const assayRows = await refinerItemsRepo.getForOrder(order_id);
   const spots_at = new Date().toISOString();
 
-  const idOfMetal = new Map(Array.from(metals, ([id, name]) => [name.toLowerCase(), id]));
-  const orderSpots: { metal_id: string; bid: number | null }[] =
-    frozenSpots.map((s) => ({ metal_id: s.metal_id, bid: s.bid }));
-  const refinerSpots: { metal_id: string; bid: number | null }[] = refinerNamed.flatMap((s) => {
-    const metal_id = idOfMetal.get(String(s.name ?? "").toLowerCase());
-    return metal_id ? [{ metal_id, bid: s.bid }] : [];
-  });
+  const orderSpots = frozenSpots.map((s) => ({ metal_id: s.metal_id, bid: s.bid }));
+  const refinerSpots = refinerBids.map((s) => ({ metal_id: s.metal_id, bid: s.bid }));
   const assay: ReadonlyMap<string, RefinerItem> = new Map(assayRows.map((r) => [r.order_item_id, r]));
 
   const scrapTotalsByMetal = sumContentByMetal(
     order.items.filter((i) => i.bullion_id === null),
-    (i) => getItemMetal(i, metals),
+    (i) => getItemMetal(i),
     (i) => getItemContent(i)
   );
 
   const parties = (category: "scrap" | "bullion" | "total") =>
     computeMetalsForAllParties(
-      order, category, orderSpots, refinerSpots, rates, scrapTotalsByMetal, metals, assay
+      order, category, orderSpots, refinerSpots, rates, scrapTotalsByMetal, assay
     );
 
   const scrap = parties("scrap");
   const bullion = parties("bullion");
   const total = parties("total");
   const shipping = getShippingFees(order);
-  const spotNet = getSpotNet(total.customer, orderSpots, refinerSpots, metals);
+  const spotNet = getSpotNet(total.customer, orderSpots, refinerSpots);
 
   const refinerFee = order.totals?.refiner_fee ?? 0;
 
