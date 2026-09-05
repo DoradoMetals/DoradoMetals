@@ -3,9 +3,9 @@ import * as products from "#db/products/repo.ts";
 import * as rules from "#domain/products/rules.ts";
 import type { Executor } from "#shared/db/executor.ts";
 import type {
-  BullionAdmin, BullionFilter, BullionGroup, BullionLiveness, BullionPatchColumns,
+  BullionAdmin, BullionCreate, BullionFilter, BullionGroup, BullionLiveness,
+  BullionPatchColumns,
   BullionStorefront,
-  QuoteItem,
 } from "@dorado/contracts";
 
 export async function listGroups(filter: BullionFilter): Promise<BullionGroup[]> {
@@ -44,14 +44,6 @@ export async function getByIds(
   return await products.listFor({ ids }, executor);
 }
 
-export async function getItemsFromServer(
-  items: QuoteItem[]
-): Promise<(BullionStorefront & { quantity: number })[]> {
-  const wanted = new Map(items.map((i) => [i.id, i.quantity]));
-  const rows = await products.listFor({ ids: [...wanted.keys()] });
-  return rows.map((row) => ({ ...row, quantity: wanted.get(row.id) ?? 0 }));
-}
-
 export async function updateProduct(
   id: string, patch: BullionPatchColumns
 ): Promise<BullionAdmin> {
@@ -60,9 +52,9 @@ export async function updateProduct(
   return await getAdminProduct(id);
 }
 
-export async function createProduct(patch: BullionPatchColumns): Promise<BullionAdmin> {
+export async function createProduct(patch: BullionCreate): Promise<BullionAdmin> {
   return await withTransaction(async (tx) => {
-    const id = await products.create({ ...rules.NEW_PRODUCT_DEFAULTS, ...patch }, tx);
+    const id = await products.create(patch, tx);
     return await getAdminProduct(id, tx);
   });
 }

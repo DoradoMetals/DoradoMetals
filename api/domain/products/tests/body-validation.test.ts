@@ -20,9 +20,9 @@ const FULL_PRODUCT = {
   mint_id: AN_ID,
   name: "X", description: "d", bid_premium: 1, ask_premium: 1, type: "Coin",
   display: true, content: 1, gross: 1, purity: 0.999, variant_group: "",
-  shadow_offset: 0, stock: 0, slug: null, homepage_display: false,
+  shadow_offset: 0, slug: null, homepage_display: false,
   legal_tender: false, domestic_tender: false,
-  is_generic: false, variant_label: "", quantity: 0,
+  is_generic: false, variant_label: "",
   image_front: "/f.png", image_back: "/b.png", filter_category: null,
 };
 
@@ -60,14 +60,33 @@ test("PATCH /products/:id refuses a malformed id in the path", async () => {
   });
 });
 
+const DECIDED = {
+  name: "New Product",
+  metal_id: "00000000-0000-4000-8000-000000000001",
+  mint_id: "00000000-0000-4000-8000-000000000002",
+  supplier_id: "00000000-0000-4000-8000-000000000003",
+};
+
 test("POST /products refuses an unknown key (created_by)", async () => {
   await asAdmin(async () => {
     const res = await request(app)
       .post("/api/products")
-      .send({ name: "New Product", created_by: "someone" });
+      .send({ ...DECIDED, created_by: "someone" });
     assert.equal(res.status, 400, JSON.stringify(res.body));
     assert.match(res.body?.error?.message ?? "", /created_by/);
   });
+});
+
+test("POST /products refuses a create that decides no metal, mint or supplier", async () => {
+  for (const missing of ["metal_id", "mint_id", "supplier_id"] as const) {
+    await asAdmin(async () => {
+      const body: Record<string, unknown> = { ...DECIDED };
+      delete body[missing];
+      const res = await request(app).post("/api/products").send(body);
+      assert.equal(res.status, 400, JSON.stringify(res.body));
+      assert.match(res.body?.error?.message ?? "", new RegExp(missing));
+    });
+  }
 });
 
 test("POST /products refuses a wrong type", async () => {

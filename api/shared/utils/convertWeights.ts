@@ -18,3 +18,12 @@ export function convertToPounds(value: number, unit: string): number {
   if (isNaN(value) || value <= 0) return 0;
   return convertTroyOz(value, unit) / (453.592 / 31.1035);
 }
+
+export function fineContent(
+  weight: number | null | undefined,
+  unit: string | null | undefined,
+  purity: number | null | undefined
+): number | null {
+  const value = convertTroyOz(weight as number, unit as string) * (purity as number);
+  return Number.isFinite(value) ? value : null;
+}

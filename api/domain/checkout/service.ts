@@ -1,18 +1,15 @@
 import withTransaction from "#shared/db/withTransaction.ts";
-import { anonymousUsers, checkouts, checkoutItems, metals } from "#db";
+import { anonymousUsers, checkouts, checkoutItems } from "#db";
 import {
   addresses as addressService,
   fulfillments as fulfillmentService,
   paymentDetails,
   products as productService,
-  rates as ratesService,
-  spots as spotsService,
   users as usersService,
 } from "#domain";
 import * as rules from "#domain/checkout/rules.ts";
+import * as pricing from "#domain/pricing/index.ts";
 import { withDecisions } from "#shared/views.ts";
-import { bidPrice } from "#domain/quotes/rules.ts";
-import { lineContent } from "#domain/orders/rules.ts";
 import type {
   Checkout, CheckoutItem, CheckoutItemPatch, CheckoutPayoutForm, CheckoutView,
   CheckoutWrite, Direction, OrderLine,
@@ -148,13 +145,17 @@ export async function replaceItems(
       direction,
       lines,
       await productService.getByIds(named, client),
-      await productService.getLiveness(named, client),
-      direction === "purchase" ? await ratesService.listRates() : [],
-      await metals.namesById(client)
+      await productService.getLiveness(named, client)
     );
 
     await checkoutItems.removeFor(session.id, client);
     await checkoutItems.createMany(rows, client);
+    if (direction === "purchase") {
+      const quote = await pricing.priceCheckout(session.id, client);
+      for (const line of quote.direction === "purchase" ? quote.items : []) {
+        await checkoutItems.update(line.id, { premium: line.premium }, client);
+      }
+    }
     return await checkoutItems.listFor(session.id, client);
   });
 }
@@ -176,19 +177,6 @@ export async function getRowById(checkout_id: string, client?: Executor) {
 
 export async function getItemsForOrder(checkout_id: string, client?: Executor) {
   return await checkoutItems.listForOrder(checkout_id, client);
-}
-
-export async function purchaseTotal(checkout_id: string, client?: Executor): Promise<number> {
-  const rows = await checkoutItems.listFor(checkout_id, client);
-  if (!rows.length) return 0;
-  const [spots, metalNames] = await Promise.all([
-    spotsService.getSpotPrices(),
-    metals.namesById(client),
-  ]);
-  return rows.reduce((sum, row) => {
-    const metal = row.metal_id ? (metalNames.get(row.metal_id) ?? null) : null;
-    return sum + bidPrice(lineContent(row), row.premium, metal, spots);
-  }, 0);
 }
 
 export async function getRowFor(user_id: string, direction: Direction, client?: Executor) {

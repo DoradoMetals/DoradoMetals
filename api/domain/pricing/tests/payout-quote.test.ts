@@ -1,24 +1,18 @@
 import { test, beforeAll } from "vitest";
 import assert from "node:assert/strict";
-import * as quotes from "#domain/quotes/service.ts";
+import * as pricing from "#domain/pricing/index.ts";
 import query from "#shared/db/query.ts";
 import { inPinnedTransaction, outside } from "#shared/testing/pinned-pool.ts";
 import { TEST_ACTOR } from "#shared/testing/actor.ts";
 import { LOCKS } from "#shared/testing/locks.ts";
 import { aCart, aUser } from "#shared/testing/builders/index.ts";
+import type { PurchaseQuote } from "@dorado/contracts";
 
 const ORDER_LOCKS = [LOCKS.FULFILLMENTS, LOCKS.ORDERS, LOCKS.ADDRESSES];
 
-let goldId: string;
 const methodIdOf = new Map<string, string>();
 
 beforeAll(async () => {
-  const [gold] = await outside<{ id: string }>(
-    `SELECT id FROM metals.metals WHERE name = 'Gold' LIMIT 1`
-  );
-  assert.ok(gold, "dev has no Gold metal row to declare scrap against");
-  goldId = gold.id;
-
   const methods = await outside<{ id: string; type: string }>(
     `SELECT id, type FROM payments.methods WHERE direction = 'purchase'`
   );
@@ -37,16 +31,22 @@ async function goldBid(): Promise<number> {
   return Number(rows[0]?.bid ?? 0);
 }
 
+async function purchaseQuote(checkout_id: string): Promise<PurchaseQuote> {
+  const quote = await pricing.priceCheckout(checkout_id);
+  assert.equal(quote.direction, "purchase", "the fixture built a purchase basket");
+  return quote as PurchaseQuote;
+}
+
 test("both deductions apply, and neither cancels the other", async () => {
   await inPinnedTransaction(async (c) => {
     const bare = await aCart(c, await aUser(c), { direction: "purchase" })
       .withLots(1, { metal: "Gold", pre_melt: 1, purity: 1, unit: "t oz" });
-    const bareQuote = await quotes.checkoutQuote(bare.user_id, "purchase");
+    const bareQuote = await purchaseQuote(bare.id);
 
     const paid = await aCart(c, await aUser(c), { direction: "purchase" })
       .withLots(1, { metal: "Gold", pre_melt: 1, purity: 1, unit: "t oz" })
       .withRow({ payment_method_id: methodIdOf.get("WIRE") });
-    const both = await quotes.checkoutQuote(paid.user_id, "purchase");
+    const both = await purchaseQuote(paid.id);
 
     assert.equal(both.total, bareQuote.total, "the goods total is not what changed");
     assert.equal(both.shipping_charge, 0, "no committed shipping cost exists before placement");
@@ -64,7 +64,7 @@ test("a quote with no choices made yet deducts nothing", async () => {
   await inPinnedTransaction(async (c) => {
     const cart = await aCart(c, await aUser(c), { direction: "purchase" })
       .withLots(1, { metal: "Gold", pre_melt: 1, purity: 1, unit: "t oz" });
-    const q = await quotes.checkoutQuote(cart.user_id, "purchase");
+    const q = await purchaseQuote(cart.id);
     assert.equal(q.shipping_charge, 0);
     assert.equal(q.payout_charge, 0);
     assert.equal(q.estimated_payout, q.total);
@@ -77,7 +77,7 @@ test("a free payout method deducts nothing, and says so rather than omitting it"
       const cart = await aCart(c, await aUser(c), { direction: "purchase" })
         .withLots(1, { metal: "Gold", pre_melt: 1, purity: 1, unit: "t oz" })
         .withRow({ payment_method_id: methodIdOf.get(type) });
-      const q = await quotes.checkoutQuote(cart.user_id, "purchase");
+      const q = await purchaseQuote(cart.id);
       assert.equal(q.payout_charge, 0, `${type} is free`);
       assert.equal(q.estimated_payout, q.total);
     }
@@ -91,8 +91,27 @@ test("the payout never goes below zero", async () => {
     const cart = await aCart(c, await aUser(c), { direction: "purchase" })
       .withLots(1, { metal: "Gold", pre_melt: 0.0001, purity: 1, unit: "t oz" })
       .withRow({ payment_method_id: methodIdOf.get("WIRE") });
-    const q = await quotes.checkoutQuote(cart.user_id, "purchase");
+    const q = await purchaseQuote(cart.id);
     assert.ok(q.total < 70, "the fixture is meant to be smaller than its fees");
     assert.equal(q.estimated_payout, 0);
+  }, { actor: TEST_ACTOR.id, lock: ORDER_LOCKS });
+});
+
+test("a line's price is its content x the bid x the premium the band earns", async () => {
+  await inPinnedTransaction(async (c) => {
+    const bid = await goldBid();
+    const cart = await aCart(c, await aUser(c), { direction: "purchase" })
+      .withLots(1, { metal: "Gold", pre_melt: 1, purity: 1, unit: "t oz" });
+    const q = await purchaseQuote(cart.id);
+    const line = q.items[0]!;
+
+    assert.equal(line.kind, "scrap");
+    assert.equal(line.content, 1);
+    assert.equal(
+      Number(line.unit_price.toFixed(6)),
+      Number((line.content * (bid * line.premium)).toFixed(6))
+    );
+    assert.equal(line.line_total, line.unit_price, "a scrap lot is one lot, not a quantity");
+    assert.equal(q.total, line.line_total);
   }, { actor: TEST_ACTOR.id, lock: ORDER_LOCKS });
 });

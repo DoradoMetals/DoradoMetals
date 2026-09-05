@@ -1047,17 +1047,15 @@ CREATE TABLE IF NOT EXISTS products.bullion (
   shadow_offset integer DEFAULT 0 NOT NULL,
   slug text,
   filter_category text,
-  image_front text NOT NULL,
-  image_back text NOT NULL,
+  image_front text DEFAULT ''::text NOT NULL,
+  image_back text DEFAULT ''::text NOT NULL,
   created_by text DEFAULT ''::text NOT NULL,
   updated_by text DEFAULT ''::text NOT NULL,
   created_at timestamp with time zone DEFAULT now() NOT NULL,
   updated_at timestamp with time zone DEFAULT now() NOT NULL,
   created_by_id uuid,
   updated_by_id uuid,
-  supplier_id uuid NOT NULL,
-  stock numeric NOT NULL,
-  quantity numeric NOT NULL
+  supplier_id uuid NOT NULL
 );
 ALTER TABLE products.bullion ADD COLUMN IF NOT EXISTS id uuid DEFAULT gen_random_uuid();
 ALTER TABLE products.bullion ADD COLUMN IF NOT EXISTS metal_id uuid;
@@ -1080,8 +1078,8 @@ ALTER TABLE products.bullion ADD COLUMN IF NOT EXISTS variant_label text DEFAULT
 ALTER TABLE products.bullion ADD COLUMN IF NOT EXISTS shadow_offset integer DEFAULT 0;
 ALTER TABLE products.bullion ADD COLUMN IF NOT EXISTS slug text;
 ALTER TABLE products.bullion ADD COLUMN IF NOT EXISTS filter_category text;
-ALTER TABLE products.bullion ADD COLUMN IF NOT EXISTS image_front text;
-ALTER TABLE products.bullion ADD COLUMN IF NOT EXISTS image_back text;
+ALTER TABLE products.bullion ADD COLUMN IF NOT EXISTS image_front text DEFAULT ''::text;
+ALTER TABLE products.bullion ADD COLUMN IF NOT EXISTS image_back text DEFAULT ''::text;
 ALTER TABLE products.bullion ADD COLUMN IF NOT EXISTS created_by text DEFAULT ''::text;
 ALTER TABLE products.bullion ADD COLUMN IF NOT EXISTS updated_by text DEFAULT ''::text;
 ALTER TABLE products.bullion ADD COLUMN IF NOT EXISTS created_at timestamp with time zone DEFAULT now();
@@ -1089,8 +1087,6 @@ ALTER TABLE products.bullion ADD COLUMN IF NOT EXISTS updated_at timestamp with 
 ALTER TABLE products.bullion ADD COLUMN IF NOT EXISTS created_by_id uuid;
 ALTER TABLE products.bullion ADD COLUMN IF NOT EXISTS updated_by_id uuid;
 ALTER TABLE products.bullion ADD COLUMN IF NOT EXISTS supplier_id uuid;
-ALTER TABLE products.bullion ADD COLUMN IF NOT EXISTS stock numeric;
-ALTER TABLE products.bullion ADD COLUMN IF NOT EXISTS quantity numeric;
 
 CREATE TABLE IF NOT EXISTS products.mints (
   id uuid DEFAULT gen_random_uuid() NOT NULL,

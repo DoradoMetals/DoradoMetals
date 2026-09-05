@@ -14,16 +14,3 @@ export const SalesTax = z.object({
 });
 export type SalesTax = z.infer<typeof SalesTax>;
 // generated:end
-import { Bullion } from "../products/bullion.js";
-import { Address } from "../places/addresses.js";
-
-export const SalesTaxQuoteLine = Bullion.pick({ id: true }).extend({
-  quantity: z.number(),
-}).strict();
-export type SalesTaxQuoteLine = z.infer<typeof SalesTaxQuoteLine>;
-
-export const GetSalesTaxBody = z.object({
-  address_id: Address.shape.id.nullable().optional(),
-  items: z.array(SalesTaxQuoteLine).min(1),
-}).strict();
-export type GetSalesTaxBody = z.infer<typeof GetSalesTaxBody>;

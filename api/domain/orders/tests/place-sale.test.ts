@@ -15,10 +15,7 @@ import * as ordersRepo from "#db/orders/repo.ts";
 import * as place from "#domain/orders/place.ts";
 import * as paymentsWebhook from "#domain/payments/webhook.ts";
 import * as sweeps from "#domain/payments/sweeps.ts";
-import { calculateSalesOrderTotal } from "#domain/pricing/ask.ts";
-import * as productService from "#domain/products/service.ts";
-import * as taxService from "#domain/sales-tax/service.ts";
-import * as spotsService from "#domain/spots/service.ts";
+import * as pricing from "#domain/pricing/index.ts";
 import * as emailService from "#domain/media/emails/service.ts";
 import { closeBrowser } from "#providers/pdfs/puppeteer.ts";
 import { formatSalesOrderNumber } from "#shared/utils/formatOrderNumbers.ts";
@@ -202,14 +199,12 @@ async function primeSaleCheckout(c: PoolClient, f: Fixtures): Promise<string> {
   return co!.id;
 }
 
-async function pricedCents(c: PoolClient, f: Fixtures) {
-  const { rows: state } = await query<{ state: string }>(
-    `SELECT state FROM places.addresses WHERE id = $1`, [f.address_id], c);
-  const items = await productService.getItemsFromServer([{ id: f.product_id, quantity: 1 }]);
-  const spots = await spotsService.getSpotPrices();
-  const taxed = await taxService.attachSalesTaxToItems(state[0]!.state, items, spots);
-  const prices = calculateSalesOrderTotal(taxed, spots, { dorado_funds: 0 }, "STANDARD", "CARD");
-  return Math.round(prices.post_charges_amount * 100);
+async function pricedCents(checkout_id: string) {
+  const quote = await pricing.priceCheckout(checkout_id);
+  assert.equal(quote.direction, "sale", "the fixture primed a sale checkout");
+  return Math.round(
+    (quote.direction === "sale" ? quote.post_charges_amount : 0) * 100
+  );
 }
 
 const kindOf = (err: unknown) => (err as { kind?: string }).kind;
@@ -275,7 +270,7 @@ test("a paid-but-orderless intent is honoured: the order is created already Prep
     const f = await fixtures(c);
     assert.ok(f, "no fixtures");
     const checkout_id = await primeSaleCheckout(c, f);
-    const cents = await pricedCents(c, f);
+    const cents = await pricedCents(checkout_id);
     assert.ok(cents > 0, "the fixture order priced to zero, which defeats this test");
     const pi = `pi_p9_repair_${Date.now()}`;
     await seedIntent(c, pi, {
@@ -301,7 +296,7 @@ test("a paid intent at a DIFFERENT price than the cart is refused, naming suppor
     const f = await fixtures(c);
     assert.ok(f, "no fixtures");
     const checkout_id = await primeSaleCheckout(c, f);
-    const cents = await pricedCents(c, f);
+    const cents = await pricedCents(checkout_id);
     await seedIntent(c, `pi_p9_stale_${Date.now()}`, {
       status: "succeeded", cents: cents + 12345, settledCents: cents + 12345,
       user_id: f.user_id,
@@ -389,7 +384,7 @@ test("a sale paid by card waits for the webhook before it confirms", async () =>
     const f = await fixtures(c);
     assert.ok(f, "no fixtures");
     const checkout_id = await primeSaleCheckout(c, f);
-    const cents = await pricedCents(c, f);
+    const cents = await pricedCents(checkout_id);
     assert.ok(cents > 0, "the fixture order priced to zero, which defeats this test");
     const pi = `pi_p9_confirm_${Date.now()}`;
     await seedIntent(c, pi, { cents, user_id: f.user_id });

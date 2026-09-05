@@ -4,13 +4,55 @@ import * as orderSpotsService from "#domain/orders/spots/service.ts";
 import * as refinerSpotsService from "#domain/refiners/spots/service.ts";
 import * as refinerItemsRepo from "#db/refiners/items/repo.ts";
 import * as metalsRepo from "#db/metals/repo.ts";
-import { effectivePayoutFee, inboundShipment, recordedContent } from "#domain/pricing/service.ts";
-import { getRatePct, sumContentByMetal } from "#domain/rates/utils/resolveRate.ts";
-import * as rules from "#domain/quotes/rules.ts";
+import * as rules from "#domain/pricing/rules.ts";
 import type {
   OrderQuoteBody, OrderSpot, OrderView, OrderViewItem, ProfitBreakdown, ProfitMetalsDict,
-  RefinerItem,
+  RateRead, RefinerItem,
 } from "@dorado/contracts";
+
+const normMetal = (m: unknown): string => String(m ?? "").trim().toLowerCase();
+
+function getRatePct(
+  rates: RateRead[] | null | undefined,
+  metal: unknown,
+  totalQty: number,
+  material: "scrap" | "bullion"
+): number | undefined {
+  const bands = (rates ?? [])
+    .filter((r) => normMetal(r.metal) === normMetal(metal))
+    .sort((a, b) => a.min_qty - b.min_qty);
+  if (bands.length === 0) return undefined;
+
+  const hit = bands.find(
+    (r) => totalQty >= r.min_qty && (r.max_qty == null || totalQty <= r.max_qty)
+  );
+  const band = hit ?? (totalQty < bands[0].min_qty ? bands[0] : bands[bands.length - 1]);
+  const pct = material === "scrap" ? band.scrap_pct : band.bullion_pct;
+  return pct == null ? undefined : Number(pct);
+}
+
+function sumContentByMetal<T>(
+  items: T[] | null | undefined,
+  getMetal: (item: T) => unknown,
+  getContent: (item: T) => unknown
+): Record<string, number> {
+  const totals: Record<string, number> = {};
+  for (const it of items ?? []) {
+    const metal = getMetal(it);
+    if (!metal) continue;
+    const key = normMetal(metal);
+    totals[key] = (totals[key] ?? 0) + (Number(getContent(it)) || 0);
+  }
+  return totals;
+}
+
+const inboundShipment = (view: OrderView): OrderView["shipments"][number] | null =>
+  view.shipments.find((s) => s.direction !== "Return") ?? null;
+
+const recordedContent = (line: OrderViewItem): number | null => line.content ?? null;
+
+const effectivePayoutFee = (order: OrderView): number =>
+  order.totals?.waive_payout_fee === true ? 0 : Number(order.payout?.cost ?? 0);
 
 const PROFIT_METALS = ["Gold", "Silver", "Platinum", "Palladium"] as const;
 
@@ -268,7 +310,7 @@ function getTotalProfit(
 
 export async function profitBreakdown({ order_id }: OrderQuoteBody): Promise<ProfitBreakdown> {
   const order = await orderRead.view(order_id);
-  rules.assertOrder(order);
+  rules.assertPriced(order, `order ${order_id}`);
 
   const frozenSpots = await orderSpotsService.rowsFor(order_id);
   const refinerNamed = await refinerSpotsService.namedFor(order_id);

@@ -9,7 +9,10 @@ const START = "// generated:start";
 const END = "// generated:end";
 
 const COMPUTED: Record<string, string> = {
-  "computed/quotes.ts": "priced arithmetic, returned and never stored",
+  "pricing/quotes.ts": "the priced views the pricing SQL returns - a quote is " +
+    "computed from five tables and stored in none",
+  "pricing/profit.ts": "the margin split three ways across an order, its refiner's " +
+    "assay and two spot feeds - no table holds it",
   "computed/providers.ts": "the carrier catalogue the provider adapter assembles",
   "computed/orders.ts": "what an order may have done to it - booleans derived " +
     "from five tables and stored in none",
@@ -187,9 +190,9 @@ const seenComputed = new Set<string>();
 
 for (const rel of files) {
   const text = fs.readFileSync(path.join(ROOT, rel), "utf8");
-  if (rel.startsWith("computed/")) {
+  if (rel.startsWith("computed/") || rel.startsWith("pricing/")) {
     if (!(rel in COMPUTED)) {
-      console.error(`${rel}: under computed/ but not declared in this script's COMPUTED map.`);
+      console.error(`${rel}: computed but not declared in this script's COMPUTED map.`);
       console.error("  A shape no table backs needs a reason recorded beside it, not a directory to hide in.");
       process.exit(1);
     }

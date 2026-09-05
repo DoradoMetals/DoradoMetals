@@ -5,7 +5,7 @@ import * as pdf from "#domain/media/pdfs/service.ts";
 import { closeBrowser } from "#providers/pdfs/puppeteer.ts";
 import * as orderRead from "#domain/orders/read.ts";
 import * as inputs from "#domain/media/pdfs/order-inputs.ts";
-import { calculateTotalPrice, type Bids } from "#domain/pricing/service.ts";
+import * as pricing from "#domain/pricing/index.ts";
 import { formatCurrency } from "#domain/media/pdfs/render/format.ts";
 import type { DocumentLabels } from "#domain/media/pdfs/render/sections.ts";
 import { LOCKS } from "#shared/testing/locks.ts";
@@ -14,7 +14,6 @@ import type { OrderView } from "@dorado/contracts";
 
 let orders: OrderView[];
 let salesOrders: OrderView[];
-let bids: Bids;
 let labels: DocumentLabels;
 let lockClient: PoolClient;
 
@@ -39,7 +38,7 @@ beforeAll(async () => {
   orders = await viewsOf("purchase");
   salesOrders = await viewsOf("sale");
   assert.ok(orders.length > 0, "dev has no purchase orders to render");
-  ({ bids, labels } = await inputsFor(orders[0]));
+  ({ labels } = await inputsFor(orders[0]));
   assert.ok(labels.metals.size > 0, "dev has no metals to label a document with");
 });
 
@@ -62,7 +61,7 @@ test("every document renders for a real order", async () => {
 
   isPdf(
     await pdf.generatePackingList({
-      order, bids: own.bids, labels: own.labels,
+      order, pricing: own.pricing, labels: own.labels,
       package: { label: "Medium Box", length: 10, width: 8, height: 6 },
     }),
     "packing list"
@@ -143,11 +142,12 @@ test("a packing list with no package details draws no box, rather than a broken 
   assert.ok(withBox.includes("Length: 9 in"), "the dimensions are not printed");
 });
 
-test("a sales order invoice builds with no spot prices at all", () => {
+test("a sales order invoice builds with no spot prices at all", async () => {
   const order = salesOrders[0];
   assert.ok(order, "dev has no sales order");
+  const salePricing = await pricing.priceOrder(order.order.id);
 
-  const html = pdf.buildSalesOrderInvoiceHtml({ order, asks: new Map(), labels });
+  const html = pdf.buildSalesOrderInvoiceHtml({ order, asks: new Map(), pricing: salePricing, labels });
   assert.ok(html.length > 500, "no document was produced");
   assert.ok(!html.includes("NaN"), "the invoice contains NaN");
   assert.ok(html.includes("&mdash;"), "a missing spot rendered as nothing at all");
@@ -157,6 +157,7 @@ test("a sales order invoice builds with no spot prices at all", () => {
   const partial = pdf.buildSalesOrderInvoiceHtml({
     order,
     asks: new Map([[gold!, 4000]]),
+    pricing: salePricing,
     labels,
   });
   assert.ok(partial.includes("$4,000.00"), "the quoted metal is missing");
@@ -166,12 +167,7 @@ test("a sales order invoice builds with no spot prices at all", () => {
 test("the packing list and the invoice report the same total", async () => {
   for (const order of orders) {
     const own = await inputsFor(order);
-    let total: number;
-    try {
-      total = calculateTotalPrice(order, own.bids);
-    } catch {
-      continue;
-    }
+    const total = own.pricing.total;
     if (!Number.isFinite(total)) continue;
 
     const money = formatCurrency(total);
@@ -188,7 +184,8 @@ test("every order item appears as a row in the packing list", async () => {
   for (const order of orders) {
     if (!order.items.length) continue;
 
-    const html = pdf.buildPackingListHtml(await inputsFor(order));
+    const own = await inputsFor(order);
+    const html = pdf.buildPackingListHtml(own);
     const rows = (html.match(/<tr>/g) ?? []).length;
 
     if (rows < order.items.length) {

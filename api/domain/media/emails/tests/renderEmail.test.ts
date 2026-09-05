@@ -4,7 +4,7 @@ import {
   renderSalesOrderToSupplierEmail,
   renderOrderPricedEmail,
 } from "#domain/media/emails/utils/renderEmail.ts";
-import type { OrderView } from "@dorado/contracts";
+import type { OrderPricing, OrderView } from "@dorado/contracts";
 
 const GOLD = "11111111-1111-4111-8111-111111111111";
 
@@ -45,6 +45,35 @@ const labels = {
   packages: new Map<string, string>(),
 };
 const asks = new Map<string, number | null>([[GOLD, 4000]]);
+const pricing = {
+  order_id: "00000000-0000-4000-8000-000000000000",
+  direction: "sale",
+  spots_at: new Date().toISOString(),
+  spots_locked: false,
+  items: [
+    {
+      id: "line-1",
+      kind: "product",
+      source: "stored",
+      metal_id: GOLD,
+      metal: "Gold",
+      content: 1,
+      quantity: 2,
+      premium: 1,
+      retier_premium: null,
+      unit_price: 100,
+      line_total: 200,
+    },
+  ],
+  unpriceable: [],
+  scrap_total: 0,
+  bullion_total: 200,
+  items_total: 200,
+  shipping_charge: 0,
+  payout_fee: 0,
+  total: 200,
+  declared_value: 200,
+} as OrderPricing;
 
 test("the supplier email renders the order it was given", () => {
   const html = renderSalesOrderToSupplierEmail({
@@ -52,6 +81,7 @@ test("the supplier email renders the order it was given", () => {
     url: "https://example.com/orders",
     order: order(),
     asks,
+    pricing,
     labels,
   });
 
@@ -70,6 +100,7 @@ test("an order with no address renders rather than throwing", () => {
     url: "https://example.com/orders",
     order: order({ address: null }),
     asks,
+    pricing,
     labels,
   });
 
@@ -86,6 +117,7 @@ test("a spot with no ask renders rather than throwing", () => {
     url: "https://example.com/orders",
     order: order(),
     asks: new Map([[GOLD, null]]),
+    pricing,
     labels,
   });
 

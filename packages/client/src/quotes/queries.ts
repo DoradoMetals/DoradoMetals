@@ -2,50 +2,49 @@
 
 import { useQuery, type UseQueryResult } from "@tanstack/react-query";
 import type {
-  CatalogQuote, Direction, OrderQuote, ProfitBreakdown, PurchaseOrderQuote, SalesOrderQuote,
+  CheckoutQuote, Direction, OrderPricing, PriceSide, ProductQuote, ProfitBreakdown,
 } from "@dorado/contracts";
 import { apiRequest } from "../fetch";
 import { keys } from "../keys";
 
-export type CatalogQuoteItem = { id: string; quantity?: number };
-
 export function useCheckoutQuote(
   direction: Direction, options: { enabled?: boolean; user_id?: string } = {}
-): UseQueryResult<PurchaseOrderQuote | SalesOrderQuote, Error> {
+): UseQueryResult<CheckoutQuote, Error> {
   return useQuery({
     queryKey: keys.quotes.checkout(direction, options.user_id),
     enabled: options.enabled ?? true,
     refetchInterval: 10_000,
     placeholderData: (previous) => previous,
     queryFn: () =>
-      apiRequest<PurchaseOrderQuote | SalesOrderQuote>(
+      apiRequest<CheckoutQuote>(
         "GET", "/quotes/checkout", undefined,
         { direction, user_id: options.user_id }
       ),
   });
 }
 
-export function useCatalogQuote(
-  items: CatalogQuoteItem[], side: "ask" | "bid"
-): UseQueryResult<CatalogQuote, Error> {
+export function useProductQuote(
+  bullion_id: string | null | undefined, side: PriceSide, quantity = 1
+): UseQueryResult<ProductQuote, Error> {
   return useQuery({
-    queryKey: keys.quotes.catalog(items, side),
-    enabled: items.length > 0,
+    queryKey: keys.quotes.catalog(bullion_id ?? "", side, quantity),
+    enabled: !!bullion_id,
     refetchInterval: 10_000,
     placeholderData: (previous) => previous,
-    queryFn: () => apiRequest<CatalogQuote>("POST", "/quotes/catalog", { items, side }),
+    queryFn: () =>
+      apiRequest<ProductQuote>("POST", "/quotes/catalog", { bullion_id, side, quantity }),
   });
 }
 
-export function useOrderQuote(
+export function useOrderPricing(
   order_id: string | null | undefined, enabled = true
-): UseQueryResult<OrderQuote, Error> {
+): UseQueryResult<OrderPricing, Error> {
   return useQuery({
     queryKey: keys.quotes.order(order_id ?? ""),
     enabled: enabled && !!order_id,
     refetchInterval: 10_000,
     placeholderData: (previous) => previous,
-    queryFn: () => apiRequest<OrderQuote>("POST", "/quotes/order", { order_id }),
+    queryFn: () => apiRequest<OrderPricing>("POST", "/quotes/order", { order_id }),
   });
 }
 

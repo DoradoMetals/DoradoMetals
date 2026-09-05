@@ -36,8 +36,6 @@ export const Bullion = z.object({
   "created_by_id": z.string().uuid().nullable(),
   "updated_by_id": z.string().uuid().nullable(),
   "supplier_id": z.string().uuid(),
-  "stock": z.number(),
-  "quantity": z.number(),
 });
 export type Bullion = z.infer<typeof Bullion>;
 // generated:end
@@ -72,6 +70,11 @@ export type BullionPatch = z.infer<typeof BullionPatch>;
 
 export const BullionPatchColumns = BullionPatch.omit({ id: true });
 export type BullionPatchColumns = z.infer<typeof BullionPatchColumns>;
+
+export const BullionCreate = BullionPatchColumns.required({
+  name: true, metal_id: true, mint_id: true, supplier_id: true,
+});
+export type BullionCreate = z.infer<typeof BullionCreate>;
 
 export const BullionAdminRow = Bullion.omit({
   created_by_id: true,

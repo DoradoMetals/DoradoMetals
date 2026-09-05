@@ -1,6 +1,6 @@
 import * as orderItemsRepo from "#db/orders/items/repo.ts";
 import * as refinerItemsRepo from "#db/refiners/items/repo.ts";
-import { fineContent } from "#domain/pricing/content.ts";
+import { fineContent } from "#shared/utils/convertWeights.ts";
 import * as rules from "#domain/refiners/items/rules.ts";
 import type { RefinerItemPatch, RefinerItem } from "@dorado/contracts";
 import type { Executor } from "#shared/db/executor.ts";

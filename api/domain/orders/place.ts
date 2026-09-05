@@ -8,14 +8,11 @@ import * as orderTransactions from "#db/orders/transactions/repo.ts";
 import * as paymentMethods from "#db/payments/methods/repo.ts";
 import * as intentsRepo from "#db/payments/intents/repo.ts";
 import * as placeAddresses from "#db/places/addresses/repo.ts";
-import * as usersRepo from "#db/users/repo.ts";
 
 import * as addressService from "#domain/places/addresses/service.ts";
 import * as fulfillmentService from "#domain/fulfillments/service.ts";
 import * as checkoutService from "#domain/checkout/service.ts";
 import * as emailService from "#domain/media/emails/service.ts";
-import * as spotsService from "#domain/spots/service.ts";
-import * as productService from "#domain/products/service.ts";
 import * as taxService from "#domain/sales-tax/service.ts";
 import * as paymentsService from "#domain/payments/service.ts";
 import * as usersService from "#domain/users/service.ts";
@@ -26,12 +23,14 @@ import * as stripeProvider from "#providers/payment/stripe.ts";
 import * as orderRead from "#domain/orders/read.ts";
 import * as rules from "#domain/orders/rules.ts";
 import * as shippingLabels from "#domain/shipping/labels.ts";
-import { calculateItemAsk, calculateSalesOrderTotal } from "#domain/pricing/ask.ts";
+import * as pricing from "#domain/pricing/index.ts";
 import { retierPremiums } from "#domain/orders/service.ts";
 
 import withTransaction from "#shared/db/withTransaction.ts";
 import { attempt } from "#shared/attempt.ts";
-import type { Checkout, OrderItem, OrderLine, OrderView } from "@dorado/contracts";
+import type {
+  Checkout, OrderItem, OrderLine, OrderView, SoldLinePrice,
+} from "@dorado/contracts";
 
 export const LIVE = {
   buyLabel: shippingLabels.buyLabel,
@@ -149,29 +148,19 @@ async function placeSale(
   const address = rules.requireAddress(
     await placeAddresses.getOne(checkout.recipient_address_id!), "delivery"
   );
-  const spots = await spotsService.getSpotPrices();
-  const priced = await taxService.attachSalesTaxToItems(
-    address.state,
-    rules.saleLines(
-      cart,
-      await productService.getItemsFromServer(rules.catalogueWanted(cart)),
-      new Map(spots.map((spot) => [spot.id, spot.name]))
-    ),
-    spots
-  );
-  const service = await shippingLabels.serviceForFulfillment(checkout.fulfillment_id!);
-  const method = (await paymentMethods.listFor("sale"))
-    .find((m) => m.id === checkout.payment_method_id);
+  const quote = await pricing.priceCheckout(checkout.id);
+  rules.assertSaleQuote(quote, checkout.id);
 
-  const balance = (await usersRepo.balanceForUpdate(checkout.user_id)) ?? 0;
-  const prices = calculateSalesOrderTotal(
-    priced, spots, { dorado_funds: balance }, service?.code, method?.type
-  );
-  const cents = rules.chargeCents(prices.post_charges_amount);
+  const cents = rules.chargeCents(quote.post_charges_amount);
   const intent = cents > 0 ? await openIntentFor(checkout.user_id, cents) : null;
   const status = rules.statusAtPlacement(cents, intent?.settled === true);
 
-  const lines = rules.pricedSaleLines(cart, priced, (line) => calculateItemAsk(line, spots));
+  const lines: SoldLinePrice[] = quote.items.map((line) => ({
+    line_id: line.id,
+    premium: line.premium,
+    sales_tax: line.sales_tax_rate,
+    price: line.unit_ask,
+  }));
 
   const order_id = await withTransaction(async (tx) => {
     const id = await writeOrder(
@@ -181,28 +170,29 @@ async function placeSale(
     );
     await orderTransactions.create(
       {
-        order_id: id, total: prices.order_total, shipping: prices.shipping_charge,
-        shipping_service: service?.name, funds: prices.pre_charges_amount,
-        post_charges_amount: prices.post_charges_amount,
-        subject_to_charges_amount: prices.subject_to_charges_amount,
-        used_funds: prices.pre_charges_amount > 0, items: prices.item_total,
-        base_total: prices.base_total, surcharge: prices.charges_amount,
-        sales_tax: prices.sales_tax,
+        order_id: id, total: quote.order_total, shipping: quote.shipping_charge,
+        shipping_service: quote.shipping_service ?? undefined,
+        funds: quote.pre_charges_amount,
+        post_charges_amount: quote.post_charges_amount,
+        subject_to_charges_amount: quote.subject_to_charges_amount,
+        used_funds: quote.pre_charges_amount > 0, items: quote.item_total,
+        base_total: quote.base_total, surcharge: quote.charges_amount,
+        sales_tax: quote.sales_tax,
       },
       tx
     );
 
-    if (prices.pre_charges_amount > 0) {
-      await usersService.removeFunds(checkout.user_id, prices.pre_charges_amount, tx);
+    if (quote.pre_charges_amount > 0) {
+      await usersService.removeFunds(checkout.user_id, quote.pre_charges_amount, tx);
       await transactionsService.addTransactionLog(
         {
           user_id: checkout.user_id, type: "Debit", order_id: id,
-          amount: prices.pre_charges_amount,
+          amount: quote.pre_charges_amount,
         },
         tx
       );
     }
-    await taxService.updateStateSalesTax(prices.sales_tax, address.state, tx);
+    await taxService.updateStateSalesTax(quote.sales_tax, address.state, tx);
     if (intent) await paymentsService.attachOrder(intent.payment_intent_id, id, tx);
     await clearChoices(checkout, tx);
     return id;

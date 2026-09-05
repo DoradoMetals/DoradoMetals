@@ -1,99 +1,24 @@
-import { getRatePct, sumContentByMetal } from "#domain/rates/utils/resolveRate.ts";
-import { fineContent } from "#domain/pricing/content.ts";
+import { fineContent } from "#shared/utils/convertWeights.ts";
 import { Conflict, Invalid, NotFound } from "#shared/errors.ts";
 
 import type {
-  BullionStorefront, CheckoutMissing, Direction, OrderActions, OrderItem,
-  OrderItemPatch,
-  OrderItemWrite, OrderLine, OrderSpot, OrderSpotsPutBody, OrderTotals, OrderView,
+  CheckoutMissing, CheckoutQuote, Direction, SaleQuote, OrderActions, OrderItem, OrderItemPatch,
+  OrderItemWrite, OrderSpot, OrderSpotsPutBody, OrderView,
   OrderViewFacts, PaymentIntentFacts, PaymentMethod,
-  PricedLine, SaleLine, SoldLinePrice, TaxedSaleLine,
 } from "@dorado/contracts";
 
 export function chargesSalesTax(direction: Direction): boolean {
   return direction === "sale";
 }
 
-export function rateMaterialFor(bullion_id: string | null | undefined): "scrap" | "bullion" {
-  return bullion_id == null ? "scrap" : "bullion";
-}
-
-export function lineContent(line: Pick<PricedLine, "content" | "quantity" | "bullion_id">): number {
-  const content = Number(line.content) || 0;
-  if (line.bullion_id == null) return content;
-  const quantity = Number(line.quantity ?? 1);
-  return content * (Number.isFinite(quantity) ? quantity : 1);
-}
-
-export function retierPlan(
-  rates: Parameters<typeof getRatePct>[0], lines: PricedLine[]
-): { id: string; premium: number }[] {
-  if (!rates?.length || !lines.length) return [];
-  const totals = sumContentByMetal(lines, (l: PricedLine) => l.metal, lineContent);
-  const plan: { id: string; premium: number }[] = [];
-  for (const line of lines) {
-    const total = totals[String(line.metal ?? "").toLowerCase()] ?? 0;
-    const pct = getRatePct(rates, line.metal, total, rateMaterialFor(line.bullion_id));
-    if (pct != null) plan.push({ id: line.id, premium: pct });
+export function assertSaleQuote(
+  quote: CheckoutQuote, checkout_id: string
+): asserts quote is SaleQuote {
+  if (quote.direction !== "sale") {
+    throw new Invalid(
+      `checkout ${checkout_id} is a purchase basket, so it cannot be placed as a sale`
+    );
   }
-  return plan;
-}
-
-export function saleLines(
-  cart: OrderLine[], catalogue: BullionStorefront[], metals: Map<string, string>
-): SaleLine[] {
-  const soldById = new Map(catalogue.map((product) => [product.id, product]));
-  return cart.map((line) => {
-    const product = line.bullion_id === null ? undefined : soldById.get(line.bullion_id);
-    if (!product) {
-      throw new Invalid(
-        `checkout item ${line.id} names no product the catalogue prices, so this ` +
-          `sale cannot be placed`
-      );
-    }
-    if (line.content == null) {
-      throw new Invalid(
-        `checkout item ${line.id} has no content, so it cannot be priced - ` +
-          `refresh your basket and try again`
-      );
-    }
-    return {
-      id: product.id,
-      quantity: Number(line.quantity ?? 1),
-      metal_type: line.metal_id == null ? null : (metals.get(line.metal_id) ?? null),
-      content: line.content,
-      purity: line.purity,
-      gross: line.pre_melt,
-      ask_premium: product.ask_premium,
-      type: product.type,
-      legal_tender: product.legal_tender,
-      domestic_tender: product.domestic_tender,
-    };
-  });
-}
-
-export function catalogueWanted(cart: OrderLine[]): { id: string; quantity: number }[] {
-  const ids = new Set(
-    cart.flatMap((line) => (line.bullion_id === null ? [] : [line.bullion_id]))
-  );
-  return [...ids].map((id) => ({ id, quantity: 0 }));
-}
-
-export function pricedSaleLines(
-  cart: OrderLine[], priced: TaxedSaleLine[], askOf: (line: TaxedSaleLine) => number
-): SoldLinePrice[] {
-  return cart.map((line, index) => {
-    const sold = priced[index];
-    if (!sold) {
-      throw new Error(`checkout item ${line.id} was not priced - the sale line list is short`);
-    }
-    return {
-      line_id: line.id,
-      premium: Number(sold.ask_premium ?? 0),
-      sales_tax: sold.sales_tax_rate,
-      price: askOf(sold),
-    };
-  });
 }
 
 export function declaredLot(

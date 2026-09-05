@@ -3,86 +3,11 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import * as rules from "#domain/orders/rules.ts";
 import { Conflict, Invalid } from "#shared/errors.ts";
-import type { OrderView, PricedLine, RateRead } from "@dorado/contracts";
-
-test("which percentage column of the band a line reads", () => {
-  assert.equal(rules.rateMaterialFor(null), "scrap");
-  assert.equal(rules.rateMaterialFor("abc"), "bullion");
-  assert.equal(rules.rateMaterialFor(undefined), "scrap");
-});
+import type { OrderView } from "@dorado/contracts";
 
 test("sales tax is charged, never paid", () => {
   assert.equal(rules.chargesSalesTax("sale"), true);
   assert.equal(rules.chargesSalesTax("purchase"), false);
-});
-
-const BANDS = [
-  { metal: "Gold", min_qty: 0, max_qty: 1, scrap_pct: 0.8, bullion_pct: 0.9 },
-  { metal: "Gold", min_qty: 1, max_qty: null, scrap_pct: 0.87, bullion_pct: 0.95 },
-] as unknown as RateRead[];
-
-const scrapLine = (over: Partial<PricedLine> = {}): PricedLine => ({
-  id: "s", metal: "Gold", content: 1, quantity: 1, bullion_id: null, ...over,
-});
-const bullionLine = (over: Partial<PricedLine> = {}): PricedLine => ({
-  id: "b", metal: "Gold", content: 1, quantity: 1, bullion_id: "a-product", ...over,
-});
-
-test("re-tiering prices every scrap line at the band the ORDER's total earns", () => {
-  const plan = rules.retierPlan(BANDS, [
-    scrapLine({ id: "a", content: 0.6 }),
-    scrapLine({ id: "b", content: 0.6 }),
-  ]);
-  assert.deepEqual(plan, [
-    { id: "a", premium: 0.87 },
-    { id: "b", premium: 0.87 },
-  ]);
-});
-
-test("a purchase bullion line takes the band's bullion_pct, not its product's premium", () => {
-  assert.deepEqual(rules.retierPlan(BANDS, [bullionLine({ id: "b", content: 0.5 })]), [
-    { id: "b", premium: 0.9 },
-  ]);
-  assert.deepEqual(rules.retierPlan(BANDS, [bullionLine({ id: "b", content: 2 })]), [
-    { id: "b", premium: 0.95 },
-  ]);
-});
-
-test("scrap and bullion of one metal tier by their COMBINED content", () => {
-  const plan = rules.retierPlan(BANDS, [
-    scrapLine({ id: "s", content: 0.6 }),
-    bullionLine({ id: "b", content: 0.6 }),
-  ]);
-  assert.deepEqual(plan, [
-    { id: "s", premium: 0.87 },
-    { id: "b", premium: 0.95 },
-  ]);
-  assert.deepEqual(rules.retierPlan(BANDS, [scrapLine({ id: "s", content: 0.6 })]), [
-    { id: "s", premium: 0.8 },
-  ]);
-  assert.deepEqual(rules.retierPlan(BANDS, [bullionLine({ id: "b", content: 0.6 })]), [
-    { id: "b", premium: 0.9 },
-  ]);
-});
-
-test("a bullion line's content counts per unit times quantity, and scrap's does not", () => {
-  assert.equal(rules.lineContent(bullionLine({ content: 0.5, quantity: 4 })), 2);
-  assert.equal(rules.lineContent(scrapLine({ content: 0.5, quantity: 4 })), 0.5);
-  assert.equal(rules.lineContent(bullionLine({ content: 0.5, quantity: null })), 0.5);
-  assert.deepEqual(rules.retierPlan(BANDS, [bullionLine({ content: 0.5, quantity: 3 })]), [
-    { id: "b", premium: 0.95 },
-  ]);
-  assert.deepEqual(rules.retierPlan(BANDS, [bullionLine({ content: 0.5, quantity: 1 })]), [
-    { id: "b", premium: 0.9 },
-  ]);
-});
-
-test("no rate bands means no plan - an order keeps what it was given", () => {
-  assert.deepEqual(rules.retierPlan([], [scrapLine({ id: "a" })]), []);
-  assert.deepEqual(rules.retierPlan(null, [scrapLine({ id: "a" })]), []);
-  assert.deepEqual(rules.retierPlan(BANDS, []), []);
-  assert.deepEqual(rules.retierPlan(BANDS, [scrapLine({ id: "a", metal: "Silver" })]), []);
-  assert.deepEqual(rules.retierPlan(BANDS, [bullionLine({ id: "a", metal: "Silver" })]), []);
 });
 
 const line = (metal_id: string) => ({ metal_id });

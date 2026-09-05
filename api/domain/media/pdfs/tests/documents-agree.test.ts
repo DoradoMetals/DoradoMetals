@@ -4,13 +4,15 @@ import type { PoolClient } from "pg";
 import pool from "#pool";
 import * as orderRead from "#domain/orders/read.ts";
 import * as inputs from "#domain/media/pdfs/order-inputs.ts";
-import { scrapLines } from "#domain/pricing/service.ts";
 import {
   buildPackingScrapRows,
   buildInvoiceScrapRows,
 } from "#domain/media/pdfs/render/sections.ts";
 import { LOCKS } from "#shared/testing/locks.ts";
-import type { OrderView, OrderViewItem } from "@dorado/contracts";
+import type { OrderView, OrderViewItem, OrderPricingLine } from "@dorado/contracts";
+
+const scrapLines = (lines: OrderViewItem[]): OrderViewItem[] =>
+  lines.filter((line) => line.bullion_id === null);
 
 let orders: OrderView[];
 let lockClient: PoolClient;
@@ -43,12 +45,13 @@ test("every order's packing list and invoice quote the same premiums", async () 
   for (const order of orders) {
     const scrap = scrapLines(order.items);
     if (!scrap.length) continue;
+
+    const own = await inputs.invoiceInputs(order.order.id);
     compared++;
 
-    const { bids, labels } = await inputs.invoiceInputs(order.order.id);
-
-    const packing = percentages(buildPackingScrapRows(scrap, bids, labels));
-    const invoice = percentages(buildInvoiceScrapRows(scrap, bids, labels));
+    const priceOf = new Map(own.pricing.items.map((l) => [l.id, l]));
+    const packing = percentages(buildPackingScrapRows(scrap, priceOf, own.labels));
+    const invoice = percentages(buildInvoiceScrapRows(scrap, priceOf, own.labels));
 
     if (JSON.stringify(packing) !== JSON.stringify(invoice)) {
       disagreements.push(
@@ -87,15 +90,15 @@ test("a line with no premium renders unpriced on both documents, not differently
     product: null,
   } as unknown as OrderViewItem;
 
-  const bids = new Map([[GOLD, 4000]]);
+  const priceOf = new Map<string, OrderPricingLine>();
   const labels = {
     metals: new Map([[GOLD, "Gold"]]),
     services: new Map<string, string>(),
     packages: new Map<string, string>(),
   };
 
-  const packing = buildPackingScrapRows([line], bids, labels);
-  const invoice = buildInvoiceScrapRows([line], bids, labels);
+  const packing = buildPackingScrapRows([line], priceOf, labels);
+  const invoice = buildInvoiceScrapRows([line], priceOf, labels);
 
   assert.deepEqual(
     percentages(packing), percentages(invoice),

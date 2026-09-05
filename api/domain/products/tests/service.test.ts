@@ -6,7 +6,7 @@ import pool from "#pool";
 import { inPinnedTransaction } from "#shared/testing/pinned-pool.ts";
 import { TEST_ACTOR } from "#shared/testing/actor.ts";
 import { LOCKS } from "#shared/testing/locks.ts";
-import { aProduct } from "#shared/testing/builders/index.ts";
+import { aProduct, metalId, mintId, supplierId } from "#shared/testing/builders/index.ts";
 import * as service from "#domain/products/service.ts";
 
 let client: PoolClient;
@@ -39,8 +39,8 @@ test("the storefront carries the metal and mint names", async () => {
 test("the storefront returns no admin-only field", async () => {
   const [row] = rowsOf(await service.listGroups({ display: true }));
   for (const field of [
-    "display", "stock", "created_by", "updated_by", "created_at", "updated_at",
-    "homepage_display", "filter_category", "quantity", "supplier", "supplier_id",
+    "display", "created_by", "updated_by", "created_at", "updated_at",
+    "homepage_display", "filter_category", "supplier", "supplier_id",
   ]) {
     assert.ok(!(field in row), `${field} is admin-only and reached the storefront`);
   }
@@ -140,16 +140,6 @@ test("an unknown metal name returns nothing, not everything", async () => {
   assert.deepEqual(await service.listGroups({ display: true, metal: "Unobtainium" }), []);
 });
 
-test("items from the server keep the server's premium and the client's quantity", async () => {
-  const [product] = rowsOf(await service.listGroups({ display: true }));
-  const items = await service.getItemsFromServer([{ id: product.id, quantity: 7 }]);
-  assert.equal(items.length, 1);
-  assert.equal(items[0].quantity, 7, "the client's quantity was lost");
-  assert.equal(Number(items[0].bid_premium), Number(product.bid_premium),
-    "the premium did not come from the server");
-  assert.equal(Number(items[0].ask_premium), Number(product.ask_premium));
-});
-
 test("liveness answers display, the buy-side gate", async () => {
   const { rows } = await client.query("SELECT id, display FROM products.bullion LIMIT 5");
   const live = await service.getLiveness(rows.map((r) => r.id));
@@ -165,19 +155,26 @@ test("liveness answers display, the buy-side gate", async () => {
 test("creating a product supplies what the columns require", async () => {
   await inPinnedTransaction(async (c: PoolClient) => {
     const name = `probe-${randomUUID().slice(0, 8)}`;
-    const made = await service.createProduct({ name });
+    const made = await service.createProduct({
+      name,
+      metal_id: await metalId(c, "Gold"),
+      mint_id: await mintId(c),
+      supplier_id: await supplierId(c),
+    });
     assert.equal(made.name, name);
     assert.equal(typeof made.metal, "string");
     assert.equal(typeof made.mint, "string");
     assert.equal(typeof made.supplier, "string");
 
     const { rows } = await c.query(
-      `SELECT metal_id, mint_id, supplier_id, image_front, image_back, stock, quantity
+      `SELECT metal_id, mint_id, supplier_id, image_front, image_back
          FROM products.bullion WHERE id = $1`, [made.id]
     );
     for (const [k, v] of Object.entries(rows[0])) {
       assert.notEqual(v, null, `${k} was left null, which the column forbids`);
     }
+    assert.equal(rows[0].image_front, "", "the column default should have filled image_front");
+    assert.equal(rows[0].image_back, "", "the column default should have filled image_back");
   }, { actor: TEST_ACTOR.id, lock: LOCKS.ORDERS });
 });
 

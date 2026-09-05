@@ -19,6 +19,7 @@ import * as shippingOperations from "#domain/shipping/operations/service.ts";
 import * as rules from "#domain/shipping/rules.ts";
 import * as requests from "#providers/shipments/requests.ts";
 import * as checkoutService from "#domain/checkout/service.ts";
+import * as pricing from "#domain/pricing/index.ts";
 
 import withTransaction from "#shared/db/withTransaction.ts";
 import type { Executor } from "#shared/db/executor.ts";
@@ -34,8 +35,9 @@ export async function sealForPlacement(
   rules.assertParcelChosen(shipment, shipment_id);
 
   const service = await carrierServices.labelServiceFor(shipment.carrier_service_id!, tx);
+  const quote = await pricing.priceCheckout(checkout_id, tx);
   const declaredValue = await carrierServices.clampInsuredValue(
-    rules.declaredValue(await checkoutService.purchaseTotal(checkout_id, tx)),
+    rules.declaredValue(quote.direction === "purchase" ? quote.total : 0),
     service.code
   );
   const handoff = rules.handoffFor(await handoffsService.getHandoffs(), method_type);

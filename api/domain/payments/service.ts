@@ -5,7 +5,8 @@ import {
   paymentSettlements as settlements, paymentCustomers as customers,
 } from "#db";
 import { users as usersService } from "#domain";
-import * as quotesService from "#domain/quotes/service.ts";
+import * as checkoutService from "#domain/checkout/service.ts";
+import * as pricing from "#domain/pricing/index.ts";
 import {
   toDollars, intentOwner, isOpen, isResolved, chargeCents, isChargeable,
   assertBillingIdentity, assertIntentSubject, assertPriceableBalance,
@@ -163,8 +164,9 @@ export async function updatePaymentIntent(
 
   const retrieved_intent = await findReusableIntent(caller, type, user_id);
 
-  const { prices } = await quotesService.priceSaleCheckout(subject);
-  const amount = chargeCents(prices.post_charges_amount);
+  const basket = await checkoutService.getRowFor(subject, "sale");
+  const quote = await pricing.priceCheckout(basket.id);
+  const amount = chargeCents(quote.direction === "sale" ? quote.post_charges_amount : 0);
 
   if (!isChargeable(amount)) {
     return retrieved_intent?.attempt?.provider_ref
