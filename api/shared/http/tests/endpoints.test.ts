@@ -30,7 +30,6 @@ const PUBLIC = new Set([
   "GET /api/spots/",
   "POST /api/recaptcha/verify-recaptcha",
   "POST /api/quotes/catalog",
-  "POST /api/quotes/purchase_order",
   "GET /api/payments/methods/",
   "GET /api/carrier_services/sale_options",
 ]);

@@ -15439,3 +15439,187 @@ walk correctly reporting a smaller tree.
 No migration was needed or written — `payments.details`, `payments.methods`
 and `orders.transactions` already existed exactly as this dissolution reads
 and writes them. Everything in this entry is uncommitted on `payouts-lane`.
+
+### Quotes price the session; the sale has its own confirmation (2026-09-05)
+
+Two pieces, ruling 43 applied to the last body-fed quote endpoints, plus the
+sales-order email `docs/waves/purge.md` flagged and left for later.
+
+**Routes.** `POST /quotes/purchase_order` and `POST /quotes/sales_order` are
+gone, contracts and all. One `GET /api/quotes/checkout?direction=` replaces
+both — the quote feature owns pricing, so it owns the path. It loads the
+caller's own checkout row and items via `checkoutService` (`?user_id=` is
+admin-only, resolved the same way `GET /checkout` already does, via
+`checkoutService.resolveSubject`) and prices whichever direction was asked
+for. `POST /quotes/catalog` is untouched — it prices a product, not a
+session. **This closes the 42P01-adjacent anonymity question
+`checkout-items-shape-changes.md` §6 left open**: that doc assumed pricing
+the session would silently end anonymous sell-cart quoting, because at the
+time anonymous visitors had no session at all. Ruling 63 (anonymous checkout
+is server-side) shipped since, so `requireUser` now passes for an anonymous
+better-auth session exactly the way `/checkout/items` already does — the
+doc's own remaining diff (keep `POST /purchase_order`, slim its body) is
+superseded by the GET design below, not executed as written.
+
+**Contracts deleted**: `PurchaseOrderQuoteBody`, `SalesOrderQuoteBody`,
+`PurchaseQuoteProduct`, `PurchaseQuoteScrap`, `PurchaseQuoteItem`,
+`PaymentIntentLine`. `QuoteItem` stays — `CatalogQuoteBody` still uses it.
+**Kept, one shape change**: `PurchaseOrderQuoteLine.index` (a body-array
+position) is `id` (the checkout item's own uuid) now, matching
+`SalesOrderQuoteLine`/`OrderQuoteLine`, which already keyed by id. A checkout
+item's own order is not deterministic (`ORDER BY created_at, id` ties on a
+bulk insert), so a caller that needs "the scrap line" now filters
+`items.find(i => i.kind === "scrap")` rather than trusting position — the
+rewritten tests do exactly that.
+
+**Pricing itself simplified more than it was rewired.** A purchase line's
+`content` and `premium` are already snapshotted on `checkout.items` at
+basket-replace time (ruling 51); the quote does not re-derive them. What it
+DOES redo is the rate-band premium, live, via `orders/rules.ts`
+`retierPlan(rates, lines)` — the exact function `retierPromiums` calls at
+real placement — instead of trusting the stored value, so a quote is never
+stale relative to what placement will actually charge. A sale line goes
+through `orders/rules.ts` `saleLines` + `sales-tax` `attachSalesTaxToItems` +
+`pricing` `calculateSalesOrderTotal` — the same three calls `placeSale`
+already made — fed by the checkout's own address/fulfillment/payment-method
+columns instead of body ids, so a two-line basket naming one product prices
+twice now, the ruling-51 bug `checkout-items-shape-changes.md` named as still
+open in the intent path.
+
+**The intent unified with the quote, not just alongside it.**
+`domain/payments/service.ts` `updatePaymentIntent` dropped `items`,
+`address_id`, `carrier_service_id` and `payment_method_id` from
+`UpdatePaymentIntentBody` — it now calls the new
+`quotes.priceSaleCheckout(subject)` for its `OrderPrices`, the same function
+`checkoutQuote`'s sale branch calls for its own. One pricing function, two
+callers, so a quote and the intent that charges for it can no longer read
+different rows. `type` and admin `user_id` stay — they select WHICH
+session/subject to reuse an intent for, not what to price. Payments' own
+`assertPriceableBalance` (a `NotFound`, admin-worded) still runs before
+`priceSaleCheckout`'s internal `assertBalance` (a `Forbidden`) would — kept
+deliberately: `priceSaleCheckout` has to be safe to call from anywhere on its
+own, and payments' outer check is a legitimate richer refusal for its own
+callers, not a duplicate to delete.
+
+**Two purchase-quote inputs lost their client-supplied form and gained a
+disclosed simplification instead of a replacement mechanism.**
+`payout_method_id` now reads `checkout.payment_method_id` (already there for
+`placePurchase`'s own payout-fee lookup). `shipping_charge` is hardcoded `0`
+— a purchase's real freight cost is only known post-placement (`labels are
+bought after the commit`, migration 121), so there was never a stored value
+to read instead of the body one; this matches what a caller already got by
+omitting the optional field. `declared_value`/`estimated_payout` are honest
+previews either way, same as before.
+
+**Two test scenarios moved to a database constraint and a stricter schema,
+and were retired rather than ported:** "a payout method the business does
+not pay by is refused" used a fabricated nonexistent uuid the OLD body
+accepted structurally; `checkout.checkouts.payment_method_id` carries
+`checkouts_payment_method_fk -> payments.methods(id) ON DELETE SET NULL`
+(verified against dev), so that id can no longer reach the checkout row at
+all — same shape ruling 64 already used for the address book. "A scrap line
+cannot declare its own content" tested `PurchaseOrderQuoteBody`'s own zod
+shape directly; `CheckoutItemPatch` (what `PUT /checkout/items` accepts) has
+no `content` or `premium` key to strict-reject in the first place. Both
+protections are stronger now (a write-time constraint outlives any one
+caller); neither has a quote-shaped test to port.
+
+**Client**: `packages/client/src/quotes/queries.ts` gains
+`useCheckoutQuote(direction, { enabled?, user_id? })`.
+`packages/client/src/checkout/queries.ts` loses `usePurchaseQuote`/
+`useSalesQuote` and the four now-dead contract imports.
+`keys.quotes.purchase`/`.sales` are one `keys.quotes.checkout(direction,
+subject?)`. **Four frontend files still import the deleted names**
+(`frontend/features/quotes/queries.ts` + its test,
+`frontend/features/checkout/sales-order-checkout/saleQuote.ts`,
+`.../summary/OrderSummary.test.tsx`) — untouched per ruling 44 and this
+lane's own scope; they break until the one frontend pass.
+
+**Behaviour change, disclosed**: a customer naming somebody else's
+`?user_id=` on the quote now gets **403**, not the old silent
+fall-back-to-self. This is not a new inconsistency — it is
+`checkoutService.resolveSubject`, the exact function `GET /checkout` already
+uses, applied here for the first time; the quote's bespoke `subjectOf` (which
+silently ignored a non-admin's `user_id`) is gone. `checkout-items-shape-
+changes.md` §7 already named this exact tradeoff acceptable for the basket
+routes: "Both are safe; the refusal is what the rest of the surface does."
+The purchase-side quote is also no longer public/no-session — see the
+routes section above.
+
+**Tests**: `domain/quotes/tests/payout-quote.test.ts` rewritten on
+`aCart(...).withLots(...).withRow(...)` fixtures instead of a raw body,
+same four money assertions. `domain/quotes/tests/replay.test.ts`: the
+session/anonymity test now checks both directions need a session and only
+`/quotes/catalog` doesn't; the reconciliation and rates-band tests now
+`PUT /checkout/items` then `PATCH /checkout` (+ `aHandover` for the sale
+fulfillment/carrier) before reading the quote — "sync the basket, then read
+the quote"; the admin-subject test's second half flips to expect 403 (see
+above); the poisoning test moves its assertions to `PUT /checkout/items`
+(exact-status checks loosened to "4xx, whichever layer catches it", since a
+schema-unknown-key rejection and a runtime `SERVER_OWNED` rule now answer
+different codes for different poisoned fields). `domain/payments/tests/
+update-intent.test.ts`, `.../replay.test.ts` and `domain/checkout/tests/
+journeys/buy-journey.test.ts` drop the now-invalid `items`/`address_id` keys
+from their `update_payment_intent` bodies. `packages/client/src/tests/
+payments.test.ts`'s body-shape test asserts the new, smaller
+`UpdatePaymentIntentBody` and that all four removed fields are rejected.
+`api/shared/http/tests/endpoints.test.ts`'s `PUBLIC` set drops the retired
+`POST /api/quotes/purchase_order` entry. `api/scripts/validate-wire.ts`
+seeds a real (throwaway) basket for the existing address-fixture user via
+`checkoutService.replaceItems` before reading `GET /quotes/checkout` for
+each direction, then the run cleans those rows back out — checkout is
+device-sync (CLAUDE.md), so this is a safe, reversible write to dev, and it
+was reversed.
+
+**The sales-order confirmation email.** `sendCreatedEmail` (called by
+`sendOrderPlacedConfirmation`) always rendered
+`renderPurchaseOrderPlacedEmail` and named the attachment with
+`formatPurchaseOrderNumber`, regardless of the order's own direction — the
+purge (`docs/waves/purge.md` finding 1) had already deleted the dead sales
+renderer and dead template with no caller, correctly, but left the dispatch
+bug it was a symptom of. `templates/salesOrderPlaced.raw.html` is a new
+template (not a restore — the deleted one is still in git history at
+`3575912d`, and this one keeps the current purchase template's sign-off
+style rather than the old one's), and `renderEmail.ts` gets back
+`renderSalesOrderPlacedEmail({firstName, url})`, same shape as the purchase
+one. `sendCreatedEmail` now picks renderer, `/account?tab=` target
+(`sold` vs `bought` — confirmed against `frontend/app/account/page.tsx`'s own
+tab keys) and order-number formatter (`formatSalesOrderNumber` vs
+`formatPurchaseOrderNumber`) off `input.order.order.direction`.
+
+**Found, not fixed, because it is a different file's job:**
+`domain/orders/place.ts` `placeSale` never calls `world.confirm` at all — only
+`placePurchase` does. So today, even with the dispatch fixed, a sale
+placement sends no confirmation of any kind; the only live caller of
+`sendCreatedEmail` for a sale order is the (unmounted) admin resend handler in
+`transport/media/emails/controller.ts`. Wiring a call into `placeSale` is an
+edit to `orders/place.ts`, outside `api/domain/quotes/**` /
+`api/domain/checkout/**` / `api/domain/media/emails/**`, and outside what this
+lane was asked to touch. Separately, and also not fixed: `generatePackingList`
+still renders purchase-only shipping instructions ("print your label",
+"drop off your package") for a sale order's attachment — the task asked for
+the email TEMPLATE only, and reworking the PDF is a materially bigger, un-asked
+change. The recorded `media.emails.kind` is `purchase_order_created` for a
+sale's confirmation too — `media.email_kind` is a real Postgres enum
+(`purchase_order_created | purchase_order_priced | sales_order_to_supplier |
+auth_verification`) with no sale-side "created" label, and adding one is a
+migration this lane was told not to write.
+
+**Test**: `domain/media/emails/tests/service.test.ts` gains one case — a real
+sale order from dev, asserting the sale wording rendered (`"prepared for
+shipment"`), the purchase wording did NOT (`"Please print out your packing
+list"`), and the attachment is named with `formatSalesOrderNumber`.
+
+**Verify** (every run captured to a file and read): `pnpm --filter
+@dorado/contracts build` 0; `pnpm --filter @dorado/api typecheck` 0;
+`pnpm --filter @dorado/api test` **226 files / 1330 passed / 1 skipped / exit
+0** against `test_quotes_lane`; `pnpm --filter @dorado/client typecheck` 0 and
+`test` 26/26; `pnpm check:fast` — every member green except the pre-existing
+`figma:inventory` (9 findings, Jacob's, untouched here); one ratchet needed
+lowering, not raising: `lint:no-literal-views`' ACCEPTED count for
+`domain/quotes/service.ts` dropped from 9 to 8 (the old `purchaseOrderQuote`/
+`salesOrderQuote` literal returns are gone; the new functions' literal count
+is genuinely smaller). `validate:wire` **33 shapes match, 0 diverge** —
+`GET /quotes/checkout (sale)` and `(purchase)` both `ok` against live dev
+data, replacing the two deleted POST cases one-for-one. No migration was
+needed or written. Everything in this entry is uncommitted on `quotes-lane`.

@@ -58,6 +58,10 @@ export function renderPurchaseOrderPlacedEmail({ firstName, url }: TemplateVars)
   return renderTemplate("purchaseOrderPlaced.raw.html", { firstName, url });
 }
 
+export function renderSalesOrderPlacedEmail({ firstName, url }: TemplateVars): string {
+  return renderTemplate("salesOrderPlaced.raw.html", { firstName, url });
+}
+
 export function renderOrderPricedEmail({ firstName, url }: TemplateVars): string {
   return renderTemplate("orderPriced.raw.html", { firstName, url });
 }

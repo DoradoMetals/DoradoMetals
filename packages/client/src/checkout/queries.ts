@@ -14,10 +14,6 @@ import type {
   CheckoutPayoutForm,
   CheckoutView,
   Direction,
-  PurchaseOrderQuote,
-  PurchaseOrderQuoteBody,
-  SalesOrderQuote,
-  SalesOrderQuoteBody,
 } from "@dorado/contracts";
 import { apiRequest } from "../fetch";
 import { keys } from "../keys";
@@ -120,30 +116,6 @@ export function useClearCheckoutItems(
       client.setQueryData(keys.checkout.items(direction), []);
       client.invalidateQueries({ queryKey: keys.checkout.row(direction) });
     },
-  });
-}
-
-export function usePurchaseQuote(
-  body: PurchaseOrderQuoteBody, options: ReadOptions = {}
-): UseQueryResult<PurchaseOrderQuote, Error> {
-  return useQuery({
-    queryKey: keys.quotes.purchase(body),
-    enabled: (options.enabled ?? true) && body.items.length > 0,
-    refetchInterval: 10_000,
-    placeholderData: (previous) => previous,
-    queryFn: () => apiRequest<PurchaseOrderQuote>("POST", "/quotes/purchase_order", body),
-  });
-}
-
-export function useSalesQuote(
-  body: SalesOrderQuoteBody, options: ReadOptions = {}
-): UseQueryResult<SalesOrderQuote, Error> {
-  return useQuery({
-    queryKey: keys.quotes.sales(body),
-    enabled: (options.enabled ?? true) && body.items.length > 0,
-    refetchInterval: 10_000,
-    placeholderData: (previous) => previous,
-    queryFn: () => apiRequest<SalesOrderQuote>("POST", "/quotes/sales_order", body),
   });
 }
 

@@ -51,7 +51,7 @@ test("every route refuses an anonymous caller", async () => {
         ],
         [
           "update_payment_intent",
-          request(app).post("/api/stripe/update_payment_intent").send({ items: [] }),
+          request(app).post("/api/stripe/update_payment_intent").send({}),
         ],
         [
           "cancel_payment_intent",

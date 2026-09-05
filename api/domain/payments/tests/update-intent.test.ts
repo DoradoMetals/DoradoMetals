@@ -51,7 +51,6 @@ test("an unknown address id resolves to nothing rather than throwing", async () 
 test("update_payment_intent succeeds against a recorded Stripe response", async () => {
   await inPinnedTransaction(async (c: PoolClient) => {
     const customer = await aUser(c);
-    const built = await anAddress(c, customer);
 
     await query(
       `UPDATE auth.users SET "stripeCustomerId" = $1 WHERE id = $2`,
@@ -63,11 +62,7 @@ test("update_payment_intent succeeds against a recorded Stripe response", async 
       as(Object.assign({}, customer, { role: "user" }), async () => {
         const res = await request(app)
           .post("/api/stripe/update_payment_intent")
-          .send({
-            items: [],
-            type: "customer",
-            address_id: built.id,
-          });
+          .send({ type: "customer" });
 
         assert.equal(
           res.status, 200,

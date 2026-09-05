@@ -76,6 +76,14 @@ const anOrderWithAUser = () => {
   return { order, email: order.user!.email };
 };
 
+const aSaleOrderWithAUser = () => {
+  const order =
+    salesOrders.find((o) => o.user?.email && o.items.length > 0) ?? salesOrders[0];
+  assert.ok(order, "dev has no sales order to email");
+  assert.ok(order.user?.email, `order ${order.order.id} has no email address to send to`);
+  return { order, email: order.user!.email };
+};
+
 test("the order confirmation goes to the customer with its packing list attached", async () => {
   const { order, email } = anOrderWithAUser();
   const t = recorder();
@@ -99,6 +107,35 @@ test("the order confirmation goes to the customer with its packing list attached
   assert.equal(
     pdf.filename,
     `${formatPurchaseOrderNumber(order.order.number)}_packing_list.pdf`,
+    "the attachment is named for a different order"
+  );
+  startsPdf(pdf.content, "the packing list attachment");
+});
+
+test("a sale order's confirmation renders the sale's own wording, named for the sale's own number", async () => {
+  const { order, email } = aSaleOrderWithAUser();
+  const t = recorder();
+
+  await emails.sendCreatedEmail(
+    await inputs.packingListInputs(order.order.id),
+    email,
+    t
+  );
+
+  assert.equal(t.sent.length, 1, "expected exactly one message");
+  const [msg] = t.sent;
+  assert.equal(msg.to, email, "sent to the wrong address");
+  assert.match(String(msg.subject), /Order Has Been Placed/);
+  assert.ok((msg.html ?? "").includes("prepared for shipment"), "the sale wording did not render");
+  assert.ok(!(msg.html ?? "").includes("Please print out your packing list"),
+    "the purchase-order shipping instructions rendered for a sale");
+
+  assert.ok(msg.attachments, "the message carries no attachments at all");
+  assert.equal(msg.attachments.length, 1);
+  const [pdf] = msg.attachments;
+  assert.equal(
+    pdf.filename,
+    `${formatSalesOrderNumber(order.order.number)}_packing_list.pdf`,
     "the attachment is named for a different order"
   );
   startsPdf(pdf.content, "the packing list attachment");

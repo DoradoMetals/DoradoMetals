@@ -65,7 +65,7 @@ export const OrderPrices = SalesOrderQuote.omit({
 export type OrderPrices = z.infer<typeof OrderPrices>;
 
 export const PurchaseOrderQuoteLine = z.object({
-  index: z.number().int(),
+  id: z.string().uuid(),
   kind: z.enum(["product", "scrap"]),
   metal: z.string(),
   content: z.number(),
@@ -152,43 +152,6 @@ export const CatalogQuoteBody = z.object({
   items: z.array(QuoteItem).min(1),
 }).strict();
 export type CatalogQuoteBody = z.infer<typeof CatalogQuoteBody>;
-
-export const SalesOrderQuoteBody = z.object({
-  items: z.array(QuoteItem).min(1),
-  address_id: z.string().uuid().nullable().optional(),
-  carrier_service_id: z.string().uuid().nullable().optional(),
-  payment_method_id: z.string().uuid().nullable().optional(),
-  user_id: z.string().uuid().optional(),
-}).strict();
-export type SalesOrderQuoteBody = z.infer<typeof SalesOrderQuoteBody>;
-
-export const PurchaseQuoteProduct = z.object({
-  type: z.literal("product"),
-  bullion_id: z.string().uuid(),
-  quantity: z.number().optional(),
-}).strict();
-export type PurchaseQuoteProduct = z.infer<typeof PurchaseQuoteProduct>;
-
-export const PurchaseQuoteScrap = z.object({
-  type: z.literal("scrap"),
-  metal_id: z.string().uuid(),
-  pre_melt: z.number(),
-  purity: z.number(),
-  unit: z.string().optional(),
-}).strict();
-export type PurchaseQuoteScrap = z.infer<typeof PurchaseQuoteScrap>;
-
-export const PurchaseQuoteItem = z.discriminatedUnion("type", [
-  PurchaseQuoteProduct, PurchaseQuoteScrap,
-]);
-export type PurchaseQuoteItem = z.infer<typeof PurchaseQuoteItem>;
-
-export const PurchaseOrderQuoteBody = z.object({
-  items: z.array(PurchaseQuoteItem).min(1),
-  payout_method_id: z.string().uuid().nullable().optional(),
-  shipping_charge: z.number().nonnegative().nullable().optional(),
-}).strict();
-export type PurchaseOrderQuoteBody = z.infer<typeof PurchaseOrderQuoteBody>;
 
 export const OrderQuoteBody = z.object({
   order_id: z.string().uuid(),

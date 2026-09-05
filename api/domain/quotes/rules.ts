@@ -1,8 +1,5 @@
 import { Forbidden, Invalid, NotFound } from "#shared/errors.ts";
-import { getRatePct } from "#domain/rates/utils/resolveRate.ts";
-import { fineContent } from "#domain/pricing/content.ts";
 import type { PricingSpot } from "#domain/pricing/service.ts";
-import type { RateRead, SpotPrice } from "@dorado/contracts";
 
 export function bidPrice(
   content: number | null | undefined,
@@ -14,37 +11,11 @@ export function bidPrice(
   return (content ?? 0) * ((spot?.bid ?? 0) * (premium ?? 0));
 }
 
-export function requireSpot(spots: SpotPrice[], metal_id: string): SpotPrice {
-  const spot = spots.find((s) => s.id === metal_id);
-  if (!spot) throw new Invalid("that metal has no spot price today");
-  return spot;
-}
-
-export function requireBandPremium(
-  rates: RateRead[],
-  metal_name: string,
-  metalTotalContent: number,
-  kind: "product" | "scrap"
-): number {
-  const premium = getRatePct(
-    rates, metal_name, metalTotalContent, kind === "scrap" ? "scrap" : "bullion"
-  );
-  if (premium == null) {
-    throw new Invalid(`no rate is configured for ${metal_name} ${kind}`);
-  }
-  return premium;
-}
-
-export function declaredContent(
-  pre_melt: number, purity: number, unit: string | null | undefined
-): number {
-  return fineContent(pre_melt, unit ?? "t oz", purity) ?? 0;
-}
-
-export function bandableContent(
-  kind: "product" | "scrap", content: number, quantity: number
-): number {
-  return kind === "scrap" ? content : content * quantity;
+export function requireMetalName(
+  name: string | null | undefined, item_id: string
+): string {
+  if (!name) throw new Invalid(`checkout item ${item_id} has no resolvable metal`);
+  return name;
 }
 
 export function estimatedPayout(
@@ -71,12 +42,6 @@ export function assertBalance(
   balance: number | string | null | undefined
 ): asserts balance is number | string | null {
   if (balance === undefined) throw new Forbidden("no user row for this session");
-}
-
-export function assertAddress<T>(
-  row: T | null | undefined, address_id: string
-): asserts row is T {
-  if (!row) throw new NotFound(`no address ${address_id}`);
 }
 
 export function assertPayoutFee(

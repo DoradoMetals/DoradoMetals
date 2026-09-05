@@ -1,8 +1,7 @@
 import express from "express";
 import {
   catalogQuote,
-  salesOrderQuote,
-  purchaseOrderQuote,
+  checkoutQuote,
   orderQuote,
   profitBreakdown,
 } from "#transport/quotes/controller.ts";
@@ -12,8 +11,7 @@ import { requireOwnOrder } from "#shared/middleware/ownership.ts";
 const router = express.Router();
 
 router.post("/catalog", catalogQuote);
-router.post("/sales_order", requireUser, salesOrderQuote);
-router.post("/purchase_order", purchaseOrderQuote);
+router.get("/checkout", requireUser, checkoutQuote);
 router.post("/order", requireUser, requireOwnOrder, orderQuote);
 router.post("/profit_breakdown", requireAdmin, profitBreakdown);
 

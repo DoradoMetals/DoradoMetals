@@ -26,10 +26,6 @@ export type PaymentIntent = z.infer<typeof PaymentIntent>;
 // generated:end
 import { PaymentAttempt, IntentAttempt } from "./attempts.js";
 import { IntentDetails } from "./details.js";
-import { PaymentMethod } from "./methods.js";
-import { Address } from "../places/addresses.js";
-import { CarrierService } from "../shipping/services.js";
-import { Bullion } from "../products/bullion.js";
 import { User } from "../auth/users.js";
 import { Direction } from "../orders/enums.js";
 
@@ -71,16 +67,7 @@ export const PaymentIntentPatch = PaymentIntent.pick({
 }).partial();
 export type PaymentIntentPatch = z.infer<typeof PaymentIntentPatch>;
 
-export const PaymentIntentLine = Bullion.pick({ id: true })
-  .extend({ quantity: z.number() })
-  .strict();
-export type PaymentIntentLine = z.infer<typeof PaymentIntentLine>;
-
 export const UpdatePaymentIntentBody = z.object({
-  items: z.array(PaymentIntentLine).default([]),
-  address_id: Address.shape.id.optional(),
-  carrier_service_id: CarrierService.shape.id.optional(),
-  payment_method_id: PaymentMethod.shape.id.optional(),
   user_id: User.shape.id.optional(),
   type: PaymentIntent.shape.type.optional(),
 }).strict();

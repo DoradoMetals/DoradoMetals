@@ -95,8 +95,8 @@ export const keys = {
     admin: () => ["rates", "admin"] as const,
   },
   quotes: {
-    purchase: (body: unknown) => ["quote", "purchase_order", JSON.stringify(body)] as const,
-    sales: (body: unknown) => ["quote", "sales_order", JSON.stringify(body)] as const,
+    checkout: (direction: string, subject?: string) =>
+      ["quote", "checkout", direction, subject ?? null] as const,
     catalog: (items: unknown, side: string) =>
       ["quote", "catalog", side, JSON.stringify(items)] as const,
     order: (order_id: string) => ["quote", "order", order_id] as const,
