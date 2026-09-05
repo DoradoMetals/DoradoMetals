@@ -1,12 +1,10 @@
 import { Forbidden, Invalid, NotFound } from "#shared/errors.ts";
 import { columnsOf } from "#shared/db/columns.ts";
 import { CheckoutItemPatch, CheckoutWrite } from "@dorado/contracts";
-import { fineContent } from "#domain/pricing/content.ts";
-import { getRatePct, sumContentByMetal } from "#domain/rates/utils/resolveRate.ts";
-import { lineContent, rateMaterialFor } from "#domain/orders/rules.ts";
+import { fineContent } from "#shared/utils/convertWeights.ts";
 import type {
   BullionLiveness, BullionStorefront, Checkout, CheckoutDecisions, CheckoutItemWrite,
-  CheckoutMissing, CheckoutViewFacts, Direction, FulfillmentStep, RateRead,
+  CheckoutMissing, CheckoutViewFacts, Direction, FulfillmentStep,
 } from "@dorado/contracts";
 
 const SERVER_OWNED = columnsOf(CheckoutItemPatch.omit({ bullion_id: true, quantity: true }));
@@ -40,8 +38,8 @@ function requireLiveProducts(
 
 function snapshot(
   line: CheckoutItemPatch, direction: Direction, checkout_id: string,
-  byId: Map<string, BullionStorefront>, metalNames: Map<string, string>
-): { row: CheckoutItemWrite; metal: string | null } {
+  byId: Map<string, BullionStorefront>
+): { row: CheckoutItemWrite; product: BullionStorefront | undefined } {
   if (line.bullion_id != null) {
     for (const column of SERVER_OWNED) {
       if (line[column] != null) {
@@ -63,7 +61,7 @@ function snapshot(
         unit: "t oz",
         quantity: line.quantity,
       },
-      metal: metalNames.get(product.metal_id ?? "") ?? null,
+      product,
     };
   }
 
@@ -88,30 +86,8 @@ function snapshot(
       unit: line.unit!,
       quantity: line.quantity,
     },
-    metal: metalNames.get(line.metal_id!) ?? null,
+    product: undefined,
   };
-}
-
-function premiums(
-  snapshots: ReturnType<typeof snapshot>[], direction: Direction, rates: RateRead[],
-  byId: Map<string, BullionStorefront>
-): (number | null)[] {
-  if (direction === "sale") {
-    return snapshots.map(({ row }) =>
-      row.bullion_id == null ? null : byId.get(row.bullion_id)?.ask_premium ?? null
-    );
-  }
-  const totals = sumContentByMetal(snapshots, (s) => s.metal, (s) =>
-    lineContent({
-      content: s.row.content ?? null,
-      quantity: s.row.quantity ?? null,
-      bullion_id: s.row.bullion_id ?? null,
-    })
-  );
-  return snapshots.map(({ row, metal }) => {
-    const total = totals[String(metal ?? "").toLowerCase()] ?? 0;
-    return getRatePct(rates, metal, total, rateMaterialFor(row.bullion_id)) ?? null;
-  });
 }
 
 export function basketRows(
@@ -119,19 +95,16 @@ export function basketRows(
   direction: Direction,
   items: CheckoutItemPatch[],
   products: BullionStorefront[],
-  liveness: BullionLiveness[],
-  rates: RateRead[],
-  metalNames: Map<string, string>
+  liveness: BullionLiveness[]
 ): CheckoutItemWrite[] {
   const byId = new Map(products.map((product) => [product.id, product]));
   const live = new Set(liveness.filter((p) => p.display === true).map((p) => p.id));
   requireLiveProducts(items, direction, byId, live);
 
-  const snapshots = items.map(
-    (line) => snapshot(line, direction, checkout_id, byId, metalNames)
-  );
-  const resolved = premiums(snapshots, direction, rates, byId);
-  return snapshots.map(({ row }, i) => ({ ...row, premium: resolved[i] }));
+  return items.map((line) => {
+    const { row, product } = snapshot(line, direction, checkout_id, byId);
+    return { ...row, premium: direction === "sale" ? product?.ask_premium ?? null : null };
+  });
 }
 
 export function checkoutState(

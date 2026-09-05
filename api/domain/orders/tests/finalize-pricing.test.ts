@@ -6,7 +6,7 @@ import pool from "#pool";
 import { mockSessions, restoreSessions, as, asAdmin } from "#shared/testing/session.ts";
 import { TEST_ACTOR } from "#shared/testing/actor.ts";
 import { inPinnedTransaction, outside } from "#shared/testing/pinned-pool.ts";
-import { calculateTotalPrice } from "#domain/pricing/service.ts";
+import * as pricing from "#domain/pricing/index.ts";
 import * as orderRead from "#domain/orders/read.ts";
 import { LOCKS } from "#shared/testing/locks.ts";
 
@@ -134,27 +134,22 @@ test("a clean finalize prices the order from the database's own rows", async () 
       const priced = await orderRead.view(order.id);
       assert.ok(priced, `the API could not read order ${order.id} back after pricing it`);
 
-      const frozen = (
-        await client.query(
-          `SELECT metal_id, bid FROM orders.spots WHERE order_id = $1`,
-          [order.id]
-        )
-      ).rows;
-      const bids = new Map(frozen.map((r) => [r.metal_id, r.bid === null ? null : Number(r.bid)]));
-
       assert.equal(
         typeof priced!.payout?.cost,
         "number",
         "the order view carries no numeric payout.cost - the total would be NaN"
       );
 
-      const expected = calculateTotalPrice(priced!, bids);
+      const expected = await pricing.priceOrder(order.id);
 
       assert.equal(
         Number(row.total_price).toFixed(2),
-        expected.toFixed(2),
+        expected.total.toFixed(2),
         "the stored total does not derive from the database's own rows"
       );
+      for (const line of expected.items) {
+        assert.equal(line.source, "stored", "finalizing writes every line's price");
+      }
     });
   }, { actor: TEST_ACTOR.id, lock: ORDER_LOCK });
 });

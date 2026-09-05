@@ -76,6 +76,7 @@ const GROUPS = [
         name: "api:lint:domain-boundaries",
         cmd: pnpm("@dorado/api", "lint:domain-boundaries"),
       },
+      { name: "api:lint:pricing-owner", cmd: pnpm("@dorado/api", "lint:pricing-owner") },
       { name: "api:lint:script-guards", cmd: pnpm("@dorado/api", "lint:script-guards") },
       { name: "api:lint:type-homes", cmd: pnpm("@dorado/api", "lint:type-homes") },
       { name: "api:lint:contracts-derived", cmd: pnpm("@dorado/api", "lint:contracts-derived") },

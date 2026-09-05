@@ -4,7 +4,7 @@ import {
   checkoutQuote,
   orderQuote,
   profitBreakdown,
-} from "#transport/quotes/controller.ts";
+} from "#transport/pricing/controller.ts";
 import { requireUser, requireAdmin } from "#shared/middleware/authMiddleware.ts";
 import { requireOwnOrder } from "#shared/middleware/ownership.ts";
 

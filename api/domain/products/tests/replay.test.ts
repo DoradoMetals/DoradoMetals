@@ -84,7 +84,12 @@ test("creating a product round-trips in the schema's own names", async () => {
   await inPinnedTransaction(async () => {
     await as(admin, async () => {
       const name = `replay-product-${Date.now()}`;
-      const res = await request(app).post("/api/products").send({ name });
+      const [reference] = await outside<{
+        metal_id: string; mint_id: string; supplier_id: string;
+      }>(`SELECT metal_id, mint_id, supplier_id FROM products.bullion LIMIT 1`);
+      assert.ok(reference, "dev has no product to borrow a metal, mint and supplier from");
+
+      const res = await request(app).post("/api/products").send({ name, ...reference });
 
       assert.equal(res.status, 201, JSON.stringify(res.body));
       const made = Array.isArray(res.body) ? res.body[0] : res.body;

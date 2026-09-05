@@ -1,12 +1,12 @@
 import { formatPhoneNumber } from "#shared/utils/formatPhoneNumber.ts";
 import {
-  inboundShipment, recordedContent, unitPrice, type Bids,
-} from "#domain/pricing/service.ts";
-import {
   formatCurrency,
   getPayoutDelay,
 } from "#domain/media/pdfs/render/format.ts";
-import type { OrderView, OrderViewItem } from "@dorado/contracts";
+import type { OrderView, OrderViewItem, OrderPricingLine } from "@dorado/contracts";
+
+const inboundShipment = (order: OrderView): OrderView["shipments"][number] | null =>
+  order.shipments.find((s) => s.direction !== "Return") ?? null;
 
 export type DocumentLabels = {
   metals: ReadonlyMap<string, string>;
@@ -69,7 +69,7 @@ const oz = (value: number | null | undefined): string =>
 export function renderInvoiceHeader(
   order: OrderView,
   total: number,
-  bids: Bids,
+  bids: ReadonlyMap<string, number | null>,
   labels: DocumentLabels
 ): string {
   const orderPlaced = order.order.created_at
@@ -365,13 +365,13 @@ export function renderOrderSummaryTable(
 }
 
 export function buildPackingScrapRows(
-  lines: OrderViewItem[], bids: Bids, labels: DocumentLabels
+  lines: OrderViewItem[], priceOf: ReadonlyMap<string, OrderPricingLine>, labels: DocumentLabels
 ): string {
   const names = scrapItemNames(lines, labels.metals);
 
   return lines
     .map((line) => {
-      const price = unitPrice(line, bids);
+      const price = priceOf.get(line.id)?.unit_price;
       return `
         <tr>
           <td>${names.get(line.id) ?? "Scrap Item"}</td>
@@ -386,17 +386,17 @@ export function buildPackingScrapRows(
 }
 
 export function buildPackingBullionRows(
-  lines: OrderViewItem[], bids: Bids, labels: DocumentLabels
+  lines: OrderViewItem[], priceOf: ReadonlyMap<string, OrderPricingLine>, labels: DocumentLabels
 ): string {
   return lines
     .map((line) => {
-      const total = unitPrice(line, bids) * (line.quantity ?? 1);
+      const total = priceOf.get(line.id)?.line_total;
       return `
         <tr>
           <td>${line.product?.name || "Bullion Product"}</td>
           <td>${labels.metals.get(line.metal_id) ?? "-"}</td>
           <td>${line.quantity}</td>
-          <td>${recordedContent(line) ?? "-"}</td>
+          <td>${line.content ?? "-"}</td>
           <td>${total ? formatCurrency(total) : "-"}</td>
         </tr>`;
     })
@@ -404,13 +404,13 @@ export function buildPackingBullionRows(
 }
 
 export function buildInvoiceScrapRows(
-  lines: OrderViewItem[], bids: Bids, labels: DocumentLabels
+  lines: OrderViewItem[], priceOf: ReadonlyMap<string, OrderPricingLine>, labels: DocumentLabels
 ): string {
   const names = scrapItemNames(lines, labels.metals);
 
   return lines
     .map((line) => {
-      const price = unitPrice(line, bids);
+      const price = priceOf.get(line.id)?.unit_price;
       return `
         <tr>
           <td class="text-left">${names.get(line.id) ?? "Scrap Item"}</td>
@@ -425,20 +425,22 @@ export function buildInvoiceScrapRows(
     .join("");
 }
 
-export function buildInvoiceBullionRows(lines: OrderViewItem[], bids: Bids): string {
+export function buildInvoiceBullionRows(
+  lines: OrderViewItem[], priceOf: ReadonlyMap<string, OrderPricingLine>
+): string {
   return lines
     .map((line) => {
-      const total = unitPrice(line, bids) * (line.quantity ?? 1);
+      const total = priceOf.get(line.id)?.line_total;
       return `
         <tr>
           <td class="text-left">${line.product?.name || "Bullion Product"}</td>
           <td>${line.quantity}</td>
           <td>${
-            recordedContent(line) != null
-              ? `${recordedContent(line)!.toFixed(3)} t oz`
+            line.content != null
+              ? `${line.content.toFixed(3)} t oz`
               : "&mdash;"
           }</td>
-          <td>${line.premium != null ? `${(line.premium * 100).toFixed(1)}% of spot` : "&mdash;"}</td>
+          <td>${line.premium != null ? `${pct(line.premium)} of spot` : "&mdash;"}</td>
           <td class="text-right">${total ? formatCurrency(total) : "-"}</td>
         </tr>`;
     })

@@ -4,7 +4,7 @@ import * as metalsRepo from "#db/metals/repo.ts";
 import * as servicesRepo from "#db/shipping/services/repo.ts";
 import * as packagesRepo from "#db/shipping/packages/repo.ts";
 import * as spotsFeed from "#domain/spots/service.ts";
-import { inboundShipment, type Bids } from "#domain/pricing/service.ts";
+import * as pricing from "#domain/pricing/index.ts";
 import * as rules from "#domain/media/pdfs/rules.ts";
 import type { DocumentLabels, PackageDetails } from "#domain/media/pdfs/service.ts";
 import type { OrderView } from "@dorado/contracts";
@@ -19,7 +19,12 @@ async function documentLabels(executor?: Executor): Promise<DocumentLabels> {
   };
 }
 
-async function bidsFor(order: OrderView, executor?: Executor): Promise<Bids> {
+const inboundShipment = (order: OrderView): OrderView["shipments"][number] | null =>
+  order.shipments.find((s) => s.direction !== "Return") ?? null;
+
+async function metalBidsFor(
+  order: OrderView, executor?: Executor
+): Promise<ReadonlyMap<string, number | null>> {
   if (order.order.spots_locked) {
     const frozen = await orderSpots.getRowsFor(order.order.id, executor);
     return new Map(frozen.map((s) => [s.metal_id, s.bid]));
@@ -53,7 +58,7 @@ export async function packingListInputs(order_id: string, executor?: Executor) {
   const order = await loadOrder(order_id, executor);
   return {
     order,
-    bids: await bidsFor(order, executor),
+    pricing: await pricing.priceOrder(order_id, executor),
     labels: await documentLabels(executor),
     package: await packageDetailsFor(order, executor),
   };
@@ -63,7 +68,7 @@ export async function returnPackingListInputs(order_id: string, executor?: Execu
   const order = await loadOrder(order_id, executor);
   return {
     order,
-    bids: await bidsFor(order, executor),
+    pricing: await pricing.priceOrder(order_id, executor),
     labels: await documentLabels(executor),
   };
 }
@@ -72,7 +77,8 @@ export async function invoiceInputs(order_id: string, executor?: Executor) {
   const order = await loadOrder(order_id, executor);
   return {
     order,
-    bids: await bidsFor(order, executor),
+    pricing: await pricing.priceOrder(order_id, executor),
+    bids: await metalBidsFor(order, executor),
     labels: await documentLabels(executor),
   };
 }
@@ -83,6 +89,7 @@ export async function salesOrderInvoiceInputs(order_id: string, executor?: Execu
   return {
     order,
     asks: new Map(frozen.map((s) => [s.metal_id, s.ask])),
+    pricing: await pricing.priceOrder(order_id, executor),
     labels: await documentLabels(executor),
   };
 }

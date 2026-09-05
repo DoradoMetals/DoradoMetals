@@ -77,10 +77,14 @@ test("the comparison is reading real function bodies, not empty strings", () => 
   assert.equal(checked, 1, "expected one shared function");
 });
 
-test("the rate resolution has exactly one copy, and it is the API's", () => {
-  assert.ok(
-    fs.existsSync(path.join(ROOT, "api/domain/rates/utils/resolveRate.ts")),
-    "the API's rate resolution is gone"
+test("the rate resolution has exactly one copy, and it is the API's SQL", () => {
+  const owner = path.join(ROOT, "api/db/pricing/sql");
+  const bands = ["purchase_quote.sql", "order_pricing.sql"].filter((name) =>
+    fs.readFileSync(path.join(owner, name), "utf8").includes("FROM rates.rates r")
+  );
+  assert.equal(
+    bands.length, 2,
+    "the API's rate resolution is gone from db/pricing/sql - ruling 78 put it there"
   );
   assert.ok(
     !fs.existsSync(path.join(ROOT, "frontend/features/rates/utils/resolveRate.ts")),

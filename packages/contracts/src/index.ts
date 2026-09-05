@@ -1,6 +1,7 @@
 export * from "./schemas.js";
 
-export * from "./computed/quotes.js";
+export * from "./pricing/quotes.js";
+export * from "./pricing/profit.js";
 export * from "./computed/providers.js";
 export * from "./computed/orders.js";
 export * from "./computed/fulfillments.js";

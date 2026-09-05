@@ -58,11 +58,16 @@ test("the update takes ids, not names resolved by a subquery", () => {
 });
 
 test("create names every column bullion declares NOT NULL without a default", () => {
-  for (const col of [
-    "metal_id", "mint_id", "supplier_id", "image_front", "image_back", "stock", "quantity",
-  ]) {
+  for (const col of ["metal_id", "mint_id", "supplier_id"]) {
     assert.match(body("create"), new RegExp(`\\b${col}\\b`),
       `sql/create.sql does not supply ${col}, which products.bullion requires`);
+  }
+});
+
+test("create sends only the admin's decisions, not a defaulted or dropped column", () => {
+  for (const col of ["image_front", "image_back", "stock", "quantity"]) {
+    assert.doesNotMatch(body("create"), new RegExp(`\\b${col}\\b`),
+      `sql/create.sql still names ${col}; the column default or its removal covers it now`);
   }
 });
 
@@ -76,7 +81,7 @@ test("no statement reaches into exchange", () => {
 test("the public statement projects no admin column", () => {
   const projection = body("list").split("FROM")[0];
   for (const col of [
-    "display", "stock", "quantity", "filter_category", "created_by", "updated_by",
+    "display", "filter_category", "created_by", "updated_by",
     "created_at", "updated_at", "supplier_id",
   ]) {
     assert.doesNotMatch(projection, new RegExp(`\\b${col}\\b`),

@@ -97,8 +97,8 @@ export const keys = {
   quotes: {
     checkout: (direction: string, subject?: string) =>
       ["quote", "checkout", direction, subject ?? null] as const,
-    catalog: (items: unknown, side: string) =>
-      ["quote", "catalog", side, JSON.stringify(items)] as const,
+    catalog: (bullion_id: string, side: string, quantity: number) =>
+      ["quote", "catalog", side, bullion_id, quantity] as const,
     order: (order_id: string) => ["quote", "order", order_id] as const,
     profit: (order_id: string) => ["quote", "order", order_id, "profit"] as const,
   },

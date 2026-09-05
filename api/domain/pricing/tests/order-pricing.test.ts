@@ -69,7 +69,7 @@ async function aQuotableOrder(c: PoolClient) {
     const stored = s.price != null;
     const unit_price = stored ? s.price! : s.content * (gold.bid * s.premium);
     const line_total = kind === "product" ? unit_price * s.quantity : unit_price;
-    return { id: order.items[i]!.id, kind, source: stored ? "stored" : "estimate", unit_price, line_total };
+    return { id: order.items[i]!.id, kind, source: stored ? "stored" : "quoted", unit_price, line_total };
   });
 
   return {
@@ -149,7 +149,7 @@ test("stored prices come back verbatim and estimates come from the tables", asyn
   }, { actor: TEST_ACTOR.id, lock: ORDER_LOCK });
 });
 
-test("a locked order estimates at its locked spots, an unlocked one at live", async () => {
+test("a locked order prices at its locked spots, an unlocked one at live", async () => {
   await inPinnedTransaction(async (c: PoolClient) => {
     const owner = await aUser(c);
     const order = await anOrder(c, owner, { direction: "purchase", status: "Pending" })
@@ -163,18 +163,18 @@ test("a locked order estimates at its locked spots, an unlocked one at live", as
         [1234.56, order.id, gold.id]
       );
 
+      await c.query(`UPDATE orders.orders SET spots_locked = true WHERE id = $1`, [order.id]);
       const locked = await request(app).post("/api/quotes/order").send({ order_id: order.id });
       assert.equal(locked.status, 200, `answered ${locked.status}: ${JSON.stringify(locked.body)}`);
       const lockedLine = locked.body.items.find((l: QuoteLine) => l.id === target.id);
       assert.ok(lockedLine, `item ${target.id} is missing from the locked quote`);
-      assert.equal(lockedLine.source, "estimate");
+      assert.equal(lockedLine.source, "quoted");
       const atPin = 3 * (1234.56 * 1);
       assert.ok(Math.abs(lockedLine.unit_price - atPin) < EXACT,
         `locked estimate ${lockedLine.unit_price} != ${atPin} at the pinned spot`);
 
       await c.query(
-        `UPDATE orders.spots SET bid = NULL WHERE order_id = $1 AND metal_id = $2`,
-        [order.id, gold.id]
+        `UPDATE orders.orders SET spots_locked = false WHERE id = $1`, [order.id]
       );
 
       const unlocked = await request(app).post("/api/quotes/order").send({ order_id: order.id });

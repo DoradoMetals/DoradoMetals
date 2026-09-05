@@ -26,8 +26,6 @@ const ACCEPTED: Record<string, { count: number; why: string }> = {
   "domain/media/pdfs/store.ts": { count: 2, why: SMALL_FEATURES },
   "domain/refiners/service.ts": { count: 1, why: SMALL_FEATURES },
   "domain/refiners/spots/service.ts": { count: 1, why: SMALL_FEATURES },
-  "domain/sales-tax/match.ts": { count: 1, why: SMALL_FEATURES },
-  "domain/sales-tax/service.ts": { count: 2, why: SMALL_FEATURES },
 };
 
 const acceptedHit = new Map<string, number>();

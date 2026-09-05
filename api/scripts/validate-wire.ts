@@ -190,15 +190,14 @@ add("GET /orders/:id/address", c.Address, async () => {
   return rows.filter(Boolean);
 });
 
-const quotesService = await import("#domain/quotes/service.ts");
+const pricing = await import("#domain/pricing/index.ts");
 const { rows: quotable } = await pool.query(
   `SELECT id, name FROM products.bullion
     WHERE display AND content IS NOT NULL
     ORDER BY name LIMIT 2`
 );
-const quoteItems = quotable.map((r, i) => ({ id: r.id, quantity: i + 1 }));
-add("POST /quotes/catalog", c.CatalogQuote, () =>
-  quoteItems.length ? quotesService.catalogQuote({ items: quoteItems, side: "ask" }) : [],
+add("POST /quotes/catalog", c.ProductQuote, () =>
+  quotable.length ? pricing.priceProduct(quotable[0].id, "ask", 1) : [],
   false
 );
 
@@ -207,45 +206,46 @@ const { rows: quoteMetals } = await pool.query(
 );
 const checkoutService = await import("#domain/checkout/service.ts");
 
-if (addressUser && quoteItems.length) {
+const saleBasket = addressUser && quotable.length
+  ? await checkoutService.getRowFor(addressUser, "sale")
+  : null;
+if (saleBasket) {
   await checkoutService.replaceItems(
-    addressUser, "sale", [{ bullion_id: quotable[0].id, quantity: 1 }]
+    addressUser!, "sale", [{ bullion_id: quotable[0].id, quantity: 1 }]
   );
 }
-add("GET /quotes/checkout (sale)", c.SalesOrderQuote, () =>
-  addressUser && quoteItems.length
-    ? quotesService.checkoutQuote(addressUser, "sale")
-    : [],
+add("GET /quotes/checkout (sale)", c.SaleQuote, () =>
+  saleBasket ? pricing.priceCheckout(saleBasket.id) : [],
   false
 );
 
-if (addressUser && quotable.length && quoteMetals.length) {
+const purchaseBasket = addressUser && quotable.length && quoteMetals.length
+  ? await checkoutService.getRowFor(addressUser, "purchase")
+  : null;
+if (purchaseBasket) {
   await checkoutService.replaceItems(
-    addressUser, "purchase",
+    addressUser!, "purchase",
     [
       { metal_id: quoteMetals[0].id, pre_melt: 31.1035, purity: 0.9, unit: "g", quantity: 1 },
       { bullion_id: quotable[0].id, quantity: 2 },
     ]
   );
 }
-add("GET /quotes/checkout (purchase)", c.PurchaseOrderQuote, () =>
-  addressUser && quotable.length && quoteMetals.length
-    ? quotesService.checkoutQuote(addressUser, "purchase")
-    : [],
+add("GET /quotes/checkout (purchase)", c.PurchaseQuote, () =>
+  purchaseBasket ? pricing.priceCheckout(purchaseBasket.id) : [],
   false
 );
 
 const { rows: quotableOrders } = await pool.query(
-  `SELECT id FROM exchange.purchase_orders ORDER BY created_at ASC, id ASC LIMIT 1`
+  `SELECT id FROM orders.orders ORDER BY created_at ASC, id ASC LIMIT 1`
 );
-add("POST /quotes/order", c.OrderQuote, () =>
-  quotableOrders.length ? quotesService.orderQuote({ order_id: quotableOrders[0].id }) : [],
+add("POST /quotes/order", c.OrderPricing, () =>
+  quotableOrders.length ? pricing.priceOrder(quotableOrders[0].id) : [],
   false
 );
 
-const profitService = await import("#domain/quotes/profit.ts");
 add("POST /quotes/profit_breakdown", c.ProfitBreakdown, () =>
-  quotableOrders.length ? profitService.profitBreakdown({ order_id: quotableOrders[0].id }) : [],
+  quotableOrders.length ? pricing.profitBreakdown({ order_id: quotableOrders[0].id }) : [],
   false
 );
 

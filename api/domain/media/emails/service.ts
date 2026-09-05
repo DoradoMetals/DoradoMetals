@@ -117,7 +117,7 @@ export async function sendSalesOrderToSupplier(
   transport?: Transport,
   executor?: PoolClient
 ): Promise<void> {
-  const { order, asks, labels } = input;
+  const { order, asks, pricing, labels } = input;
   const pdfBuffer = await pdfService.generateSalesOrderInvoice(input);
   const order_id = order.order.id;
   const pdfId = await persistPdf("sales_order_invoice", order_id, pdfBuffer, executor);
@@ -132,6 +132,7 @@ export async function sendSalesOrderToSupplier(
       url: `${requiredEnv("FRONTEND_URL")}/orders`,
       order,
       asks,
+      pricing,
       labels,
     }),
     attachments: [

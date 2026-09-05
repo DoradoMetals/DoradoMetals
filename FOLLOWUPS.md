@@ -15695,3 +15695,124 @@ lists (a January fossil, predating `000_genesis_schema.sql`). Reconciling that
 file's production-known-schema list is a separate decision — it needs
 judgment calls about `auctions`/`core` this lane wasn't asked to make — and
 was left alone. Everything in this entry is uncommitted on `genesis-lane`.
+
+### Rulings 75-76 — one pricing domain; defaults in the database (2026-09-05)
+
+Jacob, on `quotes/service.ts` `purchaseTotal`: *"Shouldn't this be coming from
+pricing domain? … what's going on between pricing/quotes? Aren't these supposed
+to be doing the same things..? I just want a centralized domain the rest of our
+app could call to get pricing stuff. Not a billion fuckin functions and
+calculations lol."* Then **ruling 78**, on the code underneath it: *"that
+calculateSalesOrder dictionary thing is tragic to look at. We shouldn't be doing
+anything like that ever. We can calculate those values in a much better practice
+way. I wonder if you're putting too much weight on existing code. The only thing
+we care about from legacy code is the logic (and even then not entirely). The
+code itself? Fully comfortable throwing away."*
+
+**39 exported functions across 9 files are 7, and none of the old code
+survived.** Full detail in `docs/waves/pricing.md`; the essentials:
+
+**The surface.** `api/domain/pricing/index.ts` exports `priceCheckout`,
+`priceOrder`, `priceProduct`, `spots`, `profitBreakdown`; `pricing/rules.ts`
+exports two throws (ruling 65). Nothing else leaves the domain, and
+`lint:pricing-owner` fails any import of `#domain/pricing/<anything else>`.
+
+**Every number is a SQL read.** Four files under `api/db/pricing/sql/`
+(`product_quote`, `purchase_quote`, `sale_quote`, `order_pricing`), each
+returning one `jsonb_build_object` the repo parses through its contract
+(ruling 71). The shapes live in `packages/contracts/src/pricing/`. The inputs
+are ROWS where rows exist: the surcharge is `payments.methods.surcharge_percent`,
+the payout fee is `payments.methods.flat_fee`, the shipping charge is
+`shipping.services.price`, the rate band is a `LATERAL` over `rates.rates`, the
+tax rate a `LATERAL` over `tax.sales_tax_rules` whose `ORDER BY` is
+`specificity()`'s boolean vector. Only the $1000 free-shipping threshold and
+Stripe's $0.50 minimum are still literals, because no row holds them.
+
+**D39 is closed on this path.** `tax.sales_tax_rules.metal_category` and
+`.product_type` are Postgres enums; the SQL compares `::text`, so a product type
+that is not a label no longer raises 22P02 and kills the whole tax calculation -
+it matches no rule. (`E'\n\tBar'` on production is still there; the fix for the
+DATA is still an UPDATE that is Jacob's.)
+
+**Two divergences the merge had to settle, and the money path won both.**
+(1) An unlocked order's bids: `orderQuote` used the frozen placement-time bid,
+the PDF used live. `finalizePricing` refreshes frozen from live before pricing,
+so "the price floats until it is locked" is the rule - `priceOrder` uses frozen
+when `spots_locked`, live otherwise. (2) A scrap line with a null premium:
+`orderQuote` previewed it at `1` (full spot) while `finalizePricing` wrote `0`.
+`priceOrder` uses `0`. Dev holds one such line in 88.
+
+**Which premium an order line prices at.** `order_pricing.sql` takes
+`COALESCE(stored_premium, retier_premium, 0)` - the line's own column wins and
+the band is offered separately as `retier_premium` for `retierPremiums` to
+write - because an admin's hand-edited premium is deliberately NOT re-tiered
+(`retiersAfterEdit` is false for a premium edit), and a `priceOrder` preferring
+the band would overrule them and make `finalizePricing` write a price that
+disagrees with the line's own premium. `purchase_quote.sql` is the opposite (the
+band wins) because a basket is not placed yet and the quotes lane already ruled
+its premium is redone live. Both preserve what the code did.
+
+**Callers rewired, all of them to the public surface only:** `orders/place.ts`
+`placeSale`, `orders/service.ts` `retierPremiums` + `finalizePricing`,
+`payments/service.ts` `updatePaymentIntent`, `checkout/service.ts`
+`replaceItems` (the basket's rate premium is written from the quote now, not
+computed in `checkout/rules.ts`), `shipping/labels.ts` `sealForPlacement`,
+`shipping/operations/service.ts`, `media/pdfs/**` (a `Bids` map threaded through
+every row builder became one `OrderPricing`), `media/emails/utils/renderEmail.ts`,
+`refiners/items/service.ts`. `checkout/service.ts` `purchaseTotal` is gone.
+`fineContent` moved to `#shared/utils/convertWeights.ts` - it is a weight fact a
+row builder writes into a `content` column, not a price.
+
+**`POST /api/tax` is deleted** with `attachSalesTaxToItems`, `getSalesTax`,
+`factsFrom`, `rateForItem` and `domain/sales-tax/match.ts`. It took items in the
+body (ruling 43), had no client anywhere, and its answer is a field of the sale
+quote now. `domain/sales-tax` keeps `isNexus`, `allRules`,
+`updateStateSalesTax`.
+
+**Wire changes, listed per ruling 44 (the frontend is NOT updated here).**
+`GET /quotes/checkout` returns `CheckoutQuote`, a discriminated union on
+`direction`. `POST /quotes/catalog` prices ONE product (`{bullion_id, side,
+quantity?}` -> `ProductQuote`) where it used to take a list - **a real trade,
+disclosed**: a storefront grid needs one request per card now, and the right
+home for a grid's prices is the product read itself, which is follow-up work.
+`POST /quotes/order` returns `OrderPricing`. `transport/quotes/` is
+`transport/pricing/` and the paths did not move (ruling 13).
+`@dorado/client`: `useProductQuote` replaces `useCatalogQuote`,
+`useOrderPricing` replaces `useOrderQuote`.
+
+**`profitBreakdown` was moved, not rewritten.** It is a three-party margin
+report over an order, its refiner's assay and two spot feeds; porting 349 lines
+of it into SQL is its own lane. It lives inside `domain/pricing/` so its
+arithmetic is where the rule puts it, and it is one export.
+
+### Ruling 76 — the defaults live in the database, and none of them is an id
+
+Migration `131_product_defaults_live_in_the_database.sql`, applied to dev.
+
+Jacob: *"I believe defaults should be living in the database. Need to add a
+migration to make it so."* Then, on the three hardcoded uuids: *"Should be a way
+to do this without a hardcode."* So `NEW_PRODUCT_DEFAULTS` is deleted and
+**nothing replaced the ids**: `metal_id`, `mint_id` and `supplier_id` are
+already `NOT NULL` with no default, so the database itself refuses a create that
+omits them. No name-lookup function was written.
+
+The dev ids the constant carried resolved to metal **Silver**, mint
+**Elemetal**, supplier **Elemetal**. **Production could not be compared**: it
+has no `products` schema at all (CLAUDE.md's eight missing schemas), so there is
+no row there to match and nothing to reconcile on the eventual migrate day.
+
+`image_front`/`image_back` were `/product_images/elemetal_products/silver/
+Product Name/FRONT.png` - a placeholder with a literal "Product Name" segment,
+not a fillable template - so they get `DEFAULT ''::text`, the convention the
+table already uses for `name`, `variant_group` and `created_by`; the upload sets
+the real path.
+
+`stock` and `quantity` are **dropped**. Measured read-only first, so the values
+survive here even though the columns do not - of dev's 62 rows, only two were
+non-zero: `78ac9ec1-165d-401c-81f5-da07f922356a` "1oz (.45 ACP) Silver Bullet"
+(stock 0, quantity 1) and `71e5420c-9918-44f7-b87b-3b8c57a02670` "1oz Silver
+Elemetal Round" (stock 16, quantity 18). `products.bullion` is a native-schema
+table; no `exchange` table or row was touched.
+
+The create is four columns now - `(name, metal_id, mint_id, supplier_id)` - and
+everything else comes from a column default.

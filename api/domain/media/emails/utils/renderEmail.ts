@@ -2,8 +2,7 @@ import fs from "fs";
 import path from "path";
 import { formatSalesOrderNumber } from "#shared/utils/formatOrderNumbers.ts";
 import { fileURLToPath } from "url";
-import { bullionLines } from "#domain/pricing/service.ts";
-import type { OrderView } from "@dorado/contracts";
+import type { OrderPricing, OrderView } from "@dorado/contracts";
 import type { DocumentLabels } from "#domain/media/pdfs/render/sections.ts";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -71,6 +70,7 @@ type RefinerEmailInput = {
   url?: string | null;
   order: OrderView;
   asks: ReadonlyMap<string, number | null>;
+  pricing: OrderPricing;
   labels: DocumentLabels;
 };
 
@@ -85,6 +85,7 @@ export function renderSalesOrderToSupplierEmail({
   url,
   order,
   asks,
+  pricing,
   labels,
 }: RefinerEmailInput): string {
   const templatesDir = path.join(__dirname, "..", "templates");
@@ -122,9 +123,10 @@ export function renderSalesOrderToSupplierEmail({
     )
     .join("");
 
-  const orderRows = bullionLines(order.items)
+  const priceOf = new Map(pricing.items.map((line) => [line.id, line]));
+  const orderRows = order.items.filter((line) => line.bullion_id !== null)
     .map((line) => {
-      const subtotal = ((line.quantity ?? 0) * (line.price ?? 0)).toFixed(2);
+      const subtotal = (priceOf.get(line.id)?.line_total ?? 0).toFixed(2);
       return `
       <tr>
         <td style="padding:8px 0">${line.product?.name ?? ""}</td>

@@ -1,15 +1,4 @@
 import { generateBoxSVG } from "#domain/media/pdfs/utils/generateBoxSVG.ts";
-import {
-  bullionLines,
-  calculateTotalPrice,
-  effectivePayoutFee,
-  inboundShipment,
-  itemsTotal,
-  recordedContent,
-  scrapLines,
-  type Bids,
-} from "#domain/pricing/service.ts";
-
 import { renderPdf } from "#providers/pdfs/puppeteer.ts";
 import { renderShell } from "#domain/media/pdfs/render/layout.ts";
 import { formatCurrency } from "#domain/media/pdfs/render/format.ts";
@@ -25,13 +14,23 @@ import {
   buildInvoiceBullionRows,
 } from "#domain/media/pdfs/render/sections.ts";
 import type { DocumentLabels, PackageDetails } from "#domain/media/pdfs/render/sections.ts";
-import type { OrderView } from "@dorado/contracts";
+import type { OrderView, OrderViewItem, OrderPricing } from "@dorado/contracts";
 
 export type { DocumentLabels, PackageDetails } from "#domain/media/pdfs/render/sections.ts";
 
+const inboundShipment = (order: OrderView): OrderView["shipments"][number] | null =>
+  order.shipments.find((s) => s.direction !== "Return") ?? null;
+
+const scrapLines = (lines: OrderViewItem[]): OrderViewItem[] =>
+  lines.filter((line) => line.bullion_id === null);
+
+const bullionLines = (lines: OrderViewItem[]): OrderViewItem[] =>
+  lines.filter((line) => line.bullion_id !== null);
+
 export type PurchaseDocument = {
   order: OrderView;
-  bids: Bids;
+  pricing: OrderPricing;
+  bids?: ReadonlyMap<string, number | null>;
   labels: DocumentLabels;
   package?: PackageDetails | null;
 };
@@ -39,19 +38,21 @@ export type PurchaseDocument = {
 export type SalesDocument = {
   order: OrderView;
   asks: ReadonlyMap<string, number | null>;
+  pricing: OrderPricing;
   labels: DocumentLabels;
 };
 
 export function buildPackingListHtml({
   order,
-  bids,
+  pricing,
   labels,
   package: box = null,
 }: PurchaseDocument): string {
-  const total = calculateTotalPrice(order, bids);
+  const total = pricing.total;
+  const priceOf = new Map(pricing.items.map((l) => [l.id, l]));
 
-  const scrapRows = buildPackingScrapRows(scrapLines(order.items), bids, labels);
-  const bullionRows = buildPackingBullionRows(bullionLines(order.items), bids, labels);
+  const scrapRows = buildPackingScrapRows(scrapLines(order.items), priceOf, labels);
+  const bullionRows = buildPackingBullionRows(bullionLines(order.items), priceOf, labels);
 
   const shipment = inboundShipment(order);
   const packageLabel =
@@ -221,14 +222,15 @@ export function buildPackingListHtml({
 
 export function buildReturnPackingListHtml({
   order,
-  bids,
+  pricing,
   labels,
 }: PurchaseDocument): string {
   const outbound = returnShipment(order);
   const total = (inboundShipment(order)?.cost ?? 0) + (outbound?.cost ?? 0);
 
-  const scrapRows = buildPackingScrapRows(scrapLines(order.items), bids, labels);
-  const bullionRows = buildPackingBullionRows(bullionLines(order.items), bids, labels);
+  const priceOf = new Map(pricing.items.map((l) => [l.id, l]));
+  const scrapRows = buildPackingScrapRows(scrapLines(order.items), priceOf, labels);
+  const bullionRows = buildPackingBullionRows(bullionLines(order.items), priceOf, labels);
 
   const shippingSection = renderPackingShippingSection(order, labels, true, false, 0);
 
@@ -294,19 +296,20 @@ export function buildReturnPackingListHtml({
   });
 }
 
-export function buildInvoiceHtml({ order, bids, labels }: PurchaseDocument): string {
+export function buildInvoiceHtml({ order, pricing, bids, labels }: PurchaseDocument): string {
   const doneStatus = ["Payment Processing", "Completed"];
   const isDone = doneStatus.includes(order.order.status ?? "");
 
-  const total = calculateTotalPrice(order, bids);
-  const payoutCost = effectivePayoutFee(order);
+  const total = pricing.total;
+  const payoutCost = pricing.payout_fee;
 
   const scrap = scrapLines(order.items);
   const bullion = bullionLines(order.items);
-  const scrapRows = buildInvoiceScrapRows(scrap, bids, labels);
-  const bullionRows = buildInvoiceBullionRows(bullion, bids);
-  const scrapTotal = itemsTotal(scrap, bids);
-  const bullionTotal = itemsTotal(bullion, bids);
+  const priceOf = new Map(pricing.items.map((l) => [l.id, l]));
+  const scrapRows = buildInvoiceScrapRows(scrap, priceOf, labels);
+  const bullionRows = buildInvoiceBullionRows(bullion, priceOf);
+  const scrapTotal = pricing.scrap_total;
+  const bullionTotal = pricing.bullion_total;
 
   const lineLabel = isDone ? "Payout" : "Estimate";
 
@@ -403,7 +406,7 @@ export function buildInvoiceHtml({ order, bids, labels }: PurchaseDocument): str
   `;
 
   const bodyHtml = `
-    ${renderInvoiceHeader(order, total, bids, labels)}
+    ${renderInvoiceHeader(order, total, bids ?? new Map<string, number | null>(), labels)}
     ${renderInvoiceShippingAndPayout(order, payoutCost, labels)}
     ${bullionTable}
     ${scrapTable}
@@ -426,9 +429,11 @@ const money = (value: number | null | undefined): string =>
 export function buildSalesOrderInvoiceHtml({
   order,
   asks,
+  pricing,
   labels,
 }: SalesDocument): string {
   const doneStatus = ["Preparing", "In Transit", "Completed"];
+  const priceOf = new Map(pricing.items.map((line) => [line.id, line]));
 
   const bullionItems = bullionLines(order.items)
     .map(
@@ -437,12 +442,12 @@ export function buildSalesOrderInvoiceHtml({
           <td class="text-left">${line.product?.name || "Bullion Product"}</td>
           <td>${line.quantity}</td>
           <td>${
-            recordedContent(line) != null
-              ? `${recordedContent(line)!.toFixed(3)} t oz`
+            line.content != null
+              ? `${line.content.toFixed(3)} t oz`
               : "&mdash;"
           }</td>
           <td class="text-right">
-            ${money((line.price ?? 0) * (line.quantity ?? 0))}
+            ${money(priceOf.get(line.id)?.line_total)}
           </td>
         </tr>
       `

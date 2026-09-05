@@ -5,6 +5,7 @@ import * as emails from "#domain/media/emails/service.ts";
 import { closeBrowser } from "#providers/pdfs/puppeteer.ts";
 import * as orderRead from "#domain/orders/read.ts";
 import * as inputs from "#domain/media/pdfs/order-inputs.ts";
+import * as pricing from "#domain/pricing/index.ts";
 import type { Transport } from "#providers/emails/nodemailer.ts";
 import { formatPurchaseOrderNumber, formatSalesOrderNumber } from "#shared/utils/formatOrderNumbers.ts";
 import { LOCKS } from "#shared/testing/locks.ts";
@@ -194,14 +195,11 @@ test("a transport failure propagates rather than being swallowed", async () => {
   );
 });
 
-test("nothing is sent when the document cannot be built", async () => {
+test("nothing is sent when the order cannot be priced", async () => {
   const t = recorder();
-  const { order, email } = anOrderWithAUser();
-  const built = await inputs.invoiceInputs(order.order.id);
+  const absent = "00000000-0000-4000-8000-0000000000ff";
 
-  await assert.rejects(
-    () => emails.sendPricedEmail({ ...built, bids: new Map() }, email, t),
-    /no quote for metal/
-  );
+  await assert.rejects(() => pricing.priceOrder(absent), /nothing to price/);
+  await assert.rejects(() => inputs.invoiceInputs(absent), /no order/);
   assert.equal(t.sent.length, 0, "a message went out with no document");
 });

@@ -6,7 +6,6 @@ import * as refinerSpots from "#db/refiners/spots/repo.ts";
 import * as refinerOrders from "#db/refiners/orders/repo.ts";
 import * as packagesRepo from "#db/shipping/packages/repo.ts";
 
-import * as ratesService from "#domain/rates/service.ts";
 import * as spotsFeed from "#domain/spots/service.ts";
 import * as refinerService from "#domain/refiners/service.ts";
 import * as shipmentService from "#domain/shipping/shipments/service.ts";
@@ -19,7 +18,8 @@ import * as ledger from "#domain/transactions/service.ts";
 import * as orderRead from "#domain/orders/read.ts";
 import * as rules from "#domain/orders/rules.ts";
 import * as shippingRules from "#domain/shipping/rules.ts";
-import { calculateTotalPrice, fineContent, unitPrice } from "#domain/pricing/service.ts";
+import * as pricing from "#domain/pricing/index.ts";
+import { fineContent } from "#shared/utils/convertWeights.ts";
 
 import withTransaction from "#shared/db/withTransaction.ts";
 import type { Transport } from "#providers/emails/nodemailer.ts";
@@ -41,10 +41,13 @@ async function viewOf(order_id: string): Promise<OrderView> {
 
 export async function retierPremiums(order_id: string, executor?: Executor): Promise<void> {
   if ((await ordersRepo.directionOf(order_id, executor)) !== "purchase") return;
-  const rates = await ratesService.listRates();
-  const lines = await itemsRepo.pricedLinesFor(order_id, executor);
-  for (const { id, premium } of rules.retierPlan(rates, lines)) {
-    rules.assertRepriced(await itemsRepo.update(id, { premium }, {}, executor), order_id, id);
+  for (const line of (await pricing.priceOrder(order_id, executor)).items) {
+    if (line.retier_premium === null) continue;
+    rules.assertRepriced(
+      await itemsRepo.update(line.id, { premium: line.retier_premium }, {}, executor),
+      order_id,
+      line.id
+    );
   }
 }
 
@@ -125,21 +128,16 @@ export async function finalizePricing(order_id: string): Promise<OrderView> {
         await orderSpots.update(order_id, spot.metal_id, { bid: live.get(spot.metal_id) ?? null }, tx);
       }
     }
-    const frozen = await orderSpots.getRowsFor(order_id, tx);
-    const bids = new Map(frozen.map((s) => [s.metal_id, s.bid]));
-
-    for (const spot of frozen) {
+    for (const spot of await orderSpots.getRowsFor(order_id, tx)) {
       await refinerSpots.update(order_id, spot.metal_id, { bid: spot.bid }, tx);
     }
-
-    for (const line of order.items) {
-      await itemsRepo.update(line.id, { price: unitPrice(line, bids) }, { order_id }, tx);
-    }
-
-    await orderTransactions.update(
-      order_id, { total: calculateTotalPrice(order, bids) }, {}, tx
-    );
     await ordersRepo.update(order_id, { spots_locked: true }, {}, tx);
+
+    const priced = await pricing.priceOrder(order_id, tx);
+    for (const line of priced.items) {
+      await itemsRepo.update(line.id, { price: line.unit_price }, { order_id }, tx);
+    }
+    await orderTransactions.update(order_id, { total: priced.total }, {}, tx);
   });
 
   return await viewOf(order_id);

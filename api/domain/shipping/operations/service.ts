@@ -7,6 +7,7 @@ import * as servicesRepo from "#db/shipping/services/repo.ts";
 import * as addressesRepo from "#db/places/addresses/repo.ts";
 import * as packagesRepo from "#db/shipping/packages/repo.ts";
 import * as checkoutService from "#domain/checkout/service.ts";
+import * as pricing from "#domain/pricing/index.ts";
 import * as fulfillmentService from "#domain/fulfillments/service.ts";
 import * as carrierServices from "#domain/shipping/services/service.ts";
 import * as shippingRules from "#domain/shipping/rules.ts";
@@ -133,7 +134,8 @@ export async function getFulfillmentRates(fulfillment_id: string): Promise<Check
   shippingRules.assertAddressChosen(address_id);
   const address = await requireAddress(address_id);
 
-  const total = inbound ? await checkoutService.purchaseTotal(checkout.id) : 0;
+  const quote = await pricing.priceCheckout(checkout.id);
+  const total = inbound && quote.direction === "purchase" ? quote.total : 0;
   const declaredValue = await carrierServices.clampInsuredValue(
     shippingRules.declaredValue(total)
   );
