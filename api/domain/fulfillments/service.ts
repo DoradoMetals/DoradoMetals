@@ -1,4 +1,3 @@
-import { randomUUID } from "node:crypto";
 import * as fulfillments from "#db/fulfillments/repo.ts";
 import * as methodService from "#domain/fulfillments/methods/service.ts";
 import * as pickups from "#db/fulfillments/pickups/repo.ts";
@@ -94,7 +93,7 @@ async function createFulfillment(
   rules.assertFulfillable(await orders.exists(order_id, executor), order_id);
 
   const made = await fulfillments.create(
-    { id: randomUUID(), order_id, method_id, status }, executor
+    { order_id, method_id, status }, executor
   );
   const row = made ?? (await fulfillments.getByOrder(order_id, executor));
   const view = await composeOne(row, executor);
@@ -110,7 +109,7 @@ export async function createDraft(
   const method = await methodService.getOne(method_id, executor);
   rules.assertMethod(method, method_id);
 
-  const row = await fulfillments.createDraft({ id: randomUUID(), method_id }, executor);
+  const row = await fulfillments.createDraft({ method_id }, executor);
   await ensureDetail(row.id, method.category, direction, executor);
   const view = await composeOne(row, executor);
   rules.assertComposed(view, row.id);
@@ -127,17 +126,17 @@ async function ensureDetail(
       direction === "sale" ? "Outbound" : "Inbound", executor
     );
     await shipmentLinks.create(
-      { id: randomUUID(), fulfillment_id, shipment_id }, executor
+      { fulfillment_id, shipment_id }, executor
     );
     return;
   }
   if (category === "PICKUP") {
     if (await pickups.getFor(fulfillment_id, executor)) return;
-    await pickups.create({ id: randomUUID(), fulfillment_id }, executor);
+    await pickups.create({ fulfillment_id }, executor);
     return;
   }
   if (await directs.getFor(fulfillment_id, executor)) return;
-  await directs.create({ id: randomUUID(), fulfillment_id }, executor);
+  await directs.create({ fulfillment_id }, executor);
 }
 
 export async function patchChoices(

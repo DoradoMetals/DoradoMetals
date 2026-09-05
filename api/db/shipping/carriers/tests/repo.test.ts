@@ -18,18 +18,17 @@ afterAll(async () => {
 });
 
 async function anOrganization(c: PoolClient): Promise<string> {
-  const id = randomUUID();
-  await c.query(
-    `INSERT INTO organizations.organizations (id, type, name, enabled) VALUES ($1, 'CARRIER', 'Test Carrier Co', true)`,
-    [id]
+  const { rows } = await c.query<{ id: string }>(
+    `INSERT INTO organizations.organizations (type, name, enabled)
+     VALUES ('CARRIER', 'Test Carrier Co', true) RETURNING id`
   );
-  return id;
+  return rows[0]!.id;
 }
 
 test("update writes logo on a real carrier", async () => {
   await inRollback(async (c: PoolClient) => {
     const organization_id = await anOrganization(c);
-    const row = await carriers.create({ id: randomUUID(), organization_id, logo: null }, c);
+    const row = await carriers.create({ organization_id, logo: null }, c);
 
     const changed = await carriers.update(row.id, { logo: "https://example.com/logo.png" }, c);
     assert.equal(changed, true, "update reported no row changed");
@@ -49,7 +48,7 @@ test("update answers false for an id with no carrier row", async () => {
 test("remove deletes a real carrier and answers false the second time", async () => {
   await inRollback(async (c: PoolClient) => {
     const organization_id = await anOrganization(c);
-    const row = await carriers.create({ id: randomUUID(), organization_id, logo: null }, c);
+    const row = await carriers.create({ organization_id, logo: null }, c);
 
     const removed = await carriers.remove(row.id, c);
     assert.equal(removed, true, "remove reported no row changed");

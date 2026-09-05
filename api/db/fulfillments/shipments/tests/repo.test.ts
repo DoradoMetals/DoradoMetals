@@ -1,7 +1,6 @@
 import { test, afterAll, beforeAll } from "vitest";
 import assert from "node:assert/strict";
 import type { PoolClient } from "pg";
-import { randomUUID } from "node:crypto";
 import pool from "#pool";
 import { inRollback } from "#shared/testing/rollback.ts";
 import { fulfillmentMethodId } from "#shared/testing/builders/index.ts";
@@ -22,16 +21,16 @@ afterAll(async () => {
 
 async function aDraftFulfillment(c: PoolClient): Promise<string> {
   const method_id = await fulfillmentMethodId(c, "CARRIER DROPOFF", "purchase");
-  const draft = await fulfillments.createDraft({ id: randomUUID(), method_id }, c);
+  const draft = await fulfillments.createDraft({ method_id }, c);
   return draft.id;
 }
 
 test("create links a parcel, and update on the same shipment moves the link", async () => {
   await inRollback(async (c: PoolClient) => {
     const fulfillment_id = await aDraftFulfillment(c);
-    const shipment_id = await shippingShipments.create({ id: randomUUID(), direction: "Inbound" }, c);
+    const shipment_id = await shippingShipments.create({ direction: "Inbound" }, c);
 
-    const row = await shipmentLinks.create({ id: randomUUID(), fulfillment_id, shipment_id }, c);
+    const row = await shipmentLinks.create({ fulfillment_id, shipment_id }, c);
     assert.equal(row.shipment_id, shipment_id);
     assert.equal(row.fulfillment_id, fulfillment_id);
 
@@ -50,8 +49,8 @@ test("create links a parcel, and update on the same shipment moves the link", as
 test("removeByShipment unlinks the parcel and answers false the second time", async () => {
   await inRollback(async (c: PoolClient) => {
     const fulfillment_id = await aDraftFulfillment(c);
-    const shipment_id = await shippingShipments.create({ id: randomUUID(), direction: "Inbound" }, c);
-    await shipmentLinks.create({ id: randomUUID(), fulfillment_id, shipment_id }, c);
+    const shipment_id = await shippingShipments.create({ direction: "Inbound" }, c);
+    await shipmentLinks.create({ fulfillment_id, shipment_id }, c);
 
     const removed = await shipmentLinks.removeByShipment(shipment_id, c);
     assert.equal(removed, true, "removeByShipment reported no row changed");

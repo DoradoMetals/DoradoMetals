@@ -1,4 +1,3 @@
-import { randomUUID } from "node:crypto";
 import query from "#shared/db/query.ts";
 import { buildUpdate } from "#shared/db/patch.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
@@ -71,7 +70,7 @@ export async function create(row: OrderTotalsPatch, executor?: Executor): Promis
   await query(
     sql("create"),
     [
-      randomUUID(), row.order_id,
+      row.order_id,
       row.total ?? null, row.shipping ?? null, row.shipping_service ?? null,
       row.funds ?? null, row.post_charges_amount ?? null,
       row.subject_to_charges_amount ?? null, row.used_funds ?? null,

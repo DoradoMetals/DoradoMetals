@@ -32,13 +32,13 @@ export async function getScheduled(
 }
 
 export async function create(
-  row: Pick<FulfillmentPickup, "id" | "fulfillment_id"> & FulfillmentPickupPatchColumns,
+  row: Pick<FulfillmentPickup, "fulfillment_id"> & FulfillmentPickupPatchColumns,
   executor?: Executor
 ): Promise<FulfillmentPickup> {
   const { rows } = await query<FulfillmentPickup>(
     sql("create"),
     [
-      row.id, row.fulfillment_id, row.pickup_address_id,
+      row.fulfillment_id, row.pickup_address_id,
       row.assigned_employee_id ?? null, row.start_time ?? null, row.end_time ?? null,
     ],
     executor

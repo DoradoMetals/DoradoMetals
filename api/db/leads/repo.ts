@@ -11,8 +11,6 @@ export const PATCHABLE = columnsOf(LeadPatch);
 
 const RETURNING = returningOf(Lead.omit(ACTOR_IDS));
 
-type LeadCreate = LeadPatch & { id?: string | null };
-
 export async function getOne(id: string, executor?: Executor): Promise<Lead | undefined> {
   const { rows } = await query<Lead>(sql("get_one"), [id], executor);
   return rows[0];
@@ -23,10 +21,10 @@ export async function list(executor?: Executor): Promise<Lead[]> {
   return rows;
 }
 
-export async function create(row: LeadCreate, executor?: Executor): Promise<Lead> {
+export async function create(row: LeadPatch, executor?: Executor): Promise<Lead> {
   const { rows } = await query<Lead>(
     sql("create"),
-    [row.id, row.name, row.phone, row.email, row.priority, row.notes],
+    [row.name, row.phone, row.email, row.priority, row.notes],
     executor
   );
   return rows[0];

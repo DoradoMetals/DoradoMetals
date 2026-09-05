@@ -3,7 +3,6 @@ import { buildUpdate } from "#shared/db/patch.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
 import type { Executor } from "#shared/db/executor.ts";
 import {
-  BullionPatch,
   BullionPatchColumns,
   type BullionAdmin,
   type BullionFilter,
@@ -92,10 +91,10 @@ export async function listTypes(executor?: Executor): Promise<string[]> {
   return rows.map((row) => row.type);
 }
 
-export async function create(patch: BullionPatch, executor?: Executor): Promise<string> {
+export async function create(patch: BullionPatchColumns, executor?: Executor): Promise<string> {
   const { rows } = await query<{ id: string }>(
     sql("create"),
-    [patch.id ?? null, patch.name, patch.metal_id, patch.mint_id, patch.supplier_id,
+    [patch.name, patch.metal_id, patch.mint_id, patch.supplier_id,
      patch.image_front, patch.image_back, patch.stock, patch.quantity],
     executor
   );

@@ -1,5 +1,5 @@
 import type { PoolClient } from "pg";
-import { anId, aTag } from "#shared/testing/builders/ids.ts";
+import { anUnknownId, aTag } from "#shared/testing/builders/ids.ts";
 import type { User } from "@dorado/contracts";
 
 export type BuiltUser = {
@@ -17,7 +17,7 @@ export async function aUser(
   c: PoolClient, options: Partial<User> & UserAliases = {}
 ): Promise<BuiltUser> {
   const tag = aTag();
-  const id = options.id ?? anId();
+  const id = options.id ?? anUnknownId();
   const email = options.email ?? `${tag}@dorado.test`;
   const name = options.name ?? `Test Person ${tag}`;
   const role = options.role === undefined ? "user" : options.role;
@@ -45,6 +45,6 @@ export const aVisitor = (
   aUser(c, {
     ...options,
     anonymous: true,
-    email: options.email ?? `temp-${anId()}@anonymous.dorado.invalid`,
+    email: options.email ?? `temp-${anUnknownId()}@anonymous.dorado.invalid`,
     name: options.name ?? "Anonymous",
   });

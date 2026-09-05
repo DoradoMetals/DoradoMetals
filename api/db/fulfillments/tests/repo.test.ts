@@ -25,7 +25,7 @@ test("update writes status and method_id, leaving a column the patch never named
   await inRollback(async (c: PoolClient) => {
     const method_id = await aMethodId(c);
     const draft = await fulfillments.createDraft(
-      { id: randomUUID(), method_id }, c
+      { method_id }, c
     );
 
     const changed = await fulfillments.update(draft.id, { status: "COMPLETED" }, c);
@@ -49,7 +49,7 @@ test("update(order_id) is one-way: a second attach changes nothing", async () =>
     await takeLocks(c, LOCKS.FULFILLMENTS);
     const method_id = await aMethodId(c);
     const draft = await fulfillments.createDraft(
-      { id: randomUUID(), method_id }, c
+      { method_id }, c
     );
     const order = await anOrder(c, await aUser(c), { direction: "purchase" });
 

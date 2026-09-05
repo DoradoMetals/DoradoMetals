@@ -1,19 +1,18 @@
 import type { PoolClient } from "pg";
 import type { ReviewPatch } from "@dorado/contracts";
-import { anId, aTag } from "#shared/testing/builders/ids.ts";
+import { aTag } from "#shared/testing/builders/ids.ts";
 import * as reviews from "#db/reviews/repo.ts";
 import type { BuiltOrder } from "#shared/testing/builders/orders.ts";
 
 export async function aReview(
   c: PoolClient,
   order?: BuiltOrder | { id: string; user_id?: string | null } | null,
-  patch: Partial<ReviewPatch> & { id?: string } = {},
+  patch: Partial<ReviewPatch> = {},
   opts: { user?: { id: string } | null } = {}
 ) {
   const tag = aTag();
   const row = await reviews.create(
     {
-      id: patch.id ?? anId(),
       name: patch.name ?? `Test Reviewer ${tag}`,
       review_text: patch.review_text ?? `Built by a fixture (${tag})`,
       rating: patch.rating ?? 5,

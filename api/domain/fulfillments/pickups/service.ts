@@ -1,4 +1,3 @@
-import { randomUUID } from "node:crypto";
 import * as pickups from "#db/fulfillments/pickups/repo.ts";
 import * as fulfillments from "#db/fulfillments/repo.ts";
 import * as fulfillmentService from "#domain/fulfillments/service.ts";
@@ -24,7 +23,7 @@ export async function schedule(
   } else {
     await pickups.create(
       {
-        id: randomUUID(), fulfillment_id,
+        fulfillment_id,
         pickup_address_id: patch.pickup_address_id,
         assigned_employee_id: patch.assigned_employee_id,
         start_time: patch.start_time, end_time: patch.end_time,

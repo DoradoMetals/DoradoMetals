@@ -40,19 +40,19 @@ export async function getByOrders(
 }
 
 export async function create(
-  row: { id: string; order_id: string; method_id: string; status: string }, executor?: Executor
+  row: { order_id: string; method_id: string; status: string }, executor?: Executor
 ): Promise<Fulfillment | undefined> {
   const { rows } = await query<Fulfillment>(
-    sql("create"), [row.id, row.order_id, row.method_id, row.status], executor
+    sql("create"), [row.order_id, row.method_id, row.status], executor
   );
   return rows[0];
 }
 
 export async function createDraft(
-  row: { id: string; method_id: string }, executor?: Executor
+  row: { method_id: string }, executor?: Executor
 ): Promise<Fulfillment> {
   const { rows } = await query<Fulfillment>(
-    sql("create_draft"), [row.id, row.method_id], executor
+    sql("create_draft"), [row.method_id], executor
   );
   return rows[0];
 }

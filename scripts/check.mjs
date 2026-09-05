@@ -71,6 +71,7 @@ const GROUPS = [
       { name: "api:lint:row-vs-list", cmd: pnpm("@dorado/api", "lint:row-vs-list") },
       { name: "api:lint:db", cmd: pnpm("@dorado/api", "lint:db") },
       { name: "api:lint:migrations", cmd: pnpm("@dorado/api", "lint:migrations") },
+      { name: "api:lint:no-minted-ids", cmd: pnpm("@dorado/api", "lint:no-minted-ids") },
       {
         name: "api:lint:domain-boundaries",
         cmd: pnpm("@dorado/api", "lint:domain-boundaries"),

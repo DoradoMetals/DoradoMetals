@@ -1,4 +1,3 @@
-import { randomUUID } from "node:crypto";
 import withTransaction from "#shared/db/withTransaction.ts";
 import * as carriers from "#db/shipping/carriers/repo.ts";
 import * as organizations from "#db/organizations/repo.ts";
@@ -25,11 +24,10 @@ export async function getCarrierName(id: string, executor?: Executor): Promise<s
 
 export async function createCarrier(carrier: CarrierPatch): Promise<ComposedCarrier | null> {
   return await withTransaction(async (tx) => {
-    const id = randomUUID();
-    const organization_id = randomUUID();
-
-    await organizations.create(carrier.organization, organization_id, "CARRIER", tx);
-    const row = await carriers.create({ id, organization_id, logo: carrier.logo ?? null }, tx);
+    const organization = await organizations.create(carrier.organization, "CARRIER", tx);
+    const row = await carriers.create(
+      { organization_id: organization.id, logo: carrier.logo ?? null }, tx
+    );
     return await compose.one(row, tx);
   });
 }

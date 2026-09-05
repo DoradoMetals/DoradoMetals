@@ -30,6 +30,8 @@
     "validate:wire": "TZ=UTC node scripts/validate-wire.ts",
     "typecheck": "tsc -p tsconfig.json",
     "lint:migrations": "node scripts/lint-migrations.ts",
+    "lint:no-minted-ids": "node scripts/lint-no-minted-ids.ts",
+    "lint:no-minted-ids:self-test": "node scripts/lint-no-minted-ids.ts --self-test",
     "lint:domain-boundaries": "node scripts/lint-domain-boundaries.ts",
     "lint:domain-boundaries:self-test": "node scripts/lint-domain-boundaries.ts --self-test",
     "verify:genesis": "TZ=UTC node scripts/verify-genesis.mjs",

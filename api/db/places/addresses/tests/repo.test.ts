@@ -26,7 +26,7 @@ test("update answers undefined on a missing id", async () => {
 
 test("update answers the row on a real id, and only touches the columns in the patch", async () => {
   await inRollback(async (c) => {
-    const created = await repo.create("11111111-1111-1111-1111-111111111111", {
+    const created = await repo.create({
       line_1: "1 Test St", city: "Austin", state: "TX", zip: "78701",
     }, c);
     const back = await repo.update(created.id, { city: "Dallas" }, c);
@@ -40,7 +40,7 @@ test("update answers the row on a real id, and only touches the columns in the p
 
 test("a patch key present with value null clears that column", async () => {
   await inRollback(async (c) => {
-    const created = await repo.create("22222222-2222-2222-2222-222222222222", {
+    const created = await repo.create({
       line_1: "1 Test St", line_2: "Apt 4", city: "Austin",
     }, c);
     const back = await repo.update(created.id, { line_2: null }, c);

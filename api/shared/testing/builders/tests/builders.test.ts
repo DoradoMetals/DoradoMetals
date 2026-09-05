@@ -8,7 +8,7 @@ import { TEST_ACTOR, actingAs } from "#shared/testing/actor.ts";
 import { assertNothingEscaped } from "#shared/testing/pinned-pool.ts";
 import {
   aUser, anAdmin, anAddress, aProduct, anOrder, aCart, aShipment,
-  aPayout, aPaymentIntent, aRefinerEngagement, aLead, aReview, anId,
+  aPayout, aPaymentIntent, aRefinerEngagement, aLead, aReview, anUnknownId,
 } from "#shared/testing/builders/index.ts";
 
 afterAll(async () => { await pool.end(); });
@@ -233,7 +233,7 @@ test("actingAs re-attributes the writes that follow it", async () => {
 test("an unknown actor leaves the row unattributed rather than refusing it", async () => {
   await inRollback(async (c: PoolClient) => {
     const user = await aUser(c);
-    await actingAs(c, anId());
+    await actingAs(c, anUnknownId());
     const order = await anOrder(c, user).withLots(1);
     const { rows } = await c.query(
       `SELECT created_by_id FROM orders.orders WHERE id = $1`, [order.id]

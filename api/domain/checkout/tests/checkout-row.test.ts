@@ -9,7 +9,7 @@ import { TEST_ACTOR } from "#shared/testing/actor.ts";
 import { inPinnedTransaction, outside } from "#shared/testing/pinned-pool.ts";
 import { TEST_CUSTOMER } from "#shared/testing/actor.ts";
 import {
-  aUser, anAddress, anOrder, anId, paymentMethodId, fulfillmentMethodId,
+  aUser, anAddress, anOrder, anUnknownId, paymentMethodId, fulfillmentMethodId,
 } from "#shared/testing/builders/index.ts";
 import { LOCKS } from "#shared/testing/locks.ts";
 

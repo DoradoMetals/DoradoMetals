@@ -1,4 +1,4 @@
-import { createHash, randomUUID } from "node:crypto";
+import { createHash } from "node:crypto";
 import minio from "#providers/s3/minio.ts";
 import { isTestRun } from "#shared/testing/is-test-run.ts";
 import { linkableOrderId } from "#domain/media/emails/record.ts";
@@ -28,10 +28,9 @@ export async function persistPdf(
 ): Promise<string | null> {
   if (isTestRun() && !executor) return null;
   const id = await attempt(`persist ${kind} PDF for order ${order_id ?? "?"}`, async () => {
-    const pdfId = randomUUID();
-    const path = `pdfs/${order_id ?? "unattached"}/${kind}-${pdfId}.pdf`;
     const buffer = Buffer.from(bytes);
     const checksum = createHash("sha256").update(buffer).digest("hex");
+    const path = `pdfs/${order_id ?? "unattached"}/${kind}-${checksum}.pdf`;
 
     if (!isTestRun()) {
       await minio.putObject(process.env.MINIO_BUCKET as string, path, buffer);
@@ -39,7 +38,7 @@ export async function persistPdf(
 
     const linkable = await linkableOrderId(order_id, executor);
     const written = await pdfs.create({
-      id: pdfId, kind, order_id: linkable, path, size_bytes: buffer.length, checksum,
+      kind, order_id: linkable, path, size_bytes: buffer.length, checksum,
     }, executor);
     return written.id;
   });

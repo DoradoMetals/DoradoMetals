@@ -1,4 +1,3 @@
-import { randomUUID } from "node:crypto";
 import query from "#shared/db/query.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
 import type { OrderAddressLink } from "@dorado/contracts";
@@ -23,12 +22,12 @@ export async function getMany(
 
 export async function create(
   row: Pick<OrderAddressLink, "order_id" | "address_id"> &
-    Partial<Pick<OrderAddressLink, "id" | "source_address_id">>,
+    Partial<Pick<OrderAddressLink, "source_address_id">>,
   executor?: Executor
 ): Promise<boolean> {
   const { rowCount } = await query(
     sql("create"),
-    [row.id ?? randomUUID(), row.order_id, row.address_id, row.source_address_id ?? null],
+    [row.order_id, row.address_id, row.source_address_id ?? null],
     executor
   );
   return rowCount === 1;

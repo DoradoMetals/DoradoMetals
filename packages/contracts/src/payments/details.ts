@@ -48,7 +48,6 @@ export const IntentDetails = PaymentDetails.pick({
 export type IntentDetails = z.infer<typeof IntentDetails>;
 
 export const PaymentDetailsPatch = PaymentDetails.pick({
-  id: true,
   user_id: true,
   method_id: true,
   account_holder: true,

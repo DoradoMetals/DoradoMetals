@@ -1,4 +1,3 @@
-import { randomUUID } from "node:crypto";
 import withTransaction from "#shared/db/withTransaction.ts";
 import * as services from "#db/shipping/services/repo.ts";
 import * as rules from "#domain/shipping/rules.ts";
@@ -9,13 +8,12 @@ import {
 
 import type { Executor } from "#shared/db/executor.ts";
 import type {
-  CarrierService, CarrierServiceOption, CarrierServicePatch, CarrierServiceRead,
+  CarrierServiceOption, CarrierServicePatch, CarrierServiceRead,
   CarrierServiceWrite, LabelService, SaleShippingService,
 } from "@dorado/contracts";
 
-function toNewRow(body: CarrierServicePatch, id: string): CarrierServiceWrite & Pick<CarrierService, "id"> {
+function toNewRow(body: CarrierServicePatch): CarrierServiceWrite {
   return {
-    id,
     carrier_id: body.carrier_id ?? null,
     name: body.name ?? "",
     description: body.description ?? null,
@@ -150,8 +148,7 @@ export async function getServicesByCarrierId(
 
 export async function createService(body: CarrierServicePatch): Promise<CarrierServiceRead | null> {
   return await withTransaction(async (tx) => {
-    const id = randomUUID();
-    return await services.create(toNewRow(body, id), tx);
+    return await services.create(toNewRow(body), tx);
   });
 }
 

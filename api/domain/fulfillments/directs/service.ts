@@ -1,4 +1,3 @@
-import { randomUUID } from "node:crypto";
 import * as directs from "#db/fulfillments/directs/repo.ts";
 import * as fulfillments from "#db/fulfillments/repo.ts";
 import * as fulfillmentService from "#domain/fulfillments/service.ts";
@@ -24,7 +23,7 @@ export async function schedule(
   } else {
     await directs.create(
       {
-        id: randomUUID(), fulfillment_id,
+        fulfillment_id,
         location_id: patch.location_id,
         assigned_employee_id: patch.assigned_employee_id,
         is_appointment: patch.is_appointment,

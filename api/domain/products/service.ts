@@ -3,7 +3,7 @@ import * as products from "#db/products/repo.ts";
 import * as rules from "#domain/products/rules.ts";
 import type { Executor } from "#shared/db/executor.ts";
 import type {
-  BullionAdmin, BullionFilter, BullionGroup, BullionLiveness, BullionPatch, BullionPatchColumns,
+  BullionAdmin, BullionFilter, BullionGroup, BullionLiveness, BullionPatchColumns,
   BullionStorefront,
 } from "@dorado/contracts";
 
@@ -59,7 +59,7 @@ export async function updateProduct(
   return await getAdminProduct(id);
 }
 
-export async function createProduct(patch: BullionPatch): Promise<BullionAdmin> {
+export async function createProduct(patch: BullionPatchColumns): Promise<BullionAdmin> {
   return await withTransaction(async (tx) => {
     const id = await products.create({ ...rules.NEW_PRODUCT_DEFAULTS, ...patch }, tx);
     return await getAdminProduct(id, tx);

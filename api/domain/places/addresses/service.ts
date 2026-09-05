@@ -1,4 +1,3 @@
-import { randomUUID } from "node:crypto";
 import withTransaction from "#shared/db/withTransaction.ts";
 import * as addresses from "#db/places/addresses/repo.ts";
 import * as userAddresses from "#db/places/user-addresses/repo.ts";
@@ -54,10 +53,10 @@ export async function create(
 ): Promise<AddressBookEntry> {
   return await withTransaction(async (tx) => {
     const size = (await userAddresses.listFor(userId, tx)).length;
-    const id = randomUUID();
-    const row = await addresses.create(id, address ?? {}, tx);
+    const row = await addresses.create(address ?? {}, tx);
+    const id = row.id;
     const link = await userAddresses.create(
-      randomUUID(), id, userId, rules.linkColumns(user_address), tx
+      id, userId, rules.linkColumns(user_address), tx
     );
 
     if (!rules.defaultOnCreate(size, user_address?.default_shipping)) {

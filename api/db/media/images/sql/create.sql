@@ -1,6 +1,6 @@
 INSERT INTO media.images
-       (id, user_id, bucket, path, filename, mime_type, size_bytes)
-VALUES ($1, $2, $3, $4, $5, $6, $7)
+       (user_id, bucket, path, filename, mime_type, size_bytes)
+VALUES ($1, $2, $3, $4, $5, $6)
 ON CONFLICT (path, filename, user_id) DO UPDATE SET
        bucket     = EXCLUDED.bucket,
        mime_type  = EXCLUDED.mime_type,

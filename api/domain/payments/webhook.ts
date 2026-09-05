@@ -7,7 +7,6 @@ import {
 } from "#domain/payments/rules.ts";
 import { findIntentByRef, updateFromProvider } from "#domain/payments/service.ts";
 import withTransaction from "#shared/db/withTransaction.ts";
-import { randomUUID } from "node:crypto";
 import type { StripeIntentLike, StripePaymentMethodLike, Instruments } from "#providers/payment/stripe.ts";
 
 export const LIVE: Instruments = { retrieve: stripe.retrievePaymentMethod };
@@ -57,5 +56,5 @@ async function recordInstrument(
     return;
   }
   if (!user_id) return;
-  await withTransaction((tx) => details.create(randomUUID(), user_id, values, tx));
+  await withTransaction((tx) => details.create(user_id, values, tx));
 }

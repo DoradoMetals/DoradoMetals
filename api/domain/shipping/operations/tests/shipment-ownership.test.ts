@@ -6,7 +6,7 @@ import { mockSessions, restoreSessions, as, anonymous } from "#shared/testing/se
 import { TEST_ACTOR } from "#shared/testing/actor.ts";
 import { inPinnedTransaction } from "#shared/testing/pinned-pool.ts";
 import { requireOwnShipment } from "#shared/middleware/ownership.ts";
-import { anId, aUser, anOrder, aShipment } from "#shared/testing/builders/index.ts";
+import { anUnknownId, aUser, anOrder, aShipment } from "#shared/testing/builders/index.ts";
 
 await mockSessions();
 const { default: app } = await import("#app");
@@ -18,10 +18,10 @@ afterAll(async () => {
 
 test("a customer cannot ask about another customer's shipment", async () => {
   await inPinnedTransaction(async () => {
-    await as({ id: anId(), name: "Stranger", email: "stranger@dorado.test", role: "user" }, async () => {
+    await as({ id: anUnknownId(), name: "Stranger", email: "stranger@dorado.test", role: "user" }, async () => {
       const res = await request(app)
         .post("/api/shipping/get_tracking")
-        .send({ shipment_id: anId() });
+        .send({ shipment_id: anUnknownId() });
 
       assert.equal(res.status, 403, `a stranger was answered ${res.status}`);
     });
@@ -33,7 +33,7 @@ test("an anonymous caller cannot ask about a shipment", async () => {
     await anonymous(async () => {
       const res = await request(app)
         .post("/api/shipping/get_tracking")
-        .send({ shipment_id: anId() });
+        .send({ shipment_id: anUnknownId() });
 
       assert.ok([401, 403].includes(res.status), `anonymous was answered ${res.status}`);
     });
@@ -42,7 +42,7 @@ test("an anonymous caller cannot ask about a shipment", async () => {
 
 test("a request naming no shipment is refused rather than waved through", async () => {
   await inPinnedTransaction(async () => {
-    await as({ id: anId(), name: "Stranger", email: "stranger@dorado.test", role: "user" }, async () => {
+    await as({ id: anUnknownId(), name: "Stranger", email: "stranger@dorado.test", role: "user" }, async () => {
       const res = await request(app).post("/api/shipping/get_tracking").send({});
       assert.equal(res.status, 400, `a request with no shipment was answered ${res.status}`);
     });

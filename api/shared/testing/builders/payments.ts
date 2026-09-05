@@ -1,5 +1,5 @@
 import type { PoolClient } from "pg";
-import { anId, aTag } from "#shared/testing/builders/ids.ts";
+import { anUnknownId, aTag } from "#shared/testing/builders/ids.ts";
 import * as details from "#db/payments/details/repo.ts";
 import * as intents from "#db/payments/intents/repo.ts";
 import * as totals from "#db/orders/transactions/repo.ts";
@@ -36,7 +36,6 @@ export async function aPayout(
   user: BuiltUser | { id: string },
   options: Partial<PaymentDetailsPatch> & PayoutExtras = {}
 ): Promise<BuiltPayout> {
-  const id = options.id ?? anId();
   const method = options.method ?? "ACH";
   const method_id = await paymentMethodId(c, method, "purchase");
   const routing_number = options.routing_number ?? TEST_ROUTING;
@@ -44,19 +43,25 @@ export async function aPayout(
   const account_holder = options.account_holder ?? `Test Holder ${aTag()}`;
   const key = payoutKeyFromEnv();
 
-  await details.create(
-    id, user.id,
+  const base: PaymentDetailsPatch = {
+    method_id,
+    account_holder,
+    bank_name: options.bank_name ?? "Test Bank",
+    account_type: options.account_type ?? "Checking",
+    last_four: account_number.slice(-4),
+    routing_last_four: routing_number.slice(-4),
+    email_to: options.email_to ?? null,
+    encryption_key_id: key.id,
+  };
+  const created = await details.create(user.id, base, c);
+  const id = created.id;
+
+  await details.update(
+    id,
     {
-      method_id,
-      account_holder,
-      bank_name: options.bank_name ?? "Test Bank",
-      account_type: options.account_type ?? "Checking",
-      last_four: account_number.slice(-4),
-      routing_last_four: routing_number.slice(-4),
-      email_to: options.email_to ?? null,
+      ...base,
       routing_number_encrypted: seal(routing_number, key, aadFor(id, "routing_number")),
       account_number_encrypted: seal(account_number, key, aadFor(id, "account_number")),
-      encryption_key_id: key.id,
     },
     c
   );
@@ -94,8 +99,7 @@ export async function aPaymentIntent(
 ) {
   return intents.create(
     {
-      id: options.id ?? anId(),
-      session_id: options.session_id ?? anId(),
+      session_id: options.session_id ?? anUnknownId(),
       user_id: user?.id ?? null,
       type: options.type ?? "order",
       status: options.status ?? "requires_payment_method",

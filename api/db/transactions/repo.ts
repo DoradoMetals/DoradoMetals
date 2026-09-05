@@ -1,4 +1,3 @@
-import { randomUUID } from "node:crypto";
 import query from "#shared/db/query.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
 import type { AccountTransaction, LedgerEntry, LedgerEntryPatch } from "@dorado/contracts";
@@ -16,7 +15,7 @@ export async function byUser(
 export async function create(row: LedgerEntryPatch, executor?: Executor): Promise<LedgerEntry> {
   const { rows } = await query<LedgerEntry>(
     sql("create"),
-    [row.id ?? randomUUID(), row.user_id, row.type, row.order_id, row.amount],
+    [row.user_id, row.type, row.order_id, row.amount],
     executor
   );
   return rows[0];

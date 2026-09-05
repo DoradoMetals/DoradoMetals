@@ -27,12 +27,10 @@ test("create writes a real image, and the same (path, filename, user_id) again r
   await inRollback(async (c: PoolClient) => {
     const user = await aUser(c);
     const image = anImage(user.id);
-    const id = randomUUID();
 
-    const created = await images.create(id, image, c);
-    assert.equal(created.id, id);
+    const created = await images.create(image, c);
 
-    const again = await images.create(randomUUID(), image, c);
+    const again = await images.create(image, c);
     assert.equal(again.id, created.id, "a retried upload created a second row");
 
     const all = await images.list(c);
@@ -43,7 +41,7 @@ test("create writes a real image, and the same (path, filename, user_id) again r
 test("remove deletes a real image scoped to its owner, and answers false the second time", async () => {
   await inRollback(async (c: PoolClient) => {
     const owner = await aUser(c);
-    const created = await images.create(randomUUID(), anImage(owner.id), c);
+    const created = await images.create(anImage(owner.id), c);
 
     const removed = await images.remove(created.id, owner.id, c);
     assert.equal(removed, true, "remove reported no row changed");
@@ -58,7 +56,7 @@ test("remove answers false for someone else's image - the ownership check is the
   await inRollback(async (c: PoolClient) => {
     const owner = await aUser(c);
     const stranger = await aUser(c);
-    const created = await images.create(randomUUID(), anImage(owner.id), c);
+    const created = await images.create(anImage(owner.id), c);
 
     const removed = await images.remove(created.id, stranger.id, c);
     assert.equal(removed, false, "a stranger was able to delete somebody else's image");

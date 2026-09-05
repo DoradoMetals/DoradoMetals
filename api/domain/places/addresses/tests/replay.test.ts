@@ -6,7 +6,7 @@ import pool from "#pool";
 import { mockSessions, restoreSessions, as, anonymous } from "#shared/testing/session.ts";
 import { TEST_ACTOR } from "#shared/testing/actor.ts";
 import { inPinnedTransaction, assertNothingEscaped } from "#shared/testing/pinned-pool.ts";
-import { anId, aUser, anAdmin, anAddress, type BuiltUser } from "#shared/testing/builders/index.ts";
+import { anUnknownId, aUser, anAdmin, anAddress, type BuiltUser } from "#shared/testing/builders/index.ts";
 
 await mockSessions();
 const { default: app } = await import("#app");
@@ -51,7 +51,7 @@ const newAddress = (over = {}) => ({
 test("an anonymous request is refused before it reaches a controller", async () => {
   await inPinnedTransaction(async () => {
     await anonymous(async () => {
-      const res = await request(app).get("/api/addresses").query({ user_id: anId() });
+      const res = await request(app).get("/api/addresses").query({ user_id: anUnknownId() });
       assert.ok([401, 403].includes(res.status), `answered with ${res.status}`);
     });
   }, { actor: TEST_ACTOR.id, lock: ADDRESS_LOCK });

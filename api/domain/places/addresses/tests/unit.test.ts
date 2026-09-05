@@ -27,7 +27,7 @@ test("every statement loads and is not empty", () => {
 test("create writes its columns in the order repo.ts supplies them", () => {
   assert.match(
     body("create"),
-    /\(id,\s*line_1,\s*line_2,\s*city,\s*state,\s*country,\s*zip,\s*country_code,\s*phone_number,\s*is_valid,\s*is_residential\)/,
+    /\(line_1,\s*line_2,\s*city,\s*state,\s*country,\s*zip,\s*country_code,\s*phone_number,\s*is_valid,\s*is_residential\)/,
     "sql/create.sql column order changed - repo.ts builds its params to match"
   );
 });

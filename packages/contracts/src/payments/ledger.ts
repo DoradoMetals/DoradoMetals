@@ -20,7 +20,6 @@ export type LedgerEntry = z.infer<typeof LedgerEntry>;
 import { Direction } from "../orders/enums.js";
 
 export const LedgerEntryPatch = LedgerEntry.pick({
-  id: true,
   user_id: true,
   order_id: true,
   type: true,
@@ -28,7 +27,7 @@ export const LedgerEntryPatch = LedgerEntry.pick({
 }).extend({
   user_id: LedgerEntry.shape.user_id.nullable(),
   amount: LedgerEntry.shape.amount.nullable(),
-}).partial({ id: true });
+});
 export type LedgerEntryPatch = z.infer<typeof LedgerEntryPatch>;
 
 export const AccountTransaction = LedgerEntry.omit({ type: true }).extend({

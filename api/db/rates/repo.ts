@@ -24,11 +24,11 @@ export async function listAdmin(executor?: Executor): Promise<AdminRate[]> {
 }
 
 export async function create(
-  patch: RatePatch & { id?: string | null }, executor?: Executor
+  patch: RatePatch, executor?: Executor
 ): Promise<string> {
   const { rows } = await query<{ id: string }>(
     sql("create"),
-    [patch.id ?? null, patch.metal_id, patch.unit, patch.min_qty, patch.max_qty,
+    [patch.metal_id, patch.unit, patch.min_qty, patch.max_qty,
      patch.scrap_pct, patch.bullion_pct],
     executor
   );

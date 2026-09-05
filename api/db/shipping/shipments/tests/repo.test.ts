@@ -19,7 +19,7 @@ afterAll(async () => {
 
 test("update replaces the row - everything the carrier told us, in one write", async () => {
   await inRollback(async (c: PoolClient) => {
-    const id = await shipments.create({ id: randomUUID(), direction: "Inbound" }, c);
+    const id = await shipments.create({ direction: "Inbound" }, c);
 
     const changed = await shipments.update(id, {
       tracking_number: "1Z999",
@@ -48,7 +48,7 @@ test("update answers false for an id with no shipment row", async () => {
 
 test("remove deletes a real shipment and answers false the second time", async () => {
   await inRollback(async (c: PoolClient) => {
-    const id = await shipments.create({ id: randomUUID(), direction: "Inbound" }, c);
+    const id = await shipments.create({ direction: "Inbound" }, c);
 
     const removed = await shipments.remove(id, c);
     assert.equal(removed, true, "remove reported no row changed");
