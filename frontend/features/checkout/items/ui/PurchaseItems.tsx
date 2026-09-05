@@ -1,11 +1,10 @@
 'use client'
 
-import { Button, EmptyState } from '@dorado/components'
-import { Minus, Plus, Trash2 } from 'lucide-react'
+import { Amount, Button, EmptyState } from '@dorado/components'
+import { Minus, Plus, ShoppingCart, Trash2 } from '@dorado/icons'
 import Image from 'next/image'
 import NumberFlow from '@number-flow/react'
 import { useRouter } from 'next/navigation'
-import { ShoppingCartSimpleIcon } from '@phosphor-icons/react'
 import { useBasket, useCheckoutItemActions } from '@/features/checkout/items/queries'
 import { useDecoratedLines, type DecoratedLine } from '@/features/checkout/items/flair'
 import { formatRate } from '@/features/rates/types'
@@ -14,7 +13,6 @@ import { useDrawerStore } from '@/shared/store/drawerStore'
 import { useUser } from '@/features/auth/authClient'
 import { usePurchaseOrderQuote } from '@/features/quotes/queries'
 import type { PurchaseOrderQuoteLine } from "@dorado/contracts";
-import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
 
 // The SELL basket: direction 'purchase' - the business buys.
 export default function PurchaseItems() {
@@ -33,7 +31,7 @@ export default function PurchaseItems() {
 
   const empty = (
     <EmptyState
-      icon={<ShoppingCartSimpleIcon />}
+      icon={<ShoppingCart />}
       badge={0}
       title="You have nothing to sell yet!"
       description="Add items to get a price estimate."
@@ -98,7 +96,7 @@ export default function PurchaseItems() {
             </Button>
           </div>
           <strong>
-            <PriceNumberFlow value={lineAt(index)?.line_total ?? 0} className="tabular-nums" />
+            <Amount value={lineAt(index)?.line_total ?? 0} />
           </strong>
         </div>
       </div>
@@ -131,7 +129,7 @@ export default function PurchaseItems() {
             </div>
 
             <strong className="ml-auto">
-              <PriceNumberFlow value={quoted?.line_total ?? 0} className="tabular-nums" />
+              <Amount value={quoted?.line_total ?? 0} />
             </strong>
           </div>
         </div>
@@ -150,7 +148,7 @@ export default function PurchaseItems() {
       <div className="flex justify-between items-end sm:mb-2">
         <h3>Price Estimate:</h3>
         <h3>
-          <PriceNumberFlow value={quote?.total ?? 0} className="tabular-nums" />
+          <Amount value={quote?.total ?? 0} />
         </h3>
       </div>
       <Button

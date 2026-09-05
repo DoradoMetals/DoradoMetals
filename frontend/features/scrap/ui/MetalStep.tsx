@@ -1,5 +1,4 @@
-import { FormField, FormItem } from '@/shared/ui/base/form'
-import { RadioGroup, RadioOption } from '@dorado/components'
+import { FormField, FormItem, RadioGroup, RadioOption } from '@dorado/components'
 import { metalOptions, purityOptions, Scrap } from '@/features/scrap/types'
 import { useFormContext } from 'react-hook-form'
 

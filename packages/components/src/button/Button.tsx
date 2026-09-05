@@ -30,8 +30,8 @@ const buttonVariants = cva(
 
         lg: "h-11 px-6 text-small sm:text-body gap-2 [&_svg]:size-5",
         xl: "h-12 px-10 text-body sm:text-h6 gap-2 [&_svg]:size-5",
-        icon: "h-10 w-10 p-0 [&_svg]:size-4",
-        iconSm: "h-8 w-8 p-0 [&_svg]:size-3.5",
+        icon: "h-10 w-10 p-0 [&_svg]:size-5",
+        iconSm: "h-8 w-8 p-0 [&_svg]:size-4",
         iconXs: "h-7 w-7 p-0 [&_svg]:size-3.5",
         iconInline: "h-4 w-4 p-0 [&_svg]:size-3.5",
       },
@@ -80,6 +80,20 @@ const buttonVariants = cva(
 export type ButtonEmphasis = "primary" | "secondary" | "tertiary";
 export type ButtonIntent = "neutral" | "success" | "danger" | "warning" | "info";
 
+const ICON_PX_BY_SIZE = {
+  xs: 14,
+  sm: 14,
+  default: 16,
+  lg: 20,
+  xl: 20,
+  icon: 20,
+  iconSm: 16,
+  iconXs: 14,
+  iconInline: 14,
+} as const;
+
+const strokeWidthFor = (px: number) => (2 * px) / 24;
+
 export interface ButtonProps
   extends Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, "type">,
     Omit<VariantProps<typeof buttonVariants>, "variant" | "intent"> {
@@ -106,15 +120,16 @@ export type ButtonIconProps = IconProps | IconRefProps;
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps & ButtonIconProps>(
   ({ className, variant, intent, size, icon: Icon, iconPlacement = "left", iconSize, asChild = false, ...props }, ref) => {
     const Comp = asChild ? Slot : "button";
+    const strokeWidth = strokeWidthFor(ICON_PX_BY_SIZE[size ?? "default"]);
     return (
       <Comp
         className={cn(buttonVariants({ variant, intent, size, className }))}
         ref={ref}
         {...props}
       >
-        {Icon && iconPlacement === "left" && <Icon size={iconSize} />}
+        {Icon && iconPlacement === "left" && <Icon size={iconSize} strokeWidth={strokeWidth} />}
         <Slottable>{props.children}</Slottable>
-        {Icon && iconPlacement === "right" && <Icon size={iconSize} />}
+        {Icon && iconPlacement === "right" && <Icon size={iconSize} strokeWidth={strokeWidth} />}
       </Comp>
     );
   }

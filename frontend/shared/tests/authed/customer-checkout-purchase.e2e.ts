@@ -52,10 +52,7 @@ test("bullion and scrap added on /sell reach the checkout stepper", async ({ pag
   // is CLICKED, not reached by ?tab=scrap: the URL param races hydration and
   // intermittently leaves the page on Bullion.
   await page.getByRole("tab", { name: /^Scrap$/i }).click();
-  // The weight is a FloatingLabelInput: "Enter Weight" is a floating LABEL
-  // element, not a placeholder attribute, and type="number" means no textbox
-  // role either - so the input element itself is the stable handle.
-  const weight = page.locator('input[type="number"]').first();
+  const weight = page.getByLabel(/^Enter Weight$/);
   await expect(weight, "the scrap form never rendered").toBeVisible({ timeout: 20_000 });
   await weight.fill("10");
   await page.getByRole("button", { name: /^Add Item$/i }).click();

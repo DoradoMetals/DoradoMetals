@@ -2,7 +2,7 @@
 
 import * as React from 'react'
 import { Button } from '@dorado/components'
-import { Check } from 'lucide-react'
+import { Check } from '@dorado/icons'
 import { cn } from '@/shared/utils/cn'
 
 type IconComponent = React.ComponentType<React.SVGProps<SVGSVGElement>>

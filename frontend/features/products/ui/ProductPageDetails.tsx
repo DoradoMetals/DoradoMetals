@@ -2,29 +2,20 @@
 
 import Image from 'next/image'
 import { Product } from '@/features/products/types'
-import { Accordion, Button, RadioGroup, RadioOption } from '@dorado/components'
-import { Equal, Minus, Plus, X } from 'lucide-react'
+import { Accordion, Amount, Button, RadioGroup, RadioOption } from '@dorado/components'
+import { Circle, Clock, Equal, Minus, Plus, ShieldCheck, Tag, X } from '@dorado/icons'
 import NumberFlow from '@number-flow/react'
 
 import { useState } from 'react'
 
 import { cn } from '@/shared/utils/cn'
 import { AnimatePresence, motion } from 'framer-motion'
-import {
-  CircleIcon,
-  ClockIcon,
-  ShieldCheckIcon,
-  TagIcon,
-} from '@phosphor-icons/react'
 import { useBasket, useCheckoutItemActions } from '@/features/checkout/items/queries'
 import { lineFromProduct } from '@/features/checkout/items/types'
-import { Lens } from '@/shared/ui/base/lens'
 import { paymentMethodIcon, transitLabel } from '@/features/orders/salesOrders/types'
 import { usePaymentMethods, useSaleShippingServices } from '@dorado/client'
 import { useSpotPrices } from '@dorado/client'
 import { useCatalogQuote } from '@/features/quotes/queries'
-import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
-import { DetailRow } from '@/shared/ui/DetailRow'
 
 type ProductPageProps = {
   product: Product
@@ -42,7 +33,6 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
   // (heaviest first), so there is nothing to sort here.
   const [selectedProduct, setSelectedProduct] = useState<Product>(product)
   const [selectedImage, setSelectedImage] = useState<string>(product.image_front)
-  const [hovering, setHovering] = useState(false)
 
   const [open, setOpen] = useState({
     description: false,
@@ -115,7 +105,6 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
                 transition={{ duration: 0.15 }}
                 className="w-full h-full"
               >
-                <Lens hovering={hovering} setHovering={setHovering}>
                   <Image
                     src={selectedImage}
                     height={1000}
@@ -126,7 +115,6 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
                   <p className="absolute bottom-0 left-1 flex justify-start eyebrow p-2">
                     {selectedImage === selectedProduct.image_front ? 'Obverse' : 'Reverse'}
                   </p>
-                </Lens>
               </motion.div>
             </AnimatePresence>
           </div>
@@ -215,13 +203,13 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
               <div className="flex flex-col items-start gap-0">
                 <small>Price:</small>
                 <strong className="stat-sm">
-                  <PriceNumberFlow value={price} />
+                  <Amount value={price} />
                 </strong>
               </div>
               <div className="flex flex-col items-start gap-0">
                 <small>Buyback:</small>
                 <strong className="stat-sm">
-                  <PriceNumberFlow value={buybackPrice} />
+                  <Amount value={buybackPrice} />
                 </strong>
               </div>
             </div>
@@ -245,19 +233,19 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
               <div className="text-left">
                 <div className="flex flex-col gap-2">
                   <div className="flex flex-col gap-2 border-b-1 border-border pb-2">
-                    <DetailRow
-                      label={<>{spot?.name} Ask Spot</>}
-                      variant="detail"
-                      className="items-start pl-8"
-                    >
-                      <PriceNumberFlow value={spot?.ask ?? 0} />
-                    </DetailRow>
+                    <div className={cn('flex w-full items-center justify-between gap-2', 'items-start pl-8')}>
+                      <small>{spot?.name} Ask Spot</small>
+                      <p>
+                        <Amount value={spot?.ask ?? 0} />
+                      </p>
+                    </div>
 
                     <div className="flex w-full items-start">
                       <X size={16} className="text-subtle" />
-                      <DetailRow label="Content (oz)" variant="detail" className="items-start pl-4">
-                        {selectedProduct.content}
-                      </DetailRow>
+                      <div className={cn('flex w-full items-center justify-between gap-2', 'items-start pl-4')}>
+                        <small>Content (oz)</small>
+                        <p>{selectedProduct.content}</p>
+                      </div>
                     </div>
 
                     <div className="flex w-full items-start">
@@ -267,17 +255,23 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
                         <Minus size={16} className="text-subtle" />
                       )}
 
-                      <DetailRow label="Ask Premium" variant="detail" className="items-start pl-4">
-                        <PriceNumberFlow value={Math.abs(askOverOrUnder)} />
-                      </DetailRow>
+                      <div className={cn('flex w-full items-center justify-between gap-2', 'items-start pl-4')}>
+                        <small>Ask Premium</small>
+                        <p>
+                          <Amount value={Math.abs(askOverOrUnder)} />
+                        </p>
+                      </div>
                     </div>
                   </div>
 
                   <div className="flex w-full items-start">
                     <Equal size={16} className="text-subtle" />
-                    <DetailRow label="Total Ask" variant="subtotal" className="items-start pl-4">
-                      <PriceNumberFlow value={price} />
-                    </DetailRow>
+                    <div className={cn('flex w-full items-center justify-between gap-2', 'items-start pl-4')}>
+                      <small>Total Ask</small>
+                      <strong>
+                        <Amount value={price} />
+                      </strong>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -291,19 +285,19 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
               <div className="text-left">
                 <div className="flex flex-col gap-2">
                   <div className="flex flex-col gap-2 border-b-1 border-border pb-2">
-                    <DetailRow
-                      label={<>{spot?.name} Bid Spot</>}
-                      variant="detail"
-                      className="items-start pl-8"
-                    >
-                      <PriceNumberFlow value={spot?.bid ?? 0} />
-                    </DetailRow>
+                    <div className={cn('flex w-full items-center justify-between gap-2', 'items-start pl-8')}>
+                      <small>{spot?.name} Bid Spot</small>
+                      <p>
+                        <Amount value={spot?.bid ?? 0} />
+                      </p>
+                    </div>
 
                     <div className="flex w-full items-start">
                       <X size={16} className="text-subtle" />
-                      <DetailRow label="Content (oz)" variant="detail" className="items-start pl-4">
-                        {selectedProduct.content}
-                      </DetailRow>
+                      <div className={cn('flex w-full items-center justify-between gap-2', 'items-start pl-4')}>
+                        <small>Content (oz)</small>
+                        <p>{selectedProduct.content}</p>
+                      </div>
                     </div>
 
                     <div className="flex w-full items-start">
@@ -313,17 +307,23 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
                         <Minus size={16} className="text-subtle" />
                       )}
 
-                      <DetailRow label="Bid Premium" variant="detail" className="items-start pl-4">
-                        <PriceNumberFlow value={Math.abs(bidOverOrUnder)} />
-                      </DetailRow>
+                      <div className={cn('flex w-full items-center justify-between gap-2', 'items-start pl-4')}>
+                        <small>Bid Premium</small>
+                        <p>
+                          <Amount value={Math.abs(bidOverOrUnder)} />
+                        </p>
+                      </div>
                     </div>
                   </div>
 
                   <div className="flex w-full items-start">
                     <Equal size={16} className="text-subtle" />
-                    <DetailRow label="Total Bid" variant="subtotal" className="items-start pl-4">
-                      <PriceNumberFlow value={buybackPrice} />
-                    </DetailRow>
+                    <div className={cn('flex w-full items-center justify-between gap-2', 'items-start pl-4')}>
+                      <small>Total Bid</small>
+                      <strong>
+                        <Amount value={buybackPrice} />
+                      </strong>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -344,22 +344,22 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
                       {svc.name} {`(${transitLabel(svc.min_transit_days, svc.max_transit_days)})`}
                     </p>
                     <strong>
-                      <PriceNumberFlow value={Number(svc.price ?? 0)} />
+                      <Amount value={Number(svc.price ?? 0)} />
                     </strong>
                   </div>
                 ))}
                 <div className="h-px w-full bg-border" />
                 <div className="flex flex-col gap-3">
                   <p className="flex items-center gap-1">
-                    <ShieldCheckIcon className="text-primary" size={20} />
+                    <ShieldCheck className="text-primary" size={20} />
                     Every shipment is fully insured.
                   </p>
                   <p className="flex items-center gap-1">
-                    <ClockIcon className="text-primary" size={20} />
+                    <Clock className="text-primary" size={20} />
                     Ships the same day we receive your payment.
                   </p>
                   <p className="flex items-center gap-1">
-                    <TagIcon className="text-primary" size={20} />
+                    <Tag className="text-primary" size={20} />
                     Free shipping for orders over $1000.
                   </p>
                 </div>
@@ -389,7 +389,7 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
                         </div>
                         <small className="flex items-center gap-2 pt-1 pl-4">
                           <span className="text-left">{payment.time_delay}</span>
-                          <CircleIcon size={6} weight="fill" className="text-placeholder" />
+                          <Circle size={6} className="text-placeholder" />
                           <span className="text-right">{payment.surcharge_label}</span>
                         </small>
                       </div>
@@ -435,13 +435,13 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
             <div className="flex flex-col items-start gap-0">
               <small>Price:</small>
               <strong className="stat-sm">
-                <PriceNumberFlow value={price} />
+                <Amount value={price} />
               </strong>
             </div>
             <div className="flex flex-col items-start gap-0">
               <small>Buyback:</small>
               <strong className="stat-sm">
-                <PriceNumberFlow value={buybackPrice} />
+                <Amount value={buybackPrice} />
               </strong>
             </div>
           </div>
@@ -457,7 +457,6 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
                 transition={{ duration: 0.15 }}
                 className="w-full h-full"
               >
-                <Lens hovering={hovering} setHovering={setHovering}>
                   <Image
                     src={selectedImage}
                     height={1000}
@@ -465,7 +464,6 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
                     className="relative z-20 pointer-events-none cursor-auto w-full h-full object-contain focus:outline-none"
                     alt="Selected product view"
                   />
-                </Lens>
                 <p className="absolute bottom-0 left-1 flex justify-start eyebrow p-2">
                   {selectedImage === selectedProduct.image_front ? 'Obverse' : 'Reverse'}
                 </p>
@@ -591,19 +589,19 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
               <div className="text-left">
                 <div className="flex flex-col gap-2">
                   <div className="flex flex-col gap-2 border-b-1 border-border pb-2">
-                    <DetailRow
-                      label={<>{spot?.name} Ask Spot</>}
-                      variant="detail"
-                      className="items-start pl-8"
-                    >
-                      <PriceNumberFlow value={spot?.ask ?? 0} />
-                    </DetailRow>
+                    <div className={cn('flex w-full items-center justify-between gap-2', 'items-start pl-8')}>
+                      <small>{spot?.name} Ask Spot</small>
+                      <p>
+                        <Amount value={spot?.ask ?? 0} />
+                      </p>
+                    </div>
 
                     <div className="flex w-full items-start">
                       <X size={16} className="text-subtle" />
-                      <DetailRow label="Content (oz)" variant="detail" className="items-start pl-4">
-                        {selectedProduct.content}
-                      </DetailRow>
+                      <div className={cn('flex w-full items-center justify-between gap-2', 'items-start pl-4')}>
+                        <small>Content (oz)</small>
+                        <p>{selectedProduct.content}</p>
+                      </div>
                     </div>
 
                     <div className="flex w-full items-start">
@@ -613,17 +611,23 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
                         <Minus size={16} className="text-subtle" />
                       )}
 
-                      <DetailRow label="Ask Premium" variant="detail" className="items-start pl-4">
-                        <PriceNumberFlow value={Math.abs(askOverOrUnder)} />
-                      </DetailRow>
+                      <div className={cn('flex w-full items-center justify-between gap-2', 'items-start pl-4')}>
+                        <small>Ask Premium</small>
+                        <p>
+                          <Amount value={Math.abs(askOverOrUnder)} />
+                        </p>
+                      </div>
                     </div>
                   </div>
 
                   <div className="flex w-full items-start">
                     <Equal size={16} className="text-subtle" />
-                    <DetailRow label="Total Ask" variant="subtotal" className="items-start pl-4">
-                      <PriceNumberFlow value={price} />
-                    </DetailRow>
+                    <div className={cn('flex w-full items-center justify-between gap-2', 'items-start pl-4')}>
+                      <small>Total Ask</small>
+                      <strong>
+                        <Amount value={price} />
+                      </strong>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -637,19 +641,19 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
               <div className="text-left">
                 <div className="flex flex-col gap-2">
                   <div className="flex flex-col gap-2 border-b-1 border-border pb-2">
-                    <DetailRow
-                      label={<>{spot?.name} Bid Spot</>}
-                      variant="detail"
-                      className="items-start pl-8"
-                    >
-                      <PriceNumberFlow value={spot?.bid ?? 0} />
-                    </DetailRow>
+                    <div className={cn('flex w-full items-center justify-between gap-2', 'items-start pl-8')}>
+                      <small>{spot?.name} Bid Spot</small>
+                      <p>
+                        <Amount value={spot?.bid ?? 0} />
+                      </p>
+                    </div>
 
                     <div className="flex w-full items-start">
                       <X size={16} className="text-subtle" />
-                      <DetailRow label="Content (oz)" variant="detail" className="items-start pl-4">
-                        {selectedProduct.content}
-                      </DetailRow>
+                      <div className={cn('flex w-full items-center justify-between gap-2', 'items-start pl-4')}>
+                        <small>Content (oz)</small>
+                        <p>{selectedProduct.content}</p>
+                      </div>
                     </div>
 
                     <div className="flex w-full items-start">
@@ -659,17 +663,23 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
                         <Minus size={16} className="text-subtle" />
                       )}
 
-                      <DetailRow label="Bid Premium" variant="detail" className="items-start pl-4">
-                        <PriceNumberFlow value={Math.abs(bidOverOrUnder)} />
-                      </DetailRow>
+                      <div className={cn('flex w-full items-center justify-between gap-2', 'items-start pl-4')}>
+                        <small>Bid Premium</small>
+                        <p>
+                          <Amount value={Math.abs(bidOverOrUnder)} />
+                        </p>
+                      </div>
                     </div>
                   </div>
 
                   <div className="flex w-full items-start">
                     <Equal size={16} className="text-subtle" />
-                    <DetailRow label="Total Bid" variant="subtotal" className="items-start pl-4">
-                      <PriceNumberFlow value={buybackPrice} />
-                    </DetailRow>
+                    <div className={cn('flex w-full items-center justify-between gap-2', 'items-start pl-4')}>
+                      <small>Total Bid</small>
+                      <strong>
+                        <Amount value={buybackPrice} />
+                      </strong>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -690,22 +700,22 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
                       {svc.name} {`(${transitLabel(svc.min_transit_days, svc.max_transit_days)})`}
                     </p>
                     <strong>
-                      <PriceNumberFlow value={Number(svc.price ?? 0)} />
+                      <Amount value={Number(svc.price ?? 0)} />
                     </strong>
                   </div>
                 ))}
                 <div className="h-px w-full bg-border" />
                 <div className="flex flex-col gap-3">
                   <p className="flex items-center gap-1">
-                    <ShieldCheckIcon className="text-primary" size={20} />
+                    <ShieldCheck className="text-primary" size={20} />
                     Every shipment is fully insured.
                   </p>
                   <p className="flex items-center gap-1">
-                    <ClockIcon className="text-primary" size={20} />
+                    <Clock className="text-primary" size={20} />
                     Ships the same day we receive your payment.
                   </p>
                   <p className="flex items-center gap-1">
-                    <TagIcon className="text-primary" size={20} />
+                    <Tag className="text-primary" size={20} />
                     Free shipping for orders over $1000.
                   </p>
                 </div>
@@ -735,7 +745,7 @@ export default function ProductPageDetails({ product, variants }: ProductPagePro
                         </div>
                         <small className="flex items-center gap-2 pt-1 pl-4">
                           <span className="text-left">{payment.time_delay}</span>
-                          <CircleIcon size={6} weight="fill" className="text-placeholder" />
+                          <Circle size={6} className="text-placeholder" />
                           <span className="text-right">{payment.surcharge_label}</span>
                         </small>
                       </div>

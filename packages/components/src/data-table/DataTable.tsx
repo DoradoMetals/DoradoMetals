@@ -1,7 +1,7 @@
 'use client'
 
 import * as React from "react";
-import { Search } from "lucide-react";
+import { Search } from "@dorado/icons";
 import {
   type ColumnDef,
   type ColumnFiltersState,

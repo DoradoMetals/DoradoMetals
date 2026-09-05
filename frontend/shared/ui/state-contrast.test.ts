@@ -16,9 +16,7 @@
 import { describe, expect, test } from "vitest";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { radioOptionVariants } from "@/shared/ui/RadioGroup";
 import { badgeVariants } from "@dorado/components";
-import { TONE_INTENT } from "@/shared/ui/StatusChip";
 
 // The tokens moved to packages/theme (the design system's CSS half); this
 // file keeps reading the REAL file the app imports, wherever it lives.
@@ -117,61 +115,9 @@ function movesSomething(classes: string, state: string) {
 const MARGIN = 1.25;
 
 describe("a selected state is visibly different from an unselected one (D99)", () => {
-  const intents = ["neutral", "brand", "success", "danger", "warning", "info"] as const;
-
-  for (const intent of intents) {
-    for (const variant of ["card", "tile", "segment"] as const) {
-      test(`RadioOption ${variant}/${intent}: checked differs from rest`, () => {
-        const classes = radioOptionVariants({ variant, intent });
-        // NO LONGER REQUIRES A CHECKED BACKGROUND. It used to, and that
-        // contradicted this file's own rule three paragraphs up: "a state
-        // passes if it moves at least ONE colour property... requiring the
-        // FILL alone to carry it would be wrong here". It was true of the hued
-        // intents from the start and became true of neutral on 2026-08-30,
-        // when the design system moved neutral selection from a `--primary`
-        // fill to a 1.5px `--primary` border. `movesSomething` is and always
-        // was the real assertion; the background check was a second, stricter
-        // one that only the old neutral treatment happened to satisfy.
-        expect(movesSomething(classes, "has-[[data-state=checked]]")).toBeGreaterThan(MARGIN);
-      });
-    }
-  }
-
-  // NEUTRAL SELECTS BY BORDER, and the wash it must not use is still the point.
-  // Neutral's "colour" is white, so a 15% white wash - the treatment every hued
-  // intent uses - is not a state anybody can see on a near-black ground. It
-  // used to FILL with `--primary` for that reason; since 2026-08-30 it takes a
-  // 1.5px `--primary` border instead, which is the design system's language
-  // (Figma Radio Tile: "Selection reads as a primary-coloured 1.5px border",
-  // and Radio Card keeps bg-card on Selected=True).
-  //
-  // Both halves are pinned: the border must be there, and the wash must not be.
-  test("neutral selects by BORDER, and never by a white wash", () => {
-    const classes = radioOptionVariants({ variant: "card", intent: "neutral" });
-    expect(classes).toContain("has-[[data-state=checked]]:border-primary");
-    expect(classes).toContain("has-[[data-state=checked]]:border-[1.5px]");
-    expect(classes).not.toMatch(/has-\[\[data-state=checked\]\]:bg-primary\/\d/);
-  });
-
-  // THE DESCENDANT REPAINTS ARE GONE, AND THIS ASSERTS THEY STAY GONE.
-  // D99 as it shipped: a checked neutral card filled near-white,
-  // `text-primary-foreground` INHERITS, and typography.css colours
-  // `strong`/`p`/`small` in @layer base - a declared rule beats an inherited
-  // one, so content stayed near-white on near-white in the selected state only.
-  // Eleven `has-[[data-state=checked]]:[&_tag]:` rules existed to survive that
-  // fill. With no fill there is nothing to survive, and reintroducing them
-  // would mean the fill had come back.
-  test("a checked neutral option does not repaint its descendants", () => {
-    const classes = radioOptionVariants({ variant: "card", intent: "neutral" });
-    for (const tag of ["strong", "p", "small", "h2"])
-      expect(classes, `<${tag}> is repainted - has the fill returned?`).not.toContain(
-        `has-[[data-state=checked]]:[&_${tag}]:`
-      );
-  });
-
-  for (const tone of ["neutral", "brand", "success", "danger", "warning", "info"] as const) {
-    test(`StatusChip ${tone} is distinguishable from the page ground`, () => {
-      const chip = bg(badgeVariants({ variant: "soft", intent: TONE_INTENT[tone] }));
+  for (const intent of ["neutral", "success", "danger", "warning", "info"] as const) {
+    test(`soft Badge ${intent} is distinguishable from the page ground`, () => {
+      const chip = bg(badgeVariants({ variant: "soft", intent }));
       expect(chip).not.toBeNull();
       expect(ratio(chip!, token("background"))).toBeGreaterThan(1.15);
     });

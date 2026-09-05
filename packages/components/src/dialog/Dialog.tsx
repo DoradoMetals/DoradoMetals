@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
-import { X } from "lucide-react";
+import { X } from "@dorado/icons";
 import { Button } from "../button/Button";
 import { cn } from "../cn";
 
@@ -24,7 +24,7 @@ export function DialogContent({
     <DialogPrimitive.Portal>
       <DialogPrimitive.Overlay
         className={cn(
-          "fixed inset-0 z-80 backdrop-blur-xs",
+          "fixed inset-0 z-80 bg-background/70 backdrop-blur-sm",
           "data-[state=open]:animate-in data-[state=open]:fade-in-0",
           "data-[state=closed]:animate-out data-[state=closed]:fade-out-0",
           "motion-reduce:animate-none"
@@ -47,7 +47,7 @@ export function DialogContent({
           <DialogPrimitive.Close asChild>
             <Button
               variant="tertiary"
-              size="iconXs"
+              size="iconSm"
               aria-label="Close"
               className="absolute right-4 top-4"
             >

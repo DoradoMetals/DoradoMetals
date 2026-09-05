@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { RadioGroup, RadioOption, Switch } from '@dorado/components'
-import { Inbox, Package2, Package as PackageIcon } from 'lucide-react'
+import { Inbox, Package2, Package as PackageIcon } from '@dorado/icons'
 import type { FulfillmentView, Package } from '@dorado/contracts'
 import { useOfferedPackages, usePatchFulfillment } from '@/features/checkout/queries'
 

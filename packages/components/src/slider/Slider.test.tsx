@@ -24,4 +24,12 @@ describe("Slider", () => {
     fireEvent.keyDown(container.querySelector('[role="slider"]')!, { key: "ArrowRight" });
     expect(onValueChange).toHaveBeenCalledWith([6]);
   });
+
+  it("the fill swaps to border/strong when disabled, not just a dimmed primary (31:115)", () => {
+    const { container } = render(
+      <Slider aria-label="Purity" min={0} max={100} defaultValue={[50]} disabled />,
+    );
+    const range = container.querySelector(".bg-primary") as HTMLElement;
+    expect(range.className).toContain("data-[disabled]:bg-border-strong");
+  });
 });

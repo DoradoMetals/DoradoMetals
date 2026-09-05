@@ -1,7 +1,6 @@
-import { Button } from '@dorado/components'
+import { Amount, Button } from '@dorado/components'
 
 import { PurchaseOrderDrawerContentProps } from '@/features/orders/purchaseOrders/types'
-import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
 import TrackingEvents from '@/features/shipping/ui/TrackingEvents'
 import { outboundOf, returnOf, useOrderShipments } from '@dorado/client'
 
@@ -24,7 +23,7 @@ export default function CancelledPurchaseOrder({ view }: PurchaseOrderDrawerCont
             <div className="flex w-full justify-between items-center mb-1">
               <strong className="stat-sm">Shipping Charges:</strong>
               <strong className="stat-sm">
-                <PriceNumberFlow
+                <Amount
                   value={(shipment?.shipment.cost ?? 0) + (returnShipment?.shipment.cost ?? 0)}
                 />
               </strong>

@@ -4,7 +4,7 @@ import { useRateTiers } from '@dorado/client'
 import { pctLabel } from '@/features/rates/types'
 import { cn } from '@/shared/utils/cn'
 import { GoldIcon, PalladiumIcon, PlatinumIcon, SilverIcon } from '@/features/navigation/ui/Logo'
-import { CoinsIcon, IconProps, ScalesIcon } from '@phosphor-icons/react'
+import { Coins, IconProps, Scale } from '@dorado/icons'
 import type { RateBand, RateTier } from '@dorado/contracts'
 
 // THE TABLE IS THE SERVER'S. This page used to take the flat rate list and, in
@@ -126,8 +126,8 @@ function MetalCard({ tier }: { tier: RateTier }) {
 
         <div className="col-span-5 h-px bg-border my-3" />
 
-        <RatesRow label="Scrap" icon={ScalesIcon} values={cols.map((c) => c.scrap_pct)} />
-        <RatesRow label="Bullion" icon={CoinsIcon} values={cols.map((c) => c.bullion_pct)} />
+        <RatesRow label="Scrap" icon={Scale} values={cols.map((c) => c.scrap_pct)} />
+        <RatesRow label="Bullion" icon={Coins} values={cols.map((c) => c.bullion_pct)} />
       </div>
     </article>
   )
@@ -176,8 +176,8 @@ function MobileBandCard({ band }: { band: RateBand }) {
       </div>
 
       <dl className="grid grid-rows-2 gap-3">
-        <RatePair label="Scrap" value={band.scrap_pct} icon={ScalesIcon} />
-        <RatePair label="Bullion" value={band.bullion_pct} icon={CoinsIcon} />
+        <RatePair label="Scrap" value={band.scrap_pct} icon={Scale} />
+        <RatePair label="Bullion" value={band.bullion_pct} icon={Coins} />
       </dl>
     </div>
   )

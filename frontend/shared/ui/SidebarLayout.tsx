@@ -9,10 +9,10 @@ import {
   useMemo,
   useState,
 } from 'react'
+import { Badge } from '@dorado/components'
 import { cn } from '@/shared/utils/cn'
-import { CaretDoubleRightIcon, UserIcon } from '@phosphor-icons/react'
+import { ChevronsRight, User } from '@dorado/icons'
 import { useSearchParams, useRouter, usePathname } from 'next/navigation'
-import CountBadge from '@/shared/ui/CountBadge'
 
 export type Icon = ComponentType<SVGProps<SVGSVGElement> & { size?: number }>
 
@@ -145,7 +145,7 @@ export function SidebarLayout({
                 {RoleIcon ? (
                   <RoleIcon size={20} className="text-primary-foreground" />
                 ) : (
-                  <UserIcon size={20} className="text-primary-foreground" />
+                  <User size={20} className="text-primary-foreground" />
                 )}
               </div>
 
@@ -194,7 +194,7 @@ export function SidebarLayout({
                   {isOpen && <span>{item.label}</span>}
 
                   {isOpen && item.badge != null && item.badge !== '' && (
-                    <CountBadge className="ml-auto">{item.badge}</CountBadge>
+                    <Badge variant="solid" className="ml-auto">{item.badge}</Badge>
                   )}
                 </button>
               )
@@ -209,7 +209,7 @@ export function SidebarLayout({
             onClick={() => setOpen((o) => !o)}
             className="flex items-center gap-2 my-4 cursor-pointer text-placeholder hover:text-foreground"
           >
-            <CaretDoubleRightIcon
+            <ChevronsRight
               size={16}
               className={cn('transition-transform', isOpen && 'rotate-180')}
             />

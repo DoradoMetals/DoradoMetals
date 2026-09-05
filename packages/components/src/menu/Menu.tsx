@@ -56,10 +56,7 @@ const MenuLabel = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <MenuPrimitive.Label
     ref={ref}
-    className={cn(
-      'px-2 pb-1 pt-1.5 font-mono text-micro font-medium uppercase tracking-widest text-placeholder',
-      className
-    )}
+    className={cn('eyebrow px-2 pb-1 pt-1.5 text-placeholder', className)}
     {...props}
   />
 ))

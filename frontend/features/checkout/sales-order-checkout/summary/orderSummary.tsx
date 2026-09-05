@@ -1,16 +1,13 @@
-import { Button, Divider } from '@dorado/components'
+import { Amount, Button, Divider } from '@dorado/components'
+import { CircleHelp, Minus, Plus, Trash2 } from '@dorado/icons'
 import { useBasket } from '@/features/checkout/items/queries'
 import { useCheckoutItemActions } from '@/features/checkout/items/queries'
 import { useDecoratedLines } from '@/features/checkout/items/flair'
 import { usePaymentMethods } from '@dorado/client'
-import { Minus, Plus, Trash2 } from 'lucide-react'
 import Image from 'next/image'
 import NumberFlow from '@number-flow/react'
-import { QuestionIcon } from '@phosphor-icons/react'
 import { useRouter } from 'next/navigation'
 import type { CheckoutView, SalesOrderQuote } from "@dorado/contracts";
-import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
-import { DetailRow } from '@/shared/ui/DetailRow'
 
 // orderPrices is the server's quote, absent until the first one lands - the
 // summary renders zeros in the meantime, never a client-computed price.
@@ -97,7 +94,7 @@ export default function OrderSummary({
                     </Button>
                   </div>
                   <strong>
-                    <PriceNumberFlow value={quoted?.line_total ?? 0} className="tabular-nums" />
+                    <Amount value={quoted?.line_total ?? 0} />
                   </strong>
                 </div>
               </div>
@@ -113,19 +110,28 @@ export default function OrderSummary({
       <Divider />
       <p className="eyebrow my-4">Payment Details</p>
 
-      <DetailRow label="Shipping">
-        <PriceNumberFlow value={shipping_charge} className="tabular-nums" />
-      </DetailRow>
+      <div className="flex w-full items-center justify-between gap-2">
+        <p>Shipping</p>
+        <strong>
+          <Amount value={shipping_charge} />
+        </strong>
+      </div>
 
       {pre_charges_amount > 0 && (
-        <DetailRow label="Dorado Funds Applied">
-          <PriceNumberFlow value={pre_charges_amount} className="tabular-nums" />
-        </DetailRow>
+        <div className="flex w-full items-center justify-between gap-2">
+          <p>Dorado Funds Applied</p>
+          <strong>
+            <Amount value={pre_charges_amount} />
+          </strong>
+        </div>
       )}
       {subject_to_charges_amount > 0 && (
-        <DetailRow label={pre_charges_amount > 0 ? 'Amount Remaining' : 'Items'}>
-          -<PriceNumberFlow value={subject_to_charges_amount} className="tabular-nums" />
-        </DetailRow>
+        <div className="flex w-full items-center justify-between gap-2">
+          <p>{pre_charges_amount > 0 ? 'Amount Remaining' : 'Items'}</p>
+          <strong>
+            -<Amount value={subject_to_charges_amount} />
+          </strong>
+        </div>
       )}
 
       {charges_amount > 0 && (
@@ -137,7 +143,7 @@ export default function OrderSummary({
             {`(${saleMethods.find((m) => m.id === row?.payment_method_id)?.surcharge_label ?? ''})`}
           </p>
           <strong>
-            <PriceNumberFlow value={charges_amount} className="tabular-nums" />
+            <Amount value={charges_amount} />
           </strong>
         </div>
       )}
@@ -152,11 +158,11 @@ export default function OrderSummary({
               className="size-4"
               onClick={() => router.push('/sales-tax')}
             >
-              <QuestionIcon size={16} />
+              <CircleHelp size={16} />
             </Button>
           </div>
           <strong>
-            <PriceNumberFlow value={sales_tax} className="tabular-nums" />
+            <Amount value={sales_tax} />
           </strong>
         </div>
       )}
@@ -164,9 +170,12 @@ export default function OrderSummary({
       <div className="pt-2">
         <Divider />
 
-        <DetailRow label="Order Total" variant="total" className="pt-2">
-          <PriceNumberFlow value={post_charges_amount} className="tabular-nums" />
-        </DetailRow>
+        <div className="flex w-full items-center justify-between gap-2 pt-2">
+          <strong>Order Total</strong>
+          <strong className="stat-sm">
+            <Amount value={post_charges_amount} />
+          </strong>
+        </div>
       </div>
     </div>
   )

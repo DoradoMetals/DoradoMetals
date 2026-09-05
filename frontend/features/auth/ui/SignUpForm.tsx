@@ -4,20 +4,11 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from '@/shared/ui/base/form'
-import { Button } from '@dorado/components'
+import { Button, Form, FormControl, FormField, FormItem, FormLabel, FormMessage, ValidatedField } from '@dorado/components'
 import { Checkbox } from '@dorado/components'
 import Link from 'next/link'
 import { useSignUp } from '@/features/auth/queries'
 import { SignUp, signUpSchema } from '@/features/auth/types'
-import { ValidatedField } from '@/shared/ui/form/ValidatedField'
 import { PasswordRequirements } from './PasswordRequirements'
 import orSeparator from './OrSeparator'
 import GoogleButton from './GoogleSignInButton'
@@ -25,7 +16,6 @@ import { verifyRecaptcha } from './VerifyRecaptcha'
 
 export default function SignUpForm() {
   const router = useRouter()
-  const [showPassword, setShowPassword] = useState(false)
   const [showRequirements, setShowRequirements] = useState(false)
 
   const { run: checkCaptcha, isPending: recaptchaPending } = verifyRecaptcha('sign_up')
@@ -67,7 +57,6 @@ export default function SignUpForm() {
               name="name"
               label="Name"
               type="text"
-              showOnTouch={true}
             />
 
             <ValidatedField
@@ -75,7 +64,6 @@ export default function SignUpForm() {
               name="email"
               label="Email"
               type="email"
-              showOnTouch={true}
             />
 
             <div className="flex flex-col gap-1">
@@ -83,13 +71,9 @@ export default function SignUpForm() {
                 control={form.control}
                 name="password"
                 label="Password"
-                type={showPassword ? 'text' : 'password'}
+                type="password"
                 showPasswordButton
-                showPassword={showPassword}
-                setShowPassword={setShowPassword}
-                showOnTouch={true}
                 showFormError={false}
-                showIcon={false}
                 inputProps={{ onFocus: () => setShowRequirements(true) }}
               />
               {showRequirements && <PasswordRequirements control={form.control} name="password" />}

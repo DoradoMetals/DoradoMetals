@@ -1,7 +1,7 @@
 'use client'
 import * as React from 'react'
+import { Rows3 } from '@dorado/icons'
 
-import { RowsPlusTopIcon } from '@phosphor-icons/react'
 import { Amount, Badge, Button, DataTable, type DataTableColumn } from '@dorado/components'
 
 import { useDrawerStore } from '@/shared/store/drawerStore'
@@ -128,7 +128,7 @@ export default function ProductsPage() {
               aria-label="Create Product"
               title="Create Product"
             >
-              <RowsPlusTopIcon size={28} />
+              <Rows3 size={28} />
             </Button>
             <AddNewDialog open={createOpen} onOpenChange={setCreateOpen} createConfig={createConfig} />
           </>

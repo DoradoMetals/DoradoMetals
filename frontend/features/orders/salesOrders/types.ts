@@ -1,15 +1,4 @@
-import {
-  CreditCardIcon,
-  AirplaneInFlightIcon,
-  TruckIcon as PhosphorTruckIcon,
-  PackageIcon,
-  HourglassIcon,
-  TruckIcon,
-  ShieldCheckIcon,
-  CurrencyDollarIcon,
-  BankIcon,
-} from '@phosphor-icons/react'
-
+import { CreditCard, DollarSign, Hourglass, Landmark, Package, Plane, ShieldCheck, Truck } from '@dorado/icons'
 import { z } from 'zod/v4'
 
 import { packageSchema } from '@/features/packaging/types'
@@ -50,19 +39,19 @@ export const SalesOrderStatuses = ['Pending', 'Preparing', 'In Transit', 'Comple
 
 export const statusConfig: StatusConfig = {
   Pending: {
-    icon: HourglassIcon,
+    icon: Hourglass,
     value_label: 'Price',
   },
   Preparing: {
-    icon: PackageIcon,
+    icon: Package,
     value_label: 'Price',
   },
   'In Transit': {
-    icon: TruckIcon,
+    icon: Truck,
     value_label: 'Price',
   },
   Completed: {
-    icon: ShieldCheckIcon,
+    icon: ShieldCheck,
     value_label: 'Price',
   },
 }
@@ -89,12 +78,12 @@ type PaymentMethodType = (typeof PaymentMethodTypeValues)[number]
 // standing call from the handoff conversion): a picture is a client concern
 // and has no business on the wire.
 export const paymentMethodIcon: Record<PaymentMethodType, any> = {
-  CARD: CreditCardIcon,
-  ACH: BankIcon,
-  CREDIT: CreditCardIcon,
-  WIRE: BankIcon,
-  'APPLE PAY': CreditCardIcon,
-  'GOOGLE PAY': CreditCardIcon,
+  CARD: CreditCard,
+  ACH: Landmark,
+  CREDIT: CreditCard,
+  WIRE: Landmark,
+  'APPLE PAY': CreditCard,
+  'GOOGLE PAY': CreditCard,
 }
 
 const salesOrderServiceSchema = z.object({
@@ -119,9 +108,9 @@ export type SalesOrderServiceUIOption = SalesOrderService & {
 // admin drawer takes all rows - which is the whole difference the two records
 // used to encode. The icon is the client's, keyed by the row's opaque `code`.
 export const serviceTierIcon: Record<string, any> = {
-  STANDARD: PhosphorTruckIcon,
-  OVERNIGHT: AirplaneInFlightIcon,
-  FREE: CurrencyDollarIcon,
+  STANDARD: Truck,
+  OVERNIGHT: Plane,
+  FREE: DollarSign,
 }
 
 export const transitLabel = (min?: number | null, max?: number | null): string => {

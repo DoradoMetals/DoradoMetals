@@ -8,13 +8,11 @@
 // now; the search is the only thing left, because it is a property of the
 // input box and not of the book.
 import { useState, useMemo } from 'react'
-import { Plus } from 'lucide-react'
 
-import { Button, EmptyState, Skeleton } from '@dorado/components'
+import { Button, EmptyState, Input, Skeleton, useDebounce } from '@dorado/components'
+import { MapPin, Plus, Search, X } from '@dorado/icons'
 import { useAddressBook } from '@dorado/client'
 import { useDrawerStore } from '@/shared/store/drawerStore'
-import { DebouncedInputSearch } from '@/shared/ui/inputs/DebouncedInputSearch'
-import { MapPinIcon } from '@phosphor-icons/react'
 import { AddressDrawer } from '@/features/addresses/ui/AddressDrawer'
 import { AddressCard } from '@/features/addresses/ui/AddressCard'
 
@@ -23,9 +21,10 @@ export default function AddressList() {
   const openDrawer = useDrawerStore((s) => s.openDrawer)
 
   const [query, setQuery] = useState('')
+  const debouncedQuery = useDebounce(query, 300)
 
   const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase()
+    const q = debouncedQuery.trim().toLowerCase()
     if (!q) return entries
     return entries.filter((e) =>
       [
@@ -37,7 +36,7 @@ export default function AddressList() {
         .toLowerCase()
         .includes(q)
     )
-  }, [entries, query])
+  }, [entries, debouncedQuery])
 
   const handleAdd = () => openDrawer('address')
 
@@ -61,10 +60,24 @@ export default function AddressList() {
         <>
           <div className="mb-4 flex items-center gap-2">
             <div className="flex-1">
-              <DebouncedInputSearch
+              <Input
                 value={query}
-                onChange={(v) => setQuery(String(v))}
+                onChange={(e) => setQuery(e.target.value)}
                 placeholder="Search Addresses..."
+                leading={<Search size={16} />}
+                trailing={
+                  query ? (
+                    <Button
+                      type="button"
+                      variant="tertiary"
+                      size="iconXs"
+                      aria-label="Clear search"
+                      onClick={() => setQuery('')}
+                    >
+                      <X size={14} />
+                    </Button>
+                  ) : undefined
+                }
               />
             </div>
 
@@ -86,7 +99,7 @@ export default function AddressList() {
         </>
       ) : (
         <EmptyState
-          icon={<MapPinIcon />}
+          icon={<MapPin />}
           title="No Addresses Found!"
           description="Add an address so we can save it to your account."
           action={

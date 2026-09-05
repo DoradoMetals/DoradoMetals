@@ -1,10 +1,8 @@
 'use client'
 
-import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Form, FormControl, FormField, FormItem, FormLabel } from '@/shared/ui/base/form'
-import { Button } from '@dorado/components'
+import { Button, Form, FormControl, FormField, FormItem, FormLabel, ValidatedField } from '@dorado/components'
 import { ForgotPasswordDialog } from './ForgotPasswordForm'
 import { Checkbox } from '@dorado/components'
 import { useSignIn } from '@/features/auth/queries'
@@ -12,11 +10,9 @@ import { useSignIn } from '@/features/auth/queries'
 import orSeparator from './OrSeparator'
 import { SignIn, signInSchema } from '@/features/auth/types'
 import GoogleButton from './GoogleSignInButton'
-import { ValidatedField } from '@/shared/ui/form/ValidatedField'
 import { verifyRecaptcha } from './VerifyRecaptcha'
 
 export default function SignInForm() {
-  const [showPassword, setShowPassword] = useState(false)
 
   const { run: checkCaptcha, isPending: recaptchaPending } = verifyRecaptcha('sign_in')
   const { mutate: signInMutation, error, isPending: signInPending } = useSignIn()
@@ -45,7 +41,6 @@ export default function SignInForm() {
               name="email"
               label="Email"
               type="email"
-              showOnTouch={true}
             />
 
             <div className="mb-2">
@@ -53,13 +48,9 @@ export default function SignInForm() {
                 control={form.control}
                 name="password"
                 label="Password"
-                type={showPassword ? 'text' : 'password'}
+                type="password"
                 showPasswordButton
-                showPassword={showPassword}
-                setShowPassword={setShowPassword}
-                showOnTouch={true}
                 showFormError={false}
-                showIcon={false}
               />
             </div>
 

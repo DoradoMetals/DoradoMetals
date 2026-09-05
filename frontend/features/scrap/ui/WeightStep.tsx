@@ -1,8 +1,6 @@
-import { FormField, FormItem, FormMessage } from '@/shared/ui/base/form'
-import { RadioGroup, RadioOption } from '@dorado/components'
+import { FormField, FormItem, FormMessage, Input, RadioGroup, RadioOption } from '@dorado/components'
 import { Scrap, weightOptions } from '@/features/scrap/types'
 import { useFormContext } from 'react-hook-form'
-import { FloatingLabelInput } from '@/shared/ui/inputs/FloatingLabelInput'
 
 export default function WeightStep() {
   const form = useFormContext<Scrap>()
@@ -38,24 +36,16 @@ export default function WeightStep() {
         name="pre_melt"
         render={({ field }) => (
           <FormItem className="w-full">
-            <div className="relative w-full rounded-lg">
-              <FloatingLabelInput
-                label="Enter Weight"
-                type="number"
-                inputMode="decimal"
-                pattern="[0-9]*"
-                size="sm"
-                className="w-full no-spinner"
-                value={field.value === 0 ? '' : field.value}
-                onChange={(e) => {
-                  const val = e.target.value
-                  field.onChange(val === '' ? 0 : val)
-                }}
-              />
-              <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                {unit}
-              </div>
-            </div>
+            <Input
+              label="Enter Weight"
+              type="number"
+              value={field.value === 0 ? '' : field.value}
+              onChange={(e) => {
+                const val = e.target.value
+                field.onChange(val === '' ? 0 : val)
+              }}
+              trailing={unit}
+            />
             <FormMessage />
           </FormItem>
         )}

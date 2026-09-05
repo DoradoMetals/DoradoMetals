@@ -88,4 +88,17 @@ describe("Drawer", () => {
     expect(panel.className).toContain("bg-highest");
     expect(panel.className).toContain("max-w-full");
   });
+
+  it("Side=Bottom (127:32) is the mobile sheet: rounded top, hairline on top, grab handle", async () => {
+    openDrawer({ anchor: "bottom" });
+    const panel = document.body.querySelector('[role="dialog"]') as HTMLElement;
+    expect(panel.className).toContain("border-t");
+    expect(panel.className).not.toContain("border-l");
+    expect(panel.className).not.toContain("border-r");
+    expect(panel.className).toContain("rounded-t-xl");
+    expect(panel.className).toContain("bottom-0");
+    const handle = panel.querySelector('[aria-hidden="true"]') as HTMLElement;
+    expect(handle).toBeTruthy();
+    expect(await axeViolations(document.body)).toEqual([]);
+  });
 });

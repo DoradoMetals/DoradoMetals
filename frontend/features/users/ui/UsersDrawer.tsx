@@ -2,20 +2,19 @@
 
 import type { AdminUser } from "@dorado/contracts";
 import { useDrawerStore } from '@/shared/store/drawerStore'
-import { useMemo, useState } from 'react'
+import { useDrawerRecord } from '@/shared/hooks/useDrawerRecord'
+import { useState } from 'react'
 
 import { formatFullDate } from '@/shared/utils/formatDates'
-import { FloatingLabelInput } from '@/shared/ui/inputs/FloatingLabelInput'
 import {
   useChangeEmail,
   useImpersonateUser,
   useRequestPasswordReset,
   useUpdateUser,
 } from '@/features/auth/queries'
-import { Button, Divider, Drawer, Input, RadioGroup, RadioOption } from '@dorado/components'
+import { Amount, Button, Divider, Drawer, Input, RadioGroup, RadioOption } from '@dorado/components'
+import { Minus, Pen, Plus } from '@dorado/icons'
 import { cn } from '@/shared/utils/cn'
-import { MinusIcon, PenIcon, PlusIcon } from '@phosphor-icons/react'
-import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
 import { useUpdateCredit } from '@dorado/client'
 
 export default function AdminUsersDrawer({
@@ -25,17 +24,14 @@ export default function AdminUsersDrawer({
   users: AdminUser[]
   user_id: string
 }) {
-  const { activeDrawer, closeDrawer } = useDrawerStore()
-  const isDrawerOpen = activeDrawer === 'users'
-
-  const user = useMemo(() => users.find((u) => u.id === user_id), [users, user_id])
+  const { open, record: user, close } = useDrawerRecord('users', users, user_id)
 
   if (!user) {
     return null
   }
 
   return (
-    <Drawer label="User" open={isDrawerOpen} setOpen={closeDrawer}>
+    <Drawer label="User" open={open} setOpen={close}>
       <div className="flex items-center justify-between w-full">
         <h3>{user.name}</h3>
         <time dateTime={user.created_at ?? undefined}>{formatFullDate(user.created_at)}</time>
@@ -61,19 +57,17 @@ function UserInfo({ user }: { user: AdminUser }) {
   return (
     <div className="flex flex-col gap-6 w-full items-start items-stretch">
       <p className="eyebrow mb-2">User Information</p>
-      <FloatingLabelInput
+      <Input
         label="Name"
         type="name"
         autoComplete="name"
-        className="w-full"
         defaultValue={user.name ?? ''}
         onBlur={(e) => updateName.mutate({ name: e.target.value })}
       />
-      <FloatingLabelInput
+      <Input
         label="Email"
         type="email"
         autoComplete="email"
-        className="w-full"
         defaultValue={user.email}
         onBlur={(e) => changeEmail.mutate(e.target.value)}
       />
@@ -85,9 +79,9 @@ function UserInfo({ user }: { user: AdminUser }) {
 }
 
 const modes = [
-  { label: 'Add', value: 'add', icon: PlusIcon },
-  { label: 'Subtract', value: 'subtract', icon: MinusIcon },
-  { label: 'Edit', value: 'edit', icon: PenIcon },
+  { label: 'Add', value: 'add', icon: Plus },
+  { label: 'Subtract', value: 'subtract', icon: Minus },
+  { label: 'Edit', value: 'edit', icon: Pen },
 ]
 
 function DoradoCredit({ user }: { user: AdminUser }) {
@@ -123,9 +117,6 @@ function DoradoCredit({ user }: { user: AdminUser }) {
       return
     }
 
-    // Send what the admin DID, not what we think the balance becomes. The
-    // server applies the delta under a row lock; `newAmount` above stays as the
-    // PREVIEW rendered below, which is fine - previewing is not writing.
     updateCredit.mutate({ user_id: user.id, body: { op: mode, amount } })
 
     setAmount(0)
@@ -137,7 +128,7 @@ function DoradoCredit({ user }: { user: AdminUser }) {
       <div className="flex w-full justify-between items-end">
         <p className="eyebrow mb-2">Dorado Credit</p>
         <strong className="pr-3">
-          <PriceNumberFlow value={user.dorado_funds} />
+          <Amount value={user.dorado_funds} />
         </strong>
       </div>
 
@@ -169,7 +160,7 @@ function DoradoCredit({ user }: { user: AdminUser }) {
           <p>New:</p>
 
           <strong className="pr-3">
-            <PriceNumberFlow value={newAmount} />
+            <Amount value={newAmount} />
           </strong>
         </div>
 

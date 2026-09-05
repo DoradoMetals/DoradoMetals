@@ -1,9 +1,9 @@
 'use client'
 
 import { Button } from '@dorado/components'
+import { ShoppingCart } from '@dorado/icons'
 import { defineStepper } from '@stepperize/react'
 import { useRouter } from 'next/navigation'
-import { ShoppingCartIcon } from '@phosphor-icons/react'
 import { useMemo, useState } from 'react'
 
 import ShippingStep from './shippingStep/shippingStep'
@@ -94,7 +94,7 @@ export default function CheckoutStepper() {
     return (
       <div className="w-full h-full flex flex-col items-center justify-center text-center gap-4 pb-10 mt-10 lg:mt-30">
         <div className="relative mb-5">
-          <ShoppingCartIcon size={80} strokeWidth={1.5} className="text-primary" />
+          <ShoppingCart size={80} className="text-primary" />
           <div className="absolute -top-6 right-3.5 border border-border rounded-full w-10 h-10 flex items-center justify-center">
             <strong className="text-primary">0</strong>
           </div>

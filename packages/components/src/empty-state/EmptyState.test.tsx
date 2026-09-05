@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { render } from "@testing-library/react";
 import * as React from "react";
-import { Package } from "lucide-react";
+import { Package } from "@dorado/icons";
 
 import { EmptyState } from "./EmptyState";
 import { axeViolations } from "../test/axe";
@@ -26,10 +26,12 @@ describe("EmptyState", () => {
     expect(bare.container.querySelector("svg")).toBe(null);
   });
 
-  it("gaps 24px between icon, text block and action, and titles SemiBold", () => {
+  it("gaps 24px between icon, text block and action, and the title is a bare h5", () => {
     const { container, getByText } = render(<EmptyState title="No orders yet" />);
     expect(container.firstElementChild!.className).toContain("gap-lg");
-    expect(getByText("No orders yet").className).toContain("font-semibold");
+    const title = getByText("No orders yet");
+    expect(title.tagName.toLowerCase()).toBe("h5");
+    expect(title.className).not.toMatch(/font-/);
   });
 
   it("defaults the icon to a 64px glyph with no size prop", () => {
@@ -44,8 +46,7 @@ describe("EmptyState", () => {
     );
     const description = getByText("Add an address to save it.");
     expect(description).toBeTruthy();
-    expect(description.className).toContain("text-small");
-    expect(description.className).toContain("text-muted-foreground");
+    expect(description.tagName.toLowerCase()).toBe("small");
   });
 
   it("pins a badge to the icon's corner only when an icon is present, and axe finds nothing", async () => {

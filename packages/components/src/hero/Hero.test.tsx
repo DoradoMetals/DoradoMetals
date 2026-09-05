@@ -26,4 +26,21 @@ describe("Hero", () => {
     const { container: other } = render(<Hero sellerCount={11750} />);
     expect(other.textContent).toContain("Trusted by 11,750+ sellers");
   });
+
+  it("the headline is Heading/H1 (163:35, resolved 2026-09-03) - no Display escalation left", () => {
+    const { getByRole } = render(<Hero sellerCount={2400} />);
+    const heading = getByRole("heading", { level: 1 });
+    expect(heading.tagName.toLowerCase()).toBe("h1");
+    expect(heading.className).not.toMatch(/text-h|font-/);
+    expect(heading.className).not.toContain("text-display");
+  });
+
+  it("column gap and desktop padding are Scale tokens, not raw Tailwind numerics", () => {
+    const { container } = render(<Hero sellerCount={2400} />);
+    const section = container.querySelector("section")!;
+    expect(section.className).toContain("gap-md");
+    expect(section.className).toContain("sm:p-3xl");
+    expect(section.className).not.toContain("gap-5");
+    expect(section.className).not.toContain("sm:p-24");
+  });
 });

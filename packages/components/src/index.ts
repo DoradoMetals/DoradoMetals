@@ -31,7 +31,7 @@ export { Tabs, TabsList, TabsTrigger, TabsContent } from "./tabs/Tabs";
 export { Slider, type SliderProps } from "./slider/Slider";
 export { SliderField, type SliderFieldProps } from "./slider-field/SliderField";
 export { List, ListItem, type ListProps } from "./list/List";
-export { Table, TableHeader, TableHead, TableBody, TableRow, TableCell, type SortDirection } from "./table/Table";
+export { Table, TableHeader, TableHead, TableBody, TableRow, TableCell, type SortDirection, type TableRowProps } from "./table/Table";
 export { Dialog, DialogTrigger, DialogClose, DialogContent, DialogTitle, DialogDescription, DialogFooter, DialogHeader, DialogOverlay, DialogPortal } from "./dialog/Dialog";
 export { Calendar, type CalendarProps } from "./date-picker/Calendar";
 export type { TimeGroup, TimeSlotShape } from "./date-picker/TimePicker";
@@ -46,7 +46,10 @@ export { AreaChart, BarChart, DonutChart, LineChart, Sparkline, type Series } fr
 export { DataTable, type DataTableProps, type DataTableColumn, type DataTableColumnMeta } from "./data-table/DataTable";
 export { EmptyState, type EmptyStateProps } from "./empty-state/EmptyState";
 export { Hero, type HeroProps } from "./hero/Hero";
+export { Header, type HeaderProps } from "./header/Header";
+export { Footer, type FooterProps, type FooterColumn } from "./footer/Footer";
 export { Marquee, type MarqueeProps } from "./marquee/Marquee";
+export { MarqueeItem, type MarqueeItemProps } from "./marquee/MarqueeItem";
 export { MaskedField, type MaskedFieldProps, type MaskKind } from "./masked-field/MaskedField";
 export { Paperwork, type PaperworkProps, type PaperworkDocument, type PaperworkDocumentState } from "./paperwork/Paperwork";
 export { ScrollArea, ScrollBar, type ScrollAreaProps } from "./scroll-area/ScrollArea";
@@ -60,3 +63,6 @@ export { Rating, RatingButton, type RatingProps, type RatingButtonProps } from "
 export { useFocusTrap } from "./hooks/useFocusTrap";
 export { Amount, type AmountProps } from "./amount/Amount";
 export { Carousel, type CarouselProps } from "./carousel/Carousel";
+export { useDebounce } from "./hooks/useDebounce";
+export { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage, useFormField } from "./form/Form";
+export { ValidatedField, type ValidatedFieldProps } from "./form/ValidatedField";

@@ -1,5 +1,5 @@
 import type { SalesOrderQuote } from '@dorado/contracts'
-import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
+import { Amount } from '@dorado/components'
 
 // CREDIT IS NOT A CHOICE (ruling 47: "No reason to let them make a choice").
 // The server applies a balance whenever one exists; this surface only shows
@@ -20,13 +20,13 @@ export default function PaymentSelect({ orderPrices }: { orderPrices?: SalesOrde
         <div className="flex flex-col gap-1 items-start">
           <p>Credit Applied:</p>
           <strong>
-            <PriceNumberFlow value={orderPrices.pre_charges_amount} className="tabular-nums" />
+            <Amount value={orderPrices.pre_charges_amount} />
           </strong>
         </div>
         <div className="flex flex-col gap-1 items-end">
           <p>Credit Remaining:</p>
           <strong>
-            <PriceNumberFlow value={orderPrices.ending_funds} className="tabular-nums" />
+            <Amount value={orderPrices.ending_funds} />
           </strong>
         </div>
       </div>

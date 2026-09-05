@@ -32,4 +32,11 @@ describe("Stat", () => {
     const figure = container.querySelector(".stat");
     expect(figure).toBeTruthy();
   });
+
+  it("the label is a real <small>, with no tracking utility fighting the ramp (53:39 Small/Regular)", () => {
+    const { getByText } = render(<Stat label="Gold spot" value="$2,411.20" />);
+    const label = getByText("Gold spot");
+    expect(label.tagName.toLowerCase()).toBe("small");
+    expect(label.className).not.toMatch(/tracking-/);
+  });
 });

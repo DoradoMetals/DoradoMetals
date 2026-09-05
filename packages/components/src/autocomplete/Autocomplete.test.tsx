@@ -64,4 +64,9 @@ describe("Autocomplete", () => {
     expect(wrapper.className).not.toContain("opacity-50");
     expect(input.className).toContain("disabled:text-foreground-disabled");
   });
+
+  it("the input binds to size/h5, not size/body (100:29, 2026-09-04)", () => {
+    const { getByRole } = renderAC();
+    expect((getByRole("combobox") as HTMLInputElement).className).toContain("text-h5");
+  });
 });

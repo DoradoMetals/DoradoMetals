@@ -3,8 +3,8 @@
 // The app's face of @dorado/components' Autocomplete. The library owns the
 // anatomy, the combobox semantics and the keyboard (aria-activedescendant,
 // arrows, Enter, Escape); this holds the wiring to the API's own suggestions.
-import { MapPinIcon, XIcon } from '@phosphor-icons/react'
 import { Autocomplete, Button } from '@dorado/components'
+import { MapPin, X } from '@dorado/icons'
 import type { PlaceSuggestion } from '@dorado/contracts'
 
 export function AddressSearchInput({
@@ -42,11 +42,11 @@ export function AddressSearchInput({
         const s = byId.get(item.id)
         if (s) onSelect(s)
       }}
-      leading={<MapPinIcon size={16} />}
+      leading={<MapPin size={16} />}
       trailing={
         value ? (
           <Button variant="tertiary" size="iconXs" aria-label="Clear address search" onClick={onClear}>
-            <XIcon size={14} />
+            <X size={14} />
           </Button>
         ) : undefined
       }

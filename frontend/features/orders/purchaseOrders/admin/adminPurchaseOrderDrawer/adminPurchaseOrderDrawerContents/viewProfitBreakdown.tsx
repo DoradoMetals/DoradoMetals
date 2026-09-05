@@ -1,16 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Accordion, Tabs, TabsContent, TabsList, TabsTrigger } from '@dorado/components'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/shared/ui/base/table'
-import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
+import { Accordion, Amount, Table, TableBody, TableCell, TableHead, TableHeader, TableRow, Tabs, TabsContent, TabsList, TabsTrigger } from '@dorado/components'
 import { cn } from '@/shared/utils/cn'
 
 // The breakdown is the server's admin-only quote (POST /quotes/
@@ -129,7 +120,7 @@ export default function ProfitBreakdown({ view }: PurchaseOrderDrawerContentProp
                 <TableCell className="text-center">{v.content.toFixed(3)} toz</TableCell>
                 <TableCell className="text-center">{v.percentage.toFixed(2)}%</TableCell>
                 <TableCell className="text-right">
-                  <PriceNumberFlow value={v.profit} />
+                  <Amount value={v.profit} />
                 </TableCell>
               </TableRow>
             )
@@ -141,7 +132,7 @@ export default function ProfitBreakdown({ view }: PurchaseOrderDrawerContentProp
               <TableCell className="text-center">—</TableCell>
               <TableCell className="text-center">—</TableCell>
               <TableCell className="text-right">
-                <PriceNumberFlow value={totals[party].shipping_net} />
+                <Amount value={totals[party].shipping_net} />
               </TableCell>
             </TableRow>
           )}
@@ -152,7 +143,7 @@ export default function ProfitBreakdown({ view }: PurchaseOrderDrawerContentProp
               <TableCell className="text-center">—</TableCell>
               <TableCell className="text-center">—</TableCell>
               <TableCell className="text-right">
-                <PriceNumberFlow value={totals[party].refiner_fee_net} />
+                <Amount value={totals[party].refiner_fee_net} />
               </TableCell>
             </TableRow>
           )}
@@ -163,7 +154,7 @@ export default function ProfitBreakdown({ view }: PurchaseOrderDrawerContentProp
               <TableCell className="text-center">—</TableCell>
               <TableCell className="text-center">—</TableCell>
               <TableCell className="text-right">
-                <PriceNumberFlow value={totals.dorado.spot_net} />
+                <Amount value={totals.dorado.spot_net} />
               </TableCell>
             </TableRow>
           )}
@@ -176,7 +167,7 @@ export default function ProfitBreakdown({ view }: PurchaseOrderDrawerContentProp
               <TableCell className="text-center">—</TableCell>
               <TableCell className="text-center">—</TableCell>
               <TableCell className="text-right">
-                <PriceNumberFlow value={totals[party].total_profit} />
+                <Amount value={totals[party].total_profit} />
               </TableCell>
             </TableRow>
           )}
@@ -201,7 +192,7 @@ export default function ProfitBreakdown({ view }: PurchaseOrderDrawerContentProp
       <Accordion
         surface="bare"
         label="Dorado"
-        trailing={<PriceNumberFlow value={accordionValue('dorado', bucket)} />}
+        trailing={<Amount value={accordionValue('dorado', bucket)} />}
         open={isOpen(bucket, 'dorado')}
         onToggle={() => toggle(bucket, 'dorado')}
       >
@@ -211,7 +202,7 @@ export default function ProfitBreakdown({ view }: PurchaseOrderDrawerContentProp
       <Accordion
         surface="bare"
         label="Customer"
-        trailing={<PriceNumberFlow value={accordionValue('customer', bucket)} />}
+        trailing={<Amount value={accordionValue('customer', bucket)} />}
         open={isOpen(bucket, 'customer')}
         onToggle={() => toggle(bucket, 'customer')}
       >
@@ -221,7 +212,7 @@ export default function ProfitBreakdown({ view }: PurchaseOrderDrawerContentProp
       <Accordion
         surface="bare"
         label="Refiner"
-        trailing={<PriceNumberFlow value={accordionValue('refiner', bucket)} />}
+        trailing={<Amount value={accordionValue('refiner', bucket)} />}
         open={isOpen(bucket, 'refiner')}
         onToggle={() => toggle(bucket, 'refiner')}
       >

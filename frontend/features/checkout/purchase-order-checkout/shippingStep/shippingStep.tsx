@@ -3,7 +3,7 @@
 import type { CarrierHandoff, CheckoutRate, CheckoutView, FulfillmentView } from '@dorado/contracts'
 import type { UserAddress } from '@/features/addresses/types'
 import { Button, Divider } from '@dorado/components'
-import { Plus } from 'lucide-react'
+import { Plus } from '@dorado/icons'
 import { useMemo } from 'react'
 
 import { useCarrierPickupTimes } from '@dorado/client'

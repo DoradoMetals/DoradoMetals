@@ -15695,3 +15695,65 @@ lists (a January fossil, predating `000_genesis_schema.sql`). Reconciling that
 file's production-known-schema list is a separate decision — it needs
 judgment calls about `auctions`/`core` this lane wasn't asked to make — and
 was left alone. Everything in this entry is uncommitted on `genesis-lane`.
+## D217 — shared/ui closed, the frontend de-duplicated, the library refreshed against Figma, Header/Footer/Marquee built (2026-09-04, ds/library-followups)
+
+Jacob's queue for the day, in the order he gave it, all executed on
+`ds/library-followups` and NOT merged (his rule: no merges into dev by me).
+
+**shared/ui is three files.** CreateDialog, SidebarLayout, GoogleMapDisplay.
+Twenty-one modules left: Form + ValidatedField INTO `packages/components/src/form/`
+(the password reveal is an Input `trailing` eye toggle with `aria-pressed`;
+ValidCheckIcon died because Input has `success`); floating labels deleted with
+their base.css rule; DetailRow inlined as semantic markup (Jacob: "replace detail
+row with semantic tag typography") - 68 occurrences across 14 files remain as the
+same three-line div, which the de-dup survey ranked as the #1 consolidation and
+which his ruling forbids; his call if he wants a `<dl>`-shaped library component
+instead. Popover family became Autocomplete (StateSelect), Menu (ProfileMenu),
+Tooltip (card price bubbles, hover not click), Select (status filter, AdminReceived
+pickers - the bullion/scrap pickers lost their search box). SegmentedField ->
+RadioGroup segment inline; SchedulePicker -> DatePicker `timeGroups`;
+ReviewInput -> inline Rating + Textarea (minimal; a review UI is future design).
+
+**Repeated code.** Orders: `OrderDrawerShell`, `OrdersTab`, `OrderCompletedReview`,
+`usePurchaseOrderDownloads`/`useSalesOrderDownloads` (the download arrays had
+drifted - "Shipment Info" vs "Shipping Info" for the same action; it is
+"Shipping Info" now). Admin drawers: `useDrawerRecord` replaces six copies of the
+open/find/null shell; thirteen Yes/No segments are library `Switch`es (Switch grew
+a `label` prop so they have accessible names). Dead: PayoutLandingSection,
+RatesLandingSection, `productSchema`, the frontend's duplicate useDebounce.
+`app/sitemap.ts` imported `fetchProducts` from a `"use client"` module, so the
+product URLs had NEVER reached the sitemap; it fetches `/products` directly now.
+
+**Figma refresh, three lanes, every component compared to its node and
+description.** Headline changes: field text is 16px (`text-h5`) across Input,
+Textarea, Select, Autocomplete per Jacob's 2026-09-04 note (iOS zoom); Button's
+icon sizes now ARE Icon Button 457:75 (40/20, 32/16, scale-true stroke) - no
+separate component; Tabs underline is a sliding rail; Dialog overlay is 8px blur
+over a 70% scrim; Drawer has `anchor="bottom"` (grab handle, drag to dismiss);
+Tracker has Horizontal; Paperwork's title row is an Accordion; Hero headline is
+H1 (Figma resolved the 44px/64px question on 2026-09-03 - the sm:text-display
+escalation is gone); Alert icon is 28px; Stat/Banner/EmptyState/Divider/List
+/Menu label lost hand-spelled type utilities for semantic tags and `.eyebrow`
+/`.micro`. ONE DRAWING OVERRULED: Badge Neutral/Soft's `surface/soft` token is
+border at 16% alpha (#2c2f3529), which on the page ground is 1.0:1 - the D99
+contrast test catches exactly this. Code keeps opaque `bg-border`; Figma wants a
+visible soft-neutral surface. Not built, no code counterpart: Breadcrumb 126:16,
+Option Card 22:22 / Option Row 22:37, Radio Tile media axis, Logo Loader 42:142,
+Chat 619:*, Icon Button as its own component (folded into Button). Masked Field
+is deprecated in Figma; the code component stays until nothing imports it.
+
+**Header 51:58 and Footer 76:177 are library components now**, slot/data driven;
+Shell and the app Footer render them. Departures from the drawing, on purpose:
+the app keeps its checkout button on mobile; the reCAPTCHA sentence lives in a
+`notice` slot (compliance beats the drawing); the OCCC image link is gone (not
+in the drawing - Jacob to confirm it was decorative); the footer's link taxonomy
+is the app's real routes, not Figma's placeholder columns; Facebook/X social
+buttons had no destinations and died. **Spots ride the library Marquee** as
+`MarqueeItem`s on the page ground - the gold `bg-brand` bar and MobileSpots are
+gone, and so is the desktop "Show Bid/Ask" toggle (a control inside a scrolling
+band; the Sidebar tile still toggles it). Jacob's ruling wanted on that toggle.
+
+**Left for Jacob**: the DetailRow question above; Badge soft-neutral in Figma;
+Bid/Ask toggle placement; Textarea has no `trailing` slot (CreateDialog's clear
+is a text button under the field); e2e specs were not re-run (labels are static
+now, floating-label locators updated where found).

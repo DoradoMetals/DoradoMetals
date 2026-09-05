@@ -35,6 +35,16 @@ describe("SliderField", () => {
     const box = input.parentElement as HTMLElement;
     expect(box.className).toContain("bg-muted");
     expect(box.className).not.toContain("opacity-50");
-    expect(input.className).toContain("disabled:text-foreground-disabled");
+    expect(input.className).toContain("disabled:text-muted-foreground");
+  });
+
+  it("focus steps the box border to 1.5px, matching border/strong (99:210)", () => {
+    const { container } = render(
+      <SliderField label="Purity" unit="%" value={50} onValueChange={() => {}} />,
+    );
+    const input = container.querySelector("input") as HTMLInputElement;
+    const box = input.parentElement as HTMLElement;
+    expect(box.className).toContain("focus-within:border-[1.5px]");
+    expect(box.className).toContain("focus-within:border-border-strong");
   });
 });

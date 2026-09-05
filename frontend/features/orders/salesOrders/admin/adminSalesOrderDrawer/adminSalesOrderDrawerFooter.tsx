@@ -1,12 +1,9 @@
 'use client'
-import { Accordion } from '@dorado/components'
+import { Accordion, Amount, Table, TableBody, TableCell, TableRow } from '@dorado/components'
 
 import { useState } from 'react'
 
-import { Table, TableBody, TableCell, TableRow } from '@/shared/ui/base/table'
-import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
 import formatPhoneNumber from '@/shared/utils/formatPhoneNumber'
-import { DetailRow } from '@/shared/ui/DetailRow'
 
 import { SalesOrderDrawerFooterProps } from '@/features/orders/salesOrders/types'
 import { useSalesOrderLines } from '@/features/orders/salesOrders/users/salesOrderDrawer/drawerContents/useSalesOrderLines'
@@ -36,7 +33,7 @@ export default function AdminSalesOrderDrawerFooter({ view }: SalesOrderDrawerFo
           label="Item Prices"
           open={open.items}
           onToggle={() => setOpen((prev) => ({ ...prev, items: !prev.items }))}
-          trailing={<PriceNumberFlow value={view.totals?.items ?? 0} />}
+          trailing={<Amount value={view.totals?.items ?? 0} />}
         >
           <Table>
             <TableBody>
@@ -45,7 +42,7 @@ export default function AdminSalesOrderDrawerFooter({ view }: SalesOrderDrawerFo
                   <TableCell>{item.quantity}</TableCell>
                   <TableCell>{item.name}</TableCell>
                   <TableCell className="text-right p-0">
-                    <PriceNumberFlow value={item.line_total ?? 0} />
+                    <Amount value={item.line_total ?? 0} />
                   </TableCell>
                 </TableRow>
               ))}
@@ -59,31 +56,43 @@ export default function AdminSalesOrderDrawerFooter({ view }: SalesOrderDrawerFo
         label="Total Price"
         open={open.total}
         onToggle={() => setOpen((prev) => ({ ...prev, total: !prev.total }))}
-        trailing={<PriceNumberFlow value={view.totals?.total ?? 0} />}
+        trailing={<Amount value={view.totals?.total ?? 0} />}
       >
         <div className="flex flex-col gap-2 pr-2">
           {view.totals?.used_funds && (
-            <DetailRow label="Dorado Funds Applied:">
-              <PriceNumberFlow value={view.totals?.funds ?? 0} />
-            </DetailRow>
+            <div className="flex w-full items-center justify-between gap-2">
+              <p>Dorado Funds Applied:</p>
+              <strong>
+                <Amount value={view.totals?.funds ?? 0} />
+              </strong>
+            </div>
           )}
 
           {(view.totals?.subject_to_charges_amount ?? 0) > 0 && (
-            <DetailRow label={view.totals?.used_funds ? 'Amount Remaining:' : 'Before Fees:'}>
-              <PriceNumberFlow value={view.totals?.subject_to_charges_amount ?? 0} />
-            </DetailRow>
+            <div className="flex w-full items-center justify-between gap-2">
+              <p>{view.totals?.used_funds ? 'Amount Remaining:' : 'Before Fees:'}</p>
+              <strong>
+                <Amount value={view.totals?.subject_to_charges_amount ?? 0} />
+              </strong>
+            </div>
           )}
 
           {(view.totals?.shipping ?? 0) > 0 && (
-            <DetailRow label="Shipping Fee:">
-              <PriceNumberFlow value={view.totals?.shipping ?? 0} />
-            </DetailRow>
+            <div className="flex w-full items-center justify-between gap-2">
+              <p>Shipping Fee:</p>
+              <strong>
+                <Amount value={view.totals?.shipping ?? 0} />
+              </strong>
+            </div>
           )}
 
           {(view.totals?.subject_to_charges_amount ?? 0) > 0 && (
-            <DetailRow label="Payment Fee:">
-              <PriceNumberFlow value={view.totals?.surcharge ?? 0} />
-            </DetailRow>
+            <div className="flex w-full items-center justify-between gap-2">
+              <p>Payment Fee:</p>
+              <strong>
+                <Amount value={view.totals?.surcharge ?? 0} />
+              </strong>
+            </div>
           )}
         </div>
       </Accordion>

@@ -1,33 +1,21 @@
 'use client'
-import { Link as DoradoLink } from '@dorado/components'
 import { useEffect, useState } from 'react'
 import {
-  Popover,
-  PopoverBody,
-  PopoverContent,
-  PopoverDescription,
-  PopoverHeader,
-  PopoverTitle,
-  PopoverTrigger,
-  PopoverFooter,
-} from '@/shared/ui/base/popover'
-import { Button } from '@dorado/components'
-import { Avatar } from '@dorado/components'
-import {
-  ListIcon,
-  LockIcon,
-  SignInIcon,
-  UserCircleIcon,
-  UserIcon,
-  UserPlusIcon,
-} from '@phosphor-icons/react'
+  Avatar,
+  Button,
+  Menu,
+  MenuContent,
+  MenuItem,
+  MenuSeparator,
+  MenuTrigger,
+} from '@dorado/components'
+import { ListIcon, Lock, LogIn, CircleUser, User, UserPlus } from '@dorado/icons'
 import { useGetSession, useSignOut } from '@/features/auth/queries'
 import Link from 'next/link'
-import { usePathname, useRouter } from 'next/navigation'
+import { usePathname } from 'next/navigation'
 
 export default function AccountMenu() {
   const { user } = useGetSession()
-  const router = useRouter()
   const pathname = usePathname()
 
   const signOutMutation = useSignOut()
@@ -36,81 +24,70 @@ export default function AccountMenu() {
   useEffect(() => setOpen(false), [pathname])
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
+    <Menu open={open} onOpenChange={setOpen}>
+      <MenuTrigger asChild>
         <Button variant="tertiary" size="icon" aria-label="Account menu">
           <Avatar className="flex items-center">
-            <UserIcon size={28} />
+            <User size={28} />
           </Avatar>
         </Button>
-      </PopoverTrigger>
+      </MenuTrigger>
       {user ? (
-        <PopoverContent className="w-fit max-w-2xs z-90 p-2 space-y-1">
-          <PopoverHeader>
-            <div className="flex flex-col items-center space-x-3">
-              <PopoverTitle>{user?.name}</PopoverTitle>
-              <PopoverDescription>{user?.email}</PopoverDescription>
-            </div>
-          </PopoverHeader>
-          <hr />
-          <PopoverBody className="flex justify-center">
-            <div className="flex flex-col items-start gap-1 w-full">
-              <DoradoLink asChild className="flex w-full items-center gap-2 py-1.5">
-                <Link href="/account?tab=details" onClick={() => setOpen(false)}>
-                  <UserCircleIcon size={24} />
-                  <span className="text-left">View Account</span>
-                </Link>
-              </DoradoLink>
-
-              <DoradoLink asChild className="flex w-full items-center gap-2 py-1.5">
-                <Link href="/account?tab=sold" onClick={() => setOpen(false)}>
-                  <ListIcon size={24} />
-                  <span className="text-left">View Orders</span>
-                </Link>
-              </DoradoLink>
-
-              <DoradoLink asChild className="flex w-full items-center gap-2 py-1.5">
-                <Link href="/account?tab=security" onClick={() => setOpen(false)}>
-                  <LockIcon size={24} />
-                  <span className="text-left">Security</span>
-                </Link>
-              </DoradoLink>
-            </div>
-          </PopoverBody>
-          <hr />
-          <PopoverFooter>
-            <Button
-              variant="secondary"
-              intent="danger"
-              className="flex items-center gap-1 w-full"
-              size="sm"
-              onClick={async () => {
-                try {
-                  await signOutMutation.mutateAsync()
-                } catch (err) {
-                  console.error('Sign out failed:', err)
-                }
-              }}
-              disabled={signOutMutation.isPending}
-            >
-              {signOutMutation.isPending ? 'Signing Out...' : 'Sign Out'}
-            </Button>
-          </PopoverFooter>
-        </PopoverContent>
+        <MenuContent align="end">
+          <div className="flex flex-col gap-0.5 px-2 py-1.5">
+            <strong>{user?.name}</strong>
+            <small data-emphasis="subtlest">{user?.email}</small>
+          </div>
+          <MenuSeparator />
+          <MenuItem asChild>
+            <Link href="/account?tab=details">
+              <CircleUser />
+              View Account
+            </Link>
+          </MenuItem>
+          <MenuItem asChild>
+            <Link href="/account?tab=sold">
+              <ListIcon />
+              View Orders
+            </Link>
+          </MenuItem>
+          <MenuItem asChild>
+            <Link href="/account?tab=security">
+              <Lock />
+              Security
+            </Link>
+          </MenuItem>
+          <MenuSeparator />
+          <MenuItem
+            intent="danger"
+            disabled={signOutMutation.isPending}
+            onSelect={async () => {
+              try {
+                await signOutMutation.mutateAsync()
+              } catch (err) {
+                console.error('Sign out failed:', err)
+              }
+            }}
+          >
+            {signOutMutation.isPending ? 'Signing Out...' : 'Sign Out'}
+          </MenuItem>
+        </MenuContent>
       ) : (
-        <PopoverContent className="w-fit z-90">
-          <PopoverBody className="space-y-3 p-4">
-            <Link className="flex gap-3 items-center" href={'/authentication?tab=sign-in'}>
-              <SignInIcon size={24} />
+        <MenuContent align="end">
+          <MenuItem asChild>
+            <Link href="/authentication?tab=sign-in">
+              <LogIn />
               Sign In
             </Link>
-            <Link className="flex gap-3 items-center" href={'/authentication?tab=sign-up'}>
-              <UserPlusIcon size={24} />
+          </MenuItem>
+          <MenuItem asChild>
+            <Link href="/authentication?tab=sign-up">
+              <UserPlus />
               Register
             </Link>
-          </PopoverBody>
-        </PopoverContent>
+          </MenuItem>
+        </MenuContent>
       )}
-    </Popover>
+    </Menu>
   )
 }

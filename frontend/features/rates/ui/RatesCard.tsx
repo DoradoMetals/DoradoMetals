@@ -3,8 +3,8 @@
 import type { AdminRate } from "@dorado/contracts";
 import * as React from 'react'
 import { Button, Input } from '@dorado/components'
+import { Pencil, Save, X } from '@dorado/icons'
 import { cn } from '@/shared/utils/cn'
-import { PencilSimpleIcon, FloppyDiskIcon, XIcon } from '@phosphor-icons/react'
 import { getBoundsForMetal, sortRatesByMin, pctToInt, intToPct, labelFor } from '@/features/rates/types'
 import { DualRangeSlider } from '@/features/rates/ui/DualRangeSlider'
 import { useCreateRate, useDeleteRate, useUpdateRate } from '@/features/rates/queries'
@@ -135,17 +135,17 @@ function Header({
       <h3>{metal}</h3>
       {!editing ? (
         <Button size="sm" variant="tertiary" onClick={onEdit} className="gap-1">
-          <PencilSimpleIcon size={20} />
+          <Pencil size={20} />
           Edit
         </Button>
       ) : (
         <div className="flex items-center gap-1">
           <Button size="sm" variant="tertiary" onClick={onCancel} className="gap-1">
-            <XIcon size={20} />
+            <X size={20} />
             Cancel
           </Button>
           <Button size="sm" className="gap-1" onClick={onSaveAll}>
-            <FloppyDiskIcon size={20} />
+            <Save size={20} />
             Save
           </Button>
         </div>

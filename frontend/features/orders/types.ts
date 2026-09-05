@@ -15,8 +15,7 @@
 // CLAUDE.md's rule that the frontend keeps local names for UI concerns while
 // the shape comes from one place.
 import { z } from 'zod/v4'
-import type { LucideIcon } from 'lucide-react'
-
+import type { LucideIcon } from '@dorado/icons'
 import { Address, OrderRead, OrderView, UserAddressRead } from "@dorado/contracts";
 import { pickupSchema } from '@/features/handoff/types'
 import { packageSchema } from '@/features/packaging/types'

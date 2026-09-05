@@ -1,22 +1,21 @@
 'use client'
 
-import type { Lead, LeadPatch } from "@dorado/contracts";
-import { useDrawerStore } from '@/shared/store/drawerStore'
+import type { Lead, LeadPatch } from '@dorado/contracts'
+import { useDrawerRecord } from '@/shared/hooks/useDrawerRecord'
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { format, isValid, parse, parseISO } from 'date-fns'
 
-import { formatFullDate } from '@/shared/utils/formatDates'
-import UpdatedByline from '@/shared/ui/UpdatedByline'
+import { formatFullDate, formatPickupDateShort, formatPickupTime } from '@/shared/utils/formatDates'
 
 import { LeadPriority } from '@/features/leads/types'
 import { PrioritySelect } from '@/features/leads/ui/PrioritySelect'
 import { useCreateUser } from '@/features/auth/queries'
-import { SegmentedField } from '@/shared/ui/SegmentedField'
 import formatPhoneNumber, { normalizePhone } from '@/shared/utils/formatPhoneNumber'
-import SchedulePicker from '@/shared/ui/SchedulePicker'
 import {
   Autocomplete,
   Badge,
   Button,
+  DatePicker,
   Dialog,
   DialogContent,
   DialogFooter,
@@ -26,33 +25,76 @@ import {
   Drawer,
   Field,
   Input,
+  Switch,
   Textarea,
+  type TimeGroup,
 } from '@dorado/components'
-import { TrashIcon, UserPlusIcon } from '@phosphor-icons/react'
+import { Trash2, UserPlus } from '@dorado/icons'
 import { isValidEmail } from '@/shared/utils/isValid'
 import { useDeleteLead, useUpdateLead } from '@/features/leads/queries'
 import { useAdminRoleUsers, useAdminUsers } from '@dorado/client'
 
-export default function LeadsDrawer({ leads, lead_id }: { leads: Lead[]; lead_id: string }) {
-  const { activeDrawer, closeDrawer } = useDrawerStore()
-  const isDrawerOpen = activeDrawer === 'leads'
+function toLocalDateISO(d: Date) {
+  return format(d, 'yyyy-MM-dd')
+}
 
-  const lead = useMemo(() => leads.find((u) => u.id === lead_id), [leads, lead_id])
+function buildLocalDateTime(dateISO: string, time: string) {
+  const [y, mo, da] = dateISO.split('-').map(Number)
+  const [hh, mm] = time.split(':').map(Number)
+  return new Date(y, mo - 1, da, hh, mm, 0, 0)
+}
+
+function hasTimezoneSuffix(v: string) {
+  return /([zZ]|[+\-]\d{2}:\d{2})$/.test(v)
+}
+
+function parseScheduled(value: string) {
+  const d = hasTimezoneSuffix(value)
+    ? parseISO(value)
+    : parse(value, "yyyy-MM-dd'T'HH:mm:ss", new Date())
+
+  return isValid(d) ? d : null
+}
+
+function toOffsetISO(d: Date) {
+  return format(d, "yyyy-MM-dd'T'HH:mm:ssxxx")
+}
+
+function buildTimeGroups(): TimeGroup[] {
+  const slots: TimeGroup['slots'] = []
+  for (let h = 0; h < 24; h++) {
+    for (let m = 0; m < 60; m += 30) {
+      const value = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:00`
+      slots.push({ value, label: formatPickupTime(value) })
+    }
+  }
+  return [{ label: 'Time', slots }]
+}
+
+const CONTACTED_TIME_GROUPS = buildTimeGroups()
+
+export default function LeadsDrawer({ leads, lead_id }: { leads: Lead[]; lead_id: string }) {
+  const { open, record: lead, close } = useDrawerRecord('leads', leads, lead_id)
+  const updateLead = useUpdateLead()
 
   if (!lead) {
     return null
   }
 
+  const handleUpdate = (patch: LeadPatch) => {
+    updateLead.mutate({ lead_id: lead.id, patch })
+  }
+
   return (
-    <Drawer label="Lead" open={isDrawerOpen} setOpen={closeDrawer}>
+    <Drawer label="Lead" open={open} setOpen={close}>
       <Header lead={lead} />
       <hr />
       <div className="space-y-8">
-        <Details lead={lead} />
+        <Details lead={lead} onUpdate={handleUpdate} />
         <hr />
-        <Booleans lead={lead} />
+        <Booleans lead={lead} onUpdate={handleUpdate} />
         <hr />
-        <Contacted lead={lead} />
+        <Contacted lead={lead} onUpdate={handleUpdate} />
         <hr />
         <Actions lead={lead} />
         <hr />
@@ -70,19 +112,12 @@ function Header({ lead }: { lead: Lead }) {
           {lead.converted ? 'Converted' : 'Not Converted'}
         </Badge>
       </div>
-      <UpdatedByline name={lead.updated_by} date={formatFullDate(lead.updated_at)} />
     </div>
   )
 }
 
-function Details({ lead }: { lead: Lead }) {
-  const updateLead = useUpdateLead()
-
+function Details({ lead, onUpdate }: { lead: Lead; onUpdate: (patch: LeadPatch) => void }) {
   const inputRef = useRef<HTMLInputElement | null>(null)
-
-  const handleUpdate = (patch: LeadPatch) => {
-    updateLead.mutate({ lead_id: lead.id, patch })
-  }
 
   return (
     <div className="flex flex-col w-full gap-4">
@@ -91,7 +126,7 @@ function Details({ lead }: { lead: Lead }) {
       <Field label="Priority">
         <PrioritySelect
           value={(lead.priority ?? 'Medium') as LeadPriority}
-          onChange={(v) => handleUpdate({ priority: v })}
+          onChange={(v) => onUpdate({ priority: v })}
         />
       </Field>
 
@@ -101,7 +136,7 @@ function Details({ lead }: { lead: Lead }) {
         placeholder="Enter name..."
         type="text"
         defaultValue={lead.name ?? ''}
-        onBlur={(e) => handleUpdate({ name: e.target.value })}
+        onBlur={(e) => onUpdate({ name: e.target.value })}
       />
 
       <Input
@@ -119,7 +154,7 @@ function Details({ lead }: { lead: Lead }) {
         }}
         onBlur={(e) => {
           const digits = normalizePhone(e.target.value)
-          handleUpdate({ phone: digits })
+          onUpdate({ phone: digits })
         }}
       />
 
@@ -129,7 +164,7 @@ function Details({ lead }: { lead: Lead }) {
         placeholder="Enter email..."
         type="text"
         defaultValue={lead.email ?? ''}
-        onBlur={(e) => handleUpdate({ email: e.target.value })}
+        onBlur={(e) => onUpdate({ email: e.target.value })}
       />
 
       <Textarea
@@ -139,68 +174,75 @@ function Details({ lead }: { lead: Lead }) {
         className="w-full min-w-70"
         placeholder="Enter lead notes..."
         defaultValue={lead.notes ?? ''}
-        onBlur={(e) => handleUpdate({ notes: e.target.value })}
+        onBlur={(e) => onUpdate({ notes: e.target.value })}
       />
     </div>
   )
 }
 
-function Booleans({ lead }: { lead: Lead }) {
-  const updateLead = useUpdateLead()
-
-  const handleUpdate = (patch: LeadPatch) => {
-    updateLead.mutate({ lead_id: lead.id, patch })
-  }
-
+function Booleans({ lead, onUpdate }: { lead: Lead; onUpdate: (patch: LeadPatch) => void }) {
   return (
     <div className="flex flex-col gap-4">
       <p className="eyebrow">Booleans</p>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 2xl:grid-cols-3 gap-4 items-stretch justify-items-stretch">
-        <SegmentedField
+        <Switch
           label="Contacted"
-          value={!!lead.contacted}
-          onChange={(v) => handleUpdate({ contacted: v })}
-          className="w-full"
+          checked={!!lead.contacted}
+          onCheckedChange={(v) => onUpdate({ contacted: v })}
         />
-        <SegmentedField
+        <Switch
           label="Responded"
-          value={!!lead.responded}
-          onChange={(v) => handleUpdate({ responded: v })}
-          className="w-full"
+          checked={!!lead.responded}
+          onCheckedChange={(v) => onUpdate({ responded: v })}
         />
-        <SegmentedField
+        <Switch
           label="Converted"
-          value={!!lead.converted}
-          onChange={(v) => handleUpdate({ converted: v })}
-          className="w-full"
+          checked={!!lead.converted}
+          onCheckedChange={(v) => onUpdate({ converted: v })}
         />
       </div>
     </div>
   )
 }
 
-function Contacted({ lead }: { lead: Lead }) {
-  const updateLead = useUpdateLead()
+function Contacted({ lead, onUpdate }: { lead: Lead; onUpdate: (patch: LeadPatch) => void }) {
   const { data: admins = [] } = useAdminRoleUsers()
   const [contactQuery, setContactQuery] = useState(lead.contact ?? '')
 
-  // The drawer instance persists across records, so the typed query has to
-  // resync when a different lead's contact replaces it underneath.
   useEffect(() => {
     setContactQuery(lead.contact ?? '')
   }, [lead.id, lead.contact])
 
-  const handleUpdate = (patch: LeadPatch) => {
-    updateLead.mutate({ lead_id: lead.id, patch })
-  }
-
-  // last_contacted is historical, so allow past dates (back to launch) and
-  // disable the future.
   const maxDate = useMemo(() => new Date(), [])
   const minDate = useMemo(() => new Date('2025-03-01T00:00:00'), [])
 
   const lastContacted = lead.last_contacted ? new Date(lead.last_contacted).toISOString() : null
+
+  const selectedDateTime = useMemo(
+    () => (lastContacted ? parseScheduled(lastContacted) : null),
+    [lastContacted]
+  )
+  const selectedDateISO = selectedDateTime ? toLocalDateISO(selectedDateTime) : null
+  const selectedTime = selectedDateTime
+    ? `${String(selectedDateTime.getHours()).padStart(2, '0')}:${String(
+        selectedDateTime.getMinutes()
+      ).padStart(2, '0')}:00`
+    : null
+
+  const emitDateTime = (d: Date) =>
+    onUpdate({ last_contacted: new Date(toOffsetISO(d)).toISOString() })
+
+  const selectDate = (newDate: Date | undefined) => {
+    if (!newDate) return
+    const dateISO = toLocalDateISO(newDate)
+    emitDateTime(buildLocalDateTime(dateISO, selectedTime ?? '12:00:00'))
+  }
+
+  const selectTime = (t: string) => {
+    const baseDateISO = selectedDateISO ?? toLocalDateISO(new Date())
+    emitDateTime(buildLocalDateTime(baseDateISO, t))
+  }
 
   const contactItems = admins
     .filter((a) => (a.name ?? '').toLowerCase().includes(contactQuery.trim().toLowerCase()))
@@ -217,19 +259,20 @@ function Contacted({ lead }: { lead: Lead }) {
           items={contactItems}
           onSelect={(item) => {
             setContactQuery(item.textValue)
-            handleUpdate({ contact: item.textValue })
+            onUpdate({ contact: item.textValue })
           }}
         />
 
         <Field label="Last Contacted" className="w-full">
-          <SchedulePicker
-            value={lastContacted}
-            // The column is a timestamp and the wire carries it as a string. A Date
-            // was built here and serialised on the way out, so the ISO string is the
-            // same value sent one step earlier.
-            onChange={(iso) => handleUpdate({ last_contacted: iso ? new Date(iso).toISOString() : null })}
-            minDate={minDate}
-            maxDate={maxDate}
+          <DatePicker
+            mode="single"
+            selected={selectedDateTime ?? undefined}
+            onSelect={selectDate}
+            disabled={[{ before: minDate }, { after: maxDate }]}
+            timeGroups={CONTACTED_TIME_GROUPS}
+            timeValue={selectedTime}
+            onTimeChange={selectTime}
+            timeHeading={selectedDateISO ? formatPickupDateShort(selectedDateISO) : 'Select date'}
           />
         </Field>
       </div>
@@ -267,9 +310,7 @@ function Actions({ lead }: { lead: Lead }) {
 
       <div className="flex flex-col w-full gap-3">
         <div className="flex flex-col items-start gap-1">
-          <p className="text-destructive">
-            {createUser.error ? createUser.error.message : null}
-          </p>
+          <p className="text-destructive">{createUser.error ? createUser.error.message : null}</p>
 
           <Button
             variant="secondary"
@@ -278,14 +319,14 @@ function Actions({ lead }: { lead: Lead }) {
             onClick={handleCreateNewUser}
             disabled={!canCreate}
           >
-            <UserPlusIcon size={18} />
+            <UserPlus size={18} />
             {!emailValid
               ? 'Invalid Email'
               : userExists
-              ? 'User Already Exists'
-              : createUser.isPending
-              ? 'Creating...'
-              : 'Create User'}
+                ? 'User Already Exists'
+                : createUser.isPending
+                  ? 'Creating...'
+                  : 'Create User'}
           </Button>
         </div>
 
@@ -297,7 +338,7 @@ function Actions({ lead }: { lead: Lead }) {
                 intent="danger"
                 className="flex items-center w-full gap-3 justify-center"
               >
-                <TrashIcon size={18} />
+                <Trash2 size={18} />
                 Delete Lead
               </Button>
             </div>

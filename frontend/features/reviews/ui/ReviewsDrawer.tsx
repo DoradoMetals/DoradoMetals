@@ -2,19 +2,13 @@
 
 import type { Review } from "@dorado/contracts";
 import { useMemo } from 'react'
-import { useDrawerStore } from '@/shared/store/drawerStore'
-
-import { FloatingLabelInput } from '@/shared/ui/inputs/FloatingLabelInput'
-import { FloatingLabelTextarea } from '@/shared/ui/inputs/FloatingLabelTextarea'
-import { SegmentedField } from '@/shared/ui/SegmentedField'
-import { EyeIcon, EyeSlashIcon } from '@phosphor-icons/react'
+import { useDrawerRecord } from '@/shared/hooks/useDrawerRecord'
 
 import { formatFullDate } from '@/shared/utils/formatDates'
-import { Badge, Calendar, Drawer, Rating, RatingButton } from '@dorado/components'
+import { Badge, Drawer, Rating, RatingButton, Calendar, Field, Input, RadioGroup, RadioOption, Textarea } from '@dorado/components'
+import { Eye, EyeOff } from '@dorado/icons'
 import { useUpdateReview } from '@/features/reviews/queries'
 
-// <time dateTime> must be machine-readable; the wire hands these back as
-// either a Date or an ISO string depending on the source switch.
 const machineDate = (d: Date | string | null | undefined) =>
   d ? new Date(d).toISOString() : undefined
 
@@ -25,14 +19,11 @@ export default function ReviewsDrawer({
   reviews: Review[]
   review_id: string
 }) {
-  const { activeDrawer, closeDrawer } = useDrawerStore()
-  const isDrawerOpen = activeDrawer === 'reviews'
-
-  const review = useMemo(() => reviews.find((r) => r.id === review_id), [reviews, review_id])
+  const { open, record: review, close } = useDrawerRecord('reviews', reviews, review_id)
   if (!review) return null
 
   return (
-    <Drawer label="Review" open={isDrawerOpen} setOpen={closeDrawer}>
+    <Drawer label="Review" open={open} setOpen={close}>
       <Header review={review} />
       <hr />
       <EditFields review={review} />
@@ -53,7 +44,7 @@ function Header({ review }: { review: Review }) {
       <div className="flex items-end justify-between w-full">
         <h2>{review.name || 'Unnamed Reviewer'}</h2>
         <Badge intent={review.hidden ? 'danger' : 'success'} size="lg">
-          {review.hidden ? <EyeSlashIcon size={16} /> : <EyeIcon size={16} />}
+          {review.hidden ? <EyeOff size={16} /> : <Eye size={16} />}
           {review.hidden ? 'Hidden' : 'Public'}
         </Badge>
       </div>
@@ -81,27 +72,20 @@ function EditFields({ review }: { review: Review }) {
     <div className="flex flex-col gap-6">
       <p className="eyebrow">Details</p>
 
-      <div className="relative w-full">
-        <FloatingLabelInput
-          label="Reviewer Name"
-          type="text"
-          size="sm"
-          className="h-10"
-          defaultValue={review.name ?? ''}
-          onBlur={(e) => handleUpdate({ name: e.target.value })}
-        />
-      </div>
+      <Input
+        label="Reviewer Name"
+        type="text"
+        defaultValue={review.name ?? ''}
+        onBlur={(e) => handleUpdate({ name: e.target.value })}
+      />
 
-      <div className="relative w-full">
-        <FloatingLabelTextarea
-          label="Review Text"
-          size="sm"
-          className="min-h-40"
-          defaultValue={review.review_text ?? ''}
-          onBlur={(e) => handleUpdate({ review_text: e.target.value })}
-          placeholder="Input review here..."
-        />
-      </div>
+      <Textarea
+        label="Review Text"
+        rows={6}
+        defaultValue={review.review_text ?? ''}
+        onBlur={(e) => handleUpdate({ review_text: e.target.value })}
+        placeholder="Input review here..."
+      />
 
       <div className="flex flex-col gap-2 items-center justify-center">
         <p>Rating</p>
@@ -126,26 +110,26 @@ function Visibility({ review }: { review: Review }) {
   return (
     <div className="flex flex-col gap-4">
       <p className="eyebrow">Visibility</p>
-      <SegmentedField
-        label="Visibility"
-        value={!review.hidden}
-        onChange={(v) => handleUpdate(!v)}
-        options={[
-          { value: true, label: 'Public' },
-          { value: false, label: 'Hidden' },
-        ]}
-      />
+      <Field label="Visibility">
+        <RadioGroup
+          value={review.hidden ? 'hidden' : 'public'}
+          onValueChange={(v) => handleUpdate(v === 'hidden')}
+          className="flex w-full gap-2"
+        >
+          <RadioOption value="public" variant="segment" className="flex-1">
+            Public
+          </RadioOption>
+          <RadioOption value="hidden" variant="segment" className="flex-1">
+            Hidden
+          </RadioOption>
+        </RadioGroup>
+      </Field>
 
       <p>Toggle to hide/show this review on your site.</p>
     </div>
   )
 }
 
-// created_at is stamped by the audit trigger (migration 116) and is no
-// longer part of reviews' patch (api/db/reviews/repo.ts PATCHABLE has only
-// name, review_text, rating, hidden). This calendar is now a read-only
-// display of when the review was recorded; sending created_at in the patch
-// would 400. See the report for the dropped capability.
 function Created({ review }: { review: Review }) {
   const maxDate = useMemo(() => {
     const d = new Date()

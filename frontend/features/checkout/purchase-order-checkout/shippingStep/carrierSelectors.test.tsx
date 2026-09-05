@@ -31,8 +31,9 @@ const draft = {
 vi.mock("@/features/auth/queries", () => ({
   useGetSession: () => ({ user: { id: "u-1", role: "user", name: "Cust" } }),
 }));
-vi.mock("@/shared/ui/PriceNumberFlow", () => ({
-  default: ({ value }: { value: number }) => React.createElement("span", null, String(value)),
+vi.mock("@dorado/components", async (importOriginal) => ({
+  ...(await importOriginal<Record<string, unknown>>()),
+  Amount: ({ value }: { value: number }) => React.createElement("span", null, String(value)),
 }));
 vi.mock("@/features/checkout/queries", () => ({
   usePatchFulfillment: () => ({

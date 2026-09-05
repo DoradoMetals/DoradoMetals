@@ -1,9 +1,8 @@
 'use client'
 
 import { useState } from 'react'
-import { FloatingLabelInput } from '@/shared/ui/inputs/FloatingLabelInput'
-import { Button, FieldLabel, RadioGroup, RadioOption, Switch } from '@dorado/components'
-import { X } from 'lucide-react'
+import { Button, FieldLabel, Input, RadioGroup, RadioOption, Switch } from '@dorado/components'
+import { X } from '@dorado/icons'
 import { useMetals, useProducts } from '@dorado/client'
 import BullionCard from '@/features/products/ui/BullionCard'
 import { useCatalogQuote } from '@/features/quotes/queries'
@@ -72,25 +71,25 @@ export default function BullionTab() {
         ))}
       </RadioGroup>
 
-      <div className="relative w-full mt-4">
-        <FloatingLabelInput
-          label="Search Products"
-          size="sm"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-        />
-        {search && (
-          <Button
-            variant="tertiary"
-            size="icon"
-            onClick={() => setSearch('')}
-            className="absolute right-1 top-1/2 -translate-y-1/2"
-            tabIndex={-1}
-          >
-            <X size={16} />
-          </Button>
-        )}
-      </div>
+      <Input
+        label="Search Products"
+        className="mt-4"
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        trailing={
+          search ? (
+            <Button
+              type="button"
+              variant="tertiary"
+              size="iconXs"
+              aria-label="Clear search"
+              onClick={() => setSearch('')}
+            >
+              <X size={14} />
+            </Button>
+          ) : undefined
+        }
+      />
 
       <div className="flex flex-col gap-6 sm:gap-8 mt-4">
         {groups.map((group) => (

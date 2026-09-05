@@ -1,7 +1,7 @@
 'use client'
 
 import { Tabs, TabsContent, TabsList, TabsTrigger, Button, Drawer } from '@dorado/components'
-import { X } from 'lucide-react'
+import { X } from '@dorado/icons'
 import { usePathname } from 'next/navigation'
 import { useEffect } from 'react'
 import type { Direction } from "@dorado/contracts";

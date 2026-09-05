@@ -1,7 +1,7 @@
 'use client'
 
 import * as React from 'react'
-import { Minus, Plus } from 'lucide-react'
+import { Minus, Plus } from '@dorado/icons'
 
 import { cn } from '../cn'
 
@@ -38,8 +38,11 @@ const QuantityStepper = React.forwardRef<HTMLDivElement, QuantityStepperProps>(
     return (
       <div
         ref={ref}
-        role="group"
+        role="spinbutton"
         aria-label={label ?? 'Quantity'}
+        aria-valuenow={value}
+        aria-valuemin={min}
+        aria-valuemax={max}
         className={cn(
           'inline-flex h-9 items-center overflow-hidden rounded-lg border border-border bg-card transition-colors focus-within:border-primary',
           disabled && 'pointer-events-none bg-muted',
@@ -69,7 +72,7 @@ const QuantityStepper = React.forwardRef<HTMLDivElement, QuantityStepperProps>(
             if (e.key === 'ArrowUp') { e.preventDefault(); step(1) }
             if (e.key === 'ArrowDown') { e.preventDefault(); step(-1) }
           }}
-          className="h-full w-8 cursor-text bg-transparent text-center text-small font-medium tabular-nums text-foreground outline-none disabled:text-foreground-disabled"
+          className="h-full w-7 cursor-text bg-transparent text-center text-small font-medium tabular-nums text-foreground outline-none disabled:text-foreground-disabled"
         />
         <button
           type="button"

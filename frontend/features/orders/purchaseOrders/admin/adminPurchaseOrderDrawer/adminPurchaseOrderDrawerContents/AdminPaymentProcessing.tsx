@@ -1,11 +1,10 @@
 'use client'
 
-import { Divider } from '@dorado/components'
+import { Amount, Divider } from '@dorado/components'
 import { payoutMethodIcon, PayoutMethodType } from '@/features/payouts/types'
 import { usePaymentMethods } from '@dorado/client'
 import { usePayoutDetails } from '@dorado/client'
 import { PurchaseOrderDrawerContentProps, statusConfig } from '@/features/orders/purchaseOrders/types'
-import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
 import RefinerValues from '@/features/orders/purchaseOrders/admin/adminPurchaseOrderDrawer/adminPurchaseOrderDrawerContents/editRefinerValues'
 import ActualsEditor from '@/features/orders/purchaseOrders/admin/adminPurchaseOrderDrawer/adminPurchaseOrderDrawerContents/editActualValues'
 import { useOrderPayouts } from '@dorado/client'
@@ -50,7 +49,7 @@ export default function AdminPaymentProcessingPurchaseOrder({ view }: PurchaseOr
               {payoutOption?.label}
             </strong>
             <strong className="stat-sm">
-              <PriceNumberFlow value={view.totals?.total ?? 0} />
+              <Amount value={view.totals?.total ?? 0} />
             </strong>
           </div>
 

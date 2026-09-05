@@ -26,4 +26,18 @@ describe("List", () => {
     );
     expect(container.querySelector('[aria-hidden]')).toBeTruthy();
   });
+
+  it("the number marker is body weight and size, like the drawing (97:17: Regular row type, not Small/Medium)", () => {
+    const { container } = render(
+      <List marker="number">
+        <ListItem>Insured shipping</ListItem>
+      </List>,
+    );
+    const numberMarker = container.querySelector('[aria-hidden] > span');
+    expect(numberMarker).toBeTruthy();
+    expect(numberMarker?.className).not.toMatch(/text-small/);
+    expect(numberMarker?.className).not.toMatch(/font-medium/);
+    expect(numberMarker?.className).toMatch(/text-muted-foreground/);
+    expect(container.querySelector("ol")).toBeTruthy();
+  });
 });

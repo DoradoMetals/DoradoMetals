@@ -1,9 +1,7 @@
 'use client'
 
-import { Drawer } from '@dorado/components'
-import IconTile from '@/shared/ui/IconTile'
-import NavLink from '@/shared/ui/NavLink'
-import { UserIcon, ListIcon, SignOutIcon, SignInIcon, SwapIcon } from '@phosphor-icons/react'
+import { Button, Drawer, Link as DsLink } from '@dorado/components'
+import { User, ListIcon, LogOut, LogIn, ArrowLeftRight } from '@dorado/icons'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { useEffect } from 'react'
@@ -41,32 +39,30 @@ export default function Sidebar() {
       <div className="flex flex-col items-center justify-center gap-3 p-10">
         <div className="flex items-center gap-5 justify-center">
           <div className="flex flex-col items-center">
-            <IconTile
-              icon={UserIcon}
-              label="Account"
+            <Button variant="tertiary" className="h-18 w-20 flex-col gap-1"
               onClick={() => {
                 router.push('/account?tab=details')
                 closeDrawer()
-              }}
-            />
+              }}>
+              <User />
+              <small>Account</small>
+            </Button>
           </div>
 
           <div className="flex flex-col items-center">
-            <IconTile
-              icon={ListIcon}
-              label="Orders"
+            <Button variant="tertiary" className="h-18 w-20 flex-col gap-1"
               onClick={() => {
                 router.push('/account?tab=sold')
                 closeDrawer()
-              }}
-            />
+              }}>
+              <ListIcon />
+              <small>Orders</small>
+            </Button>
           </div>
 
           {user ? (
             <div className="flex flex-col items-center">
-              <IconTile
-                icon={SignOutIcon}
-                label="Sign Out"
+              <Button variant="tertiary" className="h-18 w-20 flex-col gap-1"
                 onClick={async () => {
                   try {
                     await signOutMutation.mutateAsync()
@@ -75,32 +71,34 @@ export default function Sidebar() {
                     console.error('Sign out failed:', err)
                   }
                 }}
-                disabled={signOutMutation.isPending}
-              />
+                disabled={signOutMutation.isPending}>
+              <LogOut />
+              <small>Sign Out</small>
+            </Button>
             </div>
           ) : (
             <div className="flex flex-col items-center">
-              <IconTile
-                icon={SignInIcon}
-                label="Sign In"
+              <Button variant="tertiary" className="h-18 w-20 flex-col gap-1"
                 onClick={() => {
                   router.push('/authentication?tab=sign-in')
                   closeDrawer()
-                }}
-              />
+                }}>
+              <LogIn />
+              <small>Sign In</small>
+            </Button>
             </div>
           )}
         </div>
 
         <div className="flex items-center gap-5 justify-center">
           <div className="flex flex-col items-center">
-            <IconTile
-              icon={SwapIcon}
-              label={`${type === 'Bid' ? 'Ask' : 'Bid'} Spots`}
+            <Button variant="tertiary" className="h-18 w-20 flex-col gap-1"
               onClick={() => {
                 toggleType()
-              }}
-            />
+              }}>
+              <ArrowLeftRight />
+              <small>{`${type === 'Bid' ? 'Ask' : 'Bid'} Spots`}</small>
+            </Button>
           </div>
         </div>
       </div>
@@ -116,9 +114,9 @@ export default function Sidebar() {
             return (
               <li className="flex-col items-center pb-5" key={item.key}>
                 <div className="flex items-center justify-center">
-                  <NavLink href={item.href} active={isActive}>
-                    {item.label}
-                  </NavLink>
+                  <DsLink asChild variant="nav" active={isActive}>
+                    <Link href={item.href}>{item.label}</Link>
+                  </DsLink>
                 </div>
               </li>
             )

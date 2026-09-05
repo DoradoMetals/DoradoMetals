@@ -1,7 +1,7 @@
 'use client'
 
 import * as React from "react";
-import { Check } from "lucide-react";
+import { Check } from "@dorado/icons";
 import { cn } from "../cn";
 
 export type ListProps = {
@@ -31,7 +31,7 @@ export function ListItem({ children, className }: { children: React.ReactNode; c
         {marker === "bullet" && <span className="size-[5px] rounded-full bg-muted-foreground" />}
         {marker === "check" && <Check className="size-4 text-success" strokeWidth={2.5} />}
         {marker === "number" && (
-          <span className="text-small font-medium text-muted-foreground before:content-[counter(item)'.']" />
+          <span className="text-muted-foreground before:content-[counter(item)'.']" />
         )}
       </span>
       <span className="min-w-0 flex-1">{children}</span>

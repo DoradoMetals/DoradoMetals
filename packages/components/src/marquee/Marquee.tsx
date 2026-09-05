@@ -20,14 +20,14 @@ export function Marquee({ children, duration = 30, className }: MarqueeProps) {
       )}
     >
       <div
-        className="flex shrink-0 items-center gap-10 pr-10 motion-safe:animate-marquee group-hover:[animation-play-state:paused] group-focus-within:[animation-play-state:paused]"
+        className="flex shrink-0 items-center gap-8 pr-8 motion-safe:animate-marquee group-hover:[animation-play-state:paused] group-focus-within:[animation-play-state:paused]"
         style={{ animationDuration: `${duration}s` }}
       >
         {children}
       </div>
       <div
         aria-hidden
-        className="hidden shrink-0 items-center gap-10 pr-10 motion-safe:flex motion-safe:animate-marquee group-hover:[animation-play-state:paused] group-focus-within:[animation-play-state:paused]"
+        className="hidden shrink-0 items-center gap-8 pr-8 motion-safe:flex motion-safe:animate-marquee group-hover:[animation-play-state:paused] group-focus-within:[animation-play-state:paused]"
         style={{ animationDuration: `${duration}s` }}
       >
         {children}

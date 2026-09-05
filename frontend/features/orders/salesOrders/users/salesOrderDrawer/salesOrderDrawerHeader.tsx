@@ -1,6 +1,5 @@
-import { useDownloadSalesOrderInvoice } from '@/features/pdfs/queries'
-
 import { SalesOrderDrawerHeaderProps, statusConfig } from '@/features/orders/salesOrders/types'
+import { useSalesOrderDownloads } from '@/features/orders/salesOrders/useDownloads'
 import { formatFullDate } from '@/shared/utils/formatDates'
 import { useFormatSalesOrderNumber } from '@/features/orders/utils/formatOrderNumbers'
 import { useSpotPrices } from '@/features/spots/queries'
@@ -11,32 +10,14 @@ import { nameSpots } from '@/features/orders/display'
 export default function SalesOrderDrawerHeader({ view }: SalesOrderDrawerHeaderProps) {
   const { order } = view
 
-  const downloadInvoice = useDownloadSalesOrderInvoice()
+  const downloadOptions = useSalesOrderDownloads(order)
 
   const { formatSalesOrderNumber } = useFormatSalesOrderNumber()
   const { data: orderSpots = [] } = useOrderSpots(order.id)
-  // Display composition, client-side: the rows carry metal_id, the reference
-  // read supplies the names the PDF templates print.
   const { data: spotPrices = [] } = useSpotPrices()
   const namedOrderSpots = nameSpots(orderSpots, spotPrices)
 
   const Icon = statusConfig[order.status ?? '']?.icon
-
-  const downloadOptions = [
-    {
-      statuses: ['Pending'],
-      label: 'Invoice Preview',
-      onClick: () =>
-        downloadInvoice.mutate({ order_id: order.id, order_number: order.number, fileName: 'invoice_preview' }),
-      isPending: downloadInvoice.isPending,
-    },
-    {
-      statuses: ['Preparing', 'In Transit', 'Completed'],
-      label: 'Invoice',
-      onClick: () => downloadInvoice.mutate({ order_id: order.id, order_number: order.number, fileName: 'invoice' }),
-      isPending: downloadInvoice.isPending,
-    },
-  ]
 
   return (
     <OrderDrawerHeader

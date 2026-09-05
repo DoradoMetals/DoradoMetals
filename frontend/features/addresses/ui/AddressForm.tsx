@@ -13,14 +13,12 @@
 import { useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Form, FormField, FormItem } from '@/shared/ui/base/form'
-import { Button, Field, Switch } from '@dorado/components'
+import { Button, Field, Form, FormField, FormItem, Switch, ValidatedField } from '@dorado/components'
 import type { AddressBookEntry, PlaceLookup } from '@dorado/contracts'
 import { useCreateAddress, useUpdateAddress } from '@dorado/client'
 
 import { AddressFormValues, addressSchema, makeEmptyAddress } from '@/features/addresses/types'
 import { useDrawerStore } from '@/shared/store/drawerStore'
-import { ValidatedField } from '@/shared/ui/form/ValidatedField'
 import formatPhoneNumber, { normalizePhone } from '@/shared/utils/formatPhoneNumber'
 import { GoogleMapDisplay } from '@/shared/ui/GoogleMapDisplay'
 import { StateComboboxField } from './StateSelect'
@@ -158,8 +156,6 @@ export default function AddressForm({
               autoComplete: 'name',
               placeholder: 'Who receives the parcel',
             }}
-            showIcon={false}
-            floating={false}
           />
 
           <ValidatedField
@@ -172,8 +168,6 @@ export default function AddressForm({
               autoComplete: 'off',
               placeholder: 'Home',
             }}
-            showIcon={false}
-            floating={false}
           />
 
           <ValidatedField
@@ -181,7 +175,6 @@ export default function AddressForm({
             name="phone_number"
             label="Phone Number"
             type="text"
-            showIcon={false}
             inputProps={{
               placeholder: '(555) 555-5555',
               inputMode: 'tel',
@@ -196,7 +189,6 @@ export default function AddressForm({
                 })
               },
             }}
-            floating={false}
           />
 
           {mode === 'auto' ? (
@@ -234,8 +226,6 @@ export default function AddressForm({
                   autoComplete: 'address-line1',
                   placeholder: '123 Main St',
                 }}
-                showIcon={false}
-                floating={false}
               />
 
               <ValidatedField
@@ -248,8 +238,6 @@ export default function AddressForm({
                   autoComplete: 'address-line2',
                   placeholder: 'Apt 4B',
                 }}
-                showIcon={false}
-                floating={false}
               />
 
               <div className="grid grid-cols-2 gap-1">
@@ -262,8 +250,6 @@ export default function AddressForm({
                     autoComplete: 'address-level2',
                     placeholder: 'Phoenix',
                   }}
-                  showIcon={false}
-                  floating={false}
                 />
 
                 <StateComboboxField
@@ -280,13 +266,11 @@ export default function AddressForm({
                   name="zip"
                   label="Zip"
                   type="text"
-                  showIcon={false}
                   inputProps={{
                     inputMode: 'numeric',
                     autoComplete: 'postal-code',
                     placeholder: '85001',
                   }}
-                  floating={false}
                 />
 
                 <ValidatedField
@@ -294,13 +278,11 @@ export default function AddressForm({
                   name="country"
                   label="Country"
                   type="text"
-                  showIcon={false}
                   inputProps={{
                     readOnly: true,
                     autoComplete: 'country',
                     placeholder: 'United States',
                   }}
-                  floating={false}
                 />
               </div>
             </>

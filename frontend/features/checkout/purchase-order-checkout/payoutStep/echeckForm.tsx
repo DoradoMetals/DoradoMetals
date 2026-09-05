@@ -1,11 +1,10 @@
 'use client'
 
 import { AnimatePresence, motion } from 'framer-motion'
-import { Form } from '@/shared/ui/base/form'
+import { Form, ValidatedField } from '@dorado/components'
 import { EcheckPayout } from '@/features/payouts/types'
 import { UseFormReturn } from 'react-hook-form'
 import { usePayoutDraft } from '@/features/checkout/purchase-order-checkout/payoutStep/payoutDraft'
-import { ValidatedField } from '@/shared/ui/form/ValidatedField'
 
 export default function EcheckForm({
   form,

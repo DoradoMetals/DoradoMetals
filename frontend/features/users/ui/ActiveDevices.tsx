@@ -1,13 +1,5 @@
 'use client'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/shared/ui/base/table'
-import { Button } from '@dorado/components'
+import { Button, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@dorado/components'
 import { useListSessions, useRevokeSession } from '@/features/auth/queries'
 import { parseUserAgent, ParsedUA, getDeviceIcon } from '@/features/users/types'
 

@@ -3,22 +3,6 @@
 import ProtectedPage from '@/features/auth/hooks/useProtectedPage'
 import { protectedRoutes } from '@/features/routes/types'
 import { useMemo } from 'react'
-import {
-  ClipboardTextIcon,
-  CurrencyDollarIcon,
-  UsersIcon,
-  ChatsCircleIcon,
-  LassoIcon,
-  CalendarIcon,
-  CoinsIcon,
-  PercentIcon,
-  CalculatorIcon,
-  WalletIcon,
-  ChartLineUpIcon,
-  CaretLeftIcon,
-  ShippingContainerIcon,
-  TruckIcon,
-} from '@phosphor-icons/react'
 
 import {
   SidebarLayout,
@@ -28,6 +12,7 @@ import {
 import { userRoleOptions } from '@/features/users/types'
 import { useGetSession } from '@/features/auth/queries'
 import { Button, Drawer } from '@dorado/components'
+import { Calculator, CalendarIcon, ChevronLeft, Coins, Container, DollarSign, Lasso, MessagesSquare, Percent, TrendingUp, Truck, Users, ClipboardList, Wallet } from '@dorado/icons'
 import { useDrawerStore } from '@/shared/store/drawerStore'
 
 import { UsersPage } from '@/features/users/ui/UsersAdminTable'
@@ -73,13 +58,13 @@ function AdminShell() {
           {
             key: 'purchase-orders',
             label: 'Purchase Orders',
-            icon: ClipboardTextIcon,
+            icon: ClipboardList,
             badge: purchaseOrders.length,
           },
           {
             key: 'sales-orders',
             label: 'Sales Orders',
-            icon: CurrencyDollarIcon,
+            icon: DollarSign,
             badge: salesOrders.length,
           },
         ],
@@ -87,32 +72,32 @@ function AdminShell() {
       {
         label: 'Customers',
         items: [
-          { key: 'users', label: 'Users', icon: UsersIcon },
-          { key: 'reviews', label: 'Reviews', icon: ChatsCircleIcon },
-          { key: 'leads', label: 'Leads', icon: LassoIcon },
+          { key: 'users', label: 'Users', icon: Users },
+          { key: 'reviews', label: 'Reviews', icon: MessagesSquare },
+          { key: 'leads', label: 'Leads', icon: Lasso },
           { key: 'appointments', label: 'Appointments', icon: CalendarIcon },
         ],
       },
       {
         label: 'Accounting',
         items: [
-          { key: 'profits', label: 'Profit and Loss', icon: CalculatorIcon },
-          { key: 'expenses', label: 'Expenses', icon: WalletIcon },
-          { key: 'metrics', label: 'Metrics', icon: ChartLineUpIcon },
+          { key: 'profits', label: 'Profit and Loss', icon: Calculator },
+          { key: 'expenses', label: 'Expenses', icon: Wallet },
+          { key: 'metrics', label: 'Metrics', icon: TrendingUp },
         ],
       },
       {
         label: 'Inventory',
         items: [
-          { key: 'bullion', label: 'Bullion', icon: CoinsIcon },
-          { key: 'rates', label: 'Rates', icon: PercentIcon },
+          { key: 'bullion', label: 'Bullion', icon: Coins },
+          { key: 'rates', label: 'Rates', icon: Percent },
         ],
       },
       {
         label: 'Shipping',
         items: [
-          { key: 'carriers', label: 'Carriers', icon: ShippingContainerIcon },
-          { key: 'carrier_services', label: 'Services', icon: TruckIcon },
+          { key: 'carriers', label: 'Carriers', icon: Container },
+          { key: 'carrier_services', label: 'Services', icon: Truck },
         ],
       },
     ],
@@ -176,7 +161,7 @@ function AdminShell() {
             onClick={() => openDrawer('adminSidebar')}
             className="flex items-center gap-2"
           >
-            <CaretLeftIcon size={24} />
+            <ChevronLeft size={24} />
             <span>{currentLabel}</span>
           </Button>
         </div>

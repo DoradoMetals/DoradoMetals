@@ -43,8 +43,9 @@ vi.mock("@number-flow/react", () => ({
   default: ({ value }: { value: number }) => React.createElement("span", null, String(value)),
   NumberFlowGroup: ({ children }: { children: React.ReactNode }) => React.createElement("span", null, children),
 }));
-vi.mock("@/shared/ui/PriceNumberFlow", () => ({
-  default: ({ value, className }: { value: number; className?: string }) =>
+vi.mock("@dorado/components", async (importOriginal) => ({
+  ...(await importOriginal<Record<string, unknown>>()),
+  Amount: ({ value, className }: { value: number; className?: string }) =>
     React.createElement("span", { className }, String(value)),
 }));
 

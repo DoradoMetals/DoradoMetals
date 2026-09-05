@@ -39,10 +39,10 @@ describe("Banner", () => {
     expect(band.className).toMatch(/border-y/);
   });
 
-  it("title carries the h4 token and is SemiBold", () => {
+  it("title is a real h4 and carries no weight utility of its own", () => {
     const { getByText } = render(<Banner label="Promo" title="Get a quote in minutes" />);
     const title = getByText("Get a quote in minutes");
-    expect(title.className).toContain("text-h4");
-    expect(title.className).toContain("font-semibold");
+    expect(title.tagName.toLowerCase()).toBe("h4");
+    expect(title.className).not.toMatch(/font-/);
   });
 });

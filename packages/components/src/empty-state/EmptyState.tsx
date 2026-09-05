@@ -31,18 +31,16 @@ export function EmptyState({
             {icon}
           </span>
           {badge != null && (
-            <span className="absolute -top-3 -right-2 flex size-5 items-center justify-center rounded-full border border-border-strong text-micro font-medium text-foreground">
+            <span className="absolute -top-3 -right-2 flex size-5 items-center justify-center rounded-full border border-border-strong text-micro text-foreground">
               {badge}
             </span>
           )}
         </div>
       )}
       <span className="flex max-w-sm flex-col gap-2xs">
-        <span className="text-h5 font-semibold text-foreground">{title}</span>
-        {description != null && (
-          <span className="text-small text-muted-foreground">{description}</span>
-        )}
-        {children != null && <span className="text-small text-muted-foreground">{children}</span>}
+        <h5>{title}</h5>
+        {description != null && <small>{description}</small>}
+        {children != null && <small>{children}</small>}
       </span>
       {action}
     </div>

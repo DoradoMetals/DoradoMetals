@@ -1,17 +1,10 @@
 'use client'
 
 import { AnimatePresence, motion } from 'framer-motion'
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-} from '@/shared/ui/base/form'
 import { WirePayout } from '@/features/payouts/types'
 import { UseFormReturn } from 'react-hook-form'
 import { usePayoutDraft } from '@/features/checkout/purchase-order-checkout/payoutStep/payoutDraft'
-import { ValidatedField } from '@/shared/ui/form/ValidatedField'
-import { Checkbox } from '@dorado/components'
+import { Checkbox, Form, FormControl, FormField, FormItem, ValidatedField } from '@dorado/components'
 
 export default function WireForm({
   form,

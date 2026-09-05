@@ -1,8 +1,8 @@
 "use client";
 
 import { useGoogleSignIn } from "@/features/auth/queries";
-import { FcGoogle } from "react-icons/fc";
 import { Button } from '@dorado/components';
+import { GoogleLogo } from '@dorado/icons';
 
 export default function GoogleButton({buttonLabel} : {buttonLabel: string}) {
   const googleSignInMutation = useGoogleSignIn();
@@ -14,7 +14,7 @@ export default function GoogleButton({buttonLabel} : {buttonLabel: string}) {
       onClick={() => googleSignInMutation.mutate()}
       disabled={googleSignInMutation.isPending}
     >
-      <FcGoogle />
+      <GoogleLogo />
       {googleSignInMutation.isPending ? "Signing In..." : buttonLabel}
     </Button>
   );

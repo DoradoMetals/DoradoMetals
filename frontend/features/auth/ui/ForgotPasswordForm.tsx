@@ -1,6 +1,7 @@
 'use client'
 
 import { useForm } from 'react-hook-form'
+import { Form } from '@dorado/components'
 import { zodResolver } from '@hookform/resolvers/zod'
 import * as z from 'zod'
 import {
@@ -10,10 +11,9 @@ import {
   DialogTitle,
   DialogDescription,
   Button,
+  ValidatedField,
 } from '@dorado/components'
-import { Form } from '@/shared/ui/base/form'
 import { useRequestPasswordReset } from '@/features/auth/queries'
-import { ValidatedField } from '@/shared/ui/form/ValidatedField'
 
 const formSchema = z.object({
   email: z.string().email({ message: 'Invalid email address' }),
@@ -56,7 +56,6 @@ export function ForgotPasswordDialog() {
               label="Email"
               type="email"
               disabled={forgotPasswordMutation.isPending}
-              showOnTouch={true}
             />
 
             <Button

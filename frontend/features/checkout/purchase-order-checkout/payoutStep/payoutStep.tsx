@@ -2,8 +2,7 @@
 
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { ChevronDown } from 'lucide-react'
-
+import { ChevronDown, Circle } from '@dorado/icons'
 import {
   payoutMethodIcon,
   achSchema,
@@ -23,8 +22,7 @@ import WireForm from './wireForm'
 import EcheckForm from './echeckForm'
 import { cn } from '@/shared/utils/cn'
 import { User } from '@/features/users/types'
-import PriceNumberFlow from '../../../../shared/ui/PriceNumberFlow'
-import { CircleIcon } from '@phosphor-icons/react'
+import { Amount } from '@dorado/components'
 import DoradoAccountForm from './doradoAccountForm'
 import { usePaymentMethods } from '@dorado/client'
 
@@ -135,12 +133,12 @@ export default function PayoutStep({ user }: { user?: User }) {
                     <strong>{option.label}</strong>
                     <div className="flex items-center gap-2 pt-1 pl-4">
                       <small>{option.time_delay}</small>
-                      <CircleIcon size={6} weight="fill" className="text-placeholder" />
+                      <Circle size={6} className="text-placeholder" />
                       <small>
                         {Number(option.flat_fee ?? 0) === 0 ? (
                           'Free'
                         ) : (
-                          <PriceNumberFlow value={Number(option.flat_fee)} className="tabular-nums" />
+                          <Amount value={Number(option.flat_fee)} />
                         )}
                       </small>
                     </div>

@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "The icon set - the code half of the Figma library's Lucide icons. Ships SOURCE, not a build: the frontend transpiles it, so there is no dist to drift. One lucide-react version for the whole tree lives here.",
+  "description": "The icon set - the code half of the Figma Icons library. Ships SOURCE, not a build. One lucide-react version for the whole tree lives here.",
   "exports": {
     ".": {
       "types": "./src/index.ts",

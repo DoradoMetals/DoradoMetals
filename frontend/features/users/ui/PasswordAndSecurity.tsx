@@ -1,15 +1,9 @@
 'use client'
 
 import { Button } from '@dorado/components'
+import { Mail, MessageSquareText, MonitorSmartphone, Smartphone, LogOut } from '@dorado/icons'
 import { useGetSession, useRequestPasswordReset } from '@/features/auth/queries'
 import { AccountAction } from '@/features/users/ui/AccountAction'
-import {
-  ChatTextIcon,
-  DeviceMobileIcon,
-  DevicesIcon,
-  EnvelopeIcon,
-  SignOutIcon,
-} from '@phosphor-icons/react'
 import { useState } from 'react'
 import ChangePasswordForm from '@/features/auth/ui/ChangePasswordForm'
 import { ActiveDevices } from '@/features/users/ui/ActiveDevices'
@@ -58,21 +52,21 @@ export function PasswordAndSecurity() {
 
         <div className="space-y-3">
           <AccountAction
-            icon={DeviceMobileIcon}
+            icon={Smartphone}
             label="Authenticator App"
             description="Coming soon"
             buttonLabel="Set Up"
           />
 
           <AccountAction
-            icon={EnvelopeIcon}
+            icon={Mail}
             label="Email"
             description="Coming soon"
             buttonLabel="Set Up"
           />
 
           <AccountAction
-            icon={ChatTextIcon}
+            icon={MessageSquareText}
             label="SMS Code"
             description="Coming soon"
             buttonLabel="Set Up"
@@ -85,7 +79,7 @@ export function PasswordAndSecurity() {
 
         <div className="space-y-2">
           <AccountAction
-            icon={DevicesIcon}
+            icon={MonitorSmartphone}
             label="Active Devices"
             description="View and manage active devices."
             buttonLabel={showDevices ? 'Hide' : 'View'}
@@ -95,7 +89,7 @@ export function PasswordAndSecurity() {
         </div>
 
         <Button type="button" variant="secondary" intent="danger" className="mt-4 w-full">
-          <SignOutIcon size={20} />
+          <LogOut size={20} />
           Sign Out on All Devices
         </Button>
       </div>

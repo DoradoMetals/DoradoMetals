@@ -1,4 +1,4 @@
-import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
+import { Amount } from '@dorado/components'
 import Image from 'next/image'
 
 // PRESENTATIONAL (ruling 14): props in, DOM out - no hooks, no fetches, so it
@@ -54,7 +54,7 @@ export default function DisplaySalesOrderProducts({ items }: { items: SalesOrder
               <div className="flex flex-col items-end">
                 <small>Price</small>
                 <strong className="stat-sm">
-                  <PriceNumberFlow value={(item.price ?? 0) * (item.quantity ?? 0)} />
+                  <Amount value={(item.price ?? 0) * (item.quantity ?? 0)} />
                 </strong>
               </div>
             </div>

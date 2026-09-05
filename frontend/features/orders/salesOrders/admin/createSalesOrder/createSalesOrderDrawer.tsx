@@ -3,21 +3,11 @@
 // THE CUSTOMER THE ADMIN IS ORDERING FOR, off GET /users/get_all - the
 // contracts' user wire, snake_case. NOT better-auth's session user, which is
 // the admin themselves and is a different shape under the same word.
-import {
-  Link,
-  Skeleton,
-  Drawer,
-  RadioGroup,
-  RadioOption,
-  Divider,
-  Button,
-  Input,
-  Autocomplete,
-} from '@dorado/components'
+import { Amount, Link, Skeleton, Drawer, RadioGroup, RadioOption, Divider, Button, Input, Autocomplete } from '@dorado/components'
+import { CircleHelp, Lock, LockOpen, Minus, Plus, Trash2 } from '@dorado/icons'
 import NextLink from 'next/link'
 import { UserAddress, makeEmptyWireAddress } from '@/features/addresses/types'
 import { useDrawerStore } from '@/shared/store/drawerStore'
-import { DetailRow } from '@/shared/ui/DetailRow'
 import { cn } from '@/shared/utils/cn'
 
 import {
@@ -27,17 +17,14 @@ import {
 import { useSaleShippingServices } from '@/features/shipping/queries'
 import { usePaymentMethods } from '@dorado/client'
 import type { Address, AdminUser, SalesOrderQuote, SpotPrice } from "@dorado/contracts";
-import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
 import { useAdminSalesOrderCheckoutStore } from '@/shared/store/adminSalesOrderCheckoutStore'
 import fuzzysort from 'fuzzysort'
 import { Product } from '@/features/products/types'
 import { lineFromProduct } from '@/features/checkout/items/types'
 import { useDecoratedLines } from '@/features/checkout/items/flair'
 import Image from 'next/image'
-import { Minus, Plus, Trash2 } from 'lucide-react'
 import NumberFlow from '@number-flow/react'
 import { useEffect, useMemo, useState, useTransition } from 'react'
-import { LockIcon, LockOpenIcon, QuestionIcon } from '@phosphor-icons/react'
 import { useRouter } from 'next/navigation'
 import { loadStripe } from '@stripe/stripe-js'
 import { AddressSelect } from '@/features/addresses/ui/AddressSelect'
@@ -283,7 +270,7 @@ function ProductSelector() {
                       </Button>
                     </div>
                     <strong>
-                      <PriceNumberFlow value={lineTotals.get(bullion_id) ?? 0} />
+                      <Amount value={lineTotals.get(bullion_id) ?? 0} />
                     </strong>
                   </div>
                 </div>
@@ -394,9 +381,12 @@ function ServiceSelector() {
               {option.icon && <option.icon size={24} />}
               <strong>{option.label}</strong>
             </div>
-            <DetailRow label={option.time} variant="subtotal">
-              <PriceNumberFlow value={option.cost} />
-            </DetailRow>
+            <div className="flex w-full items-center justify-between gap-2">
+              <small>{option.time}</small>
+              <strong>
+                <Amount value={option.cost} />
+              </strong>
+            </div>
           </RadioOption>
         ))}
       </RadioGroup>
@@ -420,56 +410,70 @@ function OrderSummary({ orderPrices }: { orderPrices?: SalesOrderQuote }) {
     <div className="w-full flex-col">
       <h2 className="eyebrow my-4">Payment Details</h2>
 
-      <DetailRow label="Shipping">
-        <PriceNumberFlow value={orderPrices?.shipping_charge ?? 0} />
-      </DetailRow>
+      <div className="flex w-full items-center justify-between gap-2">
+        <p>Shipping</p>
+        <strong>
+          <Amount value={orderPrices?.shipping_charge ?? 0} />
+        </strong>
+      </div>
 
       {appliedFunds > 0 && (
-        <DetailRow label="Dorado Funds Applied">
-          -<PriceNumberFlow value={appliedFunds} />
-        </DetailRow>
+        <div className="flex w-full items-center justify-between gap-2">
+          <p>Dorado Funds Applied</p>
+          <strong>
+            -<Amount value={appliedFunds} />
+          </strong>
+        </div>
       )}
       {subjectToCharges > 0 && (
-        <DetailRow label={appliedFunds > 0 ? 'Amount Remaining' : 'Items'}>
-          <PriceNumberFlow value={subjectToCharges} />
-        </DetailRow>
+        <div className="flex w-full items-center justify-between gap-2">
+          <p>{appliedFunds > 0 ? 'Amount Remaining' : 'Items'}</p>
+          <strong>
+            <Amount value={subjectToCharges} />
+          </strong>
+        </div>
       )}
 
       {surcharge > 0 && (
-        <DetailRow
-          label={`${
+        <div className="flex w-full items-center justify-between gap-2">
+          <p>{`${
             saleMethods.find((m) => m.type === data.payment_method)?.label
           } Surcharge (${
             saleMethods.find((m) => m.type === data.payment_method)?.surcharge_label
-          })`}
-        >
-          <PriceNumberFlow value={surcharge} />
-        </DetailRow>
+          })`}</p>
+          <strong>
+            <Amount value={surcharge} />
+          </strong>
+        </div>
       )}
 
       {salesTax > 0 && (
-        <DetailRow
-          label={
+        <div className="flex w-full items-center justify-between gap-2">
+          <p>
             <span className="flex items-center gap-1">
               Sales Tax
               <Link asChild className="inline-flex size-4 items-center justify-center">
                 <NextLink href="/sales-tax" aria-label="About sales tax">
-                  <QuestionIcon size={16} />
+                  <CircleHelp size={16} />
                 </NextLink>
               </Link>
             </span>
-          }
-        >
-          <PriceNumberFlow value={salesTax} />
-        </DetailRow>
+          </p>
+          <strong>
+            <Amount value={salesTax} />
+          </strong>
+        </div>
       )}
 
       <div className="pt-2">
         <Divider />
 
-        <DetailRow label="Order Total" variant="total" className="pt-2">
-          <PriceNumberFlow value={orderPrices?.post_charges_amount ?? 0} />
-        </DetailRow>
+        <div className="flex w-full items-center justify-between gap-2 pt-2">
+          <strong>Order Total</strong>
+          <strong className="stat-sm">
+            <Amount value={orderPrices?.post_charges_amount ?? 0} />
+          </strong>
+        </div>
       </div>
     </div>
   )
@@ -526,13 +530,13 @@ function CreditSelect({
             <div className="flex flex-col gap-1 items-start">
               <p>Credit Applied:</p>
               <strong className="stat-sm">
-                <PriceNumberFlow value={orderPrices?.pre_charges_amount ?? 0} />
+                <Amount value={orderPrices?.pre_charges_amount ?? 0} />
               </strong>
             </div>
             <div className="flex flex-col gap-1 items-end">
               <p>Credit Available:</p>
               <strong className="stat-sm">
-                <PriceNumberFlow value={funds} />
+                <Amount value={funds} />
               </strong>
             </div>
           </div>

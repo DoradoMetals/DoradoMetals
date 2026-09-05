@@ -167,6 +167,32 @@ describe("Table", () => {
     expect(getByRole("button", { name: /filter column/i }).closest("th")).toBe(th);
   });
 
+  it("onFilter renders the drawn funnel with aria-pressed (56:82: 'TableHead onFilter/filtered renders the funnel with aria-pressed')", () => {
+    const onFilter = vi.fn();
+    const { container, getByRole } = render(
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead filtered onFilter={onFilter}>
+              Item
+            </TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody />
+      </Table>,
+    );
+    expect(container.querySelector("svg.lucide-funnel")).toBeTruthy();
+    const filterButton = getByRole("button", { name: /filter/i });
+    expect(filterButton.getAttribute("aria-pressed")).toBe("true");
+    fireEvent.click(filterButton);
+    expect(onFilter).toHaveBeenCalled();
+  });
+
+  it("no onFilter means no funnel button at all", () => {
+    const { container } = renderTable();
+    expect(container.querySelector("svg.lucide-funnel")).toBeNull();
+  });
+
   it("a selected row is expressed in a way assistive tech can read, and axe finds nothing", async () => {
     const { container } = render(
       <Table>

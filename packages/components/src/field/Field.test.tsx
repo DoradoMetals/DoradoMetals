@@ -13,6 +13,11 @@ describe("Field chassis", () => {
     expect(c).toContain("aria-[invalid=true]:border-destructive");
   });
 
+  it("trigger and option text bind to size/h5, not size/body (2026-09-04)", () => {
+    expect(fieldTrigger()).toContain("text-h5");
+    expect(fieldOption()).toContain("text-h5");
+  });
+
   it("disabled reads as a muted fill, not an opacity fade", () => {
     const c = fieldTrigger();
     expect(c).toContain("disabled:bg-muted");

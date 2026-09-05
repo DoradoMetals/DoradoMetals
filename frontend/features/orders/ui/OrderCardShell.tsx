@@ -1,7 +1,7 @@
 'use client'
 
 import { ReactNode, KeyboardEvent } from 'react'
-import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
+import { Amount } from '@dorado/components'
 import { cn } from '@/shared/utils/cn'
 
 type OrderCardShellProps = {
@@ -73,7 +73,7 @@ export function OrderCardShell({
 
           <div className="flex flex-col items-end gap-1">
             <strong className={cn('stat-sm', totalTextClassName)}>
-              <PriceNumberFlow value={total} />
+              <Amount value={total} />
             </strong>
             {secondaryInfo && (
               <small data-emphasis="subtle" className={secondaryTextClassName}>

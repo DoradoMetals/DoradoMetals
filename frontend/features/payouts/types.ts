@@ -1,13 +1,5 @@
 import { z } from 'zod/v4'
-import {
-  BankIcon,
-  PiggyBankIcon,
-  CreditCardIcon,
-  GlobeIcon,
-  EnvelopeIcon,
-  CoinsIcon,
-} from '@phosphor-icons/react'
-
+import { Landmark, PiggyBank, CreditCard, Globe, Mail, Coins } from '@dorado/icons'
 // The payout as it arrives on an order is `Payout` in @dorado/contracts, and
 // the admin-only full-number read is `PayoutDetails` beside it. A local
 // interface restating the first used to sit here with nothing importing it -
@@ -103,10 +95,10 @@ export type PayoutMethodType = 'ACH' | 'WIRE' | 'ECHECK' | 'DORADO_ACCOUNT'
 // call from the handoff conversion): a picture is a client concern and has no
 // business on the wire.
 export const payoutMethodIcon: Record<PayoutMethodType, any> = {
-  ACH: BankIcon,
-  WIRE: GlobeIcon,
-  ECHECK: EnvelopeIcon,
-  DORADO_ACCOUNT: CoinsIcon,
+  ACH: Landmark,
+  WIRE: Globe,
+  ECHECK: Mail,
+  DORADO_ACCOUNT: Coins,
 }
 
 export const accountTypeOptions = [
@@ -114,13 +106,13 @@ export const accountTypeOptions = [
     value: 'Checking',
     label: 'Checking Account',
     description: 'Standard checking account for everyday use',
-    icon: CreditCardIcon,
+    icon: CreditCard,
   },
   {
     value: 'Savings',
     label: 'Savings Account',
     description: 'Interest-bearing savings account',
-    icon: PiggyBankIcon,
+    icon: PiggyBank,
   },
 ]
 

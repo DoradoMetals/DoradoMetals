@@ -2,23 +2,20 @@
 
 import Image from 'next/image'
 import { Product } from '@/features/products/types'
-import { Button, Carousel } from '@dorado/components'
-import { CircleHelp, Equal, Minus, Plus, Scale, X } from 'lucide-react'
+import { Amount, Button, Carousel, RadioGroup, RadioOption } from '@dorado/components'
+import { CircleHelp, Equal, Minus, Plus, Scale, X } from '@dorado/icons'
 import NumberFlow from '@number-flow/react'
-import { RadioGroup, RadioOption } from '@dorado/components'
 import { FloatingButton, FloatingButtonItem } from '@/features/products/ui/FloatingButton'
 
 import { useState } from 'react'
 import { useBasket, useCheckoutItemActions } from '@/features/checkout/items/queries'
 import { lineFromProduct } from '@/features/checkout/items/types'
 
-import { PopoverContent, PopoverTrigger } from '@/shared/ui/base/popover'
-import { Popover } from '@radix-ui/react-popover'
+import { Tooltip, TooltipProvider } from '@dorado/components'
 import { AnimatePresence, motion } from 'framer-motion'
 import { useRouter } from 'next/navigation'
-import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
 import { useSpotPrices } from '@dorado/client'
-import { DetailRow } from '@/shared/ui/DetailRow'
+import { cn } from '@/shared/utils/cn'
 
 type ProductCardProps = {
   product: Product
@@ -34,7 +31,6 @@ export default function ProductCard({ product, variants, unitPrices }: ProductCa
   // The server picks the family's headline row and orders the siblings
   // (heaviest first), so there is nothing to sort here.
   const [selectedProduct, setSelectedProduct] = useState<Product>(product)
-  const [open, setOpen] = useState(false)
   const [variantsOpen, setVariantsOpen] = useState(false)
 
   const items = useBasket('sale')
@@ -156,45 +152,25 @@ export default function ProductCard({ product, variants, unitPrices }: ProductCa
                   delay: 0.05,
                 }}
               >
-                <Popover open={open} onOpenChange={setOpen}>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="tertiary"
-                      size="iconXs"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        setOpen(true)
-                      }}
-                    >
-                      <CircleHelp size={20} />
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent
-                    align="end"
+                <TooltipProvider>
+                  <Tooltip
                     side="top"
-                    className="p-2 w-56"
-                    onOpenAutoFocus={(e) => e.preventDefault()}
-                    forceMount
-                  >
-                    <motion.div
-                      initial={{ opacity: 0, scale: 0.95 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      exit={{ opacity: 0, scale: 0.95 }}
-                      transition={{
-                        duration: 0.2,
-                        ease: 'easeInOut',
-                        delay: 0.2,
-                      }}
-                    >
-                      <div className="flex flex-col gap-2">
+                    content={
+                      <div className="flex w-56 flex-col gap-2">
                         <div className="flex flex-col gap-2 border-b-1 border-border pb-2">
-                          <DetailRow label={<>{spot?.name} Spot Price</>} variant="detail" className="items-start pl-8">
-                            <PriceNumberFlow value={spot?.ask ?? 0} />
-                          </DetailRow>
+                          <div className={cn('flex w-full items-center justify-between gap-2', 'items-start pl-8')}>
+                            <small>{spot?.name} Spot Price</small>
+                            <p>
+                              <Amount value={spot?.ask ?? 0} />
+                            </p>
+                          </div>
 
                           <div className="flex w-full items-start">
                             <X size={16} className="text-subtle" />
-                            <DetailRow label="Content (oz)" variant="detail" className="items-start pl-4">{selectedProduct.content}</DetailRow>
+                            <div className={cn('flex w-full items-center justify-between gap-2', 'items-start pl-4')}>
+                              <small>Content (oz)</small>
+                              <p>{selectedProduct.content}</p>
+                            </div>
                           </div>
 
                           <div className="flex w-full items-start">
@@ -204,22 +180,36 @@ export default function ProductCard({ product, variants, unitPrices }: ProductCa
                               <Minus size={16} className="text-subtle" />
                             )}
 
-                            <DetailRow label="Premium" variant="detail" className="items-start pl-4">
-                              <PriceNumberFlow value={Math.abs(overOrUnder)} />
-                            </DetailRow>
+                            <div className={cn('flex w-full items-center justify-between gap-2', 'items-start pl-4')}>
+                              <small>Premium</small>
+                              <p>
+                                <Amount value={Math.abs(overOrUnder)} />
+                              </p>
+                            </div>
                           </div>
                         </div>
 
                         <div className="flex w-full items-start">
                           <Equal size={16} className="text-subtle" />
-                          <DetailRow label="Total" variant="subtotal" className="items-start pl-4">
-                            <PriceNumberFlow value={price} />
-                          </DetailRow>
+                          <div className={cn('flex w-full items-center justify-between gap-2', 'items-start pl-4')}>
+                            <small>Total</small>
+                            <strong>
+                              <Amount value={price} />
+                            </strong>
+                          </div>
                         </div>
                       </div>
-                    </motion.div>
-                  </PopoverContent>
-                </Popover>
+                    }
+                  >
+                    <Button
+                      variant="tertiary"
+                      size="iconXs"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <CircleHelp size={20} />
+                    </Button>
+                  </Tooltip>
+                </TooltipProvider>
               </motion.div>
             )}
           </AnimatePresence>
@@ -234,7 +224,7 @@ export default function ProductCard({ product, variants, unitPrices }: ProductCa
 
               <div className="flex flex-col items-end gap-1 ml-auto my-0">
                 <strong className="stat-sm">
-                  <PriceNumberFlow value={price} />
+                  <Amount value={price} />
                 </strong>
               </div>
             </div>

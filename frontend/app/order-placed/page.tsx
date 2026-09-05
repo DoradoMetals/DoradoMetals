@@ -1,51 +1,21 @@
 'use client'
-
-import { AnimatedScroll } from '@/features/orders/ui/Animated'
-import { BlurredStagger } from '@/shared/ui/BlurredStagger'
+import { Scroll } from '@dorado/icons'
 import { Button } from '@dorado/components'
-import { Confetti, ConfettiRef } from '@/features/orders/ui/Confetti'
 import { useRouter } from 'next/navigation'
 import { useEffect, useRef } from 'react'
 import { motion } from 'framer-motion'
 
 export default function Page() {
-  const confettiRef = useRef<ConfettiRef>(null)
   const router = useRouter()
-
-  useEffect(() => {
-    confettiRef.current?.fire({
-      particleCount: 100,
-      angle: 90,
-      spread: 90,
-      startVelocity: 50,
-      decay: 0.88,
-      gravity: 0.8,
-      ticks: 500,
-      origin: { x: 0.5, y: 0.6 },
-      colors: ['#ae8625', '#f5d67d', '#d2ac47', '#edc967', '#ae8625'],
-      flat: false,
-    })
-  }, [])
   return (
     <main className="flex flex-col justify-center items-center px-4 flex-grow pb-5">
-      
-      <Confetti ref={confettiRef} className="absolute left-0 top-0 z-0 size-full" manualstart />
       <div className="px-4 flex flex-col items-center h-full w-full justify-center">
-        {/* UNBLOCKED. The comment that used to sit here said this could not
-            become a heading because BlurredStagger hard-rendered a
-            `motion.div`. It takes an `as` now, so the staggered text IS the
-            heading and the last type utility in the tree goes with it. */}
-        <BlurredStagger as="h1" className="mb-2" text="Your order has been placed!" delay={2000} />
+        <h1 className="mb-2">Your order has been placed!</h1>
 
         <div className="flex w-full justify-center">
-          <AnimatedScroll size={128} className="mb-6 z-1" />
+          <Scroll size={128} className="mb-6 z-1" aria-hidden />
         </div>
-        <BlurredStagger
-          as="p"
-          className="mb-4"
-          text="View your order by clicking the button below."
-          delay={3200}
-        />
+        <p className="mb-4">View your order by clicking the button below.</p>
       </div>
       <motion.div
         initial={{

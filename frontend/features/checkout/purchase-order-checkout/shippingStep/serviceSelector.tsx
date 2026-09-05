@@ -1,9 +1,8 @@
 'use client'
 
-import { RadioGroup, RadioOption } from '@dorado/components'
+import { Amount, RadioGroup, RadioOption } from '@dorado/components'
 import { usePatchFulfillment } from '@/features/checkout/queries'
 import { formatTimeDiff } from '@/shared/utils/formatDates'
-import PriceNumberFlow from '@/shared/ui/PriceNumberFlow'
 import { serviceIcon } from '@/features/service/types'
 import type { CheckoutRate, FulfillmentView } from '@dorado/contracts'
 
@@ -66,7 +65,7 @@ export function ServiceSelector({
               </small>
               <strong>
                 {rate.netCharge != null ? (
-                  <PriceNumberFlow value={rate.netCharge} className="tabular-nums" />
+                  <Amount value={rate.netCharge} />
                 ) : (
                   <>&nbsp;</>
                 )}
