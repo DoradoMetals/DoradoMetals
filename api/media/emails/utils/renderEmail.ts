@@ -129,7 +129,7 @@ export function renderSalesOrderToSupplierEmail({
       const subtotal = (priceOf.get(line.id)?.line_total ?? 0).toFixed(2);
       return `
       <tr>
-        <td style="padding:8px 0">${line.product?.name ?? ""}</td>
+        <td style="padding:8px 0">${line.product_name ?? ""}</td>
         <td style="padding:8px 0;text-align:center">${line.quantity}</td>
         <td style="padding:8px 0;text-align:right">$${subtotal}</td>
       </tr>

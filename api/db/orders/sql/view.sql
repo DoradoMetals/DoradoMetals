@@ -13,20 +13,8 @@ SELECT to_jsonb(o)
          (SELECT jsonb_agg(
                    to_jsonb(i)
                    || jsonb_build_object(
-                        'product',
-                        (SELECT jsonb_build_object(
-                                  'id', b.id, 'name', b.name, 'description', b.description,
-                                  'content', b.content, 'purity', b.purity, 'gross', b.gross,
-                                  'bid_premium', b.bid_premium, 'ask_premium', b.ask_premium,
-                                  'type', b.type, 'image_front', b.image_front,
-                                  'image_back', b.image_back, 'variant_group', b.variant_group,
-                                  'shadow_offset', b.shadow_offset, 'slug', b.slug,
-                                  'legal_tender', b.legal_tender,
-                                  'domestic_tender', b.domestic_tender,
-                                  'is_generic', b.is_generic, 'variant_label', b.variant_label,
-                                  'metal_id', b.metal_id, 'mint_id', b.mint_id)
-                           FROM products.bullion b
-                          WHERE b.id = i.bullion_id),
+                        'product_name',
+                        (SELECT b.name FROM products.bullion b WHERE b.id = i.bullion_id),
                         'payable',
                         CASE WHEN i.content IS NULL OR i.premium IS NULL THEN NULL
                              ELSE i.content * i.premium END,

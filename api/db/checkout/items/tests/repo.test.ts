@@ -47,36 +47,30 @@ test("a line with no product carries its own values", async () => {
   });
 });
 
-test("createMany writes every line and listFor answers them all", async () => {
+test("create_from_product snapshots the catalogue row onto the line", async () => {
   await inRollback(async (c: PoolClient) => {
     const session = await aSession(c, "sale");
-    const product = await aProduct(c);
-    const metal_id = aMetal();
+    const product = await aProduct(c, {
+      display: true, gross: 1.0909, content: 1, purity: 0.9167, ask_premium: 1.07,
+    });
 
-    const written = await items.createMany(
-      [
-        {
-          checkout_id: session.id, bullion_id: product.id,
-          metal_id: product.metal_id, pre_melt: product.gross,
-          post_melt: product.content, purity: product.purity,
-          content: product.content, unit: "t oz", premium: 1.05, quantity: 3,
-        },
-        {
-          checkout_id: session.id, bullion_id: null, metal_id,
-          pre_melt: 10, purity: 0.925, content: 9.25, unit: "g", quantity: 1,
-        },
-      ],
-      c
+    const written = await items.createFromProduct(
+      session.id, { bullion_id: product.id, quantity: 3 }, c
     );
-    assert.equal(written.length, 2, "createMany did not write both lines");
+    assert.ok(written, "the snapshot wrote no row");
+    assert.equal(written.bullion_id, product.id);
+    assert.equal(written.metal_id, product.metal_id, "the line did not inherit the metal");
+    assert.equal(Number(written.pre_melt), Number(product.gross));
+    assert.equal(Number(written.post_melt), Number(product.content));
+    assert.equal(Number(written.purity), Number(product.purity));
+    assert.equal(Number(written.content), Number(product.content));
+    assert.equal(written.unit, "t oz");
+    assert.equal(Number(written.premium), Number(product.ask_premium));
+    assert.equal(Number(written.quantity), 3);
 
     const listed = await items.listFor(session.id, c);
-    assert.equal(listed.length, 2);
-    const bullion = listed.find((row) => row.bullion_id !== null)!;
-    assert.equal(bullion.bullion_id, product.id);
-    assert.equal(Number(bullion.quantity), 3);
-    assert.equal(Number(bullion.content), Number(product.content));
-    assert.equal((await items.listForOrder(session.id, c)).length, 2);
+    assert.equal(listed.length, 1);
+    assert.equal((await items.listForOrder(session.id, c)).length, 1);
   });
 });
 

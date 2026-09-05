@@ -23,10 +23,10 @@ export const OrderItem = z.object({
 });
 export type OrderItem = z.infer<typeof OrderItem>;
 // generated:end
-import { BullionPublic } from "../products/bullion.js";
+import { Bullion } from "../products/bullion.js";
 
 export const OrderViewItem = OrderItem.extend({
-  product: BullionPublic.nullable(),
+  product_name: Bullion.shape.name.nullable(),
   payable: OrderItem.shape.content,
   line_total: OrderItem.shape.price,
 });

@@ -3,9 +3,7 @@ import * as products from "#db/products/repo.ts";
 import * as rules from "#catalog/products/rules.ts";
 import type { Executor } from "#shared/db/executor.ts";
 import type {
-  BullionAdmin, BullionCreate, BullionFilter, BullionGroup, BullionLiveness,
-  BullionPatchColumns,
-  BullionStorefront,
+  BullionAdmin, BullionCreate, BullionFilter, BullionGroup, BullionPatchColumns,
 } from "@dorado/contracts";
 
 export async function listGroups(filter: BullionFilter): Promise<BullionGroup[]> {
@@ -30,18 +28,6 @@ export async function getAdminProduct(id: string, executor?: Executor): Promise<
 
 export async function listTypes(): Promise<string[]> {
   return await products.listTypes();
-}
-
-export async function getLiveness(
-  ids: string[], executor?: Executor
-): Promise<BullionLiveness[]> {
-  return await products.getLiveness(ids, executor);
-}
-
-export async function getByIds(
-  ids: string[], executor?: Executor
-): Promise<BullionStorefront[]> {
-  return await products.listFor({ ids }, executor);
 }
 
 export async function updateProduct(

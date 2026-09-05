@@ -29,7 +29,7 @@ const order = (over: Record<string, unknown> = {}): OrderView =>
           metal_id: GOLD,
           quantity: 2,
           price: 100,
-          product: { name: "1 oz Gold Eagle" },
+          product_name: "1 oz Gold Eagle",
         },
       ],
       shipments: [],

@@ -140,18 +140,6 @@ test("an unknown metal name returns nothing, not everything", async () => {
   assert.deepEqual(await service.listGroups({ display: true, metal_id: "Unobtainium" }), []);
 });
 
-test("liveness answers display, the buy-side gate", async () => {
-  const { rows } = await client.query("SELECT id, display FROM products.bullion LIMIT 5");
-  const live = await service.getLiveness(rows.map((r) => r.id));
-  assert.equal(live.length, rows.length);
-  const byId = new Map(live.map((r) => [r.id, r]));
-  for (const row of rows) {
-    const seen = byId.get(row.id);
-    assert.ok(seen, `getLiveness did not return product ${row.id}`);
-    assert.equal(seen.display, row.display);
-  }
-});
-
 test("creating a product supplies what the columns require", async () => {
   await inPinnedTransaction(async (c: PoolClient) => {
     const name = `probe-${randomUUID().slice(0, 8)}`;

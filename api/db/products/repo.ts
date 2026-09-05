@@ -7,7 +7,6 @@ import {
   BullionPatchColumns,
   type BullionAdmin,
   type BullionFilter,
-  type BullionLiveness,
   type BullionSort,
   BullionStorefront as Storefront,
   type BullionStorefront,
@@ -78,14 +77,6 @@ export async function listAdmin(
 export async function getOne(id: string, executor?: Executor): Promise<BullionAdmin | undefined> {
   const rows = await listAdmin({ ids: [id] }, executor);
   return rows[0];
-}
-
-export async function getLiveness(
-  ids: string[], executor?: Executor
-): Promise<BullionLiveness[]> {
-  if (ids.length === 0) return [];
-  const { rows } = await query<BullionLiveness>(sql("get_liveness"), [ids], executor);
-  return rows;
 }
 
 export async function listTypes(executor?: Executor): Promise<string[]> {

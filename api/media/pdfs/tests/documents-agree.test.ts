@@ -87,7 +87,6 @@ test("a line with no premium renders unpriced on both documents, not differently
     pre_melt: 1,
     post_melt: 1,
     unit: "t oz",
-    product: null,
   } as unknown as OrderViewItem;
 
   const priceOf = new Map<string, OrderPricingLine>();

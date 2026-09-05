@@ -4,7 +4,6 @@ import {
   addresses as addressService,
   fulfillments as fulfillmentService,
   paymentDetails,
-  products as productService,
   users as usersService,
 } from "#domains";
 import * as rules from "#checkout/rules.ts";
@@ -136,20 +135,18 @@ export async function replaceItems(
 ): Promise<CheckoutItem[]> {
   return await withTransaction(async (client) => {
     const session = await ensure(user_id, direction, client);
-
-    const named = [...new Set(
-      lines.map((line) => line.bullion_id).filter((id): id is string => !!id)
-    )];
-    const rows = rules.basketRows(
-      session.id,
-      direction,
-      lines,
-      await productService.getByIds(named, client),
-      await productService.getLiveness(named, client)
-    );
-
     await checkoutItems.removeFor(session.id, client);
-    await checkoutItems.createMany(rows, client);
+
+    for (const line of lines) {
+      if ("bullion_id" in line) {
+        rules.assertProductAvailable(
+          await checkoutItems.createFromProduct(session.id, line, client), line.bullion_id
+        );
+      } else {
+        rules.assertCatalogueLine(direction);
+        await checkoutItems.create(rules.scrapLine(session.id, line), client);
+      }
+    }
     if (direction === "purchase") {
       const quote = await pricing.priceCheckout(session.id, client);
       for (const line of quote.direction === "purchase" ? quote.items : []) {

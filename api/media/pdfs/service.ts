@@ -439,7 +439,7 @@ export function buildSalesOrderInvoiceHtml({
     .map(
       (line) => `
         <tr>
-          <td class="text-left">${line.product?.name || "Bullion Product"}</td>
+          <td class="text-left">${line.product_name || "Bullion Product"}</td>
           <td>${line.quantity}</td>
           <td>${
             line.content != null

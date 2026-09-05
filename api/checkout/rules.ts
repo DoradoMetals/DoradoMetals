@@ -1,110 +1,37 @@
 import { Forbidden, Invalid, NotFound } from "#shared/errors.ts";
 import { columnsOf } from "#shared/db/columns.ts";
-import { CheckoutItemPatch, CheckoutWrite } from "@dorado/contracts";
+import { CheckoutWrite } from "@dorado/contracts";
 import { fineContent } from "#shared/utils/convertWeights.ts";
 import type {
-  BullionLiveness, BullionStorefront, Checkout, CheckoutDecisions, CheckoutItemWrite,
-  CheckoutMissing, CheckoutViewFacts, Direction, FulfillmentStep,
+  Checkout, CheckoutDecisions, CheckoutItem, CheckoutItemWrite, CheckoutMissing,
+  CheckoutScrapLine, CheckoutViewFacts, Direction, FulfillmentStep,
 } from "@dorado/contracts";
 
-const SERVER_OWNED = columnsOf(CheckoutItemPatch.omit({ bullion_id: true, quantity: true }));
-
-const DECLARED_LOT_REQUIRES = columnsOf(
-  CheckoutItemPatch.pick({ metal_id: true, pre_melt: true, purity: true, unit: true })
-);
-
-function notAvailable(count: number): never {
-  throw new Invalid(
-    count === 1
-      ? "That product is not available"
-      : `${count} of those products are not available`
-  );
-}
-
-function requireLiveProducts(
-  items: CheckoutItemPatch[], direction: Direction, byId: Map<string, BullionStorefront>,
-  live: Set<string>
-): void {
-  const refused = new Set<string>();
-  for (const line of items) {
-    if (line.bullion_id == null) continue;
-    const product = byId.get(line.bullion_id);
-    if (!product || (direction === "sale" && !live.has(product.id))) {
-      refused.add(line.bullion_id);
-    }
-  }
-  if (refused.size > 0) notAvailable(refused.size);
-}
-
-function snapshot(
-  line: CheckoutItemPatch, direction: Direction, checkout_id: string,
-  byId: Map<string, BullionStorefront>
-): { row: CheckoutItemWrite; product: BullionStorefront | undefined } {
-  if (line.bullion_id != null) {
-    for (const column of SERVER_OWNED) {
-      if (line[column] != null) {
-        throw new Invalid(
-          `a bullion line names a product and a quantity - ${column} comes from the product`
-        );
-      }
-    }
-    const product = byId.get(line.bullion_id)!;
-    return {
-      row: {
-        checkout_id,
-        bullion_id: product.id,
-        metal_id: product.metal_id,
-        pre_melt: product.gross,
-        post_melt: product.content,
-        purity: product.purity,
-        content: product.content,
-        unit: "t oz",
-        quantity: line.quantity,
-      },
-      product,
-    };
-  }
-
+export function assertCatalogueLine(direction: Direction): void {
   if (direction === "sale") {
     throw new Invalid("a buy basket holds catalogue products - every line needs a bullion_id");
   }
-
-  for (const column of DECLARED_LOT_REQUIRES) {
-    if (line[column] == null) {
-      throw new Invalid(`a line with no product needs ${column}`);
-    }
-  }
-  return {
-    row: {
-      checkout_id,
-      bullion_id: null,
-      metal_id: line.metal_id!,
-      pre_melt: line.pre_melt!,
-      post_melt: line.post_melt ?? null,
-      purity: line.purity!,
-      content: fineContent(line.pre_melt, line.unit, line.purity),
-      unit: line.unit!,
-      quantity: line.quantity,
-    },
-    product: undefined,
-  };
 }
 
-export function basketRows(
-  checkout_id: string,
-  direction: Direction,
-  items: CheckoutItemPatch[],
-  products: BullionStorefront[],
-  liveness: BullionLiveness[]
-): CheckoutItemWrite[] {
-  const byId = new Map(products.map((product) => [product.id, product]));
-  const live = new Set(liveness.filter((p) => p.display === true).map((p) => p.id));
-  requireLiveProducts(items, direction, byId, live);
+export function assertProductAvailable(
+  written: CheckoutItem | undefined, bullion_id: string
+): asserts written is CheckoutItem {
+  if (!written) throw new Invalid(`product ${bullion_id} is not available`);
+}
 
-  return items.map((line) => {
-    const { row, product } = snapshot(line, direction, checkout_id, byId);
-    return { ...row, premium: direction === "sale" ? product?.ask_premium ?? null : null };
-  });
+export function scrapLine(checkout_id: string, line: CheckoutScrapLine): CheckoutItemWrite {
+  return {
+    checkout_id,
+    bullion_id: null,
+    metal_id: line.metal_id,
+    pre_melt: line.pre_melt,
+    post_melt: line.post_melt ?? null,
+    purity: line.purity,
+    content: fineContent(line.pre_melt, line.unit, line.purity),
+    unit: line.unit,
+    premium: null,
+    quantity: line.quantity ?? null,
+  };
 }
 
 export function checkoutState(

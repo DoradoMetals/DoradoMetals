@@ -12,7 +12,7 @@ const sql = sqlFrom(path.join(import.meta.dirname, "..", "..", "..", "db", "prod
 const body = (name: string): string =>
   sql(name).split("\n").filter((l) => !l.trim().startsWith("--")).join("\n");
 
-const STATEMENTS = ["list", "get_admin", "get_liveness", "get_types", "create"];
+const STATEMENTS = ["list", "get_admin", "get_types", "create"];
 
 const builtUpdate = (patch: Record<string, unknown>) =>
   buildUpdate({

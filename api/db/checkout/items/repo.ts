@@ -4,7 +4,7 @@ import { sqlFrom } from "#shared/db/sql.ts";
 import type { Executor } from "#shared/db/executor.ts";
 import { columnsOf } from "#shared/db/columns.ts";
 import { CheckoutItem, CheckoutItemWrite } from "@dorado/contracts";
-import type { OrderLine } from "@dorado/contracts";
+import type { CheckoutBullionLine, OrderLine } from "@dorado/contracts";
 
 const sql = sqlFrom(import.meta.dirname);
 
@@ -40,12 +40,15 @@ export async function create(row: CheckoutItemWrite, executor?: Executor): Promi
   return rows[0];
 }
 
-export async function createMany(
-  rows: CheckoutItemWrite[], executor?: Executor
-): Promise<CheckoutItem[]> {
-  const written: CheckoutItem[] = [];
-  for (const row of rows) written.push(await create(row, executor));
-  return written;
+export async function createFromProduct(
+  checkout_id: string, line: CheckoutBullionLine, executor?: Executor
+): Promise<CheckoutItem | undefined> {
+  const { rows } = await query<CheckoutItem>(
+    sql("create_from_product"),
+    [checkout_id, line.bullion_id, line.quantity],
+    executor
+  );
+  return rows[0];
 }
 
 export async function update(

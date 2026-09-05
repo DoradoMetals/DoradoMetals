@@ -285,7 +285,7 @@ test("the sell basket accepts a product the buy side hides", async () => {
   }, { actor: TEST_ACTOR.id, lock: CART_LOCK });
 });
 
-test("a line with no product is refused when a load-bearing value is missing", async () => {
+test("a line with no product is refused at the boundary when a value is missing", async () => {
   await inPinnedTransaction(async (c: PoolClient) => {
     const customer = asCaller(await aUser(c));
     const metal_id = "Gold";
@@ -296,7 +296,7 @@ test("a line with no product is refused when a load-bearing value is missing", a
         delete line[missing];
         const res = await put("purchase", [line]);
         assert.equal(
-          res.status, 422,
+          res.status, 400,
           `a line with no ${missing} answered ${res.status}: ${JSON.stringify(res.body)}`
         );
       }
@@ -317,15 +317,31 @@ test("the buy basket refuses a line with no product", async () => {
   }, { actor: TEST_ACTOR.id, lock: CART_LOCK });
 });
 
-test("a bullion line carrying a server-owned value is refused", async () => {
+test("a bullion line carrying a weight of its own is refused at the boundary", async () => {
+  await inPinnedTransaction(async (c: PoolClient) => {
+    const customer = asCaller(await aUser(c));
+    const { live } = await products(c);
+    await as(customer, async () => {
+      for (const weights of [{ purity: 0.1 }, { pre_melt: 8 }, { post_melt: 8 }, { unit: "g" }]) {
+        const res = await put("sale", [{ bullion_id: live.id, quantity: 1, ...weights }]);
+        assert.equal(
+          res.status, 400,
+          `${JSON.stringify(weights)} answered ${res.status}: ${JSON.stringify(res.body)}`
+        );
+      }
+    });
+  }, { actor: TEST_ACTOR.id, lock: CART_LOCK });
+});
+
+test("a bullion line naming a metal of its own is refused at the boundary", async () => {
   await inPinnedTransaction(async (c: PoolClient) => {
     const customer = asCaller(await aUser(c));
     const { live } = await products(c);
     await as(customer, async () => {
       const res = await put("sale", [
-        { bullion_id: live.id, quantity: 1, purity: 0.1 },
+        { bullion_id: live.id, metal_id: "Gold", quantity: 1 },
       ]);
-      assert.equal(res.status, 422, `answered ${res.status}: ${JSON.stringify(res.body)}`);
+      assert.equal(res.status, 400, `answered ${res.status}: ${JSON.stringify(res.body)}`);
     });
   }, { actor: TEST_ACTOR.id, lock: CART_LOCK });
 });
