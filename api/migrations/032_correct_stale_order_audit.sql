@@ -46,10 +46,18 @@ WHERE s.id = o.id
     OR o.created_by IS DISTINCT FROM s.created_by
     OR o.created_at IS DISTINCT FROM (s.created_at AT TIME ZONE 'UTC'));
 
-UPDATE orders.offers f
-SET updated_by = p.updated_by,
-    updated_at = p.updated_at AT TIME ZONE 'UTC'
-FROM exchange.purchase_orders p
-WHERE p.id = f.order_id
-  AND (f.updated_by IS DISTINCT FROM p.updated_by
-    OR f.updated_at IS DISTINCT FROM (p.updated_at AT TIME ZONE 'UTC'));
+-- 2026-09-06: guarded. 086 removes orders.offers, so a genesis build never
+-- has the table; the two UPDATEs above are the whole of this file's work
+-- there.
+DO $$
+BEGIN
+  IF to_regclass('orders.offers') IS NOT NULL THEN
+    UPDATE orders.offers f
+    SET updated_by = p.updated_by,
+        updated_at = p.updated_at AT TIME ZONE 'UTC'
+    FROM exchange.purchase_orders p
+    WHERE p.id = f.order_id
+      AND (f.updated_by IS DISTINCT FROM p.updated_by
+        OR f.updated_at IS DISTINCT FROM (p.updated_at AT TIME ZONE 'UTC'));
+  END IF;
+END $$;

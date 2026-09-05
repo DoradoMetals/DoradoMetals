@@ -50,13 +50,18 @@ INSERT INTO refiners.items (
   order_item_id, refiner_id, bullion_id, metal_id,
   pre_melt, post_melt, purity, content, premium, quantity, unit
 )
+-- 2026-09-06 (ruling 82 rehearsal): refiners.items.metal_id is the metal's
+-- NAME since 132, and genesis is the shape after it, so writing exchange's
+-- uuid here violates refiner_items_metal_id_fkey. Resolved through
+-- exchange.metals, exactly as the UPDATE above already does.
 SELECT
-  poi.id, NULL, poi.product_id, coalesce(s.metal_id, pr.metal_id),
+  poi.id, NULL, poi.product_id, em.type,
   s.pre_melt, s.post_melt_actual, s.purity_actual, s.content_actual,
   poi.refiner_premium, coalesce(poi.quantity, 1), s.gross_unit
 FROM exchange.purchase_order_items poi
 LEFT JOIN exchange.scrap s     ON s.id  = poi.scrap_id
 LEFT JOIN exchange.products pr ON pr.id = poi.product_id
+LEFT JOIN exchange.metals em   ON em.id = coalesce(s.metal_id, pr.metal_id)
 WHERE EXISTS (SELECT 1 FROM orders.items i WHERE i.id = poi.id)
   AND coalesce(s.metal_id, pr.metal_id) IS NOT NULL
   AND NOT EXISTS (

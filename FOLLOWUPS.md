@@ -16142,3 +16142,27 @@ proof counts in `docs/waves/production-day-fixes.md`.
   production-shaped copy. And a NEW crop of F6 is recorded, not fixed: since 132
   made `metals.metals.id` text, genesis cannot add the metal FKs to production's
   January `uuid` columns, and 064/066/070/083/120/132 fail in the chain.
+
+## Ruling 82 rehearsed (2026-09-06) — the production chain runs clean
+
+Jacob: *"Drop and rebuild seems to make more sense. As long as it's not dropped
+exchange."* `pnpm --filter @dorado/api migrate:reset-january` drops every
+non-`exchange`, non-system schema after the dump — the list is `pg_namespace`
+MINUS a hard-coded protected set, asserted three times, dry until `--commit`,
+refusing without `--database`, `--url` and a `--dump` file that exists and is
+non-empty; it prints every doomed table's row count and newest timestamp first
+(production's newest anywhere: **2026-01-20**). Nine self-test cases, no
+database. Then `-- baseline: 002-049` became **`002-133`** and the runner stamps
+only PURE DDL — sequences and triggers included as data, because genesis emits
+neither — so all 139 migrations apply in **one run, zero aborts**, and the
+rebuilt catalogue is **identical to dev's across all nine object kinds**.
+Measured: 72 orders, 95 products, 71 of 71 shipments, 62 of 62 payouts joined
+and 14 sealed, `verify:genesis`/`verify:backfill`/`audit:coverage`/
+`audit:precision` all 0, suite 1343/1344. `exchange` differs from the pristine
+restore in exactly two places: the ledger, and 086's five sanctioned columns.
+Ten migrations fixed additively (016 026 031 032 034 062 064 088 092 128), four
+marked `superseded-by-genesis`, 131 marked `runs-even-under-a-baseline`;
+`compare:databases` now pins both sessions to UTC (F2), `verify:backfill` gained
+`EXTRA_BACKFILLS` for 114. Full detail and the runbook: `docs/waves/production-chain.md`.
+**Open, and NOT a migration defect**: three production purchase orders (259, 272,
+328) render a packing list containing `NaN` — `media/pdfs`, its own lane.

@@ -1,3 +1,7 @@
+-- superseded-by-genesis: core.reviews was dissolved by 013 and does not exist in a genesis
+--   build; 029_genesis_backfill.sql copies exchange.reviews into
+--   reviews.reviews instead.
+--
 -- Bring core.reviews' data up to date with exchange.reviews.
 --
 -- Same shape as the leads backfill: an upsert keyed on id, so it is idempotent

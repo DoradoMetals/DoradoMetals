@@ -69,9 +69,19 @@ closed** — D147 moved the read to its owner, `features/products/service.ts`
 — the table read is still `products.bullion` and production still has no
 `products` schema. Verified 2026-08-29.
 
-When that day comes: `pg_dump` first, then the migrations, then the backfills,
-then `verify:parity` and `compare:databases`, then merge. Not before, and not
-by an agent.
+When that day comes, the sequence is **`pg_dump` -> RESET -> migrate -> verify
+-> seal -> merge**, and the RESET step is new: **ruling 82** (Jacob,
+2026-09-06, *"Drop and rebuild seems to make more sense. As long as it's not
+dropped exchange"*) drops production's abandoned January schemas after the
+dump, so genesis and the backfills rebuild them from `exchange` the way dev was
+built. `pnpm --filter @dorado/api migrate:reset-january` is that step: its drop
+list is `pg_namespace` minus a hard-coded protected set, `exchange` is asserted
+out of it three times, it refuses without `--database`, `--url` and a `--dump`
+file that exists and is non-empty, it prints every doomed table's row count and
+newest timestamp before it will do anything, and it is dry until `--commit`.
+Rehearsed end to end on a production-shaped copy 2026-09-06 with **zero
+aborts** - `docs/waves/production-chain.md` carries the measured sequence and
+the runbook. Not before, and not by an agent.
 
 ### The safety net is being removed on purpose, and that makes the order above absolute
 
@@ -91,10 +101,13 @@ missing eight of the eighteen — so the write path raises **42P01 and no
 There is no undo, and this project has exactly one rule that outranks the
 others.
 
-**So `pg_dump` → migrate → backfill → verify → merge is not a checklist to work
-through in a convenient order. It is the only sequence in which nothing is
+**So `pg_dump` → reset → migrate → verify → seal → merge is not a checklist to
+work through in a convenient order. It is the only sequence in which nothing is
 lost.** Every step before the merge exists to make the merge survivable, and
-each one is the user's to run.
+each one is the user's to run. The separate "backfill" step is gone as of
+ruling 82: `-- baseline: 002-049` became `002-133` and the runner stamps only
+PURE DDL, so every backfill runs inside `migrate` in its own place in the order
+instead of being stamped and then replayed by hand.
 
 ### The pivot is DONE — D212 executed ruling 36 (2026-09-02)
 
@@ -183,7 +196,7 @@ stands, frozen and readable; identity and sessions live only in `auth.*`.
   of production's 62 payouts because all 56 of its `payments.details` rows are
   January residue sharing no id with a payout. Running the script before the
   backfill would seal nothing and report it. That is Jacob's, on the day of the
-  `pg_dump` → migrate → backfill → verify sequence.
+  `pg_dump` → reset → migrate → verify sequence (ruling 82).
 - **The order NUMBER was still an exchange write until D213, and it did not
   look like one.** `features/orders/sql/create.sql` drew it with
   `nextval('exchange.purchase_orders_order_number_seq')` — and `nextval`
@@ -857,7 +870,7 @@ Full detail in FOLLOWUPS.md; these are the ones that block other work.
   `shared/crypto/envelope.ts` is the AES-256-GCM cipher under it, and the two
   citations in 073 and `verify-backfill.mjs` now name the file that exists.
   **It has never been run against production, and running it is Jacob's**, in
-  the `pg_dump` → migrate → backfill → verify sequence.
+  the `pg_dump` → reset → migrate → verify sequence (ruling 82).
   **An earlier version of this paragraph said `verify-backfill.mjs` skips
   comparing those columns "on the strength of it", implying the verification has
   a hole. It does not** — the exclusion is justified by the BACKFILL not writing

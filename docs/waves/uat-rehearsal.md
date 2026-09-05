@@ -418,6 +418,36 @@ No other `exchange` row or column changed. `lint:migrations` stays green.
 
 ---
 
+# THE PRODUCTION-DAY RUNBOOK HAS MOVED
+
+**Superseded 2026-09-06 by `docs/waves/production-chain.md`.** Ruling 82
+(Jacob: *"Drop and rebuild seems to make more sense. As long as it's not
+dropped exchange"*) replaced the sequence this document ended with. The
+January schemas are now DROPPED after the dump by a guarded reset step
+(`pnpm --filter @dorado/api migrate:reset-january`), and genesis plus the
+backfills rebuild everything from `exchange` — which makes most of the runbook
+below wrong rather than merely dated:
+
+- **step 4** (running 071's four DELETEs by hand) is gone: the payments residue
+  goes with the schemas;
+- **step 5** no longer stops at all — the chain applies **all 139 migrations in
+  one run with zero aborts**, because `-- baseline: 002-049` became
+  `002-133` and the runner now stamps only pure DDL, so every backfill inside
+  the range runs in its own place;
+- **step 6** (running the nine stamped backfills by hand) is gone with it;
+- **`core`** is no longer a decision — it is dropped with the rest, and the
+  fourteen foreign keys into it go with the tables that carried them;
+- **F2** is fixed in `compare:databases` (both sessions pinned to UTC), and
+  **F5, F7, F9, F10** are fixed at source.
+
+Read `docs/waves/production-chain.md` for the reset step's guards, the measured
+sequence, every migration fixed, and the runbook Jacob actually runs. The
+findings above (F1–F12) are kept as the record of how each was discovered.
+
+---
+
+The superseded runbook follows, for reference only. **Do not run it.**
+
 # THE PRODUCTION-DAY RUNBOOK, as it now stands
 
 Everything below is the user's to run. Nothing here is safe to hand to an agent,

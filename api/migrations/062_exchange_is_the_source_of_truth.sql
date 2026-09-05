@@ -49,10 +49,17 @@ WHERE NOT EXISTS (
   SELECT 1 FROM exchange.sales_orders e WHERE e.id = s.order_id
 );
 
-DELETE FROM orders.offers f
-WHERE NOT EXISTS (
-  SELECT 1 FROM exchange.purchase_orders e WHERE e.id = f.order_id
-);
+-- 2026-09-06: guarded. 086 removes orders.offers, so a genesis build has no
+-- such table and nothing to prune from it.
+DO $$
+BEGIN
+  IF to_regclass('orders.offers') IS NOT NULL THEN
+    DELETE FROM orders.offers f
+    WHERE NOT EXISTS (
+      SELECT 1 FROM exchange.purchase_orders e WHERE e.id = f.order_id
+    );
+  END IF;
+END $$;
 
 DELETE FROM orders.transactions t
 WHERE NOT EXISTS (

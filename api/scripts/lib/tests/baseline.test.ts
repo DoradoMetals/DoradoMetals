@@ -2,7 +2,15 @@ import { test } from "vitest";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
-import { parseBaseline, coveredBy } from "../baseline.ts";
+import {
+  parseBaseline,
+  coveredBy,
+  splitStatements,
+  isDdlOnly,
+  dataStatements,
+  supersededByGenesis,
+  runsUnderBaseline,
+} from "../baseline.ts";
 
 const names = [
   "000_genesis_schema.sql",
@@ -79,4 +87,82 @@ test("the genesis migration declares a range that exists on disk", () => {
     onDisk.some((f) => f.startsWith(baseline.through)),
     `genesis baselines through ${baseline.through}, which is not a migration that exists`
   );
+});
+
+// ---------------------------------------------------------------------------
+// A baseline stamps SHAPE, never ROWS (ruling 82, 2026-09-06). Stamping the
+// nine backfills inside 002-049 is how a production-shaped rehearsal ended
+// with an empty product catalogue.
+
+test("statements split on semicolons outside strings, dollar quotes and comments", () => {
+  assert.deepEqual(splitStatements("SELECT 1; SELECT 2;"), ["SELECT 1", "SELECT 2"]);
+  assert.equal(splitStatements("SELECT 'a;b';").length, 1);
+  assert.equal(splitStatements("DO $$ BEGIN a; b; END $$;").length, 1);
+  assert.equal(splitStatements("-- a; b\nSELECT 1;").length, 1);
+});
+
+test("pure DDL is stampable and anything carrying rows is not", () => {
+  assert.equal(isDdlOnly("CREATE TABLE a (b int);\nALTER TABLE a ADD c int;"), true);
+  assert.equal(isDdlOnly("ALTER TABLE a ADD c int;\nINSERT INTO a VALUES (1);"), false);
+  assert.equal(isDdlOnly("UPDATE orders.orders SET status = 'x';"), false);
+  assert.equal(isDdlOnly("DELETE FROM orders.offers;"), false);
+  assert.equal(dataStatements("CREATE TABLE a (b int);\nINSERT INTO a VALUES (1);").length, 1);
+});
+
+test("a verb nobody listed is treated as data, which is the safe direction", () => {
+  assert.equal(isDdlOnly("WITH x AS (SELECT 1) INSERT INTO a SELECT * FROM x;"), false);
+  assert.equal(isDdlOnly("MERGE INTO a USING b ON true WHEN MATCHED THEN DELETE;"), false);
+});
+
+test("a DO block is judged by its body, not by being a DO block", () => {
+  assert.equal(isDdlOnly("DO $$ BEGIN IF NOT EXISTS (SELECT 1) THEN CREATE TYPE t AS ENUM ('a'); END IF; END $$;"), true);
+  assert.equal(isDdlOnly("DO $$ BEGIN INSERT INTO a VALUES (1); END $$;"), false);
+  assert.equal(isDdlOnly("DO $$ BEGIN EXECUTE 'anything'; END $$;"), false);
+});
+
+test("ON DELETE SET NULL is a referential action, not a statement", () => {
+  assert.equal(
+    isDdlOnly("DO $$ BEGIN ALTER TABLE a ADD CONSTRAINT f FOREIGN KEY (b) REFERENCES c(id) ON DELETE SET NULL; END $$;"),
+    true
+  );
+  assert.equal(isDdlOnly("DO $$ BEGIN PERFORM 1 FROM a FOR UPDATE; END $$;"), true);
+});
+
+test("a verb inside a RAISE message or a comment is not a statement", () => {
+  assert.equal(isDdlOnly("DO $$ BEGIN RAISE EXCEPTION 'refusing to INSERT anything'; END $$;"), true);
+  assert.equal(isDdlOnly("DO $$ BEGIN -- INSERT INTO a\n  CREATE TABLE b (c int); END $$;"), true);
+});
+
+test("genesis creates no sequences and no triggers, so those never stamp", () => {
+  assert.equal(isDdlOnly("CREATE SEQUENCE orders.purchase_number_seq;"), false);
+  assert.equal(isDdlOnly("DO $$ BEGIN PERFORM setval('orders.sale_number_seq', 63, false); END $$;"), false);
+  assert.equal(isDdlOnly("CREATE TRIGGER audit_stamp BEFORE INSERT ON a EXECUTE FUNCTION f();"), false);
+  assert.equal(isDdlOnly("DROP TRIGGER IF EXISTS mirror ON auth.users;"), false);
+});
+
+test("both markers need a reason, and a bare one throws", () => {
+  assert.equal(
+    supersededByGenesis("-- superseded-by-genesis: core.leads was dissolved by 013 and 029 rebuilds it"),
+    "core.leads was dissolved by 013 and 029 rebuilds it"
+  );
+  assert.equal(supersededByGenesis("-- an ordinary migration\nCREATE TABLE a (b int);"), null);
+  assert.throws(() => supersededByGenesis("-- superseded-by-genesis: because"), /at least 20 characters/);
+
+  assert.equal(
+    runsUnderBaseline("-- runs-even-under-a-baseline: 023 adds the column and runs, so only this drops it"),
+    "023 adds the column and runs, so only this drops it"
+  );
+  assert.equal(runsUnderBaseline("CREATE TABLE a (b int);"), null);
+  assert.throws(() => runsUnderBaseline("-- runs-even-under-a-baseline: why"), /at least 20 characters/);
+});
+
+test("every marker on disk carries a reason the runner will accept", () => {
+  const dir = path.join(import.meta.dirname, "..", "..", "..", "migrations");
+  let marked = 0;
+  for (const f of fs.readdirSync(dir).filter((n) => n.endsWith(".sql"))) {
+    const sql = fs.readFileSync(path.join(dir, f), "utf8");
+    if (supersededByGenesis(sql) !== null) marked += 1;
+    if (runsUnderBaseline(sql) !== null) marked += 1;
+  }
+  assert.ok(marked >= 5, `expected the five declared markers, found ${marked}`);
 });

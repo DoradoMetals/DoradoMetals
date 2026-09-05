@@ -46,8 +46,22 @@ if (nameOf(sourceUrl) === nameOf(targetUrl) && hostOf(sourceUrl) === hostOf(targ
   process.exit(1);
 }
 
-const source = new pg.Pool({ connectionString: sourceUrl });
-const target = new pg.Pool({ connectionString: targetUrl });
+// A content hash is `md5(string_agg(t::text, ...))`, and `t::text` renders a
+// timestamptz IN THE SESSION TIME ZONE. Two servers set differently therefore
+// disagree about rows that are identical - the UAT rehearsal counted
+// SEVENTEEN such false differences comparing Railway (UTC) against a local
+// cluster on America/Chicago, which on production day reads as a restore that
+// half failed. Both connections are pinned here instead. (F2, 2026-09-06.)
+const pinned = (connectionString) => {
+  const pool = new pg.Pool({ connectionString });
+  pool.on("connect", (client) => {
+    client.query("SET TimeZone = 'UTC'; SET DateStyle = 'ISO, MDY'; SET intervalstyle = 'postgres'");
+  });
+  return pool;
+};
+
+const source = pinned(sourceUrl);
+const target = pinned(targetUrl);
 
 const SYSTEM = `nspname NOT LIKE 'pg\\_%' AND nspname <> 'information_schema'`;
 

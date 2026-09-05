@@ -67,4 +67,18 @@ UPDATE orders.orders
 -- Rename rather than add-and-retire: the kind's meaning is unchanged - the
 -- invoice mail a customer gets when their order is priced - only the
 -- offer-era name dies.
-ALTER TYPE media.email_kind RENAME VALUE 'purchase_order_accepted' TO 'purchase_order_priced';
+-- 2026-09-06: guarded. On a genesis build the enum is already the post-092
+-- one, and RENAME VALUE has no IF EXISTS.
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM pg_enum e
+    JOIN pg_type t ON t.oid = e.enumtypid
+    JOIN pg_namespace n ON n.oid = t.typnamespace
+    WHERE n.nspname = 'media' AND t.typname = 'email_kind'
+      AND e.enumlabel = 'purchase_order_accepted'
+  ) THEN
+    ALTER TYPE media.email_kind
+      RENAME VALUE 'purchase_order_accepted' TO 'purchase_order_priced';
+  END IF;
+END $$;
