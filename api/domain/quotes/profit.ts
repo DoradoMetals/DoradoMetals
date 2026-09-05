@@ -7,7 +7,10 @@ import * as metalsRepo from "#db/metals/repo.ts";
 import { effectivePayoutFee, inboundShipment, recordedContent } from "#domain/pricing/service.ts";
 import { getRatePct, sumContentByMetal } from "#domain/rates/utils/resolveRate.ts";
 import * as rules from "#domain/quotes/rules.ts";
-import type { OrderQuoteBody, OrderView, OrderViewItem, ProfitBreakdown, ProfitMetalsDict, RefinerItem } from "@dorado/contracts";
+import type {
+  OrderQuoteBody, OrderSpot, OrderView, OrderViewItem, ProfitBreakdown, ProfitMetalsDict,
+  RefinerItem,
+} from "@dorado/contracts";
 
 const PROFIT_METALS = ["Gold", "Silver", "Platinum", "Palladium"] as const;
 
@@ -105,8 +108,8 @@ function premiumsToShares(
 function getSharesForItem(
   item: OrderViewItem,
   metal: (typeof PROFIT_METALS)[number],
-  orderSpots: { metal_id: string; bid: number | null }[],
-  refinerSpots: { metal_id: string; bid: number | null }[],
+  orderSpots: Pick<OrderSpot, "metal_id" | "bid">[],
+  refinerSpots: Pick<OrderSpot, "metal_id" | "bid">[],
   category: "scrap" | "bullion" | "total",
   rates: Parameters<typeof getRatePct>[0],
   scrapTotalsByMetal: Record<string, number>,
@@ -139,8 +142,8 @@ function getSharesForItem(
 function computeMetalsForAllParties(
   order: OrderView,
   category: "scrap" | "bullion" | "total",
-  orderSpots: { metal_id: string; bid: number | null }[],
-  refinerSpots: { metal_id: string; bid: number | null }[],
+  orderSpots: Pick<OrderSpot, "metal_id" | "bid">[],
+  refinerSpots: Pick<OrderSpot, "metal_id" | "bid">[],
   rates: Parameters<typeof getRatePct>[0],
   scrapTotalsByMetal: Record<string, number>,
   metals: ReadonlyMap<string, string>,
@@ -220,8 +223,8 @@ function getShippingFees(order: OrderView) {
 
 function getSpotNet(
   customerTotals: ProfitMetalsDict,
-  orderSpots: { metal_id: string; bid: number | null }[],
-  refinerSpots: { metal_id: string; bid: number | null }[],
+  orderSpots: Pick<OrderSpot, "metal_id" | "bid">[],
+  refinerSpots: Pick<OrderSpot, "metal_id" | "bid">[],
   metals: ReadonlyMap<string, string>
 ) {
   let sum = 0;

@@ -90,7 +90,7 @@ export async function editLine(
   return await withTransaction(async (tx) => {
     const written = await itemsRepo.update(
       line_id,
-      Object.assign({ content: fineContent(weight ?? preMelt, unit, purity) }, changes),
+      { content: fineContent(weight ?? preMelt, unit, purity), ...changes },
       { order_id: line.order_id },
       tx
     );
@@ -190,7 +190,7 @@ export async function cancel(
 
     let id = existing?.id;
     if (!id) {
-      const shipment = await shipmentService.create({ order_id, direction: "Return" }, tx);
+      const shipment = await shipmentService.create(order_id, "Return", tx);
       shippingRules.assertReturnShipment(shipment);
       id = shipment.id;
     }
@@ -218,11 +218,9 @@ export async function sendToRefiner(
 
   const refiner = await refinerService.getRefinerFromId(refiner_id);
   const engagement = await refinerOrders.findByOrder(order_id);
-  rules.assertSendable(order, {
-    refiner_id,
-    attachedRefinerId: engagement?.refiner_id ?? null,
-    refinerEmail: refiner?.organization?.email,
-  });
+  rules.assertSendable(
+    order, refiner_id, engagement?.refiner_id ?? null, refiner?.organization?.email
+  );
 
   if (order.order.order_sent !== true) {
     await withTransaction(async (tx) => {
@@ -230,7 +228,7 @@ export async function sendToRefiner(
       rules.assertRefinerAttached(
         await refinerOrders.update(engagementId, { refiner_id }, tx), order_id
       );
-      await shipmentService.create({ order_id, direction: "Outbound" }, tx);
+      await shipmentService.create(order_id, "Outbound", tx);
       await ordersRepo.update(order_id, { order_sent: true }, {}, tx);
     });
   }

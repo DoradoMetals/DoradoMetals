@@ -48,7 +48,7 @@ test("latestOfKind reads back a row this transaction just wrote", async () => {
       checksum: "new-checksum",
     }, c);
 
-    const latest = await repo.latestOfKind({ kind: "invoice", order_id: orderId }, c);
+    const latest = await repo.latestOfKind("invoice", orderId, c);
     assert.equal(latest?.id, written.id);
     assert.equal(latest?.checksum, "new-checksum");
   });
@@ -56,7 +56,7 @@ test("latestOfKind reads back a row this transaction just wrote", async () => {
 
 test("latestOfKind answers null for an order with no document at all", async () => {
   await inRollback(async (c) => {
-    const latest = await repo.latestOfKind({ kind: "invoice", order_id: await anOrderId(c) }, c);
+    const latest = await repo.latestOfKind("invoice", await anOrderId(c), c);
     assert.equal(latest, null);
   });
 });

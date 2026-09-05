@@ -73,7 +73,7 @@ add("GET /fulfillments/methods/all", c.FulfillmentMethodRead, () =>
 );
 
 add("GET /fulfillments/schedule", c.FulfillmentView, async () =>
-  await fulfillments.getSchedule()
+  await fulfillments.getSchedule(null, null, null)
 );
 
 const salesOrderIds = async () => {
@@ -119,8 +119,8 @@ add("GET /rates/admin", c.AdminRate, () => ratesService.listAdminRates());
 add("GET /rates/tiers", c.RateTier, () => ratesService.listTiers());
 
 const orderRead = await import("#domain/orders/read.ts");
-const orders = await orderRead.list({ direction: "purchase" });
-add("GET /orders", c.OrderRead, () => orderRead.list({}));
+const orders = await orderRead.list("purchase", null);
+add("GET /orders", c.OrderRead, () => orderRead.list(null, null));
 
 const orderSpotsRepo = await import("#db/orders/spots/repo.ts");
 add("GET /orders/:id/spots", c.OrderSpot, async () => {
@@ -148,7 +148,7 @@ const fulfillmentPickups = await import("#domain/fulfillments/pickups/service.ts
 const fulfillmentDirects = await import("#domain/fulfillments/directs/service.ts");
 add("GET /orders/:orderId/fulfillments", c.FulfillmentView, async () => {
   const reads = await Promise.all(
-    orders.map((o) => fulfillments.getForOrder(o.id, { isAdmin: true }))
+    orders.map((o) => fulfillments.getForOrder(o.id, null, true))
   );
   return reads.filter(Boolean);
 });

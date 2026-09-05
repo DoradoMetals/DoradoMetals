@@ -19,7 +19,7 @@ let lockClient: PoolClient;
 
 const viewsOf = async (direction: "purchase" | "sale") => {
   const out: OrderView[] = [];
-  for (const row of await orderRead.list({ direction })) {
+  for (const row of await orderRead.list(direction, null)) {
     const view = await orderRead.view(row.id);
     if (view) out.push(view);
   }

@@ -10,7 +10,7 @@ const sql = sqlFrom(import.meta.dirname);
 export const PATCHABLE = columnsOf(ReviewPatch);
 
 const RETURNING = returningOf(
-  Review.omit(Object.assign({ user_id: true, order_id: true } as const, ACTOR_IDS))
+  Review.omit({ user_id: true, order_id: true, ...ACTOR_IDS })
 );
 
 export async function getOne(id: string, executor?: Executor): Promise<Review | undefined> {

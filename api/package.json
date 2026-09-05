@@ -81,6 +81,8 @@
     "lint:no-throw-in-services:self-test": "TZ=UTC node scripts/lint-no-throw-in-services.ts --self-test",
     "lint:no-column-arrays": "TZ=UTC node scripts/lint-no-column-arrays.ts",
     "lint:no-column-arrays:self-test": "TZ=UTC node scripts/lint-no-column-arrays.ts --self-test",
+    "lint:no-literal-views": "node scripts/lint-no-literal-views.ts",
+    "lint:no-literal-views:self-test": "node scripts/lint-no-literal-views.ts --self-test",
     "lint:input-shapes": "node scripts/lint-input-shapes.ts",
     "lint:client-boundary": "node scripts/lint-client-boundary.ts",
     "lint:client-boundary:self-test": "node scripts/lint-client-boundary.ts --self-test",

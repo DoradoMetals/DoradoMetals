@@ -1,21 +1,18 @@
 import withTransaction from "#shared/db/withTransaction.ts";
 import * as carriers from "#db/shipping/carriers/repo.ts";
 import * as organizations from "#db/organizations/repo.ts";
-import * as compose from "#domain/shipping/carriers/compose.ts";
 import type { ComposedCarrier } from "@dorado/contracts";
 import type { Executor } from "#shared/db/executor.ts";
 import type { CarrierPatch } from "@dorado/contracts";
 
 export async function getAllCarriers(): Promise<ComposedCarrier[]> {
-  return await compose.all(await carriers.getAll());
+  return await carriers.view(null);
 }
 
 export async function getCarrierById(
   id: string, executor?: Executor
 ): Promise<ComposedCarrier | null> {
-  const row = await carriers.getOne(id, executor);
-  if (!row) return null;
-  return await compose.one(row, executor);
+  return (await carriers.view(id, executor))[0] ?? null;
 }
 
 export async function getCarrierName(id: string, executor?: Executor): Promise<string> {
@@ -28,7 +25,7 @@ export async function createCarrier(carrier: CarrierPatch): Promise<ComposedCarr
     const row = await carriers.create(
       { organization_id: organization.id, logo: carrier.logo ?? null }, tx
     );
-    return await compose.one(row, tx);
+    return (await carriers.view(row.id, tx))[0] ?? null;
   });
 }
 
@@ -47,9 +44,7 @@ export async function updateCarrier(carrier: CarrierPatch): Promise<ComposedCarr
       await organizations.update(current.organization_id, carrier.organization, tx);
     }
 
-    const row = await carriers.getOne(id, tx);
-    if (!row) return null;
-    return await compose.one(row, tx);
+    return (await carriers.view(id, tx))[0] ?? null;
   });
 }
 

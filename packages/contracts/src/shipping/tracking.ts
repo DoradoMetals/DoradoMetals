@@ -16,6 +16,11 @@ export type TrackingRecord = z.infer<typeof TrackingRecord>;
 // generated:end
 import { Shipment } from "./shipments.js";
 
+export const TrackingScan = TrackingRecord.omit({ time: true }).extend({
+  scan_time: TrackingRecord.shape.time,
+});
+export type TrackingScan = z.infer<typeof TrackingScan>;
+
 export const ShippingGetTrackingBody = z.object({
   shipment_id: Shipment.shape.id,
 }).strict();

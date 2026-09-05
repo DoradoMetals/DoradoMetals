@@ -6,112 +6,77 @@ import * as shipmentLinks from "#db/fulfillments/shipments/repo.ts";
 import * as parcel from "#domain/shipping/parcel.ts";
 import * as handoffsService from "#domain/shipping/handoffs/service.ts";
 import * as orders from "#db/orders/repo.ts";
-import * as compose from "#domain/fulfillments/compose.ts";
 import * as rules from "#domain/fulfillments/rules.ts";
+import { withDecisions } from "#shared/views.ts";
 import type { Executor } from "#shared/db/executor.ts";
 import type {
-  CarrierHandoff, Direction, Fulfillment, FulfillmentCategory, FulfillmentDirect,
-  FulfillmentMethodRead, FulfillmentParcel, FulfillmentPatchBody, FulfillmentPickup,
-  FulfillmentShipment, FulfillmentStep, FulfillmentView,
+  Direction, FulfillmentCategory, FulfillmentPatchBody, FulfillmentStep, FulfillmentView,
+  FulfillmentViewFacts,
 } from "@dorado/contracts";
 
-async function detailsFor(
-  rows: Fulfillment[], executor?: Executor
-): Promise<{
-  methods: Map<string, FulfillmentMethodRead>;
-  pickups: Map<string, FulfillmentPickup>;
-  directs: Map<string, FulfillmentDirect>;
-  shipmentLinks: Map<string, FulfillmentShipment[]>;
-  parcels: Map<string, FulfillmentParcel>;
-  labelled: Set<string>;
-  handoffs: CarrierHandoff[];
-}> {
-  const ids = rows.map((f) => f.id);
-  const methods = await methodService.byId(executor);
-  const p = await pickups.getMany(ids, executor);
-  const d = await directs.getMany(ids, executor);
-  const s = await shipmentLinks.getMany(ids, executor);
-  const parcelRows = await parcel.getMany(s.map((l) => l.shipment_id), executor);
-  return {
-    methods,
-    pickups: compose.byFulfillment(p),
-    directs: compose.byFulfillment(d),
-    shipmentLinks: compose.groupByFulfillment(s),
-    parcels: new Map(parcelRows.map((row) => [row.id, row])),
-    labelled: new Set(
-      parcelRows.filter((row) => row.tracking_number != null).map((row) => row.id)
-    ),
-    handoffs: await handoffsService.getHandoffs(null, executor),
-  };
+async function decide(
+  rows: FulfillmentViewFacts[], executor?: Executor
+): Promise<FulfillmentView[]> {
+  if (rows.length === 0) return [];
+  const handoffs = await handoffsService.getHandoffs(null, executor);
+  return rows.map((row) => withDecisions(row, rules.decisionsFor(row, handoffs)));
 }
 
-async function composeOne(
-  row: Fulfillment | undefined, executor?: Executor
+async function viewOne(
+  id: string | null, order_id: string | null, executor?: Executor
 ): Promise<FulfillmentView | null> {
-  if (!row) return null;
-  return compose.compose(row, await detailsFor([row], executor));
+  const rows = await fulfillments.view(
+    id === null ? null : [id], order_id, false, null, null, null, executor
+  );
+  return (await decide(rows, executor))[0] ?? null;
 }
 
 export async function getForOrder(
-  order_id: string,
-  { userId, isAdmin = false }: { userId?: string; isAdmin?: boolean } = {},
-  executor?: Executor
+  order_id: string, userId: string | null, isAdmin: boolean, executor?: Executor
 ): Promise<FulfillmentView | null> {
   if (!isAdmin) {
     const owner = await orders.ownerOf(order_id, executor);
     if (!owner || owner !== userId) return null;
   }
-  return await composeOne(await fulfillments.getByOrder(order_id, executor), executor);
+  return await viewOne(null, order_id, executor);
 }
 
 export async function getById(
   id: string, executor?: Executor
 ): Promise<FulfillmentView | null> {
-  return await composeOne(await fulfillments.getOne(id, executor), executor);
+  return await viewOne(id, null, executor);
 }
 
 export async function getSchedule(
-  filters: { from?: string; to?: string; employee_id?: string } = {},
-  executor?: Executor
+  from: string | null, to: string | null, employee_id: string | null, executor?: Executor
 ): Promise<FulfillmentView[]> {
-  const p = await pickups.getScheduled(filters, executor);
-  const d = await directs.getScheduled(filters, executor);
-
-  const ids = [...new Set([...p, ...d].map((r) => r.fulfillment_id))];
-  if (ids.length === 0) return [];
-
-  const rows = await fulfillments.getMany(ids, executor);
-  return compose.composeAll(rows, await detailsFor(rows, executor))
-    .sort(rules.byStartTimeThenId);
+  return await decide(
+    await fulfillments.view(null, null, true, from, to, employee_id, executor), executor
+  );
 }
 
 async function createFulfillment(
-  { order_id, method_id, status = "PENDING" }:
-    { order_id: string; method_id: string; status?: string },
-  executor?: Executor
+  order_id: string, method_id: string, executor?: Executor
 ): Promise<FulfillmentView> {
   rules.assertFulfillable(await orders.exists(order_id, executor), order_id);
 
-  const made = await fulfillments.create(
-    { order_id, method_id, status }, executor
-  );
-  const row = made ?? (await fulfillments.getByOrder(order_id, executor));
-  const view = await composeOne(row, executor);
+  const made = await fulfillments.create(order_id, method_id, "PENDING", executor);
+  const id = made?.id ?? null;
+  const view = await viewOne(id, id === null ? order_id : null, executor);
   rules.assertComposed(view, order_id);
   return view;
 }
 
 export async function createDraft(
-  { method_id, direction }: { method_id: string; direction: Direction },
-  executor?: Executor
+  method_id: string, direction: Direction, executor?: Executor
 ): Promise<FulfillmentView> {
-  await methodService.assertOffered({ method_id, direction }, executor);
+  await methodService.assertOffered(method_id, direction, executor);
   const method = await methodService.getOne(method_id, executor);
   rules.assertMethod(method, method_id);
 
-  const row = await fulfillments.createDraft({ method_id }, executor);
+  const row = await fulfillments.createDraft(method_id, executor);
   await ensureDetail(row.id, method.category, direction, executor);
-  const view = await composeOne(row, executor);
+  const view = await viewOne(row.id, null, executor);
   rules.assertComposed(view, row.id);
   return view;
 }
@@ -212,33 +177,28 @@ async function recompose(id: string, executor?: Executor): Promise<FulfillmentVi
 }
 
 export async function choose(
-  { order_id, method_id, direction }:
-    { order_id: string; method_id: string; direction: Direction },
-  executor?: Executor
+  order_id: string, method_id: string, direction: Direction, executor?: Executor
 ): Promise<FulfillmentView> {
-  await methodService.assertOffered({ method_id, direction }, executor);
-  return await createFulfillment({ order_id, method_id }, executor);
+  await methodService.assertOffered(method_id, direction, executor);
+  return await createFulfillment(order_id, method_id, executor);
 }
 
 export async function chooseById(
-  { order_id, method_id }: { order_id: string; method_id: string },
-  executor?: Executor
+  order_id: string, method_id: string, executor?: Executor
 ): Promise<FulfillmentView> {
-  return await createFulfillment({ order_id, method_id }, executor);
+  return await createFulfillment(order_id, method_id, executor);
 }
 
 export async function chooseDefault(
-  { order_id, direction, category = "SHIPMENT" }:
-    { order_id: string; direction: Direction; category?: FulfillmentCategory },
+  order_id: string, direction: Direction, category: FulfillmentCategory,
   executor?: Executor
 ): Promise<FulfillmentView> {
-  const method = await methodService.getDefault({ direction, category }, executor);
-  return await createFulfillment({ order_id, method_id: method.id }, executor);
+  const method = await methodService.getDefault(direction, category, executor);
+  return await createFulfillment(order_id, method.id, executor);
 }
 
 export async function setStatus(
-  { id, status }: { id: string; status: string },
-  executor?: Executor
+  id: string, status: string, executor?: Executor
 ): Promise<FulfillmentView | null> {
   const changed = await fulfillments.update(id, { status }, executor);
   if (!changed) return null;
@@ -246,8 +206,7 @@ export async function setStatus(
 }
 
 export async function setMethod(
-  { id, method_id }: { id: string; method_id: string },
-  executor?: Executor
+  id: string, method_id: string, executor?: Executor
 ): Promise<FulfillmentView> {
   const target = await methodService.getOne(method_id, executor);
   rules.assertMethod(target, method_id);
@@ -258,10 +217,9 @@ export async function setMethod(
   const currentMethod = await methodService.getOne(current.method_id, executor);
   if (currentMethod) {
     const view = await getById(id, executor);
-    rules.assertMovable(currentMethod.category, target.category, {
-      hasShipment: view?.actions.categories.length === 1,
-      id,
-    });
+    rules.assertMovable(
+      currentMethod.category, target.category, view?.actions.categories.length === 1, id
+    );
   }
 
   await fulfillments.update(id, { method_id }, executor);

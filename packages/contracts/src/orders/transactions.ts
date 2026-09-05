@@ -4,6 +4,7 @@
 //
 // Postgres table: orders.transactions
 import { z } from "zod/v4";
+import { Direction } from "./enums.js";
 
 export const OrderTotals = z.object({
   "id": z.string().uuid(),
@@ -51,3 +52,6 @@ export const OrderTotalsWrite = OrderTotals.pick({
   payout_fee: true, waive_payout_fee: true, payout_details_id: true,
 }).partial();
 export type OrderTotalsWrite = z.infer<typeof OrderTotalsWrite>;
+
+export const OrderTotalsGuard = z.object({ direction: Direction }).partial();
+export type OrderTotalsGuard = z.infer<typeof OrderTotalsGuard>;

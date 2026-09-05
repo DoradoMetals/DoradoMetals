@@ -28,7 +28,7 @@ const anOrderWithoutShipment = async (c: PoolClient) => {
 };
 
 const inbound = async (c: PoolClient, orderId: string) =>
-  dual.create({ order_id: orderId, direction: "Inbound" }, c);
+  dual.create(orderId, "Inbound", c);
 
 test("creating a shipment writes the shipment, its fulfillment and the link", async () => {
   await inRollback(async (c: PoolClient) => {
@@ -72,9 +72,7 @@ test("a second shipment on an order reuses its fulfillment", async () => {
     assert.ok(orderId, "the fixture did not build an order");
     const first = await inbound(c, orderId);
     assert.ok(first, "the first call returned nothing");
-    const second = await dual.create(
-      { order_id: orderId, direction: "Outbound" }, c
-    );
+    const second = await dual.create(orderId, "Outbound", c);
     assert.ok(second, "the second call returned nothing");
 
     const { rows } = await c.query(
@@ -88,7 +86,7 @@ test("a second shipment on an order reuses its fulfillment", async () => {
 test("creating a shipment for an order that does not exist refuses instead of shipping silently", async () => {
   await inRollback(async (c: PoolClient) => {
     await assert.rejects(
-      () => dual.create({ order_id: randomUUID(), direction: "Inbound" }, c),
+      () => dual.create(randomUUID(), "Inbound", c),
       /does not exist/
     );
   });

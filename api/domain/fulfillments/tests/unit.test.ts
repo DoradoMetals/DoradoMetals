@@ -38,24 +38,6 @@ const builtLink = () =>
     table: "fulfillments.shipments", allowed: LINK_PATCHABLE,
     patch: { recipient_location_id: "r" }, where: { shipment_id: "s1" },
   })!.text;
-import {
-  compose, composeAll, byFulfillment,
-} from "#domain/fulfillments/compose.ts";
-import { byStartTimeThenId } from "#domain/fulfillments/rules.ts";
-import type {
-  CarrierHandoff, FulfillmentDirect, FulfillmentMethodRead, FulfillmentParcel,
-  FulfillmentPickup, FulfillmentShipment,
-} from "@dorado/contracts";
-
-type Details = {
-  methods: Map<string, FulfillmentMethodRead>;
-  pickups: Map<string, FulfillmentPickup>;
-  directs: Map<string, FulfillmentDirect>;
-  shipmentLinks: Map<string, FulfillmentShipment[]>;
-  parcels: Map<string, FulfillmentParcel>;
-  labelled: Set<string>;
-  handoffs: CarrierHandoff[];
-};
 
 const here = new URL("../../../db/fulfillments/", import.meta.url).pathname;
 const sql = sqlFrom(here);
@@ -68,7 +50,7 @@ const strip = (text: string): string =>
   text.split("\n").filter((l) => !l.trim().startsWith("--")).join("\n");
 
 test("every statement loads and is not empty", () => {
-  for (const n of ["get_one", "get_by_order", "get_many", "create"]) {
+  for (const n of ["get_one", "get_by_order", "get_many", "create", "view"]) {
     assert.ok(sql(n).trim().length > 0, `${n} is empty`);
   }
   for (const n of ["get_available", "get_all", "get_one", "get_default"]) {
@@ -76,7 +58,7 @@ test("every statement loads and is not empty", () => {
   }
   assert.ok(builtFulfillment().trim().length > 0, "the built fulfillments UPDATE is empty");
   assert.ok(builtMethod().trim().length > 0, "the built methods UPDATE is empty");
-  for (const n of ["get_for", "get_many", "get_scheduled", "create", "delete"]) {
+  for (const n of ["get_for", "get_many", "create", "delete"]) {
     assert.ok(pickupsSql(n).trim().length > 0, `pickups/${n} is empty`);
     assert.ok(directsSql(n).trim().length > 0, `directs/${n} is empty`);
   }
@@ -96,7 +78,7 @@ test("no statement joins a second table", () => {
       .map((n) => [`methods/${n}`, methodsSql(n)] as [string, string]),
     ["fulfillments/update", builtFulfillment()] as [string, string],
     ["methods/update", builtMethod()] as [string, string],
-    ...["get_for", "get_many", "get_scheduled", "create", "delete"]
+    ...["get_for", "get_many", "create", "delete"]
       .flatMap((n) => [
         [`pickups/${n}`, pickupsSql(n)] as [string, string],
         [`directs/${n}`, directsSql(n)] as [string, string],
@@ -108,7 +90,7 @@ test("no statement joins a second table", () => {
     ["shipments/update", builtLink()] as [string, string],
   ];
 
-  assert.ok(all.length >= 28, `only ${all.length} statements found - the walk broke`);
+  assert.ok(all.length >= 24, `only ${all.length} statements found - the walk broke`);
   for (const [name, text] of all) {
     assert.doesNotMatch(strip(text), /\bJOIN\b/i, `${name} joins a second table`);
   }
@@ -171,109 +153,13 @@ test("creating a fulfillment for an order that has one does nothing", () => {
   assert.match(strip(sql("create")), /ON CONFLICT \(order_id\) DO NOTHING/i);
 });
 
-const base = (over = {}) =>
-  ({ id: "f1", order_id: "o1", method_id: "m1", status: "PENDING", ...over }) as never;
 
-const method = (over = {}) =>
-  ({
-    id: "m1", type: "PICKUP", label: "Pickup", admin_label: "Dorado Pickup",
-    category: "PICKUP", direction: "purchase", enabled: true, hidden: false,
-    is_default: false, created_at: null, updated_at: null, ...over,
-  }) as never;
-
-const details = (over: Partial<Details> = {}): Details => ({
-  methods: new Map([["m1", method()]]),
-  pickups: new Map(),
-  directs: new Map(),
-  shipmentLinks: new Map(),
-  parcels: new Map(),
-  labelled: new Set(),
-  handoffs: [],
-  ...over,
-});
-
-test("a fulfillment carries its bare row separately from its nested method", () => {
-  const out = compose(base(), details());
-  assert.ok(out);
-  assert.equal(out.method.category, "PICKUP");
-  assert.equal(out.fulfillment.method_id, "m1", "method_id is part of the verbatim row");
-  assert.equal(out.fulfillment.order_id, "o1");
-  assert.equal(out.fulfillment.id, "f1");
-});
-
-test("a fulfillment with no method is dropped", () => {
-  assert.equal(compose(base({ method_id: "gone" }), details()), null);
-  assert.ok(compose(base(), details()));
-});
-
-test("a fulfillment with no detail keeps three nulls", () => {
-  const out = compose(base(), details());
-  assert.ok(out);
-  assert.equal(out.pickup, null);
-  assert.equal(out.direct, null);
-  assert.deepEqual(out.shipments, []);
-});
-
-test("a booked pickup is nested under its own key and the others stay null", () => {
-  const p = {
-    id: "p1", fulfillment_id: "f1", pickup_address_id: "a1",
-    assigned_employee_id: null, start_time: null, end_time: null,
-  } as never;
-  const out = compose(base(), details({ pickups: byFulfillment([p]) }));
-  assert.ok(out);
-  assert.equal(out.pickup?.pickup_address_id, "a1");
-  assert.equal(out.direct, null);
-  assert.deepEqual(out.shipments, []);
-  assert.equal(out.pickup?.fulfillment_id, "f1");
-});
-
-test("composeAll drops what compose drops and keeps the rest", () => {
-  const rows = [base({ id: "f1" }), base({ id: "f2", method_id: "gone" })];
-  assert.deepEqual(composeAll(rows, details()).map((f) => f.fulfillment.id), ["f1"]);
-});
-
-test("the schedule sorts by start time with unscheduled work last", () => {
-  const at = (id: string, start: string | null) => {
-    const d = details({
-      pickups: byFulfillment([
-        { id: `p-${id}`, fulfillment_id: id, pickup_address_id: "a1",
-          assigned_employee_id: null, start_time: start, end_time: null } as never,
-      ]),
-    });
-    return compose(base({ id }), d);
-  };
-
-  const rows = [
-    at("f3", null),
-    at("f2", "2026-09-02T15:00:00Z"),
-    at("f1", "2026-09-01T09:00:00Z"),
-    at("f0", null),
-  ].filter((r) => r !== null);
-
-  assert.deepEqual(
-    [...rows].sort(byStartTimeThenId).map((r) => r.fulfillment.id),
-    ["f1", "f2", "f0", "f3"],
-    "unscheduled work did not sort last, or the id tiebreak was lost"
-  );
-});
-
-test("the sort reads a direct's start time as well as a pickup's", () => {
-  const withDirect = compose(base({ id: "d1" }), details({
-    directs: byFulfillment([
-      { id: "x", fulfillment_id: "d1", location_id: "l1", assigned_employee_id: null,
-        is_appointment: true, start_time: "2026-09-01T08:00:00Z", end_time: null } as never,
-    ]),
-  }));
-  const withPickup = compose(base({ id: "p1" }), details({
-    pickups: byFulfillment([
-      { id: "y", fulfillment_id: "p1", pickup_address_id: "a1", assigned_employee_id: null,
-        start_time: "2026-09-01T09:00:00Z", end_time: null } as never,
-    ]),
-  }));
-  assert.ok(withDirect && withPickup);
-  assert.deepEqual(
-    [withPickup, withDirect].sort(byStartTimeThenId).map((r) => r.fulfillment.id),
-    ["d1", "p1"],
-    "the direct's start time was ignored by the sort"
-  );
+test("the fulfillment view is one read that nests every child by its table", () => {
+  const view = strip(sql("view"));
+  assert.match(view, /JOIN fulfillments\.methods/, "the method is not joined");
+  assert.match(view, /fulfillments\.pickups/, "the pickup is not read");
+  assert.match(view, /fulfillments\.directs/, "the direct is not read");
+  assert.match(view, /jsonb_agg/, "the shipment links are not nested");
+  assert.match(view, /shipping\.shipments/, "the parcel is not read");
+  assert.match(view, /ORDER BY COALESCE/, "the schedule order is not the view's");
 });

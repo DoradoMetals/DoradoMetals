@@ -31,8 +31,7 @@ export async function byId(executor?: Executor): Promise<Map<string, Fulfillment
 }
 
 export async function getDefault(
-  { direction, category }: { direction: string; category: string },
-  executor?: Executor
+  direction: string, category: string, executor?: Executor
 ): Promise<FulfillmentMethodRead | undefined> {
   const { rows } = await query<FulfillmentMethodRead>(
     sql("get_default"), [direction, category], executor

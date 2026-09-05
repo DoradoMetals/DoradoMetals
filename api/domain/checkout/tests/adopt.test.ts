@@ -30,9 +30,7 @@ test("a visitor's only checkout changes hands, id and lines and all", async () =
     const product = await aProduct(c);
     const cart = await aCart(c, visitor, { direction: "purchase" }).withBullion(product, 3);
 
-    const result = await adoptAnonymousCheckout(
-      { anonymousUserId: visitor.id, userId: customer.id }, c
-    );
+    const result = await adoptAnonymousCheckout(visitor.id, customer.id, c);
 
     assert.deepEqual(result.adopted, [
       { direction: "purchase", outcome: "moved", checkout_id: cart.id, replaced: 0 },
@@ -54,9 +52,7 @@ test("both directions follow, not just the one being looked at", async () => {
     await aCart(c, visitor, { direction: "purchase" }).withLots(1);
     await aCart(c, visitor, { direction: "sale" }).withBullion(product, 1);
 
-    const result = await adoptAnonymousCheckout(
-      { anonymousUserId: visitor.id, userId: customer.id }, c
-    );
+    const result = await adoptAnonymousCheckout(visitor.id, customer.id, c);
 
     assert.equal(result.adopted.length, 2);
     assert.deepEqual(
@@ -82,9 +78,7 @@ test("when the customer already has a row, theirs survives and takes the visitor
       .withBullion(product, 1);
     await checkouts.update(theirs.id, { recipient_address_id: address.id }, c);
 
-    const result = await adoptAnonymousCheckout(
-      { anonymousUserId: visitor.id, userId: customer.id }, c
-    );
+    const result = await adoptAnonymousCheckout(visitor.id, customer.id, c);
 
     assert.deepEqual(result.adopted, [
       { direction: "purchase", outcome: "merged", checkout_id: mine.id, replaced: 2 },
@@ -110,9 +104,7 @@ test("the address the visitor typed lands in the customer's book", async () => {
     const customer = await aUser(c);
     const address = await anAddress(c, visitor);
 
-    const result = await adoptAnonymousCheckout(
-      { anonymousUserId: visitor.id, userId: customer.id }, c
-    );
+    const result = await adoptAnonymousCheckout(visitor.id, customer.id, c);
 
     assert.equal(result.addresses, 1);
     const book = await userAddresses.listFor(customer.id, c);
@@ -129,9 +121,7 @@ test("linking a user to itself does nothing at all", async () => {
   await inPinnedTransaction(async (c: PoolClient) => {
     const customer = await aUser(c);
     const cart = await aCart(c, customer, { direction: "purchase" }).withLots(1);
-    const result = await adoptAnonymousCheckout(
-      { anonymousUserId: customer.id, userId: customer.id }, c
-    );
+    const result = await adoptAnonymousCheckout(customer.id, customer.id, c);
     assert.deepEqual(result, { adopted: [], addresses: 0 });
     assert.equal((await checkouts.getOne(cart.id, c))?.user_id, customer.id);
   }, { actor: TEST_ACTOR.id, lock: LOCKS_HERE });
@@ -141,9 +131,7 @@ test("a visitor with nothing to carry is not an error", async () => {
   await inPinnedTransaction(async (c: PoolClient) => {
     const visitor = await aVisitor(c);
     const customer = await aUser(c);
-    const result = await adoptAnonymousCheckout(
-      { anonymousUserId: visitor.id, userId: customer.id }, c
-    );
+    const result = await adoptAnonymousCheckout(visitor.id, customer.id, c);
     assert.deepEqual(result, { adopted: [], addresses: 0 });
   }, { actor: TEST_ACTOR.id, lock: LOCKS_HERE });
 });

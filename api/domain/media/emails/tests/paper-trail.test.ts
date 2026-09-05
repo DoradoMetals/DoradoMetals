@@ -22,7 +22,7 @@ beforeAll(async () => {
   client = await pool.connect();
   await client.query("SELECT pg_advisory_lock($1)", [LOCKS.ORDERS]);
   orders = [];
-  for (const row of await orderRead.list({ direction: "purchase" })) {
+  for (const row of await orderRead.list("purchase", null)) {
     const view = await orderRead.view(row.id);
     if (view) orders.push(view);
   }
@@ -150,11 +150,9 @@ test("a verification mail leaves an auth_verification row with its user", async 
     const { order, email, user } = anOrderWithAUser();
     const t = recorder();
     await emails.sendAuthVerificationEmail(
-      {
-        user: { id: user.id, email: email, name: user.name },
-        url: "https://example.test/verify-email?token=t",
-        isSignUp: true,
-      },
+      { id: user.id, email: email, name: user.name },
+      "https://example.test/verify-email?token=t",
+      true,
       t,
       c
     );
@@ -182,10 +180,9 @@ test("a failed verification mail throws and reaches better-auth unchanged", asyn
     await assert.rejects(
       () =>
         emails.sendAuthVerificationEmail(
-          {
-            user: { id: null, email: "new-signup@example.test", name: "New Signup" },
-            url: "https://example.test/verify-email?token=t",
-          },
+          { id: null, email: "new-signup@example.test", name: "New Signup" },
+          "https://example.test/verify-email?token=t",
+          false,
           failing(),
           c
         ),

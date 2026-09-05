@@ -3,21 +3,23 @@ import { fineContent } from "#domain/pricing/content.ts";
 import { Conflict, Invalid, NotFound } from "#shared/errors.ts";
 
 import type {
-  BullionStorefront, CheckoutMissing, Direction, OrderActions, OrderItem, OrderItemPatch,
-  OrderLine, OrderTotals, OrderView, PaymentIntentFacts, PaymentMethod, PricedLine,
-  SaleLine, TaxedSaleLine,
+  BullionStorefront, Checkout, CheckoutMissing, Direction, OrderActions, OrderItem,
+  OrderItemPatch,
+  OrderItemWrite, OrderLine, OrderSpot, OrderSpotsPutBody, OrderTotals, OrderView,
+  OrderViewFacts, PaymentIntentFacts, PaymentMethod,
+  PricedLine, SaleLine, SoldLinePrice, TaxedSaleLine,
 } from "@dorado/contracts";
 
 export function chargesSalesTax(direction: Direction): boolean {
   return direction === "sale";
 }
 
-export function directionOf(checkout: { direction: string }): Direction {
+export function directionOf(checkout: Checkout): Direction {
   return checkout.direction === "sale" ? "sale" : "purchase";
 }
 
-export function rateMaterialFor(line: { bullion_id?: string | null }): "scrap" | "bullion" {
-  return line.bullion_id == null ? "scrap" : "bullion";
+export function rateMaterialFor(bullion_id: string | null | undefined): "scrap" | "bullion" {
+  return bullion_id == null ? "scrap" : "bullion";
 }
 
 export function lineContent(line: Pick<PricedLine, "content" | "quantity" | "bullion_id">): number {
@@ -35,7 +37,7 @@ export function retierPlan(
   const plan: { id: string; premium: number }[] = [];
   for (const line of lines) {
     const total = totals[String(line.metal ?? "").toLowerCase()] ?? 0;
-    const pct = getRatePct(rates, line.metal, total, rateMaterialFor(line));
+    const pct = getRatePct(rates, line.metal, total, rateMaterialFor(line.bullion_id));
     if (pct != null) plan.push({ id: line.id, premium: pct });
   }
   return plan;
@@ -83,7 +85,7 @@ export function catalogueWanted(cart: OrderLine[]): { id: string; quantity: numb
 
 export function pricedSaleLines(
   cart: OrderLine[], priced: TaxedSaleLine[], askOf: (line: TaxedSaleLine) => number
-): { line_id: string; premium: number; sales_tax: number; price: number }[] {
+): SoldLinePrice[] {
   return cart.map((line, index) => {
     const sold = priced[index];
     if (!sold) {
@@ -98,14 +100,17 @@ export function pricedSaleLines(
   });
 }
 
-export function declaredLot(declared: OrderItemPatch): OrderItemPatch & { metal_id: string } {
+export function declaredLot(
+  declared: OrderItemPatch
+): OrderItemWrite & Pick<OrderItem, "metal_id"> {
   assertDeclaredMetal(declared.metal_id);
-  return Object.assign({}, declared, {
+  return {
+    ...declared,
     metal_id: declared.metal_id,
     quantity: 1,
     confirmed: false,
     content: fineContent(declared.pre_melt, declared.unit, declared.purity),
-  });
+  };
 }
 
 export function retiersAfterEdit(changes: OrderItemPatch): boolean {
@@ -157,21 +162,6 @@ export function payoutFeeOf(
   return Number(methods.find((m) => m.id === payment_method_id)?.flat_fee ?? 0);
 }
 
-export function payableOf(
-  line: { content?: number | null; premium?: number | null }
-): number | null {
-  if (line.content == null || line.premium == null) return null;
-  return Number(line.content) * Number(line.premium);
-}
-
-export function lineTotalOf(
-  line: { price?: number | null; quantity?: number | null; bullion_id?: string | null }
-): number | null {
-  if (line.price == null) return null;
-  if (line.bullion_id == null) return Number(line.price);
-  return Number(line.price) * Number(line.quantity ?? 1);
-}
-
 const PURCHASE_LADDER: Record<string, string[]> = {
   "In Transit": ["Received", "Cancelled"],
   Received: ["Payment Processing", "In Transit", "Cancelled"],
@@ -187,7 +177,7 @@ const SALE_LADDER: Record<string, string[]> = {
   Completed: ["In Transit"],
 };
 
-export function allLinesConfirmed(items: { confirmed: boolean }[]): boolean {
+export function allLinesConfirmed(items: Pick<OrderItem, "confirmed">[]): boolean {
   return items.length > 0 && items.every((item) => item.confirmed === true);
 }
 
@@ -195,43 +185,34 @@ export function creditsToAccount(payoutMethod: string | null): boolean {
   return payoutMethod === "DORADO_ACCOUNT";
 }
 
-type Facts = Pick<
-  OrderView["order"], "direction" | "status" | "order_sent" | "tracking_updated"
-> & {
-  hasAddress: boolean;
-  hasTotal: boolean;
-  items: { confirmed: boolean }[];
-  shipments: { direction: string | null; tracking_number: string | null }[];
-  payoutMethod: string | null;
-};
-
-export function statusesFor(facts: Facts): string[] {
-  const ladder = facts.direction === "sale" ? SALE_LADDER : PURCHASE_LADDER;
-  const offered = ladder[facts.status ?? ""] ?? [];
+export function statusesFor(view: OrderViewFacts): string[] {
+  const ladder = view.order.direction === "sale" ? SALE_LADDER : PURCHASE_LADDER;
+  const offered = ladder[view.order.status ?? ""] ?? [];
   return offered.filter((next) => {
-    if (next === "Payment Processing" && facts.direction === "purchase") {
-      return allLinesConfirmed(facts.items);
+    if (next === "Payment Processing" && view.order.direction === "purchase") {
+      return allLinesConfirmed(view.items);
     }
-    if (next === "In Transit" && facts.direction === "sale") {
-      return facts.order_sent === true && facts.tracking_updated === true;
+    if (next === "In Transit" && view.order.direction === "sale") {
+      return view.order.order_sent === true && view.order.tracking_updated === true;
     }
     return true;
   });
 }
 
-export function actionsFor(facts: Facts): OrderActions {
-  const purchase = facts.direction === "purchase";
-  const sale = facts.direction === "sale";
-  const inbound = facts.shipments.find((s) => s.direction === "Inbound");
+export function actionsFor(view: OrderViewFacts): OrderActions {
+  const purchase = view.order.direction === "purchase";
+  const sale = view.order.direction === "sale";
+  const inbound = view.shipments.find((s) => s.direction === "Inbound");
   return {
-    cancel: purchase && facts.hasAddress,
-    finalize_pricing: purchase && allLinesConfirmed(facts.items),
-    add_funds: purchase && facts.hasTotal && creditsToAccount(facts.payoutMethod),
-    send_to_refiner: sale && facts.hasAddress,
+    cancel: purchase && view.address !== null,
+    finalize_pricing: purchase && allLinesConfirmed(view.items),
+    add_funds:
+      purchase && view.totals?.total != null && creditsToAccount(view.payout?.method ?? null),
+    send_to_refiner: sale && view.address !== null,
     buy_label: purchase && !!inbound && !inbound.tracking_number,
-    update_tracking: facts.shipments.length > 0,
+    update_tracking: view.shipments.length > 0,
     edit_lines: purchase,
-    statuses: statusesFor(facts),
+    statuses: statusesFor(view),
   };
 }
 
@@ -247,9 +228,7 @@ export function assertOrder<T>(
   if (!row) throw new NotFound(`no order ${order_id}`);
 }
 
-export function assertNamesASpotField(
-  body: { lock?: boolean; set?: unknown[] }
-): void {
+export function assertNamesASpotField(body: OrderSpotsPutBody): void {
   if (body.lock === undefined && !body.set) {
     throw new Invalid("the document names no field to write");
   }
@@ -286,11 +265,9 @@ export function assertDirection(
 
 export function assertSendable(
   order: OrderView,
-  { refiner_id, attachedRefinerId, refinerEmail }: {
-    refiner_id: string;
-    attachedRefinerId: string | null;
-    refinerEmail: string | null | undefined;
-  }
+  refiner_id: string,
+  attachedRefinerId: string | null,
+  refinerEmail: string | null | undefined
 ): void {
   if (!order.address) {
     throw new Invalid(
@@ -398,7 +375,7 @@ export function assertPlacedOrder<T>(
 }
 
 export function assertEveryMetalQuoted(
-  lines: Pick<OrderItem, "metal_id">[], frozen: { metal_id: string }[]
+  lines: Pick<OrderItem, "metal_id">[], frozen: Pick<OrderSpot, "metal_id">[]
 ): void {
   const quoted = new Set(frozen.map((row) => row.metal_id));
   for (const metal_id of new Set(lines.map((line) => line.metal_id))) {
@@ -453,10 +430,7 @@ export function assertAttachable(verdict: ReturnType<typeof attachmentVerdict>):
   }
 }
 
-export function assertRepairable(
-  intent: { amount: number | string | null | undefined; payment_intent_id: string },
-  cents: number
-): void {
+export function assertRepairable(intent: PaymentIntentFacts, cents: number): void {
   if (!repairAmountMatches(intent.amount, cents)) {
     throw new Conflict(
       `payment ${intent.payment_intent_id} was taken at a different price than this ` +

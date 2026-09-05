@@ -29,7 +29,7 @@ async function anUnlabelledParcel(c: PoolClient) {
   const carrier_service_id = await carrierServiceId(c);
   const package_id = await packageId(c);
 
-  const shipment = await shipmentService.create({ order_id: order.id, direction: "Inbound" }, c);
+  const shipment = await shipmentService.create(order.id, "Inbound", c);
   if (!shipment) throw new Error("fixture: the shipment shell was not created");
   await shipmentService.update(
     shipment.id,

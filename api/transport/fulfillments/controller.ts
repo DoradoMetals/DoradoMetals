@@ -14,7 +14,9 @@ export const getSchedule = asyncHandler(async (req, res) => {
   const from = oneString(req.query.from);
   const to = oneString(req.query.to);
   const employee_id = oneString(req.query.employee_id);
-  return res.status(200).json(await fulfillmentService.getSchedule({ from, to, employee_id }));
+  return res.status(200).json(
+    await fulfillmentService.getSchedule(from ?? null, to ?? null, employee_id ?? null)
+  );
 });
 
 export const cancelSchedule = asyncHandler(async (req, res) => {
@@ -25,23 +27,22 @@ export const cancelSchedule = asyncHandler(async (req, res) => {
 export const setMethod = asyncHandler(async (req, res) => {
   const body = parseStrict(FulfillmentSetMethodBody, req.body, "fulfillments/set_method body");
   return res.status(200).json(
-    await fulfillmentService.setMethod({ id: body.fulfillment_id, method_id: body.method_id })
+    await fulfillmentService.setMethod(body.fulfillment_id, body.method_id)
   );
 });
 
 export const setStatus = asyncHandler(async (req, res) => {
   const body = parseStrict(FulfillmentSetStatusBody, req.body, "fulfillments/set_status body");
   return res.status(200).json(
-    await fulfillmentService.setStatus({ id: body.fulfillment_id, status: body.status })
+    await fulfillmentService.setStatus(body.fulfillment_id, body.status)
   );
 });
 
 export const getFulfillmentByOrder = asyncHandler(async (req, res) => {
   const order_id = uuidParam(req, "orderId");
-  const view = await fulfillmentService.getForOrder(order_id, {
-    userId: req.user?.id,
-    isAdmin: req.user?.role === "admin",
-  });
+  const view = await fulfillmentService.getForOrder(
+    order_id, req.user?.id ?? null, req.user?.role === "admin"
+  );
   if (!view) {
     return res.status(404).json({
       error: "Not Found",

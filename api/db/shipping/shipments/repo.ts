@@ -1,13 +1,20 @@
 import query from "#shared/db/query.ts";
 import { buildUpdate } from "#shared/db/patch.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
-import { ShipmentPatchColumns } from "@dorado/contracts";
+import { ShipmentPatchColumns, ShipmentViewFacts as Facts } from "@dorado/contracts";
 import type {
-  OrderViewShipment, ShipmentDirection, ShipmentRead, ShipmentWrite,
+  OrderViewShipment, ShipmentDirection, ShipmentRead, ShipmentViewFacts, ShipmentWrite,
 } from "@dorado/contracts";
 import type { Executor } from "#shared/db/executor.ts";
 
 const sql = sqlFrom(import.meta.dirname);
+
+export async function view(
+  id: string | null, order_id: string | null, executor?: Executor
+): Promise<ShipmentViewFacts[]> {
+  const { rows } = await query(sql("view"), [id, order_id], executor);
+  return rows.map((row) => Facts.parse(row));
+}
 
 export async function getAll(executor?: Executor): Promise<OrderViewShipment[]> {
   const { rows } = await query<OrderViewShipment>(sql("get_all"), [], executor);

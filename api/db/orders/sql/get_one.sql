@@ -1,5 +1,11 @@
-SELECT id, user_id, direction, status, number, notes, review_created,
-       created_by, updated_by, created_at, updated_at,
-       created_by_id, updated_by_id, order_sent, tracking_updated, spots_locked
-  FROM orders.orders
- WHERE id = $1
+SELECT o.id, o.user_id, o.direction, o.status, o.number, o.notes, o.review_created,
+       o.created_by, o.updated_by, o.created_at, o.updated_at,
+       o.created_by_id, o.updated_by_id, o.order_sent, o.tracking_updated, o.spots_locked,
+       (SELECT to_jsonb(t)
+               || jsonb_build_object(
+                    'created_at', to_char(t.created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'),
+                    'updated_at', to_char(t.updated_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'))
+          FROM orders.transactions t
+         WHERE t.order_id = o.id) AS totals
+  FROM orders.orders o
+ WHERE o.id = $1

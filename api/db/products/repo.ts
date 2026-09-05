@@ -8,6 +8,7 @@ import {
   type BullionFilter,
   type BullionLiveness,
   type BullionSort,
+  BullionStorefront as Storefront,
   type BullionStorefront,
 } from "@dorado/contracts";
 
@@ -59,10 +60,10 @@ export async function listFor(
 ): Promise<BullionStorefront[]> {
   if (filter.ids?.length === 0) return [];
   const { text, values } = where(filter);
-  const { rows } = await query<BullionStorefront>(
+  const { rows } = await query(
     build("list", text, ORDERINGS[filter.sort ?? "name"]), values, executor
   );
-  return rows;
+  return rows.map((row) => Storefront.parse(row));
 }
 
 export async function listAdmin(

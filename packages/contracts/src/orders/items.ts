@@ -54,3 +54,11 @@ export const PricedLine = OrderItem
   .pick({ id: true, content: true, quantity: true, bullion_id: true })
   .extend({ metal: z.string().nullable() });
 export type PricedLine = z.infer<typeof PricedLine>;
+
+export const SoldLinePrice = z.object({
+  line_id: OrderItem.shape.id,
+  premium: OrderItem.shape.premium.unwrap(),
+  sales_tax: OrderItem.shape.sales_tax_charged,
+  price: OrderItem.shape.price.unwrap(),
+});
+export type SoldLinePrice = z.infer<typeof SoldLinePrice>;

@@ -14,11 +14,11 @@ async function methodFor(
   executor?: Executor
 ): Promise<string> {
   if (method_id) {
-    await methodService.assertOffered({ method_id, direction }, executor);
+    await methodService.assertOffered(method_id, direction, executor);
     return method_id;
   }
   if (!handoff_code) {
-    return (await methodService.getDefault({ direction, category: "SHIPMENT" }, executor)).id;
+    return (await methodService.getDefault(direction, "SHIPMENT", executor)).id;
   }
   const handoff = (await handoffsService.getHandoffs(null, executor))
     .find((h) => h.code === handoff_code);
@@ -43,11 +43,11 @@ export async function createForCheckout(
 
     if (row.fulfillment_id) {
       return await withDefaultAddress(
-        await fulfillmentService.setMethod({ id: row.fulfillment_id, method_id }, tx),
+        await fulfillmentService.setMethod(row.fulfillment_id, method_id, tx),
         row.user_id, tx
       );
     }
-    const draft = await fulfillmentService.createDraft({ method_id, direction }, tx);
+    const draft = await fulfillmentService.createDraft(method_id, direction, tx);
     await checkoutService.attachFulfillment(row.id, draft.fulfillment.id, tx);
     return await withDefaultAddress(draft, row.user_id, tx);
   });

@@ -67,11 +67,11 @@ export const auth = betterAuth({
     sendOnSignUp: true,
     autoSignInAfterVerification: true,
     sendVerificationEmail: async ({ user, token }, request) => {
-      await sendAuthVerificationEmail({
+      await sendAuthVerificationEmail(
         user,
-        url: `${requiredEnv("FRONTEND_URL")}/verify-email?token=${token}`,
-        isSignUp: request?.url?.includes('/sign-up') ?? false,
-      });
+        `${requiredEnv("FRONTEND_URL")}/verify-email?token=${token}`,
+        request?.url?.includes('/sign-up') ?? false
+      );
     },
   },
   socialProviders: {
@@ -100,10 +100,7 @@ export const auth = betterAuth({
       emailDomainName: 'anonymous.dorado.invalid',
 
       onLinkAccount: async ({ anonymousUser, newUser }) => {
-        await adoptAnonymousCheckoutQuietly({
-          anonymousUserId: anonymousUser.user.id,
-          userId: newUser.user.id,
-        });
+        await adoptAnonymousCheckoutQuietly(anonymousUser.user.id, newUser.user.id);
       },
 
       disableDeleteAnonymousUser: true,

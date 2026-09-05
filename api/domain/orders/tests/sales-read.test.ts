@@ -22,7 +22,7 @@ afterAll(async () => {
 });
 
 const saleIds = async (c?: PoolClient): Promise<string[]> =>
-  (await orderRead.list({ direction: "sale" }, c)).map((o) => o.id);
+  (await orderRead.list("sale", null, c)).map((o) => o.id);
 
 const viewsOf = async (ids: string[]) => {
   const out = [];
@@ -36,7 +36,7 @@ const viewsOf = async (ids: string[]) => {
 
 test("purchase orders and sales orders do not bleed into each other", async () => {
   const sales = await saleIds();
-  const purchases = (await orderRead.list({ direction: "purchase" })).map((o) => o.id);
+  const purchases = (await orderRead.list("purchase", null)).map((o) => o.id);
   assert.ok(sales.length, "no sales orders, so this proves nothing");
   assert.equal(sales.some((id) => purchases.includes(id)), false);
 
@@ -111,7 +111,7 @@ test("every line resolves to a product", async () => {
 });
 
 test("orders come back newest first", async () => {
-  const dates = (await orderRead.list({ direction: "sale" })).map((o) =>
+  const dates = (await orderRead.list("sale", null)).map((o) =>
     new Date(o.created_at as unknown as string).getTime()
   );
   assert.deepEqual(dates, [...dates].sort((a, b) => b - a));

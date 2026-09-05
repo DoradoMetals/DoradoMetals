@@ -1,6 +1,6 @@
 import { Conflict, Invalid, NotFound } from "#shared/errors.ts";
 import type {
-  Address, AddressBookActions, AddressBookEntry, AddressPatch, AddressWriteColumns,
+  Address, AddressBookActions, AddressBookEntryFacts, AddressPatch, AddressWriteColumns,
   UserAddress, UserAddressPatch, UserAddressWriteColumns,
 } from "@dorado/contracts";
 
@@ -36,34 +36,17 @@ export function defaultOnCreate(bookSize: number, asked: boolean | null | undefi
   return bookSize === 0 || asked === true;
 }
 
-export function actionsFor(link: UserAddress, locked: boolean): AddressBookActions {
+export function actionsFor(view: AddressBookEntryFacts): AddressBookActions {
   return {
-    edit: !locked,
-    remove: !locked,
-    set_default: !link.default_shipping,
+    edit: !view.locked,
+    remove: !view.locked,
+    set_default: !view.user_address.default_shipping,
   };
 }
 
-export function entry(address: Address, link: UserAddress, locked: boolean): AddressBookEntry {
-  return {
-    address,
-    user_address: {
-      address_id: link.address_id,
-      user_id: link.user_id,
-      recipient_name: link.recipient_name,
-      label: link.label,
-      default_shipping: link.default_shipping,
-    },
-    actions: actionsFor(link, locked),
-  };
-}
-
-export function byDefaultThenRecipient(a: AddressBookEntry, b: AddressBookEntry): number {
-  return (
-    Number(b.user_address.default_shipping) - Number(a.user_address.default_shipping) ||
-    (a.user_address.recipient_name ?? "").localeCompare(b.user_address.recipient_name ?? "") ||
-    a.address.id.localeCompare(b.address.id)
-  );
+export function assertEntry<T>(address_id: string, view: T | undefined): T {
+  if (!view) throw new NotFound(`no address ${address_id} in this address book`);
+  return view;
 }
 
 export function editedColumns(patch: AddressPatch): AddressWriteColumns {

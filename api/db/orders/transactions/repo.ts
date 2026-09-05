@@ -4,7 +4,7 @@ import { sqlFrom } from "#shared/db/sql.ts";
 import type { Executor } from "#shared/db/executor.ts";
 import { columnsOf } from "#shared/db/columns.ts";
 import { OrderTotals, OrderTotalsWrite } from "@dorado/contracts";
-import type { Direction, OrderTotalsPatch } from "@dorado/contracts";
+import type { OrderTotalsGuard, OrderTotalsPatch } from "@dorado/contracts";
 
 const sql = sqlFrom(import.meta.dirname);
 
@@ -28,7 +28,7 @@ const PATCHABLE = columnsOf(OrderTotalsWrite);
 export async function update(
   order_id: string,
   patch: OrderTotalsWrite,
-  guard: { direction?: Direction } = {},
+  guard: OrderTotalsGuard = {},
   executor?: Executor
 ): Promise<boolean> {
   const built = buildUpdate({
@@ -56,9 +56,7 @@ export async function update(
 }
 
 export async function createForCheckout(
-  { order_id, checkout_id, payout_fee }:
-    { order_id: string; checkout_id: string; payout_fee: number },
-  executor?: Executor
+  order_id: string, checkout_id: string, payout_fee: number, executor?: Executor
 ): Promise<OrderTotals | undefined> {
   const { rows } = await query<OrderTotals>(
     sql("create_for_purchase"), [order_id, payout_fee, checkout_id], executor

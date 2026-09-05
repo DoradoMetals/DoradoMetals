@@ -1,9 +1,17 @@
 import query from "#shared/db/query.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
-import type { Carrier } from "@dorado/contracts";
+import type { Carrier, ComposedCarrier } from "@dorado/contracts";
+import { ComposedCarrier as View } from "@dorado/contracts";
 import type { Executor } from "#shared/db/executor.ts";
 
 const sql = sqlFrom(import.meta.dirname);
+
+export async function view(
+  id: string | null, executor?: Executor
+): Promise<ComposedCarrier[]> {
+  const { rows } = await query(sql("view"), [id], executor);
+  return rows.map((row) => View.parse(row));
+}
 
 export async function getAll(executor?: Executor): Promise<Carrier[]> {
   const { rows } = await query<Carrier>(sql("get_all"), [], executor);

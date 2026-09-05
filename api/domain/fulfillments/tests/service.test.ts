@@ -59,7 +59,7 @@ test("the seed offers a customer only what is enabled and not hidden", async () 
 test("every direction has exactly one default shipment method", async () => {
   await inRollback(async (c: PoolClient) => {
     for (const direction of ["purchase", "sale"]) {
-      const def = await methods.getDefault({ direction, category: "SHIPMENT" }, c);
+      const def = await methods.getDefault(direction, "SHIPMENT", c);
       assert.ok(def, `no default SHIPMENT method for a ${direction}`);
       assert.equal(def.direction, direction);
       assert.equal(def.category, "SHIPMENT");
@@ -72,17 +72,14 @@ test("a fulfillment can be created for an order and is found by it", async () =>
     const order = await freeOrder(c, "purchase");
     const method = await methodOf(c, "PICKUP", "purchase");
 
-    const created = await repo.chooseById(
-      { order_id: order.id, method_id: method.id },
-      c
-    );
+    const created = await repo.chooseById(order.id, method.id, c);
     assert.ok(created, "the fulfillment was not created");
     assert.equal(created.fulfillment.order_id, order.id);
     assert.equal(created.fulfillment.status, "PENDING");
     assert.equal(created.method.type, "PICKUP");
     assert.equal(created.pickup, null, "a new fulfillment is not scheduled yet");
 
-    const found = await repo.getForOrder(order.id, { isAdmin: true }, c);
+    const found = await repo.getForOrder(order.id, null, true, c);
     assert.ok(found, "getForOrder could not read back the fulfillment it just created");
     assert.equal(found.fulfillment.id, created.fulfillment.id);
   });
@@ -93,9 +90,9 @@ test("a second create returns the same fulfillment rather than a second one", as
     const order = await freeOrder(c, "purchase");
     const method = await methodOf(c, "PICKUP", "purchase");
 
-    const first = await repo.chooseById({ order_id: order.id, method_id: method.id }, c);
+    const first = await repo.chooseById(order.id, method.id, c);
     assert.ok(first, "the first create returned nothing");
-    const again = await repo.chooseById({ order_id: order.id, method_id: method.id }, c);
+    const again = await repo.chooseById(order.id, method.id, c);
     assert.ok(again, "the second create returned nothing");
 
     assert.equal(again.fulfillment.id, first.fulfillment.id, "one fulfillment per order, and create is idempotent");
@@ -113,7 +110,7 @@ test("creating a fulfillment for an order the new schema does not have says why"
     const orphan = anUnknownId();
 
     await assert.rejects(
-      () => repo.chooseById({ order_id: orphan, method_id: method.id }, c),
+      () => repo.chooseById(orphan, method.id, c),
       /not in orders\.orders/,
       "a missing order should be explained, not surfaced as a foreign key name"
     );
@@ -124,7 +121,7 @@ test("a pickup is scheduled, rescheduled, and cancelled without touching the ful
   await inRollback(async (c: PoolClient) => {
     const order = await freeOrder(c, "purchase");
     const method = await methodOf(c, "PICKUP", "purchase");
-    const f = await repo.chooseById({ order_id: order.id, method_id: method.id }, c);
+    const f = await repo.chooseById(order.id, method.id, c);
     assert.ok(f, "the fulfillment could not be read back");
 
     const addr = [{ id: await anAddressId(c, order.user_id) }];
@@ -169,7 +166,7 @@ test("an appointment is scheduled at a location", async () => {
   await inRollback(async (c: PoolClient) => {
     const order = await freeOrder(c, "sale");
     const method = await methodOf(c, "APPOINTMENT", "sale");
-    const f = await repo.chooseById({ order_id: order.id, method_id: method.id }, c);
+    const f = await repo.chooseById(order.id, method.id, c);
     assert.ok(f, "the fulfillment could not be read back");
 
     const { rows: loc } = await c.query(
@@ -196,7 +193,7 @@ test("a pickup cannot be booked against a method that is not a pickup", async ()
   await inRollback(async (c: PoolClient) => {
     const order = await freeOrder(c, "sale");
     const method = await methodOf(c, "DROPSHIP", "sale");
-    const f = await repo.chooseById({ order_id: order.id, method_id: method.id }, c);
+    const f = await repo.chooseById(order.id, method.id, c);
     assert.ok(f, "the fulfillment could not be read back");
     const addr = [{ id: await anAddressId(c, order.user_id) }];
 
@@ -212,7 +209,7 @@ test("changing the method takes the booking with it", async () => {
     const order = await freeOrder(c, "purchase");
     const pickup = await methodOf(c, "PICKUP", "purchase");
     const dropoff = await methodOf(c, "CARRIER DROPOFF", "purchase");
-    const f = await repo.chooseById({ order_id: order.id, method_id: pickup.id }, c);
+    const f = await repo.chooseById(order.id, pickup.id, c);
     assert.ok(f, "the fulfillment could not be read back");
 
     const addr = [{ id: await anAddressId(c, order.user_id) }];
@@ -222,7 +219,7 @@ test("changing the method takes the booking with it", async () => {
       c
     );
 
-    const moved = await repo.setMethod({ id: f.fulfillment.id, method_id: dropoff.id }, c);
+    const moved = await repo.setMethod(f.fulfillment.id, dropoff.id, c);
     assert.ok(moved, "the method move returned no fulfillment");
     assert.equal(moved.method.type, "CARRIER DROPOFF");
     assert.equal(
@@ -245,7 +242,7 @@ test("a fulfillment with a real shipment refuses to move off SHIPMENT", async ()
     const pickup = await methodOf(c, "PICKUP", "purchase");
 
     await assert.rejects(
-      () => repo.setMethod({ id: rows[0].id, method_id: pickup.id }, c),
+      () => repo.setMethod(rows[0].id, pickup.id, c),
       /already has a shipment/
     );
   });
@@ -255,7 +252,7 @@ test("the schedule lists only what somebody is due to attend", async () => {
   await inRollback(async (c: PoolClient) => {
     const order = await freeOrder(c, "purchase");
     const method = await methodOf(c, "PICKUP", "purchase");
-    const f = await repo.chooseById({ order_id: order.id, method_id: method.id }, c);
+    const f = await repo.chooseById(order.id, method.id, c);
     assert.ok(f, "the fulfillment could not be read back");
     const addr = [{ id: await anAddressId(c, order.user_id) }];
     await pickupService.schedule(
@@ -265,8 +262,7 @@ test("the schedule lists only what somebody is due to attend", async () => {
     );
 
     const due = await repo.getSchedule(
-      { from: "2026-08-31T00:00:00Z", to: "2026-09-02T00:00:00Z" },
-      c
+      "2026-08-31T00:00:00Z", "2026-09-02T00:00:00Z", null, c
     );
     assert.ok(due.some((x) => x.fulfillment.id === f.fulfillment.id), "the pickup just booked is not on the schedule");
     assert.ok(
@@ -274,8 +270,7 @@ test("the schedule lists only what somebody is due to attend", async () => {
       "a shipment appeared on a list of places to be"
     );
     const august = await repo.getSchedule(
-      { from: "2026-08-01T00:00:00Z", to: "2026-08-31T00:00:00Z" },
-      c
+      "2026-08-01T00:00:00Z", "2026-08-31T00:00:00Z", null, c
     );
     assert.ok(!august.some((x) => x.fulfillment.id === f.fulfillment.id), "the window is not being applied");
   });
@@ -287,10 +282,7 @@ test("a customer cannot choose a method they were not offered", async () => {
     const hidden = await methodOf(c, "OWN LABEL", "purchase");
     await assert.rejects(
       () =>
-        service.choose(
-          { order_id: order.id, method_id: hidden.id, direction: "purchase" },
-          c
-        ),
+        service.choose(order.id, hidden.id, "purchase", c),
       /is not available for a purchase/
     );
   });
@@ -307,12 +299,12 @@ test("another customer's fulfillment is not readable by asking for its order", a
     const { id, user_id } = rows[0];
 
     assert.equal(
-      await service.getForOrder(id, { userId: "00000000-0000-0000-0000-000000000000" }),
+      await service.getForOrder(id, "00000000-0000-0000-0000-000000000000", false),
       null,
       "a signed-in stranger read somebody else's pickup address"
     );
-    assert.ok(await service.getForOrder(id, { userId: user_id }));
-    assert.ok(await service.getForOrder(id, { isAdmin: true }));
+    assert.ok(await service.getForOrder(id, user_id, false));
+    assert.ok(await service.getForOrder(id, null, true));
   });
 });
 
@@ -327,9 +319,7 @@ test("the draft the stepper mutated becomes the order's own fulfillment", async 
   await inRollback(async (c: PoolClient) => {
     const order = await freeOrder(c, "purchase");
     const method = await methodOf(c, "CARRIER DROPOFF", "purchase");
-    const draft = await service.createDraft(
-      { method_id: method.id, direction: "purchase" }, c
-    );
+    const draft = await service.createDraft(method.id, "purchase", c);
     assert.ok(draft, "no draft was created");
 
     const attached = await service.attachToOrder(draft.fulfillment.id, order.id, c);
@@ -341,8 +331,7 @@ test("the draft the stepper mutated becomes the order's own fulfillment", async 
 test("a SHIPMENT draft is born with a parcel to fill in", async () => {
   await inRollback(async (c: PoolClient) => {
     const draft = await service.createDraft(
-      { method_id: (await methodOf(c, "CARRIER DROPOFF", "purchase")).id, direction: "purchase" },
-      c
+      (await methodOf(c, "CARRIER DROPOFF", "purchase")).id, "purchase", c
     );
     assert.ok(draft.parcel, "a SHIPMENT draft has no parcel row");
     assert.equal(draft.parcel.direction, "Inbound", "the customer's parcel is not inbound");
@@ -357,9 +346,7 @@ test("a SHIPMENT draft is born with a parcel to fill in", async () => {
 test("a PICKUP draft owes its address and a time, and a patch clears them", async () => {
   await inRollback(async (c: PoolClient) => {
     const user = await aUser(c);
-    const draft = await service.createDraft(
-      { method_id: (await methodOf(c, "PICKUP", "purchase")).id, direction: "purchase" }, c
-    );
+    const draft = await service.createDraft((await methodOf(c, "PICKUP", "purchase")).id, "purchase", c);
     assert.ok(draft.pickup, "a PICKUP draft has no collection row");
     assert.deepEqual(draft.missing, ["pickup_address_id", "start_time"]);
 
@@ -378,9 +365,7 @@ test("a PICKUP draft owes its address and a time, and a patch clears them", asyn
 
 test("a DIRECT draft owes a location and a time", async () => {
   await inRollback(async (c: PoolClient) => {
-    const draft = await service.createDraft(
-      { method_id: (await methodOf(c, "APPOINTMENT", "purchase")).id, direction: "purchase" }, c
-    );
+    const draft = await service.createDraft((await methodOf(c, "APPOINTMENT", "purchase")).id, "purchase", c);
     assert.ok(draft.direct, "a DIRECT draft has no store-visit row");
     assert.deepEqual(draft.missing, ["location_id", "start_time"]);
 
@@ -396,9 +381,7 @@ test("a DIRECT draft owes a location and a time", async () => {
 
 test("a patch for the wrong category is refused", async () => {
   await inRollback(async (c: PoolClient) => {
-    const draft = await service.createDraft(
-      { method_id: (await methodOf(c, "PICKUP", "purchase")).id, direction: "purchase" }, c
-    );
+    const draft = await service.createDraft((await methodOf(c, "PICKUP", "purchase")).id, "purchase", c);
     const location_id = await aLocation(c);
     await assert.rejects(
       () => service.patchChoices(draft.fulfillment.id, { direct: { location_id } }, c),
@@ -410,11 +393,10 @@ test("a patch for the wrong category is refused", async () => {
 test("an unlabelled draft may still move between categories", async () => {
   await inRollback(async (c: PoolClient) => {
     const draft = await service.createDraft(
-      { method_id: (await methodOf(c, "CARRIER DROPOFF", "purchase")).id, direction: "purchase" },
-      c
+      (await methodOf(c, "CARRIER DROPOFF", "purchase")).id, "purchase", c
     );
     const moved = await service.setMethod(
-      { id: draft.fulfillment.id, method_id: (await methodOf(c, "PICKUP", "purchase")).id }, c
+      draft.fulfillment.id, (await methodOf(c, "PICKUP", "purchase")).id, c
     );
     assert.equal(moved.method.category, "PICKUP");
     assert.ok(moved.pickup, "the new category has no detail row to fill in");

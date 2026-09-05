@@ -93,9 +93,7 @@ test("a visitor builds a basket, is refused the two things that need an account,
     assert.match(placed.body?.error?.message ?? "", /sign in to place an order/);
 
     const customer = await aUser(c);
-    await adoptAnonymousCheckout(
-      { anonymousUserId: visitor.id, userId: customer.id }, c
-    );
+    await adoptAnonymousCheckout(visitor.id, customer.id, c);
 
     const mine = await as(customer, () =>
       request(app).get("/api/checkout/items").query({ direction: "purchase" })

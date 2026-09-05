@@ -25,7 +25,7 @@ export const listOrders = asyncHandler(async (req, res) => {
     isAdmin && typeof req.query.user_id === "string" ? req.query.user_id : null;
   const user_id = isAdmin && !namedUser ? null : (namedUser ?? callerIdValue);
 
-  return res.json(await orderRead.list({ direction, user_id }));
+  return res.json(await orderRead.list(direction, user_id));
 });
 
 export const getOrder = asyncHandler(async (req, res) => {

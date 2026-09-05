@@ -1,7 +1,7 @@
 import { reportError } from "#shared/observability/report.ts";
 import * as transactionsRepo from "#db/orders/transactions/repo.ts";
 import type { Executor } from "#shared/db/executor.ts";
-import type { Direction, OrderTotals, OrderTotalsWrite } from "@dorado/contracts";
+import type { OrderTotals, OrderTotalsGuard, OrderTotalsWrite } from "@dorado/contracts";
 
 export type { OrderTotals, OrderTotalsWrite } from "@dorado/contracts";
 
@@ -23,7 +23,7 @@ export async function byOrderId(
 export async function update(
   orderId: string,
   patch: OrderTotalsWrite,
-  guard: { direction?: Direction } = {},
+  guard: OrderTotalsGuard = {},
   executor?: Executor
 ): Promise<boolean> {
   const written = await transactionsRepo.update(orderId, patch, guard, executor);

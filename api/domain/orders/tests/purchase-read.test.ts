@@ -150,7 +150,7 @@ test("the shipments are rows of one table, told apart by direction", async () =>
 
 test("no sales order leaks into a purchase order list", async () => {
   await inRollback(async (c: PoolClient) => {
-    const ids = (await orderRead.list({ direction: "purchase" }, c)).map((o) => o.id);
+    const ids = (await orderRead.list("purchase", null, c)).map((o) => o.id);
     const { rows } = await c.query(
       "SELECT id FROM orders.orders WHERE direction = 'sale' AND id = ANY($1)", [ids]
     );

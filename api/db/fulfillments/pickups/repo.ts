@@ -20,16 +20,6 @@ export async function getMany(ids: string[], executor?: Executor): Promise<Fulfi
   return rows;
 }
 
-export async function getScheduled(
-  { from = null, to = null, employee_id = null }:
-    { from?: string | null; to?: string | null; employee_id?: string | null } = {},
-  executor?: Executor
-): Promise<FulfillmentPickup[]> {
-  const { rows } = await query<FulfillmentPickup>(
-    sql("get_scheduled"), [from, to, employee_id], executor
-  );
-  return rows;
-}
 
 export async function create(
   row: Pick<FulfillmentPickup, "fulfillment_id"> & FulfillmentPickupPatchColumns,

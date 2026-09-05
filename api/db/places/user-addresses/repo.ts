@@ -1,8 +1,8 @@
 import query from "#shared/db/query.ts";
 import { buildUpdate } from "#shared/db/patch.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
-import { UserAddressWriteColumns } from "@dorado/contracts";
-import type { UserAddress } from "@dorado/contracts";
+import { AddressBookEntryFacts as Facts, UserAddressWriteColumns } from "@dorado/contracts";
+import type { AddressBookEntryFacts, UserAddress } from "@dorado/contracts";
 import type { Executor } from "#shared/db/executor.ts";
 
 const sql = sqlFrom(import.meta.dirname);
@@ -12,6 +12,13 @@ const RETURNING =
 
 export const PATCHABLE =
   Object.keys(UserAddressWriteColumns.shape) as readonly string[];
+
+export async function view(
+  user_id: string, address_id: string | null, executor?: Executor
+): Promise<AddressBookEntryFacts[]> {
+  const { rows } = await query(sql("view"), [user_id, address_id], executor);
+  return rows.map((row) => Facts.parse(row));
+}
 
 export async function listFor(
   user_id: string, executor?: Executor

@@ -49,11 +49,10 @@ export async function remove(id: string, executor?: Executor): Promise<boolean> 
 }
 
 export async function findReusable(
-  key: { session_id: string; user_id: string | null; type: string | null },
-  executor?: Executor
+  session_id: string, user_id: string | null, type: string | null, executor?: Executor
 ): Promise<PaymentIntentView | undefined> {
   const { rows } = await query<PaymentIntentView>(
-    sql("find_reusable"), [key.session_id, key.user_id, key.type], executor
+    sql("find_reusable"), [session_id, user_id, type], executor
   );
   return rows[0];
 }

@@ -16,15 +16,13 @@ export type PdfKind =
   | "sales_order_invoice";
 
 export async function latestPdf(
-  { kind, order_id }: { kind: PdfKind; order_id: string },
-  executor?: Executor
+  kind: PdfKind, order_id: string, executor?: Executor
 ): Promise<PdfRow | null> {
-  return await pdfs.latestOfKind({ kind, order_id }, executor);
+  return await pdfs.latestOfKind(kind, order_id, executor);
 }
 
 export async function persistPdf(
-  { kind, order_id, bytes }: { kind: PdfKind; order_id?: string | null; bytes: Uint8Array },
-  executor?: Executor
+  kind: PdfKind, order_id: string | null, bytes: Uint8Array, executor?: Executor
 ): Promise<string | null> {
   if (isTestRun() && !executor) return null;
   const id = await attempt(`persist ${kind} PDF for order ${order_id ?? "?"}`, async () => {

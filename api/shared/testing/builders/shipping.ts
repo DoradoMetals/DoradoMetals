@@ -60,11 +60,7 @@ export async function aShipment(
     c, options.method ?? "CARRIER DROPOFF", order.direction
   );
   const fulfillment = await fulfillments.create(
-    {
-      order_id: order.id, method_id,
-      status: options.fulfillment_status ?? "Pending",
-    },
-    c
+    order.id, method_id, options.fulfillment_status ?? "Pending", c
   );
   const fulfillment_id = fulfillment!.id;
   await fulfillmentShipments.create(

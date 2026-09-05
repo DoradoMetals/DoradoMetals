@@ -1,13 +1,14 @@
 import { test } from "vitest";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import * as rules from "#domain/orders/rules.ts";
 import { Conflict, Invalid } from "#shared/errors.ts";
 import type { OrderView, PricedLine, RateRead } from "@dorado/contracts";
 
 test("which percentage column of the band a line reads", () => {
-  assert.equal(rules.rateMaterialFor({ bullion_id: null }), "scrap");
-  assert.equal(rules.rateMaterialFor({ bullion_id: "abc" }), "bullion");
-  assert.equal(rules.rateMaterialFor({}), "scrap");
+  assert.equal(rules.rateMaterialFor(null), "scrap");
+  assert.equal(rules.rateMaterialFor("abc"), "bullion");
+  assert.equal(rules.rateMaterialFor(undefined), "scrap");
 });
 
 test("sales tax is charged, never paid", () => {
@@ -237,24 +238,18 @@ const sendable = {
 
 test("an order reaches a refiner only with an address, an email and no other refiner", () => {
   assert.doesNotThrow(() =>
-    rules.assertSendable(sendable, {
-      refiner_id: "r1", attachedRefinerId: null, refinerEmail: "r@example.com",
-    })
+    rules.assertSendable(sendable, "r1", null, "r@example.com")
   );
 
   assert.throws(
     () =>
-      rules.assertSendable(Object.assign({}, sendable, { address: null }), {
-        refiner_id: "r1", attachedRefinerId: null, refinerEmail: "r@example.com",
-      }),
+      rules.assertSendable(Object.assign({}, sendable, { address: null }), "r1", null, "r@example.com"),
     (err: unknown) => err instanceof Invalid && /has no address/.test((err as Error).message)
   );
 
   assert.throws(
     () =>
-      rules.assertSendable(sendable, {
-        refiner_id: "r1", attachedRefinerId: null, refinerEmail: null,
-      }),
+      rules.assertSendable(sendable, "r1", null, null),
     (err: unknown) => err instanceof Invalid && /has no email address/.test((err as Error).message)
   );
 
@@ -265,25 +260,41 @@ test("an order reaches a refiner only with an address, an email and no other ref
   } as unknown as Parameters<typeof rules.assertSendable>[0];
 
   assert.doesNotThrow(() =>
-    rules.assertSendable(sent, {
-      refiner_id: "r1", attachedRefinerId: "r1", refinerEmail: "r@example.com",
-    })
+    rules.assertSendable(sent, "r1", "r1", "r@example.com")
   );
   assert.throws(
     () =>
-      rules.assertSendable(sent, {
-        refiner_id: "r2", attachedRefinerId: "r1", refinerEmail: "r@example.com",
-      }),
+      rules.assertSendable(sent, "r2", "r1", "r@example.com"),
     Conflict
   );
 });
 
 type Facts = Parameters<typeof rules.actionsFor>[0];
 
+const aLine = (confirmed: boolean) => ({ confirmed }) as Facts["items"][number];
+const parcel = (direction: string, tracking_number: string | null) =>
+  ({ direction, tracking_number }) as Facts["shipments"][number];
+
 const facts = (over: Partial<Facts> = {}): Facts => ({
-  direction: "purchase", status: "Received", order_sent: null, tracking_updated: null,
-  hasAddress: true, hasTotal: true, items: [{ confirmed: true }],
-  shipments: [], payoutMethod: null, ...over,
+  order: {
+    direction: "purchase", status: "Received", order_sent: null, tracking_updated: null,
+  } as Facts["order"],
+  totals: { total: 1000 } as Facts["totals"],
+  items: [aLine(true)],
+  address: {} as Facts["address"],
+  shipments: [],
+  pickup: null,
+  payout: null,
+  user: null,
+  ...over,
+});
+
+const order = (over: Partial<Facts["order"]>): Partial<Facts> => ({
+  order: { ...facts().order, ...over },
+});
+
+const paidBy = (method: string | null): Partial<Facts> => ({
+  payout: { method } as Facts["payout"],
 });
 
 test("an order with no lines is not confirmed, which the drawer's every() called true", () => {
@@ -296,29 +307,33 @@ test("a purchase reaches Payment Processing only once every line is confirmed", 
   assert.deepEqual(rules.statusesFor(facts()), [
     "Payment Processing", "In Transit", "Cancelled",
   ]);
-  assert.deepEqual(rules.statusesFor(facts({ items: [{ confirmed: false }] })), [
+  assert.deepEqual(rules.statusesFor(facts({ items: [aLine(false)] })), [
     "In Transit", "Cancelled",
   ]);
 });
 
 test("a sale reaches In Transit only once the refiner has it and it is tracked", () => {
   const preparing = { direction: "sale" as const, status: "Preparing" };
-  assert.deepEqual(rules.statusesFor(facts({ ...preparing })), ["Pending"]);
+  assert.deepEqual(rules.statusesFor(facts(order(preparing))), ["Pending"]);
   assert.deepEqual(
-    rules.statusesFor(facts({ ...preparing, order_sent: true, tracking_updated: null })),
+    rules.statusesFor(
+      facts(order({ ...preparing, order_sent: true, tracking_updated: null }))
+    ),
     ["Pending"]
   );
   assert.deepEqual(
-    rules.statusesFor(facts({ ...preparing, order_sent: true, tracking_updated: true })),
+    rules.statusesFor(
+      facts(order({ ...preparing, order_sent: true, tracking_updated: true }))
+    ),
     ["In Transit", "Pending"]
   );
 });
 
 test("crediting an account is a payout fact, not a status", () => {
-  assert.equal(rules.actionsFor(facts({ payoutMethod: "DORADO_ACCOUNT" })).add_funds, true);
-  assert.equal(rules.actionsFor(facts({ payoutMethod: "ACH" })).add_funds, false);
+  assert.equal(rules.actionsFor(facts(paidBy("DORADO_ACCOUNT"))).add_funds, true);
+  assert.equal(rules.actionsFor(facts(paidBy("ACH"))).add_funds, false);
   assert.equal(
-    rules.actionsFor(facts({ payoutMethod: "DORADO_ACCOUNT", hasTotal: false })).add_funds,
+    rules.actionsFor(facts({ ...paidBy("DORADO_ACCOUNT"), totals: null })).add_funds,
     false
   );
 });
@@ -329,7 +344,7 @@ test("the direction decides which half of the action surface exists", () => {
   assert.equal(bought.edit_lines, true);
   assert.equal(bought.send_to_refiner, false);
 
-  const sold = rules.actionsFor(facts({ direction: "sale", status: "Preparing" }));
+  const sold = rules.actionsFor(facts(order({ direction: "sale", status: "Preparing" })));
   assert.equal(sold.send_to_refiner, true);
   assert.equal(sold.finalize_pricing, false);
   assert.equal(sold.edit_lines, false);
@@ -337,13 +352,13 @@ test("the direction decides which half of the action surface exists", () => {
 });
 
 test("a label is offered only while the inbound parcel has none", () => {
-  const unlabelled = [{ direction: "Inbound", tracking_number: null }];
-  const labelled = [{ direction: "Inbound", tracking_number: "794..." }];
+  const unlabelled = [parcel("Inbound", null)];
+  const labelled = [parcel("Inbound", "794...")];
   assert.equal(rules.actionsFor(facts({ shipments: unlabelled })).buy_label, true);
   assert.equal(rules.actionsFor(facts({ shipments: labelled })).buy_label, false);
   assert.equal(rules.actionsFor(facts()).buy_label, false);
   assert.equal(
-    rules.actionsFor(facts({ shipments: [{ direction: "Return", tracking_number: null }] }))
+    rules.actionsFor(facts({ shipments: [parcel("Return", null)] }))
       .buy_label,
     false
   );
@@ -351,19 +366,21 @@ test("a label is offered only while the inbound parcel has none", () => {
 
 test("cancelling needs somewhere to send the metal back to", () => {
   assert.equal(rules.actionsFor(facts()).cancel, true);
-  assert.equal(rules.actionsFor(facts({ hasAddress: false })).cancel, false);
-  assert.equal(rules.actionsFor(facts({ direction: "sale", hasAddress: false })).send_to_refiner, false);
+  assert.equal(rules.actionsFor(facts({ address: null })).cancel, false);
+  assert.equal(
+    rules.actionsFor(
+      facts({ ...order({ direction: "sale" }), address: null })
+    ).send_to_refiner,
+    false
+  );
 });
 
-test("payable is the fine ounces the business pays for", () => {
-  assert.equal(rules.payableOf({ content: 2, premium: 0.9 }), 1.8);
-  assert.equal(rules.payableOf({ content: null, premium: 0.9 }), null);
-  assert.equal(rules.payableOf({ content: 2, premium: null }), null);
-});
-
-test("a scrap line total is the whole lot; a bullion line total counts units", () => {
-  assert.equal(rules.lineTotalOf({ price: 100, quantity: 3, bullion_id: null }), 100);
-  assert.equal(rules.lineTotalOf({ price: 100, quantity: 3, bullion_id: "p" }), 300);
-  assert.equal(rules.lineTotalOf({ price: 100, quantity: null, bullion_id: "p" }), 100);
-  assert.equal(rules.lineTotalOf({ price: null, quantity: 3, bullion_id: "p" }), null);
+test("payable and line_total are the view's SQL, not a rule", () => {
+  const view = readFileSync(
+    new URL("../../../db/orders/sql/view.sql", import.meta.url), "utf8"
+  );
+  assert.match(view, /'payable',\s*\n?\s*CASE WHEN i\.content IS NULL OR i\.premium IS NULL/);
+  assert.match(view, /ELSE i\.content \* i\.premium END/);
+  assert.match(view, /WHEN i\.bullion_id IS NULL THEN i\.price/);
+  assert.match(view, /ELSE i\.price \* COALESCE\(i\.quantity, 1\) END/);
 });

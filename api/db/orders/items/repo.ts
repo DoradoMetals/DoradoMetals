@@ -3,7 +3,7 @@ import { buildUpdate } from "#shared/db/patch.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
 import { columnsOf, returningOf } from "#shared/db/columns.ts";
 import { OrderItem, OrderItemWrite } from "@dorado/contracts";
-import type { PricedLine } from "@dorado/contracts";
+import type { PricedLine, SoldLinePrice } from "@dorado/contracts";
 import type { Executor } from "#shared/db/executor.ts";
 
 const sql = sqlFrom(import.meta.dirname);
@@ -76,7 +76,7 @@ export async function createBought(
 export async function createSold(
   order_id: string,
   checkout_id: string,
-  priced: { line_id: string; premium: number; sales_tax: number; price: number }[],
+  priced: SoldLinePrice[],
   executor?: Executor
 ): Promise<OrderItem[]> {
   const { rows } = await query<OrderItem>(

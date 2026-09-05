@@ -2,11 +2,12 @@ import query from "#shared/db/query.ts";
 import { buildUpdate } from "#shared/db/patch.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
 import type {
-  AbandonedSale, Direction, OrderGuard, OrderWrite, ReservedFunds, SettledAwaiting,
+  AbandonedSale, Direction, Order, OrderGuard, OrderRead, OrderViewFacts, OrderWrite,
+  ReservedFunds, SettledAwaiting,
 } from "@dorado/contracts";
 import type { Executor } from "#shared/db/executor.ts";
 import { columnsOf } from "#shared/db/columns.ts";
-import { Order, OrderGuard as Guard, OrderWrite as Write } from "@dorado/contracts";
+import { OrderGuard as Guard, OrderViewFacts as Facts, OrderWrite as Write } from "@dorado/contracts";
 
 const sql = sqlFrom(import.meta.dirname);
 
@@ -25,18 +26,24 @@ export async function directionOf(
 }
 
 export async function list(
-  { direction = null, user_id = null }: { direction?: string | null; user_id?: string | null },
-  executor?: Executor
-): Promise<Order[]> {
-  const { rows } = await query<Order>(sql("list"), [direction, user_id], executor);
+  direction: Direction | null, user_id: string | null, executor?: Executor
+): Promise<OrderRead[]> {
+  const { rows } = await query<OrderRead>(sql("list"), [direction, user_id], executor);
   return rows;
 }
 
 export async function getOne(
   id: string, executor?: Executor
-): Promise<Order | undefined> {
-  const { rows } = await query<Order>(sql("get_one"), [id], executor);
+): Promise<OrderRead | undefined> {
+  const { rows } = await query<OrderRead>(sql("get_one"), [id], executor);
   return rows[0];
+}
+
+export async function view(
+  id: string, executor?: Executor
+): Promise<OrderViewFacts | undefined> {
+  const { rows } = await query(sql("view"), [id], executor);
+  return rows[0] === undefined ? undefined : Facts.parse(rows[0]);
 }
 
 export async function ownerOf(id: string, executor?: Executor): Promise<string | null> {
@@ -89,8 +96,7 @@ export async function findReservedFunds(
 }
 
 export async function createForCheckout(
-  { checkout_id, status }: { checkout_id: string; status: string },
-  executor?: Executor
+  checkout_id: string, status: string, executor?: Executor
 ): Promise<Order | undefined> {
   const { rows } = await query<Order>(
     sql("create_from_checkout"), [status, checkout_id], executor

@@ -70,9 +70,7 @@ async function primeCheckout(
     [customer]
   );
   const draft = withFulfillment
-    ? await fulfillmentService.createDraft(
-        { method_id: dropoffMethodId, direction: "purchase" }, c
-      )
+    ? await fulfillmentService.createDraft(dropoffMethodId, "purchase", c)
     : null;
   if (draft) {
     await fulfillmentService.patchChoices(

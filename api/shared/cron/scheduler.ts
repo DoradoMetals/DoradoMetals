@@ -1,5 +1,5 @@
 import { sweepSettledIntents } from "#domain/payments/sweeps.ts";
-import { sweepAnonymousVisitors } from "#domain/checkout/sweep.ts";
+import { sweepAnonymousVisitorsNow } from "#domain/checkout/sweep.ts";
 import { reportError } from "#shared/observability/report.ts";
 import cron from "node-cron";
 import { logger } from "#shared/logging/logger.ts";
@@ -21,7 +21,7 @@ export const jobs = (): Job[] => [
   {
     name: "anonymous visitors",
     schedule: process.env.ANONYMOUS_SWEEP_SCHEDULE,
-    run: async () => { await sweepAnonymousVisitors(); },
+    run: async () => { await sweepAnonymousVisitorsNow(); },
   },
   {
     name: "settle paid orders",

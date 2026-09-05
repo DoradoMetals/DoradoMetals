@@ -2,7 +2,7 @@ import query from "#shared/db/query.ts";
 import { buildUpdate } from "#shared/db/patch.ts";
 import { sqlFrom } from "#shared/db/sql.ts";
 import { columnsOf, returningOf } from "#shared/db/columns.ts";
-import { Checkout, CheckoutWrite } from "@dorado/contracts";
+import { Checkout, CheckoutViewFacts, CheckoutWrite } from "@dorado/contracts";
 import type { Executor } from "#shared/db/executor.ts";
 
 const sql = sqlFrom(import.meta.dirname);
@@ -11,6 +11,13 @@ export const PATCHABLE = columnsOf(CheckoutWrite);
 const RETURNING = returningOf(Checkout);
 
 export type { CheckoutWrite } from "@dorado/contracts";
+
+export async function view(
+  id: string, executor?: Executor
+): Promise<CheckoutViewFacts | undefined> {
+  const { rows } = await query(sql("view"), [id], executor);
+  return rows[0] === undefined ? undefined : CheckoutViewFacts.parse(rows[0]);
+}
 
 export async function getOne(id: string, executor?: Executor): Promise<Checkout | undefined> {
   const { rows } = await query<Checkout>(sql("get_one"), [id], executor);

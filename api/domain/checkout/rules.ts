@@ -5,8 +5,8 @@ import { fineContent } from "#domain/pricing/content.ts";
 import { getRatePct, sumContentByMetal } from "#domain/rates/utils/resolveRate.ts";
 import { lineContent, rateMaterialFor } from "#domain/orders/rules.ts";
 import type {
-  BullionLiveness, BullionStorefront, Checkout, CheckoutItemWrite, CheckoutMissing,
-  Direction, FulfillmentStep, RateRead,
+  BullionLiveness, BullionStorefront, Checkout, CheckoutDecisions, CheckoutItemWrite,
+  CheckoutMissing, CheckoutViewFacts, Direction, FulfillmentStep, RateRead,
 } from "@dorado/contracts";
 
 const SERVER_OWNED = columnsOf(CheckoutItemPatch.omit({ bullion_id: true, quantity: true }));
@@ -110,20 +110,18 @@ function premiums(
   );
   return snapshots.map(({ row, metal }) => {
     const total = totals[String(metal ?? "").toLowerCase()] ?? 0;
-    return getRatePct(rates, metal, total, rateMaterialFor(row)) ?? null;
+    return getRatePct(rates, metal, total, rateMaterialFor(row.bullion_id)) ?? null;
   });
 }
 
 export function basketRows(
-  { checkout_id, direction, items, products, liveness, rates, metalNames }: {
-    checkout_id: string;
-    direction: Direction;
-    items: CheckoutItemPatch[];
-    products: BullionStorefront[];
-    liveness: BullionLiveness[];
-    rates: RateRead[];
-    metalNames: Map<string, string>;
-  }
+  checkout_id: string,
+  direction: Direction,
+  items: CheckoutItemPatch[],
+  products: BullionStorefront[],
+  liveness: BullionLiveness[],
+  rates: RateRead[],
+  metalNames: Map<string, string>
 ): CheckoutItemWrite[] {
   const byId = new Map(products.map((product) => [product.id, product]));
   const live = new Set(liveness.filter((p) => p.display === true).map((p) => p.id));
@@ -133,26 +131,21 @@ export function basketRows(
     (line) => snapshot(line, direction, checkout_id, byId, metalNames)
   );
   const resolved = premiums(snapshots, direction, rates, byId);
-  return snapshots.map(({ row }, i) => Object.assign(row, { premium: resolved[i] }));
+  return snapshots.map(({ row }, i) => ({ ...row, premium: resolved[i] }));
 }
 
 export function checkoutState(
-  { row, direction, item_count, handover }: {
-    row: Checkout;
-    direction: Direction;
-    item_count: number;
-    handover: FulfillmentStep[];
-  }
-): { missing: CheckoutMissing[] } {
+  view: CheckoutViewFacts, handover: FulfillmentStep[]
+): CheckoutDecisions {
   const missing: CheckoutMissing[] = [];
-  if (item_count === 0) missing.push("items");
+  if (view.items.length === 0) missing.push("items");
 
-  if (!row.fulfillment_id) missing.push("fulfillment_id");
+  if (!view.fulfillment_id) missing.push("fulfillment_id");
   else missing.push(...handover);
 
-  if (direction === "purchase") {
-    if (!row.payment_details_id) missing.push("payment_details_id");
-  } else if (!row.recipient_address_id) {
+  if (view.direction === "purchase") {
+    if (!view.payment_details_id) missing.push("payment_details_id");
+  } else if (!view.recipient_address_id) {
     missing.push("recipient_address_id");
   }
 

@@ -1,35 +1,26 @@
 import * as shipmentLinks from "#db/fulfillments/shipments/repo.ts";
 import * as fulfillmentService from "#domain/fulfillments/service.ts";
 import type { Executor } from "#shared/db/executor.ts";
-import type { FulfillmentShipment, FulfillmentShipmentPatch, FulfillmentView } from "@dorado/contracts";
+import type { FulfillmentShipmentPatch, FulfillmentView } from "@dorado/contracts";
 
 export async function link(
-  input:
-    { fulfillment_id: string } & Pick<FulfillmentShipment, "shipment_id"> & FulfillmentShipmentPatch,
+  fulfillment_id: string,
+  shipment_id: string,
+  places: FulfillmentShipmentPatch,
   executor?: Executor
 ): Promise<FulfillmentView | null> {
-  await fulfillmentService.assertCategory(input.fulfillment_id, "SHIPMENT", executor);
-  const [existing] = await shipmentLinks.getByShipment([input.shipment_id], executor);
+  await fulfillmentService.assertCategory(fulfillment_id, "SHIPMENT", executor);
+  const [existing] = await shipmentLinks.getByShipment([shipment_id], executor);
+  const columns = {
+    recipient_location_id: places.recipient_location_id,
+    shipper_location_id: places.shipper_location_id,
+  };
   if (existing) {
-    await shipmentLinks.update(
-      input.shipment_id,
-      {
-        fulfillment_id: input.fulfillment_id,
-        recipient_location_id: input.recipient_location_id,
-        shipper_location_id: input.shipper_location_id,
-      },
-      executor
-    );
+    await shipmentLinks.update(shipment_id, { fulfillment_id, ...columns }, executor);
   } else {
     await shipmentLinks.create(
-      {
-        fulfillment_id: input.fulfillment_id,
-        shipment_id: input.shipment_id,
-        recipient_location_id: input.recipient_location_id,
-        shipper_location_id: input.shipper_location_id,
-      },
-      executor
+      { fulfillment_id, shipment_id, ...columns }, executor
     );
   }
-  return await fulfillmentService.getById(input.fulfillment_id, executor);
+  return await fulfillmentService.getById(fulfillment_id, executor);
 }

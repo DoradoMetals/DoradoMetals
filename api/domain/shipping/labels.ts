@@ -22,7 +22,9 @@ import * as checkoutService from "#domain/checkout/service.ts";
 
 import withTransaction from "#shared/db/withTransaction.ts";
 import type { Executor } from "#shared/db/executor.ts";
-import type { Address, CarrierServiceRead, Parcel, ParcelSchedule } from "@dorado/contracts";
+import type {
+  Address, CarrierPickupBooking, CarrierServiceRead, Parcel, ParcelSchedule,
+} from "@dorado/contracts";
 
 export async function sealForPlacement(
   shipment_id: string, checkout_id: string, method_type: string | null, tx: Executor
@@ -85,10 +87,11 @@ export async function buyLabel(shipment_id: string): Promise<void> {
   const personName = await customerName(order_id);
 
   const netCharge = rules.quotedCharge(
-    await shippingOperations.quoteRate({
-      carrier_id: parcel.carrier_id, shippingType: "Inbound", address: shipper,
-      ...requests.rateParcel(parcel),
-    }),
+    await shippingOperations.quoteRate(
+      parcel.carrier_id, "Inbound", shipper,
+      requests.rateParcel(parcel).pkg, requests.rateParcel(parcel).pickupType,
+      requests.rateParcel(parcel).declaredValue
+    ),
     parcel.serviceType
   );
   const labelData = await shippingOps.createLabel(
@@ -104,10 +107,10 @@ export async function buyLabel(shipment_id: string): Promise<void> {
       )
     : null;
 
-  await record(order_id, shipment_id, {
-    netCharge, service: parcel.serviceType, tracking_number: labelData.tracking_number,
-    label, schedule: parcel.schedule, booking,
-  });
+  await record(
+    order_id, shipment_id, netCharge, parcel.serviceType, labelData.tracking_number,
+    label, parcel.schedule, booking
+  );
 }
 
 export async function buyReturnLabel(shipment_id: string): Promise<void> {
@@ -145,14 +148,12 @@ export async function buyReturnLabel(shipment_id: string): Promise<void> {
 async function record(
   order_id: string,
   shipment_id: string,
-  { netCharge, service, tracking_number, label, schedule, booking }: {
-    netCharge: number;
-    service: string;
-    tracking_number: string | null;
-    label: Uint8Array;
-    schedule: ParcelSchedule | null;
-    booking: { confirmationNumber: string | null; location: string | null } | null;
-  }
+  netCharge: number,
+  service: string,
+  tracking_number: string | null,
+  label: Uint8Array,
+  schedule: ParcelSchedule | null,
+  booking: CarrierPickupBooking | null
 ): Promise<void> {
   await withTransaction(async (tx) => {
     await orderTransactions.update(
@@ -168,11 +169,8 @@ async function record(
     );
     if (booking && schedule) {
       await pickupService.recordForShipment(
-        {
-          shipment_id, date: schedule.date, time: schedule.time,
-          confirmation_number: booking.confirmationNumber, location: booking.location,
-        },
-        tx
+        shipment_id, schedule.date, schedule.time,
+        booking.confirmationNumber, booking.location, tx
       );
     }
   });

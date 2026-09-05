@@ -90,6 +90,10 @@ const GROUPS = [
         cmd: pnpm("@dorado/api", "lint:no-column-arrays"),
       },
       { name: "api:lint:input-shapes", cmd: pnpm("@dorado/api", "lint:input-shapes") },
+      {
+        name: "api:lint:no-literal-views",
+        cmd: pnpm("@dorado/api", "lint:no-literal-views"),
+      },
       { name: "api:lint:client-boundary", cmd: pnpm("@dorado/api", "lint:client-boundary") },
       { name: "api:lint:test-locks", cmd: pnpm("@dorado/api", "lint:test-locks") },
       { name: "api:lint:test-actor", cmd: pnpm("@dorado/api", "lint:test-actor") },

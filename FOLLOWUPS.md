@@ -15230,3 +15230,84 @@ looser `BullionPatch`, which is unaffected - not this lane's wire pass);
 `pnpm check:fast` is green except `figma:inventory` (9 pre-existing findings,
 Jacob's, unrelated to this wave).
 
+
+### Rulings 71 and 73 executed — views are SQL, decisions once, named parameters (2026-09-05)
+
+Jacob, 2026-09-04, on `domain/fulfillments/compose.ts`'s literal return: *"This
+type of return just pisses me off. like, fucking WHY"*, and on
+`attachForCheckout({ … }: { … })`: *"Do you not realize how hard this makes shit
+to read and follow? We need to be able to pass in exact types to functions."*
+
+**A VIEW IS ONE SQL READ.** Eight composed reads are assembled in one `.sql` file
+each, nesting children by table with `to_jsonb` / `jsonb_build_object` /
+`jsonb_agg`, and the repo returns `Contract.parse(row)`: `OrderView`
+(`db/orders/sql/view.sql`), `FulfillmentView`, `ShipmentView`, `CheckoutView`,
+`AddressBookEntry`, `ComposedCarrier`, `OrderRead`'s nested totals, and
+`BullionStorefront` (already one read, now parsed). **Nothing in TypeScript names
+a field of a view any more** — the contract is the shape and zod strips the rest.
+`domain/fulfillments/compose.ts` and `domain/shipping/carriers/compose.ts` are
+DELETED, along with `read.ts`'s `attach`/`withProduct`, checkout's `compose`,
+`shipments/view.ts`'s `composeOne`, `places` `rules.entry` and both comparators
+(`byDefaultThenRecipient`, `byStartTimeThenId` — the order is the view's
+`ORDER BY` now). Two dead reads went with them: `fulfillments/pickups` and
+`fulfillments/directs` each had a `getScheduled` whose only caller was
+`composeAll`.
+
+**THE TIMESTAMP CAST IS LOAD-BEARING, and it is the one thing to know before
+adding a view.** `to_jsonb(timestamptz)` renders in the SESSION's timezone (dev's
+is `America/Chicago`) while the pg driver's own parse gives a `Date` that prints
+as `...Z` — two spellings of one instant on one wire. Every timestamp inside a
+view is `to_char(x AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')`, which
+is exactly `toISOString()` and is what lets `Contract.parse` (columns are
+`z.string()`) run at all. Nest a raw timestamp and the parse throws.
+
+**DECISIONS ARE ADDED ONCE.** `api/shared/views.ts` holds
+`withDecisions(view, decisions)` — a typed `Object.assign` — and it is now the
+ONLY `Object.assign` in the codebase. `actions`, `missing`, `statuses`,
+`timeline` and `tracking_status` are computed by each feature's `rules.ts` FROM
+THE PARSED VIEW (`actionsFor(view)`, `decisionsFor(view, handoffs)`,
+`shipmentDecisions(view, isAdmin)`, `checkoutState(view, handover)`), not from a
+hand-assembled `Facts` bag: `OrderActions.cancel` is `view.address !== null`, not
+`hasAddress`. Fields that were neither columns nor decisions died —
+`requires_schedule` and `is_scheduled` (derivable from `method.category` and
+`scheduled_at`), and `item_count`, replaced by the basket itself
+(`CheckoutView.items`, nested by table). `FulfillmentParcel` gained
+`tracking_number`, a real column, so "has this parcel a label" is read rather
+than carried in a `Set`. `payableOf`/`lineTotalOf` are `CASE` expressions in
+`orders/sql/view.sql` and no longer exist in TypeScript.
+
+**NAMED PARAMETERS (73): 34 signatures spelled a shape out at the call boundary;
+ZERO do now.** Every function under `api/domain/**`, `api/db/**` and
+`api/transport/**` takes a named contract type, an id, a primitive or
+`tx: Executor`. Eight contracts were added so a signature could name a real type
+instead of inventing one — `SoldLinePrice`, `OrderTotalsGuard`, `TrackingScan`,
+`EmailRecipient`, `CarrierPickupBooking`, `CarrierLabel`, `ShippableCarrier`,
+`PriceableLine` — each derived from a row, as `lint:contracts-derived` demands.
+
+**TWO LINTS HOLD THE LINE.** `lint:no-literal-views` (new, in `check.mjs`'s
+`api-lint` group, 7 self-test cases) fails a `return {` of two or more entries
+from any `api/domain/**` function outside `rules.ts`, and any `Object.assign`
+outside `api/shared/views.ts` — **0 findings, 15 accepted files**, each pinned
+both ways with one of three reasons (a computed money answer; a wire-to-column
+re-spelling that dies with the CRUD pass; a small result record of counts and
+ids). `lint:type-homes` was extended to parameter annotations — both `f(x: { … })`
+and `f({ x }: { … })` are findings, an object VALUE argument is not — self-test
+11 cases to 14, including the one that asserted the opposite. **0 misplaced.**
+
+**Verified 2026-09-05** (every run captured to a file and read): contracts
+`build` 0; `pnpm --filter @dorado/api typecheck` 0; `pnpm --filter @dorado/api
+test` **1323 passed / 1 skipped across 227 files, exit 0** (18 new view tests
+across 6 files); `lint:no-literal-views` 0 and its `--self-test` 7/7;
+`lint:type-homes` 0 and its `--self-test` 14/14; `@dorado/client` typecheck 0;
+`validate:wire` **33 shapes match, 0 diverge** against live dev data, which is
+what proves every re-shaped view still parses real rows. `pnpm check:fast` fails
+on ONE member, `figma:inventory`, with `packages/components` findings this lane
+never touched — Jacob's.
+
+**Left undone, named rather than hidden:** `PaymentIntentView` and
+`PaymentDetailsView` are ALREADY one SQL read each with `jsonb_build_object`
+nesting; they are simply not `.parse()`d, because their `created_at`/`updated_at`
+arrive as `Date` and the parse needs the same `to_char` cast across seven
+statements plus a `buildUpdate` RETURNING clause. Small, separate, and safe to
+leave — nothing reads those two through a contract today. Full detail in
+`docs/waves/views.md`.

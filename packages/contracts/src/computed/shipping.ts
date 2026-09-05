@@ -3,6 +3,7 @@ import { ShipmentRead } from "../shipping/shipments.js";
 import { CarrierServiceRead } from "../shipping/services.js";
 import { PackageRead } from "../shipping/packages.js";
 import { ShipmentPickup } from "../shipping/pickups.js";
+import { TrackingScan } from "../shipping/tracking.js";
 import { CarrierHandoff } from "./providers.js";
 
 export const TrackingStep = z.object({
@@ -22,17 +23,25 @@ export const ShipmentActions = z.object({
 });
 export type ShipmentActions = z.infer<typeof ShipmentActions>;
 
-export const ShipmentView = z.object({
+export const ShipmentViewFacts = z.object({
   shipment: ShipmentRead,
   service: CarrierServiceRead.nullable(),
   carrier_id: z.string().nullable(),
   package: PackageRead.nullable(),
   carrier_pickup: ShipmentPickup.nullable(),
   handoff_at: z.string().nullable(),
+  tracking: z.array(TrackingScan),
+});
+export type ShipmentViewFacts = z.infer<typeof ShipmentViewFacts>;
+
+export const ShipmentDecisions = z.object({
   tracking_status: z.string().nullable(),
   timeline: z.array(TrackingStep),
   actions: ShipmentActions,
 });
+export type ShipmentDecisions = z.infer<typeof ShipmentDecisions>;
+
+export const ShipmentView = ShipmentViewFacts.extend(ShipmentDecisions.shape);
 export type ShipmentView = z.infer<typeof ShipmentView>;
 
 export const ParcelWeight = z.object({ units: z.string(), value: z.number() });
